@@ -5,19 +5,16 @@
 export function SectionHeader({ title, subtitle, right }) {
   return (
     <div style={{
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      background: '#ff6600',
-      color: '#000',
-      padding: '2px 6px',
-      fontSize: 10,
-      fontWeight: 700,
-      letterSpacing: 1.2,
-      flexShrink: 0,
+      background: 'linear-gradient(135deg, #1a0800, #2a1000)',
+      borderBottom: '1px solid #e55a00',
+      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+      padding: '3px 6px'
     }}>
-      <span>{title}{subtitle && <span style={{ fontWeight: 400, marginLeft: 8 }}>{subtitle}</span>}</span>
-      {right && <span style={{ fontWeight: 400, fontSize: 9 }}>{right}</span>}
+      <div style={{display:'flex', alignItems:'center', gap:6}}>
+        <span style={{color:'#e55a00', fontFamily:"'IBM Plex Mono', 'Courier New', monospace", fontSize:9, fontWeight:600, letterSpacing:'0.08em', textTransform:'uppercase'}}>{title}</span>
+        {subtitle && <span style={{color:'#666', fontSize:7, letterSpacing:'0.1em'}}>{subtitle}</span>}
+      </div>
+      {right && <span style={{color:'#888', fontSize:7}}>{right}</span>}
     </div>
   );
 }

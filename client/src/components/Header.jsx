@@ -27,9 +27,9 @@ function Clock({ label, tz }) {
 
   return (
     <div style={{ textAlign: 'center', minWidth: 90, borderRight: '1px solid #1a1a1a', padding: '0 10px' }}>
-      <div style={{ color: '#ff6600', fontSize: 9, fontWeight: 700, letterSpacing: 1 }}>{label}</div>
-      <div style={{ color: '#e8e8e8', fontSize: 13, fontWeight: 700, letterSpacing: 1, fontVariantNumeric: 'tabular-nums' }}>{time}</div>
-      <div style={{ color: '#555', fontSize: 9 }}>{date}</div>
+      <div style={{ color: '#555', fontSize: 7, fontWeight: 400, letterSpacing: '0.15em', textTransform: 'uppercase' }}>{label}</div>
+      <div style={{ color: '#ccc', fontSize: 11, fontWeight: 500, letterSpacing: '0.05em', fontVariantNumeric: 'tabular-nums' }}>{time}</div>
+      <div style={{ color: '#555', fontSize: 7 }}>{date}</div>
     </div>
   );
 }
@@ -46,16 +46,16 @@ function TickerTape({ stocks, indexes }) {
 
   const content = [...items, ...items].map((item, i) => (
     <span key={i} style={{ marginRight: 32, whiteSpace: 'nowrap' }}>
-      <span style={{ color: '#ff6600', fontWeight: 700, marginRight: 5 }}>{item.sym}</span>
-      <span style={{ color: '#ddd', marginRight: 4 }}>{fmtPrice(item.price)}</span>
-      <span style={{ color: (item.pct ?? 0) >= 0 ? '#00cc44' : '#cc2200', fontSize: 10 }}>
+      <span style={{ color: '#e8a020', fontWeight: 500, marginRight: 5, fontSize: 9 }}>{item.sym}</span>
+      <span style={{ color: '#ccc', marginRight: 4, fontSize: 9 }}>{fmtPrice(item.price)}</span>
+      <span style={{ color: (item.pct ?? 0) >= 0 ? '#00c853' : '#f44336', fontSize: 9 }}>
         {fmtPct(item.pct)}
       </span>
     </span>
   ));
 
   return (
-    <div style={{ overflow: 'hidden', background: '#050505', borderBottom: '1px solid #1a1a1a', padding: '3px 0' }}>
+    <div style={{ overflow: 'hidden', background: '#0a0a0f', borderBottom: '1px solid #1a1a1a', padding: '3px 0' }}>
       <div style={{ display: 'inline-block', animation: 'ticker 80s linear infinite', whiteSpace: 'nowrap' }}>
         {content}
       </div>
@@ -70,22 +70,22 @@ function TickerTape({ stocks, indexes }) {
 }
 
 export function Header({ connected, stocks, forex, marketStatus }) {
-  const statusColor = connected ? '#00cc44' : '#cc2200';
-  const statusLabel = connected ? 'LIVE' : 'CONNECTING...';
+  const statusColor = connected ? '#00c853' : '#f44336';
+  const statusLabel = connected ? 'LIVE' : 'OFFLINE';
   const mktOpen = marketStatus?.market === 'open';
 
   return (
-    <div style={{ background: '#000', borderBottom: '2px solid #ff6600', flexShrink: 0 }}>
+    <div style={{ background: '#0a0a0f', borderBottom: '1px solid #e55a00', flexShrink: 0, fontFamily: "'IBM Plex Mono', 'Courier New', monospace" }}>
       {/* Top bar */}
       <div style={{ display: 'flex', alignItems: 'stretch', height: 46 }}>
         {/* Branding */}
-        <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '0 14px', borderRight: '2px solid #ff6600', minWidth: 200 }}>
-          <div style={{ color: '#ff6600', fontWeight: 900, fontSize: 13, letterSpacing: 3 }}>SENGER MARKET SCREEN</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 1 }}>
-            <span style={{ color: '#333', fontSize: 9, letterSpacing: 2 }}>REAL-TIME</span>
-            <span style={{ background: statusColor, color: '#000', fontSize: 8, padding: '1px 4px', fontWeight: 700 }}>{statusLabel}</span>
+        <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '0 14px', borderRight: '1px solid #1a1a1a', minWidth: 200 }}>
+          <div style={{ color: '#e55a00', fontWeight: 700, fontSize: 13, letterSpacing: '0.12em', textTransform: 'uppercase' }}>SENGER MARKET SCREEN</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+            <span style={{ color: '#666', fontSize: 7, letterSpacing: '0.2em', textTransform: 'uppercase' }}>REAL-TIME</span>
+            <span style={{ background: statusColor, color: '#fff', fontSize: 7, padding: '2px 5px', fontWeight: 600, borderRadius: 1 }}>{statusLabel}</span>
             {mktOpen !== undefined && (
-              <span style={{ color: mktOpen ? '#00cc44' : '#888', fontSize: 8 }}>
+              <span style={{ color: mktOpen ? '#00c853' : '#888', fontSize: 7, letterSpacing: '0.05em' }}>
                 {mktOpen ? '● MKT OPEN' : '● MKT CLOSED'}
               </span>
             )}
@@ -103,11 +103,11 @@ export function Header({ connected, stocks, forex, marketStatus }) {
             const d = forex[sym];
             return d ? (
               <div key={sym} style={{ textAlign: 'center' }}>
-                <div style={{ color: '#555', fontSize: 8, letterSpacing: 1 }}>{sym.slice(0,3)}/{sym.slice(3)}</div>
-                <div style={{ color: '#e8e8e8', fontSize: 12, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
+                <div style={{ color: '#555', fontSize: 7, letterSpacing: '0.1em', textTransform: 'uppercase' }}>{sym.slice(0,3)}/{sym.slice(3)}</div>
+                <div style={{ color: '#ccc', fontSize: 11, fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>
                   {(d.mid || d.price || 0).toFixed(4)}
                 </div>
-                <div style={{ color: (d.changePct ?? 0) >= 0 ? '#00cc44' : '#cc2200', fontSize: 9 }}>
+                <div style={{ color: (d.changePct ?? 0) >= 0 ? '#00c853' : '#f44336', fontSize: 8 }}>
                   {fmtPct(d.changePct)}
                 </div>
               </div>

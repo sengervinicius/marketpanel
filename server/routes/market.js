@@ -137,4 +137,43 @@ router.get('/status', async (req, res) => {
   }
 });
 
+// ─── Brazilian stocks ──────────────────────────────────────────────────────
+
+router.get('/snapshot/brazil', async (req, res) => {
+  try {
+    const yahooFinance = require('yahoo-finance2').default;
+    const tickers = ['VALE3.SA','PETR4.SA','PETR3.SA','ITUB4.SA','BBDC4.SA','BBAS3.SA','ABEV3.SA','WEGE3.SA','RENT3.SA','RDOR3.SA','B3SA3.SA','EQTL3.SA','CSAN3.SA','PRIO3.SA','BPAC11.SA','HAPV3.SA','CMIG4.SA','VIVT3.SA','BOVA11.SA'];
+    const quotes = await yahooFinance.quote(tickers);
+    const results = (Array.isArray(quotes) ? quotes : [quotes]).map(q => ({
+      symbol: q.symbol.replace('.SA',''),
+      name: (q.shortName || q.longName || q.symbol).substring(0, 18),
+      price: q.regularMarketPrice,
+      change: q.regularMarketChange,
+      changePct: q.regularMarketChangePercent,
+      volume: q.regularMarketVolume,
+      currency: 'BRL'
+    }));
+    res.json({ results });
+  } catch(err) {
+    console.error('[API] /snapshot/brazil error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── Global equity index ETFs ─────────────────────────────────────────────
+
+router.get('/snapshot/global-indices', async (req, res) => {
+  try {
+    const tickers = ['SPY','QQQ','DIA','EWZ','EWW','EWC','EZU','EWU','EWG','EWQ','EWP','EWI','EWL','EWD','EWJ','EWH','EWY','EWA','MCHI','EWT','EWS','INDA'];
+    const url = `https://api.polygon.io/v2/snapshot/locale/us/markets/stocks/tickers?tickers=${tickers.join(',')}&apiKey=${process.env.POLYGON_API_KEY}`;
+    const resp = await fetch(url);
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || `HTTP ${resp.status}`);
+    res.json(data);
+  } catch(err) {
+    console.error('[API] /snapshot/global-indices error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
