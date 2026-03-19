@@ -79,10 +79,10 @@ export function Header({ connected, stocks, forex, marketStatus }) {
       {/* Top bar */}
       <div style={{ display: 'flex', alignItems: 'stretch', height: 46 }}>
         {/* Branding */}
-        <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '0 14px', borderRight: '2px solid #ff6600', minWidth: 160 }}>
-          <div style={{ color: '#ff6600', fontWeight: 900, fontSize: 16, letterSpacing: 4 }}>BLOOMBERG</div>
+        <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '0 14px', borderRight: '2px solid #ff6600', minWidth: 200 }}>
+          <div style={{ color: '#ff6600', fontWeight: 900, fontSize: 13, letterSpacing: 3 }}>SENGER MARKET TERMINAL</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 1 }}>
-            <span style={{ color: '#333', fontSize: 9, letterSpacing: 2 }}>TERMINAL</span>
+            <span style={{ color: '#333', fontSize: 9, letterSpacing: 2 }}>REAL-TIME</span>
             <span style={{ background: statusColor, color: '#000', fontSize: 8, padding: '1px 4px', fontWeight: 700 }}>{statusLabel}</span>
             {mktOpen !== undefined && (
               <span style={{ color: mktOpen ? '#00cc44' : '#888', fontSize: 8 }}>
