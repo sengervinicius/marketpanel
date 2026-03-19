@@ -72,7 +72,7 @@ connectPolygon(marketState, broadcast);
 
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
-  console.log(`\n🟠 Bloomberg Terminal Server`);
+  console.log(`\n🟠 Senger Market Terminal — Server`);
   console.log(`   REST  → http://localhost:${PORT}/api`);
   console.log(`   WS    → ws://localhost:${PORT}/ws`);
   console.log(`   ENV   → ${process.env.NODE_ENV || 'development'}\n`);

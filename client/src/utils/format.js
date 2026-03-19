@@ -1,5 +1,5 @@
 /**
- * Formatting utilities — Bloomberg-style number display
+ * Formatting utilities — market-style number display
  */
 
 export function fmtPrice(n, decimals = 2) {

@@ -1,5 +1,5 @@
 /**
- * NewsPanel — scrolling Bloomberg-style news feed
+ * NewsPanel — scrolling news feed
  * Shows Polygon news, highlights breaking news in red
  */
 

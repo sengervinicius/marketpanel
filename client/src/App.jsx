@@ -1,5 +1,5 @@
 /**
- * App.jsx — Bloomberg Terminal Layout
+ * App.jsx — Senger Market Terminal Layout
  *
  * Grid: 6 panels arranged to replicate the BBG multi-panel look
  *

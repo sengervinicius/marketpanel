@@ -1,5 +1,5 @@
 /**
- * SectionHeader — the orange panel header bar, Bloomberg-style
+ * SectionHeader — the orange panel header bar
  */
 
 export function SectionHeader({ title, subtitle, right }) {

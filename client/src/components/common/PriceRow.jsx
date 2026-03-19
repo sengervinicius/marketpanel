@@ -1,5 +1,5 @@
 /**
- * PriceRow — a single row in any Bloomberg-style data table.
+ * PriceRow — a single row in any market data table.
  * Handles flash animation, color coding, sparkline.
  */
 

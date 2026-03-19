@@ -1,7 +1,7 @@
 {
-  "name": "bloomberg-terminal-server",
+  "name": "senger-market-server",
   "version": "1.0.0",
-  "description": "Bloomberg Terminal backend - Polygon.io WebSocket proxy",
+  "description": "Senger Market Terminal backend - Polygon.io WebSocket proxy",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",

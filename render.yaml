@@ -4,7 +4,7 @@
 services:
   # ── Backend API + WebSocket server ─────────────────────────────────────────
   - type: web
-    name: bloomberg-terminal-server
+    name: senger-market-server
     runtime: node
     region: oregon
     rootDir: server
@@ -21,7 +21,7 @@ services:
 
   # ── Frontend static site ────────────────────────────────────────────────────
   - type: web
-    name: bloomberg-terminal-client
+    name: senger-market-client
     runtime: static
     region: oregon
     rootDir: client
@@ -33,6 +33,6 @@ services:
         destination: /index.html
     envVars:
       - key: VITE_SERVER_URL
-        sync: false          # Set to your backend URL e.g. https://bloomberg-terminal-server.onrender.com
+        sync: false          # Set to your backend URL e.g. https://senger-market-server.onrender.com
       - key: VITE_WS_URL
-        sync: false          # Set to wss://bloomberg-terminal-server.onrender.com/ws
+        sync: false          # Set to wss://senger-market-server.onrender.com/ws

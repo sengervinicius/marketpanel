@@ -1,6 +1,6 @@
-# Bloomberg Terminal — Real-time Market Dashboard
+# Senger Market Terminal — Real-time Market Dashboard
 
-A Bloomberg Terminal-style web app powered by **Polygon.io** real-time WebSocket data.
+A professional real-time market terminal powered by **Polygon.io** WebSocket data.
 
 ## Stack
 - **Backend**: Node.js + Express + `ws` (WebSocket proxy to Polygon.io)
@@ -13,8 +13,8 @@ A Bloomberg Terminal-style web app powered by **Polygon.io** real-time WebSocket
 
 ### 1. Clone and install
 ```bash
-git clone https://github.com/YOUR_USERNAME/bloomberg-terminal.git
-cd bloomberg-terminal
+git clone https://github.com/sengervinicius/marketpanel.git
+cd marketpanel
 npm run install:all
 ```
 
@@ -40,8 +40,8 @@ npm run dev
 ```bash
 git init
 git add .
-git commit -m "Initial Bloomberg Terminal"
-git remote add origin https://github.com/YOUR_USERNAME/bloomberg-terminal.git
+git commit -m "Initial Senger Market Terminal"
+git remote add origin https://github.com/sengervinicius/marketpanel.git
 git push -u origin main
 ```
 

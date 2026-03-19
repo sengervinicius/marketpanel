@@ -1,6 +1,6 @@
 /**
  * Header — top bar with:
- *  - Bloomberg branding
+ *  - Senger Market Terminal branding
  *  - Multi-timezone clocks
  *  - Market status indicator
  *  - Scrolling ticker tape
