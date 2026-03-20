@@ -1,10 +1,10 @@
 /**
  * useMarketData
  * Manages all market data state:
- *  - Loads REST snapshots on mount
- *  - Merges live WebSocket ticks
- *  - Maintains price history for sparklines
- *  - Tracks flash state for price change animations
+ * - Loads REST snapshots on mount
+ * - Merges live WebSocket ticks
+ * - Maintains price history for sparklines
+ * - Tracks flash state for price change animations
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react';
@@ -18,23 +18,31 @@ function mergeSnapshot(polygonResponse, category) {
   const tickers = polygonResponse?.tickers || polygonResponse?.results || [];
   tickers.forEach((t) => {
     const sym = (t.ticker || t.symbol || '').replace('C:', '').replace('X:', '');
-    const day = t.day || {};
+    const day     = t.day     || {};
     const prevDay = t.prevDay || {};
     const lastTrade = t.lastTrade || t.lastQuote || {};
-    const price = lastTrade.p || lastTrade.P || day.c || 0;
+
+    // Polygon fills day.c only AFTER market close.
+    // During market hours use prevDay.c + todaysChange for current price.
     const prevClose = prevDay.c || 0;
-    const change = prevClose ? price - prevClose : 0;
-    const changePct = prevClose ? (change / prevClose) * 100 : 0;
+    const price =
+      lastTrade.p ||
+      lastTrade.P ||
+      (day.c && day.c !== 0 ? day.c : null) ||
+      (prevClose && t.todaysChange != null ? prevClose + t.todaysChange : 0);
+
+    const change    = t.todaysChange    ?? (prevClose ? price - prevClose : 0);
+    const changePct = t.todaysChangePerc ?? (prevClose ? (change / prevClose) * 100 : 0);
 
     out[sym] = {
       symbol: sym,
       price,
       change,
       changePct,
-      open: day.o || 0,
-      high: day.h || 0,
-      low: day.l || 0,
-      volume: day.v || 0,
+      open:     day.o || 0,
+      high:     day.h || 0,
+      low:      day.l || 0,
+      volume:   day.v || 0,
       prevClose,
       bid: t.lastQuote?.P || 0,
       ask: t.lastQuote?.p || 0,
@@ -44,11 +52,11 @@ function mergeSnapshot(polygonResponse, category) {
 }
 
 export function useMarketData() {
-  const [stocks, setStocks]   = useState({});
-  const [forex, setForex]     = useState({});
-  const [crypto, setCrypto]   = useState({});
-  const [news, setNews]       = useState([]);
-  const [connected, setConnected] = useState(false);
+  const [stocks,       setStocks]       = useState({});
+  const [forex,        setForex]        = useState({});
+  const [crypto,       setCrypto]       = useState({});
+  const [news,         setNews]         = useState([]);
+  const [connected,    setConnected]    = useState(false);
   const [marketStatus, setMarketStatus] = useState(null);
 
   // Sparkline history: { [symbol]: [price, price, ...] }
@@ -57,7 +65,7 @@ export function useMarketData() {
   const [flashes, setFlashes] = useState({});
   const flashTimers = useRef({});
 
-  // ── Helper: add to history ────────────────────────────────────────────────
+  // ── Helper: add to history ──────────────────────────────────────────────
   function pushHistory(sym, price) {
     if (!history.current[sym]) history.current[sym] = [];
     history.current[sym] = [...history.current[sym].slice(-(MAX_HISTORY - 1)), price];
@@ -71,7 +79,7 @@ export function useMarketData() {
     }, 600);
   }
 
-  // ── Process WS messages ───────────────────────────────────────────────────
+  // ── Process WS messages ─────────────────────────────────────────────────
   const handleMessage = useCallback((msg) => {
     if (msg.type === 'snapshot') {
       const { data } = msg;
@@ -123,20 +131,23 @@ export function useMarketData() {
 
   useWebSocket(handleMessage);
 
-  // ── Load REST snapshots on mount ──────────────────────────────────────────
+  // ── Load REST snapshots on mount ────────────────────────────────────────
   useEffect(() => {
     async function loadSnapshots() {
       try {
         const [stocksRes, forexRes, cryptoRes, newsRes, statusRes] = await Promise.allSettled([
           fetch(`${SERVER_URL}/api/snapshot/stocks`).then((r) => r.json()),
-          fetch(`${SERVER_URL}/api/snapshot/forex`).then((r)  => r.json()),
+          fetch(`${SERVER_URL}/api/snapshot/forex`).then((r) => r.json()),
           fetch(`${SERVER_URL}/api/snapshot/crypto`).then((r) => r.json()),
-          fetch(`${SERVER_URL}/api/news?limit=30`).then((r)   => r.json()),
-          fetch(`${SERVER_URL}/api/status`).then((r)          => r.json()),
+          fetch(`${SERVER_URL}/api/news?limit=30`).then((r) => r.json()),
+          fetch(`${SERVER_URL}/api/status`).then((r) => r.json()),
         ]);
 
         if (stocksRes.status === 'fulfilled') {
-          setStocks(mergeSnapshot(stocksRes.value, 'stocks'));
+          const merged = mergeSnapshot(stocksRes.value, 'stocks');
+          setStocks(merged);
+          // seed sparkline history
+          Object.entries(merged).forEach(([sym, d]) => { if (d.price) pushHistory(sym, d.price); });
         }
         if (forexRes.status === 'fulfilled') {
           setForex(mergeSnapshot(forexRes.value, 'forex'));
@@ -157,6 +168,9 @@ export function useMarketData() {
 
     loadSnapshots();
 
+    // Refresh snapshots every 60 seconds
+    const dataInterval = setInterval(loadSnapshots, 60_000);
+
     // Refresh news every 2 minutes
     const newsInterval = setInterval(async () => {
       try {
@@ -166,7 +180,10 @@ export function useMarketData() {
       } catch {}
     }, 120_000);
 
-    return () => clearInterval(newsInterval);
+    return () => {
+      clearInterval(dataInterval);
+      clearInterval(newsInterval);
+    };
   }, []);
 
   return { stocks, forex, crypto, news, connected, marketStatus, flashes, history: history.current };
