@@ -1,8 +1,8 @@
 // NewsPanel — scrolling news feed (self-fetching)
-// Fetches from server /api/snapshot/news every 60s
+// Fetches from server /api/news every 60s
 import { useState, useEffect, useRef } from 'react';
 
-const SERVER_URL = import.meta.env.VITE_SERVER_URL || '';
+const API = import.meta.env.VITE_API_URL || '';
 
 function timeAgo(dateStr) {
   const diff = (Date.now() - new Date(dateStr).getTime()) / 1000;
@@ -52,7 +52,7 @@ export function NewsPanel() {
 
   async function load() {
     try {
-      const res = await fetch(SERVER_URL + '/api/snapshot/news');
+            const res = await fetch(API + '/api/news');
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const json = await res.json();
       const items = Array.isArray(json) ? json : (json.results || json.news || []);
