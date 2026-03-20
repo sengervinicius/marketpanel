@@ -1,46 +1,47 @@
-import { SectionHeader } from '../common/SectionHeader';
-import { PriceRow } from '../common/PriceRow';
+// CryptoPanel.jsx — crypto pairs, BBG-style
 import { CRYPTO_PAIRS } from '../../utils/constants';
 
-const COLS = '56px 1fr 80px 96px 52px';
+const fmt = (n) => n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmtPct = (n) => n == null ? '—' : (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
+const COLS = '56px 1fr 80px 64px';
 
-export function CryptoPanel({ crypto, flashes, history }) {
+export function CryptoPanel({ data, loading, onTickerClick }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
-      <SectionHeader title="CRYPTO" right="USD" />
-
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: COLS,
-        color: '#444',
-        fontSize: 9,
-        padding: '1px 0',
-        borderBottom: '1px solid #111',
-        flexShrink: 0,
-      }}>
-        <span style={{ paddingLeft: 6 }}>COIN</span>
-        <span>NAME</span>
-        <span style={{ textAlign: 'right', paddingRight: 4 }}>LAST</span>
-        <span style={{ textAlign: 'right', paddingRight: 4 }}>CHG / %</span>
-        <span style={{ textAlign: 'right', paddingRight: 4 }}>TREND</span>
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#0a0a0a' }}>
+      <div style={{ padding: '4px 8px', borderBottom: '1px solid #2a2a2a', background: '#111', flexShrink: 0 }}>
+        <span style={{ color: '#f48fb1', fontSize: '10px', fontWeight: 700, letterSpacing: '1px' }}>CRYPTO</span>
+        <span style={{ color: '#333', fontSize: '8px', marginLeft: 6 }}>USD</span>
       </div>
-
+      <div style={{ display: 'grid', gridTemplateColumns: COLS, padding: '2px 8px', borderBottom: '1px solid #1a1a1a', flexShrink: 0 }}>
+        {['COIN', 'NAME', 'LAST', 'CHG%'].map(h => (
+          <span key={h} style={{ color: '#444', fontSize: '8px', fontWeight: 700, letterSpacing: '1px' }}>{h}</span>
+        ))}
+      </div>
       <div style={{ flex: 1, overflowY: 'auto' }}>
-        {CRYPTO_PAIRS.map((c) => {
-          const d = crypto[c.symbol] || {};
+        {loading || !data ? (
+          <div style={{ padding: '20px', textAlign: 'center', color: '#444', fontSize: '10px' }}>LOADING...</div>
+        ) : CRYPTO_PAIRS.map(c => {
+          const d = data[c.symbol] || {};
+          const pos = (d.changePct ?? 0) >= 0;
+          const chartSym = 'X:' + c.symbol;
           return (
-            <PriceRow
+            <div
               key={c.symbol}
-              columns={COLS}
-              symbol={c.symbol.replace('USD', '')}
-              name={c.label}
-              symColor="#f48fb1"
-              price={d.price}
-              change={d.change}
-              changePct={d.changePct}
-              history={history[c.symbol]}
-              flashState={flashes[`crypto-${c.symbol}`]}
-            />
+              draggable
+              onDragStart={e => {
+                e.dataTransfer.effectAllowed = 'copy';
+                e.dataTransfer.setData('application/x-ticker', JSON.stringify({ symbol: chartSym, name: c.label, type: 'CRYPTO' }));
+              }}
+              onClick={() => onTickerClick?.(chartSym)}
+              style={{ display: 'grid', gridTemplateColumns: COLS, padding: '3px 8px', borderBottom: '1px solid #141414', cursor: 'pointer', alignItems: 'center' }}
+              onMouseEnter={e => e.currentTarget.style.background = '#141414'}
+              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+            >
+              <span style={{ color: '#f48fb1', fontSize: '10px', fontWeight: 700 }}>{c.symbol.replace('USD', '')}</span>
+              <span style={{ color: '#555', fontSize: '9px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: 4 }}>{c.label}</span>
+              <span style={{ color: '#ccc', fontSize: '10px', textAlign: 'right', paddingRight: 4 }}>{fmt(d.price)}</span>
+              <span style={{ color: pos ? '#4caf50' : '#f44336', fontSize: '10px', textAlign: 'right', fontWeight: 600 }}>{fmtPct(d.changePct)}</span>
+            </div>
           );
         })}
       </div>
