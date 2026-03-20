@@ -1,190 +1,80 @@
-/**
- * useMarketData
- * Manages all market data state:
- * - Loads REST snapshots on mount
- * - Merges live WebSocket ticks
- * - Maintains price history for sparklines
- * - Tracks flash state for price change animations
- */
+// useMarketData.js â fetches all panel snapshots with smooth background refresh
+// Uses stale-while-revalidate pattern: never blanks out existing data on refresh
+import { useState, useEffect, useRef, useCallback } from 'react';
 
-import { useState, useCallback, useRef, useEffect } from 'react';
-import { SERVER_URL } from '../utils/constants';
-import { useWebSocket } from './useWebSocket';
+const API = import.meta.env.VITE_API_URL || '';
 
-const MAX_HISTORY = 40; // sparkline data points
+const ENDPOINTS = {
+  stocks:     '/api/snapshot/stocks',
+  forex:      '/api/snapshot/forex',
+  crypto:     '/api/snapshot/crypto',
+  indices:    '/api/snapshot/global',    // Polygon global indices
+  rates:      '/api/snapshot/rates',     // Yahoo Finance treasury yields
+};
 
-function mergeSnapshot(polygonResponse, category) {
-  const out = {};
-  const tickers = polygonResponse?.tickers || polygonResponse?.results || [];
-  tickers.forEach((t) => {
-    const sym = (t.ticker || t.symbol || '').replace('C:', '').replace('X:', '');
-    const day     = t.day     || {};
-    const prevDay = t.prevDay || {};
-    const lastTrade = t.lastTrade || t.lastQuote || {};
+const REFRESH_MS = 15_000; // 15 seconds â Polygon free tier is 15-min delayed anyway
 
-    // Polygon fills day.c only AFTER market close.
-    // During market hours use prevDay.c + todaysChange for current price.
-    const prevClose = prevDay.c || 0;
-    const price =
-      lastTrade.p ||
-      lastTrade.P ||
-      (day.c && day.c !== 0 ? day.c : null) ||
-      (prevClose && t.todaysChange != null ? prevClose + t.todaysChange : 0);
-
-    const change    = t.todaysChange    ?? (prevClose ? price - prevClose : 0);
-    const changePct = t.todaysChangePerc ?? (prevClose ? (change / prevClose) * 100 : 0);
-
-    out[sym] = {
-      symbol: sym,
-      price,
-      change,
-      changePct,
-      open:     day.o || 0,
-      high:     day.h || 0,
-      low:      day.l || 0,
-      volume:   day.v || 0,
-      prevClose,
-      bid: t.lastQuote?.P || 0,
-      ask: t.lastQuote?.p || 0,
-    };
-  });
-  return out;
+async function fetchEndpoint(path) {
+  const res = await fetch(API + path);
+  if (!res.ok) throw new Error(`${path}: HTTP ${res.status}`);
+  return res.json();
 }
 
 export function useMarketData() {
-  const [stocks,       setStocks]       = useState({});
-  const [forex,        setForex]        = useState({});
-  const [crypto,       setCrypto]       = useState({});
-  const [news,         setNews]         = useState([]);
-  const [connected,    setConnected]    = useState(false);
-  const [marketStatus, setMarketStatus] = useState(null);
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [lastUpdated, setLastUpdated] = useState(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const intervalRef = useRef(null);
+  const isMountedRef = useRef(true);
 
-  // Sparkline history: { [symbol]: [price, price, ...] }
-  const history = useRef({});
-  // Flash cells: { [category-symbol]: 'up' | 'down' }
-  const [flashes, setFlashes] = useState({});
-  const flashTimers = useRef({});
+  const fetchAll = useCallback(async (silent = false) => {
+    if (!isMountedRef.current) return;
+    if (silent) setIsRefreshing(true);
+    else setLoading(true);
 
-  // ── Helper: add to history ──────────────────────────────────────────────
-  function pushHistory(sym, price) {
-    if (!history.current[sym]) history.current[sym] = [];
-    history.current[sym] = [...history.current[sym].slice(-(MAX_HISTORY - 1)), price];
-  }
+    try {
+      const results = await Promise.allSettled(
+        Object.entries(ENDPOINTS).map(async ([key, path]) => {
+          const d = await fetchEndpoint(path);
+          return { key, d };
+        })
+      );
 
-  function flash(key, direction) {
-    if (flashTimers.current[key]) clearTimeout(flashTimers.current[key]);
-    setFlashes((f) => ({ ...f, [key]: direction }));
-    flashTimers.current[key] = setTimeout(() => {
-      setFlashes((f) => { const n = { ...f }; delete n[key]; return n; });
-    }, 600);
-  }
+      if (!isMountedRef.current) return;
 
-  // ── Process WS messages ─────────────────────────────────────────────────
-  const handleMessage = useCallback((msg) => {
-    if (msg.type === 'snapshot') {
-      const { data } = msg;
-      if (data.stocks) setStocks((prev) => ({ ...prev, ...data.stocks }));
-      if (data.forex)  setForex((prev)  => ({ ...prev, ...data.forex  }));
-      if (data.crypto) setCrypto((prev) => ({ ...prev, ...data.crypto }));
-      setConnected(true);
-      return;
-    }
-
-    if (msg.type === 'tick' || msg.type === 'quote') {
-      const { category, symbol, data } = msg;
-      const key = `${category}-${symbol}`;
-
-      if (category === 'stocks') {
-        setStocks((prev) => {
-          const existing = prev[symbol] || {};
-          const price = data.price || existing.price;
-          const prevPrice = existing.price;
-          if (price && prevPrice && price !== prevPrice) {
-            flash(key, price > prevPrice ? 'up' : 'down');
-          }
-          pushHistory(symbol, price);
-          return { ...prev, [symbol]: { ...existing, ...data, price } };
-        });
-      } else if (category === 'forex') {
-        setForex((prev) => {
-          const existing = prev[symbol] || {};
-          const price = data.mid || data.ask || existing.price;
-          if (price && existing.price && price !== existing.price) {
-            flash(key, price > existing.price ? 'up' : 'down');
-          }
-          pushHistory(symbol, price);
-          return { ...prev, [symbol]: { ...existing, ...data, price } };
-        });
-      } else if (category === 'crypto') {
-        setCrypto((prev) => {
-          const existing = prev[symbol] || {};
-          const price = data.price || existing.price;
-          if (price && existing.price && price !== existing.price) {
-            flash(key, price > existing.price ? 'up' : 'down');
-          }
-          pushHistory(symbol, price);
-          return { ...prev, [symbol]: { ...existing, ...data, price } };
-        });
+      const newData = {};
+      for (const r of results) {
+        if (r.status === 'fulfilled') newData[r.value.key] = r.value.d;
       }
+
+      // Merge with previous data â never blank out a panel if its fetch fails
+      setData(prev => ({ ...prev, ...newData }));
+      setLastUpdated(new Date());
+      setError(null);
+    } catch (e) {
+      if (!isMountedRef.current) return;
+      if (!silent) setError(e.message);
+      // On background refresh failure, keep stale data â no visible disruption
+    } finally {
+      if (!isMountedRef.current) return;
+      setLoading(false);
+      setIsRefreshing(false);
     }
   }, []);
 
-  useWebSocket(handleMessage);
-
-  // ── Load REST snapshots on mount ────────────────────────────────────────
   useEffect(() => {
-    async function loadSnapshots() {
-      try {
-        const [stocksRes, forexRes, cryptoRes, newsRes, statusRes] = await Promise.allSettled([
-          fetch(`${SERVER_URL}/api/snapshot/stocks`).then((r) => r.json()),
-          fetch(`${SERVER_URL}/api/snapshot/forex`).then((r) => r.json()),
-          fetch(`${SERVER_URL}/api/snapshot/crypto`).then((r) => r.json()),
-          fetch(`${SERVER_URL}/api/news?limit=30`).then((r) => r.json()),
-          fetch(`${SERVER_URL}/api/status`).then((r) => r.json()),
-        ]);
+    isMountedRef.current = true;
+    fetchAll(false);
 
-        if (stocksRes.status === 'fulfilled') {
-          const merged = mergeSnapshot(stocksRes.value, 'stocks');
-          setStocks(merged);
-          // seed sparkline history
-          Object.entries(merged).forEach(([sym, d]) => { if (d.price) pushHistory(sym, d.price); });
-        }
-        if (forexRes.status === 'fulfilled') {
-          setForex(mergeSnapshot(forexRes.value, 'forex'));
-        }
-        if (cryptoRes.status === 'fulfilled') {
-          setCrypto(mergeSnapshot(cryptoRes.value, 'crypto'));
-        }
-        if (newsRes.status === 'fulfilled') {
-          setNews(newsRes.value?.results || []);
-        }
-        if (statusRes.status === 'fulfilled') {
-          setMarketStatus(statusRes.value);
-        }
-      } catch (e) {
-        console.error('[Data] Snapshot load failed:', e);
-      }
-    }
-
-    loadSnapshots();
-
-    // Refresh snapshots every 60 seconds
-    const dataInterval = setInterval(loadSnapshots, 60_000);
-
-    // Refresh news every 2 minutes
-    const newsInterval = setInterval(async () => {
-      try {
-        const r = await fetch(`${SERVER_URL}/api/news?limit=30`);
-        const data = await r.json();
-        setNews(data?.results || []);
-      } catch {}
-    }, 120_000);
+    intervalRef.current = setInterval(() => fetchAll(true), REFRESH_MS);
 
     return () => {
-      clearInterval(dataInterval);
-      clearInterval(newsInterval);
+      isMountedRef.current = false;
+      clearInterval(intervalRef.current);
     };
-  }, []);
+  }, [fetchAll]);
 
-  return { stocks, forex, crypto, news, connected, marketStatus, flashes, history: history.current };
+  return { data, loading, error, lastUpdated, isRefreshing };
 }
