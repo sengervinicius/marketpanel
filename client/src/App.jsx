@@ -66,13 +66,13 @@ export default function App() {
           <div style={{ borderRight:border, overflow:'hidden' }}><IndexPanel data={data?.indices} loading={loading} onTickerClick={setChartTicker} /></div>
           <div style={{ borderRight:border, overflow:'hidden' }}><BrazilPanel onTickerClick={setChartTicker} /></div>
           <div style={{ borderRight:border, overflow:'hidden' }}><GlobalIndicesPanel onTickerClick={setChartTicker} /></div>
-          <div style={{ overflow:'hidden' }}><CommoditiesPanel data={data?.commodities} loading={loading} onTickerClick={setChartTicker} /></div>
+          <div style={{ overflow:'hidden' }}><CommoditiesPanel data={data?.stocks} loading={loading} onTickerClick={setChartTicker} /></div>
         </div>
         <div style={{ display:'grid', gridTemplateColumns:'180px 1fr 2fr 1fr', overflow:'hidden' }}>
           <div style={{ borderRight:border, overflow:'hidden' }}><RatesPanel /></div>
           <div style={{ borderRight:border, overflow:'hidden' }}><SearchPanel onTickerSelect={setChartTicker} /></div>
           <div style={{ borderRight:border, overflow:'hidden' }}><NewsPanel /></div>
-          <div style={{ overflow:'hidden' }}><SentimentPanel data={data?.sentiment} loading={loading} /></div>
+          <div style={{ overflow:'hidden' }}><SentimentPanel data={data} loading={loading} /></div>
         </div>
       </div>
     );
@@ -98,7 +98,7 @@ export default function App() {
         </div>}
         {activeTab==='fxcrypto' && <div>
           <ForexPanel data={data?.forex} loading={loading} onTickerClick={setChartTicker} />
-          <div style={{ borderTop:'1px solid #1e1e1e' }}><CommoditiesPanel data={data?.commodities} loading={loading} onTickerClick={setChartTicker} /></div>
+          <div style={{ borderTop:'1px solid #1e1e1e' }}><CommoditiesPanel data={data?.stocks} loading={loading} onTickerClick={setChartTicker} /></div>
         </div>}
         {activeTab==='rates' && <RatesPanel />}
         {activeTab==='search' && <SearchPanel onTickerSelect={(sym)=>{setChartTicker(sym);setActiveTabPersist('markets');}} />}
