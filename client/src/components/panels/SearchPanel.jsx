@@ -61,8 +61,8 @@ export function SearchPanel({ onTickerSelect }) {
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#0a0a0a', fontFamily: 'inherit' }}>
       {/* Header */}
-      <div style={{ padding: '4px 8px', borderBottom: '1px solid #1e1e1e', flexShrink: 0 }}>
-        <span style={{ color: '#e8a020', fontWeight: 700, fontSize: 9, letterSpacing: '0.2em' }}>SEARCH</span>
+      <div style={{ padding: '12px 10px', borderBottom: '1px solid #1e1e1e', flexShrink: 0 }}>
+        <span style={{ color: '#e8a020', fontWeight: 700, fontSize: 12, letterSpacing: '0.2em' }}>SEARCH</span>
         <span style={{ color: '#333', fontSize: 7, marginLeft: 8 }}>DRAG RESULTS TO CHART</span>
       </div>
 
@@ -77,8 +77,8 @@ export function SearchPanel({ onTickerSelect }) {
             background: '#0f0f0f',
             border: '1px solid #2a2a2a',
             color: '#ccc',
-            fontSize: 9,
-            padding: '4px 6px',
+            fontSize: 12,
+            padding: '10px 8px', fontSize: 16,
             fontFamily: 'inherit',
             outline: 'none',
             boxSizing: 'border-box',
@@ -95,7 +95,7 @@ export function SearchPanel({ onTickerSelect }) {
 
       {/* Results */}
       {results.length > 0 && (
-        <div style={{ borderBottom: '1px solid #1e1e1e', flexShrink: 0, maxHeight: '200px', overflowY: 'auto' }}>
+        <div style={{ borderBottom: '1px solid #1e1e1e', flexShrink: 0, maxHeight: '55vh', overflowY: 'auto' }}>
           {results.map(item => (
             <div
               key={item.symbol}
@@ -103,7 +103,7 @@ export function SearchPanel({ onTickerSelect }) {
               onDragStart={(e) => handleDragStart(e, item)}
               onClick={() => handleSelect(item)}
               style={{
-                padding: '4px 8px',
+                padding: '12px 10px',
                 borderBottom: '1px solid #161616',
                 cursor: 'grab',
                 display: 'flex',
@@ -116,17 +116,17 @@ export function SearchPanel({ onTickerSelect }) {
               onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
             >
               {/* Drag indicator */}
-              <span style={{ color: '#2a2a2a', fontSize: 10, flexShrink: 0 }}>|:|</span>
+              <span style={{ color: '#2a2a2a', fontSize: 13, flexShrink: 0 }}>|:|</span>
               <span style={{
                 color: TYPE_COLOR[item.type] || '#aaa',
-                fontSize: 10,
+                fontSize: 13,
                 fontWeight: 700,
                 minWidth: '60px',
                 flexShrink: 0,
               }}>
                 {item.symbol}
               </span>
-              <span style={{ color: '#777', fontSize: 9, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+              <span style={{ color: '#777', fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
                 {item.name}
               </span>
               <span style={{
@@ -163,14 +163,14 @@ export function SearchPanel({ onTickerSelect }) {
                 <div style={{ color: '#ccc', fontSize: 18, fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>
                   {fmtNum(d.c ?? t.min?.c)}
                 </div>
-                <div style={{ color: up ? '#00c853' : '#f44336', fontSize: 10, marginTop: 2 }}>
+                <div style={{ color: up ? '#00c853' : '#f44336', fontSize: 13, marginTop: 2 }}>
                   {(up ? '+' : '')}{fmtNum(t.todaysChange)} ({fmtPct(pct)})
                 </div>
                 <div style={{ marginTop: 8, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
                   {[['OPEN', d.o], ['HIGH', d.h], ['LOW', d.l], ['VOL', d.v ? (d.v / 1e6).toFixed(1) + 'M' : '—']].map(([lbl, val]) => (
                     <div key={lbl}>
                       <div style={{ color: '#555', fontSize: 7 }}>{lbl}</div>
-                      <div style={{ color: '#999', fontSize: 9, fontVariantNumeric: 'tabular-nums' }}>
+                      <div style={{ color: '#999', fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>
                         {typeof val === 'number' ? fmtNum(val) : (val || '—')}
                       </div>
                     </div>
