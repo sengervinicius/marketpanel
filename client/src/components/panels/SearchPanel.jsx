@@ -1,209 +1,228 @@
-/**
- * SearchPanel — ticker search with live Polygon results.
- * Results can be dragged into ChartPanel or clicked to show snapshot data.
- */
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { fmtPrice, fmtPct } from '../../utils/format';
+import { useState, useRef, useCallback } from 'react';
 
-const SERVER_URL = import.meta.env.VITE_SERVER_URL || '';
+const API = import.meta.env.VITE_API_URL || '';
 
-function debounce(fn, ms) {
-  let t;
-  return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
-}
+const TYPE_COLOR = {
+  EQUITY: '#4fc3f7',
+  ETF: '#81c784',
+  INDEX: '#ffb74d',
+  CURRENCY: '#ce93d8',
+  MUTUALFUND: '#80cbc4',
+};
 
-export function SearchPanel() {
-  const [query,    setQuery]    = useState('');
-  const [results,  setResults]  = useState([]);
-  const [snapshot, setSnapshot] = useState(null);
-  const [loading,  setLoading]  = useState(false);
-  const [snapLoading, setSnapLoading] = useState(false);
-  const inputRef = useRef(null);
+export function SearchPanel({ onTickerSelect }) {
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [quote, setQuote] = useState(null);
+  const [quoteLoading, setQuoteLoading] = useState(false);
+  const debounceRef = useRef(null);
 
-  const search = useCallback(debounce(async (q) => {
-    if (!q || q.trim().length < 1) { setResults([]); return; }
-    try {
-      setLoading(true);
-      const res  = await fetch(SERVER_URL + '/api/search?q=' + encodeURIComponent(q.trim()) + '&limit=10');
-      const json = await res.json();
-      setResults(json.results || []);
-    } catch (e) {
-      console.warn('Search error:', e.message);
-    } finally {
-      setLoading(false);
-    }
-  }, 350), []);
+  const search = useCallback((q) => {
+    if (!q.trim()) { setResults([]); return; }
+    setLoading(true);
+    fetch(`${API}/api/search?q=${encodeURIComponent(q)}`)
+      .then(r => r.json())
+      .then(d => { setResults(d.results || []); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, []);
 
-  useEffect(() => { search(query); }, [query, search]);
+  const handleInput = (e) => {
+    const q = e.target.value;
+    setQuery(q);
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => search(q), 280);
+  };
 
-  async function loadSnapshot(ticker) {
-    try {
-      setSnapLoading(true);
-      setSnapshot(null);
-      const res  = await fetch(SERVER_URL + '/api/snapshot/ticker/' + ticker);
-      const json = await res.json();
-      const t = json.ticker;
-      if (t) {
-        const prevClose = t.prevDay?.c || 0;
-        const price =
-          t.lastTrade?.p ||
-          (t.day?.c && t.day.c !== 0 ? t.day.c : null) ||
-          (prevClose && t.todaysChange != null ? prevClose + t.todaysChange : 0);
-        setSnapshot({
-          ticker: t.ticker,
-          price,
-          change: t.todaysChange ?? 0,
-          changePct: t.todaysChangePerc ?? 0,
-          open:   t.day?.o || 0,
-          high:   t.day?.h || 0,
-          low:    t.day?.l || 0,
-          vol:    t.day?.v || 0,
-          prevClose,
-        });
-      }
-    } catch (e) {
-      console.warn('Snapshot error:', e.message);
-    } finally {
-      setSnapLoading(false);
-    }
-  }
+  const handleSelect = (item) => {
+    setQuery(item.symbol);
+    setResults([]);
+    if (onTickerSelect) onTickerSelect(item.symbol);
+    // Fetch a quick snapshot
+    setQuoteLoading(true);
+    fetch(`${API}/api/snapshot/ticker/${encodeURIComponent(item.symbol)}`)
+      .then(r => r.json())
+      .then(d => { setQuote(d); setQuoteLoading(false); })
+      .catch(() => setQuoteLoading(false));
+  };
 
-  function handleDragStart(e, ticker, name) {
-    e.dataTransfer.setData('application/json', JSON.stringify({ symbol: ticker, label: name || ticker }));
+  // Drag handlers â pack ticker data into dataTransfer
+  const handleDragStart = (e, item) => {
     e.dataTransfer.effectAllowed = 'copy';
-  }
+    e.dataTransfer.setData('application/x-ticker', JSON.stringify({
+      symbol: item.symbol,
+      name: item.name,
+      type: item.type,
+    }));
+    // Ghost image text
+    const ghost = document.createElement('div');
+    ghost.style.cssText = 'position:fixed;top:-999px;background:#1a1a1a;color:#ff6600;padding:4px 10px;font-size:12px;font-family:monospace;border:1px solid #ff6600;border-radius:2px;';
+    ghost.textContent = item.symbol;
+    document.body.appendChild(ghost);
+    e.dataTransfer.setDragImage(ghost, 0, 0);
+    setTimeout(() => ghost.remove(), 0);
+  };
 
-  function fmtVol(v) {
-    if (!v) return '-';
-    if (v >= 1e9) return (v / 1e9).toFixed(1) + 'B';
-    if (v >= 1e6) return (v / 1e6).toFixed(1) + 'M';
-    if (v >= 1e3) return (v / 1e3).toFixed(0) + 'K';
-    return String(v);
-  }
-
-  const up = (snapshot?.changePct ?? 0) >= 0;
-  const color = up ? '#00cc44' : '#cc2200';
+  const fmt = (n) => n == null ? 'â' : typeof n === 'number' ? n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : n;
+  const fmtPct = (n) => n == null ? 'â' : (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
+  const isPos = (n) => n != null && n >= 0;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', background: '#050505' }}>
-      {/* Header */}
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#0a0a0a' }}>
+      {/* Panel header */}
       <div style={{
-        display: 'flex', alignItems: 'center', borderBottom: '1px solid #1a1a1a',
-        padding: '0 6px', height: 22, flexShrink: 0, background: '#070707',
+        padding: '4px 8px',
+        borderBottom: '1px solid #2a2a2a',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        background: '#111',
+        flexShrink: 0,
       }}>
-        <span style={{ color: '#e55a00', fontSize: 9, fontWeight: 700, letterSpacing: '0.12em', fontFamily: "'IBM Plex Mono', monospace" }}>
-          SEARCH
-        </span>
-        <span style={{ color: '#2a2a2a', fontSize: 8, marginLeft: 8, fontFamily: "'IBM Plex Mono', monospace" }}>
-          STOCKS, ETFs, CRYPTO
-        </span>
+        <span style={{ color: '#ff6600', fontSize: '10px', fontWeight: 700, letterSpacing: '1px' }}>SEARCH</span>
+        <span style={{ color: '#444', fontSize: '9px' }}>drag results to chart</span>
       </div>
 
       {/* Search input */}
-      <div style={{ padding: '4px 6px', borderBottom: '1px solid #111', flexShrink: 0 }}>
+      <div style={{ padding: '6px 8px', borderBottom: '1px solid #1e1e1e', flexShrink: 0, position: 'relative' }}>
         <input
-          ref={inputRef}
           value={query}
-          onChange={e => setQuery(e.target.value.toUpperCase())}
-          placeholder="TYPE TICKER OR NAME..."
+          onChange={handleInput}
+          placeholder="ticker or company name..."
           style={{
-            width: '100%', background: '#0a0a0a', border: '1px solid #222',
-            color: '#e8e8e8', fontSize: 10, padding: '3px 6px', outline: 'none',
-            fontFamily: "'IBM Plex Mono', monospace", letterSpacing: '0.04em', boxSizing: 'border-box',
+            width: '100%',
+            background: '#111',
+            border: '1px solid #333',
+            color: '#e0e0e0',
+            padding: '5px 8px',
+            fontSize: '11px',
+            fontFamily: 'inherit',
+            outline: 'none',
+            boxSizing: 'border-box',
           }}
+          onFocus={e => e.target.style.borderColor = '#ff6600'}
+          onBlur={e => e.target.style.borderColor = '#333'}
         />
+        {loading && (
+          <span style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', color: '#555', fontSize: '9px' }}>
+            SEARCHING...
+          </span>
+        )}
       </div>
 
-      {/* Body: results + snapshot */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        {/* Snapshot strip (when a ticker is selected) */}
-        {snapshot && (
-          <div style={{ padding: '4px 6px', borderBottom: '1px solid #111', flexShrink: 0, background: '#080808' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 2 }}>
-              <span style={{ color: '#ff6600', fontWeight: 700, fontSize: 11, fontFamily: "'IBM Plex Mono', monospace" }}>
-                {snapshot.ticker}
-              </span>
-              <span style={{ color: color, fontSize: 10, fontWeight: 600 }}>{fmtPct(snapshot.changePct)}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
-              <span style={{ color: '#e8e8e8', fontSize: 14, fontWeight: 700, fontFamily: "'IBM Plex Mono', monospace" }}>
-                {fmtPrice(snapshot.price)}
-              </span>
-              <span style={{ color: color, fontSize: 9 }}>{snapshot.change >= 0 ? '+' : ''}{fmtPrice(snapshot.change)}</span>
-            </div>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              {[
-                ['O', fmtPrice(snapshot.open)],
-                ['H', fmtPrice(snapshot.high)],
-                ['L', fmtPrice(snapshot.low)],
-                ['V', fmtVol(snapshot.vol)],
-                ['PC', fmtPrice(snapshot.prevClose)],
-              ].map(([lbl, val]) => (
-                <span key={lbl} style={{ fontSize: 8 }}>
-                  <span style={{ color: '#333' }}>{lbl} </span>
-                  <span style={{ color: '#888' }}>{val}</span>
-                </span>
-              ))}
-            </div>
-            <div style={{ marginTop: 3 }}>
-              <span style={{ color: '#2a2a2a', fontSize: 7.5, fontFamily: "'IBM Plex Mono', monospace" }}>
-                DRAG TO CHARTS PANEL TO ADD CHART
-              </span>
-            </div>
-          </div>
-        )}
-        {snapLoading && (
-          <div style={{ padding: '6px', color: '#333', fontSize: 8, fontFamily: "'IBM Plex Mono', monospace", borderBottom: '1px solid #111' }}>
-            LOADING SNAPSHOT...
-          </div>
-        )}
-
-        {/* Search results list */}
-        <div style={{ flex: 1, overflowY: 'auto' }}>
-          {loading && query && (
-            <div style={{ padding: '6px 8px', color: '#333', fontSize: 8, fontFamily: "'IBM Plex Mono', monospace" }}>SEARCHING...</div>
-          )}
-          {!loading && query && results.length === 0 && (
-            <div style={{ padding: '6px 8px', color: '#2a2a2a', fontSize: 8, fontFamily: "'IBM Plex Mono', monospace" }}>NO RESULTS</div>
-          )}
-          {results.map((r, i) => (
+      {/* Results list */}
+      {results.length > 0 && (
+        <div style={{ borderBottom: '1px solid #1e1e1e', flexShrink: 0, maxHeight: '200px', overflowY: 'auto' }}>
+          {results.map(item => (
             <div
-              key={r.ticker + i}
+              key={item.symbol}
               draggable
-              onDragStart={e => handleDragStart(e, r.ticker, r.name)}
-              onClick={() => loadSnapshot(r.ticker)}
+              onDragStart={(e) => handleDragStart(e, item)}
+              onClick={() => handleSelect(item)}
               style={{
-                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                padding: '4px 8px', borderBottom: '1px solid #0d0d0d', cursor: 'pointer',
-                background: snapshot?.ticker === r.ticker ? '#0e0e0e' : 'transparent',
+                padding: '5px 8px',
+                borderBottom: '1px solid #161616',
+                cursor: 'grab',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                userSelect: 'none',
                 transition: 'background 0.1s',
               }}
-              onMouseEnter={e => e.currentTarget.style.background = '#0d0d0d'}
-              onMouseLeave={e => e.currentTarget.style.background = snapshot?.ticker === r.ticker ? '#0e0e0e' : 'transparent'}
+              onMouseEnter={e => e.currentTarget.style.background = '#1a1a1a'}
+              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
             >
-              <div>
-                <span style={{ color: '#ff6600', fontSize: 10, fontWeight: 700, fontFamily: "'IBM Plex Mono', monospace", marginRight: 8 }}>
-                  {r.ticker}
-                </span>
-                <span style={{ color: '#444', fontSize: 8, fontFamily: "'IBM Plex Mono', monospace" }}>
-                  {(r.name || '').substring(0, 24)}
-                </span>
-              </div>
-              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                <span style={{ color: '#2a2a2a', fontSize: 7, fontFamily: "'IBM Plex Mono', monospace" }}>
-                  {r.market || r.type || ''}
-                </span>
-                <span style={{ color: '#1a1a1a', fontSize: 8 }}>⠿</span>
-              </div>
+              {/* Drag handle */}
+              <span style={{ color: '#333', fontSize: '10px', flexShrink: 0 }}>â ¿</span>
+              <span style={{
+                color: TYPE_COLOR[item.type] || '#aaa',
+                fontSize: '11px',
+                fontWeight: 700,
+                minWidth: '64px',
+                flexShrink: 0,
+              }}>
+                {item.symbol}
+              </span>
+              <span style={{ color: '#777', fontSize: '10px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+                {item.name}
+              </span>
+              <span style={{
+                color: '#444',
+                fontSize: '9px',
+                flexShrink: 0,
+                border: '1px solid #2a2a2a',
+                padding: '1px 4px',
+              }}>
+                {item.type}
+              </span>
             </div>
           ))}
-          {!query && (
-            <div style={{ padding: '12px 8px', color: '#1a1a1a', fontSize: 9, fontFamily: "'IBM Plex Mono', monospace", textAlign: 'center', marginTop: 8 }}>
-              SEARCH FOR ANY TICKER<br />
-              <span style={{ fontSize: 7, color: '#141414' }}>DRAG RESULTS INTO CHARTS PANEL</span>
-            </div>
-          )}
         </div>
+      )}
+
+      {/* Quote detail */}
+      <div style={{ flex: 1, padding: '8px', overflow: 'auto' }}>
+        {quoteLoading && <div style={{ color: '#444', fontSize: '10px', textAlign: 'center', paddingTop: 20 }}>LOADING...</div>}
+        {quote && !quoteLoading && (
+          <div>
+            <div style={{ marginBottom: 8 }}>
+              <div style={{ color: '#ff6600', fontSize: '13px', fontWeight: 700 }}>{quote.symbol}</div>
+              <div style={{ color: '#888', fontSize: '10px' }}>{quote.name}</div>
+            </div>
+
+            <div style={{ fontSize: '22px', fontWeight: 700, color: '#e0e0e0', lineHeight: 1.2 }}>
+              {fmt(quote.price)}
+            </div>
+            <div style={{
+              fontSize: '12px',
+              color: isPos(quote.changePct) ? '#4caf50' : '#f44336',
+              marginBottom: 12,
+            }}>
+              {isPos(quote.change) ? '+' : ''}{fmt(quote.change)} ({fmtPct(quote.changePct)})
+            </div>
+
+            {/* OHLV table */}
+            {[
+              ['OPEN',   quote.open],
+              ['HIGH',   quote.high],
+              ['LOW',    quote.low],
+              ['VOLUME', quote.volume ? (quote.volume / 1e6).toFixed(1) + 'M' : null],
+              ['MCAP',   quote.marketCap ? (quote.marketCap / 1e9).toFixed(1) + 'B' : null],
+              ['CCY',    quote.currency],
+            ].map(([label, val]) => val != null && (
+              <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0', borderBottom: '1px solid #161616' }}>
+                <span style={{ color: '#555', fontSize: '9px', letterSpacing: '1px' }}>{label}</span>
+                <span style={{ color: '#ccc', fontSize: '10px', fontWeight: 600 }}>{typeof val === 'number' ? fmt(val) : val}</span>
+              </div>
+            ))}
+
+            <button
+              onClick={() => onTickerSelect && onTickerSelect(quote.symbol)}
+              style={{
+                marginTop: 12,
+                width: '100%',
+                padding: '6px',
+                background: '#ff6600',
+                color: '#000',
+                border: 'none',
+                fontSize: '10px',
+                fontWeight: 700,
+                letterSpacing: '1px',
+                cursor: 'pointer',
+                fontFamily: 'inherit',
+              }}
+            >
+              OPEN IN CHART â
+            </button>
+          </div>
+        )}
+        {!quote && !quoteLoading && results.length === 0 && (
+          <div style={{ color: '#333', fontSize: '10px', textAlign: 'center', paddingTop: 30, lineHeight: 2 }}>
+            TYPE TO SEARCH<br />
+            <span style={{ color: '#ff6600', fontSize: '18px' }}>â ¿</span><br />
+            <span style={{ color: '#444' }}>DRAG RESULTS TO CHART</span>
+          </div>
+        )}
       </div>
     </div>
   );
