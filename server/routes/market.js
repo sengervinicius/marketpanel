@@ -20,7 +20,7 @@ async function polyFetch(path) {
   return res.json();
 }
 
-// ─── Snapshots ───────────────────────────────────────────────────────────────
+// ─── Snapshots ─────────────────────────────────────────────────────────────── 
 
 // US stock snapshots (ETFs + individual stocks)
 router.get('/snapshot/stocks', async (req, res) => {
