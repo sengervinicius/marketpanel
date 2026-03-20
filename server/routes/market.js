@@ -140,13 +140,14 @@ router.get('/status', async (req, res) => {
 // ─── Brazilian stocks (via Yahoo Finance) ────────────────────────────────────
 router.get('/snapshot/brazil', async (req, res) => {
   try {
+    const yahooFinance = await getYahooFinance();
     const tickers = [
       'VALE3.SA','PETR4.SA','PETR3.SA','ITUB4.SA','BBDC4.SA','BBAS3.SA',
       'ABEV3.SA','WEGE3.SA','RENT3.SA','RDOR3.SA','B3SA3.SA','EQTL3.SA',
       'CSAN3.SA','PRIO3.SA','BPAC11.SA','HAPV3.SA','CMIG4.SA','VIVT3.SA','BOVA11.SA'
     ];
     const quotes = await Promise.all(
-      tickers.map(t => (await getYahooFinance()).quote(t).catch(() => null))
+      tickers.map(t => yahooFinance.quote(t).catch(() => null))
     );
     const results = quotes
       .filter(q => q && q.regularMarketPrice != null)
@@ -215,10 +216,11 @@ router.get('/snapshot/ticker/:symbol', async (req, res) => {
 // ─── Interest rates (US Treasuries via Yahoo Finance) ────────────────────────
 router.get('/snapshot/rates', async (req, res) => {
   try {
+    const yahooFinance = await getYahooFinance();
     const tickers = ['^IRX','^FVX','^TNX','^TYX'];
     const labelMap = { '^IRX': 'US  3M', '^FVX': 'US  5Y', '^TNX': 'US 10Y', '^TYX': 'US 30Y' };
     const quotes = await Promise.all(
-      tickers.map(t => (await getYahooFinance()).quote(t).catch(() => null))
+      tickers.map(t => yahooFinance.quote(t).catch(() => null))
     );
     const results = quotes
       .filter(q => q && q.regularMarketPrice != null)
