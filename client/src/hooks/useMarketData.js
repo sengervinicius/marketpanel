@@ -8,10 +8,10 @@ const ENDPOINTS = {
   stocks:  '/api/snapshot/stocks',
   forex:   '/api/snapshot/forex',
   crypto:  '/api/snapshot/crypto',
-  rates:   '/api/snapshot/rates',   // Yahoo Finance treasury yields
+  rates:   '/api/snapshot/rates',  // Yahoo Finance treasury yields
 };
 
-const REFRESH_MS = 15_000; // 15 seconds — Polygon free tier is 15-min delayed anyway
+const REFRESH_MS = 6_000; // 6 seconds — keeps prices feeling live
 
 // Normalize Polygon snapshot response to { [symbol]: { price, changePct, change, mid } }
 function normalizePolygon(data, stripPrefix) {
@@ -20,7 +20,7 @@ function normalizePolygon(data, stripPrefix) {
   for (const t of data.tickers) {
     const key = stripPrefix ? t.ticker.replace(stripPrefix, '') : t.ticker;
     result[key] = {
-      symbol: key,
+      symbol:    key,
       price:     t.day?.c ?? t.min?.c ?? t.prevDay?.c ?? null,
       changePct: t.todaysChangePerc ?? null,
       change:    t.todaysChange ?? null,
@@ -37,13 +37,15 @@ async function fetchEndpoint(path) {
 }
 
 export function useMarketData() {
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [data, setData]               = useState(null);
+  const [loading, setLoading]         = useState(true);
+  const [error, setError]             = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const intervalRef = useRef(null);
-  const isMountedRef = useRef(true);
+  const [flashMap, setFlashMap]       = useState({});
+  const intervalRef    = useRef(null);
+  const isMountedRef   = useRef(true);
+  const prevPricesRef  = useRef({});
 
   const fetchAll = useCallback(async (silent = false) => {
     if (!isMountedRef.current) return;
@@ -73,9 +75,28 @@ export function useMarketData() {
       // IndexPanel uses ETF proxies which live in the stocks snapshot
       newData.indices = newData.stocks || {};
 
+      // Compute flash directions by comparing with previous prices
+      const newFlash = {};
+      ['stocks', 'forex', 'crypto'].forEach(key => {
+        const prev = prevPricesRef.current[key] || {};
+        const curr = newData[key] || {};
+        Object.entries(curr).forEach(([sym, info]) => {
+          if (prev[sym] && info.price != null && prev[sym].price != null
+              && prev[sym].price !== info.price) {
+            newFlash[sym] = info.price > prev[sym].price ? 'up' : 'down';
+          }
+        });
+        prevPricesRef.current[key] = { ...curr };
+      });
+
       setData(prev => ({ ...prev, ...newData }));
       setLastUpdated(new Date());
       setError(null);
+
+      if (Object.keys(newFlash).length > 0) {
+        setFlashMap(newFlash);
+        setTimeout(() => { if (isMountedRef.current) setFlashMap({}); }, 900);
+      }
     } catch (err) {
       if (isMountedRef.current) setError(err.message);
     } finally {
@@ -96,5 +117,5 @@ export function useMarketData() {
     };
   }, [fetchAll]);
 
-  return { data, loading, error, lastUpdated, isRefreshing, refresh: () => fetchAll(true) };
+  return { data, loading, error, lastUpdated, isRefreshing, refresh: () => fetchAll(true), flashMap };
 }
