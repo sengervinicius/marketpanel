@@ -13,7 +13,7 @@ const STYLES = {
     borderBottom: '1px solid #0f0f0f',
     padding: '1px 0',
     transition: 'background 0.5s ease',
-    cursor: 'default',
+    cursor: 'grab',
   },
   sym: {
     fontWeight: 700,
@@ -77,8 +77,17 @@ export function PriceRow({ columns, symbol, name, symColor, price, change, chang
     ? columns || '65px 1fr 70px 90px 50px'
     : columns || '65px 1fr 70px 90px';
 
+  const handleDragStart = (e) => {
+    e.dataTransfer.setData('application/json', JSON.stringify({ symbol, label: name || symbol }));
+    e.dataTransfer.effectAllowed = 'copy';
+  };
+
   return (
-    <div style={{ ...STYLES.row, gridTemplateColumns: gridColumns, background: flashBg }}>
+    <div
+      draggable
+      onDragStart={handleDragStart}
+      style={{ ...STYLES.row, gridTemplateColumns: gridColumns, background: flashBg }}
+    >
       <span style={{ ...STYLES.sym, color: symColor || '#ff6600' }}>{symbol}</span>
       <span style={STYLES.name}>{name}</span>
       <span style={{ ...STYLES.price, color: '#e8e8e8' }}>
