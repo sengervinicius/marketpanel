@@ -1,260 +1,330 @@
-/**
- * ChartPanel — drag-and-drop multi-chart area with BBG-style timeframe toggles.
- * Drop any ticker from any panel. Max 16 charts (FIFO queue).
- */
-import { useState, useEffect } from 'react';
+// ChartPanel.jsx â BBG-style chart with timeframe toggles, OHLV stats,
+// FX ticker normalization, drop zone support, localStorage persistence, live refresh
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
-import { fmtPrice, fmtPct } from '../../utils/format';
 
-const SERVER_URL = import.meta.env.VITE_SERVER_URL || '';
-const MAX_CHARTS = 16;
+const API = import.meta.env.VITE_API_URL || '';
 
-const TIMEFRAMES = [
-  { label: '1D',  multiplier: 5,  timespan: 'minute', days: 1,    xFmt: 'time'  },
-  { label: '3D',  multiplier: 15, timespan: 'minute', days: 3,    xFmt: 'time'  },
-  { label: '1M',  multiplier: 1,  timespan: 'day',    days: 30,   xFmt: 'date'  },
-  { label: '6M',  multiplier: 1,  timespan: 'day',    days: 182,  xFmt: 'date'  },
-  { label: 'YTD', multiplier: 1,  timespan: 'day',    days: null, xFmt: 'date'  },
-  { label: '1Y',  multiplier: 1,  timespan: 'week',   days: 365,  xFmt: 'date'  },
-  { label: '5Y',  multiplier: 1,  timespan: 'month',  days: 1825, xFmt: 'month' },
-  { label: 'MAX', multiplier: 1,  timespan: 'month',  days: 3650, xFmt: 'year'  },
-];
+const RANGES = ['1D', '1W', '1M', '3M', '6M', '1Y', '5Y'];
+const LIVE_RANGES = new Set(['1D', '1W']); // refresh these more often
 
-function getDateRange(tf) {
-  const now = new Date();
-  const to = now.toISOString().split('T')[0];
-  let from;
-  if (tf.label === 'YTD') {
-    from = now.getFullYear() + '-01-01';
-  } else {
-    const d = new Date(now);
-    d.setDate(d.getDate() - tf.days);
-    from = d.toISOString().split('T')[0];
-  }
-  return { from, to };
+// ââ Ticker format normalization âââââââââââââââââââââââââââââââ
+// Yahoo Finance uses EURUSD=X; Polygon uses C:EURUSD
+// Yahoo Finance uses BTC-USD; Polygon uses X:BTCUSD
+function normalizeTicker(raw) {
+  if (!raw) return 'SPY';
+  const t = raw.trim().toUpperCase();
+  // Yahoo FX pair: EURUSD=X â C:EURUSD
+  if (t.endsWith('=X')) return 'C:' + t.slice(0, -2);
+  // Yahoo crypto: BTC-USD â X:BTCUSD
+  if (t.endsWith('-USD') && !t.startsWith('C:')) return 'X:' + t.replace('-USD', 'USD');
+  // Already normalized
+  return t;
 }
 
-function fmtVol(v) {
-  if (!v) return '-';
-  if (v >= 1e9) return (v / 1e9).toFixed(1) + 'B';
-  if (v >= 1e6) return (v / 1e6).toFixed(1) + 'M';
-  if (v >= 1e3) return (v / 1e3).toFixed(0) + 'K';
-  return String(v);
+function displayTicker(normalized) {
+  // Convert back for display: C:EURUSD â EUR/USD, X:BTCUSD â BTC/USD
+  if (normalized.startsWith('C:')) return normalized.slice(2, 5) + '/' + normalized.slice(5);
+  if (normalized.startsWith('X:')) return normalized.slice(2, 5) + '/' + normalized.slice(5);
+  return normalized;
 }
 
-function MiniChart({ symbol, label, currentPrice, changePct, onRemove, timeframe }) {
-  const [data, setData]     = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [stats, setStats]   = useState({ open: 0, high: 0, low: Infinity, vol: 0 });
-  const up    = (changePct ?? 0) >= 0;
-  const color = up ? '#00cc44' : '#cc2200';
+const fmtDate = (ts, range) => {
+  const d = new Date(ts);
+  if (range === '1D') return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  if (range === '5Y') return d.getFullYear().toString();
+  return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+};
 
+const fmt2 = (n) => n == null ? 'â' : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmtVol = (n) => {
+  if (!n) return 'â';
+  if (n >= 1e9) return (n / 1e9).toFixed(1) + 'B';
+  if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
+  if (n >= 1e3) return (n / 1e3).toFixed(1) + 'K';
+  return n.toString();
+};
+
+const LS_TICKER = 'chartTicker';
+const LS_RANGE  = 'chartRange';
+
+export function ChartPanel({ ticker: externalTicker, onTickerChange }) {
+  // Read persisted values from localStorage
+  const [ticker, setTickerState] = useState(() => {
+    const saved = localStorage.getItem(LS_TICKER);
+    return saved || externalTicker || 'SPY';
+  });
+  const [range, setRange] = useState(() => localStorage.getItem(LS_RANGE) || '1Y');
+  const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const [inputVal, setInputVal] = useState(ticker);
+  const [liveIndicator, setLiveIndicator] = useState(false);
+  const intervalRef = useRef(null);
+  const prevDataRef = useRef([]);
+
+  // When external ticker prop changes, adopt it
   useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      try {
-        setLoading(true);
-        const { from, to } = getDateRange(timeframe);
-        const res = await fetch(
-          SERVER_URL + '/api/chart/' + symbol +
-          '?from=' + from + '&to=' + to +
-          '&multiplier=' + timeframe.multiplier +
-          '&timespan=' + timeframe.timespan
-        );
-        const json = await res.json();
-        const bars = json.results || [];
-        if (cancelled) return;
-        const results = bars.map(bar => ({
-          t: timeframe.xFmt === 'time'
-            ? new Date(bar.t).toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' })
-            : new Date(bar.t).toISOString().split('T')[0],
-          c: bar.c, o: bar.o, h: bar.h, l: bar.l, v: bar.v,
-        }));
-        setData(results);
-        if (bars.length > 0) {
-          setStats({
-            open: bars[0].o,
-            high: Math.max(...bars.map(b => b.h)),
-            low:  Math.min(...bars.map(b => b.l)),
-            vol:  bars.reduce((s, b) => s + (b.v || 0), 0),
-          });
-        }
-      } catch (e) {
-        console.warn('Chart load failed:', symbol, e.message);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
+    if (externalTicker && externalTicker !== ticker) {
+      const norm = normalizeTicker(externalTicker);
+      setTickerState(norm);
+      setInputVal(displayTicker(norm));
+      localStorage.setItem(LS_TICKER, norm);
     }
-    load();
-    const interval = timeframe.xFmt === 'time' ? setInterval(load, 60000) : null;
-    return () => { cancelled = true; if (interval) clearInterval(interval); };
-  }, [symbol, timeframe]);
+  }, [externalTicker]);
 
-  const hi = stats.high === -Infinity ? 0 : stats.high;
-  const lo = stats.low  ===  Infinity ? 0 : stats.low;
+  // Persist range
+  const setRange2 = (r) => { setRange(r); localStorage.setItem(LS_RANGE, r); };
+
+  const fetchChart = useCallback(async (t, r, silent = false) => {
+    if (!silent) setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`${API}/api/chart/${encodeURIComponent(t)}?range=${r}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      if (!json.results?.length) throw new Error('No data â market may be closed or invalid ticker');
+      const points = json.results.map(bar => ({
+        t: bar.t,
+        o: bar.o,
+        h: bar.h,
+        l: bar.l,
+        c: bar.c,
+        v: bar.v,
+      }));
+      setData(points);
+      prevDataRef.current = points;
+      if (silent) {
+        // Briefly flash live indicator
+        setLiveIndicator(true);
+        setTimeout(() => setLiveIndicator(false), 800);
+      }
+    } catch (e) {
+      if (!silent) {
+        setError(e.message);
+        setData(prevDataRef.current); // keep stale data on background refresh fail
+      }
+    } finally {
+      if (!silent) setLoading(false);
+    }
+  }, []);
+
+  // Initial + ticker/range change fetch
+  useEffect(() => {
+    fetchChart(ticker, range);
+  }, [ticker, range, fetchChart]);
+
+  // Live refresh for short ranges
+  useEffect(() => {
+    clearInterval(intervalRef.current);
+    if (LIVE_RANGES.has(range)) {
+      intervalRef.current = setInterval(() => {
+        fetchChart(ticker, range, true /* silent */);
+      }, 30_000); // 30s for chart data (Polygon free tier is delayed)
+    }
+    return () => clearInterval(intervalRef.current);
+  }, [ticker, range, fetchChart]);
+
+  const handleTickerSubmit = (e) => {
+    e.preventDefault();
+    const norm = normalizeTicker(inputVal);
+    setTickerState(norm);
+    setInputVal(displayTicker(norm));
+    localStorage.setItem(LS_TICKER, norm);
+    if (onTickerChange) onTickerChange(norm);
+  };
+
+  // Drag-over drop zone
+  const handleDragOver = (e) => { e.preventDefault(); setIsDragOver(true); };
+  const handleDragLeave = () => setIsDragOver(false);
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    const raw = e.dataTransfer.getData('application/x-ticker');
+    if (!raw) return;
+    try {
+      const { symbol } = JSON.parse(raw);
+      const norm = normalizeTicker(symbol);
+      setTickerState(norm);
+      setInputVal(displayTicker(norm));
+      localStorage.setItem(LS_TICKER, norm);
+      if (onTickerChange) onTickerChange(norm);
+    } catch {}
+  };
+
+  // Derived stats from data
+  const first = data[0];
+  const last  = data[data.length - 1];
+  const basePrice = first?.c ?? first?.o;
+  const lastPrice = last?.c;
+  const high = data.length ? Math.max(...data.map(d => d.h)) : null;
+  const low  = data.length ? Math.min(...data.map(d => d.l)) : null;
+  const vol  = data.length ? data.reduce((s, d) => s + (d.v || 0), 0) : null;
+  const chg  = basePrice && lastPrice ? lastPrice - basePrice : null;
+  const chgPct = basePrice && chg != null ? (chg / basePrice) * 100 : null;
+  const isPos = chgPct == null || chgPct >= 0;
+  const lineColor = isPos ? '#4caf50' : '#f44336';
+
+  // Y domain with 2% padding
+  const yMin = low  != null ? low  * 0.998 : 'auto';
+  const yMax = high != null ? high * 1.002 : 'auto';
+
+  const customTooltip = ({ active, payload }) => {
+    if (!active || !payload?.length) return null;
+    const d = payload[0]?.payload;
+    if (!d) return null;
+    return (
+      <div style={{ background: '#111', border: '1px solid #2a2a2a', padding: '6px 10px', fontSize: '10px', fontFamily: 'inherit' }}>
+        <div style={{ color: '#888', marginBottom: 2 }}>{fmtDate(d.t, range)}</div>
+        <div style={{ color: '#e0e0e0', fontWeight: 700 }}>C: {fmt2(d.c)}</div>
+        {d.o != null && <div style={{ color: '#888' }}>O: {fmt2(d.o)}  H: {fmt2(d.h)}  L: {fmt2(d.l)}</div>}
+        {d.v > 0 && <div style={{ color: '#555' }}>V: {fmtVol(d.v)}</div>}
+      </div>
+    );
+  };
 
   return (
-    <div style={{
-      background: '#050505', border: '1px solid #1a1a1a', padding: '4px 6px',
-      flex: 1, minWidth: 0, position: 'relative', overflow: 'hidden',
-      display: 'flex', flexDirection: 'column',
-    }}>
-      {onRemove && (
-        <button onClick={onRemove} title="Remove" style={{
-          position: 'absolute', top: 3, right: 3, background: 'none', border: 'none',
-          color: '#2a2a2a', cursor: 'pointer', fontSize: 10, lineHeight: 1,
-          padding: '1px 3px', fontFamily: "'IBM Plex Mono', monospace", zIndex: 1,
-        }}
-          onMouseEnter={e => e.target.style.color = '#cc2200'}
-          onMouseLeave={e => e.target.style.color = '#2a2a2a'}
-        >x</button>
+    <div
+      style={{
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        background: isDragOver ? '#1a1200' : '#0a0a0a',
+        border: isDragOver ? '2px solid #ff6600' : '2px solid transparent',
+        transition: 'background 0.15s, border 0.15s',
+        position: 'relative',
+      }}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
+      {/* Drop overlay hint */}
+      {isDragOver && (
+        <div style={{
+          position: 'absolute', inset: 0, zIndex: 10,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          background: 'rgba(20,10,0,0.7)',
+          color: '#ff6600', fontSize: '18px', fontWeight: 700, letterSpacing: '2px',
+          pointerEvents: 'none',
+        }}>
+          DROP TO CHART
+        </div>
       )}
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 1, paddingRight: 14 }}>
-        <span style={{ color: '#ff6600', fontWeight: 700, fontSize: 10, letterSpacing: '0.06em' }}>{symbol}</span>
-        <span style={{ color: '#444', fontSize: 8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 90 }}>{label}</span>
+      {/* Header row */}
+      <div style={{ padding: '4px 8px', borderBottom: '1px solid #2a2a2a', display: 'flex', alignItems: 'center', gap: 8, background: '#111', flexShrink: 0 }}>
+        {/* Ticker input */}
+        <form onSubmit={handleTickerSubmit} style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+          <input
+            value={inputVal}
+            onChange={e => setInputVal(e.target.value)}
+            style={{
+              background: 'transparent', border: 'none', borderBottom: '1px solid #333',
+              color: '#ff6600', fontSize: '12px', fontWeight: 700, fontFamily: 'inherit',
+              width: '80px', outline: 'none', letterSpacing: '1px',
+            }}
+            onFocus={e => e.target.style.borderBottomColor = '#ff6600'}
+            onBlur={e => e.target.style.borderBottomColor = '#333'}
+          />
+          <button type="submit" style={{ display: 'none' }} />
+        </form>
+
+        {/* OHLV stats */}
+        {data.length > 0 && (
+          <div style={{ display: 'flex', gap: 10, flex: 1, overflow: 'hidden' }}>
+            <span style={{ color: '#ccc', fontSize: '11px', fontWeight: 700 }}>{fmt2(lastPrice)}</span>
+            <span style={{ color: isPos ? '#4caf50' : '#f44336', fontSize: '10px' }}>
+              {chg != null && (isPos ? '+' : '')}{fmt2(chg)} ({chgPct != null && (isPos ? '+' : '')}{chgPct?.toFixed(2)}%)
+            </span>
+            <span style={{ color: '#555', fontSize: '9px' }}>H {fmt2(high)}</span>
+            <span style={{ color: '#555', fontSize: '9px' }}>L {fmt2(low)}</span>
+            {vol > 0 && <span style={{ color: '#555', fontSize: '9px' }}>V {fmtVol(vol)}</span>}
+          </div>
+        )}
+
+        {/* Live indicator */}
+        {liveIndicator && (
+          <span style={{ color: '#ff6600', fontSize: '8px', animation: 'pulse 0.8s ease', opacity: 0.8 }}>âLIVE</span>
+        )}
+
+        {/* Range toggles */}
+        <div style={{ display: 'flex', gap: 2, flexShrink: 0 }}>
+          {RANGES.map(r => (
+            <button
+              key={r}
+              onClick={() => setRange2(r)}
+              style={{
+                padding: '2px 5px',
+                background: range === r ? '#ff6600' : 'transparent',
+                color: range === r ? '#000' : '#555',
+                border: '1px solid ' + (range === r ? '#ff6600' : '#2a2a2a'),
+                fontSize: '9px',
+                fontWeight: 700,
+                cursor: 'pointer',
+                fontFamily: 'inherit',
+                letterSpacing: '0.5px',
+              }}
+            >
+              {r}
+            </button>
+          ))}
+        </div>
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 2 }}>
-        <span style={{ color: '#e8e8e8', fontSize: 13, fontWeight: 700, letterSpacing: '-0.02em', fontFamily: "'IBM Plex Mono', monospace" }}>
-          {fmtPrice(currentPrice)}
-        </span>
-        <span style={{ color, fontSize: 10, fontWeight: 600 }}>{fmtPct(changePct)}</span>
-      </div>
-
-      <div style={{ display: 'flex', gap: 6, marginBottom: 3 }}>
-        {[['O', fmtPrice(stats.open)], ['H', fmtPrice(hi)], ['L', fmtPrice(lo)], ['V', fmtVol(stats.vol)]].map(([lbl, val]) => (
-          <span key={lbl} style={{ fontSize: 7.5 }}>
-            <span style={{ color: '#2a2a2a' }}>{lbl} </span>
-            <span style={{ color: '#666' }}>{val}</span>
-          </span>
-        ))}
-      </div>
-
-      <div style={{ flex: 1, minHeight: 36 }}>
-        {loading ? (
-          <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#252525', fontSize: 8 }}>LOADING...</div>
-        ) : data.length === 0 ? (
-          <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#252525', fontSize: 8 }}>NO DATA</div>
-        ) : (
+      {/* Chart area */}
+      <div style={{ flex: 1, overflow: 'hidden', padding: '4px 0' }}>
+        {loading && (
+          <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#333', fontSize: '10px', letterSpacing: '2px' }}>
+            LOADING {displayTicker(ticker)}...
+          </div>
+        )}
+        {error && !loading && (
+          <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#f44336', fontSize: '9px', padding: 16, textAlign: 'center', gap: 8 }}>
+            <span>{error}</span>
+            <button onClick={() => fetchChart(ticker, range)} style={{ color: '#ff6600', background: 'none', border: '1px solid #ff6600', padding: '3px 8px', fontSize: '9px', cursor: 'pointer', fontFamily: 'inherit' }}>RETRY</button>
+          </div>
+        )}
+        {!loading && data.length > 0 && (
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={data} margin={{ top: 2, right: 2, bottom: 0, left: 0 }}>
-              {stats.open > 0 && <ReferenceLine y={stats.open} stroke="#252525" strokeDasharray="2 2" />}
-              <Line type="monotone" dataKey="c" stroke={color} strokeWidth={1.5} dot={false} isAnimationActive={false} />
-              <YAxis domain={['auto', 'auto']} hide />
-              <XAxis dataKey="t" hide />
-              <Tooltip
-                contentStyle={{ background: '#0a0a0a', border: '1px solid #2a2a2a', fontSize: 8, color: '#aaa', padding: '3px 6px' }}
-                formatter={(v) => [fmtPrice(v), 'Price']}
-                labelStyle={{ color: '#666' }}
+            <LineChart data={data} margin={{ top: 4, right: 12, bottom: 4, left: 0 }}>
+              <XAxis
+                dataKey="t"
+                tickFormatter={ts => fmtDate(ts, range)}
+                tick={{ fill: '#333', fontSize: 8 }}
+                axisLine={{ stroke: '#1e1e1e' }}
+                tickLine={false}
+                interval="preserveStartEnd"
+                minTickGap={60}
+              />
+              <YAxis
+                domain={[yMin, yMax]}
+                tick={{ fill: '#333', fontSize: 8 }}
+                axisLine={false}
+                tickLine={false}
+                width={48}
+                tickFormatter={v => fmt2(v)}
+              />
+              <Tooltip content={customTooltip} />
+              <ReferenceLine y={basePrice} stroke="#2a2a2a" strokeDasharray="3 3" />
+              <Line
+                type="monotone"
+                dataKey="c"
+                stroke={lineColor}
+                strokeWidth={1.5}
+                dot={false}
+                activeDot={{ r: 3, fill: lineColor, stroke: 'none' }}
               />
             </LineChart>
           </ResponsiveContainer>
         )}
       </div>
-    </div>
-  );
-}
 
-export function ChartPanel({ stocks }) {
-  const [queue,    setQueue]    = useState([]);
-  const [dragOver, setDragOver] = useState(false);
-  const [tfIdx,    setTfIdx]    = useState(0);
-
-  const handleDragOver  = (e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; setDragOver(true); };
-  const handleDragLeave = (e) => { if (!e.currentTarget.contains(e.relatedTarget)) setDragOver(false); };
-  const handleDrop = (e) => {
-    e.preventDefault(); setDragOver(false);
-    try {
-      const raw = e.dataTransfer.getData('application/json');
-      if (!raw) return;
-      const payload = JSON.parse(raw);
-      if (!payload.symbol) return;
-      setQueue(prev => {
-        const filtered = prev.filter(t => t.symbol !== payload.symbol);
-        const next = [...filtered, { symbol: payload.symbol, label: payload.label || payload.symbol }];
-        return next.length > MAX_CHARTS ? next.slice(next.length - MAX_CHARTS) : next;
-      });
-    } catch (err) { console.warn('Drop parse error:', err); }
-  };
-  const handleRemove = (symbol) => setQueue(prev => prev.filter(t => t.symbol !== symbol));
-
-  const count = queue.length;
-  const cols  = count <= 1 ? 1 : count <= 4 ? 2 : count <= 9 ? 3 : 4;
-  const tf    = TIMEFRAMES[tfIdx];
-
-  const TfBar = (
-    <div style={{ display: 'flex', marginLeft: 8 }}>
-      {TIMEFRAMES.map((t, i) => (
-        <button key={t.label} onClick={() => setTfIdx(i)} style={{
-          background: 'none', border: 'none', cursor: 'pointer', padding: '0 5px', height: 20,
-          color: i === tfIdx ? '#e55a00' : '#333',
-          fontSize: 8, fontFamily: "'IBM Plex Mono', monospace", fontWeight: i === tfIdx ? 700 : 400,
-          borderBottom: i === tfIdx ? '1px solid #e55a00' : '1px solid transparent',
-          transition: 'color 0.1s',
-        }}
-          onMouseEnter={e => { if (i !== tfIdx) e.currentTarget.style.color = '#888'; }}
-          onMouseLeave={e => { if (i !== tfIdx) e.currentTarget.style.color = '#333'; }}
-        >{t.label}</button>
-      ))}
-    </div>
-  );
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}
-      onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}
-    >
-      <div style={{
-        display: 'flex', alignItems: 'center', borderBottom: '1px solid #1a1a1a',
-        padding: '0 6px', height: 22, flexShrink: 0, background: '#070707',
-      }}>
-        <span style={{ color: '#e55a00', fontSize: 9, fontWeight: 700, letterSpacing: '0.12em', fontFamily: "'IBM Plex Mono', monospace" }}>
-          CHARTS
-        </span>
-        {count > 0 && (
-          <span style={{ color: '#2a2a2a', fontSize: 8, marginLeft: 5, fontFamily: "'IBM Plex Mono', monospace" }}>
-            {count}/{MAX_CHARTS}
-          </span>
-        )}
-        {count === 0
-          ? <span style={{ color: '#1e1e1e', fontSize: 8, marginLeft: 8, fontFamily: "'IBM Plex Mono', monospace" }}>DRAG TICKERS HERE</span>
-          : TfBar
-        }
-      </div>
-
-      {count === 0 ? (
-        <div style={{
-          flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-          border: dragOver ? '2px dashed #e55a00' : '2px dashed #151515', margin: 4,
-          background: dragOver ? 'rgba(229,90,0,0.04)' : 'transparent', borderRadius: 2, transition: 'all 0.2s',
-        }}>
-          <div style={{ fontSize: 24, color: dragOver ? '#e55a00' : '#1a1a1a', marginBottom: 8 }}>+</div>
-          <div style={{ color: dragOver ? '#e55a00' : '#1e1e1e', fontSize: 10, fontFamily: "'IBM Plex Mono', monospace", letterSpacing: '0.08em' }}>
-            DROP TICKERS TO ADD CHARTS
-          </div>
-          <div style={{ color: '#141414', fontSize: 8, marginTop: 4, fontFamily: "'IBM Plex Mono', monospace" }}>
-            UP TO 16 SIMULTANEOUS
-          </div>
-        </div>
-      ) : (
-        <div style={{
-          flex: 1, display: 'grid', gridTemplateColumns: 'repeat(' + cols + ', 1fr)',
-          gap: 2, padding: 2, overflow: 'auto',
-          outline: dragOver ? '2px dashed #e55a00' : '2px dashed transparent',
-          outlineOffset: -2, transition: 'outline-color 0.2s',
-        }}>
-          {queue.map(({ symbol, label }) => {
-            const d = stocks[symbol] || {};
-            return (
-              <MiniChart
-                key={symbol + '-' + tfIdx}
-                symbol={symbol} label={label}
-                currentPrice={d.price} changePct={d.changePct}
-                onRemove={() => handleRemove(symbol)}
-                timeframe={tf}
-              />
-            );
-          })}
+      {/* Footer: ticker source */}
+      {data.length > 0 && (
+        <div style={{ padding: '2px 8px', borderTop: '1px solid #141414', color: '#2a2a2a', fontSize: '8px', flexShrink: 0, display: 'flex', justifyContent: 'space-between' }}>
+          <span>{ticker} Â· POLYGON.IO</span>
+          <span>{LIVE_RANGES.has(range) ? 'â³ 30s' : ''}</span>
         </div>
       )}
     </div>
