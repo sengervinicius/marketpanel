@@ -3,10 +3,10 @@ import { useState, useRef, useCallback } from 'react';
 const API = import.meta.env.VITE_API_URL || '';
 
 const TYPE_COLOR = {
-  EQUITY: '#4fc3f7',
-  ETF: '#81c784',
-  INDEX: '#ffb74d',
-  CURRENCY: '#ce93d8',
+  EQUITY:     '#4fc3f7',
+  ETF:        '#81c784',
+  INDEX:      '#ffb74d',
+  CURRENCY:   '#ce93d8',
   MUTUALFUND: '#80cbc4',
 };
 
@@ -38,7 +38,6 @@ export function SearchPanel({ onTickerSelect }) {
     setQuery(item.symbol);
     setResults([]);
     if (onTickerSelect) onTickerSelect(item.symbol);
-    // Fetch a quick snapshot
     setQuoteLoading(true);
     fetch(`${API}/api/snapshot/ticker/${encodeURIComponent(item.symbol)}`)
       .then(r => r.json())
@@ -46,71 +45,55 @@ export function SearchPanel({ onTickerSelect }) {
       .catch(() => setQuoteLoading(false));
   };
 
-  // Drag handlers â pack ticker data into dataTransfer
+  // Drag handlers — pack ticker data into dataTransfer
   const handleDragStart = (e, item) => {
     e.dataTransfer.effectAllowed = 'copy';
     e.dataTransfer.setData('application/x-ticker', JSON.stringify({
       symbol: item.symbol,
-      name: item.name,
-      type: item.type,
+      name:   item.name,
+      type:   item.type,
     }));
-    // Ghost image text
-    const ghost = document.createElement('div');
-    ghost.style.cssText = 'position:fixed;top:-999px;background:#1a1a1a;color:#ff6600;padding:4px 10px;font-size:12px;font-family:monospace;border:1px solid #ff6600;border-radius:2px;';
-    ghost.textContent = item.symbol;
-    document.body.appendChild(ghost);
-    e.dataTransfer.setDragImage(ghost, 0, 0);
-    setTimeout(() => ghost.remove(), 0);
   };
 
-  const fmt = (n) => n == null ? 'â' : typeof n === 'number' ? n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : n;
-  const fmtPct = (n) => n == null ? 'â' : (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
-  const isPos = (n) => n != null && n >= 0;
+  const fmtNum = (n) => n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const fmtPct = (n) => n == null ? '—' : (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
 
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#0a0a0a' }}>
-      {/* Panel header */}
-      <div style={{
-        padding: '4px 8px',
-        borderBottom: '1px solid #2a2a2a',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 8,
-        background: '#111',
-        flexShrink: 0,
-      }}>
-        <span style={{ color: '#ff6600', fontSize: '10px', fontWeight: 700, letterSpacing: '1px' }}>SEARCH</span>
-        <span style={{ color: '#444', fontSize: '9px' }}>drag results to chart</span>
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#0a0a0a', fontFamily: 'inherit' }}>
+      {/* Header */}
+      <div style={{ padding: '4px 8px', borderBottom: '1px solid #1e1e1e', flexShrink: 0 }}>
+        <span style={{ color: '#e8a020', fontWeight: 700, fontSize: 9, letterSpacing: '0.2em' }}>SEARCH</span>
+        <span style={{ color: '#333', fontSize: 7, marginLeft: 8 }}>DRAG RESULTS TO CHART</span>
       </div>
 
-      {/* Search input */}
-      <div style={{ padding: '6px 8px', borderBottom: '1px solid #1e1e1e', flexShrink: 0, position: 'relative' }}>
+      {/* Input */}
+      <div style={{ position: 'relative', padding: '6px 8px', flexShrink: 0 }}>
         <input
           value={query}
           onChange={handleInput}
           placeholder="ticker or company name..."
           style={{
             width: '100%',
-            background: '#111',
-            border: '1px solid #333',
-            color: '#e0e0e0',
-            padding: '5px 8px',
-            fontSize: '11px',
+            background: '#0f0f0f',
+            border: '1px solid #2a2a2a',
+            color: '#ccc',
+            fontSize: 9,
+            padding: '4px 6px',
             fontFamily: 'inherit',
             outline: 'none',
             boxSizing: 'border-box',
           }}
           onFocus={e => e.target.style.borderColor = '#ff6600'}
-          onBlur={e => e.target.style.borderColor = '#333'}
+          onBlur={e => e.target.style.borderColor = '#2a2a2a'}
         />
         {loading && (
-          <span style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', color: '#555', fontSize: '9px' }}>
+          <span style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', color: '#555', fontSize: 7 }}>
             SEARCHING...
           </span>
         )}
       </div>
 
-      {/* Results list */}
+      {/* Results */}
       {results.length > 0 && (
         <div style={{ borderBottom: '1px solid #1e1e1e', flexShrink: 0, maxHeight: '200px', overflowY: 'auto' }}>
           {results.map(item => (
@@ -120,38 +103,36 @@ export function SearchPanel({ onTickerSelect }) {
               onDragStart={(e) => handleDragStart(e, item)}
               onClick={() => handleSelect(item)}
               style={{
-                padding: '5px 8px',
+                padding: '4px 8px',
                 borderBottom: '1px solid #161616',
                 cursor: 'grab',
                 display: 'flex',
                 alignItems: 'center',
-                gap: 8,
+                gap: 6,
                 userSelect: 'none',
                 transition: 'background 0.1s',
               }}
-              onMouseEnter={e => e.currentTarget.style.background = '#1a1a1a'}
+              onMouseEnter={e => e.currentTarget.style.background = '#141414'}
               onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
             >
-              {/* Drag handle */}
-              <span style={{ color: '#333', fontSize: '10px', flexShrink: 0 }}>â ¿</span>
+              {/* Drag indicator */}
+              <span style={{ color: '#2a2a2a', fontSize: 10, flexShrink: 0 }}>|:|</span>
               <span style={{
                 color: TYPE_COLOR[item.type] || '#aaa',
-                fontSize: '11px',
+                fontSize: 10,
                 fontWeight: 700,
-                minWidth: '64px',
+                minWidth: '60px',
                 flexShrink: 0,
               }}>
                 {item.symbol}
               </span>
-              <span style={{ color: '#777', fontSize: '10px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+              <span style={{ color: '#777', fontSize: 9, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
                 {item.name}
               </span>
               <span style={{
                 color: '#444',
-                fontSize: '9px',
+                fontSize: 8,
                 flexShrink: 0,
-                border: '1px solid #2a2a2a',
-                padding: '1px 4px',
               }}>
                 {item.type}
               </span>
@@ -160,70 +141,46 @@ export function SearchPanel({ onTickerSelect }) {
         </div>
       )}
 
-      {/* Quote detail */}
-      <div style={{ flex: 1, padding: '8px', overflow: 'auto' }}>
-        {quoteLoading && <div style={{ color: '#444', fontSize: '10px', textAlign: 'center', paddingTop: 20 }}>LOADING...</div>}
-        {quote && !quoteLoading && (
-          <div>
-            <div style={{ marginBottom: 8 }}>
-              <div style={{ color: '#ff6600', fontSize: '13px', fontWeight: 700 }}>{quote.symbol}</div>
-              <div style={{ color: '#888', fontSize: '10px' }}>{quote.name}</div>
-            </div>
+      {!results.length && !query && (
+        <div style={{ padding: '12px 8px', color: '#222', fontSize: 8, textAlign: 'center' }}>
+          TYPE TO SEARCH — DRAG RESULTS TO CHART
+        </div>
+      )}
 
-            <div style={{ fontSize: '22px', fontWeight: 700, color: '#e0e0e0', lineHeight: 1.2 }}>
-              {fmt(quote.price)}
-            </div>
-            <div style={{
-              fontSize: '12px',
-              color: isPos(quote.changePct) ? '#4caf50' : '#f44336',
-              marginBottom: 12,
-            }}>
-              {isPos(quote.change) ? '+' : ''}{fmt(quote.change)} ({fmtPct(quote.changePct)})
-            </div>
-
-            {/* OHLV table */}
-            {[
-              ['OPEN',   quote.open],
-              ['HIGH',   quote.high],
-              ['LOW',    quote.low],
-              ['VOLUME', quote.volume ? (quote.volume / 1e6).toFixed(1) + 'M' : null],
-              ['MCAP',   quote.marketCap ? (quote.marketCap / 1e9).toFixed(1) + 'B' : null],
-              ['CCY',    quote.currency],
-            ].map(([label, val]) => val != null && (
-              <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0', borderBottom: '1px solid #161616' }}>
-                <span style={{ color: '#555', fontSize: '9px', letterSpacing: '1px' }}>{label}</span>
-                <span style={{ color: '#ccc', fontSize: '10px', fontWeight: 600 }}>{typeof val === 'number' ? fmt(val) : val}</span>
+      {/* Quick quote */}
+      {(quote || quoteLoading) && (
+        <div style={{ padding: '8px', flex: 1, overflow: 'auto' }}>
+          {quoteLoading && <div style={{ color: '#444', fontSize: 8 }}>LOADING QUOTE...</div>}
+          {quote && !quoteLoading && (() => {
+            const t = quote.ticker || quote.results?.[0];
+            if (!t) return null;
+            const d = t.day || {};
+            const pct = t.todaysChangePerc;
+            const up = (pct ?? 0) >= 0;
+            return (
+              <div>
+                <div style={{ color: '#e8a020', fontWeight: 700, fontSize: 12, marginBottom: 4 }}>{t.ticker}</div>
+                <div style={{ color: '#ccc', fontSize: 18, fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>
+                  {fmtNum(d.c ?? t.min?.c)}
+                </div>
+                <div style={{ color: up ? '#00c853' : '#f44336', fontSize: 10, marginTop: 2 }}>
+                  {(up ? '+' : '')}{fmtNum(t.todaysChange)} ({fmtPct(pct)})
+                </div>
+                <div style={{ marginTop: 8, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
+                  {[['OPEN', d.o], ['HIGH', d.h], ['LOW', d.l], ['VOL', d.v ? (d.v / 1e6).toFixed(1) + 'M' : '—']].map(([lbl, val]) => (
+                    <div key={lbl}>
+                      <div style={{ color: '#555', fontSize: 7 }}>{lbl}</div>
+                      <div style={{ color: '#999', fontSize: 9, fontVariantNumeric: 'tabular-nums' }}>
+                        {typeof val === 'number' ? fmtNum(val) : (val || '—')}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
-            ))}
-
-            <button
-              onClick={() => onTickerSelect && onTickerSelect(quote.symbol)}
-              style={{
-                marginTop: 12,
-                width: '100%',
-                padding: '6px',
-                background: '#ff6600',
-                color: '#000',
-                border: 'none',
-                fontSize: '10px',
-                fontWeight: 700,
-                letterSpacing: '1px',
-                cursor: 'pointer',
-                fontFamily: 'inherit',
-              }}
-            >
-              OPEN IN CHART â
-            </button>
-          </div>
-        )}
-        {!quote && !quoteLoading && results.length === 0 && (
-          <div style={{ color: '#333', fontSize: '10px', textAlign: 'center', paddingTop: 30, lineHeight: 2 }}>
-            TYPE TO SEARCH<br />
-            <span style={{ color: '#ff6600', fontSize: '18px' }}>â ¿</span><br />
-            <span style={{ color: '#444' }}>DRAG RESULTS TO CHART</span>
-          </div>
-        )}
-      </div>
+            );
+          })()}
+        </div>
+      )}
     </div>
   );
 }
