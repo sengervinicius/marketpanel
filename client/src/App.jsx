@@ -57,7 +57,7 @@ const TABS = [
 const LS_TAB          = 'activeTab';
 const LS_CHART_TICKER = 'chartTicker';
 
-export default function App() {
+export default function App() {hh
   const { data, loading, isRefreshing, lastUpdated } = useMarketData();
   const [activeTab, setActiveTab]   = useState(() => localStorage.getItem(LS_TAB) || 'markets');
   const setActiveTabPersist = (t) => { setActiveTab(t); localStorage.setItem(LS_TAB, t); };
@@ -79,7 +79,7 @@ export default function App() {
     return (
       <div style={{
         display: 'grid',
-        gridTemplateRows: '36px 36vh 36vh 1fr',
+        gridTemplateRows: '36px 2fr 1.5fr 1.5fr',
         height: '100vh',
         background: '#0a0a0a',
         fontFamily: "'IBM Plex Mono','Roboto Mono','Courier New',monospace",
@@ -133,7 +133,7 @@ export default function App() {
   return (
     <div style={{
       display: 'flex', flexDirection: 'column',
-      height: '100dvh',
+      height: '100dvh', paddingTop: 'env(safe-area-inset-top)',
       background: '#0a0a0a',
       fontFamily: "'IBM Plex Mono','Roboto Mono','Courier New',monospace",
       color: '#e0e0e0',
@@ -160,7 +160,7 @@ export default function App() {
       <div style={{ flex:1, overflow:'auto', minHeight:0 }}>
         {activeTab==='markets' && (
           <div>
-            <div style={{ borderBottom:'2px solid #1e1e1e', height:'45vw', minHeight:180 }}>
+            <div style={{ borderBottom:'2px solid #1e1e1e', height:'56vw', minHeight:220 }}>
               <ChartPanel ticker={chartTicker} onTickerChange={setChartTicker} />
             </div>
             <div style={{ borderBottom:'1px solid #1e1e1e' }}>
@@ -195,7 +195,7 @@ export default function App() {
       <nav style={{
         display: 'flex', background: '#000',
         borderTop: '2px solid #1e1e1e',
-        flexShrink: 0, overflowX: 'auto', scrollbarWidth: 'none',
+        flexShrink: 0, overflowX: 'auto', scrollbarWidth: 'none', paddingBottom: 'env(safe-area-inset-bottom)',
       }}>
         {TABS.map(tab => {
           const active = activeTab === tab.id;
