@@ -37,7 +37,7 @@ export default function GlobalIndicesPanel() {
 
   const panelStyle = {background:'#0d0d14', display:'flex', flexDirection:'column', overflow:'hidden', fontFamily:"'IBM Plex Mono', monospace", fontSize:10};
   const regionHeader = {color:'#e55a00', fontSize:7, fontWeight:600, letterSpacing:'0.1em', padding:'3px 6px 2px', background:'#111118', borderBottom:'1px solid #1a1a2e', textTransform:'uppercase'};
-  const rowStyle = (i) => ({display:'grid', gridTemplateColumns:'44px 1fr 56px 52px', padding:'2px 6px', borderBottom:'1px solid #0f0f1a', background:i%2===0?'transparent':'#060608'});
+  const rowStyle = (i) => ({display:'grid', gridTemplateColumns:'44px 1fr 56px 52px', padding:'2px 6px', borderBottom:'1px solid #0f0f1a', background:i%2===0?'transparent':'#060608', cursor:'grab'});
 
   return (
     <div style={panelStyle}>
@@ -51,7 +51,15 @@ export default function GlobalIndicesPanel() {
               const pct = t?.day?.changePercent;
               const price = t?.day?.close || t?.prevDay?.close;
               return (
-                <div key={ticker} style={rowStyle(i)}>
+                <div
+                  key={ticker}
+                  style={rowStyle(i)}
+                  draggable
+                  onDragStart={(e) => {
+                    e.dataTransfer.setData('application/json', JSON.stringify({ symbol: ticker, label: NAMES[ticker] || ticker }));
+                    e.dataTransfer.effectAllowed = 'copy';
+                  }}
+                >
                   <span style={{color:'#e8a020', fontWeight:500, fontSize:9}}>{ticker}</span>
                   <span style={{color:'#777', fontSize:9, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{NAMES[ticker]}</span>
                   <span style={{textAlign:'right', color:'#ccc'}}>{fmtPrice(price)}</span>
