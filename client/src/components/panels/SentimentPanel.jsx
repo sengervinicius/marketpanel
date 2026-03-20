@@ -28,7 +28,7 @@ function BreadthBar({ label, items }) {
   const upPct = (up / values.length) * 100;
   const avg = values.reduce((a, b) => a + (b.changePct || 0), 0) / values.length;
   return (
-    <div style={{ marginBottom: 6 }}>
+    <div style={{ marginBottom: 3 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
         <span style={{ color: '#888', fontSize: 9, letterSpacing: 0.5 }}>{label}</span>
         <span style={{ fontSize: 9, color: avg >= 0 ? '#4caf50' : '#f44336' }}>
@@ -59,7 +59,7 @@ export function SentimentPanel({ data, loading }) {
       <div style={{ padding: '4px 8px', borderBottom: '1px solid #2a2a2a', background: '#111', flexShrink: 0 }}>
         <span style={{ color: '#80cbc4', fontSize: '10px', fontWeight: 700, letterSpacing: '1px' }}>MARKET BREADTH</span>
       </div>
-      <div style={{ padding: '6px 8px', borderBottom: '1px solid #1a1a1a', flexShrink: 0 }}>
+      <div style={{ padding: '4px 8px', borderBottom: '1px solid #1a1a1a', flexShrink: 0 }}>
         {loading ? (
           <div style={{ color: '#444', fontSize: '10px' }}>LOADING...</div>
         ) : (
