@@ -1,7 +1,7 @@
 // ChartPanel.jsx — multi-chart grid (up to 16 slots)
 // Drop any ticker from panels to ADD a chart; X button to remove; persists to localStorage
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { LineChart, Line, ResponsiveContainer, Tooltip, ReferenceLine } from 'recharts';
+import { LineChart, Line, XAxis, ResponsiveContainer, Tooltip, ReferenceLine } from 'recharts';
 
 const API = import.meta.env.VITE_API_URL || '';
 const LS_KEY = 'chartGrid_v2';
@@ -113,6 +113,7 @@ function MiniChart({ ticker, onRemove }) {
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={data} margin={{ top: 2, right: 2, bottom: 2, left: 2 }}>
               <Line type="monotone" dataKey="v" stroke={lineColor} dot={false} strokeWidth={1} isAnimationActive={false} />
+              <XAxis dataKey="t" tickFormatter={ms => { const d = new Date(ms); return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); }} tick={{ fill: '#555', fontSize: 6 }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
               <ReferenceLine y={data[0]?.v} stroke="#333" strokeDasharray="2 2" strokeWidth={1} />
               <Tooltip
                 contentStyle={{ background: '#111', border: '1px solid #333', fontSize: 7, padding: '2px 4px' }}
@@ -209,7 +210,7 @@ export function ChartPanel({ ticker: externalTicker, onTickerChange }) {
   return (
     <div
       style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#0a0a0a', overflow: 'hidden' }}
-      onDragOver={e => { e.preventDefault(); setIsDragOverPanel(true); }}
+      onDragOver={e => { e.preventDefault(); setIsDragOverPanel(true); }}h
       onDragLeave={() => setIsDragOverPanel(false)}
       onDrop={e => {
         e.preventDefault(); setIsDragOverPanel(false);
