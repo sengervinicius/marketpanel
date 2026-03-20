@@ -1,10 +1,157 @@
-/* App.css — global resets for Bloomberg terminal layout */
+/* App.css — Senger Market Screen */
+
+/* ── Base reset ─────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html, body, #root { height: 100%; overflow: hidden; }
-body { background: #0a0a0a; color: #e0e0e0; }
-button { cursor: pointer; }
-::-webkit-scrollbar { width: 4px; height: 4px; }
-::-webkit-scrollbar-track { background: #111; }
-::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 2px; }
-::-webkit-scrollbar-thumb:hover { background: #3a3a3a; }
-@keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  background: #0a0a0a;
+  font-family: 'IBM Plex Mono', 'Courier New', monospace;
+  font-size: 10px;
+  color: #ccc;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Scrollbar ───────────────────────────────────── */
+::-webkit-scrollbar { width: 3px; height: 3px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #222; border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: #333; }
+
+/* ── Price flash animations ──────────────────────── */
+@keyframes flashUp {
+  0%   { background: rgba(0, 200, 83, 0.35); }
+  100% { background: transparent; }
+}
+@keyframes flashDown {
+  0%   { background: rgba(244, 67, 54, 0.35); }
+  100% { background: transparent; }
+}
+@keyframes flashNeutral {
+  0%   { background: rgba(255, 255, 255, 0.08); }
+  100% { background: transparent; }
+}
+
+.flash-up   { animation: flashUp   0.8s ease-out forwards; }
+.flash-down { animation: flashDown 0.8s ease-out forwards; }
+.flash-neu  { animation: flashNeutral 0.6s ease-out forwards; }
+
+/* ── Ticker tape ─────────────────────────────────── */
+@keyframes scrollLeft {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+.ticker-tape-track {
+  display: flex;
+  animation: scrollLeft 60s linear infinite;
+  will-change: transform;
+}
+.ticker-tape-track:hover { animation-play-state: paused; }
+
+/* ── Number formatting ───────────────────────────── */
+.tabular { font-variant-numeric: tabular-nums; }
+
+/* ── Mobile / PWA ────────────────────────────────── */
+@media (max-width: 768px) {
+  html, body, #root { overflow: auto; }
+
+  /* Tab bar at bottom */
+  .mobile-tabbar {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    height: 52px;
+    background: #0d0d0d;
+    border-top: 1px solid #1e1e1e;
+    display: flex;
+    align-items: stretch;
+    z-index: 100;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .mobile-tabbar button {
+    flex: 1;
+    background: none;
+    border: none;
+    color: #555;
+    font-family: inherit;
+    font-size: 7px;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    transition: color 0.15s;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+  .mobile-tabbar button.active { color: #ff6600; border-top: 2px solid #ff6600; }
+  .mobile-tabbar button svg { width: 16px; height: 16px; stroke: currentColor; fill: none; }
+
+  /* Content area — sits above tab bar */
+  .mobile-content {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    bottom: 52px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* Make header more compact */
+  .mobile-header {
+    height: 40px;
+    padding: 0 10px;
+    background: #000;
+    border-bottom: 2px solid #ff6600;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+  }
+
+  /* Panels fill full width */
+  .mobile-panel {
+    width: 100%;
+    min-height: 300px;
+    border-bottom: 1px solid #1e1e1e;
+  }
+
+  /* Larger touch targets */
+  button, [role="button"] {
+    min-height: 32px;
+    min-width: 32px;
+  }
+
+  /* Better font sizes for readability */
+  .price-cell  { font-size: 12px !important; }
+  .ticker-cell { font-size: 11px !important; }
+  .label-cell  { font-size: 9px !important; }
+}
+
+/* ── Status dot pulse ────────────────────────────── */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.3; }
+}
+.status-live { animation: pulse 2s ease-in-out infinite; }
+
+/* ── Loading shimmer ─────────────────────────────── */
+@keyframes shimmer {
+  from { background-position: -200px 0; }
+  to   { background-position: 200px 0; }
+}
+.skeleton {
+  background: linear-gradient(90deg, #111 25%, #1a1a1a 50%, #111 75%);
+  background-size: 400px 100%;
+  animation: shimmer 1.4s infinite linear;
+  border-radius: 2px;
+}
+
+/* ── Drag-over highlight ─────────────────────────── */
+.drag-over { outline: 1px solid #ff6600 !important; background: rgba(255,102,0,0.05) !important; }
