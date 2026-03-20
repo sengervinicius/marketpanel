@@ -33,7 +33,7 @@ export default function BrazilPanel() {
 
   const panelStyle = {background:'#0d0d14', display:'flex', flexDirection:'column', overflow:'hidden', fontFamily:"'IBM Plex Mono', monospace", fontSize:10};
   const headerStyle = {display:'grid', gridTemplateColumns:'52px 1fr 60px 52px', padding:'2px 6px', borderBottom:'1px solid #1a1a2e', color:'#555', fontSize:7, letterSpacing:'0.08em', textTransform:'uppercase'};
-  const rowStyle = (i) => ({display:'grid', gridTemplateColumns:'52px 1fr 60px 52px', padding:'2px 6px', borderBottom:'1px solid #0f0f1a', background: i%2===0?'transparent':'#060608', cursor:'default'});
+  const rowStyle = (i) => ({display:'grid', gridTemplateColumns:'52px 1fr 60px 52px', padding:'2px 6px', borderBottom:'1px solid #0f0f1a', background: i%2===0?'transparent':'#060608', cursor:'grab'});
 
   return (
     <div style={panelStyle}>
@@ -42,7 +42,15 @@ export default function BrazilPanel() {
       <div style={{overflowY:'auto', flex:1}}>
         {error && <div style={{color:'#f44336', padding:'8px 6px', fontSize:9}}>Error: {error}</div>}
         {stocks.map((s, i) => (
-          <div key={s.symbol} style={rowStyle(i)}>
+          <div
+            key={s.symbol}
+            style={rowStyle(i)}
+            draggable
+            onDragStart={(e) => {
+              e.dataTransfer.setData('application/json', JSON.stringify({ symbol: s.symbol, label: s.name || s.symbol }));
+              e.dataTransfer.effectAllowed = 'copy';
+            }}
+          >
             <span style={{color:'#e8a020', fontWeight:500}}>{s.symbol}</span>
             <span style={{color:'#777', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{s.name}</span>
             <span style={{textAlign:'right', color:'#ccc'}}>{fmtPrice(s.price)}</span>
