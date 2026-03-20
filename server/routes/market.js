@@ -5,14 +5,12 @@
  */
 
 const express = require('express');
-const fetch = require('node-fetch');
-const router = express.Router();
+const fetch   = require('node-fetch');
+const router  = express.Router();
 
 const BASE = 'https://api.polygon.io';
 
-function apiKey() {
-  return process.env.POLYGON_API_KEY;
-}
+function apiKey() { return process.env.POLYGON_API_KEY; }
 
 async function polyFetch(path) {
   const sep = path.includes('?') ? '&' : '?';
@@ -22,7 +20,7 @@ async function polyFetch(path) {
   return res.json();
 }
 
-// ─── Snapshots ────────────────────────────────────────────────────────────────
+// ─── Snapshots ───────────────────────────────────────────────────────────────
 
 // US stock snapshots (ETFs + individual stocks)
 router.get('/snapshot/stocks', async (req, res) => {
@@ -77,8 +75,7 @@ router.get('/snapshot/crypto', async (req, res) => {
   }
 });
 
-// ─── News ─────────────────────────────────────────────────────────────────────
-
+// ─── News ────────────────────────────────────────────────────────────────────
 router.get('/news', async (req, res) => {
   try {
     const limit = req.query.limit || 25;
@@ -91,20 +88,17 @@ router.get('/news', async (req, res) => {
 });
 
 // ─── Intraday chart data ──────────────────────────────────────────────────────
-
 router.get('/chart/:ticker', async (req, res) => {
   try {
     const { ticker } = req.params;
     const { from, to, multiplier = 5, timespan = 'minute' } = req.query;
-
     const now = new Date();
-    const toDate = to || now.toISOString().split('T')[0];
+    const toDate   = to   || now.toISOString().split('T')[0];
     const fromDate = from || (() => {
       const d = new Date(now);
       d.setDate(d.getDate() - 1);
       return d.toISOString().split('T')[0];
     })();
-
     const data = await polyFetch(
       `/v2/aggs/ticker/${ticker}/range/${multiplier}/${timespan}/${fromDate}/${toDate}?adjusted=true&sort=asc&limit=500`
     );
@@ -116,7 +110,6 @@ router.get('/chart/:ticker', async (req, res) => {
 });
 
 // ─── Ticker details ───────────────────────────────────────────────────────────
-
 router.get('/ticker/:symbol', async (req, res) => {
   try {
     const data = await polyFetch(`/v3/reference/tickers/${req.params.symbol}`);
@@ -126,8 +119,7 @@ router.get('/ticker/:symbol', async (req, res) => {
   }
 });
 
-// ─── Market status ───────────────────────────────────────────────────────────
-
+// ─── Market status ────────────────────────────────────────────────────────────
 router.get('/status', async (req, res) => {
   try {
     const data = await polyFetch('/v1/marketstatus/now');
@@ -137,21 +129,25 @@ router.get('/status', async (req, res) => {
   }
 });
 
-// ─── Brazilian stocks ──────────────────────────────────────────────────────
-
+// ─── Brazilian stocks (via Yahoo Finance) ────────────────────────────────────
 router.get('/snapshot/brazil', async (req, res) => {
   try {
-    const yahooFinance = require('yahoo-finance2').default;
-    const tickers = ['VALE3.SA','PETR4.SA','PETR3.SA','ITUB4.SA','BBDC4.SA','BBAS3.SA','ABEV3.SA','WEGE3.SA','RENT3.SA','RDOR3.SA','B3SA3.SA','EQTL3.SA','CSAN3.SA','PRIO3.SA','BPAC11.SA','HAPV3.SA','CMIG4.SA','VIVT3.SA','BOVA11.SA'];
+    // Use dynamic import for ESM-compatible yahoo-finance2
+    const { default: yahooFinance } = await import('yahoo-finance2');
+    const tickers = [
+      'VALE3.SA','PETR4.SA','PETR3.SA','ITUB4.SA','BBDC4.SA','BBAS3.SA',
+      'ABEV3.SA','WEGE3.SA','RENT3.SA','RDOR3.SA','B3SA3.SA','EQTL3.SA',
+      'CSAN3.SA','PRIO3.SA','BPAC11.SA','HAPV3.SA','CMIG4.SA','VIVT3.SA','BOVA11.SA'
+    ];
     const quotes = await yahooFinance.quote(tickers);
     const results = (Array.isArray(quotes) ? quotes : [quotes]).map(q => ({
-      symbol: q.symbol.replace('.SA',''),
-      name: (q.shortName || q.longName || q.symbol).substring(0, 18),
-      price: q.regularMarketPrice,
-      change: q.regularMarketChange,
+      symbol:    q.symbol.replace('.SA',''),
+      name:      (q.shortName || q.longName || q.symbol).substring(0, 18),
+      price:     q.regularMarketPrice,
+      change:    q.regularMarketChange,
       changePct: q.regularMarketChangePercent,
-      volume: q.regularMarketVolume,
-      currency: 'BRL'
+      volume:    q.regularMarketVolume,
+      currency:  'BRL'
     }));
     res.json({ results });
   } catch(err) {
@@ -160,15 +156,17 @@ router.get('/snapshot/brazil', async (req, res) => {
   }
 });
 
-// ─── Global equity index ETFs ─────────────────────────────────────────────
-
+// ─── Global equity index ETFs ─────────────────────────────────────────────────
 router.get('/snapshot/global-indices', async (req, res) => {
   try {
-    const tickers = ['SPY','QQQ','DIA','EWZ','EWW','EWC','EZU','EWU','EWG','EWQ','EWP','EWI','EWL','EWD','EWJ','EWH','EWY','EWA','MCHI','EWT','EWS','INDA'];
-    const url = `https://api.polygon.io/v2/snapshot/locale/us/markets/stocks/tickers?tickers=${tickers.join(',')}&apiKey=${process.env.POLYGON_API_KEY}`;
-    const resp = await fetch(url);
-    const data = await resp.json();
-    if (!resp.ok) throw new Error(data.error || `HTTP ${resp.status}`);
+    const tickers = [
+      'SPY','QQQ','DIA','EWZ','EWW','EWC',
+      'EZU','EWU','EWG','EWQ','EWP','EWI','EWL','EWD',
+      'EWJ','EWH','EWY','EWA','MCHI','EWT','EWS','INDA'
+    ];
+    const data = await polyFetch(
+      `/v2/snapshot/locale/us/markets/stocks/tickers?tickers=${tickers.join(',')}`
+    );
     res.json(data);
   } catch(err) {
     console.error('[API] /snapshot/global-indices error:', err.message);
