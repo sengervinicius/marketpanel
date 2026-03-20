@@ -12,7 +12,7 @@ let _yfInstance = null;
 async function getYahooFinance() {
   if (!_yfInstance) {
     const { default: YF } = await import('yahoo-finance2');
-        _yfInstance = YF;
+            _yfInstance = new YF();
   }
   return _yfInstance;
 }
