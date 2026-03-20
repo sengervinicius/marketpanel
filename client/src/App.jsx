@@ -49,8 +49,8 @@ export default function App() {
     return (
       <div style={{ display:'grid', gridTemplateRows:'36px 36vh 36vh 1fr', height:'100vh', background:'#0a0a0a', fontFamily:"'IBM Plex Mono','Roboto Mono','Courier New',monospace", overflow:'hidden', color:'#e0e0e0' }}>
         <div style={{ display:'flex', alignItems:'center', background:'#000', borderBottom:'2px solid #ff6600', padding:'0 12px', gap:12 }}>
-          <span style={{ color:'#ff6600', fontWeight:700, fontSize:'13px', letterSpacing:'2px' }}>BLOOMBERG</span>
-          <span style={{ color:'#333', fontSize:'9px', letterSpacing:'1px' }}>TERMINAL</span>
+          <span style={{ color:'#ff6600', fontWeight:700, fontSize:'13px', letterSpacing:'2px' }}>SENGER</span>
+          <span style={{ color:'#555', fontSize:'9px', letterSpacing:'1px' }}>MARKET SCREEN</span>
           <div style={{ marginLeft:'auto', display:'flex', alignItems:'center', gap:8 }}>
             {isRefreshing && <span style={{ color:'#444', fontSize:'8px', letterSpacing:'1px' }}>UPDATING...</span>}
             {lastUpdated && !isRefreshing && <span style={{ color:'#333', fontSize:'8px' }}>⟳ {lastUpdated.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'})}</span>}
