@@ -1,47 +1,48 @@
-import { SectionHeader } from '../common/SectionHeader';
-import { PriceRow } from '../common/PriceRow';
+// ForexPanel.jsx — FX pairs, BBG-style
 import { FOREX_PAIRS } from '../../utils/constants';
 
-const COLS = '72px 1fr 76px 96px 52px';
+const fmt4 = (n) => n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: 4, maximumFractionDigits: 4 });
+const fmtPct = (n) => n == null ? '—' : (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
+const COLS = '72px 1fr 76px 64px';
 
-export function ForexPanel({ forex, flashes, history }) {
+export function ForexPanel({ data, loading, onTickerClick }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
-      <SectionHeader title="FX / FOREX" right="MID RATES" />
-
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: COLS,
-        color: '#444',
-        fontSize: 9,
-        padding: '1px 0',
-        borderBottom: '1px solid #111',
-        flexShrink: 0,
-      }}>
-        <span style={{ paddingLeft: 6 }}>PAIR</span>
-        <span>NAME</span>
-        <span style={{ textAlign: 'right', paddingRight: 4 }}>RATE</span>
-        <span style={{ textAlign: 'right', paddingRight: 4 }}>CHG / %</span>
-        <span style={{ textAlign: 'right', paddingRight: 4 }}>TREND</span>
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#0a0a0a' }}>
+      <div style={{ padding: '4px 8px', borderBottom: '1px solid #2a2a2a', background: '#111', flexShrink: 0 }}>
+        <span style={{ color: '#ce93d8', fontSize: '10px', fontWeight: 700, letterSpacing: '1px' }}>FX / FOREX</span>
+        <span style={{ color: '#333', fontSize: '8px', marginLeft: 6 }}>MID RATES</span>
       </div>
-
+      <div style={{ display: 'grid', gridTemplateColumns: COLS, padding: '2px 8px', borderBottom: '1px solid #1a1a1a', flexShrink: 0 }}>
+        {['PAIR', '', 'RATE', 'CHG%'].map((h, i) => (
+          <span key={i} style={{ color: '#444', fontSize: '8px', fontWeight: 700, letterSpacing: '1px' }}>{h}</span>
+        ))}
+      </div>
       <div style={{ flex: 1, overflowY: 'auto' }}>
-        {FOREX_PAIRS.map((pair) => {
-          const d = forex[pair.symbol] || {};
+        {loading || !data ? (
+          <div style={{ padding: '20px', textAlign: 'center', color: '#444', fontSize: '10px' }}>LOADING...</div>
+        ) : FOREX_PAIRS.map(pair => {
+          const d = data[pair.symbol] || {};
           const price = d.mid || d.ask || d.price;
+          const pos = (d.changePct ?? 0) >= 0;
+          const chartSym = pair.symbol + '=X';
           return (
-            <PriceRow
+            <div
               key={pair.symbol}
-              columns={COLS}
-              symbol={pair.label}
-              name=""
-              symColor="#ce93d8"
-              price={price}
-              change={d.change}
-              changePct={d.changePct}
-              history={history[pair.symbol]}
-              flashState={flashes[`forex-${pair.symbol}`]}
-            />
+              draggable
+              onDragStart={e => {
+                e.dataTransfer.effectAllowed = 'copy';
+                e.dataTransfer.setData('application/x-ticker', JSON.stringify({ symbol: chartSym, name: pair.label, type: 'CURRENCY' }));
+              }}
+              onClick={() => onTickerClick?.(chartSym)}
+              style={{ display: 'grid', gridTemplateColumns: COLS, padding: '3px 8px', borderBottom: '1px solid #141414', cursor: 'pointer', alignItems: 'center' }}
+              onMouseEnter={e => e.currentTarget.style.background = '#141414'}
+              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+            >
+              <span style={{ color: '#ce93d8', fontSize: '10px', fontWeight: 700 }}>{pair.label}</span>
+              <span style={{ color: '#333', fontSize: '9px' }}></span>
+              <span style={{ color: '#ccc', fontSize: '10px', textAlign: 'right', paddingRight: 4 }}>{fmt4(price)}</span>
+              <span style={{ color: pos ? '#4caf50' : '#f44336', fontSize: '10px', textAlign: 'right', fontWeight: 600 }}>{fmtPct(d.changePct)}</span>
+            </div>
           );
         })}
       </div>
