@@ -7,8 +7,15 @@ const express = require('express');
 const fetch   = require('node-fetch');
 const router  = express.Router();
 
-// yahoo-finance2 v2.x ships a CJS build — use require().default
-const yahooFinance = require('yahoo-finance2').default;
+// yahoo-finance2 is ESM-only; its default export is a class constructor
+let _yfInstance = null;
+async function getYahooFinance() {
+  if (!_yfInstance) {
+    const { default: YF } = await import('yahoo-finance2');
+    _yfInstance = new YF();
+  }
+  return _yfInstance;
+}
 
 const BASE = 'https://api.polygon.io';
 
@@ -139,7 +146,7 @@ router.get('/snapshot/brazil', async (req, res) => {
       'CSAN3.SA','PRIO3.SA','BPAC11.SA','HAPV3.SA','CMIG4.SA','VIVT3.SA','BOVA11.SA'
     ];
     const quotes = await Promise.all(
-      tickers.map(t => yahooFinance.quote(t).catch(() => null))
+      tickers.map(t => (await getYahooFinance()).quote(t).catch(() => null))
     );
     const results = quotes
       .filter(q => q && q.regularMarketPrice != null)
@@ -211,7 +218,7 @@ router.get('/snapshot/rates', async (req, res) => {
     const tickers = ['^IRX','^FVX','^TNX','^TYX'];
     const labelMap = { '^IRX': 'US  3M', '^FVX': 'US  5Y', '^TNX': 'US 10Y', '^TYX': 'US 30Y' };
     const quotes = await Promise.all(
-      tickers.map(t => yahooFinance.quote(t).catch(() => null))
+      tickers.map(t => (await getYahooFinance()).quote(t).catch(() => null))
     );
     const results = quotes
       .filter(q => q && q.regularMarketPrice != null)
