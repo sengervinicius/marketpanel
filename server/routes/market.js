@@ -19,6 +19,13 @@ async function polyFetch(path) {
   return res.json();
 }
 
+// Helper: import yahoo-finance2 (ESM package) safely in CJS context
+async function getYahooFinance() {
+  const yf = await import('yahoo-finance2');
+  // Handle both double-wrapped (yf.default.default) and single-wrapped (yf.default)
+  return yf.default?.quote ? yf.default : (yf.default?.default || yf.default || yf);
+}
+
 // ─── Snapshots ──────────────────────────────────────────────────────────────
 
 // US stock snapshots (ETFs + individual stocks)
@@ -130,7 +137,7 @@ router.get('/status', async (req, res) => {
 // ─── Brazilian stocks (via Yahoo Finance) ────────────────────────────────────
 router.get('/snapshot/brazil', async (req, res) => {
   try {
-    const { default: yahooFinance } = await import('yahoo-finance2');
+    const yahooFinance = await getYahooFinance();
     const tickers = [
       'VALE3.SA','PETR4.SA','PETR3.SA','ITUB4.SA','BBDC4.SA','BBAS3.SA',
       'ABEV3.SA','WEGE3.SA','RENT3.SA','RDOR3.SA','B3SA3.SA','EQTL3.SA',
@@ -206,7 +213,7 @@ router.get('/snapshot/ticker/:symbol', async (req, res) => {
 // ─── Interest rates (US Treasuries via Yahoo Finance) ────────────────────────
 router.get('/snapshot/rates', async (req, res) => {
   try {
-    const { default: yahooFinance } = await import('yahoo-finance2');
+    const yahooFinance = await getYahooFinance();
     const tickers = ['^IRX','^FVX','^TNX','^TYX'];
     const labelMap = { '^IRX': 'US  3M', '^FVX': 'US  5Y', '^TNX': 'US 10Y', '^TYX': 'US 30Y' };
     const quotes = await Promise.all(
