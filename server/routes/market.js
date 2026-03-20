@@ -7,12 +7,12 @@ const express = require('express');
 const fetch   = require('node-fetch');
 const router  = express.Router();
 
-// yahoo-finance2 is ESM-only; its default export is a class constructor
+// yahoo-finance2 is ESM-only; its default export is a singleton instance
 let _yfInstance = null;
 async function getYahooFinance() {
   if (!_yfInstance) {
     const { default: YF } = await import('yahoo-finance2');
-    _yfInstance = new YF();
+        _yfInstance = YF;
   }
   return _yfInstance;
 }
