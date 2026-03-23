@@ -1,10 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useMarketData }        from './hooks/useMarketData';
 import { Header }               from './components/Header';
 import { IndexPanel }           from './components/panels/IndexPanel';
 import { StockPanel }           from './components/panels/StockPanel';
 import { ForexPanel }           from './components/panels/ForexPanel';
-import { CryptoPanel }          from './components/panels/CryptoPanel';
 import { CommoditiesPanel }     from './components/panels/CommoditiesPanel';
 import { NewsPanel }            from './components/panels/NewsPanel';
 import { ChartPanel }           from './components/panels/ChartPanel';
@@ -15,7 +14,7 @@ import BrazilPanel              from './components/panels/BrazilPanel';
 import GlobalIndicesPanel       from './components/panels/GlobalIndicesPanel';
 import './App.css';
 
-// World clock: NY · SP · LDN · FRA · HKG · TKY
+// ── World Clock ────────────────────────────────────────────────────────────────
 function WorldClock() {
   const [now, setNow] = useState(new Date());
   useEffect(() => {
@@ -31,11 +30,11 @@ function WorldClock() {
     { label: 'TKY', tz: 'Asia/Tokyo'        },
   ];
   return (
-    <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+    <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
       {zones.map(z => (
-        <span key={z.label} style={{ display: 'flex', gap: 3, alignItems: 'baseline' }}>
-          <span style={{ color: '#444', fontSize: 7, letterSpacing: '0.05em' }}>{z.label}</span>
-          <span style={{ color: '#666', fontSize: 8, fontVariantNumeric: 'tabular-nums', letterSpacing: '0.02em' }}>
+        <span key={z.label} style={{ display: 'flex', gap: 4, alignItems: 'baseline' }}>
+          <span style={{ color: '#555', fontSize: 9, letterSpacing: '0.06em', fontWeight: 600 }}>{z.label}</span>
+          <span style={{ color: '#888', fontSize: 11, fontVariantNumeric: 'tabular-nums', letterSpacing: '0.03em' }}>
             {now.toLocaleTimeString('en-US', { timeZone: z.tz, hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}
           </span>
         </span>
@@ -44,6 +43,69 @@ function WorldClock() {
   );
 }
 
+// ── Resize Handle (row) ────────────────────────────────────────────────────────
+function ResizeHandle({ onStart }) {
+  return (
+    <div
+      onMouseDown={e => { e.preventDefault(); onStart(e); }}
+      style={{
+        height: 6, flexShrink: 0,
+        cursor: 'row-resize',
+        background: '#0a0a0a',
+        borderTop: '1px solid #1e1e1e',
+        borderBottom: '1px solid #1e1e1e',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        userSelect: 'none', zIndex: 20,
+      }}
+    >
+      <div style={{ width: 36, height: 2, background: '#222', borderRadius: 1 }} />
+    </div>
+  );
+}
+
+// ── Resizable flex-row hook ────────────────────────────────────────────────────
+function useResizableFlex(storageKey, defaults) {
+  const [sizes, setSizes] = useState(() => {
+    try {
+      const s = JSON.parse(localStorage.getItem(storageKey));
+      return Array.isArray(s) && s.length === defaults.length ? s : defaults;
+    } catch { return defaults; }
+  });
+
+  const sizesRef = useRef(sizes);
+  useEffect(() => { sizesRef.current = sizes; }, [sizes]);
+
+  const startResize = useCallback((idx, e) => {
+    const startY     = e.clientY;
+    const startSizes = [...sizesRef.current];
+    const totalFlex  = startSizes.reduce((a, b) => a + b, 0);
+    const totalH     = window.innerHeight - 42; // subtract header + handles
+    const flexPerPx  = totalFlex / totalH;
+
+    const onMove = (mv) => {
+      const delta = (mv.clientY - startY) * flexPerPx;
+      setSizes(startSizes.map((s, i) => {
+        if (i === idx)   return Math.max(0.15, s + delta);
+        if (i === idx+1) return Math.max(0.15, s - delta);
+        return s;
+      }));
+    };
+    const onUp = () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup',   onUp);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup',   onUp);
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem(storageKey, JSON.stringify(sizes));
+  }, [sizes, storageKey]);
+
+  return [sizes, startResize];
+}
+
+// ── Tab definitions ────────────────────────────────────────────────────────────
 const TABS = [
   { id: 'markets',  label: 'MARKETS'  },
   { id: 'brazil',   label: 'BRAZIL'   },
@@ -66,8 +128,10 @@ export default function App() {
 
   const [chartTicker, setChartTickerState] = useState(() => localStorage.getItem(LS_CHART_TICKER) || 'SPY');
   const setChartTicker = useCallback((t) => {
-    setChartTickerState(t);
-    localStorage.setItem(LS_CHART_TICKER, t);
+    // Handle object format from legacy click handlers
+    const sym = typeof t === 'object' ? (t.symbol || t) : t;
+    setChartTickerState(sym);
+    localStorage.setItem(LS_CHART_TICKER, sym);
   }, []);
 
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
@@ -77,7 +141,7 @@ export default function App() {
     return () => window.removeEventListener('resize', handler);
   }, []);
 
-  // Track how many charts are in the grid so the mobile container can resize
+  // Track chart count for mobile height
   const [chartGridCount, setChartGridCount] = useState(() => {
     try {
       const arr = JSON.parse(localStorage.getItem(LS_CHART_GRID) || '["SPY","QQQ"]');
@@ -85,20 +149,23 @@ export default function App() {
     } catch { return 2; }
   });
 
-  const border  = '1px solid #1e1e1e';
-  const border2 = '2px solid #1e1e1e';
+  // Resizable row sizes (flex units)
+  const [rowSizes, startRowResize] = useResizableFlex('rowFlexSizes_v1', [2, 1.5, 1.5]);
+
+  const border = '1px solid #1e1e1e';
 
   // ── DESKTOP ────────────────────────────────────────────────────────────────
   if (!isMobile) {
     return (
       <div style={{
-        display: 'grid', gridTemplateRows: '36px 2fr 1.5fr 1.5fr',
+        display: 'flex', flexDirection: 'column',
         height: '100vh', background: '#0a0a0a',
         fontFamily: "'IBM Plex Mono','Roboto Mono','Courier New',monospace",
         overflow: 'hidden', color: '#e0e0e0',
+        userSelect: 'none',
       }}>
         {/* Header */}
-        <div style={{ display:'flex', alignItems:'center', background:'#000', borderBottom:'2px solid #ff6600', padding:'0 12px', gap:12 }}>
+        <div style={{ height: 36, flexShrink: 0, display:'flex', alignItems:'center', background:'#000', borderBottom:'2px solid #ff6600', padding:'0 12px', gap:12 }}>
           <span style={{ color:'#ff6600', fontWeight:700, fontSize:'13px', letterSpacing:'2px' }}>SENGER</span>
           <span style={{ color:'#444', fontSize:'9px', letterSpacing:'1px' }}>MARKET SCREEN</span>
           <div style={{ flex:1, display:'flex', justifyContent:'center' }}><WorldClock /></div>
@@ -108,24 +175,29 @@ export default function App() {
           </div>
         </div>
 
-        {/* Row 2: Charts | Stocks | Crypto | Forex */}
-        <div style={{ display:'grid', gridTemplateColumns:'2fr 1fr 1fr 1fr', borderBottom:border2, overflow:'hidden' }}>
+        {/* Row 2: Charts | Stocks | FX+Crypto (crypto merged into ForexPanel) */}
+        <div style={{ flex: rowSizes[0], display:'grid', gridTemplateColumns:'2fr 1fr 1.6fr', overflow:'hidden', minHeight: 60 }}>
           <div style={{ borderRight:border, overflow:'hidden' }}><ChartPanel ticker={chartTicker} onTickerChange={setChartTicker} onGridChange={setChartGridCount} /></div>
           <div style={{ borderRight:border, overflow:'hidden' }}><StockPanel  data={data?.stocks} loading={loading} onTickerClick={setChartTicker} /></div>
-          <div style={{ borderRight:border, overflow:'hidden' }}><CryptoPanel data={data?.crypto} loading={loading} onTickerClick={setChartTicker} /></div>
-          <div style={{ overflow:'hidden' }}>                   <ForexPanel  data={data?.forex}  loading={loading} onTickerClick={setChartTicker} /></div>
+          <div style={{ overflow:'hidden' }}>
+            <ForexPanel data={data?.forex} cryptoData={data?.crypto} loading={loading} onTickerClick={setChartTicker} />
+          </div>
         </div>
 
+        <ResizeHandle onStart={e => startRowResize(0, e)} />
+
         {/* Row 3: Indexes | Brazil | Global | Commodities */}
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr 1fr', borderBottom:border2, overflow:'hidden' }}>
+        <div style={{ flex: rowSizes[1], display:'grid', gridTemplateColumns:'1fr 1fr 1fr 1fr', overflow:'hidden', minHeight: 60 }}>
           <div style={{ borderRight:border, overflow:'hidden' }}><IndexPanel       data={data?.indices} loading={loading} onTickerClick={setChartTicker} /></div>
           <div style={{ borderRight:border, overflow:'hidden' }}><BrazilPanel      onTickerClick={setChartTicker} /></div>
           <div style={{ borderRight:border, overflow:'hidden' }}><GlobalIndicesPanel onTickerClick={setChartTicker} /></div>
           <div style={{ overflow:'hidden' }}>                   <CommoditiesPanel data={data?.stocks}  loading={loading} onTickerClick={setChartTicker} /></div>
         </div>
 
+        <ResizeHandle onStart={e => startRowResize(1, e)} />
+
         {/* Row 4: Rates | Search | News | Sentiment */}
-        <div style={{ display:'grid', gridTemplateColumns:'180px 1fr 2fr 1fr', overflow:'hidden' }}>
+        <div style={{ flex: rowSizes[2], display:'grid', gridTemplateColumns:'180px 1fr 2fr 1fr', overflow:'hidden', minHeight: 60 }}>
           <div style={{ borderRight:border, overflow:'hidden' }}><RatesPanel /></div>
           <div style={{ borderRight:border, overflow:'hidden' }}><SearchPanel onTickerSelect={setChartTicker} /></div>
           <div style={{ borderRight:border, overflow:'hidden' }}><NewsPanel /></div>
@@ -136,11 +208,9 @@ export default function App() {
   }
 
   // ── MOBILE ─────────────────────────────────────────────────────────────────
-  // Dynamic chart area height: ChartPanel uses 2 cols on mobile for 2-4 charts
-  // Give each row ~56vw of height so charts are readable; scales with count
-  const chartCols       = chartGridCount <= 1 ? 1 : 2;
-  const chartRowCount   = Math.ceil(chartGridCount / chartCols);
-  const mobileChartH    = `${Math.max(56, chartRowCount * 56)}vw`;
+  const chartCols     = chartGridCount <= 1 ? 1 : 2;
+  const chartRowCount = Math.ceil(chartGridCount / chartCols);
+  const mobileChartH  = `${Math.max(56, chartRowCount * 56)}vw`;
 
   return (
     <div style={{
@@ -171,23 +241,17 @@ export default function App() {
       <div style={{ flex:1, overflow:'auto', minHeight:0 }}>
         {activeTab === 'markets' && (
           <div>
-            {/* Chart area — height grows with number of charts */}
             <div style={{ borderBottom:'2px solid #1e1e1e', height: mobileChartH, minHeight: 220 }}>
-              <ChartPanel
-                ticker={chartTicker}
-                onTickerChange={setChartTicker}
-                onGridChange={setChartGridCount}
-              />
+              <ChartPanel ticker={chartTicker} onTickerChange={setChartTicker} onGridChange={setChartGridCount} />
             </div>
             <div style={{ borderBottom:'1px solid #1e1e1e' }}>
               <StockPanel data={data?.stocks} loading={loading} onTickerClick={setChartTicker} />
             </div>
-            <CryptoPanel data={data?.crypto} loading={loading} onTickerClick={setChartTicker} />
           </div>
         )}
 
         {activeTab === 'brazil' && (
-          <BrazilPanel onTickerClick={(t) => { setChartTicker(t.symbol || t); setActiveTabPersist('markets'); }} />
+          <BrazilPanel onTickerClick={(t) => { setChartTicker(typeof t === 'object' ? (t.symbol || t) : t); setActiveTabPersist('markets'); }} />
         )}
 
         {activeTab === 'global' && (
@@ -201,7 +265,7 @@ export default function App() {
 
         {activeTab === 'fxcrypto' && (
           <div>
-            <ForexPanel data={data?.forex} loading={loading} onTickerClick={setChartTicker} />
+            <ForexPanel data={data?.forex} cryptoData={data?.crypto} loading={loading} onTickerClick={setChartTicker} />
             <div style={{ borderTop:'1px solid #1e1e1e' }}>
               <CommoditiesPanel data={data?.stocks} loading={loading} onTickerClick={setChartTicker} />
             </div>
