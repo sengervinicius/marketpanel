@@ -4,18 +4,18 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip, ReferenceLine } from 'recharts';
 
-const API = import.meta.env.VITE_API_URL || '';
+const API    = import.meta.env.VITE_API_URL || '';
 const LS_KEY = 'chartGrid_v3';
-const MAX = 16;
+const MAX    = 16;
 
 // Time range configs
 const RANGES = [
-  { label: '1D',  multiplier: 5,  timespan: 'minute', days: 1   },
-  { label: '3D',  multiplier: 30, timespan: 'minute', days: 3   },
-  { label: '1M',  multiplier: 1,  timespan: 'day',    days: 30  },
-  { label: '6M',  multiplier: 1,  timespan: 'day',    days: 180 },
-  { label: 'YTD', multiplier: 1,  timespan: 'day',    days: 0   },
-  { label: '1Y',  multiplier: 1,  timespan: 'day',    days: 365 },
+  { label: '1D', multiplier: 5,  timespan: 'minute', days: 1   },
+  { label: '3D', multiplier: 30, timespan: 'minute', days: 3   },
+  { label: '1M', multiplier: 1,  timespan: 'day',    days: 30  },
+  { label: '6M', multiplier: 1,  timespan: 'day',    days: 180 },
+  { label: 'YTD',multiplier: 1,  timespan: 'day',    days: 0   },
+  { label: '1Y', multiplier: 1,  timespan: 'day',    days: 365 },
 ];
 
 function getFromDate(range) {
@@ -41,7 +41,6 @@ function displayTicker(norm) {
 }
 
 const fmtPrice = (n) => n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
 const fmtK = (n) => {
   if (n == null) return '—';
   const abs = Math.abs(n);
@@ -52,16 +51,16 @@ const fmtK = (n) => {
 
 // Bloomberg-style mini chart tile
 function MiniChart({ ticker, onRemove, onReplace }) {
-  const [data,    setData]    = useState([]);
-  const [price,   setPrice]   = useState(null);
-  const [chg,     setChg]     = useState(null);
-  const [chgPct,  setChgPct]  = useState(null);
-  const [high,    setHigh]    = useState(null);
-  const [low,     setLow]     = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [data, setData]         = useState([]);
+  const [price, setPrice]       = useState(null);
+  const [chg, setChg]           = useState(null);
+  const [chgPct, setChgPct]     = useState(null);
+  const [high, setHigh]         = useState(null);
+  const [low, setLow]           = useState(null);
+  const [loading, setLoading]   = useState(true);
   const [isDragOver, setIsDragOver] = useState(false);
   const [rangeIdx, setRangeIdx] = useState(2); // default 1M
-  const mountedRef = useRef(true);
+  const mountedRef  = useRef(true);
   const intervalRef = useRef(null);
 
   const fetchData = useCallback(async (rIdx) => {
@@ -72,7 +71,7 @@ function MiniChart({ ticker, onRemove, onReplace }) {
       const toStr   = new Date().toISOString().split('T')[0];
       const fromStr = getFromDate(range);
       const url = `${API}/api/chart/${encodeURIComponent(ticker)}?from=${fromStr}&to=${toStr}&multiplier=${range.multiplier}&timespan=${range.timespan}`;
-      const res = await fetch(url);
+      const res  = await fetch(url);
       if (!res.ok) throw new Error(res.status);
       const json = await res.json();
       if (!mountedRef.current) return;
@@ -108,12 +107,10 @@ function MiniChart({ ticker, onRemove, onReplace }) {
     setRangeIdx(idx);
   };
 
-  const isUp       = (chg ?? 0) >= 0;
-  const lineColor  = isUp ? '#e8e8e8' : '#ff5555';
-  const fillUp     = 'rgba(30, 80, 200, 0.4)';
-  const fillDown   = 'rgba(180, 30, 30, 0.3)';
-  const gradId     = 'g' + ticker.replace(/[^a-zA-Z0-9]/g, '');
-  const openPrice  = data[0]?.v;
+  const isUp      = (chg ?? 0) >= 0;
+  const lineColor = isUp ? '#e8e8e8' : '#ff5555';
+  const gradId    = 'g' + ticker.replace(/[^a-zA-Z0-9]/g, '');
+  const openPrice = data[0]?.v;
 
   const xFmt = (ms) => {
     const d = new Date(ms);
@@ -150,21 +147,17 @@ function MiniChart({ ticker, onRemove, onReplace }) {
           {isDragOver ? 'DROP TO REPLACE' : displayTicker(ticker)}
         </span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-          {price != null && <span style={{ color: '#cccccc', fontSize: 8, fontVariantNumeric: 'tabular-nums' }}>{fmtPrice(price)}</span>}
+          {price  != null && <span style={{ color: '#cccccc', fontSize: 8, fontVariantNumeric: 'tabular-nums' }}>{fmtPrice(price)}</span>}
           {chgPct != null && (
             <span style={{ color: isUp ? '#4caf50' : '#f44336', fontSize: 8, fontWeight: 700 }}>
               {(isUp ? '+' : '') + chgPct.toFixed(2) + '%'}
             </span>
           )}
-          <button
-            onClick={() => onRemove(ticker)}
-            style={{ background: 'none', border: 'none', color: '#333', cursor: 'pointer', fontSize: 10, padding: '0 2px', lineHeight: 1, fontFamily: 'inherit' }}
-            title="Remove chart"
-          >✕</button>
+          <button onClick={() => onRemove(ticker)} style={{ background: 'none', border: 'none', color: '#333', cursor: 'pointer', fontSize: 10, padding: '0 2px', lineHeight: 1, fontFamily: 'inherit' }} title="Remove chart">✕</button>
         </div>
       </div>
 
-      {/* Bloomberg stats row: Chg | High | Low */}
+      {/* Bloomberg stats row */}
       <div style={{ display: 'flex', gap: 6, padding: '1px 5px', flexShrink: 0, borderTop: '1px solid #0d0d18', borderBottom: '1px solid #0d0d18' }}>
         <span style={{ color: '#3a3a5a', fontSize: 6.5 }}>
           □ Chg{' '}
@@ -172,12 +165,8 @@ function MiniChart({ ticker, onRemove, onReplace }) {
             {chg != null ? (isUp ? '+' : '') + fmtK(chg) + ' (' + (isUp ? '+' : '') + (chgPct?.toFixed(2) ?? '—') + '%)' : '—'}
           </span>
         </span>
-        <span style={{ color: '#3a3a5a', fontSize: 6.5 }}>
-          □ High <span style={{ color: '#888' }}>{fmtK(high)}</span>
-        </span>
-        <span style={{ color: '#3a3a5a', fontSize: 6.5 }}>
-          □ Low <span style={{ color: '#888' }}>{fmtK(low)}</span>
-        </span>
+        <span style={{ color: '#3a3a5a', fontSize: 6.5 }}>□ High <span style={{ color: '#888' }}>{fmtK(high)}</span></span>
+        <span style={{ color: '#3a3a5a', fontSize: 6.5 }}>□ Low <span style={{ color: '#888' }}>{fmtK(low)}</span></span>
       </div>
 
       {/* Chart area */}
@@ -195,35 +184,10 @@ function MiniChart({ ticker, onRemove, onReplace }) {
                   <stop offset="95%" stopColor={isUp ? '#1e50c8' : '#c81e1e'} stopOpacity={0.0}  />
                 </linearGradient>
               </defs>
-              <XAxis
-                dataKey="t"
-                tickFormatter={xFmt}
-                tick={{ fill: '#2a2a45', fontSize: 6 }}
-                tickLine={false}
-                axisLine={false}
-                interval="preserveStartEnd"
-              />
-              <YAxis
-                orientation="right"
-                domain={['auto', 'auto']}
-                tickFormatter={fmtK}
-                tick={{ fill: '#2a2a45', fontSize: 6 }}
-                tickLine={false}
-                axisLine={false}
-                width={30}
-              />
-              {openPrice && (
-                <ReferenceLine y={openPrice} stroke="#e8a020" strokeDasharray="3 3" strokeWidth={1} />
-              )}
-              <Area
-                type="monotone"
-                dataKey="v"
-                stroke={lineColor}
-                strokeWidth={1.5}
-                fill={`url(#${gradId})`}
-                dot={false}
-                isAnimationActive={false}
-              />
+              <XAxis dataKey="t" tickFormatter={xFmt} tick={{ fill: '#2a2a45', fontSize: 6 }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
+              <YAxis orientation="right" domain={['auto','auto']} tickFormatter={fmtK} tick={{ fill: '#2a2a45', fontSize: 6 }} tickLine={false} axisLine={false} width={30} />
+              {openPrice && <ReferenceLine y={openPrice} stroke="#e8a020" strokeDasharray="3 3" strokeWidth={1} />}
+              <Area type="monotone" dataKey="v" stroke={lineColor} strokeWidth={1.5} fill={`url(#${gradId})`} dot={false} isAnimationActive={false} />
               <Tooltip
                 contentStyle={{ background: '#0a0c18', border: '1px solid #2a2a4a', fontSize: 7, padding: '3px 6px', borderRadius: 2 }}
                 itemStyle={{ color: lineColor }}
@@ -235,23 +199,17 @@ function MiniChart({ ticker, onRemove, onReplace }) {
         )}
       </div>
 
-      {/* Date range buttons — Bloomberg style */}
+      {/* Date range buttons */}
       <div style={{ display: 'flex', borderTop: '1px solid #0d0d18', flexShrink: 0 }}>
         {RANGES.map((r, i) => (
-          <button
-            key={r.label}
-            onClick={() => handleRangeChange(i)}
-            style={{
-              flex: 1, padding: '2px 0',
-              background: 'transparent', border: 'none',
-              borderBottom: i === rangeIdx ? '2px solid #e8a020' : '2px solid transparent',
-              color: i === rangeIdx ? '#e8a020' : '#333',
-              fontSize: 7, cursor: 'pointer', fontFamily: 'inherit',
-              fontWeight: i === rangeIdx ? 700 : 400,
-              letterSpacing: '0.05em',
-              transition: 'color 0.1s, border-color 0.1s',
-            }}
-          >
+          <button key={r.label} onClick={() => handleRangeChange(i)} style={{
+            flex: 1, padding: '2px 0', background: 'transparent', border: 'none',
+            borderBottom: i === rangeIdx ? '2px solid #e8a020' : '2px solid transparent',
+            color: i === rangeIdx ? '#e8a020' : '#333',
+            fontSize: 7, cursor: 'pointer', fontFamily: 'inherit',
+            fontWeight: i === rangeIdx ? 700 : 400, letterSpacing: '0.05em',
+            transition: 'color 0.1s, border-color 0.1s',
+          }}>
             {r.label}
           </button>
         ))}
@@ -292,10 +250,9 @@ function EmptySlot({ onAdd }) {
   );
 }
 
-export function ChartPanel({ ticker: externalTicker }) {
+export function ChartPanel({ ticker: externalTicker, onGridChange }) {
   const [tickers, setTickers] = useState(() => {
     try {
-      // Try new key first, fallback to old key
       const v3 = JSON.parse(localStorage.getItem(LS_KEY));
       if (Array.isArray(v3) && v3.length) return v3.slice(0, MAX);
       const v2 = JSON.parse(localStorage.getItem('chartGrid_v2'));
@@ -316,7 +273,8 @@ export function ChartPanel({ ticker: externalTicker }) {
 
   useEffect(() => {
     localStorage.setItem(LS_KEY, JSON.stringify(tickers));
-  }, [tickers]);
+    onGridChange?.(tickers.length); // notify parent (mobile height adjustment)
+  }, [tickers, onGridChange]);
 
   const addTicker = useCallback((raw) => {
     const norm = normalizeTicker(raw);
@@ -326,17 +284,12 @@ export function ChartPanel({ ticker: externalTicker }) {
     });
   }, []);
 
-  const removeTicker = useCallback((ticker) => {
-    setTickers(prev => prev.filter(t => t !== ticker));
-  }, []);
-
-  const replaceTicker = useCallback((oldTicker, newTicker) => {
-    setTickers(prev => prev.map(t => t === oldTicker ? newTicker : t));
-  }, []);
+  const removeTicker  = useCallback((ticker) => { setTickers(prev => prev.filter(t => t !== ticker)); }, []);
+  const replaceTicker = useCallback((oldTicker, newTicker) => { setTickers(prev => prev.map(t => t === oldTicker ? newTicker : t)); }, []);
 
   // Adaptive grid columns
-  const cols = tickers.length <= 1 ? 1 : tickers.length <= 4 ? 2 : tickers.length <= 9 ? 3 : 4;
-  const rows = Math.ceil(tickers.length / cols);
+  const cols      = tickers.length <= 1 ? 1 : tickers.length <= 4 ? 2 : tickers.length <= 9 ? 3 : 4;
+  const rows      = Math.ceil(tickers.length / cols);
   const totalSlots = cols * rows;
   const emptySlots = Math.min(MAX - tickers.length, totalSlots - tickers.length);
 
@@ -345,8 +298,6 @@ export function ChartPanel({ ticker: externalTicker }) {
       style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#040508', overflow: 'hidden' }}
       onDragOver={e => e.preventDefault()}
       onDrop={e => {
-        // Fires ONLY if NOT caught by a child (EmptySlot/MiniChart use stopPropagation)
-        // This acts as a fallback when dropping on the panel header or gaps
         e.preventDefault();
         try {
           const raw = e.dataTransfer.getData('application/x-ticker');
@@ -362,8 +313,7 @@ export function ChartPanel({ ticker: externalTicker }) {
 
       {/* Grid of charts + empty slots */}
       <div style={{
-        flex: 1,
-        display: 'grid',
+        flex: 1, display: 'grid',
         gridTemplateColumns: `repeat(${cols}, 1fr)`,
         gridTemplateRows: `repeat(${rows + (emptySlots > 0 ? 1 : 0)}, 1fr)`,
         gap: 1, overflow: 'hidden', padding: 1,
