@@ -217,28 +217,33 @@ router.get('/status', async (req, res) => {
   }
 });
 
-// âââ Brazilian B3 stocks (Yahoo Finance) âââââââââââââââââââââââââââââââââââââââ
+// âââ Brazilian B3 stocks (brapi.dev â free, no auth needed) âââââââââââââââââââ
 
 router.get('/snapshot/brazil', async (req, res) => {
   try {
     const tickers = [
-      'VALE3.SA','PETR4.SA','PETR3.SA','ITUB4.SA','BBDC4.SA','BBAS3.SA',
-      'ABEV3.SA','WEGE3.SA','RENT3.SA','RDOR3.SA','B3SA3.SA','EQTL3.SA',
-      'CSAN3.SA','PRIO3.SA','BPAC11.SA','HAPV3.SA','CMIG4.SA','VIVT3.SA','BOVA11.SA'
+      'VALE3','PETR4','PETR3','ITUB4','BBDC4','BBAS3',
+      'ABEV3','WEGE3','RENT3','RDOR3','B3SA3','EQTL3',
+      'CSAN3','PRIO3','BPAC11','HAPV3','CMIG4','VIVT3','BOVA11',
     ];
-    const quotes = await yahooQuote(tickers.join(','));
-    if (!quotes.length) throw new Error('Yahoo returned no results for Brazilian tickers');
-    const results = quotes
+    const url = `https://brapi.dev/api/quote/${tickers.join(',')}?fundamental=false`;
+    const r = await fetch(url, {
+      headers: { 'Accept': 'application/json', 'User-Agent': YF_UA },
+    });
+    if (!r.ok) throw new Error(`brapi.dev ${r.status}`);
+    const json = await r.json();
+    const results = (json.results || [])
       .filter(q => q.regularMarketPrice != null)
       .map(q => ({
-        symbol: q.symbol.replace('.SA', ''),
-        name: (q.shortName || q.symbol).substring(0, 18),
+        symbol: q.symbol,
+        name: (q.longName || q.shortName || q.symbol).substring(0, 18),
         price: q.regularMarketPrice,
-        change: q.regularMarketChange,
-        changePct: q.regularMarketChangePercent,
-        volume: q.regularMarketVolume,
-        currency: 'BRL'
+        change:     q.regularMarketChange     ?? 0,
+        changePct:  q.regularMarketChangePercent ?? 0,
+        volume:     q.regularMarketVolume     ?? 0,
+        currency: 'BRL',
       }));
+    if (!results.length) throw new Error('brapi.dev returned no results');
     res.json({ results });
   } catch (err) {
     console.error('[API] /snapshot/brazil error:', err.message);
@@ -514,7 +519,7 @@ router.get('/di-curve', async (req, res) => {
 });
 
 
-// ââ Yield Curves: BR, US, UK ââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ââ Yield Curves: BR, US, UK, EU âââââââââââââââââââââââââââââââââââââââââââââââââ
 
 const US_CURVE_FIELDS = [
   { tenor: '1M',  field: 'BC_1MONTH',  months: 1   },
@@ -588,6 +593,64 @@ function ukSynthetic(boeRate = 4.50) {
   ].filter(p => p.rate > 0);
 }
 
+// ââ ECB Euro Area yield curve âââââââââââââââââââââââââââââââââââââââââââââââââ
+
+const ECC_MAT_MAP = {
+  'SR_3M':  { tenor: '3M',  months: 3   },
+  'SR_6M':  { tenor: '6M',  months: 6   },
+  'SR_1Y':  { tenor: '1Y',  months: 12  },
+  'SR_2Y':  { tenor: '2Y',  months: 24  },
+  'SR_3Y':  { tenor: '3Y',  months: 36  },
+  'SR_5Y':  { tenor: '5Y',  months: 60  },
+  'SR_7Y':  { tenor: '7Y',  months: 84  },
+  'SR_10Y': { tenor: '10Y', months: 120 },
+  'SR_20Y': { tenor: '20Y', months: 240 },
+  'SR_30Y': { tenor: '30Y', months: 360 },
+};
+
+function parseEcbYieldCurve(json) {
+  try {
+    const dataSet = json.dataSets?.[0];
+    if (!dataSet?.series) return [];
+    const seriesDims = json.structure?.dimensions?.series || [];
+    const lastDim   = seriesDims[seriesDims.length - 1]; // maturity dimension
+    if (!lastDim?.values) return [];
+    const results = [];
+    for (const [key, series] of Object.entries(dataSet.series)) {
+      const parts  = key.split(':');
+      const matIdx = parseInt(parts[parts.length - 1]);
+      const matId  = lastDim.values[matIdx]?.id;
+      const meta   = ECB_MAT_MAP[matId];
+      if (!meta) continue;
+      const obsVals = Object.values(series.observations || {});
+      if (!obsVals.length) continue;
+      const rate = obsVals[obsVals.length - 1]?.[0];
+      if (rate == null || isNaN(rate)) continue;
+      results.push({ tenor: meta.tenor, months: meta.months, rate: parseFloat(rate.toFixed(2)) });
+    }
+    return results.sort((a, b) => a.months - b.months);
+  } catch (e) {
+    console.warn('[ECB] parse error:', e.message);
+    return [];
+  }
+}
+
+function euSynthetic(ecbRate) {
+  const r = ecbRate || 2.50;
+  return [
+    { tenor: '3M',  months: 3,   rate: parseFloat((r - 0.30).toFixed(2)) },
+    { tenor: '6M',  months: 6,   rate: parseFloat((r - 0.10).toFixed(2)) },
+    { tenor: '1Y',  months: 12,  rate: parseFloat((r + 0.15).toFixed(2)) },
+    { tenor: '2Y',  months: 24,  rate: parseFloat((r + 0.50).toFixed(2)) },
+    { tenor: '3Y',  months: 36,  rate: parseFloat((r + 0.70).toFixed(2)) },
+    { tenor: '5Y',  months: 60,  rate: parseFloat((r + 1.00).toFixed(2)) },
+    { tenor: '7Y',  months: 84,  rate: parseFloat((r + 1.20).toFixed(2)) },
+    { tenor: '10Y', months: 120, rate: parseFloat((r + 1.40).toFixed(2)) },
+    { tenor: '20Y', months: 240, rate: parseFloat((r + 1.60).toFixed(2)) },
+    { tenor: '30Y', months: 360, rate: parseFloat((r + 1.50).toFixed(2)) },
+  ].filter(p => p.rate > 0);
+}
+
 router.get('/yield-curves', async (req, res) => {
   try {
     const now = new Date();
@@ -596,7 +659,7 @@ router.get('/yield-curves', async (req, res) => {
     const mm = String(now.getMonth() + 1).padStart(2, '0');
     const yyyy = now.getFullYear();
 
-    const [tdRes, selicRes, usTreasuryRes, ukBoeRes] = await Promise.allSettled([
+    const [tdRes, selicRes, usTreasuryRes, ukBoeRes, ecbYcRes] = await Promise.allSettled([
       fetch('https://www.tesourodireto.com.br/json/br/com/b3/tesourodireto/service/api/treasurybondsfile.json', {
         headers: { 'User-Agent': YF_UA, 'Accept': 'application/json', 'Accept-Language': 'pt-BR,pt;q=0.9', 'Referer': 'https://www.tesourodireto.com.br/' },
       }).then(r => { if (!r.ok) throw new Error(`TD ${r.status}`); return r.json(); }),
@@ -612,6 +675,11 @@ router.get('/yield-curves', async (req, res) => {
       fetch(`https://www.bankofengland.co.uk/boeapps/database/fromshowcolumns.asp?csv.x=yes&CSVF=TN&UsingCodes=Y&VFD=N&DP=2&Datefrom=01/${mm}/${yyyy}&Dateto=${dd}/${mm}/${yyyy}&SeriesCodes=IUMVZC,IUM2ZC,IUM5ZC,IUM10ZC,IUM20ZC`, {
         headers: { 'User-Agent': YF_UA, 'Accept': 'text/csv,text/plain,*/*', 'Referer': 'https://www.bankofengland.co.uk/' },
       }).then(r => { if (!r.ok) throw new Error(`BoE ${r.status}`); return r.text(); }),
+
+      // ECB AAA-rated euro area sovereign bond spot yield curve
+      fetch('https://data-api.ecb.europa.eu/service/data/YC/B.U2.EUR.4F.G_N_A.SV_C_YM.SR_3M+SR_6M+SR_1Y+SR_2Y+SR_3Y+SR_5Y+SR_7Y+SR_10Y+SR_20Y+SR_30Y?lastNObservations=1&format=jsondata', {
+        headers: { 'Accept': 'application/json', 'User-Agent': YF_UA },
+      }).then(r => { if (!r.ok) throw new Error(`ECB ${r.status}`); return r.json(); }),
     ]);
 
     // ââ BR curve ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
@@ -676,10 +744,24 @@ router.get('/yield-curves', async (req, res) => {
       ukSource = 'BoE+synthetic';
     }
 
+    // ââ EU curve âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+    let euCurve = [];
+    let euSource = 'synthetic';
+    if (ecbYcRes.status === 'fulfilled') {
+      euCurve = parseEcbYieldCurve(ecbYcRes.value);
+      euSource = euCurve.length > 0 ? 'ECB' : 'synthetic';
+    }
+    if (euCurve.length < 3) {
+      console.warn('[Yield] ECB parse failed, using synthetic:', ecbYcRes.reason?.message || 'no data');
+      euCurve = euSynthetic(2.50);
+      euSource = 'ECB+synthetic';
+    }
+
     res.json({
       BR: { curve: brCurve, source: tdRes.status === 'fulfilled' ? 'Tesouro Direto' : 'BCB+synthetic', updatedAt: now.toISOString() },
       US: { curve: usCurve, source: usSource, updatedAt: now.toISOString() },
       UK: { curve: ukCurve, source: ukSource, updatedAt: now.toISOString() },
+      EU: { curve: euCurve, source: euSource, updatedAt: now.toISOString() },
     });
   } catch (err) {
     console.error('[API] /yield-curves error:', err.message);
