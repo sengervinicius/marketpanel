@@ -21,6 +21,13 @@ function SectionDivider({ label, color }) {
   );
 }
 
+const showInfo = (e, symbol, label, type) => {
+  e.preventDefault();
+  window.dispatchEvent(new CustomEvent('ticker:rightclick', {
+    detail: { symbol, label, type, x: e.clientX + 6, y: e.clientY + 6 },
+  }));
+};
+
 export function ForexPanel({ data, cryptoData, loading, onTickerClick }) {
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#0a0a0a' }}>
@@ -59,6 +66,7 @@ export function ForexPanel({ data, cryptoData, loading, onTickerClick }) {
                     e.dataTransfer.setData('application/x-ticker', JSON.stringify({ symbol: chartSym, name: pair.label, type: 'CURRENCY' }));
                   }}
                   onClick={() => onTickerClick?.(chartSym)}
+                  onContextMenu={e => showInfo(e, pair.symbol, pair.label, 'FX')}
                   style={{ display: 'grid', gridTemplateColumns: COLS, padding: '3px 8px', borderBottom: '1px solid #141414', cursor: 'pointer', alignItems: 'center' }}
                   onMouseEnter={e => e.currentTarget.style.background = '#141414'}
                   onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
@@ -86,6 +94,7 @@ export function ForexPanel({ data, cryptoData, loading, onTickerClick }) {
                     e.dataTransfer.setData('application/x-ticker', JSON.stringify({ symbol: chartSym, name: c.label, type: 'CRYPTO' }));
                   }}
                   onClick={() => onTickerClick?.(chartSym)}
+                  onContextMenu={e => showInfo(e, c.symbol, c.label, 'CRYPTO')}
                   style={{ display: 'grid', gridTemplateColumns: COLS, padding: '3px 8px', borderBottom: '1px solid #141414', cursor: 'pointer', alignItems: 'center' }}
                   onMouseEnter={e => e.currentTarget.style.background = '#141414'}
                   onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
