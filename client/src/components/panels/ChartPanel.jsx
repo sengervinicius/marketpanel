@@ -4,7 +4,7 @@
 // Fix: onDragLeave uses relatedTarget.contains check to prevent flicker/stuck state
 // Drag-to-swap: internal slots draggable; drop onto another slot swaps positions
 // URL sync: ?c=SPY,QQQ,... persisted via history.replaceState for cross-device sharing
-
+// Auto-sync: grid synced to server on change, fetched on mount for mobile cross-device
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip, ReferenceLine } from 'recharts';
 
@@ -57,17 +57,17 @@ const fmtK = (n) => {
 };
 
 function MiniChart({ ticker, index, onRemove, onReplace, onSwap }) {
-  const [data, setData] = useState([]);
-  const [price, setPrice] = useState(null);
-  const [chg, setChg] = useState(null);
-  const [chgPct, setChgPct] = useState(null);
-  const [high, setHigh] = useState(null);
-  const [low, setLow] = useState(null);
+  const [data,    setData]    = useState([]);
+  const [price,   setPrice]   = useState(null);
+  const [chg,     setChg]     = useState(null);
+  const [chgPct,  setChgPct]  = useState(null);
+  const [high,    setHigh]    = useState(null);
+  const [low,     setLow]     = useState(null);
   const [loading, setLoading] = useState(true);
-  const [isDragOver, setIsDragOver] = useState(false);
-  const [isDragging, setIsDragging] = useState(false);
+  const [isDragOver,  setIsDragOver]  = useState(false);
+  const [isDragging,  setIsDragging]  = useState(false);
   const [rangeIdx, setRangeIdx] = useState(0);
-  const mountedRef = useRef(true);
+  const mountedRef  = useRef(true);
   const intervalRef = useRef(null);
 
   const fetchData = useCallback(async (rIdx) => {
@@ -75,7 +75,7 @@ function MiniChart({ ticker, index, onRemove, onReplace, onSwap }) {
     const range = RANGES[rIdx];
     if (mountedRef.current) setLoading(true);
     try {
-      const toStr = new Date().toISOString().split('T')[0];
+      const toStr   = new Date().toISOString().split('T')[0];
       const fromStr = getFromDate(range);
       const url = `${API}/api/chart/${encodeURIComponent(ticker)}?from=${fromStr}&to=${toStr}&multiplier=${range.multiplier}&timespan=${range.timespan}`;
       const res = await fetch(url);
@@ -85,7 +85,7 @@ function MiniChart({ ticker, index, onRemove, onReplace, onSwap }) {
       const bars = (json.results || []).map(b => ({ t: b.t, v: b.c ?? b.vw ?? 0 }));
       setData(bars);
       if (bars.length >= 2) {
-        const last = bars[bars.length - 1].v;
+        const last  = bars[bars.length - 1].v;
         const first = bars[0].v;
         setPrice(last);
         setChg(last - first);
@@ -107,56 +107,40 @@ function MiniChart({ ticker, index, onRemove, onReplace, onSwap }) {
     return () => { mountedRef.current = false; clearInterval(intervalRef.current); };
   }, [fetchData, rangeIdx]);
 
-  const handleRangeChange = (idx) => {
-    clearInterval(intervalRef.current);
-    setRangeIdx(idx);
-  };
+  const handleRangeChange = (idx) => { clearInterval(intervalRef.current); setRangeIdx(idx); };
 
-  const isUp = (chg ?? 0) >= 0;
+  const isUp     = (chg ?? 0) >= 0;
   const lineColor = isUp ? '#e8e8e8' : '#ff5555';
-  const gradId = 'g' + ticker.replace(/[^a-zA-Z0-9]/g, '');
+  const gradId    = 'g' + ticker.replace(/[^a-zA-Z0-9]/g, '');
   const openPrice = data[0]?.v;
   const xFmt = (ms) => {
     const d = new Date(ms);
-    if (RANGES[rangeIdx].timespan === 'minute') return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+    if (RANGES[rangeIdx].timespan === 'minute')
+      return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
 
   return (
-    <div
-      draggable
+    <div draggable
       style={{
         background: isDragOver ? '#0d1a2e' : '#07090f',
         border: `1px solid ${isDragOver ? '#ff6600' : isDragging ? '#e8a020' : '#141420'}`,
-        display: 'flex',
-        flexDirection: 'column',
-        overflow: 'hidden',
-        position: 'relative',
-        minHeight: 0,
+        display: 'flex', flexDirection: 'column', overflow: 'hidden',
+        position: 'relative', minHeight: 0,
         transition: 'border-color 0.15s, opacity 0.15s',
         opacity: isDragging ? 0.45 : 1,
         cursor: isDragging ? 'grabbing' : 'grab',
       }}
-      onDragStart={e => {
-        setIsDragging(true);
-        e.dataTransfer.setData('application/x-chart-index', String(index));
-        e.dataTransfer.effectAllowed = 'move';
-      }}
+      onDragStart={e => { setIsDragging(true); e.dataTransfer.setData('application/x-chart-index', String(index)); e.dataTransfer.effectAllowed = 'move'; }}
       onDragEnd={() => setIsDragging(false)}
-      onDragOver={e => { e.preventDefault(); e.stopPropagation(); if (!isDragOver) setIsDragOver(true); }}
+      onDragOver={e  => { e.preventDefault(); e.stopPropagation(); if (!isDragOver) setIsDragOver(true); }}
       onDragEnter={e => { e.preventDefault(); e.stopPropagation(); setIsDragOver(true); }}
-      onDragLeave={e => {
-        if (!e.currentTarget.contains(e.relatedTarget)) setIsDragOver(false);
-      }}
+      onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget)) setIsDragOver(false); }}
       onDrop={e => {
-        e.preventDefault(); e.stopPropagation();
-        setIsDragOver(false);
+        e.preventDefault(); e.stopPropagation(); setIsDragOver(false);
         try {
           const fromStr = e.dataTransfer.getData('application/x-chart-index');
-          if (fromStr !== '') {
-            const fi = parseInt(fromStr, 10);
-            if (!isNaN(fi) && fi !== index) { onSwap(fi, index); return; }
-          }
+          if (fromStr !== '') { const fi = parseInt(fromStr, 10); if (!isNaN(fi) && fi !== index) { onSwap(fi, index); return; } }
           const raw = e.dataTransfer.getData('application/x-ticker');
           if (raw) { const { symbol } = JSON.parse(raw); onReplace(ticker, normalizeTicker(symbol)); }
         } catch (_) {}
@@ -173,11 +157,9 @@ function MiniChart({ ticker, index, onRemove, onReplace, onSwap }) {
               {(isUp ? '+' : '') + chgPct.toFixed(2) + '%'}
             </span>
           )}
-          <button
-            onClick={() => onRemove(ticker)}
+          <button onClick={() => onRemove(ticker)}
             style={{ background: 'none', border: 'none', color: '#333', cursor: 'pointer', fontSize: 10, padding: '0 2px', lineHeight: 1, fontFamily: 'inherit' }}
-            title="Remove"
-          >✕</button>
+            title="Remove">✕</button>
         </div>
       </div>
       <div style={{ display: 'flex', gap: 6, padding: '1px 5px', flexShrink: 0, borderTop: '1px solid #0d0d18', borderBottom: '1px solid #0d0d18', pointerEvents: 'none' }}>
@@ -200,7 +182,7 @@ function MiniChart({ ticker, index, onRemove, onReplace, onSwap }) {
               <defs>
                 <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%"  stopColor={isUp ? '#1e50c8' : '#c81e1e'} stopOpacity={0.55} />
-                  <stop offset="95%" stopColor={isUp ? '#1e50c8' : '#c81e1e'} stopOpacity={0.0} />
+                  <stop offset="95%" stopColor={isUp ? '#1e50c8' : '#c81e1e'} stopOpacity={0.0}  />
                 </linearGradient>
               </defs>
               <XAxis dataKey="t" tickFormatter={xFmt} tick={{ fill: '#6a6a8a', fontSize: 6 }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
@@ -219,29 +201,19 @@ function MiniChart({ ticker, index, onRemove, onReplace, onSwap }) {
       </div>
       <div style={{ display: 'flex', borderTop: '1px solid #0d0d18', flexShrink: 0 }}>
         {RANGES.map((r, i) => (
-          <button key={r.label} onClick={() => handleRangeChange(i)} style={{
-            flex: 1, padding: '2px 0', background: 'transparent', border: 'none',
-            borderBottom: i === rangeIdx ? '2px solid #e8a020' : '2px solid transparent',
-            color: i === rangeIdx ? '#e8a020' : '#333',
-            fontSize: 7, cursor: 'pointer', fontFamily: 'inherit',
-            fontWeight: i === rangeIdx ? 700 : 400, letterSpacing: '0.05em',
-            transition: 'color 0.1s, border-color 0.1s',
-          }}>
-            {r.label}
-          </button>
+          <button key={r.label} onClick={() => handleRangeChange(i)}
+            style={{
+              flex: 1, padding: '2px 0', background: 'transparent', border: 'none',
+              borderBottom: i === rangeIdx ? '2px solid #e8a020' : '2px solid transparent',
+              color: i === rangeIdx ? '#e8a020' : '#333', fontSize: 7, cursor: 'pointer',
+              fontFamily: 'inherit', fontWeight: i === rangeIdx ? 700 : 400,
+              letterSpacing: '0.05em', transition: 'color 0.1s, border-color 0.1s',
+            }}>{r.label}</button>
         ))}
       </div>
       {isDragOver && (
-        <div style={{
-          position: 'absolute', inset: 0,
-          background: 'rgba(255,102,0,0.08)',
-          border: '2px solid #ff6600',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          pointerEvents: 'none', zIndex: 10,
-        }}>
-          <span style={{ color: '#ff6600', fontSize: 8, fontWeight: 700, letterSpacing: '0.15em', fontFamily: 'inherit' }}>
-            ⇄ SWAP / REPLACE
-          </span>
+        <div style={{ position: 'absolute', inset: 0, background: 'rgba(255,102,0,0.08)', border: '2px solid #ff6600', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', zIndex: 10 }}>
+          <span style={{ color: '#ff6600', fontSize: 8, fontWeight: 700, letterSpacing: '0.15em', fontFamily: 'inherit' }}>⇄ SWAP / REPLACE</span>
         </div>
       )}
     </div>
@@ -257,21 +229,16 @@ function EmptySlot({ index, onAdd, onSwap }) {
         background: isDragOver ? '#1a0d00' : '#040508',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         color: isDragOver ? '#ff6600' : '#1a1a28', minHeight: 0,
-        cursor: 'copy', flexDirection: 'column', gap: 3,
-        transition: 'all 0.15s',
+        cursor: 'copy', flexDirection: 'column', gap: 3, transition: 'all 0.15s',
       }}
-      onDragOver={e => { e.preventDefault(); e.stopPropagation(); if (!isDragOver) setIsDragOver(true); }}
+      onDragOver={e  => { e.preventDefault(); e.stopPropagation(); if (!isDragOver) setIsDragOver(true); }}
       onDragEnter={e => { e.preventDefault(); e.stopPropagation(); setIsDragOver(true); }}
       onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget)) setIsDragOver(false); }}
       onDrop={e => {
-        e.preventDefault(); e.stopPropagation();
-        setIsDragOver(false);
+        e.preventDefault(); e.stopPropagation(); setIsDragOver(false);
         try {
           const fromStr = e.dataTransfer.getData('application/x-chart-index');
-          if (fromStr !== '') {
-            const fi = parseInt(fromStr, 10);
-            if (!isNaN(fi)) { onSwap(fi, index); return; }
-          }
+          if (fromStr !== '') { const fi = parseInt(fromStr, 10); if (!isNaN(fi)) { onSwap(fi, index); return; } }
           const raw = e.dataTransfer.getData('application/x-ticker');
           if (raw) { const { symbol } = JSON.parse(raw); onAdd(symbol); }
         } catch (_) {}
@@ -299,9 +266,27 @@ export function ChartPanel({ ticker: externalTicker, onGridChange, mobile = fals
     return ['SPY', 'QQQ'];
   });
 
-  const [copied, setCopied] = useState(false);
-  const [showQR, setShowQR] = useState(false);
-  const [qrUrl, setQrUrl] = useState('');
+  const [copied,  setCopied]  = useState(false);
+  const [showQR,  setShowQR]  = useState(false);
+  const [qrUrl,   setQrUrl]   = useState('');
+  const gridSyncTimer = useRef(null);
+
+  // ── Fetch grid from server on mount (mobile auto-sync) ────────────────────────────────────────────────────
+  useEffect(() => {
+    const urlParam = new URLSearchParams(window.location.search).get('c');
+    if (urlParam) return; // URL param already applied in useState init — skip server fetch
+    fetch(API + '/api/settings')
+      .then(r => r.ok ? r.json() : null)
+      .then(s => {
+        if (Array.isArray(s?.chartGrid) && s.chartGrid.length) {
+          const serverGrid = s.chartGrid.slice(0, MAX);
+          setTickers(prev =>
+            JSON.stringify(prev) === JSON.stringify(serverGrid) ? prev : serverGrid
+          );
+        }
+      })
+      .catch(() => {});
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!externalTicker) return;
@@ -312,6 +297,7 @@ export function ChartPanel({ ticker: externalTicker, onGridChange, mobile = fals
     });
   }, [externalTicker]);
 
+  // ── Persist + URL update + server sync on change ──────────────────────────────────────────────────────
   useEffect(() => {
     localStorage.setItem(LS_KEY, JSON.stringify(tickers));
     onGridChange?.(tickers.length);
@@ -320,29 +306,26 @@ export function ChartPanel({ ticker: externalTicker, onGridChange, mobile = fals
       url.searchParams.set('c', tickers.join(','));
       window.history.replaceState(null, '', url.toString());
     } catch (_) {}
+    // Debounced sync to server so mobile auto-matches desktop
+    clearTimeout(gridSyncTimer.current);
+    gridSyncTimer.current = setTimeout(() => {
+      fetch(API + '/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chartGrid: tickers }),
+      }).catch(() => {});
+    }, 1500);
   }, [tickers, onGridChange]);
 
-  const addTicker = useCallback((raw) => {
-    const norm = normalizeTicker(raw);
-    setTickers(prev => {
-      if (prev.includes(norm) || prev.length >= MAX) return prev;
-      return [...prev, norm];
-    });
-  }, []);
-
-  const removeTicker = useCallback((t) => setTickers(prev => prev.filter(x => x !== t)), []);
-  const replaceTicker = useCallback((old, nw) => setTickers(prev => prev.map(x => x === old ? nw : x)), []);
-
-  const swapTickers = useCallback((fromIdx, toIdx) => {
+  const addTicker     = useCallback((raw)       => { const norm = normalizeTicker(raw);  setTickers(prev => prev.includes(norm) || prev.length >= MAX ? prev : [...prev, norm]); }, []);
+  const removeTicker  = useCallback((t)          => setTickers(prev => prev.filter(x => x !== t)), []);
+  const replaceTicker = useCallback((old, nw)    => setTickers(prev => prev.map(x => x === old ? nw : x)), []);
+  const swapTickers   = useCallback((fromIdx, toIdx) => {
     setTickers(prev => {
       if (fromIdx === toIdx) return prev;
       const arr = [...prev];
-      if (toIdx < arr.length) {
-        [arr[fromIdx], arr[toIdx]] = [arr[toIdx], arr[fromIdx]];
-      } else {
-        const item = arr.splice(fromIdx, 1)[0];
-        arr.push(item);
-      }
+      if (toIdx < arr.length) { [arr[fromIdx], arr[toIdx]] = [arr[toIdx], arr[fromIdx]]; }
+      else { const item = arr.splice(fromIdx, 1)[0]; arr.push(item); }
       return arr;
     });
   }, []);
@@ -352,10 +335,7 @@ export function ChartPanel({ ticker: externalTicker, onGridChange, mobile = fals
       const url = new URL(window.location.href);
       url.searchParams.set('c', tickers.join(','));
       const link = url.toString();
-      navigator.clipboard.writeText(link).then(() => {
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-      });
+      navigator.clipboard.writeText(link).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); });
       setQrUrl(`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(link)}&bgcolor=040508&color=e8a020&margin=8`);
       setShowQR(true);
     } catch (_) {}
@@ -397,31 +377,22 @@ export function ChartPanel({ ticker: externalTicker, onGridChange, mobile = fals
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ color: '#222233', fontSize: 7 }}>{tickers.length}/{MAX} — drag to reorder · drop to add</span>
           <div style={{ position: 'relative' }}>
-            <button onClick={copyLink} style={{
-              background: copied ? '#0a2010' : 'transparent',
-              border: `1px solid ${copied ? '#4caf50' : '#2a2a3a'}`,
-              color: copied ? '#4caf50' : '#444',
-              fontSize: 7, cursor: 'pointer', padding: '2px 6px', borderRadius: 2,
-              fontFamily: 'inherit', letterSpacing: '0.05em',
-              transition: 'all 0.2s',
-            }}>
-              {copied ? '✓ COPIED' : '⎘ SYNC TO MOBILE'}
+            <button onClick={copyLink}
+              style={{
+                background: copied ? '#0a2010' : 'transparent',
+                border: `1px solid ${copied ? '#4caf50' : '#2a2a3a'}`,
+                color: copied ? '#4caf50' : '#444', fontSize: 7, cursor: 'pointer',
+                padding: '2px 6px', borderRadius: 2, fontFamily: 'inherit',
+                letterSpacing: '0.05em', transition: 'all 0.2s',
+              }}>
+              {copied ? '✓ COPIED' : '⍘ SYNC TO MOBILE'}
             </button>
             {showQR && (
-              <div
-                onClick={() => setShowQR(false)}
-                style={{
-                  position: 'fixed', inset: 0, zIndex: 9999,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  background: 'rgba(0,0,0,0.75)',
-                }}
+              <div onClick={() => setShowQR(false)}
+                style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.75)' }}
               >
-                <div
-                  onClick={e => e.stopPropagation()}
-                  style={{
-                    background: '#0a0a0f', border: '1px solid #2a2a3a', borderRadius: 6,
-                    padding: 20, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10,
-                  }}
+                <div onClick={e => e.stopPropagation()}
+                  style={{ background: '#0a0a0f', border: '1px solid #2a2a3a', borderRadius: 6, padding: 20, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}
                 >
                   <span style={{ color: '#e8a020', fontSize: 11, fontWeight: 700, letterSpacing: '0.15em' }}>SYNC TO MOBILE</span>
                   <span style={{ color: '#555', fontSize: 9 }}>Scan with your phone to open your {tickers.length} charts</span>
@@ -433,12 +404,7 @@ export function ChartPanel({ ticker: externalTicker, onGridChange, mobile = fals
           </div>
         </div>
       </div>
-      <div style={{
-        flex: 1, display: 'grid',
-        gridTemplateColumns: `repeat(${GRID_COLS}, 1fr)`,
-        gridTemplateRows: `repeat(${GRID_ROWS}, 1fr)`,
-        gap: 1, overflow: 'hidden', padding: 1,
-      }}>
+      <div style={{ flex: 1, display: 'grid', gridTemplateColumns: `repeat(${GRID_COLS}, 1fr)`, gridTemplateRows: `repeat(${GRID_ROWS}, 1fr)`, gap: 1, overflow: 'hidden', padding: 1 }}>
         {Array.from({ length: MAX }, (_, i) => {
           const t = tickers[i];
           return t
