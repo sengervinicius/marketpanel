@@ -1,6 +1,7 @@
 // ChartPanel.jsx — Bloomberg-style multi-chart grid (fixed 4×4 = 16 slots)
 // Desktop: always-full 4×4 symmetric grid — no empty rows ever
 // Mobile: 2-col scrollable layout sharing same localStorage as desktop
+// Fix: onDragLeave uses relatedTarget.contains check to prevent flicker/stuck state
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip, ReferenceLine } from 'recharts';
 
@@ -125,8 +126,12 @@ function MiniChart({ ticker, onRemove, onReplace }) {
         overflow: 'hidden', position: 'relative',
         minHeight: 0, transition: 'border-color 0.15s',
       }}
-      onDragOver={e => { e.preventDefault(); setIsDragOver(true); }}
-      onDragLeave={() => setIsDragOver(false)}
+      onDragOver={e => { e.preventDefault(); e.stopPropagation(); if (!isDragOver) setIsDragOver(true); }}
+      onDragEnter={e => { e.preventDefault(); e.stopPropagation(); setIsDragOver(true); }}
+      onDragLeave={e => {
+        // Only clear when cursor truly leaves this element (not just entering a child)
+        if (!e.currentTarget.contains(e.relatedTarget)) setIsDragOver(false);
+      }}
       onDrop={e => {
         e.preventDefault(); e.stopPropagation();
         setIsDragOver(false);
@@ -138,13 +143,13 @@ function MiniChart({ ticker, onRemove, onReplace }) {
     >
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '3px 5px', flexShrink: 0 }}>
-        <span style={{ color: '#e8a020', fontWeight: 700, fontSize: 9, letterSpacing: '0.1em' }}>
+        <span style={{ color: '#e8a020', fontWeight: 700, fontSize: 9, letterSpacing: '0.1em', pointerEvents: 'none' }}>
           {isDragOver ? 'DROP TO REPLACE' : displayTicker(ticker)}
         </span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-          {price  != null && <span style={{ color: '#cccccc', fontSize: 8, fontVariantNumeric: 'tabular-nums' }}>{fmtPrice(price)}</span>}
+          {price  != null && <span style={{ color: '#cccccc', fontSize: 8, fontVariantNumeric: 'tabular-nums', pointerEvents: 'none' }}>{fmtPrice(price)}</span>}
           {chgPct != null && (
-            <span style={{ color: isUp ? '#4caf50' : '#f44336', fontSize: 8, fontWeight: 700 }}>
+            <span style={{ color: isUp ? '#4caf50' : '#f44336', fontSize: 8, fontWeight: 700, pointerEvents: 'none' }}>
               {(isUp ? '+' : '') + chgPct.toFixed(2) + '%'}
             </span>
           )}
@@ -155,7 +160,7 @@ function MiniChart({ ticker, onRemove, onReplace }) {
       </div>
 
       {/* Stats row */}
-      <div style={{ display: 'flex', gap: 6, padding: '1px 5px', flexShrink: 0, borderTop: '1px solid #0d0d18', borderBottom: '1px solid #0d0d18' }}>
+      <div style={{ display: 'flex', gap: 6, padding: '1px 5px', flexShrink: 0, borderTop: '1px solid #0d0d18', borderBottom: '1px solid #0d0d18', pointerEvents: 'none' }}>
         <span style={{ color: '#3a3a5a', fontSize: 6.5 }}>□ Chg{' '}
           <span style={{ color: chg != null ? (isUp ? '#4caf50' : '#f44336') : '#3a3a5a' }}>
             {chg != null ? (isUp ? '+' : '') + fmtK(chg) + ' (' + (isUp ? '+' : '') + (chgPct?.toFixed(2) ?? '—') + '%)' : '—'}
@@ -166,7 +171,7 @@ function MiniChart({ ticker, onRemove, onReplace }) {
       </div>
 
       {/* Chart */}
-      <div style={{ flex: 1, minHeight: 0 }}>
+      <div style={{ flex: 1, minHeight: 0, pointerEvents: isDragOver ? 'none' : 'auto' }}>
         {loading ? (
           <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#222233', fontSize: 8 }}>loading…</div>
         ) : data.length === 0 ? (
@@ -177,7 +182,7 @@ function MiniChart({ ticker, onRemove, onReplace }) {
               <defs>
                 <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%"  stopColor={isUp ? '#1e50c8' : '#c81e1e'} stopOpacity={0.55} />
-                  <stop offset="95%" stopColor={isUp ? '#1e50c8' : '#c81e1e'} stopOpacity={0.0}  />
+                  <stop offset="95%"  stopColor={isUp ? '#1e50c8' : '#c81e1e'} stopOpacity={0.0}  />
                 </linearGradient>
               </defs>
               <XAxis dataKey="t" tickFormatter={xFmt} tick={{ fill: '#2a2a45', fontSize: 6 }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
@@ -210,6 +215,22 @@ function MiniChart({ ticker, onRemove, onReplace }) {
           </button>
         ))}
       </div>
+
+      {/* Drop overlay — covers entire chart to prevent child events from stealing the drop */}
+      {isDragOver && (
+        <div style={{
+          position: 'absolute', inset: 0,
+          background: 'rgba(255,102,0,0.08)',
+          border: '2px solid #ff6600',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          pointerEvents: 'none',
+          zIndex: 10,
+        }}>
+          <span style={{ color: '#ff6600', fontSize: 8, fontWeight: 700, letterSpacing: '0.15em', fontFamily: 'inherit' }}>
+            ▼ DROP TO REPLACE
+          </span>
+        </div>
+      )}
     </div>
   );
 }
@@ -226,8 +247,11 @@ function EmptySlot({ onAdd }) {
         minHeight: 0, cursor: 'copy',
         flexDirection: 'column', gap: 3, transition: 'all 0.15s',
       }}
-      onDragOver={e => { e.preventDefault(); setIsDragOver(true); }}
-      onDragLeave={() => setIsDragOver(false)}
+      onDragOver={e => { e.preventDefault(); e.stopPropagation(); if (!isDragOver) setIsDragOver(true); }}
+      onDragEnter={e => { e.preventDefault(); e.stopPropagation(); setIsDragOver(true); }}
+      onDragLeave={e => {
+        if (!e.currentTarget.contains(e.relatedTarget)) setIsDragOver(false);
+      }}
       onDrop={e => {
         e.preventDefault(); e.stopPropagation();
         setIsDragOver(false);
@@ -237,8 +261,8 @@ function EmptySlot({ onAdd }) {
         } catch (_) {}
       }}
     >
-      <span style={{ fontSize: 14, lineHeight: 1 }}>{isDragOver ? '▼' : '+'}</span>
-      {isDragOver && <span style={{ fontSize: 7, letterSpacing: '0.1em', fontFamily: 'inherit' }}>DROP TO ADD</span>}
+      <span style={{ fontSize: 14, lineHeight: 1, pointerEvents: 'none' }}>{isDragOver ? '▼' : '+'}</span>
+      {isDragOver && <span style={{ fontSize: 7, letterSpacing: '0.1em', fontFamily: 'inherit', pointerEvents: 'none' }}>DROP TO ADD</span>}
     </div>
   );
 }
@@ -279,7 +303,8 @@ export function ChartPanel({ ticker: externalTicker, onGridChange, mobile = fals
   const removeTicker  = useCallback((t) => setTickers(prev => prev.filter(x => x !== t)), []);
   const replaceTicker = useCallback((old, nw) => setTickers(prev => prev.map(x => x === old ? nw : x)), []);
 
-  const dropHandlers = {
+  // Outer panel only adds tickers — individual MiniCharts stopPropagation on their drops
+  const outerDrop = {
     onDragOver: e => e.preventDefault(),
     onDrop: e => {
       e.preventDefault();
@@ -293,7 +318,7 @@ export function ChartPanel({ ticker: externalTicker, onGridChange, mobile = fals
   // ── Mobile: 2-col scrollable grid ────────────────────────────────────────
   if (mobile) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', background: '#040508' }} {...dropHandlers}>
+      <div style={{ display: 'flex', flexDirection: 'column', background: '#040508' }} {...outerDrop}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', borderBottom: '1px solid #141420' }}>
           <span style={{ color: '#e8a020', fontWeight: 700, fontSize: 10, letterSpacing: '0.2em' }}>CHARTS</span>
           <span style={{ color: '#333', fontSize: 8 }}>{tickers.length}/{MAX} saved</span>
@@ -315,7 +340,7 @@ export function ChartPanel({ ticker: externalTicker, onGridChange, mobile = fals
 
   // ── Desktop: fixed 4×4 grid — always 16 slots, perfectly symmetric ───────
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#040508', overflow: 'hidden' }} {...dropHandlers}>
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#040508', overflow: 'hidden' }} {...outerDrop}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '3px 8px', borderBottom: '1px solid #141420', flexShrink: 0 }}>
         <span style={{ color: '#e8a020', fontWeight: 700, fontSize: 9, letterSpacing: '0.2em' }}>CHARTS</span>
         <span style={{ color: '#222233', fontSize: 7 }}>{tickers.length}/{MAX} — drag any ticker to add</span>
