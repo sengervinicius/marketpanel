@@ -25,6 +25,13 @@ function GroupHeader({ label, color }) {
   );
 }
 
+const showInfo = (e, symbol, label, type) => {
+  e.preventDefault();
+  window.dispatchEvent(new CustomEvent('ticker:rightclick', {
+    detail: { symbol, label, type, x: e.clientX + 6, y: e.clientY + 6 },
+  }));
+};
+
 export function CommoditiesPanel({ data, loading, onTickerClick }) {
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#0a0a0a' }}>
@@ -64,6 +71,7 @@ export function CommoditiesPanel({ data, loading, onTickerClick }) {
                         e.dataTransfer.setData('application/x-ticker', JSON.stringify({ symbol: c.symbol, name: c.label, type: 'ETF' }));
                       }}
                       onClick={() => onTickerClick?.(c.symbol)}
+                      onContextMenu={e => showInfo(e, c.symbol, c.label, 'COMMODITY')}
                       style={{ display: 'grid', gridTemplateColumns: COLS, padding: '3px 8px', borderBottom: '1px solid #141414', cursor: 'pointer', alignItems: 'center' }}
                       onMouseEnter={e => e.currentTarget.style.background = '#141414'}
                       onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
