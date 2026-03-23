@@ -27,6 +27,10 @@ let _yfCrumb = null;
 let _yfCookie = null;
 let _yfCrumbExpiry = 0;
 
+// âââ B3 cache (60 s) â prevents brapi.dev rate-limit 429s ââââââââââââââââââââ
+let _brazilCache = null;
+let _brazilCacheExpiry = 0;
+
 const YF_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
 async function getYahooCrumb() {
@@ -87,12 +91,13 @@ async function yahooQuote(symbols) {
 router.get('/snapshot/stocks', async (req, res) => {
   try {
     const tickers = [
-      'SPY','QQQ','IWM','DIA',
+      // US index ETFs â also feed IndexPanel (WORLD_INDEXES)
+      'SPY','QQQ','IWM','DIA','EWZ','EWW','EEM','EFA','FXI','EWJ',
       'AAPL','MSFT','NVDA','GOOGL','AMZN','META','TSLA',
       'BRKB','JPM','GS','BAC','V','MA',
       'XOM','CAT','BA',
       'WMT','LLY','UNH',
-      'VALE','PBR','ITUB','BBD','ABEV','ERI','BRFS','SUZ',
+      'VALE','PBR','ITUB','BBD','ABEV','ERJ','BRFS','SUZ',
       'GLD','SLV','CPER','REMX','USO','UNG','SOYB','WEAT','CORN','BHP',
     ].join(',');
     const data = await polyFetch(`/v2/snapshot/locale/us/markets/stocks/tickers?tickers=${tickers}`);
@@ -130,13 +135,86 @@ router.get('/snapshot/crypto', async (req, res) => {
   }
 });
 
-// âââ News ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// âââ RSS feed parser âââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+
+function parseRss(xml, sourceName, sourceUrl) {
+  const items = [];
+  const itemBlocks = xml.match(/<item>([\s\S]*?)<\/item>/g) || [];
+  for (const block of itemBlocks) {
+    const title   = (block.match(/<title><!\[CDATA\[([\s\S]*?)\]\]><\/title>/) ||
+                     block.match(/<title>([^<]*)<\/title>/))?.[1]?.trim() || '';
+    const link    = (block.match(/<link>([\s\S]*?)<\/link>/) ||
+                     block.match(/<guid[^>]*>([\s\S]*?)<\/guid>/))?.[1]?.trim() || '';
+    const pubDate = block.match(/<pubDate>([\s\S]*?)<\/pubDate>/)?.[1]?.trim() || '';
+    const desc    = (block.match(/<description><!\[CDATA\[([\s\S]*?)\]\]><\/description>/) ||
+                     block.match(/<description>([^<]*)<\/description>/))?.[1]?.trim() || '';
+    if (!title || !link) continue;
+    let published_utc = '';
+    try { published_utc = new Date(pubDate).toISOString(); } catch {}
+    const clean = s => s
+      .replace(/<[^>]+>/g, '')
+      .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"').replace(/&#39;/g, "'").trim();
+    items.push({
+      id: `rss-${sourceName.toLowerCase().replace(/\s+/g, '-')}-${Buffer.from(link).toString('base64').slice(0, 16)}`,
+      publisher: { name: sourceName, homepage_url: sourceUrl, logo_url: '', favicon_url: '' },
+      title: clean(title),
+      author: '',
+      published_utc,
+      article_url: link,
+      tickers: [],
+      image_url: '',
+      description: clean(desc).slice(0, 300),
+      keywords: [],
+    });
+  }
+  return items;
+}
+
+// âââ News: Polygon + Bloomberg Markets + FT Markets RSS ââââââââââââââââââââââ
 
 router.get('/news', async (req, res) => {
   try {
-    const limit = req.query.limit || 25;
-    const data = await polyFetch(`/v2/reference/news?limit=${limit}&order=desc&sort=published_utc`);
-    res.json(data);
+    const limit = parseInt(req.query.limit) || 30;
+
+    const [polyRes, bloomRes, ftRes] = await Promise.allSettled([
+      polyFetch(`/v2/reference/news?limit=${limit}&order=desc&sort=published_utc`),
+      fetch('https://feeds.bloomberg.com/markets/news.rss', {
+        headers: { 'User-Agent': YF_UA, 'Accept': 'application/rss+xml,*/*' },
+      }).then(r => { if (!r.ok) throw new Error(`Bloomberg RSS ${r.status}`); return r.text(); }),
+      fetch('https://www.ft.com/markets?format=rss', {
+        headers: { 'User-Agent': YF_UA, 'Accept': 'application/rss+xml,*/*', 'Referer': 'https://www.ft.com/' },
+      }).then(r => { if (!r.ok) throw new Error(`FT RSS ${r.status}`); return r.text(); }),
+    ]);
+
+    const results = [];
+
+    if (polyRes.status === 'fulfilled') {
+      results.push(...(polyRes.value?.results || []));
+    } else {
+      console.warn('[News] Polygon:', polyRes.reason?.message);
+    }
+
+    if (bloomRes.status === 'fulfilled') {
+      results.push(...parseRss(bloomRes.value, 'Bloomberg', 'https://www.bloomberg.com'));
+    } else {
+      console.warn('[News] Bloomberg RSS:', bloomRes.reason?.message);
+    }
+
+    if (ftRes.status === 'fulfilled') {
+      results.push(...parseRss(ftRes.value, 'Financial Times', 'https://www.ft.com'));
+    } else {
+      console.warn('[News] FT RSS:', ftRes.reason?.message);
+    }
+
+    // Sort by recency
+    results.sort((a, b) => {
+      const ta = a.published_utc ? new Date(a.published_utc).getTime() : 0;
+      const tb = b.published_utc ? new Date(b.published_utc).getTime() : 0;
+      return tb - ta;
+    });
+
+    res.json({ results: results.slice(0, limit * 2), status: 'OK' });
   } catch (e) {
     console.error('[API] /news:', e.message);
     res.status(500).json({ error: e.message });
@@ -221,6 +299,11 @@ router.get('/status', async (req, res) => {
 
 router.get('/snapshot/brazil', async (req, res) => {
   try {
+    const now = Date.now();
+    // Serve from cache if fresh (60 s) â avoids brapi.dev rate-limit 429s
+    if (_brazilCache && now < _brazilCacheExpiry) {
+      return res.json(_brazilCache);
+    }
     const tickers = [
       'VALE3','PETR4','PETR3','ITUB4','BBDC4','BBAS3',
       'ABEV3','WEGE3','RENT3','RDOR3','B3SA3','EQTL3',
@@ -244,9 +327,14 @@ router.get('/snapshot/brazil', async (req, res) => {
         currency: 'BRL',
       }));
     if (!results.length) throw new Error('brapi.dev returned no results');
-    res.json({ results });
+    const payload = { results };
+    _brazilCache = payload;
+    _brazilCacheExpiry = now + 60_000; // cache 60 s
+    res.json(payload);
   } catch (err) {
     console.error('[API] /snapshot/brazil error:', err.message);
+    // Return stale cache rather than 500 if we have it
+    if (_brazilCache) return res.json({ ..._brazilCache, stale: true });
     res.status(500).json({ error: err.message });
   }
 });
@@ -518,27 +606,26 @@ router.get('/di-curve', async (req, res) => {
   }
 });
 
-
-// ââ Yield Curves: BR, US, UK, EU âââââââââââââââââââââââââââââââââââââââââââââââââ
+// â Ù¦ Yield Curves: BR, US, UK, EU ââââââââââââââââââââââââââââââââââââââââââââââââ
 
 const US_CURVE_FIELDS = [
-  { tenor: '1M',  field: 'BC_1MONTH',  months: 1   },
-  { tenor: '3M',  field: 'BC_3MONTH',  months: 3   },
-  { tenor: '6M',  field: 'BC_6MONTH',  months: 6   },
-  { tenor: '1Y',  field: 'BC_1YEAR',   months: 12  },
-  { tenor: '2Y',  field: 'BC_2YEAR',   months: 24  },
-  { tenor: '3Y',  field: 'BC_3YEAR',   months: 36  },
-  { tenor: '5Y',  field: 'BC_5YEAR',   months: 60  },
-  { tenor: '7Y',  field: 'BC_7YEAR',   months: 84  },
-  { tenor: '10Y', field: 'BC_10YEAR',  months: 120 },
-  { tenor: '20Y', field: 'BC_20YEAR',  months: 240 },
-  { tenor: '30Y', field: 'BC_30YEAR',  months: 360 },
+  { tenor: '1M', field: 'BC_1MONTH',  months: 1  },
+  { tenor: '3M', field: 'BC_3MONTH',  months: 3  },
+  { tenor: '6M', field: 'BC_6MONTH',  months: 6  },
+  { tenor: '1Y', field: 'BC_1YEAR',   months: 12 },
+  { tenor: '2Y', field: 'BC_2YEAR',   months: 24 },
+  { tenor: '3Y', field: 'BC_3YEAR',   months: 36 },
+  { tenor: '5Y', field: 'BC_5YEAR',   months: 60 },
+  { tenor: '7Y', field: 'BC_7YEAR',   months: 84 },
+  { tenor: '10Y', field: 'BC_10YEAR', months: 120 },
+  { tenor: '20Y', field: 'BC_20YEAR', months: 240 },
+  { tenor: '30Y', field: 'BC_30YEAR', months: 360 },
 ];
 
 const UK_BOE_META = {
-  IUMVZC:  { tenor: '1Y',  months: 12  },
-  IUM2ZC:  { tenor: '2Y',  months: 24  },
-  IUM5ZC:  { tenor: '5Y',  months: 60  },
+  IUMVZC: { tenor: '1Y', months: 12 },
+  IUM2ZC: { tenor: '2Y', months: 24 },
+  IUM5ZC: { tenor: '5Y', months: 60 },
   IUM10ZC: { tenor: '10Y', months: 120 },
   IUM20ZC: { tenor: '20Y', months: 240 },
 };
@@ -558,7 +645,7 @@ function parseBoeCsv(csv) {
   const lines = csv.trim().split('\n');
   const headerIdx = lines.findIndex(l => l.includes('IUMVZC'));
   if (headerIdx < 0) return [];
-  const headers = lines[headerIdx].split(',').map(h => h.trim().replace(/"/g, ''));
+  const headers = lines[headerIdx].split(',').map(h => h.trim().replace(/\"/g, ''));
   let lastLine = null;
   for (let i = lines.length - 1; i > headerIdx; i--) {
     const parts = lines[i].split(',');
@@ -571,7 +658,7 @@ function parseBoeCsv(csv) {
   const result = [];
   headers.forEach((h, i) => {
     if (UK_BOE_META[h] && lastLine[i]) {
-      const val = lastLine[i].trim().replace(/"/g, '');
+      const val = lastLine[i].trim().replace(/\"/g, '');
       if (val && val !== '.' && !isNaN(val)) {
         result.push({ ...UK_BOE_META[h], rate: parseFloat(parseFloat(val).toFixed(2)) });
       }
@@ -582,18 +669,18 @@ function parseBoeCsv(csv) {
 
 function ukSynthetic(boeRate = 4.50) {
   return [
-    { tenor: '3M',  months: 3,   rate: parseFloat((boeRate - 0.15).toFixed(2)) },
-    { tenor: '6M',  months: 6,   rate: parseFloat((boeRate - 0.05).toFixed(2)) },
-    { tenor: '1Y',  months: 12,  rate: parseFloat((boeRate + 0.05).toFixed(2)) },
-    { tenor: '2Y',  months: 24,  rate: parseFloat((boeRate + 0.20).toFixed(2)) },
-    { tenor: '5Y',  months: 60,  rate: parseFloat((boeRate + 0.55).toFixed(2)) },
+    { tenor: '3M', months: 3,   rate: parseFloat((boeRate - 0.15).toFixed(2)) },
+    { tenor: '6M', months: 6,   rate: parseFloat((boeRate - 0.05).toFixed(2)) },
+    { tenor: '1Y', months: 12,  rate: parseFloat((boeRate + 0.05).toFixed(2)) },
+    { tenor: '2Y', months: 24,  rate: parseFloat((boeRate + 0.20).toFixed(2)) },
+    { tenor: '5Y', months: 60,  rate: parseFloat((boeRate + 0.55).toFixed(2)) },
     { tenor: '10Y', months: 120, rate: parseFloat((boeRate + 0.85).toFixed(2)) },
     { tenor: '20Y', months: 240, rate: parseFloat((boeRate + 1.10).toFixed(2)) },
     { tenor: '30Y', months: 360, rate: parseFloat((boeRate + 1.00).toFixed(2)) },
   ].filter(p => p.rate > 0);
 }
 
-// ââ ECB Euro Area yield curve âââââââââââââââââââââââââââââââââââââââââââââââââ
+// â ECB Euro Area yield curve ââââââââââââââââââââââââââââââââââââ
 
 const ECC_MAT_MAP = {
   'SR_3M':  { tenor: '3M',  months: 3   },
@@ -613,14 +700,14 @@ function parseEcbYieldCurve(json) {
     const dataSet = json.dataSets?.[0];
     if (!dataSet?.series) return [];
     const seriesDims = json.structure?.dimensions?.series || [];
-    const lastDim   = seriesDims[seriesDims.length - 1]; // maturity dimension
+    const lastDim = seriesDims[seriesDims.length - 1]; // maturity dimension
     if (!lastDim?.values) return [];
     const results = [];
     for (const [key, series] of Object.entries(dataSet.series)) {
-      const parts  = key.split(':');
+      const parts = key.split(':');
       const matIdx = parseInt(parts[parts.length - 1]);
-      const matId  = lastDim.values[matIdx]?.id;
-      const meta   = ECB_MAT_MAP[matId];
+      const matId = lastDim.values[matIdx]?.id;
+      const meta = ECB_MAT_MAP[matId];
       if (!meta) continue;
       const obsVals = Object.values(series.observations || {});
       if (!obsVals.length) continue;
@@ -652,6 +739,131 @@ function euSynthetic(ecbRate) {
 }
 
 router.get('/yield-curves', async (req, res) => {
+  try {
+    const now = new Date();
+    const yyyymm = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const dd = String(now.getDate()).padStart(2, '0');
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const yyyy = now.getFullYear();
+
+    const [tdRes, selicRes, usTreasuryRes, ukBoeRes, ecbYcRes] = await Promise.allSettled([
+      fetch('https://www.tesourodireto.com.br/json/br/com/b3/tesourodireto/service/api/treasurybondsfile.json', {
+        headers: { 'User-Agent': YF_UA, 'Accept': 'application/json', 'Accept-Language': 'pt-BR,pt;q=0.9', 'Referer': 'https://www.tesourodireto.com.br/' },
+      }).then(r => { if (!r.ok) throw new Error(`TD ${r.status}`); return r.json(); }),
+      fetch('https://api.bcb.gov.br/dados/serie/bcdata.sgs.432/dados/ultimos/1?formato=json', {
+        headers: { 'Accept': 'application/json' },
+      }).then(r => r.json()),
+      fetch(`https://home.treasury.gov/resource-center/data-chart-center/interest-rates/pages/xml?data=daily_treasury_yield_curve&field_tdate_value=${yyyymm}`, {
+        headers: { 'User-Agent': YF_UA, 'Accept': 'application/xml,text/xml,*/*' },
+      }).then(r => { if (!r.ok) throw new Error(`Treasury ${r.status}`); return r.text(); }),
+      fetch(`https://www.bankofengland.co.uk/boeapps/database/fromshowcolumns.asp?csv.x=yes&CSVF=TN&UsingCodes=Y&VFD=N&DP=2&Datefrom=01/${mm}/${yyyy}&Dateto=${dd}/${mm}/${yyyy}&SeriesCodes=IUMVZC,IUM2ZC,IUM5ZC,IUM10ZC,IUM20ZC`, {
+        headers: { 'User-Agent': YF_UA, 'Accept': 'text/csv,text/plain,*/*', 'Referer': 'https://www.bankofengland.co.uk/' },
+      }).then(r => { if (!r.ok) throw new Error(`BoE ${r.status}`); return r.text(); }),
+      // ECB AAA-rated euro area sovereign bond spot yield curve
+      fetch('https://data-api.ecb.europa.eu/service/data/YC/B.U2.EUR.4F.G_N_A.SV_C_YM.SR_3M+SR_6M+SR_1Y+SR_2Y+SR_3Y+SR_5Y+SR_7Y+SR_10Y+SR_20Y+SR_30Y?lastNObservations=1&format=jsondata', {
+        headers: { 'Accept': 'application/json', 'User-Agent': YF_UA },
+      }).then(r => { if (!r.ok) throw new Error(`ECB ${r.status}`); return r.json(); }),
+    ]);
+
+    // â â BR curve ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+
+    let diRate = 14.75;
+    if (selicRes.status === 'fulfilled' && Array.isArray(selicRes.value) && selicRes.value[0]?.valor) {
+      diRate = parseFloat(selicRes.value[0].valor);
+    }
+    const brCurve = [{ tenor: 'DI', months: 0.5, rate: parseFloat(diRate.toFixed(2)) }];
+    if (tdRes.status === 'fulfilled') {
+      const bonds = tdRes.value?.response?.TrsrBdTradgList || [];
+      const prefixados = bonds
+        .filter(b => {
+          const nm = (b.TrsrBd?.nm || '').toLowerCase();
+          return nm.includes('prefixado') && !nm.includes('juros') && b.TrsrBd?.anulInvstmtRate;
+        })
+        .map(b => {
+          const matDate = new Date(b.TrsrBd.mtrtyDt);
+          const daysToMat = Math.round((matDate - now) / 86400000);
+          const months = Math.round(daysToMat / 30.44);
+          const rawRate = parseFloat(b.TrsrBd.anulInvstmtRate);
+          const rate = rawRate < 1 ? parseFloat((rawRate * 100).toFixed(2)) : parseFloat(rawRate.toFixed(2));
+          let tenor;
+          if (months < 4)       tenor = '3M';
+          else if (months < 8)  tenor = '6M';
+          else if (months < 18) tenor = '1Y';
+          else if (months < 30) tenor = '2Y';
+          else if (months < 42) tenor = '3Y';
+          else if (months < 54) tenor = '4Y';
+          else if (months < 66) tenor = '5Y';
+          else if (months < 90) tenor = '7Y';
+          else                   tenor = Math.round(months / 12) + 'Y';
+          return { tenor, months, rate, maturity: (b.TrsrBd.mtrtyDt || '').split('T')[0] };
+        })
+        .filter(b => b.months > 0 && b.rate > 0)
+        .sort((a, b_) => a.months - b_.months);
+      brCurve.push(...prefixados);
+    }
+    if (brCurve.length < 3) {
+      const base = diRate;
+      brCurve.push(
+        { tenor: '3M', months: 3, rate: parseFloat((base + 0.15).toFixed(2)) },
+        { tenor: '6M', months: 6, rate: parseFloat((base + 0.10).toFixed(2)) },
+        { tenor: '1Y', months: 12, rate: parseFloat((base - 0.50).toFixed(2)) },
+        { tenor: '2Y', months: 24, rate: parseFloat((base - 1.50).toFixed(2)) },
+        { tenor: '3Y', months: 36, rate: parseFloat((base - 2.50).toFixed(2)) },
+        { tenor: '5Y', months: 60, rate: parseFloat((base - 3.50).toFixed(2)) },
+      );
+    }
+
+    // â â US curve ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+
+    let usCurve = [];
+    let usSource = 'unavailable';
+    if (usTreasuryRes.status === 'fulfilled') {
+      usCurve = parseUsTreasury(usTreasuryRes.value);
+      usSource = usCurve.length > 0 ? 'US Treasury' : 'unavailable';
+    }
+    if (usCurve.length < 3) console.warn('[Yield] US Treasury parse failed:', usTreasuryRes.reason?.message);
+
+    // â â UK curve ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+
+    let ukCurve = [];
+    let ukSource = 'synthetic';
+    if (ukBoeRes.status === 'fulfilled') {
+      ukCurve = parseBoeCsv(ukBoeRes.value);
+      ukSource = ukCurve.length > 0 ? 'Bank of England' : 'synthetic';
+    }
+    if (ukCurve.length < 3) {
+      console.warn('[Yield] BoE parse failed, using synthetic:', ukBoeRes.reason?.message || 'no data');
+      ukCurve = ukSynthetic(4.50);
+      ukSource = 'BoE+synthetic';
+    }
+
+    // â â EU curve ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+
+    let euCurve = [];
+    let euSource = 'synthetic';
+    if (ecbYcRes.status === 'fulfilled') {
+      euCurve = parseEcbYieldCurve(ecbYcRes.value);
+      euSource = euCurve.length > 0 ? 'ECB' : 'synthetic';
+    }
+    if (euCurve.length < 3) {
+      console.warn('[Yield] ECB parse failed, using synthetic:', ecbYcRes.reason?.message || 'no data');
+      euCurve = euSynthetic(2.50);
+      euSource = 'ECB+synthetic';
+    }
+
+    res.json({
+      BR: { curve: brCurve, source: tdRes.status === 'fulfilled' ? 'Tesouro Direto' : 'BCB+synthetic', updatedAt: now.toISOString() },
+      US: { curve: usCurve, source: usSource, updatedAt: now.toISOString() },
+      UK: { curve: ukCurve, source: ukSource, updatedAt: now.toISOString() },
+      EU: { curve: euCurve, source: euSource, updatedAt: now.toISOString() },
+    });
+  } catch (err) {
+    console.error('[API] /yield-curves error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// â  async (req, res) => {
   try {
     const now = new Date();
     const yyyymm = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -747,8 +959,7 @@ router.get('/yield-curves', async (req, res) => {
     // ââ EU curve âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
     let euCurve = [];
     let euSource = 'synthetic';
-    if (ecbYcRes.status === 'fulfilled') {
-      euCurve = parseEcbYieldCurve(ecbYcRes.value);
+    if (ecbYcRes.status === 'fulfilled') {     euCurve = parseEcbYieldCurve(ecbYcRes.value);
       euSource = euCurve.length > 0 ? 'ECB' : 'synthetic';
     }
     if (euCurve.length < 3) {
