@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useMarketData } from './hooks/useMarketData';
-import { Header } from './components/Header';
 import { IndexPanel } from './components/panels/IndexPanel';
 import { StockPanel } from './components/panels/StockPanel';
 import { ForexPanel } from './components/panels/ForexPanel';
@@ -9,13 +8,14 @@ import { NewsPanel } from './components/panels/NewsPanel';
 import { ChartPanel } from './components/panels/ChartPanel';
 import { SentimentPanel } from './components/panels/SentimentPanel';
 import { SearchPanel } from './components/panels/SearchPanel';
-import { RatesPanel } from './components/panels/RatesPanel';
 import { DICurvePanel } from './components/panels/DICurvePanel';
 import BrazilPanel from './components/panels/BrazilPanel';
 import GlobalIndicesPanel from './components/panels/GlobalIndicesPanel';
 import './App.css';
 
-// ── World Clock ──────────────────────────────────────────────────────
+const API_BASE = import.meta.env.VITE_API_URL || '';
+
+// ââ World Clock âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 function WorldClock() {
   const [now, setNow] = useState(new Date());
   useEffect(() => {
@@ -44,7 +44,7 @@ function WorldClock() {
   );
 }
 
-// ── Resize Handle (row) ────────────────────────────────────────────────
+// ââ Resize Handle ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 function ResizeHandle({ onStart }) {
   return (
     <div
@@ -62,7 +62,7 @@ function ResizeHandle({ onStart }) {
   );
 }
 
-// ── Resizable flex-row hook ────────────────────────────────────────────────────
+// ââ Resizable flex-row hook ââââââââââââââââââââââââââââââââââââââââââââââââââââ
 function useResizableFlex(storageKey, defaults) {
   const [sizes, setSizes] = useState(() => {
     try {
@@ -102,14 +102,14 @@ function useResizableFlex(storageKey, defaults) {
   return [sizes, startResize];
 }
 
-// ── Mobile tab definitions ────────────────────────────────────────────────────────
+// ââ Mobile tab definitions âââââââââââââââââââââââââââââââââââââââââââââââââââââ
 const MOBILE_TABS = [
   { id: 'charts',   label: 'CHARTS' },
   { id: 'usequity', label: 'US EQ' },
   { id: 'brazil',   label: 'BRAZIL' },
-  { id: 'fxcrypto', label: 'FX/₿' },
+  { id: 'fxcrypto', label: 'FX/â¿' },
   { id: 'global',   label: 'GLOBAL' },
-  { id: 'rates',    label: 'RATES' },
+  { id: 'rates',    label: 'CURVES' },
   { id: 'news',     label: 'NEWS' },
 ];
 
@@ -129,10 +129,36 @@ export default function App() {
   const [chartTicker, setChartTickerState] = useState(
     () => localStorage.getItem(LS_CHART_TICKER) || 'SPY'
   );
+
+  // ââ Cross-device sync ââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+  const syncTimer = useRef(null);
+
+  // Load settings from server on first mount
+  useEffect(() => {
+    fetch(API_BASE + '/api/settings')
+      .then(r => r.ok ? r.json() : null)
+      .then(s => {
+        if (s?.chartTicker && s.chartTicker !== localStorage.getItem(LS_CHART_TICKER)) {
+          setChartTickerState(s.chartTicker);
+          localStorage.setItem(LS_CHART_TICKER, s.chartTicker);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   const setChartTicker = useCallback((t) => {
     const sym = typeof t === 'object' ? (t.symbol || t) : t;
     setChartTickerState(sym);
     localStorage.setItem(LS_CHART_TICKER, sym);
+    // Debounced save to server for cross-device sync
+    clearTimeout(syncTimer.current);
+    syncTimer.current = setTimeout(() => {
+      fetch(API_BASE + '/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chartTicker: sym }),
+      }).catch(() => {});
+    }, 800);
   }, []);
 
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
@@ -159,7 +185,7 @@ export default function App() {
     setActiveTabPersist('charts');
   }, [setChartTicker]);
 
-  // ── DESKTOP ──────────────────────────────────────────────────────────────────────────────────
+  // ââ DESKTOP ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
   if (!isMobile) {
     return (
       <div style={{
@@ -169,54 +195,54 @@ export default function App() {
         overflowY: 'auto', overflowX: 'hidden',
         color: '#e0e0e0', userSelect: 'none',
       }}>
+        {/* Header */}
         <div style={{ height: 36, flexShrink: 0, display:'flex', alignItems:'center', background:'#000', borderBottom:'2px solid #ff6600', padding:'0 12px', gap:12 }}>
           <span style={{ color:'#ff6600', fontWeight:700, fontSize:'13px', letterSpacing:'2px' }}>SENGER</span>
           <span style={{ color:'#444', fontSize:'9px', letterSpacing:'1px' }}>MARKET SCREEN</span>
           <div style={{ flex:1, display:'flex', justifyContent:'center' }}><WorldClock /></div>
           <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-            {isRefreshing && <span style={{ color:'#ff6600', fontSize:'8px', letterSpacing:'1px' }}>● UPDATING</span>}
-            {lastUpdated && !isRefreshing && <span style={{ color:'#333', fontSize:'8px' }}>⟳ {lastUpdated.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'})}</span>}
+            {isRefreshing && <span style={{ color:'#ff6600', fontSize:'8px', letterSpacing:'1px' }}>â UPDATING</span>}
+            {lastUpdated && !isRefreshing && <span style={{ color:'#333', fontSize:'8px' }}>â³ {lastUpdated.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'})}</span>}
           </div>
         </div>
 
         {/* Row 1: Charts | Stocks | Forex+Crypto */}
-        <div style={{ flex: rowSizes[0], display:'grid', gridTemplateColumns:'2fr 1fr 1.6fr', overflow:'hidden', minHeight: 220 }}>
-          <div style={{ borderRight:border, overflow:'hidden' }}>
+        <div style={{ flex: rowSizes[0], flexShrink: 0, display:'grid', gridTemplateColumns:'2fr 1fr 1.6fr', overflow:'hidden', minHeight: 220 }}>
+          <div style={{ borderRight:border, overflow:'hidden', height:'100%' }}>
             <ChartPanel ticker={chartTicker} onTickerChange={setChartTicker} onGridChange={setChartGridCount} />
           </div>
-          <div style={{ borderRight:border, overflow:'hidden' }}>
+          <div style={{ borderRight:border, overflow:'hidden', height:'100%' }}>
             <StockPanel data={data?.stocks} loading={loading} onTickerClick={setChartTicker} />
           </div>
-          <div style={{ overflow:'hidden' }}>
+          <div style={{ overflow:'hidden', height:'100%' }}>
             <ForexPanel data={data?.forex} cryptoData={data?.crypto} loading={loading} onTickerClick={setChartTicker} />
           </div>
         </div>
 
         <ResizeHandle onStart={e => startRowResize(0, e)} />
 
-        {/* Row 2: Indices | Brazil | Global | Commodities */}
-        <div style={{ flex: rowSizes[1], display:'grid', gridTemplateColumns:'1fr 1fr 1fr 1fr', overflow:'hidden', minHeight: 180 }}>
-          <div style={{ borderRight:border, overflow:'hidden' }}><IndexPanel data={data?.indices} loading={loading} onTickerClick={setChartTicker} /></div>
-          <div style={{ borderRight:border, overflow:'hidden' }}><BrazilPanel onTickerClick={setChartTicker} /></div>
-          <div style={{ borderRight:border, overflow:'hidden' }}><GlobalIndicesPanel onTickerClick={setChartTicker} /></div>
-          <div style={{ overflow:'hidden' }}><CommoditiesPanel data={data?.stocks} loading={loading} onTickerClick={setChartTicker} /></div>
+        {/* Row 2: US Indices | Brazil | Global Indexes | Commodities */}
+        <div style={{ flex: rowSizes[1], flexShrink: 0, display:'grid', gridTemplateColumns:'1fr 1fr 1fr 1fr', overflow:'hidden', minHeight: 180 }}>
+          <div style={{ borderRight:border, overflow:'hidden', height:'100%' }}><IndexPanel data={data?.indices} loading={loading} onTickerClick={setChartTicker} /></div>
+          <div style={{ borderRight:border, overflow:'hidden', height:'100%' }}><BrazilPanel onTickerClick={setChartTicker} /></div>
+          <div style={{ borderRight:border, overflow:'hidden', height:'100%' }}><GlobalIndicesPanel onTickerClick={setChartTicker} /></div>
+          <div style={{ overflow:'hidden', height:'100%' }}><CommoditiesPanel data={data?.stocks} loading={loading} onTickerClick={setChartTicker} /></div>
         </div>
 
         <ResizeHandle onStart={e => startRowResize(1, e)} />
 
-        {/* Row 3: Rates | BR Yield Curve | Search | News | Sentiment */}
-        <div style={{ flex: rowSizes[2], display:'grid', gridTemplateColumns:'180px 220px 1fr 1.5fr 1fr', overflow:'hidden', minHeight: 160 }}>
-          <div style={{ borderRight:border, overflow:'hidden' }}><RatesPanel /></div>
-          <div style={{ borderRight:border, overflow:'hidden' }}><DICurvePanel compact /></div>
-          <div style={{ borderRight:border, overflow:'hidden' }}><SearchPanel onTickerSelect={setChartTicker} /></div>
-          <div style={{ borderRight:border, overflow:'hidden' }}><NewsPanel /></div>
-          <div style={{ overflow:'hidden' }}><SentimentPanel data={data} loading={loading} /></div>
+        {/* Row 3: Yield Curves | Search | News | Sentiment */}
+        <div style={{ flex: rowSizes[2], flexShrink: 0, display:'grid', gridTemplateColumns:'320px 1fr 1.5fr 1fr', overflow:'hidden', minHeight: 160 }}>
+          <div style={{ borderRight:border, overflow:'hidden', height:'100%' }}><DICurvePanel compact /></div>
+          <div style={{ borderRight:border, overflow:'hidden', height:'100%' }}><SearchPanel onTickerSelect={setChartTicker} /></div>
+          <div style={{ borderRight:border, overflow:'hidden', height:'100%' }}><NewsPanel /></div>
+          <div style={{ overflow:'hidden', height:'100%' }}><SentimentPanel data={data} loading={loading} /></div>
         </div>
       </div>
     );
   }
 
-  // ── MOBILE ───────────────────────────────────────────────────────────────────────────────────
+  // ââ MOBILE ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
   return (
     <div style={{
       display: 'flex', flexDirection: 'column',
@@ -230,8 +256,8 @@ export default function App() {
         <span style={{ color:'#ff6600', fontWeight:800, fontSize:'13px', letterSpacing:'2px' }}>SENGER</span>
         <span style={{ color:'#555', fontSize:'9px', letterSpacing:'1px' }}>MARKET</span>
         {isRefreshing
-          ? <span style={{ color:'#ff6600', fontSize:'8px', marginLeft:4 }}>● LIVE</span>
-          : lastUpdated && <span style={{ color:'#333', fontSize:'8px', marginLeft:'auto' }}>⟳ {lastUpdated.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</span>
+          ? <span style={{ color:'#ff6600', fontSize:'8px', marginLeft:4 }}>â LIVE</span>
+          : lastUpdated && <span style={{ color:'#333', fontSize:'8px', marginLeft:'auto' }}>â³ {lastUpdated.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</span>
         }
       </div>
 
@@ -261,14 +287,7 @@ export default function App() {
             </div>
           </div>
         )}
-        {activeTab === 'rates' && (
-          <div>
-            <DICurvePanel />
-            <div style={{ borderTop: '1px solid #1e1e1e' }}>
-              <RatesPanel />
-            </div>
-          </div>
-        )}
+        {activeTab === 'rates' && <DICurvePanel />}
         {activeTab === 'news' && <NewsPanel />}
       </div>
 
@@ -280,7 +299,7 @@ export default function App() {
         paddingBottom: 'env(safe-area-inset-bottom)',
       }}>
         {MOBILE_TABS.map(tab => {
-          const active = activeTab === tab.id;
+          const isActive = activeTab === tab.id;
           return (
             <button
               key={tab.id}
@@ -288,10 +307,10 @@ export default function App() {
               style={{
                 flex: '1 0 auto', minWidth: '44px', minHeight: '52px',
                 padding: '8px 4px 6px',
-                background: active ? '#1a0900' : 'transparent',
-                color: active ? '#ff6600' : '#444',
+                background: isActive ? '#1a0900' : 'transparent',
+                color: isActive ? '#ff6600' : '#444',
                 border: 'none',
-                borderTop: `3px solid ${active ? '#ff6600' : 'transparent'}`,
+                borderTop: '3px solid ' + (isActive ? '#ff6600' : 'transparent'),
                 fontSize: '8px', fontWeight: 800, letterSpacing: '0.3px',
                 cursor: 'pointer', fontFamily: 'inherit', textTransform: 'uppercase',
               }}>
@@ -302,4 +321,4 @@ export default function App() {
       </nav>
     </div>
   );
-          }
+}
