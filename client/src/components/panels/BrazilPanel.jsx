@@ -83,11 +83,12 @@ export default function BrazilPanel({ onTickerClick }) {
               key={s.symbol}
               draggable
               onDragStart={e => {
+                // Pass .SA suffix so ChartPanel routes to Yahoo Finance for B3 historical data
                 e.dataTransfer.setData('application/x-ticker',
-                  JSON.stringify({ symbol: s.symbol, label: s.name || s.symbol }));
+                  JSON.stringify({ symbol: s.symbol + '.SA', label: s.name || s.symbol }));
                 e.dataTransfer.effectAllowed = 'copy';
               }}
-              onClick={() => onTickerClick?.({ symbol: s.symbol, label: s.name || s.symbol })}
+              onClick={() => onTickerClick?.(s.symbol + '.SA')}
               style={{
                 display: 'grid', gridTemplateColumns: '52px 1fr 64px 52px',
                 padding: '3px 8px', borderBottom: '1px solid #111',
