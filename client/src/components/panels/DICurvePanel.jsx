@@ -1,6 +1,6 @@
 /**
- * YieldCurvePanel â BR / US / UK / EU sovereign yield curves
- * Layout: 4 stacked chart blocks filling the full panel height â no tabs
+ * YieldCurvePanel — BR / US / UK / EU sovereign yield curves
+ * Layout: 4 stacked chart blocks filling the full panel height — no tabs
  */
 import { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
@@ -8,10 +8,10 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'rec
 const API = import.meta.env.VITE_API_URL || '';
 
 const CURVES = [
-  { id: 'BR', label: 'BRASIL',         color: '#e8a020', note: 'TESOURO PREFIXADO + BCB DI Â· % A.A.' },
-  { id: 'US', label: 'UNITED STATES',  color: '#4d9fec', note: 'US TREASURY PAR YIELD CURVE Â· %' },
-  { id: 'UK', label: 'UNITED KINGDOM', color: '#e05c8a', note: 'UK GILT SPOT Â· BANK OF ENGLAND Â· %' },
-  { id: 'EU', label: 'EURO AREA',      color: '#7ec8a0', note: 'AAA SOVEREIGN BOND CURVE Â· ECB Â· %' },
+  { id: 'BR', label: 'BRASIL',         color: '#e8a020', note: 'TESOURO PREFIXADO + BCB DI · % A.A.' },
+  { id: 'US', label: 'UNITED STATES',  color: '#4d9fec', note: 'US TREASURY PAR YIELD CURVE · %' },
+  { id: 'UK', label: 'UNITED KINGDOM', color: '#e05c8a', note: 'UK GILT SPOT · BANK OF ENGLAND · %' },
+  { id: 'EU', label: 'EURO AREA',      color: '#7ec8a0', note: 'AAA SOVEREIGN BOND CURVE · ECB · %' },
 ];
 
 const KEY_TENORS = ['1Y', '2Y', '5Y', '10Y', '30Y'];
@@ -51,7 +51,7 @@ export function DICurvePanel({ compact = false }) {
       background: '#040508', height: '100%', overflow: 'hidden',
     }}>
 
-      {/* ââ Panel header âââââââââââââââââââââââââââââââââââââââââââ */}
+      {/* ── Panel header ─────────────────────────────────────────── */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         padding: '2px 8px', borderBottom: '1px solid #0d0d1a',
@@ -61,11 +61,11 @@ export function DICurvePanel({ compact = false }) {
           YIELD CURVES
         </span>
         <span style={{ color: '#1e1e2e', fontSize: 7 }}>
-          {loading ? 'LOADINGâ¦' : error ? 'ERR' : updatedAt}
+          {loading ? 'LOADING…' : error ? 'ERR' : updatedAt}
         </span>
       </div>
 
-      {/* ââ 4 stacked curve blocks ââââââââââââââââââââââââââââââââ */}
+      {/* ── 4 stacked curve blocks ──────────────────────────────── */}
       {CURVES.map((c, idx) => {
         const curve  = all[c.id]?.curve || [];
         const rates  = curve.map(p => p.rate);
@@ -111,7 +111,7 @@ export function DICurvePanel({ compact = false }) {
             <div style={{ flex: 1, overflow: 'hidden', minHeight: 0 }}>
               {loading ? (
                 <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#151525', fontSize: 7 }}>
-                  loadingâ¦
+                  loading…
                 </div>
               ) : curve.length === 0 ? (
                 <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#1a1a2a', fontSize: 7, flexDirection: 'column', gap: 4 }}>
@@ -128,13 +128,13 @@ export function DICurvePanel({ compact = false }) {
                   <LineChart data={curve} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
                     <XAxis
                       dataKey="tenor"
-                      tick={{ fill: '#252540', fontSize: 6 }}
+                      tick={{ fill: '#6a6a8a', fontSize: 6 }}
                       tickLine={false}
                       axisLine={{ stroke: '#0e0e1c' }}
                     />
                     <YAxis
                       domain={[minR, maxR]}
-                      tick={{ fill: '#252540', fontSize: 6 }}
+                      tick={{ fill: '#6a6a8a', fontSize: 6 }}
                       tickLine={false}
                       axisLine={false}
                       width={26}
@@ -148,7 +148,7 @@ export function DICurvePanel({ compact = false }) {
                       }}
                       itemStyle={{ color: c.color }}
                       labelStyle={{ color: '#555', marginBottom: 1 }}
-                      formatter={v => [v != null ? v.toFixed(2) + '%' : 'â', 'yield']}
+                      formatter={v => [v != null ? v.toFixed(2) + '%' : '—', 'yield']}
                     />
                     <Line
                       type="monotone"
@@ -164,7 +164,7 @@ export function DICurvePanel({ compact = false }) {
               )}
             </div>
 
-            {/* Source footnote â only on last block to save space */}
+            {/* Source footnote — only on last block to save space */}
             {idx === CURVES.length - 1 && (
               <div style={{ padding: '0 6px 1px', flexShrink: 0 }}>
                 <span style={{ color: '#0f0f1e', fontSize: 5.5, letterSpacing: '0.04em' }}>
