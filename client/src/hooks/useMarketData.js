@@ -5,10 +5,10 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 const API = import.meta.env.VITE_API_URL || '';
 
 const ENDPOINTS = {
-  stocks:  '/api/snapshot/stocks',
-  forex:   '/api/snapshot/forex',
-  crypto:  '/api/snapshot/crypto',
-  rates:   '/api/snapshot/rates',  // Yahoo Finance treasury yields
+  stocks: '/api/snapshot/stocks',
+  forex:  '/api/snapshot/forex',
+  crypto: '/api/snapshot/crypto',
+  rates:  '/api/snapshot/rates',
 };
 
 const REFRESH_MS = 6_000; // 6 seconds — keeps prices feeling live
@@ -19,12 +19,15 @@ function normalizePolygon(data, stripPrefix) {
   const result = {};
   for (const t of data.tickers) {
     const key = stripPrefix ? t.ticker.replace(stripPrefix, '') : t.ticker;
+    // Prefer min.c (current minute close) — day.c is 0 during market hours (only set at session end)
+    // Using ?? would stop at day.c=0 without falling through, so we explicitly check > 0
+    const price = (t.min?.c > 0 ? t.min.c : null) ?? (t.day?.c > 0 ? t.day.c : null) ?? t.prevDay?.c ?? null;
     result[key] = {
       symbol:    key,
-      price:     t.day?.c ?? t.min?.c ?? t.prevDay?.c ?? null,
+      price,
       changePct: t.todaysChangePerc ?? null,
       change:    t.todaysChange ?? null,
-      mid:       t.day?.c ?? null,
+      mid:       price,
     };
   }
   return result;
@@ -59,7 +62,6 @@ export function useMarketData() {
           return { key, d };
         })
       );
-
       if (!isMountedRef.current) return;
 
       const newData = {};
@@ -81,8 +83,8 @@ export function useMarketData() {
         const prev = prevPricesRef.current[key] || {};
         const curr = newData[key] || {};
         Object.entries(curr).forEach(([sym, info]) => {
-          if (prev[sym] && info.price != null && prev[sym].price != null
-              && prev[sym].price !== info.price) {
+          if (prev[sym] && info.price != null && prev[sym].price != null &&
+              prev[sym].price !== info.price) {
             newFlash[sym] = info.price > prev[sym].price ? 'up' : 'down';
           }
         });
@@ -95,7 +97,9 @@ export function useMarketData() {
 
       if (Object.keys(newFlash).length > 0) {
         setFlashMap(newFlash);
-        setTimeout(() => { if (isMountedRef.current) setFlashMap({}); }, 900);
+        setTimeout(() => {
+          if (isMountedRef.current) setFlashMap({});
+        }, 900);
       }
     } catch (err) {
       if (isMountedRef.current) setError(err.message);
