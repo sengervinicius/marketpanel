@@ -66,7 +66,7 @@ function MiniChart({ ticker, index, onRemove, onReplace, onSwap }) {
   const [loading, setLoading] = useState(true);
   const [isDragOver, setIsDragOver] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
-  const [rangeIdx, setRangeIdx] = useState(2);
+  const [rangeIdx, setRangeIdx] = useState(0);
   const mountedRef = useRef(true);
   const intervalRef = useRef(null);
 
@@ -300,6 +300,8 @@ export function ChartPanel({ ticker: externalTicker, onGridChange, mobile = fals
   });
 
   const [copied, setCopied] = useState(false);
+  const [showQR, setShowQR] = useState(false);
+  const [qrUrl, setQrUrl] = useState('');
 
   useEffect(() => {
     if (!externalTicker) return;
@@ -349,10 +351,13 @@ export function ChartPanel({ ticker: externalTicker, onGridChange, mobile = fals
     try {
       const url = new URL(window.location.href);
       url.searchParams.set('c', tickers.join(','));
-      navigator.clipboard.writeText(url.toString()).then(() => {
+      const link = url.toString();
+      navigator.clipboard.writeText(link).then(() => {
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
       });
+      setQrUrl(`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(link)}&bgcolor=040508&color=e8a020&margin=8`);
+      setShowQR(true);
     } catch (_) {}
   }, [tickers]);
 
@@ -373,7 +378,7 @@ export function ChartPanel({ ticker: externalTicker, onGridChange, mobile = fals
       <div style={{ display: 'flex', flexDirection: 'column', background: '#040508' }} {...outerDrop}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', borderBottom: '1px solid #141420' }}>
           <span style={{ color: '#e8a020', fontWeight: 700, fontSize: 10, letterSpacing: '0.2em' }}>CHARTS</span>
-          <span style={{ color: '#333', fontSize: 8 }}>{tickers.length}/{MAX} saved</span>
+          <span style={{ color: '#333', fontSize: 8 }}>{tickers.length}/{MAX} · use "SYNC TO MOBILE" on desktop to import</span>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gridAutoRows: '46vw', gap: 1, padding: 1 }}>
           {tickers.map((t, i) => (
@@ -391,16 +396,41 @@ export function ChartPanel({ ticker: externalTicker, onGridChange, mobile = fals
         <span style={{ color: '#e8a020', fontWeight: 700, fontSize: 9, letterSpacing: '0.2em' }}>CHARTS</span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ color: '#222233', fontSize: 7 }}>{tickers.length}/{MAX} — drag to reorder · drop to add</span>
-          <button onClick={copyLink} style={{
-            background: copied ? '#0a2010' : 'transparent',
-            border: `1px solid ${copied ? '#4caf50' : '#2a2a3a'}`,
-            color: copied ? '#4caf50' : '#444',
-            fontSize: 7, cursor: 'pointer', padding: '2px 6px', borderRadius: 2,
-            fontFamily: 'inherit', letterSpacing: '0.05em',
-            transition: 'all 0.2s',
-          }}>
-            {copied ? '✓ COPIED' : '⎘ COPY LINK'}
-          </button>
+          <div style={{ position: 'relative' }}>
+            <button onClick={copyLink} style={{
+              background: copied ? '#0a2010' : 'transparent',
+              border: `1px solid ${copied ? '#4caf50' : '#2a2a3a'}`,
+              color: copied ? '#4caf50' : '#444',
+              fontSize: 7, cursor: 'pointer', padding: '2px 6px', borderRadius: 2,
+              fontFamily: 'inherit', letterSpacing: '0.05em',
+              transition: 'all 0.2s',
+            }}>
+              {copied ? '✓ COPIED' : '⎘ SYNC TO MOBILE'}
+            </button>
+            {showQR && (
+              <div
+                onClick={() => setShowQR(false)}
+                style={{
+                  position: 'fixed', inset: 0, zIndex: 9999,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: 'rgba(0,0,0,0.75)',
+                }}
+              >
+                <div
+                  onClick={e => e.stopPropagation()}
+                  style={{
+                    background: '#0a0a0f', border: '1px solid #2a2a3a', borderRadius: 6,
+                    padding: 20, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10,
+                  }}
+                >
+                  <span style={{ color: '#e8a020', fontSize: 11, fontWeight: 700, letterSpacing: '0.15em' }}>SYNC TO MOBILE</span>
+                  <span style={{ color: '#555', fontSize: 9 }}>Scan with your phone to open your {tickers.length} charts</span>
+                  <img src={qrUrl} alt="QR Code" style={{ width: 180, height: 180, borderRadius: 4 }} />
+                  <span style={{ color: '#333', fontSize: 8 }}>Link also copied to clipboard · click anywhere to close</span>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
       <div style={{
