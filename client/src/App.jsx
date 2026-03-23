@@ -16,7 +16,7 @@ import './App.css';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
-// ── World Clock ─────────────────────────────────────────────────────────────────
+// ── World Clock ────────────────────────────────────────────────────────────────────────────────
 function WorldClock() {
   const [now, setNow] = useState(new Date());
   useEffect(() => {
@@ -45,7 +45,7 @@ function WorldClock() {
   );
 }
 
-// ── Resize Handle ──────────────────────────────────────────────────────────────
+// ── Resize Handle ──────────────────────────────────────────────────────────────────────────────
 function ResizeHandle({ onStart }) {
   return (
     <div
@@ -63,7 +63,7 @@ function ResizeHandle({ onStart }) {
   );
 }
 
-// ── Resizable flex-row hook ────────────────────────────────────────────────────
+// ── Resizable flex-row hook ──────────────────────────────────────────────────────────────────────────────
 function useResizableFlex(storageKey, defaults) {
   const [sizes, setSizes] = useState(() => {
     try {
@@ -103,12 +103,12 @@ function useResizableFlex(storageKey, defaults) {
   return [sizes, startResize];
 }
 
-// ── Mobile tab definitions ─────────────────────────────────────────────────────
+// ── Mobile tab definitions ──────────────────────────────────────────────────────────────────────────────
 const MOBILE_TABS = [
   { id: 'charts',   label: 'CHARTS' },
   { id: 'usequity', label: 'US EQ' },
   { id: 'brazil',   label: 'BRAZIL' },
-  { id: 'fxcrypto', label: 'FX/₿' },
+  { id: 'fxcrypto', label: 'FX/BTC' },
   { id: 'global',   label: 'GLOBAL' },
   { id: 'rates',    label: 'CURVES' },
   { id: 'news',     label: 'NEWS' },
@@ -131,7 +131,7 @@ export default function App() {
     () => localStorage.getItem(LS_CHART_TICKER) || 'SPY'
   );
 
-  // ── Cross-device sync ────────────────────────────────────────────────────────
+  // ── Cross-device sync ────────────────────────────────────────────────────────────────────────────────
   const syncTimer = useRef(null);
 
   // Load settings from server on first mount
@@ -186,7 +186,7 @@ export default function App() {
     setActiveTabPersist('charts');
   }, [setChartTicker]);
 
-  // ── DESKTOP ──────────────────────────────────────────────────────────────────
+  // ── DESKTOP ──────────────────────────────────────────────────────────────────────────────────────────────
   if (!isMobile) {
     return (
       <div style={{
@@ -202,8 +202,8 @@ export default function App() {
           <span style={{ color:'#444', fontSize:'9px', letterSpacing:'1px' }}>MARKET SCREEN</span>
           <div style={{ flex:1, display:'flex', justifyContent:'center' }}><WorldClock /></div>
           <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-            {isRefreshing && <span style={{ color:'#ff6600', fontSize:'8px', letterSpacing:'1px' }}>● UPDATING</span>}
-            {lastUpdated && !isRefreshing && <span style={{ color:'#333', fontSize:'8px' }}>⟳ {lastUpdated.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'})}</span>}
+            {isRefreshing && <span style={{ color:'#ff6600', fontSize:'8px', letterSpacing:'1px' }}>&#9679; UPDATING</span>}
+            {lastUpdated && !isRefreshing && <span style={{ color:'#333', fontSize:'8px' }}>UPD {lastUpdated.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'})}</span>}
           </div>
         </div>
 
@@ -246,7 +246,7 @@ export default function App() {
     );
   }
 
-  // ── MOBILE ────────────────────────────────────────────────────────────────────
+  // ── MOBILE ────────────────────────────────────────────────────────────────────────────────────────────────
   return (
     <div style={{
       display: 'flex', flexDirection: 'column',
@@ -260,8 +260,8 @@ export default function App() {
         <span style={{ color:'#ff6600', fontWeight:800, fontSize:'13px', letterSpacing:'2px' }}>SENGER</span>
         <span style={{ color:'#555', fontSize:'9px', letterSpacing:'1px' }}>MARKET</span>
         {isRefreshing
-          ? <span style={{ color:'#ff6600', fontSize:'8px', marginLeft:4 }}>● LIVE</span>
-          : lastUpdated && <span style={{ color:'#333', fontSize:'8px', marginLeft:'auto' }}>⟳ {lastUpdated.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</span>
+          ? <span style={{ color:'#ff6600', fontSize:'8px', marginLeft:4 }}>&#9679; LIVE</span>
+          : lastUpdated && <span style={{ color:'#333', fontSize:'8px', marginLeft:'auto' }}>UPD {lastUpdated.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</span>
         }
       </div>
 
