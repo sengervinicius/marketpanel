@@ -10,11 +10,12 @@ import { ChartPanel } from './components/panels/ChartPanel';
 import { SentimentPanel } from './components/panels/SentimentPanel';
 import { SearchPanel } from './components/panels/SearchPanel';
 import { RatesPanel } from './components/panels/RatesPanel';
+import { DICurvePanel } from './components/panels/DICurvePanel';
 import BrazilPanel from './components/panels/BrazilPanel';
 import GlobalIndicesPanel from './components/panels/GlobalIndicesPanel';
 import './App.css';
 
-// ── World Clock ────────────────────────────────────────────────
+// ── World Clock ──────────────────────────────────────────────────────
 function WorldClock() {
   const [now, setNow] = useState(new Date());
   useEffect(() => {
@@ -22,12 +23,12 @@ function WorldClock() {
     return () => clearInterval(id);
   }, []);
   const zones = [
-    { label: 'NY',  tz: 'America/New_York'  },
+    { label: 'NY',  tz: 'America/New_York' },
     { label: 'SP',  tz: 'America/Sao_Paulo' },
-    { label: 'LDN', tz: 'Europe/London'     },
-    { label: 'FRA', tz: 'Europe/Berlin'     },
-    { label: 'HKG', tz: 'Asia/Hong_Kong'    },
-    { label: 'TKY', tz: 'Asia/Tokyo'        },
+    { label: 'LDN', tz: 'Europe/London' },
+    { label: 'FRA', tz: 'Europe/Berlin' },
+    { label: 'HKG', tz: 'Asia/Hong_Kong' },
+    { label: 'TKY', tz: 'Asia/Tokyo' },
   ];
   return (
     <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
@@ -43,7 +44,7 @@ function WorldClock() {
   );
 }
 
-// ── Resize Handle (row) ─────────────────────────────────────────────
+// ── Resize Handle (row) ────────────────────────────────────────────────
 function ResizeHandle({ onStart }) {
   return (
     <div
@@ -61,7 +62,7 @@ function ResizeHandle({ onStart }) {
   );
 }
 
-// ── Resizable flex-row hook ─────────────────────────────────────────────
+// ── Resizable flex-row hook ────────────────────────────────────────────────────
 function useResizableFlex(storageKey, defaults) {
   const [sizes, setSizes] = useState(() => {
     try {
@@ -73,11 +74,11 @@ function useResizableFlex(storageKey, defaults) {
   useEffect(() => { sizesRef.current = sizes; }, [sizes]);
 
   const startResize = useCallback((idx, e) => {
-    const startY     = e.clientY;
+    const startY = e.clientY;
     const startSizes = [...sizesRef.current];
-    const totalFlex  = startSizes.reduce((a, b) => a + b, 0);
-    const totalH     = window.innerHeight - 42;
-    const flexPerPx  = totalFlex / totalH;
+    const totalFlex = startSizes.reduce((a, b) => a + b, 0);
+    const totalH = window.innerHeight - 42;
+    const flexPerPx = totalFlex / totalH;
     const onMove = (mv) => {
       const delta = (mv.clientY - startY) * flexPerPx;
       setSizes(startSizes.map((s, i) => {
@@ -86,24 +87,30 @@ function useResizableFlex(storageKey, defaults) {
         return s;
       }));
     };
-    const onUp = () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
+    const onUp = () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
   }, []);
 
-  useEffect(() => { localStorage.setItem(storageKey, JSON.stringify(sizes)); }, [sizes, storageKey]);
+  useEffect(() => {
+    localStorage.setItem(storageKey, JSON.stringify(sizes));
+  }, [sizes, storageKey]);
+
   return [sizes, startResize];
 }
 
-// ── Mobile tab definitions ──────────────────────────────────────────────────
+// ── Mobile tab definitions ────────────────────────────────────────────────────────
 const MOBILE_TABS = [
-  { id: 'charts',   label: 'CHARTS'  },
-  { id: 'usequity', label: 'US EQ'   },
-  { id: 'brazil',   label: 'BRAZIL'  },
-  { id: 'fxcrypto', label: 'FX/₿'   },
-  { id: 'global',   label: 'GLOBAL'  },
-  { id: 'rates',    label: 'RATES'   },
-  { id: 'news',     label: 'NEWS'    },
+  { id: 'charts',   label: 'CHARTS' },
+  { id: 'usequity', label: 'US EQ' },
+  { id: 'brazil',   label: 'BRAZIL' },
+  { id: 'fxcrypto', label: 'FX/₿' },
+  { id: 'global',   label: 'GLOBAL' },
+  { id: 'rates',    label: 'RATES' },
+  { id: 'news',     label: 'NEWS' },
 ];
 
 const LS_TAB          = 'activeTab_m2';
@@ -119,7 +126,9 @@ export default function App() {
   });
   const setActiveTabPersist = (t) => { setActiveTab(t); localStorage.setItem(LS_TAB, t); };
 
-  const [chartTicker, setChartTickerState] = useState(() => localStorage.getItem(LS_CHART_TICKER) || 'SPY');
+  const [chartTicker, setChartTickerState] = useState(
+    () => localStorage.getItem(LS_CHART_TICKER) || 'SPY'
+  );
   const setChartTicker = useCallback((t) => {
     const sym = typeof t === 'object' ? (t.symbol || t) : t;
     setChartTickerState(sym);
@@ -141,6 +150,7 @@ export default function App() {
   });
 
   const [rowSizes, startRowResize] = useResizableFlex('rowFlexSizes_v1', [2, 1.5, 1.5]);
+
   const border = '1px solid #1e1e1e';
 
   const goChart = useCallback((t) => {
@@ -149,14 +159,15 @@ export default function App() {
     setActiveTabPersist('charts');
   }, [setChartTicker]);
 
-  // ── DESKTOP ────────────────────────────────────────────────────────────────────────────
+  // ── DESKTOP ──────────────────────────────────────────────────────────────────────────────────
   if (!isMobile) {
     return (
       <div style={{
         display: 'flex', flexDirection: 'column', height: '100vh',
         background: '#0a0a0a',
         fontFamily: "'IBM Plex Mono','Roboto Mono','Courier New',monospace",
-        overflowY: 'auto', overflowX: 'hidden', color: '#e0e0e0', userSelect: 'none',
+        overflowY: 'auto', overflowX: 'hidden',
+        color: '#e0e0e0', userSelect: 'none',
       }}>
         <div style={{ height: 36, flexShrink: 0, display:'flex', alignItems:'center', background:'#000', borderBottom:'2px solid #ff6600', padding:'0 12px', gap:12 }}>
           <span style={{ color:'#ff6600', fontWeight:700, fontSize:'13px', letterSpacing:'2px' }}>SENGER</span>
@@ -168,6 +179,7 @@ export default function App() {
           </div>
         </div>
 
+        {/* Row 1: Charts | Stocks | Forex+Crypto */}
         <div style={{ flex: rowSizes[0], display:'grid', gridTemplateColumns:'2fr 1fr 1.6fr', overflow:'hidden', minHeight: 220 }}>
           <div style={{ borderRight:border, overflow:'hidden' }}>
             <ChartPanel ticker={chartTicker} onTickerChange={setChartTicker} onGridChange={setChartGridCount} />
@@ -179,18 +191,23 @@ export default function App() {
             <ForexPanel data={data?.forex} cryptoData={data?.crypto} loading={loading} onTickerClick={setChartTicker} />
           </div>
         </div>
+
         <ResizeHandle onStart={e => startRowResize(0, e)} />
 
+        {/* Row 2: Indices | Brazil | Global | Commodities */}
         <div style={{ flex: rowSizes[1], display:'grid', gridTemplateColumns:'1fr 1fr 1fr 1fr', overflow:'hidden', minHeight: 180 }}>
           <div style={{ borderRight:border, overflow:'hidden' }}><IndexPanel data={data?.indices} loading={loading} onTickerClick={setChartTicker} /></div>
           <div style={{ borderRight:border, overflow:'hidden' }}><BrazilPanel onTickerClick={setChartTicker} /></div>
           <div style={{ borderRight:border, overflow:'hidden' }}><GlobalIndicesPanel onTickerClick={setChartTicker} /></div>
           <div style={{ overflow:'hidden' }}><CommoditiesPanel data={data?.stocks} loading={loading} onTickerClick={setChartTicker} /></div>
         </div>
+
         <ResizeHandle onStart={e => startRowResize(1, e)} />
 
-        <div style={{ flex: rowSizes[2], display:'grid', gridTemplateColumns:'180px 1fr 2fr 1fr', overflow:'hidden', minHeight: 160 }}>
+        {/* Row 3: Rates | BR Yield Curve | Search | News | Sentiment */}
+        <div style={{ flex: rowSizes[2], display:'grid', gridTemplateColumns:'180px 220px 1fr 1.5fr 1fr', overflow:'hidden', minHeight: 160 }}>
           <div style={{ borderRight:border, overflow:'hidden' }}><RatesPanel /></div>
+          <div style={{ borderRight:border, overflow:'hidden' }}><DICurvePanel compact /></div>
           <div style={{ borderRight:border, overflow:'hidden' }}><SearchPanel onTickerSelect={setChartTicker} /></div>
           <div style={{ borderRight:border, overflow:'hidden' }}><NewsPanel /></div>
           <div style={{ overflow:'hidden' }}><SentimentPanel data={data} loading={loading} /></div>
@@ -199,10 +216,11 @@ export default function App() {
     );
   }
 
-  // ── MOBILE ─────────────────────────────────────────────────────────────────────────────
+  // ── MOBILE ───────────────────────────────────────────────────────────────────────────────────
   return (
     <div style={{
-      display: 'flex', flexDirection: 'column', height: '100dvh',
+      display: 'flex', flexDirection: 'column',
+      height: '100dvh',
       paddingTop: 'env(safe-area-inset-top)',
       background: '#0a0a0a',
       fontFamily: "'IBM Plex Mono','Roboto Mono','Courier New',monospace",
@@ -218,42 +236,23 @@ export default function App() {
       </div>
 
       <div style={{ flex:1, overflowY:'auto', overflowX:'hidden', minHeight:0, WebkitOverflowScrolling:'touch' }}>
-
         {activeTab === 'charts' && (
-          <ChartPanel
-            ticker={chartTicker}
-            onTickerChange={setChartTicker}
-            onGridChange={setChartGridCount}
-            mobile={true}
-          />
+          <ChartPanel ticker={chartTicker} onTickerChange={setChartTicker} onGridChange={setChartGridCount} mobile={true} />
         )}
-
         {activeTab === 'usequity' && (
-          <StockPanel
-            data={data?.stocks}
-            loading={loading}
-            onTickerClick={t => goChart(t)}
-          />
+          <StockPanel data={data?.stocks} loading={loading} onTickerClick={t => goChart(t)} />
         )}
-
         {activeTab === 'brazil' && (
           <BrazilPanel onTickerClick={t => goChart(t)} />
         )}
-
         {activeTab === 'fxcrypto' && (
           <div>
-            <ForexPanel
-              data={data?.forex}
-              cryptoData={data?.crypto}
-              loading={loading}
-              onTickerClick={setChartTicker}
-            />
+            <ForexPanel data={data?.forex} cryptoData={data?.crypto} loading={loading} onTickerClick={setChartTicker} />
             <div style={{ borderTop:'1px solid #1e1e1e' }}>
               <CommoditiesPanel data={data?.stocks} loading={loading} onTickerClick={setChartTicker} />
             </div>
           </div>
         )}
-
         {activeTab === 'global' && (
           <div>
             <GlobalIndicesPanel onTickerClick={t => goChart(t)} />
@@ -262,31 +261,40 @@ export default function App() {
             </div>
           </div>
         )}
-
-        {activeTab === 'rates' && <RatesPanel />}
-
+        {activeTab === 'rates' && (
+          <div>
+            <DICurvePanel />
+            <div style={{ borderTop: '1px solid #1e1e1e' }}>
+              <RatesPanel />
+            </div>
+          </div>
+        )}
         {activeTab === 'news' && <NewsPanel />}
       </div>
 
       <nav style={{
         display: 'flex', background: '#000',
-        borderTop: '2px solid #1e1e1e', flexShrink: 0,
-        overflowX: 'auto', scrollbarWidth: 'none',
+        borderTop: '2px solid #1e1e1e',
+        flexShrink: 0, overflowX: 'auto',
+        scrollbarWidth: 'none',
         paddingBottom: 'env(safe-area-inset-bottom)',
       }}>
         {MOBILE_TABS.map(tab => {
           const active = activeTab === tab.id;
           return (
-            <button key={tab.id} onClick={() => setActiveTabPersist(tab.id)} style={{
-              flex: '1 0 auto', minWidth: '44px', minHeight: '52px',
-              padding: '8px 4px 6px',
-              background: active ? '#1a0900' : 'transparent',
-              color: active ? '#ff6600' : '#444',
-              border: 'none',
-              borderTop: `3px solid ${active ? '#ff6600' : 'transparent'}`,
-              fontSize: '8px', fontWeight: 800, letterSpacing: '0.3px',
-              cursor: 'pointer', fontFamily: 'inherit', textTransform: 'uppercase',
-            }}>
+            <button
+              key={tab.id}
+              onClick={() => setActiveTabPersist(tab.id)}
+              style={{
+                flex: '1 0 auto', minWidth: '44px', minHeight: '52px',
+                padding: '8px 4px 6px',
+                background: active ? '#1a0900' : 'transparent',
+                color: active ? '#ff6600' : '#444',
+                border: 'none',
+                borderTop: `3px solid ${active ? '#ff6600' : 'transparent'}`,
+                fontSize: '8px', fontWeight: 800, letterSpacing: '0.3px',
+                cursor: 'pointer', fontFamily: 'inherit', textTransform: 'uppercase',
+              }}>
               {tab.label}
             </button>
           );
@@ -294,4 +302,4 @@ export default function App() {
       </nav>
     </div>
   );
-  }
+          }
