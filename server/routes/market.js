@@ -84,10 +84,20 @@ async function yahooQuote(symbols) {
 router.get('/snapshot/stocks', async (req, res) => {
   try {
     const tickers = [
+      // Index ETFs
       'SPY','QQQ','IWM','DIA',
-      'AAPL','MSFT','NVDA','GOOGL','AMZN','META','TSLA','BRKB','JPM','XOM',
-      'GLD','SLV','USO','UNG',
-      'VALE','PBR','ITUB','BBD',
+      // US Tech
+      'AAPL','MSFT','NVDA','GOOGL','AMZN','META','TSLA',
+      // US Finance
+      'BRKB','JPM','GS','BAC','V','MA',
+      // US Energy & Industrials
+      'XOM','CAT','BA',
+      // US Consumer & Health
+      'WMT','LLY','UNH',
+      // Brazil ADRs
+      'VALE','PBR','ITUB','BBD','ABEV','ERJ','BRFS','SUZ',
+      // Commodities ETFs
+      'GLD','SLV','CPER','REMX','USO','UNG','SOYB','WEAT','CORN','BHP',
     ].join(',');
     const data = await polyFetch(`/v2/snapshot/locale/us/markets/stocks/tickers?tickers=${tickers}`);
     res.json(data);
@@ -101,8 +111,9 @@ router.get('/snapshot/forex', async (req, res) => {
   try {
     const tickers = [
       'C:EURUSD','C:GBPUSD','C:USDJPY','C:USDBRL',
+      'C:GBPBRL','C:EURBRL',
       'C:USDARS','C:USDCHF','C:USDCNY','C:USDMXN',
-      'C:AUDUSD','C:USDCLP',
+      'C:AUDUSD','C:USDCAD','C:USDCLP',
     ].join(',');
     const data = await polyFetch(`/v2/snapshot/locale/global/markets/forex/tickers?tickers=${tickers}`);
     res.json(data);
@@ -145,6 +156,36 @@ router.get('/chart/:ticker', async (req, res) => {
     const fromDate = from || (() => {
       const d = new Date(now); d.setDate(d.getDate() - 1); return d.toISOString().split('T')[0];
     })();
+
+    // Brazilian B3 stocks (e.g. RENT3.SA) — use Yahoo Finance chart API
+    if (ticker.toUpperCase().endsWith('.SA')) {
+      const { crumb, cookie } = await getYahooCrumb();
+      const period1 = Math.floor(new Date(fromDate + 'T00:00:00Z').getTime() / 1000);
+      const period2 = Math.floor(new Date(toDate   + 'T23:59:59Z').getTime() / 1000);
+      const interval = timespan === 'minute' ? `${multiplier}m` : '1d';
+      const yfUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker.toUpperCase())}?period1=${period1}&period2=${period2}&interval=${interval}&crumb=${encodeURIComponent(crumb)}`;
+      const r = await fetch(yfUrl, {
+        headers: {
+          'User-Agent': YF_UA, 'Accept': 'application/json',
+          'Cookie': cookie, 'Referer': 'https://finance.yahoo.com/',
+        }
+      });
+      if (!r.ok) {
+        if (r.status === 401 || r.status === 403) { _yfCrumb = null; _yfCrumbExpiry = 0; }
+        throw new Error(`Yahoo chart HTTP ${r.status} for ${ticker}`);
+      }
+      const json = await r.json();
+      const result = json?.chart?.result?.[0];
+      if (!result) throw new Error(`No Yahoo chart data for ${ticker}`);
+      const timestamps = result.timestamp || [];
+      const q = result.indicators?.quote?.[0] || {};
+      const results = timestamps
+        .map((t, i) => ({ t: t * 1000, c: q.close?.[i], o: q.open?.[i], h: q.high?.[i], l: q.low?.[i] }))
+        .filter(b => b.c != null && b.c > 0);
+      return res.json({ results, ticker, status: 'OK' });
+    }
+
+    // All other tickers — use Polygon
     const data = await polyFetch(
       `/v2/aggs/ticker/${ticker}/range/${multiplier}/${timespan}/${fromDate}/${toDate}?adjusted=true&sort=asc&limit=500`
     );
