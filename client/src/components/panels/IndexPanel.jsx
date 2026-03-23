@@ -5,6 +5,13 @@ const fmt = (n) => n == null ? '—' : n.toLocaleString('en-US', { minimumFracti
 const fmtPct = (n) => n == null ? '—' : (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
 const COLS = '56px 1fr 68px 64px';
 
+const showInfo = (e, symbol, label, type) => {
+  e.preventDefault();
+  window.dispatchEvent(new CustomEvent('ticker:rightclick', {
+    detail: { symbol, label, type, x: e.clientX + 6, y: e.clientY + 6 },
+  }));
+};
+
 export function IndexPanel({ data, loading, onTickerClick }) {
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#0a0a0a' }}>
@@ -32,6 +39,7 @@ export function IndexPanel({ data, loading, onTickerClick }) {
                 e.dataTransfer.setData('application/x-ticker', JSON.stringify({ symbol: idx.symbol, name: idx.label, type: 'ETF' }));
               }}
               onClick={() => onTickerClick?.(idx.symbol)}
+              onContextMenu={e => showInfo(e, idx.symbol, idx.label, 'ETF')}
               style={{ display: 'grid', gridTemplateColumns: COLS, padding: '3px 8px', borderBottom: '1px solid #141414', cursor: 'pointer', alignItems: 'center' }}
               onMouseEnter={e => e.currentTarget.style.background = '#141414'}
               onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
