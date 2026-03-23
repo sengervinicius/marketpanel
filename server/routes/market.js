@@ -2,12 +2,16 @@
  * routes/market.js
  * REST endpoints — proxy to Polygon.io REST API + Yahoo Finance (crumb auth) + BCB
  */
+
 const express = require('express');
 const fetch = require('node-fetch');
 const router = express.Router();
 
 const BASE = 'https://api.polygon.io';
-function apiKey() { return process.env.POLYGON_API_KEY; }
+
+function apiKey() {
+  return process.env.POLYGON_API_KEY;
+}
 
 async function polyFetch(path) {
   const sep = path.includes('?') ? '&' : '?';
@@ -17,10 +21,12 @@ async function polyFetch(path) {
   return res.json();
 }
 
-// ─── Yahoo Finance crumb authentication ──────────────────────────────────────────
+// ─── Yahoo Finance crumb authentication ────────────────────────────────────────────
+
 let _yfCrumb = null;
 let _yfCookie = null;
 let _yfCrumbExpiry = 0;
+
 const YF_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
 async function getYahooCrumb() {
@@ -46,7 +52,9 @@ async function getYahooCrumb() {
     console.log('[Yahoo] Crumb refreshed OK');
     return { crumb, cookie };
   } catch (err) {
-    _yfCrumb = null; _yfCookie = null; _yfCrumbExpiry = 0;
+    _yfCrumb = null;
+    _yfCookie = null;
+    _yfCrumbExpiry = 0;
     console.error('[Yahoo] Crumb fetch failed:', err.message);
     throw new Error('Yahoo Finance auth failed: ' + err.message);
   }
@@ -57,19 +65,25 @@ async function yahooQuote(symbols) {
   const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbols)}&crumb=${encodeURIComponent(crumb)}&fields=regularMarketPrice,regularMarketChange,regularMarketChangePercent,regularMarketVolume,regularMarketOpen,regularMarketDayHigh,regularMarketDayLow,shortName,longName,currency&lang=en-US`;
   const r = await fetch(url, {
     headers: {
-      'User-Agent': YF_UA, 'Accept': 'application/json',
-      'Cookie': cookie, 'Referer': 'https://finance.yahoo.com/',
+      'User-Agent': YF_UA,
+      'Accept': 'application/json',
+      'Cookie': cookie,
+      'Referer': 'https://finance.yahoo.com/',
     }
   });
   if (!r.ok) {
-    if (r.status === 401 || r.status === 403) { _yfCrumb = null; _yfCrumbExpiry = 0; }
+    if (r.status === 401 || r.status === 403) {
+      _yfCrumb = null;
+      _yfCrumbExpiry = 0;
+    }
     throw new Error(`Yahoo Finance HTTP ${r.status}`);
   }
   const json = await r.json();
   return json?.quoteResponse?.result || [];
 }
 
-// ─── Snapshots ────────────────────────────────────────────────────
+// ─── Snapshots ──────────────────────────────────────────────────
+
 router.get('/snapshot/stocks', async (req, res) => {
   try {
     const tickers = [
@@ -116,7 +130,8 @@ router.get('/snapshot/crypto', async (req, res) => {
   }
 });
 
-// ─── News ────────────────────────────────────────────────────────
+// ─── News ──────────────────────────────────────────────────────────
+
 router.get('/news', async (req, res) => {
   try {
     const limit = req.query.limit || 25;
@@ -128,15 +143,19 @@ router.get('/news', async (req, res) => {
   }
 });
 
-// ─── Intraday chart data ──────────────────────────────────────────────
+// ─── Intraday chart data ────────────────────────────────────────────────
+
 router.get('/chart/:ticker', async (req, res) => {
   try {
     const { ticker } = req.params;
     const { from, to, multiplier = 5, timespan = 'minute' } = req.query;
+
     const now = new Date();
     const toDate = to || now.toISOString().split('T')[0];
     const fromDate = from || (() => {
-      const d = new Date(now); d.setDate(d.getDate() - 1); return d.toISOString().split('T')[0];
+      const d = new Date(now);
+      d.setDate(d.getDate() - 1);
+      return d.toISOString().split('T')[0];
     })();
 
     if (ticker.toUpperCase().endsWith('.SA')) {
@@ -146,7 +165,10 @@ router.get('/chart/:ticker', async (req, res) => {
       const interval = timespan === 'minute' ? `${multiplier}m` : '1d';
       const yfUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker.toUpperCase())}?period1=${period1}&period2=${period2}&interval=${interval}&crumb=${encodeURIComponent(crumb)}`;
       const r = await fetch(yfUrl, {
-        headers: { 'User-Agent': YF_UA, 'Accept': 'application/json', 'Cookie': cookie, 'Referer': 'https://finance.yahoo.com/' }
+        headers: {
+          'User-Agent': YF_UA, 'Accept': 'application/json',
+          'Cookie': cookie, 'Referer': 'https://finance.yahoo.com/'
+        }
       });
       if (!r.ok) {
         if (r.status === 401 || r.status === 403) { _yfCrumb = null; _yfCrumbExpiry = 0; }
@@ -173,23 +195,30 @@ router.get('/chart/:ticker', async (req, res) => {
   }
 });
 
-// ─── Ticker details ───────────────────────────────────────────────────
+// ─── Ticker details ───────────────────────────────────────────────────────
+
 router.get('/ticker/:symbol', async (req, res) => {
   try {
     const data = await polyFetch(`/v3/reference/tickers/${req.params.symbol}`);
     res.json(data);
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
-// ─── Market status ─────────────────────────────────────────────────────
+// ─── Market status ─────────────────────────────────────────────────────────
+
 router.get('/status', async (req, res) => {
   try {
     const data = await polyFetch('/v1/marketstatus/now');
     res.json(data);
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
-// ─── Brazilian B3 stocks (Yahoo Finance) ────────────────────────────────────
+// ─── Brazilian B3 stocks (Yahoo Finance) ───────────────────────────────────────
+
 router.get('/snapshot/brazil', async (req, res) => {
   try {
     const tickers = [
@@ -217,7 +246,8 @@ router.get('/snapshot/brazil', async (req, res) => {
   }
 });
 
-// ─── Global equity index ETFs ─────────────────────────────────────────────────
+// ─── Global equity index ETFs ──────────────────────────────────────────────────
+
 router.get('/snapshot/global-indices', async (req, res) => {
   try {
     const tickers = [
@@ -233,7 +263,8 @@ router.get('/snapshot/global-indices', async (req, res) => {
   }
 });
 
-// ─── Ticker search — parallel Polygon + Yahoo Finance for full B3 coverage ────
+// ─── Ticker search — parallel Polygon + Yahoo Finance for full B3 coverage ─────
+
 router.get('/search', async (req, res) => {
   try {
     const { q = '', limit = 8 } = req.query;
@@ -283,7 +314,8 @@ router.get('/search', async (req, res) => {
   }
 });
 
-// ─── Unified quote — Polygon for US, Yahoo for .SA / international ───────────
+// ─── Unified quote — Polygon for US, Yahoo for .SA / international ───────────────
+
 router.get('/quote/:symbol', async (req, res) => {
   try {
     const symbol = req.params.symbol.toUpperCase();
@@ -325,7 +357,8 @@ router.get('/quote/:symbol', async (req, res) => {
   }
 });
 
-// ─── Single ticker snapshot (legacy) ───────────────────────────────────────────
+// ─── Single ticker snapshot (legacy) ────────────────────────────────────────────
+
 router.get('/snapshot/ticker/:symbol', async (req, res) => {
   try {
     const data = await polyFetch(
@@ -338,7 +371,8 @@ router.get('/snapshot/ticker/:symbol', async (req, res) => {
   }
 });
 
-// ─── Interest rates ────────────────────────────────────────────────────────
+// ─── Interest rates ────────────────────────────────────────────────────────────
+
 router.get('/snapshot/rates', async (req, res) => {
   try {
     const [usResult, selicResult] = await Promise.allSettled([
@@ -355,7 +389,8 @@ router.get('/snapshot/rates', async (req, res) => {
       usResult.value
         .filter(q => q && q.regularMarketPrice != null)
         .forEach(q => results.push({
-          symbol: q.symbol, name: labelMap[q.symbol] || q.symbol,
+          symbol: q.symbol,
+          name: labelMap[q.symbol] || q.symbol,
           price: q.regularMarketPrice,
           change: q.regularMarketChange ?? null,
           changePct: q.regularMarketChangePercent ?? null,
@@ -369,12 +404,111 @@ router.get('/snapshot/rates', async (req, res) => {
     if (selicResult.status === 'fulfilled' && Array.isArray(selicResult.value) && selicResult.value[0]?.valor) {
       selicRate = parseFloat(selicResult.value[0].valor);
     }
-    results.push({ symbol: 'SELIC', name: 'SELIC', price: selicRate, change: null, changePct: null, note: 'BCB TARGET RATE', type: 'policy' });
-    results.push({ symbol: 'FEDFUNDS', name: 'FED FUNDS', price: 4.33, change: null, changePct: null, note: 'TARGET RATE', type: 'policy' });
+
+    results.push({ symbol: 'SELIC',    name: 'SELIC',     price: selicRate, change: null, changePct: null, note: 'BCB TARGET RATE', type: 'policy' });
+    results.push({ symbol: 'FEDFUNDS', name: 'FED FUNDS', price: 4.33,      change: null, changePct: null, note: 'TARGET RATE',     type: 'policy' });
 
     res.json({ results });
   } catch (err) {
     console.error('[API] /snapshot/rates error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── Brazilian DI / Pre-fixed Yield Curve ────────────────────────────────────────
+// Primary: Tesouro Direto public JSON (LTN = Prefixado bonds at various maturities)
+// Short end: BCB DI overnight rate (series 432)
+
+router.get('/di-curve', async (req, res) => {
+  try {
+    const [tdRes, selicRes] = await Promise.allSettled([
+      fetch(
+        'https://www.tesourodireto.com.br/json/br/com/b3/tesourodireto/service/api/treasurybondsfile.json',
+        {
+          headers: {
+            'User-Agent': YF_UA,
+            'Accept': 'application/json',
+            'Accept-Language': 'pt-BR,pt;q=0.9',
+            'Referer': 'https://www.tesourodireto.com.br/',
+          }
+        }
+      ).then(r => { if (!r.ok) throw new Error(`TD HTTP ${r.status}`); return r.json(); }),
+      fetch(
+        'https://api.bcb.gov.br/dados/serie/bcdata.sgs.432/dados/ultimos/1?formato=json',
+        { headers: { 'Accept': 'application/json' } }
+      ).then(r => r.json()),
+    ]);
+
+    const today = new Date();
+    const curve = [];
+
+    // Short end: DI overnight from BCB
+    let diRate = 14.75;
+    if (selicRes.status === 'fulfilled' && Array.isArray(selicRes.value) && selicRes.value[0]?.valor) {
+      diRate = parseFloat(selicRes.value[0].valor);
+    }
+    curve.push({ tenor: 'DI', months: 0.5, rate: parseFloat(diRate.toFixed(2)) });
+
+    // Yield curve from Tesouro Prefixado (LTN) bonds
+    if (tdRes.status === 'fulfilled') {
+      const bonds = tdRes.value?.response?.TrsrBdTradgList || [];
+      const prefixados = bonds
+        .filter(b => {
+          const nm = (b.TrsrBd?.nm || '').toLowerCase();
+          return nm.includes('prefixado') && !nm.includes('juros') && b.TrsrBd?.anulInvstmtRate;
+        })
+        .map(b => {
+          const matDate = new Date(b.TrsrBd.mtrtyDt);
+          const daysToMat = Math.round((matDate - today) / 86400000);
+          const months = Math.round(daysToMat / 30.44);
+          const rawRate = parseFloat(b.TrsrBd.anulInvstmtRate);
+          const rate = rawRate < 1 ? parseFloat((rawRate * 100).toFixed(2)) : parseFloat(rawRate.toFixed(2));
+          let tenor;
+          if (months < 4)       tenor = '3M';
+          else if (months < 8)  tenor = '6M';
+          else if (months < 18) tenor = '1Y';
+          else if (months < 30) tenor = '2Y';
+          else if (months < 42) tenor = '3Y';
+          else if (months < 54) tenor = '4Y';
+          else if (months < 66) tenor = '5Y';
+          else if (months < 90) tenor = '7Y';
+          else                   tenor = Math.round(months / 12) + 'Y';
+          return {
+            tenor,
+            months,
+            rate,
+            maturity: (b.TrsrBd.mtrtyDt || '').split('T')[0],
+          };
+        })
+        .filter(b => b.months > 0 && b.rate > 0)
+        .sort((a, b) => a.months - b.months);
+
+      curve.push(...prefixados);
+    } else {
+      console.warn('[DI-Curve] Tesouro Direto failed:', tdRes.reason?.message);
+    }
+
+    // Fallback: synthetic curve if we couldn't get enough points
+    if (curve.length < 3) {
+      const base = diRate;
+      const synth = [
+        { tenor: '3M',  months: 3,  rate: parseFloat((base + 0.15).toFixed(2)) },
+        { tenor: '6M',  months: 6,  rate: parseFloat((base + 0.10).toFixed(2)) },
+        { tenor: '1Y',  months: 12, rate: parseFloat((base - 0.50).toFixed(2)) },
+        { tenor: '2Y',  months: 24, rate: parseFloat((base - 1.50).toFixed(2)) },
+        { tenor: '3Y',  months: 36, rate: parseFloat((base - 2.50).toFixed(2)) },
+        { tenor: '5Y',  months: 60, rate: parseFloat((base - 3.50).toFixed(2)) },
+      ];
+      curve.push(...synth.filter(s => s.rate > 0));
+    }
+
+    res.json({
+      curve,
+      source: tdRes.status === 'fulfilled' ? 'Tesouro Direto' : 'BCB+synthetic',
+      updatedAt: new Date().toISOString(),
+    });
+  } catch (err) {
+    console.error('[API] /di-curve error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
