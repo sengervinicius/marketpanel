@@ -28,15 +28,19 @@ function getFromDate(range) {
 
 function normalizeTicker(raw) {
   if (!raw) return 'SPY';
+  // Handle legacy object format from older click handlers
+  if (typeof raw === 'object') raw = raw.symbol || 'SPY';
   const t = raw.trim().toUpperCase();
   if (t.endsWith('=X')) return 'C:' + t.slice(0, -2);
   if (t.endsWith('-USD') && !t.startsWith('C:')) return 'X:' + t.replace('-USD', 'USD');
+  // .SA tickers (Brazilian B3) pass through unchanged — server handles via Yahoo Finance
   return t;
 }
 
 function displayTicker(norm) {
   if (norm.startsWith('C:')) return norm.slice(2, 5) + '/' + norm.slice(5);
   if (norm.startsWith('X:')) return norm.slice(2, 5) + '/' + norm.slice(5);
+  if (norm.endsWith('.SA')) return norm.slice(0, -3); // strip .SA suffix for display
   return norm;
 }
 
