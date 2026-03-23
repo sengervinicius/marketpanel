@@ -203,8 +203,8 @@ function MiniChart({ ticker, index, onRemove, onReplace, onSwap }) {
                   <stop offset="95%" stopColor={isUp ? '#1e50c8' : '#c81e1e'} stopOpacity={0.0} />
                 </linearGradient>
               </defs>
-              <XAxis dataKey="t" tickFormatter={xFmt} tick={{ fill: '#2a2a45', fontSize: 6 }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
-              <YAxis orientation="right" domain={['auto','auto']} tickFormatter={fmtK} tick={{ fill: '#2a2a45', fontSize: 6 }} tickLine={false} axisLine={false} width={30} />
+              <XAxis dataKey="t" tickFormatter={xFmt} tick={{ fill: '#6a6a8a', fontSize: 6 }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
+              <YAxis orientation="right" domain={['auto','auto']} tickFormatter={fmtK} tick={{ fill: '#6a6a8a', fontSize: 6 }} tickLine={false} axisLine={false} width={30} />
               {openPrice && <ReferenceLine y={openPrice} stroke="#e8a020" strokeDasharray="3 3" strokeWidth={1} />}
               <Area type="monotone" dataKey="v" stroke={lineColor} strokeWidth={1.5} fill={`url(#${gradId})`} dot={false} isAnimationActive={false} />
               <Tooltip
