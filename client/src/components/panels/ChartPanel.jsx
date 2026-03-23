@@ -1,14 +1,15 @@
-// ChartPanel.jsx — Bloomberg-style multi-chart grid (up to 16 slots)
-// Area chart with gradient fill, Y-axis right, date range buttons, stats row
-// Bulletproof drag: stopPropagation prevents double-add on event bubble
+// ChartPanel.jsx — Bloomberg-style multi-chart grid (fixed 4×4 = 16 slots)
+// Desktop: always-full 4×4 symmetric grid — no empty rows ever
+// Mobile: 2-col scrollable layout sharing same localStorage as desktop
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip, ReferenceLine } from 'recharts';
 
-const API    = import.meta.env.VITE_API_URL || '';
+const API = import.meta.env.VITE_API_URL || '';
 const LS_KEY = 'chartGrid_v3';
-const MAX    = 16;
+const MAX = 16;
+const GRID_COLS = 4;
+const GRID_ROWS = 4;
 
-// Time range configs
 const RANGES = [
   { label: '1D', multiplier: 5,  timespan: 'minute', days: 1   },
   { label: '3D', multiplier: 30, timespan: 'minute', days: 3   },
@@ -28,19 +29,17 @@ function getFromDate(range) {
 
 function normalizeTicker(raw) {
   if (!raw) return 'SPY';
-  // Handle legacy object format from older click handlers
   if (typeof raw === 'object') raw = raw.symbol || 'SPY';
   const t = raw.trim().toUpperCase();
   if (t.endsWith('=X')) return 'C:' + t.slice(0, -2);
   if (t.endsWith('-USD') && !t.startsWith('C:')) return 'X:' + t.replace('-USD', 'USD');
-  // .SA tickers (Brazilian B3) pass through unchanged — server handles via Yahoo Finance
   return t;
 }
 
 function displayTicker(norm) {
   if (norm.startsWith('C:')) return norm.slice(2, 5) + '/' + norm.slice(5);
   if (norm.startsWith('X:')) return norm.slice(2, 5) + '/' + norm.slice(5);
-  if (norm.endsWith('.SA')) return norm.slice(0, -3); // strip .SA suffix for display
+  if (norm.endsWith('.SA')) return norm.slice(0, -3);
   return norm;
 }
 
@@ -53,17 +52,16 @@ const fmtK = (n) => {
   return n.toFixed(2);
 };
 
-// Bloomberg-style mini chart tile
 function MiniChart({ ticker, onRemove, onReplace }) {
-  const [data, setData]         = useState([]);
-  const [price, setPrice]       = useState(null);
-  const [chg, setChg]           = useState(null);
-  const [chgPct, setChgPct]     = useState(null);
-  const [high, setHigh]         = useState(null);
-  const [low, setLow]           = useState(null);
-  const [loading, setLoading]   = useState(true);
+  const [data, setData]       = useState([]);
+  const [price, setPrice]     = useState(null);
+  const [chg, setChg]         = useState(null);
+  const [chgPct, setChgPct]   = useState(null);
+  const [high, setHigh]       = useState(null);
+  const [low, setLow]         = useState(null);
+  const [loading, setLoading] = useState(true);
   const [isDragOver, setIsDragOver] = useState(false);
-  const [rangeIdx, setRangeIdx] = useState(2); // default 1M
+  const [rangeIdx, setRangeIdx]     = useState(2);
   const mountedRef  = useRef(true);
   const intervalRef = useRef(null);
 
@@ -84,13 +82,11 @@ function MiniChart({ ticker, onRemove, onReplace }) {
       if (bars.length >= 2) {
         const last  = bars[bars.length - 1].v;
         const first = bars[0].v;
-        const hi    = Math.max(...bars.map(b => b.v));
-        const lo    = Math.min(...bars.map(b => b.v));
         setPrice(last);
         setChg(last - first);
         setChgPct(first ? ((last - first) / first) * 100 : 0);
-        setHigh(hi);
-        setLow(lo);
+        setHigh(Math.max(...bars.map(b => b.v)));
+        setLow(Math.min(...bars.map(b => b.v)));
       }
     } catch (_) {
       if (mountedRef.current) setData([]);
@@ -106,10 +102,7 @@ function MiniChart({ ticker, onRemove, onReplace }) {
     return () => { mountedRef.current = false; clearInterval(intervalRef.current); };
   }, [fetchData, rangeIdx]);
 
-  const handleRangeChange = (idx) => {
-    clearInterval(intervalRef.current);
-    setRangeIdx(idx);
-  };
+  const handleRangeChange = (idx) => { clearInterval(intervalRef.current); setRangeIdx(idx); };
 
   const isUp      = (chg ?? 0) >= 0;
   const lineColor = isUp ? '#e8e8e8' : '#ff5555';
@@ -118,9 +111,8 @@ function MiniChart({ ticker, onRemove, onReplace }) {
 
   const xFmt = (ms) => {
     const d = new Date(ms);
-    if (RANGES[rangeIdx].timespan === 'minute') {
+    if (RANGES[rangeIdx].timespan === 'minute')
       return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
-    }
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
 
@@ -130,14 +122,13 @@ function MiniChart({ ticker, onRemove, onReplace }) {
         background: isDragOver ? '#0d1a2e' : '#07090f',
         border: `1px solid ${isDragOver ? '#ff6600' : '#141420'}`,
         display: 'flex', flexDirection: 'column',
-        overflow: 'hidden', position: 'relative', minHeight: 0,
-        transition: 'border-color 0.15s',
+        overflow: 'hidden', position: 'relative',
+        minHeight: 0, transition: 'border-color 0.15s',
       }}
       onDragOver={e => { e.preventDefault(); setIsDragOver(true); }}
       onDragLeave={() => setIsDragOver(false)}
       onDrop={e => {
-        e.preventDefault();
-        e.stopPropagation(); // CRITICAL: prevents bubble to parent addTicker
+        e.preventDefault(); e.stopPropagation();
         setIsDragOver(false);
         try {
           const raw = e.dataTransfer.getData('application/x-ticker');
@@ -145,7 +136,7 @@ function MiniChart({ ticker, onRemove, onReplace }) {
         } catch (_) {}
       }}
     >
-      {/* Header: ticker + price + change + X */}
+      {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '3px 5px', flexShrink: 0 }}>
         <span style={{ color: '#e8a020', fontWeight: 700, fontSize: 9, letterSpacing: '0.1em' }}>
           {isDragOver ? 'DROP TO REPLACE' : displayTicker(ticker)}
@@ -157,23 +148,24 @@ function MiniChart({ ticker, onRemove, onReplace }) {
               {(isUp ? '+' : '') + chgPct.toFixed(2) + '%'}
             </span>
           )}
-          <button onClick={() => onRemove(ticker)} style={{ background: 'none', border: 'none', color: '#333', cursor: 'pointer', fontSize: 10, padding: '0 2px', lineHeight: 1, fontFamily: 'inherit' }} title="Remove chart">✕</button>
+          <button onClick={() => onRemove(ticker)}
+            style={{ background: 'none', border: 'none', color: '#333', cursor: 'pointer', fontSize: 10, padding: '0 2px', lineHeight: 1, fontFamily: 'inherit' }}
+            title="Remove">✕</button>
         </div>
       </div>
 
-      {/* Bloomberg stats row */}
+      {/* Stats row */}
       <div style={{ display: 'flex', gap: 6, padding: '1px 5px', flexShrink: 0, borderTop: '1px solid #0d0d18', borderBottom: '1px solid #0d0d18' }}>
-        <span style={{ color: '#3a3a5a', fontSize: 6.5 }}>
-          □ Chg{' '}
+        <span style={{ color: '#3a3a5a', fontSize: 6.5 }}>□ Chg{' '}
           <span style={{ color: chg != null ? (isUp ? '#4caf50' : '#f44336') : '#3a3a5a' }}>
             {chg != null ? (isUp ? '+' : '') + fmtK(chg) + ' (' + (isUp ? '+' : '') + (chgPct?.toFixed(2) ?? '—') + '%)' : '—'}
           </span>
         </span>
-        <span style={{ color: '#3a3a5a', fontSize: 6.5 }}>□ High <span style={{ color: '#888' }}>{fmtK(high)}</span></span>
-        <span style={{ color: '#3a3a5a', fontSize: 6.5 }}>□ Low <span style={{ color: '#888' }}>{fmtK(low)}</span></span>
+        <span style={{ color: '#3a3a5a', fontSize: 6.5 }}>□ Hi <span style={{ color: '#888' }}>{fmtK(high)}</span></span>
+        <span style={{ color: '#3a3a5a', fontSize: 6.5 }}>□ Lo <span style={{ color: '#888' }}>{fmtK(low)}</span></span>
       </div>
 
-      {/* Chart area */}
+      {/* Chart */}
       <div style={{ flex: 1, minHeight: 0 }}>
         {loading ? (
           <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#222233', fontSize: 8 }}>loading…</div>
@@ -195,7 +187,7 @@ function MiniChart({ ticker, onRemove, onReplace }) {
               <Tooltip
                 contentStyle={{ background: '#0a0c18', border: '1px solid #2a2a4a', fontSize: 7, padding: '3px 6px', borderRadius: 2 }}
                 itemStyle={{ color: lineColor }}
-                formatter={v => [fmtPrice(v), ticker]}
+                formatter={v => [fmtPrice(v), displayTicker(ticker)]}
                 labelFormatter={ms => xFmt(ms)}
               />
             </AreaChart>
@@ -203,7 +195,7 @@ function MiniChart({ ticker, onRemove, onReplace }) {
         )}
       </div>
 
-      {/* Date range buttons */}
+      {/* Range buttons */}
       <div style={{ display: 'flex', borderTop: '1px solid #0d0d18', flexShrink: 0 }}>
         {RANGES.map((r, i) => (
           <button key={r.label} onClick={() => handleRangeChange(i)} style={{
@@ -222,7 +214,6 @@ function MiniChart({ ticker, onRemove, onReplace }) {
   );
 }
 
-// Empty slot — prominent drop target
 function EmptySlot({ onAdd }) {
   const [isDragOver, setIsDragOver] = useState(false);
   return (
@@ -232,15 +223,13 @@ function EmptySlot({ onAdd }) {
         background: isDragOver ? '#1a0d00' : '#040508',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         color: isDragOver ? '#ff6600' : '#1a1a28',
-        fontSize: 20, minHeight: 0, cursor: 'copy',
-        flexDirection: 'column', gap: 3,
-        transition: 'all 0.15s',
+        minHeight: 0, cursor: 'copy',
+        flexDirection: 'column', gap: 3, transition: 'all 0.15s',
       }}
       onDragOver={e => { e.preventDefault(); setIsDragOver(true); }}
       onDragLeave={() => setIsDragOver(false)}
       onDrop={e => {
-        e.preventDefault();
-        e.stopPropagation(); // CRITICAL: prevents double-add
+        e.preventDefault(); e.stopPropagation();
         setIsDragOver(false);
         try {
           const raw = e.dataTransfer.getData('application/x-ticker');
@@ -248,13 +237,13 @@ function EmptySlot({ onAdd }) {
         } catch (_) {}
       }}
     >
-      <span style={{ fontSize: 16, lineHeight: 1 }}>{isDragOver ? '▼' : '+'}</span>
+      <span style={{ fontSize: 14, lineHeight: 1 }}>{isDragOver ? '▼' : '+'}</span>
       {isDragOver && <span style={{ fontSize: 7, letterSpacing: '0.1em', fontFamily: 'inherit' }}>DROP TO ADD</span>}
     </div>
   );
 }
 
-export function ChartPanel({ ticker: externalTicker, onGridChange }) {
+export function ChartPanel({ ticker: externalTicker, onGridChange, mobile = false }) {
   const [tickers, setTickers] = useState(() => {
     try {
       const v3 = JSON.parse(localStorage.getItem(LS_KEY));
@@ -265,7 +254,6 @@ export function ChartPanel({ ticker: externalTicker, onGridChange }) {
     return ['SPY', 'QQQ'];
   });
 
-  // When another panel ticker is clicked, add it to the grid
   useEffect(() => {
     if (!externalTicker) return;
     const norm = normalizeTicker(externalTicker);
@@ -277,7 +265,7 @@ export function ChartPanel({ ticker: externalTicker, onGridChange }) {
 
   useEffect(() => {
     localStorage.setItem(LS_KEY, JSON.stringify(tickers));
-    onGridChange?.(tickers.length); // notify parent (mobile height adjustment)
+    onGridChange?.(tickers.length);
   }, [tickers, onGridChange]);
 
   const addTicker = useCallback((raw) => {
@@ -288,45 +276,67 @@ export function ChartPanel({ ticker: externalTicker, onGridChange }) {
     });
   }, []);
 
-  const removeTicker  = useCallback((ticker) => { setTickers(prev => prev.filter(t => t !== ticker)); }, []);
-  const replaceTicker = useCallback((oldTicker, newTicker) => { setTickers(prev => prev.map(t => t === oldTicker ? newTicker : t)); }, []);
+  const removeTicker  = useCallback((t) => setTickers(prev => prev.filter(x => x !== t)), []);
+  const replaceTicker = useCallback((old, nw) => setTickers(prev => prev.map(x => x === old ? nw : x)), []);
 
-  // Adaptive grid columns
-  const cols      = tickers.length <= 1 ? 1 : tickers.length <= 4 ? 2 : tickers.length <= 9 ? 3 : 4;
-  const rows      = Math.ceil(tickers.length / cols);
-  const totalSlots = cols * rows;
-  const emptySlots = Math.min(MAX - tickers.length, totalSlots - tickers.length);
+  const dropHandlers = {
+    onDragOver: e => e.preventDefault(),
+    onDrop: e => {
+      e.preventDefault();
+      try {
+        const raw = e.dataTransfer.getData('application/x-ticker');
+        if (raw) { const { symbol } = JSON.parse(raw); addTicker(symbol); }
+      } catch (_) {}
+    },
+  };
 
+  // ── Mobile: 2-col scrollable grid ────────────────────────────────────────
+  if (mobile) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', background: '#040508' }} {...dropHandlers}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', borderBottom: '1px solid #141420' }}>
+          <span style={{ color: '#e8a020', fontWeight: 700, fontSize: 10, letterSpacing: '0.2em' }}>CHARTS</span>
+          <span style={{ color: '#333', fontSize: 8 }}>{tickers.length}/{MAX} saved</span>
+        </div>
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(2, 1fr)',
+          gridAutoRows: '46vw',
+          gap: 1, padding: 1,
+        }}>
+          {tickers.map(t => (
+            <MiniChart key={t} ticker={t} onRemove={removeTicker} onReplace={replaceTicker} />
+          ))}
+          {tickers.length < MAX && <EmptySlot onAdd={addTicker} />}
+        </div>
+      </div>
+    );
+  }
+
+  // ── Desktop: fixed 4×4 grid — always 16 slots, perfectly symmetric ───────
   return (
-    <div
-      style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#040508', overflow: 'hidden' }}
-      onDragOver={e => e.preventDefault()}
-      onDrop={e => {
-        e.preventDefault();
-        try {
-          const raw = e.dataTransfer.getData('application/x-ticker');
-          if (raw) { const { symbol } = JSON.parse(raw); addTicker(symbol); }
-        } catch (_) {}
-      }}
-    >
-      {/* Panel header */}
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#040508', overflow: 'hidden' }} {...dropHandlers}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '3px 8px', borderBottom: '1px solid #141420', flexShrink: 0 }}>
         <span style={{ color: '#e8a020', fontWeight: 700, fontSize: 9, letterSpacing: '0.2em' }}>CHARTS</span>
-        <span style={{ color: '#222233', fontSize: 7 }}>{tickers.length}/{MAX} — drag any ticker here to add</span>
+        <span style={{ color: '#222233', fontSize: 7 }}>{tickers.length}/{MAX} — drag any ticker to add</span>
       </div>
-
-      {/* Grid of charts + empty slots */}
+      {/* Fixed 4×4 = 16 slots — no extra rows, always fills the panel */}
       <div style={{
-        flex: 1, display: 'grid',
-        gridTemplateColumns: `repeat(${cols}, 1fr)`,
-        gridTemplateRows: `repeat(${rows + (emptySlots > 0 ? 1 : 0)}, 1fr)`,
-        gap: 1, overflow: 'hidden', padding: 1,
+        flex: 1,
+        display: 'grid',
+        gridTemplateColumns: `repeat(${GRID_COLS}, 1fr)`,
+        gridTemplateRows: `repeat(${GRID_ROWS}, 1fr)`,
+        gap: 1,
+        overflow: 'hidden',
+        padding: 1,
       }}>
-        {tickers.map(t => (
-          <MiniChart key={t} ticker={t} onRemove={removeTicker} onReplace={replaceTicker} />
-        ))}
-        {emptySlots > 0 && <EmptySlot onAdd={addTicker} />}
+        {Array.from({ length: MAX }, (_, i) => {
+          const t = tickers[i];
+          return t
+            ? <MiniChart key={t} ticker={t} onRemove={removeTicker} onReplace={replaceTicker} />
+            : <EmptySlot key={`empty-${i}`} onAdd={addTicker} />;
+        })}
       </div>
     </div>
   );
-}
+        }
