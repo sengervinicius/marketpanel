@@ -18,44 +18,82 @@ export const WORLD_INDEXES = [
   { symbol: 'EWJ',  label: 'Japan ETF',    region: 'JP' },
 ];
 
+// US large-cap stocks — diversified across sectors
 export const US_STOCKS = [
-  { symbol: 'AAPL',  label: 'Apple',       sector: 'Tech' },
-  { symbol: 'MSFT',  label: 'Microsoft',   sector: 'Tech' },
-  { symbol: 'NVDA',  label: 'NVIDIA',      sector: 'Tech' },
-  { symbol: 'GOOGL', label: 'Alphabet',    sector: 'Tech' },
-  { symbol: 'AMZN',  label: 'Amazon',      sector: 'Tech' },
-  { symbol: 'META',  label: 'Meta',        sector: 'Tech' },
-  { symbol: 'TSLA',  label: 'Tesla',       sector: 'Auto' },
-  { symbol: 'BRKB',  label: 'Berkshire B', sector: 'Fin'  },
-  { symbol: 'JPM',   label: 'JPMorgan',    sector: 'Fin'  },
-  { symbol: 'XOM',   label: 'Exxon',       sector: 'Enrg' },
+  // Technology
+  { symbol: 'AAPL',  label: 'Apple',        sector: 'Tech' },
+  { symbol: 'MSFT',  label: 'Microsoft',    sector: 'Tech' },
+  { symbol: 'NVDA',  label: 'NVIDIA',       sector: 'Tech' },
+  { symbol: 'GOOGL', label: 'Alphabet',     sector: 'Tech' },
+  { symbol: 'AMZN',  label: 'Amazon',       sector: 'Tech' },
+  { symbol: 'META',  label: 'Meta',         sector: 'Tech' },
+  { symbol: 'TSLA',  label: 'Tesla',        sector: 'Auto' },
+  // Financials
+  { symbol: 'BRKB',  label: 'Berkshire B',  sector: 'Fin'  },
+  { symbol: 'JPM',   label: 'JPMorgan',     sector: 'Fin'  },
+  { symbol: 'GS',    label: 'Goldman',      sector: 'Fin'  },
+  { symbol: 'BAC',   label: 'Bank of Am.',  sector: 'Fin'  },
+  { symbol: 'V',     label: 'Visa',         sector: 'Fin'  },
+  { symbol: 'MA',    label: 'Mastercard',   sector: 'Fin'  },
+  // Energy & Industrials
+  { symbol: 'XOM',   label: 'Exxon',        sector: 'Enrg' },
+  { symbol: 'CAT',   label: 'Caterpillar',  sector: 'Ind'  },
+  { symbol: 'BA',    label: 'Boeing',       sector: 'Ind'  },
+  // Consumer & Healthcare
+  { symbol: 'WMT',   label: 'Walmart',      sector: 'Cons' },
+  { symbol: 'LLY',   label: 'Eli Lilly',    sector: 'Hlth' },
+  { symbol: 'UNH',   label: 'UnitedHealth', sector: 'Hlth' },
 ];
 
-export const LATAM_STOCKS = [
-  { symbol: 'VALE',  label: 'Vale',        country: 'BR' },
-  { symbol: 'PBR',   label: 'Petrobras',   country: 'BR' },
-  { symbol: 'ITUB',  label: 'Itaú',        country: 'BR' },
-  { symbol: 'BBD',   label: 'Bradesco',    country: 'BR' },
+// Brazilian ADRs listed on US exchanges
+export const BRAZIL_ADRS = [
+  { symbol: 'VALE',  label: 'Vale',         country: 'BR' },
+  { symbol: 'PBR',   label: 'Petrobras',    country: 'BR' },
+  { symbol: 'ITUB',  label: 'Itaú',         country: 'BR' },
+  { symbol: 'BBD',   label: 'Bradesco',     country: 'BR' },
+  { symbol: 'ABEV',  label: 'Ambev',        country: 'BR' },
+  { symbol: 'ERJ',   label: 'Embraer',      country: 'BR' },
+  { symbol: 'BRFS',  label: 'BRF S.A.',     country: 'BR' },
+  { symbol: 'SUZ',   label: 'Suzano',       country: 'BR' },
 ];
+// Backward compat alias
+export const LATAM_STOCKS = BRAZIL_ADRS;
 
+// Commodities — ETF/ADR proxies, grouped by category
 export const COMMODITIES = [
-  { symbol: 'GLD',   label: 'Gold',       unit: 'oz'    },
-  { symbol: 'SLV',   label: 'Silver',     unit: 'oz'    },
-  { symbol: 'USO',   label: 'WTI Oil',    unit: 'bbl'   },
-  { symbol: 'UNG',   label: 'Nat. Gas',   unit: 'MMBtu' },
+  // Precious & Base Metals
+  { symbol: 'GLD',  label: 'Gold',         unit: 'oz',    group: 'Metals' },
+  { symbol: 'SLV',  label: 'Silver',       unit: 'oz',    group: 'Metals' },
+  { symbol: 'CPER', label: 'Copper',       unit: 'lb',    group: 'Metals' },
+  { symbol: 'REMX', label: 'Rare Earth',   unit: 'ETF',   group: 'Metals' },
+  // Energy
+  { symbol: 'USO',  label: 'WTI Oil',      unit: 'bbl',   group: 'Energy' },
+  { symbol: 'UNG',  label: 'Nat. Gas',     unit: 'MMBtu', group: 'Energy' },
+  // Agriculture
+  { symbol: 'SOYB', label: 'Soybeans',     unit: 'bu',    group: 'Agri'   },
+  { symbol: 'WEAT', label: 'Wheat',        unit: 'bu',    group: 'Agri'   },
+  { symbol: 'CORN', label: 'Corn',         unit: 'bu',    group: 'Agri'   },
+  // Mining
+  { symbol: 'BHP',  label: 'BHP (Fe Prx)', unit: 'ADR',   group: 'Mining' },
 ];
 
+// FX pairs — includes BRL crosses and major pairs
 export const FOREX_PAIRS = [
   { symbol: 'EURUSD', label: 'EUR/USD' },
   { symbol: 'GBPUSD', label: 'GBP/USD' },
   { symbol: 'USDJPY', label: 'USD/JPY' },
   { symbol: 'USDBRL', label: 'USD/BRL' },
+  { symbol: 'GBPBRL', label: 'GBP/BRL' },
+  { symbol: 'EURBRL', label: 'EUR/BRL' },
   { symbol: 'USDARS', label: 'USD/ARS' },
   { symbol: 'USDCHF', label: 'USD/CHF' },
   { symbol: 'USDCNY', label: 'USD/CNY' },
   { symbol: 'USDMXN', label: 'USD/MXN' },
+  { symbol: 'AUDUSD', label: 'AUD/USD' },
+  { symbol: 'USDCAD', label: 'USD/CAD' },
 ];
 
+// Crypto — displayed as subsection of FX panel
 export const CRYPTO_PAIRS = [
   { symbol: 'BTCUSD',  label: 'Bitcoin'   },
   { symbol: 'ETHUSD',  label: 'Ethereum'  },
@@ -75,7 +113,7 @@ export const CLOCKS = [
   { label: 'HONG KONG', tz: 'Asia/Hong_Kong'       },
 ];
 
-// Fixed income / yields (display only — would need separate data source)
+// Fixed income / yields
 export const YIELDS = [
   { label: 'US 2Y',  symbol: 'US2Y'  },
   { label: 'US 5Y',  symbol: 'US5Y'  },
