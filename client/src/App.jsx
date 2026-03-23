@@ -45,7 +45,7 @@ function WorldClock() {
   );
 }
 
-// ── Resize Handle ──────────────────────────────────────────────────────────────────────────────
+// ── Row Resize Handle ────────────────────────────────────────────────────────────────────────────────
 function ResizeHandle({ onStart }) {
   return (
     <div
@@ -63,7 +63,25 @@ function ResizeHandle({ onStart }) {
   );
 }
 
-// ── Resizable flex-row hook ──────────────────────────────────────────────────────────────────────────────
+// ── Column Resize Handle ────────────────────────────────────────────────────────────────────────────────
+function ColResizeHandle({ onStart }) {
+  return (
+    <div
+      onMouseDown={e => { e.preventDefault(); onStart(e); }}
+      style={{
+        width: 5, flexShrink: 0, cursor: 'col-resize',
+        background: '#070707',
+        borderLeft: '1px solid #1e1e1e', borderRight: '1px solid #1e1e1e',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        userSelect: 'none', zIndex: 20,
+      }}
+    >
+      <div style={{ width: 1, height: 24, background: '#252525', borderRadius: 1 }} />
+    </div>
+  );
+}
+
+// ── Resizable row-flex hook ──────────────────────────────────────────────────────────────────────────────
 function useResizableFlex(storageKey, defaults) {
   const [sizes, setSizes] = useState(() => {
     try {
@@ -73,7 +91,6 @@ function useResizableFlex(storageKey, defaults) {
   });
   const sizesRef = useRef(sizes);
   useEffect(() => { sizesRef.current = sizes; }, [sizes]);
-
   const startResize = useCallback((idx, e) => {
     const startY = e.clientY;
     const startSizes = [...sizesRef.current];
@@ -88,18 +105,43 @@ function useResizableFlex(storageKey, defaults) {
         return s;
       }));
     };
-    const onUp = () => {
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
-    };
+    const onUp = () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
   }, []);
+  useEffect(() => { localStorage.setItem(storageKey, JSON.stringify(sizes)); }, [sizes, storageKey]);
+  return [sizes, startResize];
+}
 
-  useEffect(() => {
-    localStorage.setItem(storageKey, JSON.stringify(sizes));
-  }, [sizes, storageKey]);
-
+// ── Resizable column-flex hook ──────────────────────────────────────────────────────────────────────────────
+function useResizableColumns(storageKey, defaults) {
+  const [sizes, setSizes] = useState(() => {
+    try {
+      const s = JSON.parse(localStorage.getItem(storageKey));
+      return Array.isArray(s) && s.length === defaults.length ? s : defaults;
+    } catch { return defaults; }
+  });
+  const sizesRef = useRef(sizes);
+  useEffect(() => { sizesRef.current = sizes; }, [sizes]);
+  const startResize = useCallback((idx, e) => {
+    const startX = e.clientX;
+    const startSizes = [...sizesRef.current];
+    const totalFlex = startSizes.reduce((a, b) => a + b, 0);
+    const totalW = window.innerWidth;
+    const flexPerPx = totalFlex / totalW;
+    const onMove = (mv) => {
+      const delta = (mv.clientX - startX) * flexPerPx;
+      setSizes(startSizes.map((s, i) => {
+        if (i === idx)   return Math.max(0.08, s + delta);
+        if (i === idx+1) return Math.max(0.08, s - delta);
+        return s;
+      }));
+    };
+    const onUp = () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  }, []);
+  useEffect(() => { localStorage.setItem(storageKey, JSON.stringify(sizes)); }, [sizes, storageKey]);
   return [sizes, startResize];
 }
 
@@ -134,7 +176,6 @@ export default function App() {
   // ── Cross-device sync ────────────────────────────────────────────────────────────────────────────────
   const syncTimer = useRef(null);
 
-  // Load settings from server on first mount
   useEffect(() => {
     fetch(API_BASE + '/api/settings')
       .then(r => r.ok ? r.json() : null)
@@ -151,7 +192,6 @@ export default function App() {
     const sym = typeof t === 'object' ? (t.symbol || t) : t;
     setChartTickerState(sym);
     localStorage.setItem(LS_CHART_TICKER, sym);
-    // Debounced save to server for cross-device sync
     clearTimeout(syncTimer.current);
     syncTimer.current = setTimeout(() => {
       fetch(API_BASE + '/api/settings', {
@@ -176,7 +216,10 @@ export default function App() {
     } catch { return 2; }
   });
 
-  const [rowSizes, startRowResize] = useResizableFlex('rowFlexSizes_v1', [2, 1.5, 1.5]);
+  const [rowSizes,  startRowResize]  = useResizableFlex('rowFlexSizes_v1',     [2, 1.5, 1.5]);
+  const [colSizes1, startColResize1] = useResizableColumns('colFlexSizes_r1_v1', [2, 1, 1.6]);
+  const [colSizes2, startColResize2] = useResizableColumns('colFlexSizes_r2_v1', [1, 1, 1, 1]);
+  const [colSizes3, startColResize3] = useResizableColumns('colFlexSizes_r3_v1', [0.8, 0.8, 1.5, 0.9]);
 
   const border = '1px solid #1e1e1e';
 
@@ -208,14 +251,16 @@ export default function App() {
         </div>
 
         {/* Row 1: Charts | Stocks | Forex+Crypto */}
-        <div style={{ flex: rowSizes[0], flexShrink: 0, display:'grid', gridTemplateColumns:'2fr 1fr 1.6fr', overflow:'hidden', minHeight: 220 }}>
-          <div style={{ borderRight:border, overflow:'hidden', height:'100%' }}>
+        <div style={{ flex: rowSizes[0], flexShrink: 0, display:'flex', overflow:'hidden', minHeight: 220 }}>
+          <div style={{ flex: colSizes1[0], minWidth: 0, borderRight:border, overflow:'hidden', height:'100%' }}>
             <ChartPanel ticker={chartTicker} onTickerChange={setChartTicker} onGridChange={setChartGridCount} />
           </div>
-          <div style={{ borderRight:border, overflow:'hidden', height:'100%' }}>
+          <ColResizeHandle onStart={e => startColResize1(0, e)} />
+          <div style={{ flex: colSizes1[1], minWidth: 0, borderRight:border, overflow:'hidden', height:'100%' }}>
             <StockPanel data={data?.stocks} loading={loading} onTickerClick={setChartTicker} />
           </div>
-          <div style={{ overflow:'hidden', height:'100%' }}>
+          <ColResizeHandle onStart={e => startColResize1(1, e)} />
+          <div style={{ flex: colSizes1[2], minWidth: 0, overflow:'hidden', height:'100%' }}>
             <ForexPanel data={data?.forex} cryptoData={data?.crypto} loading={loading} onTickerClick={setChartTicker} />
           </div>
         </div>
@@ -223,24 +268,45 @@ export default function App() {
         <ResizeHandle onStart={e => startRowResize(0, e)} />
 
         {/* Row 2: US Indices | Brazil | Global Indexes | Commodities */}
-        <div style={{ flex: rowSizes[1], flexShrink: 0, display:'grid', gridTemplateColumns:'1fr 1fr 1fr 1fr', overflow:'hidden', minHeight: 180 }}>
-          <div style={{ borderRight:border, overflow:'hidden', height:'100%' }}><IndexPanel data={data?.indices} loading={loading} onTickerClick={setChartTicker} /></div>
-          <div style={{ borderRight:border, overflow:'hidden', height:'100%' }}><BrazilPanel onTickerClick={setChartTicker} /></div>
-          <div style={{ borderRight:border, overflow:'hidden', height:'100%' }}><GlobalIndicesPanel onTickerClick={setChartTicker} /></div>
-          <div style={{ overflow:'hidden', height:'100%' }}><CommoditiesPanel data={data?.stocks} loading={loading} onTickerClick={setChartTicker} /></div>
+        <div style={{ flex: rowSizes[1], flexShrink: 0, display:'flex', overflow:'hidden', minHeight: 180 }}>
+          <div style={{ flex: colSizes2[0], minWidth: 0, borderRight:border, overflow:'hidden', height:'100%' }}>
+            <IndexPanel data={data?.indices} loading={loading} onTickerClick={setChartTicker} />
+          </div>
+          <ColResizeHandle onStart={e => startColResize2(0, e)} />
+          <div style={{ flex: colSizes2[1], minWidth: 0, borderRight:border, overflow:'hidden', height:'100%' }}>
+            <BrazilPanel onTickerClick={setChartTicker} />
+          </div>
+          <ColResizeHandle onStart={e => startColResize2(1, e)} />
+          <div style={{ flex: colSizes2[2], minWidth: 0, borderRight:border, overflow:'hidden', height:'100%' }}>
+            <GlobalIndicesPanel onTickerClick={setChartTicker} />
+          </div>
+          <ColResizeHandle onStart={e => startColResize2(2, e)} />
+          <div style={{ flex: colSizes2[3], minWidth: 0, overflow:'hidden', height:'100%' }}>
+            <CommoditiesPanel data={data?.stocks} loading={loading} onTickerClick={setChartTicker} />
+          </div>
         </div>
 
         <ResizeHandle onStart={e => startRowResize(1, e)} />
 
         {/* Row 3: Yield Curves | Search | News | Sentiment */}
-        <div style={{ flex: rowSizes[2], flexShrink: 0, display:'grid', gridTemplateColumns:'320px 1fr 1.5fr 1fr', overflow:'hidden', minHeight: 160 }}>
-          <div style={{ borderRight:border, overflow:'hidden', height:'100%' }}><DICurvePanel compact /></div>
-          <div style={{ borderRight:border, overflow:'hidden', height:'100%' }}><SearchPanel onTickerSelect={setChartTicker} /></div>
-          <div style={{ borderRight:border, overflow:'hidden', height:'100%' }}><NewsPanel /></div>
-          <div style={{ overflow:'hidden', height:'100%' }}><SentimentPanel data={data} loading={loading} /></div>
+        <div style={{ flex: rowSizes[2], flexShrink: 0, display:'flex', overflow:'hidden', minHeight: 160 }}>
+          <div style={{ flex: colSizes3[0], minWidth: 0, borderRight:border, overflow:'hidden', height:'100%' }}>
+            <DICurvePanel compact />
+          </div>
+          <ColResizeHandle onStart={e => startColResize3(0, e)} />
+          <div style={{ flex: colSizes3[1], minWidth: 0, borderRight:border, overflow:'hidden', height:'100%' }}>
+            <SearchPanel onTickerSelect={setChartTicker} />
+          </div>
+          <ColResizeHandle onStart={e => startColResize3(1, e)} />
+          <div style={{ flex: colSizes3[2], minWidth: 0, borderRight:border, overflow:'hidden', height:'100%' }}>
+            <NewsPanel />
+          </div>
+          <ColResizeHandle onStart={e => startColResize3(2, e)} />
+          <div style={{ flex: colSizes3[3], minWidth: 0, overflow:'hidden', height:'100%' }}>
+            <SentimentPanel data={data} loading={loading} />
+          </div>
         </div>
 
-        {/* Global right-click ticker info tooltip */}
         <TickerTooltip />
       </div>
     );
