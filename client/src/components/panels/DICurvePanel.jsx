@@ -1,36 +1,38 @@
 /**
- * DICurvePanel â Multi-country yield curves (BR, US, UK)
- * BR: Tesouro Direto Prefixado + BCB DI overnight
- * US: US Treasury par yield curve (treasury.gov)
- * UK: Bank of England gilt spot rates
+ * YieldCurvePanel â BR / US / UK / EU sovereign yield curves
+ * Layout: 4 stacked chart blocks filling the full panel height â no tabs
  */
 import { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
 const API = import.meta.env.VITE_API_URL || '';
 
-const COUNTRIES = [
-  { id: 'BR', label: 'BR', color: '#e8a020', note: 'TESOURO PREFIXADO + BCB DI Â· % A.A.' },
-  { id: 'US', label: 'US', color: '#4d9fec', note: 'US TREASURY PAR YIELD CURVE Â· %' },
-  { id: 'UK', label: 'UK', color: '#e05c8a', note: 'UK GILT SPOT CURVE Â· BANK OF ENGLAND Â· %' },
+const CURVES = [
+  { id: 'BR', label: 'BRASIL',         color: '#e8a020', note: 'TESOURO PREFIXADO + BCB DI Â· % A.A.' },
+  { id: 'US', label: 'UNITED STATES',  color: '#4d9fec', note: 'US TREASURY PAR YIELD CURVE Â· %' },
+  { id: 'UK', label: 'UNITED KINGDOM', color: '#e05c8a', note: 'UK GILT SPOT Â· BANK OF ENGLAND Â· %' },
+  { id: 'EU', label: 'EURO AREA',      color: '#7ec8a0', note: 'AAA SOVEREIGN BOND CURVE Â· ECB Â· %' },
 ];
 
+const KEY_TENORS = ['1Y', '2Y', '5Y', '10Y', '30Y'];
+
 export function DICurvePanel({ compact = false }) {
-  const [all, setAll]         = useState({});
-  const [active, setActive]   = useState('BR');
-  const [loading, setLoading] = useState(true);
-  const [error, setError]     = useState(null);
+  const [all, setAll]             = useState({});
+  const [loading, setLoading]     = useState(true);
+  const [error, setError]         = useState(null);
+  const [updatedAt, setUpdatedAt] = useState('');
 
   async function load() {
     try {
       setError(null);
-      const res  = await fetch(API + '/api/yield-curves');
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const res = await fetch(API + '/api/yield-curves');
+      if (!res.ok) throw new Error('HTTP ' + res.status);
       const json = await res.json();
       if (json.error) throw new Error(json.error);
       setAll(json);
+      setUpdatedAt(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
     } catch (e) {
-      console.warn('[DICurvePanel] load error:', e.message);
+      console.warn('[YieldCurve] load error:', e.message);
       setError(e.message);
     } finally {
       setLoading(false);
@@ -43,146 +45,136 @@ export function DICurvePanel({ compact = false }) {
     return () => clearInterval(iv);
   }, []);
 
-  const country = COUNTRIES.find(c => c.id === active);
-  const curve   = all[active]?.curve || [];
-  const src     = all[active]?.source || '';
-  const updAt   = all[active]?.updatedAt
-    ? new Date(all[active].updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    : '';
-
-  const rates   = curve.map(c => c.rate);
-  const minRate = rates.length ? Math.floor(Math.min(...rates) - 0.8) : 0;
-  const maxRate = rates.length ? Math.ceil(Math.max(...rates)  + 0.8) : 10;
-
-  const chartH = compact ? 100 : 145;
-
   return (
     <div style={{
       display: 'flex', flexDirection: 'column',
-      background: '#040508',
-      height: compact ? 'auto' : '100%',
-      overflow: 'hidden',
+      background: '#040508', height: '100%', overflow: 'hidden',
     }}>
-      {/* Header */}
+
+      {/* ââ Panel header âââââââââââââââââââââââââââââââââââââââââââ */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: compact ? '2px 6px' : '3px 8px',
-        borderBottom: '1px solid #141420',
-        background: '#070707',
-        flexShrink: 0,
-        height: 22,
+        padding: '2px 8px', borderBottom: '1px solid #0d0d1a',
+        background: '#07070a', flexShrink: 0, height: 20,
       }}>
-        <span style={{ color: '#e8a020', fontWeight: 700, fontSize: compact ? 8 : 9, letterSpacing: '0.12em' }}>
+        <span style={{ color: '#444', fontWeight: 700, fontSize: 8, letterSpacing: '0.15em' }}>
           YIELD CURVES
         </span>
-        <span style={{ color: '#252535', fontSize: 7 }}>
-          {loading ? 'LOADINGâ¦' : error ? 'ERR' : updAt}
+        <span style={{ color: '#1e1e2e', fontSize: 7 }}>
+          {loading ? 'LOADINGâ¦' : error ? 'ERR' : updatedAt}
         </span>
       </div>
 
-      {/* Tab row */}
-      <div style={{
-        display: 'flex', flexShrink: 0,
-        borderBottom: '1px solid #0d0d18',
-        background: '#050508',
-      }}>
-        {COUNTRIES.map(c => (
-          <button
-            key={c.id}
-            onClick={() => setActive(c.id)}
-            style={{
-              flex: 1, padding: '3px 0', border: 'none', cursor: 'pointer',
-              background: active === c.id ? '#0a0a10' : 'transparent',
-              color: active === c.id ? c.color : '#333',
-              fontSize: compact ? 7 : 8, fontWeight: 700, letterSpacing: '0.1em',
-              borderBottom: active === c.id ? `2px solid ${c.color}` : '2px solid transparent',
-              fontFamily: 'inherit',
-              transition: 'color 0.15s',
-            }}
-          >
-            {c.label}
-          </button>
-        ))}
-      </div>
+      {/* ââ 4 stacked curve blocks ââââââââââââââââââââââââââââââââ */}
+      {CURVES.map((c, idx) => {
+        const curve  = all[c.id]?.curve || [];
+        const rates  = curve.map(p => p.rate);
+        const minR   = rates.length ? Math.floor(Math.min(...rates) - 0.6) : 0;
+        const maxR   = rates.length ? Math.ceil(Math.max(...rates)  + 0.6) : 20;
+        const keyPts = KEY_TENORS.map(t => curve.find(p => p.tenor === t)).filter(Boolean);
 
-      {/* Chart */}
-      {loading ? (
-        <div style={{ height: chartH, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#1e1e2e', fontSize: 8 }}>
-          loadingâ¦
-        </div>
-      ) : error || curve.length === 0 ? (
-        <div style={{ height: chartH, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#2a2a3a', fontSize: 7, flexDirection: 'column', gap: 4 }}>
-          <span>DATA UNAVAILABLE</span>
-          <button onClick={load} style={{ background: 'none', border: '1px solid #1a1a2a', color: '#333', fontSize: 7, cursor: 'pointer', padding: '2px 6px', borderRadius: 2, fontFamily: 'inherit' }}>
-            RETRY
-          </button>
-        </div>
-      ) : (
-        <div style={{ height: chartH, flexShrink: 0 }}>
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={curve} margin={{ top: 6, right: 8, bottom: 2, left: 0 }}>
-              <XAxis
-                dataKey="tenor"
-                tick={{ fill: '#3a3a5a', fontSize: compact ? 6 : 7 }}
-                tickLine={false}
-                axisLine={{ stroke: '#141420' }}
-              />
-              <YAxis
-                domain={[minRate, maxRate]}
-                tick={{ fill: '#3a3a5a', fontSize: compact ? 6 : 7 }}
-                tickLine={false}
-                axisLine={false}
-                width={32}
-                tickFormatter={v => v.toFixed(1) + '%'}
-              />
-              <Tooltip
-                contentStyle={{
-                  background: '#07090f', border: '1px solid #2a2a3a',
-                  fontSize: 8, padding: '4px 8px', borderRadius: 2,
-                }}
-                itemStyle={{ color: country.color }}
-                labelStyle={{ color: '#666', marginBottom: 2 }}
-                formatter={v => [v != null ? v.toFixed(2) + '%' : 'â', 'yield']}
-              />
-              <Line
-                type="monotone"
-                dataKey="rate"
-                stroke={country.color}
-                strokeWidth={1.5}
-                dot={{ fill: country.color, r: 2.5, strokeWidth: 0 }}
-                activeDot={{ r: 4, fill: country.color, strokeWidth: 0 }}
-                isAnimationActive={false}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-      )}
+        return (
+          <div key={c.id} style={{
+            flex: 1, display: 'flex', flexDirection: 'column',
+            borderTop: idx > 0 ? '1px solid #09090f' : 'none',
+            overflow: 'hidden', minHeight: 0,
+          }}>
 
-      {/* Numeric row */}
-      {!loading && !error && curve.length > 0 && (
-        <div style={{
-          display: 'flex', flexWrap: 'wrap', gap: '1px 6px',
-          padding: compact ? '2px 6px 3px' : '3px 8px 4px',
-          borderTop: '1px solid #0d0d18',
-          flexShrink: 0,
-        }}>
-          {curve.map(pt => (
-            <div key={pt.tenor} style={{ display: 'flex', gap: 2, alignItems: 'baseline' }}>
-              <span style={{ color: '#2a2a45', fontSize: 6.5, letterSpacing: '0.04em' }}>{pt.tenor}</span>
-              <span style={{ color: country.color, fontSize: 8, fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>
-                {pt.rate.toFixed(2)}%
+            {/* Country header row */}
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '1px 6px 0', flexShrink: 0, height: 16, gap: 4,
+            }}>
+              <span style={{
+                color: c.color, fontSize: 7, fontWeight: 800,
+                letterSpacing: '0.08em', flexShrink: 0,
+              }}>
+                {c.label}
               </span>
-            </div>
-          ))}
-        </div>
-      )}
 
-      {/* Footer */}
-      <div style={{ padding: '1px 8px', flexShrink: 0 }}>
-        <span style={{ color: '#141428', fontSize: 6, letterSpacing: '0.05em' }}>
-          {country.note}{src ? ` Â· ${src.toUpperCase()}` : ''}
-        </span>
-      </div>
+              {/* Key tenor values */}
+              {!loading && keyPts.length > 0 && (
+                <div style={{ display: 'flex', gap: 5, overflow: 'hidden' }}>
+                  {keyPts.map(pt => (
+                    <span key={pt.tenor} style={{ whiteSpace: 'nowrap', lineHeight: 1 }}>
+                      <span style={{ color: '#252535', fontSize: 6, letterSpacing: '0.03em' }}>{pt.tenor} </span>
+                      <span style={{ color: '#777', fontSize: 7.5, fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>
+                        {pt.rate.toFixed(2)}%
+                      </span>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Chart area */}
+            <div style={{ flex: 1, overflow: 'hidden', minHeight: 0 }}>
+              {loading ? (
+                <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#151525', fontSize: 7 }}>
+                  loadingâ¦
+                </div>
+              ) : curve.length === 0 ? (
+                <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#1a1a2a', fontSize: 7, flexDirection: 'column', gap: 4 }}>
+                  <span>DATA UNAVAILABLE</span>
+                  <button
+                    onClick={load}
+                    style={{ background: 'none', border: '1px solid #1a1a2a', color: '#2a2a3a', fontSize: 6.5, cursor: 'pointer', padding: '2px 5px', borderRadius: 2, fontFamily: 'inherit' }}
+                  >
+                    RETRY
+                  </button>
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={curve} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
+                    <XAxis
+                      dataKey="tenor"
+                      tick={{ fill: '#252540', fontSize: 6 }}
+                      tickLine={false}
+                      axisLine={{ stroke: '#0e0e1c' }}
+                    />
+                    <YAxis
+                      domain={[minR, maxR]}
+                      tick={{ fill: '#252540', fontSize: 6 }}
+                      tickLine={false}
+                      axisLine={false}
+                      width={26}
+                      tickFormatter={v => v.toFixed(1) + '%'}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        background: '#07090f',
+                        border: '1px solid ' + c.color + '44',
+                        fontSize: 7, padding: '3px 7px', borderRadius: 2,
+                      }}
+                      itemStyle={{ color: c.color }}
+                      labelStyle={{ color: '#555', marginBottom: 1 }}
+                      formatter={v => [v != null ? v.toFixed(2) + '%' : 'â', 'yield']}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="rate"
+                      stroke={c.color}
+                      strokeWidth={1.5}
+                      dot={{ fill: c.color, r: 2, strokeWidth: 0 }}
+                      activeDot={{ r: 3.5, fill: c.color, strokeWidth: 0 }}
+                      isAnimationActive={false}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+
+            {/* Source footnote â only on last block to save space */}
+            {idx === CURVES.length - 1 && (
+              <div style={{ padding: '0 6px 1px', flexShrink: 0 }}>
+                <span style={{ color: '#0f0f1e', fontSize: 5.5, letterSpacing: '0.04em' }}>
+                  {all[c.id]?.source || c.note}
+                </span>
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
