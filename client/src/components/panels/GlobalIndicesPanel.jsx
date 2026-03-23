@@ -27,7 +27,7 @@ export default function GlobalIndicesPanel({ onTickerClick }) {
       const json = await res.json();
       const map  = {};
       (json.tickers || []).forEach(t => {
-        // Prefer min.c (live minute close) — day.c is 0 during market hours
+        // Prefer min.c (live minute close) â day.c is 0 during market hours
         const price = (t.min?.c > 0 ? t.min.c : null)
           ?? (t.day?.c > 0 ? t.day.c : null)
           ?? (t.prevDay?.c && t.todaysChange != null ? t.prevDay.c + t.todaysChange : null)
@@ -49,14 +49,15 @@ export default function GlobalIndicesPanel({ onTickerClick }) {
     return () => clearInterval(t);
   }, []);
 
-  const fmtPrice = p => (!p || p === 0) ? '—'
+  const fmtPrice = p => (!p || p === 0) ? 'â'
     : p.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const fmtPct   = p => (!p && p !== 0) ? '—' : `${p >= 0 ? '+' : ''}${p.toFixed(2)}%`;
+  const fmtPct   = p => (!p && p !== 0) ? 'â' : `${p >= 0 ? '+' : ''}${p.toFixed(2)}%`;
   const color    = p => !p ? '#888' : p >= 0 ? '#00c853' : '#f44336';
 
   const panelStyle = {
     background: '#0d0d14', display: 'flex', flexDirection: 'column',
     overflow: 'hidden', fontFamily: "'IBM Plex Mono', monospace", fontSize: 10,
+    height: '100%',
   };
   const regionHeader = {
     color: '#e55a00', fontSize: 7, fontWeight: 600, letterSpacing: '0.1em',
@@ -72,7 +73,7 @@ export default function GlobalIndicesPanel({ onTickerClick }) {
 
   return (
     <div style={panelStyle}>
-      <SectionHeader title="GLOBAL EQUITY INDICES" right={loading ? 'Loading...' : null} />
+      <SectionHeader title="GLOBAL EQUITY INDEXES" right={loading ? 'Loading...' : null} />
       <div style={{ overflowY: 'auto', flex: 1 }}>
         {Object.entries(REGIONS).map(([key, region]) => (
           <div key={key}>
