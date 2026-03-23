@@ -1,21 +1,21 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useMarketData } from './hooks/useMarketData';
-import { Header } from './components/Header';
-import { IndexPanel } from './components/panels/IndexPanel';
-import { StockPanel } from './components/panels/StockPanel';
-import { ForexPanel } from './components/panels/ForexPanel';
-import { CryptoPanel } from './components/panels/CryptoPanel';
-import { CommoditiesPanel } from './components/panels/CommoditiesPanel';
-import { NewsPanel } from './components/panels/NewsPanel';
-import { ChartPanel } from './components/panels/ChartPanel';
-import { SentimentPanel } from './components/panels/SentimentPanel';
-import { SearchPanel } from './components/panels/SearchPanel';
-import { RatesPanel } from './components/panels/RatesPanel';
-import BrazilPanel from './components/panels/BrazilPanel';
-import GlobalIndicesPanel from './components/panels/GlobalIndicesPanel';
+import { useMarketData }        from './hooks/useMarketData';
+import { Header }               from './components/Header';
+import { IndexPanel }           from './components/panels/IndexPanel';
+import { StockPanel }           from './components/panels/StockPanel';
+import { ForexPanel }           from './components/panels/ForexPanel';
+import { CryptoPanel }          from './components/panels/CryptoPanel';
+import { CommoditiesPanel }     from './components/panels/CommoditiesPanel';
+import { NewsPanel }            from './components/panels/NewsPanel';
+import { ChartPanel }           from './components/panels/ChartPanel';
+import { SentimentPanel }       from './components/panels/SentimentPanel';
+import { SearchPanel }          from './components/panels/SearchPanel';
+import { RatesPanel }           from './components/panels/RatesPanel';
+import BrazilPanel              from './components/panels/BrazilPanel';
+import GlobalIndicesPanel       from './components/panels/GlobalIndicesPanel';
 import './App.css';
 
-// World clock: NY · SP · LDN · FRA · HKG · TKY shown in header
+// World clock: NY · SP · LDN · FRA · HKG · TKY
 function WorldClock() {
   const [now, setNow] = useState(new Date());
   useEffect(() => {
@@ -23,12 +23,12 @@ function WorldClock() {
     return () => clearInterval(id);
   }, []);
   const zones = [
-    { label: 'NY',  tz: 'America/New_York'    },
-    { label: 'SP',  tz: 'America/Sao_Paulo'   },
-    { label: 'LDN', tz: 'Europe/London'       },
-    { label: 'FRA', tz: 'Europe/Berlin'       },
-    { label: 'HKG', tz: 'Asia/Hong_Kong'      },
-    { label: 'TKY', tz: 'Asia/Tokyo'          },
+    { label: 'NY',  tz: 'America/New_York'  },
+    { label: 'SP',  tz: 'America/Sao_Paulo' },
+    { label: 'LDN', tz: 'Europe/London'     },
+    { label: 'FRA', tz: 'Europe/Berlin'     },
+    { label: 'HKG', tz: 'Asia/Hong_Kong'    },
+    { label: 'TKY', tz: 'Asia/Tokyo'        },
   ];
   return (
     <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
@@ -45,102 +45,113 @@ function WorldClock() {
 }
 
 const TABS = [
-  { id: 'markets', label: 'MARKETS' },
-  { id: 'brazil',  label: 'BRAZIL'  },
-  { id: 'global',  label: 'GLOBAL'  },
-  { id: 'fxcrypto',label: 'FX/CRYPTO'},
-  { id: 'rates',   label: 'RATES'   },
-  { id: 'search',  label: 'SEARCH'  },
-  { id: 'news',    label: 'NEWS'    },
+  { id: 'markets',  label: 'MARKETS'  },
+  { id: 'brazil',   label: 'BRAZIL'   },
+  { id: 'global',   label: 'GLOBAL'   },
+  { id: 'fxcrypto', label: 'FX/CRYPTO'},
+  { id: 'rates',    label: 'RATES'    },
+  { id: 'search',   label: 'SEARCH'   },
+  { id: 'news',     label: 'NEWS'     },
 ];
 
 const LS_TAB          = 'activeTab';
 const LS_CHART_TICKER = 'chartTicker';
+const LS_CHART_GRID   = 'chartGrid_v3';
 
-export default function App() {hh
+export default function App() {
   const { data, loading, isRefreshing, lastUpdated } = useMarketData();
-  const [activeTab, setActiveTab]   = useState(() => localStorage.getItem(LS_TAB) || 'markets');
-  const setActiveTabPersist = (t) => { setActiveTab(t); localStorage.setItem(LS_TAB, t); };
-  const [chartTicker, setChartTickerState] = useState(() => localStorage.getItem(LS_CHART_TICKER) || 'SPY');
-  const setChartTicker = useCallback((t) => { setChartTickerState(t); localStorage.setItem(LS_CHART_TICKER, t); }, []);
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
 
+  const [activeTab, setActiveTab] = useState(() => localStorage.getItem(LS_TAB) || 'markets');
+  const setActiveTabPersist = (t) => { setActiveTab(t); localStorage.setItem(LS_TAB, t); };
+
+  const [chartTicker, setChartTickerState] = useState(() => localStorage.getItem(LS_CHART_TICKER) || 'SPY');
+  const setChartTicker = useCallback((t) => {
+    setChartTickerState(t);
+    localStorage.setItem(LS_CHART_TICKER, t);
+  }, []);
+
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
   useEffect(() => {
     const handler = () => setIsMobile(window.innerWidth < 1024);
     window.addEventListener('resize', handler);
     return () => window.removeEventListener('resize', handler);
   }, []);
 
+  // Track how many charts are in the grid so the mobile container can resize
+  const [chartGridCount, setChartGridCount] = useState(() => {
+    try {
+      const arr = JSON.parse(localStorage.getItem(LS_CHART_GRID) || '["SPY","QQQ"]');
+      return Array.isArray(arr) ? Math.max(2, arr.length) : 2;
+    } catch { return 2; }
+  });
+
   const border  = '1px solid #1e1e1e';
   const border2 = '2px solid #1e1e1e';
 
-  // ── DESKTOP ──────────────────────────────────────────────────────────────────
+  // ── DESKTOP ────────────────────────────────────────────────────────────────
   if (!isMobile) {
     return (
       <div style={{
-        display: 'grid',
-        gridTemplateRows: '36px 2fr 1.5fr 1.5fr',
-        height: '100vh',
-        background: '#0a0a0a',
+        display: 'grid', gridTemplateRows: '36px 2fr 1.5fr 1.5fr',
+        height: '100vh', background: '#0a0a0a',
         fontFamily: "'IBM Plex Mono','Roboto Mono','Courier New',monospace",
-        overflow: 'hidden',
-        color: '#e0e0e0',
+        overflow: 'hidden', color: '#e0e0e0',
       }}>
-
-        {/* ── Header row ── */}
+        {/* Header */}
         <div style={{ display:'flex', alignItems:'center', background:'#000', borderBottom:'2px solid #ff6600', padding:'0 12px', gap:12 }}>
           <span style={{ color:'#ff6600', fontWeight:700, fontSize:'13px', letterSpacing:'2px' }}>SENGER</span>
           <span style={{ color:'#444', fontSize:'9px', letterSpacing:'1px' }}>MARKET SCREEN</span>
-          {/* World clocks centred in header */}
-          <div style={{ flex:1, display:'flex', justifyContent:'center' }}>
-            <WorldClock />
-          </div>
+          <div style={{ flex:1, display:'flex', justifyContent:'center' }}><WorldClock /></div>
           <div style={{ display:'flex', alignItems:'center', gap:8 }}>
             {isRefreshing && <span style={{ color:'#ff6600', fontSize:'8px', letterSpacing:'1px' }}>● UPDATING</span>}
             {lastUpdated && !isRefreshing && <span style={{ color:'#333', fontSize:'8px' }}>⟳ {lastUpdated.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'})}</span>}
           </div>
         </div>
 
-        {/* ── Row 2: Charts | Stocks | Crypto | Forex ── */}
+        {/* Row 2: Charts | Stocks | Crypto | Forex */}
         <div style={{ display:'grid', gridTemplateColumns:'2fr 1fr 1fr 1fr', borderBottom:border2, overflow:'hidden' }}>
-          <div style={{ borderRight:border, overflow:'hidden' }}><ChartPanel ticker={chartTicker} onTickerChange={setChartTicker} /></div>
+          <div style={{ borderRight:border, overflow:'hidden' }}><ChartPanel ticker={chartTicker} onTickerChange={setChartTicker} onGridChange={setChartGridCount} /></div>
           <div style={{ borderRight:border, overflow:'hidden' }}><StockPanel  data={data?.stocks} loading={loading} onTickerClick={setChartTicker} /></div>
           <div style={{ borderRight:border, overflow:'hidden' }}><CryptoPanel data={data?.crypto} loading={loading} onTickerClick={setChartTicker} /></div>
-          <div style={{ overflow:'hidden' }}><ForexPanel data={data?.forex} loading={loading} onTickerClick={setChartTicker} /></div>
+          <div style={{ overflow:'hidden' }}>                   <ForexPanel  data={data?.forex}  loading={loading} onTickerClick={setChartTicker} /></div>
         </div>
 
-        {/* ── Row 3: Indexes | Brazil | Global Indices | Commodities ── */}
+        {/* Row 3: Indexes | Brazil | Global | Commodities */}
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr 1fr', borderBottom:border2, overflow:'hidden' }}>
-          <div style={{ borderRight:border, overflow:'hidden' }}><IndexPanel data={data?.indices} loading={loading} onTickerClick={setChartTicker} /></div>
-          <div style={{ borderRight:border, overflow:'hidden' }}><BrazilPanel onTickerClick={setChartTicker} /></div>
+          <div style={{ borderRight:border, overflow:'hidden' }}><IndexPanel       data={data?.indices} loading={loading} onTickerClick={setChartTicker} /></div>
+          <div style={{ borderRight:border, overflow:'hidden' }}><BrazilPanel      onTickerClick={setChartTicker} /></div>
           <div style={{ borderRight:border, overflow:'hidden' }}><GlobalIndicesPanel onTickerClick={setChartTicker} /></div>
-          <div style={{ overflow:'hidden' }}><CommoditiesPanel data={data?.stocks} loading={loading} onTickerClick={setChartTicker} /></div>
+          <div style={{ overflow:'hidden' }}>                   <CommoditiesPanel data={data?.stocks}  loading={loading} onTickerClick={setChartTicker} /></div>
         </div>
 
-        {/* ── Row 4: Rates | Search | News | Sentiment ── */}
+        {/* Row 4: Rates | Search | News | Sentiment */}
         <div style={{ display:'grid', gridTemplateColumns:'180px 1fr 2fr 1fr', overflow:'hidden' }}>
           <div style={{ borderRight:border, overflow:'hidden' }}><RatesPanel /></div>
           <div style={{ borderRight:border, overflow:'hidden' }}><SearchPanel onTickerSelect={setChartTicker} /></div>
           <div style={{ borderRight:border, overflow:'hidden' }}><NewsPanel /></div>
-          <div style={{ overflow:'hidden' }}><SentimentPanel data={data} loading={loading} /></div>
+          <div style={{ overflow:'hidden' }}>                   <SentimentPanel data={data} loading={loading} /></div>
         </div>
-
       </div>
     );
   }
 
-  // ── MOBILE ───────────────────────────────────────────────────────────────────
+  // ── MOBILE ─────────────────────────────────────────────────────────────────
+  // Dynamic chart area height: ChartPanel uses 2 cols on mobile for 2-4 charts
+  // Give each row ~56vw of height so charts are readable; scales with count
+  const chartCols       = chartGridCount <= 1 ? 1 : 2;
+  const chartRowCount   = Math.ceil(chartGridCount / chartCols);
+  const mobileChartH    = `${Math.max(56, chartRowCount * 56)}vw`;
+
   return (
     <div style={{
       display: 'flex', flexDirection: 'column',
-      height: '100dvh', paddingTop: 'env(safe-area-inset-top)',
+      height: '100dvh',
+      paddingTop: 'env(safe-area-inset-top)',
       background: '#0a0a0a',
       fontFamily: "'IBM Plex Mono','Roboto Mono','Courier New',monospace",
-      color: '#e0e0e0',
-      overflow: 'hidden',
+      color: '#e0e0e0', overflow: 'hidden',
     }}>
-
-      {/* Mobile header — SENGER MARKET */}
+      {/* Mobile header */}
       <div style={{
         background: '#000', borderBottom: '3px solid #ff6600',
         padding: '0 12px', height: '44px',
@@ -148,20 +159,25 @@ export default function App() {hh
       }}>
         <span style={{ color:'#ff6600', fontWeight:800, fontSize:'13px', letterSpacing:'2px' }}>SENGER</span>
         <span style={{ color:'#555', fontSize:'9px', letterSpacing:'1px' }}>MARKET</span>
-        {isRefreshing && <span style={{ color:'#ff6600', fontSize:'8px', marginLeft:4 }}>● LIVE</span>}
-        {lastUpdated && !isRefreshing && (
-          <span style={{ color:'#2a2a2a', fontSize:'8px', marginLeft:'auto' }}>
-            {lastUpdated.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}
-          </span>
-        )}
+        {isRefreshing
+          ? <span style={{ color:'#ff6600', fontSize:'8px', marginLeft:4 }}>● LIVE</span>
+          : lastUpdated && <span style={{ color:'#333', fontSize:'8px', marginLeft:'auto' }}>
+              ⟳ {lastUpdated.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}
+            </span>
+        }
       </div>
 
-      {/* Tab content area */}
+      {/* Tab content */}
       <div style={{ flex:1, overflow:'auto', minHeight:0 }}>
-        {activeTab==='markets' && (
+        {activeTab === 'markets' && (
           <div>
-            <div style={{ borderBottom:'2px solid #1e1e1e', height:'56vw', minHeight:220 }}>
-              <ChartPanel ticker={chartTicker} onTickerChange={setChartTicker} />
+            {/* Chart area — height grows with number of charts */}
+            <div style={{ borderBottom:'2px solid #1e1e1e', height: mobileChartH, minHeight: 220 }}>
+              <ChartPanel
+                ticker={chartTicker}
+                onTickerChange={setChartTicker}
+                onGridChange={setChartGridCount}
+              />
             </div>
             <div style={{ borderBottom:'1px solid #1e1e1e' }}>
               <StockPanel data={data?.stocks} loading={loading} onTickerClick={setChartTicker} />
@@ -169,16 +185,21 @@ export default function App() {hh
             <CryptoPanel data={data?.crypto} loading={loading} onTickerClick={setChartTicker} />
           </div>
         )}
-        {activeTab==='brazil'   && <BrazilPanel onTickerClick={setChartTicker} />}
-        {activeTab==='global'   && (
+
+        {activeTab === 'brazil' && (
+          <BrazilPanel onTickerClick={(t) => { setChartTicker(t.symbol || t); setActiveTabPersist('markets'); }} />
+        )}
+
+        {activeTab === 'global' && (
           <div>
-            <GlobalIndicesPanel onTickerClick={setChartTicker} />
+            <GlobalIndicesPanel onTickerClick={(t) => { setChartTicker(t.symbol || t); setActiveTabPersist('markets'); }} />
             <div style={{ borderTop:'1px solid #1e1e1e' }}>
-              <IndexPanel data={data?.indices} loading={loading} onTickerClick={setChartTicker} />
+              <IndexPanel data={data?.indices} loading={loading} onTickerClick={(t) => { setChartTicker(t); setActiveTabPersist('markets'); }} />
             </div>
           </div>
         )}
-        {activeTab==='fxcrypto' && (
+
+        {activeTab === 'fxcrypto' && (
           <div>
             <ForexPanel data={data?.forex} loading={loading} onTickerClick={setChartTicker} />
             <div style={{ borderTop:'1px solid #1e1e1e' }}>
@@ -186,16 +207,20 @@ export default function App() {hh
             </div>
           </div>
         )}
-        {activeTab==='rates'  && <RatesPanel />}
-        {activeTab==='search' && <SearchPanel onTickerSelect={(sym)=>{ setChartTicker(sym); setActiveTabPersist('markets'); }} />}
-        {activeTab==='news'   && <NewsPanel />}
+
+        {activeTab === 'rates'  && <RatesPanel />}
+        {activeTab === 'search' && (
+          <SearchPanel onTickerSelect={(sym) => { setChartTicker(sym); setActiveTabPersist('markets'); }} />
+        )}
+        {activeTab === 'news'   && <NewsPanel />}
       </div>
 
       {/* Bottom tab bar */}
       <nav style={{
         display: 'flex', background: '#000',
-        borderTop: '2px solid #1e1e1e',
-        flexShrink: 0, overflowX: 'auto', scrollbarWidth: 'none', paddingBottom: 'env(safe-area-inset-bottom)',
+        borderTop: '2px solid #1e1e1e', flexShrink: 0,
+        overflowX: 'auto', scrollbarWidth: 'none',
+        paddingBottom: 'env(safe-area-inset-bottom)',
       }}>
         {TABS.map(tab => {
           const active = activeTab === tab.id;
@@ -210,8 +235,9 @@ export default function App() {hh
                 color: active ? '#ff6600' : '#444',
                 border: 'none',
                 borderTop: `3px solid ${active ? '#ff6600' : 'transparent'}`,
-                fontSize: '8px', fontWeight: 800, letterSpacing: '0.3px',
-                cursor: 'pointer', fontFamily: 'inherit', textTransform: 'uppercase',
+                fontSize: '8px', fontWeight: 800,
+                letterSpacing: '0.3px', cursor: 'pointer',
+                fontFamily: 'inherit', textTransform: 'uppercase',
               }}
             >
               {tab.label}
