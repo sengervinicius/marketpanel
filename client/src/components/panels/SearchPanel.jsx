@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from 'react';
+import { FOREX_PAIRS, CRYPTO_PAIRS } from '../../utils/constants';
 
 const API = import.meta.env.VITE_API_URL || '';
 
@@ -7,8 +8,22 @@ const TYPE_COLOR = {
   ETF:        '#81c784',
   INDEX:      '#ffb74d',
   CURRENCY:   '#ce93d8',
+  CRYPTO:     '#f48fb1',
   MUTUALFUND: '#80cbc4',
 };
+
+// Local search for FX pairs and crypto — returns results instantly without API call
+function localSearch(q) {
+  if (!q || q.trim().length < 2) return [];
+  const uq = q.toUpperCase().replace(/[\s\/\-]/g, '');
+  const fxResults = FOREX_PAIRS
+    .filter(p => p.symbol.includes(uq) || p.label.replace('/', '').includes(uq))
+    .map(p => ({ symbol: p.symbol + '=X', name: p.label + ' Exchange Rate', type: 'CURRENCY', local: true }));
+  const cryptoResults = CRYPTO_PAIRS
+    .filter(c => c.symbol.toUpperCase().includes(uq) || c.label.toUpperCase().includes(q.trim().toUpperCase()))
+    .map(c => ({ symbol: 'X:' + c.symbol, name: c.label + ' / USD', type: 'CRYPTO', local: true }));
+  return [...fxResults, ...cryptoResults];
+}
 
 export function SearchPanel({ onTickerSelect }) {
   const [query, setQuery] = useState('');
@@ -20,10 +35,18 @@ export function SearchPanel({ onTickerSelect }) {
 
   const search = useCallback((q) => {
     if (!q.trim()) { setResults([]); return; }
+    // Show local FX/crypto matches immediately (no latency)
+    const local = localSearch(q);
+    setResults(local);
     setLoading(true);
     fetch(`${API}/api/search?q=${encodeURIComponent(q)}`)
       .then(r => r.json())
-      .then(d => { setResults(d.results || []); setLoading(false); })
+      .then(d => {
+        // Merge local results at top, deduplicate by symbol
+        const remote = (d.results || []).filter(r => !local.some(l => l.symbol === r.symbol));
+        setResults([...local, ...remote].slice(0, 12));
+        setLoading(false);
+      })
       .catch(() => setLoading(false));
   }, []);
 
