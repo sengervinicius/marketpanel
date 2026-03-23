@@ -12,7 +12,13 @@ const TYPE_COLOR = {
   MUTUALFUND: '#80cbc4',
 };
 
-// Local search for FX pairs and crypto — returns results instantly without API call
+const MARKET_BADGE = {
+  BVSP: { bg: '#1a2800', color: '#8bc34a', label: 'B3'     },
+  SAO:  { bg: '#1a2800', color: '#8bc34a', label: 'B3'     },
+  NYQ:  { bg: '#001a2e', color: '#4fc3f7', label: 'NYSE'   },
+  NMS:  { bg: '#001a2e', color: '#4fc3f7', label: 'NASDAQ' },
+};
+
 function localSearch(q) {
   if (!q || q.trim().length < 2) return [];
   const uq = q.toUpperCase().replace(/[\s\/\-]/g, '');
@@ -26,25 +32,27 @@ function localSearch(q) {
 }
 
 export function SearchPanel({ onTickerSelect }) {
-  const [query, setQuery] = useState('');
+  const [query, setQuery]     = useState('');
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [quote, setQuote] = useState(null);
+  const [quote, setQuote]     = useState(null);
   const [quoteLoading, setQuoteLoading] = useState(false);
   const debounceRef = useRef(null);
 
   const search = useCallback((q) => {
     if (!q.trim()) { setResults([]); return; }
-    // Show local FX/crypto matches immediately (no latency)
     const local = localSearch(q);
     setResults(local);
     setLoading(true);
     fetch(`${API}/api/search?q=${encodeURIComponent(q)}`)
       .then(r => r.json())
       .then(d => {
-        // Merge local results at top, deduplicate by symbol
-        const remote = (d.results || []).filter(r => !local.some(l => l.symbol === r.symbol));
-        setResults([...local, ...remote].slice(0, 12));
+        const remote = (d.results || []).filter(r => !local.some(l => l.symbol === (r.ticker || r.symbol)));
+        const merged = [
+          ...local,
+          ...remote.map(r => ({ symbol: r.ticker || r.symbol, name: r.name, type: r.type, market: r.market })),
+        ].slice(0, 14);
+        setResults(merged);
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -61,50 +69,41 @@ export function SearchPanel({ onTickerSelect }) {
     setQuery(item.symbol);
     setResults([]);
     if (onTickerSelect) onTickerSelect(item.symbol);
+    setQuote(null);
     setQuoteLoading(true);
-    fetch(`${API}/api/snapshot/ticker/${encodeURIComponent(item.symbol)}`)
+    fetch(`${API}/api/quote/${encodeURIComponent(item.symbol)}`)
       .then(r => r.json())
       .then(d => { setQuote(d); setQuoteLoading(false); })
       .catch(() => setQuoteLoading(false));
   };
 
-  // Drag handlers — pack ticker data into dataTransfer
   const handleDragStart = (e, item) => {
     e.dataTransfer.effectAllowed = 'copy';
     e.dataTransfer.setData('application/x-ticker', JSON.stringify({
-      symbol: item.symbol,
-      name:   item.name,
-      type:   item.type,
+      symbol: item.symbol, name: item.name, type: item.type,
     }));
   };
 
-  const fmtNum = (n) => n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const fmtPct = (n) => n == null ? '—' : (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
+  const fmtNum = (n) => n == null ? '\u2014' : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const fmtPct = (n) => n == null ? '\u2014' : (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
+  const fmtVol = (n) => n == null ? '\u2014' : n >= 1e9 ? (n / 1e9).toFixed(1) + 'B' : n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1e3 ? (n / 1e3).toFixed(1) + 'K' : String(n);
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#0a0a0a', fontFamily: 'inherit' }}>
-      {/* Header */}
       <div style={{ padding: '12px 10px', borderBottom: '1px solid #1e1e1e', flexShrink: 0 }}>
         <span style={{ color: '#e8a020', fontWeight: 700, fontSize: 12, letterSpacing: '0.2em' }}>SEARCH</span>
         <span style={{ color: '#333', fontSize: 7, marginLeft: 8 }}>DRAG RESULTS TO CHART</span>
       </div>
-
-      {/* Input */}
       <div style={{ position: 'relative', padding: '6px 8px', flexShrink: 0 }}>
         <input
           value={query}
           onChange={handleInput}
           placeholder="ticker or company name..."
           style={{
-            width: '100%',
-            background: '#0f0f0f',
-            border: '1px solid #2a2a2a',
-            color: '#ccc',
-            fontSize: 12,
-            padding: '10px 8px', fontSize: 16,
-            fontFamily: 'inherit',
-            outline: 'none',
-            boxSizing: 'border-box',
+            width: '100%', background: '#0f0f0f',
+            border: '1px solid #2a2a2a', color: '#ccc',
+            fontSize: 16, padding: '10px 8px',
+            fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box',
           }}
           onFocus={e => e.target.style.borderColor = '#ff6600'}
           onBlur={e => e.target.style.borderColor = '#2a2a2a'}
@@ -115,86 +114,84 @@ export function SearchPanel({ onTickerSelect }) {
           </span>
         )}
       </div>
-
-      {/* Results */}
       {results.length > 0 && (
         <div style={{ borderBottom: '1px solid #1e1e1e', flexShrink: 0, maxHeight: '55vh', overflowY: 'auto' }}>
-          {results.map(item => (
-            <div
-              key={item.symbol}
-              draggable
-              onDragStart={(e) => handleDragStart(e, item)}
-              onClick={() => handleSelect(item)}
-              style={{
-                padding: '12px 10px',
-                borderBottom: '1px solid #161616',
-                cursor: 'grab',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-                userSelect: 'none',
-                transition: 'background 0.1s',
-              }}
-              onMouseEnter={e => e.currentTarget.style.background = '#141414'}
-              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-            >
-              {/* Drag indicator */}
-              <span style={{ color: '#2a2a2a', fontSize: 13, flexShrink: 0 }}>|:|</span>
-              <span style={{
-                color: TYPE_COLOR[item.type] || '#aaa',
-                fontSize: 13,
-                fontWeight: 700,
-                minWidth: '60px',
-                flexShrink: 0,
-              }}>
-                {item.symbol}
-              </span>
-              <span style={{ color: '#777', fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
-                {item.name}
-              </span>
-              <span style={{
-                color: '#444',
-                fontSize: 8,
-                flexShrink: 0,
-              }}>
-                {item.type}
-              </span>
-            </div>
-          ))}
+          {results.map(item => {
+            const badge = MARKET_BADGE[item.market?.toUpperCase()];
+            const isBrazilian = item.symbol?.endsWith('.SA');
+            return (
+              <div
+                key={item.symbol}
+                draggable
+                onDragStart={(e) => handleDragStart(e, item)}
+                onClick={() => handleSelect(item)}
+                style={{
+                  padding: '10px 10px', borderBottom: '1px solid #161616',
+                  cursor: 'grab', display: 'flex', alignItems: 'center',
+                  gap: 6, userSelect: 'none', transition: 'background 0.1s',
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = '#141414'}
+                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+              >
+                <span style={{ color: '#2a2a2a', fontSize: 13, flexShrink: 0 }}>|:|</span>
+                <span style={{
+                  color: isBrazilian ? '#8bc34a' : (TYPE_COLOR[item.type] || '#aaa'),
+                  fontSize: 13, fontWeight: 700, minWidth: '70px', flexShrink: 0,
+                }}>
+                  {isBrazilian ? item.symbol.replace('.SA', '') : item.symbol}
+                </span>
+                <span style={{ color: '#777', fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+                  {item.name}
+                </span>
+                {badge ? (
+                  <span style={{ fontSize: 7, padding: '1px 4px', borderRadius: 2, background: badge.bg, color: badge.color, flexShrink: 0 }}>
+                    {badge.label}
+                  </span>
+                ) : (
+                  <span style={{ color: '#444', fontSize: 8, flexShrink: 0 }}>{item.type}</span>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
-
       {!results.length && !query && (
         <div style={{ padding: '12px 8px', color: '#222', fontSize: 8, textAlign: 'center' }}>
-          TYPE TO SEARCH — DRAG RESULTS TO CHART
+          TYPE TO SEARCH \u2014 DRAG RESULTS TO CHART
         </div>
       )}
-
-      {/* Quick quote */}
       {(quote || quoteLoading) && (
-        <div style={{ padding: '8px', flex: 1, overflow: 'auto' }}>
+        <div style={{ padding: '10px 8px', flex: 1, overflow: 'auto' }}>
           {quoteLoading && <div style={{ color: '#444', fontSize: 8 }}>LOADING QUOTE...</div>}
-          {quote && !quoteLoading && (() => {
-            const t = quote.ticker || quote.results?.[0];
-            if (!t) return null;
-            const d = t.day || {};
-            const pct = t.todaysChangePerc;
-            const up = (pct ?? 0) >= 0;
+          {quote && !quoteLoading && quote.price != null && (() => {
+            const up = (quote.changePct ?? 0) >= 0;
+            const isBR = quote.currency === 'BRL' || quote.ticker?.endsWith('.SA');
             return (
               <div>
-                <div style={{ color: '#e8a020', fontWeight: 700, fontSize: 12, marginBottom: 4 }}>{t.ticker}</div>
-                <div style={{ color: '#ccc', fontSize: 18, fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>
-                  {fmtNum(d.c ?? t.min?.c)}
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 2 }}>
+                  <span style={{ color: '#e8a020', fontWeight: 700, fontSize: 12 }}>
+                    {isBR ? quote.ticker?.replace('.SA', '') : quote.ticker}
+                  </span>
+                  {isBR && (
+                    <span style={{ fontSize: 7, padding: '1px 4px', borderRadius: 2, background: '#1a2800', color: '#8bc34a' }}>B3</span>
+                  )}
+                  <span style={{ color: '#333', fontSize: 8, marginLeft: 'auto' }}>{quote.currency}</span>
+                </div>
+                <div style={{ color: '#ccc', fontSize: 20, fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>
+                  {fmtNum(quote.price)}
                 </div>
                 <div style={{ color: up ? '#00c853' : '#f44336', fontSize: 13, marginTop: 2 }}>
-                  {(up ? '+' : '')}{fmtNum(t.todaysChange)} ({fmtPct(pct)})
+                  {(up ? '+' : '')}{fmtNum(quote.change)} ({fmtPct(quote.changePct)})
                 </div>
+                {quote.name && quote.name !== quote.ticker && (
+                  <div style={{ color: '#444', fontSize: 9, marginTop: 4, fontStyle: 'italic' }}>{quote.name}</div>
+                )}
                 <div style={{ marginTop: 8, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
-                  {[['OPEN', d.o], ['HIGH', d.h], ['LOW', d.l], ['VOL', d.v ? (d.v / 1e6).toFixed(1) + 'M' : '—']].map(([lbl, val]) => (
+                  {[['OPEN', quote.open], ['HIGH', quote.high], ['LOW', quote.low], ['VOLUME', fmtVol(quote.volume)]].map(([lbl, val]) => (
                     <div key={lbl}>
                       <div style={{ color: '#555', fontSize: 7 }}>{lbl}</div>
-                      <div style={{ color: '#999', fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>
-                        {typeof val === 'number' ? fmtNum(val) : (val || '—')}
+                      <div style={{ color: '#999', fontSize: 11, fontVariantNumeric: 'tabular-nums' }}>
+                        {typeof val === 'number' ? fmtNum(val) : (val || '\u2014')}
                       </div>
                     </div>
                   ))}
