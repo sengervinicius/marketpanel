@@ -156,7 +156,7 @@ export default function App() {
         display: 'flex', flexDirection: 'column', height: '100vh',
         background: '#0a0a0a',
         fontFamily: "'IBM Plex Mono','Roboto Mono','Courier New',monospace",
-        overflow: 'hidden', color: '#e0e0e0', userSelect: 'none',
+        overflowY: 'auto', overflowX: 'hidden', color: '#e0e0e0', userSelect: 'none',
       }}>
         <div style={{ height: 36, flexShrink: 0, display:'flex', alignItems:'center', background:'#000', borderBottom:'2px solid #ff6600', padding:'0 12px', gap:12 }}>
           <span style={{ color:'#ff6600', fontWeight:700, fontSize:'13px', letterSpacing:'2px' }}>SENGER</span>
@@ -168,7 +168,7 @@ export default function App() {
           </div>
         </div>
 
-        <div style={{ flex: rowSizes[0], display:'grid', gridTemplateColumns:'2fr 1fr 1.6fr', overflow:'hidden', minHeight: 60 }}>
+        <div style={{ flex: rowSizes[0], display:'grid', gridTemplateColumns:'2fr 1fr 1.6fr', overflow:'hidden', minHeight: 220 }}>
           <div style={{ borderRight:border, overflow:'hidden' }}>
             <ChartPanel ticker={chartTicker} onTickerChange={setChartTicker} onGridChange={setChartGridCount} />
           </div>
@@ -181,7 +181,7 @@ export default function App() {
         </div>
         <ResizeHandle onStart={e => startRowResize(0, e)} />
 
-        <div style={{ flex: rowSizes[1], display:'grid', gridTemplateColumns:'1fr 1fr 1fr 1fr', overflow:'hidden', minHeight: 60 }}>
+        <div style={{ flex: rowSizes[1], display:'grid', gridTemplateColumns:'1fr 1fr 1fr 1fr', overflow:'hidden', minHeight: 180 }}>
           <div style={{ borderRight:border, overflow:'hidden' }}><IndexPanel data={data?.indices} loading={loading} onTickerClick={setChartTicker} /></div>
           <div style={{ borderRight:border, overflow:'hidden' }}><BrazilPanel onTickerClick={setChartTicker} /></div>
           <div style={{ borderRight:border, overflow:'hidden' }}><GlobalIndicesPanel onTickerClick={setChartTicker} /></div>
@@ -189,7 +189,7 @@ export default function App() {
         </div>
         <ResizeHandle onStart={e => startRowResize(1, e)} />
 
-        <div style={{ flex: rowSizes[2], display:'grid', gridTemplateColumns:'180px 1fr 2fr 1fr', overflow:'hidden', minHeight: 60 }}>
+        <div style={{ flex: rowSizes[2], display:'grid', gridTemplateColumns:'180px 1fr 2fr 1fr', overflow:'hidden', minHeight: 160 }}>
           <div style={{ borderRight:border, overflow:'hidden' }}><RatesPanel /></div>
           <div style={{ borderRight:border, overflow:'hidden' }}><SearchPanel onTickerSelect={setChartTicker} /></div>
           <div style={{ borderRight:border, overflow:'hidden' }}><NewsPanel /></div>
