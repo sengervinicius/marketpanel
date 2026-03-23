@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import { SectionHeader } from '../common/SectionHeader';
 
-const SERVER_URL = import.meta.env.VITE_SERVER_URL || '';
+const SERVER_URL = import.meta.env.VITE_API_URL || import.meta.env.VITE_SERVER_URL || '';
 
 const REGIONS = {
-  AMERICAS: { label: 'AMERICAS', tickers: ['SPY','QQQ','DIA','EWZ','EWW','EWC'] },
-  EMEA:     { label: 'EMEA',     tickers: ['EZU','EWU','EWG','EWQ','EWP','EWI','EWL','EWD'] },
-  ASIA:     { label: 'ASIA-PAC', tickers: ['EWJ','EWH','EWY','EWA','MCHI','EWT','EWS','INDA'] },
+  AMERICAS: { label: 'AMERICAS',  tickers: ['SPY','QQQ','DIA','EWZ','EWW','EWC'] },
+  EMEA:     { label: 'EMEA',      tickers: ['EZU','EWU','EWG','EWQ','EWP','EWI','EWL','EWD'] },
+  ASIA:     { label: 'ASIA-PAC',  tickers: ['EWJ','EWH','EWY','EWA','MCHI','EWT','EWS','INDA'] },
 };
 
 const NAMES = {
@@ -17,8 +17,8 @@ const NAMES = {
   MCHI:'CHINA', EWT:'TAIWAN', EWS:'SINGAPORE', INDA:'INDIA',
 };
 
-export default function GlobalIndicesPanel() {
-  const [data, setData] = useState({});
+export default function GlobalIndicesPanel({ onTickerClick }) {
+  const [data, setData]       = useState({});
   const [loading, setLoading] = useState(true);
 
   const fetchData = async () => {
@@ -27,16 +27,16 @@ export default function GlobalIndicesPanel() {
       const json = await res.json();
       const map  = {};
       (json.tickers || []).forEach(t => {
-        // Use same logic as useMarketData: prevDay.c + todaysChange for live price
-        const prevClose = t.prevDay?.c || 0;
-        const price     = t.lastTrade?.p || t.lastQuote?.P ||
-                          (t.day?.c && t.day.c !== 0 ? t.day.c : null) ||
-                          (prevClose && t.todaysChange != null ? prevClose + t.todaysChange : 0);
-        const changePct = t.todaysChangePerc ?? 0;
-        map[t.ticker] = { price, changePct, change: t.todaysChange ?? 0 };
+        // Prefer min.c (live minute close) — day.c is 0 during market hours
+        const price = (t.min?.c > 0 ? t.min.c : null)
+          ?? (t.day?.c > 0 ? t.day.c : null)
+          ?? (t.prevDay?.c && t.todaysChange != null ? t.prevDay.c + t.todaysChange : null)
+          ?? t.prevDay?.c
+          ?? 0;
+        map[t.ticker] = { price, changePct: t.todaysChangePerc ?? 0, change: t.todaysChange ?? 0 };
       });
       setData(map);
-    } catch(e) {
+    } catch (e) {
       console.error('[GlobalIndices]', e.message);
     } finally {
       setLoading(false);
@@ -45,15 +45,14 @@ export default function GlobalIndicesPanel() {
 
   useEffect(() => {
     fetchData();
-    const t = setInterval(fetchData, 60000);
+    const t = setInterval(fetchData, 15_000); // refresh every 15s
     return () => clearInterval(t);
   }, []);
 
-  const fmtPrice = p => p == null || p === 0 ? '—' :
-    p.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const fmtPct = p => p == null || p === 0 ? '—' :
-    `${p >= 0 ? '+' : ''}${p.toFixed(2)}%`;
-  const color = p => !p ? '#888' : p >= 0 ? '#00c853' : '#f44336';
+  const fmtPrice = p => (!p || p === 0) ? '—'
+    : p.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const fmtPct   = p => (!p && p !== 0) ? '—' : `${p >= 0 ? '+' : ''}${p.toFixed(2)}%`;
+  const color    = p => !p ? '#888' : p >= 0 ? '#00c853' : '#f44336';
 
   const panelStyle = {
     background: '#0d0d14', display: 'flex', flexDirection: 'column',
@@ -67,7 +66,8 @@ export default function GlobalIndicesPanel() {
   const rowStyle = i => ({
     display: 'grid', gridTemplateColumns: '44px 1fr 56px 52px',
     padding: '2px 6px', borderBottom: '1px solid #0f0f1a',
-    background: i % 2 === 0 ? 'transparent' : '#060608', cursor: 'grab',
+    background: i % 2 === 0 ? 'transparent' : '#060608',
+    cursor: 'grab',
   });
 
   return (
@@ -85,9 +85,12 @@ export default function GlobalIndicesPanel() {
                   style={rowStyle(i)}
                   draggable
                   onDragStart={e => {
-                    e.dataTransfer.setData('application/json', JSON.stringify({ symbol: ticker, label: NAMES[ticker] || ticker }));
+                    // Use application/x-ticker so ChartPanel can receive it
+                    e.dataTransfer.setData('application/x-ticker',
+                      JSON.stringify({ symbol: ticker, label: NAMES[ticker] || ticker }));
                     e.dataTransfer.effectAllowed = 'copy';
                   }}
+                  onClick={() => onTickerClick?.({ symbol: ticker, label: NAMES[ticker] || ticker })}
                 >
                   <span style={{ color: '#e8a020', fontWeight: 500, fontSize: 9 }}>{ticker}</span>
                   <span style={{ color: '#777', fontSize: 9, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
