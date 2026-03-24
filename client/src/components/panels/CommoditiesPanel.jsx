@@ -94,4 +94,3 @@ export function CommoditiesPanel({ data, loading, onTickerClick }) {
     </div>
   );
 }
-Fix CommoditiesPanel: add data-ticker attributes for hover tooltips
