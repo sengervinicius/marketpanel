@@ -47,9 +47,9 @@ function displayTicker(norm) {
   return norm;
 }
 
-const fmtPrice = (n) => n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmtPrice = (n) => n == null ? ' // ' : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmtK = (n) => {
-  if (n == null) return '—';
+  if (n == null) return ' // ';
   const abs = Math.abs(n);
   if (abs >= 10000) return (n / 1000).toFixed(1) + 'k';
   if (abs >= 1000)  return (n / 1000).toFixed(2) + 'k';
@@ -177,7 +177,7 @@ function MiniChart({ ticker, index, onRemove, onReplace, onSwap }) {
       <div style={{ display: 'flex', gap: 6, padding: '1px 5px', flexShrink: 0, borderTop: '1px solid #0d0d18', borderBottom: '1px solid #0d0d18', pointerEvents: 'none' }}>
         <span style={{ color: '#3a3a5a', fontSize: 6.5 }}>□ Chg{' '}
           <span style={{ color: chg != null ? (isUp ? '#4caf50' : '#f44336') : '#3a3a5a' }}>
-            {chg != null ? (isUp ? '+' : '') + fmtK(chg) + ' (' + (isUp ? '+' : '') + (chgPct?.toFixed(2) ?? '—') + '%)' : '—'}
+            {chg != null ? (isUp ? '+' : '') + fmtK(chg) + ' (' + (isUp ? '+' : '') + (chgPct?.toFixed(2) ?? ' // ') + '%)' : ' // '}
           </span>
         </span>
         <span style={{ color: '#3a3a5a', fontSize: 6.5 }}>□ Hi <span style={{ color: '#888' }}>{fmtK(high)}</span></span>
@@ -288,7 +288,7 @@ export function ChartPanel({ ticker: externalTicker, onGridChange, mobile = fals
     if (!mobile) {
       const urlParam = new URLSearchParams(window.location.search).get('c');
       if (urlParam) return; // Desktop: skip server fetch when URL already has tickers
-    } — skip server fetch
+    } // skip server fetch
     fetch(API + '/api/settings')
       .then(r => r.ok ? r.json() : null)
       .then(s => {
@@ -391,7 +391,7 @@ export function ChartPanel({ ticker: externalTicker, onGridChange, mobile = fals
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '3px 8px', borderBottom: '1px solid #141420', flexShrink: 0 }}>
         <span style={{ color: '#e8a020', fontWeight: 700, fontSize: 9, letterSpacing: '0.2em' }}>CHARTS</span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ color: '#222233', fontSize: 7 }}>{tickers.length}/{MAX} — drag to reorder · drop to add</span>
+          <span style={{ color: '#222233', fontSize: 7 }}>{tickers.length}/{MAX} // drag to reorder · drop to add</span>
           <div style={{ position: 'relative' }}>
             <button onClick={copyLink}
               style={{
