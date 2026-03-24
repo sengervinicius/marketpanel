@@ -37,7 +37,9 @@ function normalizeTicker(raw) {
   if (!raw) return 'SPY';
   if (typeof raw === 'object') raw = raw.symbol || 'SPY';
   const t = raw.trim().toUpperCase();
+  if (/^[A-Z]:/.test(t)) return t;
   if (t.endsWith('=X')) return 'C:' + t.slice(0, -2);
+  if (/^[A-Z]{6}$/.test(t)) return 'C:' + t;
   if (t.endsWith('-USD') && !t.startsWith('C:')) return 'X:' + t.replace('-USD', 'USD');
   return t;
 }
