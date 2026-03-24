@@ -25,6 +25,8 @@ const RANGES = [
   { label: '1Y', multiplier: 1,  timespan: 'day',    days: 365 },
 ];
 
+const _nameCache = new Map();
+
 function getFromDate(range) {
   const now = new Date();
   if (range.label === 'YTD') return `${now.getFullYear()}-01-01`;
@@ -82,6 +84,7 @@ function MiniChart({ ticker, index, onRemove, onReplace, onSwap, onOpenDetail })
   const [isDragOver,  setIsDragOver]  = useState(false);
   const [isDragging,  setIsDragging]  = useState(false);
   const [rangeIdx, setRangeIdx] = useState(0);
+  const [name, setName] = useState('');
   const mountedRef  = useRef(true);
   const intervalRef = useRef(null);
 
@@ -97,8 +100,13 @@ function MiniChart({ ticker, index, onRemove, onReplace, onSwap, onOpenDetail })
       if (!res.ok) throw new Error(res.status);
       const json = await res.json();
       if (!mountedRef.current) return;
-      const bars = (json.results || []).map(b => ({ t: b.t, v: b.c ?? b.vw ?? 0 }));
-      setData(bars);
+      let bars = (json.results || []).map(b => ({ t: b.t, v: b.c ?? b.vw ?? 0 }));
+            if (range.label === '1D') {
+        const d0 = new Date(); d0.setHours(0,0,0,0);
+        const tod = bars.filter(b => b.t >= d0.getTime());
+        if (tod.length > 0) bars = tod;
+      }
+setData(bars);
       if (bars.length >= 2) {
         const last  = bars[bars.length - 1].v;
         const first = bars[0].v;
@@ -141,6 +149,20 @@ function MiniChart({ ticker, index, onRemove, onReplace, onSwap, onOpenDetail })
         }
       })
       .catch(() => {});
+  }, [ticker]);
+  useEffect(() => {
+    if (!ticker) return;
+    const norm = normalizeTicker(ticker);
+    if (_nameCache.has(norm)) { setName(_nameCache.get(norm)); return; }
+    fetch(`${API}/api/ticker/${encodeURIComponent(norm)}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        const n = (d?.results?.name || '')
+          .replace(/,?\s*(Inc\.?|Corp\.?|Ltd\.?|LLC|S\.A\.|plc|NV|AG|SE)\s*$/i, '')
+          .trim().slice(0, 18);
+        _nameCache.set(norm, n);
+        if (mountedRef.current) setName(n);
+      }).catch(() => {});
   }, [ticker]);
 
   const handleRangeChange = (idx) => { clearInterval(intervalRef.current); setRangeIdx(idx); };
@@ -188,7 +210,7 @@ function MiniChart({ ticker, index, onRemove, onReplace, onSwap, onOpenDetail })
     >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '3px 5px', flexShrink: 0 }}>
         <span style={{ color: '#e8a020', fontWeight: 700, fontSize: 9, letterSpacing: '0.1em', pointerEvents: 'none' }}>
-          {isDragOver ? 'â SWAP / REPLACE' : displayTicker(ticker)}
+          {isDragOver ? '⇄ SWAP / REPLACE' : displayTicker(ticker) + (name ? ' · ' + name : '')}
         </span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
           {price != null && <span style={{ color: '#cccccc', fontSize: 8, fontVariantNumeric: 'tabular-nums', pointerEvents: 'none' }}>{fmtPrice(price)}</span>}
@@ -199,21 +221,21 @@ function MiniChart({ ticker, index, onRemove, onReplace, onSwap, onOpenDetail })
           )}
           <button onClick={() => onRemove(ticker)}
             style={{ background: 'none', border: 'none', color: '#333', cursor: 'pointer', fontSize: 10, padding: '0 2px', lineHeight: 1, fontFamily: 'inherit' }}
-            title="Remove">â</button>
+            title="Remove">✕</button>
         </div>
       </div>
       <div style={{ display: 'flex', gap: 6, padding: '1px 5px', flexShrink: 0, borderTop: '1px solid #0d0d18', borderBottom: '1px solid #0d0d18', pointerEvents: 'none' }}>
-        <span style={{ color: '#3a3a5a', fontSize: 6.5 }}>â¡ Chg{' '}
+        <span style={{ color: '#3a3a5a', fontSize: 6.5 }}> Chg{' '}
           <span style={{ color: chg != null ? (isUp ? '#4caf50' : '#f44336') : '#3a3a5a' }}>
             {chg != null ? (isUp ? '+' : '') + fmtK(chg) + ' (' + (isUp ? '+' : '') + (chgPct?.toFixed(2) ?? ' // ') + '%)' : ' // '}
           </span>
         </span>
-        <span style={{ color: '#3a3a5a', fontSize: 6.5 }}>â¡ Hi <span style={{ color: '#888' }}>{fmtK(high)}</span></span>
-        <span style={{ color: '#3a3a5a', fontSize: 6.5 }}>â¡ Lo <span style={{ color: '#888' }}>{fmtK(low)}</span></span>
+        <span style={{ color: '#3a3a5a', fontSize: 6.5 }}> Hi <span style={{ color: '#888' }}>{fmtK(high)}</span></span>
+        <span style={{ color: '#3a3a5a', fontSize: 6.5 }}> Lo <span style={{ color: '#888' }}>{fmtK(low)}</span></span>
       </div>
       <div style={{ flex: 1, minHeight: 0, pointerEvents: isDragOver ? 'none' : 'auto' }}>
         {loading ? (
-          <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#222233', fontSize: 8 }}>loadingâ¦</div>
+          <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#222233', fontSize: 8 }}>loading…</div>
         ) : data.length === 0 ? (
           <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#222233', fontSize: 8 }}>NO DATA</div>
         ) : (
@@ -253,7 +275,7 @@ function MiniChart({ ticker, index, onRemove, onReplace, onSwap, onOpenDetail })
       </div>
       {isDragOver && (
         <div style={{ position: 'absolute', inset: 0, background: 'rgba(255,102,0,0.08)', border: '2px solid #ff6600', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', zIndex: 10 }}>
-          <span style={{ color: '#ff6600', fontSize: 8, fontWeight: 700, letterSpacing: '0.15em', fontFamily: 'inherit' }}>â SWAP / REPLACE</span>
+          <span style={{ color: '#ff6600', fontSize: 8, fontWeight: 700, letterSpacing: '0.15em', fontFamily: 'inherit' }}>⇄ SWAP / REPLACE</span>
         </div>
       )}
     </div>
@@ -284,7 +306,7 @@ function EmptySlot({ index, onAdd, onSwap }) {
         } catch (_) {}
       }}
     >
-      <span style={{ fontSize: 14, lineHeight: 1, pointerEvents: 'none' }}>{isDragOver ? 'â¼' : '+'}</span>
+      <span style={{ fontSize: 14, lineHeight: 1, pointerEvents: 'none' }}>{isDragOver ? '▼' : '+'}</span>
       {isDragOver && <span style={{ fontSize: 7, letterSpacing: '0.1em', fontFamily: 'inherit', pointerEvents: 'none' }}>DROP TO ADD</span>}
     </div>
   );
