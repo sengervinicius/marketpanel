@@ -31,7 +31,7 @@ function localSearch(q) {
   return [...fxResults, ...cryptoResults];
 }
 
-export function SearchPanel({ onTickerSelect }) {
+export function SearchPanel({ onTickerSelect, onOpenDetail }) {
   const [query, setQuery]     = useState('');
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -125,6 +125,7 @@ export function SearchPanel({ onTickerSelect }) {
                 draggable
                 onDragStart={(e) => handleDragStart(e, item)}
                 onClick={() => handleSelect(item)}
+                onDoubleClick={() => onOpenDetail?.(item.symbol)}
                 style={{
                   padding: '10px 10px', borderBottom: '1px solid #161616',
                   cursor: 'grab', display: 'flex', alignItems: 'center',
