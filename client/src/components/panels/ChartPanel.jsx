@@ -185,7 +185,7 @@ function MiniChart({ ticker, index, onRemove, onReplace, onSwap, onOpenDetail })
   return (
     <div draggable
       data-ticker={ticker}
-      data-ticker-label={displayTicker(ticker)}{TICKER_NAMES[ticker] ? <span style={{color:'#555',fontSize:7,marginLeft:3}}>{TICKER_NAMES[ticker]}</span> : null}
+      data-ticker-label={displayTicker(ticker)}
       onDoubleClick={() => onOpenDetail?.(ticker)}
       data-ticker-type={assetType(ticker)}
       style={{
@@ -219,6 +219,7 @@ function MiniChart({ ticker, index, onRemove, onReplace, onSwap, onOpenDetail })
         <span style={{ color: '#e8a020', fontWeight: 700, fontSize: 9, letterSpacing: '0.1em', pointerEvents: 'none' }}>
           {isDragOver ? 'â SWAP / REPLACE' : displayTicker(ticker)}
         </span>
+        {TICKER_NAMES[ticker] ? <span style={{ color: '#555', fontSize: 7, marginLeft: 3, pointerEvents: 'none' }}>{TICKER_NAMES[ticker]}</span> : null}
         <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
           {price != null && <span style={{ color: '#cccccc', fontSize: 8, fontVariantNumeric: 'tabular-nums', pointerEvents: 'none' }}>{fmtPrice(price)}</span>}
           {chgPct != null && (
