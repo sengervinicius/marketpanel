@@ -430,7 +430,7 @@ export function ChartPanel({ ticker: externalTicker, onGridChange, mobile = fals
       <div style={{ display: 'flex', flexDirection: 'column', background: '#040508' }} {...outerDrop}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', borderBottom: '1px solid #141420' }}>
           <span style={{ color: '#e8a020', fontWeight: 700, fontSize: 10, letterSpacing: '0.2em' }}>CHARTS</span>
-          <span style={{ color: '#333', fontSize: 8 }}>{tickers.length}/{MAX} Â· use "SYNC TO MOBILE" on desktop to import</span>
+          <span style={{ color: '#333', fontSize: 8 }}>{tickers.length}/{MAX} · use "SYNC TO MOBILE" on desktop to import</span>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gridAutoRows: '46vw', gap: 1, padding: 1 }}>
           {tickers.map((t, i) => (
@@ -447,7 +447,7 @@ export function ChartPanel({ ticker: externalTicker, onGridChange, mobile = fals
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '3px 8px', borderBottom: '1px solid #141420', flexShrink: 0 }}>
         <span style={{ color: '#e8a020', fontWeight: 700, fontSize: 9, letterSpacing: '0.2em' }}>CHARTS</span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ color: '#222233', fontSize: 7 }}>{tickers.length}/{MAX} // drag to reorder Â· drop to add</span>
+          <span style={{ color: '#222233', fontSize: 7 }}>{tickers.length}/{MAX} // drag to reorder · drop to add</span>
           <div style={{ position: 'relative' }}>
             <button onClick={copyLink}
               style={{
@@ -457,7 +457,7 @@ export function ChartPanel({ ticker: externalTicker, onGridChange, mobile = fals
                 padding: '2px 6px', borderRadius: 2, fontFamily: 'inherit',
                 letterSpacing: '0.05em', transition: 'all 0.2s',
               }}>
-              {copied ? 'â COPIED' : 'â SYNC TO MOBILE'}
+              {copied ? '✓ COPIED' : '→ SYNC TO MOBILE'}
             </button>
             {showQR && (
               <div onClick={() => setShowQR(false)}
@@ -469,7 +469,7 @@ export function ChartPanel({ ticker: externalTicker, onGridChange, mobile = fals
                   <span style={{ color: '#e8a020', fontSize: 11, fontWeight: 700, letterSpacing: '0.15em' }}>SYNC TO MOBILE</span>
                   <span style={{ color: '#555', fontSize: 9 }}>Scan with your phone to open your {tickers.length} charts</span>
                   <img src={qrUrl} alt="QR Code" style={{ width: 180, height: 180, borderRadius: 4 }} />
-                  <span style={{ color: '#333', fontSize: 8 }}>Link also copied to clipboard Â· click anywhere to close</span>
+                  <span style={{ color: '#333', fontSize: 8 }}>Link also copied to clipboard · click anywhere to close</span>
                 </div>
               </div>
             )}
