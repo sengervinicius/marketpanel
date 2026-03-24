@@ -81,6 +81,9 @@ export default function BrazilPanel({ onTickerClick }) {
           return (
             <div
               key={s.symbol}
+              data-ticker={s.symbol + '.SA'}
+              data-ticker-label={s.name}
+              data-ticker-type="BR"
               draggable
               onDragStart={e => {
                 // Pass .SA suffix so ChartPanel routes to Yahoo Finance for B3 historical data
