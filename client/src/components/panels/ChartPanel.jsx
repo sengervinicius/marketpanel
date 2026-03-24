@@ -158,8 +158,12 @@ setData(bars);
       .then(r => r.ok ? r.json() : null)
       .then(d => {
         const n = (d?.results?.name || '')
-          .replace(/,?\s*(Inc\.?|Corp\.?|Ltd\.?|LLC|S\.A\.|plc|NV|AG|SE)\s*$/i, '')
-          .trim().slice(0, 18);
+      .replace(/\s+-\s+.+$/, '')
+      .replace(/,?\s*(Inc\.|Corp\.|Ltd\.)\s+.+$/i, '')
+      .replace(/,?\s*(Inc\.?|Corp\.?|Ltd\.?|LLC|S\.A\.|plc|NV|AG|SE)\s*$/i, '')
+      .replace(/[,.\s]+$/, '')
+      .trim()
+      .slice(0, 22)
         _nameCache.set(norm, n);
         if (mountedRef.current) setName(n);
       }).catch(() => {});
