@@ -25,7 +25,7 @@ function SectionDivider({ label, color = '#444' }) {
   );
 }
 
-export function StockPanel({ data, loading, onTickerClick }) {
+export function StockPanel({ data, loading, onTickerClick, onOpenDetail }) {
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#0a0a0a' }}>
       {/* Header */}
@@ -60,6 +60,7 @@ export function StockPanel({ data, loading, onTickerClick }) {
                   e.dataTransfer.setData('application/x-ticker', JSON.stringify({ symbol: s.symbol, name: s.label, type: 'EQUITY' }));
                 }}
                 onClick={() => onTickerClick?.(s.symbol)}
+                onDoubleClick={() => onOpenDetail?.(s.symbol)}
                 onContextMenu={e => showInfo(e, s.symbol, s.label, 'EQUITY')}
                 style={{ display: 'grid', gridTemplateColumns: COLS, padding: '3px 8px', borderBottom: '1px solid #141414', cursor: 'pointer', alignItems: 'center' }}
                 onMouseEnter={e => e.currentTarget.style.background = '#141414'}
@@ -85,6 +86,7 @@ export function StockPanel({ data, loading, onTickerClick }) {
                   e.dataTransfer.setData('application/x-ticker', JSON.stringify({ symbol: s.symbol, name: s.label, type: 'EQUITY' }));
                 }}
                 onClick={() => onTickerClick?.(s.symbol)}
+                onDoubleClick={() => onOpenDetail?.(s.symbol)}
                 onContextMenu={e => showInfo(e, s.symbol, s.label, 'ADR')}
                 style={{ display: 'grid', gridTemplateColumns: COLS, padding: '3px 8px', borderBottom: '1px solid #141414', cursor: 'pointer', alignItems: 'center' }}
                 onMouseEnter={e => e.currentTarget.style.background = '#141414'}
