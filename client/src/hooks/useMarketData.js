@@ -21,7 +21,7 @@ function normalizePolygon(data, stripPrefix) {
     const key = stripPrefix ? t.ticker.replace(stripPrefix, '') : t.ticker;
     // Prefer min.c (current minute close) — day.c is 0 during market hours (only set at session end)
     // Using ?? would stop at day.c=0 without falling through, so we explicitly check > 0
-    const price = (t.min?.c > 0 ? t.min.c : null) ?? (t.day?.c > 0 ? t.day.c : null) ?? t.prevDay?.c ?? null;
+    const price = (t.min?.c > 0 ? t.min.c : null) ?? (t.day?.c > 0 ? t.day.c : null) ?? (t.lastTrade?.p > 0 ? t.lastTrade.p : null) ?? t.prevDay?.c ?? null;
     result[key] = {
       symbol:    key,
       price,
