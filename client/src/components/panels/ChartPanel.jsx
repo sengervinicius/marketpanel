@@ -425,14 +425,28 @@ export function ChartPanel({ ticker: externalTicker, onGridChange, mobile = fals
     },
   };
 
+  const [addInput, setAddInput] = useState('');
+  const [showAddInput, setShowAddInput] = useState(false);
+
   if (mobile) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', background: '#040508' }} {...outerDrop}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', borderBottom: '1px solid #141420' }}>
-          <span style={{ color: '#e8a020', fontWeight: 700, fontSize: 10, letterSpacing: '0.2em' }}>CHARTS</span>
-          <span style={{ color: '#333', fontSize: 8 }}>{tickers.length}/{MAX} · use "SYNC TO MOBILE" on desktop to import</span>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gridAutoRows: '46vw', gap: 1, padding: 1 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', borderBottom: '1px solid #141420' }}>
+           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px' }}>
+             <span style={{ color: '#e8a020', fontWeight: 700, fontSize: 10, letterSpacing: '0.2em' }}>CHARTS</span>
+             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+               <span style={{ color: '#444', fontSize: 8 }}>{tickers.length}/{MAX}</span>
+               <button onClick={() => setShowAddInput(v => !v)} style={{ background: showAddInput ? '#1a2a1a' : '#111', border: '1px solid #2a2a2a', color: showAddInput ? '#8f8' : '#666', borderRadius: 3, padding: '2px 7px', fontSize: 10, cursor: 'pointer' }}>+ ADD</button>
+             </div>
+           </div>
+           {showAddInput && (
+             <div style={{ display: 'flex', padding: '4px 10px 6px', gap: 6 }}>
+               <input value={addInput} onChange={e => setAddInput(e.target.value.toUpperCase())} onKeyDown={e => { if (e.key === 'Enter' && addInput.trim()) { addTicker(addInput.trim()); setAddInput(''); setShowAddInput(false); } }} placeholder="TICKER" style={{ flex: 1, background: '#0a0a12', border: '1px solid #2a2a3a', color: '#ddd', padding: '4px 8px', fontSize: 11, borderRadius: 3, outline: 'none', fontFamily: 'inherit' }} autoFocus />
+               <button onClick={() => { if (addInput.trim()) { addTicker(addInput.trim()); setAddInput(''); setShowAddInput(false); } }} style={{ background: '#1a3a2a', border: '1px solid #3a6a4a', color: '#8f8', padding: '4px 10px', fontSize: 10, borderRadius: 3, cursor: 'pointer' }}>ADD</button>
+             </div>
+           )}
+         </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gridAutoRows: '40vw', gap: 1, padding: 1 }}>
           {tickers.map((t, i) => (
             <MiniChart key={t} ticker={t} index={i} onRemove={removeTicker} onReplace={replaceTicker} onSwap={swapTickers} onOpenDetail={onOpenDetail} />
           ))}
