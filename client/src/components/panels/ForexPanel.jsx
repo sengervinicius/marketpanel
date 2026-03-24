@@ -60,6 +60,9 @@ export function ForexPanel({ data, cryptoData, loading, onTickerClick }) {
               return (
                 <div
                   key={pair.symbol}
+                  data-ticker={pair.symbol}
+                  data-ticker-label={pair.label}
+                  data-ticker-type="FX"
                   draggable
                   onDragStart={e => {
                     e.dataTransfer.effectAllowed = 'copy';
@@ -88,6 +91,9 @@ export function ForexPanel({ data, cryptoData, loading, onTickerClick }) {
               return (
                 <div
                   key={c.symbol}
+                  data-ticker={'X:' + c.symbol}
+                  data-ticker-label={c.label}
+                  data-ticker-type="CRYPTO"
                   draggable
                   onDragStart={e => {
                     e.dataTransfer.effectAllowed = 'copy';
