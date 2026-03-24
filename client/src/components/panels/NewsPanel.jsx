@@ -90,7 +90,7 @@ export function NewsPanel() {
           <div style={{ color: '#333', padding: 12, textAlign: 'center', fontSize: 10 }}>No stories available.</div>
         ) : (
           news.map(item => (
-            <NewsItem key={item.id} item={item} isNew={newItems.has(item.id)} />
+            <NewsItem key={item.id} onClick={() => item.article_url && window.open(item.article_url, '_blank')} style={{ cursor: item.article_url ? 'pointer' : 'default' }} item={item} isNew={newItems.has(item.id)} />
           ))
         )}
       </div>
