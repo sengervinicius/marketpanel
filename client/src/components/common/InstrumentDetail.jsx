@@ -79,6 +79,7 @@ export default function InstrumentDetail({ ticker, onClose }) {
   const [deltaB,    setDeltaB]    = useState(null);
   const [hovered,   setHovered]   = useState(null);
 
+  const [fundsData, setFundsData] = useState(null);
   const range = RANGES[rangeIdx];
 
   // ââ Fetch bars âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
@@ -124,6 +125,15 @@ export default function InstrumentDetail({ ticker, onClose }) {
     fetch(`${API}/api/ticker/${encodeURIComponent(norm)}`)
       .then(r => r.json())
       .then(d => setInfo(d?.results ?? d))
+      .catch(() => {});
+  }, [norm]);
+
+  useEffect(() => {
+    if (!norm) return;
+    setFundsData(null);
+    fetch('/api/fundamentals/' + encodeURIComponent(norm))
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d) setFundsData(d); })
       .catch(() => {});
   }, [norm]);
 
@@ -224,7 +234,7 @@ export default function InstrumentDetail({ ticker, onClose }) {
             {deltaInfo.pct >= 0 ? '+' : ''}{fmt(deltaInfo.pct)}%
             &nbsp;({fmt(deltaInfo.delta)})
             <span style={{ color: '#444', marginLeft: 8, fontSize: 10 }}>
-              {deltaInfo.a.label} â {deltaInfo.b.label}
+              {deltaInfo.a.label} → {deltaInfo.b.label}
             </span>
           </span>
         )}
@@ -237,7 +247,7 @@ export default function InstrumentDetail({ ticker, onClose }) {
             background: deltaMode ? ORANGE : 'transparent',
             color: deltaMode ? '#fff' : '#666',
           }}
-        >â· Î MEASURE</button>
+        >⟷ Δ MEASURE</button>
 
         <button
           onClick={onClose}
@@ -394,37 +404,57 @@ export default function InstrumentDetail({ ticker, onClose }) {
           )}
         </div>
 
-        {/* ââ RIGHT: KEY STATS ââ */}
+        {/* -- RIGHT: KEY STATS -- */}
         <div style={{
-          width: 250, background: '#080808', borderLeft: '1px solid #1a1a1a',
+          width: 220, background: '#080808', borderLeft: '1px solid #1a1a1a',
           padding: '12px 14px', overflowY: 'auto', fontSize: 11, flexShrink: 0,
         }}>
-          <Section title="KEY STATISTICS">
-            <Stat label="LAST PRICE"    value={fmt(livePrice)} />
-            <Stat label="DAY CHANGE"    value={dayChgPct != null ? `${isPos?'+':''}${fmt(dayChgPct)}%` : '--'}
-                                        color={dayChgPct != null ? (isPos ? GREEN : RED) : undefined} />
-            <Stat label="DAY HIGH"      value={fmt(dayHigh)} />
-            <Stat label="DAY LOW"       value={fmt(dayLow)} />
-            <Stat label="VOLUME"        value={volume != null ? fmt(volume, 0) : '--'} />
-            <Stat label={`${range.label} HIGH`}   value={fmt(rangeHigh)} />
-            <Stat label={`${range.label} LOW`}    value={fmt(rangeLow)} />
-            <Stat label={`${range.label} RETURN`} value={rangeChg != null ? `${rangeChg>=0?'+':''}${fmt(rangeChg)}%` : '--'}
-                                                   color={rangeChg != null ? (rangeChg>=0 ? GREEN : RED) : undefined} />
-            {mktCap != null && <Stat label="MARKET CAP" value={fmt(mktCap)} />}
+          <Section title="PRICE">
+            <Stat label="LAST"       value={fmt(livePrice)} color="#e0e0e0" />
+            <Stat label="CHANGE"     value={dayChgPct != null ? (isPos?'+':'')+fmt(dayChgPct)+'%' : '--'} color={dayChgPct != null ? (isPos ? GREEN : RED) : '#555'} />
+            <Stat label="OPEN"       value={fmt(snap?.day?.o)} />
+            <Stat label="PREV CLOSE" value={fmt(prevClose)} />
+            <Stat label="DAY HIGH"   value={fmt(dayHigh)} />
+            <Stat label="DAY LOW"    value={fmt(dayLow)} />
+            {snap?.day?.vw != null && <Stat label="VWAP" value={fmt(snap.day.vw)} />}
+            <Stat label="VOLUME"     value={volume != null ? fmt(volume, 0) : '--'} />
           </Section>
-
+          <Section title="RANGE">
+            <Stat label={range.label + ' HIGH'}   value={fmt(rangeHigh)} />
+            <Stat label={range.label + ' LOW'}    value={fmt(rangeLow)} />
+            <Stat label={range.label + ' RETURN'} value={rangeChg != null ? (rangeChg>=0?'+':'')+fmt(rangeChg)+'%' : '--'} color={rangeChg != null ? (rangeChg>=0 ? GREEN : RED) : '#555'} />
+            {fundsData?.fiftyTwoWeekHigh != null && <Stat label="52W HIGH" value={fmt(fundsData.fiftyTwoWeekHigh)} />}
+            {fundsData?.fiftyTwoWeekLow  != null && <Stat label="52W LOW"  value={fmt(fundsData.fiftyTwoWeekLow)} />}
+          </Section>
+          {!isFX && !isCrypto && (
+            <Section title="FUNDAMENTALS">
+              {fundsData == null && <Stat label="" value="Loading..." color="#333" />}
+              {fundsData?.marketCap      != null && <Stat label="MARKET CAP"   value={fundsData.marketCap >= 1e12 ? '$'+(fundsData.marketCap/1e12).toFixed(2)+'T' : fundsData.marketCap >= 1e9 ? '$'+(fundsData.marketCap/1e9).toFixed(2)+'B' : '$'+(fundsData.marketCap/1e6).toFixed(1)+'M'} />}
+              {fundsData?.peRatio        != null && <Stat label="P/E (TTM)"    value={fundsData.peRatio.toFixed(1)+'x'} />}
+              {fundsData?.forwardPE      != null && <Stat label="P/E (FWD)"    value={fundsData.forwardPE.toFixed(1)+'x'} />}
+              {fundsData?.eps            != null && <Stat label="EPS (TTM)"    value={'$'+fundsData.eps.toFixed(2)} />}
+              {fundsData?.beta           != null && <Stat label="BETA"         value={fundsData.beta.toFixed(2)} />}
+              {fundsData?.dividendYield  != null && <Stat label="DIV YIELD"    value={(fundsData.dividendYield*100).toFixed(2)+'%'} />}
+              {fundsData?.returnOnEquity != null && <Stat label="ROE"          value={(fundsData.returnOnEquity*100).toFixed(1)+'%'} />}
+              {fundsData?.sharesOutstanding != null && <Stat label="SHARES OUT" value={fundsData.sharesOutstanding >= 1e9 ? (fundsData.sharesOutstanding/1e9).toFixed(2)+'B' : (fundsData.sharesOutstanding/1e6).toFixed(0)+'M'} />}
+            </Section>
+          )}
+          {!isFX && !isCrypto && (fundsData?.sector || fundsData?.industry) && (
+            <Section title="PROFILE">
+              {fundsData.sector   && <Stat label="SECTOR"   value={fundsData.sector} />}
+              {fundsData.industry && <Stat label="INDUSTRY" value={fundsData.industry} />}
+            </Section>
+          )}
           {desc && (
             <Section title="ABOUT">
-              <p style={{ color: '#484848', fontSize: 10, lineHeight: 1.7, margin: 0 }}>
-                {desc.slice(0, 600)}{desc.length > 600 ? 'â¦' : ''}
+              <p style={{ color: '#484848', fontSize: 10, lineHeight: 1.6, margin: 0 }}>
+                {desc.length > 400 ? desc.slice(0, 400) + '...' : desc}
               </p>
             </Section>
           )}
-
-          <Section title="Î MEASURE TOOL">
-            <p style={{ color: '#383838', fontSize: 10, lineHeight: 1.7, margin: 0 }}>
-              Activate with the "Î MEASURE" button, then click two points on the price chart
-              to calculate the exact price change and % return between any two dates.
+          <Section title="MEASURE TOOL">
+            <p style={{ color: '#383838', fontSize: 10, lineHeight: 1.6, margin: 0 }}>
+              Click the measure button, then click two points on the chart to calculate price change and return between any two dates.
             </p>
           </Section>
         </div>
