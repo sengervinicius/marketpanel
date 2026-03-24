@@ -65,6 +65,9 @@ export function CommoditiesPanel({ data, loading, onTickerClick }) {
                   return (
                     <div
                       key={c.symbol}
+                      data-ticker={c.symbol}
+                      data-ticker-label={c.label}
+                      data-ticker-type="COMMODITY"
                       draggable
                       onDragStart={e => {
                         e.dataTransfer.effectAllowed = 'copy';
@@ -91,3 +94,4 @@ export function CommoditiesPanel({ data, loading, onTickerClick }) {
     </div>
   );
 }
+Fix CommoditiesPanel: add data-ticker attributes for hover tooltips
