@@ -51,6 +51,9 @@ export function StockPanel({ data, loading, onTickerClick }) {
             {US_STOCKS.map(s => (
               <div
                 key={s.symbol}
+                data-ticker={s.symbol}
+                data-ticker-label={s.label}
+                data-ticker-type="EQUITY"
                 draggable
                 onDragStart={e => {
                   e.dataTransfer.effectAllowed = 'copy';
@@ -73,6 +76,9 @@ export function StockPanel({ data, loading, onTickerClick }) {
             {BRAZIL_ADRS.map(s => (
               <div
                 key={s.symbol}
+                data-ticker={s.symbol}
+                data-ticker-label={s.label}
+                data-ticker-type="ADR"
                 draggable
                 onDragStart={e => {
                   e.dataTransfer.effectAllowed = 'copy';
