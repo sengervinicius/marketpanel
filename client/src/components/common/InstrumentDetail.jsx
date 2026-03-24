@@ -24,11 +24,12 @@ const RANGES = [
 
 function normalizeTicker(raw) {
   if (!raw) return 'SPY';
-  if (typeof raw === 'object') raw = raw.symbol || 'SPY';
-  let t = raw.trim().toUpperCase();
-  if (t.endsWith('-X')) return 'C:' + t.slice(0, -2);
-  if (t.endsWith('-USD') && !t.startsWith('C:')) return 'X:' + t.replace('-USD', 'USD');
-  return t;
+  // Already in Polygon prefixed format: X:BTCUSD, C:EURUSD, I:SPX etc
+  if (/^[A-Z]:/.test(raw)) return raw;
+  // 6-char uppercase FX pairs (EURUSD, USDBRL, GBPUSD) -> add C: prefix
+  if (/^[A-Z]{6}$/.test(raw)) return 'C:' + raw;
+  // Equities, ETFs, Brazilian .SA tickers - pass through as-is
+  return raw;
 }
 
 function displayTicker(norm) {
