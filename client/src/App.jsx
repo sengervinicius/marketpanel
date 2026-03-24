@@ -12,6 +12,7 @@ import { DICurvePanel } from './components/panels/DICurvePanel';
 import BrazilPanel from './components/panels/BrazilPanel';
 import GlobalIndicesPanel from './components/panels/GlobalIndicesPanel';
 import { TickerTooltip } from './components/common/TickerTooltip';
+import InstrumentDetail from './components/common/InstrumentDetail';
 import './App.css';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
@@ -224,6 +225,8 @@ export default function App() {
 
   const border = '1px solid #1e1e1e';
 
+  const [detailTicker, setDetailTicker] = useState(null);
+
   const goChart = useCallback((t) => {
     const sym = typeof t === 'object' ? (t.symbol || t) : t;
     setChartTicker(sym);
@@ -254,7 +257,7 @@ export default function App() {
         {/* Row 1: Charts | Stocks | Forex+Crypto */}
         <div style={{ flex: rowSizes[0], flexShrink: 0, display:'flex', overflow:'hidden', minHeight: 220 }}>
           <div style={{ flex: colSizes1[0], minWidth: 0, borderRight:border, overflow:'hidden', height:'100%' }}>
-            <ChartPanel ticker={chartTicker} onTickerChange={setChartTicker} onGridChange={setChartGridCount} />
+            <ChartPanel ticker={chartTicker} onTickerChange={setChartTicker} onGridChange={setChartGridCount} onOpenDetail={setDetailTicker} />
           </div>
           <ColResizeHandle onStart={e => startColResize1(0, e)} />
           <div style={{ flex: colSizes1[1], minWidth: 0, borderRight:border, overflow:'hidden', height:'100%' }}>
@@ -308,7 +311,8 @@ export default function App() {
           </div>
         </div>
 
-        <TickerTooltip />
+        {detailTicker && <InstrumentDetail ticker={detailTicker} onClose={() => setDetailTicker(null)} />}
+      <TickerTooltip />
       </div>
     );
   }
@@ -334,7 +338,7 @@ export default function App() {
 
       <div style={{ flex:1, overflowY:'auto', overflowX:'hidden', minHeight:0, WebkitOverflowScrolling:'touch' }}>
         {activeTab === 'charts' && (
-          <ChartPanel ticker={chartTicker} onTickerChange={setChartTicker} onGridChange={setChartGridCount} mobile={true} />
+          <ChartPanel ticker={chartTicker} onTickerChange={setChartTicker} onGridChange={setChartGridCount} onOpenDetail={setDetailTicker} mobile={true} />
         )}
         {activeTab === 'usequity' && (
           <StockPanel data={data?.stocks} loading={loading} onTickerClick={t => goChart(t)} />
@@ -391,6 +395,7 @@ export default function App() {
           );
         })}
       </nav>
+      {detailTicker && <InstrumentDetail ticker={detailTicker} onClose={() => setDetailTicker(null)} />}
       <TickerTooltip />
     </div>
   );
