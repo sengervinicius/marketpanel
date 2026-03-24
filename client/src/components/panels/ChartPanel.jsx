@@ -14,21 +14,6 @@ const MAX = 16;
 const GRID_COLS = 4;
 const GRID_ROWS = 4;
 
-const TICKER_NAMES = {
-  'BOVA11.SA':'Ibovespa ETF','PETR3.SA':'Petrobras','VALE3.SA':'Vale',
-  'ITUB4.SA':'Itaú','BBDC4.SA':'Bradesco','WEGE3.SA':'WEG','ABEV3.SA':'Ambev',
-  'MGLU3.SA':'Magazine Luiza','RENT3.SA':'Localiza','FLRY3.SA':'Fleury',
-  'ONCO3.SA':'Oncoclínicas','BRFS3.SA':'BRF','CMIN3.SA':'CSN Mineração',
-  'SPY':'S&P 500','QQQ':'Nasdaq 100','DIA':'Dow Jones','IWM':'Russell 2000',
-  'GLD':'Gold','SLV':'Silver','USO':'WTI Oil','UNG':'Nat Gas',
-  'CPER':'Copper','REMX':'Rare Earth','SOYB':'Soybeans','WEAT':'Wheat',
-  'TSLA':'Tesla','AAPL':'Apple','MSFT':'Microsoft','NVDA':'NVIDIA',
-  'GOOGL':'Alphabet','META':'Meta','AMZN':'Amazon','GS':'Goldman Sachs',
-  'JPM':'JPMorgan','BAC':'Bank of America','EWG':'Germany DAX',
-  'EWU':'UK FTSE','EZU':'Euro Stoxx','EWQ':'France CAC','EWP':'Spain IBEX',
-  'EWZ':'Brazil ETF','EWM':'Mexico ETF','EWC':'Canada ETF','EWJ':'Japan ETF',
-  'FXI':'China ETF','EFA':'EAFE ETF',
-};
 
 
 const RANGES = [
@@ -219,7 +204,6 @@ function MiniChart({ ticker, index, onRemove, onReplace, onSwap, onOpenDetail })
         <span style={{ color: '#e8a020', fontWeight: 700, fontSize: 9, letterSpacing: '0.1em', pointerEvents: 'none' }}>
           {isDragOver ? 'â SWAP / REPLACE' : displayTicker(ticker)}
         </span>
-        {TICKER_NAMES[ticker] ? <span style={{ color: '#555', fontSize: 7, marginLeft: 3, pointerEvents: 'none' }}>{TICKER_NAMES[ticker]}</span> : null}
         <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
           {price != null && <span style={{ color: '#cccccc', fontSize: 8, fontVariantNumeric: 'tabular-nums', pointerEvents: 'none' }}>{fmtPrice(price)}</span>}
           {chgPct != null && (
