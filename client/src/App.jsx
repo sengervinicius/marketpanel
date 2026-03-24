@@ -261,11 +261,11 @@ export default function App() {
           </div>
           <ColResizeHandle onStart={e => startColResize1(0, e)} />
           <div style={{ flex: colSizes1[1], minWidth: 0, borderRight:border, overflow:'hidden', height:'100%' }}>
-            <StockPanel data={data?.stocks} loading={loading} onTickerClick={setChartTicker} />
+            <StockPanel data={data?.stocks} loading={loading} onTickerClick={setChartTicker} onOpenDetail={setDetailTicker} />
           </div>
           <ColResizeHandle onStart={e => startColResize1(1, e)} />
           <div style={{ flex: colSizes1[2], minWidth: 0, overflow:'hidden', height:'100%' }}>
-            <ForexPanel data={data?.forex} cryptoData={data?.crypto} loading={loading} onTickerClick={setChartTicker} />
+            <ForexPanel data={data?.forex} cryptoData={data?.crypto} loading={loading} onTickerClick={setChartTicker} onOpenDetail={setDetailTicker} />
           </div>
         </div>
 
@@ -278,15 +278,15 @@ export default function App() {
           </div>
           <ColResizeHandle onStart={e => startColResize2(0, e)} />
           <div style={{ flex: colSizes2[1], minWidth: 0, borderRight:border, overflow:'hidden', height:'100%' }}>
-            <BrazilPanel onTickerClick={setChartTicker} />
+            <BrazilPanel onTickerClick={setChartTicker} onOpenDetail={setDetailTicker} />
           </div>
           <ColResizeHandle onStart={e => startColResize2(1, e)} />
           <div style={{ flex: colSizes2[2], minWidth: 0, borderRight:border, overflow:'hidden', height:'100%' }}>
-            <GlobalIndicesPanel onTickerClick={setChartTicker} />
+            <GlobalIndicesPanel onTickerClick={setChartTicker} onOpenDetail={setDetailTicker} />
           </div>
           <ColResizeHandle onStart={e => startColResize2(2, e)} />
           <div style={{ flex: colSizes2[3], minWidth: 0, overflow:'hidden', height:'100%' }}>
-            <CommoditiesPanel data={data?.stocks} loading={loading} onTickerClick={setChartTicker} />
+            <CommoditiesPanel data={data?.stocks} loading={loading} onTickerClick={setChartTicker} onOpenDetail={setDetailTicker} />
           </div>
         </div>
 
@@ -299,7 +299,7 @@ export default function App() {
           </div>
           <ColResizeHandle onStart={e => startColResize3(0, e)} />
           <div style={{ flex: colSizes3[1], minWidth: 0, borderRight:border, overflow:'hidden', height:'100%' }}>
-            <SearchPanel onTickerSelect={setChartTicker} />
+            <SearchPanel onTickerSelect={setChartTicker} onOpenDetail={setDetailTicker} />
           </div>
           <ColResizeHandle onStart={e => startColResize3(1, e)} />
           <div style={{ flex: colSizes3[2], minWidth: 0, borderRight:border, overflow:'hidden', height:'100%' }}>
@@ -341,22 +341,22 @@ export default function App() {
           <ChartPanel ticker={chartTicker} onTickerChange={setChartTicker} onGridChange={setChartGridCount} onOpenDetail={setDetailTicker} mobile={true} />
         )}
         {activeTab === 'usequity' && (
-          <StockPanel data={data?.stocks} loading={loading} onTickerClick={t => goChart(t)} />
+          <StockPanel data={data?.stocks} loading={loading} onTickerClick={t => goChart(t)} onOpenDetail={setDetailTicker} />
         )}
         {activeTab === 'brazil' && (
-          <BrazilPanel onTickerClick={t => goChart(t)} />
+          <BrazilPanel onTickerClick={t => goChart(t)} onOpenDetail={setDetailTicker} />
         )}
         {activeTab === 'fxcrypto' && (
           <div>
-            <ForexPanel data={data?.forex} cryptoData={data?.crypto} loading={loading} onTickerClick={setChartTicker} />
+            <ForexPanel data={data?.forex} cryptoData={data?.crypto} loading={loading} onTickerClick={setChartTicker} onOpenDetail={setDetailTicker} />
             <div style={{ borderTop:'1px solid #1e1e1e' }}>
-              <CommoditiesPanel data={data?.stocks} loading={loading} onTickerClick={setChartTicker} />
+              <CommoditiesPanel data={data?.stocks} loading={loading} onTickerClick={setChartTicker} onOpenDetail={setDetailTicker} />
             </div>
           </div>
         )}
         {activeTab === 'global' && (
           <div>
-            <GlobalIndicesPanel onTickerClick={t => goChart(t)} />
+            <GlobalIndicesPanel onTickerClick={t => goChart(t)} onOpenDetail={setDetailTicker} />
             <div style={{ borderTop:'1px solid #1e1e1e' }}>
               <IndexPanel data={data?.indices} loading={loading} onTickerClick={t => goChart(t)} />
             </div>
@@ -364,7 +364,7 @@ export default function App() {
         )}
         {activeTab === 'rates' && <DICurvePanel />}
         {activeTab === 'news' && <NewsPanel />}
-        {activeTab === 'search' && <SearchPanel onTickerSelect={t => goChart(t)} />}
+        {activeTab === 'search' && <SearchPanel onTickerSelect={t => goChart(t)} onOpenDetail={setDetailTicker} />}
       </div>
 
       <nav style={{
