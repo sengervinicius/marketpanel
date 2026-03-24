@@ -17,6 +17,7 @@ const NAMES = {
   MCHI:'CHINA', EWT:'TAIWAN', EWS:'SINGAPORE', INDA:'INDIA',
 };
 
+let _pt = null;
 export default function GlobalIndicesPanel({ onTickerClick, onOpenDetail }) {
   const [data, setData]       = useState({});
   const [loading, setLoading] = useState(true);
@@ -96,6 +97,9 @@ export default function GlobalIndicesPanel({ onTickerClick, onOpenDetail }) {
                   }}
                   onClick={() => onTickerClick?.({ symbol: ticker, label: NAMES[ticker] || ticker })}
                   onDoubleClick={() => onOpenDetail?.(ticker)}
+             onTouchStart={(e) => { e.stopPropagation(); _pt = setTimeout(() => onOpenDetail?.(ticker), 500); }}
+             onTouchEnd={() => clearTimeout(_pt)}
+             onTouchMove={() => clearTimeout(_pt)}
                 >
                   <span style={{ color: '#e8a020', fontWeight: 500, fontSize: 9 }}>{ticker}</span>
                   <span style={{ color: '#777', fontSize: 9, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
