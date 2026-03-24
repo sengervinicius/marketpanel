@@ -131,7 +131,7 @@ export default function InstrumentDetail({ ticker, onClose }) {
   useEffect(() => {
     if (!norm) return;
     setFundsData(null);
-    fetch('/api/fundamentals/' + encodeURIComponent(norm))
+    fetch(API + '/api/fundamentals/' + encodeURIComponent(norm))
       .then(r => r.ok ? r.json() : null)
       .then(d => { if (d) setFundsData(d); })
       .catch(() => {});
@@ -187,6 +187,7 @@ export default function InstrumentDetail({ ticker, onClose }) {
   }, [deltaMode, deltaA, deltaB]);
 
   // ââ Render ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+  const isMobile = window.innerWidth < 768;
   return (
     <div
       style={{
@@ -252,18 +253,18 @@ export default function InstrumentDetail({ ticker, onClose }) {
         <button
           onClick={onClose}
           style={{
-            width: 26, height: 26, borderRadius: '50%',
+            width: isMobile ? 44 : 26, height: isMobile ? 44 : 26, borderRadius: '50%',
             border: '1px solid #333', background: '#1a1a1a',
             color: '#888', cursor: 'pointer', fontSize: 15, lineHeight: '1',
           }}
-        >Ã</button>
+        >✕</button>
       </div>
 
       {/* ââ BODY âââââââââââââââââââââââââââââââââââââââââââââââââââ */}
-      <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: isMobile ? 'column' : 'row', minHeight: 0, overflowY: isMobile ? 'auto' : 'hidden' }}>
 
         {/* ââ LEFT: CHARTS ââ */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '8px 10px', minWidth: 0 }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '8px 10px', minWidth: 0, minHeight: isMobile ? '55vh' : 0 }}>
 
           {/* Range selector row */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 8 }}>
@@ -295,7 +296,7 @@ export default function InstrumentDetail({ ticker, onClose }) {
           {/* Charts area */}
           {loading && (
             <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#333' }}>
-              Loading chart dataâ¦
+              Loading chart data…
             </div>
           )}
 
@@ -406,7 +407,9 @@ export default function InstrumentDetail({ ticker, onClose }) {
 
         {/* -- RIGHT: KEY STATS -- */}
         <div style={{
-          width: 220, background: '#080808', borderLeft: '1px solid #1a1a1a',
+          width: isMobile ? '100%' : 220, background: '#080808',
+          borderLeft: isMobile ? 'none' : '1px solid #1a1a1a',
+          borderTop: isMobile ? '1px solid #1a1a1a' : 'none',
           padding: '12px 14px', overflowY: 'auto', fontSize: 11, flexShrink: 0,
         }}>
           <Section title="PRICE">
