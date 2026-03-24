@@ -449,9 +449,19 @@ router.get('/quote/:symbol', async (req, res) => {
 
 router.get('/snapshot/ticker/:symbol', async (req, res) => {
   try {
-    const data = await polyFetch(
-      `/v2/snapshot/locale/us/markets/stocks/tickers/${req.params.symbol.toUpperCase()}`
-    );
+    const sym = req.params.symbol.toUpperCase();
+    let url;
+    if (sym.startsWith('X:')) {
+      // Crypto: X:BTCUSD
+      url = `/v2/snapshot/locale/global/markets/crypto/tickers/${sym}`;
+    } else if (sym.startsWith('C:')) {
+      // Forex: C:EURUSD
+      url = `/v2/snapshot/locale/global/markets/forex/tickers/${sym}`;
+    } else {
+      // Equities / ETFs / .SA
+      url = `/v2/snapshot/locale/us/markets/stocks/tickers/${sym}`;
+    }
+    const data = await polyFetch(url);
     res.json(data);
   } catch (e) {
     console.error('[API] /snapshot/ticker error:', e.message);
