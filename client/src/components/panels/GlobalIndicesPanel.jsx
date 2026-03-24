@@ -32,7 +32,7 @@ export default function GlobalIndicesPanel({ onTickerClick }) {
           ?? (t.day?.c > 0 ? t.day.c : null)
           ?? (t.prevDay?.c && t.todaysChange != null ? t.prevDay.c + t.todaysChange : null)
           ?? t.prevDay?.c
-          ?? 0;
+          ?? null;
         map[t.ticker] = { price, changePct: t.todaysChangePerc ?? 0, change: t.todaysChange ?? 0 };
       });
       setData(map);
@@ -83,6 +83,9 @@ export default function GlobalIndicesPanel({ onTickerClick }) {
               return (
                 <div
                   key={ticker}
+                  data-ticker={ticker}
+                  data-ticker-label={NAMES[ticker] || ticker}
+                  data-ticker-type="EQUITY"
                   style={rowStyle(i)}
                   draggable
                   onDragStart={e => {
