@@ -33,6 +33,9 @@ export function IndexPanel({ data, loading, onTickerClick }) {
           return (
             <div
               key={idx.symbol}
+              data-ticker={idx.symbol}
+              data-ticker-label={idx.label}
+              data-ticker-type="ETF"
               draggable
               onDragStart={e => {
                 e.dataTransfer.effectAllowed = 'copy';
