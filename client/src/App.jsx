@@ -364,7 +364,7 @@ export default function App() {
         )}
         {activeTab === 'rates' && <DICurvePanel />}
         {activeTab === 'news' && <NewsPanel />}
-        {activeTab === 'search' && <SearchPanel onTickerSelect={t => goChart(t)} onOpenDetail={setDetailTicker} />}
+        {activeTab === 'search' && <SearchPanel onTickerSelect={setDetailTicker} onOpenDetail={setDetailTicker} />}
       </div>
 
       <nav style={{
