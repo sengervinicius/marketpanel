@@ -56,6 +56,15 @@ const fmtK = (n) => {
   return n.toFixed(2);
 };
 
+function assetType(t) {
+  if (!t) return 'EQUITY';
+  if (t.startsWith('C:')) return 'FX';
+  if (t.startsWith('X:')) return 'CRYPTO';
+  if (t.endsWith('.SA')) return 'BR';
+  const ETFS = new Set(['SPY','QQQ','DIA','IWM','EWZ','EWW','EEM','EFA','FXI','EWJ','GLD','SLV','CPER','REMX','USO','UNG','SOYB','WEAT','CORN','BHP']);
+  if (ETFS.has(t)) return 'ETF';
+  return 'EQUITY';
+}
 function MiniChart({ ticker, index, onRemove, onReplace, onSwap }) {
   const [data,    setData]    = useState([]);
   const [price,   setPrice]   = useState(null);
@@ -122,6 +131,9 @@ function MiniChart({ ticker, index, onRemove, onReplace, onSwap }) {
 
   return (
     <div draggable
+      data-ticker={ticker}
+      data-ticker-label={displayTicker(ticker)}
+      data-ticker-type={assetType(ticker)}
       style={{
         background: isDragOver ? '#0d1a2e' : '#07090f',
         border: `1px solid ${isDragOver ? '#ff6600' : isDragging ? '#e8a020' : '#141420'}`,
@@ -253,7 +265,7 @@ function EmptySlot({ index, onAdd, onSwap }) {
 export function ChartPanel({ ticker: externalTicker, onGridChange, mobile = false }) {
   const [tickers, setTickers] = useState(() => {
     try {
-      const urlParam = new URLSearchParams(window.location.search).get('c');
+      const urlParam = mobile ? null : new URLSearchParams(window.location.search).get('c');
       if (urlParam) {
         const fromUrl = urlParam.split(',').map(s => s.trim()).filter(Boolean).slice(0, MAX);
         if (fromUrl.length) return fromUrl;
@@ -273,8 +285,10 @@ export function ChartPanel({ ticker: externalTicker, onGridChange, mobile = fals
 
   // ── Fetch grid from server on mount (mobile auto-sync) ────────────────────────────────────────────────────
   useEffect(() => {
-    const urlParam = new URLSearchParams(window.location.search).get('c');
-    if (urlParam) return; // URL param already applied in useState init — skip server fetch
+    if (!mobile) {
+      const urlParam = new URLSearchParams(window.location.search).get('c');
+      if (urlParam) return; // Desktop: skip server fetch when URL already has tickers
+    } — skip server fetch
     fetch(API + '/api/settings')
       .then(r => r.ok ? r.json() : null)
       .then(s => {
@@ -286,7 +300,7 @@ export function ChartPanel({ ticker: externalTicker, onGridChange, mobile = fals
         }
       })
       .catch(() => {});
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [mobile]);
 
   useEffect(() => {
     if (!externalTicker) return;
@@ -301,11 +315,13 @@ export function ChartPanel({ ticker: externalTicker, onGridChange, mobile = fals
   useEffect(() => {
     localStorage.setItem(LS_KEY, JSON.stringify(tickers));
     onGridChange?.(tickers.length);
-    try {
-      const url = new URL(window.location.href);
-      url.searchParams.set('c', tickers.join(','));
-      window.history.replaceState(null, '', url.toString());
-    } catch (_) {}
+    if (!mobile) {
+      try {
+        const url = new URL(window.location.href);
+        url.searchParams.set('c', tickers.join(','));
+        window.history.replaceState(null, '', url.toString());
+      } catch (_) {}
+    }
     // Debounced sync to server so mobile auto-matches desktop
     clearTimeout(gridSyncTimer.current);
     gridSyncTimer.current = setTimeout(() => {
@@ -315,7 +331,7 @@ export function ChartPanel({ ticker: externalTicker, onGridChange, mobile = fals
         body: JSON.stringify({ chartGrid: tickers }),
       }).catch(() => {});
     }, 1500);
-  }, [tickers, onGridChange]);
+  }, [tickers, onGridChange, mobile]);
 
   const addTicker     = useCallback((raw)       => { const norm = normalizeTicker(raw);  setTickers(prev => prev.includes(norm) || prev.length >= MAX ? prev : [...prev, norm]); }, []);
   const removeTicker  = useCallback((t)          => setTickers(prev => prev.filter(x => x !== t)), []);
