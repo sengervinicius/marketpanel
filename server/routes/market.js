@@ -895,4 +895,49 @@ router.post('/settings', (req, res) => {
   }
 });
 
+// ─── Fundamentals: P/E, EPS, beta, dividend, 52W range, sector (Yahoo Finance) ──
+router.get('/fundamentals/:symbol', async (req, res) => {
+  try {
+    const raw = req.params.symbol.toUpperCase();
+    // Strip Polygon prefixes for Yahoo (X:BTCUSD -> BTCUSD, C:EURUSD -> EURUSD)
+    const symbol = raw.replace(/^[XC]:/, '');
+    const { crumb, cookie } = await getYahooCrumb();
+    const url = 'https://query1.finance.yahoo.com/v10/finance/quoteSummary/' +
+      encodeURIComponent(symbol) +
+      '?modules=defaultKeyStatistics,financialData,summaryProfile,price' +
+      '&crumb=' + encodeURIComponent(crumb) + '&lang=en-US';
+    const r = await fetch(url, {
+      headers: { 'User-Agent': YF_UA, 'Accept': 'application/json', 'Cookie': cookie, 'Referer': 'https://finance.yahoo.com/' }
+    });
+    if (!r.ok) {
+      if (r.status === 401 || r.status === 403) { _yfCrumb = null; _yfCrumbExpiry = 0; }
+      throw new Error('Yahoo Finance HTTP ' + r.status);
+    }
+    const json = await r.json();
+    const result = json && json.quoteSummary && json.quoteSummary.result && json.quoteSummary.result[0];
+    if (!result) throw new Error('No Yahoo data for ' + symbol);
+    const ks = result.defaultKeyStatistics || {};
+    const fd = result.financialData || {};
+    const sp = result.summaryProfile || {};
+    const pr = result.price || {};
+    res.json({
+      peRatio:           (ks.trailingPE && ks.trailingPE.raw) || null,
+      forwardPE:         (ks.forwardPE && ks.forwardPE.raw) || null,
+      eps:               (ks.trailingEps && ks.trailingEps.raw) || null,
+      beta:              (ks.beta && ks.beta.raw) || null,
+      dividendYield:     (ks.dividendYield && ks.dividendYield.raw) || null,
+      fiftyTwoWeekHigh:  (ks.fiftyTwoWeekHigh && ks.fiftyTwoWeekHigh.raw) || null,
+      fiftyTwoWeekLow:   (ks.fiftyTwoWeekLow && ks.fiftyTwoWeekLow.raw) || null,
+      sharesOutstanding: (ks.sharesOutstanding && ks.sharesOutstanding.raw) || null,
+      returnOnEquity:    (fd.returnOnEquity && fd.returnOnEquity.raw) || null,
+      sector:            sp.sector || null,
+      industry:          sp.industry || null,
+      marketCap:         (pr.marketCap && pr.marketCap.raw) || null,
+    });
+  } catch (e) {
+    console.error('[API] /fundamentals/' + req.params.symbol + ' error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 module.exports = router;
