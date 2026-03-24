@@ -495,4 +495,3 @@ export function ChartPanel({ ticker: externalTicker, onGridChange, mobile = fals
     </div>
   );
 }
-Fix ChartPanel: sync chart grid from ?c= URL param (bidirectional) for cross-device sharing
