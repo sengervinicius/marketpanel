@@ -65,6 +65,21 @@ function assetType(t) {
   if (ETFS.has(t)) return 'ETF';
   return 'EQUITY';
 }
+const CHART_LABELS = {
+  'SPY': 'S&P 500', 'QQQ': 'Nasdaq 100', 'DIA': 'Dow Jones', 'IWM': 'Russell 2000',
+  'GLD': 'Gold', 'SLV': 'Silver', 'USO': 'WTI Oil', 'TLT': '20Y Treasuries',
+  'TSLA': 'Tesla', 'AAPL': 'Apple', 'MSFT': 'Microsoft', 'AMZN': 'Amazon',
+  'GOOGL': 'Alphabet', 'NVDA': 'Nvidia', 'META': 'Meta', 'JPM': 'JPMorgan',
+  'GS': 'Goldman Sachs', 'BAC': 'BofA', 'C': 'Citigroup', 'WFC': 'Wells Fargo',
+  'X:BTCUSD': 'Bitcoin', 'X:ETHUSD': 'Ethereum', 'X:SOLUSD': 'Solana',
+  'C:USDBRL': 'USD/BRL', 'C:EURBRL': 'EUR/BRL', 'C:GBPBRL': 'GBP/BRL',
+  'C:EURUSD': 'EUR/USD', 'C:GBPUSD': 'GBP/USD', 'C:USDJPY': 'USD/JPY',
+  'BOVA11.SA': 'Ibovespa ETF', 'PETR3.SA': 'Petrobras', 'VALE3.SA': 'Vale',
+  'ITUB4.SA': 'Itau Unibanco', 'BBDC4.SA': 'Bradesco', 'RENT3.SA': 'Localiza',
+  'ONCO3.SA': 'Oncoclínicas', 'FLRY3.SA': 'Fleury', 'CPER': 'Copper', 'CMIN3.SA': 'CSN Mineracao',
+  'EWG': 'DAX Germany', 'EWU': 'FTSE UK', 'EWQ': 'CAC France', 'EZU': 'Euro Stoxx',
+};
+
 function MiniChart({ ticker, index, onRemove, onReplace, onSwap }) {
   const [data,    setData]    = useState([]);
   const [price,   setPrice]   = useState(null);
@@ -158,6 +173,9 @@ function MiniChart({ ticker, index, onRemove, onReplace, onSwap }) {
         } catch (_) {}
       }}
     >
+      <span style={{ position: 'absolute', top: '4px', left: '6px', fontSize: '10px', color: 'rgba(255,255,255,0.45)', pointerEvents: 'none', zIndex: 10, fontWeight: 600, letterSpacing: '0.3px', whiteSpace: 'nowrap' }}>
+        {CHART_LABELS[ticker] ? ticker + ' · ' + CHART_LABELS[ticker] : ticker}
+      </span>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '3px 5px', flexShrink: 0 }}>
         <span style={{ color: '#e8a020', fontWeight: 700, fontSize: 9, letterSpacing: '0.1em', pointerEvents: 'none' }}>
           {isDragOver ? '⇄ SWAP / REPLACE' : displayTicker(ticker)}
