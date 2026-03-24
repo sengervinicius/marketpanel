@@ -1,5 +1,5 @@
-// ChartPanel.jsx — Bloomberg-style multi-chart grid (fixed 4×4 = 16 slots)
-// Desktop: always-full 4×4 symmetric grid — no empty rows ever
+// ChartPanel.jsx â Bloomberg-style multi-chart grid (fixed 4Ã4 = 16 slots)
+// Desktop: always-full 4Ã4 symmetric grid â no empty rows ever
 // Mobile: 2-col scrollable layout sharing same localStorage as desktop
 // Fix: onDragLeave uses relatedTarget.contains check to prevent flicker/stuck state
 // Drag-to-swap: internal slots draggable; drop onto another slot swaps positions
@@ -13,6 +13,23 @@ const LS_KEY = 'chartGrid_v3';
 const MAX = 16;
 const GRID_COLS = 4;
 const GRID_ROWS = 4;
+
+const TICKER_NAMES = {
+  'BOVA11.SA':'Ibovespa ETF','PETR3.SA':'Petrobras','VALE3.SA':'Vale',
+  'ITUB4.SA':'Itaú','BBDC4.SA':'Bradesco','WEGE3.SA':'WEG','ABEV3.SA':'Ambev',
+  'MGLU3.SA':'Magazine Luiza','RENT3.SA':'Localiza','FLRY3.SA':'Fleury',
+  'ONCO3.SA':'Oncoclínicas','BRFS3.SA':'BRF','CMIN3.SA':'CSN Mineração',
+  'SPY':'S&P 500','QQQ':'Nasdaq 100','DIA':'Dow Jones','IWM':'Russell 2000',
+  'GLD':'Gold','SLV':'Silver','USO':'WTI Oil','UNG':'Nat Gas',
+  'CPER':'Copper','REMX':'Rare Earth','SOYB':'Soybeans','WEAT':'Wheat',
+  'TSLA':'Tesla','AAPL':'Apple','MSFT':'Microsoft','NVDA':'NVIDIA',
+  'GOOGL':'Alphabet','META':'Meta','AMZN':'Amazon','GS':'Goldman Sachs',
+  'JPM':'JPMorgan','BAC':'Bank of America','EWG':'Germany DAX',
+  'EWU':'UK FTSE','EZU':'Euro Stoxx','EWQ':'France CAC','EWP':'Spain IBEX',
+  'EWZ':'Brazil ETF','EWM':'Mexico ETF','EWC':'Canada ETF','EWJ':'Japan ETF',
+  'FXI':'China ETF','EFA':'EAFE ETF',
+};
+
 
 const RANGES = [
   { label: '1D', multiplier: 5,  timespan: 'minute', days: 1   },
@@ -76,11 +93,11 @@ const CHART_LABELS = {
   'C:EURUSD': 'EUR/USD', 'C:GBPUSD': 'GBP/USD', 'C:USDJPY': 'USD/JPY',
   'BOVA11.SA': 'Ibovespa ETF', 'PETR3.SA': 'Petrobras', 'VALE3.SA': 'Vale',
   'ITUB4.SA': 'Itau Unibanco', 'BBDC4.SA': 'Bradesco', 'RENT3.SA': 'Localiza',
-  'ONCO3.SA': 'Oncoclínicas', 'FLRY3.SA': 'Fleury', 'CPER': 'Copper', 'CMIN3.SA': 'CSN Mineracao',
+  'ONCO3.SA': 'OncoclÃ­nicas', 'FLRY3.SA': 'Fleury', 'CPER': 'Copper', 'CMIN3.SA': 'CSN Mineracao',
   'EWG': 'DAX Germany', 'EWU': 'FTSE UK', 'EWQ': 'CAC France', 'EZU': 'Euro Stoxx',
 };
 
-function MiniChart({ ticker, index, onRemove, onReplace, onSwap }) {
+function MiniChart({ ticker, index, onRemove, onReplace, onSwap, onOpenDetail }) {
   const [data,    setData]    = useState([]);
   const [price,   setPrice]   = useState(null);
   const [chg,     setChg]     = useState(null);
@@ -131,6 +148,27 @@ function MiniChart({ ticker, index, onRemove, onReplace, onSwap }) {
     return () => { mountedRef.current = false; clearInterval(intervalRef.current); };
   }, [fetchData, rangeIdx]);
 
+  // Live snapshot price — overrides bar-close with real-time price
+  useEffect(() => {
+    if (!ticker) return;
+    const norm = normalizeTicker(ticker);
+    fetch(`${API}/api/snapshot/ticker/${encodeURIComponent(norm)}`)
+      .then(r => r.json())
+      .then(d => {
+        const snap = d?.ticker ?? d;
+        const live = snap?.min?.c || snap?.day?.c || snap?.lastTrade?.p;
+        const prev = snap?.prevDay?.c;
+        if (live > 0) {
+          setPrice(live);
+          if (prev > 0) {
+            setChg(live - prev);
+            setChgPct(((live - prev) / prev) * 100);
+          }
+        }
+      })
+      .catch(() => {});
+  }, [ticker]);
+
   const handleRangeChange = (idx) => { clearInterval(intervalRef.current); setRangeIdx(idx); };
 
   const isUp     = (chg ?? 0) >= 0;
@@ -147,7 +185,8 @@ function MiniChart({ ticker, index, onRemove, onReplace, onSwap }) {
   return (
     <div draggable
       data-ticker={ticker}
-      data-ticker-label={displayTicker(ticker)}
+      data-ticker-label={displayTicker(ticker)}{TICKER_NAMES[ticker] ? <span style={{color:'#555',fontSize:7,marginLeft:3}}>{TICKER_NAMES[ticker]}</span> : null}
+      onDoubleClick={() => onOpenDetail?.(ticker)}
       data-ticker-type={assetType(ticker)}
       style={{
         background: isDragOver ? '#0d1a2e' : '#07090f',
@@ -174,11 +213,11 @@ function MiniChart({ ticker, index, onRemove, onReplace, onSwap }) {
       }}
     >
       <span style={{ position: 'absolute', top: '4px', left: '6px', fontSize: '10px', color: 'rgba(255,255,255,0.45)', pointerEvents: 'none', zIndex: 10, fontWeight: 600, letterSpacing: '0.3px', whiteSpace: 'nowrap' }}>
-        {CHART_LABELS[ticker] ? ticker + ' · ' + CHART_LABELS[ticker] : ticker}
+        {CHART_LABELS[ticker] ? ticker + ' Â· ' + CHART_LABELS[ticker] : ticker}
       </span>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '3px 5px', flexShrink: 0 }}>
         <span style={{ color: '#e8a020', fontWeight: 700, fontSize: 9, letterSpacing: '0.1em', pointerEvents: 'none' }}>
-          {isDragOver ? '⇄ SWAP / REPLACE' : displayTicker(ticker)}
+          {isDragOver ? 'â SWAP / REPLACE' : displayTicker(ticker)}
         </span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
           {price != null && <span style={{ color: '#cccccc', fontSize: 8, fontVariantNumeric: 'tabular-nums', pointerEvents: 'none' }}>{fmtPrice(price)}</span>}
@@ -189,21 +228,21 @@ function MiniChart({ ticker, index, onRemove, onReplace, onSwap }) {
           )}
           <button onClick={() => onRemove(ticker)}
             style={{ background: 'none', border: 'none', color: '#333', cursor: 'pointer', fontSize: 10, padding: '0 2px', lineHeight: 1, fontFamily: 'inherit' }}
-            title="Remove">✕</button>
+            title="Remove">â</button>
         </div>
       </div>
       <div style={{ display: 'flex', gap: 6, padding: '1px 5px', flexShrink: 0, borderTop: '1px solid #0d0d18', borderBottom: '1px solid #0d0d18', pointerEvents: 'none' }}>
-        <span style={{ color: '#3a3a5a', fontSize: 6.5 }}>□ Chg{' '}
+        <span style={{ color: '#3a3a5a', fontSize: 6.5 }}>â¡ Chg{' '}
           <span style={{ color: chg != null ? (isUp ? '#4caf50' : '#f44336') : '#3a3a5a' }}>
             {chg != null ? (isUp ? '+' : '') + fmtK(chg) + ' (' + (isUp ? '+' : '') + (chgPct?.toFixed(2) ?? ' // ') + '%)' : ' // '}
           </span>
         </span>
-        <span style={{ color: '#3a3a5a', fontSize: 6.5 }}>□ Hi <span style={{ color: '#888' }}>{fmtK(high)}</span></span>
-        <span style={{ color: '#3a3a5a', fontSize: 6.5 }}>□ Lo <span style={{ color: '#888' }}>{fmtK(low)}</span></span>
+        <span style={{ color: '#3a3a5a', fontSize: 6.5 }}>â¡ Hi <span style={{ color: '#888' }}>{fmtK(high)}</span></span>
+        <span style={{ color: '#3a3a5a', fontSize: 6.5 }}>â¡ Lo <span style={{ color: '#888' }}>{fmtK(low)}</span></span>
       </div>
       <div style={{ flex: 1, minHeight: 0, pointerEvents: isDragOver ? 'none' : 'auto' }}>
         {loading ? (
-          <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#222233', fontSize: 8 }}>loading…</div>
+          <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#222233', fontSize: 8 }}>loadingâ¦</div>
         ) : data.length === 0 ? (
           <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#222233', fontSize: 8 }}>NO DATA</div>
         ) : (
@@ -243,7 +282,7 @@ function MiniChart({ ticker, index, onRemove, onReplace, onSwap }) {
       </div>
       {isDragOver && (
         <div style={{ position: 'absolute', inset: 0, background: 'rgba(255,102,0,0.08)', border: '2px solid #ff6600', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', zIndex: 10 }}>
-          <span style={{ color: '#ff6600', fontSize: 8, fontWeight: 700, letterSpacing: '0.15em', fontFamily: 'inherit' }}>⇄ SWAP / REPLACE</span>
+          <span style={{ color: '#ff6600', fontSize: 8, fontWeight: 700, letterSpacing: '0.15em', fontFamily: 'inherit' }}>â SWAP / REPLACE</span>
         </div>
       )}
     </div>
@@ -274,13 +313,13 @@ function EmptySlot({ index, onAdd, onSwap }) {
         } catch (_) {}
       }}
     >
-      <span style={{ fontSize: 14, lineHeight: 1, pointerEvents: 'none' }}>{isDragOver ? '▼' : '+'}</span>
+      <span style={{ fontSize: 14, lineHeight: 1, pointerEvents: 'none' }}>{isDragOver ? 'â¼' : '+'}</span>
       {isDragOver && <span style={{ fontSize: 7, letterSpacing: '0.1em', fontFamily: 'inherit', pointerEvents: 'none' }}>DROP TO ADD</span>}
     </div>
   );
 }
 
-export function ChartPanel({ ticker: externalTicker, onGridChange, mobile = false }) {
+export function ChartPanel({ ticker: externalTicker, onGridChange, mobile = false, onOpenDetail }) {
   const [tickers, setTickers] = useState(() => {
     try {
       const urlParam = mobile ? null : new URLSearchParams(window.location.search).get('c');
@@ -304,7 +343,7 @@ export function ChartPanel({ ticker: externalTicker, onGridChange, mobile = fals
   const [qrUrl,   setQrUrl]   = useState('');
   const gridSyncTimer = useRef(null);
 
-  // ── Fetch grid from server on mount (mobile auto-sync) ────────────────────────────────────────────────────
+  // ââ Fetch grid from server on mount (mobile auto-sync) ââââââââââââââââââââââââââââââââââââââââââââââââââââ
   useEffect(() => {
     if (!mobile) {
       const urlParam = new URLSearchParams(window.location.search).get('c');
@@ -332,7 +371,7 @@ export function ChartPanel({ ticker: externalTicker, onGridChange, mobile = fals
     });
   }, [externalTicker]);
 
-  // ── Persist + URL update + server sync on change ──────────────────────────────────────────────────────
+  // ââ Persist + URL update + server sync on change ââââââââââââââââââââââââââââââââââââââââââââââââââââââ
   useEffect(() => {
     localStorage.setItem(LS_KEY, JSON.stringify(tickers));
     const _url = new URL(window.location.href);
@@ -398,11 +437,11 @@ export function ChartPanel({ ticker: externalTicker, onGridChange, mobile = fals
       <div style={{ display: 'flex', flexDirection: 'column', background: '#040508' }} {...outerDrop}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', borderBottom: '1px solid #141420' }}>
           <span style={{ color: '#e8a020', fontWeight: 700, fontSize: 10, letterSpacing: '0.2em' }}>CHARTS</span>
-          <span style={{ color: '#333', fontSize: 8 }}>{tickers.length}/{MAX} · use "SYNC TO MOBILE" on desktop to import</span>
+          <span style={{ color: '#333', fontSize: 8 }}>{tickers.length}/{MAX} Â· use "SYNC TO MOBILE" on desktop to import</span>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gridAutoRows: '46vw', gap: 1, padding: 1 }}>
           {tickers.map((t, i) => (
-            <MiniChart key={t} ticker={t} index={i} onRemove={removeTicker} onReplace={replaceTicker} onSwap={swapTickers} />
+            <MiniChart key={t} ticker={t} index={i} onRemove={removeTicker} onReplace={replaceTicker} onSwap={swapTickers} onOpenDetail={onOpenDetail} />
           ))}
           {tickers.length < MAX && <EmptySlot index={tickers.length} onAdd={addTicker} onSwap={swapTickers} />}
         </div>
@@ -415,7 +454,7 @@ export function ChartPanel({ ticker: externalTicker, onGridChange, mobile = fals
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '3px 8px', borderBottom: '1px solid #141420', flexShrink: 0 }}>
         <span style={{ color: '#e8a020', fontWeight: 700, fontSize: 9, letterSpacing: '0.2em' }}>CHARTS</span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ color: '#222233', fontSize: 7 }}>{tickers.length}/{MAX} // drag to reorder · drop to add</span>
+          <span style={{ color: '#222233', fontSize: 7 }}>{tickers.length}/{MAX} // drag to reorder Â· drop to add</span>
           <div style={{ position: 'relative' }}>
             <button onClick={copyLink}
               style={{
@@ -425,7 +464,7 @@ export function ChartPanel({ ticker: externalTicker, onGridChange, mobile = fals
                 padding: '2px 6px', borderRadius: 2, fontFamily: 'inherit',
                 letterSpacing: '0.05em', transition: 'all 0.2s',
               }}>
-              {copied ? '✓ COPIED' : '⍘ SYNC TO MOBILE'}
+              {copied ? 'â COPIED' : 'â SYNC TO MOBILE'}
             </button>
             {showQR && (
               <div onClick={() => setShowQR(false)}
@@ -437,7 +476,7 @@ export function ChartPanel({ ticker: externalTicker, onGridChange, mobile = fals
                   <span style={{ color: '#e8a020', fontSize: 11, fontWeight: 700, letterSpacing: '0.15em' }}>SYNC TO MOBILE</span>
                   <span style={{ color: '#555', fontSize: 9 }}>Scan with your phone to open your {tickers.length} charts</span>
                   <img src={qrUrl} alt="QR Code" style={{ width: 180, height: 180, borderRadius: 4 }} />
-                  <span style={{ color: '#333', fontSize: 8 }}>Link also copied to clipboard · click anywhere to close</span>
+                  <span style={{ color: '#333', fontSize: 8 }}>Link also copied to clipboard Â· click anywhere to close</span>
                 </div>
               </div>
             )}
