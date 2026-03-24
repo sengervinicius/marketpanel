@@ -28,7 +28,7 @@ const showInfo = (e, symbol, label, type) => {
   }));
 };
 
-export function ForexPanel({ data, cryptoData, loading, onTickerClick }) {
+export function ForexPanel({ data, cryptoData, loading, onTickerClick, onOpenDetail }) {
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#0a0a0a' }}>
       {/* Header */}
@@ -69,6 +69,7 @@ export function ForexPanel({ data, cryptoData, loading, onTickerClick }) {
                     e.dataTransfer.setData('application/x-ticker', JSON.stringify({ symbol: chartSym, name: pair.label, type: 'CURRENCY' }));
                   }}
                   onClick={() => onTickerClick?.(chartSym)}
+                  onDoubleClick={() => onOpenDetail?.(chartSym)}
                   onContextMenu={e => showInfo(e, pair.symbol, pair.label, 'FX')}
                   style={{ display: 'grid', gridTemplateColumns: COLS, padding: '3px 8px', borderBottom: '1px solid #141414', cursor: 'pointer', alignItems: 'center' }}
                   onMouseEnter={e => e.currentTarget.style.background = '#141414'}
@@ -100,6 +101,7 @@ export function ForexPanel({ data, cryptoData, loading, onTickerClick }) {
                     e.dataTransfer.setData('application/x-ticker', JSON.stringify({ symbol: chartSym, name: c.label, type: 'CRYPTO' }));
                   }}
                   onClick={() => onTickerClick?.(chartSym)}
+                  onDoubleClick={() => onOpenDetail?.(chartSym)}
                   onContextMenu={e => showInfo(e, c.symbol, c.label, 'CRYPTO')}
                   style={{ display: 'grid', gridTemplateColumns: COLS, padding: '3px 8px', borderBottom: '1px solid #141414', cursor: 'pointer', alignItems: 'center' }}
                   onMouseEnter={e => e.currentTarget.style.background = '#141414'}
