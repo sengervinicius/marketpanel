@@ -25,6 +25,7 @@ function SectionDivider({ label, color = '#444' }) {
   );
 }
 
+let _pt = null;
 export function StockPanel({ data, loading, onTickerClick, onOpenDetail }) {
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#0a0a0a' }}>
@@ -61,6 +62,9 @@ export function StockPanel({ data, loading, onTickerClick, onOpenDetail }) {
                 }}
                 onClick={() => onTickerClick?.(s.symbol)}
                 onDoubleClick={() => onOpenDetail?.(s.symbol)}
+             onTouchStart={(e) => { e.stopPropagation(); _pt = setTimeout(() => onOpenDetail?.(s.symbol), 500); }}
+             onTouchEnd={() => clearTimeout(_pt)}
+             onTouchMove={() => clearTimeout(_pt)}
                 onContextMenu={e => showInfo(e, s.symbol, s.label, 'EQUITY')}
                 style={{ display: 'grid', gridTemplateColumns: COLS, padding: '3px 8px', borderBottom: '1px solid #141414', cursor: 'pointer', alignItems: 'center' }}
                 onMouseEnter={e => e.currentTarget.style.background = '#141414'}
@@ -87,6 +91,9 @@ export function StockPanel({ data, loading, onTickerClick, onOpenDetail }) {
                 }}
                 onClick={() => onTickerClick?.(s.symbol)}
                 onDoubleClick={() => onOpenDetail?.(s.symbol)}
+             onTouchStart={(e) => { e.stopPropagation(); _pt = setTimeout(() => onOpenDetail?.(s.symbol), 500); }}
+             onTouchEnd={() => clearTimeout(_pt)}
+             onTouchMove={() => clearTimeout(_pt)}
                 onContextMenu={e => showInfo(e, s.symbol, s.label, 'ADR')}
                 style={{ display: 'grid', gridTemplateColumns: COLS, padding: '3px 8px', borderBottom: '1px solid #141414', cursor: 'pointer', alignItems: 'center' }}
                 onMouseEnter={e => e.currentTarget.style.background = '#141414'}
