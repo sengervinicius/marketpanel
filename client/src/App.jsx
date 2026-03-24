@@ -154,6 +154,7 @@ const MOBILE_TABS = [
   { id: 'global',   label: 'GLOBAL' },
   { id: 'rates',    label: 'CURVES' },
   { id: 'news',     label: 'NEWS' },
+  { id: 'search', label: 'SEARCH' },
 ];
 
 const LS_TAB          = 'activeTab_m2';
@@ -359,6 +360,7 @@ export default function App() {
         )}
         {activeTab === 'rates' && <DICurvePanel />}
         {activeTab === 'news' && <NewsPanel />}
+        {activeTab === 'search' && <SearchPanel onTickerSelect={t => goChart(t)} />}
       </div>
 
       <nav style={{
@@ -389,6 +391,7 @@ export default function App() {
           );
         })}
       </nav>
+      <TickerTooltip />
     </div>
   );
 }
