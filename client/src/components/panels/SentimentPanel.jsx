@@ -94,7 +94,7 @@ export function SentimentPanel({ data, loading }) {
       <div style={{ padding: '4px 8px', borderBottom: '1px solid #1a1a1a', background: '#0d0d0d', flexShrink: 0 }}>
         <span style={{ color: '#80cbc4', fontSize: '10px', fontWeight: 700, letterSpacing: '1px' }}>TOP MOVERS</span>
       </div>
-      <div style={{ flex: 1, padding: '4px' }}>
+      <div style={{ flexShrink: 0, padding: '4px' }}>
         {loading || topMovers.length === 0 ? (
           <div style={{ color: '#333', padding: 8, fontSize: 10, textAlign: 'center' }}>Loading...</div>
         ) : (
