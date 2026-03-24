@@ -288,7 +288,10 @@ export function ChartPanel({ ticker: externalTicker, onGridChange, mobile = fals
         const fromUrl = urlParam.split(',').map(s => s.trim()).filter(Boolean).slice(0, MAX);
         if (fromUrl.length) return fromUrl;
       }
-      const v3 = JSON.parse(localStorage.getItem(LS_KEY));
+      const _urlC = new URLSearchParams(window.location.search).get('c');
+      const _urlGrid = _urlC ? _urlC.split(',').filter(Boolean) : null;
+      if (_urlGrid && _urlGrid.length) localStorage.setItem(LS_KEY, JSON.stringify(_urlGrid));
+      const v3 = (_urlGrid && _urlGrid.length) ? _urlGrid : JSON.parse(localStorage.getItem(LS_KEY));
       if (Array.isArray(v3) && v3.length) return v3.slice(0, MAX);
       const v2 = JSON.parse(localStorage.getItem('chartGrid_v2'));
       if (Array.isArray(v2) && v2.length) return v2.slice(0, MAX);
@@ -332,6 +335,9 @@ export function ChartPanel({ ticker: externalTicker, onGridChange, mobile = fals
   // ── Persist + URL update + server sync on change ──────────────────────────────────────────────────────
   useEffect(() => {
     localStorage.setItem(LS_KEY, JSON.stringify(tickers));
+    const _url = new URL(window.location.href);
+    _url.searchParams.set('c', tickers.join(','));
+    window.history.replaceState({}, '', _url.toString());
     onGridChange?.(tickers.length);
     if (!mobile) {
       try {
@@ -449,3 +455,4 @@ export function ChartPanel({ ticker: externalTicker, onGridChange, mobile = fals
     </div>
   );
 }
+Fix ChartPanel: sync chart grid from ?c= URL param (bidirectional) for cross-device sharing
