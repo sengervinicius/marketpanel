@@ -98,6 +98,15 @@ const DESCRIPTIONS = {
   WEAT: 'Teucrium Wheat ETF — CBOT wheat futures; global food security bellwether; affected by weather & geopolitics.',
   CORN: 'Teucrium Corn ETF — CBOT corn futures; ethanol feedstock, animal feed, US/Brazil major export crop.',
   BHP:  "BHP Group ADR — world's largest diversified mining company; iron ore (Pilbara), copper, potash, coal.",
+  // CSN Mineracao (B3)
+  'CMIN3.SA': 'CSN Mineracao ON - major Brazilian iron ore producer; mines in Minas Gerais supplying global steel markets.',
+  // European equity ETFs
+  EWG: 'iShares MSCI Germany ETF - tracks German large/mid-cap equities; proxy for DAX performance during NYSE hours.',
+  EZU: 'iShares MSCI Eurozone ETF - tracks developed-market equities across the euro area; Euro Stoxx 50 proxy.',
+  EWU: 'iShares MSCI United Kingdom ETF - tracks UK large/mid-cap stocks; FTSE 100 proxy traded on NYSE.',
+  EWQ: 'iShares MSCI France ETF - tracks French large/mid-cap stocks; CAC 40 proxy traded on NYSE.',
+  EWP: 'iShares MSCI Spain ETF - tracks Spanish large/mid-cap equities; IBEX 35 proxy traded on NYSE.',
+  EWI: 'iShares MSCI Italy ETF - tracks Italian large/mid-cap stocks; FTSE MIB proxy traded on NYSE.',
 };
 
 // ── Normalise ticker symbol for DESCRIPTIONS lookup ───────────────────────────
@@ -142,6 +151,7 @@ export function TickerTooltip() {
 
     // ── Desktop: mouseover / mouseout ─────────────────────────────────────
     const onMouseOver = (e) => {
+      if (e.pointerType && e.pointerType !== 'mouse') return;
       const el = e.target.closest('[data-ticker]');
       if (!el || el === activeElRef.current) return;
       clearTimeout(hoverTimer);
@@ -174,8 +184,8 @@ export function TickerTooltip() {
     const onTouchEnd  = () => clearTimeout(longPressTimer);
     const onTouchMove = () => clearTimeout(longPressTimer);
 
-    document.addEventListener('mouseover',  onMouseOver);
-    document.addEventListener('mouseout',   onMouseOut);
+    document.addEventListener('pointerover', onMouseOver);
+    document.addEventListener('pointerout',  onMouseOut);
     document.addEventListener('touchstart', onTouchStart, { passive: true });
     document.addEventListener('touchend',   onTouchEnd);
     document.addEventListener('touchmove',  onTouchMove,  { passive: true });
@@ -183,8 +193,8 @@ export function TickerTooltip() {
     return () => {
       clearTimeout(hoverTimer);
       clearTimeout(longPressTimer);
-      document.removeEventListener('mouseover',  onMouseOver);
-      document.removeEventListener('mouseout',   onMouseOut);
+      document.removeEventListener('pointerover', onMouseOver);
+      document.removeEventListener('pointerout',  onMouseOut);
       document.removeEventListener('touchstart', onTouchStart);
       document.removeEventListener('touchend',   onTouchEnd);
       document.removeEventListener('touchmove',  onTouchMove);
