@@ -27,6 +27,9 @@ export function CryptoPanel({ data, loading, onTickerClick }) {
           return (
             <div
               key={c.symbol}
+              data-ticker={c.symbol}
+              data-ticker-label={c.name || c.symbol}
+              data-ticker-type="CRYPTO"
               draggable
               onDragStart={e => {
                 e.dataTransfer.effectAllowed = 'copy';
