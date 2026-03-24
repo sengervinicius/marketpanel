@@ -157,10 +157,13 @@ export function SearchPanel({ onTickerSelect, onOpenDetail }) {
         </div>
       )}
       {!results.length && !query && (
-        <div style={{ padding: '12px 8px', color: '#222', fontSize: 8, textAlign: 'center' }}>
+        <div style={{ padding: '12px 8px', color: '#555', fontSize: 8, textAlign: 'center' }}>
           TYPE TO SEARCH \u2014 DRAG RESULTS TO CHART
         </div>
       )}
+        {query.trim().length > 0 && !results.length && !loading && (
+          <div style={{ padding: '20px 16px', textAlign: 'center', color: '#555', fontSize: 11, letterSpacing: '0.1em' }}>NO RESULTS</div>
+        )}
       {(quote || quoteLoading) && (
         <div style={{ padding: '10px 8px', flex: 1, overflow: 'auto' }}>
           {quoteLoading && <div style={{ color: '#444', fontSize: 8 }}>LOADING QUOTE...</div>}
