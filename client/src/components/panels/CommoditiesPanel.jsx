@@ -32,6 +32,7 @@ const showInfo = (e, symbol, label, type) => {
   }));
 };
 
+let _pt = null;
 export function CommoditiesPanel({ data, loading, onTickerClick, onOpenDetail }) {
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#0a0a0a' }}>
@@ -75,6 +76,9 @@ export function CommoditiesPanel({ data, loading, onTickerClick, onOpenDetail })
                       }}
                       onClick={() => onTickerClick?.(c.symbol)}
                       onDoubleClick={() => onOpenDetail?.(c.symbol)}
+             onTouchStart={(e) => { e.stopPropagation(); _pt = setTimeout(() => onOpenDetail?.(c.symbol), 500); }}
+             onTouchEnd={() => clearTimeout(_pt)}
+             onTouchMove={() => clearTimeout(_pt)}
                       onContextMenu={e => showInfo(e, c.symbol, c.label, 'COMMODITY')}
                       style={{ display: 'grid', gridTemplateColumns: COLS, padding: '3px 8px', borderBottom: '1px solid #141414', cursor: 'pointer', alignItems: 'center' }}
                       onMouseEnter={e => e.currentTarget.style.background = '#141414'}
