@@ -348,9 +348,9 @@ export default function App() {
         )}
         {activeTab === 'fxcrypto' && (
           <div>
-            <ForexPanel data={data?.forex} cryptoData={data?.crypto} loading={loading} onTickerClick={setChartTicker} onOpenDetail={setDetailTicker} />
+            <ForexPanel data={data?.forex} cryptoData={data?.crypto} loading={loading} onTickerClick={t => goChart(t)} onOpenDetail={setDetailTicker} />
             <div style={{ borderTop:'1px solid #1e1e1e' }}>
-              <CommoditiesPanel data={data?.stocks} loading={loading} onTickerClick={setChartTicker} onOpenDetail={setDetailTicker} />
+              <CommoditiesPanel data={data?.stocks} loading={loading} onTickerClick={t => goChart(t)} onOpenDetail={setDetailTicker} />
             </div>
           </div>
         )}
@@ -364,7 +364,7 @@ export default function App() {
         )}
         {activeTab === 'rates' && <DICurvePanel />}
         {activeTab === 'news' && <NewsPanel />}
-        {activeTab === 'search' && <SearchPanel onTickerSelect={setDetailTicker} onOpenDetail={setDetailTicker} />}
+        {activeTab === 'search' && <SearchPanel onTickerSelect={t => goChart(t)} onOpenDetail={setDetailTicker} />}
       </div>
 
       <nav style={{
