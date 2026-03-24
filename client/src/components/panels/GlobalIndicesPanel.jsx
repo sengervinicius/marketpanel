@@ -17,7 +17,7 @@ const NAMES = {
   MCHI:'CHINA', EWT:'TAIWAN', EWS:'SINGAPORE', INDA:'INDIA',
 };
 
-export default function GlobalIndicesPanel({ onTickerClick }) {
+export default function GlobalIndicesPanel({ onTickerClick, onOpenDetail }) {
   const [data, setData]       = useState({});
   const [loading, setLoading] = useState(true);
 
@@ -95,6 +95,7 @@ export default function GlobalIndicesPanel({ onTickerClick }) {
                     e.dataTransfer.effectAllowed = 'copy';
                   }}
                   onClick={() => onTickerClick?.({ symbol: ticker, label: NAMES[ticker] || ticker })}
+                  onDoubleClick={() => onOpenDetail?.(ticker)}
                 >
                   <span style={{ color: '#e8a020', fontWeight: 500, fontSize: 9 }}>{ticker}</span>
                   <span style={{ color: '#777', fontSize: 9, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
