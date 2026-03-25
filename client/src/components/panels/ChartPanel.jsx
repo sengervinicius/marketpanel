@@ -27,6 +27,24 @@ const RANGES = [
 
 const _nameCache = new Map();
 
+const NAME_OVERRIDES = {
+  SPY:'S&P 500', QQQ:'Nasdaq 100', DIA:'Dow Jones', IWM:'Russell 2000',
+  EWZ:'Brazil ETF', EWW:'Mexico ETF', EEM:'Emerg Mkts', EFA:'EAFE ETF',
+  FXI:'China ETF', EWJ:'Japan ETF', EWG:'Germany ETF', EZU:'Eurozone ETF',
+  EWU:'UK ETF', GLD:'Gold ETF', SLV:'Silver ETF', USO:'Crude Oil',
+  UNG:'Nat Gas', CPER:'Copper ETF', REMX:'Rare Earth', SOYB:'Soybeans',
+  WEAT:'Wheat', CORN:'Corn', BHP:'BHP Group',
+  'BOVA11.SA':'Ibovespa ETF', 'ONCO3.SA':'Oncoclínicas', 'FLRY3.SA':'Fleury',
+  'PETR3.SA':'Petrobras ON', 'PETR4.SA':'Petrobras PN', 'VALE3.SA':'Vale',
+  'ITUB4.SA':'Itaú Unibanco', 'BBDC4.SA':'Bradesco', 'BBAS3.SA':'Banco Brasil',
+  'RENT3.SA':'Localiza', 'ABEV3.SA':'Ambev', 'WEGE3.SA':'WEG',
+  'RDOR3.SA':"Rede D'Or", 'SUZB3.SA':'Suzano', 'EMBR3.SA':'Embraer',
+  'C:USDBRL':'USD/BRL', 'C:EURUSD':'EUR/USD', 'C:GBPUSD':'GBP/USD',
+  'C:USDJPY':'USD/JPY', 'C:GBPBRL':'GBP/BRL',
+  'X:BTCUSD':'Bitcoin', 'X:ETHUSD':'Ethereum', 'X:SOLUSD':'Solana',
+  'X:XRPUSD':'XRP', 'X:BNBUSD':'BNB', 'X:DOGEUSD':'Dogecoin',
+};
+
 function getFromDate(range) {
   const now = new Date();
   if (range.label === 'YTD') return `${now.getFullYear()}-01-01`;
@@ -130,7 +148,7 @@ setData(bars);
     return () => { mountedRef.current = false; clearInterval(intervalRef.current); };
   }, [fetchData, rangeIdx]);
 
-  // Live snapshot price — overrides bar-close with real-time price
+  // Live snapshot — real-time price + Polygon's pre-calculated day change
   useEffect(() => {
     if (!ticker) return;
     const norm = normalizeTicker(ticker);
@@ -138,14 +156,18 @@ setData(bars);
       .then(r => r.json())
       .then(d => {
         const snap = d?.ticker ?? d;
-        const live = snap?.min?.c || snap?.day?.c || snap?.lastTrade?.p;
+        const live = snap?.lastTrade?.p || snap?.min?.c || snap?.day?.c;
         const prev = snap?.prevDay?.c;
+        // Use Polygon's pre-calculated change % when available (most accurate)
+        const pct = snap?.todaysChangePerc;
+        const chgVal = snap?.todaysChange;
         if (live > 0) {
           setPrice(live);
-          if (prev > 0) {
-            setChg(live - prev);
-            setChgPct(((live - prev) / prev) * 100);
-          }
+          if (pct != null) { setChg(chgVal); setChgPct(pct); }
+          else if (prev > 0) { setChg(live - prev); setChgPct(((live - prev) / prev) * 100); }
+        } else if (prev > 0 && pct != null) {
+          setPrice(prev * (1 + pct / 100));
+          setChg(chgVal); setChgPct(pct);
         }
       })
       .catch(() => {});
@@ -153,22 +175,31 @@ setData(bars);
   useEffect(() => {
     if (!ticker) return;
     const norm = normalizeTicker(ticker);
+    // Hard-coded display names take priority
+    const override = NAME_OVERRIDES[norm] || NAME_OVERRIDES[ticker];
+    if (override) {
+      _nameCache.set(norm, override);
+      if (mountedRef.current) setName(override);
+      return;
+    }
     if (_nameCache.has(norm)) { setName(_nameCache.get(norm)); return; }
+    // FX and crypto don't have names in Polygon ticker endpoint
+    if (norm.startsWith('C:') || norm.startsWith('X:')) {
+      _nameCache.set(norm, ''); return;
+    }
     fetch(`${API}/api/ticker/${encodeURIComponent(norm)}`)
       .then(r => r.ok ? r.json() : null)
       .then(d => {
         const n = (d?.results?.name || '')
-      .replace(/\s+-\s+.+$/, '')
-      .replace(/,?\s*(Inc\.|Corp\.|Ltd\.)\s+.+$/i, '')
-      .replace(/,?\s*(Inc\.?|Corp\.?|Ltd\.?|LLC|S\.A\.|plc|NV|AG|SE)\s*$/i, '')
-      .replace(/[,.\s]+$/, '')
-      .trim()
-      .slice(0, 22)
+          .replace(/\s+-\s+.+$/, '')
+          .replace(/,?\s*(Inc\.|Corp\.|Ltd\.)\s+.+$/i, '')
+          .replace(/,?\s*(Inc\.?|Corp\.?|Ltd\.?|LLC|S\.A\.|plc|NV|AG|SE)\s*$/i, '')
+          .replace(/[,.\s]+$/, '')
+          .trim().slice(0, 22);
         _nameCache.set(norm, n);
         if (mountedRef.current) setName(n);
       }).catch(() => {});
   }, [ticker]);
-
   const handleRangeChange = (idx) => { clearInterval(intervalRef.current); setRangeIdx(idx); };
 
   const isUp     = (chg ?? 0) >= 0;
