@@ -176,6 +176,15 @@ function parseRss(xml, sourceName, sourceUrl) {
 router.get('/news', async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 30;
+    const tickerFilter = req.query.ticker; // e.g. "BTCUSD", "AAPL", "EURUSD"
+
+    // Ticker-specific: only Polygon supports filtering by ticker
+    if (tickerFilter) {
+      const data = await polyFetch(
+        `/v2/reference/news?ticker=${encodeURIComponent(tickerFilter)}&limit=${limit}&order=desc&sort=published_utc`
+      );
+      return res.json({ results: data?.results || [], status: 'OK' });
+    }
 
     const [polyRes, bloomRes, ftRes] = await Promise.allSettled([
       polyFetch(`/v2/reference/news?limit=${limit}&order=desc&sort=published_utc`),
