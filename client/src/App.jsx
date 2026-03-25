@@ -342,7 +342,7 @@ export default function App() {
 
       <div style={{ flex:1, overflowY:'auto', overflowX:'hidden', minHeight:0, WebkitOverflowScrolling:'touch' }}>
         {activeTab === 'charts' && (
-          <ChartPanel ticker={chartTicker} onTickerChange={setChartTicker} onGridChange={setChartGridCount} onOpenDetail={setDetailTicker} mobile={true} marketData={data} />
+          <ChartPanel ticker={chartTicker} onTickerChange={setChartTicker} onGridChange={setChartGridCount} onOpenDetail={setDetailTicker} mobile={true} />
         )}
         {activeTab === 'usequity' && (
           <StockPanel data={data?.stocks} loading={loading} onTickerClick={t => goChart(t)} onOpenDetail={setDetailTicker} />

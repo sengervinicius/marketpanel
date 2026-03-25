@@ -217,29 +217,34 @@ export default function InstrumentDetail({ ticker, onClose }) {
   }, [norm]);
 
   // ── Escape key + mobile back-button support ───────────────────────────
+  // Use a ref for onClose so the effect runs ONLY on mount/unmount.
+  // If we put onClose in deps, every App re-render (6s marketData refresh)
+  // creates a new inline arrow function reference, which re-triggers the
+  // effect, calling history.back() in cleanup → navigates the user away.
+  const onCloseRef = useRef(onClose);
+  useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
+
   const closedByPopRef = useRef(false);
   useEffect(() => {
-    // Push a history entry so the mobile back button dismisses the overlay
-    // instead of navigating away from the app
+    closedByPopRef.current = false;
     history.pushState({ overlayDetail: true }, '');
 
     const handlePop = () => {
       closedByPopRef.current = true;
-      onClose();
+      onCloseRef.current();
     };
-    const handleKey = e => { if (e.key === 'Escape') onClose(); };
+    const handleKey = e => { if (e.key === 'Escape') onCloseRef.current(); };
 
     window.addEventListener('popstate', handlePop);
     window.addEventListener('keydown', handleKey);
     return () => {
       window.removeEventListener('popstate', handlePop);
       window.removeEventListener('keydown', handleKey);
-      // If closed by ✕ or backdrop (not by back button), pop our history entry
       if (!closedByPopRef.current && history.state?.overlayDetail) {
         history.back();
       }
     };
-  }, [onClose]);
+  }, []); // ← empty: only fires on actual mount/unmount, not on re-renders
 
   // ── Derived values ────────────────────────────────────────────────────
   const livePrice = snap?.min?.c || snap?.day?.c || snap?.lastTrade?.p || snap?.prevDay?.c
@@ -559,10 +564,11 @@ export default function InstrumentDetail({ ticker, onClose }) {
 
       {/* ── HEADER ── */}
       <div style={{
-        display: 'flex', alignItems: 'center', gap: 10,
-        padding: isMobile ? '8px 12px' : '8px 16px',
+        display: 'flex', alignItems: 'center', gap: isMobile ? 6 : 10,
+        padding: isMobile ? '6px 12px' : '8px 16px',
         borderBottom: '1px solid #1e1e1e', background: '#0c0c0c',
         flexShrink: 0, flexWrap: 'nowrap', minHeight: 0,
+        overflow: 'hidden',
       }}>
         <span style={{ fontSize: isMobile ? 15 : 20, fontWeight: 'bold', color: ORANGE, flexShrink: 0 }}>
           {disp}
@@ -639,15 +645,17 @@ export default function InstrumentDetail({ ticker, onClose }) {
         display: 'flex',
         flexDirection: isMobile ? 'column' : 'row',
         minHeight: 0,
-        overflow: 'hidden',
+        overflow: 'hidden',   // desktop: prevents row from growing past viewport
+        // mobile: overflow hidden here is fine — each child manages its own scroll
       }}>
 
         {/* LEFT: CHART PANEL */}
         <div style={{
-          flex: 1, display: 'flex', flexDirection: 'column',
-          padding: '8px 10px', minWidth: 0,
-          height: isMobile ? '42vh' : '100%',
-          flexShrink: isMobile ? 0 : 1,
+          // Mobile: fixed height so tabs always get their space
+          // Desktop: fill remaining height
+          flex: isMobile ? '0 0 42vh' : 1,
+          display: 'flex', flexDirection: 'column',
+          padding: '8px 10px', minWidth: 0, minHeight: 0,
         }}>
           {/* Range selector row */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 6, flexShrink: 0 }}>
@@ -698,8 +706,11 @@ export default function InstrumentDetail({ ticker, onClose }) {
         {/* BOTTOM: TABS (mobile) */}
         {isMobile && (
           <div style={{
-            flex: 1, display: 'flex', flexDirection: 'column',
-            borderTop: '1px solid #1a1a1a', minHeight: 0,
+            flex: 1,          // fills all space left after the 42vh chart
+            display: 'flex', flexDirection: 'column',
+            borderTop: '1px solid #1a1a1a',
+            minHeight: 0,     // required for flex children to scroll correctly
+            overflow: 'hidden',
           }}>
             {/* Tab bar */}
             <div style={{
@@ -710,19 +721,20 @@ export default function InstrumentDetail({ ticker, onClose }) {
                 <button key={t}
                   onClick={() => setActiveTab(t)}
                   style={{
-                    flex: 1, padding: '9px 0', fontSize: 10,
+                    flex: 1, padding: '10px 0', fontSize: 11,
                     background: 'transparent', border: 'none',
                     borderBottom: activeTab === t ? `2px solid ${ORANGE}` : '2px solid transparent',
-                    color: activeTab === t ? ORANGE : '#444',
-                    cursor: 'pointer', letterSpacing: 0.5,
+                    color: activeTab === t ? ORANGE : '#555',
+                    cursor: 'pointer', letterSpacing: 0.5, fontFamily: 'inherit',
                   }}
                 >{t}</button>
               ))}
             </div>
-            {/* Tab content */}
+            {/* Tab content — must have explicit height for overflowY:auto to work */}
             <div style={{
-              flex: 1, overflowY: 'auto',
-              padding: '10px 14px', fontSize: 11,
+              flex: 1, minHeight: 0,
+              overflowY: 'auto', WebkitOverflowScrolling: 'touch',
+              padding: '12px 16px', fontSize: 11,
               background: '#060606',
             }}>
               {activeTab === 'STATS' && renderStats()}
