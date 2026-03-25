@@ -248,7 +248,13 @@ setData(bars);
   }, [ticker]);
   const handleRangeChange = (idx) => { clearInterval(intervalRef.current); setRangeIdx(idx); };
 
-  const isUp     = (chg ?? 0) >= 0;
+  // Always prefer shared market data over local state — same source as the box panels
+  const _shared   = lookupSharedPrice(marketData, ticker);
+  const dispPrice = _shared?.price  ?? price;
+  const dispChg   = _shared?.change ?? chg;
+  const dispChgPct = _shared?.changePct ?? chgPct;
+
+  const isUp     = (dispChg ?? 0) >= 0;
   const lineColor = isUp ? '#e8e8e8' : '#ff5555';
   const gradId    = 'g' + ticker.replace(/[^a-zA-Z0-9]/g, '');
   const openPrice = data[0]?.v;
@@ -294,10 +300,10 @@ setData(bars);
           {isDragOver ? '⇄ SWAP / REPLACE' : displayTicker(ticker) + (name ? ' · ' + name : '')}
         </span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-          {price != null && <span style={{ color: '#cccccc', fontSize: 8, fontVariantNumeric: 'tabular-nums', pointerEvents: 'none' }}>{fmtPrice(price)}</span>}
-          {chgPct != null && (
+          {dispPrice != null && <span style={{ color: '#cccccc', fontSize: 8, fontVariantNumeric: 'tabular-nums', pointerEvents: 'none' }}>{fmtPrice(dispPrice)}</span>}
+          {dispChgPct != null && (
             <span style={{ color: isUp ? '#4caf50' : '#f44336', fontSize: 8, fontWeight: 700, pointerEvents: 'none' }}>
-              {(isUp ? '+' : '') + chgPct.toFixed(2) + '%'}
+              {(isUp ? '+' : '') + dispChgPct.toFixed(2) + '%'}
             </span>
           )}
           <button onClick={() => onRemove(ticker)}
@@ -307,8 +313,8 @@ setData(bars);
       </div>
       <div style={{ display: 'flex', gap: 6, padding: '1px 5px', flexShrink: 0, borderTop: '1px solid #0d0d18', borderBottom: '1px solid #0d0d18', pointerEvents: 'none' }}>
         <span style={{ color: '#3a3a5a', fontSize: 6.5 }}> Chg{' '}
-          <span style={{ color: chg != null ? (isUp ? '#4caf50' : '#f44336') : '#3a3a5a' }}>
-            {chg != null ? (isUp ? '+' : '') + fmtK(chg) + ' (' + (isUp ? '+' : '') + (chgPct?.toFixed(2) ?? ' // ') + '%)' : ' // '}
+          <span style={{ color: dispChg != null ? (isUp ? '#4caf50' : '#f44336') : '#3a3a5a' }}>
+            {dispChg != null ? (isUp ? '+' : '') + fmtK(dispChg) + ' (' + (isUp ? '+' : '') + (dispChgPct?.toFixed(2) ?? ' // ') + '%)' : ' // '}
           </span>
         </span>
         <span style={{ color: '#3a3a5a', fontSize: 6.5 }}> Hi <span style={{ color: '#888' }}>{fmtK(high)}</span></span>
