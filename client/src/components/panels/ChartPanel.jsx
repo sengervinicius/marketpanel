@@ -91,7 +91,16 @@ function assetType(t) {
 }
 
 
-function MiniChart({ ticker, index, onRemove, onReplace, onSwap, onOpenDetail }) {
+// Look up a ticker in the shared market data (same object useMarketData returns)
+function lookupSharedPrice(marketData, ticker) {
+  if (!marketData || !ticker) return null;
+  const norm = normalizeTicker(ticker);
+  if (norm.startsWith('X:')) return marketData.crypto?.[norm.slice(2)] ?? null;
+  if (norm.startsWith('C:')) return marketData.forex?.[norm.slice(2)] ?? null;
+  return marketData.stocks?.[norm] ?? null;
+}
+
+function MiniChart({ ticker, index, onRemove, onReplace, onSwap, onOpenDetail, marketData }) {
   const [data,    setData]    = useState([]);
   const [price,   setPrice]   = useState(null);
   const [chg,     setChg]     = useState(null);
@@ -154,9 +163,24 @@ setData(bars);
     return () => { mountedRef.current = false; clearInterval(intervalRef.current); };
   }, [fetchData, rangeIdx]);
 
-  // Live snapshot — real-time price + Polygon's pre-calculated day change
+  // ── Price from shared market data (same source + same 6s cycle as the box panels) ──
+  useEffect(() => {
+    const info = lookupSharedPrice(marketData, ticker);
+    if (!info?.price) return;
+    setPrice(info.price);
+    if (info.change != null) setChg(info.change);
+    if (info.changePct != null) {
+      setChgPct(info.changePct);
+      snapshotChgRef.current = { chg: info.change, chgPct: info.changePct };
+    }
+  }, [marketData, ticker]);
+
+  // ── Fallback snapshot fetch — only for tickers not covered by shared market data ──
+  // (e.g. individual stocks that aren't in the batch list)
   useEffect(() => {
     if (!ticker) return;
+    // Skip if this ticker is already covered by the shared marketData hook
+    if (lookupSharedPrice(marketData, ticker)) return;
     snapshotChgRef.current = null;
     const norm = normalizeTicker(ticker);
     const fetchSnapshot = () => {
@@ -165,7 +189,6 @@ setData(bars);
         .then(d => {
           if (!mountedRef.current) return;
           const snap = d?.ticker ?? d;
-          // Same priority as useMarketData: min.c > day.c > lastTrade.p > prevDay.c
           const live = (snap?.min?.c > 0 ? snap.min.c : null)
                     ?? (snap?.day?.c > 0 ? snap.day.c : null)
                     ?? (snap?.lastTrade?.p > 0 ? snap.lastTrade.p : null)
@@ -192,9 +215,9 @@ setData(bars);
         .catch(() => {});
     };
     fetchSnapshot();
-    const snapTimer = setInterval(fetchSnapshot, 30_000);
+    const snapTimer = setInterval(fetchSnapshot, 6_000);
     return () => clearInterval(snapTimer);
-  }, [ticker]);
+  }, [ticker, marketData]);
   useEffect(() => {
     if (!ticker) return;
     const norm = normalizeTicker(ticker);
@@ -370,7 +393,7 @@ function EmptySlot({ index, onAdd, onSwap }) {
   );
 }
 
-export function ChartPanel({ ticker: externalTicker, onGridChange, mobile = false, onOpenDetail }) {
+export function ChartPanel({ ticker: externalTicker, onGridChange, mobile = false, onOpenDetail, marketData }) {
   const [tickers, setTickers] = useState(() => {
     try {
       const urlParam = mobile ? null : new URLSearchParams(window.location.search).get('c');
@@ -506,7 +529,7 @@ export function ChartPanel({ ticker: externalTicker, onGridChange, mobile = fals
          </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gridAutoRows: '40vw', gap: 1, padding: 1 }}>
           {tickers.map((t, i) => (
-            <MiniChart key={t} ticker={t} index={i} onRemove={removeTicker} onReplace={replaceTicker} onSwap={swapTickers} onOpenDetail={onOpenDetail} />
+            <MiniChart key={t} ticker={t} index={i} onRemove={removeTicker} onReplace={replaceTicker} onSwap={swapTickers} onOpenDetail={onOpenDetail} marketData={marketData} />
           ))}
           {tickers.length < MAX && <EmptySlot index={tickers.length} onAdd={addTicker} onSwap={swapTickers} />}
         </div>
