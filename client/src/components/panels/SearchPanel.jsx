@@ -3,6 +3,11 @@ import { FOREX_PAIRS, CRYPTO_PAIRS } from '../../utils/constants';
 
 const API = import.meta.env.VITE_API_URL || '';
 
+const ORANGE = '#ff6b00';
+const GREEN  = '#4caf50';
+const RED    = '#f44336';
+const YELLOW = '#ffd54f';
+
 const TYPE_COLOR = {
   EQUITY:     '#4fc3f7',
   ETF:        '#81c784',
@@ -17,25 +22,78 @@ const MARKET_BADGE = {
   SAO:  { bg: '#1a2800', color: '#8bc34a', label: 'B3'     },
   NYQ:  { bg: '#001a2e', color: '#4fc3f7', label: 'NYSE'   },
   NMS:  { bg: '#001a2e', color: '#4fc3f7', label: 'NASDAQ' },
+  PCX:  { bg: '#001a2e', color: '#4fc3f7', label: 'ARCA'   },
+  ARCX: { bg: '#001a2e', color: '#4fc3f7', label: 'ARCA'   },
 };
 
+// Markets / types with confirmed data coverage in this terminal
+const LIVE_MARKETS   = new Set(['NYQ', 'NMS', 'PCX', 'ARCX', 'NYE', 'BVSP', 'SAO']);
+const LIMITED_MARKETS = new Set(['OTC', 'PNK', 'OTCM', 'GREY', 'OTCQX', 'OTCQB']);
+
+/**
+ * coverageLevel — returns one of:
+ *   'live'    → confirmed coverage (shows green dot)
+ *   'limited' → OTC / mutual fund / index — might work but often empty (yellow dot)
+ *   'none'    → international exchange we don't cover (red dot + warning label)
+ */
+function coverageLevel(item) {
+  if (!item) return 'unknown';
+  // Our local FX/crypto pairs are always live
+  if (item.local) return 'live';
+  const type   = (item.type   || '').toUpperCase();
+  const market = (item.market || '').toUpperCase();
+  // Explicit type overrides
+  if (type === 'CRYPTO')   return 'live';
+  if (type === 'CURRENCY') return 'live';
+  // Known live exchanges
+  if (LIVE_MARKETS.has(market)) return 'live';
+  // Known limited exchanges
+  if (LIMITED_MARKETS.has(market)) return 'limited';
+  if (type === 'MUTUALFUND') return 'limited';
+  // International or unknown — no coverage
+  if (market && !LIVE_MARKETS.has(market)) return 'none';
+  return 'unknown';
+}
+
+const COVERAGE_DOT = {
+  live:    { color: '#00c853', title: 'Live data available' },
+  limited: { color: YELLOW,   title: 'Limited data (OTC/fund) — chart may be empty' },
+  none:    { color: RED,      title: 'No data — international exchange not covered' },
+  unknown: { color: '#444',   title: 'Coverage unknown' },
+};
+
+const COVERAGE_TAG = {
+  none:    { bg: '#2a0000', color: RED,    label: 'NO DATA' },
+  limited: { bg: '#1a1400', color: YELLOW, label: 'LIMITED' },
+};
+
+// Fixed: use C: prefix (Polygon format) not =X (Yahoo format)
 function localSearch(q) {
   if (!q || q.trim().length < 2) return [];
-  const uq = q.toUpperCase().replace(/[\s\/\-]/g, '');
+  const uq = q.toUpperCase().replace(/[\s/\-]/g, '');
   const fxResults = FOREX_PAIRS
     .filter(p => p.symbol.includes(uq) || p.label.replace('/', '').includes(uq))
-    .map(p => ({ symbol: p.symbol + '=X', name: p.label + ' Exchange Rate', type: 'CURRENCY', local: true }));
+    .map(p => ({ symbol: 'C:' + p.symbol, name: p.label + ' Exchange Rate', type: 'CURRENCY', local: true }));
   const cryptoResults = CRYPTO_PAIRS
     .filter(c => c.symbol.toUpperCase().includes(uq) || c.label.toUpperCase().includes(q.trim().toUpperCase()))
     .map(c => ({ symbol: 'X:' + c.symbol, name: c.label + ' / USD', type: 'CRYPTO', local: true }));
   return [...fxResults, ...cryptoResults];
 }
 
+function displaySymbol(sym) {
+  if (!sym) return '';
+  if (sym.startsWith('C:')) return sym.slice(2, 5) + '/' + sym.slice(5);
+  if (sym.startsWith('X:')) return sym.slice(2).replace('USD', '') + '/USD';
+  if (sym.endsWith('.SA')) return sym.slice(0, -3);
+  return sym;
+}
+
 export function SearchPanel({ onTickerSelect, onOpenDetail }) {
-  const [query, setQuery]     = useState('');
-  const [results, setResults] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [quote, setQuote]     = useState(null);
+  const [query,       setQuery]       = useState('');
+  const [results,     setResults]     = useState([]);
+  const [loading,     setLoading]     = useState(false);
+  const [selected,    setSelected]    = useState(null);  // currently selected item
+  const [quote,       setQuote]       = useState(null);
   const [quoteLoading, setQuoteLoading] = useState(false);
   const debounceRef = useRef(null);
 
@@ -47,11 +105,19 @@ export function SearchPanel({ onTickerSelect, onOpenDetail }) {
     fetch(`${API}/api/search?q=${encodeURIComponent(q)}`)
       .then(r => r.json())
       .then(d => {
-        const remote = (d.results || []).filter(r => !local.some(l => l.symbol === (r.ticker || r.symbol)));
+        const remote = (d.results || []).filter(r =>
+          !local.some(l => l.symbol === (r.ticker || r.symbol))
+        );
         const merged = [
           ...local,
-          ...remote.map(r => ({ symbol: r.ticker || r.symbol, name: r.name, type: r.type, market: r.market })),
-        ].slice(0, 14);
+          ...remote.map(r => ({
+            symbol: r.ticker || r.symbol,
+            name: r.name,
+            type: r.type,
+            market: r.market,
+            active: r.active,
+          })),
+        ].slice(0, 16);
         setResults(merged);
         setLoading(false);
       })
@@ -61,21 +127,27 @@ export function SearchPanel({ onTickerSelect, onOpenDetail }) {
   const handleInput = (e) => {
     const q = e.target.value;
     setQuery(q);
+    setSelected(null);
+    setQuote(null);
     clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => search(q), 280);
   };
 
-  const handleSelect = (item) => {
-    setQuery(item.symbol);
+  const handleSelect = useCallback((item) => {
+    setSelected(item);
     setResults([]);
-    if (onTickerSelect) onTickerSelect(item.symbol);
+    setQuery(displaySymbol(item.symbol));
     setQuote(null);
+
+    const cov = coverageLevel(item);
+    if (cov === 'none') return; // don't bother fetching quote for no-coverage tickers
+
     setQuoteLoading(true);
     fetch(`${API}/api/quote/${encodeURIComponent(item.symbol)}`)
       .then(r => r.json())
       .then(d => { setQuote(d); setQuoteLoading(false); })
       .catch(() => setQuoteLoading(false));
-  };
+  }, []);
 
   const handleDragStart = (e, item) => {
     e.dataTransfer.effectAllowed = 'copy';
@@ -84,16 +156,20 @@ export function SearchPanel({ onTickerSelect, onOpenDetail }) {
     }));
   };
 
-  const fmtNum = (n) => n == null ? '\u2014' : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const fmtPct = (n) => n == null ? '\u2014' : (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
-  const fmtVol = (n) => n == null ? '\u2014' : n >= 1e9 ? (n / 1e9).toFixed(1) + 'B' : n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1e3 ? (n / 1e3).toFixed(1) + 'K' : String(n);
+  const fmtNum = (n) => n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const fmtPct = (n) => n == null ? '—' : (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
+  const fmtVol = (n) => !n ? '—' : n >= 1e9 ? (n/1e9).toFixed(1)+'B' : n >= 1e6 ? (n/1e6).toFixed(1)+'M' : n >= 1e3 ? (n/1e3).toFixed(0)+'K' : String(n);
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#0a0a0a', fontFamily: 'inherit' }}>
-      <div style={{ padding: '12px 10px', borderBottom: '1px solid #1e1e1e', flexShrink: 0 }}>
-        <span style={{ color: '#e8a020', fontWeight: 700, fontSize: 12, letterSpacing: '0.2em' }}>SEARCH</span>
-        <span style={{ color: '#333', fontSize: 7, marginLeft: 8 }}>DRAG RESULTS TO CHART</span>
+
+      {/* ── Header ── */}
+      <div style={{ padding: '6px 10px 4px', borderBottom: '1px solid #1e1e1e', flexShrink: 0, display: 'flex', alignItems: 'baseline', gap: 8 }}>
+        <span style={{ color: ORANGE, fontWeight: 700, fontSize: 11, letterSpacing: '0.2em' }}>SEARCH</span>
+        <span style={{ color: '#2a2a2a', fontSize: 7 }}>CLICK → DETAIL  ·  DRAG → CHART</span>
       </div>
+
+      {/* ── Search input ── */}
       <div style={{ position: 'relative', padding: '6px 8px', flexShrink: 0 }}>
         <input
           value={query}
@@ -102,107 +178,223 @@ export function SearchPanel({ onTickerSelect, onOpenDetail }) {
           style={{
             width: '100%', background: '#0f0f0f',
             border: '1px solid #2a2a2a', color: '#ccc',
-            fontSize: 16, padding: '10px 8px',
+            fontSize: 15, padding: '9px 8px',
             fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box',
+            borderRadius: 2,
           }}
-          onFocus={e => e.target.style.borderColor = '#ff6600'}
+          onFocus={e => e.target.style.borderColor = ORANGE}
           onBlur={e => e.target.style.borderColor = '#2a2a2a'}
         />
         {loading && (
-          <span style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', color: '#555', fontSize: 7 }}>
+          <span style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', color: '#444', fontSize: 7 }}>
             SEARCHING...
           </span>
         )}
       </div>
+
+      {/* ── Results list ── */}
       {results.length > 0 && (
         <div style={{ borderBottom: '1px solid #1e1e1e', flexShrink: 0, maxHeight: '55vh', overflowY: 'auto' }}>
           {results.map(item => {
-            const badge = MARKET_BADGE[item.market?.toUpperCase()];
-            const isBrazilian = item.symbol?.endsWith('.SA');
+            const badge  = MARKET_BADGE[(item.market || '').toUpperCase()];
+            const isBR   = item.symbol?.endsWith('.SA');
+            const cov    = coverageLevel(item);
+            const dot    = COVERAGE_DOT[cov];
+            const covTag = COVERAGE_TAG[cov];
+
             return (
               <div
                 key={item.symbol}
                 draggable
                 onDragStart={(e) => handleDragStart(e, item)}
                 onClick={() => handleSelect(item)}
-                onDoubleClick={() => onOpenDetail?.(item.symbol)}
+                title={dot.title}
                 style={{
-                  padding: '10px 10px', borderBottom: '1px solid #161616',
-                  cursor: 'grab', display: 'flex', alignItems: 'center',
-                  gap: 6, userSelect: 'none', transition: 'background 0.1s',
+                  padding: '8px 10px', borderBottom: '1px solid #141414',
+                  cursor: 'pointer', display: 'flex', alignItems: 'center',
+                  gap: 7, userSelect: 'none',
+                  opacity: cov === 'none' ? 0.55 : 1,
                 }}
                 onMouseEnter={e => e.currentTarget.style.background = '#141414'}
                 onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
               >
-                <span style={{ color: '#2a2a2a', fontSize: 13, flexShrink: 0 }}>|:|</span>
+                {/* Coverage dot */}
+                <span
+                  title={dot.title}
+                  style={{
+                    width: 6, height: 6, borderRadius: '50%',
+                    background: dot.color, flexShrink: 0,
+                    boxShadow: cov === 'live' ? `0 0 4px ${dot.color}` : 'none',
+                  }}
+                />
+
+                {/* Drag grip */}
+                <span style={{ color: '#1e1e1e', fontSize: 11, flexShrink: 0 }}>⠿</span>
+
+                {/* Symbol */}
                 <span style={{
-                  color: isBrazilian ? '#8bc34a' : (TYPE_COLOR[item.type] || '#aaa'),
-                  fontSize: 13, fontWeight: 700, minWidth: '70px', flexShrink: 0,
+                  color: isBR ? '#8bc34a' : (TYPE_COLOR[item.type] || '#aaa'),
+                  fontSize: 12, fontWeight: 700, minWidth: '68px', flexShrink: 0,
                 }}>
-                  {isBrazilian ? item.symbol.replace('.SA', '') : item.symbol}
+                  {displaySymbol(item.symbol)}
                 </span>
-                <span style={{ color: '#777', fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+
+                {/* Name */}
+                <span style={{ color: '#666', fontSize: 11, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
                   {item.name}
                 </span>
-                {badge ? (
-                  <span style={{ fontSize: 7, padding: '1px 4px', borderRadius: 2, background: badge.bg, color: badge.color, flexShrink: 0 }}>
-                    {badge.label}
-                  </span>
-                ) : (
-                  <span style={{ color: '#444', fontSize: 8, flexShrink: 0 }}>{item.type}</span>
-                )}
+
+                {/* Badges */}
+                <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexShrink: 0 }}>
+                  {covTag && (
+                    <span style={{
+                      fontSize: 7, padding: '1px 4px', borderRadius: 2,
+                      background: covTag.bg, color: covTag.color,
+                      fontWeight: 700, letterSpacing: 0.3,
+                    }}>
+                      {covTag.label}
+                    </span>
+                  )}
+                  {badge ? (
+                    <span style={{ fontSize: 7, padding: '1px 4px', borderRadius: 2, background: badge.bg, color: badge.color }}>
+                      {badge.label}
+                    </span>
+                  ) : (
+                    item.type && !covTag && (
+                      <span style={{ color: '#333', fontSize: 7 }}>{item.type}</span>
+                    )
+                  )}
+                </div>
               </div>
             );
           })}
         </div>
       )}
-      {!results.length && !query && (
-        <div style={{ padding: '12px 8px', color: '#555', fontSize: 8, textAlign: 'center' }}>
-          TYPE TO SEARCH \u2014 DRAG RESULTS TO CHART
+
+      {/* ── Empty state ── */}
+      {!results.length && !query && !selected && (
+        <div style={{ padding: '16px 10px', color: '#2a2a2a', fontSize: 8, textAlign: 'center', lineHeight: 2 }}>
+          TYPE TO SEARCH<br />
+          <span style={{ color: '#1e1e1e' }}>● CLICK RESULT → OPEN IN DEPTH</span><br />
+          <span style={{ color: '#1e1e1e' }}>⠿ DRAG RESULT → ADD TO CHART</span>
         </div>
       )}
-        {query.trim().length > 0 && !results.length && !loading && (
-          <div style={{ padding: '20px 16px', textAlign: 'center', color: '#555', fontSize: 11, letterSpacing: '0.1em' }}>NO RESULTS</div>
-        )}
-      {(quote || quoteLoading) && (
-        <div style={{ padding: '10px 8px', flex: 1, overflow: 'auto' }}>
-          {quoteLoading && <div style={{ color: '#444', fontSize: 8 }}>LOADING QUOTE...</div>}
-          {quote && !quoteLoading && quote.price != null && (() => {
-            const up = (quote.changePct ?? 0) >= 0;
-            const isBR = quote.currency === 'BRL' || quote.ticker?.endsWith('.SA');
-            return (
-              <div>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 2 }}>
-                  <span style={{ color: '#e8a020', fontWeight: 700, fontSize: 12 }}>
-                    {isBR ? quote.ticker?.replace('.SA', '') : quote.ticker}
-                  </span>
-                  {isBR && (
-                    <span style={{ fontSize: 7, padding: '1px 4px', borderRadius: 2, background: '#1a2800', color: '#8bc34a' }}>B3</span>
-                  )}
-                  <span style={{ color: '#333', fontSize: 8, marginLeft: 'auto' }}>{quote.currency}</span>
-                </div>
-                <div style={{ color: '#ccc', fontSize: 20, fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>
-                  {fmtNum(quote.price)}
-                </div>
-                <div style={{ color: up ? '#00c853' : '#f44336', fontSize: 13, marginTop: 2 }}>
-                  {(up ? '+' : '')}{fmtNum(quote.change)} ({fmtPct(quote.changePct)})
-                </div>
-                {quote.name && quote.name !== quote.ticker && (
-                  <div style={{ color: '#444', fontSize: 9, marginTop: 4, fontStyle: 'italic' }}>{quote.name}</div>
-                )}
-                <div style={{ marginTop: 8, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
-                  {[['OPEN', quote.open], ['HIGH', quote.high], ['LOW', quote.low], ['VOLUME', fmtVol(quote.volume)]].map(([lbl, val]) => (
-                    <div key={lbl}>
-                      <div style={{ color: '#555', fontSize: 7 }}>{lbl}</div>
-                      <div style={{ color: '#999', fontSize: 11, fontVariantNumeric: 'tabular-nums' }}>
-                        {typeof val === 'number' ? fmtNum(val) : (val || '\u2014')}
-                      </div>
-                    </div>
-                  ))}
-                </div>
+      {query.trim().length > 0 && !results.length && !loading && !selected && (
+        <div style={{ padding: '20px', textAlign: 'center', color: '#444', fontSize: 10, letterSpacing: '0.1em' }}>
+          NO RESULTS
+        </div>
+      )}
+
+      {/* ── Quote preview / action area ── */}
+      {(selected || quoteLoading) && (
+        <div style={{ flex: 1, overflowY: 'auto', padding: '10px 10px 12px' }}>
+
+          {/* Coverage warning banner */}
+          {selected && coverageLevel(selected) !== 'live' && (
+            <div style={{
+              marginBottom: 10, padding: '6px 10px', borderRadius: 2,
+              background: coverageLevel(selected) === 'none' ? '#1a0000' : '#1a1400',
+              border: `1px solid ${coverageLevel(selected) === 'none' ? '#440000' : '#332200'}`,
+              color: coverageLevel(selected) === 'none' ? RED : YELLOW,
+              fontSize: 9, lineHeight: 1.5,
+            }}>
+              {coverageLevel(selected) === 'none'
+                ? '⚠ This ticker trades on an international exchange not covered by this terminal. Chart and price data will not be available.'
+                : '⚠ This ticker is OTC/fund class — data may be sparse or unavailable.'}
+            </div>
+          )}
+
+          {quoteLoading && (
+            <div style={{ color: '#333', fontSize: 9, textAlign: 'center', padding: '12px 0' }}>LOADING...</div>
+          )}
+
+          {selected && !quoteLoading && (
+            <>
+              {/* Action buttons */}
+              <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
+                <button
+                  onClick={() => onOpenDetail?.(selected.symbol)}
+                  style={{
+                    flex: 2, padding: '9px 0', fontSize: 10, fontWeight: 700,
+                    background: ORANGE, color: '#fff', border: 'none',
+                    borderRadius: 2, cursor: 'pointer', letterSpacing: 0.5,
+                    fontFamily: 'inherit',
+                  }}
+                >
+                  OPEN IN DEPTH →
+                </button>
+                <button
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, selected)}
+                  onClick={() => onTickerSelect?.(selected.symbol)}
+                  style={{
+                    flex: 1, padding: '9px 0', fontSize: 10,
+                    background: 'transparent', color: '#555',
+                    border: '1px solid #252525',
+                    borderRadius: 2, cursor: 'grab', letterSpacing: 0.5,
+                    fontFamily: 'inherit',
+                  }}
+                  title="Click to set as chart ticker, or drag to a chart slot"
+                >
+                  + CHART
+                </button>
               </div>
-            );
-          })()}
+
+              {/* Quote data (if available) */}
+              {quote?.price != null ? (() => {
+                const up  = (quote.changePct ?? 0) >= 0;
+                const isBR = quote.currency === 'BRL' || quote.ticker?.endsWith('.SA');
+                return (
+                  <div>
+                    {/* Ticker + currency row */}
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 2 }}>
+                      <span style={{ color: ORANGE, fontWeight: 700, fontSize: 13 }}>
+                        {displaySymbol(quote.ticker || selected.symbol)}
+                      </span>
+                      {isBR && (
+                        <span style={{ fontSize: 7, padding: '1px 4px', borderRadius: 2, background: '#1a2800', color: '#8bc34a' }}>B3</span>
+                      )}
+                      {quote.name && quote.name !== quote.ticker && (
+                        <span style={{ color: '#333', fontSize: 8, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {quote.name}
+                        </span>
+                      )}
+                      <span style={{ color: '#2a2a2a', fontSize: 7, marginLeft: 'auto', flexShrink: 0 }}>{quote.currency}</span>
+                    </div>
+
+                    {/* Price */}
+                    <div style={{ color: '#e0e0e0', fontSize: 22, fontVariantNumeric: 'tabular-nums', fontWeight: 600, lineHeight: 1.1 }}>
+                      {fmtNum(quote.price)}
+                    </div>
+                    <div style={{ color: up ? '#00c853' : RED, fontSize: 13, marginTop: 3, marginBottom: 10 }}>
+                      {(up ? '+' : '')}{fmtNum(quote.change)}&nbsp;({fmtPct(quote.changePct)})
+                    </div>
+
+                    {/* OHLCV grid */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 12px' }}>
+                      {[
+                        ['OPEN',   fmtNum(quote.open)],
+                        ['HIGH',   fmtNum(quote.high)],
+                        ['LOW',    fmtNum(quote.low)],
+                        ['VOLUME', fmtVol(quote.volume)],
+                      ].map(([lbl, val]) => (
+                        <div key={lbl}>
+                          <div style={{ color: '#2a2a2a', fontSize: 7, letterSpacing: 0.5 }}>{lbl}</div>
+                          <div style={{ color: '#888', fontSize: 11, fontVariantNumeric: 'tabular-nums' }}>{val}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })() : (
+                !quoteLoading && coverageLevel(selected) !== 'none' && (
+                  <div style={{ color: '#2a2a2a', fontSize: 9, textAlign: 'center', padding: '8px 0' }}>
+                    No quote data available
+                  </div>
+                )
+              )}
+            </>
+          )}
         </div>
       )}
     </div>
