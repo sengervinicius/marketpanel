@@ -10,6 +10,7 @@ const API = import.meta.env.VITE_API_URL || '';
 const ORANGE = '#ff6b00';
 const GREEN  = '#00c851';
 const RED    = '#ff4444';
+const DIM    = '#333';
 
 const RANGES = [
   { label: '1D', multiplier: 5,  timespan: 'minute', days: 1    },
@@ -68,6 +69,32 @@ function timeAgo(utc) {
   return Math.round(diff / 86400) + 'd';
 }
 
+function pct(v, dec = 1) {
+  if (v == null) return '--';
+  return (v >= 0 ? '+' : '') + (v * 100).toFixed(dec) + '%';
+}
+
+// ── Export chart data as CSV ────────────────────────────────────────────────
+function exportToCSV(bars, ticker, rangeLabel) {
+  if (!bars.length) return;
+  const disp = displayTicker(normalizeTicker(ticker));
+  const header = 'Date,Open,High,Low,Close,Volume';
+  const rows = bars.map(b => {
+    const date = b.t ? new Date(b.t).toISOString().split('T')[0] : b.label;
+    return [date, b.open ?? '', b.high ?? '', b.low ?? '', b.close ?? '', b.volume ?? ''].join(',');
+  });
+  const csv = [header, ...rows].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${disp}_${rangeLabel}_${new Date().toISOString().split('T')[0]}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 // ── Custom SVG overlay: diagonal line A→B with delta badge ─────────────────
 function DeltaLineOverlay({ xAxisMap, yAxisMap, bars, deltaA, deltaB, deltaInfo }) {
   if (!deltaInfo || deltaA === null || deltaB === null) return null;
@@ -79,52 +106,50 @@ function DeltaLineOverlay({ xAxisMap, yAxisMap, bars, deltaA, deltaB, deltaInfo 
   const yAxis = yAxisMap && yAxisMap[0];
   if (!xAxis?.scale || !yAxis?.scale) return null;
 
+  // Use index-based position via the categorical scale
   const bw = xAxis.scale.bandwidth ? xAxis.scale.bandwidth() / 2 : 0;
-  const xA = xAxis.scale(barA.label) + bw;
-  const xB = xAxis.scale(barB.label) + bw;
-  const yA = yAxis.scale(barA.close);
-  const yB = yAxis.scale(barB.close);
+  const xA = xAxis.scale(barA.label);
+  const xB = xAxis.scale(barB.label);
+  if (xA == null || xB == null) return null;
+  const xAc = xA + bw, xBc = xB + bw;
+  const yAc = yAxis.scale(barA.close);
+  const yBc = yAxis.scale(barB.close);
 
-  if (isNaN(xA) || isNaN(xB) || isNaN(yA) || isNaN(yB)) return null;
+  if ([xAc, xBc, yAc, yBc].some(v => isNaN(v) || v == null)) return null;
 
-  // Badge sits just above the midpoint of the line
-  const midX = (xA + xB) / 2;
-  const midY = (yA + yB) / 2 - 16;
+  const midX = (xAc + xBc) / 2;
+  const midY = (yAc + yBc) / 2 - 18;
 
   const color  = deltaInfo.pct >= 0 ? GREEN : RED;
   const pctStr = (deltaInfo.pct >= 0 ? '+' : '') + deltaInfo.pct.toFixed(2) + '%';
-  const absStr = (deltaInfo.delta >= 0 ? '+' : '') + fmt(deltaInfo.delta);
-  const line1W = pctStr.length * 6.8 + 14;
-  const line2W = absStr.length * 6.0 + 14;
-  const badgeW = Math.max(line1W, line2W);
-  const badgeH = 32;
+  const absStr = (deltaInfo.delta >= 0 ? '+' : '') + fmt(Math.abs(deltaInfo.delta));
+  const daysStr = deltaInfo.days != null ? `${deltaInfo.days}d` : null;
+  const badgeW = 76;
+  const badgeH = daysStr ? 44 : 32;
 
   return (
     <g>
-      {/* Connecting line */}
-      <line
-        x1={xA} y1={yA} x2={xB} y2={yB}
-        stroke={color} strokeWidth={1.5} strokeDasharray="6 3" opacity={0.9}
-      />
+      {/* Shadow for line */}
+      <line x1={xAc} y1={yAc} x2={xBc} y2={yBc} stroke="#000" strokeWidth={4} opacity={0.4} />
+      {/* Main line */}
+      <line x1={xAc} y1={yAc} x2={xBc} y2={yBc} stroke={color} strokeWidth={1.5} strokeDasharray="6 3" opacity={0.9} />
       {/* Endpoint dots */}
-      <circle cx={xA} cy={yA} r={5} fill={color} stroke="#000" strokeWidth={1.5} />
-      <circle cx={xB} cy={yB} r={5} fill={color} stroke="#000" strokeWidth={1.5} />
+      <circle cx={xAc} cy={yAc} r={5} fill={color} stroke="#000" strokeWidth={1.5} />
+      <circle cx={xBc} cy={yBc} r={5} fill={color} stroke="#000" strokeWidth={1.5} />
+      {/* A / B labels */}
+      <text x={xAc} y={yAc - 10} textAnchor="middle" fill={ORANGE} fontSize={9} fontFamily="'Courier New', monospace" fontWeight="bold">A</text>
+      <text x={xBc} y={yBc - 10} textAnchor="middle" fill={ORANGE} fontSize={9} fontFamily="'Courier New', monospace" fontWeight="bold">B</text>
       {/* Delta badge */}
-      <rect
-        x={midX - badgeW / 2} y={midY - badgeH / 2}
-        width={badgeW} height={badgeH} rx={4}
-        fill="#0a0a0a" stroke={color} strokeWidth={1}
-      />
-      <text
-        x={midX} y={midY - 4}
-        textAnchor="middle" fill={color}
-        fontSize={11} fontFamily="'Courier New', monospace" fontWeight="bold"
-      >{pctStr}</text>
-      <text
-        x={midX} y={midY + 11}
-        textAnchor="middle" fill="#666"
-        fontSize={9} fontFamily="'Courier New', monospace"
-      >{absStr}</text>
+      <rect x={midX - badgeW / 2} y={midY - badgeH / 2} width={badgeW} height={badgeH} rx={4}
+        fill="#0a0a0a" stroke={color} strokeWidth={1} />
+      <text x={midX} y={midY - (daysStr ? 8 : 2)} textAnchor="middle" fill={color}
+        fontSize={12} fontFamily="'Courier New', monospace" fontWeight="bold">{pctStr}</text>
+      <text x={midX} y={midY + (daysStr ? 8 : 12)} textAnchor="middle" fill="#888"
+        fontSize={9} fontFamily="'Courier New', monospace">{absStr}</text>
+      {daysStr && (
+        <text x={midX} y={midY + 22} textAnchor="middle" fill="#444"
+          fontSize={8} fontFamily="'Courier New', monospace">{daysStr}</text>
+      )}
     </g>
   );
 }
@@ -135,30 +160,34 @@ export default function InstrumentDetail({ ticker, onClose }) {
   const disp     = displayTicker(norm);
   const isFX     = norm.startsWith('C:');
   const isCrypto = norm.startsWith('X:');
+  const isBrazil = norm.endsWith('.SA');
+  const isStock  = !isFX && !isCrypto;
   const isMobile = window.innerWidth < 1024;
 
-  const [rangeIdx,  setRangeIdx]  = useState(0);
-  const [bars,      setBars]      = useState([]);
-  const [snap,      setSnap]      = useState(null);
-  const [info,      setInfo]      = useState(null);
-  const [loading,   setLoading]   = useState(true);
-  const [deltaMode, setDeltaMode] = useState(false);
-  const [deltaA,    setDeltaA]    = useState(null);
-  const [deltaB,    setDeltaB]    = useState(null);
-  const [hovered,   setHovered]   = useState(null);
-  const [fundsData, setFundsData] = useState(null);
-  const [news,      setNews]      = useState([]);
+  const [rangeIdx,    setRangeIdx]    = useState(0);
+  const [bars,        setBars]        = useState([]);
+  const [snap,        setSnap]        = useState(null);
+  const [info,        setInfo]        = useState(null);
+  const [loading,     setLoading]     = useState(true);
+  const [deltaMode,   setDeltaMode]   = useState(false);
+  const [deltaA,      setDeltaA]      = useState(null);
+  const [deltaB,      setDeltaB]      = useState(null);
+  const [hovered,     setHovered]     = useState(null);
+  const [fundsData,   setFundsData]   = useState(null);
+  const [news,        setNews]        = useState([]);
   const [newsLoading, setNewsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('STATS');
+  const [activeTab,   setActiveTab]   = useState('STATS');
+  const [descExpanded, setDescExpanded] = useState(false);
 
   const range = RANGES[rangeIdx];
 
-  // ── Fetch bars ────────────────────────────────────────────────────────
+  // ── Fetch bars ─────────────────────────────────────────────────────────
   useEffect(() => {
     setLoading(true);
     setBars([]);
     setDeltaA(null);
     setDeltaB(null);
+    setDeltaMode(false); // reset measure tool on range change
     const from = getFromDate(range);
     const to   = new Date().toISOString().split('T')[0];
     fetch(
@@ -177,7 +206,7 @@ export default function InstrumentDetail({ ticker, onClose }) {
       .catch(() => setLoading(false));
   }, [norm, rangeIdx]);
 
-  // ── Fetch snapshot ────────────────────────────────────────────────────
+  // ── Fetch snapshot ─────────────────────────────────────────────────────
   useEffect(() => {
     fetch(`${API}/api/snapshot/ticker/${encodeURIComponent(norm)}`)
       .then(r => r.json())
@@ -185,7 +214,7 @@ export default function InstrumentDetail({ ticker, onClose }) {
       .catch(() => {});
   }, [norm]);
 
-  // ── Fetch reference info (stocks only) ───────────────────────────────
+  // ── Fetch reference info (stocks only) ────────────────────────────────
   useEffect(() => {
     if (isFX || isCrypto) return;
     fetch(`${API}/api/ticker/${encodeURIComponent(norm)}`)
@@ -194,9 +223,9 @@ export default function InstrumentDetail({ ticker, onClose }) {
       .catch(() => {});
   }, [norm]);
 
-  // ── Fetch fundamentals ────────────────────────────────────────────────
+  // ── Fetch fundamentals ─────────────────────────────────────────────────
   useEffect(() => {
-    if (!norm) return;
+    if (!isStock) return;
     setFundsData(null);
     fetch(API + '/api/fundamentals/' + encodeURIComponent(norm))
       .then(r => r.ok ? r.json() : null)
@@ -204,11 +233,10 @@ export default function InstrumentDetail({ ticker, onClose }) {
       .catch(() => {});
   }, [norm]);
 
-  // ── Fetch ticker-specific news ────────────────────────────────────────
+  // ── Fetch ticker-specific news ─────────────────────────────────────────
   useEffect(() => {
     setNewsLoading(true);
     setNews([]);
-    // Strip Polygon prefix for Polygon news API (X:BTCUSD → BTCUSD, C:EURUSD → EURUSD)
     const newsTicker = norm.replace(/^[XCI]:/, '');
     fetch(`${API}/api/news?ticker=${encodeURIComponent(newsTicker)}&limit=12`)
       .then(r => r.json())
@@ -216,11 +244,7 @@ export default function InstrumentDetail({ ticker, onClose }) {
       .catch(() => setNewsLoading(false));
   }, [norm]);
 
-  // ── Escape key + mobile back-button support ───────────────────────────
-  // Use a ref for onClose so the effect runs ONLY on mount/unmount.
-  // If we put onClose in deps, every App re-render (6s marketData refresh)
-  // creates a new inline arrow function reference, which re-triggers the
-  // effect, calling history.back() in cleanup → navigates the user away.
+  // ── Escape key + mobile back-button support ────────────────────────────
   const onCloseRef = useRef(onClose);
   useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
 
@@ -229,10 +253,7 @@ export default function InstrumentDetail({ ticker, onClose }) {
     closedByPopRef.current = false;
     history.pushState({ overlayDetail: true }, '');
 
-    const handlePop = () => {
-      closedByPopRef.current = true;
-      onCloseRef.current();
-    };
+    const handlePop = () => { closedByPopRef.current = true; onCloseRef.current(); };
     const handleKey = e => { if (e.key === 'Escape') onCloseRef.current(); };
 
     window.addEventListener('popstate', handlePop);
@@ -244,9 +265,9 @@ export default function InstrumentDetail({ ticker, onClose }) {
         history.back();
       }
     };
-  }, []); // ← empty: only fires on actual mount/unmount, not on re-renders
+  }, []); // empty — only fires on actual mount/unmount
 
-  // ── Derived values ────────────────────────────────────────────────────
+  // ── Derived values ─────────────────────────────────────────────────────
   const livePrice = snap?.min?.c || snap?.day?.c || snap?.lastTrade?.p || snap?.prevDay?.c
                  || (bars.length ? bars[bars.length - 1].close : null);
   const prevClose  = snap?.prevDay?.c;
@@ -259,15 +280,15 @@ export default function InstrumentDetail({ ticker, onClose }) {
   const volume     = snap?.day?.v;
   const desc       = info?.description;
 
-  const chartMin   = bars.length ? Math.min(...bars.map(b => b.close)) * 0.998 : 0;
-  const chartMax   = bars.length ? Math.max(...bars.map(b => b.close)) * 1.002 : 1;
-  const rangeHigh  = bars.length ? Math.max(...bars.map(b => b.high)) : null;
-  const rangeLow   = bars.length ? Math.min(...bars.map(b => b.low))  : null;
+  const chartMin   = bars.length ? Math.min(...bars.map(b => b.close)) * 0.997 : 0;
+  const chartMax   = bars.length ? Math.max(...bars.map(b => b.close)) * 1.003 : 1;
+  const rangeHigh  = bars.length ? Math.max(...bars.map(b => b.high))  : null;
+  const rangeLow   = bars.length ? Math.min(...bars.map(b => b.low))   : null;
   const rangeOpen  = bars.length ? bars[0].open : null;
   const rangeClose = bars.length ? bars[bars.length - 1].close : null;
   const rangeChg   = (rangeOpen && rangeClose) ? ((rangeClose - rangeOpen) / rangeOpen) * 100 : null;
 
-  // ── Delta tool ────────────────────────────────────────────────────────
+  // ── Delta tool ─────────────────────────────────────────────────────────
   const deltaInfo = (() => {
     if (deltaA === null || deltaB === null || bars.length < 2) return null;
     const [i1, i2] = [deltaA, deltaB].sort((a, b) => a - b);
@@ -275,7 +296,8 @@ export default function InstrumentDetail({ ticker, onClose }) {
     if (!a || !b) return null;
     const d = b.close - a.close;
     const p = (d / a.close) * 100;
-    return { a, b, delta: d, pct: p };
+    const days = (a.t && b.t) ? Math.round(Math.abs(b.t - a.t) / 86400000) : null;
+    return { a, b, delta: d, pct: p, days };
   })();
 
   const handleChartClick = useCallback(chartData => {
@@ -287,10 +309,13 @@ export default function InstrumentDetail({ ticker, onClose }) {
     else { setDeltaA(idx); setDeltaB(null); }
   }, [deltaMode, deltaA, deltaB]);
 
-  const toggleDelta = () => { setDeltaMode(m => !m); setDeltaA(null); setDeltaB(null); };
+  const toggleDelta = () => {
+    setDeltaMode(m => !m);
+    setDeltaA(null);
+    setDeltaB(null);
+  };
 
-  // ── Sub-renders ───────────────────────────────────────────────────────
-
+  // ── Chart sub-render ───────────────────────────────────────────────────
   function renderChart() {
     if (loading) return (
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#2a2a2a', fontSize: 12 }}>
@@ -321,24 +346,24 @@ export default function InstrumentDetail({ ticker, onClose }) {
             >
               <defs>
                 <linearGradient id="idGradFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%"  stopColor={isPos ? GREEN : RED} stopOpacity={0.22} />
+                  <stop offset="5%"  stopColor={isPos ? GREEN : RED} stopOpacity={0.25} />
                   <stop offset="95%" stopColor={isPos ? GREEN : RED} stopOpacity={0.01} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#161616" />
+              <CartesianGrid strokeDasharray="3 3" stroke="#111" />
               <XAxis
                 dataKey="label"
-                tick={{ fill: '#3a3a3a', fontSize: 9 }}
+                tick={{ fill: '#333', fontSize: 9 }}
                 interval="preserveStartEnd"
                 tickLine={false}
-                axisLine={{ stroke: '#222' }}
+                axisLine={{ stroke: '#1e1e1e' }}
               />
               <YAxis
                 domain={[chartMin, chartMax]}
-                tick={{ fill: '#3a3a3a', fontSize: 9 }}
+                tick={{ fill: '#333', fontSize: 9 }}
                 width={64}
                 tickFormatter={v => fmt(v, v > 999 ? 0 : 2)}
-                axisLine={{ stroke: '#222' }}
+                axisLine={{ stroke: '#1e1e1e' }}
               />
               <Tooltip
                 contentStyle={{ background: '#0d0d0d', border: '1px solid #2a2a2a', fontSize: 11, borderRadius: 3 }}
@@ -352,48 +377,32 @@ export default function InstrumentDetail({ ticker, onClose }) {
                   x1={bars[aMin].label}
                   x2={bars[aMax].label}
                   fill={deltaInfo?.pct >= 0 ? GREEN : RED}
-                  fillOpacity={0.05}
+                  fillOpacity={0.06}
                   strokeOpacity={0}
                 />
               )}
 
-              {/* Vertical markers for A and B */}
+              {/* Vertical markers */}
               {deltaA !== null && bars[deltaA] && (
-                <ReferenceLine
-                  x={bars[deltaA].label}
-                  stroke={ORANGE} strokeDasharray="4 2" strokeWidth={1.5}
-                  label={{ value: 'A', fill: ORANGE, fontSize: 10, position: 'top' }}
-                />
+                <ReferenceLine x={bars[deltaA].label} stroke={ORANGE} strokeDasharray="4 2" strokeWidth={1.5}
+                  label={{ value: 'A', fill: ORANGE, fontSize: 10, position: 'top' }} />
               )}
               {deltaB !== null && bars[deltaB] && (
-                <ReferenceLine
-                  x={bars[deltaB].label}
-                  stroke={ORANGE} strokeDasharray="4 2" strokeWidth={1.5}
-                  label={{ value: 'B', fill: ORANGE, fontSize: 10, position: 'top' }}
-                />
+                <ReferenceLine x={bars[deltaB].label} stroke={ORANGE} strokeDasharray="4 2" strokeWidth={1.5}
+                  label={{ value: 'B', fill: ORANGE, fontSize: 10, position: 'top' }} />
               )}
 
               <Area
-                type="monotone"
-                dataKey="close"
-                name="Close"
-                stroke={isPos ? GREEN : RED}
-                strokeWidth={1.5}
-                fill="url(#idGradFill)"
-                dot={false}
+                type="monotone" dataKey="close" name="Close"
+                stroke={isPos ? GREEN : RED} strokeWidth={1.5}
+                fill="url(#idGradFill)" dot={false}
                 activeDot={{ r: 3, fill: isPos ? GREEN : RED, strokeWidth: 0 }}
               />
 
-              {/* Diagonal A→B connecting line with delta badge */}
+              {/* Diagonal A→B line with delta badge */}
               {deltaInfo && (
                 <Customized component={(chartProps) => (
-                  <DeltaLineOverlay
-                    {...chartProps}
-                    bars={bars}
-                    deltaA={deltaA}
-                    deltaB={deltaB}
-                    deltaInfo={deltaInfo}
-                  />
+                  <DeltaLineOverlay {...chartProps} bars={bars} deltaA={deltaA} deltaB={deltaB} deltaInfo={deltaInfo} />
                 )} />
               )}
             </AreaChart>
@@ -406,8 +415,7 @@ export default function InstrumentDetail({ ticker, onClose }) {
             <BarChart data={bars} margin={{ top: 2, right: 6, bottom: 0, left: 6 }}>
               <XAxis dataKey="label" hide axisLine={false} />
               <YAxis
-                tick={{ fill: '#2a2a2a', fontSize: 8 }}
-                width={64}
+                tick={{ fill: '#222', fontSize: 8 }} width={64}
                 tickFormatter={v =>
                   v >= 1e9 ? (v/1e9).toFixed(1)+'B' :
                   v >= 1e6 ? (v/1e6).toFixed(0)+'M' :
@@ -428,73 +436,180 @@ export default function InstrumentDetail({ ticker, onClose }) {
     );
   }
 
+  // ── Stats sub-render ───────────────────────────────────────────────────
   function renderStats() {
     return (
       <>
+        {/* ── PRICE ── */}
         <Section title="PRICE">
-          <StatRow label="LAST"       value={fmt(livePrice)} color="#e8e8e8" />
-          <StatRow label="CHANGE"
-            value={dayChgPct != null ? `${isPos?'+':''}${fmt(dayChange)}  (${isPos?'+':''}${fmt(dayChgPct)}%)` : '--'}
-            color={dayChgPct != null ? (isPos ? GREEN : RED) : '#555'}
-          />
-          <StatRow label="OPEN"       value={fmt(snap?.day?.o)} />
-          <StatRow label="PREV CLOSE" value={fmt(prevClose)} />
-          <StatRow label="DAY HIGH"   value={fmt(dayHigh)} />
-          <StatRow label="DAY LOW"    value={fmt(dayLow)} />
-          {snap?.day?.vw  != null && <StatRow label="VWAP"   value={fmt(snap.day.vw)} />}
-          {isFX && snap?.lastQuote?.a != null && <StatRow label="ASK" value={fmt(snap.lastQuote.a, 5)} />}
-          {isFX && snap?.lastQuote?.b != null && <StatRow label="BID" value={fmt(snap.lastQuote.b, 5)} />}
-          {isFX && snap?.lastQuote?.a != null && snap?.lastQuote?.b != null && (
-            <StatRow label="SPREAD" value={fmt(Math.abs(snap.lastQuote.a - snap.lastQuote.b), 5)} />
-          )}
-          <StatRow label="VOLUME"     value={volume != null ? fmt(volume, 0) : '--'} />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 12px' }}>
+            <StatRow label="LAST"       value={fmt(livePrice)} color="#fff" big />
+            <StatRow label="CHANGE"
+              value={dayChgPct != null ? `${isPos?'+':''}${fmt(dayChange)}` : '--'}
+              color={dayChgPct != null ? (isPos ? GREEN : RED) : '#555'}
+            />
+            <StatRow label="CHG %"
+              value={dayChgPct != null ? `${isPos?'+':''}${fmt(dayChgPct)}%` : '--'}
+              color={dayChgPct != null ? (isPos ? GREEN : RED) : '#555'}
+            />
+            <StatRow label="OPEN"       value={fmt(snap?.day?.o)} />
+            <StatRow label="PREV CLOSE" value={fmt(prevClose)} />
+            <StatRow label="DAY HIGH"   value={fmt(dayHigh)} />
+            <StatRow label="DAY LOW"    value={fmt(dayLow)} />
+            {snap?.day?.vw  != null && <StatRow label="VWAP"   value={fmt(snap.day.vw)} />}
+            <StatRow label="VOLUME"     value={volume != null ? fmt(volume, 0) : '--'} />
+            {isFX && snap?.lastQuote?.a != null && <StatRow label="ASK" value={fmt(snap.lastQuote.a, 5)} />}
+            {isFX && snap?.lastQuote?.b != null && <StatRow label="BID" value={fmt(snap.lastQuote.b, 5)} />}
+            {isFX && snap?.lastQuote?.a != null && snap?.lastQuote?.b != null && (
+              <StatRow label="SPREAD" value={fmt(Math.abs(snap.lastQuote.a - snap.lastQuote.b), 5)} />
+            )}
+          </div>
         </Section>
 
-        <Section title={`${range.label} RANGE`}>
-          <StatRow label="HIGH"   value={fmt(rangeHigh)} />
-          <StatRow label="LOW"    value={fmt(rangeLow)} />
-          <StatRow label="RETURN"
-            value={rangeChg != null ? (rangeChg>=0?'+':'')+fmt(rangeChg)+'%' : '--'}
-            color={rangeChg != null ? (rangeChg>=0 ? GREEN : RED) : '#555'}
-          />
-          {fundsData?.fiftyTwoWeekHigh != null && <StatRow label="52W HIGH" value={fmt(fundsData.fiftyTwoWeekHigh)} />}
-          {fundsData?.fiftyTwoWeekLow  != null && <StatRow label="52W LOW"  value={fmt(fundsData.fiftyTwoWeekLow)} />}
+        {/* ── RANGE ── */}
+        <Section title={`${range.label} PERFORMANCE`}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 12px' }}>
+            <StatRow label="HIGH"   value={fmt(rangeHigh)} />
+            <StatRow label="LOW"    value={fmt(rangeLow)} />
+            <StatRow label="RETURN"
+              value={rangeChg != null ? (rangeChg>=0?'+':'')+fmt(rangeChg)+'%' : '--'}
+              color={rangeChg != null ? (rangeChg>=0 ? GREEN : RED) : '#555'}
+            />
+            {fundsData?.fiftyTwoWeekHigh != null && <StatRow label="52W HIGH" value={fmt(fundsData.fiftyTwoWeekHigh)} />}
+            {fundsData?.fiftyTwoWeekLow  != null && <StatRow label="52W LOW"  value={fmt(fundsData.fiftyTwoWeekLow)} />}
+            {fundsData?.fiftyTwoWeekChange != null && (
+              <StatRow label="52W CHG"
+                value={pct(fundsData.fiftyTwoWeekChange)}
+                color={fundsData.fiftyTwoWeekChange >= 0 ? GREEN : RED}
+              />
+            )}
+          </div>
         </Section>
 
-        {!isFX && !isCrypto && (
-          <Section title="FUNDAMENTALS">
+        {/* ── VALUATION ── */}
+        {isStock && (
+          <Section title="VALUATION">
             {fundsData == null
-              ? <div style={{ color: '#2a2a2a', fontSize: 10 }}>Loading…</div>
-              : <>
-                  {fundsData.marketCap      != null && <StatRow label="MARKET CAP"
-                    value={fundsData.marketCap >= 1e12 ? '$'+(fundsData.marketCap/1e12).toFixed(2)+'T'
-                         : fundsData.marketCap >= 1e9  ? '$'+(fundsData.marketCap/1e9).toFixed(2)+'B'
-                         :                               '$'+(fundsData.marketCap/1e6).toFixed(1)+'M'} />}
-                  {fundsData.peRatio        != null && <StatRow label="P/E (TTM)"   value={fundsData.peRatio.toFixed(1)+'×'} />}
-                  {fundsData.forwardPE      != null && <StatRow label="P/E (FWD)"   value={fundsData.forwardPE.toFixed(1)+'×'} />}
-                  {fundsData.eps            != null && <StatRow label="EPS (TTM)"   value={'$'+fundsData.eps.toFixed(2)} />}
-                  {fundsData.beta           != null && <StatRow label="BETA"        value={fundsData.beta.toFixed(2)} />}
-                  {fundsData.dividendYield  != null && <StatRow label="DIV YIELD"   value={(fundsData.dividendYield*100).toFixed(2)+'%'} />}
-                  {fundsData.returnOnEquity != null && <StatRow label="ROE"         value={(fundsData.returnOnEquity*100).toFixed(1)+'%'} />}
-                  {fundsData.sharesOutstanding != null && <StatRow label="SHARES OUT"
-                    value={fundsData.sharesOutstanding >= 1e9
-                      ? (fundsData.sharesOutstanding/1e9).toFixed(2)+'B'
-                      : (fundsData.sharesOutstanding/1e6).toFixed(0)+'M'} />}
-                </>
+              ? <div style={{ color: '#2a2a2a', fontSize: 10, padding: '4px 0' }}>Loading…</div>
+              : <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 12px' }}>
+                  {fundsData.marketCap != null && (
+                    <StatRow label="MKT CAP"
+                      value={fundsData.marketCap >= 1e12 ? '$'+(fundsData.marketCap/1e12).toFixed(2)+'T'
+                           : fundsData.marketCap >= 1e9  ? '$'+(fundsData.marketCap/1e9).toFixed(2)+'B'
+                           :                               '$'+(fundsData.marketCap/1e6).toFixed(1)+'M'} />
+                  )}
+                  {fundsData.enterpriseValue != null && (
+                    <StatRow label="EV"
+                      value={fundsData.enterpriseValue >= 1e12 ? '$'+(fundsData.enterpriseValue/1e12).toFixed(2)+'T'
+                           : fundsData.enterpriseValue >= 1e9  ? '$'+(fundsData.enterpriseValue/1e9).toFixed(2)+'B'
+                           :                                     '$'+(fundsData.enterpriseValue/1e6).toFixed(1)+'M'} />
+                  )}
+                  {fundsData.peRatio    != null && <StatRow label="P/E (TTM)"  value={fundsData.peRatio.toFixed(1)+'×'} />}
+                  {fundsData.forwardPE  != null && <StatRow label="P/E (FWD)"  value={fundsData.forwardPE.toFixed(1)+'×'} />}
+                  {fundsData.pegRatio   != null && <StatRow label="PEG"        value={fundsData.pegRatio.toFixed(2)+'×'} />}
+                  {fundsData.priceToBook != null && <StatRow label="P/B"       value={fundsData.priceToBook.toFixed(2)+'×'} />}
+                  {fundsData.priceToSales != null && <StatRow label="P/S"      value={fundsData.priceToSales.toFixed(2)+'×'} />}
+                  {fundsData.eps        != null && <StatRow label="EPS (TTM)"  value={'$'+fundsData.eps.toFixed(2)} />}
+                  {fundsData.forwardEps != null && <StatRow label="EPS (FWD)"  value={'$'+fundsData.forwardEps.toFixed(2)} />}
+                  {fundsData.earningsDate && <StatRow label="EARNINGS" value={fundsData.earningsDate} color={ORANGE} />}
+                  {fundsData.beta       != null && <StatRow label="BETA"       value={fundsData.beta.toFixed(2)} />}
+                  {fundsData.dividendYield != null && (
+                    <StatRow label="DIV YIELD" value={(fundsData.dividendYield*100).toFixed(2)+'%'} color={GREEN} />
+                  )}
+                  {fundsData.shortPercentFloat != null && (
+                    <StatRow label="SHORT %"
+                      value={(fundsData.shortPercentFloat*100).toFixed(1)+'%'}
+                      color={fundsData.shortPercentFloat > 0.1 ? RED : '#aaa'}
+                    />
+                  )}
+                  {fundsData.sharesOutstanding != null && (
+                    <StatRow label="SHARES"
+                      value={fundsData.sharesOutstanding >= 1e9
+                        ? (fundsData.sharesOutstanding/1e9).toFixed(2)+'B'
+                        : (fundsData.sharesOutstanding/1e6).toFixed(0)+'M'} />
+                  )}
+                </div>
             }
           </Section>
         )}
 
-        {!isFX && !isCrypto && (fundsData?.sector || fundsData?.industry) && (
+        {/* ── FINANCIALS ── */}
+        {isStock && fundsData && (fundsData.totalRevenue || fundsData.ebitda || fundsData.profitMargins) && (
+          <Section title="FINANCIALS">
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 12px' }}>
+              {fundsData.totalRevenue != null && (
+                <StatRow label="REVENUE"
+                  value={fundsData.totalRevenue >= 1e9
+                    ? '$'+(fundsData.totalRevenue/1e9).toFixed(1)+'B'
+                    : '$'+(fundsData.totalRevenue/1e6).toFixed(0)+'M'} />
+              )}
+              {fundsData.revenueGrowth != null && (
+                <StatRow label="REV GROWTH"
+                  value={pct(fundsData.revenueGrowth)}
+                  color={fundsData.revenueGrowth >= 0 ? GREEN : RED}
+                />
+              )}
+              {fundsData.ebitda != null && (
+                <StatRow label="EBITDA"
+                  value={fundsData.ebitda >= 1e9
+                    ? '$'+(fundsData.ebitda/1e9).toFixed(1)+'B'
+                    : '$'+(fundsData.ebitda/1e6).toFixed(0)+'M'} />
+              )}
+              {fundsData.grossMargins    != null && <StatRow label="GROSS MGNS"  value={pct(fundsData.grossMargins)} />}
+              {fundsData.operatingMargins != null && <StatRow label="OPER MGNS"  value={pct(fundsData.operatingMargins)} />}
+              {fundsData.profitMargins   != null && (
+                <StatRow label="NET MARGIN"
+                  value={pct(fundsData.profitMargins)}
+                  color={fundsData.profitMargins >= 0 ? GREEN : RED}
+                />
+              )}
+              {fundsData.returnOnEquity  != null && (
+                <StatRow label="ROE"
+                  value={pct(fundsData.returnOnEquity)}
+                  color={fundsData.returnOnEquity >= 0 ? GREEN : RED}
+                />
+              )}
+              {fundsData.returnOnAssets  != null && (
+                <StatRow label="ROA"
+                  value={pct(fundsData.returnOnAssets)}
+                  color={fundsData.returnOnAssets >= 0 ? GREEN : RED}
+                />
+              )}
+              {fundsData.totalCash != null && (
+                <StatRow label="CASH"
+                  value={fundsData.totalCash >= 1e9
+                    ? '$'+(fundsData.totalCash/1e9).toFixed(1)+'B'
+                    : '$'+(fundsData.totalCash/1e6).toFixed(0)+'M'} />
+              )}
+              {fundsData.totalDebt != null && (
+                <StatRow label="DEBT"
+                  value={fundsData.totalDebt >= 1e9
+                    ? '$'+(fundsData.totalDebt/1e9).toFixed(1)+'B'
+                    : '$'+(fundsData.totalDebt/1e6).toFixed(0)+'M'}
+                  color="#c07070"
+                />
+              )}
+            </div>
+          </Section>
+        )}
+
+        {/* ── PROFILE ── */}
+        {isStock && (fundsData?.sector || fundsData?.industry) && (
           <Section title="PROFILE">
-            {fundsData.sector   && <StatRow label="SECTOR"   value={fundsData.sector} />}
-            {fundsData.industry && <StatRow label="INDUSTRY" value={fundsData.industry} />}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 12px' }}>
+              {fundsData.sector   && <StatRow label="SECTOR"    value={fundsData.sector} />}
+              {fundsData.industry && <StatRow label="INDUSTRY"  value={fundsData.industry} />}
+              {fundsData.employees != null && (
+                <StatRow label="EMPLOYEES" value={fundsData.employees.toLocaleString()} />
+              )}
+            </div>
           </Section>
         )}
       </>
     );
   }
 
+  // ── News sub-render ────────────────────────────────────────────────────
   function renderNews() {
     return (
       <Section title="NEWS">
@@ -512,20 +627,17 @@ export default function InstrumentDetail({ ticker, onClose }) {
               key={i}
               onClick={() => url && window.open(url, '_blank', 'noopener,noreferrer')}
               style={{
-                borderBottom: '1px solid #161616',
-                padding: '8px 0',
+                borderBottom: '1px solid #141414',
+                padding: '9px 0',
                 cursor: url ? 'pointer' : 'default',
               }}
             >
               <div style={{
                 color: url ? '#c8c8c8' : '#888',
                 fontSize: 11,
-                lineHeight: 1.45,
-                marginBottom: 4,
-                textDecoration: 'none',
-              }}>
-                {title}
-              </div>
+                lineHeight: 1.5,
+                marginBottom: 5,
+              }}>{title}</div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ color: '#3a3a3a', fontSize: 9, letterSpacing: 0.3 }}>{src}</span>
                 <span style={{ color: '#2a2a2a', fontSize: 9 }}>{ago}</span>
@@ -537,19 +649,43 @@ export default function InstrumentDetail({ ticker, onClose }) {
     );
   }
 
+  // ── About sub-render ───────────────────────────────────────────────────
   function renderAbout() {
     if (!desc) return null;
+    const SHORT = 400;
+    const truncated = !descExpanded && desc.length > SHORT;
     return (
       <Section title="ABOUT">
-        <p style={{ color: '#888', fontSize: 10, lineHeight: 1.65, margin: 0 }}>
-          {desc.length > 700 ? desc.slice(0, 700) + '…' : desc}
+        {fundsData?.website && (
+          <a href={fundsData.website} target="_blank" rel="noopener noreferrer"
+            style={{ color: ORANGE, fontSize: 9, display: 'block', marginBottom: 8, textDecoration: 'none' }}>
+            {fundsData.website.replace(/^https?:\/\//, '')}
+          </a>
+        )}
+        <p style={{ color: '#888', fontSize: 10, lineHeight: 1.7, margin: 0 }}>
+          {truncated ? desc.slice(0, SHORT) + '…' : desc}
         </p>
+        {desc.length > SHORT && (
+          <button
+            onClick={() => setDescExpanded(e => !e)}
+            style={{
+              background: 'none', border: 'none', color: ORANGE,
+              fontSize: 9, cursor: 'pointer', padding: '6px 0 0', letterSpacing: 0.3,
+            }}
+          >
+            {descExpanded ? '▲ SHOW LESS' : '▼ SHOW MORE'}
+          </button>
+        )}
       </Section>
     );
   }
 
   // ── RENDER ──────────────────────────────────────────────────────────────
   const mobileTabs = ['STATS', 'NEWS', ...(desc ? ['ABOUT'] : [])];
+
+  const deltaHint = deltaMode
+    ? (deltaA === null ? '← tap A' : deltaB === null ? '← tap B' : 'tap to reset')
+    : null;
 
   return (
     <div
@@ -566,73 +702,103 @@ export default function InstrumentDetail({ ticker, onClose }) {
       <div style={{
         display: 'flex', alignItems: 'center', gap: isMobile ? 6 : 10,
         padding: isMobile ? '6px 12px' : '8px 16px',
-        borderBottom: '1px solid #1e1e1e', background: '#0c0c0c',
-        flexShrink: 0, flexWrap: 'nowrap', minHeight: 0,
-        overflow: 'hidden',
+        borderBottom: '1px solid #1a1a1a', background: '#080808',
+        flexShrink: 0, flexWrap: 'nowrap', minHeight: 0, overflow: 'hidden',
       }}>
-        <span style={{ fontSize: isMobile ? 15 : 20, fontWeight: 'bold', color: ORANGE, flexShrink: 0 }}>
-          {disp}
-        </span>
-        {!isMobile && name !== disp && (
-          <span style={{ fontSize: 11, color: '#555', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {name}
+        {/* Ticker + name */}
+        <div style={{ display: 'flex', flexDirection: 'column', flexShrink: 0, gap: 1 }}>
+          <span style={{ fontSize: isMobile ? 14 : 19, fontWeight: 'bold', color: ORANGE, lineHeight: 1 }}>
+            {disp}
           </span>
-        )}
-        {livePrice != null && (
-          <span style={{ fontSize: isMobile ? 15 : 21, color: '#fff', marginLeft: 2, flexShrink: 0 }}>
-            {fmt(livePrice)}
-          </span>
-        )}
-        {dayChgPct != null && (
-          <span style={{ fontSize: isMobile ? 11 : 13, color: isPos ? GREEN : RED, flexShrink: 0 }}>
-            {isPos ? '+' : ''}{fmt(dayChange)}&nbsp;({isPos ? '+' : ''}{fmt(dayChgPct)}%)
-          </span>
-        )}
+          {name !== disp && (
+            <span style={{ fontSize: 9, color: '#444', maxWidth: isMobile ? 100 : 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {name}
+            </span>
+          )}
+        </div>
+
+        {/* Price + change */}
+        <div style={{ display: 'flex', flexDirection: 'column', flexShrink: 0, gap: 1 }}>
+          {livePrice != null && (
+            <span style={{ fontSize: isMobile ? 16 : 22, color: '#fff', fontWeight: 'bold', lineHeight: 1 }}>
+              {fmt(livePrice)}
+            </span>
+          )}
+          {dayChgPct != null && (
+            <span style={{ fontSize: isMobile ? 10 : 12, color: isPos ? GREEN : RED, lineHeight: 1 }}>
+              {isPos ? '+' : ''}{fmt(dayChange)} ({isPos ? '+' : ''}{fmt(dayChgPct)}%)
+            </span>
+          )}
+        </div>
+
+        {/* Hover price */}
         {!isMobile && hovered && (
-          <span style={{ fontSize: 11, color: '#444', marginLeft: 4 }}>
+          <span style={{ fontSize: 11, color: '#444', marginLeft: 4, flexShrink: 0 }}>
             ● {hovered.label}: {fmt(hovered.close)}
           </span>
         )}
 
         <div style={{ flex: 1 }} />
 
-        {/* Delta result badge in header */}
+        {/* Delta badge */}
         {deltaInfo && (
-          <span style={{
-            fontSize: isMobile ? 11 : 12,
+          <div style={{
+            display: 'flex', flexDirection: 'column', alignItems: 'center',
             padding: '3px 8px', borderRadius: 3,
-            background: '#101010',
+            background: '#0e0e0e',
             border: `1px solid ${deltaInfo.pct >= 0 ? GREEN : RED}`,
-            color: deltaInfo.pct >= 0 ? GREEN : RED,
-            whiteSpace: 'nowrap', flexShrink: 0,
+            flexShrink: 0,
           }}>
-            {deltaInfo.pct >= 0 ? '+' : ''}{fmt(deltaInfo.pct)}%
-            &nbsp;({fmt(deltaInfo.delta)})
-            {!isMobile && (
-              <span style={{ color: '#333', marginLeft: 8, fontSize: 9 }}>
-                {deltaInfo.a.label} → {deltaInfo.b.label}
-              </span>
-            )}
-          </span>
+            <span style={{ color: deltaInfo.pct >= 0 ? GREEN : RED, fontSize: isMobile ? 10 : 12, fontWeight: 'bold', whiteSpace: 'nowrap' }}>
+              {deltaInfo.pct >= 0 ? '+' : ''}{fmt(deltaInfo.pct)}%
+            </span>
+            <span style={{ color: '#555', fontSize: 9, whiteSpace: 'nowrap' }}>
+              {fmt(Math.abs(deltaInfo.delta))} {deltaInfo.days != null ? `· ${deltaInfo.days}d` : ''}
+            </span>
+          </div>
         )}
 
+        {/* Delta hint */}
+        {deltaHint && (
+          <span style={{ fontSize: 9, color: ORANGE, flexShrink: 0 }}>{deltaHint}</span>
+        )}
+
+        {/* Measure button */}
         <button
           onClick={toggleDelta}
+          title="Measure: click A then B on the chart"
           style={{
-            padding: isMobile ? '5px 10px' : '3px 10px',
-            fontSize: 11, borderRadius: 3, cursor: 'pointer',
-            border: `1px solid ${deltaMode ? ORANGE : '#2a2a2a'}`,
-            background: deltaMode ? ORANGE : 'transparent',
-            color: deltaMode ? '#fff' : '#555',
+            padding: isMobile ? '5px 10px' : '4px 10px',
+            fontSize: 10, borderRadius: 3, cursor: 'pointer',
+            border: `1px solid ${deltaMode ? ORANGE : '#252525'}`,
+            background: deltaMode ? 'rgba(255,107,0,0.12)' : 'transparent',
+            color: deltaMode ? ORANGE : '#444',
             whiteSpace: 'nowrap', flexShrink: 0,
+            letterSpacing: 0.5,
           }}
-        >⟷ {isMobile ? 'Δ' : 'Δ MEASURE'}</button>
+        >⟷ {isMobile ? 'Δ' : 'MEASURE'}</button>
 
+        {/* Export button */}
+        <button
+          onClick={() => exportToCSV(bars, norm, range.label)}
+          title="Export chart data to CSV / Excel"
+          style={{
+            padding: isMobile ? '5px 8px' : '4px 10px',
+            fontSize: 10, borderRadius: 3, cursor: 'pointer',
+            border: '1px solid #252525',
+            background: 'transparent',
+            color: '#444',
+            whiteSpace: 'nowrap', flexShrink: 0,
+            letterSpacing: 0.5,
+          }}
+        >{isMobile ? '↓' : '↓ EXPORT'}</button>
+
+        {/* Close */}
         <button
           onClick={onClose}
           style={{
             width: isMobile ? 34 : 26, height: isMobile ? 34 : 26,
-            borderRadius: '50%', border: '1px solid #2a2a2a',
+            borderRadius: '50%', border: '1px solid #222',
             background: '#111', color: '#777', cursor: 'pointer',
             fontSize: 14, lineHeight: '1', flexShrink: 0,
           }}
@@ -645,40 +811,31 @@ export default function InstrumentDetail({ ticker, onClose }) {
         display: 'flex',
         flexDirection: isMobile ? 'column' : 'row',
         minHeight: 0,
-        overflow: 'hidden',   // desktop: prevents row from growing past viewport
-        // mobile: overflow hidden here is fine — each child manages its own scroll
+        overflow: 'hidden',
       }}>
 
         {/* LEFT: CHART PANEL */}
         <div style={{
-          // Mobile: fixed height so tabs always get their space
-          // Desktop: fill remaining height
           flex: isMobile ? '0 0 42vh' : 1,
           display: 'flex', flexDirection: 'column',
           padding: '8px 10px', minWidth: 0, minHeight: 0,
         }}>
-          {/* Range selector row */}
+          {/* Range selector */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 6, flexShrink: 0 }}>
             {RANGES.map((r, i) => (
               <button key={r.label}
                 onClick={() => setRangeIdx(i)}
                 style={{
-                  padding: '2px 8px', fontSize: 10, borderRadius: 3, cursor: 'pointer',
-                  border: `1px solid ${i === rangeIdx ? ORANGE : '#222'}`,
+                  padding: '2px 7px', fontSize: 10, borderRadius: 3, cursor: 'pointer',
+                  border: `1px solid ${i === rangeIdx ? ORANGE : '#1e1e1e'}`,
                   background: i === rangeIdx ? ORANGE : 'transparent',
-                  color: i === rangeIdx ? '#fff' : '#444',
+                  color: i === rangeIdx ? '#fff' : '#3a3a3a',
                 }}
               >{r.label}</button>
             ))}
-            {rangeChg != null && (
-              <span style={{ fontSize: 10, color: rangeChg >= 0 ? GREEN : RED, marginLeft: 8 }}>
+            {rangeChg != null && !loading && (
+              <span style={{ fontSize: 10, color: rangeChg >= 0 ? GREEN : RED, marginLeft: 6 }}>
                 {rangeChg >= 0 ? '+' : ''}{fmt(rangeChg)}%
-              </span>
-            )}
-            <div style={{ flex: 1 }} />
-            {deltaMode && (
-              <span style={{ fontSize: 10, color: ORANGE }}>
-                {deltaA === null ? '← click start' : deltaB === null ? '← click end' : 'click to reset'}
               </span>
             )}
           </div>
@@ -692,9 +849,9 @@ export default function InstrumentDetail({ ticker, onClose }) {
         {/* RIGHT: SIDEBAR (desktop) */}
         {!isMobile && (
           <div style={{
-            width: 300, background: '#060606',
-            borderLeft: '1px solid #181818',
-            padding: '12px 14px',
+            width: 320, background: '#050505',
+            borderLeft: '1px solid #141414',
+            padding: '14px 16px',
             overflowY: 'auto', fontSize: 11, flexShrink: 0,
           }}>
             {renderStats()}
@@ -706,15 +863,15 @@ export default function InstrumentDetail({ ticker, onClose }) {
         {/* BOTTOM: TABS (mobile) */}
         {isMobile && (
           <div style={{
-            flex: 1,          // fills all space left after the 42vh chart
+            flex: 1,
             display: 'flex', flexDirection: 'column',
             borderTop: '1px solid #1a1a1a',
-            minHeight: 0,     // required for flex children to scroll correctly
+            minHeight: 0,
             overflow: 'hidden',
           }}>
             {/* Tab bar */}
             <div style={{
-              display: 'flex', background: '#0a0a0a',
+              display: 'flex', background: '#080808',
               borderBottom: '1px solid #181818', flexShrink: 0,
             }}>
               {mobileTabs.map(t => (
@@ -724,18 +881,18 @@ export default function InstrumentDetail({ ticker, onClose }) {
                     flex: 1, padding: '10px 0', fontSize: 11,
                     background: 'transparent', border: 'none',
                     borderBottom: activeTab === t ? `2px solid ${ORANGE}` : '2px solid transparent',
-                    color: activeTab === t ? ORANGE : '#555',
+                    color: activeTab === t ? ORANGE : '#444',
                     cursor: 'pointer', letterSpacing: 0.5, fontFamily: 'inherit',
                   }}
                 >{t}</button>
               ))}
             </div>
-            {/* Tab content — must have explicit height for overflowY:auto to work */}
+            {/* Tab content */}
             <div style={{
               flex: 1, minHeight: 0,
               overflowY: 'auto', WebkitOverflowScrolling: 'touch',
-              padding: '12px 16px', fontSize: 11,
-              background: '#060606',
+              padding: '12px 14px', fontSize: 11,
+              background: '#050505',
             }}>
               {activeTab === 'STATS' && renderStats()}
               {activeTab === 'NEWS'  && renderNews()}
@@ -753,29 +910,33 @@ export default function InstrumentDetail({ ticker, onClose }) {
 
 function Section({ title, children }) {
   return (
-    <div style={{ marginBottom: 18 }}>
+    <div style={{ marginBottom: 20 }}>
       <div style={{
         color: ORANGE, fontWeight: 'bold', fontSize: 9,
-        letterSpacing: 1.5, marginBottom: 8,
-        borderBottom: '1px solid #181818', paddingBottom: 4,
+        letterSpacing: 1.8, marginBottom: 8,
+        borderBottom: '1px solid #141414', paddingBottom: 5,
       }}>{title}</div>
       {children}
     </div>
   );
 }
 
-function StatRow({ label, value, color }) {
+function StatRow({ label, value, color, big }) {
   return (
     <div style={{
       display: 'flex', justifyContent: 'space-between',
-      alignItems: 'baseline', gap: 8, marginBottom: 6,
+      alignItems: 'baseline', gap: 4, marginBottom: 5,
     }}>
-      <span style={{ color: '#333', fontSize: 9, letterSpacing: 0.4, flexShrink: 0 }}>{label}</span>
+      <span style={{ color: '#2e2e2e', fontSize: 9, letterSpacing: 0.4, flexShrink: 0, whiteSpace: 'nowrap' }}>
+        {label}
+      </span>
       <span style={{
-        color: color || '#aaa', fontWeight: 'bold',
-        fontSize: 11, textAlign: 'right',
+        color: color || '#999', fontWeight: big ? 'bold' : 'normal',
+        fontSize: big ? 13 : 11, textAlign: 'right',
         overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-      }}>{value}</span>
+      }}>
+        {value}
+      </span>
     </div>
   );
 }

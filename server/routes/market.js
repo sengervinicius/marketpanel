@@ -955,19 +955,52 @@ router.get('/fundamentals/:symbol', async (req, res) => {
     const fd = result.financialData || {};
     const sp = result.summaryProfile || {};
     const pr = result.price || {};
+    // Next earnings date: Yahoo returns array of {raw, fmt} — pick the first future one
+    const earningsArr = ks.earningsDate && ks.earningsDate.length ? ks.earningsDate : null;
+    const earningsDate = earningsArr
+      ? (() => {
+          const now = Date.now() / 1000;
+          const fut = earningsArr.find(e => e.raw > now);
+          return fut ? fut.fmt : (earningsArr[earningsArr.length - 1]?.fmt || null);
+        })()
+      : null;
     res.json({
-      peRatio:           (ks.trailingPE && ks.trailingPE.raw) || null,
-      forwardPE:         (ks.forwardPE && ks.forwardPE.raw) || null,
-      eps:               (ks.trailingEps && ks.trailingEps.raw) || null,
-      beta:              (ks.beta && ks.beta.raw) || null,
-      dividendYield:     (ks.dividendYield && ks.dividendYield.raw) || null,
-      fiftyTwoWeekHigh:  (ks.fiftyTwoWeekHigh && ks.fiftyTwoWeekHigh.raw) || null,
-      fiftyTwoWeekLow:   (ks.fiftyTwoWeekLow && ks.fiftyTwoWeekLow.raw) || null,
-      sharesOutstanding: (ks.sharesOutstanding && ks.sharesOutstanding.raw) || null,
-      returnOnEquity:    (fd.returnOnEquity && fd.returnOnEquity.raw) || null,
-      sector:            sp.sector || null,
-      industry:          sp.industry || null,
-      marketCap:         (pr.marketCap && pr.marketCap.raw) || null,
+      // valuation
+      marketCap:           (pr.marketCap && pr.marketCap.raw) || null,
+      enterpriseValue:     (ks.enterpriseValue && ks.enterpriseValue.raw) || null,
+      peRatio:             (ks.trailingPE && ks.trailingPE.raw) || null,
+      forwardPE:           (ks.forwardPE && ks.forwardPE.raw) || null,
+      pegRatio:            (ks.pegRatio && ks.pegRatio.raw) || null,
+      priceToBook:         (ks.priceToBook && ks.priceToBook.raw) || null,
+      priceToSales:        (ks.priceToSalesTrailing12Months && ks.priceToSalesTrailing12Months.raw) || null,
+      // earnings & dividends
+      eps:                 (ks.trailingEps && ks.trailingEps.raw) || null,
+      forwardEps:          (ks.forwardEps && ks.forwardEps.raw) || null,
+      earningsDate:        earningsDate,
+      dividendYield:       (ks.dividendYield && ks.dividendYield.raw) || null,
+      // financials
+      totalRevenue:        (fd.totalRevenue && fd.totalRevenue.raw) || null,
+      revenueGrowth:       (fd.revenueGrowth && fd.revenueGrowth.raw) || null,
+      ebitda:              (fd.ebitda && fd.ebitda.raw) || null,
+      grossMargins:        (fd.grossMargins && fd.grossMargins.raw) || null,
+      operatingMargins:    (fd.operatingMargins && fd.operatingMargins.raw) || null,
+      profitMargins:       (fd.profitMargins && fd.profitMargins.raw) || null,
+      totalCash:           (fd.totalCash && fd.totalCash.raw) || null,
+      totalDebt:           (fd.totalDebt && fd.totalDebt.raw) || null,
+      returnOnEquity:      (fd.returnOnEquity && fd.returnOnEquity.raw) || null,
+      returnOnAssets:      (fd.returnOnAssets && fd.returnOnAssets.raw) || null,
+      // share data
+      beta:                (ks.beta && ks.beta.raw) || null,
+      sharesOutstanding:   (ks.sharesOutstanding && ks.sharesOutstanding.raw) || null,
+      shortPercentFloat:   (ks.shortPercentOfFloat && ks.shortPercentOfFloat.raw) || null,
+      fiftyTwoWeekHigh:    (ks.fiftyTwoWeekHigh && ks.fiftyTwoWeekHigh.raw) || null,
+      fiftyTwoWeekLow:     (ks.fiftyTwoWeekLow && ks.fiftyTwoWeekLow.raw) || null,
+      fiftyTwoWeekChange:  (ks['52WeekChange'] && ks['52WeekChange'].raw) || null,
+      // profile
+      sector:              sp.sector || null,
+      industry:            sp.industry || null,
+      employees:           sp.fullTimeEmployees || null,
+      website:             sp.website || null,
     });
   } catch (e) {
     console.error('[API] /fundamentals/' + req.params.symbol + ' error:', e.message);
