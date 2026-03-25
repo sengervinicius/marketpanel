@@ -126,10 +126,12 @@ export function PriceProvider({ marketData, children }) {
   }, []);
 
   // getPrice: always prefer batch (authoritative, already on 6s cycle)
-  // Fall back to extras for custom tickers
+  // Fall back to extras for custom tickers.
+  // Uses mdRef.current so it always reads the freshest batch without needing
+  // marketData in the dep list (which would recreate the fn every 6s for nothing).
   const getPrice = useCallback((ticker) => {
     return lookupInBatch(mdRef.current, ticker) ?? extras[ticker] ?? null;
-  }, [marketData, extras]); // Re-derive when either changes
+  }, [extras]); // only re-derive when extras map changes
 
   return (
     <PriceCtx.Provider value={{ getPrice, register, unregister }}>

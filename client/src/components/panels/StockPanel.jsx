@@ -1,4 +1,5 @@
 // StockPanel.jsx — US equities + Brazil ADRs with section headers
+import { useRef } from 'react';
 import { US_STOCKS, BRAZIL_ADRS } from '../../utils/constants';
 
 const fmt    = (n) => n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -25,8 +26,8 @@ function SectionDivider({ label, color = '#444' }) {
   );
 }
 
-let _pt = null;
 export function StockPanel({ data, loading, onTickerClick, onOpenDetail }) {
+  const ptRef = useRef(null); // per-component long-press timer (avoids module-level race condition)
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#0a0a0a' }}>
       {/* Header */}
@@ -62,9 +63,9 @@ export function StockPanel({ data, loading, onTickerClick, onOpenDetail }) {
                 }}
                 onClick={() => onTickerClick?.(s.symbol)}
                 onDoubleClick={() => onOpenDetail?.(s.symbol)}
-             onTouchStart={(e) => { e.stopPropagation(); _pt = setTimeout(() => onOpenDetail?.(s.symbol), 500); }}
-             onTouchEnd={() => clearTimeout(_pt)}
-             onTouchMove={() => clearTimeout(_pt)}
+             onTouchStart={(e) => { e.stopPropagation(); clearTimeout(ptRef.current); ptRef.current = setTimeout(() => onOpenDetail?.(s.symbol), 500); }}
+             onTouchEnd={() => clearTimeout(ptRef.current)}
+             onTouchMove={() => clearTimeout(ptRef.current)}
                 onContextMenu={e => showInfo(e, s.symbol, s.label, 'EQUITY')}
                 style={{ display: 'grid', gridTemplateColumns: COLS, padding: '3px 8px', borderBottom: '1px solid #141414', cursor: 'pointer', alignItems: 'center' }}
                 onMouseEnter={e => e.currentTarget.style.background = '#141414'}
@@ -91,9 +92,9 @@ export function StockPanel({ data, loading, onTickerClick, onOpenDetail }) {
                 }}
                 onClick={() => onTickerClick?.(s.symbol)}
                 onDoubleClick={() => onOpenDetail?.(s.symbol)}
-             onTouchStart={(e) => { e.stopPropagation(); _pt = setTimeout(() => onOpenDetail?.(s.symbol), 500); }}
-             onTouchEnd={() => clearTimeout(_pt)}
-             onTouchMove={() => clearTimeout(_pt)}
+             onTouchStart={(e) => { e.stopPropagation(); clearTimeout(ptRef.current); ptRef.current = setTimeout(() => onOpenDetail?.(s.symbol), 500); }}
+             onTouchEnd={() => clearTimeout(ptRef.current)}
+             onTouchMove={() => clearTimeout(ptRef.current)}
                 onContextMenu={e => showInfo(e, s.symbol, s.label, 'ADR')}
                 style={{ display: 'grid', gridTemplateColumns: COLS, padding: '3px 8px', borderBottom: '1px solid #141414', cursor: 'pointer', alignItems: 'center' }}
                 onMouseEnter={e => e.currentTarget.style.background = '#141414'}

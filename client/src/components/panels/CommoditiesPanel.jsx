@@ -1,4 +1,5 @@
 // CommoditiesPanel.jsx — commodities grouped by category
+import { useRef } from 'react';
 import { COMMODITIES } from '../../utils/constants';
 
 const fmt    = (n) => n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -32,8 +33,8 @@ const showInfo = (e, symbol, label, type) => {
   }));
 };
 
-let _pt = null;
 export function CommoditiesPanel({ data, loading, onTickerClick, onOpenDetail }) {
+  const ptRef = useRef(null);
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#0a0a0a' }}>
       {/* Header */}
@@ -76,9 +77,9 @@ export function CommoditiesPanel({ data, loading, onTickerClick, onOpenDetail })
                       }}
                       onClick={() => onTickerClick?.(c.symbol)}
                       onDoubleClick={() => onOpenDetail?.(c.symbol)}
-             onTouchStart={(e) => { e.stopPropagation(); _pt = setTimeout(() => onOpenDetail?.(c.symbol), 500); }}
-             onTouchEnd={() => clearTimeout(_pt)}
-             onTouchMove={() => clearTimeout(_pt)}
+             onTouchStart={(e) => { e.stopPropagation(); clearTimeout(ptRef.current); ptRef.current = setTimeout(() => onOpenDetail?.(c.symbol), 500); }}
+             onTouchEnd={() => clearTimeout(ptRef.current)}
+             onTouchMove={() => clearTimeout(ptRef.current)}
                       onContextMenu={e => showInfo(e, c.symbol, c.label, 'COMMODITY')}
                       style={{ display: 'grid', gridTemplateColumns: COLS, padding: '3px 8px', borderBottom: '1px solid #141414', cursor: 'pointer', alignItems: 'center' }}
                       onMouseEnter={e => e.currentTarget.style.background = '#141414'}

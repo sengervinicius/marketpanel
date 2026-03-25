@@ -1,4 +1,5 @@
 // ForexPanel.jsx — FX pairs + Crypto subsection, BBG-style
+import { useRef } from 'react';
 import { FOREX_PAIRS, CRYPTO_PAIRS } from '../../utils/constants';
 
 const fmt4   = (n) => n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: 4, maximumFractionDigits: 4 });
@@ -28,8 +29,8 @@ const showInfo = (e, symbol, label, type) => {
   }));
 };
 
-let _pt = null;
 export function ForexPanel({ data, cryptoData, loading, onTickerClick, onOpenDetail }) {
+  const ptRef = useRef(null);
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#0a0a0a' }}>
       {/* Header */}
@@ -57,7 +58,8 @@ export function ForexPanel({ data, cryptoData, loading, onTickerClick, onOpenDet
               const d = data?.[pair.symbol] || {};
               const price = d.mid || d.ask || d.price;
               const pos   = (d.changePct ?? 0) >= 0;
-              const chartSym = pair.symbol + '=X';
+              // Use C: prefix (Polygon format) so InstrumentDetail + ChartPanel route correctly
+              const chartSym = 'C:' + pair.symbol;
               return (
                 <div
                   key={pair.symbol}
@@ -71,9 +73,9 @@ export function ForexPanel({ data, cryptoData, loading, onTickerClick, onOpenDet
                   }}
                   onClick={() => onTickerClick?.(chartSym)}
                   onDoubleClick={() => onOpenDetail?.(chartSym)}
-             onTouchStart={(e) => { e.stopPropagation(); _pt = setTimeout(() => onOpenDetail?.(chartSym), 500); }}
-             onTouchEnd={() => clearTimeout(_pt)}
-             onTouchMove={() => clearTimeout(_pt)}
+             onTouchStart={(e) => { e.stopPropagation(); clearTimeout(ptRef.current); ptRef.current = setTimeout(() => onOpenDetail?.(chartSym), 500); }}
+             onTouchEnd={() => clearTimeout(ptRef.current)}
+             onTouchMove={() => clearTimeout(ptRef.current)}
                   onContextMenu={e => showInfo(e, pair.symbol, pair.label, 'FX')}
                   style={{ display: 'grid', gridTemplateColumns: COLS, padding: '3px 8px', borderBottom: '1px solid #141414', cursor: 'pointer', alignItems: 'center' }}
                   onMouseEnter={e => e.currentTarget.style.background = '#141414'}
@@ -106,9 +108,9 @@ export function ForexPanel({ data, cryptoData, loading, onTickerClick, onOpenDet
                   }}
                   onClick={() => onTickerClick?.(chartSym)}
                   onDoubleClick={() => onOpenDetail?.(chartSym)}
-             onTouchStart={(e) => { e.stopPropagation(); _pt = setTimeout(() => onOpenDetail?.(chartSym), 500); }}
-             onTouchEnd={() => clearTimeout(_pt)}
-             onTouchMove={() => clearTimeout(_pt)}
+             onTouchStart={(e) => { e.stopPropagation(); clearTimeout(ptRef.current); ptRef.current = setTimeout(() => onOpenDetail?.(chartSym), 500); }}
+             onTouchEnd={() => clearTimeout(ptRef.current)}
+             onTouchMove={() => clearTimeout(ptRef.current)}
                   onContextMenu={e => showInfo(e, c.symbol, c.label, 'CRYPTO')}
                   style={{ display: 'grid', gridTemplateColumns: COLS, padding: '3px 8px', borderBottom: '1px solid #141414', cursor: 'pointer', alignItems: 'center' }}
                   onMouseEnter={e => e.currentTarget.style.background = '#141414'}

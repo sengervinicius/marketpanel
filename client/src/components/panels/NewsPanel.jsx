@@ -16,14 +16,18 @@ function NewsItem({ item, isNew }) {
   const isBreaking = item.importance === 'high' ||
     (item.title || '').toUpperCase().includes('BREAKING') ||
     (item.title || '').toUpperCase().includes('ALERT');
+  const url = item.article_url || item.link || item.url;
   return (
-    <div style={{
-      padding: '4px 6px',
-      borderBottom: '1px solid #0d0d0d',
-      background: isNew ? '#1a0a00' : isBreaking ? '#120000' : 'transparent',
-      transition: 'background 1s',
-      cursor: 'pointer',
-    }}>
+    <div
+      onClick={() => url && window.open(url, '_blank', 'noopener,noreferrer')}
+      style={{
+        padding: '4px 6px',
+        borderBottom: '1px solid #0d0d0d',
+        background: isNew ? '#1a0a00' : isBreaking ? '#120000' : 'transparent',
+        transition: 'background 1s',
+        cursor: url ? 'pointer' : 'default',
+      }}
+    >
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
         <span style={{ color: isBreaking ? '#ff2222' : '#ff6600', fontSize: 9, fontWeight: 700, letterSpacing: 0.5 }}>
           {isBreaking ? '◆ BREAKING ' : ''}{(item.publisher?.name || 'NEWSWIRE').toUpperCase()}
@@ -90,7 +94,7 @@ export function NewsPanel() {
           <div style={{ color: '#333', padding: 12, textAlign: 'center', fontSize: 10 }}>No stories available.</div>
         ) : (
           news.map(item => (
-            <NewsItem key={item.id} onClick={() => item.article_url && window.open(item.article_url, '_blank')} style={{ cursor: item.article_url ? 'pointer' : 'default' }} item={item} isNew={newItems.has(item.id)} />
+            <NewsItem key={item.id} item={item} isNew={newItems.has(item.id)} />
           ))
         )}
       </div>

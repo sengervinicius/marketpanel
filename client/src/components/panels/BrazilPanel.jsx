@@ -1,13 +1,13 @@
 // BrazilPanel.jsx — B3 stocks via server Yahoo Finance proxy (crumb auth)
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 const SERVER = import.meta.env.VITE_API_URL || import.meta.env.VITE_SERVER_URL || '';
 
 const fmt    = n => n == null ? '—' : n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmtPct = n => n == null ? '—' : (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
 
-let _pt = null;
 export default function BrazilPanel({ onTickerClick, onOpenDetail }) {
+  const ptRef = useRef(null);
   const [stocks, setStocks]     = useState([]);
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState(null);
@@ -94,9 +94,9 @@ export default function BrazilPanel({ onTickerClick, onOpenDetail }) {
               }}
               onClick={() => onTickerClick?.(s.symbol + '.SA')}
                 onDoubleClick={() => onOpenDetail?.(s.symbol + '.SA')}
-             onTouchStart={(e) => { e.stopPropagation(); _pt = setTimeout(() => onOpenDetail?.(s.symbol + '.SA'), 500); }}
-             onTouchEnd={() => clearTimeout(_pt)}
-             onTouchMove={() => clearTimeout(_pt)}
+             onTouchStart={(e) => { e.stopPropagation(); clearTimeout(ptRef.current); ptRef.current = setTimeout(() => onOpenDetail?.(s.symbol + '.SA'), 500); }}
+             onTouchEnd={() => clearTimeout(ptRef.current)}
+             onTouchMove={() => clearTimeout(ptRef.current)}
               style={{
                 display: 'grid', gridTemplateColumns: '52px 1fr 64px 52px',
                 padding: '3px 8px', borderBottom: '1px solid #111',

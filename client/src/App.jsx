@@ -276,7 +276,7 @@ export default function App() {
         {/* Row 2: US Indices | Brazil | Global Indexes | Commodities */}
         <div style={{ flex: rowSizes[1], flexShrink: 0, display:'flex', overflow:'hidden', minHeight: 180 }}>
           <div style={{ flex: colSizes2[0], minWidth: 0, borderRight:border, overflow:'hidden', height:'100%' }}>
-            <IndexPanel data={data?.indices} loading={loading} onTickerClick={setChartTicker} />
+            <IndexPanel data={data?.indices} loading={loading} onTickerClick={setChartTicker} onOpenDetail={setDetailTicker} />
           </div>
           <ColResizeHandle onStart={e => startColResize2(0, e)} />
           <div style={{ flex: colSizes2[1], minWidth: 0, borderRight:border, overflow:'hidden', height:'100%' }}>
@@ -362,7 +362,7 @@ export default function App() {
           <div>
             <GlobalIndicesPanel onTickerClick={t => goChart(t)} onOpenDetail={setDetailTicker} />
             <div style={{ borderTop:'1px solid #1e1e1e' }}>
-              <IndexPanel data={data?.indices} loading={loading} onTickerClick={t => goChart(t)} />
+              <IndexPanel data={data?.indices} loading={loading} onTickerClick={t => goChart(t)} onOpenDetail={setDetailTicker} />
             </div>
           </div>
         )}
