@@ -134,13 +134,14 @@ export function TickerTooltip() {
   const [tooltip, setTooltip] = useState(null);
   const activeElRef = useRef(null);
 
-  // Global hover (desktop 2 s) + long-press (mobile 800 ms) listeners
+  // Global hover (desktop 2 s) + long-press (mobile 1200 ms) listeners
   useEffect(() => {
-    let hoverTimer    = null;
-    let longPressTimer = null;
+    let hoverTimer = null;
+    let longTimer  = null;
     let longStartX = 0, longStartY = 0;
 
     const show = (el, x, y) => {
+      if (!el) return;
       activeElRef.current = el;
       setTooltip({
         symbol: el.dataset.ticker,
@@ -152,7 +153,6 @@ export function TickerTooltip() {
 
     // ── Desktop: mouseover / mouseout ─────────────────────────────────────
     const onMouseOver = (e) => {
-      if (e.pointerType && e.pointerType !== 'mouse') return;
       const el = e.target.closest('[data-ticker]');
       if (!el || el === activeElRef.current) return;
       clearTimeout(hoverTimer);
@@ -177,32 +177,39 @@ export function TickerTooltip() {
       longStartX = t.clientX;
       longStartY = t.clientY;
       clearTimeout(longTimer);
-      longTimer = setTimeout(
-        () => activateTooltip(e.target.closest('[data-ticker]'), 'touch'),
-        1200
-      );
+      const el = e.target.closest('[data-ticker]');
+      if (!el) return;
+      longTimer = setTimeout(() => {
+        const rect = el.getBoundingClientRect();
+        show(el, rect.left, rect.bottom + 6);
+      }, 1200);
     };
-    const handleTouchMove  = (e) => {
+    const handleTouchMove = (e) => {
       const t = e.touches[0];
       const dx = t.clientX - longStartX;
       const dy = t.clientY - longStartY;
       if (Math.abs(dx) > 6 || Math.abs(dy) > 6) clearTimeout(longTimer);
     };
-    const handleTouchEnd   = (e) => clearTimeout(longTimer);
+    const handleTouchEnd = () => clearTimeout(longTimer);
 
-    document.addEventListener('touchstart', handleTouchStart, { passive: true });
-    document.addEventListener('touchmove',  handleTouchMove,  { passive: true });
-    document.addEventListener('touchend',   handleTouchEnd,   { passive: true });
-    document.addEventListener('touchcancel',handleTouchEnd,   { passive: true });
+    document.addEventListener('mouseover',   onMouseOver);
+    document.addEventListener('mouseout',    onMouseOut);
+    document.addEventListener('touchstart',  handleTouchStart, { passive: true });
+    document.addEventListener('touchmove',   handleTouchMove,  { passive: true });
+    document.addEventListener('touchend',    handleTouchEnd,   { passive: true });
+    document.addEventListener('touchcancel', handleTouchEnd,   { passive: true });
 
     return () => {
       clearTimeout(hoverTimer);
       clearTimeout(longTimer);
-      document.removeEventListener('touchstart', handleTouchStart);
-      document.removeEventListener('touchmove',  handleTouchMove);
-      document.removeEventListener('touchend',   handleTouchEnd);
-      document.removeEventListener('touchcancel',handleTouchEnd);
-    };  }, []);
+      document.removeEventListener('mouseover',   onMouseOver);
+      document.removeEventListener('mouseout',    onMouseOut);
+      document.removeEventListener('touchstart',  handleTouchStart);
+      document.removeEventListener('touchmove',   handleTouchMove);
+      document.removeEventListener('touchend',    handleTouchEnd);
+      document.removeEventListener('touchcancel', handleTouchEnd);
+    };
+  }, []);
 
   // Dismiss on next click / key press
   useEffect(() => {

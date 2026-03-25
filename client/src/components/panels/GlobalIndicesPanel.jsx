@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { SectionHeader } from '../common/SectionHeader';
 
 const SERVER_URL = import.meta.env.VITE_API_URL || import.meta.env.VITE_SERVER_URL || '';
@@ -17,8 +17,8 @@ const NAMES = {
   MCHI:'CHINA', EWT:'TAIWAN', EWS:'SINGAPORE', INDA:'INDIA',
 };
 
-let _pt = null;
 export default function GlobalIndicesPanel({ onTickerClick, onOpenDetail }) {
+  const ptRef = useRef(null);
   const [data, setData]       = useState({});
   const [loading, setLoading] = useState(true);
 
@@ -28,7 +28,7 @@ export default function GlobalIndicesPanel({ onTickerClick, onOpenDetail }) {
       const json = await res.json();
       const map  = {};
       (json.tickers || []).forEach(t => {
-        // Prefer min.c (live minute close) â day.c is 0 during market hours
+        // Prefer min.c (live minute close) > day.c which is 0 during market hours
         const price = (t.min?.c > 0 ? t.min.c : null)
           ?? (t.day?.c > 0 ? t.day.c : null)
           ?? (t.prevDay?.c && t.todaysChange != null ? t.prevDay.c + t.todaysChange : null)
@@ -50,9 +50,9 @@ export default function GlobalIndicesPanel({ onTickerClick, onOpenDetail }) {
     return () => clearInterval(t);
   }, []);
 
-  const fmtPrice = p => (!p || p === 0) ? 'â'
+  const fmtPrice = p => (!p || p === 0) ? '—'
     : p.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const fmtPct   = p => (!p && p !== 0) ? 'â' : `${p >= 0 ? '+' : ''}${p.toFixed(2)}%`;
+  const fmtPct   = p => (!p && p !== 0) ? '—' : `${p >= 0 ? '+' : ''}${p.toFixed(2)}%`;
   const color    = p => !p ? '#888' : p >= 0 ? '#00c853' : '#f44336';
 
   const panelStyle = {
@@ -97,9 +97,9 @@ export default function GlobalIndicesPanel({ onTickerClick, onOpenDetail }) {
                   }}
                   onClick={() => onTickerClick?.({ symbol: ticker, label: NAMES[ticker] || ticker })}
                   onDoubleClick={() => onOpenDetail?.(ticker)}
-             onTouchStart={(e) => { e.stopPropagation(); _pt = setTimeout(() => onOpenDetail?.(ticker), 500); }}
-             onTouchEnd={() => clearTimeout(_pt)}
-             onTouchMove={() => clearTimeout(_pt)}
+             onTouchStart={(e) => { e.stopPropagation(); ptRef.current = setTimeout(() => onOpenDetail?.(ticker), 500); }}
+             onTouchEnd={() => clearTimeout(ptRef.current)}
+             onTouchMove={() => clearTimeout(ptRef.current)}
                 >
                   <span style={{ color: '#e8a020', fontWeight: 500, fontSize: 9 }}>{ticker}</span>
                   <span style={{ color: '#777', fontSize: 9, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>

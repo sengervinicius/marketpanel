@@ -1,5 +1,5 @@
-// ChartPanel.jsx â Bloomberg-style multi-chart grid (fixed 4Ã4 = 16 slots)
-// Desktop: always-full 4Ã4 symmetric grid â no empty rows ever
+// ChartPanel.jsx — Bloomberg-style multi-chart grid (fixed 4×4 = 16 slots)
+// Desktop: always-full 4×4 symmetric grid — no empty rows ever
 // Mobile: 2-col scrollable layout sharing same localStorage as desktop
 // Fix: onDragLeave uses relatedTarget.contains check to prevent flicker/stuck state
 // Drag-to-swap: internal slots draggable; drop onto another slot swaps positions
@@ -72,9 +72,9 @@ function displayTicker(norm) {
   return norm;
 }
 
-const fmtPrice = (n) => n == null ? ' // ' : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmtPrice = (n) => n == null ? "—" : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmtK = (n) => {
-  if (n == null) return ' // ';
+  if (n == null) return "—";
   const abs = Math.abs(n);
   if (abs >= 10000) return (n / 1000).toFixed(1) + 'k';
   if (abs >= 1000)  return (n / 1000).toFixed(2) + 'k';
@@ -124,12 +124,12 @@ function MiniChart({ ticker, index, onRemove, onReplace, onSwap, onOpenDetail })
       const json = await res.json();
       if (!mountedRef.current) return;
       let bars = (json.results || []).map(b => ({ t: b.t, v: b.c ?? b.vw ?? 0 }));
-            if (range.label === '1D') {
+      if (range.label === '1D') {
         const d0 = new Date(); d0.setHours(0,0,0,0);
         const tod = bars.filter(b => b.t >= d0.getTime());
         if (tod.length > 0) bars = tod;
       }
-setData(bars);
+      setData(bars);
       if (bars.length >= 2) {
         const last  = bars[bars.length - 1].v;
         const first = bars[0].v;
@@ -264,7 +264,7 @@ setData(bars);
       <div style={{ display: 'flex', gap: 6, padding: '1px 5px', flexShrink: 0, borderTop: '1px solid #0d0d18', borderBottom: '1px solid #0d0d18', pointerEvents: 'none' }}>
         <span style={{ color: '#3a3a5a', fontSize: 6.5 }}> Chg{' '}
           <span style={{ color: dispChg != null ? (isUp ? '#4caf50' : '#f44336') : '#3a3a5a' }}>
-            {dispChg != null ? (isUp ? '+' : '') + fmtK(dispChg) + ' (' + (isUp ? '+' : '') + (dispChgPct?.toFixed(2) ?? ' // ') + '%)' : ' // '}
+            {dispChg != null ? (isUp ? '+' : '') + fmtK(dispChg) + ' (' + (isUp ? '+' : '') + (dispChgPct?.toFixed(2) ?? "—") + '%)' : "—"}
           </span>
         </span>
         <span style={{ color: '#3a3a5a', fontSize: 6.5 }}> Hi <span style={{ color: '#888' }}>{fmtK(high)}</span></span>
@@ -373,7 +373,7 @@ export function ChartPanel({ ticker: externalTicker, onGridChange, mobile = fals
   const [qrUrl,   setQrUrl]   = useState('');
   const gridSyncTimer = useRef(null);
 
-  // ââ Fetch grid from server on mount (mobile auto-sync) ââââââââââââââââââââââââââââââââââââââââââââââââââââ
+  // ── Fetch grid from server on mount (mobile auto-sync) ────────────────────────────────────────────────────
   useEffect(() => {
     if (!mobile) {
       const urlParam = new URLSearchParams(window.location.search).get('c');
@@ -401,20 +401,15 @@ export function ChartPanel({ ticker: externalTicker, onGridChange, mobile = fals
     });
   }, [externalTicker]);
 
-  // ââ Persist + URL update + server sync on change ââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+  // ── Persist + URL update + server sync on change ──────────────────────────────────────────────────────
   useEffect(() => {
     localStorage.setItem(LS_KEY, JSON.stringify(tickers));
-    const _url = new URL(window.location.href);
-    _url.searchParams.set('c', tickers.join(','));
-    window.history.replaceState({}, '', _url.toString());
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set('c', tickers.join(','));
+      window.history.replaceState(null, '', url.toString());
+    } catch (_) {}
     onGridChange?.(tickers.length);
-    if (!mobile) {
-      try {
-        const url = new URL(window.location.href);
-        url.searchParams.set('c', tickers.join(','));
-        window.history.replaceState(null, '', url.toString());
-      } catch (_) {}
-    }
     // Debounced sync to server so mobile auto-matches desktop
     clearTimeout(gridSyncTimer.current);
     gridSyncTimer.current = setTimeout(() => {

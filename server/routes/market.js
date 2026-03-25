@@ -383,7 +383,16 @@ router.get('/search', async (req, res) => {
         const sym = r.ticker?.toUpperCase();
         if (!sym || seen.has(sym)) continue;
         seen.add(sym);
-        results.push({ ticker: sym, name: r.name || sym, market: r.market || '', type: r.type || 'EQUITY' });
+        // Polygon returns generic market category ('stocks','otc','crypto','fx')
+        // AND primary_exchange (e.g. 'XNAS', 'XNYS') — pass both so client can
+        // classify coverage accurately (avoids false "NO DATA" warnings on US stocks).
+        results.push({
+          ticker:          sym,
+          name:            r.name || sym,
+          market:          r.market || '',           // 'stocks', 'otc', 'crypto', 'fx'
+          primaryExchange: r.primary_exchange || '', // 'XNAS', 'XNYS', 'XOTC', etc.
+          type:            r.type || 'CS',           // Polygon: 'CS', 'ETF', 'MUTUALFUND'
+        });
       }
     }
 
@@ -394,10 +403,11 @@ router.get('/search', async (req, res) => {
         if (seen.has(sym)) continue;
         seen.add(sym);
         results.push({
-          ticker: sym,
-          name: r.longname || r.shortname || sym,
-          market: r.exchange || 'BVSP',
-          type: r.quoteType || 'EQUITY',
+          ticker:          sym,
+          name:            r.longname || r.shortname || sym,
+          market:          r.exchange || '',         // Yahoo exchange codes: 'NMS', 'NYQ', etc.
+          primaryExchange: r.exchange || '',
+          type:            r.quoteType || 'EQUITY',  // 'EQUITY', 'ETF', 'MUTUALFUND', etc.
         });
       }
     } else {
@@ -931,76 +941,103 @@ router.post('/settings', (req, res) => {
 });
 
 // ─── Fundamentals: P/E, EPS, beta, dividend, 52W range, sector (Yahoo Finance) ──
+// Helper to safely extract .raw from a Yahoo Finance field (handles plain numbers too)
+function yr(field) {
+  if (field == null) return null;
+  if (typeof field === 'number') return field;
+  return field.raw ?? null;
+}
+
 router.get('/fundamentals/:symbol', async (req, res) => {
   try {
     const raw = req.params.symbol.toUpperCase();
     // Strip Polygon prefixes for Yahoo (X:BTCUSD -> BTCUSD, C:EURUSD -> EURUSD)
     const symbol = raw.replace(/^[XC]:/, '');
-    const { crumb, cookie } = await getYahooCrumb();
-    const url = 'https://query1.finance.yahoo.com/v10/finance/quoteSummary/' +
-      encodeURIComponent(symbol) +
-      '?modules=defaultKeyStatistics,financialData,summaryProfile,price' +
-      '&crumb=' + encodeURIComponent(crumb) + '&lang=en-US';
-    const r = await fetch(url, {
-      headers: { 'User-Agent': YF_UA, 'Accept': 'application/json', 'Cookie': cookie, 'Referer': 'https://finance.yahoo.com/' }
-    });
-    if (!r.ok) {
-      if (r.status === 401 || r.status === 403) { _yfCrumb = null; _yfCrumbExpiry = 0; }
-      throw new Error('Yahoo Finance HTTP ' + r.status);
+
+    // Attempt with crumb; retry once if crumb expired (401/403)
+    let result = null;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const { crumb, cookie } = await getYahooCrumb();
+      const url = 'https://query1.finance.yahoo.com/v10/finance/quoteSummary/' +
+        encodeURIComponent(symbol) +
+        '?modules=defaultKeyStatistics,financialData,summaryProfile,summaryDetail,price' +
+        '&crumb=' + encodeURIComponent(crumb) + '&lang=en-US';
+      const r = await fetch(url, {
+        headers: { 'User-Agent': YF_UA, 'Accept': 'application/json', 'Cookie': cookie, 'Referer': 'https://finance.yahoo.com/' }
+      });
+      if (r.status === 401 || r.status === 403) {
+        _yfCrumb = null; _yfCookie = null; _yfCrumbExpiry = 0;
+        if (attempt === 0) continue; // retry with fresh crumb
+        throw new Error('Yahoo Finance auth failed after retry');
+      }
+      if (!r.ok) throw new Error('Yahoo Finance HTTP ' + r.status);
+      const json = await r.json();
+      result = json?.quoteSummary?.result?.[0];
+      break;
     }
-    const json = await r.json();
-    const result = json && json.quoteSummary && json.quoteSummary.result && json.quoteSummary.result[0];
-    if (!result) throw new Error('No Yahoo data for ' + symbol);
+
+    // Return 404 (not 500) when ticker simply not found on Yahoo Finance
+    if (!result) {
+      return res.status(404).json({ error: 'No fundamental data for ' + symbol });
+    }
+
     const ks = result.defaultKeyStatistics || {};
-    const fd = result.financialData || {};
-    const sp = result.summaryProfile || {};
-    const pr = result.price || {};
+    const fd = result.financialData       || {};
+    const sp = result.summaryProfile      || {};
+    const sd = result.summaryDetail       || {}; // ← more reliable for marketCap
+    const pr = result.price               || {};
+
     // Next earnings date: Yahoo returns array of {raw, fmt} — pick the first future one
-    const earningsArr = ks.earningsDate && ks.earningsDate.length ? ks.earningsDate : null;
+    const earningsArr = ks.earningsDate?.length ? ks.earningsDate : null;
     const earningsDate = earningsArr
       ? (() => {
           const now = Date.now() / 1000;
-          const fut = earningsArr.find(e => e.raw > now);
+          const fut = earningsArr.find(e => (e.raw || 0) > now);
           return fut ? fut.fmt : (earningsArr[earningsArr.length - 1]?.fmt || null);
         })()
       : null;
+
     res.json({
-      // valuation
-      marketCap:           (pr.marketCap && pr.marketCap.raw) || null,
-      enterpriseValue:     (ks.enterpriseValue && ks.enterpriseValue.raw) || null,
-      peRatio:             (ks.trailingPE && ks.trailingPE.raw) || null,
-      forwardPE:           (ks.forwardPE && ks.forwardPE.raw) || null,
-      pegRatio:            (ks.pegRatio && ks.pegRatio.raw) || null,
-      priceToBook:         (ks.priceToBook && ks.priceToBook.raw) || null,
-      priceToSales:        (ks.priceToSalesTrailing12Months && ks.priceToSalesTrailing12Months.raw) || null,
+      // valuation — summaryDetail.marketCap is more consistently populated than price.marketCap
+      marketCap:           yr(sd.marketCap)        ?? yr(pr.marketCap)        ?? null,
+      enterpriseValue:     yr(ks.enterpriseValue)                             ?? null,
+      peRatio:             yr(sd.trailingPE)        ?? yr(ks.trailingPE)      ?? null,
+      forwardPE:           yr(sd.forwardPE)         ?? yr(ks.forwardPE)       ?? null,
+      pegRatio:            yr(ks.pegRatio)                                    ?? null,
+      priceToBook:         yr(ks.priceToBook)                                 ?? null,
+      priceToSales:        yr(ks.priceToSalesTrailing12Months)                ?? null,
       // earnings & dividends
-      eps:                 (ks.trailingEps && ks.trailingEps.raw) || null,
-      forwardEps:          (ks.forwardEps && ks.forwardEps.raw) || null,
+      eps:                 yr(ks.trailingEps)                                 ?? null,
+      forwardEps:          yr(ks.forwardEps)                                  ?? null,
       earningsDate:        earningsDate,
-      dividendYield:       (ks.dividendYield && ks.dividendYield.raw) || null,
+      dividendYield:       yr(sd.dividendYield)     ?? yr(ks.dividendYield)   ?? null,
+      dividendRate:        yr(sd.dividendRate)                                ?? null,
+      payoutRatio:         yr(sd.payoutRatio)                                 ?? null,
       // financials
-      totalRevenue:        (fd.totalRevenue && fd.totalRevenue.raw) || null,
-      revenueGrowth:       (fd.revenueGrowth && fd.revenueGrowth.raw) || null,
-      ebitda:              (fd.ebitda && fd.ebitda.raw) || null,
-      grossMargins:        (fd.grossMargins && fd.grossMargins.raw) || null,
-      operatingMargins:    (fd.operatingMargins && fd.operatingMargins.raw) || null,
-      profitMargins:       (fd.profitMargins && fd.profitMargins.raw) || null,
-      totalCash:           (fd.totalCash && fd.totalCash.raw) || null,
-      totalDebt:           (fd.totalDebt && fd.totalDebt.raw) || null,
-      returnOnEquity:      (fd.returnOnEquity && fd.returnOnEquity.raw) || null,
-      returnOnAssets:      (fd.returnOnAssets && fd.returnOnAssets.raw) || null,
+      totalRevenue:        yr(fd.totalRevenue)                                ?? null,
+      revenueGrowth:       yr(fd.revenueGrowth)                               ?? null,
+      ebitda:              yr(fd.ebitda)                                      ?? null,
+      grossMargins:        yr(fd.grossMargins)                                ?? null,
+      operatingMargins:    yr(fd.operatingMargins)                            ?? null,
+      profitMargins:       yr(fd.profitMargins)                               ?? null,
+      totalCash:           yr(fd.totalCash)                                   ?? null,
+      totalDebt:           yr(fd.totalDebt)                                   ?? null,
+      returnOnEquity:      yr(fd.returnOnEquity)                              ?? null,
+      returnOnAssets:      yr(fd.returnOnAssets)                              ?? null,
       // share data
-      beta:                (ks.beta && ks.beta.raw) || null,
-      sharesOutstanding:   (ks.sharesOutstanding && ks.sharesOutstanding.raw) || null,
-      shortPercentFloat:   (ks.shortPercentOfFloat && ks.shortPercentOfFloat.raw) || null,
-      fiftyTwoWeekHigh:    (ks.fiftyTwoWeekHigh && ks.fiftyTwoWeekHigh.raw) || null,
-      fiftyTwoWeekLow:     (ks.fiftyTwoWeekLow && ks.fiftyTwoWeekLow.raw) || null,
-      fiftyTwoWeekChange:  (ks['52WeekChange'] && ks['52WeekChange'].raw) || null,
+      beta:                yr(sd.beta)              ?? yr(ks.beta)            ?? null,
+      sharesOutstanding:   yr(ks.sharesOutstanding)                           ?? null,
+      shortPercentFloat:   yr(ks.shortPercentOfFloat)                         ?? null,
+      fiftyTwoWeekHigh:    yr(sd.fiftyTwoWeekHigh)  ?? yr(ks.fiftyTwoWeekHigh) ?? null,
+      fiftyTwoWeekLow:     yr(sd.fiftyTwoWeekLow)   ?? yr(ks.fiftyTwoWeekLow)  ?? null,
+      fiftyTwoWeekChange:  yr(ks['52WeekChange'])                             ?? null,
       // profile
-      sector:              sp.sector || null,
-      industry:            sp.industry || null,
-      employees:           sp.fullTimeEmployees || null,
-      website:             sp.website || null,
+      sector:              sp.sector                                          || null,
+      industry:            sp.industry                                        || null,
+      employees:           sp.fullTimeEmployees                               || null,
+      website:             sp.website                                         || null,
+      // description — used for "About" section (Yahoo summaryProfile has this reliably)
+      description:         sp.longBusinessSummary                             || null,
     });
   } catch (e) {
     console.error('[API] /fundamentals/' + req.params.symbol + ' error:', e.message);

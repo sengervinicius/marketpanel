@@ -26,32 +26,77 @@ const MARKET_BADGE = {
   ARCX: { bg: '#001a2e', color: '#4fc3f7', label: 'ARCA'   },
 };
 
-// Markets / types with confirmed data coverage in this terminal
-const LIVE_MARKETS   = new Set(['NYQ', 'NMS', 'PCX', 'ARCX', 'NYE', 'BVSP', 'SAO']);
-const LIMITED_MARKETS = new Set(['OTC', 'PNK', 'OTCM', 'GREY', 'OTCQX', 'OTCQB']);
+// Yahoo Finance exchange codes with confirmed live coverage in this terminal
+const LIVE_EXCHANGES    = new Set(['NYQ', 'NMS', 'PCX', 'ARCX', 'NYE', 'ASE', 'BVSP', 'SAO']);
+// OTC / sparse coverage
+const LIMITED_EXCHANGES = new Set(['OTC', 'PNK', 'OTCM', 'GREY', 'OTCQX', 'OTCQB', 'PINK']);
+// International exchanges we definitively DO NOT cover — show red "NO DATA"
+const NO_DATA_EXCHANGES = new Set([
+  'LSE','LON','L',        // London
+  'TYO','TSE','T',        // Tokyo
+  'HKG','HK',            // Hong Kong
+  'SHH','SHZ',           // Shanghai/Shenzhen
+  'BOM','NSE','NS','BO', // India
+  'ASX','AX',            // Australia
+  'FRA','ETR','F',       // Frankfurt
+  'EPA','PA',            // Paris
+  'AMS','AS',            // Amsterdam
+  'BME','MC',            // Madrid
+  'MIL','MI',            // Milan
+  'STO','ST',            // Stockholm
+  'CPH','CO',            // Copenhagen
+  'OSL','OL',            // Oslo
+  'HEL','HE',            // Helsinki
+  'WSE','WAR',           // Warsaw
+  'SGX','SI',            // Singapore
+  'KRX','KS','KQ',       // Korea
+]);
 
 /**
- * coverageLevel — returns one of:
- *   'live'    → confirmed coverage (shows green dot)
- *   'limited' → OTC / mutual fund / index — might work but often empty (yellow dot)
- *   'none'    → international exchange we don't cover (red dot + warning label)
+ * coverageLevel — returns 'live' | 'limited' | 'none' | 'unknown'
+ *
+ * ── KEY FIX ──────────────────────────────────────────────────────────────────
+ * Polygon's search API returns `market` as a GENERIC CATEGORY:
+ *   'stocks' | 'otc' | 'crypto' | 'fx' | 'indices'
+ * NOT an exchange code (NMS, NYQ, etc.).
+ * Old code compared these lowercase category strings against LIVE_EXCHANGES
+ * (uppercase Yahoo codes), causing every Polygon result — including AAPL, MSFT,
+ * DEFT, etc. — to be wrongly flagged 'none' / "NO DATA".
+ * ─────────────────────────────────────────────────────────────────────────────
  */
 function coverageLevel(item) {
   if (!item) return 'unknown';
-  // Our local FX/crypto pairs are always live
+
+  // Our locally-defined FX/crypto pairs — always live
   if (item.local) return 'live';
-  const type   = (item.type   || '').toUpperCase();
-  const market = (item.market || '').toUpperCase();
-  // Explicit type overrides
-  if (type === 'CRYPTO')   return 'live';
-  if (type === 'CURRENCY') return 'live';
-  // Known live exchanges
-  if (LIVE_MARKETS.has(market)) return 'live';
-  // Known limited exchanges
-  if (LIMITED_MARKETS.has(market)) return 'limited';
-  if (type === 'MUTUALFUND') return 'limited';
-  // International or unknown — no coverage
-  if (market && !LIVE_MARKETS.has(market)) return 'none';
+
+  const type   = (item.type            || '').toUpperCase();
+  const market = (item.market          || '').toLowerCase(); // Polygon: 'stocks','otc','crypto','fx'
+  const exch   = (item.primaryExchange || item.market || '').toUpperCase(); // Yahoo: 'NMS','NYQ'
+
+  // ── Type shortcuts ────────────────────────────────────────────────────
+  if (type === 'CRYPTO' || type === 'CRYPTOCURRENCY') return 'live';
+  if (type === 'CURRENCY')                            return 'live';
+  if (type === 'MUTUALFUND')                          return 'limited';
+
+  // ── Polygon generic CATEGORY strings (lowercase from Polygon API) ─────
+  // These are not exchange codes — handle them before checking exchange sets
+  if (market === 'stocks')  return 'live';    // all Polygon equity results
+  if (market === 'crypto')  return 'live';
+  if (market === 'fx' || market === 'forex') return 'live';
+  if (market === 'otc')     return 'limited';
+  if (market === 'indices') return 'limited';
+
+  // ── Yahoo Finance exchange codes (uppercase 2–5 chars) ────────────────
+  if (LIVE_EXCHANGES.has(exch))    return 'live';
+  if (LIMITED_EXCHANGES.has(exch)) return 'limited';
+  if (NO_DATA_EXCHANGES.has(exch)) return 'none';
+
+  // Well-known international ticker suffixes
+  const sym = (item.symbol || '').toUpperCase();
+  if (/\.(L|T|HK|AX|TO|NS|BO|PA|DE|MI|AS|MC|ST|CO|OL|HE|SI|KS|KQ)$/.test(sym)) return 'none';
+
+  // Unknown — don't block the user, show grey dot (no red warning)
   return 'unknown';
 }
 
@@ -111,11 +156,12 @@ export function SearchPanel({ onTickerSelect, onOpenDetail }) {
         const merged = [
           ...local,
           ...remote.map(r => ({
-            symbol: r.ticker || r.symbol,
-            name: r.name,
-            type: r.type,
-            market: r.market,
-            active: r.active,
+            symbol:          r.ticker || r.symbol,
+            name:            r.name,
+            type:            r.type,
+            market:          r.market,          // Polygon: 'stocks'|'otc'|'crypto'|'fx'  OR  Yahoo: 'NMS'|'NYQ'
+            primaryExchange: r.primaryExchange || r.market || '', // used by coverageLevel
+            active:          r.active,
           })),
         ].slice(0, 16);
         setResults(merged);

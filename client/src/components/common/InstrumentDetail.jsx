@@ -162,21 +162,30 @@ export default function InstrumentDetail({ ticker, onClose }) {
   const isCrypto = norm.startsWith('X:');
   const isBrazil = norm.endsWith('.SA');
   const isStock  = !isFX && !isCrypto;
-  const isMobile = window.innerWidth < 1024;
 
-  const [rangeIdx,    setRangeIdx]    = useState(0);
-  const [bars,        setBars]        = useState([]);
-  const [snap,        setSnap]        = useState(null);
-  const [info,        setInfo]        = useState(null);
-  const [loading,     setLoading]     = useState(true);
-  const [deltaMode,   setDeltaMode]   = useState(false);
-  const [deltaA,      setDeltaA]      = useState(null);
-  const [deltaB,      setDeltaB]      = useState(null);
-  const [hovered,     setHovered]     = useState(null);
-  const [fundsData,   setFundsData]   = useState(null);
-  const [news,        setNews]        = useState([]);
-  const [newsLoading, setNewsLoading] = useState(true);
-  const [activeTab,   setActiveTab]   = useState('STATS');
+  // Stable mobile detection (updates on resize, not just at mount)
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 1024);
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth < 1024);
+    window.addEventListener('resize', handler);
+    return () => window.removeEventListener('resize', handler);
+  }, []);
+
+  const [rangeIdx,     setRangeIdx]     = useState(0);
+  const [bars,         setBars]         = useState([]);
+  const [snap,         setSnap]         = useState(null);
+  const [info,         setInfo]         = useState(null);
+  const [loading,      setLoading]      = useState(true);
+  const [deltaMode,    setDeltaMode]    = useState(false);
+  const [deltaA,       setDeltaA]       = useState(null);
+  const [deltaB,       setDeltaB]       = useState(null);
+  const [hovered,      setHovered]      = useState(null);
+  const [fundsData,    setFundsData]    = useState(null);
+  const [fundsLoading, setFundsLoading] = useState(false);
+  const [fundsError,   setFundsError]   = useState(false);
+  const [news,         setNews]         = useState([]);
+  const [newsLoading,  setNewsLoading]  = useState(true);
+  const [activeTab,    setActiveTab]    = useState('STATS');
   const [descExpanded, setDescExpanded] = useState(false);
 
   const range = RANGES[rangeIdx];
@@ -227,10 +236,16 @@ export default function InstrumentDetail({ ticker, onClose }) {
   useEffect(() => {
     if (!isStock) return;
     setFundsData(null);
+    setFundsError(false);
+    setFundsLoading(true);
     fetch(API + '/api/fundamentals/' + encodeURIComponent(norm))
-      .then(r => r.ok ? r.json() : null)
-      .then(d => { if (d) setFundsData(d); })
-      .catch(() => {});
+      .then(r => r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)))
+      .then(d => {
+        if (d && !d.error) setFundsData(d);
+        else setFundsError(true);
+        setFundsLoading(false);
+      })
+      .catch(() => { setFundsError(true); setFundsLoading(false); });
   }, [norm]);
 
   // ── Fetch ticker-specific news ─────────────────────────────────────────
@@ -274,11 +289,12 @@ export default function InstrumentDetail({ ticker, onClose }) {
   const dayChange  = (livePrice && prevClose) ? livePrice - prevClose : null;
   const dayChgPct  = (dayChange && prevClose) ? (dayChange / prevClose) * 100 : null;
   const isPos      = (dayChgPct ?? 0) >= 0;
-  const name       = info?.name || disp;
+  const name       = info?.name || fundsData?.longName || disp;
   const dayHigh    = snap?.day?.h;
   const dayLow     = snap?.day?.l;
   const volume     = snap?.day?.v;
-  const desc       = info?.description;
+  // Description from Polygon (info) or Yahoo (fundsData) — whichever is non-empty
+  const desc       = info?.description || fundsData?.description || null;
 
   const chartMin   = bars.length ? Math.min(...bars.map(b => b.close)) * 0.997 : 0;
   const chartMax   = bars.length ? Math.max(...bars.map(b => b.close)) * 1.003 : 1;
@@ -489,8 +505,12 @@ export default function InstrumentDetail({ ticker, onClose }) {
         {/* ── VALUATION ── */}
         {isStock && (
           <Section title="VALUATION">
-            {fundsData == null
+            {fundsLoading
               ? <div style={{ color: '#2a2a2a', fontSize: 10, padding: '4px 0' }}>Loading…</div>
+              : fundsError
+              ? <div style={{ color: '#3a3a3a', fontSize: 9, padding: '4px 0' }}>Fundamental data unavailable</div>
+              : fundsData == null
+              ? <div style={{ color: '#2a2a2a', fontSize: 10, padding: '4px 0' }}>–</div>
               : <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 12px' }}>
                   {fundsData.marketCap != null && (
                     <StatRow label="MKT CAP"
@@ -691,6 +711,9 @@ export default function InstrumentDetail({ ticker, onClose }) {
     <div
       style={{
         position: 'fixed', inset: 0, zIndex: 9999,
+        // Account for iOS notch / Dynamic Island — push content below status bar
+        paddingTop: isMobile ? 'env(safe-area-inset-top)' : 0,
+        paddingBottom: isMobile ? 'env(safe-area-inset-bottom)' : 0,
         background: 'rgba(0,0,0,0.97)',
         display: 'flex', flexDirection: 'column',
         fontFamily: '"Courier New", monospace', color: '#e0e0e0',
@@ -698,50 +721,92 @@ export default function InstrumentDetail({ ticker, onClose }) {
       onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}
     >
 
-      {/* ── HEADER ── */}
+      {/* ── HEADER ──
+          MOBILE: ✕ is placed FIRST so it is never clipped by overflow.
+                  Compact single-row layout: [✕] [ticker+price] [spacer] [⟷] [↓CSV]
+          DESKTOP: Full layout with all controls on the right.
+      */}
       <div style={{
-        display: 'flex', alignItems: 'center', gap: isMobile ? 6 : 10,
-        padding: isMobile ? '6px 12px' : '8px 16px',
+        display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 10,
+        padding: isMobile ? '8px 10px' : '8px 16px',
         borderBottom: '1px solid #1a1a1a', background: '#080808',
-        flexShrink: 0, flexWrap: 'nowrap', minHeight: 0, overflow: 'hidden',
+        flexShrink: 0, flexWrap: 'nowrap', minHeight: 0,
+        overflow: 'hidden',
       }}>
-        {/* Ticker + name */}
-        <div style={{ display: 'flex', flexDirection: 'column', flexShrink: 0, gap: 1 }}>
-          <span style={{ fontSize: isMobile ? 14 : 19, fontWeight: 'bold', color: ORANGE, lineHeight: 1 }}>
-            {disp}
-          </span>
-          {name !== disp && (
-            <span style={{ fontSize: 9, color: '#444', maxWidth: isMobile ? 100 : 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {name}
-            </span>
-          )}
-        </div>
 
-        {/* Price + change */}
-        <div style={{ display: 'flex', flexDirection: 'column', flexShrink: 0, gap: 1 }}>
-          {livePrice != null && (
-            <span style={{ fontSize: isMobile ? 16 : 22, color: '#fff', fontWeight: 'bold', lineHeight: 1 }}>
-              {fmt(livePrice)}
-            </span>
-          )}
-          {dayChgPct != null && (
-            <span style={{ fontSize: isMobile ? 10 : 12, color: isPos ? GREEN : RED, lineHeight: 1 }}>
-              {isPos ? '+' : ''}{fmt(dayChange)} ({isPos ? '+' : ''}{fmt(dayChgPct)}%)
-            </span>
-          )}
-        </div>
+        {/* ── Close button — FIRST so it always visible on mobile ── */}
+        <button
+          onClick={onClose}
+          title="Close"
+          style={{
+            width: isMobile ? 36 : 26, height: isMobile ? 36 : 26, flexShrink: 0,
+            borderRadius: '50%', border: '1px solid #2a2a2a',
+            background: '#111', color: '#999', cursor: 'pointer',
+            fontSize: isMobile ? 16 : 14, lineHeight: '1', display: 'flex',
+            alignItems: 'center', justifyContent: 'center',
+          }}
+        >✕</button>
 
-        {/* Hover price */}
-        {!isMobile && hovered && (
-          <span style={{ fontSize: 11, color: '#444', marginLeft: 4, flexShrink: 0 }}>
-            ● {hovered.label}: {fmt(hovered.close)}
-          </span>
+        {isMobile ? (
+          /* ── MOBILE: compact inline ticker + price in one block ── */
+          <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 1 }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, minWidth: 0 }}>
+              <span style={{ fontSize: 15, fontWeight: 'bold', color: ORANGE, flexShrink: 0 }}>{disp}</span>
+              {livePrice != null && (
+                <span style={{ fontSize: 15, color: '#fff', fontWeight: 'bold', fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>
+                  {fmt(livePrice)}
+                </span>
+              )}
+              {dayChgPct != null && (
+                <span style={{ fontSize: 11, color: isPos ? GREEN : RED, flexShrink: 0 }}>
+                  {isPos ? '+' : ''}{fmt(dayChgPct)}%
+                </span>
+              )}
+            </div>
+            {name !== disp && (
+              <span style={{ fontSize: 9, color: '#333', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {name}
+              </span>
+            )}
+          </div>
+        ) : (
+          /* ── DESKTOP: separate ticker and price blocks ── */
+          <>
+            {/* Ticker + name */}
+            <div style={{ display: 'flex', flexDirection: 'column', flexShrink: 0, gap: 1 }}>
+              <span style={{ fontSize: 19, fontWeight: 'bold', color: ORANGE, lineHeight: 1 }}>{disp}</span>
+              {name !== disp && (
+                <span style={{ fontSize: 9, color: '#444', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {name}
+                </span>
+              )}
+            </div>
+
+            {/* Price + change */}
+            <div style={{ display: 'flex', flexDirection: 'column', flexShrink: 0, gap: 1 }}>
+              {livePrice != null && (
+                <span style={{ fontSize: 22, color: '#fff', fontWeight: 'bold', lineHeight: 1 }}>{fmt(livePrice)}</span>
+              )}
+              {dayChgPct != null && (
+                <span style={{ fontSize: 12, color: isPos ? GREEN : RED, lineHeight: 1 }}>
+                  {isPos ? '+' : ''}{fmt(dayChange)} ({isPos ? '+' : ''}{fmt(dayChgPct)}%)
+                </span>
+              )}
+            </div>
+
+            {/* Hover price (desktop only) */}
+            {hovered && (
+              <span style={{ fontSize: 11, color: '#444', marginLeft: 4, flexShrink: 0 }}>
+                ● {hovered.label}: {fmt(hovered.close)}
+              </span>
+            )}
+          </>
         )}
 
-        <div style={{ flex: 1 }} />
+        <div style={{ flex: isMobile ? 0 : 1 }} />
 
-        {/* Delta badge */}
-        {deltaInfo && (
+        {/* Delta badge — desktop only (on mobile it's in the chart area) */}
+        {!isMobile && deltaInfo && (
           <div style={{
             display: 'flex', flexDirection: 'column', alignItems: 'center',
             padding: '3px 8px', borderRadius: 3,
@@ -749,7 +814,7 @@ export default function InstrumentDetail({ ticker, onClose }) {
             border: `1px solid ${deltaInfo.pct >= 0 ? GREEN : RED}`,
             flexShrink: 0,
           }}>
-            <span style={{ color: deltaInfo.pct >= 0 ? GREEN : RED, fontSize: isMobile ? 10 : 12, fontWeight: 'bold', whiteSpace: 'nowrap' }}>
+            <span style={{ color: deltaInfo.pct >= 0 ? GREEN : RED, fontSize: 12, fontWeight: 'bold', whiteSpace: 'nowrap' }}>
               {deltaInfo.pct >= 0 ? '+' : ''}{fmt(deltaInfo.pct)}%
             </span>
             <span style={{ color: '#555', fontSize: 9, whiteSpace: 'nowrap' }}>
@@ -766,43 +831,32 @@ export default function InstrumentDetail({ ticker, onClose }) {
         {/* Measure button */}
         <button
           onClick={toggleDelta}
-          title="Measure: click A then B on the chart"
+          title="Measure tool: tap A then B on the chart"
           style={{
-            padding: isMobile ? '5px 10px' : '4px 10px',
+            padding: isMobile ? '6px 10px' : '4px 10px',
             fontSize: 10, borderRadius: 3, cursor: 'pointer',
             border: `1px solid ${deltaMode ? ORANGE : '#252525'}`,
-            background: deltaMode ? 'rgba(255,107,0,0.12)' : 'transparent',
+            background: deltaMode ? 'rgba(255,107,0,0.15)' : 'transparent',
             color: deltaMode ? ORANGE : '#444',
             whiteSpace: 'nowrap', flexShrink: 0,
-            letterSpacing: 0.5,
+            letterSpacing: 0.5, fontFamily: 'inherit',
           }}
-        >⟷ {isMobile ? 'Δ' : 'MEASURE'}</button>
+        >⟷{isMobile ? '' : ' MEASURE'}</button>
 
         {/* Export button */}
         <button
           onClick={() => exportToCSV(bars, norm, range.label)}
-          title="Export chart data to CSV / Excel"
+          title="Export chart data to CSV"
           style={{
-            padding: isMobile ? '5px 8px' : '4px 10px',
+            padding: isMobile ? '6px 8px' : '4px 10px',
             fontSize: 10, borderRadius: 3, cursor: 'pointer',
             border: '1px solid #252525',
-            background: 'transparent',
-            color: '#444',
+            background: 'transparent', color: '#444',
             whiteSpace: 'nowrap', flexShrink: 0,
-            letterSpacing: 0.5,
+            letterSpacing: 0.5, fontFamily: 'inherit',
           }}
         >{isMobile ? '↓' : '↓ EXPORT'}</button>
 
-        {/* Close */}
-        <button
-          onClick={onClose}
-          style={{
-            width: isMobile ? 34 : 26, height: isMobile ? 34 : 26,
-            borderRadius: '50%', border: '1px solid #222',
-            background: '#111', color: '#777', cursor: 'pointer',
-            fontSize: 14, lineHeight: '1', flexShrink: 0,
-          }}
-        >✕</button>
       </div>
 
       {/* ── BODY ── */}
@@ -821,22 +875,39 @@ export default function InstrumentDetail({ ticker, onClose }) {
           padding: '8px 10px', minWidth: 0, minHeight: 0,
         }}>
           {/* Range selector */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 6, flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 6, flexShrink: 0, flexWrap: 'wrap' }}>
             {RANGES.map((r, i) => (
               <button key={r.label}
                 onClick={() => setRangeIdx(i)}
                 style={{
-                  padding: '2px 7px', fontSize: 10, borderRadius: 3, cursor: 'pointer',
+                  padding: '3px 8px', fontSize: 10, borderRadius: 3, cursor: 'pointer',
                   border: `1px solid ${i === rangeIdx ? ORANGE : '#1e1e1e'}`,
                   background: i === rangeIdx ? ORANGE : 'transparent',
                   color: i === rangeIdx ? '#fff' : '#3a3a3a',
+                  fontFamily: 'inherit',
                 }}
               >{r.label}</button>
             ))}
             {rangeChg != null && !loading && (
-              <span style={{ fontSize: 10, color: rangeChg >= 0 ? GREEN : RED, marginLeft: 6 }}>
+              <span style={{ fontSize: 10, color: rangeChg >= 0 ? GREEN : RED, marginLeft: 4 }}>
                 {rangeChg >= 0 ? '+' : ''}{fmt(rangeChg)}%
               </span>
+            )}
+            {/* Mobile: show delta badge inline below range buttons */}
+            {isMobile && deltaInfo && (
+              <span style={{
+                fontSize: 11, fontWeight: 'bold', marginLeft: 'auto', flexShrink: 0,
+                color: deltaInfo.pct >= 0 ? GREEN : RED,
+                border: `1px solid ${deltaInfo.pct >= 0 ? GREEN : RED}`,
+                borderRadius: 3, padding: '2px 6px',
+              }}>
+                {deltaInfo.pct >= 0 ? '+' : ''}{fmt(deltaInfo.pct)}%
+                {deltaInfo.days != null && <span style={{ color: '#555', fontSize: 9 }}> · {deltaInfo.days}d</span>}
+              </span>
+            )}
+            {/* Mobile: delta hint */}
+            {isMobile && deltaHint && (
+              <span style={{ fontSize: 9, color: ORANGE }}>{deltaHint}</span>
             )}
           </div>
 

@@ -56,7 +56,7 @@ export function NewsPanel() {
 
   async function load() {
     try {
-            const res = await fetch(API + '/api/news');
+      const res = await fetch(API + '/api/news');
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const json = await res.json();
       const items = Array.isArray(json) ? json : (json.results || json.news || []);
