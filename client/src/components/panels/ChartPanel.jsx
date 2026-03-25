@@ -128,7 +128,6 @@ setData(bars);
       if (bars.length >= 2) {
         const last  = bars[bars.length - 1].v;
         const first = bars[0].v;
-        setPrice(last);
         setChg(last - first);
         setChgPct(first ? ((last - first) / first) * 100 : 0);
         setHigh(Math.max(...bars.map(b => b.v)));
