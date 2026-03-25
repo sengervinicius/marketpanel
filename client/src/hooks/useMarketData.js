@@ -9,9 +9,28 @@ const ENDPOINTS = {
   forex:  '/api/snapshot/forex',
   crypto: '/api/snapshot/crypto',
   rates:  '/api/snapshot/rates',
+  brazil: '/api/snapshot/brazil',
 };
 
 const REFRESH_MS = 6_000; // 6 seconds — keeps prices feeling live
+
+// Normalize Brazil (Yahoo Finance) snapshot → same shape as normalizePolygon
+function normalizeBrazil(data) {
+  if (!data?.results) return {};
+  const result = {};
+  for (const q of data.results) {
+    if (q.symbol && q.price != null) {
+      result[q.symbol] = {
+        symbol:    q.symbol,
+        price:     q.price,
+        changePct: q.changePct ?? null,
+        change:    q.change    ?? null,
+        mid:       q.price,
+      };
+    }
+  }
+  return result;
+}
 
 // Normalize Polygon snapshot response to { [symbol]: { price, changePct, change, mid } }
 function normalizePolygon(data, stripPrefix) {
@@ -73,6 +92,13 @@ export function useMarketData() {
       if (newData.stocks) newData.stocks = normalizePolygon(newData.stocks);
       if (newData.forex)  newData.forex  = normalizePolygon(newData.forex,  'C:');
       if (newData.crypto) newData.crypto = normalizePolygon(newData.crypto, 'X:');
+
+      // Merge Brazilian stocks (Yahoo Finance) into stocks map so MiniChart
+      // and InstrumentDetail can find BOVA11, VALE3, etc. with correct change%
+      if (newData.brazil) {
+        const brazilNorm = normalizeBrazil(newData.brazil);
+        newData.stocks = { ...(newData.stocks || {}), ...brazilNorm };
+      }
 
       // IndexPanel uses ETF proxies which live in the stocks snapshot
       newData.indices = newData.stocks || {};

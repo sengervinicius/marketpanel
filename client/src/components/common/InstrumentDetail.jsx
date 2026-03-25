@@ -1,5 +1,5 @@
 // InstrumentDetail.jsx – Bloomberg GP-style full-screen instrument overlay
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   AreaChart, Area, BarChart, Bar,
   XAxis, YAxis, ResponsiveContainer, Tooltip,
@@ -216,11 +216,29 @@ export default function InstrumentDetail({ ticker, onClose }) {
       .catch(() => setNewsLoading(false));
   }, [norm]);
 
-  // ── Escape key ────────────────────────────────────────────────────────
+  // ── Escape key + mobile back-button support ───────────────────────────
+  const closedByPopRef = useRef(false);
   useEffect(() => {
-    const fn = e => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', fn);
-    return () => window.removeEventListener('keydown', fn);
+    // Push a history entry so the mobile back button dismisses the overlay
+    // instead of navigating away from the app
+    history.pushState({ overlayDetail: true }, '');
+
+    const handlePop = () => {
+      closedByPopRef.current = true;
+      onClose();
+    };
+    const handleKey = e => { if (e.key === 'Escape') onClose(); };
+
+    window.addEventListener('popstate', handlePop);
+    window.addEventListener('keydown', handleKey);
+    return () => {
+      window.removeEventListener('popstate', handlePop);
+      window.removeEventListener('keydown', handleKey);
+      // If closed by ✕ or backdrop (not by back button), pop our history entry
+      if (!closedByPopRef.current && history.state?.overlayDetail) {
+        history.back();
+      }
+    };
   }, [onClose]);
 
   // ── Derived values ────────────────────────────────────────────────────
