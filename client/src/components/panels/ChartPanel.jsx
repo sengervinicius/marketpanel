@@ -581,7 +581,7 @@ export function ChartPanel({ ticker: externalTicker, onGridChange, mobile = fals
         {Array.from({ length: MAX }, (_, i) => {
           const t = tickers[i];
           return t
-            ? <MiniChart key={t} ticker={t} index={i} onRemove={removeTicker} onReplace={replaceTicker} onSwap={swapTickers} onOpenDetail={onOpenDetail} />
+            ? <MiniChart key={t} ticker={t} index={i} onRemove={removeTicker} onReplace={replaceTicker} onSwap={swapTickers} onOpenDetail={onOpenDetail} marketData={marketData} />
             : <EmptySlot key={`empty-${i}`} index={i} onAdd={addTicker} onSwap={swapTickers} />;
         })}
       </div>
