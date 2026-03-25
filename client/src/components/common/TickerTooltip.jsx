@@ -138,6 +138,7 @@ export function TickerTooltip() {
   useEffect(() => {
     let hoverTimer    = null;
     let longPressTimer = null;
+    let longStartX = 0, longStartY = 0;
 
     const show = (el, x, y) => {
       activeElRef.current = el;
@@ -170,36 +171,38 @@ export function TickerTooltip() {
       }
     };
 
-    // ── Mobile: touchstart / touchend / touchmove ──────────────────────────
-    const onTouchStart = (e) => {
-      const el = e.target.closest('[data-ticker]');
-      if (!el) return;
-      clearTimeout(longPressTimer);
-      const touch = e.touches[0];
-      longPressTimer = setTimeout(
-        () => show(el, touch.clientX, touch.clientY + 12),
-        800
+    // ── Mobile long-press: fires after 1200 ms, cancelled if finger moves >6px ─
+    const handleTouchStart = (e) => {
+      const t = e.touches[0];
+      longStartX = t.clientX;
+      longStartY = t.clientY;
+      clearTimeout(longTimer);
+      longTimer = setTimeout(
+        () => activateTooltip(e.target.closest('[data-ticker]'), 'touch'),
+        1200
       );
     };
-    const onTouchEnd  = () => clearTimeout(longPressTimer);
-    const onTouchMove = () => clearTimeout(longPressTimer);
+    const handleTouchMove  = (e) => {
+      const t = e.touches[0];
+      const dx = t.clientX - longStartX;
+      const dy = t.clientY - longStartY;
+      if (Math.abs(dx) > 6 || Math.abs(dy) > 6) clearTimeout(longTimer);
+    };
+    const handleTouchEnd   = (e) => clearTimeout(longTimer);
 
-    document.addEventListener('pointerover', onMouseOver);
-    document.addEventListener('pointerout',  onMouseOut);
-    document.addEventListener('touchstart', onTouchStart, { passive: true });
-    document.addEventListener('touchend',   onTouchEnd);
-    document.addEventListener('touchmove',  onTouchMove,  { passive: true });
+    document.addEventListener('touchstart', handleTouchStart, { passive: true });
+    document.addEventListener('touchmove',  handleTouchMove,  { passive: true });
+    document.addEventListener('touchend',   handleTouchEnd,   { passive: true });
+    document.addEventListener('touchcancel',handleTouchEnd,   { passive: true });
 
     return () => {
       clearTimeout(hoverTimer);
-      clearTimeout(longPressTimer);
-      document.removeEventListener('pointerover', onMouseOver);
-      document.removeEventListener('pointerout',  onMouseOut);
-      document.removeEventListener('touchstart', onTouchStart);
-      document.removeEventListener('touchend',   onTouchEnd);
-      document.removeEventListener('touchmove',  onTouchMove);
-    };
-  }, []);
+      clearTimeout(longTimer);
+      document.removeEventListener('touchstart', handleTouchStart);
+      document.removeEventListener('touchmove',  handleTouchMove);
+      document.removeEventListener('touchend',   handleTouchEnd);
+      document.removeEventListener('touchcancel',handleTouchEnd);
+    };  }, []);
 
   // Dismiss on next click / key press
   useEffect(() => {
