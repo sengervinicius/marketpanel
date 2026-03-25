@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useMarketData } from './hooks/useMarketData';
+import { PriceProvider } from './context/PriceContext';
 import { IndexPanel } from './components/panels/IndexPanel';
 import { StockPanel } from './components/panels/StockPanel';
 import { ForexPanel } from './components/panels/ForexPanel';
@@ -236,6 +237,7 @@ export default function App() {
   // ── DESKTOP ──────────────────────────────────────────────────────────────────────────────────────────────
   if (!isMobile) {
     return (
+      <PriceProvider marketData={data}>
       <div style={{
         display: 'flex', flexDirection: 'column', height: '100vh',
         background: '#0a0a0a',
@@ -257,7 +259,7 @@ export default function App() {
         {/* Row 1: Charts | Stocks | Forex+Crypto */}
         <div style={{ flex: rowSizes[0], flexShrink: 0, display:'flex', overflow:'hidden', minHeight: 220 }}>
           <div style={{ flex: colSizes1[0], minWidth: 0, borderRight:border, overflow:'hidden', height:'100%' }}>
-            <ChartPanel ticker={chartTicker} onTickerChange={setChartTicker} onGridChange={setChartGridCount} onOpenDetail={setDetailTicker} marketData={data} />
+            <ChartPanel ticker={chartTicker} onTickerChange={setChartTicker} onGridChange={setChartGridCount} onOpenDetail={setDetailTicker} />
           </div>
           <ColResizeHandle onStart={e => startColResize1(0, e)} />
           <div style={{ flex: colSizes1[1], minWidth: 0, borderRight:border, overflow:'hidden', height:'100%' }}>
@@ -314,11 +316,13 @@ export default function App() {
         {detailTicker && <InstrumentDetail ticker={detailTicker} onClose={() => setDetailTicker(null)} />}
       <TickerTooltip />
       </div>
+      </PriceProvider>
     );
   }
 
   // ── MOBILE ────────────────────────────────────────────────────────────────────────────────────────────────
   return (
+    <PriceProvider marketData={data}>
     <div style={{
       display: 'flex', flexDirection: 'column',
       height: '100dvh',
@@ -398,5 +402,6 @@ export default function App() {
       {detailTicker && <InstrumentDetail ticker={detailTicker} onClose={() => setDetailTicker(null)} />}
       <TickerTooltip />
     </div>
+    </PriceProvider>
   );
 }

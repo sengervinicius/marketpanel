@@ -6,6 +6,7 @@
 // URL sync: ?c=SPY,QQQ,... persisted via history.replaceState for cross-device sharing
 // Auto-sync: grid synced to server on change, fetched on mount for mobile cross-device
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useTickerPrice } from '../../context/PriceContext';
 import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip, ReferenceLine } from 'recharts';
 
 const API = import.meta.env.VITE_API_URL || '';
@@ -92,15 +93,9 @@ function assetType(t) {
 
 
 // Look up a ticker in the shared market data (same object useMarketData returns)
-function lookupSharedPrice(marketData, ticker) {
-  if (!marketData || !ticker) return null;
-  const norm = normalizeTicker(ticker);
-  if (norm.startsWith('X:')) return marketData.crypto?.[norm.slice(2)] ?? null;
-  if (norm.startsWith('C:')) return marketData.forex?.[norm.slice(2)] ?? null;
-  return marketData.stocks?.[norm] ?? null;
-}
-
-function MiniChart({ ticker, index, onRemove, onReplace, onSwap, onOpenDetail, marketData }) {
+function MiniChart({ ticker, index, onRemove, onReplace, onSwap, onOpenDetail }) {
+  // Single source of truth — reads from PriceContext (batch or auto-fetched)
+  const shared = useTickerPrice(ticker);
   const [data,    setData]    = useState([]);
   const [price,   setPrice]   = useState(null);
   const [chg,     setChg]     = useState(null);
@@ -163,61 +158,17 @@ setData(bars);
     return () => { mountedRef.current = false; clearInterval(intervalRef.current); };
   }, [fetchData, rangeIdx]);
 
-  // ── Price from shared market data (same source + same 6s cycle as the box panels) ──
+  // ── Sync shared price into local state (for '1D chg' reference in chart) ──
+  // shared is read from PriceContext — same data as every other panel
   useEffect(() => {
-    const info = lookupSharedPrice(marketData, ticker);
-    if (!info?.price) return;
-    setPrice(info.price);
-    if (info.change != null) setChg(info.change);
-    if (info.changePct != null) {
-      setChgPct(info.changePct);
-      snapshotChgRef.current = { chg: info.change, chgPct: info.changePct };
+    if (!shared?.price) return;
+    setPrice(shared.price);
+    if (shared.change   != null) setChg(shared.change);
+    if (shared.changePct != null) {
+      setChgPct(shared.changePct);
+      snapshotChgRef.current = { chg: shared.change, chgPct: shared.changePct };
     }
-  }, [marketData, ticker]);
-
-  // ── Fallback snapshot fetch — only for tickers not covered by shared market data ──
-  // (e.g. individual stocks that aren't in the batch list)
-  useEffect(() => {
-    if (!ticker) return;
-    // Skip if this ticker is already covered by the shared marketData hook
-    if (lookupSharedPrice(marketData, ticker)) return;
-    snapshotChgRef.current = null;
-    const norm = normalizeTicker(ticker);
-    const fetchSnapshot = () => {
-      fetch(`${API}/api/snapshot/ticker/${encodeURIComponent(norm)}`)
-        .then(r => r.json())
-        .then(d => {
-          if (!mountedRef.current) return;
-          const snap = d?.ticker ?? d;
-          const live = (snap?.min?.c > 0 ? snap.min.c : null)
-                    ?? (snap?.day?.c > 0 ? snap.day.c : null)
-                    ?? (snap?.lastTrade?.p > 0 ? snap.lastTrade.p : null)
-                    ?? snap?.prevDay?.c;
-          const prev = snap?.prevDay?.c;
-          const pct  = snap?.todaysChangePerc;
-          const chgVal = snap?.todaysChange;
-          if (live > 0) {
-            setPrice(live);
-            if (pct != null) {
-              setChg(chgVal); setChgPct(pct);
-              snapshotChgRef.current = { chg: chgVal, chgPct: pct };
-            } else if (prev > 0) {
-              const c = live - prev, cp = (c / prev) * 100;
-              setChg(c); setChgPct(cp);
-              snapshotChgRef.current = { chg: c, chgPct: cp };
-            }
-          } else if (prev > 0 && pct != null) {
-            setPrice(prev * (1 + pct / 100));
-            setChg(chgVal); setChgPct(pct);
-            snapshotChgRef.current = { chg: chgVal, chgPct: pct };
-          }
-        })
-        .catch(() => {});
-    };
-    fetchSnapshot();
-    const snapTimer = setInterval(fetchSnapshot, 6_000);
-    return () => clearInterval(snapTimer);
-  }, [ticker, marketData]);
+  }, [shared]);
   useEffect(() => {
     if (!ticker) return;
     const norm = normalizeTicker(ticker);
@@ -248,11 +199,10 @@ setData(bars);
   }, [ticker]);
   const handleRangeChange = (idx) => { clearInterval(intervalRef.current); setRangeIdx(idx); };
 
-  // Always prefer shared market data over local state — same source as the box panels
-  const _shared   = lookupSharedPrice(marketData, ticker);
-  const dispPrice = _shared?.price  ?? price;
-  const dispChg   = _shared?.change ?? chg;
-  const dispChgPct = _shared?.changePct ?? chgPct;
+  // PriceContext is the single source of truth — always consistent with box panels
+  const dispPrice  = shared?.price     ?? price;
+  const dispChg    = shared?.change    ?? chg;
+  const dispChgPct = shared?.changePct ?? chgPct;
 
   const isUp     = (dispChg ?? 0) >= 0;
   const lineColor = isUp ? '#e8e8e8' : '#ff5555';
@@ -399,7 +349,7 @@ function EmptySlot({ index, onAdd, onSwap }) {
   );
 }
 
-export function ChartPanel({ ticker: externalTicker, onGridChange, mobile = false, onOpenDetail, marketData }) {
+export function ChartPanel({ ticker: externalTicker, onGridChange, mobile = false, onOpenDetail }) {
   const [tickers, setTickers] = useState(() => {
     try {
       const urlParam = mobile ? null : new URLSearchParams(window.location.search).get('c');
@@ -535,7 +485,7 @@ export function ChartPanel({ ticker: externalTicker, onGridChange, mobile = fals
          </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gridAutoRows: '40vw', gap: 1, padding: 1 }}>
           {tickers.map((t, i) => (
-            <MiniChart key={t} ticker={t} index={i} onRemove={removeTicker} onReplace={replaceTicker} onSwap={swapTickers} onOpenDetail={onOpenDetail} marketData={marketData} />
+            <MiniChart key={t} ticker={t} index={i} onRemove={removeTicker} onReplace={replaceTicker} onSwap={swapTickers} onOpenDetail={onOpenDetail} />
           ))}
           {tickers.length < MAX && <EmptySlot index={tickers.length} onAdd={addTicker} onSwap={swapTickers} />}
         </div>
@@ -581,7 +531,7 @@ export function ChartPanel({ ticker: externalTicker, onGridChange, mobile = fals
         {Array.from({ length: MAX }, (_, i) => {
           const t = tickers[i];
           return t
-            ? <MiniChart key={t} ticker={t} index={i} onRemove={removeTicker} onReplace={replaceTicker} onSwap={swapTickers} onOpenDetail={onOpenDetail} marketData={marketData} />
+            ? <MiniChart key={t} ticker={t} index={i} onRemove={removeTicker} onReplace={replaceTicker} onSwap={swapTickers} onOpenDetail={onOpenDetail} />
             : <EmptySlot key={`empty-${i}`} index={i} onAdd={addTicker} onSwap={swapTickers} />;
         })}
       </div>

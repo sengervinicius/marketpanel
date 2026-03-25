@@ -459,18 +459,44 @@ router.get('/quote/:symbol', async (req, res) => {
 router.get('/snapshot/ticker/:symbol', async (req, res) => {
   try {
     const sym = req.params.symbol.toUpperCase();
-    let url;
+
     if (sym.startsWith('X:')) {
-      // Crypto: X:BTCUSD
-      url = `/v2/snapshot/locale/global/markets/crypto/tickers/${sym}`;
-    } else if (sym.startsWith('C:')) {
-      // Forex: C:EURUSD
-      url = `/v2/snapshot/locale/global/markets/forex/tickers/${sym}`;
-    } else {
-      // Equities / ETFs / .SA
-      url = `/v2/snapshot/locale/us/markets/stocks/tickers/${sym}`;
+      // Crypto — Polygon global crypto
+      const data = await polyFetch(`/v2/snapshot/locale/global/markets/crypto/tickers/${sym}`);
+      return res.json(data);
     }
-    const data = await polyFetch(url);
+
+    if (sym.startsWith('C:')) {
+      // Forex — Polygon global forex
+      const data = await polyFetch(`/v2/snapshot/locale/global/markets/forex/tickers/${sym}`);
+      return res.json(data);
+    }
+
+    if (sym.endsWith('.SA')) {
+      // Brazilian B3 — Yahoo Finance (Polygon doesn't cover .SA tickers)
+      const quotes = await yahooQuote(sym);
+      const q = quotes?.[0];
+      if (!q) throw new Error(`No Yahoo Finance data for ${sym}`);
+      return res.json({
+        ticker: {
+          min:    { c: q.regularMarketPrice },
+          day:    {
+            o: q.regularMarketOpen        ?? null,
+            h: q.regularMarketDayHigh     ?? null,
+            l: q.regularMarketDayLow      ?? null,
+            c: q.regularMarketPrice       ?? null,
+            v: q.regularMarketVolume      ?? null,
+            vw: null,
+          },
+          prevDay:          { c: q.regularMarketPreviousClose ?? q.regularMarketPrice },
+          todaysChangePerc: q.regularMarketChangePercent ?? null,
+          todaysChange:     q.regularMarketChange        ?? null,
+        },
+      });
+    }
+
+    // US equities / ETFs — Polygon US stocks
+    const data = await polyFetch(`/v2/snapshot/locale/us/markets/stocks/tickers/${sym}`);
     res.json(data);
   } catch (e) {
     console.error('[API] /snapshot/ticker error:', e.message);
