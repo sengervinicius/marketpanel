@@ -159,31 +159,41 @@ setData(bars);
     if (!ticker) return;
     snapshotChgRef.current = null;
     const norm = normalizeTicker(ticker);
-    fetch(`${API}/api/snapshot/ticker/${encodeURIComponent(norm)}`)
-      .then(r => r.json())
-      .then(d => {
-        const snap = d?.ticker ?? d;
-        const live = snap?.lastTrade?.p || snap?.min?.c || snap?.day?.c;
-        const prev = snap?.prevDay?.c;
-        const pct  = snap?.todaysChangePerc;
-        const chgVal = snap?.todaysChange;
-        if (live > 0) {
-          setPrice(live);
-          if (pct != null) {
+    const fetchSnapshot = () => {
+      fetch(`${API}/api/snapshot/ticker/${encodeURIComponent(norm)}`)
+        .then(r => r.json())
+        .then(d => {
+          if (!mountedRef.current) return;
+          const snap = d?.ticker ?? d;
+          // Same priority as useMarketData: min.c > day.c > lastTrade.p > prevDay.c
+          const live = (snap?.min?.c > 0 ? snap.min.c : null)
+                    ?? (snap?.day?.c > 0 ? snap.day.c : null)
+                    ?? (snap?.lastTrade?.p > 0 ? snap.lastTrade.p : null)
+                    ?? snap?.prevDay?.c;
+          const prev = snap?.prevDay?.c;
+          const pct  = snap?.todaysChangePerc;
+          const chgVal = snap?.todaysChange;
+          if (live > 0) {
+            setPrice(live);
+            if (pct != null) {
+              setChg(chgVal); setChgPct(pct);
+              snapshotChgRef.current = { chg: chgVal, chgPct: pct };
+            } else if (prev > 0) {
+              const c = live - prev, cp = (c / prev) * 100;
+              setChg(c); setChgPct(cp);
+              snapshotChgRef.current = { chg: c, chgPct: cp };
+            }
+          } else if (prev > 0 && pct != null) {
+            setPrice(prev * (1 + pct / 100));
             setChg(chgVal); setChgPct(pct);
             snapshotChgRef.current = { chg: chgVal, chgPct: pct };
-          } else if (prev > 0) {
-            const c = live - prev, cp = (c / prev) * 100;
-            setChg(c); setChgPct(cp);
-            snapshotChgRef.current = { chg: c, chgPct: cp };
           }
-        } else if (prev > 0 && pct != null) {
-          setPrice(prev * (1 + pct / 100));
-          setChg(chgVal); setChgPct(pct);
-          snapshotChgRef.current = { chg: chgVal, chgPct: pct };
-        }
-      })
-      .catch(() => {});
+        })
+        .catch(() => {});
+    };
+    fetchSnapshot();
+    const snapTimer = setInterval(fetchSnapshot, 30_000);
+    return () => clearInterval(snapTimer);
   }, [ticker]);
   useEffect(() => {
     if (!ticker) return;
