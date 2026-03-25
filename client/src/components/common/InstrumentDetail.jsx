@@ -187,7 +187,7 @@ export default function InstrumentDetail({ ticker, onClose }) {
   }, [deltaMode, deltaA, deltaB]);
 
   // ââ Render ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
-  const isMobile = window.innerWidth < 768;
+  const isMobile = window.innerWidth < 1024;
   return (
     <div
       style={{
@@ -203,7 +203,7 @@ export default function InstrumentDetail({ ticker, onClose }) {
       <div style={{
         display: 'flex', alignItems: 'center', gap: 10,
         padding: '8px 16px', borderBottom: '1px solid #222',
-        background: '#0f0f0f', flexShrink: 0, flexWrap: 'wrap',
+        background: '#0f0f0f', flexShrink: 0, flexWrap: 'nowrap',
       }}>
         <span style={{ fontSize: 20, fontWeight: 'bold', color: ORANGE }}>{disp}</span>
         {name !== disp && (
@@ -218,7 +218,7 @@ export default function InstrumentDetail({ ticker, onClose }) {
             {isPos ? '+' : ''}{fmt(dayChange)} ({isPos ? '+' : ''}{fmt(dayChgPct)}%)
           </span>
         )}
-        {hovered && (
+        {!isMobile && hovered && (
           <span style={{ fontSize: 11, color: '#555', marginLeft: 6 }}>
             {hovered.label}: {fmt(hovered.close)}
           </span>
@@ -226,7 +226,7 @@ export default function InstrumentDetail({ ticker, onClose }) {
 
         <div style={{ flex: 1 }} />
 
-        {deltaInfo && (
+        {!isMobile && deltaInfo && (
           <span style={{
             fontSize: 12, padding: '3px 10px', borderRadius: 3,
             background: '#161616', border: '1px solid #2a2a2a',
@@ -240,7 +240,7 @@ export default function InstrumentDetail({ ticker, onClose }) {
           </span>
         )}
 
-        <button
+{!isMobile &&         <button
           onClick={() => { setDeltaMode(m => !m); setDeltaA(null); setDeltaB(null); }}
           style={{
             padding: '3px 10px', fontSize: 11, borderRadius: 3, cursor: 'pointer',
@@ -248,7 +248,7 @@ export default function InstrumentDetail({ ticker, onClose }) {
             background: deltaMode ? ORANGE : 'transparent',
             color: deltaMode ? '#fff' : '#666',
           }}
-        >⟷ Δ MEASURE</button>
+        >⟷ Δ MEASURE</button>}
 
         <button
           onClick={onClose}
@@ -264,7 +264,7 @@ export default function InstrumentDetail({ ticker, onClose }) {
       <div style={{ flex: 1, display: 'flex', flexDirection: isMobile ? 'column' : 'row', minHeight: 0, overflowY: isMobile ? 'auto' : 'hidden' }}>
 
         {/* ââ LEFT: CHARTS ââ */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '8px 10px', minWidth: 0, minHeight: isMobile ? '55vh' : 0 }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '8px 10px', minWidth: 0, minHeight: isMobile ? '40vh' : 0 }}>
 
           {/* Range selector row */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 8 }}>
@@ -450,7 +450,7 @@ export default function InstrumentDetail({ ticker, onClose }) {
           )}
           {desc && (
             <Section title="ABOUT">
-              <p style={{ color: '#484848', fontSize: 10, lineHeight: 1.6, margin: 0 }}>
+              <p style={{ color: '#aaa', fontSize: 10, lineHeight: 1.6, margin: 0 }}>
                 {desc.length > 400 ? desc.slice(0, 400) + '...' : desc}
               </p>
             </Section>
