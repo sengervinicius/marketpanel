@@ -66,7 +66,7 @@ async function getYahooCrumb() {
 
 async function yahooQuote(symbols) {
   const { crumb, cookie } = await getYahooCrumb();
-  const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbols)}&crumb=${encodeURIComponent(crumb)}&fields=regularMarketPrice,regularMarketChange,regularMarketChangePercent,regularMarketVolume,regularMarketOpen,regularMarketDayHigh,regularMarketDayLow,shortName,longName,currency&lang=en-US`;
+  const url = `https://query2.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbols)}&crumb=${encodeURIComponent(crumb)}&fields=regularMarketPrice,regularMarketChange,regularMarketChangePercent,regularMarketVolume,regularMarketOpen,regularMarketDayHigh,regularMarketDayLow,shortName,longName,currency,marketCap&lang=en-US`;
   const r = await fetch(url, {
     headers: {
       'User-Agent': YF_UA,
@@ -954,7 +954,55 @@ router.get('/fundamentals/:symbol', async (req, res) => {
     // Strip Polygon prefixes for Yahoo (X:BTCUSD -> BTCUSD, C:EURUSD -> EURUSD)
     const symbol = raw.replace(/^[XC]:/, '');
 
-    // Attempt with crumb; retry once if crumb expired (401/403)
+    // ── Brazilian B3 stocks: use Yahoo v7/quote (same crumb, already proven to work) ──
+    // v10/quoteSummary is unreliable for .SA tickers — summaryDetail.marketCap is often null
+    if (symbol.endsWith('.SA')) {
+      const FIELDS = [
+        'marketCap','enterpriseValue',
+        'trailingPE','forwardPE',
+        'epsTrailingTwelveMonths','epsForward',
+        'trailingAnnualDividendYield','trailingAnnualDividendRate',
+        'fiftyTwoWeekHigh','fiftyTwoWeekLow','fiftyTwoWeekChangePercent',
+        'beta','sharesOutstanding',
+        'shortName','longName',
+      ].join(',');
+      let q = null;
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const { crumb, cookie } = await getYahooCrumb();
+        const url = `https://query2.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbol)}&crumb=${encodeURIComponent(crumb)}&fields=${FIELDS}&lang=en-US`;
+        const r = await fetch(url, {
+          headers: { 'User-Agent': YF_UA, 'Accept': 'application/json', 'Cookie': cookie, 'Referer': 'https://finance.yahoo.com/' }
+        });
+        if (r.status === 401 || r.status === 403) {
+          _yfCrumb = null; _yfCookie = null; _yfCrumbExpiry = 0;
+          if (attempt === 0) continue;
+          throw new Error('Yahoo Finance auth failed after retry');
+        }
+        if (!r.ok) throw new Error('Yahoo Finance HTTP ' + r.status);
+        const json = await r.json();
+        q = json?.quoteResponse?.result?.[0];
+        break;
+      }
+      if (!q) return res.status(404).json({ error: 'No fundamental data for ' + symbol });
+      return res.json({
+        marketCap:          q.marketCap                  ?? null,
+        enterpriseValue:    q.enterpriseValue            ?? null,
+        peRatio:            q.trailingPE                 ?? null,
+        forwardPE:          q.forwardPE                  ?? null,
+        eps:                q.epsTrailingTwelveMonths    ?? null,
+        forwardEps:         q.epsForward                 ?? null,
+        dividendYield:      q.trailingAnnualDividendYield ?? null,
+        dividendRate:       q.trailingAnnualDividendRate  ?? null,
+        fiftyTwoWeekHigh:   q.fiftyTwoWeekHigh           ?? null,
+        fiftyTwoWeekLow:    q.fiftyTwoWeekLow            ?? null,
+        fiftyTwoWeekChange: q.fiftyTwoWeekChangePercent != null
+                              ? q.fiftyTwoWeekChangePercent / 100 : null,
+        beta:               q.beta                       ?? null,
+        sharesOutstanding:  q.sharesOutstanding          ?? null,
+      });
+    }
+
+    // ── US / international stocks: Yahoo Finance v10 quoteSummary ──
     // query2 is generally more reliable than query1 from server IPs
     let result = null;
     for (let attempt = 0; attempt < 2; attempt++) {
