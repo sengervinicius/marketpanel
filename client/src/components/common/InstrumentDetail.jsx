@@ -155,7 +155,8 @@ function DeltaLineOverlay({ xAxisMap, yAxisMap, bars, deltaA, deltaB, deltaInfo 
 }
 
 // ── Main Component ──────────────────────────────────────────────────────────
-export default function InstrumentDetail({ ticker, onClose }) {
+// asPage=true: renders as a scrollable page (DETAIL tab on mobile), no fixed overlay
+export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
   const norm     = normalizeTicker(ticker);
   const disp     = displayTicker(norm);
   const isFX     = norm.startsWith('C:');
@@ -265,6 +266,14 @@ export default function InstrumentDetail({ ticker, onClose }) {
 
   const closedByPopRef = useRef(false);
   useEffect(() => {
+    // In page mode (DETAIL tab on mobile), skip history.pushState — the tab bar
+    // handles navigation and pushState would break the back button behaviour.
+    if (asPage) {
+      const handleKey = e => { if (e.key === 'Escape') onCloseRef.current(); };
+      window.addEventListener('keydown', handleKey);
+      return () => window.removeEventListener('keydown', handleKey);
+    }
+
     closedByPopRef.current = false;
     history.pushState({ overlayDetail: true }, '');
 
@@ -280,7 +289,7 @@ export default function InstrumentDetail({ ticker, onClose }) {
         history.back();
       }
     };
-  }, []); // empty — only fires on actual mount/unmount
+  }, [asPage]); // asPage is stable (set at mount, not changed)
 
   // ── Derived values ─────────────────────────────────────────────────────
   const livePrice = snap?.min?.c || snap?.day?.c || snap?.lastTrade?.p || snap?.prevDay?.c
@@ -784,16 +793,21 @@ export default function InstrumentDetail({ ticker, onClose }) {
 
   return (
     <div
-      style={{
+      style={asPage ? {
+        // Page mode (mobile DETAIL tab): normal flow, fills parent scroll container
+        display: 'flex', flexDirection: 'column', minHeight: '100%',
+        background: '#080808',
+        fontFamily: '"Courier New", monospace', color: '#e0e0e0',
+      } : {
+        // Overlay mode (desktop / desktop right-click): fixed fullscreen
         position: 'fixed', inset: 0, zIndex: 9999,
-        // Account for iOS notch / Dynamic Island — push content below status bar
         paddingTop: isMobile ? 'env(safe-area-inset-top)' : 0,
         paddingBottom: isMobile ? 'env(safe-area-inset-bottom)' : 0,
         background: 'rgba(0,0,0,0.97)',
         display: 'flex', flexDirection: 'column',
         fontFamily: '"Courier New", monospace', color: '#e0e0e0',
       }}
-      onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}
+      onMouseDown={asPage ? undefined : (e => { if (e.target === e.currentTarget) onClose(); })}
     >
 
       {/* ── HEADER ──

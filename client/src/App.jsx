@@ -19,6 +19,7 @@ import BrazilPanel from './components/panels/BrazilPanel';
 import GlobalIndicesPanel from './components/panels/GlobalIndicesPanel';
 import WatchlistPanel from './components/panels/WatchlistPanel';
 import { ChatPanel } from './components/panels/ChatPanel';
+import HomePanelMobile from './components/panels/HomePanelMobile';
 import { TickerTooltip } from './components/common/TickerTooltip';
 import InstrumentDetail from './components/common/InstrumentDetail';
 import './App.css';
@@ -254,20 +255,16 @@ function FeedStatusBar({ feedStatus }) {
 }
 
 // ── Mobile tab definitions ──────────────────────────────────────────────────────────────────────────────
+// 5 tabs: HOME, WATCHLIST, SEARCH, DETAIL, NEWS
 const MOBILE_TABS = [
-  { id: 'charts',    label: 'CHARTS' },
-  { id: 'usequity',  label: 'US EQ' },
-  { id: 'brazil',    label: 'BRAZIL' },
-  { id: 'fxcrypto',  label: 'FX/BTC' },
-  { id: 'global',    label: 'GLOBAL' },
-  { id: 'watchlist', label: 'WATCH' },
-  { id: 'chat',      label: 'CHAT' },
-  { id: 'rates',     label: 'CURVES' },
-  { id: 'news',      label: 'NEWS' },
-  { id: 'search',    label: 'SEARCH' },
+  { id: 'home',      label: 'HOME',   icon: '⌂' },
+  { id: 'watchlist', label: 'WATCH',  icon: '☆' },
+  { id: 'search',    label: 'FIND',   icon: '⊕' },
+  { id: 'detail',    label: 'DETAIL', icon: '▦' },
+  { id: 'news',      label: 'NEWS',   icon: '◎' },
 ];
 
-const LS_TAB          = 'activeTab_m2';
+const LS_TAB          = 'activeTab_m3'; // bumped to reset stale saved tab
 const LS_CHART_TICKER = 'chartTicker';
 const LS_CHART_GRID   = 'chartGrid_v3';
 
@@ -354,7 +351,7 @@ export default function App() {
 
   const [activeTab, setActiveTab] = useState(() => {
     const saved = localStorage.getItem(LS_TAB);
-    return MOBILE_TABS.find(t => t.id === saved) ? saved : 'charts';
+    return MOBILE_TABS.find(t => t.id === saved) ? saved : 'home';
   });
   const setActiveTabPersist = (t) => { setActiveTab(t); localStorage.setItem(LS_TAB, t); };
 
@@ -433,6 +430,14 @@ export default function App() {
     setChartTicker(sym);
     setActiveTabPersist('charts');
   }, [setChartTicker]);
+
+  // Mobile: tap any ticker → set detail ticker + navigate to DETAIL tab
+  const goDetail = useCallback((t) => {
+    const sym = typeof t === 'object' ? (t.symbol || t.ticker || t) : t;
+    if (!sym) return;
+    setDetailTicker(sym);
+    setActiveTabPersist('detail');
+  }, []);
 
   // ── DESKTOP ──────────────────────────────────────────────────────────────────────────────────────────────
   if (!isMobile) {
@@ -585,78 +590,87 @@ export default function App() {
       fontFamily: "'IBM Plex Mono','Roboto Mono','Courier New',monospace",
       color: '#e0e0e0', overflow: 'hidden',
     }}>
-      <div style={{ background: '#000', borderBottom: '3px solid #ff6600', padding: '0 12px', height: '44px', display: 'flex', alignItems: 'center', flexShrink: 0, gap: 8 }}>
-        <span style={{ color:'#ff6600', fontWeight:800, fontSize:'13px', letterSpacing:'2px' }}>SENGER</span>
-        <span style={{ color:'#555', fontSize:'9px', letterSpacing:'1px' }}>MARKET</span>
-        {isRefreshing
-          ? <span style={{ color:'#ff6600', fontSize:'8px', marginLeft:4 }}>&#9679; LIVE</span>
-          : lastUpdated && <span style={{ color:'#333', fontSize:'8px', marginLeft:'auto' }}>UPD {lastUpdated.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</span>
-        }
-      </div>
 
+      {/* ── Tab content area ── */}
       <div style={{ flex:1, overflowY:'auto', overflowX:'hidden', minHeight:0, WebkitOverflowScrolling:'touch' }}>
-        {activeTab === 'charts' && (
-          <ChartPanel ticker={chartTicker} onTickerChange={setChartTicker} onGridChange={setChartGridCount} onOpenDetail={setDetailTicker} mobile={true} />
+
+        {/* HOME — market overview dashboard */}
+        {activeTab === 'home' && (
+          <HomePanelMobile onOpenDetail={goDetail} />
         )}
-        {activeTab === 'usequity' && (
-          <StockPanel data={mergedData?.stocks} loading={loading} onTickerClick={t => goChart(t)} onOpenDetail={setDetailTicker} />
+
+        {/* WATCHLIST — user's saved instruments */}
+        {activeTab === 'watchlist' && (
+          <WatchlistPanel onTickerClick={goDetail} onOpenDetail={goDetail} />
         )}
-        {activeTab === 'brazil' && (
-          <BrazilPanel onTickerClick={t => goChart(t)} onOpenDetail={setDetailTicker} />
+
+        {/* SEARCH — discover and add instruments */}
+        {activeTab === 'search' && (
+          <SearchPanel onTickerSelect={goDetail} onOpenDetail={goDetail} />
         )}
-        {activeTab === 'fxcrypto' && (
-          <div>
-            <ForexPanel data={mergedData?.forex} cryptoData={mergedData?.crypto} loading={loading} onTickerClick={t => goChart(t)} onOpenDetail={setDetailTicker} />
-            <div style={{ borderTop:'1px solid #1e1e1e' }}>
-              <CommoditiesPanel data={mergedData?.stocks} loading={loading} onTickerClick={t => goChart(t)} onOpenDetail={setDetailTicker} />
-            </div>
-          </div>
+
+        {/* DETAIL — full instrument view (inline page, not overlay) */}
+        {activeTab === 'detail' && (
+          detailTicker
+            ? <InstrumentDetail
+                ticker={detailTicker}
+                onClose={() => setActiveTabPersist('home')}
+                asPage
+              />
+            : <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', height:'100%', gap:12 }}>
+                <div style={{ color:'#2a2a2a', fontSize:32 }}>▦</div>
+                <div style={{ color:'#333', fontSize:10, letterSpacing:'1px' }}>TAP ANY INSTRUMENT TO VIEW DETAILS</div>
+                <button
+                  onClick={() => setActiveTabPersist('watchlist')}
+                  style={{ marginTop:8, background:'none', border:'1px solid #2a2a2a', color:'#555', fontSize:9, padding:'6px 14px', cursor:'pointer', fontFamily:'inherit', borderRadius:2 }}
+                >OPEN WATCHLIST →</button>
+              </div>
         )}
-        {activeTab === 'global' && (
-          <div>
-            <GlobalIndicesPanel onTickerClick={t => goChart(t)} onOpenDetail={setDetailTicker} />
-            <div style={{ borderTop:'1px solid #1e1e1e' }}>
-              <IndexPanel data={mergedData?.indices} loading={loading} onTickerClick={t => goChart(t)} onOpenDetail={setDetailTicker} />
-            </div>
-          </div>
-        )}
-        {activeTab === 'watchlist' && <WatchlistPanel onTickerClick={t => goChart(t)} onOpenDetail={setDetailTicker} />}
-        {activeTab === 'chat' && <ChatPanel user={user} />}
-        {activeTab === 'rates' && <DICurvePanel />}
+
+        {/* NEWS */}
         {activeTab === 'news' && <NewsPanel />}
-        {activeTab === 'search' && <SearchPanel onTickerSelect={t => { goChart(t); setDetailTicker(t); }} onOpenDetail={setDetailTicker} />}
       </div>
 
+      {/* ── Bottom tab bar ── */}
       <nav style={{
         display: 'flex', background: '#000',
         borderTop: '2px solid #1e1e1e',
-        flexShrink: 0, overflowX: 'auto',
-        scrollbarWidth: 'none',
+        flexShrink: 0,
         paddingBottom: 'env(safe-area-inset-bottom)',
       }}>
         {MOBILE_TABS.map(tab => {
           const isActive = activeTab === tab.id;
+          const showBadge = tab.id === 'detail' && !!detailTicker;
           return (
             <button
               key={tab.id}
               onClick={() => setActiveTabPersist(tab.id)}
               style={{
-                flex: '1 0 auto', minWidth: '44px', minHeight: '52px',
+                flex: 1, minHeight: '54px',
                 padding: '8px 4px 6px',
-                background: isActive ? '#1a0900' : 'transparent',
+                background: isActive ? '#140800' : 'transparent',
                 color: isActive ? '#ff6600' : '#444',
                 border: 'none',
-                borderTop: '3px solid ' + (isActive ? '#ff6600' : 'transparent'),
-                fontSize: '8px', fontWeight: 800, letterSpacing: '0.3px',
+                borderTop: '2px solid ' + (isActive ? '#ff6600' : 'transparent'),
+                fontSize: '7.5px', fontWeight: 800, letterSpacing: '0.3px',
                 cursor: 'pointer', fontFamily: 'inherit', textTransform: 'uppercase',
+                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
+                position: 'relative',
               }}>
+              <span style={{ fontSize: 14, lineHeight: 1 }}>{tab.icon}</span>
               {tab.label}
+              {showBadge && (
+                <span style={{
+                  position: 'absolute', top: 6, right: '50%', transform: 'translateX(8px)',
+                  width: 6, height: 6, borderRadius: '50%', background: '#ff6600',
+                }} />
+              )}
             </button>
           );
         })}
       </nav>
-      {detailTicker && <InstrumentDetail ticker={detailTicker} onClose={() => setDetailTicker(null)} />}
-      <TickerTooltip onOpenDetail={setDetailTicker} />
+      {/* No overlay InstrumentDetail on mobile — it renders inline in the DETAIL tab */}
+      <TickerTooltip onOpenDetail={goDetail} />
     </div>
     </PriceProvider>
     </MarketProvider>

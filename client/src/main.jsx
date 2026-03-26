@@ -1,7 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App.jsx'
-import PasswordGate from './components/auth/PasswordGate.jsx'
+import LoginScreen from './components/auth/LoginScreen.jsx'
 import { AuthProvider } from './context/AuthContext.jsx'
 
 if ('serviceWorker' in navigator) {
@@ -11,9 +11,9 @@ if ('serviceWorker' in navigator) {
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <AuthProvider>
-      <PasswordGate>
+      <LoginScreen>
         <App />
-      </PasswordGate>
+      </LoginScreen>
     </AuthProvider>
   </StrictMode>
 )

@@ -6,6 +6,7 @@ const WebSocket = require('ws');
 const { connectPolygon } = require('./polygonProxy');
 const marketRoutes = require('./routes/market');
 const authRoutes = require('./routes/authRoutes');
+const billingRoutes = require('./routes/billing');
 const chatStore = require('./chatStore');
 
 const app = express();
@@ -21,6 +22,9 @@ app.get('/health', (req, res) => res.json({ status: 'ok', ts: Date.now() }));
 
 // Auth routes
 app.use('/api/auth', authRoutes);
+
+// Billing/subscription routes (stubs — wire Stripe before launch)
+app.use('/api/billing', billingRoutes);
 
 // REST routes (snapshots, news, charts)
 app.use('/api', marketRoutes);
