@@ -24,12 +24,22 @@ function timeAgo(ts) {
   return Math.round(diff / 86400) + 'd';
 }
 
-export function ChatPanel({ mobile }) {
+// Open chat in a separate browser window
+export function openChatWindow(userId) {
+  const path = userId
+    ? `${window.location.origin}/#/chat/${userId}`
+    : `${window.location.origin}/#/chat`;
+  window.open(path, '_blank', 'width=820,height=620,noopener,noreferrer');
+}
+
+export function ChatPanel({ mobile, initialUserId }) {
   const { user, token } = useAuth();
   const [conversations,    setConversations]    = useState([]);
   const [searchQuery,      setSearchQuery]      = useState('');
   const [searchResults,    setSearchResults]    = useState([]);
-  const [activeChatUser,   setActiveChatUser]   = useState(null); // { id, username }
+  const [activeChatUser,   setActiveChatUser]   = useState(
+    initialUserId ? { id: initialUserId, username: '…' } : null
+  ); // { id, username }
   const [messages,         setMessages]         = useState({});   // userId → [msg]
   const [input,            setInput]            = useState('');
   const [loading,          setLoading]          = useState(false);
@@ -176,6 +186,13 @@ export function ChatPanel({ mobile }) {
     <div style={{ width: mobile ? '100%' : 220, display: 'flex', flexDirection: 'column', borderRight: mobile ? 'none' : '1px solid #1e1e1e', height: '100%' }}>
       <div style={panelHeader}>
         <span style={{ color: ORANGE, fontSize: 10, fontWeight: 'bold', letterSpacing: '0.2em' }}>MESSAGES</span>
+        {!mobile && (
+          <button
+            onClick={() => openChatWindow()}
+            title="Open in separate window"
+            style={{ background: 'none', border: 'none', color: '#333', cursor: 'pointer', fontSize: 11, padding: 0 }}
+          >⊞</button>
+        )}
       </div>
       {/* User search */}
       <div style={{ padding: '8px 10px', borderBottom: '1px solid #141414', flexShrink: 0 }}>

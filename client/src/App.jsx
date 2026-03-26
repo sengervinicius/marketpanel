@@ -16,6 +16,7 @@ import { ChartPanel } from './components/panels/ChartPanel';
 import { SentimentPanel } from './components/panels/SentimentPanel';
 import { SearchPanel } from './components/panels/SearchPanel';
 import { DICurvePanel } from './components/panels/DICurvePanel';
+import DebtPanel from './components/panels/DebtPanel';
 import BrazilPanel from './components/panels/BrazilPanel';
 import GlobalIndicesPanel from './components/panels/GlobalIndicesPanel';
 import WatchlistPanel from './components/panels/WatchlistPanel';
@@ -178,6 +179,7 @@ const PANEL_DEFS = [
   { id: 'global',     label: 'Global Indices' },
   { id: 'commodities',label: 'Commodities' },
   { id: 'watchlist',  label: 'Watchlist' },
+  { id: 'debt',       label: 'Debt Markets' },
   { id: 'curves',     label: 'Yield Curves' },
   { id: 'search',     label: 'Search' },
   { id: 'news',       label: 'News' },
@@ -342,7 +344,7 @@ const LS_CHART_GRID   = 'chartGrid_v3';
 
 export default function App() {
   const { data, loading, isRefreshing, lastUpdated } = useMarketData();
-  const { user, subscription, startCheckout, logout } = useAuth();
+  const { user, subscription, startCheckout, logout, authReady } = useAuth();
   const { settings, loaded: settingsLoaded } = useSettings();
 
   // ── Live WebSocket overlay (throttled at 250 ms) ─────────────────────────
@@ -470,10 +472,10 @@ export default function App() {
     } catch { return 2; }
   });
 
-  const [rowSizes,  startRowResize]  = useResizableFlex('rowFlexSizes_v1',     [2, 1.5, 1.5]);
-  const [colSizes1, startColResize1] = useResizableColumns('colFlexSizes_r1_v1', [2, 1, 1.6]);
-  const [colSizes2, startColResize2] = useResizableColumns('colFlexSizes_r2_v1', [1, 1, 1, 1]);
-  const [colSizes3, startColResize3] = useResizableColumns('colFlexSizes_r3_v1', [0.8, 0.8, 1.5, 0.9]);
+  const [rowSizes,  startRowResize]  = useResizableFlex('rowFlexSizes_v2',     [2, 1.5, 1.5]);
+  const [colSizes1, startColResize1] = useResizableColumns('colFlexSizes_r1_v2', [2, 1, 1.6]);
+  const [colSizes2, startColResize2] = useResizableColumns('colFlexSizes_r2_v2', [1, 1, 1, 1]);
+  const [colSizes3, startColResize3] = useResizableColumns('colFlexSizes_r3_v2', [0.7, 0.7, 0.7, 1.4, 0.7]);
 
   const border = '1px solid #1e1e1e';
 
@@ -506,8 +508,11 @@ export default function App() {
   }, []);
 
   // ── Onboarding check ─────────────────────────────────────────────────────
-  // Only show onboarding after settings are loaded and onboarding is not completed
-  const showOnboarding = settingsLoaded && settings && !settings.onboardingCompleted;
+  // Only show onboarding AFTER settings are fully loaded from the server (not the
+  // default settings), and only if the user has not yet completed onboarding.
+  // This ensures a logged-in user with onboardingCompleted=true never sees the
+  // preset screen again on refresh.
+  const showOnboarding = settingsLoaded && !!user && settings && !settings.onboardingCompleted;
 
   // ── Subscription gating ──────────────────────────────────────────────────
   // Show paywall if subscription has expired
@@ -613,7 +618,7 @@ export default function App() {
 
             <ResizeHandle onStart={e => startRowResize(1, e)} />
 
-            {/* Row 3: Yield Curves | Search | News | Sentiment | Watchlist | Chat */}
+            {/* Row 3: Yield Curves | Search | Debt Markets | News | Watchlist | Chat */}
             <div style={{ flex: rowSizes[2], flexShrink: 0, display:'flex', overflow:'hidden', minHeight: 160 }}>
               {isPanelVisible('curves') && (<>
               <div style={{ flex: colSizes3[0], minWidth: 0, borderRight:border, overflow:'hidden', height:'100%' }}>
@@ -627,26 +632,26 @@ export default function App() {
               </div>
               <ColResizeHandle onStart={e => startColResize3(1, e)} />
               </>)}
-              {isPanelVisible('news') && (<>
+              {isPanelVisible('debt') && (<>
               <div style={{ flex: colSizes3[2], minWidth: 0, borderRight:border, overflow:'hidden', height:'100%' }}>
+                <DebtPanel />
+              </div>
+              <ColResizeHandle onStart={e => startColResize3(2, e)} />
+              </>)}
+              {isPanelVisible('news') && (<>
+              <div style={{ flex: colSizes3[3], minWidth: 0, borderRight:border, overflow:'hidden', height:'100%' }}>
                 <NewsPanel />
               </div>
-              <ColResizeHandle onStart={e => startColResize3(2, e)} />
+              <ColResizeHandle onStart={e => startColResize3(3, e)} />
               </>)}
-              {isPanelVisible('sentiment') && (<>
-              <div style={{ flex: colSizes3[3], minWidth: 0, borderRight:border, overflow:'hidden', height:'100%' }}>
-                <SentimentPanel data={mergedData} loading={loading} />
-              </div>
-              <ColResizeHandle onStart={e => startColResize3(2, e)} />
-              </>)}
-              {isPanelVisible('watchlist') && (
-              <div style={{ flex: 0.6, minWidth: 0, overflow:'hidden', height:'100%' }}>
+              {isPanelVisible('watchlist') && (<>
+              <div style={{ flex: colSizes3[4], minWidth: 0, borderRight:border, overflow:'hidden', height:'100%' }}>
                 <WatchlistPanel onTickerClick={setChartTicker} onOpenDetail={setDetailTicker} />
               </div>
-              )}
+              </>)}
               {isPanelVisible('chat') && (
-              <div style={{ flex: 0.5, minWidth: 0, borderLeft:border, overflow:'hidden', height:'100%' }}>
-                <ChatPanel user={user} />
+              <div style={{ flex: 0.55, minWidth: 0, borderLeft:border, overflow:'hidden', height:'100%' }}>
+                <ChatPanel />
               </div>
               )}
             </div>

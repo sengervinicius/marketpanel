@@ -946,6 +946,26 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
           }}
         >{isMobile ? '↓' : '↓ EXPORT'}</button>
 
+        {/* Pop-out button — desktop only, not shown when already in pop-out page */}
+        {!isMobile && !asPage && (
+          <button
+            onClick={() => {
+              const sym = encodeURIComponent(norm);
+              window.open(
+                `${window.location.origin}/#/detail/${sym}`,
+                '_blank',
+                'width=1100,height=700,noopener,noreferrer'
+              );
+            }}
+            title="Open in separate window"
+            style={{
+              padding: '4px 10px', fontSize: 10, borderRadius: 3, cursor: 'pointer',
+              border: '1px solid #252525', background: 'transparent', color: '#444',
+              whiteSpace: 'nowrap', flexShrink: 0, letterSpacing: 0.5, fontFamily: 'inherit',
+            }}
+          >⊞ POP OUT</button>
+        )}
+
       </div>
 
       {/* ── BODY ── */}
