@@ -343,6 +343,51 @@ function FeedStatusBar({ feedStatus }) {
   );
 }
 
+// ── Data Error Banner — shown when all market feeds are down ─────────────────
+// This surfaces HTTP 402/403/401/network errors that were previously invisible,
+// causing users to see blank panels with no explanation.
+function DataErrorBanner({ error, endpointErrors }) {
+  if (!error) return null;
+  // Subscription expired is already handled by SubscriptionExpiredScreen + TrialBanner
+  if (error === 'subscription_required') return null;
+
+  let msg, detail;
+  if (error === 'api_key_invalid') {
+    msg    = 'MARKET DATA UNAVAILABLE';
+    detail = 'Server API key not configured (HTTP 403). Contact support or check POLYGON_API_KEY env var.';
+  } else if (error === 'auth_required') {
+    msg    = 'SESSION EXPIRED';
+    detail = 'Your session is no longer valid (HTTP 401). Please log out and log in again.';
+  } else if (error === 'Data endpoints unreachable') {
+    msg    = 'FEED UNREACHABLE';
+    detail = 'Cannot connect to market data server. Check your network or server status.';
+  } else {
+    // Generic: show the raw error string (includes endpoint path + HTTP status)
+    msg    = 'MARKET DATA ERROR';
+    detail = error;
+  }
+
+  // Also show which individual feeds are failing (non-null entries)
+  const failingFeeds = Object.entries(endpointErrors || {})
+    .filter(([, v]) => v)
+    .map(([k, v]) => `${k.toUpperCase()}: ${v}`)
+    .join('  |  ');
+
+  return (
+    <div style={{
+      background: '#1a0000', borderBottom: '1px solid #ff333344',
+      display: 'flex', alignItems: 'center', gap: 10,
+      padding: '4px 12px', flexShrink: 0, flexWrap: 'wrap',
+    }}>
+      <span style={{ color: '#ff4444', fontSize: 9, fontWeight: 700, letterSpacing: '1px' }}>⚠ {msg}</span>
+      <span style={{ color: '#883333', fontSize: 8, letterSpacing: '0.3px' }}>{detail}</span>
+      {failingFeeds && (
+        <span style={{ color: '#552222', fontSize: 8, marginLeft: 4 }}>{failingFeeds}</span>
+      )}
+    </div>
+  );
+}
+
 // ── Trial / Subscription banner ──────────────────────────────────────────────
 function TrialBanner({ subscription, onUpgrade }) {
   if (!subscription) return null;
@@ -427,7 +472,7 @@ const LS_CHART_TICKER = 'chartTicker';
 const LS_CHART_GRID   = 'chartGrid_v3';
 
 export default function App() {
-  const { data, loading, isRefreshing, lastUpdated } = useMarketData();
+  const { data, loading, isRefreshing, lastUpdated, error: feedError, endpointErrors } = useMarketData();
   const { user, subscription, startCheckout, logout, authReady } = useAuth();
   const { settings, loaded: settingsLoaded } = useSettings();
 
@@ -681,6 +726,9 @@ export default function App() {
         {/* Trial banner */}
         <TrialBanner subscription={subscription} onUpgrade={startCheckout} />
 
+        {/* Data feed error banner — shows when Polygon/Yahoo endpoints are failing */}
+        <DataErrorBanner error={feedError} endpointErrors={endpointErrors} />
+
         {/* Subscription expired screen */}
         {subscriptionExpired ? (
           <SubscriptionExpiredScreen onUpgrade={startCheckout} onLogout={logout} />
@@ -776,6 +824,9 @@ export default function App() {
 
       {/* Trial banner (mobile) */}
       <TrialBanner subscription={subscription} onUpgrade={startCheckout} />
+
+      {/* Data feed error banner (mobile) */}
+      <DataErrorBanner error={feedError} endpointErrors={endpointErrors} />
 
       {/* Subscription expired screen (mobile) */}
       {subscriptionExpired ? (

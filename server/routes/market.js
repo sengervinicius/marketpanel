@@ -1057,10 +1057,10 @@ router.get('/yield-curves', async (req, res) => {
   }
 });
 
-// ─ Cross-device settings sync (file-backed — persists across Render sleep/wake) ─
+// ─ Cross-device chart-grid sync (file-backed — persists across Render sleep/wake) ─
 const path = require('path');
 const fs   = require('fs');
-const SETTIGNS_FILE = path.join(process.cwd(), '.senger-settings.json');
+const SETTINGS_FILE = path.join(process.cwd(), '.senger-settings.json');
 
 function loadSettings() {
   try { return JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8')); }
@@ -1073,6 +1073,9 @@ function saveSettings(data) {
 
 let _syncSettings = loadSettings();
 
+// NOTE: These routes handle the legacy per-device chart-grid URL-param sync only.
+// Per-user settings (panels, layout, watchlist, etc.) are handled by routes/settings.js
+// mounted at /api/settings and always take routing priority over these.
 router.get('/settings', (req, res) => {
   res.json(_syncSettings);
 });
@@ -1251,91 +1254,7 @@ router.get('/fundamentals/:symbol', async (req, res) => {
   }
 });
 
-// ─── Chat History ──────────────────────────────────────────────────────
-// GET /api/chat/history?roomId=global
-const chatStore = require('../chatStore');
-
-router.get('/chat/history', (req, res) => {
-  const { roomId = 'global' } = req.query;
-  try {
-    const messages = chatStore.getRecentMessages(roomId, 50);
-    res.json({ roomId, messages });
-  } catch (e) {
-    console.error('[API] /chat/history error:', e.message);
-    res.status(500).json({ error: e.message });
-  }
-});
-
-// ─── Enhanced Fundamentals ──────────────────────────────────────────────────
-// GET /api/fundamentals/:ticker
-// Fetches company fundamentals from Polygon reference data.
-// Caches results for 12 hours to reduce API calls.
-
-const fundamentalsCache = new Map(); // symbol → { data, fetchedAt }
-const FUNDAMENTALS_TTL = 12 * 60 * 60 * 1000; // 12 hours
-
-async function fetchFundamentals(ticker) {
-  // Try Polygon reference endpoint (already have the key)
-  const url = `https://api.polygon.io/v3/reference/tickers/${ticker}?apikey=${apiKey()}`;
-  let res;
-  try {
-    res = await fetch(url);
-  } catch (e) {
-    throw new Error(`Network error: ${e.message}`);
-  }
-  if (!res.ok) {
-    if (res.status === 404) throw new Error(`Ticker not found: ${ticker}`);
-    throw new Error(`Polygon HTTP ${res.status}`);
-  }
-  const raw = await res.json();
-  const t = raw.results || {};
-
-  return {
-    symbol: ticker,
-    name: t.name || ticker,
-    currency: t.currency_name || 'USD',
-    marketCap: t.market_cap || null,
-    shareClassSharesOutstanding: t.share_class_shares_outstanding || null,
-    description: t.description || null,
-    homepageUrl: t.homepage_url || null,
-    listDate: t.list_date || null,
-    sicDescription: t.sic_description || null,
-    primaryExchange: t.primary_exchange || null,
-    logoUrl: t.branding?.logo_url || null,
-    // Valuation fields — Polygon free tier doesn't have P/E, EPS, etc.
-    // TODO: supplement with FMP or Finnhub for pe, forwardPe, eps, dividendYield, revenue, ebit
-    pe: null,
-    forwardPe: null,
-    eps: null,
-    dividendYield: null,
-    revenue: null,
-    ebit: null,
-    updatedAt: new Date().toISOString(),
-  };
-}
-
-router.get('/fundamentals/:ticker', async (req, res) => {
-  const ticker = req.params.ticker.toUpperCase();
-  try {
-    // Check cache first
-    const cached = fundamentalsCache.get(ticker);
-    if (cached && Date.now() - cached.fetchedAt < FUNDAMENTALS_TTL) {
-      return res.json(cached.data);
-    }
-
-    // Fetch fresh data
-    const data = await fetchFundamentals(ticker);
-    fundamentalsCache.set(ticker, { data, fetchedAt: Date.now() });
-    res.json(data);
-  } catch (e) {
-    console.error('[API] /fundamentals/' + ticker + ' error:', e.message);
-    const status = e.message.includes('not found') ? 404 : 502;
-    res.status(status).json({
-      error: 'Fundamentals unavailable',
-      detail: e.message,
-      code: e.message.includes('not found') ? 'not_found' : 'upstream_error',
-    });
-  }
-});
+// NOTE: /chat/history is handled by routes/chat.js (mounted at /api/chat in index.js,
+// which takes routing priority over this router's /api prefix). Dead route removed.
 
 module.exports = router;

@@ -29,6 +29,10 @@ const REFRESH_MS = 6_000;
 
 const PriceCtx = createContext(null);
 
+// Known crypto base symbols whose bare 6-char pairs (e.g. BTCUSD) would otherwise
+// be misclassified as FX by the /^[A-Z]{6}$/ regex below.
+const CRYPTO_BASES = new Set(['BTC','ETH','SOL','XRP','BNB','ADA','DOT','AVAX','LINK','UNI','LTC','BCH','XLM','ATOM','NEAR','FIL','VET','ALGO']);
+
 // Normalize a raw ticker string the same way the batch maps use as keys
 function batchKey(raw) {
   if (!raw) return null;
@@ -36,8 +40,14 @@ function batchKey(raw) {
   if (raw.startsWith('X:')) return { ns: 'crypto', key: raw.slice(2) };
   // Forex:  C:EURUSD → lookup forex['EURUSD']
   if (raw.startsWith('C:')) return { ns: 'forex',  key: raw.slice(2) };
-  // 6-char bare FX pairs (EURUSD) → same as C:EURUSD
-  if (/^[A-Z]{6}$/.test(raw)) return { ns: 'forex', key: raw };
+  // 6-char bare pairs ending in USD/USDT — check known crypto bases first so
+  // BTCUSD is classified as crypto, not forex (both match /^[A-Z]{6}$/).
+  if (/^[A-Z]{6,8}$/.test(raw)) {
+    const base3 = raw.slice(0, 3);
+    const base4 = raw.slice(0, 4);
+    if (CRYPTO_BASES.has(base3) || CRYPTO_BASES.has(base4)) return { ns: 'crypto', key: raw };
+    return { ns: 'forex', key: raw };
+  }
   // Brazilian .SA — server strips suffix when building the brazil map
   if (raw.endsWith('.SA')) return { ns: 'stocks', key: raw.slice(0, -3) };
   // Everything else is a US stock / ETF

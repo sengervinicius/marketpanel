@@ -98,9 +98,8 @@ export function useMarketData() {
           if (keyMatch) newEndpointErrors[keyMatch] = msg;
         }
       }
-      if (Object.keys(newEndpointErrors).some(k => newEndpointErrors[k])) {
-        setEndpointErrors(prev => ({ ...prev, ...newEndpointErrors }));
-      }
+      // Always update endpointErrors so callers can see per-feed status
+      setEndpointErrors(prev => ({ ...prev, ...newEndpointErrors }));
 
       // Normalize Polygon snapshot format → { [symbol]: { price, changePct } }
       if (newData.stocks) newData.stocks = normalizePolygon(newData.stocks);
@@ -133,7 +132,23 @@ export function useMarketData() {
 
       setData(prev => ({ ...prev, ...newData }));
       setLastUpdated(new Date());
-      setError(null);
+
+      // Surface a top-level error if ALL primary market feeds failed — this is the
+      // key UX fix: previously error stayed null even when every endpoint returned
+      // HTTP 402/403/401, so users saw blank panels with no explanation.
+      const primaryKeys = ['stocks', 'forex', 'crypto'];
+      const allPrimaryFailed = primaryKeys.every(k => newEndpointErrors[k]);
+      const hasNewData = Object.keys(newData).length > 0;
+      if (allPrimaryFailed && !hasNewData) {
+        const msgs = primaryKeys.map(k => newEndpointErrors[k]).filter(Boolean);
+        const httpCode = msgs.map(m => m.match(/HTTP (\d+)/)?.[1]).find(Boolean);
+        if      (httpCode === '402') setError('subscription_required');
+        else if (httpCode === '401') setError('auth_required');
+        else if (httpCode === '403') setError('api_key_invalid');
+        else                          setError(msgs[0] || 'Data endpoints unreachable');
+      } else {
+        setError(null);
+      }
 
       if (Object.keys(newFlash).length > 0) {
         setFlashMap(newFlash);
