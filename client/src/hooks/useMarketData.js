@@ -61,6 +61,8 @@ export function useMarketData() {
   const [data, setData]               = useState(null);
   const [loading, setLoading]         = useState(true);
   const [error, setError]             = useState(null);
+  // Per-endpoint error map: { stocks: 'HTTP 429', forex: null, ... }
+  const [endpointErrors, setEndpointErrors] = useState({});
   const [lastUpdated, setLastUpdated] = useState(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [flashMap, setFlashMap]       = useState({});
@@ -83,8 +85,21 @@ export function useMarketData() {
       if (!isMountedRef.current) return;
 
       const newData = {};
+      const newEndpointErrors = {};
       for (const r of results) {
-        if (r.status === 'fulfilled') newData[r.value.key] = r.value.d;
+        if (r.status === 'fulfilled') {
+          newData[r.value.key] = r.value.d;
+          newEndpointErrors[r.value.key] = null;
+        } else {
+          // Extract endpoint key from rejected reason (it includes the path prefix)
+          const msg = r.reason?.message || 'Failed';
+          // Match key from "/api/snapshot/stocks: HTTP 429" → "stocks"
+          const keyMatch = Object.keys(ENDPOINTS).find(k => msg.includes(ENDPOINTS[k]));
+          if (keyMatch) newEndpointErrors[keyMatch] = msg;
+        }
+      }
+      if (Object.keys(newEndpointErrors).some(k => newEndpointErrors[k])) {
+        setEndpointErrors(prev => ({ ...prev, ...newEndpointErrors }));
       }
 
       // Normalize Polygon snapshot format → { [symbol]: { price, changePct } }
@@ -146,5 +161,5 @@ export function useMarketData() {
     };
   }, [fetchAll]);
 
-  return { data, loading, error, lastUpdated, isRefreshing, refresh: () => fetchAll(true), flashMap };
+  return { data, loading, error, endpointErrors, lastUpdated, isRefreshing, refresh: () => fetchAll(true), flashMap };
 }

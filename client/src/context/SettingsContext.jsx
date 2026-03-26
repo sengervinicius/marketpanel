@@ -16,6 +16,7 @@ function defaultSettings() {
   return {
     theme: 'dark',
     onboardingCompleted: false,
+    defaultStartPage: '/',
     watchlist: [],
     panels: {
       brazilB3:     { title: 'Brazil B3',      symbols: ['VALE3.SA','PETR4.SA','ITUB4.SA','BBDC4.SA','ABEV3.SA','WEGE3.SA','RENT3.SA'] },
@@ -107,6 +108,8 @@ export function SettingsProvider({ children, isAuthenticated }) {
       charts:              preset.charts  || DEFAULT_CHARTS_CONFIG,
       onboardingCompleted: true,
     };
+    // Persist defaultStartPage if the preset defines one
+    if (preset.defaultStartPage) partial.defaultStartPage = preset.defaultStartPage;
     setSettingsState(prev => ({ ...prev, ...partial }));
     await persistSettings(partial);
   }, [persistSettings]);

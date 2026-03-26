@@ -172,12 +172,12 @@ export function SearchPanel({ onTickerSelect, onOpenDetail }) {
     setLoading(true);
 
     // Query both instrument registry and Polygon simultaneously
-    const registryUrl = `${API}/api/instruments/search?q=${encodeURIComponent(q)}&limit=10${assetClass ? `&assetClass=${assetClass}` : ''}`;
-    const polygonUrl  = `${API}/api/search?q=${encodeURIComponent(q)}`;
+    const registryPath = `/api/instruments/search?q=${encodeURIComponent(q)}&limit=10${assetClass ? `&assetClass=${assetClass}` : ''}`;
+    const polygonPath  = `/api/search?q=${encodeURIComponent(q)}`;
 
     Promise.allSettled([
-      fetch(registryUrl).then(r => r.json()),
-      fetch(polygonUrl).then(r => r.json()),
+      apiFetch(registryPath).then(r => r.json()),
+      apiFetch(polygonPath).then(r => r.json()),
     ]).then(([regRes, polyRes]) => {
       const regItems   = regRes.status  === 'fulfilled' ? (regRes.value.results  || []) : [];
       const polyItems  = polyRes.status === 'fulfilled' ? (polyRes.value.results || []) : [];

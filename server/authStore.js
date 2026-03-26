@@ -30,6 +30,7 @@ function defaultSettings() {
     theme:               'dark',
     onboardingCompleted: false,
     selectedPresetId:    null,
+    defaultStartPage:    '/',
     watchlist:           [],
     panels: {
       brazilB3:     { title: 'Brazil B3',      symbols: ['VALE3.SA','PETR4.SA','ITUB4.SA','BBDC4.SA','ABEV3.SA','WEGE3.SA','RENT3.SA','B3SA3.SA','MGLU3.SA','BBAS3.SA'] },
