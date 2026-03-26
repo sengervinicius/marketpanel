@@ -70,6 +70,23 @@ export function AuthProvider({ children }) {
     localStorage.setItem(LS_TOKEN, tok);
   }, []);
 
+  // ── Auth response helper ─────────────────────────────────────────────────
+  // Validates that the server returned a well-formed auth response.
+  // Throws a user-friendly message when the server is unreachable or the
+  // client is pointing at the wrong URL (e.g. VITE_API_URL not set).
+  function _extractUser(data, res, fallbackMsg) {
+    if (!res.ok) throw new Error(data?.error || fallbackMsg);
+    if (!data?.user?.id) {
+      // Server returned 200 but no user — likely a misconfigured API URL
+      // (e.g. request hit the static host instead of the Express server).
+      throw new Error(
+        'Server returned an unexpected response. ' +
+        'Make sure VITE_API_URL is set to the backend URL in your Render environment.'
+      );
+    }
+    return data;
+  }
+
   // ── Login ─────────────────────────────────────────────────────────────────
   const login = useCallback(async (username, password) => {
     const res  = await fetch(`${API_BASE}/api/auth/login`, {
@@ -77,8 +94,8 @@ export function AuthProvider({ children }) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, password }),
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Login failed');
+    const data = await res.json().catch(() => ({}));
+    _extractUser(data, res, 'Login failed');
     _persist({ id: data.user.id, username: data.user.username }, data.token, data.subscription);
     return data;
   }, [_persist]);
@@ -90,8 +107,8 @@ export function AuthProvider({ children }) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, password }),
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Registration failed');
+    const data = await res.json().catch(() => ({}));
+    _extractUser(data, res, 'Registration failed');
     _persist({ id: data.user.id, username: data.user.username }, data.token, data.subscription);
     return data;
   }, [_persist]);
@@ -103,8 +120,8 @@ export function AuthProvider({ children }) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ identityToken, authorizationCode, user: appleUser }),
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Apple Sign In failed');
+    const data = await res.json().catch(() => ({}));
+    _extractUser(data, res, 'Apple Sign In failed');
     _persist({ id: data.user.id, username: data.user.username }, data.token, data.subscription);
     return data;
   }, [_persist]);
