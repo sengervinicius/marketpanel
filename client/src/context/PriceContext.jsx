@@ -95,8 +95,10 @@ export function PriceProvider({ marketData, children }) {
     refCounts.current.set(ticker, prev + 1);
 
     if (prev === 0) {
-      // First subscriber — only start an interval if not in the static batch
-      if (!lookupInBatch(mdRef.current, ticker)) {
+      // Only start an extra-fetch interval if the batch has loaded AND the ticker
+      // isn't in it. If marketData hasn't arrived yet (null), wait — the effect
+      // below will kick off the interval once the first batch lands.
+      if (mdRef.current && !lookupInBatch(mdRef.current, ticker)) {
         fetchExtra(ticker);
         intervalIds.current.set(ticker, setInterval(() => {
           // Re-check batch on every tick; if it got added, skip extra fetch
@@ -105,6 +107,22 @@ export function PriceProvider({ marketData, children }) {
       }
     }
   }, [fetchExtra]);
+
+  // When marketData first arrives, start intervals for any tickers that
+  // registered before the batch loaded and aren't covered by it.
+  useEffect(() => {
+    if (!marketData) return;
+    for (const [ticker, count] of refCounts.current.entries()) {
+      if (count > 0 && !intervalIds.current.has(ticker)) {
+        if (!lookupInBatch(marketData, ticker)) {
+          fetchExtra(ticker);
+          intervalIds.current.set(ticker, setInterval(() => {
+            if (!lookupInBatch(mdRef.current, ticker)) fetchExtra(ticker);
+          }, REFRESH_MS));
+        }
+      }
+    }
+  }, [marketData, fetchExtra]);
 
   // Unregister when component unmounts
   const unregister = useCallback((ticker) => {
