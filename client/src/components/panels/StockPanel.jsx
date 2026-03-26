@@ -1,6 +1,8 @@
 // StockPanel.jsx — US equities + Brazil ADRs with section headers and sortable columns
 // Features: feed-status badge, collapse, movers filter, heatmap view
 import { useRef, useState, useMemo } from 'react';
+import { useSettings } from '../../context/SettingsContext';
+import PanelConfigModal from '../common/PanelConfigModal';
 import { US_STOCKS, BRAZIL_ADRS } from '../../utils/constants';
 import { useFeedStatus } from '../../context/FeedStatusContext';
 
@@ -61,11 +63,22 @@ function heatColor(pct) {
 
 export function StockPanel({ data, loading, onTickerClick, onOpenDetail }) {
   const ptRef = useRef(null);
+  const { settings, updatePanelConfig } = useSettings();
+
+  // Panel config from settings (with fallback defaults)
+  const panelCfg = settings?.panels?.usEquities || {
+    title: 'US Equities',
+    symbols: [...US_STOCKS.map(s => s.symbol), ...BRAZIL_ADRS.map(s => s.symbol)],
+  };
+  const panelTitle   = panelCfg.title   || 'US Equities';
+  const panelSymbols = panelCfg.symbols || [];
+
   const [sortKey,    setSortKey]    = useState(null);
   const [sortDir,    setSortDir]    = useState('desc');
   const [collapsed,  setCollapsed]  = useState(false);
   const [moversOnly, setMoversOnly] = useState(false);
   const [heatmap,    setHeatmap]    = useState(false);
+  const [configOpen, setConfigOpen] = useState(false);
   const { getBadge } = useFeedStatus();
   const badge = getBadge('stocks');
 
@@ -74,8 +87,16 @@ export function StockPanel({ data, loading, onTickerClick, onOpenDetail }) {
     else { setSortKey(key); setSortDir('desc'); }
   };
 
-  const sortedUS     = useMemo(() => sortItems(US_STOCKS,   data, sortKey, sortDir), [data, sortKey, sortDir]);
-  const sortedBrazil = useMemo(() => sortItems(BRAZIL_ADRS, data, sortKey, sortDir), [data, sortKey, sortDir]);
+  const baseUS = panelSymbols.length > 0
+    ? US_STOCKS.filter(s => panelSymbols.includes(s.symbol))
+    : US_STOCKS;
+
+  const baseBrazil = panelSymbols.length > 0
+    ? BRAZIL_ADRS.filter(s => panelSymbols.includes(s.symbol))
+    : BRAZIL_ADRS;
+
+  const sortedUS     = useMemo(() => sortItems(baseUS,     data, sortKey, sortDir), [data, sortKey, sortDir, baseUS]);
+  const sortedBrazil = useMemo(() => sortItems(baseBrazil, data, sortKey, sortDir), [data, sortKey, sortDir, baseBrazil]);
 
   // Movers filter: abs(changePct) >= 2%
   const filteredUS     = useMemo(() => moversOnly ? sortedUS.filter(s    => Math.abs(data?.[s.symbol]?.changePct ?? 0) >= 2)     : sortedUS,     [sortedUS,     data, moversOnly]);
@@ -88,8 +109,18 @@ export function StockPanel({ data, loading, onTickerClick, onOpenDetail }) {
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#0a0a0a' }}>
       {/* Header */}
       <div style={{ padding: '4px 8px', borderBottom: '1px solid #2a2a2a', background: '#111', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
-        <span style={{ color: '#00bcd4', fontSize: '10px', fontWeight: 700, letterSpacing: '1px' }}>US EQUITIES</span>
-        <span style={{ color: '#333', fontSize: '8px' }}>· BRAZIL ADRs</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ color: '#00bcd4', fontSize: '10px', fontWeight: 700, letterSpacing: '1px' }}>{panelTitle}</span>
+          <span style={{ color: '#333', fontSize: '8px' }}>· BRAZIL ADRs</span>
+          <button
+            onClick={() => setConfigOpen(true)}
+            title="Configure panel"
+            style={{
+              background: 'none', border: 'none', color: '#444', cursor: 'pointer',
+              fontSize: 9, padding: '0 2px', lineHeight: 1, display: 'flex', alignItems: 'center',
+            }}
+          >✎</button>
+        </div>
         {/* Feed status badge */}
         <span style={{ marginLeft: 4, background: badge.bg, color: badge.color, fontSize: 7, fontWeight: 700, letterSpacing: '0.08em', padding: '1px 4px', borderRadius: 2, border: `1px solid ${badge.color}33` }}>
           {badge.text}
@@ -249,6 +280,20 @@ export function StockPanel({ data, loading, onTickerClick, onOpenDetail }) {
             )}
           </div>
         </>
+      )}
+
+      {/* Panel config modal */}
+      {configOpen && (
+        <PanelConfigModal
+          panelId="usEquities"
+          currentTitle={panelTitle}
+          currentSymbols={panelSymbols}
+          onSave={({ title, symbols }) => {
+            updatePanelConfig('usEquities', { title, symbols });
+            setConfigOpen(false);
+          }}
+          onClose={() => setConfigOpen(false)}
+        />
       )}
     </div>
   );

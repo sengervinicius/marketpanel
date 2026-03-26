@@ -24,17 +24,37 @@ function defaultSettings() {
   return {
     theme: 'dark',
     onboardingCompleted: false,
+    selectedPresetId: null,
     watchlist: [],
     panels: {
-      brazilB3: { title: 'Brazil B3', symbols: ['VALE3.SA','PETR4.SA','ITUB4.SA','BBDC4.SA','ABEV3.SA','WEGE3.SA','RENT3.SA','B3SA3.SA','MGLU3.SA','BBAS3.SA'] },
-      usEquities: { title: 'US Equities', symbols: ['AAPL','MSFT','NVDA','GOOGL','AMZN','META','TSLA','JPM','XOM','BRKB'] },
-      globalIndices: { title: 'Global Indices', symbols: ['SPY','QQQ','DIA','IWM','EWZ','EWW','EEM','FXI','EWJ'] },
-      forex: { title: 'FX', symbols: ['EURUSD','GBPUSD','USDJPY','USDBRL','USDCHF','USDCNY','USDMXN'] },
-      crypto: { title: 'Crypto', symbols: ['BTCUSD','ETHUSD','SOLUSD','XRPUSD','BNBUSD'] },
-      commodities: { title: 'Commodities', symbols: ['GLD','SLV','USO','UNG','CORN','WEAT'] },
-      debt: { title: 'Debt Markets', symbols: ['US2Y','US5Y','US10Y','US30Y','BR10Y','DE10Y'] },
+      brazilB3:     { title: 'Brazil B3',      symbols: ['VALE3.SA','PETR4.SA','ITUB4.SA','BBDC4.SA','ABEV3.SA','WEGE3.SA','RENT3.SA','B3SA3.SA','MGLU3.SA','BBAS3.SA'] },
+      usEquities:   { title: 'US Equities',    symbols: ['AAPL','MSFT','NVDA','GOOGL','AMZN','META','TSLA','JPM','XOM','BRKB'] },
+      globalIndices:{ title: 'Global Indices', symbols: ['SPY','QQQ','DIA','IWM','EWZ','EEM','FXI','EWJ'] },
+      forex:        { title: 'FX / Rates',     symbols: ['EURUSD','GBPUSD','USDJPY','USDBRL','USDCHF','USDCNY','USDMXN'] },
+      crypto:       { title: 'Crypto',         symbols: ['BTCUSD','ETHUSD','SOLUSD','XRPUSD','BNBUSD'] },
+      commodities:  { title: 'Commodities',    symbols: ['GLD','SLV','USO','UNG','CORN','WEAT'] },
+      debt:         { title: 'Debt Markets',   symbols: [] },
     },
-    layout: {},
+    layout: {
+      desktopRows: [
+        ['charts',       'usEquities',  'forex'],
+        ['globalIndices','brazilB3',    'commodities', 'crypto'],
+        ['debt',         'search',      'news',        'watchlist'],
+      ],
+      mobileTabs: ['home', 'charts', 'watchlist', 'search', 'detail', 'news'],
+    },
+    home: {
+      sections: [
+        { id: 'indices',    title: 'US Indices',  symbols: ['SPY','QQQ','DIA'] },
+        { id: 'forex',      title: 'FX',          symbols: ['EURUSD','USDBRL','USDJPY'] },
+        { id: 'crypto',     title: 'Crypto',      symbols: ['BTCUSD','ETHUSD','SOLUSD'] },
+        { id: 'commodities',title: 'Commodities', symbols: ['GLD','USO','SLV'] },
+      ],
+    },
+    charts: {
+      symbols: ['SPY', 'QQQ'],
+      primary: 'SPY',
+    },
   };
 }
 
@@ -128,20 +148,38 @@ function listUsers(query, excludeId) {
 function mergeSettings(userId, partial) {
   const user = getUserById(userId);
   if (!user) throw new Error('User not found');
-  // Shallow merge top-level; deep merge panels
+  const s = user.settings;
+
+  // Deep merge panels
   if (partial.panels) {
-    user.settings.panels = {
-      ...user.settings.panels,
+    s.panels = {
+      ...s.panels,
       ...Object.fromEntries(
-        Object.entries(partial.panels).map(([k, v]) => [k, { ...(user.settings.panels[k] || {}), ...v }])
+        Object.entries(partial.panels).map(([k, v]) => [k, { ...(s.panels[k] || {}), ...v }])
       ),
     };
-    const { panels, ...rest } = partial;
-    Object.assign(user.settings, rest);
-  } else {
-    Object.assign(user.settings, partial);
   }
-  return user.settings;
+
+  // Deep merge layout
+  if (partial.layout) {
+    s.layout = { ...(s.layout || {}), ...partial.layout };
+  }
+
+  // Deep merge home
+  if (partial.home) {
+    s.home = { ...(s.home || {}), ...partial.home };
+  }
+
+  // Deep merge charts
+  if (partial.charts) {
+    s.charts = { ...(s.charts || {}), ...partial.charts };
+  }
+
+  // Shallow merge the rest (theme, onboardingCompleted, watchlist, etc.)
+  const { panels, layout, home, charts, ...rest } = partial;
+  Object.assign(s, rest);
+
+  return s;
 }
 
 /**

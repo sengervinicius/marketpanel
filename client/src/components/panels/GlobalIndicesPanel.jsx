@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
+import { useSettings } from '../../context/SettingsContext';
+import PanelConfigModal from '../common/PanelConfigModal';
 import { SectionHeader } from '../common/SectionHeader';
 
 const SERVER_URL = import.meta.env.VITE_API_URL || import.meta.env.VITE_SERVER_URL || '';
@@ -26,8 +28,19 @@ const NAMES = {
 
 export default function GlobalIndicesPanel({ onTickerClick, onOpenDetail }) {
   const ptRef = useRef(null);
+  const { settings, updatePanelConfig } = useSettings();
+
+  // Panel config from settings (with fallback defaults)
+  const panelCfg = settings?.panels?.globalIndices || {
+    title: 'Global Indices',
+    symbols: ['SPY','QQQ','DIA','EWZ','EWW','EWC','EZU','EWU','EWG','EWQ','EWP','EWI','EWL','EWD','EWJ','EWH','EWY','EWA','MCHI','EWT','EWS','INDA'],
+  };
+  const panelTitle   = panelCfg.title   || 'Global Indices';
+  const panelSymbols = panelCfg.symbols || [];
+
   const [data, setData]       = useState({});
   const [loading, setLoading] = useState(true);
+  const [configOpen, setConfigOpen] = useState(false);
 
   const fetchData = async () => {
     try {
@@ -79,14 +92,44 @@ export default function GlobalIndicesPanel({ onTickerClick, onOpenDetail }) {
     cursor: 'grab',
   });
 
+  // Filter displayed tickers to only the configured symbols (if configured)
+  const REGIONS_filtered = panelSymbols.length > 0
+    ? Object.fromEntries(
+        Object.entries(REGIONS).map(([key, region]) => [
+          key,
+          { ...region, tickers: region.tickers.filter(t => panelSymbols.includes(t)) }
+        ])
+      )
+    : REGIONS;
+
   return (
     <div style={panelStyle}>
-      <SectionHeader title="GLOBAL EQUITY INDEXES" right={loading ? 'Loading...' : null} />
+      <div style={{
+        padding: '4px 8px', borderBottom: '1px solid #2a2a2a',
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ color: '#e8a020', fontWeight: 700, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase' }}>
+            {panelTitle}
+          </span>
+          <button
+            onClick={() => setConfigOpen(true)}
+            title="Configure panel"
+            style={{
+              background: 'none', border: 'none', color: '#444', cursor: 'pointer',
+              fontSize: 9, padding: '0 2px', lineHeight: 1, display: 'flex', alignItems: 'center',
+            }}
+          >✎</button>
+        </div>
+        {loading ? <span style={{ color: '#444', fontSize: 7 }}>Loading...</span> : null}
+      </div>
       <div style={{ overflowY: 'auto', flex: 1 }}>
-        {Object.entries(REGIONS).map(([key, region]) => (
+        {Object.entries(REGIONS_filtered).map(([key, region]) => (
           <div key={key}>
-            <div style={regionHeader}>{region.label}</div>
-            {region.tickers.map((ticker, i) => {
+            {region.tickers.length > 0 && (
+              <>
+                <div style={regionHeader}>{region.label}</div>
+                {region.tickers.map((ticker, i) => {
               const d = data[ticker] || {};
               return (
                 <div
@@ -120,9 +163,25 @@ export default function GlobalIndicesPanel({ onTickerClick, onOpenDetail }) {
                 </div>
               );
             })}
+              </>
+            )}
           </div>
         ))}
       </div>
+
+      {/* Panel config modal */}
+      {configOpen && (
+        <PanelConfigModal
+          panelId="globalIndices"
+          currentTitle={panelTitle}
+          currentSymbols={panelSymbols}
+          onSave={({ title, symbols }) => {
+            updatePanelConfig('globalIndices', { title, symbols });
+            setConfigOpen(false);
+          }}
+          onClose={() => setConfigOpen(false)}
+        />
+      )}
     </div>
   );
 }

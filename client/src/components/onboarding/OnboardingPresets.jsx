@@ -9,9 +9,9 @@ import { SCREEN_PRESETS } from '../../config/presets';
 import { useSettings } from '../../context/SettingsContext';
 
 export default function OnboardingPresets() {
-  const { applyPreset, completeOnboarding } = useSettings();
+  const { applyPreset } = useSettings();
   const [selected, setSelected] = useState(null);
-  const [loading,  setLoading]  = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const presetKeys = Object.keys(SCREEN_PRESETS);
 
@@ -20,27 +20,63 @@ export default function OnboardingPresets() {
     setLoading(true);
     try {
       await applyPreset(key);
+      // After applyPreset completes, settings.onboardingCompleted becomes true
+      // and this overlay will unmount automatically
+    } catch {}
+    setLoading(false);
+  };
+
+  const handleSkip = async () => {
+    setLoading(true);
+    try {
+      await applyPreset('default');
     } catch {}
     setLoading(false);
   };
 
   return (
     <div style={{
-      position: 'fixed', inset: 0, zIndex: 9998,
+      position: 'fixed',
+      inset: 0,
+      zIndex: 9998,
       background: '#0a0a0a',
-      display: 'flex', flexDirection: 'column', alignItems: 'center',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
       justifyContent: 'flex-start',
       fontFamily: '"Courier New", monospace',
       overflowY: 'auto',
-      padding: '32px 16px 48px',
+      padding: '48px 16px 48px',
     }}>
       {/* Header */}
-      <div style={{ textAlign: 'center', marginBottom: 40 }}>
-        <div style={{ color: '#ff6600', fontSize: 10, letterSpacing: '0.4em', marginBottom: 8 }}>ARC CAPITAL</div>
-        <div style={{ color: '#e0e0e0', fontSize: 22, fontWeight: 'bold', marginBottom: 8 }}>
-          CHOOSE YOUR SCREEN
+      <div style={{
+        textAlign: 'center',
+        marginBottom: 48,
+      }}>
+        <div style={{
+          color: '#ff6600',
+          fontSize: 14,
+          letterSpacing: '0.1em',
+          fontWeight: 'bold',
+          marginBottom: 12,
+        }}>
+          SENGER
         </div>
-        <div style={{ color: '#555', fontSize: 11 }}>
+        <div style={{
+          color: '#e8e8e8',
+          fontSize: 24,
+          fontWeight: 'bold',
+          marginBottom: 12,
+          letterSpacing: '0.05em',
+        }}>
+          CHOOSE YOUR STARTING WORKSPACE
+        </div>
+        <div style={{
+          color: '#666',
+          fontSize: 11,
+          lineHeight: 1.6,
+          maxWidth: 400,
+        }}>
           Select the profile that best matches your focus. You can customize everything later.
         </div>
       </div>
@@ -48,65 +84,160 @@ export default function OnboardingPresets() {
       {/* Preset grid */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-        gap: 16,
-        maxWidth: 900, width: '100%',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+        gap: 20,
+        maxWidth: 1000,
+        width: '100%',
       }}>
         {presetKeys.map(key => {
-          const p      = SCREEN_PRESETS[key];
+          const p = SCREEN_PRESETS[key];
           const active = selected === key;
+          const watchlistSymbols = (p.watchlist || []).slice(0, 5);
+
           return (
             <div
               key={key}
               onClick={() => !loading && handleSelect(key)}
               style={{
-                background:    active ? '#1a0900' : '#0d0d0d',
-                border:        `1px solid ${active ? '#ff6600' : '#1e1e1e'}`,
-                borderRadius:  6,
-                padding:       24,
-                cursor:        loading ? 'wait' : 'pointer',
-                transition:    'border-color 0.15s',
-                position:      'relative',
+                background: active ? '#130800' : '#0d0d0d',
+                border: `1px solid ${active ? '#ff6600' : '#1e1e1e'}`,
+                borderRadius: 4,
+                padding: 20,
+                cursor: loading ? 'wait' : 'pointer',
+                transition: 'all 0.15s ease-out',
+                position: 'relative',
+                minHeight: 200,
+                display: 'flex',
+                flexDirection: 'column',
               }}
             >
-              <div style={{ fontSize: 32, marginBottom: 12 }}>{p.emoji}</div>
-              <div style={{ color: '#e0e0e0', fontSize: 14, fontWeight: 'bold', marginBottom: 8 }}>
+              {/* Title */}
+              <div style={{
+                color: '#ffffff',
+                fontSize: 14,
+                fontWeight: 'bold',
+                marginBottom: 8,
+              }}>
                 {p.label}
               </div>
-              <div style={{ color: '#555', fontSize: 10, lineHeight: 1.6 }}>
+
+              {/* Description */}
+              <div style={{
+                color: '#666',
+                fontSize: 10,
+                lineHeight: 1.5,
+                marginBottom: 12,
+              }}>
                 {p.description}
               </div>
-              {/* Watchlist preview */}
-              <div style={{ marginTop: 14, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                {(p.watchlist || []).slice(0, 6).map(sym => (
-                  <span key={sym} style={{
-                    background: '#161616', border: '1px solid #2a2a2a',
-                    borderRadius: 2, padding: '1px 5px', fontSize: 9, color: '#ff6600',
-                  }}>{sym}</span>
+
+              {/* Focus section */}
+              <div style={{
+                marginBottom: 12,
+              }}>
+                <div style={{
+                  color: '#666',
+                  fontSize: 8,
+                  letterSpacing: '0.1em',
+                  marginBottom: 4,
+                }}>
+                  FOCUS
+                </div>
+                <div style={{
+                  color: '#ff6600',
+                  fontSize: 9,
+                  fontFamily: 'monospace',
+                  fontWeight: 'normal',
+                  letterSpacing: '0.05em',
+                }}>
+                  {p.focus}
+                </div>
+              </div>
+
+              {/* Watchlist chips */}
+              <div style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: 6,
+                marginTop: 'auto',
+              }}>
+                {watchlistSymbols.map(sym => (
+                  <span
+                    key={sym}
+                    style={{
+                      background: '#0a0a0a',
+                      border: '1px solid #2a2a2a',
+                      borderRadius: 2,
+                      padding: '2px 6px',
+                      fontSize: 8,
+                      color: '#ff6600',
+                      fontFamily: 'monospace',
+                    }}
+                  >
+                    {sym}
+                  </span>
                 ))}
               </div>
+
+              {/* Selected checkmark */}
               {active && (
                 <div style={{
-                  position: 'absolute', top: 10, right: 10,
-                  width: 20, height: 20, borderRadius: '50%',
-                  background: '#ff6600', display: 'flex',
-                  alignItems: 'center', justifyContent: 'center',
-                  fontSize: 11, color: '#000', fontWeight: 'bold',
-                }}>✓</div>
+                  position: 'absolute',
+                  top: 12,
+                  right: 12,
+                  width: 20,
+                  height: 20,
+                  borderRadius: '50%',
+                  background: '#ff6600',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 11,
+                  color: '#000',
+                  fontWeight: 'bold',
+                }}>
+                  ✓
+                </div>
+              )}
+
+              {/* Loading overlay */}
+              {loading && selected === key && (
+                <div style={{
+                  position: 'absolute',
+                  inset: 0,
+                  background: 'rgba(0, 0, 0, 0.7)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderRadius: 4,
+                  fontSize: 10,
+                  color: '#ff6600',
+                }}>
+                  APPLYING...
+                </div>
               )}
             </div>
           );
         })}
       </div>
 
-      {/* Skip */}
+      {/* Skip button */}
       <button
-        onClick={() => completeOnboarding()}
+        onClick={handleSkip}
+        disabled={loading}
         style={{
-          marginTop: 40, background: 'none', border: '1px solid #2a2a2a',
-          color: '#444', padding: '8px 24px', cursor: 'pointer',
-          fontFamily: 'inherit', fontSize: 10, letterSpacing: '0.2em',
+          marginTop: 48,
+          background: 'none',
+          border: '1px solid #2a2a2a',
+          color: '#444',
+          padding: '10px 24px',
+          cursor: loading ? 'wait' : 'pointer',
+          fontFamily: 'inherit',
+          fontSize: 10,
+          letterSpacing: '0.1em',
+          fontWeight: 'normal',
           borderRadius: 3,
+          transition: 'all 0.15s ease-out',
         }}
       >
         SKIP — USE DEFAULT SETTINGS

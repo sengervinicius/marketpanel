@@ -1,32 +1,25 @@
 /**
  * LoginScreen.jsx
  *
- * Full-screen login screen with username/password and access code authentication.
- * Replaces PasswordGate with persistent JWT-based auth.
+ * Full-screen login screen with username/password authentication.
+ * Persistent JWT-based auth via AuthContext.
  */
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 
 export default function LoginScreen({ children }) {
   const auth = useAuth?.();
   const user = auth?.user;
 
-  // Check for legacy sessionStorage gating or authenticated user
-  const [gated, setGated] = useState(() => {
-    return sessionStorage.getItem('arc_auth') === '1';
-  });
-
-  const [mode, setMode] = useState('login');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [accessCode, setAccessCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [shake, setShake] = useState(false);
 
-  // If already authenticated or gated, render children
-  if (user || gated) {
+  // If authenticated, render children
+  if (user) {
     return children;
   }
 
@@ -46,19 +39,6 @@ export default function LoginScreen({ children }) {
       setTimeout(() => setShake(false), 600);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleAccessCode = (e) => {
-    e.preventDefault();
-    setError('');
-    if (accessCode === 'ARCScreen') {
-      sessionStorage.setItem('arc_auth', '1');
-      setGated(true);
-    } else {
-      setError('Invalid access code');
-      setShake(true);
-      setTimeout(() => setShake(false), 600);
     }
   };
 
@@ -88,24 +68,19 @@ export default function LoginScreen({ children }) {
     textAlign: 'center',
   };
 
-  const arcBrandStyle = {
-    fontSize: '11px',
-    color: '#e55a00',
-    letterSpacing: '0.25em',
+  const sengerTitleStyle = {
+    fontSize: '48px',
+    color: '#ff6600',
+    letterSpacing: '0.05em',
     fontWeight: 'bold',
     marginBottom: '8px',
-  };
-
-  const titleStyle = {
-    fontSize: '20px',
-    color: '#e8e8e8',
-    marginBottom: '8px',
-    fontWeight: 'bold',
   };
 
   const subtitleStyle = {
-    fontSize: '8px',
-    color: '#444',
+    fontSize: '10px',
+    color: '#888',
+    letterSpacing: '0.1em',
+    fontWeight: 'normal',
   };
 
   const formStyle = {
@@ -152,14 +127,6 @@ export default function LoginScreen({ children }) {
     minHeight: '16px',
   };
 
-  const linkStyle = {
-    color: '#444',
-    fontSize: '10px',
-    textAlign: 'center',
-    marginTop: '16px',
-    cursor: 'pointer',
-  };
-
   const billingStyle = {
     marginTop: '32px',
     textAlign: 'center',
@@ -191,76 +158,42 @@ export default function LoginScreen({ children }) {
       `}</style>
 
       <div style={logoStyle}>
-        <div style={arcBrandStyle}>ARC CAPITAL</div>
-        <div style={titleStyle}>SENGER MARKET SCREEN</div>
+        <div style={sengerTitleStyle}>SENGER</div>
         <div style={subtitleStyle}>Professional Market Data Terminal</div>
       </div>
 
       <div style={formStyle}>
-        {mode === 'login' ? (
-          <form onSubmit={handleLogin}>
-            <div style={errorStyle}>{error}</div>
-            <input
-              type="text"
-              placeholder="USERNAME"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              style={inputStyle}
-              disabled={loading}
-            />
-            <input
-              type="password"
-              placeholder="PASSWORD"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              style={inputStyle}
-              disabled={loading}
-            />
-            <button
-              type="submit"
-              style={loading ? buttonDisabledStyle : buttonStyle}
-              disabled={loading}
-            >
-              {loading ? 'AUTHENTICATING...' : 'LOG IN'}
-            </button>
-            <div
-              style={linkStyle}
-              onClick={() => setMode('code')}
-            >
-              USE ACCESS CODE
-            </div>
-          </form>
-        ) : (
-          <form onSubmit={handleAccessCode}>
-            <div style={errorStyle}>{error}</div>
-            <input
-              type="password"
-              placeholder="ACCESS CODE"
-              value={accessCode}
-              onChange={(e) => setAccessCode(e.target.value)}
-              style={inputStyle}
-              autoFocus
-            />
-            <button type="submit" style={buttonStyle}>
-              VERIFY CODE
-            </button>
-            <div
-              style={linkStyle}
-              onClick={() => {
-                setMode('login');
-                setError('');
-                setAccessCode('');
-              }}
-            >
-              BACK TO LOGIN
-            </div>
-          </form>
-        )}
+        <form onSubmit={handleLogin}>
+          <div style={errorStyle}>{error}</div>
+          <input
+            type="text"
+            placeholder="USERNAME"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            style={inputStyle}
+            disabled={loading}
+          />
+          <input
+            type="password"
+            placeholder="PASSWORD"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            style={inputStyle}
+            disabled={loading}
+          />
+          <button
+            type="submit"
+            style={loading ? buttonDisabledStyle : buttonStyle}
+            disabled={loading}
+          >
+            {loading ? 'AUTHENTICATING...' : 'LOG IN'}
+          </button>
+        </form>
 
         <div style={billingStyle}>
-          SUBSCRIPTION ACCESS — ARC CAPITAL PARTNERS
+          SUBSCRIPTION ACCESS — vinicius@arccapital.com.br
           <br />
-          <a href="mailto:contact@arccapital.com.br" style={mailLinkStyle}>
+          <a href="mailto:vinicius@arccapital.com.br" style={mailLinkStyle}>
             REQUEST ACCESS
           </a>
         </div>

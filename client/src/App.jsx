@@ -23,6 +23,7 @@ import WatchlistPanel from './components/panels/WatchlistPanel';
 import WatchlistPanelMobile from './components/panels/WatchlistPanelMobile';
 import { ChatPanel } from './components/panels/ChatPanel';
 import HomePanelMobile from './components/panels/HomePanelMobile';
+import ChartsPanelMobile from './components/panels/ChartsPanelMobile';
 import OnboardingPresets from './components/onboarding/OnboardingPresets';
 import { TickerTooltip } from './components/common/TickerTooltip';
 import InstrumentDetail from './components/common/InstrumentDetail';
@@ -332,9 +333,9 @@ function SubscriptionExpiredScreen({ onUpgrade, onLogout }) {
 // ── Mobile tab definitions ───────────────────────────────────────────────────
 const MOBILE_TABS = [
   { id: 'home',      label: 'HOME',   icon: '⌂' },
+  { id: 'charts',    label: 'CHARTS', icon: '◫' },
   { id: 'watchlist', label: 'WATCH',  icon: '☆' },
   { id: 'search',    label: 'FIND',   icon: '⊕' },
-  { id: 'detail',    label: 'DETAIL', icon: '▦' },
   { id: 'news',      label: 'NEWS',   icon: '◎' },
 ];
 
@@ -504,7 +505,6 @@ export default function App() {
     const sym = typeof t === 'object' ? (t.symbol || t.ticker || t) : t;
     if (!sym) return;
     setDetailTicker(sym);
-    setActiveTabPersist('detail');
   }, []);
 
   // ── Onboarding check ─────────────────────────────────────────────────────
@@ -711,6 +711,10 @@ export default function App() {
               <HomePanelMobile onOpenDetail={goDetail} />
             )}
 
+            {activeTab === 'charts' && (
+              <ChartsPanelMobile onOpenDetail={goDetail} />
+            )}
+
             {activeTab === 'watchlist' && (
               <WatchlistPanelMobile
                 onOpenDetail={goDetail}
@@ -751,7 +755,6 @@ export default function App() {
           }}>
             {MOBILE_TABS.map(tab => {
               const isActive = activeTab === tab.id;
-              const showBadge = tab.id === 'detail' && !!detailTicker;
               return (
                 <button
                   key={tab.id}
@@ -770,17 +773,15 @@ export default function App() {
                   }}>
                   <span style={{ fontSize: 14, lineHeight: 1 }}>{tab.icon}</span>
                   {tab.label}
-                  {showBadge && (
-                    <span style={{
-                      position: 'absolute', top: 6, right: '50%', transform: 'translateX(8px)',
-                      width: 6, height: 6, borderRadius: '50%', background: '#ff6600',
-                    }} />
-                  )}
                 </button>
               );
             })}
           </nav>
         </>
+      )}
+
+      {detailTicker && !subscriptionExpired && (
+        <InstrumentDetail ticker={detailTicker} onClose={() => setDetailTicker(null)} asPage />
       )}
 
       <TickerTooltip onOpenDetail={goDetail} />

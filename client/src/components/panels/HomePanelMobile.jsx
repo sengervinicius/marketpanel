@@ -1,14 +1,14 @@
 /**
  * HomePanelMobile.jsx
  *
- * Mobile home panel component with market overview, FX, crypto, and top movers.
+ * Mobile home panel component with dynamic sections from settings.home.sections.
+ * Renders market cards for each configured section, plus top movers at bottom.
  * Dark theme trading terminal interface.
  */
 
 import { useState, useEffect } from 'react';
 import { useStocksData, useForexData, useCryptoData } from '../../context/MarketContext';
-import { useWatchlist } from '../../context/WatchlistContext';
-import { WORLD_INDEXES, FOREX_PAIRS, CRYPTO_PAIRS } from '../../utils/constants';
+import { useSettings } from '../../context/SettingsContext';
 
 // Formatting helpers
 function fmtPct(v) {
@@ -66,6 +66,24 @@ function WorldClock() {
 }
 
 /**
+ * Helper to look up price data across all markets
+ */
+function getPrice(sym, stocksData, forexData, cryptoData) {
+  return stocksData[sym] || forexData[sym] || cryptoData[sym] || null;
+}
+
+/**
+ * Helper to determine symbol display format
+ */
+function displaySymbol(sym) {
+  if (!sym) return '';
+  if (sym.startsWith('C:')) return sym.slice(2, 5) + '/' + sym.slice(5);
+  if (sym.startsWith('X:')) return sym.slice(2).replace('USD', '') + '/USD';
+  if (sym.endsWith('.SA')) return sym.slice(0, -3);
+  return sym;
+}
+
+/**
  * HomePanelMobile
  * @param {Object} props
  * @param {Function} props.onOpenDetail - Callback to open detail view for a symbol
@@ -74,11 +92,14 @@ export default function HomePanelMobile({ onOpenDetail }) {
   const stocksData = useStocksData();
   const forexData = useForexData();
   const cryptoData = useCryptoData();
-  const { watchlist } = useWatchlist?.() || { watchlist: [] };
+  const { settings } = useSettings();
 
   const [moversTab, setMoversTab] = useState('gainers');
 
-  // Compute top gainers and losers
+  // Get dynamic sections from settings
+  const sections = settings?.home?.sections || [];
+
+  // Compute top gainers and losers from stocks data
   const gainers = Object.entries(stocksData)
     .filter(([_, d]) => d.price != null && d.changePct != null)
     .sort(([_a, a], [_b, b]) => (b.changePct ?? 0) - (a.changePct ?? 0))
@@ -113,17 +134,6 @@ export default function HomePanelMobile({ onOpenDetail }) {
     fontWeight: 'bold',
   };
 
-  const tileStyle = {
-    flex: '1 1 auto',
-    minWidth: '80px',
-    backgroundColor: '#111',
-    borderRadius: '4px',
-    padding: '8px 10px',
-    border: '1px solid #1a1a1a',
-    cursor: 'pointer',
-    textAlign: 'center',
-  };
-
   const rowStyle = {
     display: 'flex',
     justifyContent: 'space-between',
@@ -146,87 +156,33 @@ export default function HomePanelMobile({ onOpenDetail }) {
         <WorldClock />
       </div>
 
-      {/* Market Overview */}
-      <div style={cardStyle}>
-        <div style={titleStyle}>MARKET OVERVIEW</div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-          {['SPY', 'QQQ', 'DIA'].map((sym) => {
-            const data = stocksData[sym];
+      {/* Dynamic Sections */}
+      {sections.map((section) => (
+        <div key={section.id} style={cardStyle}>
+          <div style={titleStyle}>{section.title}</div>
+          {(section.symbols || []).map((sym) => {
+            const data = getPrice(sym, stocksData, forexData, cryptoData);
             const price = data?.price ?? null;
             const changePct = data?.changePct ?? null;
             const color = changePct >= 0 ? '#00cc66' : '#ff4444';
             return (
               <div
                 key={sym}
-                style={tileStyle}
+                style={rowStyle}
                 onClick={() => onOpenDetail(sym)}
               >
-                <div style={{ color: '#888', fontSize: '9px', marginBottom: '4px' }}>{sym}</div>
-                <div style={{ color: '#fff', fontSize: '14px', fontVariantNumeric: 'tabular-nums' }}>
-                  {fmtPrice(price)}
-                </div>
-                <div style={{ color, fontSize: '11px', marginTop: '4px' }}>
+                <span>{displaySymbol(sym)}</span>
+                <span style={{ fontSize: '12px', fontVariantNumeric: 'tabular-nums' }}>
+                  {fmtPrice(price, 5)}
+                </span>
+                <span style={{ color, minWidth: '50px', textAlign: 'right' }}>
                   {fmtPct(changePct)}
-                </div>
+                </span>
               </div>
             );
           })}
         </div>
-      </div>
-
-      {/* FX Overview */}
-      <div style={cardStyle}>
-        <div style={titleStyle}>FX OVERVIEW</div>
-        {['EURUSD', 'GBPUSD', 'USDBRL'].map((sym) => {
-          const data = forexData[sym];
-          const price = data?.price ?? null;
-          const changePct = data?.changePct ?? null;
-          const color = changePct >= 0 ? '#00cc66' : '#ff4444';
-          const label = sym.slice(0, 3) + '/' + sym.slice(3);
-          return (
-            <div
-              key={sym}
-              style={rowStyle}
-              onClick={() => onOpenDetail('C:' + sym)}
-            >
-              <span>{label}</span>
-              <span style={{ fontSize: '12px', fontVariantNumeric: 'tabular-nums' }}>
-                {fmtPrice(price, 5)}
-              </span>
-              <span style={{ color, minWidth: '50px', textAlign: 'right' }}>
-                {fmtPct(changePct)}
-              </span>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Crypto */}
-      <div style={cardStyle}>
-        <div style={titleStyle}>CRYPTO</div>
-        {['BTCUSD', 'ETHUSD', 'SOLUSD'].map((sym) => {
-          const data = cryptoData[sym];
-          const price = data?.price ?? null;
-          const changePct = data?.changePct ?? null;
-          const color = changePct >= 0 ? '#00cc66' : '#ff4444';
-          const label = sym.slice(0, -3);
-          return (
-            <div
-              key={sym}
-              style={rowStyle}
-              onClick={() => onOpenDetail('X:' + sym)}
-            >
-              <span>{label}</span>
-              <span style={{ fontSize: '12px', fontVariantNumeric: 'tabular-nums' }}>
-                {fmtPrice(price, 2)}
-              </span>
-              <span style={{ color, minWidth: '50px', textAlign: 'right' }}>
-                {fmtPct(changePct)}
-              </span>
-            </div>
-          );
-        })}
-      </div>
+      ))}
 
       {/* Today's Movers */}
       <div style={cardStyle}>

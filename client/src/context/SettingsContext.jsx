@@ -7,6 +7,7 @@
 import { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { apiFetch } from '../utils/api';
 import { SCREEN_PRESETS } from '../config/presets';
+import { DEFAULT_LAYOUT, DEFAULT_HOME_SECTIONS, DEFAULT_CHARTS_CONFIG } from '../config/panels';
 
 const SettingsContext = createContext(null);
 
@@ -25,7 +26,9 @@ function defaultSettings() {
       commodities:  { title: 'Commodities',    symbols: ['GLD','SLV','USO','UNG'] },
       debt:         { title: 'Debt Markets',   symbols: ['US10Y','US2Y','BR10Y','DE10Y'] },
     },
-    layout: {},
+    layout: DEFAULT_LAYOUT,
+    home: { sections: DEFAULT_HOME_SECTIONS },
+    charts: DEFAULT_CHARTS_CONFIG,
   };
 }
 
@@ -45,7 +48,16 @@ export function SettingsProvider({ children, isAuthenticated }) {
       .then(r => r.json())
       .then(data => {
         if (data.settings) {
-          setSettingsState({ ...defaultSettings(), ...data.settings });
+          const defaults = defaultSettings();
+          const s = data.settings || {};
+          setSettingsState({
+            ...defaults,
+            ...s,
+            panels:  { ...defaults.panels,  ...(s.panels  || {}) },
+            layout:  { ...defaults.layout,  ...(s.layout  || {}) },
+            home:    { ...defaults.home,    ...(s.home    || {}) },
+            charts:  { ...defaults.charts,  ...(s.charts  || {}) },
+          });
         }
         if (data.subscription) setSubscription(data.subscription);
         setLoaded(true);
@@ -66,9 +78,10 @@ export function SettingsProvider({ children, isAuthenticated }) {
   const updateSettings = useCallback(async (partial) => {
     setSettingsState(prev => {
       const next = { ...prev, ...partial };
-      if (partial.panels) {
-        next.panels = { ...prev.panels, ...partial.panels };
-      }
+      if (partial.panels)  next.panels = { ...prev.panels,  ...partial.panels };
+      if (partial.layout)  next.layout = { ...prev.layout,  ...partial.layout };
+      if (partial.home)    next.home   = { ...prev.home,    ...partial.home };
+      if (partial.charts)  next.charts = { ...prev.charts,  ...partial.charts };
       return next;
     });
     await persistSettings(partial);
@@ -86,9 +99,12 @@ export function SettingsProvider({ children, isAuthenticated }) {
     const preset = SCREEN_PRESETS[presetKey];
     if (!preset) return;
     const partial = {
-      panels: preset.panels,
-      watchlist: preset.watchlist || [],
-      theme: preset.theme || 'dark',
+      panels:              preset.panels  || {},
+      watchlist:           preset.watchlist || [],
+      theme:               preset.theme   || 'dark',
+      layout:              preset.layout  || DEFAULT_LAYOUT,
+      home:                preset.home    || { sections: DEFAULT_HOME_SECTIONS },
+      charts:              preset.charts  || DEFAULT_CHARTS_CONFIG,
       onboardingCompleted: true,
     };
     setSettingsState(prev => ({ ...prev, ...partial }));
@@ -99,10 +115,45 @@ export function SettingsProvider({ children, isAuthenticated }) {
     await updateSettings({ onboardingCompleted: true });
   }, [updateSettings]);
 
+  const updateLayout = useCallback(async (layout) => {
+    await updateSettings({ layout });
+  }, [updateSettings]);
+
+  const updateHomeSection = useCallback(async (sections) => {
+    await updateSettings({ home: { sections } });
+  }, [updateSettings]);
+
+  const addToHomeSection = useCallback(async (symbol, title) => {
+    let newSections;
+    setSettingsState(prev => {
+      const existing = prev.home?.sections || [];
+      // Don't add duplicate
+      if (existing.some(s => s.symbols?.includes(symbol))) return prev;
+      const newSection = {
+        id: symbol.toLowerCase().replace(/[^a-z0-9]/g, ''),
+        title: title || symbol,
+        symbols: [symbol]
+      };
+      newSections = [...existing, newSection];
+      return { ...prev, home: { ...prev.home, sections: newSections } };
+    });
+    // Small delay to let state update, then persist
+    setTimeout(async () => {
+      if (newSections) {
+        await persistSettings({ home: { sections: newSections } });
+      }
+    }, 50);
+  }, [persistSettings]);
+
+  const updateChartsConfig = useCallback(async (charts) => {
+    await updateSettings({ charts });
+  }, [updateSettings]);
+
   return (
     <SettingsContext.Provider value={{
       settings, subscription, loaded,
       updateSettings, updatePanelConfig, applyPreset, completeOnboarding,
+      updateLayout, updateHomeSection, addToHomeSection, updateChartsConfig,
     }}>
       {children}
     </SettingsContext.Provider>

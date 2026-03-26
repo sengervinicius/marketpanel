@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback } from 'react';
 import { FOREX_PAIRS, CRYPTO_PAIRS } from '../../utils/constants';
+import { useSettings } from '../../context/SettingsContext';
 
 const API = import.meta.env.VITE_API_URL || '';
 
@@ -140,7 +141,9 @@ export function SearchPanel({ onTickerSelect, onOpenDetail }) {
   const [selected,    setSelected]    = useState(null);  // currently selected item
   const [quote,       setQuote]       = useState(null);
   const [quoteLoading, setQuoteLoading] = useState(false);
+  const [addedToHome, setAddedToHome] = useState(null);  // tracks which symbol was just added
   const debounceRef = useRef(null);
+  const { addToHomeSection } = useSettings();
 
   const search = useCallback((q) => {
     if (!q.trim()) { setResults([]); return; }
@@ -200,6 +203,13 @@ export function SearchPanel({ onTickerSelect, onOpenDetail }) {
     e.dataTransfer.setData('application/x-ticker', JSON.stringify({
       symbol: item.symbol, name: item.name, type: item.type,
     }));
+  };
+
+  const handleAddToHome = (e, item) => {
+    e.stopPropagation(); // prevent triggering row click
+    addToHomeSection(item.symbol, item.name);
+    setAddedToHome(item.symbol);
+    setTimeout(() => setAddedToHome(null), 1500);
   };
 
   const fmtNum = (n) => n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -290,7 +300,7 @@ export function SearchPanel({ onTickerSelect, onOpenDetail }) {
                   {item.name}
                 </span>
 
-                {/* Badges */}
+                {/* Badges + Add to Home button */}
                 <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexShrink: 0 }}>
                   {covTag && (
                     <span style={{
@@ -310,6 +320,24 @@ export function SearchPanel({ onTickerSelect, onOpenDetail }) {
                       <span style={{ color: '#333', fontSize: 7 }}>{item.type}</span>
                     )
                   )}
+                  <button
+                    onClick={(e) => handleAddToHome(e, item)}
+                    title="Add to home screen"
+                    style={{
+                      background: 'none',
+                      border: `1px solid ${addedToHome === item.symbol ? '#00cc66' : '#2a2a2a'}`,
+                      color: addedToHome === item.symbol ? '#00cc66' : '#555',
+                      fontSize: 8,
+                      padding: '2px 6px',
+                      cursor: 'pointer',
+                      fontFamily: 'inherit',
+                      letterSpacing: '0.1em',
+                      fontWeight: addedToHome === item.symbol ? 'bold' : 'normal',
+                      transition: 'all 0.2s',
+                    }}
+                  >
+                    {addedToHome === item.symbol ? '✓' : '+ HOME'}
+                  </button>
                 </div>
               </div>
             );

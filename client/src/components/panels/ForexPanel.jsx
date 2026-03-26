@@ -1,6 +1,8 @@
 // ForexPanel.jsx — FX pairs + Crypto subsection, BBG-style, with sortable columns
 // Features: feed-status badge, collapse, movers filter
 import { useRef, useState, useMemo } from 'react';
+import { useSettings } from '../../context/SettingsContext';
+import PanelConfigModal from '../common/PanelConfigModal';
 import { FOREX_PAIRS, CRYPTO_PAIRS } from '../../utils/constants';
 import { useFeedStatus } from '../../context/FeedStatusContext';
 
@@ -53,10 +55,21 @@ function sortPairs(pairs, getRate, getChg, sortKey, sortDir) {
 
 export function ForexPanel({ data, cryptoData, loading, onTickerClick, onOpenDetail }) {
   const ptRef = useRef(null);
+  const { settings, updatePanelConfig } = useSettings();
+
+  // Panel config from settings (with fallback defaults)
+  const panelCfg = settings?.panels?.forex || {
+    title: 'FX',
+    symbols: [...FOREX_PAIRS.map(p => p.symbol), ...CRYPTO_PAIRS.map(c => c.symbol)],
+  };
+  const panelTitle   = panelCfg.title   || 'FX';
+  const panelSymbols = panelCfg.symbols || [];
+
   const [sortKey,    setSortKey]    = useState(null);
   const [sortDir,    setSortDir]    = useState('desc');
   const [collapsed,  setCollapsed]  = useState(false);
   const [moversOnly, setMoversOnly] = useState(false);
+  const [configOpen, setConfigOpen] = useState(false);
   const { getBadge } = useFeedStatus();
   const badge = getBadge('forex');
 
@@ -65,19 +78,27 @@ export function ForexPanel({ data, cryptoData, loading, onTickerClick, onOpenDet
     else { setSortKey(key); setSortDir('desc'); }
   };
 
+  const filteredForexPairs = panelSymbols.length > 0
+    ? FOREX_PAIRS.filter(p => panelSymbols.includes(p.symbol))
+    : FOREX_PAIRS;
+
+  const filteredCryptoPairs = panelSymbols.length > 0
+    ? CRYPTO_PAIRS.filter(c => panelSymbols.includes(c.symbol))
+    : CRYPTO_PAIRS;
+
   const sortedForex  = useMemo(() =>
-    sortPairs(FOREX_PAIRS,
+    sortPairs(filteredForexPairs,
       p => { const d = data?.[p.symbol] || {}; return d.mid || d.ask || d.price; },
       p => data?.[p.symbol]?.changePct,
       sortKey, sortDir),
-  [data, sortKey, sortDir]);
+  [data, sortKey, sortDir, filteredForexPairs]);
 
   const sortedCrypto = useMemo(() =>
-    sortPairs(CRYPTO_PAIRS,
+    sortPairs(filteredCryptoPairs,
       c => cryptoData?.[c.symbol]?.price,
       c => cryptoData?.[c.symbol]?.changePct,
       sortKey, sortDir),
-  [cryptoData, sortKey, sortDir]);
+  [cryptoData, sortKey, sortDir, filteredCryptoPairs]);
 
   // Movers filter: abs(changePct) >= 1% for FX
   const filteredForex  = useMemo(() => moversOnly ? sortedForex.filter(p  => Math.abs(data?.[p.symbol]?.changePct ?? 0) >= 1)        : sortedForex,  [sortedForex,  data, moversOnly]);
@@ -87,7 +108,17 @@ export function ForexPanel({ data, cryptoData, loading, onTickerClick, onOpenDet
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#0a0a0a' }}>
       {/* Header */}
       <div style={{ padding: '4px 8px', borderBottom: '1px solid #2a2a2a', background: '#111', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
-        <span style={{ color: '#ce93d8', fontSize: '10px', fontWeight: 700, letterSpacing: '1px' }}>FX / FOREX · CRYPTO</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ color: '#ce93d8', fontSize: '10px', fontWeight: 700, letterSpacing: '1px' }}>{panelTitle}</span>
+          <button
+            onClick={() => setConfigOpen(true)}
+            title="Configure panel"
+            style={{
+              background: 'none', border: 'none', color: '#444', cursor: 'pointer',
+              fontSize: 9, padding: '0 2px', lineHeight: 1, display: 'flex', alignItems: 'center',
+            }}
+          >✎</button>
+        </div>
         {/* Feed status badge */}
         <span style={{ background: badge.bg, color: badge.color, fontSize: 7, fontWeight: 700, letterSpacing: '0.08em', padding: '1px 4px', borderRadius: 2, border: `1px solid ${badge.color}33` }}>
           {badge.text}
@@ -218,6 +249,20 @@ export function ForexPanel({ data, cryptoData, loading, onTickerClick, onOpenDet
         )}
       </div>
       </>
+      )}
+
+      {/* Panel config modal */}
+      {configOpen && (
+        <PanelConfigModal
+          panelId="forex"
+          currentTitle={panelTitle}
+          currentSymbols={panelSymbols}
+          onSave={({ title, symbols }) => {
+            updatePanelConfig('forex', { title, symbols });
+            setConfigOpen(false);
+          }}
+          onClose={() => setConfigOpen(false)}
+        />
       )}
     </div>
   );

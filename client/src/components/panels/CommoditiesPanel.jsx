@@ -1,6 +1,8 @@
 // CommoditiesPanel.jsx — commodities grouped by category, with sortable columns
 // Features: feed-status badge, collapse
 import { useRef, useState, useMemo } from 'react';
+import { useSettings } from '../../context/SettingsContext';
+import PanelConfigModal from '../common/PanelConfigModal';
 import { COMMODITIES } from '../../utils/constants';
 import { useFeedStatus } from '../../context/FeedStatusContext';
 
@@ -37,9 +39,20 @@ const showInfo = (e, symbol, label, type) => {
 
 export function CommoditiesPanel({ data, loading, onTickerClick, onOpenDetail }) {
   const ptRef = useRef(null);
+  const { settings, updatePanelConfig } = useSettings();
+
+  // Panel config from settings (with fallback defaults)
+  const panelCfg = settings?.panels?.commodities || {
+    title: 'Commodities',
+    symbols: COMMODITIES.map(c => c.symbol),
+  };
+  const panelTitle   = panelCfg.title   || 'Commodities';
+  const panelSymbols = panelCfg.symbols || [];
+
   const [sortKey,   setSortKey]   = useState(null);
   const [sortDir,   setSortDir]   = useState('desc');
   const [collapsed, setCollapsed] = useState(false);
+  const [configOpen, setConfigOpen] = useState(false);
   const { getBadge } = useFeedStatus();
   const badge = getBadge('stocks'); // commodities are equities/ETFs
 
@@ -51,6 +64,10 @@ export function CommoditiesPanel({ data, loading, onTickerClick, onOpenDetail })
   const sortedGroups = useMemo(() => {
     return GROUPS.map(g => {
       let items = COMMODITIES.filter(c => c.group === g.key);
+      // Filter to only configured symbols if configured
+      if (panelSymbols.length > 0) {
+        items = items.filter(c => panelSymbols.includes(c.symbol));
+      }
       if (sortKey && data) {
         items = [...items].sort((a, b) => {
           let va, vb;
@@ -64,14 +81,24 @@ export function CommoditiesPanel({ data, loading, onTickerClick, onOpenDetail })
       }
       return { ...g, items };
     });
-  }, [data, sortKey, sortDir]);
+  }, [data, sortKey, sortDir, panelSymbols]);
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#0a0a0a' }}>
       {/* Header */}
       <div style={{ padding: '4px 8px', borderBottom: '1px solid #2a2a2a', background: '#111', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
-        <span style={{ color: '#ffd54f', fontSize: '10px', fontWeight: 700, letterSpacing: '1px' }}>COMMODITIES</span>
-        <span style={{ color: '#333', fontSize: '8px' }}>ETF PROXIES</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ color: '#ffd54f', fontSize: '10px', fontWeight: 700, letterSpacing: '1px' }}>{panelTitle}</span>
+          <span style={{ color: '#333', fontSize: '8px' }}>ETF PROXIES</span>
+          <button
+            onClick={() => setConfigOpen(true)}
+            title="Configure panel"
+            style={{
+              background: 'none', border: 'none', color: '#444', cursor: 'pointer',
+              fontSize: 9, padding: '0 2px', lineHeight: 1, display: 'flex', alignItems: 'center',
+            }}
+          >✎</button>
+        </div>
         <span style={{ background: badge.bg, color: badge.color, fontSize: 7, fontWeight: 700, letterSpacing: '0.08em', padding: '1px 4px', borderRadius: 2, border: `1px solid ${badge.color}33` }}>
           {badge.text}
         </span>
@@ -153,6 +180,20 @@ export function CommoditiesPanel({ data, loading, onTickerClick, onOpenDetail })
         )}
       </div>
       </>)}
+
+      {/* Panel config modal */}
+      {configOpen && (
+        <PanelConfigModal
+          panelId="commodities"
+          currentTitle={panelTitle}
+          currentSymbols={panelSymbols}
+          onSave={({ title, symbols }) => {
+            updatePanelConfig('commodities', { title, symbols });
+            setConfigOpen(false);
+          }}
+          onClose={() => setConfigOpen(false)}
+        />
+      )}
     </div>
   );
 }
