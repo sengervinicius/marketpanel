@@ -271,22 +271,106 @@ const PANEL_DEFS = [
   { id: 'chat',         label: 'Chat' },
 ];
 
+const START_PAGE_OPTIONS = [
+  { value: '/',          label: 'HOME' },
+  { value: '/charts',    label: 'CHARTS' },
+  { value: '/watchlist', label: 'WATCHLIST' },
+  { value: '/search',    label: 'SEARCH' },
+  { value: '/news',      label: 'NEWS' },
+  { value: '/chat',      label: 'CHAT' },
+];
+
+const PRESET_LIST = [
+  { key: 'brazilianInvestor',   label: 'Brazilian Investor' },
+  { key: 'globalInvestor',      label: 'Global Investor' },
+  { key: 'debtInvestor',        label: 'Debt / Fixed Income' },
+  { key: 'cryptoInvestor',      label: 'Crypto Trader' },
+  { key: 'commoditiesInvestor', label: 'Commodities' },
+  { key: 'custom',              label: 'Custom' },
+];
+
+function SettingsSection({ label }) {
+  return (
+    <div style={{ padding: '8px 12px 4px', borderBottom: '1px solid #1a1a1a', marginTop: 4 }}>
+      <span style={{ color: '#ff6600', fontSize: 8, fontWeight: 700, letterSpacing: '1.2px' }}>{label}</span>
+    </div>
+  );
+}
+
 function SettingsDrawer({ panelVisible, togglePanel, onClose }) {
+  const { settings, updateSettings, applyPreset } = useSettings();
+  const [applyingPreset, setApplyingPreset] = useState(null);
+
+  const defaultStartPage = settings?.defaultStartPage || '/';
+  const theme = settings?.theme || 'dark';
+
+  const handleStartPage = (val) => { updateSettings({ defaultStartPage: val }); };
+  const handleTheme = () => { updateSettings({ theme: theme === 'dark' ? 'light' : 'dark' }); };
+  const handlePreset = async (key) => {
+    setApplyingPreset(key);
+    try { await applyPreset(key); } finally { setApplyingPreset(null); }
+  };
+
+  const rowStyle = {
+    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+    padding: '5px 12px', cursor: 'pointer', borderBottom: '1px solid #141414',
+  };
+
   return (
     <div style={{
       position: 'absolute', top: 36, right: 0, zIndex: 1000,
       background: '#0d0d0d', border: '1px solid #2a2a2a', borderTop: 'none',
-      width: 240, padding: '12px 0', boxShadow: '0 8px 32px rgba(0,0,0,0.8)',
+      width: 260, maxHeight: 'calc(100vh - 60px)', overflowY: 'auto',
+      boxShadow: '0 8px 32px rgba(0,0,0,0.8)',
     }}>
-      <div style={{ padding: '4px 12px 8px', borderBottom: '1px solid #1a1a1a', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={{ color: '#ff6600', fontSize: 9, fontWeight: 700, letterSpacing: '1px' }}>PANEL VISIBILITY</span>
+      {/* Drawer header */}
+      <div style={{ padding: '6px 12px', borderBottom: '1px solid #1a1a1a', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span style={{ color: '#ff6600', fontSize: 9, fontWeight: 700, letterSpacing: '1px' }}>SETTINGS</span>
         <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#444', cursor: 'pointer', fontSize: 12, padding: 0 }}>✕</button>
       </div>
+
+      {/* ── Default Start Page ── */}
+      <SettingsSection label="DEFAULT START PAGE" />
+      {START_PAGE_OPTIONS.map(({ value, label }) => (
+        <div key={value} onClick={() => handleStartPage(value)} style={rowStyle}
+          onMouseEnter={e => e.currentTarget.style.background = '#141414'}
+          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+        >
+          <span style={{ color: defaultStartPage === value ? '#ff6600' : '#888', fontSize: 9, letterSpacing: '0.5px' }}>{label}</span>
+          <span style={{ color: defaultStartPage === value ? '#ff6600' : '#2a2a2a', fontSize: 10 }}>{defaultStartPage === value ? '●' : '○'}</span>
+        </div>
+      ))}
+
+      {/* ── Theme ── */}
+      <SettingsSection label="APPEARANCE" />
+      <div onClick={handleTheme} style={rowStyle}
+        onMouseEnter={e => e.currentTarget.style.background = '#141414'}
+        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+      >
+        <span style={{ color: '#888', fontSize: 9, letterSpacing: '0.5px' }}>{theme === 'dark' ? '◑ DARK MODE' : '☀ LIGHT MODE'}</span>
+        <span style={{ color: '#ff6600', fontSize: 8, fontWeight: 700, letterSpacing: '0.5px' }}>TOGGLE</span>
+      </div>
+
+      {/* ── Workspace Presets ── */}
+      <SettingsSection label="APPLY WORKSPACE PRESET" />
+      {PRESET_LIST.map(({ key, label }) => (
+        <div key={key} onClick={() => !applyingPreset && handlePreset(key)} style={{ ...rowStyle, cursor: applyingPreset ? 'wait' : 'pointer' }}
+          onMouseEnter={e => e.currentTarget.style.background = '#141414'}
+          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+        >
+          <span style={{ color: '#888', fontSize: 9, letterSpacing: '0.5px' }}>{label}</span>
+          {applyingPreset === key
+            ? <span style={{ color: '#ff6600', fontSize: 8 }}>APPLYING…</span>
+            : <span style={{ color: '#444', fontSize: 8, letterSpacing: '0.5px' }}>APPLY →</span>}
+        </div>
+      ))}
+
+      {/* ── Panel Visibility ── */}
+      <SettingsSection label="PANEL VISIBILITY" />
       {PANEL_DEFS.map(({ id, label }) => {
         const visible = panelVisible[id] ?? true;
         return (
-          <div key={id} onClick={() => togglePanel(id)}
-            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '5px 12px', cursor: 'pointer', borderBottom: '1px solid #141414' }}
+          <div key={id} onClick={() => togglePanel(id)} style={rowStyle}
             onMouseEnter={e => e.currentTarget.style.background = '#141414'}
             onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
           >
@@ -297,6 +381,54 @@ function SettingsDrawer({ panelVisible, togglePanel, onClose }) {
           </div>
         );
       })}
+    </div>
+  );
+}
+
+// ── User Dropdown (header avatar menu) ───────────────────────────────────────
+function UserDropdown({ user, onSettings, onLogout }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+  return (
+    <div ref={ref} style={{ position: 'relative' }}>
+      <button
+        onClick={() => setOpen(s => !s)}
+        style={{
+          background: 'none', border: '1px solid #282828', color: '#888',
+          fontSize: 9, padding: '2px 8px', cursor: 'pointer',
+          fontFamily: 'inherit', borderRadius: 2, letterSpacing: '0.5px',
+          display: 'flex', alignItems: 'center', gap: 5,
+        }}
+      >
+        <span style={{ color: open ? '#ff6600' : '#444', fontSize: 8 }}>▼</span>
+        {user.username?.toUpperCase()}
+      </button>
+      {open && (
+        <div style={{
+          position: 'absolute', top: 'calc(100% + 2px)', right: 0, zIndex: 2000,
+          background: '#0d0d0d', border: '1px solid #2a2a2a',
+          width: 150, boxShadow: '0 4px 20px rgba(0,0,0,0.9)',
+        }}>
+          <div
+            onClick={() => { setOpen(false); onSettings(); }}
+            style={{ padding: '7px 12px', cursor: 'pointer', color: '#888', fontSize: 9, letterSpacing: '0.5px', borderBottom: '1px solid #1a1a1a' }}
+            onMouseEnter={e => { e.currentTarget.style.background = '#141414'; e.currentTarget.style.color = '#ff6600'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#888'; }}
+          >⚙ SETTINGS</div>
+          <div
+            onClick={() => { setOpen(false); onLogout(); }}
+            style={{ padding: '7px 12px', cursor: 'pointer', color: '#888', fontSize: 9, letterSpacing: '0.5px' }}
+            onMouseEnter={e => { e.currentTarget.style.background = '#141414'; e.currentTarget.style.color = '#ff4444'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#888'; }}
+          >→ LOG OUT</div>
+        </div>
+      )}
     </div>
   );
 }
@@ -702,24 +834,15 @@ export default function App() {
           <div style={{ display:'flex', alignItems:'center', gap:8 }}>
             {isRefreshing && <span style={{ color:'#ff6600', fontSize:'8px', letterSpacing:'1px' }}>&#9679; UPDATING</span>}
             {lastUpdated && !isRefreshing && <span style={{ color:'#333', fontSize:'8px' }}>SNAP {lastUpdated.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'})}</span>}
-            {user && <span style={{ color:'#333', fontSize:'8px', letterSpacing:'0.5px' }}>{user.username?.toUpperCase()}</span>}
             <button
               onClick={() => setLayoutEdit(s => !s)}
               title="Reorder panels"
               style={{ background: layoutEdit ? '#1a0800' : 'none', border:`1px solid ${layoutEdit ? '#ff6600' : '#282828'}`, color: layoutEdit ? '#ff6600' : '#444', fontSize:9, padding:'2px 6px', cursor:'pointer', fontFamily:'inherit', borderRadius:2, letterSpacing:'0.5px' }}
             >⇄ LAYOUT</button>
-            <button
-              onClick={() => setSettingsOpen(s => !s)}
-              title="Settings"
-              style={{ background:'none', border:'1px solid #282828', color: settingsOpen ? '#ff6600' : '#444', fontSize:9, padding:'2px 6px', cursor:'pointer', fontFamily:'inherit', borderRadius:2, letterSpacing:'0.5px' }}
-            >⚙ PANELS</button>
-            {user && (
-              <button
-                onClick={logout}
-                title="Log out"
-                style={{ background:'none', border:'1px solid #282828', color:'#555', fontSize:9, padding:'2px 6px', cursor:'pointer', fontFamily:'inherit', borderRadius:2, letterSpacing:'0.5px' }}
-              >LOG OUT</button>
-            )}
+            {user
+              ? <UserDropdown user={user} onSettings={() => setSettingsOpen(s => !s)} onLogout={logout} />
+              : <button onClick={() => setSettingsOpen(s => !s)} style={{ background:'none', border:'1px solid #282828', color: settingsOpen ? '#ff6600' : '#444', fontSize:9, padding:'2px 6px', cursor:'pointer', fontFamily:'inherit', borderRadius:2, letterSpacing:'0.5px' }}>⚙ SETTINGS</button>
+            }
           </div>
         </div>
 
@@ -813,14 +936,15 @@ export default function App() {
       <div style={{ height: 38, flexShrink: 0, display:'flex', alignItems:'center', background:'#000', borderBottom:'1px solid #1e1e1e', padding:'0 12px', gap:8 }}>
         <span style={{ color:'#ff6600', fontWeight:700, fontSize:'11px', letterSpacing:'2px' }}>SENGER</span>
         <div style={{ flex: 1 }} />
-        {user && <span style={{ color:'#333', fontSize:'7px', letterSpacing:'0.5px' }}>{user.username?.toUpperCase()}</span>}
-        {user && (
-          <button
-            onClick={logout}
-            style={{ background:'none', border:'none', color:'#444', fontSize:'8px', padding:'4px 6px', cursor:'pointer', fontFamily:'inherit', letterSpacing:'0.5px' }}
-          >LOG OUT</button>
-        )}
+        {user && <UserDropdown user={user} onSettings={() => setSettingsOpen(s => !s)} onLogout={logout} />}
       </div>
+
+      {/* Mobile settings drawer */}
+      {settingsOpen && (
+        <div style={{ position: 'relative', zIndex: 1000 }}>
+          <SettingsDrawer panelVisible={panelVisible} togglePanel={togglePanel} onClose={() => setSettingsOpen(false)} />
+        </div>
+      )}
 
       {/* Trial banner (mobile) */}
       <TrialBanner subscription={subscription} onUpgrade={startCheckout} />
