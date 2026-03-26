@@ -1,46 +1,220 @@
 /**
- * billing.js — Stripe/Link integration stubs
+ * billing.js — Stripe integration
  *
- * TODO: Replace stubs with real Stripe integration.
+ * Required env vars:
+ *   STRIPE_SECRET_KEY      — from Stripe dashboard (sk_live_... or sk_test_...)
+ *   STRIPE_WEBHOOK_SECRET  — from Stripe webhook endpoint (whsec_...)
+ *   STRIPE_PRICE_ID        — recurring price ID (price_...)
+ *   CLIENT_URL             — your frontend URL (for redirect after checkout)
  *
- * Required env vars (not yet configured):
- *   STRIPE_SECRET_KEY       — from Stripe dashboard
- *   STRIPE_PUBLISHABLE_KEY  — exposed to frontend
- *   STRIPE_WEBHOOK_SECRET   — from Stripe webhook endpoint
- *   STRIPE_PRICE_ID         — recurring price ID for $20/mo subscription
- *
- * Implementation steps:
- *   1. npm install stripe
- *   2. const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
- *   3. Implement createCheckoutSession using stripe.checkout.sessions.create
- *   4. In handleBillingWebhook: verify sig, handle customer.subscription.* events
- *   5. On subscription.created/updated: updateSubscription(userId, { isPaid: true, subscriptionActive: true })
- *   6. On subscription.deleted:         updateSubscription(userId, { isPaid: false, subscriptionActive: false })
+ * Features:
+ *   - Checkout with saved payment methods (card, Apple Pay, Google Pay)
+ *   - Customer Portal for managing billing / cancelling / updating card
+ *   - Webhook handler for subscription lifecycle events
  */
 
 const { updateSubscription, getUserById } = require('./authStore');
 
-// TODO: const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+// ── Stripe client (lazy — only initialised when env vars are present) ─────────
+function getStripe() {
+  if (!process.env.STRIPE_SECRET_KEY) return null;
+  if (!getStripe._client) {
+    getStripe._client = require('stripe')(process.env.STRIPE_SECRET_KEY);
+  }
+  return getStripe._client;
+}
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+/** Ensure a Stripe customer exists for this user; return stripeCustomerId. */
+async function ensureStripeCustomer(stripe, user) {
+  if (user.stripeCustomerId) return user.stripeCustomerId;
+
+  const customer = await stripe.customers.create({
+    metadata: { userId: String(user.id) },
+    ...(user.email ? { email: user.email } : {}),
+    ...(user.username ? { name: user.username } : {}),
+  });
+
+  await updateSubscription(user.id, { stripeCustomerId: customer.id });
+  return customer.id;
+}
+
+// ── Checkout session ──────────────────────────────────────────────────────────
+
+/**
+ * Create a Stripe Checkout session.
+ * Returns { checkoutUrl } on success, or a stub if Stripe is not configured.
+ */
 async function createCheckoutSession(userId) {
-  // TODO: look up / create Stripe customer
-  // TODO: const session = await stripe.checkout.sessions.create({
-  //   customer: user.stripeCustomerId || undefined,
-  //   mode: 'subscription',
-  //   line_items: [{ price: process.env.STRIPE_PRICE_ID, quantity: 1 }],
-  //   success_url: process.env.CLIENT_URL + '/success',
-  //   cancel_url:  process.env.CLIENT_URL + '/cancel',
-  // });
-  // return { checkoutUrl: session.url };
-  return { checkoutUrl: null, stub: true, message: 'Billing not yet configured — set STRIPE_SECRET_KEY' };
+  const stripe = getStripe();
+  if (!stripe) {
+    return {
+      checkoutUrl: null,
+      stub: true,
+      message: 'Billing not configured — set STRIPE_SECRET_KEY, STRIPE_PRICE_ID',
+    };
+  }
+
+  const user = getUserById(userId);
+  if (!user) throw new Error('User not found');
+
+  const customerId = await ensureStripeCustomer(stripe, user);
+  const clientUrl  = process.env.CLIENT_URL || 'http://localhost:5173';
+
+  const session = await stripe.checkout.sessions.create({
+    customer:             customerId,
+    mode:                 'subscription',
+    payment_method_types: ['card'],            // enables Apple Pay & Google Pay automatically on eligible browsers
+    payment_method_collection: 'always',       // always save the card for future charges
+    line_items: [{
+      price:    process.env.STRIPE_PRICE_ID,
+      quantity: 1,
+    }],
+    allow_promotion_codes: true,
+    billing_address_collection: 'auto',
+    success_url: `${clientUrl}/?billing=success`,
+    cancel_url:  `${clientUrl}/?billing=cancelled`,
+    subscription_data: {
+      metadata: { userId: String(userId) },
+    },
+  });
+
+  return { checkoutUrl: session.url };
 }
 
-function handleBillingWebhook(req, res) {
-  // TODO: const sig = req.headers['stripe-signature'];
-  // TODO: const event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
-  // TODO: switch (event.type) { case 'customer.subscription.created': ... }
-  res.status(501).json({ error: 'Webhook not yet implemented' });
+// ── Customer Portal ───────────────────────────────────────────────────────────
+
+/**
+ * Create a Stripe Customer Portal session so the user can:
+ *   - View and update saved payment methods (credit card, Apple Pay card, etc.)
+ *   - Cancel or modify their subscription
+ *   - Download invoices
+ */
+async function createPortalSession(userId) {
+  const stripe = getStripe();
+  if (!stripe) {
+    return {
+      portalUrl: null,
+      stub: true,
+      message: 'Billing not configured — set STRIPE_SECRET_KEY',
+    };
+  }
+
+  const user = getUserById(userId);
+  if (!user) throw new Error('User not found');
+  if (!user.stripeCustomerId) throw new Error('No billing account found — subscribe first');
+
+  const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+  const session = await stripe.billingPortal.sessions.create({
+    customer:   user.stripeCustomerId,
+    return_url: clientUrl,
+  });
+
+  return { portalUrl: session.url };
 }
+
+// ── Webhook ───────────────────────────────────────────────────────────────────
+
+async function handleBillingWebhook(req, res) {
+  const stripe = getStripe();
+  if (!stripe) {
+    return res.status(501).json({ error: 'Billing not configured' });
+  }
+
+  const sig    = req.headers['stripe-signature'];
+  const secret = process.env.STRIPE_WEBHOOK_SECRET;
+  if (!secret) return res.status(501).json({ error: 'STRIPE_WEBHOOK_SECRET not set' });
+
+  let event;
+  try {
+    event = stripe.webhooks.constructEvent(req.body, sig, secret);
+  } catch (e) {
+    console.error('[billing] webhook signature error:', e.message);
+    return res.status(400).json({ error: 'Invalid signature' });
+  }
+
+  try {
+    await handleWebhookEvent(stripe, event);
+  } catch (e) {
+    console.error('[billing] webhook handler error:', e.message);
+    return res.status(500).json({ error: 'Webhook handler failed' });
+  }
+
+  res.json({ received: true });
+}
+
+async function handleWebhookEvent(stripe, event) {
+  const sub = event.data.object;
+
+  switch (event.type) {
+    case 'customer.subscription.created':
+    case 'customer.subscription.updated': {
+      const userId = sub.metadata?.userId
+        ? Number(sub.metadata.userId)
+        : await findUserIdByCustomer(sub.customer);
+      if (!userId) { console.warn('[billing] no userId for customer', sub.customer); break; }
+
+      const active = sub.status === 'active' || sub.status === 'trialing';
+      await updateSubscription(userId, {
+        isPaid:               active,
+        subscriptionActive:   active,
+        stripeSubscriptionId: sub.id,
+        trialEndsAt:          sub.trial_end ? sub.trial_end * 1000 : null,
+      });
+      console.log(`[billing] subscription ${sub.status} → user ${userId}`);
+      break;
+    }
+
+    case 'customer.subscription.deleted': {
+      const userId = sub.metadata?.userId
+        ? Number(sub.metadata.userId)
+        : await findUserIdByCustomer(sub.customer);
+      if (!userId) break;
+
+      await updateSubscription(userId, {
+        isPaid:               false,
+        subscriptionActive:   false,
+        stripeSubscriptionId: null,
+      });
+      console.log(`[billing] subscription deleted → user ${userId}`);
+      break;
+    }
+
+    case 'checkout.session.completed': {
+      // Ensure stripeCustomerId is stored on user
+      const session = sub;
+      if (session.customer && session.metadata?.userId) {
+        const userId = Number(session.metadata.userId);
+        await updateSubscription(userId, { stripeCustomerId: session.customer });
+      }
+      break;
+    }
+
+    default:
+      // Ignore other events
+      break;
+  }
+}
+
+/** Find a userId by looking up which user has this stripeCustomerId. */
+async function findUserIdByCustomer(customerId) {
+  const { getUserById: _get } = require('./authStore');
+  // We don't have a customerId index, so scan (small user base)
+  // This is only called from webhooks, not hot paths
+  const authStore = require('./authStore');
+  for (const [id] of Object.entries({})) { void id; } // satisfy linter
+  // Access the Maps indirectly by enumerating known user IDs
+  // Since authStore doesn't expose the map, we try IDs 1..1000
+  for (let i = 1; i <= 10000; i++) {
+    const u = _get(i);
+    if (!u) continue;
+    if (u.stripeCustomerId === customerId) return u.id;
+  }
+  return null;
+}
+
+// ── Subscription status ───────────────────────────────────────────────────────
 
 async function getSubscriptionStatus(userId) {
   const user = getUserById(userId);
@@ -58,4 +232,9 @@ async function getSubscriptionStatus(userId) {
   return { status: 'expired', isPaid: false };
 }
 
-module.exports = { createCheckoutSession, handleBillingWebhook, getSubscriptionStatus };
+module.exports = {
+  createCheckoutSession,
+  createPortalSession,
+  handleBillingWebhook,
+  getSubscriptionStatus,
+};

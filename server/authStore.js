@@ -313,6 +313,53 @@ function safeUser(user) {
   return safe;
 }
 
+// ── Apple Sign In ─────────────────────────────────────────────────────────
+
+async function findOrCreateAppleUser(appleUserId, email, firstName) {
+  // Search existing users for matching appleUserId
+  for (const user of usersById.values()) {
+    if (user.appleUserId === appleUserId) return user;
+  }
+
+  // Build a username from email or appleUserId
+  let baseUsername = firstName
+    ? firstName.toLowerCase().replace(/[^a-z0-9]/g, '')
+    : email
+      ? email.split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '')
+      : 'apple_' + appleUserId.slice(-8);
+  if (baseUsername.length < 3) baseUsername = 'user_' + appleUserId.slice(-6);
+
+  // Ensure uniqueness
+  let username = baseUsername;
+  let suffix = 2;
+  while (usersByUsername.has(username.toLowerCase())) {
+    username = baseUsername + '_' + suffix++;
+  }
+
+  const hash = await bcrypt.hash(Math.random().toString(36), 10); // dummy hash
+  const now  = Date.now();
+  const id   = nextId++;
+  const user = {
+    id,
+    username,
+    hash,
+    appleUserId,
+    email: email || null,
+    settings:             defaultSettings(),
+    isPaid:               false,
+    subscriptionActive:   true,
+    trialEndsAt:          now + 2 * 24 * 60 * 60 * 1000,
+    stripeCustomerId:     null,
+    stripeSubscriptionId: null,
+    createdAt:            now,
+  };
+
+  usersByUsername.set(username.toLowerCase(), user);
+  usersById.set(id, user);
+  await persistUser(user);
+  return user;
+}
+
 module.exports = {
   initDB,
   createUser,
@@ -326,4 +373,5 @@ module.exports = {
   updateSubscription,
   safeUser,
   seedUsersFromEnv,
+  findOrCreateAppleUser,
 };

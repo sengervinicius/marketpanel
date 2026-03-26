@@ -4,7 +4,7 @@
 
 const express = require('express');
 const router  = express.Router();
-const { createCheckoutSession, handleBillingWebhook, getSubscriptionStatus } = require('../billing');
+const { createCheckoutSession, createPortalSession, handleBillingWebhook, getSubscriptionStatus } = require('../billing');
 
 // POST /api/billing/create-session
 router.post('/create-session', async (req, res) => {
@@ -26,6 +26,16 @@ router.get('/status', async (req, res) => {
   try {
     const status = await getSubscriptionStatus(req.user.id);
     res.json(status);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/billing/portal — Stripe Customer Portal (manage saved cards, cancel, invoices)
+router.post('/portal', async (req, res) => {
+  try {
+    const result = await createPortalSession(req.user.id);
+    res.json(result);
   } catch (e) {
     res.status(500).json({ error: e.message });
   }

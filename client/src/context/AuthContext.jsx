@@ -96,6 +96,19 @@ export function AuthProvider({ children }) {
     return data;
   }, [_persist]);
 
+  // ── Login with Apple ──────────────────────────────────────────────────────
+  const loginWithApple = useCallback(async (identityToken, authorizationCode, appleUser) => {
+    const res = await fetch(`${API_BASE}/api/auth/apple`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ identityToken, authorizationCode, user: appleUser }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Apple Sign In failed');
+    _persist({ id: data.user.id, username: data.user.username }, data.token, data.subscription);
+    return data;
+  }, [_persist]);
+
   // ── Logout ────────────────────────────────────────────────────────────────
   const logout = useCallback(() => {
     setUser(null);
@@ -124,8 +137,27 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
+  // ── Open Stripe billing portal (manage saved cards, invoices, cancel) ─────
+  const openBillingPortal = useCallback(async () => {
+    const tok = localStorage.getItem(LS_TOKEN);
+    try {
+      const res  = await fetch(`${API_BASE}/api/billing/portal`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tok}` },
+      });
+      const data = await res.json();
+      if (data.portalUrl) {
+        window.location.href = data.portalUrl;
+      } else {
+        alert('Billing portal not yet configured. Contact vinicius@arccapital.com.br');
+      }
+    } catch {
+      alert('Could not open billing portal. Please try again later.');
+    }
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ user, token, subscription, authReady, login, register, logout, startCheckout }}>
+    <AuthContext.Provider value={{ user, token, subscription, authReady, login, register, loginWithApple, logout, startCheckout, openBillingPortal }}>
       {children}
     </AuthContext.Provider>
   );

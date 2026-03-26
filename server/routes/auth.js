@@ -6,7 +6,7 @@
 const express = require('express');
 const router  = express.Router();
 const {
-  createUser, verifyUser, signToken, safeUser, getUserById,
+  createUser, verifyUser, signToken, safeUser, getUserById, findOrCreateAppleUser,
 } = require('../authStore');
 const { requireAuth } = require('../authMiddleware');
 
@@ -65,6 +65,46 @@ router.get('/me', requireAuth, (req, res) => {
       trialEndsAt:        user.trialEndsAt,
     },
   });
+});
+
+// POST /api/auth/apple
+router.post('/apple', async (req, res) => {
+  try {
+    const { identityToken, user: appleUser } = req.body;
+    if (!identityToken) return res.status(400).json({ error: 'identityToken required' });
+
+    const APPLE_CLIENT_ID = process.env.APPLE_CLIENT_ID;
+    if (!APPLE_CLIENT_ID) {
+      return res.status(501).json({ error: 'Apple Sign In not configured on this server. Set APPLE_CLIENT_ID env var.' });
+    }
+
+    const appleSignin = require('apple-signin-auth');
+    const payload = await appleSignin.verifyIdToken(identityToken, {
+      audience: APPLE_CLIENT_ID,
+      ignoreExpiration: false,
+    });
+
+    const appleUserId = payload.sub;
+    const email = payload.email || appleUser?.email || null;
+    const firstName = appleUser?.name?.firstName || null;
+
+    const u = await findOrCreateAppleUser(appleUserId, email, firstName);
+    const token = signToken(u);
+
+    res.json({
+      ok: true,
+      user: { id: u.id, username: u.username },
+      token,
+      subscription: {
+        isPaid: u.isPaid,
+        subscriptionActive: u.subscriptionActive,
+        trialEndsAt: u.trialEndsAt,
+      },
+    });
+  } catch (e) {
+    console.error('[auth/apple]', e.message);
+    res.status(401).json({ error: 'Apple Sign In failed: ' + e.message });
+  }
 });
 
 module.exports = router;
