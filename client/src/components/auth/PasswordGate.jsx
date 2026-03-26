@@ -89,8 +89,8 @@ export default function PasswordGate({ children }) {
         {useUserAuth ? (
           <LoginForm />
         ) : (
-        {/* Login form */}
-        <form onSubmit={handleSubmit} style={{
+          <>
+          <form onSubmit={handleSubmit} style={{
           background: '#0d0d14', border: '1px solid #1a1a2e',
           borderRadius: 2, padding: '24px 28px',
           animation: shake ? 'shake 0.4s ease' : 'none'
@@ -151,6 +151,7 @@ export default function PasswordGate({ children }) {
         <div style={{textAlign:'center', marginTop:20, color:'#333', fontSize:7, letterSpacing:'0.1em'}}>
           AUTHORIZED USERS ONLY · CONFIDENTIAL
         </div>
+          </>
         )}
       </div>
 
