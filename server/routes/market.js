@@ -99,54 +99,98 @@ const YF_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHT
 async function getYahooCrumb() {
   const now = Date.now();
   if (_yfCrumb && now < _yfCrumbExpiry) return { crumb: _yfCrumb, cookie: _yfCookie };
-  try {
-    const r1 = await fetch('https://fc.yahoo.com/', {
-      headers: { 'User-Agent': YF_UA, 'Accept': 'text/html,*/*' },
-      redirect: 'follow',
-    });
-    const rawCookies = r1.headers.raw()['set-cookie'] || [];
-    const cookie = rawCookies.map(c => c.split(';')[0]).join('; ');
-    const r2 = await fetch('https://query2.finance.yahoo.com/v1/test/getcrumb', {
-      headers: { 'User-Agent': YF_UA, 'Accept': '*/*', 'Cookie': cookie }
-    });
-    const crumb = (await r2.text()).trim();
-    if (!crumb || crumb.startsWith('<') || crumb.length > 30) {
-      throw new Error(`Bad crumb: ${crumb.slice(0, 50)}`);
-    }
-    _yfCrumb = crumb;
-    _yfCookie = cookie;
-    _yfCrumbExpiry = now + 25 * 60 * 1000;
-    console.log('[Yahoo] Crumb refreshed OK');
-    return { crumb, cookie };
-  } catch (err) {
-    _yfCrumb = null;
-    _yfCookie = null;
-    _yfCrumbExpiry = 0;
-    console.error('[Yahoo] Crumb fetch failed:', err.message);
-    throw new Error('Yahoo Finance auth failed: ' + err.message);
+
+  // Try two seed URLs in order — finance.yahoo.com is more reliable than fc.yahoo.com
+  // from cloud IPs (fc is GDPR consent gateway and often returns invalid cookies on server IPs)
+  const SEED_URLS = [
+    'https://finance.yahoo.com/',
+    'https://fc.yahoo.com/',
+  ];
+  const CRUMB_URLS = [
+    'https://query1.finance.yahoo.com/v1/test/getcrumb',
+    'https://query2.finance.yahoo.com/v1/test/getcrumb',
+  ];
+
+  let lastError = null;
+  for (const seedUrl of SEED_URLS) {
+    try {
+      const r1 = await fetch(seedUrl, {
+        headers: {
+          'User-Agent': YF_UA,
+          'Accept': 'text/html,application/xhtml+xml,*/*;q=0.9',
+          'Accept-Language': 'en-US,en;q=0.9',
+        },
+        redirect: 'follow',
+      });
+
+      // node-fetch v2: use .raw(); native fetch: fall back to .get()
+      const rawCookies = (r1.headers.raw?.()?.['set-cookie']) || [];
+      let cookie = rawCookies.map(c => c.split(';')[0]).join('; ');
+      // native fetch fallback — returns only the first Set-Cookie value
+      if (!cookie) cookie = r1.headers.get('set-cookie')?.split(';')[0] || '';
+
+      for (const crumbUrl of CRUMB_URLS) {
+        try {
+          const r2 = await fetch(crumbUrl, {
+            headers: {
+              'User-Agent': YF_UA,
+              'Accept': 'text/plain, */*',
+              'Accept-Language': 'en-US,en;q=0.9',
+              'Cookie': cookie,
+              'Referer': 'https://finance.yahoo.com/',
+            }
+          });
+          if (!r2.ok) continue;
+          const crumb = (await r2.text()).trim();
+          // A valid crumb is a short alphanumeric+symbol string, not HTML/JSON
+          if (!crumb || crumb.startsWith('<') || crumb.startsWith('{') || crumb.length > 40) continue;
+
+          _yfCrumb = crumb;
+          _yfCookie = cookie;
+          _yfCrumbExpiry = now + 25 * 60 * 1000;
+          console.log(`[Yahoo] Crumb OK via ${seedUrl} + ${crumbUrl}`);
+          return { crumb, cookie };
+        } catch (e) { lastError = e; }
+      }
+    } catch (e) { lastError = e; }
   }
+
+  _yfCrumb = null;
+  _yfCookie = null;
+  _yfCrumbExpiry = 0;
+  const msg = lastError?.message || 'unknown';
+  console.error('[Yahoo] All crumb attempts failed:', msg);
+  throw new Error('Yahoo Finance auth failed: ' + msg);
 }
 
 async function yahooQuote(symbols) {
-  const { crumb, cookie } = await getYahooCrumb();
-  const url = `https://query2.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbols)}&crumb=${encodeURIComponent(crumb)}&fields=regularMarketPrice,regularMarketChange,regularMarketChangePercent,regularMarketVolume,regularMarketOpen,regularMarketDayHigh,regularMarketDayLow,shortName,longName,currency,marketCap&lang=en-US`;
-  const r = await fetch(url, {
-    headers: {
-      'User-Agent': YF_UA,
-      'Accept': 'application/json',
-      'Cookie': cookie,
-      'Referer': 'https://finance.yahoo.com/',
-    }
-  });
-  if (!r.ok) {
+  // Try query1 and query2, auto-retry once on 401 with fresh crumb
+  const HOSTS = ['query1', 'query2'];
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const { crumb, cookie } = await getYahooCrumb();
+    const fields = 'regularMarketPrice,regularMarketChange,regularMarketChangePercent,regularMarketVolume,regularMarketOpen,regularMarketDayHigh,regularMarketDayLow,shortName,longName,currency,marketCap';
+    const host = HOSTS[attempt % HOSTS.length];
+    const url = `https://${host}.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbols)}&crumb=${encodeURIComponent(crumb)}&fields=${fields}&lang=en-US`;
+    const r = await fetch(url, {
+      headers: {
+        'User-Agent': YF_UA,
+        'Accept': 'application/json',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Cookie': cookie,
+        'Referer': 'https://finance.yahoo.com/',
+      }
+    });
     if (r.status === 401 || r.status === 403) {
-      _yfCrumb = null;
-      _yfCrumbExpiry = 0;
+      // Invalidate crumb and retry once
+      _yfCrumb = null; _yfCookie = null; _yfCrumbExpiry = 0;
+      if (attempt === 0) { console.warn(`[Yahoo] ${r.status} on ${host}, retrying with fresh crumb`); continue; }
+      throw new Error(`Yahoo Finance HTTP ${r.status}`);
     }
-    throw new Error(`Yahoo Finance HTTP ${r.status}`);
+    if (!r.ok) throw new Error(`Yahoo Finance HTTP ${r.status}`);
+    const json = await r.json();
+    return json?.quoteResponse?.result || [];
   }
-  const json = await r.json();
-  return json?.quoteResponse?.result || [];
+  throw new Error('Yahoo Finance: exhausted retries');
 }
 
 // ─── Snapshots ──────────────────────────────────────────────────
