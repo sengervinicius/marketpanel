@@ -7,7 +7,6 @@ import {
   ReferenceLine, CartesianGrid, ReferenceArea, Customized,
 } from 'recharts';
 
-const API = import.meta.env.VITE_API_URL || '';
 const ORANGE = '#ff6b00';
 const GREEN  = '#00c851';
 const RED    = '#ff4444';
@@ -202,8 +201,8 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
     setDeltaMode(false); // reset measure tool on range change
     const from = getFromDate(range);
     const to   = new Date().toISOString().split('T')[0];
-    fetch(
-      `${API}/api/chart/${encodeURIComponent(norm)}` +
+    apiFetch(
+      `/api/chart/${encodeURIComponent(norm)}` +
       `?multiplier=${range.multiplier}&timespan=${range.timespan}&from=${from}&to=${to}`
     )
       .then(r => r.json())
@@ -220,7 +219,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
 
   // ── Fetch snapshot ─────────────────────────────────────────────────────
   useEffect(() => {
-    fetch(`${API}/api/snapshot/ticker/${encodeURIComponent(norm)}`)
+    apiFetch(`/api/snapshot/ticker/${encodeURIComponent(norm)}`)
       .then(r => r.json())
       .then(d => setSnap(d?.ticker ?? d))
       .catch(() => {});
@@ -229,7 +228,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
   // ── Fetch reference info (stocks only) ────────────────────────────────
   useEffect(() => {
     if (isFX || isCrypto) return;
-    fetch(`${API}/api/ticker/${encodeURIComponent(norm)}`)
+    apiFetch(`/api/ticker/${encodeURIComponent(norm)}`)
       .then(r => r.json())
       .then(d => setInfo(d?.results ?? d))
       .catch(() => {});
@@ -241,7 +240,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
     setFundsData(null);
     setFundsError(false);
     setFundsLoading(true);
-    fetch(API + '/api/fundamentals/' + encodeURIComponent(norm))
+    apiFetch('/api/fundamentals/' + encodeURIComponent(norm))
       .then(r => r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)))
       .then(d => {
         if (d && !d.error) setFundsData(d);
@@ -265,7 +264,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
     setNewsLoading(true);
     setNews([]);
     const newsTicker = norm.replace(/^[XCI]:/, '');
-    fetch(`${API}/api/news?ticker=${encodeURIComponent(newsTicker)}&limit=12`)
+    apiFetch(`/api/news?ticker=${encodeURIComponent(newsTicker)}&limit=12`)
       .then(r => r.json())
       .then(d => { setNews(d?.results || []); setNewsLoading(false); })
       .catch(() => setNewsLoading(false));
@@ -817,7 +816,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
     setFundsLoading(true);
     setFundsError(false);
     try {
-      const res = await fetch(`${API}/api/fundamentals/${norm}`);
+      const res = await apiFetch(`/api/fundamentals/${norm}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setFundsData(data);

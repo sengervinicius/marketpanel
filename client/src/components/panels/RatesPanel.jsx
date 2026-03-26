@@ -4,8 +4,7 @@
  * Static data: ECB, BOE, BOJ (rarely change, updated manually)
  */
 import { useState, useEffect } from 'react';
-
-const SERVER_URL = import.meta.env.VITE_API_URL || import.meta.env.VITE_SERVER_URL || '';
+import { apiFetch } from '../../utils/api';
 
 // Static central bank rates not available from free APIs (update manually)
 const STATIC_CB_RATES = [
@@ -32,7 +31,7 @@ export function RatesPanel() {
   async function load() {
     try {
       setLoading(true);
-      const res  = await fetch(SERVER_URL + '/api/snapshot/rates');
+      const res  = await apiFetch('/api/snapshot/rates');
       const json = await res.json();
       setResults(json.results || []);
       setTs(new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }));

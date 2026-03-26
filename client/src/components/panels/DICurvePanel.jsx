@@ -4,8 +4,7 @@
  */
 import { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
-
-const API = import.meta.env.VITE_API_URL || '';
+import { apiFetch } from '../../utils/api';
 
 const CURVES = [
   { id: 'BR', label: 'BRAZIL',          color: '#e8a020', note: 'TESOURO PREFIXADO + BCB DI · % P.A.' },
@@ -25,7 +24,7 @@ export function DICurvePanel({ compact = false }) {
   async function load() {
     try {
       setError(null);
-      const res = await fetch(API + '/api/yield-curves');
+      const res = await apiFetch('/api/yield-curves');
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const json = await res.json();
       if (json.error) throw new Error(json.error);

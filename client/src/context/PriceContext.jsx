@@ -23,8 +23,8 @@
  *         are structurally impossible.
  */
 import { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
+import { apiFetch } from '../utils/api';
 
-const API = import.meta.env.VITE_API_URL || '';
 const REFRESH_MS = 6_000;
 
 const PriceCtx = createContext(null);
@@ -68,7 +68,7 @@ export function PriceProvider({ marketData, children }) {
   // Fetch a single ticker from the server and store in extras
   const fetchExtra = useCallback(async (ticker) => {
     try {
-      const r = await fetch(`${API}/api/snapshot/ticker/${encodeURIComponent(ticker)}`);
+      const r = await apiFetch(`/api/snapshot/ticker/${encodeURIComponent(ticker)}`);
       if (!r.ok) return;
       const d  = await r.json();
       const t  = d?.ticker ?? d;

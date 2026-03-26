@@ -2,8 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useSettings } from '../../context/SettingsContext';
 import PanelConfigModal from '../common/PanelConfigModal';
 import { SectionHeader } from '../common/SectionHeader';
-
-const SERVER_URL = import.meta.env.VITE_API_URL || import.meta.env.VITE_SERVER_URL || '';
+import { apiFetch } from '../../utils/api';
 
 const showInfo = (e, symbol, label, type) => {
   e.preventDefault();
@@ -44,7 +43,7 @@ export default function GlobalIndicesPanel({ onTickerClick, onOpenDetail }) {
 
   const fetchData = async () => {
     try {
-      const res  = await fetch(`${SERVER_URL}/api/snapshot/global-indices`);
+      const res  = await apiFetch('/api/snapshot/global-indices');
       const json = await res.json();
       const map  = {};
       (json.tickers || []).forEach(t => {

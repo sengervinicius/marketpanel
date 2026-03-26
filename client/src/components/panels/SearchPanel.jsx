@@ -1,8 +1,7 @@
 import { useState, useRef, useCallback } from 'react';
 import { FOREX_PAIRS, CRYPTO_PAIRS } from '../../utils/constants';
 import { useSettings } from '../../context/SettingsContext';
-
-const API = import.meta.env.VITE_API_URL || '';
+import { apiFetch } from '../../utils/api';
 
 const ORANGE = '#ff6b00';
 const GREEN  = '#4caf50';
@@ -249,7 +248,7 @@ export function SearchPanel({ onTickerSelect, onOpenDetail }) {
     if (cov === 'none') return; // don't bother fetching quote for no-coverage tickers
 
     setQuoteLoading(true);
-    fetch(`${API}/api/quote/${encodeURIComponent(item.symbol)}`)
+    apiFetch(`/api/quote/${encodeURIComponent(item.symbol)}`)
       .then(r => r.json())
       .then(d => { setQuote(d); setQuoteLoading(false); })
       .catch(() => setQuoteLoading(false));

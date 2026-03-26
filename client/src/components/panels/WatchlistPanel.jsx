@@ -8,8 +8,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useWatchlist } from '../../context/WatchlistContext';
 import { normalizeSymbol } from '../../utils/format';
-
-const API = import.meta.env.VITE_API_URL || '';
+import { apiFetch } from '../../utils/api';
 const fmt    = (n) => n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmtPct = (n) => n == null ? '—' : (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
 const COLS   = '72px 1fr 72px 64px 24px';
@@ -43,7 +42,7 @@ export default function WatchlistPanel({ onTickerClick, onOpenDetail }) {
     setLoading(true);
     setError(null);
     try {
-      const res  = await fetch(`${API}/api/snapshot/stocks?tickers=${watchlist.join(',')}`);
+      const res  = await apiFetch(`/api/snapshot/stocks?tickers=${watchlist.join(',')}`);
       const json = await res.json();
       if (!res.ok) { setError(json.error || 'Error fetching quotes'); return; }
       const map = {};

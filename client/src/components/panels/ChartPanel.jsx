@@ -8,8 +8,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTickerPrice } from '../../context/PriceContext';
 import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip, ReferenceLine } from 'recharts';
-
-const API = import.meta.env.VITE_API_URL || '';
+import { apiFetch } from '../../utils/api';
 const LS_KEY = 'chartGrid_v3';
 const MAX = 16;
 const GRID_COLS = 4;
@@ -184,7 +183,7 @@ function MiniChart({ ticker, index, onRemove, onReplace, onSwap, onOpenDetail })
     if (norm.startsWith('C:') || norm.startsWith('X:')) {
       _nameCache.set(norm, ''); return;
     }
-    fetch(`${API}/api/ticker/${encodeURIComponent(norm)}`)
+    apiFetch(`/api/ticker/${encodeURIComponent(norm)}`)
       .then(r => r.ok ? r.json() : null)
       .then(d => {
         const n = (d?.results?.name || '')
@@ -379,7 +378,7 @@ export function ChartPanel({ ticker: externalTicker, onGridChange, mobile = fals
       const urlParam = new URLSearchParams(window.location.search).get('c');
       if (urlParam) return; // Desktop: skip server fetch when URL already has tickers
     } // skip server fetch
-    fetch(API + '/api/settings')
+    apiFetch('/api/settings')
       .then(r => r.ok ? r.json() : null)
       .then(s => {
         if (Array.isArray(s?.chartGrid) && s.chartGrid.length) {
@@ -413,7 +412,7 @@ export function ChartPanel({ ticker: externalTicker, onGridChange, mobile = fals
     // Debounced sync to server so mobile auto-matches desktop
     clearTimeout(gridSyncTimer.current);
     gridSyncTimer.current = setTimeout(() => {
-      fetch(API + '/api/settings', {
+      apiFetch('/api/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ chartGrid: tickers }),

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { apiFetch } from './utils/api';
 import { useMarketData } from './hooks/useMarketData';
 import { useWebSocket } from './hooks/useWebSocket';
 import { useAuth } from './context/AuthContext';
@@ -31,7 +32,6 @@ import { TickerTooltip } from './components/common/TickerTooltip';
 import InstrumentDetail from './components/common/InstrumentDetail';
 import './App.css';
 
-const API_BASE = import.meta.env.VITE_API_URL || '';
 
 // ── MarketTickBridge — dispatches live WS ticks into MarketContext reducer ────
 function MarketTickBridge({ batchTicks }) {
@@ -514,7 +514,7 @@ export default function App() {
   const syncTimer = useRef(null);
 
   useEffect(() => {
-    fetch(API_BASE + '/api/settings')
+    apiFetch('/api/settings')
       .then(r => r.ok ? r.json() : null)
       .then(s => {
         if (s?.settings?.chartTicker && s.settings.chartTicker !== localStorage.getItem(LS_CHART_TICKER)) {
@@ -534,7 +534,7 @@ export default function App() {
     localStorage.setItem(LS_CHART_TICKER, sym);
     clearTimeout(syncTimer.current);
     syncTimer.current = setTimeout(() => {
-      fetch(API_BASE + '/api/settings', {
+      apiFetch('/api/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ chartTicker: sym }),

@@ -1,8 +1,7 @@
 // useMarketData.js — fetches all panel snapshots with smooth background refresh
 // Uses stale-while-revalidate pattern: never blanks out existing data on refresh
 import { useState, useEffect, useRef, useCallback } from 'react';
-
-const API = import.meta.env.VITE_API_URL || '';
+import { apiFetch } from '../utils/api';
 
 const ENDPOINTS = {
   stocks: '/api/snapshot/stocks',
@@ -53,7 +52,7 @@ function normalizePolygon(data, stripPrefix) {
 }
 
 async function fetchEndpoint(path) {
-  const res = await fetch(API + path);
+  const res = await apiFetch(path);
   if (!res.ok) throw new Error(`${path}: HTTP ${res.status}`);
   return res.json();
 }

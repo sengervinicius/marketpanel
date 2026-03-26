@@ -2,8 +2,7 @@
 // Fetches from server /api/news every 60s
 import { useState, useEffect, useRef } from 'react';
 import { useFeedStatus } from '../../context/FeedStatusContext';
-
-const API = import.meta.env.VITE_API_URL || '';
+import { apiFetch } from '../../utils/api';
 
 function timeAgo(dateStr) {
   const diff = (Date.now() - new Date(dateStr).getTime()) / 1000;
@@ -61,7 +60,7 @@ export function NewsPanel() {
 
   async function load() {
     try {
-      const res = await fetch(API + '/api/news');
+      const res = await apiFetch('/api/news');
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const json = await res.json();
       const items = Array.isArray(json) ? json : (json.results || json.news || []);
