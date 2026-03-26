@@ -6,6 +6,13 @@ const SERVER = import.meta.env.VITE_API_URL || import.meta.env.VITE_SERVER_URL |
 const fmt    = n => n == null ? '—' : n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmtPct = n => n == null ? '—' : (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
 
+const showInfo = (e, symbol, label, type) => {
+  e.preventDefault();
+  window.dispatchEvent(new CustomEvent('ticker:rightclick', {
+    detail: { symbol, label, type, x: e.clientX + 6, y: e.clientY + 6 },
+  }));
+};
+
 export default function BrazilPanel({ onTickerClick, onOpenDetail }) {
   const ptRef = useRef(null);
   const [stocks, setStocks]     = useState([]);
@@ -93,10 +100,11 @@ export default function BrazilPanel({ onTickerClick, onOpenDetail }) {
                 e.dataTransfer.effectAllowed = 'copy';
               }}
               onClick={() => onTickerClick?.(s.symbol + '.SA')}
-                onDoubleClick={() => onOpenDetail?.(s.symbol + '.SA')}
-             onTouchStart={(e) => { e.stopPropagation(); clearTimeout(ptRef.current); ptRef.current = setTimeout(() => onOpenDetail?.(s.symbol + '.SA'), 500); }}
-             onTouchEnd={() => clearTimeout(ptRef.current)}
-             onTouchMove={() => clearTimeout(ptRef.current)}
+              onDoubleClick={() => onOpenDetail?.(s.symbol + '.SA')}
+              onContextMenu={e => showInfo(e, s.symbol + '.SA', s.name || s.symbol, 'BR')}
+              onTouchStart={(e) => { e.stopPropagation(); clearTimeout(ptRef.current); ptRef.current = setTimeout(() => onOpenDetail?.(s.symbol + '.SA'), 500); }}
+              onTouchEnd={() => clearTimeout(ptRef.current)}
+              onTouchMove={() => clearTimeout(ptRef.current)}
               style={{
                 display: 'grid', gridTemplateColumns: '52px 1fr 64px 52px',
                 padding: '3px 8px', borderBottom: '1px solid #111',

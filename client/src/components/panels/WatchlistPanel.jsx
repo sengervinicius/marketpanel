@@ -7,11 +7,19 @@
  */
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useWatchlist } from '../../context/WatchlistContext';
+import { normalizeSymbol } from '../../utils/format';
 
 const API = import.meta.env.VITE_API_URL || '';
 const fmt    = (n) => n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmtPct = (n) => n == null ? '—' : (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
 const COLS   = '72px 1fr 72px 64px 24px';
+
+const showInfo = (e, symbol, label, type) => {
+  e.preventDefault();
+  window.dispatchEvent(new CustomEvent('ticker:rightclick', {
+    detail: { symbol, label, type, x: e.clientX + 6, y: e.clientY + 6 },
+  }));
+};
 
 function normalizePolygonQuote(t) {
   const price = (t.min?.c > 0 ? t.min.c : null) ?? (t.day?.c > 0 ? t.day.c : null) ?? t.lastTrade?.p ?? t.prevDay?.c ?? null;
@@ -115,14 +123,20 @@ export default function WatchlistPanel({ onTickerClick, onOpenDetail }) {
           watchlist.map(sym => {
             const q = quotes[sym] || {};
             const pos = (q.changePct ?? 0) >= 0;
+            // Determine asset type for right-click menu
+            let assetType = 'EQUITY';
+            if (/^[A-Z]{6}$/.test(sym)) assetType = sym.endsWith('USD') ? (sym.slice(0, 3) === 'BTC' || sym.slice(0, 3) === 'ETH' ? 'CRYPTO' : 'FX') : 'FX';
+            if (sym.endsWith('.SA')) assetType = 'BR';
+
             return (
               <div
                 key={sym}
                 data-ticker={sym}
                 data-ticker-label={sym}
-                data-ticker-type="EQUITY"
+                data-ticker-type={assetType}
                 onClick={() => onTickerClick?.(sym)}
                 onDoubleClick={() => onOpenDetail?.(sym)}
+                onContextMenu={e => showInfo(e, sym, sym, assetType)}
                 onTouchStart={e => { e.stopPropagation(); clearTimeout(ptRef.current); ptRef.current = setTimeout(() => onOpenDetail?.(sym), 500); }}
                 onTouchEnd={() => clearTimeout(ptRef.current)}
                 onTouchMove={() => clearTimeout(ptRef.current)}

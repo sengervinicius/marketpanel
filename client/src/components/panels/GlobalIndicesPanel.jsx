@@ -3,6 +3,13 @@ import { SectionHeader } from '../common/SectionHeader';
 
 const SERVER_URL = import.meta.env.VITE_API_URL || import.meta.env.VITE_SERVER_URL || '';
 
+const showInfo = (e, symbol, label, type) => {
+  e.preventDefault();
+  window.dispatchEvent(new CustomEvent('ticker:rightclick', {
+    detail: { symbol, label, type, x: e.clientX + 6, y: e.clientY + 6 },
+  }));
+};
+
 const REGIONS = {
   AMERICAS: { label: 'AMERICAS',  tickers: ['SPY','QQQ','DIA','EWZ','EWW','EWC'] },
   EMEA:     { label: 'EMEA',      tickers: ['EZU','EWU','EWG','EWQ','EWP','EWI','EWL','EWD'] },
@@ -86,7 +93,7 @@ export default function GlobalIndicesPanel({ onTickerClick, onOpenDetail }) {
                   key={ticker}
                   data-ticker={ticker}
                   data-ticker-label={NAMES[ticker] || ticker}
-                  data-ticker-type="EQUITY"
+                  data-ticker-type="ETF"
                   style={rowStyle(i)}
                   draggable
                   onDragStart={e => {
@@ -97,9 +104,10 @@ export default function GlobalIndicesPanel({ onTickerClick, onOpenDetail }) {
                   }}
                   onClick={() => onTickerClick?.({ symbol: ticker, label: NAMES[ticker] || ticker })}
                   onDoubleClick={() => onOpenDetail?.(ticker)}
-             onTouchStart={(e) => { e.stopPropagation(); ptRef.current = setTimeout(() => onOpenDetail?.(ticker), 500); }}
-             onTouchEnd={() => clearTimeout(ptRef.current)}
-             onTouchMove={() => clearTimeout(ptRef.current)}
+                  onContextMenu={e => showInfo(e, ticker, NAMES[ticker] || ticker, 'ETF')}
+                  onTouchStart={(e) => { e.stopPropagation(); ptRef.current = setTimeout(() => onOpenDetail?.(ticker), 500); }}
+                  onTouchEnd={() => clearTimeout(ptRef.current)}
+                  onTouchMove={() => clearTimeout(ptRef.current)}
                 >
                   <span style={{ color: '#e8a020', fontWeight: 500, fontSize: 9 }}>{ticker}</span>
                   <span style={{ color: '#777', fontSize: 9, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>

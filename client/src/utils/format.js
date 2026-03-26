@@ -1,6 +1,31 @@
 /**
- * Formatting utilities — market-style number display
+ * Canonical instrument shape used across all panels:
+ * { symbolKey, display, assetClass, price, change, pctChange, volume?, bid?, ask? }
+ * assetClass: 'stock' | 'forex' | 'crypto' | 'index' | 'commodity' | 'br_stock'
+ *
+ * Symbol normalization:
+ * - Forex: 'EURUSD' → key='EURUSD', display='EUR/USD'
+ * - Crypto: 'BTCUSD' → key='BTCUSD', display='BTC/USD'
+ * - Stock: 'AAPL' → key='AAPL', display='AAPL'
+ * - Brazil: 'VALE3.SA' → key='VALE3', display='VALE3.SA' (or key='VALE3.SA' for consistency)
  */
+
+/**
+ * Normalize a symbol to a canonical key format consistent with market state keys.
+ * Used by Watchlist to ensure tickers are keyed the same way as ForexPanel lookups.
+ *
+ * @param {string} sym - Raw symbol (e.g., 'GBPBRL', 'VALE3.SA', 'BTCUSD')
+ * @returns {string} Canonical key (e.g., 'GBPBRL', 'VALE3', 'BTCUSD')
+ */
+export function normalizeSymbol(sym) {
+  if (!sym) return sym;
+  // Forex & crypto are 6-char uppercase with no prefix in the map
+  if (/^[A-Z]{6}$/.test(sym)) return sym;
+  // Brazilian stocks: remove .SA suffix for the key (data comes keyed without suffix)
+  if (sym.endsWith('.SA')) return sym.slice(0, -3);
+  // US stocks and other symbols: uppercase, no change
+  return sym.toUpperCase();
+}
 
 export function fmtPrice(n, decimals = 2) {
   if (n == null || isNaN(n)) return '—';
