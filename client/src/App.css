@@ -155,3 +155,22 @@ html, body, #root {
 
 /* ── Drag-over highlight ─────────────────────────── */
 .drag-over { outline: 1px solid #ff6600 !important; background: rgba(255,102,0,0.05) !important; }
+
+/* ── Keyboard focus styles ───────────────────────── */
+*:focus { outline: none; }
+*:focus-visible { outline: 1px solid #ff6600; outline-offset: 1px; }
+button:focus-visible,
+[tabindex]:focus-visible,
+a:focus-visible { outline: 1px solid #ff6600; outline-offset: 1px; }
+input:focus-visible,
+textarea:focus-visible { outline: 1px solid #ff6600; outline-offset: 0; border-color: #ff6600 !important; }
+
+/* ── Context menu ────────────────────────────────── */
+.ctx-menu-item {
+  padding: 5px 12px;
+  font-size: 10px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.1s;
+}
+.ctx-menu-item:hover { background: #1e1e1e; }

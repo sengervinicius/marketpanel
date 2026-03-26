@@ -1,8 +1,10 @@
 // TickerTooltip.jsx — global hover / long-press info popup for any ticker
-// Desktop: hover 2 s over any [data-ticker] element to show
-// Mobile:  long-press 800 ms over any [data-ticker] element to show
+// Desktop: hover 2 s over any [data-ticker] element to show info tooltip
+//          right-click any [data-ticker] element → context menu (Add to Watchlist, Open Chart)
+// Mobile:  long-press 800 ms → context menu
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { useWatchlist } from '../../context/WatchlistContext';
 
 // ── Security descriptions ─────────────────────────────────────────────────────
 const DESCRIPTIONS = {
@@ -110,7 +112,6 @@ const DESCRIPTIONS = {
 };
 
 // ── Normalise ticker symbol for DESCRIPTIONS lookup ───────────────────────────
-// Strips exchange prefixes added by Polygon/TradingView: C:USDBRL → USDBRL, X:BTCUSD → BTCUSD
 function descKey(symbol) {
   if (!symbol) return symbol;
   return symbol.replace(/^[CX]:/, '');
@@ -129,9 +130,70 @@ function accentFor(type) {
   return '#ff6600';
 }
 
+// ── Context Menu ───────────────────────────────────────────────────────────────
+function ContextMenu({ symbol, label, type, x, y, onClose, onOpenDetail }) {
+  const { isWatching, toggle } = useWatchlist();
+  const watching = isWatching(symbol);
+  const accent   = accentFor(type);
+
+  // Close on any outside click / key
+  useEffect(() => {
+    const hide = (e) => {
+      if (e.type === 'keydown' && e.key !== 'Escape') return;
+      onClose();
+    };
+    const timer = setTimeout(() => {
+      window.addEventListener('click',   hide, { once: true });
+      window.addEventListener('keydown', hide, { once: true });
+    }, 50);
+    return () => { clearTimeout(timer); window.removeEventListener('click', hide); window.removeEventListener('keydown', hide); };
+  }, [onClose]);
+
+  // Keep within viewport
+  const left = Math.min(x, window.innerWidth  - 180);
+  const top  = Math.min(y, window.innerHeight - 120);
+
+  return createPortal(
+    <div
+      style={{
+        position: 'fixed', left, top, zIndex: 100000,
+        background: '#111', border: '1px solid #2a2a2a',
+        borderLeft: `3px solid ${accent}`, borderRadius: 3,
+        minWidth: 170, boxShadow: '0 6px 24px rgba(0,0,0,0.8)',
+        fontFamily: "'IBM Plex Mono','Roboto Mono','Courier New',monospace",
+        fontSize: 10,
+      }}
+      onClick={e => e.stopPropagation()}
+    >
+      {/* Symbol header */}
+      <div style={{ padding: '5px 10px 4px', borderBottom: '1px solid #1e1e1e', color: accent, fontWeight: 700, fontSize: 11, letterSpacing: '0.05em' }}>
+        {symbol}
+        {label && label !== symbol && <span style={{ color: '#555', fontSize: 8, marginLeft: 6, fontWeight: 400 }}>{label}</span>}
+      </div>
+      {/* Menu items */}
+      <div
+        className="ctx-menu-item"
+        onClick={() => { toggle(symbol); onClose(); }}
+        style={{ color: watching ? '#f44336' : '#4caf50' }}
+      >
+        {watching ? '✕ Remove from Watchlist' : '★ Add to Watchlist'}
+      </div>
+      <div
+        className="ctx-menu-item"
+        onClick={() => { onOpenDetail?.(symbol); onClose(); }}
+        style={{ color: '#ccc' }}
+      >
+        ↗ Open Chart
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
-export function TickerTooltip() {
-  const [tooltip, setTooltip] = useState(null);
+export function TickerTooltip({ onOpenDetail }) {
+  const [tooltip,  setTooltip]  = useState(null); // hover info popup
+  const [ctxMenu,  setCtxMenu]  = useState(null); // right-click context menu
   const activeElRef = useRef(null);
 
   // Global hover (desktop 2 s) + long-press (mobile 1200 ms) listeners
@@ -163,7 +225,7 @@ export function TickerTooltip() {
     const onMouseOut = (e) => {
       const el = e.target.closest('[data-ticker]');
       if (!el) return;
-      if (el.contains(e.relatedTarget)) return; // still inside element
+      if (el.contains(e.relatedTarget)) return;
       clearTimeout(hoverTimer);
       if (activeElRef.current === el) {
         activeElRef.current = null;
@@ -171,7 +233,15 @@ export function TickerTooltip() {
       }
     };
 
-    // ── Mobile long-press: fires after 1200 ms, cancelled if finger moves >6px ─
+    // ── Right-click → context menu (handled via custom event from panels) ──
+    const onRightClick = (e) => {
+      const { symbol, label, type, x, y } = e.detail;
+      if (!symbol) return;
+      setTooltip(null); // dismiss hover popup
+      setCtxMenu({ symbol, label, type, x, y });
+    };
+
+    // ── Mobile long-press: fires after 1200 ms ─────────────────────────────
     const handleTouchStart = (e) => {
       const t = e.touches[0];
       longStartX = t.clientX;
@@ -181,7 +251,14 @@ export function TickerTooltip() {
       if (!el) return;
       longTimer = setTimeout(() => {
         const rect = el.getBoundingClientRect();
-        show(el, rect.left, rect.bottom + 6);
+        // Mobile long-press opens context menu (not hover tooltip)
+        setCtxMenu({
+          symbol: el.dataset.ticker,
+          label:  el.dataset.tickerLabel || el.dataset.ticker,
+          type:   el.dataset.tickerType  || 'EQUITY',
+          x: rect.left,
+          y: rect.bottom + 6,
+        });
       }, 1200);
     };
     const handleTouchMove = (e) => {
@@ -192,8 +269,9 @@ export function TickerTooltip() {
     };
     const handleTouchEnd = () => clearTimeout(longTimer);
 
-    document.addEventListener('mouseover',   onMouseOver);
-    document.addEventListener('mouseout',    onMouseOut);
+    document.addEventListener('mouseover',       onMouseOver);
+    document.addEventListener('mouseout',        onMouseOut);
+    window.addEventListener('ticker:rightclick', onRightClick);
     document.addEventListener('touchstart',  handleTouchStart, { passive: true });
     document.addEventListener('touchmove',   handleTouchMove,  { passive: true });
     document.addEventListener('touchend',    handleTouchEnd,   { passive: true });
@@ -202,8 +280,9 @@ export function TickerTooltip() {
     return () => {
       clearTimeout(hoverTimer);
       clearTimeout(longTimer);
-      document.removeEventListener('mouseover',   onMouseOver);
-      document.removeEventListener('mouseout',    onMouseOut);
+      document.removeEventListener('mouseover',       onMouseOver);
+      document.removeEventListener('mouseout',        onMouseOut);
+      window.removeEventListener('ticker:rightclick', onRightClick);
       document.removeEventListener('touchstart',  handleTouchStart);
       document.removeEventListener('touchmove',   handleTouchMove);
       document.removeEventListener('touchend',    handleTouchEnd);
@@ -211,7 +290,7 @@ export function TickerTooltip() {
     };
   }, []);
 
-  // Dismiss on next click / key press
+  // Dismiss hover tooltip on next click / key press
   useEffect(() => {
     if (!tooltip) return;
     const hide = () => { activeElRef.current = null; setTooltip(null); };
@@ -226,65 +305,77 @@ export function TickerTooltip() {
     };
   }, [tooltip]);
 
-  if (!tooltip) return null;
+  return (
+    <>
+      {/* ── Hover info popup ── */}
+      {tooltip && (() => {
+        const { symbol, label, type, x, y } = tooltip;
+        const key    = descKey(symbol);
+        const desc   = DESCRIPTIONS[key] || DESCRIPTIONS[symbol] || `${label || symbol} — no description on file.`;
+        const accent = accentFor(type);
+        const left   = Math.min(x, window.innerWidth  - 280);
+        const top    = Math.min(y, window.innerHeight - 120);
+        return createPortal(
+          <div
+            style={{
+              position:       'fixed',
+              left, top,
+              zIndex:         99999,
+              background:     '#111',
+              border:        `1px solid #2a2a2a`,
+              borderLeft:    `3px solid ${accent}`,
+              borderRadius:  4,
+              padding:       '8px 12px',
+              maxWidth:      270,
+              boxShadow:     '0 6px 24px rgba(0,0,0,0.7)',
+              fontFamily:    "'IBM Plex Mono','Roboto Mono','Courier New',monospace",
+              userSelect:    'text',
+              pointerEvents: 'auto',
+            }}
+            onClick={e => e.stopPropagation()}
+            onContextMenu={e => e.stopPropagation()}
+          >
+            {/* Symbol + type badge */}
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 5 }}>
+              <span style={{ color: accent, fontSize: 12, fontWeight: 700, letterSpacing: '0.06em' }}>
+                {symbol}
+              </span>
+              {label && label !== symbol && (
+                <span style={{ color: '#666', fontSize: 9 }}>{label}</span>
+              )}
+              {type && (
+                <span style={{
+                  marginLeft:    'auto',
+                  background:    '#1e1e1e',
+                  border:        `1px solid ${accent}33`,
+                  borderRadius:  2,
+                  padding:       '0 4px',
+                  color:         accent,
+                  fontSize:      8,
+                  fontWeight:    700,
+                  letterSpacing: '0.08em',
+                }}>
+                  {type}
+                </span>
+              )}
+            </div>
+            {/* Description */}
+            <div style={{ color: '#aaa', fontSize: 10, lineHeight: 1.55 }}>{desc}</div>
+            {/* Hint */}
+            <div style={{ color: '#333', fontSize: 8, marginTop: 6 }}>Right-click for actions</div>
+          </div>,
+          document.body
+        );
+      })()}
 
-  const { symbol, label, type, x, y } = tooltip;
-  const key    = descKey(symbol);
-  const desc   = DESCRIPTIONS[key] || DESCRIPTIONS[symbol] || `${label || symbol} — no description on file.`;
-  const accent = accentFor(type);
-
-  // Keep within viewport
-  const left = Math.min(x, window.innerWidth  - 280);
-  const top  = Math.min(y, window.innerHeight - 120);
-
-  return createPortal(
-    <div
-      style={{
-        position:       'fixed',
-        left,
-        top,
-        zIndex:         99999,
-        background:     '#111',
-        border:        `1px solid #2a2a2a`,
-        borderLeft:    `3px solid ${accent}`,
-        borderRadius:  4,
-        padding:       '8px 12px',
-        maxWidth:      270,
-        boxShadow:     '0 6px 24px rgba(0,0,0,0.7)',
-        fontFamily:    "'IBM Plex Mono','Roboto Mono','Courier New',monospace",
-        userSelect:    'text',
-        pointerEvents: 'auto',
-      }}
-      onClick={e => e.stopPropagation()}
-      onContextMenu={e => e.stopPropagation()}
-    >
-      {/* Symbol + type badge */}
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 5 }}>
-        <span style={{ color: accent, fontSize: 12, fontWeight: 700, letterSpacing: '0.06em' }}>
-          {symbol}
-        </span>
-        {label && label !== symbol && (
-          <span style={{ color: '#666', fontSize: 9 }}>{label}</span>
-        )}
-        {type && (
-          <span style={{
-            marginLeft:    'auto',
-            background:    '#1e1e1e',
-            border:        `1px solid ${accent}33`,
-            borderRadius:  2,
-            padding:       '0 4px',
-            color:         accent,
-            fontSize:      8,
-            fontWeight:    700,
-            letterSpacing: '0.08em',
-          }}>
-            {type}
-          </span>
-        )}
-      </div>
-      {/* Description */}
-      <div style={{ color: '#aaa', fontSize: 10, lineHeight: 1.55 }}>{desc}</div>
-    </div>,
-    document.body
+      {/* ── Right-click context menu ── */}
+      {ctxMenu && (
+        <ContextMenu
+          {...ctxMenu}
+          onClose={() => setCtxMenu(null)}
+          onOpenDetail={onOpenDetail}
+        />
+      )}
+    </>
   );
 }

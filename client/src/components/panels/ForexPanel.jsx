@@ -1,6 +1,8 @@
-// ForexPanel.jsx — FX pairs + Crypto subsection, BBG-style
-import { useRef } from 'react';
+// ForexPanel.jsx — FX pairs + Crypto subsection, BBG-style, with sortable columns
+// Features: feed-status badge, collapse, movers filter
+import { useRef, useState, useMemo } from 'react';
 import { FOREX_PAIRS, CRYPTO_PAIRS } from '../../utils/constants';
+import { useFeedStatus } from '../../context/FeedStatusContext';
 
 const fmt4   = (n) => n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: 4, maximumFractionDigits: 4 });
 const fmt2   = (n) => n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -29,22 +31,105 @@ const showInfo = (e, symbol, label, type) => {
   }));
 };
 
+const SORT_COLS = [
+  { key: 'symbol', label: 'PAIR',  align: 'left' },
+  { key: 'name',   label: 'NAME',  align: 'left' },
+  { key: 'price',  label: 'RATE',  align: 'right' },
+  { key: 'chg',    label: 'CHG%',  align: 'right' },
+];
+
+function sortPairs(pairs, getRate, getChg, sortKey, sortDir) {
+  if (!sortKey) return pairs;
+  return [...pairs].sort((a, b) => {
+    let va, vb;
+    if (sortKey === 'symbol') { va = a.symbol; vb = b.symbol; }
+    else if (sortKey === 'name') { va = a.label; vb = b.label; }
+    else if (sortKey === 'price') { va = getRate(a) ?? -Infinity; vb = getRate(b) ?? -Infinity; }
+    else if (sortKey === 'chg')   { va = getChg(a)  ?? -Infinity; vb = getChg(b)  ?? -Infinity; }
+    if (typeof va === 'string') return sortDir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va);
+    return sortDir === 'asc' ? va - vb : vb - va;
+  });
+}
+
 export function ForexPanel({ data, cryptoData, loading, onTickerClick, onOpenDetail }) {
   const ptRef = useRef(null);
+  const [sortKey,    setSortKey]    = useState(null);
+  const [sortDir,    setSortDir]    = useState('desc');
+  const [collapsed,  setCollapsed]  = useState(false);
+  const [moversOnly, setMoversOnly] = useState(false);
+  const { getBadge } = useFeedStatus();
+  const badge = getBadge('forex');
+
+  const handleSortClick = (key) => {
+    if (sortKey === key) setSortDir(d => d === 'desc' ? 'asc' : 'desc');
+    else { setSortKey(key); setSortDir('desc'); }
+  };
+
+  const sortedForex  = useMemo(() =>
+    sortPairs(FOREX_PAIRS,
+      p => { const d = data?.[p.symbol] || {}; return d.mid || d.ask || d.price; },
+      p => data?.[p.symbol]?.changePct,
+      sortKey, sortDir),
+  [data, sortKey, sortDir]);
+
+  const sortedCrypto = useMemo(() =>
+    sortPairs(CRYPTO_PAIRS,
+      c => cryptoData?.[c.symbol]?.price,
+      c => cryptoData?.[c.symbol]?.changePct,
+      sortKey, sortDir),
+  [cryptoData, sortKey, sortDir]);
+
+  // Movers filter: abs(changePct) >= 1% for FX
+  const filteredForex  = useMemo(() => moversOnly ? sortedForex.filter(p  => Math.abs(data?.[p.symbol]?.changePct ?? 0) >= 1)        : sortedForex,  [sortedForex,  data, moversOnly]);
+  const filteredCrypto = useMemo(() => moversOnly ? sortedCrypto.filter(c => Math.abs(cryptoData?.[c.symbol]?.changePct ?? 0) >= 1)    : sortedCrypto, [sortedCrypto, cryptoData, moversOnly]);
+
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#0a0a0a' }}>
       {/* Header */}
-      <div style={{ padding: '4px 8px', borderBottom: '1px solid #2a2a2a', background: '#111', flexShrink: 0 }}>
+      <div style={{ padding: '4px 8px', borderBottom: '1px solid #2a2a2a', background: '#111', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
         <span style={{ color: '#ce93d8', fontSize: '10px', fontWeight: 700, letterSpacing: '1px' }}>FX / FOREX · CRYPTO</span>
-        <span style={{ color: '#333', fontSize: '8px', marginLeft: 6 }}>LIVE RATES</span>
+        {/* Feed status badge */}
+        <span style={{ background: badge.bg, color: badge.color, fontSize: 7, fontWeight: 700, letterSpacing: '0.08em', padding: '1px 4px', borderRadius: 2, border: `1px solid ${badge.color}33` }}>
+          {badge.text}
+        </span>
+        <div style={{ flex: 1 }} />
+        {/* Movers filter */}
+        <button
+          onClick={() => setMoversOnly(v => !v)}
+          title="Show only movers ≥ 1%"
+          style={{ background: moversOnly ? '#1a1000' : 'none', border: `1px solid ${moversOnly ? '#ff9900' : '#2a2a2a'}`, color: moversOnly ? '#ff9900' : '#444', fontSize: 7, padding: '1px 4px', cursor: 'pointer', fontFamily: 'inherit', borderRadius: 2 }}
+        >≥1%</button>
+        {/* Collapse toggle */}
+        <button
+          onClick={() => setCollapsed(v => !v)}
+          title={collapsed ? 'Expand' : 'Collapse'}
+          style={{ background: 'none', border: '1px solid #2a2a2a', color: '#555', fontSize: 9, padding: '1px 5px', cursor: 'pointer', fontFamily: 'inherit', borderRadius: 2 }}
+        >{collapsed ? '+' : '−'}</button>
       </div>
 
-      {/* Column headers */}
+      {!collapsed && (
+        <>
+      {/* Sortable column headers */}
       <div style={{ display: 'grid', gridTemplateColumns: COLS, padding: '2px 8px', borderBottom: '1px solid #1a1a1a', flexShrink: 0 }}>
-        {['PAIR', 'NAME', 'RATE', 'CHG%'].map((h, i) => (
-          <span key={i} style={{ color: '#444', fontSize: '8px', fontWeight: 700, letterSpacing: '1px',
-            textAlign: i >= 2 ? 'right' : 'left', paddingRight: i >= 2 ? 4 : 0 }}>{h}</span>
-        ))}
+        {SORT_COLS.map(({ key, label, align }) => {
+          const active = sortKey === key;
+          const arrow  = active ? (sortDir === 'desc' ? ' ▼' : ' ▲') : '';
+          return (
+            <span
+              key={key}
+              onClick={() => handleSortClick(key)}
+              style={{
+                color: active ? '#ff9900' : '#444',
+                fontSize: '8px', fontWeight: 700, letterSpacing: '1px',
+                textAlign: align === 'right' ? 'right' : 'left',
+                paddingRight: align === 'right' ? 4 : 0,
+                cursor: 'pointer', userSelect: 'none',
+              }}
+            >
+              {label}{arrow}
+            </span>
+          );
+        })}
       </div>
 
       <div style={{ flex: 1, overflowY: 'auto' }}>
@@ -54,11 +139,10 @@ export function ForexPanel({ data, cryptoData, loading, onTickerClick, onOpenDet
           <>
             {/* ── FX PAIRS ── */}
             <SectionDivider label="FX PAIRS" color="#ce93d8" />
-            {FOREX_PAIRS.map(pair => {
+            {filteredForex.map(pair => {
               const d = data?.[pair.symbol] || {};
               const price = d.mid || d.ask || d.price;
               const pos   = (d.changePct ?? 0) >= 0;
-              // Use C: prefix (Polygon format) so InstrumentDetail + ChartPanel route correctly
               const chartSym = 'C:' + pair.symbol;
               return (
                 <div
@@ -73,9 +157,9 @@ export function ForexPanel({ data, cryptoData, loading, onTickerClick, onOpenDet
                   }}
                   onClick={() => onTickerClick?.(chartSym)}
                   onDoubleClick={() => onOpenDetail?.(chartSym)}
-             onTouchStart={(e) => { e.stopPropagation(); clearTimeout(ptRef.current); ptRef.current = setTimeout(() => onOpenDetail?.(chartSym), 500); }}
-             onTouchEnd={() => clearTimeout(ptRef.current)}
-             onTouchMove={() => clearTimeout(ptRef.current)}
+                  onTouchStart={(e) => { e.stopPropagation(); clearTimeout(ptRef.current); ptRef.current = setTimeout(() => onOpenDetail?.(chartSym), 500); }}
+                  onTouchEnd={() => clearTimeout(ptRef.current)}
+                  onTouchMove={() => clearTimeout(ptRef.current)}
                   onContextMenu={e => showInfo(e, pair.symbol, pair.label, 'FX')}
                   style={{ display: 'grid', gridTemplateColumns: COLS, padding: '3px 8px', borderBottom: '1px solid #141414', cursor: 'pointer', alignItems: 'center' }}
                   onMouseEnter={e => e.currentTarget.style.background = '#141414'}
@@ -89,9 +173,13 @@ export function ForexPanel({ data, cryptoData, loading, onTickerClick, onOpenDet
               );
             })}
 
+            {moversOnly && filteredForex.length === 0 && (
+              <div style={{ padding: '8px 12px', color: '#333', fontSize: 9 }}>No FX movers ≥ 1%</div>
+            )}
+
             {/* ── CRYPTO ── */}
             <SectionDivider label="CRYPTO" color="#f48fb1" />
-            {CRYPTO_PAIRS.map(c => {
+            {filteredCrypto.map(c => {
               const d   = cryptoData?.[c.symbol] || {};
               const pos = (d.changePct ?? 0) >= 0;
               const chartSym = 'X:' + c.symbol;
@@ -108,9 +196,9 @@ export function ForexPanel({ data, cryptoData, loading, onTickerClick, onOpenDet
                   }}
                   onClick={() => onTickerClick?.(chartSym)}
                   onDoubleClick={() => onOpenDetail?.(chartSym)}
-             onTouchStart={(e) => { e.stopPropagation(); clearTimeout(ptRef.current); ptRef.current = setTimeout(() => onOpenDetail?.(chartSym), 500); }}
-             onTouchEnd={() => clearTimeout(ptRef.current)}
-             onTouchMove={() => clearTimeout(ptRef.current)}
+                  onTouchStart={(e) => { e.stopPropagation(); clearTimeout(ptRef.current); ptRef.current = setTimeout(() => onOpenDetail?.(chartSym), 500); }}
+                  onTouchEnd={() => clearTimeout(ptRef.current)}
+                  onTouchMove={() => clearTimeout(ptRef.current)}
                   onContextMenu={e => showInfo(e, c.symbol, c.label, 'CRYPTO')}
                   style={{ display: 'grid', gridTemplateColumns: COLS, padding: '3px 8px', borderBottom: '1px solid #141414', cursor: 'pointer', alignItems: 'center' }}
                   onMouseEnter={e => e.currentTarget.style.background = '#141414'}
@@ -123,9 +211,14 @@ export function ForexPanel({ data, cryptoData, loading, onTickerClick, onOpenDet
                 </div>
               );
             })}
+            {moversOnly && filteredCrypto.length === 0 && (
+              <div style={{ padding: '8px 12px', color: '#333', fontSize: 9 }}>No crypto movers ≥ 1%</div>
+            )}
           </>
         )}
       </div>
+      </>
+      )}
     </div>
   );
 }

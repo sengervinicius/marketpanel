@@ -1,6 +1,8 @@
-// CommoditiesPanel.jsx — commodities grouped by category
-import { useRef } from 'react';
+// CommoditiesPanel.jsx — commodities grouped by category, with sortable columns
+// Features: feed-status badge, collapse
+import { useRef, useState, useMemo } from 'react';
 import { COMMODITIES } from '../../utils/constants';
+import { useFeedStatus } from '../../context/FeedStatusContext';
 
 const fmt    = (n) => n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmtPct = (n) => n == null ? '—' : (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
@@ -35,28 +37,81 @@ const showInfo = (e, symbol, label, type) => {
 
 export function CommoditiesPanel({ data, loading, onTickerClick, onOpenDetail }) {
   const ptRef = useRef(null);
+  const [sortKey,   setSortKey]   = useState(null);
+  const [sortDir,   setSortDir]   = useState('desc');
+  const [collapsed, setCollapsed] = useState(false);
+  const { getBadge } = useFeedStatus();
+  const badge = getBadge('stocks'); // commodities are equities/ETFs
+
+  const handleSortClick = (key) => {
+    if (sortKey === key) setSortDir(d => d === 'desc' ? 'asc' : 'desc');
+    else { setSortKey(key); setSortDir('desc'); }
+  };
+
+  const sortedGroups = useMemo(() => {
+    return GROUPS.map(g => {
+      let items = COMMODITIES.filter(c => c.group === g.key);
+      if (sortKey && data) {
+        items = [...items].sort((a, b) => {
+          let va, vb;
+          if (sortKey === 'symbol') { va = a.symbol; vb = b.symbol; }
+          else if (sortKey === 'name') { va = a.label; vb = b.label; }
+          else if (sortKey === 'price') { va = data[a.symbol]?.price ?? -Infinity; vb = data[b.symbol]?.price ?? -Infinity; }
+          else if (sortKey === 'chg')   { va = data[a.symbol]?.changePct ?? -Infinity; vb = data[b.symbol]?.changePct ?? -Infinity; }
+          if (typeof va === 'string') return sortDir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va);
+          return sortDir === 'asc' ? va - vb : vb - va;
+        });
+      }
+      return { ...g, items };
+    });
+  }, [data, sortKey, sortDir]);
+
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#0a0a0a' }}>
       {/* Header */}
-      <div style={{ padding: '4px 8px', borderBottom: '1px solid #2a2a2a', background: '#111', flexShrink: 0 }}>
+      <div style={{ padding: '4px 8px', borderBottom: '1px solid #2a2a2a', background: '#111', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
         <span style={{ color: '#ffd54f', fontSize: '10px', fontWeight: 700, letterSpacing: '1px' }}>COMMODITIES</span>
-        <span style={{ color: '#333', fontSize: '8px', marginLeft: 6 }}>ETF PROXIES</span>
+        <span style={{ color: '#333', fontSize: '8px' }}>ETF PROXIES</span>
+        <span style={{ background: badge.bg, color: badge.color, fontSize: 7, fontWeight: 700, letterSpacing: '0.08em', padding: '1px 4px', borderRadius: 2, border: `1px solid ${badge.color}33` }}>
+          {badge.text}
+        </span>
+        <div style={{ flex: 1 }} />
+        <button
+          onClick={() => setCollapsed(v => !v)}
+          title={collapsed ? 'Expand' : 'Collapse'}
+          style={{ background: 'none', border: '1px solid #2a2a2a', color: '#555', fontSize: 9, padding: '1px 5px', cursor: 'pointer', fontFamily: 'inherit', borderRadius: 2 }}
+        >{collapsed ? '+' : '−'}</button>
       </div>
 
-      {/* Column headers */}
+      {!collapsed && (<>
+      {/* Sortable column headers */}
       <div style={{ display: 'grid', gridTemplateColumns: COLS, padding: '2px 8px', borderBottom: '1px solid #1a1a1a', flexShrink: 0 }}>
-        {['SYM', 'NAME', 'LAST', 'CHG%'].map((h, i) => (
-          <span key={h} style={{ color: '#444', fontSize: '8px', fontWeight: 700, letterSpacing: '1px',
-            textAlign: i >= 2 ? 'right' : 'left', paddingRight: i >= 2 ? 4 : 0 }}>{h}</span>
-        ))}
+        {[
+          { key: 'symbol', label: 'SYM',  align: 'left' },
+          { key: 'name',   label: 'NAME', align: 'left' },
+          { key: 'price',  label: 'LAST', align: 'right' },
+          { key: 'chg',    label: 'CHG%', align: 'right' },
+        ].map(({ key, label, align }) => {
+          const active = sortKey === key;
+          const arrow  = active ? (sortDir === 'desc' ? ' ▼' : ' ▲') : '';
+          return (
+            <span key={key} onClick={() => handleSortClick(key)} style={{
+              color: active ? '#ff9900' : '#444',
+              fontSize: '8px', fontWeight: 700, letterSpacing: '1px',
+              textAlign: align === 'right' ? 'right' : 'left',
+              paddingRight: align === 'right' ? 4 : 0,
+              cursor: 'pointer', userSelect: 'none',
+            }}>{label}{arrow}</span>
+          );
+        })}
       </div>
 
       <div style={{ flex: 1, overflowY: 'auto' }}>
         {loading || !data ? (
           <div style={{ padding: '20px', textAlign: 'center', color: '#444', fontSize: '10px' }}>LOADING...</div>
         ) : (
-          GROUPS.map(g => {
-            const items = COMMODITIES.filter(c => c.group === g.key);
+          sortedGroups.map(g => {
+            const { items } = g;
             if (!items.length) return null;
             return (
               <div key={g.key}>
@@ -97,6 +152,7 @@ export function CommoditiesPanel({ data, loading, onTickerClick, onOpenDetail })
           })
         )}
       </div>
+      </>)}
     </div>
   );
 }

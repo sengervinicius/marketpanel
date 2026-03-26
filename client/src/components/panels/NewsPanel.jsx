@@ -1,6 +1,7 @@
 // NewsPanel — scrolling news feed (self-fetching)
 // Fetches from server /api/news every 60s
 import { useState, useEffect, useRef } from 'react';
+import { useFeedStatus } from '../../context/FeedStatusContext';
 
 const API = import.meta.env.VITE_API_URL || '';
 
@@ -51,8 +52,12 @@ function NewsItem({ item, isNew }) {
 export function NewsPanel() {
   const [news, setNews] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [newItems, setNewItems] = useState(new Set());
+  const [collapsed, setCollapsed] = useState(false);
   const prevNews = useRef([]);
+  const { getBadge } = useFeedStatus();
+  const badge = getBadge('stocks');
 
   async function load() {
     try {
@@ -70,6 +75,7 @@ export function NewsPanel() {
       setNews(items);
     } catch (e) {
       console.warn('NewsPanel load error:', e.message);
+      setError(e.message);
     } finally {
       setLoading(false);
     }
@@ -83,10 +89,27 @@ export function NewsPanel() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
-      <div style={{ padding: '4px 8px', borderBottom: '1px solid #2a2a2a', background: '#111', flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div style={{ padding: '4px 8px', borderBottom: '1px solid #2a2a2a', background: '#111', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
         <span style={{ color: '#ff6600', fontSize: '10px', fontWeight: 700, letterSpacing: '1px' }}>NEWS FEED</span>
         <span style={{ color: '#333', fontSize: '8px' }}>{news.length > 0 ? news.length + ' STORIES' : ''}</span>
+        <span style={{ background: badge.bg, color: badge.color, fontSize: 7, fontWeight: 700, letterSpacing: '0.08em', padding: '1px 4px', borderRadius: 2, border: `1px solid ${badge.color}33` }}>
+          {badge.text}
+        </span>
+        <div style={{ flex: 1 }} />
+        <button onClick={() => setCollapsed(v => !v)} title={collapsed ? 'Expand' : 'Collapse'}
+          style={{ background: 'none', border: '1px solid #2a2a2a', color: '#555', fontSize: 9, padding: '1px 5px', cursor: 'pointer', fontFamily: 'inherit', borderRadius: 2 }}
+        >{collapsed ? '+' : '−'}</button>
       </div>
+      {!collapsed && (<>
+      {error && news.length === 0 && (
+        <div style={{
+          padding: '4px 8px', background: '#1a0000', borderBottom: '1px solid #3a0000',
+          display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0,
+        }}>
+          <span style={{ color: '#ff4444', fontSize: 9 }}>⚠</span>
+          <span style={{ color: '#aa3333', fontSize: 9 }}>Feed error — retrying</span>
+        </div>
+      )}
       <div style={{ flex: 1, overflowY: 'auto', background: '#000' }}>
         {loading ? (
           <div style={{ color: '#333', padding: 12, textAlign: 'center', fontSize: 10 }}>Loading news feed...</div>
@@ -98,6 +121,7 @@ export function NewsPanel() {
           ))
         )}
       </div>
+      </>)}
     </div>
   );
 }

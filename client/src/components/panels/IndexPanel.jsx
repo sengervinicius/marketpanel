@@ -1,5 +1,6 @@
 // IndexPanel.jsx — world index ETF proxies, BBG-style
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
+import { useFeedStatus } from '../../context/FeedStatusContext';
 import { WORLD_INDEXES } from '../../utils/constants';
 
 const fmt    = (n) => n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -15,12 +16,23 @@ const showInfo = (e, symbol, label, type) => {
 
 export function IndexPanel({ data, loading, onTickerClick, onOpenDetail }) {
   const ptRef = useRef(null);
+  const [collapsed, setCollapsed] = useState(false);
+  const { getBadge } = useFeedStatus();
+  const badge = getBadge('stocks');
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#0a0a0a' }}>
-      <div style={{ padding: '4px 8px', borderBottom: '1px solid #2a2a2a', background: '#111', flexShrink: 0 }}>
+      <div style={{ padding: '4px 8px', borderBottom: '1px solid #2a2a2a', background: '#111', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
         <span style={{ color: '#ff6600', fontSize: '10px', fontWeight: 700, letterSpacing: '1px' }}>WORLD INDEXES</span>
-        <span style={{ color: '#333', fontSize: '8px', marginLeft: 6 }}>ETF PROXIES</span>
+        <span style={{ color: '#333', fontSize: '8px' }}>ETF PROXIES</span>
+        <span style={{ background: badge.bg, color: badge.color, fontSize: 7, fontWeight: 700, letterSpacing: '0.08em', padding: '1px 4px', borderRadius: 2, border: `1px solid ${badge.color}33` }}>
+          {badge.text}
+        </span>
+        <div style={{ flex: 1 }} />
+        <button onClick={() => setCollapsed(v => !v)} title={collapsed ? 'Expand' : 'Collapse'}
+          style={{ background: 'none', border: '1px solid #2a2a2a', color: '#555', fontSize: 9, padding: '1px 5px', cursor: 'pointer', fontFamily: 'inherit', borderRadius: 2 }}
+        >{collapsed ? '+' : '−'}</button>
       </div>
+      {!collapsed && (<>
       {/* Column headers */}
       <div style={{ display: 'grid', gridTemplateColumns: COLS, padding: '2px 8px', borderBottom: '1px solid #1a1a1a', flexShrink: 0 }}>
         {['TICKER', 'NAME', 'LAST', 'CHG%'].map((h, i) => (
@@ -66,6 +78,7 @@ export function IndexPanel({ data, loading, onTickerClick, onOpenDetail }) {
           );
         })}
       </div>
+      </>)}
     </div>
   );
 }

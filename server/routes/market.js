@@ -13,11 +13,39 @@ function apiKey() {
   return process.env.POLYGON_API_KEY;
 }
 
+// ─── Enriched error class ────────────────────────────────────────────────────
+class ApiError extends Error {
+  constructor(message, code, retryAfter = null) {
+    super(message);
+    this.code       = code;       // 'rate_limit' | 'auth_error' | 'network_error' | 'not_found' | 'upstream_error'
+    this.retryAfter = retryAfter; // seconds, if known
+  }
+}
+
+function classifyHttpError(status, headers) {
+  if (status === 429) {
+    const retryAfter = parseInt(headers?.get?.('retry-after') || headers?.['retry-after'] || '60', 10);
+    throw new ApiError(`Rate limited by Polygon (429)`, 'rate_limit', retryAfter);
+  }
+  if (status === 401 || status === 403) {
+    throw new ApiError(`Polygon auth error (${status})`, 'auth_error');
+  }
+  if (status === 404) {
+    throw new ApiError(`Not found (404)`, 'not_found');
+  }
+  throw new ApiError(`Polygon upstream error (${status})`, 'upstream_error');
+}
+
 async function polyFetch(path) {
   const sep = path.includes('?') ? '&' : '?';
   const url = `${BASE}${path}${sep}apiKey=${apiKey()}`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Polygon ${res.status}: ${url}`);
+  let res;
+  try {
+    res = await fetch(url);
+  } catch (e) {
+    throw new ApiError(`Network error: ${e.message}`, 'network_error');
+  }
+  if (!res.ok) classifyHttpError(res.status, res.headers);
   return res.json();
 }
 
@@ -30,6 +58,41 @@ let _yfCrumbExpiry = 0;
 // ─── B3 cache (60 s) — prevents brapi.dev rate-limit 429s ────────────────────
 let _brazilCache = null;
 let _brazilCacheExpiry = 0;
+
+// ─── Enriched error responder ────────────────────────────────────────────────
+function sendError(res, err, context = '') {
+  const status = err.code === 'rate_limit' ? 429
+    : err.code === 'auth_error'            ? 403
+    : err.code === 'not_found'             ? 404
+    : 500;
+  const body = { error: err.message, code: err.code || 'server_error' };
+  if (err.retryAfter != null) body.retryAfter = err.retryAfter;
+  if (context) body.context = context;
+  if (context) console.error(`[API] ${context}:`, err.message);
+  res.status(status).json(body);
+}
+
+// ─── REST TTL caches ──────────────────────────────────────────────────────────
+// Prevents hammering upstream APIs when multiple clients open simultaneously.
+const _ttlCache = {};
+
+function cacheGet(key) {
+  const entry = _ttlCache[key];
+  if (entry && Date.now() < entry.expiry) return entry.data;
+  return null;
+}
+
+function cacheSet(key, data, ttlMs) {
+  _ttlCache[key] = { data, expiry: Date.now() + ttlMs };
+}
+
+const TTL = {
+  stocksSnapshot: 10_000,   // 10 s — near-realtime feel
+  forexSnapshot:  10_000,
+  cryptoSnapshot: 10_000,
+  news:           60_000,   // 60 s — news doesn't change every second
+  chart:          30_000,   // 30 s per ticker+range combination
+};
 
 const YF_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
@@ -87,28 +150,52 @@ async function yahooQuote(symbols) {
 }
 
 // ─── Snapshots ──────────────────────────────────────────────────
+// Supports optional ?tickers=AAPL,MSFT,TSLA for ad-hoc watchlist lookups
+
+const DEFAULT_STOCK_TICKERS = [
+  // US index ETFs — also feed IndexPanel (WORLD_INDEXES)
+  'SPY','QQQ','IWM','DIA','EWZ','EWW','EEM','EFA','FXI','EWJ',
+  'AAPL','MSFT','NVDA','GOOGL','AMZN','META','TSLA',
+  'BRKB','JPM','GS','BAC','V','MA',
+  'XOM','CAT','BA',
+  'WMT','LLY','UNH',
+  'VALE','PBR','ITUB','BBD','ABEV','ERJ','BRFS','SUZ',
+  'GLD','SLV','CPER','REMX','USO','UNG','SOYB','WEAT','CORN','BHP',
+];
 
 router.get('/snapshot/stocks', async (req, res) => {
+  // Ad-hoc mode: ?tickers=AAPL,MSFT,TSLA (for watchlist or command-bar lookups)
+  const adHoc = req.query.tickers;
+  if (adHoc) {
+    // Sanitize: uppercase, trim, max 50 symbols
+    const syms = adHoc.split(',').map(s => s.trim().toUpperCase()).filter(Boolean).slice(0, 50);
+    if (syms.length === 0) return res.status(400).json({ error: 'No valid tickers provided', code: 'bad_request' });
+    const cacheKey = `snapshot:stocks:adhoc:${syms.sort().join(',')}`;
+    const cached = cacheGet(cacheKey);
+    if (cached) return res.json(cached);
+    try {
+      const data = await polyFetch(`/v2/snapshot/locale/us/markets/stocks/tickers?tickers=${syms.join(',')}`);
+      cacheSet(cacheKey, data, TTL.stocksSnapshot);
+      return res.json(data);
+    } catch (e) {
+      return sendError(res, e, `/snapshot/stocks?tickers=${adHoc}`);
+    }
+  }
+
+  const cached = cacheGet('snapshot:stocks');
+  if (cached) return res.json(cached);
   try {
-    const tickers = [
-      // US index ETFs — also feed IndexPanel (WORLD_INDEXES)
-      'SPY','QQQ','IWM','DIA','EWZ','EWW','EEM','EFA','FXI','EWJ',
-      'AAPL','MSFT','NVDA','GOOGL','AMZN','META','TSLA',
-      'BRKB','JPM','GS','BAC','V','MA',
-      'XOM','CAT','BA',
-      'WMT','LLY','UNH',
-      'VALE','PBR','ITUB','BBD','ABEV','ERJ','BRFS','SUZ',
-      'GLD','SLV','CPER','REMX','USO','UNG','SOYB','WEAT','CORN','BHP',
-    ].join(',');
-    const data = await polyFetch(`/v2/snapshot/locale/us/markets/stocks/tickers?tickers=${tickers}`);
+    const data = await polyFetch(`/v2/snapshot/locale/us/markets/stocks/tickers?tickers=${DEFAULT_STOCK_TICKERS.join(',')}`);
+    cacheSet('snapshot:stocks', data, TTL.stocksSnapshot);
     res.json(data);
   } catch (e) {
-    console.error('[API] /snapshot/stocks:', e.message);
-    res.status(500).json({ error: e.message });
+    sendError(res, e, '/snapshot/stocks');
   }
 });
 
 router.get('/snapshot/forex', async (req, res) => {
+  const cached = cacheGet('snapshot:forex');
+  if (cached) return res.json(cached);
   try {
     const tickers = [
       'C:EURUSD','C:GBPUSD','C:USDJPY','C:USDBRL',
@@ -117,21 +204,23 @@ router.get('/snapshot/forex', async (req, res) => {
       'C:AUDUSD','C:USDCAD','C:USDCLP',
     ].join(',');
     const data = await polyFetch(`/v2/snapshot/locale/global/markets/forex/tickers?tickers=${tickers}`);
+    cacheSet('snapshot:forex', data, TTL.forexSnapshot);
     res.json(data);
   } catch (e) {
-    console.error('[API] /snapshot/forex:', e.message);
-    res.status(500).json({ error: e.message });
+    sendError(res, e, '/snapshot/forex');
   }
 });
 
 router.get('/snapshot/crypto', async (req, res) => {
+  const cached = cacheGet('snapshot:crypto');
+  if (cached) return res.json(cached);
   try {
     const tickers = ['X:BTCUSD','X:ETHUSD','X:SOLUSD','X:XRPUSD','X:BNBUSD','X:DOGEUSD'].join(',');
     const data = await polyFetch(`/v2/snapshot/locale/global/markets/crypto/tickers?tickers=${tickers}`);
+    cacheSet('snapshot:crypto', data, TTL.cryptoSnapshot);
     res.json(data);
   } catch (e) {
-    console.error('[API] /snapshot/crypto:', e.message);
-    res.status(500).json({ error: e.message });
+    sendError(res, e, '/snapshot/crypto');
   }
 });
 
@@ -180,11 +269,20 @@ router.get('/news', async (req, res) => {
 
     // Ticker-specific: only Polygon supports filtering by ticker
     if (tickerFilter) {
+      const cacheKey = `news:${tickerFilter}:${limit}`;
+      const cached = cacheGet(cacheKey);
+      if (cached) return res.json(cached);
       const data = await polyFetch(
         `/v2/reference/news?ticker=${encodeURIComponent(tickerFilter)}&limit=${limit}&order=desc&sort=published_utc`
       );
-      return res.json({ results: data?.results || [], status: 'OK' });
+      const result = { results: data?.results || [], status: 'OK' };
+      cacheSet(cacheKey, result, TTL.news);
+      return res.json(result);
     }
+
+    const cacheKey = `news:all:${limit}`;
+    const cached = cacheGet(cacheKey);
+    if (cached) return res.json(cached);
 
     const [polyRes, bloomRes, ftRes] = await Promise.allSettled([
       polyFetch(`/v2/reference/news?limit=${limit}&order=desc&sort=published_utc`),
@@ -223,19 +321,24 @@ router.get('/news', async (req, res) => {
       return tb - ta;
     });
 
-    res.json({ results: results.slice(0, limit * 2), status: 'OK' });
+    const payload = { results: results.slice(0, limit * 2), status: 'OK' };
+    cacheSet(cacheKey, payload, TTL.news);
+    res.json(payload);
   } catch (e) {
     console.error('[API] /news:', e.message);
-    res.status(500).json({ error: e.message });
+    sendError(res, e);
   }
 });
 
 // ─── Intraday chart data ────────────────────────────────────────────────
 
 router.get('/chart/:ticker', async (req, res) => {
+  const { ticker } = req.params;
+  const { from, to, multiplier = 5, timespan = 'minute' } = req.query;
+  const chartCacheKey = `chart:${ticker}:${from || ''}:${to || ''}:${multiplier}:${timespan}`;
+  const chartCached = cacheGet(chartCacheKey);
+  if (chartCached) return res.json(chartCached);
   try {
-    const { ticker } = req.params;
-    const { from, to, multiplier = 5, timespan = 'minute' } = req.query;
 
     const now = new Date();
     const toDate = to || now.toISOString().split('T')[0];
@@ -269,16 +372,19 @@ router.get('/chart/:ticker', async (req, res) => {
       const results = timestamps
         .map((t, i) => ({ t: t * 1000, c: q.close?.[i], o: q.open?.[i], h: q.high?.[i], l: q.low?.[i] }))
         .filter(b => b.c != null && b.c > 0);
-      return res.json({ results, ticker, status: 'OK' });
+      const saPayload = { results, ticker, status: 'OK' };
+      cacheSet(chartCacheKey, saPayload, TTL.chart);
+      return res.json(saPayload);
     }
 
     const data = await polyFetch(
       `/v2/aggs/ticker/${ticker}/range/${multiplier}/${timespan}/${fromDate}/${toDate}?adjusted=true&sort=asc&limit=500`
     );
+    cacheSet(chartCacheKey, data, TTL.chart);
     res.json(data);
   } catch (e) {
     console.error(`[API] /chart/${req.params.ticker}:`, e.message);
-    res.status(500).json({ error: e.message });
+    sendError(res, e);
   }
 });
 
@@ -289,7 +395,7 @@ router.get('/ticker/:symbol', async (req, res) => {
     const data = await polyFetch(`/v3/reference/tickers/${req.params.symbol}`);
     res.json(data);
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    sendError(res, e);
   }
 });
 
@@ -300,7 +406,7 @@ router.get('/status', async (req, res) => {
     const data = await polyFetch('/v1/marketstatus/now');
     res.json(data);
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    sendError(res, e);
   }
 });
 
@@ -339,7 +445,7 @@ router.get('/snapshot/brazil', async (req, res) => {
     console.error('[API] /snapshot/brazil error:', err.message);
     // Return stale cache rather than 500 if we have it
     if (_brazilCache) return res.json({ ..._brazilCache, stale: true });
-    res.status(500).json({ error: err.message });
+    sendError(res, err);
   }
 });
 
@@ -356,7 +462,7 @@ router.get('/snapshot/global-indices', async (req, res) => {
     res.json(data);
   } catch (err) {
     console.error('[API] /snapshot/global-indices error:', err.message);
-    res.status(500).json({ error: err.message });
+    sendError(res, err);
   }
 });
 
@@ -417,7 +523,7 @@ router.get('/search', async (req, res) => {
     res.json({ results: results.slice(0, 14) });
   } catch (e) {
     console.error('[API] /search error:', e.message);
-    res.status(500).json({ error: e.message });
+    sendError(res, e);
   }
 });
 
@@ -460,7 +566,7 @@ router.get('/quote/:symbol', async (req, res) => {
     });
   } catch (e) {
     console.error(`[API] /quote/${req.params.symbol} error:`, e.message);
-    res.status(500).json({ error: e.message });
+    sendError(res, e);
   }
 });
 
@@ -510,7 +616,7 @@ router.get('/snapshot/ticker/:symbol', async (req, res) => {
     res.json(data);
   } catch (e) {
     console.error('[API] /snapshot/ticker error:', e.message);
-    res.status(500).json({ error: e.message });
+    sendError(res, e);
   }
 });
 
@@ -554,7 +660,7 @@ router.get('/snapshot/rates', async (req, res) => {
     res.json({ results });
   } catch (err) {
     console.error('[API] /snapshot/rates error:', err.message);
-    res.status(500).json({ error: err.message });
+    sendError(res, err);
   }
 });
 
@@ -652,7 +758,7 @@ router.get('/di-curve', async (req, res) => {
     });
   } catch (err) {
     console.error('[API] /di-curve error:', err.message);
-    res.status(500).json({ error: err.message });
+    sendError(res, err);
   }
 });
 
@@ -903,7 +1009,7 @@ router.get('/yield-curves', async (req, res) => {
     });
   } catch (err) {
     console.error('[API] /yield-curves error:', err.message);
-    res.status(500).json({ error: err.message });
+    sendError(res, err);
   }
 });
 
@@ -1097,7 +1203,7 @@ router.get('/fundamentals/:symbol', async (req, res) => {
     });
   } catch (e) {
     console.error('[API] /fundamentals/' + req.params.symbol + ' error:', e.message);
-    res.status(500).json({ error: e.message });
+    sendError(res, e);
   }
 });
 

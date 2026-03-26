@@ -1,0 +1,22 @@
+{
+  "_comment": "Polygon.io WebSocket subscription lists. Edit symbols here — no code changes needed.",
+  "stocks": [
+    "T.SPY",  "T.QQQ",  "T.IWM",  "T.DIA",
+    "T.AAPL", "T.MSFT", "T.NVDA", "T.GOOGL", "T.AMZN",
+    "T.META", "T.TSLA", "T.BRKB", "T.JPM",   "T.GS",
+    "T.BAC",  "T.V",    "T.MA",   "T.XOM",   "T.CAT",
+    "T.BA",   "T.WMT",  "T.LLY",  "T.UNH",
+    "T.GLD",  "T.SLV",  "T.USO",  "T.UNG",
+    "T.VALE", "T.PBR",  "T.ITUB", "T.BBD"
+  ],
+  "forex": [
+    "C.EUR/USD", "C.GBP/USD", "C.USD/JPY", "C.USD/BRL",
+    "C.GBP/BRL", "C.EUR/BRL",
+    "C.USD/ARS", "C.USD/CHF", "C.USD/CNY", "C.USD/MXN",
+    "C.AUD/USD", "C.USD/CAD", "C.USD/CLP"
+  ],
+  "crypto": [
+    "XT.BTC-USD", "XT.ETH-USD", "XT.SOL-USD",
+    "XT.XRP-USD", "XT.BNB-USD", "XT.DOGE-USD"
+  ]
+}

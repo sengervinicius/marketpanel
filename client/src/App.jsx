@@ -1,6 +1,10 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useMarketData } from './hooks/useMarketData';
+import { useWebSocket } from './hooks/useWebSocket';
 import { PriceProvider } from './context/PriceContext';
+import { FeedStatusProvider } from './context/FeedStatusContext';
+import { WatchlistProvider } from './context/WatchlistContext';
+import { MarketProvider, useMarketDispatch } from './context/MarketContext';
 import { IndexPanel } from './components/panels/IndexPanel';
 import { StockPanel } from './components/panels/StockPanel';
 import { ForexPanel } from './components/panels/ForexPanel';
@@ -12,11 +16,23 @@ import { SearchPanel } from './components/panels/SearchPanel';
 import { DICurvePanel } from './components/panels/DICurvePanel';
 import BrazilPanel from './components/panels/BrazilPanel';
 import GlobalIndicesPanel from './components/panels/GlobalIndicesPanel';
+import WatchlistPanel from './components/panels/WatchlistPanel';
 import { TickerTooltip } from './components/common/TickerTooltip';
 import InstrumentDetail from './components/common/InstrumentDetail';
 import './App.css';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
+
+// ── MarketTickBridge — dispatches live WS ticks into MarketContext reducer ────
+// Must be rendered inside <MarketProvider> so it can call useMarketDispatch()
+function MarketTickBridge({ batchTicks }) {
+  const dispatch = useMarketDispatch();
+  useEffect(() => {
+    if (!batchTicks || batchTicks.length === 0) return;
+    dispatch({ type: 'BATCH_TICK', payload: { ticks: batchTicks } });
+  }, [batchTicks, dispatch]);
+  return null;
+}
 
 // ── World Clock ────────────────────────────────────────────────────────────────────────────────
 function WorldClock() {
@@ -147,16 +163,105 @@ function useResizableColumns(storageKey, defaults) {
   return [sizes, startResize];
 }
 
+// ── Settings Drawer ─────────────────────────────────────────────────────────────────────────────────────
+const PANEL_DEFS = [
+  { id: 'charts',      label: 'Chart Grid' },
+  { id: 'usequity',   label: 'US Equities' },
+  { id: 'forex',      label: 'Forex / Crypto' },
+  { id: 'indices',    label: 'US Indices' },
+  { id: 'brazil',     label: 'Brazil (B3)' },
+  { id: 'global',     label: 'Global Indices' },
+  { id: 'commodities',label: 'Commodities' },
+  { id: 'watchlist',  label: 'Watchlist' },
+  { id: 'curves',     label: 'Yield Curves' },
+  { id: 'search',     label: 'Search' },
+  { id: 'news',       label: 'News' },
+  { id: 'sentiment',  label: 'Sentiment' },
+];
+
+function SettingsDrawer({ panelVisible, togglePanel, onClose }) {
+  return (
+    <div style={{
+      position: 'absolute', top: 36, right: 0, zIndex: 1000,
+      background: '#0d0d0d', border: '1px solid #2a2a2a', borderTop: 'none',
+      width: 240, padding: '12px 0', boxShadow: '0 8px 32px rgba(0,0,0,0.8)',
+    }}>
+      <div style={{ padding: '4px 12px 8px', borderBottom: '1px solid #1a1a1a', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span style={{ color: '#ff6600', fontSize: 9, fontWeight: 700, letterSpacing: '1px' }}>PANEL VISIBILITY</span>
+        <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#444', cursor: 'pointer', fontSize: 12, padding: 0 }}>✕</button>
+      </div>
+      {PANEL_DEFS.map(({ id, label }) => {
+        const visible = panelVisible[id] ?? true;
+        return (
+          <div key={id} onClick={() => togglePanel(id)}
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '5px 12px', cursor: 'pointer', borderBottom: '1px solid #141414' }}
+            onMouseEnter={e => e.currentTarget.style.background = '#141414'}
+            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+          >
+            <span style={{ color: visible ? '#ccc' : '#444', fontSize: 9, letterSpacing: '0.5px' }}>{label}</span>
+            <span style={{ color: visible ? '#00cc66' : '#333', fontSize: 9, fontWeight: 700 }}>
+              {visible ? '● ON' : '○ OFF'}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── Feed Status Bar ─────────────────────────────────────────────────────────────────────────────────────
+function FeedStatusBar({ feedStatus }) {
+  const feeds = [
+    { key: 'stocks', label: 'STOCKS' },
+    { key: 'forex',  label: 'FX' },
+    { key: 'crypto', label: 'CRYPTO' },
+  ];
+  const color = (level) => {
+    if (level === 'live')      return '#00cc66';
+    if (level === 'degraded')  return '#ff9900';
+    if (level === 'error')     return '#ff3333';
+    return '#444'; // connecting
+  };
+  const dot = (level) => {
+    if (level === 'live')     return '●';
+    if (level === 'degraded') return '◐';
+    if (level === 'error')    return '✕';
+    return '○';
+  };
+  return (
+    <div style={{
+      height: 20, flexShrink: 0,
+      background: '#060606', borderTop: '1px solid #1a1a1a',
+      display: 'flex', alignItems: 'center', gap: 20, padding: '0 12px',
+    }}>
+      <span style={{ color: '#282828', fontSize: 8, letterSpacing: '1px' }}>FEED</span>
+      {feeds.map(({ key, label }) => {
+        const level = feedStatus?.[key] || 'connecting';
+        return (
+          <span key={key} style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+            <span style={{ color: color(level), fontSize: 9 }}>{dot(level)}</span>
+            <span style={{ color: '#3a3a3a', fontSize: 8, letterSpacing: '0.8px' }}>{label}</span>
+            <span style={{ color: color(level), fontSize: 8, fontWeight: 700, letterSpacing: '0.5px', opacity: 0.9 }}>
+              {level.toUpperCase()}
+            </span>
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
 // ── Mobile tab definitions ──────────────────────────────────────────────────────────────────────────────
 const MOBILE_TABS = [
-  { id: 'charts',   label: 'CHARTS' },
-  { id: 'usequity', label: 'US EQ' },
-  { id: 'brazil',   label: 'BRAZIL' },
-  { id: 'fxcrypto', label: 'FX/BTC' },
-  { id: 'global',   label: 'GLOBAL' },
-  { id: 'rates',    label: 'CURVES' },
-  { id: 'news',     label: 'NEWS' },
-  { id: 'search', label: 'SEARCH' },
+  { id: 'charts',    label: 'CHARTS' },
+  { id: 'usequity',  label: 'US EQ' },
+  { id: 'brazil',    label: 'BRAZIL' },
+  { id: 'fxcrypto',  label: 'FX/BTC' },
+  { id: 'global',    label: 'GLOBAL' },
+  { id: 'watchlist', label: 'WATCH' },
+  { id: 'rates',     label: 'CURVES' },
+  { id: 'news',      label: 'NEWS' },
+  { id: 'search',    label: 'SEARCH' },
 ];
 
 const LS_TAB          = 'activeTab_m2';
@@ -165,6 +270,83 @@ const LS_CHART_GRID   = 'chartGrid_v3';
 
 export default function App() {
   const { data, loading, isRefreshing, lastUpdated } = useMarketData();
+
+  // ── Live WebSocket overlay (throttled at 250 ms) ──────────────────────────
+  const [feedStatus, setFeedStatus] = useState({ stocks: 'connecting', forex: 'connecting', crypto: 'connecting' });
+  const liveOverlayRef    = useRef({});  // { [symbol]: partial price obj } — updated every tick
+  const tickBufferRef     = useRef([]);  // accumulate incoming ticks between flushes
+  const throttleTimerRef  = useRef(null);
+  const [liveTick, setLiveTick] = useState(0); // bump to trigger re-render after flush
+  // batchTicks fed into MarketTickBridge → MarketContext reducer (BATCH_TICK)
+  const [batchTicks, setBatchTicks] = useState([]);
+
+  const handleWsMessage = useCallback((msg) => {
+    // Status updates are immediate — don't throttle
+    if (msg.type === 'status') {
+      setFeedStatus(prev => ({ ...prev, [msg.feed]: msg.level }));
+      return;
+    }
+    // Initial snapshot — merge into overlay immediately, one re-render
+    if (msg.type === 'snapshot') {
+      const snap = msg.data;
+      ['stocks', 'forex', 'crypto'].forEach(cat => {
+        if (!snap?.[cat]) return;
+        Object.entries(snap[cat]).forEach(([sym, info]) => {
+          liveOverlayRef.current[sym] = { ...info, _cat: cat };
+        });
+      });
+      setLiveTick(n => n + 1);
+      return;
+    }
+    // Live ticks — buffer and flush at 250 ms to avoid render flooding
+    if (msg.type === 'tick' || msg.type === 'quote') {
+      tickBufferRef.current.push(msg);
+      if (!throttleTimerRef.current) {
+        throttleTimerRef.current = setTimeout(() => {
+          throttleTimerRef.current = null;
+          const ticks = tickBufferRef.current.splice(0);
+          if (ticks.length === 0) return;
+          // Normalize ticks for MarketContext BATCH_TICK
+          const normalizedTicks = [];
+          ticks.forEach(t => {
+            if (t.symbol && t.data) {
+              liveOverlayRef.current[t.symbol] = { ...liveOverlayRef.current[t.symbol], ...t.data, _cat: t.category };
+              normalizedTicks.push({ category: t.category, symbol: t.symbol, data: t.data });
+            }
+          });
+          // Update both the old mergedData path AND MarketContext reducer
+          setLiveTick(n => n + 1);
+          if (normalizedTicks.length > 0) setBatchTicks(normalizedTicks);
+        }, 250);
+      }
+    }
+  }, []);
+
+  useWebSocket(handleWsMessage);
+
+  // Merge REST snapshot with WS live overlay — WS wins on matching symbols
+  const mergedData = useMemo(() => {
+    if (!data) return data;
+    const overlay = liveOverlayRef.current;
+    if (Object.keys(overlay).length === 0) return data;
+    const merged = { ...data };
+    ['stocks', 'forex', 'crypto'].forEach(cat => {
+      if (!data[cat]) return;
+      const updates = {};
+      Object.entries(overlay).forEach(([sym, info]) => {
+        if (info._cat === cat && data[cat][sym]) {
+          updates[sym] = { ...data[cat][sym], ...info };
+        }
+      });
+      if (Object.keys(updates).length > 0) {
+        merged[cat] = { ...data[cat], ...updates };
+      }
+    });
+    // indices mirrors stocks
+    merged.indices = merged.stocks || {};
+    return merged;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, liveTick]);
 
   const [activeTab, setActiveTab] = useState(() => {
     const saved = localStorage.getItem(LS_TAB);
@@ -227,6 +409,20 @@ export default function App() {
   const border = '1px solid #1e1e1e';
 
   const [detailTicker, setDetailTicker] = useState(null);
+  const [settingsOpen, setSettingsOpen]  = useState(false);
+
+  // ── Panel visibility (settings drawer) ────────────────────────────────────
+  const [panelVisible, setPanelVisible] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('panelVisible_v1')) || {}; } catch { return {}; }
+  });
+  const togglePanel = useCallback((id) => {
+    setPanelVisible(prev => {
+      const next = { ...prev, [id]: !(prev[id] ?? true) };
+      localStorage.setItem('panelVisible_v1', JSON.stringify(next));
+      return next;
+    });
+  }, []);
+  const isPanelVisible = (id) => panelVisible[id] ?? true;
 
   const goChart = useCallback((t) => {
     const sym = typeof t === 'object' ? (t.symbol || t) : t;
@@ -237,6 +433,9 @@ export default function App() {
   // ── DESKTOP ──────────────────────────────────────────────────────────────────────────────────────────────
   if (!isMobile) {
     return (
+      <WatchlistProvider>
+      <FeedStatusProvider status={feedStatus}>
+      <MarketProvider restData={mergedData}>
       <PriceProvider marketData={data}>
       <div style={{
         display: 'flex', flexDirection: 'column', height: '100vh',
@@ -252,76 +451,122 @@ export default function App() {
           <div style={{ flex:1, display:'flex', justifyContent:'center' }}><WorldClock /></div>
           <div style={{ display:'flex', alignItems:'center', gap:8 }}>
             {isRefreshing && <span style={{ color:'#ff6600', fontSize:'8px', letterSpacing:'1px' }}>&#9679; UPDATING</span>}
-            {lastUpdated && !isRefreshing && <span style={{ color:'#333', fontSize:'8px' }}>UPD {lastUpdated.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'})}</span>}
+            {lastUpdated && !isRefreshing && <span style={{ color:'#333', fontSize:'8px' }}>SNAP {lastUpdated.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'})}</span>}
+            <button
+              onClick={() => setSettingsOpen(s => !s)}
+              title="Settings"
+              style={{ background:'none', border:'1px solid #282828', color: settingsOpen ? '#ff6600' : '#444', fontSize:9, padding:'2px 6px', cursor:'pointer', fontFamily:'inherit', borderRadius:2, letterSpacing:'0.5px' }}
+            >⚙ PANELS</button>
           </div>
         </div>
 
+        {/* Settings drawer */}
+        {settingsOpen && <SettingsDrawer panelVisible={panelVisible} togglePanel={togglePanel} onClose={() => setSettingsOpen(false)} />}
+
+        <MarketTickBridge batchTicks={batchTicks} />
+
         {/* Row 1: Charts | Stocks | Forex+Crypto */}
         <div style={{ flex: rowSizes[0], flexShrink: 0, display:'flex', overflow:'hidden', minHeight: 220 }}>
+          {isPanelVisible('charts') && (<>
           <div style={{ flex: colSizes1[0], minWidth: 0, borderRight:border, overflow:'hidden', height:'100%' }}>
             <ChartPanel ticker={chartTicker} onTickerChange={setChartTicker} onGridChange={setChartGridCount} onOpenDetail={setDetailTicker} />
           </div>
           <ColResizeHandle onStart={e => startColResize1(0, e)} />
+          </>)}
+          {isPanelVisible('usequity') && (<>
           <div style={{ flex: colSizes1[1], minWidth: 0, borderRight:border, overflow:'hidden', height:'100%' }}>
-            <StockPanel data={data?.stocks} loading={loading} onTickerClick={setChartTicker} onOpenDetail={setDetailTicker} />
+            <StockPanel data={mergedData?.stocks} loading={loading} onTickerClick={setChartTicker} onOpenDetail={setDetailTicker} />
           </div>
           <ColResizeHandle onStart={e => startColResize1(1, e)} />
+          </>)}
+          {isPanelVisible('forex') && (
           <div style={{ flex: colSizes1[2], minWidth: 0, overflow:'hidden', height:'100%' }}>
-            <ForexPanel data={data?.forex} cryptoData={data?.crypto} loading={loading} onTickerClick={setChartTicker} onOpenDetail={setDetailTicker} />
+            <ForexPanel data={mergedData?.forex} cryptoData={mergedData?.crypto} loading={loading} onTickerClick={setChartTicker} onOpenDetail={setDetailTicker} />
           </div>
+          )}
         </div>
 
         <ResizeHandle onStart={e => startRowResize(0, e)} />
 
         {/* Row 2: US Indices | Brazil | Global Indexes | Commodities */}
         <div style={{ flex: rowSizes[1], flexShrink: 0, display:'flex', overflow:'hidden', minHeight: 180 }}>
+          {isPanelVisible('indices') && (<>
           <div style={{ flex: colSizes2[0], minWidth: 0, borderRight:border, overflow:'hidden', height:'100%' }}>
-            <IndexPanel data={data?.indices} loading={loading} onTickerClick={setChartTicker} onOpenDetail={setDetailTicker} />
+            <IndexPanel data={mergedData?.indices} loading={loading} onTickerClick={setChartTicker} onOpenDetail={setDetailTicker} />
           </div>
           <ColResizeHandle onStart={e => startColResize2(0, e)} />
+          </>)}
+          {isPanelVisible('brazil') && (<>
           <div style={{ flex: colSizes2[1], minWidth: 0, borderRight:border, overflow:'hidden', height:'100%' }}>
             <BrazilPanel onTickerClick={setChartTicker} onOpenDetail={setDetailTicker} />
           </div>
           <ColResizeHandle onStart={e => startColResize2(1, e)} />
+          </>)}
+          {isPanelVisible('global') && (<>
           <div style={{ flex: colSizes2[2], minWidth: 0, borderRight:border, overflow:'hidden', height:'100%' }}>
             <GlobalIndicesPanel onTickerClick={setChartTicker} onOpenDetail={setDetailTicker} />
           </div>
           <ColResizeHandle onStart={e => startColResize2(2, e)} />
+          </>)}
+          {isPanelVisible('commodities') && (
           <div style={{ flex: colSizes2[3], minWidth: 0, overflow:'hidden', height:'100%' }}>
-            <CommoditiesPanel data={data?.stocks} loading={loading} onTickerClick={setChartTicker} onOpenDetail={setDetailTicker} />
+            <CommoditiesPanel data={mergedData?.stocks} loading={loading} onTickerClick={setChartTicker} onOpenDetail={setDetailTicker} />
           </div>
+          )}
         </div>
 
         <ResizeHandle onStart={e => startRowResize(1, e)} />
 
-        {/* Row 3: Yield Curves | Search | News | Sentiment */}
+        {/* Row 3: Yield Curves | Search | News | Sentiment | Watchlist */}
         <div style={{ flex: rowSizes[2], flexShrink: 0, display:'flex', overflow:'hidden', minHeight: 160 }}>
+          {isPanelVisible('curves') && (<>
           <div style={{ flex: colSizes3[0], minWidth: 0, borderRight:border, overflow:'hidden', height:'100%' }}>
             <DICurvePanel compact />
           </div>
           <ColResizeHandle onStart={e => startColResize3(0, e)} />
+          </>)}
+          {isPanelVisible('search') && (<>
           <div style={{ flex: colSizes3[1], minWidth: 0, borderRight:border, overflow:'hidden', height:'100%' }}>
             <SearchPanel onTickerSelect={setChartTicker} onOpenDetail={setDetailTicker} />
           </div>
           <ColResizeHandle onStart={e => startColResize3(1, e)} />
+          </>)}
+          {isPanelVisible('news') && (<>
           <div style={{ flex: colSizes3[2], minWidth: 0, borderRight:border, overflow:'hidden', height:'100%' }}>
             <NewsPanel />
           </div>
           <ColResizeHandle onStart={e => startColResize3(2, e)} />
-          <div style={{ flex: colSizes3[3], minWidth: 0, overflow:'hidden', height:'100%' }}>
-            <SentimentPanel data={data} loading={loading} />
+          </>)}
+          {isPanelVisible('sentiment') && (<>
+          <div style={{ flex: colSizes3[3], minWidth: 0, borderRight:border, overflow:'hidden', height:'100%' }}>
+            <SentimentPanel data={mergedData} loading={loading} />
           </div>
+          <ColResizeHandle onStart={e => startColResize3(2, e)} />
+          </>)}
+          {isPanelVisible('watchlist') && (
+          <div style={{ flex: 0.6, minWidth: 0, overflow:'hidden', height:'100%' }}>
+            <WatchlistPanel onTickerClick={setChartTicker} onOpenDetail={setDetailTicker} />
+          </div>
+          )}
         </div>
 
+        <FeedStatusBar feedStatus={feedStatus} />
         {detailTicker && <InstrumentDetail ticker={detailTicker} onClose={() => setDetailTicker(null)} />}
-      <TickerTooltip />
+      <TickerTooltip onOpenDetail={setDetailTicker} />
       </div>
       </PriceProvider>
+      </MarketProvider>
+      </FeedStatusProvider>
+      </WatchlistProvider>
     );
   }
 
   // ── MOBILE ────────────────────────────────────────────────────────────────────────────────────────────────
   return (
+    <WatchlistProvider>
+    <FeedStatusProvider status={feedStatus}>
+    <MarketProvider restData={mergedData}>
+    <MarketTickBridge batchTicks={batchTicks} />
     <PriceProvider marketData={data}>
     <div style={{
       display: 'flex', flexDirection: 'column',
@@ -345,16 +590,16 @@ export default function App() {
           <ChartPanel ticker={chartTicker} onTickerChange={setChartTicker} onGridChange={setChartGridCount} onOpenDetail={setDetailTicker} mobile={true} />
         )}
         {activeTab === 'usequity' && (
-          <StockPanel data={data?.stocks} loading={loading} onTickerClick={t => goChart(t)} onOpenDetail={setDetailTicker} />
+          <StockPanel data={mergedData?.stocks} loading={loading} onTickerClick={t => goChart(t)} onOpenDetail={setDetailTicker} />
         )}
         {activeTab === 'brazil' && (
           <BrazilPanel onTickerClick={t => goChart(t)} onOpenDetail={setDetailTicker} />
         )}
         {activeTab === 'fxcrypto' && (
           <div>
-            <ForexPanel data={data?.forex} cryptoData={data?.crypto} loading={loading} onTickerClick={t => goChart(t)} onOpenDetail={setDetailTicker} />
+            <ForexPanel data={mergedData?.forex} cryptoData={mergedData?.crypto} loading={loading} onTickerClick={t => goChart(t)} onOpenDetail={setDetailTicker} />
             <div style={{ borderTop:'1px solid #1e1e1e' }}>
-              <CommoditiesPanel data={data?.stocks} loading={loading} onTickerClick={t => goChart(t)} onOpenDetail={setDetailTicker} />
+              <CommoditiesPanel data={mergedData?.stocks} loading={loading} onTickerClick={t => goChart(t)} onOpenDetail={setDetailTicker} />
             </div>
           </div>
         )}
@@ -362,10 +607,11 @@ export default function App() {
           <div>
             <GlobalIndicesPanel onTickerClick={t => goChart(t)} onOpenDetail={setDetailTicker} />
             <div style={{ borderTop:'1px solid #1e1e1e' }}>
-              <IndexPanel data={data?.indices} loading={loading} onTickerClick={t => goChart(t)} onOpenDetail={setDetailTicker} />
+              <IndexPanel data={mergedData?.indices} loading={loading} onTickerClick={t => goChart(t)} onOpenDetail={setDetailTicker} />
             </div>
           </div>
         )}
+        {activeTab === 'watchlist' && <WatchlistPanel onTickerClick={t => goChart(t)} onOpenDetail={setDetailTicker} />}
         {activeTab === 'rates' && <DICurvePanel />}
         {activeTab === 'news' && <NewsPanel />}
         {activeTab === 'search' && <SearchPanel onTickerSelect={t => { goChart(t); setDetailTicker(t); }} onOpenDetail={setDetailTicker} />}
@@ -400,8 +646,11 @@ export default function App() {
         })}
       </nav>
       {detailTicker && <InstrumentDetail ticker={detailTicker} onClose={() => setDetailTicker(null)} />}
-      <TickerTooltip />
+      <TickerTooltip onOpenDetail={setDetailTicker} />
     </div>
     </PriceProvider>
+    </MarketProvider>
+    </FeedStatusProvider>
+    </WatchlistProvider>
   );
 }
