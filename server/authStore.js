@@ -18,6 +18,48 @@ const usersById = new Map();
 let nextId = 1;
 
 /**
+ * Seed users from environment variables on startup.
+ * Format: SEED_USERS=username1:password1,username2:password2
+ * These users are (re)created with subscriptionActive=true and no trial expiry.
+ */
+async function seedUsersFromEnv() {
+  const raw = process.env.SEED_USERS || '';
+  if (!raw.trim()) return;
+  const entries = raw.split(',').map(s => s.trim()).filter(Boolean);
+  for (const entry of entries) {
+    const colonIdx = entry.indexOf(':');
+    if (colonIdx < 0) continue;
+    const username = entry.slice(0, colonIdx).trim();
+    const password = entry.slice(colonIdx + 1).trim();
+    if (!username || !password) continue;
+    const key = username.toLowerCase();
+    if (usersByUsername.has(key)) continue; // already exists in this session
+    try {
+      const hash = await bcrypt.hash(password, 12);
+      const now  = Date.now();
+      const id   = nextId++;
+      const user = {
+        id,
+        username,
+        hash,
+        settings:            defaultSettings(),
+        isPaid:              true,
+        subscriptionActive:  true,
+        trialEndsAt:         now + 365 * 24 * 60 * 60 * 1000, // 1 year
+        stripeCustomerId:    null,
+        stripeSubscriptionId:null,
+        createdAt:           now,
+      };
+      usersByUsername.set(key, user);
+      usersById.set(id, user);
+      console.log(`[authStore] Seeded user: ${username}`);
+    } catch (e) {
+      console.error(`[authStore] Failed to seed user ${username}:`, e.message);
+    }
+  }
+}
+
+/**
  * Default user settings. Merged on registration.
  */
 function defaultSettings() {
@@ -211,4 +253,5 @@ module.exports = {
   mergeSettings,
   updateSubscription,
   safeUser,
+  seedUsersFromEnv,
 };

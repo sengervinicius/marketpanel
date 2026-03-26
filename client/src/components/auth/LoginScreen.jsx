@@ -1,7 +1,7 @@
 /**
  * LoginScreen.jsx
  *
- * Full-screen login screen with username/password authentication.
+ * Full-screen login/register screen.
  * Persistent JWT-based auth via AuthContext.
  */
 
@@ -12,6 +12,7 @@ export default function LoginScreen({ children }) {
   const auth = useAuth?.();
   const user = auth?.user;
 
+  const [mode, setMode] = useState('login'); // 'login' | 'register'
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -23,31 +24,39 @@ export default function LoginScreen({ children }) {
     return children;
   }
 
-  const handleLogin = async (e) => {
+  const triggerShake = (msg) => {
+    setError(msg);
+    setShake(true);
+    setTimeout(() => setShake(false), 600);
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
     try {
-      if (!auth?.login) {
-        throw new Error('Auth context not configured');
+      if (mode === 'login') {
+        if (!auth?.login) throw new Error('Auth context not configured');
+        await auth.login(username, password);
+      } else {
+        if (!auth?.register) throw new Error('Auth context not configured');
+        await auth.register(username, password);
       }
-      await auth.login(username, password);
-      // On success, auth context will update and user will be set
     } catch (err) {
-      setError(err.message || 'Login failed');
-      setShake(true);
-      setTimeout(() => setShake(false), 600);
+      triggerShake(err.message || (mode === 'login' ? 'Login failed' : 'Registration failed'));
     } finally {
       setLoading(false);
     }
   };
 
+  const switchMode = () => {
+    setMode(m => m === 'login' ? 'register' : 'login');
+    setError('');
+  };
+
   const containerStyle = {
     position: 'fixed',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+    top: 0, left: 0, right: 0, bottom: 0,
     backgroundColor: '#0a0a0f',
     backgroundImage: `
       linear-gradient(90deg, #ff6600 1px, transparent 1px),
@@ -63,30 +72,11 @@ export default function LoginScreen({ children }) {
     zIndex: 9999,
   };
 
-  const logoStyle = {
-    marginBottom: '32px',
-    textAlign: 'center',
-  };
+  const logoStyle    = { marginBottom: '32px', textAlign: 'center' };
+  const titleStyle   = { fontSize: '48px', color: '#ff6600', letterSpacing: '0.05em', fontWeight: 'bold', marginBottom: '8px' };
+  const subtitleStyle= { fontSize: '10px', color: '#888', letterSpacing: '0.1em' };
 
-  const sengerTitleStyle = {
-    fontSize: '48px',
-    color: '#ff6600',
-    letterSpacing: '0.05em',
-    fontWeight: 'bold',
-    marginBottom: '8px',
-  };
-
-  const subtitleStyle = {
-    fontSize: '10px',
-    color: '#888',
-    letterSpacing: '0.1em',
-    fontWeight: 'normal',
-  };
-
-  const formStyle = {
-    width: '280px',
-    animation: shake ? 'shake 0.6s' : 'none',
-  };
+  const formStyle = { width: '280px', animation: shake ? 'shake 0.6s' : 'none' };
 
   const inputStyle = {
     width: '100%',
@@ -114,30 +104,20 @@ export default function LoginScreen({ children }) {
     fontFamily: 'monospace',
   };
 
-  const buttonDisabledStyle = {
-    ...buttonStyle,
-    opacity: 0.6,
-    cursor: 'not-allowed',
-  };
+  const buttonDisabledStyle = { ...buttonStyle, opacity: 0.6, cursor: 'not-allowed' };
 
-  const errorStyle = {
-    color: '#ff4444',
-    fontSize: '10px',
-    marginBottom: '8px',
-    minHeight: '16px',
+  const errorStyle = { color: '#ff4444', fontSize: '10px', marginBottom: '8px', minHeight: '16px' };
+
+  const switchStyle = {
+    color: '#444', fontSize: '10px', textAlign: 'center',
+    marginTop: '16px', cursor: 'pointer',
   };
 
   const billingStyle = {
-    marginTop: '32px',
-    textAlign: 'center',
-    fontSize: '8px',
-    color: '#333',
+    marginTop: '32px', textAlign: 'center', fontSize: '8px', color: '#333',
   };
 
-  const mailLinkStyle = {
-    color: '#555',
-    textDecoration: 'none',
-  };
+  const mailLinkStyle = { color: '#555', textDecoration: 'none' };
 
   return (
     <div style={containerStyle}>
@@ -147,23 +127,22 @@ export default function LoginScreen({ children }) {
           25% { transform: translateX(-8px); }
           75% { transform: translateX(8px); }
         }
-        input:focus {
-          outline: none;
-          border-color: #ff6600;
-          background-color: #111;
-        }
-        button:hover:not(:disabled) {
-          background-color: #ff7722;
-        }
+        input:focus { outline: none; border-color: #ff6600; background-color: #111; }
+        button:hover:not(:disabled) { background-color: #ff7722; }
       `}</style>
 
       <div style={logoStyle}>
-        <div style={sengerTitleStyle}>SENGER</div>
+        <div style={titleStyle}>SENGER</div>
         <div style={subtitleStyle}>Professional Market Data Terminal</div>
       </div>
 
       <div style={formStyle}>
-        <form onSubmit={handleLogin}>
+        {/* Mode label */}
+        <div style={{ color: '#555', fontSize: '8px', letterSpacing: '0.2em', marginBottom: '12px', textAlign: 'center' }}>
+          {mode === 'login' ? 'SIGN IN' : 'CREATE ACCOUNT'}
+        </div>
+
+        <form onSubmit={handleSubmit}>
           <div style={errorStyle}>{error}</div>
           <input
             type="text"
@@ -172,6 +151,7 @@ export default function LoginScreen({ children }) {
             onChange={(e) => setUsername(e.target.value)}
             style={inputStyle}
             disabled={loading}
+            autoFocus
           />
           <input
             type="password"
@@ -186,9 +166,16 @@ export default function LoginScreen({ children }) {
             style={loading ? buttonDisabledStyle : buttonStyle}
             disabled={loading}
           >
-            {loading ? 'AUTHENTICATING...' : 'LOG IN'}
+            {loading
+              ? (mode === 'login' ? 'AUTHENTICATING...' : 'CREATING ACCOUNT...')
+              : (mode === 'login' ? 'LOG IN' : 'CREATE ACCOUNT')
+            }
           </button>
         </form>
+
+        <div style={switchStyle} onClick={switchMode}>
+          {mode === 'login' ? 'CREATE NEW ACCOUNT' : 'BACK TO LOGIN'}
+        </div>
 
         <div style={billingStyle}>
           SUBSCRIPTION ACCESS — vinicius@arccapital.com.br

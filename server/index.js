@@ -13,7 +13,7 @@ const billingRoutes = require('./routes/billing');
 const debtRoutes    = require('./routes/debt');
 const { requireAuth, requireActiveSubscription } = require('./authMiddleware');
 const chatStore     = require('./chatStore');
-const { getUserById } = require('./authStore');
+const { getUserById, seedUsersFromEnv } = require('./authStore');
 const { verifyToken } = require('./authStore');
 
 const app = express();
@@ -136,10 +136,13 @@ function broadcast(update) {
 
 connectPolygon(marketState, broadcast);
 
-const PORT = process.env.PORT || 3001;
-server.listen(PORT, () => {
-  console.log(`\n🟠 Senger Market Terminal — Server`);
-  console.log(`   REST  → http://localhost:${PORT}/api`);
-  console.log(`   WS    → ws://localhost:${PORT}/ws`);
-  console.log(`   ENV   → ${process.env.NODE_ENV || 'development'}\n`);
+// Seed users from SEED_USERS env var before accepting requests
+seedUsersFromEnv().then(() => {
+  const PORT = process.env.PORT || 3001;
+  server.listen(PORT, () => {
+    console.log(`\n🟠 Senger Market Terminal — Server`);
+    console.log(`   REST  → http://localhost:${PORT}/api`);
+    console.log(`   WS    → ws://localhost:${PORT}/ws`);
+    console.log(`   ENV   → ${process.env.NODE_ENV || 'development'}\n`);
+  });
 });
