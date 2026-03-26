@@ -1,14 +1,23 @@
 import { useState, useEffect } from 'react';
+import { LoginForm } from './LoginForm';
+import { useAuth } from '../../context/AuthContext';
 
 export default function PasswordGate({ children }) {
   const [auth, setAuth] = useState(false);
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [shake, setShake] = useState(false);
+  const [useUserAuth, setUseUserAuth] = useState(false);
+  const { user } = useAuth();
 
   useEffect(() => {
+    // If user is logged in via AuthContext, skip the gate
+    if (user) {
+      setAuth(true);
+      return;
+    }
     if (sessionStorage.getItem('arc_auth') === '1') setAuth(true);
-  }, []);
+  }, [user]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -53,6 +62,33 @@ export default function PasswordGate({ children }) {
           <div style={{width:60, height:1, background:'#e55a00', margin:'16px auto 0'}} />
         </div>
 
+        {/* User auth toggle */}
+        {!useUserAuth && (
+          <div style={{textAlign:'center', marginBottom:16}}>
+            <button
+              type="button"
+              onClick={() => setUseUserAuth(true)}
+              style={{
+                background:'transparent',
+                border:'1px solid #555',
+                color:'#888',
+                fontSize:'8px',
+                padding:'6px 10px',
+                cursor:'pointer',
+                fontFamily:'inherit',
+                letterSpacing:'0.1em',
+                textDecoration:'underline'
+              }}
+            >
+              USER AUTHENTICATION
+            </button>
+          </div>
+        )}
+
+        {/* Show either user auth form or access code form */}
+        {useUserAuth ? (
+          <LoginForm />
+        ) : (
         {/* Login form */}
         <form onSubmit={handleSubmit} style={{
           background: '#0d0d14', border: '1px solid #1a1a2e',
@@ -115,6 +151,7 @@ export default function PasswordGate({ children }) {
         <div style={{textAlign:'center', marginTop:20, color:'#333', fontSize:7, letterSpacing:'0.1em'}}>
           AUTHORIZED USERS ONLY · CONFIDENTIAL
         </div>
+        )}
       </div>
 
       <style>{`

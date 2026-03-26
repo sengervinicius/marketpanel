@@ -5,6 +5,7 @@ const { createServer } = require('http');
 const WebSocket = require('ws');
 const { connectPolygon } = require('./polygonProxy');
 const marketRoutes = require('./routes/market');
+const authRoutes = require('./routes/authRoutes');
 const chatStore = require('./chatStore');
 
 const app = express();
@@ -17,6 +18,9 @@ app.use(express.json());
 
 // Health check
 app.get('/health', (req, res) => res.json({ status: 'ok', ts: Date.now() }));
+
+// Auth routes
+app.use('/api/auth', authRoutes);
 
 // REST routes (snapshots, news, charts)
 app.use('/api', marketRoutes);

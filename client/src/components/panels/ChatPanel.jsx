@@ -25,14 +25,15 @@ const decrypt = (ciphertext) => {
   }
 };
 
-export function ChatPanel() {
+export function ChatPanel({ user }) {
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
 
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(true);
-  const [senderId] = useState(() => `user_${Math.random().toString(36).slice(2, 9)}`);
+  // Use authenticated username if available, otherwise random ID
+  const [senderId] = useState(() => user?.username || `anon_${Math.random().toString(36).slice(2, 9)}`);
   const roomId = 'global';
 
   // Fetch chat history on mount

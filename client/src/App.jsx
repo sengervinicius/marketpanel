@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useMarketData } from './hooks/useMarketData';
 import { useWebSocket } from './hooks/useWebSocket';
+import { useAuth } from './context/AuthContext';
 import { PriceProvider } from './context/PriceContext';
 import { FeedStatusProvider } from './context/FeedStatusContext';
 import { WatchlistProvider } from './context/WatchlistContext';
@@ -272,6 +273,7 @@ const LS_CHART_GRID   = 'chartGrid_v3';
 
 export default function App() {
   const { data, loading, isRefreshing, lastUpdated } = useMarketData();
+  const { user } = useAuth();
 
   // ── Live WebSocket overlay (throttled at 250 ms) ──────────────────────────
   const [feedStatus, setFeedStatus] = useState({ stocks: 'connecting', forex: 'connecting', crypto: 'connecting' });
@@ -552,7 +554,7 @@ export default function App() {
           )}
           {isPanelVisible('chat') && (
           <div style={{ flex: 0.5, minWidth: 0, borderLeft:border, overflow:'hidden', height:'100%' }}>
-            <ChatPanel />
+            <ChatPanel user={user} />
           </div>
           )}
         </div>
@@ -619,7 +621,7 @@ export default function App() {
           </div>
         )}
         {activeTab === 'watchlist' && <WatchlistPanel onTickerClick={t => goChart(t)} onOpenDetail={setDetailTicker} />}
-        {activeTab === 'chat' && <ChatPanel />}
+        {activeTab === 'chat' && <ChatPanel user={user} />}
         {activeTab === 'rates' && <DICurvePanel />}
         {activeTab === 'news' && <NewsPanel />}
         {activeTab === 'search' && <SearchPanel onTickerSelect={t => { goChart(t); setDetailTicker(t); }} onOpenDetail={setDetailTicker} />}
