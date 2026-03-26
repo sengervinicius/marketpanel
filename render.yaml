@@ -32,7 +32,7 @@ services:
         source: /*
         destination: /index.html
     envVars:
-      - key: VITE_SERVER_URL
+      - key: VITE_API_URL
         sync: false          # Set to your backend URL e.g. https://senger-market-server.onrender.com
       - key: VITE_WS_URL
         sync: false          # Set to wss://senger-market-server.onrender.com/ws
