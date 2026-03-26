@@ -17,6 +17,7 @@ import { DICurvePanel } from './components/panels/DICurvePanel';
 import BrazilPanel from './components/panels/BrazilPanel';
 import GlobalIndicesPanel from './components/panels/GlobalIndicesPanel';
 import WatchlistPanel from './components/panels/WatchlistPanel';
+import { ChatPanel } from './components/panels/ChatPanel';
 import { TickerTooltip } from './components/common/TickerTooltip';
 import InstrumentDetail from './components/common/InstrumentDetail';
 import './App.css';
@@ -259,6 +260,7 @@ const MOBILE_TABS = [
   { id: 'fxcrypto',  label: 'FX/BTC' },
   { id: 'global',    label: 'GLOBAL' },
   { id: 'watchlist', label: 'WATCH' },
+  { id: 'chat',      label: 'CHAT' },
   { id: 'rates',     label: 'CURVES' },
   { id: 'news',      label: 'NEWS' },
   { id: 'search',    label: 'SEARCH' },
@@ -548,6 +550,11 @@ export default function App() {
             <WatchlistPanel onTickerClick={setChartTicker} onOpenDetail={setDetailTicker} />
           </div>
           )}
+          {isPanelVisible('chat') && (
+          <div style={{ flex: 0.5, minWidth: 0, borderLeft:border, overflow:'hidden', height:'100%' }}>
+            <ChatPanel />
+          </div>
+          )}
         </div>
 
         <FeedStatusBar feedStatus={feedStatus} />
@@ -612,6 +619,7 @@ export default function App() {
           </div>
         )}
         {activeTab === 'watchlist' && <WatchlistPanel onTickerClick={t => goChart(t)} onOpenDetail={setDetailTicker} />}
+        {activeTab === 'chat' && <ChatPanel />}
         {activeTab === 'rates' && <DICurvePanel />}
         {activeTab === 'news' && <NewsPanel />}
         {activeTab === 'search' && <SearchPanel onTickerSelect={t => { goChart(t); setDetailTicker(t); }} onOpenDetail={setDetailTicker} />}

@@ -27,6 +27,10 @@ export function useWebSocket(onMessage) {
         try {
           const data = JSON.parse(evt.data);
           onMessage(data);
+          // Emit custom events for specialized message types
+          if (data.type === 'chat_message') {
+            window.dispatchEvent(new CustomEvent('ws:chat_message', { detail: data.detail }));
+          }
         } catch (e) {
           console.warn('[WS] Parse error:', e);
         }
@@ -53,10 +57,20 @@ export function useWebSocket(onMessage) {
   useEffect(() => {
     mounted.current = true;
     connect();
+
+    // Listen for outgoing chat messages to forward to server
+    const handleWsSend = (evt) => {
+      if (ws.current?.readyState === WebSocket.OPEN) {
+        ws.current.send(JSON.stringify(evt.detail));
+      }
+    };
+    window.addEventListener('ws:send', handleWsSend);
+
     return () => {
       mounted.current = false;
       clearTimeout(reconnectTimer.current);
       ws.current?.close();
+      window.removeEventListener('ws:send', handleWsSend);
     };
   }, [connect]);
 

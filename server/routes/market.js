@@ -1251,4 +1251,19 @@ router.get('/fundamentals/:symbol', async (req, res) => {
   }
 });
 
+// ─── Chat History ──────────────────────────────────────────────────────
+// GET /api/chat/history?roomId=global
+const chatStore = require('../chatStore');
+
+router.get('/chat/history', (req, res) => {
+  const { roomId = 'global' } = req.query;
+  try {
+    const messages = chatStore.getRecentMessages(roomId, 50);
+    res.json({ roomId, messages });
+  } catch (e) {
+    console.error('[API] /chat/history error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 module.exports = router;

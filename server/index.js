@@ -5,6 +5,7 @@ const { createServer } = require('http');
 const WebSocket = require('ws');
 const { connectPolygon } = require('./polygonProxy');
 const marketRoutes = require('./routes/market');
+const chatStore = require('./chatStore');
 
 const app = express();
 
@@ -44,6 +45,29 @@ wss.on('connection', (ws, req) => {
   if (ws.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify({ type: 'snapshot', data: marketState }));
   }
+
+  ws.on('message', (raw) => {
+    try {
+      const msg = JSON.parse(raw);
+      // Handle chat messages
+      if (msg.type === 'chat_message') {
+        const { roomId, senderId, ciphertext } = msg;
+        if (!roomId || !senderId || !ciphertext) return;
+        const chatMsg = {
+          id: Date.now().toString(),
+          roomId,
+          senderId,
+          timestamp: new Date().toISOString(),
+          ciphertext,
+        };
+        chatStore.addMessage(chatMsg);
+        // Broadcast to all connected clients
+        broadcast({ type: 'chat_message', detail: chatMsg });
+      }
+    } catch (e) {
+      console.warn('[WS] Message parse error:', e.message);
+    }
+  });
 
   ws.on('close', () => {
     clients.delete(ws);
