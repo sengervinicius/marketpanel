@@ -1,9 +1,13 @@
-// BrazilPanel.jsx — B3 stocks via server Yahoo Finance proxy (crumb auth)
+// BrazilPanel.jsx — B3 stocks via server Yahoo Finance proxy
+// Title and symbols are user-configurable via SettingsContext + PanelConfigModal.
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useSettings } from '../../context/SettingsContext';
+import PanelConfigModal from '../common/PanelConfigModal';
+import { apiFetch } from '../../utils/api';
 
 const SERVER = import.meta.env.VITE_API_URL || import.meta.env.VITE_SERVER_URL || '';
 
-const fmt    = n => n == null ? '—' : n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmt    = n => n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmtPct = n => n == null ? '—' : (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
 
 const showInfo = (e, symbol, label, type) => {
@@ -15,10 +19,21 @@ const showInfo = (e, symbol, label, type) => {
 
 export default function BrazilPanel({ onTickerClick, onOpenDetail }) {
   const ptRef = useRef(null);
-  const [stocks, setStocks]     = useState([]);
-  const [loading, setLoading]   = useState(true);
-  const [error, setError]       = useState(null);
+  const { settings, updatePanelConfig } = useSettings();
+
+  // Panel config from settings (with fallback defaults)
+  const panelCfg = settings?.panels?.brazilB3 || {
+    title: 'Brazil B3',
+    symbols: ['VALE3.SA','PETR4.SA','ITUB4.SA','BBDC4.SA','ABEV3.SA','WEGE3.SA','RENT3.SA'],
+  };
+  const panelTitle   = panelCfg.title   || 'Brazil B3';
+  const panelSymbols = panelCfg.symbols || [];
+
+  const [stocks, setStocks]         = useState([]);
+  const [loading, setLoading]       = useState(true);
+  const [error, setError]           = useState(null);
   const [lastUpdate, setLastUpdate] = useState(null);
+  const [configOpen, setConfigOpen] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
@@ -45,9 +60,20 @@ export default function BrazilPanel({ onTickerClick, onOpenDetail }) {
 
   useEffect(() => {
     fetchData();
-    const id = setInterval(fetchData, 15_000); // 15s refresh
+    const id = setInterval(fetchData, 15_000);
     return () => clearInterval(id);
   }, [fetchData]);
+
+  // Filter displayed rows to only the configured symbols (preserving order)
+  const displayedStocks = panelSymbols.length > 0
+    ? panelSymbols
+        .map(sym => {
+          // symbols may be stored with or without .SA suffix
+          const baseSym = sym.replace(/\.SA$/i, '');
+          return stocks.find(s => s.symbol === baseSym || s.symbol === sym);
+        })
+        .filter(Boolean)
+    : stocks;
 
   const col = { color: '#555', fontSize: 7, letterSpacing: '0.15em', textTransform: 'uppercase' };
 
@@ -56,11 +82,21 @@ export default function BrazilPanel({ onTickerClick, onOpenDetail }) {
       {/* Header */}
       <div style={{
         padding: '4px 8px', borderBottom: '1px solid #2a2a2a',
-        display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0,
       }}>
-        <span style={{ color: '#e8a020', fontWeight: 700, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase' }}>
-          BRASIL B3
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ color: '#e8a020', fontWeight: 700, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase' }}>
+            {panelTitle}
+          </span>
+          <button
+            onClick={() => setConfigOpen(true)}
+            title="Configure panel"
+            style={{
+              background: 'none', border: 'none', color: '#444', cursor: 'pointer',
+              fontSize: 9, padding: '0 2px', lineHeight: 1, display: 'flex', alignItems: 'center',
+            }}
+          >✎</button>
+        </div>
         {error
           ? <span style={{ color: '#f44', fontSize: 7 }}>{error}</span>
           : lastUpdate && <span style={{ color: '#444', fontSize: 7 }}>{lastUpdate.toLocaleTimeString()}</span>
@@ -70,20 +106,20 @@ export default function BrazilPanel({ onTickerClick, onOpenDetail }) {
       {/* Column headers */}
       <div style={{ display: 'grid', gridTemplateColumns: '52px 1fr 64px 52px', padding: '3px 8px', borderBottom: '1px solid #1a1a1a', flexShrink: 0 }}>
         <span style={col}>TICKER</span>
-        <span style={col}>NOME</span>
-        <span style={{ ...col, textAlign: 'right' }}>PREÇO</span>
+        <span style={col}>NAME</span>
+        <span style={{ ...col, textAlign: 'right' }}>PRICE</span>
         <span style={{ ...col, textAlign: 'right' }}>CHG%</span>
       </div>
 
       {/* Rows */}
       <div style={{ flex: 1, overflowY: 'auto' }}>
         {loading && !stocks.length && (
-          <div style={{ padding: 12, color: '#444', fontSize: 8, textAlign: 'center' }}>CARREGANDO...</div>
+          <div style={{ padding: 12, color: '#444', fontSize: 8, textAlign: 'center' }}>LOADING...</div>
         )}
-        {!loading && !error && !stocks.length && (
-          <div style={{ padding: 12, color: '#444', fontSize: 8, textAlign: 'center' }}>SEM DADOS</div>
+        {!loading && !error && !displayedStocks.length && (
+          <div style={{ padding: 12, color: '#444', fontSize: 8, textAlign: 'center' }}>NO DATA</div>
         )}
-        {stocks.map((s, i) => {
+        {displayedStocks.map((s, i) => {
           const up  = (s.changePct ?? 0) >= 0;
           const clr = up ? '#00c853' : '#f44336';
           return (
@@ -94,7 +130,6 @@ export default function BrazilPanel({ onTickerClick, onOpenDetail }) {
               data-ticker-type="BR"
               draggable
               onDragStart={e => {
-                // Pass .SA suffix so ChartPanel routes to Yahoo Finance for B3 historical data
                 e.dataTransfer.setData('application/x-ticker',
                   JSON.stringify({ symbol: s.symbol + '.SA', label: s.name || s.symbol }));
                 e.dataTransfer.effectAllowed = 'copy';
@@ -126,6 +161,21 @@ export default function BrazilPanel({ onTickerClick, onOpenDetail }) {
           );
         })}
       </div>
+
+      {/* Panel config modal */}
+      {configOpen && (
+        <PanelConfigModal
+          panelId="brazilB3"
+          currentTitle={panelTitle}
+          currentSymbols={panelSymbols}
+          assetClasses={['equity']}
+          onSave={({ title, symbols }) => {
+            updatePanelConfig('brazilB3', { title, symbols });
+            setConfigOpen(false);
+          }}
+          onClose={() => setConfigOpen(false)}
+        />
+      )}
     </div>
   );
 }

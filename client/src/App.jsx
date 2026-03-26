@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useMarketData } from './hooks/useMarketData';
 import { useWebSocket } from './hooks/useWebSocket';
 import { useAuth } from './context/AuthContext';
+import { useSettings } from './context/SettingsContext';
 import { PriceProvider } from './context/PriceContext';
 import { FeedStatusProvider } from './context/FeedStatusContext';
 import { WatchlistProvider } from './context/WatchlistContext';
@@ -18,8 +19,10 @@ import { DICurvePanel } from './components/panels/DICurvePanel';
 import BrazilPanel from './components/panels/BrazilPanel';
 import GlobalIndicesPanel from './components/panels/GlobalIndicesPanel';
 import WatchlistPanel from './components/panels/WatchlistPanel';
+import WatchlistPanelMobile from './components/panels/WatchlistPanelMobile';
 import { ChatPanel } from './components/panels/ChatPanel';
 import HomePanelMobile from './components/panels/HomePanelMobile';
+import OnboardingPresets from './components/onboarding/OnboardingPresets';
 import { TickerTooltip } from './components/common/TickerTooltip';
 import InstrumentDetail from './components/common/InstrumentDetail';
 import './App.css';
@@ -27,7 +30,6 @@ import './App.css';
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
 // ── MarketTickBridge — dispatches live WS ticks into MarketContext reducer ────
-// Must be rendered inside <MarketProvider> so it can call useMarketDispatch()
 function MarketTickBridge({ batchTicks }) {
   const dispatch = useMarketDispatch();
   useEffect(() => {
@@ -37,7 +39,7 @@ function MarketTickBridge({ batchTicks }) {
   return null;
 }
 
-// ── World Clock ────────────────────────────────────────────────────────────────────────────────
+// ── World Clock ──────────────────────────────────────────────────────────────
 function WorldClock() {
   const [now, setNow] = useState(new Date());
   useEffect(() => {
@@ -66,7 +68,7 @@ function WorldClock() {
   );
 }
 
-// ── Row Resize Handle ────────────────────────────────────────────────────────────────────────────────
+// ── Row Resize Handle ────────────────────────────────────────────────────────
 function ResizeHandle({ onStart }) {
   return (
     <div
@@ -84,7 +86,7 @@ function ResizeHandle({ onStart }) {
   );
 }
 
-// ── Column Resize Handle ────────────────────────────────────────────────────────────────────────────────
+// ── Column Resize Handle ─────────────────────────────────────────────────────
 function ColResizeHandle({ onStart }) {
   return (
     <div
@@ -102,7 +104,7 @@ function ColResizeHandle({ onStart }) {
   );
 }
 
-// ── Resizable row-flex hook ──────────────────────────────────────────────────────────────────────────────
+// ── Resizable row-flex hook ──────────────────────────────────────────────────
 function useResizableFlex(storageKey, defaults) {
   const [sizes, setSizes] = useState(() => {
     try {
@@ -134,7 +136,7 @@ function useResizableFlex(storageKey, defaults) {
   return [sizes, startResize];
 }
 
-// ── Resizable column-flex hook ──────────────────────────────────────────────────────────────────────────────
+// ── Resizable column-flex hook ───────────────────────────────────────────────
 function useResizableColumns(storageKey, defaults) {
   const [sizes, setSizes] = useState(() => {
     try {
@@ -166,7 +168,7 @@ function useResizableColumns(storageKey, defaults) {
   return [sizes, startResize];
 }
 
-// ── Settings Drawer ─────────────────────────────────────────────────────────────────────────────────────
+// ── Settings Drawer ──────────────────────────────────────────────────────────
 const PANEL_DEFS = [
   { id: 'charts',      label: 'Chart Grid' },
   { id: 'usequity',   label: 'US Equities' },
@@ -180,6 +182,7 @@ const PANEL_DEFS = [
   { id: 'search',     label: 'Search' },
   { id: 'news',       label: 'News' },
   { id: 'sentiment',  label: 'Sentiment' },
+  { id: 'chat',       label: 'Chat' },
 ];
 
 function SettingsDrawer({ panelVisible, togglePanel, onClose }) {
@@ -212,7 +215,7 @@ function SettingsDrawer({ panelVisible, togglePanel, onClose }) {
   );
 }
 
-// ── Feed Status Bar ─────────────────────────────────────────────────────────────────────────────────────
+// ── Feed Status Bar ──────────────────────────────────────────────────────────
 function FeedStatusBar({ feedStatus }) {
   const feeds = [
     { key: 'stocks', label: 'STOCKS' },
@@ -223,7 +226,7 @@ function FeedStatusBar({ feedStatus }) {
     if (level === 'live')      return '#00cc66';
     if (level === 'degraded')  return '#ff9900';
     if (level === 'error')     return '#ff3333';
-    return '#444'; // connecting
+    return '#444';
   };
   const dot = (level) => {
     if (level === 'live')     return '●';
@@ -254,8 +257,77 @@ function FeedStatusBar({ feedStatus }) {
   );
 }
 
-// ── Mobile tab definitions ──────────────────────────────────────────────────────────────────────────────
-// 5 tabs: HOME, WATCHLIST, SEARCH, DETAIL, NEWS
+// ── Trial / Subscription banner ──────────────────────────────────────────────
+function TrialBanner({ subscription, onUpgrade }) {
+  if (!subscription) return null;
+  if (subscription.status === 'active') return null;
+
+  const days = subscription.trialDaysRemaining ?? 0;
+  if (subscription.status === 'trial' && days <= 0) return null;
+
+  const isExpired = subscription.status === 'expired';
+  const bg  = isExpired ? '#3a0000' : '#1a1000';
+  const clr = isExpired ? '#ff4444' : '#ff9900';
+  const msg = isExpired
+    ? 'TRIAL EXPIRED — Subscribe to continue'
+    : `FREE TRIAL: ${days} day${days !== 1 ? 's' : ''} remaining`;
+
+  return (
+    <div style={{
+      background: bg, borderBottom: `1px solid ${clr}44`,
+      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12,
+      padding: '3px 12px', flexShrink: 0,
+    }}>
+      <span style={{ color: clr, fontSize: 8, letterSpacing: '0.8px', fontWeight: 700 }}>{msg}</span>
+      <button
+        onClick={onUpgrade}
+        style={{
+          background: '#ff6600', border: 'none', color: '#000',
+          fontSize: 8, fontWeight: 700, padding: '2px 8px', cursor: 'pointer',
+          fontFamily: 'inherit', letterSpacing: '0.5px', borderRadius: 2,
+        }}
+      >UPGRADE →</button>
+    </div>
+  );
+}
+
+// ── Subscription Expired Screen ──────────────────────────────────────────────
+function SubscriptionExpiredScreen({ onUpgrade, onLogout }) {
+  return (
+    <div style={{
+      flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
+      justifyContent: 'center', gap: 16, padding: 32, background: '#0a0a0a',
+    }}>
+      <div style={{ color: '#ff3333', fontSize: 32 }}>⊘</div>
+      <div style={{ color: '#ff3333', fontSize: 13, fontWeight: 700, letterSpacing: '2px' }}>
+        SUBSCRIPTION REQUIRED
+      </div>
+      <div style={{ color: '#555', fontSize: 10, textAlign: 'center', maxWidth: 320, lineHeight: 1.6 }}>
+        Your free trial has ended. Subscribe to Senger Market Terminal to continue accessing real-time data.
+      </div>
+      <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
+        <button
+          onClick={onUpgrade}
+          style={{
+            background: '#ff6600', border: 'none', color: '#000',
+            fontSize: 10, fontWeight: 700, padding: '8px 20px', cursor: 'pointer',
+            fontFamily: 'inherit', letterSpacing: '1px', borderRadius: 2,
+          }}
+        >SUBSCRIBE NOW →</button>
+        <button
+          onClick={onLogout}
+          style={{
+            background: 'none', border: '1px solid #2a2a2a', color: '#444',
+            fontSize: 10, padding: '8px 14px', cursor: 'pointer',
+            fontFamily: 'inherit', borderRadius: 2,
+          }}
+        >LOG OUT</button>
+      </div>
+    </div>
+  );
+}
+
+// ── Mobile tab definitions ───────────────────────────────────────────────────
 const MOBILE_TABS = [
   { id: 'home',      label: 'HOME',   icon: '⌂' },
   { id: 'watchlist', label: 'WATCH',  icon: '☆' },
@@ -264,30 +336,28 @@ const MOBILE_TABS = [
   { id: 'news',      label: 'NEWS',   icon: '◎' },
 ];
 
-const LS_TAB          = 'activeTab_m3'; // bumped to reset stale saved tab
+const LS_TAB          = 'activeTab_m3';
 const LS_CHART_TICKER = 'chartTicker';
 const LS_CHART_GRID   = 'chartGrid_v3';
 
 export default function App() {
   const { data, loading, isRefreshing, lastUpdated } = useMarketData();
-  const { user } = useAuth();
+  const { user, subscription, startCheckout, logout } = useAuth();
+  const { settings, loaded: settingsLoaded } = useSettings();
 
-  // ── Live WebSocket overlay (throttled at 250 ms) ──────────────────────────
+  // ── Live WebSocket overlay (throttled at 250 ms) ─────────────────────────
   const [feedStatus, setFeedStatus] = useState({ stocks: 'connecting', forex: 'connecting', crypto: 'connecting' });
-  const liveOverlayRef    = useRef({});  // { [symbol]: partial price obj } — updated every tick
-  const tickBufferRef     = useRef([]);  // accumulate incoming ticks between flushes
-  const throttleTimerRef  = useRef(null);
-  const [liveTick, setLiveTick] = useState(0); // bump to trigger re-render after flush
-  // batchTicks fed into MarketTickBridge → MarketContext reducer (BATCH_TICK)
+  const liveOverlayRef   = useRef({});
+  const tickBufferRef    = useRef([]);
+  const throttleTimerRef = useRef(null);
+  const [liveTick, setLiveTick] = useState(0);
   const [batchTicks, setBatchTicks] = useState([]);
 
   const handleWsMessage = useCallback((msg) => {
-    // Status updates are immediate — don't throttle
     if (msg.type === 'status') {
       setFeedStatus(prev => ({ ...prev, [msg.feed]: msg.level }));
       return;
     }
-    // Initial snapshot — merge into overlay immediately, one re-render
     if (msg.type === 'snapshot') {
       const snap = msg.data;
       ['stocks', 'forex', 'crypto'].forEach(cat => {
@@ -299,7 +369,6 @@ export default function App() {
       setLiveTick(n => n + 1);
       return;
     }
-    // Live ticks — buffer and flush at 250 ms to avoid render flooding
     if (msg.type === 'tick' || msg.type === 'quote') {
       tickBufferRef.current.push(msg);
       if (!throttleTimerRef.current) {
@@ -307,7 +376,6 @@ export default function App() {
           throttleTimerRef.current = null;
           const ticks = tickBufferRef.current.splice(0);
           if (ticks.length === 0) return;
-          // Normalize ticks for MarketContext BATCH_TICK
           const normalizedTicks = [];
           ticks.forEach(t => {
             if (t.symbol && t.data) {
@@ -315,7 +383,6 @@ export default function App() {
               normalizedTicks.push({ category: t.category, symbol: t.symbol, data: t.data });
             }
           });
-          // Update both the old mergedData path AND MarketContext reducer
           setLiveTick(n => n + 1);
           if (normalizedTicks.length > 0) setBatchTicks(normalizedTicks);
         }, 250);
@@ -325,7 +392,7 @@ export default function App() {
 
   useWebSocket(handleWsMessage);
 
-  // Merge REST snapshot with WS live overlay — WS wins on matching symbols
+  // Merge REST snapshot with WS live overlay
   const mergedData = useMemo(() => {
     if (!data) return data;
     const overlay = liveOverlayRef.current;
@@ -343,7 +410,6 @@ export default function App() {
         merged[cat] = { ...data[cat], ...updates };
       }
     });
-    // indices mirrors stocks
     merged.indices = merged.stocks || {};
     return merged;
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -359,14 +425,16 @@ export default function App() {
     () => localStorage.getItem(LS_CHART_TICKER) || 'SPY'
   );
 
-  // ── Cross-device sync ────────────────────────────────────────────────────────────────────────────────
   const syncTimer = useRef(null);
 
   useEffect(() => {
     fetch(API_BASE + '/api/settings')
       .then(r => r.ok ? r.json() : null)
       .then(s => {
-        if (s?.chartTicker && s.chartTicker !== localStorage.getItem(LS_CHART_TICKER)) {
+        if (s?.settings?.chartTicker && s.settings.chartTicker !== localStorage.getItem(LS_CHART_TICKER)) {
+          setChartTickerState(s.settings.chartTicker);
+          localStorage.setItem(LS_CHART_TICKER, s.settings.chartTicker);
+        } else if (s?.chartTicker && s.chartTicker !== localStorage.getItem(LS_CHART_TICKER)) {
           setChartTickerState(s.chartTicker);
           localStorage.setItem(LS_CHART_TICKER, s.chartTicker);
         }
@@ -412,7 +480,6 @@ export default function App() {
   const [detailTicker, setDetailTicker] = useState(null);
   const [settingsOpen, setSettingsOpen]  = useState(false);
 
-  // ── Panel visibility (settings drawer) ────────────────────────────────────
   const [panelVisible, setPanelVisible] = useState(() => {
     try { return JSON.parse(localStorage.getItem('panelVisible_v1')) || {}; } catch { return {}; }
   });
@@ -431,7 +498,6 @@ export default function App() {
     setActiveTabPersist('charts');
   }, [setChartTicker]);
 
-  // Mobile: tap any ticker → set detail ticker + navigate to DETAIL tab
   const goDetail = useCallback((t) => {
     const sym = typeof t === 'object' ? (t.symbol || t.ticker || t) : t;
     if (!sym) return;
@@ -439,7 +505,15 @@ export default function App() {
     setActiveTabPersist('detail');
   }, []);
 
-  // ── DESKTOP ──────────────────────────────────────────────────────────────────────────────────────────────
+  // ── Onboarding check ─────────────────────────────────────────────────────
+  // Only show onboarding after settings are loaded and onboarding is not completed
+  const showOnboarding = settingsLoaded && settings && !settings.onboardingCompleted;
+
+  // ── Subscription gating ──────────────────────────────────────────────────
+  // Show paywall if subscription has expired
+  const subscriptionExpired = subscription && subscription.status === 'expired';
+
+  // ── DESKTOP ──────────────────────────────────────────────────────────────
   if (!isMobile) {
     return (
       <WatchlistProvider>
@@ -453,14 +527,19 @@ export default function App() {
         overflowY: 'auto', overflowX: 'hidden',
         color: '#e0e0e0', userSelect: 'none',
       }}>
+
+        {/* Onboarding overlay */}
+        {showOnboarding && <OnboardingPresets />}
+
         {/* Header */}
-        <div style={{ height: 36, flexShrink: 0, display:'flex', alignItems:'center', background:'#000', borderBottom:'2px solid #ff6600', padding:'0 12px', gap:12 }}>
+        <div style={{ height: 36, flexShrink: 0, display:'flex', alignItems:'center', background:'#000', borderBottom:'2px solid #ff6600', padding:'0 12px', gap:12, position: 'relative', zIndex: 10 }}>
           <span style={{ color:'#ff6600', fontWeight:700, fontSize:'13px', letterSpacing:'2px' }}>SENGER</span>
-          <span style={{ color:'#444', fontSize:'9px', letterSpacing:'1px' }}>MARKET SCREEN</span>
+          <span style={{ color:'#444', fontSize:'9px', letterSpacing:'1px' }}>MARKET TERMINAL</span>
           <div style={{ flex:1, display:'flex', justifyContent:'center' }}><WorldClock /></div>
           <div style={{ display:'flex', alignItems:'center', gap:8 }}>
             {isRefreshing && <span style={{ color:'#ff6600', fontSize:'8px', letterSpacing:'1px' }}>&#9679; UPDATING</span>}
             {lastUpdated && !isRefreshing && <span style={{ color:'#333', fontSize:'8px' }}>SNAP {lastUpdated.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'})}</span>}
+            {user && <span style={{ color:'#333', fontSize:'8px', letterSpacing:'0.5px' }}>{user.username?.toUpperCase()}</span>}
             <button
               onClick={() => setSettingsOpen(s => !s)}
               title="Settings"
@@ -469,104 +548,115 @@ export default function App() {
           </div>
         </div>
 
-        {/* Settings drawer */}
-        {settingsOpen && <SettingsDrawer panelVisible={panelVisible} togglePanel={togglePanel} onClose={() => setSettingsOpen(false)} />}
+        {/* Trial banner */}
+        <TrialBanner subscription={subscription} onUpgrade={startCheckout} />
 
-        <MarketTickBridge batchTicks={batchTicks} />
+        {/* Subscription expired screen */}
+        {subscriptionExpired ? (
+          <SubscriptionExpiredScreen onUpgrade={startCheckout} onLogout={logout} />
+        ) : (
+          <>
+            {/* Settings drawer */}
+            {settingsOpen && <SettingsDrawer panelVisible={panelVisible} togglePanel={togglePanel} onClose={() => setSettingsOpen(false)} />}
 
-        {/* Row 1: Charts | Stocks | Forex+Crypto */}
-        <div style={{ flex: rowSizes[0], flexShrink: 0, display:'flex', overflow:'hidden', minHeight: 220 }}>
-          {isPanelVisible('charts') && (<>
-          <div style={{ flex: colSizes1[0], minWidth: 0, borderRight:border, overflow:'hidden', height:'100%' }}>
-            <ChartPanel ticker={chartTicker} onTickerChange={setChartTicker} onGridChange={setChartGridCount} onOpenDetail={setDetailTicker} />
-          </div>
-          <ColResizeHandle onStart={e => startColResize1(0, e)} />
-          </>)}
-          {isPanelVisible('usequity') && (<>
-          <div style={{ flex: colSizes1[1], minWidth: 0, borderRight:border, overflow:'hidden', height:'100%' }}>
-            <StockPanel data={mergedData?.stocks} loading={loading} onTickerClick={setChartTicker} onOpenDetail={setDetailTicker} />
-          </div>
-          <ColResizeHandle onStart={e => startColResize1(1, e)} />
-          </>)}
-          {isPanelVisible('forex') && (
-          <div style={{ flex: colSizes1[2], minWidth: 0, overflow:'hidden', height:'100%' }}>
-            <ForexPanel data={mergedData?.forex} cryptoData={mergedData?.crypto} loading={loading} onTickerClick={setChartTicker} onOpenDetail={setDetailTicker} />
-          </div>
-          )}
-        </div>
+            <MarketTickBridge batchTicks={batchTicks} />
 
-        <ResizeHandle onStart={e => startRowResize(0, e)} />
+            {/* Row 1: Charts | Stocks | Forex+Crypto */}
+            <div style={{ flex: rowSizes[0], flexShrink: 0, display:'flex', overflow:'hidden', minHeight: 220 }}>
+              {isPanelVisible('charts') && (<>
+              <div style={{ flex: colSizes1[0], minWidth: 0, borderRight:border, overflow:'hidden', height:'100%' }}>
+                <ChartPanel ticker={chartTicker} onTickerChange={setChartTicker} onGridChange={setChartGridCount} onOpenDetail={setDetailTicker} />
+              </div>
+              <ColResizeHandle onStart={e => startColResize1(0, e)} />
+              </>)}
+              {isPanelVisible('usequity') && (<>
+              <div style={{ flex: colSizes1[1], minWidth: 0, borderRight:border, overflow:'hidden', height:'100%' }}>
+                <StockPanel data={mergedData?.stocks} loading={loading} onTickerClick={setChartTicker} onOpenDetail={setDetailTicker} />
+              </div>
+              <ColResizeHandle onStart={e => startColResize1(1, e)} />
+              </>)}
+              {isPanelVisible('forex') && (
+              <div style={{ flex: colSizes1[2], minWidth: 0, overflow:'hidden', height:'100%' }}>
+                <ForexPanel data={mergedData?.forex} cryptoData={mergedData?.crypto} loading={loading} onTickerClick={setChartTicker} onOpenDetail={setDetailTicker} />
+              </div>
+              )}
+            </div>
 
-        {/* Row 2: US Indices | Brazil | Global Indexes | Commodities */}
-        <div style={{ flex: rowSizes[1], flexShrink: 0, display:'flex', overflow:'hidden', minHeight: 180 }}>
-          {isPanelVisible('indices') && (<>
-          <div style={{ flex: colSizes2[0], minWidth: 0, borderRight:border, overflow:'hidden', height:'100%' }}>
-            <IndexPanel data={mergedData?.indices} loading={loading} onTickerClick={setChartTicker} onOpenDetail={setDetailTicker} />
-          </div>
-          <ColResizeHandle onStart={e => startColResize2(0, e)} />
-          </>)}
-          {isPanelVisible('brazil') && (<>
-          <div style={{ flex: colSizes2[1], minWidth: 0, borderRight:border, overflow:'hidden', height:'100%' }}>
-            <BrazilPanel onTickerClick={setChartTicker} onOpenDetail={setDetailTicker} />
-          </div>
-          <ColResizeHandle onStart={e => startColResize2(1, e)} />
-          </>)}
-          {isPanelVisible('global') && (<>
-          <div style={{ flex: colSizes2[2], minWidth: 0, borderRight:border, overflow:'hidden', height:'100%' }}>
-            <GlobalIndicesPanel onTickerClick={setChartTicker} onOpenDetail={setDetailTicker} />
-          </div>
-          <ColResizeHandle onStart={e => startColResize2(2, e)} />
-          </>)}
-          {isPanelVisible('commodities') && (
-          <div style={{ flex: colSizes2[3], minWidth: 0, overflow:'hidden', height:'100%' }}>
-            <CommoditiesPanel data={mergedData?.stocks} loading={loading} onTickerClick={setChartTicker} onOpenDetail={setDetailTicker} />
-          </div>
-          )}
-        </div>
+            <ResizeHandle onStart={e => startRowResize(0, e)} />
 
-        <ResizeHandle onStart={e => startRowResize(1, e)} />
+            {/* Row 2: US Indices | Brazil | Global Indexes | Commodities */}
+            <div style={{ flex: rowSizes[1], flexShrink: 0, display:'flex', overflow:'hidden', minHeight: 180 }}>
+              {isPanelVisible('indices') && (<>
+              <div style={{ flex: colSizes2[0], minWidth: 0, borderRight:border, overflow:'hidden', height:'100%' }}>
+                <IndexPanel data={mergedData?.indices} loading={loading} onTickerClick={setChartTicker} onOpenDetail={setDetailTicker} />
+              </div>
+              <ColResizeHandle onStart={e => startColResize2(0, e)} />
+              </>)}
+              {isPanelVisible('brazil') && (<>
+              <div style={{ flex: colSizes2[1], minWidth: 0, borderRight:border, overflow:'hidden', height:'100%' }}>
+                <BrazilPanel onTickerClick={setChartTicker} onOpenDetail={setDetailTicker} />
+              </div>
+              <ColResizeHandle onStart={e => startColResize2(1, e)} />
+              </>)}
+              {isPanelVisible('global') && (<>
+              <div style={{ flex: colSizes2[2], minWidth: 0, borderRight:border, overflow:'hidden', height:'100%' }}>
+                <GlobalIndicesPanel onTickerClick={setChartTicker} onOpenDetail={setDetailTicker} />
+              </div>
+              <ColResizeHandle onStart={e => startColResize2(2, e)} />
+              </>)}
+              {isPanelVisible('commodities') && (
+              <div style={{ flex: colSizes2[3], minWidth: 0, overflow:'hidden', height:'100%' }}>
+                <CommoditiesPanel data={mergedData?.stocks} loading={loading} onTickerClick={setChartTicker} onOpenDetail={setDetailTicker} />
+              </div>
+              )}
+            </div>
 
-        {/* Row 3: Yield Curves | Search | News | Sentiment | Watchlist */}
-        <div style={{ flex: rowSizes[2], flexShrink: 0, display:'flex', overflow:'hidden', minHeight: 160 }}>
-          {isPanelVisible('curves') && (<>
-          <div style={{ flex: colSizes3[0], minWidth: 0, borderRight:border, overflow:'hidden', height:'100%' }}>
-            <DICurvePanel compact />
-          </div>
-          <ColResizeHandle onStart={e => startColResize3(0, e)} />
-          </>)}
-          {isPanelVisible('search') && (<>
-          <div style={{ flex: colSizes3[1], minWidth: 0, borderRight:border, overflow:'hidden', height:'100%' }}>
-            <SearchPanel onTickerSelect={setChartTicker} onOpenDetail={setDetailTicker} />
-          </div>
-          <ColResizeHandle onStart={e => startColResize3(1, e)} />
-          </>)}
-          {isPanelVisible('news') && (<>
-          <div style={{ flex: colSizes3[2], minWidth: 0, borderRight:border, overflow:'hidden', height:'100%' }}>
-            <NewsPanel />
-          </div>
-          <ColResizeHandle onStart={e => startColResize3(2, e)} />
-          </>)}
-          {isPanelVisible('sentiment') && (<>
-          <div style={{ flex: colSizes3[3], minWidth: 0, borderRight:border, overflow:'hidden', height:'100%' }}>
-            <SentimentPanel data={mergedData} loading={loading} />
-          </div>
-          <ColResizeHandle onStart={e => startColResize3(2, e)} />
-          </>)}
-          {isPanelVisible('watchlist') && (
-          <div style={{ flex: 0.6, minWidth: 0, overflow:'hidden', height:'100%' }}>
-            <WatchlistPanel onTickerClick={setChartTicker} onOpenDetail={setDetailTicker} />
-          </div>
-          )}
-          {isPanelVisible('chat') && (
-          <div style={{ flex: 0.5, minWidth: 0, borderLeft:border, overflow:'hidden', height:'100%' }}>
-            <ChatPanel user={user} />
-          </div>
-          )}
-        </div>
+            <ResizeHandle onStart={e => startRowResize(1, e)} />
 
-        <FeedStatusBar feedStatus={feedStatus} />
-        {detailTicker && <InstrumentDetail ticker={detailTicker} onClose={() => setDetailTicker(null)} />}
-      <TickerTooltip onOpenDetail={setDetailTicker} />
+            {/* Row 3: Yield Curves | Search | News | Sentiment | Watchlist | Chat */}
+            <div style={{ flex: rowSizes[2], flexShrink: 0, display:'flex', overflow:'hidden', minHeight: 160 }}>
+              {isPanelVisible('curves') && (<>
+              <div style={{ flex: colSizes3[0], minWidth: 0, borderRight:border, overflow:'hidden', height:'100%' }}>
+                <DICurvePanel compact />
+              </div>
+              <ColResizeHandle onStart={e => startColResize3(0, e)} />
+              </>)}
+              {isPanelVisible('search') && (<>
+              <div style={{ flex: colSizes3[1], minWidth: 0, borderRight:border, overflow:'hidden', height:'100%' }}>
+                <SearchPanel onTickerSelect={setChartTicker} onOpenDetail={setDetailTicker} />
+              </div>
+              <ColResizeHandle onStart={e => startColResize3(1, e)} />
+              </>)}
+              {isPanelVisible('news') && (<>
+              <div style={{ flex: colSizes3[2], minWidth: 0, borderRight:border, overflow:'hidden', height:'100%' }}>
+                <NewsPanel />
+              </div>
+              <ColResizeHandle onStart={e => startColResize3(2, e)} />
+              </>)}
+              {isPanelVisible('sentiment') && (<>
+              <div style={{ flex: colSizes3[3], minWidth: 0, borderRight:border, overflow:'hidden', height:'100%' }}>
+                <SentimentPanel data={mergedData} loading={loading} />
+              </div>
+              <ColResizeHandle onStart={e => startColResize3(2, e)} />
+              </>)}
+              {isPanelVisible('watchlist') && (
+              <div style={{ flex: 0.6, minWidth: 0, overflow:'hidden', height:'100%' }}>
+                <WatchlistPanel onTickerClick={setChartTicker} onOpenDetail={setDetailTicker} />
+              </div>
+              )}
+              {isPanelVisible('chat') && (
+              <div style={{ flex: 0.5, minWidth: 0, borderLeft:border, overflow:'hidden', height:'100%' }}>
+                <ChatPanel user={user} />
+              </div>
+              )}
+            </div>
+
+            <FeedStatusBar feedStatus={feedStatus} />
+          </>
+        )}
+
+        {detailTicker && !subscriptionExpired && <InstrumentDetail ticker={detailTicker} onClose={() => setDetailTicker(null)} />}
+        <TickerTooltip onOpenDetail={setDetailTicker} />
       </div>
       </PriceProvider>
       </MarketProvider>
@@ -575,7 +665,7 @@ export default function App() {
     );
   }
 
-  // ── MOBILE ────────────────────────────────────────────────────────────────────────────────────────────────
+  // ── MOBILE ───────────────────────────────────────────────────────────────
   return (
     <WatchlistProvider>
     <FeedStatusProvider status={feedStatus}>
@@ -591,85 +681,103 @@ export default function App() {
       color: '#e0e0e0', overflow: 'hidden',
     }}>
 
-      {/* ── Tab content area ── */}
-      <div style={{ flex:1, overflowY:'auto', overflowX:'hidden', minHeight:0, WebkitOverflowScrolling:'touch' }}>
+      {/* Onboarding overlay */}
+      {showOnboarding && <OnboardingPresets />}
 
-        {/* HOME — market overview dashboard */}
-        {activeTab === 'home' && (
-          <HomePanelMobile onOpenDetail={goDetail} />
-        )}
-
-        {/* WATCHLIST — user's saved instruments */}
-        {activeTab === 'watchlist' && (
-          <WatchlistPanel onTickerClick={goDetail} onOpenDetail={goDetail} />
-        )}
-
-        {/* SEARCH — discover and add instruments */}
-        {activeTab === 'search' && (
-          <SearchPanel onTickerSelect={goDetail} onOpenDetail={goDetail} />
-        )}
-
-        {/* DETAIL — full instrument view (inline page, not overlay) */}
-        {activeTab === 'detail' && (
-          detailTicker
-            ? <InstrumentDetail
-                ticker={detailTicker}
-                onClose={() => setActiveTabPersist('home')}
-                asPage
-              />
-            : <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', height:'100%', gap:12 }}>
-                <div style={{ color:'#2a2a2a', fontSize:32 }}>▦</div>
-                <div style={{ color:'#333', fontSize:10, letterSpacing:'1px' }}>TAP ANY INSTRUMENT TO VIEW DETAILS</div>
-                <button
-                  onClick={() => setActiveTabPersist('watchlist')}
-                  style={{ marginTop:8, background:'none', border:'1px solid #2a2a2a', color:'#555', fontSize:9, padding:'6px 14px', cursor:'pointer', fontFamily:'inherit', borderRadius:2 }}
-                >OPEN WATCHLIST →</button>
-              </div>
-        )}
-
-        {/* NEWS */}
-        {activeTab === 'news' && <NewsPanel />}
+      {/* Mobile header bar */}
+      <div style={{ height: 38, flexShrink: 0, display:'flex', alignItems:'center', background:'#000', borderBottom:'1px solid #1e1e1e', padding:'0 12px', gap:8 }}>
+        <span style={{ color:'#ff6600', fontWeight:700, fontSize:'11px', letterSpacing:'2px' }}>SENGER</span>
+        <div style={{ flex: 1 }} />
+        {user && <span style={{ color:'#333', fontSize:'7px', letterSpacing:'0.5px' }}>{user.username?.toUpperCase()}</span>}
       </div>
 
-      {/* ── Bottom tab bar ── */}
-      <nav style={{
-        display: 'flex', background: '#000',
-        borderTop: '2px solid #1e1e1e',
-        flexShrink: 0,
-        paddingBottom: 'env(safe-area-inset-bottom)',
-      }}>
-        {MOBILE_TABS.map(tab => {
-          const isActive = activeTab === tab.id;
-          const showBadge = tab.id === 'detail' && !!detailTicker;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTabPersist(tab.id)}
-              style={{
-                flex: 1, minHeight: '54px',
-                padding: '8px 4px 6px',
-                background: isActive ? '#140800' : 'transparent',
-                color: isActive ? '#ff6600' : '#444',
-                border: 'none',
-                borderTop: '2px solid ' + (isActive ? '#ff6600' : 'transparent'),
-                fontSize: '7.5px', fontWeight: 800, letterSpacing: '0.3px',
-                cursor: 'pointer', fontFamily: 'inherit', textTransform: 'uppercase',
-                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
-                position: 'relative',
-              }}>
-              <span style={{ fontSize: 14, lineHeight: 1 }}>{tab.icon}</span>
-              {tab.label}
-              {showBadge && (
-                <span style={{
-                  position: 'absolute', top: 6, right: '50%', transform: 'translateX(8px)',
-                  width: 6, height: 6, borderRadius: '50%', background: '#ff6600',
-                }} />
-              )}
-            </button>
-          );
-        })}
-      </nav>
-      {/* No overlay InstrumentDetail on mobile — it renders inline in the DETAIL tab */}
+      {/* Trial banner (mobile) */}
+      <TrialBanner subscription={subscription} onUpgrade={startCheckout} />
+
+      {/* Subscription expired screen (mobile) */}
+      {subscriptionExpired ? (
+        <SubscriptionExpiredScreen onUpgrade={startCheckout} onLogout={logout} />
+      ) : (
+        <>
+          {/* ── Tab content area ── */}
+          <div style={{ flex:1, overflowY:'auto', overflowX:'hidden', minHeight:0, WebkitOverflowScrolling:'touch' }}>
+
+            {activeTab === 'home' && (
+              <HomePanelMobile onOpenDetail={goDetail} />
+            )}
+
+            {activeTab === 'watchlist' && (
+              <WatchlistPanelMobile
+                onOpenDetail={goDetail}
+                onManage={() => setActiveTabPersist('search')}
+              />
+            )}
+
+            {activeTab === 'search' && (
+              <SearchPanel onTickerSelect={goDetail} onOpenDetail={goDetail} />
+            )}
+
+            {activeTab === 'detail' && (
+              detailTicker
+                ? <InstrumentDetail
+                    ticker={detailTicker}
+                    onClose={() => setActiveTabPersist('home')}
+                    asPage
+                  />
+                : <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', height:'100%', gap:12 }}>
+                    <div style={{ color:'#2a2a2a', fontSize:32 }}>▦</div>
+                    <div style={{ color:'#333', fontSize:10, letterSpacing:'1px' }}>TAP ANY INSTRUMENT TO VIEW DETAILS</div>
+                    <button
+                      onClick={() => setActiveTabPersist('watchlist')}
+                      style={{ marginTop:8, background:'none', border:'1px solid #2a2a2a', color:'#555', fontSize:9, padding:'6px 14px', cursor:'pointer', fontFamily:'inherit', borderRadius:2 }}
+                    >OPEN WATCHLIST →</button>
+                  </div>
+            )}
+
+            {activeTab === 'news' && <NewsPanel />}
+          </div>
+
+          {/* ── Bottom tab bar ── */}
+          <nav style={{
+            display: 'flex', background: '#000',
+            borderTop: '2px solid #1e1e1e',
+            flexShrink: 0,
+            paddingBottom: 'env(safe-area-inset-bottom)',
+          }}>
+            {MOBILE_TABS.map(tab => {
+              const isActive = activeTab === tab.id;
+              const showBadge = tab.id === 'detail' && !!detailTicker;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTabPersist(tab.id)}
+                  style={{
+                    flex: 1, minHeight: '54px',
+                    padding: '8px 4px 6px',
+                    background: isActive ? '#140800' : 'transparent',
+                    color: isActive ? '#ff6600' : '#444',
+                    border: 'none',
+                    borderTop: '2px solid ' + (isActive ? '#ff6600' : 'transparent'),
+                    fontSize: '7.5px', fontWeight: 800, letterSpacing: '0.3px',
+                    cursor: 'pointer', fontFamily: 'inherit', textTransform: 'uppercase',
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
+                    position: 'relative',
+                  }}>
+                  <span style={{ fontSize: 14, lineHeight: 1 }}>{tab.icon}</span>
+                  {tab.label}
+                  {showBadge && (
+                    <span style={{
+                      position: 'absolute', top: 6, right: '50%', transform: 'translateX(8px)',
+                      width: 6, height: 6, borderRadius: '50%', background: '#ff6600',
+                    }} />
+                  )}
+                </button>
+              );
+            })}
+          </nav>
+        </>
+      )}
+
       <TickerTooltip onOpenDetail={goDetail} />
     </div>
     </PriceProvider>

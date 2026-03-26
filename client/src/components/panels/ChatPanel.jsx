@@ -1,222 +1,324 @@
 /**
  * ChatPanel.jsx
- * In-app chat interface with message history and live updates via WebSocket.
+ * Direct-message chat with user search.
+ * WS delivers real-time messages. REST loads history.
  *
- * TODO: Implement real E2EE key exchange. Currently uses stub encryption/decryption.
- * TODO: Add user session management (currently anonymous).
+ * NOTE: Server stores message text in plaintext.
+ * Real E2EE requires client-side key exchange (e.g., X25519 + AES-GCM).
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useAuth } from '../../context/AuthContext';
+import { apiFetch } from '../../utils/api';
+import { WS_URL } from '../../utils/constants';
 
-const API = import.meta.env.VITE_API_URL || '';
+const ORANGE = '#ff6600';
+const GREEN  = '#00cc44';
 
-// TODO: Replace with real encryption library (e.g., TweetNaCl, libsodium.js)
-const encrypt = (text) => {
-  // STUB: Return plaintext with marker (replace with real E2EE)
-  return Buffer.from(text).toString('base64');
-};
+function timeAgo(ts) {
+  if (!ts) return '';
+  const diff = (Date.now() - new Date(ts).getTime()) / 1000;
+  if (diff < 60)    return 'now';
+  if (diff < 3600)  return Math.round(diff / 60) + 'm';
+  if (diff < 86400) return Math.round(diff / 3600) + 'h';
+  return Math.round(diff / 86400) + 'd';
+}
 
-const decrypt = (ciphertext) => {
-  // STUB: Decode base64 (replace with real E2EE)
-  try {
-    return Buffer.from(ciphertext, 'base64').toString('utf-8');
-  } catch {
-    return '(unable to decrypt)';
-  }
-};
-
-export function ChatPanel({ user }) {
+export function ChatPanel({ mobile }) {
+  const { user, token } = useAuth();
+  const [conversations,    setConversations]    = useState([]);
+  const [searchQuery,      setSearchQuery]      = useState('');
+  const [searchResults,    setSearchResults]    = useState([]);
+  const [activeChatUser,   setActiveChatUser]   = useState(null); // { id, username }
+  const [messages,         setMessages]         = useState({});   // userId → [msg]
+  const [input,            setInput]            = useState('');
+  const [loading,          setLoading]          = useState(false);
+  const [mobileView,       setMobileView]       = useState('list'); // 'list' | 'chat'
   const messagesEndRef = useRef(null);
-  const inputRef = useRef(null);
+  const wsRef          = useRef(null);
 
-  const [messages, setMessages] = useState([]);
-  const [input, setInput] = useState('');
-  const [loading, setLoading] = useState(true);
-  // Use authenticated username if available, otherwise random ID
-  const [senderId] = useState(() => user?.username || `anon_${Math.random().toString(36).slice(2, 9)}`);
-  const roomId = 'global';
-
-  // Fetch chat history on mount
+  // Load conversations on mount
   useEffect(() => {
-    const fetchHistory = async () => {
+    apiFetch('/api/chat/conversations')
+      .then(r => r.json())
+      .then(d => setConversations(d.conversations || []))
+      .catch(() => {});
+  }, []);
+
+  // Connect WS for real-time messages
+  useEffect(() => {
+    if (!token) return;
+    const ws = new WebSocket(`${WS_URL}?token=${token}`);
+    wsRef.current = ws;
+    ws.onmessage = (evt) => {
       try {
-        const res = await fetch(`${API}/api/chat/history?roomId=${roomId}`);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-        setMessages(data.messages || []);
-      } catch (e) {
-        console.error('[Chat] Fetch history error:', e);
-      } finally {
-        setLoading(false);
-      }
+        const msg = JSON.parse(evt.data);
+        if (msg.type === 'chat_message') {
+          const m = msg.message;
+          // Determine the conversation partner's userId from our perspective
+          const partnerId = m.fromUserId === user?.id ? m.toUserId : m.fromUserId;
+          setMessages(prev => ({
+            ...prev,
+            [partnerId]: [...(prev[partnerId] || []), m],
+          }));
+          // Refresh conversations list
+          apiFetch('/api/chat/conversations')
+            .then(r => r.json())
+            .then(d => setConversations(d.conversations || []))
+            .catch(() => {});
+        }
+      } catch {}
     };
-    fetchHistory();
-  }, []);
+    return () => ws.close();
+  }, [token, user?.id]);
 
-  // Listen for incoming chat messages from WebSocket
+  // User search
   useEffect(() => {
-    const handleChatMessage = (event) => {
-      const msg = event.detail;
-      if (msg.roomId === roomId) {
-        setMessages(prev => [...prev, msg]);
-      }
-    };
-    window.addEventListener('ws:chat_message', handleChatMessage);
-    return () => window.removeEventListener('ws:chat_message', handleChatMessage);
-  }, []);
+    if (!searchQuery.trim()) { setSearchResults([]); return; }
+    const t = setTimeout(() => {
+      apiFetch(`/api/users/search?query=${encodeURIComponent(searchQuery)}`)
+        .then(r => r.json())
+        .then(d => setSearchResults(d.users || []))
+        .catch(() => {});
+    }, 250);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
 
-  // Auto-scroll to newest message
+  // Load messages for active conversation
+  const openConversation = useCallback(async (otherUser) => {
+    setActiveChatUser(otherUser);
+    if (mobile) setMobileView('chat');
+    if (!messages[otherUser.id]) {
+      setLoading(true);
+      const res = await apiFetch(`/api/chat/messages?userId=${otherUser.id}`);
+      const data = await res.json();
+      setMessages(prev => ({ ...prev, [otherUser.id]: data.messages || [] }));
+      setLoading(false);
+    }
+    setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+  }, [messages, mobile]);
+
+  // Scroll to bottom when messages update
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    if (activeChatUser) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages, activeChatUser]);
 
-  const handleSend = (e) => {
-    e.preventDefault();
-    if (!input.trim()) return;
-
-    const ciphertext = encrypt(input);
-    window.dispatchEvent(new CustomEvent('ws:send', {
-      detail: {
-        type: 'chat_message',
-        roomId,
-        senderId,
-        ciphertext,
-      },
-    }));
+  const sendMessage = useCallback(async () => {
+    const text = input.trim();
+    if (!text || !activeChatUser) return;
     setInput('');
-    inputRef.current?.focus();
+    // Optimistic update
+    const optimistic = {
+      id:         'opt-' + Date.now(),
+      fromUserId: user?.id,
+      toUserId:   activeChatUser.id,
+      text,
+      timestamp:  new Date().toISOString(),
+    };
+    setMessages(prev => ({
+      ...prev,
+      [activeChatUser.id]: [...(prev[activeChatUser.id] || []), optimistic],
+    }));
+    // Send via WS
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({
+        type: 'chat_message',
+        toUserId: activeChatUser.id,
+        text,
+      }));
+    } else {
+      // Fallback to REST
+      await apiFetch('/api/chat/messages', {
+        method: 'POST',
+        body: JSON.stringify({ toUserId: activeChatUser.id, text }),
+      });
+    }
+  }, [input, activeChatUser, user?.id]);
+
+  const handleKey = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   };
 
-  return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#0a0a0a' }}>
-      {/* Header */}
-      <div style={{
-        padding: '4px 8px',
-        borderBottom: '1px solid #2a2a2a',
-        background: '#111',
-        flexShrink: 0,
-      }}>
-        <span style={{
-          color: '#ff9900',
-          fontSize: '10px',
-          fontWeight: 700,
-          letterSpacing: '1px',
-        }}>
-          💬 CHAT
-        </span>
-      </div>
+  // ── Styles ─────────────────────────────────────────────────────────────────
 
-      {/* Messages */}
-      <div style={{
-        flex: 1,
-        overflowY: 'auto',
-        padding: '8px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '6px',
-      }}>
-        {loading && (
-          <div style={{ color: '#555', fontSize: '9px', textAlign: 'center', marginTop: 'auto' }}>
-            LOADING...
-          </div>
-        )}
-        {!loading && messages.length === 0 && (
-          <div style={{ color: '#555', fontSize: '9px', textAlign: 'center', marginTop: 'auto', marginBottom: 'auto' }}>
-            No messages yet. Start a conversation.
-          </div>
-        )}
-        {messages.map((msg) => {
-          const isOwn = msg.senderId === senderId;
-          const decrypted = decrypt(msg.ciphertext);
-          const timeStr = new Date(msg.timestamp).toLocaleTimeString('en-US', {
-            hour: '2-digit',
-            minute: '2-digit',
-            hour12: false,
-          });
-          return (
-            <div
-              key={msg.id}
-              style={{
-                display: 'flex',
-                flexDirection: isOwn ? 'row-reverse' : 'row',
-                gap: '6px',
-                alignItems: 'flex-start',
-              }}
-            >
-              <div
-                style={{
-                  maxWidth: '70%',
-                  backgroundColor: isOwn ? '#1a4d2e' : '#2a2a2a',
-                  border: `1px solid ${isOwn ? '#00c853' : '#333'}`,
-                  borderRadius: '4px',
-                  padding: '6px 8px',
-                  fontSize: '9px',
-                  color: '#ddd',
-                  wordBreak: 'break-word',
-                }}
-              >
-                <div style={{ fontSize: '8px', color: isOwn ? '#4caf50' : '#888', marginBottom: '2px' }}>
-                  {isOwn ? 'You' : msg.senderId}
-                </div>
-                <div>{decrypted}</div>
-                <div style={{ fontSize: '7px', color: isOwn ? '#4caf5080' : '#55555580', marginTop: '2px' }}>
-                  {timeStr}
-                </div>
-              </div>
-            </div>
-          );
-        })}
-        <div ref={messagesEndRef} />
-      </div>
+  const base = {
+    height: '100%', display: 'flex', fontFamily: '"Courier New", monospace', color: '#e0e0e0',
+    background: '#0a0a0a',
+  };
 
-      {/* Input */}
-      <form
-        onSubmit={handleSend}
-        style={{
-          display: 'flex',
-          gap: '4px',
-          padding: '6px',
-          borderTop: '1px solid #2a2a2a',
-          flexShrink: 0,
-          background: '#0d0d0d',
-        }}
-      >
+  const panelHeader = {
+    padding: '6px 12px', borderBottom: '1px solid #1e1e1e',
+    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+    flexShrink: 0,
+  };
+
+  const listItem = (active) => ({
+    padding: '10px 12px', borderBottom: '1px solid #141414',
+    cursor: 'pointer', background: active ? '#120800' : 'transparent',
+    borderLeft: active ? `2px solid ${ORANGE}` : '2px solid transparent',
+    display: 'flex', flexDirection: 'column', gap: 3,
+  });
+
+  const msgBubble = (mine) => ({
+    maxWidth: '75%', padding: '8px 12px',
+    background:   mine ? '#1a0900' : '#111',
+    border:       `1px solid ${mine ? ORANGE : '#2a2a2a'}`,
+    borderRadius: mine ? '12px 12px 2px 12px' : '12px 12px 12px 2px',
+    fontSize: 11, lineHeight: 1.5, color: '#e0e0e0',
+    alignSelf: mine ? 'flex-end' : 'flex-start',
+    wordBreak: 'break-word',
+  });
+
+  // ── Conversation list panel ─────────────────────────────────────────────────
+  const renderList = () => (
+    <div style={{ width: mobile ? '100%' : 220, display: 'flex', flexDirection: 'column', borderRight: mobile ? 'none' : '1px solid #1e1e1e', height: '100%' }}>
+      <div style={panelHeader}>
+        <span style={{ color: ORANGE, fontSize: 10, fontWeight: 'bold', letterSpacing: '0.2em' }}>MESSAGES</span>
+      </div>
+      {/* User search */}
+      <div style={{ padding: '8px 10px', borderBottom: '1px solid #141414', flexShrink: 0 }}>
         <input
-          ref={inputRef}
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Type a message..."
           style={{
-            flex: 1,
-            background: '#0a0a0a',
-            border: '1px solid #2a2a2a',
-            color: '#e0e0e0',
-            fontFamily: 'inherit',
-            fontSize: '9px',
-            padding: '4px 6px',
-            outline: 'none',
-            borderRadius: '2px',
+            width: '100%', background: '#080808', border: '1px solid #2a2a2a',
+            color: '#e0e0e0', padding: '5px 8px', fontSize: 10,
+            fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box', borderRadius: 2,
           }}
+          value={searchQuery}
+          onChange={e => setSearchQuery(e.target.value)}
+          placeholder="Search users…"
         />
-        <button
-          type="submit"
-          disabled={!input.trim()}
-          style={{
-            background: input.trim() ? '#1a0d00' : '#0a0a0a',
-            border: '1px solid #ff9900',
-            color: input.trim() ? '#ff9900' : '#555',
-            fontSize: '9px',
-            padding: '4px 8px',
-            cursor: input.trim() ? 'pointer' : 'default',
-            fontFamily: 'inherit',
-            borderRadius: '2px',
-            fontWeight: 600,
-          }}
-        >
-          SEND
-        </button>
-      </form>
+      </div>
+      {/* Search results */}
+      {searchResults.length > 0 && (
+        <div style={{ borderBottom: '1px solid #1e1e1e', flexShrink: 0 }}>
+          {searchResults.map(u => (
+            <div key={u.id} style={listItem(activeChatUser?.id === u.id)}
+              onClick={() => { setSearchQuery(''); setSearchResults([]); openConversation(u); }}>
+              <span style={{ color: '#ccc', fontSize: 11 }}>{u.username}</span>
+              <span style={{ color: '#444', fontSize: 9 }}>NEW CONVERSATION</span>
+            </div>
+          ))}
+        </div>
+      )}
+      {/* Conversation list */}
+      <div style={{ flex: 1, overflowY: 'auto' }}>
+        {conversations.length === 0 && !searchQuery && (
+          <div style={{ padding: 16, color: '#2a2a2a', fontSize: 10 }}>
+            No conversations yet.<br />Search for a user to start messaging.
+          </div>
+        )}
+        {conversations.map(c => (
+          <div key={c.convId} style={listItem(activeChatUser?.id === c.otherUserId)}
+            onClick={() => openConversation({ id: c.otherUserId, username: c.otherUsername })}>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span style={{ color: '#ccc', fontSize: 11, fontWeight: 'bold' }}>{c.otherUsername}</span>
+              <span style={{ color: '#2a2a2a', fontSize: 8 }}>{timeAgo(c.lastMessage?.timestamp)}</span>
+            </div>
+            {c.lastMessage && (
+              <span style={{ color: '#444', fontSize: 9, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {c.lastMessage.fromUserId === user?.id ? 'You: ' : ''}{c.lastMessage.text}
+              </span>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  // ── Conversation view ───────────────────────────────────────────────────────
+  const renderChat = () => {
+    const msgs = activeChatUser ? (messages[activeChatUser.id] || []) : [];
+    return (
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%' }}>
+        <div style={panelHeader}>
+          {mobile && (
+            <button onClick={() => setMobileView('list')}
+              style={{ background: 'none', border: 'none', color: '#555', cursor: 'pointer', fontSize: 18, marginRight: 8 }}>
+              ←
+            </button>
+          )}
+          <span style={{ color: '#e0e0e0', fontSize: 11, fontWeight: 'bold' }}>
+            {activeChatUser?.username || '—'}
+          </span>
+          <span style={{ color: '#2a2a2a', fontSize: 8 }}>E2EE stub</span>
+        </div>
+
+        {/* Messages */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '12px', display: 'flex', flexDirection: 'column', gap: 8, WebkitOverflowScrolling: 'touch' }}>
+          {loading && <div style={{ color: '#2a2a2a', fontSize: 10, textAlign: 'center' }}>Loading…</div>}
+          {!loading && msgs.length === 0 && (
+            <div style={{ color: '#2a2a2a', fontSize: 10, textAlign: 'center', marginTop: 20 }}>
+              Start a conversation with {activeChatUser?.username}.
+            </div>
+          )}
+          {msgs.map(m => {
+            const mine = m.fromUserId === user?.id;
+            return (
+              <div key={m.id} style={{ display: 'flex', flexDirection: 'column', alignItems: mine ? 'flex-end' : 'flex-start' }}>
+                <div style={msgBubble(mine)}>{m.text}</div>
+                <span style={{ color: '#2a2a2a', fontSize: 8, marginTop: 2 }}>{timeAgo(m.timestamp)}</span>
+              </div>
+            );
+          })}
+          <div ref={messagesEndRef} />
+        </div>
+
+        {/* Input */}
+        {activeChatUser && (
+          <div style={{
+            padding: '8px 12px', borderTop: '1px solid #1e1e1e',
+            display: 'flex', gap: 8, flexShrink: 0,
+          }}>
+            <input
+              style={{
+                flex: 1, background: '#080808', border: '1px solid #2a2a2a',
+                color: '#e0e0e0', padding: '8px 10px', fontSize: 11,
+                fontFamily: 'inherit', outline: 'none', borderRadius: 2,
+              }}
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={handleKey}
+              placeholder={`Message ${activeChatUser.username}…`}
+            />
+            <button
+              onClick={sendMessage}
+              disabled={!input.trim()}
+              style={{
+                background: ORANGE, border: 'none', color: '#000',
+                padding: '8px 14px', cursor: 'pointer', fontSize: 11,
+                fontFamily: 'inherit', fontWeight: 'bold', borderRadius: 2,
+                opacity: input.trim() ? 1 : 0.4,
+              }}
+            >↑</button>
+          </div>
+        )}
+
+        {/* No chat selected (desktop) */}
+        {!activeChatUser && !mobile && (
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#2a2a2a', fontSize: 11 }}>
+            Select a conversation to start messaging
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Mobile routing
+  if (mobile) {
+    if (mobileView === 'list') {
+      return <div style={base}>{renderList()}</div>;
+    } else {
+      return <div style={base}>{renderChat()}</div>;
+    }
+  }
+
+  // Desktop: side-by-side
+  return (
+    <div style={base}>
+      {renderList()}
+      {renderChat()}
     </div>
   );
 }

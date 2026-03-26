@@ -106,7 +106,7 @@ export const CRYPTO_PAIRS = [
 // Time zones for the header clocks
 export const CLOCKS = [
   { label: 'NEW YORK',  tz: 'America/New_York'    },
-  { label: 'SÃO PAULO', tz: 'America/Sao_Paulo'   },
+  { label: 'SAO PAULO', tz: 'America/Sao_Paulo'   },
   { label: 'LONDON',    tz: 'Europe/London'        },
   { label: 'FRANKFURT', tz: 'Europe/Berlin'        },
   { label: 'TOKYO',     tz: 'Asia/Tokyo'           },
@@ -121,4 +121,98 @@ export const YIELDS = [
   { label: 'US 30Y', symbol: 'US30Y' },
   { label: 'BR 10Y', symbol: 'BR10Y' },
   { label: 'DE 10Y', symbol: 'DE10Y' },
+];
+
+/**
+ * Unified INSTRUMENTS array used by PanelConfigModal and search features.
+ * symbolKey: the key used when fetching data (may include .SA suffix for B3)
+ * assetClass: 'equity' | 'forex' | 'crypto' | 'commodity' | 'index' | 'fixed_income'
+ * group: sub-grouping label shown in PanelConfigModal
+ * name: human-readable instrument name
+ */
+export const INSTRUMENTS = [
+  // ── US Equities ──────────────────────────────────────────────────────
+  { symbolKey: 'AAPL',  name: 'Apple',            assetClass: 'equity',       group: 'US Tech' },
+  { symbolKey: 'MSFT',  name: 'Microsoft',         assetClass: 'equity',       group: 'US Tech' },
+  { symbolKey: 'NVDA',  name: 'NVIDIA',            assetClass: 'equity',       group: 'US Tech' },
+  { symbolKey: 'GOOGL', name: 'Alphabet',          assetClass: 'equity',       group: 'US Tech' },
+  { symbolKey: 'AMZN',  name: 'Amazon',            assetClass: 'equity',       group: 'US Tech' },
+  { symbolKey: 'META',  name: 'Meta',              assetClass: 'equity',       group: 'US Tech' },
+  { symbolKey: 'TSLA',  name: 'Tesla',             assetClass: 'equity',       group: 'US Auto' },
+  { symbolKey: 'BRKB',  name: 'Berkshire B',       assetClass: 'equity',       group: 'US Financials' },
+  { symbolKey: 'JPM',   name: 'JPMorgan',          assetClass: 'equity',       group: 'US Financials' },
+  { symbolKey: 'GS',    name: 'Goldman Sachs',     assetClass: 'equity',       group: 'US Financials' },
+  { symbolKey: 'BAC',   name: 'Bank of America',   assetClass: 'equity',       group: 'US Financials' },
+  { symbolKey: 'V',     name: 'Visa',              assetClass: 'equity',       group: 'US Financials' },
+  { symbolKey: 'MA',    name: 'Mastercard',        assetClass: 'equity',       group: 'US Financials' },
+  { symbolKey: 'XOM',   name: 'Exxon Mobil',       assetClass: 'equity',       group: 'US Energy' },
+  { symbolKey: 'CAT',   name: 'Caterpillar',       assetClass: 'equity',       group: 'US Industrials' },
+  { symbolKey: 'BA',    name: 'Boeing',            assetClass: 'equity',       group: 'US Industrials' },
+  { symbolKey: 'WMT',   name: 'Walmart',           assetClass: 'equity',       group: 'US Consumer' },
+  { symbolKey: 'LLY',   name: 'Eli Lilly',         assetClass: 'equity',       group: 'US Healthcare' },
+  { symbolKey: 'UNH',   name: 'UnitedHealth',      assetClass: 'equity',       group: 'US Healthcare' },
+  // ── Brazil B3 ────────────────────────────────────────────────────────
+  { symbolKey: 'VALE3.SA',  name: 'Vale',          assetClass: 'equity',       group: 'Brazil B3' },
+  { symbolKey: 'PETR4.SA',  name: 'Petrobras PN',  assetClass: 'equity',       group: 'Brazil B3' },
+  { symbolKey: 'PETR3.SA',  name: 'Petrobras ON',  assetClass: 'equity',       group: 'Brazil B3' },
+  { symbolKey: 'ITUB4.SA',  name: 'Itaú Unibanco', assetClass: 'equity',       group: 'Brazil B3' },
+  { symbolKey: 'BBDC4.SA',  name: 'Bradesco PN',   assetClass: 'equity',       group: 'Brazil B3' },
+  { symbolKey: 'ABEV3.SA',  name: 'Ambev',         assetClass: 'equity',       group: 'Brazil B3' },
+  { symbolKey: 'WEGE3.SA',  name: 'WEG',           assetClass: 'equity',       group: 'Brazil B3' },
+  { symbolKey: 'RENT3.SA',  name: 'Localiza',      assetClass: 'equity',       group: 'Brazil B3' },
+  { symbolKey: 'MGLU3.SA',  name: 'Magazine Luiza',assetClass: 'equity',       group: 'Brazil B3' },
+  { symbolKey: 'LREN3.SA',  name: 'Lojas Renner',  assetClass: 'equity',       group: 'Brazil B3' },
+  { symbolKey: 'JBSS3.SA',  name: 'JBS',           assetClass: 'equity',       group: 'Brazil B3' },
+  { symbolKey: 'SUZB3.SA',  name: 'Suzano',        assetClass: 'equity',       group: 'Brazil B3' },
+  { symbolKey: 'BBAS3.SA',  name: 'Banco do Brasil',assetClass:'equity',       group: 'Brazil B3' },
+  { symbolKey: 'GGBR4.SA',  name: 'Gerdau PN',     assetClass: 'equity',       group: 'Brazil B3' },
+  { symbolKey: 'CSAN3.SA',  name: 'Cosan',         assetClass: 'equity',       group: 'Brazil B3' },
+  // ── US/Global Indices ─────────────────────────────────────────────────
+  { symbolKey: 'SPY',   name: 'S&P 500',           assetClass: 'index',        group: 'US Indices' },
+  { symbolKey: 'QQQ',   name: 'NASDAQ 100',        assetClass: 'index',        group: 'US Indices' },
+  { symbolKey: 'DIA',   name: 'Dow Jones',         assetClass: 'index',        group: 'US Indices' },
+  { symbolKey: 'IWM',   name: 'Russell 2000',      assetClass: 'index',        group: 'US Indices' },
+  { symbolKey: 'EWZ',   name: 'Ibovespa ETF',      assetClass: 'index',        group: 'Global Indices' },
+  { symbolKey: 'EEM',   name: 'Emerging Markets',  assetClass: 'index',        group: 'Global Indices' },
+  { symbolKey: 'EFA',   name: 'EAFE',              assetClass: 'index',        group: 'Global Indices' },
+  { symbolKey: 'FXI',   name: 'China ETF',         assetClass: 'index',        group: 'Global Indices' },
+  { symbolKey: 'EWJ',   name: 'Japan ETF',         assetClass: 'index',        group: 'Global Indices' },
+  // ── Forex ─────────────────────────────────────────────────────────────
+  { symbolKey: 'EURUSD', name: 'EUR/USD',          assetClass: 'forex',        group: 'Majors' },
+  { symbolKey: 'GBPUSD', name: 'GBP/USD',          assetClass: 'forex',        group: 'Majors' },
+  { symbolKey: 'USDJPY', name: 'USD/JPY',          assetClass: 'forex',        group: 'Majors' },
+  { symbolKey: 'USDCHF', name: 'USD/CHF',          assetClass: 'forex',        group: 'Majors' },
+  { symbolKey: 'AUDUSD', name: 'AUD/USD',          assetClass: 'forex',        group: 'Majors' },
+  { symbolKey: 'USDCAD', name: 'USD/CAD',          assetClass: 'forex',        group: 'Majors' },
+  { symbolKey: 'USDBRL', name: 'USD/BRL',          assetClass: 'forex',        group: 'BRL Crosses' },
+  { symbolKey: 'EURBRL', name: 'EUR/BRL',          assetClass: 'forex',        group: 'BRL Crosses' },
+  { symbolKey: 'GBPBRL', name: 'GBP/BRL',          assetClass: 'forex',        group: 'BRL Crosses' },
+  { symbolKey: 'USDARS', name: 'USD/ARS',          assetClass: 'forex',        group: 'LatAm' },
+  { symbolKey: 'USDMXN', name: 'USD/MXN',          assetClass: 'forex',        group: 'LatAm' },
+  { symbolKey: 'USDCNY', name: 'USD/CNY',          assetClass: 'forex',        group: 'EM' },
+  // ── Crypto ────────────────────────────────────────────────────────────
+  { symbolKey: 'BTCUSD',  name: 'Bitcoin',         assetClass: 'crypto',       group: 'Crypto' },
+  { symbolKey: 'ETHUSD',  name: 'Ethereum',        assetClass: 'crypto',       group: 'Crypto' },
+  { symbolKey: 'SOLUSD',  name: 'Solana',          assetClass: 'crypto',       group: 'Crypto' },
+  { symbolKey: 'XRPUSD',  name: 'XRP',             assetClass: 'crypto',       group: 'Crypto' },
+  { symbolKey: 'BNBUSD',  name: 'BNB',             assetClass: 'crypto',       group: 'Crypto' },
+  { symbolKey: 'DOGEUSD', name: 'Dogecoin',        assetClass: 'crypto',       group: 'Crypto' },
+  // ── Commodities ───────────────────────────────────────────────────────
+  { symbolKey: 'GLD',  name: 'Gold',               assetClass: 'commodity',    group: 'Metals' },
+  { symbolKey: 'SLV',  name: 'Silver',             assetClass: 'commodity',    group: 'Metals' },
+  { symbolKey: 'CPER', name: 'Copper',             assetClass: 'commodity',    group: 'Metals' },
+  { symbolKey: 'REMX', name: 'Rare Earth',         assetClass: 'commodity',    group: 'Metals' },
+  { symbolKey: 'USO',  name: 'WTI Oil',            assetClass: 'commodity',    group: 'Energy' },
+  { symbolKey: 'UNG',  name: 'Natural Gas',        assetClass: 'commodity',    group: 'Energy' },
+  { symbolKey: 'SOYB', name: 'Soybeans',           assetClass: 'commodity',    group: 'Agriculture' },
+  { symbolKey: 'WEAT', name: 'Wheat',              assetClass: 'commodity',    group: 'Agriculture' },
+  { symbolKey: 'CORN', name: 'Corn',               assetClass: 'commodity',    group: 'Agriculture' },
+  { symbolKey: 'BHP',  name: 'BHP (Iron Ore Prx)', assetClass: 'commodity',    group: 'Mining' },
+  // ── Fixed Income ──────────────────────────────────────────────────────
+  { symbolKey: 'US2Y',  name: 'US 2Y Treasury',    assetClass: 'fixed_income', group: 'US Yields' },
+  { symbolKey: 'US5Y',  name: 'US 5Y Treasury',    assetClass: 'fixed_income', group: 'US Yields' },
+  { symbolKey: 'US10Y', name: 'US 10Y Treasury',   assetClass: 'fixed_income', group: 'US Yields' },
+  { symbolKey: 'US30Y', name: 'US 30Y Treasury',   assetClass: 'fixed_income', group: 'US Yields' },
+  { symbolKey: 'BR10Y', name: 'Brazil 10Y',        assetClass: 'fixed_income', group: 'EM Yields' },
+  { symbolKey: 'DE10Y', name: 'Germany 10Y Bund',  assetClass: 'fixed_income', group: 'EU Yields' },
 ];

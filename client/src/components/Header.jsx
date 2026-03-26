@@ -3,12 +3,14 @@
  *  - Senger Market Terminal branding
  *  - Multi-timezone clocks
  *  - Market status indicator
+ *  - Theme toggle (dark / light)
  *  - Scrolling ticker tape
  */
 
 import { useState, useEffect } from 'react';
 import { CLOCKS } from '../utils/constants';
 import { fmtPrice, fmtPct } from '../utils/format';
+import { useTheme } from '../context/ThemeContext';
 
 function Clock({ label, tz }) {
   const [time, setTime] = useState('');
@@ -74,6 +76,11 @@ export function Header({ connected, stocks, forex, marketStatus }) {
   const statusLabel = connected ? 'LIVE' : 'OFFLINE';
   const mktOpen = marketStatus?.market === 'open';
 
+  // Theme toggle from ThemeContext
+  const themeCtx = useTheme();
+  const theme = themeCtx?.theme ?? 'dark';
+  const toggleTheme = themeCtx?.toggleTheme ?? null;
+
   return (
     <div style={{ background: '#0a0a0f', borderBottom: '1px solid #e55a00', flexShrink: 0, fontFamily: "'IBM Plex Mono', 'Courier New', monospace" }}>
       {/* Top bar */}
@@ -97,7 +104,7 @@ export function Header({ connected, stocks, forex, marketStatus }) {
           {CLOCKS.map((c) => <Clock key={c.tz} {...c} />)}
         </div>
 
-        {/* Quick FX */}
+        {/* Quick FX + theme toggle */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '0 16px', borderLeft: '1px solid #1a1a1a' }}>
           {['EURUSD', 'USDBRL', 'USDJPY'].map((sym) => {
             const d = forex[sym];
@@ -113,6 +120,22 @@ export function Header({ connected, stocks, forex, marketStatus }) {
               </div>
             ) : null;
           })}
+
+          {/* Theme toggle */}
+          {toggleTheme && (
+            <button
+              onClick={toggleTheme}
+              title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+              style={{
+                background: 'none', border: '1px solid #2a2a2a', color: '#555',
+                fontSize: 12, padding: '3px 6px', cursor: 'pointer',
+                fontFamily: 'inherit', borderRadius: 2, lineHeight: 1,
+                display: 'flex', alignItems: 'center',
+              }}
+            >
+              {theme === 'dark' ? '☀' : '☾'}
+            </button>
+          )}
         </div>
       </div>
 

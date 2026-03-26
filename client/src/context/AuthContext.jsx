@@ -1,100 +1,90 @@
 /**
  * AuthContext.jsx
- * Manages user authentication state and provides login/register/logout functions.
- *
- * Stores user info and JWT token in localStorage.
+ * Manages user authentication state. Provides login/register/logout + subscription info.
  */
 
 import { createContext, useContext, useState, useCallback } from 'react';
+import { API_BASE } from '../utils/api';
 
-const API_BASE = import.meta.env.VITE_API_URL || '';
-const LS_USER = 'arc_user';
+const LS_USER  = 'arc_user';
 const LS_TOKEN = 'arc_token';
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  // Load user and token from localStorage on mount
   const [user, setUser] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem(LS_USER));
-    } catch {
-      return null;
-    }
+    try { return JSON.parse(localStorage.getItem(LS_USER)); } catch { return null; }
   });
+  const [token, setToken] = useState(() => localStorage.getItem(LS_TOKEN) || null);
+  const [subscription, setSubscription] = useState(null);
 
-  const [token, setToken] = useState(() => {
-    return localStorage.getItem(LS_TOKEN) || null;
-  });
+  const _persist = (userObj, tok, sub) => {
+    setUser(userObj);
+    setToken(tok);
+    setSubscription(sub || null);
+    localStorage.setItem(LS_USER,  JSON.stringify(userObj));
+    localStorage.setItem(LS_TOKEN, tok);
+  };
 
-  /**
-   * Login with username and password.
-   * @param {string} username
-   * @param {string} password
-   * @throws {Error} If login fails
-   */
   const login = useCallback(async (username, password) => {
-    const res = await fetch(`${API_BASE}/api/auth/login`, {
+    const res  = await fetch(`${API_BASE}/api/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, password }),
     });
     const data = await res.json();
-    if (!res.ok) {
-      throw new Error(data.error || 'Login failed');
-    }
-    const userObj = { username: data.username };
-    setUser(userObj);
-    setToken(data.token);
-    localStorage.setItem(LS_USER, JSON.stringify(userObj));
-    localStorage.setItem(LS_TOKEN, data.token);
+    if (!res.ok) throw new Error(data.error || 'Login failed');
+    _persist({ id: data.user.id, username: data.user.username }, data.token, data.subscription);
     return data;
   }, []);
 
-  /**
-   * Register a new user and automatically log them in.
-   * @param {string} username
-   * @param {string} password
-   * @throws {Error} If registration fails
-   */
   const register = useCallback(async (username, password) => {
-    const res = await fetch(`${API_BASE}/api/auth/register`, {
+    const res  = await fetch(`${API_BASE}/api/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, password }),
     });
     const data = await res.json();
-    if (!res.ok) {
-      throw new Error(data.error || 'Registration failed');
-    }
-    // Auto-login after registration
-    return login(username, password);
-  }, [login]);
+    if (!res.ok) throw new Error(data.error || 'Registration failed');
+    _persist({ id: data.user.id, username: data.user.username }, data.token, data.subscription);
+    return data;
+  }, []);
 
-  /**
-   * Logout the user.
-   */
   const logout = useCallback(() => {
     setUser(null);
     setToken(null);
+    setSubscription(null);
     localStorage.removeItem(LS_USER);
     localStorage.removeItem(LS_TOKEN);
   }, []);
 
+  const startCheckout = useCallback(async () => {
+    const tok = localStorage.getItem(LS_TOKEN);
+    try {
+      const res  = await fetch(`${API_BASE}/api/billing/create-session`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tok}` },
+      });
+      const data = await res.json();
+      if (data.checkoutUrl) {
+        window.location.href = data.checkoutUrl;
+      } else {
+        alert('Subscription checkout is not yet configured. Please contact support.');
+      }
+    } catch {
+      alert('Could not initiate checkout. Please try again later.');
+    }
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ user, token, login, register, logout }}>
+    <AuthContext.Provider value={{ user, token, subscription, login, register, logout, startCheckout }}>
       {children}
     </AuthContext.Provider>
   );
 }
 
-/**
- * Hook to access auth context.
- */
 export const useAuth = () => {
   const ctx = useContext(AuthContext);
-  if (!ctx) {
-    throw new Error('useAuth must be used inside AuthProvider');
-  }
+  if (!ctx) throw new Error('useAuth must be used inside AuthProvider');
   return ctx;
 };

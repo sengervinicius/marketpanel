@@ -4,52 +4,90 @@ const cors = require('cors');
 const { createServer } = require('http');
 const WebSocket = require('ws');
 const { connectPolygon } = require('./polygonProxy');
-const marketRoutes = require('./routes/market');
-const authRoutes = require('./routes/authRoutes');
+const marketRoutes  = require('./routes/market');
+const authRoutes    = require('./routes/auth');
+const settingsRoutes = require('./routes/settings');
+const usersRoutes   = require('./routes/users');
+const chatRoutes    = require('./routes/chat');
 const billingRoutes = require('./routes/billing');
-const chatStore = require('./chatStore');
+const debtRoutes    = require('./routes/debt');
+const { requireAuth, requireActiveSubscription } = require('./authMiddleware');
+const chatStore     = require('./chatStore');
+const { getUserById } = require('./authStore');
+const { verifyToken } = require('./authStore');
 
 const app = express();
 
 app.use(cors({
   origin: process.env.CLIENT_URL || '*',
-  methods: ['GET', 'POST'],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
 }));
-app.use(express.json());
 
-// Health check
+// NOTE: express.json() is applied globally EXCEPT for billing/webhook (needs raw body)
+app.use((req, res, next) => {
+  if (req.originalUrl === '/api/billing/webhook') return next();
+  express.json()(req, res, next);
+});
+
+// ── Public routes ──────────────────────────────────────────────────────────────
 app.get('/health', (req, res) => res.json({ status: 'ok', ts: Date.now() }));
-
-// Auth routes
 app.use('/api/auth', authRoutes);
 
-// Billing/subscription routes (stubs — wire Stripe before launch)
-app.use('/api/billing', billingRoutes);
+// ── Protected routes ───────────────────────────────────────────────────────────
+// Billing: auth required, subscription check is inside (create-session / status)
+app.use('/api/billing', requireAuth, billingRoutes);
 
-// REST routes (snapshots, news, charts)
-app.use('/api', marketRoutes);
+// Settings: auth required (no subscription check — need settings even on expired trial)
+app.use('/api/settings', requireAuth, settingsRoutes);
 
-// HTTP server (shared with WebSocket)
+// Users (chat search): auth required
+app.use('/api/users', requireAuth, usersRoutes);
+
+// Chat REST: auth + subscription required
+app.use('/api/chat', requireAuth, requireActiveSubscription, chatRoutes);
+
+// Debt data: auth + subscription required
+app.use('/api/debt', requireAuth, requireActiveSubscription, debtRoutes);
+
+// Market data: auth + subscription required
+app.use('/api', requireAuth, requireActiveSubscription, marketRoutes);
+
+// ── HTTP server ────────────────────────────────────────────────────────────────
 const server = createServer(app);
 
-// WebSocket server — clients connect here for live data
+// ── WebSocket server ───────────────────────────────────────────────────────────
 const wss = new WebSocket.Server({ server, path: '/ws' });
 
-// In-memory market state — updated by Polygon WS, served to clients
+// In-memory market state
 const marketState = {
-  stocks: {},   // keyed by ticker symbol
-  forex: {},    // keyed by pair  e.g. "EURUSD"
-  crypto: {},   // keyed by pair  e.g. "BTCUSD"
+  stocks:   {},
+  forex:    {},
+  crypto:   {},
   lastUpdate: Date.now(),
 };
 
-const clients = new Set();
+// WS client registry: ws → { userId }
+const clients = new Map();
 
 wss.on('connection', (ws, req) => {
-  console.log(`[WS] Client connected. Total: ${clients.size + 1}`);
-  clients.add(ws);
+  // Authenticate WS via ?token= query param or Authorization header
+  const url    = new URL(req.url, 'ws://localhost');
+  const token  = url.searchParams.get('token') || '';
+  let userId   = null;
+  let username = null;
 
-  // Send full snapshot immediately on connect
+  try {
+    if (token) {
+      const payload = verifyToken(token);
+      userId   = payload.id;
+      username = payload.username;
+    }
+  } catch {}
+
+  clients.set(ws, { userId, username });
+  console.log(`[WS] Client connected (user: ${username || 'anonymous'}). Total: ${clients.size}`);
+
+  // Send full snapshot on connect
   if (ws.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify({ type: 'snapshot', data: marketState }));
   }
@@ -57,20 +95,20 @@ wss.on('connection', (ws, req) => {
   ws.on('message', (raw) => {
     try {
       const msg = JSON.parse(raw);
-      // Handle chat messages
+
+      // Live DM chat over WS
       if (msg.type === 'chat_message') {
-        const { roomId, senderId, ciphertext } = msg;
-        if (!roomId || !senderId || !ciphertext) return;
-        const chatMsg = {
-          id: Date.now().toString(),
-          roomId,
-          senderId,
-          timestamp: new Date().toISOString(),
-          ciphertext,
-        };
-        chatStore.addMessage(chatMsg);
-        // Broadcast to all connected clients
-        broadcast({ type: 'chat_message', detail: chatMsg });
+        const { toUserId, text } = msg;
+        if (!userId || !toUserId || !text) return;
+        const savedMsg = chatStore.addMessage(userId, Number(toUserId), text);
+
+        // Deliver to sender + recipient
+        for (const [client, info] of clients) {
+          if (client.readyState !== WebSocket.OPEN) continue;
+          if (info.userId === userId || info.userId === Number(toUserId)) {
+            client.send(JSON.stringify({ type: 'chat_message', message: savedMsg }));
+          }
+        }
       }
     } catch (e) {
       console.warn('[WS] Message parse error:', e.message);
@@ -88,18 +126,14 @@ wss.on('connection', (ws, req) => {
   });
 });
 
-// Broadcast tick updates to all connected clients
 function broadcast(update) {
   if (clients.size === 0) return;
   const msg = JSON.stringify(update);
-  clients.forEach((ws) => {
-    if (ws.readyState === WebSocket.OPEN) {
-      ws.send(msg);
-    }
-  });
+  for (const [ws] of clients) {
+    if (ws.readyState === WebSocket.OPEN) ws.send(msg);
+  }
 }
 
-// Connect to Polygon.io WebSocket feeds
 connectPolygon(marketState, broadcast);
 
 const PORT = process.env.PORT || 3001;

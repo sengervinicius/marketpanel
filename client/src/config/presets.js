@@ -1,0 +1,103 @@
+/**
+ * presets.js
+ * Screen presets for onboarding. Each preset defines default panel config + watchlist.
+ */
+
+export const SCREEN_PRESETS = {
+  brazilianInvestor: {
+    label:       'Brazilian Investor',
+    description: 'B3 stocks, DI curve, Ibovespa, BRL FX, and Brazil macro.',
+    emoji:       '🇧🇷',
+    theme:       'dark',
+    watchlist:   ['VALE3.SA','PETR4.SA','ITUB4.SA','BBDC4.SA','ABEV3.SA','WEGE3.SA'],
+    panels: {
+      brazilB3:     { title: 'Brazil B3',    symbols: ['VALE3.SA','PETR4.SA','ITUB4.SA','BBDC4.SA','ABEV3.SA','WEGE3.SA','RENT3.SA','B3SA3.SA','MGLU3.SA','BBAS3.SA'] },
+      usEquities:   { title: 'US Equities',  symbols: ['SPY','QQQ','EWZ'] },
+      forex:        { title: 'FX',           symbols: ['USDBRL','EURUSD','USDARS','USDMXN'] },
+      crypto:       { title: 'Crypto',       symbols: ['BTCUSD','ETHUSD'] },
+      commodities:  { title: 'Commodities',  symbols: ['USO','GLD','SLV'] },
+      globalIndices:{ title: 'Global',       symbols: ['SPY','EWZ','EEM','EWJ'] },
+      debt:         { title: 'Brazil Rates', symbols: ['BR10Y','US10Y'] },
+    },
+  },
+  globalInvestor: {
+    label:       'Global Investor',
+    description: 'US equities, global indices, FX, and cross-asset overview.',
+    emoji:       '🌍',
+    theme:       'dark',
+    watchlist:   ['AAPL','MSFT','NVDA','GOOGL','AMZN','JPM','XOM'],
+    panels: {
+      usEquities:   { title: 'US Equities',    symbols: ['AAPL','MSFT','NVDA','GOOGL','AMZN','META','TSLA','JPM','XOM','BRKB'] },
+      globalIndices:{ title: 'Global Indices', symbols: ['SPY','QQQ','EFA','EEM','EWJ','FXI','EWZ','EWW'] },
+      forex:        { title: 'FX',             symbols: ['EURUSD','GBPUSD','USDJPY','USDCHF','USDCNY'] },
+      crypto:       { title: 'Crypto',         symbols: ['BTCUSD','ETHUSD','SOLUSD'] },
+      commodities:  { title: 'Commodities',    symbols: ['GLD','SLV','USO','UNG'] },
+      brazilB3:     { title: 'Brazil B3',      symbols: ['VALE3.SA','PETR4.SA','EWZ'] },
+      debt:         { title: 'Rates',          symbols: ['US10Y','US2Y','DE10Y'] },
+    },
+  },
+  debtInvestor: {
+    label:       'Debt Investor',
+    description: 'Sovereign yield curves, credit spreads, and fixed income.',
+    emoji:       '📈',
+    theme:       'dark',
+    watchlist:   ['US10Y','US2Y','DE10Y','BR10Y','US_IG','US_HY'],
+    panels: {
+      debt:         { title: 'Sovereign Curves', symbols: ['US10Y','US2Y','US30Y','DE10Y','BR10Y'] },
+      globalIndices:{ title: 'Risk Assets',      symbols: ['SPY','HYG','LQD','EMB','TLT'] },
+      forex:        { title: 'FX',               symbols: ['EURUSD','USDJPY','USDCHF','GBPUSD'] },
+      usEquities:   { title: 'Equities',         symbols: ['SPY','QQQ','TLT','HYG'] },
+      commodities:  { title: 'Commodities',      symbols: ['GLD','USO'] },
+      brazilB3:     { title: 'Brazil EM',        symbols: ['VALE3.SA','EWZ','USDBRL'] },
+      crypto:       { title: 'Crypto',           symbols: ['BTCUSD'] },
+    },
+  },
+  cryptoInvestor: {
+    label:       'Crypto Investor',
+    description: 'Bitcoin, Ethereum, altcoins, and macro correlations.',
+    emoji:       '₿',
+    theme:       'dark',
+    watchlist:   ['BTCUSD','ETHUSD','SOLUSD','XRPUSD','BNBUSD','DOGEUSD'],
+    panels: {
+      crypto:       { title: 'Crypto',        symbols: ['BTCUSD','ETHUSD','SOLUSD','XRPUSD','BNBUSD','DOGEUSD','ADAUSD'] },
+      globalIndices:{ title: 'Macro',         symbols: ['SPY','QQQ','GLD','DXY'] },
+      forex:        { title: 'Stablecoin FX', symbols: ['EURUSD','USDJPY','USDBRL'] },
+      usEquities:   { title: 'Tech',          symbols: ['MSTR','COIN','NVDA','AAPL'] },
+      commodities:  { title: 'Commodities',   symbols: ['GLD','SLV'] },
+      brazilB3:     { title: 'Brazil',        symbols: ['VALE3.SA','PETR4.SA'] },
+      debt:         { title: 'Rates',         symbols: ['US10Y','US2Y'] },
+    },
+  },
+  commoditiesInvestor: {
+    label:       'Commodities Investor',
+    description: 'Energy, metals, agriculture, and commodity producers.',
+    emoji:       '🛢️',
+    theme:       'dark',
+    watchlist:   ['GLD','SLV','USO','UNG','CORN','WEAT','XOM','CVX'],
+    panels: {
+      commodities:  { title: 'Commodities',     symbols: ['GLD','SLV','USO','UNG','CORN','WEAT','SOYB','DBA'] },
+      usEquities:   { title: 'Producers',       symbols: ['XOM','CVX','COP','SLB','FCX','BHP','RIO','VALE'] },
+      globalIndices:{ title: 'Global Risk',     symbols: ['EEM','EWZ','FXI','EWW','SPY'] },
+      forex:        { title: 'Commodity FX',    symbols: ['USDBRL','USDMXN','USDCAD','AUDUSD'] },
+      brazilB3:     { title: 'Brazil Producers',symbols: ['VALE3.SA','PETR4.SA','SU','CSNA3.SA'] },
+      debt:         { title: 'Rates',           symbols: ['US10Y','US2Y'] },
+      crypto:       { title: 'Crypto',          symbols: ['BTCUSD','ETHUSD'] },
+    },
+  },
+  custom: {
+    label:       'Custom',
+    description: 'Start with a clean slate and configure everything yourself.',
+    emoji:       '⚙️',
+    theme:       'dark',
+    watchlist:   ['SPY','AAPL','BTCUSD','EURUSD'],
+    panels: {
+      usEquities:   { title: 'Equities',    symbols: ['SPY','AAPL','MSFT','NVDA'] },
+      forex:        { title: 'FX',          symbols: ['EURUSD','USDBRL','USDJPY'] },
+      crypto:       { title: 'Crypto',      symbols: ['BTCUSD','ETHUSD'] },
+      commodities:  { title: 'Commodities', symbols: ['GLD','USO'] },
+      globalIndices:{ title: 'Indices',     symbols: ['SPY','QQQ','EEM'] },
+      brazilB3:     { title: 'Brazil B3',   symbols: ['VALE3.SA','PETR4.SA'] },
+      debt:         { title: 'Rates',       symbols: ['US10Y','US2Y'] },
+    },
+  },
+};
