@@ -1266,4 +1266,76 @@ router.get('/chat/history', (req, res) => {
   }
 });
 
+// ─── Enhanced Fundamentals ──────────────────────────────────────────────────
+// GET /api/fundamentals/:ticker
+// Fetches company fundamentals from Polygon reference data.
+// Caches results for 12 hours to reduce API calls.
+
+const fundamentalsCache = new Map(); // symbol → { data, fetchedAt }
+const FUNDAMENTALS_TTL = 12 * 60 * 60 * 1000; // 12 hours
+
+async function fetchFundamentals(ticker) {
+  // Try Polygon reference endpoint (already have the key)
+  const url = `https://api.polygon.io/v3/reference/tickers/${ticker}?apikey=${apiKey()}`;
+  let res;
+  try {
+    res = await fetch(url);
+  } catch (e) {
+    throw new Error(`Network error: ${e.message}`);
+  }
+  if (!res.ok) {
+    if (res.status === 404) throw new Error(`Ticker not found: ${ticker}`);
+    throw new Error(`Polygon HTTP ${res.status}`);
+  }
+  const raw = await res.json();
+  const t = raw.results || {};
+
+  return {
+    symbol: ticker,
+    name: t.name || ticker,
+    currency: t.currency_name || 'USD',
+    marketCap: t.market_cap || null,
+    shareClassSharesOutstanding: t.share_class_shares_outstanding || null,
+    description: t.description || null,
+    homepageUrl: t.homepage_url || null,
+    listDate: t.list_date || null,
+    sicDescription: t.sic_description || null,
+    primaryExchange: t.primary_exchange || null,
+    logoUrl: t.branding?.logo_url || null,
+    // Valuation fields — Polygon free tier doesn't have P/E, EPS, etc.
+    // TODO: supplement with FMP or Finnhub for pe, forwardPe, eps, dividendYield, revenue, ebit
+    pe: null,
+    forwardPe: null,
+    eps: null,
+    dividendYield: null,
+    revenue: null,
+    ebit: null,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+router.get('/fundamentals/:ticker', async (req, res) => {
+  const ticker = req.params.ticker.toUpperCase();
+  try {
+    // Check cache first
+    const cached = fundamentalsCache.get(ticker);
+    if (cached && Date.now() - cached.fetchedAt < FUNDAMENTALS_TTL) {
+      return res.json(cached.data);
+    }
+
+    // Fetch fresh data
+    const data = await fetchFundamentals(ticker);
+    fundamentalsCache.set(ticker, { data, fetchedAt: Date.now() });
+    res.json(data);
+  } catch (e) {
+    console.error('[API] /fundamentals/' + ticker + ' error:', e.message);
+    const status = e.message.includes('not found') ? 404 : 502;
+    res.status(status).json({
+      error: 'Fundamentals unavailable',
+      detail: e.message,
+      code: e.message.includes('not found') ? 'not_found' : 'upstream_error',
+    });
+  }
+});
+
 module.exports = router;

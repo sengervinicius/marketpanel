@@ -680,6 +680,47 @@ export default function InstrumentDetail({ ticker, onClose }) {
   }
 
   // ── About sub-render ───────────────────────────────────────────────────
+  function renderFundamentals() {
+    if (!isStock) return <div style={{ color: '#555', fontSize: 10 }}>Fundamentals only for stocks</div>;
+    if (fundsLoading) return <div style={{ color: '#555', fontSize: 10, padding: '12px 0' }}>LOADING FUNDAMENTALS...</div>;
+    if (fundsError || !fundsData) return <div style={{ color: '#f44336', fontSize: 10, padding: '12px 0' }}>⚠ Fundamentals unavailable</div>;
+
+    const d = fundsData;
+    return (
+      <>
+        <Section title="PROFILE">
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 12px' }}>
+            {d.name && <StatRow label="NAME" value={d.name} />}
+            {d.currency && <StatRow label="CURRENCY" value={d.currency} />}
+            {d.marketCap && <StatRow label="MARKET CAP" value={fmt(d.marketCap, 0)} />}
+            {d.primaryExchange && <StatRow label="EXCHANGE" value={d.primaryExchange} />}
+            {d.listDate && <StatRow label="LIST DATE" value={d.listDate} />}
+          </div>
+        </Section>
+        {d.description && (
+          <Section title="ABOUT">
+            {d.homepageUrl && (
+              <a href={d.homepageUrl} target="_blank" rel="noopener noreferrer"
+                style={{ color: ORANGE, fontSize: 9, display: 'block', marginBottom: 8, textDecoration: 'none' }}>
+                {d.homepageUrl.replace(/^https?:\/\//, '')}
+              </a>
+            )}
+            <p style={{ color: '#888', fontSize: 10, lineHeight: 1.6, margin: 0 }}>
+              {d.description}
+            </p>
+          </Section>
+        )}
+        {d.sicDescription && (
+          <Section title="INDUSTRY">
+            <p style={{ color: '#888', fontSize: 10, lineHeight: 1.6, margin: 0 }}>
+              {d.sicDescription}
+            </p>
+          </Section>
+        )}
+      </>
+    );
+  }
+
   function renderAbout() {
     if (!desc) return null;
     const SHORT = 400;
@@ -711,11 +752,35 @@ export default function InstrumentDetail({ ticker, onClose }) {
   }
 
   // ── RENDER ──────────────────────────────────────────────────────────────
-  const mobileTabs = ['STATS', 'NEWS', ...(desc ? ['ABOUT'] : [])];
+  const mobileTabs = ['STATS', 'FUND', 'NEWS', ...(desc ? ['ABOUT'] : [])];
 
   const deltaHint = deltaMode
     ? (deltaA === null ? '← tap A' : deltaB === null ? '← tap B' : 'tap to reset')
     : null;
+
+  // ── Fetch fundamentals ──────────────────────────────────────────────────
+  const fetchFundamentals = useCallback(async () => {
+    if (!isStock || activeTab !== 'FUND') return;
+    setFundsLoading(true);
+    setFundsError(false);
+    try {
+      const res = await fetch(`${API}/api/fundamentals/${norm}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      setFundsData(data);
+    } catch (e) {
+      setFundsError(true);
+      console.error('[InstrumentDetail] Fundamentals error:', e);
+    } finally {
+      setFundsLoading(false);
+    }
+  }, [norm, isStock, activeTab]);
+
+  useEffect(() => {
+    if (activeTab === 'FUND' && isStock) {
+      fetchFundamentals();
+    }
+  }, [activeTab, isStock, fetchFundamentals]);
 
   return (
     <div
@@ -976,6 +1041,7 @@ export default function InstrumentDetail({ ticker, onClose }) {
               background: '#050505',
             }}>
               {activeTab === 'STATS' && renderStats()}
+              {activeTab === 'FUND'  && renderFundamentals()}
               {activeTab === 'NEWS'  && renderNews()}
               {activeTab === 'ABOUT' && renderAbout()}
             </div>
