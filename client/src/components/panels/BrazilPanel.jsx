@@ -37,7 +37,7 @@ export default function BrazilPanel({ onTickerClick, onOpenDetail }) {
 
   const fetchData = useCallback(async () => {
     try {
-      const res = await fetch(SERVER + '/api/snapshot/brazil');
+      const res = await apiFetch('/api/snapshot/brazil');
       if (!res.ok) throw new Error('server ' + res.status);
       const json = await res.json();
       if (!json.results?.length) throw new Error('no results');

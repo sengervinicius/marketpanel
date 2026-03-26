@@ -117,8 +117,8 @@ function MiniChart({ ticker, index, onRemove, onReplace, onSwap, onOpenDetail })
     try {
       const toStr   = new Date().toISOString().split('T')[0];
       const fromStr = getFromDate(range);
-      const url = `${API}/api/chart/${encodeURIComponent(ticker)}?from=${fromStr}&to=${toStr}&multiplier=${range.multiplier}&timespan=${range.timespan}`;
-      const res = await fetch(url);
+      const url = `/api/chart/${encodeURIComponent(ticker)}?from=${fromStr}&to=${toStr}&multiplier=${range.multiplier}&timespan=${range.timespan}`;
+      const res = await apiFetch(url);
       if (!res.ok) throw new Error(res.status);
       const json = await res.json();
       if (!mountedRef.current) return;
