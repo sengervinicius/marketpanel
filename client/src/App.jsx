@@ -11,6 +11,7 @@ import { IndexPanel } from './components/panels/IndexPanel';
 import { StockPanel } from './components/panels/StockPanel';
 import { ForexPanel } from './components/panels/ForexPanel';
 import { CommoditiesPanel } from './components/panels/CommoditiesPanel';
+import { CryptoPanel } from './components/panels/CryptoPanel';
 import { NewsPanel } from './components/panels/NewsPanel';
 import { ChartPanel } from './components/panels/ChartPanel';
 import { SentimentPanel } from './components/panels/SentimentPanel';
@@ -20,6 +21,7 @@ import DebtPanel from './components/panels/DebtPanel';
 import BrazilPanel from './components/panels/BrazilPanel';
 import GlobalIndicesPanel from './components/panels/GlobalIndicesPanel';
 import WatchlistPanel from './components/panels/WatchlistPanel';
+import { DEFAULT_LAYOUT } from './config/panels';
 import WatchlistPanelMobile from './components/panels/WatchlistPanelMobile';
 import { ChatPanel } from './components/panels/ChatPanel';
 import HomePanelMobile from './components/panels/HomePanelMobile';
@@ -106,6 +108,87 @@ function ColResizeHandle({ onStart }) {
   );
 }
 
+// ── Layout Move Overlay ──────────────────────────────────────────────────────
+// Shown over each panel when layout-edit mode is active
+function LayoutMoveOverlay({ panelId, rowIdx, colIdx, rowLen, totalRows, onMove }) {
+  const btn = (dir, label, disabled) => (
+    <button
+      onClick={() => !disabled && onMove(panelId, rowIdx, colIdx, dir)}
+      disabled={disabled}
+      style={{
+        background: disabled ? '#111' : '#1a0900',
+        border: `1px solid ${disabled ? '#222' : '#ff6600'}`,
+        color:  disabled ? '#2a2a2a' : '#ff6600',
+        width: 22, height: 22, borderRadius: 3, cursor: disabled ? 'default' : 'pointer',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontSize: 12, fontFamily: 'monospace', padding: 0,
+      }}
+    >{label}</button>
+  );
+  return (
+    <div style={{
+      position: 'absolute', inset: 0, zIndex: 50,
+      background: 'rgba(0,0,0,0.55)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      pointerEvents: 'auto',
+    }}>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+        {btn('up',    '↑', rowIdx === 0)}
+        <div style={{ display: 'flex', gap: 4 }}>
+          {btn('left',  '←', colIdx === 0)}
+          <div style={{
+            background: '#0d0d0d', border: '1px solid #2a2a2a',
+            borderRadius: 3, padding: '2px 8px',
+            color: '#ff6600', fontSize: 9, fontWeight: 700, letterSpacing: '0.5px',
+            whiteSpace: 'nowrap', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis',
+          }}>{panelId}</div>
+          {btn('right', '→', colIdx === rowLen - 1)}
+        </div>
+        {btn('down',  '↓', rowIdx === totalRows - 1)}
+      </div>
+    </div>
+  );
+}
+
+// ── Panel registry — maps panelId → render function ───────────────────────────
+function makePanelRenderer(panelId, props) {
+  const { mergedData, loading, setChartTicker, setDetailTicker, chartTicker, setChartGridCount } = props;
+  switch (panelId) {
+    case 'charts':
+      return <ChartPanel ticker={chartTicker} onTickerChange={setChartTicker} onGridChange={setChartGridCount} onOpenDetail={setDetailTicker} />;
+    case 'usEquities':
+      return <StockPanel data={mergedData?.stocks} loading={loading} onTickerClick={setChartTicker} onOpenDetail={setDetailTicker} />;
+    case 'forex':
+      return <ForexPanel data={mergedData?.forex} cryptoData={mergedData?.crypto} loading={loading} onTickerClick={setChartTicker} onOpenDetail={setDetailTicker} />;
+    case 'globalIndices':
+      return <GlobalIndicesPanel onTickerClick={setChartTicker} onOpenDetail={setDetailTicker} />;
+    case 'brazilB3':
+      return <BrazilPanel onTickerClick={setChartTicker} onOpenDetail={setDetailTicker} />;
+    case 'commodities':
+      return <CommoditiesPanel data={mergedData?.stocks} loading={loading} onTickerClick={setChartTicker} onOpenDetail={setDetailTicker} />;
+    case 'crypto':
+      return <CryptoPanel data={mergedData?.crypto} loading={loading} onTickerClick={setChartTicker} onOpenDetail={setDetailTicker} />;
+    case 'debt':
+      return <DebtPanel />;
+    case 'search':
+      return <SearchPanel onTickerSelect={setChartTicker} onOpenDetail={setDetailTicker} />;
+    case 'news':
+      return <NewsPanel />;
+    case 'watchlist':
+      return <WatchlistPanel onTickerClick={setChartTicker} onOpenDetail={setDetailTicker} />;
+    case 'sentiment':
+      return <SentimentPanel />;
+    case 'chat':
+      return <ChatPanel />;
+    case 'curves':
+      return <DICurvePanel compact />;
+    case 'indices':
+      return <IndexPanel data={mergedData?.indices} loading={loading} onTickerClick={setChartTicker} onOpenDetail={setDetailTicker} />;
+    default:
+      return <div style={{ padding: 12, color: '#333', fontSize: 9 }}>Panel: {panelId}</div>;
+  }
+}
+
 // ── Resizable row-flex hook ──────────────────────────────────────────────────
 function useResizableFlex(storageKey, defaults) {
   const [sizes, setSizes] = useState(() => {
@@ -172,20 +255,20 @@ function useResizableColumns(storageKey, defaults) {
 
 // ── Settings Drawer ──────────────────────────────────────────────────────────
 const PANEL_DEFS = [
-  { id: 'charts',      label: 'Chart Grid' },
-  { id: 'usequity',   label: 'US Equities' },
-  { id: 'forex',      label: 'Forex / Crypto' },
-  { id: 'indices',    label: 'US Indices' },
-  { id: 'brazil',     label: 'Brazil (B3)' },
-  { id: 'global',     label: 'Global Indices' },
-  { id: 'commodities',label: 'Commodities' },
-  { id: 'watchlist',  label: 'Watchlist' },
-  { id: 'debt',       label: 'Debt Markets' },
-  { id: 'curves',     label: 'Yield Curves' },
-  { id: 'search',     label: 'Search' },
-  { id: 'news',       label: 'News' },
-  { id: 'sentiment',  label: 'Sentiment' },
-  { id: 'chat',       label: 'Chat' },
+  { id: 'charts',       label: 'Chart Grid' },
+  { id: 'usEquities',   label: 'US Equities' },
+  { id: 'forex',        label: 'FX / Rates' },
+  { id: 'crypto',       label: 'Crypto' },
+  { id: 'globalIndices',label: 'Global Indices' },
+  { id: 'brazilB3',     label: 'Brazil B3' },
+  { id: 'commodities',  label: 'Commodities' },
+  { id: 'watchlist',    label: 'Watchlist' },
+  { id: 'debt',         label: 'Debt Markets' },
+  { id: 'curves',       label: 'Yield Curves' },
+  { id: 'search',       label: 'Search' },
+  { id: 'news',         label: 'News' },
+  { id: 'sentiment',    label: 'Sentiment' },
+  { id: 'chat',         label: 'Chat' },
 ];
 
 function SettingsDrawer({ panelVisible, togglePanel, onClose }) {
@@ -473,10 +556,40 @@ export default function App() {
     } catch { return 2; }
   });
 
-  const [rowSizes,  startRowResize]  = useResizableFlex('rowFlexSizes_v2',     [2, 1.5, 1.5]);
-  const [colSizes1, startColResize1] = useResizableColumns('colFlexSizes_r1_v2', [2, 1, 1.6]);
-  const [colSizes2, startColResize2] = useResizableColumns('colFlexSizes_r2_v2', [1, 1, 1, 1]);
-  const [colSizes3, startColResize3] = useResizableColumns('colFlexSizes_r3_v2', [0.7, 0.7, 0.7, 1.4, 0.7]);
+  // ── Dynamic layout from settings ───────────────────────────────────────────
+  const { updateLayout } = useSettings();
+  const desktopRows = settings?.layout?.desktopRows || DEFAULT_LAYOUT.desktopRows;
+  const row0 = desktopRows[0] || [];
+  const row1 = desktopRows[1] || [];
+  const row2 = desktopRows[2] || [];
+
+  const [layoutEdit, setLayoutEdit] = useState(false);
+
+  const handleLayoutMove = useCallback((panelId, rowIdx, colIdx, direction) => {
+    const newRows = desktopRows.map(r => [...r]);
+    if (direction === 'left' && colIdx > 0) {
+      [newRows[rowIdx][colIdx], newRows[rowIdx][colIdx - 1]] = [newRows[rowIdx][colIdx - 1], newRows[rowIdx][colIdx]];
+    } else if (direction === 'right' && colIdx < newRows[rowIdx].length - 1) {
+      [newRows[rowIdx][colIdx], newRows[rowIdx][colIdx + 1]] = [newRows[rowIdx][colIdx + 1], newRows[rowIdx][colIdx]];
+    } else if (direction === 'up' && rowIdx > 0) {
+      newRows[rowIdx].splice(colIdx, 1);
+      newRows[rowIdx - 1].push(panelId);
+    } else if (direction === 'down' && rowIdx < newRows.length - 1) {
+      newRows[rowIdx].splice(colIdx, 1);
+      newRows[rowIdx + 1].unshift(panelId);
+    }
+    // Remove empty rows (keep at least 1)
+    const pruned = newRows.filter(r => r.length > 0);
+    while (pruned.length < 3) pruned.push([]);
+    updateLayout({ desktopRows: pruned });
+  }, [desktopRows, updateLayout]);
+
+  const [rowSizes, startRowResize] = useResizableFlex('rowFlexSizes_v2', [2, 1.5, 1.5]);
+  const [colSizes0, startColResize0] = useResizableColumns('colSizes_r0_' + row0.length, Array(Math.max(1, row0.length)).fill(1));
+  const [colSizes1, startColResize1] = useResizableColumns('colSizes_r1_' + row1.length, Array(Math.max(1, row1.length)).fill(1));
+  const [colSizes2, startColResize2] = useResizableColumns('colSizes_r2_' + row2.length, Array(Math.max(1, row2.length)).fill(1));
+  const colSizesPerRow  = [colSizes0,      colSizes1,      colSizes2];
+  const startResizePerRow = [startColResize0, startColResize1, startColResize2];
 
   const border = '1px solid #1e1e1e';
 
@@ -546,6 +659,11 @@ export default function App() {
             {lastUpdated && !isRefreshing && <span style={{ color:'#333', fontSize:'8px' }}>SNAP {lastUpdated.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'})}</span>}
             {user && <span style={{ color:'#333', fontSize:'8px', letterSpacing:'0.5px' }}>{user.username?.toUpperCase()}</span>}
             <button
+              onClick={() => setLayoutEdit(s => !s)}
+              title="Reorder panels"
+              style={{ background: layoutEdit ? '#1a0800' : 'none', border:`1px solid ${layoutEdit ? '#ff6600' : '#282828'}`, color: layoutEdit ? '#ff6600' : '#444', fontSize:9, padding:'2px 6px', cursor:'pointer', fontFamily:'inherit', borderRadius:2, letterSpacing:'0.5px' }}
+            >⇄ LAYOUT</button>
+            <button
               onClick={() => setSettingsOpen(s => !s)}
               title="Settings"
               style={{ background:'none', border:'1px solid #282828', color: settingsOpen ? '#ff6600' : '#444', fontSize:9, padding:'2px 6px', cursor:'pointer', fontFamily:'inherit', borderRadius:2, letterSpacing:'0.5px' }}
@@ -573,95 +691,42 @@ export default function App() {
 
             <MarketTickBridge batchTicks={batchTicks} />
 
-            {/* Row 1: Charts | Stocks | Forex+Crypto */}
-            <div style={{ flex: rowSizes[0], flexShrink: 0, display:'flex', overflow:'hidden', minHeight: 220 }}>
-              {isPanelVisible('charts') && (<>
-              <div style={{ flex: colSizes1[0], minWidth: 0, borderRight:border, overflow:'hidden', height:'100%' }}>
-                <ChartPanel ticker={chartTicker} onTickerChange={setChartTicker} onGridChange={setChartGridCount} onOpenDetail={setDetailTicker} />
-              </div>
-              <ColResizeHandle onStart={e => startColResize1(0, e)} />
-              </>)}
-              {isPanelVisible('usequity') && (<>
-              <div style={{ flex: colSizes1[1], minWidth: 0, borderRight:border, overflow:'hidden', height:'100%' }}>
-                <StockPanel data={mergedData?.stocks} loading={loading} onTickerClick={setChartTicker} onOpenDetail={setDetailTicker} />
-              </div>
-              <ColResizeHandle onStart={e => startColResize1(1, e)} />
-              </>)}
-              {isPanelVisible('forex') && (
-              <div style={{ flex: colSizes1[2], minWidth: 0, overflow:'hidden', height:'100%' }}>
-                <ForexPanel data={mergedData?.forex} cryptoData={mergedData?.crypto} loading={loading} onTickerClick={setChartTicker} onOpenDetail={setDetailTicker} />
-              </div>
-              )}
-            </div>
-
-            <ResizeHandle onStart={e => startRowResize(0, e)} />
-
-            {/* Row 2: US Indices | Brazil | Global Indexes | Commodities */}
-            <div style={{ flex: rowSizes[1], flexShrink: 0, display:'flex', overflow:'hidden', minHeight: 180 }}>
-              {isPanelVisible('indices') && (<>
-              <div style={{ flex: colSizes2[0], minWidth: 0, borderRight:border, overflow:'hidden', height:'100%' }}>
-                <IndexPanel data={mergedData?.indices} loading={loading} onTickerClick={setChartTicker} onOpenDetail={setDetailTicker} />
-              </div>
-              <ColResizeHandle onStart={e => startColResize2(0, e)} />
-              </>)}
-              {isPanelVisible('brazil') && (<>
-              <div style={{ flex: colSizes2[1], minWidth: 0, borderRight:border, overflow:'hidden', height:'100%' }}>
-                <BrazilPanel onTickerClick={setChartTicker} onOpenDetail={setDetailTicker} />
-              </div>
-              <ColResizeHandle onStart={e => startColResize2(1, e)} />
-              </>)}
-              {isPanelVisible('global') && (<>
-              <div style={{ flex: colSizes2[2], minWidth: 0, borderRight:border, overflow:'hidden', height:'100%' }}>
-                <GlobalIndicesPanel onTickerClick={setChartTicker} onOpenDetail={setDetailTicker} />
-              </div>
-              <ColResizeHandle onStart={e => startColResize2(2, e)} />
-              </>)}
-              {isPanelVisible('commodities') && (
-              <div style={{ flex: colSizes2[3], minWidth: 0, overflow:'hidden', height:'100%' }}>
-                <CommoditiesPanel data={mergedData?.stocks} loading={loading} onTickerClick={setChartTicker} onOpenDetail={setDetailTicker} />
-              </div>
-              )}
-            </div>
-
-            <ResizeHandle onStart={e => startRowResize(1, e)} />
-
-            {/* Row 3: Yield Curves | Search | Debt Markets | News | Watchlist | Chat */}
-            <div style={{ flex: rowSizes[2], flexShrink: 0, display:'flex', overflow:'hidden', minHeight: 160 }}>
-              {isPanelVisible('curves') && (<>
-              <div style={{ flex: colSizes3[0], minWidth: 0, borderRight:border, overflow:'hidden', height:'100%' }}>
-                <DICurvePanel compact />
-              </div>
-              <ColResizeHandle onStart={e => startColResize3(0, e)} />
-              </>)}
-              {isPanelVisible('search') && (<>
-              <div style={{ flex: colSizes3[1], minWidth: 0, borderRight:border, overflow:'hidden', height:'100%' }}>
-                <SearchPanel onTickerSelect={setChartTicker} onOpenDetail={setDetailTicker} />
-              </div>
-              <ColResizeHandle onStart={e => startColResize3(1, e)} />
-              </>)}
-              {isPanelVisible('debt') && (<>
-              <div style={{ flex: colSizes3[2], minWidth: 0, borderRight:border, overflow:'hidden', height:'100%' }}>
-                <DebtPanel />
-              </div>
-              <ColResizeHandle onStart={e => startColResize3(2, e)} />
-              </>)}
-              {isPanelVisible('news') && (<>
-              <div style={{ flex: colSizes3[3], minWidth: 0, borderRight:border, overflow:'hidden', height:'100%' }}>
-                <NewsPanel />
-              </div>
-              <ColResizeHandle onStart={e => startColResize3(3, e)} />
-              </>)}
-              {isPanelVisible('watchlist') && (<>
-              <div style={{ flex: colSizes3[4], minWidth: 0, borderRight:border, overflow:'hidden', height:'100%' }}>
-                <WatchlistPanel onTickerClick={setChartTicker} onOpenDetail={setDetailTicker} />
-              </div>
-              </>)}
-              {isPanelVisible('chat') && (
-              <div style={{ flex: 0.55, minWidth: 0, borderLeft:border, overflow:'hidden', height:'100%' }}>
-                <ChatPanel />
-              </div>
-              )}
-            </div>
+            {/* Dynamic rows from settings.layout.desktopRows */}
+            {(() => {
+              const panelProps = { mergedData, loading, setChartTicker, setDetailTicker, chartTicker, setChartGridCount };
+              const minHeights = [220, 180, 160];
+              return [row0, row1, row2].map((row, rowIdx) => {
+                if (!row || row.length === 0) return null;
+                const colSizes = colSizesPerRow[rowIdx];
+                const startResize = startResizePerRow[rowIdx];
+                return (
+                  <div key={rowIdx} style={{ display: 'contents' }}>
+                    {rowIdx > 0 && <ResizeHandle onStart={e => startRowResize(rowIdx - 1, e)} />}
+                    <div style={{ flex: rowSizes[rowIdx] || 1, flexShrink: 0, display:'flex', overflow:'hidden', minHeight: minHeights[rowIdx] || 160 }}>
+                      {row.map((panelId, colIdx) => {
+                        if (!isPanelVisible(panelId)) return null;
+                        const isLast = colIdx === row.filter(id => isPanelVisible(id)).length - 1;
+                        return (
+                          <div key={panelId} style={{ display: 'contents' }}>
+                            {colIdx > 0 && <ColResizeHandle onStart={e => startResize(colIdx - 1, e)} />}
+                            <div style={{ flex: colSizes[colIdx] || 1, minWidth: 0, borderRight: isLast ? 'none' : border, overflow:'hidden', height:'100%', position: 'relative' }}>
+                              {makePanelRenderer(panelId, panelProps)}
+                              {layoutEdit && (
+                                <LayoutMoveOverlay
+                                  panelId={panelId} rowIdx={rowIdx} colIdx={colIdx}
+                                  rowLen={row.length} totalRows={[row0, row1, row2].filter(r => r.length > 0).length}
+                                  onMove={handleLayoutMove}
+                                />
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              });
+            })()}
 
             <FeedStatusBar feedStatus={feedStatus} />
           </>

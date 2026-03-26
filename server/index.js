@@ -4,13 +4,14 @@ const cors = require('cors');
 const { createServer } = require('http');
 const WebSocket = require('ws');
 const { connectPolygon } = require('./polygonProxy');
-const marketRoutes  = require('./routes/market');
-const authRoutes    = require('./routes/auth');
-const settingsRoutes = require('./routes/settings');
-const usersRoutes   = require('./routes/users');
-const chatRoutes    = require('./routes/chat');
-const billingRoutes = require('./routes/billing');
-const debtRoutes    = require('./routes/debt');
+const marketRoutes      = require('./routes/market');
+const authRoutes        = require('./routes/auth');
+const settingsRoutes    = require('./routes/settings');
+const usersRoutes       = require('./routes/users');
+const chatRoutes        = require('./routes/chat');
+const billingRoutes     = require('./routes/billing');
+const debtRoutes        = require('./routes/debt');
+const instrumentsRoutes = require('./routes/instruments');
 const { requireAuth, requireActiveSubscription } = require('./authMiddleware');
 const chatStore     = require('./chatStore');
 const { getUserById, seedUsersFromEnv, initDB } = require('./authStore');
@@ -48,6 +49,9 @@ app.use('/api/chat', requireAuth, requireActiveSubscription, chatRoutes);
 
 // Debt data: auth + subscription required
 app.use('/api/debt', requireAuth, requireActiveSubscription, debtRoutes);
+
+// Instrument registry: auth required (no subscription — needed for search from login page context)
+app.use('/api/instruments', requireAuth, instrumentsRoutes);
 
 // Market data: auth + subscription required
 app.use('/api', requireAuth, requireActiveSubscription, marketRoutes);

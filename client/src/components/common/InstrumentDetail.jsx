@@ -1,5 +1,6 @@
 // InstrumentDetail.jsx – Bloomberg GP-style full-screen instrument overlay
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { apiFetch } from '../../utils/api.js';
 import {
   AreaChart, Area, BarChart, Bar,
   XAxis, YAxis, ResponsiveContainer, Tooltip,
@@ -188,6 +189,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
   const [newsLoading,  setNewsLoading]  = useState(true);
   const [activeTab,    setActiveTab]    = useState('STATS');
   const [descExpanded, setDescExpanded] = useState(false);
+  const [etfMeta,      setEtfMeta]      = useState(null);
 
   const range = RANGES[rangeIdx];
 
@@ -248,6 +250,15 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
       })
       .catch(() => { setFundsError(true); setFundsLoading(false); });
   }, [norm]);
+
+  // ── Fetch instrument registry metadata (ETF/fund enrichment) ─────────
+  useEffect(() => {
+    setEtfMeta(null);
+    apiFetch(`/api/instruments/${encodeURIComponent(disp)}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d && !d.error) setEtfMeta(d); })
+      .catch(() => {});
+  }, [disp]);
 
   // ── Fetch ticker-specific news ─────────────────────────────────────────
   useEffect(() => {
@@ -512,6 +523,39 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
             )}
           </div>
         </Section>
+
+        {/* ── ETF / FUND ── */}
+        {etfMeta?.fund && (
+          <Section title="FUND">
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 12px' }}>
+              {etfMeta.fund.nav != null && <StatRow label="NAV" value={fmt(etfMeta.fund.nav)} />}
+              {etfMeta.fund.aum != null && (
+                <StatRow label="AUM"
+                  value={etfMeta.fund.aum >= 1e12 ? '$'+(etfMeta.fund.aum/1e12).toFixed(1)+'T'
+                       : etfMeta.fund.aum >= 1e9  ? '$'+(etfMeta.fund.aum/1e9).toFixed(1)+'B'
+                       :                            '$'+(etfMeta.fund.aum/1e6).toFixed(0)+'M'} />
+              )}
+              {etfMeta.fund.expenseRatio != null && (
+                <StatRow label="EXP RATIO" value={(etfMeta.fund.expenseRatio * 100).toFixed(2)+'%'} />
+              )}
+              {etfMeta.fund.category     && <StatRow label="CATEGORY"  value={etfMeta.fund.category} />}
+              {etfMeta.fund.inceptionDate && <StatRow label="INCEPTION" value={etfMeta.fund.inceptionDate} />}
+              {etfMeta.fund.exchange     && <StatRow label="EXCHANGE"   value={etfMeta.fund.exchange} />}
+            </div>
+            {etfMeta.fund.holdings?.length > 0 && (
+              <div style={{ marginTop: 10 }}>
+                <div style={{ color: '#333', fontSize: 9, letterSpacing: 1, marginBottom: 6 }}>TOP HOLDINGS</div>
+                {etfMeta.fund.holdings.map((h, i) => (
+                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '3px 0', borderBottom: '1px solid #111' }}>
+                    <span style={{ color: ORANGE, fontSize: 9, flexShrink: 0, width: 40 }}>{h.symbol}</span>
+                    <span style={{ color: '#555', fontSize: 9, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', padding: '0 4px' }}>{h.name}</span>
+                    <span style={{ color: '#888', fontSize: 9, flexShrink: 0 }}>{(h.weight * 100).toFixed(1)}%</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Section>
+        )}
 
         {/* ── VALUATION ── */}
         {isStock && (

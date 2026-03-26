@@ -134,43 +134,95 @@ function displaySymbol(sym) {
   return sym;
 }
 
+const ASSET_FILTERS = [
+  { id: null,           label: 'ALL' },
+  { id: 'equity',       label: 'EQUITY' },
+  { id: 'etf',          label: 'ETF' },
+  { id: 'forex',        label: 'FX' },
+  { id: 'crypto',       label: 'CRYPTO' },
+  { id: 'fixed_income', label: 'BONDS' },
+  { id: 'commodity',    label: 'COMMOD' },
+];
+
+const ASSET_CLASS_COLOR = {
+  equity:       '#4fc3f7',
+  etf:          '#81c784',
+  forex:        '#ce93d8',
+  crypto:       '#f48fb1',
+  fixed_income: '#ffb74d',
+  commodity:    '#80cbc4',
+  index:        '#ffb74d',
+};
+
 export function SearchPanel({ onTickerSelect, onOpenDetail }) {
-  const [query,       setQuery]       = useState('');
-  const [results,     setResults]     = useState([]);
-  const [loading,     setLoading]     = useState(false);
-  const [selected,    setSelected]    = useState(null);  // currently selected item
-  const [quote,       setQuote]       = useState(null);
-  const [quoteLoading, setQuoteLoading] = useState(false);
-  const [addedToHome, setAddedToHome] = useState(null);  // tracks which symbol was just added
+  const [query,         setQuery]         = useState('');
+  const [results,       setResults]       = useState([]);
+  const [loading,       setLoading]       = useState(false);
+  const [selected,      setSelected]      = useState(null);
+  const [quote,         setQuote]         = useState(null);
+  const [quoteLoading,  setQuoteLoading]  = useState(false);
+  const [addedToHome,   setAddedToHome]   = useState(null);
+  const [assetFilter,   setAssetFilter]   = useState(null); // null = all
   const debounceRef = useRef(null);
   const { addToHomeSection } = useSettings();
 
-  const search = useCallback((q) => {
+  const search = useCallback((q, assetClass) => {
     if (!q.trim()) { setResults([]); return; }
     const local = localSearch(q);
     setResults(local);
     setLoading(true);
-    fetch(`${API}/api/search?q=${encodeURIComponent(q)}`)
-      .then(r => r.json())
-      .then(d => {
-        const remote = (d.results || []).filter(r =>
-          !local.some(l => l.symbol === (r.ticker || r.symbol))
-        );
-        const merged = [
-          ...local,
-          ...remote.map(r => ({
-            symbol:          r.ticker || r.symbol,
-            name:            r.name,
-            type:            r.type,
-            market:          r.market,          // Polygon: 'stocks'|'otc'|'crypto'|'fx'  OR  Yahoo: 'NMS'|'NYQ'
-            primaryExchange: r.primaryExchange || r.market || '', // used by coverageLevel
-            active:          r.active,
-          })),
-        ].slice(0, 16);
-        setResults(merged);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
+
+    // Query both instrument registry and Polygon simultaneously
+    const registryUrl = `${API}/api/instruments/search?q=${encodeURIComponent(q)}&limit=10${assetClass ? `&assetClass=${assetClass}` : ''}`;
+    const polygonUrl  = `${API}/api/search?q=${encodeURIComponent(q)}`;
+
+    Promise.allSettled([
+      fetch(registryUrl).then(r => r.json()),
+      fetch(polygonUrl).then(r => r.json()),
+    ]).then(([regRes, polyRes]) => {
+      const regItems   = regRes.status  === 'fulfilled' ? (regRes.value.results  || []) : [];
+      const polyItems  = polyRes.status === 'fulfilled' ? (polyRes.value.results || []) : [];
+
+      // Map registry items to display format
+      const fromRegistry = regItems.map(r => ({
+        symbol:     r.symbolKey,
+        name:       r.name,
+        type:       (r.assetClass || '').toUpperCase(),
+        assetClass: r.assetClass,
+        market:     'stocks', // so coverageLevel works
+        group:      r.group,
+        local:      false,
+        fromRegistry: true,
+      }));
+
+      // Map Polygon items, skip if already in registry
+      const regKeys = new Set([...local.map(l => l.symbol), ...fromRegistry.map(r => r.symbol)]);
+      const fromPoly = polyItems
+        .filter(r => !regKeys.has(r.ticker || r.symbol))
+        .map(r => ({
+          symbol:          r.ticker || r.symbol,
+          name:            r.name,
+          type:            r.type,
+          market:          r.market,
+          primaryExchange: r.primaryExchange || r.market || '',
+          active:          r.active,
+        }));
+
+      // Merge: local FX/crypto → registry → polygon, dedup
+      const seen = new Set();
+      const merged = [...local, ...fromRegistry, ...fromPoly]
+        .filter(item => {
+          if (seen.has(item.symbol)) return false;
+          seen.add(item.symbol);
+          // Filter by asset class if active
+          if (assetClass && item.assetClass && item.assetClass !== assetClass) return false;
+          return true;
+        })
+        .slice(0, 20);
+
+      setResults(merged);
+      setLoading(false);
+    });
   }, []);
 
   const handleInput = (e) => {
@@ -179,7 +231,12 @@ export function SearchPanel({ onTickerSelect, onOpenDetail }) {
     setSelected(null);
     setQuote(null);
     clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => search(q), 280);
+    debounceRef.current = setTimeout(() => search(q, assetFilter), 280);
+  };
+
+  const handleFilterChange = (f) => {
+    setAssetFilter(f);
+    if (query.trim()) search(query, f);
   };
 
   const handleSelect = useCallback((item) => {
@@ -248,6 +305,24 @@ export function SearchPanel({ onTickerSelect, onOpenDetail }) {
         )}
       </div>
 
+      {/* ── Asset class filter tabs ── */}
+      <div style={{ display: 'flex', gap: 3, padding: '4px 8px', borderBottom: '1px solid #141414', flexShrink: 0, flexWrap: 'wrap' }}>
+        {ASSET_FILTERS.map(f => (
+          <button
+            key={String(f.id)}
+            onClick={() => handleFilterChange(f.id)}
+            style={{
+              background:   assetFilter === f.id ? '#1a0900' : 'transparent',
+              border:       `1px solid ${assetFilter === f.id ? ORANGE : '#1e1e1e'}`,
+              color:        assetFilter === f.id ? ORANGE : '#333',
+              fontSize:     7, padding: '2px 5px', cursor: 'pointer',
+              fontFamily:   'inherit', borderRadius: 2, fontWeight: 700,
+              letterSpacing: '0.05em',
+            }}
+          >{f.label}</button>
+        ))}
+      </div>
+
       {/* ── Results list ── */}
       {results.length > 0 && (
         <div style={{ borderBottom: '1px solid #1e1e1e', flexShrink: 0, maxHeight: '55vh', overflowY: 'auto' }}>
@@ -289,7 +364,7 @@ export function SearchPanel({ onTickerSelect, onOpenDetail }) {
 
                 {/* Symbol */}
                 <span style={{
-                  color: isBR ? '#8bc34a' : (TYPE_COLOR[item.type] || '#aaa'),
+                  color: isBR ? '#8bc34a' : (ASSET_CLASS_COLOR[item.assetClass] || TYPE_COLOR[item.type] || '#aaa'),
                   fontSize: 12, fontWeight: 700, minWidth: '68px', flexShrink: 0,
                 }}>
                   {displaySymbol(item.symbol)}
