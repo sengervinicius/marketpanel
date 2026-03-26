@@ -550,6 +550,13 @@ export default function App() {
               title="Settings"
               style={{ background:'none', border:'1px solid #282828', color: settingsOpen ? '#ff6600' : '#444', fontSize:9, padding:'2px 6px', cursor:'pointer', fontFamily:'inherit', borderRadius:2, letterSpacing:'0.5px' }}
             >⚙ PANELS</button>
+            {user && (
+              <button
+                onClick={logout}
+                title="Log out"
+                style={{ background:'none', border:'1px solid #282828', color:'#555', fontSize:9, padding:'2px 6px', cursor:'pointer', fontFamily:'inherit', borderRadius:2, letterSpacing:'0.5px' }}
+              >LOG OUT</button>
+            )}
           </div>
         </div>
 
@@ -694,6 +701,12 @@ export default function App() {
         <span style={{ color:'#ff6600', fontWeight:700, fontSize:'11px', letterSpacing:'2px' }}>SENGER</span>
         <div style={{ flex: 1 }} />
         {user && <span style={{ color:'#333', fontSize:'7px', letterSpacing:'0.5px' }}>{user.username?.toUpperCase()}</span>}
+        {user && (
+          <button
+            onClick={logout}
+            style={{ background:'none', border:'none', color:'#444', fontSize:'8px', padding:'4px 6px', cursor:'pointer', fontFamily:'inherit', letterSpacing:'0.5px' }}
+          >LOG OUT</button>
+        )}
       </div>
 
       {/* Trial banner (mobile) */}

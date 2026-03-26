@@ -147,12 +147,6 @@ export default function HomePanelMobile({ onOpenDetail }) {
   return (
     <div style={containerStyle}>
       <div style={{ textAlign: 'center', marginBottom: '8px' }}>
-        <div style={{ fontSize: '9px', color: '#ff6600', letterSpacing: '0.25em', fontWeight: 'bold' }}>
-          ARC CAPITAL
-        </div>
-        <div style={{ fontSize: '10px', color: '#e8e8e8', marginBottom: '4px' }}>
-          MARKET SCREEN
-        </div>
         <WorldClock />
       </div>
 
