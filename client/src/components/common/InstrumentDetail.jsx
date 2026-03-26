@@ -293,6 +293,8 @@ export default function InstrumentDetail({ ticker, onClose }) {
   const dayHigh    = snap?.day?.h;
   const dayLow     = snap?.day?.l;
   const volume     = snap?.day?.v;
+  // Market cap: prefer Yahoo (fundsData) → Polygon reference (info) as fallback
+  const mktCap     = fundsData?.marketCap ?? info?.market_cap ?? null;
   // Description from Polygon (info) or Yahoo (fundsData) — whichever is non-empty
   const desc       = info?.description || fundsData?.description || null;
 
@@ -505,51 +507,59 @@ export default function InstrumentDetail({ ticker, onClose }) {
         {/* ── VALUATION ── */}
         {isStock && (
           <Section title="VALUATION">
-            {fundsLoading
-              ? <div style={{ color: '#2a2a2a', fontSize: 10, padding: '4px 0' }}>Loading…</div>
-              : fundsError
-              ? <div style={{ color: '#3a3a3a', fontSize: 9, padding: '4px 0' }}>Fundamental data unavailable</div>
-              : fundsData == null
-              ? <div style={{ color: '#2a2a2a', fontSize: 10, padding: '4px 0' }}>–</div>
-              : <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 12px' }}>
-                  {fundsData.marketCap != null && (
-                    <StatRow label="MKT CAP"
-                      value={fundsData.marketCap >= 1e12 ? '$'+(fundsData.marketCap/1e12).toFixed(2)+'T'
-                           : fundsData.marketCap >= 1e9  ? '$'+(fundsData.marketCap/1e9).toFixed(2)+'B'
-                           :                               '$'+(fundsData.marketCap/1e6).toFixed(1)+'M'} />
-                  )}
-                  {fundsData.enterpriseValue != null && (
-                    <StatRow label="EV"
-                      value={fundsData.enterpriseValue >= 1e12 ? '$'+(fundsData.enterpriseValue/1e12).toFixed(2)+'T'
-                           : fundsData.enterpriseValue >= 1e9  ? '$'+(fundsData.enterpriseValue/1e9).toFixed(2)+'B'
-                           :                                     '$'+(fundsData.enterpriseValue/1e6).toFixed(1)+'M'} />
-                  )}
-                  {fundsData.peRatio    != null && <StatRow label="P/E (TTM)"  value={fundsData.peRatio.toFixed(1)+'×'} />}
-                  {fundsData.forwardPE  != null && <StatRow label="P/E (FWD)"  value={fundsData.forwardPE.toFixed(1)+'×'} />}
-                  {fundsData.pegRatio   != null && <StatRow label="PEG"        value={fundsData.pegRatio.toFixed(2)+'×'} />}
-                  {fundsData.priceToBook != null && <StatRow label="P/B"       value={fundsData.priceToBook.toFixed(2)+'×'} />}
-                  {fundsData.priceToSales != null && <StatRow label="P/S"      value={fundsData.priceToSales.toFixed(2)+'×'} />}
-                  {fundsData.eps        != null && <StatRow label="EPS (TTM)"  value={'$'+fundsData.eps.toFixed(2)} />}
-                  {fundsData.forwardEps != null && <StatRow label="EPS (FWD)"  value={'$'+fundsData.forwardEps.toFixed(2)} />}
-                  {fundsData.earningsDate && <StatRow label="EARNINGS" value={fundsData.earningsDate} color={ORANGE} />}
-                  {fundsData.beta       != null && <StatRow label="BETA"       value={fundsData.beta.toFixed(2)} />}
-                  {fundsData.dividendYield != null && (
-                    <StatRow label="DIV YIELD" value={(fundsData.dividendYield*100).toFixed(2)+'%'} color={GREEN} />
-                  )}
-                  {fundsData.shortPercentFloat != null && (
-                    <StatRow label="SHORT %"
-                      value={(fundsData.shortPercentFloat*100).toFixed(1)+'%'}
-                      color={fundsData.shortPercentFloat > 0.1 ? RED : '#aaa'}
-                    />
-                  )}
-                  {fundsData.sharesOutstanding != null && (
-                    <StatRow label="SHARES"
-                      value={fundsData.sharesOutstanding >= 1e9
-                        ? (fundsData.sharesOutstanding/1e9).toFixed(2)+'B'
-                        : (fundsData.sharesOutstanding/1e6).toFixed(0)+'M'} />
-                  )}
-                </div>
-            }
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 12px' }}>
+              {/* Market cap: always shown — uses Polygon reference (info) when Yahoo fails */}
+              {mktCap != null && (
+                <StatRow label="MKT CAP"
+                  value={mktCap >= 1e12 ? '$'+(mktCap/1e12).toFixed(2)+'T'
+                       : mktCap >= 1e9  ? '$'+(mktCap/1e9).toFixed(2)+'B'
+                       :                  '$'+(mktCap/1e6).toFixed(1)+'M'} />
+              )}
+              {/* Yahoo Finance metrics — shown only when fundamentals loaded */}
+              {fundsData?.enterpriseValue != null && (
+                <StatRow label="EV"
+                  value={fundsData.enterpriseValue >= 1e12 ? '$'+(fundsData.enterpriseValue/1e12).toFixed(2)+'T'
+                       : fundsData.enterpriseValue >= 1e9  ? '$'+(fundsData.enterpriseValue/1e9).toFixed(2)+'B'
+                       :                                     '$'+(fundsData.enterpriseValue/1e6).toFixed(1)+'M'} />
+              )}
+              {fundsData?.peRatio    != null && <StatRow label="P/E (TTM)"  value={fundsData.peRatio.toFixed(1)+'×'} />}
+              {fundsData?.forwardPE  != null && <StatRow label="P/E (FWD)"  value={fundsData.forwardPE.toFixed(1)+'×'} />}
+              {fundsData?.pegRatio   != null && <StatRow label="PEG"        value={fundsData.pegRatio.toFixed(2)+'×'} />}
+              {fundsData?.priceToBook != null && <StatRow label="P/B"       value={fundsData.priceToBook.toFixed(2)+'×'} />}
+              {fundsData?.priceToSales != null && <StatRow label="P/S"      value={fundsData.priceToSales.toFixed(2)+'×'} />}
+              {fundsData?.eps        != null && <StatRow label="EPS (TTM)"  value={'$'+fundsData.eps.toFixed(2)} />}
+              {fundsData?.forwardEps != null && <StatRow label="EPS (FWD)"  value={'$'+fundsData.forwardEps.toFixed(2)} />}
+              {fundsData?.earningsDate && <StatRow label="EARNINGS" value={fundsData.earningsDate} color={ORANGE} />}
+              {fundsData?.beta       != null && <StatRow label="BETA"       value={fundsData.beta.toFixed(2)} />}
+              {fundsData?.dividendYield != null && (
+                <StatRow label="DIV YIELD" value={(fundsData.dividendYield*100).toFixed(2)+'%'} color={GREEN} />
+              )}
+              {fundsData?.shortPercentFloat != null && (
+                <StatRow label="SHORT %"
+                  value={(fundsData.shortPercentFloat*100).toFixed(1)+'%'}
+                  color={fundsData.shortPercentFloat > 0.1 ? RED : '#aaa'}
+                />
+              )}
+              {fundsData?.sharesOutstanding != null && (
+                <StatRow label="SHARES"
+                  value={fundsData.sharesOutstanding >= 1e9
+                    ? (fundsData.sharesOutstanding/1e9).toFixed(2)+'B'
+                    : (fundsData.sharesOutstanding/1e6).toFixed(0)+'M'} />
+              )}
+              {/* Loading/error indicator for the Yahoo portion only */}
+              {fundsLoading && mktCap != null && (
+                <div style={{ gridColumn: '1/-1', color: '#2a2a2a', fontSize: 8, paddingTop: 2 }}>loading ratios…</div>
+              )}
+              {fundsLoading && mktCap == null && (
+                <div style={{ gridColumn: '1/-1', color: '#2a2a2a', fontSize: 10 }}>Loading…</div>
+              )}
+              {!fundsLoading && fundsError && mktCap == null && (
+                <div style={{ gridColumn: '1/-1', color: '#3a3a3a', fontSize: 9 }}>Fundamental data unavailable</div>
+              )}
+              {!fundsLoading && fundsError && mktCap != null && (
+                <div style={{ gridColumn: '1/-1', color: '#2a2a2a', fontSize: 8 }}>ratios unavailable</div>
+              )}
+            </div>
           </Section>
         )}
 

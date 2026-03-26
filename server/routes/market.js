@@ -955,10 +955,11 @@ router.get('/fundamentals/:symbol', async (req, res) => {
     const symbol = raw.replace(/^[XC]:/, '');
 
     // Attempt with crumb; retry once if crumb expired (401/403)
+    // query2 is generally more reliable than query1 from server IPs
     let result = null;
     for (let attempt = 0; attempt < 2; attempt++) {
       const { crumb, cookie } = await getYahooCrumb();
-      const url = 'https://query1.finance.yahoo.com/v10/finance/quoteSummary/' +
+      const url = 'https://query2.finance.yahoo.com/v10/finance/quoteSummary/' +
         encodeURIComponent(symbol) +
         '?modules=defaultKeyStatistics,financialData,summaryProfile,summaryDetail,price' +
         '&crumb=' + encodeURIComponent(crumb) + '&lang=en-US';
@@ -987,6 +988,13 @@ router.get('/fundamentals/:symbol', async (req, res) => {
     const sd = result.summaryDetail       || {}; // ← more reliable for marketCap
     const pr = result.price               || {};
 
+    // Polygon fallback for market_cap — fetched in parallel, failure is non-fatal
+    let polyMktCap = null;
+    try {
+      const polyRef = await polyFetch(`/v3/reference/tickers/${encodeURIComponent(symbol)}`);
+      polyMktCap = polyRef?.results?.market_cap ?? null;
+    } catch (_) { /* non-fatal */ }
+
     // Next earnings date: Yahoo returns array of {raw, fmt} — pick the first future one
     const earningsArr = ks.earningsDate?.length ? ks.earningsDate : null;
     const earningsDate = earningsArr
@@ -998,8 +1006,8 @@ router.get('/fundamentals/:symbol', async (req, res) => {
       : null;
 
     res.json({
-      // valuation — summaryDetail.marketCap is more consistently populated than price.marketCap
-      marketCap:           yr(sd.marketCap)        ?? yr(pr.marketCap)        ?? null,
+      // valuation — three sources: summaryDetail → price → Polygon reference
+      marketCap:           yr(sd.marketCap)        ?? yr(pr.marketCap)        ?? polyMktCap ?? null,
       enterpriseValue:     yr(ks.enterpriseValue)                             ?? null,
       peRatio:             yr(sd.trailingPE)        ?? yr(ks.trailingPE)      ?? null,
       forwardPE:           yr(sd.forwardPE)         ?? yr(ks.forwardPE)       ?? null,
