@@ -18,6 +18,35 @@ const LS_TOKEN = 'arc_token';
 
 const AuthContext = createContext(null);
 
+/**
+ * Normalize the raw subscription object from the server into the shape
+ * that App.jsx components (TrialBanner, SubscriptionExpiredScreen) expect.
+ *
+ * Server returns: { isPaid, subscriptionActive, trialEndsAt }
+ * Normalized:     { ...raw, status, trialDaysRemaining }
+ *
+ * status: 'active' | 'trial' | 'expired'
+ */
+function normalizeSubscription(raw) {
+  if (!raw) return null;
+  const now = Date.now();
+  const trialEndsAt = raw.trialEndsAt ?? null;
+  const trialDaysRemaining = trialEndsAt
+    ? Math.max(0, Math.ceil((trialEndsAt - now) / 86400000))
+    : 0;
+
+  let status;
+  if (raw.isPaid && raw.subscriptionActive) {
+    status = 'active';
+  } else if (trialEndsAt && now < trialEndsAt) {
+    status = 'trial';
+  } else {
+    status = 'expired';
+  }
+
+  return { ...raw, status, trialDaysRemaining };
+}
+
 export function AuthProvider({ children }) {
   const [user,         setUser]         = useState(null);
   const [token,        setToken]        = useState(null);
@@ -44,7 +73,7 @@ export function AuthProvider({ children }) {
         const restoredUser = { id: data.user.id, username: data.user.username };
         setUser(restoredUser);
         setToken(storedToken);
-        setSubscription(data.subscription || null);
+        setSubscription(normalizeSubscription(data.subscription));
         // Keep localStorage in sync with server-fresh user object
         localStorage.setItem(LS_USER, JSON.stringify(restoredUser));
       })
@@ -65,7 +94,7 @@ export function AuthProvider({ children }) {
   const _persist = useCallback((userObj, tok, sub) => {
     setUser(userObj);
     setToken(tok);
-    setSubscription(sub || null);
+    setSubscription(normalizeSubscription(sub));
     localStorage.setItem(LS_USER,  JSON.stringify(userObj));
     localStorage.setItem(LS_TOKEN, tok);
   }, []);
