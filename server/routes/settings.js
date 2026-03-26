@@ -23,13 +23,13 @@ router.get('/', (req, res) => {
 });
 
 // POST /api/settings — partial merge of settings
-router.post('/', (req, res) => {
+router.post('/', async (req, res) => {
   try {
     const partial  = req.body;
     if (!partial || typeof partial !== 'object') {
       return res.status(400).json({ error: 'Body must be a settings object' });
     }
-    const settings = mergeSettings(req.user.id, partial);
+    const settings = await mergeSettings(req.user.id, partial);
     res.json({ ok: true, settings });
   } catch (e) {
     res.status(400).json({ error: e.message });

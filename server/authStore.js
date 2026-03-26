@@ -1,73 +1,36 @@
 /**
  * authStore.js
- * Centralised user store with full user model: id, settings, subscription, etc.
- * Uses bcryptjs for password hashing and jsonwebtoken for tokens.
  *
- * NOTE: In-memory only. Replace with a real database for production.
+ * User store with MongoDB persistence (write-through cache).
+ *
+ * Strategy:
+ *   - In-memory Maps are the primary read source (fast, synchronous).
+ *   - On startup, initDB() loads all documents from MongoDB into the Maps.
+ *   - Every write (createUser, mergeSettings, updateSubscription) also writes
+ *     the full user document to MongoDB, so data survives restarts/redeploys.
+ *   - If MONGODB_URI is not set, falls back to pure in-memory (dev mode).
  */
 
 const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
+const jwt    = require('jsonwebtoken');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'change-me-in-production';
 
-// username (lowercase) → user object
-const usersByUsername = new Map();
-// id → user object
-const usersById = new Map();
-let nextId = 1;
+// ── In-memory store (primary read source) ────────────────────────────────────
+const usersByUsername = new Map();   // username_lower → user object
+const usersById       = new Map();   // id (number) → user object
+let   nextId          = 1;
 
-/**
- * Seed users from environment variables on startup.
- * Format: SEED_USERS=username1:password1,username2:password2
- * These users are (re)created with subscriptionActive=true and no trial expiry.
- */
-async function seedUsersFromEnv() {
-  const raw = process.env.SEED_USERS || '';
-  if (!raw.trim()) return;
-  const entries = raw.split(',').map(s => s.trim()).filter(Boolean);
-  for (const entry of entries) {
-    const colonIdx = entry.indexOf(':');
-    if (colonIdx < 0) continue;
-    const username = entry.slice(0, colonIdx).trim();
-    const password = entry.slice(colonIdx + 1).trim();
-    if (!username || !password) continue;
-    const key = username.toLowerCase();
-    if (usersByUsername.has(key)) continue; // already exists in this session
-    try {
-      const hash = await bcrypt.hash(password, 12);
-      const now  = Date.now();
-      const id   = nextId++;
-      const user = {
-        id,
-        username,
-        hash,
-        settings:            defaultSettings(),
-        isPaid:              true,
-        subscriptionActive:  true,
-        trialEndsAt:         now + 365 * 24 * 60 * 60 * 1000, // 1 year
-        stripeCustomerId:    null,
-        stripeSubscriptionId:null,
-        createdAt:           now,
-      };
-      usersByUsername.set(key, user);
-      usersById.set(id, user);
-      console.log(`[authStore] Seeded user: ${username}`);
-    } catch (e) {
-      console.error(`[authStore] Failed to seed user ${username}:`, e.message);
-    }
-  }
-}
+// ── MongoDB handles ──────────────────────────────────────────────────────────
+let usersCollection = null;          // null when MongoDB is not configured
 
-/**
- * Default user settings. Merged on registration.
- */
+// ── Default settings ─────────────────────────────────────────────────────────
 function defaultSettings() {
   return {
-    theme: 'dark',
+    theme:               'dark',
     onboardingCompleted: false,
-    selectedPresetId: null,
-    watchlist: [],
+    selectedPresetId:    null,
+    watchlist:           [],
     panels: {
       brazilB3:     { title: 'Brazil B3',      symbols: ['VALE3.SA','PETR4.SA','ITUB4.SA','BBDC4.SA','ABEV3.SA','WEGE3.SA','RENT3.SA','B3SA3.SA','MGLU3.SA','BBAS3.SA'] },
       usEquities:   { title: 'US Equities',    symbols: ['AAPL','MSFT','NVDA','GOOGL','AMZN','META','TSLA','JPM','XOM','BRKB'] },
@@ -79,18 +42,18 @@ function defaultSettings() {
     },
     layout: {
       desktopRows: [
-        ['charts',       'usEquities',  'forex'],
-        ['globalIndices','brazilB3',    'commodities', 'crypto'],
-        ['debt',         'search',      'news',        'watchlist'],
+        ['charts',        'usEquities',  'forex'],
+        ['globalIndices', 'brazilB3',    'commodities', 'crypto'],
+        ['debt',          'search',      'news',        'watchlist'],
       ],
-      mobileTabs: ['home', 'charts', 'watchlist', 'search', 'detail', 'news'],
+      mobileTabs: ['home', 'charts', 'watchlist', 'search', 'news'],
     },
     home: {
       sections: [
-        { id: 'indices',    title: 'US Indices',  symbols: ['SPY','QQQ','DIA'] },
-        { id: 'forex',      title: 'FX',          symbols: ['EURUSD','USDBRL','USDJPY'] },
-        { id: 'crypto',     title: 'Crypto',      symbols: ['BTCUSD','ETHUSD','SOLUSD'] },
-        { id: 'commodities',title: 'Commodities', symbols: ['GLD','USO','SLV'] },
+        { id: 'indices',     title: 'US Indices',  symbols: ['SPY','QQQ','DIA'] },
+        { id: 'forex',       title: 'FX',          symbols: ['EURUSD','USDBRL','USDJPY'] },
+        { id: 'crypto',      title: 'Crypto',      symbols: ['BTCUSD','ETHUSD','SOLUSD'] },
+        { id: 'commodities', title: 'Commodities', symbols: ['GLD','USO','SLV'] },
       ],
     },
     charts: {
@@ -100,15 +63,133 @@ function defaultSettings() {
   };
 }
 
+// ── MongoDB persistence helpers ───────────────────────────────────────────────
+
 /**
- * Create a new user.
+ * Persist (upsert) a user object to MongoDB.
+ * Strips the Mongo _id before re-inserting to avoid conflicts.
+ * No-ops gracefully if MongoDB is not connected.
  */
+async function persistUser(user) {
+  if (!usersCollection) return;
+  try {
+    const { _id, ...doc } = user;
+    await usersCollection.replaceOne(
+      { username_lower: user.username.toLowerCase() },
+      { ...doc, username_lower: user.username.toLowerCase() },
+      { upsert: true },
+    );
+  } catch (e) {
+    console.error('[authStore] MongoDB write error:', e.message);
+  }
+}
+
+// ── Database initialisation ───────────────────────────────────────────────────
+
+/**
+ * Connect to MongoDB and load all users into the in-memory Maps.
+ * Must be awaited before the server starts accepting requests.
+ */
+async function initDB() {
+  const uri = process.env.MONGODB_URI;
+  if (!uri) {
+    console.log('[authStore] MONGODB_URI not set — using in-memory store (data will not persist across restarts)');
+    return;
+  }
+
+  try {
+    const { MongoClient } = require('mongodb');
+    const client = new MongoClient(uri, {
+      serverSelectionTimeoutMS: 8000,
+      connectTimeoutMS: 8000,
+    });
+    await client.connect();
+
+    const dbName = process.env.MONGODB_DB || 'senger';
+    const mongoDB = client.db(dbName);
+    usersCollection = mongoDB.collection('users');
+
+    // Ensure unique index on username_lower
+    await usersCollection.createIndex({ username_lower: 1 }, { unique: true });
+
+    // Load all existing users into in-memory Maps
+    const saved = await usersCollection.find({}).toArray();
+    for (const doc of saved) {
+      const user = { ...doc };
+      delete user._id;
+      delete user.username_lower; // internal-only field
+      const key = user.username.toLowerCase();
+      usersByUsername.set(key, user);
+      usersById.set(Number(user.id), user);
+      if (Number(user.id) >= nextId) nextId = Number(user.id) + 1;
+    }
+
+    console.log(`[authStore] MongoDB connected (${dbName}) — loaded ${saved.length} user(s)`);
+  } catch (e) {
+    console.error('[authStore] MongoDB connection failed — running in-memory only:', e.message);
+    usersCollection = null;
+  }
+}
+
+// ── Seed users from SEED_USERS env var ───────────────────────────────────────
+
+/**
+ * Read SEED_USERS=username1:password1,username2:password2 from environment.
+ * Creates those users if they don't already exist (either in MongoDB or in-memory).
+ * Seeded accounts get subscriptionActive=true and a 1-year trial.
+ */
+async function seedUsersFromEnv() {
+  const raw = process.env.SEED_USERS || '';
+  if (!raw.trim()) return;
+
+  const entries = raw.split(',').map(s => s.trim()).filter(Boolean);
+  for (const entry of entries) {
+    const colonIdx = entry.indexOf(':');
+    if (colonIdx < 0) continue;
+    const username = entry.slice(0, colonIdx).trim();
+    const password = entry.slice(colonIdx + 1).trim();
+    if (!username || !password) continue;
+
+    const key = username.toLowerCase();
+    if (usersByUsername.has(key)) {
+      console.log(`[authStore] Seed: '${username}' already exists — skipping`);
+      continue;
+    }
+
+    try {
+      const hash = await bcrypt.hash(password, 12);
+      const now  = Date.now();
+      const id   = nextId++;
+      const user = {
+        id,
+        username,
+        hash,
+        settings:             defaultSettings(),
+        isPaid:               true,
+        subscriptionActive:   true,
+        trialEndsAt:          now + 365 * 24 * 60 * 60 * 1000,
+        stripeCustomerId:     null,
+        stripeSubscriptionId: null,
+        createdAt:            now,
+      };
+      usersByUsername.set(key, user);
+      usersById.set(id, user);
+      await persistUser(user);
+      console.log(`[authStore] Seeded user: '${username}'`);
+    } catch (e) {
+      console.error(`[authStore] Failed to seed '${username}':`, e.message);
+    }
+  }
+}
+
+// ── User CRUD ─────────────────────────────────────────────────────────────────
+
 async function createUser(username, passwordPlain) {
   const key = username.toLowerCase();
-  if (!username || !passwordPlain) throw new Error('Username and password required');
-  if (username.length < 3) throw new Error('Username must be at least 3 characters');
-  if (passwordPlain.length < 6) throw new Error('Password must be at least 6 characters');
-  if (usersByUsername.has(key)) throw new Error('Username taken');
+  if (!username || !passwordPlain)   throw new Error('Username and password required');
+  if (username.length < 3)           throw new Error('Username must be at least 3 characters');
+  if (passwordPlain.length < 6)      throw new Error('Password must be at least 6 characters');
+  if (usersByUsername.has(key))      throw new Error('Username taken');
 
   const hash = await bcrypt.hash(passwordPlain, 12);
   const now  = Date.now();
@@ -117,36 +198,29 @@ async function createUser(username, passwordPlain) {
     id,
     username,
     hash,
-    settings:            defaultSettings(),
-    isPaid:              false,
-    subscriptionActive:  true,
-    trialEndsAt:         now + 2 * 24 * 60 * 60 * 1000, // 2-day trial
-    stripeCustomerId:    null,
-    stripeSubscriptionId:null,
-    createdAt:           now,
+    settings:             defaultSettings(),
+    isPaid:               false,
+    subscriptionActive:   true,
+    trialEndsAt:          now + 2 * 24 * 60 * 60 * 1000, // 2-day trial
+    stripeCustomerId:     null,
+    stripeSubscriptionId: null,
+    createdAt:            now,
   };
+
   usersByUsername.set(key, user);
   usersById.set(id, user);
+  await persistUser(user); // write-through to MongoDB
   return user;
 }
 
-/**
- * Find a user by username (case-insensitive).
- */
 function findUserByUsername(username) {
   return usersByUsername.get(username.toLowerCase()) || null;
 }
 
-/**
- * Find a user by id.
- */
 function getUserById(id) {
   return usersById.get(Number(id)) || null;
 }
 
-/**
- * Verify credentials and return JWT if ok.
- */
 async function verifyUser(username, passwordPlain) {
   const user = findUserByUsername(username);
   if (!user) throw new Error('Invalid credentials');
@@ -155,23 +229,18 @@ async function verifyUser(username, passwordPlain) {
   return user;
 }
 
-/**
- * Issue a signed JWT for user id/username.
- */
+// ── Token helpers ─────────────────────────────────────────────────────────────
+
 function signToken(user) {
   return jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: '30d' });
 }
 
-/**
- * Verify a JWT and return the payload.
- */
 function verifyToken(token) {
   return jwt.verify(token, JWT_SECRET);
 }
 
-/**
- * List users (for chat user search), excluding a given id.
- */
+// ── User search (for chat) ────────────────────────────────────────────────────
+
 function listUsers(query, excludeId) {
   const q = (query || '').toLowerCase();
   const results = [];
@@ -184,10 +253,12 @@ function listUsers(query, excludeId) {
   return results.slice(0, 20);
 }
 
+// ── Settings ──────────────────────────────────────────────────────────────────
+
 /**
- * Deep-merge partial settings into a user's settings object.
+ * Deep-merge partial settings into a user's settings object, then persist.
  */
-function mergeSettings(userId, partial) {
+async function mergeSettings(userId, partial) {
   const user = getUserById(userId);
   if (!user) throw new Error('User not found');
   const s = user.settings;
@@ -221,28 +292,29 @@ function mergeSettings(userId, partial) {
   const { panels, layout, home, charts, ...rest } = partial;
   Object.assign(s, rest);
 
+  await persistUser(user); // write-through to MongoDB
   return s;
 }
 
-/**
- * Update subscription fields.
- */
-function updateSubscription(userId, fields) {
+// ── Subscription ──────────────────────────────────────────────────────────────
+
+async function updateSubscription(userId, fields) {
   const user = getUserById(userId);
   if (!user) throw new Error('User not found');
   Object.assign(user, fields);
+  await persistUser(user); // write-through to MongoDB
   return user;
 }
 
-/**
- * Expose safe user info (no hash).
- */
+// ── Safe export (no password hash) ───────────────────────────────────────────
+
 function safeUser(user) {
   const { hash, ...safe } = user;
   return safe;
 }
 
 module.exports = {
+  initDB,
   createUser,
   findUserByUsername,
   getUserById,
