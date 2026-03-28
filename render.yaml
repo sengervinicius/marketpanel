@@ -28,6 +28,10 @@ services:
         sync: false          # Set this to your Stripe recurring price ID (price_...)
       - key: STRIPE_WEBHOOK_SECRET
         sync: false          # Set this to your Stripe webhook secret (whsec_...)
+      - key: MONGODB_URI
+        sync: false          # MongoDB connection string for persistent user data
+      - key: SEED_USERS
+        sync: false          # Pre-create admin accounts: username1:password1,username2:password2
 
   # ── Frontend static site ────────────────────────────────────────────────────
   - type: web

@@ -36,22 +36,36 @@ function classifyHttpError(status, headers) {
   throw new ApiError(`Polygon upstream error (${status})`, 'upstream_error');
 }
 
-async function polyFetch(path) {
-  const sep = path.includes('?') ? '&' : '?';
-  const url = `${BASE}${path}${sep}apiKey=${apiKey()}`;
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 10000);
-  let res;
-  try {
-    res = await fetch(url, { signal: controller.signal });
-  } catch (e) {
-    if (e.name === 'AbortError') throw new ApiError('Request timed out (10s)', 'network_error');
-    throw new ApiError(`Network error: ${e.message}`, 'network_error');
-  } finally {
-    clearTimeout(timeout);
+async function polyFetch(path, retries = 2) {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const sep = path.includes('?') ? '&' : '?';
+    const url = `${BASE}${path}${sep}apiKey=${apiKey()}`;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
+    let res;
+    try {
+      res = await fetch(url, { signal: controller.signal });
+    } catch (e) {
+      clearTimeout(timeout);
+      if (e.name === 'AbortError') {
+        if (attempt < retries) { await new Promise(r => setTimeout(r, 1000 * (attempt + 1))); continue; }
+        throw new ApiError('Request timed out (10s)', 'network_error');
+      }
+      if (attempt < retries) { await new Promise(r => setTimeout(r, 1000 * (attempt + 1))); continue; }
+      throw new ApiError(`Network error: ${e.message}`, 'network_error');
+    } finally {
+      clearTimeout(timeout);
+    }
+    if (res.status === 429 && attempt < retries) {
+      const retryAfter = parseInt(res.headers?.get?.('retry-after') || '5', 10);
+      console.warn(`[Polygon] 429 rate limited, retrying in ${retryAfter}s (attempt ${attempt + 1}/${retries})`);
+      await new Promise(r => setTimeout(r, retryAfter * 1000));
+      continue;
+    }
+    if (!res.ok) classifyHttpError(res.status, res.headers);
+    return res.json();
   }
-  if (!res.ok) classifyHttpError(res.status, res.headers);
-  return res.json();
+  throw new ApiError('Polygon: exhausted retries', 'network_error');
 }
 
 // ─── Yahoo Finance crumb authentication ────────────────────────────────────────────
@@ -132,14 +146,22 @@ async function getYahooCrumb() {
   let lastError = null;
   for (const seedUrl of SEED_URLS) {
     try {
-      const r1 = await fetch(seedUrl, {
-        headers: {
-          'User-Agent': YF_UA,
-          'Accept': 'text/html,application/xhtml+xml,*/*;q=0.9',
-          'Accept-Language': 'en-US,en;q=0.9',
-        },
-        redirect: 'follow',
-      });
+      const seedController = new AbortController();
+      const seedTimeout = setTimeout(() => seedController.abort(), 8000);
+      let r1;
+      try {
+        r1 = await fetch(seedUrl, {
+          headers: {
+            'User-Agent': YF_UA,
+            'Accept': 'text/html,application/xhtml+xml,*/*;q=0.9',
+            'Accept-Language': 'en-US,en;q=0.9',
+          },
+          redirect: 'follow',
+          signal: seedController.signal,
+        });
+      } finally {
+        clearTimeout(seedTimeout);
+      }
 
       // node-fetch v2: use .raw(); native fetch: fall back to .get()
       const rawCookies = (r1.headers.raw?.()?.['set-cookie']) || [];
@@ -149,15 +171,23 @@ async function getYahooCrumb() {
 
       for (const crumbUrl of CRUMB_URLS) {
         try {
-          const r2 = await fetch(crumbUrl, {
-            headers: {
-              'User-Agent': YF_UA,
-              'Accept': 'text/plain, */*',
-              'Accept-Language': 'en-US,en;q=0.9',
-              'Cookie': cookie,
-              'Referer': 'https://finance.yahoo.com/',
-            }
-          });
+          const crumbController = new AbortController();
+          const crumbTimeout = setTimeout(() => crumbController.abort(), 5000);
+          let r2;
+          try {
+            r2 = await fetch(crumbUrl, {
+              headers: {
+                'User-Agent': YF_UA,
+                'Accept': 'text/plain, */*',
+                'Accept-Language': 'en-US,en;q=0.9',
+                'Cookie': cookie,
+                'Referer': 'https://finance.yahoo.com/',
+              },
+              signal: crumbController.signal,
+            });
+          } finally {
+            clearTimeout(crumbTimeout);
+          }
           if (!r2.ok) continue;
           const crumb = (await r2.text()).trim();
           // A valid crumb is a short alphanumeric+symbol string, not HTML/JSON
@@ -189,15 +219,23 @@ async function yahooQuote(symbols) {
     const fields = 'regularMarketPrice,regularMarketChange,regularMarketChangePercent,regularMarketVolume,regularMarketOpen,regularMarketDayHigh,regularMarketDayLow,shortName,longName,currency,marketCap';
     const host = HOSTS[attempt % HOSTS.length];
     const url = `https://${host}.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbols)}&crumb=${encodeURIComponent(crumb)}&fields=${fields}&lang=en-US`;
-    const r = await fetch(url, {
-      headers: {
-        'User-Agent': YF_UA,
-        'Accept': 'application/json',
-        'Accept-Language': 'en-US,en;q=0.9',
-        'Cookie': cookie,
-        'Referer': 'https://finance.yahoo.com/',
-      }
-    });
+    const quoteController = new AbortController();
+    const quoteTimeout = setTimeout(() => quoteController.abort(), 10000);
+    let r;
+    try {
+      r = await fetch(url, {
+        headers: {
+          'User-Agent': YF_UA,
+          'Accept': 'application/json',
+          'Accept-Language': 'en-US,en;q=0.9',
+          'Cookie': cookie,
+          'Referer': 'https://finance.yahoo.com/',
+        },
+        signal: quoteController.signal,
+      });
+    } finally {
+      clearTimeout(quoteTimeout);
+    }
     if (r.status === 401 || r.status === 403) {
       // Invalidate crumb and retry once
       _yfCrumb = null; _yfCookie = null; _yfCrumbExpiry = 0;
@@ -416,12 +454,20 @@ router.get('/chart/:ticker', async (req, res) => {
       const period2 = Math.floor(new Date(toDate + 'T23:59:59Z').getTime() / 1000);
       const interval = timespan === 'minute' ? `${multiplier}m` : '1d';
       const yfUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker.toUpperCase())}?period1=${period1}&period2=${period2}&interval=${interval}&crumb=${encodeURIComponent(crumb)}`;
-      const r = await fetch(yfUrl, {
-        headers: {
-          'User-Agent': YF_UA, 'Accept': 'application/json',
-          'Cookie': cookie, 'Referer': 'https://finance.yahoo.com/'
-        }
-      });
+      const chartCtrl = new AbortController();
+      const chartTmout = setTimeout(() => chartCtrl.abort(), 10000);
+      let r;
+      try {
+        r = await fetch(yfUrl, {
+          headers: {
+            'User-Agent': YF_UA, 'Accept': 'application/json',
+            'Cookie': cookie, 'Referer': 'https://finance.yahoo.com/'
+          },
+          signal: chartCtrl.signal,
+        });
+      } finally {
+        clearTimeout(chartTmout);
+      }
       if (!r.ok) {
         if (r.status === 401 || r.status === 403) { _yfCrumb = null; _yfCrumbExpiry = 0; }
         throw new Error(`Yahoo chart HTTP ${r.status} for ${ticker}`);
@@ -486,27 +532,77 @@ router.get('/snapshot/brazil', async (req, res) => {
       'ABEV3.SA','WEGE3.SA','RENT3.SA','RDOR3.SA','B3SA3.SA','EQTL3.SA',
       'CSAN3.SA','PRIO3.SA','BPAC11.SA','HAPV3.SA','CMIG4.SA','VIVT3.SA','BOVA11.SA',
     ];
-    const quotes = await yahooQuote(tickers.join(','));
+    const requestedSymbols = tickers.map(t => t.replace(/\.SA$/i, ''));
+
+    let quotes = [];
+    let source = 'yahoo';
+    try {
+      quotes = await yahooQuote(tickers.join(','));
+    } catch (yahooErr) {
+      console.warn('[API] Yahoo Finance failed for Brazil, trying brapi.dev fallback:', yahooErr.message);
+      // Fallback: brapi.dev (free Brazilian market data API)
+      try {
+        const brapiSymbols = requestedSymbols.join(',');
+        const brapiController = new AbortController();
+        const brapiTimeout = setTimeout(() => brapiController.abort(), 8000);
+        try {
+          const brapiRes = await fetch(
+            `https://brapi.dev/api/quote/${brapiSymbols}?fundamental=false`,
+            { headers: { 'User-Agent': YF_UA, 'Accept': 'application/json' }, signal: brapiController.signal }
+          );
+          if (brapiRes.ok) {
+            const brapiData = await brapiRes.json();
+            quotes = (brapiData.results || []).map(q => ({
+              symbol: q.symbol + '.SA',
+              shortName: q.shortName || q.longName || q.symbol,
+              regularMarketPrice: q.regularMarketPrice,
+              regularMarketChange: q.regularMarketChange,
+              regularMarketChangePercent: q.regularMarketChangePercent,
+              regularMarketVolume: q.regularMarketVolume,
+            }));
+            source = 'brapi';
+          }
+        } finally {
+          clearTimeout(brapiTimeout);
+        }
+      } catch (brapiErr) {
+        console.error('[API] brapi.dev fallback also failed:', brapiErr.message);
+      }
+    }
+
     const results = quotes
       .filter(q => q.regularMarketPrice != null)
-      .map(q => ({
-        symbol:    q.symbol.replace(/\.SA$/i, ''),
-        name:      (q.shortName || q.longName || q.symbol).substring(0, 18),
-        price:     q.regularMarketPrice,
-        change:    q.regularMarketChange        ?? 0,
-        changePct: q.regularMarketChangePercent ?? 0,
-        volume:    q.regularMarketVolume        ?? 0,
-        currency:  'BRL',
-      }));
-    if (!results.length) throw new Error('Yahoo Finance returned no B3 results');
-    const payload = { results };
+      .map(q => {
+        const cleanSymbol = (q.symbol || '').replace(/\.SA$/i, '').trim();
+        if (!cleanSymbol) return null;
+        return {
+          symbol:    cleanSymbol,
+          name:      (q.shortName || q.longName || q.symbol).substring(0, 18),
+          price:     q.regularMarketPrice,
+          change:    q.regularMarketChange        ?? 0,
+          changePct: q.regularMarketChangePercent ?? 0,
+          volume:    q.regularMarketVolume        ?? 0,
+          currency:  'BRL',
+        };
+      })
+      .filter(Boolean);
+
+    // Log missing symbols for debugging
+    const returnedSymbols = new Set(results.map(r => r.symbol));
+    const missingSymbols = requestedSymbols.filter(s => !returnedSymbols.has(s));
+    if (missingSymbols.length > 0) {
+      console.warn(`[API] Brazil snapshot missing ${missingSymbols.length} symbols:`, missingSymbols.join(', '));
+    }
+
+    if (!results.length) throw new Error(`${source === 'brapi' ? 'brapi.dev' : 'Yahoo Finance'} returned no B3 results`);
+    const payload = { results, source, missing: missingSymbols };
     _brazilCache = payload;
     _brazilCacheExpiry = now + 60_000; // cache 60 s
     res.json(payload);
   } catch (err) {
     console.error('[API] /snapshot/brazil error:', err.message);
     // Return stale cache rather than 500 if we have it
-    if (_brazilCache) return res.json({ ..._brazilCache, stale: true });
+    if (_brazilCache) return res.json({ ..._brazilCache, stale: true, staleSinceMs: Date.now() - _brazilCacheExpiry + 60_000 });
     sendError(res, err);
   }
 });
@@ -615,15 +711,16 @@ router.get('/quote/:symbol', async (req, res) => {
     }
 
     const data = await polyFetch(`/v2/snapshot/locale/us/markets/stocks/tickers/${symbol}`);
-    const t = data.ticker;
-    if (!t) return res.status(404).json({ error: `No snapshot for ${symbol}` });
+    const t = data?.ticker;
+    if (!t || typeof t !== 'object') return res.status(404).json({ error: `No snapshot for ${symbol}`, code: 'not_found' });
     const d = t.day || {};
+    const price = (d.c > 0 ? d.c : null) ?? (t.min?.c > 0 ? t.min.c : null) ?? t.prevDay?.c ?? null;
     return res.json({
-      source: 'polygon', ticker: t.ticker, name: t.ticker,
-      price: d.c ?? t.min?.c,
-      change: t.todaysChange,
-      changePct: t.todaysChangePerc,
-      open: d.o, high: d.h, low: d.l, volume: d.v,
+      source: 'polygon', ticker: t.ticker || symbol, name: t.ticker || symbol,
+      price,
+      change: t.todaysChange ?? 0,
+      changePct: t.todaysChangePerc ?? 0,
+      open: d.o ?? null, high: d.h ?? null, low: d.l ?? null, volume: d.v ?? 0,
       currency: 'USD',
     });
   } catch (e) {
@@ -717,7 +814,29 @@ router.get('/snapshot/rates', async (req, res) => {
     }
 
     results.push({ symbol: 'SELIC',    name: 'SELIC',     price: selicRate, change: null, changePct: null, note: 'BCB TARGET RATE', type: 'policy' });
-    results.push({ symbol: 'FEDFUNDS', name: 'FED FUNDS', price: 4.33,      change: null, changePct: null, note: 'TARGET RATE',     type: 'policy' });
+
+    // Fetch Fed Funds rate from FRED (fallback to hardcoded if unavailable)
+    let fedFundsRate = 4.33; // fallback
+    try {
+      const fredController = new AbortController();
+      const fredTimeout = setTimeout(() => fredController.abort(), 5000);
+      try {
+        const fredRes = await fetch(
+          'https://api.stlouisfed.org/fred/series/observations?series_id=DFEDTARU&sort_order=desc&limit=1&file_type=json&api_key=DEMO_KEY',
+          { signal: fredController.signal, headers: { 'Accept': 'application/json' } }
+        );
+        if (fredRes.ok) {
+          const fredData = await fredRes.json();
+          const lastObs = fredData?.observations?.[0];
+          if (lastObs?.value && lastObs.value !== '.') fedFundsRate = parseFloat(lastObs.value);
+        }
+      } finally {
+        clearTimeout(fredTimeout);
+      }
+    } catch (e) {
+      console.warn('[API] FRED Fed Funds fetch failed, using fallback:', e.message);
+    }
+    results.push({ symbol: 'FEDFUNDS', name: 'FED FUNDS', price: fedFundsRate, change: null, changePct: null, note: 'TARGET RATE', type: 'policy' });
 
     res.json({ results });
   } catch (err) {
