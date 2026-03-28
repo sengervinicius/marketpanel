@@ -274,7 +274,47 @@ router.get('/snapshot/stocks', async (req, res) => {
     const cached = cacheGet(cacheKey);
     if (cached) return res.json(cached);
     try {
-      const data = await polyFetch(`/v2/snapshot/locale/us/markets/stocks/tickers?tickers=${syms.join(',')}`);
+      // Use Yahoo Finance in batches of ~15 symbols to avoid URL length issues
+      const BATCH_SIZE = 15;
+      const tickers = [];
+      for (let i = 0; i < syms.length; i += BATCH_SIZE) {
+        const batch = syms.slice(i, i + BATCH_SIZE);
+        tickers.push(...batch);
+      }
+
+      const batches = [];
+      for (let i = 0; i < tickers.length; i += BATCH_SIZE) {
+        batches.push(tickers.slice(i, i + BATCH_SIZE));
+      }
+
+      const results = await Promise.allSettled(
+        batches.map(batch => yahooQuote(batch.join(',')))
+      );
+
+      const allQuotes = [];
+      for (const result of results) {
+        if (result.status === 'fulfilled') {
+          allQuotes.push(...result.value);
+        }
+      }
+
+      // Transform Yahoo response to Polygon snapshot format
+      const transformedTickers = allQuotes.map(q => ({
+        ticker: q.symbol,
+        todaysChange: q.regularMarketChange ?? 0,
+        todaysChangePerc: q.regularMarketChangePercent ?? 0,
+        day: {
+          o: q.regularMarketOpen ?? null,
+          h: q.regularMarketDayHigh ?? null,
+          l: q.regularMarketDayLow ?? null,
+          c: q.regularMarketPrice ?? null,
+          v: q.regularMarketVolume ?? 0,
+        },
+        prevDay: { c: q.regularMarketPreviousClose ?? (q.regularMarketPrice - q.regularMarketChange) ?? null },
+        min: { c: q.regularMarketPrice ?? null },
+      }));
+
+      const data = { tickers: transformedTickers, status: 'OK' };
       cacheSet(cacheKey, data, TTL.stocksSnapshot);
       return res.json(data);
     } catch (e) {
@@ -285,7 +325,41 @@ router.get('/snapshot/stocks', async (req, res) => {
   const cached = cacheGet('snapshot:stocks');
   if (cached) return res.json(cached);
   try {
-    const data = await polyFetch(`/v2/snapshot/locale/us/markets/stocks/tickers?tickers=${DEFAULT_STOCK_TICKERS.join(',')}`);
+    // Use Yahoo Finance for default tickers in batches
+    const BATCH_SIZE = 15;
+    const batches = [];
+    for (let i = 0; i < DEFAULT_STOCK_TICKERS.length; i += BATCH_SIZE) {
+      batches.push(DEFAULT_STOCK_TICKERS.slice(i, i + BATCH_SIZE));
+    }
+
+    const results = await Promise.allSettled(
+      batches.map(batch => yahooQuote(batch.join(',')))
+    );
+
+    const allQuotes = [];
+    for (const result of results) {
+      if (result.status === 'fulfilled') {
+        allQuotes.push(...result.value);
+      }
+    }
+
+    // Transform Yahoo response to Polygon snapshot format
+    const transformedTickers = allQuotes.map(q => ({
+      ticker: q.symbol,
+      todaysChange: q.regularMarketChange ?? 0,
+      todaysChangePerc: q.regularMarketChangePercent ?? 0,
+      day: {
+        o: q.regularMarketOpen ?? null,
+        h: q.regularMarketDayHigh ?? null,
+        l: q.regularMarketDayLow ?? null,
+        c: q.regularMarketPrice ?? null,
+        v: q.regularMarketVolume ?? 0,
+      },
+      prevDay: { c: q.regularMarketPreviousClose ?? (q.regularMarketPrice - q.regularMarketChange) ?? null },
+      min: { c: q.regularMarketPrice ?? null },
+    }));
+
+    const data = { tickers: transformedTickers, status: 'OK' };
     cacheSet('snapshot:stocks', data, TTL.stocksSnapshot);
     res.json(data);
   } catch (e) {
@@ -297,13 +371,39 @@ router.get('/snapshot/forex', async (req, res) => {
   const cached = cacheGet('snapshot:forex');
   if (cached) return res.json(cached);
   try {
-    const tickers = [
+    // Map Polygon forex format (C:EURUSD) to Yahoo format (EURUSD=X)
+    const polygonTickers = [
       'C:EURUSD','C:GBPUSD','C:USDJPY','C:USDBRL',
       'C:GBPBRL','C:EURBRL',
       'C:USDARS','C:USDCHF','C:USDCNY','C:USDMXN',
       'C:AUDUSD','C:USDCAD','C:USDCLP',
-    ].join(',');
-    const data = await polyFetch(`/v2/snapshot/locale/global/markets/forex/tickers?tickers=${tickers}`);
+    ];
+
+    // Transform to Yahoo Finance format (EURUSD=X)
+    const yahooTickers = polygonTickers.map(t => {
+      const pair = t.replace(/^C:/, '');
+      return `${pair}=X`;
+    }).join(',');
+
+    const quotes = await yahooQuote(yahooTickers);
+
+    // Transform back to Polygon-compatible format
+    const transformedTickers = quotes.map(q => ({
+      ticker: 'C:' + q.symbol.replace(/=X$/, ''),
+      todaysChange: q.regularMarketChange ?? 0,
+      todaysChangePerc: q.regularMarketChangePercent ?? 0,
+      day: {
+        o: q.regularMarketOpen ?? null,
+        h: q.regularMarketDayHigh ?? null,
+        l: q.regularMarketDayLow ?? null,
+        c: q.regularMarketPrice ?? null,
+        v: q.regularMarketVolume ?? 0,
+      },
+      prevDay: { c: q.regularMarketPreviousClose ?? (q.regularMarketPrice - q.regularMarketChange) ?? null },
+      min: { c: q.regularMarketPrice ?? null },
+    }));
+
+    const data = { tickers: transformedTickers, status: 'OK' };
     cacheSet('snapshot:forex', data, TTL.forexSnapshot);
     res.json(data);
   } catch (e) {
@@ -315,8 +415,38 @@ router.get('/snapshot/crypto', async (req, res) => {
   const cached = cacheGet('snapshot:crypto');
   if (cached) return res.json(cached);
   try {
-    const tickers = ['X:BTCUSD','X:ETHUSD','X:SOLUSD','X:XRPUSD','X:BNBUSD','X:DOGEUSD'].join(',');
-    const data = await polyFetch(`/v2/snapshot/locale/global/markets/crypto/tickers?tickers=${tickers}`);
+    // Map Polygon crypto format (X:BTCUSD) to Yahoo format (BTC-USD)
+    const polygonTickers = ['X:BTCUSD','X:ETHUSD','X:SOLUSD','X:XRPUSD','X:BNBUSD','X:DOGEUSD'];
+
+    // Transform to Yahoo Finance format (BTC-USD)
+    const yahooTickers = polygonTickers.map(t => {
+      const pair = t.replace(/^X:/, '');
+      const [crypto, fiat] = [pair.slice(0, -3), pair.slice(-3)];
+      return `${crypto}-${fiat}`;
+    }).join(',');
+
+    const quotes = await yahooQuote(yahooTickers);
+
+    // Transform back to Polygon-compatible format
+    const transformedTickers = quotes.map(q => {
+      const symbol = q.symbol.replace(/-USD$/, 'USD').replace('-', '');
+      return {
+        ticker: 'X:' + symbol,
+        todaysChange: q.regularMarketChange ?? 0,
+        todaysChangePerc: q.regularMarketChangePercent ?? 0,
+        day: {
+          o: q.regularMarketOpen ?? null,
+          h: q.regularMarketDayHigh ?? null,
+          l: q.regularMarketDayLow ?? null,
+          c: q.regularMarketPrice ?? null,
+          v: q.regularMarketVolume ?? 0,
+        },
+        prevDay: { c: q.regularMarketPreviousClose ?? (q.regularMarketPrice - q.regularMarketChange) ?? null },
+        min: { c: q.regularMarketPrice ?? null },
+      };
+    });
+
+    const data = { tickers: transformedTickers, status: 'OK' };
     cacheSet('snapshot:crypto', data, TTL.cryptoSnapshot);
     res.json(data);
   } catch (e) {
@@ -534,41 +664,8 @@ router.get('/snapshot/brazil', async (req, res) => {
     ];
     const requestedSymbols = tickers.map(t => t.replace(/\.SA$/i, ''));
 
-    let quotes = [];
-    let source = 'yahoo';
-    try {
-      quotes = await yahooQuote(tickers.join(','));
-    } catch (yahooErr) {
-      console.warn('[API] Yahoo Finance failed for Brazil, trying brapi.dev fallback:', yahooErr.message);
-      // Fallback: brapi.dev (free Brazilian market data API)
-      try {
-        const brapiSymbols = requestedSymbols.join(',');
-        const brapiController = new AbortController();
-        const brapiTimeout = setTimeout(() => brapiController.abort(), 8000);
-        try {
-          const brapiRes = await fetch(
-            `https://brapi.dev/api/quote/${brapiSymbols}?fundamental=false`,
-            { headers: { 'User-Agent': YF_UA, 'Accept': 'application/json' }, signal: brapiController.signal }
-          );
-          if (brapiRes.ok) {
-            const brapiData = await brapiRes.json();
-            quotes = (brapiData.results || []).map(q => ({
-              symbol: q.symbol + '.SA',
-              shortName: q.shortName || q.longName || q.symbol,
-              regularMarketPrice: q.regularMarketPrice,
-              regularMarketChange: q.regularMarketChange,
-              regularMarketChangePercent: q.regularMarketChangePercent,
-              regularMarketVolume: q.regularMarketVolume,
-            }));
-            source = 'brapi';
-          }
-        } finally {
-          clearTimeout(brapiTimeout);
-        }
-      } catch (brapiErr) {
-        console.error('[API] brapi.dev fallback also failed:', brapiErr.message);
-      }
-    }
+    // Use Yahoo Finance exclusively for B3 data
+    const quotes = await yahooQuote(tickers.join(','));
 
     const results = quotes
       .filter(q => q.regularMarketPrice != null)
@@ -594,8 +691,8 @@ router.get('/snapshot/brazil', async (req, res) => {
       console.warn(`[API] Brazil snapshot missing ${missingSymbols.length} symbols:`, missingSymbols.join(', '));
     }
 
-    if (!results.length) throw new Error(`${source === 'brapi' ? 'brapi.dev' : 'Yahoo Finance'} returned no B3 results`);
-    const payload = { results, source, missing: missingSymbols };
+    if (!results.length) throw new Error('Yahoo Finance returned no B3 results');
+    const payload = { results, source: 'yahoo', missing: missingSymbols };
     _brazilCache = payload;
     _brazilCacheExpiry = now + 60_000; // cache 60 s
     res.json(payload);
@@ -616,7 +713,42 @@ router.get('/snapshot/global-indices', async (req, res) => {
       'EZU','EWU','EWG','EWQ','EWP','EWI','EWL','EWD',
       'EWJ','EWH','EWY','EWA','MCHI','EWT','EWS','INDA'
     ];
-    const data = await polyFetch(`/v2/snapshot/locale/us/markets/stocks/tickers?tickers=${tickers.join(',')}`);
+
+    // Use Yahoo Finance in batches of ~15 symbols
+    const BATCH_SIZE = 15;
+    const batches = [];
+    for (let i = 0; i < tickers.length; i += BATCH_SIZE) {
+      batches.push(tickers.slice(i, i + BATCH_SIZE));
+    }
+
+    const results = await Promise.allSettled(
+      batches.map(batch => yahooQuote(batch.join(',')))
+    );
+
+    const allQuotes = [];
+    for (const result of results) {
+      if (result.status === 'fulfilled') {
+        allQuotes.push(...result.value);
+      }
+    }
+
+    // Transform Yahoo response to Polygon snapshot format
+    const transformedTickers = allQuotes.map(q => ({
+      ticker: q.symbol,
+      todaysChange: q.regularMarketChange ?? 0,
+      todaysChangePerc: q.regularMarketChangePercent ?? 0,
+      day: {
+        o: q.regularMarketOpen ?? null,
+        h: q.regularMarketDayHigh ?? null,
+        l: q.regularMarketDayLow ?? null,
+        c: q.regularMarketPrice ?? null,
+        v: q.regularMarketVolume ?? 0,
+      },
+      prevDay: { c: q.regularMarketPreviousClose ?? (q.regularMarketPrice - q.regularMarketChange) ?? null },
+      min: { c: q.regularMarketPrice ?? null },
+    }));
+
+    const data = { tickers: transformedTickers, status: 'OK' };
     res.json(data);
   } catch (err) {
     console.error('[API] /snapshot/global-indices error:', err.message);
@@ -710,18 +842,21 @@ router.get('/quote/:symbol', async (req, res) => {
       });
     }
 
-    const data = await polyFetch(`/v2/snapshot/locale/us/markets/stocks/tickers/${symbol}`);
-    const t = data?.ticker;
-    if (!t || typeof t !== 'object') return res.status(404).json({ error: `No snapshot for ${symbol}`, code: 'not_found' });
-    const d = t.day || {};
-    const price = (d.c > 0 ? d.c : null) ?? (t.min?.c > 0 ? t.min.c : null) ?? t.prevDay?.c ?? null;
+    // Use Yahoo Finance for US stocks instead of Polygon
+    const quotes = await yahooQuote(symbol);
+    if (!quotes.length) return res.status(404).json({ error: `No quote for ${symbol}` });
+    const q = quotes[0];
     return res.json({
-      source: 'polygon', ticker: t.ticker || symbol, name: t.ticker || symbol,
-      price,
-      change: t.todaysChange ?? 0,
-      changePct: t.todaysChangePerc ?? 0,
-      open: d.o ?? null, high: d.h ?? null, low: d.l ?? null, volume: d.v ?? 0,
-      currency: 'USD',
+      source: 'yahoo', ticker: q.symbol,
+      name: q.shortName || q.longName || q.symbol,
+      price: q.regularMarketPrice,
+      change: q.regularMarketChange,
+      changePct: q.regularMarketChangePercent,
+      open: q.regularMarketOpen,
+      high: q.regularMarketDayHigh,
+      low: q.regularMarketDayLow,
+      volume: q.regularMarketVolume,
+      currency: q.currency || 'USD',
     });
   } catch (e) {
     console.error(`[API] /quote/${req.params.symbol} error:`, e.message);
@@ -736,15 +871,54 @@ router.get('/snapshot/ticker/:symbol', async (req, res) => {
     const sym = req.params.symbol.toUpperCase();
 
     if (sym.startsWith('X:')) {
-      // Crypto — Polygon global crypto
-      const data = await polyFetch(`/v2/snapshot/locale/global/markets/crypto/tickers/${sym}`);
-      return res.json(data);
+      // Crypto — Map Polygon format (X:BTCUSD) to Yahoo format (BTC-USD)
+      const pair = sym.replace(/^X:/, '');
+      const [crypto, fiat] = [pair.slice(0, -3), pair.slice(-3)];
+      const yahooTicker = `${crypto}-${fiat}`;
+      const quotes = await yahooQuote(yahooTicker);
+      const q = quotes?.[0];
+      if (!q) throw new Error(`No Yahoo Finance data for ${sym}`);
+      return res.json({
+        ticker: {
+          min:    { c: q.regularMarketPrice },
+          day:    {
+            o: q.regularMarketOpen        ?? null,
+            h: q.regularMarketDayHigh     ?? null,
+            l: q.regularMarketDayLow      ?? null,
+            c: q.regularMarketPrice       ?? null,
+            v: q.regularMarketVolume      ?? 0,
+            vw: null,
+          },
+          prevDay:          { c: q.regularMarketPreviousClose ?? (q.regularMarketPrice - q.regularMarketChange) ?? null },
+          todaysChangePerc: q.regularMarketChangePercent ?? null,
+          todaysChange:     q.regularMarketChange        ?? null,
+        },
+      });
     }
 
     if (sym.startsWith('C:')) {
-      // Forex — Polygon global forex
-      const data = await polyFetch(`/v2/snapshot/locale/global/markets/forex/tickers/${sym}`);
-      return res.json(data);
+      // Forex — Map Polygon format (C:EURUSD) to Yahoo format (EURUSD=X)
+      const pair = sym.replace(/^C:/, '');
+      const yahooTicker = `${pair}=X`;
+      const quotes = await yahooQuote(yahooTicker);
+      const q = quotes?.[0];
+      if (!q) throw new Error(`No Yahoo Finance data for ${sym}`);
+      return res.json({
+        ticker: {
+          min:    { c: q.regularMarketPrice },
+          day:    {
+            o: q.regularMarketOpen        ?? null,
+            h: q.regularMarketDayHigh     ?? null,
+            l: q.regularMarketDayLow      ?? null,
+            c: q.regularMarketPrice       ?? null,
+            v: q.regularMarketVolume      ?? 0,
+            vw: null,
+          },
+          prevDay:          { c: q.regularMarketPreviousClose ?? (q.regularMarketPrice - q.regularMarketChange) ?? null },
+          todaysChangePerc: q.regularMarketChangePercent ?? null,
+          todaysChange:     q.regularMarketChange        ?? null,
+        },
+      });
     }
 
     if (sym.endsWith('.SA')) {
@@ -770,9 +944,26 @@ router.get('/snapshot/ticker/:symbol', async (req, res) => {
       });
     }
 
-    // US equities / ETFs — Polygon US stocks
-    const data = await polyFetch(`/v2/snapshot/locale/us/markets/stocks/tickers/${sym}`);
-    res.json(data);
+    // US equities / ETFs — Use Yahoo Finance instead of Polygon
+    const quotes = await yahooQuote(sym);
+    const q = quotes?.[0];
+    if (!q) throw new Error(`No Yahoo Finance data for ${sym}`);
+    res.json({
+      ticker: {
+        min:    { c: q.regularMarketPrice },
+        day:    {
+          o: q.regularMarketOpen        ?? null,
+          h: q.regularMarketDayHigh     ?? null,
+          l: q.regularMarketDayLow      ?? null,
+          c: q.regularMarketPrice       ?? null,
+          v: q.regularMarketVolume      ?? 0,
+          vw: null,
+        },
+        prevDay:          { c: q.regularMarketPreviousClose ?? (q.regularMarketPrice - q.regularMarketChange) ?? null },
+        todaysChangePerc: q.regularMarketChangePercent ?? null,
+        todaysChange:     q.regularMarketChange        ?? null,
+      },
+    });
   } catch (e) {
     console.error('[API] /snapshot/ticker error:', e.message);
     sendError(res, e);

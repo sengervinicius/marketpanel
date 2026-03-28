@@ -157,7 +157,15 @@ async function seedUsersFromEnv() {
 
     const key = username.toLowerCase();
     if (usersByUsername.has(key)) {
-      console.log(`[authStore] Seed: '${username}' already exists — skipping`);
+      const existingUser = usersByUsername.get(key);
+      const hash = await bcrypt.hash(password, 12);
+      const now = Date.now();
+      existingUser.hash = hash;
+      existingUser.isPaid = true;
+      existingUser.subscriptionActive = true;
+      existingUser.trialEndsAt = now + 365 * 24 * 60 * 60 * 1000;
+      await persistUser(existingUser);
+      console.log(`[authStore] Seed: updated existing user '${username}' to admin status`);
       continue;
     }
 
