@@ -22,6 +22,12 @@ services:
         sync: false          # Generate a strong random secret for JWT signing
       - key: APPLE_CLIENT_ID
         sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false          # Set this to your Stripe secret key (sk_live_... or sk_test_...)
+      - key: STRIPE_PRICE_ID
+        sync: false          # Set this to your Stripe recurring price ID (price_...)
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false          # Set this to your Stripe webhook secret (whsec_...)
 
   # ── Frontend static site ────────────────────────────────────────────────────
   - type: web

@@ -10,6 +10,9 @@ const { createCheckoutSession, createPortalSession, handleBillingWebhook, getSub
 router.post('/create-session', async (req, res) => {
   try {
     const result = await createCheckoutSession(req.user.id);
+    if (result.error) {
+      return res.status(503).json(result);
+    }
     res.json(result);
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -25,6 +28,12 @@ router.post('/webhook', express.raw({ type: 'application/json' }), (req, res) =>
 router.get('/status', async (req, res) => {
   try {
     const status = await getSubscriptionStatus(req.user.id);
+    if (!process.env.STRIPE_SECRET_KEY) {
+      return res.status(503).json({
+        status: 'unconfigured',
+        message: 'Billing not configured',
+      });
+    }
     res.json(status);
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -35,6 +44,9 @@ router.get('/status', async (req, res) => {
 router.post('/portal', async (req, res) => {
   try {
     const result = await createPortalSession(req.user.id);
+    if (result.error) {
+      return res.status(503).json(result);
+    }
     res.json(result);
   } catch (e) {
     res.status(500).json({ error: e.message });

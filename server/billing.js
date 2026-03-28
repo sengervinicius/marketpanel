@@ -44,15 +44,15 @@ async function ensureStripeCustomer(stripe, user) {
 
 /**
  * Create a Stripe Checkout session.
- * Returns { checkoutUrl } on success, or a stub if Stripe is not configured.
+ * Returns { checkoutUrl } on success, or an error object if Stripe is not configured.
  */
 async function createCheckoutSession(userId) {
   const stripe = getStripe();
-  if (!stripe) {
+  if (!stripe || !process.env.STRIPE_PRICE_ID) {
     return {
-      checkoutUrl: null,
-      stub: true,
-      message: 'Billing not configured — set STRIPE_SECRET_KEY, STRIPE_PRICE_ID',
+      error: 'Billing not configured',
+      message: 'Billing not configured — set STRIPE_SECRET_KEY and STRIPE_PRICE_ID',
+      configured: false,
     };
   }
 
@@ -95,9 +95,9 @@ async function createPortalSession(userId) {
   const stripe = getStripe();
   if (!stripe) {
     return {
-      portalUrl: null,
-      stub: true,
+      error: 'Billing not configured',
       message: 'Billing not configured — set STRIPE_SECRET_KEY',
+      configured: false,
     };
   }
 

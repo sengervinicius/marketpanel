@@ -428,7 +428,7 @@ function SettingsDrawer({ panelVisible, togglePanel, onClose }) {
 }
 
 // ── User Dropdown (header avatar menu) ───────────────────────────────────────
-function UserDropdown({ user, onSettings, onLogout }) {
+function UserDropdown({ user, onSettings, onLogout, onBilling, isPaid }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   useEffect(() => {
@@ -457,9 +457,17 @@ function UserDropdown({ user, onSettings, onLogout }) {
           background: '#0d0d0d', border: '1px solid #2a2a2a',
           width: 150, boxShadow: '0 4px 20px rgba(0,0,0,0.9)',
         }}>
+          {isPaid && onBilling && (
+            <div
+              onClick={() => { setOpen(false); onBilling(); }}
+              style={{ padding: '7px 12px', cursor: 'pointer', color: '#888', fontSize: 9, letterSpacing: '0.5px', borderBottom: '1px solid #1a1a1a' }}
+              onMouseEnter={e => { e.currentTarget.style.background = '#141414'; e.currentTarget.style.color = '#44ff44'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#888'; }}
+            >💳 BILLING</div>
+          )}
           <div
             onClick={() => { setOpen(false); onSettings(); }}
-            style={{ padding: '7px 12px', cursor: 'pointer', color: '#888', fontSize: 9, letterSpacing: '0.5px', borderBottom: '1px solid #1a1a1a' }}
+            style={{ padding: '7px 12px', cursor: 'pointer', color: '#888', fontSize: 9, letterSpacing: '0.5px', borderBottom: isPaid && onBilling ? '1px solid #1a1a1a' : '1px solid #1a1a1a' }}
             onMouseEnter={e => { e.currentTarget.style.background = '#141414'; e.currentTarget.style.color = '#ff6600'; }}
             onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#888'; }}
           >⚙ SETTINGS</div>
@@ -563,41 +571,100 @@ function DataErrorBanner({ error, endpointErrors }) {
 }
 
 // ── Trial / Subscription banner ──────────────────────────────────────────────
-function TrialBanner({ subscription, onUpgrade }) {
+function TrialBanner({ subscription, onUpgrade, onManageBilling, billingState }) {
   if (!subscription) return null;
-  if (subscription.status === 'active') return null;
+  if (subscription.status === 'active' && !billingState?.showSuccess) return null;
 
   const days = subscription.trialDaysRemaining ?? 0;
   if (subscription.status === 'trial' && days <= 0) return null;
 
   const isExpired = subscription.status === 'expired';
-  const bg  = isExpired ? '#3a0000' : '#1a1000';
-  const clr = isExpired ? '#ff4444' : '#ff9900';
-  const msg = isExpired
-    ? 'TRIAL EXPIRED — Subscribe to continue'
-    : `FREE TRIAL: ${days} day${days !== 1 ? 's' : ''} remaining`;
+  const isPaid = subscription.status === 'active';
+  const isLoading = billingState?.isLoading;
+  const showSuccess = billingState?.showSuccess;
+  const checkoutError = billingState?.error;
+
+  let msg, bg, clr;
+  if (showSuccess) {
+    msg = 'Verifying your subscription...';
+    bg = '#003300';
+    clr = '#44ff44';
+  } else if (isExpired) {
+    msg = 'TRIAL EXPIRED — Subscribe to continue';
+    bg = '#3a0000';
+    clr = '#ff4444';
+  } else if (isPaid) {
+    msg = 'ACTIVE SUBSCRIPTION';
+    bg = '#003300';
+    clr = '#44ff44';
+  } else {
+    msg = `FREE TRIAL: ${days} day${days !== 1 ? 's' : ''} remaining`;
+    bg = '#1a1000';
+    clr = '#ff9900';
+  }
 
   return (
     <div style={{
       background: bg, borderBottom: `1px solid ${clr}44`,
       display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12,
-      padding: '3px 12px', flexShrink: 0,
+      padding: '3px 12px', flexShrink: 0, flexWrap: 'wrap',
     }}>
-      <span style={{ color: clr, fontSize: 8, letterSpacing: '0.8px', fontWeight: 700 }}>{msg}</span>
-      <button
-        onClick={onUpgrade}
-        style={{
-          background: '#ff6600', border: 'none', color: '#000',
-          fontSize: 8, fontWeight: 700, padding: '2px 8px', cursor: 'pointer',
-          fontFamily: 'inherit', letterSpacing: '0.5px', borderRadius: 2,
-        }}
-      >UPGRADE →</button>
+      {checkoutError && (
+        <span style={{ color: '#ff4444', fontSize: 8, letterSpacing: '0.5px', fontWeight: 600 }}>
+          Error: {checkoutError}
+        </span>
+      )}
+      {!checkoutError && (
+        <>
+          <span style={{ color: clr, fontSize: 8, letterSpacing: '0.8px', fontWeight: 700 }}>{msg}</span>
+          {isLoading ? (
+            <span style={{ color: clr, fontSize: 8, fontWeight: 600 }}>Setting up...</span>
+          ) : (
+            <>
+              {!isPaid && !showSuccess && (
+                <button
+                  onClick={onUpgrade}
+                  style={{
+                    background: '#ff6600', border: 'none', color: '#000',
+                    fontSize: 8, fontWeight: 700, padding: '2px 8px', cursor: 'pointer',
+                    fontFamily: 'inherit', letterSpacing: '0.5px', borderRadius: 2,
+                  }}
+                >UPGRADE →</button>
+              )}
+              {isPaid && onManageBilling && (
+                <button
+                  onClick={onManageBilling}
+                  style={{
+                    background: 'transparent', border: `1px solid ${clr}`, color: clr,
+                    fontSize: 8, fontWeight: 700, padding: '2px 8px', cursor: 'pointer',
+                    fontFamily: 'inherit', letterSpacing: '0.5px', borderRadius: 2,
+                  }}
+                >MANAGE BILLING</button>
+              )}
+            </>
+          )}
+        </>
+      )}
     </div>
   );
 }
 
 // ── Subscription Expired Screen ──────────────────────────────────────────────
-function SubscriptionExpiredScreen({ onUpgrade, onLogout }) {
+function SubscriptionExpiredScreen({ onUpgrade, onLogout, onManageBilling, checkoutState, subscription }) {
+  const [isLoading, setIsLoading] = useState(false);
+  const isLoadingCheckout = checkoutState?.isLoading || isLoading;
+  const checkoutError = checkoutState?.error;
+  const hasStripeCustomerId = subscription?.stripeCustomerId;
+
+  const handleUpgrade = async () => {
+    setIsLoading(true);
+    try {
+      await onUpgrade();
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div style={{
       flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
@@ -610,15 +677,33 @@ function SubscriptionExpiredScreen({ onUpgrade, onLogout }) {
       <div style={{ color: '#555', fontSize: 10, textAlign: 'center', maxWidth: 320, lineHeight: 1.6 }}>
         Your free trial has ended. Subscribe to Senger Market Terminal to continue accessing real-time data.
       </div>
-      <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
+      {checkoutError && (
+        <div style={{ color: '#ff6666', fontSize: 9, textAlign: 'center', maxWidth: 320 }}>
+          Error: {checkoutError}
+        </div>
+      )}
+      <div style={{ display: 'flex', gap: 12, marginTop: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
         <button
-          onClick={onUpgrade}
+          onClick={handleUpgrade}
+          disabled={isLoadingCheckout}
           style={{
-            background: '#ff6600', border: 'none', color: '#000',
-            fontSize: 10, fontWeight: 700, padding: '8px 20px', cursor: 'pointer',
+            background: isLoadingCheckout ? '#aa4400' : '#ff6600',
+            border: 'none', color: '#000',
+            fontSize: 10, fontWeight: 700, padding: '8px 20px', cursor: isLoadingCheckout ? 'not-allowed' : 'pointer',
             fontFamily: 'inherit', letterSpacing: '1px', borderRadius: 2,
+            opacity: isLoadingCheckout ? 0.7 : 1,
           }}
-        >SUBSCRIBE NOW →</button>
+        >{isLoadingCheckout ? 'Setting up...' : 'SUBSCRIBE NOW →'}</button>
+        {hasStripeCustomerId && onManageBilling && (
+          <button
+            onClick={onManageBilling}
+            style={{
+              background: 'none', border: '1px solid #ff9900', color: '#ff9900',
+              fontSize: 10, fontWeight: 700, padding: '8px 14px', cursor: 'pointer',
+              fontFamily: 'inherit', borderRadius: 2, letterSpacing: '0.5px',
+            }}
+          >MANAGE BILLING</button>
+        )}
         <button
           onClick={onLogout}
           style={{
@@ -647,8 +732,11 @@ const LS_CHART_GRID   = 'chartGrid_v3';
 
 export default function App() {
   const { data, loading, isRefreshing, lastUpdated, error: feedError, endpointErrors } = useMarketData();
-  const { user, subscription, startCheckout, logout, authReady } = useAuth();
+  const { user, subscription, startCheckout, logout, authReady, openBillingPortal, refreshSubscription } = useAuth();
   const { settings, loaded: settingsLoaded } = useSettings();
+
+  // ── Billing state ────────────────────────────────────────────────────────────
+  const [billingState, setBillingState] = useState({ isLoading: false, error: null, showSuccess: false });
 
   // ── Live WebSocket overlay (throttled at 250 ms) ─────────────────────────
   const [feedStatus, setFeedStatus] = useState({ stocks: 'connecting', forex: 'connecting', crypto: 'connecting' });
@@ -696,6 +784,26 @@ export default function App() {
   }, []);
 
   useWebSocket(handleWsMessage);
+
+  // ── Billing success handling ──────────────────────────────────────────────────
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('billing') === 'success') {
+      setBillingState({ isLoading: true, error: null, showSuccess: true });
+      // Refresh subscription after a brief delay to let server update
+      const timer = setTimeout(() => {
+        refreshSubscription().then(() => {
+          // Clear success banner after 3 seconds
+          setTimeout(() => {
+            setBillingState({ isLoading: false, error: null, showSuccess: false });
+          }, 3000);
+        }).catch((err) => {
+          setBillingState({ isLoading: false, error: 'Failed to verify subscription', showSuccess: false });
+        });
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [refreshSubscription]);
 
   // Global keyboard shortcuts
   useEffect(() => {
@@ -868,6 +976,17 @@ export default function App() {
   // Show paywall if subscription has expired
   const subscriptionExpired = subscription && subscription.status === 'expired';
 
+  // ── Checkout handler with loading state ───────────────────────────────────
+  const handleCheckout = useCallback(async () => {
+    setBillingState({ isLoading: true, error: null, showSuccess: false });
+    try {
+      await startCheckout();
+    } catch (err) {
+      setBillingState({ isLoading: false, error: 'Failed to start checkout', showSuccess: false });
+      throw err;
+    }
+  }, [startCheckout]);
+
   // ── DESKTOP ──────────────────────────────────────────────────────────────
   if (!isMobile) {
     return (
@@ -900,21 +1019,38 @@ export default function App() {
               style={{ background: layoutEdit ? '#1a0800' : 'none', border:`1px solid ${layoutEdit ? '#ff6600' : '#282828'}`, color: layoutEdit ? '#ff6600' : '#444', fontSize:9, padding:'2px 6px', cursor:'pointer', fontFamily:'inherit', borderRadius:2, letterSpacing:'0.5px' }}
             >⇄ LAYOUT</button>
             {user
-              ? <UserDropdown user={user} onSettings={() => setSettingsOpen(s => !s)} onLogout={logout} />
+              ? <UserDropdown
+                  user={user}
+                  onSettings={() => setSettingsOpen(s => !s)}
+                  onLogout={logout}
+                  onBilling={openBillingPortal}
+                  isPaid={subscription?.status === 'active'}
+                />
               : <button onClick={() => setSettingsOpen(s => !s)} style={{ background:'none', border:'1px solid #282828', color: settingsOpen ? '#ff6600' : '#444', fontSize:9, padding:'2px 6px', cursor:'pointer', fontFamily:'inherit', borderRadius:2, letterSpacing:'0.5px' }}>⚙ SETTINGS</button>
             }
           </div>
         </div>
 
         {/* Trial banner */}
-        <TrialBanner subscription={subscription} onUpgrade={startCheckout} />
+        <TrialBanner
+          subscription={subscription}
+          onUpgrade={handleCheckout}
+          onManageBilling={openBillingPortal}
+          billingState={billingState}
+        />
 
         {/* Data feed error banner — shows when Polygon/Yahoo endpoints are failing */}
         <DataErrorBanner error={feedError} endpointErrors={endpointErrors} />
 
         {/* Subscription expired screen */}
         {subscriptionExpired ? (
-          <SubscriptionExpiredScreen onUpgrade={startCheckout} onLogout={logout} />
+          <SubscriptionExpiredScreen
+            onUpgrade={handleCheckout}
+            onLogout={logout}
+            onManageBilling={openBillingPortal}
+            checkoutState={billingState}
+            subscription={subscription}
+          />
         ) : (
           <>
             {/* Settings drawer */}
@@ -996,7 +1132,15 @@ export default function App() {
       <div style={{ height: 38, flexShrink: 0, display:'flex', alignItems:'center', background:'#000', borderBottom:'1px solid #1e1e1e', padding:'0 12px', gap:8 }}>
         <span style={{ color:'#ff6600', fontWeight:700, fontSize:'11px', letterSpacing:'2px' }}>SENGER</span>
         <div style={{ flex: 1 }} />
-        {user && <UserDropdown user={user} onSettings={() => setSettingsOpen(s => !s)} onLogout={logout} />}
+        {user && (
+          <UserDropdown
+            user={user}
+            onSettings={() => setSettingsOpen(s => !s)}
+            onLogout={logout}
+            onBilling={openBillingPortal}
+            isPaid={subscription?.status === 'active'}
+          />
+        )}
       </div>
 
       {/* Mobile settings drawer */}
@@ -1007,14 +1151,25 @@ export default function App() {
       )}
 
       {/* Trial banner (mobile) */}
-      <TrialBanner subscription={subscription} onUpgrade={startCheckout} />
+      <TrialBanner
+        subscription={subscription}
+        onUpgrade={handleCheckout}
+        onManageBilling={openBillingPortal}
+        billingState={billingState}
+      />
 
       {/* Data feed error banner (mobile) */}
       <DataErrorBanner error={feedError} endpointErrors={endpointErrors} />
 
       {/* Subscription expired screen (mobile) */}
       {subscriptionExpired ? (
-        <SubscriptionExpiredScreen onUpgrade={startCheckout} onLogout={logout} />
+        <SubscriptionExpiredScreen
+          onUpgrade={handleCheckout}
+          onLogout={logout}
+          onManageBilling={openBillingPortal}
+          checkoutState={billingState}
+          subscription={subscription}
+        />
       ) : (
         <>
           {/* ── Tab content area ── */}

@@ -90,6 +90,41 @@ export function AuthProvider({ children }) {
       });
   }, []); // runs once on mount
 
+  // ── Check for billing URL params on mount ─────────────────────────────────
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const billingStatus = params.get('billing');
+
+    if (billingStatus === 'success') {
+      // User successfully completed checkout
+      // Delay the refresh slightly to allow server-side updates to settle
+      setTimeout(() => {
+        refreshSubscription();
+      }, 1000);
+      // Clean up URL without reloading
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (billingStatus === 'cancelled') {
+      // User cancelled checkout
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []); // runs once on mount
+
+  // ── Refresh subscription status ───────────────────────────────────────────
+  const refreshSubscription = useCallback(async () => {
+    const tok = localStorage.getItem(LS_TOKEN);
+    if (!tok) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/billing/status`, {
+        headers: { Authorization: `Bearer ${tok}` },
+      });
+      if (!res.ok) throw new Error('Failed to refresh subscription');
+      const data = await res.json();
+      setSubscription(normalizeSubscription(data));
+    } catch (err) {
+      console.error('Error refreshing subscription:', err);
+    }
+  }, []);
+
   // ── Persist helper ────────────────────────────────────────────────────────
   const _persist = useCallback((userObj, tok, sub) => {
     setUser(userObj);
@@ -173,13 +208,20 @@ export function AuthProvider({ children }) {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tok}` },
       });
       const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data?.error || 'Failed to create checkout session');
+      }
+
       if (data.checkoutUrl) {
         window.location.href = data.checkoutUrl;
       } else {
-        alert('Subscription checkout is not yet configured. Please contact support.');
+        throw new Error('Stripe not yet configured. Please contact support.');
       }
-    } catch {
-      alert('Could not initiate checkout. Please try again later.');
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Could not initiate checkout. Please try again later.';
+      alert(errorMsg);
+      throw err;
     }
   }, []);
 
@@ -203,7 +245,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, token, subscription, authReady, login, register, loginWithApple, logout, startCheckout, openBillingPortal }}>
+    <AuthContext.Provider value={{ user, token, subscription, authReady, login, register, loginWithApple, logout, startCheckout, openBillingPortal, refreshSubscription }}>
       {children}
     </AuthContext.Provider>
   );
