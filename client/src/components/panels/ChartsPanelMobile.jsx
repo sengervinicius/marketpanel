@@ -48,8 +48,8 @@ function ChartsPanelMobile({ onOpenDetail }) {
             key={sym}
             onClick={() => setActiveSymbol(sym)}
             style={{
-              padding: '4px 10px',
-              fontSize: 10,
+              padding: '8px 14px',
+              fontSize: 11,
               fontFamily: 'monospace',
               background: currentSymbol === sym ? '#ff6600' : '#111',
               color: currentSymbol === sym ? '#000' : '#888',

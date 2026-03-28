@@ -273,3 +273,28 @@ textarea:focus-visible { outline: 1px solid #ff6600; outline-offset: 0; border-c
   font-size: 10px;
   background: var(--bg-tertiary, #2a2a3e);
 }
+
+/* ── Mobile safe area support ───────────────────────────────── */
+@supports (padding: env(safe-area-inset-top)) {
+  .mobile-safe-top { padding-top: env(safe-area-inset-top); }
+  .mobile-safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+}
+
+/* ── Mobile touch improvements ──────────────────────────────── */
+@media (hover: none) and (pointer: coarse) {
+  button, [role="button"], .clickable-row {
+    min-height: 44px;
+  }
+  input, textarea, select {
+    font-size: 16px !important; /* Prevents iOS zoom on focus */
+  }
+}
+
+/* ── Mobile scroll snap for tabs ────────────────────────────── */
+.mobile-tab-bar {
+  display: flex;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.mobile-tab-bar::-webkit-scrollbar { display: none; }

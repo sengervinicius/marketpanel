@@ -78,21 +78,38 @@ router.get('/me', requireAuth, (req, res) => {
 });
 
 // POST /api/auth/apple
-router.post('/apple', async (req, res) => {
+router.post('/apple', authLimiter, async (req, res) => {
   try {
-    const { identityToken, user: appleUser } = req.body;
-    if (!identityToken) return res.status(400).json({ error: 'identityToken required' });
+    // Accept identityToken from client (matches Apple's id_token)
+    const identityToken = req.body.identityToken || req.body.id_token;
+    const appleUser = req.body.user || null;
+
+    if (!identityToken) {
+      return res.status(400).json({ error: 'identityToken is required', code: 'missing_token' });
+    }
 
     const APPLE_CLIENT_ID = process.env.APPLE_CLIENT_ID;
     if (!APPLE_CLIENT_ID) {
-      return res.status(501).json({ error: 'Apple Sign In not configured on this server. Set APPLE_CLIENT_ID env var.' });
+      return res.status(501).json({
+        error: 'Apple Sign In is not configured on this server. Set APPLE_CLIENT_ID env var.',
+        code: 'not_configured',
+      });
     }
 
-    const appleSignin = require('apple-signin-auth');
-    const payload = await appleSignin.verifyIdToken(identityToken, {
-      audience: APPLE_CLIENT_ID,
-      ignoreExpiration: false,
-    });
+    let payload;
+    try {
+      const appleSignin = require('apple-signin-auth');
+      payload = await appleSignin.verifyIdToken(identityToken, {
+        audience: APPLE_CLIENT_ID,
+        ignoreExpiration: false,
+      });
+    } catch (verifyErr) {
+      console.error('[auth/apple] Token verification failed:', verifyErr.message);
+      return res.status(401).json({
+        error: 'Apple identity token is invalid or expired. Please try signing in again.',
+        code: 'token_invalid',
+      });
+    }
 
     const appleUserId = payload.sub;
     const email = payload.email || appleUser?.email || null;
@@ -112,8 +129,11 @@ router.post('/apple', async (req, res) => {
       },
     });
   } catch (e) {
-    console.error('[auth/apple]', e.message);
-    res.status(401).json({ error: 'Apple Sign In failed: ' + e.message });
+    console.error('[auth/apple] Unexpected error:', e.message);
+    res.status(500).json({
+      error: 'An unexpected error occurred during Apple Sign In. Please try again.',
+      code: 'server_error',
+    });
   }
 });
 

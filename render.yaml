@@ -20,6 +20,8 @@ services:
         sync: false          # Set to your frontend URL after first deploy (e.g. https://senger-market-client.onrender.com)
       - key: JWT_SECRET
         sync: false          # Generate a strong random secret for JWT signing
+      - key: APPLE_CLIENT_ID
+        sync: false
 
   # ── Frontend static site ────────────────────────────────────────────────────
   - type: web
@@ -38,3 +40,7 @@ services:
         sync: false          # Set to your backend URL e.g. https://senger-market-server.onrender.com
       - key: VITE_WS_URL
         sync: false          # Set to wss://senger-market-server.onrender.com/ws
+      - key: VITE_APPLE_CLIENT_ID
+        sync: false
+      - key: VITE_APPLE_REDIRECT_URI
+        sync: false

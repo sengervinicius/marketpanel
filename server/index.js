@@ -106,6 +106,15 @@ wss.on('connection', (ws, req) => {
   clients.set(ws, { userId, username });
   console.log(`[WS] Client connected (user: ${username}). Total: ${clients.size}`);
 
+  // Track online presence
+  chatStore.setOnline(userId);
+  // Notify other users this user is online
+  for (const [client, info] of clients) {
+    if (client.readyState === WebSocket.OPEN && info.userId !== userId) {
+      client.send(JSON.stringify({ type: 'presence', userId, online: true }));
+    }
+  }
+
   // Send full snapshot on connect
   if (ws.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify({ type: 'snapshot', data: marketState }));
@@ -157,6 +166,41 @@ wss.on('connection', (ws, req) => {
           }
         }
       }
+
+      // Typing indicator
+      if (msg.type === 'typing') {
+        const { toUserId, isTyping } = msg;
+        if (!toUserId) return;
+        const convId = chatStore.getConversationId(userId, Number(toUserId));
+        if (isTyping) {
+          chatStore.setTyping(convId, userId);
+        } else {
+          chatStore.clearTyping(convId, userId);
+        }
+        // Forward typing status to the other user
+        for (const [client, info] of clients) {
+          if (client.readyState !== WebSocket.OPEN) continue;
+          if (info.userId === Number(toUserId)) {
+            client.send(JSON.stringify({ type: 'typing', fromUserId: userId, isTyping }));
+          }
+        }
+      }
+
+      // Read receipt
+      if (msg.type === 'mark_read') {
+        const { otherUserId } = msg;
+        if (!otherUserId) return;
+        const readIds = chatStore.markRead(userId, Number(otherUserId));
+        if (readIds.length > 0) {
+          // Notify the other user their messages were read
+          for (const [client, info] of clients) {
+            if (client.readyState !== WebSocket.OPEN) continue;
+            if (info.userId === Number(otherUserId)) {
+              client.send(JSON.stringify({ type: 'messages_read', byUserId: userId, messageIds: readIds }));
+            }
+          }
+        }
+      }
     } catch (e) {
       console.warn('[WS] Message parse error:', e.message);
     }
@@ -164,6 +208,15 @@ wss.on('connection', (ws, req) => {
 
   ws.on('close', () => {
     clearInterval(msgResetInterval);
+    chatStore.setOffline(userId);
+    // Check if user has no more connections before broadcasting offline
+    if (!chatStore.isOnline(userId)) {
+      for (const [client, info] of clients) {
+        if (client.readyState === WebSocket.OPEN && info.userId !== userId) {
+          client.send(JSON.stringify({ type: 'presence', userId, online: false }));
+        }
+      }
+    }
     clients.delete(ws);
     console.log(`[WS] Client disconnected. Total: ${clients.size}`);
   });
@@ -171,6 +224,15 @@ wss.on('connection', (ws, req) => {
   ws.on('error', (err) => {
     clearInterval(msgResetInterval);
     console.error('[WS] Client error:', err.message);
+    chatStore.setOffline(userId);
+    // Check if user has no more connections before broadcasting offline
+    if (!chatStore.isOnline(userId)) {
+      for (const [client, info] of clients) {
+        if (client.readyState === WebSocket.OPEN && info.userId !== userId) {
+          client.send(JSON.stringify({ type: 'presence', userId, online: false }));
+        }
+      }
+    }
     clients.delete(ws);
   });
 });

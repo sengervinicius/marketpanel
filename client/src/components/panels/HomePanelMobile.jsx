@@ -115,7 +115,10 @@ function HomePanelMobile({ onOpenDetail }) {
     color: '#e0e0e0',
     fontFamily: 'monospace',
     padding: '12px',
+    paddingBottom: 'calc(12px + env(safe-area-inset-bottom, 0px))',
     minHeight: '100vh',
+    WebkitOverflowScrolling: 'touch',
+    overflowY: 'auto',
   };
 
   const cardStyle = {
@@ -137,11 +140,13 @@ function HomePanelMobile({ onOpenDetail }) {
   const rowStyle = {
     display: 'flex',
     justifyContent: 'space-between',
-    padding: '8px 0',
+    padding: '10px 0',
     borderBottom: '1px solid #1a1a1a',
     fontSize: '11px',
     cursor: 'pointer',
     alignItems: 'center',
+    minHeight: '44px',           // Apple HIG minimum touch target
+    WebkitTapHighlightColor: 'rgba(255, 102, 0, 0.15)',
   };
 
   return (
@@ -167,7 +172,7 @@ function HomePanelMobile({ onOpenDetail }) {
               >
                 <span>{displaySymbol(sym)}</span>
                 <span style={{ fontSize: '12px', fontVariantNumeric: 'tabular-nums' }}>
-                  {fmtPrice(price, 5)}
+                  {fmtPrice(price, sym.includes('USD') || sym.includes('/') ? 4 : 2)}
                 </span>
                 <span style={{ color, minWidth: '50px', textAlign: 'right' }}>
                   {fmtPct(changePct)}

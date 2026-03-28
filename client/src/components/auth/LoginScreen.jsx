@@ -83,14 +83,14 @@ export default function LoginScreen({ children }) {
       await loadAppleSDK();
 
       if (!window.AppleID) {
-        throw new Error('Apple SDK failed to load. Check your connection.');
+        throw new Error('Apple Sign In is not available. Please try username/password login.');
       }
 
       const clientId   = import.meta.env.VITE_APPLE_CLIENT_ID;
       const redirectURI = import.meta.env.VITE_APPLE_REDIRECT_URI || window.location.origin;
 
       if (!clientId) {
-        throw new Error('Apple Sign In not configured. Contact support.');
+        throw new Error('Apple Sign In is not configured for this environment.');
       }
 
       window.AppleID.auth.init({
@@ -101,17 +101,28 @@ export default function LoginScreen({ children }) {
       });
 
       const response = await window.AppleID.auth.signIn();
-      const { id_token, code } = response.authorization;
-      const appleUser = response.user || null; // only on first sign-in
+      const identityToken = response.authorization?.id_token;
+      const authorizationCode = response.authorization?.code;
+      const appleUser = response.user || null; // only provided on first sign-in
 
-      await loginWithApple(id_token, code, appleUser);
+      if (!identityToken) {
+        throw new Error('Apple did not return an identity token. Please try again.');
+      }
+
+      await loginWithApple(identityToken, authorizationCode, appleUser);
     } catch (err) {
       // Apple popup closed by user — don't show error
-      if (err.error === 'popup_closed_by_user') {
+      if (err.error === 'popup_closed_by_user' || err.type === 'popup_closed_by_user') {
         setAppleLoading(false);
         return;
       }
-      triggerShake(err.message || 'Apple Sign In failed');
+      // User cancelled
+      if (err.error === 'user_cancelled_authorize') {
+        setAppleLoading(false);
+        return;
+      }
+      console.error('[Apple Sign In]', err);
+      triggerShake(err.message || 'Apple Sign In failed. Please try username/password login.');
     } finally {
       setAppleLoading(false);
     }

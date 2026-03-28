@@ -115,9 +115,12 @@ function WatchlistPanelMobile({ onOpenDetail, onManage }) {
                 <button
                   onClick={e => { e.stopPropagation(); removeTicker(sym); }}
                   style={{
-                    background: 'none', border: 'none', color: '#2a2a2a',
-                    cursor: 'pointer', fontSize: 18, lineHeight: 1, padding: '4px 6px',
-                    flexShrink: 0,
+                    background: 'none', border: '1px solid #1a1a1a', color: '#444',
+                    cursor: 'pointer', fontSize: 10, lineHeight: 1, padding: '6px 10px',
+                    flexShrink: 0, borderRadius: 3,
+                    minWidth: '36px', minHeight: '36px',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    WebkitTapHighlightColor: 'rgba(255, 0, 0, 0.15)',
                   }}
                 >×</button>
               </div>
