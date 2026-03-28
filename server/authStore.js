@@ -14,7 +14,11 @@
 const bcrypt = require('bcryptjs');
 const jwt    = require('jsonwebtoken');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'change-me-in-production';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  console.error('[FATAL] JWT_SECRET environment variable is required');
+  if (process.env.NODE_ENV === 'production') process.exit(1);
+}
 
 // ── In-memory store (primary read source) ────────────────────────────────────
 const usersByUsername = new Map();   // username_lower → user object
@@ -189,7 +193,7 @@ async function createUser(username, passwordPlain) {
   const key = username.toLowerCase();
   if (!username || !passwordPlain)   throw new Error('Username and password required');
   if (username.length < 3)           throw new Error('Username must be at least 3 characters');
-  if (passwordPlain.length < 6)      throw new Error('Password must be at least 6 characters');
+  if (passwordPlain.length < 8)      throw new Error('Password must be at least 8 characters');
   if (usersByUsername.has(key))      throw new Error('Username taken');
 
   const hash = await bcrypt.hash(passwordPlain, 12);
@@ -252,6 +256,13 @@ function listUsers(query, excludeId) {
     }
   }
   return results.slice(0, 20);
+}
+
+function findUserByStripeCustomerId(customerId) {
+  for (const user of usersById.values()) {
+    if (user.stripeCustomerId === customerId) return user;
+  }
+  return null;
 }
 
 // ── Settings ──────────────────────────────────────────────────────────────────
@@ -375,4 +386,5 @@ module.exports = {
   safeUser,
   seedUsersFromEnv,
   findOrCreateAppleUser,
+  findUserByStripeCustomerId,
 };

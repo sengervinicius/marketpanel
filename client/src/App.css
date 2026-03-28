@@ -174,3 +174,102 @@ textarea:focus-visible { outline: 1px solid #ff6600; outline-offset: 0; border-c
   transition: background 0.1s;
 }
 .ctx-menu-item:hover { background: #1e1e1e; }
+
+/* ── Skeleton loader ────────────────────────────────────────── */
+.skeleton-container { padding: 8px; }
+.skeleton-header {
+  height: 20px;
+  width: 40%;
+  background: var(--bg-tertiary, #2a2a3e);
+  border-radius: 4px;
+  margin-bottom: 12px;
+  animation: skeleton-pulse 1.5s ease-in-out infinite;
+}
+.skeleton-row {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.skeleton-cell {
+  height: 16px;
+  background: var(--bg-tertiary, #2a2a3e);
+  border-radius: 4px;
+  animation: skeleton-pulse 1.5s ease-in-out infinite;
+}
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.8; }
+}
+
+/* ── Empty state ────────────────────────────────────────────── */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 16px;
+  color: var(--text-muted, #888);
+  text-align: center;
+  gap: 8px;
+}
+.empty-state-icon {
+  font-size: 32px;
+  opacity: 0.5;
+}
+.empty-state-text {
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+/* ── Stale data indicator ───────────────────────────────────── */
+.stale-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  color: var(--text-muted, #888);
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: var(--bg-tertiary, #2a2a3e);
+}
+.stale-indicator.warning {
+  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.1);
+}
+
+/* ── Market status bar ──────────────────────────────────────── */
+.market-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  padding: 0 8px;
+  white-space: nowrap;
+}
+.market-status .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.market-status .dot.open { background: #22c55e; }
+.market-status .dot.closed { background: #ef4444; }
+.market-status .dot.pre { background: #f59e0b; }
+
+/* ── Keyboard shortcut hint ─────────────────────────────────── */
+.kbd-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  color: var(--text-muted, #666);
+}
+.kbd {
+  display: inline-block;
+  padding: 1px 5px;
+  border: 1px solid var(--border-color, #444);
+  border-radius: 3px;
+  font-family: monospace;
+  font-size: 10px;
+  background: var(--bg-tertiary, #2a2a3e);
+}

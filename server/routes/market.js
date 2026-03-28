@@ -39,11 +39,16 @@ function classifyHttpError(status, headers) {
 async function polyFetch(path) {
   const sep = path.includes('?') ? '&' : '?';
   const url = `${BASE}${path}${sep}apiKey=${apiKey()}`;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10000);
   let res;
   try {
-    res = await fetch(url);
+    res = await fetch(url, { signal: controller.signal });
   } catch (e) {
+    if (e.name === 'AbortError') throw new ApiError('Request timed out (10s)', 'network_error');
     throw new ApiError(`Network error: ${e.message}`, 'network_error');
+  } finally {
+    clearTimeout(timeout);
   }
   if (!res.ok) classifyHttpError(res.status, res.headers);
   return res.json();
@@ -85,6 +90,19 @@ function cacheGet(key) {
 function cacheSet(key, data, ttlMs) {
   _ttlCache[key] = { data, expiry: Date.now() + ttlMs };
 }
+
+// ─── Cache cleanup — remove expired entries every 5 minutes ──────────────────
+setInterval(() => {
+  const now = Date.now();
+  let cleaned = 0;
+  for (const key of Object.keys(_ttlCache)) {
+    if (_ttlCache[key].expiry < now) {
+      delete _ttlCache[key];
+      cleaned++;
+    }
+  }
+  if (cleaned > 0) console.log(`[Cache] Cleaned ${cleaned} expired entries`);
+}, 5 * 60 * 1000);
 
 const TTL = {
   stocksSnapshot: 10_000,   // 10 s — near-realtime feel

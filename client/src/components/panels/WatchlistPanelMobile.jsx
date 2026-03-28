@@ -3,6 +3,7 @@
  * Mobile watchlist view — shows user's saved instruments, tapping opens detail.
  */
 
+import { memo } from 'react';
 import { useWatchlist } from '../../context/WatchlistContext';
 import { useStocksData, useForexData, useCryptoData } from '../../context/MarketContext';
 
@@ -15,7 +16,7 @@ function fmtPct(v) {
   return (v >= 0 ? '+' : '') + v.toFixed(2) + '%';
 }
 
-export default function WatchlistPanelMobile({ onOpenDetail, onManage }) {
+function WatchlistPanelMobile({ onOpenDetail, onManage }) {
   const { watchlist, removeTicker } = useWatchlist();
   const stocks = useStocksData();
   const forex  = useForexData();
@@ -127,3 +128,5 @@ export default function WatchlistPanelMobile({ onOpenDetail, onManage }) {
     </div>
   );
 }
+
+export default memo(WatchlistPanelMobile);

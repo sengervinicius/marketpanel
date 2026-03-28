@@ -13,8 +13,21 @@ export async function apiFetch(path, options = {}) {
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...(options.headers || {}),
   };
-  const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
-  return res;
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000);
+
+  try {
+    const res = await fetch(`${API_BASE}${path}`, { ...options, signal: controller.signal, headers });
+    return res;
+  } catch (e) {
+    if (e.name === 'AbortError') {
+      throw new Error('Request timed out. Please check your connection.');
+    }
+    throw e;
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 export async function apiJSON(path, options = {}) {

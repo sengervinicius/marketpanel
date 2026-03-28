@@ -7,7 +7,7 @@
  * Real E2EE requires client-side key exchange (e.g., X25519 + AES-GCM).
  */
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { apiFetch } from '../../utils/api';
 import { WS_URL } from '../../utils/constants';
@@ -32,7 +32,7 @@ export function openChatWindow(userId) {
   window.open(path, '_blank', 'width=820,height=620,noopener,noreferrer');
 }
 
-export function ChatPanel({ mobile, initialUserId }) {
+function ChatPanel({ mobile, initialUserId }) {
   const { user, token } = useAuth();
   const [conversations,    setConversations]    = useState([]);
   const [searchQuery,      setSearchQuery]      = useState('');
@@ -339,3 +339,6 @@ export function ChatPanel({ mobile, initialUserId }) {
     </div>
   );
 }
+
+export { ChatPanel };
+export default memo(ChatPanel);

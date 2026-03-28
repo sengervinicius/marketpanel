@@ -5,7 +5,7 @@
 // Drag-to-swap: internal slots draggable; drop onto another slot swaps positions
 // URL sync: ?c=SPY,QQQ,... persisted via history.replaceState for cross-device sharing
 // Auto-sync: grid synced to server on change, fetched on mount for mobile cross-device
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { useTickerPrice } from '../../context/PriceContext';
 import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip, ReferenceLine } from 'recharts';
 import { apiFetch } from '../../utils/api';
@@ -348,7 +348,7 @@ function EmptySlot({ index, onAdd, onSwap }) {
   );
 }
 
-export function ChartPanel({ ticker: externalTicker, onGridChange, mobile = false, onOpenDetail }) {
+function ChartPanel({ ticker: externalTicker, onGridChange, mobile = false, onOpenDetail }) {
   const [tickers, setTickers] = useState(() => {
     try {
       const urlParam = mobile ? null : new URLSearchParams(window.location.search).get('c');
@@ -532,3 +532,6 @@ export function ChartPanel({ ticker: externalTicker, onGridChange, mobile = fals
     </div>
   );
 }
+
+export { ChartPanel };
+export default memo(ChartPanel);

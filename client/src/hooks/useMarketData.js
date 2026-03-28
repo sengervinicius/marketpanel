@@ -52,9 +52,22 @@ function normalizePolygon(data, stripPrefix) {
 }
 
 async function fetchEndpoint(path) {
-  const res = await apiFetch(path);
-  if (!res.ok) throw new Error(`${path}: HTTP ${res.status}`);
-  return res.json();
+  const maxRetries = 3;
+  const delays = [2000, 4000, 8000];
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const res = await apiFetch(path);
+      if (!res.ok) throw new Error(`${path}: HTTP ${res.status}`);
+      return res.json();
+    } catch (e) {
+      if (attempt < maxRetries) {
+        await new Promise(resolve => setTimeout(resolve, delays[attempt]));
+      } else {
+        throw e;
+      }
+    }
+  }
 }
 
 export function useMarketData() {

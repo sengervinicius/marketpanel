@@ -17,7 +17,9 @@ services:
       - key: POLYGON_API_KEY
         sync: false          # Set this manually in Render dashboard
       - key: CLIENT_URL
-        sync: false          # Set to your frontend URL after first deploy
+        sync: false          # Set to your frontend URL after first deploy (e.g. https://senger-market-client.onrender.com)
+      - key: JWT_SECRET
+        sync: false          # Generate a strong random secret for JWT signing
 
   # ── Frontend static site ────────────────────────────────────────────────────
   - type: web

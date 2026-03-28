@@ -197,21 +197,10 @@ async function handleWebhookEvent(stripe, event) {
   }
 }
 
-/** Find a userId by looking up which user has this stripeCustomerId. */
 async function findUserIdByCustomer(customerId) {
-  const { getUserById: _get } = require('./authStore');
-  // We don't have a customerId index, so scan (small user base)
-  // This is only called from webhooks, not hot paths
-  const authStore = require('./authStore');
-  for (const [id] of Object.entries({})) { void id; } // satisfy linter
-  // Access the Maps indirectly by enumerating known user IDs
-  // Since authStore doesn't expose the map, we try IDs 1..1000
-  for (let i = 1; i <= 10000; i++) {
-    const u = _get(i);
-    if (!u) continue;
-    if (u.stripeCustomerId === customerId) return u.id;
-  }
-  return null;
+  const { findUserByStripeCustomerId } = require('./authStore');
+  const user = findUserByStripeCustomerId(customerId);
+  return user ? user.id : null;
 }
 
 // ── Subscription status ───────────────────────────────────────────────────────

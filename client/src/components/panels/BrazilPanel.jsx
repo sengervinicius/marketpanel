@@ -1,6 +1,6 @@
 // BrazilPanel.jsx — B3 stocks via server Yahoo Finance proxy
 // Title and symbols are user-configurable via SettingsContext + PanelConfigModal.
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, memo } from 'react';
 import { useSettings } from '../../context/SettingsContext';
 import PanelConfigModal from '../common/PanelConfigModal';
 import { apiFetch } from '../../utils/api';
@@ -17,7 +17,7 @@ const showInfo = (e, symbol, label, type) => {
   }));
 };
 
-export default function BrazilPanel({ onTickerClick, onOpenDetail }) {
+function BrazilPanel({ onTickerClick, onOpenDetail }) {
   const ptRef = useRef(null);
   const { settings, updatePanelConfig } = useSettings();
 
@@ -179,3 +179,5 @@ export default function BrazilPanel({ onTickerClick, onOpenDetail }) {
     </div>
   );
 }
+
+export default memo(BrazilPanel);

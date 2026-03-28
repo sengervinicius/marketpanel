@@ -1,5 +1,6 @@
 // SentimentPanel.jsx — market breadth, live yields, top movers heatmap
 // Accepts full data object: { stocks, forex, crypto, rates }
+import { memo } from 'react';
 
 // Map Yahoo Finance treasury symbols → display labels
 const TREASURY_LABELS = {
@@ -33,7 +34,7 @@ function BreadthBar({ label, items }) {
   );
 }
 
-export function SentimentPanel({ data, loading }) {
+function SentimentPanel({ data, loading }) {
   const stocks = data?.stocks || {};
   const forex  = data?.forex  || {};
   const crypto = data?.crypto || {};
@@ -150,3 +151,6 @@ export function SentimentPanel({ data, loading }) {
     </div>
   );
 }
+
+export { SentimentPanel };
+export default memo(SentimentPanel);

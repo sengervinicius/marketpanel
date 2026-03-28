@@ -95,7 +95,9 @@ export function PriceProvider({ marketData, children }) {
           change:    t?.todaysChange     ?? null,
         },
       }));
-    } catch (_) {}
+    } catch (e) {
+      console.warn('[PriceContext] fetch error:', e.message);
+    }
   }, []);
 
   // Register interest in a ticker (called by useTickerPrice on mount)

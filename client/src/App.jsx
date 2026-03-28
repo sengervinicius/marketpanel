@@ -198,6 +198,7 @@ function useResizableFlex(storageKey, defaults) {
     } catch { return defaults; }
   });
   const sizesRef = useRef(sizes);
+  const cleanupRef = useRef(null);
   useEffect(() => { sizesRef.current = sizes; }, [sizes]);
   const startResize = useCallback((idx, e) => {
     const startY = e.clientY;
@@ -213,11 +214,31 @@ function useResizableFlex(storageKey, defaults) {
         return s;
       }));
     };
-    const onUp = () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
+    const onUp = () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+      cleanupRef.current = null;
+    };
+    cleanupRef.current = () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
   }, []);
-  useEffect(() => { localStorage.setItem(storageKey, JSON.stringify(sizes)); }, [sizes, storageKey]);
+  // Debounce localStorage writes to avoid excessive I/O during drag
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      localStorage.setItem(storageKey, JSON.stringify(sizes));
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [sizes, storageKey]);
+  // Clean up any remaining listeners if component unmounts during a drag
+  useEffect(() => {
+    return () => {
+      if (cleanupRef.current) cleanupRef.current();
+    };
+  }, []);
   return [sizes, startResize];
 }
 
@@ -230,6 +251,7 @@ function useResizableColumns(storageKey, defaults) {
     } catch { return defaults; }
   });
   const sizesRef = useRef(sizes);
+  const cleanupRef = useRef(null);
   useEffect(() => { sizesRef.current = sizes; }, [sizes]);
   const startResize = useCallback((idx, e) => {
     const startX = e.clientX;
@@ -245,11 +267,31 @@ function useResizableColumns(storageKey, defaults) {
         return s;
       }));
     };
-    const onUp = () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
+    const onUp = () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+      cleanupRef.current = null;
+    };
+    cleanupRef.current = () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
   }, []);
-  useEffect(() => { localStorage.setItem(storageKey, JSON.stringify(sizes)); }, [sizes, storageKey]);
+  // Debounce localStorage writes to avoid excessive I/O during drag
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      localStorage.setItem(storageKey, JSON.stringify(sizes));
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [sizes, storageKey]);
+  // Clean up any remaining listeners if component unmounts during a drag
+  useEffect(() => {
+    return () => {
+      if (cleanupRef.current) cleanupRef.current();
+    };
+  }, []);
   return [sizes, startResize];
 }
 
@@ -654,6 +696,24 @@ export default function App() {
   }, []);
 
   useWebSocket(handleWsMessage);
+
+  // Global keyboard shortcuts
+  useEffect(() => {
+    const handler = (e) => {
+      // Ignore if typing in input/textarea
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+      // Ctrl/Cmd + K = focus search (if search panel exists)
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        // Find and focus the search input
+        const searchInput = document.querySelector('.search-panel input, [placeholder*="Search"], [placeholder*="search"]');
+        if (searchInput) searchInput.focus();
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
 
   // Merge REST snapshot with WS live overlay
   const mergedData = useMemo(() => {

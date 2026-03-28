@@ -14,7 +14,7 @@
  * Credit spread indexes remain estimated (Bloomberg/ICE BofA data is paid).
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, memo } from 'react';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer,
@@ -112,7 +112,7 @@ const COUNTRY_COLORS = {
   FR: '#88ddff', MX: '#44ff88', KR: '#88ffcc', ZA: '#ffaa44',
 };
 
-export default function DebtPanel() {
+function DebtPanel() {
   const [availableCountries, setAvailableCountries] = useState([]);
   const [selectedCountry, setSelectedCountry]       = useState('US');
   const [view, setView]                             = useState('curve'); // 'curve' | 'regional'
@@ -455,3 +455,5 @@ export default function DebtPanel() {
     </div>
   );
 }
+
+export default memo(DebtPanel);

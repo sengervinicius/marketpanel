@@ -5,10 +5,11 @@
  * Right-click on any row → TickerTooltip already handles tooltip;
  * the "Add to Watchlist" action lives in TickerTooltip's right-click menu.
  */
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { useWatchlist } from '../../context/WatchlistContext';
 import { normalizeSymbol } from '../../utils/format';
 import { apiFetch } from '../../utils/api';
+import EmptyState from '../common/EmptyState';
 const fmt    = (n) => n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmtPct = (n) => n == null ? '—' : (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
 const COLS   = '72px 1fr 72px 64px 24px';
@@ -25,7 +26,7 @@ function normalizePolygonQuote(t) {
   return { symbol: t.ticker, price, changePct: t.todaysChangePerc ?? null, change: t.todaysChange ?? null };
 }
 
-export default function WatchlistPanel({ onTickerClick, onOpenDetail }) {
+function WatchlistPanel({ onTickerClick, onOpenDetail }) {
   const { watchlist, removeTicker } = useWatchlist();
   const [quotes, setQuotes]         = useState({});
   const [loading, setLoading]       = useState(false);
@@ -112,10 +113,11 @@ export default function WatchlistPanel({ onTickerClick, onOpenDetail }) {
 
       <div style={{ flex: 1, overflowY: 'auto' }}>
         {watchlist.length === 0 ? (
-          <div style={{ padding: '24px 12px', color: '#333', fontSize: 9, textAlign: 'center', lineHeight: 2 }}>
-            Your watchlist is empty.<br />
-            Click <span style={{ color: '#ff9900' }}>+ ADD</span> or right-click any ticker.
-          </div>
+          <EmptyState
+            icon="☆"
+            title="No watchlist items"
+            message="Search for a ticker and add it to your watchlist to track it here."
+          />
         ) : loading && Object.keys(quotes).length === 0 ? (
           <div style={{ padding: 20, textAlign: 'center', color: '#444', fontSize: 10 }}>LOADING...</div>
         ) : (
@@ -167,3 +169,5 @@ export default function WatchlistPanel({ onTickerClick, onOpenDetail }) {
     </div>
   );
 }
+
+export default memo(WatchlistPanel);

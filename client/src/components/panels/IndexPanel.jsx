@@ -1,5 +1,5 @@
 // IndexPanel.jsx — world index ETF proxies, BBG-style
-import { useRef, useState } from 'react';
+import { useRef, useState, memo } from 'react';
 import { useFeedStatus } from '../../context/FeedStatusContext';
 import { WORLD_INDEXES } from '../../utils/constants';
 
@@ -14,7 +14,7 @@ const showInfo = (e, symbol, label, type) => {
   }));
 };
 
-export function IndexPanel({ data, loading, onTickerClick, onOpenDetail }) {
+function IndexPanel({ data, loading, onTickerClick, onOpenDetail }) {
   const ptRef = useRef(null);
   const [collapsed, setCollapsed] = useState(false);
   const { getBadge } = useFeedStatus();
@@ -82,3 +82,6 @@ export function IndexPanel({ data, loading, onTickerClick, onOpenDetail }) {
     </div>
   );
 }
+
+export { IndexPanel };
+export default memo(IndexPanel);

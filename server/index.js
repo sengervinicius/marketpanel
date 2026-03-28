@@ -19,9 +19,15 @@ const { verifyToken } = require('./authStore');
 
 const app = express();
 
+const ALLOWED_ORIGIN = process.env.CLIENT_URL || (process.env.NODE_ENV === 'production' ? null : '*');
+if (!ALLOWED_ORIGIN) {
+  console.error('[FATAL] CLIENT_URL must be set in production');
+  process.exit(1);
+}
 app.use(cors({
-  origin: process.env.CLIENT_URL || '*',
+  origin: ALLOWED_ORIGIN,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
+  credentials: true,
 }));
 
 // NOTE: express.json() is applied globally EXCEPT for billing/webhook (needs raw body)
@@ -74,7 +80,7 @@ const marketState = {
 const clients = new Map();
 
 wss.on('connection', (ws, req) => {
-  // Authenticate WS via ?token= query param or Authorization header
+  // Authenticate WS via ?token= query param
   const url    = new URL(req.url, 'ws://localhost');
   const token  = url.searchParams.get('token') || '';
   let userId   = null;
@@ -86,25 +92,62 @@ wss.on('connection', (ws, req) => {
       userId   = payload.id;
       username = payload.username;
     }
-  } catch {}
+  } catch {
+    // Invalid token — close connection
+    ws.close(4001, 'Invalid token');
+    return;
+  }
+
+  if (!userId) {
+    ws.close(4001, 'Authentication required');
+    return;
+  }
 
   clients.set(ws, { userId, username });
-  console.log(`[WS] Client connected (user: ${username || 'anonymous'}). Total: ${clients.size}`);
+  console.log(`[WS] Client connected (user: ${username}). Total: ${clients.size}`);
 
   // Send full snapshot on connect
   if (ws.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify({ type: 'snapshot', data: marketState }));
   }
 
+  // Rate limit: max 30 messages per 10 seconds per client
+  let msgCount = 0;
+  const msgResetInterval = setInterval(() => { msgCount = 0; }, 10000);
+
   ws.on('message', (raw) => {
     try {
+      // Size limit: 2KB max
+      if (raw.length > 2048) {
+        ws.send(JSON.stringify({ type: 'error', message: 'Message too large (max 2KB)' }));
+        return;
+      }
+
+      msgCount++;
+      if (msgCount > 30) {
+        ws.send(JSON.stringify({ type: 'error', message: 'Rate limited. Slow down.' }));
+        return;
+      }
+
       const msg = JSON.parse(raw);
 
       // Live DM chat over WS
       if (msg.type === 'chat_message') {
         const { toUserId, text } = msg;
-        if (!userId || !toUserId || !text) return;
-        const savedMsg = chatStore.addMessage(userId, Number(toUserId), text);
+        if (!toUserId || !text) return;
+        // Validate text length
+        if (typeof text !== 'string' || text.length > 1000) {
+          ws.send(JSON.stringify({ type: 'error', message: 'Message text too long (max 1000 chars)' }));
+          return;
+        }
+        // Validate toUserId exists
+        const recipient = getUserById(Number(toUserId));
+        if (!recipient) {
+          ws.send(JSON.stringify({ type: 'error', message: 'Recipient not found' }));
+          return;
+        }
+
+        const savedMsg = chatStore.addMessage(userId, Number(toUserId), text.trim());
 
         // Deliver to sender + recipient
         for (const [client, info] of clients) {
@@ -120,11 +163,13 @@ wss.on('connection', (ws, req) => {
   });
 
   ws.on('close', () => {
+    clearInterval(msgResetInterval);
     clients.delete(ws);
     console.log(`[WS] Client disconnected. Total: ${clients.size}`);
   });
 
   ws.on('error', (err) => {
+    clearInterval(msgResetInterval);
     console.error('[WS] Client error:', err.message);
     clients.delete(ws);
   });
@@ -142,6 +187,18 @@ connectPolygon(marketState, broadcast);
 
 // Boot sequence: connect DB → seed env users → start HTTP server
 async function boot() {
+  // Validate required environment variables
+  const required = ['JWT_SECRET'];
+  const recommended = ['POLYGON_API_KEY', 'CLIENT_URL'];
+  const missing = required.filter(k => !process.env[k]);
+  if (missing.length && process.env.NODE_ENV === 'production') {
+    console.error(`[FATAL] Missing required env vars: ${missing.join(', ')}`);
+    process.exit(1);
+  }
+  recommended.filter(k => !process.env[k]).forEach(k => {
+    console.warn(`[WARN] ${k} not set — some features will be limited`);
+  });
+
   await initDB();           // connect MongoDB, load users into memory
   await seedUsersFromEnv(); // create any SEED_USERS accounts if missing
   const PORT = process.env.PORT || 3001;

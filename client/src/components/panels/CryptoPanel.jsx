@@ -1,11 +1,12 @@
 // CryptoPanel.jsx — crypto pairs, BBG-style
+import { memo } from 'react';
 import { CRYPTO_PAIRS } from '../../utils/constants';
 
 const fmt = (n) => n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmtPct = (n) => n == null ? '—' : (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
 const COLS = '56px 1fr 80px 64px';
 
-export function CryptoPanel({ data, loading, onTickerClick }) {
+function CryptoPanel({ data, loading, onTickerClick }) {
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#0a0a0a' }}>
       <div style={{ padding: '4px 8px', borderBottom: '1px solid #2a2a2a', background: '#111', flexShrink: 0 }}>
@@ -51,3 +52,6 @@ export function CryptoPanel({ data, loading, onTickerClick }) {
     </div>
   );
 }
+
+export { CryptoPanel };
+export default memo(CryptoPanel);

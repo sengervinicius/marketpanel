@@ -10,8 +10,18 @@ const {
 } = require('../authStore');
 const { requireAuth } = require('../authMiddleware');
 
+const rateLimit = require('express-rate-limit');
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10,                   // 10 attempts per window
+  message: { error: 'Too many attempts. Please try again in 15 minutes.', code: 'rate_limited' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 // POST /api/auth/register
-router.post('/register', async (req, res) => {
+router.post('/register', authLimiter, async (req, res) => {
   try {
     const { username, password } = req.body;
     const user  = await createUser(username, password);
@@ -33,7 +43,7 @@ router.post('/register', async (req, res) => {
 });
 
 // POST /api/auth/login
-router.post('/login', async (req, res) => {
+router.post('/login', authLimiter, async (req, res) => {
   try {
     const { username, password } = req.body;
     const user  = await verifyUser(username, password);

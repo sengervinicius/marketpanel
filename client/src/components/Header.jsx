@@ -37,10 +37,11 @@ function Clock({ label, tz }) {
 }
 
 function TickerTape({ stocks, indexes }) {
-  const allSymbols = [...Object.values(indexes), ...Object.values(stocks)].slice(0, 20);
-  if (allSymbols.length === 0) return null;
+  const allSymbols = [...Object.values(indexes), ...Object.values(stocks)];
+  const limitedSymbols = allSymbols.slice(0, 20);
+  if (limitedSymbols.length === 0) return null;
 
-  const items = allSymbols.filter(s => s.price).map(s => ({
+  const items = limitedSymbols.filter(s => s.price).map(s => ({
     sym: s.symbol,
     price: s.price,
     pct: s.changePct,

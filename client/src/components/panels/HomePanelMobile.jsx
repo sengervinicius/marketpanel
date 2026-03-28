@@ -6,7 +6,7 @@
  * Dark theme trading terminal interface.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, memo } from 'react';
 import { useStocksData, useForexData, useCryptoData } from '../../context/MarketContext';
 import { useSettings } from '../../context/SettingsContext';
 
@@ -88,7 +88,7 @@ function displaySymbol(sym) {
  * @param {Object} props
  * @param {Function} props.onOpenDetail - Callback to open detail view for a symbol
  */
-export default function HomePanelMobile({ onOpenDetail }) {
+function HomePanelMobile({ onOpenDetail }) {
   const stocksData = useStocksData();
   const forexData = useForexData();
   const cryptoData = useCryptoData();
@@ -225,3 +225,5 @@ export default function HomePanelMobile({ onOpenDetail }) {
     </div>
   );
 }
+
+export default memo(HomePanelMobile);

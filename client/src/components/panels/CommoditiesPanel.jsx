@@ -1,6 +1,6 @@
 // CommoditiesPanel.jsx — commodities grouped by category, with sortable columns
 // Features: feed-status badge, collapse
-import { useRef, useState, useMemo } from 'react';
+import { useRef, useState, useMemo, memo } from 'react';
 import { useSettings } from '../../context/SettingsContext';
 import PanelConfigModal from '../common/PanelConfigModal';
 import { COMMODITIES } from '../../utils/constants';
@@ -37,7 +37,7 @@ const showInfo = (e, symbol, label, type) => {
   }));
 };
 
-export function CommoditiesPanel({ data, loading, onTickerClick, onOpenDetail }) {
+function CommoditiesPanel({ data, loading, onTickerClick, onOpenDetail }) {
   const ptRef = useRef(null);
   const { settings, updatePanelConfig } = useSettings();
 
@@ -197,3 +197,6 @@ export function CommoditiesPanel({ data, loading, onTickerClick, onOpenDetail })
     </div>
   );
 }
+
+export { CommoditiesPanel };
+export default memo(CommoditiesPanel);

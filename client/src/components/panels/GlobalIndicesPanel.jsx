@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, memo } from 'react';
 import { useSettings } from '../../context/SettingsContext';
 import PanelConfigModal from '../common/PanelConfigModal';
 import { SectionHeader } from '../common/SectionHeader';
@@ -25,7 +25,7 @@ const NAMES = {
   MCHI:'CHINA', EWT:'TAIWAN', EWS:'SINGAPORE', INDA:'INDIA',
 };
 
-export default function GlobalIndicesPanel({ onTickerClick, onOpenDetail }) {
+function GlobalIndicesPanel({ onTickerClick, onOpenDetail }) {
   const ptRef = useRef(null);
   const { settings, updatePanelConfig } = useSettings();
 
@@ -184,3 +184,5 @@ export default function GlobalIndicesPanel({ onTickerClick, onOpenDetail }) {
     </div>
   );
 }
+
+export default memo(GlobalIndicesPanel);

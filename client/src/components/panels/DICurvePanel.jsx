@@ -2,7 +2,7 @@
  * YieldCurvePanel — BR / US / UK / EU sovereign yield curves
  * Layout: 4 stacked chart blocks filling the full panel height — no tabs
  */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, memo } from 'react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { apiFetch } from '../../utils/api';
 
@@ -15,7 +15,7 @@ const CURVES = [
 
 const KEY_TENORS = ['1Y', '2Y', '5Y', '10Y', '30Y'];
 
-export function DICurvePanel({ compact = false }) {
+function DICurvePanel({ compact = false }) {
   const [all, setAll]             = useState({});
   const [loading, setLoading]     = useState(true);
   const [error, setError]         = useState(null);
@@ -177,3 +177,6 @@ export function DICurvePanel({ compact = false }) {
     </div>
   );
 }
+
+export { DICurvePanel };
+export default memo(DICurvePanel);

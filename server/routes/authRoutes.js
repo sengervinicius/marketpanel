@@ -1,5 +1,8 @@
 /**
  * authRoutes.js
+ * DEPRECATED: This file is no longer used. Use routes/auth.js instead.
+ * Kept for backwards compatibility but should be removed in a future cleanup.
+ *
  * REST API endpoints for user authentication (register, login).
  */
 

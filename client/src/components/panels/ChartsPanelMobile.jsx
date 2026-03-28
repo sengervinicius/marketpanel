@@ -5,16 +5,16 @@
  * Uses settings.charts for symbol list and primary symbol, syncs with desktop.
  */
 
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import { useSettings } from '../../context/SettingsContext';
-import { ChartPanel } from './ChartPanel';
+import ChartPanel from './ChartPanel';
 
 /**
  * ChartsPanelMobile
  * @param {Object} props
  * @param {Function} props.onOpenDetail - Callback to open detail view for a symbol (optional)
  */
-export default function ChartsPanelMobile({ onOpenDetail }) {
+function ChartsPanelMobile({ onOpenDetail }) {
   const { settings } = useSettings();
 
   // Get chart symbols from settings or defaults
@@ -83,3 +83,5 @@ export default function ChartsPanelMobile({ onOpenDetail }) {
     </div>
   );
 }
+
+export default memo(ChartsPanelMobile);

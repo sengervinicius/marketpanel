@@ -4,7 +4,7 @@
  * individual settings fields and panel configs.
  */
 
-import { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import { apiFetch } from '../utils/api';
 import { SCREEN_PRESETS } from '../config/presets';
 import { DEFAULT_LAYOUT, DEFAULT_HOME_SECTIONS, DEFAULT_CHARTS_CONFIG } from '../config/panels';
@@ -126,6 +126,8 @@ export function SettingsProvider({ children, isAuthenticated }) {
     await updateSettings({ home: { sections } });
   }, [updateSettings]);
 
+  const addToHomeSectionTimeoutRef = useRef(null);
+
   const addToHomeSection = useCallback(async (symbol, title) => {
     let newSections;
     setSettingsState(prev => {
@@ -140,12 +142,13 @@ export function SettingsProvider({ children, isAuthenticated }) {
       newSections = [...existing, newSection];
       return { ...prev, home: { ...prev.home, sections: newSections } };
     });
-    // Small delay to let state update, then persist
-    setTimeout(async () => {
+    // Debounce: clear previous timeout and set a new one
+    clearTimeout(addToHomeSectionTimeoutRef.current);
+    addToHomeSectionTimeoutRef.current = setTimeout(async () => {
       if (newSections) {
         await persistSettings({ home: { sections: newSections } });
       }
-    }, 50);
+    }, 300);
   }, [persistSettings]);
 
   const updateChartsConfig = useCallback(async (charts) => {

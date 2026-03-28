@@ -1,8 +1,13 @@
 # Environment — NEVER commit your API key
 .env
+.env.local
+.env.production
 server/.env
+server/.env.local
+server/.env.production
 client/.env
 client/.env.local
+client/.env.production
 
 # Dependencies
 node_modules/
@@ -12,6 +17,8 @@ client/node_modules/
 # Build output
 client/dist/
 client/build/
+build/
+dist/
 
 # Logs
 *.log

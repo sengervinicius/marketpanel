@@ -1,8 +1,9 @@
 // NewsPanel — scrolling news feed (self-fetching)
 // Fetches from server /api/news every 60s
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, memo } from 'react';
 import { useFeedStatus } from '../../context/FeedStatusContext';
 import { apiFetch } from '../../utils/api';
+import EmptyState from '../common/EmptyState';
 
 function timeAgo(dateStr) {
   const diff = (Date.now() - new Date(dateStr).getTime()) / 1000;
@@ -48,7 +49,7 @@ function NewsItem({ item, isNew }) {
   );
 }
 
-export function NewsPanel() {
+function NewsPanel() {
   const [news, setNews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -111,9 +112,16 @@ export function NewsPanel() {
       )}
       <div style={{ flex: 1, overflowY: 'auto', background: '#000' }}>
         {loading ? (
-          <div style={{ color: '#333', padding: 12, textAlign: 'center', fontSize: 10 }}>Loading news feed...</div>
+          <EmptyState
+            icon="⟳"
+            message="Loading news feed..."
+          />
         ) : news.length === 0 ? (
-          <div style={{ color: '#333', padding: 12, textAlign: 'center', fontSize: 10 }}>No stories available.</div>
+          <EmptyState
+            icon="◎"
+            title="No news available"
+            message="News stories will appear here when the feed is available."
+          />
         ) : (
           news.map(item => (
             <NewsItem key={item.id} item={item} isNew={newItems.has(item.id)} />
@@ -124,3 +132,6 @@ export function NewsPanel() {
     </div>
   );
 }
+
+export { NewsPanel };
+export default memo(NewsPanel);

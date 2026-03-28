@@ -1,6 +1,6 @@
 // ForexPanel.jsx — FX pairs + Crypto subsection, BBG-style, with sortable columns
 // Features: feed-status badge, collapse, movers filter
-import { useRef, useState, useMemo } from 'react';
+import { useRef, useState, useMemo, memo } from 'react';
 import { useSettings } from '../../context/SettingsContext';
 import PanelConfigModal from '../common/PanelConfigModal';
 import { FOREX_PAIRS, CRYPTO_PAIRS } from '../../utils/constants';
@@ -53,7 +53,7 @@ function sortPairs(pairs, getRate, getChg, sortKey, sortDir) {
   });
 }
 
-export function ForexPanel({ data, cryptoData, loading, onTickerClick, onOpenDetail }) {
+function ForexPanel({ data, cryptoData, loading, onTickerClick, onOpenDetail }) {
   const ptRef = useRef(null);
   const { settings, updatePanelConfig } = useSettings();
 
@@ -267,3 +267,6 @@ export function ForexPanel({ data, cryptoData, loading, onTickerClick, onOpenDet
     </div>
   );
 }
+
+export { ForexPanel };
+export default memo(ForexPanel);

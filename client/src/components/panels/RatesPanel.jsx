@@ -3,7 +3,7 @@
  * Live data: US Treasuries via Yahoo Finance + Selic via BCB (server proxy)
  * Static data: ECB, BOE, BOJ (rarely change, updated manually)
  */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, memo } from 'react';
 import { apiFetch } from '../../utils/api';
 
 // Static central bank rates not available from free APIs (update manually)
@@ -23,7 +23,7 @@ function PctChange({ v }) {
   );
 }
 
-export function RatesPanel() {
+function RatesPanel() {
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(true);
   const [ts, setTs] = useState('');
@@ -139,3 +139,5 @@ export function RatesPanel() {
     </div>
   );
 }
+
+export default memo(RatesPanel);

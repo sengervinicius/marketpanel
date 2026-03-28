@@ -1,6 +1,6 @@
 // StockPanel.jsx — US equities + Brazil ADRs with section headers and sortable columns
 // Features: feed-status badge, collapse, movers filter, heatmap view
-import { useRef, useState, useMemo } from 'react';
+import { useRef, useState, useMemo, memo } from 'react';
 import { useSettings } from '../../context/SettingsContext';
 import PanelConfigModal from '../common/PanelConfigModal';
 import { US_STOCKS, BRAZIL_ADRS } from '../../utils/constants';
@@ -61,7 +61,7 @@ function heatColor(pct) {
   return '#b71c1c';
 }
 
-export function StockPanel({ data, loading, onTickerClick, onOpenDetail }) {
+function StockPanel({ data, loading, onTickerClick, onOpenDetail }) {
   const ptRef = useRef(null);
   const { settings, updatePanelConfig } = useSettings();
 
@@ -298,3 +298,6 @@ export function StockPanel({ data, loading, onTickerClick, onOpenDetail }) {
     </div>
   );
 }
+
+export { StockPanel };
+export default memo(StockPanel);

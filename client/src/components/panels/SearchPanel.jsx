@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, memo } from 'react';
 import { FOREX_PAIRS, CRYPTO_PAIRS } from '../../utils/constants';
 import { useSettings } from '../../context/SettingsContext';
 import { apiFetch } from '../../utils/api';
@@ -153,7 +153,7 @@ const ASSET_CLASS_COLOR = {
   index:        '#ffb74d',
 };
 
-export function SearchPanel({ onTickerSelect, onOpenDetail }) {
+function SearchPanel({ onTickerSelect, onOpenDetail }) {
   const [query,         setQuery]         = useState('');
   const [results,       setResults]       = useState([]);
   const [loading,       setLoading]       = useState(false);
@@ -548,3 +548,6 @@ export function SearchPanel({ onTickerSelect, onOpenDetail }) {
     </div>
   );
 }
+
+export { SearchPanel };
+export default memo(SearchPanel);

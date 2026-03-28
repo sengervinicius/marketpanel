@@ -30,6 +30,7 @@ export function WatchlistProvider({ children }) {
   const addTicker = useCallback((symbol) => {
     setWatchlist(prev => {
       if (prev.includes(symbol)) return prev;
+      if (prev.length >= 50) return prev;
       const next = [...prev, symbol.toUpperCase()];
       localStorage.setItem(LS_KEY, JSON.stringify(next));
       return next;

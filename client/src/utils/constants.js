@@ -1,8 +1,15 @@
 // Server URL — auto-detect prod vs dev
 export const SERVER_URL = import.meta.env.VITE_API_URL || import.meta.env.VITE_SERVER_URL || '';
+
+// WebSocket URL — MUST be explicitly configured in production
 export const WS_URL = import.meta.env.VITE_WS_URL ||
-  (window.location.protocol === 'https:' ? 'wss://' : 'ws://') +
-  window.location.host + '/ws';
+  (() => {
+    if (process.env.NODE_ENV === 'production') {
+      console.warn('[WARN] VITE_WS_URL is not set. WebSocket will attempt same-origin fallback.');
+    }
+    return (window.location.protocol === 'https:' ? 'wss://' : 'ws://') +
+           window.location.host + '/ws';
+  })();
 
 // Instrument definitions for the terminal panels
 export const WORLD_INDEXES = [
@@ -122,6 +129,19 @@ export const YIELDS = [
   { label: 'BR 10Y', symbol: 'BR10Y' },
   { label: 'DE 10Y', symbol: 'DE10Y' },
 ];
+
+// ── Timing constants ──────────────────────────────────────────────────
+export const MARKET_DATA_REFRESH_MS = 6_000;
+export const WS_TICK_THROTTLE_MS = 250;
+export const WS_RECONNECT_INITIAL_MS = 1_500;
+export const WS_RECONNECT_MAX_MS = 15_000;
+export const MS_PER_DAY = 24 * 60 * 60 * 1000;
+export const API_TIMEOUT_MS = 15_000;
+
+// ── Limits ────────────────────────────────────────────────────────────
+export const MAX_CHAT_MESSAGE_LENGTH = 1_000;
+export const MAX_WATCHLIST_SIZE = 50;
+export const TICKER_TAPE_MAX_SYMBOLS = 20;
 
 /**
  * Unified INSTRUMENTS array used by PanelConfigModal and search features.
