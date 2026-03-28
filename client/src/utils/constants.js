@@ -130,7 +130,56 @@ export const YIELDS = [
   { label: 'DE 10Y', symbol: 'DE10Y' },
 ];
 
-// ── Timing constants ──────────────────────────────────────────────────
+// Bond yields from Yahoo Finance
+export const BOND_YIELDS = [
+  { symbol: '^TNX', label: 'US 10Y' },
+  { symbol: '^TYX', label: 'US 30Y' },
+  { symbol: '^FVX', label: 'US 5Y' },
+  { symbol: '^IRX', label: 'US 13W' },
+];
+
+// ETF categories for ETFPanel
+export const ETF_CATEGORIES = {
+  'Bond ETFs': [
+    { symbol: 'BND',   label: 'Vanguard Total Bond' },
+    { symbol: 'AGG',   label: 'iShares Core US Agg' },
+    { symbol: 'LQD',   label: 'iShares Investment Grade' },
+    { symbol: 'HYG',   label: 'iShares High Yield' },
+    { symbol: 'TLT',   label: 'iShares 20+ Yr Treasury' },
+    { symbol: 'IEF',   label: 'iShares 7-10 Yr Treasury' },
+  ],
+  'Sector ETFs': [
+    { symbol: 'XLK',   label: 'Tech Select Sector' },
+    { symbol: 'XLV',   label: 'Healthcare Select' },
+    { symbol: 'XLF',   label: 'Financial Select' },
+    { symbol: 'XLE',   label: 'Energy Select' },
+    { symbol: 'XLI',   label: 'Industrial Select' },
+    { symbol: 'XLC',   label: 'Communication Select' },
+    { symbol: 'XLRE',  label: 'Real Estate Select' },
+    { symbol: 'XLU',   label: 'Utilities Select' },
+    { symbol: 'XLP',   label: 'Consumer Staples Select' },
+    { symbol: 'XLY',   label: 'Consumer Disc Select' },
+  ],
+  'International': [
+    { symbol: 'EFA',   label: 'EAFE' },
+    { symbol: 'EWJ',   label: 'Japan ETF' },
+    { symbol: 'EWG',   label: 'Germany ETF' },
+    { symbol: 'EWU',   label: 'UK ETF' },
+    { symbol: 'EWW',   label: 'Mexico ETF' },
+    { symbol: 'EWZ',   label: 'Brazil ETF' },
+    { symbol: 'FXI',   label: 'China ETF' },
+  ],
+  'Thematic': [
+    { symbol: 'ARK',   label: 'Ark Innovation' },
+    { symbol: 'QCLN',  label: 'Clean Energy' },
+    { symbol: 'ICLN',  label: 'Clean Energy Index' },
+    { symbol: 'VGT',   label: 'IT ETF' },
+    { symbol: 'QQEW',  label: 'Nasdaq Equal Weight' },
+    { symbol: 'DGRO',  label: 'iShares Core Dividend Growth' },
+  ],
+};
+
+// Timing constants
 export const MARKET_DATA_REFRESH_MS = 6_000;
 export const WS_TICK_THROTTLE_MS = 250;
 export const WS_RECONNECT_INITIAL_MS = 1_500;
@@ -138,7 +187,7 @@ export const WS_RECONNECT_MAX_MS = 15_000;
 export const MS_PER_DAY = 24 * 60 * 60 * 1000;
 export const API_TIMEOUT_MS = 15_000;
 
-// ── Limits ────────────────────────────────────────────────────────────
+// Limits
 export const MAX_CHAT_MESSAGE_LENGTH = 1_000;
 export const MAX_WATCHLIST_SIZE = 50;
 export const TICKER_TAPE_MAX_SYMBOLS = 20;
@@ -151,7 +200,7 @@ export const TICKER_TAPE_MAX_SYMBOLS = 20;
  * name: human-readable instrument name
  */
 export const INSTRUMENTS = [
-  // ── US Equities ──────────────────────────────────────────────────────
+  // US Equities
   { symbolKey: 'AAPL',  name: 'Apple',            assetClass: 'equity',       group: 'US Tech' },
   { symbolKey: 'MSFT',  name: 'Microsoft',         assetClass: 'equity',       group: 'US Tech' },
   { symbolKey: 'NVDA',  name: 'NVIDIA',            assetClass: 'equity',       group: 'US Tech' },
@@ -171,11 +220,11 @@ export const INSTRUMENTS = [
   { symbolKey: 'WMT',   name: 'Walmart',           assetClass: 'equity',       group: 'US Consumer' },
   { symbolKey: 'LLY',   name: 'Eli Lilly',         assetClass: 'equity',       group: 'US Healthcare' },
   { symbolKey: 'UNH',   name: 'UnitedHealth',      assetClass: 'equity',       group: 'US Healthcare' },
-  // ── Brazil B3 ────────────────────────────────────────────────────────
+  // Brazil B3
   { symbolKey: 'VALE3.SA',  name: 'Vale',          assetClass: 'equity',       group: 'Brazil B3' },
   { symbolKey: 'PETR4.SA',  name: 'Petrobras PN',  assetClass: 'equity',       group: 'Brazil B3' },
   { symbolKey: 'PETR3.SA',  name: 'Petrobras ON',  assetClass: 'equity',       group: 'Brazil B3' },
-  { symbolKey: 'ITUB4.SA',  name: 'Itaú Unibanco', assetClass: 'equity',       group: 'Brazil B3' },
+  { symbolKey: 'ITUB4.SA',  name: 'Itau Unibanco', assetClass: 'equity',       group: 'Brazil B3' },
   { symbolKey: 'BBDC4.SA',  name: 'Bradesco PN',   assetClass: 'equity',       group: 'Brazil B3' },
   { symbolKey: 'ABEV3.SA',  name: 'Ambev',         assetClass: 'equity',       group: 'Brazil B3' },
   { symbolKey: 'WEGE3.SA',  name: 'WEG',           assetClass: 'equity',       group: 'Brazil B3' },
@@ -187,7 +236,14 @@ export const INSTRUMENTS = [
   { symbolKey: 'BBAS3.SA',  name: 'Banco do Brasil',assetClass:'equity',       group: 'Brazil B3' },
   { symbolKey: 'GGBR4.SA',  name: 'Gerdau PN',     assetClass: 'equity',       group: 'Brazil B3' },
   { symbolKey: 'CSAN3.SA',  name: 'Cosan',         assetClass: 'equity',       group: 'Brazil B3' },
-  // ── US/Global Indices ─────────────────────────────────────────────────
+  { symbolKey: 'RDOR3.SA',  name: 'Rede D Or',     assetClass: 'equity',       group: 'Brazil B3' },
+  { symbolKey: 'EQTL3.SA',  name: 'Equatorial',    assetClass: 'equity',       group: 'Brazil B3' },
+  { symbolKey: 'PRIO3.SA',  name: 'Petrio Oil',    assetClass: 'equity',       group: 'Brazil B3' },
+  { symbolKey: 'BPAC11.SA', name: 'Banco Pactual', assetClass: 'equity',       group: 'Brazil B3' },
+  { symbolKey: 'HAPV3.SA',  name: 'Hapvida',       assetClass: 'equity',       group: 'Brazil B3' },
+  { symbolKey: 'CMIG4.SA',  name: 'Cemig PN',      assetClass: 'equity',       group: 'Brazil B3' },
+  { symbolKey: 'VIVT3.SA',  name: 'Vivo',          assetClass: 'equity',       group: 'Brazil B3' },
+  // US/Global Indices
   { symbolKey: 'SPY',   name: 'S&P 500',           assetClass: 'index',        group: 'US Indices' },
   { symbolKey: 'QQQ',   name: 'NASDAQ 100',        assetClass: 'index',        group: 'US Indices' },
   { symbolKey: 'DIA',   name: 'Dow Jones',         assetClass: 'index',        group: 'US Indices' },
@@ -197,7 +253,7 @@ export const INSTRUMENTS = [
   { symbolKey: 'EFA',   name: 'EAFE',              assetClass: 'index',        group: 'Global Indices' },
   { symbolKey: 'FXI',   name: 'China ETF',         assetClass: 'index',        group: 'Global Indices' },
   { symbolKey: 'EWJ',   name: 'Japan ETF',         assetClass: 'index',        group: 'Global Indices' },
-  // ── Forex ─────────────────────────────────────────────────────────────
+  // Forex
   { symbolKey: 'EURUSD', name: 'EUR/USD',          assetClass: 'forex',        group: 'Majors' },
   { symbolKey: 'GBPUSD', name: 'GBP/USD',          assetClass: 'forex',        group: 'Majors' },
   { symbolKey: 'USDJPY', name: 'USD/JPY',          assetClass: 'forex',        group: 'Majors' },
@@ -210,14 +266,14 @@ export const INSTRUMENTS = [
   { symbolKey: 'USDARS', name: 'USD/ARS',          assetClass: 'forex',        group: 'LatAm' },
   { symbolKey: 'USDMXN', name: 'USD/MXN',          assetClass: 'forex',        group: 'LatAm' },
   { symbolKey: 'USDCNY', name: 'USD/CNY',          assetClass: 'forex',        group: 'EM' },
-  // ── Crypto ────────────────────────────────────────────────────────────
+  // Crypto
   { symbolKey: 'BTCUSD',  name: 'Bitcoin',         assetClass: 'crypto',       group: 'Crypto' },
   { symbolKey: 'ETHUSD',  name: 'Ethereum',        assetClass: 'crypto',       group: 'Crypto' },
   { symbolKey: 'SOLUSD',  name: 'Solana',          assetClass: 'crypto',       group: 'Crypto' },
   { symbolKey: 'XRPUSD',  name: 'XRP',             assetClass: 'crypto',       group: 'Crypto' },
   { symbolKey: 'BNBUSD',  name: 'BNB',             assetClass: 'crypto',       group: 'Crypto' },
   { symbolKey: 'DOGEUSD', name: 'Dogecoin',        assetClass: 'crypto',       group: 'Crypto' },
-  // ── Commodities ───────────────────────────────────────────────────────
+  // Commodities
   { symbolKey: 'GLD',  name: 'Gold',               assetClass: 'commodity',    group: 'Metals' },
   { symbolKey: 'SLV',  name: 'Silver',             assetClass: 'commodity',    group: 'Metals' },
   { symbolKey: 'CPER', name: 'Copper',             assetClass: 'commodity',    group: 'Metals' },
@@ -228,7 +284,7 @@ export const INSTRUMENTS = [
   { symbolKey: 'WEAT', name: 'Wheat',              assetClass: 'commodity',    group: 'Agriculture' },
   { symbolKey: 'CORN', name: 'Corn',               assetClass: 'commodity',    group: 'Agriculture' },
   { symbolKey: 'BHP',  name: 'BHP (Iron Ore Prx)', assetClass: 'commodity',    group: 'Mining' },
-  // ── Fixed Income ──────────────────────────────────────────────────────
+  // Fixed Income
   { symbolKey: 'US2Y',  name: 'US 2Y Treasury',    assetClass: 'fixed_income', group: 'US Yields' },
   { symbolKey: 'US5Y',  name: 'US 5Y Treasury',    assetClass: 'fixed_income', group: 'US Yields' },
   { symbolKey: 'US10Y', name: 'US 10Y Treasury',   assetClass: 'fixed_income', group: 'US Yields' },

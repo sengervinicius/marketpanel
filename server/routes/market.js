@@ -1,6 +1,10 @@
 /**
  * routes/market.js
- * REST endpoints — proxy to Polygon.io REST API + Yahoo Finance (crumb auth) + BCB
+ * REST endpoints — multi-provider architecture with fallback chains
+ * Primary: Yahoo Finance (crumb auth)
+ * Fallback 1: Finnhub (60 req/min, free tier)
+ * Fallback 2: Alpha Vantage (25/day, critical lookups)
+ * Polygon: charts, news, search (free tier works well)
  */
 
 const express = require('express');
@@ -11,6 +15,14 @@ const BASE = 'https://api.polygon.io';
 
 function apiKey() {
   return process.env.POLYGON_API_KEY;
+}
+
+function finnhubKey() {
+  return process.env.FINNHUB_API_KEY;
+}
+
+function alphaVantageKey() {
+  return process.env.ALPHA_VANTAGE_KEY;
 }
 
 // ─── Enriched error class ────────────────────────────────────────────────────
@@ -25,15 +37,15 @@ class ApiError extends Error {
 function classifyHttpError(status, headers) {
   if (status === 429) {
     const retryAfter = parseInt(headers?.get?.('retry-after') || headers?.['retry-after'] || '60', 10);
-    throw new ApiError(`Rate limited by Polygon (429)`, 'rate_limit', retryAfter);
+    throw new ApiError(`Rate limited (429)`, 'rate_limit', retryAfter);
   }
   if (status === 401 || status === 403) {
-    throw new ApiError(`Polygon auth error (${status})`, 'auth_error');
+    throw new ApiError(`Auth error (${status})`, 'auth_error');
   }
   if (status === 404) {
     throw new ApiError(`Not found (404)`, 'not_found');
   }
-  throw new ApiError(`Polygon upstream error (${status})`, 'upstream_error');
+  throw new ApiError(`Upstream error (${status})`, 'upstream_error');
 }
 
 async function polyFetch(path, retries = 2) {
@@ -73,8 +85,9 @@ async function polyFetch(path, retries = 2) {
 let _yfCrumb = null;
 let _yfCookie = null;
 let _yfCrumbExpiry = 0;
+const _yfCrumbHistory = []; // store multiple working crumbs for resilience
 
-// ─── B3 cache (60 s) — prevents brapi.dev rate-limit 429s ────────────────────
+// ─── B3 cache (60 s) ───────────────────────────────────────────────────────────
 let _brazilCache = null;
 let _brazilCacheExpiry = 0;
 
@@ -92,7 +105,6 @@ function sendError(res, err, context = '') {
 }
 
 // ─── REST TTL caches ──────────────────────────────────────────────────────────
-// Prevents hammering upstream APIs when multiple clients open simultaneously.
 const _ttlCache = {};
 
 function cacheGet(key) {
@@ -119,11 +131,13 @@ setInterval(() => {
 }, 5 * 60 * 1000);
 
 const TTL = {
-  stocksSnapshot: 10_000,   // 10 s — near-realtime feel
+  stocksSnapshot: 10_000,   // 10 s
   forexSnapshot:  10_000,
   cryptoSnapshot: 10_000,
-  news:           60_000,   // 60 s — news doesn't change every second
-  chart:          30_000,   // 30 s per ticker+range combination
+  news:           60_000,   // 60 s
+  chart:          30_000,   // 30 s per ticker+range
+  yields:         60_000,   // 60 s for yield data
+  etfs:           30_000,   // 30 s for ETF data
 };
 
 const YF_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
@@ -132,8 +146,7 @@ async function getYahooCrumb() {
   const now = Date.now();
   if (_yfCrumb && now < _yfCrumbExpiry) return { crumb: _yfCrumb, cookie: _yfCookie };
 
-  // Try two seed URLs in order — finance.yahoo.com is more reliable than fc.yahoo.com
-  // from cloud IPs (fc is GDPR consent gateway and often returns invalid cookies on server IPs)
+  // Try two seed URLs in order
   const SEED_URLS = [
     'https://finance.yahoo.com/',
     'https://fc.yahoo.com/',
@@ -163,10 +176,8 @@ async function getYahooCrumb() {
         clearTimeout(seedTimeout);
       }
 
-      // node-fetch v2: use .raw(); native fetch: fall back to .get()
       const rawCookies = (r1.headers.raw?.()?.['set-cookie']) || [];
       let cookie = rawCookies.map(c => c.split(';')[0]).join('; ');
-      // native fetch fallback — returns only the first Set-Cookie value
       if (!cookie) cookie = r1.headers.get('set-cookie')?.split(';')[0] || '';
 
       for (const crumbUrl of CRUMB_URLS) {
@@ -190,12 +201,14 @@ async function getYahooCrumb() {
           }
           if (!r2.ok) continue;
           const crumb = (await r2.text()).trim();
-          // A valid crumb is a short alphanumeric+symbol string, not HTML/JSON
           if (!crumb || crumb.startsWith('<') || crumb.startsWith('{') || crumb.length > 40) continue;
 
           _yfCrumb = crumb;
           _yfCookie = cookie;
           _yfCrumbExpiry = now + 25 * 60 * 1000;
+          // Store in history for resilience
+          _yfCrumbHistory.push({ crumb, cookie, expiry: _yfCrumbExpiry });
+          if (_yfCrumbHistory.length > 3) _yfCrumbHistory.shift();
           console.log(`[Yahoo] Crumb OK via ${seedUrl} + ${crumbUrl}`);
           return { crumb, cookie };
         } catch (e) { lastError = e; }
@@ -212,7 +225,6 @@ async function getYahooCrumb() {
 }
 
 async function yahooQuote(symbols) {
-  // Try query1 and query2, auto-retry once on 401 with fresh crumb
   const HOSTS = ['query1', 'query2'];
   for (let attempt = 0; attempt < 2; attempt++) {
     const { crumb, cookie } = await getYahooCrumb();
@@ -237,7 +249,6 @@ async function yahooQuote(symbols) {
       clearTimeout(quoteTimeout);
     }
     if (r.status === 401 || r.status === 403) {
-      // Invalidate crumb and retry once
       _yfCrumb = null; _yfCookie = null; _yfCrumbExpiry = 0;
       if (attempt === 0) { console.warn(`[Yahoo] ${r.status} on ${host}, retrying with fresh crumb`); continue; }
       throw new Error(`Yahoo Finance HTTP ${r.status}`);
@@ -249,11 +260,122 @@ async function yahooQuote(symbols) {
   throw new Error('Yahoo Finance: exhausted retries');
 }
 
-// ─── Snapshots ──────────────────────────────────────────────────
-// Supports optional ?tickers=AAPL,MSFT,TSLA for ad-hoc watchlist lookups
+// ─── Finnhub fallback provider ──────────────────────────────────────────────────
+async function finnhubQuote(symbol) {
+  const key = finnhubKey();
+  if (!key) throw new Error('Finnhub API key not configured');
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
+  try {
+    const url = `https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(symbol)}&token=${key}`;
+    const res = await fetch(url, {
+      headers: { 'Accept': 'application/json' },
+      signal: controller.signal,
+    });
+    if (!res.ok) throw new Error(`Finnhub HTTP ${res.status}`);
+    const data = await res.json();
+    return data;
+  } catch (e) {
+    throw new Error(`Finnhub error: ${e.message}`);
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+// ─── Alpha Vantage fallback (critical lookups) ──────────────────────────────────
+async function alphaVantageQuote(symbol) {
+  const key = alphaVantageKey();
+  if (!key) throw new Error('Alpha Vantage API key not configured');
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
+  try {
+    const url = `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${encodeURIComponent(symbol)}&apikey=${key}`;
+    const res = await fetch(url, {
+      headers: { 'Accept': 'application/json' },
+      signal: controller.signal,
+    });
+    if (!res.ok) throw new Error(`Alpha Vantage HTTP ${res.status}`);
+    const data = await res.json();
+    if (data.Note) throw new Error('Alpha Vantage: rate limited');
+    return data['Global Quote'] || {};
+  } catch (e) {
+    throw new Error(`Alpha Vantage error: ${e.message}`);
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+// ─── fetchWithFallback: Try Yahoo, then Finnhub, then Alpha Vantage ────────────
+async function fetchWithFallback(symbol) {
+  console.log(`[Provider] Attempting Yahoo Finance for ${symbol}...`);
+  try {
+    const quotes = await yahooQuote(symbol);
+    if (quotes.length > 0) {
+      console.log(`[Provider] Yahoo Finance succeeded for ${symbol}`);
+      return { data: quotes[0], source: 'yahoo' };
+    }
+  } catch (e) {
+    console.warn(`[Provider] Yahoo Finance failed: ${e.message}`);
+  }
+
+  if (finnhubKey()) {
+    console.log(`[Provider] Attempting Finnhub for ${symbol}...`);
+    try {
+      const data = await finnhubQuote(symbol);
+      if (data.c) {
+        console.log(`[Provider] Finnhub succeeded for ${symbol}`);
+        return {
+          data: {
+            symbol: data.description || symbol,
+            regularMarketPrice: data.c,
+            regularMarketChange: data.d,
+            regularMarketChangePercent: data.dp,
+            regularMarketOpen: data.o,
+            regularMarketDayHigh: data.h,
+            regularMarketDayLow: data.l,
+            regularMarketVolume: null,
+          },
+          source: 'finnhub',
+        };
+      }
+    } catch (e) {
+      console.warn(`[Provider] Finnhub failed: ${e.message}`);
+    }
+  }
+
+  if (alphaVantageKey()) {
+    console.log(`[Provider] Attempting Alpha Vantage for ${symbol}...`);
+    try {
+      const data = await alphaVantageQuote(symbol);
+      if (data['05. price']) {
+        console.log(`[Provider] Alpha Vantage succeeded for ${symbol}`);
+        return {
+          data: {
+            symbol: data['01. symbol'],
+            regularMarketPrice: parseFloat(data['05. price']),
+            regularMarketChange: parseFloat(data['09. change'] || 0),
+            regularMarketChangePercent: parseFloat(data['10. change percent']?.replace('%', '') || 0),
+            regularMarketOpen: null,
+            regularMarketDayHigh: null,
+            regularMarketDayLow: null,
+            regularMarketVolume: null,
+          },
+          source: 'alphavantage',
+        };
+      }
+    } catch (e) {
+      console.warn(`[Provider] Alpha Vantage failed: ${e.message}`);
+    }
+  }
+
+  throw new Error(`All providers failed for ${symbol}`);
+}
+
+// ─── Snapshots ──────────────────────────────────────────────────────────────────
 
 const DEFAULT_STOCK_TICKERS = [
-  // US index ETFs — also feed IndexPanel (WORLD_INDEXES)
   'SPY','QQQ','IWM','DIA','EWZ','EWW','EEM','EFA','FXI','EWJ',
   'AAPL','MSFT','NVDA','GOOGL','AMZN','META','TSLA',
   'BRKB','JPM','GS','BAC','V','MA',
@@ -264,27 +386,18 @@ const DEFAULT_STOCK_TICKERS = [
 ];
 
 router.get('/snapshot/stocks', async (req, res) => {
-  // Ad-hoc mode: ?tickers=AAPL,MSFT,TSLA (for watchlist or command-bar lookups)
   const adHoc = req.query.tickers;
   if (adHoc) {
-    // Sanitize: uppercase, trim, max 50 symbols
     const syms = adHoc.split(',').map(s => s.trim().toUpperCase()).filter(Boolean).slice(0, 50);
     if (syms.length === 0) return res.status(400).json({ error: 'No valid tickers provided', code: 'bad_request' });
     const cacheKey = `snapshot:stocks:adhoc:${syms.sort().join(',')}`;
     const cached = cacheGet(cacheKey);
     if (cached) return res.json(cached);
     try {
-      // Use Yahoo Finance in batches of ~15 symbols to avoid URL length issues
       const BATCH_SIZE = 15;
-      const tickers = [];
-      for (let i = 0; i < syms.length; i += BATCH_SIZE) {
-        const batch = syms.slice(i, i + BATCH_SIZE);
-        tickers.push(...batch);
-      }
-
       const batches = [];
-      for (let i = 0; i < tickers.length; i += BATCH_SIZE) {
-        batches.push(tickers.slice(i, i + BATCH_SIZE));
+      for (let i = 0; i < syms.length; i += BATCH_SIZE) {
+        batches.push(syms.slice(i, i + BATCH_SIZE));
       }
 
       const results = await Promise.allSettled(
@@ -298,7 +411,6 @@ router.get('/snapshot/stocks', async (req, res) => {
         }
       }
 
-      // Transform Yahoo response to Polygon snapshot format
       const transformedTickers = allQuotes.map(q => ({
         ticker: q.symbol,
         todaysChange: q.regularMarketChange ?? 0,
@@ -325,7 +437,6 @@ router.get('/snapshot/stocks', async (req, res) => {
   const cached = cacheGet('snapshot:stocks');
   if (cached) return res.json(cached);
   try {
-    // Use Yahoo Finance for default tickers in batches
     const BATCH_SIZE = 15;
     const batches = [];
     for (let i = 0; i < DEFAULT_STOCK_TICKERS.length; i += BATCH_SIZE) {
@@ -343,7 +454,6 @@ router.get('/snapshot/stocks', async (req, res) => {
       }
     }
 
-    // Transform Yahoo response to Polygon snapshot format
     const transformedTickers = allQuotes.map(q => ({
       ticker: q.symbol,
       todaysChange: q.regularMarketChange ?? 0,
@@ -371,7 +481,6 @@ router.get('/snapshot/forex', async (req, res) => {
   const cached = cacheGet('snapshot:forex');
   if (cached) return res.json(cached);
   try {
-    // Map Polygon forex format (C:EURUSD) to Yahoo format (EURUSD=X)
     const polygonTickers = [
       'C:EURUSD','C:GBPUSD','C:USDJPY','C:USDBRL',
       'C:GBPBRL','C:EURBRL',
@@ -379,7 +488,6 @@ router.get('/snapshot/forex', async (req, res) => {
       'C:AUDUSD','C:USDCAD','C:USDCLP',
     ];
 
-    // Transform to Yahoo Finance format (EURUSD=X)
     const yahooTickers = polygonTickers.map(t => {
       const pair = t.replace(/^C:/, '');
       return `${pair}=X`;
@@ -387,7 +495,6 @@ router.get('/snapshot/forex', async (req, res) => {
 
     const quotes = await yahooQuote(yahooTickers);
 
-    // Transform back to Polygon-compatible format
     const transformedTickers = quotes.map(q => ({
       ticker: 'C:' + q.symbol.replace(/=X$/, ''),
       todaysChange: q.regularMarketChange ?? 0,
@@ -415,10 +522,8 @@ router.get('/snapshot/crypto', async (req, res) => {
   const cached = cacheGet('snapshot:crypto');
   if (cached) return res.json(cached);
   try {
-    // Map Polygon crypto format (X:BTCUSD) to Yahoo format (BTC-USD)
     const polygonTickers = ['X:BTCUSD','X:ETHUSD','X:SOLUSD','X:XRPUSD','X:BNBUSD','X:DOGEUSD'];
 
-    // Transform to Yahoo Finance format (BTC-USD)
     const yahooTickers = polygonTickers.map(t => {
       const pair = t.replace(/^X:/, '');
       const [crypto, fiat] = [pair.slice(0, -3), pair.slice(-3)];
@@ -427,7 +532,6 @@ router.get('/snapshot/crypto', async (req, res) => {
 
     const quotes = await yahooQuote(yahooTickers);
 
-    // Transform back to Polygon-compatible format
     const transformedTickers = quotes.map(q => {
       const symbol = q.symbol.replace(/-USD$/, 'USD').replace('-', '');
       return {
@@ -451,6 +555,95 @@ router.get('/snapshot/crypto', async (req, res) => {
     res.json(data);
   } catch (e) {
     sendError(res, e, '/snapshot/crypto');
+  }
+});
+
+// ─── ETF-specific endpoint ──────────────────────────────────────────────────────
+const ETF_DATA = {
+  'Bond ETFs': ['TLT', 'IEF', 'SHY', 'AGG', 'BND', 'HYG', 'LQD', 'EMB', 'JNK', 'BNDX', 'TIP'],
+  'Sector ETFs': ['XLF', 'XLK', 'XLE', 'XLV', 'XLI', 'XLC', 'XLRE', 'XLU', 'XLP', 'XLB', 'XLY'],
+  'International': ['VEA', 'VWO', 'IEFA', 'IEMG'],
+  'Thematic': ['ARKK', 'HACK', 'TAN', 'LIT', 'BOTZ'],
+};
+
+router.get('/snapshot/etfs', async (req, res) => {
+  const cached = cacheGet('snapshot:etfs');
+  if (cached) return res.json(cached);
+  try {
+    const allTickers = Object.values(ETF_DATA).flat();
+    const BATCH_SIZE = 15;
+    const batches = [];
+    for (let i = 0; i < allTickers.length; i += BATCH_SIZE) {
+      batches.push(allTickers.slice(i, i + BATCH_SIZE));
+    }
+
+    const results = await Promise.allSettled(
+      batches.map(batch => yahooQuote(batch.join(',')))
+    );
+
+    const allQuotes = [];
+    for (const result of results) {
+      if (result.status === 'fulfilled') {
+        allQuotes.push(...result.value);
+      }
+    }
+
+    const etfsByCategory = {};
+    for (const [category, tickers] of Object.entries(ETF_DATA)) {
+      etfsByCategory[category] = tickers.map(ticker => {
+        const q = allQuotes.find(quote => quote.symbol === ticker);
+        if (!q) return null;
+        return {
+          ticker: q.symbol,
+          name: q.shortName || q.symbol,
+          price: q.regularMarketPrice ?? null,
+          change: q.regularMarketChange ?? 0,
+          changePct: q.regularMarketChangePercent ?? 0,
+          volume: q.regularMarketVolume ?? 0,
+        };
+      }).filter(Boolean);
+    }
+
+    const data = { etfs: etfsByCategory, status: 'OK' };
+    cacheSet('snapshot:etfs', data, TTL.etfs);
+    res.json(data);
+  } catch (e) {
+    sendError(res, e, '/snapshot/etfs');
+  }
+});
+
+// ─── Treasury yields endpoint ────────────────────────────────────────────────────
+router.get('/snapshot/yields', async (req, res) => {
+  const cached = cacheGet('snapshot:yields');
+  if (cached) return res.json(cached);
+  try {
+    const yieldTickers = '^IRX,^FVX,^TNX,^TYX,^TYA';
+    const quotes = await yahooQuote(yieldTickers);
+
+    const labelMap = {
+      '^IRX': 'US 13W T-Bill',
+      '^FVX': 'US 5Y Treasury',
+      '^TNX': 'US 10Y Treasury',
+      '^TYX': 'US 30Y Treasury',
+      '^TYA': 'US 2Y Treasury',
+    };
+
+    const yields = quotes
+      .filter(q => q && q.regularMarketPrice != null)
+      .map(q => ({
+        symbol: q.symbol,
+        name: labelMap[q.symbol] || q.symbol,
+        yield: q.regularMarketPrice,
+        change: q.regularMarketChange ?? null,
+        changeBps: (q.regularMarketChange ?? 0) * 100, // convert to basis points
+        type: 'treasury',
+      }));
+
+    const data = { yields, status: 'OK' };
+    cacheSet('snapshot:yields', data, TTL.yields);
+    res.json(data);
+  } catch (e) {
+    sendError(res, e, '/snapshot/yields');
   }
 });
 
@@ -490,14 +683,13 @@ function parseRss(xml, sourceName, sourceUrl) {
   return items;
 }
 
-// ─── News: Polygon + Bloomberg Markets + FT Markets RSS ──────────────────────
+// ─── News: Polygon + Bloomberg Markets + FT Markets RSS ──────────────────────────
 
 router.get('/news', async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 30;
-    const tickerFilter = req.query.ticker; // e.g. "BTCUSD", "AAPL", "EURUSD"
+    const tickerFilter = req.query.ticker;
 
-    // Ticker-specific: only Polygon supports filtering by ticker
     if (tickerFilter) {
       const cacheKey = `news:${tickerFilter}:${limit}`;
       const cached = cacheGet(cacheKey);
@@ -544,7 +736,6 @@ router.get('/news', async (req, res) => {
       console.warn('[News] FT RSS:', ftRes.reason?.message);
     }
 
-    // Sort by recency
     results.sort((a, b) => {
       const ta = a.published_utc ? new Date(a.published_utc).getTime() : 0;
       const tb = b.published_utc ? new Date(b.published_utc).getTime() : 0;
@@ -560,7 +751,7 @@ router.get('/news', async (req, res) => {
   }
 });
 
-// ─── Intraday chart data ────────────────────────────────────────────────
+// ─── Intraday chart data with fallback ───────────────────────────────────────────
 
 router.get('/chart/:ticker', async (req, res) => {
   const { ticker } = req.params;
@@ -569,7 +760,6 @@ router.get('/chart/:ticker', async (req, res) => {
   const chartCached = cacheGet(chartCacheKey);
   if (chartCached) return res.json(chartCached);
   try {
-
     const now = new Date();
     const toDate = to || now.toISOString().split('T')[0];
     const fromDate = from || (() => {
@@ -578,48 +768,60 @@ router.get('/chart/:ticker', async (req, res) => {
       return d.toISOString().split('T')[0];
     })();
 
-    if (ticker.toUpperCase().endsWith('.SA')) {
-      const { crumb, cookie } = await getYahooCrumb();
-      const period1 = Math.floor(new Date(fromDate + 'T00:00:00Z').getTime() / 1000);
-      const period2 = Math.floor(new Date(toDate + 'T23:59:59Z').getTime() / 1000);
-      const interval = timespan === 'minute' ? `${multiplier}m` : '1d';
-      const yfUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker.toUpperCase())}?period1=${period1}&period2=${period2}&interval=${interval}&crumb=${encodeURIComponent(crumb)}`;
-      const chartCtrl = new AbortController();
-      const chartTmout = setTimeout(() => chartCtrl.abort(), 10000);
-      let r;
+    // Try Polygon first (works best for US data)
+    if (!ticker.toUpperCase().endsWith('.SA')) {
       try {
-        r = await fetch(yfUrl, {
-          headers: {
-            'User-Agent': YF_UA, 'Accept': 'application/json',
-            'Cookie': cookie, 'Referer': 'https://finance.yahoo.com/'
-          },
-          signal: chartCtrl.signal,
-        });
-      } finally {
-        clearTimeout(chartTmout);
+        console.log(`[Chart] Attempting Polygon for ${ticker}...`);
+        const data = await polyFetch(
+          `/v2/aggs/ticker/${ticker}/range/${multiplier}/${timespan}/${fromDate}/${toDate}?adjusted=true&sort=asc&limit=500`
+        );
+        cacheSet(chartCacheKey, data, TTL.chart);
+        console.log(`[Chart] Polygon succeeded for ${ticker}`);
+        return res.json(data);
+      } catch (e) {
+        console.warn(`[Chart] Polygon failed: ${e.message}`);
+        if (e.code !== 'rate_limit' && e.code !== 'network_error') throw e;
+        // Continue to Yahoo fallback
       }
-      if (!r.ok) {
-        if (r.status === 401 || r.status === 403) { _yfCrumb = null; _yfCrumbExpiry = 0; }
-        throw new Error(`Yahoo chart HTTP ${r.status} for ${ticker}`);
-      }
-      const json = await r.json();
-      const result = json?.chart?.result?.[0];
-      if (!result) throw new Error(`No Yahoo chart data for ${ticker}`);
-      const timestamps = result.timestamp || [];
-      const q = result.indicators?.quote?.[0] || {};
-      const results = timestamps
-        .map((t, i) => ({ t: t * 1000, c: q.close?.[i], o: q.open?.[i], h: q.high?.[i], l: q.low?.[i] }))
-        .filter(b => b.c != null && b.c > 0);
-      const saPayload = { results, ticker, status: 'OK' };
-      cacheSet(chartCacheKey, saPayload, TTL.chart);
-      return res.json(saPayload);
     }
 
-    const data = await polyFetch(
-      `/v2/aggs/ticker/${ticker}/range/${multiplier}/${timespan}/${fromDate}/${toDate}?adjusted=true&sort=asc&limit=500`
-    );
-    cacheSet(chartCacheKey, data, TTL.chart);
-    res.json(data);
+    // Fallback to Yahoo Finance (works for .SA and as universal fallback)
+    console.log(`[Chart] Attempting Yahoo Finance for ${ticker}...`);
+    const { crumb, cookie } = await getYahooCrumb();
+    const period1 = Math.floor(new Date(fromDate + 'T00:00:00Z').getTime() / 1000);
+    const period2 = Math.floor(new Date(toDate + 'T23:59:59Z').getTime() / 1000);
+    const interval = timespan === 'minute' ? `${multiplier}m` : '1d';
+    const yfUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker.toUpperCase())}?period1=${period1}&period2=${period2}&interval=${interval}&crumb=${encodeURIComponent(crumb)}`;
+    const chartCtrl = new AbortController();
+    const chartTmout = setTimeout(() => chartCtrl.abort(), 10000);
+    let r;
+    try {
+      r = await fetch(yfUrl, {
+        headers: {
+          'User-Agent': YF_UA, 'Accept': 'application/json',
+          'Cookie': cookie, 'Referer': 'https://finance.yahoo.com/'
+        },
+        signal: chartCtrl.signal,
+      });
+    } finally {
+      clearTimeout(chartTmout);
+    }
+    if (!r.ok) {
+      if (r.status === 401 || r.status === 403) { _yfCrumb = null; _yfCrumbExpiry = 0; }
+      throw new Error(`Yahoo chart HTTP ${r.status} for ${ticker}`);
+    }
+    const json = await r.json();
+    const result = json?.chart?.result?.[0];
+    if (!result) throw new Error(`No Yahoo chart data for ${ticker}`);
+    const timestamps = result.timestamp || [];
+    const q = result.indicators?.quote?.[0] || {};
+    const chartResults = timestamps
+      .map((t, i) => ({ t: t * 1000, c: q.close?.[i], o: q.open?.[i], h: q.high?.[i], l: q.low?.[i] }))
+      .filter(b => b.c != null && b.c > 0);
+    const chartPayload = { results: chartResults, ticker, status: 'OK' };
+    cacheSet(chartCacheKey, chartPayload, TTL.chart);
+    console.log(`[Chart] Yahoo Finance succeeded for ${ticker}`);
+    return res.json(chartPayload);
   } catch (e) {
     console.error(`[API] /chart/${req.params.ticker}:`, e.message);
     sendError(res, e);
@@ -637,7 +839,7 @@ router.get('/ticker/:symbol', async (req, res) => {
   }
 });
 
-// ─── Market status ─────────────────────────────────────────────────────────
+// ─── Market status ─────────────────────────────────────────────────────────────
 
 router.get('/status', async (req, res) => {
   try {
@@ -648,12 +850,11 @@ router.get('/status', async (req, res) => {
   }
 });
 
-// ─── Brazilian B3 stocks (Yahoo Finance .SA tickers — same crumb auth as other routes) ───
+// ─── Brazilian B3 stocks with fallback to Finnhub ──────────────────────────────
 
 router.get('/snapshot/brazil', async (req, res) => {
   try {
     const now = Date.now();
-    // Serve from cache if fresh (60 s)
     if (_brazilCache && now < _brazilCacheExpiry) {
       return res.json(_brazilCache);
     }
@@ -664,8 +865,23 @@ router.get('/snapshot/brazil', async (req, res) => {
     ];
     const requestedSymbols = tickers.map(t => t.replace(/\.SA$/i, ''));
 
-    // Use Yahoo Finance exclusively for B3 data
-    const quotes = await yahooQuote(tickers.join(','));
+    console.log('[Brazil] Attempting Yahoo Finance...');
+    let quotes = [];
+    try {
+      quotes = await yahooQuote(tickers.join(','));
+    } catch (e) {
+      console.warn('[Brazil] Yahoo Finance failed:', e.message);
+      // Fallback to Finnhub for select tickers if available
+      if (finnhubKey()) {
+        console.log('[Brazil] Attempting Finnhub fallback...');
+        for (const ticker of tickers.slice(0, 5)) {
+          try {
+            const data = await finnhubQuote(ticker);
+            if (data.c) quotes.push({ symbol: ticker, regularMarketPrice: data.c, regularMarketChange: data.d, regularMarketChangePercent: data.dp });
+          } catch (_) {}
+        }
+      }
+    }
 
     const results = quotes
       .filter(q => q.regularMarketPrice != null)
@@ -684,21 +900,19 @@ router.get('/snapshot/brazil', async (req, res) => {
       })
       .filter(Boolean);
 
-    // Log missing symbols for debugging
     const returnedSymbols = new Set(results.map(r => r.symbol));
     const missingSymbols = requestedSymbols.filter(s => !returnedSymbols.has(s));
     if (missingSymbols.length > 0) {
       console.warn(`[API] Brazil snapshot missing ${missingSymbols.length} symbols:`, missingSymbols.join(', '));
     }
 
-    if (!results.length) throw new Error('Yahoo Finance returned no B3 results');
+    if (!results.length) throw new Error('All providers returned no B3 results');
     const payload = { results, source: 'yahoo', missing: missingSymbols };
     _brazilCache = payload;
-    _brazilCacheExpiry = now + 60_000; // cache 60 s
+    _brazilCacheExpiry = now + 60_000;
     res.json(payload);
   } catch (err) {
     console.error('[API] /snapshot/brazil error:', err.message);
-    // Return stale cache rather than 500 if we have it
     if (_brazilCache) return res.json({ ..._brazilCache, stale: true, staleSinceMs: Date.now() - _brazilCacheExpiry + 60_000 });
     sendError(res, err);
   }
@@ -714,7 +928,6 @@ router.get('/snapshot/global-indices', async (req, res) => {
       'EWJ','EWH','EWY','EWA','MCHI','EWT','EWS','INDA'
     ];
 
-    // Use Yahoo Finance in batches of ~15 symbols
     const BATCH_SIZE = 15;
     const batches = [];
     for (let i = 0; i < tickers.length; i += BATCH_SIZE) {
@@ -732,7 +945,6 @@ router.get('/snapshot/global-indices', async (req, res) => {
       }
     }
 
-    // Transform Yahoo response to Polygon snapshot format
     const transformedTickers = allQuotes.map(q => ({
       ticker: q.symbol,
       todaysChange: q.regularMarketChange ?? 0,
@@ -756,7 +968,7 @@ router.get('/snapshot/global-indices', async (req, res) => {
   }
 });
 
-// ─── Ticker search — parallel Polygon + Yahoo Finance for full B3 coverage ─────
+// ─── Ticker search — parallel Polygon + Yahoo Finance ──────────────────────────
 
 router.get('/search', async (req, res) => {
   try {
@@ -779,17 +991,16 @@ router.get('/search', async (req, res) => {
         const sym = r.ticker?.toUpperCase();
         if (!sym || seen.has(sym)) continue;
         seen.add(sym);
-        // Polygon returns generic market category ('stocks','otc','crypto','fx')
-        // AND primary_exchange (e.g. 'XNAS', 'XNYS') — pass both so client can
-        // classify coverage accurately (avoids false "NO DATA" warnings on US stocks).
         results.push({
           ticker:          sym,
           name:            r.name || sym,
-          market:          r.market || '',           // 'stocks', 'otc', 'crypto', 'fx'
-          primaryExchange: r.primary_exchange || '', // 'XNAS', 'XNYS', 'XOTC', etc.
-          type:            r.type || 'CS',           // Polygon: 'CS', 'ETF', 'MUTUALFUND'
+          market:          r.market || '',
+          primaryExchange: r.primary_exchange || '',
+          type:            r.type || 'CS',
         });
       }
+    } else {
+      console.log('[Search] Polygon failed:', polyResult.reason?.message);
     }
 
     if (yahooResult.status === 'fulfilled') {
@@ -801,9 +1012,9 @@ router.get('/search', async (req, res) => {
         results.push({
           ticker:          sym,
           name:            r.longname || r.shortname || sym,
-          market:          r.exchange || '',         // Yahoo exchange codes: 'NMS', 'NYQ', etc.
+          market:          r.exchange || '',
           primaryExchange: r.exchange || '',
-          type:            r.quoteType || 'EQUITY',  // 'EQUITY', 'ETF', 'MUTUALFUND', etc.
+          type:            r.quoteType || 'EQUITY',
         });
       }
     } else {
@@ -817,37 +1028,18 @@ router.get('/search', async (req, res) => {
   }
 });
 
-// ─── Unified quote — Polygon for US, Yahoo for .SA / international ───────────────
+// ─── Unified quote — with fallback chain ───────────────────────────────────────
 
 router.get('/quote/:symbol', async (req, res) => {
   try {
     const symbol = req.params.symbol.toUpperCase();
-    const isYahooMarket = /\.(SA|L|T|HK|AX|TO|NS|BO)$/.test(symbol);
 
-    if (isYahooMarket) {
-      const quotes = await yahooQuote(symbol);
-      if (!quotes.length) return res.status(404).json({ error: `No quote for ${symbol}` });
-      const q = quotes[0];
-      return res.json({
-        source: 'yahoo', ticker: q.symbol,
-        name: q.shortName || q.longName || q.symbol,
-        price: q.regularMarketPrice,
-        change: q.regularMarketChange,
-        changePct: q.regularMarketChangePercent,
-        open: q.regularMarketOpen,
-        high: q.regularMarketDayHigh,
-        low: q.regularMarketDayLow,
-        volume: q.regularMarketVolume,
-        currency: q.currency || 'BRL',
-      });
-    }
+    // Try Yahoo first, fall back to Finnhub/Alpha Vantage
+    const result = await fetchWithFallback(symbol);
+    const q = result.data;
 
-    // Use Yahoo Finance for US stocks instead of Polygon
-    const quotes = await yahooQuote(symbol);
-    if (!quotes.length) return res.status(404).json({ error: `No quote for ${symbol}` });
-    const q = quotes[0];
     return res.json({
-      source: 'yahoo', ticker: q.symbol,
+      source: result.source, ticker: q.symbol,
       name: q.shortName || q.longName || q.symbol,
       price: q.regularMarketPrice,
       change: q.regularMarketChange,
@@ -871,7 +1063,6 @@ router.get('/snapshot/ticker/:symbol', async (req, res) => {
     const sym = req.params.symbol.toUpperCase();
 
     if (sym.startsWith('X:')) {
-      // Crypto — Map Polygon format (X:BTCUSD) to Yahoo format (BTC-USD)
       const pair = sym.replace(/^X:/, '');
       const [crypto, fiat] = [pair.slice(0, -3), pair.slice(-3)];
       const yahooTicker = `${crypto}-${fiat}`;
@@ -897,7 +1088,6 @@ router.get('/snapshot/ticker/:symbol', async (req, res) => {
     }
 
     if (sym.startsWith('C:')) {
-      // Forex — Map Polygon format (C:EURUSD) to Yahoo format (EURUSD=X)
       const pair = sym.replace(/^C:/, '');
       const yahooTicker = `${pair}=X`;
       const quotes = await yahooQuote(yahooTicker);
@@ -922,7 +1112,6 @@ router.get('/snapshot/ticker/:symbol', async (req, res) => {
     }
 
     if (sym.endsWith('.SA')) {
-      // Brazilian B3 — Yahoo Finance (Polygon doesn't cover .SA tickers)
       const quotes = await yahooQuote(sym);
       const q = quotes?.[0];
       if (!q) throw new Error(`No Yahoo Finance data for ${sym}`);
@@ -944,7 +1133,6 @@ router.get('/snapshot/ticker/:symbol', async (req, res) => {
       });
     }
 
-    // US equities / ETFs — Use Yahoo Finance instead of Polygon
     const quotes = await yahooQuote(sym);
     const q = quotes?.[0];
     if (!q) throw new Error(`No Yahoo Finance data for ${sym}`);
@@ -1006,8 +1194,7 @@ router.get('/snapshot/rates', async (req, res) => {
 
     results.push({ symbol: 'SELIC',    name: 'SELIC',     price: selicRate, change: null, changePct: null, note: 'BCB TARGET RATE', type: 'policy' });
 
-    // Fetch Fed Funds rate from FRED (fallback to hardcoded if unavailable)
-    let fedFundsRate = 4.33; // fallback
+    let fedFundsRate = 4.33;
     try {
       const fredController = new AbortController();
       const fredTimeout = setTimeout(() => fredController.abort(), 5000);
@@ -1037,8 +1224,6 @@ router.get('/snapshot/rates', async (req, res) => {
 });
 
 // ─── Brazilian DI / Pre-fixed Yield Curve ────────────────────────────────────────
-// Primary: Tesouro Direto public JSON (LTN = Prefixado bonds at various maturities)
-// Short end: BCB DI overnight rate (series 432)
 
 router.get('/di-curve', async (req, res) => {
   try {
@@ -1063,14 +1248,12 @@ router.get('/di-curve', async (req, res) => {
     const today = new Date();
     const curve = [];
 
-    // Short end: DI overnight from BCB
     let diRate = 14.75;
     if (selicRes.status === 'fulfilled' && Array.isArray(selicRes.value) && selicRes.value[0]?.valor) {
       diRate = parseFloat(selicRes.value[0].valor);
     }
     curve.push({ tenor: 'DI', months: 0.5, rate: parseFloat(diRate.toFixed(2)) });
 
-    // Yield curve from Tesouro Prefixado (LTN) bonds
     if (tdRes.status === 'fulfilled') {
       const bonds = tdRes.value?.response?.TrsrBdTradgList || [];
       const prefixados = bonds
@@ -1109,7 +1292,6 @@ router.get('/di-curve', async (req, res) => {
       console.warn('[DI-Curve] Tesouro Direto failed:', tdRes.reason?.message);
     }
 
-    // Fallback: synthetic curve if we couldn't get enough points
     if (curve.length < 3) {
       const base = diRate;
       const synth = [
@@ -1229,7 +1411,7 @@ function parseEcbYieldCurve(json) {
     const dataSet = json.dataSets?.[0];
     if (!dataSet?.series) return [];
     const seriesDims = json.structure?.dimensions?.series || [];
-    const lastDim   = seriesDims[seriesDims.length - 1]; // maturity dimension
+    const lastDim   = seriesDims[seriesDims.length - 1];
     if (!lastDim?.values) return [];
     const results = [];
     for (const [key, series] of Object.entries(dataSet.series)) {
@@ -1292,7 +1474,6 @@ router.get('/yield-curves', async (req, res) => {
         headers: { 'User-Agent': YF_UA, 'Accept': 'text/csv,text/plain,*/*', 'Referer': 'https://www.bankofengland.co.uk/' },
       }).then(r => { if (!r.ok) throw new Error(`BoE ${r.status}`); return r.text(); }),
 
-      // ECB AAA-rated euro area sovereign bond spot yield curve
       fetch('https://data-api.ecb.europa.eu/service/data/YC/B.U2.EUR.4F.G_N_A.SV_C_YM.SR_3M+SR_6M+SR_1Y+SR_2Y+SR_3Y+SR_5Y+SR_7Y+SR_10Y+SR_20Y+SR_30Y?lastNObservations=1&format=jsondata', {
         headers: { 'Accept': 'application/json', 'User-Agent': YF_UA },
       }).then(r => { if (!r.ok) throw new Error(`ECB ${r.status}`); return r.json(); }),
@@ -1385,7 +1566,7 @@ router.get('/yield-curves', async (req, res) => {
   }
 });
 
-// ─ Cross-device chart-grid sync (file-backed — persists across Render sleep/wake) ─
+// ─ Cross-device chart-grid sync (file-backed) ─
 const path = require('path');
 const fs   = require('fs');
 const SETTINGS_FILE = path.join(process.cwd(), '.senger-settings.json');
@@ -1401,9 +1582,6 @@ function saveSettings(data) {
 
 let _syncSettings = loadSettings();
 
-// NOTE: These routes handle the legacy per-device chart-grid URL-param sync only.
-// Per-user settings (panels, layout, watchlist, etc.) are handled by routes/settings.js
-// mounted at /api/settings and always take routing priority over these.
 router.get('/settings', (req, res) => {
   res.json(_syncSettings);
 });
@@ -1422,7 +1600,7 @@ router.post('/settings', (req, res) => {
 });
 
 // ─── Fundamentals: P/E, EPS, beta, dividend, 52W range, sector (Yahoo Finance) ──
-// Helper to safely extract .raw from a Yahoo Finance field (handles plain numbers too)
+
 function yr(field) {
   if (field == null) return null;
   if (typeof field === 'number') return field;
@@ -1432,11 +1610,9 @@ function yr(field) {
 router.get('/fundamentals/:symbol', async (req, res) => {
   try {
     const raw = req.params.symbol.toUpperCase();
-    // Strip Polygon prefixes for Yahoo (X:BTCUSD -> BTCUSD, C:EURUSD -> EURUSD)
     const symbol = raw.replace(/^[XC]:/, '');
 
-    // ── Brazilian B3 stocks: use Yahoo v7/quote (same crumb, already proven to work) ──
-    // v10/quoteSummary is unreliable for .SA tickers — summaryDetail.marketCap is often null
+    // ── Brazilian B3 stocks: use Yahoo v7/quote ──
     if (symbol.endsWith('.SA')) {
       const FIELDS = [
         'marketCap','enterpriseValue',
@@ -1484,7 +1660,6 @@ router.get('/fundamentals/:symbol', async (req, res) => {
     }
 
     // ── US / international stocks: Yahoo Finance v10 quoteSummary ──
-    // query2 is generally more reliable than query1 from server IPs
     let result = null;
     for (let attempt = 0; attempt < 2; attempt++) {
       const { crumb, cookie } = await getYahooCrumb();
@@ -1497,7 +1672,7 @@ router.get('/fundamentals/:symbol', async (req, res) => {
       });
       if (r.status === 401 || r.status === 403) {
         _yfCrumb = null; _yfCookie = null; _yfCrumbExpiry = 0;
-        if (attempt === 0) continue; // retry with fresh crumb
+        if (attempt === 0) continue;
         throw new Error('Yahoo Finance auth failed after retry');
       }
       if (!r.ok) throw new Error('Yahoo Finance HTTP ' + r.status);
@@ -1506,7 +1681,6 @@ router.get('/fundamentals/:symbol', async (req, res) => {
       break;
     }
 
-    // Return 404 (not 500) when ticker simply not found on Yahoo Finance
     if (!result) {
       return res.status(404).json({ error: 'No fundamental data for ' + symbol });
     }
@@ -1514,17 +1688,15 @@ router.get('/fundamentals/:symbol', async (req, res) => {
     const ks = result.defaultKeyStatistics || {};
     const fd = result.financialData       || {};
     const sp = result.summaryProfile      || {};
-    const sd = result.summaryDetail       || {}; // ← more reliable for marketCap
+    const sd = result.summaryDetail       || {};
     const pr = result.price               || {};
 
-    // Polygon fallback for market_cap — fetched in parallel, failure is non-fatal
     let polyMktCap = null;
     try {
       const polyRef = await polyFetch(`/v3/reference/tickers/${encodeURIComponent(symbol)}`);
       polyMktCap = polyRef?.results?.market_cap ?? null;
     } catch (_) { /* non-fatal */ }
 
-    // Next earnings date: Yahoo returns array of {raw, fmt} — pick the first future one
     const earningsArr = ks.earningsDate?.length ? ks.earningsDate : null;
     const earningsDate = earningsArr
       ? (() => {
@@ -1535,7 +1707,6 @@ router.get('/fundamentals/:symbol', async (req, res) => {
       : null;
 
     res.json({
-      // valuation — three sources: summaryDetail → price → Polygon reference
       marketCap:           yr(sd.marketCap)        ?? yr(pr.marketCap)        ?? polyMktCap ?? null,
       enterpriseValue:     yr(ks.enterpriseValue)                             ?? null,
       peRatio:             yr(sd.trailingPE)        ?? yr(ks.trailingPE)      ?? null,
@@ -1543,14 +1714,12 @@ router.get('/fundamentals/:symbol', async (req, res) => {
       pegRatio:            yr(ks.pegRatio)                                    ?? null,
       priceToBook:         yr(ks.priceToBook)                                 ?? null,
       priceToSales:        yr(ks.priceToSalesTrailing12Months)                ?? null,
-      // earnings & dividends
       eps:                 yr(ks.trailingEps)                                 ?? null,
       forwardEps:          yr(ks.forwardEps)                                  ?? null,
       earningsDate:        earningsDate,
       dividendYield:       yr(sd.dividendYield)     ?? yr(ks.dividendYield)   ?? null,
       dividendRate:        yr(sd.dividendRate)                                ?? null,
       payoutRatio:         yr(sd.payoutRatio)                                 ?? null,
-      // financials
       totalRevenue:        yr(fd.totalRevenue)                                ?? null,
       revenueGrowth:       yr(fd.revenueGrowth)                               ?? null,
       ebitda:              yr(fd.ebitda)                                      ?? null,
@@ -1561,19 +1730,16 @@ router.get('/fundamentals/:symbol', async (req, res) => {
       totalDebt:           yr(fd.totalDebt)                                   ?? null,
       returnOnEquity:      yr(fd.returnOnEquity)                              ?? null,
       returnOnAssets:      yr(fd.returnOnAssets)                              ?? null,
-      // share data
       beta:                yr(sd.beta)              ?? yr(ks.beta)            ?? null,
       sharesOutstanding:   yr(ks.sharesOutstanding)                           ?? null,
       shortPercentFloat:   yr(ks.shortPercentOfFloat)                         ?? null,
       fiftyTwoWeekHigh:    yr(sd.fiftyTwoWeekHigh)  ?? yr(ks.fiftyTwoWeekHigh) ?? null,
       fiftyTwoWeekLow:     yr(sd.fiftyTwoWeekLow)   ?? yr(ks.fiftyTwoWeekLow)  ?? null,
       fiftyTwoWeekChange:  yr(ks['52WeekChange'])                             ?? null,
-      // profile
       sector:              sp.sector                                          || null,
       industry:            sp.industry                                        || null,
       employees:           sp.fullTimeEmployees                               || null,
       website:             sp.website                                         || null,
-      // description — used for "About" section (Yahoo summaryProfile has this reliably)
       description:         sp.longBusinessSummary                             || null,
     });
   } catch (e) {
@@ -1581,8 +1747,5 @@ router.get('/fundamentals/:symbol', async (req, res) => {
     sendError(res, e);
   }
 });
-
-// NOTE: /chat/history is handled by routes/chat.js (mounted at /api/chat in index.js,
-// which takes routing priority over this router's /api prefix). Dead route removed.
 
 module.exports = router;

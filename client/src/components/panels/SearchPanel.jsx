@@ -284,6 +284,7 @@ function SearchPanel({ onTickerSelect, onOpenDetail }) {
       {/* ── Search input ── */}
       <div style={{ position: 'relative', padding: '6px 8px', flexShrink: 0 }}>
         <input
+          autoFocus
           value={query}
           onChange={handleInput}
           placeholder="ticker or company name..."
@@ -293,6 +294,7 @@ function SearchPanel({ onTickerSelect, onOpenDetail }) {
             fontSize: 15, padding: '9px 8px',
             fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box',
             borderRadius: 2,
+            minHeight: '44px',
           }}
           onFocus={e => e.target.style.borderColor = ORANGE}
           onBlur={e => e.target.style.borderColor = '#2a2a2a'}

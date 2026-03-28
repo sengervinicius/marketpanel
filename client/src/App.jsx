@@ -27,6 +27,7 @@ import WatchlistPanelMobile from './components/panels/WatchlistPanelMobile';
 import { ChatPanel } from './components/panels/ChatPanel';
 import HomePanelMobile from './components/panels/HomePanelMobile';
 import ChartsPanelMobile from './components/panels/ChartsPanelMobile';
+import ETFPanel from './components/panels/ETFPanel';
 import OnboardingPresets from './components/onboarding/OnboardingPresets';
 import { TickerTooltip } from './components/common/TickerTooltip';
 import InstrumentDetail from './components/common/InstrumentDetail';
@@ -723,6 +724,7 @@ const MOBILE_TABS = [
   { id: 'charts',    label: 'CHARTS', icon: '◫' },
   { id: 'watchlist', label: 'WATCH',  icon: '☆' },
   { id: 'search',    label: 'FIND',   icon: '⊕' },
+  { id: 'etf',       label: 'ETF',    icon: '▧' },
   { id: 'news',      label: 'NEWS',   icon: '◎' },
 ];
 
@@ -1176,7 +1178,10 @@ export default function App() {
           <div style={{ flex:1, overflowY:'auto', overflowX:'hidden', minHeight:0, WebkitOverflowScrolling:'touch' }}>
 
             {activeTab === 'home' && (
-              <HomePanelMobile onOpenDetail={goDetail} />
+              <HomePanelMobile
+                onOpenDetail={goDetail}
+                onSearchClick={() => setActiveTabPersist('search')}
+              />
             )}
 
             {activeTab === 'charts' && (
@@ -1192,6 +1197,10 @@ export default function App() {
 
             {activeTab === 'search' && (
               <SearchPanel onTickerSelect={goDetail} onOpenDetail={goDetail} />
+            )}
+
+            {activeTab === 'etf' && (
+              <ETFPanel onOpenDetail={goDetail} />
             )}
 
             {activeTab === 'detail' && (

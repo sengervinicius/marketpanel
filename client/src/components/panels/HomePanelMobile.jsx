@@ -1,12 +1,16 @@
 /**
  * HomePanelMobile.jsx
  *
- * Mobile home panel component with dynamic sections from settings.home.sections.
- * Renders market cards for each configured section, plus top movers at bottom.
+ * Mobile home panel with Bloomberg-like "My Boxes" interface.
+ * - Prominent search bar at top (navigates to search tab when tapped)
+ * - "My Boxes" section with customizable market data boxes
+ * - Each box shows a group of instruments with live prices
+ * - Default boxes: Market Overview, FX, B3, Crypto
+ * - "Today's Movers" section at bottom
  * Dark theme trading terminal interface.
  */
 
-import { useState, useEffect, memo } from 'react';
+import { useState, useEffect, memo, useCallback } from 'react';
 import { useStocksData, useForexData, useCryptoData } from '../../context/MarketContext';
 import { useSettings } from '../../context/SettingsContext';
 
@@ -55,7 +59,7 @@ function WorldClock() {
       fontSize: '9px',
       color: '#666',
       letterSpacing: '0.1em',
-      marginBottom: '12px',
+      marginBottom: '8px',
       fontFamily: 'monospace',
     }}>
       <div>NY: {fmt(times.ny)}</div>
@@ -83,21 +87,44 @@ function displaySymbol(sym) {
   return sym;
 }
 
+// Default boxes configuration
+const DEFAULT_BOXES = [
+  {
+    id: 'market-overview',
+    title: 'MARKET OVERVIEW',
+    symbols: ['SPY', 'QQQ', 'DIA', 'IWM'],
+  },
+  {
+    id: 'fx',
+    title: 'FX MAJORS',
+    symbols: ['EURUSD', 'GBPUSD', 'USDJPY', 'USDBRL'],
+  },
+  {
+    id: 'b3',
+    title: 'B3 (BOVESPA)',
+    symbols: ['VALE3.SA', 'PETR4.SA', 'ITUB4.SA', 'ABEV3.SA'],
+  },
+  {
+    id: 'crypto',
+    title: 'CRYPTO',
+    symbols: ['BTCUSD', 'ETHUSD', 'SOLUSD', 'BNBUSD'],
+  },
+];
+
 /**
  * HomePanelMobile
  * @param {Object} props
  * @param {Function} props.onOpenDetail - Callback to open detail view for a symbol
+ * @param {Function} props.onSearchClick - Callback when search bar is tapped
  */
-function HomePanelMobile({ onOpenDetail }) {
+function HomePanelMobile({ onOpenDetail, onSearchClick }) {
   const stocksData = useStocksData();
   const forexData = useForexData();
   const cryptoData = useCryptoData();
   const { settings } = useSettings();
 
   const [moversTab, setMoversTab] = useState('gainers');
-
-  // Get dynamic sections from settings
-  const sections = settings?.home?.sections || [];
+  const [boxes, setBoxes] = useState(DEFAULT_BOXES);
 
   // Compute top gainers and losers from stocks data
   const gainers = Object.entries(stocksData)
@@ -110,6 +137,15 @@ function HomePanelMobile({ onOpenDetail }) {
     .sort(([_a, a], [_b, b]) => (a.changePct ?? 0) - (b.changePct ?? 0))
     .slice(0, 5);
 
+  const handleAddBox = useCallback(() => {
+    const newBoxId = `custom-${Date.now()}`;
+    setBoxes([...boxes, {
+      id: newBoxId,
+      title: 'NEW BOX',
+      symbols: [],
+    }]);
+  }, [boxes]);
+
   const containerStyle = {
     backgroundColor: '#0a0a0a',
     color: '#e0e0e0',
@@ -121,108 +157,259 @@ function HomePanelMobile({ onOpenDetail }) {
     overflowY: 'auto',
   };
 
-  const cardStyle = {
+  const clockStyle = {
+    textAlign: 'center',
+    marginBottom: '8px',
+  };
+
+  const searchBarStyle = {
+    padding: '0 0 12px',
+    marginBottom: '12px',
+  };
+
+  const searchInputStyle = {
+    width: '100%',
+    padding: '12px',
+    backgroundColor: '#0d0d0d',
+    border: '2px solid #ff6600',
+    borderRadius: '6px',
+    color: '#e0e0e0',
+    fontSize: '14px',
+    fontFamily: 'monospace',
+    cursor: 'pointer',
+    boxSizing: 'border-box',
+    outline: 'none',
+  };
+
+  const sectionTitleStyle = {
+    color: '#ff6600',
+    fontSize: '9px',
+    letterSpacing: '0.15em',
+    fontWeight: 'bold',
+    marginBottom: '8px',
+    marginTop: '12px',
+    textTransform: 'uppercase',
+  };
+
+  const boxStyle = {
     backgroundColor: '#0d0d0d',
     border: '1px solid #1e1e1e',
     borderRadius: '6px',
     padding: '12px',
     marginBottom: '12px',
+    overflow: 'hidden',
   };
 
-  const titleStyle = {
-    color: '#ff6600',
-    fontSize: '8px',
-    letterSpacing: '1.5px',
-    marginBottom: '8px',
+  const boxTitleStyle = {
+    color: '#ccc',
+    fontSize: '9px',
     fontWeight: 'bold',
+    letterSpacing: '0.1em',
+    marginBottom: '8px',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  };
+
+  const marketStatusStyle = {
+    fontSize: '7px',
+    color: '#666',
+    letterSpacing: '0.05em',
   };
 
   const rowStyle = {
     display: 'flex',
     justifyContent: 'space-between',
-    padding: '10px 0',
+    padding: '8px 0',
     borderBottom: '1px solid #1a1a1a',
     fontSize: '11px',
     cursor: 'pointer',
     alignItems: 'center',
-    minHeight: '44px',           // Apple HIG minimum touch target
+    minHeight: '40px',
     WebkitTapHighlightColor: 'rgba(255, 102, 0, 0.15)',
   };
 
+  const rowSymbolStyle = {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    flex: 1,
+  };
+
+  const rowPriceStyle = {
+    fontSize: '12px',
+    fontVariantNumeric: 'tabular-nums',
+    minWidth: '60px',
+    textAlign: 'right',
+  };
+
+  const rowChangeStyle = (changePct) => ({
+    color: changePct >= 0 ? '#00cc66' : '#ff4444',
+    minWidth: '55px',
+    textAlign: 'right',
+    fontSize: '11px',
+    fontVariantNumeric: 'tabular-nums',
+  });
+
+  const addButtonStyle = {
+    background: 'none',
+    border: 'none',
+    color: '#666',
+    fontSize: '16px',
+    cursor: 'pointer',
+    padding: '4px 6px',
+    flexShrink: 0,
+    minHeight: '32px',
+    minWidth: '32px',
+  };
+
+  const moversHeaderStyle = {
+    display: 'flex',
+    gap: '8px',
+    marginBottom: '8px',
+  };
+
+  const tabButtonStyle = (isActive) => ({
+    padding: '4px 8px',
+    fontSize: '9px',
+    backgroundColor: isActive ? '#ff6600' : '#1a1a1a',
+    color: isActive ? '#000' : '#666',
+    border: 'none',
+    borderRadius: '3px',
+    cursor: 'pointer',
+    letterSpacing: '0.1em',
+    fontWeight: 'bold',
+    fontFamily: 'monospace',
+  });
+
   return (
     <div style={containerStyle}>
-      <div style={{ textAlign: 'center', marginBottom: '8px' }}>
+      {/* World Clock */}
+      <div style={clockStyle}>
         <WorldClock />
       </div>
 
-      {/* Dynamic Sections */}
-      {sections.map((section) => (
-        <div key={section.id} style={cardStyle}>
-          <div style={titleStyle}>{section.title}</div>
-          {(section.symbols || []).map((sym) => {
-            const data = getPrice(sym, stocksData, forexData, cryptoData);
-            const price = data?.price ?? null;
-            const changePct = data?.changePct ?? null;
-            const color = changePct >= 0 ? '#00cc66' : '#ff4444';
-            return (
-              <div
-                key={sym}
-                style={rowStyle}
-                onClick={() => onOpenDetail(sym)}
-              >
-                <span>{displaySymbol(sym)}</span>
-                <span style={{ fontSize: '12px', fontVariantNumeric: 'tabular-nums' }}>
-                  {fmtPrice(price, sym.includes('USD') || sym.includes('/') ? 4 : 2)}
-                </span>
-                <span style={{ color, minWidth: '50px', textAlign: 'right' }}>
-                  {fmtPct(changePct)}
-                </span>
+      {/* Search Bar */}
+      <div style={searchBarStyle}>
+        <input
+          type="text"
+          placeholder="Search instruments..."
+          style={searchInputStyle}
+          onClick={onSearchClick}
+          readOnly
+        />
+      </div>
+
+      {/* My Boxes Section */}
+      <div style={{ marginBottom: '12px' }}>
+        <div style={sectionTitleStyle}>MY BOXES</div>
+
+        {boxes.map((box) => (
+          <div key={box.id} style={boxStyle}>
+            <div style={boxTitleStyle}>
+              <span>{box.title}</span>
+              <span style={marketStatusStyle}>LIVE</span>
+            </div>
+
+            {box.symbols.length === 0 ? (
+              <div style={{ color: '#333', fontSize: '10px', padding: '12px', textAlign: 'center' }}>
+                No instruments in this box
               </div>
-            );
-          })}
-        </div>
-      ))}
+            ) : (
+              box.symbols.map((sym) => {
+                const data = getPrice(sym, stocksData, forexData, cryptoData);
+                const price = data?.price ?? null;
+                const changePct = data?.changePct ?? null;
+
+                return (
+                  <div
+                    key={sym}
+                    style={rowStyle}
+                    onClick={() => onOpenDetail?.(sym)}
+                  >
+                    <div style={rowSymbolStyle}>
+                      <span>{displaySymbol(sym)}</span>
+                    </div>
+                    <div style={rowPriceStyle}>
+                      {fmtPrice(price, sym.includes('USD') || sym.includes('/') ? 4 : 2)}
+                    </div>
+                    <div style={rowChangeStyle(changePct)}>
+                      {fmtPct(changePct)}
+                    </div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                      }}
+                      style={addButtonStyle}
+                      title="Add to watchlist"
+                    >
+                      +
+                    </button>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        ))}
+
+        {/* Add Box Button */}
+        <button
+          onClick={handleAddBox}
+          style={{
+            width: '100%',
+            padding: '12px',
+            backgroundColor: '#0d0d0d',
+            border: '1px dashed #1e1e1e',
+            borderRadius: '6px',
+            color: '#ff6600',
+            fontSize: '11px',
+            fontWeight: 'bold',
+            cursor: 'pointer',
+            fontFamily: 'monospace',
+            letterSpacing: '0.1em',
+            minHeight: '44px',
+          }}
+        >
+          + ADD BOX
+        </button>
+      </div>
 
       {/* Today's Movers */}
-      <div style={cardStyle}>
-        <div style={titleStyle}>TODAY'S MOVERS</div>
-        <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+      <div style={boxStyle}>
+        <div style={boxTitleStyle}>
+          <span>TODAY'S MOVERS</span>
+        </div>
+
+        <div style={moversHeaderStyle}>
           {['gainers', 'losers'].map((tab) => (
             <button
               key={tab}
               onClick={() => setMoversTab(tab)}
-              style={{
-                padding: '4px 8px',
-                fontSize: '9px',
-                backgroundColor: moversTab === tab ? '#ff6600' : '#1a1a1a',
-                color: moversTab === tab ? '#000' : '#666',
-                border: 'none',
-                borderRadius: '3px',
-                cursor: 'pointer',
-                letterSpacing: '0.1em',
-                fontWeight: 'bold',
-              }}
+              style={tabButtonStyle(moversTab === tab)}
             >
-              {tab.toUpperCase()}
+              {tab === 'gainers' ? 'GAINERS' : 'LOSERS'}
             </button>
           ))}
         </div>
+
         {(moversTab === 'gainers' ? gainers : losers).map(([sym, data]) => {
           const changePct = data.changePct ?? null;
-          const color = changePct >= 0 ? '#00cc66' : '#ff4444';
+
           return (
             <div
               key={sym}
               style={rowStyle}
-              onClick={() => onOpenDetail(sym)}
+              onClick={() => onOpenDetail?.(sym)}
             >
-              <span>{sym}</span>
-              <span style={{ fontSize: '12px', fontVariantNumeric: 'tabular-nums' }}>
+              <div style={rowSymbolStyle}>
+                <span>{sym}</span>
+              </div>
+              <div style={rowPriceStyle}>
                 {fmtPrice(data.price, 2)}
-              </span>
-              <span style={{ color, minWidth: '50px', textAlign: 'right' }}>
+              </div>
+              <div style={rowChangeStyle(changePct)}>
                 {fmtPct(changePct)}
-              </span>
+              </div>
             </div>
           );
         })}
