@@ -298,7 +298,7 @@ async function alphaVantageQuote(symbol) {
     });
     if (!res.ok) throw new Error(`Alpha Vantage HTTP ${res.status}`);
     const data = await res.json();
-    if (data.Note) throw new Error('Alpha Vantage: rate limited');
+    if (data.Note || data['Error Message']) throw new Error(`Alpha Vantage: ${data.Note || data['Error Message']}`);
     return data['Global Quote'] || {};
   } catch (e) {
     throw new Error(`Alpha Vantage error: ${e.message}`);
@@ -328,7 +328,7 @@ async function fetchWithFallback(symbol) {
         console.log(`[Provider] Finnhub succeeded for ${symbol}`);
         return {
           data: {
-            symbol: data.description || symbol,
+            symbol: symbol,
             regularMarketPrice: data.c,
             regularMarketChange: data.d,
             regularMarketChangePercent: data.dp,
@@ -878,7 +878,7 @@ router.get('/snapshot/brazil', async (req, res) => {
           try {
             const data = await finnhubQuote(ticker);
             if (data.c) quotes.push({ symbol: ticker, regularMarketPrice: data.c, regularMarketChange: data.d, regularMarketChangePercent: data.dp });
-          } catch (_) {}
+          } catch (e) { console.warn(`[Brazil] Finnhub fallback failed for ${ticker}:`, e.message); }
         }
       }
     }
@@ -1061,6 +1061,9 @@ router.get('/quote/:symbol', async (req, res) => {
 router.get('/snapshot/ticker/:symbol', async (req, res) => {
   try {
     const sym = req.params.symbol.toUpperCase();
+    if (!sym || sym.length > 20 || !/^[A-Z0-9:.\-=^]+$/.test(sym)) {
+      return res.status(400).json({ error: 'Invalid symbol format' });
+    }
 
     if (sym.startsWith('X:')) {
       const pair = sym.replace(/^X:/, '');

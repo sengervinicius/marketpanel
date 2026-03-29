@@ -13,6 +13,7 @@
 import { useState, useEffect, memo, useCallback } from 'react';
 import { useStocksData, useForexData, useCryptoData } from '../../context/MarketContext';
 import { useSettings } from '../../context/SettingsContext';
+import { useWatchlist } from '../../context/WatchlistContext';
 
 // Formatting helpers
 function fmtPct(v) {
@@ -117,14 +118,23 @@ const DEFAULT_BOXES = [
  * @param {Function} props.onOpenDetail - Callback to open detail view for a symbol
  * @param {Function} props.onSearchClick - Callback when search bar is tapped
  */
+const BOXES_LS_KEY = 'smt_home_boxes';
+
 function HomePanelMobile({ onOpenDetail, onSearchClick }) {
   const stocksData = useStocksData();
   const forexData = useForexData();
   const cryptoData = useCryptoData();
   const { settings } = useSettings();
+  const { addTicker, isWatching } = useWatchlist();
 
   const [moversTab, setMoversTab] = useState('gainers');
-  const [boxes, setBoxes] = useState(DEFAULT_BOXES);
+  const [boxes, setBoxes] = useState(() => {
+    try {
+      const saved = localStorage.getItem(BOXES_LS_KEY);
+      if (saved) return JSON.parse(saved);
+    } catch (_) {}
+    return DEFAULT_BOXES;
+  });
 
   // Compute top gainers and losers from stocks data
   const gainers = Object.entries(stocksData)
@@ -137,14 +147,23 @@ function HomePanelMobile({ onOpenDetail, onSearchClick }) {
     .sort(([_a, a], [_b, b]) => (a.changePct ?? 0) - (b.changePct ?? 0))
     .slice(0, 5);
 
+  const persistBoxes = useCallback((newBoxes) => {
+    setBoxes(newBoxes);
+    try { localStorage.setItem(BOXES_LS_KEY, JSON.stringify(newBoxes)); } catch (_) {}
+  }, []);
+
   const handleAddBox = useCallback(() => {
     const newBoxId = `custom-${Date.now()}`;
-    setBoxes([...boxes, {
+    persistBoxes([...boxes, {
       id: newBoxId,
       title: 'NEW BOX',
       symbols: [],
     }]);
-  }, [boxes]);
+  }, [boxes, persistBoxes]);
+
+  const handleRemoveBox = useCallback((boxId) => {
+    persistBoxes(boxes.filter(b => b.id !== boxId));
+  }, [boxes, persistBoxes]);
 
   const containerStyle = {
     backgroundColor: '#0a0a0a',
@@ -308,7 +327,16 @@ function HomePanelMobile({ onOpenDetail, onSearchClick }) {
           <div key={box.id} style={boxStyle}>
             <div style={boxTitleStyle}>
               <span>{box.title}</span>
-              <span style={marketStatusStyle}>LIVE</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={marketStatusStyle}>LIVE</span>
+                {box.id.startsWith('custom-') && (
+                  <button
+                    onClick={() => handleRemoveBox(box.id)}
+                    style={{ background: 'none', border: 'none', color: '#444', fontSize: '12px', cursor: 'pointer', padding: '2px 4px' }}
+                    title="Remove box"
+                  >✕</button>
+                )}
+              </div>
             </div>
 
             {box.symbols.length === 0 ? (
@@ -339,11 +367,15 @@ function HomePanelMobile({ onOpenDetail, onSearchClick }) {
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
+                        addTicker(sym);
                       }}
-                      style={addButtonStyle}
-                      title="Add to watchlist"
+                      style={{
+                        ...addButtonStyle,
+                        color: isWatching(sym) ? '#ff6600' : '#666',
+                      }}
+                      title={isWatching(sym) ? 'In watchlist' : 'Add to watchlist'}
                     >
-                      +
+                      {isWatching(sym) ? '★' : '+'}
                     </button>
                   </div>
                 );

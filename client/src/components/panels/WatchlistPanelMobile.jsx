@@ -18,7 +18,7 @@ function fmtPct(v) {
 }
 
 function WatchlistPanelMobile({ onOpenDetail, onManage }) {
-  const { watchlist, removeTicker, moveTicker } = useWatchlist();
+  const { watchlist, removeTicker } = useWatchlist();
   const stocks = useStocksData();
   const forex = useForexData();
   const crypto = useCryptoData();
