@@ -162,7 +162,9 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
   const isFX     = norm.startsWith('C:');
   const isCrypto = norm.startsWith('X:');
   const isBrazil = norm.endsWith('.SA');
-  const isStock  = !isFX && !isCrypto;
+  // Bond detection: match known bond tickers (US2Y, US5Y, US10Y, US30Y, DE10Y, BR10Y, GB10Y, JP10Y)
+  const isBondTicker = /^(US|DE|GB|JP|BR)\d+Y$/i.test(norm);
+  const isStock  = !isFX && !isCrypto && !isBondTicker;
 
   // Stable mobile detection (updates on resize, not just at mount)
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 1024);
@@ -189,8 +191,14 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
   const [activeTab,    setActiveTab]    = useState('STATS');
   const [descExpanded, setDescExpanded] = useState(false);
   const [etfMeta,      setEtfMeta]      = useState(null);
+  const [bondData,     setBondData]     = useState(null);
+  const [bondLoading,  setBondLoading]  = useState(false);
 
   const range = RANGES[rangeIdx];
+
+  // Definitive bond flag: either pattern-matched or registry-confirmed
+  const isBond = isBondTicker || etfMeta?.assetClass === 'fixed_income';
+  const isETF  = etfMeta?.assetClass === 'etf';
 
   // ── Fetch bars ─────────────────────────────────────────────────────────
   useEffect(() => {
@@ -236,7 +244,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
 
   // ── Fetch fundamentals ─────────────────────────────────────────────────
   useEffect(() => {
-    if (!isStock) return;
+    if (!isStock || isBondTicker) return;
     setFundsData(null);
     setFundsError(false);
     setFundsLoading(true);
@@ -258,6 +266,17 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
       .then(d => { if (d && !d.error) setEtfMeta(d); })
       .catch(() => {});
   }, [disp]);
+
+  // ── Fetch bond-specific data ──────────────────────────────────────────
+  useEffect(() => {
+    if (!isBondTicker) return;
+    setBondLoading(true);
+    setBondData(null);
+    apiFetch(`/api/bond-detail/${encodeURIComponent(norm)}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d && !d.error) setBondData(d); setBondLoading(false); })
+      .catch(() => setBondLoading(false));
+  }, [norm, isBondTicker]);
 
   // ── Fetch ticker-specific news ─────────────────────────────────────────
   useEffect(() => {
@@ -308,7 +327,13 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
   const dayChange  = (livePrice && prevClose) ? livePrice - prevClose : null;
   const dayChgPct  = (dayChange && prevClose) ? (dayChange / prevClose) * 100 : null;
   const isPos      = (dayChgPct ?? 0) >= 0;
-  const name       = info?.name || fundsData?.longName || disp;
+  const name       = bondData?.name || info?.name || fundsData?.longName || disp;
+
+  // For bonds, display yield% instead of dollar price
+  const displayPrice = isBond && livePrice != null ? fmt(livePrice, 3) + '%' : livePrice != null ? fmt(livePrice) : null;
+  const displayChange = isBond && dayChgPct != null
+    ? `${isPos ? '+' : ''}${(dayChange * 100).toFixed(0)} bps`
+    : dayChgPct != null ? `${isPos ? '+' : ''}${fmt(dayChgPct)}%` : null;
   const dayHigh    = snap?.day?.h;
   const dayLow     = snap?.day?.l;
   const volume     = snap?.day?.v;
@@ -469,6 +494,221 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
             </BarChart>
           </ResponsiveContainer>
         </div>
+      </>
+    );
+  }
+
+  // ── Bond Stats sub-render ──────────────────────────────────────────────
+  function renderBondStats() {
+    const bd = bondData;
+    const yld = bd?.yield ?? livePrice; // for bonds, "price" in Yahoo is actually the yield
+    const yldChange = bd?.yieldChange ?? dayChange;
+    const yldChangeBps = bd?.yieldChangeBps ?? (yldChange != null ? parseFloat((yldChange * 100).toFixed(1)) : null);
+    const yldPos = (yldChange ?? 0) >= 0;
+    // Note: for bonds, yield UP = price DOWN (inverse), so color logic is inverted
+    const priceColor = yldPos ? RED : GREEN;
+    const yieldColor = yldPos ? GREEN : RED; // higher yield can be good or bad depending on perspective
+
+    return (
+      <>
+        {/* ── YIELD ── */}
+        <Section title="YIELD">
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 12px' }}>
+            <StatRow label="YIELD" value={yld != null ? fmt(yld, 3) + '%' : '--'} color="#fff" big />
+            <StatRow label="CHANGE"
+              value={yldChange != null ? `${yldPos?'+':''}${fmt(yldChange, 3)}%` : '--'}
+              color={yldChange != null ? yieldColor : '#555'}
+            />
+            <StatRow label="CHG (BPS)"
+              value={yldChangeBps != null ? `${yldChangeBps >= 0?'+':''}${yldChangeBps} bps` : '--'}
+              color={yldChangeBps != null ? yieldColor : '#555'}
+            />
+            {(bd?.dayOpen ?? snap?.day?.o) != null && <StatRow label="OPEN" value={fmt(bd?.dayOpen ?? snap?.day?.o, 3) + '%'} />}
+            {(bd?.prevYield ?? prevClose) != null && <StatRow label="PREV CLOSE" value={fmt(bd?.prevYield ?? prevClose, 3) + '%'} />}
+            {(bd?.dayHigh ?? dayHigh) != null && <StatRow label="DAY HIGH" value={fmt(bd?.dayHigh ?? dayHigh, 3) + '%'} />}
+            {(bd?.dayLow ?? dayLow) != null && <StatRow label="DAY LOW" value={fmt(bd?.dayLow ?? dayLow, 3) + '%'} />}
+          </div>
+        </Section>
+
+        {/* ── RANGE ── */}
+        <Section title={`${range.label} PERFORMANCE`}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 12px' }}>
+            <StatRow label="HIGH" value={rangeHigh != null ? fmt(rangeHigh, 3) + '%' : '--'} />
+            <StatRow label="LOW" value={rangeLow != null ? fmt(rangeLow, 3) + '%' : '--'} />
+            <StatRow label="RETURN"
+              value={rangeChg != null ? (rangeChg>=0?'+':'')+fmt(rangeChg)+'%' : '--'}
+              color={rangeChg != null ? (rangeChg>=0 ? GREEN : RED) : '#555'}
+            />
+          </div>
+        </Section>
+
+        {/* ── BOND DETAILS ── */}
+        <Section title="BOND DETAILS">
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 12px' }}>
+            {bd?.name && <StatRow label="NAME" value={bd.name} />}
+            {bd?.country && <StatRow label="COUNTRY" value={bd.country} />}
+            {bd?.currency && <StatRow label="CURRENCY" value={bd.currency} />}
+            {bd?.tenor && <StatRow label="TENOR" value={bd.tenor} color={ORANGE} />}
+            {bd?.maturityYears != null && <StatRow label="MATURITY" value={bd.maturityYears + ' years'} />}
+            {bd?.maturityDate && <StatRow label="MAT DATE" value={bd.maturityDate} />}
+            {bd?.faceValue != null && <StatRow label="FACE VALUE" value={'$' + fmt(bd.faceValue, 0)} />}
+            {bd?.couponFreq && <StatRow label="COUPON FREQ" value={bd.couponFreq} />}
+            {bd?.estimatedCoupon != null && <StatRow label="EST COUPON" value={fmt(bd.estimatedCoupon, 2) + '%'} />}
+          </div>
+        </Section>
+
+        {/* ── PRICING ── */}
+        {bd?.price != null && (
+          <Section title="PRICING">
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 12px' }}>
+              <StatRow label="PRICE" value={'$' + fmt(bd.price, 2)} color="#fff" big />
+              <StatRow label="FACE VALUE" value={'$' + fmt(bd.faceValue, 0)} />
+              <StatRow label="DISC/PREM"
+                value={bd.discountPremium != null ? (bd.discountPremium >= 0 ? '+' : '') + fmt(bd.discountPremium, 2) + '%' : '--'}
+                color={bd.discountPremium != null ? (bd.discountPremium >= 0 ? GREEN : RED) : '#555'}
+              />
+            </div>
+          </Section>
+        )}
+
+        {/* ── YIELD METRICS ── */}
+        <Section title="YIELD METRICS">
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 12px' }}>
+            {bd?.yieldToMaturity != null && <StatRow label="YTM" value={fmt(bd.yieldToMaturity, 3) + '%'} color={ORANGE} big />}
+            {bd?.yieldToWorst != null && <StatRow label="YTW" value={fmt(bd.yieldToWorst, 3) + '%'} color={ORANGE} />}
+            {bd?.currentYield != null && <StatRow label="CUR YIELD" value={fmt(bd.currentYield, 3) + '%'} />}
+            {bd?.spreadToUS10Y != null && (
+              <StatRow label="SPREAD (US10Y)"
+                value={`${bd.spreadToUS10Y >= 0 ? '+' : ''}${bd.spreadToUS10Y} bps`}
+                color={bd.spreadToUS10Y > 200 ? RED : bd.spreadToUS10Y > 100 ? '#c07070' : '#aaa'}
+              />
+            )}
+          </div>
+        </Section>
+
+        {/* ── RISK METRICS ── */}
+        {(bd?.modifiedDuration != null || bd?.dv01 != null) && (
+          <Section title="RISK METRICS">
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 12px' }}>
+              {bd.modifiedDuration != null && <StatRow label="MOD DURATION" value={fmt(bd.modifiedDuration, 2) + ' yrs'} />}
+              {bd.dv01 != null && <StatRow label="DV01" value={'$' + fmt(bd.dv01, 4)} />}
+              <StatRow label="TYPE" value={bd?.maturityYears <= 2 ? 'Short-term' : bd?.maturityYears <= 10 ? 'Medium-term' : 'Long-term'} />
+              <StatRow label="CALLABLE" value="No" color="#aaa" />
+            </div>
+          </Section>
+        )}
+
+        {/* ── BRAZIL BOND DETAILS ── */}
+        {bd?.brBond && (
+          <Section title="TESOURO DIRETO">
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 12px' }}>
+              <StatRow label="BOND" value={bd.brBond.name} />
+              <StatRow label="MATURITY" value={bd.brBond.maturityDate} />
+              <StatRow label="YEARS LEFT" value={fmt(bd.brBond.yearsToMaturity, 1)} />
+              {bd.brBond.unitPrice != null && <StatRow label="UNIT PRICE" value={'R$' + fmt(bd.brBond.unitPrice, 2)} />}
+              {bd.brBond.redemptionPrice != null && <StatRow label="REDEMPTION" value={'R$' + fmt(bd.brBond.redemptionPrice, 2)} />}
+              {bd.brBond.minInvestment != null && <StatRow label="MIN INVEST" value={'R$' + fmt(bd.brBond.minInvestment, 2)} />}
+              <StatRow label="YIELD" value={fmt(bd.brBond.yield, 2) + '%'} color={ORANGE} />
+            </div>
+          </Section>
+        )}
+
+        {bondLoading && !bd && (
+          <div style={{ color: '#2a2a2a', fontSize: 10, padding: '12px 0' }}>Loading bond data…</div>
+        )}
+      </>
+    );
+  }
+
+  // ── ETF Stats sub-render ──────────────────────────────────────────────
+  function renderETFStats() {
+    return (
+      <>
+        {/* ── PRICE ── */}
+        <Section title="PRICE">
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 12px' }}>
+            <StatRow label="LAST"       value={fmt(livePrice)} color="#fff" big />
+            <StatRow label="CHANGE"
+              value={dayChgPct != null ? `${isPos?'+':''}${fmt(dayChange)}` : '--'}
+              color={dayChgPct != null ? (isPos ? GREEN : RED) : '#555'}
+            />
+            <StatRow label="CHG %"
+              value={dayChgPct != null ? `${isPos?'+':''}${fmt(dayChgPct)}%` : '--'}
+              color={dayChgPct != null ? (isPos ? GREEN : RED) : '#555'}
+            />
+            <StatRow label="OPEN"       value={fmt(snap?.day?.o)} />
+            <StatRow label="PREV CLOSE" value={fmt(prevClose)} />
+            <StatRow label="DAY HIGH"   value={fmt(dayHigh)} />
+            <StatRow label="DAY LOW"    value={fmt(dayLow)} />
+            {volume != null && <StatRow label="VOLUME" value={fmt(volume, 0)} />}
+          </div>
+        </Section>
+
+        {/* ── RANGE ── */}
+        <Section title={`${range.label} PERFORMANCE`}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 12px' }}>
+            <StatRow label="HIGH"   value={fmt(rangeHigh)} />
+            <StatRow label="LOW"    value={fmt(rangeLow)} />
+            <StatRow label="RETURN"
+              value={rangeChg != null ? (rangeChg>=0?'+':'')+fmt(rangeChg)+'%' : '--'}
+              color={rangeChg != null ? (rangeChg>=0 ? GREEN : RED) : '#555'}
+            />
+            {fundsData?.fiftyTwoWeekHigh != null && <StatRow label="52W HIGH" value={fmt(fundsData.fiftyTwoWeekHigh)} />}
+            {fundsData?.fiftyTwoWeekLow  != null && <StatRow label="52W LOW"  value={fmt(fundsData.fiftyTwoWeekLow)} />}
+          </div>
+        </Section>
+
+        {/* ── FUND INFO ── */}
+        {etfMeta?.fund && (
+          <Section title="FUND">
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 12px' }}>
+              {etfMeta.fund.nav != null && <StatRow label="NAV" value={'$' + fmt(etfMeta.fund.nav)} />}
+              {etfMeta.fund.aum != null && (
+                <StatRow label="AUM"
+                  value={etfMeta.fund.aum >= 1e12 ? '$'+(etfMeta.fund.aum/1e12).toFixed(1)+'T'
+                       : etfMeta.fund.aum >= 1e9  ? '$'+(etfMeta.fund.aum/1e9).toFixed(1)+'B'
+                       :                            '$'+(etfMeta.fund.aum/1e6).toFixed(0)+'M'} />
+              )}
+              {etfMeta.fund.expenseRatio != null && (
+                <StatRow label="EXP RATIO" value={(etfMeta.fund.expenseRatio * 100).toFixed(2)+'%'} />
+              )}
+              {etfMeta.fund.category     && <StatRow label="CATEGORY"  value={etfMeta.fund.category} />}
+              {etfMeta.fund.inceptionDate && <StatRow label="INCEPTION" value={etfMeta.fund.inceptionDate} />}
+              {etfMeta.fund.exchange     && <StatRow label="EXCHANGE"   value={etfMeta.fund.exchange} />}
+              {fundsData?.dividendYield != null && (
+                <StatRow label="DIV YIELD" value={(fundsData.dividendYield*100).toFixed(2)+'%'} color={GREEN} />
+              )}
+              {fundsData?.beta != null && <StatRow label="BETA" value={fundsData.beta.toFixed(2)} />}
+            </div>
+
+            {/* TOP HOLDINGS */}
+            {etfMeta.fund.holdings?.length > 0 && (
+              <div style={{ marginTop: 10 }}>
+                <div style={{ color: '#333', fontSize: 9, letterSpacing: 1, marginBottom: 6 }}>TOP HOLDINGS</div>
+                {etfMeta.fund.holdings.map((h, i) => (
+                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '3px 0', borderBottom: '1px solid #111' }}>
+                    <span style={{ color: ORANGE, fontSize: 9, flexShrink: 0, width: 50 }}>{h.symbol}</span>
+                    <span style={{ color: '#555', fontSize: 9, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', padding: '0 4px' }}>{h.name}</span>
+                    <span style={{ color: '#888', fontSize: 9, flexShrink: 0 }}>{(h.weight * 100).toFixed(1)}%</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Section>
+        )}
+
+        {/* ── VALUATION (ETF-specific) ── */}
+        {mktCap != null && (
+          <Section title="VALUATION">
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 12px' }}>
+              <StatRow label="MKT CAP"
+                value={mktCap >= 1e12 ? '$'+(mktCap/1e12).toFixed(2)+'T'
+                     : mktCap >= 1e9  ? '$'+(mktCap/1e9).toFixed(2)+'B'
+                     :                  '$'+(mktCap/1e6).toFixed(1)+'M'} />
+              {fundsData?.peRatio != null && <StatRow label="P/E" value={fundsData.peRatio.toFixed(1)+'×'} />}
+            </div>
+          </Section>
+        )}
       </>
     );
   }
@@ -804,7 +1044,9 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
   }
 
   // ── RENDER ──────────────────────────────────────────────────────────────
-  const mobileTabs = ['STATS', 'FUND', 'NEWS', ...(desc ? ['ABOUT'] : [])];
+  const mobileTabs = isBond
+    ? ['STATS', 'BOND', ...(desc ? ['ABOUT'] : [])]
+    : ['STATS', 'FUND', 'NEWS', ...(desc ? ['ABOUT'] : [])];
 
   const deltaHint = deltaMode
     ? (deltaA === null ? '← tap A' : deltaB === null ? '← tap B' : 'tap to reset')
@@ -886,12 +1128,12 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
               <span style={{ fontSize: 15, fontWeight: 'bold', color: ORANGE, flexShrink: 0 }}>{disp}</span>
               {livePrice != null && (
                 <span style={{ fontSize: 15, color: '#fff', fontWeight: 'bold', fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>
-                  {fmt(livePrice)}
+                  {displayPrice}
                 </span>
               )}
-              {dayChgPct != null && (
+              {displayChange != null && (
                 <span style={{ fontSize: 11, color: isPos ? GREEN : RED, flexShrink: 0 }}>
-                  {isPos ? '+' : ''}{fmt(dayChgPct)}%
+                  {displayChange}
                 </span>
               )}
             </div>
@@ -917,11 +1159,14 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
             {/* Price + change */}
             <div style={{ display: 'flex', flexDirection: 'column', flexShrink: 0, gap: 1 }}>
               {livePrice != null && (
-                <span style={{ fontSize: 22, color: '#fff', fontWeight: 'bold', lineHeight: 1 }}>{fmt(livePrice)}</span>
+                <span style={{ fontSize: 22, color: '#fff', fontWeight: 'bold', lineHeight: 1 }}>{displayPrice}</span>
               )}
-              {dayChgPct != null && (
+              {displayChange != null && (
                 <span style={{ fontSize: 12, color: isPos ? GREEN : RED, lineHeight: 1 }}>
-                  {isPos ? '+' : ''}{fmt(dayChange)} ({isPos ? '+' : ''}{fmt(dayChgPct)}%)
+                  {isBond
+                    ? displayChange
+                    : `${isPos ? '+' : ''}${fmt(dayChange)} (${isPos ? '+' : ''}${fmt(dayChgPct)}%)`
+                  }
                 </span>
               )}
             </div>
@@ -1077,8 +1322,8 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
             padding: '14px 16px',
             overflowY: 'auto', fontSize: 11, flexShrink: 0,
           }}>
-            {renderStats()}
-            {renderNews()}
+            {isBond ? renderBondStats() : isETF ? renderETFStats() : renderStats()}
+            {!isBond && renderNews()}
             {renderAbout()}
           </div>
         )}
@@ -1117,8 +1362,9 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
               padding: '12px 14px', fontSize: 11,
               background: '#050505',
             }}>
-              {activeTab === 'STATS' && renderStats()}
-              {activeTab === 'FUND'  && renderFundamentals()}
+              {activeTab === 'STATS' && (isBond ? renderBondStats() : isETF ? renderETFStats() : renderStats())}
+              {activeTab === 'BOND'  && renderBondStats()}
+              {activeTab === 'FUND'  && (isBond ? renderBondStats() : renderFundamentals())}
               {activeTab === 'NEWS'  && renderNews()}
               {activeTab === 'ABOUT' && renderAbout()}
             </div>

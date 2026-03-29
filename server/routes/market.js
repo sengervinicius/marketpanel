@@ -1161,6 +1161,244 @@ router.get('/snapshot/ticker/:symbol', async (req, res) => {
   }
 });
 
+// ─── Bond Detail endpoint ──────────────────────────────────────────────────────
+// Returns bond-specific metrics: yield, maturity, coupon, duration, price, etc.
+
+const BOND_YAHOO_MAP = {
+  'US2Y':  { yahoo: '^TYA', tenor: '2Y',  maturityYears: 2,  couponFreq: 2, faceValue: 1000, country: 'US', currency: 'USD', name: 'US 2-Year Treasury Note' },
+  'US5Y':  { yahoo: '^FVX', tenor: '5Y',  maturityYears: 5,  couponFreq: 2, faceValue: 1000, country: 'US', currency: 'USD', name: 'US 5-Year Treasury Note' },
+  'US10Y': { yahoo: '^TNX', tenor: '10Y', maturityYears: 10, couponFreq: 2, faceValue: 1000, country: 'US', currency: 'USD', name: 'US 10-Year Treasury Note' },
+  'US30Y': { yahoo: '^TYX', tenor: '30Y', maturityYears: 30, couponFreq: 2, faceValue: 1000, country: 'US', currency: 'USD', name: 'US 30-Year Treasury Bond' },
+  'DE10Y': { yahoo: null,   tenor: '10Y', maturityYears: 10, couponFreq: 1, faceValue: 1000, country: 'DE', currency: 'EUR', name: 'German 10-Year Bund' },
+  'GB10Y': { yahoo: null,   tenor: '10Y', maturityYears: 10, couponFreq: 2, faceValue: 1000, country: 'GB', currency: 'GBP', name: 'UK 10-Year Gilt' },
+  'JP10Y': { yahoo: null,   tenor: '10Y', maturityYears: 10, couponFreq: 2, faceValue: 1000, country: 'JP', currency: 'JPY', name: 'Japan 10-Year JGB' },
+  'BR10Y': { yahoo: null,   tenor: '10Y', maturityYears: 10, couponFreq: 0, faceValue: 1000, country: 'BR', currency: 'BRL', name: 'Brazil 10-Year DI Rate' },
+};
+
+// Calculate theoretical bond price from yield (semi-annual coupon)
+function calcBondPrice(faceValue, couponRate, yieldPct, maturityYears, couponFreq) {
+  if (couponFreq === 0) {
+    // Zero-coupon (e.g. Brazil prefixados) — discount to face
+    return faceValue / Math.pow(1 + yieldPct / 100, maturityYears);
+  }
+  const n = maturityYears * couponFreq;
+  const r = (yieldPct / 100) / couponFreq;
+  const c = (couponRate / 100) * faceValue / couponFreq;
+  if (r === 0) return faceValue + c * n;
+  const pvCoupons = c * (1 - Math.pow(1 + r, -n)) / r;
+  const pvFace = faceValue / Math.pow(1 + r, n);
+  return pvCoupons + pvFace;
+}
+
+// Modified duration (approximation)
+function calcModifiedDuration(yieldPct, maturityYears, couponFreq) {
+  if (couponFreq === 0) {
+    // Zero-coupon: Macaulay duration = maturity, modified = mac / (1+y)
+    return maturityYears / (1 + yieldPct / 100);
+  }
+  const r = (yieldPct / 100) / couponFreq;
+  const n = maturityYears * couponFreq;
+  // Macaulay duration approximation for coupon bond
+  const macaulay = (1 + r) / r - (1 + r + n * (0.03 - r)) / (0.03 * (Math.pow(1 + r, n) - 1) + r);
+  // Simplified: use (1+y/m) * [1 - 1/(1+y/m)^n] / (y/m) as rough estimate
+  // Better approximation: modified duration ≈ maturity * 0.85 for coupon bonds
+  const modDur = maturityYears / (1 + (yieldPct / 100) / couponFreq);
+  return modDur;
+}
+
+// DV01 (dollar value of 1bp change)
+function calcDV01(price, modifiedDuration) {
+  return (price * modifiedDuration * 0.0001);
+}
+
+router.get('/bond-detail/:symbol', async (req, res) => {
+  try {
+    const sym = req.params.symbol.toUpperCase();
+    const meta = BOND_YAHOO_MAP[sym];
+
+    if (!meta) {
+      return res.status(404).json({ error: `Bond not found: ${sym}. Available: ${Object.keys(BOND_YAHOO_MAP).join(', ')}` });
+    }
+
+    let yieldValue = null;
+    let yieldChange = null;
+    let yieldChangePct = null;
+    let prevYield = null;
+    let dayHigh = null;
+    let dayLow = null;
+    let dayOpen = null;
+
+    // ── Try Yahoo Finance for US treasuries ──
+    if (meta.yahoo) {
+      try {
+        const quotes = await yahooQuote(meta.yahoo);
+        const q = quotes?.[0];
+        if (q && q.regularMarketPrice != null) {
+          yieldValue = q.regularMarketPrice;
+          yieldChange = q.regularMarketChange ?? null;
+          yieldChangePct = q.regularMarketChangePercent ?? null;
+          prevYield = q.regularMarketPreviousClose ?? null;
+          dayHigh = q.regularMarketDayHigh ?? null;
+          dayLow = q.regularMarketDayLow ?? null;
+          dayOpen = q.regularMarketOpen ?? null;
+        }
+      } catch (e) {
+        console.warn(`[BondDetail] Yahoo failed for ${meta.yahoo}:`, e.message);
+      }
+    }
+
+    // ── Fallback: try to get from yield curves endpoint data ──
+    if (yieldValue == null) {
+      try {
+        // For non-US bonds, get from yield curves
+        const cached = cacheGet('yield-curves-data');
+        if (cached) {
+          const countryMap = { US: 'US', DE: 'EU', GB: 'UK', JP: 'JP', BR: 'BR' };
+          const curveKey = countryMap[meta.country];
+          if (curveKey && cached[curveKey]?.curve) {
+            const point = cached[curveKey].curve.find(p =>
+              p.tenor === meta.tenor || p.tenor === meta.maturityYears + 'Y'
+            );
+            if (point) {
+              yieldValue = point.rate;
+            }
+          }
+        }
+      } catch {}
+    }
+
+    // ── For Brazil, try Tesouro Direto for richer bond data ──
+    let brBondData = null;
+    if (meta.country === 'BR') {
+      try {
+        const tdRes = await fetch(
+          'https://www.tesourodireto.com.br/json/br/com/b3/tesourodireto/service/api/treasurybondsfile.json',
+          {
+            headers: {
+              'User-Agent': YF_UA, 'Accept': 'application/json',
+              'Accept-Language': 'pt-BR,pt;q=0.9',
+              'Referer': 'https://www.tesourodireto.com.br/',
+            },
+          }
+        );
+        if (tdRes.ok) {
+          const tdJson = await tdRes.json();
+          const allBonds = tdJson?.response?.TrsrBdTradgList || [];
+          // Find NTN-F (prefixado com juros semi-anuais) or LTN (prefixado) with ~10Y maturity
+          const now = new Date();
+          const candidates = allBonds
+            .filter(b => b.TrsrBd?.anulInvstmtRate && b.TrsrBd?.mtrtyDt)
+            .map(b => {
+              const mat = new Date(b.TrsrBd.mtrtyDt);
+              const yearsToMat = (mat - now) / (365.25 * 86400000);
+              return { ...b, yearsToMat, matDate: mat };
+            })
+            .filter(b => b.yearsToMat > 0)
+            .sort((a, b) => Math.abs(a.yearsToMat - 10) - Math.abs(b.yearsToMat - 10));
+
+          if (candidates.length > 0) {
+            const best = candidates[0];
+            const bd = best.TrsrBd;
+            const rawRate = parseFloat(bd.anulInvstmtRate);
+            const rate = rawRate < 1 ? rawRate * 100 : rawRate;
+            brBondData = {
+              name: bd.nm,
+              maturityDate: (bd.mtrtyDt || '').split('T')[0],
+              yearsToMaturity: parseFloat(best.yearsToMat.toFixed(2)),
+              yield: parseFloat(rate.toFixed(2)),
+              unitPrice: bd.untrInvstmtVal ? parseFloat(bd.untrInvstmtVal) : null,
+              redemptionPrice: bd.untrRedVal ? parseFloat(bd.untrRedVal) : null,
+              minInvestment: bd.minInvstmtAmt ? parseFloat(bd.minInvstmtAmt) : null,
+              isBuyable: bd.anulInvstmtRate > 0,
+            };
+            if (!yieldValue) yieldValue = brBondData.yield;
+          }
+        }
+      } catch (e) {
+        console.warn('[BondDetail] Tesouro Direto fetch failed:', e.message);
+      }
+    }
+
+    // ── Calculate derived metrics ──
+    // Estimate coupon rate as close to current yield (for treasuries, coupon ≈ yield at issuance)
+    const estimatedCoupon = yieldValue ? Math.round(yieldValue * 4) / 4 : null; // round to nearest 0.25%
+    const bondPrice = yieldValue != null
+      ? parseFloat(calcBondPrice(meta.faceValue, estimatedCoupon || yieldValue, yieldValue, meta.maturityYears, meta.couponFreq).toFixed(4))
+      : null;
+    const discountPremium = bondPrice != null
+      ? parseFloat(((bondPrice - meta.faceValue) / meta.faceValue * 100).toFixed(2))
+      : null;
+    const modDuration = yieldValue != null
+      ? parseFloat(calcModifiedDuration(yieldValue, meta.maturityYears, meta.couponFreq).toFixed(2))
+      : null;
+    const dv01 = bondPrice != null && modDuration != null
+      ? parseFloat(calcDV01(bondPrice, modDuration).toFixed(4))
+      : null;
+    const currentYield = bondPrice != null && estimatedCoupon != null && bondPrice > 0
+      ? parseFloat(((estimatedCoupon / 100 * meta.faceValue) / bondPrice * 100).toFixed(3))
+      : null;
+
+    // Estimate maturity date
+    const maturityDate = brBondData?.maturityDate || null;
+
+    // Yield spread (vs US 10Y as benchmark for non-US)
+    let spreadBps = null;
+    if (meta.country !== 'US' && yieldValue != null) {
+      try {
+        const usQuotes = await yahooQuote('^TNX');
+        const us10y = usQuotes?.[0]?.regularMarketPrice;
+        if (us10y != null) {
+          spreadBps = Math.round((yieldValue - us10y) * 100);
+        }
+      } catch {}
+    }
+
+    res.json({
+      symbol: sym,
+      name: meta.name,
+      country: meta.country,
+      currency: meta.currency,
+      tenor: meta.tenor,
+      maturityYears: meta.maturityYears,
+      maturityDate,
+      faceValue: meta.faceValue,
+      couponFreq: meta.couponFreq === 2 ? 'Semi-Annual' : meta.couponFreq === 1 ? 'Annual' : 'Zero-Coupon',
+
+      // Live yield data
+      yield: yieldValue,
+      yieldChange,
+      yieldChangePct,
+      prevYield,
+      dayHigh,
+      dayLow,
+      dayOpen,
+      yieldChangeBps: yieldChange != null ? parseFloat((yieldChange * 100).toFixed(1)) : null,
+
+      // Calculated metrics
+      estimatedCoupon,
+      price: bondPrice,
+      discountPremium, // negative = discount, positive = premium
+      currentYield,
+      yieldToMaturity: yieldValue, // For treasuries, quoted yield IS YTM
+      yieldToWorst: yieldValue,    // Non-callable, so YTW = YTM
+      modifiedDuration: modDuration,
+      dv01,
+      spreadToUS10Y: spreadBps,
+
+      // Brazil-specific
+      ...(brBondData ? {
+        brBond: brBondData,
+      } : {}),
+
+      assetClass: 'fixed_income',
+      updatedAt: new Date().toISOString(),
+    });
+  } catch (e) {
+    console.error('[API] /bond-detail error:', e.message);
+    sendError(res, e);
+  }
+});
+
 // ─── Interest rates ────────────────────────────────────────────────────────────
 
 router.get('/snapshot/rates', async (req, res) => {
