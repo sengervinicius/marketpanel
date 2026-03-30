@@ -258,4 +258,74 @@ router.get('/credit/indexes', (req, res) => {
   });
 });
 
+// ─── Phase 2.1: Bond detail ────────────────────────────────────────────────────
+// GET /api/debt/bond/:id
+// Returns BondDetail for a sovereign or corporate bond.
+// Currently stub data for benchmark treasury / DI instruments.
+// TODO(provider): Integrate ANBIMA (Brazil), FINRA TRACE (US corporates), or
+//                 Refinitiv for global bond reference data and live spreads.
+
+const BOND_STUBS = {
+  'US2Y':  { issuer: 'US Treasury', bondType: 'sovereign', couponPct: 4.75, couponFrequency: 'semi-annual', maturityDate: '2026-03-31', dayCount: 'ACT/ACT', currency: 'USD', country: 'US', yieldToMaturity: 0.047, yieldToWorst: 0.047, spreadBps: 0,   ratingMoodys: 'Aaa', ratingSP: 'AA+', ratingFitch: 'AAA', duration: 1.82, convexity: 0.036, dv01: 182 },
+  'US5Y':  { issuer: 'US Treasury', bondType: 'sovereign', couponPct: 4.25, couponFrequency: 'semi-annual', maturityDate: '2029-03-31', dayCount: 'ACT/ACT', currency: 'USD', country: 'US', yieldToMaturity: 0.043, yieldToWorst: 0.043, spreadBps: 0,   ratingMoodys: 'Aaa', ratingSP: 'AA+', ratingFitch: 'AAA', duration: 4.41, convexity: 0.21,  dv01: 441 },
+  'US10Y': { issuer: 'US Treasury', bondType: 'sovereign', couponPct: 4.00, couponFrequency: 'semi-annual', maturityDate: '2034-03-31', dayCount: 'ACT/ACT', currency: 'USD', country: 'US', yieldToMaturity: 0.043, yieldToWorst: 0.043, spreadBps: 0,   ratingMoodys: 'Aaa', ratingSP: 'AA+', ratingFitch: 'AAA', duration: 8.27, convexity: 0.78,  dv01: 827 },
+  'US30Y': { issuer: 'US Treasury', bondType: 'sovereign', couponPct: 4.25, couponFrequency: 'semi-annual', maturityDate: '2054-03-31', dayCount: 'ACT/ACT', currency: 'USD', country: 'US', yieldToMaturity: 0.045, yieldToWorst: 0.045, spreadBps: 0,   ratingMoodys: 'Aaa', ratingSP: 'AA+', ratingFitch: 'AAA', duration: 17.9, convexity: 4.10,  dv01: 1790 },
+  'DE10Y': { issuer: 'German Republic', bondType: 'sovereign', couponPct: 2.50, couponFrequency: 'annual', maturityDate: '2034-02-15', dayCount: 'ACT/ACT', currency: 'EUR', country: 'DE', yieldToMaturity: 0.026, yieldToWorst: 0.026, spreadBps: -170, ratingMoodys: 'Aaa', ratingSP: 'AAA', ratingFitch: 'AAA', duration: 8.1,  convexity: 0.72,  dv01: 810 },
+  'GB10Y': { issuer: 'HM Treasury', bondType: 'sovereign', couponPct: 4.125, couponFrequency: 'semi-annual', maturityDate: '2034-01-22', dayCount: 'ACT/ACT', currency: 'GBP', country: 'GB', yieldToMaturity: 0.042, yieldToWorst: 0.042, spreadBps: -8,  ratingMoodys: 'Aa3', ratingSP: 'AA', ratingFitch: 'AA-', duration: 7.9,  convexity: 0.70,  dv01: 790 },
+  'BR10Y': { issuer: 'Tesouro Nacional (Brazil)', bondType: 'sovereign', couponPct: 11.0, couponFrequency: 'semi-annual', maturityDate: '2033-01-01', dayCount: 'BUS/252', currency: 'BRL', country: 'BR', yieldToMaturity: 0.115, yieldToWorst: 0.115, spreadBps: 685, ratingMoodys: 'Ba1', ratingSP: 'BB-', ratingFitch: 'BB', duration: 5.8, convexity: 0.38, dv01: 580 },
+};
+
+router.get('/bond/:id', (req, res) => {
+  const id = req.params.id.toUpperCase();
+  const bond = BOND_STUBS[id];
+
+  if (!bond) {
+    return res.status(404).json({
+      error: `Bond data not found for: ${id}`,
+      note:  'Supported IDs: ' + Object.keys(BOND_STUBS).join(', '),
+      stub:  true,
+    });
+  }
+
+  // Generate simple coupon cash flows
+  const today = new Date();
+  const maturity = new Date(bond.maturityDate);
+  const cashFlows = [];
+  if (bond.couponPct && bond.faceValue !== 0) {
+    const periodsPerYear = bond.couponFrequency === 'annual' ? 1 : bond.couponFrequency === 'quarterly' ? 4 : 2;
+    const couponAmount = (bond.couponPct / 100) / periodsPerYear * 1000; // per $1000 face
+    const monthsBetween = 12 / periodsPerYear;
+    let d = new Date(maturity);
+    const flows = [];
+    while (d > today) {
+      flows.unshift({
+        date:   d.toISOString().slice(0, 10),
+        type:   'coupon',
+        amount: +couponAmount.toFixed(4),
+      });
+      d = new Date(d.setMonth(d.getMonth() - monthsBetween));
+    }
+    // Cap at 20 future cash flows for display
+    cashFlows.push(...flows.slice(0, 20));
+    // Add principal repayment at maturity
+    if (flows.length > 0) {
+      cashFlows[cashFlows.length - 1] = {
+        ...cashFlows[cashFlows.length - 1],
+        type: 'principal+coupon',
+        amount: +(cashFlows[cashFlows.length - 1].amount + 1000).toFixed(4),
+      };
+    }
+  }
+
+  res.json({
+    ...bond,
+    id,
+    cashFlows,
+    faceValue: 1000,
+    asOf:  new Date().toISOString(),
+    stub:  true,
+    note:  'TODO: Integrate ANBIMA (BR), FINRA TRACE (US corps), or Refinitiv for live data.',
+  });
+});
+
 module.exports = router;

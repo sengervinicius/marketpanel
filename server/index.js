@@ -12,6 +12,7 @@ const chatRoutes        = require('./routes/chat');
 const billingRoutes     = require('./routes/billing');
 const debtRoutes        = require('./routes/debt');
 const instrumentsRoutes = require('./routes/instruments');
+const macroRoutes       = require('./routes/macro');
 const { requireAuth, requireActiveSubscription } = require('./authMiddleware');
 const chatStore     = require('./chatStore');
 const { getUserById, seedUsersFromEnv, initDB } = require('./authStore');
@@ -55,6 +56,9 @@ app.use('/api/chat', requireAuth, requireActiveSubscription, chatRoutes);
 
 // Debt data: auth + subscription required
 app.use('/api/debt', requireAuth, requireActiveSubscription, debtRoutes);
+
+// Macro data: auth + subscription required
+app.use('/api/macro', requireAuth, requireActiveSubscription, macroRoutes);
 
 // Instrument registry: auth required (no subscription — needed for search from login page context)
 app.use('/api/instruments', requireAuth, instrumentsRoutes);

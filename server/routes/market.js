@@ -1992,4 +1992,154 @@ router.get('/fundamentals/:symbol', async (req, res) => {
   }
 });
 
+// ─── Phase 1.3: Standardized /quotes/:symbol ─────────────────────────────────
+// GET /api/quotes/:symbol
+// Returns a normalized Quote envelope per types.js.
+// The existing /quote/:symbol does the same job; this is a clean alias.
+
+router.get('/quotes/:symbol', async (req, res) => {
+  try {
+    const symbol = req.params.symbol.toUpperCase();
+    const result = await fetchWithFallback(symbol);
+    const q      = result.data;
+
+    /** @type {import('../types').Quote} */
+    const quote = {
+      lastPrice:  q.regularMarketPrice             ?? null,
+      change:     q.regularMarketChange             ?? null,
+      changePct:  (q.regularMarketChangePercent ?? 0) / 100,  // normalize to decimal
+      bid:        q.bid                             ?? null,
+      ask:        q.ask                             ?? null,
+      volume:     q.regularMarketVolume             ?? null,
+      open:       q.regularMarketOpen               ?? null,
+      high:       q.regularMarketDayHigh            ?? null,
+      low:        q.regularMarketDayLow             ?? null,
+      prevClose:  q.regularMarketPreviousClose      ?? null,
+      asOf:       new Date().toISOString(),
+    };
+
+    return res.json({ symbol, quote, source: result.source });
+  } catch (e) {
+    console.error(`[API] /quotes/${req.params.symbol} error:`, e.message);
+    sendError(res, e);
+  }
+});
+
+// ─── Phase 1.3: Standardized /history/:symbol ────────────────────────────────
+// GET /api/history/:symbol?interval=1d&period=1M
+//
+// interval: '1m' | '5m' | '15m' | '30m' | '1h' | '1d' | '1wk' | '1mo'
+// period:   '1D' | '5D' | '1M' | '3M' | '6M' | '1Y' | '3Y' | '5Y'
+//
+// Returns: { symbol, interval, period, candles: OHLCVCandle[] }
+//
+// Implementation: wraps the existing Polygon aggregates + Yahoo chart fallback.
+// TODO(provider): Route through multiAssetProvider.getHistory() once that is wired up.
+
+const PERIOD_TO_RANGE = {
+  '1D': { multiplier: 1,  timespan: 'minute',  days: 1   },
+  '5D': { multiplier: 5,  timespan: 'minute',  days: 5   },
+  '1M': { multiplier: 1,  timespan: 'day',     days: 30  },
+  '3M': { multiplier: 1,  timespan: 'day',     days: 90  },
+  '6M': { multiplier: 1,  timespan: 'day',     days: 180 },
+  '1Y': { multiplier: 1,  timespan: 'day',     days: 365 },
+  '3Y': { multiplier: 1,  timespan: 'week',    days: 1095},
+  '5Y': { multiplier: 1,  timespan: 'week',    days: 1825},
+};
+
+router.get('/history/:symbol', async (req, res) => {
+  try {
+    const symbol   = req.params.symbol.toUpperCase();
+    const period   = (req.query.period   || '1M').toUpperCase();
+    const interval = (req.query.interval || '1d').toLowerCase();
+
+    const rangeConfig = PERIOD_TO_RANGE[period];
+    if (!rangeConfig) {
+      return res.status(400).json({ error: `Unsupported period: ${period}. Use: ${Object.keys(PERIOD_TO_RANGE).join(', ')}` });
+    }
+
+    const toDate   = new Date();
+    const fromDate = new Date(toDate.getTime() - rangeConfig.days * 86400 * 1000);
+    const from     = fromDate.toISOString().slice(0, 10);
+    const to       = toDate.toISOString().slice(0, 10);
+
+    // Prefer Polygon for US equities + ETFs; fall back to Yahoo chart
+    // Polygon ticker for crypto uses X: prefix, forex uses C: prefix
+    const polygonTicker = symbol.startsWith('X:') || symbol.startsWith('C:')
+      ? symbol
+      : symbol;
+
+    const key = apiKey();
+    let candles = [];
+
+    if (key) {
+      try {
+        const url = `${BASE}/v2/aggs/ticker/${polygonTicker}/range/${rangeConfig.multiplier}/${rangeConfig.timespan}/${from}/${to}?adjusted=true&sort=asc&limit=5000&apiKey=${key}`;
+        const r   = await fetch(url, { timeout: 15000 });
+        if (r.ok) {
+          const json = await r.json();
+          candles = (json.results || []).map(bar => ({
+            t: bar.t,
+            o: bar.o,
+            h: bar.h,
+            l: bar.l,
+            c: bar.c,
+            v: bar.v,
+          }));
+        }
+      } catch (pe) {
+        console.warn(`[history] Polygon failed for ${symbol}: ${pe.message}`);
+      }
+    }
+
+    // Fallback: Yahoo Finance chart endpoint
+    if (candles.length === 0) {
+      try {
+        const yInterval = interval === '1d' ? '1d' : interval === '1h' ? '60m' : '5m';
+        const yRange    = period === '1D' ? '1d' : period === '5D' ? '5d' : period === '1M' ? '1mo' : period === '3M' ? '3mo' : period === '6M' ? '6mo' : period === '1Y' ? '1y' : period === '3Y' ? '3y' : '5y';
+        const yahooSym  = symbol.startsWith('X:') ? symbol.replace('X:', '').replace('USD', '-USD')
+          : symbol.startsWith('C:') ? symbol.replace('C:', '') + '=X'
+          : symbol;
+        const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahooSym)}?interval=${yInterval}&range=${yRange}&includePrePost=false`;
+        const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+        if (r.ok) {
+          const json = await r.json();
+          const chart = json?.chart?.result?.[0];
+          if (chart) {
+            const times  = chart.timestamp || [];
+            const q      = chart.indicators?.quote?.[0] || {};
+            const closes = q.close  || [];
+            const opens  = q.open   || [];
+            const highs  = q.high   || [];
+            const lows   = q.low    || [];
+            const vols   = q.volume || [];
+            candles = times.map((t, i) => ({
+              t: t * 1000,
+              o: opens[i]  ?? closes[i] ?? null,
+              h: highs[i]  ?? closes[i] ?? null,
+              l: lows[i]   ?? closes[i] ?? null,
+              c: closes[i] ?? null,
+              v: vols[i]   ?? 0,
+            })).filter(c => c.c !== null);
+          }
+        }
+      } catch (ye) {
+        console.warn(`[history] Yahoo fallback failed for ${symbol}: ${ye.message}`);
+      }
+    }
+
+    return res.json({
+      symbol,
+      interval,
+      period,
+      candles,
+      count: candles.length,
+      asOf: new Date().toISOString(),
+    });
+  } catch (e) {
+    console.error(`[API] /history/${req.params.symbol} error:`, e.message);
+    sendError(res, e);
+  }
+});
+
 module.exports = router;

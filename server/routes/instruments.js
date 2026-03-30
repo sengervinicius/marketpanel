@@ -11,9 +11,11 @@
  * Mounted at /api/instruments. Auth required.
  */
 
-const express = require('express');
-const router  = express.Router();
+const express            = require('express');
+const router             = express.Router();
 const { getFundData, isEtf } = require('../providers/fundsProvider');
+const multiAssetProvider = require('../providers/multiAssetProvider');
+const instrumentStore    = require('../stores/instrumentStore');
 
 // ─── Canonical instrument registry ───────────────────────────────────────────
 // Mirrors client/src/utils/constants.js INSTRUMENTS, plus extras.
@@ -194,6 +196,65 @@ router.get('/search', (req, res) => {
     total:   results.length,
     query:   q,
   });
+});
+
+// ─── Phase 1.2: Instrument detail envelope ───────────────────────────────────
+// GET /api/instruments/:symbolKey/detail
+// Returns InstrumentDetailEnvelope: instrument metadata + quote + per-class detail
+// TODO(provider): Add quote fetch from /api/quotes/:symbol once quota allows
+router.get('/:symbolKey/detail', async (req, res) => {
+  const key  = req.params.symbolKey.toUpperCase();
+  const base = BY_KEY[key];
+
+  if (!base) {
+    return res.status(404).json({ error: `Instrument not found: ${key}` });
+  }
+
+  // Build canonical Instrument from REGISTRY entry
+  /** @type {import('../types').Instrument} */
+  const instrument = {
+    id:          `${base.symbolKey}_${(base.assetClass || 'unknown').toUpperCase()}`,
+    symbol:      base.symbolKey,
+    name:        base.name,
+    assetClass:  base.assetClass,
+    exchange:    base.exchange    || null,
+    currency:    base.currency    || 'USD',
+    country:     null,
+    identifiers: { vendor: {} },
+  };
+
+  // Attempt multiAssetProvider detail
+  let detail = null;
+  try {
+    detail = await multiAssetProvider.getInstrumentDetail(instrument);
+  } catch (e) {
+    console.warn(`[instruments] detail stub failed for ${key}:`, e.message);
+  }
+
+  // Enrich ETF with fundsProvider if available
+  if ((base.assetClass === 'etf' || isEtf(key)) && !detail) {
+    try {
+      const fundData = await getFundData(key);
+      if (fundData) {
+        detail = {
+          aumUSD:          fundData.aum            || null,
+          expenseRatioPct: fundData.expenseRatio   || null,
+          topHoldings:     fundData.topHoldings    || [],
+          indexTracked:    fundData.index          || null,
+          provider:        fundData.provider       || null,
+        };
+      }
+    } catch {}
+  }
+
+  /** @type {import('../types').InstrumentDetailEnvelope} */
+  const envelope = {
+    instrument,
+    quote:  null, // populated by client via /api/quotes/:symbol for live price
+    detail,
+  };
+
+  return res.json(envelope);
 });
 
 // ─── Get by symbol ────────────────────────────────────────────────────────────

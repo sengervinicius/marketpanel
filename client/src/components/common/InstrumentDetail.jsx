@@ -193,6 +193,8 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
   const [etfMeta,      setEtfMeta]      = useState(null);
   const [bondData,     setBondData]     = useState(null);
   const [bondLoading,  setBondLoading]  = useState(false);
+  const [desktopTab,   setDesktopTab]   = useState('STATS');
+  const [macroData,    setMacroData]    = useState(null);
 
   const range = RANGES[rangeIdx];
 
@@ -272,11 +274,31 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
     if (!isBondTicker) return;
     setBondLoading(true);
     setBondData(null);
-    apiFetch(`/api/bond-detail/${encodeURIComponent(norm)}`)
+    apiFetch(`/api/debt/bond/${encodeURIComponent(norm)}`)
       .then(r => r.ok ? r.json() : null)
       .then(d => { if (d && !d.error) setBondData(d); setBondLoading(false); })
       .catch(() => setBondLoading(false));
   }, [norm, isBondTicker]);
+
+  // ── Fetch macro data for FX pairs ─────────────────────────────────────
+  // Currency → ISO country code for macro API
+  const FX_CCY_MAP = { USD:'US', EUR:'EU', GBP:'GB', JPY:'JP', BRL:'BR', CNY:'CN', MXN:'MX', AUD:'AU', CAD:'CA', CHF:'CH' };
+  useEffect(() => {
+    if (!isFX) return;
+    setMacroData(null);
+    // norm for FX looks like "C:EURUSD" — extract the two 3-letter codes
+    const raw = norm.replace(/^C:/, '');
+    const base = raw.slice(0, 3);
+    const quote = raw.slice(3);
+    const baseCty  = FX_CCY_MAP[base];
+    const quoteCty = FX_CCY_MAP[quote];
+    const countries = [baseCty, quoteCty].filter(Boolean);
+    if (countries.length === 0) return;
+    apiFetch(`/api/macro/compare?countries=${countries.join(',')}&indicators=policyRate,cpiYoY,gdpGrowthYoY,unemploymentRate,debtGDP`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d && d.countries) setMacroData(d); })
+      .catch(() => {});
+  }, [norm, isFX]);
 
   // ── Fetch ticker-specific news ─────────────────────────────────────────
   useEffect(() => {
@@ -617,6 +639,159 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
           <div style={{ color: '#2a2a2a', fontSize: 10, padding: '12px 0' }}>Loading bond data…</div>
         )}
       </>
+    );
+  }
+
+  // ── Bond Risk tab ────────────────────────────────────────────────────
+  function renderBondRisk() {
+    const bd = bondData;
+    if (!bd && bondLoading) return <div style={{ color: '#555', fontSize: 10, padding: '12px 0' }}>Loading…</div>;
+    if (!bd) return <div style={{ color: '#333', fontSize: 10, padding: '12px 0' }}>No risk data available.</div>;
+    // Compute price sensitivity scenarios (approximate: ΔP ≈ -D×Δy + 0.5×C×Δy²)
+    const dur = bd.duration;
+    const conv = bd.convexity;
+    const bps = [-100, -50, -25, 0, 25, 50, 100];
+    const scenarios = bps.map(b => {
+      const dy = b / 10000;
+      const pctChg = dur != null ? (-dur * dy + 0.5 * (conv ?? 0) * dy * dy) * 100 : null;
+      return { bps: b, pctChg };
+    });
+    return (
+      <>
+        <Section title="INTEREST RATE RISK">
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 12px' }}>
+            <StatRow label="MOD. DURATION" value={dur != null ? fmt(dur, 2) : '--'} color={ORANGE} />
+            <StatRow label="CONVEXITY"     value={conv != null ? fmt(conv, 3) : '--'} />
+            <StatRow label="DV01 (per $M)" value={bd.dv01 != null ? '$' + fmt(bd.dv01) : '--'} color={ORANGE} />
+            <StatRow label="YIELD TO MAT"  value={bd.yieldToMaturity != null ? pct(bd.yieldToMaturity, 2).replace('+', '') : '--'} />
+            {bd.yieldToWorst != null && <StatRow label="YIELD TO WORST" value={pct(bd.yieldToWorst, 2).replace('+', '')} />}
+            {bd.spreadBps != null && bd.spreadBps !== 0 && <StatRow label="Z-SPREAD" value={(bd.spreadBps > 0 ? '+' : '') + bd.spreadBps + ' bps'} color={bd.spreadBps > 0 ? RED : GREEN} />}
+          </div>
+        </Section>
+        <Section title="YIELD SHOCK SCENARIOS">
+          <div style={{ width: '100%', borderCollapse: 'collapse', fontSize: 10 }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr>
+                  <th style={{ color: '#333', fontSize: 9, textAlign: 'left',  paddingBottom: 4, letterSpacing: 0.5, fontWeight: 600 }}>SHOCK</th>
+                  <th style={{ color: '#333', fontSize: 9, textAlign: 'right', paddingBottom: 4, letterSpacing: 0.5, fontWeight: 600 }}>PRICE Δ%</th>
+                </tr>
+              </thead>
+              <tbody>
+                {scenarios.map(({ bps: b, pctChg }) => (
+                  <tr key={b} style={{ borderTop: '1px solid #111' }}>
+                    <td style={{ color: b === 0 ? '#444' : b < 0 ? GREEN : RED, padding: '4px 0', fontSize: 10 }}>
+                      {b === 0 ? 'Unchanged' : (b > 0 ? '+' : '') + b + ' bps'}
+                    </td>
+                    <td style={{ color: b === 0 ? '#444' : pctChg > 0 ? GREEN : RED, textAlign: 'right', padding: '4px 0', fontSize: 10 }}>
+                      {pctChg != null ? (pctChg >= 0 ? '+' : '') + pctChg.toFixed(2) + '%' : '--'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Section>
+        <Section title="RATINGS">
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 12px' }}>
+            {bd.ratingMoodys && <StatRow label="MOODY'S" value={bd.ratingMoodys} color={ORANGE} />}
+            {bd.ratingSP      && <StatRow label="S&P"     value={bd.ratingSP}     color={ORANGE} />}
+            {bd.ratingFitch   && <StatRow label="FITCH"   value={bd.ratingFitch}  color={ORANGE} />}
+          </div>
+        </Section>
+      </>
+    );
+  }
+
+  // ── Bond Cash Flows tab ──────────────────────────────────────────────
+  function renderCashFlows() {
+    const bd = bondData;
+    if (!bd && bondLoading) return <div style={{ color: '#555', fontSize: 10, padding: '12px 0' }}>Loading…</div>;
+    if (!bd || !bd.cashFlows?.length) return <div style={{ color: '#333', fontSize: 10, padding: '12px 0' }}>No cash flow data available.</div>;
+    const totalFlow = bd.cashFlows.reduce((s, cf) => s + cf.amount, 0);
+    return (
+      <Section title="PROJECTED CASH FLOWS">
+        <div style={{ marginBottom: 8, fontSize: 9, color: '#444' }}>
+          Face value $1,000 · {bd.couponFrequency} · {bd.couponPct}% coupon
+        </div>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 10 }}>
+          <thead>
+            <tr>
+              <th style={{ color: '#333', fontSize: 9, textAlign: 'left',  paddingBottom: 4, letterSpacing: 0.5 }}>DATE</th>
+              <th style={{ color: '#333', fontSize: 9, textAlign: 'center',paddingBottom: 4, letterSpacing: 0.5 }}>TYPE</th>
+              <th style={{ color: '#333', fontSize: 9, textAlign: 'right', paddingBottom: 4, letterSpacing: 0.5 }}>AMOUNT</th>
+            </tr>
+          </thead>
+          <tbody>
+            {bd.cashFlows.map((cf, i) => (
+              <tr key={i} style={{ borderTop: '1px solid #111' }}>
+                <td style={{ color: '#888', padding: '3px 0', fontSize: 9 }}>{cf.date}</td>
+                <td style={{ color: cf.type === 'principal+coupon' ? ORANGE : '#555', textAlign: 'center', padding: '3px 0', fontSize: 8, letterSpacing: 0.3 }}>
+                  {cf.type === 'principal+coupon' ? 'FINAL' : 'CPN'}
+                </td>
+                <td style={{ color: cf.type === 'principal+coupon' ? ORANGE : '#999', textAlign: 'right', padding: '3px 0', fontVariantNumeric: 'tabular-nums' }}>
+                  ${fmt(cf.amount, 2)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr style={{ borderTop: '1px solid #2a2a2a' }}>
+              <td colSpan={2} style={{ color: '#444', fontSize: 9, padding: '4px 0', letterSpacing: 0.5 }}>TOTAL</td>
+              <td style={{ color: ORANGE, fontSize: 10, textAlign: 'right', padding: '4px 0', fontVariantNumeric: 'tabular-nums', fontWeight: 'bold' }}>
+                ${fmt(totalFlow, 2)}
+              </td>
+            </tr>
+          </tfoot>
+        </table>
+        {bd.stub && <div style={{ color: '#1a1a1a', fontSize: 8, marginTop: 8 }}>Projected · stub data</div>}
+      </Section>
+    );
+  }
+
+  // ── FX Macro Overlay tab ─────────────────────────────────────────────
+  function renderFXMacro() {
+    if (!macroData?.countries?.length) {
+      return <div style={{ color: '#333', fontSize: 10, padding: '12px 0' }}>Macro data not available for this pair.</div>;
+    }
+    const pctFmt = v => v != null ? (v * 100).toFixed(2) + '%' : '--';
+    const labels = { policyRate: 'POLICY RATE', cpiYoY: 'CPI YoY', gdpGrowthYoY: 'GDP GROWTH', unemploymentRate: 'UNEMPLOYMENT', debtGDP: 'DEBT/GDP' };
+    const indicators = ['policyRate', 'cpiYoY', 'gdpGrowthYoY', 'unemploymentRate', 'debtGDP'];
+    const c0 = macroData.countries[0];
+    const c1 = macroData.countries[1];
+    return (
+      <Section title="MACRO COMPARISON">
+        {c0 && c1 ? (
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 10 }}>
+            <thead>
+              <tr>
+                <th style={{ color: '#333', fontSize: 8, textAlign: 'left',  paddingBottom: 6, letterSpacing: 0.5 }}></th>
+                <th style={{ color: ORANGE, fontSize: 9, textAlign: 'right', paddingBottom: 6, letterSpacing: 0.5 }}>{c0.name || c0.country}</th>
+                <th style={{ color: '#888', fontSize: 9, textAlign: 'right', paddingBottom: 6, letterSpacing: 0.5 }}>{c1.name || c1.country}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {indicators.map(ind => {
+                const v0 = c0[ind], v1 = c1[ind];
+                return (
+                  <tr key={ind} style={{ borderTop: '1px solid #111' }}>
+                    <td style={{ color: '#333', fontSize: 8, padding: '4px 0', letterSpacing: 0.4 }}>{labels[ind]}</td>
+                    <td style={{ color: ORANGE, textAlign: 'right', padding: '4px 0', fontVariantNumeric: 'tabular-nums' }}>
+                      {ind === 'debtGDP' ? (v0 != null ? (v0 * 100).toFixed(0) + '%' : '--') : pctFmt(v0)}
+                    </td>
+                    <td style={{ color: '#999', textAlign: 'right', padding: '4px 0', fontVariantNumeric: 'tabular-nums' }}>
+                      {ind === 'debtGDP' ? (v1 != null ? (v1 * 100).toFixed(0) + '%' : '--') : pctFmt(v1)}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        ) : (
+          <div style={{ color: '#333', fontSize: 10 }}>Single-country pair — no comparison available.</div>
+        )}
+        <div style={{ color: '#1a1a1a', fontSize: 8, marginTop: 8 }}>Source: stub data (FRED / ECB / BCB)</div>
+      </Section>
     );
   }
 
@@ -1045,7 +1220,9 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
 
   // ── RENDER ──────────────────────────────────────────────────────────────
   const mobileTabs = isBond
-    ? ['STATS', 'BOND', ...(desc ? ['ABOUT'] : [])]
+    ? ['STATS', 'RISK', 'CASH FLOWS', ...(desc ? ['ABOUT'] : [])]
+    : isFX
+    ? ['STATS', 'MACRO', 'NEWS', ...(desc ? ['ABOUT'] : [])]
     : ['STATS', 'FUND', 'NEWS', ...(desc ? ['ABOUT'] : [])];
 
   const deltaHint = deltaMode
@@ -1315,18 +1492,56 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
         </div>
 
         {/* RIGHT: SIDEBAR (desktop) */}
-        {!isMobile && (
-          <div style={{
-            width: 320, background: '#050505',
-            borderLeft: '1px solid #141414',
-            padding: '14px 16px',
-            overflowY: 'auto', fontSize: 11, flexShrink: 0,
-          }}>
-            {isBond ? renderBondStats() : isETF ? renderETFStats() : renderStats()}
-            {!isBond && renderNews()}
-            {renderAbout()}
-          </div>
-        )}
+        {!isMobile && (() => {
+          // Tabbed desktop sidebar for bonds and FX; plain sidebar for equities/ETFs
+          const bondDesktopTabs = ['STATS', 'RISK', 'CASH FLOWS'];
+          const fxDesktopTabs   = ['STATS', 'MACRO', 'NEWS'];
+          const hasTabs = isBond || isFX;
+          const tabList = isBond ? bondDesktopTabs : isFX ? fxDesktopTabs : [];
+          return (
+            <div style={{
+              width: 320, background: '#050505',
+              borderLeft: '1px solid #141414',
+              display: 'flex', flexDirection: 'column',
+              overflowY: 'hidden', fontSize: 11, flexShrink: 0,
+            }}>
+              {/* Tab bar (bond + FX only) */}
+              {hasTabs && (
+                <div style={{ display: 'flex', borderBottom: '1px solid #181818', flexShrink: 0 }}>
+                  {tabList.map(t => (
+                    <button key={t}
+                      onClick={() => setDesktopTab(t)}
+                      style={{
+                        flex: 1, padding: '7px 4px', fontSize: 9,
+                        background: 'transparent', border: 'none',
+                        borderBottom: desktopTab === t ? `2px solid ${ORANGE}` : '2px solid transparent',
+                        color: desktopTab === t ? ORANGE : '#333',
+                        cursor: 'pointer', letterSpacing: 0.5, fontFamily: 'inherit', whiteSpace: 'nowrap',
+                      }}
+                    >{t}</button>
+                  ))}
+                </div>
+              )}
+              {/* Sidebar content */}
+              <div style={{ flex: 1, overflowY: 'auto', padding: '14px 16px' }}>
+                {/* Bonds */}
+                {isBond && desktopTab === 'STATS'      && renderBondStats()}
+                {isBond && desktopTab === 'RISK'       && renderBondRisk()}
+                {isBond && desktopTab === 'CASH FLOWS' && renderCashFlows()}
+                {/* FX */}
+                {isFX && desktopTab === 'STATS' && renderStats()}
+                {isFX && desktopTab === 'MACRO' && renderFXMacro()}
+                {isFX && desktopTab === 'NEWS'  && renderNews()}
+                {/* Equities / ETF / other (no tabs) */}
+                {!isBond && !isFX && (isETF ? renderETFStats() : renderStats())}
+                {!isBond && !isFX && renderNews()}
+                {!isBond && !isFX && renderAbout()}
+                {/* About always accessible under STATS */}
+                {(isBond || isFX) && desktopTab === 'STATS' && renderAbout()}
+              </div>
+            </div>
+          );
+        })()}
 
         {/* BOTTOM: TABS (mobile) */}
         {isMobile && (
@@ -1362,11 +1577,13 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
               padding: '12px 14px', fontSize: 11,
               background: '#050505',
             }}>
-              {activeTab === 'STATS' && (isBond ? renderBondStats() : isETF ? renderETFStats() : renderStats())}
-              {activeTab === 'BOND'  && renderBondStats()}
-              {activeTab === 'FUND'  && (isBond ? renderBondStats() : renderFundamentals())}
-              {activeTab === 'NEWS'  && renderNews()}
-              {activeTab === 'ABOUT' && renderAbout()}
+              {activeTab === 'STATS'      && (isBond ? renderBondStats() : isFX ? renderStats() : isETF ? renderETFStats() : renderStats())}
+              {activeTab === 'RISK'       && renderBondRisk()}
+              {activeTab === 'CASH FLOWS' && renderCashFlows()}
+              {activeTab === 'MACRO'      && renderFXMacro()}
+              {activeTab === 'FUND'       && renderFundamentals()}
+              {activeTab === 'NEWS'       && renderNews()}
+              {activeTab === 'ABOUT'      && renderAbout()}
             </div>
           </div>
         )}

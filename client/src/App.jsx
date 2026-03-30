@@ -29,6 +29,7 @@ import HomePanelMobile from './components/panels/HomePanelMobile';
 import ChartsPanelMobile from './components/panels/ChartsPanelMobile';
 import ETFPanel from './components/panels/ETFPanel';
 import OnboardingPresets from './components/onboarding/OnboardingPresets';
+import SuggestedScreens from './components/settings/SuggestedScreens';
 import { TickerTooltip } from './components/common/TickerTooltip';
 import InstrumentDetail from './components/common/InstrumentDetail';
 import './App.css';
@@ -424,6 +425,10 @@ function SettingsDrawer({ panelVisible, togglePanel, onClose }) {
           </div>
         );
       })}
+
+      {/* ── Suggested Screens ── */}
+      <SettingsSection label="SUGGESTED SCREENS" />
+      <SuggestedScreens onApply={onClose} />
     </div>
   );
 }
