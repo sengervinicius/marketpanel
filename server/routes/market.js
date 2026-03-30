@@ -1,6 +1,6 @@
 /**
  * routes/market.js
- * REST endpoints — multi-provider architecture with fallback chains
+ * REST endpoints â multi-provider architecture with fallback chains
  * Primary: Yahoo Finance (crumb auth)
  * Fallback 1: Finnhub (60 req/min, free tier)
  * Fallback 2: Alpha Vantage (25/day, critical lookups)
@@ -11,6 +11,7 @@ const express    = require('express');
 const fetch      = require('node-fetch');
 const router     = express.Router();
 const eulerpool = require('../providers/eulerpool');
+const yahooCache = require('../cache');
 
 const BASE = 'https://api.polygon.io';
 
@@ -26,7 +27,7 @@ function alphaVantageKey() {
   return process.env.ALPHA_VANTAGE_KEY;
 }
 
-// ─── Enriched error class ────────────────────────────────────────────────────
+// âââ Enriched error class ââââââââââââââââââââââââââââââââââââââââââââââââââââ
 class ApiError extends Error {
   constructor(message, code, retryAfter = null) {
     super(message);
@@ -81,18 +82,18 @@ async function polyFetch(path, retries = 2) {
   throw new ApiError('Polygon: exhausted retries', 'network_error');
 }
 
-// ─── Yahoo Finance crumb authentication ────────────────────────────────────────────
+// âââ Yahoo Finance crumb authentication ââââââââââââââââââââââââââââââââââââââââââââ
 
 let _yfCrumb = null;
 let _yfCookie = null;
 let _yfCrumbExpiry = 0;
 const _yfCrumbHistory = []; // store multiple working crumbs for resilience
 
-// ─── B3 cache (60 s) ───────────────────────────────────────────────────────────
+// âââ B3 cache (60 s) âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 let _brazilCache = null;
 let _brazilCacheExpiry = 0;
 
-// ─── Enriched error responder ────────────────────────────────────────────────
+// âââ Enriched error responder ââââââââââââââââââââââââââââââââââââââââââââââââ
 function sendError(res, err, context = '') {
   const status = err.code === 'rate_limit' ? 429
     : err.code === 'auth_error'            ? 403
@@ -105,7 +106,7 @@ function sendError(res, err, context = '') {
   res.status(status).json(body);
 }
 
-// ─── REST TTL caches ──────────────────────────────────────────────────────────
+// âââ REST TTL caches ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 const _ttlCache = {};
 
 function cacheGet(key) {
@@ -118,7 +119,7 @@ function cacheSet(key, data, ttlMs) {
   _ttlCache[key] = { data, expiry: Date.now() + ttlMs };
 }
 
-// ─── Cache cleanup — remove expired entries every 5 minutes ──────────────────
+// âââ Cache cleanup â remove expired entries every 5 minutes ââââââââââââââââââ
 setInterval(() => {
   const now = Date.now();
   let cleaned = 0;
@@ -225,7 +226,36 @@ async function getYahooCrumb() {
   throw new Error('Yahoo Finance auth failed: ' + msg);
 }
 
-async function yahooQuote(symbols) {
+// Cached Yahoo chart fetcher
+async function _yahooChartRaw(ticker, period1, period2, interval, crumb, cookie) {
+  const yfUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker.toUpperCase())}?period1=${period1}&period2=${period2}&interval=${interval}&crumb=${encodeURIComponent(crumb)}`;
+  const chartCtrl = new AbortController();
+  const chartTmout = setTimeout(() => chartCtrl.abort(), 10000);
+  let r;
+  try {
+    r = await fetch(yfUrl, {
+      headers: {
+        'User-Agent': YF_UA, 'Accept': 'application/json',
+        'Cookie': cookie, 'Referer': 'https://finance.yahoo.com/'
+      },
+      signal: chartCtrl.signal,
+    });
+  } finally {
+    clearTimeout(chartTmout);
+  }
+  if (r.status === 429) {
+    const error = new Error('Yahoo chart HTTP 429');
+    error.code = 'rate_limit';
+    throw error;
+  }
+  if (!r.ok) {
+    if (r.status === 401 || r.status === 403) { _yfCrumb = null; _yfCrumbExpiry = 0; }
+    throw new Error(`Yahoo chart HTTP ${r.status} for ${ticker}`);
+  }
+  return r.json();
+}
+
+async function _yahooQuoteRaw(symbols) {
   const HOSTS = ['query1', 'query2'];
   for (let attempt = 0; attempt < 2; attempt++) {
     const { crumb, cookie } = await getYahooCrumb();
@@ -254,6 +284,11 @@ async function yahooQuote(symbols) {
       if (attempt === 0) { console.warn(`[Yahoo] ${r.status} on ${host}, retrying with fresh crumb`); continue; }
       throw new Error(`Yahoo Finance HTTP ${r.status}`);
     }
+    if (r.status === 429) {
+      const error = new Error(`Yahoo Finance HTTP 429 — rate limited`);
+      error.code = 'rate_limit';
+      throw error;
+    }
     if (!r.ok) throw new Error(`Yahoo Finance HTTP ${r.status}`);
     const json = await r.json();
     return json?.quoteResponse?.result || [];
@@ -261,7 +296,13 @@ async function yahooQuote(symbols) {
   throw new Error('Yahoo Finance: exhausted retries');
 }
 
-// ─── Finnhub fallback provider ──────────────────────────────────────────────────
+// Cached wrapper — all yahooQuote calls go through here
+async function yahooQuote(symbols) {
+  const normalizedKey = `yq:${symbols.split(',').map(s => s.trim().toUpperCase()).sort().join(',')}`;
+  return yahooCache.wrap(normalizedKey, () => _yahooQuoteRaw(symbols), 60 * 1000);
+}
+
+// âââ Finnhub fallback provider ââââââââââââââââââââââââââââââââââââââââââââââââââ
 async function finnhubQuote(symbol) {
   const key = finnhubKey();
   if (!key) throw new Error('Finnhub API key not configured');
@@ -284,7 +325,7 @@ async function finnhubQuote(symbol) {
   }
 }
 
-// ─── Alpha Vantage fallback (critical lookups) ──────────────────────────────────
+// âââ Alpha Vantage fallback (critical lookups) ââââââââââââââââââââââââââââââââââ
 async function alphaVantageQuote(symbol) {
   const key = alphaVantageKey();
   if (!key) throw new Error('Alpha Vantage API key not configured');
@@ -308,7 +349,7 @@ async function alphaVantageQuote(symbol) {
   }
 }
 
-// ─── fetchWithFallback: Try Yahoo, then Finnhub, then Alpha Vantage ────────────
+// âââ fetchWithFallback: Try Yahoo, then Finnhub, then Alpha Vantage ââââââââââââ
 async function fetchWithFallback(symbol) {
   console.log(`[Provider] Attempting Yahoo Finance for ${symbol}...`);
   try {
@@ -400,11 +441,11 @@ async function fetchWithFallback(symbol) {
   throw new Error(`All providers failed for ${symbol}`);
 }
 
-// ─── Snapshots ──────────────────────────────────────────────────────────────────
+// âââ Snapshots ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 const DEFAULT_STOCK_TICKERS = [
   'SPY','QQQ','IWM','DIA','EWZ','EWW','EEM','EFA','FXI','EWJ',
-  // EMEA + Asia-Pacific ETFs — feed GlobalIndexesPanel
+  // EMEA + Asia-Pacific ETFs â feed GlobalIndexesPanel
   'EZU','EWU','EWG','EWQ','EWP','EWI','EWL','EWD',
   'EWH','EWY','EWA','MCHI','EWT','EWS','INDA','EWC',
   'AAPL','MSFT','NVDA','GOOGL','AMZN','META','TSLA',
@@ -588,7 +629,7 @@ router.get('/snapshot/crypto', async (req, res) => {
   }
 });
 
-// ─── ETF-specific endpoint ──────────────────────────────────────────────────────
+// âââ ETF-specific endpoint ââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 const ETF_DATA = {
   'Bond ETFs': ['TLT', 'IEF', 'SHY', 'AGG', 'BND', 'HYG', 'LQD', 'EMB', 'JNK', 'BNDX', 'TIP'],
   'Sector ETFs': ['XLF', 'XLK', 'XLE', 'XLV', 'XLI', 'XLC', 'XLRE', 'XLU', 'XLP', 'XLB', 'XLY'],
@@ -642,7 +683,7 @@ router.get('/snapshot/etfs', async (req, res) => {
   }
 });
 
-// ─── Global yield snapshot endpoint ──────────────────────────────────────────
+// âââ Global yield snapshot endpoint ââââââââââââââââââââââââââââââââââââââââââ
 // Returns US Treasuries + major European and global gov't benchmark yields.
 // All sourced from Yahoo Finance (^XX10YT=RR format).
 const GLOBAL_YIELD_TICKERS = {
@@ -699,7 +740,7 @@ router.get('/snapshot/yields', async (req, res) => {
   }
 });
 
-// ─── European stocks snapshot (Eulerpool) ─────────────────────────────────────
+// âââ European stocks snapshot (Eulerpool) âââââââââââââââââââââââââââââââââââââ
 // Major European blue chips: DAX, FTSE 100, CAC 40, AEX, SMI
 const EUROPEAN_STOCKS = [
   // DAX (Germany)
@@ -729,14 +770,14 @@ const EUROPEAN_NAMES = {
   'ULVR.L':'Unilever','GSK.L':'GSK','RIO.L':'Rio Tinto','LLOY.L':'Lloyds',
   'BARC.L':'Barclays','DGE.L':'Diageo','REL.L':'RELX','NG.L':'National Grid',
   'BT-A.L':'BT Group','VOD.L':'Vodafone',
-  'MC.PA':'LVMH','OR.PA':'L\'Oréal','TTE.PA':'TotalEnergies','SAN.PA':'Sanofi',
+  'MC.PA':'LVMH','OR.PA':'L\'OrÃ©al','TTE.PA':'TotalEnergies','SAN.PA':'Sanofi',
   'BNP.PA':'BNP Paribas','AIR.PA':'Airbus','KER.PA':'Kering','CS.PA':'AXA',
   'RI.PA':'Pernod Ricard','CAP.PA':'Capgemini','ORA.PA':'Orange',
   'ASML.AS':'ASML','RDSA.AS':'Shell NL','ING.AS':'ING','PHIA.AS':'Philips',
   'ABN.AS':'ABN AMRO','NN.AS':'NN Group','AKZA.AS':'Akzo Nobel',
-  'NESN.SW':'Nestlé','ROG.SW':'Roche','NOVN.SW':'Novartis','ABBN.SW':'ABB',
+  'NESN.SW':'NestlÃ©','ROG.SW':'Roche','NOVN.SW':'Novartis','ABBN.SW':'ABB',
   'UBS.SW':'UBS','CSGN.SW':'Credit Suisse','ZURN.SW':'Zurich Insurance',
-  'SAN.MC':'Santander','BBVA.MC':'BBVA','IBE.MC':'Iberdrola','TEF.MC':'Telefónica',
+  'SAN.MC':'Santander','BBVA.MC':'BBVA','IBE.MC':'Iberdrola','TEF.MC':'TelefÃ³nica',
   'ITX.MC':'Inditex',
 };
 
@@ -793,7 +834,7 @@ router.get('/snapshot/european', async (req, res) => {
   }
 });
 
-// ─── RSS feed parser ─────────────────────────────────────────────────────────
+// âââ RSS feed parser âââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 function parseRss(xml, sourceName, sourceUrl) {
   const items = [];
@@ -829,7 +870,7 @@ function parseRss(xml, sourceName, sourceUrl) {
   return items;
 }
 
-// ─── News: Polygon + Bloomberg Markets + FT Markets RSS ──────────────────────────
+// âââ News: Polygon + Bloomberg Markets + FT Markets RSS ââââââââââââââââââââââââââ
 
 router.get('/news', async (req, res) => {
   try {
@@ -897,7 +938,7 @@ router.get('/news', async (req, res) => {
   }
 });
 
-// ─── Intraday chart data with fallback ───────────────────────────────────────────
+// âââ Intraday chart data with fallback âââââââââââââââââââââââââââââââââââââââââââ
 
 router.get('/chart/:ticker', async (req, res) => {
   const { ticker } = req.params;
@@ -937,26 +978,8 @@ router.get('/chart/:ticker', async (req, res) => {
     const period1 = Math.floor(new Date(fromDate + 'T00:00:00Z').getTime() / 1000);
     const period2 = Math.floor(new Date(toDate + 'T23:59:59Z').getTime() / 1000);
     const interval = timespan === 'minute' ? `${multiplier}m` : '1d';
-    const yfUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker.toUpperCase())}?period1=${period1}&period2=${period2}&interval=${interval}&crumb=${encodeURIComponent(crumb)}`;
-    const chartCtrl = new AbortController();
-    const chartTmout = setTimeout(() => chartCtrl.abort(), 10000);
-    let r;
-    try {
-      r = await fetch(yfUrl, {
-        headers: {
-          'User-Agent': YF_UA, 'Accept': 'application/json',
-          'Cookie': cookie, 'Referer': 'https://finance.yahoo.com/'
-        },
-        signal: chartCtrl.signal,
-      });
-    } finally {
-      clearTimeout(chartTmout);
-    }
-    if (!r.ok) {
-      if (r.status === 401 || r.status === 403) { _yfCrumb = null; _yfCrumbExpiry = 0; }
-      throw new Error(`Yahoo chart HTTP ${r.status} for ${ticker}`);
-    }
-    const json = await r.json();
+    const yfChartCacheKey = `yf_chart:${ticker}:${period1}:${period2}:${interval}`;
+    const json = await yahooCache.wrap(yfChartCacheKey, () => _yahooChartRaw(ticker, period1, period2, interval, crumb, cookie), 30 * 1000);
     const result = json?.chart?.result?.[0];
     if (!result) throw new Error(`No Yahoo chart data for ${ticker}`);
     const timestamps = result.timestamp || [];
@@ -974,7 +997,7 @@ router.get('/chart/:ticker', async (req, res) => {
   }
 });
 
-// ─── Ticker details ───────────────────────────────────────────────────────
+// âââ Ticker details âââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 router.get('/ticker/:symbol', async (req, res) => {
   try {
@@ -985,7 +1008,7 @@ router.get('/ticker/:symbol', async (req, res) => {
   }
 });
 
-// ─── Market status ─────────────────────────────────────────────────────────────
+// âââ Market status âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 router.get('/status', async (req, res) => {
   try {
@@ -996,7 +1019,7 @@ router.get('/status', async (req, res) => {
   }
 });
 
-// ─── Brazilian B3 stocks with fallback to Finnhub ──────────────────────────────
+// âââ Brazilian B3 stocks with fallback to Finnhub ââââââââââââââââââââââââââââââ
 
 router.get('/snapshot/brazil', async (req, res) => {
   try {
@@ -1064,7 +1087,7 @@ router.get('/snapshot/brazil', async (req, res) => {
   }
 });
 
-// ─── Global equity index ETFs ──────────────────────────────────────────────────
+// âââ Global equity index ETFs ââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 router.get('/snapshot/global-indices', async (req, res) => {
   try {
@@ -1114,7 +1137,7 @@ router.get('/snapshot/global-indices', async (req, res) => {
   }
 });
 
-// ─── Ticker search — parallel Polygon + Yahoo Finance ──────────────────────────
+// âââ Ticker search â parallel Polygon + Yahoo Finance ââââââââââââââââââââââââââ
 
 router.get('/search', async (req, res) => {
   try {
@@ -1123,10 +1146,14 @@ router.get('/search', async (req, res) => {
 
     const [polyResult, yahooResult] = await Promise.allSettled([
       polyFetch(`/v3/reference/tickers?search=${encodeURIComponent(q.trim())}&active=true&limit=${limit}&sort=ticker`),
-      fetch(
-        `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(q.trim())}&lang=en-US&region=BR&quotesCount=8&newsCount=0&enableFuzzyQuery=false`,
-        { headers: { 'User-Agent': YF_UA, 'Accept': 'application/json', 'Referer': 'https://finance.yahoo.com/' } }
-      ).then(r => r.json()),
+      yahooCache.wrap(`yf_search:${q.trim().toLowerCase()}`, async () => {
+        const r = await fetch(
+          `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(q.trim())}&lang=en-US&region=BR&quotesCount=8&newsCount=0&enableFuzzyQuery=false`,
+          { headers: { 'User-Agent': YF_UA, 'Accept': 'application/json', 'Referer': 'https://finance.yahoo.com/' } }
+        );
+        if (r.status === 429) { const e = new Error('Yahoo search 429'); e.code = 'rate_limit'; throw e; }
+        return r.json();
+      }, 30 * 1000),
     ]);
 
     const results = [];
@@ -1174,7 +1201,7 @@ router.get('/search', async (req, res) => {
   }
 });
 
-// ─── Unified quote — with fallback chain ───────────────────────────────────────
+// âââ Unified quote â with fallback chain âââââââââââââââââââââââââââââââââââââââ
 
 router.get('/quote/:symbol', async (req, res) => {
   try {
@@ -1202,7 +1229,7 @@ router.get('/quote/:symbol', async (req, res) => {
   }
 });
 
-// ─── Single ticker snapshot (legacy) ────────────────────────────────────────────
+// âââ Single ticker snapshot (legacy) ââââââââââââââââââââââââââââââââââââââââââââ
 
 router.get('/snapshot/ticker/:symbol', async (req, res) => {
   try {
@@ -1307,7 +1334,7 @@ router.get('/snapshot/ticker/:symbol', async (req, res) => {
   }
 });
 
-// ─── Bond Detail endpoint ──────────────────────────────────────────────────────
+// âââ Bond Detail endpoint ââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 // Returns bond-specific metrics: yield, maturity, coupon, duration, price, etc.
 
 const BOND_YAHOO_MAP = {
@@ -1324,7 +1351,7 @@ const BOND_YAHOO_MAP = {
 // Calculate theoretical bond price from yield (semi-annual coupon)
 function calcBondPrice(faceValue, couponRate, yieldPct, maturityYears, couponFreq) {
   if (couponFreq === 0) {
-    // Zero-coupon (e.g. Brazil prefixados) — discount to face
+    // Zero-coupon (e.g. Brazil prefixados) â discount to face
     return faceValue / Math.pow(1 + yieldPct / 100, maturityYears);
   }
   const n = maturityYears * couponFreq;
@@ -1347,7 +1374,7 @@ function calcModifiedDuration(yieldPct, maturityYears, couponFreq) {
   // Macaulay duration approximation for coupon bond
   const macaulay = (1 + r) / r - (1 + r + n * (0.03 - r)) / (0.03 * (Math.pow(1 + r, n) - 1) + r);
   // Simplified: use (1+y/m) * [1 - 1/(1+y/m)^n] / (y/m) as rough estimate
-  // Better approximation: modified duration ≈ maturity * 0.85 for coupon bonds
+  // Better approximation: modified duration â maturity * 0.85 for coupon bonds
   const modDur = maturityYears / (1 + (yieldPct / 100) / couponFreq);
   return modDur;
 }
@@ -1374,7 +1401,7 @@ router.get('/bond-detail/:symbol', async (req, res) => {
     let dayLow = null;
     let dayOpen = null;
 
-    // ── Try Yahoo Finance for US treasuries ──
+    // ââ Try Yahoo Finance for US treasuries ââ
     if (meta.yahoo) {
       try {
         const quotes = await yahooQuote(meta.yahoo);
@@ -1393,7 +1420,7 @@ router.get('/bond-detail/:symbol', async (req, res) => {
       }
     }
 
-    // ── Fallback: try to get from yield curves endpoint data ──
+    // ââ Fallback: try to get from yield curves endpoint data ââ
     if (yieldValue == null) {
       try {
         // For non-US bonds, get from yield curves
@@ -1413,7 +1440,7 @@ router.get('/bond-detail/:symbol', async (req, res) => {
       } catch {}
     }
 
-    // ── For Brazil, try Tesouro Direto for richer bond data ──
+    // ââ For Brazil, try Tesouro Direto for richer bond data ââ
     let brBondData = null;
     if (meta.country === 'BR') {
       try {
@@ -1465,8 +1492,8 @@ router.get('/bond-detail/:symbol', async (req, res) => {
       }
     }
 
-    // ── Calculate derived metrics ──
-    // Estimate coupon rate as close to current yield (for treasuries, coupon ≈ yield at issuance)
+    // ââ Calculate derived metrics ââ
+    // Estimate coupon rate as close to current yield (for treasuries, coupon â yield at issuance)
     const estimatedCoupon = yieldValue ? Math.round(yieldValue * 4) / 4 : null; // round to nearest 0.25%
     const bondPrice = yieldValue != null
       ? parseFloat(calcBondPrice(meta.faceValue, estimatedCoupon || yieldValue, yieldValue, meta.maturityYears, meta.couponFreq).toFixed(4))
@@ -1545,7 +1572,7 @@ router.get('/bond-detail/:symbol', async (req, res) => {
   }
 });
 
-// ─── Interest rates ────────────────────────────────────────────────────────────
+// âââ Interest rates ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 router.get('/snapshot/rates', async (req, res) => {
   try {
@@ -1610,7 +1637,7 @@ router.get('/snapshot/rates', async (req, res) => {
   }
 });
 
-// ─── Brazilian DI / Pre-fixed Yield Curve ────────────────────────────────────────
+// âââ Brazilian DI / Pre-fixed Yield Curve ââââââââââââââââââââââââââââââââââââââââ
 
 router.get('/di-curve', async (req, res) => {
   try {
@@ -1704,7 +1731,7 @@ router.get('/di-curve', async (req, res) => {
 });
 
 
-// ── Yield Curves: BR, US, UK, EU ─────────────────────────────────────────────────
+// ââ Yield Curves: BR, US, UK, EU âââââââââââââââââââââââââââââââââââââââââââââââââ
 
 const US_CURVE_FIELDS = [
   { tenor: '1M',  field: 'BC_1MONTH',  months: 1   },
@@ -1778,7 +1805,7 @@ function ukSynthetic(boeRate = 4.50) {
   ].filter(p => p.rate > 0);
 }
 
-// ── ECB Euro Area yield curve ─────────────────────────────────────────────────
+// ââ ECB Euro Area yield curve âââââââââââââââââââââââââââââââââââââââââââââââââ
 
 const ECB_MAT_MAP = {
   'SR_3M':  { tenor: '3M',  months: 3   },
@@ -1866,7 +1893,7 @@ router.get('/yield-curves', async (req, res) => {
       }).then(r => { if (!r.ok) throw new Error(`ECB ${r.status}`); return r.json(); }),
     ]);
 
-    // ── BR curve ────────────────────────────────────────────────────────────
+    // ââ BR curve ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
     let diRate = 14.75;
     if (selicRes.status === 'fulfilled' && Array.isArray(selicRes.value) && selicRes.value[0]?.valor) {
       diRate = parseFloat(selicRes.value[0].valor);
@@ -1906,7 +1933,7 @@ router.get('/yield-curves', async (req, res) => {
       );
     }
 
-    // ── US curve ─────────────────────────────────────────────────────────────
+    // ââ US curve âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
     let usCurve = [];
     let usSource = 'unavailable';
     if (usTreasuryRes.status === 'fulfilled') {
@@ -1915,7 +1942,7 @@ router.get('/yield-curves', async (req, res) => {
     }
     if (usCurve.length < 3) console.warn('[Yield] US Treasury parse failed:', usTreasuryRes.reason?.message);
 
-    // ── UK curve ─────────────────────────────────────────────────────────────
+    // ââ UK curve âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
     let ukCurve = [];
     let ukSource = 'synthetic';
     if (ukBoeRes.status === 'fulfilled') {
@@ -1928,7 +1955,7 @@ router.get('/yield-curves', async (req, res) => {
       ukSource = 'BoE+synthetic';
     }
 
-    // ── EU curve ─────────────────────────────────────────────────────────────
+    // ââ EU curve âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
     let euCurve = [];
     let euSource = 'synthetic';
     if (ecbYcRes.status === 'fulfilled') {
@@ -1953,7 +1980,7 @@ router.get('/yield-curves', async (req, res) => {
   }
 });
 
-// ─ Cross-device chart-grid sync (file-backed) ─
+// â Cross-device chart-grid sync (file-backed) â
 const path = require('path');
 const fs   = require('fs');
 const SETTINGS_FILE = path.join(process.cwd(), '.senger-settings.json');
@@ -1986,7 +2013,7 @@ router.post('/settings', (req, res) => {
   }
 });
 
-// ─── Fundamentals: P/E, EPS, beta, dividend, 52W range, sector (Yahoo Finance) ──
+// âââ Fundamentals: P/E, EPS, beta, dividend, 52W range, sector (Yahoo Finance) ââ
 
 function yr(field) {
   if (field == null) return null;
@@ -1999,7 +2026,7 @@ router.get('/fundamentals/:symbol', async (req, res) => {
     const raw = req.params.symbol.toUpperCase();
     const symbol = raw.replace(/^[XC]:/, '');
 
-    // ── Brazilian B3 stocks: use Yahoo v7/quote ──
+    // ââ Brazilian B3 stocks: use Yahoo v7/quote ââ
     if (symbol.endsWith('.SA')) {
       const FIELDS = [
         'marketCap','enterpriseValue',
@@ -2046,7 +2073,7 @@ router.get('/fundamentals/:symbol', async (req, res) => {
       });
     }
 
-    // ── US / international stocks: Yahoo Finance v10 quoteSummary ──
+    // ââ US / international stocks: Yahoo Finance v10 quoteSummary ââ
     let result = null;
     for (let attempt = 0; attempt < 2; attempt++) {
       const { crumb, cookie } = await getYahooCrumb();
@@ -2135,7 +2162,7 @@ router.get('/fundamentals/:symbol', async (req, res) => {
   }
 });
 
-// ─── Phase 1.3: Standardized /quotes/:symbol ─────────────────────────────────
+// âââ Phase 1.3: Standardized /quotes/:symbol âââââââââââââââââââââââââââââââââ
 // GET /api/quotes/:symbol
 // Returns a normalized Quote envelope per types.js.
 // The existing /quote/:symbol does the same job; this is a clean alias.
@@ -2168,7 +2195,7 @@ router.get('/quotes/:symbol', async (req, res) => {
   }
 });
 
-// ─── Phase 1.3: Standardized /history/:symbol ────────────────────────────────
+// âââ Phase 1.3: Standardized /history/:symbol ââââââââââââââââââââââââââââââââ
 // GET /api/history/:symbol?interval=1d&period=1M
 //
 // interval: '1m' | '5m' | '15m' | '30m' | '1h' | '1d' | '1wk' | '1mo'
@@ -2243,10 +2270,15 @@ router.get('/history/:symbol', async (req, res) => {
         const yahooSym  = symbol.startsWith('X:') ? symbol.replace('X:', '').replace('USD', '-USD')
           : symbol.startsWith('C:') ? symbol.replace('C:', '') + '=X'
           : symbol;
-        const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahooSym)}?interval=${yInterval}&range=${yRange}&includePrePost=false`;
-        const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
-        if (r.ok) {
-          const json = await r.json();
+        const histCacheKey = `yf_hist:${yahooSym}:${yInterval}:${yRange}`;
+        const json = await yahooCache.wrap(histCacheKey, async () => {
+          const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahooSym)}?interval=${yInterval}&range=${yRange}&includePrePost=false`;
+          const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+          if (r.status === 429) { const e = new Error('Yahoo history 429'); e.code = 'rate_limit'; throw e; }
+          if (!r.ok) throw new Error(`Yahoo history HTTP ${r.status}`);
+          return r.json();
+        }, 30 * 1000);
+        if (json) {
           const chart = json?.chart?.result?.[0];
           if (chart) {
             const times  = chart.timestamp || [];
@@ -2283,6 +2315,11 @@ router.get('/history/:symbol', async (req, res) => {
     console.error(`[API] /history/${req.params.symbol} error:`, e.message);
     sendError(res, e);
   }
+});
+
+// ─── Cache diagnostics endpoint ────────────────────────────────────────────
+router.get('/cache/stats', (req, res) => {
+  res.json(yahooCache.stats());
 });
 
 module.exports = router;
