@@ -37,7 +37,7 @@ const showInfo = (e, symbol, label, type) => {
   }));
 };
 
-function CommoditiesPanel({ data, loading, onTickerClick, onOpenDetail }) {
+function CommoditiesPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
   const ptRef = useRef(null);
   const { settings, updatePanelConfig } = useSettings();
 

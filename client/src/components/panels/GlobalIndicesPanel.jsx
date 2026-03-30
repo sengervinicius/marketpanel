@@ -23,7 +23,7 @@ const NAMES = {
   MCHI:'CHINA', EWT:'TAIWAN', EWS:'SINGAPORE', INDA:'INDIA',
 };
 
-function GlobalIndicesPanel({ data, loading, onTickerClick, onOpenDetail }) {
+function GlobalIndicesPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
   const ptRef = useRef(null);
   const { settings, updatePanelConfig } = useSettings();
 

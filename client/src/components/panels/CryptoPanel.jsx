@@ -9,7 +9,7 @@ const fmt    = (n) => n == null ? '—' : n.toLocaleString('en-US', { minimumFra
 const fmtPct = (n) => n == null ? '—' : (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
 const COLS   = '56px 1fr 80px 64px';
 
-export function CryptoPanel({ data, loading, onTickerClick, onOpenDetail }) {
+export function CryptoPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
   const ptRef = useRef(null);
   const { settings, updatePanelConfig } = useSettings();
   const { getBadge } = useFeedStatus();

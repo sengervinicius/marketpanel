@@ -61,7 +61,7 @@ function heatColor(pct) {
   return '#b71c1c';
 }
 
-function StockPanel({ data, loading, onTickerClick, onOpenDetail }) {
+function StockPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
   const ptRef = useRef(null);
   const { settings, updatePanelConfig } = useSettings();
 

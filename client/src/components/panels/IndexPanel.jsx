@@ -14,7 +14,7 @@ const showInfo = (e, symbol, label, type) => {
   }));
 };
 
-function IndexPanel({ data, loading, onTickerClick, onOpenDetail }) {
+function IndexPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
   const ptRef = useRef(null);
   const [collapsed, setCollapsed] = useState(false);
   const { getBadge } = useFeedStatus();

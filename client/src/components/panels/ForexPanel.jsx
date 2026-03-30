@@ -53,7 +53,7 @@ function sortPairs(pairs, getRate, getChg, sortKey, sortDir) {
   });
 }
 
-function ForexPanel({ data, cryptoData, loading, onTickerClick, onOpenDetail }) {
+function ForexPanel({ data = {}, cryptoData = {}, loading, onTickerClick, onOpenDetail }) {
   const ptRef = useRef(null);
   const { settings, updatePanelConfig } = useSettings();
 
