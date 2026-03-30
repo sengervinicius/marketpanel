@@ -17,6 +17,51 @@ const TYPE_COLOR = {
   MUTUALFUND: '#80cbc4',
 };
 
+// ââ Prominent asset type badge config ââ
+// Each search result gets a clearly visible badge showing what kind of security it is
+const ASSET_TYPE_BADGE = {
+  Equity:  { bg: '#001a2e', color: '#4fc3f7', label: 'EQUITY' },
+  ETF:     { bg: '#0a2000', color: '#81c784', label: 'ETF' },
+  Fund:    { bg: '#0a2a2a', color: '#80cbc4', label: 'FUND' },
+  Crypto:  { bg: '#2a0020', color: '#f48fb1', label: 'CRYPTO' },
+  FX:      { bg: '#1a0030', color: '#ce93d8', label: 'FX' },
+  Index:   { bg: '#1a1400', color: '#ffb74d', label: 'INDEX' },
+  Bond:    { bg: '#1a1a00', color: '#ffd54f', label: 'BOND' },
+  ADR:     { bg: '#001a20', color: '#4dd0e1', label: 'ADR' },
+  REIT:    { bg: '#0a1a00', color: '#aed581', label: 'REIT' },
+  Warrant: { bg: '#2a1a00', color: '#ffcc80', label: 'WARRANT' },
+  Option:  { bg: '#2a0a1a', color: '#ef9a9a', label: 'OPTION' },
+  Future:  { bg: '#1a0a00', color: '#ff8a65', label: 'FUTURE' },
+  OTC:     { bg: '#1a1a1a', color: '#999',    label: 'OTC' },
+};
+
+// Derive asset type from search result (client-side normalization)
+function deriveAssetType(item) {
+  // If server already sent an assetType, use it
+  if (item.assetType && ASSET_TYPE_BADGE[item.assetType]) return item.assetType;
+
+  const type = (item.type || '').toUpperCase();
+  const ac   = (item.assetClass || '').toLowerCase();
+  const sym  = (item.symbol || '').toUpperCase();
+
+  if (item.local && type === 'CURRENCY') return 'FX';
+  if (item.local && type === 'CRYPTO')   return 'Crypto';
+  if (ac === 'etf'   || type === 'ETF')  return 'ETF';
+  if (ac === 'forex' || type === 'CURRENCY') return 'FX';
+  if (ac === 'crypto' || type === 'CRYPTO' || type === 'CRYPTOCURRENCY') return 'Crypto';
+  if (ac === 'fixed_income' || type === 'BOND') return 'Bond';
+  if (ac === 'commodity')    return 'ETF'; // commodity ETFs
+  if (ac === 'index' || type === 'INDEX') return 'Index';
+  if (ac === 'fund'  || type === 'MUTUALFUND') return 'Fund';
+  if (type === 'ADR' || type === 'ADRC') return 'ADR';
+  if (type === 'REIT') return 'REIT';
+  if (type === 'WARRANT') return 'Warrant';
+  if (sym.endsWith('.SA')) return 'Equity';
+  if (type === 'CS' || type === 'EQUITY' || type === 'COMMONSTOCK' || type === 'PFD') return 'Equity';
+  if (ac === 'equity') return 'Equity';
+  return 'Equity';
+}
+
 const MARKET_BADGE = {
   BVSP: { bg: '#1a2800', color: '#8bc34a', label: 'B3'     },
   SAO:  { bg: '#1a2800', color: '#8bc34a', label: 'B3'     },
@@ -30,7 +75,7 @@ const MARKET_BADGE = {
 const LIVE_EXCHANGES    = new Set(['NYQ', 'NMS', 'PCX', 'ARCX', 'NYE', 'ASE', 'BVSP', 'SAO']);
 // OTC / sparse coverage
 const LIMITED_EXCHANGES = new Set(['OTC', 'PNK', 'OTCM', 'GREY', 'OTCQX', 'OTCQB', 'PINK']);
-// International exchanges we definitively DO NOT cover — show red "NO DATA"
+// International exchanges we definitively DO NOT cover â show red "NO DATA"
 const NO_DATA_EXCHANGES = new Set([
   'LSE','LON','L',        // London
   'TYO','TSE','T',        // Tokyo
@@ -53,41 +98,41 @@ const NO_DATA_EXCHANGES = new Set([
 ]);
 
 /**
- * coverageLevel — returns 'live' | 'limited' | 'none' | 'unknown'
+ * coverageLevel â returns 'live' | 'limited' | 'none' | 'unknown'
  *
- * ── KEY FIX ──────────────────────────────────────────────────────────────────
+ * ââ KEY FIX ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
  * Polygon's search API returns `market` as a GENERIC CATEGORY:
  *   'stocks' | 'otc' | 'crypto' | 'fx' | 'indices'
  * NOT an exchange code (NMS, NYQ, etc.).
  * Old code compared these lowercase category strings against LIVE_EXCHANGES
- * (uppercase Yahoo codes), causing every Polygon result — including AAPL, MSFT,
- * DEFT, etc. — to be wrongly flagged 'none' / "NO DATA".
- * ─────────────────────────────────────────────────────────────────────────────
+ * (uppercase Yahoo codes), causing every Polygon result â including AAPL, MSFT,
+ * DEFT, etc. â to be wrongly flagged 'none' / "NO DATA".
+ * âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
  */
 function coverageLevel(item) {
   if (!item) return 'unknown';
 
-  // Our locally-defined FX/crypto pairs — always live
+  // Our locally-defined FX/crypto pairs â always live
   if (item.local) return 'live';
 
   const type   = (item.type            || '').toUpperCase();
   const market = (item.market          || '').toLowerCase(); // Polygon: 'stocks','otc','crypto','fx'
   const exch   = (item.primaryExchange || item.market || '').toUpperCase(); // Yahoo: 'NMS','NYQ'
 
-  // ── Type shortcuts ────────────────────────────────────────────────────
+  // ââ Type shortcuts ââââââââââââââââââââââââââââââââââââââââââââââââââââ
   if (type === 'CRYPTO' || type === 'CRYPTOCURRENCY') return 'live';
   if (type === 'CURRENCY')                            return 'live';
   if (type === 'MUTUALFUND')                          return 'limited';
 
-  // ── Polygon generic CATEGORY strings (lowercase from Polygon API) ─────
-  // These are not exchange codes — handle them before checking exchange sets
+  // ââ Polygon generic CATEGORY strings (lowercase from Polygon API) âââââ
+  // These are not exchange codes â handle them before checking exchange sets
   if (market === 'stocks')  return 'live';    // all Polygon equity results
   if (market === 'crypto')  return 'live';
   if (market === 'fx' || market === 'forex') return 'live';
   if (market === 'otc')     return 'limited';
   if (market === 'indices') return 'limited';
 
-  // ── Yahoo Finance exchange codes (uppercase 2–5 chars) ────────────────
+  // ââ Yahoo Finance exchange codes (uppercase 2â5 chars) ââââââââââââââââ
   if (LIVE_EXCHANGES.has(exch))    return 'live';
   if (LIMITED_EXCHANGES.has(exch)) return 'limited';
   if (NO_DATA_EXCHANGES.has(exch)) return 'none';
@@ -96,14 +141,14 @@ function coverageLevel(item) {
   const sym = (item.symbol || '').toUpperCase();
   if (/\.(L|T|HK|AX|TO|NS|BO|PA|DE|MI|AS|MC|ST|CO|OL|HE|SI|KS|KQ)$/.test(sym)) return 'none';
 
-  // Unknown — don't block the user, show grey dot (no red warning)
+  // Unknown â don't block the user, show grey dot (no red warning)
   return 'unknown';
 }
 
 const COVERAGE_DOT = {
   live:    { color: '#00c853', title: 'Live data available' },
-  limited: { color: YELLOW,   title: 'Limited data (OTC/fund) — chart may be empty' },
-  none:    { color: RED,      title: 'No data — international exchange not covered' },
+  limited: { color: YELLOW,   title: 'Limited data (OTC/fund) â chart may be empty' },
+  none:    { color: RED,      title: 'No data â international exchange not covered' },
   unknown: { color: '#444',   title: 'Coverage unknown' },
 };
 
@@ -194,7 +239,7 @@ function SearchPanel({ onTickerSelect, onOpenDetail }) {
         fromRegistry: true,
       }));
 
-      // Map Polygon items, skip if already in registry
+      // Map Polygon/Yahoo items, skip if already in registry
       const regKeys = new Set([...local.map(l => l.symbol), ...fromRegistry.map(r => r.symbol)]);
       const fromPoly = polyItems
         .filter(r => !regKeys.has(r.ticker || r.symbol))
@@ -202,12 +247,14 @@ function SearchPanel({ onTickerSelect, onOpenDetail }) {
           symbol:          r.ticker || r.symbol,
           name:            r.name,
           type:            r.type,
+          assetType:       r.assetType || null,  // normalized type from server
           market:          r.market,
           primaryExchange: r.primaryExchange || r.market || '',
+          exchange:        r.exchange || '',
           active:          r.active,
         }));
 
-      // Merge: local FX/crypto → registry → polygon, dedup
+      // Merge: local FX/crypto â registry â polygon, dedup
       const seen = new Set();
       const merged = [...local, ...fromRegistry, ...fromPoly]
         .filter(item => {
@@ -268,20 +315,20 @@ function SearchPanel({ onTickerSelect, onOpenDetail }) {
     setTimeout(() => setAddedToHome(null), 1500);
   };
 
-  const fmtNum = (n) => n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const fmtPct = (n) => n == null ? '—' : (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
-  const fmtVol = (n) => !n ? '—' : n >= 1e9 ? (n/1e9).toFixed(1)+'B' : n >= 1e6 ? (n/1e6).toFixed(1)+'M' : n >= 1e3 ? (n/1e3).toFixed(0)+'K' : String(n);
+  const fmtNum = (n) => n == null ? 'â' : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const fmtPct = (n) => n == null ? 'â' : (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
+  const fmtVol = (n) => !n ? 'â' : n >= 1e9 ? (n/1e9).toFixed(1)+'B' : n >= 1e6 ? (n/1e6).toFixed(1)+'M' : n >= 1e3 ? (n/1e3).toFixed(0)+'K' : String(n);
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#0a0a0a', fontFamily: 'inherit' }}>
 
-      {/* ── Header ── */}
+      {/* ââ Header ââ */}
       <div style={{ padding: '6px 10px 4px', borderBottom: '1px solid #1e1e1e', flexShrink: 0, display: 'flex', alignItems: 'baseline', gap: 8 }}>
         <span style={{ color: ORANGE, fontWeight: 700, fontSize: 11, letterSpacing: '0.2em' }}>SEARCH</span>
-        <span style={{ color: '#2a2a2a', fontSize: 7 }}>CLICK → DETAIL  ·  DRAG → CHART</span>
+        <span style={{ color: '#2a2a2a', fontSize: 7 }}>CLICK â DETAIL  Â·  DRAG â CHART</span>
       </div>
 
-      {/* ── Search input ── */}
+      {/* ââ Search input ââ */}
       <div style={{ position: 'relative', padding: '6px 8px', flexShrink: 0 }}>
         <input
           autoFocus
@@ -306,7 +353,7 @@ function SearchPanel({ onTickerSelect, onOpenDetail }) {
         )}
       </div>
 
-      {/* ── Asset class filter tabs ── */}
+      {/* ââ Asset class filter tabs ââ */}
       <div style={{ display: 'flex', gap: 3, padding: '4px 8px', borderBottom: '1px solid #141414', flexShrink: 0, flexWrap: 'wrap' }}>
         {ASSET_FILTERS.map(f => (
           <button
@@ -324,7 +371,7 @@ function SearchPanel({ onTickerSelect, onOpenDetail }) {
         ))}
       </div>
 
-      {/* ── Results list ── */}
+      {/* ââ Results list ââ */}
       {results.length > 0 && (
         <div style={{ borderBottom: '1px solid #1e1e1e', flexShrink: 0, maxHeight: '55vh', overflowY: 'auto' }}>
           {results.map(item => {
@@ -361,7 +408,7 @@ function SearchPanel({ onTickerSelect, onOpenDetail }) {
                 />
 
                 {/* Drag grip */}
-                <span style={{ color: '#1e1e1e', fontSize: 11, flexShrink: 0 }}>⠿</span>
+                <span style={{ color: '#1e1e1e', fontSize: 11, flexShrink: 0 }}>â ¿</span>
 
                 {/* Symbol */}
                 <span style={{
@@ -376,8 +423,30 @@ function SearchPanel({ onTickerSelect, onOpenDetail }) {
                   {item.name}
                 </span>
 
-                {/* Badges + Add to Home button */}
+                {/* Asset type badge + exchange + coverage + Add to Home */}
                 <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexShrink: 0 }}>
+                  {/* Asset type badge â always visible */}
+                  {(() => {
+                    const assetType = deriveAssetType(item);
+                    const typeBadge = ASSET_TYPE_BADGE[assetType];
+                    return typeBadge ? (
+                      <span style={{
+                        fontSize: 8, padding: '2px 6px', borderRadius: 2,
+                        background: typeBadge.bg, color: typeBadge.color,
+                        fontWeight: 700, letterSpacing: '0.06em',
+                        border: `1px solid ${typeBadge.color}33`,
+                      }}>
+                        {typeBadge.label}
+                      </span>
+                    ) : null;
+                  })()}
+                  {/* Exchange badge (B3, NYSE, NASDAQ, etc.) */}
+                  {badge && (
+                    <span style={{ fontSize: 7, padding: '1px 4px', borderRadius: 2, background: badge.bg, color: badge.color }}>
+                      {badge.label}
+                    </span>
+                  )}
+                  {/* Coverage warning tag */}
                   {covTag && (
                     <span style={{
                       fontSize: 7, padding: '1px 4px', borderRadius: 2,
@@ -386,15 +455,6 @@ function SearchPanel({ onTickerSelect, onOpenDetail }) {
                     }}>
                       {covTag.label}
                     </span>
-                  )}
-                  {badge ? (
-                    <span style={{ fontSize: 7, padding: '1px 4px', borderRadius: 2, background: badge.bg, color: badge.color }}>
-                      {badge.label}
-                    </span>
-                  ) : (
-                    item.type && !covTag && (
-                      <span style={{ color: '#333', fontSize: 7 }}>{item.type}</span>
-                    )
                   )}
                   <button
                     onClick={(e) => handleAddToHome(e, item)}
@@ -412,7 +472,7 @@ function SearchPanel({ onTickerSelect, onOpenDetail }) {
                       transition: 'all 0.2s',
                     }}
                   >
-                    {addedToHome === item.symbol ? '✓' : '+ HOME'}
+                    {addedToHome === item.symbol ? 'â' : '+ HOME'}
                   </button>
                 </div>
               </div>
@@ -421,12 +481,12 @@ function SearchPanel({ onTickerSelect, onOpenDetail }) {
         </div>
       )}
 
-      {/* ── Empty state ── */}
+      {/* ââ Empty state ââ */}
       {!results.length && !query && !selected && (
         <div style={{ padding: '16px 10px', color: '#2a2a2a', fontSize: 8, textAlign: 'center', lineHeight: 2 }}>
           TYPE TO SEARCH<br />
-          <span style={{ color: '#1e1e1e' }}>● CLICK RESULT → OPEN IN DEPTH</span><br />
-          <span style={{ color: '#1e1e1e' }}>⠿ DRAG RESULT → ADD TO CHART</span>
+          <span style={{ color: '#1e1e1e' }}>â CLICK RESULT â OPEN IN DEPTH</span><br />
+          <span style={{ color: '#1e1e1e' }}>â ¿ DRAG RESULT â ADD TO CHART</span>
         </div>
       )}
       {query.trim().length > 0 && !results.length && !loading && !selected && (
@@ -435,7 +495,7 @@ function SearchPanel({ onTickerSelect, onOpenDetail }) {
         </div>
       )}
 
-      {/* ── Quote preview / action area ── */}
+      {/* ââ Quote preview / action area ââ */}
       {(selected || quoteLoading) && (
         <div style={{ flex: 1, overflowY: 'auto', padding: '10px 10px 12px' }}>
 
@@ -449,8 +509,8 @@ function SearchPanel({ onTickerSelect, onOpenDetail }) {
               fontSize: 9, lineHeight: 1.5,
             }}>
               {coverageLevel(selected) === 'none'
-                ? '⚠ This ticker trades on an international exchange not covered by this terminal. Chart and price data will not be available.'
-                : '⚠ This ticker is OTC/fund class — data may be sparse or unavailable.'}
+                ? 'â  This ticker trades on an international exchange not covered by this terminal. Chart and price data will not be available.'
+                : 'â  This ticker is OTC/fund class â data may be sparse or unavailable.'}
             </div>
           )}
 
@@ -471,7 +531,7 @@ function SearchPanel({ onTickerSelect, onOpenDetail }) {
                     fontFamily: 'inherit',
                   }}
                 >
-                  OPEN IN DEPTH →
+                  OPEN IN DEPTH â
                 </button>
                 <button
                   draggable
