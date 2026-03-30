@@ -20,10 +20,12 @@ const { verifyToken } = require('./authStore');
 
 const app = express();
 
-const ALLOWED_ORIGIN = process.env.CLIENT_URL || (process.env.NODE_ENV === 'production' ? null : '*');
-if (!ALLOWED_ORIGIN) {
-  console.error('[FATAL] CLIENT_URL must be set in production');
-  process.exit(1);
+// In production, prefer an explicit CLIENT_URL for strict CORS.
+// If absent we fall back to permissive '*' and log a loud warning rather than
+// crashing the process — a missing CLIENT_URL should not take the whole service down.
+const ALLOWED_ORIGIN = process.env.CLIENT_URL || '*';
+if (!process.env.CLIENT_URL && process.env.NODE_ENV === 'production') {
+  console.warn('[WARN] CLIENT_URL not set — CORS is permissive (*). Set CLIENT_URL in Render env vars.');
 }
 app.use(cors({
   origin: ALLOWED_ORIGIN,
@@ -254,12 +256,16 @@ connectPolygon(marketState, broadcast);
 // Boot sequence: connect DB → seed env users → start HTTP server
 async function boot() {
   // Validate required environment variables
-  const required = ['JWT_SECRET'];
+  const required    = ['JWT_SECRET'];
   const recommended = ['POLYGON_API_KEY', 'CLIENT_URL'];
   const missing = required.filter(k => !process.env[k]);
-  if (missing.length && process.env.NODE_ENV === 'production') {
-    console.error(`[FATAL] Missing required env vars: ${missing.join(', ')}`);
-    process.exit(1);
+  if (missing.length) {
+    // Log a loud warning but don't crash — auth routes will return 500 for
+    // JWT operations, but the server stays alive and health checks respond.
+    console.error(`[ERROR] Missing env vars: ${missing.join(', ')} — auth will not work until these are set in Render environment.`);
+    if (process.env.NODE_ENV === 'production') {
+      console.error('[ERROR] Go to Render Dashboard → senger-market-server → Environment and set JWT_SECRET.');
+    }
   }
   recommended.filter(k => !process.env[k]).forEach(k => {
     console.warn(`[WARN] ${k} not set — some features will be limited`);
