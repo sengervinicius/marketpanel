@@ -162,7 +162,7 @@ function makePanelRenderer(panelId, props) {
     case 'forex':
       return <ForexPanel data={mergedData?.forex} cryptoData={mergedData?.crypto} loading={loading} onTickerClick={setChartTicker} onOpenDetail={setDetailTicker} />;
     case 'globalIndices':
-      return <GlobalIndicesPanel onTickerClick={setChartTicker} onOpenDetail={setDetailTicker} />;
+      return <GlobalIndicesPanel data={mergedData?.stocks} loading={loading} onTickerClick={setChartTicker} onOpenDetail={setDetailTicker} />;
     case 'brazilB3':
       return <BrazilPanel onTickerClick={setChartTicker} onOpenDetail={setDetailTicker} />;
     case 'commodities':
@@ -302,7 +302,7 @@ const PANEL_DEFS = [
   { id: 'usEquities',   label: 'US Equities' },
   { id: 'forex',        label: 'FX / Rates' },
   { id: 'crypto',       label: 'Crypto' },
-  { id: 'globalIndices',label: 'Global Indices' },
+  { id: 'globalIndices',label: 'Global Indexes' },
   { id: 'brazilB3',     label: 'Brazil B3' },
   { id: 'commodities',  label: 'Commodities' },
   { id: 'watchlist',    label: 'Watchlist' },

@@ -17,7 +17,7 @@ const OPTIONS = [
   {
     key: 'globalInvestor',
     title: 'Global Markets',
-    description: 'US large-cap equities, global indices, major FX, cross-asset overview.',
+    description: 'US large-cap equities, global indexes, major FX, cross-asset overview.',
     includes: 'SPY, QQQ, EUR/USD, GLD, EEM, EFA',
   },
   {

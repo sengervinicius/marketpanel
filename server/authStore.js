@@ -38,9 +38,9 @@ function defaultSettings() {
     watchlist:           [],
     panels: {
       brazilB3:     { title: 'Brazil B3',      symbols: ['VALE3.SA','PETR4.SA','ITUB4.SA','BBDC4.SA','ABEV3.SA','WEGE3.SA','RENT3.SA','B3SA3.SA','MGLU3.SA','BBAS3.SA'] },
-      usEquities:   { title: 'US Equities',    symbols: ['AAPL','MSFT','NVDA','GOOGL','AMZN','META','TSLA','JPM','XOM','BRKB'] },
-      globalIndices:{ title: 'Global Indices', symbols: ['SPY','QQQ','DIA','IWM','EWZ','EEM','FXI','EWJ'] },
-      forex:        { title: 'FX / Rates',     symbols: ['EURUSD','GBPUSD','USDJPY','USDBRL','USDCHF','USDCNY','USDMXN'] },
+      usEquities:   { title: 'US Equities',    symbols: ['AAPL','MSFT','NVDA','GOOGL','AMZN','META','TSLA','JPM','XOM','BRKB','VALE','PBR','ITUB','BBD','ABEV','ERJ','BRFS','SUZ'] },
+      globalIndices:{ title: 'Global Indexes', symbols: ['SPY','QQQ','DIA','IWM','EWZ','EEM','FXI','EWJ'] },
+      forex:        { title: 'FX / Rates',     symbols: ['EURUSD','GBPUSD','USDJPY','USDBRL','USDCHF','USDCNY','USDMXN','BTCUSD','ETHUSD','SOLUSD','XRPUSD','BNBUSD'] },
       crypto:       { title: 'Crypto',         symbols: ['BTCUSD','ETHUSD','SOLUSD','XRPUSD','BNBUSD'] },
       commodities:  { title: 'Commodities',    symbols: ['GLD','SLV','USO','UNG','CORN','WEAT'] },
       debt:         { title: 'Debt Markets',   symbols: [] },
@@ -55,7 +55,7 @@ function defaultSettings() {
     },
     home: {
       sections: [
-        { id: 'indices',     title: 'US Indices',  symbols: ['SPY','QQQ','DIA'] },
+        { id: 'indexes',     title: 'US Indexes',  symbols: ['SPY','QQQ','DIA'] },
         { id: 'forex',       title: 'FX',          symbols: ['EURUSD','USDBRL','USDJPY'] },
         { id: 'crypto',      title: 'Crypto',      symbols: ['BTCUSD','ETHUSD','SOLUSD'] },
         { id: 'commodities', title: 'Commodities', symbols: ['GLD','USO','SLV'] },

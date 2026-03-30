@@ -377,6 +377,9 @@ async function fetchWithFallback(symbol) {
 
 const DEFAULT_STOCK_TICKERS = [
   'SPY','QQQ','IWM','DIA','EWZ','EWW','EEM','EFA','FXI','EWJ',
+  // EMEA + Asia-Pacific ETFs — feed GlobalIndexesPanel
+  'EZU','EWU','EWG','EWQ','EWP','EWI','EWL','EWD',
+  'EWH','EWY','EWA','MCHI','EWT','EWS','INDA','EWC',
   'AAPL','MSFT','NVDA','GOOGL','AMZN','META','TSLA',
   'BRKB','JPM','GS','BAC','V','MA',
   'XOM','CAT','BA',

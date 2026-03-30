@@ -20,9 +20,9 @@ function defaultSettings() {
     watchlist: [],
     panels: {
       brazilB3:     { title: 'Brazil B3',      symbols: ['VALE3.SA','PETR4.SA','ITUB4.SA','BBDC4.SA','ABEV3.SA','WEGE3.SA','RENT3.SA'] },
-      usEquities:   { title: 'US Equities',    symbols: ['AAPL','MSFT','NVDA','GOOGL','AMZN','META','TSLA','JPM'] },
-      globalIndices:{ title: 'Global Indices', symbols: ['SPY','QQQ','DIA','IWM','EWZ','EEM','FXI'] },
-      forex:        { title: 'FX',             symbols: ['EURUSD','GBPUSD','USDJPY','USDBRL'] },
+      usEquities:   { title: 'US Equities',    symbols: ['AAPL','MSFT','NVDA','GOOGL','AMZN','META','TSLA','JPM','XOM','BRKB','VALE','PBR','ITUB','BBD','ABEV','ERJ','BRFS','SUZ'] },
+      globalIndices:{ title: 'Global Indexes', symbols: ['SPY','QQQ','DIA','IWM','EWZ','EEM','FXI'] },
+      forex:        { title: 'FX / Rates',     symbols: ['EURUSD','GBPUSD','USDJPY','USDBRL','USDCHF','USDCNY','USDMXN','BTCUSD','ETHUSD','SOLUSD','XRPUSD','BNBUSD'] },
       crypto:       { title: 'Crypto',         symbols: ['BTCUSD','ETHUSD','SOLUSD','XRPUSD'] },
       commodities:  { title: 'Commodities',    symbols: ['GLD','SLV','USO','UNG'] },
       debt:         { title: 'Debt Markets',   symbols: ['US10Y','US2Y','BR10Y','DE10Y'] },

@@ -1,8 +1,6 @@
-import { useState, useEffect, useRef, memo } from 'react';
+import { useState, useRef, memo } from 'react';
 import { useSettings } from '../../context/SettingsContext';
 import PanelConfigModal from '../common/PanelConfigModal';
-import { SectionHeader } from '../common/SectionHeader';
-import { apiFetch } from '../../utils/api';
 
 const showInfo = (e, symbol, label, type) => {
   e.preventDefault();
@@ -25,49 +23,19 @@ const NAMES = {
   MCHI:'CHINA', EWT:'TAIWAN', EWS:'SINGAPORE', INDA:'INDIA',
 };
 
-function GlobalIndicesPanel({ onTickerClick, onOpenDetail }) {
+function GlobalIndicesPanel({ data, loading, onTickerClick, onOpenDetail }) {
   const ptRef = useRef(null);
   const { settings, updatePanelConfig } = useSettings();
 
   // Panel config from settings (with fallback defaults)
   const panelCfg = settings?.panels?.globalIndices || {
-    title: 'Global Indices',
+    title: 'Global Indexes',
     symbols: ['SPY','QQQ','DIA','EWZ','EWW','EWC','EZU','EWU','EWG','EWQ','EWP','EWI','EWL','EWD','EWJ','EWH','EWY','EWA','MCHI','EWT','EWS','INDA'],
   };
-  const panelTitle   = panelCfg.title   || 'Global Indices';
+  const panelTitle   = panelCfg.title   || 'Global Indexes';
   const panelSymbols = panelCfg.symbols || [];
 
-  const [data, setData]       = useState({});
-  const [loading, setLoading] = useState(true);
   const [configOpen, setConfigOpen] = useState(false);
-
-  const fetchData = async () => {
-    try {
-      const res  = await apiFetch('/api/snapshot/global-indices');
-      const json = await res.json();
-      const map  = {};
-      (json.tickers || []).forEach(t => {
-        // Prefer min.c (live minute close) > day.c which is 0 during market hours
-        const price = (t.min?.c > 0 ? t.min.c : null)
-          ?? (t.day?.c > 0 ? t.day.c : null)
-          ?? (t.prevDay?.c && t.todaysChange != null ? t.prevDay.c + t.todaysChange : null)
-          ?? t.prevDay?.c
-          ?? null;
-        map[t.ticker] = { price, changePct: t.todaysChangePerc ?? 0, change: t.todaysChange ?? 0 };
-      });
-      setData(map);
-    } catch (e) {
-      console.error('[GlobalIndices]', e.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchData();
-    const t = setInterval(fetchData, 15_000); // refresh every 15s
-    return () => clearInterval(t);
-  }, []);
 
   const fmtPrice = p => (!p || p === 0) ? '—'
     : p.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -120,7 +88,7 @@ function GlobalIndicesPanel({ onTickerClick, onOpenDetail }) {
             }}
           >✎</button>
         </div>
-        {loading ? <span style={{ color: '#444', fontSize: 7 }}>Loading...</span> : null}
+        {loading && <span style={{ color: '#444', fontSize: 7 }}>Loading...</span>}
       </div>
       <div style={{ overflowY: 'auto', flex: 1 }}>
         {Object.entries(REGIONS_filtered).map(([key, region]) => (

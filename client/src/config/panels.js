@@ -22,7 +22,7 @@ export const PANEL_DEFINITIONS = {
     label:          'US Equities',
     defaultTitle:   'US Equities',
     defaultSymbols: ['AAPL','MSFT','NVDA','GOOGL','AMZN','META','TSLA','JPM','XOM','BRKB','GS','WMT','LLY'],
-    allowedGroups:  ['US Tech','US Financials','US Energy','US Industrials','US Consumer','US Healthcare','US Auto'],
+    allowedGroups:  ['US Tech','US Financials','US Energy','US Industrials','US Consumer','US Healthcare','US Auto','Brazil ADRs'],
     editable:       true,
   },
   brazilB3: {
@@ -35,10 +35,10 @@ export const PANEL_DEFINITIONS = {
   },
   globalIndices: {
     id:             'globalIndices',
-    label:          'Global Indices',
-    defaultTitle:   'Global Indices',
+    label:          'Global Indexes',
+    defaultTitle:   'Global Indexes',
     defaultSymbols: ['SPY','QQQ','DIA','IWM','EWZ','EEM','EFA','FXI','EWJ','EWW'],
-    allowedGroups:  ['US Indices','Global Indices'],
+    allowedGroups:  ['US Indexes','Global Indexes'],
     editable:       true,
   },
   forex: {
@@ -135,7 +135,7 @@ export const DEFAULT_LAYOUT = {
 
 // Default mobile home sections
 export const DEFAULT_HOME_SECTIONS = [
-  { id: 'indices',    title: 'US Indices',    symbols: ['SPY','QQQ','DIA'] },
+  { id: 'indexes',    title: 'US Indexes',    symbols: ['SPY','QQQ','DIA'] },
   { id: 'forex',      title: 'FX',            symbols: ['EURUSD','USDBRL','USDJPY'] },
   { id: 'crypto',     title: 'Crypto',        symbols: ['BTCUSD','ETHUSD','SOLUSD'] },
   { id: 'commodities',title: 'Commodities',   symbols: ['GLD','USO','SLV'] },

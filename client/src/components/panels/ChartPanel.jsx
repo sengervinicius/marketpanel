@@ -276,15 +276,15 @@ function MiniChart({ ticker, index, onRemove, onReplace, onSwap, onOpenDetail })
           <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#222233', fontSize: 8 }}>NO DATA</div>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={data} margin={{ top: 4, right: 2, bottom: 0, left: 0 }}>
+            <AreaChart data={data} margin={{ top: 4, right: 2, bottom: 2, left: 0 }}>
               <defs>
                 <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%"  stopColor={isUp ? '#1e50c8' : '#c81e1e'} stopOpacity={0.55} />
                   <stop offset="95%" stopColor={isUp ? '#1e50c8' : '#c81e1e'} stopOpacity={0.0}  />
                 </linearGradient>
               </defs>
-              <XAxis dataKey="t" tickFormatter={xFmt} tick={{ fill: '#6a6a8a', fontSize: 6 }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
-              <YAxis orientation="right" domain={['auto','auto']} tickFormatter={fmtK} tick={{ fill: '#6a6a8a', fontSize: 6 }} tickLine={false} axisLine={false} width={30} />
+              <XAxis dataKey="t" tickFormatter={xFmt} tick={{ fill: '#6a6a8a', fontSize: 8 }} tickLine={false} axisLine={false} interval={Math.max(0, Math.ceil(data.length / 4) - 1)} height={14} />
+              <YAxis orientation="right" domain={['auto','auto']} tickFormatter={fmtK} tick={{ fill: '#6a6a8a', fontSize: 8 }} tickLine={false} axisLine={false} width={32} />
               {openPrice && <ReferenceLine y={openPrice} stroke="#e8a020" strokeDasharray="3 3" strokeWidth={1} />}
               <Area type="monotone" dataKey="v" stroke={lineColor} strokeWidth={1.5} fill={`url(#${gradId})`} dot={false} isAnimationActive={false} />
               <Tooltip

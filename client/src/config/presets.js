@@ -44,13 +44,13 @@ export const SCREEN_PRESETS = {
   globalInvestor: {
     id:          'globalInvestor',
     label:       'Global Investor',
-    description: 'US large-cap equities, global indices, FX, and cross-asset overview.',
+    description: 'US large-cap equities, global indexes, FX, and cross-asset overview.',
     focus:       'AAPL, MSFT, SPY, EUR/USD, global sectors',
     theme:       'dark',
     watchlist:   ['AAPL','MSFT','NVDA','GOOGL','AMZN','JPM','XOM','BRKB','GS'],
     panels: {
       usEquities:   { title: 'US Equities',    symbols: ['AAPL','MSFT','NVDA','GOOGL','AMZN','META','TSLA','JPM','XOM','BRKB','GS','WMT','LLY'] },
-      globalIndices:{ title: 'Global Indices', symbols: ['SPY','QQQ','DIA','IWM','EFA','EEM','EWJ','FXI','EWZ','EWW'] },
+      globalIndices:{ title: 'Global Indexes', symbols: ['SPY','QQQ','DIA','IWM','EFA','EEM','EWJ','FXI','EWZ','EWW'] },
       forex:        { title: 'FX Majors',      symbols: ['EURUSD','GBPUSD','USDJPY','USDCHF','AUDUSD','USDCAD','USDCNY'] },
       crypto:       { title: 'Crypto',         symbols: ['BTCUSD','ETHUSD','SOLUSD','XRPUSD'] },
       commodities:  { title: 'Commodities',    symbols: ['GLD','SLV','USO','UNG','CORN'] },
@@ -86,7 +86,7 @@ export const SCREEN_PRESETS = {
     panels: {
       debt:         { title: 'Sovereign Curves',symbols: [] },
       usEquities:   { title: 'Risk Assets',     symbols: ['SPY','QQQ','HYG','LQD','TLT','EMB','JNK','BNDX'] },
-      globalIndices:{ title: 'Global Indices',  symbols: ['SPY','EEM','EFA','EWZ','EWJ'] },
+      globalIndices:{ title: 'Global Indexes',  symbols: ['SPY','EEM','EFA','EWZ','EWJ'] },
       forex:        { title: 'Safe-Haven FX',   symbols: ['EURUSD','USDJPY','USDCHF','GBPUSD','USDCAD'] },
       commodities:  { title: 'Inflation Watch', symbols: ['GLD','SLV','USO','UNG','CORN'] },
       brazilB3:     { title: 'Brazil EM',       symbols: ['VALE3.SA','EWZ','USDBRL','PETR4.SA'] },
