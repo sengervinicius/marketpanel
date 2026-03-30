@@ -3,6 +3,7 @@
 import { useRef, useState, useMemo, memo } from 'react';
 import { useSettings } from '../../context/SettingsContext';
 import PanelConfigModal from '../common/PanelConfigModal';
+import EditablePanelHeader from '../common/EditablePanelHeader';
 import { US_STOCKS, BRAZIL_ADRS } from '../../utils/constants';
 import { useFeedStatus } from '../../context/FeedStatusContext';
 
@@ -24,7 +25,7 @@ function SectionDivider({ label, color = '#444' }) {
       borderTop: '1px solid #1a1a1a', borderBottom: '1px solid #1a1a1a',
     }}>
       <span style={{ color, fontSize: 7, fontWeight: 700, letterSpacing: '0.12em' }}>
-        ── {label} ────────────────────────
+        —— {label} ————————————————————————
       </span>
     </div>
   );
@@ -79,8 +80,17 @@ function StockPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
   const [moversOnly, setMoversOnly] = useState(false);
   const [heatmap,    setHeatmap]    = useState(false);
   const [configOpen, setConfigOpen] = useState(false);
+  const [searchFilter, setSearchFilter] = useState('');
   const { getBadge } = useFeedStatus();
   const badge = getBadge('stocks');
+
+  // Handle drop ticker into panel
+  const handleDropTicker = (ticker) => {
+    const sym = ticker.trim().toUpperCase();
+    if (sym && !panelSymbols.includes(sym)) {
+      updatePanelConfig('usEquities', { title: panelTitle, symbols: [...panelSymbols, sym] });
+    }
+  };
 
   const handleSortClick = (key) => {
     if (sortKey === key) setSortDir(d => d === 'desc' ? 'asc' : 'desc');
@@ -99,8 +109,13 @@ function StockPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
   const sortedBrazil = useMemo(() => sortItems(baseBrazil, data, sortKey, sortDir), [data, sortKey, sortDir, baseBrazil]);
 
   // Movers filter: abs(changePct) >= 2%
-  const filteredUS     = useMemo(() => moversOnly ? sortedUS.filter(s    => Math.abs(data?.[s.symbol]?.changePct ?? 0) >= 2)     : sortedUS,     [sortedUS,     data, moversOnly]);
-  const filteredBrazil = useMemo(() => moversOnly ? sortedBrazil.filter(s => Math.abs(data?.[s.symbol]?.changePct ?? 0) >= 2)     : sortedBrazil, [sortedBrazil, data, moversOnly]);
+  const movedUS     = useMemo(() => moversOnly ? sortedUS.filter(s    => Math.abs(data?.[s.symbol]?.changePct ?? 0) >= 2)     : sortedUS,     [sortedUS,     data, moversOnly]);
+  const movedBrazil = useMemo(() => moversOnly ? sortedBrazil.filter(s => Math.abs(data?.[s.symbol]?.changePct ?? 0) >= 2)     : sortedBrazil, [sortedBrazil, data, moversOnly]);
+
+  // Search filter
+  const sq = searchFilter.toLowerCase();
+  const filteredUS     = useMemo(() => !sq ? movedUS     : movedUS.filter(s     => s.symbol.toLowerCase().includes(sq) || (s.name || '').toLowerCase().includes(sq)), [movedUS, sq]);
+  const filteredBrazil = useMemo(() => !sq ? movedBrazil : movedBrazil.filter(s => s.symbol.toLowerCase().includes(sq) || (s.name || '').toLowerCase().includes(sq)), [movedBrazil, sq]);
 
   // All items for heatmap
   const allItems = useMemo(() => [...filteredUS, ...filteredBrazil], [filteredUS, filteredBrazil]);
@@ -108,24 +123,15 @@ function StockPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#0a0a0a' }}>
       {/* Header */}
-      <div style={{ padding: '4px 8px', borderBottom: '1px solid #2a2a2a', background: '#111', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ color: '#00bcd4', fontSize: '10px', fontWeight: 700, letterSpacing: '1px' }}>{panelTitle}</span>
-          <span style={{ color: '#333', fontSize: '8px' }}>· BRAZIL ADRs</span>
-          <button
-            onClick={() => setConfigOpen(true)}
-            title="Configure panel"
-            style={{
-              background: 'none', border: 'none', color: '#444', cursor: 'pointer',
-              fontSize: 9, padding: '0 2px', lineHeight: 1, display: 'flex', alignItems: 'center',
-            }}
-          >✎</button>
-        </div>
-        {/* Feed status badge */}
-        <span style={{ marginLeft: 4, background: badge.bg, color: badge.color, fontSize: 7, fontWeight: 700, letterSpacing: '0.08em', padding: '1px 4px', borderRadius: 2, border: `1px solid ${badge.color}33` }}>
-          {badge.text}
-        </span>
-        <div style={{ flex: 1 }} />
+      <EditablePanelHeader
+        title={panelTitle}
+        subsections={['BRAZIL ADRs']}
+        onTitleChange={(t) => updatePanelConfig('usEquities', { title: t, symbols: panelSymbols })}
+        onConfigOpen={() => setConfigOpen(true)}
+        onDropTicker={handleDropTicker}
+        onSearchChange={setSearchFilter}
+        feedBadge={badge}
+      >
         {/* Movers filter toggle */}
         <button
           onClick={() => setMoversOnly(v => !v)}
@@ -144,7 +150,7 @@ function StockPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
           title={collapsed ? 'Expand' : 'Collapse'}
           style={{ background: 'none', border: '1px solid #2a2a2a', color: '#555', fontSize: 9, padding: '1px 5px', cursor: 'pointer', fontFamily: 'inherit', borderRadius: 2 }}
         >{collapsed ? '+' : '−'}</button>
-      </div>
+      </EditablePanelHeader>
 
       {!collapsed && (
         <>
@@ -177,7 +183,7 @@ function StockPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
             {loading || !data ? (
               <div style={{ padding: '20px', textAlign: 'center', color: '#444', fontSize: '10px' }}>LOADING...</div>
             ) : heatmap ? (
-              /* ── Heatmap grid ── */
+              /* Heatmap grid */
               <div style={{ padding: '6px 4px', display: 'flex', flexWrap: 'wrap', gap: 3 }}>
                 {allItems.map(s => {
                   const pct  = data?.[s.symbol]?.changePct ?? null;
