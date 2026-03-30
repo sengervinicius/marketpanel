@@ -1,331 +1,407 @@
 /**
  * routes/debt.js
- * Debt markets: sovereign yield curves + credit spread indexes + regional comparison.
+ * Debt markets: sovereign yield curves + credit spread indexes + bond detail.
  *
- * Real data providers to integrate (replace stubs below):
+ * Data sources (live, replacing all stubs):
+ *   US Treasury curve  — FRED public API (free, no key needed)
+ *   Credit spreads     — FRED ICE BofA index series (US IG/HY, Euro IG/HY, EM)
+ *   Global gov yields  — Yahoo Finance (^TNX, ^DE10YT=RR, ^GB10YT=RR, etc.)
+ *   ECB Euro area      — ECB Statistical Data Warehouse (free JSON API)
+ *   Bond detail        — FRED/Yahoo for sovereign; stubs for corporate
  *
- *   1. US Treasury Fiscal Data API — FREE, official
- *      https://fiscaldata.treasury.gov/api-documentation/
- *      GET https://api.fiscaldata.treasury.gov/services/api/v1/accounting/od/avg_interest_rates
- *
- *   2. FRED (Federal Reserve Economic Data) — FREE
- *      https://fred.stlouisfed.org/docs/api/fred/
- *      Series IDs: DGS2 (2Y), DGS5 (5Y), DGS10 (10Y), DGS30 (30Y)
- *      GET https://api.stlouisfed.org/fred/series/observations?series_id=DGS10&api_key=KEY&file_type=json
- *
- *   3. ECB Statistical Data Warehouse — FREE, official
- *      https://sdw-wsrest.ecb.europa.eu/help/
- *      GET https://sdw-wsrest.ecb.europa.eu/service/data/YC/B.U2.EUR.4F.G_N_A.SV_C_YM.SR_10Y
- *
- *   4. ANBIMA (Brazil) — FREE with registration
- *      https://data.anbima.com.br/
- *      Provides DI curve, NTN-B, LTN yields by tenor
- *
- *   5. Fin2Dev / Finnworlds / FinanceFlow — PAID
- *      Global government bond yields (50+ countries, multiple maturities)
- *      e.g. https://api.fin2dev.com/bond-yields?country=JP&tenor=10Y
- *
- *   6. TradingEconomics — PAID
- *      https://tradingeconomics.com/api/
- *      Covers 100+ countries with bond yields
- *
- *   7. Bloomberg / Refinitiv Eikon — INSTITUTIONAL, PAID
- *      Best quality for IG/HY OAS spreads and global sovereign curves
- *
- * Mounted at /api/debt. Requires auth + active subscription.
+ * Mounted at /api/debt.  Requires auth + active subscription.
  */
 
 const express = require('express');
+const fetch   = require('node-fetch');
 const router  = express.Router();
+const fred    = require('../providers/fred');
 
-// ─── Sovereign yield curve stubs (per country) ───────────────────────────────
-// Shape: [{ tenor: '1M'|'3M'|...|'30Y', yield: number (percent) }]
-// TODO: Replace with real provider calls (see header comments)
+// ── Simple server-side cache ──────────────────────────────────────────────────
+const _cache = new Map();
+function cacheGet(k) {
+  const e = _cache.get(k);
+  if (!e) return null;
+  if (Date.now() > e.exp) { _cache.delete(k); return null; }
+  return e.v;
+}
+function cacheSet(k, v, ttlMs) {
+  _cache.set(k, { v, exp: Date.now() + ttlMs });
+}
 
-const SOVEREIGN_CURVES = {
-  US: {
-    name: 'US Treasuries', currency: 'USD', color: '#4488ff',
-    points: [
-      { tenor: '1M',  yield: 5.28 }, { tenor: '3M',  yield: 5.32 },
-      { tenor: '6M',  yield: 5.27 }, { tenor: '1Y',  yield: 5.01 },
-      { tenor: '2Y',  yield: 4.62 }, { tenor: '3Y',  yield: 4.45 },
-      { tenor: '5Y',  yield: 4.38 }, { tenor: '7Y',  yield: 4.42 },
-      { tenor: '10Y', yield: 4.48 }, { tenor: '20Y', yield: 4.76 },
-      { tenor: '30Y', yield: 4.63 },
-    ],
-  },
-  BR: {
-    name: 'Brazil (DI/NTN)', currency: 'BRL', color: '#00cc44',
-    points: [
-      { tenor: '1M',  yield: 10.65 }, { tenor: '3M',  yield: 10.70 },
-      { tenor: '6M',  yield: 10.72 }, { tenor: '1Y',  yield: 10.80 },
-      { tenor: '2Y',  yield: 11.05 }, { tenor: '3Y',  yield: 11.42 },
-      { tenor: '5Y',  yield: 12.10 }, { tenor: '10Y', yield: 12.85 },
-    ],
-  },
-  DE: {
-    name: 'Germany (Bund)', currency: 'EUR', color: '#ffcc00',
-    points: [
-      { tenor: '1M',  yield: 3.64 }, { tenor: '3M',  yield: 3.72 },
-      { tenor: '6M',  yield: 3.68 }, { tenor: '1Y',  yield: 3.45 },
-      { tenor: '2Y',  yield: 2.98 }, { tenor: '5Y',  yield: 2.58 },
-      { tenor: '10Y', yield: 2.54 }, { tenor: '30Y', yield: 2.72 },
-    ],
-  },
-  GB: {
-    name: 'UK Gilts', currency: 'GBP', color: '#cc88ff',
-    points: [
-      { tenor: '1M',  yield: 5.10 }, { tenor: '3M',  yield: 5.15 },
-      { tenor: '6M',  yield: 5.08 }, { tenor: '1Y',  yield: 4.82 },
-      { tenor: '2Y',  yield: 4.42 }, { tenor: '5Y',  yield: 4.28 },
-      { tenor: '10Y', yield: 4.35 }, { tenor: '30Y', yield: 4.70 },
-    ],
-  },
-  JP: {
-    name: 'Japan (JGB)', currency: 'JPY', color: '#ff8844',
-    points: [
-      { tenor: '1M',  yield: -0.04 }, { tenor: '3M',  yield: 0.00 },
-      { tenor: '6M',  yield: 0.05  }, { tenor: '1Y',  yield: 0.10 },
-      { tenor: '2Y',  yield: 0.19  }, { tenor: '5Y',  yield: 0.42 },
-      { tenor: '10Y', yield: 0.72  }, { tenor: '30Y', yield: 1.70 },
-    ],
-  },
-  IT: {
-    name: 'Italy (BTP)', currency: 'EUR', color: '#66ccff',
-    points: [
-      { tenor: '1M',  yield: 3.58 }, { tenor: '3M',  yield: 3.68 },
-      { tenor: '6M',  yield: 3.66 }, { tenor: '1Y',  yield: 3.60 },
-      { tenor: '2Y',  yield: 3.52 }, { tenor: '5Y',  yield: 3.80 },
-      { tenor: '10Y', yield: 4.20 }, { tenor: '30Y', yield: 4.82 },
-    ],
-  },
-  FR: {
-    name: 'France (OAT)', currency: 'EUR', color: '#88ddff',
-    points: [
-      { tenor: '1M',  yield: 3.60 }, { tenor: '3M',  yield: 3.66 },
-      { tenor: '6M',  yield: 3.62 }, { tenor: '1Y',  yield: 3.44 },
-      { tenor: '2Y',  yield: 3.12 }, { tenor: '5Y',  yield: 2.90 },
-      { tenor: '10Y', yield: 3.08 }, { tenor: '30Y', yield: 3.48 },
-    ],
-  },
-  AU: {
-    name: 'Australia (ACGB)', currency: 'AUD', color: '#ffee44',
-    points: [
-      { tenor: '1M',  yield: 4.30 }, { tenor: '3M',  yield: 4.35 },
-      { tenor: '6M',  yield: 4.32 }, { tenor: '1Y',  yield: 4.18 },
-      { tenor: '2Y',  yield: 4.05 }, { tenor: '5Y',  yield: 4.10 },
-      { tenor: '10Y', yield: 4.32 }, { tenor: '30Y', yield: 4.68 },
-    ],
-  },
-  CA: {
-    name: 'Canada (GoC)', currency: 'CAD', color: '#ff6644',
-    points: [
-      { tenor: '1M',  yield: 4.88 }, { tenor: '3M',  yield: 4.90 },
-      { tenor: '6M',  yield: 4.85 }, { tenor: '1Y',  yield: 4.60 },
-      { tenor: '2Y',  yield: 4.28 }, { tenor: '5Y',  yield: 3.95 },
-      { tenor: '10Y', yield: 3.88 }, { tenor: '30Y', yield: 3.92 },
-    ],
-  },
-  MX: {
-    name: 'Mexico (Mbonos)', currency: 'MXN', color: '#44ff88',
-    points: [
-      { tenor: '1M',  yield: 10.90 }, { tenor: '3M',  yield: 11.00 },
-      { tenor: '6M',  yield: 10.95 }, { tenor: '1Y',  yield: 10.70 },
-      { tenor: '2Y',  yield: 10.45 }, { tenor: '5Y',  yield: 10.20 },
-      { tenor: '10Y', yield: 10.35 }, { tenor: '30Y', yield: 10.60 },
-    ],
-  },
-  KR: {
-    name: 'South Korea (KTB)', currency: 'KRW', color: '#88ffcc',
-    points: [
-      { tenor: '1M',  yield: 3.52 }, { tenor: '3M',  yield: 3.55 },
-      { tenor: '6M',  yield: 3.54 }, { tenor: '1Y',  yield: 3.44 },
-      { tenor: '2Y',  yield: 3.38 }, { tenor: '5Y',  yield: 3.42 },
-      { tenor: '10Y', yield: 3.58 }, { tenor: '30Y', yield: 3.52 },
-    ],
-  },
-  ZA: {
-    name: 'South Africa (RSA)', currency: 'ZAR', color: '#ffaa44',
-    points: [
-      { tenor: '3M',  yield: 8.15 }, { tenor: '6M',  yield: 8.20 },
-      { tenor: '1Y',  yield: 8.35 }, { tenor: '2Y',  yield: 8.55 },
-      { tenor: '5Y',  yield: 9.05 }, { tenor: '10Y', yield: 9.80 },
-      { tenor: '30Y', yield: 10.80 },
-    ],
-  },
+const TTL = {
+  curve:   30 * 60 * 1000,
+  spreads: 30 * 60 * 1000,
+  yahoo:    5 * 60 * 1000,
+  ecb:     60 * 60 * 1000,
+  bond:    10 * 60 * 1000,
 };
 
-// ─── Regional 10Y snapshot for comparative view ──────────────────────────────
-// GET /api/debt/sovereign/region?region=all&tenor=10Y
-const REGIONS = {
-  g10: ['US', 'DE', 'GB', 'JP', 'CA', 'AU', 'FR'],
-  europe: ['DE', 'FR', 'IT', 'GB'],
-  latam: ['BR', 'MX', 'ZA'],
-  asia: ['JP', 'KR', 'AU'],
-  all: Object.keys(SOVEREIGN_CURVES),
+// ── Yahoo Finance bond yield tickers ─────────────────────────────────────────
+const YAHOO_YIELD_TICKERS = {
+  '^TNX':       { country: 'US', tenor: '10Y', name: 'US 10Y Treasury'     },
+  '^TYX':       { country: 'US', tenor: '30Y', name: 'US 30Y Treasury'     },
+  '^FVX':       { country: 'US', tenor: '5Y',  name: 'US 5Y Treasury'      },
+  '^IRX':       { country: 'US', tenor: '3M',  name: 'US 3M T-Bill'        },
+  '^DE10YT=RR': { country: 'DE', tenor: '10Y', name: 'Germany 10Y Bund'    },
+  '^GB10YT=RR': { country: 'GB', tenor: '10Y', name: 'UK 10Y Gilt'         },
+  '^FR10YT=RR': { country: 'FR', tenor: '10Y', name: 'France 10Y OAT'      },
+  '^IT10YT=RR': { country: 'IT', tenor: '10Y', name: 'Italy 10Y BTP'       },
+  '^ES10YT=RR': { country: 'ES', tenor: '10Y', name: 'Spain 10Y Bono'      },
+  '^PT10YT=RR': { country: 'PT', tenor: '10Y', name: 'Portugal 10Y'        },
+  '^NL10YT=RR': { country: 'NL', tenor: '10Y', name: 'Netherlands 10Y'     },
+  '^JP10YT=RR': { country: 'JP', tenor: '10Y', name: 'Japan 10Y JGB'       },
+  '^AU10YT=RR': { country: 'AU', tenor: '10Y', name: 'Australia 10Y'       },
+  '^KR10YT=RR': { country: 'KR', tenor: '10Y', name: 'South Korea 10Y'     },
+  '^MX10YT=RR': { country: 'MX', tenor: '10Y', name: 'Mexico 10Y'          },
+  '^ZA10YT=RR': { country: 'ZA', tenor: '10Y', name: 'South Africa 10Y'    },
+  '^IN10YT=RR': { country: 'IN', tenor: '10Y', name: 'India 10Y'           },
 };
 
-// ─── Credit spread indexes ────────────────────────────────────────────────────
-// TODO: Replace with real provider:
-//   Bloomberg LEAG/LUHY index, ICE BofA indexes, Markit CDX, QUODD, Netdania
-const CREDIT_INDEXES = [
-  { id: 'US_IG',   name: 'US IG OAS',        spread: 102,  spreadBps: true, currency: 'USD', change: -2  },
-  { id: 'US_HY',   name: 'US HY OAS',        spread: 385,  spreadBps: true, currency: 'USD', change: +5  },
-  { id: 'EU_IG',   name: 'Euro IG OAS',      spread: 118,  spreadBps: true, currency: 'EUR', change: -1  },
-  { id: 'EU_HY',   name: 'Euro HY OAS',      spread: 420,  spreadBps: true, currency: 'EUR', change: +8  },
-  { id: 'EM_SOV',  name: 'EM Sovereign OAS', spread: 345,  spreadBps: true, currency: 'USD', change: +3  },
-  { id: 'BR_DI',   name: 'Brazil DI Spread', spread: 180,  spreadBps: true, currency: 'BRL', change: -5  },
-  { id: 'US_10S2', name: 'US 10Y-2Y Spread', spread: -14,  spreadBps: true, currency: 'USD', change: +2  },
-  { id: 'US_30S10',name: 'US 30Y-10Y Spread',spread:  15,  spreadBps: true, currency: 'USD', change: +1  },
-];
-
-// ─── Routes ───────────────────────────────────────────────────────────────────
-
-// GET /api/debt/sovereign/:countryCode   — single country yield curve
-router.get('/sovereign/:countryCode', (req, res) => {
-  const cc = req.params.countryCode.toUpperCase();
-  const data = SOVEREIGN_CURVES[cc];
-  if (!data) {
-    return res.status(404).json({
-      error: `No data for country: ${cc}`,
-      available: Object.keys(SOVEREIGN_CURVES),
+async function yahooQuoteDebt(symbols) {
+  const HOSTS = ['query1', 'query2'];
+  const FIELDS = 'symbol,shortName,regularMarketPrice,regularMarketChange,regularMarketChangePercent';
+  async function tryCrumb(host) {
+    const r = await fetch(`https://${host}.finance.yahoo.com/v1/test/getcrumb`, {
+      headers: { 'User-Agent': 'Mozilla/5.0 Chrome/120 Safari/537.36', 'Accept': '*/*', 'Accept-Language': 'en-US' },
+      redirect: 'follow',
     });
+    if (!r.ok) return null;
+    return { crumb: (await r.text()).trim(), cookie: r.headers.get('set-cookie') || '' };
   }
-  res.json({
-    country:  cc,
-    name:     data.name,
-    currency: data.currency,
-    color:    data.color,
-    points:   data.points,
-    asOf:     Date.now(),
-    stub:     true, // remove once real provider is wired
+  let auth = null;
+  for (const h of HOSTS) { auth = await tryCrumb(h); if (auth && auth.crumb) break; }
+  if (!auth || !auth.crumb) throw new Error('Yahoo Finance: could not obtain crumb');
+  const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbols)}&crumb=${encodeURIComponent(auth.crumb)}&fields=${FIELDS}&lang=en-US`;
+  const res = await fetch(url, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 Chrome/120 Safari/537.36',
+      'Accept': 'application/json', 'Accept-Language': 'en-US',
+      'Cookie': auth.cookie, 'Referer': 'https://finance.yahoo.com/',
+    },
   });
+  if (!res.ok) throw new Error(`Yahoo: HTTP ${res.status}`);
+  const json = await res.json();
+  return json?.quoteResponse?.result ?? [];
+}
+
+// ── ECB Data Warehouse ────────────────────────────────────────────────────────
+const ECB_SERIES = {
+  '3M': 'B.U2.EUR.4F.G_N_A.SV_C_YM.SR_3M',  '6M': 'B.U2.EUR.4F.G_N_A.SV_C_YM.SR_6M',
+  '1Y': 'B.U2.EUR.4F.G_N_A.SV_C_YM.SR_1Y',  '2Y': 'B.U2.EUR.4F.G_N_A.SV_C_YM.SR_2Y',
+  '5Y': 'B.U2.EUR.4F.G_N_A.SV_C_YM.SR_5Y',  '7Y': 'B.U2.EUR.4F.G_N_A.SV_C_YM.SR_7Y',
+  '10Y':'B.U2.EUR.4F.G_N_A.SV_C_YM.SR_10Y', '20Y':'B.U2.EUR.4F.G_N_A.SV_C_YM.SR_20Y',
+  '30Y':'B.U2.EUR.4F.G_N_A.SV_C_YM.SR_30Y',
+};
+
+async function fetchEcbYield(seriesKey) {
+  const url = `https://data-api.ecb.europa.eu/service/data/YC/${seriesKey}?lastNObservations=1&format=jsondata`;
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 8000);
+  try {
+    const res = await fetch(url, { signal: ctrl.signal, headers: { Accept: 'application/json' } });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+    const ds   = json?.dataSets?.[0]?.series;
+    if (!ds) return null;
+    const key0 = Object.keys(ds)[0];
+    const obs  = ds[key0]?.observations;
+    if (!obs) return null;
+    const lastIdx = Object.keys(obs).sort((a, b) => +b - +a)[0];
+    const val = obs[lastIdx]?.[0];
+    return val != null ? +val : null;
+  } catch (e) {
+    console.warn(`[ECB] ${seriesKey}: ${e.message}`);
+    return null;
+  } finally { clearTimeout(timer); }
+}
+
+async function getEcbEuroCurve() {
+  const ck = 'ecb:euro_curve';
+  const c  = cacheGet(ck);
+  if (c) return c;
+  const entries = Object.entries(ECB_SERIES);
+  const values  = await Promise.all(entries.map(([, k]) => fetchEcbYield(k)));
+  const points  = entries.map(([t], i) => ({ tenor: t, yield: values[i] })).filter(p => p.yield !== null);
+  if (points.length > 0) cacheSet(ck, points, TTL.ecb);
+  return points;
+}
+
+// ── Country metadata ──────────────────────────────────────────────────────────
+const COUNTRY_META = {
+  US: { name: 'US Treasuries',       currency: 'USD', color: '#4488ff' },
+  DE: { name: 'Germany (Bund)',       currency: 'EUR', color: '#ffcc00' },
+  GB: { name: 'UK Gilts',            currency: 'GBP', color: '#cc88ff' },
+  FR: { name: 'France (OAT)',         currency: 'EUR', color: '#88ddff' },
+  IT: { name: 'Italy (BTP)',          currency: 'EUR', color: '#66ccff' },
+  ES: { name: 'Spain (Bono)',         currency: 'EUR', color: '#ff9944' },
+  PT: { name: 'Portugal (OT)',        currency: 'EUR', color: '#44ffcc' },
+  NL: { name: 'Netherlands',         currency: 'EUR', color: '#ff4488' },
+  JP: { name: 'Japan (JGB)',          currency: 'JPY', color: '#ff8844' },
+  AU: { name: 'Australia (ACGB)',     currency: 'AUD', color: '#ffee44' },
+  KR: { name: 'South Korea (KTB)',    currency: 'KRW', color: '#88ffcc' },
+  MX: { name: 'Mexico (Mbonos)',      currency: 'MXN', color: '#44ff88' },
+  ZA: { name: 'South Africa (RSA)',   currency: 'ZAR', color: '#ffaa44' },
+  IN: { name: 'India (G-Sec)',        currency: 'INR', color: '#ff6655' },
+  BR: { name: 'Brazil (DI/NTN)',      currency: 'BRL', color: '#00cc44' },
+  EU: { name: 'Euro Area AAA (ECB)',  currency: 'EUR', color: '#ffe055' },
+};
+
+const REGIONS = {
+  g10:    ['US', 'DE', 'GB', 'JP', 'AU', 'FR'],
+  europe: ['DE', 'FR', 'IT', 'ES', 'GB', 'PT', 'NL'],
+  latam:  ['BR', 'MX'],
+  asia:   ['JP', 'KR', 'AU', 'IN'],
+  em:     ['BR', 'MX', 'ZA', 'IN', 'KR'],
+  all:    Object.keys(COUNTRY_META),
+};
+
+// ── Routes ────────────────────────────────────────────────────────────────────
+
+// GET /api/debt/sovereign/US  — full curve from FRED
+router.get('/sovereign/US', async (req, res) => {
+  try {
+    const ck = 'debt:sovereign:US';
+    const c  = cacheGet(ck);
+    if (c) return res.json(c);
+
+    let points = await fred.getUSTreasuryCurve();
+    let source = 'fred';
+
+    if (points.length === 0) {
+      console.warn('[debt] FRED unavailable, falling back to Yahoo for US curve');
+      try {
+        const yq = await yahooQuoteDebt('^IRX,^FVX,^TNX,^TYX');
+        points = yq.filter(q => q?.regularMarketPrice != null).map(q => {
+          const m = YAHOO_YIELD_TICKERS[q.symbol];
+          return m ? { tenor: m.tenor, yield: q.regularMarketPrice } : null;
+        }).filter(Boolean);
+        source = 'yahoo_fallback';
+      } catch (_) {}
+    }
+
+    const resp = { country: 'US', ...COUNTRY_META.US, points, asOf: Date.now(), source };
+    if (points.length > 0) cacheSet(ck, resp, TTL.curve);
+    res.json(resp);
+  } catch (e) {
+    console.error('[debt] /sovereign/US:', e.message);
+    res.status(500).json({ error: e.message });
+  }
 });
 
-// GET /api/debt/sovereign/region?region=g10&tenor=10Y  — cross-country snapshot
-router.get('/sovereign/region', (req, res) => {
+// GET /api/debt/sovereign/EU  — Euro area curve from ECB
+router.get('/sovereign/EU', async (req, res) => {
+  try {
+    const ck = 'debt:sovereign:EU';
+    const c  = cacheGet(ck);
+    if (c) return res.json(c);
+    const points = await getEcbEuroCurve();
+    const resp   = { country: 'EU', ...COUNTRY_META.EU, points, asOf: Date.now(), source: 'ecb' };
+    if (points.length > 0) cacheSet(ck, resp, TTL.ecb);
+    res.json(resp);
+  } catch (e) {
+    console.error('[debt] /sovereign/EU:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// GET /api/debt/sovereign/region  — must be before /:countryCode
+router.get('/sovereign/region', async (req, res) => {
   const region = (req.query.region || 'g10').toLowerCase();
   const tenor  = (req.query.tenor  || '10Y').toUpperCase();
   const codes  = REGIONS[region] || REGIONS.g10;
 
-  const snapshot = codes
-    .map(cc => {
-      const data = SOVEREIGN_CURVES[cc];
-      if (!data) return null;
-      const point = data.points.find(p => p.tenor === tenor);
-      return point ? {
-        country:  cc,
-        name:     data.name,
-        currency: data.currency,
-        color:    data.color,
-        tenor,
-        yield:    point.yield,
-      } : null;
-    })
-    .filter(Boolean)
-    .sort((a, b) => b.yield - a.yield);
+  const ck = `debt:region:${region}:${tenor}`;
+  const c  = cacheGet(ck);
+  if (c) return res.json(c);
 
-  res.json({
-    region,
-    tenor,
-    snapshot,
-    available: Object.keys(SOVEREIGN_CURVES),
-    asOf: Date.now(),
-    stub: true,
-  });
+  try {
+    const tickers = Object.entries(YAHOO_YIELD_TICKERS)
+      .filter(([, m]) => codes.includes(m.country) && m.tenor === tenor)
+      .map(([t]) => t);
+
+    let snapshot = [];
+    if (tickers.length > 0) {
+      try {
+        const quotes = await yahooQuoteDebt(tickers.join(','));
+        snapshot = quotes.filter(q => q?.regularMarketPrice != null).map(q => {
+          const m = YAHOO_YIELD_TICKERS[q.symbol];
+          const meta = COUNTRY_META[m.country] || {};
+          return { country: m.country, name: meta.name, currency: meta.currency || 'USD', color: meta.color || '#888', tenor, yield: q.regularMarketPrice, change: q.regularMarketChange ?? null, changeBps: Math.round((q.regularMarketChange ?? 0) * 100) };
+        }).sort((a, b) => b.yield - a.yield);
+      } catch (e) { console.warn('[debt] region Yahoo fetch failed:', e.message); }
+    }
+
+    if (tenor === '10Y' && codes.includes('US') && !snapshot.find(s => s.country === 'US')) {
+      try {
+        const usCurve = await fred.getUSTreasuryCurve();
+        const us10y = usCurve.find(p => p.tenor === '10Y');
+        if (us10y) {
+          snapshot.push({ country: 'US', ...COUNTRY_META.US, tenor, yield: us10y.yield, change: null, changeBps: null });
+          snapshot.sort((a, b) => b.yield - a.yield);
+        }
+      } catch (_) {}
+    }
+
+    const resp = { region, tenor, snapshot, available: Object.keys(COUNTRY_META), asOf: Date.now(), source: 'yahoo+fred' };
+    if (snapshot.length > 0) cacheSet(ck, resp, TTL.yahoo);
+    res.json(resp);
+  } catch (e) {
+    console.error('[debt] /sovereign/region:', e.message);
+    res.status(500).json({ error: e.message });
+  }
 });
 
-// GET /api/debt/countries — list all available countries
+// GET /api/debt/sovereign/:countryCode  — single country (Yahoo 10Y)
+router.get('/sovereign/:countryCode', async (req, res) => {
+  const cc = req.params.countryCode.toUpperCase();
+  if (!COUNTRY_META[cc]) {
+    return res.status(404).json({ error: `No data for: ${cc}`, available: Object.keys(COUNTRY_META) });
+  }
+
+  const ck = `debt:sovereign:${cc}`;
+  const c  = cacheGet(ck);
+  if (c) return res.json(c);
+
+  const tickers = Object.entries(YAHOO_YIELD_TICKERS).filter(([, m]) => m.country === cc).map(([t]) => t);
+  if (!tickers.length) return res.status(404).json({ error: `No tickers for: ${cc}` });
+
+  try {
+    const quotes = await yahooQuoteDebt(tickers.join(','));
+    const points = quotes.filter(q => q?.regularMarketPrice != null).map(q => {
+      const m = YAHOO_YIELD_TICKERS[q.symbol];
+      return { tenor: m.tenor, yield: q.regularMarketPrice, change: q.regularMarketChange ?? null };
+    });
+    const resp = { country: cc, ...COUNTRY_META[cc], points, asOf: Date.now(), source: 'yahoo' };
+    if (points.length > 0) cacheSet(ck, resp, TTL.yahoo);
+    res.json(resp);
+  } catch (e) {
+    console.error(`[debt] /sovereign/${cc}:`, e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// GET /api/debt/countries
 router.get('/countries', (req, res) => {
   res.json({
-    countries: Object.entries(SOVEREIGN_CURVES).map(([code, d]) => ({
-      code,
-      name:     d.name,
-      currency: d.currency,
-      color:    d.color,
-      tenors:   d.points.map(p => p.tenor),
+    countries: Object.entries(COUNTRY_META).map(([code, d]) => ({
+      code, ...d,
+      hasFullCurve: code === 'US' || code === 'EU',
     })),
+    regions: REGIONS,
   });
 });
 
-// GET /api/debt/credit/indexes — credit spread indexes
-router.get('/credit/indexes', (req, res) => {
-  res.json({
-    indexes: CREDIT_INDEXES,
-    asOf:    Date.now(),
-    stub:    true,
-    note:    'Integrate Bloomberg LEAG/LUHY, ICE BofA, or Markit CDX for production.',
-  });
+// GET /api/debt/yields/global  — all 10Y benchmarks
+router.get('/yields/global', async (req, res) => {
+  const ck = 'debt:yields:global';
+  const c  = cacheGet(ck);
+  if (c) return res.json(c);
+  try {
+    const tickers = Object.entries(YAHOO_YIELD_TICKERS).filter(([, m]) => m.tenor === '10Y').map(([t]) => t);
+    const quotes  = await yahooQuoteDebt(tickers.join(','));
+    const yields  = quotes.filter(q => q?.regularMarketPrice != null).map(q => {
+      const m = YAHOO_YIELD_TICKERS[q.symbol];
+      const meta = COUNTRY_META[m.country] || {};
+      return { symbol: q.symbol, country: m.country, name: meta.name || m.name, currency: meta.currency || 'USD', color: meta.color || '#888', tenor: '10Y', yield: q.regularMarketPrice, change: q.regularMarketChange ?? null, changeBps: Math.round((q.regularMarketChange ?? 0) * 100) };
+    }).sort((a, b) => b.yield - a.yield);
+    const resp = { yields, count: yields.length, asOf: Date.now(), source: 'yahoo' };
+    if (yields.length > 0) cacheSet(ck, resp, TTL.yahoo);
+    res.json(resp);
+  } catch (e) {
+    console.error('[debt] /yields/global:', e.message);
+    res.status(500).json({ error: e.message });
+  }
 });
 
-// ─── Phase 2.1: Bond detail ────────────────────────────────────────────────────
-// GET /api/debt/bond/:id
-// Returns BondDetail for a sovereign or corporate bond.
-// Currently stub data for benchmark treasury / DI instruments.
-// TODO(provider): Integrate ANBIMA (Brazil), FINRA TRACE (US corporates), or
-//                 Refinitiv for global bond reference data and live spreads.
+// GET /api/debt/credit/indexes  — FRED ICE BofA credit spreads
+router.get('/credit/indexes', async (req, res) => {
+  const ck = 'debt:credit:indexes';
+  const c  = cacheGet(ck);
+  if (c) return res.json(c);
+  try {
+    const spreads = await fred.getCreditSpreads();
+    const FALLBACK = [
+      { id: 'US_IG', name: 'US IG OAS', spread: 102, spreadBps: true, currency: 'USD', source: 'stub' },
+      { id: 'US_HY', name: 'US HY OAS', spread: 385, spreadBps: true, currency: 'USD', source: 'stub' },
+      { id: 'EU_IG', name: 'Euro IG OAS', spread: 118, spreadBps: true, currency: 'EUR', source: 'stub' },
+      { id: 'EU_HY', name: 'Euro HY OAS', spread: 420, spreadBps: true, currency: 'EUR', source: 'stub' },
+      { id: 'EM',    name: 'EM Corp+ OAS', spread: 345, spreadBps: true, currency: 'USD', source: 'stub' },
+      { id: 'US_10S2', name: 'US 10Y-2Y Spread', spread: -14, spreadBps: true, currency: 'USD', source: 'stub' },
+    ];
+    const result = spreads.length > 0 ? spreads : FALLBACK;
+    const resp   = { indexes: result, source: spreads.length > 0 ? 'fred' : 'stub_fallback', asOf: Date.now() };
+    if (spreads.length > 0) cacheSet(ck, resp, TTL.spreads);
+    res.json(resp);
+  } catch (e) {
+    console.error('[debt] /credit/indexes:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
 
+// GET /api/debt/bond/:id  — bond detail with live yield
 const BOND_STUBS = {
-  'US2Y':  { issuer: 'US Treasury', bondType: 'sovereign', couponPct: 4.75, couponFrequency: 'semi-annual', maturityDate: '2026-03-31', dayCount: 'ACT/ACT', currency: 'USD', country: 'US', yieldToMaturity: 0.047, yieldToWorst: 0.047, spreadBps: 0,   ratingMoodys: 'Aaa', ratingSP: 'AA+', ratingFitch: 'AAA', duration: 1.82, convexity: 0.036, dv01: 182 },
-  'US5Y':  { issuer: 'US Treasury', bondType: 'sovereign', couponPct: 4.25, couponFrequency: 'semi-annual', maturityDate: '2029-03-31', dayCount: 'ACT/ACT', currency: 'USD', country: 'US', yieldToMaturity: 0.043, yieldToWorst: 0.043, spreadBps: 0,   ratingMoodys: 'Aaa', ratingSP: 'AA+', ratingFitch: 'AAA', duration: 4.41, convexity: 0.21,  dv01: 441 },
-  'US10Y': { issuer: 'US Treasury', bondType: 'sovereign', couponPct: 4.00, couponFrequency: 'semi-annual', maturityDate: '2034-03-31', dayCount: 'ACT/ACT', currency: 'USD', country: 'US', yieldToMaturity: 0.043, yieldToWorst: 0.043, spreadBps: 0,   ratingMoodys: 'Aaa', ratingSP: 'AA+', ratingFitch: 'AAA', duration: 8.27, convexity: 0.78,  dv01: 827 },
-  'US30Y': { issuer: 'US Treasury', bondType: 'sovereign', couponPct: 4.25, couponFrequency: 'semi-annual', maturityDate: '2054-03-31', dayCount: 'ACT/ACT', currency: 'USD', country: 'US', yieldToMaturity: 0.045, yieldToWorst: 0.045, spreadBps: 0,   ratingMoodys: 'Aaa', ratingSP: 'AA+', ratingFitch: 'AAA', duration: 17.9, convexity: 4.10,  dv01: 1790 },
-  'DE10Y': { issuer: 'German Republic', bondType: 'sovereign', couponPct: 2.50, couponFrequency: 'annual', maturityDate: '2034-02-15', dayCount: 'ACT/ACT', currency: 'EUR', country: 'DE', yieldToMaturity: 0.026, yieldToWorst: 0.026, spreadBps: -170, ratingMoodys: 'Aaa', ratingSP: 'AAA', ratingFitch: 'AAA', duration: 8.1,  convexity: 0.72,  dv01: 810 },
-  'GB10Y': { issuer: 'HM Treasury', bondType: 'sovereign', couponPct: 4.125, couponFrequency: 'semi-annual', maturityDate: '2034-01-22', dayCount: 'ACT/ACT', currency: 'GBP', country: 'GB', yieldToMaturity: 0.042, yieldToWorst: 0.042, spreadBps: -8,  ratingMoodys: 'Aa3', ratingSP: 'AA', ratingFitch: 'AA-', duration: 7.9,  convexity: 0.70,  dv01: 790 },
-  'BR10Y': { issuer: 'Tesouro Nacional (Brazil)', bondType: 'sovereign', couponPct: 11.0, couponFrequency: 'semi-annual', maturityDate: '2033-01-01', dayCount: 'BUS/252', currency: 'BRL', country: 'BR', yieldToMaturity: 0.115, yieldToWorst: 0.115, spreadBps: 685, ratingMoodys: 'Ba1', ratingSP: 'BB-', ratingFitch: 'BB', duration: 5.8, convexity: 0.38, dv01: 580 },
+  'US2Y':  { issuer: 'US Treasury',       bondType: 'sovereign', couponPct: 4.75, couponFrequency: 'semi-annual', maturityDate: '2026-03-31', dayCount: 'ACT/ACT', currency: 'USD', country: 'US', spreadBps: 0,    ratingMoodys: 'Aaa', ratingSP: 'AA+', ratingFitch: 'AAA', duration: 1.82, convexity: 0.036, dv01: 182,  fredSeries: 'DGS2'        },
+  'US5Y':  { issuer: 'US Treasury',       bondType: 'sovereign', couponPct: 4.25, couponFrequency: 'semi-annual', maturityDate: '2029-03-31', dayCount: 'ACT/ACT', currency: 'USD', country: 'US', spreadBps: 0,    ratingMoodys: 'Aaa', ratingSP: 'AA+', ratingFitch: 'AAA', duration: 4.41, convexity: 0.21,  dv01: 441,  fredSeries: 'DGS5'        },
+  'US10Y': { issuer: 'US Treasury',       bondType: 'sovereign', couponPct: 4.00, couponFrequency: 'semi-annual', maturityDate: '2034-03-31', dayCount: 'ACT/ACT', currency: 'USD', country: 'US', spreadBps: 0,    ratingMoodys: 'Aaa', ratingSP: 'AA+', ratingFitch: 'AAA', duration: 8.27, convexity: 0.78,  dv01: 827,  fredSeries: 'DGS10'       },
+  'US30Y': { issuer: 'US Treasury',       bondType: 'sovereign', couponPct: 4.25, couponFrequency: 'semi-annual', maturityDate: '2054-03-31', dayCount: 'ACT/ACT', currency: 'USD', country: 'US', spreadBps: 0,    ratingMoodys: 'Aaa', ratingSP: 'AA+', ratingFitch: 'AAA', duration: 17.9, convexity: 4.10,  dv01: 1790, fredSeries: 'DGS30'       },
+  'DE10Y': { issuer: 'German Republic',   bondType: 'sovereign', couponPct: 2.50, couponFrequency: 'annual',     maturityDate: '2034-02-15', dayCount: 'ACT/ACT', currency: 'EUR', country: 'DE', spreadBps: -170, ratingMoodys: 'Aaa', ratingSP: 'AAA', ratingFitch: 'AAA', duration: 8.1,  convexity: 0.72,  dv01: 810,  yahooTicker: '^DE10YT=RR' },
+  'GB10Y': { issuer: 'HM Treasury',       bondType: 'sovereign', couponPct: 4.13, couponFrequency: 'semi-annual', maturityDate: '2034-01-22', dayCount: 'ACT/ACT', currency: 'GBP', country: 'GB', spreadBps: -8,   ratingMoodys: 'Aa3', ratingSP: 'AA',  ratingFitch: 'AA-', duration: 7.9,  convexity: 0.70,  dv01: 790,  yahooTicker: '^GB10YT=RR' },
+  'FR10Y': { issuer: 'French Republic',   bondType: 'sovereign', couponPct: 3.00, couponFrequency: 'annual',     maturityDate: '2034-05-25', dayCount: 'ACT/ACT', currency: 'EUR', country: 'FR', spreadBps: 60,   ratingMoodys: 'Aa2', ratingSP: 'AA-', ratingFitch: 'AA-', duration: 7.8,  convexity: 0.68,  dv01: 780,  yahooTicker: '^FR10YT=RR' },
+  'IT10Y': { issuer: 'Republic of Italy', bondType: 'sovereign', couponPct: 4.35, couponFrequency: 'annual',     maturityDate: '2034-02-01', dayCount: 'ACT/ACT', currency: 'EUR', country: 'IT', spreadBps: 160,  ratingMoodys: 'Baa3',ratingSP: 'BBB+',ratingFitch: 'BBB', duration: 7.5,  convexity: 0.63,  dv01: 750,  yahooTicker: '^IT10YT=RR' },
+  'JP10Y': { issuer: 'Bank of Japan',     bondType: 'sovereign', couponPct: 0.50, couponFrequency: 'semi-annual', maturityDate: '2034-03-20', dayCount: 'ACT/365', currency: 'JPY', country: 'JP', spreadBps: -380, ratingMoodys: 'A1',  ratingSP: 'A+',  ratingFitch: 'A',   duration: 9.2,  convexity: 0.95,  dv01: 920,  yahooTicker: '^JP10YT=RR' },
+  'BR10Y': { issuer: 'Tesouro Nacional',  bondType: 'sovereign', couponPct: 11.0, couponFrequency: 'semi-annual', maturityDate: '2033-01-01', dayCount: 'BUS/252', currency: 'BRL', country: 'BR', spreadBps: 685,  ratingMoodys: 'Ba1', ratingSP: 'BB-', ratingFitch: 'BB',  duration: 5.8,  convexity: 0.38,  dv01: 580  },
+  'AAPL24':{ issuer: 'Apple Inc.',        bondType: 'corporate', couponPct: 3.85, couponFrequency: 'semi-annual', maturityDate: '2046-08-04', dayCount: 'ACT/360', currency: 'USD', country: 'US', spreadBps: 65,   ratingMoodys: 'Aaa', ratingSP: 'AA+', ratingFitch: 'N/A', duration: 18.2, convexity: 4.2,   dv01: 1820 },
+  'MSFT25':{ issuer: 'Microsoft Corp.',   bondType: 'corporate', couponPct: 3.30, couponFrequency: 'semi-annual', maturityDate: '2027-02-06', dayCount: 'ACT/360', currency: 'USD', country: 'US', spreadBps: 55,   ratingMoodys: 'Aaa', ratingSP: 'AAA', ratingFitch: 'N/A', duration: 2.9,  convexity: 0.09,  dv01: 290  },
 };
 
-router.get('/bond/:id', (req, res) => {
-  const id = req.params.id.toUpperCase();
+router.get('/bond/:id', async (req, res) => {
+  const id   = req.params.id.toUpperCase();
   const bond = BOND_STUBS[id];
-
   if (!bond) {
-    return res.status(404).json({
-      error: `Bond data not found for: ${id}`,
-      note:  'Supported IDs: ' + Object.keys(BOND_STUBS).join(', '),
-      stub:  true,
-    });
+    return res.status(404).json({ error: `Bond not found: ${id}`, available: Object.keys(BOND_STUBS) });
   }
 
-  // Generate simple coupon cash flows
-  const today = new Date();
-  const maturity = new Date(bond.maturityDate);
+  const ck = `debt:bond:${id}`;
+  const c  = cacheGet(ck);
+  if (c) return res.json(c);
+
+  let liveYield = null;
+  let liveSource = null;
+  if (bond.fredSeries) {
+    try { liveYield = await fred.getValue(bond.fredSeries); liveSource = 'fred'; } catch (_) {}
+  }
+  if (!liveYield && bond.yahooTicker) {
+    try {
+      const yq = await yahooQuoteDebt(bond.yahooTicker);
+      liveYield = yq?.[0]?.regularMarketPrice ?? null;
+      liveSource = 'yahoo';
+    } catch (_) {}
+  }
+  if (!liveYield) liveYield = bond.couponPct / 100;
+
+  const today = new Date(); const maturity = new Date(bond.maturityDate);
   const cashFlows = [];
-  if (bond.couponPct && bond.faceValue !== 0) {
-    const periodsPerYear = bond.couponFrequency === 'annual' ? 1 : bond.couponFrequency === 'quarterly' ? 4 : 2;
-    const couponAmount = (bond.couponPct / 100) / periodsPerYear * 1000; // per $1000 face
-    const monthsBetween = 12 / periodsPerYear;
-    let d = new Date(maturity);
-    const flows = [];
+  if (bond.couponPct) {
+    const ppy   = bond.couponFrequency === 'annual' ? 1 : bond.couponFrequency === 'quarterly' ? 4 : 2;
+    const cpn   = (bond.couponPct / 100) / ppy * 1000;
+    const step  = 12 / ppy;
+    let d = new Date(maturity); const flows = [];
     while (d > today) {
-      flows.unshift({
-        date:   d.toISOString().slice(0, 10),
-        type:   'coupon',
-        amount: +couponAmount.toFixed(4),
-      });
-      d = new Date(d.setMonth(d.getMonth() - monthsBetween));
+      flows.unshift({ date: d.toISOString().slice(0, 10), type: 'coupon', amount: +cpn.toFixed(4) });
+      d = new Date(d); d.setMonth(d.getMonth() - step);
     }
-    // Cap at 20 future cash flows for display
     cashFlows.push(...flows.slice(0, 20));
-    // Add principal repayment at maturity
-    if (flows.length > 0) {
-      cashFlows[cashFlows.length - 1] = {
-        ...cashFlows[cashFlows.length - 1],
-        type: 'principal+coupon',
-        amount: +(cashFlows[cashFlows.length - 1].amount + 1000).toFixed(4),
-      };
+    if (cashFlows.length > 0) {
+      const l = cashFlows[cashFlows.length - 1];
+      cashFlows[cashFlows.length - 1] = { ...l, type: 'principal+coupon', amount: +(l.amount + 1000).toFixed(4) };
     }
   }
 
-  res.json({
-    ...bond,
-    id,
-    cashFlows,
-    faceValue: 1000,
-    asOf:  new Date().toISOString(),
-    stub:  true,
-    note:  'TODO: Integrate ANBIMA (BR), FINRA TRACE (US corps), or Refinitiv for live data.',
-  });
+  const resp = { ...bond, id, yieldToMaturity: liveYield, yieldToWorst: liveYield, cashFlows, faceValue: 1000, asOf: new Date().toISOString(), source: liveSource || 'stub', stub: bond.bondType === 'corporate' };
+  delete resp.fredSeries; delete resp.yahooTicker;
+  cacheSet(ck, resp, TTL.bond);
+  res.json(resp);
 });
 
 module.exports = router;

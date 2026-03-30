@@ -7,9 +7,10 @@
  * Polygon: charts, news, search (free tier works well)
  */
 
-const express = require('express');
-const fetch = require('node-fetch');
-const router = express.Router();
+const express    = require('express');
+const fetch      = require('node-fetch');
+const router     = express.Router();
+const eulerpool = require('../providers/eulerpool');
 
 const BASE = 'https://api.polygon.io';
 
@@ -370,6 +371,32 @@ async function fetchWithFallback(symbol) {
     }
   }
 
+  // Last-resort: Eulerpool for European exchange symbols (.DE, .L, .PA, .AS, .SW, .MC)
+  const isEuropean = /\.(DE|L|PA|AS|SW|MC|BR|MI|ST|HE|CO|OL|LS)$/i.test(symbol);
+  if (isEuropean && eulerpool.isConfigured()) {
+    console.log(`[Provider] Attempting Eulerpool for European symbol ${symbol}...`);
+    try {
+      const q = await eulerpool.getQuote(symbol);
+      if (q && q.price) {
+        console.log(`[Provider] Eulerpool succeeded for ${symbol}`);
+        return {
+          data: {
+            symbol,
+            regularMarketPrice:         q.price,
+            regularMarketChange:        q.change     ?? null,
+            regularMarketChangePercent: q.changePct  ?? null,
+            regularMarketVolume:        q.volume     ?? null,
+            shortName:                  q.name       ?? symbol,
+            currency:                   q.currency   ?? null,
+          },
+          source: 'eulerpool',
+        };
+      }
+    } catch (e) {
+      console.warn(`[Provider] Eulerpool failed for ${symbol}:`, e.message);
+    }
+  }
+
   throw new Error(`All providers failed for ${symbol}`);
 }
 
@@ -615,38 +642,154 @@ router.get('/snapshot/etfs', async (req, res) => {
   }
 });
 
-// ─── Treasury yields endpoint ────────────────────────────────────────────────────
+// ─── Global yield snapshot endpoint ──────────────────────────────────────────
+// Returns US Treasuries + major European and global gov't benchmark yields.
+// All sourced from Yahoo Finance (^XX10YT=RR format).
+const GLOBAL_YIELD_TICKERS = {
+  // US Treasuries
+  '^IRX':       { name: 'US 3M T-Bill',        country: 'US', tenor: '3M'  },
+  '^FVX':       { name: 'US 5Y Treasury',       country: 'US', tenor: '5Y'  },
+  '^TNX':       { name: 'US 10Y Treasury',      country: 'US', tenor: '10Y' },
+  '^TYX':       { name: 'US 30Y Treasury',      country: 'US', tenor: '30Y' },
+  // Europe
+  '^DE10YT=RR': { name: 'Germany 10Y Bund',     country: 'DE', tenor: '10Y' },
+  '^GB10YT=RR': { name: 'UK 10Y Gilt',          country: 'GB', tenor: '10Y' },
+  '^FR10YT=RR': { name: 'France 10Y OAT',       country: 'FR', tenor: '10Y' },
+  '^IT10YT=RR': { name: 'Italy 10Y BTP',        country: 'IT', tenor: '10Y' },
+  '^ES10YT=RR': { name: 'Spain 10Y Bono',       country: 'ES', tenor: '10Y' },
+  '^PT10YT=RR': { name: 'Portugal 10Y',         country: 'PT', tenor: '10Y' },
+  // Asia-Pacific
+  '^JP10YT=RR': { name: 'Japan 10Y JGB',        country: 'JP', tenor: '10Y' },
+  '^AU10YT=RR': { name: 'Australia 10Y',        country: 'AU', tenor: '10Y' },
+  '^KR10YT=RR': { name: 'South Korea 10Y',      country: 'KR', tenor: '10Y' },
+  // EM
+  '^MX10YT=RR': { name: 'Mexico 10Y',           country: 'MX', tenor: '10Y' },
+  '^ZA10YT=RR': { name: 'South Africa 10Y',     country: 'ZA', tenor: '10Y' },
+  '^IN10YT=RR': { name: 'India 10Y',            country: 'IN', tenor: '10Y' },
+};
+
 router.get('/snapshot/yields', async (req, res) => {
   const cached = cacheGet('snapshot:yields');
   if (cached) return res.json(cached);
   try {
-    const yieldTickers = '^IRX,^FVX,^TNX,^TYX,^TYA';
-    const quotes = await yahooQuote(yieldTickers);
-
-    const labelMap = {
-      '^IRX': 'US 13W T-Bill',
-      '^FVX': 'US 5Y Treasury',
-      '^TNX': 'US 10Y Treasury',
-      '^TYX': 'US 30Y Treasury',
-      '^TYA': 'US 2Y Treasury',
-    };
+    const tickers = Object.keys(GLOBAL_YIELD_TICKERS).join(',');
+    const quotes  = await yahooQuote(tickers);
 
     const yields = quotes
       .filter(q => q && q.regularMarketPrice != null)
-      .map(q => ({
-        symbol: q.symbol,
-        name: labelMap[q.symbol] || q.symbol,
-        yield: q.regularMarketPrice,
-        change: q.regularMarketChange ?? null,
-        changeBps: (q.regularMarketChange ?? 0) * 100, // convert to basis points
-        type: 'treasury',
-      }));
+      .map(q => {
+        const meta = GLOBAL_YIELD_TICKERS[q.symbol] || {};
+        return {
+          symbol:    q.symbol,
+          name:      meta.name || q.shortName || q.symbol,
+          country:   meta.country || null,
+          tenor:     meta.tenor   || null,
+          yield:     q.regularMarketPrice,
+          change:    q.regularMarketChange ?? null,
+          changeBps: Math.round((q.regularMarketChange ?? 0) * 100),
+          type:      meta.country === 'US' ? 'treasury' : 'sovereign',
+        };
+      });
 
-    const data = { yields, status: 'OK' };
+    const data = { yields, count: yields.length, status: 'OK' };
     cacheSet('snapshot:yields', data, TTL.yields);
     res.json(data);
   } catch (e) {
     sendError(res, e, '/snapshot/yields');
+  }
+});
+
+// ─── European stocks snapshot (Eulerpool) ─────────────────────────────────────
+// Major European blue chips: DAX, FTSE 100, CAC 40, AEX, SMI
+const EUROPEAN_STOCKS = [
+  // DAX (Germany)
+  'SAP.DE','SIE.DE','ALV.DE','BAYN.DE','BMW.DE','VOW3.DE','BASF.DE','DTE.DE',
+  'BAS.DE','ADS.DE','MUV2.DE','DBK.DE','MBG.DE','RWE.DE','BEI.DE',
+  // FTSE 100 (UK)
+  'SHEL.L','BP.L','HSBA.L','AZN.L','ULVR.L','GSK.L','RIO.L','LLOY.L','BARC.L',
+  'DGE.L','REL.L','NG.L','BT-A.L','VOD.L',
+  // CAC 40 (France)
+  'MC.PA','OR.PA','TTE.PA','SAN.PA','BNP.PA','AIR.PA','KER.PA','CS.PA',
+  'RI.PA','CAP.PA','ORA.PA',
+  // AEX (Netherlands)
+  'ASML.AS','RDSA.AS','ING.AS','PHIA.AS','ABN.AS','NN.AS','AKZA.AS',
+  // SMI (Switzerland)
+  'NESN.SW','ROG.SW','NOVN.SW','ABBN.SW','UBS.SW','CSGN.SW','ZURN.SW',
+  // IBEX (Spain)
+  'SAN.MC','BBVA.MC','IBE.MC','TEF.MC','ITX.MC',
+  // Euro Stoxx indices (ETF proxies on NYSE for those without Eulerpool)
+];
+
+const EUROPEAN_NAMES = {
+  'SAP.DE':'SAP','SIE.DE':'Siemens','ALV.DE':'Allianz','BAYN.DE':'Bayer',
+  'BMW.DE':'BMW','VOW3.DE':'Volkswagen','BASF.DE':'BASF','DTE.DE':'Deutsche Telekom',
+  'BAS.DE':'BASF (pref)','ADS.DE':'Adidas','MUV2.DE':'Munich Re','DBK.DE':'Deutsche Bank',
+  'MBG.DE':'Mercedes-Benz','RWE.DE':'RWE','BEI.DE':'Beiersdorf',
+  'SHEL.L':'Shell','BP.L':'BP','HSBA.L':'HSBC','AZN.L':'AstraZeneca',
+  'ULVR.L':'Unilever','GSK.L':'GSK','RIO.L':'Rio Tinto','LLOY.L':'Lloyds',
+  'BARC.L':'Barclays','DGE.L':'Diageo','REL.L':'RELX','NG.L':'National Grid',
+  'BT-A.L':'BT Group','VOD.L':'Vodafone',
+  'MC.PA':'LVMH','OR.PA':'L\'Oréal','TTE.PA':'TotalEnergies','SAN.PA':'Sanofi',
+  'BNP.PA':'BNP Paribas','AIR.PA':'Airbus','KER.PA':'Kering','CS.PA':'AXA',
+  'RI.PA':'Pernod Ricard','CAP.PA':'Capgemini','ORA.PA':'Orange',
+  'ASML.AS':'ASML','RDSA.AS':'Shell NL','ING.AS':'ING','PHIA.AS':'Philips',
+  'ABN.AS':'ABN AMRO','NN.AS':'NN Group','AKZA.AS':'Akzo Nobel',
+  'NESN.SW':'Nestlé','ROG.SW':'Roche','NOVN.SW':'Novartis','ABBN.SW':'ABB',
+  'UBS.SW':'UBS','CSGN.SW':'Credit Suisse','ZURN.SW':'Zurich Insurance',
+  'SAN.MC':'Santander','BBVA.MC':'BBVA','IBE.MC':'Iberdrola','TEF.MC':'Telefónica',
+  'ITX.MC':'Inditex',
+};
+
+router.get('/snapshot/european', async (req, res) => {
+  const ck = 'snapshot:european';
+  const cached = cacheGet(ck);
+  if (cached) return res.json(cached);
+
+  try {
+    if (!eulerpool.isConfigured()) {
+      // Fallback: try Yahoo Finance with European tickers (works for many)
+      const BATCH_SIZE = 20;
+      const batches = [];
+      for (let i = 0; i < EUROPEAN_STOCKS.length; i += BATCH_SIZE) {
+        batches.push(EUROPEAN_STOCKS.slice(i, i + BATCH_SIZE));
+      }
+      const results = await Promise.allSettled(batches.map(b => yahooQuote(b.join(','))));
+      const stocks = {};
+      for (const r of results) {
+        if (r.status !== 'fulfilled') continue;
+        for (const q of (r.value || [])) {
+          if (q?.regularMarketPrice == null) continue;
+          stocks[q.symbol] = {
+            price:     q.regularMarketPrice,
+            change:    q.regularMarketChange     ?? null,
+            changePct: q.regularMarketChangePercent ?? null,
+            volume:    q.regularMarketVolume     ?? null,
+            name:      EUROPEAN_NAMES[q.symbol]  || q.shortName || q.symbol,
+            currency:  q.currency                || null,
+            source:    'yahoo',
+          };
+        }
+      }
+      const data = { stocks, count: Object.keys(stocks).length, source: 'yahoo', note: 'Set EULERPOOL_API_KEY for dedicated European data' };
+      cacheSet(ck, data, TTL.stocksSnapshot);
+      return res.json(data);
+    }
+
+    // Eulerpool path
+    const raw = await eulerpool.getBatchQuotes(EUROPEAN_STOCKS);
+    const stocks = {};
+    for (const [sym, q] of Object.entries(raw)) {
+      stocks[sym] = {
+        ...q,
+        name: EUROPEAN_NAMES[sym] || q.name || sym,
+      };
+    }
+
+    const data = { stocks, count: Object.keys(stocks).length, source: 'eulerpool' };
+    cacheSet(ck, data, TTL.stocksSnapshot);
+    res.json(data);
+  } catch (e) {
+    sendError(res, e, '/snapshot/european');
   }
 });
 
