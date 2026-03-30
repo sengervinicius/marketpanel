@@ -1,14 +1,15 @@
-// ForexPanel.jsx — FX pairs + Crypto subsection, BBG-style, with sortable columns
+// ForexPanel.jsx â FX pairs + Crypto subsection, BBG-style, with sortable columns
 // Features: feed-status badge, collapse, movers filter
 import { useRef, useState, useMemo, memo } from 'react';
 import { useSettings } from '../../context/SettingsContext';
 import PanelConfigModal from '../common/PanelConfigModal';
+import EditablePanelHeader from '../common/EditablePanelHeader';
 import { FOREX_PAIRS, CRYPTO_PAIRS } from '../../utils/constants';
 import { useFeedStatus } from '../../context/FeedStatusContext';
 
-const fmt4   = (n) => n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: 4, maximumFractionDigits: 4 });
-const fmt2   = (n) => n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const fmtPct = (n) => n == null ? '—' : (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
+const fmt4   = (n) => n == null ? 'â' : n.toLocaleString('en-US', { minimumFractionDigits: 4, maximumFractionDigits: 4 });
+const fmt2   = (n) => n == null ? 'â' : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmtPct = (n) => n == null ? 'â' : (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
 const COLS   = '72px 1fr 76px 64px';
 
 function SectionDivider({ label, color }) {
@@ -20,7 +21,7 @@ function SectionDivider({ label, color }) {
       alignItems: 'center', flexShrink: 0,
     }}>
       <span style={{ color, fontSize: 7, fontWeight: 700, letterSpacing: '0.12em', gridColumn: '1 / -1' }}>
-        ── {label} ──────────────────────────
+        ââ {label} ââââââââââââââââââââââââââ
       </span>
     </div>
   );
@@ -65,11 +66,12 @@ function ForexPanel({ data = {}, cryptoData = {}, loading, onTickerClick, onOpen
   const panelTitle   = panelCfg.title   || 'FX';
   const panelSymbols = panelCfg.symbols || [];
 
-  const [sortKey,    setSortKey]    = useState(null);
-  const [sortDir,    setSortDir]    = useState('desc');
-  const [collapsed,  setCollapsed]  = useState(false);
-  const [moversOnly, setMoversOnly] = useState(false);
-  const [configOpen, setConfigOpen] = useState(false);
+  const [sortKey,      setSortKey]      = useState(null);
+  const [sortDir,      setSortDir]      = useState('desc');
+  const [collapsed,    setCollapsed]    = useState(false);
+  const [moversOnly,   setMoversOnly]   = useState(false);
+  const [configOpen,   setConfigOpen]   = useState(false);
+  const [searchFilter, setSearchFilter] = useState('');
   const { getBadge } = useFeedStatus();
   const badge = getBadge('forex');
 
@@ -78,13 +80,19 @@ function ForexPanel({ data = {}, cryptoData = {}, loading, onTickerClick, onOpen
     else { setSortKey(key); setSortDir('desc'); }
   };
 
+  const handleDropTicker = (ticker) => {
+    const sym = ticker.trim().toUpperCase();
+    if (sym && !panelSymbols.includes(sym)) {
+      updatePanelConfig('forex', { title: panelTitle, symbols: [...panelSymbols, sym] });
+    }
+  };
+
   const filteredForexPairs = panelSymbols.length > 0
-    ? FOREX_PAIRS.filter(p => panelSymbols.includes(p.symbol))
-    : FOREX_PAIRS;
+    ? FOREX_PAIRS.filter(p => panelSymbols.includes(p.symbol) && (p.symbol.includes(searchFilter.toUpperCase()) || p.label.toUpperCase().includes(searchFilter.toUpperCase())))
+    : FOREX_PAIRS.filter(p => p.symbol.includes(searchFilter.toUpperCase()) || p.label.toUpperCase().includes(searchFilter.toUpperCase()));
 
   const filteredCryptoPairs = panelSymbols.length > 0
-    ? CRYPTO_PAIRS.filter(c => panelSymbols.includes(c.symbol))
-    : CRYPTO_PAIRS;
+    ? CRYPTO_PAIRS.filter(c => panelSymbols.includes(c.symbol) && (c.symbol.includes(searchFilter.toUpperCase()) || c.label.toUpperCase().includes(searchFilter.toUpperCase()));
 
   const sortedForex  = useMemo(() =>
     sortPairs(filteredForexPairs,
@@ -107,36 +115,28 @@ function ForexPanel({ data = {}, cryptoData = {}, loading, onTickerClick, onOpen
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#0a0a0a' }}>
       {/* Header */}
-      <div style={{ padding: '4px 8px', borderBottom: '1px solid #2a2a2a', background: '#111', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ color: '#ce93d8', fontSize: '10px', fontWeight: 700, letterSpacing: '1px' }}>{panelTitle}</span>
-          <button
-            onClick={() => setConfigOpen(true)}
-            title="Configure panel"
-            style={{
-              background: 'none', border: 'none', color: '#444', cursor: 'pointer',
-              fontSize: 9, padding: '0 2px', lineHeight: 1, display: 'flex', alignItems: 'center',
-            }}
-          >✎</button>
-        </div>
-        {/* Feed status badge */}
-        <span style={{ background: badge.bg, color: badge.color, fontSize: 7, fontWeight: 700, letterSpacing: '0.08em', padding: '1px 4px', borderRadius: 2, border: `1px solid ${badge.color}33` }}>
-          {badge.text}
-        </span>
-        <div style={{ flex: 1 }} />
+      <EditablePanelHeader
+        title={panelTitle}
+        subsections={['CRYPTO']}
+        onTitleChange={(t) => updatePanelConfig('forex', { title: t, symbols: panelSymbols })}
+        onConfigOpen={() => setConfigOpen(true)}
+        onDropTicker={handleDropTicker}
+        onSearchChange={setSearchFilter}
+        feedBadge={badge}
+      >
         {/* Movers filter */}
         <button
           onClick={() => setMoversOnly(v => !v)}
-          title="Show only movers ≥ 1%"
+          title="Show only movers â¥ 1%"
           style={{ background: moversOnly ? '#1a1000' : 'none', border: `1px solid ${moversOnly ? '#ff9900' : '#2a2a2a'}`, color: moversOnly ? '#ff9900' : '#444', fontSize: 7, padding: '1px 4px', cursor: 'pointer', fontFamily: 'inherit', borderRadius: 2 }}
-        >≥1%</button>
+        >â¥1%</button>
         {/* Collapse toggle */}
         <button
           onClick={() => setCollapsed(v => !v)}
           title={collapsed ? 'Expand' : 'Collapse'}
           style={{ background: 'none', border: '1px solid #2a2a2a', color: '#555', fontSize: 9, padding: '1px 5px', cursor: 'pointer', fontFamily: 'inherit', borderRadius: 2 }}
-        >{collapsed ? '+' : '−'}</button>
-      </div>
+        >{collapsed ? '+' : 'â'}</button>
+      </EditablePanelHeader>
 
       {!collapsed && (
         <>
@@ -144,7 +144,7 @@ function ForexPanel({ data = {}, cryptoData = {}, loading, onTickerClick, onOpen
       <div style={{ display: 'grid', gridTemplateColumns: COLS, padding: '2px 8px', borderBottom: '1px solid #1a1a1a', flexShrink: 0 }}>
         {SORT_COLS.map(({ key, label, align }) => {
           const active = sortKey === key;
-          const arrow  = active ? (sortDir === 'desc' ? ' ▼' : ' ▲') : '';
+          const arrow  = active ? (sortDir === 'desc' ? ' â¼' : ' â²') : '';
           return (
             <span
               key={key}
@@ -168,7 +168,7 @@ function ForexPanel({ data = {}, cryptoData = {}, loading, onTickerClick, onOpen
           <div style={{ padding: '20px', textAlign: 'center', color: '#444', fontSize: '10px' }}>LOADING...</div>
         ) : (
           <>
-            {/* ── FX PAIRS ── */}
+            {/* ââ FX PAIRS ââ */}
             <SectionDivider label="FX PAIRS" color="#ce93d8" />
             {filteredForex.map(pair => {
               const d = data?.[pair.symbol] || {};
@@ -205,10 +205,10 @@ function ForexPanel({ data = {}, cryptoData = {}, loading, onTickerClick, onOpen
             })}
 
             {moversOnly && filteredForex.length === 0 && (
-              <div style={{ padding: '8px 12px', color: '#333', fontSize: 9 }}>No FX movers ≥ 1%</div>
+              <div style={{ padding: '8px 12px', color: '#333', fontSize: 9 }}>No FX movers â¥ 1%</div>
             )}
 
-            {/* ── CRYPTO ── */}
+            {/* ââ CRYPTO ââ */}
             <SectionDivider label="CRYPTO" color="#f48fb1" />
             {filteredCrypto.map(c => {
               const d   = cryptoData?.[c.symbol] || {};
@@ -243,7 +243,7 @@ function ForexPanel({ data = {}, cryptoData = {}, loading, onTickerClick, onOpen
               );
             })}
             {moversOnly && filteredCrypto.length === 0 && (
-              <div style={{ padding: '8px 12px', color: '#333', fontSize: 9 }}>No crypto movers ≥ 1%</div>
+              <div style={{ padding: '8px 12px', color: '#333', fontSize: 9 }}>No crypto movers â¥ 1%</div>
             )}
           </>
         )}
