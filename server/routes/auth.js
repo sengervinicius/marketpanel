@@ -23,8 +23,8 @@ const authLimiter = rateLimit({
 // POST /api/auth/register
 router.post('/register', authLimiter, async (req, res) => {
   try {
-    const { username, password } = req.body;
-    const user  = await createUser(username, password);
+    const { username, password, email } = req.body;
+    const user  = await createUser(username, password, email);
     const token = signToken(user);
     res.status(201).json({
       ok: true,
@@ -37,7 +37,7 @@ router.post('/register', authLimiter, async (req, res) => {
       },
     });
   } catch (e) {
-    const status = e.message === 'Username taken' ? 409 : 400;
+    const status = e.message === 'Username taken' || e.message === 'Email already registered' ? 409 : 400;
     res.status(status).json({ error: e.message, code: 'register_failed' });
   }
 });

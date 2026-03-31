@@ -48,7 +48,7 @@ function defaultSettings() {
       desktopRows: [
         ['charts',        'usEquities',  'forex'],
         ['globalIndices', 'brazilB3',    'commodities', 'crypto'],
-        ['debt',          'search',      'news',        'watchlist'],
+        ['debt',          'search',      'news',        'watchlist', 'chat'],
       ],
       mobileTabs: ['home', 'charts', 'watchlist', 'search', 'news'],
     },
@@ -115,6 +115,9 @@ async function initDB() {
 
     // Ensure unique index on username_lower
     await usersCollection.createIndex({ username_lower: 1 }, { unique: true });
+
+    // Ensure unique index on email
+    await usersCollection.createIndex({ email: 1 }, { unique: true, sparse: true });
 
     // Load all existing users into in-memory Maps
     const saved = await usersCollection.find({}).toArray();
@@ -196,12 +199,28 @@ async function seedUsersFromEnv() {
 
 // ── User CRUD ─────────────────────────────────────────────────────────────────
 
-async function createUser(username, passwordPlain) {
+async function createUser(username, passwordPlain, email) {
   const key = username.toLowerCase();
   if (!username || !passwordPlain)   throw new Error('Username and password required');
   if (username.length < 3)           throw new Error('Username must be at least 3 characters');
   if (passwordPlain.length < 8)      throw new Error('Password must be at least 8 characters');
   if (usersByUsername.has(key))      throw new Error('Username taken');
+
+  // Validate and check email uniqueness if provided
+  if (email) {
+    const emailLower = email.toLowerCase();
+    // Basic email format validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      throw new Error('Invalid email format');
+    }
+    // Check for email uniqueness
+    for (const u of usersByUsername.values()) {
+      if (u.email && u.email.toLowerCase() === emailLower) {
+        throw new Error('Email already registered');
+      }
+    }
+  }
 
   const hash = await bcrypt.hash(passwordPlain, 12);
   const now  = Date.now();
@@ -209,6 +228,7 @@ async function createUser(username, passwordPlain) {
   const user = {
     id,
     username,
+    email:                email || null,
     hash,
     settings:             defaultSettings(),
     isPaid:               false,

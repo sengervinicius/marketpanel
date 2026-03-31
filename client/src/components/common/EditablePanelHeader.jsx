@@ -5,10 +5,14 @@
  */
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useDrag } from '../../context/DragContext';
+import SubsectionContextMenu from './SubsectionContextMenu';
 
 export default function EditablePanelHeader({
   title,
   subsections = [],
+  availableSubsections = [],
+  hiddenSubsections = [],
+  onToggleSubsection,
   onTitleChange,
   onSubsectionChange,
   onConfigOpen,
@@ -24,10 +28,12 @@ export default function EditablePanelHeader({
   const [showSearch, setShowSearch] = useState(false);
   const [searchQ, setSearchQ] = useState('');
   const [dragOver, setDragOver] = useState(false);
+  const [contextMenu, setContextMenu] = useState(null);
 
   const titleRef = useRef(null);
   const subRef = useRef(null);
   const searchRef = useRef(null);
+  const headerRef = useRef(null);
   const { isDragging, draggedTicker, endDrag } = useDrag();
 
   useEffect(() => { if (editingTitle && titleRef.current) { titleRef.current.focus(); titleRef.current.select(); } }, [editingTitle]);
@@ -46,6 +52,13 @@ export default function EditablePanelHeader({
     if (v && v !== subsections[idx]) onSubsectionChange?.(idx, v);
     setEditingSub(null);
   }, [subVal, subsections, onSubsectionChange]);
+
+  const handleContextMenu = (e) => {
+    if (availableSubsections && availableSubsections.length > 0) {
+      e.preventDefault();
+      setContextMenu({ x: e.clientX, y: e.clientY });
+    }
+  };
 
   const onDragOver = (e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; setDragOver(true); };
   const onDragLeave = () => setDragOver(false);
@@ -85,9 +98,10 @@ export default function EditablePanelHeader({
   };
 
   return (
-    <div style={S.header} onDragOver={onDragOver} onDragLeave={onDragLeave} onDrop={onDrop}>
-      {dragOver && (<div style={S.dropOverlay}><span style={S.dropText}>+ DROP TICKER HERE</span></div>)}
-      <div style={S.row}>
+    <>
+      <div style={S.header} onDragOver={onDragOver} onDragLeave={onDragLeave} onDrop={onDrop} onContextMenu={handleContextMenu} ref={headerRef}>
+        {dragOver && (<div style={S.dropOverlay}><span style={S.dropText}>+ DROP TICKER HERE</span></div>)}
+        <div style={S.row}>
         {editingTitle ? (
           <input ref={titleRef} style={S.titleInput} value={titleVal} onChange={e => setTitleVal(e.target.value)} onBlur={saveTitle} onKeyDown={e => { if (e.key === 'Enter') saveTitle(); if (e.key === 'Escape') setEditingTitle(false); }} maxLength={50} />
         ) : (
@@ -118,5 +132,20 @@ export default function EditablePanelHeader({
         </div>
       )}
     </div>
+
+    {contextMenu && (
+      <SubsectionContextMenu
+        x={contextMenu.x}
+        y={contextMenu.y}
+        availableSubsections={availableSubsections}
+        hiddenSubsections={hiddenSubsections}
+        onToggleSubsection={(key) => {
+          onToggleSubsection?.(key);
+          setContextMenu(null);
+        }}
+        onClose={() => setContextMenu(null)}
+      />
+    )}
+    </>
   );
 }

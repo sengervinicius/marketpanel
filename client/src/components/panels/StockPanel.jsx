@@ -70,11 +70,12 @@ function StockPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
   const panelCfg = settings?.panels?.usEquities || {
     title: 'US Equities',
     symbols: [...US_STOCKS.map(s => s.symbol), ...BRAZIL_ADRS.map(s => s.symbol)],
-    subsections: ['BRAZIL ADRs'],
+    hiddenSubsections: [],
   };
-  const panelTitle       = panelCfg.title       || 'US Equities';
-  const panelSymbols     = panelCfg.symbols      || [];
-  const panelSubsections = panelCfg.subsections  || ['BRAZIL ADRs'];
+  const panelTitle           = panelCfg.title                || 'US Equities';
+  const panelSymbols         = panelCfg.symbols              || [];
+  const hiddenSubsections    = panelCfg.hiddenSubsections    || [];
+  const availableSubsections = [{ key: 'brazilAdrs', label: 'BRAZIL ADRs' }];
 
   const [sortKey,    setSortKey]    = useState(null);
   const [sortDir,    setSortDir]    = useState('desc');
@@ -122,14 +123,23 @@ function StockPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
   // All items for heatmap
   const allItems = useMemo(() => [...filteredUS, ...filteredBrazil], [filteredUS, filteredBrazil]);
 
+  const handleToggleSubsection = (key) => {
+    const current = hiddenSubsections || [];
+    const updated = current.includes(key)
+      ? current.filter(k => k !== key)
+      : [...current, key];
+    updatePanelConfig('usEquities', { ...panelCfg, hiddenSubsections: updated });
+  };
+
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#0a0a0a' }}>
       {/* Header */}
       <EditablePanelHeader
         title={panelTitle}
-        subsections={panelSubsections}
+        availableSubsections={availableSubsections}
+        hiddenSubsections={hiddenSubsections}
+        onToggleSubsection={handleToggleSubsection}
         onTitleChange={(t) => updatePanelConfig('usEquities', { ...panelCfg, title: t })}
-        onSubsectionChange={(idx, val) => { const subs = [...panelSubsections]; subs[idx] = val; updatePanelConfig('usEquities', { ...panelCfg, subsections: subs }); }}
         onConfigOpen={() => setConfigOpen(true)}
         onDropTicker={handleDropTicker}
         onSearchChange={setSearchFilter}
@@ -254,8 +264,10 @@ function StockPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
                   <div style={{ padding: '8px 12px', color: '#333', fontSize: 9 }}>No US movers ≥ 2%</div>
                 )}
 
-                <SectionDivider label="BRAZIL ADRs" color="#ffa726" />
-                {filteredBrazil.map(s => (
+                {!hiddenSubsections.includes('brazilAdrs') && (
+                  <>
+                    <SectionDivider label="BRAZIL ADRs" color="#ffa726" />
+                    {filteredBrazil.map(s => (
                   <div
                     key={s.symbol}
                     data-ticker={s.symbol}
@@ -282,8 +294,10 @@ function StockPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
                     <span style={{ color: ((data[s.symbol] || {}).changePct ?? 0) >= 0 ? '#4caf50' : '#f44336', fontSize: '10px', textAlign: 'right', fontWeight: 600 }}>{fmtPct((data[s.symbol] || {}).changePct)}</span>
                   </div>
                 ))}
-                {moversOnly && filteredBrazil.length === 0 && (
-                  <div style={{ padding: '8px 12px', color: '#333', fontSize: 9 }}>No ADR movers ≥ 2%</div>
+                    {moversOnly && filteredBrazil.length === 0 && (
+                      <div style={{ padding: '8px 12px', color: '#333', fontSize: 9 }}>No ADR movers ≥ 2%</div>
+                    )}
+                  </>
                 )}
               </>
             )}

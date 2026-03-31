@@ -62,11 +62,12 @@ function ForexPanel({ data = {}, cryptoData = {}, loading, onTickerClick, onOpen
   const panelCfg = settings?.panels?.forex || {
     title: 'FX',
     symbols: [...FOREX_PAIRS.map(p => p.symbol), ...CRYPTO_PAIRS.map(c => c.symbol)],
-    subsections: ['CRYPTO'],
+    hiddenSubsections: [],
   };
-  const panelTitle       = panelCfg.title       || 'FX';
-  const panelSymbols     = panelCfg.symbols      || [];
-  const panelSubsections = panelCfg.subsections  || ['CRYPTO'];
+  const panelTitle           = panelCfg.title                || 'FX';
+  const panelSymbols         = panelCfg.symbols              || [];
+  const hiddenSubsections    = panelCfg.hiddenSubsections    || [];
+  const availableSubsections = [{ key: 'crypto', label: 'CRYPTO' }];
 
   const [sortKey,      setSortKey]      = useState(null);
   const [sortDir,      setSortDir]      = useState('desc');
@@ -115,14 +116,23 @@ function ForexPanel({ data = {}, cryptoData = {}, loading, onTickerClick, onOpen
   const filteredForex  = useMemo(() => moversOnly ? sortedForex.filter(p  => Math.abs(data?.[p.symbol]?.changePct ?? 0) >= 1)        : sortedForex,  [sortedForex,  data, moversOnly]);
   const filteredCrypto = useMemo(() => moversOnly ? sortedCrypto.filter(c => Math.abs(cryptoData?.[c.symbol]?.changePct ?? 0) >= 1)    : sortedCrypto, [sortedCrypto, cryptoData, moversOnly]);
 
+  const handleToggleSubsection = (key) => {
+    const current = hiddenSubsections || [];
+    const updated = current.includes(key)
+      ? current.filter(k => k !== key)
+      : [...current, key];
+    updatePanelConfig('forex', { ...panelCfg, hiddenSubsections: updated });
+  };
+
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#0a0a0a' }}>
       {/* Header */}
       <EditablePanelHeader
         title={panelTitle}
-        subsections={panelSubsections}
+        availableSubsections={availableSubsections}
+        hiddenSubsections={hiddenSubsections}
+        onToggleSubsection={handleToggleSubsection}
         onTitleChange={(t) => updatePanelConfig('forex', { ...panelCfg, title: t })}
-        onSubsectionChange={(idx, val) => { const subs = [...panelSubsections]; subs[idx] = val; updatePanelConfig('forex', { ...panelCfg, subsections: subs }); }}
         onConfigOpen={() => setConfigOpen(true)}
         onDropTicker={handleDropTicker}
         onSearchChange={setSearchFilter}
@@ -212,9 +222,11 @@ function ForexPanel({ data = {}, cryptoData = {}, loading, onTickerClick, onOpen
               <div style={{ padding: '8px 12px', color: '#333', fontSize: 9 }}>No FX movers ≥ 1%</div>
             )}
 
-            {/* ── CRYPTO ── */}
-            <SectionDivider label="CRYPTO" color="#f48fb1" />
-            {filteredCrypto.map(c => {
+            {!hiddenSubsections.includes('crypto') && (
+              <>
+                {/* ── CRYPTO ── */}
+                <SectionDivider label="CRYPTO" color="#f48fb1" />
+                {filteredCrypto.map(c => {
               const d   = cryptoData?.[c.symbol] || {};
               const pos = (d.changePct ?? 0) >= 0;
               const chartSym = 'X:' + c.symbol;
@@ -246,8 +258,10 @@ function ForexPanel({ data = {}, cryptoData = {}, loading, onTickerClick, onOpen
                 </div>
               );
             })}
-            {moversOnly && filteredCrypto.length === 0 && (
-              <div style={{ padding: '8px 12px', color: '#333', fontSize: 9 }}>No crypto movers ≥ 1%</div>
+                {moversOnly && filteredCrypto.length === 0 && (
+                  <div style={{ padding: '8px 12px', color: '#333', fontSize: 9 }}>No crypto movers ≥ 1%</div>
+                )}
+              </>
             )}
           </>
         )}

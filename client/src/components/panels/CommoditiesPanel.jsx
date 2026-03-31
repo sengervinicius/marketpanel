@@ -46,9 +46,17 @@ function CommoditiesPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
   const panelCfg = settings?.panels?.commodities || {
     title: 'Commodities',
     symbols: COMMODITIES.map(c => c.symbol),
+    hiddenSubsections: [],
   };
-  const panelTitle   = panelCfg.title   || 'Commodities';
-  const panelSymbols = panelCfg.symbols || [];
+  const panelTitle           = panelCfg.title                || 'Commodities';
+  const panelSymbols         = panelCfg.symbols              || [];
+  const hiddenSubsections    = panelCfg.hiddenSubsections    || [];
+  const availableSubsections = [
+    { key: 'Metals', label: 'METALS' },
+    { key: 'Energy', label: 'ENERGY' },
+    { key: 'Agri', label: 'AGRICULTURE' },
+    { key: 'Mining', label: 'MINING' },
+  ];
 
   const [sortKey,   setSortKey]   = useState(null);
   const [sortDir,   setSortDir]   = useState('desc');
@@ -68,6 +76,14 @@ function CommoditiesPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
   const handleSortClick = (key) => {
     if (sortKey === key) setSortDir(d => d === 'desc' ? 'asc' : 'desc');
     else { setSortKey(key); setSortDir('desc'); }
+  };
+
+  const handleToggleSubsection = (key) => {
+    const current = hiddenSubsections || [];
+    const updated = current.includes(key)
+      ? current.filter(k => k !== key)
+      : [...current, key];
+    updatePanelConfig('commodities', { ...panelCfg, hiddenSubsections: updated });
   };
 
   const sortedGroups = useMemo(() => {
@@ -104,9 +120,10 @@ function CommoditiesPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
       {/* Header */}
       <EditablePanelHeader
         title={panelTitle}
-        subsections={['ETF PROXIES']}
+        availableSubsections={availableSubsections}
+        hiddenSubsections={hiddenSubsections}
+        onToggleSubsection={handleToggleSubsection}
         onTitleChange={(v) => updatePanelConfig('commodities', { ...panelCfg, title: v })}
-        onSubsectionChange={() => {}}
         onConfigOpen={() => setConfigOpen(true)}
         onDropTicker={handleDropTicker}
         onSearchChange={setSearchFilter}
@@ -148,7 +165,7 @@ function CommoditiesPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
         ) : (
           sortedGroups.map(g => {
             const { items } = g;
-            if (!items.length) return null;
+            if (!items.length || hiddenSubsections.includes(g.key)) return null;
             return (
               <div key={g.key}>
                 <GroupHeader label={g.label} color={g.color} />

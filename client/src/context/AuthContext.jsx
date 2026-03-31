@@ -165,11 +165,11 @@ export function AuthProvider({ children }) {
   }, [_persist]);
 
   // ── Register ──────────────────────────────────────────────────────────────
-  const register = useCallback(async (username, password) => {
+  const register = useCallback(async (username, password, email) => {
     const res  = await fetch(`${API_BASE}/api/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password }),
+      body: JSON.stringify({ username, password, email }),
     });
     const data = await res.json().catch(() => ({}));
     _extractUser(data, res, 'Registration failed');

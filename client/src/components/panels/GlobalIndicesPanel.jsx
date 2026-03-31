@@ -32,9 +32,16 @@ function GlobalIndicesPanel({ data = {}, loading, onTickerClick, onOpenDetail })
   const panelCfg = settings?.panels?.globalIndices || {
     title: 'Global Indexes',
     symbols: ['SPY','QQQ','DIA','EWZ','EWW','EWC','EZU','EWU','EWG','EWQ','EWP','EWI','EWL','EWD','EWJ','EWH','EWY','EWA','MCHI','EWT','EWS','INDA'],
+    hiddenSubsections: [],
   };
-  const panelTitle   = panelCfg.title   || 'Global Indexes';
-  const panelSymbols = panelCfg.symbols || [];
+  const panelTitle           = panelCfg.title                || 'Global Indexes';
+  const panelSymbols         = panelCfg.symbols              || [];
+  const hiddenSubsections    = panelCfg.hiddenSubsections    || [];
+  const availableSubsections = [
+    { key: 'AMERICAS', label: 'AMERICAS' },
+    { key: 'EMEA', label: 'EMEA' },
+    { key: 'ASIA', label: 'ASIA-PAC' },
+  ];
 
   const [configOpen, setConfigOpen] = useState(false);
   const [searchFilter, setSearchFilter] = useState('');
@@ -95,9 +102,16 @@ function GlobalIndicesPanel({ data = {}, loading, onTickerClick, onOpenDetail })
     <div style={panelStyle}>
       <EditablePanelHeader
         title={panelTitle}
-        subsections={['AMERICAS', 'EMEA', 'ASIA-PAC']}
+        availableSubsections={availableSubsections}
+        hiddenSubsections={hiddenSubsections}
+        onToggleSubsection={(key) => {
+          const current = hiddenSubsections || [];
+          const updated = current.includes(key)
+            ? current.filter(k => k !== key)
+            : [...current, key];
+          updatePanelConfig('globalIndices', { ...panelCfg, hiddenSubsections: updated });
+        }}
         onTitleChange={(v) => updatePanelConfig('globalIndices', { ...panelCfg, title: v })}
-        onSubsectionChange={() => {}}
         onConfigOpen={() => setConfigOpen(true)}
         onDropTicker={handleDropTicker}
         onSearchChange={setSearchFilter}
@@ -107,7 +121,7 @@ function GlobalIndicesPanel({ data = {}, loading, onTickerClick, onOpenDetail })
       <div style={{ overflowY: 'auto', flex: 1 }}>
         {Object.entries(REGIONS_filtered).map(([key, region]) => (
           <div key={key}>
-            {region.tickers.length > 0 && (
+            {region.tickers.length > 0 && !hiddenSubsections.includes(key) && (
               <>
                 <div style={regionHeader}>{region.label}</div>
                 {region.tickers.map((ticker, i) => {

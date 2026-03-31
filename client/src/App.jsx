@@ -732,6 +732,7 @@ const MOBILE_TABS = [
   { id: 'search',    label: 'FIND',   icon: '⊕' },
   { id: 'etf',       label: 'ETF',    icon: '▧' },
   { id: 'news',      label: 'NEWS',   icon: '◎' },
+  { id: 'chat',      label: 'CHAT',   icon: '✉' },
 ];
 
 const LS_TAB          = 'activeTab_m3';
@@ -1230,6 +1231,8 @@ export default function App() {
             )}
 
             {activeTab === 'news' && <NewsPanel />}
+
+            {activeTab === 'chat' && <ChatPanel />}
           </div>
 
           {/* ── Bottom tab bar ── */}

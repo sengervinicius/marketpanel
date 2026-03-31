@@ -20,9 +20,12 @@ export function CryptoPanel({ data = {}, loading, onTickerClick, onOpenDetail })
   const panelCfg = settings?.panels?.crypto || {
     title: 'Crypto',
     symbols: CRYPTO_PAIRS.map(c => c.symbol),
+    hiddenSubsections: [],
   };
-  const panelTitle   = panelCfg.title   || 'Crypto';
-  const panelSymbols = panelCfg.symbols || [];
+  const panelTitle           = panelCfg.title                || 'Crypto';
+  const panelSymbols         = panelCfg.symbols              || [];
+  const hiddenSubsections    = panelCfg.hiddenSubsections    || [];
+  const availableSubsections = [{ key: 'usd', label: 'USD' }];
 
   const [collapsed,   setCollapsed]   = useState(false);
   const [configOpen,  setConfigOpen]  = useState(false);
@@ -55,9 +58,16 @@ export function CryptoPanel({ data = {}, loading, onTickerClick, onOpenDetail })
       {/* Header */}
       <EditablePanelHeader
         title={panelTitle}
-        subsections={['USD']}
+        availableSubsections={availableSubsections}
+        hiddenSubsections={hiddenSubsections}
+        onToggleSubsection={(key) => {
+          const current = hiddenSubsections || [];
+          const updated = current.includes(key)
+            ? current.filter(k => k !== key)
+            : [...current, key];
+          updatePanelConfig('crypto', { ...panelCfg, hiddenSubsections: updated });
+        }}
         onTitleChange={(v) => updatePanelConfig('crypto', { ...panelCfg, title: v })}
-        onSubsectionChange={() => {}}
         onConfigOpen={() => setConfigOpen(true)}
         onDropTicker={handleDropTicker}
         onSearchChange={setSearchFilter}
@@ -70,7 +80,7 @@ export function CryptoPanel({ data = {}, loading, onTickerClick, onOpenDetail })
         >{collapsed ? '+' : '−'}</button>
       </EditablePanelHeader>
 
-      {!collapsed && (<>
+      {!collapsed && !hiddenSubsections.includes('usd') && (<>
         {/* Column headers */}
         <div style={{ display: 'grid', gridTemplateColumns: COLS, padding: '2px 8px', borderBottom: '1px solid #1a1a1a', flexShrink: 0 }}>
           {['COIN', 'NAME', 'LAST', 'CHG%'].map(h => (
@@ -81,7 +91,7 @@ export function CryptoPanel({ data = {}, loading, onTickerClick, onOpenDetail })
         <div style={{ flex: 1, overflowY: 'auto' }}>
           {loading || !data ? (
             <div style={{ padding: '20px', textAlign: 'center', color: '#444', fontSize: '10px' }}>LOADING...</div>
-          ) : visiblePairs.map(c => {
+          ) : visiblePairs.length > 0 ? visiblePairs.map(c => {
             const d   = data[c.symbol] || {};
             const pos = (d.changePct ?? 0) >= 0;
             const chartSym = 'X:' + c.symbol;
@@ -111,7 +121,9 @@ export function CryptoPanel({ data = {}, loading, onTickerClick, onOpenDetail })
                 <span style={{ color: pos ? '#4caf50' : '#f44336', fontSize: '10px', textAlign: 'right', fontWeight: 600 }}>{fmtPct(d.changePct)}</span>
               </div>
             );
-          })}
+          }) : (
+            <div style={{ padding: '20px', textAlign: 'center', color: '#444', fontSize: '10px' }}>NO CRYPTO PAIRS</div>
+          )}
         </div>
       </>)}
 

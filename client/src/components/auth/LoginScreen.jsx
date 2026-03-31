@@ -40,6 +40,7 @@ export default function LoginScreen({ children }) {
 
   const [mode,     setMode]     = useState('login'); // 'login' | 'register'
   const [username, setUsername] = useState('');
+  const [email,    setEmail]    = useState('');
   const [password, setPassword] = useState('');
   const [loading,  setLoading]  = useState(false);
   const [appleLoading, setAppleLoading] = useState(false);
@@ -66,7 +67,7 @@ export default function LoginScreen({ children }) {
       if (mode === 'login') {
         await login(username, password);
       } else {
-        await register(username, password);
+        await register(username, password, email);
       }
     } catch (err) {
       triggerShake(err.message || (mode === 'login' ? 'Login failed' : 'Registration failed'));
@@ -133,6 +134,7 @@ export default function LoginScreen({ children }) {
     setError('');
     setUsername('');
     setPassword('');
+    setEmail('');
   };
 
   // ── Styles ─────────────────────────────────────────────────────────────────
@@ -333,6 +335,17 @@ export default function LoginScreen({ children }) {
             autoComplete="username"
             autoFocus
           />
+          {!isLogin && (
+            <input
+              type="email"
+              placeholder="EMAIL"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              style={S.input}
+              disabled={loading}
+              autoComplete="email"
+            />
+          )}
           <input
             type="password"
             placeholder="PASSWORD"
