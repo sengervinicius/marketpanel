@@ -7,6 +7,7 @@ import EditablePanelHeader from '../common/EditablePanelHeader';
 import CustomSubsectionBlock from '../common/CustomSubsectionBlock';
 import { US_STOCKS, BRAZIL_ADRS } from '../../utils/constants';
 import { useFeedStatus } from '../../context/FeedStatusContext';
+import { handlePanelDragOver, makePanelDropHandler } from '../../utils/dropHelper';
 
 const fmt    = (n) => n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmtPct = (n) => n == null ? '—' : (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
@@ -187,7 +188,11 @@ function StockPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
   };
 
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#0a0a0a' }}>
+    <div
+      style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#0a0a0a' }}
+      onDragOver={handlePanelDragOver}
+      onDrop={makePanelDropHandler(handleDropTicker)}
+    >
       {/* Header */}
       <EditablePanelHeader
         title={panelTitle}

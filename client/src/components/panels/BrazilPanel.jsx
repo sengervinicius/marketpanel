@@ -5,6 +5,7 @@ import { useSettings } from '../../context/SettingsContext';
 import PanelConfigModal from '../common/PanelConfigModal';
 import EditablePanelHeader from '../common/EditablePanelHeader';
 import { apiFetch } from '../../utils/api';
+import { handlePanelDragOver, makePanelDropHandler } from '../../utils/dropHelper';
 
 const SERVER = import.meta.env.VITE_API_URL || import.meta.env.VITE_SERVER_URL || '';
 
@@ -101,7 +102,11 @@ function BrazilPanel({ onTickerClick, onOpenDetail }) {
     : lastUpdate && <span style={{ color: '#444', fontSize: 7 }}>{lastUpdate.toLocaleTimeString()}</span>;
 
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#0a0a0a' }}>
+    <div
+      style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#0a0a0a' }}
+      onDragOver={handlePanelDragOver}
+      onDrop={makePanelDropHandler(handleDropTicker)}
+    >
       {/* Header */}
       <EditablePanelHeader
         title={panelTitle}

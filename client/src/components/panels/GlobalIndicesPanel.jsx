@@ -2,6 +2,7 @@ import { useState, useRef, memo } from 'react';
 import { useSettings } from '../../context/SettingsContext';
 import PanelConfigModal from '../common/PanelConfigModal';
 import EditablePanelHeader from '../common/EditablePanelHeader';
+import { handlePanelDragOver, makePanelDropHandler } from '../../utils/dropHelper';
 
 const showInfo = (e, symbol, label, type) => {
   e.preventDefault();
@@ -99,7 +100,7 @@ function GlobalIndicesPanel({ data = {}, loading, onTickerClick, onOpenDetail })
   }
 
   return (
-    <div style={panelStyle}>
+    <div style={panelStyle} onDragOver={handlePanelDragOver} onDrop={makePanelDropHandler(handleDropTicker)}>
       <EditablePanelHeader
         title={panelTitle}
         availableSubsections={availableSubsections}
