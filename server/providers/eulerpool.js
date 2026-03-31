@@ -1,34 +1,30 @@
 /**
  * providers/eulerpool.js
  *
- * Eulerpool Financial Data API — European & global stock prices.
+ * Eulerpool Financial Data API — premium global financial data.
  * https://eulerpool.com/developers
  *
- * Auth: Authorization: Bearer <key>  OR  ?token=<key>
- * Base: https://api.eulerpool.com/v1/
+ * Auth: ?token=<key> query parameter
+ * Base: https://api.eulerpool.com/api/1/
  *
- * Free tier: 1,000 req/day, 15-min delay.
- * Paid tier: real-time, higher limits.
- *
- * Coverage: 90+ global exchanges inc. XETRA (.DE), LSE (.L),
- *           EURONEXT (.PA, .AS, .BR), Swiss (.SW), Madrid (.MC).
+ * Endpoints used:
+ *   GET /api/1/equity/incomestatement/{ISIN}
+ *   GET /api/1/equity-extended/options-chain/{ISIN}
+ *   GET /api/1/etf/holdings/{ISIN}
+ *   GET /api/1/bonds/yield-curve
+ *   GET /api/1/forex/rates/{currency}
+ *   GET /api/1/alternative/superinvestors/top-holdings
+ *   GET /api/1/crypto/profile/{name}
+ *   GET /api/1/macro/calendar
  */
 
 const fetch = require('node-fetch');
 
-const BASE = 'https://api.eulerpool.com/v1';
-const TIMEOUT_MS = 8000;
+const BASE = 'https://api.eulerpool.com/api/1';
+const TIMEOUT_MS = 10000;
 
 function key() {
   return process.env.EULERPOOL_API_KEY;
-}
-
-function headers() {
-  return {
-    'Authorization': `Bearer ${key()}`,
-    'Accept': 'application/json',
-    'User-Agent': 'SengerMarketTerminal/1.0',
-  };
 }
 
 // ── Simple in-process cache ───────────────────────────────────────────────────
@@ -44,26 +40,35 @@ function cacheSet(k, v, ttlMs) {
 }
 
 const TTL = {
-  quote:    60_000,   // 60 s — rate-limit-friendly, data has 15-min delay anyway
+  quote:    60_000,   // 60 s
   batch:    60_000,
   profile:  300_000,  // 5 min
   search:    30_000,
+  forex:     60_000,
+  macro:    300_000,
 };
 
-// ── Raw fetch helpers ─────────────────────────────────────────────────────────
+// ── Raw fetch helper ─────────────────────────────────────────────────────────
 
-async function eulerFetch(path, params = {}) {
+async function eulerFetch(path, extraParams = {}) {
   if (!key()) throw new Error('[Eulerpool] EULERPOOL_API_KEY not set');
 
-  const qs = new URLSearchParams(params).toString();
-  const url = `${BASE}${path}${qs ? '?' + qs : ''}`;
+  // Auth via ?token= query parameter
+  const params = new URLSearchParams({ token: key(), ...extraParams });
+  const url = `${BASE}${path}?${params.toString()}`;
 
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
 
   let res;
   try {
-    res = await fetch(url, { headers: headers(), signal: ctrl.signal });
+    res = await fetch(url, {
+      headers: {
+        'Accept': 'application/json',
+        'User-Agent': 'SengerMarketTerminal/1.0',
+      },
+      signal: ctrl.signal,
+    });
   } catch (e) {
     clearTimeout(timer);
     if (e.name === 'AbortError') throw new Error('[Eulerpool] Request timed out');
@@ -76,7 +81,7 @@ async function eulerFetch(path, params = {}) {
     throw new Error(`[Eulerpool] Auth error (${res.status}) — check EULERPOOL_API_KEY`);
   }
   if (res.status === 429) {
-    throw new Error('[Eulerpool] Rate limited (429) — free tier: 1,000 req/day');
+    throw new Error('[Eulerpool] Rate limited (429)');
   }
   if (!res.ok) {
     const body = await res.text().catch(() => '');
@@ -90,7 +95,6 @@ async function eulerFetch(path, params = {}) {
 
 function normaliseQuote(raw) {
   if (!raw) return null;
-  // Eulerpool may return either `price` or `last` or `close`
   const price = raw.price ?? raw.last ?? raw.close ?? raw.regularMarketPrice ?? null;
   if (price == null) return null;
 
@@ -122,13 +126,13 @@ async function getQuote(ticker) {
   if (cached) return cached;
 
   try {
-    // Try /equities/{ticker}/quote first, fallback to /equities/{ticker}/price
+    // Try equity endpoint
     let raw;
     try {
-      raw = await eulerFetch(`/equities/${encodeURIComponent(ticker)}/quote`);
+      raw = await eulerFetch(`/equity/quote/${encodeURIComponent(ticker)}`);
     } catch (e) {
       if (e.message.includes('HTTP 404') || e.message.includes('not found')) {
-        raw = await eulerFetch(`/equities/${encodeURIComponent(ticker)}/price`);
+        raw = await eulerFetch(`/equity/price/${encodeURIComponent(ticker)}`);
       } else throw e;
     }
 
@@ -142,7 +146,7 @@ async function getQuote(ticker) {
 }
 
 /**
- * Get quotes for multiple European tickers.
+ * Get quotes for multiple tickers.
  * Falls back to individual calls if batch endpoint unavailable.
  * Returns { [ticker]: normalisedQuote }
  */
@@ -156,7 +160,7 @@ async function getBatchQuotes(tickers) {
 
   // Try batch endpoint first
   try {
-    const raw = await eulerFetch('/equities/quotes', { symbols: tickers.join(',') });
+    const raw = await eulerFetch('/equity/quotes', { symbols: tickers.join(',') });
     const list = raw?.data ?? raw?.quotes ?? (Array.isArray(raw) ? raw : []);
     for (const item of list) {
       const sym = item.symbol ?? item.ticker;
@@ -182,7 +186,7 @@ async function getBatchQuotes(tickers) {
       if (s.status === 'fulfilled' && s.value) result[slice[idx]] = s.value;
     });
     if (i + CONCURRENCY < tickers.length) {
-      await new Promise(r => setTimeout(r, 200)); // small pause between batches
+      await new Promise(r => setTimeout(r, 200));
     }
   }
 
@@ -191,7 +195,7 @@ async function getBatchQuotes(tickers) {
 }
 
 /**
- * Search for a ticker by name or ISIN.
+ * Search for a ticker by name, symbol, or ISIN.
  */
 async function search(query, limit = 10) {
   const ck = `search:${query}:${limit}`;
@@ -217,10 +221,48 @@ async function search(query, limit = 10) {
 }
 
 /**
+ * Get forex rates for a base currency.
+ */
+async function getForexRates(currency = 'USD') {
+  const ck = `forex:${currency}`;
+  const cached = cacheGet(ck);
+  if (cached) return cached;
+
+  try {
+    const raw = await eulerFetch(`/forex/rates/${encodeURIComponent(currency)}`);
+    const result = raw?.data ?? raw;
+    cacheSet(ck, result, TTL.forex);
+    return result;
+  } catch (e) {
+    console.warn(`[Eulerpool] getForexRates(${currency}) failed:`, e.message);
+    return null;
+  }
+}
+
+/**
+ * Get macro economic calendar.
+ */
+async function getMacroCalendar() {
+  const ck = 'macro:calendar';
+  const cached = cacheGet(ck);
+  if (cached) return cached;
+
+  try {
+    const raw = await eulerFetch('/macro/calendar');
+    const result = raw?.data ?? raw;
+    cacheSet(ck, result, TTL.macro);
+    return result;
+  } catch (e) {
+    console.warn('[Eulerpool] getMacroCalendar failed:', e.message);
+    return null;
+  }
+}
+
+/**
  * Check if key is configured
  */
 function isConfigured() {
   return !!key();
 }
 
-module.exports = { getQuote, getBatchQuotes, search, isConfigured };
+module.exports = { getQuote, getBatchQuotes, search, getForexRates, getMacroCalendar, isConfigured };
