@@ -70,9 +70,11 @@ function StockPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
   const panelCfg = settings?.panels?.usEquities || {
     title: 'US Equities',
     symbols: [...US_STOCKS.map(s => s.symbol), ...BRAZIL_ADRS.map(s => s.symbol)],
+    subsections: ['BRAZIL ADRs'],
   };
-  const panelTitle   = panelCfg.title   || 'US Equities';
-  const panelSymbols = panelCfg.symbols || [];
+  const panelTitle       = panelCfg.title       || 'US Equities';
+  const panelSymbols     = panelCfg.symbols      || [];
+  const panelSubsections = panelCfg.subsections  || ['BRAZIL ADRs'];
 
   const [sortKey,    setSortKey]    = useState(null);
   const [sortDir,    setSortDir]    = useState('desc');
@@ -125,8 +127,9 @@ function StockPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
       {/* Header */}
       <EditablePanelHeader
         title={panelTitle}
-        subsections={['BRAZIL ADRs']}
-        onTitleChange={(t) => updatePanelConfig('usEquities', { title: t, symbols: panelSymbols })}
+        subsections={panelSubsections}
+        onTitleChange={(t) => updatePanelConfig('usEquities', { ...panelCfg, title: t })}
+        onSubsectionChange={(idx, val) => { const subs = [...panelSubsections]; subs[idx] = val; updatePanelConfig('usEquities', { ...panelCfg, subsections: subs }); }}
         onConfigOpen={() => setConfigOpen(true)}
         onDropTicker={handleDropTicker}
         onSearchChange={setSearchFilter}
