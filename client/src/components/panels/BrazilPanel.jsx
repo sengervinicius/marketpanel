@@ -194,3 +194,7 @@ function BrazilPanel({ onTickerClick, onOpenDetail }) {
     </div>
   );
 }
+
+
+export { BrazilPanel };
+export default memo(BrazilPanel);
