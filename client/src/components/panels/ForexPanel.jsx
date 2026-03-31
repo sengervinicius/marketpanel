@@ -62,9 +62,11 @@ function ForexPanel({ data = {}, cryptoData = {}, loading, onTickerClick, onOpen
   const panelCfg = settings?.panels?.forex || {
     title: 'FX',
     symbols: [...FOREX_PAIRS.map(p => p.symbol), ...CRYPTO_PAIRS.map(c => c.symbol)],
+    subsections: ['CRYPTO'],
   };
-  const panelTitle   = panelCfg.title   || 'FX';
-  const panelSymbols = panelCfg.symbols || [];
+  const panelTitle       = panelCfg.title       || 'FX';
+  const panelSymbols     = panelCfg.symbols      || [];
+  const panelSubsections = panelCfg.subsections  || ['CRYPTO'];
 
   const [sortKey,      setSortKey]      = useState(null);
   const [sortDir,      setSortDir]      = useState('desc');
@@ -118,8 +120,9 @@ function ForexPanel({ data = {}, cryptoData = {}, loading, onTickerClick, onOpen
       {/* Header */}
       <EditablePanelHeader
         title={panelTitle}
-        subsections={['CRYPTO']}
-        onTitleChange={(t) => updatePanelConfig('forex', { title: t, symbols: panelSymbols })}
+        subsections={panelSubsections}
+        onTitleChange={(t) => updatePanelConfig('forex', { ...panelCfg, title: t })}
+        onSubsectionChange={(idx, val) => { const subs = [...panelSubsections]; subs[idx] = val; updatePanelConfig('forex', { ...panelCfg, subsections: subs }); }}
         onConfigOpen={() => setConfigOpen(true)}
         onDropTicker={handleDropTicker}
         onSearchChange={setSearchFilter}
