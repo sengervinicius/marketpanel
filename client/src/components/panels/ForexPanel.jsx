@@ -92,7 +92,8 @@ function ForexPanel({ data = {}, cryptoData = {}, loading, onTickerClick, onOpen
     : FOREX_PAIRS.filter(p => p.symbol.includes(searchFilter.toUpperCase()) || p.label.toUpperCase().includes(searchFilter.toUpperCase()));
 
   const filteredCryptoPairs = panelSymbols.length > 0
-    ? CRYPTO_PAIRS.filter(c => panelSymbols.includes(c.symbol) && (c.symbol.includes(searchFilter.toUpperCase()) || c.label.toUpperCase().includes(searchFilter.toUpperCase()));
+    ? CRYPTO_PAIRS.filter(c => panelSymbols.includes(c.symbol) && (c.symbol.includes(searchFilter.toUpperCase()) || c.label.toUpperCase().includes(searchFilter.toUpperCase())))
+        : CRYPTO_PAIRS.filter(c => c.symbol.includes(searchFilter.toUpperCase()) || c.label.toUpperCase().includes(searchFilter.toUpperCase()));
 
   const sortedForex  = useMemo(() =>
     sortPairs(filteredForexPairs,
