@@ -162,12 +162,15 @@ function MiniChart({ ticker, index, onRemove, onReplace, onSwap, onOpenDetail })
   useEffect(() => {
     if (!shared?.price) return;
     setPrice(shared.price);
-    if (shared.change   != null) setChg(shared.change);
+    // Only overwrite local chg/chgPct when viewing 1D (daily context matches)
     if (shared.changePct != null) {
-      setChgPct(shared.changePct);
       snapshotChgRef.current = { chg: shared.change, chgPct: shared.changePct };
+      if (rangeIdx === 0) {
+        if (shared.change != null) setChg(shared.change);
+        setChgPct(shared.changePct);
+      }
     }
-  }, [shared]);
+  }, [shared, rangeIdx]);
   useEffect(() => {
     if (!ticker) return;
     const norm = normalizeTicker(ticker);
@@ -198,10 +201,10 @@ function MiniChart({ ticker, index, onRemove, onReplace, onSwap, onOpenDetail })
   }, [ticker]);
   const handleRangeChange = (idx) => { clearInterval(intervalRef.current); setRangeIdx(idx); };
 
-  // PriceContext is the single source of truth — always consistent with box panels
-  const dispPrice  = shared?.price     ?? price;
-  const dispChg    = shared?.change    ?? chg;
-  const dispChgPct = shared?.changePct ?? chgPct;
+  // Price always from PriceContext; chg/chgPct from chart data when not 1D
+  const dispPrice  = shared?.price ?? price;
+  const dispChg    = rangeIdx === 0 ? (shared?.change    ?? chg) : chg;
+  const dispChgPct = rangeIdx === 0 ? (shared?.changePct ?? chgPct) : chgPct;
 
   const isUp     = (dispChg ?? 0) >= 0;
   const lineColor = isUp ? '#e8e8e8' : '#ff5555';
