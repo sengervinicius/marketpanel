@@ -27,7 +27,7 @@ function alphaVantageKey() {
   return process.env.ALPHA_VANTAGE_KEY;
 }
 
-// âââ Enriched error class âââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// âââ Enriched error class ââââââââââââââââââââââââââââââââââââââââââââââââââââ
 class ApiError extends Error {
   constructor(message, code, retryAfter = null) {
     super(message);
@@ -82,13 +82,14 @@ async function polyFetch(path, retries = 2) {
   throw new ApiError('Polygon: exhausted retries', 'network_error');
 }
 
-// âââ Yahoo Finance crumb authentication âââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// âââ Yahoo Finance crumb authentication ââââââââââââââââââââââââââââââââââââââââââââ
+
 let _yfCrumb = null;
 let _yfCookie = null;
 let _yfCrumbExpiry = 0;
 const _yfCrumbHistory = []; // store multiple working crumbs for resilience
 
-// âââ B3 cache (60 s) âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// âââ B3 cache (60 s) âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 let _brazilCache = null;
 let _brazilCacheExpiry = 0;
 
@@ -183,7 +184,379 @@ async function getYahooCrumb() {
 
       for (const crumbUrl of CRUMB_URLS) {
         try {
-          const crumbController =SDCLP',
+          const crumbController = new AbortController();
+          const crumbTimeout = setTimeout(() => crumbController.abort(), 5000);
+          let r2;
+          try {
+            r2 = await fetch(crumbUrl, {
+              headers: {
+                'User-Agent': YF_UA,
+                'Accept': 'text/plain, */*',
+                'Accept-Language': 'en-US,en;q=0.9',
+                'Cookie': cookie,
+                'Referer': 'https://finance.yahoo.com/',
+              },
+              signal: crumbController.signal,
+            });
+          } finally {
+            clearTimeout(crumbTimeout);
+          }
+          if (!r2.ok) continue;
+          const crumb = (await r2.text()).trim();
+          if (!crumb || crumb.startsWith('<') || crumb.startsWith('{') || crumb.length > 40) continue;
+
+          _yfCrumb = crumb;
+          _yfCookie = cookie;
+          _yfCrumbExpiry = now + 25 * 60 * 1000;
+          // Store in history for resilience
+          _yfCrumbHistory.push({ crumb, cookie, expiry: _yfCrumbExpiry });
+          if (_yfCrumbHistory.length > 3) _yfCrumbHistory.shift();
+          console.log(`[Yahoo] Crumb OK via ${seedUrl} + ${crumbUrl}`);
+          return { crumb, cookie };
+        } catch (e) { lastError = e; }
+      }
+    } catch (e) { lastError = e; }
+  }
+
+  _yfCrumb = null;
+  _yfCookie = null;
+  _yfCrumbExpiry = 0;
+  const msg = lastError?.message || 'unknown';
+  console.error('[Yahoo] All crumb attempts failed:', msg);
+  throw new Error('Yahoo Finance auth failed: ' + msg);
+}
+
+// Cached Yahoo chart fetcher
+async function _yahooChartRaw(ticker, period1, period2, interval, crumb, cookie) {
+  const yfUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker.toUpperCase())}?period1=${period1}&period2=${period2}&interval=${interval}&crumb=${encodeURIComponent(crumb)}`;
+  const chartCtrl = new AbortController();
+  const chartTmout = setTimeout(() => chartCtrl.abort(), 10000);
+  let r;
+  try {
+    r = await fetch(yfUrl, {
+      headers: {
+        'User-Agent': YF_UA, 'Accept': 'application/json',
+        'Cookie': cookie, 'Referer': 'https://finance.yahoo.com/'
+      },
+      signal: chartCtrl.signal,
+    });
+  } finally {
+    clearTimeout(chartTmout);
+  }
+  if (r.status === 429) {
+    const error = new Error('Yahoo chart HTTP 429');
+    error.code = 'rate_limit';
+    throw error;
+  }
+  if (!r.ok) {
+    if (r.status === 401 || r.status === 403) { _yfCrumb = null; _yfCrumbExpiry = 0; }
+    throw new Error(`Yahoo chart HTTP ${r.status} for ${ticker}`);
+  }
+  return r.json();
+}
+
+async function _yahooQuoteRaw(symbols) {
+  const HOSTS = ['query1', 'query2'];
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const { crumb, cookie } = await getYahooCrumb();
+    const fields = 'regularMarketPrice,regularMarketChange,regularMarketChangePercent,regularMarketVolume,regularMarketOpen,regularMarketDayHigh,regularMarketDayLow,shortName,longName,currency,marketCap';
+    const host = HOSTS[attempt % HOSTS.length];
+    const url = `https://${host}.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbols)}&crumb=${encodeURIComponent(crumb)}&fields=${fields}&lang=en-US`;
+    const quoteController = new AbortController();
+    const quoteTimeout = setTimeout(() => quoteController.abort(), 10000);
+    let r;
+    try {
+      r = await fetch(url, {
+        headers: {
+          'User-Agent': YF_UA,
+          'Accept': 'application/json',
+          'Accept-Language': 'en-US,en;q=0.9',
+          'Cookie': cookie,
+          'Referer': 'https://finance.yahoo.com/',
+        },
+        signal: quoteController.signal,
+      });
+    } finally {
+      clearTimeout(quoteTimeout);
+    }
+    if (r.status === 401 || r.status === 403) {
+      _yfCrumb = null; _yfCookie = null; _yfCrumbExpiry = 0;
+      if (attempt === 0) { console.warn(`[Yahoo] ${r.status} on ${host}, retrying with fresh crumb`); continue; }
+      throw new Error(`Yahoo Finance HTTP ${r.status}`);
+    }
+    if (r.status === 429) {
+      const error = new Error(`Yahoo Finance HTTP 429 — rate limited`);
+      error.code = 'rate_limit';
+      throw error;
+    }
+    if (!r.ok) throw new Error(`Yahoo Finance HTTP ${r.status}`);
+    const json = await r.json();
+    return json?.quoteResponse?.result || [];
+  }
+  throw new Error('Yahoo Finance: exhausted retries');
+}
+
+// Cached wrapper — all yahooQuote calls go through here
+async function yahooQuote(symbols) {
+  const normalizedKey = `yq:${symbols.split(',').map(s => s.trim().toUpperCase()).sort().join(',')}`;
+  return yahooCache.wrap(normalizedKey, () => _yahooQuoteRaw(symbols), 60 * 1000);
+}
+
+// âââ Finnhub fallback provider ââââââââââââââââââââââââââââââââââââââââââââââââââ
+async function finnhubQuote(symbol) {
+  const key = finnhubKey();
+  if (!key) throw new Error('Finnhub API key not configured');
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
+  try {
+    const url = `https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(symbol)}&token=${key}`;
+    const res = await fetch(url, {
+      headers: { 'Accept': 'application/json' },
+      signal: controller.signal,
+    });
+    if (!res.ok) throw new Error(`Finnhub HTTP ${res.status}`);
+    const data = await res.json();
+    return data;
+  } catch (e) {
+    throw new Error(`Finnhub error: ${e.message}`);
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+// âââ Alpha Vantage fallback (critical lookups) ââââââââââââââââââââââââââââââââââ
+async function alphaVantageQuote(symbol) {
+  const key = alphaVantageKey();
+  if (!key) throw new Error('Alpha Vantage API key not configured');
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
+  try {
+    const url = `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${encodeURIComponent(symbol)}&apikey=${key}`;
+    const res = await fetch(url, {
+      headers: { 'Accept': 'application/json' },
+      signal: controller.signal,
+    });
+    if (!res.ok) throw new Error(`Alpha Vantage HTTP ${res.status}`);
+    const data = await res.json();
+    if (data.Note || data['Error Message']) throw new Error(`Alpha Vantage: ${data.Note || data['Error Message']}`);
+    return data['Global Quote'] || {};
+  } catch (e) {
+    throw new Error(`Alpha Vantage error: ${e.message}`);
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+// âââ fetchWithFallback: Try Yahoo, then Finnhub, then Alpha Vantage ââââââââââââ
+async function fetchWithFallback(symbol) {
+  console.log(`[Provider] Attempting Yahoo Finance for ${symbol}...`);
+  try {
+    const quotes = await yahooQuote(symbol);
+    if (quotes.length > 0) {
+      console.log(`[Provider] Yahoo Finance succeeded for ${symbol}`);
+      return { data: quotes[0], source: 'yahoo' };
+    }
+  } catch (e) {
+    console.warn(`[Provider] Yahoo Finance failed: ${e.message}`);
+  }
+
+  if (finnhubKey()) {
+    console.log(`[Provider] Attempting Finnhub for ${symbol}...`);
+    try {
+      const data = await finnhubQuote(symbol);
+      if (data.c) {
+        console.log(`[Provider] Finnhub succeeded for ${symbol}`);
+        return {
+          data: {
+            symbol: symbol,
+            regularMarketPrice: data.c,
+            regularMarketChange: data.d,
+            regularMarketChangePercent: data.dp,
+            regularMarketOpen: data.o,
+            regularMarketDayHigh: data.h,
+            regularMarketDayLow: data.l,
+            regularMarketVolume: null,
+          },
+          source: 'finnhub',
+        };
+      }
+    } catch (e) {
+      console.warn(`[Provider] Finnhub failed: ${e.message}`);
+    }
+  }
+
+  if (alphaVantageKey()) {
+    console.log(`[Provider] Attempting Alpha Vantage for ${symbol}...`);
+    try {
+      const data = await alphaVantageQuote(symbol);
+      if (data['05. price']) {
+        console.log(`[Provider] Alpha Vantage succeeded for ${symbol}`);
+        return {
+          data: {
+            symbol: data['01. symbol'],
+            regularMarketPrice: parseFloat(data['05. price']),
+            regularMarketChange: parseFloat(data['09. change'] || 0),
+            regularMarketChangePercent: parseFloat(data['10. change percent']?.replace('%', '') || 0),
+            regularMarketOpen: null,
+            regularMarketDayHigh: null,
+            regularMarketDayLow: null,
+            regularMarketVolume: null,
+          },
+          source: 'alphavantage',
+        };
+      }
+    } catch (e) {
+      console.warn(`[Provider] Alpha Vantage failed: ${e.message}`);
+    }
+  }
+
+  // Last-resort: Eulerpool for European exchange symbols (.DE, .L, .PA, .AS, .SW, .MC)
+  const isEuropean = /\.(DE|L|PA|AS|SW|MC|BR|MI|ST|HE|CO|OL|LS)$/i.test(symbol);
+  if (isEuropean && eulerpool.isConfigured()) {
+    console.log(`[Provider] Attempting Eulerpool for European symbol ${symbol}...`);
+    try {
+      const q = await eulerpool.getQuote(symbol);
+      if (q && q.price) {
+        console.log(`[Provider] Eulerpool succeeded for ${symbol}`);
+        return {
+          data: {
+            symbol,
+            regularMarketPrice:         q.price,
+            regularMarketChange:        q.change     ?? null,
+            regularMarketChangePercent: q.changePct  ?? null,
+            regularMarketVolume:        q.volume     ?? null,
+            shortName:                  q.name       ?? symbol,
+            currency:                   q.currency   ?? null,
+          },
+          source: 'eulerpool',
+        };
+      }
+    } catch (e) {
+      console.warn(`[Provider] Eulerpool failed for ${symbol}:`, e.message);
+    }
+  }
+
+  throw new Error(`All providers failed for ${symbol}`);
+}
+
+// âââ Snapshots ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+
+const DEFAULT_STOCK_TICKERS = [
+  'SPY','QQQ','IWM','DIA','EWZ','EWW','EEM','EFA','FXI','EWJ',
+  // EMEA + Asia-Pacific ETFs â feed GlobalIndexesPanel
+  'EZU','EWU','EWG','EWQ','EWP','EWI','EWL','EWD',
+  'EWH','EWY','EWA','MCHI','EWT','EWS','INDA','EWC',
+  'AAPL','MSFT','NVDA','GOOGL','AMZN','META','TSLA',
+  'BRKB','JPM','GS','BAC','V','MA',
+  'XOM','CAT','BA',
+  'WMT','LLY','UNH',
+  'VALE','PBR','ITUB','BBD','ABEV','ERJ','BRFS','SUZ',
+  'GLD','SLV','CPER','REMX','USO','UNG','SOYB','WEAT','CORN','BHP',
+];
+
+router.get('/snapshot/stocks', async (req, res) => {
+  const adHoc = req.query.tickers;
+  if (adHoc) {
+    const syms = adHoc.split(',').map(s => s.trim().toUpperCase()).filter(Boolean).slice(0, 50);
+    if (syms.length === 0) return res.status(400).json({ error: 'No valid tickers provided', code: 'bad_request' });
+    const cacheKey = `snapshot:stocks:adhoc:${syms.sort().join(',')}`;
+    const cached = cacheGet(cacheKey);
+    if (cached) return res.json(cached);
+    try {
+      const BATCH_SIZE = 15;
+      const batches = [];
+      for (let i = 0; i < syms.length; i += BATCH_SIZE) {
+        batches.push(syms.slice(i, i + BATCH_SIZE));
+      }
+
+      const results = await Promise.allSettled(
+        batches.map(batch => yahooQuote(batch.join(',')))
+      );
+
+      const allQuotes = [];
+      for (const result of results) {
+        if (result.status === 'fulfilled') {
+          allQuotes.push(...result.value);
+        }
+      }
+
+      const transformedTickers = allQuotes.map(q => ({
+        ticker: q.symbol,
+        todaysChange: q.regularMarketChange ?? 0,
+        todaysChangePerc: q.regularMarketChangePercent ?? 0,
+        day: {
+          o: q.regularMarketOpen ?? null,
+          h: q.regularMarketDayHigh ?? null,
+          l: q.regularMarketDayLow ?? null,
+          c: q.regularMarketPrice ?? null,
+          v: q.regularMarketVolume ?? 0,
+        },
+        prevDay: { c: q.regularMarketPreviousClose ?? (q.regularMarketPrice - q.regularMarketChange) ?? null },
+        min: { c: q.regularMarketPrice ?? null },
+      }));
+
+      const data = { tickers: transformedTickers, status: 'OK' };
+      cacheSet(cacheKey, data, TTL.stocksSnapshot);
+      return res.json(data);
+    } catch (e) {
+      return sendError(res, e, `/snapshot/stocks?tickers=${adHoc}`);
+    }
+  }
+
+  const cached = cacheGet('snapshot:stocks');
+  if (cached) return res.json(cached);
+  try {
+    const BATCH_SIZE = 15;
+    const batches = [];
+    for (let i = 0; i < DEFAULT_STOCK_TICKERS.length; i += BATCH_SIZE) {
+      batches.push(DEFAULT_STOCK_TICKERS.slice(i, i + BATCH_SIZE));
+    }
+
+    const results = await Promise.allSettled(
+      batches.map(batch => yahooQuote(batch.join(',')))
+    );
+
+    const allQuotes = [];
+    for (const result of results) {
+      if (result.status === 'fulfilled') {
+        allQuotes.push(...result.value);
+      }
+    }
+
+    const transformedTickers = allQuotes.map(q => ({
+      ticker: q.symbol,
+      todaysChange: q.regularMarketChange ?? 0,
+      todaysChangePerc: q.regularMarketChangePercent ?? 0,
+      day: {
+        o: q.regularMarketOpen ?? null,
+        h: q.regularMarketDayHigh ?? null,
+        l: q.regularMarketDayLow ?? null,
+        c: q.regularMarketPrice ?? null,
+        v: q.regularMarketVolume ?? 0,
+      },
+      prevDay: { c: q.regularMarketPreviousClose ?? (q.regularMarketPrice - q.regularMarketChange) ?? null },
+      min: { c: q.regularMarketPrice ?? null },
+    }));
+
+    const data = { tickers: transformedTickers, status: 'OK' };
+    cacheSet('snapshot:stocks', data, TTL.stocksSnapshot);
+    res.json(data);
+  } catch (e) {
+    sendError(res, e, '/snapshot/stocks');
+  }
+});
+
+router.get('/snapshot/forex', async (req, res) => {
+  const cached = cacheGet('snapshot:forex');
+  if (cached) return res.json(cached);
+  try {
+    const polygonTickers = [
+      'C:EURUSD','C:GBPUSD','C:USDJPY','C:USDBRL',
+      'C:GBPBRL','C:EURBRL',
+      'C:USDARS','C:USDCHF','C:USDCNY','C:USDMXN',
+      'C:AUDUSD','C:USDCAD','C:USDCLP',
     ];
 
     const yahooTickers = polygonTickers.map(t => {
@@ -280,7 +653,8 @@ router.get('/snapshot/etfs', async (req, res) => {
     );
 
     const allQuotes = [];
-    for (const result of results) {  if (result.status === 'fulfilled') {
+    for (const result of results) {
+      if (result.status === 'fulfilled') {
         allQuotes.push(...result.value);
       }
     }
@@ -359,7 +733,8 @@ router.get('/snapshot/yields', async (req, res) => {
       });
 
     const data = { yields, count: yields.length, status: 'OK' };
-    cacheSet('snapshot:yields', data, TTL.yields);    res.json(data);
+    cacheSet('snapshot:yields', data, TTL.yields);
+    res.json(data);
   } catch (e) {
     sendError(res, e, '/snapshot/yields');
   }
@@ -432,7 +807,8 @@ router.get('/snapshot/european', async (req, res) => {
             volume:    q.regularMarketVolume     ?? null,
             name:      EUROPEAN_NAMES[q.symbol]  || q.shortName || q.symbol,
             currency:  q.currency                || null,
-            source:    'yahoo',          };
+            source:    'yahoo',
+          };
         }
       }
       const data = { stocks, count: Object.keys(stocks).length, source: 'yahoo', note: 'Set EULERPOOL_API_KEY for dedicated European data' };
@@ -458,7 +834,8 @@ router.get('/snapshot/european', async (req, res) => {
   }
 });
 
-// âââ RSS feed parser ââââââââââââââââââââââââââââââââââââââââââââââââââ
+// âââ RSS feed parser âââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+
 function parseRss(xml, sourceName, sourceUrl) {
   const items = [];
   const itemBlocks = xml.match(/<item>([\s\S]*?)<\/item>/g) || [];
@@ -494,6 +871,7 @@ function parseRss(xml, sourceName, sourceUrl) {
 }
 
 // âââ News: Polygon + Bloomberg Markets + FT Markets RSS ââââââââââââââââââââââââââ
+
 router.get('/news', async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 30;
@@ -513,7 +891,9 @@ router.get('/news', async (req, res) => {
 
     const cacheKey = `news:all:${limit}`;
     const cached = cacheGet(cacheKey);
-    if (cached) return res.json(cached);    const [polyRes, bloomRes, ftRes] = await Promise.allSettled([
+    if (cached) return res.json(cached);
+
+    const [polyRes, bloomRes, ftRes] = await Promise.allSettled([
       polyFetch(`/v2/reference/news?limit=${limit}&order=desc&sort=published_utc`),
       fetch('https://feeds.bloomberg.com/markets/news.rss', {
         headers: { 'User-Agent': YF_UA, 'Accept': 'application/rss+xml,*/*' },
@@ -558,7 +938,8 @@ router.get('/news', async (req, res) => {
   }
 });
 
-// âââ Intraday chart data with fallback âââââââââââââââââââââââââââââââââââââââ
+// âââ Intraday chart data with fallback âââââââââââââââââââââââââââââââââââââââââââ
+
 router.get('/chart/:ticker', async (req, res) => {
   const { ticker } = req.params;
   const { from, to, multiplier = 5, timespan = 'minute' } = req.query;
@@ -596,7 +977,8 @@ router.get('/chart/:ticker', async (req, res) => {
     const { crumb, cookie } = await getYahooCrumb();
     const period1 = Math.floor(new Date(fromDate + 'T00:00:00Z').getTime() / 1000);
     const period2 = Math.floor(new Date(toDate + 'T23:59:59Z').getTime() / 1000);
-    const interval = timespan === 'minute' ? `${multiplier}m` : '1d';    const yfChartCacheKey = `yf_chart:${ticker}:${period1}:${period2}:${interval}`;
+    const interval = timespan === 'minute' ? `${multiplier}m` : '1d';
+    const yfChartCacheKey = `yf_chart:${ticker}:${period1}:${period2}:${interval}`;
     const json = await yahooCache.wrap(yfChartCacheKey, () => _yahooChartRaw(ticker, period1, period2, interval, crumb, cookie), 30 * 1000);
     const result = json?.chart?.result?.[0];
     if (!result) throw new Error(`No Yahoo chart data for ${ticker}`);
@@ -615,7 +997,8 @@ router.get('/chart/:ticker', async (req, res) => {
   }
 });
 
-// âââ Ticker details ââââââââââââââââââââââââââââââââââââââââââââââââââ
+// âââ Ticker details âââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+
 router.get('/ticker/:symbol', async (req, res) => {
   try {
     const data = await polyFetch(`/v3/reference/tickers/${req.params.symbol}`);
@@ -625,7 +1008,8 @@ router.get('/ticker/:symbol', async (req, res) => {
   }
 });
 
-// âââ Market status ââââââââââââââââââââââââââââââââââââââââââââââââââ
+// âââ Market status âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+
 router.get('/status', async (req, res) => {
   try {
     const data = await polyFetch('/v1/marketstatus/now');
@@ -635,7 +1019,8 @@ router.get('/status', async (req, res) => {
   }
 });
 
-// âââ Brazilian B3 stocks with fallback to Finnhub ââââââââââââââââââââââ
+// âââ Brazilian B3 stocks with fallback to Finnhub ââââââââââââââââââââââââââââââ
+
 router.get('/snapshot/brazil', async (req, res) => {
   try {
     const now = Date.now();
@@ -673,7 +1058,7 @@ router.get('/snapshot/brazil', async (req, res) => {
         const cleanSymbol = (q.symbol || '').replace(/\.SA$/i, '').trim();
         if (!cleanSymbol) return null;
         return {
-          symbol:          cleanSymbol,
+          symbol:    cleanSymbol,
           name:      (q.shortName || q.longName || q.symbol).substring(0, 18),
           price:     q.regularMarketPrice,
           change:    q.regularMarketChange        ?? 0,
@@ -703,6 +1088,7 @@ router.get('/snapshot/brazil', async (req, res) => {
 });
 
 // âââ Global equity index ETFs ââââââââââââââââââââââââââââââââââââââââââââââââââ
+
 router.get('/snapshot/global-indices', async (req, res) => {
   try {
     const tickers = [
@@ -752,12 +1138,14 @@ router.get('/snapshot/global-indices', async (req, res) => {
 });
 
 // âââ Ticker search â parallel Polygon + Yahoo Finance ââââââââââââââââââââââââââ
+
 router.get('/search', async (req, res) => {
   try {
     const { q = '', limit = 8 } = req.query;
     if (!q.trim()) return res.json({ results: [] });
 
-    const [polyResult, yahooResult, eulerResult] = await Promise.allSettled([      polyFetch(`/v3/reference/tickers?search=${encodeURIComponent(q.trim())}&active=true&limit=${limit}&sort=ticker`),
+    const [polyResult, yahooResult, eulerResult] = await Promise.allSettled([
+      polyFetch(`/v3/reference/tickers?search=${encodeURIComponent(q.trim())}&active=true&limit=${limit}&sort=ticker`),
       yahooCache.wrap(`yf_search:${q.trim().toLowerCase()}`, async () => {
         const r = await fetch(
           `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(q.trim())}&lang=en-US&region=BR&quotesCount=8&newsCount=0&enableFuzzyQuery=false`,
@@ -835,7 +1223,8 @@ router.get('/search', async (req, res) => {
   }
 });
 
-// âââ Unified quote â with fallback chain âââââââââââââââââââââââââââââââââââââ
+// âââ Unified quote â with fallback chain âââââââââââââââââââââââââââââââââââââââ
+
 router.get('/quote/:symbol', async (req, res) => {
   try {
     const symbol = req.params.symbol.toUpperCase();
@@ -863,7 +1252,9 @@ router.get('/quote/:symbol', async (req, res) => {
 });
 
 // âââ Single ticker snapshot (legacy) ââââââââââââââââââââââââââââââââââââââââââââ
-router.get('/snapshot/ticker/:symbol', async (req, res) => {  try {
+
+router.get('/snapshot/ticker/:symbol', async (req, res) => {
+  try {
     const sym = req.params.symbol.toUpperCase();
     if (!sym || sym.length > 20 || !/^[A-Z0-9:.\-=^]+$/.test(sym)) {
       return res.status(400).json({ error: 'Invalid symbol format' });
@@ -965,7 +1356,7 @@ router.get('/snapshot/ticker/:symbol', async (req, res) => {  try {
   }
 });
 
-// âââ Bond Detail endpoint âââââââââââââââââââââââââââââââââââââ
+// âââ Bond Detail endpoint ââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 // Returns bond-specific metrics: yield, maturity, coupon, duration, price, etc.
 
 const BOND_YAHOO_MAP = {
@@ -1015,7 +1406,8 @@ function calcDV01(price, modifiedDuration) {
   return (price * modifiedDuration * 0.0001);
 }
 
-router.get('/bond-detail/:symbol', async (req, res) => {  try {
+router.get('/bond-detail/:symbol', async (req, res) => {
+  try {
     const sym = req.params.symbol.toUpperCase();
     const meta = BOND_YAHOO_MAP[sym];
 
@@ -1186,7 +1578,7 @@ router.get('/bond-detail/:symbol', async (req, res) => {  try {
       yieldToWorst: yieldValue,    // Non-callable, so YTW = YTM
       modifiedDuration: modDuration,
       dv01,
-      spreadAdToUS10Y: spreadBps,
+      spreadToUS10Y: spreadBps,
 
       // Brazil-specific
       ...(brBondData ? {
@@ -1202,9 +1594,10 @@ router.get('/bond-detail/:symbol', async (req, res) => {  try {
   }
 });
 
-// âââ Interest rates ââââââââââââââââââââââââââââââââââââââââ
+// âââ Interest rates ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
-router.get('/snapshot/rates', async (req, res) => {  try {
+router.get('/snapshot/rates', async (req, res) => {
+  try {
     const [usResult, selicResult] = await Promise.allSettled([
       yahooQuote('^IRX,^FVX,^TNX,^TYX'),
       fetch('https://api.bcb.gov.br/dados/serie/bcdata.sgs.432/dados/ultimos/1?formato=json', {
@@ -1266,7 +1659,8 @@ router.get('/snapshot/rates', async (req, res) => {  try {
   }
 });
 
-// âââ Brazilian DI / Pre-fixed Yield Curve ââââââââââââââââââââââââââââââ
+// âââ Brazilian DI / Pre-fixed Yield Curve ââââââââââââââââââââââââââââââââââââââââ
+
 router.get('/di-curve', async (req, res) => {
   try {
     const [tdRes, selicRes] = await Promise.allSettled([
@@ -1359,7 +1753,8 @@ router.get('/di-curve', async (req, res) => {
 });
 
 
-// ââ Yield Curves: BR, US, UK, EU ââââââââââââââââââââââââââââââââââââââââ
+// ââ Yield Curves: BR, US, UK, EU âââââââââââââââââââââââââââââââââââââââââââââââââ
+
 const US_CURVE_FIELDS = [
   { tenor: '1M',  field: 'BC_1MONTH',  months: 1   },
   { tenor: '3M',  field: 'BC_3MONTH',  months: 3   },
@@ -1433,6 +1828,7 @@ function ukSynthetic(boeRate = 4.50) {
 }
 
 // ââ ECB Euro Area yield curve âââââââââââââââââââââââââââââââââââââââââââââââââ
+
 const ECB_MAT_MAP = {
   'SR_3M':  { tenor: '3M',  months: 3   },
   'SR_6M':  { tenor: '6M',  months: 6   },
@@ -1489,7 +1885,8 @@ function euSynthetic(ecbRate) {
   ].filter(p => p.rate > 0);
 }
 
-router.get('/yield-curves', async (req, res) => {  try {
+router.get('/yield-curves', async (req, res) => {
+  try {
     const now = new Date();
     const yyyymm = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     const dd = String(now.getDate()).padStart(2, '0');
@@ -1580,7 +1977,7 @@ router.get('/yield-curves', async (req, res) => {  try {
       ukSource = 'BoE+synthetic';
     }
 
-    // ââ EU curve ââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+    // ââ EU curve âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
     let euCurve = [];
     let euSource = 'synthetic';
     if (ecbYcRes.status === 'fulfilled') {
@@ -1639,6 +2036,7 @@ router.post('/settings', (req, res) => {
 });
 
 // âââ Fundamentals: P/E, EPS, beta, dividend, 52W range, sector (Yahoo Finance) ââ
+
 function yr(field) {
   if (field == null) return null;
   if (typeof field === 'number') return field;
@@ -1665,287 +2063,6 @@ router.get('/fundamentals/:symbol', async (req, res) => {
       for (let attempt = 0; attempt < 2; attempt++) {
         const { crumb, cookie } = await getYahooCrumb();
         const url = `https://query2.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbol)}&crumb=${encodeURIComponent(crumb)}&fields=${FIELDS}&lang=en-US`;
-        const r = await fetch(url, {
-          headers: { 'User-Agent': YF_UA, 'Accept': 'application/json', 'Cookie': cookie, 'Referer': 'https://finance.yahoo.com/' }
-        });
-        if (r.status === 401 || r.status === 403) {
-          _yfCrumb = null; _yfCookie = null; _yfCrumbExpiry = 0;
-          if (attempt === 0) continue;
-          throw new Error('Yahoo Finance auth failed after retry');
-        }
-        if (!r.ok) throw new Error('Yahoo Finance HTTP ' + r.status);
-        const json = await r.json();
-        q = json?.quoteResponse?.result?.[0];
-        break;
-      }
-      if (!q) return res.status(404).json({ error: 'No fundamental data for ' + symbol });
-      return res.json({
-        marketCap:          q.marketCap                  ?? null,
-        enterpriseValue:    q.enterpriseValue            ?? null,
-        peRatio:            q.trailingPE                 ?? null,
-        forwardPE:          q.forwardPE                  ?? null,
-        eps:                q.epsTrailingTwelveMonths    ?? null,
-        forwardEps:         q.epsForward                 ?? null,
-        dividendYield:      q.trailingAnnualDividendYield ?? null,
-        dividendRate:       q.trailingAnnualDividendRate  ?? null,
-        fiftyTwoWeekHigh:   q.fiftyTwoWeekHigh           ?? null,
-        fiftyTwoWeekLow:    q.fiftyTwoWeekLow            ?? null,
-        fiftyTwoWeekChange: q.fiftyTwoWeekChangePercent != null
-                              ? q.fiftyTwoWeekChangePercent / 100 : null,
-        beta:               q.beta                       ?? null,
-        sharesOutstanding:  q.sharesOutstanding          ?? null,
-      });
-    }
-
-    // ââ US / international stocks: Yahoo Finance v10 quoteSummary ââ
-    let result = null;
-    for (let attempt = 0; attempt < 2; attempt++) {
-      const { crumb, cookie } = await getYahooCrumb();
-      const url = 'https://query2.finance.yahoo.com/v10/finance/quoteSummary/' +
-        encodeURIComponent(symbol) +
-        '?modules=defaultKeyStatistics,financialData,summaryProfile,summaryDetail,price' +
-        '&crumb=' + encodeURIComponent(crumb) + '&lang=en-US';
-      const r = await fetch(url, {
-        headers: { 'User-Agent': YF_UA, 'Accept': 'application/json', 'Cookie': cookie, 'Referer': 'https://finance.yahoo.com/' }
-      });
-      if (r.status === 401 || r.status === 403) {
-        _yfCrumb = null; _yfCookie = null; _yfCrumbExpiry = 0;
-        if (attempt === 0) continue;
-        throw new Error('Yahoo Finance auth failed after retry');
-      }
-      if (!r.ok) throw new Error('Yahoo Finance HTTP ' + r.status);
-      const json = await r.json();
-      result = json?.quoteSummary?.result?.[0];
-      break;
-    }
-
-    if (!result) {
-      return res.status(404).json({ error: 'No fundamental data for ' + symbol });
-    }
-
-    const ks = result.defaultKeyStatistics || {};
-    const fd = result.financialData       || {};
-    const sp = result.summaryProfile      || {};
-    const sd = result.summaryDetail       || {};
-    const pr = result.price               || {};
-
-    let polyMktCap = null;
-    try {
-      const polyRef = await polyFetch(`/v3/reference/tickers/${encodeURIComponent(symbol)}`);
-      polyMktCap = polyRef?.results?.market_cap ?? null;
-    } catch (_) { /* non-fatal */ }
-
-    const earningsArr = ks.earningsDate?.length ? ks.earningsDate : null;    const earningsDate = earningsArr
-      ? (() => {
-          const now = Date.now() / 1000;
-          const fut = earningsArr.find(e => (e.raw || 0) > now);
-          return fut ? fut.fmt : (earningsArr[earningsArr.length - 1]?.fmt || null);
-        })()
-      : null;
-
-    res.json({
-      marketCap:           yr(sd.marketCap)        ?? yr(pr.marketCap)        ?? polyMktCap ?? null,
-      enterpriseValue:     yr(ks.enterpriseValue)                             ?? null,
-      peRatio:             yr(sd.trailingPE)        ?? yr(ks.trailingPE)      ?? null,
-      forwardPE:           yr(sd.forwardPE)         ?? yr(ks.forwardPE)       ?? null,
-      pegRatio:            yr(ks.pegRatio)                                    ?? null,
-      priceToBook:         yr(ks.priceToBook)                                 ?? null,
-      priceToSales:        yr(ks.priceToSalesTrailing12Months)                ?? null,
-      eps:                 yr(ks.trailingEps)                                 ?? null,
-      forwardEps:          yr(ks.forwardEps)                                  ?? null,
-      earningsDate:        earningsDate,
-      dividendYield:       yr(sd.dividendYield)     ?? yr(ks.dividendYield)   ?? null,
-      dividendRate:        yr(sd.dividendRate)                                ?? null,
-      payoutRatio:         yr(sd.payoutRatio)                                 ?? null,
-      totalRevenue:        yr(fd.totalRevenue)                                ?? null,
-      revenueGrowth:       yr(fd.revenueGrowth)                               ?? null,
-      ebitda:              yr(fd.ebitda)                                      ?? null,
-      grossMargins:        yr(fd.grossMargins)                                ?? null,
-      operatingMargins:    yr(fd.operatingMargins)                            ?? null,
-      profitMargins:       yr(fd.profitMargins)                               ?? null,
-      totalCash:           yr(fd.totalCash)                                   ?? null,
-      totalDebt:           yr(fd.totalDebt)                                   ?? null,
-      returnOnEquity:      yr(fd.returnOnEquity)                              ?? null,
-      returnOnAssets:      yr(fd.returnOnAssets)                              ?? null,
-      beta:                yr(sd.beta)              ?? yr(ks.beta)            ?? null,
-      sharesOutstanding:   yr(ks.sharesOutstanding)                           ?? null,
-      shortPercentFloat:   yr(ks.shortPercentOfFloat)                         ?? null,
-      fiftyTwoWeekHigh:    yr(sd.fiftyTwoWeekHigh)  ?? yr(ks.fiftyTwoWeekHigh) ?? null,
-      fiftyTwoWeekLow:     yr(sd.fiftyTwoWeekLow)   ?? yr(ks.fiftyTwoWeekLow)  ?? null,
-      fiftyTwoWeekChange:  yr(ks['52WeekChange'])                             ?? null,
-      sector:              sp.sector                                          || null,
-      industry:            sp.industry                                        || null,
-      employees:           sp.fullTimeEmployees                               || null,
-      website:             sp.website                                         || null,
-      description:         sp.longBusinessSummary                             || null,
-    });
-  } catch (e) {
-    console.error('[API] /fundamentals/' + req.params.symbol + ' error:', e.message);
-    sendError(res, e);
-  }
-});
-
-// âââ Phase 1.3: Standardized /quotes/:symbol âââââââââââââââââââââââââââââââââââââââ
-// GET /api/quotes/:symbol
-// Returns a normalized Quote envelope per types.js.
-// The existing /quote/:symbol does the same job; this is a clean alias.
-
-router.get('/quotes/:symbol', async (req, res) => {
-  try {
-    const symbol = req.params.symbol.toUpperCase();
-    const result = await fetchWithFallback(symbol);
-    const q      = result.data;
-
-    /** @type {import('../types').Quote} */
-    const quote = {
-      lastPrice:  q.regularMarketPrice             ?? null,
-      change:     q.regularMarketChange             ?? null,
-      changePct:  (q.regularMarketChangePercent ?? 0) / 100,  // normalize to decimal
-      bid:        q.bid                             ?? null,
-      ask:        q.ask                             ?? null,
-      volume:     q.regularMarketVolume             ?? null,
-      open:       q.regularMarketOpen               ?? null,
-      high:       q.regularMarketDayHigh            ?? null,
-      low:        q.regularMarketDayLow             ?? null,
-      prevClose:  q.regularMarketPreviousClose      ?? null,
-      asOf:       new Date().toISOString(),
-    };
-
-    return res.json({ symbol, quote, source: result.source });
-  } catch (e) {
-    console.error(`[API] /quotes/${req.params.symbol} error:`, e.message);
-    sendError(res, e);
-  }
-});
-
-// âââ Phase 1.3: Standardized /history/:symbol ââââââââââââââââââââââââââââââââ
-// GET /api/history/:symbol?interval=1d&period=1M
-//
-// interval: '1m' | '5m' | '15m' | '30m' | '1h' | '1d' | '1wk' | '1mo'
-// period:   '1D' | '5D' | '1M' | '3M' | '6M' | '1Y' | '3Y' | '5Y'
-//
-// Returns: { symbol, interval, period, candles: OHLCVCandle[] }
-//
-// Implementation: wraps the existing Polygon aggregates + Yahoo chart fallback.
-// TODO(provider): Route through multiAssetProvider.getHistory() once that is wired up.
-
-const PERIOD_TO_RANGE = {
-  '1D': { multiplier: 1,  timespan: 'minute',  days: 1   },
-  '5D': { multiplier: 5,  timespan: 'minute',  days: 5   },
-  '1M': { multiplier: 1,  timespan: 'day',     days: 30  },
-  '3M': { multiplier: 1,  timespan: 'day',     days: 90  },
-  '6M': { multiplier: 1,  timespan: 'day',     days: 180 },
-  '1Y': { multiplier: 1,  timespan: 'day',     days: 365 },
-  '3Y': { multiplier: 1,  timespan: 'week',    days: 1095},
-  '5Y': { multiplier: 1,  timespan: 'week',    days: 1825},
-};
-
-router.get('/history/:symbol', async (req, res) => {
-  try {
-    const symbol   = req.params.symbol.toUpperCase();
-    const period   = (req.query.period   || '1M').toUpperCase();
-    const interval = (req.query.interval || '1d').toLowerCase();
-
-    const rangeConfig = PERIOD_TO_RANGE[period];
-    if (!rangeConfig) {
-      return res.status(400).json({ error: `Unsupported period: ${period}. Use: ${Object.keys(PERIOD_TO_RANGE).join(', ')}` });
-    }
-
-    const toDate   = new Date();
-    const fromDate = new Date(toDate.getTime() - rangeConfig.days * 86400 * 1000);
-    const from     = fromDate.toISOString().slice(0, 10);
-    const to       = toDate.toISOString().slice(0, 10);
-
-    // Prefer Polygon for US equities + ETFs; fall back to Yahoo chart
-    // Polygon ticker for crypto uses X: prefix, forex uses C: prefix
-    const polygonTicker = symbol.startsWith('X:') || symbol.startsWith('C:')
-      ? symbol
-      : symbol;
-
-    const key = apiKey();
-    let candles = [];
-
-    if (key) {
-      try {
-        const url = `${BASE}/v2/aggs/ticker/${polygonTicker}/range/${rangeConfig.multiplier}/${rangeConfig.timespan}/${from}/${to}?adjusted=true&sort=asc&limit=5000&apiKey=${key}`;
-        const r   = await fetch(url, { timeout: 15000 });
-        if (r.ok) {
-          const json = await r.json();
-          candles = (json.results || []).map(bar => ({
-            t: bar.t,
-            o: bar.o,
-            h: bar.h,
-            l: bar.l,
-            c: bar.c,
-            v: bar.v,
-          }));
-        }
-      } catch (pe) {
-        console.warn(`[history] Polygon failed for ${symbol}: ${pe.message}`);
-      }
-    }
-
-    // Fallback: Yahoo Finance chart endpoint
-    if (candles.length === 0) {
-      try {
-        const yInterval = interval === '1d' ? '1d' : interval === '1h' ? '60m' : '5m';
-        const yRange    = period === '1D' ? '1d' : period === '5D' ? '5d' : period === '1M' ? '1mo' : period === '3M' ? '3mo' : period === '6M' ? '6mo' : period === '1Y' ? '1y' : period === '3Y' ? '3y' : '5y';
-        const yahooSym  = symbol.startsWith('X:') ? symbol.replace('X:', '').replace('USD', '-USD')
-          : symbol.startsWith('C:') ? symbol.replace('C:', '') + '=X'
-          : symbol;
-        const histCacheKey = `yf_hist:${yahooSym}:${yInterval}:${yRange}`;
-        const json = await yahooCache.wrap(histCacheKey, async () => {
-          const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahooSym)}?interval=${yInterval}&range=${yRange}&includePrePost=false`;
-          const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
-          if (r.status === 429) { const e = new Error('Yahoo history 429'); e.code = 'rate_limit'; throw e; }
-          if (!r.ok) throw new Error(`Yahoo history HTTP ${r.status}`);
-          return r.json();
-        }, 30 * 1000);
-        if (json) {
-          const chart = json?.chart?.result?.[0];
-          if (chart) {
-            const times  = chart.timestamp || [];
-            const q      = chart.indicators?.quote?.[0] || {};
-            const closes = q.close  || [];
-            const opens  = q.open   || [];
-            const highs  = q.high   || [];
-            const lows   = q.low    || [];
-            const vols   = q.volume || [];
-            candles = times.map((t, i) => ({
-              t: t * 1000,
-              o: opens[i]  ?? closes[i] ?? null,
-              h: highs[i]  ?? closes[i] ?? null,
-              l: lows[i]   ?? closes[i] ?? null,
-              c: closes[i] ?? null,
-              v: vols[i]   ?? 0,
-            })).filter(c => c.c !== null);
-          }
-        }
-      } catch (ye) {
-        console.warn(`[history] Yahoo fallback failed for ${symbol}: ${ye.message}`);
-      }
-    }
-
-    return res.json({
-      symbol,
-      interval,
-      period,
-      candles,
-      count: candles.length,
-      asOf: new Date().toISOString(),
-    });
-  } catch (e) {
-    console.error(`[API] /history/${req.params.symbol} error:`, e.message);
-    sendError(res, e);
-  }
-});
-
-// Cache diagnostics endpoint
-router.get('/cache/stats', (req, res) => {
-  res.json(yahooCache.stats());
-});
-
-module.exports = router;nst url = `https://query2.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbol)}&crumb=${encodeURIComponent(crumb)}&fields=${FIELDS}&lang=en-US`;
         const r = await fetch(url, {
           headers: { 'User-Agent': YF_UA, 'Accept': 'application/json', 'Cookie': cookie, 'Referer': 'https://finance.yahoo.com/' }
         });
@@ -2067,7 +2184,7 @@ module.exports = router;nst url = `https://query2.finance.yahoo.com/v7/finance/q
   }
 });
 
-// âââ Phase 1.3: Standardized /quotes/:symbol âââââââââââââââââââââââââââââââââââââââ
+// âââ Phase 1.3: Standardized /quotes/:symbol âââââââââââââââââââââââââââââââââ
 // GET /api/quotes/:symbol
 // Returns a normalized Quote envelope per types.js.
 // The existing /quote/:symbol does the same job; this is a clean alias.
@@ -2222,9 +2339,9 @@ router.get('/history/:symbol', async (req, res) => {
   }
 });
 
-// Cache diagnostics endpoint
+// ─── Cache diagnostics endpoint ────────────────────────────────────────────
 router.get('/cache/stats', (req, res) => {
   res.json(yahooCache.stats());
 });
 
-module.exports = router;placeholderplaceholderplaceholderplaceholderplaceholderplaceholderplaceholderplaceholderplaceholderplaceholderplaceholder
+module.exports = router;
