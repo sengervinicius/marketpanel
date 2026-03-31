@@ -1,7 +1,7 @@
 /**
  * HomePanelMobile.jsx
  *
- * Mobile home panel — mirrors the user's desktop Home Saved Screen.
+ * Mobile home panel â mirrors the user's desktop Home Saved Screen.
  * Each desktop panel becomes a tappable "box" showing its instruments.
  * - World clock header
  * - Search bar (navigates to search tab)
@@ -185,7 +185,7 @@ function HomePanelMobile({ onOpenDetail, onSearchClick }) {
         <input type="text" placeholder="Search instruments..." style={S.searchInput} onClick={onSearchClick} readOnly />
       </div>
 
-      {/* My Boxes — mirrors desktop panels */}
+      {/* My Boxes â mirrors desktop panels */}
       <div style={{ marginBottom: 12 }}>
         <div style={S.sectionTitle}>MY BOXES</div>
 
@@ -193,13 +193,13 @@ function HomePanelMobile({ onOpenDetail, onSearchClick }) {
           const expanded = expandedBox === box.id;
           return (
             <div key={box.id} style={S.box}>
-              {/* Box header — tap to expand/collapse */}
+              {/* Box header â tap to expand/collapse */}
               <div style={S.boxHeader} onClick={() => setExpandedBox(expanded ? null : box.id)}>
                 <div>
                   <span style={S.boxTitle}>{box.title}</span>
                   <span style={{ ...S.boxCount, marginLeft: 8 }}>{box.symbols.length} instruments</span>
                 </div>
-                <span style={S.boxChevron(expanded)}>▼</span>
+                <span style={S.boxChevron(expanded)}>â¼</span>
               </div>
 
               {/* Expanded: show instrument list */}
@@ -230,7 +230,7 @@ function HomePanelMobile({ onOpenDetail, onSearchClick }) {
                             style={S.watchBtn(isWatching(sym))}
                             title={isWatching(sym) ? 'In watchlist' : 'Add to watchlist'}
                           >
-                            {isWatching(sym) ? '★' : '+'}
+                            {isWatching(sym) ? 'â' : '+'}
                           </button>
                         </div>
                       );
