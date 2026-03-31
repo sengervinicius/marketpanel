@@ -1,9 +1,10 @@
 // CommoditiesPanel.jsx — commodities grouped by category, with sortable columns
-// Features: feed-status badge, collapse, editable header, search, drag-drop
-import { useRef, useState, useMemo, memo } from 'react';
+// Features: feed-status badge, collapse, editable header, search, drag-drop, custom subsections
+import { useRef, useState, useMemo, useCallback, memo } from 'react';
 import { useSettings } from '../../context/SettingsContext';
 import PanelConfigModal from '../common/PanelConfigModal';
 import EditablePanelHeader from '../common/EditablePanelHeader';
+import CustomSubsectionBlock from '../common/CustomSubsectionBlock';
 import { COMMODITIES } from '../../utils/constants';
 import { useFeedStatus } from '../../context/FeedStatusContext';
 
@@ -47,10 +48,14 @@ function CommoditiesPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
     title: 'Commodities',
     symbols: COMMODITIES.map(c => c.symbol),
     hiddenSubsections: [],
+    customSubsections: [],
+    subsectionLabels: {},
   };
   const panelTitle           = panelCfg.title                || 'Commodities';
   const panelSymbols         = panelCfg.symbols              || [];
   const hiddenSubsections    = panelCfg.hiddenSubsections    || [];
+  const customSubsections    = panelCfg.customSubsections    || [];
+  const subsectionLabels     = panelCfg.subsectionLabels     || {};
   const availableSubsections = [
     { key: 'Metals', label: 'METALS' },
     { key: 'Energy', label: 'ENERGY' },
@@ -66,10 +71,14 @@ function CommoditiesPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
   const { getBadge } = useFeedStatus();
   const badge = getBadge('stocks'); // commodities are equities/ETFs
 
+  const saveCfg = useCallback((updates) => {
+    updatePanelConfig('commodities', { ...panelCfg, ...updates });
+  }, [panelCfg, updatePanelConfig]);
+
   const handleDropTicker = (ticker) => {
     const sym = ticker.toUpperCase();
     if (!panelSymbols.includes(sym)) {
-      updatePanelConfig('commodities', { ...panelCfg, symbols: [...panelSymbols, sym] });
+      saveCfg({ symbols: [...panelSymbols, sym] });
     }
   };
 
@@ -78,12 +87,56 @@ function CommoditiesPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
     else { setSortKey(key); setSortDir('desc'); }
   };
 
+  // --- Subsection handlers ---
   const handleToggleSubsection = (key) => {
     const current = hiddenSubsections || [];
     const updated = current.includes(key)
       ? current.filter(k => k !== key)
       : [...current, key];
-    updatePanelConfig('commodities', { ...panelCfg, hiddenSubsections: updated });
+    saveCfg({ hiddenSubsections: updated });
+  };
+
+  const handleAddSubsection = ({ label, color }) => {
+    const key = 'custom-' + Date.now();
+    saveCfg({ customSubsections: [...customSubsections, { key, label, color, symbols: [] }] });
+  };
+
+  const handleRenameSubsection = (key, newLabel) => {
+    const builtIn = availableSubsections.find(s => s.key === key);
+    if (builtIn) {
+      saveCfg({ subsectionLabels: { ...subsectionLabels, [key]: newLabel } });
+    } else {
+      saveCfg({
+        customSubsections: customSubsections.map(s =>
+          s.key === key ? { ...s, label: newLabel } : s
+        ),
+      });
+    }
+  };
+
+  const handleDeleteSubsection = (key) => {
+    saveCfg({
+      customSubsections: customSubsections.filter(s => s.key !== key),
+      hiddenSubsections: hiddenSubsections.filter(k => k !== key),
+    });
+  };
+
+  const handleAddTickerToSubsection = (key, symbol) => {
+    saveCfg({
+      customSubsections: customSubsections.map(s =>
+        s.key === key && !s.symbols.includes(symbol)
+          ? { ...s, symbols: [...s.symbols, symbol] }
+          : s
+      ),
+    });
+  };
+
+  const handleRemoveTickerFromSubsection = (key, symbol) => {
+    saveCfg({
+      customSubsections: customSubsections.map(s =>
+        s.key === key ? { ...s, symbols: s.symbols.filter(sym => sym !== symbol) } : s
+      ),
+    });
   };
 
   const sortedGroups = useMemo(() => {
@@ -122,8 +175,13 @@ function CommoditiesPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
         title={panelTitle}
         availableSubsections={availableSubsections}
         hiddenSubsections={hiddenSubsections}
+        customSubsections={customSubsections}
+        subsectionLabels={subsectionLabels}
         onToggleSubsection={handleToggleSubsection}
-        onTitleChange={(v) => updatePanelConfig('commodities', { ...panelCfg, title: v })}
+        onTitleChange={(v) => saveCfg({ title: v })}
+        onAddSubsection={handleAddSubsection}
+        onRenameSubsection={handleRenameSubsection}
+        onDeleteSubsection={handleDeleteSubsection}
         onConfigOpen={() => setConfigOpen(true)}
         onDropTicker={handleDropTicker}
         onSearchChange={setSearchFilter}
@@ -163,12 +221,13 @@ function CommoditiesPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
         {loading || !data ? (
           <div style={{ padding: '20px', textAlign: 'center', color: '#444', fontSize: '10px' }}>LOADING...</div>
         ) : (
-          sortedGroups.map(g => {
+          <>
+          {sortedGroups.map(g => {
             const { items } = g;
             if (!items.length || hiddenSubsections.includes(g.key)) return null;
             return (
               <div key={g.key}>
-                <GroupHeader label={g.label} color={g.color} />
+                <GroupHeader label={subsectionLabels[g.key] || g.label} color={g.color} />
                 {items.map(c => {
                   const d   = data[c.symbol] || {};
                   const pos = (d.changePct ?? 0) >= 0;
@@ -202,7 +261,25 @@ function CommoditiesPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
                 })}
               </div>
             );
-          })
+          })}
+
+          {/* Custom subsections */}
+          {customSubsections.map((sub) => {
+            if (hiddenSubsections.includes(sub.key)) return null;
+            return (
+              <CustomSubsectionBlock
+                key={sub.key}
+                subsection={sub}
+                data={data}
+                gridCols={COLS}
+                onTickerClick={onTickerClick}
+                onOpenDetail={onOpenDetail}
+                onAddTicker={handleAddTickerToSubsection}
+                onRemoveTicker={handleRemoveTickerFromSubsection}
+              />
+            );
+          })}
+          </>
         )}
       </div>
       </>)}
@@ -214,7 +291,7 @@ function CommoditiesPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
           currentTitle={panelTitle}
           currentSymbols={panelSymbols}
           onSave={({ title, symbols }) => {
-            updatePanelConfig('commodities', { title, symbols });
+            saveCfg({ title, symbols });
             setConfigOpen(false);
           }}
           onClose={() => setConfigOpen(false)}

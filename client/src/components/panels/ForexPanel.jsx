@@ -1,9 +1,10 @@
 // ForexPanel.jsx — FX pairs + Crypto subsection, BBG-style, with sortable columns
-// Features: feed-status badge, collapse, movers filter
-import { useRef, useState, useMemo, memo } from 'react';
+// Features: feed-status badge, collapse, movers filter, custom subsections
+import { useRef, useState, useMemo, useCallback, memo } from 'react';
 import { useSettings } from '../../context/SettingsContext';
 import PanelConfigModal from '../common/PanelConfigModal';
 import EditablePanelHeader from '../common/EditablePanelHeader';
+import CustomSubsectionBlock from '../common/CustomSubsectionBlock';
 import { FOREX_PAIRS, CRYPTO_PAIRS } from '../../utils/constants';
 import { useFeedStatus } from '../../context/FeedStatusContext';
 
@@ -63,10 +64,14 @@ function ForexPanel({ data = {}, cryptoData = {}, loading, onTickerClick, onOpen
     title: 'FX',
     symbols: [...FOREX_PAIRS.map(p => p.symbol), ...CRYPTO_PAIRS.map(c => c.symbol)],
     hiddenSubsections: [],
+    customSubsections: [],
+    subsectionLabels: {},
   };
   const panelTitle           = panelCfg.title                || 'FX';
   const panelSymbols         = panelCfg.symbols              || [];
   const hiddenSubsections    = panelCfg.hiddenSubsections    || [];
+  const customSubsections    = panelCfg.customSubsections    || [];
+  const subsectionLabels     = panelCfg.subsectionLabels     || {};
   const availableSubsections = [{ key: 'crypto', label: 'CRYPTO' }];
 
   const [sortKey,      setSortKey]      = useState(null);
@@ -78,6 +83,10 @@ function ForexPanel({ data = {}, cryptoData = {}, loading, onTickerClick, onOpen
   const { getBadge } = useFeedStatus();
   const badge = getBadge('forex');
 
+  const saveCfg = useCallback((updates) => {
+    updatePanelConfig('forex', { ...panelCfg, ...updates });
+  }, [panelCfg, updatePanelConfig]);
+
   const handleSortClick = (key) => {
     if (sortKey === key) setSortDir(d => d === 'desc' ? 'asc' : 'desc');
     else { setSortKey(key); setSortDir('desc'); }
@@ -86,7 +95,7 @@ function ForexPanel({ data = {}, cryptoData = {}, loading, onTickerClick, onOpen
   const handleDropTicker = (ticker) => {
     const sym = ticker.trim().toUpperCase();
     if (sym && !panelSymbols.includes(sym)) {
-      updatePanelConfig('forex', { title: panelTitle, symbols: [...panelSymbols, sym] });
+      saveCfg({ symbols: [...panelSymbols, sym] });
     }
   };
 
@@ -116,13 +125,60 @@ function ForexPanel({ data = {}, cryptoData = {}, loading, onTickerClick, onOpen
   const filteredForex  = useMemo(() => moversOnly ? sortedForex.filter(p  => Math.abs(data?.[p.symbol]?.changePct ?? 0) >= 1)        : sortedForex,  [sortedForex,  data, moversOnly]);
   const filteredCrypto = useMemo(() => moversOnly ? sortedCrypto.filter(c => Math.abs(cryptoData?.[c.symbol]?.changePct ?? 0) >= 1)    : sortedCrypto, [sortedCrypto, cryptoData, moversOnly]);
 
+  // --- Subsection handlers ---
   const handleToggleSubsection = (key) => {
     const current = hiddenSubsections || [];
     const updated = current.includes(key)
       ? current.filter(k => k !== key)
       : [...current, key];
-    updatePanelConfig('forex', { ...panelCfg, hiddenSubsections: updated });
+    saveCfg({ hiddenSubsections: updated });
   };
+
+  const handleAddSubsection = ({ label, color }) => {
+    const key = 'custom-' + Date.now();
+    saveCfg({ customSubsections: [...customSubsections, { key, label, color, symbols: [] }] });
+  };
+
+  const handleRenameSubsection = (key, newLabel) => {
+    const builtIn = availableSubsections.find(s => s.key === key);
+    if (builtIn) {
+      saveCfg({ subsectionLabels: { ...subsectionLabels, [key]: newLabel } });
+    } else {
+      saveCfg({
+        customSubsections: customSubsections.map(s =>
+          s.key === key ? { ...s, label: newLabel } : s
+        ),
+      });
+    }
+  };
+
+  const handleDeleteSubsection = (key) => {
+    saveCfg({
+      customSubsections: customSubsections.filter(s => s.key !== key),
+      hiddenSubsections: hiddenSubsections.filter(k => k !== key),
+    });
+  };
+
+  const handleAddTickerToSubsection = (key, symbol) => {
+    saveCfg({
+      customSubsections: customSubsections.map(s =>
+        s.key === key && !s.symbols.includes(symbol)
+          ? { ...s, symbols: [...s.symbols, symbol] }
+          : s
+      ),
+    });
+  };
+
+  const handleRemoveTickerFromSubsection = (key, symbol) => {
+    saveCfg({
+      customSubsections: customSubsections.map(s =>
+        s.key === key ? { ...s, symbols: s.symbols.filter(sym => sym !== symbol) } : s
+      ),
+    });
+  };
+
+  // Merge data sources for custom subsections
+  const mergedData = useMemo(() => ({ ...data, ...cryptoData }), [data, cryptoData]);
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#0a0a0a' }}>
@@ -131,8 +187,13 @@ function ForexPanel({ data = {}, cryptoData = {}, loading, onTickerClick, onOpen
         title={panelTitle}
         availableSubsections={availableSubsections}
         hiddenSubsections={hiddenSubsections}
+        customSubsections={customSubsections}
+        subsectionLabels={subsectionLabels}
         onToggleSubsection={handleToggleSubsection}
-        onTitleChange={(t) => updatePanelConfig('forex', { ...panelCfg, title: t })}
+        onTitleChange={(t) => saveCfg({ title: t })}
+        onAddSubsection={handleAddSubsection}
+        onRenameSubsection={handleRenameSubsection}
+        onDeleteSubsection={handleDeleteSubsection}
         onConfigOpen={() => setConfigOpen(true)}
         onDropTicker={handleDropTicker}
         onSearchChange={setSearchFilter}
@@ -183,7 +244,7 @@ function ForexPanel({ data = {}, cryptoData = {}, loading, onTickerClick, onOpen
         ) : (
           <>
             {/* ── FX PAIRS ── */}
-            <SectionDivider label="FX PAIRS" color="#ce93d8" />
+            <SectionDivider label={subsectionLabels['fxPairs'] || 'FX PAIRS'} color="#ce93d8" />
             {filteredForex.map(pair => {
               const d = data?.[pair.symbol] || {};
               const price = d.mid || d.ask || d.price;
@@ -225,7 +286,7 @@ function ForexPanel({ data = {}, cryptoData = {}, loading, onTickerClick, onOpen
             {!hiddenSubsections.includes('crypto') && (
               <>
                 {/* ── CRYPTO ── */}
-                <SectionDivider label="CRYPTO" color="#f48fb1" />
+                <SectionDivider label={subsectionLabels['crypto'] || 'CRYPTO'} color="#f48fb1" />
                 {filteredCrypto.map(c => {
               const d   = cryptoData?.[c.symbol] || {};
               const pos = (d.changePct ?? 0) >= 0;
@@ -263,6 +324,23 @@ function ForexPanel({ data = {}, cryptoData = {}, loading, onTickerClick, onOpen
                 )}
               </>
             )}
+
+            {/* Custom subsections */}
+            {customSubsections.map((sub) => {
+              if (hiddenSubsections.includes(sub.key)) return null;
+              return (
+                <CustomSubsectionBlock
+                  key={sub.key}
+                  subsection={sub}
+                  data={mergedData}
+                  gridCols={COLS}
+                  onTickerClick={onTickerClick}
+                  onOpenDetail={onOpenDetail}
+                  onAddTicker={handleAddTickerToSubsection}
+                  onRemoveTicker={handleRemoveTickerFromSubsection}
+                />
+              );
+            })}
           </>
         )}
       </div>
@@ -276,7 +354,7 @@ function ForexPanel({ data = {}, cryptoData = {}, loading, onTickerClick, onOpen
           currentTitle={panelTitle}
           currentSymbols={panelSymbols}
           onSave={({ title, symbols }) => {
-            updatePanelConfig('forex', { title, symbols });
+            saveCfg({ title, symbols });
             setConfigOpen(false);
           }}
           onClose={() => setConfigOpen(false)}

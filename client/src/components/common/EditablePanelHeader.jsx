@@ -2,6 +2,7 @@
  * EditablePanelHeader.jsx
  * Bloomberg-style panel header with inline title editing, subsection labels,
  * search filter, config button, and drag-drop ticker support.
+ * Now supports custom subsection CRUD (add, rename, delete).
  */
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useDrag } from '../../context/DragContext';
@@ -12,9 +13,14 @@ export default function EditablePanelHeader({
   subsections = [],
   availableSubsections = [],
   hiddenSubsections = [],
+  customSubsections = [],
+  subsectionLabels = {},
   onToggleSubsection,
   onTitleChange,
   onSubsectionChange,
+  onAddSubsection,
+  onRenameSubsection,
+  onDeleteSubsection,
   onConfigOpen,
   onDropTicker,
   onSearchChange,
@@ -54,7 +60,7 @@ export default function EditablePanelHeader({
   }, [subVal, subsections, onSubsectionChange]);
 
   const handleContextMenu = (e) => {
-    if ((availableSubsections && availableSubsections.length > 0) || onConfigOpen) {
+    if ((availableSubsections && availableSubsections.length > 0) || customSubsections.length > 0 || onConfigOpen || onAddSubsection) {
       e.preventDefault();
       setContextMenu({ x: e.clientX, y: e.clientY });
     }
@@ -105,7 +111,7 @@ export default function EditablePanelHeader({
         {editingTitle ? (
           <input ref={titleRef} style={S.titleInput} value={titleVal} onChange={e => setTitleVal(e.target.value)} onBlur={saveTitle} onKeyDown={e => { if (e.key === 'Enter') saveTitle(); if (e.key === 'Escape') setEditingTitle(false); }} maxLength={50} />
         ) : (
-          <span style={S.title} onClick={() => { setEditingTitle(true); setTitleVal(title); }} title="Click to rename">{title}</span>
+          <span style={S.title} onClick={() => { setEditingTitle(true); setTitleVal(title); }} title="Click to rename · Right-click for sections">{title}</span>
         )}
         {subsections.map((sub, i) => (
           <span key={i}>
@@ -139,8 +145,19 @@ export default function EditablePanelHeader({
         y={contextMenu.y}
         availableSubsections={availableSubsections}
         hiddenSubsections={hiddenSubsections}
+        customSubsections={customSubsections}
+        subsectionLabels={subsectionLabels}
         onToggleSubsection={(key) => {
           onToggleSubsection?.(key);
+        }}
+        onAddSubsection={(section) => {
+          onAddSubsection?.(section);
+        }}
+        onRenameSubsection={(key, newLabel) => {
+          onRenameSubsection?.(key, newLabel);
+        }}
+        onDeleteSubsection={(key) => {
+          onDeleteSubsection?.(key);
           setContextMenu(null);
         }}
         onConfigOpen={() => {

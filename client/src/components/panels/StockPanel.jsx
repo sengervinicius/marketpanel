@@ -1,9 +1,10 @@
 // StockPanel.jsx — US equities + Brazil ADRs with section headers and sortable columns
-// Features: feed-status badge, collapse, movers filter, heatmap view
-import { useRef, useState, useMemo, memo } from 'react';
+// Features: feed-status badge, collapse, movers filter, heatmap view, custom subsections
+import { useRef, useState, useMemo, useCallback, memo } from 'react';
 import { useSettings } from '../../context/SettingsContext';
 import PanelConfigModal from '../common/PanelConfigModal';
 import EditablePanelHeader from '../common/EditablePanelHeader';
+import CustomSubsectionBlock from '../common/CustomSubsectionBlock';
 import { US_STOCKS, BRAZIL_ADRS } from '../../utils/constants';
 import { useFeedStatus } from '../../context/FeedStatusContext';
 
@@ -71,10 +72,14 @@ function StockPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
     title: 'US Equities',
     symbols: [...US_STOCKS.map(s => s.symbol), ...BRAZIL_ADRS.map(s => s.symbol)],
     hiddenSubsections: [],
+    customSubsections: [],
+    subsectionLabels: {},
   };
   const panelTitle           = panelCfg.title                || 'US Equities';
   const panelSymbols         = panelCfg.symbols              || [];
   const hiddenSubsections    = panelCfg.hiddenSubsections    || [];
+  const customSubsections    = panelCfg.customSubsections    || [];
+  const subsectionLabels     = panelCfg.subsectionLabels     || {};
   const availableSubsections = [{ key: 'brazilAdrs', label: 'BRAZIL ADRs' }];
 
   const [sortKey,    setSortKey]    = useState(null);
@@ -87,11 +92,15 @@ function StockPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
   const { getBadge } = useFeedStatus();
   const badge = getBadge('stocks');
 
+  const saveCfg = useCallback((updates) => {
+    updatePanelConfig('usEquities', { ...panelCfg, ...updates });
+  }, [panelCfg, updatePanelConfig]);
+
   // Handle drop ticker into panel
   const handleDropTicker = (ticker) => {
     const sym = ticker.trim().toUpperCase();
     if (sym && !panelSymbols.includes(sym)) {
-      updatePanelConfig('usEquities', { title: panelTitle, symbols: [...panelSymbols, sym] });
+      saveCfg({ symbols: [...panelSymbols, sym] });
     }
   };
 
@@ -123,12 +132,58 @@ function StockPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
   // All items for heatmap
   const allItems = useMemo(() => [...filteredUS, ...filteredBrazil], [filteredUS, filteredBrazil]);
 
+  // --- Subsection handlers ---
   const handleToggleSubsection = (key) => {
     const current = hiddenSubsections || [];
     const updated = current.includes(key)
       ? current.filter(k => k !== key)
       : [...current, key];
-    updatePanelConfig('usEquities', { ...panelCfg, hiddenSubsections: updated });
+    saveCfg({ hiddenSubsections: updated });
+  };
+
+  const handleAddSubsection = ({ label, color }) => {
+    const key = 'custom-' + Date.now();
+    saveCfg({ customSubsections: [...customSubsections, { key, label, color, symbols: [] }] });
+  };
+
+  const handleRenameSubsection = (key, newLabel) => {
+    // Check if it's a built-in subsection
+    const builtIn = availableSubsections.find(s => s.key === key);
+    if (builtIn) {
+      saveCfg({ subsectionLabels: { ...subsectionLabels, [key]: newLabel } });
+    } else {
+      // Custom subsection
+      saveCfg({
+        customSubsections: customSubsections.map(s =>
+          s.key === key ? { ...s, label: newLabel } : s
+        ),
+      });
+    }
+  };
+
+  const handleDeleteSubsection = (key) => {
+    saveCfg({
+      customSubsections: customSubsections.filter(s => s.key !== key),
+      hiddenSubsections: hiddenSubsections.filter(k => k !== key),
+    });
+  };
+
+  const handleAddTickerToSubsection = (key, symbol) => {
+    saveCfg({
+      customSubsections: customSubsections.map(s =>
+        s.key === key && !s.symbols.includes(symbol)
+          ? { ...s, symbols: [...s.symbols, symbol] }
+          : s
+      ),
+    });
+  };
+
+  const handleRemoveTickerFromSubsection = (key, symbol) => {
+    saveCfg({
+      customSubsections: customSubsections.map(s =>
+        s.key === key ? { ...s, symbols: s.symbols.filter(sym => sym !== symbol) } : s
+      ),
+    });
   };
 
   return (
@@ -138,8 +193,13 @@ function StockPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
         title={panelTitle}
         availableSubsections={availableSubsections}
         hiddenSubsections={hiddenSubsections}
+        customSubsections={customSubsections}
+        subsectionLabels={subsectionLabels}
         onToggleSubsection={handleToggleSubsection}
-        onTitleChange={(t) => updatePanelConfig('usEquities', { ...panelCfg, title: t })}
+        onTitleChange={(t) => saveCfg({ title: t })}
+        onAddSubsection={handleAddSubsection}
+        onRenameSubsection={handleRenameSubsection}
+        onDeleteSubsection={handleDeleteSubsection}
         onConfigOpen={() => setConfigOpen(true)}
         onDropTicker={handleDropTicker}
         onSearchChange={setSearchFilter}
@@ -232,7 +292,7 @@ function StockPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
               </div>
             ) : (
               <>
-                <SectionDivider label="US EQUITIES" color="#00bcd4" />
+                <SectionDivider label={subsectionLabels['usEquities'] || 'US EQUITIES'} color="#00bcd4" />
                 {filteredUS.map(s => (
                   <div
                     key={s.symbol}
@@ -266,7 +326,7 @@ function StockPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
 
                 {!hiddenSubsections.includes('brazilAdrs') && (
                   <>
-                    <SectionDivider label="BRAZIL ADRs" color="#ffa726" />
+                    <SectionDivider label={subsectionLabels['brazilAdrs'] || 'BRAZIL ADRs'} color="#ffa726" />
                     {filteredBrazil.map(s => (
                   <div
                     key={s.symbol}
@@ -299,6 +359,23 @@ function StockPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
                     )}
                   </>
                 )}
+
+                {/* Custom subsections */}
+                {customSubsections.map((sub) => {
+                  if (hiddenSubsections.includes(sub.key)) return null;
+                  return (
+                    <CustomSubsectionBlock
+                      key={sub.key}
+                      subsection={sub}
+                      data={data}
+                      gridCols={COLS}
+                      onTickerClick={onTickerClick}
+                      onOpenDetail={onOpenDetail}
+                      onAddTicker={handleAddTickerToSubsection}
+                      onRemoveTicker={handleRemoveTickerFromSubsection}
+                    />
+                  );
+                })}
               </>
             )}
           </div>
@@ -312,7 +389,7 @@ function StockPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
           currentTitle={panelTitle}
           currentSymbols={panelSymbols}
           onSave={({ title, symbols }) => {
-            updatePanelConfig('usEquities', { title, symbols });
+            saveCfg({ title, symbols });
             setConfigOpen(false);
           }}
           onClose={() => setConfigOpen(false)}
