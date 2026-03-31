@@ -10,6 +10,34 @@
  * @module stores/instrumentStore
  */
 
+// TODO(db): Full Postgres schema:
+//
+// CREATE TABLE instruments (
+//   id           TEXT PRIMARY KEY,
+//   symbol       TEXT NOT NULL,
+//   name         TEXT NOT NULL,
+//   asset_class  TEXT NOT NULL,
+//   exchange     TEXT,
+//   currency     TEXT DEFAULT 'USD',
+//   country      TEXT,
+//   isin         TEXT,
+//   cusip        TEXT,
+//   sedol        TEXT,
+//   vendor_polygon TEXT,
+//   vendor_yahoo   TEXT,
+//   created_at   TIMESTAMPTZ DEFAULT NOW(),
+//   updated_at   TIMESTAMPTZ DEFAULT NOW()
+// );
+// CREATE UNIQUE INDEX idx_instruments_symbol ON instruments(UPPER(symbol));
+// CREATE INDEX idx_instruments_class ON instruments(asset_class);
+// CREATE INDEX idx_instruments_search ON instruments USING gin(to_tsvector('english', symbol || ' ' || name));
+//
+// Migration path:
+//   1. Keep current in-memory Map + SEED_INSTRUMENTS array
+//   2. Add optional DB behind POSTGRES_URI; on boot, seed DB from SEED_INSTRUMENTS if empty
+//   3. Swap findBySymbol/search to SQL queries with full-text search
+//   4. upsert() writes to both Map + DB
+
 'use strict';
 
 // ── Seed data ─────────────────────────────────────────────────────────────────

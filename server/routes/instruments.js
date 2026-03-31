@@ -13,6 +13,9 @@
 
 const express            = require('express');
 const router             = express.Router();
+const logger             = require('../utils/logger');
+const { sendApiError }   = require('../utils/apiError');
+const { sanitizeText, clampInt, isTicker } = require('../utils/validate');
 const { getFundData, isEtf } = require('../providers/fundsProvider');
 const multiAssetProvider = require('../providers/multiAssetProvider');
 const instrumentStore    = require('../stores/instrumentStore');
@@ -21,6 +24,10 @@ const instrumentStore    = require('../stores/instrumentStore');
 // Mirrors client/src/utils/constants.js INSTRUMENTS, plus extras.
 // assetClass: 'equity' | 'etf' | 'fund' | 'forex' | 'crypto' | 'commodity' | 'index' | 'fixed_income' | 'rate'
 // group: sub-grouping for panel config modal filtering
+
+const KNOWN_ASSET_CLASSES = [
+  'equity', 'etf', 'fund', 'forex', 'crypto', 'commodity', 'index', 'fixed_income', 'rate'
+];
 
 const REGISTRY = [
   // ── US Equities ──────────────────────────────────────────────────────────
@@ -166,128 +173,212 @@ REGISTRY.forEach(i => {
 
 // ─── Search ───────────────────────────────────────────────────────────────────
 // GET /api/instruments/search?q=apple&assetClass=equity&limit=20
+// Phase 0: Wrapped in try/catch with proper error handling
+// Phase 1: Validates q, assetClass, limit
+// Phase 8: Cache TTL: ~15 minutes recommended for search results
 router.get('/search', (req, res) => {
-  const q          = (req.query.q || '').toLowerCase().trim();
-  const assetClass = req.query.assetClass || null;
-  const limit      = Math.min(parseInt(req.query.limit || '20', 10), 100);
+  try {
+    // Phase 1: Validate and sanitize query
+    const q          = sanitizeText(req.query.q || '', 100).toLowerCase();
+    const assetClass = req.query.assetClass || null;
+    const limit      = clampInt(req.query.limit || '20', 1, 100, 20);
 
-  let results = REGISTRY;
+    // Phase 1: Validate assetClass
+    if (assetClass && !KNOWN_ASSET_CLASSES.includes(assetClass)) {
+      return sendApiError(
+        res,
+        { message: `Invalid assetClass: ${assetClass}`, code: 'bad_request' },
+        'GET /api/instruments/search'
+      );
+    }
 
-  if (assetClass) {
-    results = results.filter(i => i.assetClass === assetClass);
-  }
+    let results = REGISTRY;
 
-  if (q) {
-    results = results.filter(i =>
-      i.symbolKey.toLowerCase().includes(q) ||
-      i.name.toLowerCase().includes(q) ||
-      (i.group || '').toLowerCase().includes(q)
-    );
-    // Boost exact symbol matches to top
-    results.sort((a, b) => {
-      const aExact = a.symbolKey.toLowerCase() === q ? 0 : 1;
-      const bExact = b.symbolKey.toLowerCase() === q ? 0 : 1;
-      return aExact - bExact;
+    if (assetClass) {
+      results = results.filter(i => i.assetClass === assetClass);
+    }
+
+    if (q) {
+      results = results.filter(i =>
+        i.symbolKey.toLowerCase().includes(q) ||
+        i.name.toLowerCase().includes(q) ||
+        (i.group || '').toLowerCase().includes(q)
+      );
+      // Boost exact symbol matches to top
+      results.sort((a, b) => {
+        const aExact = a.symbolKey.toLowerCase() === q ? 0 : 1;
+        const bExact = b.symbolKey.toLowerCase() === q ? 0 : 1;
+        return aExact - bExact;
+      });
+    }
+
+    res.json({
+      results: results.slice(0, limit),
+      total:   results.length,
+      query:   q,
     });
+  } catch (err) {
+    logger.error('GET /api/instruments/search', err.message, { error: err });
+    return sendApiError(res, err, 'GET /api/instruments/search');
   }
-
-  res.json({
-    results: results.slice(0, limit),
-    total:   results.length,
-    query:   q,
-  });
 });
 
 // ─── Phase 1.2: Instrument detail envelope ───────────────────────────────────
 // GET /api/instruments/:symbolKey/detail
 // Returns InstrumentDetailEnvelope: instrument metadata + quote + per-class detail
+// Phase 0: Wrapped in try/catch, all error paths use return
+// Phase 1: Validates symbolKey param
+// Phase 8: Cache TTL: ~5 minutes recommended for instrument details
 // TODO(provider): Add quote fetch from /api/quotes/:symbol once quota allows
 router.get('/:symbolKey/detail', async (req, res) => {
-  const key  = req.params.symbolKey.toUpperCase();
-  const base = BY_KEY[key];
-
-  if (!base) {
-    return res.status(404).json({ error: `Instrument not found: ${key}` });
-  }
-
-  // Build canonical Instrument from REGISTRY entry
-  /** @type {import('../types').Instrument} */
-  const instrument = {
-    id:          `${base.symbolKey}_${(base.assetClass || 'unknown').toUpperCase()}`,
-    symbol:      base.symbolKey,
-    name:        base.name,
-    assetClass:  base.assetClass,
-    exchange:    base.exchange    || null,
-    currency:    base.currency    || 'USD',
-    country:     null,
-    identifiers: { vendor: {} },
-  };
-
-  // Attempt multiAssetProvider detail
-  let detail = null;
   try {
-    detail = await multiAssetProvider.getInstrumentDetail(instrument);
-  } catch (e) {
-    console.warn(`[instruments] detail stub failed for ${key}:`, e.message);
-  }
+    const key  = (req.params.symbolKey || '').toUpperCase();
 
-  // Enrich ETF with fundsProvider if available
-  if ((base.assetClass === 'etf' || isEtf(key)) && !detail) {
+    // Phase 1: Validate symbolKey parameter
+    if (!key || !isTicker(key)) {
+      return sendApiError(
+        res,
+        { message: `Invalid symbolKey parameter`, code: 'bad_request' },
+        'GET /api/instruments/:symbolKey/detail'
+      );
+    }
+
+    const base = BY_KEY[key];
+
+    if (!base) {
+      return sendApiError(
+        res,
+        { message: `Instrument not found: ${key}`, code: 'not_found' },
+        'GET /api/instruments/:symbolKey/detail'
+      );
+    }
+
+    // Build canonical Instrument from REGISTRY entry
+    /** @type {import('../types').Instrument} */
+    const instrument = {
+      id:          `${base.symbolKey}_${(base.assetClass || 'unknown').toUpperCase()}`,
+      symbol:      base.symbolKey,
+      name:        base.name,
+      assetClass:  base.assetClass,
+      exchange:    base.exchange    || null,
+      currency:    base.currency    || 'USD',
+      country:     null,
+      identifiers: { vendor: {} },
+    };
+
+    // Attempt multiAssetProvider detail
+    let detail = null;
     try {
-      const fundData = await getFundData(key);
-      if (fundData) {
-        detail = {
-          aumUSD:          fundData.aum            || null,
-          expenseRatioPct: fundData.expenseRatio   || null,
-          topHoldings:     fundData.topHoldings    || [],
-          indexTracked:    fundData.index          || null,
-          provider:        fundData.provider       || null,
-        };
+      detail = await multiAssetProvider.getInstrumentDetail(instrument);
+    } catch (e) {
+      logger.warn('GET /api/instruments/:symbolKey/detail', `detail stub failed for ${key}`, { error: e.message });
+    }
+
+    // Enrich ETF with fundsProvider if available
+    if ((base.assetClass === 'etf' || isEtf(key)) && !detail) {
+      try {
+        const fundData = await getFundData(key);
+        if (fundData) {
+          detail = {
+            aumUSD:          fundData.aum            || null,
+            expenseRatioPct: fundData.expenseRatio   || null,
+            topHoldings:     fundData.topHoldings    || [],
+            indexTracked:    fundData.index          || null,
+            provider:        fundData.provider       || null,
+          };
+        }
+      } catch (e) {
+        logger.warn('GET /api/instruments/:symbolKey/detail', `fund enrichment failed for ${key}`, { error: e.message });
       }
-    } catch {}
+    }
+
+    /** @type {import('../types').InstrumentDetailEnvelope} */
+    const envelope = {
+      instrument,
+      quote:  null, // populated by client via /api/quotes/:symbol for live price
+      detail,
+    };
+
+    return res.json(envelope);
+  } catch (err) {
+    logger.error('GET /api/instruments/:symbolKey/detail', err.message, { error: err });
+    return sendApiError(res, err, 'GET /api/instruments/:symbolKey/detail');
   }
-
-  /** @type {import('../types').InstrumentDetailEnvelope} */
-  const envelope = {
-    instrument,
-    quote:  null, // populated by client via /api/quotes/:symbol for live price
-    detail,
-  };
-
-  return res.json(envelope);
 });
 
 // ─── Get by symbol ────────────────────────────────────────────────────────────
 // GET /api/instruments/:symbolKey
+// Phase 0: Wrapped in try/catch, all error paths use return
+// Phase 1: Validates symbolKey param
+// Phase 8: Cache TTL: ~5 minutes recommended for individual instruments
 router.get('/:symbolKey', async (req, res) => {
-  const key = req.params.symbolKey.toUpperCase();
-  const base = BY_KEY[key];
+  try {
+    const key = (req.params.symbolKey || '').toUpperCase();
 
-  if (!base) {
-    return res.status(404).json({ error: `Instrument not found: ${key}` });
-  }
+    // Phase 1: Validate symbolKey parameter
+    if (!key || !isTicker(key)) {
+      return sendApiError(
+        res,
+        { message: `Invalid symbolKey parameter`, code: 'bad_request' },
+        'GET /api/instruments/:symbolKey'
+      );
+    }
 
-  const result = { ...base };
+    const base = BY_KEY[key];
 
-  // Enrich ETFs with fund data (from provider stub)
-  if (base.assetClass === 'etf' || isEtf(key)) {
-    try {
-      const fundData = await getFundData(key);
-      if (fundData) {
-        result.fund = fundData;
+    if (!base) {
+      return sendApiError(
+        res,
+        { message: `Instrument not found: ${key}`, code: 'not_found' },
+        'GET /api/instruments/:symbolKey'
+      );
+    }
+
+    const result = { ...base };
+
+    // Enrich ETFs with fund data (from provider stub)
+    if (base.assetClass === 'etf' || isEtf(key)) {
+      try {
+        const fundData = await getFundData(key);
+        if (fundData) {
+          result.fund = fundData;
+        }
+      } catch (e) {
+        logger.warn('GET /api/instruments/:symbolKey', `fund enrichment failed for ${key}`, { error: e.message });
       }
-    } catch {}
-  }
+    }
 
-  res.json(result);
+    return res.json(result);
+  } catch (err) {
+    logger.error('GET /api/instruments/:symbolKey', err.message, { error: err });
+    return sendApiError(res, err, 'GET /api/instruments/:symbolKey');
+  }
 });
 
 // ─── List all by asset class ───────────────────────────────────────────────────
 // GET /api/instruments?assetClass=etf
+// Phase 0: Wrapped in try/catch, all error paths use return
+// Phase 1: Validates assetClass parameter
+// Phase 8: Cache TTL: ~15 minutes recommended for asset class listings
 router.get('/', (req, res) => {
-  const assetClass = req.query.assetClass || null;
-  const results = assetClass ? (BY_CLASS[assetClass] || []) : REGISTRY;
-  res.json({ results, total: results.length });
+  try {
+    const assetClass = req.query.assetClass || null;
+
+    // Phase 1: Validate assetClass if provided
+    if (assetClass && !KNOWN_ASSET_CLASSES.includes(assetClass)) {
+      return sendApiError(
+        res,
+        { message: `Invalid assetClass: ${assetClass}`, code: 'bad_request' },
+        'GET /api/instruments'
+      );
+    }
+
+    const results = assetClass ? (BY_CLASS[assetClass] || []) : REGISTRY;
+    return res.json({ results, total: results.length });
+  } catch (err) {
+    logger.error('GET /api/instruments', err.message, { error: err });
+    return sendApiError(res, err, 'GET /api/instruments');
+  }
 });
 
 module.exports = router;

@@ -9,6 +9,42 @@
  *   - Message status: sent / delivered / read
  */
 
+// TODO(db): Proposed Postgres schema for chat persistence
+//
+// CREATE TABLE conversations (
+//   id          SERIAL PRIMARY KEY,
+//   user_a_id   INTEGER NOT NULL REFERENCES users(id),
+//   user_b_id   INTEGER NOT NULL REFERENCES users(id),
+//   created_at  TIMESTAMPTZ DEFAULT NOW(),
+//   UNIQUE (LEAST(user_a_id, user_b_id), GREATEST(user_a_id, user_b_id))
+// );
+// CREATE INDEX idx_conversations_users ON conversations(user_a_id, user_b_id);
+//
+// CREATE TABLE messages (
+//   id          TEXT PRIMARY KEY,
+//   conv_id     INTEGER NOT NULL REFERENCES conversations(id),
+//   from_user   INTEGER NOT NULL REFERENCES users(id),
+//   to_user     INTEGER NOT NULL REFERENCES users(id),
+//   text        TEXT NOT NULL CHECK(length(text) <= 1000),
+//   status      TEXT DEFAULT 'sent' CHECK(status IN ('sent','delivered','read')),
+//   created_at  TIMESTAMPTZ DEFAULT NOW()
+// );
+// CREATE INDEX idx_messages_conv ON messages(conv_id, created_at DESC);
+//
+// CREATE TABLE unread_counts (
+//   user_id     INTEGER NOT NULL REFERENCES users(id),
+//   conv_id     INTEGER NOT NULL REFERENCES conversations(id),
+//   count       INTEGER DEFAULT 0,
+//   PRIMARY KEY (user_id, conv_id)
+// );
+//
+// Migration path:
+//   1. Keep current in-memory API surface (functions) unchanged
+//   2. Add optional DB layer behind POSTGRES_URI env var
+//   3. On startup, if DB available, hydrate in-memory from DB
+//   4. Writes go to both in-memory + DB
+//   5. Eventually remove in-memory, read directly from DB
+
 // conversationId → [message, ...]
 const conversationMessages = new Map();
 // userId → Set of conversationIds they participate in

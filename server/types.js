@@ -170,4 +170,51 @@
  * @property {number} v   - Volume
  */
 
+// ── Provider error codes ─────────────────────────────────────────────────────
+/**
+ * @typedef {'rate_limit' | 'auth_error' | 'not_found' | 'bad_request' | 'upstream_error' | 'server_error'} ErrorCode
+ */
+
+// ── API error response shape ─────────────────────────────────────────────────
+/**
+ * @typedef {Object} ApiErrorResponse
+ * @property {false}      ok
+ * @property {ErrorCode}  error      - Machine-readable error code
+ * @property {string}     message    - Human-readable description
+ * @property {number}     [retryAfter] - Seconds until retry (rate_limit only)
+ * @property {string}     [context]  - Route/endpoint that generated the error
+ */
+
+// ── Chat message ─────────────────────────────────────────────────────────────
+/**
+ * @typedef {Object} ChatMessage
+ * @property {number} from       - Sender user ID
+ * @property {number} to         - Recipient user ID
+ * @property {string} text       - Sanitized message text
+ * @property {number} ts         - Unix ms timestamp
+ */
+
+// ── User (safe, no password hash) ────────────────────────────────────────────
+/**
+ * @typedef {Object} SafeUser
+ * @property {number}  id
+ * @property {string}  username
+ * @property {string}  [email]
+ * @property {Object}  settings
+ * @property {boolean} isPaid
+ * @property {boolean} subscriptionActive
+ * @property {number}  [trialEndsAt]
+ * @property {string}  [stripeCustomerId]
+ * @property {number}  createdAt
+ */
+
+// ── Yield curve point ────────────────────────────────────────────────────────
+/**
+ * @typedef {Object} YieldCurvePoint
+ * @property {string} tenor    - e.g. '3M', '2Y', '10Y'
+ * @property {number} months   - Numeric months for sorting
+ * @property {number} rate     - Yield in percentage
+ * @property {string} [maturity] - ISO date of maturity (BR bonds)
+ */
+
 module.exports = {};  // No runtime exports needed — types are JSDoc only.

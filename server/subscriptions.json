@@ -1,5 +1,9 @@
 {
   "_comment": "Polygon.io WebSocket subscription lists. Edit symbols here — no code changes needed.",
+  "_doc_stocks": "T.* = trade events. ~32 US equities + ETFs. Covers major indexes (SPY/QQQ/IWM/DIA), mega-cap tech, financials, energy, consumer, commodities ETFs, and top LatAm ADRs.",
+  "_doc_forex": "C.* = currency pair quotes. 13 FX pairs covering G10 + key EM (BRL, ARS, CNY, MXN, CLP).",
+  "_doc_crypto": "XT.* = crypto trade events. Top 6 by market cap.",
+  "_doc_limits": "Polygon free tier: 1 WS connection, unlimited symbols. If you hit rate limits, reduce the stock list first (commodities ETFs are lowest priority).",
   "stocks": [
     "T.SPY",  "T.QQQ",  "T.IWM",  "T.DIA",
     "T.AAPL", "T.MSFT", "T.NVDA", "T.GOOGL", "T.AMZN",

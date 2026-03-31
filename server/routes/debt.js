@@ -16,6 +16,10 @@ const express = require('express');
 const fetch   = require('node-fetch');
 const router  = express.Router();
 const fred    = require('../providers/fred');
+const logger  = require('../utils/logger');
+const { sendApiError, ProviderError } = require('../utils/apiError');
+const { isCountryCode, isTicker } = require('../utils/validate');
+const debtProvider = require('../providers/debtProvider');
 
 // ── Simple server-side cache ──────────────────────────────────────────────────
 const _cache = new Map();
@@ -111,7 +115,7 @@ async function fetchEcbYield(seriesKey) {
     const val = obs[lastIdx]?.[0];
     return val != null ? +val : null;
   } catch (e) {
-    console.warn(`[ECB] ${seriesKey}: ${e.message}`);
+    logger.warn(`[ECB] ${seriesKey}: ${e.message}`);
     return null;
   } finally { clearTimeout(timer); }
 }
@@ -127,34 +131,9 @@ async function getEcbEuroCurve() {
   return points;
 }
 
-// ── Country metadata ──────────────────────────────────────────────────────────
-const COUNTRY_META = {
-  US: { name: 'US Treasuries',       currency: 'USD', color: '#4488ff' },
-  DE: { name: 'Germany (Bund)',       currency: 'EUR', color: '#ffcc00' },
-  GB: { name: 'UK Gilts',            currency: 'GBP', color: '#cc88ff' },
-  FR: { name: 'France (OAT)',         currency: 'EUR', color: '#88ddff' },
-  IT: { name: 'Italy (BTP)',          currency: 'EUR', color: '#66ccff' },
-  ES: { name: 'Spain (Bono)',         currency: 'EUR', color: '#ff9944' },
-  PT: { name: 'Portugal (OT)',        currency: 'EUR', color: '#44ffcc' },
-  NL: { name: 'Netherlands',         currency: 'EUR', color: '#ff4488' },
-  JP: { name: 'Japan (JGB)',          currency: 'JPY', color: '#ff8844' },
-  AU: { name: 'Australia (ACGB)',     currency: 'AUD', color: '#ffee44' },
-  KR: { name: 'South Korea (KTB)',    currency: 'KRW', color: '#88ffcc' },
-  MX: { name: 'Mexico (Mbonos)',      currency: 'MXN', color: '#44ff88' },
-  ZA: { name: 'South Africa (RSA)',   currency: 'ZAR', color: '#ffaa44' },
-  IN: { name: 'India (G-Sec)',        currency: 'INR', color: '#ff6655' },
-  BR: { name: 'Brazil (DI/NTN)',      currency: 'BRL', color: '#00cc44' },
-  EU: { name: 'Euro Area AAA (ECB)',  currency: 'EUR', color: '#ffe055' },
-};
-
-const REGIONS = {
-  g10:    ['US', 'DE', 'GB', 'JP', 'AU', 'FR'],
-  europe: ['DE', 'FR', 'IT', 'ES', 'GB', 'PT', 'NL'],
-  latam:  ['BR', 'MX'],
-  asia:   ['JP', 'KR', 'AU', 'IN'],
-  em:     ['BR', 'MX', 'ZA', 'IN', 'KR'],
-  all:    Object.keys(COUNTRY_META),
-};
+// ── Country metadata & regions from debtProvider ──────────────────────────────
+const COUNTRY_META = debtProvider.COUNTRY_META;
+const REGIONS = debtProvider.REGIONS;
 
 // ── Routes ────────────────────────────────────────────────────────────────────
 
@@ -169,7 +148,7 @@ router.get('/sovereign/US', async (req, res) => {
     let source = 'fred';
 
     if (points.length === 0) {
-      console.warn('[debt] FRED unavailable, falling back to Yahoo for US curve');
+      logger.warn('[debt] FRED unavailable, falling back to Yahoo for US curve');
       try {
         const yq = await yahooQuoteDebt('^IRX,^FVX,^TNX,^TYX');
         points = yq.filter(q => q?.regularMarketPrice != null).map(q => {
@@ -182,10 +161,9 @@ router.get('/sovereign/US', async (req, res) => {
 
     const resp = { country: 'US', ...COUNTRY_META.US, points, asOf: Date.now(), source };
     if (points.length > 0) cacheSet(ck, resp, TTL.curve);
-    res.json(resp);
-  } catch (e) {
-    console.error('[debt] /sovereign/US:', e.message);
-    res.status(500).json({ error: e.message });
+    return res.json(resp);
+  } catch (err) {
+    return sendApiError(res, err, '/sovereign/US');
   }
 });
 
@@ -198,24 +176,36 @@ router.get('/sovereign/EU', async (req, res) => {
     const points = await getEcbEuroCurve();
     const resp   = { country: 'EU', ...COUNTRY_META.EU, points, asOf: Date.now(), source: 'ecb' };
     if (points.length > 0) cacheSet(ck, resp, TTL.ecb);
-    res.json(resp);
-  } catch (e) {
-    console.error('[debt] /sovereign/EU:', e.message);
-    res.status(500).json({ error: e.message });
+    return res.json(resp);
+  } catch (err) {
+    return sendApiError(res, err, '/sovereign/EU');
   }
 });
 
 // GET /api/debt/sovereign/region  — must be before /:countryCode
 router.get('/sovereign/region', async (req, res) => {
-  const region = (req.query.region || 'g10').toLowerCase();
-  const tenor  = (req.query.tenor  || '10Y').toUpperCase();
-  const codes  = REGIONS[region] || REGIONS.g10;
-
-  const ck = `debt:region:${region}:${tenor}`;
-  const c  = cacheGet(ck);
-  if (c) return res.json(c);
-
   try {
+    const region = (req.query.region || 'g10').toLowerCase();
+    const tenor  = (req.query.tenor  || '10Y').toUpperCase();
+
+    // Phase 1: Validate region query
+    const validRegions = Object.keys(REGIONS);
+    if (!validRegions.includes(region)) {
+      return res.status(400).json({ error: `Invalid region: ${region}. Must be one of: ${validRegions.join(', ')}` });
+    }
+
+    // Phase 1: Validate tenor query
+    const validTenors = ['3M', '6M', '1Y', '2Y', '5Y', '7Y', '10Y', '20Y', '30Y'];
+    if (!validTenors.includes(tenor)) {
+      return res.status(400).json({ error: `Invalid tenor: ${tenor}. Must be one of: ${validTenors.join(', ')}` });
+    }
+
+    const codes  = REGIONS[region] || REGIONS.g10;
+
+    const ck = `debt:region:${region}:${tenor}`;
+    const c  = cacheGet(ck);
+    if (c) return res.json(c);
+
     const tickers = Object.entries(YAHOO_YIELD_TICKERS)
       .filter(([, m]) => codes.includes(m.country) && m.tenor === tenor)
       .map(([t]) => t);
@@ -229,7 +219,7 @@ router.get('/sovereign/region', async (req, res) => {
           const meta = COUNTRY_META[m.country] || {};
           return { country: m.country, name: meta.name, currency: meta.currency || 'USD', color: meta.color || '#888', tenor, yield: q.regularMarketPrice, change: q.regularMarketChange ?? null, changeBps: Math.round((q.regularMarketChange ?? 0) * 100) };
         }).sort((a, b) => b.yield - a.yield);
-      } catch (e) { console.warn('[debt] region Yahoo fetch failed:', e.message); }
+      } catch (e) { logger.warn('[debt] region Yahoo fetch failed:', e.message); }
     }
 
     if (tenor === '10Y' && codes.includes('US') && !snapshot.find(s => s.country === 'US')) {
@@ -245,28 +235,29 @@ router.get('/sovereign/region', async (req, res) => {
 
     const resp = { region, tenor, snapshot, available: Object.keys(COUNTRY_META), asOf: Date.now(), source: 'yahoo+fred' };
     if (snapshot.length > 0) cacheSet(ck, resp, TTL.yahoo);
-    res.json(resp);
-  } catch (e) {
-    console.error('[debt] /sovereign/region:', e.message);
-    res.status(500).json({ error: e.message });
+    return res.json(resp);
+  } catch (err) {
+    return sendApiError(res, err, '/sovereign/region');
   }
 });
 
 // GET /api/debt/sovereign/:countryCode  — single country (Yahoo 10Y)
 router.get('/sovereign/:countryCode', async (req, res) => {
-  const cc = req.params.countryCode.toUpperCase();
-  if (!COUNTRY_META[cc]) {
-    return res.status(404).json({ error: `No data for: ${cc}`, available: Object.keys(COUNTRY_META) });
-  }
-
-  const ck = `debt:sovereign:${cc}`;
-  const c  = cacheGet(ck);
-  if (c) return res.json(c);
-
-  const tickers = Object.entries(YAHOO_YIELD_TICKERS).filter(([, m]) => m.country === cc).map(([t]) => t);
-  if (!tickers.length) return res.status(404).json({ error: `No tickers for: ${cc}` });
-
   try {
+    const cc = req.params.countryCode.toUpperCase();
+
+    // Phase 1: Validate countryCode (must be 2-letter uppercase alpha)
+    if (!isCountryCode(cc) || !COUNTRY_META[cc]) {
+      return res.status(400).json({ error: `Invalid country code: ${cc}. Must be 2-letter uppercase alpha.`, available: Object.keys(COUNTRY_META) });
+    }
+
+    const ck = `debt:sovereign:${cc}`;
+    const c  = cacheGet(ck);
+    if (c) return res.json(c);
+
+    const tickers = Object.entries(YAHOO_YIELD_TICKERS).filter(([, m]) => m.country === cc).map(([t]) => t);
+    if (!tickers.length) return res.status(404).json({ error: `No tickers for: ${cc}` });
+
     const quotes = await yahooQuoteDebt(tickers.join(','));
     const points = quotes.filter(q => q?.regularMarketPrice != null).map(q => {
       const m = YAHOO_YIELD_TICKERS[q.symbol];
@@ -274,53 +265,75 @@ router.get('/sovereign/:countryCode', async (req, res) => {
     });
     const resp = { country: cc, ...COUNTRY_META[cc], points, asOf: Date.now(), source: 'yahoo' };
     if (points.length > 0) cacheSet(ck, resp, TTL.yahoo);
-    res.json(resp);
-  } catch (e) {
-    console.error(`[debt] /sovereign/${cc}:`, e.message);
-    res.status(500).json({ error: e.message });
+    return res.json(resp);
+  } catch (err) {
+    return sendApiError(res, err, `/sovereign/${req.params.countryCode}`);
   }
 });
 
 // GET /api/debt/countries
 router.get('/countries', (req, res) => {
-  res.json({
-    countries: Object.entries(COUNTRY_META).map(([code, d]) => ({
-      code, ...d,
-      hasFullCurve: code === 'US' || code === 'EU',
-    })),
-    regions: REGIONS,
-  });
+  try {
+    return res.json({
+      countries: Object.entries(COUNTRY_META).map(([code, d]) => ({
+        code, ...d,
+        hasFullCurve: code === 'US' || code === 'EU',
+      })),
+      regions: REGIONS,
+    });
+  } catch (err) {
+    return sendApiError(res, err, '/countries');
+  }
 });
 
 // GET /api/debt/yields/global  — all 10Y benchmarks
 router.get('/yields/global', async (req, res) => {
-  const ck = 'debt:yields:global';
-  const c  = cacheGet(ck);
-  if (c) return res.json(c);
   try {
+    const ck = 'debt:yields:global';
+    const c  = cacheGet(ck);
+    if (c) return res.json(c);
+
     const tickers = Object.entries(YAHOO_YIELD_TICKERS).filter(([, m]) => m.tenor === '10Y').map(([t]) => t);
     const quotes  = await yahooQuoteDebt(tickers.join(','));
-    const yields  = quotes.filter(q => q?.regularMarketPrice != null).map(q => {
-      const m = YAHOO_YIELD_TICKERS[q.symbol];
-      const meta = COUNTRY_META[m.country] || {};
-      return { symbol: q.symbol, country: m.country, name: meta.name || m.name, currency: meta.currency || 'USD', color: meta.color || '#888', tenor: '10Y', yield: q.regularMarketPrice, change: q.regularMarketChange ?? null, changeBps: Math.round((q.regularMarketChange ?? 0) * 100) };
-    }).sort((a, b) => b.yield - a.yield);
-    const resp = { yields, count: yields.length, asOf: Date.now(), source: 'yahoo' };
+
+    // Phase 3: Guard against empty quotes or missing regularMarketPrice
+    const yields  = quotes
+      .filter(q => q && q.regularMarketPrice != null)
+      .map(q => {
+        const m = YAHOO_YIELD_TICKERS[q.symbol];
+        const meta = COUNTRY_META[m.country] || {};
+        return { symbol: q.symbol, country: m.country, name: meta.name || m.name, currency: meta.currency || 'USD', color: meta.color || '#888', tenor: '10Y', yield: q.regularMarketPrice, change: q.regularMarketChange ?? null, changeBps: Math.round((q.regularMarketChange ?? 0) * 100) };
+      })
+      .sort((a, b) => b.yield - a.yield);
+
+    // Phase 3: Always return well-formed response
+    const resp = { ok: true, yields, count: yields.length, asOf: Date.now(), source: 'yahoo' };
     if (yields.length > 0) cacheSet(ck, resp, TTL.yahoo);
-    res.json(resp);
-  } catch (e) {
-    console.error('[debt] /yields/global:', e.message);
-    res.status(500).json({ error: e.message });
+    return res.json(resp);
+  } catch (err) {
+    return sendApiError(res, err, '/yields/global');
   }
 });
 
 // GET /api/debt/credit/indexes  — FRED ICE BofA credit spreads
 router.get('/credit/indexes', async (req, res) => {
-  const ck = 'debt:credit:indexes';
-  const c  = cacheGet(ck);
-  if (c) return res.json(c);
   try {
-    const spreads = await fred.getCreditSpreads();
+    const ck = 'debt:credit:indexes';
+    const c  = cacheGet(ck);
+    if (c) return res.json(c);
+
+    let spreads = [];
+    let source = 'fred';
+
+    try {
+      spreads = await fred.getCreditSpreads();
+    } catch (e) {
+      logger.warn('[debt] FRED credit spreads unavailable, using fallback:', e.message);
+      // Phase 3: Use fallback if FRED fails
+      spreads = [];
+    }
+
+    // Phase 3: Fallback with source: 'stub'
     const FALLBACK = [
       { id: 'US_IG', name: 'US IG OAS', spread: 102, spreadBps: true, currency: 'USD', source: 'stub' },
       { id: 'US_HY', name: 'US HY OAS', spread: 385, spreadBps: true, currency: 'USD', source: 'stub' },
@@ -329,13 +342,16 @@ router.get('/credit/indexes', async (req, res) => {
       { id: 'EM',    name: 'EM Corp+ OAS', spread: 345, spreadBps: true, currency: 'USD', source: 'stub' },
       { id: 'US_10S2', name: 'US 10Y-2Y Spread', spread: -14, spreadBps: true, currency: 'USD', source: 'stub' },
     ];
+
     const result = spreads.length > 0 ? spreads : FALLBACK;
-    const resp   = { indexes: result, source: spreads.length > 0 ? 'fred' : 'stub_fallback', asOf: Date.now() };
+    source = spreads.length > 0 ? 'fred' : 'stub';
+
+    // Phase 3: Ensure asOf always present
+    const resp   = { indexes: result, source, asOf: Date.now() };
     if (spreads.length > 0) cacheSet(ck, resp, TTL.spreads);
-    res.json(resp);
-  } catch (e) {
-    console.error('[debt] /credit/indexes:', e.message);
-    res.status(500).json({ error: e.message });
+    return res.json(resp);
+  } catch (err) {
+    return sendApiError(res, err, '/credit/indexes');
   }
 });
 
@@ -356,52 +372,62 @@ const BOND_STUBS = {
 };
 
 router.get('/bond/:id', async (req, res) => {
-  const id   = req.params.id.toUpperCase();
-  const bond = BOND_STUBS[id];
-  if (!bond) {
-    return res.status(404).json({ error: `Bond not found: ${id}`, available: Object.keys(BOND_STUBS) });
-  }
+  try {
+    const id   = req.params.id.toUpperCase();
 
-  const ck = `debt:bond:${id}`;
-  const c  = cacheGet(ck);
-  if (c) return res.json(c);
-
-  let liveYield = null;
-  let liveSource = null;
-  if (bond.fredSeries) {
-    try { liveYield = await fred.getValue(bond.fredSeries); liveSource = 'fred'; } catch (_) {}
-  }
-  if (!liveYield && bond.yahooTicker) {
-    try {
-      const yq = await yahooQuoteDebt(bond.yahooTicker);
-      liveYield = yq?.[0]?.regularMarketPrice ?? null;
-      liveSource = 'yahoo';
-    } catch (_) {}
-  }
-  if (!liveYield) liveYield = bond.couponPct / 100;
-
-  const today = new Date(); const maturity = new Date(bond.maturityDate);
-  const cashFlows = [];
-  if (bond.couponPct) {
-    const ppy   = bond.couponFrequency === 'annual' ? 1 : bond.couponFrequency === 'quarterly' ? 4 : 2;
-    const cpn   = (bond.couponPct / 100) / ppy * 1000;
-    const step  = 12 / ppy;
-    let d = new Date(maturity); const flows = [];
-    while (d > today) {
-      flows.unshift({ date: d.toISOString().slice(0, 10), type: 'coupon', amount: +cpn.toFixed(4) });
-      d = new Date(d); d.setMonth(d.getMonth() - step);
+    // Phase 1: Validate bond ID (alphanumeric, max 20 chars)
+    if (!/^[A-Z0-9]{1,20}$/.test(id)) {
+      return res.status(400).json({ error: `Invalid bond ID: ${id}. Must be alphanumeric, max 20 chars.` });
     }
-    cashFlows.push(...flows.slice(0, 20));
-    if (cashFlows.length > 0) {
-      const l = cashFlows[cashFlows.length - 1];
-      cashFlows[cashFlows.length - 1] = { ...l, type: 'principal+coupon', amount: +(l.amount + 1000).toFixed(4) };
-    }
-  }
 
-  const resp = { ...bond, id, yieldToMaturity: liveYield, yieldToWorst: liveYield, cashFlows, faceValue: 1000, asOf: new Date().toISOString(), source: liveSource || 'stub', stub: bond.bondType === 'corporate' };
-  delete resp.fredSeries; delete resp.yahooTicker;
-  cacheSet(ck, resp, TTL.bond);
-  res.json(resp);
+    const bond = BOND_STUBS[id];
+    if (!bond) {
+      return res.status(404).json({ error: `Bond not found: ${id}`, available: Object.keys(BOND_STUBS) });
+    }
+
+    const ck = `debt:bond:${id}`;
+    const c  = cacheGet(ck);
+    if (c) return res.json(c);
+
+    let liveYield = null;
+    let liveSource = null;
+    if (bond.fredSeries) {
+      try { liveYield = await fred.getValue(bond.fredSeries); liveSource = 'fred'; } catch (_) {}
+    }
+    if (!liveYield && bond.yahooTicker) {
+      try {
+        const yq = await yahooQuoteDebt(bond.yahooTicker);
+        liveYield = yq?.[0]?.regularMarketPrice ?? null;
+        liveSource = 'yahoo';
+      } catch (_) {}
+    }
+    if (!liveYield) liveYield = bond.couponPct / 100;
+
+    const today = new Date(); const maturity = new Date(bond.maturityDate);
+    const cashFlows = [];
+    if (bond.couponPct) {
+      const ppy   = bond.couponFrequency === 'annual' ? 1 : bond.couponFrequency === 'quarterly' ? 4 : 2;
+      const cpn   = (bond.couponPct / 100) / ppy * 1000;
+      const step  = 12 / ppy;
+      let d = new Date(maturity); const flows = [];
+      while (d > today) {
+        flows.unshift({ date: d.toISOString().slice(0, 10), type: 'coupon', amount: +cpn.toFixed(4) });
+        d = new Date(d); d.setMonth(d.getMonth() - step);
+      }
+      cashFlows.push(...flows.slice(0, 20));
+      if (cashFlows.length > 0) {
+        const l = cashFlows[cashFlows.length - 1];
+        cashFlows[cashFlows.length - 1] = { ...l, type: 'principal+coupon', amount: +(l.amount + 1000).toFixed(4) };
+      }
+    }
+
+    const resp = { ...bond, id, yieldToMaturity: liveYield, yieldToWorst: liveYield, cashFlows, faceValue: 1000, asOf: new Date().toISOString(), source: liveSource || 'stub', stub: bond.bondType === 'corporate' };
+    delete resp.fredSeries; delete resp.yahooTicker;
+    cacheSet(ck, resp, TTL.bond);
+    return res.json(resp);
+  } catch (err) {
+    return sendApiError(res, err, `/bond/${req.params.id}`);
+  }
 });
 
 module.exports = router;

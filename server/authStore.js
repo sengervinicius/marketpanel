@@ -11,6 +11,33 @@
  *   - If MONGODB_URI is not set, falls back to pure in-memory (dev mode).
  */
 
+// TODO(db): Proposed Postgres schema for user persistence
+//
+// CREATE TABLE users (
+//   id                    SERIAL PRIMARY KEY,
+//   username              TEXT UNIQUE NOT NULL,
+//   email                 TEXT UNIQUE,
+//   hash                  TEXT NOT NULL,
+//   apple_user_id         TEXT UNIQUE,
+//   settings              JSONB DEFAULT '{}',
+//   is_paid               BOOLEAN DEFAULT FALSE,
+//   subscription_active   BOOLEAN DEFAULT TRUE,
+//   trial_ends_at         BIGINT,
+//   stripe_customer_id    TEXT,
+//   stripe_subscription_id TEXT,
+//   created_at            BIGINT DEFAULT EXTRACT(EPOCH FROM NOW()) * 1000
+// );
+// CREATE INDEX idx_users_username ON users(LOWER(username));
+// CREATE INDEX idx_users_email ON users(LOWER(email));
+// CREATE INDEX idx_users_stripe ON users(stripe_customer_id);
+//
+// Migration path:
+//   1. Current: MongoDB + in-memory Maps (write-through)
+//   2. Next: Add Postgres adapter behind POSTGRES_URI env var
+//   3. Keep identical function signatures (createUser, findUser, etc.)
+//   4. Swap Map reads for SQL queries, keep in-memory cache for hot path
+//   5. Eventually deprecate MongoDB layer
+
 const bcrypt = require('bcryptjs');
 const jwt    = require('jsonwebtoken');
 

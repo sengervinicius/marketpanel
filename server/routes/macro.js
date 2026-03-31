@@ -3,226 +3,174 @@
  * Macro-economic indicator endpoints.
  * Mounted at /api/macro. Auth + subscription required.
  *
- * Currently: stub data. Schema is ready for real provider integration.
+ * Phase 0: Control flow (try/catch, return res.status(...))
+ * Phase 1: Input validation (country codes, comma-separated lists, max limits)
+ * Phase 3: Hardening (provider abstraction, standardized errors, logging)
  *
- * TODO(provider): Replace stubs with real macro data providers:
+ * TODO(provider): Replace macroProvider stubs with real macro data from:
  *   - FRED (Federal Reserve) — https://fred.stlouisfed.org/docs/api/fred/
- *     Free, covers US indicators (fed funds rate, CPI, GDP, unemployment)
  *   - World Bank API — https://datahelpdesk.worldbank.org/
- *     Free, global GDP / inflation / unemployment
- *   - OECD Data API — https://data.oecd.org/api/
- *     Free, developed markets focus
- *   - IMF Data API — https://www.imf.org/en/Data
- *     Free, sovereign balance of payments, debt/GDP
  *   - BCB (Banco Central do Brasil) — https://dadosabertos.bcb.gov.br/
- *     Free, Brazil monetary policy, SELIC, IPCA
  *   - TradingEconomics — https://tradingeconomics.com/api/
- *     Paid, broadest global macro coverage
  */
 
 'use strict';
 
 const express = require('express');
-const router  = express.Router();
+const router = express.Router();
+const logger = require('../utils/logger');
+const { sendApiError } = require('../utils/apiError');
+const { isCountryCode, clampInt } = require('../utils/validate');
+const macroProvider = require('../providers/macroProvider');
 
-// ── Stub macro data ─────────────────────────────────────────────────────────
-// All rates expressed as decimals (0.05 = 5.0%)
-// asOf: approximate last update date
+// ── Helper: validate and parse comma-separated codes ──────────────────────────
 
-/** @type {Record<string, import('../types').MacroSnapshot>} */
-const MACRO_STUBS = {
-  US: {
-    country:          'US',
-    currency:         'USD',
-    name:             'United States',
-    policyRate:       0.055,       // Fed Funds (upper bound)
-    cpiYoY:           0.027,       // PCE inflation YoY
-    gdpGrowthYoY:     0.028,       // Real GDP growth YoY
-    unemploymentRate: 0.042,       // U-3 unemployment
-    currentAcctGDP:   -0.031,      // Current account / GDP
-    debtGDP:          1.24,        // Gross federal debt / GDP
-    asOf: '2026-03-01',
-    source: 'FRED (stub)',
-  },
-  BR: {
-    country:          'BR',
-    currency:         'BRL',
-    name:             'Brazil',
-    policyRate:       0.1350,      // SELIC rate
-    cpiYoY:           0.048,       // IPCA YoY
-    gdpGrowthYoY:     0.031,       // Real GDP growth YoY
-    unemploymentRate: 0.065,       // IBGE unemployment
-    currentAcctGDP:   -0.024,
-    debtGDP:          0.88,
-    asOf: '2026-03-01',
-    source: 'BCB / IBGE (stub)',
-  },
-  EU: {
-    country:          'EU',
-    currency:         'EUR',
-    name:             'Euro Area',
-    policyRate:       0.029,       // ECB deposit rate
-    cpiYoY:           0.024,       // HICP YoY
-    gdpGrowthYoY:     0.009,
-    unemploymentRate: 0.059,
-    currentAcctGDP:   0.028,
-    debtGDP:          0.92,
-    asOf: '2026-03-01',
-    source: 'ECB / Eurostat (stub)',
-  },
-  GB: {
-    country:          'GB',
-    currency:         'GBP',
-    name:             'United Kingdom',
-    policyRate:       0.0475,      // Bank Rate
-    cpiYoY:           0.025,
-    gdpGrowthYoY:     0.007,
-    unemploymentRate: 0.045,
-    currentAcctGDP:   -0.032,
-    debtGDP:          1.00,
-    asOf: '2026-03-01',
-    source: 'Bank of England / ONS (stub)',
-  },
-  JP: {
-    country:          'JP',
-    currency:         'JPY',
-    name:             'Japan',
-    policyRate:       0.0050,      // BOJ policy rate
-    cpiYoY:           0.022,
-    gdpGrowthYoY:     0.002,
-    unemploymentRate: 0.025,
-    currentAcctGDP:   0.037,
-    debtGDP:          2.63,
-    asOf: '2026-03-01',
-    source: 'BOJ / Cabinet Office (stub)',
-  },
-  DE: {
-    country:          'DE',
-    currency:         'EUR',
-    name:             'Germany',
-    policyRate:       0.029,       // ECB (same as EU)
-    cpiYoY:           0.022,
-    gdpGrowthYoY:    -0.002,       // Mild recession
-    unemploymentRate: 0.058,
-    currentAcctGDP:   0.063,
-    debtGDP:          0.64,
-    asOf: '2026-03-01',
-    source: 'Destatis / ECB (stub)',
-  },
-  CN: {
-    country:          'CN',
-    currency:         'CNY',
-    name:             'China',
-    policyRate:       0.0300,      // 1-yr LPR
-    cpiYoY:           0.003,
-    gdpGrowthYoY:     0.049,
-    unemploymentRate: 0.051,
-    currentAcctGDP:   0.021,
-    debtGDP:          0.55,
-    asOf: '2026-03-01',
-    source: 'NBS / PBoC (stub)',
-  },
-  MX: {
-    country:          'MX',
-    currency:         'MXN',
-    name:             'Mexico',
-    policyRate:       0.0900,      // Banxico rate
-    cpiYoY:           0.038,
-    gdpGrowthYoY:     0.015,
-    unemploymentRate: 0.028,
-    currentAcctGDP:   -0.010,
-    debtGDP:          0.48,
-    asOf: '2026-03-01',
-    source: 'Banxico / INEGI (stub)',
-  },
-  AU: {
-    country:          'AU',
-    currency:         'AUD',
-    name:             'Australia',
-    policyRate:       0.0435,      // RBA cash rate
-    cpiYoY:           0.026,
-    gdpGrowthYoY:     0.013,
-    unemploymentRate: 0.038,
-    currentAcctGDP:   0.008,
-    debtGDP:          0.35,
-    asOf: '2026-03-01',
-    source: 'RBA / ABS (stub)',
-  },
-  CA: {
-    country:          'CA',
-    currency:         'CAD',
-    name:             'Canada',
-    policyRate:       0.0300,      // Bank of Canada rate
-    cpiYoY:           0.028,
-    gdpGrowthYoY:     0.011,
-    unemploymentRate: 0.068,
-    currentAcctGDP:   -0.006,
-    debtGDP:          0.42,
-    asOf: '2026-03-01',
-    source: 'Bank of Canada / StatCan (stub)',
-  },
-};
+/**
+ * Parse comma-separated codes (e.g., 'US,BR,EU').
+ * Returns array of uppercase codes.
+ * Filters out invalid codes, respects maxCount limit.
+ */
+function parseCodeList(str, maxCount = 10) {
+  if (!str || typeof str !== 'string') return [];
+  return str.split(',')
+    .map(s => s.trim().toUpperCase())
+    .filter(s => isCountryCode(s))
+    .slice(0, maxCount);
+}
 
 // ── Routes ──────────────────────────────────────────────────────────────────
 
 /**
  * GET /api/macro/country/:code
  * Returns macro snapshot for a single country.
+ * Phase 0: wrapped in try/catch, all error paths use return res.status(...)
+ * Phase 1: validates country code (2-letter alpha uppercase)
+ * Phase 3: uses macroProvider, standardized 404 with stub flag
  */
 router.get('/country/:code', (req, res) => {
-  const code = req.params.code.toUpperCase();
-  const snap = MACRO_STUBS[code];
+  try {
+    const code = (req.params.code || '').toUpperCase();
 
-  if (!snap) {
-    return res.status(404).json({
-      error: `Macro data not available for country: ${code}`,
-      available: Object.keys(MACRO_STUBS),
-      stub: true,
-    });
+    // Phase 1: Validate country code format
+    if (!isCountryCode(code)) {
+      logger.warn('macro/country', 'Invalid country code format', { code });
+      return res.status(400).json({
+        ok: false,
+        error: 'invalid_code',
+        message: 'Country code must be 2 uppercase letters',
+      });
+    }
+
+    // Phase 3: Use macroProvider to fetch data
+    const snap = macroProvider.getSnapshot(code);
+
+    if (!snap) {
+      logger.warn('macro/country', 'Country not found', { code });
+      return res.status(404).json({
+        ok: false,
+        error: 'not_found',
+        message: `Macro data not available for country: ${code}`,
+        available: macroProvider.getAvailableCodes(),
+        stub: true,
+      });
+    }
+
+    // Phase 0: explicit return
+    return res.json({ ok: true, data: { ...snap, stub: true } });
+  } catch (err) {
+    logger.error('macro/country', err.message, { code: req.params.code });
+    return sendApiError(res, err, '/api/macro/country/:code');
   }
-
-  return res.json({ ...snap, stub: true });
 });
 
 /**
  * GET /api/macro/compare?countries=US,BR,EU&indicators=policyRate,cpiYoY
  * Returns side-by-side comparison of macro indicators.
+ * Phase 1: validates countries/indicators (comma-separated, max 10 each)
+ * Phase 3: skips unknown countries gracefully, consistent response shape
  */
 router.get('/compare', (req, res) => {
-  const codes      = (req.query.countries || 'US,BR,EU').split(',').map(c => c.trim().toUpperCase());
-  const indicators = (req.query.indicators || 'policyRate,cpiYoY,gdpGrowthYoY,unemploymentRate').split(',').map(i => i.trim());
+  try {
+    // Phase 1: Validate and parse countries (max 10)
+    const countriesStr = req.query.countries || 'US,BR,EU';
+    const codes = parseCodeList(countriesStr, 10);
 
-  const result = codes.map(code => {
-    const snap = MACRO_STUBS[code];
-    if (!snap) return { country: code, error: 'Not found' };
-    const row = { country: code, name: snap.name, currency: snap.currency };
-    for (const ind of indicators) {
-      row[ind] = snap[ind] ?? null;
+    if (codes.length === 0) {
+      logger.warn('macro/compare', 'No valid country codes provided', { countriesStr });
+      return res.status(400).json({
+        ok: false,
+        error: 'invalid_input',
+        message: 'At least one valid country code (2 uppercase letters) is required',
+      });
     }
-    return row;
-  });
 
-  return res.json({
-    indicators,
-    countries: result,
-    asOf:      new Date().toISOString(),
-    stub:      true,
-  });
+    // Phase 1: Validate and parse indicators (max 10)
+    const indicatorsStr = req.query.indicators || 'policyRate,cpiYoY,gdpGrowthYoY,unemploymentRate';
+    const indicators = indicatorsStr.split(',')
+      .map(i => i.trim())
+      .filter(i => i.length > 0)
+      .slice(0, 10);
+
+    if (indicators.length === 0) {
+      logger.warn('macro/compare', 'No valid indicators provided', { indicatorsStr });
+      return res.status(400).json({
+        ok: false,
+        error: 'invalid_input',
+        message: 'At least one indicator name is required',
+      });
+    }
+
+    // Phase 3: Fetch data and build comparison (skip unknown countries gracefully)
+    const result = [];
+    for (const code of codes) {
+      const snap = macroProvider.getSnapshot(code);
+      if (!snap) {
+        // Skip unknown countries gracefully instead of returning error row
+        logger.debug?.('macro/compare', 'Country not found in comparison', { code });
+        continue;
+      }
+      const row = { country: code, name: snap.name, currency: snap.currency };
+      for (const ind of indicators) {
+        row[ind] = snap[ind] ?? null;
+      }
+      result.push(row);
+    }
+
+    // Return consistent shape
+    return res.json({
+      ok: true,
+      data: {
+        indicators,
+        countries: result,
+        asOf: new Date().toISOString(),
+        stub: true,
+      },
+    });
+  } catch (err) {
+    logger.error('macro/compare', err.message, { query: req.query });
+    return sendApiError(res, err, '/api/macro/compare');
+  }
 });
 
 /**
  * GET /api/macro/countries
  * List all available country codes.
+ * Phase 3: uses macroProvider.getCountryList()
  */
 router.get('/countries', (req, res) => {
-  res.json({
-    countries: Object.entries(MACRO_STUBS).map(([code, d]) => ({
-      code,
-      name:     d.name,
-      currency: d.currency,
-    })),
-    stub: true,
-  });
+  try {
+    const countries = macroProvider.getCountryList();
+    return res.json({
+      ok: true,
+      data: {
+        countries,
+        stub: true,
+      },
+    });
+  } catch (err) {
+    logger.error('macro/countries', err.message);
+    return sendApiError(res, err, '/api/macro/countries');
+  }
 });
 
 module.exports = router;

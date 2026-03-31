@@ -14,6 +14,9 @@ const debtRoutes        = require('./routes/debt');
 const instrumentsRoutes = require('./routes/instruments');
 const macroRoutes       = require('./routes/macro');
 const { requireAuth, requireActiveSubscription } = require('./authMiddleware');
+const logger = require('./utils/logger');
+const { requestLogger } = require('./utils/logger');
+const { errorHandler } = require('./utils/apiError');
 const chatStore     = require('./chatStore');
 const { getUserById, seedUsersFromEnv, initDB } = require('./authStore');
 const { verifyToken } = require('./authStore');
@@ -39,8 +42,25 @@ app.use((req, res, next) => {
   express.json()(req, res, next);
 });
 
+app.use(requestLogger);
+
 // ── Public routes ──────────────────────────────────────────────────────────────
-app.get('/health', (req, res) => res.json({ status: 'ok', ts: Date.now() }));
+app.get('/health', (req, res) => res.json({
+  status: 'ok',
+  version: process.env.npm_package_version || '1.0.0',
+  time: new Date().toISOString(),
+  uptime: process.uptime(),
+  providers: {
+    polygon: process.env.POLYGON_API_KEY ? 'configured' : 'unconfigured',
+    yahoo: 'unknown',
+    finnhub: process.env.FINNHUB_API_KEY ? 'configured' : 'unconfigured',
+    alphavantage: process.env.ALPHA_VANTAGE_KEY ? 'configured' : 'unconfigured',
+    eulerpool: process.env.EULERPOOL_API_KEY ? 'configured' : 'unconfigured',
+    fred: process.env.FRED_API_KEY ? 'configured' : 'public_csv',
+    mongodb: process.env.MONGODB_URI ? 'configured' : 'in_memory',
+    stripe: process.env.STRIPE_SECRET_KEY ? 'configured' : 'unconfigured',
+  },
+}));
 app.use('/api/auth', authRoutes);
 
 // ── Protected routes ───────────────────────────────────────────────────────────
@@ -67,6 +87,8 @@ app.use('/api/instruments', requireAuth, instrumentsRoutes);
 
 // Market data: auth + subscription required
 app.use('/api', requireAuth, requireActiveSubscription, marketRoutes);
+
+app.use(errorHandler);
 
 // ── HTTP server ────────────────────────────────────────────────────────────────
 const server = createServer(app);
@@ -262,23 +284,23 @@ async function boot() {
   if (missing.length) {
     // Log a loud warning but don't crash — auth routes will return 500 for
     // JWT operations, but the server stays alive and health checks respond.
-    console.error(`[ERROR] Missing env vars: ${missing.join(', ')} — auth will not work until these are set in Render environment.`);
+    logger.error(`Missing env vars: ${missing.join(', ')} — auth will not work until these are set in Render environment.`);
     if (process.env.NODE_ENV === 'production') {
-      console.error('[ERROR] Go to Render Dashboard → senger-market-server → Environment and set JWT_SECRET.');
+      logger.error('Go to Render Dashboard → senger-market-server → Environment and set JWT_SECRET.');
     }
   }
   recommended.filter(k => !process.env[k]).forEach(k => {
-    console.warn(`[WARN] ${k} not set — some features will be limited`);
+    logger.warn(`${k} not set — some features will be limited`);
   });
 
   await initDB();           // connect MongoDB, load users into memory
   await seedUsersFromEnv(); // create any SEED_USERS accounts if missing
   const PORT = process.env.PORT || 3001;
   server.listen(PORT, () => {
-    console.log(`\n🟠 Senger Market Terminal — Server`);
-    console.log(`   REST  → http://localhost:${PORT}/api`);
-    console.log(`   WS    → ws://localhost:${PORT}/ws`);
-    console.log(`   ENV   → ${process.env.NODE_ENV || 'development'}\n`);
+    logger.info('Senger Market Terminal — Server');
+    logger.info(`REST  → http://localhost:${PORT}/api`);
+    logger.info(`WS    → ws://localhost:${PORT}/ws`);
+    logger.info(`ENV   → ${process.env.NODE_ENV || 'development'}`);
   });
 }
 

@@ -1,16 +1,56 @@
 /**
- * routes/market.js
- * REST endpoints â multi-provider architecture with fallback chains
- * Primary: Yahoo Finance (crumb auth)
- * Fallback 1: Finnhub (60 req/min, free tier)
- * Fallback 2: Alpha Vantage (25/day, critical lookups)
- * Polygon: charts, news, search (free tier works well)
+ * routes/market.js — Market data REST endpoints
+ *
+ * Multi-provider architecture with automatic fallback chains:
+ *   Primary:    Yahoo Finance (crumb-based auth, v7/v8/v10 endpoints)
+ *   Fallback 1: Finnhub (60 req/min free tier)
+ *   Fallback 2: Alpha Vantage (25 req/day, critical lookups only)
+ *   Fallback 3: Eulerpool (European exchanges, requires API key)
+ *   Charts/News/Search: Polygon.io (free tier)
+ *
+ * Endpoints exposed:
+ *   GET /snapshot/stocks       — US + global equity ETF quotes (batch)
+ *   GET /snapshot/forex        — Major FX pairs
+ *   GET /snapshot/crypto       — Top crypto pairs
+ *   GET /snapshot/etfs         — Bond, sector, international, thematic ETFs
+ *   GET /snapshot/yields       — Global sovereign bond yields
+ *   GET /snapshot/european     — European blue-chip stocks (Eulerpool or Yahoo)
+ *   GET /snapshot/brazil       — Brazilian B3 stocks
+ *   GET /snapshot/global-indices — Country ETF proxies for global indexes
+ *   GET /snapshot/rates        — US Treasuries + policy rates (SELIC, Fed Funds)
+ *   GET /snapshot/ticker/:sym  — Single-ticker snapshot (legacy)
+ *   GET /chart/:ticker         — Intraday/daily OHLCV (Polygon → Yahoo fallback)
+ *   GET /news                  — Aggregated news (Polygon + Bloomberg + FT RSS)
+ *   GET /search                — Ticker search (Polygon + Yahoo + Eulerpool)
+ *   GET /quote/:symbol         — Single quote with fallback chain
+ *   GET /quotes/:symbol        — Normalized quote envelope (types.js-compatible)
+ *   GET /history/:symbol       — Historical OHLCV candles
+ *   GET /fundamentals/:symbol  — Company fundamentals (Yahoo Finance)
+ *   GET /bond-detail/:symbol   — Bond-specific metrics and analytics
+ *   GET /di-curve              — Brazilian DI pre-fixed yield curve
+ *   GET /yield-curves          — Multi-country yield curves (BR, US, UK, EU)
+ *   GET /ticker/:symbol        — Polygon ticker reference
+ *   GET /status                — Market open/close status (Polygon)
+ *   GET /settings              — Cross-device chart-grid sync (file-backed, legacy)
+ *   POST /settings             — Update chart-grid sync settings
+ *   GET /cache/stats           — LRU cache diagnostics
+ *
+ * Caching: Two-tier — yahooCache (LRU, see cache.js) + _ttlCache (TTL-based Map).
+ * Error handling: All routes use sendError → sendApiError for consistent JSON errors.
+ *
+ * TODO(market): Migrate provider logic into providers/marketProvider.js
+ * TODO(market): Add request-level timeout middleware
+ * TODO(market): Rate-limit per-user on expensive endpoints (/fundamentals, /bond-detail)
  */
 
 const express    = require('express');
 const fetch      = require('node-fetch');
 const router     = express.Router();
 const eulerpool = require('../providers/eulerpool');
+const { isTicker, parseTickerList, clampInt, sanitizeText } = require('../utils/validate');
+const { ProviderError, sendApiError } = require('../utils/apiError');
+const logger = require('../utils/logger');
+
 const yahooCache = require('../cache');
 
 const BASE = 'https://api.polygon.io';
@@ -27,14 +67,9 @@ function alphaVantageKey() {
   return process.env.ALPHA_VANTAGE_KEY;
 }
 
-// âââ Enriched error class ââââââââââââââââââââââââââââââââââââââââââââââââââââ
-class ApiError extends Error {
-  constructor(message, code, retryAfter = null) {
-    super(message);
-    this.code       = code;       // 'rate_limit' | 'auth_error' | 'network_error' | 'not_found' | 'upstream_error'
-    this.retryAfter = retryAfter; // seconds, if known
-  }
-}
+// ApiError is now ProviderError from utils/apiError.js
+// Kept as local alias for backward compat within this file
+const ApiError = ProviderError;
 
 function classifyHttpError(status, headers) {
   if (status === 429) {
@@ -93,17 +128,9 @@ const _yfCrumbHistory = []; // store multiple working crumbs for resilience
 let _brazilCache = null;
 let _brazilCacheExpiry = 0;
 
-// âââ Enriched error responder ââââââââââââââââââââââââââââââââââââââââââââââââ
+// Delegate to centralized error handler from utils/apiError.js
 function sendError(res, err, context = '') {
-  const status = err.code === 'rate_limit' ? 429
-    : err.code === 'auth_error'            ? 403
-    : err.code === 'not_found'             ? 404
-    : 500;
-  const body = { error: err.message, code: err.code || 'server_error' };
-  if (err.retryAfter != null) body.retryAfter = err.retryAfter;
-  if (context) body.context = context;
-  if (context) console.error(`[API] ${context}:`, err.message);
-  res.status(status).json(body);
+  return sendApiError(res, err, context);
 }
 
 // âââ REST TTL caches ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
@@ -129,17 +156,31 @@ setInterval(() => {
       cleaned++;
     }
   }
-  if (cleaned > 0) console.log(`[Cache] Cleaned ${cleaned} expired entries`);
+  if (cleaned > 0) logger.info('cache', `Cleaned ${cleaned} expired entries`);
 }, 5 * 60 * 1000);
 
+/**
+ * Cache TTL configuration (milliseconds).
+ * 
+ * Rationale:
+ * - stocksSnapshot/forexSnapshot/cryptoSnapshot: 10s — real-time-ish quotes,
+ *   short enough for traders but prevents hammering Yahoo Finance.
+ * - news: 60s — news doesn't change second-by-second, 1-minute staleness OK.
+ * - chart: 30s — chart data is relatively static intraday; prevents re-fetch
+ *   on rapid panel switches.
+ * - yields: 60s — bond yields move slowly; 1-minute cache is fine.
+ * - etfs: 30s — ETF data similar to stocks but separate panel refresh cycle.
+ * 
+ * TODO(perf): Consider making TTLs configurable via env vars for prod tuning.
+ */
 const TTL = {
-  stocksSnapshot: 10_000,   // 10 s
-  forexSnapshot:  10_000,
-  cryptoSnapshot: 10_000,
-  news:           60_000,   // 60 s
-  chart:          30_000,   // 30 s per ticker+range
-  yields:         60_000,   // 60 s for yield data
-  etfs:           30_000,   // 30 s for ETF data
+  stocksSnapshot: 10_000,   // 10 s — real-time quotes
+  forexSnapshot:  10_000,   // 10 s — FX pairs
+  cryptoSnapshot: 10_000,   // 10 s — crypto pairs
+  news:           60_000,   // 60 s — aggregated news feed
+  chart:          30_000,   // 30 s — per ticker+range combo
+  yields:         60_000,   // 60 s — sovereign bond yields
+  etfs:           30_000,   // 30 s — ETF category snapshots
 };
 
 const YF_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
@@ -211,7 +252,7 @@ async function getYahooCrumb() {
           // Store in history for resilience
           _yfCrumbHistory.push({ crumb, cookie, expiry: _yfCrumbExpiry });
           if (_yfCrumbHistory.length > 3) _yfCrumbHistory.shift();
-          console.log(`[Yahoo] Crumb OK via ${seedUrl} + ${crumbUrl}`);
+          logger.info('yahoo', `Crumb OK via ${seedUrl} + ${crumbUrl}`);
           return { crumb, cookie };
         } catch (e) { lastError = e; }
       }
@@ -222,7 +263,7 @@ async function getYahooCrumb() {
   _yfCookie = null;
   _yfCrumbExpiry = 0;
   const msg = lastError?.message || 'unknown';
-  console.error('[Yahoo] All crumb attempts failed:', msg);
+  logger.error('yahoo', `All crumb attempts failed: ${msg}`);
   throw new Error('Yahoo Finance auth failed: ' + msg);
 }
 
@@ -351,23 +392,23 @@ async function alphaVantageQuote(symbol) {
 
 // âââ fetchWithFallback: Try Yahoo, then Finnhub, then Alpha Vantage ââââââââââââ
 async function fetchWithFallback(symbol) {
-  console.log(`[Provider] Attempting Yahoo Finance for ${symbol}...`);
+  logger.info('provider', `Attempting Yahoo Finance for ${symbol}...`);
   try {
     const quotes = await yahooQuote(symbol);
     if (quotes.length > 0) {
-      console.log(`[Provider] Yahoo Finance succeeded for ${symbol}`);
+      logger.info('provider', `Yahoo Finance succeeded for ${symbol}`);
       return { data: quotes[0], source: 'yahoo' };
     }
   } catch (e) {
-    console.warn(`[Provider] Yahoo Finance failed: ${e.message}`);
+    logger.warn('provider', `Yahoo Finance failed: ${e.message}`);
   }
 
   if (finnhubKey()) {
-    console.log(`[Provider] Attempting Finnhub for ${symbol}...`);
+    logger.info('provider', `Attempting Finnhub for ${symbol}...`);
     try {
       const data = await finnhubQuote(symbol);
       if (data.c) {
-        console.log(`[Provider] Finnhub succeeded for ${symbol}`);
+        logger.info('provider', `Finnhub succeeded for ${symbol}`);
         return {
           data: {
             symbol: symbol,
@@ -383,16 +424,16 @@ async function fetchWithFallback(symbol) {
         };
       }
     } catch (e) {
-      console.warn(`[Provider] Finnhub failed: ${e.message}`);
+      logger.warn('provider', `Finnhub failed: ${e.message}`);
     }
   }
 
   if (alphaVantageKey()) {
-    console.log(`[Provider] Attempting Alpha Vantage for ${symbol}...`);
+    logger.info('provider', `Attempting Alpha Vantage for ${symbol}...`);
     try {
       const data = await alphaVantageQuote(symbol);
       if (data['05. price']) {
-        console.log(`[Provider] Alpha Vantage succeeded for ${symbol}`);
+        logger.info('provider', `Alpha Vantage succeeded for ${symbol}`);
         return {
           data: {
             symbol: data['01. symbol'],
@@ -459,8 +500,8 @@ const DEFAULT_STOCK_TICKERS = [
 router.get('/snapshot/stocks', async (req, res) => {
   const adHoc = req.query.tickers;
   if (adHoc) {
-    const syms = adHoc.split(',').map(s => s.trim().toUpperCase()).filter(Boolean).slice(0, 50);
-    if (syms.length === 0) return res.status(400).json({ error: 'No valid tickers provided', code: 'bad_request' });
+    const syms = parseTickerList(adHoc, 50);
+    if (syms.length === 0) return res.status(400).json({ ok: false, error: 'bad_request', message: 'No valid tickers provided' });
     const cacheKey = `snapshot:stocks:adhoc:${syms.sort().join(',')}`;
     const cached = cacheGet(cacheKey);
     if (cached) return res.json(cached);
@@ -874,8 +915,8 @@ function parseRss(xml, sourceName, sourceUrl) {
 
 router.get('/news', async (req, res) => {
   try {
-    const limit = parseInt(req.query.limit) || 30;
-    const tickerFilter = req.query.ticker;
+    const limit = clampInt(req.query.limit, 1, 100, 30);
+    const tickerFilter = req.query.ticker ? sanitizeText(req.query.ticker, 20).toUpperCase() : null;
 
     if (tickerFilter) {
       const cacheKey = `news:${tickerFilter}:${limit}`;
@@ -941,8 +982,11 @@ router.get('/news', async (req, res) => {
 // âââ Intraday chart data with fallback âââââââââââââââââââââââââââââââââââââââââââ
 
 router.get('/chart/:ticker', async (req, res) => {
-  const { ticker } = req.params;
-  const { from, to, multiplier = 5, timespan = 'minute' } = req.query;
+  const ticker = req.params.ticker;
+  if (!isTicker(ticker)) return res.status(400).json({ ok: false, error: 'bad_request', message: 'Invalid ticker format' });
+  const { from, to } = req.query;
+  const multiplier = clampInt(req.query.multiplier, 1, 60, 5);
+  const timespan = ['minute', 'hour', 'day', 'week', 'month'].includes(req.query.timespan) ? req.query.timespan : 'minute';
   const chartCacheKey = `chart:${ticker}:${from || ''}:${to || ''}:${multiplier}:${timespan}`;
   const chartCached = cacheGet(chartCacheKey);
   if (chartCached) return res.json(chartCached);
@@ -1141,7 +1185,8 @@ router.get('/snapshot/global-indices', async (req, res) => {
 
 router.get('/search', async (req, res) => {
   try {
-    const { q = '', limit = 8 } = req.query;
+    const q = sanitizeText(req.query.q || '', 100);
+    const limit = clampInt(req.query.limit, 1, 30, 8);
     if (!q.trim()) return res.json({ results: [] });
 
     const [polyResult, yahooResult, eulerResult] = await Promise.allSettled([
@@ -1228,6 +1273,7 @@ router.get('/search', async (req, res) => {
 router.get('/quote/:symbol', async (req, res) => {
   try {
     const symbol = req.params.symbol.toUpperCase();
+    if (!isTicker(symbol)) return res.status(400).json({ ok: false, error: 'bad_request', message: 'Invalid symbol format' });
 
     // Try Yahoo first, fall back to Finnhub/Alpha Vantage
     const result = await fetchWithFallback(symbol);
@@ -1256,8 +1302,8 @@ router.get('/quote/:symbol', async (req, res) => {
 router.get('/snapshot/ticker/:symbol', async (req, res) => {
   try {
     const sym = req.params.symbol.toUpperCase();
-    if (!sym || sym.length > 20 || !/^[A-Z0-9:.\-=^]+$/.test(sym)) {
-      return res.status(400).json({ error: 'Invalid symbol format' });
+    if (!isTicker(sym)) {
+      return res.status(400).json({ ok: false, error: 'bad_request', message: 'Invalid symbol format' });
     }
 
     if (sym.startsWith('X:')) {
@@ -2046,6 +2092,7 @@ function yr(field) {
 router.get('/fundamentals/:symbol', async (req, res) => {
   try {
     const raw = req.params.symbol.toUpperCase();
+    if (!isTicker(raw)) return res.status(400).json({ ok: false, error: 'bad_request', message: 'Invalid symbol format' });
     const symbol = raw.replace(/^[XC]:/, '');
 
     // ââ Brazilian B3 stocks: use Yahoo v7/quote ââ
@@ -2242,6 +2289,7 @@ const PERIOD_TO_RANGE = {
 router.get('/history/:symbol', async (req, res) => {
   try {
     const symbol   = req.params.symbol.toUpperCase();
+    if (!isTicker(symbol)) return res.status(400).json({ ok: false, error: 'bad_request', message: 'Invalid symbol format' });
     const period   = (req.query.period   || '1M').toUpperCase();
     const interval = (req.query.interval || '1d').toLowerCase();
 
