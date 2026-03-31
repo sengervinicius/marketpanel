@@ -1,4 +1,4 @@
-// BrazilPanel.jsx â B3 stocks via server Yahoo Finance proxy
+// BrazilPanel.jsx — B3 stocks via server Yahoo Finance proxy
 // Title and symbols are user-configurable via SettingsContext + PanelConfigModal.
 import { useState, useEffect, useCallback, useRef, memo } from 'react';
 import { useSettings } from '../../context/SettingsContext';
@@ -8,8 +8,8 @@ import { apiFetch } from '../../utils/api';
 
 const SERVER = import.meta.env.VITE_API_URL || import.meta.env.VITE_SERVER_URL || '';
 
-const fmt    = n => n == null ? 'â' : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const fmtPct = n => n == null ? 'â' : (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
+const fmt    = n => n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmtPct = n => n == null ? '—' : (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
 
 const showInfo = (e, symbol, label, type) => {
   e.preventDefault();
@@ -115,7 +115,7 @@ function BrazilPanel({ onTickerClick, onOpenDetail }) {
           onClick={() => setCollapsed(v => !v)}
           title={collapsed ? 'Expand' : 'Collapse'}
           style={{ background: 'none', border: '1px solid #2a2a2a', color: '#555', fontSize: 9, padding: '1px 5px', cursor: 'pointer', fontFamily: 'inherit', borderRadius: 2 }}
-        >{collapsed ? '+' : 'â'}</button>
+        >{collapsed ? '+' : '−'}</button>
       </EditablePanelHeader>
 
       {/* Column headers */}

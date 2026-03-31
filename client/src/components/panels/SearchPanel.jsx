@@ -17,7 +17,7 @@ const TYPE_COLOR = {
   MUTUALFUND: '#80cbc4',
 };
 
-// ââ Prominent asset type badge config ââ
+// ── Prominent asset type badge config ──
 // Each search result gets a clearly visible badge showing what kind of security it is
 const ASSET_TYPE_BADGE = {
   Equity:  { bg: '#001a2e', color: '#4fc3f7', label: 'EQUITY' },
@@ -75,7 +75,7 @@ const MARKET_BADGE = {
 const LIVE_EXCHANGES    = new Set(['NYQ', 'NMS', 'PCX', 'ARCX', 'NYE', 'ASE', 'BVSP', 'SAO']);
 // OTC / sparse coverage
 const LIMITED_EXCHANGES = new Set(['OTC', 'PNK', 'OTCM', 'GREY', 'OTCQX', 'OTCQB', 'PINK']);
-// International exchanges we definitively DO NOT cover â show red "NO DATA"
+// International exchanges we definitively DO NOT cover — show red "NO DATA"
 const NO_DATA_EXCHANGES = new Set([
   'LSE','LON','L',        // London
   'TYO','TSE','T',        // Tokyo
@@ -98,41 +98,41 @@ const NO_DATA_EXCHANGES = new Set([
 ]);
 
 /**
- * coverageLevel â returns 'live' | 'limited' | 'none' | 'unknown'
+ * coverageLevel — returns 'live' | 'limited' | 'none' | 'unknown'
  *
- * ââ KEY FIX ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+ * ── KEY FIX ──────────────────────────────────────────────────────────────────
  * Polygon's search API returns `market` as a GENERIC CATEGORY:
  *   'stocks' | 'otc' | 'crypto' | 'fx' | 'indices'
  * NOT an exchange code (NMS, NYQ, etc.).
  * Old code compared these lowercase category strings against LIVE_EXCHANGES
- * (uppercase Yahoo codes), causing every Polygon result â including AAPL, MSFT,
- * DEFT, etc. â to be wrongly flagged 'none' / "NO DATA".
- * âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+ * (uppercase Yahoo codes), causing every Polygon result — including AAPL, MSFT,
+ * DEFT, etc. — to be wrongly flagged 'none' / "NO DATA".
+ * ─────────────────────────────────────────────────────────────────────────────
  */
 function coverageLevel(item) {
   if (!item) return 'unknown';
 
-  // Our locally-defined FX/crypto pairs â always live
+  // Our locally-defined FX/crypto pairs — always live
   if (item.local) return 'live';
 
   const type   = (item.type            || '').toUpperCase();
   const market = (item.market          || '').toLowerCase(); // Polygon: 'stocks','otc','crypto','fx'
   const exch   = (item.primaryExchange || item.market || '').toUpperCase(); // Yahoo: 'NMS','NYQ'
 
-  // ââ Type shortcuts ââââââââââââââââââââââââââââââââââââââââââââââââââââ
+  // ── Type shortcuts ────────────────────────────────────────────────────
   if (type === 'CRYPTO' || type === 'CRYPTOCURRENCY') return 'live';
   if (type === 'CURRENCY')                            return 'live';
   if (type === 'MUTUALFUND')                          return 'limited';
 
-  // ââ Polygon generic CATEGORY strings (lowercase from Polygon API) âââââ
-  // These are not exchange codes â handle them before checking exchange sets
+  // ── Polygon generic CATEGORY strings (lowercase from Polygon API) ─────
+  // These are not exchange codes — handle them before checking exchange sets
   if (market === 'stocks')  return 'live';    // all Polygon equity results
   if (market === 'crypto')  return 'live';
   if (market === 'fx' || market === 'forex') return 'live';
   if (market === 'otc')     return 'limited';
   if (market === 'indices') return 'limited';
 
-  // ââ Yahoo Finance exchange codes (uppercase 2â5 chars) ââââââââââââââââ
+  // ── Yahoo Finance exchange codes (uppercase 2–5 chars) ────────────────
   if (LIVE_EXCHANGES.has(exch))    return 'live';
   if (LIMITED_EXCHANGES.has(exch)) return 'limited';
   if (NO_DATA_EXCHANGES.has(exch)) return 'none';
@@ -141,14 +141,14 @@ function coverageLevel(item) {
   const sym = (item.symbol || '').toUpperCase();
   if (/\.(L|T|HK|AX|TO|NS|BO|PA|DE|MI|AS|MC|ST|CO|OL|HE|SI|KS|KQ)$/.test(sym)) return 'none';
 
-  // Unknown â don't block the user, show grey dot (no red warning)
+  // Unknown — don't block the user, show grey dot (no red warning)
   return 'unknown';
 }
 
 const COVERAGE_DOT = {
   live:    { color: '#00c853', title: 'Live data available' },
-  limited: { color: YELLOW,   title: 'Limited data (OTC/fund) â chart may be empty' },
-  none:    { color: RED,      title: 'No data â international exchange not covered' },
+  limited: { color: YELLOW,   title: 'Limited data (OTC/fund) — chart may be empty' },
+  none:    { color: RED,      title: 'No data — international exchange not covered' },
   unknown: { color: '#444',   title: 'Coverage unknown' },
 };
 
@@ -254,7 +254,7 @@ function SearchPanel({ onTickerSelect, onOpenDetail }) {
           active:          r.active,
         }));
 
-      // Merge: local FX/crypto â registry â polygon, dedup
+      // Merge: local FX/crypto → registry → polygon, dedup
       const seen = new Set();
       const merged = [...local, ...fromRegistry, ...fromPoly]
         .filter(item => {
@@ -315,20 +315,20 @@ function SearchPanel({ onTickerSelect, onOpenDetail }) {
     setTimeout(() => setAddedToHome(null), 1500);
   };
 
-  const fmtNum = (n) => n == null ? 'â' : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const fmtPct = (n) => n == null ? 'â' : (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
-  const fmtVol = (n) => !n ? 'â' : n >= 1e9 ? (n/1e9).toFixed(1)+'B' : n >= 1e6 ? (n/1e6).toFixed(1)+'M' : n >= 1e3 ? (n/1e3).toFixed(0)+'K' : String(n);
+  const fmtNum = (n) => n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const fmtPct = (n) => n == null ? '—' : (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
+  const fmtVol = (n) => !n ? '—' : n >= 1e9 ? (n/1e9).toFixed(1)+'B' : n >= 1e6 ? (n/1e6).toFixed(1)+'M' : n >= 1e3 ? (n/1e3).toFixed(0)+'K' : String(n);
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#0a0a0a', fontFamily: 'inherit' }}>
 
-      {/* ââ Header ââ */}
+      {/* ── Header ── */}
       <div style={{ padding: '6px 10px 4px', borderBottom: '1px solid #1e1e1e', flexShrink: 0, display: 'flex', alignItems: 'baseline', gap: 8 }}>
         <span style={{ color: ORANGE, fontWeight: 700, fontSize: 11, letterSpacing: '0.2em' }}>SEARCH</span>
-        <span style={{ color: '#2a2a2a', fontSize: 7 }}>CLICK â DETAIL  Â·  DRAG â CHART</span>
+        <span style={{ color: '#2a2a2a', fontSize: 7 }}>CLICK → DETAIL  ·  DRAG → CHART</span>
       </div>
 
-      {/* ââ Search input ââ */}
+      {/* ── Search input ── */}
       <div style={{ position: 'relative', padding: '6px 8px', flexShrink: 0 }}>
         <input
           autoFocus
@@ -353,7 +353,7 @@ function SearchPanel({ onTickerSelect, onOpenDetail }) {
         )}
       </div>
 
-      {/* ââ Asset class filter tabs ââ */}
+      {/* ── Asset class filter tabs ── */}
       <div style={{ display: 'flex', gap: 3, padding: '4px 8px', borderBottom: '1px solid #141414', flexShrink: 0, flexWrap: 'wrap' }}>
         {ASSET_FILTERS.map(f => (
           <button
@@ -371,7 +371,7 @@ function SearchPanel({ onTickerSelect, onOpenDetail }) {
         ))}
       </div>
 
-      {/* ââ Results list ââ */}
+      {/* ── Results list ── */}
       {results.length > 0 && (
         <div style={{ borderBottom: '1px solid #1e1e1e', flexShrink: 0, maxHeight: '55vh', overflowY: 'auto' }}>
           {results.map(item => {
@@ -408,7 +408,7 @@ function SearchPanel({ onTickerSelect, onOpenDetail }) {
                 />
 
                 {/* Drag grip */}
-                <span style={{ color: '#1e1e1e', fontSize: 11, flexShrink: 0 }}>â ¿</span>
+                <span style={{ color: '#1e1e1e', fontSize: 11, flexShrink: 0 }}>⠿</span>
 
                 {/* Symbol */}
                 <span style={{
@@ -425,7 +425,7 @@ function SearchPanel({ onTickerSelect, onOpenDetail }) {
 
                 {/* Asset type badge + exchange + coverage + Add to Home */}
                 <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexShrink: 0 }}>
-                  {/* Asset type badge â always visible */}
+                  {/* Asset type badge — always visible */}
                   {(() => {
                     const assetType = deriveAssetType(item);
                     const typeBadge = ASSET_TYPE_BADGE[assetType];
@@ -472,7 +472,7 @@ function SearchPanel({ onTickerSelect, onOpenDetail }) {
                       transition: 'all 0.2s',
                     }}
                   >
-                    {addedToHome === item.symbol ? 'â' : '+ HOME'}
+                    {addedToHome === item.symbol ? '✓' : '+ HOME'}
                   </button>
                 </div>
               </div>
@@ -481,12 +481,12 @@ function SearchPanel({ onTickerSelect, onOpenDetail }) {
         </div>
       )}
 
-      {/* ââ Empty state ââ */}
+      {/* ── Empty state ── */}
       {!results.length && !query && !selected && (
         <div style={{ padding: '16px 10px', color: '#2a2a2a', fontSize: 8, textAlign: 'center', lineHeight: 2 }}>
           TYPE TO SEARCH<br />
-          <span style={{ color: '#1e1e1e' }}>â CLICK RESULT â OPEN IN DEPTH</span><br />
-          <span style={{ color: '#1e1e1e' }}>â ¿ DRAG RESULT â ADD TO CHART</span>
+          <span style={{ color: '#1e1e1e' }}>● CLICK RESULT → OPEN IN DEPTH</span><br />
+          <span style={{ color: '#1e1e1e' }}>⠿ DRAG RESULT → ADD TO CHART</span>
         </div>
       )}
       {query.trim().length > 0 && !results.length && !loading && !selected && (
@@ -495,7 +495,7 @@ function SearchPanel({ onTickerSelect, onOpenDetail }) {
         </div>
       )}
 
-      {/* ââ Quote preview / action area ââ */}
+      {/* ── Quote preview / action area ── */}
       {(selected || quoteLoading) && (
         <div style={{ flex: 1, overflowY: 'auto', padding: '10px 10px 12px' }}>
 
@@ -509,8 +509,8 @@ function SearchPanel({ onTickerSelect, onOpenDetail }) {
               fontSize: 9, lineHeight: 1.5,
             }}>
               {coverageLevel(selected) === 'none'
-                ? 'â  This ticker trades on an international exchange not covered by this terminal. Chart and price data will not be available.'
-                : 'â  This ticker is OTC/fund class â data may be sparse or unavailable.'}
+                ? '⚠ This ticker trades on an international exchange not covered by this terminal. Chart and price data will not be available.'
+                : '⚠ This ticker is OTC/fund class — data may be sparse or unavailable.'}
             </div>
           )}
 
@@ -531,7 +531,7 @@ function SearchPanel({ onTickerSelect, onOpenDetail }) {
                     fontFamily: 'inherit',
                   }}
                 >
-                  OPEN IN DEPTH â
+                  OPEN IN DEPTH →
                 </button>
                 <button
                   draggable

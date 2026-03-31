@@ -1,4 +1,4 @@
-// ForexPanel.jsx â FX pairs + Crypto subsection, BBG-style, with sortable columns
+// ForexPanel.jsx — FX pairs + Crypto subsection, BBG-style, with sortable columns
 // Features: feed-status badge, collapse, movers filter
 import { useRef, useState, useMemo, memo } from 'react';
 import { useSettings } from '../../context/SettingsContext';
@@ -7,9 +7,9 @@ import EditablePanelHeader from '../common/EditablePanelHeader';
 import { FOREX_PAIRS, CRYPTO_PAIRS } from '../../utils/constants';
 import { useFeedStatus } from '../../context/FeedStatusContext';
 
-const fmt4   = (n) => n == null ? 'â' : n.toLocaleString('en-US', { minimumFractionDigits: 4, maximumFractionDigits: 4 });
-const fmt2   = (n) => n == null ? 'â' : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const fmtPct = (n) => n == null ? 'â' : (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
+const fmt4   = (n) => n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: 4, maximumFractionDigits: 4 });
+const fmt2   = (n) => n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmtPct = (n) => n == null ? '—' : (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
 const COLS   = '72px 1fr 76px 64px';
 
 function SectionDivider({ label, color }) {
@@ -21,7 +21,7 @@ function SectionDivider({ label, color }) {
       alignItems: 'center', flexShrink: 0,
     }}>
       <span style={{ color, fontSize: 7, fontWeight: 700, letterSpacing: '0.12em', gridColumn: '1 / -1' }}>
-        ââ {label} ââââââââââââââââââââââââââ
+        ── {label} ──────────────────────────
       </span>
     </div>
   );
@@ -131,15 +131,15 @@ function ForexPanel({ data = {}, cryptoData = {}, loading, onTickerClick, onOpen
         {/* Movers filter */}
         <button
           onClick={() => setMoversOnly(v => !v)}
-          title="Show only movers â¥ 1%"
+          title="Show only movers ≥ 1%"
           style={{ background: moversOnly ? '#1a1000' : 'none', border: `1px solid ${moversOnly ? '#ff9900' : '#2a2a2a'}`, color: moversOnly ? '#ff9900' : '#444', fontSize: 7, padding: '1px 4px', cursor: 'pointer', fontFamily: 'inherit', borderRadius: 2 }}
-        >â¥1%</button>
+        >≥1%</button>
         {/* Collapse toggle */}
         <button
           onClick={() => setCollapsed(v => !v)}
           title={collapsed ? 'Expand' : 'Collapse'}
           style={{ background: 'none', border: '1px solid #2a2a2a', color: '#555', fontSize: 9, padding: '1px 5px', cursor: 'pointer', fontFamily: 'inherit', borderRadius: 2 }}
-        >{collapsed ? '+' : 'â'}</button>
+        >{collapsed ? '+' : '−'}</button>
       </EditablePanelHeader>
 
       {!collapsed && (
@@ -148,7 +148,7 @@ function ForexPanel({ data = {}, cryptoData = {}, loading, onTickerClick, onOpen
       <div style={{ display: 'grid', gridTemplateColumns: COLS, padding: '2px 8px', borderBottom: '1px solid #1a1a1a', flexShrink: 0 }}>
         {SORT_COLS.map(({ key, label, align }) => {
           const active = sortKey === key;
-          const arrow  = active ? (sortDir === 'desc' ? ' â¼' : ' â²') : '';
+          const arrow  = active ? (sortDir === 'desc' ? ' ▼' : ' ▲') : '';
           return (
             <span
               key={key}
@@ -172,7 +172,7 @@ function ForexPanel({ data = {}, cryptoData = {}, loading, onTickerClick, onOpen
           <div style={{ padding: '20px', textAlign: 'center', color: '#444', fontSize: '10px' }}>LOADING...</div>
         ) : (
           <>
-            {/* ââ FX PAIRS ââ */}
+            {/* ── FX PAIRS ── */}
             <SectionDivider label="FX PAIRS" color="#ce93d8" />
             {filteredForex.map(pair => {
               const d = data?.[pair.symbol] || {};
@@ -209,10 +209,10 @@ function ForexPanel({ data = {}, cryptoData = {}, loading, onTickerClick, onOpen
             })}
 
             {moversOnly && filteredForex.length === 0 && (
-              <div style={{ padding: '8px 12px', color: '#333', fontSize: 9 }}>No FX movers â¥ 1%</div>
+              <div style={{ padding: '8px 12px', color: '#333', fontSize: 9 }}>No FX movers ≥ 1%</div>
             )}
 
-            {/* ââ CRYPTO ââ */}
+            {/* ── CRYPTO ── */}
             <SectionDivider label="CRYPTO" color="#f48fb1" />
             {filteredCrypto.map(c => {
               const d   = cryptoData?.[c.symbol] || {};
@@ -247,7 +247,7 @@ function ForexPanel({ data = {}, cryptoData = {}, loading, onTickerClick, onOpen
               );
             })}
             {moversOnly && filteredCrypto.length === 0 && (
-              <div style={{ padding: '8px 12px', color: '#333', fontSize: 9 }}>No crypto movers â¥ 1%</div>
+              <div style={{ padding: '8px 12px', color: '#333', fontSize: 9 }}>No crypto movers ≥ 1%</div>
             )}
           </>
         )}
