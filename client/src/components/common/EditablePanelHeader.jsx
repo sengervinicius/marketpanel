@@ -54,7 +54,7 @@ export default function EditablePanelHeader({
   }, [subVal, subsections, onSubsectionChange]);
 
   const handleContextMenu = (e) => {
-    if (availableSubsections && availableSubsections.length > 0) {
+    if ((availableSubsections && availableSubsections.length > 0) || onConfigOpen) {
       e.preventDefault();
       setContextMenu({ x: e.clientX, y: e.clientY });
     }
@@ -142,6 +142,10 @@ export default function EditablePanelHeader({
         onToggleSubsection={(key) => {
           onToggleSubsection?.(key);
           setContextMenu(null);
+        }}
+        onConfigOpen={() => {
+          setContextMenu(null);
+          onConfigOpen?.();
         }}
         onClose={() => setContextMenu(null)}
       />

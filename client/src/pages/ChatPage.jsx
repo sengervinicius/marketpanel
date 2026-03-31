@@ -33,7 +33,21 @@ export default function ChatPage() {
         <div style={{ flex: 1 }} />
         {user && <span style={{ color: '#2a2a2a', fontSize: 8 }}>{user.username?.toUpperCase()}</span>}
         <button
-          onClick={() => window.close()}
+          onClick={() => { window.location.hash = '#/'; }}
+          style={{
+            background: 'none', border: '1px solid #1e1e1e', color: '#ff6600',
+            fontSize: 9, padding: '2px 8px', cursor: 'pointer', fontFamily: 'inherit',
+          }}
+        >← TERMINAL</button>
+        <button
+          onClick={() => {
+            // If this is a popped-out window, close it; otherwise navigate back to terminal
+            if (window.opener) {
+              window.close();
+            } else {
+              window.location.hash = '#/';
+            }
+          }}
           style={{
             background: 'none', border: '1px solid #1e1e1e', color: '#333',
             fontSize: 9, padding: '2px 8px', cursor: 'pointer', fontFamily: 'inherit',

@@ -1,6 +1,7 @@
 /**
  * SubsectionContextMenu.jsx
- * Context menu for toggling panel subsections visibility.
+ * Enhanced context menu for managing panel subsections.
+ * Supports visibility toggling, removing subsections, and accessing the config modal.
  * Appears on right-click of panel headers.
  */
 
@@ -12,6 +13,7 @@ export default function SubsectionContextMenu({
   availableSubsections = [],
   hiddenSubsections = [],
   onToggleSubsection,
+  onConfigOpen,
   onClose,
 }) {
   const menuRef = useRef(null);
@@ -40,7 +42,7 @@ export default function SubsectionContextMenu({
       border: '1px solid #2a2a2a',
       borderRadius: 3,
       zIndex: 1001,
-      minWidth: 140,
+      minWidth: 180,
       boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
     },
     title: {
@@ -52,7 +54,7 @@ export default function SubsectionContextMenu({
       letterSpacing: '0.12em',
       textAlign: 'center',
     },
-    item: {
+    itemRow: {
       padding: '6px 8px',
       display: 'flex',
       alignItems: 'center',
@@ -62,6 +64,14 @@ export default function SubsectionContextMenu({
       fontSize: 10,
       borderBottom: '1px solid #0f0f0f',
       transition: 'background-color 0.1s',
+      justifyContent: 'space-between',
+    },
+    itemContent: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 6,
+      flex: 1,
+      minWidth: 0,
     },
     checkbox: {
       width: 12,
@@ -75,6 +85,42 @@ export default function SubsectionContextMenu({
       color: '#00bcd4',
       flexShrink: 0,
     },
+    closeButton: {
+      width: 16,
+      height: 16,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      color: '#666',
+      fontSize: 11,
+      cursor: 'pointer',
+      borderRadius: 2,
+      transition: 'color 0.1s, background-color 0.1s',
+      flexShrink: 0,
+    },
+    divider: {
+      height: '1px',
+      background: '#1a1a1a',
+      margin: '4px 0',
+    },
+    manageButton: {
+      padding: '8px 8px',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 4,
+      cursor: 'pointer',
+      color: '#ff6600',
+      fontSize: 10,
+      fontWeight: 500,
+      transition: 'background-color 0.1s',
+      userSelect: 'none',
+    },
+  };
+
+  const handleManageTickers = () => {
+    onConfigOpen?.();
+    onClose?.();
   };
 
   return (
@@ -86,10 +132,7 @@ export default function SubsectionContextMenu({
           return (
             <div
               key={sub.key}
-              style={S.item}
-              onClick={() => {
-                onToggleSubsection?.(sub.key);
-              }}
+              style={S.itemRow}
               onMouseEnter={(e) => {
                 e.currentTarget.style.backgroundColor = '#1a1a1a';
               }}
@@ -97,13 +140,50 @@ export default function SubsectionContextMenu({
                 e.currentTarget.style.backgroundColor = 'transparent';
               }}
             >
-              <div style={{ ...S.checkbox, background: isVisible ? '#00bcd4' : 'transparent' }}>
-                {isVisible ? '✓' : ''}
+              <div
+                style={S.itemContent}
+                onClick={() => {
+                  onToggleSubsection?.(sub.key);
+                }}
+              >
+                <div style={{ ...S.checkbox, background: isVisible ? '#00bcd4' : 'transparent' }}>
+                  {isVisible ? '✓' : ''}
+                </div>
+                <span>{sub.label}</span>
               </div>
-              <span>{sub.label}</span>
+              <div
+                style={S.closeButton}
+                onClick={() => {
+                  onToggleSubsection?.(sub.key);
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.color = '#999';
+                  e.currentTarget.style.backgroundColor = '#1a1a1a';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.color = '#666';
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                }}
+                title="Hide subsection"
+              >
+                ×
+              </div>
             </div>
           );
         })}
+        <div style={S.divider} />
+        <div
+          style={S.manageButton}
+          onClick={handleManageTickers}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = '#1a1a1a';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'transparent';
+          }}
+        >
+          <span>✎ MANAGE TICKERS</span>
+        </div>
       </div>
     </div>
   );

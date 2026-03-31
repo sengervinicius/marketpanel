@@ -374,6 +374,9 @@ function SearchPanel({ onTickerSelect, onOpenDetail }) {
       {/* ── Results list ── */}
       {results.length > 0 && (
         <div style={{ borderBottom: '1px solid #1e1e1e', flexShrink: 0, maxHeight: '55vh', overflowY: 'auto' }}>
+          <div style={{ padding: '3px 10px', background: '#0a0a0a', borderBottom: '1px solid #111', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ color: '#333', fontSize: 7, letterSpacing: '0.1em' }}>⠿ DRAG RESULTS TO ANY PANEL TO ADD TICKERS</span>
+          </div>
           {results.map(item => {
             const badge  = MARKET_BADGE[(item.market || '').toUpperCase()];
             const isBR   = item.symbol?.endsWith('.SA');
@@ -387,16 +390,18 @@ function SearchPanel({ onTickerSelect, onOpenDetail }) {
                 draggable
                 onDragStart={(e) => handleDragStart(e, item)}
                 onClick={() => handleSelect(item)}
-                title={dot.title}
+                title="Click to view details · Drag to any panel to add ticker"
                 style={{
                   padding: '8px 10px', borderBottom: '1px solid #141414',
-                  cursor: 'pointer', display: 'flex', alignItems: 'center',
+                  cursor: 'grab', display: 'flex', alignItems: 'center',
                   gap: 7, userSelect: 'none',
                   opacity: cov === 'none' ? 0.55 : 1,
                 }}
                 onMouseEnter={e => e.currentTarget.style.background = '#141414'}
                 onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
               >
+                {/* Drag grip indicator */}
+                <span style={{ color: '#333', fontSize: 8, flexShrink: 0, cursor: 'grab', letterSpacing: 1 }} title="Drag to any panel">⠿</span>
                 {/* Coverage dot */}
                 <span
                   title={dot.title}
