@@ -93,11 +93,21 @@ function ForexPanel({ data = {}, cryptoData = {}, loading, onTickerClick, onOpen
     else { setSortKey(key); setSortDir('desc'); }
   };
 
+  // Handle drop ticker into panel — add to a custom subsection so it's visible
   const handleDropTicker = (ticker) => {
     const sym = ticker.trim().toUpperCase();
-    if (sym && !panelSymbols.includes(sym)) {
-      saveCfg({ symbols: [...panelSymbols, sym] });
+    if (!sym) return;
+    const subs = [...customSubsections];
+    let target = subs.find(s => s.key === 'custom-dropped');
+    if (!target) {
+      target = { key: 'custom-dropped', label: 'ADDED', color: '#00bcd4', symbols: [] };
+      subs.push(target);
     }
+    if (target.symbols.includes(sym)) return;
+    const updated = subs.map(s =>
+      s.key === target.key ? { ...s, symbols: [...s.symbols, sym] } : s
+    );
+    saveCfg({ customSubsections: updated });
   };
 
   const filteredForexPairs = panelSymbols.length > 0
