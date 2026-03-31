@@ -1,4 +1,4 @@
-// CommoditiesPanel.jsx Ã¢ÂÂ commodities grouped by category, with sortable columns
+// CommoditiesPanel.jsx — commodities grouped by category, with sortable columns
 // Features: feed-status badge, collapse, editable header, search, drag-drop
 import { useRef, useState, useMemo, memo } from 'react';
 import { useSettings } from '../../context/SettingsContext';
@@ -7,8 +7,8 @@ import EditablePanelHeader from '../common/EditablePanelHeader';
 import { COMMODITIES } from '../../utils/constants';
 import { useFeedStatus } from '../../context/FeedStatusContext';
 
-const fmt    = (n) => n == null ? 'Ã¢ÂÂ' : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const fmtPct = (n) => n == null ? 'Ã¢ÂÂ' : (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
+const fmt    = (n) => n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmtPct = (n) => n == null ? '—' : (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
 const COLS   = '44px 1fr 68px 60px';
 
 const GROUPS = [
@@ -25,7 +25,7 @@ function GroupHeader({ label, color }) {
       borderTop: '1px solid #1a1a1a', borderBottom: '1px solid #1a1a1a',
     }}>
       <span style={{ color, fontSize: 7, fontWeight: 700, letterSpacing: '0.12em' }}>
-        Ã¢ÂÂÃ¢ÂÂ {label} Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
+        ── {label} ────────────────────────
       </span>
     </div>
   );
@@ -116,7 +116,7 @@ function CommoditiesPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
           onClick={() => setCollapsed(v => !v)}
           title={collapsed ? 'Expand' : 'Collapse'}
           style={{ background: 'none', border: '1px solid #2a2a2a', color: '#555', fontSize: 9, padding: '1px 5px', cursor: 'pointer', fontFamily: 'inherit', borderRadius: 2 }}
-        >{collapsed ? '+' : 'Ã¢ÂÂ'}</button>
+        >{collapsed ? '+' : '−'}</button>
       </EditablePanelHeader>
 
       {!collapsed && (<>
@@ -129,7 +129,7 @@ function CommoditiesPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
           { key: 'chg',    label: 'CHG%', align: 'right' },
         ].map(({ key, label, align }) => {
           const active = sortKey === key;
-          const arrow  = active ? (sortDir === 'desc' ? ' Ã¢ÂÂ¼' : ' Ã¢ÂÂ²') : '';
+          const arrow  = active ? (sortDir === 'desc' ? ' ▼' : ' ▲') : '';
           return (
             <span key={key} onClick={() => handleSortClick(key)} style={{
               color: active ? '#ff9900' : '#444',

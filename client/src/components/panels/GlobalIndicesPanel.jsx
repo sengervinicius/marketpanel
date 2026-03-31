@@ -46,9 +46,9 @@ function GlobalIndicesPanel({ data = {}, loading, onTickerClick, onOpenDetail })
     }
   };
 
-  const fmtPrice = p => (!p || p === 0) ? 'Ã¢ÂÂ'
+  const fmtPrice = p => (!p || p === 0) ? '—'
     : p.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const fmtPct   = p => (!p && p !== 0) ? 'Ã¢ÂÂ' : `${p >= 0 ? '+' : ''}${p.toFixed(2)}%`;
+  const fmtPct   = p => (!p && p !== 0) ? '—' : `${p >= 0 ? '+' : ''}${p.toFixed(2)}%`;
   const color    = p => !p ? '#888' : p >= 0 ? '#00c853' : '#f44336';
 
   const panelStyle = {

@@ -47,12 +47,23 @@ export default function EditablePanelHeader({
     setEditingSub(null);
   }, [subVal, subsections, onSubsectionChange]);
 
-  const onDragOver = (e) => { e.preventDefault(); if (isDragging) setDragOver(true); };
+  const onDragOver = (e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; setDragOver(true); };
   const onDragLeave = () => setDragOver(false);
   const onDrop = (e) => {
     e.preventDefault();
     setDragOver(false);
-    let ticker = e.dataTransfer?.getData('text/plain') || e.dataTransfer?.getData('ticker');
+    // Try application/x-ticker first (used by SearchPanel, CommoditiesPanel, etc.)
+    let ticker = null;
+    const xTicker = e.dataTransfer?.getData('application/x-ticker');
+    if (xTicker) {
+      try {
+        const parsed = JSON.parse(xTicker);
+        ticker = parsed.symbol || parsed.name;
+      } catch { ticker = xTicker; }
+    }
+    // Fallback to text/plain or ticker MIME types
+    if (!ticker) ticker = e.dataTransfer?.getData('text/plain') || e.dataTransfer?.getData('ticker');
+    // Last resort: DragContext
     if (!ticker && draggedTicker) ticker = draggedTicker.symbol || draggedTicker;
     if (ticker) { onDropTicker?.(ticker); endDrag?.(); }
   };
@@ -84,7 +95,7 @@ export default function EditablePanelHeader({
         )}
         {subsections.map((sub, i) => (
           <span key={i}>
-            <span style={{ color: '#222', fontSize: 8 }}>·</span>
+            <span style={{ color: '#222', fontSize: 8 }}>Â·</span>
             {editingSub === i ? (
               <input ref={subRef} style={S.subInput} value={subVal} onChange={e => setSubVal(e.target.value)} onBlur={() => saveSub(i)} onKeyDown={e => { if (e.key === 'Enter') saveSub(i); if (e.key === 'Escape') setEditingSub(null); }} maxLength={40} />
             ) : (
@@ -92,18 +103,18 @@ export default function EditablePanelHeader({
             )}
           </span>
         ))}
-        {onConfigOpen && (<button style={S.iconBtn} onClick={onConfigOpen} title="Configure panel">✎</button>)}
+        {onConfigOpen && (<button style={S.iconBtn} onClick={onConfigOpen} title="Configure panel">â</button>)}
         {feedBadge && (<span style={{ ...S.badge, background: feedBadge.bg, color: feedBadge.color, border: `1px solid ${feedBadge.color}33` }}>{feedBadge.text}</span>)}
         <div style={{ flex: 1 }} />
         {children}
         {onSearchChange && (
-          <button style={{ ...S.iconBtn, color: showSearch ? '#ff6600' : '#444' }} onClick={() => { const next = !showSearch; setShowSearch(next); if (!next) { setSearchQ(''); onSearchChange(''); } }} title="Search in panel">⌕</button>
+          <button style={{ ...S.iconBtn, color: showSearch ? '#ff6600' : '#444' }} onClick={() => { const next = !showSearch; setShowSearch(next); if (!next) { setSearchQ(''); onSearchChange(''); } }} title="Search in panel">â</button>
         )}
       </div>
       {showSearch && (
         <div style={S.searchRow}>
-          <input ref={searchRef} style={S.searchInput} value={searchQ} onChange={e => { setSearchQ(e.target.value); onSearchChange?.(e.target.value); }} onKeyDown={e => { if (e.key === 'Escape') { setShowSearch(false); setSearchQ(''); onSearchChange?.(''); } }} placeholder="Filter by ticker or name…" />
-          <button style={S.searchClose} onClick={() => { setShowSearch(false); setSearchQ(''); onSearchChange?.(''); }}>✕</button>
+          <input ref={searchRef} style={S.searchInput} value={searchQ} onChange={e => { setSearchQ(e.target.value); onSearchChange?.(e.target.value); }} onKeyDown={e => { if (e.key === 'Escape') { setShowSearch(false); setSearchQ(''); onSearchChange?.(''); } }} placeholder="Filter by ticker or nameâ¦" />
+          <button style={S.searchClose} onClick={() => { setShowSearch(false); setSearchQ(''); onSearchChange?.(''); }}>â</button>
         </div>
       )}
     </div>

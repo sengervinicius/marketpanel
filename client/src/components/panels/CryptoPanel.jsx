@@ -1,4 +1,4 @@
-// CryptoPanel.jsx Ã¢ÂÂ crypto pairs, settings-integrated
+// CryptoPanel.jsx — crypto pairs, settings-integrated
 import { useRef, useState, memo } from 'react';
 import { useSettings } from '../../context/SettingsContext';
 import PanelConfigModal from '../common/PanelConfigModal';
@@ -6,8 +6,8 @@ import EditablePanelHeader from '../common/EditablePanelHeader';
 import { CRYPTO_PAIRS } from '../../utils/constants';
 import { useFeedStatus } from '../../context/FeedStatusContext';
 
-const fmt    = (n) => n == null ? 'Ã¢ÂÂ' : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const fmtPct = (n) => n == null ? 'Ã¢ÂÂ' : (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
+const fmt    = (n) => n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmtPct = (n) => n == null ? '—' : (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
 const COLS   = '56px 1fr 80px 64px';
 
 export function CryptoPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
@@ -67,7 +67,7 @@ export function CryptoPanel({ data = {}, loading, onTickerClick, onOpenDetail })
           onClick={() => setCollapsed(v => !v)}
           title={collapsed ? 'Expand' : 'Collapse'}
           style={{ background: 'none', border: '1px solid #2a2a2a', color: '#555', fontSize: 9, padding: '1px 5px', cursor: 'pointer', fontFamily: 'inherit', borderRadius: 2 }}
-        >{collapsed ? '+' : 'Ã¢ÂÂ'}</button>
+        >{collapsed ? '+' : '−'}</button>
       </EditablePanelHeader>
 
       {!collapsed && (<>
