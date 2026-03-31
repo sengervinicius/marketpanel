@@ -8,6 +8,7 @@
  *   window.open(window.location.origin + '/#/chat/42', '_blank', 'width=800,height=600')
  */
 
+import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { ChatPanel } from '../components/panels/ChatPanel';
 import { useAuth } from '../context/AuthContext';
@@ -15,6 +16,13 @@ import { useAuth } from '../context/AuthContext';
 export default function ChatPage() {
   const { userId } = useParams();
   const { user } = useAuth();
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handler);
+    return () => window.removeEventListener('resize', handler);
+  }, []);
 
   return (
     <div style={{
@@ -41,7 +49,6 @@ export default function ChatPage() {
         >← TERMINAL</button>
         <button
           onClick={() => {
-            // If this is a popped-out window, close it; otherwise navigate back to terminal
             if (window.opener) {
               window.close();
             } else {
@@ -57,7 +64,7 @@ export default function ChatPage() {
 
       {/* Full-size ChatPanel */}
       <div style={{ flex: 1, overflow: 'hidden' }}>
-        <ChatPanel initialUserId={userId ? Number(userId) : null} />
+        <ChatPanel mobile={isMobile} initialUserId={userId ? Number(userId) : null} />
       </div>
     </div>
   );

@@ -53,7 +53,8 @@ function DefaultPageRedirect() {
   useEffect(() => {
     if (!loaded || didRedirect.current) return;
     const dest = settings?.defaultStartPage;
-    if (!dest || dest === '/' || location.pathname !== '/') return;
+    // Never redirect to /chat — it's a standalone route, not a valid start page
+    if (!dest || dest === '/' || dest === '/chat' || location.pathname !== '/') return;
     didRedirect.current = true;
     navigate(dest, { replace: true });
   }, [loaded, settings?.defaultStartPage, location.pathname, navigate]);

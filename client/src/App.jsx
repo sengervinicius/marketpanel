@@ -322,7 +322,6 @@ const START_PAGE_OPTIONS = [
   { value: '/watchlist', label: 'WATCHLIST' },
   { value: '/search',    label: 'SEARCH' },
   { value: '/news',      label: 'NEWS' },
-  { value: '/chat',      label: 'CHAT' },
 ];
 
 const PRESET_LIST = [
@@ -1232,7 +1231,7 @@ export default function App() {
 
             {activeTab === 'news' && <NewsPanel />}
 
-            {activeTab === 'chat' && <ChatPanel />}
+            {activeTab === 'chat' && <ChatPanel mobile />}
           </div>
 
           {/* ── Bottom tab bar ── */}
