@@ -8,6 +8,7 @@ import { PriceProvider } from './context/PriceContext';
 import { FeedStatusProvider } from './context/FeedStatusContext';
 import { WatchlistProvider } from './context/WatchlistContext';
 import { MarketProvider, useMarketDispatch } from './context/MarketContext';
+import { DragProvider } from './context/DragContext';
 import { IndexPanel } from './components/panels/IndexPanel';
 import { StockPanel } from './components/panels/StockPanel';
 import { ForexPanel } from './components/panels/ForexPanel';
@@ -35,7 +36,7 @@ import InstrumentDetail from './components/common/InstrumentDetail';
 import './App.css';
 
 
-// ── MarketTickBridge — dispatches live WS ticks into MarketContext reducer ────
+// ââ MarketTickBridge â dispatches live WS ticks into MarketContext reducer ââââ
 function MarketTickBridge({ batchTicks }) {
   const dispatch = useMarketDispatch();
   useEffect(() => {
@@ -45,7 +46,7 @@ function MarketTickBridge({ batchTicks }) {
   return null;
 }
 
-// ── World Clock ──────────────────────────────────────────────────────────────
+// ââ World Clock ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 function WorldClock() {
   const [now, setNow] = useState(new Date());
   useEffect(() => {
@@ -74,7 +75,7 @@ function WorldClock() {
   );
 }
 
-// ── Row Resize Handle ────────────────────────────────────────────────────────
+// ââ Row Resize Handle ââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 function ResizeHandle({ onStart }) {
   return (
     <div
@@ -92,7 +93,7 @@ function ResizeHandle({ onStart }) {
   );
 }
 
-// ── Column Resize Handle ─────────────────────────────────────────────────────
+// ââ Column Resize Handle âââââââââââââââââââââââââââââââââââââââââââââââââââââ
 function ColResizeHandle({ onStart }) {
   return (
     <div
@@ -110,7 +111,7 @@ function ColResizeHandle({ onStart }) {
   );
 }
 
-// ── Layout Move Overlay ──────────────────────────────────────────────────────
+// ââ Layout Move Overlay ââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 // Shown over each panel when layout-edit mode is active
 function LayoutMoveOverlay({ panelId, rowIdx, colIdx, rowLen, totalRows, onMove }) {
   const btn = (dir, label, disabled) => (
@@ -135,24 +136,24 @@ function LayoutMoveOverlay({ panelId, rowIdx, colIdx, rowLen, totalRows, onMove 
       pointerEvents: 'auto',
     }}>
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-        {btn('up',    '↑', rowIdx === 0)}
+        {btn('up',    'â', rowIdx === 0)}
         <div style={{ display: 'flex', gap: 4 }}>
-          {btn('left',  '←', colIdx === 0)}
+          {btn('left',  'â', colIdx === 0)}
           <div style={{
             background: '#0d0d0d', border: '1px solid #2a2a2a',
             borderRadius: 3, padding: '2px 8px',
             color: '#ff6600', fontSize: 9, fontWeight: 700, letterSpacing: '0.5px',
             whiteSpace: 'nowrap', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis',
           }}>{panelId}</div>
-          {btn('right', '→', colIdx === rowLen - 1)}
+          {btn('right', 'â', colIdx === rowLen - 1)}
         </div>
-        {btn('down',  '↓', rowIdx === totalRows - 1)}
+        {btn('down',  'â', rowIdx === totalRows - 1)}
       </div>
     </div>
   );
 }
 
-// ── Panel registry — maps panelId → render function ───────────────────────────
+// ââ Panel registry â maps panelId â render function âââââââââââââââââââââââââââ
 function makePanelRenderer(panelId, props) {
   const { mergedData, loading, setChartTicker, setDetailTicker, chartTicker, setChartGridCount } = props;
   switch (panelId) {
@@ -191,7 +192,7 @@ function makePanelRenderer(panelId, props) {
   }
 }
 
-// ── Resizable row-flex hook ──────────────────────────────────────────────────
+// ââ Resizable row-flex hook ââââââââââââââââââââââââââââââââââââââââââââââââââ
 function useResizableFlex(storageKey, defaults) {
   const [sizes, setSizes] = useState(() => {
     try {
@@ -244,7 +245,7 @@ function useResizableFlex(storageKey, defaults) {
   return [sizes, startResize];
 }
 
-// ── Resizable column-flex hook ───────────────────────────────────────────────
+// ââ Resizable column-flex hook âââââââââââââââââââââââââââââââââââââââââââââââ
 function useResizableColumns(storageKey, defaults) {
   const [sizes, setSizes] = useState(() => {
     try {
@@ -297,7 +298,7 @@ function useResizableColumns(storageKey, defaults) {
   return [sizes, startResize];
 }
 
-// ── Settings Drawer ──────────────────────────────────────────────────────────
+// ââ Settings Drawer ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 const PANEL_DEFS = [
   { id: 'charts',       label: 'Chart Grid' },
   { id: 'usEquities',   label: 'US Equities' },
@@ -370,10 +371,10 @@ function SettingsDrawer({ panelVisible, togglePanel, onClose }) {
       {/* Drawer header */}
       <div style={{ padding: '6px 12px', borderBottom: '1px solid #1a1a1a', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <span style={{ color: '#ff6600', fontSize: 9, fontWeight: 700, letterSpacing: '1px' }}>SETTINGS</span>
-        <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#444', cursor: 'pointer', fontSize: 12, padding: 0 }}>✕</button>
+        <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#444', cursor: 'pointer', fontSize: 12, padding: 0 }}>â</button>
       </div>
 
-      {/* ── Default Start Page ── */}
+      {/* ââ Default Start Page ââ */}
       <SettingsSection label="DEFAULT START PAGE" />
       {START_PAGE_OPTIONS.map(({ value, label }) => (
         <div key={value} onClick={() => handleStartPage(value)} style={rowStyle}
@@ -381,21 +382,21 @@ function SettingsDrawer({ panelVisible, togglePanel, onClose }) {
           onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
         >
           <span style={{ color: defaultStartPage === value ? '#ff6600' : '#888', fontSize: 9, letterSpacing: '0.5px' }}>{label}</span>
-          <span style={{ color: defaultStartPage === value ? '#ff6600' : '#2a2a2a', fontSize: 10 }}>{defaultStartPage === value ? '●' : '○'}</span>
+          <span style={{ color: defaultStartPage === value ? '#ff6600' : '#2a2a2a', fontSize: 10 }}>{defaultStartPage === value ? 'â' : 'â'}</span>
         </div>
       ))}
 
-      {/* ── Theme ── */}
+      {/* ââ Theme ââ */}
       <SettingsSection label="APPEARANCE" />
       <div onClick={handleTheme} style={rowStyle}
         onMouseEnter={e => e.currentTarget.style.background = '#141414'}
         onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
       >
-        <span style={{ color: '#888', fontSize: 9, letterSpacing: '0.5px' }}>{theme === 'dark' ? '◑ DARK MODE' : '☀ LIGHT MODE'}</span>
+        <span style={{ color: '#888', fontSize: 9, letterSpacing: '0.5px' }}>{theme === 'dark' ? 'â DARK MODE' : 'â LIGHT MODE'}</span>
         <span style={{ color: '#ff6600', fontSize: 8, fontWeight: 700, letterSpacing: '0.5px' }}>TOGGLE</span>
       </div>
 
-      {/* ── Workspace Presets ── */}
+      {/* ââ Workspace Presets ââ */}
       <SettingsSection label="APPLY WORKSPACE PRESET" />
       {PRESET_LIST.map(({ key, label }) => (
         <div key={key} onClick={() => !applyingPreset && handlePreset(key)} style={{ ...rowStyle, cursor: applyingPreset ? 'wait' : 'pointer' }}
@@ -404,12 +405,12 @@ function SettingsDrawer({ panelVisible, togglePanel, onClose }) {
         >
           <span style={{ color: '#888', fontSize: 9, letterSpacing: '0.5px' }}>{label}</span>
           {applyingPreset === key
-            ? <span style={{ color: '#ff6600', fontSize: 8 }}>APPLYING…</span>
-            : <span style={{ color: '#444', fontSize: 8, letterSpacing: '0.5px' }}>APPLY →</span>}
+            ? <span style={{ color: '#ff6600', fontSize: 8 }}>APPLYINGâ¦</span>
+            : <span style={{ color: '#444', fontSize: 8, letterSpacing: '0.5px' }}>APPLY â</span>}
         </div>
       ))}
 
-      {/* ── Panel Visibility ── */}
+      {/* ââ Panel Visibility ââ */}
       <SettingsSection label="PANEL VISIBILITY" />
       {PANEL_DEFS.map(({ id, label }) => {
         const visible = panelVisible[id] ?? true;
@@ -420,20 +421,20 @@ function SettingsDrawer({ panelVisible, togglePanel, onClose }) {
           >
             <span style={{ color: visible ? '#ccc' : '#444', fontSize: 9, letterSpacing: '0.5px' }}>{label}</span>
             <span style={{ color: visible ? '#00cc66' : '#333', fontSize: 9, fontWeight: 700 }}>
-              {visible ? '● ON' : '○ OFF'}
+              {visible ? 'â ON' : 'â OFF'}
             </span>
           </div>
         );
       })}
 
-      {/* ── Suggested Screens ── */}
+      {/* ââ Suggested Screens ââ */}
       <SettingsSection label="SUGGESTED SCREENS" />
       <SuggestedScreens onApply={onClose} />
     </div>
   );
 }
 
-// ── User Dropdown (header avatar menu) ───────────────────────────────────────
+// ââ User Dropdown (header avatar menu) âââââââââââââââââââââââââââââââââââââââ
 function UserDropdown({ user, onSettings, onLogout, onBilling, isPaid }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
@@ -454,7 +455,7 @@ function UserDropdown({ user, onSettings, onLogout, onBilling, isPaid }) {
           display: 'flex', alignItems: 'center', gap: 5,
         }}
       >
-        <span style={{ color: open ? '#ff6600' : '#444', fontSize: 8 }}>▼</span>
+        <span style={{ color: open ? '#ff6600' : '#444', fontSize: 8 }}>â¼</span>
         {user.username?.toUpperCase()}
       </button>
       {open && (
@@ -469,27 +470,27 @@ function UserDropdown({ user, onSettings, onLogout, onBilling, isPaid }) {
               style={{ padding: '7px 12px', cursor: 'pointer', color: '#888', fontSize: 9, letterSpacing: '0.5px', borderBottom: '1px solid #1a1a1a' }}
               onMouseEnter={e => { e.currentTarget.style.background = '#141414'; e.currentTarget.style.color = '#44ff44'; }}
               onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#888'; }}
-            >💳 BILLING</div>
+            >ð³ BILLING</div>
           )}
           <div
             onClick={() => { setOpen(false); onSettings(); }}
             style={{ padding: '7px 12px', cursor: 'pointer', color: '#888', fontSize: 9, letterSpacing: '0.5px', borderBottom: isPaid && onBilling ? '1px solid #1a1a1a' : '1px solid #1a1a1a' }}
             onMouseEnter={e => { e.currentTarget.style.background = '#141414'; e.currentTarget.style.color = '#ff6600'; }}
             onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#888'; }}
-          >⚙ SETTINGS</div>
+          >â SETTINGS</div>
           <div
             onClick={() => { setOpen(false); onLogout(); }}
             style={{ padding: '7px 12px', cursor: 'pointer', color: '#888', fontSize: 9, letterSpacing: '0.5px' }}
             onMouseEnter={e => { e.currentTarget.style.background = '#141414'; e.currentTarget.style.color = '#ff4444'; }}
             onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#888'; }}
-          >→ LOG OUT</div>
+          >â LOG OUT</div>
         </div>
       )}
     </div>
   );
 }
 
-// ── Feed Status Bar ──────────────────────────────────────────────────────────
+// ââ Feed Status Bar ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 function FeedStatusBar({ feedStatus }) {
   const feeds = [
     { key: 'stocks', label: 'STOCKS' },
@@ -503,10 +504,10 @@ function FeedStatusBar({ feedStatus }) {
     return '#444';
   };
   const dot = (level) => {
-    if (level === 'live')     return '●';
-    if (level === 'degraded') return '◐';
-    if (level === 'error')    return '✕';
-    return '○';
+    if (level === 'live')     return 'â';
+    if (level === 'degraded') return 'â';
+    if (level === 'error')    return 'â';
+    return 'â';
   };
   return (
     <div style={{
@@ -531,7 +532,7 @@ function FeedStatusBar({ feedStatus }) {
   );
 }
 
-// ── Data Error Banner — shown when all market feeds are down ─────────────────
+// ââ Data Error Banner â shown when all market feeds are down âââââââââââââââââ
 // This surfaces HTTP 402/403/401/network errors that were previously invisible,
 // causing users to see blank panels with no explanation.
 function DataErrorBanner({ error, endpointErrors }) {
@@ -567,7 +568,7 @@ function DataErrorBanner({ error, endpointErrors }) {
       display: 'flex', alignItems: 'center', gap: 10,
       padding: '4px 12px', flexShrink: 0, flexWrap: 'wrap',
     }}>
-      <span style={{ color: '#ff4444', fontSize: 9, fontWeight: 700, letterSpacing: '1px' }}>⚠ {msg}</span>
+      <span style={{ color: '#ff4444', fontSize: 9, fontWeight: 700, letterSpacing: '1px' }}>â  {msg}</span>
       <span style={{ color: '#883333', fontSize: 8, letterSpacing: '0.3px' }}>{detail}</span>
       {failingFeeds && (
         <span style={{ color: '#552222', fontSize: 8, marginLeft: 4 }}>{failingFeeds}</span>
@@ -576,7 +577,7 @@ function DataErrorBanner({ error, endpointErrors }) {
   );
 }
 
-// ── Trial / Subscription banner ──────────────────────────────────────────────
+// ââ Trial / Subscription banner ââââââââââââââââââââââââââââââââââââââââââââââ
 function TrialBanner({ subscription, onUpgrade, onManageBilling, billingState }) {
   if (!subscription) return null;
   if (subscription.status === 'active' && !billingState?.showSuccess) return null;
@@ -596,7 +597,7 @@ function TrialBanner({ subscription, onUpgrade, onManageBilling, billingState })
     bg = '#003300';
     clr = '#44ff44';
   } else if (isExpired) {
-    msg = 'TRIAL EXPIRED — Subscribe to continue';
+    msg = 'TRIAL EXPIRED â Subscribe to continue';
     bg = '#3a0000';
     clr = '#ff4444';
   } else if (isPaid) {
@@ -635,7 +636,7 @@ function TrialBanner({ subscription, onUpgrade, onManageBilling, billingState })
                     fontSize: 8, fontWeight: 700, padding: '2px 8px', cursor: 'pointer',
                     fontFamily: 'inherit', letterSpacing: '0.5px', borderRadius: 2,
                   }}
-                >UPGRADE →</button>
+                >UPGRADE â</button>
               )}
               {isPaid && onManageBilling && (
                 <button
@@ -655,7 +656,7 @@ function TrialBanner({ subscription, onUpgrade, onManageBilling, billingState })
   );
 }
 
-// ── Subscription Expired Screen ──────────────────────────────────────────────
+// ââ Subscription Expired Screen ââââââââââââââââââââââââââââââââââââââââââââââ
 function SubscriptionExpiredScreen({ onUpgrade, onLogout, onManageBilling, checkoutState, subscription }) {
   const [isLoading, setIsLoading] = useState(false);
   const isLoadingCheckout = checkoutState?.isLoading || isLoading;
@@ -676,7 +677,7 @@ function SubscriptionExpiredScreen({ onUpgrade, onLogout, onManageBilling, check
       flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
       justifyContent: 'center', gap: 16, padding: 32, background: '#0a0a0a',
     }}>
-      <div style={{ color: '#ff3333', fontSize: 32 }}>⊘</div>
+      <div style={{ color: '#ff3333', fontSize: 32 }}>â</div>
       <div style={{ color: '#ff3333', fontSize: 13, fontWeight: 700, letterSpacing: '2px' }}>
         SUBSCRIPTION REQUIRED
       </div>
@@ -699,7 +700,7 @@ function SubscriptionExpiredScreen({ onUpgrade, onLogout, onManageBilling, check
             fontFamily: 'inherit', letterSpacing: '1px', borderRadius: 2,
             opacity: isLoadingCheckout ? 0.7 : 1,
           }}
-        >{isLoadingCheckout ? 'Setting up...' : 'SUBSCRIBE NOW →'}</button>
+        >{isLoadingCheckout ? 'Setting up...' : 'SUBSCRIBE NOW â'}</button>
         {hasStripeCustomerId && onManageBilling && (
           <button
             onClick={onManageBilling}
@@ -723,14 +724,14 @@ function SubscriptionExpiredScreen({ onUpgrade, onLogout, onManageBilling, check
   );
 }
 
-// ── Mobile tab definitions ───────────────────────────────────────────────────
+// ââ Mobile tab definitions âââââââââââââââââââââââââââââââââââââââââââââââââââ
 const MOBILE_TABS = [
-  { id: 'home',      label: 'HOME',   icon: '⌂' },
-  { id: 'charts',    label: 'CHARTS', icon: '◫' },
-  { id: 'watchlist', label: 'WATCH',  icon: '☆' },
-  { id: 'search',    label: 'FIND',   icon: '⊕' },
-  { id: 'etf',       label: 'ETF',    icon: '▧' },
-  { id: 'news',      label: 'NEWS',   icon: '◎' },
+  { id: 'home',      label: 'HOME',   icon: 'â' },
+  { id: 'charts',    label: 'CHARTS', icon: 'â«' },
+  { id: 'watchlist', label: 'WATCH',  icon: 'â' },
+  { id: 'search',    label: 'FIND',   icon: 'â' },
+  { id: 'etf',       label: 'ETF',    icon: 'â§' },
+  { id: 'news',      label: 'NEWS',   icon: 'â' },
 ];
 
 const LS_TAB          = 'activeTab_m3';
@@ -742,10 +743,10 @@ export default function App() {
   const { user, subscription, startCheckout, logout, authReady, openBillingPortal, refreshSubscription } = useAuth();
   const { settings, loaded: settingsLoaded } = useSettings();
 
-  // ── Billing state ────────────────────────────────────────────────────────────
+  // ââ Billing state ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
   const [billingState, setBillingState] = useState({ isLoading: false, error: null, showSuccess: false });
 
-  // ── Live WebSocket overlay (throttled at 250 ms) ─────────────────────────
+  // ââ Live WebSocket overlay (throttled at 250 ms) âââââââââââââââââââââââââ
   const [feedStatus, setFeedStatus] = useState({ stocks: 'connecting', forex: 'connecting', crypto: 'connecting' });
   const liveOverlayRef   = useRef({});
   const tickBufferRef    = useRef([]);
@@ -792,7 +793,7 @@ export default function App() {
 
   useWebSocket(handleWsMessage);
 
-  // ── Billing success handling ──────────────────────────────────────────────────
+  // ââ Billing success handling ââââââââââââââââââââââââââââââââââââââââââââââââââ
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('billing') === 'success') {
@@ -908,7 +909,7 @@ export default function App() {
     } catch { return 2; }
   });
 
-  // ── Dynamic layout from settings ───────────────────────────────────────────
+  // ââ Dynamic layout from settings âââââââââââââââââââââââââââââââââââââââââââ
   const { updateLayout } = useSettings();
   const desktopRows = settings?.layout?.desktopRows || DEFAULT_LAYOUT.desktopRows;
   const row0 = desktopRows[0] || [];
@@ -972,18 +973,18 @@ export default function App() {
     setDetailTicker(sym);
   }, []);
 
-  // ── Onboarding check ─────────────────────────────────────────────────────
+  // ââ Onboarding check âââââââââââââââââââââââââââââââââââââââââââââââââââââ
   // Only show onboarding AFTER settings are fully loaded from the server (not the
   // default settings), and only if the user has not yet completed onboarding.
   // This ensures a logged-in user with onboardingCompleted=true never sees the
   // preset screen again on refresh.
   const showOnboarding = settingsLoaded && !!user && settings && !settings.onboardingCompleted;
 
-  // ── Subscription gating ──────────────────────────────────────────────────
+  // ââ Subscription gating ââââââââââââââââââââââââââââââââââââââââââââââââââ
   // Show paywall if subscription has expired
   const subscriptionExpired = subscription && subscription.status === 'expired';
 
-  // ── Checkout handler with loading state ───────────────────────────────────
+  // ââ Checkout handler with loading state âââââââââââââââââââââââââââââââââââ
   const handleCheckout = useCallback(async () => {
     setBillingState({ isLoading: true, error: null, showSuccess: false });
     try {
@@ -994,9 +995,10 @@ export default function App() {
     }
   }, [startCheckout]);
 
-  // ── DESKTOP ──────────────────────────────────────────────────────────────
+  // ââ DESKTOP ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
   if (!isMobile) {
     return (
+      <DragProvider>
       <WatchlistProvider>
       <FeedStatusProvider status={feedStatus}>
       <MarketProvider restData={mergedData}>
@@ -1024,7 +1026,7 @@ export default function App() {
               onClick={() => setLayoutEdit(s => !s)}
               title="Reorder panels"
               style={{ background: layoutEdit ? '#1a0800' : 'none', border:`1px solid ${layoutEdit ? '#ff6600' : '#282828'}`, color: layoutEdit ? '#ff6600' : '#444', fontSize:9, padding:'2px 6px', cursor:'pointer', fontFamily:'inherit', borderRadius:2, letterSpacing:'0.5px' }}
-            >⇄ LAYOUT</button>
+            >â LAYOUT</button>
             {user
               ? <UserDropdown
                   user={user}
@@ -1033,7 +1035,7 @@ export default function App() {
                   onBilling={openBillingPortal}
                   isPaid={subscription?.status === 'active'}
                 />
-              : <button onClick={() => setSettingsOpen(s => !s)} style={{ background:'none', border:'1px solid #282828', color: settingsOpen ? '#ff6600' : '#444', fontSize:9, padding:'2px 6px', cursor:'pointer', fontFamily:'inherit', borderRadius:2, letterSpacing:'0.5px' }}>⚙ SETTINGS</button>
+              : <button onClick={() => setSettingsOpen(s => !s)} style={{ background:'none', border:'1px solid #282828', color: settingsOpen ? '#ff6600' : '#444', fontSize:9, padding:'2px 6px', cursor:'pointer', fontFamily:'inherit', borderRadius:2, letterSpacing:'0.5px' }}>â SETTINGS</button>
             }
           </div>
         </div>
@@ -1046,7 +1048,7 @@ export default function App() {
           billingState={billingState}
         />
 
-        {/* Data feed error banner — shows when Polygon/Yahoo endpoints are failing */}
+        {/* Data feed error banner â shows when Polygon/Yahoo endpoints are failing */}
         <DataErrorBanner error={feedError} endpointErrors={endpointErrors} />
 
         {/* Subscription expired screen */}
@@ -1113,11 +1115,13 @@ export default function App() {
       </MarketProvider>
       </FeedStatusProvider>
       </WatchlistProvider>
+      </DragProvider>
     );
   }
 
-  // ── MOBILE ───────────────────────────────────────────────────────────────
+  // ââ MOBILE âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
   return (
+    <DragProvider>
     <WatchlistProvider>
     <FeedStatusProvider status={feedStatus}>
     <MarketProvider restData={mergedData}>
@@ -1179,7 +1183,7 @@ export default function App() {
         />
       ) : (
         <>
-          {/* ── Tab content area ── */}
+          {/* ââ Tab content area ââ */}
           <div style={{ flex:1, overflowY:'auto', overflowX:'hidden', minHeight:0, WebkitOverflowScrolling:'touch' }}>
 
             {activeTab === 'home' && (
@@ -1216,19 +1220,19 @@ export default function App() {
                     asPage
                   />
                 : <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', height:'100%', gap:12 }}>
-                    <div style={{ color:'#2a2a2a', fontSize:32 }}>▦</div>
+                    <div style={{ color:'#2a2a2a', fontSize:32 }}>â¦</div>
                     <div style={{ color:'#333', fontSize:10, letterSpacing:'1px' }}>TAP ANY INSTRUMENT TO VIEW DETAILS</div>
                     <button
                       onClick={() => setActiveTabPersist('watchlist')}
                       style={{ marginTop:8, background:'none', border:'1px solid #2a2a2a', color:'#555', fontSize:9, padding:'6px 14px', cursor:'pointer', fontFamily:'inherit', borderRadius:2 }}
-                    >OPEN WATCHLIST →</button>
+                    >OPEN WATCHLIST â</button>
                   </div>
             )}
 
             {activeTab === 'news' && <NewsPanel />}
           </div>
 
-          {/* ── Bottom tab bar ── */}
+          {/* ââ Bottom tab bar ââ */}
           <nav style={{
             display: 'flex', background: '#000',
             borderTop: '2px solid #1e1e1e',
@@ -1272,5 +1276,6 @@ export default function App() {
     </MarketProvider>
     </FeedStatusProvider>
     </WatchlistProvider>
+    </DragProvider>
   );
 }
