@@ -117,7 +117,7 @@ export default function PanelConfigModal({
     background: '#0d0d0d', border: '1px solid #2a2a2a',
     borderRadius: 6, width: '90%', maxWidth: 560,
     maxHeight: '80vh', display: 'flex', flexDirection: 'column',
-    fontFamily: '"Courier New", monospace',
+    fontFamily: 'var(--font-ui)',
   };
 
   const header = {

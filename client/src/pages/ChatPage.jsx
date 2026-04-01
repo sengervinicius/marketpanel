@@ -26,7 +26,7 @@ export default function ChatPage() {
     <div style={{
       height: '100vh', background: 'var(--bg-app)', overflow: 'hidden',
       display: 'flex', flexDirection: 'column',
-      fontFamily: "'IBM Plex Mono', monospace",
+      fontFamily: 'var(--font-ui)',
     }}>
       {/* Minimal header */}
       <div className="chat-page-header">

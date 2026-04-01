@@ -38,7 +38,7 @@ export default function PasswordGate({ children }) {
     <div style={{
       position: 'fixed', inset: 0, background: '#0a0a0f',
       display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-      fontFamily: "'IBM Plex Mono', 'Courier New', monospace"
+      fontFamily: 'var(--font-ui)'
     }}>
       {/* Background grid lines */}
       <div style={{

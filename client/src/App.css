@@ -52,14 +52,19 @@
   --radius-md: 4px;
   --radius-lg: 8px;
 
+  /* Font families */
+  --font-ui:   'Inter', 'Helvetica Neue', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', 'Courier New', monospace;
+
   /* Type scale */
-  --font-xs:   7px;
-  --font-sm:   8px;
-  --font-base: 10px;
-  --font-md:   11px;
-  --font-lg:   12px;
-  --font-xl:   13px;
-  --font-2xl:  16px;
+  --font-xs:   11px;
+  --font-sm:   12px;
+  --font-base: 14px;
+  --font-md:   15px;
+  --font-lg:   17px;
+  --font-xl:   22px;
+  --font-2xl:  30px;
+  --font-hero: 40px;
 
   /* Z-index layers */
   --z-panel:    1;
@@ -87,10 +92,17 @@ html, body, #root {
   width: 100%;
   overflow: hidden;
   background: var(--bg-app);
-  font-family: 'IBM Plex Mono', 'Courier New', monospace;
+  font-family: var(--font-ui);
   font-size: var(--font-base);
   color: var(--text-secondary);
   -webkit-font-smoothing: antialiased;
+}
+
+/* Mono font for numeric/ticker data only */
+.price-value, .ticker-label, .tabular,
+.price-cell, .ticker-cell {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
 }
 
 /* ── Scrollbar ───────────────────────────────────── */
@@ -161,6 +173,28 @@ html, body, #root {
   border-bottom: 1px solid var(--border-subtle);
   padding: 0 var(--sp-4);
   gap: 10px;
+}
+
+/* ── Mobile app shell ──────────────────────────────── */
+.m-app-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  padding-top: env(safe-area-inset-top);
+  background: var(--bg-app);
+  color: var(--text-primary);
+  overflow: hidden;
+}
+.m-app-header {
+  /* Alias — m-header already exists; this class adds nothing new but
+     exists as a semantic hook if the header ever diverges from .m-header. */
+}
+.m-app-content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* ── Mobile bottom tab bar ──────────────────────────── */
@@ -706,8 +740,8 @@ textarea:focus-visible { outline: 1px solid var(--accent); outline-offset: 0; bo
   padding: 1px 5px;
   border: 1px solid var(--border-color, #444);
   border-radius: 3px;
-  font-family: monospace;
-  font-size: 10px;
+  font-family: var(--font-mono);
+  font-size: var(--font-xs);
   background: var(--bg-tertiary, #2a2a3e);
 }
 
@@ -743,7 +777,7 @@ textarea:focus-visible { outline: 1px solid var(--accent); outline-offset: 0; bo
 /* ── Chat layout shells ────────────────────────────────────── */
 .chat-root {
   height: 100%; display: flex;
-  font-family: "Courier New", monospace;
+  font-family: var(--font-ui);
   color: var(--text-primary);
   background: var(--bg-app);
 }

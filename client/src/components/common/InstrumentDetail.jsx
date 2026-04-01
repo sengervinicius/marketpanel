@@ -133,17 +133,17 @@ function DeltaLineOverlay({ xAxisMap, yAxisMap, bars, deltaA, deltaB, deltaInfo 
       <line x1={xAc} y1={yAc} x2={xBc} y2={yBc} stroke={color} strokeWidth={1.5} strokeDasharray="6 3" opacity={0.9} />
       <circle cx={xAc} cy={yAc} r={5} fill={color} stroke="#000" strokeWidth={1.5} />
       <circle cx={xBc} cy={yBc} r={5} fill={color} stroke="#000" strokeWidth={1.5} />
-      <text x={xAc} y={yAc - 10} textAnchor="middle" fill={ORANGE} fontSize={9} fontFamily="'Courier New', monospace" fontWeight="bold">A</text>
-      <text x={xBc} y={yBc - 10} textAnchor="middle" fill={ORANGE} fontSize={9} fontFamily="'Courier New', monospace" fontWeight="bold">B</text>
+      <text x={xAc} y={yAc - 10} textAnchor="middle" fill={ORANGE} fontSize={9} fontFamily="var(--font-mono)" fontWeight="bold">A</text>
+      <text x={xBc} y={yBc - 10} textAnchor="middle" fill={ORANGE} fontSize={9} fontFamily="var(--font-mono)" fontWeight="bold">B</text>
       <rect x={midX - badgeW / 2} y={midY - badgeH / 2} width={badgeW} height={badgeH} rx={4}
         fill="#0a0a0a" stroke={color} strokeWidth={1} />
       <text x={midX} y={midY - (daysStr ? 8 : 2)} textAnchor="middle" fill={color}
-        fontSize={12} fontFamily="'Courier New', monospace" fontWeight="bold">{pctStr}</text>
+        fontSize={12} fontFamily="var(--font-mono)" fontWeight="bold">{pctStr}</text>
       <text x={midX} y={midY + (daysStr ? 8 : 12)} textAnchor="middle" fill="#888"
-        fontSize={9} fontFamily="'Courier New', monospace">{absStr}</text>
+        fontSize={9} fontFamily="var(--font-mono)">{absStr}</text>
       {daysStr && (
         <text x={midX} y={midY + 22} textAnchor="middle" fill="#444"
-          fontSize={8} fontFamily="'Courier New', monospace">{daysStr}</text>
+          fontSize={8} fontFamily="var(--font-mono)">{daysStr}</text>
       )}
     </g>
   );
@@ -427,7 +427,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
     return (
       <>
         {/* Price chart */}
-        <div style={{ flex: 7, minHeight: 0 }}>
+        <div className="id-chart-flex-main">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart
               data={bars}
@@ -505,7 +505,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
         </div>
 
         {/* Volume chart */}
-        <div style={{ flex: 2, minHeight: 0 }}>
+        <div className="id-chart-flex-volume">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={bars} margin={{ top: 2, right: 6, bottom: 0, left: 6 }}>
               <XAxis dataKey="label" hide axisLine={false} />
@@ -646,7 +646,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
   function renderBondRisk() {
     const bd = bondData;
     if (!bd && bondLoading) return <div className="id-loading">Loading...</div>;
-    if (!bd) return <div className="id-loading" style={{ color: 'var(--text-faint)' }}>No risk data available.</div>;
+    if (!bd) return <div className="id-loading">No risk data available.</div>;
     const dur = bd.duration;
     const conv = bd.convexity;
     const bps = [-100, -50, -25, 0, 25, 50, 100];
@@ -671,8 +671,8 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
           <table className="id-table">
             <thead>
               <tr>
-                <th style={{ textAlign: 'left' }}>SHOCK</th>
-                <th style={{ textAlign: 'right' }}>PRICE Δ%</th>
+                <th className="text-left">SHOCK</th>
+                <th className="text-right">PRICE Δ%</th>
               </tr>
             </thead>
             <tbody>
@@ -704,25 +704,25 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
   function renderCashFlows() {
     const bd = bondData;
     if (!bd && bondLoading) return <div className="id-loading">Loading...</div>;
-    if (!bd || !bd.cashFlows?.length) return <div className="id-loading" style={{ color: 'var(--text-faint)' }}>No cash flow data available.</div>;
+    if (!bd || !bd.cashFlows?.length) return <div className="id-loading">No cash flow data available.</div>;
     const totalFlow = bd.cashFlows.reduce((s, cf) => s + cf.amount, 0);
     return (
       <Section title="PROJECTED CASH FLOWS">
-        <div style={{ marginBottom: 8, fontSize: 'var(--font-sm)', color: 'var(--text-faint)' }}>
+        <div className="id-table-intro">
           Face value $1,000 · {bd.couponFrequency} · {bd.couponPct}% coupon
         </div>
         <table className="id-table">
           <thead>
             <tr>
-              <th style={{ textAlign: 'left' }}>DATE</th>
-              <th style={{ textAlign: 'center' }}>TYPE</th>
-              <th style={{ textAlign: 'right' }}>AMOUNT</th>
+              <th className="text-left">DATE</th>
+              <th className="text-center">TYPE</th>
+              <th className="text-right">AMOUNT</th>
             </tr>
           </thead>
           <tbody>
             {bd.cashFlows.map((cf, i) => (
               <tr key={i}>
-                <td style={{ color: 'var(--text-secondary)', fontSize: 'var(--font-sm)' }}>{cf.date}</td>
+                <td className="id-macro-label">{cf.date}</td>
                 <td style={{ color: cf.type === 'principal+coupon' ? ORANGE : 'var(--text-muted)', textAlign: 'center', fontSize: 'var(--font-sm)', letterSpacing: 0.3 }}>
                   {cf.type === 'principal+coupon' ? 'FINAL' : 'CPN'}
                 </td>
@@ -733,15 +733,15 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
             ))}
           </tbody>
           <tfoot>
-            <tr style={{ borderTop: '1px solid var(--border-strong)' }}>
-              <td colSpan={2} style={{ color: 'var(--text-faint)', fontSize: 'var(--font-sm)', padding: '4px 0', letterSpacing: 0.5 }}>TOTAL</td>
-              <td style={{ color: ORANGE, fontSize: 'var(--font-base)', textAlign: 'right', padding: '4px 0', fontVariantNumeric: 'tabular-nums', fontWeight: 'bold' }}>
+            <tr>
+              <td colSpan={2} className="id-table-total-label">TOTAL</td>
+              <td className="id-table-total-amount">
                 ${fmt(totalFlow, 2)}
               </td>
             </tr>
           </tfoot>
         </table>
-        {bd.stub && <div style={{ color: 'var(--border-default)', fontSize: 'var(--font-sm)', marginTop: 8 }}>Projected · stub data</div>}
+        {bd.stub && <div className="id-data-source">Projected · stub data</div>}
       </Section>
     );
   }
@@ -749,7 +749,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
   // ── FX Macro Overlay tab ─────────────────────────────────────────────
   function renderFXMacro() {
     if (!macroData?.countries?.length) {
-      return <div className="id-loading" style={{ color: 'var(--text-faint)' }}>Macro data not available for this pair.</div>;
+      return <div className="id-loading">Macro data not available for this pair.</div>;
     }
     const pctFmt = v => v != null ? (v * 100).toFixed(2) + '%' : '--';
     const labels = { policyRate: 'POLICY RATE', cpiYoY: 'CPI YoY', gdpGrowthYoY: 'GDP GROWTH', unemploymentRate: 'UNEMPLOYMENT', debtGDP: 'DEBT/GDP' };
@@ -762,9 +762,9 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
           <table className="id-table">
             <thead>
               <tr>
-                <th style={{ textAlign: 'left' }}></th>
-                <th style={{ color: ORANGE, textAlign: 'right' }}>{c0.name || c0.country}</th>
-                <th style={{ textAlign: 'right' }}>{c1.name || c1.country}</th>
+                <th className="text-left"></th>
+                <th className="id-macro-header-primary">{c0.name || c0.country}</th>
+                <th className="text-right">{c1.name || c1.country}</th>
               </tr>
             </thead>
             <tbody>
@@ -772,11 +772,11 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
                 const v0 = c0[ind], v1 = c1[ind];
                 return (
                   <tr key={ind}>
-                    <td style={{ color: 'var(--text-faint)', fontSize: 'var(--font-sm)', letterSpacing: 0.4 }}>{labels[ind]}</td>
-                    <td style={{ color: ORANGE, textAlign: 'right' }}>
+                    <td className="id-macro-label">{labels[ind]}</td>
+                    <td className="id-macro-value-primary">
                       {ind === 'debtGDP' ? (v0 != null ? (v0 * 100).toFixed(0) + '%' : '--') : pctFmt(v0)}
                     </td>
-                    <td style={{ color: 'var(--text-secondary)', textAlign: 'right' }}>
+                    <td className="id-macro-value">
                       {ind === 'debtGDP' ? (v1 != null ? (v1 * 100).toFixed(0) + '%' : '--') : pctFmt(v1)}
                     </td>
                   </tr>
@@ -785,9 +785,9 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
             </tbody>
           </table>
         ) : (
-          <div style={{ color: 'var(--text-faint)', fontSize: 'var(--font-base)' }}>Single-country pair — no comparison available.</div>
+          <div className="id-loading">Single-country pair — no comparison available.</div>
         )}
-        <div style={{ color: 'var(--border-default)', fontSize: 'var(--font-sm)', marginTop: 8 }}>Source: stub data (FRED / ECB / BCB)</div>
+        <div className="id-data-source">Source: stub data (FRED / ECB / BCB)</div>
       </Section>
     );
   }
@@ -842,8 +842,8 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
             </div>
 
             {etfMeta.fund.holdings?.length > 0 && (
-              <div style={{ marginTop: 10 }}>
-                <div style={{ color: 'var(--text-faint)', fontSize: 'var(--font-sm)', letterSpacing: 1, marginBottom: 6 }}>TOP HOLDINGS</div>
+              <div className="id-holdings-section">
+                <div className="id-holdings-header">TOP HOLDINGS</div>
                 {etfMeta.fund.holdings.map((h, i) => (
                   <div key={i} className="id-holding-row">
                     <span className="id-holding-symbol">{h.symbol}</span>
@@ -927,8 +927,8 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
               {etfMeta.fund.exchange && <StatRow label="EXCHANGE" value={etfMeta.fund.exchange} />}
             </div>
             {etfMeta.fund.holdings?.length > 0 && (
-              <div style={{ marginTop: 10 }}>
-                <div style={{ color: 'var(--text-faint)', fontSize: 'var(--font-sm)', letterSpacing: 1, marginBottom: 6 }}>TOP HOLDINGS</div>
+              <div className="id-holdings-section">
+                <div className="id-holdings-header">TOP HOLDINGS</div>
                 {etfMeta.fund.holdings.map((h, i) => (
                   <div key={i} className="id-holding-row">
                     <span className="id-holding-symbol" style={{ width: 40 }}>{h.symbol}</span>
@@ -964,16 +964,16 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
               )}
               {fundsData?.sharesOutstanding != null && <StatRow label="SHARES" value={fmt(fundsData.sharesOutstanding, 0)} />}
               {fundsLoading && mktCap != null && (
-                <div style={{ gridColumn: '1/-1', color: 'var(--text-faint)', fontSize: 'var(--font-sm)', paddingTop: 2 }}>loading ratios...</div>
+                <div className="id-grid-msg id-grid-msg--pt">loading ratios...</div>
               )}
               {fundsLoading && mktCap == null && (
-                <div style={{ gridColumn: '1/-1', color: 'var(--text-faint)', fontSize: 'var(--font-base)' }}>Loading...</div>
+                <div className="id-grid-msg id-grid-msg--lg">Loading...</div>
               )}
               {!fundsLoading && fundsError && mktCap == null && (
-                <div style={{ gridColumn: '1/-1', color: 'var(--text-faint)', fontSize: 'var(--font-sm)' }}>Fundamental data unavailable</div>
+                <div className="id-grid-msg">Fundamental data unavailable</div>
               )}
               {!fundsLoading && fundsError && mktCap != null && (
-                <div style={{ gridColumn: '1/-1', color: 'var(--text-faint)', fontSize: 'var(--font-sm)' }}>ratios unavailable</div>
+                <div className="id-grid-msg">ratios unavailable</div>
               )}
             </div>
           </Section>
@@ -1015,7 +1015,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
       <Section title="NEWS">
         {newsLoading && <div className="id-loading">Loading...</div>}
         {!newsLoading && news.length === 0 && (
-          <div className="id-loading" style={{ color: 'var(--text-faint)' }}>No recent news found.</div>
+          <div className="id-loading">No recent news found.</div>
         )}
         {news.map((item, i) => {
           const url   = item.article_url || item.link || item.url;
@@ -1043,9 +1043,9 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
 
   // ── About sub-render ───────────────────────────────────────────────────
   function renderFundamentals() {
-    if (!isStock) return <div style={{ color: 'var(--text-muted)', fontSize: 'var(--font-base)' }}>Fundamentals only for stocks</div>;
+    if (!isStock) return <div className="id-info-msg">Fundamentals only for stocks</div>;
     if (fundsLoading) return <div className="id-loading">LOADING FUNDAMENTALS...</div>;
-    if (fundsError || !fundsData) return <div style={{ color: RED, fontSize: 'var(--font-base)', padding: '12px 0' }}>Fundamentals unavailable</div>;
+    if (fundsError || !fundsData) return <div className="id-error-msg">Fundamentals unavailable</div>;
 
     const d = fundsData;
     return (
@@ -1154,11 +1154,11 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
         >✕</button>
 
         {isMobile ? (
-          <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 1 }}>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, minWidth: 0 }}>
+          <div className="id-header-col id-header-col--flex">
+            <div className="id-header-row">
               <span className="id-ticker id-ticker--mobile">{disp}</span>
               {livePrice != null && (
-                <span className="id-price id-price--mobile" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                <span className="id-price id-price--mobile tabular">
                   {displayPrice}
                 </span>
               )}
@@ -1170,16 +1170,17 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
             </div>
             {name !== disp && (
               <span className="id-name" style={{ maxWidth: 'none' }}>{name}</span>
+
             )}
           </div>
         ) : (
           <>
-            <div style={{ display: 'flex', flexDirection: 'column', flexShrink: 0, gap: 1 }}>
+            <div className="id-header-col">
               <span className="id-ticker">{disp}</span>
               {name !== disp && <span className="id-name">{name}</span>}
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', flexShrink: 0, gap: 1 }}>
+            <div className="id-header-col">
               {livePrice != null && <span className="id-price">{displayPrice}</span>}
               {displayChange != null && (
                 <span className={`id-change ${isPos ? 'id-change--up' : 'id-change--down'}`}>
@@ -1199,7 +1200,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
           </>
         )}
 
-        <div style={{ flex: isMobile ? 0 : 1 }} />
+        <div className={`id-header-spacer${isMobile ? ' id-header-spacer--mobile' : ''}`} />
 
         {/* Delta badge — desktop only */}
         {!isMobile && deltaInfo && (
@@ -1274,21 +1275,17 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
             )}
             {/* Mobile: show delta badge inline */}
             {isMobile && deltaInfo && (
-              <span style={{
-                fontSize: 11, fontWeight: 'bold', marginLeft: 'auto', flexShrink: 0,
-                color: deltaInfo.pct >= 0 ? GREEN : RED,
-                border: `1px solid ${deltaInfo.pct >= 0 ? GREEN : RED}`,
-                borderRadius: 3, padding: '2px 6px',
-              }}>
+              <span className="id-delta-badge--mobile"
+                style={{ color: deltaInfo.pct >= 0 ? GREEN : RED, border: `1px solid ${deltaInfo.pct >= 0 ? GREEN : RED}` }}>
                 {deltaInfo.pct >= 0 ? '+' : ''}{fmt(deltaInfo.pct)}%
-                {deltaInfo.days != null && <span style={{ color: 'var(--text-muted)', fontSize: 9 }}> · {deltaInfo.days}d</span>}
+                {deltaInfo.days != null && <span className="id-delta-days"> · {deltaInfo.days}d</span>}
               </span>
             )}
             {isMobile && deltaHint && <span className="id-delta-hint">{deltaHint}</span>}
           </div>
 
           {/* Chart area */}
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+          <div className="id-chart-container">
             {renderChart()}
           </div>
         </div>

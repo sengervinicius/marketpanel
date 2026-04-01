@@ -23,7 +23,7 @@ export default function InstrumentDetailPage() {
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         height: '100vh', background: '#0a0a0a', color: '#444',
-        fontFamily: 'monospace', fontSize: 11,
+        fontSize: 11,
       }}>
         No symbol specified.
       </div>
@@ -34,7 +34,7 @@ export default function InstrumentDetailPage() {
     <div style={{
       height: '100vh', background: '#0a0a0a', overflow: 'hidden',
       display: 'flex', flexDirection: 'column',
-      fontFamily: "'IBM Plex Mono', monospace",
+      fontFamily: 'var(--font-ui)',
     }}>
       {/* Minimal header for the pop-out window */}
       <div style={{

@@ -1250,7 +1250,7 @@ export default function App() {
       <div style={{
         display: 'flex', flexDirection: 'column', height: '100vh',
         background: '#0a0a0a',
-        fontFamily: "'IBM Plex Mono','Roboto Mono','Courier New',monospace",
+        fontFamily: 'var(--font-ui)',
         overflowY: 'auto', overflowX: 'hidden',
         color: '#e0e0e0', userSelect: 'none',
       }}>
@@ -1392,14 +1392,7 @@ export default function App() {
     <MarketProvider restData={mergedData}>
     <MarketTickBridge batchTicks={batchTicks} />
     <PriceProvider marketData={data}>
-    <div style={{
-      display: 'flex', flexDirection: 'column',
-      height: '100dvh',
-      paddingTop: 'env(safe-area-inset-top)',
-      background: 'var(--bg-app)',
-      fontFamily: "'IBM Plex Mono','Roboto Mono','Courier New',monospace",
-      color: 'var(--text-primary)', overflow: 'hidden',
-    }}>
+    <div className="m-app-shell">
 
       {/* Onboarding overlay */}
       {showOnboarding && <OnboardingPresets />}
@@ -1465,7 +1458,7 @@ export default function App() {
       ) : (
         <>
           {/* ── Tab content area ── */}
-          <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', minHeight: 0, WebkitOverflowScrolling: 'touch' }}>
+          <div className="m-app-content">
 
             {activeTab === 'home' && (
               <HomePanelMobile

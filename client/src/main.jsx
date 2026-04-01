@@ -19,7 +19,7 @@ function AuthLoadingScreen() {
     <div style={{
       position: 'fixed', inset: 0, background: '#050505',
       display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-      fontFamily: "'IBM Plex Mono', monospace", gap: 16,
+      gap: 16,
     }}>
       <div style={{ color: '#ff6600', fontWeight: 700, fontSize: 13, letterSpacing: '3px' }}>SENGER</div>
       <div style={{ color: '#2a2a2a', fontSize: 9, letterSpacing: '2px' }}>AUTHENTICATING…</div>

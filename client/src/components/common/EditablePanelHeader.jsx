@@ -86,17 +86,17 @@ export default function EditablePanelHeader({
 
   const S = {
     header: { borderBottom: '1px solid var(--border-strong)', background: 'var(--bg-elevated)', flexShrink: 0, position: 'relative', transition: 'border-color 0.2s', borderColor: dragOver ? 'var(--accent)' : 'var(--border-strong)' },
-    row: { padding: '4px 8px', display: 'flex', alignItems: 'center', gap: 6, fontFamily: '"Courier New", monospace' },
+    row: { padding: '4px 8px', display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'var(--font-ui)' },
     title: { color: 'var(--accent-text)', fontSize: 'var(--font-base)', fontWeight: 700, letterSpacing: '1px', cursor: 'pointer', userSelect: 'none', lineHeight: 1 },
-    titleInput: { background: 'var(--bg-app)', border: '1px solid var(--accent-text)', color: 'var(--accent-text)', fontSize: 'var(--font-base)', fontWeight: 700, letterSpacing: '1px', padding: '1px 4px', fontFamily: '"Courier New", monospace', outline: 'none', borderRadius: 'var(--radius-sm)', width: 120 },
+    titleInput: { background: 'var(--bg-app)', border: '1px solid var(--accent-text)', color: 'var(--accent-text)', fontSize: 'var(--font-base)', fontWeight: 700, letterSpacing: '1px', padding: '1px 4px', fontFamily: 'var(--font-ui)', outline: 'none', borderRadius: 'var(--radius-sm)', width: 120 },
     sub: { color: 'var(--text-faint)', fontSize: 'var(--font-xs)', cursor: 'pointer', userSelect: 'none', padding: '0 3px', borderRadius: 'var(--radius-sm)', transition: 'color 0.15s' },
-    subInput: { background: 'var(--bg-app)', border: '1px solid var(--border-default)', color: 'var(--text-muted)', fontSize: 'var(--font-xs)', padding: '0 3px', fontFamily: '"Courier New", monospace', outline: 'none', borderRadius: 'var(--radius-sm)', width: 80 },
+    subInput: { background: 'var(--bg-app)', border: '1px solid var(--border-default)', color: 'var(--text-muted)', fontSize: 'var(--font-xs)', padding: '0 3px', fontFamily: 'var(--font-ui)', outline: 'none', borderRadius: 'var(--radius-sm)', width: 80 },
     iconBtn: { background: 'none', border: 'none', color: 'var(--text-faint)', cursor: 'pointer', fontSize: 9, padding: '0 2px', lineHeight: 1, display: 'flex', alignItems: 'center' },
     badge: { fontSize: 7, fontWeight: 700, letterSpacing: '0.08em', padding: '1px 4px', borderRadius: 'var(--radius-sm)', marginLeft: 4 },
     dropOverlay: { position: 'absolute', inset: 0, zIndex: 5, background: 'rgba(255,102,0,0.08)', border: '1px dashed var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', borderRadius: 'var(--radius-sm)' },
     dropText: { color: 'var(--accent)', fontSize: 9, fontWeight: 700, letterSpacing: '0.15em' },
     searchRow: { padding: '2px 8px 4px', display: 'flex', gap: 4, alignItems: 'center' },
-    searchInput: { flex: 1, background: 'var(--bg-app)', border: '1px solid var(--border-strong)', color: 'var(--text-primary)', fontSize: 9, padding: '2px 6px', fontFamily: '"Courier New", monospace', outline: 'none', borderRadius: 'var(--radius-sm)' },
+    searchInput: { flex: 1, background: 'var(--bg-app)', border: '1px solid var(--border-strong)', color: 'var(--text-primary)', fontSize: 9, padding: '2px 6px', fontFamily: 'var(--font-ui)', outline: 'none', borderRadius: 'var(--radius-sm)' },
     searchClose: { background: 'none', border: 'none', color: 'var(--text-faint)', cursor: 'pointer', fontSize: 10, padding: 0, lineHeight: 1 },
   };
 

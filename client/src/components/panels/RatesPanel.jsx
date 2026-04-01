@@ -58,16 +58,16 @@ function RatesPanel() {
       alignItems: 'center', padding: '2px 6px',
       borderBottom: '1px solid #0d0d0d',
     }}>
-      <span style={{ color: live ? '#888' : '#555', fontSize: 9, fontFamily: "'IBM Plex Mono', monospace", letterSpacing: '0.03em' }}>
+      <span style={{ color: live ? '#888' : '#555', fontSize: 9, fontFamily: 'var(--font-mono)', letterSpacing: '0.03em' }}>
         {label}
       </span>
-      <span style={{ color: live ? '#e8e8e8' : '#666', fontSize: 10, fontWeight: 700, fontFamily: "'IBM Plex Mono', monospace", textAlign: 'right' }}>
+      <span style={{ color: live ? '#e8e8e8' : '#666', fontSize: 10, fontWeight: 700, fontFamily: 'var(--font-mono)', textAlign: 'right' }}>
         {value != null ? value.toFixed(2) + '%' : '-'}
       </span>
       <span style={{ textAlign: 'right' }}>
         {live ? <PctChange v={change} /> : <span style={{ color: '#2a2a2a', fontSize: 8 }}>—</span>}
       </span>
-      <span style={{ color: '#2a2a2a', fontSize: 7.5, textAlign: 'right', fontFamily: "'IBM Plex Mono', monospace", paddingRight: 2 }}>
+      <span style={{ color: '#2a2a2a', fontSize: 7.5, textAlign: 'right', fontFamily: 'var(--font-mono)', paddingRight: 2 }}>
         {note || ''}
       </span>
     </div>
@@ -75,7 +75,7 @@ function RatesPanel() {
 
   const SectionLabel = ({ text }) => (
     <div style={{ padding: '3px 6px 1px', background: '#060606', borderBottom: '1px solid #111' }}>
-      <span style={{ color: '#2a2a2a', fontSize: 7, fontFamily: "'IBM Plex Mono', monospace", letterSpacing: '0.08em' }}>
+      <span style={{ color: '#2a2a2a', fontSize: 7, fontFamily: 'var(--font-mono)', letterSpacing: '0.08em' }}>
         {text}
       </span>
     </div>
@@ -89,10 +89,10 @@ function RatesPanel() {
         borderBottom: '1px solid #1a1a1a', padding: '0 6px', height: 22,
         flexShrink: 0, background: '#070707',
       }}>
-        <span style={{ color: '#e55a00', fontSize: 9, fontWeight: 700, letterSpacing: '0.12em', fontFamily: "'IBM Plex Mono', monospace" }}>
+        <span style={{ color: '#e55a00', fontSize: 9, fontWeight: 700, letterSpacing: '0.12em', fontFamily: 'var(--font-mono)' }}>
           RATES
         </span>
-        <span style={{ color: '#1e1e1e', fontSize: 7.5, fontFamily: "'IBM Plex Mono', monospace" }}>
+        <span style={{ color: '#1e1e1e', fontSize: 7.5, fontFamily: 'var(--font-mono)' }}>
           {loading ? 'LOADING...' : ts}
         </span>
       </div>
@@ -100,7 +100,7 @@ function RatesPanel() {
       {/* Column headers */}
       <div style={{ display: 'grid', gridTemplateColumns: '70px 52px 44px 1fr', padding: '1px 6px', background: '#070707', borderBottom: '1px solid #111' }}>
         {['TENOR', 'YIELD', 'CHG', ''].map(h => (
-          <span key={h} style={{ color: '#2a2a2a', fontSize: 7, fontFamily: "'IBM Plex Mono', monospace", textAlign: h === 'YIELD' || h === 'CHG' ? 'right' : 'left' }}>
+          <span key={h} style={{ color: '#2a2a2a', fontSize: 7, fontFamily: 'var(--font-mono)', textAlign: h === 'YIELD' || h === 'CHG' ? 'right' : 'left' }}>
             {h}
           </span>
         ))}
@@ -110,7 +110,7 @@ function RatesPanel() {
         {/* US Treasuries — live from Yahoo Finance */}
         <SectionLabel text="US TREASURIES" />
         {treasuryRates.length === 0 && !loading && (
-          <div style={{ padding: '6px', color: '#2a2a2a', fontSize: 8, fontFamily: "'IBM Plex Mono', monospace" }}>NO DATA</div>
+          <div style={{ padding: '6px', color: '#2a2a2a', fontSize: 8, fontFamily: 'var(--font-mono)' }}>NO DATA</div>
         )}
         {treasuryRates.map(r => (
           <ROW key={r.symbol} label={r.name} value={r.price} change={r.change} note="" live={true} />
@@ -131,7 +131,7 @@ function RatesPanel() {
         ))}
 
         <div style={{ padding: '4px 6px', marginTop: 2 }}>
-          <span style={{ color: '#141414', fontSize: 7, fontFamily: "'IBM Plex Mono', monospace" }}>
+          <span style={{ color: '#141414', fontSize: 7, fontFamily: 'var(--font-mono)' }}>
             CB RATES INDICATIVE · SELIC LIVE VIA BCB
           </span>
         </div>

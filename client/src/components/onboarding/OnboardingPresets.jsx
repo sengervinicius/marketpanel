@@ -72,7 +72,7 @@ export default function OnboardingPresets() {
       background: '#080808',
       display: 'flex', flexDirection: 'column',
       alignItems: 'center', justifyContent: 'center',
-      fontFamily: '"IBM Plex Mono","Courier New",monospace',
+      fontFamily: 'var(--font-ui)',
       padding: '24px 16px',
       overflowY: 'auto',
     }}>

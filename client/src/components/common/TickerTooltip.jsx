@@ -139,7 +139,7 @@ const OVERLAY_BASE = {
   border: '1px solid var(--border-strong)',
   borderRadius: 'var(--radius-md)',
   boxShadow: 'var(--shadow-overlay)',
-  fontFamily: "'IBM Plex Mono','Roboto Mono','Courier New',monospace",
+  fontFamily: 'var(--font-mono)',
 };
 
 // ── Context Menu ───────────────────────────────────────────────────────────────

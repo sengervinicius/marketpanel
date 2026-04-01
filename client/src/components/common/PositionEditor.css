@@ -12,7 +12,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: 'IBM Plex Mono', 'Courier New', monospace;
+  font-family: var(--font-ui);
   backdrop-filter: blur(2px);
 }
 
@@ -104,7 +104,7 @@
   color: var(--text-primary, #e0e0e0);
   padding: var(--sp-3, 6px) var(--sp-3, 6px);
   font-size: var(--font-base, 11px);
-  font-family: 'IBM Plex Mono', 'Courier New', monospace;
+  font-family: var(--font-ui);
   outline: none;
   border-radius: var(--radius-sm, 3px);
   transition: border-color 150ms, box-shadow 150ms;
@@ -171,7 +171,7 @@
 .pf-editor-btn {
   padding: var(--sp-3, 6px) var(--sp-5, 12px);
   font-size: var(--font-base, 11px);
-  font-family: 'IBM Plex Mono', 'Courier New', monospace;
+  font-family: var(--font-ui);
   font-weight: 500;
   letter-spacing: 0.08em;
   text-transform: uppercase;

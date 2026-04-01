@@ -152,7 +152,7 @@ function CustomSubsectionBlock({
             fontSize: 'var(--font-xs)',
             padding: '0 4px',
             cursor: 'pointer',
-            fontFamily: '"Courier New", monospace',
+            fontFamily: 'var(--font-ui)',
             borderRadius: 'var(--radius-sm)',
             lineHeight: '14px',
           }}
@@ -179,7 +179,7 @@ function CustomSubsectionBlock({
               color: 'var(--text-primary)',
               fontSize: 'var(--font-sm)',
               padding: '2px 6px',
-              fontFamily: '"Courier New", monospace',
+              fontFamily: 'var(--font-ui)',
               outline: 'none',
               borderRadius: 'var(--radius-sm)',
             }}
@@ -201,7 +201,7 @@ function CustomSubsectionBlock({
               fontWeight: 700,
               padding: '2px 8px',
               cursor: 'pointer',
-              fontFamily: '"Courier New", monospace',
+              fontFamily: 'var(--font-ui)',
               borderRadius: 'var(--radius-sm)',
             }}
           >ADD</button>

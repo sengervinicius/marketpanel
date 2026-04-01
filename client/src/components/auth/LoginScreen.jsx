@@ -148,7 +148,7 @@ export default function LoginScreen({ children }) {
       `,
       backgroundSize: '40px 40px',
       color: '#e0e0e0',
-      fontFamily: '"IBM Plex Mono","Courier New",monospace',
+      fontFamily: 'var(--font-ui)',
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',

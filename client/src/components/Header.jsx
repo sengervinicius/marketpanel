@@ -93,7 +93,7 @@ export function Header({ connected, stocks, forex, marketStatus }) {
   const statusDotColor = feedStatus === 'live' ? '#00c853' : feedStatus === 'degraded' ? '#ff9900' : feedStatus === 'connecting' ? '#ffb74d' : '#ff3333';
 
   return (
-    <div style={{ background: '#0a0a0f', borderBottom: '1px solid #e55a00', flexShrink: 0, fontFamily: "'IBM Plex Mono', 'Courier New', monospace" }}>
+    <div style={{ background: '#0a0a0f', borderBottom: '1px solid #e55a00', flexShrink: 0, fontFamily: 'var(--font-ui)' }}>
       {/* Top bar */}
       <div style={{ display: 'flex', alignItems: 'stretch', height: 46 }}>
         {/* Branding */}

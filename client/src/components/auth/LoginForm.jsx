@@ -44,7 +44,7 @@ export function LoginForm() {
         background: '#0d0d0d',
         border: '1px solid #2a2a2a',
         borderRadius: '4px',
-        fontFamily: "'IBM Plex Mono', monospace",
+        fontFamily: 'var(--font-ui)',
       }}
     >
       <h2 style={{ fontSize: '14px', color: '#ff9900', margin: '0 0 12px 0', fontWeight: 700 }}>
