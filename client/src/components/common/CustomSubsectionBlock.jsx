@@ -5,9 +5,82 @@
  * Used by StockPanel, ForexPanel, CommoditiesPanel.
  */
 import { useState, useRef, useEffect, memo } from 'react';
+import { useTickerPrice } from '../../context/PriceContext';
 
 const fmt = (n) => n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmtPct = (n) => n == null ? '—' : (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
+
+/**
+ * Individual ticker row that falls back to PriceContext when the
+ * parent snapshot data doesn't contain this symbol's price.
+ */
+function TickerRow({ sym, data, color, gridCols, subsection, onTickerClick, onOpenDetail, onRemoveTicker, onDragStart }) {
+  const d = data[sym] || {};
+  const priceCtx = useTickerPrice(d.price != null ? null : sym);
+
+  // Merge: prefer snapshot data, fall back to PriceContext
+  const price = d.price ?? priceCtx?.price ?? null;
+  const changePct = d.changePct ?? priceCtx?.changePct ?? null;
+  const change = d.change ?? priceCtx?.change ?? null;
+  const name = d.name || sym;
+  const pos = (changePct ?? 0) >= 0;
+
+  return (
+    <div
+      key={sym}
+      data-ticker={sym}
+      data-ticker-type="CUSTOM"
+      draggable
+      onDragStart={(e) => {
+        e.dataTransfer.effectAllowed = 'copy';
+        e.dataTransfer.setData('application/x-ticker', JSON.stringify({ symbol: sym, name: sym, type: 'CUSTOM' }));
+        onDragStart?.(e, sym);
+      }}
+      onClick={() => onTickerClick?.(sym)}
+      onDoubleClick={() => onOpenDetail?.(sym)}
+      style={{
+        display: 'grid',
+        gridTemplateColumns: gridCols,
+        padding: '3px 8px',
+        borderBottom: '1px solid #141414',
+        cursor: 'pointer',
+        alignItems: 'center',
+      }}
+      onMouseEnter={(e) => { e.currentTarget.style.background = '#141414'; }}
+      onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+    >
+      <span style={{ color, fontSize: '10px', fontWeight: 700 }}>{sym}</span>
+      <span style={{ color: '#555', fontSize: '9px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: 4 }}>
+        {name}
+      </span>
+      <span style={{ color: '#ccc', fontSize: '10px', textAlign: 'right', paddingRight: 4 }}>
+        {fmt(price)}
+      </span>
+      <span style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 4,
+      }}>
+        <span style={{ color: pos ? '#4caf50' : '#f44336', fontSize: '10px', fontWeight: 600 }}>
+          {fmtPct(changePct)}
+        </span>
+        <button
+          onClick={(e) => { e.stopPropagation(); onRemoveTicker?.(subsection.key, sym); }}
+          style={{
+            background: 'none',
+            border: 'none',
+            color: '#2a2a2a',
+            fontSize: 11,
+            cursor: 'pointer',
+            padding: 0,
+            lineHeight: 1,
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.color = '#f44336'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.color = '#2a2a2a'; }}
+          title={`Remove ${sym} from ${subsection.label}`}
+        >×</button>
+      </span>
+    </div>
+  );
+}
 
 function CustomSubsectionBlock({
   subsection,       // { key, label, color, symbols }
@@ -136,65 +209,20 @@ function CustomSubsectionBlock({
       )}
 
       {/* Ticker rows */}
-      {symbols.map((sym) => {
-        const d = data[sym] || {};
-        const pos = (d.changePct ?? 0) >= 0;
-        return (
-          <div
-            key={sym}
-            data-ticker={sym}
-            data-ticker-type="CUSTOM"
-            draggable
-            onDragStart={(e) => {
-              e.dataTransfer.effectAllowed = 'copy';
-              e.dataTransfer.setData('application/x-ticker', JSON.stringify({ symbol: sym, name: sym, type: 'CUSTOM' }));
-              onDragStart?.(e, sym);
-            }}
-            onClick={() => onTickerClick?.(sym)}
-            onDoubleClick={() => onOpenDetail?.(sym)}
-            style={{
-              display: 'grid',
-              gridTemplateColumns: gridCols,
-              padding: '3px 8px',
-              borderBottom: '1px solid #141414',
-              cursor: 'pointer',
-              alignItems: 'center',
-            }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = '#141414'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
-          >
-            <span style={{ color, fontSize: '10px', fontWeight: 700 }}>{sym}</span>
-            <span style={{ color: '#555', fontSize: '9px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: 4 }}>
-              {d.name || sym}
-            </span>
-            <span style={{ color: '#ccc', fontSize: '10px', textAlign: 'right', paddingRight: 4 }}>
-              {fmt(d.price)}
-            </span>
-            <span style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 4,
-            }}>
-              <span style={{ color: pos ? '#4caf50' : '#f44336', fontSize: '10px', fontWeight: 600 }}>
-                {fmtPct(d.changePct)}
-              </span>
-              <button
-                onClick={(e) => { e.stopPropagation(); onRemoveTicker?.(subsection.key, sym); }}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: '#2a2a2a',
-                  fontSize: 11,
-                  cursor: 'pointer',
-                  padding: 0,
-                  lineHeight: 1,
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.color = '#f44336'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.color = '#2a2a2a'; }}
-                title={`Remove ${sym} from ${subsection.label}`}
-              >×</button>
-            </span>
-          </div>
-        );
-      })}
+      {symbols.map((sym) => (
+        <TickerRow
+          key={sym}
+          sym={sym}
+          data={data}
+          color={color}
+          gridCols={gridCols}
+          subsection={subsection}
+          onTickerClick={onTickerClick}
+          onOpenDetail={onOpenDetail}
+          onRemoveTicker={onRemoveTicker}
+          onDragStart={onDragStart}
+        />
+      ))}
 
       {symbols.length === 0 && (
         <div style={{

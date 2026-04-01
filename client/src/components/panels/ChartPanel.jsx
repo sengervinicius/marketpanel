@@ -381,12 +381,12 @@ function ChartPanel({ ticker: externalTicker, onGridChange, mobile = false, onOp
     if (!mobile) {
       const urlParam = new URLSearchParams(window.location.search).get('c');
       if (urlParam) return; // Desktop: skip server fetch when URL already has tickers
-    } // skip server fetch
+    }
     apiFetch('/api/settings')
       .then(r => r.ok ? r.json() : null)
       .then(s => {
-        if (Array.isArray(s?.chartGrid) && s.chartGrid.length) {
-          const serverGrid = s.chartGrid.slice(0, MAX);
+        if (Array.isArray(s?.settings?.chartGrid) && s.settings.chartGrid.length) {
+          const serverGrid = s.settings.chartGrid.slice(0, MAX);
           setTickers(prev =>
             JSON.stringify(prev) === JSON.stringify(serverGrid) ? prev : serverGrid
           );
