@@ -118,17 +118,29 @@ function descKey(symbol) {
 }
 
 // ── Accent color by asset type ──────────────────────────────────────────────
+// These are semantic identity colors per asset class, not generic UI chrome.
+// They intentionally stay as literal values rather than referencing --section-* tokens
+// because the tooltip needs to work across all panel contexts.
 function accentFor(type) {
-  if (!type) return '#ff6600';
+  if (!type) return 'var(--accent)';
   const t = type.toUpperCase();
   if (t === 'FX' || t === 'FOREX')     return '#ce93d8';
   if (t === 'CRYPTO')                  return '#f7931a';
-  if (t === 'ETF' || t === 'INDEX')    return '#ff6600';
+  if (t === 'ETF' || t === 'INDEX')    return 'var(--accent)';
   if (t === 'COMMODITY')               return '#ffd54f';
-  if (t === 'EQUITY')                  return '#00bcd4';
-  if (t === 'BR' || t === 'ADR')       return '#ffa726';
-  return '#ff6600';
+  if (t === 'EQUITY')                  return 'var(--section-equity)';
+  if (t === 'BR' || t === 'ADR')       return 'var(--section-brazil)';
+  return 'var(--accent)';
 }
+
+// ── Shared overlay surface style ────────────────────────────────────────────
+const OVERLAY_BASE = {
+  background: 'var(--bg-elevated)',
+  border: '1px solid var(--border-strong)',
+  borderRadius: 'var(--radius-md)',
+  boxShadow: 'var(--shadow-overlay)',
+  fontFamily: "'IBM Plex Mono','Roboto Mono','Courier New',monospace",
+};
 
 // ── Context Menu ───────────────────────────────────────────────────────────────
 function ContextMenu({ symbol, label, type, x, y, onClose, onOpenDetail }) {
@@ -157,31 +169,30 @@ function ContextMenu({ symbol, label, type, x, y, onClose, onOpenDetail }) {
     <div
       style={{
         position: 'fixed', left, top, zIndex: 100000,
-        background: '#111', border: '1px solid #2a2a2a',
-        borderLeft: `3px solid ${accent}`, borderRadius: 3,
-        minWidth: 170, boxShadow: '0 6px 24px rgba(0,0,0,0.8)',
-        fontFamily: "'IBM Plex Mono','Roboto Mono','Courier New',monospace",
-        fontSize: 10,
+        ...OVERLAY_BASE,
+        borderLeft: `3px solid ${accent}`,
+        minWidth: 170,
+        fontSize: 'var(--font-base)',
       }}
       onClick={e => e.stopPropagation()}
     >
       {/* Symbol header */}
-      <div style={{ padding: '5px 10px 4px', borderBottom: '1px solid #1e1e1e', color: accent, fontWeight: 700, fontSize: 11, letterSpacing: '0.05em' }}>
+      <div style={{ padding: '5px 10px 4px', borderBottom: '1px solid var(--border-default)', color: accent, fontWeight: 700, fontSize: 'var(--font-md)', letterSpacing: '0.05em' }}>
         {symbol}
-        {label && label !== symbol && <span style={{ color: '#555', fontSize: 8, marginLeft: 6, fontWeight: 400 }}>{label}</span>}
+        {label && label !== symbol && <span style={{ color: 'var(--text-faint)', fontSize: 'var(--font-sm)', marginLeft: 6, fontWeight: 400 }}>{label}</span>}
       </div>
       {/* Menu items */}
       <div
         className="ctx-menu-item"
         onClick={() => { toggle(symbol); onClose(); }}
-        style={{ color: watching ? '#f44336' : '#4caf50' }}
+        style={{ color: watching ? 'var(--price-down)' : 'var(--price-up)' }}
       >
         {watching ? '✕ Remove from Watchlist' : '★ Add to Watchlist'}
       </div>
       <div
         className="ctx-menu-item"
         onClick={() => { onOpenDetail?.(symbol); onClose(); }}
-        style={{ color: '#ccc' }}
+        style={{ color: 'var(--text-primary)' }}
       >
         ↗ Open Chart
       </div>
@@ -321,14 +332,10 @@ export function TickerTooltip({ onOpenDetail }) {
               position:       'fixed',
               left, top,
               zIndex:         99999,
-              background:     '#111',
-              border:        `1px solid #2a2a2a`,
+              ...OVERLAY_BASE,
               borderLeft:    `3px solid ${accent}`,
-              borderRadius:  4,
               padding:       '8px 12px',
               maxWidth:      270,
-              boxShadow:     '0 6px 24px rgba(0,0,0,0.7)',
-              fontFamily:    "'IBM Plex Mono','Roboto Mono','Courier New',monospace",
               userSelect:    'text',
               pointerEvents: 'auto',
             }}
@@ -337,21 +344,21 @@ export function TickerTooltip({ onOpenDetail }) {
           >
             {/* Symbol + type badge */}
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 5 }}>
-              <span style={{ color: accent, fontSize: 12, fontWeight: 700, letterSpacing: '0.06em' }}>
+              <span style={{ color: accent, fontSize: 'var(--font-lg)', fontWeight: 700, letterSpacing: '0.06em' }}>
                 {symbol}
               </span>
               {label && label !== symbol && (
-                <span style={{ color: '#666', fontSize: 9 }}>{label}</span>
+                <span style={{ color: 'var(--text-muted)', fontSize: 'var(--font-sm)' }}>{label}</span>
               )}
               {type && (
                 <span style={{
                   marginLeft:    'auto',
-                  background:    '#1e1e1e',
+                  background:    'var(--bg-active)',
                   border:        `1px solid ${accent}33`,
-                  borderRadius:  2,
+                  borderRadius:  'var(--radius-sm)',
                   padding:       '0 4px',
                   color:         accent,
-                  fontSize:      8,
+                  fontSize:      'var(--font-sm)',
                   fontWeight:    700,
                   letterSpacing: '0.08em',
                 }}>
@@ -360,9 +367,9 @@ export function TickerTooltip({ onOpenDetail }) {
               )}
             </div>
             {/* Description */}
-            <div style={{ color: '#aaa', fontSize: 10, lineHeight: 1.55 }}>{desc}</div>
+            <div style={{ color: 'var(--text-secondary)', fontSize: 'var(--font-base)', lineHeight: 1.55 }}>{desc}</div>
             {/* Hint */}
-            <div style={{ color: '#333', fontSize: 8, marginTop: 6 }}>Right-click for actions</div>
+            <div style={{ color: 'var(--text-faint)', fontSize: 'var(--font-sm)', marginTop: 6 }}>Right-click for actions</div>
           </div>,
           document.body
         );

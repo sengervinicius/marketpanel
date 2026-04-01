@@ -121,10 +121,10 @@ function LayoutMoveOverlay({ panelId, rowIdx, colIdx, rowLen, totalRows, onMove 
       onClick={() => !disabled && onMove(panelId, rowIdx, colIdx, dir)}
       disabled={disabled}
       style={{
-        background: disabled ? '#111' : '#1a0900',
-        border: `1px solid ${disabled ? '#222' : '#ff6600'}`,
-        color:  disabled ? '#2a2a2a' : '#ff6600',
-        width: 22, height: 22, borderRadius: 3, cursor: disabled ? 'default' : 'pointer',
+        background: disabled ? 'var(--bg-elevated)' : '#1a0900',
+        border: `1px solid ${disabled ? 'var(--border-default)' : 'var(--accent)'}`,
+        color:  disabled ? 'var(--border-strong)' : 'var(--accent)',
+        width: 22, height: 22, borderRadius: 'var(--radius-sm)', cursor: disabled ? 'default' : 'pointer',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         fontSize: 12, fontFamily: 'monospace', padding: 0,
       }}
@@ -145,9 +145,9 @@ function LayoutMoveOverlay({ panelId, rowIdx, colIdx, rowLen, totalRows, onMove 
         <div style={{ display: 'flex', gap: 4 }}>
           {btn('left',  '←', colIdx === 0)}
           <div style={{
-            background: '#0d0d0d', border: '1px solid #2a2a2a',
-            borderRadius: 3, padding: '2px 8px',
-            color: '#ff6600', fontSize: 9, fontWeight: 700, letterSpacing: '0.5px',
+            background: 'var(--bg-surface)', border: '1px solid var(--border-strong)',
+            borderRadius: 'var(--radius-sm)', padding: '2px 8px',
+            color: 'var(--accent)', fontSize: 9, fontWeight: 700, letterSpacing: '0.5px',
             whiteSpace: 'nowrap', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis',
           }}>{panelLabel}</div>
           {btn('right', '→', colIdx === rowLen - 1)}
@@ -353,8 +353,8 @@ const PRESET_LIST = [
 
 function SettingsSection({ label }) {
   return (
-    <div style={{ padding: '8px 12px 4px', borderBottom: '1px solid #1a1a1a', marginTop: 4 }}>
-      <span style={{ color: '#ff6600', fontSize: 8, fontWeight: 700, letterSpacing: '1.2px' }}>{label}</span>
+    <div style={{ padding: '8px 12px 4px', borderBottom: '1px solid var(--border-default)', marginTop: 4 }}>
+      <span style={{ color: 'var(--accent)', fontSize: 'var(--font-sm)', fontWeight: 700, letterSpacing: '1.2px' }}>{label}</span>
     </div>
   );
 }
@@ -384,7 +384,7 @@ function SettingsDrawer({ panelVisible, togglePanel, onClose }) {
 
   const rowStyle = {
     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-    padding: '5px 12px', cursor: 'pointer', borderBottom: '1px solid #141414',
+    padding: '5px 12px', cursor: 'pointer', borderBottom: '1px solid var(--border-subtle)',
     transition: 'background-color 100ms ease-out',
   };
 
@@ -401,9 +401,9 @@ function SettingsDrawer({ panelVisible, togglePanel, onClose }) {
   return (
     <div style={{
       position: 'absolute', top: 36, right: 0, zIndex: 1000,
-      background: '#0d0d0d', border: '1px solid #2a2a2a', borderTop: 'none',
+      background: 'var(--bg-overlay)', border: '1px solid var(--border-strong)', borderTop: 'none',
       width: 260, maxHeight: 'calc(100vh - 60px)', overflowY: 'auto',
-      boxShadow: '0 8px 32px rgba(0,0,0,0.8)',
+      boxShadow: 'var(--shadow-overlay)',
       animation: 'slideInRight 200ms ease-out',
     }}>
       <style>{`
@@ -420,12 +420,12 @@ function SettingsDrawer({ panelVisible, togglePanel, onClose }) {
       `}</style>
 
       {/* Drawer header */}
-      <div style={{ padding: '6px 12px', borderBottom: '1px solid #1a1a1a', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={{ color: '#ff6600', fontSize: 9, fontWeight: 700, letterSpacing: '1px' }}>SETTINGS</span>
+      <div style={{ padding: '6px 12px', borderBottom: '1px solid var(--border-default)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span style={{ color: 'var(--accent)', fontSize: 9, fontWeight: 700, letterSpacing: '1px' }}>SETTINGS</span>
         <button
           onClick={onClose}
           title="Close (Esc)"
-          style={{ background: 'none', border: 'none', color: '#444', cursor: 'pointer', fontSize: 12, padding: 0 }}
+          style={{ background: 'none', border: 'none', color: 'var(--text-faint)', cursor: 'pointer', fontSize: 12, padding: 0 }}
           aria-label="Close settings"
         >
           ✕
@@ -441,11 +441,11 @@ function SettingsDrawer({ panelVisible, togglePanel, onClose }) {
           tabIndex={0}
           style={rowStyle}
           {...makeRowClickable(() => handleStartPage(value))}
-          onMouseEnter={e => e.currentTarget.style.background = '#141414'}
+          onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
           onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
         >
-          <span style={{ color: defaultStartPage === value ? '#ff6600' : '#888', fontSize: 9, letterSpacing: '0.5px' }}>{label}</span>
-          <span style={{ color: defaultStartPage === value ? '#ff6600' : '#2a2a2a', fontSize: 10 }}>{defaultStartPage === value ? '●' : '○'}</span>
+          <span style={{ color: defaultStartPage === value ? 'var(--accent)' : 'var(--text-muted)', fontSize: 9, letterSpacing: '0.5px' }}>{label}</span>
+          <span style={{ color: defaultStartPage === value ? 'var(--accent)' : 'var(--border-strong)', fontSize: 10 }}>{defaultStartPage === value ? '●' : '○'}</span>
         </div>
       ))}
 
@@ -459,8 +459,8 @@ function SettingsDrawer({ panelVisible, togglePanel, onClose }) {
         onMouseEnter={e => e.currentTarget.style.background = '#141414'}
         onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
       >
-        <span style={{ color: '#888', fontSize: 9, letterSpacing: '0.5px' }}>{theme === 'dark' ? '◑ DARK MODE' : '☀ LIGHT MODE'}</span>
-        <span style={{ color: '#ff6600', fontSize: 8, fontWeight: 700, letterSpacing: '0.5px' }}>TOGGLE</span>
+        <span style={{ color: 'var(--text-muted)', fontSize: 9, letterSpacing: '0.5px' }}>{theme === 'dark' ? '◑ DARK MODE' : '☀ LIGHT MODE'}</span>
+        <span style={{ color: 'var(--accent)', fontSize: 8, fontWeight: 700, letterSpacing: '0.5px' }}>TOGGLE</span>
       </div>
 
       {/* ── Workspace Presets ── */}
@@ -472,14 +472,14 @@ function SettingsDrawer({ panelVisible, togglePanel, onClose }) {
           tabIndex={0}
           style={{ ...rowStyle, cursor: applyingPreset ? 'wait' : 'pointer' }}
           {...makeRowClickable(() => !applyingPreset && handlePreset(key))}
-          onMouseEnter={e => e.currentTarget.style.background = '#141414'}
+          onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
           onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
           aria-busy={applyingPreset === key}
         >
-          <span style={{ color: '#888', fontSize: 9, letterSpacing: '0.5px' }}>{label}</span>
+          <span style={{ color: 'var(--text-muted)', fontSize: 9, letterSpacing: '0.5px' }}>{label}</span>
           {applyingPreset === key
-            ? <span style={{ color: '#ff6600', fontSize: 8 }}>APPLYING…</span>
-            : <span style={{ color: '#444', fontSize: 8, letterSpacing: '0.5px' }}>APPLY →</span>}
+            ? <span style={{ color: 'var(--accent)', fontSize: 8 }}>APPLYING…</span>
+            : <span style={{ color: 'var(--text-faint)', fontSize: 8, letterSpacing: '0.5px' }}>APPLY →</span>}
         </div>
       ))}
 
@@ -493,10 +493,10 @@ function SettingsDrawer({ panelVisible, togglePanel, onClose }) {
         onMouseEnter={e => e.currentTarget.style.background = '#141414'}
         onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
       >
-        <span style={{ color: '#888', fontSize: 9, letterSpacing: '0.5px' }}>Reset to Default</span>
+        <span style={{ color: 'var(--text-muted)', fontSize: 9, letterSpacing: '0.5px' }}>Reset to Default</span>
         {resettingLayout
-          ? <span style={{ color: '#ff6600', fontSize: 8 }}>RESETTING…</span>
-          : <span style={{ color: '#444', fontSize: 8, letterSpacing: '0.5px' }}>↻ RESET</span>}
+          ? <span style={{ color: 'var(--accent)', fontSize: 8 }}>RESETTING…</span>
+          : <span style={{ color: 'var(--text-faint)', fontSize: 8, letterSpacing: '0.5px' }}>↻ RESET</span>}
       </div>
 
       {/* ── Panel Visibility ── */}
@@ -510,12 +510,12 @@ function SettingsDrawer({ panelVisible, togglePanel, onClose }) {
             tabIndex={0}
             style={rowStyle}
             {...makeRowClickable(() => togglePanel(id))}
-            onMouseEnter={e => e.currentTarget.style.background = '#141414'}
+            onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
             onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
             aria-pressed={visible}
           >
-            <span style={{ color: visible ? '#ccc' : '#444', fontSize: 9, letterSpacing: '0.5px' }}>{label}</span>
-            <span style={{ color: visible ? '#00cc66' : '#333', fontSize: 9, fontWeight: 700 }}>
+            <span style={{ color: visible ? 'var(--text-primary)' : 'var(--text-faint)', fontSize: 9, letterSpacing: '0.5px' }}>{label}</span>
+            <span style={{ color: visible ? 'var(--price-up)' : 'var(--text-faint)', fontSize: 9, fontWeight: 700 }}>
               {visible ? '● ON' : '○ OFF'}
             </span>
           </div>
@@ -544,40 +544,41 @@ function UserDropdown({ user, onSettings, onLogout, onBilling, isPaid }) {
       <button
         onClick={() => setOpen(s => !s)}
         style={{
-          background: 'none', border: '1px solid #282828', color: '#888',
+          background: 'none', border: '1px solid var(--border-strong)', color: 'var(--text-muted)',
           fontSize: 9, padding: '2px 8px', cursor: 'pointer',
-          fontFamily: 'inherit', borderRadius: 2, letterSpacing: '0.5px',
+          fontFamily: 'inherit', borderRadius: 'var(--radius-sm)', letterSpacing: '0.5px',
           display: 'flex', alignItems: 'center', gap: 5,
         }}
       >
-        <span style={{ color: open ? '#ff6600' : '#444', fontSize: 8 }}>▼</span>
+        <span style={{ color: open ? 'var(--accent)' : 'var(--text-faint)', fontSize: 8 }}>▼</span>
         {user.username?.toUpperCase()}
       </button>
       {open && (
         <div style={{
           position: 'absolute', top: 'calc(100% + 2px)', right: 0, zIndex: 2000,
-          background: '#0d0d0d', border: '1px solid #2a2a2a',
-          width: 150, boxShadow: '0 4px 20px rgba(0,0,0,0.9)',
+          background: 'var(--bg-overlay)', border: '1px solid var(--border-strong)',
+          width: 150, boxShadow: 'var(--shadow-dropdown)',
+          borderRadius: 'var(--radius-sm)',
         }}>
           {isPaid && onBilling && (
             <div
               onClick={() => { setOpen(false); onBilling(); }}
-              style={{ padding: '7px 12px', cursor: 'pointer', color: '#888', fontSize: 9, letterSpacing: '0.5px', borderBottom: '1px solid #1a1a1a' }}
-              onMouseEnter={e => { e.currentTarget.style.background = '#141414'; e.currentTarget.style.color = '#44ff44'; }}
-              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#888'; }}
+              style={{ padding: '7px 12px', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 9, letterSpacing: '0.5px', borderBottom: '1px solid var(--border-default)' }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-hover)'; e.currentTarget.style.color = 'var(--price-up)'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = ''; }}
             >💳 BILLING</div>
           )}
           <div
             onClick={() => { setOpen(false); onSettings(); }}
-            style={{ padding: '7px 12px', cursor: 'pointer', color: '#888', fontSize: 9, letterSpacing: '0.5px', borderBottom: isPaid && onBilling ? '1px solid #1a1a1a' : '1px solid #1a1a1a' }}
-            onMouseEnter={e => { e.currentTarget.style.background = '#141414'; e.currentTarget.style.color = '#ff6600'; }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#888'; }}
+            style={{ padding: '7px 12px', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 9, letterSpacing: '0.5px', borderBottom: '1px solid var(--border-default)' }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-hover)'; e.currentTarget.style.color = 'var(--accent)'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = ''; }}
           >⚙ SETTINGS</div>
           <div
             onClick={() => { setOpen(false); onLogout(); }}
-            style={{ padding: '7px 12px', cursor: 'pointer', color: '#888', fontSize: 9, letterSpacing: '0.5px' }}
-            onMouseEnter={e => { e.currentTarget.style.background = '#141414'; e.currentTarget.style.color = '#ff4444'; }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#888'; }}
+            style={{ padding: '7px 12px', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 9, letterSpacing: '0.5px' }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-hover)'; e.currentTarget.style.color = 'var(--price-down)'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = ''; }}
           >→ LOG OUT</div>
         </div>
       )}

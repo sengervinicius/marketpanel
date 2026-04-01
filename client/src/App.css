@@ -72,6 +72,11 @@
   /* Row heights */
   --row-height: 26px;
   --row-height-touch: 44px;
+
+  /* Overlay surfaces */
+  --bg-overlay:     #0d0d0d;
+  --shadow-overlay:  0 6px 24px rgba(0,0,0,0.8);
+  --shadow-dropdown: 0 4px 20px rgba(0,0,0,0.9);
 }
 
 /* ── Base reset ─────────────────────────────────── */
@@ -182,7 +187,7 @@ textarea:focus-visible { outline: 1px solid var(--accent); outline-offset: 0; bo
   white-space: nowrap;
   transition: background 0.1s;
 }
-.ctx-menu-item:hover { background: #1e1e1e; }
+.ctx-menu-item:hover { background: var(--bg-active); }
 
 /* ── Skeleton loader ────────────────────────────────────────── */
 .skeleton-container { padding: 8px; }
