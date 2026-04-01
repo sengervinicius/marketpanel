@@ -1174,6 +1174,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
     <div
       className={asPage ? 'id-page' : 'id-overlay'}
       onMouseDown={asPage ? undefined : (e => { if (e.target === e.currentTarget) onClose(); })}
+    >
       {/* ── HERO PRICE BLOCK ── */}
       <div className="id-hero">
         <div className="id-hero-meta">
