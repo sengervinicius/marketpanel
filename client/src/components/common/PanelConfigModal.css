@@ -1,0 +1,279 @@
+/* PanelConfigModal.css - Modal overlay and content styling */
+
+.pcm-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pcm-modal {
+  background: #0d0d0d;
+  border: 1px solid #2a2a2a;
+  border-radius: 6px;
+  width: 90%;
+  max-width: 560px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  font-family: var(--font-ui);
+}
+
+.pcm-header {
+  padding: 14px 18px;
+  border-bottom: 1px solid #1a1a1a;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.pcm-header-title {
+  color: #ff6600;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.pcm-header-close {
+  background: none;
+  border: none;
+  color: #555;
+}
+
+.pcm-body {
+  flex: 1;
+  display: flex;
+  gap: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.pcm-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 12px 14px;
+  min-height: 0;
+}
+
+.pcm-col-left {
+  border-right: 1px solid #1a1a1a;
+}
+
+.pcm-col-title {
+  color: #ff6600;
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  margin-bottom: 8px;
+  flex-shrink: 0;
+}
+
+.pcm-col-title-selected {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.pcm-col-title-maxIndicator {
+  font-size: 7px;
+  color: #666;
+  letter-spacing: 0.5px;
+}
+
+.pcm-input {
+  background: #080808;
+  border: 1px solid #2a2a2a;
+  color: #e0e0e0;
+  padding: 6px 10px;
+  font-size: 11px;
+  outline: none;
+  width: 100%;
+  box-sizing: border-box;
+  border-radius: 3px;
+  margin-bottom: 8px;
+}
+
+.pcm-list {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.pcm-group-header {
+  color: #ff6600;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  padding: 6px 8px 4px;
+  margin-top: 4px;
+  margin-bottom: 2px;
+}
+
+.pcm-item {
+  padding: 5px 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-radius: 3px;
+  margin-bottom: 2px;
+}
+
+.pcm-item-selected {
+  background: #1a0900;
+  color: #ff6600;
+}
+
+.pcm-item-unselected {
+  background: transparent;
+  color: #888;
+}
+
+.pcm-item-name {
+  color: #333;
+  font-size: 9px;
+}
+
+.pcm-item-dragging {
+  opacity: 0.5;
+  cursor: grab;
+  transition: opacity 150ms;
+  justify-content: space-between;
+}
+
+.pcm-item-draggable {
+  user-select: none;
+}
+
+.pcm-button-row {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 8px;
+  flex-shrink: 0;
+}
+
+.pcm-button-selectall {
+  flex: 1;
+  padding: 4px 6px;
+  font-size: 8px;
+  letter-spacing: 0.1em;
+  border: 1px solid #2a2a2a;
+}
+
+.pcm-button-selectall:disabled {
+  background: #0a0a0a;
+  color: #333;
+  cursor: default;
+}
+
+.pcm-button-selectall:not(:disabled) {
+  background: transparent;
+  color: #666;
+  cursor: pointer;
+}
+
+.pcm-button-clearall {
+  flex: 1;
+  padding: 4px 6px;
+  font-size: 8px;
+  letter-spacing: 0.1em;
+  border: 1px solid #2a2a2a;
+}
+
+.pcm-button-clearall:disabled {
+  background: #0a0a0a;
+  color: #333;
+  cursor: default;
+}
+
+.pcm-button-clearall:not(:disabled) {
+  background: transparent;
+  color: #666;
+  cursor: pointer;
+}
+
+.pcm-button-moveup {
+  background: none;
+  border: none;
+  padding: 2px;
+}
+
+.pcm-button-moveup:disabled {
+  color: #222;
+  cursor: default;
+}
+
+.pcm-button-moveup:not(:disabled) {
+  color: #555;
+  cursor: pointer;
+}
+
+.pcm-button-movedown {
+  background: none;
+  border: none;
+  padding: 2px;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.pcm-button-movedown:disabled {
+  color: #222;
+  cursor: default;
+}
+
+.pcm-button-movedown:not(:disabled) {
+  color: #555;
+  cursor: pointer;
+}
+
+.pcm-button-remove {
+  background: none;
+  border: none;
+  color: #555;
+  line-height: 1;
+}
+
+.pcm-footer {
+  padding: 12px 18px;
+  border-top: 1px solid #1a1a1a;
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.pcm-button-secondary {
+  padding: 8px 20px;
+  letter-spacing: 0.1em;
+  border-radius: 3px;
+  border: 1px solid #2a2a2a;
+  background: transparent;
+  color: #888;
+  font-weight: normal;
+}
+
+.pcm-button-primary {
+  padding: 8px 20px;
+  letter-spacing: 0.1em;
+  border-radius: 3px;
+  border: 1px solid #ff6600;
+  background: #ff6600;
+  color: #000;
+  font-weight: bold;
+}
+
+.pcm-title-section {
+  padding: 12px 18px 0;
+  flex-shrink: 0;
+}
+
+.pcm-title-label {
+  color: #555;
+  font-size: 9px;
+  letter-spacing: 0.15em;
+  margin-bottom: 4px;
+}
+
+.pcm-empty-message {
+  color: #2a2a2a;
+  padding: 8px;
+}

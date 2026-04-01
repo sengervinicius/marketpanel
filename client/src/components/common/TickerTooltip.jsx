@@ -5,6 +5,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useWatchlist } from '../../context/PortfolioContext';
+import './TickerTooltip.css';
 
 // ── Security descriptions ─────────────────────────────────────────────────────
 const DESCRIPTIONS = {
@@ -133,14 +134,6 @@ function accentFor(type) {
   return 'var(--accent)';
 }
 
-// ── Shared overlay surface style ────────────────────────────────────────────
-const OVERLAY_BASE = {
-  background: 'var(--bg-elevated)',
-  border: '1px solid var(--border-strong)',
-  borderRadius: 'var(--radius-md)',
-  boxShadow: 'var(--shadow-overlay)',
-  fontFamily: 'var(--font-mono)',
-};
 
 // ── Context Menu ───────────────────────────────────────────────────────────────
 function ContextMenu({ symbol, label, type, x, y, onClose, onOpenDetail }) {
@@ -167,19 +160,14 @@ function ContextMenu({ symbol, label, type, x, y, onClose, onOpenDetail }) {
 
   return createPortal(
     <div
-      style={{
-        position: 'fixed', left, top, zIndex: 100000,
-        ...OVERLAY_BASE,
-        borderLeft: `3px solid ${accent}`,
-        minWidth: 170,
-        fontSize: 'var(--font-base)',
-      }}
+      className="tt-overlay-base tt-context-menu"
+      style={{ left, top, borderLeft: `3px solid ${accent}` }}
       onClick={e => e.stopPropagation()}
     >
       {/* Symbol header */}
-      <div style={{ padding: '5px 10px 4px', borderBottom: '1px solid var(--border-default)', color: accent, fontWeight: 700, fontSize: 'var(--font-md)', letterSpacing: '0.05em' }}>
+      <div className="tt-context-menu-header" style={{ color: accent }}>
         {symbol}
-        {label && label !== symbol && <span style={{ color: 'var(--text-faint)', fontSize: 'var(--font-sm)', marginLeft: 6, fontWeight: 400 }}>{label}</span>}
+        {label && label !== symbol && <span className="tt-context-menu-header-label">{label}</span>}
       </div>
       {/* Menu items */}
       <div
@@ -328,48 +316,29 @@ export function TickerTooltip({ onOpenDetail }) {
         const top    = Math.min(y, window.innerHeight - 120);
         return createPortal(
           <div
-            style={{
-              position:       'fixed',
-              left, top,
-              zIndex:         99999,
-              ...OVERLAY_BASE,
-              borderLeft:    `3px solid ${accent}`,
-              padding:       '8px 12px',
-              maxWidth:      270,
-              userSelect:    'text',
-              pointerEvents: 'auto',
-            }}
+            className="tt-overlay-base tt-hover-tooltip"
+            style={{ left, top, borderLeft: `3px solid ${accent}` }}
             onClick={e => e.stopPropagation()}
             onContextMenu={e => e.stopPropagation()}
           >
             {/* Symbol + type badge */}
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 5 }}>
-              <span style={{ color: accent, fontSize: 'var(--font-lg)', fontWeight: 700, letterSpacing: '0.06em' }}>
+            <div className="tt-tooltip-header">
+              <span className="tt-tooltip-symbol" style={{ color: accent }}>
                 {symbol}
               </span>
               {label && label !== symbol && (
-                <span style={{ color: 'var(--text-muted)', fontSize: 'var(--font-sm)' }}>{label}</span>
+                <span className="tt-tooltip-label">{label}</span>
               )}
               {type && (
-                <span style={{
-                  marginLeft:    'auto',
-                  background:    'var(--bg-active)',
-                  border:        `1px solid ${accent}33`,
-                  borderRadius:  'var(--radius-sm)',
-                  padding:       '0 4px',
-                  color:         accent,
-                  fontSize:      'var(--font-sm)',
-                  fontWeight:    700,
-                  letterSpacing: '0.08em',
-                }}>
+                <span className="tt-tooltip-type-badge" style={{ color: accent, borderColor: `${accent}33` }}>
                   {type}
                 </span>
               )}
             </div>
             {/* Description */}
-            <div style={{ color: 'var(--text-secondary)', fontSize: 'var(--font-base)', lineHeight: 1.55 }}>{desc}</div>
+            <div className="tt-tooltip-description">{desc}</div>
             {/* Hint */}
-            <div style={{ color: 'var(--text-faint)', fontSize: 'var(--font-sm)', marginTop: 6 }}>Right-click for actions</div>
+            <div className="tt-tooltip-hint">Right-click for actions</div>
           </div>,
           document.body
         );

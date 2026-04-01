@@ -1,0 +1,127 @@
+/* DICurvePanel.css */
+
+.dic-container {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-panel);
+  height: 100%;
+  overflow: hidden;
+}
+
+.dic-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2px var(--sp-2);
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
+  flex-shrink: 0;
+  height: 20px;
+}
+
+.dic-header-title {
+  color: var(--text-muted);
+  font-weight: 700;
+  font-size: var(--font-sm);
+  letter-spacing: 0.15em;
+}
+
+.dic-header-status {
+  color: var(--text-faint);
+  font-size: var(--font-xs);
+}
+
+.dic-block {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.dic-block-bordered {
+  border-top: 1px solid var(--border-subtle);
+}
+
+.dic-block-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1px 6px 0;
+  flex-shrink: 0;
+  height: 16px;
+  gap: 4px;
+}
+
+.dic-block-label {
+  font-size: var(--font-xs);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  flex-shrink: 0;
+}
+
+.dic-key-points {
+  display: flex;
+  gap: 5px;
+  overflow: hidden;
+}
+
+.dic-key-point {
+  white-space: nowrap;
+  line-height: 1;
+}
+
+.dic-key-point-tenor {
+  color: var(--text-faint);
+  font-size: 6px;
+  letter-spacing: 0.03em;
+}
+
+.dic-key-point-rate {
+  color: var(--text-secondary);
+  font-size: 7.5px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.dic-chart-area {
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.dic-chart-loading,
+.dic-chart-error {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-faint);
+  font-size: var(--font-xs);
+}
+
+.dic-chart-error {
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dic-retry-btn {
+  background: none;
+  border: 1px solid var(--border-default);
+  color: var(--text-faint);
+  font-size: 6.5px;
+  padding: 2px 5px;
+  cursor: pointer;
+  font-family: var(--font-ui);
+}
+
+.dic-source {
+  padding: 0 6px 1px;
+  flex-shrink: 0;
+}
+
+.dic-source-text {
+  color: var(--text-faint);
+  font-size: 5.5px;
+  letter-spacing: 0.04em;
+}

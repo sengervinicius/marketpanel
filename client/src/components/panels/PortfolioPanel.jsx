@@ -23,6 +23,7 @@ import {
   fmt, fmtPct, fmtCompact, computeSummary, computeAllocation,
   computeBenchmarkComparison, suggestBenchmark, inferAssetType, assetTypeLabel,
 } from '../../utils/portfolioAnalytics';
+import './PortfolioPanel.css';
 
 const COLS = '72px 56px 72px 72px 64px 20px 24px';
 
@@ -50,12 +51,10 @@ const SyncBadge = memo(function SyncBadge({ syncStatus, onRetry }) {
     <span
       onClick={syncStatus === 'error' ? onRetry : undefined}
       title={syncStatus === 'error' ? 'Click to retry sync' : ''}
+      className="pp-sync-badge"
       style={{
-        fontSize: 'var(--font-sm)', fontWeight: 600, padding: '1px 5px',
-        borderRadius: 'var(--radius-sm)', background: s.bg, color: s.color,
+        background: s.bg, color: s.color,
         cursor: syncStatus === 'error' ? 'pointer' : 'default',
-        letterSpacing: '0.5px', textTransform: 'uppercase',
-        transition: 'opacity 0.3s',
       }}
     >
       {s.label}
@@ -68,15 +67,15 @@ const AllocationBar = memo(function AllocationBar({ items }) {
   if (!items || items.length === 0) return null;
   const colors = ['var(--accent)', 'var(--price-up)', '#5c6bc0', '#ab47bc', '#26a69a', '#ef5350', '#78909c'];
   return (
-    <div style={{ display: 'flex', gap: 1, height: 4, borderRadius: 2, overflow: 'hidden', margin: '2px 0' }}>
+    <div className="flex-row pp-allocation-container">
       {items.map((item, i) => (
         <div
           key={item.key}
           title={`${item.label}: ${item.pct.toFixed(1)}%`}
+          className="pp-allocation-segment"
           style={{
             flex: item.pct, background: colors[i % colors.length],
             minWidth: item.pct > 1 ? 2 : 0,
-            transition: 'flex 0.3s ease',
           }}
         />
       ))}
@@ -95,65 +94,58 @@ const SummaryStrip = memo(function SummaryStrip({ positions, getPriceData, portf
 
   if (positions.length === 0) return null;
 
-  const metricStyle = { display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 1 };
-  const labelStyle = { color: 'var(--text-muted)', fontSize: 'var(--font-sm)', fontWeight: 700, letterSpacing: '0.5px', textTransform: 'uppercase' };
-  const valueStyle = { color: 'var(--text-primary)', fontSize: 'var(--font-base)', fontWeight: 600, fontVariantNumeric: 'tabular-nums' };
-
   return (
-    <div style={{
-      padding: '4px 8px', borderBottom: '1px solid var(--border-strong)',
-      background: 'var(--bg-surface)', flexShrink: 0,
-    }}>
+    <div className="pp-summary-strip">
       {/* Metrics row */}
-      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 3 }}>
+      <div className="flex-row pp-metrics-row">
         {summary.totalInvested != null && (
-          <div style={metricStyle}>
-            <span style={labelStyle}>Invested</span>
-            <span style={valueStyle}>{fmtCompact(summary.totalInvested)}</span>
+          <div className="metric-col">
+            <span className="pp-metric-label">Invested</span>
+            <span className="pp-metric-value">{fmtCompact(summary.totalInvested)}</span>
           </div>
         )}
         {summary.totalCurrentValue != null && (
-          <div style={metricStyle}>
-            <span style={labelStyle}>Value</span>
-            <span style={valueStyle}>{fmtCompact(summary.totalCurrentValue)}</span>
+          <div className="metric-col">
+            <span className="pp-metric-label">Value</span>
+            <span className="pp-metric-value">{fmtCompact(summary.totalCurrentValue)}</span>
           </div>
         )}
         {summary.totalPnlPct != null && (
-          <div style={metricStyle}>
-            <span style={labelStyle}>P&L</span>
-            <span style={{ ...valueStyle, color: summary.totalPnlPct >= 0 ? 'var(--price-up)' : 'var(--price-down)' }}>
+          <div className="metric-col">
+            <span className="pp-metric-label">P&L</span>
+            <span className="pp-metric-value" style={{ color: summary.totalPnlPct >= 0 ? 'var(--price-up)' : 'var(--price-down)' }}>
               {fmtPct(summary.totalPnlPct)}
             </span>
           </div>
         )}
         {summary.dailyPnlPct != null && (
-          <div style={metricStyle}>
-            <span style={labelStyle}>Day</span>
-            <span style={{ ...valueStyle, color: summary.dailyPnlPct >= 0 ? 'var(--price-up)' : 'var(--price-down)' }}>
+          <div className="metric-col">
+            <span className="pp-metric-label">Day</span>
+            <span className="pp-metric-value" style={{ color: summary.dailyPnlPct >= 0 ? 'var(--price-up)' : 'var(--price-down)' }}>
               {fmtPct(summary.dailyPnlPct)}
             </span>
           </div>
         )}
         {summary.bestPerformer && (
-          <div style={metricStyle}>
-            <span style={labelStyle}>Best</span>
-            <span style={{ ...valueStyle, color: 'var(--price-up)', fontSize: 'var(--font-sm)' }}>
+          <div className="metric-col">
+            <span className="pp-metric-label">Best</span>
+            <span className="pp-metric-value pp-metric-value-positive pp-metric-value-small">
               {summary.bestPerformer.symbol} {fmtPct(summary.bestPerformer.pnlPct)}
             </span>
           </div>
         )}
         {summary.worstPerformer && (
-          <div style={metricStyle}>
-            <span style={labelStyle}>Worst</span>
-            <span style={{ ...valueStyle, color: 'var(--price-down)', fontSize: 'var(--font-sm)' }}>
+          <div className="metric-col">
+            <span className="pp-metric-label">Worst</span>
+            <span className="pp-metric-value pp-metric-value-negative pp-metric-value-small">
               {summary.worstPerformer.symbol} {fmtPct(summary.worstPerformer.pnlPct)}
             </span>
           </div>
         )}
         {benchmark && benchmark.relativePerformance != null && (
-          <div style={metricStyle}>
-            <span style={labelStyle}>vs {benchmark.benchmarkSymbol}</span>
-            <span style={{ ...valueStyle, color: benchmark.outperforming ? 'var(--price-up)' : 'var(--price-down)', fontSize: 'var(--font-sm)' }}>
+          <div className="metric-col">
+            <span className="pp-metric-label">vs {benchmark.benchmarkSymbol}</span>
+            <span className="pp-metric-value pp-metric-value-small" style={{ color: benchmark.outperforming ? 'var(--price-up)' : 'var(--price-down)' }}>
               {fmtPct(benchmark.relativePerformance)}
             </span>
           </div>
@@ -190,34 +182,27 @@ const PositionRow = memo(function PositionRow({ position, onTickerClick, onOpenD
       onTouchStart={(e) => { e.stopPropagation(); clearTimeout(ptRef.current); ptRef.current = setTimeout(() => onOpenDetail?.(position.symbol), 500); }}
       onTouchEnd={() => clearTimeout(ptRef.current)}
       onTouchMove={() => clearTimeout(ptRef.current)}
-      style={{
-        display: 'grid', gridTemplateColumns: COLS, padding: '3px 8px',
-        borderBottom: '1px solid var(--border-subtle)', cursor: 'pointer',
-        alignItems: 'center', transition: 'background-color 0.1s',
-      }}
+      className="pp-row-container"
+      style={{ gridTemplateColumns: COLS }}
       onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--bg-hover)'}
       onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
     >
-      <span style={{ color: 'var(--section-watchlist)', fontSize: 'var(--font-base)', fontWeight: 700 }}>{position.symbol}</span>
-      <span style={{ color: 'var(--text-primary)', fontSize: 'var(--font-base)', textAlign: 'right', paddingRight: 4, fontVariantNumeric: 'tabular-nums' }}>
+      <span className="pp-ticker-cell">{position.symbol}</span>
+      <span className="pp-numeric-cell">
         {position.quantity != null ? position.quantity : '—'}
       </span>
-      <span style={{ color: 'var(--text-primary)', fontSize: 'var(--font-base)', textAlign: 'right', paddingRight: 4, fontVariantNumeric: 'tabular-nums' }}>
+      <span className="pp-numeric-cell">
         {fmt(entryPrice)}
       </span>
-      <span style={{ color: 'var(--text-primary)', fontSize: 'var(--font-base)', textAlign: 'right', paddingRight: 4, fontVariantNumeric: 'tabular-nums' }}>
+      <span className="pp-numeric-cell">
         {fmt(livePrice)}
       </span>
-      <span style={{
-        color: pnlPct != null ? (pnlPct >= 0 ? 'var(--price-up)' : 'var(--price-down)') : 'var(--text-muted)',
-        fontSize: 'var(--font-base)', textAlign: 'right', fontWeight: 600, fontVariantNumeric: 'tabular-nums',
-      }}>
+      <span className={`pp-pnl-cell ${pnlPct != null ? (pnlPct >= 0 ? 'pp-pnl-positive' : 'pp-pnl-negative') : 'pp-pnl-neutral'}`}>
         {fmtPct(pnlPct)}
       </span>
-      <button
+      <button className="btn pp-row-button pp-remove-button"
         onClick={e => { e.stopPropagation(); onRemove(position.id); }}
         title="Remove position"
-        style={{ background: 'none', border: 'none', color: 'var(--text-faint)', cursor: 'pointer', fontSize: 'var(--font-base)', padding: 0, textAlign: 'center', transition: 'color 0.15s' }}
         onMouseEnter={e => e.currentTarget.style.color = 'var(--price-down)'}
         onMouseLeave={e => e.currentTarget.style.color = 'var(--text-faint)'}
       >✕</button>
@@ -327,28 +312,24 @@ function PortfolioPanel({ onTickerClick, onOpenDetail }) {
   return (
     <PanelShell>
       {/* Header */}
-      <div style={{ padding: '4px 8px', borderBottom: '1px solid var(--border-strong)', background: 'var(--bg-elevated)', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ color: 'var(--section-watchlist)', fontSize: 'var(--font-base)', fontWeight: 700, letterSpacing: '1px' }}>📊 PORTFOLIO</span>
-        <span style={{ color: 'var(--text-muted)', fontSize: 'var(--font-sm)' }}>{filtered.length} positions</span>
+      <div className="flex-row pp-header">
+        <span className="pp-header-title">📊 PORTFOLIO</span>
+        <span className="pp-header-count">{filtered.length} positions</span>
         <SyncBadge syncStatus={syncStatus} onRetry={retrySync} />
-        <div style={{ flex: 1 }} />
+        <div className="pp-spacer" />
         {filterOptions.length > 1 && (
           <select
             value={filterSubId}
             onChange={e => setFilterSubId(e.target.value)}
-            style={{
-              background: 'var(--bg-panel)', border: '1px solid var(--border-strong)', color: 'var(--text-muted)',
-              fontSize: 'var(--font-sm)', padding: '1px 4px', fontFamily: 'inherit', borderRadius: 'var(--radius-sm)',
-              cursor: 'pointer', outline: 'none',
-            }}
+            className="pp-filter-select"
           >
             <option value="all">ALL</option>
             {filterOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
         )}
-        <button
+        <button className="btn pp-add-button"
           onClick={() => setShowAdd(s => !s)}
-          style={{ background: showAdd ? '#1a0d00' : 'none', border: '1px solid var(--border-strong)', color: 'var(--section-watchlist)', fontSize: 9, padding: '1px 6px', cursor: 'pointer', fontFamily: 'inherit', borderRadius: 'var(--radius-sm)' }}
+          style={{ background: showAdd ? '#1a0d00' : 'none' }}
         >+ ADD</button>
       </div>
 
@@ -363,31 +344,28 @@ function PortfolioPanel({ onTickerClick, onOpenDetail }) {
 
       {/* Quick-add ticker */}
       {showAdd && (
-        <form onSubmit={handleAdd} style={{ display: 'flex', gap: 4, padding: '4px 8px', borderBottom: '1px solid var(--border-default)', flexShrink: 0, background: 'var(--bg-surface)' }}>
+        <form onSubmit={handleAdd} className="flex-row pp-quick-add-form">
           <input
             ref={inputRef}
             value={addInput}
             onChange={e => setAddInput(e.target.value.toUpperCase())}
             placeholder="e.g. AAPL or VALE3.SA"
-            style={{
-              flex: 1, background: 'var(--bg-panel)', border: '1px solid var(--border-strong)', color: 'var(--text-primary)',
-              fontFamily: 'inherit', fontSize: 'var(--font-base)', padding: '3px 6px', outline: 'none', borderRadius: 'var(--radius-sm)',
-            }}
+            className="pp-add-input"
           />
-          <button type="submit" style={{ background: '#1a0d00', border: '1px solid var(--section-watchlist)', color: 'var(--section-watchlist)', fontSize: 9, padding: '2px 8px', cursor: 'pointer', fontFamily: 'inherit', borderRadius: 'var(--radius-sm)' }}>ADD</button>
-          <button type="button" onClick={() => { setShowAdd(false); setAddInput(''); }} style={{ background: 'none', border: '1px solid var(--text-faint)', color: 'var(--text-muted)', fontSize: 9, padding: '2px 6px', cursor: 'pointer', fontFamily: 'inherit', borderRadius: 'var(--radius-sm)' }}>✕</button>
+          <button className="btn pp-submit-button" type="submit">ADD</button>
+          <button className="btn pp-cancel-button" type="button" onClick={() => { setShowAdd(false); setAddInput(''); }}>✕</button>
         </form>
       )}
 
       {/* Column headers */}
-      <div style={{ display: 'grid', gridTemplateColumns: COLS, padding: '2px 8px', borderBottom: '1px solid var(--border-default)', flexShrink: 0 }}>
+      <div className="pp-headers" style={{ gridTemplateColumns: COLS }}>
         {['TICKER', 'QTY', 'COST', 'LAST', 'P&L%', '', ''].map((h, i) => (
-          <span key={i} style={{ color: 'var(--text-muted)', fontSize: 'var(--font-sm)', fontWeight: 700, letterSpacing: '1px', textAlign: i >= 1 ? 'right' : 'left', paddingRight: i >= 1 ? 4 : 0 }}>{h}</span>
+          <span key={i} className={`pp-header-cell ${i >= 1 ? 'pp-header-cell-right' : ''}`}>{h}</span>
         ))}
       </div>
 
       {/* Rows */}
-      <div style={{ flex: 1, overflowY: 'auto' }}>
+      <div className="pp-rows-container">
         {filtered.length === 0 ? (
           <EmptyState
             icon="📊"
@@ -474,41 +452,34 @@ const PositionRowWithReport = memo(function PositionRowWithReport({ position, on
       onTouchStart={(e) => { e.stopPropagation(); clearTimeout(ptRef.current); ptRef.current = setTimeout(() => onOpenDetail?.(position.symbol), 500); }}
       onTouchEnd={() => clearTimeout(ptRef.current)}
       onTouchMove={() => clearTimeout(ptRef.current)}
-      style={{
-        display: 'grid', gridTemplateColumns: COLS, padding: '3px 8px',
-        borderBottom: '1px solid var(--border-subtle)', cursor: 'pointer',
-        alignItems: 'center', transition: 'background-color 0.1s',
-      }}
+      className="pp-row-container"
+      style={{ gridTemplateColumns: COLS }}
       onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--bg-hover)'}
       onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
     >
-      <span style={{ color: 'var(--section-watchlist)', fontSize: 'var(--font-base)', fontWeight: 700 }}>{position.symbol}</span>
-      <span style={{ color: 'var(--text-primary)', fontSize: 'var(--font-base)', textAlign: 'right', paddingRight: 4, fontVariantNumeric: 'tabular-nums' }}>
+      <span className="pp-ticker-cell">{position.symbol}</span>
+      <span className="pp-numeric-cell">
         {position.quantity != null ? position.quantity : '—'}
       </span>
-      <span style={{ color: 'var(--text-primary)', fontSize: 'var(--font-base)', textAlign: 'right', paddingRight: 4, fontVariantNumeric: 'tabular-nums' }}>
+      <span className="pp-numeric-cell">
         {fmt(entryPrice)}
       </span>
-      <span style={{ color: 'var(--text-primary)', fontSize: 'var(--font-base)', textAlign: 'right', paddingRight: 4, fontVariantNumeric: 'tabular-nums' }}>
+      <span className="pp-numeric-cell">
         {fmt(livePrice)}
       </span>
-      <span style={{
-        color: pnlPct != null ? (pnlPct >= 0 ? 'var(--price-up)' : 'var(--price-down)') : 'var(--text-muted)',
-        fontSize: 'var(--font-base)', textAlign: 'right', fontWeight: 600, fontVariantNumeric: 'tabular-nums',
-      }}>
+      <span className={`pp-pnl-cell ${pnlPct != null ? (pnlPct >= 0 ? 'pp-pnl-positive' : 'pp-pnl-negative') : 'pp-pnl-neutral'}`}>
         {fmtPct(pnlPct)}
       </span>
-      <button
+      <button className="btn pp-row-button"
         onClick={e => { e.stopPropagation(); onCreateAlert(position, livePrice); }}
         title="Create alert"
-        style={{ background: 'none', border: 'none', color: 'var(--text-faint)', cursor: 'pointer', fontSize: 8, padding: 0, textAlign: 'center', transition: 'color 0.15s' }}
+        style={{ fontSize: 8 }}
         onMouseEnter={e => e.currentTarget.style.color = 'var(--accent)'}
         onMouseLeave={e => e.currentTarget.style.color = 'var(--text-faint)'}
       >🔔</button>
-      <button
+      <button className="btn pp-row-button pp-remove-button"
         onClick={e => { e.stopPropagation(); onRemove(position.id); }}
         title="Remove position"
-        style={{ background: 'none', border: 'none', color: 'var(--text-faint)', cursor: 'pointer', fontSize: 'var(--font-base)', padding: 0, textAlign: 'center', transition: 'color 0.15s' }}
         onMouseEnter={e => e.currentTarget.style.color = 'var(--price-down)'}
         onMouseLeave={e => e.currentTarget.style.color = 'var(--text-faint)'}
       >✕</button>

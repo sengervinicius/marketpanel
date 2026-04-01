@@ -12,6 +12,7 @@ import { CLOCKS } from '../utils/constants';
 import { fmtPrice, fmtPct } from '../utils/format';
 import { useTheme } from '../context/ThemeContext';
 import { useFeedStatus } from '../context/FeedStatusContext';
+import './Header.css';
 
 const Clock = memo(function Clock({ label, tz }) {
   const [time, setTime] = useState('');
@@ -29,10 +30,10 @@ const Clock = memo(function Clock({ label, tz }) {
   }, [tz]);
 
   return (
-    <div style={{ textAlign: 'center', minWidth: 90, borderRight: '1px solid #1a1a1a', padding: '0 10px' }}>
-      <div style={{ color: '#555', fontSize: 7, fontWeight: 400, letterSpacing: '0.15em', textTransform: 'uppercase' }}>{label}</div>
-      <div style={{ color: '#ccc', fontSize: 11, fontWeight: 500, letterSpacing: '0.05em', fontVariantNumeric: 'tabular-nums' }}>{time}</div>
-      <div style={{ color: '#555', fontSize: 7 }}>{date}</div>
+    <div className="hdr-clock">
+      <div className="hdr-clock-label">{label}</div>
+      <div className="hdr-clock-time">{time}</div>
+      <div className="hdr-clock-date">{date}</div>
     </div>
   );
 });
@@ -49,30 +50,20 @@ function TickerTape({ stocks, indexes }) {
   }));
 
   const content = [...items, ...items].map((item, i) => (
-    <span key={i} style={{ marginRight: 32, whiteSpace: 'nowrap' }}>
-      <span style={{ color: '#e8a020', fontWeight: 500, marginRight: 5, fontSize: 9 }}>{item.sym}</span>
-      <span style={{ color: '#ccc', marginRight: 4, fontSize: 9 }}>{fmtPrice(item.price)}</span>
-      <span style={{ color: (item.pct ?? 0) >= 0 ? '#00c853' : '#f44336', fontSize: 9 }}>
+    <span key={i} className="hdr-ticker-item">
+      <span className="hdr-ticker-symbol">{item.sym}</span>
+      <span className="hdr-ticker-price">{fmtPrice(item.price)}</span>
+      <span className="hdr-ticker-change" style={{ color: (item.pct ?? 0) >= 0 ? '#00c853' : '#f44336' }}>
         {fmtPct(item.pct)}
       </span>
     </span>
   ));
 
   return (
-    <div style={{ overflow: 'hidden', background: '#0a0a0f', borderBottom: '1px solid #1a1a1a', padding: '3px 0' }}>
-      <div style={{ display: 'inline-block', animation: 'ticker 80s linear infinite', whiteSpace: 'nowrap' }}>
+    <div className="hdr-ticker-container">
+      <div className="hdr-ticker-content">
         {content}
       </div>
-      <style>{`
-        @keyframes ticker {
-          0%   { transform: translateX(100vw); }
-          100% { transform: translateX(-100%); }
-        }
-        @keyframes senger-pulse {
-          0%, 100% { opacity: 1; }
-          50%      { opacity: 0.8; }
-        }
-      `}</style>
     </div>
   );
 }
@@ -93,20 +84,20 @@ export function Header({ connected, stocks, forex, marketStatus, onChatOpen, cha
   const statusDotColor = feedStatus === 'live' ? '#00c853' : feedStatus === 'degraded' ? '#ff9900' : feedStatus === 'connecting' ? '#ffb74d' : '#ff3333';
 
   return (
-    <div style={{ background: '#0a0a0f', borderBottom: '1px solid #e55a00', flexShrink: 0, fontFamily: 'var(--font-ui)' }}>
+    <div className="hdr-main">
       {/* Top bar */}
-      <div style={{ display: 'flex', alignItems: 'stretch', height: 46 }}>
+      <div className="flex-row hdr-top-bar">
         {/* Branding */}
-        <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '0 14px', borderRight: '1px solid #1a1a1a', minWidth: 200 }}>
-          <div style={{ color: '#e55a00', fontWeight: 700, fontSize: 13, letterSpacing: '0.12em', textTransform: 'uppercase', animation: 'senger-pulse 3s ease-in-out infinite' }}>SENGER MARKET SCREEN</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <span style={{ width: 6, height: 6, borderRadius: '50%', background: statusDotColor, display: 'inline-block' }} title={`Feed: ${feedStatus}`} />
-              <span style={{ color: '#666', fontSize: 7, letterSpacing: '0.2em', textTransform: 'uppercase' }}>REAL-TIME</span>
+        <div className="flex-col hdr-branding-col">
+          <div className="hdr-title">SENGER MARKET SCREEN</div>
+          <div className="flex-row hdr-status-row">
+            <span className="flex-row hdr-feed-status">
+              <span className="hdr-feed-dot" style={{ background: statusDotColor }} title={`Feed: ${feedStatus}`} />
+              <span className="hdr-feed-label">REAL-TIME</span>
             </span>
-            <span style={{ background: statusColor, color: '#fff', fontSize: 7, padding: '2px 5px', fontWeight: 600, borderRadius: 1 }}>{statusLabel}</span>
+            <span className="hdr-status-badge" style={{ background: statusColor }}>{statusLabel}</span>
             {mktOpen !== undefined && (
-              <span style={{ color: mktOpen ? '#00c853' : '#888', fontSize: 7, letterSpacing: '0.05em' }}>
+              <span className="hdr-market-status" style={{ color: mktOpen ? '#00c853' : '#888' }}>
                 {mktOpen ? '● MKT OPEN' : '● MKT CLOSED'}
               </span>
             )}
@@ -114,21 +105,21 @@ export function Header({ connected, stocks, forex, marketStatus, onChatOpen, cha
         </div>
 
         {/* Clocks */}
-        <div style={{ display: 'flex', alignItems: 'center', flex: 1, paddingLeft: 4, overflowX: 'hidden' }}>
+        <div className="flex-row hdr-clocks-container">
           {CLOCKS.map((c) => <Clock key={c.tz} {...c} />)}
         </div>
 
         {/* Quick FX + theme toggle */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '0 16px', borderLeft: '1px solid #1a1a1a' }}>
+        <div className="flex-row hdr-quickfx-section">
           {['EURUSD', 'USDBRL', 'USDJPY'].map((sym) => {
             const d = forex[sym];
             return d ? (
-              <div key={sym} style={{ textAlign: 'center' }}>
-                <div style={{ color: '#555', fontSize: 7, letterSpacing: '0.1em', textTransform: 'uppercase' }}>{sym.slice(0,3)}/{sym.slice(3)}</div>
-                <div style={{ color: '#ccc', fontSize: 11, fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>
+              <div key={sym} className="hdr-fx-item">
+                <div className="hdr-fx-label">{sym.slice(0,3)}/{sym.slice(3)}</div>
+                <div className="hdr-fx-price">
                   {(d.mid || d.price || 0).toFixed(4)}
                 </div>
-                <div style={{ color: (d.changePct ?? 0) >= 0 ? '#00c853' : '#f44336', fontSize: 8 }}>
+                <div className="hdr-fx-change" style={{ color: (d.changePct ?? 0) >= 0 ? '#00c853' : '#f44336' }}>
                   {fmtPct(d.changePct)}
                 </div>
               </div>
@@ -138,11 +129,9 @@ export function Header({ connected, stocks, forex, marketStatus, onChatOpen, cha
 
           {/* Chat icon */}
           {onChatOpen && (
-            <button
+            <button className="btn chat-icon-btn hdr-chat-button"
               onClick={onChatOpen}
-              className="chat-icon-btn"
               title="Messages"
-              style={{ marginRight: 4 }}
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
               {chatUnread > 0 && <span className="chat-icon-badge">{chatUnread}</span>}
@@ -150,15 +139,9 @@ export function Header({ connected, stocks, forex, marketStatus, onChatOpen, cha
           )}
           {/* Theme toggle */}
           {toggleTheme && (
-            <button
+            <button className="btn flex-row hdr-theme-button"
               onClick={toggleTheme}
               title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-              style={{
-                background: 'none', border: '1px solid #2a2a2a', color: '#555',
-                fontSize: 12, padding: '3px 6px', cursor: 'pointer',
-                fontFamily: 'inherit', borderRadius: 2, lineHeight: 1,
-                display: 'flex', alignItems: 'center',
-              }}
             >
               {theme === 'dark' ? '☀' : '☾'}
             </button>

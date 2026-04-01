@@ -2,6 +2,7 @@
 import { useRef, useState, memo } from 'react';
 import { useFeedStatus } from '../../context/FeedStatusContext';
 import { WORLD_INDEXES } from '../../utils/constants';
+import './IndexPanel.css';
 
 const fmt    = (n) => n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmtPct = (n) => n == null ? '—' : (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
@@ -20,32 +21,29 @@ function IndexPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
   const { getBadge } = useFeedStatus();
   const badge = getBadge('stocks');
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#0a0a0a' }}>
-      <div style={{ padding: '4px 8px', borderBottom: '1px solid #2a2a2a', background: '#111', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
-        <span style={{ color: '#ff6600', fontSize: '10px', fontWeight: 700, letterSpacing: '1px' }}>WORLD INDEXES</span>
-        <span style={{ color: '#333', fontSize: '8px' }}>ETF PROXIES</span>
-        <span style={{ background: badge.bg, color: badge.color, fontSize: 7, fontWeight: 700, letterSpacing: '0.08em', padding: '1px 4px', borderRadius: 2, border: `1px solid ${badge.color}33` }}>
+    <div className="ip-container">
+      <div className="ip-header">
+        <span className="ip-header-title">WORLD INDEXES</span>
+        <span className="ip-header-subtitle">ETF PROXIES</span>
+        <span className="ip-header-badge" style={{ background: badge.bg, color: badge.color, border: `1px solid ${badge.color}33` }}>
           {badge.text}
         </span>
-        <div style={{ flex: 1 }} />
-        <button onClick={() => setCollapsed(v => !v)} title={collapsed ? 'Expand' : 'Collapse'}
-          style={{ background: 'none', border: '1px solid #2a2a2a', color: '#555', fontSize: 9, padding: '1px 5px', cursor: 'pointer', fontFamily: 'inherit', borderRadius: 2 }}
+        <div className="ip-header-spacer" />
+        <button className="btn ip-collapse-btn" onClick={() => setCollapsed(v => !v)} title={collapsed ? 'Expand' : 'Collapse'}
         >{collapsed ? '+' : '−'}</button>
       </div>
       {!collapsed && (<>
       {/* Column headers */}
-      <div style={{ display: 'grid', gridTemplateColumns: COLS, padding: '2px 8px', borderBottom: '1px solid #1a1a1a', flexShrink: 0 }}>
+      <div className="ip-col-header">
         {['TICKER', 'NAME', 'LAST', 'CHG%'].map((h, i) => (
-          <span key={h} style={{
-            color: '#444', fontSize: '8px', fontWeight: 700, letterSpacing: '1px',
-            textAlign: i >= 2 ? 'right' : 'left',
-            paddingRight: i >= 2 ? 4 : 0,
-          }}>{h}</span>
+          <span key={h} className={`ip-col-header-cell ${i >= 2 ? 'ip-col-header-cell.right-align' : ''}`}>
+            {h}
+          </span>
         ))}
       </div>
-      <div style={{ flex: 1, overflowY: 'auto' }}>
+      <div className="ip-content">
         {loading || !data ? (
-          <div style={{ padding: '20px', textAlign: 'center', color: '#444', fontSize: '10px' }}>LOADING...</div>
+          <div className="ip-loading">LOADING...</div>
         ) : WORLD_INDEXES.map(idx => {
           const d   = data[idx.symbol] || {};
           const pos = (d.changePct ?? 0) >= 0;
@@ -66,14 +64,14 @@ function IndexPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
               onTouchEnd={() => clearTimeout(ptRef.current)}
               onTouchMove={() => clearTimeout(ptRef.current)}
               onContextMenu={e => showInfo(e, idx.symbol, idx.label, 'ETF')}
-              style={{ display: 'grid', gridTemplateColumns: COLS, padding: '3px 8px', borderBottom: '1px solid #141414', cursor: 'pointer', alignItems: 'center' }}
+              className="ip-row"
               onMouseEnter={e => e.currentTarget.style.background = '#141414'}
               onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
             >
-              <span style={{ color: '#ff6600', fontSize: '10px', fontWeight: 700 }}>{idx.symbol}</span>
-              <span style={{ color: '#555', fontSize: '9px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: 4 }}>{idx.label}</span>
-              <span style={{ color: '#ccc', fontSize: '10px', textAlign: 'right', paddingRight: 4, fontVariantNumeric: 'tabular-nums' }}>{fmt(d.price)}</span>
-              <span style={{ color: pos ? '#4caf50' : '#f44336', fontSize: '10px', textAlign: 'right', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{fmtPct(d.changePct)}</span>
+              <span className="ip-row-symbol">{idx.symbol}</span>
+              <span className="ip-row-label">{idx.label}</span>
+              <span className="ip-row-price">{fmt(d.price)}</span>
+              <span className={`ip-row-change ${pos ? 'ip-row-change-positive' : 'ip-row-change-negative'}`}>{fmtPct(d.changePct)}</span>
             </div>
           );
         })}

@@ -11,6 +11,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import './LoginScreen.css';
 
 // ── Apple Sign In SDK loader ─────────────────────────────────────────────────
 // Apple's official JS library. Loaded only once, lazily.
@@ -137,170 +138,23 @@ export default function LoginScreen({ children }) {
     setEmail('');
   };
 
-  // ── Styles ─────────────────────────────────────────────────────────────────
-  const S = {
-    overlay: {
-      position: 'fixed', inset: 0,
-      backgroundColor: '#0a0a0f',
-      backgroundImage: `
-        linear-gradient(90deg, rgba(255,102,0,0.07) 1px, transparent 1px),
-        linear-gradient(0deg,  rgba(255,102,0,0.07) 1px, transparent 1px)
-      `,
-      backgroundSize: '40px 40px',
-      color: '#e0e0e0',
-      fontFamily: 'var(--font-ui)',
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 9999,
-      padding: '24px 16px',
-    },
-    logo: {
-      textAlign: 'center',
-      marginBottom: 36,
-    },
-    logoTitle: {
-      fontSize: 52,
-      color: '#ff6600',
-      fontWeight: 'bold',
-      letterSpacing: '0.04em',
-      lineHeight: 1,
-      marginBottom: 6,
-    },
-    logoSub: {
-      fontSize: 9,
-      color: '#555',
-      letterSpacing: '0.18em',
-    },
-    card: {
-      width: '100%',
-      maxWidth: 320,
-      animation: shake ? 'shake 0.5s' : 'none',
-    },
-    // "Continue with Apple" button
-    appleBtn: {
-      width: '100%',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 10,
-      backgroundColor: '#fff',
-      color: '#000',
-      border: 'none',
-      borderRadius: 6,
-      padding: '11px 16px',
-      fontSize: 13,
-      fontWeight: 600,
-      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-      cursor: appleLoading ? 'wait' : 'pointer',
-      opacity: appleLoading ? 0.75 : 1,
-      marginBottom: 16,
-      letterSpacing: '0.01em',
-    },
-    divider: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: 10,
-      marginBottom: 16,
-    },
-    dividerLine: {
-      flex: 1,
-      height: 1,
-      background: '#222',
-    },
-    dividerText: {
-      color: '#333',
-      fontSize: 9,
-      letterSpacing: '0.15em',
-    },
-    modeLabel: {
-      color: '#444',
-      fontSize: 8,
-      letterSpacing: '0.2em',
-      marginBottom: 12,
-      textAlign: 'center',
-    },
-    error: {
-      color: '#ff4444',
-      fontSize: 10,
-      marginBottom: 8,
-      minHeight: 16,
-      textAlign: 'center',
-    },
-    input: {
-      width: '100%',
-      backgroundColor: '#0d0d0d',
-      border: '1px solid #2a2a2a',
-      color: '#e0e0e0',
-      padding: '10px 12px',
-      fontFamily: 'inherit',
-      fontSize: 12,
-      marginBottom: 10,
-      boxSizing: 'border-box',
-      outline: 'none',
-      borderRadius: 3,
-    },
-    primaryBtn: {
-      width: '100%',
-      backgroundColor: '#ff6600',
-      color: '#000',
-      border: 'none',
-      borderRadius: 4,
-      padding: '11px',
-      cursor: loading ? 'not-allowed' : 'pointer',
-      fontSize: 11,
-      letterSpacing: '0.12em',
-      fontWeight: 'bold',
-      fontFamily: 'inherit',
-      opacity: loading ? 0.6 : 1,
-      marginBottom: 10,
-    },
-    // CREATE ACCOUNT / BACK TO SIGN IN secondary button
-    secondaryBtn: {
-      width: '100%',
-      backgroundColor: 'transparent',
-      color: '#888',
-      border: '1px solid #282828',
-      borderRadius: 4,
-      padding: '10px',
-      cursor: 'pointer',
-      fontSize: 10,
-      letterSpacing: '0.1em',
-      fontFamily: 'inherit',
-      marginBottom: 0,
-    },
-  };
 
   const isLogin = mode === 'login';
 
   return (
-    <div style={S.overlay}>
-      <style>{`
-        @keyframes shake {
-          0%,100% { transform: translateX(0); }
-          25%      { transform: translateX(-7px); }
-          75%      { transform: translateX(7px); }
-        }
-        input:focus {
-          outline: none !important;
-          border-color: #ff6600 !important;
-          background-color: #111 !important;
-        }
-      `}</style>
-
+    <div className="ls-overlay">
       {/* Logo */}
-      <div style={S.logo}>
-        <div style={S.logoTitle}>SENGER</div>
-        <div style={S.logoSub}>PROFESSIONAL MARKET DATA TERMINAL</div>
+      <div className="ls-logo">
+        <div className="ls-logo-title">SENGER</div>
+        <div className="ls-logo-sub">PROFESSIONAL MARKET DATA TERMINAL</div>
       </div>
 
-      <div style={S.card}>
+      <div className={`ls-card ${shake ? 'ls-shake' : ''}`}>
 
         {/* ── Continue with Apple ── */}
         <button
           type="button"
-          style={S.appleBtn}
+          className="ls-apple-btn"
           onClick={handleApple}
           disabled={appleLoading || loading}
         >
@@ -309,19 +163,19 @@ export default function LoginScreen({ children }) {
         </button>
 
         {/* ── OR divider ── */}
-        <div style={S.divider}>
-          <div style={S.dividerLine} />
-          <span style={S.dividerText}>OR</span>
-          <div style={S.dividerLine} />
+        <div className="ls-divider">
+          <div className="ls-divider-line" />
+          <span className="ls-divider-text">OR</span>
+          <div className="ls-divider-line" />
         </div>
 
         {/* ── Mode label ── */}
-        <div style={S.modeLabel}>
+        <div className="ls-mode-label">
           {isLogin ? 'SIGN IN WITH USERNAME' : 'CREATE YOUR ACCOUNT'}
         </div>
 
         {/* ── Error ── */}
-        <div style={S.error}>{error}</div>
+        <div className="ls-error">{error}</div>
 
         {/* ── Form ── */}
         <form onSubmit={handleSubmit} autoComplete="on">
@@ -330,7 +184,7 @@ export default function LoginScreen({ children }) {
             placeholder="USERNAME"
             value={username}
             onChange={e => setUsername(e.target.value)}
-            style={S.input}
+            className="ls-input"
             disabled={loading}
             autoComplete="username"
             autoFocus
@@ -341,7 +195,7 @@ export default function LoginScreen({ children }) {
               placeholder="EMAIL"
               value={email}
               onChange={e => setEmail(e.target.value)}
-              style={S.input}
+              className="ls-input"
               disabled={loading}
               autoComplete="email"
             />
@@ -351,11 +205,11 @@ export default function LoginScreen({ children }) {
             placeholder="PASSWORD"
             value={password}
             onChange={e => setPassword(e.target.value)}
-            style={S.input}
+            className="ls-input"
             disabled={loading}
             autoComplete={isLogin ? 'current-password' : 'new-password'}
           />
-          <button type="submit" style={S.primaryBtn} disabled={loading}>
+          <button type="submit" className="ls-primary-btn" disabled={loading}>
             {loading
               ? (isLogin ? 'SIGNING IN...' : 'CREATING ACCOUNT...')
               : (isLogin ? 'LOG IN' : 'CREATE ACCOUNT')
@@ -364,7 +218,7 @@ export default function LoginScreen({ children }) {
         </form>
 
         {/* ── Switch mode button ── */}
-        <button type="button" style={S.secondaryBtn} onClick={switchMode} disabled={loading}>
+        <button type="button" className="ls-secondary-btn" onClick={switchMode} disabled={loading}>
           {isLogin ? 'CREATE NEW ACCOUNT' : 'BACK TO SIGN IN'}
         </button>
 

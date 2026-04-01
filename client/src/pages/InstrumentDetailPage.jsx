@@ -46,12 +46,11 @@ export default function InstrumentDetailPage() {
         <span style={{ color: '#2a2a2a', fontSize: 9, letterSpacing: '1px' }}>INSTRUMENT DETAIL</span>
         <div style={{ flex: 1 }} />
         {user && <span style={{ color: '#2a2a2a', fontSize: 8 }}>{user.username?.toUpperCase()}</span>}
-        <button
+        <button className="btn"
           onClick={() => window.close()}
           style={{
             background: 'none', border: '1px solid #1e1e1e', color: '#333',
-            fontSize: 9, padding: '2px 8px', cursor: 'pointer', fontFamily: 'inherit',
-          }}
+            fontSize: 9, padding: '2px 8px', }}
         >CLOSE</button>
       </div>
 

@@ -1,0 +1,126 @@
+/* IndexPanel.css — prefix: ip- */
+
+.ip-container {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: #0a0a0a;
+}
+
+.ip-header {
+  padding: 4px 8px;
+  border-bottom: 1px solid #2a2a2a;
+  background: #111;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ip-header-title {
+  color: #ff6600;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.ip-header-subtitle {
+  color: #333;
+  font-size: 8px;
+}
+
+.ip-header-badge {
+  font-size: 7px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 1px 4px;
+  border-radius: 2px;
+}
+
+.ip-header-spacer {
+  flex: 1;
+}
+
+.ip-collapse-btn {
+  background: none;
+  border: 1px solid #2a2a2a;
+  color: #555;
+  font-size: 9px;
+  padding: 1px 5px;
+}
+
+.ip-col-header {
+  display: grid;
+  grid-template-columns: 56px 1fr 68px 64px;
+  padding: 2px 8px;
+  border-bottom: 1px solid #1a1a1a;
+  flex-shrink: 0;
+}
+
+.ip-col-header-cell {
+  color: #444;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-align: left;
+  padding-right: 0;
+}
+
+.ip-col-header-cell.right-align {
+  text-align: right;
+  padding-right: 4px;
+}
+
+.ip-content {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.ip-loading {
+  padding: 20px;
+  text-align: center;
+  color: #444;
+}
+
+.ip-row {
+  display: grid;
+  grid-template-columns: 56px 1fr 68px 64px;
+  padding: 3px 8px;
+  border-bottom: 1px solid #141414;
+  align-items: center;
+  transition: background-color 0.1s;
+}
+
+.ip-row-symbol {
+  color: #ff6600;
+  font-weight: 700;
+}
+
+.ip-row-label {
+  color: #555;
+  font-size: 9px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding-right: 4px;
+}
+
+.ip-row-price {
+  color: #ccc;
+  text-align: right;
+  padding-right: 4px;
+  font-variant-numeric: tabular-nums;
+}
+
+.ip-row-change {
+  text-align: right;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.ip-row-change-positive {
+  color: #4caf50;
+}
+
+.ip-row-change-negative {
+  color: #f44336;
+}

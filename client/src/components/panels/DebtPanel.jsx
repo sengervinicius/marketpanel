@@ -248,8 +248,8 @@ function DebtPanel() {
         {/* View toggle */}
         <div style={{ display: 'flex', gap: 3 }}>
           {[['curve','CURVE'],['regional','REGION']].map(([v, lbl]) => (
-            <button key={v} onClick={() => setView(v)}
-              className={`dp-view-btn${view === v ? ' dp-view-btn--active' : ''}`}
+            <button className={`btn ${`dp-view-btn${view === v ? ' dp-view-btn--active' : ''}`} key={v} onClick={() => setView(v)}
+`}
             >{lbl}</button>
           ))}
         </div>
@@ -313,7 +313,7 @@ function DebtPanel() {
                   axisLine={{ stroke: 'var(--border-default)' }}
                 />
                 <Tooltip
-                  contentStyle={{ background: 'var(--bg-surface)', border: '1px solid var(--border-strong)', fontSize: 10, borderRadius: 3 }}
+                  contentStyle={{ background: 'var(--bg-surface)', border: '1px solid var(--border-strong)', borderRadius: 3 }}
                   formatter={v => [v.toFixed(2) + '%', 'Yield']}
                 />
                 <Line

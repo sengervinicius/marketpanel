@@ -1,0 +1,191 @@
+/* Header.css - Top bar with branding, clocks, and ticker styling */
+
+.hdr-main {
+  background: #0a0a0f;
+  border-bottom: 1px solid #e55a00;
+  flex-shrink: 0;
+  font-family: var(--font-ui);
+}
+
+.hdr-top-bar {
+  align-items: stretch;
+  height: 46px;
+}
+
+.hdr-branding-col {
+  justify-content: center;
+  padding: 0 14px;
+  border-right: 1px solid #1a1a1a;
+  min-width: 200px;
+}
+
+.hdr-title {
+  color: #e55a00;
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  animation: senger-pulse 3s ease-in-out infinite;
+}
+
+.hdr-status-row {
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.hdr-feed-status {
+  gap: 4px;
+}
+
+.hdr-feed-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.hdr-feed-label {
+  color: #666;
+  font-size: 7px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.hdr-status-badge {
+  color: #fff;
+  font-size: 7px;
+  padding: 2px 5px;
+  font-weight: 600;
+  border-radius: 1px;
+}
+
+.hdr-market-status {
+  font-size: 7px;
+  letter-spacing: 0.05em;
+}
+
+.hdr-clocks-container {
+  flex: 1;
+  padding-left: 4px;
+  overflow-x: hidden;
+}
+
+.hdr-clock {
+  text-align: center;
+  min-width: 90px;
+  border-right: 1px solid #1a1a1a;
+  padding: 0 10px;
+}
+
+.hdr-clock-label {
+  color: #555;
+  font-size: 7px;
+  font-weight: 400;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+
+.hdr-clock-time {
+  color: #ccc;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  font-variant-numeric: tabular-nums;
+}
+
+.hdr-clock-date {
+  color: #555;
+  font-size: 7px;
+}
+
+.hdr-quickfx-section {
+  gap: 16px;
+  padding: 0 16px;
+  border-left: 1px solid #1a1a1a;
+}
+
+.hdr-fx-item {
+  text-align: center;
+}
+
+.hdr-fx-label {
+  color: #555;
+  font-size: 7px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.hdr-fx-price {
+  color: #ccc;
+  font-size: 11px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.hdr-fx-change {
+  font-size: 8px;
+}
+
+.hdr-chat-button {
+  margin-right: 4px;
+}
+
+.hdr-theme-button {
+  background: none;
+  border: 1px solid #2a2a2a;
+  color: #555;
+  padding: 3px 6px;
+}
+
+.hdr-ticker-container {
+  overflow: hidden;
+  background: #0a0a0f;
+  border-bottom: 1px solid #1a1a1a;
+  padding: 3px 0;
+}
+
+.hdr-ticker-content {
+  display: inline-block;
+  animation: ticker 80s linear infinite;
+  white-space: nowrap;
+}
+
+.hdr-ticker-item {
+  margin-right: 32px;
+  white-space: nowrap;
+}
+
+.hdr-ticker-symbol {
+  color: #e8a020;
+  font-weight: 500;
+  margin-right: 5px;
+  font-size: 9px;
+}
+
+.hdr-ticker-price {
+  color: #ccc;
+  margin-right: 4px;
+  font-size: 9px;
+}
+
+.hdr-ticker-change {
+  font-size: 9px;
+}
+
+@keyframes senger-pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+@keyframes ticker {
+  0% {
+    transform: translateX(100vw);
+  }
+  100% {
+    transform: translateX(-100%);
+  }
+}

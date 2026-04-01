@@ -1,0 +1,162 @@
+/* SubsectionContextMenu.css */
+
+.scm-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+}
+
+.scm-menu {
+  position: fixed;
+  background: #111;
+  border: 1px solid #2a2a2a;
+  border-radius: 3px;
+  z-index: 1001;
+  min-width: 200px;
+  max-width: 260px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+.scm-title {
+  padding: 6px 8px;
+  border-bottom: 1px solid #1a1a1a;
+  color: #444;
+  font-size: 7px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-align: center;
+}
+
+.scm-item-row {
+  padding: 5px 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #888;
+  border-bottom: 1px solid #0f0f0f;
+  transition: background-color 0.1s;
+}
+
+.scm-item-row:hover {
+  background-color: #1a1a1a;
+}
+
+.scm-checkbox {
+  width: 12px;
+  height: 12px;
+  border: 1px solid #444;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  color: #00bcd4;
+  flex-shrink: 0;
+}
+
+.scm-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.scm-icon-btn {
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #444;
+  transition: color 0.1s, background-color 0.1s;
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.scm-icon-btn:hover {
+  color: #e0e0e0;
+  background-color: #222;
+}
+
+.scm-rename-input {
+  flex: 1;
+  background: #080808;
+  border: 1px solid #ff6600;
+  color: #e0e0e0;
+  padding: 1px 4px;
+  font-family: var(--font-ui);
+  outline: none;
+  min-width: 0;
+}
+
+.scm-divider {
+  height: 1px;
+  background: #1a1a1a;
+  margin: 4px 0;
+}
+
+.scm-add-button {
+  padding: 6px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  color: #4caf50;
+  font-weight: 500;
+  transition: background-color 0.1s;
+  user-select: none;
+  cursor: pointer;
+}
+
+.scm-add-button:hover {
+  background-color: #1a1a1a;
+}
+
+.scm-add-input {
+  flex: 1;
+  background: #080808;
+  border: 1px solid #4caf50;
+  color: #e0e0e0;
+  padding: 3px 6px;
+  font-family: var(--font-ui);
+  outline: none;
+}
+
+.scm-add-row {
+  padding: 5px 8px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.scm-manage-button {
+  padding: 6px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  color: #ff6600;
+  font-weight: 500;
+  transition: background-color 0.1s;
+  user-select: none;
+  cursor: pointer;
+}
+
+.scm-manage-button:hover {
+  background-color: #1a1a1a;
+}
+
+.scm-custom-tag {
+  font-size: 7px;
+  color: #333;
+  letter-spacing: 0.06em;
+  margin-left: 2px;
+}
+
+.scm-delete-btn:hover {
+  color: #f44336 !important;
+  background-color: #1a0000 !important;
+}

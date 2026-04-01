@@ -17,6 +17,7 @@ import {
   fmtPct, fmtCompact, computeSummary, computeAllocation,
   inferAssetType, assetTypeLabel,
 } from '../../utils/portfolioAnalytics';
+import './PortfolioMobile.css';
 
 function fmtPrice(v, dec = 2) {
   if (v == null) return '--';
@@ -40,37 +41,32 @@ const MobileSummaryHeader = memo(function MobileSummaryHeader({ positions, getPr
   const allocationColors = ['var(--accent)', 'var(--price-up)', '#5c6bc0', '#ab47bc', '#26a69a', '#ef5350', '#78909c'];
 
   return (
-    <div style={{
-      padding: 'var(--sp-3) var(--sp-4)',
-      borderBottom: '1px solid var(--border-subtle)',
-      background: 'var(--bg-surface)',
-      flexShrink: 0,
-    }}>
+    <div className="pm-summary-header">
       {/* Top row: value + P&L */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
+      <div className="flex-row pm-summary-top">
         <div>
           {summary.totalCurrentValue != null ? (
-            <span style={{ color: 'var(--text-primary)', fontSize: 18, fontWeight: 700, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.5px' }}>
+            <span className="pm-total-value">
               ${fmtCompact(summary.totalCurrentValue)}
             </span>
           ) : summary.totalInvested != null ? (
-            <span style={{ color: 'var(--text-primary)', fontSize: 18, fontWeight: 700, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.5px' }}>
+            <span className="pm-total-value">
               ${fmtCompact(summary.totalInvested)}
             </span>
           ) : (
-            <span style={{ color: 'var(--text-muted)', fontSize: 18, fontWeight: 700 }}>—</span>
+            <span className="pm-total-placeholder">—</span>
           )}
-          <span style={{ color: 'var(--text-muted)', fontSize: 11, marginLeft: 6 }}>
+          <span className="pm-position-count">
             {summary.positionCount} position{summary.positionCount !== 1 ? 's' : ''}
           </span>
         </div>
         {syncLabel && (
           <span
+            className="pm-sync-label"
             onClick={syncStatus === 'error' ? onRetry : undefined}
             style={{
-              fontSize: 10, fontWeight: 600, color: syncColor,
+              color: syncColor,
               cursor: syncStatus === 'error' ? 'pointer' : 'default',
-              textTransform: 'uppercase', letterSpacing: '0.5px',
             }}
           >
             {syncLabel}
@@ -79,17 +75,16 @@ const MobileSummaryHeader = memo(function MobileSummaryHeader({ positions, getPr
       </div>
 
       {/* Second row: P&L + daily change */}
-      <div style={{ display: 'flex', gap: 16, marginBottom: 6 }}>
+      <div className="flex-row pm-metrics-row">
         {summary.totalPnlPct != null && (
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <span style={{ color: 'var(--text-muted)', fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total P&L</span>
-            <span style={{
+          <div className="flex-col">
+            <span className="pm-metric-label">Total P&L</span>
+            <span className="pm-metric-value" style={{
               color: summary.totalPnlPct >= 0 ? 'var(--price-up)' : 'var(--price-down)',
-              fontSize: 14, fontWeight: 700, fontVariantNumeric: 'tabular-nums',
             }}>
               {fmtPct(summary.totalPnlPct)}
               {summary.totalPnl != null && (
-                <span style={{ fontSize: 11, fontWeight: 500, marginLeft: 4, opacity: 0.7 }}>
+                <span className="pm-metric-note">
                   ({summary.totalPnl >= 0 ? '+' : ''}{fmtCompact(summary.totalPnl)})
                 </span>
               )}
@@ -97,20 +92,19 @@ const MobileSummaryHeader = memo(function MobileSummaryHeader({ positions, getPr
           </div>
         )}
         {summary.dailyPnlPct != null && (
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <span style={{ color: 'var(--text-muted)', fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Day</span>
-            <span style={{
+          <div className="flex-col">
+            <span className="pm-metric-label">Day</span>
+            <span className="pm-metric-value" style={{
               color: summary.dailyPnlPct >= 0 ? 'var(--price-up)' : 'var(--price-down)',
-              fontSize: 14, fontWeight: 700, fontVariantNumeric: 'tabular-nums',
             }}>
               {fmtPct(summary.dailyPnlPct)}
             </span>
           </div>
         )}
         {summary.bestPerformer && (
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <span style={{ color: 'var(--text-muted)', fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Best</span>
-            <span style={{ color: 'var(--price-up)', fontSize: 12, fontWeight: 600 }}>
+          <div className="flex-col">
+            <span className="pm-metric-label">Best</span>
+            <span className="pm-best-symbol">
               {summary.bestPerformer.symbol}
             </span>
           </div>
@@ -120,25 +114,23 @@ const MobileSummaryHeader = memo(function MobileSummaryHeader({ positions, getPr
       {/* Allocation bar */}
       {allocation.length > 0 && (
         <>
-          <div style={{ display: 'flex', gap: 1, height: 5, borderRadius: 3, overflow: 'hidden', marginBottom: 4 }}>
+          <div className="flex-row pm-allocation-bar">
             {allocation.map((item, i) => (
               <div
                 key={item.key}
+                className="pm-allocation-segment"
                 style={{
                   flex: item.pct, background: allocationColors[i % allocationColors.length],
                   minWidth: item.pct > 1 ? 2 : 0,
-                  transition: 'flex 0.3s ease',
                 }}
               />
             ))}
           </div>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <div className="flex-row pm-allocation-legend">
             {allocation.filter(a => a.pct >= 5).map((item, i) => (
-              <span key={item.key} style={{ fontSize: 10, color: 'var(--text-muted)' }}>
-                <span style={{
-                  display: 'inline-block', width: 6, height: 6, borderRadius: '50%',
+              <span key={item.key} className="pm-allocation-legend-item">
+                <span className="pm-allocation-dot" style={{
                   background: allocationColors[i % allocationColors.length],
-                  marginRight: 3, verticalAlign: 'middle',
                 }} />
                 {item.label} {item.pct.toFixed(0)}%
               </span>
@@ -263,41 +255,17 @@ function PortfolioMobile({ onOpenDetail, onManage }) {
   }, []);
 
   return (
-    <div style={{
-      display: 'flex', flexDirection: 'column', height: '100%',
-      background: 'var(--bg-app)', fontFamily: 'inherit',
-    }}>
+    <div className="flex-col pm-panel">
       {/* Header */}
-      <div style={{
-        padding: 'var(--sp-4)',
-        borderBottom: '1px solid var(--border-subtle)',
-        flexShrink: 0,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-      }}>
-        <span style={{ color: 'var(--text-primary)', fontSize: 16, fontWeight: 600, letterSpacing: '-0.3px' }}>
+      <div className="flex-row pm-header">
+        <span className="pm-header-title">
           Portfolio
         </span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div className="flex-row pm-header-controls">
           {positions.length > 0 && (
-            <div style={{
-              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-              backgroundColor: 'rgba(255, 102, 0, 0.12)',
-              color: 'var(--accent)',
-              fontSize: 12, fontWeight: 600,
-              borderRadius: '50%', width: 24, height: 24,
-            }}>{positions.length}</div>
+            <div className="pm-count-badge">{positions.length}</div>
           )}
-          <button onClick={onManage} style={{
-            width: 36, height: 36, borderRadius: '50%',
-            border: '2px solid var(--accent)',
-            background: 'none', color: 'var(--accent)',
-            fontSize: 20, cursor: 'pointer',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            padding: 0,
-            WebkitTapHighlightColor: 'rgba(255, 102, 0, 0.1)',
-          }} title="Add instruments">+</button>
+          <button className="btn flex-row pm-add-btn" onClick={onManage} title="Add instruments">+</button>
         </div>
       </div>
 
@@ -313,7 +281,7 @@ function PortfolioMobile({ onOpenDetail, onManage }) {
       {/* Search, Sort, and Portfolio Filter (only when not empty) */}
       {positions.length > 0 && (
         <>
-          <div style={{ padding: 'var(--sp-2) var(--sp-4)', flexShrink: 0 }}>
+          <div className="pm-search-container">
             <input
               type="text"
               className="m-search"
@@ -324,19 +292,13 @@ function PortfolioMobile({ onOpenDetail, onManage }) {
           </div>
 
           {/* Sort chips */}
-          <div style={{
-            display: 'flex', gap: 8,
-            padding: 'var(--sp-3) var(--sp-4)',
-            flexShrink: 0, overflowX: 'auto', overflowY: 'hidden',
-            scrollBehavior: 'smooth',
-          }}>
+          <div className="pm-sort-row">
             {['Added', 'Name', 'Change', 'Price', 'P&L'].map((label) => {
               const sortKey = label.toLowerCase();
               const isActive = sortBy === sortKey;
               return (
-                <button
+                <button className="btn m-chip"
                   key={label}
-                  className="m-chip"
                   data-active={isActive}
                   onClick={() => setSortBy(sortKey)}
                 >
@@ -348,24 +310,15 @@ function PortfolioMobile({ onOpenDetail, onManage }) {
 
           {/* Portfolio filter chips */}
           {portfolioFilterOptions.length > 0 && (
-            <div style={{
-              display: 'flex', gap: 8,
-              padding: '0 var(--sp-4) var(--sp-3)',
-              flexShrink: 0, overflowX: 'auto', overflowY: 'hidden',
-              scrollBehavior: 'smooth',
-            }}>
+            <div className="pm-filter-row">
               {portfolioFilterOptions.map((opt) => {
                 const isActive = selectedPortfolios.has(opt.id);
+                const chipClass = opt.type === 'subportfolio' ? 'pm-filter-chip-sub' : 'pm-filter-chip-main';
                 return (
-                  <button
+                  <button className={`btn m-chip ${chipClass}`}
                     key={opt.id}
-                    className="m-chip"
                     data-active={isActive}
                     onClick={() => togglePortfolioFilter(opt.id)}
-                    style={{
-                      opacity: opt.type === 'subportfolio' ? 0.75 : 1,
-                      fontSize: opt.type === 'subportfolio' ? 12 : 13,
-                    }}
                   >
                     {opt.label}
                   </button>
@@ -390,17 +343,9 @@ function PortfolioMobile({ onOpenDetail, onManage }) {
           </button>
         </div>
       ) : (
-        <div style={{
-          flex: 1, overflowY: 'auto', overflowX: 'hidden',
-          WebkitOverflowScrolling: 'touch',
-        }}>
+        <div className="pm-list-container">
           {sorted.length === 0 ? (
-            <div style={{
-              padding: 'var(--sp-8) var(--sp-4)',
-              textAlign: 'center',
-              color: 'var(--text-muted)',
-              fontSize: 13,
-            }}>
+            <div className="pm-no-results">
               {searchQuery.trim() ? `No results for "${searchQuery}"` : 'No positions match selected filters'}
             </div>
           ) : (
@@ -418,74 +363,54 @@ function PortfolioMobile({ onOpenDetail, onManage }) {
               return (
                 <div
                   key={pos.id}
-                  className="m-row"
+                  className="m-row pm-position-row"
                   onClick={() => onOpenDetail?.(pos.symbol)}
-                  style={{ padding: '0 var(--sp-4)', minHeight: 60 }}
                 >
                   {/* Symbol + subportfolio name */}
-                  <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                    <div style={{ color: 'var(--text-primary)', fontSize: 13, fontWeight: 600, letterSpacing: '-0.2px', marginBottom: 3 }}>
+                  <div className="pm-position-left">
+                    <div className="pm-position-symbol">
                       {pos.symbol}
                     </div>
                     {subName && (
-                      <div style={{ color: 'var(--text-muted)', fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <div className="pm-position-subname">
                         {subName}
                       </div>
                     )}
                   </div>
 
                   {/* Price + change */}
-                  <div style={{ textAlign: 'right', marginRight: 12, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                    <div style={{ color: 'var(--text-primary)', fontSize: 14, fontWeight: 500, fontVariantNumeric: 'tabular-nums', marginBottom: 3 }}>
+                  <div className="pm-position-price">
+                    <div className="pm-position-price-value">
                       {d?.price ? fmtPrice(d.price) : '--'}
                     </div>
-                    <div style={{
+                    <div className="pm-position-change" style={{
                       color: pct == null ? 'var(--text-muted)' : pct >= 0 ? 'var(--price-up)' : 'var(--price-down)',
-                      fontSize: 11, fontWeight: 500, fontVariantNumeric: 'tabular-nums',
                     }}>
                       {fmtPct(pct)}
                     </div>
                   </div>
 
                   {/* Entry amount / invested amount */}
-                  <div style={{ textAlign: 'right', marginRight: 12, display: 'flex', flexDirection: 'column', justifyContent: 'center', minWidth: 60, fontSize: 12, color: 'var(--text-secondary)' }}>
-                    <div style={{ fontVariantNumeric: 'tabular-nums' }}>
+                  <div className="pm-position-amount">
+                    <div className="pm-position-amount-value">
                       {displayAmount}
                     </div>
                   </div>
 
                   {/* Alert button */}
-                  <button
+                  <button className="btn pm-alert-btn"
                     onClick={(e) => {
                       e.stopPropagation();
                       handleCreateAlert(pos, d?.price);
-                    }}
-                    style={{
-                      width: 32, height: 32,
-                      background: 'none', border: 'none',
-                      color: 'var(--text-faint)', cursor: 'pointer',
-                      fontSize: 14, lineHeight: 1, padding: 0, flexShrink: 0,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      WebkitTapHighlightColor: 'transparent',
                     }}
                     title="Create alert"
                   >🔔</button>
 
                   {/* Remove button */}
-                  <button
+                  <button className="btn pm-remove-btn"
                     onClick={(e) => {
                       e.stopPropagation();
                       handleRemovePosition(pos.id, pos.symbol);
-                    }}
-                    style={{
-                      width: 40, height: 40,
-                      background: 'none', border: 'none',
-                      color: 'var(--text-faint)', cursor: 'pointer',
-                      fontSize: 18, lineHeight: 1, padding: 0, flexShrink: 0,
-                      borderRadius: '50%',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      transition: 'color 0.15s ease',
-                      WebkitTapHighlightColor: 'transparent',
                     }}
                     title="Remove"
                   >
@@ -515,15 +440,8 @@ function PortfolioMobile({ onOpenDetail, onManage }) {
       {undoItem && (
         <div className="m-toast">
           <span>{undoItem.symbol} removed</span>
-          <button
+          <button className="btn pm-undo-btn"
             onClick={handleUndo}
-            style={{
-              background: 'none', border: 'none',
-              color: 'var(--accent)', cursor: 'pointer',
-              fontSize: 13, fontWeight: 600, padding: 0,
-              minWidth: 'auto', minHeight: 'auto',
-              WebkitTapHighlightColor: 'transparent',
-            }}
           >
             UNDO
           </button>

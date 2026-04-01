@@ -1,0 +1,249 @@
+/**
+ * PortfolioPanel.css
+ * Static styles extracted from PortfolioPanel.jsx
+ */
+
+/* ─────────────────────────────────────────────────────────────── */
+/* SyncBadge */
+/* ─────────────────────────────────────────────────────────────── */
+.pp-sync-badge {
+  font-size: var(--font-sm);
+  font-weight: 600;
+  padding: 1px 5px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  transition: opacity 0.3s;
+}
+
+/* ─────────────────────────────────────────────────────────────── */
+/* AllocationBar */
+/* ─────────────────────────────────────────────────────────────── */
+.pp-allocation-container {
+  gap: 1px;
+  height: 4px;
+  overflow: hidden;
+  margin: 2px 0;
+}
+
+.pp-allocation-segment {
+  min-width: 0;
+  transition: flex 0.3s ease;
+}
+
+/* ─────────────────────────────────────────────────────────────── */
+/* SummaryStrip */
+/* ─────────────────────────────────────────────────────────────── */
+.pp-summary-strip {
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border-strong);
+  background: var(--bg-surface);
+  flex-shrink: 0;
+}
+
+.pp-metrics-row {
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 3px;
+}
+
+.pp-metric-label {
+  color: var(--text-muted);
+  font-size: var(--font-sm);
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.pp-metric-value {
+  color: var(--text-primary);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.pp-metric-value-positive {
+  color: var(--price-up);
+}
+
+.pp-metric-value-negative {
+  color: var(--price-down);
+}
+
+.pp-metric-value-small {
+  font-size: var(--font-sm);
+}
+
+/* ─────────────────────────────────────────────────────────────── */
+/* PositionRow (grid layout) */
+/* ─────────────────────────────────────────────────────────────── */
+.pp-row-container {
+  display: grid;
+  padding: 3px 8px;
+  border-bottom: 1px solid var(--border-subtle);
+  align-items: center;
+  transition: background-color 0.1s;
+  cursor: pointer;
+}
+
+.pp-ticker-cell {
+  color: var(--section-watchlist);
+  font-weight: 700;
+}
+
+.pp-numeric-cell {
+  color: var(--text-primary);
+  text-align: right;
+  padding-right: 4px;
+  font-variant-numeric: tabular-nums;
+}
+
+.pp-pnl-cell {
+  text-align: right;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.pp-pnl-positive {
+  color: var(--price-up);
+}
+
+.pp-pnl-negative {
+  color: var(--price-down);
+}
+
+.pp-pnl-neutral {
+  color: var(--text-muted);
+}
+
+.pp-row-button {
+  background: none;
+  border: none;
+  color: var(--text-faint);
+  padding: 0;
+  text-align: center;
+  transition: color 0.15s;
+  cursor: pointer;
+}
+
+.pp-remove-button:hover {
+  color: var(--price-down);
+}
+
+.pp-alert-button:hover {
+  color: var(--accent);
+}
+
+/* ─────────────────────────────────────────────────────────────── */
+/* Header */
+/* ─────────────────────────────────────────────────────────────── */
+.pp-header {
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border-strong);
+  background: var(--bg-elevated);
+  flex-shrink: 0;
+  gap: 8px;
+}
+
+.pp-header-title {
+  color: var(--section-watchlist);
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.pp-header-count {
+  color: var(--text-muted);
+  font-size: var(--font-sm);
+}
+
+.pp-spacer {
+  flex: 1;
+}
+
+.pp-filter-select {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-strong);
+  color: var(--text-muted);
+  font-size: var(--font-sm);
+  padding: 1px 4px;
+  outline: none;
+  cursor: pointer;
+}
+
+.pp-add-button {
+  border: 1px solid var(--border-strong);
+  color: var(--section-watchlist);
+  font-size: 9px;
+  padding: 1px 6px;
+}
+
+.pp-add-button-active {
+  background: #1a0d00;
+}
+
+/* ─────────────────────────────────────────────────────────────── */
+/* Quick-add form */
+/* ─────────────────────────────────────────────────────────────── */
+.pp-quick-add-form {
+  gap: 4px;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border-default);
+  flex-shrink: 0;
+  background: var(--bg-surface);
+}
+
+.pp-add-input {
+  flex: 1;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-strong);
+  color: var(--text-primary);
+  padding: 3px 6px;
+  outline: none;
+  font-family: inherit;
+  font-size: inherit;
+}
+
+.pp-submit-button {
+  background: #1a0d00;
+  border: 1px solid var(--section-watchlist);
+  color: var(--section-watchlist);
+  font-size: 9px;
+  padding: 2px 8px;
+}
+
+.pp-cancel-button {
+  background: none;
+  border: 1px solid var(--text-faint);
+  color: var(--text-muted);
+  font-size: 9px;
+  padding: 2px 6px;
+}
+
+/* ─────────────────────────────────────────────────────────────── */
+/* Column headers */
+/* ─────────────────────────────────────────────────────────────── */
+.pp-headers {
+  display: grid;
+  padding: 2px 8px;
+  border-bottom: 1px solid var(--border-default);
+  flex-shrink: 0;
+}
+
+.pp-header-cell {
+  color: var(--text-muted);
+  font-size: var(--font-sm);
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-align: left;
+}
+
+.pp-header-cell-right {
+  text-align: right;
+  padding-right: 4px;
+}
+
+/* ─────────────────────────────────────────────────────────────── */
+/* Rows container */
+/* ─────────────────────────────────────────────────────────────── */
+.pp-rows-container {
+  flex: 1;
+  overflow-y: auto;
+}

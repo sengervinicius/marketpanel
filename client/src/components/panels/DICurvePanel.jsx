@@ -5,6 +5,7 @@
 import { useState, useEffect, memo } from 'react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { apiFetch } from '../../utils/api';
+import './DICurvePanel.css';
 
 const CURVES = [
   { id: 'BR', label: 'BRAZIL',          color: '#e8a020', note: 'TESOURO PREFIXADO + BCB DI · % P.A.' },
@@ -45,21 +46,14 @@ function DICurvePanel({ compact = false }) {
   }, []);
 
   return (
-    <div style={{
-      display: 'flex', flexDirection: 'column',
-      background: 'var(--bg-panel)', height: '100%', overflow: 'hidden',
-    }}>
+    <div className="dic-container">
 
       {/* Panel header */}
-      <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '2px var(--sp-2)', borderBottom: '1px solid var(--border-subtle)',
-        background: 'var(--bg-surface)', flexShrink: 0, height: 20,
-      }}>
-        <span style={{ color: 'var(--text-muted)', fontWeight: 700, fontSize: 'var(--font-sm)', letterSpacing: '0.15em' }}>
+      <div className="dic-header">
+        <span className="dic-header-title">
           YIELD CURVES
         </span>
-        <span style={{ color: 'var(--text-faint)', fontSize: 'var(--font-xs)' }}>
+        <span className="dic-header-status">
           {loading ? 'LOADING...' : error ? 'ERR' : updatedAt}
         </span>
       </div>
@@ -73,30 +67,20 @@ function DICurvePanel({ compact = false }) {
         const keyPts = KEY_TENORS.map(t => curve.find(p => p.tenor === t)).filter(Boolean);
 
         return (
-          <div key={c.id} style={{
-            flex: 1, display: 'flex', flexDirection: 'column',
-            borderTop: idx > 0 ? '1px solid var(--border-subtle)' : 'none',
-            overflow: 'hidden', minHeight: 0,
-          }}>
+          <div key={c.id} className={`dic-block ${idx > 0 ? 'dic-block-bordered' : ''}`}>
 
             {/* Country header row */}
-            <div style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              padding: '1px 6px 0', flexShrink: 0, height: 16, gap: 4,
-            }}>
-              <span style={{
-                color: c.color, fontSize: 'var(--font-xs)', fontWeight: 800,
-                letterSpacing: '0.08em', flexShrink: 0,
-              }}>
+            <div className="dic-block-header">
+              <span className="dic-block-label" style={{ color: c.color }}>
                 {c.label}
               </span>
 
               {!loading && keyPts.length > 0 && (
-                <div style={{ display: 'flex', gap: 5, overflow: 'hidden' }}>
+                <div className="dic-key-points">
                   {keyPts.map(pt => (
-                    <span key={pt.tenor} style={{ whiteSpace: 'nowrap', lineHeight: 1 }}>
-                      <span style={{ color: 'var(--text-faint)', fontSize: 6, letterSpacing: '0.03em' }}>{pt.tenor} </span>
-                      <span style={{ color: 'var(--text-secondary)', fontSize: 7.5, fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>
+                    <span key={pt.tenor} className="dic-key-point">
+                      <span className="dic-key-point-tenor">{pt.tenor} </span>
+                      <span className="dic-key-point-rate">
                         {pt.rate.toFixed(2)}%
                       </span>
                     </span>
@@ -106,17 +90,16 @@ function DICurvePanel({ compact = false }) {
             </div>
 
             {/* Chart area */}
-            <div style={{ flex: 1, overflow: 'hidden', minHeight: 0 }}>
+            <div className="dic-chart-area">
               {loading ? (
-                <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-faint)', fontSize: 'var(--font-xs)' }}>
+                <div className="dic-chart-loading">
                   loading...
                 </div>
               ) : curve.length === 0 ? (
-                <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-faint)', fontSize: 'var(--font-xs)', flexDirection: 'column', gap: 4 }}>
+                <div className="dic-chart-error">
                   <span>DATA UNAVAILABLE</span>
-                  <button
+                  <button className="dic-retry-btn"
                     onClick={load}
-                    style={{ background: 'none', border: '1px solid var(--border-default)', color: 'var(--text-faint)', fontSize: 6.5, cursor: 'pointer', padding: '2px 5px', borderRadius: 'var(--radius-sm)', fontFamily: 'inherit' }}
                   >
                     RETRY
                   </button>
@@ -142,8 +125,7 @@ function DICurvePanel({ compact = false }) {
                       contentStyle={{
                         background: 'var(--bg-surface)',
                         border: '1px solid ' + c.color + '44',
-                        fontSize: 7, padding: '3px 7px', borderRadius: 2,
-                      }}
+                        fontSize: 7, padding: '3px 7px', }}
                       itemStyle={{ color: c.color }}
                       labelStyle={{ color: 'var(--text-muted)', marginBottom: 1 }}
                       formatter={v => [v != null ? v.toFixed(2) + '%' : '—', 'yield']}
@@ -164,8 +146,8 @@ function DICurvePanel({ compact = false }) {
 
             {/* Source footnote — only on last block */}
             {idx === CURVES.length - 1 && (
-              <div style={{ padding: '0 6px 1px', flexShrink: 0 }}>
-                <span style={{ color: 'var(--text-faint)', fontSize: 5.5, letterSpacing: '0.04em' }}>
+              <div className="dic-source">
+                <span className="dic-source-text">
                   {all[c.id]?.source || c.note}
                 </span>
               </div>

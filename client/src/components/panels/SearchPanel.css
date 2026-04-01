@@ -1,0 +1,342 @@
+/* SearchPanel.css - Static styles extracted from inline styles */
+
+.sp-container {
+  height: 100%;
+  background: #0a0a0a;
+  display: flex;
+  flex-direction: column;
+}
+
+.sp-header {
+  padding: 6px 10px 4px;
+  border-bottom: 1px solid #1e1e1e;
+  flex-shrink: 0;
+  align-items: baseline;
+  gap: 8px;
+  display: flex;
+}
+
+.sp-header-label {
+  color: #ff6b00;
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.2em;
+}
+
+.sp-header-hint {
+  color: #2a2a2a;
+  font-size: 7px;
+}
+
+.sp-search-wrapper {
+  position: relative;
+  padding: 6px 8px;
+  flex-shrink: 0;
+}
+
+.sp-search-input {
+  width: 100%;
+  background: #0f0f0f;
+  border: 1px solid #2a2a2a;
+  color: #ccc;
+  font-size: 15px;
+  padding: 9px 8px;
+  outline: none;
+  box-sizing: border-box;
+  min-height: 44px;
+}
+
+.sp-search-input:focus {
+  border-color: #ff6b00;
+}
+
+.sp-search-loading {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #444;
+  font-size: 7px;
+}
+
+.sp-filter-tabs {
+  display: flex;
+  gap: 3px;
+  padding: 4px 8px;
+  border-bottom: 1px solid #141414;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.sp-filter-btn {
+  padding: 2px 5px;
+  font-weight: 700;
+}
+
+.sp-results-container {
+  border-bottom: 1px solid #1e1e1e;
+  flex-shrink: 0;
+  max-height: 55vh;
+  overflow-y: auto;
+}
+
+.sp-results-header {
+  padding: 3px 10px;
+  background: #0a0a0a;
+  border-bottom: 1px solid #111;
+  gap: 6px;
+  display: flex;
+  align-items: center;
+}
+
+.sp-results-header-text {
+  color: #333;
+  font-size: 7px;
+  letter-spacing: 0.1em;
+}
+
+.sp-result-row {
+  padding: 8px 10px;
+  border-bottom: 1px solid #141414;
+  cursor: grab;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  user-select: none;
+}
+
+.sp-result-row:hover {
+  background: #141414;
+}
+
+.sp-result-row.no-coverage {
+  opacity: 0.55;
+}
+
+.sp-drag-icon {
+  color: #333;
+  font-size: 8px;
+  flex-shrink: 0;
+  cursor: grab;
+  letter-spacing: 1px;
+}
+
+.sp-coverage-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.sp-coverage-dot-live {
+  box-shadow: 0 0 4px currentColor;
+}
+
+.sp-drag-grip {
+  color: #1e1e1e;
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+.sp-symbol {
+  font-size: 12px;
+  font-weight: 700;
+  min-width: 68px;
+  flex-shrink: 0;
+}
+
+.sp-name {
+  color: #666;
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.sp-badge-container {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.sp-type-badge {
+  font-size: 8px;
+  padding: 2px 6px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.sp-exchange-badge {
+  font-size: 7px;
+  padding: 1px 4px;
+}
+
+.sp-coverage-tag {
+  font-size: 7px;
+  padding: 1px 4px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+
+.sp-add-home-btn {
+  font-size: 8px;
+  padding: 2px 6px;
+  letter-spacing: 0.1em;
+  transition: all 0.2s;
+}
+
+.sp-add-home-btn-active {
+  font-weight: bold;
+}
+
+.sp-empty-state {
+  padding: 16px 10px;
+  color: #2a2a2a;
+  font-size: 8px;
+  text-align: center;
+  line-height: 2;
+}
+
+.sp-empty-state-hint {
+  color: #1e1e1e;
+}
+
+.sp-no-results {
+  padding: 20px;
+  text-align: center;
+  color: #444;
+  letter-spacing: 0.1em;
+}
+
+.sp-quote-section {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px 10px 12px;
+}
+
+.sp-coverage-warning {
+  margin-bottom: 10px;
+  padding: 6px 10px;
+  border: 1px solid;
+  font-size: 9px;
+  line-height: 1.5;
+}
+
+.sp-coverage-warning-none {
+  background: #1a0000;
+  border-color: #440000;
+  color: #f44336;
+}
+
+.sp-coverage-warning-limited {
+  background: #1a1400;
+  border-color: #332200;
+  color: #ffd54f;
+}
+
+.sp-quote-loading {
+  color: #333;
+  font-size: 9px;
+  text-align: center;
+  padding: 12px 0;
+}
+
+.sp-action-buttons {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.sp-open-depth-btn {
+  flex: 2;
+  padding: 9px 0;
+  font-weight: 700;
+  background: #ff6b00;
+  color: #fff;
+  border: none;
+}
+
+.sp-chart-btn {
+  flex: 1;
+  padding: 9px 0;
+  background: transparent;
+  color: #555;
+  border: 1px solid #252525;
+  cursor: grab;
+}
+
+.sp-ticker-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-bottom: 2px;
+}
+
+.sp-ticker {
+  color: #ff6b00;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.sp-ticker-badge {
+  font-size: 7px;
+  padding: 1px 4px;
+  background: #1a2800;
+  color: #8bc34a;
+}
+
+.sp-ticker-name {
+  color: #333;
+  font-size: 8px;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sp-ticker-currency {
+  color: #2a2a2a;
+  font-size: 7px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.sp-price {
+  color: #e0e0e0;
+  font-size: 22px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  line-height: 1.1;
+}
+
+.sp-change {
+  font-size: 13px;
+  margin-top: 3px;
+  margin-bottom: 10px;
+}
+
+.sp-ohlcv-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 12px;
+}
+
+.sp-ohlcv-label {
+  color: #2a2a2a;
+  font-size: 7px;
+  letter-spacing: 0.5px;
+}
+
+.sp-ohlcv-value {
+  color: #888;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.sp-no-quote {
+  color: #2a2a2a;
+  font-size: 9px;
+  text-align: center;
+  padding: 8px 0;
+}

@@ -1,0 +1,154 @@
+/* AlertsPanel.css — prefix: ap- */
+
+.ap-row {
+  display: grid;
+  grid-template-columns: 72px 56px 1fr 56px 24px;
+  padding: 3px 8px;
+  border-bottom: 1px solid var(--border-subtle);
+  align-items: center;
+  transition: background-color 0.1s;
+}
+
+.ap-row.inactive {
+  opacity: 0.5;
+}
+
+.ap-row-symbol {
+  font-weight: 700;
+}
+
+.ap-row-symbol.triggered {
+  color: var(--price-up);
+}
+
+.ap-row-symbol.default {
+  color: var(--section-watchlist);
+}
+
+.ap-type-badge {
+  color: var(--text-muted);
+  font-size: var(--font-sm);
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+
+.ap-condition {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  overflow: hidden;
+}
+
+.ap-condition-text {
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ap-condition-triggered {
+  color: var(--price-up);
+  font-size: var(--font-sm);
+}
+
+.ap-condition-inactive {
+  color: var(--text-faint);
+  font-size: var(--font-sm);
+}
+
+.ap-condition-note {
+  color: var(--text-faint);
+  font-size: var(--font-sm);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ap-edit-btn {
+  background: none;
+  border: none;
+  color: var(--text-faint);
+  padding: 0;
+  text-align: center;
+  transition: color 0.15s;
+}
+
+.ap-edit-btn:hover {
+  color: var(--accent);
+}
+
+.ap-toggle-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  text-align: center;
+}
+
+.ap-toggle-btn.active {
+  color: var(--price-up);
+}
+
+.ap-toggle-btn.inactive {
+  color: var(--text-faint);
+}
+
+.ap-dismiss-btn {
+  background: none;
+  border: none;
+  color: var(--price-up);
+  padding: 0;
+  text-align: center;
+}
+
+.ap-header {
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border-strong);
+  background: var(--bg-elevated);
+  flex-shrink: 0;
+  gap: 8px;
+  display: flex;
+  align-items: center;
+}
+
+.ap-header-title {
+  color: var(--accent);
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.ap-header-count {
+  color: var(--text-muted);
+  font-size: var(--font-sm);
+}
+
+.ap-header-spacer {
+  flex: 1;
+}
+
+.ap-new-btn {
+  background: none;
+  border: 1px solid var(--border-strong);
+  color: var(--accent);
+  padding: 1px 6px;
+}
+
+.ap-col-header {
+  display: grid;
+  grid-template-columns: 72px 56px 1fr 56px 24px;
+  padding: 2px 8px;
+  border-bottom: 1px solid var(--border-default);
+  flex-shrink: 0;
+}
+
+.ap-col-header-cell {
+  color: var(--text-muted);
+  font-size: var(--font-sm);
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.ap-rows-container {
+  flex: 1;
+  overflow-y: auto;
+}

@@ -11,6 +11,7 @@ import { SectionHeader } from '../common/SectionHeader';
 import ColumnHeaders from '../common/ColumnHeaders';
 import { US_STOCKS, BRAZIL_ADRS } from '../../utils/constants';
 import { useFeedStatus } from '../../context/FeedStatusContext';
+import './StockPanel.css';
 
 const fmt    = (n) => n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmtPct = (n) => n == null ? '—' : (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
@@ -204,22 +205,19 @@ function StockPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
         feedBadge={badge}
       >
         {/* Movers filter toggle */}
-        <button
+        <button className={`stp-movers-btn ${moversOnly ? 'stp-movers-btn-active' : ''}`}
           onClick={() => setMoversOnly(v => !v)}
           title="Show only movers ≥ 2%"
-          style={{ background: moversOnly ? '#1a1000' : 'none', border: `1px solid ${moversOnly ? 'var(--accent-text)' : 'var(--border-strong)'}`, color: moversOnly ? 'var(--accent-text)' : 'var(--text-muted)', fontSize: 'var(--font-xs)', padding: '1px 4px', cursor: 'pointer', fontFamily: 'inherit', borderRadius: 'var(--radius-sm)' }}
         >≥2%</button>
         {/* Heatmap toggle */}
-        <button
+        <button className={`stp-heatmap-btn ${heatmap ? 'stp-heatmap-btn-active' : ''}`}
           onClick={() => setHeatmap(v => !v)}
           title="Toggle heatmap view"
-          style={{ background: heatmap ? '#0a001a' : 'none', border: `1px solid ${heatmap ? '#ce93d8' : 'var(--border-strong)'}`, color: heatmap ? '#ce93d8' : 'var(--text-muted)', fontSize: 'var(--font-xs)', padding: '1px 4px', cursor: 'pointer', fontFamily: 'inherit', borderRadius: 'var(--radius-sm)' }}
         >HEAT</button>
         {/* Collapse toggle */}
-        <button
+        <button className="stp-reset-btn"
           onClick={() => setCollapsed(v => !v)}
           title={collapsed ? 'Expand' : 'Collapse'}
-          style={{ background: 'none', border: '1px solid var(--border-strong)', color: 'var(--text-muted)', fontSize: 9, padding: '1px 5px', cursor: 'pointer', fontFamily: 'inherit', borderRadius: 'var(--radius-sm)' }}
         >{collapsed ? '+' : '−'}</button>
       </EditablePanelHeader>
 
@@ -236,12 +234,12 @@ function StockPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
             />
           )}
 
-          <div style={{ flex: 1, overflowY: 'auto' }}>
+          <div className="stp-content">
             {loading || !data ? (
-              <div style={{ padding: 'var(--sp-5)', textAlign: 'center', color: 'var(--text-muted)', fontSize: 'var(--font-base)' }}>LOADING...</div>
+              <div className="stp-loading">LOADING...</div>
             ) : heatmap ? (
               /* Heatmap grid */
-              <div style={{ padding: '6px 4px', display: 'flex', flexWrap: 'wrap', gap: 3 }}>
+              <div className="stp-movers-grid">
                 {allItems.map(s => {
                   const pct  = data?.[s.symbol]?.changePct ?? null;
                   const bg   = heatColor(pct);
@@ -249,6 +247,7 @@ function StockPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
                   return (
                     <div
                       key={s.symbol}
+                      className="stp-movers-card"
                       data-ticker={s.symbol}
                       data-ticker-label={s.label}
                       data-ticker-type="EQUITY"
@@ -258,20 +257,18 @@ function StockPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
                       title={`${s.symbol}\n${fmtPct(pct)}`}
                       style={{
                         width: 54, height: 38, background: bg,
-                        border: '1px solid #222', borderRadius: 'var(--radius-sm)', cursor: 'pointer',
-                        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                        transition: 'filter 0.15s',
+                        border: '1px solid #222',
                       }}
                       onMouseEnter={e => e.currentTarget.style.filter = 'brightness(1.4)'}
                       onMouseLeave={e => e.currentTarget.style.filter = 'none'}
                     >
-                      <span style={{ color: 'var(--text-primary)', fontSize: 'var(--font-sm)', fontWeight: 700, letterSpacing: '0.04em' }}>{s.symbol.replace('.SA', '')}</span>
-                      <span style={{ color: pos ? '#81c784' : '#ef9a9a', fontSize: 'var(--font-sm)', fontWeight: 600, marginTop: 1 }}>{fmtPct(pct)}</span>
+                      <span className="stp-movers-symbol">{s.symbol.replace('.SA', '')}</span>
+                      <span className="stp-movers-pct" style={{ color: pos ? '#81c784' : '#ef9a9a' }}>{fmtPct(pct)}</span>
                     </div>
                   );
                 })}
                 {allItems.length === 0 && (
-                  <div style={{ color: 'var(--text-muted)', fontSize: 9, padding: 'var(--sp-3)' }}>No movers matching filter.</div>
+                  <div className="stp-no-movers">No movers matching filter.</div>
                 )}
               </div>
             ) : (
@@ -301,7 +298,7 @@ function StockPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
                   />
                 ))}
                 {moversOnly && filteredUS.length === 0 && (
-                  <div style={{ padding: 'var(--sp-2) var(--sp-3)', color: 'var(--text-faint)', fontSize: 9 }}>No US movers ≥ 2%</div>
+                  <div className="stp-section-empty">No US movers ≥ 2%</div>
                 )}
 
                 {!hiddenSubsections.includes('brazilAdrs') && (
@@ -331,7 +328,7 @@ function StockPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
                       />
                     ))}
                     {moversOnly && filteredBrazil.length === 0 && (
-                      <div style={{ padding: 'var(--sp-2) var(--sp-3)', color: 'var(--text-faint)', fontSize: 9 }}>No ADR movers ≥ 2%</div>
+                      <div className="stp-section-empty">No ADR movers ≥ 2%</div>
                     )}
                   </>
                 )}

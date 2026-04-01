@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, memo } from 'react';
 import { useFeedStatus } from '../../context/FeedStatusContext';
 import { apiFetch } from '../../utils/api';
 import EmptyState from '../common/EmptyState';
+import './NewsPanel.css';
 
 function timeAgo(dateStr) {
   const diff = (Date.now() - new Date(dateStr).getTime()) / 1000;
@@ -20,28 +21,23 @@ function NewsItem({ item, isNew }) {
   const url = item.article_url || item.link || item.url;
   return (
     <div
+      className={`np-news-item ${isNew ? 'np-news-item.new' : ''} ${isBreaking ? 'np-news-item.breaking' : ''}`}
       onClick={() => url && window.open(url, '_blank', 'noopener,noreferrer')}
-      style={{
-        padding: '4px 6px',
-        borderBottom: '1px solid #0d0d0d',
-        background: isNew ? '#1a0a00' : isBreaking ? '#120000' : 'transparent',
-        transition: 'background 1s',
-        cursor: url ? 'pointer' : 'default',
-      }}
+      style={{ cursor: url ? 'pointer' : 'default' }}
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
-        <span style={{ color: isBreaking ? '#ff2222' : '#ff6600', fontSize: 9, fontWeight: 700, letterSpacing: 0.5 }}>
+      <div className="flex-row np-news-header">
+        <span className={`np-news-publisher ${isBreaking ? 'np-news-publisher.breaking' : 'np-news-publisher.normal'}`}>
           {isBreaking ? '◆ BREAKING ' : ''}{(item.publisher?.name || 'NEWSWIRE').toUpperCase()}
         </span>
-        <span style={{ color: '#444', fontSize: 9 }}>{timeAgo(item.published_utc)}</span>
+        <span className="np-news-time">{timeAgo(item.published_utc)}</span>
       </div>
-      <div style={{ color: isBreaking ? '#ff6666' : '#c8c8c8', fontSize: 11, lineHeight: 1.35, fontWeight: isBreaking ? 600 : 400 }}>
+      <div className={`np-news-title ${isBreaking ? 'np-news-title.breaking' : 'np-news-title.normal'}`}>
         {item.title}
       </div>
       {item.tickers?.length > 0 && (
-        <div style={{ marginTop: 2, display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+        <div className="flex-row np-news-tickers">
           {item.tickers.slice(0, 5).map((t) => (
-            <span key={t} style={{ color: '#ff6600', fontSize: 9, background: '#1a0d00', padding: '1px 4px', border: '1px solid #2a1500' }}>{t}</span>
+            <span key={t} className="np-news-ticker">{t}</span>
           ))}
         </div>
       )}
@@ -88,29 +84,25 @@ function NewsPanel() {
   }, []);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
-      <div style={{ padding: '4px 8px', borderBottom: '1px solid #2a2a2a', background: '#111', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
-        <span style={{ color: '#ff6600', fontSize: '10px', fontWeight: 700, letterSpacing: '1px' }}>NEWS FEED</span>
-        <span style={{ color: '#333', fontSize: '8px' }}>{news.length > 0 ? news.length + ' STORIES' : ''}</span>
-        <span style={{ background: badge.bg, color: badge.color, fontSize: 7, fontWeight: 700, letterSpacing: '0.08em', padding: '1px 4px', borderRadius: 2, border: `1px solid ${badge.color}33` }}>
+    <div className="flex-col np-container">
+      <div className="flex-row np-header">
+        <span className="np-header-title">NEWS FEED</span>
+        <span className="np-header-count">{news.length > 0 ? news.length + ' STORIES' : ''}</span>
+        <span className="np-header-badge" style={{ background: badge.bg, color: badge.color, borderColor: badge.color + '33' }}>
           {badge.text}
         </span>
-        <div style={{ flex: 1 }} />
-        <button onClick={() => setCollapsed(v => !v)} title={collapsed ? 'Expand' : 'Collapse'}
-          style={{ background: 'none', border: '1px solid #2a2a2a', color: '#555', fontSize: 9, padding: '1px 5px', cursor: 'pointer', fontFamily: 'inherit', borderRadius: 2 }}
+        <div className="np-header-spacer" />
+        <button className="btn np-collapse-btn" onClick={() => setCollapsed(v => !v)} title={collapsed ? 'Expand' : 'Collapse'}
         >{collapsed ? '+' : '−'}</button>
       </div>
       {!collapsed && (<>
       {error && news.length === 0 && (
-        <div style={{
-          padding: '4px 8px', background: '#1a0000', borderBottom: '1px solid #3a0000',
-          display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0,
-        }}>
-          <span style={{ color: '#ff4444', fontSize: 9 }}>⚠</span>
-          <span style={{ color: '#aa3333', fontSize: 9 }}>Feed error — retrying</span>
+        <div className="flex-row np-error-banner">
+          <span className="np-error-icon">⚠</span>
+          <span className="np-error-text">Feed error — retrying</span>
         </div>
       )}
-      <div style={{ flex: 1, overflowY: 'auto', background: '#000' }}>
+      <div className="np-content">
         {loading ? (
           <EmptyState
             icon="⟳"

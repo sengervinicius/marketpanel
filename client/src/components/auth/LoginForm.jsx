@@ -5,6 +5,7 @@
 
 import { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import './LoginForm.css';
 
 export function LoginForm() {
   const [username, setUsername] = useState('');
@@ -34,20 +35,9 @@ export function LoginForm() {
   return (
     <form
       onSubmit={handleSubmit}
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '12px',
-        maxWidth: '300px',
-        margin: '0 auto',
-        padding: '20px',
-        background: '#0d0d0d',
-        border: '1px solid #2a2a2a',
-        borderRadius: '4px',
-        fontFamily: 'var(--font-ui)',
-      }}
+      className="lf-form"
     >
-      <h2 style={{ fontSize: '14px', color: '#ff9900', margin: '0 0 12px 0', fontWeight: 700 }}>
+      <h2 className="lf-title">
         {isRegister ? 'REGISTER' : 'LOGIN'}
       </h2>
 
@@ -57,16 +47,7 @@ export function LoginForm() {
         onChange={(e) => setUsername(e.target.value.toLowerCase())}
         placeholder="Username"
         disabled={loading}
-        style={{
-          background: '#0a0a0a',
-          border: '1px solid #2a2a2a',
-          color: '#e0e0e0',
-          fontFamily: 'inherit',
-          fontSize: '10px',
-          padding: '8px 10px',
-          outline: 'none',
-          borderRadius: '2px',
-        }}
+        className="lf-input"
       />
 
       <input
@@ -75,20 +56,11 @@ export function LoginForm() {
         onChange={(e) => setPassword(e.target.value)}
         placeholder="Password"
         disabled={loading}
-        style={{
-          background: '#0a0a0a',
-          border: '1px solid #2a2a2a',
-          color: '#e0e0e0',
-          fontFamily: 'inherit',
-          fontSize: '10px',
-          padding: '8px 10px',
-          outline: 'none',
-          borderRadius: '2px',
-        }}
+        className="lf-input"
       />
 
       {error && (
-        <div style={{ color: '#f44336', fontSize: '9px', fontWeight: 600, padding: '6px', background: '#1a0000', borderRadius: '2px' }}>
+        <div className="lf-error">
           ⚠ {error}
         </div>
       )}
@@ -96,18 +68,7 @@ export function LoginForm() {
       <button
         type="submit"
         disabled={loading || !username || !password}
-        style={{
-          background: username && password && !loading ? '#1a0d00' : '#0a0a0a',
-          border: '1px solid #ff9900',
-          color: username && password && !loading ? '#ff9900' : '#555',
-          fontSize: '10px',
-          fontWeight: 700,
-          padding: '8px 12px',
-          cursor: username && password && !loading ? 'pointer' : 'default',
-          fontFamily: 'inherit',
-          borderRadius: '2px',
-          letterSpacing: '0.5px',
-        }}
+        className="lf-submit-btn"
       >
         {loading ? 'PLEASE WAIT...' : isRegister ? 'REGISTER' : 'LOGIN'}
       </button>
@@ -119,17 +80,7 @@ export function LoginForm() {
           setError(null);
         }}
         disabled={loading}
-        style={{
-          background: 'transparent',
-          border: '1px solid #555',
-          color: '#888',
-          fontSize: '8px',
-          padding: '6px 10px',
-          cursor: 'pointer',
-          fontFamily: 'inherit',
-          borderRadius: '2px',
-          textDecoration: 'underline',
-        }}
+        className="lf-toggle-btn"
       >
         {isRegister ? 'Already have an account? LOGIN' : "Don't have an account? REGISTER"}
       </button>

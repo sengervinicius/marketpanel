@@ -7,6 +7,7 @@
 import { memo, useState, useMemo, useRef, useEffect } from 'react';
 import { useWatchlist } from '../../context/WatchlistContext';
 import { useStocksData, useForexData, useCryptoData } from '../../context/MarketContext';
+import './WatchlistPanelMobile.css';
 
 function fmtPrice(v, dec = 2) {
   if (v == null) return '--';
@@ -59,48 +60,24 @@ function WatchlistPanelMobile({ onOpenDetail, onManage }) {
   }, [filtered, sortBy, getData]);
 
   return (
-    <div style={{
-      display: 'flex', flexDirection: 'column', height: '100%',
-      background: 'var(--bg-app)', fontFamily: 'inherit',
-    }}>
+    <div className="flex-col wpm-container">
       {/* Header */}
-      <div style={{
-        padding: 'var(--sp-4)',
-        borderBottom: '1px solid var(--border-subtle)',
-        flexShrink: 0,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-      }}>
-        <span style={{ color: 'var(--text-primary)', fontSize: 16, fontWeight: 600, letterSpacing: '-0.3px' }}>
+      <div className="flex-row wpm-header">
+        <span className="wpm-header-title">
           Watchlist
         </span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div className="flex-row wpm-header-actions">
           {watchlist.length > 0 && (
-            <div style={{
-              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-              backgroundColor: 'rgba(255, 102, 0, 0.12)',
-              color: 'var(--accent)',
-              fontSize: 12, fontWeight: 600,
-              borderRadius: '50%', width: 24, height: 24,
-            }}>{watchlist.length}</div>
+            <div className="wpm-badge">{watchlist.length}</div>
           )}
-          <button onClick={onManage} style={{
-            width: 36, height: 36, borderRadius: '50%',
-            border: '2px solid var(--accent)',
-            background: 'none', color: 'var(--accent)',
-            fontSize: 20, cursor: 'pointer',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            padding: 0,
-            WebkitTapHighlightColor: 'rgba(255, 102, 0, 0.1)',
-          }} title="Add instruments">+</button>
+          <button className="btn flex-row wpm-manage-btn" onClick={onManage} title="Add instruments">+</button>
         </div>
       </div>
 
       {/* Search and Sort (only when not empty) */}
       {watchlist.length > 0 && (
         <>
-          <div style={{ padding: 'var(--sp-2) var(--sp-4)', flexShrink: 0 }}>
+          <div className="wpm-search-container">
             <input
               type="text"
               className="m-search"
@@ -111,19 +88,13 @@ function WatchlistPanelMobile({ onOpenDetail, onManage }) {
           </div>
 
           {/* Sort chips */}
-          <div style={{
-            display: 'flex', gap: 8,
-            padding: 'var(--sp-3) var(--sp-4)',
-            flexShrink: 0, overflowX: 'auto', overflowY: 'hidden',
-            scrollBehavior: 'smooth',
-          }}>
+          <div className="flex-row wpm-sort-chips">
             {['Added', 'Name', 'Change', 'Price'].map((label) => {
               const sortKey = label.toLowerCase();
               const isActive = sortBy === sortKey;
               return (
-                <button
+                <button className="btn m-chip"
                   key={label}
-                  className="m-chip"
                   data-active={isActive}
                   onClick={() => setSortBy(sortKey)}
                 >
@@ -149,17 +120,9 @@ function WatchlistPanelMobile({ onOpenDetail, onManage }) {
           </button>
         </div>
       ) : (
-        <div style={{
-          flex: 1, overflowY: 'auto', overflowX: 'hidden',
-          WebkitOverflowScrolling: 'touch',
-        }}>
+        <div className="wpm-list-container">
           {sorted.length === 0 ? (
-            <div style={{
-              padding: 'var(--sp-8) var(--sp-4)',
-              textAlign: 'center',
-              color: 'var(--text-muted)',
-              fontSize: 13,
-            }}>
+            <div className="wpm-list-empty-msg">
               No results for "{searchQuery}"
             </div>
           ) : (
@@ -169,53 +132,39 @@ function WatchlistPanelMobile({ onOpenDetail, onManage }) {
               return (
                 <div
                   key={sym}
-                  className="m-row"
+                  className="m-row wpm-row"
                   onClick={() => onOpenDetail?.(sym)}
-                  style={{ padding: '0 var(--sp-4)', minHeight: 60 }}
                 >
                   {/* Symbol + name */}
-                  <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                    <div style={{ color: 'var(--text-primary)', fontSize: 13, fontWeight: 600, letterSpacing: '-0.2px', marginBottom: 3 }}>
+                  <div className="flex-col wpm-row-info">
+                    <div className="wpm-row-symbol">
                       {sym}
                     </div>
                     {d?.name && (
-                      <div style={{ color: 'var(--text-secondary)', fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <div className="wpm-row-name">
                         {d.name}
                       </div>
                     )}
                   </div>
 
                   {/* Price + change */}
-                  <div style={{ textAlign: 'right', marginRight: 12, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                    <div style={{ color: 'var(--text-primary)', fontSize: 14, fontWeight: 500, fontVariantNumeric: 'tabular-nums', marginBottom: 3 }}>
+                  <div className="flex-col wpm-row-data">
+                    <div className="wpm-row-price">
                       {d?.price ? fmtPrice(d.price) : '--'}
                     </div>
-                    <div style={{
-                      color: pct == null ? 'var(--text-muted)' : pct >= 0 ? 'var(--price-up)' : 'var(--price-down)',
-                      fontSize: 11, fontWeight: 500, fontVariantNumeric: 'tabular-nums',
-                    }}>
+                    <div className={`wpm-row-change ${pct == null ? 'wpm-row-change-neutral' : pct >= 0 ? 'wpm-row-change-positive' : 'wpm-row-change-negative'}`}>
                       {fmtPct(pct)}
                     </div>
                   </div>
 
                   {/* Remove button */}
-                  <button
+                  <button className="btn wpm-remove-btn"
                     onClick={(e) => {
                       e.stopPropagation();
                       if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
                       setUndoItem(sym);
                       removeTicker(sym);
                       undoTimerRef.current = setTimeout(() => setUndoItem(null), 4000);
-                    }}
-                    style={{
-                      width: 40, height: 40,
-                      background: 'none', border: 'none',
-                      color: 'var(--text-faint)', cursor: 'pointer',
-                      fontSize: 18, lineHeight: 1, padding: 0, flexShrink: 0,
-                      borderRadius: '50%',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      transition: 'color 0.15s ease',
-                      WebkitTapHighlightColor: 'transparent',
                     }}
                     title="Remove"
                   >
@@ -230,20 +179,13 @@ function WatchlistPanelMobile({ onOpenDetail, onManage }) {
 
       {/* Undo Toast */}
       {undoItem && (
-        <div className="m-toast">
-          <span>{undoItem} removed</span>
-          <button
+        <div className="m-toast wpm-toast">
+          <span className="wpm-toast-text">{undoItem} removed</span>
+          <button className="btn wpm-toast-btn"
             onClick={() => {
               addTicker(undoItem);
               setUndoItem(null);
               if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
-            }}
-            style={{
-              background: 'none', border: 'none',
-              color: 'var(--accent)', cursor: 'pointer',
-              fontSize: 13, fontWeight: 600, padding: 0,
-              minWidth: 'auto', minHeight: 'auto',
-              WebkitTapHighlightColor: 'transparent',
             }}
           >
             UNDO

@@ -6,6 +6,7 @@
 
 import { useState } from 'react';
 import { useSettings } from '../../context/SettingsContext';
+import './OnboardingPresets.css';
 
 const OPTIONS = [
   {
@@ -67,38 +68,23 @@ export default function OnboardingPresets() {
   };
 
   return (
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 9998,
-      background: '#080808',
-      display: 'flex', flexDirection: 'column',
-      alignItems: 'center', justifyContent: 'center',
-      fontFamily: 'var(--font-ui)',
-      padding: '24px 16px',
-      overflowY: 'auto',
-    }}>
+    <div className="obp-container">
 
       {/* Header */}
-      <div style={{ textAlign: 'center', marginBottom: 32, flexShrink: 0 }}>
-        <div style={{ color: '#ff6600', fontSize: 11, letterSpacing: '0.3em', fontWeight: 700, marginBottom: 10 }}>
+      <div className="obp-header">
+        <div className="obp-header-label">
           SENGER MARKET TERMINAL
         </div>
-        <div style={{ color: '#e8e8e8', fontSize: 18, fontWeight: 700, marginBottom: 6, letterSpacing: '0.03em' }}>
+        <div className="obp-header-title">
           Choose your starting workspace
         </div>
-        <div style={{ color: '#444', fontSize: 10, letterSpacing: '0.1em' }}>
+        <div className="obp-header-subtitle">
           You can customize everything later.
         </div>
       </div>
 
       {/* Cards — 2 columns on desktop, 1 on mobile */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-        gap: 10,
-        width: '100%',
-        maxWidth: 640,
-        marginBottom: 28,
-      }}>
+      <div className="obp-grid">
         {OPTIONS.map(({ key, title, description, includes }) => {
           const active = selected === key;
           return (
@@ -106,41 +92,20 @@ export default function OnboardingPresets() {
               key={key}
               onClick={() => pick(key)}
               disabled={loading}
-              style={{
-                background:    active ? '#100900' : '#0d0d0d',
-                border:        `1px solid ${active ? '#ff6600' : '#1e1e1e'}`,
-                borderRadius:  4,
-                padding:       '14px 16px',
-                cursor:        loading ? 'wait' : 'pointer',
-                textAlign:     'left',
-                display:       'flex',
-                flexDirection: 'column',
-                gap:           6,
-                transition:    'border-color 0.12s',
-              }}
+              className={`obp-card ${active ? 'obp-card-active' : ''}`}
             >
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                marginBottom: 2,
-              }}>
-                <div style={{ color: active ? '#ff6600' : '#e0e0e0', fontSize: 12, fontWeight: 700, fontFamily: 'inherit' }}>
+              <div className="obp-card-header">
+                <div className="obp-card-title">
                   {title}
                 </div>
-                <div style={{
-                  width: 14, height: 14, borderRadius: '50%', flexShrink: 0,
-                  border: `1.5px solid ${active ? '#ff6600' : '#2a2a2a'}`,
-                  background: active ? '#ff6600' : 'transparent',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}>
-                  {active && <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#000' }} />}
+                <div className="obp-card-radio">
+                  {active && <div className="obp-card-radio-inner" />}
                 </div>
               </div>
-              <div style={{ color: '#555', fontSize: 9, lineHeight: 1.5, fontFamily: 'inherit' }}>
+              <div className="obp-card-description">
                 {description}
               </div>
-              <div style={{ color: '#333', fontSize: 8, letterSpacing: '0.03em', marginTop: 2, fontFamily: 'inherit' }}>
+              <div className="obp-card-includes">
                 INCLUDES: {includes}
               </div>
             </button>
@@ -152,16 +117,7 @@ export default function OnboardingPresets() {
       <button
         onClick={skip}
         disabled={loading}
-        style={{
-          flexShrink: 0,
-          background: 'none', border: 'none',
-          color: '#2a2a2a', fontSize: 9,
-          cursor: loading ? 'wait' : 'pointer',
-          fontFamily: 'inherit', letterSpacing: '0.12em',
-          padding: '6px 12px',
-          textDecoration: 'underline',
-          textUnderlineOffset: 3,
-        }}
+        className="obp-skip-btn"
       >
         {loading ? 'SETTING UP...' : 'SKIP — USE DEFAULTS'}
       </button>

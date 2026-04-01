@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { LoginForm } from './LoginForm';
 import { useAuth } from '../../context/AuthContext';
+import './PasswordGate.css';
 
 export default function PasswordGate({ children }) {
   const [auth, setAuth] = useState(false);
@@ -35,50 +36,32 @@ export default function PasswordGate({ children }) {
   if (auth) return children;
 
   return (
-    <div style={{
-      position: 'fixed', inset: 0, background: '#0a0a0f',
-      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-      fontFamily: 'var(--font-ui)'
-    }}>
+    <div className="pg-container">
       {/* Background grid lines */}
-      <div style={{
-        position: 'absolute', inset: 0, opacity: 0.04,
-        backgroundImage: 'linear-gradient(#e55a00 1px, transparent 1px), linear-gradient(90deg, #e55a00 1px, transparent 1px)',
-        backgroundSize: '40px 40px', pointerEvents: 'none'
-      }} />
+      <div className="pg-grid-background" />
 
-      <div style={{position:'relative', width:'100%', maxWidth:420, padding:'0 20px'}}>
+      <div className="pg-wrapper">
         {/* Logo / branding */}
-        <div style={{textAlign:'center', marginBottom:40}}>
-          <div style={{color:'#e55a00', fontSize:11, letterSpacing:'0.25em', marginBottom:6, textTransform:'uppercase'}}>
+        <div className="pg-branding">
+          <div className="pg-logo-label">
             ARC CAPITAL
           </div>
-          <div style={{color:'#e8e8e8', fontSize:20, fontWeight:600, letterSpacing:'0.15em', marginBottom:4}}>
+          <div className="pg-logo-title">
             SENGER MARKET SCREEN
           </div>
-          <div style={{color:'#444', fontSize:8, letterSpacing:'0.3em', textTransform:'uppercase'}}>
+          <div className="pg-logo-subtitle">
             Professional Market Data Terminal
           </div>
-          <div style={{width:60, height:1, background:'#e55a00', margin:'16px auto 0'}} />
+          <div className="pg-logo-divider" />
         </div>
 
         {/* User auth toggle */}
         {!useUserAuth && (
-          <div style={{textAlign:'center', marginBottom:16}}>
+          <div className="pg-auth-toggle">
             <button
               type="button"
               onClick={() => setUseUserAuth(true)}
-              style={{
-                background:'transparent',
-                border:'1px solid #555',
-                color:'#888',
-                fontSize:'8px',
-                padding:'6px 10px',
-                cursor:'pointer',
-                fontFamily:'inherit',
-                letterSpacing:'0.1em',
-                textDecoration:'underline'
-              }}
+              className="pg-auth-toggle-btn"
             >
               USER AUTHENTICATION
             </button>
@@ -90,17 +73,13 @@ export default function PasswordGate({ children }) {
           <LoginForm />
         ) : (
           <>
-          <form onSubmit={handleSubmit} style={{
-          background: '#0d0d14', border: '1px solid #1a1a2e',
-          borderRadius: 2, padding: '24px 28px',
-          animation: shake ? 'shake 0.4s ease' : 'none'
-        }}>
-          <div style={{color:'#555', fontSize:8, letterSpacing:'0.2em', marginBottom:12, textTransform:'uppercase'}}>
+          <form onSubmit={handleSubmit} className={`pg-form ${shake ? 'pg-shake' : ''}`}>
+          <div className="pg-form-label">
             Authentication Required
           </div>
 
-          <div style={{marginBottom:16}}>
-            <div style={{color:'#666', fontSize:8, letterSpacing:'0.1em', marginBottom:6, textTransform:'uppercase'}}>
+          <div className="pg-field-group">
+            <div className="pg-field-label">
               Access Code
             </div>
             <input
@@ -109,38 +88,21 @@ export default function PasswordGate({ children }) {
               onChange={e => setPassword(e.target.value)}
               placeholder="Enter access code"
               autoFocus
-              style={{
-                width: '100%', background: '#06060a', border: '1px solid #222',
-                borderRadius: 1, color: '#e8e8e8', fontFamily: 'inherit',
-                fontSize: 12, padding: '10px 12px', outline: 'none',
-                boxSizing: 'border-box',
-                transition: 'border-color 0.2s',
-              }}
+              className="pg-input"
               onFocus={e => e.target.style.borderColor = '#e55a00'}
               onBlur={e => e.target.style.borderColor = '#222'}
             />
           </div>
 
           {error && (
-            <div style={{
-              color: '#f44336', fontSize: 8, letterSpacing: '0.1em',
-              marginBottom: 12, textTransform: 'uppercase'
-            }}>
+            <div className="pg-error">
               ⚠ {error}
             </div>
           )}
 
           <button
             type="submit"
-            style={{
-              width: '100%', background: 'linear-gradient(135deg, #1a0800, #2a1000)',
-              border: '1px solid #e55a00', color: '#e55a00',
-              fontFamily: 'inherit', fontSize: 9, fontWeight: 600,
-              letterSpacing: '0.15em', padding: '10px 16px',
-              textTransform: 'uppercase', cursor: 'pointer',
-              transition: 'background 0.2s, color 0.2s',
-              borderRadius: 1
-            }}
+            className="pg-submit-btn"
             onMouseEnter={e => { e.target.style.background = '#e55a00'; e.target.style.color = '#000'; }}
             onMouseLeave={e => { e.target.style.background = 'linear-gradient(135deg, #1a0800, #2a1000)'; e.target.style.color = '#e55a00'; }}
           >
@@ -148,7 +110,7 @@ export default function PasswordGate({ children }) {
           </button>
         </form>
 
-        <div style={{textAlign:'center', marginTop:20, color:'#333', fontSize:7, letterSpacing:'0.1em'}}>
+        <div className="pg-footer">
           AUTHORIZED USERS ONLY · CONFIDENTIAL
         </div>
           </>

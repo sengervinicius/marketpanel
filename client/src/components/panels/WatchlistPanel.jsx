@@ -10,6 +10,7 @@ import { apiFetch } from '../../utils/api';
 import EmptyState from '../common/EmptyState';
 import PanelShell from '../common/PanelShell';
 import { PriceRow } from '../common/PriceRow';
+import './WatchlistPanel.css';
 
 const fmt    = (n) => n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmtPct = (n) => n == null ? '—' : (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
@@ -78,49 +79,45 @@ function WatchlistPanel({ onTickerClick, onOpenDetail }) {
   return (
     <PanelShell>
       {/* Header */}
-      <div style={{ padding: '4px 8px', borderBottom: '1px solid var(--border-strong)', background: 'var(--bg-elevated)', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ color: 'var(--section-watchlist)', fontSize: 'var(--font-base)', fontWeight: 700, letterSpacing: '1px', flex: 1 }}>\u2605 WATCHLIST</span>
-        <span style={{ color: 'var(--text-muted)', fontSize: 'var(--font-sm)' }}>{watchlist.length} symbols</span>
-        <button
+      <div className="flex-row wp-header">
+        <span className="wp-header-title">★ WATCHLIST</span>
+        <span className="wp-header-count">{watchlist.length} symbols</span>
+        <button className={`btn wp-add-btn ${showAdd ? 'wp-add-btn-active' : ''}`}
           onClick={() => setShowAdd(s => !s)}
-          style={{ background: showAdd ? '#1a0d00' : 'none', border: '1px solid var(--border-strong)', color: 'var(--section-watchlist)', fontSize: 9, padding: '1px 6px', cursor: 'pointer', fontFamily: 'inherit', borderRadius: 'var(--radius-sm)' }}
         >+ ADD</button>
       </div>
 
       {/* Add ticker input */}
       {showAdd && (
-        <form onSubmit={handleAdd} style={{ display: 'flex', gap: 4, padding: '4px 8px', borderBottom: '1px solid var(--border-default)', flexShrink: 0, background: 'var(--bg-surface)' }}>
+        <form onSubmit={handleAdd} className="flex-row wp-add-form">
           <input
             ref={inputRef}
             value={addInput}
             onChange={e => setAddInput(e.target.value.toUpperCase())}
             placeholder="e.g. AAPL or VALE3.SA"
-            style={{
-              flex: 1, background: 'var(--bg-panel)', border: '1px solid var(--border-strong)', color: 'var(--text-primary)',
-              fontFamily: 'inherit', fontSize: 'var(--font-base)', padding: '3px 6px', outline: 'none', borderRadius: 'var(--radius-sm)',
-            }}
+            className="wp-add-input"
           />
-          <button type="submit" style={{ background: '#1a0d00', border: '1px solid var(--section-watchlist)', color: 'var(--section-watchlist)', fontSize: 9, padding: '2px 8px', cursor: 'pointer', fontFamily: 'inherit', borderRadius: 'var(--radius-sm)' }}>ADD</button>
-          <button type="button" onClick={() => { setShowAdd(false); setAddInput(''); }} style={{ background: 'none', border: '1px solid var(--text-faint)', color: 'var(--text-muted)', fontSize: 9, padding: '2px 6px', cursor: 'pointer', fontFamily: 'inherit', borderRadius: 'var(--radius-sm)' }}>\u2715</button>
+          <button className="btn wp-add-submit-btn" type="submit">ADD</button>
+          <button className="btn wp-add-cancel-btn" type="button" onClick={() => { setShowAdd(false); setAddInput(''); }}>✕</button>
         </form>
       )}
 
       {/* Column headers */}
-      <div style={{ display: 'grid', gridTemplateColumns: COLS, padding: '2px 8px', borderBottom: '1px solid var(--border-default)', flexShrink: 0 }}>
+      <div className="wp-col-header">
         {['TICKER', 'SOURCE', 'LAST', 'CHG%', ''].map((h, i) => (
-          <span key={i} style={{ color: 'var(--text-muted)', fontSize: 'var(--font-sm)', fontWeight: 700, letterSpacing: '1px', textAlign: i >= 2 ? 'right' : 'left', paddingRight: i >= 2 ? 4 : 0 }}>{h}</span>
+          <span key={i} className={`wp-col-header-cell ${i >= 2 ? 'wp-col-header-right' : ''}`}>{h}</span>
         ))}
       </div>
 
-      <div style={{ flex: 1, overflowY: 'auto' }}>
+      <div className="wp-rows-container">
         {watchlist.length === 0 ? (
           <EmptyState
-            icon="\u2606"
+            icon="☆"
             title="No watchlist items"
             message="Search for a ticker and add it to your watchlist to track it here."
           />
         ) : loading && Object.keys(quotes).length === 0 ? (
-          <div style={{ padding: 'var(--sp-5)', textAlign: 'center', color: 'var(--text-muted)', fontSize: 'var(--font-base)' }}>LOADING...</div>
+          <div style={{ padding: 'var(--sp-5)', textAlign: 'center', color: 'var(--text-muted)' }}>LOADING...</div>
         ) : (
           watchlist.map(sym => {
             const q = quotes[sym] || {};
@@ -142,36 +139,27 @@ function WatchlistPanel({ onTickerClick, onOpenDetail }) {
                 onTouchStart={e => { e.stopPropagation(); clearTimeout(ptRef.current); ptRef.current = setTimeout(() => onOpenDetail?.(sym), 500); }}
                 onTouchEnd={() => clearTimeout(ptRef.current)}
                 onTouchMove={() => clearTimeout(ptRef.current)}
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: COLS,
-                  padding: '3px 8px',
-                  borderBottom: '1px solid var(--border-subtle)',
-                  cursor: 'pointer',
-                  alignItems: 'center',
-                  transition: 'background-color 0.1s',
-                }}
+                className="wp-row"
                 onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--bg-hover)'}
                 onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
               >
-                <span style={{ color: 'var(--section-watchlist)', fontSize: 'var(--font-base)', fontWeight: 700 }}>{sym}</span>
-                <span style={{ color: 'var(--text-faint)', fontSize: 9 }}></span>
-                <span style={{ color: 'var(--text-primary)', fontSize: 'var(--font-base)', textAlign: 'right', paddingRight: 4, fontVariantNumeric: 'tabular-nums' }}>{fmt(q.price)}</span>
-                <span style={{ color: pos ? 'var(--price-up)' : 'var(--price-down)', fontSize: 'var(--font-base)', textAlign: 'right', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{fmtPct(q.changePct)}</span>
-                <button
+                <span className="wp-row-symbol">{sym}</span>
+                <span className="wp-row-source"></span>
+                <span className="wp-row-price">{fmt(q.price)}</span>
+                <span className={`wp-row-change ${pos ? 'wp-row-change-positive' : 'wp-row-change-negative'}`}>{fmtPct(q.changePct)}</span>
+                <button className="btn wp-remove-btn"
                   onClick={e => { e.stopPropagation(); removeTicker(sym); }}
                   title="Remove from watchlist"
-                  style={{ background: 'none', border: 'none', color: 'var(--text-faint)', cursor: 'pointer', fontSize: 'var(--font-base)', padding: 0, textAlign: 'center', transition: 'color 0.15s' }}
                   onMouseEnter={e => e.currentTarget.style.color = 'var(--price-down)'}
                   onMouseLeave={e => e.currentTarget.style.color = 'var(--text-faint)'}
-                >\u2715</button>
+                >✕</button>
               </div>
             );
           })
         )}
         {error && (
-          <div style={{ padding: '4px 8px', color: '#aa3333', fontSize: 9, borderTop: '1px solid var(--border-default)' }}>
-            \u26A0 {error}
+          <div className="wp-error-msg">
+            ⚠ {error}
           </div>
         )}
       </div>

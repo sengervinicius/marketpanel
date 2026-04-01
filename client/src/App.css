@@ -1133,3 +1133,432 @@ textarea:focus-visible { outline: 1px solid var(--accent); outline-offset: 0; bo
   50%  { width: 60%; margin-left: 20%; }
   100% { width: 0%;  margin-left: 100%; }
 }
+
+/* ── App-specific text styles (Phase 6) ── */
+.app-text-muted-small {
+  color: var(--text-muted);
+  font-size: 9px;
+  letter-spacing: 0.5px;
+}
+
+.app-text-accent-small {
+  color: var(--accent);
+  font-size: 8px;
+}
+
+.app-text-faint-small {
+  color: var(--text-faint);
+  font-size: 8px;
+  letter-spacing: 0.5px;
+}
+
+.app-text-accent-bold-small {
+  color: var(--accent);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.app-text-accent-bold {
+  color: var(--accent);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.app-text-accent-header {
+  color: var(--accent);
+  font-size: var(--font-sm);
+  font-weight: 700;
+  letter-spacing: 1.2px;
+}
+
+/* Dropdown menu items */
+.app-dropdown-item {
+  padding: 7px 12px;
+  color: var(--text-muted);
+  font-size: 9px;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid var(--border-default);
+}
+
+.app-dropdown-item-last {
+  padding: 7px 12px;
+  color: var(--text-muted);
+  font-size: 9px;
+  letter-spacing: 0.5px;
+}
+
+/* Settings section header */
+.app-settings-header {
+  padding: 8px 12px 4px;
+  border-bottom: 1px solid var(--border-default);
+  margin-top: 4px;
+}
+
+.app-settings-row-header {
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--border-default);
+  justify-content: space-between;
+}
+
+/* Resize handles */
+.app-resize-handle-horizontal {
+  height: 6px;
+  flex-shrink: 0;
+  cursor: row-resize;
+  background: var(--bg-app);
+  border-top: 1px solid var(--border-default);
+  border-bottom: 1px solid var(--border-default);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+  z-index: 20;
+}
+
+.app-resize-handle-vertical {
+  width: 5px;
+  flex-shrink: 0;
+  cursor: col-resize;
+  background: var(--bg-app);
+  border-left: 1px solid var(--border-default);
+  border-right: 1px solid var(--border-default);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+  z-index: 20;
+}
+
+.app-resize-indicator-h {
+  width: 36px;
+  height: 2px;
+  background: var(--border-default);
+  border-radius: 1px;
+}
+
+.app-resize-indicator-v {
+  width: 1px;
+  height: 24px;
+  background: var(--border-strong);
+  border-radius: 1px;
+}
+
+/* Layout overlay */
+.app-layout-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+}
+
+.app-layout-overlay-label {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-strong);
+  padding: 2px 8px;
+  color: var(--accent);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.app-layout-btn {
+  background: #1a0900;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  width: 22px;
+  height: 22px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-family: monospace;
+  padding: 0;
+}
+
+.app-layout-btn:disabled {
+  background: var(--bg-elevated);
+  border-color: var(--border-default);
+  color: var(--border-strong);
+  cursor: default;
+}
+
+/* Modal/Overlay */
+.app-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  background: rgba(0, 0, 0, 0.7);
+}
+
+.app-modal-drawer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 85%;
+  max-width: 340px;
+  background: var(--bg-app);
+  overflow-y: auto;
+}
+
+.app-settings-overlay {
+  position: absolute;
+  top: 36px;
+  right: 0;
+  z-index: 1000;
+  background: var(--bg-overlay);
+  border: 1px solid var(--border-strong);
+  border-top: none;
+  width: 260px;
+  max-height: calc(100vh - 60px);
+  overflow-y: auto;
+  box-shadow: var(--shadow-overlay);
+  animation: slideInRight 200ms ease-out;
+}
+
+/* World clock label */
+.app-clock-label {
+  color: var(--text-faint);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+}
+
+.app-clock-time {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.03em;
+}
+
+/* Error/Alert states */
+.app-error-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  gap: 16px;
+  color: #ff3333;
+  text-align: center;
+}
+
+.app-error-icon {
+  color: #ff3333;
+  font-size: 32px;
+}
+
+.app-error-title {
+  color: #ff3333;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 2px;
+}
+
+.app-error-message {
+  color: #555;
+  text-align: center;
+  max-width: 320px;
+  line-height: 1.6;
+}
+
+.app-error-detail {
+  color: #ff6666;
+  font-size: 9px;
+  text-align: center;
+  max-width: 320px;
+}
+
+/* Header bar (desktop) */
+.app-header-bar {
+  height: 36px;
+  flex-shrink: 0;
+  background: var(--bg-app);
+  border-bottom: 2px solid var(--accent);
+  padding: 0 12px;
+  gap: 12px;
+  position: relative;
+  z-index: 10;
+}
+
+.app-header-title {
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 2px;
+}
+
+.app-header-subtitle {
+  color: var(--text-faint);
+  font-size: 9px;
+  letter-spacing: 1px;
+}
+
+.app-header-status {
+  color: var(--accent);
+  font-size: 8px;
+  letter-spacing: 1px;
+}
+
+/* Flex utility for common layout patterns */
+.flex-1 { flex: 1; }
+.flex-center { justify-content: center; }
+
+/* Feed/Alert indicators */
+.app-feed-label {
+  color: #282828;
+  font-size: 8px;
+  letter-spacing: 1px;
+}
+
+.app-alert-label {
+  color: #ff4444;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.app-alert-detail {
+  color: #883333;
+  font-size: 8px;
+  letter-spacing: 0.3px;
+}
+
+.app-alert-count {
+  color: #552222;
+  font-size: 8px;
+  margin-left: 4px;
+}
+
+/* Text color utilities */
+.app-text-muted {
+  color: var(--text-muted);
+}
+
+/* Grid layout utility */
+.display-contents {
+  display: contents;
+}
+
+/* Button group with wrap */
+.app-button-group {
+  gap: 12px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+/* Clock zone container */
+.app-clock-zone {
+  gap: 4px;
+  align-items: baseline;
+}
+
+/* Secondary button (orange outline) */
+.app-btn-secondary {
+  background: none;
+  border: 1px solid #ff9900;
+  color: #ff9900;
+  font-weight: 700;
+  padding: 8px 14px;
+}
+
+/* Close button */
+.app-btn-close {
+  border: none;
+  font-size: 12px;
+  padding: 0;
+  background: none;
+  cursor: pointer;
+  color: inherit;
+}
+
+/* Panel fallback placeholder */
+.app-panel-placeholder {
+  padding: 12px;
+  color: #333;
+  font-size: 9px;
+}
+
+/* ── UTILITY CLASSES (Phase 6) ── */
+.btn {
+  background: none;
+  border: 1px solid var(--border-strong);
+  color: var(--text-muted);
+  font-size: var(--font-xs);
+  font-family: inherit;
+  padding: 2px 6px;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  letter-spacing: 0.3px;
+  line-height: 1;
+}
+.btn:hover { color: var(--text-primary); border-color: var(--text-faint); }
+.btn:active { opacity: 0.8; }
+.flex-row  { display: flex; align-items: center; }
+.flex-col  { display: flex; flex-direction: column; }
+.gap-2 { gap: 2px; }
+.gap-4 { gap: 4px; }
+.gap-6 { gap: 6px; }
+.gap-8 { gap: 8px; }
+.gap-12 { gap: 12px; }
+.gap-10 { gap: 10px; }
+.gap-5 { gap: 5px; }
+.metric-col {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+}
+.item-row {
+  padding: 5px 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #888;
+  border-bottom: 1px solid #0f0f0f;
+  transition: background-color 0.1s;
+}
+.checkbox-box {
+  width: 12px;
+  height: 12px;
+  border: 1px solid #444;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  color: #00bcd4;
+  flex-shrink: 0;
+}
+.icon-btn {
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #444;
+  transition: color 0.1s, background-color 0.1s;
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+.panel-header-row {
+  padding: 4px 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-ui);
+}

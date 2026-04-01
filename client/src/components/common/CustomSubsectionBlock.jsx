@@ -6,6 +6,7 @@
  */
 import { useState, useRef, useEffect, memo } from 'react';
 import { useTickerPrice } from '../../context/PriceContext';
+import './CustomSubsectionBlock.css';
 
 const fmt = (n) => n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmtPct = (n) => n == null ? '—' : (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
@@ -38,41 +39,22 @@ function TickerRow({ sym, data, color, gridCols, subsection, onTickerClick, onOp
       }}
       onClick={() => onTickerClick?.(sym)}
       onDoubleClick={() => onOpenDetail?.(sym)}
-      style={{
-        display: 'grid',
-        gridTemplateColumns: gridCols,
-        padding: '3px 8px',
-        borderBottom: '1px solid var(--border-subtle)',
-        cursor: 'pointer',
-        alignItems: 'center',
-      }}
-      onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-hover)'; }}
-      onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+      className="csb-row"
+      style={{ gridTemplateColumns: gridCols }}
     >
-      <span style={{ color, fontSize: 'var(--font-base)', fontWeight: 700 }}>{sym}</span>
-      <span style={{ color: 'var(--text-faint)', fontSize: 'var(--font-sm)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: 4 }}>
+      <span className="csb-symbol" style={{ color }}>{sym}</span>
+      <span className="csb-name">
         {name}
       </span>
-      <span style={{ color: 'var(--text-primary)', fontSize: 'var(--font-base)', textAlign: 'right', paddingRight: 4 }}>
+      <span className="csb-price">
         {fmt(price)}
       </span>
-      <span style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 4,
-      }}>
-        <span style={{ color: pos ? 'var(--price-up)' : 'var(--price-down)', fontSize: 'var(--font-base)', fontWeight: 600 }}>
+      <span className="csb-change-section">
+        <span className="csb-change" style={{ color: pos ? 'var(--price-up)' : 'var(--price-down)' }}>
           {fmtPct(changePct)}
         </span>
-        <button
+        <button className="csb-remove-btn"
           onClick={(e) => { e.stopPropagation(); onRemoveTicker?.(subsection.key, sym); }}
-          style={{
-            background: 'none',
-            border: 'none',
-            color: 'var(--border-strong)',
-            fontSize: 11,
-            cursor: 'pointer',
-            padding: 0,
-            lineHeight: 1,
-          }}
           onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--price-down)'; }}
           onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--border-strong)'; }}
           title={`Remove ${sym} from ${subsection.label}`}
@@ -115,15 +97,8 @@ function CustomSubsectionBlock({
     <div>
       {/* Section header */}
       <div
-        style={{
-          padding: '2px 8px',
-          background: 'var(--bg-surface)',
-          borderTop: '1px solid var(--border-default)',
-          borderBottom: '1px solid var(--border-default)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 6,
-        }}
+        className="csb-header"
+        style={{ color }}
         onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; }}
         onDrop={(e) => {
           e.preventDefault();
@@ -140,49 +115,23 @@ function CustomSubsectionBlock({
           }
         }}
       >
-        <span style={{ color, fontSize: 'var(--font-xs)', fontWeight: 700, letterSpacing: '0.12em', flex: 1 }}>
+        <span className="csb-header-label">
           —— {subsection.label} ————————————————————————
         </span>
         <button
+          className={`csb-add-header-btn ${showAdd ? 'csb-add-header-btn-active' : ''}`}
           onClick={() => setShowAdd(v => !v)}
-          style={{
-            background: 'none',
-            border: `1px solid ${showAdd ? color : 'var(--border-default)'}`,
-            color: showAdd ? color : 'var(--text-faint)',
-            fontSize: 'var(--font-xs)',
-            padding: '0 4px',
-            cursor: 'pointer',
-            fontFamily: 'var(--font-ui)',
-            borderRadius: 'var(--radius-sm)',
-            lineHeight: '14px',
-          }}
           title="Add ticker to this section"
         >+</button>
       </div>
 
       {/* Inline add ticker */}
       {showAdd && (
-        <div style={{
-          padding: '3px 8px',
-          display: 'flex',
-          gap: 4,
-          alignItems: 'center',
-          background: 'var(--bg-app)',
-          borderBottom: '1px solid var(--border-default)',
-        }}>
+        <div className="csb-add-row">
           <input
             ref={addRef}
-            style={{
-              flex: 1,
-              background: 'var(--bg-app)',
-              border: `1px solid ${color}44`,
-              color: 'var(--text-primary)',
-              fontSize: 'var(--font-sm)',
-              padding: '2px 6px',
-              fontFamily: 'var(--font-ui)',
-              outline: 'none',
-              borderRadius: 'var(--radius-sm)',
-            }}
+            className="csb-add-input"
+            style={{ borderColor: `${color}44` }}
             value={addVal}
             onChange={(e) => setAddVal(e.target.value.toUpperCase())}
             onKeyDown={(e) => {
@@ -192,18 +141,9 @@ function CustomSubsectionBlock({
             placeholder="Type ticker symbol…"
           />
           <button
+            className="csb-add-submit-btn"
             onClick={handleAdd}
-            style={{
-              background: color,
-              border: 'none',
-              color: '#000',
-              fontSize: 'var(--font-xs)',
-              fontWeight: 700,
-              padding: '2px 8px',
-              cursor: 'pointer',
-              fontFamily: 'var(--font-ui)',
-              borderRadius: 'var(--radius-sm)',
-            }}
+            style={{ background: color }}
           >ADD</button>
         </div>
       )}
@@ -225,13 +165,7 @@ function CustomSubsectionBlock({
       ))}
 
       {symbols.length === 0 && (
-        <div style={{
-          padding: 'var(--sp-3) var(--sp-4)',
-          color: 'var(--border-default)',
-          fontSize: 'var(--font-sm)',
-          fontStyle: 'italic',
-          textAlign: 'center',
-        }}>
+        <div className="csb-empty">
           Empty section — drag tickers here or click + to add
         </div>
       )}

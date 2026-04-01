@@ -1,0 +1,143 @@
+/* RatesPanel.css — prefix: rp- */
+
+.rp-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.rp-header {
+  justify-content: space-between;
+  border-bottom: 1px solid #1a1a1a;
+  padding: 0 6px;
+  height: 22px;
+  flex-shrink: 0;
+  background: #070707;
+  display: flex;
+  align-items: center;
+}
+
+.rp-header-title {
+  color: #e55a00;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  font-family: var(--font-mono);
+}
+
+.rp-header-time {
+  color: #1e1e1e;
+  font-size: 7.5px;
+  font-family: var(--font-mono);
+}
+
+.rp-col-header {
+  display: grid;
+  grid-template-columns: 70px 52px 44px 1fr;
+  padding: 1px 6px;
+  background: #070707;
+  border-bottom: 1px solid #111;
+}
+
+.rp-col-header-cell {
+  color: #2a2a2a;
+  font-size: 7px;
+  font-family: var(--font-mono);
+  text-align: left;
+}
+
+.rp-col-header-cell.right-align {
+  text-align: right;
+}
+
+.rp-content {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.rp-section-label {
+  padding: 3px 6px 1px;
+  background: #060606;
+  border-bottom: 1px solid #111;
+}
+
+.rp-section-label-text {
+  color: #2a2a2a;
+  font-size: 7px;
+  font-family: var(--font-mono);
+  letter-spacing: 0.08em;
+}
+
+.rp-row {
+  display: grid;
+  grid-template-columns: 70px 52px 44px 1fr;
+  align-items: center;
+  padding: 2px 6px;
+  border-bottom: 1px solid #0d0d0d;
+}
+
+.rp-row-label {
+  color: #888;
+  font-size: 9px;
+  font-family: var(--font-mono);
+  letter-spacing: 0.03em;
+}
+
+.rp-row-label.live {
+  color: #888;
+}
+
+.rp-row-label.static {
+  color: #555;
+}
+
+.rp-row-value {
+  font-weight: 700;
+  font-family: var(--font-mono);
+  text-align: right;
+}
+
+.rp-row-value.live {
+  color: #e8e8e8;
+}
+
+.rp-row-value.static {
+  color: #666;
+}
+
+.rp-row-change {
+  text-align: right;
+}
+
+.rp-row-change.live {
+  color: #00cc44;
+}
+
+.rp-row-change.negative {
+  color: #cc2200;
+}
+
+.rp-row-change.static {
+  color: #2a2a2a;
+  font-size: 8px;
+}
+
+.rp-row-note {
+  color: #2a2a2a;
+  font-size: 7.5px;
+  text-align: right;
+  font-family: var(--font-mono);
+  padding-right: 2px;
+}
+
+.rp-footer {
+  padding: 4px 6px;
+  margin-top: 2px;
+}
+
+.rp-footer-text {
+  color: #141414;
+  font-size: 7px;
+  font-family: var(--font-mono);
+}

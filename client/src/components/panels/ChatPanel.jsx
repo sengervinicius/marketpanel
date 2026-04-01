@@ -289,10 +289,10 @@ function ChatPanel({ mobile, initialUserId }) {
           {totalUnread > 0 && <span className="chat-badge">{totalUnread}</span>}
         </div>
         {!mobile && (
-          <button
+          <button className="btn chat-btn-icon"
             onClick={() => openChatWindow()}
             title="Open in separate window"
-            className="chat-btn-icon"
+
           >{'\u229E'}</button>
         )}
       </div>
@@ -440,10 +440,10 @@ function ChatPanel({ mobile, initialUserId }) {
               placeholder={`Message ${activeChatUser.username}\u2026`}
               maxLength={1000}
             />
-            <button
+            <button className="btn chat-send-btn"
               onClick={sendMessage}
               disabled={!input.trim()}
-              className="chat-send-btn"
+
             >{'\u2191'}</button>
           </div>
         )}

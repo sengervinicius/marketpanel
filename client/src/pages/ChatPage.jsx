@@ -34,11 +34,10 @@ export default function ChatPage() {
         <span className="chat-page-subtitle">MESSAGES</span>
         <div style={{ flex: 1 }} />
         {user && <span className="chat-page-user">{user.username?.toUpperCase()}</span>}
-        <button
+        <button className="btn chat-page-btn"
           onClick={() => { window.location.hash = '#/'; }}
-          className="chat-page-btn"
         >{'\u2190'} TERMINAL</button>
-        <button
+        <button className="btn chat-page-btn chat-page-btn--muted"
           onClick={() => {
             if (window.opener) {
               window.close();
@@ -46,7 +45,6 @@ export default function ChatPage() {
               window.location.hash = '#/';
             }
           }}
-          className="chat-page-btn chat-page-btn--muted"
         >CLOSE</button>
       </div>
 

@@ -128,10 +128,10 @@ function BrazilPanel({ onTickerClick, onOpenDetail }) {
         onSearchChange={setSearchFilter}
         feedBadge={badge}
       >
-        <button
+        <button className="btn"
           onClick={() => setCollapsed(v => !v)}
           title={collapsed ? 'Expand' : 'Collapse'}
-          style={{ background: 'none', border: '1px solid var(--border-strong)', color: 'var(--text-muted)', fontSize: 9, padding: '1px 5px', cursor: 'pointer', fontFamily: 'inherit', borderRadius: 'var(--radius-sm)' }}
+          style={{ background: 'none', border: '1px solid var(--border-strong)', color: 'var(--text-muted)', fontSize: 9, padding: '1px 5px' }}
         >{collapsed ? '+' : '−'}</button>
       </EditablePanelHeader>
 
@@ -148,10 +148,10 @@ function BrazilPanel({ onTickerClick, onOpenDetail }) {
         {/* Rows */}
         <div style={{ flex: 1, overflowY: 'auto' }}>
           {loading && !stocks.length && (
-            <div style={{ padding: 'var(--sp-5)', color: 'var(--text-muted)', fontSize: 'var(--font-base)', textAlign: 'center' }}>LOADING...</div>
+            <div style={{ padding: 'var(--sp-5)', color: 'var(--text-muted)', textAlign: 'center' }}>LOADING...</div>
           )}
           {!loading && !error && !displayedStocks.length && (
-            <div style={{ padding: 'var(--sp-5)', color: 'var(--text-muted)', fontSize: 'var(--font-base)', textAlign: 'center' }}>NO DATA</div>
+            <div style={{ padding: 'var(--sp-5)', color: 'var(--text-muted)', textAlign: 'center' }}>NO DATA</div>
           )}
           {displayedStocks.map(s => (
             <PriceRow

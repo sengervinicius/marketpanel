@@ -87,11 +87,11 @@ function WorldClock() {
     { label: 'TKY', tz: 'Asia/Tokyo' },
   ];
   return (
-    <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+    <div className="flex-row gap-12">
       {zones.map(z => (
-        <span key={z.label} style={{ display: 'flex', gap: 4, alignItems: 'baseline' }}>
-          <span style={{ color: 'var(--text-faint)', fontSize: 9, letterSpacing: '0.06em', fontWeight: 600 }}>{z.label}</span>
-          <span style={{ color: 'var(--text-muted)', fontSize: 11, fontVariantNumeric: 'tabular-nums', letterSpacing: '0.03em' }}>
+        <span key={z.label} className="flex-row app-clock-zone">
+          <span className="app-clock-label">{z.label}</span>
+          <span className="app-clock-time">
             {now.toLocaleTimeString('en-US', { timeZone: z.tz, hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}
           </span>
         </span>
@@ -105,15 +105,9 @@ function ResizeHandle({ onStart }) {
   return (
     <div
       onMouseDown={e => { e.preventDefault(); onStart(e); }}
-      style={{
-        height: 6, flexShrink: 0, cursor: 'row-resize',
-        background: 'var(--bg-app)',
-        borderTop: '1px solid var(--border-default)', borderBottom: '1px solid var(--border-default)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        userSelect: 'none', zIndex: 20,
-      }}
+      className="app-resize-handle-horizontal"
     >
-      <div style={{ width: 36, height: 2, background: 'var(--border-default)', borderRadius: 1 }} />
+      <div className="app-resize-indicator-h" />
     </div>
   );
 }
@@ -123,15 +117,9 @@ function ColResizeHandle({ onStart }) {
   return (
     <div
       onMouseDown={e => { e.preventDefault(); onStart(e); }}
-      style={{
-        width: 5, flexShrink: 0, cursor: 'col-resize',
-        background: 'var(--bg-app)',
-        borderLeft: '1px solid var(--border-default)', borderRight: '1px solid var(--border-default)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        userSelect: 'none', zIndex: 20,
-      }}
+      className="app-resize-handle-vertical"
     >
-      <div style={{ width: 1, height: 24, background: 'var(--border-strong)', borderRadius: 1 }} />
+      <div className="app-resize-indicator-v" />
     </div>
   );
 }
@@ -141,14 +129,14 @@ function ColResizeHandle({ onStart }) {
 // Displays directional movement buttons and the panel name
 function LayoutMoveOverlay({ panelId, rowIdx, colIdx, rowLen, totalRows, onMove }) {
   const btn = (dir, label, disabled) => (
-    <button
+    <button className="btn"
       onClick={() => !disabled && onMove(panelId, rowIdx, colIdx, dir)}
       disabled={disabled}
       style={{
         background: disabled ? 'var(--bg-elevated)' : '#1a0900',
         border: `1px solid ${disabled ? 'var(--border-default)' : 'var(--accent)'}`,
         color:  disabled ? 'var(--border-strong)' : 'var(--accent)',
-        width: 22, height: 22, borderRadius: 'var(--radius-sm)', cursor: disabled ? 'default' : 'pointer',
+        width: 22, height: 22, cursor: disabled ? 'default' : 'pointer',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         fontSize: 12, fontFamily: 'monospace', padding: 0,
       }}
@@ -158,22 +146,12 @@ function LayoutMoveOverlay({ panelId, rowIdx, colIdx, rowLen, totalRows, onMove 
   const panelLabel = PANEL_DEFINITIONS[panelId]?.label || panelId;
 
   return (
-    <div style={{
-      position: 'absolute', inset: 0, zIndex: 50,
-      background: 'rgba(0,0,0,0.55)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      pointerEvents: 'auto',
-    }}>
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+    <div className="app-layout-overlay">
+      <div className="flex-col" style={{ alignItems: 'center', gap: 4 }}>
         {btn('up',    '↑', rowIdx === 0)}
-        <div style={{ display: 'flex', gap: 4 }}>
+        <div className="flex-row gap-2">
           {btn('left',  '←', colIdx === 0)}
-          <div style={{
-            background: 'var(--bg-surface)', border: '1px solid var(--border-strong)',
-            borderRadius: 'var(--radius-sm)', padding: '2px 8px',
-            color: 'var(--accent)', fontSize: 9, fontWeight: 700, letterSpacing: '0.5px',
-            whiteSpace: 'nowrap', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis',
-          }}>{panelLabel}</div>
+          <div className="app-layout-overlay-label">{panelLabel}</div>
           {btn('right', '→', colIdx === rowLen - 1)}
         </div>
         {btn('down',  '↓', rowIdx === totalRows - 1)}
@@ -219,7 +197,7 @@ function makePanelRenderer(panelId, props) {
     case 'alerts':
       return <AlertsPanel onOpenDetail={setDetailTicker} />;
     default:
-      return <div style={{ padding: 12, color: '#333', fontSize: 9 }}>Panel: {panelId}</div>;
+      return <div className="app-panel-placeholder">Panel: {panelId}</div>;
   }
 }
 
@@ -379,8 +357,8 @@ const PRESET_LIST = [
 
 function SettingsSection({ label }) {
   return (
-    <div style={{ padding: '8px 12px 4px', borderBottom: '1px solid var(--border-default)', marginTop: 4 }}>
-      <span style={{ color: 'var(--accent)', fontSize: 'var(--font-sm)', fontWeight: 700, letterSpacing: '1.2px' }}>{label}</span>
+    <div className="app-settings-header">
+      <span className="app-text-accent-header">{label}</span>
     </div>
   );
 }
@@ -410,7 +388,7 @@ function SettingsDrawer({ panelVisible, togglePanel, onClose }) {
 
   const rowStyle = {
     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-    padding: '5px 12px', cursor: 'pointer', borderBottom: '1px solid var(--border-subtle)',
+    padding: '5px 12px', borderBottom: '1px solid var(--border-subtle)',
     transition: 'background-color 100ms ease-out',
   };
 
@@ -425,13 +403,7 @@ function SettingsDrawer({ panelVisible, togglePanel, onClose }) {
   });
 
   return (
-    <div style={{
-      position: 'absolute', top: 36, right: 0, zIndex: 1000,
-      background: 'var(--bg-overlay)', border: '1px solid var(--border-strong)', borderTop: 'none',
-      width: 260, maxHeight: 'calc(100vh - 60px)', overflowY: 'auto',
-      boxShadow: 'var(--shadow-overlay)',
-      animation: 'slideInRight 200ms ease-out',
-    }}>
+    <div className="app-settings-overlay">
       <style>{`
         @keyframes slideInRight {
           from {
@@ -446,12 +418,11 @@ function SettingsDrawer({ panelVisible, togglePanel, onClose }) {
       `}</style>
 
       {/* Drawer header */}
-      <div style={{ padding: '6px 12px', borderBottom: '1px solid var(--border-default)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={{ color: 'var(--accent)', fontSize: 9, fontWeight: 700, letterSpacing: '1px' }}>SETTINGS</span>
-        <button
+      <div className="flex-row app-settings-row-header">
+        <span className="app-text-accent-bold">SETTINGS</span>
+        <button className="btn app-btn-close"
           onClick={onClose}
           title="Close (Esc)"
-          style={{ background: 'none', border: 'none', color: 'var(--text-faint)', cursor: 'pointer', fontSize: 12, padding: 0 }}
           aria-label="Close settings"
         >
           ✕
@@ -471,7 +442,7 @@ function SettingsDrawer({ panelVisible, togglePanel, onClose }) {
           onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
         >
           <span style={{ color: defaultStartPage === value ? 'var(--accent)' : 'var(--text-muted)', fontSize: 9, letterSpacing: '0.5px' }}>{label}</span>
-          <span style={{ color: defaultStartPage === value ? 'var(--accent)' : 'var(--border-strong)', fontSize: 10 }}>{defaultStartPage === value ? '●' : '○'}</span>
+          <span style={{ color: defaultStartPage === value ? 'var(--accent)' : 'var(--border-strong)' }}>{defaultStartPage === value ? '●' : '○'}</span>
         </div>
       ))}
 
@@ -485,8 +456,8 @@ function SettingsDrawer({ panelVisible, togglePanel, onClose }) {
         onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
         onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
       >
-        <span style={{ color: 'var(--text-muted)', fontSize: 9, letterSpacing: '0.5px' }}>{theme === 'dark' ? '◑ DARK MODE' : '☀ LIGHT MODE'}</span>
-        <span style={{ color: 'var(--accent)', fontSize: 8, fontWeight: 700, letterSpacing: '0.5px' }}>TOGGLE</span>
+        <span className="app-text-muted-small">{theme === 'dark' ? '◑ DARK MODE' : '☀ LIGHT MODE'}</span>
+        <span className="app-text-accent-bold-small">TOGGLE</span>
       </div>
 
       {/* ── Workspace Presets ── */}
@@ -502,10 +473,10 @@ function SettingsDrawer({ panelVisible, togglePanel, onClose }) {
           onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
           aria-busy={applyingPreset === key}
         >
-          <span style={{ color: 'var(--text-muted)', fontSize: 9, letterSpacing: '0.5px' }}>{label}</span>
+          <span className="app-text-muted-small">{label}</span>
           {applyingPreset === key
-            ? <span style={{ color: 'var(--accent)', fontSize: 8 }}>APPLYING…</span>
-            : <span style={{ color: 'var(--text-faint)', fontSize: 8, letterSpacing: '0.5px' }}>APPLY →</span>}
+            ? <span className="app-text-accent-small">APPLYING…</span>
+            : <span className="app-text-faint-small">APPLY →</span>}
         </div>
       ))}
 
@@ -519,10 +490,10 @@ function SettingsDrawer({ panelVisible, togglePanel, onClose }) {
         onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
         onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
       >
-        <span style={{ color: 'var(--text-muted)', fontSize: 9, letterSpacing: '0.5px' }}>Reset to Default</span>
+        <span className="app-text-muted-small">Reset to Default</span>
         {resettingLayout
-          ? <span style={{ color: 'var(--accent)', fontSize: 8 }}>RESETTING…</span>
-          : <span style={{ color: 'var(--text-faint)', fontSize: 8, letterSpacing: '0.5px' }}>↻ RESET</span>}
+          ? <span className="app-text-accent-small">RESETTING…</span>
+          : <span className="app-text-faint-small">↻ RESET</span>}
       </div>
 
       {/* ── Panel Visibility ── */}
@@ -567,13 +538,10 @@ function UserDropdown({ user, onSettings, onLogout, onBilling, isPaid }) {
   }, [open]);
   return (
     <div ref={ref} style={{ position: 'relative' }}>
-      <button
+      <button className="btn flex-row gap-2"
         onClick={() => setOpen(s => !s)}
         style={{
-          background: 'none', border: '1px solid var(--border-strong)', color: 'var(--text-muted)',
-          fontSize: 9, padding: '2px 8px', cursor: 'pointer',
-          fontFamily: 'inherit', borderRadius: 'var(--radius-sm)', letterSpacing: '0.5px',
-          display: 'flex', alignItems: 'center', gap: 5,
+          padding: '2px 8px', gap: 5,
         }}
       >
         <span style={{ color: open ? 'var(--accent)' : 'var(--text-faint)', fontSize: 8 }}>▼</span>
@@ -584,27 +552,26 @@ function UserDropdown({ user, onSettings, onLogout, onBilling, isPaid }) {
           position: 'absolute', top: 'calc(100% + 2px)', right: 0, zIndex: 2000,
           background: 'var(--bg-overlay)', border: '1px solid var(--border-strong)',
           width: 150, boxShadow: 'var(--shadow-dropdown)',
-          borderRadius: 'var(--radius-sm)',
-        }}>
+          }}>
           {isPaid && onBilling && (
             <div
               onClick={() => { setOpen(false); onBilling(); }}
-              style={{ padding: '7px 12px', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 9, letterSpacing: '0.5px', borderBottom: '1px solid var(--border-default)' }}
+              className="app-dropdown-item app-text-muted"
               onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-hover)'; e.currentTarget.style.color = 'var(--price-up)'; }}
-              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = ''; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-muted)'; }}
             >💳 BILLING</div>
           )}
           <div
             onClick={() => { setOpen(false); onSettings(); }}
-            style={{ padding: '7px 12px', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 9, letterSpacing: '0.5px', borderBottom: '1px solid var(--border-default)' }}
+            className="app-dropdown-item"
             onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-hover)'; e.currentTarget.style.color = 'var(--accent)'; }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = ''; }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-muted)'; }}
           >⚙ SETTINGS</div>
           <div
             onClick={() => { setOpen(false); onLogout(); }}
-            style={{ padding: '7px 12px', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 9, letterSpacing: '0.5px' }}
+            className="app-dropdown-item-last"
             onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-hover)'; e.currentTarget.style.color = 'var(--price-down)'; }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = ''; }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-muted)'; }}
           >→ LOG OUT</div>
         </div>
       )}
@@ -626,7 +593,7 @@ function AlertBadge() {
     <span title="No triggered alerts" style={{ color: 'var(--text-faint)', fontSize: 11, cursor: 'default' }}>🔔</span>
   );
   return (
-    <span title={`${triggeredCount} triggered alert${triggeredCount > 1 ? 's' : ''}`} style={{ position: 'relative', cursor: 'pointer', fontSize: 11 }}>
+    <span title={`${triggeredCount} triggered alert${triggeredCount > 1 ? 's' : ''}`} style={{ position: 'relative', fontSize: 11 }}>
       🔔
       <span style={{
         position: 'absolute', top: -4, right: -6,
@@ -663,13 +630,13 @@ function FeedStatusBar({ feedStatus }) {
     <div style={{
       height: 20, flexShrink: 0,
       background: '#060606', borderTop: '1px solid #1a1a1a',
-      display: 'flex', alignItems: 'center', gap: 20, padding: '0 12px',
-    }}>
+      padding: '0 12px', gap: 20,
+    }} className="flex-row">
       <span style={{ color: '#282828', fontSize: 8, letterSpacing: '1px' }}>FEED</span>
       {feeds.map(({ key, label }) => {
         const level = feedStatus?.[key] || 'connecting';
         return (
-          <span key={key} style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+          <span key={key} className="flex-row gap-4">
             <span style={{ color: color(level), fontSize: 9 }}>{dot(level)}</span>
             <span style={{ color: '#3a3a3a', fontSize: 8, letterSpacing: '0.8px' }}>{label}</span>
             <span style={{ color: color(level), fontSize: 8, fontWeight: 700, letterSpacing: '0.5px', opacity: 0.9 }}>
@@ -713,15 +680,15 @@ function DataErrorBanner({ error, endpointErrors }) {
     .join('  |  ');
 
   return (
-    <div style={{
+    <div className="flex-row" style={{
       background: '#1a0000', borderBottom: '1px solid #ff333344',
-      display: 'flex', alignItems: 'center', gap: 10,
+      gap: 10,
       padding: '4px 12px', flexShrink: 0, flexWrap: 'wrap',
     }}>
-      <span style={{ color: '#ff4444', fontSize: 9, fontWeight: 700, letterSpacing: '1px' }}>⚠ {msg}</span>
-      <span style={{ color: '#883333', fontSize: 8, letterSpacing: '0.3px' }}>{detail}</span>
+      <span className="app-alert-label">⚠ {msg}</span>
+      <span className="app-alert-detail">{detail}</span>
       {failingFeeds && (
-        <span style={{ color: '#552222', fontSize: 8, marginLeft: 4 }}>{failingFeeds}</span>
+        <span className="app-alert-count">{failingFeeds}</span>
       )}
     </div>
   );
@@ -761,9 +728,9 @@ function TrialBanner({ subscription, onUpgrade, onManageBilling, billingState })
   }
 
   return (
-    <div style={{
+    <div className="flex-row" style={{
       background: bg, borderBottom: `1px solid ${clr}44`,
-      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12,
+      justifyContent: 'center', gap: 12,
       padding: '3px 12px', flexShrink: 0, flexWrap: 'wrap',
     }}>
       {checkoutError && (
@@ -779,23 +746,19 @@ function TrialBanner({ subscription, onUpgrade, onManageBilling, billingState })
           ) : (
             <>
               {!isPaid && !showSuccess && (
-                <button
+                <button className="btn"
                   onClick={onUpgrade}
                   style={{
                     background: '#ff6600', border: 'none', color: '#000',
-                    fontSize: 8, fontWeight: 700, padding: '2px 8px', cursor: 'pointer',
-                    fontFamily: 'inherit', letterSpacing: '0.5px', borderRadius: 2,
-                  }}
+                    fontWeight: 700 }}
                 >UPGRADE →</button>
               )}
               {isPaid && onManageBilling && (
-                <button
+                <button className="btn"
                   onClick={onManageBilling}
                   style={{
                     background: 'transparent', border: `1px solid ${clr}`, color: clr,
-                    fontSize: 8, fontWeight: 700, padding: '2px 8px', cursor: 'pointer',
-                    fontFamily: 'inherit', letterSpacing: '0.5px', borderRadius: 2,
-                  }}
+                    fontWeight: 700 }}
                 >MANAGE BILLING</button>
               )}
             </>
@@ -825,69 +788,55 @@ function SubscriptionExpiredScreen({ onUpgrade, onLogout, onManageBilling, check
   };
 
   return (
-    <div style={{
-      flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
-      justifyContent: 'center', gap: 16, padding: 32, background: '#0a0a0a',
+    <div className="flex-col app-error-state" style={{
+      flex: 1, background: '#0a0a0a',
     }}>
-      <div style={{ color: '#ff3333', fontSize: 32 }}>⊘</div>
-      <div style={{ color: '#ff3333', fontSize: 13, fontWeight: 700, letterSpacing: '2px' }}>
+      <div className="app-error-icon">⊘</div>
+      <div className="app-error-title">
         SUBSCRIPTION REQUIRED
       </div>
-      <div style={{ color: '#555', fontSize: 10, textAlign: 'center', maxWidth: 320, lineHeight: 1.6 }}>
+      <div className="app-error-message">
         Your free trial has ended. Subscribe to Senger Market Terminal to continue accessing real-time data.
       </div>
       {checkoutError && (
-        <div style={{ color: '#ff6666', fontSize: 9, textAlign: 'center', maxWidth: 320 }}>
+        <div className="app-error-detail">
           Error: {checkoutError}
         </div>
       )}
-      <div style={{ display: 'flex', gap: 12, marginTop: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
-        <button
+      <div className="flex-row app-button-group">
+        <button className="btn"
           onClick={handleUpgrade}
           disabled={isLoadingCheckout}
           style={{
             background: isLoadingCheckout ? '#aa4400' : '#ff6600',
             border: 'none', color: '#000',
-            fontSize: 10, fontWeight: 700, padding: '8px 20px', cursor: isLoadingCheckout ? 'not-allowed' : 'pointer',
-            fontFamily: 'inherit', letterSpacing: '1px', borderRadius: 2,
-            opacity: isLoadingCheckout ? 0.7 : 1,
+            fontWeight: 700, padding: '8px 20px', cursor: isLoadingCheckout ? 'not-allowed' : 'pointer', opacity: isLoadingCheckout ? 0.7 : 1,
           }}
         >{isLoadingCheckout ? 'Setting up...' : 'SUBSCRIBE NOW →'}</button>
         {hasStripeCustomerId && onManageBilling && !isApple && (
-          <button
+          <button className="btn app-btn-secondary"
             onClick={onManageBilling}
-            style={{
-              background: 'none', border: '1px solid #ff9900', color: '#ff9900',
-              fontSize: 10, fontWeight: 700, padding: '8px 14px', cursor: 'pointer',
-              fontFamily: 'inherit', borderRadius: 2, letterSpacing: '0.5px',
-            }}
           >MANAGE BILLING</button>
         )}
         {isApple && onRestore && (
-          <button
+          <button className="btn app-btn-secondary"
             onClick={async () => {
               setRestoreMsg(null);
               const result = await onRestore();
               setRestoreMsg(result.restored ? 'Subscription restored!' : 'No previous purchases found.');
             }}
-            style={{
-              background: 'none', border: '1px solid #ff9900', color: '#ff9900',
-              fontSize: 10, fontWeight: 700, padding: '8px 14px', cursor: 'pointer',
-              fontFamily: 'inherit', borderRadius: 2, letterSpacing: '0.5px',
-            }}
           >RESTORE PURCHASES</button>
         )}
-        <button
+        <button className="btn"
           onClick={onLogout}
           style={{
             background: 'none', border: '1px solid #2a2a2a', color: '#444',
-            fontSize: 10, padding: '8px 14px', cursor: 'pointer',
-            fontFamily: 'inherit', borderRadius: 2,
+            padding: '8px 14px',
           }}
         >LOG OUT</button>
       </div>
       {restoreMsg && (
-        <div style={{ color: '#888', fontSize: 10, marginTop: 8 }}>{restoreMsg}</div>
+        <div style={{ color: '#888', marginTop: 8 }}>{restoreMsg}</div>
       )}
     </div>
   );
@@ -957,9 +906,8 @@ function MobileTabBar({ activeTab, onTabChange }) {
       {MOBILE_TABS.map(tab => {
         const isActive = activeTab === tab.id;
         return (
-          <button
+          <button className="btn m-tab-btn"
             key={tab.id}
-            className="m-tab-btn"
             data-active={isActive}
             onClick={() => onTabChange(tab.id)}
           >
@@ -1308,8 +1256,8 @@ export default function App() {
       <FeedStatusProvider status={feedStatus}>
       <MarketProvider restData={mergedData}>
       <PriceProvider marketData={data}>
-      <div style={{
-        display: 'flex', flexDirection: 'column', height: '100vh',
+      <div className="flex-col" style={{
+        height: '100vh',
         background: '#0a0a0a',
         fontFamily: 'var(--font-ui)',
         overflowY: 'auto', overflowX: 'hidden',
@@ -1320,18 +1268,18 @@ export default function App() {
         {showOnboarding && <OnboardingPresets />}
 
         {/* Header */}
-        <div style={{ height: 36, flexShrink: 0, display:'flex', alignItems:'center', background:'var(--bg-app)', borderBottom:'2px solid var(--accent)', padding:'0 12px', gap:12, position: 'relative', zIndex: 10 }}>
-          <span style={{ color:'var(--accent)', fontWeight:700, fontSize:'13px', letterSpacing:'2px' }}>SENGER</span>
-          <span style={{ color:'var(--text-faint)', fontSize:'9px', letterSpacing:'1px' }}>MARKET TERMINAL</span>
-          <div style={{ flex:1, display:'flex', justifyContent:'center' }}><WorldClock /></div>
-          <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-            {isRefreshing && <span style={{ color:'var(--accent)', fontSize:'8px', letterSpacing:'1px' }}>&#9679; UPDATING</span>}
+        <div className="flex-row app-header-bar">
+          <span className="app-header-title">SENGER</span>
+          <span className="app-header-subtitle">MARKET TERMINAL</span>
+          <div className="flex-row" style={{ flex:1, justifyContent:'center' }}><WorldClock /></div>
+          <div className="flex-row gap-8">
+            {isRefreshing && <span className="app-header-status">&#9679; UPDATING</span>}
             {lastUpdated && !isRefreshing && <span style={{ color:'var(--text-faint)', fontSize:'8px' }}>SNAP {lastUpdated.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'})}</span>}
             <AlertBadge />
-            <button
+            <button className="btn"
               onClick={() => setLayoutEdit(s => !s)}
               title="Reorder panels"
-              style={{ background: layoutEdit ? '#1a0800' : 'none', border:`1px solid ${layoutEdit ? 'var(--accent)' : 'var(--border-strong)'}`, color: layoutEdit ? 'var(--accent)' : 'var(--text-faint)', fontSize:9, padding:'2px 6px', cursor:'pointer', fontFamily:'inherit', borderRadius:'var(--radius-sm)', letterSpacing:'0.5px' }}
+              style={{ background: layoutEdit ? '#1a0800' : 'none', border:`1px solid ${layoutEdit ? 'var(--accent)' : 'var(--border-strong)'}`, color: layoutEdit ? 'var(--accent)' : 'var(--text-faint)' }}
             >⇄ LAYOUT</button>
             {user
               ? <UserDropdown
@@ -1341,7 +1289,7 @@ export default function App() {
                   onBilling={openBillingPortal}
                   isPaid={subscription?.status === 'active'}
                 />
-              : <button onClick={() => setSettingsOpen(s => !s)} style={{ background:'none', border:'1px solid var(--border-strong)', color: settingsOpen ? 'var(--accent)' : 'var(--text-faint)', fontSize:9, padding:'2px 6px', cursor:'pointer', fontFamily:'inherit', borderRadius:'var(--radius-sm)', letterSpacing:'0.5px' }}>⚙ SETTINGS</button>
+              : <button className="btn" onClick={() => setSettingsOpen(s => !s)} style={{ color: settingsOpen ? 'var(--accent)' : 'var(--text-faint)' }}>⚙ SETTINGS</button>
             }
           </div>
         </div>
@@ -1384,7 +1332,7 @@ export default function App() {
                 const colSizes = colSizesPerRow[rowIdx];
                 const startResize = startResizePerRow[rowIdx];
                 return (
-                  <div key={rowIdx} style={{ display: 'contents' }}>
+                  <div key={rowIdx} className="display-contents">
                     {rowIdx > 0 && <ResizeHandle onStart={e => startRowResize(rowIdx - 1, e)} />}
                     <div style={{ flex: rowSizes[rowIdx] || 1, flexShrink: 0, display:'flex', overflow:'hidden', minHeight: minHeights[rowIdx] || 160 }}>
                       {row.map((panelId, colIdx) => {
@@ -1462,9 +1410,9 @@ export default function App() {
       <div className="m-header">
         {/* Back button for secondary views */}
         {(activeTab === 'more' && moreView) ? (
-          <button
+          <button className="btn m-header-back"
             onClick={handleMoreBack}
-            className="m-header-back"
+
             aria-label="Back"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1482,7 +1430,7 @@ export default function App() {
           Object.values(feedStatus).every(s => s === 'live') ? 'live'
           : Object.values(feedStatus).some(s => s === 'live') ? 'partial' : 'off'
         } />
-        <div style={{ flex: 1 }} />
+        <div className="flex-1" />
         {/* Chat icon */}
         <button className="chat-icon-btn" onClick={() => setChatOpen(true)} aria-label="Open chat">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
@@ -1493,8 +1441,8 @@ export default function App() {
 
       {/* Settings drawer overlay */}
       {settingsOpen && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 2000, background: 'rgba(0,0,0,0.7)' }}>
-          <div style={{ position: 'absolute', top: 0, right: 0, bottom: 0, width: '85%', maxWidth: 340, background: 'var(--bg-app)', overflowY: 'auto' }}>
+        <div className="app-modal-overlay">
+          <div className="app-modal-drawer">
             <SettingsDrawer panelVisible={panelVisible} togglePanel={togglePanel} onClose={() => setSettingsOpen(false)} />
           </div>
         </div>
@@ -1606,21 +1554,18 @@ export default function App() {
       )}
       {/* ── Instrument Detail slide-up overlay ── */}
       {detailTicker && !subscriptionExpired && (
-        <div style={{
+        <div className="flex-col" style={{
           position: 'fixed', inset: 0, zIndex: 1500,
           background: 'var(--bg-app)',
-          display: 'flex', flexDirection: 'column',
           paddingTop: 'env(safe-area-inset-top)',
         }}>
           {/* Detail header with close button */}
           <div className="m-header">
-            <button
+            <button className="btn flex-row"
               onClick={() => setDetailTicker(null)}
               style={{
                 background: 'none', border: 'none', color: 'var(--accent)',
-                fontSize: 11, cursor: 'pointer', padding: '8px 8px 8px 0',
-                fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 4,
-                letterSpacing: '0.05em',
+                padding: '8px 8px 8px 0', gap: 4,
               }}
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1628,7 +1573,7 @@ export default function App() {
               </svg>
               Back
             </button>
-            <div style={{ flex: 1 }} />
+            <div className="flex-1" />
           </div>
           <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
             <InstrumentDetail ticker={detailTicker} onClose={() => setDetailTicker(null)} asPage />
@@ -1656,7 +1601,7 @@ function MobileClockCompact() {
   }, []);
   const ny = now.toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit', hour12: false });
   return (
-    <span style={{ color: 'var(--text-faint)', fontSize: 10, letterSpacing: '0.05em', fontVariantNumeric: 'tabular-nums' }}>
+    <span style={{ color: 'var(--text-faint)', letterSpacing: '0.05em', fontVariantNumeric: 'tabular-nums' }}>
       NY {ny}
     </span>
   );

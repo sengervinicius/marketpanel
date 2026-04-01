@@ -5,6 +5,7 @@
  */
 import { useState, useEffect, memo } from 'react';
 import { apiFetch } from '../../utils/api';
+import './RatesPanel.css';
 
 // Static central bank rates not available from free APIs (update manually)
 const STATIC_CB_RATES = [
@@ -14,10 +15,10 @@ const STATIC_CB_RATES = [
 ];
 
 function PctChange({ v }) {
-  if (v == null) return <span style={{ color: '#333', fontSize: 9 }}>-</span>;
+  if (v == null) return <span className="rp-row-change rp-row-change.static">-</span>;
   const up = v >= 0;
   return (
-    <span style={{ color: up ? '#00cc44' : '#cc2200', fontSize: 9, fontWeight: 600 }}>
+    <span className={`rp-row-change ${up ? 'rp-row-change.live' : 'rp-row-change.negative'}`}>
       {up ? '+' : ''}{v.toFixed(2)}
     </span>
   );
@@ -53,60 +54,52 @@ function RatesPanel() {
   const policyRates   = results.filter(r => r.type === 'policy');
 
   const ROW = ({ label, value, change, note, live = true }) => (
-    <div style={{
-      display: 'grid', gridTemplateColumns: '70px 52px 44px 1fr',
-      alignItems: 'center', padding: '2px 6px',
-      borderBottom: '1px solid #0d0d0d',
-    }}>
-      <span style={{ color: live ? '#888' : '#555', fontSize: 9, fontFamily: 'var(--font-mono)', letterSpacing: '0.03em' }}>
+    <div className="rp-row">
+      <span className={`rp-row-label ${live ? 'rp-row-label.live' : 'rp-row-label.static'}`}>
         {label}
       </span>
-      <span style={{ color: live ? '#e8e8e8' : '#666', fontSize: 10, fontWeight: 700, fontFamily: 'var(--font-mono)', textAlign: 'right' }}>
+      <span className={`rp-row-value ${live ? 'rp-row-value.live' : 'rp-row-value.static'}`}>
         {value != null ? value.toFixed(2) + '%' : '-'}
       </span>
-      <span style={{ textAlign: 'right' }}>
-        {live ? <PctChange v={change} /> : <span style={{ color: '#2a2a2a', fontSize: 8 }}>—</span>}
+      <span>
+        {live ? <PctChange v={change} /> : <span className="rp-row-change rp-row-change.static">—</span>}
       </span>
-      <span style={{ color: '#2a2a2a', fontSize: 7.5, textAlign: 'right', fontFamily: 'var(--font-mono)', paddingRight: 2 }}>
+      <span className="rp-row-note">
         {note || ''}
       </span>
     </div>
   );
 
   const SectionLabel = ({ text }) => (
-    <div style={{ padding: '3px 6px 1px', background: '#060606', borderBottom: '1px solid #111' }}>
-      <span style={{ color: '#2a2a2a', fontSize: 7, fontFamily: 'var(--font-mono)', letterSpacing: '0.08em' }}>
+    <div className="rp-section-label">
+      <span className="rp-section-label-text">
         {text}
       </span>
     </div>
   );
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+    <div className="flex-col rp-container">
       {/* Header */}
-      <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        borderBottom: '1px solid #1a1a1a', padding: '0 6px', height: 22,
-        flexShrink: 0, background: '#070707',
-      }}>
-        <span style={{ color: '#e55a00', fontSize: 9, fontWeight: 700, letterSpacing: '0.12em', fontFamily: 'var(--font-mono)' }}>
+      <div className="flex-row rp-header">
+        <span className="rp-header-title">
           RATES
         </span>
-        <span style={{ color: '#1e1e1e', fontSize: 7.5, fontFamily: 'var(--font-mono)' }}>
+        <span className="rp-header-time">
           {loading ? 'LOADING...' : ts}
         </span>
       </div>
 
       {/* Column headers */}
-      <div style={{ display: 'grid', gridTemplateColumns: '70px 52px 44px 1fr', padding: '1px 6px', background: '#070707', borderBottom: '1px solid #111' }}>
+      <div className="rp-col-header">
         {['TENOR', 'YIELD', 'CHG', ''].map(h => (
-          <span key={h} style={{ color: '#2a2a2a', fontSize: 7, fontFamily: 'var(--font-mono)', textAlign: h === 'YIELD' || h === 'CHG' ? 'right' : 'left' }}>
+          <span key={h} className={`rp-col-header-cell ${h === 'YIELD' || h === 'CHG' ? 'rp-col-header-cell.right-align' : ''}`}>
             {h}
           </span>
         ))}
       </div>
 
-      <div style={{ flex: 1, overflowY: 'auto' }}>
+      <div className="rp-content">
         {/* US Treasuries — live from Yahoo Finance */}
         <SectionLabel text="US TREASURIES" />
         {treasuryRates.length === 0 && !loading && (
@@ -130,8 +123,8 @@ function RatesPanel() {
           <ROW key={r.symbol} label={r.name} value={r.price} change={null} note={r.note} live={false} />
         ))}
 
-        <div style={{ padding: '4px 6px', marginTop: 2 }}>
-          <span style={{ color: '#141414', fontSize: 7, fontFamily: 'var(--font-mono)' }}>
+        <div className="rp-footer">
+          <span className="rp-footer-text">
             CB RATES INDICATIVE · SELIC LIVE VIA BCB
           </span>
         </div>

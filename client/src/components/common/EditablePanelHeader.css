@@ -1,0 +1,142 @@
+/* EditablePanelHeader.css */
+
+.eph-header {
+  border-bottom: 1px solid var(--border-strong);
+  background: var(--bg-elevated);
+  flex-shrink: 0;
+  position: relative;
+  transition: border-color 0.2s;
+}
+
+.eph-header.eph-drag-over {
+  border-color: var(--accent);
+}
+
+.eph-row {
+  padding: 4px 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-ui);
+}
+
+.eph-title {
+  color: var(--accent-text);
+  font-weight: 700;
+  letter-spacing: 1px;
+  user-select: none;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.eph-title-input {
+  background: var(--bg-app);
+  border: 1px solid var(--accent-text);
+  color: var(--accent-text);
+  font-weight: 700;
+  letter-spacing: 1px;
+  padding: 1px 4px;
+  font-family: var(--font-ui);
+  outline: none;
+  width: 120px;
+}
+
+.eph-divider {
+  color: var(--border-default);
+  font-size: var(--font-xs);
+}
+
+.eph-sub {
+  color: var(--text-faint);
+  font-size: var(--font-xs);
+  user-select: none;
+  padding: 0 3px;
+  transition: color 0.15s;
+  cursor: pointer;
+}
+
+.eph-sub:hover {
+  color: var(--text-muted);
+}
+
+.eph-sub-input {
+  background: var(--bg-app);
+  border: 1px solid var(--border-default);
+  color: var(--text-muted);
+  font-size: var(--font-xs);
+  padding: 0 3px;
+  font-family: var(--font-ui);
+  outline: none;
+  width: 80px;
+}
+
+.eph-icon-btn {
+  background: none;
+  border: none;
+  color: var(--text-faint);
+  font-size: 9px;
+  padding: 0 2px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.eph-badge {
+  font-size: 7px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 1px 4px;
+  margin-left: 4px;
+  border-radius: 2px;
+}
+
+.eph-drop-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  background: rgba(255, 102, 0, 0.08);
+  border: 1px dashed var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.eph-drop-text {
+  color: var(--accent);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+}
+
+.eph-spacer {
+  flex: 1;
+}
+
+.eph-search-row {
+  padding: 2px 8px 4px;
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.eph-search-input {
+  flex: 1;
+  background: var(--bg-app);
+  border: 1px solid var(--border-strong);
+  color: var(--text-primary);
+  font-size: 9px;
+  padding: 2px 6px;
+  font-family: var(--font-ui);
+  outline: none;
+}
+
+.eph-search-close {
+  background: none;
+  border: none;
+  color: var(--text-faint);
+  padding: 0;
+  line-height: 1;
+  cursor: pointer;
+}
