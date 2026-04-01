@@ -42,6 +42,7 @@ export function SettingsProvider({ children, isAuthenticated }) {
 
   // Load from server when user logs in
   useEffect(() => {
+    let mounted = true;
     if (!isAuthenticated) {
       setSettingsState(defaultSettings());
       setLoaded(true);
@@ -50,6 +51,7 @@ export function SettingsProvider({ children, isAuthenticated }) {
     apiFetch('/api/settings')
       .then(r => r.json())
       .then(data => {
+        if (!mounted) return;
         if (data.settings) {
           const defaults = defaultSettings();
           const s = data.settings || {};
@@ -65,7 +67,8 @@ export function SettingsProvider({ children, isAuthenticated }) {
         if (data.subscription) setSubscription(data.subscription);
         setLoaded(true);
       })
-      .catch(() => setLoaded(true));
+      .catch(() => { if (mounted) setLoaded(true); });
+    return () => { mounted = false; };
   }, [isAuthenticated]);
 
   const persistSettings = useCallback(async (partial) => {
