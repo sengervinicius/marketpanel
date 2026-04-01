@@ -66,8 +66,8 @@ function WorldClock() {
     <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
       {zones.map(z => (
         <span key={z.label} style={{ display: 'flex', gap: 4, alignItems: 'baseline' }}>
-          <span style={{ color: '#555', fontSize: 9, letterSpacing: '0.06em', fontWeight: 600 }}>{z.label}</span>
-          <span style={{ color: '#888', fontSize: 11, fontVariantNumeric: 'tabular-nums', letterSpacing: '0.03em' }}>
+          <span style={{ color: 'var(--text-faint)', fontSize: 9, letterSpacing: '0.06em', fontWeight: 600 }}>{z.label}</span>
+          <span style={{ color: 'var(--text-muted)', fontSize: 11, fontVariantNumeric: 'tabular-nums', letterSpacing: '0.03em' }}>
             {now.toLocaleTimeString('en-US', { timeZone: z.tz, hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}
           </span>
         </span>
@@ -83,13 +83,13 @@ function ResizeHandle({ onStart }) {
       onMouseDown={e => { e.preventDefault(); onStart(e); }}
       style={{
         height: 6, flexShrink: 0, cursor: 'row-resize',
-        background: '#0a0a0a',
-        borderTop: '1px solid #1e1e1e', borderBottom: '1px solid #1e1e1e',
+        background: 'var(--bg-app)',
+        borderTop: '1px solid var(--border-default)', borderBottom: '1px solid var(--border-default)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         userSelect: 'none', zIndex: 20,
       }}
     >
-      <div style={{ width: 36, height: 2, background: '#222', borderRadius: 1 }} />
+      <div style={{ width: 36, height: 2, background: 'var(--border-default)', borderRadius: 1 }} />
     </div>
   );
 }
@@ -101,13 +101,13 @@ function ColResizeHandle({ onStart }) {
       onMouseDown={e => { e.preventDefault(); onStart(e); }}
       style={{
         width: 5, flexShrink: 0, cursor: 'col-resize',
-        background: '#070707',
-        borderLeft: '1px solid #1e1e1e', borderRight: '1px solid #1e1e1e',
+        background: 'var(--bg-app)',
+        borderLeft: '1px solid var(--border-default)', borderRight: '1px solid var(--border-default)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         userSelect: 'none', zIndex: 20,
       }}
     >
-      <div style={{ width: 1, height: 24, background: '#252525', borderRadius: 1 }} />
+      <div style={{ width: 1, height: 24, background: 'var(--border-strong)', borderRadius: 1 }} />
     </div>
   );
 }
@@ -121,10 +121,10 @@ function LayoutMoveOverlay({ panelId, rowIdx, colIdx, rowLen, totalRows, onMove 
       onClick={() => !disabled && onMove(panelId, rowIdx, colIdx, dir)}
       disabled={disabled}
       style={{
-        background: disabled ? '#111' : '#1a0900',
-        border: `1px solid ${disabled ? '#222' : '#ff6600'}`,
-        color:  disabled ? '#2a2a2a' : '#ff6600',
-        width: 22, height: 22, borderRadius: 3, cursor: disabled ? 'default' : 'pointer',
+        background: disabled ? 'var(--bg-elevated)' : '#1a0900',
+        border: `1px solid ${disabled ? 'var(--border-default)' : 'var(--accent)'}`,
+        color:  disabled ? 'var(--border-strong)' : 'var(--accent)',
+        width: 22, height: 22, borderRadius: 'var(--radius-sm)', cursor: disabled ? 'default' : 'pointer',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         fontSize: 12, fontFamily: 'monospace', padding: 0,
       }}
@@ -145,9 +145,9 @@ function LayoutMoveOverlay({ panelId, rowIdx, colIdx, rowLen, totalRows, onMove 
         <div style={{ display: 'flex', gap: 4 }}>
           {btn('left',  '←', colIdx === 0)}
           <div style={{
-            background: '#0d0d0d', border: '1px solid #2a2a2a',
-            borderRadius: 3, padding: '2px 8px',
-            color: '#ff6600', fontSize: 9, fontWeight: 700, letterSpacing: '0.5px',
+            background: 'var(--bg-surface)', border: '1px solid var(--border-strong)',
+            borderRadius: 'var(--radius-sm)', padding: '2px 8px',
+            color: 'var(--accent)', fontSize: 9, fontWeight: 700, letterSpacing: '0.5px',
             whiteSpace: 'nowrap', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis',
           }}>{panelLabel}</div>
           {btn('right', '→', colIdx === rowLen - 1)}
@@ -353,8 +353,8 @@ const PRESET_LIST = [
 
 function SettingsSection({ label }) {
   return (
-    <div style={{ padding: '8px 12px 4px', borderBottom: '1px solid #1a1a1a', marginTop: 4 }}>
-      <span style={{ color: '#ff6600', fontSize: 8, fontWeight: 700, letterSpacing: '1.2px' }}>{label}</span>
+    <div style={{ padding: '8px 12px 4px', borderBottom: '1px solid var(--border-default)', marginTop: 4 }}>
+      <span style={{ color: 'var(--accent)', fontSize: 'var(--font-sm)', fontWeight: 700, letterSpacing: '1.2px' }}>{label}</span>
     </div>
   );
 }
@@ -384,7 +384,7 @@ function SettingsDrawer({ panelVisible, togglePanel, onClose }) {
 
   const rowStyle = {
     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-    padding: '5px 12px', cursor: 'pointer', borderBottom: '1px solid #141414',
+    padding: '5px 12px', cursor: 'pointer', borderBottom: '1px solid var(--border-subtle)',
     transition: 'background-color 100ms ease-out',
   };
 
@@ -401,9 +401,9 @@ function SettingsDrawer({ panelVisible, togglePanel, onClose }) {
   return (
     <div style={{
       position: 'absolute', top: 36, right: 0, zIndex: 1000,
-      background: '#0d0d0d', border: '1px solid #2a2a2a', borderTop: 'none',
+      background: 'var(--bg-overlay)', border: '1px solid var(--border-strong)', borderTop: 'none',
       width: 260, maxHeight: 'calc(100vh - 60px)', overflowY: 'auto',
-      boxShadow: '0 8px 32px rgba(0,0,0,0.8)',
+      boxShadow: 'var(--shadow-overlay)',
       animation: 'slideInRight 200ms ease-out',
     }}>
       <style>{`
@@ -420,12 +420,12 @@ function SettingsDrawer({ panelVisible, togglePanel, onClose }) {
       `}</style>
 
       {/* Drawer header */}
-      <div style={{ padding: '6px 12px', borderBottom: '1px solid #1a1a1a', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={{ color: '#ff6600', fontSize: 9, fontWeight: 700, letterSpacing: '1px' }}>SETTINGS</span>
+      <div style={{ padding: '6px 12px', borderBottom: '1px solid var(--border-default)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span style={{ color: 'var(--accent)', fontSize: 9, fontWeight: 700, letterSpacing: '1px' }}>SETTINGS</span>
         <button
           onClick={onClose}
           title="Close (Esc)"
-          style={{ background: 'none', border: 'none', color: '#444', cursor: 'pointer', fontSize: 12, padding: 0 }}
+          style={{ background: 'none', border: 'none', color: 'var(--text-faint)', cursor: 'pointer', fontSize: 12, padding: 0 }}
           aria-label="Close settings"
         >
           ✕
@@ -441,11 +441,11 @@ function SettingsDrawer({ panelVisible, togglePanel, onClose }) {
           tabIndex={0}
           style={rowStyle}
           {...makeRowClickable(() => handleStartPage(value))}
-          onMouseEnter={e => e.currentTarget.style.background = '#141414'}
+          onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
           onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
         >
-          <span style={{ color: defaultStartPage === value ? '#ff6600' : '#888', fontSize: 9, letterSpacing: '0.5px' }}>{label}</span>
-          <span style={{ color: defaultStartPage === value ? '#ff6600' : '#2a2a2a', fontSize: 10 }}>{defaultStartPage === value ? '●' : '○'}</span>
+          <span style={{ color: defaultStartPage === value ? 'var(--accent)' : 'var(--text-muted)', fontSize: 9, letterSpacing: '0.5px' }}>{label}</span>
+          <span style={{ color: defaultStartPage === value ? 'var(--accent)' : 'var(--border-strong)', fontSize: 10 }}>{defaultStartPage === value ? '●' : '○'}</span>
         </div>
       ))}
 
@@ -456,11 +456,11 @@ function SettingsDrawer({ panelVisible, togglePanel, onClose }) {
         tabIndex={0}
         style={rowStyle}
         {...makeRowClickable(handleTheme)}
-        onMouseEnter={e => e.currentTarget.style.background = '#141414'}
+        onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
         onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
       >
-        <span style={{ color: '#888', fontSize: 9, letterSpacing: '0.5px' }}>{theme === 'dark' ? '◑ DARK MODE' : '☀ LIGHT MODE'}</span>
-        <span style={{ color: '#ff6600', fontSize: 8, fontWeight: 700, letterSpacing: '0.5px' }}>TOGGLE</span>
+        <span style={{ color: 'var(--text-muted)', fontSize: 9, letterSpacing: '0.5px' }}>{theme === 'dark' ? '◑ DARK MODE' : '☀ LIGHT MODE'}</span>
+        <span style={{ color: 'var(--accent)', fontSize: 8, fontWeight: 700, letterSpacing: '0.5px' }}>TOGGLE</span>
       </div>
 
       {/* ── Workspace Presets ── */}
@@ -472,14 +472,14 @@ function SettingsDrawer({ panelVisible, togglePanel, onClose }) {
           tabIndex={0}
           style={{ ...rowStyle, cursor: applyingPreset ? 'wait' : 'pointer' }}
           {...makeRowClickable(() => !applyingPreset && handlePreset(key))}
-          onMouseEnter={e => e.currentTarget.style.background = '#141414'}
+          onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
           onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
           aria-busy={applyingPreset === key}
         >
-          <span style={{ color: '#888', fontSize: 9, letterSpacing: '0.5px' }}>{label}</span>
+          <span style={{ color: 'var(--text-muted)', fontSize: 9, letterSpacing: '0.5px' }}>{label}</span>
           {applyingPreset === key
-            ? <span style={{ color: '#ff6600', fontSize: 8 }}>APPLYING…</span>
-            : <span style={{ color: '#444', fontSize: 8, letterSpacing: '0.5px' }}>APPLY →</span>}
+            ? <span style={{ color: 'var(--accent)', fontSize: 8 }}>APPLYING…</span>
+            : <span style={{ color: 'var(--text-faint)', fontSize: 8, letterSpacing: '0.5px' }}>APPLY →</span>}
         </div>
       ))}
 
@@ -490,13 +490,13 @@ function SettingsDrawer({ panelVisible, togglePanel, onClose }) {
         tabIndex={0}
         style={rowStyle}
         {...makeRowClickable(handleResetLayout)}
-        onMouseEnter={e => e.currentTarget.style.background = '#141414'}
+        onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
         onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
       >
-        <span style={{ color: '#888', fontSize: 9, letterSpacing: '0.5px' }}>Reset to Default</span>
+        <span style={{ color: 'var(--text-muted)', fontSize: 9, letterSpacing: '0.5px' }}>Reset to Default</span>
         {resettingLayout
-          ? <span style={{ color: '#ff6600', fontSize: 8 }}>RESETTING…</span>
-          : <span style={{ color: '#444', fontSize: 8, letterSpacing: '0.5px' }}>↻ RESET</span>}
+          ? <span style={{ color: 'var(--accent)', fontSize: 8 }}>RESETTING…</span>
+          : <span style={{ color: 'var(--text-faint)', fontSize: 8, letterSpacing: '0.5px' }}>↻ RESET</span>}
       </div>
 
       {/* ── Panel Visibility ── */}
@@ -510,12 +510,12 @@ function SettingsDrawer({ panelVisible, togglePanel, onClose }) {
             tabIndex={0}
             style={rowStyle}
             {...makeRowClickable(() => togglePanel(id))}
-            onMouseEnter={e => e.currentTarget.style.background = '#141414'}
+            onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
             onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
             aria-pressed={visible}
           >
-            <span style={{ color: visible ? '#ccc' : '#444', fontSize: 9, letterSpacing: '0.5px' }}>{label}</span>
-            <span style={{ color: visible ? '#00cc66' : '#333', fontSize: 9, fontWeight: 700 }}>
+            <span style={{ color: visible ? 'var(--text-primary)' : 'var(--text-faint)', fontSize: 9, letterSpacing: '0.5px' }}>{label}</span>
+            <span style={{ color: visible ? 'var(--price-up)' : 'var(--text-faint)', fontSize: 9, fontWeight: 700 }}>
               {visible ? '● ON' : '○ OFF'}
             </span>
           </div>
@@ -544,40 +544,41 @@ function UserDropdown({ user, onSettings, onLogout, onBilling, isPaid }) {
       <button
         onClick={() => setOpen(s => !s)}
         style={{
-          background: 'none', border: '1px solid #282828', color: '#888',
+          background: 'none', border: '1px solid var(--border-strong)', color: 'var(--text-muted)',
           fontSize: 9, padding: '2px 8px', cursor: 'pointer',
-          fontFamily: 'inherit', borderRadius: 2, letterSpacing: '0.5px',
+          fontFamily: 'inherit', borderRadius: 'var(--radius-sm)', letterSpacing: '0.5px',
           display: 'flex', alignItems: 'center', gap: 5,
         }}
       >
-        <span style={{ color: open ? '#ff6600' : '#444', fontSize: 8 }}>▼</span>
+        <span style={{ color: open ? 'var(--accent)' : 'var(--text-faint)', fontSize: 8 }}>▼</span>
         {user.username?.toUpperCase()}
       </button>
       {open && (
         <div style={{
           position: 'absolute', top: 'calc(100% + 2px)', right: 0, zIndex: 2000,
-          background: '#0d0d0d', border: '1px solid #2a2a2a',
-          width: 150, boxShadow: '0 4px 20px rgba(0,0,0,0.9)',
+          background: 'var(--bg-overlay)', border: '1px solid var(--border-strong)',
+          width: 150, boxShadow: 'var(--shadow-dropdown)',
+          borderRadius: 'var(--radius-sm)',
         }}>
           {isPaid && onBilling && (
             <div
               onClick={() => { setOpen(false); onBilling(); }}
-              style={{ padding: '7px 12px', cursor: 'pointer', color: '#888', fontSize: 9, letterSpacing: '0.5px', borderBottom: '1px solid #1a1a1a' }}
-              onMouseEnter={e => { e.currentTarget.style.background = '#141414'; e.currentTarget.style.color = '#44ff44'; }}
-              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#888'; }}
+              style={{ padding: '7px 12px', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 9, letterSpacing: '0.5px', borderBottom: '1px solid var(--border-default)' }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-hover)'; e.currentTarget.style.color = 'var(--price-up)'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = ''; }}
             >💳 BILLING</div>
           )}
           <div
             onClick={() => { setOpen(false); onSettings(); }}
-            style={{ padding: '7px 12px', cursor: 'pointer', color: '#888', fontSize: 9, letterSpacing: '0.5px', borderBottom: isPaid && onBilling ? '1px solid #1a1a1a' : '1px solid #1a1a1a' }}
-            onMouseEnter={e => { e.currentTarget.style.background = '#141414'; e.currentTarget.style.color = '#ff6600'; }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#888'; }}
+            style={{ padding: '7px 12px', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 9, letterSpacing: '0.5px', borderBottom: '1px solid var(--border-default)' }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-hover)'; e.currentTarget.style.color = 'var(--accent)'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = ''; }}
           >⚙ SETTINGS</div>
           <div
             onClick={() => { setOpen(false); onLogout(); }}
-            style={{ padding: '7px 12px', cursor: 'pointer', color: '#888', fontSize: 9, letterSpacing: '0.5px' }}
-            onMouseEnter={e => { e.currentTarget.style.background = '#141414'; e.currentTarget.style.color = '#ff4444'; }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#888'; }}
+            style={{ padding: '7px 12px', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 9, letterSpacing: '0.5px' }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-hover)'; e.currentTarget.style.color = 'var(--price-down)'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = ''; }}
           >→ LOG OUT</div>
         </div>
       )}
@@ -821,36 +822,36 @@ function SubscriptionExpiredScreen({ onUpgrade, onLogout, onManageBilling, check
 
 // ── Mobile tab definitions (4 primary tabs) ──────────────────────────────────
 const MOBILE_TABS = [
-  { id: 'markets',   label: 'Markets' },
+  { id: 'home',      label: 'Home' },
   { id: 'charts',    label: 'Charts' },
   { id: 'watchlist', label: 'Watchlist' },
   { id: 'more',      label: 'More' },
 ];
 
-// SVG tab icons (24x24, stroke-based)
+// SVG tab icons (24x24, stroke-based) — color driven by CSS class via currentColor
 function TabIcon({ id, active }) {
-  const color = active ? '#ff6600' : '#555';
   const sw = active ? 2 : 1.5;
   const s = { width: 22, height: 22, display: 'block' };
+  // Color is inherited from the parent .m-tab-btn via CSS (currentColor)
   switch (id) {
-    case 'markets': return (
-      <svg style={s} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round">
-        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+    case 'home': return (
+      <svg style={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round">
+        <path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5z" /><polyline points="9 21 9 14 15 14 15 21" />
       </svg>
     );
     case 'charts': return (
-      <svg style={s} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round">
+      <svg style={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round">
         <line x1="18" y1="20" x2="18" y2="10" /><line x1="12" y1="20" x2="12" y2="4" /><line x1="6" y1="20" x2="6" y2="14" />
       </svg>
     );
     case 'watchlist': return (
-      <svg style={s} viewBox="0 0 24 24" fill={active ? '#ff6600' : 'none'} stroke={color} strokeWidth={sw} strokeLinejoin="round">
+      <svg style={s} viewBox="0 0 24 24" fill={active ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={sw} strokeLinejoin="round">
         <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
       </svg>
     );
     case 'more': return (
-      <svg style={s} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={sw} strokeLinecap="round">
-        <circle cx="12" cy="5" r="1.5" fill={color} stroke="none" /><circle cx="12" cy="12" r="1.5" fill={color} stroke="none" /><circle cx="12" cy="19" r="1.5" fill={color} stroke="none" />
+      <svg style={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={sw} strokeLinecap="round">
+        <circle cx="12" cy="5" r="1.5" fill="currentColor" stroke="none" /><circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none" /><circle cx="12" cy="19" r="1.5" fill="currentColor" stroke="none" />
       </svg>
     );
     default: return null;
@@ -979,9 +980,9 @@ export default function App() {
 
   const [activeTab, setActiveTab] = useState(() => {
     const saved = localStorage.getItem(LS_TAB);
-    // Migrate old tab IDs
-    if (saved === 'home') return 'markets';
-    return MOBILE_TABS.find(t => t.id === saved) ? saved : 'markets';
+    // Migrate old tab ID from previous 'markets' to 'home'
+    if (saved === 'markets') return 'home';
+    return MOBILE_TABS.find(t => t.id === saved) ? saved : 'home';
   });
   // Secondary view inside "more" tab (search, news, etf, chat)
   const [moreView, setMoreView] = useState(null);
@@ -1155,17 +1156,17 @@ export default function App() {
         {showOnboarding && <OnboardingPresets />}
 
         {/* Header */}
-        <div style={{ height: 36, flexShrink: 0, display:'flex', alignItems:'center', background:'#000', borderBottom:'2px solid #ff6600', padding:'0 12px', gap:12, position: 'relative', zIndex: 10 }}>
-          <span style={{ color:'#ff6600', fontWeight:700, fontSize:'13px', letterSpacing:'2px' }}>SENGER</span>
-          <span style={{ color:'#444', fontSize:'9px', letterSpacing:'1px' }}>MARKET TERMINAL</span>
+        <div style={{ height: 36, flexShrink: 0, display:'flex', alignItems:'center', background:'var(--bg-app)', borderBottom:'2px solid var(--accent)', padding:'0 12px', gap:12, position: 'relative', zIndex: 10 }}>
+          <span style={{ color:'var(--accent)', fontWeight:700, fontSize:'13px', letterSpacing:'2px' }}>SENGER</span>
+          <span style={{ color:'var(--text-faint)', fontSize:'9px', letterSpacing:'1px' }}>MARKET TERMINAL</span>
           <div style={{ flex:1, display:'flex', justifyContent:'center' }}><WorldClock /></div>
           <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-            {isRefreshing && <span style={{ color:'#ff6600', fontSize:'8px', letterSpacing:'1px' }}>&#9679; UPDATING</span>}
-            {lastUpdated && !isRefreshing && <span style={{ color:'#333', fontSize:'8px' }}>SNAP {lastUpdated.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'})}</span>}
+            {isRefreshing && <span style={{ color:'var(--accent)', fontSize:'8px', letterSpacing:'1px' }}>&#9679; UPDATING</span>}
+            {lastUpdated && !isRefreshing && <span style={{ color:'var(--text-faint)', fontSize:'8px' }}>SNAP {lastUpdated.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'})}</span>}
             <button
               onClick={() => setLayoutEdit(s => !s)}
               title="Reorder panels"
-              style={{ background: layoutEdit ? '#1a0800' : 'none', border:`1px solid ${layoutEdit ? '#ff6600' : '#282828'}`, color: layoutEdit ? '#ff6600' : '#444', fontSize:9, padding:'2px 6px', cursor:'pointer', fontFamily:'inherit', borderRadius:2, letterSpacing:'0.5px' }}
+              style={{ background: layoutEdit ? '#1a0800' : 'none', border:`1px solid ${layoutEdit ? 'var(--accent)' : 'var(--border-strong)'}`, color: layoutEdit ? 'var(--accent)' : 'var(--text-faint)', fontSize:9, padding:'2px 6px', cursor:'pointer', fontFamily:'inherit', borderRadius:'var(--radius-sm)', letterSpacing:'0.5px' }}
             >⇄ LAYOUT</button>
             {user
               ? <UserDropdown
@@ -1175,7 +1176,7 @@ export default function App() {
                   onBilling={openBillingPortal}
                   isPaid={subscription?.status === 'active'}
                 />
-              : <button onClick={() => setSettingsOpen(s => !s)} style={{ background:'none', border:'1px solid #282828', color: settingsOpen ? '#ff6600' : '#444', fontSize:9, padding:'2px 6px', cursor:'pointer', fontFamily:'inherit', borderRadius:2, letterSpacing:'0.5px' }}>⚙ SETTINGS</button>
+              : <button onClick={() => setSettingsOpen(s => !s)} style={{ background:'none', border:'1px solid var(--border-strong)', color: settingsOpen ? 'var(--accent)' : 'var(--text-faint)', fontSize:9, padding:'2px 6px', cursor:'pointer', fontFamily:'inherit', borderRadius:'var(--radius-sm)', letterSpacing:'0.5px' }}>⚙ SETTINGS</button>
             }
           </div>
         </div>
@@ -1278,44 +1279,38 @@ export default function App() {
       display: 'flex', flexDirection: 'column',
       height: '100dvh',
       paddingTop: 'env(safe-area-inset-top)',
-      background: '#060606',
+      background: 'var(--bg-app)',
       fontFamily: "'IBM Plex Mono','Roboto Mono','Courier New',monospace",
-      color: '#e0e0e0', overflow: 'hidden',
+      color: 'var(--text-primary)', overflow: 'hidden',
     }}>
 
       {/* Onboarding overlay */}
       {showOnboarding && <OnboardingPresets />}
 
       {/* ── Mobile header ── */}
-      <div style={{
-        height: 44, flexShrink: 0,
-        display: 'flex', alignItems: 'center',
-        background: '#000',
-        borderBottom: '1px solid #141414',
-        padding: '0 16px', gap: 10,
-      }}>
+      <div className="m-header">
         {/* Back button for secondary views */}
         {(activeTab === 'more' && moreView) ? (
           <button
             onClick={handleMoreBack}
             style={{
-              background: 'none', border: 'none', color: '#ff6600',
+              background: 'none', border: 'none', color: 'var(--accent)',
               fontSize: 18, cursor: 'pointer', padding: '4px 8px 4px 0',
               fontFamily: 'inherit', display: 'flex', alignItems: 'center',
             }}
             aria-label="Back"
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ff6600" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="15 18 9 12 15 6" />
             </svg>
           </button>
         ) : null}
-        <span style={{ color: '#ff6600', fontWeight: 700, fontSize: 12, letterSpacing: '2.5px' }}>SENGER</span>
+        <span style={{ color: 'var(--accent)', fontWeight: 700, fontSize: 13, letterSpacing: '2.5px' }}>SENGER</span>
         {/* Feed status dot */}
         <div style={{
           width: 6, height: 6, borderRadius: '50%', flexShrink: 0,
           background: Object.values(feedStatus).every(s => s === 'live') ? '#22c55e'
-            : Object.values(feedStatus).some(s => s === 'live') ? '#f59e0b' : '#555',
+            : Object.values(feedStatus).some(s => s === 'live') ? '#f59e0b' : 'var(--text-muted)',
         }} />
         <div style={{ flex: 1 }} />
         {/* Mini clock */}
@@ -1325,7 +1320,7 @@ export default function App() {
       {/* Settings drawer overlay */}
       {settingsOpen && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 2000, background: 'rgba(0,0,0,0.7)' }}>
-          <div style={{ position: 'absolute', top: 0, right: 0, bottom: 0, width: '85%', maxWidth: 340, background: '#0a0a0a', overflowY: 'auto' }}>
+          <div style={{ position: 'absolute', top: 0, right: 0, bottom: 0, width: '85%', maxWidth: 340, background: 'var(--bg-app)', overflowY: 'auto' }}>
             <SettingsDrawer panelVisible={panelVisible} togglePanel={togglePanel} onClose={() => setSettingsOpen(false)} />
           </div>
         </div>
@@ -1356,7 +1351,7 @@ export default function App() {
           {/* ── Tab content area ── */}
           <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', minHeight: 0, WebkitOverflowScrolling: 'touch' }}>
 
-            {activeTab === 'markets' && (
+            {activeTab === 'home' && (
               <HomePanelMobile
                 onOpenDetail={goDetail}
                 onSearchClick={() => { setActiveTabPersist('more'); setMoreView('search'); }}
@@ -1400,40 +1395,22 @@ export default function App() {
           </div>
 
           {/* ── Bottom tab bar ── */}
-          <nav style={{
-            display: 'flex', background: '#000',
-            borderTop: '1px solid #1a1a1a',
-            flexShrink: 0,
-            paddingBottom: 'env(safe-area-inset-bottom)',
-          }}>
+          <nav className="m-tab-bar">
             {MOBILE_TABS.map(tab => {
               const isActive = activeTab === tab.id;
               return (
                 <button
                   key={tab.id}
+                  className="m-tab-btn"
+                  data-active={isActive}
                   onClick={() => {
                     if (tab.id === 'more' && activeTab === 'more') {
-                      // Tapping more again goes back to menu
                       setMoreView(null);
                     }
                     setActiveTabPersist(tab.id);
                     if (tab.id !== 'more') setMoreView(null);
                   }}
-                  style={{
-                    flex: 1, minHeight: 56,
-                    padding: '6px 4px 8px',
-                    background: isActive ? 'rgba(255,102,0,0.06)' : 'transparent',
-                    color: isActive ? '#ff6600' : '#555',
-                    border: 'none',
-                    borderTop: isActive ? '2px solid #ff6600' : '2px solid transparent',
-                    fontSize: 9, fontWeight: 600, letterSpacing: '0.02em',
-                    cursor: 'pointer', fontFamily: 'inherit',
-                    display: 'flex', flexDirection: 'column', alignItems: 'center',
-                    justifyContent: 'center', gap: 3,
-                    WebkitTapHighlightColor: 'transparent',
-                    touchAction: 'manipulation',
-                    transition: 'color 0.15s, background 0.15s',
-                  }}>
+                >
                   <TabIcon id={tab.id} active={isActive} />
                   <span>{tab.label}</span>
                 </button>
@@ -1447,27 +1424,22 @@ export default function App() {
       {detailTicker && !subscriptionExpired && (
         <div style={{
           position: 'fixed', inset: 0, zIndex: 1500,
-          background: '#060606',
+          background: 'var(--bg-app)',
           display: 'flex', flexDirection: 'column',
           paddingTop: 'env(safe-area-inset-top)',
         }}>
           {/* Detail header with close button */}
-          <div style={{
-            height: 48, flexShrink: 0,
-            display: 'flex', alignItems: 'center',
-            background: '#000', borderBottom: '1px solid #141414',
-            padding: '0 12px', gap: 10,
-          }}>
+          <div className="m-header">
             <button
               onClick={() => setDetailTicker(null)}
               style={{
-                background: 'none', border: 'none', color: '#ff6600',
+                background: 'none', border: 'none', color: 'var(--accent)',
                 fontSize: 11, cursor: 'pointer', padding: '8px 8px 8px 0',
                 fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 4,
                 letterSpacing: '0.05em',
               }}
             >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ff6600" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="15 18 9 12 15 6" />
               </svg>
               Back
@@ -1499,7 +1471,7 @@ function MobileClockCompact() {
   }, []);
   const ny = now.toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit', hour12: false });
   return (
-    <span style={{ color: '#444', fontSize: 9, letterSpacing: '0.05em', fontVariantNumeric: 'tabular-nums' }}>
+    <span style={{ color: 'var(--text-faint)', fontSize: 10, letterSpacing: '0.05em', fontVariantNumeric: 'tabular-nums' }}>
       NY {ny}
     </span>
   );

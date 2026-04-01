@@ -3,13 +3,20 @@ import { useRef, useState, memo } from 'react';
 import { useSettings } from '../../context/SettingsContext';
 import PanelConfigModal from '../common/PanelConfigModal';
 import EditablePanelHeader from '../common/EditablePanelHeader';
+import PanelShell from '../common/PanelShell';
+import { PriceRow } from '../common/PriceRow';
+import ColumnHeaders from '../common/ColumnHeaders';
 import { CRYPTO_PAIRS } from '../../utils/constants';
 import { useFeedStatus } from '../../context/FeedStatusContext';
-import { handlePanelDragOver, makePanelDropHandler } from '../../utils/dropHelper';
 
-const fmt    = (n) => n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const fmtPct = (n) => n == null ? '—' : (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
-const COLS   = '56px 1fr 80px 64px';
+const COLS = '56px 1fr 80px 64px';
+
+const SORT_COLS = [
+  { key: 'symbol', label: 'COIN', align: 'left' },
+  { key: 'name',   label: 'NAME', align: 'left' },
+  { key: 'price',  label: 'LAST', align: 'right' },
+  { key: 'chg',    label: 'CHG%', align: 'right' },
+];
 
 export function CryptoPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
   const ptRef = useRef(null);
@@ -79,13 +86,8 @@ export function CryptoPanel({ data = {}, loading, onTickerClick, onOpenDetail })
     });
   }
 
-
   return (
-    <div
-      style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#0a0a0a' }}
-      onDragOver={handlePanelDragOver}
-      onDrop={makePanelDropHandler(handleDropTicker)}
-    >
+    <PanelShell onDropTicker={handleDropTicker}>
       {/* Header */}
       <EditablePanelHeader
         title={panelTitle}
@@ -107,82 +109,56 @@ export function CryptoPanel({ data = {}, loading, onTickerClick, onOpenDetail })
         <button
           onClick={() => setCollapsed(v => !v)}
           title={collapsed ? 'Expand' : 'Collapse'}
-          style={{ background: 'none', border: '1px solid #2a2a2a', color: '#555', fontSize: 9, padding: '1px 5px', cursor: 'pointer', fontFamily: 'inherit', borderRadius: 2 }}
+          style={{ background: 'none', border: '1px solid var(--border-strong)', color: 'var(--text-muted)', fontSize: 9, padding: '1px 5px', cursor: 'pointer', fontFamily: 'inherit', borderRadius: 'var(--radius-sm)' }}
         >{collapsed ? '+' : '−'}</button>
         <button
           onClick={() => setMoversOnly(v => !v)}
           title="Show only movers ≥ 3%"
-          style={{ background: moversOnly ? '#1a1000' : 'none', border: `1px solid ${moversOnly ? '#ff9900' : '#2a2a2a'}`, color: moversOnly ? '#ff9900' : '#444', fontSize: 7, padding: '1px 4px', cursor: 'pointer', fontFamily: 'inherit', borderRadius: 2 }}
+          style={{ background: moversOnly ? '#1a1000' : 'none', border: `1px solid ${moversOnly ? 'var(--accent-text)' : 'var(--border-strong)'}`, color: moversOnly ? 'var(--accent-text)' : 'var(--text-muted)', fontSize: 'var(--font-xs)', padding: '1px 4px', cursor: 'pointer', fontFamily: 'inherit', borderRadius: 'var(--radius-sm)' }}
         >≥3%</button>
       </EditablePanelHeader>
 
       {!collapsed && !hiddenSubsections.includes('usd') && (<>
         {/* Column headers */}
-        <div style={{ display: 'grid', gridTemplateColumns: COLS, padding: '2px 8px', borderBottom: '1px solid #1a1a1a', flexShrink: 0 }}>
-          {[
-            { key: 'symbol', label: 'COIN', align: 'left' },
-            { key: 'name', label: 'NAME', align: 'left' },
-            { key: 'price', label: 'LAST', align: 'right' },
-            { key: 'chg', label: 'CHG%', align: 'right' },
-          ].map(({ key, label, align }) => {
-            const active = sortKey === key;
-            const arrow = active ? (sortDir === 'desc' ? ' ▼' : ' ▲') : '';
-            return (
-              <span
-                key={key}
-                onClick={() => handleSortClick(key)}
-                style={{
-                  color: active ? '#ff9900' : '#444',
-                  fontSize: '8px',
-                  fontWeight: 700,
-                  letterSpacing: '1px',
-                  textAlign: align === 'right' ? 'right' : 'left',
-                  paddingRight: align === 'right' ? 4 : 0,
-                  cursor: 'pointer',
-                  userSelect: 'none',
-                }}
-              >
-                {label}{arrow}
-              </span>
-            );
-          })}
-        </div>
+        <ColumnHeaders
+          columns={SORT_COLS}
+          gridColumns={COLS}
+          sortKey={sortKey}
+          sortDir={sortDir}
+          onSortClick={handleSortClick}
+        />
 
         <div style={{ flex: 1, overflowY: 'auto' }}>
           {loading || !data ? (
-            <div style={{ padding: '20px', textAlign: 'center', color: '#444', fontSize: '10px' }}>LOADING...</div>
+            <div style={{ padding: 'var(--sp-5)', textAlign: 'center', color: 'var(--text-muted)', fontSize: 'var(--font-base)' }}>LOADING...</div>
           ) : visiblePairs.length > 0 ? visiblePairs.map(c => {
-            const d   = data[c.symbol] || {};
-            const pos = (d.changePct ?? 0) >= 0;
+            const d = data[c.symbol] || {};
             const chartSym = 'X:' + c.symbol;
             return (
-              <div
+              <PriceRow
                 key={c.symbol}
-                data-ticker={c.symbol}
-                data-ticker-label={c.label || c.name || c.symbol}
-                data-ticker-type="CRYPTO"
+                symbol={c.symbol}
+                displaySymbol={c.symbol.replace('USD', '')}
+                name={c.label}
+                price={d.price}
+                changePct={d.changePct}
+                symbolColor="var(--section-crypto)"
+                columns={COLS}
                 draggable
-                onDragStart={e => {
-                  e.dataTransfer.effectAllowed = 'copy';
-                  e.dataTransfer.setData('application/x-ticker', JSON.stringify({ symbol: chartSym, name: c.label, type: 'CRYPTO' }));
-                }}
+                dragData={{ symbol: chartSym, name: c.label, type: 'CRYPTO' }}
                 onClick={() => onTickerClick?.(chartSym)}
                 onDoubleClick={() => onOpenDetail?.(chartSym)}
-                onTouchStart={(e) => { e.stopPropagation(); clearTimeout(ptRef.current); ptRef.current = setTimeout(() => onOpenDetail?.(c.symbol), 500); }}
-                onTouchEnd={() => clearTimeout(ptRef.current)}
-                onTouchMove={() => clearTimeout(ptRef.current)}
-                style={{ display: 'grid', gridTemplateColumns: COLS, padding: '3px 8px', borderBottom: '1px solid #141414', cursor: 'pointer', alignItems: 'center' }}
-                onMouseEnter={e => e.currentTarget.style.background = '#141414'}
-                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-              >
-                <span style={{ color: '#f48fb1', fontSize: '10px', fontWeight: 700 }}>{c.symbol.replace('USD', '')}</span>
-                <span style={{ color: '#555', fontSize: '9px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: 4 }}>{c.label}</span>
-                <span style={{ color: '#ccc', fontSize: '10px', textAlign: 'right', paddingRight: 4 }}>{fmt(d.price)}</span>
-                <span style={{ color: pos ? '#4caf50' : '#f44336', fontSize: '10px', textAlign: 'right', fontWeight: 600 }}>{fmtPct(d.changePct)}</span>
-              </div>
+                onTouchHold={() => onOpenDetail?.(c.symbol)}
+                touchRef={ptRef}
+                dataAttrs={{
+                  'data-ticker': c.symbol,
+                  'data-ticker-label': c.label || c.name || c.symbol,
+                  'data-ticker-type': 'CRYPTO',
+                }}
+              />
             );
           }) : (
-            <div style={{ padding: '20px', textAlign: 'center', color: '#444', fontSize: '10px' }}>NO CRYPTO PAIRS</div>
+            <div style={{ padding: 'var(--sp-5)', textAlign: 'center', color: 'var(--text-muted)', fontSize: 'var(--font-base)' }}>NO CRYPTO PAIRS</div>
           )}
         </div>
       </>)}
@@ -200,7 +176,7 @@ export function CryptoPanel({ data = {}, loading, onTickerClick, onOpenDetail })
           onClose={() => setConfigOpen(false)}
         />
       )}
-    </div>
+    </PanelShell>
   );
 }
 

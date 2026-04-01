@@ -5,13 +5,21 @@ import { useSettings } from '../../context/SettingsContext';
 import PanelConfigModal from '../common/PanelConfigModal';
 import EditablePanelHeader from '../common/EditablePanelHeader';
 import CustomSubsectionBlock from '../common/CustomSubsectionBlock';
+import PanelShell from '../common/PanelShell';
+import { PriceRow } from '../common/PriceRow';
+import { SectionHeader } from '../common/SectionHeader';
+import ColumnHeaders from '../common/ColumnHeaders';
 import { COMMODITIES } from '../../utils/constants';
 import { useFeedStatus } from '../../context/FeedStatusContext';
-import { handlePanelDragOver, makePanelDropHandler } from '../../utils/dropHelper';
 
-const fmt    = (n) => n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const fmtPct = (n) => n == null ? '—' : (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
-const COLS   = '44px 1fr 68px 60px';
+const COLS = '44px 1fr 68px 60px';
+
+const SORT_COLS = [
+  { key: 'symbol', label: 'SYM',  align: 'left' },
+  { key: 'name',   label: 'NAME', align: 'left' },
+  { key: 'price',  label: 'LAST', align: 'right' },
+  { key: 'chg',    label: 'CHG%', align: 'right' },
+];
 
 const GROUPS = [
   { key: 'Metals', label: 'METALS',      color: '#ffd54f' },
@@ -19,19 +27,6 @@ const GROUPS = [
   { key: 'Agri',   label: 'AGRICULTURE', color: '#8bc34a' },
   { key: 'Mining', label: 'MINING',      color: '#90a4ae' },
 ];
-
-function GroupHeader({ label, color }) {
-  return (
-    <div style={{
-      padding: '2px 8px', background: '#0c0c0c',
-      borderTop: '1px solid #1a1a1a', borderBottom: '1px solid #1a1a1a',
-    }}>
-      <span style={{ color, fontSize: 7, fontWeight: 700, letterSpacing: '0.12em' }}>
-        ── {label} ────────────────────────
-      </span>
-    </div>
-  );
-}
 
 const showInfo = (e, symbol, label, type) => {
   e.preventDefault();
@@ -44,7 +39,6 @@ function CommoditiesPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
   const ptRef = useRef(null);
   const { settings, updatePanelConfig } = useSettings();
 
-  // Panel config from settings (with fallback defaults)
   const panelCfg = settings?.panels?.commodities || {
     title: 'Commodities',
     symbols: COMMODITIES.map(c => c.symbol),
@@ -77,7 +71,6 @@ function CommoditiesPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
     updatePanelConfig('commodities', { ...panelCfg, ...updates });
   }, [panelCfg, updatePanelConfig]);
 
-  // Handle drop ticker into panel — add to a custom subsection so it's visible
   const handleDropTicker = (ticker) => {
     const sym = ticker.trim().toUpperCase();
     if (!sym) return;
@@ -99,7 +92,6 @@ function CommoditiesPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
     else { setSortKey(key); setSortDir('desc'); }
   };
 
-  // --- Subsection handlers ---
   const handleToggleSubsection = (key) => {
     const current = hiddenSubsections || [];
     const updated = current.includes(key)
@@ -154,18 +146,15 @@ function CommoditiesPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
   const sortedGroups = useMemo(() => {
     return GROUPS.map(g => {
       let items = COMMODITIES.filter(c => c.group === g.key);
-      // Filter to only configured symbols if configured
       if (panelSymbols.length > 0) {
         items = items.filter(c => panelSymbols.includes(c.symbol));
       }
-      // Apply search filter
       if (searchFilter) {
         const sq = searchFilter.toLowerCase();
         items = items.filter(c =>
           c.symbol.toLowerCase().includes(sq) || (c.label || '').toLowerCase().includes(sq)
         );
       }
-      // Apply movers filter (≥2%)
       if (moversOnly) {
         items = items.filter(c => Math.abs(data[c.symbol]?.changePct ?? 0) >= 2);
       }
@@ -185,11 +174,7 @@ function CommoditiesPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
   }, [data, sortKey, sortDir, panelSymbols, searchFilter, moversOnly]);
 
   return (
-    <div
-      style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#0a0a0a' }}
-      onDragOver={handlePanelDragOver}
-      onDrop={makePanelDropHandler(handleDropTicker)}
-    >
+    <PanelShell onDropTicker={handleDropTicker}>
       {/* Header */}
       <EditablePanelHeader
         title={panelTitle}
@@ -210,103 +195,85 @@ function CommoditiesPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
         <button
           onClick={() => setCollapsed(v => !v)}
           title={collapsed ? 'Expand' : 'Collapse'}
-          style={{ background: 'none', border: '1px solid #2a2a2a', color: '#555', fontSize: 9, padding: '1px 5px', cursor: 'pointer', fontFamily: 'inherit', borderRadius: 2 }}
+          style={{ background: 'none', border: '1px solid var(--border-strong)', color: 'var(--text-muted)', fontSize: 9, padding: '1px 5px', cursor: 'pointer', fontFamily: 'inherit', borderRadius: 'var(--radius-sm)' }}
         >{collapsed ? '+' : '−'}</button>
         <button
           onClick={() => setMoversOnly(v => !v)}
           title="Show only movers ≥ 2%"
-          style={{ background: moversOnly ? '#1a1000' : 'none', border: `1px solid ${moversOnly ? '#ff9900' : '#2a2a2a'}`, color: moversOnly ? '#ff9900' : '#444', fontSize: 7, padding: '1px 4px', cursor: 'pointer', fontFamily: 'inherit', borderRadius: 2 }}
+          style={{ background: moversOnly ? '#1a1000' : 'none', border: `1px solid ${moversOnly ? 'var(--accent-text)' : 'var(--border-strong)'}`, color: moversOnly ? 'var(--accent-text)' : 'var(--text-muted)', fontSize: 'var(--font-xs)', padding: '1px 4px', cursor: 'pointer', fontFamily: 'inherit', borderRadius: 'var(--radius-sm)' }}
         >≥2%</button>
       </EditablePanelHeader>
 
       {!collapsed && (<>
-      {/* Sortable column headers */}
-      <div style={{ display: 'grid', gridTemplateColumns: COLS, padding: '2px 8px', borderBottom: '1px solid #1a1a1a', flexShrink: 0 }}>
-        {[
-          { key: 'symbol', label: 'SYM',  align: 'left' },
-          { key: 'name',   label: 'NAME', align: 'left' },
-          { key: 'price',  label: 'LAST', align: 'right' },
-          { key: 'chg',    label: 'CHG%', align: 'right' },
-        ].map(({ key, label, align }) => {
-          const active = sortKey === key;
-          const arrow  = active ? (sortDir === 'desc' ? ' ▼' : ' ▲') : '';
-          return (
-            <span key={key} onClick={() => handleSortClick(key)} style={{
-              color: active ? '#ff9900' : '#444',
-              fontSize: '8px', fontWeight: 700, letterSpacing: '1px',
-              textAlign: align === 'right' ? 'right' : 'left',
-              paddingRight: align === 'right' ? 4 : 0,
-              cursor: 'pointer', userSelect: 'none',
-            }}>{label}{arrow}</span>
-          );
-        })}
-      </div>
+        {/* Sortable column headers */}
+        <ColumnHeaders
+          columns={SORT_COLS}
+          gridColumns={COLS}
+          sortKey={sortKey}
+          sortDir={sortDir}
+          onSortClick={handleSortClick}
+        />
 
-      <div style={{ flex: 1, overflowY: 'auto' }}>
-        {loading || !data ? (
-          <div style={{ padding: '20px', textAlign: 'center', color: '#444', fontSize: '10px' }}>LOADING...</div>
-        ) : (
-          <>
-          {sortedGroups.map(g => {
-            const { items } = g;
-            if (!items.length || hiddenSubsections.includes(g.key)) return null;
-            return (
-              <div key={g.key}>
-                <GroupHeader label={subsectionLabels[g.key] || g.label} color={g.color} />
-                {items.map(c => {
-                  const d   = data[c.symbol] || {};
-                  const pos = (d.changePct ?? 0) >= 0;
-                  return (
-                    <div
-                      key={c.symbol}
-                      data-ticker={c.symbol}
-                      data-ticker-label={c.label}
-                      data-ticker-type="COMMODITY"
-                      draggable
-                      onDragStart={e => {
-                        e.dataTransfer.effectAllowed = 'copy';
-                        e.dataTransfer.setData('application/x-ticker', JSON.stringify({ symbol: c.symbol, name: c.label, type: 'ETF' }));
-                      }}
-                      onClick={() => onTickerClick?.(c.symbol)}
-                      onDoubleClick={() => onOpenDetail?.(c.symbol)}
-             onTouchStart={(e) => { e.stopPropagation(); clearTimeout(ptRef.current); ptRef.current = setTimeout(() => onOpenDetail?.(c.symbol), 500); }}
-             onTouchEnd={() => clearTimeout(ptRef.current)}
-             onTouchMove={() => clearTimeout(ptRef.current)}
-                      onContextMenu={e => showInfo(e, c.symbol, c.label, 'COMMODITY')}
-                      style={{ display: 'grid', gridTemplateColumns: COLS, padding: '3px 8px', borderBottom: '1px solid #141414', cursor: 'pointer', alignItems: 'center' }}
-                      onMouseEnter={e => e.currentTarget.style.background = '#141414'}
-                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                    >
-                      <span style={{ color: g.color, fontSize: '10px', fontWeight: 700 }}>{c.symbol}</span>
-                      <span style={{ color: '#555', fontSize: '9px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: 4 }}>{c.label}</span>
-                      <span style={{ color: '#ccc', fontSize: '10px', textAlign: 'right', paddingRight: 4 }}>{fmt(d.price)}</span>
-                      <span style={{ color: pos ? '#4caf50' : '#f44336', fontSize: '10px', textAlign: 'right', fontWeight: 600 }}>{fmtPct(d.changePct)}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            );
-          })}
+        <div style={{ flex: 1, overflowY: 'auto' }}>
+          {loading || !data ? (
+            <div style={{ padding: 'var(--sp-5)', textAlign: 'center', color: 'var(--text-muted)', fontSize: 'var(--font-base)' }}>LOADING...</div>
+          ) : (
+            <>
+            {sortedGroups.map(g => {
+              const { items } = g;
+              if (!items.length || hiddenSubsections.includes(g.key)) return null;
+              return (
+                <div key={g.key}>
+                  <SectionHeader label={subsectionLabels[g.key] || g.label} color={g.color} />
+                  {items.map(c => {
+                    const d = data[c.symbol] || {};
+                    return (
+                      <PriceRow
+                        key={c.symbol}
+                        symbol={c.symbol}
+                        name={c.label}
+                        price={d.price}
+                        changePct={d.changePct}
+                        symbolColor={g.color}
+                        columns={COLS}
+                        draggable
+                        dragData={{ symbol: c.symbol, name: c.label, type: 'ETF' }}
+                        onClick={() => onTickerClick?.(c.symbol)}
+                        onDoubleClick={() => onOpenDetail?.(c.symbol)}
+                        onTouchHold={() => onOpenDetail?.(c.symbol)}
+                        touchRef={ptRef}
+                        onContextMenu={e => showInfo(e, c.symbol, c.label, 'COMMODITY')}
+                        dataAttrs={{
+                          'data-ticker': c.symbol,
+                          'data-ticker-label': c.label,
+                          'data-ticker-type': 'COMMODITY',
+                        }}
+                      />
+                    );
+                  })}
+                </div>
+              );
+            })}
 
-          {/* Custom subsections */}
-          {customSubsections.map((sub) => {
-            if (hiddenSubsections.includes(sub.key)) return null;
-            return (
-              <CustomSubsectionBlock
-                key={sub.key}
-                subsection={sub}
-                data={data}
-                gridCols={COLS}
-                onTickerClick={onTickerClick}
-                onOpenDetail={onOpenDetail}
-                onAddTicker={handleAddTickerToSubsection}
-                onRemoveTicker={handleRemoveTickerFromSubsection}
-              />
-            );
-          })}
-          </>
-        )}
-      </div>
+            {/* Custom subsections */}
+            {customSubsections.map((sub) => {
+              if (hiddenSubsections.includes(sub.key)) return null;
+              return (
+                <CustomSubsectionBlock
+                  key={sub.key}
+                  subsection={sub}
+                  data={data}
+                  gridCols={COLS}
+                  onTickerClick={onTickerClick}
+                  onOpenDetail={onOpenDetail}
+                  onAddTicker={handleAddTickerToSubsection}
+                  onRemoveTicker={handleRemoveTickerFromSubsection}
+                />
+              );
+            })}
+            </>
+          )}
+        </div>
       </>)}
 
       {/* Panel config modal */}
@@ -322,7 +289,7 @@ function CommoditiesPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
           onClose={() => setConfigOpen(false)}
         />
       )}
-    </div>
+    </PanelShell>
   );
 }
 

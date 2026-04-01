@@ -42,24 +42,24 @@ function TickerRow({ sym, data, color, gridCols, subsection, onTickerClick, onOp
         display: 'grid',
         gridTemplateColumns: gridCols,
         padding: '3px 8px',
-        borderBottom: '1px solid #141414',
+        borderBottom: '1px solid var(--border-subtle)',
         cursor: 'pointer',
         alignItems: 'center',
       }}
-      onMouseEnter={(e) => { e.currentTarget.style.background = '#141414'; }}
+      onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-hover)'; }}
       onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
     >
-      <span style={{ color, fontSize: '10px', fontWeight: 700 }}>{sym}</span>
-      <span style={{ color: '#555', fontSize: '9px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: 4 }}>
+      <span style={{ color, fontSize: 'var(--font-base)', fontWeight: 700 }}>{sym}</span>
+      <span style={{ color: 'var(--text-faint)', fontSize: 'var(--font-sm)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: 4 }}>
         {name}
       </span>
-      <span style={{ color: '#ccc', fontSize: '10px', textAlign: 'right', paddingRight: 4 }}>
+      <span style={{ color: 'var(--text-primary)', fontSize: 'var(--font-base)', textAlign: 'right', paddingRight: 4 }}>
         {fmt(price)}
       </span>
       <span style={{
         display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 4,
       }}>
-        <span style={{ color: pos ? '#4caf50' : '#f44336', fontSize: '10px', fontWeight: 600 }}>
+        <span style={{ color: pos ? 'var(--price-up)' : 'var(--price-down)', fontSize: 'var(--font-base)', fontWeight: 600 }}>
           {fmtPct(changePct)}
         </span>
         <button
@@ -67,14 +67,14 @@ function TickerRow({ sym, data, color, gridCols, subsection, onTickerClick, onOp
           style={{
             background: 'none',
             border: 'none',
-            color: '#2a2a2a',
+            color: 'var(--border-strong)',
             fontSize: 11,
             cursor: 'pointer',
             padding: 0,
             lineHeight: 1,
           }}
-          onMouseEnter={(e) => { e.currentTarget.style.color = '#f44336'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.color = '#2a2a2a'; }}
+          onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--price-down)'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--border-strong)'; }}
           title={`Remove ${sym} from ${subsection.label}`}
         >×</button>
       </span>
@@ -108,7 +108,7 @@ function CustomSubsectionBlock({
     }
   };
 
-  const color = subsection.color || '#ff6600';
+  const color = subsection.color || 'var(--accent)';
   const symbols = subsection.symbols || [];
 
   return (
@@ -117,9 +117,9 @@ function CustomSubsectionBlock({
       <div
         style={{
           padding: '2px 8px',
-          background: '#0c0c0c',
-          borderTop: '1px solid #1a1a1a',
-          borderBottom: '1px solid #1a1a1a',
+          background: 'var(--bg-surface)',
+          borderTop: '1px solid var(--border-default)',
+          borderBottom: '1px solid var(--border-default)',
           display: 'flex',
           alignItems: 'center',
           gap: 6,
@@ -140,20 +140,20 @@ function CustomSubsectionBlock({
           }
         }}
       >
-        <span style={{ color, fontSize: 7, fontWeight: 700, letterSpacing: '0.12em', flex: 1 }}>
+        <span style={{ color, fontSize: 'var(--font-xs)', fontWeight: 700, letterSpacing: '0.12em', flex: 1 }}>
           —— {subsection.label} ————————————————————————
         </span>
         <button
           onClick={() => setShowAdd(v => !v)}
           style={{
             background: 'none',
-            border: `1px solid ${showAdd ? color : '#1a1a1a'}`,
-            color: showAdd ? color : '#333',
-            fontSize: 8,
+            border: `1px solid ${showAdd ? color : 'var(--border-default)'}`,
+            color: showAdd ? color : 'var(--text-faint)',
+            fontSize: 'var(--font-xs)',
             padding: '0 4px',
             cursor: 'pointer',
             fontFamily: '"Courier New", monospace',
-            borderRadius: 2,
+            borderRadius: 'var(--radius-sm)',
             lineHeight: '14px',
           }}
           title="Add ticker to this section"
@@ -167,21 +167,21 @@ function CustomSubsectionBlock({
           display: 'flex',
           gap: 4,
           alignItems: 'center',
-          background: '#0a0a0a',
-          borderBottom: '1px solid #1a1a1a',
+          background: 'var(--bg-app)',
+          borderBottom: '1px solid var(--border-default)',
         }}>
           <input
             ref={addRef}
             style={{
               flex: 1,
-              background: '#080808',
+              background: 'var(--bg-app)',
               border: `1px solid ${color}44`,
-              color: '#e0e0e0',
-              fontSize: 9,
+              color: 'var(--text-primary)',
+              fontSize: 'var(--font-sm)',
               padding: '2px 6px',
               fontFamily: '"Courier New", monospace',
               outline: 'none',
-              borderRadius: 2,
+              borderRadius: 'var(--radius-sm)',
             }}
             value={addVal}
             onChange={(e) => setAddVal(e.target.value.toUpperCase())}
@@ -197,12 +197,12 @@ function CustomSubsectionBlock({
               background: color,
               border: 'none',
               color: '#000',
-              fontSize: 8,
+              fontSize: 'var(--font-xs)',
               fontWeight: 700,
               padding: '2px 8px',
               cursor: 'pointer',
               fontFamily: '"Courier New", monospace',
-              borderRadius: 2,
+              borderRadius: 'var(--radius-sm)',
             }}
           >ADD</button>
         </div>
@@ -226,9 +226,9 @@ function CustomSubsectionBlock({
 
       {symbols.length === 0 && (
         <div style={{
-          padding: '8px 12px',
-          color: '#222',
-          fontSize: 9,
+          padding: 'var(--sp-3) var(--sp-4)',
+          color: 'var(--border-default)',
+          fontSize: 'var(--font-sm)',
           fontStyle: 'italic',
           textAlign: 'center',
         }}>

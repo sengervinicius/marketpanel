@@ -1,8 +1,11 @@
-import { useState, useRef, memo } from 'react';
+import { useState, useRef, useMemo, memo } from 'react';
 import { useSettings } from '../../context/SettingsContext';
 import PanelConfigModal from '../common/PanelConfigModal';
 import EditablePanelHeader from '../common/EditablePanelHeader';
-import { handlePanelDragOver, makePanelDropHandler } from '../../utils/dropHelper';
+import PanelShell from '../common/PanelShell';
+import { PriceRow } from '../common/PriceRow';
+import { SectionHeader } from '../common/SectionHeader';
+import ColumnHeaders from '../common/ColumnHeaders';
 
 const showInfo = (e, symbol, label, type) => {
   e.preventDefault();
@@ -25,11 +28,19 @@ const NAMES = {
   MCHI:'CHINA', EWT:'TAIWAN', EWS:'SINGAPORE', INDA:'INDIA',
 };
 
+const COLS = '44px 1fr 56px 52px';
+
+const SORT_COLS = [
+  { key: 'symbol', label: 'TICK', align: 'left' },
+  { key: 'name',   label: 'NAME', align: 'left' },
+  { key: 'price',  label: 'LAST', align: 'right' },
+  { key: 'chg',    label: 'CHG%', align: 'right' },
+];
+
 function GlobalIndicesPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
   const ptRef = useRef(null);
   const { settings, updatePanelConfig } = useSettings();
 
-  // Panel config from settings (with fallback defaults)
   const panelCfg = settings?.panels?.globalIndices || {
     title: 'Global Indexes',
     symbols: ['SPY','QQQ','DIA','EWZ','EWW','EWC','EZU','EWU','EWG','EWQ','EWP','EWI','EWL','EWD','EWJ','EWH','EWY','EWA','MCHI','EWT','EWS','INDA'],
@@ -56,76 +67,56 @@ function GlobalIndicesPanel({ data = {}, loading, onTickerClick, onOpenDetail })
     }
   };
 
-  const fmtPrice = p => (!p || p === 0) ? '—'
-    : p.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const fmtPct   = p => (!p && p !== 0) ? '—' : `${p >= 0 ? '+' : ''}${p.toFixed(2)}%`;
-  const color    = p => !p ? '#888' : p >= 0 ? '#00c853' : '#f44336';
-
   const handleSortClick = (key) => {
     if (sortKey === key) setSortDir(d => d === 'desc' ? 'asc' : 'desc');
     else { setSortKey(key); setSortDir('desc'); }
   };
 
-  const panelStyle = {
-    background: '#0d0d14', display: 'flex', flexDirection: 'column',
-    overflow: 'hidden', fontFamily: "'IBM Plex Mono', monospace", fontSize: 10,
-    height: '100%',
-  };
-  const regionHeader = {
-    color: '#e55a00', fontSize: 7, fontWeight: 600, letterSpacing: '0.1em',
-    padding: '3px 6px 2px', background: '#111118',
-    borderBottom: '1px solid #1a1a2e', textTransform: 'uppercase',
-  };
-  const rowStyle = i => ({
-    display: 'grid', gridTemplateColumns: '44px 1fr 56px 52px',
-    padding: '2px 6px', borderBottom: '1px solid #0f0f1a',
-    background: i % 2 === 0 ? 'transparent' : '#060608',
-    cursor: 'grab',
-  });
+  // Filter and sort per region
+  const REGIONS_filtered = useMemo(() => {
+    let result = panelSymbols.length > 0
+      ? Object.fromEntries(
+          Object.entries(REGIONS).map(([key, region]) => [
+            key,
+            { ...region, tickers: region.tickers.filter(t => panelSymbols.includes(t)) }
+          ])
+        )
+      : { ...REGIONS };
 
-  // Filter displayed tickers to only the configured symbols (if configured)
-  let REGIONS_filtered = panelSymbols.length > 0
-    ? Object.fromEntries(
-        Object.entries(REGIONS).map(([key, region]) => [
+    if (searchFilter) {
+      const sq = searchFilter.toLowerCase();
+      result = Object.fromEntries(
+        Object.entries(result).map(([key, region]) => [
           key,
-          { ...region, tickers: region.tickers.filter(t => panelSymbols.includes(t)) }
+          { ...region, tickers: region.tickers.filter(t =>
+            t.toLowerCase().includes(sq) || (NAMES[t] || '').toLowerCase().includes(sq)
+          )}
         ])
-      )
-    : { ...REGIONS };
+      );
+    }
 
-  // Apply search filter
-  if (searchFilter) {
-    const sq = searchFilter.toLowerCase();
-    REGIONS_filtered = Object.fromEntries(
-      Object.entries(REGIONS_filtered).map(([key, region]) => [
-        key,
-        { ...region, tickers: region.tickers.filter(t =>
-          t.toLowerCase().includes(sq) || (NAMES[t] || '').toLowerCase().includes(sq)
-        )}
-      ])
-    );
-  }
+    if (sortKey && data) {
+      result = Object.fromEntries(
+        Object.entries(result).map(([key, region]) => [
+          key,
+          { ...region, tickers: [...region.tickers].sort((a, b) => {
+            let va, vb;
+            if (sortKey === 'symbol') { va = a; vb = b; }
+            else if (sortKey === 'name') { va = NAMES[a] || a; vb = NAMES[b] || b; }
+            else if (sortKey === 'price') { va = data[a]?.price ?? -Infinity; vb = data[b]?.price ?? -Infinity; }
+            else if (sortKey === 'chg')   { va = data[a]?.changePct ?? -Infinity; vb = data[b]?.changePct ?? -Infinity; }
+            if (typeof va === 'string') return sortDir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va);
+            return sortDir === 'asc' ? va - vb : vb - va;
+          })}
+        ])
+      );
+    }
 
-  // Apply sorting within regions
-  if (sortKey && data) {
-    REGIONS_filtered = Object.fromEntries(
-      Object.entries(REGIONS_filtered).map(([key, region]) => [
-        key,
-        { ...region, tickers: [...region.tickers].sort((a, b) => {
-          let va, vb;
-          if (sortKey === 'symbol') { va = a; vb = b; }
-          else if (sortKey === 'name') { va = NAMES[a] || a; vb = NAMES[b] || b; }
-          else if (sortKey === 'price') { va = data[a]?.price ?? -Infinity; vb = data[b]?.price ?? -Infinity; }
-          else if (sortKey === 'chg')   { va = data[a]?.changePct ?? -Infinity; vb = data[b]?.changePct ?? -Infinity; }
-          if (typeof va === 'string') return sortDir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va);
-          return sortDir === 'asc' ? va - vb : vb - va;
-        })}
-      ])
-    );
-  }
+    return result;
+  }, [panelSymbols, searchFilter, sortKey, sortDir, data]);
 
   return (
-    <div style={panelStyle} onDragOver={handlePanelDragOver} onDrop={makePanelDropHandler(handleDropTicker)}>
+    <PanelShell onDropTicker={handleDropTicker}>
       <EditablePanelHeader
         title={panelTitle}
         availableSubsections={availableSubsections}
@@ -142,79 +133,50 @@ function GlobalIndicesPanel({ data = {}, loading, onTickerClick, onOpenDetail })
         onDropTicker={handleDropTicker}
         onSearchChange={setSearchFilter}
       >
-        {loading && <span style={{ color: '#444', fontSize: 7 }}>LOADING...</span>}
+        {loading && <span style={{ color: 'var(--text-faint)', fontSize: 'var(--font-xs)' }}>LOADING...</span>}
       </EditablePanelHeader>
 
       {/* Sortable column headers */}
-      <div style={{ display: 'grid', gridTemplateColumns: '44px 1fr 56px 52px', padding: '2px 6px', borderBottom: '1px solid #1a1a2e', flexShrink: 0 }}>
-        {[
-          { key: 'symbol', label: 'TICK', align: 'left' },
-          { key: 'name', label: 'NAME', align: 'left' },
-          { key: 'price', label: 'LAST', align: 'right' },
-          { key: 'chg', label: 'CHG%', align: 'right' },
-        ].map(({ key, label, align }) => {
-          const active = sortKey === key;
-          const arrow = active ? (sortDir === 'desc' ? ' ▼' : ' ▲') : '';
-          return (
-            <span
-              key={key}
-              onClick={() => handleSortClick(key)}
-              style={{
-                color: active ? '#ff9900' : '#444',
-                fontSize: '8px',
-                fontWeight: 700,
-                letterSpacing: '1px',
-                textAlign: align === 'right' ? 'right' : 'left',
-                paddingRight: align === 'right' ? 4 : 0,
-                cursor: 'pointer',
-                userSelect: 'none',
-              }}
-            >
-              {label}{arrow}
-            </span>
-          );
-        })}
-      </div>
+      <ColumnHeaders
+        columns={SORT_COLS}
+        gridColumns={COLS}
+        sortKey={sortKey}
+        sortDir={sortDir}
+        onSortClick={handleSortClick}
+      />
+
       <div style={{ overflowY: 'auto', flex: 1 }}>
         {Object.entries(REGIONS_filtered).map(([key, region]) => (
           <div key={key}>
             {region.tickers.length > 0 && !hiddenSubsections.includes(key) && (
               <>
-                <div style={regionHeader}>{region.label}</div>
-                {region.tickers.map((ticker, i) => {
-              const d = data[ticker] || {};
-              return (
-                <div
-                  key={ticker}
-                  data-ticker={ticker}
-                  data-ticker-label={NAMES[ticker] || ticker}
-                  data-ticker-type="ETF"
-                  style={rowStyle(i)}
-                  draggable
-                  onDragStart={e => {
-                    // Use application/x-ticker so ChartPanel can receive it
-                    e.dataTransfer.setData('application/x-ticker',
-                      JSON.stringify({ symbol: ticker, label: NAMES[ticker] || ticker }));
-                    e.dataTransfer.effectAllowed = 'copy';
-                  }}
-                  onClick={() => onTickerClick?.(ticker)}
-                  onDoubleClick={() => onOpenDetail?.(ticker)}
-                  onContextMenu={e => showInfo(e, ticker, NAMES[ticker] || ticker, 'ETF')}
-                  onTouchStart={(e) => { e.stopPropagation(); ptRef.current = setTimeout(() => onOpenDetail?.(ticker), 500); }}
-                  onTouchEnd={() => clearTimeout(ptRef.current)}
-                  onTouchMove={() => clearTimeout(ptRef.current)}
-                >
-                  <span style={{ color: '#e8a020', fontWeight: 500, fontSize: 9 }}>{ticker}</span>
-                  <span style={{ color: '#777', fontSize: 9, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {NAMES[ticker]}
-                  </span>
-                  <span style={{ textAlign: 'right', color: '#ccc' }}>{fmtPrice(d.price)}</span>
-                  <span style={{ textAlign: 'right', color: color(d.changePct), fontWeight: 500 }}>
-                    {fmtPct(d.changePct)}
-                  </span>
-                </div>
-              );
-            })}
+                <SectionHeader label={region.label} color="var(--accent)" />
+                {region.tickers.map((ticker) => {
+                  const d = data[ticker] || {};
+                  return (
+                    <PriceRow
+                      key={ticker}
+                      symbol={ticker}
+                      name={NAMES[ticker] || ticker}
+                      price={d.price}
+                      changePct={d.changePct}
+                      symbolColor="var(--section-equity)"
+                      columns={COLS}
+                      draggable
+                      dragData={{ symbol: ticker, name: NAMES[ticker] || ticker, type: 'ETF' }}
+                      onClick={() => onTickerClick?.(ticker)}
+                      onDoubleClick={() => onOpenDetail?.(ticker)}
+                      onTouchHold={() => onOpenDetail?.(ticker)}
+                      touchRef={ptRef}
+                      onContextMenu={e => showInfo(e, ticker, NAMES[ticker] || ticker, 'ETF')}
+                      dataAttrs={{
+                        'data-ticker': ticker,
+                        'data-ticker-label': NAMES[ticker] || ticker,
+                        'data-ticker-type': 'ETF',
+                      }}
+                    />
+                  );
+                })}
               </>
             )}
           </div>
@@ -234,7 +196,7 @@ function GlobalIndicesPanel({ data = {}, loading, onTickerClick, onOpenDetail })
           onClose={() => setConfigOpen(false)}
         />
       )}
-    </div>
+    </PanelShell>
   );
 }
 

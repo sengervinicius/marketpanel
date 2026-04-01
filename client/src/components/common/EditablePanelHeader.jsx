@@ -71,7 +71,6 @@ export default function EditablePanelHeader({
   const onDrop = (e) => {
     e.preventDefault();
     setDragOver(false);
-    // Try application/x-ticker first (used by SearchPanel, CommoditiesPanel, etc.)
     let ticker = null;
     const xTicker = e.dataTransfer?.getData('application/x-ticker');
     if (xTicker) {
@@ -80,27 +79,25 @@ export default function EditablePanelHeader({
         ticker = parsed.symbol || parsed.name;
       } catch { ticker = xTicker; }
     }
-    // Fallback to text/plain or ticker MIME types
     if (!ticker) ticker = e.dataTransfer?.getData('text/plain') || e.dataTransfer?.getData('ticker');
-    // Last resort: DragContext
     if (!ticker && draggedTicker) ticker = draggedTicker.symbol || draggedTicker;
     if (ticker) { onDropTicker?.(ticker); endDrag?.(); }
   };
 
   const S = {
-    header: { borderBottom: '1px solid #2a2a2a', background: '#111', flexShrink: 0, position: 'relative', transition: 'border-color 0.2s', borderColor: dragOver ? '#ff6600' : '#2a2a2a' },
+    header: { borderBottom: '1px solid var(--border-strong)', background: 'var(--bg-elevated)', flexShrink: 0, position: 'relative', transition: 'border-color 0.2s', borderColor: dragOver ? 'var(--accent)' : 'var(--border-strong)' },
     row: { padding: '4px 8px', display: 'flex', alignItems: 'center', gap: 6, fontFamily: '"Courier New", monospace' },
-    title: { color: '#00bcd4', fontSize: 10, fontWeight: 700, letterSpacing: '1px', cursor: 'pointer', userSelect: 'none', lineHeight: 1 },
-    titleInput: { background: '#080808', border: '1px solid #00bcd4', color: '#00bcd4', fontSize: 10, fontWeight: 700, letterSpacing: '1px', padding: '1px 4px', fontFamily: '"Courier New", monospace', outline: 'none', borderRadius: 2, width: 120 },
-    sub: { color: '#555', fontSize: 8, cursor: 'pointer', userSelect: 'none', padding: '0 3px', borderRadius: 2, transition: 'color 0.15s' },
-    subInput: { background: '#080808', border: '1px solid #333', color: '#888', fontSize: 8, padding: '0 3px', fontFamily: '"Courier New", monospace', outline: 'none', borderRadius: 2, width: 80 },
-    iconBtn: { background: 'none', border: 'none', color: '#444', cursor: 'pointer', fontSize: 9, padding: '0 2px', lineHeight: 1, display: 'flex', alignItems: 'center' },
-    badge: { fontSize: 7, fontWeight: 700, letterSpacing: '0.08em', padding: '1px 4px', borderRadius: 2, marginLeft: 4 },
-    dropOverlay: { position: 'absolute', inset: 0, zIndex: 5, background: 'rgba(255,102,0,0.08)', border: '1px dashed #ff6600', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', borderRadius: 2 },
-    dropText: { color: '#ff6600', fontSize: 9, fontWeight: 700, letterSpacing: '0.15em' },
+    title: { color: 'var(--accent-text)', fontSize: 'var(--font-base)', fontWeight: 700, letterSpacing: '1px', cursor: 'pointer', userSelect: 'none', lineHeight: 1 },
+    titleInput: { background: 'var(--bg-app)', border: '1px solid var(--accent-text)', color: 'var(--accent-text)', fontSize: 'var(--font-base)', fontWeight: 700, letterSpacing: '1px', padding: '1px 4px', fontFamily: '"Courier New", monospace', outline: 'none', borderRadius: 'var(--radius-sm)', width: 120 },
+    sub: { color: 'var(--text-faint)', fontSize: 'var(--font-xs)', cursor: 'pointer', userSelect: 'none', padding: '0 3px', borderRadius: 'var(--radius-sm)', transition: 'color 0.15s' },
+    subInput: { background: 'var(--bg-app)', border: '1px solid var(--border-default)', color: 'var(--text-muted)', fontSize: 'var(--font-xs)', padding: '0 3px', fontFamily: '"Courier New", monospace', outline: 'none', borderRadius: 'var(--radius-sm)', width: 80 },
+    iconBtn: { background: 'none', border: 'none', color: 'var(--text-faint)', cursor: 'pointer', fontSize: 9, padding: '0 2px', lineHeight: 1, display: 'flex', alignItems: 'center' },
+    badge: { fontSize: 7, fontWeight: 700, letterSpacing: '0.08em', padding: '1px 4px', borderRadius: 'var(--radius-sm)', marginLeft: 4 },
+    dropOverlay: { position: 'absolute', inset: 0, zIndex: 5, background: 'rgba(255,102,0,0.08)', border: '1px dashed var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', borderRadius: 'var(--radius-sm)' },
+    dropText: { color: 'var(--accent)', fontSize: 9, fontWeight: 700, letterSpacing: '0.15em' },
     searchRow: { padding: '2px 8px 4px', display: 'flex', gap: 4, alignItems: 'center' },
-    searchInput: { flex: 1, background: '#080808', border: '1px solid #2a2a2a', color: '#e0e0e0', fontSize: 9, padding: '2px 6px', fontFamily: '"Courier New", monospace', outline: 'none', borderRadius: 2 },
-    searchClose: { background: 'none', border: 'none', color: '#555', cursor: 'pointer', fontSize: 10, padding: 0, lineHeight: 1 },
+    searchInput: { flex: 1, background: 'var(--bg-app)', border: '1px solid var(--border-strong)', color: 'var(--text-primary)', fontSize: 9, padding: '2px 6px', fontFamily: '"Courier New", monospace', outline: 'none', borderRadius: 'var(--radius-sm)' },
+    searchClose: { background: 'none', border: 'none', color: 'var(--text-faint)', cursor: 'pointer', fontSize: 10, padding: 0, lineHeight: 1 },
   };
 
   return (
@@ -115,11 +112,11 @@ export default function EditablePanelHeader({
         )}
         {subsections.map((sub, i) => (
           <span key={i}>
-            <span style={{ color: '#222', fontSize: 8 }}>·</span>
+            <span style={{ color: 'var(--border-default)', fontSize: 'var(--font-xs)' }}>·</span>
             {editingSub === i ? (
               <input ref={subRef} style={S.subInput} value={subVal} onChange={e => setSubVal(e.target.value)} onBlur={() => saveSub(i)} onKeyDown={e => { if (e.key === 'Enter') saveSub(i); if (e.key === 'Escape') setEditingSub(null); }} maxLength={40} />
             ) : (
-              <span style={S.sub} onClick={() => { setEditingSub(i); setSubVal(sub); }} title="Click to rename" onMouseEnter={e => e.target.style.color = '#888'} onMouseLeave={e => e.target.style.color = '#555'}>{sub}</span>
+              <span style={S.sub} onClick={() => { setEditingSub(i); setSubVal(sub); }} title="Click to rename" onMouseEnter={e => e.target.style.color = 'var(--text-muted)'} onMouseLeave={e => e.target.style.color = 'var(--text-faint)'}>{sub}</span>
             )}
           </span>
         ))}
@@ -128,7 +125,7 @@ export default function EditablePanelHeader({
         <div style={{ flex: 1 }} />
         {children}
         {onSearchChange && (
-          <button style={{ ...S.iconBtn, color: showSearch ? '#ff6600' : '#444' }} onClick={() => { const next = !showSearch; setShowSearch(next); if (!next) { setSearchQ(''); onSearchChange(''); } }} title="Search in panel">⌕</button>
+          <button style={{ ...S.iconBtn, color: showSearch ? 'var(--accent)' : 'var(--text-faint)' }} onClick={() => { const next = !showSearch; setShowSearch(next); if (!next) { setSearchQ(''); onSearchChange(''); } }} title="Search in panel">⌕</button>
         )}
       </div>
       {showSearch && (

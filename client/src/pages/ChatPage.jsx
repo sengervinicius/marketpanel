@@ -3,9 +3,7 @@
  * Standalone page for popped-out chat.
  * Route: /chat  or  /chat/:userId
  *
- * Opens in a separate browser window via:
- *   window.open(window.location.origin + '/#/chat', '_blank', 'width=800,height=600')
- *   window.open(window.location.origin + '/#/chat/42', '_blank', 'width=800,height=600')
+ * Phase 3B: Migrated to CSS classes + design tokens.
  */
 
 import { useState, useEffect } from 'react';
@@ -26,27 +24,20 @@ export default function ChatPage() {
 
   return (
     <div style={{
-      height: '100vh', background: '#0a0a0a', overflow: 'hidden',
+      height: '100vh', background: 'var(--bg-app)', overflow: 'hidden',
       display: 'flex', flexDirection: 'column',
       fontFamily: "'IBM Plex Mono', monospace",
     }}>
       {/* Minimal header */}
-      <div style={{
-        height: 34, flexShrink: 0, display: 'flex', alignItems: 'center',
-        background: '#000', borderBottom: '1px solid #1e1e1e',
-        padding: '0 12px', gap: 10,
-      }}>
-        <span style={{ color: '#ff6600', fontWeight: 700, fontSize: 11, letterSpacing: '2px' }}>SENGER</span>
-        <span style={{ color: '#2a2a2a', fontSize: 9, letterSpacing: '1px' }}>MESSAGES</span>
+      <div className="chat-page-header">
+        <span className="chat-page-brand">SENGER</span>
+        <span className="chat-page-subtitle">MESSAGES</span>
         <div style={{ flex: 1 }} />
-        {user && <span style={{ color: '#2a2a2a', fontSize: 8 }}>{user.username?.toUpperCase()}</span>}
+        {user && <span className="chat-page-user">{user.username?.toUpperCase()}</span>}
         <button
           onClick={() => { window.location.hash = '#/'; }}
-          style={{
-            background: 'none', border: '1px solid #1e1e1e', color: '#ff6600',
-            fontSize: 9, padding: '2px 8px', cursor: 'pointer', fontFamily: 'inherit',
-          }}
-        >← TERMINAL</button>
+          className="chat-page-btn"
+        >{'\u2190'} TERMINAL</button>
         <button
           onClick={() => {
             if (window.opener) {
@@ -55,10 +46,7 @@ export default function ChatPage() {
               window.location.hash = '#/';
             }
           }}
-          style={{
-            background: 'none', border: '1px solid #1e1e1e', color: '#333',
-            fontSize: 9, padding: '2px 8px', cursor: 'pointer', fontFamily: 'inherit',
-          }}
+          className="chat-page-btn chat-page-btn--muted"
         >CLOSE</button>
       </div>
 
