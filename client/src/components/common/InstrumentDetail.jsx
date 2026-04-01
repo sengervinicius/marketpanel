@@ -1136,10 +1136,73 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
     ? (deltaA === null ? '← tap A' : deltaB === null ? '← tap B' : 'tap to reset')
     : null;
 
+
+  // ── Hero derived values ───────────────────────────────────────────────
+  const heroOpen    = snap?.day?.o ?? (bars.length ? bars[0].open : null);
+  const heroHigh    = dayHigh ?? (bars.length ? Math.max(...bars.map(b => b.high)) : null);
+  const heroLow     = dayLow ?? (bars.length ? Math.min(...bars.map(b => b.low)) : null);
+  const heroVol     = volume;
+  const heroMktCap  = mktCap;
+  const changeValue = dayChange;
+  const changeDirection = dayChgPct == null ? 'flat' : dayChgPct >= 0 ? 'up' : 'down';
+  const changeArrow = changeDirection === 'up' ? String.fromCharCode(9650) : changeDirection === 'down' ? String.fromCharCode(9660) : '';
+  const formattedChange = dayChange != null ? fmt(Math.abs(dayChange)) : '--';
+  const formattedChangePct = dayChgPct != null ? Math.abs(dayChgPct).toFixed(2) + '%' : '';
+  const formattedPrice = displayPrice ?? '--';
+
+  // ── Determine exchange / asset class for badge ────────────────────────
+  const heroExchange   = info?.primary_exchange || etfMeta?.exchange || (isFX ? 'FX' : isCrypto ? 'CRYPTO' : isBondTicker ? 'BOND' : '');
+  const heroAssetClass = etfMeta?.assetClass || (isFX ? 'forex' : isCrypto ? 'crypto' : isBondTicker ? 'fixed_income' : isStock ? 'equity' : '');
+
+  // ── navigator.share() + clipboard fallback ────────────────────────────
+  const handleShare = async () => {
+    const changeSign = changeValue >= 0 ? '+' : '';
+    const shareText = [disp + ' \u2014 ' + formattedPrice, changeSign + formattedChange + ' (' + changeSign + formattedChangePct + ')', name, '', 'via Senger Market Terminal'].join('\n');
+    if (navigator.share) {
+      try { await navigator.share({ title: disp + ' \u2014 ' + formattedPrice, text: shareText }); }
+      catch (err) { if (err.name !== 'AbortError') fallbackCopyToClipboard(shareText); }
+    } else { fallbackCopyToClipboard(shareText); }
+  };
+  const fallbackCopyToClipboard = (text) => { navigator.clipboard?.writeText(text); };
+
+  // TODO: wire openPositionEditor to portfolio module when available
+  const openPositionEditor = (t) => { console.log('openPositionEditor placeholder:', t); };
+  // TODO: wire openAlertCreator to alerts module when available
+  const openAlertCreator = (t) => { console.log('openAlertCreator placeholder:', t); };
+
   return (
     <div
       className={asPage ? 'id-page' : 'id-overlay'}
       onMouseDown={asPage ? undefined : (e => { if (e.target === e.currentTarget) onClose(); })}
+      {/* ── HERO PRICE BLOCK ── */}
+      <div className="id-hero">
+        <div className="id-hero-meta">
+          <div>
+            <div className="id-hero-ticker">{disp}</div>
+            <div className="id-hero-name">{name}</div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)' }}>
+            <div className="id-hero-badge">{heroExchange}{heroExchange && heroAssetClass ? ' \u00b7 ' : ''}{heroAssetClass}</div>
+            {/* Desktop action buttons */}
+            <div className="id-hero-actions">
+              <button className="id-hero-action-btn" onClick={() => openPositionEditor(norm)}>+ Portfolio</button>
+              <button className="id-hero-action-btn" onClick={() => openAlertCreator(norm)}>{String.fromCharCode(128276)} Alert</button>
+              <button className="id-hero-action-btn" onClick={handleShare}>{String.fromCharCode(8599)} Share</button>
+            </div>
+          </div>
+        </div>
+        <div className="id-hero-price-row">
+          <span className="id-hero-price">{formattedPrice}</span>
+          <span className={`id-hero-change ${changeDirection}`}>{changeArrow} {formattedChange} {formattedChangePct}</span>
+        </div>
+        <div className="id-hero-stats">
+          {heroOpen != null && <span className="id-hero-stat">Open <span>{fmt(heroOpen)}</span></span>}
+          {heroHigh != null && <span className="id-hero-stat">High <span>{fmt(heroHigh)}</span></span>}
+          {heroLow != null && <span className="id-hero-stat">Low <span>{fmt(heroLow)}</span></span>}
+          {heroVol != null && <span className="id-hero-stat">Vol <span>{fmt(heroVol, 0)}</span></span>}
+          {heroMktCap != null && <span className="id-hero-stat">MCap <span>{fmt(heroMktCap, 0)}</span></span>}
+        </div>
+      </div>
     >
 
       {/* ── HEADER ── */}
@@ -1347,6 +1410,13 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
           </div>
         )}
 
+      </div>
+
+      {/* ── STICKY BOTTOM ACTION BAR (mobile only) ── */}
+      <div className="id-action-bar">
+        <button className="id-action-btn-bar id-action-btn-bar--primary" onClick={() => openPositionEditor(norm)}>+ Portfolio</button>
+        <button className="id-action-btn-bar" onClick={() => openAlertCreator(norm)}>{String.fromCharCode(128276)} Alert</button>
+        <button className="id-action-btn-bar" onClick={handleShare}>{String.fromCharCode(8599)} Share</button>
       </div>
 
       {/* Alert editor modal */}
