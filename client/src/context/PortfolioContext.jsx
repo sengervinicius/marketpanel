@@ -3,6 +3,7 @@
  *
  * Phase 4A: Frontend-first portfolio system (localStorage).
  * Phase 4B: Server-backed persistence with sync.
+ * Phase 4C: Benchmark support, sync status UX (synced/syncing/failed).
  *
  * Initialization precedence:
  *   1. If server has data → use it as source of truth.
@@ -13,7 +14,7 @@
  * Ongoing updates:
  *   - Every mutation updates React state immediately (optimistic).
  *   - A debounced sync (1000ms) writes the full state to POST /api/portfolio/sync.
- *   - On failure: local state is kept, warning logged, syncError flag set.
+ *   - On failure: local state is kept, warning logged, syncStatus set to 'error'.
  *
  * Conflict model: last-write-wins per user.
  */
@@ -40,10 +41,26 @@ function defaultState() {
     version: 1,
     migrated: false,
     portfolios: [
-      { id: mainId, name: 'Main', subportfolios: [{ id: coreId, name: 'Core' }] },
+      { id: mainId, name: 'Main', benchmark: null, subportfolios: [{ id: coreId, name: 'Core', benchmark: null }] },
     ],
     positions: [],
   };
+}
+
+// ── Schema migration: add benchmark fields if missing ──
+function ensureBenchmarkFields(state) {
+  let changed = false;
+  const portfolios = state.portfolios.map(p => {
+    let pChanged = false;
+    if (p.benchmark === undefined) { pChanged = true; }
+    const subs = p.subportfolios.map(sp => {
+      if (sp.benchmark === undefined) { pChanged = true; return { ...sp, benchmark: null }; }
+      return sp;
+    });
+    if (pChanged) { changed = true; return { ...p, benchmark: p.benchmark ?? null, subportfolios: subs }; }
+    return p;
+  });
+  return changed ? { ...state, portfolios } : state;
 }
 
 // ── Migration from legacy watchlist ──
@@ -101,9 +118,10 @@ function loadLocalState() {
     if (raw) {
       const parsed = JSON.parse(raw);
       if (parsed && parsed.version === 1) {
-        const migrated = migrateFromWatchlist(parsed);
-        if (migrated !== parsed) persistLocal(migrated);
-        return migrated;
+        let state = migrateFromWatchlist(parsed);
+        state = ensureBenchmarkFields(state);
+        if (state !== parsed) persistLocal(state);
+        return state;
       }
     }
   } catch (err) {
@@ -163,10 +181,11 @@ async function syncToServer(state) {
 }
 
 // ── Provider ──
+// syncStatus: 'idle' | 'syncing' | 'synced' | 'error'
 export function PortfolioProvider({ children }) {
   const { user, authReady } = useAuth();
   const [state, setState] = useState(loadLocalState); // Start with local immediately
-  const [syncError, setSyncError] = useState(false);
+  const [syncStatus, setSyncStatus] = useState('idle'); // idle | syncing | synced | error
   const [serverLoaded, setServerLoaded] = useState(false);
   const syncTimerRef = useRef(null);
   const initialSyncDoneRef = useRef(false);
@@ -176,9 +195,10 @@ export function PortfolioProvider({ children }) {
   const scheduleSyncToServer = useCallback((newState) => {
     if (!user) return; // Not logged in, skip server sync
     if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
+    setSyncStatus('syncing');
     syncTimerRef.current = setTimeout(async () => {
       const ok = await syncToServer(newState);
-      setSyncError(!ok);
+      setSyncStatus(ok ? 'synced' : 'error');
     }, SYNC_DEBOUNCE_MS);
   }, [user]);
 
@@ -201,7 +221,7 @@ export function PortfolioProvider({ children }) {
       initialSyncDoneRef.current = false;
       lastUserIdRef.current = null;
       setServerLoaded(false);
-      setSyncError(false);
+      setSyncStatus('idle');
       setState(loadLocalState());
       return;
     }
@@ -221,22 +241,25 @@ export function PortfolioProvider({ children }) {
       if (serverData && Array.isArray(serverData.portfolios) && serverData.portfolios.length > 0) {
         // Case 1: Server has data → use it
         console.log(`[Portfolio] Loaded from server: ${serverData.portfolios.length} portfolio(s), ${serverData.positions?.length || 0} position(s)`);
-        const normalized = {
+        let normalized = {
           version: serverData.version || 1,
           migrated: true,
           portfolios: serverData.portfolios,
           positions: serverData.positions || [],
         };
+        normalized = ensureBenchmarkFields(normalized);
         setState(normalized);
         persistLocal(normalized); // Mirror to local as fallback cache
+        if (!cancelled) setSyncStatus('synced');
       } else {
         // Case 2 & 3: Server is empty → use local state (which may include migration result)
         const localState = loadLocalState();
         console.log(`[Portfolio] No server data — using local state (${localState.positions.length} positions). Seeding server...`);
         setState(localState);
         // Seed server with the local state
+        setSyncStatus('syncing');
         const ok = await syncToServer(localState);
-        if (!cancelled) setSyncError(!ok);
+        if (!cancelled) setSyncStatus(ok ? 'synced' : 'error');
         if (ok) console.log('[Portfolio] Initial sync to server complete');
       }
 
@@ -340,6 +363,32 @@ export function PortfolioProvider({ children }) {
     }));
   }, [update]);
 
+  // ── Benchmark ──
+  const setBenchmark = useCallback((portfolioId, subportfolioId, benchmarkSymbol) => {
+    update(s => ({
+      ...s,
+      portfolios: s.portfolios.map(p => {
+        if (p.id !== portfolioId) return p;
+        if (subportfolioId) {
+          return {
+            ...p,
+            subportfolios: p.subportfolios.map(sp =>
+              sp.id === subportfolioId ? { ...sp, benchmark: benchmarkSymbol || null } : sp
+            ),
+          };
+        }
+        return { ...p, benchmark: benchmarkSymbol || null };
+      }),
+    }));
+  }, [update]);
+
+  // ── Manual sync retry ──
+  const retrySync = useCallback(() => {
+    if (!user) return;
+    setSyncStatus('syncing');
+    syncToServer(state).then(ok => setSyncStatus(ok ? 'synced' : 'error'));
+  }, [user, state]);
+
   // ── Backward-compat with WatchlistContext consumers ──
   const watchlist = useMemo(() => state.positions.map(p => p.symbol), [state.positions]);
 
@@ -400,9 +449,13 @@ export function PortfolioProvider({ children }) {
     addPosition,
     updatePosition,
     removePosition,
+    // Benchmark
+    setBenchmark,
     // Sync status
-    syncError,
+    syncStatus,  // 'idle' | 'syncing' | 'synced' | 'error'
+    syncError: syncStatus === 'error', // backward compat
     serverLoaded,
+    retrySync,
     // Legacy watchlist compat
     watchlist,
     addTicker,
@@ -410,9 +463,10 @@ export function PortfolioProvider({ children }) {
     isWatching,
     toggle,
     save: () => {},  // no-op, we auto-persist
-  }), [state, watchlist, syncError, serverLoaded,
+  }), [state, watchlist, syncStatus, serverLoaded,
        addPortfolio, renamePortfolio, addSubportfolio, renameSubportfolio,
-       addPosition, updatePosition, removePosition, addTicker, removeTicker, isWatching, toggle]);
+       addPosition, updatePosition, removePosition, setBenchmark, retrySync,
+       addTicker, removeTicker, isWatching, toggle]);
 
   return (
     <PortfolioContext.Provider value={value}>

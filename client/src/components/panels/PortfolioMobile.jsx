@@ -1,29 +1,156 @@
 /**
  * PortfolioMobile.jsx
  * Mobile-first portfolio panel showing holdings with prices
- * Replaces WatchlistPanelMobile with portfolio-specific features:
- * - Portfolio/subportfolio filtering
- * - Entry price and invested amount display
- * - Undo toast on position removal
+ *
+ * Phase 4A: Portfolio/subportfolio filtering, entry price display, undo toast.
+ * Phase 4C: Summary header (total value, P&L, daily move, positions count),
+ *           allocation bar, sync-status indicator.
+ *
  * Uses shared mobile CSS primitives (.m-search, .m-chip, .m-row, .m-toast, etc.)
  */
 
-import { memo, useState, useMemo, useRef } from 'react';
+import { memo, useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { usePortfolio } from '../../context/PortfolioContext';
 import { useStocksData, useForexData, useCryptoData } from '../../context/MarketContext';
+import {
+  fmtPct, fmtCompact, computeSummary, computeAllocation,
+  inferAssetType, assetTypeLabel,
+} from '../../utils/portfolioAnalytics';
 
 function fmtPrice(v, dec = 2) {
   if (v == null) return '--';
   return v.toLocaleString('en-US', { minimumFractionDigits: dec, maximumFractionDigits: dec });
 }
 
-function fmtPct(v) {
-  if (v == null) return '--';
-  return (v >= 0 ? '+' : '') + v.toFixed(2) + '%';
-}
+// ── Summary header for mobile ──
+const MobileSummaryHeader = memo(function MobileSummaryHeader({ positions, getPriceData, portfolios, syncStatus, onRetry }) {
+  const summary = useMemo(() => computeSummary(positions, getPriceData), [positions, getPriceData]);
+  const allocation = useMemo(() => computeAllocation(positions, getPriceData, 'assetType', portfolios), [positions, getPriceData, portfolios]);
+
+  if (positions.length === 0) return null;
+
+  const syncLabel = syncStatus === 'syncing' ? 'syncing…'
+    : syncStatus === 'synced' ? 'synced'
+    : syncStatus === 'error' ? 'sync failed' : '';
+  const syncColor = syncStatus === 'syncing' ? 'var(--accent-text)'
+    : syncStatus === 'synced' ? 'var(--price-up)'
+    : syncStatus === 'error' ? 'var(--price-down)' : 'transparent';
+
+  const allocationColors = ['var(--accent)', 'var(--price-up)', '#5c6bc0', '#ab47bc', '#26a69a', '#ef5350', '#78909c'];
+
+  return (
+    <div style={{
+      padding: 'var(--sp-3) var(--sp-4)',
+      borderBottom: '1px solid var(--border-subtle)',
+      background: 'var(--bg-surface)',
+      flexShrink: 0,
+    }}>
+      {/* Top row: value + P&L */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
+        <div>
+          {summary.totalCurrentValue != null ? (
+            <span style={{ color: 'var(--text-primary)', fontSize: 18, fontWeight: 700, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.5px' }}>
+              ${fmtCompact(summary.totalCurrentValue)}
+            </span>
+          ) : summary.totalInvested != null ? (
+            <span style={{ color: 'var(--text-primary)', fontSize: 18, fontWeight: 700, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.5px' }}>
+              ${fmtCompact(summary.totalInvested)}
+            </span>
+          ) : (
+            <span style={{ color: 'var(--text-muted)', fontSize: 18, fontWeight: 700 }}>—</span>
+          )}
+          <span style={{ color: 'var(--text-muted)', fontSize: 11, marginLeft: 6 }}>
+            {summary.positionCount} position{summary.positionCount !== 1 ? 's' : ''}
+          </span>
+        </div>
+        {syncLabel && (
+          <span
+            onClick={syncStatus === 'error' ? onRetry : undefined}
+            style={{
+              fontSize: 10, fontWeight: 600, color: syncColor,
+              cursor: syncStatus === 'error' ? 'pointer' : 'default',
+              textTransform: 'uppercase', letterSpacing: '0.5px',
+            }}
+          >
+            {syncLabel}
+          </span>
+        )}
+      </div>
+
+      {/* Second row: P&L + daily change */}
+      <div style={{ display: 'flex', gap: 16, marginBottom: 6 }}>
+        {summary.totalPnlPct != null && (
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <span style={{ color: 'var(--text-muted)', fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total P&L</span>
+            <span style={{
+              color: summary.totalPnlPct >= 0 ? 'var(--price-up)' : 'var(--price-down)',
+              fontSize: 14, fontWeight: 700, fontVariantNumeric: 'tabular-nums',
+            }}>
+              {fmtPct(summary.totalPnlPct)}
+              {summary.totalPnl != null && (
+                <span style={{ fontSize: 11, fontWeight: 500, marginLeft: 4, opacity: 0.7 }}>
+                  ({summary.totalPnl >= 0 ? '+' : ''}{fmtCompact(summary.totalPnl)})
+                </span>
+              )}
+            </span>
+          </div>
+        )}
+        {summary.dailyPnlPct != null && (
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <span style={{ color: 'var(--text-muted)', fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Day</span>
+            <span style={{
+              color: summary.dailyPnlPct >= 0 ? 'var(--price-up)' : 'var(--price-down)',
+              fontSize: 14, fontWeight: 700, fontVariantNumeric: 'tabular-nums',
+            }}>
+              {fmtPct(summary.dailyPnlPct)}
+            </span>
+          </div>
+        )}
+        {summary.bestPerformer && (
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <span style={{ color: 'var(--text-muted)', fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Best</span>
+            <span style={{ color: 'var(--price-up)', fontSize: 12, fontWeight: 600 }}>
+              {summary.bestPerformer.symbol}
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Allocation bar */}
+      {allocation.length > 0 && (
+        <>
+          <div style={{ display: 'flex', gap: 1, height: 5, borderRadius: 3, overflow: 'hidden', marginBottom: 4 }}>
+            {allocation.map((item, i) => (
+              <div
+                key={item.key}
+                style={{
+                  flex: item.pct, background: allocationColors[i % allocationColors.length],
+                  minWidth: item.pct > 1 ? 2 : 0,
+                  transition: 'flex 0.3s ease',
+                }}
+              />
+            ))}
+          </div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {allocation.filter(a => a.pct >= 5).map((item, i) => (
+              <span key={item.key} style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+                <span style={{
+                  display: 'inline-block', width: 6, height: 6, borderRadius: '50%',
+                  background: allocationColors[i % allocationColors.length],
+                  marginRight: 3, verticalAlign: 'middle',
+                }} />
+                {item.label} {item.pct.toFixed(0)}%
+              </span>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+});
 
 function PortfolioMobile({ onOpenDetail, onManage }) {
-  const { positions, portfolios, removePosition, addPosition } = usePortfolio();
+  const { positions, portfolios, removePosition, addPosition, syncStatus, retrySync } = usePortfolio();
   const stocks = useStocksData();
   const forex = useForexData();
   const crypto = useCryptoData();
@@ -34,9 +161,9 @@ function PortfolioMobile({ onOpenDetail, onManage }) {
   const [undoItem, setUndoItem] = useState(null);
   const undoTimerRef = useRef(null);
 
-  const getData = (sym) => stocks[sym] || forex[sym] || crypto[sym] || null;
+  const getData = useCallback((sym) => stocks[sym] || forex[sym] || crypto[sym] || null, [stocks, forex, crypto]);
 
-  // Build portfolio filter options: extract all unique portfolio and subportfolio names
+  // Build portfolio filter options
   const portfolioFilterOptions = useMemo(() => {
     const options = [];
     portfolios.forEach(portfolio => {
@@ -51,22 +178,17 @@ function PortfolioMobile({ onOpenDetail, onManage }) {
   // Filter by search query and selected portfolios
   const filtered = useMemo(() => {
     let result = positions;
-
-    // Filter by search query
     if (searchQuery.trim()) {
       const q = searchQuery.toUpperCase();
       result = result.filter(pos => pos.symbol.toUpperCase().includes(q));
     }
-
-    // Filter by selected portfolios (if any are selected)
     if (selectedPortfolios.size > 0) {
       result = result.filter(pos => selectedPortfolios.has(pos.subportfolioId));
     }
-
     return result;
   }, [positions, searchQuery, selectedPortfolios]);
 
-  // Sort based on selected criterion
+  // Sort
   const sorted = useMemo(() => {
     const arr = [...filtered];
     if (sortBy === 'name') {
@@ -83,7 +205,7 @@ function PortfolioMobile({ onOpenDetail, onManage }) {
         const priceB = getData(b.symbol)?.price ?? 0;
         return priceB - priceA;
       });
-    } else if (sortBy === 'pnl') {
+    } else if (sortBy === 'p&l') {
       arr.sort((a, b) => {
         const dataA = getData(a.symbol);
         const dataB = getData(b.symbol);
@@ -92,7 +214,6 @@ function PortfolioMobile({ onOpenDetail, onManage }) {
         return pnlB - pnlA;
       });
     }
-    // 'added' is default, keeps insertion order
     return arr;
   }, [filtered, sortBy, getData]);
 
@@ -108,12 +229,9 @@ function PortfolioMobile({ onOpenDetail, onManage }) {
 
   const handleRemovePosition = (posId, symbol) => {
     if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
-
-    // Store the position for undo
     const posToUndo = positions.find(p => p.id === posId);
     setUndoItem({ id: posId, symbol, data: posToUndo });
     removePosition(posId);
-
     undoTimerRef.current = setTimeout(() => setUndoItem(null), 4000);
   };
 
@@ -127,11 +245,7 @@ function PortfolioMobile({ onOpenDetail, onManage }) {
 
   const togglePortfolioFilter = (id) => {
     const newSet = new Set(selectedPortfolios);
-    if (newSet.has(id)) {
-      newSet.delete(id);
-    } else {
-      newSet.add(id);
-    }
+    if (newSet.has(id)) { newSet.delete(id); } else { newSet.add(id); }
     setSelectedPortfolios(newSet);
   };
 
@@ -173,6 +287,15 @@ function PortfolioMobile({ onOpenDetail, onManage }) {
           }} title="Add instruments">+</button>
         </div>
       </div>
+
+      {/* Summary header */}
+      <MobileSummaryHeader
+        positions={filtered}
+        getPriceData={getData}
+        portfolios={portfolios}
+        syncStatus={syncStatus}
+        onRetry={retrySync}
+      />
 
       {/* Search, Sort, and Portfolio Filter (only when not empty) */}
       {positions.length > 0 && (
@@ -273,7 +396,6 @@ function PortfolioMobile({ onOpenDetail, onManage }) {
               const pct = d?.changePct;
               const subName = getSubportfolioName(pos);
 
-              // Calculate display amount: prefer invested amount, fallback to entry price
               const displayAmount = pos.investedAmount != null
                 ? fmtPrice(pos.investedAmount)
                 : pos.entryPrice != null
@@ -299,7 +421,7 @@ function PortfolioMobile({ onOpenDetail, onManage }) {
                     )}
                   </div>
 
-                  {/* Price + change on top, invested/entry amount below */}
+                  {/* Price + change */}
                   <div style={{ textAlign: 'right', marginRight: 12, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                     <div style={{ color: 'var(--text-primary)', fontSize: 14, fontWeight: 500, fontVariantNumeric: 'tabular-nums', marginBottom: 3 }}>
                       {d?.price ? fmtPrice(d.price) : '--'}
