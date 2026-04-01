@@ -5,9 +5,12 @@ import { useSettings } from '../../context/SettingsContext';
 import PanelConfigModal from '../common/PanelConfigModal';
 import EditablePanelHeader from '../common/EditablePanelHeader';
 import CustomSubsectionBlock from '../common/CustomSubsectionBlock';
+import PanelShell from '../common/PanelShell';
+import { PriceRow } from '../common/PriceRow';
+import { SectionHeader } from '../common/SectionHeader';
+import ColumnHeaders from '../common/ColumnHeaders';
 import { US_STOCKS, BRAZIL_ADRS } from '../../utils/constants';
 import { useFeedStatus } from '../../context/FeedStatusContext';
-import { handlePanelDragOver, makePanelDropHandler } from '../../utils/dropHelper';
 
 const fmt    = (n) => n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmtPct = (n) => n == null ? '—' : (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
@@ -19,19 +22,6 @@ const showInfo = (e, symbol, label, type) => {
     detail: { symbol, label, type, x: e.clientX + 6, y: e.clientY + 6 },
   }));
 };
-
-function SectionDivider({ label, color = '#444' }) {
-  return (
-    <div style={{
-      padding: '2px 8px', background: '#0c0c0c',
-      borderTop: '1px solid #1a1a1a', borderBottom: '1px solid #1a1a1a',
-    }}>
-      <span style={{ color, fontSize: 7, fontWeight: 700, letterSpacing: '0.12em' }}>
-        —— {label} ————————————————————————
-      </span>
-    </div>
-  );
-}
 
 const SORT_COLS = [
   { key: 'symbol', label: 'TICKER', align: 'left' },
@@ -55,7 +45,7 @@ function sortItems(items, data, sortKey, sortDir) {
 
 // Heatmap cell color based on % change
 function heatColor(pct) {
-  if (pct == null) return '#1a1a1a';
+  if (pct == null) return 'var(--border-default)';
   if (pct >= 3)  return '#1b5e20';
   if (pct >= 1)  return '#2e7d32';
   if (pct >= 0)  return '#1a3a1a';
@@ -101,14 +91,13 @@ function StockPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
   const handleDropTicker = (ticker) => {
     const sym = ticker.trim().toUpperCase();
     if (!sym) return;
-    // Find existing custom subsection to add to, or create one
     const subs = [...customSubsections];
     let target = subs.find(s => s.key === 'custom-dropped');
     if (!target) {
       target = { key: 'custom-dropped', label: 'ADDED', color: '#00bcd4', symbols: [] };
       subs.push(target);
     }
-    if (target.symbols.includes(sym)) return; // already there
+    if (target.symbols.includes(sym)) return;
     const updated = subs.map(s =>
       s.key === target.key ? { ...s, symbols: [...s.symbols, sym] } : s
     );
@@ -158,12 +147,10 @@ function StockPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
   };
 
   const handleRenameSubsection = (key, newLabel) => {
-    // Check if it's a built-in subsection
     const builtIn = availableSubsections.find(s => s.key === key);
     if (builtIn) {
       saveCfg({ subsectionLabels: { ...subsectionLabels, [key]: newLabel } });
     } else {
-      // Custom subsection
       saveCfg({
         customSubsections: customSubsections.map(s =>
           s.key === key ? { ...s, label: newLabel } : s
@@ -198,11 +185,7 @@ function StockPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
   };
 
   return (
-    <div
-      style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#0a0a0a' }}
-      onDragOver={handlePanelDragOver}
-      onDrop={makePanelDropHandler(handleDropTicker)}
-    >
+    <PanelShell onDropTicker={handleDropTicker}>
       {/* Header */}
       <EditablePanelHeader
         title={panelTitle}
@@ -224,19 +207,19 @@ function StockPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
         <button
           onClick={() => setMoversOnly(v => !v)}
           title="Show only movers ≥ 2%"
-          style={{ background: moversOnly ? '#1a1000' : 'none', border: `1px solid ${moversOnly ? '#ff9900' : '#2a2a2a'}`, color: moversOnly ? '#ff9900' : '#444', fontSize: 7, padding: '1px 4px', cursor: 'pointer', fontFamily: 'inherit', borderRadius: 2 }}
+          style={{ background: moversOnly ? '#1a1000' : 'none', border: `1px solid ${moversOnly ? 'var(--accent-text)' : 'var(--border-strong)'}`, color: moversOnly ? 'var(--accent-text)' : 'var(--text-muted)', fontSize: 'var(--font-xs)', padding: '1px 4px', cursor: 'pointer', fontFamily: 'inherit', borderRadius: 'var(--radius-sm)' }}
         >≥2%</button>
         {/* Heatmap toggle */}
         <button
           onClick={() => setHeatmap(v => !v)}
           title="Toggle heatmap view"
-          style={{ background: heatmap ? '#0a001a' : 'none', border: `1px solid ${heatmap ? '#ce93d8' : '#2a2a2a'}`, color: heatmap ? '#ce93d8' : '#444', fontSize: 7, padding: '1px 4px', cursor: 'pointer', fontFamily: 'inherit', borderRadius: 2 }}
+          style={{ background: heatmap ? '#0a001a' : 'none', border: `1px solid ${heatmap ? '#ce93d8' : 'var(--border-strong)'}`, color: heatmap ? '#ce93d8' : 'var(--text-muted)', fontSize: 'var(--font-xs)', padding: '1px 4px', cursor: 'pointer', fontFamily: 'inherit', borderRadius: 'var(--radius-sm)' }}
         >HEAT</button>
         {/* Collapse toggle */}
         <button
           onClick={() => setCollapsed(v => !v)}
           title={collapsed ? 'Expand' : 'Collapse'}
-          style={{ background: 'none', border: '1px solid #2a2a2a', color: '#555', fontSize: 9, padding: '1px 5px', cursor: 'pointer', fontFamily: 'inherit', borderRadius: 2 }}
+          style={{ background: 'none', border: '1px solid var(--border-strong)', color: 'var(--text-muted)', fontSize: 9, padding: '1px 5px', cursor: 'pointer', fontFamily: 'inherit', borderRadius: 'var(--radius-sm)' }}
         >{collapsed ? '+' : '−'}</button>
       </EditablePanelHeader>
 
@@ -244,32 +227,18 @@ function StockPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
         <>
           {/* Sortable column headers (hidden in heatmap mode) */}
           {!heatmap && (
-            <div style={{ display: 'grid', gridTemplateColumns: COLS, padding: '2px 8px', borderBottom: '1px solid #1a1a1a', flexShrink: 0 }}>
-              {SORT_COLS.map(({ key, label, align }) => {
-                const active = sortKey === key;
-                const arrow  = active ? (sortDir === 'desc' ? ' ▼' : ' ▲') : '';
-                return (
-                  <span
-                    key={key}
-                    onClick={() => handleSortClick(key)}
-                    style={{
-                      color: active ? '#ff9900' : '#444',
-                      fontSize: '8px', fontWeight: 700, letterSpacing: '1px',
-                      textAlign: align === 'right' ? 'right' : 'left',
-                      paddingRight: align === 'right' ? 4 : 0,
-                      cursor: 'pointer', userSelect: 'none',
-                    }}
-                  >
-                    {label}{arrow}
-                  </span>
-                );
-              })}
-            </div>
+            <ColumnHeaders
+              columns={SORT_COLS}
+              gridColumns={COLS}
+              sortKey={sortKey}
+              sortDir={sortDir}
+              onSortClick={handleSortClick}
+            />
           )}
 
           <div style={{ flex: 1, overflowY: 'auto' }}>
             {loading || !data ? (
-              <div style={{ padding: '20px', textAlign: 'center', color: '#444', fontSize: '10px' }}>LOADING...</div>
+              <div style={{ padding: 'var(--sp-5)', textAlign: 'center', color: 'var(--text-muted)', fontSize: 'var(--font-base)' }}>LOADING...</div>
             ) : heatmap ? (
               /* Heatmap grid */
               <div style={{ padding: '6px 4px', display: 'flex', flexWrap: 'wrap', gap: 3 }}>
@@ -289,88 +258,80 @@ function StockPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
                       title={`${s.symbol}\n${fmtPct(pct)}`}
                       style={{
                         width: 54, height: 38, background: bg,
-                        border: '1px solid #222', borderRadius: 2, cursor: 'pointer',
+                        border: '1px solid #222', borderRadius: 'var(--radius-sm)', cursor: 'pointer',
                         display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
                         transition: 'filter 0.15s',
                       }}
                       onMouseEnter={e => e.currentTarget.style.filter = 'brightness(1.4)'}
                       onMouseLeave={e => e.currentTarget.style.filter = 'none'}
                     >
-                      <span style={{ color: '#e0e0e0', fontSize: 8, fontWeight: 700, letterSpacing: '0.04em' }}>{s.symbol.replace('.SA', '')}</span>
-                      <span style={{ color: pos ? '#81c784' : '#ef9a9a', fontSize: 8, fontWeight: 600, marginTop: 1 }}>{fmtPct(pct)}</span>
+                      <span style={{ color: 'var(--text-primary)', fontSize: 'var(--font-sm)', fontWeight: 700, letterSpacing: '0.04em' }}>{s.symbol.replace('.SA', '')}</span>
+                      <span style={{ color: pos ? '#81c784' : '#ef9a9a', fontSize: 'var(--font-sm)', fontWeight: 600, marginTop: 1 }}>{fmtPct(pct)}</span>
                     </div>
                   );
                 })}
                 {allItems.length === 0 && (
-                  <div style={{ color: '#444', fontSize: 9, padding: 12 }}>No movers matching filter.</div>
+                  <div style={{ color: 'var(--text-muted)', fontSize: 9, padding: 'var(--sp-3)' }}>No movers matching filter.</div>
                 )}
               </div>
             ) : (
               <>
-                <SectionDivider label={subsectionLabels['usEquities'] || 'US EQUITIES'} color="#00bcd4" />
+                <SectionHeader label={subsectionLabels['usEquities'] || 'US EQUITIES'} color="var(--section-equity)" />
                 {filteredUS.map(s => (
-                  <div
+                  <PriceRow
                     key={s.symbol}
-                    data-ticker={s.symbol}
-                    data-ticker-label={s.label}
-                    data-ticker-type="EQUITY"
+                    symbol={s.symbol}
+                    name={s.label}
+                    price={(data[s.symbol] || {}).price}
+                    changePct={(data[s.symbol] || {}).changePct}
+                    symbolColor="var(--section-equity)"
+                    columns={COLS}
                     draggable
-                    onDragStart={e => {
-                      e.dataTransfer.effectAllowed = 'copy';
-                      e.dataTransfer.setData('application/x-ticker', JSON.stringify({ symbol: s.symbol, name: s.label, type: 'EQUITY' }));
-                    }}
+                    dragData={{ symbol: s.symbol, name: s.label, type: 'EQUITY' }}
                     onClick={() => onTickerClick?.(s.symbol)}
                     onDoubleClick={() => onOpenDetail?.(s.symbol)}
-                    onTouchStart={(e) => { e.stopPropagation(); clearTimeout(ptRef.current); ptRef.current = setTimeout(() => onOpenDetail?.(s.symbol), 500); }}
-                    onTouchEnd={() => clearTimeout(ptRef.current)}
-                    onTouchMove={() => clearTimeout(ptRef.current)}
+                    onTouchHold={() => onOpenDetail?.(s.symbol)}
+                    touchRef={ptRef}
                     onContextMenu={e => showInfo(e, s.symbol, s.label, 'EQUITY')}
-                    style={{ display: 'grid', gridTemplateColumns: COLS, padding: '3px 8px', borderBottom: '1px solid #141414', cursor: 'pointer', alignItems: 'center' }}
-                    onMouseEnter={e => e.currentTarget.style.background = '#141414'}
-                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                  >
-                    <span style={{ color: '#00bcd4', fontSize: '10px', fontWeight: 700 }}>{s.symbol}</span>
-                    <span style={{ color: '#555', fontSize: '9px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: 4 }}>{s.label}</span>
-                    <span style={{ color: '#ccc', fontSize: '10px', textAlign: 'right', paddingRight: 4 }}>{fmt((data[s.symbol] || {}).price)}</span>
-                    <span style={{ color: ((data[s.symbol] || {}).changePct ?? 0) >= 0 ? '#4caf50' : '#f44336', fontSize: '10px', textAlign: 'right', fontWeight: 600 }}>{fmtPct((data[s.symbol] || {}).changePct)}</span>
-                  </div>
+                    dataAttrs={{
+                      'data-ticker': s.symbol,
+                      'data-ticker-label': s.label,
+                      'data-ticker-type': 'EQUITY',
+                    }}
+                  />
                 ))}
                 {moversOnly && filteredUS.length === 0 && (
-                  <div style={{ padding: '8px 12px', color: '#333', fontSize: 9 }}>No US movers ≥ 2%</div>
+                  <div style={{ padding: 'var(--sp-2) var(--sp-3)', color: 'var(--text-faint)', fontSize: 9 }}>No US movers ≥ 2%</div>
                 )}
 
                 {!hiddenSubsections.includes('brazilAdrs') && (
                   <>
-                    <SectionDivider label={subsectionLabels['brazilAdrs'] || 'BRAZIL ADRs'} color="#ffa726" />
+                    <SectionHeader label={subsectionLabels['brazilAdrs'] || 'BRAZIL ADRs'} color="var(--section-brazil)" />
                     {filteredBrazil.map(s => (
-                  <div
-                    key={s.symbol}
-                    data-ticker={s.symbol}
-                    data-ticker-label={s.label}
-                    data-ticker-type="ADR"
-                    draggable
-                    onDragStart={e => {
-                      e.dataTransfer.effectAllowed = 'copy';
-                      e.dataTransfer.setData('application/x-ticker', JSON.stringify({ symbol: s.symbol, name: s.label, type: 'EQUITY' }));
-                    }}
-                    onClick={() => onTickerClick?.(s.symbol)}
-                    onDoubleClick={() => onOpenDetail?.(s.symbol)}
-                    onTouchStart={(e) => { e.stopPropagation(); clearTimeout(ptRef.current); ptRef.current = setTimeout(() => onOpenDetail?.(s.symbol), 500); }}
-                    onTouchEnd={() => clearTimeout(ptRef.current)}
-                    onTouchMove={() => clearTimeout(ptRef.current)}
-                    onContextMenu={e => showInfo(e, s.symbol, s.label, 'ADR')}
-                    style={{ display: 'grid', gridTemplateColumns: COLS, padding: '3px 8px', borderBottom: '1px solid #141414', cursor: 'pointer', alignItems: 'center' }}
-                    onMouseEnter={e => e.currentTarget.style.background = '#141414'}
-                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                  >
-                    <span style={{ color: '#ffa726', fontSize: '10px', fontWeight: 700 }}>{s.symbol}</span>
-                    <span style={{ color: '#555', fontSize: '9px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: 4 }}>{s.label}</span>
-                    <span style={{ color: '#ccc', fontSize: '10px', textAlign: 'right', paddingRight: 4 }}>{fmt((data[s.symbol] || {}).price)}</span>
-                    <span style={{ color: ((data[s.symbol] || {}).changePct ?? 0) >= 0 ? '#4caf50' : '#f44336', fontSize: '10px', textAlign: 'right', fontWeight: 600 }}>{fmtPct((data[s.symbol] || {}).changePct)}</span>
-                  </div>
-                ))}
+                      <PriceRow
+                        key={s.symbol}
+                        symbol={s.symbol}
+                        name={s.label}
+                        price={(data[s.symbol] || {}).price}
+                        changePct={(data[s.symbol] || {}).changePct}
+                        symbolColor="var(--section-brazil)"
+                        columns={COLS}
+                        draggable
+                        dragData={{ symbol: s.symbol, name: s.label, type: 'EQUITY' }}
+                        onClick={() => onTickerClick?.(s.symbol)}
+                        onDoubleClick={() => onOpenDetail?.(s.symbol)}
+                        onTouchHold={() => onOpenDetail?.(s.symbol)}
+                        touchRef={ptRef}
+                        onContextMenu={e => showInfo(e, s.symbol, s.label, 'ADR')}
+                        dataAttrs={{
+                          'data-ticker': s.symbol,
+                          'data-ticker-label': s.label,
+                          'data-ticker-type': 'ADR',
+                        }}
+                      />
+                    ))}
                     {moversOnly && filteredBrazil.length === 0 && (
-                      <div style={{ padding: '8px 12px', color: '#333', fontSize: 9 }}>No ADR movers ≥ 2%</div>
+                      <div style={{ padding: 'var(--sp-2) var(--sp-3)', color: 'var(--text-faint)', fontSize: 9 }}>No ADR movers ≥ 2%</div>
                     )}
                   </>
                 )}
@@ -410,7 +371,7 @@ function StockPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
           onClose={() => setConfigOpen(false)}
         />
       )}
-    </div>
+    </PanelShell>
   );
 }
 

@@ -5,29 +5,14 @@ import { useSettings } from '../../context/SettingsContext';
 import PanelConfigModal from '../common/PanelConfigModal';
 import EditablePanelHeader from '../common/EditablePanelHeader';
 import CustomSubsectionBlock from '../common/CustomSubsectionBlock';
+import PanelShell from '../common/PanelShell';
+import { PriceRow } from '../common/PriceRow';
+import { SectionHeader } from '../common/SectionHeader';
+import ColumnHeaders from '../common/ColumnHeaders';
 import { FOREX_PAIRS, CRYPTO_PAIRS } from '../../utils/constants';
 import { useFeedStatus } from '../../context/FeedStatusContext';
-import { handlePanelDragOver, makePanelDropHandler } from '../../utils/dropHelper';
 
-const fmt4   = (n) => n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: 4, maximumFractionDigits: 4 });
-const fmt2   = (n) => n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const fmtPct = (n) => n == null ? '—' : (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
-const COLS   = '72px 1fr 76px 64px';
-
-function SectionDivider({ label, color }) {
-  return (
-    <div style={{
-      display: 'grid', gridTemplateColumns: COLS,
-      padding: '2px 8px', background: '#0c0c0c',
-      borderTop: '1px solid #1a1a1a', borderBottom: '1px solid #1a1a1a',
-      alignItems: 'center', flexShrink: 0,
-    }}>
-      <span style={{ color, fontSize: 7, fontWeight: 700, letterSpacing: '0.12em', gridColumn: '1 / -1' }}>
-        ── {label} ──────────────────────────
-      </span>
-    </div>
-  );
-}
+const COLS = '72px 1fr 76px 64px';
 
 const showInfo = (e, symbol, label, type) => {
   e.preventDefault();
@@ -93,7 +78,7 @@ function ForexPanel({ data = {}, cryptoData = {}, loading, onTickerClick, onOpen
     else { setSortKey(key); setSortDir('desc'); }
   };
 
-  // Handle drop ticker into panel — add to a custom subsection so it's visible
+  // Handle drop ticker into panel
   const handleDropTicker = (ticker) => {
     const sym = ticker.trim().toUpperCase();
     if (!sym) return;
@@ -192,11 +177,7 @@ function ForexPanel({ data = {}, cryptoData = {}, loading, onTickerClick, onOpen
   const mergedData = useMemo(() => ({ ...data, ...cryptoData }), [data, cryptoData]);
 
   return (
-    <div
-      style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#0a0a0a' }}
-      onDragOver={handlePanelDragOver}
-      onDrop={makePanelDropHandler(handleDropTicker)}
-    >
+    <PanelShell onDropTicker={handleDropTicker}>
       {/* Header */}
       <EditablePanelHeader
         title={panelTitle}
@@ -218,124 +199,102 @@ function ForexPanel({ data = {}, cryptoData = {}, loading, onTickerClick, onOpen
         <button
           onClick={() => setMoversOnly(v => !v)}
           title="Show only movers ≥ 1%"
-          style={{ background: moversOnly ? '#1a1000' : 'none', border: `1px solid ${moversOnly ? '#ff9900' : '#2a2a2a'}`, color: moversOnly ? '#ff9900' : '#444', fontSize: 7, padding: '1px 4px', cursor: 'pointer', fontFamily: 'inherit', borderRadius: 2 }}
+          style={{ background: moversOnly ? '#1a1000' : 'none', border: `1px solid ${moversOnly ? 'var(--accent-text)' : 'var(--border-strong)'}`, color: moversOnly ? 'var(--accent-text)' : 'var(--text-muted)', fontSize: 'var(--font-xs)', padding: '1px 4px', cursor: 'pointer', fontFamily: 'inherit', borderRadius: 'var(--radius-sm)' }}
         >≥1%</button>
         {/* Collapse toggle */}
         <button
           onClick={() => setCollapsed(v => !v)}
           title={collapsed ? 'Expand' : 'Collapse'}
-          style={{ background: 'none', border: '1px solid #2a2a2a', color: '#555', fontSize: 9, padding: '1px 5px', cursor: 'pointer', fontFamily: 'inherit', borderRadius: 2 }}
+          style={{ background: 'none', border: '1px solid var(--border-strong)', color: 'var(--text-muted)', fontSize: 9, padding: '1px 5px', cursor: 'pointer', fontFamily: 'inherit', borderRadius: 'var(--radius-sm)' }}
         >{collapsed ? '+' : '−'}</button>
       </EditablePanelHeader>
 
       {!collapsed && (
         <>
       {/* Sortable column headers */}
-      <div style={{ display: 'grid', gridTemplateColumns: COLS, padding: '2px 8px', borderBottom: '1px solid #1a1a1a', flexShrink: 0 }}>
-        {SORT_COLS.map(({ key, label, align }) => {
-          const active = sortKey === key;
-          const arrow  = active ? (sortDir === 'desc' ? ' ▼' : ' ▲') : '';
-          return (
-            <span
-              key={key}
-              onClick={() => handleSortClick(key)}
-              style={{
-                color: active ? '#ff9900' : '#444',
-                fontSize: '8px', fontWeight: 700, letterSpacing: '1px',
-                textAlign: align === 'right' ? 'right' : 'left',
-                paddingRight: align === 'right' ? 4 : 0,
-                cursor: 'pointer', userSelect: 'none',
-              }}
-            >
-              {label}{arrow}
-            </span>
-          );
-        })}
-      </div>
+      <ColumnHeaders
+        columns={SORT_COLS}
+        gridColumns={COLS}
+        sortKey={sortKey}
+        sortDir={sortDir}
+        onSortClick={handleSortClick}
+      />
 
       <div style={{ flex: 1, overflowY: 'auto' }}>
         {loading ? (
-          <div style={{ padding: '20px', textAlign: 'center', color: '#444', fontSize: '10px' }}>LOADING...</div>
+          <div style={{ padding: 'var(--sp-5)', textAlign: 'center', color: 'var(--text-muted)', fontSize: 'var(--font-base)' }}>LOADING...</div>
         ) : (
           <>
             {/* ── FX PAIRS ── */}
-            <SectionDivider label={subsectionLabels['fxPairs'] || 'FX PAIRS'} color="#ce93d8" />
+            <SectionHeader label={subsectionLabels['fxPairs'] || 'FX PAIRS'} color="var(--section-fx)" />
             {filteredForex.map(pair => {
               const d = data?.[pair.symbol] || {};
               const price = d.mid || d.ask || d.price;
-              const pos   = (d.changePct ?? 0) >= 0;
               const chartSym = 'C:' + pair.symbol;
               return (
-                <div
+                <PriceRow
                   key={pair.symbol}
-                  data-ticker={pair.symbol}
-                  data-ticker-label={pair.label}
-                  data-ticker-type="FX"
+                  symbol={pair.symbol}
+                  name={pair.label}
+                  price={price}
+                  changePct={d.changePct}
+                  symbolColor="var(--section-fx)"
+                  columns={COLS}
+                  decimals={4}
                   draggable
-                  onDragStart={e => {
-                    e.dataTransfer.effectAllowed = 'copy';
-                    e.dataTransfer.setData('application/x-ticker', JSON.stringify({ symbol: chartSym, name: pair.label, type: 'CURRENCY' }));
-                  }}
+                  dragData={{ symbol: chartSym, name: pair.label, type: 'CURRENCY' }}
                   onClick={() => onTickerClick?.(chartSym)}
                   onDoubleClick={() => onOpenDetail?.(chartSym)}
-                  onTouchStart={(e) => { e.stopPropagation(); clearTimeout(ptRef.current); ptRef.current = setTimeout(() => onOpenDetail?.(chartSym), 500); }}
-                  onTouchEnd={() => clearTimeout(ptRef.current)}
-                  onTouchMove={() => clearTimeout(ptRef.current)}
+                  onTouchHold={() => onOpenDetail?.(chartSym)}
+                  touchRef={ptRef}
                   onContextMenu={e => showInfo(e, pair.symbol, pair.label, 'FX')}
-                  style={{ display: 'grid', gridTemplateColumns: COLS, padding: '3px 8px', borderBottom: '1px solid #141414', cursor: 'pointer', alignItems: 'center' }}
-                  onMouseEnter={e => e.currentTarget.style.background = '#141414'}
-                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                >
-                  <span style={{ color: '#ce93d8', fontSize: '10px', fontWeight: 700 }}>{pair.symbol}</span>
-                  <span style={{ color: '#555', fontSize: '9px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: 4 }}>{pair.label}</span>
-                  <span style={{ color: '#ccc', fontSize: '10px', textAlign: 'right', paddingRight: 4 }}>{fmt4(price)}</span>
-                  <span style={{ color: pos ? '#4caf50' : '#f44336', fontSize: '10px', textAlign: 'right', fontWeight: 600 }}>{fmtPct(d.changePct)}</span>
-                </div>
+                  dataAttrs={{
+                    'data-ticker': pair.symbol,
+                    'data-ticker-label': pair.label,
+                    'data-ticker-type': 'FX',
+                  }}
+                />
               );
             })}
 
             {moversOnly && filteredForex.length === 0 && (
-              <div style={{ padding: '8px 12px', color: '#333', fontSize: 9 }}>No FX movers ≥ 1%</div>
+              <div style={{ padding: 'var(--sp-2) var(--sp-3)', color: 'var(--text-faint)', fontSize: 9 }}>No FX movers ≥ 1%</div>
             )}
 
             {!hiddenSubsections.includes('crypto') && (
               <>
                 {/* ── CRYPTO ── */}
-                <SectionDivider label={subsectionLabels['crypto'] || 'CRYPTO'} color="#f48fb1" />
+                <SectionHeader label={subsectionLabels['crypto'] || 'CRYPTO'} color="var(--section-crypto)" />
                 {filteredCrypto.map(c => {
               const d   = cryptoData?.[c.symbol] || {};
-              const pos = (d.changePct ?? 0) >= 0;
               const chartSym = 'X:' + c.symbol;
               return (
-                <div
+                <PriceRow
                   key={c.symbol}
-                  data-ticker={'X:' + c.symbol}
-                  data-ticker-label={c.label}
-                  data-ticker-type="CRYPTO"
+                  symbol={c.symbol}
+                  displaySymbol={c.symbol.replace('USD', '')}
+                  name={c.label}
+                  price={d.price}
+                  changePct={d.changePct}
+                  symbolColor="var(--section-crypto)"
+                  columns={COLS}
                   draggable
-                  onDragStart={e => {
-                    e.dataTransfer.effectAllowed = 'copy';
-                    e.dataTransfer.setData('application/x-ticker', JSON.stringify({ symbol: chartSym, name: c.label, type: 'CRYPTO' }));
-                  }}
+                  dragData={{ symbol: chartSym, name: c.label, type: 'CRYPTO' }}
                   onClick={() => onTickerClick?.(chartSym)}
                   onDoubleClick={() => onOpenDetail?.(chartSym)}
-                  onTouchStart={(e) => { e.stopPropagation(); clearTimeout(ptRef.current); ptRef.current = setTimeout(() => onOpenDetail?.(chartSym), 500); }}
-                  onTouchEnd={() => clearTimeout(ptRef.current)}
-                  onTouchMove={() => clearTimeout(ptRef.current)}
+                  onTouchHold={() => onOpenDetail?.(chartSym)}
+                  touchRef={ptRef}
                   onContextMenu={e => showInfo(e, c.symbol, c.label, 'CRYPTO')}
-                  style={{ display: 'grid', gridTemplateColumns: COLS, padding: '3px 8px', borderBottom: '1px solid #141414', cursor: 'pointer', alignItems: 'center' }}
-                  onMouseEnter={e => e.currentTarget.style.background = '#141414'}
-                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                >
-                  <span style={{ color: '#f48fb1', fontSize: '10px', fontWeight: 700 }}>{c.symbol.replace('USD', '')}</span>
-                  <span style={{ color: '#555', fontSize: '9px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: 4 }}>{c.label}</span>
-                  <span style={{ color: '#ccc', fontSize: '10px', textAlign: 'right', paddingRight: 4 }}>{fmt2(d.price)}</span>
-                  <span style={{ color: pos ? '#4caf50' : '#f44336', fontSize: '10px', textAlign: 'right', fontWeight: 600 }}>{fmtPct(d.changePct)}</span>
-                </div>
+                  dataAttrs={{
+                    'data-ticker': 'X:' + c.symbol,
+                    'data-ticker-label': c.label,
+                    'data-ticker-type': 'CRYPTO',
+                  }}
+                />
               );
             })}
                 {moversOnly && filteredCrypto.length === 0 && (
-                  <div style={{ padding: '8px 12px', color: '#333', fontSize: 9 }}>No crypto movers ≥ 1%</div>
+                  <div style={{ padding: 'var(--sp-2) var(--sp-3)', color: 'var(--text-faint)', fontSize: 9 }}>No crypto movers ≥ 1%</div>
                 )}
               </>
             )}
@@ -375,7 +334,7 @@ function ForexPanel({ data = {}, cryptoData = {}, loading, onTickerClick, onOpen
           onClose={() => setConfigOpen(false)}
         />
       )}
-    </div>
+    </PanelShell>
   );
 }
 

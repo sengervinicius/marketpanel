@@ -1,5 +1,79 @@
 /* App.css — Senger Market Screen */
 
+/* ── Design Tokens ──────────────────────────────── */
+:root {
+  /* Background levels (darkest to lightest) */
+  --bg-app:       #0a0a0a;
+  --bg-panel:     #0a0a0a;
+  --bg-surface:   #0d0d0d;
+  --bg-elevated:  #111111;
+  --bg-hover:     #141414;
+  --bg-active:    #1a1a1a;
+
+  /* Border colors */
+  --border-subtle:  #141414;
+  --border-default: #1a1a1a;
+  --border-strong:  #2a2a2a;
+
+  /* Text colors */
+  --text-primary:   #e0e0e0;
+  --text-secondary: #999999;
+  --text-muted:     #555555;
+  --text-faint:     #333333;
+
+  /* Accent */
+  --accent:         #ff6600;
+  --accent-muted:   #ff990033;
+  --accent-text:    #ff9900;
+
+  /* Semantic: price movement */
+  --price-up:       #4caf50;
+  --price-down:     #f44336;
+  --price-neutral:  #888888;
+
+  /* Section accent colors (per panel identity) */
+  --section-equity:  #00bcd4;
+  --section-brazil:  #ffa726;
+  --section-fx:      #ce93d8;
+  --section-crypto:  #f48fb1;
+  --section-watchlist:#ff9900;
+
+  /* Spacing scale (4px base) */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+
+  /* Border radius */
+  --radius-sm: 2px;
+  --radius-md: 4px;
+  --radius-lg: 8px;
+
+  /* Type scale */
+  --font-xs:   7px;
+  --font-sm:   8px;
+  --font-base: 10px;
+  --font-md:   11px;
+  --font-lg:   12px;
+  --font-xl:   13px;
+  --font-2xl:  16px;
+
+  /* Z-index layers */
+  --z-panel:    1;
+  --z-header:   10;
+  --z-overlay:  100;
+  --z-modal:    1000;
+  --z-detail:   1500;
+  --z-tooltip:  2000;
+
+  /* Row heights */
+  --row-height: 26px;
+  --row-height-touch: 44px;
+}
+
 /* ── Base reset ─────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -7,18 +81,18 @@ html, body, #root {
   height: 100%;
   width: 100%;
   overflow: hidden;
-  background: #0a0a0a;
+  background: var(--bg-app);
   font-family: 'IBM Plex Mono', 'Courier New', monospace;
-  font-size: 10px;
-  color: #ccc;
+  font-size: var(--font-base);
+  color: var(--text-secondary);
   -webkit-font-smoothing: antialiased;
 }
 
 /* ── Scrollbar ───────────────────────────────────── */
 ::-webkit-scrollbar { width: 3px; height: 3px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #222; border-radius: 2px; }
-::-webkit-scrollbar-thumb:hover { background: #333; }
+::-webkit-scrollbar-thumb { background: var(--border-default); border-radius: var(--radius-sm); }
+::-webkit-scrollbar-thumb:hover { background: var(--border-strong); }
 
 /* ── Price flash animations ──────────────────────── */
 @keyframes flashUp {
@@ -82,28 +156,28 @@ html, body, #root {
   to   { background-position: 200px 0; }
 }
 .skeleton {
-  background: linear-gradient(90deg, #111 25%, #1a1a1a 50%, #111 75%);
+  background: linear-gradient(90deg, var(--bg-elevated) 25%, var(--bg-active) 50%, var(--bg-elevated) 75%);
   background-size: 400px 100%;
   animation: shimmer 1.4s infinite linear;
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
 }
 
 /* ── Drag-over highlight ─────────────────────────── */
-.drag-over { outline: 1px solid #ff6600 !important; background: rgba(255,102,0,0.05) !important; }
+.drag-over { outline: 1px solid var(--accent) !important; background: rgba(255,102,0,0.05) !important; }
 
 /* ── Keyboard focus styles ───────────────────────── */
 *:focus { outline: none; }
-*:focus-visible { outline: 1px solid #ff6600; outline-offset: 1px; }
+*:focus-visible { outline: 1px solid var(--accent); outline-offset: 1px; }
 button:focus-visible,
 [tabindex]:focus-visible,
-a:focus-visible { outline: 1px solid #ff6600; outline-offset: 1px; }
+a:focus-visible { outline: 1px solid var(--accent); outline-offset: 1px; }
 input:focus-visible,
-textarea:focus-visible { outline: 1px solid #ff6600; outline-offset: 0; border-color: #ff6600 !important; }
+textarea:focus-visible { outline: 1px solid var(--accent); outline-offset: 0; border-color: var(--accent) !important; }
 
 /* ── Context menu ────────────────────────────────── */
 .ctx-menu-item {
   padding: 5px 12px;
-  font-size: 10px;
+  font-size: var(--font-base);
   cursor: pointer;
   white-space: nowrap;
   transition: background 0.1s;
