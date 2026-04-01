@@ -579,6 +579,38 @@
   font-size: 9px;
 }
 
+/* ── Hero Price Block ──────────────────────────────── */
+.id-hero { padding: var(--sp-4) var(--sp-4) var(--sp-3); border-bottom: 1px solid var(--border-subtle); background: var(--bg-surface); }
+.id-hero-meta { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--sp-2); }
+.id-hero-ticker { font-family: var(--font-mono); font-size: var(--font-lg); font-weight: 700; color: var(--text-primary); letter-spacing: 0.04em; }
+.id-hero-name { font-size: var(--font-sm); color: var(--text-secondary); margin-top: 2px; }
+.id-hero-badge { font-size: var(--font-xs); color: var(--text-muted); background: var(--bg-elevated); border: 1px solid var(--border-subtle); border-radius: 4px; padding: 2px 6px; font-family: var(--font-mono); letter-spacing: 0.05em; white-space: nowrap; }
+.id-hero-price-row { display: flex; align-items: baseline; gap: var(--sp-3); margin-bottom: var(--sp-2); }
+.id-hero-price { font-family: var(--font-mono); font-size: var(--font-2xl); font-weight: 600; color: var(--text-primary); font-variant-numeric: tabular-nums; line-height: 1; }
+.id-hero-change { font-family: var(--font-mono); font-size: var(--font-lg); font-weight: 500; font-variant-numeric: tabular-nums; }
+.id-hero-change.up { color: var(--price-up, var(--positive)); }
+.id-hero-change.down { color: var(--price-down, var(--negative)); }
+.id-hero-change.flat { color: var(--text-secondary); }
+.id-hero-stats { display: flex; flex-wrap: wrap; gap: var(--sp-3); margin-top: var(--sp-1); }
+.id-hero-stat { font-size: var(--font-xs); color: var(--text-muted); font-family: var(--font-mono); white-space: nowrap; }
+.id-hero-stat span { color: var(--text-secondary); }
+
+/* ── Hero Desktop Action Row ──────────────────────── */
+.id-hero-actions { display: flex; gap: var(--sp-2); align-items: center; }
+@media (max-width: 768px) { .id-hero-actions { display: none; } }
+.id-hero-action-btn { height: 28px; padding: 0 var(--sp-2); border-radius: 4px; font-size: var(--font-xs); font-weight: 600; font-family: var(--font-ui); cursor: pointer; border: 1px solid var(--border-default); background: transparent; color: var(--text-secondary); transition: all 120ms ease; white-space: nowrap; }
+.id-hero-action-btn:hover { border-color: rgba(255,102,0,0.3); color: var(--accent); background: var(--accent-dim); }
+
+/* ── Sticky Bottom Action Bar (mobile) ────────────── */
+.id-action-bar { display: none; }
+@media (max-width: 768px) {
+  .id-action-bar { display: flex; position: sticky; bottom: 0; background: var(--bg-surface); border-top: 1px solid var(--border-subtle); padding: var(--sp-2) var(--sp-3); padding-bottom: calc(var(--sp-2) + env(safe-area-inset-bottom, 0px)); gap: var(--sp-2); z-index: 20; }
+}
+.id-action-btn-bar { flex: 1; display: flex; align-items: center; justify-content: center; height: 40px; border-radius: 6px; font-size: var(--font-sm); font-weight: 600; font-family: var(--font-ui); cursor: pointer; border: 1px solid var(--border-default); background: var(--bg-elevated); color: var(--text-secondary); transition: all 120ms ease; -webkit-tap-highlight-color: transparent; }
+.id-action-btn-bar:active { background: var(--bg-overlay); transform: scale(0.97); }
+.id-action-btn-bar--primary { background: var(--accent-dim); border-color: rgba(255,102,0,0.3); color: var(--accent); }
+.id-action-btn-bar--primary:active { background: var(--accent); color: #fff; }
+
 /* ── Mobile safe area ───────────────────────────── */
 @media (max-width: 1023px) {
   .id-overlay {
