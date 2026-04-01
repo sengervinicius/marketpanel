@@ -1360,7 +1360,13 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
           const fxDesktopTabs   = ['STATS', 'MACRO', 'NEWS'];
           const hasTabs = isBond || isFX;
           const tabList = isBond ? bondDesktopTabs : isFX ? fxDesktopTabs : [];
-          return (
+          // TODO: Send to Chat — placeholder for Phase 4 chat integration
+  const sendToChat = (ticker, price, change, changePct, instrumentName) => {
+    console.log('sendToChat placeholder:', { ticker, price, change, changePct, instrumentName });
+    // Future: open chat overlay with pre-filled instrument card message
+  };
+
+  return (
             <div className="id-sidebar">
               {hasTabs && (
                 <div className="id-tab-bar">

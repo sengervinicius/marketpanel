@@ -38,6 +38,7 @@ import SuggestedScreens from './components/settings/SuggestedScreens';
 import { TickerTooltip } from './components/common/TickerTooltip';
 import InstrumentDetail from './components/common/InstrumentDetail';
 import './App.css';
+import './components/panels/Chat.css';
 
 
 // ── MarketTickBridge — dispatches live WS ticks into MarketContext reducer ────
@@ -1083,6 +1084,7 @@ export default function App() {
   });
   // Secondary view inside "more" tab (charts, news, etf, chat)
   const [moreView, setMoreView] = useState(null);
+  const [chatOpen, setChatOpen] = useState(false);
   const setActiveTabPersist = (t) => { setActiveTab(t); localStorage.setItem(LS_TAB, t); };
 
   const [chartTicker, setChartTickerState] = useState(
@@ -1378,7 +1380,7 @@ export default function App() {
   // Screen title for mobile header
   const mobileScreenTitle = useMemo(() => {
     if (activeTab === 'more' && moreView) {
-      const titles = { charts: 'Charts', news: 'News Feed', etf: 'ETF Screener', chat: 'Chat' };
+      const titles = { charts: 'Charts', news: 'News Feed', etf: 'ETF Screener' };
       return titles[moreView] || moreView;
     }
     return null;
@@ -1422,6 +1424,10 @@ export default function App() {
           : Object.values(feedStatus).some(s => s === 'live') ? 'partial' : 'off'
         } />
         <div style={{ flex: 1 }} />
+        {/* Chat icon */}
+        <button className="chat-icon-btn" onClick={() => setChatOpen(true)} aria-label="Open chat">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
+        </button>
         {/* Mini clock */}
         <MobileClockCompact />
       </div>
@@ -1504,7 +1510,6 @@ export default function App() {
               <ETFPanel onOpenDetail={goDetail} />
             )}
 
-            {activeTab === 'more' && moreView === 'chat' && <ChatPanel mobile />}
           </div>
 
           {/* ── Bottom tab bar ── */}
@@ -1521,6 +1526,25 @@ export default function App() {
         </>
       )}
 
+
+      {/* ── Chat overlay (mobile full-screen / desktop slide-over) ── */}
+      {chatOpen && (
+        <>
+          <div className="chat-overlay-backdrop" onClick={() => setChatOpen(false)} />
+          <div className="chat-overlay">
+            <div className="chat-overlay-header">
+              <button className="chat-overlay-header-btn" onClick={() => setChatOpen(false)} aria-label="Close chat">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
+              </button>
+              <span className="chat-overlay-header-title">Conversations</span>
+              <button className="chat-overlay-header-btn" aria-label="New conversation" onClick={() => {}}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+              </button>
+            </div>
+            <ChatPanel mobile />
+          </div>
+        </>
+      )}
       {/* ── Instrument Detail slide-up overlay ── */}
       {detailTicker && !subscriptionExpired && (
         <div style={{
