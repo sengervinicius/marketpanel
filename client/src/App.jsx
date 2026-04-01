@@ -39,6 +39,26 @@ import { TickerTooltip } from './components/common/TickerTooltip';
 import InstrumentDetail from './components/common/InstrumentDetail';
 import './App.css';
 
+// ── Boot state machine ─────────────────────────────────────────────────────
+const BOOT = {
+  INIT: 'INIT',
+  AUTH_PENDING: 'AUTH_PENDING',
+  AUTH_DONE: 'AUTH_DONE',
+  SETTINGS_PENDING: 'SETTINGS_PENDING',
+  READY: 'READY',
+};
+
+// ── Safe localStorage wrapper ──────────────────────────────────────────────
+const safeGet = (key, fallback = null) => {
+  try {
+    const val = localStorage.getItem(key);
+    return val ? JSON.parse(val) : fallback;
+  } catch {
+    console.warn(`localStorage read failed for key: ${key}`);
+    return fallback;
+  }
+};
+
 
 // ── MarketTickBridge — dispatches live WS ticks into MarketContext reducer ────
 function MarketTickBridge({ batchTicks }) {
@@ -963,6 +983,29 @@ export default function App() {
   const { user, subscription, startCheckout, logout, authReady, openBillingPortal, refreshSubscription, restorePurchases, billingPlatform } = useAuth();
   const { settings, loaded: settingsLoaded } = useSettings();
 
+  // ── Boot state machine ───────────────────────────────────────────────────
+  const [bootState, setBootState] = useState(BOOT.INIT);
+
+  // Boot state transitions
+  useEffect(() => {
+    let mounted = true;
+    if (bootState === BOOT.INIT) {
+      setBootState(BOOT.AUTH_PENDING);
+    } else if (bootState === BOOT.AUTH_PENDING && authReady) {
+      setBootState(BOOT.AUTH_DONE);
+    } else if (bootState === BOOT.AUTH_DONE) {
+      if (user) {
+        setBootState(BOOT.SETTINGS_PENDING);
+      } else {
+        setBootState(BOOT.READY);
+      }
+    } else if (bootState === BOOT.SETTINGS_PENDING && settingsLoaded) {
+      if (!mounted) return;
+      setBootState(BOOT.READY);
+    }
+    return () => { mounted = false; };
+  }, [bootState, authReady, user, settingsLoaded]);
+
   // ── Billing state ────────────────────────────────────────────────────────────
   const [billingState, setBillingState] = useState({ isLoading: false, error: null, showSuccess: false });
 
@@ -1075,7 +1118,8 @@ export default function App() {
   }, [data, liveTick]);
 
   const [activeTab, setActiveTab] = useState(() => {
-    const saved = localStorage.getItem(LS_TAB);
+    let saved;
+    try { saved = localStorage.getItem(LS_TAB); } catch { saved = null; }
     // Migrate old tab IDs
     if (saved === 'markets') return 'home';
     if (saved === 'charts') return 'home'; // charts moved to More → Charts
@@ -1086,24 +1130,29 @@ export default function App() {
   const setActiveTabPersist = (t) => { setActiveTab(t); localStorage.setItem(LS_TAB, t); };
 
   const [chartTicker, setChartTickerState] = useState(
-    () => localStorage.getItem(LS_CHART_TICKER) || 'SPY'
+    () => { try { return localStorage.getItem(LS_CHART_TICKER) || 'SPY'; } catch { return 'SPY'; } }
   );
 
   const syncTimer = useRef(null);
 
   useEffect(() => {
+    let mounted = true;
     apiFetch('/api/settings')
       .then(r => r.ok ? r.json() : null)
       .then(s => {
-        if (s?.settings?.chartTicker && s.settings.chartTicker !== localStorage.getItem(LS_CHART_TICKER)) {
+        if (!mounted) return;
+        let currentTicker;
+        try { currentTicker = localStorage.getItem(LS_CHART_TICKER); } catch { currentTicker = null; }
+        if (s?.settings?.chartTicker && s.settings.chartTicker !== currentTicker) {
           setChartTickerState(s.settings.chartTicker);
-          localStorage.setItem(LS_CHART_TICKER, s.settings.chartTicker);
-        } else if (s?.chartTicker && s.chartTicker !== localStorage.getItem(LS_CHART_TICKER)) {
+          try { localStorage.setItem(LS_CHART_TICKER, s.settings.chartTicker); } catch {}
+        } else if (s?.chartTicker && s.chartTicker !== currentTicker) {
           setChartTickerState(s.chartTicker);
-          localStorage.setItem(LS_CHART_TICKER, s.chartTicker);
+          try { localStorage.setItem(LS_CHART_TICKER, s.chartTicker); } catch {}
         }
       })
       .catch(() => {});
+    return () => { mounted = false; };
   }, []);
 
   const setChartTicker = useCallback((t) => {
@@ -1129,7 +1178,7 @@ export default function App() {
 
   const [chartGridCount, setChartGridCount] = useState(() => {
     try {
-      const arr = JSON.parse(localStorage.getItem(LS_CHART_GRID) || '["SPY","QQQ"]');
+      const arr = safeGet(LS_CHART_GRID, ['SPY','QQQ']);
       return Array.isArray(arr) ? Math.max(2, arr.length) : 2;
     } catch { return 2; }
   });
@@ -1221,7 +1270,7 @@ export default function App() {
   // default settings), and only if the user has not yet completed onboarding.
   // This ensures a logged-in user with onboardingCompleted=true never sees the
   // preset screen again on refresh.
-  const showOnboarding = settingsLoaded && !!user && settings && !settings.onboardingCompleted;
+  const showOnboarding = bootState === BOOT.READY && !!user && settings && !settings.onboardingCompleted;
 
   // ── Subscription gating ──────────────────────────────────────────────────
   // Show paywall if subscription has expired
@@ -1237,6 +1286,16 @@ export default function App() {
       throw err;
     }
   }, [startCheckout]);
+
+  // ── Boot screen ─────────────────────────────────────────────────────────
+  if (bootState !== BOOT.READY) {
+    return (
+      <div className="boot-screen">
+        <div className="boot-logo">SENGER</div>
+        <div className="boot-bar"><div className="boot-bar-fill" /></div>
+      </div>
+    );
+  }
 
   // ── DESKTOP ──────────────────────────────────────────────────────────────
   if (!isMobile) {
@@ -1578,3 +1637,4 @@ function MobileClockCompact() {
     </span>
   );
 }
+
