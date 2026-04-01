@@ -5,7 +5,7 @@
 // Drag-to-swap: internal slots draggable; drop onto another slot swaps positions
 // URL sync: ?c=SPY,QQQ,... persisted via history.replaceState for cross-device sharing
 // Auto-sync: grid synced to server on change, fetched on mount for mobile cross-device
-import { useState, useEffect, useRef, useCallback, memo } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
 import { useTickerPrice } from '../../context/PriceContext';
 import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip, ReferenceLine } from 'recharts';
 import { apiFetch } from '../../utils/api';
@@ -13,6 +13,7 @@ const LS_KEY = 'chartGrid_v3';
 const MAX = 16;
 const GRID_COLS = 4;
 const GRID_ROWS = 4;
+const CHART_REFRESH_INTERVAL = 60_000; // 60 seconds
 
 
 
@@ -153,7 +154,7 @@ function MiniChart({ ticker, index, onRemove, onReplace, onSwap, onOpenDetail })
   useEffect(() => {
     mountedRef.current = true;
     fetchData(rangeIdx);
-    intervalRef.current = setInterval(() => fetchData(rangeIdx), 60_000);
+    intervalRef.current = setInterval(() => fetchData(rangeIdx), CHART_REFRESH_INTERVAL);
     return () => { mountedRef.current = false; clearInterval(intervalRef.current); };
   }, [fetchData, rangeIdx]);
 
@@ -436,16 +437,28 @@ function ChartPanel({ ticker: externalTicker, onGridChange, mobile = false, onOp
     });
   }, []);
 
+  // Memoize QR code URL generation
+  const qrCodeUrl = useMemo(() => {
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set('c', tickers.join(','));
+      const link = url.toString();
+      return `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(link)}&bgcolor=040508&color=e8a020&margin=8`;
+    } catch (_) {
+      return '';
+    }
+  }, [tickers]);
+
   const copyLink = useCallback(() => {
     try {
       const url = new URL(window.location.href);
       url.searchParams.set('c', tickers.join(','));
       const link = url.toString();
       navigator.clipboard.writeText(link).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); });
-      setQrUrl(`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(link)}&bgcolor=040508&color=e8a020&margin=8`);
+      setQrUrl(qrCodeUrl);
       setShowQR(true);
     } catch (_) {}
-  }, [tickers]);
+  }, [tickers, qrCodeUrl]);
 
   const outerDrop = {
     onDragOver: e => e.preventDefault(),

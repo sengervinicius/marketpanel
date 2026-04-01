@@ -75,11 +75,29 @@ export function PriceProvider({ marketData, children }) {
   // ticker → setInterval id
   const intervalIds = useRef(new Map());
 
+  // Retry/dead ticker tracking: stop retrying if a custom ticker fails 3+ times in a row
+  // fetchErrors: ticker → consecutive failure count
+  // deadTickers: set of tickers that have failed too many times
+  const fetchErrors = useRef(new Map());
+  const deadTickers = useRef(new Set());
+
   // Fetch a single ticker from the server and store in extras
   const fetchExtra = useCallback(async (ticker) => {
+    // Skip if this ticker has failed too many times
+    if (deadTickers.current.has(ticker)) return;
+
     try {
       const r = await apiFetch(`/api/snapshot/ticker/${encodeURIComponent(ticker)}`);
-      if (!r.ok) return;
+      if (!r.ok) {
+        // Track failed fetch: increment error count and add to dead set if >= 3
+        const failures = (fetchErrors.current.get(ticker) ?? 0) + 1;
+        fetchErrors.current.set(ticker, failures);
+        if (failures >= 3) {
+          deadTickers.current.add(ticker);
+          console.warn(`[PriceContext] ticker '${ticker}' failed 3 times; stopping retries`);
+        }
+        return;
+      }
       const d  = await r.json();
       const t  = d?.ticker ?? d;
       const price = (t?.min?.c  > 0 ? t.min.c  : null)
@@ -87,6 +105,8 @@ export function PriceProvider({ marketData, children }) {
                  ?? (t?.lastTrade?.p > 0 ? t.lastTrade.p : null)
                  ??  t?.prevDay?.c ?? null;
       if (price == null) return;
+      // Reset error count on successful fetch
+      fetchErrors.current.set(ticker, 0);
       setExtras(prev => ({
         ...prev,
         [ticker]: {
@@ -97,6 +117,13 @@ export function PriceProvider({ marketData, children }) {
       }));
     } catch (e) {
       console.warn('[PriceContext] fetch error:', e.message);
+      // Track error: increment count and add to dead set if >= 3
+      const failures = (fetchErrors.current.get(ticker) ?? 0) + 1;
+      fetchErrors.current.set(ticker, failures);
+      if (failures >= 3) {
+        deadTickers.current.add(ticker);
+        console.warn(`[PriceContext] ticker '${ticker}' failed 3 times; stopping retries`);
+      }
     }
   }, []);
 

@@ -3,7 +3,7 @@
  * Enhanced mobile watchlist view with search and management features
  */
 
-import { memo, useState, useMemo } from 'react';
+import { memo, useState, useMemo, useRef, useEffect } from 'react';
 import { useWatchlist } from '../../context/WatchlistContext';
 import { useStocksData, useForexData, useCryptoData } from '../../context/MarketContext';
 
@@ -18,14 +18,34 @@ function fmtPct(v) {
 }
 
 function WatchlistPanelMobile({ onOpenDetail, onManage }) {
-  const { watchlist, removeTicker } = useWatchlist();
+  const { watchlist, removeTicker, addTicker } = useWatchlist();
   const stocks = useStocksData();
   const forex = useForexData();
   const crypto = useCryptoData();
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('added'); // 'added', 'change', 'price'
+  const [undoItem, setUndoItem] = useState(null);
+  const undoTimerRef = useRef(null);
+  const [showHint, setShowHint] = useState(() => {
+    try {
+      return !localStorage.getItem('watchlistSwipeHintShown');
+    } catch {
+      return true;
+    }
+  });
 
   const getData = (sym) => stocks[sym] || forex[sym] || crypto[sym] || null;
+
+  // Mark hint as shown
+  useEffect(() => {
+    if (showHint && watchlist.length > 0) {
+      try {
+        localStorage.setItem('watchlistSwipeHintShown', 'true');
+      } catch {
+        // Ignore localStorage errors
+      }
+    }
+  }, [showHint, watchlist.length]);
 
   // Filter by search query
   const filtered = useMemo(() => {
@@ -34,7 +54,7 @@ function WatchlistPanelMobile({ onOpenDetail, onManage }) {
     return watchlist.filter(sym => sym.toUpperCase().includes(q));
   }, [watchlist, searchQuery]);
 
-  // Sort based on selected criterion
+  // Sort based on selected criterion (memoized to prevent re-sorting on every render)
   const sorted = useMemo(() => {
     const arr = [...filtered];
     if (sortBy === 'change') {
@@ -55,7 +75,7 @@ function WatchlistPanelMobile({ onOpenDetail, onManage }) {
       });
     }
     return arr;
-  }, [filtered, sortBy]);
+  }, [filtered, sortBy, getData]);
 
   const containerStyle = {
     display: 'flex',
@@ -308,45 +328,113 @@ function WatchlistPanelMobile({ onOpenDetail, onManage }) {
               No results for "{searchQuery}"
             </div>
           ) : (
-            sorted.map((sym) => {
+            sorted.map((sym, idx) => {
               const d = getData(sym);
               const pct = d?.changePct;
+              const isFirstRow = idx === 0 && showHint;
               return (
-                <div
-                  key={sym}
-                  onClick={() => onOpenDetail?.(sym)}
-                  style={rowStyle}
-                >
-                  {/* Symbol + name */}
-                  <div style={symbolNameStyle}>
-                    <div style={symbolStyle}>{sym}</div>
-                    {d?.name && <div style={nameStyle}>{d.name}</div>}
-                  </div>
-
-                  {/* Price + change */}
-                  <div style={priceChangeStyle}>
-                    <div style={priceStyle}>
-                      {d?.price ? fmtPrice(d.price) : '--'}
+                <div key={sym} style={{ position: 'relative' }}>
+                  {/* Swipe hint (left arrow) — first row only, one-time */}
+                  {isFirstRow && (
+                    <div style={{
+                      position: 'absolute',
+                      left: 8,
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      color: '#444',
+                      fontSize: 10,
+                      opacity: 0.6,
+                      pointerEvents: 'none',
+                    }}>
+                      ←
                     </div>
-                    <div style={changeStyle(pct)}>
-                      {fmtPct(pct)}
-                    </div>
-                  </div>
-
-                  {/* Remove */}
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      removeTicker(sym);
-                    }}
-                    style={removeButtonStyle}
+                  )}
+                  <div
+                    onClick={() => onOpenDetail?.(sym)}
+                    style={rowStyle}
                   >
-                    ×
-                  </button>
+                    {/* Symbol + name */}
+                    <div style={symbolNameStyle}>
+                      <div style={symbolStyle}>{sym}</div>
+                      {d?.name && <div style={nameStyle}>{d.name}</div>}
+                    </div>
+
+                    {/* Price + change */}
+                    <div style={priceChangeStyle}>
+                      <div style={priceStyle}>
+                        {d?.price ? fmtPrice(d.price) : '--'}
+                      </div>
+                      <div style={changeStyle(pct)}>
+                        {fmtPct(pct)}
+                      </div>
+                    </div>
+
+                    {/* Remove */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        // Show undo toast
+                        if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+                        setUndoItem(sym);
+                        removeTicker(sym);
+                        // Hide undo after 4 seconds
+                        undoTimerRef.current = setTimeout(() => setUndoItem(null), 4000);
+                      }}
+                      style={removeButtonStyle}
+                    >
+                      ×
+                    </button>
+                  </div>
                 </div>
               );
             })
           )}
+        </div>
+      )}
+
+      {/* Undo Toast */}
+      {undoItem && (
+        <div style={{
+          position: 'fixed',
+          bottom: 'calc(env(safe-area-inset-bottom, 0px) + 12px)',
+          left: 12,
+          right: 12,
+          backgroundColor: '#1a1a1a',
+          border: '1px solid #2a2a2a',
+          borderRadius: 4,
+          padding: '12px 16px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: 12,
+          fontSize: 11,
+          color: '#999',
+          fontFamily: 'monospace',
+          zIndex: 1000,
+          boxShadow: '0 2px 8px rgba(0,0,0,0.5)',
+        }}>
+          <span>{undoItem} removed</span>
+          <button
+            onClick={() => {
+              addTicker(undoItem);
+              setUndoItem(null);
+              if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+            }}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#ff6600',
+              cursor: 'pointer',
+              fontSize: 11,
+              fontWeight: 'bold',
+              letterSpacing: '0.1em',
+              padding: 0,
+              minWidth: 'auto',
+              minHeight: 'auto',
+            }}
+          >
+            UNDO
+          </button>
         </div>
       )}
     </div>

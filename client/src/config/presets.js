@@ -2,9 +2,25 @@
  * presets.js
  * Investor profile presets for first-time onboarding.
  * Each preset seeds the user's initial workspace.
+ *
+ * @typedef {Object} ScreenPreset
+ * @property {string} id - Unique preset identifier
+ * @property {string} label - Display label for UI
+ * @property {string} description - One-line description of focus
+ * @property {string} focus - Key instruments/markets focused on
+ * @property {string} theme - Color theme ('dark', 'light')
+ * @property {Array<string>} watchlist - Initial watchlist symbols
+ * @property {Object<string, {title: string, symbols: Array<string>}>} panels - Panel configurations
+ * @property {Object} layout - Layout configuration
+ * @property {Object} home - Home page sections
+ * @property {Object} charts - Chart configuration
  */
-import { DEFAULT_LAYOUT, DEFAULT_HOME_SECTIONS, DEFAULT_CHARTS_CONFIG } from './panels.js';
+import { DEFAULT_LAYOUT, DEFAULT_HOME_SECTIONS, DEFAULT_CHARTS_CONFIG, PANEL_DEFINITIONS } from './panels.js';
 
+/**
+ * All available screen presets for onboarding and workspace switching.
+ * @type {Object<string, ScreenPreset>}
+ */
 export const SCREEN_PRESETS = {
   brazilianInvestor: {
     id:          'brazilianInvestor',
@@ -181,6 +197,7 @@ export const SCREEN_PRESETS = {
     charts: { symbols: ['GLD','USO','CORN','XOM'], primary: 'GLD' },
   },
 
+  /** @type {ScreenPreset} */
   custom: {
     id:          'custom',
     label:       'Custom Workspace',
@@ -202,3 +219,39 @@ export const SCREEN_PRESETS = {
     charts: DEFAULT_CHARTS_CONFIG,
   },
 };
+
+/**
+ * Get a preset by ID.
+ * @param {string} presetId - The preset ID to look up
+ * @returns {ScreenPreset|null} The preset or null if not found
+ */
+export function getPresetById(presetId) {
+  return SCREEN_PRESETS[presetId] || null;
+}
+
+/**
+ * Get a summary list of all presets for UI rendering.
+ * Returns only essential fields needed for preset selection UI.
+ * @returns {Array<{id: string, label: string, description: string, focus: string}>}
+ */
+export function getPresetList() {
+  return Object.values(SCREEN_PRESETS).map(preset => ({
+    id: preset.id,
+    label: preset.label,
+    description: preset.description,
+    focus: preset.focus,
+  }));
+}
+
+// Dev-only validation: ensure all panel IDs in presets exist in PANEL_DEFINITIONS
+if (process.env.NODE_ENV === 'development') {
+  const validPanelIds = Object.keys(PANEL_DEFINITIONS);
+  Object.entries(SCREEN_PRESETS).forEach(([presetId, preset]) => {
+    const usedPanelIds = Object.keys(preset.panels || {});
+    usedPanelIds.forEach(panelId => {
+      if (!validPanelIds.includes(panelId)) {
+        console.warn(`[Presets] Preset "${presetId}" references unknown panel ID "${panelId}"`);
+      }
+    });
+  });
+}

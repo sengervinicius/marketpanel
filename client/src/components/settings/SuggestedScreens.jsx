@@ -7,7 +7,7 @@
  * Phase 4.2: Post-onboarding layout library.
  */
 
-import { useState } from 'react';
+import { useState, useMemo, memo } from 'react';
 import { useSettings } from '../../context/SettingsContext';
 
 // ── Curated suggested screens ─────────────────────────────────────────────────
@@ -156,15 +156,120 @@ const SUGGESTED_SCREENS = [
   },
 ];
 
+// ── Detect current screen by comparing layout ────────────────────────────────
+function detectCurrentScreenId(currentLayout, currentPanels) {
+  if (!currentLayout) return null;
+  for (const screen of SUGGESTED_SCREENS) {
+    if (!screen.layout) continue;
+    // Simple heuristic: match if desktopRows are identical
+    const layoutMatch = JSON.stringify(screen.layout) === JSON.stringify(currentLayout);
+    if (layoutMatch) return screen.id;
+  }
+  return null;
+}
+
+// ── Memoized screen item to prevent unnecessary re-renders ────────────────────
+const ScreenItem = memo(function ScreenItem({ screen, isApplying, wasApplied, isCurrent, onApply, onHover, panelLabels }) {
+  // Build panel preview tooltip
+  const panelList = screen.layout?.desktopRows
+    ?.flat()
+    .filter(Boolean)
+    .map(panelId => panelLabels[panelId])
+    .filter(Boolean)
+    .join(', ') || '';
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      onApply();
+    }
+  };
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      title={`Panels: ${panelList}`}
+      style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '6px 12px', borderBottom: '1px solid #141414',
+        cursor: isApplying ? 'wait' : 'default',
+        outline: 'none',
+      }}
+      onMouseEnter={e => e.currentTarget.style.background = '#141414'}
+      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+      onKeyDown={handleKeyDown}
+    >
+      <div>
+        <div style={{
+          color: isCurrent ? '#ff6600' : '#ccc',
+          fontSize: 9,
+          fontWeight: 600,
+          letterSpacing: '0.4px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6,
+        }}>
+          {isCurrent && <span title="Currently active layout">●</span>}
+          {screen.label}
+        </div>
+        <div style={{ color: '#444', fontSize: 8, marginTop: 1, letterSpacing: '0.2px' }}>{screen.description}</div>
+      </div>
+      <button
+        onClick={onApply}
+        disabled={!!isApplying}
+        style={{
+          background: wasApplied ? '#1a3a1a' : 'none',
+          border:  wasApplied ? '1px solid #00cc66' : '1px solid #2a2a2a',
+          color:   wasApplied ? '#00cc66' : isApplying ? '#ff6600' : isCurrent ? '#ff6600' : '#555',
+          fontSize: 8, padding: '2px 6px', cursor: isApplying ? 'wait' : 'pointer',
+          fontFamily: 'inherit', borderRadius: 2, letterSpacing: '0.3px',
+          minWidth: 48, flexShrink: 0,
+          transition: 'all 150ms ease-out',
+        }}
+      >
+        {wasApplied ? '✓ APPLIED' : isApplying ? 'LOADING…' : isCurrent ? '✓ ACTIVE' : 'APPLY →'}
+      </button>
+    </div>
+  );
+});
+
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function SuggestedScreens({ onApply }) {
-  const { updateSettings } = useSettings();
+  const { settings, updateSettings } = useSettings();
   const [applying, setApplying] = useState(null);
   const [applied,  setApplied]  = useState(null);
+  const [error, setError] = useState(null);
+
+  // Detect current active screen
+  const currentScreenId = useMemo(() => {
+    return detectCurrentScreenId(settings?.layout, settings?.panels);
+  }, [settings?.layout, settings?.panels]);
+
+  // Build panel label map for tooltips
+  const panelLabels = useMemo(() => {
+    return {
+      charts:       'Charts',
+      usEquities:   'US Equities',
+      forex:        'FX / Rates',
+      crypto:       'Crypto',
+      globalIndices:'Global Indexes',
+      brazilB3:     'Brazil B3',
+      commodities:  'Commodities',
+      watchlist:    'Watchlist',
+      debt:         'Debt Markets',
+      curves:       'Yield Curves',
+      search:       'Search',
+      news:         'News',
+      sentiment:    'Sentiment',
+      chat:         'Chat',
+    };
+  }, []);
 
   const handleApply = async (screen) => {
     if (applying) return;
     setApplying(screen.id);
+    setError(null);
     try {
       const patch = {};
       if (screen.layout)  patch.layout  = screen.layout;
@@ -175,7 +280,10 @@ export default function SuggestedScreens({ onApply }) {
       setTimeout(() => setApplied(null), 3000);
       onApply?.();
     } catch (e) {
+      const errorMsg = e.message || 'Failed to apply screen';
+      setError(`Error: ${errorMsg}`);
       console.error('[SuggestedScreens] apply failed:', e.message);
+      setTimeout(() => setError(null), 4000);
     } finally {
       setApplying(null);
     }
@@ -183,39 +291,29 @@ export default function SuggestedScreens({ onApply }) {
 
   return (
     <div>
+      {error && (
+        <div style={{
+          padding: '6px 12px', borderBottom: '1px solid #3a1a1a',
+          color: '#ff4444', fontSize: 8, letterSpacing: '0.2px',
+          background: '#1a0a0a',
+        }}>
+          {error}
+        </div>
+      )}
       {SUGGESTED_SCREENS.map(screen => {
         const isApplying = applying === screen.id;
         const wasApplied = applied  === screen.id;
+        const isCurrent = currentScreenId === screen.id;
         return (
-          <div
+          <ScreenItem
             key={screen.id}
-            style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              padding: '6px 12px', borderBottom: '1px solid #141414',
-              cursor: applying ? 'wait' : 'default',
-            }}
-            onMouseEnter={e => e.currentTarget.style.background = '#141414'}
-            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-          >
-            <div>
-              <div style={{ color: '#ccc', fontSize: 9, fontWeight: 600, letterSpacing: '0.4px' }}>{screen.label}</div>
-              <div style={{ color: '#444', fontSize: 8, marginTop: 1, letterSpacing: '0.2px' }}>{screen.description}</div>
-            </div>
-            <button
-              onClick={() => handleApply(screen)}
-              disabled={!!applying}
-              style={{
-                background: wasApplied ? '#1a3a1a' : 'none',
-                border:  wasApplied ? '1px solid #00cc66' : '1px solid #2a2a2a',
-                color:   wasApplied ? '#00cc66' : isApplying ? '#ff6600' : '#555',
-                fontSize: 8, padding: '2px 6px', cursor: applying ? 'wait' : 'pointer',
-                fontFamily: 'inherit', borderRadius: 2, letterSpacing: '0.3px',
-                minWidth: 48, flexShrink: 0,
-              }}
-            >
-              {wasApplied ? '✓ APPLIED' : isApplying ? 'LOADING…' : 'APPLY →'}
-            </button>
-          </div>
+            screen={screen}
+            isApplying={isApplying}
+            wasApplied={wasApplied}
+            isCurrent={isCurrent}
+            onApply={() => handleApply(screen)}
+            panelLabels={panelLabels}
+          />
         );
       })}
     </div>

@@ -7,12 +7,13 @@
  *  - Scrolling ticker tape
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, memo } from 'react';
 import { CLOCKS } from '../utils/constants';
 import { fmtPrice, fmtPct } from '../utils/format';
 import { useTheme } from '../context/ThemeContext';
+import { useFeedStatus } from '../context/FeedStatusContext';
 
-function Clock({ label, tz }) {
+const Clock = memo(function Clock({ label, tz }) {
   const [time, setTime] = useState('');
   const [date, setDate] = useState('');
 
@@ -34,7 +35,7 @@ function Clock({ label, tz }) {
       <div style={{ color: '#555', fontSize: 7 }}>{date}</div>
     </div>
   );
-}
+});
 
 function TickerTape({ stocks, indexes }) {
   const allSymbols = [...Object.values(indexes), ...Object.values(stocks)];
@@ -67,6 +68,10 @@ function TickerTape({ stocks, indexes }) {
           0%   { transform: translateX(100vw); }
           100% { transform: translateX(-100%); }
         }
+        @keyframes senger-pulse {
+          0%, 100% { opacity: 1; }
+          50%      { opacity: 0.8; }
+        }
       `}</style>
     </div>
   );
@@ -82,15 +87,23 @@ export function Header({ connected, stocks, forex, marketStatus }) {
   const theme = themeCtx?.theme ?? 'dark';
   const toggleTheme = themeCtx?.toggleTheme ?? null;
 
+  // Feed status indicator
+  const { getOverallStatus } = useFeedStatus();
+  const feedStatus = getOverallStatus();
+  const statusDotColor = feedStatus === 'live' ? '#00c853' : feedStatus === 'degraded' ? '#ff9900' : feedStatus === 'connecting' ? '#ffb74d' : '#ff3333';
+
   return (
     <div style={{ background: '#0a0a0f', borderBottom: '1px solid #e55a00', flexShrink: 0, fontFamily: "'IBM Plex Mono', 'Courier New', monospace" }}>
       {/* Top bar */}
       <div style={{ display: 'flex', alignItems: 'stretch', height: 46 }}>
         {/* Branding */}
         <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '0 14px', borderRight: '1px solid #1a1a1a', minWidth: 200 }}>
-          <div style={{ color: '#e55a00', fontWeight: 700, fontSize: 13, letterSpacing: '0.12em', textTransform: 'uppercase' }}>SENGER MARKET SCREEN</div>
+          <div style={{ color: '#e55a00', fontWeight: 700, fontSize: 13, letterSpacing: '0.12em', textTransform: 'uppercase', animation: 'senger-pulse 3s ease-in-out infinite' }}>SENGER MARKET SCREEN</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
-            <span style={{ color: '#666', fontSize: 7, letterSpacing: '0.2em', textTransform: 'uppercase' }}>REAL-TIME</span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: statusDotColor, display: 'inline-block' }} title={`Feed: ${feedStatus}`} />
+              <span style={{ color: '#666', fontSize: 7, letterSpacing: '0.2em', textTransform: 'uppercase' }}>REAL-TIME</span>
+            </span>
             <span style={{ background: statusColor, color: '#fff', fontSize: 7, padding: '2px 5px', fontWeight: 600, borderRadius: 1 }}>{statusLabel}</span>
             {mktOpen !== undefined && (
               <span style={{ color: mktOpen ? '#00c853' : '#888', fontSize: 7, letterSpacing: '0.05em' }}>

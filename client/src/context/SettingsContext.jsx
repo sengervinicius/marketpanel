@@ -37,6 +37,8 @@ export function SettingsProvider({ children, isAuthenticated }) {
   const [settings, setSettingsState] = useState(defaultSettings);
   const [subscription, setSubscription] = useState(null);
   const [loaded, setLoaded] = useState(false);
+  const [settingsDirty, setSettingsDirty] = useState(false);
+  const debounceTimerRef = useRef(null);
 
   // Load from server when user logs in
   useEffect(() => {
@@ -73,8 +75,18 @@ export function SettingsProvider({ children, isAuthenticated }) {
         method: 'POST',
         body: JSON.stringify(partial),
       });
+      setSettingsDirty(false);
     } catch {}
   }, [isAuthenticated]);
+
+  // Debounced server save (500ms delay) to batch rapid setting changes
+  const debouncedPersist = useCallback((partial) => {
+    setSettingsDirty(true);
+    clearTimeout(debounceTimerRef.current);
+    debounceTimerRef.current = setTimeout(() => {
+      persistSettings(partial);
+    }, 500);
+  }, [persistSettings]);
 
   const updateSettings = useCallback(async (partial) => {
     setSettingsState(prev => {
@@ -85,8 +97,8 @@ export function SettingsProvider({ children, isAuthenticated }) {
       if (partial.charts)  next.charts = { ...prev.charts,  ...partial.charts };
       return next;
     });
-    await persistSettings(partial);
-  }, [persistSettings]);
+    debouncedPersist(partial);
+  }, [debouncedPersist]);
 
   const updatePanelConfig = useCallback(async (panelId, cfg) => {
     setSettingsState(prev => ({
@@ -146,18 +158,31 @@ export function SettingsProvider({ children, isAuthenticated }) {
     clearTimeout(addToHomeSectionTimeoutRef.current);
     addToHomeSectionTimeoutRef.current = setTimeout(async () => {
       if (newSections) {
-        await persistSettings({ home: { sections: newSections } });
+        await debouncedPersist({ home: { sections: newSections } });
       }
     }, 300);
-  }, [persistSettings]);
+  }, [debouncedPersist]);
 
   const updateChartsConfig = useCallback(async (charts) => {
     await updateSettings({ charts });
   }, [updateSettings]);
 
+  // Flush pending saves on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+        // Fire the save immediately if there's a pending change
+        if (settingsDirty) {
+          persistSettings(settings);
+        }
+      }
+    };
+  }, [settingsDirty, settings, persistSettings]);
+
   return (
     <SettingsContext.Provider value={{
-      settings, subscription, loaded,
+      settings, subscription, loaded, settingsDirty,
       updateSettings, updatePanelConfig, applyPreset, completeOnboarding,
       updateLayout, updateHomeSection, addToHomeSection, updateChartsConfig,
     }}>

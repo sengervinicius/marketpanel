@@ -31,6 +31,9 @@ export function CryptoPanel({ data = {}, loading, onTickerClick, onOpenDetail })
   const [collapsed,   setCollapsed]   = useState(false);
   const [configOpen,  setConfigOpen]  = useState(false);
   const [searchFilter, setSearchFilter] = useState('');
+  const [sortKey,     setSortKey]     = useState(null);
+  const [sortDir,     setSortDir]     = useState('desc');
+  const [moversOnly,  setMoversOnly]  = useState(false);
 
   const handleDropTicker = (ticker) => {
     const sym = ticker.toUpperCase();
@@ -38,6 +41,11 @@ export function CryptoPanel({ data = {}, loading, onTickerClick, onOpenDetail })
     if (!panelSymbols.includes(cryptoSym)) {
       updatePanelConfig('crypto', { ...panelCfg, symbols: [...panelSymbols, cryptoSym] });
     }
+  };
+
+  const handleSortClick = (key) => {
+    if (sortKey === key) setSortDir(d => d === 'desc' ? 'asc' : 'desc');
+    else { setSortKey(key); setSortDir('desc'); }
   };
 
   // Filter to configured symbols (if any)
@@ -51,6 +59,24 @@ export function CryptoPanel({ data = {}, loading, onTickerClick, onOpenDetail })
     visiblePairs = visiblePairs.filter(c =>
       c.symbol.toLowerCase().includes(sq) || (c.label || c.name || '').toLowerCase().includes(sq)
     );
+  }
+
+  // Apply movers filter (≥3%)
+  if (moversOnly) {
+    visiblePairs = visiblePairs.filter(c => Math.abs(data[c.symbol]?.changePct ?? 0) >= 3);
+  }
+
+  // Apply sorting
+  if (sortKey && data) {
+    visiblePairs = [...visiblePairs].sort((a, b) => {
+      let va, vb;
+      if (sortKey === 'symbol') { va = a.symbol; vb = b.symbol; }
+      else if (sortKey === 'name') { va = a.label; vb = b.label; }
+      else if (sortKey === 'price') { va = data[a.symbol]?.price ?? -Infinity; vb = data[b.symbol]?.price ?? -Infinity; }
+      else if (sortKey === 'chg')   { va = data[a.symbol]?.changePct ?? -Infinity; vb = data[b.symbol]?.changePct ?? -Infinity; }
+      if (typeof va === 'string') return sortDir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va);
+      return sortDir === 'asc' ? va - vb : vb - va;
+    });
   }
 
 
@@ -83,14 +109,43 @@ export function CryptoPanel({ data = {}, loading, onTickerClick, onOpenDetail })
           title={collapsed ? 'Expand' : 'Collapse'}
           style={{ background: 'none', border: '1px solid #2a2a2a', color: '#555', fontSize: 9, padding: '1px 5px', cursor: 'pointer', fontFamily: 'inherit', borderRadius: 2 }}
         >{collapsed ? '+' : '−'}</button>
+        <button
+          onClick={() => setMoversOnly(v => !v)}
+          title="Show only movers ≥ 3%"
+          style={{ background: moversOnly ? '#1a1000' : 'none', border: `1px solid ${moversOnly ? '#ff9900' : '#2a2a2a'}`, color: moversOnly ? '#ff9900' : '#444', fontSize: 7, padding: '1px 4px', cursor: 'pointer', fontFamily: 'inherit', borderRadius: 2 }}
+        >≥3%</button>
       </EditablePanelHeader>
 
       {!collapsed && !hiddenSubsections.includes('usd') && (<>
         {/* Column headers */}
         <div style={{ display: 'grid', gridTemplateColumns: COLS, padding: '2px 8px', borderBottom: '1px solid #1a1a1a', flexShrink: 0 }}>
-          {['COIN', 'NAME', 'LAST', 'CHG%'].map(h => (
-            <span key={h} style={{ color: '#444', fontSize: '8px', fontWeight: 700, letterSpacing: '1px' }}>{h}</span>
-          ))}
+          {[
+            { key: 'symbol', label: 'COIN', align: 'left' },
+            { key: 'name', label: 'NAME', align: 'left' },
+            { key: 'price', label: 'LAST', align: 'right' },
+            { key: 'chg', label: 'CHG%', align: 'right' },
+          ].map(({ key, label, align }) => {
+            const active = sortKey === key;
+            const arrow = active ? (sortDir === 'desc' ? ' ▼' : ' ▲') : '';
+            return (
+              <span
+                key={key}
+                onClick={() => handleSortClick(key)}
+                style={{
+                  color: active ? '#ff9900' : '#444',
+                  fontSize: '8px',
+                  fontWeight: 700,
+                  letterSpacing: '1px',
+                  textAlign: align === 'right' ? 'right' : 'left',
+                  paddingRight: align === 'right' ? 4 : 0,
+                  cursor: 'pointer',
+                  userSelect: 'none',
+                }}
+              >
+                {label}{arrow}
+              </span>
+            );
+          })}
         </div>
 
         <div style={{ flex: 1, overflowY: 'auto' }}>
@@ -112,7 +167,7 @@ export function CryptoPanel({ data = {}, loading, onTickerClick, onOpenDetail })
                   e.dataTransfer.setData('application/x-ticker', JSON.stringify({ symbol: chartSym, name: c.label, type: 'CRYPTO' }));
                 }}
                 onClick={() => onTickerClick?.(chartSym)}
-                onDoubleClick={() => onOpenDetail?.(c.symbol)}
+                onDoubleClick={() => onOpenDetail?.(chartSym)}
                 onTouchStart={(e) => { e.stopPropagation(); clearTimeout(ptRef.current); ptRef.current = setTimeout(() => onOpenDetail?.(c.symbol), 500); }}
                 onTouchEnd={() => clearTimeout(ptRef.current)}
                 onTouchMove={() => clearTimeout(ptRef.current)}

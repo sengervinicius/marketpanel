@@ -24,6 +24,17 @@ export function FeedStatusProvider({ status, children }) {
 export function useFeedStatus() {
   const status = useContext(FeedStatusContext);
   const getStatus  = (feed) => status?.[feed] ?? 'connecting';
+
+  // Returns the worst status across all feeds:
+  // 'error' > 'degraded' > 'connecting' > 'live'
+  const getOverallStatus = () => {
+    const feeds = Object.values(status || {});
+    if (feeds.includes('error'))     return 'error';
+    if (feeds.includes('degraded'))  return 'degraded';
+    if (feeds.includes('connecting')) return 'connecting';
+    return 'live';
+  };
+
   const getColor   = (feed) => {
     const lvl = getStatus(feed);
     if (lvl === 'live')     return '#00cc66';
@@ -38,5 +49,5 @@ export function useFeedStatus() {
     if (lvl === 'error')    return { text: 'FEED DOWN',   color: '#ff3333', bg: '#1a0000' };
     return                          { text: 'CONNECTING', color: '#444',    bg: '#111' };
   };
-  return { status, getStatus, getColor, getBadge };
+  return { status, getStatus, getOverallStatus, getColor, getBadge };
 }

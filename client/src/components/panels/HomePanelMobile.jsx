@@ -27,7 +27,7 @@ function fmtPrice(v, dec = 2) {
   });
 }
 
-// World clock (NY, SP, LDN)
+// World clock (NY, SP, LDN) — updates every minute (seconds not displayed)
 function WorldClock() {
   const [times, setTimes] = useState({});
   useEffect(() => {
@@ -40,7 +40,7 @@ function WorldClock() {
       });
     };
     update();
-    const interval = setInterval(update, 1000);
+    const interval = setInterval(update, 60000); // 1-minute interval (seconds not displayed)
     return () => clearInterval(interval);
   }, []);
   const fmt = (d) => {
@@ -70,9 +70,6 @@ function displaySymbol(sym) {
   return sym;
 }
 
-// Panels that should appear as mobile boxes (editable data panels only)
-const BOX_PANEL_IDS = ['usEquities', 'brazilB3', 'globalIndices', 'forex', 'crypto', 'commodities'];
-
 function HomePanelMobile({ onOpenDetail, onSearchClick }) {
   const stocksData = useStocksData();
   const forexData = useForexData();
@@ -86,10 +83,8 @@ function HomePanelMobile({ onOpenDetail, onSearchClick }) {
   // Derive boxes from desktop panel settings + layout order
   const boxes = useMemo(() => {
     const desktopRows = settings?.layout?.desktopRows || [];
-    // Flatten desktop rows to get panel order, filter to box-eligible panels
-    const orderedIds = desktopRows.flat().filter(id => BOX_PANEL_IDS.includes(id));
-    // Add any BOX_PANEL_IDS not in layout (in case layout is custom)
-    BOX_PANEL_IDS.forEach(id => { if (!orderedIds.includes(id)) orderedIds.push(id); });
+    // Flatten desktop rows to get panel order
+    const orderedIds = desktopRows.flat();
 
     return orderedIds.map(panelId => {
       const userCfg = settings?.panels?.[panelId] || {};
@@ -124,6 +119,10 @@ function HomePanelMobile({ onOpenDetail, onSearchClick }) {
       backgroundColor: '#0a0a0a', color: '#e0e0e0', fontFamily: 'monospace',
       padding: 12, paddingBottom: 'calc(12px + env(safe-area-inset-bottom, 0px))',
       minHeight: '100vh', WebkitOverflowScrolling: 'touch', overflowY: 'auto',
+    },
+    skeleton: {
+      backgroundColor: '#111', border: '1px solid #1e1e1e', borderRadius: 6,
+      marginBottom: 10, height: 48, animation: 'pulse 1.5s ease-in-out infinite',
     },
     searchInput: {
       width: '100%', padding: 12, backgroundColor: '#0d0d0d',
@@ -178,6 +177,7 @@ function HomePanelMobile({ onOpenDetail, onSearchClick }) {
 
   return (
     <div style={S.container}>
+      <style>{`@keyframes pulse { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }`}</style>
       <WorldClock />
 
       {/* Search Bar */}
@@ -189,7 +189,15 @@ function HomePanelMobile({ onOpenDetail, onSearchClick }) {
       <div style={{ marginBottom: 12 }}>
         <div style={S.sectionTitle}>MY BOXES</div>
 
-        {boxes.map((box) => {
+        {boxes.length === 0 ? (
+          // Loading skeleton
+          <>
+            <div style={S.skeleton} />
+            <div style={S.skeleton} />
+            <div style={S.skeleton} />
+          </>
+        ) : (
+          boxes.map((box) => {
           const expanded = expandedBox === box.id;
           return (
             <div key={box.id} style={S.box}>
@@ -240,7 +248,8 @@ function HomePanelMobile({ onOpenDetail, onSearchClick }) {
               )}
             </div>
           );
-        })}
+          })
+        )}
       </div>
 
       {/* Today's Movers */}

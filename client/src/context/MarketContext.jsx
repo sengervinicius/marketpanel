@@ -19,6 +19,7 @@ const initialState = {
   forex:  {},
   crypto: {},
   indices:{},
+  rates: {},
   lastUpdated: null,
   lastSnapshotAt: null,
 };
@@ -27,13 +28,14 @@ function marketReducer(state, action) {
   switch (action.type) {
     case 'SNAPSHOT': {
       // Full REST snapshot: replace all categories
-      const { stocks, forex, crypto, indices, lastUpdated } = action.payload;
+      const { stocks, forex, crypto, indices, rates, lastUpdated } = action.payload;
       return {
         ...state,
         stocks:  stocks  || state.stocks,
         forex:   forex   || state.forex,
         crypto:  crypto  || state.crypto,
         indices: indices || stocks || state.indices,
+        rates:   rates   || state.rates,
         lastUpdated:    lastUpdated || state.lastUpdated,
         lastSnapshotAt: Date.now(),
       };
@@ -127,6 +129,12 @@ export function useCryptoData() {
 export function useIndicesData() {
   const { state } = useMarketContext();
   return useMemo(() => state.indices, [state.indices]);
+}
+
+/** Returns the rates map (fixed income / bond rates) */
+export function useRatesData() {
+  const { state } = useMarketContext();
+  return useMemo(() => state.rates, [state.rates]);
 }
 
 /** Returns an array of { symbol, price, changePct } sorted by |changePct| desc (top movers) */

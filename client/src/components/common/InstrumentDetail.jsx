@@ -311,9 +311,17 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
       .catch(() => setNewsLoading(false));
   }, [norm]);
 
-  // ── Escape key + mobile back-button support ────────────────────────────
+  // ── Focus management + Escape key + mobile back-button support ────────────────────────────
+  const closeButtonRef = useRef(null);
   const onCloseRef = useRef(onClose);
   useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
+
+  // Auto-focus close button on mount to trap focus and improve accessibility
+  useEffect(() => {
+    if (!asPage) {
+      closeButtonRef.current?.focus();
+    }
+  }, [asPage]);
 
   const closedByPopRef = useRef(false);
   useEffect(() => {
@@ -1287,8 +1295,9 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
 
         {/* ── Close button — FIRST so it always visible on mobile ── */}
         <button
+          ref={closeButtonRef}
           onClick={onClose}
-          title="Close"
+          title="Close (Esc)"
           style={{
             width: isMobile ? 36 : 26, height: isMobile ? 36 : 26, flexShrink: 0,
             borderRadius: '50%', border: '1px solid #2a2a2a',

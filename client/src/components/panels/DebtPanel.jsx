@@ -180,7 +180,9 @@ function DebtPanel() {
       apiFetch('/api/debt/credit/indexes')
         .then(r => r.json())
         .then(d => setIndexes(d.indexes || []))
-        .catch(() => {})
+        .catch(e => {
+          setError('Failed to load credit indexes: ' + (e?.message || 'Unknown error'));
+        })
         .finally(() => setLoading(false));
       return;
     }
@@ -195,7 +197,7 @@ function DebtPanel() {
       setIndexes(indexData.indexes || []);
       setLoading(false);
     }).catch(e => {
-      setError(e.message);
+      setError('Failed to load yield curve: ' + (e?.message || 'Unknown error'));
       setLoading(false);
     });
   }, [selectedCountry, view, getLiveCurve]);
@@ -252,7 +254,9 @@ function DebtPanel() {
       try {
         const d = await apiFetch('/api/debt/credit/indexes').then(r => r.json());
         setIndexes(d.indexes || []);
-      } catch {}
+      } catch (e) {
+        setError('Failed to load credit indexes: ' + (e?.message || 'Unknown error'));
+      }
     };
 
     buildRegional()
@@ -342,8 +346,8 @@ function DebtPanel() {
       </div>
 
       {loading && (
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#2a2a2a', fontSize: 11 }}>
-          Loading…
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#2a2a2a', fontSize: 11, fontFamily: "'Courier New', monospace" }}>
+          LOADING…
         </div>
       )}
 

@@ -8,6 +8,8 @@ import { createContext, useContext, useState, useCallback } from 'react';
 
 const WatchlistContext = createContext(null);
 const LS_KEY = 'senger_watchlist_v1';
+// Maximum watchlist size and duplicate protection (case-insensitive)
+const MAX_WATCHLIST_SIZE = 50;
 
 function loadWatchlist() {
   try {
@@ -23,15 +25,21 @@ export function WatchlistProvider({ children }) {
   const [watchlist, setWatchlist] = useState(loadWatchlist);
 
   const save = useCallback((next) => {
-    setWatchlist(next);
-    localStorage.setItem(LS_KEY, JSON.stringify(next));
+    // Validate: must be an array and capped at MAX_WATCHLIST_SIZE
+    if (!Array.isArray(next)) return;
+    const validated = next.slice(0, MAX_WATCHLIST_SIZE);
+    setWatchlist(validated);
+    localStorage.setItem(LS_KEY, JSON.stringify(validated));
   }, []);
 
   const addTicker = useCallback((symbol) => {
     setWatchlist(prev => {
-      if (prev.includes(symbol)) return prev;
-      if (prev.length >= 50) return prev;
-      const next = [...prev, symbol.toUpperCase()];
+      const upper = symbol.toUpperCase();
+      // Duplicate protection: case-insensitive check
+      if (prev.some(s => s.toUpperCase() === upper)) return prev;
+      // Enforce max size
+      if (prev.length >= MAX_WATCHLIST_SIZE) return prev;
+      const next = [...prev, upper];
       localStorage.setItem(LS_KEY, JSON.stringify(next));
       return next;
     });

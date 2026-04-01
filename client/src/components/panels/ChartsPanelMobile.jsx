@@ -19,13 +19,22 @@ const SYNC_INTERVAL = 30000; // Refresh every 30 seconds
  */
 function ChartsPanelMobile({ onOpenDetail }) {
   const [chartSymbols, setChartSymbols] = useState(['SPY', 'QQQ']);
-  const [activeSymbol, setActiveSymbol] = useState('SPY');
+  const [activeSymbol, setActiveSymbol] = useState(() => {
+    try {
+      return sessionStorage.getItem('activeChartSymbol') || 'SPY';
+    } catch {
+      return 'SPY';
+    }
+  });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const syncTimerRef = useRef(null);
 
   // Fetch chartGrid from server on mount and periodically
   useEffect(() => {
     const fetchChartGrid = async () => {
       try {
+        setError(null);
         const res = await apiFetch('/api/settings');
         if (res.ok) {
           const data = await res.json();
@@ -37,9 +46,13 @@ function ChartsPanelMobile({ onOpenDetail }) {
               setActiveSymbol(grid[0]);
             }
           }
+        } else {
+          setError('Failed to load charts');
         }
       } catch (err) {
-        // Fail silently, keep current symbols
+        setError('Unable to fetch chart data');
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -49,6 +62,15 @@ function ChartsPanelMobile({ onOpenDetail }) {
     syncTimerRef.current = setInterval(fetchChartGrid, SYNC_INTERVAL);
     return () => clearInterval(syncTimerRef.current);
   }, []);
+
+  // Persist active symbol to sessionStorage
+  useEffect(() => {
+    try {
+      sessionStorage.setItem('activeChartSymbol', activeSymbol);
+    } catch {
+      // Ignore sessionStorage errors
+    }
+  }, [activeSymbol]);
 
   // Ensure activeSymbol is in the list
   const currentSymbol = chartSymbols.includes(activeSymbol) ? activeSymbol : chartSymbols[0];
@@ -61,6 +83,20 @@ function ChartsPanelMobile({ onOpenDetail }) {
       background: '#0a0a0a',
       fontFamily: 'monospace',
     }}>
+      {/* Error message */}
+      {error && (
+        <div style={{
+          padding: '8px 12px',
+          backgroundColor: '#3a1010',
+          borderBottom: '1px solid #6a2020',
+          color: '#ff6666',
+          fontSize: 10,
+          flexShrink: 0,
+        }}>
+          {error}
+        </div>
+      )}
+
       {/* Symbol selector bar — read-only, tap to switch displayed chart */}
       <div style={{
         display: 'flex',
@@ -73,28 +109,32 @@ function ChartsPanelMobile({ onOpenDetail }) {
         // Hide scrollbar but keep scroll functionality
         scrollbarWidth: 'none',
       }}>
-        {chartSymbols.map((sym) => (
-          <button
-            key={sym}
-            onClick={() => setActiveSymbol(sym)}
-            style={{
-              padding: '7px 12px',
-              fontSize: 11,
-              fontFamily: 'monospace',
-              background: currentSymbol === sym ? '#ff6600' : '#111',
-              color: currentSymbol === sym ? '#000' : '#888',
-              border: `1px solid ${currentSymbol === sym ? '#ff6600' : '#2a2a2a'}`,
-              borderRadius: 2,
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-              fontWeight: currentSymbol === sym ? 'bold' : 'normal',
-              letterSpacing: '0.05em',
-              flexShrink: 0,
-            }}
-          >
-            {sym}
-          </button>
-        ))}
+        {loading ? (
+          <div style={{ color: '#444', fontSize: 10, padding: '4px 12px' }}>Loading charts…</div>
+        ) : (
+          chartSymbols.map((sym) => (
+            <button
+              key={sym}
+              onClick={() => setActiveSymbol(sym)}
+              style={{
+                padding: '7px 12px',
+                fontSize: 11,
+                fontFamily: 'monospace',
+                background: currentSymbol === sym ? '#ff6600' : '#111',
+                color: currentSymbol === sym ? '#000' : '#888',
+                border: `1px solid ${currentSymbol === sym ? '#ff6600' : '#2a2a2a'}`,
+                borderRadius: 2,
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                fontWeight: currentSymbol === sym ? 'bold' : 'normal',
+                letterSpacing: '0.05em',
+                flexShrink: 0,
+              }}
+            >
+              {sym}
+            </button>
+          ))
+        )}
       </div>
 
       {/* Chart */}

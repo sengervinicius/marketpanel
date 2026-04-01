@@ -69,8 +69,9 @@ function CommoditiesPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
   const [collapsed, setCollapsed] = useState(false);
   const [configOpen, setConfigOpen] = useState(false);
   const [searchFilter, setSearchFilter] = useState('');
+  const [moversOnly, setMoversOnly] = useState(false);
   const { getBadge } = useFeedStatus();
-  const badge = getBadge('stocks'); // commodities are equities/ETFs
+  const badge = getBadge('commodities');
 
   const saveCfg = useCallback((updates) => {
     updatePanelConfig('commodities', { ...panelCfg, ...updates });
@@ -164,6 +165,10 @@ function CommoditiesPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
           c.symbol.toLowerCase().includes(sq) || (c.label || '').toLowerCase().includes(sq)
         );
       }
+      // Apply movers filter (≥2%)
+      if (moversOnly) {
+        items = items.filter(c => Math.abs(data[c.symbol]?.changePct ?? 0) >= 2);
+      }
       if (sortKey && data) {
         items = [...items].sort((a, b) => {
           let va, vb;
@@ -177,7 +182,7 @@ function CommoditiesPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
       }
       return { ...g, items };
     });
-  }, [data, sortKey, sortDir, panelSymbols, searchFilter]);
+  }, [data, sortKey, sortDir, panelSymbols, searchFilter, moversOnly]);
 
   return (
     <div
@@ -207,6 +212,11 @@ function CommoditiesPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
           title={collapsed ? 'Expand' : 'Collapse'}
           style={{ background: 'none', border: '1px solid #2a2a2a', color: '#555', fontSize: 9, padding: '1px 5px', cursor: 'pointer', fontFamily: 'inherit', borderRadius: 2 }}
         >{collapsed ? '+' : '−'}</button>
+        <button
+          onClick={() => setMoversOnly(v => !v)}
+          title="Show only movers ≥ 2%"
+          style={{ background: moversOnly ? '#1a1000' : 'none', border: `1px solid ${moversOnly ? '#ff9900' : '#2a2a2a'}`, color: moversOnly ? '#ff9900' : '#444', fontSize: 7, padding: '1px 4px', cursor: 'pointer', fontFamily: 'inherit', borderRadius: 2 }}
+        >≥2%</button>
       </EditablePanelHeader>
 
       {!collapsed && (<>

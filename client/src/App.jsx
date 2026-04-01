@@ -23,7 +23,7 @@ import DebtPanel from './components/panels/DebtPanel';
 import BrazilPanel from './components/panels/BrazilPanel';
 import GlobalIndicesPanel from './components/panels/GlobalIndicesPanel';
 import WatchlistPanel from './components/panels/WatchlistPanel';
-import { DEFAULT_LAYOUT } from './config/panels';
+import { DEFAULT_LAYOUT, PANEL_DEFINITIONS } from './config/panels';
 import WatchlistPanelMobile from './components/panels/WatchlistPanelMobile';
 import { ChatPanel } from './components/panels/ChatPanel';
 import HomePanelMobile from './components/panels/HomePanelMobile';
@@ -113,6 +113,7 @@ function ColResizeHandle({ onStart }) {
 
 // ── Layout Move Overlay ──────────────────────────────────────────────────────
 // Shown over each panel when layout-edit mode is active
+// Displays directional movement buttons and the panel name
 function LayoutMoveOverlay({ panelId, rowIdx, colIdx, rowLen, totalRows, onMove }) {
   const btn = (dir, label, disabled) => (
     <button
@@ -128,6 +129,9 @@ function LayoutMoveOverlay({ panelId, rowIdx, colIdx, rowLen, totalRows, onMove 
       }}
     >{label}</button>
   );
+  // Get panel label from PANEL_DEFINITIONS for better UX
+  const panelLabel = PANEL_DEFINITIONS[panelId]?.label || panelId;
+
   return (
     <div style={{
       position: 'absolute', inset: 0, zIndex: 50,
@@ -143,8 +147,8 @@ function LayoutMoveOverlay({ panelId, rowIdx, colIdx, rowLen, totalRows, onMove 
             background: '#0d0d0d', border: '1px solid #2a2a2a',
             borderRadius: 3, padding: '2px 8px',
             color: '#ff6600', fontSize: 9, fontWeight: 700, letterSpacing: '0.5px',
-            whiteSpace: 'nowrap', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis',
-          }}>{panelId}</div>
+            whiteSpace: 'nowrap', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis',
+          }}>{panelLabel}</div>
           {btn('right', '→', colIdx === rowLen - 1)}
         </div>
         {btn('down',  '↓', rowIdx === totalRows - 1)}
@@ -193,6 +197,7 @@ function makePanelRenderer(panelId, props) {
 }
 
 // ── Resizable row-flex hook ──────────────────────────────────────────────────
+// Supports drag to resize and double-click to reset to equal distribution
 function useResizableFlex(storageKey, defaults) {
   const [sizes, setSizes] = useState(() => {
     try {
@@ -202,8 +207,19 @@ function useResizableFlex(storageKey, defaults) {
   });
   const sizesRef = useRef(sizes);
   const cleanupRef = useRef(null);
+  const lastClickRef = useRef(null);
   useEffect(() => { sizesRef.current = sizes; }, [sizes]);
   const startResize = useCallback((idx, e) => {
+    // Double-click detection: reset to equal distribution
+    const now = Date.now();
+    if (lastClickRef.current && now - lastClickRef.current < 300) {
+      const equalSizes = Array(defaults.length).fill(1);
+      setSizes(equalSizes);
+      lastClickRef.current = null;
+      return;
+    }
+    lastClickRef.current = now;
+
     const startY = e.clientY;
     const startSizes = [...sizesRef.current];
     const totalFlex = startSizes.reduce((a, b) => a + b, 0);
@@ -228,7 +244,7 @@ function useResizableFlex(storageKey, defaults) {
     };
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
-  }, []);
+  }, [defaults]);
   // Debounce localStorage writes to avoid excessive I/O during drag
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -246,6 +262,7 @@ function useResizableFlex(storageKey, defaults) {
 }
 
 // ── Resizable column-flex hook ───────────────────────────────────────────────
+// Supports drag to resize and double-click to reset to equal distribution
 function useResizableColumns(storageKey, defaults) {
   const [sizes, setSizes] = useState(() => {
     try {
@@ -255,8 +272,19 @@ function useResizableColumns(storageKey, defaults) {
   });
   const sizesRef = useRef(sizes);
   const cleanupRef = useRef(null);
+  const lastClickRef = useRef(null);
   useEffect(() => { sizesRef.current = sizes; }, [sizes]);
   const startResize = useCallback((idx, e) => {
+    // Double-click detection: reset to equal distribution
+    const now = Date.now();
+    if (lastClickRef.current && now - lastClickRef.current < 300) {
+      const equalSizes = Array(defaults.length).fill(1);
+      setSizes(equalSizes);
+      lastClickRef.current = null;
+      return;
+    }
+    lastClickRef.current = now;
+
     const startX = e.clientX;
     const startSizes = [...sizesRef.current];
     const totalFlex = startSizes.reduce((a, b) => a + b, 0);
@@ -281,7 +309,7 @@ function useResizableColumns(storageKey, defaults) {
     };
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
-  }, []);
+  }, [defaults]);
   // Debounce localStorage writes to avoid excessive I/O during drag
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -299,22 +327,11 @@ function useResizableColumns(storageKey, defaults) {
 }
 
 // ── Settings Drawer ──────────────────────────────────────────────────────────
-const PANEL_DEFS = [
-  { id: 'charts',       label: 'Chart Grid' },
-  { id: 'usEquities',   label: 'US Equities' },
-  { id: 'forex',        label: 'FX / Rates' },
-  { id: 'crypto',       label: 'Crypto' },
-  { id: 'globalIndices',label: 'Global Indexes' },
-  { id: 'brazilB3',     label: 'Brazil B3' },
-  { id: 'commodities',  label: 'Commodities' },
-  { id: 'watchlist',    label: 'Watchlist' },
-  { id: 'debt',         label: 'Debt Markets' },
-  { id: 'curves',       label: 'Yield Curves' },
-  { id: 'search',       label: 'Search' },
-  { id: 'news',         label: 'News' },
-  { id: 'sentiment',    label: 'Sentiment' },
-  { id: 'chat',         label: 'Chat' },
-];
+// Convert PANEL_DEFINITIONS to array of { id, label }
+const PANEL_DEFS = Object.values(PANEL_DEFINITIONS).map(def => ({
+  id: def.id,
+  label: def.label,
+}));
 
 const START_PAGE_OPTIONS = [
   { value: '/',          label: 'HOME' },
@@ -344,6 +361,7 @@ function SettingsSection({ label }) {
 function SettingsDrawer({ panelVisible, togglePanel, onClose }) {
   const { settings, updateSettings, applyPreset } = useSettings();
   const [applyingPreset, setApplyingPreset] = useState(null);
+  const [resettingLayout, setResettingLayout] = useState(false);
 
   const defaultStartPage = settings?.defaultStartPage || '/';
   const theme = settings?.theme || 'dark';
@@ -354,11 +372,30 @@ function SettingsDrawer({ panelVisible, togglePanel, onClose }) {
     setApplyingPreset(key);
     try { await applyPreset(key); } finally { setApplyingPreset(null); }
   };
+  const handleResetLayout = async () => {
+    setResettingLayout(true);
+    try {
+      await updateSettings({ layout: DEFAULT_LAYOUT });
+    } finally {
+      setResettingLayout(false);
+    }
+  };
 
   const rowStyle = {
     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
     padding: '5px 12px', cursor: 'pointer', borderBottom: '1px solid #141414',
+    transition: 'background-color 100ms ease-out',
   };
+
+  const makeRowClickable = (handler) => ({
+    onClick: handler,
+    onKeyDown: (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        handler();
+      }
+    },
+  });
 
   return (
     <div style={{
@@ -366,17 +403,43 @@ function SettingsDrawer({ panelVisible, togglePanel, onClose }) {
       background: '#0d0d0d', border: '1px solid #2a2a2a', borderTop: 'none',
       width: 260, maxHeight: 'calc(100vh - 60px)', overflowY: 'auto',
       boxShadow: '0 8px 32px rgba(0,0,0,0.8)',
+      animation: 'slideInRight 200ms ease-out',
     }}>
+      <style>{`
+        @keyframes slideInRight {
+          from {
+            opacity: 0;
+            transform: translateX(12px);
+          }
+          to {
+            opacity: 1;
+            transform: translateX(0);
+          }
+        }
+      `}</style>
+
       {/* Drawer header */}
       <div style={{ padding: '6px 12px', borderBottom: '1px solid #1a1a1a', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <span style={{ color: '#ff6600', fontSize: 9, fontWeight: 700, letterSpacing: '1px' }}>SETTINGS</span>
-        <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#444', cursor: 'pointer', fontSize: 12, padding: 0 }}>✕</button>
+        <button
+          onClick={onClose}
+          title="Close (Esc)"
+          style={{ background: 'none', border: 'none', color: '#444', cursor: 'pointer', fontSize: 12, padding: 0 }}
+          aria-label="Close settings"
+        >
+          ✕
+        </button>
       </div>
 
       {/* ── Default Start Page ── */}
       <SettingsSection label="DEFAULT START PAGE" />
       {START_PAGE_OPTIONS.map(({ value, label }) => (
-        <div key={value} onClick={() => handleStartPage(value)} style={rowStyle}
+        <div
+          key={value}
+          role="button"
+          tabIndex={0}
+          style={rowStyle}
+          {...makeRowClickable(() => handleStartPage(value))}
           onMouseEnter={e => e.currentTarget.style.background = '#141414'}
           onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
         >
@@ -387,7 +450,11 @@ function SettingsDrawer({ panelVisible, togglePanel, onClose }) {
 
       {/* ── Theme ── */}
       <SettingsSection label="APPEARANCE" />
-      <div onClick={handleTheme} style={rowStyle}
+      <div
+        role="button"
+        tabIndex={0}
+        style={rowStyle}
+        {...makeRowClickable(handleTheme)}
         onMouseEnter={e => e.currentTarget.style.background = '#141414'}
         onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
       >
@@ -398,9 +465,15 @@ function SettingsDrawer({ panelVisible, togglePanel, onClose }) {
       {/* ── Workspace Presets ── */}
       <SettingsSection label="APPLY WORKSPACE PRESET" />
       {PRESET_LIST.map(({ key, label }) => (
-        <div key={key} onClick={() => !applyingPreset && handlePreset(key)} style={{ ...rowStyle, cursor: applyingPreset ? 'wait' : 'pointer' }}
+        <div
+          key={key}
+          role="button"
+          tabIndex={0}
+          style={{ ...rowStyle, cursor: applyingPreset ? 'wait' : 'pointer' }}
+          {...makeRowClickable(() => !applyingPreset && handlePreset(key))}
           onMouseEnter={e => e.currentTarget.style.background = '#141414'}
           onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+          aria-busy={applyingPreset === key}
         >
           <span style={{ color: '#888', fontSize: 9, letterSpacing: '0.5px' }}>{label}</span>
           {applyingPreset === key
@@ -409,14 +482,36 @@ function SettingsDrawer({ panelVisible, togglePanel, onClose }) {
         </div>
       ))}
 
+      {/* ── Reset Layout ── */}
+      <SettingsSection label="LAYOUT" />
+      <div
+        role="button"
+        tabIndex={0}
+        style={rowStyle}
+        {...makeRowClickable(handleResetLayout)}
+        onMouseEnter={e => e.currentTarget.style.background = '#141414'}
+        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+      >
+        <span style={{ color: '#888', fontSize: 9, letterSpacing: '0.5px' }}>Reset to Default</span>
+        {resettingLayout
+          ? <span style={{ color: '#ff6600', fontSize: 8 }}>RESETTING…</span>
+          : <span style={{ color: '#444', fontSize: 8, letterSpacing: '0.5px' }}>↻ RESET</span>}
+      </div>
+
       {/* ── Panel Visibility ── */}
       <SettingsSection label="PANEL VISIBILITY" />
       {PANEL_DEFS.map(({ id, label }) => {
         const visible = panelVisible[id] ?? true;
         return (
-          <div key={id} onClick={() => togglePanel(id)} style={rowStyle}
+          <div
+            key={id}
+            role="button"
+            tabIndex={0}
+            style={rowStyle}
+            {...makeRowClickable(() => togglePanel(id))}
             onMouseEnter={e => e.currentTarget.style.background = '#141414'}
             onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+            aria-pressed={visible}
           >
             <span style={{ color: visible ? '#ccc' : '#444', fontSize: 9, letterSpacing: '0.5px' }}>{label}</span>
             <span style={{ color: visible ? '#00cc66' : '#333', fontSize: 9, fontWeight: 700 }}>
@@ -920,6 +1015,7 @@ export default function App() {
 
   const handleLayoutMove = useCallback((panelId, rowIdx, colIdx, direction) => {
     const newRows = desktopRows.map(r => [...r]);
+
     if (direction === 'left' && colIdx > 0) {
       [newRows[rowIdx][colIdx], newRows[rowIdx][colIdx - 1]] = [newRows[rowIdx][colIdx - 1], newRows[rowIdx][colIdx]];
     } else if (direction === 'right' && colIdx < newRows[rowIdx].length - 1) {
@@ -930,11 +1026,23 @@ export default function App() {
     } else if (direction === 'down' && rowIdx < newRows.length - 1) {
       newRows[rowIdx].splice(colIdx, 1);
       newRows[rowIdx + 1].unshift(panelId);
+    } else if (direction === 'down' && rowIdx === newRows.length - 1 && newRows.length < 4) {
+      // Allow adding a 4th row if moving down from the last row
+      newRows[rowIdx].splice(colIdx, 1);
+      newRows.push([panelId]);
     }
-    // Remove empty rows (keep at least 1)
-    const pruned = newRows.filter(r => r.length > 0);
-    while (pruned.length < 3) pruned.push([]);
-    updateLayout({ desktopRows: pruned });
+
+    // Prevent creating empty rows (keep at least 1 panel per non-empty row)
+    const nonEmptyRows = newRows.filter(r => r.length > 0);
+    // If all rows are empty, restore the original layout
+    if (nonEmptyRows.length === 0) {
+      return;
+    }
+
+    // Pad to 3 rows minimum if we have fewer than 3
+    while (nonEmptyRows.length < 3) nonEmptyRows.push([]);
+
+    updateLayout({ desktopRows: nonEmptyRows });
   }, [desktopRows, updateLayout]);
 
   const [rowSizes, startRowResize] = useResizableFlex('rowFlexSizes_v2', [2, 1.5, 1.5]);

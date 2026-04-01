@@ -71,3 +71,27 @@ export function decimalsForPrice(price) {
   if (price < 10)    return 3;
   return 2;
 }
+
+export function fmtBps(n) {
+  if (n == null || isNaN(n)) return '—';
+  const sign = n >= 0 ? '+' : '';
+  return `${sign}${Math.round(n)} bps`;
+}
+
+export function fmtMarketCap(n) {
+  if (n == null || isNaN(n)) return '—';
+  if (n >= 1_000_000_000_000) return `${(n / 1_000_000_000_000).toFixed(1)}T`;
+  if (n >= 1_000_000_000) return `${(n / 1_000_000_000).toFixed(1)}B`;
+  if (n >= 1_000_000)     return `${(n / 1_000_000).toFixed(1)}M`;
+  return String(n);
+}
+
+export function fmtDate(isoStr) {
+  if (!isoStr) return '—';
+  try {
+    const date = new Date(isoStr);
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  } catch {
+    return '—';
+  }
+}

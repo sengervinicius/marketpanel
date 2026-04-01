@@ -120,8 +120,8 @@ function ForexPanel({ data = {}, cryptoData = {}, loading, onTickerClick, onOpen
 
   const sortedForex  = useMemo(() =>
     sortPairs(filteredForexPairs,
-      p => { const d = data?.[p.symbol] || {}; return d.mid || d.ask || d.price; },
-      p => data?.[p.symbol]?.changePct,
+      p => { const d = data?.[p.symbol] || {}; return (d.mid ?? d.ask ?? d.price) || null; },
+      p => data?.[p.symbol]?.changePct ?? null,
       sortKey, sortDir),
   [data, sortKey, sortDir, filteredForexPairs]);
 
@@ -286,8 +286,8 @@ function ForexPanel({ data = {}, cryptoData = {}, loading, onTickerClick, onOpen
                   onMouseEnter={e => e.currentTarget.style.background = '#141414'}
                   onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                 >
-                  <span style={{ color: '#ce93d8', fontSize: '10px', fontWeight: 700 }}>{pair.label}</span>
-                  <span style={{ color: '#333', fontSize: '9px' }}></span>
+                  <span style={{ color: '#ce93d8', fontSize: '10px', fontWeight: 700 }}>{pair.symbol}</span>
+                  <span style={{ color: '#555', fontSize: '9px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: 4 }}>{pair.label}</span>
                   <span style={{ color: '#ccc', fontSize: '10px', textAlign: 'right', paddingRight: 4 }}>{fmt4(price)}</span>
                   <span style={{ color: pos ? '#4caf50' : '#f44336', fontSize: '10px', textAlign: 'right', fontWeight: 600 }}>{fmtPct(d.changePct)}</span>
                 </div>

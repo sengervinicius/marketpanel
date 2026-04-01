@@ -46,6 +46,8 @@ function GlobalIndicesPanel({ data = {}, loading, onTickerClick, onOpenDetail })
 
   const [configOpen, setConfigOpen] = useState(false);
   const [searchFilter, setSearchFilter] = useState('');
+  const [sortKey, setSortKey] = useState(null);
+  const [sortDir, setSortDir] = useState('desc');
 
   const handleDropTicker = (ticker) => {
     const sym = ticker.toUpperCase();
@@ -58,6 +60,11 @@ function GlobalIndicesPanel({ data = {}, loading, onTickerClick, onOpenDetail })
     : p.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const fmtPct   = p => (!p && p !== 0) ? '—' : `${p >= 0 ? '+' : ''}${p.toFixed(2)}%`;
   const color    = p => !p ? '#888' : p >= 0 ? '#00c853' : '#f44336';
+
+  const handleSortClick = (key) => {
+    if (sortKey === key) setSortDir(d => d === 'desc' ? 'asc' : 'desc');
+    else { setSortKey(key); setSortDir('desc'); }
+  };
 
   const panelStyle = {
     background: '#0d0d14', display: 'flex', flexDirection: 'column',
@@ -99,6 +106,24 @@ function GlobalIndicesPanel({ data = {}, loading, onTickerClick, onOpenDetail })
     );
   }
 
+  // Apply sorting within regions
+  if (sortKey && data) {
+    REGIONS_filtered = Object.fromEntries(
+      Object.entries(REGIONS_filtered).map(([key, region]) => [
+        key,
+        { ...region, tickers: [...region.tickers].sort((a, b) => {
+          let va, vb;
+          if (sortKey === 'symbol') { va = a; vb = b; }
+          else if (sortKey === 'name') { va = NAMES[a] || a; vb = NAMES[b] || b; }
+          else if (sortKey === 'price') { va = data[a]?.price ?? -Infinity; vb = data[b]?.price ?? -Infinity; }
+          else if (sortKey === 'chg')   { va = data[a]?.changePct ?? -Infinity; vb = data[b]?.changePct ?? -Infinity; }
+          if (typeof va === 'string') return sortDir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va);
+          return sortDir === 'asc' ? va - vb : vb - va;
+        })}
+      ])
+    );
+  }
+
   return (
     <div style={panelStyle} onDragOver={handlePanelDragOver} onDrop={makePanelDropHandler(handleDropTicker)}>
       <EditablePanelHeader
@@ -117,8 +142,39 @@ function GlobalIndicesPanel({ data = {}, loading, onTickerClick, onOpenDetail })
         onDropTicker={handleDropTicker}
         onSearchChange={setSearchFilter}
       >
-        {loading && <span style={{ color: '#444', fontSize: 7 }}>Loading...</span>}
+        {loading && <span style={{ color: '#444', fontSize: 7 }}>LOADING...</span>}
       </EditablePanelHeader>
+
+      {/* Sortable column headers */}
+      <div style={{ display: 'grid', gridTemplateColumns: '44px 1fr 56px 52px', padding: '2px 6px', borderBottom: '1px solid #1a1a2e', flexShrink: 0 }}>
+        {[
+          { key: 'symbol', label: 'TICK', align: 'left' },
+          { key: 'name', label: 'NAME', align: 'left' },
+          { key: 'price', label: 'LAST', align: 'right' },
+          { key: 'chg', label: 'CHG%', align: 'right' },
+        ].map(({ key, label, align }) => {
+          const active = sortKey === key;
+          const arrow = active ? (sortDir === 'desc' ? ' ▼' : ' ▲') : '';
+          return (
+            <span
+              key={key}
+              onClick={() => handleSortClick(key)}
+              style={{
+                color: active ? '#ff9900' : '#444',
+                fontSize: '8px',
+                fontWeight: 700,
+                letterSpacing: '1px',
+                textAlign: align === 'right' ? 'right' : 'left',
+                paddingRight: align === 'right' ? 4 : 0,
+                cursor: 'pointer',
+                userSelect: 'none',
+              }}
+            >
+              {label}{arrow}
+            </span>
+          );
+        })}
+      </div>
       <div style={{ overflowY: 'auto', flex: 1 }}>
         {Object.entries(REGIONS_filtered).map(([key, region]) => (
           <div key={key}>
@@ -141,7 +197,7 @@ function GlobalIndicesPanel({ data = {}, loading, onTickerClick, onOpenDetail })
                       JSON.stringify({ symbol: ticker, label: NAMES[ticker] || ticker }));
                     e.dataTransfer.effectAllowed = 'copy';
                   }}
-                  onClick={() => onTickerClick?.({ symbol: ticker, label: NAMES[ticker] || ticker })}
+                  onClick={() => onTickerClick?.(ticker)}
                   onDoubleClick={() => onOpenDetail?.(ticker)}
                   onContextMenu={e => showInfo(e, ticker, NAMES[ticker] || ticker, 'ETF')}
                   onTouchStart={(e) => { e.stopPropagation(); ptRef.current = setTimeout(() => onOpenDetail?.(ticker), 500); }}
