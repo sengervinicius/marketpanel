@@ -10,7 +10,7 @@
 import { useState, useMemo, memo } from 'react';
 import { useStocksData, useForexData, useCryptoData } from '../../context/MarketContext';
 import { useSettings } from '../../context/SettingsContext';
-import { useWatchlist } from '../../context/WatchlistContext';
+import { useWatchlist } from '../../context/PortfolioContext';
 import { PANEL_DEFINITIONS } from '../../config/panels';
 
 // Formatting helpers

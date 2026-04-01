@@ -6,7 +6,7 @@ import { useAuth } from './context/AuthContext';
 import { useSettings } from './context/SettingsContext';
 import { PriceProvider } from './context/PriceContext';
 import { FeedStatusProvider } from './context/FeedStatusContext';
-import { WatchlistProvider } from './context/WatchlistContext';
+import { PortfolioProvider } from './context/PortfolioContext';
 import { MarketProvider, useMarketDispatch } from './context/MarketContext';
 import { DragProvider } from './context/DragContext';
 import { IndexPanel } from './components/panels/IndexPanel';
@@ -22,9 +22,9 @@ import { DICurvePanel } from './components/panels/DICurvePanel';
 import DebtPanel from './components/panels/DebtPanel';
 import BrazilPanel from './components/panels/BrazilPanel';
 import GlobalIndicesPanel from './components/panels/GlobalIndicesPanel';
-import WatchlistPanel from './components/panels/WatchlistPanel';
+import PortfolioPanel from './components/panels/PortfolioPanel';
 import { DEFAULT_LAYOUT, PANEL_DEFINITIONS } from './config/panels';
-import WatchlistPanelMobile from './components/panels/WatchlistPanelMobile';
+import PortfolioMobile from './components/panels/PortfolioMobile';
 import { ChatPanel } from './components/panels/ChatPanel';
 import HomePanelMobile from './components/panels/HomePanelMobile';
 import ChartsPanelMobile from './components/panels/ChartsPanelMobile';
@@ -183,7 +183,7 @@ function makePanelRenderer(panelId, props) {
     case 'news':
       return <NewsPanel />;
     case 'watchlist':
-      return <WatchlistPanel onTickerClick={setChartTicker} onOpenDetail={setDetailTicker} />;
+      return <PortfolioPanel onTickerClick={setChartTicker} onOpenDetail={setDetailTicker} />;
     case 'sentiment':
       return <SentimentPanel />;
     case 'chat':
@@ -337,7 +337,7 @@ const PANEL_DEFS = Object.values(PANEL_DEFINITIONS).map(def => ({
 const START_PAGE_OPTIONS = [
   { value: '/',          label: 'HOME' },
   { value: '/charts',    label: 'CHARTS' },
-  { value: '/watchlist', label: 'WATCHLIST' },
+  { value: '/watchlist', label: 'PORTFOLIO' },
   { value: '/search',    label: 'SEARCH' },
   { value: '/news',      label: 'NEWS' },
 ];
@@ -824,7 +824,7 @@ function SubscriptionExpiredScreen({ onUpgrade, onLogout, onManageBilling, check
 const MOBILE_TABS = [
   { id: 'home',      label: 'Home' },
   { id: 'charts',    label: 'Charts' },
-  { id: 'watchlist', label: 'Watchlist' },
+  { id: 'watchlist', label: 'Portfolio' },
   { id: 'more',      label: 'More' },
 ];
 
@@ -1140,7 +1140,7 @@ export default function App() {
   if (!isMobile) {
     return (
       <DragProvider>
-      <WatchlistProvider>
+      <PortfolioProvider>
       <FeedStatusProvider status={feedStatus}>
       <MarketProvider restData={mergedData}>
       <PriceProvider marketData={data}>
@@ -1255,7 +1255,7 @@ export default function App() {
       </PriceProvider>
       </MarketProvider>
       </FeedStatusProvider>
-      </WatchlistProvider>
+      </PortfolioProvider>
       </DragProvider>
     );
   }
@@ -1270,7 +1270,7 @@ export default function App() {
 
   return (
     <DragProvider>
-    <WatchlistProvider>
+    <PortfolioProvider>
     <FeedStatusProvider status={feedStatus}>
     <MarketProvider restData={mergedData}>
     <MarketTickBridge batchTicks={batchTicks} />
@@ -1363,7 +1363,7 @@ export default function App() {
             )}
 
             {activeTab === 'watchlist' && (
-              <WatchlistPanelMobile
+              <PortfolioMobile
                 onOpenDetail={goDetail}
                 onManage={() => { setActiveTabPersist('more'); setMoreView('search'); }}
               />
@@ -1457,7 +1457,7 @@ export default function App() {
     </PriceProvider>
     </MarketProvider>
     </FeedStatusProvider>
-    </WatchlistProvider>
+    </PortfolioProvider>
     </DragProvider>
   );
 }

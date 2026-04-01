@@ -1,0 +1,309 @@
+/**
+ * PositionEditor.css
+ * Styling for the position editor modal component with dark terminal aesthetic.
+ */
+
+/* ── Overlay & Modal Container ── */
+.pf-editor-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'IBM Plex Mono', 'Courier New', monospace;
+  backdrop-filter: blur(2px);
+}
+
+.pf-editor-modal {
+  background: var(--bg-panel, #0d0d0d);
+  border: 1px solid var(--border-strong, #2a2a2a);
+  border-radius: var(--radius-sm, 3px);
+  width: 90%;
+  max-width: 500px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8);
+  overflow: hidden;
+}
+
+/* ── Header ── */
+.pf-editor-header {
+  padding: var(--sp-5, 12px) var(--sp-4, 8px);
+  border-bottom: 1px solid var(--border-default, #1a1a1a);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  background: var(--bg-elevated, #181818);
+}
+
+.pf-editor-title {
+  color: var(--accent, #ff6600);
+  font-size: var(--font-base, 11px);
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+
+.pf-editor-close-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted, #888);
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  padding: var(--sp-2, 4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm, 3px);
+  transition: color 150ms, background 150ms;
+}
+
+.pf-editor-close-btn:hover {
+  color: var(--accent, #ff6600);
+  background: rgba(255, 102, 0, 0.1);
+}
+
+/* ── Body ── */
+.pf-editor-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--sp-5, 12px) var(--sp-4, 8px);
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4, 8px);
+}
+
+/* ── Field Groups ── */
+.pf-editor-field-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3, 6px);
+}
+
+.pf-editor-label {
+  color: var(--text-muted, #888);
+  font-size: var(--font-sm, 9px);
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* ── Inputs ── */
+.pf-editor-input,
+.pf-editor-select {
+  background: var(--bg-app, #0a0a0a);
+  border: 1px solid var(--border-strong, #2a2a2a);
+  color: var(--text-primary, #e0e0e0);
+  padding: var(--sp-3, 6px) var(--sp-3, 6px);
+  font-size: var(--font-base, 11px);
+  font-family: 'IBM Plex Mono', 'Courier New', monospace;
+  outline: none;
+  border-radius: var(--radius-sm, 3px);
+  transition: border-color 150ms, box-shadow 150ms;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.pf-editor-input:focus,
+.pf-editor-select:focus {
+  border-color: var(--accent, #ff6600);
+  box-shadow: 0 0 8px rgba(255, 102, 0, 0.3);
+}
+
+.pf-editor-input::placeholder {
+  color: var(--text-faint, #555);
+}
+
+.pf-editor-input-readonly {
+  background: var(--bg-elevated, #181818);
+  border-color: var(--border-default, #1a1a1a);
+  color: var(--accent, #ff6600);
+  cursor: not-allowed;
+}
+
+.pf-editor-input-readonly:focus {
+  border-color: var(--border-default, #1a1a1a);
+  box-shadow: none;
+}
+
+/* Select styling */
+.pf-editor-select {
+  cursor: pointer;
+  appearance: none;
+  padding-right: 28px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23888888' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 6px center;
+  background-size: 12px;
+  padding-right: 28px;
+}
+
+.pf-editor-select:focus {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23ff6600' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+}
+
+/* ── Footer ── */
+.pf-editor-footer {
+  padding: var(--sp-5, 12px) var(--sp-4, 8px);
+  border-top: 1px solid var(--border-default, #1a1a1a);
+  display: flex;
+  gap: var(--sp-3, 6px);
+  justify-content: flex-end;
+  align-items: center;
+  flex-shrink: 0;
+  background: var(--bg-elevated, #181818);
+  flex-wrap: wrap;
+}
+
+.pf-editor-footer-spacer {
+  flex: 1;
+}
+
+/* ── Buttons ── */
+.pf-editor-btn {
+  padding: var(--sp-3, 6px) var(--sp-5, 12px);
+  font-size: var(--font-base, 11px);
+  font-family: 'IBM Plex Mono', 'Courier New', monospace;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  border-radius: var(--radius-sm, 3px);
+  border: 1px solid var(--border-strong, #2a2a2a);
+  background: transparent;
+  color: var(--text-muted, #888);
+  transition: all 150ms;
+  white-space: nowrap;
+}
+
+.pf-editor-btn:hover:not(:disabled) {
+  border-color: var(--text-muted, #888);
+  color: var(--text-primary, #e0e0e0);
+}
+
+.pf-editor-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pf-editor-btn-primary {
+  background: var(--accent, #ff6600);
+  color: #000;
+  border-color: var(--accent, #ff6600);
+  font-weight: 600;
+}
+
+.pf-editor-btn-primary:hover:not(:disabled) {
+  background: #ff8533;
+  border-color: #ff8533;
+  box-shadow: 0 0 12px rgba(255, 102, 0, 0.4);
+}
+
+.pf-editor-btn-cancel {
+  color: var(--text-muted, #888);
+  border-color: var(--border-strong, #2a2a2a);
+}
+
+.pf-editor-btn-cancel:hover:not(:disabled) {
+  border-color: var(--text-muted, #888);
+  color: var(--text-primary, #e0e0e0);
+}
+
+.pf-editor-btn-delete {
+  color: var(--price-down, #ff1744);
+  border-color: var(--price-down, #ff1744);
+  margin-right: auto;
+}
+
+.pf-editor-btn-delete:hover:not(:disabled) {
+  background: rgba(255, 23, 68, 0.1);
+  box-shadow: 0 0 8px rgba(255, 23, 68, 0.3);
+}
+
+/* ── Mobile Layout ── */
+@media (max-width: 640px) {
+  .pf-editor-modal {
+    width: 95%;
+    max-width: calc(100vw - 20px);
+    max-height: 95vh;
+  }
+
+  .pf-editor-body {
+    padding: var(--sp-4, 8px) var(--sp-3, 6px);
+    gap: var(--sp-3, 6px);
+  }
+
+  .pf-editor-footer {
+    flex-direction: column;
+    gap: var(--sp-2, 4px);
+  }
+
+  .pf-editor-btn {
+    width: 100%;
+    padding: var(--sp-4, 8px);
+  }
+
+  .pf-editor-footer-spacer {
+    display: none;
+  }
+
+  .pf-editor-btn-delete {
+    margin-right: 0;
+    order: 1;
+  }
+}
+
+/* ── Scrollbar Styling ── */
+.pf-editor-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.pf-editor-body::-webkit-scrollbar-track {
+  background: var(--bg-app, #0a0a0a);
+}
+
+.pf-editor-body::-webkit-scrollbar-thumb {
+  background: var(--border-strong, #2a2a2a);
+  border-radius: 3px;
+}
+
+.pf-editor-body::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted, #888);
+}
+
+/* ── Animations ── */
+.pf-editor-overlay {
+  animation: fadeIn 150ms ease-out;
+}
+
+.pf-editor-modal {
+  animation: slideUp 200ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(40px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}

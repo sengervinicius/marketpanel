@@ -113,14 +113,14 @@ export const PANEL_DEFINITIONS = {
   },
   watchlist: {
     id:             'watchlist',
-    label:          'Watchlist',
-    defaultTitle:   'Watchlist',
+    label:          'Portfolio',
+    defaultTitle:   'Portfolio',
     defaultSymbols: [],
     allowedGroups:  null,
     editable:       false,
-    icon:           '⭐',
+    icon:           '📊',
     minSymbols:     0,
-    maxSymbols:     100,
+    maxSymbols:     200,
   },
   news: {
     id:             'news',

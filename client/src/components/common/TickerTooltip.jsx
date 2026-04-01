@@ -4,7 +4,7 @@
 // Mobile:  long-press 800 ms → context menu
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { useWatchlist } from '../../context/WatchlistContext';
+import { useWatchlist } from '../../context/PortfolioContext';
 
 // ── Security descriptions ─────────────────────────────────────────────────────
 const DESCRIPTIONS = {

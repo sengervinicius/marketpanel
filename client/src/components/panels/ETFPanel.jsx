@@ -6,7 +6,7 @@
 
 import { memo, useState } from 'react';
 import { useStocksData } from '../../context/MarketContext';
-import { useWatchlist } from '../../context/WatchlistContext';
+import { useWatchlist } from '../../context/PortfolioContext';
 import { ETF_CATEGORIES } from '../../utils/constants';
 
 function fmtPrice(v, dec = 2) {
