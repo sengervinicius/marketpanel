@@ -1,6 +1,7 @@
 // InstrumentDetail.jsx – Bloomberg GP-style full-screen instrument overlay
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { apiFetch } from '../../utils/api.js';
+import AlertEditor from './AlertEditor';
 import {
   AreaChart, Area, BarChart, Bar,
   XAxis, YAxis, ResponsiveContainer, Tooltip,
@@ -195,6 +196,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
   const [bondLoading,  setBondLoading]  = useState(false);
   const [desktopTab,   setDesktopTab]   = useState('STATS');
   const [macroData,    setMacroData]    = useState(null);
+  const [showAlertEditor, setShowAlertEditor] = useState(false);
 
   const range = RANGES[rangeIdx];
 
@@ -1391,6 +1393,21 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
           <span style={{ fontSize: 9, color: ORANGE, flexShrink: 0 }}>{deltaHint}</span>
         )}
 
+        {/* Alert button */}
+        <button
+          onClick={() => setShowAlertEditor(true)}
+          title="Create price alert"
+          style={{
+            padding: isMobile ? '6px 10px' : '4px 10px',
+            fontSize: 10, borderRadius: 3, cursor: 'pointer',
+            border: '1px solid #252525',
+            background: 'transparent',
+            color: '#444',
+            whiteSpace: 'nowrap', flexShrink: 0,
+            letterSpacing: 0.5, fontFamily: 'inherit',
+          }}
+        >{isMobile ? '🔔' : '🔔 ALERT'}</button>
+
         {/* Measure button */}
         <button
           onClick={toggleDelta}
@@ -1598,6 +1615,17 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
         )}
 
       </div>
+
+      {/* Alert editor modal */}
+      {showAlertEditor && (
+        <AlertEditor
+          alert={null}
+          defaultSymbol={norm}
+          defaultPrice={livePrice}
+          onClose={() => setShowAlertEditor(false)}
+          mobile={isMobile}
+        />
+      )}
     </div>
   );
 }

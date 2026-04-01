@@ -9,6 +9,7 @@ import { FeedStatusProvider } from './context/FeedStatusContext';
 import { PortfolioProvider } from './context/PortfolioContext';
 import { MarketProvider, useMarketDispatch } from './context/MarketContext';
 import { DragProvider } from './context/DragContext';
+import { AlertsProvider, useAlerts } from './context/AlertsContext';
 import { IndexPanel } from './components/panels/IndexPanel';
 import { StockPanel } from './components/panels/StockPanel';
 import { ForexPanel } from './components/panels/ForexPanel';
@@ -23,8 +24,10 @@ import DebtPanel from './components/panels/DebtPanel';
 import BrazilPanel from './components/panels/BrazilPanel';
 import GlobalIndicesPanel from './components/panels/GlobalIndicesPanel';
 import PortfolioPanel from './components/panels/PortfolioPanel';
+import AlertsPanel from './components/panels/AlertsPanel';
 import { DEFAULT_LAYOUT, PANEL_DEFINITIONS } from './config/panels';
 import PortfolioMobile from './components/panels/PortfolioMobile';
+import AlertsMobile from './components/panels/AlertsMobile';
 import { ChatPanel } from './components/panels/ChatPanel';
 import HomePanelMobile from './components/panels/HomePanelMobile';
 import ChartsPanelMobile from './components/panels/ChartsPanelMobile';
@@ -192,6 +195,8 @@ function makePanelRenderer(panelId, props) {
       return <DICurvePanel compact />;
     case 'indices':
       return <IndexPanel data={mergedData?.indices} loading={loading} onTickerClick={setChartTicker} onOpenDetail={setDetailTicker} />;
+    case 'alerts':
+      return <AlertsPanel onOpenDetail={setDetailTicker} />;
     default:
       return <div style={{ padding: 12, color: '#333', fontSize: 9 }}>Panel: {panelId}</div>;
   }
@@ -583,6 +588,34 @@ function UserDropdown({ user, onSettings, onLogout, onBilling, isPaid }) {
         </div>
       )}
     </div>
+  );
+}
+
+// ── Alert Badge (header bell icon with unread count) ────────────────────────
+function AlertBadge() {
+  let triggeredCount = 0;
+  try {
+    const { triggeredAlerts } = useAlerts();
+    triggeredCount = triggeredAlerts?.length || 0;
+  } catch {
+    // AlertsProvider might not be ready yet
+    return null;
+  }
+  if (triggeredCount === 0) return (
+    <span title="No triggered alerts" style={{ color: 'var(--text-faint)', fontSize: 11, cursor: 'default' }}>🔔</span>
+  );
+  return (
+    <span title={`${triggeredCount} triggered alert${triggeredCount > 1 ? 's' : ''}`} style={{ position: 'relative', cursor: 'pointer', fontSize: 11 }}>
+      🔔
+      <span style={{
+        position: 'absolute', top: -4, right: -6,
+        background: 'var(--price-down)', color: '#fff',
+        fontSize: 7, fontWeight: 700, borderRadius: '50%',
+        width: 12, height: 12, display: 'flex',
+        alignItems: 'center', justifyContent: 'center',
+        lineHeight: 1,
+      }}>{triggeredCount > 9 ? '9+' : triggeredCount}</span>
+    </span>
   );
 }
 
@@ -1141,6 +1174,7 @@ export default function App() {
     return (
       <DragProvider>
       <PortfolioProvider>
+      <AlertsProvider>
       <FeedStatusProvider status={feedStatus}>
       <MarketProvider restData={mergedData}>
       <PriceProvider marketData={data}>
@@ -1163,6 +1197,7 @@ export default function App() {
           <div style={{ display:'flex', alignItems:'center', gap:8 }}>
             {isRefreshing && <span style={{ color:'var(--accent)', fontSize:'8px', letterSpacing:'1px' }}>&#9679; UPDATING</span>}
             {lastUpdated && !isRefreshing && <span style={{ color:'var(--text-faint)', fontSize:'8px' }}>SNAP {lastUpdated.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'})}</span>}
+            <AlertBadge />
             <button
               onClick={() => setLayoutEdit(s => !s)}
               title="Reorder panels"
@@ -1255,6 +1290,7 @@ export default function App() {
       </PriceProvider>
       </MarketProvider>
       </FeedStatusProvider>
+      </AlertsProvider>
       </PortfolioProvider>
       </DragProvider>
     );
@@ -1271,6 +1307,7 @@ export default function App() {
   return (
     <DragProvider>
     <PortfolioProvider>
+    <AlertsProvider>
     <FeedStatusProvider status={feedStatus}>
     <MarketProvider restData={mergedData}>
     <MarketTickBridge batchTicks={batchTicks} />
@@ -1392,6 +1429,10 @@ export default function App() {
             )}
 
             {activeTab === 'more' && moreView === 'chat' && <ChatPanel mobile />}
+
+            {activeTab === 'more' && moreView === 'alerts' && (
+              <AlertsMobile onOpenDetail={goDetail} />
+            )}
           </div>
 
           {/* ── Bottom tab bar ── */}
@@ -1457,6 +1498,7 @@ export default function App() {
     </PriceProvider>
     </MarketProvider>
     </FeedStatusProvider>
+    </AlertsProvider>
     </PortfolioProvider>
     </DragProvider>
   );

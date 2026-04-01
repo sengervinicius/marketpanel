@@ -16,6 +16,7 @@ import { useState, useCallback, useRef, useEffect, useMemo, memo } from 'react';
 import PanelShell from '../common/PanelShell';
 import PositionEditor from '../common/PositionEditor';
 import EmptyState from '../common/EmptyState';
+import AlertEditor from '../common/AlertEditor';
 import { usePortfolio } from '../../context/PortfolioContext';
 import { useTickerPrice } from '../../context/PriceContext';
 import {
@@ -23,7 +24,7 @@ import {
   computeBenchmarkComparison, suggestBenchmark, inferAssetType, assetTypeLabel,
 } from '../../utils/portfolioAnalytics';
 
-const COLS = '72px 56px 72px 72px 64px 24px';
+const COLS = '72px 56px 72px 72px 64px 20px 24px';
 
 const showInfo = (e, symbol) => {
   e.preventDefault();
@@ -305,9 +306,22 @@ function PortfolioPanel({ onTickerClick, onOpenDetail }) {
     setEditorPos(position);
   }, []);
 
+  // Alert editor state
+  const [alertEditorData, setAlertEditorData] = useState(null); // { symbol, price, entryPrice, positionId }
+
+  const handleCreateAlert = useCallback((position, livePrice) => {
+    setAlertEditorData({
+      symbol: position.symbol,
+      price: livePrice,
+      entryPrice: position.entryPrice,
+      positionId: position.id,
+    });
+  }, []);
+
   const handleCloseEditor = useCallback(() => {
     setEditorPos(null);
     setShowEditor(false);
+    setAlertEditorData(null);
   }, []);
 
   return (
@@ -367,7 +381,7 @@ function PortfolioPanel({ onTickerClick, onOpenDetail }) {
 
       {/* Column headers */}
       <div style={{ display: 'grid', gridTemplateColumns: COLS, padding: '2px 8px', borderBottom: '1px solid var(--border-default)', flexShrink: 0 }}>
-        {['TICKER', 'QTY', 'COST', 'LAST', 'P&L%', ''].map((h, i) => (
+        {['TICKER', 'QTY', 'COST', 'LAST', 'P&L%', '', ''].map((h, i) => (
           <span key={i} style={{ color: 'var(--text-muted)', fontSize: 'var(--font-sm)', fontWeight: 700, letterSpacing: '1px', textAlign: i >= 1 ? 'right' : 'left', paddingRight: i >= 1 ? 4 : 0 }}>{h}</span>
         ))}
       </div>
@@ -390,6 +404,7 @@ function PortfolioPanel({ onTickerClick, onOpenDetail }) {
               onEdit={handleEdit}
               onRemove={removePosition}
               onReportPrice={reportPrice}
+              onCreateAlert={handleCreateAlert}
             />
           ))
         )}
@@ -412,12 +427,24 @@ function PortfolioPanel({ onTickerClick, onOpenDetail }) {
           onClose={handleCloseEditor}
         />
       )}
+
+      {/* AlertEditor modal — create alert from position */}
+      {alertEditorData && (
+        <AlertEditor
+          alert={null}
+          defaultSymbol={alertEditorData.symbol}
+          defaultPrice={alertEditorData.price}
+          defaultEntryPrice={alertEditorData.entryPrice}
+          defaultPositionId={alertEditorData.positionId}
+          onClose={handleCloseEditor}
+        />
+      )}
     </PanelShell>
   );
 }
 
 // ── Position row wrapper that reports price back to parent ──
-const PositionRowWithReport = memo(function PositionRowWithReport({ position, onTickerClick, onOpenDetail, onEdit, onRemove, onReportPrice }) {
+const PositionRowWithReport = memo(function PositionRowWithReport({ position, onTickerClick, onOpenDetail, onEdit, onRemove, onReportPrice, onCreateAlert }) {
   const priceData = useTickerPrice(position.symbol);
   const ptRef = useRef(null);
 
@@ -471,6 +498,13 @@ const PositionRowWithReport = memo(function PositionRowWithReport({ position, on
       }}>
         {fmtPct(pnlPct)}
       </span>
+      <button
+        onClick={e => { e.stopPropagation(); onCreateAlert(position, livePrice); }}
+        title="Create alert"
+        style={{ background: 'none', border: 'none', color: 'var(--text-faint)', cursor: 'pointer', fontSize: 8, padding: 0, textAlign: 'center', transition: 'color 0.15s' }}
+        onMouseEnter={e => e.currentTarget.style.color = 'var(--accent)'}
+        onMouseLeave={e => e.currentTarget.style.color = 'var(--text-faint)'}
+      >🔔</button>
       <button
         onClick={e => { e.stopPropagation(); onRemove(position.id); }}
         title="Remove position"

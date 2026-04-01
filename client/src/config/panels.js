@@ -122,6 +122,17 @@ export const PANEL_DEFINITIONS = {
     minSymbols:     0,
     maxSymbols:     200,
   },
+  alerts: {
+    id:             'alerts',
+    label:          'Alerts',
+    defaultTitle:   'Alerts',
+    defaultSymbols: [],
+    allowedGroups:  null,
+    editable:       false,
+    icon:           '🔔',
+    minSymbols:     0,
+    maxSymbols:     0,
+  },
   news: {
     id:             'news',
     label:          'News',

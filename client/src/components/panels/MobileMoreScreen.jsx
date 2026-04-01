@@ -175,6 +175,11 @@ const MobileMoreScreen = memo(({
           onClick={() => onNavigate('etf')}
         />
         <MenuItem
+          icon="🔔"
+          label="Alerts"
+          onClick={() => onNavigate('alerts')}
+        />
+        <MenuItem
           icon="💬"
           label="Chat"
           onClick={() => onNavigate('chat')}

@@ -12,6 +12,7 @@
 import { memo, useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { usePortfolio } from '../../context/PortfolioContext';
 import { useStocksData, useForexData, useCryptoData } from '../../context/MarketContext';
+import AlertEditor from '../common/AlertEditor';
 import {
   fmtPct, fmtCompact, computeSummary, computeAllocation,
   inferAssetType, assetTypeLabel,
@@ -249,6 +250,18 @@ function PortfolioMobile({ onOpenDetail, onManage }) {
     setSelectedPortfolios(newSet);
   };
 
+  // Alert editor state
+  const [alertEditorData, setAlertEditorData] = useState(null);
+
+  const handleCreateAlert = useCallback((pos, price) => {
+    setAlertEditorData({
+      symbol: pos.symbol,
+      price: price,
+      entryPrice: pos.entryPrice,
+      positionId: pos.id,
+    });
+  }, []);
+
   return (
     <div style={{
       display: 'flex', flexDirection: 'column', height: '100%',
@@ -441,6 +454,23 @@ function PortfolioMobile({ onOpenDetail, onManage }) {
                     </div>
                   </div>
 
+                  {/* Alert button */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleCreateAlert(pos, d?.price);
+                    }}
+                    style={{
+                      width: 32, height: 32,
+                      background: 'none', border: 'none',
+                      color: 'var(--text-faint)', cursor: 'pointer',
+                      fontSize: 14, lineHeight: 1, padding: 0, flexShrink: 0,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      WebkitTapHighlightColor: 'transparent',
+                    }}
+                    title="Create alert"
+                  >🔔</button>
+
                   {/* Remove button */}
                   <button
                     onClick={(e) => {
@@ -466,6 +496,19 @@ function PortfolioMobile({ onOpenDetail, onManage }) {
             })
           )}
         </div>
+      )}
+
+      {/* Alert editor modal */}
+      {alertEditorData && (
+        <AlertEditor
+          alert={null}
+          defaultSymbol={alertEditorData.symbol}
+          defaultPrice={alertEditorData.price}
+          defaultEntryPrice={alertEditorData.entryPrice}
+          defaultPositionId={alertEditorData.positionId}
+          onClose={() => setAlertEditorData(null)}
+          mobile
+        />
       )}
 
       {/* Undo Toast */}

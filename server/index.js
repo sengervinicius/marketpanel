@@ -14,6 +14,7 @@ const debtRoutes        = require('./routes/debt');
 const instrumentsRoutes = require('./routes/instruments');
 const macroRoutes       = require('./routes/macro');
 const portfolioRoutes   = require('./routes/portfolio');
+const alertRoutes       = require('./routes/alerts');
 const { requireAuth, requireActiveSubscription } = require('./authMiddleware');
 const logger = require('./utils/logger');
 const { requestLogger } = require('./utils/logger');
@@ -22,6 +23,8 @@ const chatStore     = require('./chatStore');
 const { getUserById, seedUsersFromEnv, initDB } = require('./authStore');
 const { verifyToken } = require('./authStore');
 const { initPortfolioDB } = require('./portfolioStore');
+const { initAlertDB } = require('./alertStore');
+const { startAlertScheduler } = require('./alertScheduler');
 
 const app = express();
 
@@ -89,6 +92,9 @@ app.use('/api/instruments', requireAuth, instrumentsRoutes);
 
 // Portfolio: auth required (no subscription check — need portfolio even on expired trial)
 app.use('/api/portfolio', requireAuth, portfolioRoutes);
+
+// Alerts: auth required (no subscription check — alerts are a core feature)
+app.use('/api/alerts', requireAuth, alertRoutes);
 
 // Market data: auth + subscription required
 app.use('/api', requireAuth, requireActiveSubscription, marketRoutes);
@@ -300,6 +306,7 @@ async function boot() {
 
   const mongoDB = await initDB();  // connect MongoDB, load users into memory
   await initPortfolioDB(mongoDB);  // load portfolio data (uses same MongoDB instance)
+  await initAlertDB(mongoDB);      // load alert data (uses same MongoDB instance)
   await seedUsersFromEnv();        // create any SEED_USERS accounts if missing
   const PORT = process.env.PORT || 3001;
   server.listen(PORT, () => {
@@ -307,6 +314,9 @@ async function boot() {
     logger.info(`REST  → http://localhost:${PORT}/api`);
     logger.info(`WS    → ws://localhost:${PORT}/ws`);
     logger.info(`ENV   → ${process.env.NODE_ENV || 'development'}`);
+
+    // Start alert evaluation scheduler after server is listening
+    startAlertScheduler(PORT);
   });
 }
 

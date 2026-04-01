@@ -1,0 +1,193 @@
+/**
+ * alertScheduler.js
+ *
+ * Server-side alert evaluation engine.
+ *
+ * Runs a periodic loop (every EVAL_INTERVAL_MS) that:
+ *   1. Fetches all active alerts from alertStore.
+ *   2. Groups them by symbol for batched provider calls.
+ *   3. Fetches current prices via internal HTTP to /api/snapshot/ticker/:symbol
+ *      (reuses all existing caching, provider fallback chains, and auth-free
+ *       internal access since we call localhost directly).
+ *   4. Evaluates each alert condition.
+ *   5. Marks triggered alerts (one-shot: deactivate after trigger).
+ *
+ * Supported alert types in 5A:
+ *   - price_above:          triggers when current price >= targetPrice
+ *   - price_below:          triggers when current price <= targetPrice
+ *   - pct_move_from_entry:  triggers when |((current - entry) / entry) * 100| >= |pctChange|
+ *   - fx_level_above:       triggers when FX rate >= targetPrice
+ *   - fx_level_below:       triggers when FX rate <= targetPrice
+ *
+ * Performance:
+ *   - Batches by symbol (one fetch per unique symbol regardless of how many alerts).
+ *   - Modest cadence (30–60s) to avoid provider hammering.
+ *   - Uses existing server-side caching from the snapshot endpoint.
+ *
+ * One-shot semantics:
+ *   - When a condition is met, the alert is marked triggered (triggeredAt = now)
+ *     and deactivated (active = false).
+ *   - The alert will NOT be re-evaluated until manually reactivated by the user.
+ */
+
+const { listAllActiveAlerts, markTriggered } = require('./alertStore');
+
+const EVAL_INTERVAL_MS = 45_000; // 45 seconds
+let _intervalId = null;
+let _serverPort = 3001;
+
+/**
+ * Fetch current price data for a symbol via internal HTTP.
+ * Uses the server's own /api/snapshot/ticker/:symbol endpoint.
+ * This avoids duplicating provider logic and benefits from all existing caching.
+ *
+ * @param {string} symbol
+ * @returns {{ price: number|null, changePct: number|null }} or null on failure
+ */
+async function fetchPrice(symbol) {
+  try {
+    const url = `http://127.0.0.1:${_serverPort}/api/snapshot/ticker/${encodeURIComponent(symbol)}`;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
+
+    const res = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeout);
+
+    if (!res.ok) return null;
+    const data = await res.json();
+    const t = data?.ticker ?? data;
+
+    const price = (t?.min?.c > 0 ? t.min.c : null)
+      ?? (t?.day?.c > 0 ? t.day.c : null)
+      ?? (t?.lastTrade?.p > 0 ? t.lastTrade.p : null)
+      ?? t?.prevDay?.c ?? null;
+
+    return {
+      price,
+      changePct: t?.todaysChangePerc ?? null,
+    };
+  } catch (e) {
+    // Silence errors — stale prices just mean alerts aren't evaluated this cycle
+    return null;
+  }
+}
+
+/**
+ * Evaluate a single alert against the current price.
+ * Returns true if the condition is met.
+ */
+function evaluateAlert(alert, priceData) {
+  if (!priceData || priceData.price == null) return false;
+  const price = priceData.price;
+  const params = alert.parameters || {};
+
+  switch (alert.type) {
+    case 'price_above':
+    case 'fx_level_above':
+      return params.targetPrice != null && price >= params.targetPrice;
+
+    case 'price_below':
+    case 'fx_level_below':
+      return params.targetPrice != null && price <= params.targetPrice;
+
+    case 'pct_move_from_entry': {
+      if (params.entryPrice == null || params.entryPrice <= 0) return false;
+      if (params.pctChange == null) return false;
+      const actualPctMove = ((price - params.entryPrice) / params.entryPrice) * 100;
+      const threshold = Math.abs(params.pctChange);
+      const direction = params.direction;
+
+      if (direction === 'up') return actualPctMove >= threshold;
+      if (direction === 'down') return actualPctMove <= -threshold;
+      // No direction specified → trigger on absolute move
+      return Math.abs(actualPctMove) >= threshold;
+    }
+
+    default:
+      return false;
+  }
+}
+
+/**
+ * Run one evaluation cycle.
+ */
+async function runEvaluation() {
+  try {
+    const activeAlerts = listAllActiveAlerts();
+    if (activeAlerts.length === 0) return;
+
+    // Group alerts by symbol for batched fetching
+    const bySymbol = new Map();
+    for (const alert of activeAlerts) {
+      const sym = alert.symbol;
+      if (!bySymbol.has(sym)) bySymbol.set(sym, []);
+      bySymbol.get(sym).push(alert);
+    }
+
+    // Fetch prices in parallel (batched by symbol)
+    const symbols = Array.from(bySymbol.keys());
+    const priceResults = await Promise.allSettled(
+      symbols.map(sym => fetchPrice(sym))
+    );
+
+    // Build symbol → priceData map
+    const priceMap = new Map();
+    for (let i = 0; i < symbols.length; i++) {
+      const result = priceResults[i];
+      if (result.status === 'fulfilled' && result.value) {
+        priceMap.set(symbols[i], result.value);
+      }
+    }
+
+    // Evaluate each alert
+    let triggeredCount = 0;
+    for (const alert of activeAlerts) {
+      const priceData = priceMap.get(alert.symbol);
+      if (!priceData) continue;
+
+      const shouldTrigger = evaluateAlert(alert, priceData);
+      if (shouldTrigger) {
+        await markTriggered(alert.userId, alert.id, new Date().toISOString());
+        triggeredCount++;
+      }
+    }
+
+    if (triggeredCount > 0) {
+      console.log(`[alertScheduler] Evaluation complete: ${triggeredCount} alert(s) triggered out of ${activeAlerts.length} active`);
+    }
+  } catch (e) {
+    console.error('[alertScheduler] Evaluation error:', e.message);
+  }
+}
+
+/**
+ * Start the alert evaluation scheduler.
+ * @param {number} port - The server port (for internal HTTP calls)
+ */
+function startAlertScheduler(port) {
+  _serverPort = port || 3001;
+  console.log(`[alertScheduler] Starting alert evaluation (interval: ${EVAL_INTERVAL_MS / 1000}s, port: ${_serverPort})`);
+
+  // Run first evaluation after a short delay (let server fully boot)
+  setTimeout(() => {
+    runEvaluation();
+    _intervalId = setInterval(runEvaluation, EVAL_INTERVAL_MS);
+  }, 5000);
+}
+
+/**
+ * Stop the scheduler (for graceful shutdown / tests).
+ */
+function stopAlertScheduler() {
+  if (_intervalId) {
+    clearInterval(_intervalId);
+    _intervalId = null;
+    console.log('[alertScheduler] Stopped');
+  }
+}
+
+module.exports = {
+  startAlertScheduler,
+  stopAlertScheduler,
+  runEvaluation, // exported for testing
+};
