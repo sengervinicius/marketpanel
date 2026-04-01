@@ -264,6 +264,21 @@ async function markTriggered(userId, alertIdVal, triggeredAt) {
   return existing;
 }
 
+/**
+ * Delete all alerts for a user (account deletion).
+ */
+async function deleteUserAlerts(userId) {
+  const uid = Number(userId);
+  alertsByUserId.delete(uid);
+  if (alertsCollection) {
+    try {
+      await alertsCollection.deleteMany({ userId: uid });
+    } catch (e) {
+      console.error('[alertStore] MongoDB delete error:', e.message);
+    }
+  }
+}
+
 module.exports = {
   initAlertDB,
   listAlerts,
@@ -272,5 +287,6 @@ module.exports = {
   createAlert,
   updateAlert,
   deleteAlert,
+  deleteUserAlerts,
   markTriggered,
 };

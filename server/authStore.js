@@ -374,6 +374,33 @@ async function updateSubscription(userId, fields) {
   return user;
 }
 
+// ── Account deletion ─────────────────────────────────────────────────────────
+
+/**
+ * Permanently delete a user from in-memory Maps and MongoDB.
+ * Returns true if the user existed and was deleted.
+ */
+async function deleteUser(userId) {
+  const id = Number(userId);
+  const user = usersById.get(id);
+  if (!user) return false;
+
+  const key = user.username.toLowerCase();
+  usersByUsername.delete(key);
+  usersById.delete(id);
+
+  if (usersCollection) {
+    try {
+      await usersCollection.deleteOne({ username_lower: key });
+    } catch (e) {
+      console.error('[authStore] MongoDB delete error:', e.message);
+    }
+  }
+
+  console.log(`[authStore] Deleted user id=${id} username=${user.username}`);
+  return true;
+}
+
 // ── Safe export (no password hash) ───────────────────────────────────────────
 
 function safeUser(user) {
@@ -431,6 +458,7 @@ async function findOrCreateAppleUser(appleUserId, email, firstName) {
 module.exports = {
   initDB,
   createUser,
+  deleteUser,
   findUserByUsername,
   getUserById,
   verifyUser,

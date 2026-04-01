@@ -1,0 +1,20 @@
+{
+  "appId": "com.arccapital.senger",
+  "appName": "Senger Market",
+  "webDir": "dist",
+  "backgroundColor": "#0a0a0f",
+  "ios": {
+    "contentInset": "automatic",
+    "allowsLinkPreview": false,
+    "scheme": "Senger Market"
+  },
+  "android": {
+    "allowMixedContent": false,
+    "backgroundColor": "#0a0a0f"
+  },
+  "server": {
+    "hostname": "senger-client.onrender.com",
+    "androidScheme": "https",
+    "iosScheme": "https"
+  }
+}

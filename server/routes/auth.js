@@ -6,8 +6,10 @@
 const express = require('express');
 const router  = express.Router();
 const {
-  createUser, verifyUser, signToken, safeUser, getUserById, findOrCreateAppleUser,
+  createUser, deleteUser, verifyUser, signToken, safeUser, getUserById, findOrCreateAppleUser,
 } = require('../authStore');
+const { deleteUserPortfolios } = require('../portfolioStore');
+const { deleteUserAlerts }     = require('../alertStore');
 const { requireAuth } = require('../authMiddleware');
 
 const rateLimit = require('express-rate-limit');
@@ -134,6 +136,30 @@ router.post('/apple', authLimiter, async (req, res) => {
       error: 'An unexpected error occurred during Apple Sign In. Please try again.',
       code: 'server_error',
     });
+  }
+});
+
+// DELETE /api/auth/account — permanently delete account and all data (Apple requirement)
+router.delete('/account', requireAuth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    // Delete all user data in parallel
+    await Promise.all([
+      deleteUserPortfolios(userId),
+      deleteUserAlerts(userId),
+    ]);
+
+    // Delete the user account last
+    const deleted = await deleteUser(userId);
+    if (!deleted) {
+      return res.status(404).json({ error: 'Account not found', code: 'not_found' });
+    }
+
+    res.json({ ok: true, message: 'Account and all associated data have been permanently deleted.' });
+  } catch (e) {
+    console.error('[auth] Account deletion error:', e.message);
+    res.status(500).json({ error: 'Failed to delete account. Please try again.', code: 'delete_failed' });
   }
 });
 

@@ -1,4 +1,4 @@
-import React, { memo } from 'react';
+import React, { memo, useState, useCallback } from 'react';
 
 const MobileMoreScreen = memo(({
   onNavigate,
@@ -9,6 +9,32 @@ const MobileMoreScreen = memo(({
   isPaid,
   subscription
 }) => {
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteStep, setDeleteStep] = useState(0); // 0=initial, 1=confirming, 2=deleting
+  const [deleteError, setDeleteError] = useState(null);
+
+  const handleDeleteAccount = useCallback(async () => {
+    setDeleteStep(2);
+    setDeleteError(null);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('/api/auth/account', {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to delete account');
+      }
+      // Clear local state and log out
+      localStorage.clear();
+      window.location.reload();
+    } catch (e) {
+      setDeleteError(e.message);
+      setDeleteStep(1);
+    }
+  }, []);
+
   const getTrialStatus = () => {
     if (!subscription) return null;
     const status = subscription.status?.toUpperCase() || 'TRIAL';
@@ -92,17 +118,72 @@ const MobileMoreScreen = memo(({
         />
       </div>
 
+      {/* Danger zone */}
+      <div className="mm-section">
+        <div className="m-section-label" style={{ padding: '0 16px', color: 'var(--price-down, #e74c3c)' }}>DANGER ZONE</div>
+        <MenuItem
+          icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /><line x1="10" y1="11" x2="10" y2="17" /><line x1="14" y1="11" x2="14" y2="17" /></svg>}
+          label="Delete Account"
+          onClick={() => { setShowDeleteConfirm(true); setDeleteStep(0); setDeleteError(null); }}
+          danger
+        />
+      </div>
+
       {/* Version footer */}
       <div className="mm-footer">
         Senger Market v2.1
       </div>
+
+      {/* Delete account confirmation modal */}
+      {showDeleteConfirm && (
+        <div className="mm-overlay" onClick={() => deleteStep < 2 && setShowDeleteConfirm(false)}>
+          <div className="mm-modal" onClick={e => e.stopPropagation()}>
+            <div className="mm-modal-title">Delete Account</div>
+            {deleteStep === 0 && (
+              <>
+                <p className="mm-modal-text">
+                  This will permanently delete your account and all associated data including your portfolio, alerts, and settings.
+                </p>
+                <p className="mm-modal-text" style={{ fontWeight: 600, color: 'var(--price-down, #e74c3c)' }}>
+                  This action cannot be undone.
+                </p>
+                <div className="mm-modal-actions">
+                  <button className="mm-modal-btn" onClick={() => setShowDeleteConfirm(false)}>Cancel</button>
+                  <button className="mm-modal-btn mm-modal-btn-danger" onClick={() => setDeleteStep(1)}>
+                    Continue
+                  </button>
+                </div>
+              </>
+            )}
+            {deleteStep === 1 && (
+              <>
+                <p className="mm-modal-text">
+                  Are you absolutely sure? Type your username <strong>{user?.username || 'your username'}</strong> mentally and confirm.
+                </p>
+                {deleteError && (
+                  <p className="mm-modal-text" style={{ color: 'var(--price-down, #e74c3c)' }}>{deleteError}</p>
+                )}
+                <div className="mm-modal-actions">
+                  <button className="mm-modal-btn" onClick={() => setShowDeleteConfirm(false)}>Cancel</button>
+                  <button className="mm-modal-btn mm-modal-btn-danger" onClick={handleDeleteAccount}>
+                    Delete My Account
+                  </button>
+                </div>
+              </>
+            )}
+            {deleteStep === 2 && (
+              <p className="mm-modal-text">Deleting your account...</p>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 });
 
-function MenuItem({ icon, label, onClick, subtle }) {
+function MenuItem({ icon, label, onClick, subtle, danger }) {
   return (
-    <button className="mm-item" onClick={onClick} data-subtle={subtle || undefined}>
+    <button className="mm-item" onClick={onClick} data-subtle={subtle || undefined} data-danger={danger || undefined}>
       <span className="mm-item-icon">{icon}</span>
       <span className="mm-item-label">{label}</span>
       <svg className="mm-item-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

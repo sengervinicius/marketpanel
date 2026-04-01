@@ -165,10 +165,26 @@ async function removePortfolioById(userId, portfolioId) {
   return true;
 }
 
+/**
+ * Delete all portfolio data for a user (account deletion).
+ */
+async function deleteUserPortfolios(userId) {
+  const uid = Number(userId);
+  portfoliosByUserId.delete(uid);
+  if (portfoliosCollection) {
+    try {
+      await portfoliosCollection.deleteMany({ userId: uid });
+    } catch (e) {
+      console.error('[portfolioStore] MongoDB delete error:', e.message);
+    }
+  }
+}
+
 module.exports = {
   initPortfolioDB,
   getPortfolio,
   syncPortfolio,
   removePosition,
   removePortfolioById,
+  deleteUserPortfolios,
 };
