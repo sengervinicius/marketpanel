@@ -15,6 +15,7 @@ import { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { apiFetch } from '../../utils/api';
 import { WS_URL } from '../../utils/constants';
+import './Chat.css';
 
 function timeAgo(ts) {
   if (!ts) return '';
@@ -41,6 +42,24 @@ export function openChatWindow(userId) {
     ? `${window.location.origin}/#/chat/${userId}`
     : `${window.location.origin}/#/chat`;
   window.open(path, '_blank', 'width=820,height=620,noopener,noreferrer');
+}
+
+
+// ── Instrument card component for shared instruments in chat ──
+export function ChatInstrumentCard({ ticker, name, price, change, changePct, onClick }) {
+  const dir = changePct >= 0 ? 'up' : 'down';
+  const arrow = dir === 'up' ? '\u25B2' : '\u25BC';
+  const sign = changePct >= 0 ? '+' : '';
+  return (
+    <div className="chat-instrument-card" onClick={() => onClick && onClick(ticker)}>
+      <div className="chat-instrument-card-ticker">{ticker}</div>
+      <div className="chat-instrument-card-name">{name}</div>
+      <div className="chat-instrument-card-price">{price}</div>
+      <div className={`chat-instrument-card-change ${dir}`}>
+        {arrow} {sign}{change} ({sign}{changePct != null ? changePct.toFixed(2) : '0.00'}%)
+      </div>
+    </div>
+  );
 }
 
 function ChatPanel({ mobile, initialUserId }) {
