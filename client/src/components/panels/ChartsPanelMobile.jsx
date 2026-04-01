@@ -8,7 +8,7 @@ import ChartPanel from './ChartPanel';
 
 function ChartsPanelMobile({ onOpenDetail }) {
   return (
-    <div style={{ height: '100%', background: '#0a0a0a' }}>
+    <div style={{ height: '100%', background: 'var(--bg-app)' }}>
       <ChartPanel mobile={true} onOpenDetail={onOpenDetail} />
     </div>
   );

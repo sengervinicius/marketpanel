@@ -456,7 +456,7 @@ function SettingsDrawer({ panelVisible, togglePanel, onClose }) {
         tabIndex={0}
         style={rowStyle}
         {...makeRowClickable(handleTheme)}
-        onMouseEnter={e => e.currentTarget.style.background = '#141414'}
+        onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
         onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
       >
         <span style={{ color: 'var(--text-muted)', fontSize: 9, letterSpacing: '0.5px' }}>{theme === 'dark' ? '◑ DARK MODE' : '☀ LIGHT MODE'}</span>
@@ -490,7 +490,7 @@ function SettingsDrawer({ panelVisible, togglePanel, onClose }) {
         tabIndex={0}
         style={rowStyle}
         {...makeRowClickable(handleResetLayout)}
-        onMouseEnter={e => e.currentTarget.style.background = '#141414'}
+        onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
         onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
       >
         <span style={{ color: 'var(--text-muted)', fontSize: 9, letterSpacing: '0.5px' }}>Reset to Default</span>
@@ -822,36 +822,36 @@ function SubscriptionExpiredScreen({ onUpgrade, onLogout, onManageBilling, check
 
 // ── Mobile tab definitions (4 primary tabs) ──────────────────────────────────
 const MOBILE_TABS = [
-  { id: 'markets',   label: 'Markets' },
+  { id: 'home',      label: 'Home' },
   { id: 'charts',    label: 'Charts' },
   { id: 'watchlist', label: 'Watchlist' },
   { id: 'more',      label: 'More' },
 ];
 
-// SVG tab icons (24x24, stroke-based)
+// SVG tab icons (24x24, stroke-based) — color driven by CSS class via currentColor
 function TabIcon({ id, active }) {
-  const color = active ? '#ff6600' : '#555';
   const sw = active ? 2 : 1.5;
   const s = { width: 22, height: 22, display: 'block' };
+  // Color is inherited from the parent .m-tab-btn via CSS (currentColor)
   switch (id) {
-    case 'markets': return (
-      <svg style={s} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round">
-        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+    case 'home': return (
+      <svg style={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round">
+        <path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5z" /><polyline points="9 21 9 14 15 14 15 21" />
       </svg>
     );
     case 'charts': return (
-      <svg style={s} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round">
+      <svg style={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round">
         <line x1="18" y1="20" x2="18" y2="10" /><line x1="12" y1="20" x2="12" y2="4" /><line x1="6" y1="20" x2="6" y2="14" />
       </svg>
     );
     case 'watchlist': return (
-      <svg style={s} viewBox="0 0 24 24" fill={active ? '#ff6600' : 'none'} stroke={color} strokeWidth={sw} strokeLinejoin="round">
+      <svg style={s} viewBox="0 0 24 24" fill={active ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={sw} strokeLinejoin="round">
         <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
       </svg>
     );
     case 'more': return (
-      <svg style={s} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={sw} strokeLinecap="round">
-        <circle cx="12" cy="5" r="1.5" fill={color} stroke="none" /><circle cx="12" cy="12" r="1.5" fill={color} stroke="none" /><circle cx="12" cy="19" r="1.5" fill={color} stroke="none" />
+      <svg style={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={sw} strokeLinecap="round">
+        <circle cx="12" cy="5" r="1.5" fill="currentColor" stroke="none" /><circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none" /><circle cx="12" cy="19" r="1.5" fill="currentColor" stroke="none" />
       </svg>
     );
     default: return null;
@@ -980,9 +980,9 @@ export default function App() {
 
   const [activeTab, setActiveTab] = useState(() => {
     const saved = localStorage.getItem(LS_TAB);
-    // Migrate old tab IDs
-    if (saved === 'home') return 'markets';
-    return MOBILE_TABS.find(t => t.id === saved) ? saved : 'markets';
+    // Migrate old tab ID from previous 'markets' to 'home'
+    if (saved === 'markets') return 'home';
+    return MOBILE_TABS.find(t => t.id === saved) ? saved : 'home';
   });
   // Secondary view inside "more" tab (search, news, etf, chat)
   const [moreView, setMoreView] = useState(null);
@@ -1279,44 +1279,38 @@ export default function App() {
       display: 'flex', flexDirection: 'column',
       height: '100dvh',
       paddingTop: 'env(safe-area-inset-top)',
-      background: '#060606',
+      background: 'var(--bg-app)',
       fontFamily: "'IBM Plex Mono','Roboto Mono','Courier New',monospace",
-      color: '#e0e0e0', overflow: 'hidden',
+      color: 'var(--text-primary)', overflow: 'hidden',
     }}>
 
       {/* Onboarding overlay */}
       {showOnboarding && <OnboardingPresets />}
 
       {/* ── Mobile header ── */}
-      <div style={{
-        height: 44, flexShrink: 0,
-        display: 'flex', alignItems: 'center',
-        background: '#000',
-        borderBottom: '1px solid #141414',
-        padding: '0 16px', gap: 10,
-      }}>
+      <div className="m-header">
         {/* Back button for secondary views */}
         {(activeTab === 'more' && moreView) ? (
           <button
             onClick={handleMoreBack}
             style={{
-              background: 'none', border: 'none', color: '#ff6600',
+              background: 'none', border: 'none', color: 'var(--accent)',
               fontSize: 18, cursor: 'pointer', padding: '4px 8px 4px 0',
               fontFamily: 'inherit', display: 'flex', alignItems: 'center',
             }}
             aria-label="Back"
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ff6600" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="15 18 9 12 15 6" />
             </svg>
           </button>
         ) : null}
-        <span style={{ color: '#ff6600', fontWeight: 700, fontSize: 12, letterSpacing: '2.5px' }}>SENGER</span>
+        <span style={{ color: 'var(--accent)', fontWeight: 700, fontSize: 13, letterSpacing: '2.5px' }}>SENGER</span>
         {/* Feed status dot */}
         <div style={{
           width: 6, height: 6, borderRadius: '50%', flexShrink: 0,
           background: Object.values(feedStatus).every(s => s === 'live') ? '#22c55e'
-            : Object.values(feedStatus).some(s => s === 'live') ? '#f59e0b' : '#555',
+            : Object.values(feedStatus).some(s => s === 'live') ? '#f59e0b' : 'var(--text-muted)',
         }} />
         <div style={{ flex: 1 }} />
         {/* Mini clock */}
@@ -1326,7 +1320,7 @@ export default function App() {
       {/* Settings drawer overlay */}
       {settingsOpen && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 2000, background: 'rgba(0,0,0,0.7)' }}>
-          <div style={{ position: 'absolute', top: 0, right: 0, bottom: 0, width: '85%', maxWidth: 340, background: '#0a0a0a', overflowY: 'auto' }}>
+          <div style={{ position: 'absolute', top: 0, right: 0, bottom: 0, width: '85%', maxWidth: 340, background: 'var(--bg-app)', overflowY: 'auto' }}>
             <SettingsDrawer panelVisible={panelVisible} togglePanel={togglePanel} onClose={() => setSettingsOpen(false)} />
           </div>
         </div>
@@ -1357,7 +1351,7 @@ export default function App() {
           {/* ── Tab content area ── */}
           <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', minHeight: 0, WebkitOverflowScrolling: 'touch' }}>
 
-            {activeTab === 'markets' && (
+            {activeTab === 'home' && (
               <HomePanelMobile
                 onOpenDetail={goDetail}
                 onSearchClick={() => { setActiveTabPersist('more'); setMoreView('search'); }}
@@ -1401,40 +1395,22 @@ export default function App() {
           </div>
 
           {/* ── Bottom tab bar ── */}
-          <nav style={{
-            display: 'flex', background: '#000',
-            borderTop: '1px solid #1a1a1a',
-            flexShrink: 0,
-            paddingBottom: 'env(safe-area-inset-bottom)',
-          }}>
+          <nav className="m-tab-bar">
             {MOBILE_TABS.map(tab => {
               const isActive = activeTab === tab.id;
               return (
                 <button
                   key={tab.id}
+                  className="m-tab-btn"
+                  data-active={isActive}
                   onClick={() => {
                     if (tab.id === 'more' && activeTab === 'more') {
-                      // Tapping more again goes back to menu
                       setMoreView(null);
                     }
                     setActiveTabPersist(tab.id);
                     if (tab.id !== 'more') setMoreView(null);
                   }}
-                  style={{
-                    flex: 1, minHeight: 56,
-                    padding: '6px 4px 8px',
-                    background: isActive ? 'rgba(255,102,0,0.06)' : 'transparent',
-                    color: isActive ? '#ff6600' : '#555',
-                    border: 'none',
-                    borderTop: isActive ? '2px solid #ff6600' : '2px solid transparent',
-                    fontSize: 9, fontWeight: 600, letterSpacing: '0.02em',
-                    cursor: 'pointer', fontFamily: 'inherit',
-                    display: 'flex', flexDirection: 'column', alignItems: 'center',
-                    justifyContent: 'center', gap: 3,
-                    WebkitTapHighlightColor: 'transparent',
-                    touchAction: 'manipulation',
-                    transition: 'color 0.15s, background 0.15s',
-                  }}>
+                >
                   <TabIcon id={tab.id} active={isActive} />
                   <span>{tab.label}</span>
                 </button>
@@ -1448,27 +1424,22 @@ export default function App() {
       {detailTicker && !subscriptionExpired && (
         <div style={{
           position: 'fixed', inset: 0, zIndex: 1500,
-          background: '#060606',
+          background: 'var(--bg-app)',
           display: 'flex', flexDirection: 'column',
           paddingTop: 'env(safe-area-inset-top)',
         }}>
           {/* Detail header with close button */}
-          <div style={{
-            height: 48, flexShrink: 0,
-            display: 'flex', alignItems: 'center',
-            background: '#000', borderBottom: '1px solid #141414',
-            padding: '0 12px', gap: 10,
-          }}>
+          <div className="m-header">
             <button
               onClick={() => setDetailTicker(null)}
               style={{
-                background: 'none', border: 'none', color: '#ff6600',
+                background: 'none', border: 'none', color: 'var(--accent)',
                 fontSize: 11, cursor: 'pointer', padding: '8px 8px 8px 0',
                 fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 4,
                 letterSpacing: '0.05em',
               }}
             >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ff6600" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="15 18 9 12 15 6" />
               </svg>
               Back
@@ -1500,7 +1471,7 @@ function MobileClockCompact() {
   }, []);
   const ny = now.toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit', hour12: false });
   return (
-    <span style={{ color: '#444', fontSize: 9, letterSpacing: '0.05em', fontVariantNumeric: 'tabular-nums' }}>
+    <span style={{ color: 'var(--text-faint)', fontSize: 10, letterSpacing: '0.05em', fontVariantNumeric: 'tabular-nums' }}>
       NY {ny}
     </span>
   );
