@@ -77,7 +77,7 @@ function TickerTape({ stocks, indexes }) {
   );
 }
 
-export function Header({ connected, stocks, forex, marketStatus }) {
+export function Header({ connected, stocks, forex, marketStatus, onChatOpen, chatUnread }) {
   const statusColor = connected ? '#00c853' : '#f44336';
   const statusLabel = connected ? 'LIVE' : 'OFFLINE';
   const mktOpen = marketStatus?.market === 'open';
@@ -135,6 +135,19 @@ export function Header({ connected, stocks, forex, marketStatus }) {
             ) : null;
           })}
 
+
+          {/* Chat icon */}
+          {onChatOpen && (
+            <button
+              onClick={onChatOpen}
+              className="chat-icon-btn"
+              title="Messages"
+              style={{ marginRight: 4 }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
+              {chatUnread > 0 && <span className="chat-icon-badge">{chatUnread}</span>}
+            </button>
+          )}
           {/* Theme toggle */}
           {toggleTheme && (
             <button
