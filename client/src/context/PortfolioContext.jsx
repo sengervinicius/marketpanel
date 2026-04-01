@@ -1,24 +1,32 @@
 /**
- * PortfolioContext.jsx — Portfolio state management with localStorage persistence
+ * PortfolioContext.jsx — Portfolio state with server persistence + localStorage fallback
  *
- * Phase 4A: Frontend-first portfolio system.
+ * Phase 4A: Frontend-first portfolio system (localStorage).
+ * Phase 4B: Server-backed persistence with sync.
  *
- * Schema (portfolioStateV1):
- *   { version: 1, migrated: boolean, portfolios: [...], positions: [...] }
+ * Initialization precedence:
+ *   1. If server has data → use it as source of truth.
+ *   2. Else if local portfolioStateV1 exists → use it, sync once to server.
+ *   3. Else if legacy watchlist exists → migrate → sync to server.
+ *   4. Else → create empty default tree (Main/Core).
  *
- * Each portfolio:   { id, name, subportfolios: [{ id, name }] }
- * Each position:    { id, symbol, portfolioId, subportfolioId, investedAmount,
- *                     quantity, entryPrice, currency, note, createdAt }
+ * Ongoing updates:
+ *   - Every mutation updates React state immediately (optimistic).
+ *   - A debounced sync (1000ms) writes the full state to POST /api/portfolio/sync.
+ *   - On failure: local state is kept, warning logged, syncError flag set.
  *
- * Migration: Converts legacy senger_watchlist_v1 → portfolio positions on first load.
+ * Conflict model: last-write-wins per user.
  */
 
-import { createContext, useContext, useState, useCallback, useMemo } from 'react';
+import { createContext, useContext, useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import { useAuth } from './AuthContext';
+import { apiFetch } from '../utils/api';
 
 const PortfolioContext = createContext(null);
 const LS_KEY = 'senger_portfolio_v1';
 const LEGACY_WL_KEY = 'senger_watchlist_v1';
 const MAX_POSITIONS = 200;
+const SYNC_DEBOUNCE_MS = 1000;
 
 // ── ID generation ──
 let _idCounter = Date.now();
@@ -82,52 +90,170 @@ function migrateFromWatchlist(state) {
     };
   } catch (err) {
     console.warn('[Portfolio] Migration failed — legacy watchlist preserved:', err);
-    // Do NOT destroy legacy data; just mark as not-migrated so we can retry
     return state;
   }
 }
 
-// ── Load from localStorage ──
-function loadState() {
+// ── localStorage helpers ──
+function loadLocalState() {
   try {
     const raw = localStorage.getItem(LS_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
       if (parsed && parsed.version === 1) {
-        // Run migration if not yet done
         const migrated = migrateFromWatchlist(parsed);
-        if (migrated !== parsed) persist(migrated);
+        if (migrated !== parsed) persistLocal(migrated);
         return migrated;
       }
     }
   } catch (err) {
-    console.warn('[Portfolio] Failed to load state, resetting:', err);
+    console.warn('[Portfolio] Failed to load local state:', err);
   }
   // First time or corrupted — create fresh + migrate
   const fresh = defaultState();
   const migrated = migrateFromWatchlist(fresh);
-  persist(migrated);
+  persistLocal(migrated);
   return migrated;
 }
 
-function persist(state) {
+function persistLocal(state) {
   try {
     localStorage.setItem(LS_KEY, JSON.stringify(state));
   } catch (err) {
-    console.warn('[Portfolio] Persist failed:', err);
+    console.warn('[Portfolio] Local persist failed:', err);
+  }
+}
+
+// ── Server API helpers ──
+async function fetchServerPortfolio() {
+  try {
+    const res = await apiFetch('/api/portfolio');
+    if (!res.ok) {
+      console.warn('[Portfolio] Server fetch failed:', res.status);
+      return null;
+    }
+    const json = await res.json();
+    return json.data || null;
+  } catch (err) {
+    console.warn('[Portfolio] Server fetch error:', err.message);
+    return null;
+  }
+}
+
+async function syncToServer(state) {
+  try {
+    const res = await apiFetch('/api/portfolio/sync', {
+      method: 'POST',
+      body: JSON.stringify({
+        version: state.version || 1,
+        portfolios: state.portfolios,
+        positions: state.positions,
+      }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      console.warn('[Portfolio] Server sync failed:', res.status, err.error);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.warn('[Portfolio] Server sync error:', err.message);
+    return false;
   }
 }
 
 // ── Provider ──
 export function PortfolioProvider({ children }) {
-  const [state, setState] = useState(loadState);
+  const { user, authReady } = useAuth();
+  const [state, setState] = useState(loadLocalState); // Start with local immediately
+  const [syncError, setSyncError] = useState(false);
+  const [serverLoaded, setServerLoaded] = useState(false);
+  const syncTimerRef = useRef(null);
+  const initialSyncDoneRef = useRef(false);
+  const lastUserIdRef = useRef(null);
 
+  // ── Debounced server sync ──
+  const scheduleSyncToServer = useCallback((newState) => {
+    if (!user) return; // Not logged in, skip server sync
+    if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
+    syncTimerRef.current = setTimeout(async () => {
+      const ok = await syncToServer(newState);
+      setSyncError(!ok);
+    }, SYNC_DEBOUNCE_MS);
+  }, [user]);
+
+  // ── Update helper: updates state, persists to localStorage, schedules server sync ──
   const update = useCallback((fn) => {
     setState(prev => {
       const next = fn(prev);
-      persist(next);
+      persistLocal(next);
+      scheduleSyncToServer(next);
       return next;
     });
+  }, [scheduleSyncToServer]);
+
+  // ── Server initialization: load from server when auth is ready ──
+  useEffect(() => {
+    if (!authReady) return;
+
+    // User logged out — reset to local state
+    if (!user) {
+      initialSyncDoneRef.current = false;
+      lastUserIdRef.current = null;
+      setServerLoaded(false);
+      setSyncError(false);
+      setState(loadLocalState());
+      return;
+    }
+
+    // Same user already synced — skip
+    if (lastUserIdRef.current === user.id && initialSyncDoneRef.current) return;
+
+    // New user or first load — fetch from server
+    lastUserIdRef.current = user.id;
+    let cancelled = false;
+
+    (async () => {
+      const serverData = await fetchServerPortfolio();
+
+      if (cancelled) return;
+
+      if (serverData && Array.isArray(serverData.portfolios) && serverData.portfolios.length > 0) {
+        // Case 1: Server has data → use it
+        console.log(`[Portfolio] Loaded from server: ${serverData.portfolios.length} portfolio(s), ${serverData.positions?.length || 0} position(s)`);
+        const normalized = {
+          version: serverData.version || 1,
+          migrated: true,
+          portfolios: serverData.portfolios,
+          positions: serverData.positions || [],
+        };
+        setState(normalized);
+        persistLocal(normalized); // Mirror to local as fallback cache
+      } else {
+        // Case 2 & 3: Server is empty → use local state (which may include migration result)
+        const localState = loadLocalState();
+        console.log(`[Portfolio] No server data — using local state (${localState.positions.length} positions). Seeding server...`);
+        setState(localState);
+        // Seed server with the local state
+        const ok = await syncToServer(localState);
+        if (!cancelled) setSyncError(!ok);
+        if (ok) console.log('[Portfolio] Initial sync to server complete');
+      }
+
+      if (!cancelled) {
+        initialSyncDoneRef.current = true;
+        setServerLoaded(true);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [authReady, user]);
+
+  // ── Cleanup sync timer on unmount ──
+  useEffect(() => {
+    return () => {
+      if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
+    };
   }, []);
 
   // ── Portfolio CRUD ──
@@ -215,7 +341,6 @@ export function PortfolioProvider({ children }) {
   }, [update]);
 
   // ── Backward-compat with WatchlistContext consumers ──
-  // These let existing code (search panels, right-click menus) still call addTicker/removeTicker
   const watchlist = useMemo(() => state.positions.map(p => p.symbol), [state.positions]);
 
   const addTicker = useCallback((symbol) => {
@@ -241,10 +366,11 @@ export function PortfolioProvider({ children }) {
           createdAt: new Date().toISOString(),
         }],
       };
-      persist(next);
+      persistLocal(next);
+      scheduleSyncToServer(next);
       return next;
     });
-  }, []);
+  }, [scheduleSyncToServer]);
 
   const removeTicker = useCallback((symbol) => {
     update(s => ({
@@ -274,6 +400,9 @@ export function PortfolioProvider({ children }) {
     addPosition,
     updatePosition,
     removePosition,
+    // Sync status
+    syncError,
+    serverLoaded,
     // Legacy watchlist compat
     watchlist,
     addTicker,
@@ -281,7 +410,8 @@ export function PortfolioProvider({ children }) {
     isWatching,
     toggle,
     save: () => {},  // no-op, we auto-persist
-  }), [state, watchlist, addPortfolio, renamePortfolio, addSubportfolio, renameSubportfolio,
+  }), [state, watchlist, syncError, serverLoaded,
+       addPortfolio, renamePortfolio, addSubportfolio, renameSubportfolio,
        addPosition, updatePosition, removePosition, addTicker, removeTicker, isWatching, toggle]);
 
   return (

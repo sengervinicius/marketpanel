@@ -125,7 +125,7 @@ async function initDB() {
   const uri = process.env.MONGODB_URI;
   if (!uri) {
     console.log('[authStore] MONGODB_URI not set — using in-memory store (data will not persist across restarts)');
-    return;
+    return null;
   }
 
   try {
@@ -159,9 +159,11 @@ async function initDB() {
     }
 
     console.log(`[authStore] MongoDB connected (${dbName}) — loaded ${saved.length} user(s)`);
+    return mongoDB; // Return db instance so other stores can use it
   } catch (e) {
     console.error('[authStore] MongoDB connection failed — running in-memory only:', e.message);
     usersCollection = null;
+    return null;
   }
 }
 
