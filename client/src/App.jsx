@@ -853,11 +853,12 @@ function SubscriptionExpiredScreen({ onUpgrade, onLogout, onManageBilling, check
   );
 }
 
-// ── Mobile tab definitions (4 primary tabs) ──────────────────────────────────
+// ── Mobile tab definitions (5 primary tabs) ──────────────────────────────────
 const MOBILE_TABS = [
   { id: 'home',      label: 'Home' },
-  { id: 'charts',    label: 'Charts' },
+  { id: 'search',    label: 'Search' },
   { id: 'watchlist', label: 'Portfolio' },
+  { id: 'alerts',    label: 'Alerts' },
   { id: 'more',      label: 'More' },
 ];
 
@@ -865,21 +866,25 @@ const MOBILE_TABS = [
 function TabIcon({ id, active }) {
   const sw = active ? 2 : 1.5;
   const s = { width: 22, height: 22, display: 'block' };
-  // Color is inherited from the parent .m-tab-btn via CSS (currentColor)
   switch (id) {
     case 'home': return (
       <svg style={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round">
         <path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5z" /><polyline points="9 21 9 14 15 14 15 21" />
       </svg>
     );
-    case 'charts': return (
+    case 'search': return (
       <svg style={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round">
-        <line x1="18" y1="20" x2="18" y2="10" /><line x1="12" y1="20" x2="12" y2="4" /><line x1="6" y1="20" x2="6" y2="14" />
+        <circle cx="11" cy="11" r="7" /><line x1="16.5" y1="16.5" x2="21" y2="21" />
       </svg>
     );
     case 'watchlist': return (
-      <svg style={s} viewBox="0 0 24 24" fill={active ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={sw} strokeLinejoin="round">
-        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+      <svg style={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round">
+        <rect x="2" y="3" width="20" height="18" rx="2" /><line x1="2" y1="9" x2="22" y2="9" /><line x1="12" y1="9" x2="12" y2="21" />
+      </svg>
+    );
+    case 'alerts': return (
+      <svg style={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round">
+        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" />
       </svg>
     );
     case 'more': return (
@@ -889,6 +894,45 @@ function TabIcon({ id, active }) {
     );
     default: return null;
   }
+}
+
+// Badge component for tab bar alert count
+function TabBadge({ count }) {
+  if (!count || count <= 0) return null;
+  return (
+    <span className="m-tab-badge">{count > 9 ? '9+' : count}</span>
+  );
+}
+
+// Mobile tab bar with alert badges
+function MobileTabBar({ activeTab, onTabChange }) {
+  const { alerts } = useAlerts();
+  const triggeredCount = useMemo(
+    () => alerts.filter(a => a.triggeredAt && !a.dismissed).length,
+    [alerts]
+  );
+
+  return (
+    <nav className="m-tab-bar">
+      {MOBILE_TABS.map(tab => {
+        const isActive = activeTab === tab.id;
+        return (
+          <button
+            key={tab.id}
+            className="m-tab-btn"
+            data-active={isActive}
+            onClick={() => onTabChange(tab.id)}
+          >
+            <span className="m-tab-icon-wrap">
+              <TabIcon id={tab.id} active={isActive} />
+              {tab.id === 'alerts' && <TabBadge count={triggeredCount} />}
+            </span>
+            <span>{tab.label}</span>
+          </button>
+        );
+      })}
+    </nav>
+  );
 }
 
 const LS_TAB          = 'activeTab_m3';
@@ -1013,11 +1057,12 @@ export default function App() {
 
   const [activeTab, setActiveTab] = useState(() => {
     const saved = localStorage.getItem(LS_TAB);
-    // Migrate old tab ID from previous 'markets' to 'home'
+    // Migrate old tab IDs
     if (saved === 'markets') return 'home';
+    if (saved === 'charts') return 'home'; // charts moved to More → Charts
     return MOBILE_TABS.find(t => t.id === saved) ? saved : 'home';
   });
-  // Secondary view inside "more" tab (search, news, etf, chat)
+  // Secondary view inside "more" tab (charts, news, etf, chat)
   const [moreView, setMoreView] = useState(null);
   const setActiveTabPersist = (t) => { setActiveTab(t); localStorage.setItem(LS_TAB, t); };
 
@@ -1138,8 +1183,13 @@ export default function App() {
   const goChart = useCallback((t) => {
     const sym = typeof t === 'object' ? (t.symbol || t) : t;
     setChartTicker(sym);
-    setActiveTabPersist('charts');
-  }, [setChartTicker]);
+    if (isMobile) {
+      setActiveTabPersist('more');
+      setMoreView('charts');
+    } else {
+      setActiveTabPersist('charts');
+    }
+  }, [setChartTicker, isMobile]);
 
   const goDetail = useCallback((t) => {
     const sym = typeof t === 'object' ? (t.symbol || t.ticker || t) : t;
@@ -1304,6 +1354,15 @@ export default function App() {
     setMoreView(null);
   }, []);
 
+  // Screen title for mobile header
+  const mobileScreenTitle = useMemo(() => {
+    if (activeTab === 'more' && moreView) {
+      const titles = { charts: 'Charts', news: 'News Feed', etf: 'ETF Screener', chat: 'Chat' };
+      return titles[moreView] || moreView;
+    }
+    return null;
+  }, [activeTab, moreView]);
+
   return (
     <DragProvider>
     <PortfolioProvider>
@@ -1330,11 +1389,7 @@ export default function App() {
         {(activeTab === 'more' && moreView) ? (
           <button
             onClick={handleMoreBack}
-            style={{
-              background: 'none', border: 'none', color: 'var(--accent)',
-              fontSize: 18, cursor: 'pointer', padding: '4px 8px 4px 0',
-              fontFamily: 'inherit', display: 'flex', alignItems: 'center',
-            }}
+            className="m-header-back"
             aria-label="Back"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1342,13 +1397,16 @@ export default function App() {
             </svg>
           </button>
         ) : null}
-        <span style={{ color: 'var(--accent)', fontWeight: 700, fontSize: 13, letterSpacing: '2.5px' }}>SENGER</span>
+        {mobileScreenTitle ? (
+          <span className="m-header-title">{mobileScreenTitle}</span>
+        ) : (
+          <span style={{ color: 'var(--accent)', fontWeight: 700, fontSize: 13, letterSpacing: '2.5px' }}>SENGER</span>
+        )}
         {/* Feed status dot */}
-        <div style={{
-          width: 6, height: 6, borderRadius: '50%', flexShrink: 0,
-          background: Object.values(feedStatus).every(s => s === 'live') ? '#22c55e'
-            : Object.values(feedStatus).some(s => s === 'live') ? '#f59e0b' : 'var(--text-muted)',
-        }} />
+        <div className="m-feed-dot" data-status={
+          Object.values(feedStatus).every(s => s === 'live') ? 'live'
+          : Object.values(feedStatus).some(s => s === 'live') ? 'partial' : 'off'
+        } />
         <div style={{ flex: 1 }} />
         {/* Mini clock */}
         <MobileClockCompact />
@@ -1391,19 +1449,23 @@ export default function App() {
             {activeTab === 'home' && (
               <HomePanelMobile
                 onOpenDetail={goDetail}
-                onSearchClick={() => { setActiveTabPersist('more'); setMoreView('search'); }}
+                onSearchClick={() => setActiveTabPersist('search')}
               />
             )}
 
-            {activeTab === 'charts' && (
-              <ChartsPanelMobile onOpenDetail={goDetail} />
+            {activeTab === 'search' && (
+              <SearchPanel onTickerSelect={goDetail} onOpenDetail={goDetail} />
             )}
 
             {activeTab === 'watchlist' && (
               <PortfolioMobile
                 onOpenDetail={goDetail}
-                onManage={() => { setActiveTabPersist('more'); setMoreView('search'); }}
+                onManage={() => setActiveTabPersist('search')}
               />
+            )}
+
+            {activeTab === 'alerts' && (
+              <AlertsMobile onOpenDetail={goDetail} />
             )}
 
             {activeTab === 'more' && !moreView && (
@@ -1418,8 +1480,8 @@ export default function App() {
               />
             )}
 
-            {activeTab === 'more' && moreView === 'search' && (
-              <SearchPanel onTickerSelect={goDetail} onOpenDetail={goDetail} />
+            {activeTab === 'more' && moreView === 'charts' && (
+              <ChartsPanelMobile onOpenDetail={goDetail} />
             )}
 
             {activeTab === 'more' && moreView === 'news' && <NewsPanel />}
@@ -1429,35 +1491,19 @@ export default function App() {
             )}
 
             {activeTab === 'more' && moreView === 'chat' && <ChatPanel mobile />}
-
-            {activeTab === 'more' && moreView === 'alerts' && (
-              <AlertsMobile onOpenDetail={goDetail} />
-            )}
           </div>
 
           {/* ── Bottom tab bar ── */}
-          <nav className="m-tab-bar">
-            {MOBILE_TABS.map(tab => {
-              const isActive = activeTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  className="m-tab-btn"
-                  data-active={isActive}
-                  onClick={() => {
-                    if (tab.id === 'more' && activeTab === 'more') {
-                      setMoreView(null);
-                    }
-                    setActiveTabPersist(tab.id);
-                    if (tab.id !== 'more') setMoreView(null);
-                  }}
-                >
-                  <TabIcon id={tab.id} active={isActive} />
-                  <span>{tab.label}</span>
-                </button>
-              );
-            })}
-          </nav>
+          <MobileTabBar
+            activeTab={activeTab}
+            onTabChange={(tabId) => {
+              if (tabId === 'more' && activeTab === 'more') {
+                setMoreView(null);
+              }
+              setActiveTabPersist(tabId);
+              if (tabId !== 'more') setMoreView(null);
+            }}
+          />
         </>
       )}
 

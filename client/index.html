@@ -4,33 +4,39 @@
     <meta charset="UTF-8" />
 
     <!-- ── Viewport / PWA ── -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-    <meta name="theme-color" content="#000000" />
-    <meta name="background-color" content="#0a0a0a" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#0a0a0f" />
 
     <!-- iOS PWA -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Senger Market" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
 
     <!-- Android PWA -->
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="application-name" content="Senger Market" />
 
+    <!-- Manifest -->
+    <link rel="manifest" href="/manifest.json" />
+
     <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+    <!-- SEO / Social -->
+    <meta name="description" content="Professional market data terminal — real-time prices, portfolio tracking, alerts, and analysis." />
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
 
-    <title>Senger Market Screen</title>
+    <title>Senger Market</title>
 
     <style>
       /* Prevent FOUC */
-      html { background: #0a0a0a; }
-      body { margin: 0; overflow: hidden; background: #0a0a0a; }
+      html { background: #0a0a0f; }
+      body { margin: 0; overflow: hidden; background: #0a0a0f; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
       /* iOS safe area */
       :root {
         --sat: env(safe-area-inset-top);
@@ -38,6 +44,8 @@
         --sab: env(safe-area-inset-bottom);
         --sal: env(safe-area-inset-left);
       }
+      /* Prevent rubber-band overscroll on iOS */
+      html, body { overscroll-behavior: none; }
     </style>
   </head>
   <body>
