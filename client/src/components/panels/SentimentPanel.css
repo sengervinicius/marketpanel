@@ -1,0 +1,140 @@
+/* SentimentPanel.css — tokenized styles for market breadth panel */
+
+.sp-panel {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-app);
+  overflow-y: auto;
+}
+
+/* Section header */
+.sp-section-header {
+  padding: var(--sp-1) var(--sp-2);
+  border-bottom: 1px solid var(--border-strong);
+  background: var(--bg-elevated);
+  flex-shrink: 0;
+}
+.sp-section-header--alt {
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-default);
+}
+.sp-section-title {
+  color: #80cbc4;
+  font-size: var(--font-base);
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+.sp-section-note {
+  color: var(--text-faint);
+  font-size: var(--font-sm);
+  margin-left: 6px;
+}
+
+/* Breadth section */
+.sp-breadth {
+  padding: 6px var(--sp-2);
+  border-bottom: 1px solid var(--border-default);
+  flex-shrink: 0;
+}
+
+/* Breadth bar */
+.sp-breadth-row {
+  margin-bottom: 3px;
+}
+.sp-breadth-meta {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 2px;
+}
+.sp-breadth-label {
+  color: var(--text-secondary);
+  font-size: var(--font-sm);
+  letter-spacing: 0.5px;
+}
+.sp-breadth-avg {
+  font-size: var(--font-sm);
+}
+.sp-breadth-track {
+  display: flex;
+  height: 6px;
+  overflow: hidden;
+  gap: 1px;
+}
+
+/* Rates section */
+.sp-rates {
+  padding: var(--sp-1) 6px;
+  border-bottom: 1px solid var(--border-default);
+  flex-shrink: 0;
+}
+.sp-rates-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 3px;
+  margin-bottom: var(--sp-1);
+}
+.sp-rate-card {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-default);
+  padding: 3px 5px;
+}
+.sp-rate-label {
+  color: var(--text-muted);
+  font-size: var(--font-sm);
+}
+.sp-rate-value {
+  color: var(--text-primary);
+  font-weight: 700;
+  font-size: var(--font-md);
+  font-variant-numeric: tabular-nums;
+}
+.sp-rate-chg {
+  font-size: var(--font-sm);
+  font-variant-numeric: tabular-nums;
+}
+.sp-policy-label {
+  color: var(--text-muted);
+  font-size: var(--font-sm);
+}
+.sp-policy-value {
+  color: #ce93d8;
+  font-weight: 700;
+  font-size: var(--font-md);
+  font-variant-numeric: tabular-nums;
+}
+.sp-policy-note {
+  color: var(--text-faint);
+  font-size: var(--font-xs);
+}
+
+/* Movers section */
+.sp-movers {
+  flex-shrink: 0;
+  padding: var(--sp-1);
+}
+.sp-movers-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2px;
+}
+.sp-mover-cell {
+  padding: var(--sp-1);
+  text-align: center;
+}
+.sp-mover-symbol {
+  color: var(--accent);
+  font-weight: 700;
+  font-size: var(--font-base);
+}
+.sp-mover-chg {
+  font-size: var(--font-base);
+  font-weight: 600;
+}
+
+.sp-loading {
+  color: var(--text-faint);
+  font-size: var(--font-base);
+  padding: var(--sp-2);
+  text-align: center;
+}

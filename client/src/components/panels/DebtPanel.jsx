@@ -20,10 +20,7 @@ import {
   Tooltip, ResponsiveContainer,
 } from 'recharts';
 import { apiFetch } from '../../utils/api';
-
-const ORANGE = '#ff6600';
-const GREEN  = '#00cc44';
-const RED    = '#cc2200';
+import './DebtPanel.css';
 
 // Which countryCode → live curve key in /api/yield-curves response
 const LIVE_KEY = { US: 'US', UK: 'UK', GB: 'UK', DE: 'EU', EU: 'EU', BR: 'BR' };
@@ -36,6 +33,13 @@ const COUNTRY_GROUPS = [
   { label: 'LatAm',  codes: ['BR', 'MX', 'ZA'] },
 ];
 
+// Country color palette (distinct, readable on dark bg)
+const COUNTRY_COLORS = {
+  US: '#4488ff', EU: '#ffcc00', UK: '#cc88ff', BR: '#00cc44',
+  JP: '#ff8844', CA: '#ff6644', AU: '#ffee44', IT: '#66ccff',
+  FR: '#88ddff', MX: '#44ff88', KR: '#88ffcc', ZA: '#ffaa44',
+};
+
 function fmtYield(v, bps = false) {
   if (v == null) return '--';
   if (bps) return (v >= 0 ? '+' : '') + v + ' bps';
@@ -44,22 +48,19 @@ function fmtYield(v, bps = false) {
 
 function SpreadRow({ item }) {
   const chg = item.change ?? 0;
-  const color = chg > 0 ? RED : GREEN;
+  const color = chg > 0 ? 'var(--price-down)' : 'var(--price-up)';
   return (
-    <div style={{
-      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-      padding: '5px 0', borderBottom: '1px solid #111',
-    }}>
+    <div className="dp-spread-row">
       <div>
-        <div style={{ color: '#e0e0e0', fontSize: 10 }}>{item.name}</div>
-        <div style={{ color: '#444', fontSize: 8 }}>{item.currency}</div>
+        <div className="dp-spread-name">{item.name}</div>
+        <div className="dp-spread-currency">{item.currency}</div>
       </div>
       <div style={{ textAlign: 'right' }}>
-        <div style={{ color: '#e0e0e0', fontSize: 11, fontWeight: 'bold', fontVariantNumeric: 'tabular-nums' }}>
+        <div className="dp-spread-value">
           {fmtYield(item.spread, item.spreadBps)}
         </div>
         {item.change != null && (
-          <div style={{ color, fontSize: 9, fontVariantNumeric: 'tabular-nums' }}>
+          <div className="dp-spread-chg" style={{ color }}>
             {chg >= 0 ? '+' : ''}{chg}
           </div>
         )}
@@ -68,36 +69,23 @@ function SpreadRow({ item }) {
   );
 }
 
-// Regional snapshot: horizontal bar chart of N-tenor yields across countries
 function RegionalSnapshot({ data }) {
   if (!data || data.length === 0) return null;
   const max = Math.max(...data.map(d => Math.abs(d.yield)));
   return (
     <div style={{ overflowY: 'auto', padding: '0 8px 8px' }}>
       {data.map(item => (
-        <div key={item.country} style={{
-          display: 'grid',
-          gridTemplateColumns: '36px 1fr 60px',
-          alignItems: 'center',
-          gap: 6, padding: '5px 0',
-          borderBottom: '1px solid #111',
-        }}>
-          <span style={{ color: '#888', fontSize: 9, fontWeight: 700 }}>{item.country}</span>
-          <div style={{ position: 'relative', height: 8, background: '#1a1a1a', borderRadius: 2 }}>
-            <div style={{
-              position: 'absolute', left: 0, top: 0, bottom: 0,
+        <div key={item.country} className="dp-snapshot-row">
+          <span className="dp-snapshot-code">{item.country}</span>
+          <div className="dp-snapshot-bar">
+            <div className="dp-snapshot-fill" style={{
               width: `${max > 0 ? Math.abs(item.yield) / max * 100 : 0}%`,
-              background: item.color || ORANGE,
-              borderRadius: 2, opacity: 0.8,
+              background: item.color || 'var(--accent)',
             }} />
           </div>
-          <div style={{ textAlign: 'right' }}>
-            <span style={{ color: '#ccc', fontSize: 10, fontVariantNumeric: 'tabular-nums' }}>
-              {item.yield.toFixed(2)}%
-            </span>
-            {item.live && (
-              <span style={{ color: GREEN, fontSize: 7, marginLeft: 4 }}>●</span>
-            )}
+          <div className="dp-snapshot-value">
+            <span className="dp-snapshot-yield">{item.yield.toFixed(2)}%</span>
+            {item.live && <span className="dp-snapshot-live" style={{ color: 'var(--price-up)' }}>●</span>}
           </div>
         </div>
       ))}
@@ -105,17 +93,10 @@ function RegionalSnapshot({ data }) {
   );
 }
 
-// Country color palette (distinct, readable on dark bg)
-const COUNTRY_COLORS = {
-  US: '#4488ff', EU: '#ffcc00', UK: '#cc88ff', BR: '#00cc44',
-  JP: '#ff8844', CA: '#ff6644', AU: '#ffee44', IT: '#66ccff',
-  FR: '#88ddff', MX: '#44ff88', KR: '#88ffcc', ZA: '#ffaa44',
-};
-
 function DebtPanel() {
   const [availableCountries, setAvailableCountries] = useState([]);
   const [selectedCountry, setSelectedCountry]       = useState('US');
-  const [view, setView]                             = useState('curve'); // 'curve' | 'regional'
+  const [view, setView]                             = useState('curve');
   const [regionalTenor, setRegionalTenor]           = useState('10Y');
   const [curve, setCurve]                           = useState(null);
   const [curveSource, setCurveSource]               = useState(null);
@@ -124,10 +105,8 @@ function DebtPanel() {
   const [loading, setLoading]                       = useState(true);
   const [error, setError]                           = useState(null);
   const [countryGroup, setCountryGroup]             = useState('G10');
-  // Live data from /api/yield-curves (US, UK, EU, BR)
   const [liveData, setLiveData]                     = useState(null);
 
-  // Load live yield curves + available country list on mount
   useEffect(() => {
     Promise.allSettled([
       apiFetch('/api/yield-curves').then(r => r.ok ? r.json() : null),
@@ -137,9 +116,7 @@ function DebtPanel() {
         setLiveData(liveRes.value);
       }
       if (countriesRes.status === 'fulfilled') {
-        // Merge live countries (EU / UK / US / BR) with stub list
         const stubList = countriesRes.value?.countries || [];
-        // Replace DE with EU label if live EU data available
         const merged = [
           { code: 'US', name: 'United States (Treasury)', color: COUNTRY_COLORS.US, live: true },
           { code: 'EU', name: 'Euro Area (ECB)',          color: COUNTRY_COLORS.EU, live: true },
@@ -154,7 +131,6 @@ function DebtPanel() {
     });
   }, []);
 
-  // Helper: extract live curve points for a country code
   const getLiveCurve = useCallback((code) => {
     if (!liveData) return null;
     const key = LIVE_KEY[code];
@@ -166,7 +142,6 @@ function DebtPanel() {
     };
   }, [liveData]);
 
-  // Load curve when country or view changes
   useEffect(() => {
     if (view !== 'curve') return;
     setLoading(true);
@@ -176,7 +151,6 @@ function DebtPanel() {
     if (live) {
       setCurve({ points: live.points });
       setCurveSource(live.source);
-      // Still load credit indexes
       apiFetch('/api/debt/credit/indexes')
         .then(r => r.json())
         .then(d => setIndexes(d.indexes || []))
@@ -187,7 +161,6 @@ function DebtPanel() {
       return;
     }
 
-    // Fallback: use stub endpoint for countries not in live data
     Promise.all([
       apiFetch(`/api/debt/sovereign/${selectedCountry}`).then(r => r.json()),
       apiFetch('/api/debt/credit/indexes').then(r => r.json()),
@@ -202,7 +175,6 @@ function DebtPanel() {
     });
   }, [selectedCountry, view, getLiveCurve]);
 
-  // Load regional snapshot
   useEffect(() => {
     if (view !== 'regional') return;
     setLoading(true);
@@ -211,10 +183,8 @@ function DebtPanel() {
     const group = COUNTRY_GROUPS.find(g => g.label === countryGroup);
     const codes = group?.codes || COUNTRY_GROUPS[0].codes;
 
-    // Build regional snapshot from live data + stub fallback
     const buildRegional = async () => {
       const snapshot = [];
-      // First try to get stub regional data as a base
       let stubRegion = {};
       try {
         const region = countryGroup.toLowerCase();
@@ -241,7 +211,6 @@ function DebtPanel() {
             continue;
           }
         }
-        // Fall back to stub
         if (stubRegion[code]) {
           snapshot.push({ ...stubRegion[code], color: COUNTRY_COLORS[code] || '#888', live: false });
         }
@@ -250,7 +219,6 @@ function DebtPanel() {
       snapshot.sort((a, b) => b.yield - a.yield);
       setRegional(snapshot);
 
-      // Load credit indexes
       try {
         const d = await apiFetch('/api/debt/credit/indexes').then(r => r.json());
         setIndexes(d.indexes || []);
@@ -272,30 +240,17 @@ function DebtPanel() {
   const TENORS = ['2Y', '5Y', '10Y', '30Y'];
 
   return (
-    <div style={{
-      height: '100%', display: 'flex', flexDirection: 'column',
-      background: '#0a0a0a', fontFamily: '"Courier New", monospace', color: '#e0e0e0',
-    }}>
+    <div className="dp-panel">
       {/* Header */}
-      <div style={{
-        padding: '6px 10px', borderBottom: '1px solid #1e1e1e',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        flexShrink: 0, gap: 6,
-      }}>
-        <span style={{ color: ORANGE, fontWeight: 'bold', fontSize: 10, letterSpacing: '0.15em', flexShrink: 0 }}>
-          DEBT
-        </span>
+      <div className="dp-header">
+        <span className="dp-title">DEBT</span>
 
         {/* View toggle */}
         <div style={{ display: 'flex', gap: 3 }}>
           {[['curve','CURVE'],['regional','REGION']].map(([v, lbl]) => (
-            <button key={v} onClick={() => setView(v)} style={{
-              background: view === v ? ORANGE : 'transparent',
-              border: `1px solid ${view === v ? ORANGE : '#2a2a2a'}`,
-              color:  view === v ? '#000' : '#555',
-              padding: '1px 6px', fontSize: 8, cursor: 'pointer',
-              fontFamily: 'inherit', borderRadius: 2, fontWeight: 'bold',
-            }}>{lbl}</button>
+            <button key={v} onClick={() => setView(v)}
+              className={`dp-view-btn${view === v ? ' dp-view-btn--active' : ''}`}
+            >{lbl}</button>
           ))}
         </div>
 
@@ -304,11 +259,7 @@ function DebtPanel() {
           <select
             value={selectedCountry}
             onChange={e => setSelectedCountry(e.target.value)}
-            style={{
-              background: '#111', border: '1px solid #2a2a2a', color: '#ccc',
-              fontSize: 9, padding: '2px 4px', borderRadius: 2,
-              fontFamily: 'inherit', cursor: 'pointer', flex: 1, minWidth: 0,
-            }}
+            className="dp-select dp-select--flex"
           >
             {availableCountries.map(c => (
               <option key={c.code} value={c.code}>
@@ -321,75 +272,48 @@ function DebtPanel() {
         {/* Group + tenor selectors (regional view) */}
         {view === 'regional' && (
           <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-            <select
-              value={countryGroup}
-              onChange={e => setCountryGroup(e.target.value)}
-              style={{
-                background: '#111', border: '1px solid #2a2a2a', color: '#ccc',
-                fontSize: 9, padding: '2px 4px', borderRadius: 2, fontFamily: 'inherit',
-              }}
-            >
+            <select value={countryGroup} onChange={e => setCountryGroup(e.target.value)} className="dp-select">
               {COUNTRY_GROUPS.map(g => <option key={g.label} value={g.label}>{g.label}</option>)}
             </select>
-            <select
-              value={regionalTenor}
-              onChange={e => setRegionalTenor(e.target.value)}
-              style={{
-                background: '#111', border: '1px solid #2a2a2a', color: '#ccc',
-                fontSize: 9, padding: '2px 4px', borderRadius: 2, fontFamily: 'inherit',
-              }}
-            >
+            <select value={regionalTenor} onChange={e => setRegionalTenor(e.target.value)} className="dp-select">
               {TENORS.map(t => <option key={t} value={t}>{t}</option>)}
             </select>
           </div>
         )}
       </div>
 
-      {loading && (
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#2a2a2a', fontSize: 11, fontFamily: "'Courier New', monospace" }}>
-          LOADING…
-        </div>
-      )}
+      {loading && <div className="dp-msg dp-msg--loading">LOADING...</div>}
 
-      {error && !loading && (
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#cc2200', fontSize: 10 }}>
-          {error}
-        </div>
-      )}
+      {error && !loading && <div className="dp-msg dp-msg--error">{error}</div>}
 
-      {/* ─── Curve view ───────────────────────────────────────────────── */}
+      {/* Curve view */}
       {!loading && !error && view === 'curve' && (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
-          {/* Source attribution */}
-          <div style={{
-            padding: '3px 10px 2px',
-            display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0,
-          }}>
-            <span style={{ color: '#333', fontSize: 8, letterSpacing: '0.1em' }}>
+        <div className="dp-curve">
+          <div className="dp-source-row">
+            <span className="dp-source-label">
               {countryMeta?.name?.toUpperCase() || selectedCountry} YIELD CURVE
             </span>
             {curveSource && (
-              <span style={{ fontSize: 7, color: isLive ? GREEN : '#555' }}>
+              <span className="dp-source-badge" style={{ color: isLive ? 'var(--price-up)' : 'var(--text-muted)' }}>
                 {isLive ? '● ' : '○ '}{curveSource}
               </span>
             )}
           </div>
 
-          {/* Chart */}
           <div style={{ flex: 2, minHeight: 100, padding: '2px 4px' }}>
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={chartData} margin={{ top: 2, right: 8, bottom: 0, left: 2 }}>
-                <CartesianGrid strokeDasharray="2 4" stroke="#111" />
-                <XAxis dataKey="tenor" tick={{ fill: '#2a2a2a', fontSize: 8 }} axisLine={{ stroke: '#1e1e1e' }} tickLine={false} />
+                <CartesianGrid strokeDasharray="2 4" stroke="var(--border-subtle)" />
+                <XAxis dataKey="tenor" tick={{ fill: 'var(--text-faint)', fontSize: 8 }} axisLine={{ stroke: 'var(--border-default)' }} tickLine={false} />
                 <YAxis
-                  tick={{ fill: '#2a2a2a', fontSize: 8 }}
+                  tick={{ fill: 'var(--text-faint)', fontSize: 8 }}
                   domain={['auto', 'auto']}
                   tickFormatter={v => v.toFixed(1) + '%'}
                   width={36}
-                  axisLine={{ stroke: '#1e1e1e' }}
+                  axisLine={{ stroke: 'var(--border-default)' }}
                 />
                 <Tooltip
-                  contentStyle={{ background: '#0d0d0d', border: '1px solid #2a2a2a', fontSize: 10, borderRadius: 3 }}
+                  contentStyle={{ background: 'var(--bg-surface)', border: '1px solid var(--border-strong)', fontSize: 10, borderRadius: 3 }}
                   formatter={v => [v.toFixed(2) + '%', 'Yield']}
                 />
                 <Line
@@ -402,29 +326,22 @@ function DebtPanel() {
             </ResponsiveContainer>
           </div>
 
-          {/* Tenor table — 2 columns */}
-          <div style={{ borderTop: '1px solid #1a1a1a', padding: '6px 10px 0', overflowY: 'auto' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1px' }}>
+          <div className="dp-tenor-table">
+            <div className="dp-tenor-grid">
               {chartData.map(pt => (
-                <div key={pt.tenor} style={{
-                  display: 'flex', justifyContent: 'space-between',
-                  padding: '3px 0', borderBottom: '1px solid #111',
-                }}>
-                  <span style={{ color: '#333', fontSize: 8 }}>{pt.tenor}</span>
-                  <span style={{ color: '#ccc', fontSize: 10, fontVariantNumeric: 'tabular-nums' }}>
-                    {pt.yield.toFixed(2)}%
-                  </span>
+                <div key={pt.tenor} className="dp-tenor-row">
+                  <span className="dp-tenor-label">{pt.tenor}</span>
+                  <span className="dp-tenor-value">{pt.yield.toFixed(2)}%</span>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Credit spreads */}
           {indexes.length > 0 && (
-            <div style={{ borderTop: '1px solid #1e1e1e', padding: '6px 10px', flexShrink: 0, maxHeight: 170, overflowY: 'auto' }}>
-              <div style={{ color: '#333', fontSize: 8, letterSpacing: '0.1em', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div className="dp-spreads">
+              <div className="dp-spreads-title">
                 CREDIT SPREADS (bps)
-                <span style={{ color: '#444', fontSize: 7 }}>○ ESTIMATED</span>
+                <span className="dp-spreads-note">○ ESTIMATED</span>
               </div>
               {indexes.map(idx => <SpreadRow key={idx.id} item={idx} />)}
             </div>
@@ -432,24 +349,21 @@ function DebtPanel() {
         </div>
       )}
 
-      {/* ─── Regional view ───────────────────────────────────────────── */}
+      {/* Regional view */}
       {!loading && !error && view === 'regional' && (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-          <div style={{ padding: '4px 10px 2px', color: '#333', fontSize: 8, letterSpacing: '0.1em', flexShrink: 0, display: 'flex', gap: 6 }}>
+        <div className="dp-regional">
+          <div className="dp-regional-header">
             <span>{countryGroup} — {regionalTenor} YIELDS</span>
-            <span style={{ color: '#444', fontSize: 7 }}>
-              ● live  ○ est.
-            </span>
+            <span className="dp-regional-legend">● live  ○ est.</span>
           </div>
           <div style={{ flex: 1, overflowY: 'auto' }}>
             <RegionalSnapshot data={regional} />
           </div>
 
-          {/* Credit spreads */}
           {indexes.length > 0 && (
-            <div style={{ borderTop: '1px solid #1e1e1e', padding: '6px 10px', flexShrink: 0, maxHeight: 150, overflowY: 'auto' }}>
-              <div style={{ color: '#333', fontSize: 8, letterSpacing: '0.1em', marginBottom: 4 }}>
-                CREDIT SPREADS (bps) <span style={{ color: '#444', fontSize: 7 }}>○ ESTIMATED</span>
+            <div className="dp-spreads" style={{ maxHeight: 150 }}>
+              <div className="dp-spreads-title">
+                CREDIT SPREADS (bps) <span className="dp-spreads-note">○ ESTIMATED</span>
               </div>
               {indexes.map(idx => <SpreadRow key={idx.id} item={idx} />)}
             </div>

@@ -1,21 +1,17 @@
 // ChartPanel.jsx — Bloomberg-style multi-chart grid (fixed 4×4 = 16 slots)
 // Desktop: always-full 4×4 symmetric grid — no empty rows ever
 // Mobile: 2-col scrollable layout sharing same localStorage as desktop
-// Fix: onDragLeave uses relatedTarget.contains check to prevent flicker/stuck state
-// Drag-to-swap: internal slots draggable; drop onto another slot swaps positions
-// URL sync: ?c=SPY,QQQ,... persisted via history.replaceState for cross-device sharing
-// Auto-sync: grid synced to server on change, fetched on mount for mobile cross-device
 import { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
 import { useTickerPrice } from '../../context/PriceContext';
 import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip, ReferenceLine } from 'recharts';
 import { apiFetch } from '../../utils/api';
+import './ChartPanel.css';
+
 const LS_KEY = 'chartGrid_v3';
 const MAX = 16;
 const GRID_COLS = 4;
 const GRID_ROWS = 4;
-const CHART_REFRESH_INTERVAL = 60_000; // 60 seconds
-
-
+const CHART_REFRESH_INTERVAL = 60_000;
 
 const RANGES = [
   { label: '1D', multiplier: 5,  timespan: 'minute', days: 1   },
@@ -91,10 +87,7 @@ function assetType(t) {
   return 'EQUITY';
 }
 
-
-// Look up a ticker in the shared market data (same object useMarketData returns)
 function MiniChart({ ticker, index, onRemove, onReplace, onSwap, onOpenDetail }) {
-  // Single source of truth — reads from PriceContext (batch or auto-fetched)
   const shared = useTickerPrice(ticker);
   const [data,    setData]    = useState([]);
   const [price,   setPrice]   = useState(null);
@@ -158,12 +151,9 @@ function MiniChart({ ticker, index, onRemove, onReplace, onSwap, onOpenDetail })
     return () => { mountedRef.current = false; clearInterval(intervalRef.current); };
   }, [fetchData, rangeIdx]);
 
-  // ── Sync shared price into local state (for '1D chg' reference in chart) ──
-  // shared is read from PriceContext — same data as every other panel
   useEffect(() => {
     if (!shared?.price) return;
     setPrice(shared.price);
-    // Only overwrite local chg/chgPct when viewing 1D (daily context matches)
     if (shared.changePct != null) {
       snapshotChgRef.current = { chg: shared.change, chgPct: shared.changePct };
       if (rangeIdx === 0) {
@@ -172,10 +162,10 @@ function MiniChart({ ticker, index, onRemove, onReplace, onSwap, onOpenDetail })
       }
     }
   }, [shared, rangeIdx]);
+
   useEffect(() => {
     if (!ticker) return;
     const norm = normalizeTicker(ticker);
-    // Hard-coded display names take priority
     const override = NAME_OVERRIDES[norm] || NAME_OVERRIDES[ticker];
     if (override) {
       _nameCache.set(norm, override);
@@ -183,7 +173,6 @@ function MiniChart({ ticker, index, onRemove, onReplace, onSwap, onOpenDetail })
       return;
     }
     if (_nameCache.has(norm)) { setName(_nameCache.get(norm)); return; }
-    // FX and crypto don't have names in Polygon ticker endpoint
     if (norm.startsWith('C:') || norm.startsWith('X:')) {
       _nameCache.set(norm, ''); return;
     }
@@ -200,9 +189,9 @@ function MiniChart({ ticker, index, onRemove, onReplace, onSwap, onOpenDetail })
         if (mountedRef.current) setName(n);
       }).catch(() => {});
   }, [ticker]);
+
   const handleRangeChange = (idx) => { clearInterval(intervalRef.current); setRangeIdx(idx); };
 
-  // Price always from PriceContext; chg/chgPct from chart data when not 1D
   const dispPrice  = shared?.price ?? price;
   const dispChg    = rangeIdx === 0 ? (shared?.change    ?? chg) : chg;
   const dispChgPct = rangeIdx === 0 ? (shared?.changePct ?? chgPct) : chgPct;
@@ -218,21 +207,15 @@ function MiniChart({ ticker, index, onRemove, onReplace, onSwap, onOpenDetail })
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
 
+  const cellClass = `mc-cell${isDragging ? ' mc-cell--dragging' : ''}${isDragOver ? ' mc-cell--dragover' : ''}`;
+
   return (
     <div draggable
       data-ticker={ticker}
       data-ticker-label={displayTicker(ticker)}
       onDoubleClick={() => onOpenDetail?.(ticker)}
       data-ticker-type={assetType(ticker)}
-      style={{
-        background: isDragOver ? '#0d1a2e' : '#07090f',
-        border: `1px solid ${isDragOver ? '#ff6600' : isDragging ? '#e8a020' : '#141420'}`,
-        display: 'flex', flexDirection: 'column', overflow: 'hidden',
-        position: 'relative', minHeight: 0,
-        transition: 'border-color 0.15s, opacity 0.15s',
-        opacity: isDragging ? 0.45 : 1,
-        cursor: isDragging ? 'grabbing' : 'grab',
-      }}
+      className={cellClass}
       onDragStart={e => { setIsDragging(true); e.dataTransfer.setData('application/x-chart-index', String(index)); e.dataTransfer.effectAllowed = 'move'; }}
       onDragEnd={() => setIsDragging(false)}
       onDragOver={e  => { e.preventDefault(); e.stopPropagation(); if (!isDragOver) setIsDragOver(true); }}
@@ -248,36 +231,39 @@ function MiniChart({ ticker, index, onRemove, onReplace, onSwap, onOpenDetail })
         } catch (_) {}
       }}
     >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '3px 5px', flexShrink: 0 }}>
-        <span style={{ color: '#e8a020', fontWeight: 700, fontSize: 9, letterSpacing: '0.1em', pointerEvents: 'none' }}>
+      {/* Header */}
+      <div className="mc-header">
+        <span className="mc-ticker">
           {isDragOver ? '⇄ SWAP / REPLACE' : displayTicker(ticker) + (name ? ' · ' + name : '')}
         </span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-          {dispPrice != null && <span style={{ color: '#cccccc', fontSize: 8, fontVariantNumeric: 'tabular-nums', pointerEvents: 'none' }}>{fmtPrice(dispPrice)}</span>}
+          {dispPrice != null && <span className="mc-price">{fmtPrice(dispPrice)}</span>}
           {dispChgPct != null && (
-            <span style={{ color: isUp ? '#4caf50' : '#f44336', fontSize: 8, fontWeight: 700, pointerEvents: 'none' }}>
+            <span className={`mc-chg ${isUp ? 'mc-chg--up' : 'mc-chg--down'}`}>
               {(isUp ? '+' : '') + dispChgPct.toFixed(2) + '%'}
             </span>
           )}
-          <button onClick={() => onRemove(ticker)}
-            style={{ background: 'none', border: 'none', color: '#333', cursor: 'pointer', fontSize: 10, padding: '0 2px', lineHeight: 1, fontFamily: 'inherit' }}
-            title="Remove">✕</button>
+          <button onClick={() => onRemove(ticker)} className="mc-remove" title="Remove">✕</button>
         </div>
       </div>
-      <div style={{ display: 'flex', gap: 6, padding: '1px 5px', flexShrink: 0, borderTop: '1px solid #0d0d18', borderBottom: '1px solid #0d0d18', pointerEvents: 'none' }}>
-        <span style={{ color: '#3a3a5a', fontSize: 6.5 }}> Chg{' '}
-          <span style={{ color: dispChg != null ? (isUp ? '#4caf50' : '#f44336') : '#3a3a5a' }}>
+
+      {/* Stats bar */}
+      <div className="mc-stats">
+        <span className="mc-stat-label">Chg{' '}
+          <span style={{ color: dispChg != null ? (isUp ? 'var(--price-up)' : 'var(--price-down)') : undefined }}>
             {dispChg != null ? (isUp ? '+' : '') + fmtK(dispChg) + ' (' + (isUp ? '+' : '') + (dispChgPct?.toFixed(2) ?? "—") + '%)' : "—"}
           </span>
         </span>
-        <span style={{ color: '#3a3a5a', fontSize: 6.5 }}> Hi <span style={{ color: '#888' }}>{fmtK(high)}</span></span>
-        <span style={{ color: '#3a3a5a', fontSize: 6.5 }}> Lo <span style={{ color: '#888' }}>{fmtK(low)}</span></span>
+        <span className="mc-stat-label">Hi <span className="mc-stat-val">{fmtK(high)}</span></span>
+        <span className="mc-stat-label">Lo <span className="mc-stat-val">{fmtK(low)}</span></span>
       </div>
+
+      {/* Chart */}
       <div style={{ flex: 1, minHeight: 0, pointerEvents: isDragOver ? 'none' : 'auto' }}>
         {loading ? (
-          <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#222233', fontSize: 8 }}>loading…</div>
+          <div className="mc-msg">loading...</div>
         ) : data.length === 0 ? (
-          <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#222233', fontSize: 8 }}>NO DATA</div>
+          <div className="mc-msg">NO DATA</div>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={data} margin={{ top: 4, right: 2, bottom: 2, left: 0 }}>
@@ -287,12 +273,12 @@ function MiniChart({ ticker, index, onRemove, onReplace, onSwap, onOpenDetail })
                   <stop offset="95%" stopColor={isUp ? '#1e50c8' : '#c81e1e'} stopOpacity={0.0}  />
                 </linearGradient>
               </defs>
-              <XAxis dataKey="t" tickFormatter={xFmt} tick={{ fill: '#6a6a8a', fontSize: 8 }} tickLine={false} axisLine={false} interval={Math.max(0, Math.ceil(data.length / 4) - 1)} height={14} />
-              <YAxis orientation="right" domain={['auto','auto']} tickFormatter={fmtK} tick={{ fill: '#6a6a8a', fontSize: 8 }} tickLine={false} axisLine={false} width={32} />
-              {openPrice && <ReferenceLine y={openPrice} stroke="#e8a020" strokeDasharray="3 3" strokeWidth={1} />}
+              <XAxis dataKey="t" tickFormatter={xFmt} tick={{ fill: 'var(--text-muted)', fontSize: 8 }} tickLine={false} axisLine={false} interval={Math.max(0, Math.ceil(data.length / 4) - 1)} height={14} />
+              <YAxis orientation="right" domain={['auto','auto']} tickFormatter={fmtK} tick={{ fill: 'var(--text-muted)', fontSize: 8 }} tickLine={false} axisLine={false} width={32} />
+              {openPrice && <ReferenceLine y={openPrice} stroke="var(--accent-text)" strokeDasharray="3 3" strokeWidth={1} />}
               <Area type="monotone" dataKey="v" stroke={lineColor} strokeWidth={1.5} fill={`url(#${gradId})`} dot={false} isAnimationActive={false} />
               <Tooltip
-                contentStyle={{ background: '#0a0c18', border: '1px solid #2a2a4a', fontSize: 7, padding: '3px 6px', borderRadius: 2 }}
+                contentStyle={{ background: 'var(--bg-surface)', border: '1px solid var(--border-strong)', fontSize: 7, padding: '3px 6px', borderRadius: 2 }}
                 itemStyle={{ color: lineColor }}
                 formatter={v => [fmtPrice(v), displayTicker(ticker)]}
                 labelFormatter={ms => xFmt(ms)}
@@ -301,21 +287,20 @@ function MiniChart({ ticker, index, onRemove, onReplace, onSwap, onOpenDetail })
           </ResponsiveContainer>
         )}
       </div>
-      <div style={{ display: 'flex', borderTop: '1px solid #0d0d18', flexShrink: 0 }}>
+
+      {/* Range bar */}
+      <div className="mc-range-bar">
         {RANGES.map((r, i) => (
           <button key={r.label} onClick={() => handleRangeChange(i)}
-            style={{
-              flex: 1, padding: '2px 0', background: 'transparent', border: 'none',
-              borderBottom: i === rangeIdx ? '2px solid #e8a020' : '2px solid transparent',
-              color: i === rangeIdx ? '#e8a020' : '#333', fontSize: 7, cursor: 'pointer',
-              fontFamily: 'inherit', fontWeight: i === rangeIdx ? 700 : 400,
-              letterSpacing: '0.05em', transition: 'color 0.1s, border-color 0.1s',
-            }}>{r.label}</button>
+            className={`mc-range-btn${i === rangeIdx ? ' mc-range-btn--active' : ''}`}
+          >{r.label}</button>
         ))}
       </div>
+
+      {/* Drag overlay */}
       {isDragOver && (
-        <div style={{ position: 'absolute', inset: 0, background: 'rgba(255,102,0,0.08)', border: '2px solid #ff6600', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', zIndex: 10 }}>
-          <span style={{ color: '#ff6600', fontSize: 8, fontWeight: 700, letterSpacing: '0.15em', fontFamily: 'inherit' }}>⇄ SWAP / REPLACE</span>
+        <div className="mc-drag-overlay">
+          <span className="mc-drag-text">⇄ SWAP / REPLACE</span>
         </div>
       )}
     </div>
@@ -326,13 +311,7 @@ function EmptySlot({ index, onAdd, onSwap }) {
   const [isDragOver, setIsDragOver] = useState(false);
   return (
     <div
-      style={{
-        border: `1px dashed ${isDragOver ? '#ff6600' : '#1a1a28'}`,
-        background: isDragOver ? '#1a0d00' : '#040508',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        color: isDragOver ? '#ff6600' : '#1a1a28', minHeight: 0,
-        cursor: 'copy', flexDirection: 'column', gap: 3, transition: 'all 0.15s',
-      }}
+      className={`cp-empty-slot${isDragOver ? ' cp-empty-slot--dragover' : ''}`}
       onDragOver={e  => { e.preventDefault(); e.stopPropagation(); if (!isDragOver) setIsDragOver(true); }}
       onDragEnter={e => { e.preventDefault(); e.stopPropagation(); setIsDragOver(true); }}
       onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget)) setIsDragOver(false); }}
@@ -346,8 +325,8 @@ function EmptySlot({ index, onAdd, onSwap }) {
         } catch (_) {}
       }}
     >
-      <span style={{ fontSize: 14, lineHeight: 1, pointerEvents: 'none' }}>{isDragOver ? '▼' : '+'}</span>
-      {isDragOver && <span style={{ fontSize: 7, letterSpacing: '0.1em', fontFamily: 'inherit', pointerEvents: 'none' }}>DROP TO ADD</span>}
+      <span className="cp-empty-icon">{isDragOver ? '▼' : '+'}</span>
+      {isDragOver && <span className="cp-empty-label">DROP TO ADD</span>}
     </div>
   );
 }
@@ -376,11 +355,10 @@ function ChartPanel({ ticker: externalTicker, onGridChange, mobile = false, onOp
   const [qrUrl,   setQrUrl]   = useState('');
   const gridSyncTimer = useRef(null);
 
-  // ── Fetch grid from server on mount (mobile auto-sync) ────────────────────────────────────────────────────
   useEffect(() => {
     if (!mobile) {
       const urlParam = new URLSearchParams(window.location.search).get('c');
-      if (urlParam) return; // Desktop: skip server fetch when URL already has tickers
+      if (urlParam) return;
     }
     apiFetch('/api/settings')
       .then(r => r.ok ? r.json() : null)
@@ -404,7 +382,6 @@ function ChartPanel({ ticker: externalTicker, onGridChange, mobile = false, onOp
     });
   }, [externalTicker]);
 
-  // ── Persist + URL update + server sync on change ──────────────────────────────────────────────────────
   useEffect(() => {
     localStorage.setItem(LS_KEY, JSON.stringify(tickers));
     try {
@@ -413,7 +390,6 @@ function ChartPanel({ ticker: externalTicker, onGridChange, mobile = false, onOp
       window.history.replaceState(null, '', url.toString());
     } catch (_) {}
     onGridChange?.(tickers.length);
-    // Debounced sync to server so mobile auto-matches desktop
     clearTimeout(gridSyncTimer.current);
     gridSyncTimer.current = setTimeout(() => {
       apiFetch('/api/settings', {
@@ -437,7 +413,6 @@ function ChartPanel({ ticker: externalTicker, onGridChange, mobile = false, onOp
     });
   }, []);
 
-  // Memoize QR code URL generation
   const qrCodeUrl = useMemo(() => {
     try {
       const url = new URL(window.location.href);
@@ -477,23 +452,23 @@ function ChartPanel({ ticker: externalTicker, onGridChange, mobile = false, onOp
 
   if (mobile) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', background: '#040508' }} {...outerDrop}>
-        <div style={{ display: 'flex', flexDirection: 'column', borderBottom: '1px solid #141420' }}>
-           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px' }}>
-             <span style={{ color: '#e8a020', fontWeight: 700, fontSize: 10, letterSpacing: '0.2em' }}>CHARTS</span>
-             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-               <span style={{ color: '#444', fontSize: 8 }}>{tickers.length}/{MAX}</span>
-               <button onClick={() => setShowAddInput(v => !v)} style={{ background: showAddInput ? '#1a2a1a' : '#111', border: '1px solid #2a2a2a', color: showAddInput ? '#8f8' : '#666', borderRadius: 3, padding: '2px 7px', fontSize: 10, cursor: 'pointer' }}>+ ADD</button>
-             </div>
-           </div>
-           {showAddInput && (
-             <div style={{ display: 'flex', padding: '4px 10px 6px', gap: 6 }}>
-               <input value={addInput} onChange={e => setAddInput(e.target.value.toUpperCase())} onKeyDown={e => { if (e.key === 'Enter' && addInput.trim()) { addTicker(addInput.trim()); setAddInput(''); setShowAddInput(false); } }} placeholder="TICKER" style={{ flex: 1, background: '#0a0a12', border: '1px solid #2a2a3a', color: '#ddd', padding: '4px 8px', fontSize: 11, borderRadius: 3, outline: 'none', fontFamily: 'inherit' }} autoFocus />
-               <button onClick={() => { if (addInput.trim()) { addTicker(addInput.trim()); setAddInput(''); setShowAddInput(false); } }} style={{ background: '#1a3a2a', border: '1px solid #3a6a4a', color: '#8f8', padding: '4px 10px', fontSize: 10, borderRadius: 3, cursor: 'pointer' }}>ADD</button>
-             </div>
-           )}
-         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gridAutoRows: '40vw', gap: 1, padding: 1 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', background: 'var(--bg-panel)' }} {...outerDrop}>
+        <div className="cp-mobile-header">
+          <div className="cp-mobile-top">
+            <span className="cp-title">CHARTS</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span className="cp-subtitle">{tickers.length}/{MAX}</span>
+              <button onClick={() => setShowAddInput(v => !v)} className={`cp-add-btn${showAddInput ? ' cp-add-btn--open' : ''}`}>+ ADD</button>
+            </div>
+          </div>
+          {showAddInput && (
+            <div className="cp-mobile-add-row">
+              <input value={addInput} onChange={e => setAddInput(e.target.value.toUpperCase())} onKeyDown={e => { if (e.key === 'Enter' && addInput.trim()) { addTicker(addInput.trim()); setAddInput(''); setShowAddInput(false); } }} placeholder="TICKER" className="cp-mobile-input" autoFocus />
+              <button onClick={() => { if (addInput.trim()) { addTicker(addInput.trim()); setAddInput(''); setShowAddInput(false); } }} className="cp-add-btn cp-add-btn--submit">ADD</button>
+            </div>
+          )}
+        </div>
+        <div className="cp-grid cp-grid--mobile">
           {tickers.map((t, i) => (
             <MiniChart key={t} ticker={t} index={i} onRemove={removeTicker} onReplace={replaceTicker} onSwap={swapTickers} onOpenDetail={onOpenDetail} />
           ))}
@@ -504,40 +479,29 @@ function ChartPanel({ ticker: externalTicker, onGridChange, mobile = false, onOp
   }
 
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#040508', overflow: 'hidden' }} {...outerDrop}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '3px 8px', borderBottom: '1px solid #141420', flexShrink: 0 }}>
-        <span style={{ color: '#e8a020', fontWeight: 700, fontSize: 9, letterSpacing: '0.2em' }}>CHARTS</span>
+    <div className="cp-panel" {...outerDrop}>
+      <div className="cp-header">
+        <span className="cp-title">CHARTS</span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ color: '#222233', fontSize: 7 }}>{tickers.length}/{MAX} // drag to reorder · drop to add</span>
+          <span className="cp-subtitle">{tickers.length}/{MAX} // drag to reorder · drop to add</span>
           <div style={{ position: 'relative' }}>
-            <button onClick={copyLink}
-              style={{
-                background: copied ? '#0a2010' : 'transparent',
-                border: `1px solid ${copied ? '#4caf50' : '#2a2a3a'}`,
-                color: copied ? '#4caf50' : '#444', fontSize: 7, cursor: 'pointer',
-                padding: '2px 6px', borderRadius: 2, fontFamily: 'inherit',
-                letterSpacing: '0.05em', transition: 'all 0.2s',
-              }}>
+            <button onClick={copyLink} className={`cp-sync-btn${copied ? ' cp-sync-btn--copied' : ''}`}>
               {copied ? '✓ COPIED' : '→ SYNC TO MOBILE'}
             </button>
             {showQR && (
-              <div onClick={() => setShowQR(false)}
-                style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.75)' }}
-              >
-                <div onClick={e => e.stopPropagation()}
-                  style={{ background: '#0a0a0f', border: '1px solid #2a2a3a', borderRadius: 6, padding: 20, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}
-                >
-                  <span style={{ color: '#e8a020', fontSize: 11, fontWeight: 700, letterSpacing: '0.15em' }}>SYNC TO MOBILE</span>
-                  <span style={{ color: '#555', fontSize: 9 }}>Scan with your phone to open your {tickers.length} charts</span>
+              <div onClick={() => setShowQR(false)} className="cp-qr-backdrop">
+                <div onClick={e => e.stopPropagation()} className="cp-qr-box">
+                  <span className="cp-qr-title">SYNC TO MOBILE</span>
+                  <span className="cp-qr-desc">Scan with your phone to open your {tickers.length} charts</span>
                   <img src={qrUrl} alt="QR Code" style={{ width: 180, height: 180, borderRadius: 4 }} />
-                  <span style={{ color: '#333', fontSize: 8 }}>Link also copied to clipboard · click anywhere to close</span>
+                  <span className="cp-qr-note">Link also copied to clipboard · click anywhere to close</span>
                 </div>
               </div>
             )}
           </div>
         </div>
       </div>
-      <div style={{ flex: 1, display: 'grid', gridTemplateColumns: `repeat(${GRID_COLS}, 1fr)`, gridTemplateRows: `repeat(${GRID_ROWS}, 1fr)`, gap: 1, overflow: 'hidden', padding: 1 }}>
+      <div className="cp-grid cp-grid--desktop">
         {Array.from({ length: MAX }, (_, i) => {
           const t = tickers[i];
           return t

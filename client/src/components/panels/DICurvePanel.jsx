@@ -47,24 +47,24 @@ function DICurvePanel({ compact = false }) {
   return (
     <div style={{
       display: 'flex', flexDirection: 'column',
-      background: '#040508', height: '100%', overflow: 'hidden',
+      background: 'var(--bg-panel)', height: '100%', overflow: 'hidden',
     }}>
 
-      {/* ── Panel header ─────────────────────────────────────────── */}
+      {/* Panel header */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '2px 8px', borderBottom: '1px solid #0d0d1a',
-        background: '#07070a', flexShrink: 0, height: 20,
+        padding: '2px var(--sp-2)', borderBottom: '1px solid var(--border-subtle)',
+        background: 'var(--bg-surface)', flexShrink: 0, height: 20,
       }}>
-        <span style={{ color: '#444', fontWeight: 700, fontSize: 8, letterSpacing: '0.15em' }}>
+        <span style={{ color: 'var(--text-muted)', fontWeight: 700, fontSize: 'var(--font-sm)', letterSpacing: '0.15em' }}>
           YIELD CURVES
         </span>
-        <span style={{ color: '#1e1e2e', fontSize: 7 }}>
-          {loading ? 'LOADING…' : error ? 'ERR' : updatedAt}
+        <span style={{ color: 'var(--text-faint)', fontSize: 'var(--font-xs)' }}>
+          {loading ? 'LOADING...' : error ? 'ERR' : updatedAt}
         </span>
       </div>
 
-      {/* ── 4 stacked curve blocks ──────────────────────────────── */}
+      {/* 4 stacked curve blocks */}
       {CURVES.map((c, idx) => {
         const curve  = all[c.id]?.curve || [];
         const rates  = curve.map(p => p.rate);
@@ -75,7 +75,7 @@ function DICurvePanel({ compact = false }) {
         return (
           <div key={c.id} style={{
             flex: 1, display: 'flex', flexDirection: 'column',
-            borderTop: idx > 0 ? '1px solid #09090f' : 'none',
+            borderTop: idx > 0 ? '1px solid var(--border-subtle)' : 'none',
             overflow: 'hidden', minHeight: 0,
           }}>
 
@@ -85,19 +85,18 @@ function DICurvePanel({ compact = false }) {
               padding: '1px 6px 0', flexShrink: 0, height: 16, gap: 4,
             }}>
               <span style={{
-                color: c.color, fontSize: 7, fontWeight: 800,
+                color: c.color, fontSize: 'var(--font-xs)', fontWeight: 800,
                 letterSpacing: '0.08em', flexShrink: 0,
               }}>
                 {c.label}
               </span>
 
-              {/* Key tenor values */}
               {!loading && keyPts.length > 0 && (
                 <div style={{ display: 'flex', gap: 5, overflow: 'hidden' }}>
                   {keyPts.map(pt => (
                     <span key={pt.tenor} style={{ whiteSpace: 'nowrap', lineHeight: 1 }}>
-                      <span style={{ color: '#252535', fontSize: 6, letterSpacing: '0.03em' }}>{pt.tenor} </span>
-                      <span style={{ color: '#777', fontSize: 7.5, fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>
+                      <span style={{ color: 'var(--text-faint)', fontSize: 6, letterSpacing: '0.03em' }}>{pt.tenor} </span>
+                      <span style={{ color: 'var(--text-secondary)', fontSize: 7.5, fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>
                         {pt.rate.toFixed(2)}%
                       </span>
                     </span>
@@ -109,15 +108,15 @@ function DICurvePanel({ compact = false }) {
             {/* Chart area */}
             <div style={{ flex: 1, overflow: 'hidden', minHeight: 0 }}>
               {loading ? (
-                <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#151525', fontSize: 7 }}>
-                  loading…
+                <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-faint)', fontSize: 'var(--font-xs)' }}>
+                  loading...
                 </div>
               ) : curve.length === 0 ? (
-                <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#1a1a2a', fontSize: 7, flexDirection: 'column', gap: 4 }}>
+                <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-faint)', fontSize: 'var(--font-xs)', flexDirection: 'column', gap: 4 }}>
                   <span>DATA UNAVAILABLE</span>
                   <button
                     onClick={load}
-                    style={{ background: 'none', border: '1px solid #1a1a2a', color: '#2a2a3a', fontSize: 6.5, cursor: 'pointer', padding: '2px 5px', borderRadius: 2, fontFamily: 'inherit' }}
+                    style={{ background: 'none', border: '1px solid var(--border-default)', color: 'var(--text-faint)', fontSize: 6.5, cursor: 'pointer', padding: '2px 5px', borderRadius: 'var(--radius-sm)', fontFamily: 'inherit' }}
                   >
                     RETRY
                   </button>
@@ -127,13 +126,13 @@ function DICurvePanel({ compact = false }) {
                   <LineChart data={curve} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
                     <XAxis
                       dataKey="tenor"
-                      tick={{ fill: '#6a6a8a', fontSize: 6 }}
+                      tick={{ fill: 'var(--text-muted)', fontSize: 6 }}
                       tickLine={false}
-                      axisLine={{ stroke: '#0e0e1c' }}
+                      axisLine={{ stroke: 'var(--border-subtle)' }}
                     />
                     <YAxis
                       domain={[minR, maxR]}
-                      tick={{ fill: '#6a6a8a', fontSize: 6 }}
+                      tick={{ fill: 'var(--text-muted)', fontSize: 6 }}
                       tickLine={false}
                       axisLine={false}
                       width={26}
@@ -141,12 +140,12 @@ function DICurvePanel({ compact = false }) {
                     />
                     <Tooltip
                       contentStyle={{
-                        background: '#07090f',
+                        background: 'var(--bg-surface)',
                         border: '1px solid ' + c.color + '44',
                         fontSize: 7, padding: '3px 7px', borderRadius: 2,
                       }}
                       itemStyle={{ color: c.color }}
-                      labelStyle={{ color: '#555', marginBottom: 1 }}
+                      labelStyle={{ color: 'var(--text-muted)', marginBottom: 1 }}
                       formatter={v => [v != null ? v.toFixed(2) + '%' : '—', 'yield']}
                     />
                     <Line
@@ -163,10 +162,10 @@ function DICurvePanel({ compact = false }) {
               )}
             </div>
 
-            {/* Source footnote — only on last block to save space */}
+            {/* Source footnote — only on last block */}
             {idx === CURVES.length - 1 && (
               <div style={{ padding: '0 6px 1px', flexShrink: 0 }}>
-                <span style={{ color: '#0f0f1e', fontSize: 5.5, letterSpacing: '0.04em' }}>
+                <span style={{ color: 'var(--text-faint)', fontSize: 5.5, letterSpacing: '0.04em' }}>
                   {all[c.id]?.source || c.note}
                 </span>
               </div>

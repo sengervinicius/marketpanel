@@ -1,6 +1,7 @@
 // SentimentPanel.jsx — market breadth, live yields, top movers heatmap
 // Accepts full data object: { stocks, forex, crypto, rates }
 import { memo } from 'react';
+import './SentimentPanel.css';
 
 // Map Yahoo Finance treasury symbols → display labels
 const TREASURY_LABELS = {
@@ -19,14 +20,14 @@ function BreadthBar({ label, items }) {
   const upPct = (up / values.length) * 100;
   const avg   = values.reduce((a, b) => a + (b.changePct || 0), 0) / values.length;
   return (
-    <div style={{ marginBottom: 3 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
-        <span style={{ color: '#888', fontSize: 9, letterSpacing: 0.5 }}>{label}</span>
-        <span style={{ fontSize: 9, color: avg >= 0 ? '#4caf50' : '#f44336' }}>
+    <div className="sp-breadth-row">
+      <div className="sp-breadth-meta">
+        <span className="sp-breadth-label">{label}</span>
+        <span className="sp-breadth-avg" style={{ color: avg >= 0 ? 'var(--price-up)' : 'var(--price-down)' }}>
           avg {avg >= 0 ? '+' : ''}{avg.toFixed(2)}% ▲{up} ▼{down}
         </span>
       </div>
-      <div style={{ display: 'flex', height: 6, overflow: 'hidden', gap: 1 }}>
+      <div className="sp-breadth-track">
         <div style={{ flex: upPct,       background: '#1b5e20', minWidth: upPct > 0       ? 2 : 0 }} />
         <div style={{ flex: 100 - upPct, background: '#b71c1c', minWidth: upPct < 100 ? 2 : 0 }} />
       </div>
@@ -39,8 +40,6 @@ function SentimentPanel({ data, loading }) {
   const forex  = data?.forex  || {};
   const crypto = data?.crypto || {};
 
-  // Pull live treasury rates from the rates snapshot
-  // data.rates is the raw response: { results: [{symbol, name, price, change, type}] }
   const rateResults = data?.rates?.results || [];
   const treasuries  = rateResults.filter(r => r.type === 'treasury');
   const policies    = rateResults.filter(r => r.type === 'policy');
@@ -51,15 +50,15 @@ function SentimentPanel({ data, loading }) {
     .slice(0, 12);
 
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#0a0a0a', overflowY: 'auto' }}>
+    <div className="sp-panel">
 
-      {/* ── Market Breadth ── */}
-      <div style={{ padding: '4px 8px', borderBottom: '1px solid #2a2a2a', background: '#111', flexShrink: 0 }}>
-        <span style={{ color: '#80cbc4', fontSize: '10px', fontWeight: 700, letterSpacing: '1px' }}>MARKET BREADTH</span>
+      {/* Market Breadth */}
+      <div className="sp-section-header">
+        <span className="sp-section-title">MARKET BREADTH</span>
       </div>
-      <div style={{ padding: '6px 8px', borderBottom: '1px solid #1a1a1a', flexShrink: 0 }}>
+      <div className="sp-breadth">
         {loading ? (
-          <div style={{ color: '#444', fontSize: '10px' }}>LOADING...</div>
+          <div className="sp-loading">LOADING...</div>
         ) : (
           <>
             <BreadthBar label="US EQUITIES" items={stocks} />
@@ -69,29 +68,26 @@ function SentimentPanel({ data, loading }) {
         )}
       </div>
 
-      {/* ── Fixed Income — live from /api/snapshot/rates ── */}
-      <div style={{ padding: '4px 8px', borderBottom: '1px solid #1a1a1a', background: '#0d0d0d', flexShrink: 0 }}>
-        <span style={{ color: '#80cbc4', fontSize: '10px', fontWeight: 700, letterSpacing: '1px' }}>FIXED INCOME</span>
-        <span style={{ color: '#333', fontSize: '8px', marginLeft: 6 }}>LIVE YIELDS</span>
+      {/* Fixed Income */}
+      <div className="sp-section-header sp-section-header--alt">
+        <span className="sp-section-title">FIXED INCOME</span>
+        <span className="sp-section-note">LIVE YIELDS</span>
       </div>
-      <div style={{ padding: '4px 6px', borderBottom: '1px solid #1a1a1a', flexShrink: 0 }}>
+      <div className="sp-rates">
         {treasuries.length === 0 && policies.length === 0 ? (
-          <div style={{ color: '#333', fontSize: 9, padding: '4px 2px' }}>Loading rates...</div>
+          <div className="sp-loading">Loading rates...</div>
         ) : (
           <>
-            {/* Treasury yields grid */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 3, marginBottom: 4 }}>
+            <div className="sp-rates-grid">
               {treasuries.map(r => {
                 const label = TREASURY_LABELS[r.symbol] || r.name;
                 const up    = (r.change ?? 0) >= 0;
                 return (
-                  <div key={r.symbol} style={{ background: '#050505', border: '1px solid #1a1a1a', padding: '3px 5px' }}>
-                    <div style={{ color: '#555', fontSize: 8 }}>{label}</div>
-                    <div style={{ color: '#e0e0e0', fontWeight: 700, fontSize: 11, fontVariantNumeric: 'tabular-nums' }}>
-                      {r.price?.toFixed(3)}%
-                    </div>
+                  <div key={r.symbol} className="sp-rate-card">
+                    <div className="sp-rate-label">{label}</div>
+                    <div className="sp-rate-value">{r.price?.toFixed(3)}%</div>
                     {r.change != null && (
-                      <div style={{ color: up ? '#4caf50' : '#f44336', fontSize: 9, fontVariantNumeric: 'tabular-nums' }}>
+                      <div className="sp-rate-chg" style={{ color: up ? 'var(--price-up)' : 'var(--price-down)' }}>
                         {up ? '+' : ''}{r.change?.toFixed(3)}
                       </div>
                     )}
@@ -99,16 +95,13 @@ function SentimentPanel({ data, loading }) {
                 );
               })}
             </div>
-            {/* Policy rates row */}
             {policies.length > 0 && (
               <div style={{ display: 'grid', gridTemplateColumns: `repeat(${policies.length}, 1fr)`, gap: 3 }}>
                 {policies.map(r => (
-                  <div key={r.symbol} style={{ background: '#050505', border: '1px solid #1a1a1a', padding: '3px 5px' }}>
-                    <div style={{ color: '#555', fontSize: 8 }}>{r.name}</div>
-                    <div style={{ color: '#ce93d8', fontWeight: 700, fontSize: 11, fontVariantNumeric: 'tabular-nums' }}>
-                      {r.price?.toFixed(2)}%
-                    </div>
-                    {r.note && <div style={{ color: '#2a2a2a', fontSize: 7 }}>{r.note}</div>}
+                  <div key={r.symbol} className="sp-rate-card">
+                    <div className="sp-policy-label">{r.name}</div>
+                    <div className="sp-policy-value">{r.price?.toFixed(2)}%</div>
+                    {r.note && <div className="sp-policy-note">{r.note}</div>}
                   </div>
                 ))}
               </div>
@@ -117,15 +110,15 @@ function SentimentPanel({ data, loading }) {
         )}
       </div>
 
-      {/* ── Top Movers heatmap ── */}
-      <div style={{ padding: '4px 8px', borderBottom: '1px solid #1a1a1a', background: '#0d0d0d', flexShrink: 0 }}>
-        <span style={{ color: '#80cbc4', fontSize: '10px', fontWeight: 700, letterSpacing: '1px' }}>TOP MOVERS</span>
+      {/* Top Movers */}
+      <div className="sp-section-header sp-section-header--alt">
+        <span className="sp-section-title">TOP MOVERS</span>
       </div>
-      <div style={{ flexShrink: 0, padding: '4px' }}>
+      <div className="sp-movers">
         {loading || topMovers.length === 0 ? (
-          <div style={{ color: '#333', padding: 8, fontSize: 10, textAlign: 'center' }}>Loading...</div>
+          <div className="sp-loading">Loading...</div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 2 }}>
+          <div className="sp-movers-grid">
             {topMovers.map(s => {
               const up        = (s.changePct ?? 0) >= 0;
               const intensity = Math.min(Math.abs(s.changePct || 0) / 5, 1);
@@ -133,13 +126,11 @@ function SentimentPanel({ data, loading }) {
                 ? `rgba(0, ${Math.floor(80 + intensity * 120)}, ${Math.floor(30 + intensity * 50)}, ${0.15 + intensity * 0.4})`
                 : `rgba(${Math.floor(80 + intensity * 120)}, 0, 0, ${0.15 + intensity * 0.4})`;
               return (
-                <div key={s.symbol} style={{
-                  background: bg,
-                  border: `1px solid ${up ? '#004400' : '#440000'}`,
-                  padding: '4px', textAlign: 'center',
-                }}>
-                  <div style={{ color: '#ff6600', fontWeight: 700, fontSize: 10 }}>{s.symbol}</div>
-                  <div style={{ color: up ? '#4caf50' : '#f44336', fontSize: 10, fontWeight: 600 }}>
+                <div key={s.symbol} className="sp-mover-cell"
+                  style={{ background: bg, border: `1px solid ${up ? '#004400' : '#440000'}` }}
+                >
+                  <div className="sp-mover-symbol">{s.symbol}</div>
+                  <div className="sp-mover-chg" style={{ color: up ? 'var(--price-up)' : 'var(--price-down)' }}>
                     {(s.changePct >= 0 ? '+' : '')}{s.changePct?.toFixed(2)}%
                   </div>
                 </div>
