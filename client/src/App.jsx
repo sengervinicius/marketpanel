@@ -66,8 +66,8 @@ function WorldClock() {
     <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
       {zones.map(z => (
         <span key={z.label} style={{ display: 'flex', gap: 4, alignItems: 'baseline' }}>
-          <span style={{ color: '#555', fontSize: 9, letterSpacing: '0.06em', fontWeight: 600 }}>{z.label}</span>
-          <span style={{ color: '#888', fontSize: 11, fontVariantNumeric: 'tabular-nums', letterSpacing: '0.03em' }}>
+          <span style={{ color: 'var(--text-faint)', fontSize: 9, letterSpacing: '0.06em', fontWeight: 600 }}>{z.label}</span>
+          <span style={{ color: 'var(--text-muted)', fontSize: 11, fontVariantNumeric: 'tabular-nums', letterSpacing: '0.03em' }}>
             {now.toLocaleTimeString('en-US', { timeZone: z.tz, hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}
           </span>
         </span>
@@ -83,13 +83,13 @@ function ResizeHandle({ onStart }) {
       onMouseDown={e => { e.preventDefault(); onStart(e); }}
       style={{
         height: 6, flexShrink: 0, cursor: 'row-resize',
-        background: '#0a0a0a',
-        borderTop: '1px solid #1e1e1e', borderBottom: '1px solid #1e1e1e',
+        background: 'var(--bg-app)',
+        borderTop: '1px solid var(--border-default)', borderBottom: '1px solid var(--border-default)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         userSelect: 'none', zIndex: 20,
       }}
     >
-      <div style={{ width: 36, height: 2, background: '#222', borderRadius: 1 }} />
+      <div style={{ width: 36, height: 2, background: 'var(--border-default)', borderRadius: 1 }} />
     </div>
   );
 }
@@ -101,13 +101,13 @@ function ColResizeHandle({ onStart }) {
       onMouseDown={e => { e.preventDefault(); onStart(e); }}
       style={{
         width: 5, flexShrink: 0, cursor: 'col-resize',
-        background: '#070707',
-        borderLeft: '1px solid #1e1e1e', borderRight: '1px solid #1e1e1e',
+        background: 'var(--bg-app)',
+        borderLeft: '1px solid var(--border-default)', borderRight: '1px solid var(--border-default)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         userSelect: 'none', zIndex: 20,
       }}
     >
-      <div style={{ width: 1, height: 24, background: '#252525', borderRadius: 1 }} />
+      <div style={{ width: 1, height: 24, background: 'var(--border-strong)', borderRadius: 1 }} />
     </div>
   );
 }
@@ -1155,17 +1155,17 @@ export default function App() {
         {showOnboarding && <OnboardingPresets />}
 
         {/* Header */}
-        <div style={{ height: 36, flexShrink: 0, display:'flex', alignItems:'center', background:'#000', borderBottom:'2px solid #ff6600', padding:'0 12px', gap:12, position: 'relative', zIndex: 10 }}>
-          <span style={{ color:'#ff6600', fontWeight:700, fontSize:'13px', letterSpacing:'2px' }}>SENGER</span>
-          <span style={{ color:'#444', fontSize:'9px', letterSpacing:'1px' }}>MARKET TERMINAL</span>
+        <div style={{ height: 36, flexShrink: 0, display:'flex', alignItems:'center', background:'var(--bg-app)', borderBottom:'2px solid var(--accent)', padding:'0 12px', gap:12, position: 'relative', zIndex: 10 }}>
+          <span style={{ color:'var(--accent)', fontWeight:700, fontSize:'13px', letterSpacing:'2px' }}>SENGER</span>
+          <span style={{ color:'var(--text-faint)', fontSize:'9px', letterSpacing:'1px' }}>MARKET TERMINAL</span>
           <div style={{ flex:1, display:'flex', justifyContent:'center' }}><WorldClock /></div>
           <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-            {isRefreshing && <span style={{ color:'#ff6600', fontSize:'8px', letterSpacing:'1px' }}>&#9679; UPDATING</span>}
-            {lastUpdated && !isRefreshing && <span style={{ color:'#333', fontSize:'8px' }}>SNAP {lastUpdated.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'})}</span>}
+            {isRefreshing && <span style={{ color:'var(--accent)', fontSize:'8px', letterSpacing:'1px' }}>&#9679; UPDATING</span>}
+            {lastUpdated && !isRefreshing && <span style={{ color:'var(--text-faint)', fontSize:'8px' }}>SNAP {lastUpdated.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'})}</span>}
             <button
               onClick={() => setLayoutEdit(s => !s)}
               title="Reorder panels"
-              style={{ background: layoutEdit ? '#1a0800' : 'none', border:`1px solid ${layoutEdit ? '#ff6600' : '#282828'}`, color: layoutEdit ? '#ff6600' : '#444', fontSize:9, padding:'2px 6px', cursor:'pointer', fontFamily:'inherit', borderRadius:2, letterSpacing:'0.5px' }}
+              style={{ background: layoutEdit ? '#1a0800' : 'none', border:`1px solid ${layoutEdit ? 'var(--accent)' : 'var(--border-strong)'}`, color: layoutEdit ? 'var(--accent)' : 'var(--text-faint)', fontSize:9, padding:'2px 6px', cursor:'pointer', fontFamily:'inherit', borderRadius:'var(--radius-sm)', letterSpacing:'0.5px' }}
             >⇄ LAYOUT</button>
             {user
               ? <UserDropdown
@@ -1175,7 +1175,7 @@ export default function App() {
                   onBilling={openBillingPortal}
                   isPaid={subscription?.status === 'active'}
                 />
-              : <button onClick={() => setSettingsOpen(s => !s)} style={{ background:'none', border:'1px solid #282828', color: settingsOpen ? '#ff6600' : '#444', fontSize:9, padding:'2px 6px', cursor:'pointer', fontFamily:'inherit', borderRadius:2, letterSpacing:'0.5px' }}>⚙ SETTINGS</button>
+              : <button onClick={() => setSettingsOpen(s => !s)} style={{ background:'none', border:'1px solid var(--border-strong)', color: settingsOpen ? 'var(--accent)' : 'var(--text-faint)', fontSize:9, padding:'2px 6px', cursor:'pointer', fontFamily:'inherit', borderRadius:'var(--radius-sm)', letterSpacing:'0.5px' }}>⚙ SETTINGS</button>
             }
           </div>
         </div>

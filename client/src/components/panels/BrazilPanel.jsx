@@ -4,20 +4,19 @@ import { useState, useEffect, useCallback, useRef, memo } from 'react';
 import { useSettings } from '../../context/SettingsContext';
 import PanelConfigModal from '../common/PanelConfigModal';
 import EditablePanelHeader from '../common/EditablePanelHeader';
+import PanelShell from '../common/PanelShell';
+import { PriceRow } from '../common/PriceRow';
+import ColumnHeaders from '../common/ColumnHeaders';
 import { apiFetch } from '../../utils/api';
-import { handlePanelDragOver, makePanelDropHandler } from '../../utils/dropHelper';
 
-const SERVER = import.meta.env.VITE_API_URL || import.meta.env.VITE_SERVER_URL || '';
+const COLS = '52px 1fr 64px 52px';
 
-const fmt    = n => n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const fmtPct = n => n == null ? '—' : (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
-
-const showInfo = (e, symbol, label, type) => {
-  e.preventDefault();
-  window.dispatchEvent(new CustomEvent('ticker:rightclick', {
-    detail: { symbol, label, type, x: e.clientX + 6, y: e.clientY + 6 },
-  }));
-};
+const SORT_COLS = [
+  { key: 'symbol', label: 'TICKER', align: 'left' },
+  { key: 'name',   label: 'NAME',   align: 'left' },
+  { key: 'price',  label: 'PRICE',  align: 'right' },
+  { key: 'chg',    label: 'CHG%',   align: 'right' },
+];
 
 function BrazilPanel({ onTickerClick, onOpenDetail }) {
   const ptRef = useRef(null);
@@ -38,6 +37,8 @@ function BrazilPanel({ onTickerClick, onOpenDetail }) {
   const [configOpen, setConfigOpen] = useState(false);
   const [searchFilter, setSearchFilter] = useState('');
   const [collapsed, setCollapsed] = useState(false);
+  const [sortKey, setSortKey] = useState(null);
+  const [sortDir, setSortDir] = useState('desc');
 
   const handleDropTicker = (ticker) => {
     const sym = ticker.trim().toUpperCase();
@@ -45,6 +46,11 @@ function BrazilPanel({ onTickerClick, onOpenDetail }) {
     if (!panelSymbols.includes(withSA) && !panelSymbols.includes(sym)) {
       updatePanelConfig('brazilB3', { title: panelTitle, symbols: [...panelSymbols, withSA] });
     }
+  };
+
+  const handleSortClick = (key) => {
+    if (sortKey === key) setSortDir(d => d === 'desc' ? 'asc' : 'desc');
+    else { setSortKey(key); setSortDir('desc'); }
   };
 
   const fetchData = useCallback(async () => {
@@ -80,7 +86,6 @@ function BrazilPanel({ onTickerClick, onOpenDetail }) {
   let displayedStocks = panelSymbols.length > 0
     ? panelSymbols
         .map(sym => {
-          // symbols may be stored with or without .SA suffix
           const baseSym = sym.replace(/\.SA$/i, '');
           return stocks.find(s => s.symbol === baseSym || s.symbol === sym);
         })
@@ -95,18 +100,25 @@ function BrazilPanel({ onTickerClick, onOpenDetail }) {
     );
   }
 
-  const col = { color: '#555', fontSize: 7, letterSpacing: '0.15em', textTransform: 'uppercase' };
+  // Apply sorting
+  if (sortKey) {
+    displayedStocks = [...displayedStocks].sort((a, b) => {
+      let va, vb;
+      if (sortKey === 'symbol') { va = a.symbol; vb = b.symbol; }
+      else if (sortKey === 'name') { va = a.name; vb = b.name; }
+      else if (sortKey === 'price') { va = a.price ?? -Infinity; vb = b.price ?? -Infinity; }
+      else if (sortKey === 'chg')   { va = a.changePct ?? -Infinity; vb = b.changePct ?? -Infinity; }
+      if (typeof va === 'string') return sortDir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va);
+      return sortDir === 'asc' ? va - vb : vb - va;
+    });
+  }
 
   const badge = error
-    ? <span style={{ color: '#f44', fontSize: 7 }}>{error}</span>
-    : lastUpdate && <span style={{ color: '#444', fontSize: 7 }}>{lastUpdate.toLocaleTimeString()}</span>;
+    ? <span style={{ color: 'var(--price-down)', fontSize: 'var(--font-xs)' }}>{error}</span>
+    : lastUpdate && <span style={{ color: 'var(--text-faint)', fontSize: 'var(--font-xs)' }}>{lastUpdate.toLocaleTimeString()}</span>;
 
   return (
-    <div
-      style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#0a0a0a' }}
-      onDragOver={handlePanelDragOver}
-      onDrop={makePanelDropHandler(handleDropTicker)}
-    >
+    <PanelShell onDropTicker={handleDropTicker}>
       {/* Header */}
       <EditablePanelHeader
         title={panelTitle}
@@ -119,68 +131,53 @@ function BrazilPanel({ onTickerClick, onOpenDetail }) {
         <button
           onClick={() => setCollapsed(v => !v)}
           title={collapsed ? 'Expand' : 'Collapse'}
-          style={{ background: 'none', border: '1px solid #2a2a2a', color: '#555', fontSize: 9, padding: '1px 5px', cursor: 'pointer', fontFamily: 'inherit', borderRadius: 2 }}
+          style={{ background: 'none', border: '1px solid var(--border-strong)', color: 'var(--text-muted)', fontSize: 9, padding: '1px 5px', cursor: 'pointer', fontFamily: 'inherit', borderRadius: 'var(--radius-sm)' }}
         >{collapsed ? '+' : '−'}</button>
       </EditablePanelHeader>
 
-      {/* Column headers */}
-      <div style={{ display: 'grid', gridTemplateColumns: '52px 1fr 64px 52px', padding: '3px 8px', borderBottom: '1px solid #1a1a1a', flexShrink: 0 }}>
-        <span style={col}>TICKER</span>
-        <span style={col}>NAME</span>
-        <span style={{ ...col, textAlign: 'right' }}>PRICE</span>
-        <span style={{ ...col, textAlign: 'right' }}>CHG%</span>
-      </div>
+      {!collapsed && (<>
+        {/* Column headers */}
+        <ColumnHeaders
+          columns={SORT_COLS}
+          gridColumns={COLS}
+          sortKey={sortKey}
+          sortDir={sortDir}
+          onSortClick={handleSortClick}
+        />
 
-      {/* Rows */}
-      <div style={{ flex: 1, overflowY: 'auto' }}>
-        {loading && !stocks.length && (
-          <div style={{ padding: 12, color: '#444', fontSize: 8, textAlign: 'center' }}>LOADING...</div>
-        )}
-        {!loading && !error && !displayedStocks.length && (
-          <div style={{ padding: 12, color: '#444', fontSize: 8, textAlign: 'center' }}>NO DATA</div>
-        )}
-        {displayedStocks.map((s, i) => {
-          const up  = (s.changePct ?? 0) >= 0;
-          const clr = up ? '#00c853' : '#f44336';
-          return (
-            <div
+        {/* Rows */}
+        <div style={{ flex: 1, overflowY: 'auto' }}>
+          {loading && !stocks.length && (
+            <div style={{ padding: 'var(--sp-5)', color: 'var(--text-muted)', fontSize: 'var(--font-base)', textAlign: 'center' }}>LOADING...</div>
+          )}
+          {!loading && !error && !displayedStocks.length && (
+            <div style={{ padding: 'var(--sp-5)', color: 'var(--text-muted)', fontSize: 'var(--font-base)', textAlign: 'center' }}>NO DATA</div>
+          )}
+          {displayedStocks.map(s => (
+            <PriceRow
               key={s.symbol}
-              data-ticker={s.symbol + '.SA'}
-              data-ticker-label={s.name}
-              data-ticker-type="BR"
+              symbol={s.symbol + '.SA'}
+              displaySymbol={s.symbol}
+              name={s.name}
+              price={s.price}
+              changePct={s.changePct}
+              symbolColor="var(--section-brazil)"
+              columns={COLS}
               draggable
-              onDragStart={e => {
-                e.dataTransfer.setData('application/x-ticker',
-                  JSON.stringify({ symbol: s.symbol + '.SA', label: s.name || s.symbol }));
-                e.dataTransfer.effectAllowed = 'copy';
-              }}
+              dragData={{ symbol: s.symbol + '.SA', name: s.name || s.symbol, type: 'BR' }}
               onClick={() => onTickerClick?.(s.symbol + '.SA')}
               onDoubleClick={() => onOpenDetail?.(s.symbol + '.SA')}
-              onContextMenu={e => showInfo(e, s.symbol + '.SA', s.name || s.symbol, 'BR')}
-              onTouchStart={(e) => { e.stopPropagation(); clearTimeout(ptRef.current); ptRef.current = setTimeout(() => onOpenDetail?.(s.symbol + '.SA'), 500); }}
-              onTouchEnd={() => clearTimeout(ptRef.current)}
-              onTouchMove={() => clearTimeout(ptRef.current)}
-              style={{
-                display: 'grid', gridTemplateColumns: '52px 1fr 64px 52px',
-                padding: '3px 8px', borderBottom: '1px solid #111',
-                alignItems: 'center', cursor: 'grab',
-                background: i % 2 === 0 ? 'transparent' : '#070709',
+              onTouchHold={() => onOpenDetail?.(s.symbol + '.SA')}
+              touchRef={ptRef}
+              dataAttrs={{
+                'data-ticker': s.symbol + '.SA',
+                'data-ticker-label': s.name || s.symbol,
+                'data-ticker-type': 'BR',
               }}
-            >
-              <span style={{ color: '#e8a020', fontWeight: 700, fontSize: 9 }}>{s.symbol}</span>
-              <span style={{ color: '#666', fontSize: 8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {s.name}
-              </span>
-              <span style={{ color: '#ccc', fontSize: 9, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                {fmt(s.price)}
-              </span>
-              <span style={{ color: clr, fontSize: 9, textAlign: 'right', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
-                {fmtPct(s.changePct)}
-              </span>
-            </div>
-          );
-        })}
-      </div>
+            />
+          ))}
+        </div>
+      </>)}
 
       {/* Panel config modal */}
       {configOpen && (
@@ -196,7 +193,7 @@ function BrazilPanel({ onTickerClick, onOpenDetail }) {
           onClose={() => setConfigOpen(false)}
         />
       )}
-    </div>
+    </PanelShell>
   );
 }
 
