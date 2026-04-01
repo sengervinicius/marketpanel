@@ -28,6 +28,7 @@ import WatchlistPanelMobile from './components/panels/WatchlistPanelMobile';
 import { ChatPanel } from './components/panels/ChatPanel';
 import HomePanelMobile from './components/panels/HomePanelMobile';
 import ChartsPanelMobile from './components/panels/ChartsPanelMobile';
+import MobileMoreScreen from './components/panels/MobileMoreScreen';
 import ETFPanel from './components/panels/ETFPanel';
 import OnboardingPresets from './components/onboarding/OnboardingPresets';
 import SuggestedScreens from './components/settings/SuggestedScreens';
@@ -818,16 +819,43 @@ function SubscriptionExpiredScreen({ onUpgrade, onLogout, onManageBilling, check
   );
 }
 
-// ── Mobile tab definitions ───────────────────────────────────────────────────
+// ── Mobile tab definitions (4 primary tabs) ──────────────────────────────────
 const MOBILE_TABS = [
-  { id: 'home',      label: 'HOME',   icon: '⌂' },
-  { id: 'charts',    label: 'CHARTS', icon: '◫' },
-  { id: 'watchlist', label: 'WATCH',  icon: '☆' },
-  { id: 'search',    label: 'FIND',   icon: '⊕' },
-  { id: 'etf',       label: 'ETF',    icon: '▧' },
-  { id: 'news',      label: 'NEWS',   icon: '◎' },
-  { id: 'chat',      label: 'CHAT',   icon: '✉' },
+  { id: 'markets',   label: 'Markets' },
+  { id: 'charts',    label: 'Charts' },
+  { id: 'watchlist', label: 'Watchlist' },
+  { id: 'more',      label: 'More' },
 ];
+
+// SVG tab icons (24x24, stroke-based)
+function TabIcon({ id, active }) {
+  const color = active ? '#ff6600' : '#555';
+  const sw = active ? 2 : 1.5;
+  const s = { width: 22, height: 22, display: 'block' };
+  switch (id) {
+    case 'markets': return (
+      <svg style={s} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+      </svg>
+    );
+    case 'charts': return (
+      <svg style={s} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round">
+        <line x1="18" y1="20" x2="18" y2="10" /><line x1="12" y1="20" x2="12" y2="4" /><line x1="6" y1="20" x2="6" y2="14" />
+      </svg>
+    );
+    case 'watchlist': return (
+      <svg style={s} viewBox="0 0 24 24" fill={active ? '#ff6600' : 'none'} stroke={color} strokeWidth={sw} strokeLinejoin="round">
+        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+      </svg>
+    );
+    case 'more': return (
+      <svg style={s} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={sw} strokeLinecap="round">
+        <circle cx="12" cy="5" r="1.5" fill={color} stroke="none" /><circle cx="12" cy="12" r="1.5" fill={color} stroke="none" /><circle cx="12" cy="19" r="1.5" fill={color} stroke="none" />
+      </svg>
+    );
+    default: return null;
+  }
+}
 
 const LS_TAB          = 'activeTab_m3';
 const LS_CHART_TICKER = 'chartTicker';
@@ -951,8 +979,12 @@ export default function App() {
 
   const [activeTab, setActiveTab] = useState(() => {
     const saved = localStorage.getItem(LS_TAB);
-    return MOBILE_TABS.find(t => t.id === saved) ? saved : 'home';
+    // Migrate old tab IDs
+    if (saved === 'home') return 'markets';
+    return MOBILE_TABS.find(t => t.id === saved) ? saved : 'markets';
   });
+  // Secondary view inside "more" tab (search, news, etf, chat)
+  const [moreView, setMoreView] = useState(null);
   const setActiveTabPersist = (t) => { setActiveTab(t); localStorage.setItem(LS_TAB, t); };
 
   const [chartTicker, setChartTickerState] = useState(
@@ -1228,6 +1260,13 @@ export default function App() {
   }
 
   // ── MOBILE ───────────────────────────────────────────────────────────────
+  const handleMoreNavigate = useCallback((view) => {
+    setMoreView(view);
+  }, []);
+  const handleMoreBack = useCallback(() => {
+    setMoreView(null);
+  }, []);
+
   return (
     <DragProvider>
     <WatchlistProvider>
@@ -1239,7 +1278,7 @@ export default function App() {
       display: 'flex', flexDirection: 'column',
       height: '100dvh',
       paddingTop: 'env(safe-area-inset-top)',
-      background: '#0a0a0a',
+      background: '#060606',
       fontFamily: "'IBM Plex Mono','Roboto Mono','Courier New',monospace",
       color: '#e0e0e0', overflow: 'hidden',
     }}>
@@ -1247,25 +1286,48 @@ export default function App() {
       {/* Onboarding overlay */}
       {showOnboarding && <OnboardingPresets />}
 
-      {/* Mobile header bar */}
-      <div style={{ height: 38, flexShrink: 0, display:'flex', alignItems:'center', background:'#000', borderBottom:'1px solid #1e1e1e', padding:'0 12px', gap:8 }}>
-        <span style={{ color:'#ff6600', fontWeight:700, fontSize:'11px', letterSpacing:'2px' }}>SENGER</span>
+      {/* ── Mobile header ── */}
+      <div style={{
+        height: 44, flexShrink: 0,
+        display: 'flex', alignItems: 'center',
+        background: '#000',
+        borderBottom: '1px solid #141414',
+        padding: '0 16px', gap: 10,
+      }}>
+        {/* Back button for secondary views */}
+        {(activeTab === 'more' && moreView) ? (
+          <button
+            onClick={handleMoreBack}
+            style={{
+              background: 'none', border: 'none', color: '#ff6600',
+              fontSize: 18, cursor: 'pointer', padding: '4px 8px 4px 0',
+              fontFamily: 'inherit', display: 'flex', alignItems: 'center',
+            }}
+            aria-label="Back"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ff6600" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+          </button>
+        ) : null}
+        <span style={{ color: '#ff6600', fontWeight: 700, fontSize: 12, letterSpacing: '2.5px' }}>SENGER</span>
+        {/* Feed status dot */}
+        <div style={{
+          width: 6, height: 6, borderRadius: '50%', flexShrink: 0,
+          background: Object.values(feedStatus).every(s => s === 'live') ? '#22c55e'
+            : Object.values(feedStatus).some(s => s === 'live') ? '#f59e0b' : '#555',
+        }} />
         <div style={{ flex: 1 }} />
-        {user && (
-          <UserDropdown
-            user={user}
-            onSettings={() => setSettingsOpen(s => !s)}
-            onLogout={logout}
-            onBilling={openBillingPortal}
-            isPaid={subscription?.status === 'active'}
-          />
-        )}
+        {/* Mini clock */}
+        <MobileClockCompact />
       </div>
 
-      {/* Mobile settings drawer */}
+      {/* Settings drawer overlay */}
       {settingsOpen && (
-        <div style={{ position: 'relative', zIndex: 1000 }}>
-          <SettingsDrawer panelVisible={panelVisible} togglePanel={togglePanel} onClose={() => setSettingsOpen(false)} />
+        <div style={{ position: 'fixed', inset: 0, zIndex: 2000, background: 'rgba(0,0,0,0.7)' }}>
+          <div style={{ position: 'absolute', top: 0, right: 0, bottom: 0, width: '85%', maxWidth: 340, background: '#0a0a0a', overflowY: 'auto' }}>
+            <SettingsDrawer panelVisible={panelVisible} togglePanel={togglePanel} onClose={() => setSettingsOpen(false)} />
+          </div>
         </div>
       )}
 
@@ -1277,10 +1339,10 @@ export default function App() {
         billingState={billingState}
       />
 
-      {/* Data feed error banner (mobile) */}
+      {/* Data feed error banner */}
       <DataErrorBanner error={feedError} endpointErrors={endpointErrors} />
 
-      {/* Subscription expired screen (mobile) */}
+      {/* Subscription expired screen */}
       {subscriptionExpired ? (
         <SubscriptionExpiredScreen
           onUpgrade={handleCheckout}
@@ -1292,12 +1354,12 @@ export default function App() {
       ) : (
         <>
           {/* ── Tab content area ── */}
-          <div style={{ flex:1, overflowY:'auto', overflowX:'hidden', minHeight:0, WebkitOverflowScrolling:'touch' }}>
+          <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', minHeight: 0, WebkitOverflowScrolling: 'touch' }}>
 
-            {activeTab === 'home' && (
+            {activeTab === 'markets' && (
               <HomePanelMobile
                 onOpenDetail={goDetail}
-                onSearchClick={() => setActiveTabPersist('search')}
+                onSearchClick={() => { setActiveTabPersist('more'); setMoreView('search'); }}
               />
             )}
 
@@ -1308,44 +1370,39 @@ export default function App() {
             {activeTab === 'watchlist' && (
               <WatchlistPanelMobile
                 onOpenDetail={goDetail}
-                onManage={() => setActiveTabPersist('search')}
+                onManage={() => { setActiveTabPersist('more'); setMoreView('search'); }}
               />
             )}
 
-            {activeTab === 'search' && (
+            {activeTab === 'more' && !moreView && (
+              <MobileMoreScreen
+                onNavigate={handleMoreNavigate}
+                user={user}
+                onSettings={() => setSettingsOpen(true)}
+                onLogout={logout}
+                onBilling={openBillingPortal}
+                isPaid={subscription?.status === 'active'}
+                subscription={subscription}
+              />
+            )}
+
+            {activeTab === 'more' && moreView === 'search' && (
               <SearchPanel onTickerSelect={goDetail} onOpenDetail={goDetail} />
             )}
 
-            {activeTab === 'etf' && (
+            {activeTab === 'more' && moreView === 'news' && <NewsPanel />}
+
+            {activeTab === 'more' && moreView === 'etf' && (
               <ETFPanel onOpenDetail={goDetail} />
             )}
 
-            {activeTab === 'detail' && (
-              detailTicker
-                ? <InstrumentDetail
-                    ticker={detailTicker}
-                    onClose={() => setActiveTabPersist('home')}
-                    asPage
-                  />
-                : <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', height:'100%', gap:12 }}>
-                    <div style={{ color:'#2a2a2a', fontSize:32 }}>▦</div>
-                    <div style={{ color:'#333', fontSize:10, letterSpacing:'1px' }}>TAP ANY INSTRUMENT TO VIEW DETAILS</div>
-                    <button
-                      onClick={() => setActiveTabPersist('watchlist')}
-                      style={{ marginTop:8, background:'none', border:'1px solid #2a2a2a', color:'#555', fontSize:9, padding:'6px 14px', cursor:'pointer', fontFamily:'inherit', borderRadius:2 }}
-                    >OPEN WATCHLIST →</button>
-                  </div>
-            )}
-
-            {activeTab === 'news' && <NewsPanel />}
-
-            {activeTab === 'chat' && <ChatPanel mobile />}
+            {activeTab === 'more' && moreView === 'chat' && <ChatPanel mobile />}
           </div>
 
           {/* ── Bottom tab bar ── */}
           <nav style={{
             display: 'flex', background: '#000',
-            borderTop: '2px solid #1e1e1e',
+            borderTop: '1px solid #1a1a1a',
             flexShrink: 0,
             paddingBottom: 'env(safe-area-inset-bottom)',
           }}>
@@ -1354,21 +1411,31 @@ export default function App() {
               return (
                 <button
                   key={tab.id}
-                  onClick={() => setActiveTabPersist(tab.id)}
+                  onClick={() => {
+                    if (tab.id === 'more' && activeTab === 'more') {
+                      // Tapping more again goes back to menu
+                      setMoreView(null);
+                    }
+                    setActiveTabPersist(tab.id);
+                    if (tab.id !== 'more') setMoreView(null);
+                  }}
                   style={{
-                    flex: 1, minHeight: '54px',
-                    padding: '8px 4px 6px',
-                    background: isActive ? '#140800' : 'transparent',
-                    color: isActive ? '#ff6600' : '#444',
+                    flex: 1, minHeight: 56,
+                    padding: '6px 4px 8px',
+                    background: isActive ? 'rgba(255,102,0,0.06)' : 'transparent',
+                    color: isActive ? '#ff6600' : '#555',
                     border: 'none',
-                    borderTop: '2px solid ' + (isActive ? '#ff6600' : 'transparent'),
-                    fontSize: '7.5px', fontWeight: 800, letterSpacing: '0.3px',
-                    cursor: 'pointer', fontFamily: 'inherit', textTransform: 'uppercase',
-                    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
-                    position: 'relative',
+                    borderTop: isActive ? '2px solid #ff6600' : '2px solid transparent',
+                    fontSize: 9, fontWeight: 600, letterSpacing: '0.02em',
+                    cursor: 'pointer', fontFamily: 'inherit',
+                    display: 'flex', flexDirection: 'column', alignItems: 'center',
+                    justifyContent: 'center', gap: 3,
+                    WebkitTapHighlightColor: 'transparent',
+                    touchAction: 'manipulation',
+                    transition: 'color 0.15s, background 0.15s',
                   }}>
-                  <span style={{ fontSize: 14, lineHeight: 1 }}>{tab.icon}</span>
-                  {tab.label}
+                  <TabIcon id={tab.id} active={isActive} />
+                  <span>{tab.label}</span>
                 </button>
               );
             })}
@@ -1376,8 +1443,41 @@ export default function App() {
         </>
       )}
 
+      {/* ── Instrument Detail slide-up overlay ── */}
       {detailTicker && !subscriptionExpired && (
-        <InstrumentDetail ticker={detailTicker} onClose={() => setDetailTicker(null)} asPage />
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 1500,
+          background: '#060606',
+          display: 'flex', flexDirection: 'column',
+          paddingTop: 'env(safe-area-inset-top)',
+        }}>
+          {/* Detail header with close button */}
+          <div style={{
+            height: 48, flexShrink: 0,
+            display: 'flex', alignItems: 'center',
+            background: '#000', borderBottom: '1px solid #141414',
+            padding: '0 12px', gap: 10,
+          }}>
+            <button
+              onClick={() => setDetailTicker(null)}
+              style={{
+                background: 'none', border: 'none', color: '#ff6600',
+                fontSize: 11, cursor: 'pointer', padding: '8px 8px 8px 0',
+                fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 4,
+                letterSpacing: '0.05em',
+              }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ff6600" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="15 18 9 12 15 6" />
+              </svg>
+              Back
+            </button>
+            <div style={{ flex: 1 }} />
+          </div>
+          <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
+            <InstrumentDetail ticker={detailTicker} onClose={() => setDetailTicker(null)} asPage />
+          </div>
+        </div>
       )}
 
       <TickerTooltip onOpenDetail={goDetail} />
@@ -1387,5 +1487,20 @@ export default function App() {
     </FeedStatusProvider>
     </WatchlistProvider>
     </DragProvider>
+  );
+}
+
+// ── Compact clock for mobile header ──
+function MobileClockCompact() {
+  const [now, setNow] = useState(new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 30000);
+    return () => clearInterval(id);
+  }, []);
+  const ny = now.toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit', hour12: false });
+  return (
+    <span style={{ color: '#444', fontSize: 9, letterSpacing: '0.05em', fontVariantNumeric: 'tabular-nums' }}>
+      NY {ny}
+    </span>
   );
 }

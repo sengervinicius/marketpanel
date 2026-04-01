@@ -54,84 +54,19 @@ html, body, #root {
 .tabular { font-variant-numeric: tabular-nums; }
 
 /* ── Mobile / PWA ────────────────────────────────── */
-@media (max-width: 768px) {
+@media (max-width: 1023px) {
   html, body, #root { overflow: auto; }
 
-  /* Tab bar at bottom */
-  .mobile-tabbar {
-    position: fixed;
-    bottom: 0; left: 0; right: 0;
-    height: 52px;
-    background: #0d0d0d;
-    border-top: 1px solid #1e1e1e;
-    display: flex;
-    align-items: stretch;
-    z-index: 100;
-    padding-bottom: env(safe-area-inset-bottom);
-  }
-  .mobile-tabbar button {
-    flex: 1;
-    background: none;
-    border: none;
-    color: #555;
-    font-family: inherit;
-    font-size: 7px;
-    letter-spacing: 0.1em;
-    cursor: pointer;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 3px;
-    transition: color 0.15s;
-    -webkit-tap-highlight-color: transparent;
-    touch-action: manipulation;
-  }
-  .mobile-tabbar button.active { color: #ff6600; border-top: 2px solid #ff6600; }
-  .mobile-tabbar button svg { width: 16px; height: 16px; stroke: currentColor; fill: none; }
-
-  /* Content area — sits above tab bar */
-  .mobile-content {
-    position: fixed;
-    top: 0; left: 0; right: 0;
-    bottom: 52px;
-    overflow-y: auto;
-    overflow-x: hidden;
-    -webkit-overflow-scrolling: touch;
-    padding-bottom: env(safe-area-inset-bottom);
-  }
-
-  /* Make header more compact */
-  .mobile-header {
-    height: 40px;
-    padding: 0 10px;
-    background: #000;
-    border-bottom: 2px solid #ff6600;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    position: sticky;
-    top: 0;
-    z-index: 50;
-  }
-
-  /* Panels fill full width */
-  .mobile-panel {
-    width: 100%;
-    min-height: 300px;
-    border-bottom: 1px solid #1e1e1e;
-  }
-
-  /* Larger touch targets */
+  /* Global touch targets */
   button, [role="button"] {
-    min-height: 32px;
-    min-width: 32px;
+    min-height: 36px;
+    min-width: 36px;
   }
 
   /* Better font sizes for readability */
-  .price-cell  { font-size: 12px !important; }
-  .ticker-cell { font-size: 11px !important; }
-  .label-cell  { font-size: 9px !important; }
+  .price-cell  { font-size: 13px !important; }
+  .ticker-cell { font-size: 12px !important; }
+  .label-cell  { font-size: 10px !important; }
 }
 
 /* ── Status dot pulse ────────────────────────────── */

@@ -1,6 +1,7 @@
 /**
  * WatchlistPanelMobile.jsx
- * Enhanced mobile watchlist view with search and management features
+ * Premium mobile-first watchlist redesign
+ * Clean header, smooth search/filter, 60px rows, undo toast positioned above tab bar
  */
 
 import { memo, useState, useMemo, useRef, useEffect } from 'react';
@@ -23,29 +24,11 @@ function WatchlistPanelMobile({ onOpenDetail, onManage }) {
   const forex = useForexData();
   const crypto = useCryptoData();
   const [searchQuery, setSearchQuery] = useState('');
-  const [sortBy, setSortBy] = useState('added'); // 'added', 'change', 'price'
+  const [sortBy, setSortBy] = useState('added');
   const [undoItem, setUndoItem] = useState(null);
   const undoTimerRef = useRef(null);
-  const [showHint, setShowHint] = useState(() => {
-    try {
-      return !localStorage.getItem('watchlistSwipeHintShown');
-    } catch {
-      return true;
-    }
-  });
 
   const getData = (sym) => stocks[sym] || forex[sym] || crypto[sym] || null;
-
-  // Mark hint as shown
-  useEffect(() => {
-    if (showHint && watchlist.length > 0) {
-      try {
-        localStorage.setItem('watchlistSwipeHintShown', 'true');
-      } catch {
-        // Ignore localStorage errors
-      }
-    }
-  }, [showHint, watchlist.length]);
 
   // Filter by search query
   const filtered = useMemo(() => {
@@ -54,10 +37,12 @@ function WatchlistPanelMobile({ onOpenDetail, onManage }) {
     return watchlist.filter(sym => sym.toUpperCase().includes(q));
   }, [watchlist, searchQuery]);
 
-  // Sort based on selected criterion (memoized to prevent re-sorting on every render)
+  // Sort based on selected criterion
   const sorted = useMemo(() => {
     const arr = [...filtered];
-    if (sortBy === 'change') {
+    if (sortBy === 'name') {
+      arr.sort((a, b) => a.localeCompare(b));
+    } else if (sortBy === 'change') {
       arr.sort((a, b) => {
         const dataA = getData(a);
         const dataB = getData(b);
@@ -74,6 +59,7 @@ function WatchlistPanelMobile({ onOpenDetail, onManage }) {
         return priceB - priceA;
       });
     }
+    // 'added' is default (no sort)
     return arr;
   }, [filtered, sortBy, getData]);
 
@@ -81,13 +67,14 @@ function WatchlistPanelMobile({ onOpenDetail, onManage }) {
     display: 'flex',
     flexDirection: 'column',
     height: '100%',
-    background: '#0a0a0a',
-    fontFamily: '"Courier New", monospace',
+    background: '#060606',
+    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif',
   };
 
+  // Header: "Watchlist" title, count badge, orange "+" button
   const headerStyle = {
-    padding: '10px 14px',
-    borderBottom: '1px solid #1e1e1e',
+    padding: '16px 16px',
+    borderBottom: '1px solid #111',
     flexShrink: 0,
     display: 'flex',
     alignItems: 'center',
@@ -95,80 +82,102 @@ function WatchlistPanelMobile({ onOpenDetail, onManage }) {
   };
 
   const titleStyle = {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+    letterSpacing: '-0.3px',
+  };
+
+  const headerRightStyle = {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 12,
+  };
+
+  const badgeStyle = {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 102, 0, 0.12)',
     color: '#ff6600',
-    fontSize: 11,
-    fontWeight: 'bold',
-    letterSpacing: '0.2em',
+    fontSize: 12,
+    fontWeight: '600',
+    borderRadius: '50%',
+    width: 24,
+    height: 24,
   };
 
-  const manageButtonStyle = {
+  const addButtonStyle = {
+    width: 36,
+    height: 36,
+    borderRadius: '50%',
+    border: '2px solid #ff6600',
     background: 'none',
-    border: '1px solid #2a2a2a',
-    color: '#888',
-    padding: '4px 12px',
-    fontSize: 9,
+    color: '#ff6600',
+    fontSize: 20,
     cursor: 'pointer',
-    fontFamily: 'inherit',
-    letterSpacing: '0.1em',
-    borderRadius: 2,
-    minHeight: '32px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 0,
+    transition: 'all 0.2s ease',
+    WebkitTapHighlightColor: 'rgba(255, 102, 0, 0.1)',
   };
 
-  const searchStyle = {
-    padding: '8px 12px',
-    borderBottom: '1px solid #1e1e1e',
+  // Search input: pill-shaped, subtle, icon inside
+  const searchContainerStyle = {
+    padding: '8px 16px',
     flexShrink: 0,
   };
 
   const searchInputStyle = {
     width: '100%',
-    padding: '8px 10px',
-    backgroundColor: '#0d0d0d',
-    border: '1px solid #1e1e1e',
-    borderRadius: '3px',
+    padding: '10px 14px 10px 36px',
+    backgroundColor: '#0f0f0f',
+    border: '1px solid #1a1a1a',
+    borderRadius: '20px',
     color: '#ccc',
-    fontSize: '12px',
-    fontFamily: 'monospace',
+    fontSize: '14px',
+    fontFamily: 'inherit',
     outline: 'none',
     boxSizing: 'border-box',
-    minHeight: '36px',
+    backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2216%22 height=%2216%22 viewBox=%220 0 16 16%22 fill=%22none%22 stroke=%22%23666%22 stroke-width=%221.5%22 stroke-linecap=%22round%22%3E%3Ccircle cx=%227%22 cy=%227%22 r=%225%22/%3E%3Cline x1=%2211%22 y1=%2211%22 x2=%2215%22 y2=%2215%22/%3E%3C/svg%3E")',
+    backgroundRepeat: 'no-repeat',
+    backgroundPosition: '10px center',
+    backgroundSize: '16px',
   };
 
-  const filterBarStyle = {
+  // Sort chips: horizontal row, pill buttons, orange when active
+  const sortContainerStyle = {
     display: 'flex',
-    gap: '6px',
-    padding: '8px 12px',
-    borderBottom: '1px solid #1e1e1e',
+    gap: '8px',
+    padding: '12px 16px',
     flexShrink: 0,
     overflowX: 'auto',
+    overflowY: 'hidden',
+    scrollBehavior: 'smooth',
   };
 
-  const filterButtonStyle = (isActive) => ({
-    padding: '4px 8px',
-    fontSize: '8px',
-    backgroundColor: isActive ? '#1a0900' : 'transparent',
-    border: `1px solid ${isActive ? '#ff6600' : '#2a2a2a'}`,
-    color: isActive ? '#ff6600' : '#444',
+  const sortChipStyle = (isActive) => ({
+    padding: '6px 14px',
+    fontSize: '13px',
+    fontWeight: isActive ? '600' : '500',
+    backgroundColor: isActive ? 'rgba(255, 102, 0, 0.15)' : 'transparent',
+    border: `1px solid ${isActive ? '#ff6600' : '#1a1a1a'}`,
+    color: isActive ? '#ff6600' : '#666',
     cursor: 'pointer',
     fontFamily: 'inherit',
-    borderRadius: '2px',
-    fontWeight: isActive ? 'bold' : 'normal',
-    letterSpacing: '0.05em',
+    borderRadius: '20px',
     flexShrink: 0,
+    transition: 'all 0.2s ease',
+    WebkitTapHighlightColor: 'rgba(255, 102, 0, 0.08)',
   });
 
-  const emptyStyle = {
-    flex: 1,
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12,
-  };
-
+  // List: 60px min-height rows
   const listStyle = {
     flex: 1,
     overflowY: 'auto',
+    overflowX: 'hidden',
     WebkitOverflowScrolling: 'touch',
   };
 
@@ -176,28 +185,34 @@ function WatchlistPanelMobile({ onOpenDetail, onManage }) {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: '12px 14px',
-    borderBottom: '1px solid #141414',
+    padding: '0 16px',
+    borderBottom: '1px solid #111',
     cursor: 'pointer',
-    minHeight: 56,
-    WebkitTapHighlightColor: 'rgba(255, 102, 0, 0.15)',
+    minHeight: 60,
+    backgroundColor: 'transparent',
+    transition: 'background-color 0.15s ease',
+    WebkitTapHighlightColor: 'rgba(255, 102, 0, 0.08)',
   };
 
   const symbolNameStyle = {
     flex: 1,
     minWidth: 0,
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'center',
   };
 
   const symbolStyle = {
-    color: '#e0e0e0',
+    color: '#fff',
     fontSize: 13,
-    fontWeight: 'bold',
+    fontWeight: '600',
+    letterSpacing: '-0.2px',
+    marginBottom: 4,
   };
 
   const nameStyle = {
-    color: '#444',
-    fontSize: 9,
-    marginTop: 2,
+    color: '#999',
+    fontSize: 12,
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap',
@@ -206,185 +221,238 @@ function WatchlistPanelMobile({ onOpenDetail, onManage }) {
   const priceChangeStyle = {
     textAlign: 'right',
     marginRight: 12,
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'center',
   };
 
   const priceStyle = {
-    color: '#e0e0e0',
+    color: '#fff',
     fontSize: 14,
+    fontWeight: '500',
     fontVariantNumeric: 'tabular-nums',
+    marginBottom: 4,
   };
 
   const changeStyle = (changePct) => ({
-    color: changePct == null ? '#555' : changePct >= 0 ? '#00cc44' : '#cc2200',
-    fontSize: 10,
-    marginTop: 2,
+    color: changePct == null ? '#666' : changePct >= 0 ? '#00cc44' : '#ff3b30',
+    fontSize: 11,
+    fontWeight: '500',
+    fontVariantNumeric: 'tabular-nums',
   });
 
   const removeButtonStyle = {
+    width: 36,
+    height: 36,
     background: 'none',
-    border: '1px solid #1a1a1a',
-    color: '#444',
+    border: 'none',
+    color: '#333',
     cursor: 'pointer',
-    fontSize: 10,
+    fontSize: 18,
     lineHeight: 1,
-    padding: '6px 10px',
+    padding: 0,
     flexShrink: 0,
-    borderRadius: 3,
-    minWidth: '36px',
-    minHeight: '36px',
+    borderRadius: '50%',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    WebkitTapHighlightColor: 'rgba(255, 0, 0, 0.15)',
+    transition: 'color 0.15s ease',
+    WebkitTapHighlightColor: 'transparent',
+  };
+
+  // Empty state: large star icon, friendly message, orange button
+  const emptyStyle = {
+    flex: 1,
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 16,
+    padding: '20px',
+  };
+
+  const emptyIconStyle = {
+    fontSize: 48,
+    color: '#1a1a1a',
+  };
+
+  const emptyTextStyle = {
+    color: '#666',
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 1.5,
+  };
+
+  const emptyButtonStyle = {
+    background: '#ff6600',
+    border: 'none',
+    color: '#000',
+    padding: '12px 24px',
+    fontSize: 14,
+    fontWeight: '600',
+    cursor: 'pointer',
+    fontFamily: 'inherit',
+    borderRadius: '8px',
+    transition: 'all 0.2s ease',
+    WebkitTapHighlightColor: 'transparent',
+  };
+
+  // Undo toast: bottom: 70px (above tab bar)
+  const undoToastStyle = {
+    position: 'fixed',
+    bottom: '70px',
+    left: '16px',
+    right: '16px',
+    backgroundColor: '#1a1a1a',
+    border: '1px solid #222',
+    borderRadius: '8px',
+    padding: '12px 16px',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 12,
+    fontSize: 13,
+    color: '#ccc',
+    fontFamily: 'inherit',
+    zIndex: 1000,
+    boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+    animation: 'slideUp 0.3s ease',
+  };
+
+  const undoButtonStyle = {
+    background: 'none',
+    border: 'none',
+    color: '#ff6600',
+    cursor: 'pointer',
+    fontSize: 13,
+    fontWeight: '600',
+    padding: 0,
+    minWidth: 'auto',
+    minHeight: 'auto',
+    WebkitTapHighlightColor: 'transparent',
+  };
+
+  const noResultsStyle = {
+    padding: '32px 16px',
+    textAlign: 'center',
+    color: '#666',
+    fontSize: 13,
   };
 
   return (
     <div style={containerStyle}>
+      <style>{`
+        @keyframes slideUp {
+          from { transform: translateY(20px); opacity: 0; }
+          to { transform: translateY(0); opacity: 1; }
+        }
+      `}</style>
+
       {/* Header */}
       <div style={headerStyle}>
-        <span style={titleStyle}>WATCHLIST</span>
-        <button onClick={onManage} style={manageButtonStyle}>
-          + ADD
-        </button>
+        <span style={titleStyle}>Watchlist</span>
+        <div style={headerRightStyle}>
+          {watchlist.length > 0 && (
+            <div style={badgeStyle}>{watchlist.length}</div>
+          )}
+          <button onClick={onManage} style={addButtonStyle} title="Add instruments">
+            +
+          </button>
+        </div>
       </div>
 
-      {/* Search bar (visible when watchlist not empty) */}
+      {/* Search and Sort (only when not empty) */}
       {watchlist.length > 0 && (
-        <div style={searchStyle}>
-          <input
-            type="text"
-            placeholder="Filter..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            style={searchInputStyle}
-          />
-        </div>
+        <>
+          {/* Search input: pill-shaped */}
+          <div style={searchContainerStyle}>
+            <input
+              type="text"
+              placeholder="Search..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={searchInputStyle}
+            />
+          </div>
+
+          {/* Sort chips */}
+          <div style={sortContainerStyle}>
+            {['Added', 'Name', 'Change', 'Price'].map((label) => {
+              const sortKey = label.toLowerCase();
+              const isActive = sortBy === sortKey;
+              return (
+                <button
+                  key={label}
+                  onClick={() => setSortBy(sortKey)}
+                  style={sortChipStyle(isActive)}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+        </>
       )}
 
-      {/* Sort filter tabs (visible when watchlist not empty) */}
-      {watchlist.length > 0 && (
-        <div style={filterBarStyle}>
-          <button
-            onClick={() => setSortBy('added')}
-            style={filterButtonStyle(sortBy === 'added')}
-          >
-            ADDED
-          </button>
-          <button
-            onClick={() => setSortBy('change')}
-            style={filterButtonStyle(sortBy === 'change')}
-          >
-            CHANGE
-          </button>
-          <button
-            onClick={() => setSortBy('price')}
-            style={filterButtonStyle(sortBy === 'price')}
-          >
-            PRICE
-          </button>
-        </div>
-      )}
-
-      {/* Empty state */}
-      {watchlist.length === 0 && (
+      {/* List or Empty State */}
+      {watchlist.length === 0 ? (
         <div style={emptyStyle}>
-          <div style={{ color: '#2a2a2a', fontSize: 24 }}>☆</div>
-          <div style={{ color: '#444', fontSize: 11, textAlign: 'center', lineHeight: 1.6 }}>
+          <div style={emptyIconStyle}>★</div>
+          <div style={emptyTextStyle}>
             Your watchlist is empty.
             <br />
-            Use FIND to add instruments.
+            Add instruments to track prices.
           </div>
-          <button
-            onClick={onManage}
-            style={{
-              background: '#1a0900',
-              border: '1px solid #ff6600',
-              color: '#ff6600',
-              padding: '8px 20px',
-              fontSize: 10,
-              cursor: 'pointer',
-              fontFamily: 'inherit',
-              letterSpacing: '0.15em',
-              borderRadius: 3,
-              marginTop: 8,
-              minHeight: '44px',
-            }}
-          >
-            GO TO SEARCH
+          <button onClick={onManage} style={emptyButtonStyle}>
+            Add Instruments
           </button>
         </div>
-      )}
-
-      {/* List */}
-      {watchlist.length > 0 && (
+      ) : (
         <div style={listStyle}>
           {sorted.length === 0 ? (
-            <div style={{
-              padding: '20px',
-              textAlign: 'center',
-              color: '#444',
-              fontSize: 11,
-            }}>
+            <div style={noResultsStyle}>
               No results for "{searchQuery}"
             </div>
           ) : (
-            sorted.map((sym, idx) => {
+            sorted.map((sym) => {
               const d = getData(sym);
               const pct = d?.changePct;
-              const isFirstRow = idx === 0 && showHint;
               return (
-                <div key={sym} style={{ position: 'relative' }}>
-                  {/* Swipe hint (left arrow) — first row only, one-time */}
-                  {isFirstRow && (
-                    <div style={{
-                      position: 'absolute',
-                      left: 8,
-                      top: '50%',
-                      transform: 'translateY(-50%)',
-                      color: '#444',
-                      fontSize: 10,
-                      opacity: 0.6,
-                      pointerEvents: 'none',
-                    }}>
-                      ←
-                    </div>
-                  )}
-                  <div
-                    onClick={() => onOpenDetail?.(sym)}
-                    style={rowStyle}
-                  >
-                    {/* Symbol + name */}
-                    <div style={symbolNameStyle}>
-                      <div style={symbolStyle}>{sym}</div>
-                      {d?.name && <div style={nameStyle}>{d.name}</div>}
-                    </div>
-
-                    {/* Price + change */}
-                    <div style={priceChangeStyle}>
-                      <div style={priceStyle}>
-                        {d?.price ? fmtPrice(d.price) : '--'}
-                      </div>
-                      <div style={changeStyle(pct)}>
-                        {fmtPct(pct)}
-                      </div>
-                    </div>
-
-                    {/* Remove */}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        // Show undo toast
-                        if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
-                        setUndoItem(sym);
-                        removeTicker(sym);
-                        // Hide undo after 4 seconds
-                        undoTimerRef.current = setTimeout(() => setUndoItem(null), 4000);
-                      }}
-                      style={removeButtonStyle}
-                    >
-                      ×
-                    </button>
+                <div
+                  key={sym}
+                  onClick={() => onOpenDetail?.(sym)}
+                  style={rowStyle}
+                >
+                  {/* Symbol + name (left) */}
+                  <div style={symbolNameStyle}>
+                    <div style={symbolStyle}>{sym}</div>
+                    {d?.name && <div style={nameStyle}>{d.name}</div>}
                   </div>
+
+                  {/* Price + change (right) */}
+                  <div style={priceChangeStyle}>
+                    <div style={priceStyle}>
+                      {d?.price ? fmtPrice(d.price) : '--'}
+                    </div>
+                    <div style={changeStyle(pct)}>
+                      {fmtPct(pct)}
+                    </div>
+                  </div>
+
+                  {/* Remove button (far right) */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+                      setUndoItem(sym);
+                      removeTicker(sym);
+                      undoTimerRef.current = setTimeout(() => setUndoItem(null), 4000);
+                    }}
+                    style={removeButtonStyle}
+                    title="Remove"
+                  >
+                    ✕
+                  </button>
                 </div>
               );
             })
@@ -392,27 +460,9 @@ function WatchlistPanelMobile({ onOpenDetail, onManage }) {
         </div>
       )}
 
-      {/* Undo Toast */}
+      {/* Undo Toast (above tab bar at bottom: 70px) */}
       {undoItem && (
-        <div style={{
-          position: 'fixed',
-          bottom: 'calc(env(safe-area-inset-bottom, 0px) + 12px)',
-          left: 12,
-          right: 12,
-          backgroundColor: '#1a1a1a',
-          border: '1px solid #2a2a2a',
-          borderRadius: 4,
-          padding: '12px 16px',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          gap: 12,
-          fontSize: 11,
-          color: '#999',
-          fontFamily: 'monospace',
-          zIndex: 1000,
-          boxShadow: '0 2px 8px rgba(0,0,0,0.5)',
-        }}>
+        <div style={undoToastStyle}>
           <span>{undoItem} removed</span>
           <button
             onClick={() => {
@@ -420,18 +470,7 @@ function WatchlistPanelMobile({ onOpenDetail, onManage }) {
               setUndoItem(null);
               if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
             }}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: '#ff6600',
-              cursor: 'pointer',
-              fontSize: 11,
-              fontWeight: 'bold',
-              letterSpacing: '0.1em',
-              padding: 0,
-              minWidth: 'auto',
-              minHeight: 'auto',
-            }}
+            style={undoButtonStyle}
           >
             UNDO
           </button>
