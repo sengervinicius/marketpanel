@@ -1,6 +1,6 @@
 # Senger Market — App Store Readiness Assessment
 
-Last updated: Phase 5D (April 2026)
+Last updated: Phase 5E (April 2026)
 
 ## What Is Ready
 
@@ -17,30 +17,33 @@ Last updated: Phase 5D (April 2026)
 - **Privacy policy**: publicly accessible at `/privacy.html`, covering data collection, storage, third-party services, deletion rights, and children's privacy.
 - **Account deletion**: `DELETE /api/auth/account` endpoint removes user account plus all portfolio, alert, and settings data. Two-step confirmation dialog in MobileMoreScreen. Satisfies Apple's account deletion requirement.
 - **Offline fallback**: service worker with stale-while-revalidate for static assets, network-first for API calls with cache fallback, and a dedicated `/offline.html` page for navigation failures.
+- **App Store screenshots**: Generated at all required App Store sizes (iPhone 6.7", 6.5", iPad 12.9") plus manifest screenshots (1080x1920 mobile, 2560x1440 desktop).
+- **App Store metadata**: Complete `APPSTORE_METADATA.md` with App Store Connect fields, description, keywords, review notes, screenshot captions.
+- **iOS and Android native projects**: Capacitor iOS (`ios/`) and Android (`android/`) platforms initialized, web assets synced, app icon in Xcode asset catalog.
+- **Apple IAP integration**: Server-side IAP routes (`/api/billing/iap/*`) for product listing, purchase validation, restore, and Apple webhook. Client-side platform detection (`services/platform.js`), IAP service (`services/iap.js`), platform-aware checkout in AuthContext, "Restore Purchases" button on iOS subscription screen.
 
 ## What Blocks App Store Submission
 
 ### Required Before Submission
 
-1. **App Store screenshots**: Required for listing:
-   - iPhone 6.7" (1290×2796)
-   - iPhone 6.5" (1242×2688)
-   - iPad 12.9" (2048×2732)
-   - `/client/public/screenshot-mobile.png` and `/client/public/screenshot-desktop.png` are referenced in manifest but not yet created.
+1. **Xcode build and TestFlight**: Open `client/ios/App/App.xcworkspace` in Xcode, configure signing, build, test in Simulator, submit to TestFlight.
+2. **Apple Developer account setup**: Create app in App Store Connect, configure IAP products, upload screenshots.
+3. **Replace placeholder screenshots**: The generated screenshots are programmatic mockups. Capture final screenshots from Xcode Simulator at required resolutions.
+4. **Configure Apple IAP shared secret**: Set `APPLE_IAP_SHARED_SECRET` env var on Render for receipt validation.
 
-2. **App Store metadata**: description, keywords, support URL, marketing URL.
-
-3. **Xcode build and TestFlight**: Run `npx cap add ios`, build in Xcode, test in Simulator, then submit to TestFlight.
-
-### Resolved Blockers (Phase 5D)
+### Resolved Blockers (Phase 5D + 5E)
 
 | Blocker | Resolution |
 |---|---|
-| Native wrapper | Capacitor configured (`capacitor.config.json`) |
-| App icons | 5 PNG files generated at all required sizes |
+| Native wrapper | Capacitor configured + iOS/Android platforms added |
+| App icons | 5 PNG files generated at all required sizes, 1024px in Xcode assets |
 | Privacy policy | `/privacy.html` — publicly accessible |
 | Account deletion | `DELETE /api/auth/account` + MobileMoreScreen UI |
 | Offline fallback | Service worker v2 + `/offline.html` page |
+| App Store screenshots | Generated at iPhone 6.7", 6.5", iPad 12.9", mobile, desktop |
+| App Store metadata | `APPSTORE_METADATA.md` with description, keywords, review notes |
+| iOS/Android platforms | `npx cap add ios` + `npx cap add android` complete |
+| Apple IAP integration | Server routes `/api/billing/iap/*`, client platform detection, Restore Purchases |
 
 ## Apple In-App Purchase Strategy
 
@@ -81,12 +84,13 @@ Start with **Option A** for initial launch to ensure smooth App Store approval. 
 
 ## Recommended Next Steps (In Order)
 
-1. **Build and test in Xcode/Simulator** — `npx cap add ios && npx cap open ios`, verify wrapped app behaves identically to PWA.
-2. **Capture App Store screenshots** — run in Simulator at required resolutions.
-3. **Prepare App Store listing** — description, keywords, support URL, marketing URL.
-4. **Implement Apple IAP** — add in-app purchase SDK, create products in App Store Connect.
-5. **Submit to TestFlight** — internal testing before public submission.
-6. **Submit to App Store Review**.
+1. **Open in Xcode** — `cd client && npx cap open ios`. Configure signing with your Apple Developer team.
+2. **Create App Store Connect app** — Bundle ID `com.arccapital.senger`, add IAP subscription products matching `IAP_PRODUCTS` in `services/iap.js`.
+3. **Set env vars on Render** — `APPLE_IAP_SHARED_SECRET` for receipt validation, `APPLE_CLIENT_ID` for Sign In with Apple.
+4. **Capture final screenshots** — Replace the generated placeholder screenshots with real captures from Xcode Simulator at required resolutions.
+5. **Test in Simulator** — Verify all flows: login, portfolio, alerts, charts, account deletion, offline fallback.
+6. **Submit to TestFlight** — Upload build, invite testers, validate IAP sandbox purchases.
+7. **Submit to App Store Review** — Use metadata from `APPSTORE_METADATA.md`.
 
 ## Architecture Note
 

@@ -17,7 +17,7 @@
     { "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ],
   "screenshots": [
-    { "src": "/screenshot-mobile.png", "sizes": "390x844", "type": "image/png", "form_factor": "narrow", "label": "Senger Market mobile view" },
-    { "src": "/screenshot-desktop.png", "sizes": "1280x800", "type": "image/png", "form_factor": "wide", "label": "Senger Market desktop terminal" }
+    { "src": "/screenshot-mobile.png", "sizes": "1080x1920", "type": "image/png", "form_factor": "narrow", "label": "Senger Market mobile home" },
+    { "src": "/screenshot-desktop.png", "sizes": "2560x1440", "type": "image/png", "form_factor": "wide", "label": "Senger Market desktop terminal" }
   ]
 }

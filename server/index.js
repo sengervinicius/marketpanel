@@ -15,6 +15,7 @@ const instrumentsRoutes = require('./routes/instruments');
 const macroRoutes       = require('./routes/macro');
 const portfolioRoutes   = require('./routes/portfolio');
 const alertRoutes       = require('./routes/alerts');
+const iapRoutes         = require('./routes/iap');
 const { requireAuth, requireActiveSubscription } = require('./authMiddleware');
 const logger = require('./utils/logger');
 const { requestLogger } = require('./utils/logger');
@@ -71,6 +72,8 @@ app.use('/api/auth', authRoutes);
 // ── Protected routes ───────────────────────────────────────────────────────────
 // Billing: auth required, subscription check is inside (create-session / status)
 app.use('/api/billing', requireAuth, billingRoutes);
+// Apple IAP: mounted under /api/billing/iap (auth handled per-route inside)
+app.use('/api/billing/iap', iapRoutes);
 
 // Settings: auth required (no subscription check — need settings even on expired trial)
 app.use('/api/settings', requireAuth, settingsRoutes);

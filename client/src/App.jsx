@@ -786,11 +786,13 @@ function TrialBanner({ subscription, onUpgrade, onManageBilling, billingState })
 }
 
 // ── Subscription Expired Screen ──────────────────────────────────────────────
-function SubscriptionExpiredScreen({ onUpgrade, onLogout, onManageBilling, checkoutState, subscription }) {
+function SubscriptionExpiredScreen({ onUpgrade, onLogout, onManageBilling, checkoutState, subscription, onRestore, billingPlatform }) {
   const [isLoading, setIsLoading] = useState(false);
+  const [restoreMsg, setRestoreMsg] = useState(null);
   const isLoadingCheckout = checkoutState?.isLoading || isLoading;
   const checkoutError = checkoutState?.error;
   const hasStripeCustomerId = subscription?.stripeCustomerId;
+  const isApple = billingPlatform === 'apple';
 
   const handleUpgrade = async () => {
     setIsLoading(true);
@@ -830,7 +832,7 @@ function SubscriptionExpiredScreen({ onUpgrade, onLogout, onManageBilling, check
             opacity: isLoadingCheckout ? 0.7 : 1,
           }}
         >{isLoadingCheckout ? 'Setting up...' : 'SUBSCRIBE NOW →'}</button>
-        {hasStripeCustomerId && onManageBilling && (
+        {hasStripeCustomerId && onManageBilling && !isApple && (
           <button
             onClick={onManageBilling}
             style={{
@@ -839,6 +841,20 @@ function SubscriptionExpiredScreen({ onUpgrade, onLogout, onManageBilling, check
               fontFamily: 'inherit', borderRadius: 2, letterSpacing: '0.5px',
             }}
           >MANAGE BILLING</button>
+        )}
+        {isApple && onRestore && (
+          <button
+            onClick={async () => {
+              setRestoreMsg(null);
+              const result = await onRestore();
+              setRestoreMsg(result.restored ? 'Subscription restored!' : 'No previous purchases found.');
+            }}
+            style={{
+              background: 'none', border: '1px solid #ff9900', color: '#ff9900',
+              fontSize: 10, fontWeight: 700, padding: '8px 14px', cursor: 'pointer',
+              fontFamily: 'inherit', borderRadius: 2, letterSpacing: '0.5px',
+            }}
+          >RESTORE PURCHASES</button>
         )}
         <button
           onClick={onLogout}
@@ -849,6 +865,9 @@ function SubscriptionExpiredScreen({ onUpgrade, onLogout, onManageBilling, check
           }}
         >LOG OUT</button>
       </div>
+      {restoreMsg && (
+        <div style={{ color: '#888', fontSize: 10, marginTop: 8 }}>{restoreMsg}</div>
+      )}
     </div>
   );
 }
@@ -941,7 +960,7 @@ const LS_CHART_GRID   = 'chartGrid_v3';
 
 export default function App() {
   const { data, loading, isRefreshing, lastUpdated, error: feedError, endpointErrors } = useMarketData();
-  const { user, subscription, startCheckout, logout, authReady, openBillingPortal, refreshSubscription } = useAuth();
+  const { user, subscription, startCheckout, logout, authReady, openBillingPortal, refreshSubscription, restorePurchases, billingPlatform } = useAuth();
   const { settings, loaded: settingsLoaded } = useSettings();
 
   // ── Billing state ────────────────────────────────────────────────────────────
@@ -1283,6 +1302,8 @@ export default function App() {
             onUpgrade={handleCheckout}
             onLogout={logout}
             onManageBilling={openBillingPortal}
+            onRestore={restorePurchases}
+            billingPlatform={billingPlatform}
             checkoutState={billingState}
             subscription={subscription}
           />

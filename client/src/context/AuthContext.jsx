@@ -10,8 +10,10 @@
  * was no token to check). Use this to avoid flashing login screen on refresh.
  */
 
-import { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, useMemo } from 'react';
 import { API_BASE } from '../utils/api';
+import { isIOS } from '../services/platform';
+import { purchase, restorePurchases, IAP_PRODUCTS } from '../services/iap';
 
 const LS_USER  = 'arc_user';
 const LS_TOKEN = 'arc_token';
@@ -199,8 +201,20 @@ export function AuthProvider({ children }) {
     localStorage.removeItem(LS_TOKEN);
   }, []);
 
-  // ── Start checkout ────────────────────────────────────────────────────────
-  const startCheckout = useCallback(async () => {
+  // ── Platform-aware checkout ────────────────────────────────────────────────
+  const startCheckout = useCallback(async (productId) => {
+    // iOS native → Apple IAP
+    if (isIOS()) {
+      const result = await purchase(productId || IAP_PRODUCTS.MONTHLY);
+      if (result.ok) {
+        await refreshSubscription();
+      } else {
+        alert(result.error || 'Purchase failed. Please try again.');
+      }
+      return;
+    }
+
+    // Web / Android → Stripe
     const tok = localStorage.getItem(LS_TOKEN);
     try {
       const res  = await fetch(`${API_BASE}/api/billing/create-session`, {
@@ -245,7 +259,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, token, subscription, authReady, login, register, loginWithApple, logout, startCheckout, openBillingPortal, refreshSubscription }}>
+    <AuthContext.Provider value={{ user, token, subscription, authReady, login, register, loginWithApple, logout, startCheckout, openBillingPortal, refreshSubscription, restorePurchases, billingPlatform: isIOS() ? 'apple' : 'stripe' }}>
       {children}
     </AuthContext.Provider>
   );
