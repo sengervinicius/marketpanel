@@ -42,6 +42,12 @@ const XP_TABLE = {
   share_weekly:             15,
   redeem_referral:          50,
   receive_referral:         50,
+  // Alert delivery & management events (Phase 22)
+  alert_channel_email_enabled:   10,
+  alert_channel_discord_enabled: 15,
+  alert_snoozed:                 5,
+  alert_rearmed:                 10,
+  alert_digest_enabled:          10,
 };
 
 // Map gamification event types → mission IDs to progress
@@ -73,6 +79,12 @@ const EVENT_MISSION_MAP = {
   share_weekly:              ['first-share', 'weekly-sharer'],
   redeem_referral:           [],
   receive_referral:          ['invite-first-trader', 'referral-champion'],
+  // Alert delivery & management missions (Phase 22)
+  alert_channel_email_enabled:   ['multi-channel-ready'],
+  alert_channel_discord_enabled: ['multi-channel-ready'],
+  alert_snoozed:                 ['alert-power-user'],
+  alert_rearmed:                 ['alert-power-user'],
+  alert_digest_enabled:          [],
 };
 
 // POST /api/gamification/event

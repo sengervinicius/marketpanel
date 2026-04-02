@@ -16,6 +16,7 @@ const logger  = require('../utils/logger');
 const { sendApiError } = require('../utils/apiError');
 const {
   listAlerts,
+  getAlert,
   createAlert,
   updateAlert,
   deleteAlert,
@@ -214,6 +215,104 @@ router.post('/screener', async (req, res) => {
   } catch (e) {
     logger.error('POST /alerts/screener error:', e);
     sendApiError(res, 500, 'Failed to create screener alert');
+  }
+});
+
+// ── POST /api/alerts/:id/rearm ────────────────────────────────────────
+// Reactivate a triggered/inactive alert.
+router.post('/:id/rearm', async (req, res) => {
+  try {
+    const alertId = req.params.id;
+    const existing = getAlert(req.user.id, alertId);
+    if (!existing) return sendApiError(res, 404, 'Alert not found');
+
+    const updated = await updateAlert(req.user.id, alertId, {
+      active: true,
+      status: 'active',
+      triggeredAt: null,
+      dismissed: false,
+      triggerContext: null,
+    });
+
+    logger.info('alerts', 'Alert re-armed', { userId: req.user.id, alertId });
+    res.json({ ok: true, data: updated });
+  } catch (e) {
+    logger.error('alerts', 'POST /alerts/:id/rearm error', { error: e.message });
+    sendApiError(res, 500, 'Failed to re-arm alert');
+  }
+});
+
+// ── POST /api/alerts/:id/mute ────────────────────────────────────────
+// Mute alert notifications (still evaluates, no outbound).
+router.post('/:id/mute', async (req, res) => {
+  try {
+    const alertId = req.params.id;
+    const existing = getAlert(req.user.id, alertId);
+    if (!existing) return sendApiError(res, 404, 'Alert not found');
+
+    const updated = await updateAlert(req.user.id, alertId, {
+      status: 'muted',
+    });
+
+    logger.info('alerts', 'Alert muted', { userId: req.user.id, alertId });
+    res.json({ ok: true, data: updated });
+  } catch (e) {
+    logger.error('alerts', 'POST /alerts/:id/mute error', { error: e.message });
+    sendApiError(res, 500, 'Failed to mute alert');
+  }
+});
+
+// ── POST /api/alerts/:id/unmute ──────────────────────────────────────
+router.post('/:id/unmute', async (req, res) => {
+  try {
+    const alertId = req.params.id;
+    const existing = getAlert(req.user.id, alertId);
+    if (!existing) return sendApiError(res, 404, 'Alert not found');
+
+    const newStatus = existing.active ? 'active' : (existing.triggeredAt ? 'triggered' : 'active');
+    const updated = await updateAlert(req.user.id, alertId, { status: newStatus });
+
+    logger.info('alerts', 'Alert unmuted', { userId: req.user.id, alertId });
+    res.json({ ok: true, data: updated });
+  } catch (e) {
+    logger.error('alerts', 'POST /alerts/:id/unmute error', { error: e.message });
+    sendApiError(res, 500, 'Failed to unmute alert');
+  }
+});
+
+// ── POST /api/alerts/:id/snooze ──────────────────────────────────────
+// Snooze alert notifications until a given time.
+// Body: { duration: '1h' | '8h' | '1d' | '1w' }
+const SNOOZE_DURATIONS = {
+  '1h': 60 * 60 * 1000,
+  '8h': 8 * 60 * 60 * 1000,
+  '1d': 24 * 60 * 60 * 1000,
+  '1w': 7 * 24 * 60 * 60 * 1000,
+};
+
+router.post('/:id/snooze', async (req, res) => {
+  try {
+    const alertId = req.params.id;
+    const { duration } = req.body || {};
+
+    if (!duration || !SNOOZE_DURATIONS[duration]) {
+      return sendApiError(res, 400, `Duration must be one of: ${Object.keys(SNOOZE_DURATIONS).join(', ')}`);
+    }
+
+    const existing = getAlert(req.user.id, alertId);
+    if (!existing) return sendApiError(res, 404, 'Alert not found');
+
+    const snoozedUntil = new Date(Date.now() + SNOOZE_DURATIONS[duration]).toISOString();
+    const updated = await updateAlert(req.user.id, alertId, {
+      status: 'snoozed',
+      snoozedUntil,
+    });
+
+    logger.info('alerts', 'Alert snoozed', { userId: req.user.id, alertId, duration, snoozedUntil });
+    res.json({ ok: true, data: updated });
+  } catch (e) {
+    logger.error('alerts', 'POST /alerts/:id/snooze error', { error: e.message });
+    sendApiError(res, 500, 'Failed to snooze alert');
   }
 });
 

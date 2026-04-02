@@ -221,6 +221,24 @@ const MISSION_CATALOG = [
     personaType: 'macro_investor',
   },
 
+  // ── Alert delivery & management (Phase 22) ──────────────
+  {
+    id: 'alert-power-user',
+    kind: 'one-time',
+    title: 'Alert Power User',
+    description: 'Re-arm or manage 5 alerts (snooze, mute, re-arm).',
+    xpReward: 30,
+    target: 5,
+  },
+  {
+    id: 'multi-channel-ready',
+    kind: 'one-time',
+    title: 'Multi-Channel Ready',
+    description: 'Enable at least 2 notification channels (email, Discord, etc.).',
+    xpReward: 25,
+    target: 2,
+  },
+
   // ── Sharing & Referral missions (Phase 18) ──────────────
   {
     id: 'first-share',

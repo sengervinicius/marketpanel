@@ -1,0 +1,214 @@
+/* AlertCenterPanel.css — prefix: ac- */
+
+.ac-header {
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border-strong);
+  background: var(--bg-elevated);
+  flex-shrink: 0;
+  gap: 8px;
+  display: flex;
+  align-items: center;
+}
+
+.ac-header-title {
+  color: var(--accent);
+  font-weight: 700;
+  letter-spacing: 1px;
+  font-size: var(--font-base);
+}
+
+.ac-header-spacer { flex: 1; }
+
+.ac-new-btn {
+  background: none;
+  border: 1px solid var(--border-strong);
+  color: var(--accent);
+  padding: 1px 6px;
+  font-size: var(--font-sm);
+}
+
+.ac-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--border-default);
+  flex-shrink: 0;
+  background: var(--bg-surface);
+}
+
+.ac-tab {
+  flex: 1;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-muted);
+  padding: 6px 8px;
+  font-size: var(--font-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.ac-tab:hover { color: var(--text-primary); }
+
+.ac-tab--active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.ac-tab-badge {
+  background: var(--price-up);
+  color: #000;
+  border-radius: 8px;
+  padding: 0 5px;
+  font-size: 10px;
+  font-weight: 700;
+  min-width: 16px;
+  text-align: center;
+}
+
+.ac-rows {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.ac-row {
+  border-bottom: 1px solid var(--border-subtle);
+  padding: 6px 8px;
+  transition: background-color 0.1s;
+}
+
+.ac-row:hover { background: var(--bg-hover); }
+
+.ac-row--dim { opacity: 0.5; }
+
+.ac-row-main {
+  cursor: pointer;
+}
+
+.ac-row-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 2px;
+}
+
+.ac-row-symbol {
+  font-weight: 700;
+  color: var(--text-primary);
+  font-size: var(--font-base);
+}
+
+.ac-row-channels {
+  display: flex;
+  gap: 2px;
+  font-size: 12px;
+  margin-left: auto;
+}
+
+.ac-row-condition {
+  color: var(--text-secondary);
+  font-size: var(--font-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.ac-row-note {
+  color: var(--text-faint);
+  font-size: var(--font-sm);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ac-trigger-reason {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 2px;
+}
+
+.ac-trigger-label {
+  color: var(--price-up);
+  font-size: var(--font-sm);
+  font-weight: 600;
+}
+
+.ac-trigger-value {
+  color: var(--text-muted);
+  font-size: var(--font-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.ac-row-snoozed {
+  color: var(--text-faint);
+  font-size: var(--font-sm);
+  font-style: italic;
+  margin-top: 2px;
+}
+
+.ac-row-actions {
+  display: flex;
+  gap: 4px;
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.ac-action-btn {
+  background: none;
+  border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  padding: 1px 6px;
+  font-size: 12px;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.ac-action-btn:hover {
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+}
+
+.ac-action--rearm:hover { color: var(--price-up); border-color: var(--price-up); }
+.ac-action--dismiss:hover { color: var(--price-up); border-color: var(--price-up); }
+.ac-action--delete:hover { color: var(--price-down); border-color: var(--price-down); }
+.ac-action--mute:hover { color: var(--text-faint); }
+.ac-action--snooze:hover { color: #a78bfa; border-color: #a78bfa; }
+
+.ac-snooze-bar {
+  display: flex;
+  gap: 4px;
+  margin-top: 4px;
+  padding: 4px 0;
+}
+
+.ac-snooze-option {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  color: var(--text-secondary);
+  padding: 2px 8px;
+  font-size: 11px;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.ac-snooze-option:hover {
+  background: #a78bfa22;
+  border-color: #a78bfa;
+  color: #a78bfa;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .ac-row-actions {
+    flex-wrap: wrap;
+  }
+  .ac-action-btn {
+    padding: 4px 10px;
+    font-size: 13px;
+  }
+}

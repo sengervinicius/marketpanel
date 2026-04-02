@@ -25,9 +25,16 @@
  *       direction:          string | null,   // 'up' | 'down' | null
  *     },
  *     note:                 string | null,   // optional user note
+ *     status:               string,          // 'active' | 'triggered' | 'snoozed' | 'muted'
  *     active:               boolean,         // whether to evaluate
  *     triggeredAt:          string | null,    // ISO timestamp when condition was met
  *     dismissed:            boolean,          // whether user has dismissed the notification
+ *     cooldownSeconds:      number,           // minimum seconds between repeated notifications (default 300)
+ *     lastNotifiedAt:       string | null,    // ISO timestamp of last outbound notification
+ *     overrideChannels:     boolean,          // whether this alert overrides global channel prefs
+ *     channels:             string[],         // per-alert channel list (used when overrideChannels=true)
+ *     snoozedUntil:         string | null,    // ISO timestamp — no notifications until this time
+ *     triggerContext:        object | null,    // snapshot of price/values at trigger time
  *     createdAt:            string,           // ISO
  *     updatedAt:            string,           // ISO
  *   }
@@ -231,9 +238,16 @@ async function createAlert(userId, data) {
       lastMatchCount: data.parameters?.lastMatchCount ?? null,
     },
     note: data.note || null,
+    status: 'active',
     active: true,
     triggeredAt: null,
     dismissed: false,
+    cooldownSeconds: data.cooldownSeconds ?? 300,
+    lastNotifiedAt: null,
+    overrideChannels: data.overrideChannels ?? false,
+    channels: Array.isArray(data.channels) ? data.channels : [],
+    snoozedUntil: null,
+    triggerContext: null,
     createdAt: now,
     updatedAt: now,
   };
@@ -272,8 +286,15 @@ async function updateAlert(userId, alertIdVal, data) {
   }
   if (data.note !== undefined) existing.note = data.note;
   if (data.active !== undefined) existing.active = data.active;
+  if (data.status !== undefined) existing.status = data.status;
   if (data.dismissed !== undefined) existing.dismissed = data.dismissed;
   if (data.portfolioPositionId !== undefined) existing.portfolioPositionId = data.portfolioPositionId;
+  if (data.cooldownSeconds !== undefined) existing.cooldownSeconds = data.cooldownSeconds;
+  if (data.lastNotifiedAt !== undefined) existing.lastNotifiedAt = data.lastNotifiedAt;
+  if (data.overrideChannels !== undefined) existing.overrideChannels = data.overrideChannels;
+  if (data.channels !== undefined) existing.channels = data.channels;
+  if (data.snoozedUntil !== undefined) existing.snoozedUntil = data.snoozedUntil;
+  if (data.triggerContext !== undefined) existing.triggerContext = data.triggerContext;
   existing.updatedAt = now;
 
   await persistAlert(existing);
@@ -305,7 +326,7 @@ async function deleteAlert(userId, alertIdVal) {
  * @param {string} triggeredAt - ISO timestamp
  * @returns {object|null} Updated alert or null
  */
-async function markTriggered(userId, alertIdVal, triggeredAt) {
+async function markTriggered(userId, alertIdVal, triggeredAt, triggerContext = null) {
   const map = alertsByUserId.get(Number(userId));
   if (!map) return null;
   const existing = map.get(alertIdVal);
@@ -313,6 +334,9 @@ async function markTriggered(userId, alertIdVal, triggeredAt) {
 
   existing.triggeredAt = triggeredAt || new Date().toISOString();
   existing.active = false; // One-shot: deactivate after trigger
+  existing.status = 'triggered';
+  existing.lastNotifiedAt = existing.triggeredAt;
+  if (triggerContext) existing.triggerContext = triggerContext;
   existing.updatedAt = new Date().toISOString();
 
   await persistAlert(existing);

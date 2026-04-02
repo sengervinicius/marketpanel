@@ -26,6 +26,7 @@ const optionsRoutes         = require('./routes/options');
 const leaderboardRoutes = require('./routes/leaderboard');
 const shareRoutes       = require('./routes/share');
 const referralRoutes    = require('./routes/referrals');
+const notificationRoutes = require('./routes/notifications');
 const { requireAuth, requireActiveSubscription } = require('./authMiddleware');
 const logger = require('./utils/logger');
 const { requestLogger } = require('./utils/logger');
@@ -145,6 +146,7 @@ app.use('/api/share', requireAuth,
   requestTimeout(15000),
   shareRoutes);
 app.use('/api/referrals', requireAuth, referralRoutes);
+app.use('/api/notifications', requireAuth, notificationRoutes);
 
 // AI Search: auth + subscription required + rate limit + timeout
 app.use('/api/search', requireAuth, requireActiveSubscription,
@@ -382,6 +384,8 @@ async function boot() {
   // 1. Platform services (optional — app works without them)
   await initPostgres();
   await initRedis();
+  const { initEmail } = require('./services/emailService');
+  initEmail();
 
   // 2. Data stores (Postgres hydration first if connected, then MongoDB)
   const mongoDB = await initDB();  // connect MongoDB, load users into memory

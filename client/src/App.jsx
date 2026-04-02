@@ -25,6 +25,8 @@ import BrazilPanel from './components/panels/BrazilPanel';
 import GlobalIndicesPanel from './components/panels/GlobalIndicesPanel';
 import PortfolioPanel from './components/panels/PortfolioPanel';
 import AlertsPanel from './components/panels/AlertsPanel';
+import AlertCenterPanel from './components/panels/AlertCenterPanel';
+import NotificationPrefs from './components/common/NotificationPrefs';
 import { DEFAULT_LAYOUT, PANEL_DEFINITIONS } from './config/panels';
 import PortfolioMobile from './components/panels/PortfolioMobile';
 import AlertsMobile from './components/panels/AlertsMobile';
@@ -246,7 +248,7 @@ function makePanelRenderer(panelId, props) {
     case 'indices':
       return <IndexPanel data={mergedData?.indices} loading={loading} onTickerClick={setChartTicker} onOpenDetail={setDetailTicker} />;
     case 'alerts':
-      return <AlertsPanel onOpenDetail={setDetailTicker} />;
+      return <AlertCenterPanel onOpenDetail={setDetailTicker} />;
     case 'screener':
       return <ScreenerPanel onOpenDetail={setDetailTicker} />;
     case 'macro':
@@ -1669,7 +1671,7 @@ export default function App() {
             )}
 
             {activeTab === 'alerts' && (
-              <AlertsMobile onOpenDetail={goDetail} />
+              <AlertCenterPanel onOpenDetail={goDetail} />
             )}
 
             {activeTab === 'more' && !moreView && (
@@ -1708,6 +1710,10 @@ export default function App() {
 
             {activeTab === 'more' && moreView === 'missions' && (
               <MobileMissionsScreen />
+            )}
+
+            {activeTab === 'more' && moreView === 'notification-prefs' && (
+              <NotificationPrefs onClose={() => setMoreView(null)} />
             )}
 
           </div>

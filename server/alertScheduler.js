@@ -32,6 +32,7 @@
 
 const { listAllActiveAlerts, markTriggered, updateAlert } = require('./alertStore');
 const logger = require('./utils/logger');
+const { dispatchAlert } = require('./services/notificationService');
 
 const EVAL_INTERVAL_MS = 45_000; // 45 seconds
 let _intervalId = null;
@@ -214,13 +215,23 @@ async function runEvaluation() {
     const priceAlerts = activeAlerts.filter(a => a.type !== 'screener');
 
     for (const alert of priceAlerts) {
+      // Skip snoozed alerts
+      if (alert.snoozedUntil && new Date(alert.snoozedUntil) > new Date()) continue;
+
       const priceData = priceMap.get(alert.symbol);
       if (!priceData) continue;
 
       const shouldTrigger = evaluateAlert(alert, priceData);
       if (shouldTrigger) {
-        await markTriggered(alert.userId, alert.id, new Date().toISOString());
+        const triggerContext = { price: priceData.price, changePct: priceData.changePct };
+        const triggered = await markTriggered(alert.userId, alert.id, new Date().toISOString(), triggerContext);
         triggeredCount++;
+        // Dispatch notifications (non-blocking)
+        if (triggered && triggered.status !== 'muted') {
+          dispatchAlert(triggered, { price: priceData.price, actualValue: priceData.price?.toString() }).catch(e => {
+            logger.error('alerts', 'Dispatch failed', { alertId: alert.id, error: e.message });
+          });
+        }
       }
     }
 
@@ -230,11 +241,20 @@ async function runEvaluation() {
     let screenerEvaluated = 0;
     if (screenerAlerts.length > 0 && runEvaluation._cycleCount % 3 === 0) {
       for (const alert of screenerAlerts) {
+        // Skip snoozed alerts
+        if (alert.snoozedUntil && new Date(alert.snoozedUntil) > new Date()) continue;
+
         const shouldTrigger = await evaluateScreenerAlert(alert);
         screenerEvaluated++;
         if (shouldTrigger) {
-          await markTriggered(alert.userId, alert.id, new Date().toISOString());
+          const triggerContext = { matchMode: alert.parameters?.matchMode, lastMatchCount: alert.parameters?.lastMatchCount };
+          const triggered = await markTriggered(alert.userId, alert.id, new Date().toISOString(), triggerContext);
           triggeredCount++;
+          if (triggered && triggered.status !== 'muted') {
+            dispatchAlert(triggered, { actualValue: `${alert.parameters?.lastMatchCount || 0} matches` }).catch(e => {
+              logger.error('alerts', 'Screener dispatch failed', { alertId: alert.id, error: e.message });
+            });
+          }
         }
       }
     }
