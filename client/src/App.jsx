@@ -1340,6 +1340,20 @@ export default function App() {
             {isRefreshing && <span className="app-header-status">&#9679; UPDATING</span>}
             {lastUpdated && !isRefreshing && <span style={{ color:'var(--text-faint)', fontSize:'8px' }}>SNAP {lastUpdated.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'})}</span>}
             <AlertBadge />
+            {/* Chat icon */}
+            <button
+              className="btn"
+              onClick={() => setChatOpen(true)}
+              title="Messages"
+              style={{
+                color: chatOpen ? 'var(--accent)' : 'var(--text-faint)',
+                padding: '2px 6px',
+              }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+              </svg>
+            </button>
             <button className="btn"
               onClick={() => setLayoutEdit(s => !s)}
               title="Reorder panels"
