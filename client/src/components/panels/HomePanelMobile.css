@@ -92,6 +92,19 @@
 .hpm-ticker-chg.up   { color: var(--price-up); }
 .hpm-ticker-chg.down { color: var(--price-down); }
 
+/* Loading shimmer for price placeholder */
+.hpm-ticker-loading {
+  display: inline-block;
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+  letter-spacing: 0.08em;
+  animation: hpm-pulse 1.2s ease-in-out infinite;
+}
+@keyframes hpm-pulse {
+  0%, 100% { opacity: 0.3; }
+  50%      { opacity: 0.8; }
+}
+
 .hpm-news-card {
   background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
