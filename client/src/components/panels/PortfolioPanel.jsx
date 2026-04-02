@@ -331,6 +331,9 @@ function PortfolioPanel({ onTickerClick, onOpenDetail }) {
           onClick={() => setShowAdd(s => !s)}
           style={{ background: showAdd ? '#1a0d00' : 'none' }}
         >+ ADD</button>
+        <button className="pp-add-btn pp-add-btn--compact" onClick={() => setShowEditor(true)}>
+          + ADD
+        </button>
       </div>
 
       {/* Summary strip */}
@@ -367,11 +370,13 @@ function PortfolioPanel({ onTickerClick, onOpenDetail }) {
       {/* Rows */}
       <div className="pp-rows-container">
         {filtered.length === 0 ? (
-          <EmptyState
-            icon="📊"
-            title="No positions"
-            message="Add a ticker to start tracking your portfolio."
-          />
+          <div className="pp-empty">
+            <div className="pp-empty-title">No positions yet</div>
+            <div className="pp-empty-sub">Track your investments and monitor P&L in real time</div>
+            <button className="pp-add-btn" onClick={() => setShowEditor(true)}>
+              + Add Position
+            </button>
+          </div>
         ) : (
           filtered.map(pos => (
             <PositionRowWithReport

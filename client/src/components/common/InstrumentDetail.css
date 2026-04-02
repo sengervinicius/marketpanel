@@ -611,6 +611,43 @@
 .id-action-btn-bar--primary { background: var(--accent-dim); border-color: rgba(255,102,0,0.3); color: var(--accent); }
 .id-action-btn-bar--primary:active { background: var(--accent); color: #fff; }
 
+/* ── Fundamentals section ─────────────────────────── */
+.id-fundamentals {
+  padding: var(--sp-3);
+}
+.id-fund-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-2) var(--sp-4);
+}
+.id-fund-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--sp-2) 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.id-fund-label {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-family: var(--font-ui);
+}
+.id-fund-value {
+  font-size: var(--font-sm);
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+  font-weight: 500;
+}
+.id-fund-value.positive { color: var(--price-up); }
+.id-fund-value.negative { color: var(--price-down); }
+.id-fund-na {
+  font-size: var(--font-sm);
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+}
+
 /* ── Mobile safe area ───────────────────────────── */
 @media (max-width: 1023px) {
   .id-overlay {

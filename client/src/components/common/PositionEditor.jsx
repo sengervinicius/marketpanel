@@ -38,8 +38,14 @@ function PositionEditor({
   const [quantity, setQuantity] = useState(position?.quantity ?? '');
   const [entryPrice, setEntryPrice] = useState(position?.entryPrice ?? '');
   const [currency, setCurrency] = useState(position?.currency || 'USD');
+  const [purchaseDate, setPurchaseDate] = useState(position?.purchaseDate || '');
   const [note, setNote] = useState(position?.note || '');
   const [deleteConfirm, setDeleteConfirm] = useState(false);
+
+  // Live-computed Total Cost
+  const totalCost = (quantity && entryPrice)
+    ? (parseFloat(quantity) * parseFloat(entryPrice)).toFixed(2)
+    : '';
 
   // Get subportfolios for selected portfolio
   const currentPortfolio = portfolios.find(p => p.id === portfolioId);
@@ -78,6 +84,7 @@ function PositionEditor({
         investedAmount: investedAmount ? parseFloat(investedAmount) : null,
         quantity: quantity ? parseFloat(quantity) : null,
         entryPrice: entryPrice ? parseFloat(entryPrice) : null,
+        purchaseDate: purchaseDate || null,
         currency,
         note: note.trim(),
       });
@@ -89,13 +96,14 @@ function PositionEditor({
         investedAmount: investedAmount ? parseFloat(investedAmount) : null,
         quantity: quantity ? parseFloat(quantity) : null,
         entryPrice: entryPrice ? parseFloat(entryPrice) : null,
+        purchaseDate: purchaseDate || null,
         currency,
         note: note.trim(),
       });
     }
 
     onClose();
-  }, [symbol, portfolioId, validSubportfolioId, investedAmount, quantity, entryPrice, currency, note, isEditing, position, updatePosition, addPosition, onClose]);
+  }, [symbol, portfolioId, validSubportfolioId, investedAmount, quantity, entryPrice, purchaseDate, currency, note, isEditing, position, updatePosition, addPosition, onClose]);
 
   const handleDelete = useCallback(() => {
     if (deleteConfirm) {
@@ -202,7 +210,7 @@ function PositionEditor({
 
           {/* Quantity */}
           <div className="pf-editor-field-group">
-            <label className="pf-editor-label">QUANTITY (optional)</label>
+            <label className="pf-editor-label">SHARES / UNITS (optional)</label>
             <input
               type="number"
               className="pf-editor-input"
@@ -215,7 +223,7 @@ function PositionEditor({
 
           {/* Entry Price */}
           <div className="pf-editor-field-group">
-            <label className="pf-editor-label">ENTRY PRICE (optional)</label>
+            <label className="pf-editor-label">PRICE PER SHARE (optional)</label>
             <input
               type="number"
               className="pf-editor-input"
@@ -223,6 +231,28 @@ function PositionEditor({
               onChange={(e) => setEntryPrice(e.target.value)}
               placeholder="0.00"
               step="0.01"
+            />
+          </div>
+
+          {/* Purchase Date */}
+          <div className="pf-editor-field-group">
+            <label className="pf-editor-label">PURCHASE DATE (optional)</label>
+            <input
+              type="date"
+              className="pf-editor-input"
+              value={purchaseDate}
+              onChange={(e) => setPurchaseDate(e.target.value)}
+            />
+          </div>
+
+          {/* Total Cost (read-only computed) */}
+          <div className="pf-editor-field-group">
+            <label className="pf-editor-label">TOTAL COST</label>
+            <input
+              type="text"
+              className="pf-editor-input pf-editor-input-readonly"
+              value={totalCost ? `$${parseFloat(totalCost).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : 'Qty x Buy Price'}
+              readOnly
             />
           </div>
 
