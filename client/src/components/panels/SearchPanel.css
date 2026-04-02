@@ -19,13 +19,13 @@
 .sp-header-label {
   color: var(--accent, #ff6b00);
   font-weight: 700;
-  font-size: 11px;
+  font-size: var(--font-xs);
   letter-spacing: 0.2em;
 }
 
 .sp-header-hint {
   color: #2a2a2a;
-  font-size: 7px;
+  font-size: var(--font-micro);
 }
 
 /* ── Search input ── */
@@ -40,7 +40,7 @@
   background: #0f0f0f;
   border: 1px solid #2a2a2a;
   color: #ccc;
-  font-size: 15px;
+  font-size: var(--font-md);
   padding: 9px 8px;
   outline: none;
   box-sizing: border-box;
@@ -58,7 +58,7 @@
   top: 50%;
   transform: translateY(-50%);
   color: #444;
-  font-size: 7px;
+  font-size: var(--font-micro);
 }
 
 /* ── AI Summary Card ── */
@@ -87,13 +87,13 @@
 
 .sp-ai-model {
   color: #2a2a2a;
-  font-size: 7px;
+  font-size: var(--font-micro);
   margin-left: auto;
 }
 
 .sp-ai-summary {
   color: #999;
-  font-size: 11px;
+  font-size: var(--font-xs);
   line-height: 1.55;
   white-space: pre-wrap;
   word-break: break-word;
@@ -159,7 +159,7 @@
 
 .sp-ai-error {
   color: #555;
-  font-size: 9px;
+  font-size: var(--font-2xs);
   padding: 8px 0 0;
 }
 
@@ -182,7 +182,7 @@
 
 .sp-results-header-text {
   color: #333;
-  font-size: 7px;
+  font-size: var(--font-micro);
   letter-spacing: 0.1em;
 }
 
@@ -226,12 +226,12 @@
 
 .sp-drag-grip {
   color: #1e1e1e;
-  font-size: 11px;
+  font-size: var(--font-xs);
   flex-shrink: 0;
 }
 
 .sp-symbol {
-  font-size: 12px;
+  font-size: var(--font-sm);
   font-weight: 700;
   min-width: 68px;
   flex-shrink: 0;
@@ -239,7 +239,7 @@
 
 .sp-name {
   color: #666;
-  font-size: 11px;
+  font-size: var(--font-xs);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -260,12 +260,12 @@
 }
 
 .sp-exchange-badge {
-  font-size: 7px;
+  font-size: var(--font-micro);
   padding: 1px 4px;
 }
 
 .sp-coverage-tag {
-  font-size: 7px;
+  font-size: var(--font-micro);
   padding: 1px 4px;
   font-weight: 700;
   letter-spacing: 0.3px;
@@ -286,7 +286,7 @@
 .sp-empty-state {
   padding: 24px 16px;
   color: #2a2a2a;
-  font-size: 9px;
+  font-size: var(--font-2xs);
   text-align: center;
   line-height: 2.2;
   letter-spacing: 0.1em;
@@ -315,7 +315,7 @@
   margin-bottom: 10px;
   padding: 6px 10px;
   border: 1px solid;
-  font-size: 9px;
+  font-size: var(--font-2xs);
   line-height: 1.5;
 }
 
@@ -333,7 +333,7 @@
 
 .sp-quote-loading {
   color: #333;
-  font-size: 9px;
+  font-size: var(--font-2xs);
   text-align: center;
   padding: 12px 0;
 }
@@ -376,7 +376,7 @@
 }
 
 .sp-ticker-badge {
-  font-size: 7px;
+  font-size: var(--font-micro);
   padding: 1px 4px;
   background: #1a2800;
   color: #8bc34a;
@@ -393,14 +393,14 @@
 
 .sp-ticker-currency {
   color: #2a2a2a;
-  font-size: 7px;
+  font-size: var(--font-micro);
   margin-left: auto;
   flex-shrink: 0;
 }
 
 .sp-price {
   color: #e0e0e0;
-  font-size: 22px;
+  font-size: var(--font-xl);
   font-variant-numeric: tabular-nums;
   font-weight: 600;
   line-height: 1.1;
@@ -420,19 +420,19 @@
 
 .sp-ohlcv-label {
   color: #2a2a2a;
-  font-size: 7px;
+  font-size: var(--font-micro);
   letter-spacing: 0.5px;
 }
 
 .sp-ohlcv-value {
   color: #888;
-  font-size: 11px;
+  font-size: var(--font-xs);
   font-variant-numeric: tabular-nums;
 }
 
 .sp-no-quote {
   color: #2a2a2a;
-  font-size: 9px;
+  font-size: var(--font-2xs);
   text-align: center;
   padding: 8px 0;
 }

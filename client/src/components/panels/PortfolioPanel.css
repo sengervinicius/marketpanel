@@ -171,7 +171,7 @@
 .pp-add-button {
   border: 1px solid var(--border-strong);
   color: var(--section-watchlist);
-  font-size: 9px;
+  font-size: var(--font-2xs);
   padding: 1px 6px;
 }
 
@@ -205,7 +205,7 @@
   background: #1a0d00;
   border: 1px solid var(--section-watchlist);
   color: var(--section-watchlist);
-  font-size: 9px;
+  font-size: var(--font-2xs);
   padding: 2px 8px;
 }
 
@@ -213,7 +213,7 @@
   background: none;
   border: 1px solid var(--text-faint);
   color: var(--text-muted);
-  font-size: 9px;
+  font-size: var(--font-2xs);
   padding: 2px 6px;
 }
 

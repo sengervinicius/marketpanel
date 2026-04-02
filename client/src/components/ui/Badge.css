@@ -1,0 +1,55 @@
+/* Badge.css — Unified pill-shaped status indicators */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: var(--radius-full, 9999px);
+  font-family: var(--font-ui);
+  font-weight: 500;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+  line-height: 1;
+}
+
+/* Size variants */
+.badge--sm {
+  padding: 4px 10px;
+  font-size: var(--font-xs);
+}
+
+.badge--xs {
+  padding: 2px 6px;
+  font-size: 10px;
+}
+
+/* Color variants */
+.badge--neutral {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  border: 1px solid var(--border-default);
+}
+
+.badge--success {
+  background: rgba(76, 175, 80, 0.12);
+  color: var(--price-up);
+  border: 1px solid rgba(76, 175, 80, 0.25);
+}
+
+.badge--warning {
+  background: rgba(255, 213, 79, 0.12);
+  color: #ffd54f;
+  border: 1px solid rgba(255, 213, 79, 0.25);
+}
+
+.badge--error {
+  background: rgba(244, 67, 54, 0.12);
+  color: var(--price-down);
+  border: 1px solid rgba(244, 67, 54, 0.25);
+}
+
+.badge--accent {
+  background: rgba(255, 102, 0, 0.12);
+  color: var(--accent);
+  border: 1px solid rgba(255, 102, 0, 0.25);
+}

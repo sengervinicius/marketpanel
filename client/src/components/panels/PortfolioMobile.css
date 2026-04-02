@@ -33,7 +33,7 @@
 /* Position count label */
 .pm-position-count {
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: var(--font-xs);
   margin-left: 6px;
 }
 
@@ -66,7 +66,7 @@
 
 /* Small note in metric (e.g., dollar amount in parentheses) */
 .pm-metric-note {
-  font-size: 11px;
+  font-size: var(--font-xs);
   font-weight: 500;
   margin-left: 4px;
   opacity: 0.7;
@@ -75,7 +75,7 @@
 /* Best performer symbol */
 .pm-best-symbol {
   color: var(--price-up);
-  font-size: 12px;
+  font-size: var(--font-sm);
   font-weight: 600;
 }
 
@@ -143,7 +143,7 @@
   justify-content: center;
   background-color: rgba(255, 102, 0, 0.12);
   color: var(--accent);
-  font-size: 12px;
+  font-size: var(--font-sm);
   font-weight: 600;
   border-radius: 50%;
   width: 24px;
@@ -201,7 +201,7 @@
 /* Subportfolio chip (appears dimmer) */
 .pm-filter-chip-sub {
   opacity: 0.75;
-  font-size: 12px;
+  font-size: var(--font-sm);
 }
 
 /* Main portfolio filter chip */
@@ -252,7 +252,7 @@
 /* Subportfolio name under symbol */
 .pm-position-subname {
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--font-sm);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -277,7 +277,7 @@
 
 /* Price change percent */
 .pm-position-change {
-  font-size: 11px;
+  font-size: var(--font-xs);
   font-weight: 500;
   font-variant-numeric: tabular-nums;
 }
@@ -290,7 +290,7 @@
   flex-direction: column;
   justify-content: center;
   min-width: 60px;
-  font-size: 12px;
+  font-size: var(--font-sm);
   color: var(--text-secondary);
 }
 

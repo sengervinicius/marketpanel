@@ -13,6 +13,7 @@ import { memo, useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { usePortfolio } from '../../context/PortfolioContext';
 import { useStocksData, useForexData, useCryptoData } from '../../context/MarketContext';
 import AlertEditor from '../common/AlertEditor';
+import Badge from '../ui/Badge';
 import {
   fmtPct, fmtCompact, computeSummary, computeAllocation,
   inferAssetType, assetTypeLabel,
@@ -263,7 +264,7 @@ function PortfolioMobile({ onOpenDetail, onManage }) {
         </span>
         <div className="flex-row pm-header-controls">
           {positions.length > 0 && (
-            <div className="pm-count-badge">{positions.length}</div>
+            <Badge variant="accent" size="xs">{positions.length}</Badge>
           )}
           <button className="btn flex-row pm-add-btn" onClick={onManage} title="Add instruments">+</button>
         </div>
@@ -400,7 +401,7 @@ function PortfolioMobile({ onOpenDetail, onManage }) {
                       handleCreateAlert(pos, d?.price);
                     }}
                     title="Create alert"
-                  >🔔</button>
+                  ><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></button>
 
                   {/* Remove button */}
                   <button className="btn pm-remove-btn"

@@ -12,6 +12,7 @@ import PanelShell from '../common/PanelShell';
 import AlertEditor from '../common/AlertEditor';
 import EmptyState from '../common/EmptyState';
 import { useAlerts } from '../../context/AlertsContext';
+import Badge from '../ui/Badge';
 import './AlertsPanel.css';
 
 const ALERT_TYPE_LABELS = {
@@ -66,9 +67,9 @@ const AlertRow = memo(function AlertRow({ alert, onEdit, onOpenDetail, onToggle,
       </span>
 
       {/* Type badge */}
-      <span className="ap-type-badge">
+      <Badge variant="neutral" size="xs">
         {typeLabel}
-      </span>
+      </Badge>
 
       {/* Condition + status */}
       <div className="ap-condition">
@@ -76,14 +77,14 @@ const AlertRow = memo(function AlertRow({ alert, onEdit, onOpenDetail, onToggle,
           {conditionSummary(alert)}
         </span>
         {isTriggered && (
-          <span className="ap-condition-triggered">
+          <Badge variant="error" size="xs" className="ap-condition-triggered">
             Triggered {timeAgo(alert.triggeredAt)}
-          </span>
+          </Badge>
         )}
         {!isTriggered && !alert.active && (
-          <span className="ap-condition-inactive">
+          <Badge variant="warning" size="xs" className="ap-condition-inactive">
             Inactive
-          </span>
+          </Badge>
         )}
         {alert.note && (
           <span className="ap-condition-note">
@@ -145,7 +146,7 @@ function AlertsPanel({ onOpenDetail }) {
       {/* Header */}
       <div className="ap-header flex-row">
         <span className="ap-header-title">
-          🔔 ALERTS
+          ALERTS
         </span>
         <span className="ap-header-count">
           {alerts.length} alert{alerts.length !== 1 ? 's' : ''}
@@ -167,7 +168,7 @@ function AlertsPanel({ onOpenDetail }) {
       <div className="ap-rows-container">
         {alerts.length === 0 ? (
           <EmptyState
-            icon="🔔"
+            icon=""
             title="No alerts"
             message="Create alerts to get notified when conditions are met."
           />

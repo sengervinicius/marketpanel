@@ -57,14 +57,19 @@
   --font-mono: 'IBM Plex Mono', 'Courier New', monospace;
 
   /* Type scale */
-  --font-xs:   11px;
-  --font-sm:   12px;
-  --font-base: 14px;
-  --font-md:   15px;
-  --font-lg:   17px;
-  --font-xl:   22px;
-  --font-2xl:  30px;
-  --font-hero: 40px;
+  --font-micro: 7px;   /* tiny chrome: badges, exchange labels */
+  --font-2xs:   9px;   /* small chrome: status text, hints */
+  --font-xs:    11px;  /* compact UI: labels, table text */
+  --font-sm:    12px;  /* data cells, secondary content */
+  --font-base:  14px;  /* body text default */
+  --font-md:    15px;  /* input fields, emphasis */
+  --font-lg:    17px;  /* section headings */
+  --font-xl:    22px;  /* large headings, prices */
+  --font-2xl:   30px;  /* display text */
+  --font-hero:  40px;  /* hero display */
+
+  /* Badge radii */
+  --radius-full: 9999px;
 
   /* Z-index layers */
   --z-panel:    1;

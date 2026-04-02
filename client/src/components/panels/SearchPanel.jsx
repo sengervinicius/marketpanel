@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, memo } from 'react';
 import { FOREX_PAIRS, CRYPTO_PAIRS } from '../../utils/constants';
 import { useSettings } from '../../context/SettingsContext';
 import { apiFetch } from '../../utils/api';
+import Badge from '../ui/Badge';
 import './SearchPanel.css';
 
 const ORANGE = '#ff6b00';
@@ -366,10 +367,7 @@ function SearchPanel({ onTickerSelect, onOpenDetail }) {
         )}
       </div>
 
-      {/* ── AI Summary Card (shown when query is 3+ chars) ── */}
-      <AiSummaryCard aiData={aiData} aiLoading={aiLoading} aiError={aiError} />
-
-      {/* ── Results list ── */}
+      {/* ── Results list (ABOVE AI card — clickable to open InstrumentDetail) ── */}
       {results.length > 0 && (
         <div className="sp-results-container">
           <div className="sp-results-header">
@@ -387,8 +385,8 @@ function SearchPanel({ onTickerSelect, onOpenDetail }) {
                 key={item.symbol}
                 draggable
                 onDragStart={(e) => handleDragStart(e, item)}
-                onClick={() => handleSelect(item)}
-                title="Click to view details · Drag to any panel to add ticker"
+                onClick={() => onOpenDetail?.(item.symbol)}
+                title="Click to open detail · Drag to any panel to add ticker"
                 className={`sp-result-row ${cov === 'none' ? 'no-coverage' : ''}`}
               >
                 <span className="sp-drag-icon" title="Drag to any panel">⠿</span>
@@ -422,9 +420,9 @@ function SearchPanel({ onTickerSelect, onOpenDetail }) {
                     </span>
                   )}
                   {covTag && (
-                    <span className="sp-coverage-tag" style={{ background: covTag.bg, color: covTag.color }}>
+                    <Badge variant={cov === 'none' ? 'error' : 'warning'} size="xs">
                       {covTag.label}
-                    </span>
+                    </Badge>
                   )}
                   <button className={`btn sp-add-home-btn ${addedToHome === item.symbol ? 'sp-add-home-btn-active' : ''}`}
                     onClick={(e) => handleAddToHome(e, item)}
@@ -434,7 +432,7 @@ function SearchPanel({ onTickerSelect, onOpenDetail }) {
                       color: addedToHome === item.symbol ? '#00cc66' : '#555',
                     }}
                   >
-                    {addedToHome === item.symbol ? '✓' : '+ HOME'}
+                    {addedToHome === item.symbol ? 'ADDED' : '+ HOME'}
                   </button>
                 </div>
               </div>
@@ -442,6 +440,9 @@ function SearchPanel({ onTickerSelect, onOpenDetail }) {
           })}
         </div>
       )}
+
+      {/* ── AI Summary Card (informational, below results) ── */}
+      <AiSummaryCard aiData={aiData} aiLoading={aiLoading} aiError={aiError} />
 
       {/* ── Empty state (clean, no emojis) ── */}
       {!results.length && !query && !selected && (

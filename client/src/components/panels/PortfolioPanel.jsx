@@ -17,6 +17,7 @@ import PanelShell from '../common/PanelShell';
 import PositionEditor from '../common/PositionEditor';
 import EmptyState from '../common/EmptyState';
 import AlertEditor from '../common/AlertEditor';
+import Badge from '../ui/Badge';
 import { usePortfolio } from '../../context/PortfolioContext';
 import { useTickerPrice } from '../../context/PriceContext';
 import {
@@ -38,27 +39,21 @@ const showInfo = (e, symbol) => {
 };
 
 // ── Sync status badge ──
+const SYNC_VARIANT = { syncing: 'accent', synced: 'success', error: 'error' };
+const SYNC_LABEL   = { syncing: 'syncing', synced: 'synced', error: 'sync failed' };
 const SyncBadge = memo(function SyncBadge({ syncStatus, onRetry }) {
-  const styles = {
-    idle:    { bg: 'transparent', color: 'var(--text-faint)', label: '' },
-    syncing: { bg: 'rgba(255,153,0,0.15)', color: 'var(--accent-text)', label: 'syncing…' },
-    synced:  { bg: 'rgba(76,175,80,0.12)',  color: 'var(--price-up)',    label: 'synced' },
-    error:   { bg: 'rgba(244,67,54,0.12)',  color: 'var(--price-down)',  label: 'sync failed' },
-  };
-  const s = styles[syncStatus] || styles.idle;
-  if (!s.label) return null;
+  if (!SYNC_LABEL[syncStatus]) return null;
   return (
-    <span
-      onClick={syncStatus === 'error' ? onRetry : undefined}
-      title={syncStatus === 'error' ? 'Click to retry sync' : ''}
-      className="pp-sync-badge"
-      style={{
-        background: s.bg, color: s.color,
-        cursor: syncStatus === 'error' ? 'pointer' : 'default',
-      }}
+    <Badge
+      variant={SYNC_VARIANT[syncStatus]}
+      size="xs"
+      className={syncStatus === 'error' ? 'pp-sync-badge--clickable' : ''}
     >
-      {s.label}
-    </span>
+      <span onClick={syncStatus === 'error' ? onRetry : undefined}
+        title={syncStatus === 'error' ? 'Click to retry sync' : ''}>
+        {SYNC_LABEL[syncStatus]}
+      </span>
+    </Badge>
   );
 });
 
@@ -300,7 +295,7 @@ function PortfolioPanel({ onTickerClick, onOpenDetail }) {
     <PanelShell>
       {/* Header */}
       <div className="flex-row pp-header">
-        <span className="pp-header-title">📊 PORTFOLIO</span>
+        <span className="pp-header-title">PORTFOLIO</span>
         <span className="pp-header-count">{filtered.length} positions</span>
         <SyncBadge syncStatus={syncStatus} onRetry={retrySync} />
         <div className="pp-spacer" />
@@ -449,7 +444,7 @@ const PositionRowWithReport = memo(function PositionRowWithReport({ position, on
         style={{ fontSize: 8 }}
         onMouseEnter={e => e.currentTarget.style.color = 'var(--accent)'}
         onMouseLeave={e => e.currentTarget.style.color = 'var(--text-faint)'}
-      >🔔</button>
+      ><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></button>
       <button className="btn pp-row-button pp-remove-button"
         onClick={e => { e.stopPropagation(); onRemove(position.id); }}
         title="Remove position"
