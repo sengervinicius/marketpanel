@@ -40,6 +40,7 @@
 
 const bcrypt = require('bcryptjs');
 const jwt    = require('jsonwebtoken');
+const pg     = require('./db/postgres');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'INSECURE_PLACEHOLDER_SET_JWT_SECRET_IN_ENV';
 if (!process.env.JWT_SECRET) {
@@ -102,16 +103,94 @@ function defaultSettings() {
  * No-ops gracefully if MongoDB is not connected.
  */
 async function persistUser(user) {
-  if (!usersCollection) return;
+  // MongoDB write-through
+  if (usersCollection) {
+    try {
+      const { _id, ...doc } = user;
+      await usersCollection.replaceOne(
+        { username_lower: user.username.toLowerCase() },
+        { ...doc, username_lower: user.username.toLowerCase() },
+        { upsert: true },
+      );
+    } catch (e) {
+      console.error('[authStore] MongoDB write error:', e.message);
+    }
+  }
+
+  // Postgres write-through
+  if (pg.isConnected()) {
+    try {
+      await pg.query(`
+        INSERT INTO users (id, username, email, hash, apple_user_id, settings, is_paid,
+          subscription_active, trial_ends_at, stripe_customer_id, stripe_subscription_id,
+          persona, gamification, referral_code, referred_by, referral_rewards, created_at)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
+        ON CONFLICT (id) DO UPDATE SET
+          username=EXCLUDED.username, email=EXCLUDED.email, hash=EXCLUDED.hash,
+          apple_user_id=EXCLUDED.apple_user_id, settings=EXCLUDED.settings,
+          is_paid=EXCLUDED.is_paid, subscription_active=EXCLUDED.subscription_active,
+          trial_ends_at=EXCLUDED.trial_ends_at, stripe_customer_id=EXCLUDED.stripe_customer_id,
+          stripe_subscription_id=EXCLUDED.stripe_subscription_id, persona=EXCLUDED.persona,
+          gamification=EXCLUDED.gamification, referral_code=EXCLUDED.referral_code,
+          referred_by=EXCLUDED.referred_by, referral_rewards=EXCLUDED.referral_rewards
+      `, [
+        user.id, user.username, user.email || null, user.hash,
+        user.appleUserId || null,
+        JSON.stringify(user.settings || {}),
+        user.isPaid || false, user.subscriptionActive ?? true,
+        user.trialEndsAt || null, user.stripeCustomerId || null,
+        user.stripeSubscriptionId || null,
+        JSON.stringify(user.persona || {}),
+        JSON.stringify(user.gamification || {}),
+        user.referralCode || null, user.referredBy || null,
+        JSON.stringify(user.referralRewards || {}),
+        user.createdAt || Date.now(),
+      ]);
+    } catch (e) {
+      console.error('[authStore] Postgres write error:', e.message);
+    }
+  }
+}
+
+/**
+ * Hydrate in-memory Maps from Postgres.
+ * Called after Postgres is connected, before MongoDB fallback.
+ */
+async function hydrateFromPostgres() {
+  if (!pg.isConnected()) return false;
   try {
-    const { _id, ...doc } = user;
-    await usersCollection.replaceOne(
-      { username_lower: user.username.toLowerCase() },
-      { ...doc, username_lower: user.username.toLowerCase() },
-      { upsert: true },
-    );
+    const res = await pg.query('SELECT * FROM users ORDER BY id');
+    if (!res || res.rows.length === 0) return false;
+    for (const row of res.rows) {
+      const user = {
+        id: row.id,
+        username: row.username,
+        email: row.email || null,
+        hash: row.hash,
+        appleUserId: row.apple_user_id || null,
+        settings: row.settings || defaultSettings(),
+        isPaid: row.is_paid || false,
+        subscriptionActive: row.subscription_active ?? true,
+        trialEndsAt: row.trial_ends_at ? Number(row.trial_ends_at) : null,
+        stripeCustomerId: row.stripe_customer_id || null,
+        stripeSubscriptionId: row.stripe_subscription_id || null,
+        persona: row.persona || defaultPersona(),
+        gamification: row.gamification || defaultGamification(),
+        referralCode: row.referral_code || null,
+        referredBy: row.referred_by || null,
+        referralRewards: row.referral_rewards || { invited: 0, xpEarned: 0 },
+        createdAt: row.created_at ? Number(row.created_at) : Date.now(),
+      };
+      const key = user.username.toLowerCase();
+      usersByUsername.set(key, user);
+      usersById.set(Number(user.id), user);
+      if (Number(user.id) >= nextId) nextId = Number(user.id) + 1;
+    }
+    console.log(`[authStore] Hydrated ${res.rows.length} user(s) from Postgres`);
+    return true;
   } catch (e) {
-    console.error('[authStore] MongoDB write error:', e.message);
+    console.error('[authStore] Postgres hydration failed:', e.message);
+    return false;
   }
 }
 
@@ -119,13 +198,24 @@ async function persistUser(user) {
 
 /**
  * Connect to MongoDB and load all users into the in-memory Maps.
+ * Also hydrates from Postgres if available (Postgres takes priority).
  * Must be awaited before the server starts accepting requests.
  */
 async function initDB() {
+  // Try Postgres hydration first (if available)
+  const pgHydrated = await hydrateFromPostgres();
+
   const uri = process.env.MONGODB_URI;
   if (!uri) {
-    console.log('[authStore] MONGODB_URI not set — using in-memory store (data will not persist across restarts)');
+    if (!pgHydrated) {
+      console.log('[authStore] No MONGODB_URI or POSTGRES_URL — using in-memory store (data will not persist across restarts)');
+    }
     return null;
+  }
+
+  // If Postgres already hydrated, still connect MongoDB for backward compat writes
+  if (pgHydrated) {
+    console.log('[authStore] Postgres is primary store; MongoDB connected as secondary');
   }
 
   try {
@@ -432,6 +522,10 @@ async function deleteUser(userId) {
     } catch (e) {
       console.error('[authStore] MongoDB delete error:', e.message);
     }
+  }
+  if (pg.isConnected()) {
+    try { await pg.query('DELETE FROM users WHERE id = $1', [id]); }
+    catch (e) { console.error('[authStore] Postgres delete error:', e.message); }
   }
 
   console.log(`[authStore] Deleted user id=${id} username=${user.username}`);

@@ -114,13 +114,8 @@ function getWeeklyLeaderboard() {
   return cache.weekly;
 }
 
-// ── Schedule: every 4 hours + immediate first run ───────────────────────────
-
-// Run immediately on first require (after a short delay to let authStore init)
-setTimeout(computeLeaderboards, 3000);
-
-// Then every 4 hours
-setInterval(computeLeaderboards, 4 * 60 * 60 * 1000);
+// NOTE: Scheduling is now managed by jobs/index.js (node-cron).
+// Do NOT add setInterval/setTimeout here — the central scheduler handles cadence.
 
 module.exports = {
   computeLeaderboards,

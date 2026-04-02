@@ -31,6 +31,7 @@
  */
 
 const { listAllActiveAlerts, markTriggered, updateAlert } = require('./alertStore');
+const logger = require('./utils/logger');
 
 const EVAL_INTERVAL_MS = 45_000; // 45 seconds
 let _intervalId = null;
@@ -174,6 +175,7 @@ async function evaluateScreenerAlert(alert) {
  * Run one evaluation cycle.
  */
 async function runEvaluation() {
+  const evalStart = Date.now();
   try {
     const activeAlerts = listAllActiveAlerts();
     if (activeAlerts.length === 0) return;
@@ -194,10 +196,13 @@ async function runEvaluation() {
 
     // Build symbol → priceData map
     const priceMap = new Map();
+    let fetchFailed = 0;
     for (let i = 0; i < symbols.length; i++) {
       const result = priceResults[i];
       if (result.status === 'fulfilled' && result.value) {
         priceMap.set(symbols[i], result.value);
+      } else {
+        fetchFailed++;
       }
     }
 
@@ -222,9 +227,11 @@ async function runEvaluation() {
     // Evaluate screener alerts (less frequently — every 3rd cycle to reduce API load)
     if (!runEvaluation._cycleCount) runEvaluation._cycleCount = 0;
     runEvaluation._cycleCount++;
+    let screenerEvaluated = 0;
     if (screenerAlerts.length > 0 && runEvaluation._cycleCount % 3 === 0) {
       for (const alert of screenerAlerts) {
         const shouldTrigger = await evaluateScreenerAlert(alert);
+        screenerEvaluated++;
         if (shouldTrigger) {
           await markTriggered(alert.userId, alert.id, new Date().toISOString());
           triggeredCount++;
@@ -232,11 +239,21 @@ async function runEvaluation() {
       }
     }
 
-    if (triggeredCount > 0) {
-      console.log(`[alertScheduler] Evaluation complete: ${triggeredCount} alert(s) triggered out of ${activeAlerts.length} active`);
-    }
+    const durationMs = Date.now() - evalStart;
+    logger.info('alerts', 'Evaluation cycle completed', {
+      alertsScanned: activeAlerts.length,
+      priceAlerts: priceAlerts.length,
+      screenerAlerts: screenerAlerts.length,
+      screenerEvaluated,
+      symbolsFetched: symbols.length,
+      fetchFailed,
+      triggered: triggeredCount,
+      cycle: runEvaluation._cycleCount,
+      durationMs,
+    });
   } catch (e) {
-    console.error('[alertScheduler] Evaluation error:', e.message);
+    const durationMs = Date.now() - evalStart;
+    logger.error('alerts', 'Evaluation cycle failed', { error: e.message, durationMs });
   }
 }
 
@@ -246,7 +263,7 @@ async function runEvaluation() {
  */
 function startAlertScheduler(port) {
   _serverPort = port || 3001;
-  console.log(`[alertScheduler] Starting alert evaluation (interval: ${EVAL_INTERVAL_MS / 1000}s, port: ${_serverPort})`);
+  logger.info('alerts', `Starting alert evaluation`, { intervalSec: EVAL_INTERVAL_MS / 1000, port: _serverPort });
 
   // Run first evaluation after a short delay (let server fully boot)
   setTimeout(() => {
@@ -262,7 +279,7 @@ function stopAlertScheduler() {
   if (_intervalId) {
     clearInterval(_intervalId);
     _intervalId = null;
-    console.log('[alertScheduler] Stopped');
+    logger.info('alerts', 'Scheduler stopped');
   }
 }
 

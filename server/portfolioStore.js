@@ -23,6 +23,8 @@
  *   }
  */
 
+const pg = require('./db/postgres');
+
 // ── In-memory store (primary read) ───────────────────────────────────────────
 const portfoliosByUserId = new Map(); // userId (number) → portfolio document
 
@@ -35,8 +37,31 @@ let portfoliosCollection = null;
  * @param {import('mongodb').Db} db - The MongoDB database instance
  */
 async function initPortfolioDB(db) {
+  // Postgres hydration (primary if available)
+  if (pg.isConnected()) {
+    try {
+      const res = await pg.query('SELECT * FROM portfolios');
+      if (res && res.rows.length > 0) {
+        for (const row of res.rows) {
+          const doc = {
+            userId: Number(row.user_id),
+            version: row.version || 1,
+            portfolios: row.portfolios || [],
+            positions: row.positions || [],
+            updatedAt: row.updated_at,
+            createdAt: row.created_at,
+          };
+          portfoliosByUserId.set(doc.userId, doc);
+        }
+        console.log(`[portfolioStore] Hydrated ${res.rows.length} portfolio(s) from Postgres`);
+      }
+    } catch (e) {
+      console.error('[portfolioStore] Postgres hydration failed:', e.message);
+    }
+  }
+
   if (!db) {
-    console.log('[portfolioStore] No MongoDB — portfolio data is in-memory only');
+    if (!pg.isConnected()) console.log('[portfolioStore] No MongoDB — portfolio data is in-memory only');
     return;
   }
   try {
@@ -59,16 +84,32 @@ async function initPortfolioDB(db) {
 
 // ── Persist helper ───────────────────────────────────────────────────────────
 async function persistPortfolio(userId, doc) {
-  if (!portfoliosCollection) return;
-  try {
-    const { _id, ...rest } = doc;
-    await portfoliosCollection.replaceOne(
-      { userId: Number(userId) },
-      { ...rest, userId: Number(userId) },
-      { upsert: true },
-    );
-  } catch (e) {
-    console.error(`[portfolioStore] MongoDB write error (user ${userId}):`, e.message);
+  const uid = Number(userId);
+  // MongoDB
+  if (portfoliosCollection) {
+    try {
+      const { _id, ...rest } = doc;
+      await portfoliosCollection.replaceOne(
+        { userId: uid }, { ...rest, userId: uid }, { upsert: true },
+      );
+    } catch (e) {
+      console.error(`[portfolioStore] MongoDB write error (user ${uid}):`, e.message);
+    }
+  }
+  // Postgres
+  if (pg.isConnected()) {
+    try {
+      await pg.query(`
+        INSERT INTO portfolios (user_id, version, portfolios, positions, updated_at, created_at)
+        VALUES ($1,$2,$3,$4,$5,$6)
+        ON CONFLICT (user_id) DO UPDATE SET
+          version=EXCLUDED.version, portfolios=EXCLUDED.portfolios,
+          positions=EXCLUDED.positions, updated_at=EXCLUDED.updated_at
+      `, [uid, doc.version || 1, JSON.stringify(doc.portfolios || []),
+          JSON.stringify(doc.positions || []), doc.updatedAt, doc.createdAt]);
+    } catch (e) {
+      console.error(`[portfolioStore] Postgres write error (user ${uid}):`, e.message);
+    }
   }
 }
 
@@ -172,11 +213,12 @@ async function deleteUserPortfolios(userId) {
   const uid = Number(userId);
   portfoliosByUserId.delete(uid);
   if (portfoliosCollection) {
-    try {
-      await portfoliosCollection.deleteMany({ userId: uid });
-    } catch (e) {
-      console.error('[portfolioStore] MongoDB delete error:', e.message);
-    }
+    try { await portfoliosCollection.deleteMany({ userId: uid }); }
+    catch (e) { console.error('[portfolioStore] MongoDB delete error:', e.message); }
+  }
+  if (pg.isConnected()) {
+    try { await pg.query('DELETE FROM portfolios WHERE user_id = $1', [uid]); }
+    catch (e) { console.error('[portfolioStore] Postgres delete error:', e.message); }
   }
 }
 

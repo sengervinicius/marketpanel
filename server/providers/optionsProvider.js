@@ -15,6 +15,7 @@
 
 const fetch = require('node-fetch');
 const { findBySymbol } = require('../stores/instrumentStore');
+const logger = require('../utils/logger');
 
 // ── Configuration ────────────────────────────────────────────────────────────
 const EULER_BASE = 'https://api.eulerpool.com/api/1';
@@ -23,12 +24,16 @@ const YAHOO_TIMEOUT = 10000;
 
 const CACHE_TTL = 90_000;  // 90 seconds
 const MAX_CACHE = 200;
+const EVICT_INTERVAL = 60_000; // purge expired entries every 60s
 
 // ── In-memory cache ──────────────────────────────────────────────────────────
 const _cache = new Map();
 
 function cacheKey(symbol, expiry) {
-  return `${symbol}|${expiry || 'all'}`;
+  // Normalize: uppercase, strip whitespace, consistent separator
+  const sym = (symbol || '').toUpperCase().trim();
+  const exp = (expiry || 'all').trim();
+  return `${sym}|${exp}`;
 }
 
 function cacheGet(k) {
@@ -46,6 +51,14 @@ function cacheSet(k, v) {
   }
   _cache.set(k, { v, exp: Date.now() + CACHE_TTL });
 }
+
+// Periodic eviction of expired entries to prevent stale memory growth
+setInterval(() => {
+  const now = Date.now();
+  for (const [k, e] of _cache) {
+    if (now > e.exp) _cache.delete(k);
+  }
+}, EVICT_INTERVAL).unref();
 
 // ── Eulerpool options chain ──────────────────────────────────────────────────
 
@@ -265,7 +278,7 @@ async function getOptionsChain(symbol, opts = {}) {
         return result;
       }
     } catch (e) {
-      console.warn(`[optionsProvider] Eulerpool options chain failed for ${sym}:`, e.message);
+      logger.warn('options', `Eulerpool chain failed for ${sym}`, { error: e.message, provider: 'eulerpool' });
     }
   }
 
@@ -278,7 +291,7 @@ async function getOptionsChain(symbol, opts = {}) {
       return result;
     }
   } catch (e) {
-    console.warn(`[optionsProvider] Yahoo options chain failed for ${sym}:`, e.message);
+    logger.warn('options', `Yahoo chain failed for ${sym}`, { error: e.message, provider: 'yahoo', fallbackUsed: true });
   }
 
   return null;

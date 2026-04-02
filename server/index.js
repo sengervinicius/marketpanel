@@ -30,13 +30,16 @@ const { requireAuth, requireActiveSubscription } = require('./authMiddleware');
 const logger = require('./utils/logger');
 const { requestLogger } = require('./utils/logger');
 const { errorHandler } = require('./utils/apiError');
+const { rateLimitByUser } = require('./middleware/rateLimitByUser');
+const { requestTimeout } = require('./middleware/requestTimeout');
+const { initPostgres, isConnected: pgConnected } = require('./db/postgres');
+const { initRedis, isConnected: redisConnected } = require('./cache/redisClient');
+const { initJobs, stopAll: stopJobs } = require('./jobs/index');
 const chatStore     = require('./chatStore');
 const { getUserById, seedUsersFromEnv, initDB } = require('./authStore');
 const { verifyToken } = require('./authStore');
 const { initPortfolioDB } = require('./portfolioStore');
 const { initAlertDB } = require('./alertStore');
-const { startAlertScheduler } = require('./alertScheduler');
-require('./jobs/leaderboards'); // starts leaderboard cron
 
 const app = express();
 
@@ -79,6 +82,8 @@ app.get('/health', (req, res) => res.json({
     eulerpool: process.env.EULERPOOL_API_KEY ? 'configured' : 'unconfigured',
     fred: process.env.FRED_API_KEY ? 'configured' : 'public_csv',
     mongodb: process.env.MONGODB_URI ? 'configured' : 'in_memory',
+    postgres: pgConnected() ? 'connected' : (process.env.POSTGRES_URL ? 'configured' : 'disabled'),
+    redis: redisConnected() ? 'connected' : (process.env.REDIS_URL ? 'configured' : 'disabled'),
     stripe: process.env.STRIPE_SECRET_KEY ? 'configured' : 'unconfigured',
   },
 }));
@@ -102,18 +107,27 @@ app.use('/api/chat', requireAuth, requireActiveSubscription, chatRoutes);
 // Debt data: auth + subscription required
 app.use('/api/debt', requireAuth, requireActiveSubscription, debtRoutes);
 
-// Macro data: auth + subscription required
-app.use('/api/macro', requireAuth, requireActiveSubscription, macroRoutes);
+// Macro data: auth + subscription required + rate limit + timeout
+app.use('/api/macro', requireAuth, requireActiveSubscription,
+  rateLimitByUser({ key: 'macro', windowSec: 60, max: 15 }),
+  requestTimeout(20000),
+  macroRoutes);
 
 // Instrument registry: auth required (no subscription — needed for search from login page context)
 app.use('/api/instruments', requireAuth, instrumentsRoutes);
 
-// Screener: auth + subscription required
-app.use('/api/screener', requireAuth, requireActiveSubscription, screenerRoutes);
+// Screener: auth + subscription required + rate limit + timeout
+app.use('/api/screener', requireAuth, requireActiveSubscription,
+  rateLimitByUser({ key: 'screener', windowSec: 60, max: 10 }),
+  requestTimeout(20000),
+  screenerRoutes);
 app.use('/api/screener/presets', requireAuth, screenerPresetRoutes);
 
-// Options: auth + subscription required
-app.use('/api/options', requireAuth, requireActiveSubscription, optionsRoutes);
+// Options: auth + subscription required + rate limit + timeout
+app.use('/api/options', requireAuth, requireActiveSubscription,
+  rateLimitByUser({ key: 'options', windowSec: 60, max: 20 }),
+  requestTimeout(15000),
+  optionsRoutes);
 
 // Portfolio: auth required (no subscription check — need portfolio even on expired trial)
 app.use('/api/portfolio', requireAuth, portfolioRoutes);
@@ -126,14 +140,20 @@ app.use('/api/gamification', requireAuth, gamificationRoutes);
 app.use('/api/missions', requireAuth, missionsRoutes);
 app.use('/api/discord', requireAuth, discordRoutes);
 app.use('/api/leaderboard', requireAuth, leaderboardRoutes);
-app.use('/api/share', requireAuth, shareRoutes);
+app.use('/api/share', requireAuth,
+  rateLimitByUser({ key: 'share', windowSec: 60, max: 5 }),
+  requestTimeout(15000),
+  shareRoutes);
 app.use('/api/referrals', requireAuth, referralRoutes);
 
-// AI Search: auth + subscription required
-app.use('/api/search', requireAuth, requireActiveSubscription, searchRoutes);
+// AI Search: auth + subscription required + rate limit + timeout
+app.use('/api/search', requireAuth, requireActiveSubscription,
+  rateLimitByUser({ key: 'search', windowSec: 60, max: 15 }),
+  requestTimeout(20000),
+  searchRoutes);
 
-// Market data: auth + subscription required
-app.use('/api', requireAuth, requireActiveSubscription, marketRoutes);
+// Market data: auth + subscription required + timeout
+app.use('/api', requireAuth, requireActiveSubscription, requestTimeout(15000), marketRoutes);
 
 app.use(errorHandler);
 
@@ -343,38 +363,57 @@ function broadcast(update) {
 
 connectPolygon(marketState, broadcast);
 
-// Boot sequence: connect DB → seed env users → start HTTP server
+// Boot sequence: Postgres → Redis → MongoDB → seed → jobs → HTTP server
 async function boot() {
   // Validate required environment variables
   const required    = ['JWT_SECRET'];
   const recommended = ['POLYGON_API_KEY', 'CLIENT_URL'];
   const missing = required.filter(k => !process.env[k]);
   if (missing.length) {
-    // Log a loud warning but don't crash — auth routes will return 500 for
-    // JWT operations, but the server stays alive and health checks respond.
-    logger.error(`Missing env vars: ${missing.join(', ')} — auth will not work until these are set in Render environment.`);
+    logger.error('boot', `Missing env vars: ${missing.join(', ')} — auth will not work until these are set in Render environment.`);
     if (process.env.NODE_ENV === 'production') {
-      logger.error('Go to Render Dashboard → senger-market-server → Environment and set JWT_SECRET.');
+      logger.error('boot', 'Go to Render Dashboard → senger-market-server → Environment and set JWT_SECRET.');
     }
   }
   recommended.filter(k => !process.env[k]).forEach(k => {
-    logger.warn(`${k} not set — some features will be limited`);
+    logger.warn('boot', `${k} not set — some features will be limited`);
   });
 
+  // 1. Platform services (optional — app works without them)
+  await initPostgres();
+  await initRedis();
+
+  // 2. Data stores (Postgres hydration first if connected, then MongoDB)
   const mongoDB = await initDB();  // connect MongoDB, load users into memory
-  await initPortfolioDB(mongoDB);  // load portfolio data (uses same MongoDB instance)
-  await initAlertDB(mongoDB);      // load alert data (uses same MongoDB instance)
+  await initPortfolioDB(mongoDB);  // load portfolio data
+  await initAlertDB(mongoDB);      // load alert data
   await seedUsersFromEnv();        // create any SEED_USERS accounts if missing
+
   const PORT = process.env.PORT || 3001;
   server.listen(PORT, () => {
-    logger.info('Senger Market Terminal — Server');
-    logger.info(`REST  → http://localhost:${PORT}/api`);
-    logger.info(`WS    → ws://localhost:${PORT}/ws`);
-    logger.info(`ENV   → ${process.env.NODE_ENV || 'development'}`);
+    logger.info('boot', 'Senger Market Terminal — Server');
+    logger.info('boot', `REST  → http://localhost:${PORT}/api`);
+    logger.info('boot', `WS    → ws://localhost:${PORT}/ws`);
+    logger.info('boot', `ENV   → ${process.env.NODE_ENV || 'development'}`);
+    logger.info('boot', `Postgres: ${pgConnected() ? 'connected' : 'disabled'} | Redis: ${redisConnected() ? 'connected' : 'disabled'}`);
 
-    // Start alert evaluation scheduler after server is listening
-    startAlertScheduler(PORT);
+    // 3. Start all background jobs (leaderboard, card cleanup, alert scheduler)
+    initJobs({ port: PORT });
   });
+
+  // Graceful shutdown
+  const shutdown = async (signal) => {
+    logger.info('boot', `${signal} received — shutting down`);
+    stopJobs();
+    server.close();
+    const { closePostgres } = require('./db/postgres');
+    const { closeRedis } = require('./cache/redisClient');
+    await closePostgres();
+    await closeRedis();
+    process.exit(0);
+  };
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
+  process.on('SIGINT', () => shutdown('SIGINT'));
 }
 
 boot();

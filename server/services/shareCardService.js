@@ -27,20 +27,7 @@ if (!fs.existsSync(CARDS_DIR)) {
   fs.mkdirSync(CARDS_DIR, { recursive: true });
 }
 
-// ── Cleanup old cards periodically ───────────────────────────────────────────
-setInterval(() => {
-  try {
-    const files = fs.readdirSync(CARDS_DIR);
-    const now = Date.now();
-    for (const f of files) {
-      const fp = path.join(CARDS_DIR, f);
-      const stat = fs.statSync(fp);
-      if (now - stat.mtimeMs > CARD_TTL_MS) {
-        fs.unlinkSync(fp);
-      }
-    }
-  } catch { /* silent */ }
-}, 5 * 60 * 1000); // every 5 min
+// NOTE: Card cleanup is now managed by jobs/cardCleanup.js via the central scheduler.
 
 // ── Design tokens ────────────────────────────────────────────────────────────
 const C = {
@@ -247,6 +234,10 @@ function weeklyCardSVG(data) {
   </svg>`;
 }
 
+// ── Concurrency cap ─────────────────────────────────────────────────────
+let _activeRenders = 0;
+const MAX_CONCURRENT_RENDERS = 5;
+
 // ── Public API ───────────────────────────────────────────────────────────────
 
 /**
@@ -256,6 +247,11 @@ function weeklyCardSVG(data) {
  * @returns {{ imageUrl: string, shareText: string }}
  */
 async function generateCard(type, data) {
+  if (_activeRenders >= MAX_CONCURRENT_RENDERS) {
+    throw new Error('Card generation busy — try again shortly');
+  }
+  _activeRenders++;
+
   let svg;
   let shareText = '';
 
@@ -283,17 +279,21 @@ async function generateCard(type, data) {
   }
 
   // Render SVG → PNG using sharp
-  const id = crypto.randomBytes(8).toString('hex');
-  const filename = `${type}_${id}.png`;
-  const filepath = path.join(CARDS_DIR, filename);
+  try {
+    const id = crypto.randomBytes(8).toString('hex');
+    const filename = `${type}_${id}.png`;
+    const filepath = path.join(CARDS_DIR, filename);
 
-  await sharp(Buffer.from(svg))
-    .resize(W, H)
-    .png({ quality: 90 })
-    .toFile(filepath);
+    await sharp(Buffer.from(svg))
+      .resize(W, H)
+      .png({ quality: 90 })
+      .toFile(filepath);
 
-  const imageUrl = `/cards/${filename}`;
-  return { imageUrl, shareText };
+    const imageUrl = `/cards/${filename}`;
+    return { imageUrl, shareText };
+  } finally {
+    _activeRenders--;
+  }
 }
 
 module.exports = { generateCard };

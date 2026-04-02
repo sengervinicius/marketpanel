@@ -37,6 +37,8 @@
  *   - Alerts are NOT re-triggered endlessly.
  */
 
+const pg = require('./db/postgres');
+
 // ── In-memory store (primary read) ───────────────────────────────────────────
 // userId (number) → Map<alertId, alertDoc>
 const alertsByUserId = new Map();
@@ -58,8 +60,33 @@ function alertId() {
  * @param {import('mongodb').Db} db - The MongoDB database instance
  */
 async function initAlertDB(db) {
+  // Postgres hydration
+  if (pg.isConnected()) {
+    try {
+      const res = await pg.query('SELECT * FROM alerts ORDER BY created_at');
+      if (res && res.rows.length > 0) {
+        for (const row of res.rows) {
+          const uid = Number(row.user_id);
+          if (!alertsByUserId.has(uid)) alertsByUserId.set(uid, new Map());
+          const alert = {
+            id: row.id, userId: uid, type: row.type, symbol: row.symbol,
+            portfolioPositionId: row.portfolio_position_id || null,
+            parameters: row.parameters || {},
+            note: row.note || null, active: row.active,
+            triggeredAt: row.triggered_at || null, dismissed: row.dismissed || false,
+            createdAt: row.created_at, updatedAt: row.updated_at,
+          };
+          alertsByUserId.get(uid).set(alert.id, alert);
+        }
+        console.log(`[alertStore] Hydrated ${res.rows.length} alert(s) from Postgres`);
+      }
+    } catch (e) {
+      console.error('[alertStore] Postgres hydration failed:', e.message);
+    }
+  }
+
   if (!db) {
-    console.log('[alertStore] No MongoDB — alert data is in-memory only');
+    if (!pg.isConnected()) console.log('[alertStore] No MongoDB — alert data is in-memory only');
     return;
   }
   try {
@@ -85,25 +112,48 @@ async function initAlertDB(db) {
 
 // ── Persist helpers ──────────────────────────────────────────────────────────
 async function persistAlert(alert) {
-  if (!alertsCollection) return;
-  try {
-    const { _id, ...rest } = alert;
-    await alertsCollection.replaceOne(
-      { userId: Number(alert.userId), id: alert.id },
-      { ...rest, userId: Number(alert.userId) },
-      { upsert: true },
-    );
-  } catch (e) {
-    console.error(`[alertStore] MongoDB write error (alert ${alert.id}):`, e.message);
+  // MongoDB
+  if (alertsCollection) {
+    try {
+      const { _id, ...rest } = alert;
+      await alertsCollection.replaceOne(
+        { userId: Number(alert.userId), id: alert.id },
+        { ...rest, userId: Number(alert.userId) },
+        { upsert: true },
+      );
+    } catch (e) {
+      console.error(`[alertStore] MongoDB write error (alert ${alert.id}):`, e.message);
+    }
+  }
+  // Postgres
+  if (pg.isConnected()) {
+    try {
+      await pg.query(`
+        INSERT INTO alerts (id, user_id, type, symbol, portfolio_position_id, parameters,
+          note, active, triggered_at, dismissed, created_at, updated_at)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+        ON CONFLICT (user_id, id) DO UPDATE SET
+          type=EXCLUDED.type, symbol=EXCLUDED.symbol, parameters=EXCLUDED.parameters,
+          note=EXCLUDED.note, active=EXCLUDED.active, triggered_at=EXCLUDED.triggered_at,
+          dismissed=EXCLUDED.dismissed, updated_at=EXCLUDED.updated_at
+      `, [alert.id, Number(alert.userId), alert.type, alert.symbol,
+          alert.portfolioPositionId || null, JSON.stringify(alert.parameters || {}),
+          alert.note || null, alert.active, alert.triggeredAt || null,
+          alert.dismissed || false, alert.createdAt, alert.updatedAt]);
+    } catch (e) {
+      console.error(`[alertStore] Postgres write error (alert ${alert.id}):`, e.message);
+    }
   }
 }
 
 async function deleteAlertFromDB(userId, alertIdVal) {
-  if (!alertsCollection) return;
-  try {
-    await alertsCollection.deleteOne({ userId: Number(userId), id: alertIdVal });
-  } catch (e) {
-    console.error(`[alertStore] MongoDB delete error (alert ${alertIdVal}):`, e.message);
+  if (alertsCollection) {
+    try { await alertsCollection.deleteOne({ userId: Number(userId), id: alertIdVal }); }
+    catch (e) { console.error(`[alertStore] MongoDB delete error (alert ${alertIdVal}):`, e.message); }
+  }
+  if (pg.isConnected()) {
+    try { await pg.query('DELETE FROM alerts WHERE user_id = $1 AND id = $2', [Number(userId), alertIdVal]); }
+    catch (e) { console.error(`[alertStore] Postgres delete error (alert ${alertIdVal}):`, e.message); }
   }
 }
 
@@ -277,11 +327,12 @@ async function deleteUserAlerts(userId) {
   const uid = Number(userId);
   alertsByUserId.delete(uid);
   if (alertsCollection) {
-    try {
-      await alertsCollection.deleteMany({ userId: uid });
-    } catch (e) {
-      console.error('[alertStore] MongoDB delete error:', e.message);
-    }
+    try { await alertsCollection.deleteMany({ userId: uid }); }
+    catch (e) { console.error('[alertStore] MongoDB delete error:', e.message); }
+  }
+  if (pg.isConnected()) {
+    try { await pg.query('DELETE FROM alerts WHERE user_id = $1', [uid]); }
+    catch (e) { console.error('[alertStore] Postgres delete error:', e.message); }
   }
 }
 

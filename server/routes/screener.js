@@ -10,6 +10,7 @@ const { getUniverse, listUniverses } = require('../screenerUniverse');
 const { BY_KEY, REGISTRY } = require('./instruments');
 const { sendApiError } = require('../utils/apiError');
 const { clampInt } = require('../utils/validate');
+const logger = require('../utils/logger');
 
 // Derive country from instrument metadata
 function deriveCountry(inst) {
@@ -84,7 +85,7 @@ async function batchQuotes(symbols) {
         };
       }
     } catch (err) {
-      console.error('[Screener] Yahoo batch quote error:', err.message);
+      logger.warn('screener', 'Yahoo batch quote error', { error: err.message, chunkSize: chunk.length });
     }
   }
   return results;
@@ -133,8 +134,10 @@ router.post('/run', async (req, res) => {
       .filter(Boolean);
 
     // Fetch quotes in batch
+    const quoteStart = Date.now();
     const quoteSymbols = instruments.map(i => i.symbol);
     const quotes = await batchQuotes(quoteSymbols);
+    const quoteDurationMs = Date.now() - quoteStart;
 
     // Merge quotes into instruments
     let results = instruments.map(inst => {
@@ -193,6 +196,15 @@ router.post('/run', async (req, res) => {
     // Cap to limit
     results = results.slice(0, limit);
 
+    logger.info('screener', 'Run completed', {
+      universe: universeId,
+      symbolCount: quoteSymbols.length,
+      quoteDurationMs,
+      filterCount: Object.keys(filters).length,
+      resultCount: results.length,
+      reqId: req.reqId,
+    });
+
     res.json({
       ok: true,
       universe: universeId,
@@ -200,7 +212,7 @@ router.post('/run', async (req, res) => {
       results,
     });
   } catch (err) {
-    console.error('[Screener] Error:', err);
+    logger.error('screener', 'Run failed', { error: err.message, reqId: req.reqId });
     sendApiError(res, err, 'POST /api/screener/run');
   }
 });
