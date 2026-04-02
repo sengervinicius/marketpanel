@@ -25,9 +25,9 @@ export const AVATAR_PATHS = {
   crypto_degen:     '/avatars/crypto_degen.png',
   day_trader:       '/avatars/day_trader.png',
   swing_trader:     '/avatars/swing_trader.png',
-  // macro_investor — no art yet, will use fallback
+  macro_investor:   '/avatars/macro_investor.png',
   esg_investor:     '/avatars/esg_investor.png',
-  // arbitrage_hunter — no art yet, will use fallback
+  arbitrage_hunter: '/avatars/arbitrage_hunter.png',
   index_hugger:     '/avatars/index_hugger.png',
   bulge_bracket:    '/avatars/bulge_bracket.png',
 };
