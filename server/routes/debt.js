@@ -222,6 +222,23 @@ router.get('/sovereign/region', async (req, res) => {
       } catch (e) { logger.warn('[debt] region Yahoo fetch failed:', e.message); }
     }
 
+    // Brazil fallback for regional: no Yahoo ticker for BR, so use BCB SELIC estimate
+    if (codes.includes('BR') && !snapshot.find(s => s.country === 'BR')) {
+      try {
+        const selicRes = await fetch('https://api.bcb.gov.br/dados/serie/bcdata.sgs.432/dados/ultimos/1?formato=json', {
+          headers: { 'Accept': 'application/json' },
+        }).then(r => r.json());
+        const selic = Array.isArray(selicRes) && selicRes[0]?.valor ? parseFloat(selicRes[0].valor) : 14.75;
+        // Rough estimate: 10Y is about 1-2% below SELIC in normal conditions
+        const yieldEst = tenor === '10Y' ? selic - 1.5 : tenor === '5Y' ? selic - 2.5 : tenor === '2Y' ? selic - 1.0 : selic;
+        snapshot.push({ country: 'BR', ...COUNTRY_META.BR, tenor, yield: parseFloat(yieldEst.toFixed(2)), change: null, changeBps: null, source: 'bcb_est' });
+        snapshot.sort((a, b) => b.yield - a.yield);
+      } catch (_) {
+        snapshot.push({ country: 'BR', ...COUNTRY_META.BR, tenor, yield: 13.25, change: null, changeBps: null, source: 'stub' });
+        snapshot.sort((a, b) => b.yield - a.yield);
+      }
+    }
+
     if (tenor === '10Y' && codes.includes('US') && !snapshot.find(s => s.country === 'US')) {
       try {
         const usCurve = await fred.getUSTreasuryCurve();
@@ -256,7 +273,81 @@ router.get('/sovereign/:countryCode', async (req, res) => {
     if (c) return res.json(c);
 
     const tickers = Object.entries(YAHOO_YIELD_TICKERS).filter(([, m]) => m.country === cc).map(([t]) => t);
-    if (!tickers.length) return res.status(404).json({ error: `No tickers for: ${cc}` });
+
+    // Brazil fallback: no Yahoo yield tickers exist for BR, so fetch from
+    // Tesouro Direto / BCB SELIC (same logic as /api/yield-curves BR block)
+    // or return a stub DI curve.
+    if (!tickers.length && cc === 'BR') {
+      let points = [];
+      let source = 'stub';
+      try {
+        const [selicRes, tdRes] = await Promise.allSettled([
+          fetch('https://api.bcb.gov.br/dados/serie/bcdata.sgs.432/dados/ultimos/1?formato=json', {
+            headers: { 'Accept': 'application/json' },
+          }).then(r => r.json()),
+          fetch('https://www.tesourodireto.com.br/json/br/com/b3/tesourodireto/service/api/treasurybondsfile.json', {
+            headers: { 'User-Agent': 'Mozilla/5.0 Chrome/120 Safari/537.36', 'Accept': 'application/json', 'Accept-Language': 'pt-BR,pt;q=0.9', 'Referer': 'https://www.tesourodireto.com.br/' },
+          }).then(r => { if (!r.ok) throw new Error(`TD ${r.status}`); return r.json(); }),
+        ]);
+        let diRate = 14.75;
+        if (selicRes.status === 'fulfilled' && Array.isArray(selicRes.value) && selicRes.value[0]?.valor) {
+          diRate = parseFloat(selicRes.value[0].valor);
+        }
+        points.push({ tenor: 'DI', yield: parseFloat(diRate.toFixed(2)) });
+        if (tdRes.status === 'fulfilled') {
+          const now = new Date();
+          const bonds = tdRes.value?.response?.TrsrBdTradgList || [];
+          const prefixados = bonds
+            .filter(b => { const nm = (b.TrsrBd?.nm || '').toLowerCase(); return nm.includes('prefixado') && !nm.includes('juros') && b.TrsrBd?.anulInvstmtRate; })
+            .map(b => {
+              const matDate = new Date(b.TrsrBd.mtrtyDt);
+              const months = Math.round((matDate - now) / (30.44 * 86400000));
+              const rawRate = parseFloat(b.TrsrBd.anulInvstmtRate);
+              const rate = rawRate < 1 ? parseFloat((rawRate * 100).toFixed(2)) : parseFloat(rawRate.toFixed(2));
+              let tenor;
+              if (months < 4) tenor = '3M'; else if (months < 8) tenor = '6M';
+              else if (months < 18) tenor = '1Y'; else if (months < 30) tenor = '2Y';
+              else if (months < 42) tenor = '3Y'; else if (months < 54) tenor = '4Y';
+              else if (months < 66) tenor = '5Y'; else if (months < 90) tenor = '7Y';
+              else tenor = Math.round(months / 12) + 'Y';
+              return { tenor, months, yield: rate };
+            })
+            .filter(b => b.months > 0 && b.yield > 0)
+            .sort((a, b_) => a.months - b_.months);
+          if (prefixados.length > 0) {
+            points.push(...prefixados);
+            source = 'tesouro';
+          }
+        }
+        // If Tesouro failed, build stub from SELIC
+        if (points.length < 3) {
+          const base = points[0]?.yield || 14.75;
+          points = [
+            { tenor: 'DI', yield: base },
+            { tenor: '3M', yield: parseFloat((base + 0.15).toFixed(2)) },
+            { tenor: '6M', yield: parseFloat((base + 0.10).toFixed(2)) },
+            { tenor: '1Y', yield: parseFloat((base - 0.50).toFixed(2)) },
+            { tenor: '2Y', yield: parseFloat((base - 1.50).toFixed(2)) },
+            { tenor: '5Y', yield: parseFloat((base - 3.00).toFixed(2)) },
+          ];
+          source = 'bcb_stub';
+        }
+      } catch (e) {
+        logger.warn(`[debt] BR fallback fetch failed: ${e.message}`);
+        points = [
+          { tenor: 'DI', yield: 14.75 }, { tenor: '1Y', yield: 14.25 },
+          { tenor: '2Y', yield: 13.25 }, { tenor: '5Y', yield: 11.75 },
+        ];
+        source = 'stub';
+      }
+      const resp = { country: 'BR', ...COUNTRY_META.BR, points, asOf: Date.now(), source };
+      if (points.length > 0) cacheSet(ck, resp, TTL.curve);
+      return res.json(resp);
+    }
+
+    if (!tickers.length) {
+      return res.status(404).json({ error: `No tickers for: ${cc}`, available: Object.keys(COUNTRY_META) });
+    }
 
     const quotes = await yahooQuoteDebt(tickers.join(','));
     const points = quotes.filter(q => q?.regularMarketPrice != null).map(q => {

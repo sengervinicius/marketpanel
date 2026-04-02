@@ -1,4 +1,4 @@
-/* DebtPanel.css */
+/* DebtPanel.css — Design-token-driven, matching DICurvePanel */
 
 /* ── Panel layout ───────────────────────────────────── */
 .dp-panel {
@@ -6,6 +6,8 @@
   flex-direction: column;
   height: 100%;
   overflow: hidden;
+  background: var(--bg-panel);
+  font-family: var(--font-ui);
   font-size: var(--font-sm);
 }
 
@@ -13,34 +15,46 @@
 .dp-header {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 4px 8px;
-  border-bottom: 1px solid var(--border-strong);
-  background: var(--bg-elevated);
+  gap: 6px;
+  padding: 2px 8px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
   flex-shrink: 0;
+  height: 24px;
   flex-wrap: wrap;
 }
 
 .dp-title {
-  color: var(--text-primary);
+  color: var(--text-muted);
   font-weight: 700;
-  letter-spacing: 1px;
+  letter-spacing: 0.15em;
   font-size: var(--font-sm);
 }
 
 /* ── View toggle buttons ────────────────────────────── */
+.dp-view-group {
+  display: flex;
+  gap: 2px;
+}
+
 .dp-view-btn {
-  font-size: var(--font-sm);
+  font-size: var(--font-xs);
   padding: 1px 6px;
-  border: 1px solid var(--border-strong);
+  border: 1px solid var(--border-default);
   background: transparent;
-  color: var(--text-muted);
+  color: var(--text-faint);
   cursor: pointer;
   transition: all 0.12s;
+  font-family: var(--font-ui);
+  letter-spacing: 0.04em;
+}
+.dp-view-btn:hover {
+  border-color: var(--text-muted);
+  color: var(--text-muted);
 }
 .dp-view-btn--active {
   border-color: var(--accent);
-  background: rgba(255, 107, 0, 0.15);
+  background: rgba(255, 107, 0, 0.12);
   color: var(--accent);
 }
 
@@ -49,9 +63,9 @@
   background: var(--bg-elevated);
   color: var(--text-primary);
   border: 1px solid var(--border-default);
-  border-radius: 4px;
-  padding: 3px 8px;
-  font-size: var(--font-sm);
+  border-radius: 3px;
+  padding: 1px 6px;
+  font-size: var(--font-xs);
   font-family: var(--font-ui);
   cursor: pointer;
   outline: none;
@@ -66,17 +80,62 @@
   min-width: 0;
 }
 
-/* ── Status messages ────────────────────────────────── */
-.dp-msg {
-  padding: 12px 8px;
-  text-align: center;
-  font-size: var(--font-sm);
+.dp-header-selectors {
+  display: flex;
+  gap: 4px;
+  align-items: center;
 }
-.dp-msg--loading {
+
+/* ── State messages (loading / error / empty) ─────── */
+.dp-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 100%;
+  color: var(--text-faint);
+  font-size: var(--font-xs);
+  font-family: var(--font-ui);
+  letter-spacing: 0.06em;
+  text-align: center;
+  padding: 12px;
+}
+.dp-state--loading {
   color: var(--text-faint);
 }
-.dp-msg--error {
+.dp-state--error {
   color: var(--price-down);
+}
+.dp-state--empty {
+  color: var(--text-faint);
+}
+.dp-state--inline {
+  height: auto;
+  padding: 8px 0;
+}
+.dp-state-detail {
+  font-size: var(--font-xs);
+  color: var(--text-faint);
+  max-width: 220px;
+  word-break: break-word;
+}
+
+/* ── Retry button ──────────────────────────────────── */
+.dp-retry-btn {
+  background: none;
+  border: 1px solid var(--border-default);
+  color: var(--text-faint);
+  font-size: var(--font-xs);
+  padding: 2px 8px;
+  cursor: pointer;
+  font-family: var(--font-ui);
+  letter-spacing: 0.05em;
+  transition: all 0.15s;
+}
+.dp-retry-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 /* ── Curve view ─────────────────────────────────────── */
@@ -85,7 +144,7 @@
   display: flex;
   flex-direction: column;
   overflow-y: auto;
-  padding: 4px 0;
+  padding: 0;
   min-height: 0;
 }
 
@@ -93,82 +152,160 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 2px 8px;
+  padding: 3px 8px 2px;
   flex-shrink: 0;
 }
 
 .dp-source-label {
   color: var(--text-muted);
-  font-size: var(--font-sm);
+  font-size: var(--font-xs);
   font-weight: 700;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.08em;
 }
 
 .dp-source-badge {
-  font-size: var(--font-sm);
+  font-size: var(--font-xs);
   font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+/* ── Badges (LIVE / EST.) ──────────────────────────── */
+.dp-badge--live {
+  color: var(--price-up);
+}
+.dp-badge--est {
+  color: var(--text-faint);
 }
 
 /* ── Chart container ────────────────────────────────── */
 .dp-chart-container {
   width: 100%;
-  height: 220px;
-  min-height: 180px;
-  padding: 2px 4px;
+  height: 200px;
+  min-height: 160px;
+  padding: 0 4px;
   flex-shrink: 0;
 }
 
 /* ── Tenor table ────────────────────────────────────── */
 .dp-tenor-table {
-  padding: 4px 8px;
+  padding: 2px 8px 4px;
   flex-shrink: 0;
 }
 
 .dp-tenor-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
-  gap: 2px 8px;
+  grid-template-columns: repeat(auto-fill, minmax(68px, 1fr));
+  gap: 1px 8px;
 }
 
 .dp-tenor-row {
   display: flex;
   justify-content: space-between;
-  padding: 2px 0;
+  padding: 1px 0;
 }
 
 .dp-tenor-label {
-  color: var(--text-muted);
-  font-size: var(--font-sm);
+  color: var(--text-faint);
+  font-size: var(--font-xs);
   font-weight: 600;
+  letter-spacing: 0.03em;
 }
 
 .dp-tenor-value {
   color: var(--text-primary);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-  font-size: var(--font-sm);
+  font-family: var(--font-mono);
+  font-size: var(--font-xs);
 }
 
 /* ── Credit spreads section ─────────────────────────── */
 .dp-spreads {
   border-top: 1px solid var(--border-subtle);
-  padding: 6px 8px;
+  padding: 4px 8px 6px;
   overflow-y: auto;
+}
+.dp-spreads--bottom {
+  max-height: 140px;
+}
+
+.dp-spreads-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 3px;
 }
 
 .dp-spreads-title {
   color: var(--text-muted);
-  font-size: var(--font-sm);
+  font-size: var(--font-xs);
   font-weight: 700;
-  letter-spacing: 0.5px;
-  margin-bottom: 4px;
+  letter-spacing: 0.06em;
 }
 
-.dp-spreads-note {
+.dp-spreads-tag {
+  font-size: var(--font-xs);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+/* ── Spread rows ────────────────────────────────────── */
+.dp-spread-row {
+  padding: 3px 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: var(--font-xs);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.dp-spread-row:last-child {
+  border-bottom: none;
+}
+
+.dp-spread-left {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+
+.dp-spread-name {
+  color: var(--text-primary);
+  font-weight: 600;
+  font-size: var(--font-xs);
+  white-space: nowrap;
+}
+
+.dp-spread-currency {
   color: var(--text-faint);
-  font-weight: 500;
-  margin-left: 6px;
-  font-size: var(--font-sm);
+  font-size: var(--font-xs);
+}
+
+.dp-spread-right {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.dp-spread-value {
+  color: var(--text-primary);
+  font-weight: 700;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--font-xs);
+}
+
+.dp-spread-chg {
+  font-size: var(--font-xs);
+  font-weight: 600;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.dp-spread-bps-label {
+  color: var(--text-faint);
+  font-size: var(--font-xs);
 }
 
 /* ── Regional view ──────────────────────────────────── */
@@ -184,70 +321,50 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 4px 8px;
+  padding: 3px 8px 2px;
   color: var(--text-muted);
-  font-size: var(--font-sm);
+  font-size: var(--font-xs);
   font-weight: 700;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.06em;
   flex-shrink: 0;
 }
 
 .dp-regional-legend {
   color: var(--text-faint);
-  font-size: var(--font-sm);
+  font-size: var(--font-xs);
   font-weight: 500;
 }
 
-/* ── Spread rows ────────────────────────────────────── */
-.dp-spread-row {
-  padding: 4px 0;
-  display: flex;
-  justify-content: space-between;
-  font-size: var(--font-sm);
+.dp-regional-body {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
 }
 
-.dp-spread-name {
-  color: var(--text-primary);
-  font-weight: 600;
-  font-size: var(--font-sm);
-}
-
-.dp-spread-currency {
-  color: var(--text-faint);
-  font-size: var(--font-xs);
-}
-
-.dp-spread-value {
-  color: var(--text-primary);
-  font-weight: 700;
-  font-size: var(--font-sm);
-}
-
-.dp-spread-chg {
-  font-size: var(--font-sm);
-  margin-top: 1px;
-  font-weight: 600;
+/* ── Snapshot rows ──────────────────────────────────── */
+.dp-snapshot-list {
+  padding: 0 8px 4px;
 }
 
 .dp-snapshot-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 0;
-  font-size: var(--font-sm);
+  gap: 6px;
+  padding: 4px 0;
 }
 
 .dp-snapshot-code {
-  width: 30px;
+  width: 26px;
   color: var(--text-muted);
   font-weight: 700;
   font-size: var(--font-xs);
   flex-shrink: 0;
+  letter-spacing: 0.04em;
 }
 
 .dp-snapshot-bar {
   flex: 1;
-  height: 16px;
+  height: 14px;
   background: var(--bg-surface);
   border-radius: 2px;
   overflow: hidden;
@@ -256,13 +373,15 @@
 .dp-snapshot-fill {
   height: 100%;
   transition: width 0.3s ease;
+  border-radius: 2px;
 }
 
 .dp-snapshot-value {
-  width: 50px;
+  width: 72px;
   text-align: right;
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 4px;
   flex-shrink: 0;
 }
@@ -270,9 +389,13 @@
 .dp-snapshot-yield {
   color: var(--text-primary);
   font-weight: 700;
-  font-size: var(--font-sm);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--font-xs);
 }
 
-.dp-snapshot-live {
-  font-size: 8px;
+.dp-snapshot-badge {
+  font-size: 6px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
 }
