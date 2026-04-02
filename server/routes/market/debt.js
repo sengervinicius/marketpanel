@@ -423,17 +423,19 @@ function parseUsTreasury(xml) {
     if (m) curve.push({ tenor, months, rate: parseFloat(m[1]) });
   }
 
-  // ── Sanity check: US Treasury yields should be between 0% and 20% ──
+  // ── Sanity check: US Treasury yields should be in a reasonable range ──
   // If parsed rates look unreasonable, reject them so FRED fallback takes over.
+  // Historical context: US 10Y has been 0.5%-5.0% in 2020-2026, peak ~5% in Oct 2023.
+  // Thresholds are generous but catch clear misparses (e.g., ~2x actual rates).
   if (curve.length > 0) {
     const avgRate = curve.reduce((s, p) => s + p.rate, 0) / curve.length;
-    if (avgRate > 20 || avgRate < 0) {
+    if (avgRate > 8 || avgRate < 0) {
       console.warn(`[Yield] US Treasury parsed avg rate ${avgRate.toFixed(2)}% is out of range — rejecting (likely wrong XML field matched)`);
       return [];
     }
-    // Additional check: 10Y should not deviate wildly from recent norms
+    // Additional check: 10Y should be below 7% (well above any recent peak)
     const tenY = curve.find(p => p.tenor === '10Y');
-    if (tenY && tenY.rate > 15) {
+    if (tenY && tenY.rate > 7) {
       console.warn(`[Yield] US 10Y parsed as ${tenY.rate}% — unreasonable, rejecting Treasury XML parse`);
       return [];
     }

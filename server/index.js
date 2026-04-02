@@ -197,6 +197,12 @@ wss.on('connection', (ws, req) => {
 
       const msg = JSON.parse(raw);
 
+      // Respond to client heartbeat pings
+      if (msg.type === 'ping') {
+        ws.send(JSON.stringify({ type: 'pong', ts: msg.ts }));
+        return;
+      }
+
       // Live DM chat over WS
       if (msg.type === 'chat_message') {
         const { toUserId, text } = msg;
