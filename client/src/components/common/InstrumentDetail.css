@@ -182,8 +182,12 @@
   min-height: 0;
 }
 .id-chart-area--mobile {
-  flex: 0 0 42vh;
+  flex: none;
+  height: 50vh;
 }
+/* On mobile, give chart flex children explicit heights instead of flex ratios */
+.id-chart-area--mobile .id-chart-flex-main   { flex: none; height: calc(50vh * 0.72); }
+.id-chart-area--mobile .id-chart-flex-volume { flex: none; height: calc(50vh * 0.22); }
 
 /* Range selector row */
 .id-range-row {

@@ -37,6 +37,7 @@ import OnboardingPresets from './components/onboarding/OnboardingPresets';
 import SuggestedScreens from './components/settings/SuggestedScreens';
 import { TickerTooltip } from './components/common/TickerTooltip';
 import InstrumentDetail from './components/common/InstrumentDetail';
+import { getMarketState as _getMarketState } from './components/common/MarketStatus';
 import './App.css';
 import './components/panels/Chat.css';
 
@@ -885,9 +886,9 @@ function SubscriptionExpiredScreen({ onUpgrade, onLogout, onManageBilling, check
 // ── Mobile tab definitions (5 primary tabs) ──────────────────────────────────
 const MOBILE_TABS = [
   { id: 'home',      label: 'Home' },
-  { id: 'search',    label: 'Search' },
+  { id: 'charts',    label: 'Charts' },
   { id: 'watchlist', label: 'Portfolio' },
-  { id: 'alerts',    label: 'Alerts' },
+  { id: 'search',    label: 'Search' },
   { id: 'more',      label: 'More' },
 ];
 
@@ -899,6 +900,11 @@ function TabIcon({ id, active }) {
     case 'home': return (
       <svg style={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round">
         <path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5z" /><polyline points="9 21 9 14 15 14 15 21" />
+      </svg>
+    );
+    case 'charts': return (
+      <svg style={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
       </svg>
     );
     case 'search': return (
@@ -1119,7 +1125,7 @@ export default function App() {
     try { saved = localStorage.getItem(LS_TAB); } catch { saved = null; }
     // Migrate old tab IDs
     if (saved === 'markets') return 'home';
-    if (saved === 'charts') return 'home'; // charts moved to More → Charts
+    // charts is now a primary tab (Phase M)
     return MOBILE_TABS.find(t => t.id === saved) ? saved : 'home';
   });
   // Secondary view inside "more" tab (charts, news, etf, chat)
@@ -1249,13 +1255,8 @@ export default function App() {
   const goChart = useCallback((t) => {
     const sym = typeof t === 'object' ? (t.symbol || t) : t;
     setChartTicker(sym);
-    if (isMobile) {
-      setActiveTabPersist('more');
-      setMoreView('charts');
-    } else {
-      setActiveTabPersist('charts');
-    }
-  }, [setChartTicker, isMobile]);
+    setActiveTabPersist('charts');
+  }, [setChartTicker]);
 
   const goDetail = useCallback((t) => {
     const sym = typeof t === 'object' ? (t.symbol || t.ticker || t) : t;
@@ -1294,7 +1295,7 @@ export default function App() {
   }, []);
   const mobileScreenTitle = useMemo(() => {
     if (activeTab === 'more' && moreView) {
-      const titles = { charts: 'Charts', news: 'News Feed', etf: 'ETF Screener' };
+      const titles = { news: 'News Feed', etf: 'ETF Screener' };
       return titles[moreView] || moreView;
     }
     return null;
@@ -1544,6 +1545,10 @@ export default function App() {
               />
             )}
 
+            {activeTab === 'charts' && (
+              <ChartsPanelMobile onOpenDetail={goDetail} />
+            )}
+
             {activeTab === 'search' && (
               <SearchPanel onTickerSelect={goDetail} onOpenDetail={goDetail} />
             )}
@@ -1569,10 +1574,6 @@ export default function App() {
                 isPaid={subscription?.status === 'active'}
                 subscription={subscription}
               />
-            )}
-
-            {activeTab === 'more' && moreView === 'charts' && (
-              <ChartsPanelMobile onOpenDetail={goDetail} />
             )}
 
             {activeTab === 'more' && moreView === 'news' && <NewsPanel />}
@@ -1657,18 +1658,45 @@ export default function App() {
   );
 }
 
-// ── Compact clock for mobile header ──
+// ── Mobile local clock + city + market status ──
+const CITY_OVERRIDES = {
+  'Sao Paulo': 'S\u00e3o Paulo', 'New York': 'New York',
+  'Los Angeles': 'Los Angeles', 'Ho Chi Minh': 'Ho Chi Minh',
+};
+
 function MobileClockCompact() {
-  const [now, setNow] = useState(new Date());
+  const [time, setTime] = useState('');
+  const [city, setCity] = useState('');
+  const [mkt, setMkt] = useState(() => _getMarketState());
+
   useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 30000);
+    let tz;
+    try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone; } catch (_) {}
+    if (!tz) { setCity('UTC'); }
+    else {
+      const raw = tz.split('/').pop().replace(/_/g, ' ');
+      setCity(CITY_OVERRIDES[raw] || raw);
+    }
+    const update = () => {
+      const opts = { hour: '2-digit', minute: '2-digit', hour12: false };
+      if (tz) opts.timeZone = tz;
+      try { setTime(new Date().toLocaleTimeString('en-GB', opts)); }
+      catch (_) { setTime(new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })); }
+      setMkt(_getMarketState());
+    };
+    update();
+    const id = setInterval(update, 30_000);
     return () => clearInterval(id);
   }, []);
-  const ny = now.toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit', hour12: false });
+
+  const mktOpen = mkt.status === 'open';
   return (
-    <span style={{ color: 'var(--text-faint)', letterSpacing: '0.05em', fontVariantNumeric: 'tabular-nums' }}>
-      NY {ny}
-    </span>
+    <div className="m-clock-strip">
+      <span className="m-clock-time">{city} {time}</span>
+      <span className={`m-mkt-pill${mktOpen ? ' m-mkt-pill--open' : ''}`}>
+        {mktOpen ? 'MKT OPEN' : 'MKT CLOSED'}
+      </span>
+    </div>
   );
 }
 
