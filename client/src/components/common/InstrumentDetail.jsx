@@ -1,8 +1,12 @@
 // InstrumentDetail.jsx – Bloomberg GP-style full-screen instrument overlay
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useAuth } from '../../context/AuthContext';
 import { apiFetch } from '../../utils/api.js';
 import AlertEditor from './AlertEditor';
 import './InstrumentDetail.css';
+
+// Track which instruments have been opened this session (for XP)
+const _openedThisSession = new Set();
 import {
   AreaChart, Area, BarChart, Bar, ComposedChart, Line,
   XAxis, YAxis, ResponsiveContainer, Tooltip,
@@ -225,6 +229,7 @@ function StatRow({ label, value, color, big }) {
 // ── Main Component ──────────────────────────────────────────────────────────
 // asPage=true: renders as a scrollable page (DETAIL tab on mobile), no fixed overlay
 export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
+  const { triggerGamificationEvent } = useAuth();
   const norm     = normalizeTicker(ticker);
   const disp     = displayTicker(norm);
   const isFX     = norm.startsWith('C:');
@@ -232,6 +237,14 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
   const isBrazil = norm.endsWith('.SA');
   const isBondTicker = /^(US|DE|GB|JP|BR)\d+Y$/i.test(norm);
   const isStock  = !isFX && !isCrypto && !isBondTicker;
+
+  // Fire open_instrument XP event (once per ticker per session)
+  useEffect(() => {
+    if (norm && !_openedThisSession.has(norm)) {
+      _openedThisSession.add(norm);
+      triggerGamificationEvent('open_instrument');
+    }
+  }, [norm, triggerGamificationEvent]);
 
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 1024);
   useEffect(() => {

@@ -36,8 +36,10 @@ import ETFPanel from './components/panels/ETFPanel';
 import ScreenerPanel from './components/panels/ScreenerPanel';
 import MacroPanel from './components/panels/MacroPanel';
 import OnboardingPresets from './components/onboarding/OnboardingPresets';
+import OnboardingTourOverlay from './components/onboarding/OnboardingTourOverlay';
 import SuggestedScreens from './components/settings/SuggestedScreens';
 import WorkspaceSwitcher from './components/common/WorkspaceSwitcher';
+import UserAvatar from './components/common/UserAvatar';
 import { TickerTooltip } from './components/common/TickerTooltip';
 import InstrumentDetail from './components/common/InstrumentDetail';
 import { getMarketState as _getMarketState } from './components/common/MarketStatus';
@@ -406,7 +408,7 @@ function SettingsSection({ label }) {
 }
 
 function SettingsDrawer({ panelVisible, togglePanel, onClose }) {
-  const { settings, updateSettings, applyPreset, applyTemplate } = useSettings();
+  const { settings, updateSettings, applyPreset, applyTemplate, resetTour } = useSettings();
   const [applyingPreset, setApplyingPreset] = useState(null);
   const [resettingLayout, setResettingLayout] = useState(false);
 
@@ -561,9 +563,86 @@ function SettingsDrawer({ panelVisible, togglePanel, onClose }) {
         );
       })}
 
+      {/* ── Help ── */}
+      <SettingsSection label="HELP" />
+      <div
+        role="button"
+        tabIndex={0}
+        style={rowStyle}
+        {...makeRowClickable(() => { resetTour(); onClose(); })}
+        onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
+        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+      >
+        <span className="app-text-muted-small">Restart Onboarding Tour</span>
+        <span className="app-text-faint-small">&#8635; RESTART</span>
+      </div>
+
+      {/* ── Community & Discord ── */}
+      <SettingsSection label="COMMUNITY" />
+      <DiscordLinkRow />
+
       {/* ── Suggested Screens ── */}
       <SettingsSection label="SUGGESTED SCREENS" />
       <SuggestedScreens onApply={onClose} />
+    </div>
+  );
+}
+
+// ── Discord Link Row (settings drawer + mobile) ─────────────────────────────
+function DiscordLinkRow() {
+  const [status, setStatus] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) { setLoading(false); return; }
+    fetch('/api/discord/status', { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json())
+      .then(d => { setStatus(d); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, []);
+
+  if (loading) return null;
+  if (!status?.configured) return null;
+
+  const handleLink = async () => {
+    const token = localStorage.getItem('token');
+    const res = await fetch('/api/discord/link', { headers: { Authorization: `Bearer ${token}` } });
+    const data = await res.json();
+    if (data.url) window.open(data.url, '_blank');
+  };
+
+  const handleUnlink = async () => {
+    const token = localStorage.getItem('token');
+    await fetch('/api/discord/unlink', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    });
+    setStatus(s => ({ ...s, linked: false, discordUsername: null }));
+  };
+
+  const rowStyle = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', cursor: 'pointer', transition: 'background 150ms' };
+
+  if (status.linked) {
+    return (
+      <div style={rowStyle}
+        onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
+        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+      >
+        <span className="app-text-muted-small">Discord: {status.discordUsername}</span>
+        <span className="app-text-faint-small" style={{ cursor: 'pointer' }} onClick={handleUnlink}>UNLINK</span>
+      </div>
+    );
+  }
+
+  return (
+    <div role="button" tabIndex={0} style={rowStyle}
+      onClick={handleLink}
+      onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
+      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+    >
+      <span className="app-text-muted-small">Join our Discord</span>
+      <span style={{ fontSize: 9, fontWeight: 700, color: '#5865F2', letterSpacing: '0.3px' }}>CONNECT</span>
     </div>
   );
 }
@@ -586,8 +665,16 @@ function UserDropdown({ user, onSettings, onLogout, onBilling, isPaid }) {
           padding: '2px 8px', gap: 5,
         }}
       >
+        <UserAvatar user={user} size="small" />
         <span style={{ color: open ? 'var(--accent)' : 'var(--text-faint)', fontSize: 8 }}>▼</span>
-        {user.username?.toUpperCase()}
+        <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', lineHeight: 1.2 }}>
+          <span>{user.username?.toUpperCase()}</span>
+          {user.gamification && (
+            <span style={{ fontSize: 7, color: 'var(--accent)', fontWeight: 700, letterSpacing: '0.5px' }}>
+              Lv {user.gamification.level || 1} · {user.gamification.xp || 0} XP
+            </span>
+          )}
+        </span>
       </button>
       {open && (
         <div style={{
@@ -1271,6 +1358,7 @@ export default function App() {
   // This ensures a logged-in user with onboardingCompleted=true never sees the
   // preset screen again on refresh.
   const showOnboarding = bootState === BOOT.READY && !!user && settings && !settings.onboardingCompleted;
+  const showTour = bootState === BOOT.READY && !!user && settings && settings.onboardingCompleted && settings.onboarding && !settings.onboarding.completed;
 
   // ── Subscription gating ──────────────────────────────────────────────────
   // Show paywall if subscription has expired
@@ -1332,6 +1420,9 @@ export default function App() {
 
         {/* Onboarding overlay */}
         {showOnboarding && <OnboardingPresets />}
+
+        {/* Onboarding tour */}
+        {showTour && <OnboardingTourOverlay />}
 
         {/* Header */}
         <div className="flex-row app-header-bar">
@@ -1472,6 +1563,9 @@ export default function App() {
 
       {/* Onboarding overlay */}
       {showOnboarding && <OnboardingPresets />}
+
+      {/* Onboarding tour (mobile) */}
+      {showTour && <OnboardingTourOverlay isMobile />}
 
       {/* ── Mobile header ── */}
       <div className="m-header">

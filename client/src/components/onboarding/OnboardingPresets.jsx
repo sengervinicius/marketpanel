@@ -1,21 +1,23 @@
 /**
  * OnboardingPresets.jsx
- * First-login workspace picker. Professional 6-card grid.
+ * First-login flow: workspace picker → persona selector.
  * Only shown once (settings.onboardingCompleted = false).
- * Now reads from the unified WORKSPACE_TEMPLATES registry.
  */
 
 import { useState, useMemo } from 'react';
 import { useSettings } from '../../context/SettingsContext';
+import { useAuth } from '../../context/AuthContext';
 import { getTemplatesByCategory } from '../../config/templates';
+import PersonaSelector from './PersonaSelector';
 import './OnboardingPresets.css';
 
 export default function OnboardingPresets() {
   const { applyTemplate, completeOnboarding } = useSettings();
+  const { user, setUser, triggerGamificationEvent } = useAuth();
   const [selected, setSelected] = useState(null);
   const [loading,  setLoading]  = useState(false);
+  const [step,     setStep]     = useState('workspace'); // 'workspace' | 'persona'
 
-  // Only show onboarding-category templates
   const options = useMemo(() =>
     getTemplatesByCategory('onboarding').map(t => ({
       key:         t.id,
@@ -29,8 +31,17 @@ export default function OnboardingPresets() {
     if (loading) return;
     setSelected(key);
     setLoading(true);
-    try { await applyTemplate(key, 'full'); } catch {}
+    try {
+      await applyTemplate(key, 'full');
+      triggerGamificationEvent('apply_workspace');
+    } catch {}
     setLoading(false);
+    // Advance to persona selection if user hasn't picked one
+    if (!user?.persona?.type) {
+      setStep('persona');
+    } else {
+      await completeOnboarding();
+    }
   };
 
   const skip = async () => {
@@ -40,23 +51,28 @@ export default function OnboardingPresets() {
     setLoading(false);
   };
 
+  const handlePersonaSelected = async (personaType) => {
+    if (personaType) {
+      setUser(prev => prev ? { ...prev, persona: { ...prev.persona, type: personaType } } : prev);
+      triggerGamificationEvent('select_persona');
+    }
+    await completeOnboarding();
+  };
+
+  // Step 2: Persona selector
+  if (step === 'persona') {
+    return <PersonaSelector onSelect={handlePersonaSelected} />;
+  }
+
+  // Step 1: Workspace picker
   return (
     <div className="obp-container">
-
-      {/* Header */}
       <div className="obp-header">
-        <div className="obp-header-label">
-          SENGER MARKET TERMINAL
-        </div>
-        <div className="obp-header-title">
-          Choose your starting workspace
-        </div>
-        <div className="obp-header-subtitle">
-          You can customize everything later.
-        </div>
+        <div className="obp-header-label">SENGER MARKET TERMINAL</div>
+        <div className="obp-header-title">Choose your starting workspace</div>
+        <div className="obp-header-subtitle">You can customize everything later.</div>
       </div>
 
-      {/* Cards — 2 columns on desktop, 1 on mobile */}
       <div className="obp-grid">
         {options.map(({ key, title, description, includes }) => {
           const active = selected === key;
@@ -68,33 +84,21 @@ export default function OnboardingPresets() {
               className={`obp-card ${active ? 'obp-card-active' : ''}`}
             >
               <div className="obp-card-header">
-                <div className="obp-card-title">
-                  {title}
-                </div>
+                <div className="obp-card-title">{title}</div>
                 <div className="obp-card-radio">
                   {active && <div className="obp-card-radio-inner" />}
                 </div>
               </div>
-              <div className="obp-card-description">
-                {description}
-              </div>
-              <div className="obp-card-includes">
-                INCLUDES: {includes}
-              </div>
+              <div className="obp-card-description">{description}</div>
+              <div className="obp-card-includes">INCLUDES: {includes}</div>
             </button>
           );
         })}
       </div>
 
-      {/* Skip */}
-      <button
-        onClick={skip}
-        disabled={loading}
-        className="obp-skip-btn"
-      >
+      <button onClick={skip} disabled={loading} className="obp-skip-btn">
         {loading ? 'SETTING UP...' : 'SKIP — USE DEFAULTS'}
       </button>
-
     </div>
   );
 }

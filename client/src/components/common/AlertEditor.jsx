@@ -15,6 +15,7 @@
 
 import { memo, useState, useCallback, useEffect } from 'react';
 import { useAlerts } from '../../context/AlertsContext';
+import { useAuth } from '../../context/AuthContext';
 import './PositionEditor.css'; // reuse same CSS
 
 const ALERT_TYPES = [
@@ -35,6 +36,7 @@ function AlertEditor({
   mobile = false,
 }) {
   const { createAlert, updateAlert, deleteAlert } = useAlerts();
+  const { triggerGamificationEvent } = useAuth();
 
   const isEditing = !!alert;
 
@@ -105,6 +107,7 @@ function AlertEditor({
         await updateAlert(alert.id, payload);
       } else {
         await createAlert(payload);
+        triggerGamificationEvent('create_alert');
       }
       onClose();
     } catch (e) {
@@ -112,7 +115,7 @@ function AlertEditor({
     } finally {
       setSaving(false);
     }
-  }, [symbol, type, targetPrice, pctChange, entryPrice, direction, note, positionId, isPctType, isEditing, alert, createAlert, updateAlert, onClose]);
+  }, [symbol, type, targetPrice, pctChange, entryPrice, direction, note, positionId, isPctType, isEditing, alert, createAlert, updateAlert, onClose, triggerGamificationEvent]);
 
   const handleDelete = useCallback(async () => {
     if (!confirmDelete) { setConfirmDelete(true); return; }

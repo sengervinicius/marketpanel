@@ -214,6 +214,8 @@ async function seedUsersFromEnv() {
         trialEndsAt:          now + 365 * 24 * 60 * 60 * 1000,
         stripeCustomerId:     null,
         stripeSubscriptionId: null,
+        persona:              defaultPersona(),
+        gamification:         defaultGamification(),
         createdAt:            now,
       };
       usersByUsername.set(key, user);
@@ -224,6 +226,22 @@ async function seedUsersFromEnv() {
       console.error(`[authStore] Failed to seed '${username}':`, e.message);
     }
   }
+}
+
+// ── Default persona & gamification ────────────────────────────────────────────
+
+function defaultPersona() {
+  return {
+    type: null,
+    avatarStyle: 'illustrated',
+    customization: { backgroundColor: null, borderStyle: 'none', badgeSize: 'medium' },
+    stats: { totalReturn: 0, sharpeRatio: 0, bestMonth: 0, worstMonth: 0, winRate: 0, avgHoldingPeriod: 0 },
+    achievements: [],
+  };
+}
+
+function defaultGamification() {
+  return { xp: 0, level: 1, lastXpEventAt: null };
 }
 
 // ── User CRUD ─────────────────────────────────────────────────────────────────
@@ -265,6 +283,8 @@ async function createUser(username, passwordPlain, email) {
     trialEndsAt:          now + 2 * 24 * 60 * 60 * 1000, // 2-day trial
     stripeCustomerId:     null,
     stripeSubscriptionId: null,
+    persona:              defaultPersona(),
+    gamification:         defaultGamification(),
     createdAt:            now,
   };
 
@@ -455,6 +475,41 @@ async function findOrCreateAppleUser(appleUserId, email, firstName) {
   return user;
 }
 
+// ── Persona update ────────────────────────────────────────────────────────────
+
+async function updatePersona(userId, partial) {
+  const user = getUserById(userId);
+  if (!user) throw new Error('User not found');
+  if (!user.persona) user.persona = defaultPersona();
+  if (partial.type !== undefined)       user.persona.type = partial.type;
+  if (partial.avatarStyle !== undefined) user.persona.avatarStyle = partial.avatarStyle;
+  if (partial.customization)            user.persona.customization = { ...user.persona.customization, ...partial.customization };
+  await persistUser(user);
+  return user.persona;
+}
+
+// ── Generic user update (for Discord, etc.) ────────────────────────────────
+async function updateUser(userId, partial) {
+  const user = getUserById(userId);
+  if (!user) throw new Error('User not found');
+  Object.assign(user, partial);
+  await persistUser(user);
+  return user;
+}
+
+// ── Gamification update ──────────────────────────────────────────────────────
+
+async function addXp(userId, amount) {
+  const user = getUserById(userId);
+  if (!user) throw new Error('User not found');
+  if (!user.gamification) user.gamification = defaultGamification();
+  user.gamification.xp += amount;
+  user.gamification.level = 1 + Math.floor(user.gamification.xp / 100);
+  user.gamification.lastXpEventAt = new Date().toISOString();
+  await persistUser(user);
+  return user.gamification;
+}
+
 module.exports = {
   initDB,
   createUser,
@@ -467,8 +522,11 @@ module.exports = {
   listUsers,
   mergeSettings,
   updateSubscription,
+  updatePersona,
+  addXp,
   safeUser,
   seedUsersFromEnv,
   findOrCreateAppleUser,
   findUserByStripeCustomerId,
+  updateUser,
 };

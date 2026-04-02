@@ -30,7 +30,7 @@ router.post('/register', authLimiter, async (req, res) => {
     const token = signToken(user);
     res.status(201).json({
       ok: true,
-      user: { id: user.id, username: user.username },
+      user: { id: user.id, username: user.username, persona: user.persona || null, gamification: user.gamification || null },
       token,
       subscription: {
         isPaid:             user.isPaid,
@@ -52,7 +52,7 @@ router.post('/login', authLimiter, async (req, res) => {
     const token = signToken(user);
     res.json({
       ok: true,
-      user: { id: user.id, username: user.username },
+      user: { id: user.id, username: user.username, persona: user.persona || null, gamification: user.gamification || null },
       token,
       subscription: {
         isPaid:             user.isPaid,
@@ -70,7 +70,7 @@ router.get('/me', requireAuth, (req, res) => {
   const user = getUserById(req.user.id);
   if (!user) return res.status(401).json({ error: 'User not found' });
   res.json({
-    user:  { id: user.id, username: user.username },
+    user:  { id: user.id, username: user.username, persona: user.persona || null, gamification: user.gamification || null },
     subscription: {
       isPaid:             user.isPaid,
       subscriptionActive: user.subscriptionActive,

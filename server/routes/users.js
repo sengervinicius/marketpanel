@@ -9,7 +9,7 @@ const router  = express.Router();
 const logger = require('../utils/logger');
 const { sendApiError } = require('../utils/apiError');
 const { sanitizeText, clampInt } = require('../utils/validate');
-const { listUsers } = require('../authStore');
+const { listUsers, getUserById, updatePersona } = require('../authStore');
 
 // Max results to return
 const MAX_RESULTS = 50;
@@ -50,6 +50,44 @@ router.get('/search', (req, res) => {
   } catch (e) {
     logger.error('GET /users/search error:', e);
     sendApiError(res, 500, 'Failed to search users');
+  }
+});
+
+// ── Persona endpoints ──────────────────────────────────────────────────────────
+
+const VALID_PERSONA_TYPES = [
+  'value_investor','growth_investor','income_investor','crypto_degen',
+  'day_trader','swing_trader','macro_investor','esg_investor',
+  'arbitrage_hunter','index_hugger',
+];
+
+// GET /api/users/persona
+router.get('/persona', (req, res) => {
+  try {
+    const user = getUserById(req.user.id);
+    if (!user) return sendApiError(res, 404, 'User not found');
+    res.json({ persona: user.persona || null });
+  } catch (e) {
+    logger.error('GET /users/persona error:', e);
+    sendApiError(res, 500, 'Failed to get persona');
+  }
+});
+
+// PATCH /api/users/persona
+router.patch('/persona', async (req, res) => {
+  try {
+    const { type, avatarStyle, customization } = req.body;
+    if (type && !VALID_PERSONA_TYPES.includes(type)) {
+      return sendApiError(res, 400, 'Invalid persona type');
+    }
+    if (avatarStyle && !['minimal','abstract','illustrated'].includes(avatarStyle)) {
+      return sendApiError(res, 400, 'Invalid avatar style');
+    }
+    const persona = await updatePersona(req.user.id, { type, avatarStyle, customization });
+    res.json({ persona });
+  } catch (e) {
+    logger.error('PATCH /users/persona error:', e);
+    sendApiError(res, 500, 'Failed to update persona');
   }
 });
 

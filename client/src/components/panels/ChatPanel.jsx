@@ -15,6 +15,7 @@ import { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { apiFetch } from '../../utils/api';
 import { WS_URL } from '../../utils/constants';
+import UserAvatar from '../common/UserAvatar';
 import './Chat.css';
 
 function timeAgo(ts) {
@@ -337,6 +338,7 @@ function ChatPanel({ mobile, initialUserId }) {
               onClick={() => openConversation({ id: c.otherUserId, username: c.otherUsername })}>
               <div className="chat-list-row">
                 <div className="chat-list-user">
+                  <UserAvatar user={{ id: c.otherUserId, username: c.otherUsername, persona: c.otherPersona }} size="small" />
                   <span className={`chat-dot chat-dot--${onlineMap[c.otherUserId] ? 'online' : 'offline'}`} />
                   <span className="chat-list-name">{c.otherUsername}</span>
                 </div>

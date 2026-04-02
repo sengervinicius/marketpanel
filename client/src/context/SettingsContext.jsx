@@ -205,6 +205,15 @@ export function SettingsProvider({ children, isAuthenticated }) {
     await updateSettings({ charts });
   }, [updateSettings]);
 
+  // ── Onboarding tour ──────────────────────────────────────────────────────
+  const markTourCompleted = useCallback(async () => {
+    await updateSettings({ onboarding: { completed: true, lastStep: null } });
+  }, [updateSettings]);
+
+  const resetTour = useCallback(async () => {
+    await updateSettings({ onboarding: { completed: false, lastStep: null } });
+  }, [updateSettings]);
+
   // Flush pending saves on unmount
   useEffect(() => {
     return () => {
@@ -223,6 +232,7 @@ export function SettingsProvider({ children, isAuthenticated }) {
       settings, subscription, loaded, settingsDirty,
       updateSettings, updatePanelConfig, applyPreset, applyTemplate, completeOnboarding,
       updateLayout, updateHomeSection, addToHomeSection, updateChartsConfig,
+      markTourCompleted, resetTour,
     }}>
       {children}
     </SettingsContext.Provider>

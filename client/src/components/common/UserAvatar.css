@@ -1,0 +1,25 @@
+.ua {
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-family: var(--font-ui);
+  color: #fff;
+  position: relative;
+}
+.ua--small   { width: 28px;  height: 28px;  font-size: 12px; }
+.ua--medium  { width: 40px;  height: 40px;  font-size: 16px; }
+.ua--large   { width: 64px;  height: 64px;  font-size: 24px; }
+.ua--fallback { background: var(--bg-elevated, #1a1a1a); color: var(--accent); }
+.ua--border-solid { border: 2px solid var(--accent); }
+.ua--border-glow  { border: 2px solid var(--accent); box-shadow: 0 0 10px var(--accent), 0 0 20px rgba(255,102,0,0.4); }
+.ua--border-none  { border: none; }
+.ua-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}

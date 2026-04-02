@@ -17,6 +17,8 @@ const portfolioRoutes   = require('./routes/portfolio');
 const alertRoutes       = require('./routes/alerts');
 const iapRoutes         = require('./routes/iap');
 const searchRoutes      = require('./routes/search');
+const gamificationRoutes = require('./routes/gamification');
+const discordRoutes     = require('./routes/discord');
 const screenerRoutes    = require('./routes/screener');
 const { requireAuth, requireActiveSubscription } = require('./authMiddleware');
 const logger = require('./utils/logger');
@@ -103,6 +105,10 @@ app.use('/api/portfolio', requireAuth, portfolioRoutes);
 
 // Alerts: auth required (no subscription check — alerts are a core feature)
 app.use('/api/alerts', requireAuth, alertRoutes);
+
+// Gamification: auth required (no subscription check — XP is a core feature)
+app.use('/api/gamification', requireAuth, gamificationRoutes);
+app.use('/api/discord', requireAuth, discordRoutes);
 
 // AI Search: auth + subscription required
 app.use('/api/search', requireAuth, requireActiveSubscription, searchRoutes);
