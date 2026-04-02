@@ -235,7 +235,7 @@ function defaultPersona() {
     type: null,
     avatarStyle: 'illustrated',
     customization: { backgroundColor: null, borderStyle: 'none', badgeSize: 'medium' },
-    stats: { totalReturn: 0, sharpeRatio: 0, bestMonth: 0, worstMonth: 0, winRate: 0, avgHoldingPeriod: 0 },
+    stats: { totalReturn: 0, sharpeRatio: 0, bestMonth: 0, worstMonth: 0, winRate: 0, avgHoldingPeriod: 0, weeklyReturn: 0 },
     achievements: [],
   };
 }
@@ -332,6 +332,20 @@ function listUsers(query, excludeId) {
     }
   }
   return results.slice(0, 20);
+}
+
+/**
+ * Return all users that have a persona type set (for leaderboard computation).
+ * Returns full user objects — caller should only expose safe fields.
+ */
+function getAllUsersWithPersona() {
+  const results = [];
+  for (const user of usersById.values()) {
+    if (user.persona && user.persona.type) {
+      results.push(user);
+    }
+  }
+  return results;
 }
 
 function findUserByStripeCustomerId(customerId) {
@@ -529,4 +543,5 @@ module.exports = {
   findOrCreateAppleUser,
   findUserByStripeCustomerId,
   updateUser,
+  getAllUsersWithPersona,
 };

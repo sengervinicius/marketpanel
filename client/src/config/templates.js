@@ -534,6 +534,34 @@ const multiAssetTrader = {
   charts: { symbols: ['SPY','BTCUSD','EURUSD','GLD'], primary: 'SPY' },
 };
 
+const socialCompetition = {
+  id:          'socialCompetition',
+  label:       'Social Competition',
+  description: 'Leaderboards, chat, and portfolio tracking for competitive traders.',
+  focus:       'Rankings, leaderboard, community',
+  category:    'layout',
+  group:       'Trading Screens',
+  theme:       'dark',
+  watchlist:   ['SPY','QQQ','AAPL','BTCUSD'],
+  panels: {
+    usEquities:    { title: 'US Equities', symbols: ['AAPL','MSFT','NVDA','GOOGL','AMZN','META','TSLA'] },
+  },
+  layout: {
+    desktopRows: [
+      ['charts',       'usEquities',  'leaderboard'],
+      ['watchlist',    'chat',        'news'],
+    ],
+    mobileTabs: ['home', 'charts', 'watchlist', 'search', 'detail', 'news'],
+  },
+  home: {
+    sections: [
+      { id: 'us',     title: 'US Markets', symbols: ['SPY','QQQ','DIA'] },
+      { id: 'crypto', title: 'Crypto',     symbols: ['BTCUSD','ETHUSD','SOLUSD'] },
+    ],
+  },
+  charts: { symbols: ['SPY','BTCUSD'], primary: 'SPY' },
+};
+
 // ── Unified registry ───────────────────────────────────────────────────────
 
 /**
@@ -557,6 +585,7 @@ export const WORKSPACE_TEMPLATES = {
   cryptoTerminal,
   brazilInvestorScreen,
   multiAssetTrader,
+  socialCompetition,
 };
 
 /**

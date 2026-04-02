@@ -20,6 +20,7 @@ const searchRoutes      = require('./routes/search');
 const gamificationRoutes = require('./routes/gamification');
 const discordRoutes     = require('./routes/discord');
 const screenerRoutes    = require('./routes/screener');
+const leaderboardRoutes = require('./routes/leaderboard');
 const { requireAuth, requireActiveSubscription } = require('./authMiddleware');
 const logger = require('./utils/logger');
 const { requestLogger } = require('./utils/logger');
@@ -30,6 +31,7 @@ const { verifyToken } = require('./authStore');
 const { initPortfolioDB } = require('./portfolioStore');
 const { initAlertDB } = require('./alertStore');
 const { startAlertScheduler } = require('./alertScheduler');
+require('./jobs/leaderboards'); // starts leaderboard cron
 
 const app = express();
 
@@ -109,6 +111,7 @@ app.use('/api/alerts', requireAuth, alertRoutes);
 // Gamification: auth required (no subscription check — XP is a core feature)
 app.use('/api/gamification', requireAuth, gamificationRoutes);
 app.use('/api/discord', requireAuth, discordRoutes);
+app.use('/api/leaderboard', requireAuth, leaderboardRoutes);
 
 // AI Search: auth + subscription required
 app.use('/api/search', requireAuth, requireActiveSubscription, searchRoutes);

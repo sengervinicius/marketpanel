@@ -232,6 +232,17 @@ export const PANEL_DEFINITIONS = {
     minSymbols:     0,
     maxSymbols:     0,
   },
+  leaderboard: {
+    id:             'leaderboard',
+    label:          'Leaderboard',
+    defaultTitle:   'Leaderboard',
+    defaultSymbols: [],
+    allowedGroups:  null,
+    editable:       false,
+    icon:           'LB',
+    minSymbols:     0,
+    maxSymbols:     0,
+  },
 };
 
 /**

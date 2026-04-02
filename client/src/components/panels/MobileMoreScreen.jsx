@@ -113,6 +113,11 @@ const MobileMoreScreen = memo(({
           label="Macro Panel"
           onClick={() => onNavigate('macro')}
         />
+        <MenuItem
+          icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20V10" /><path d="M6 20v-4" /><path d="M18 20V4" /><circle cx="12" cy="7" r="2" fill="currentColor" /><circle cx="6" cy="13" r="2" fill="currentColor" /><circle cx="18" cy="2" r="2" fill="currentColor" /></svg>}
+          label="Leaderboard"
+          onClick={() => onNavigate('leaderboard')}
+        />
 
       </div>
 
