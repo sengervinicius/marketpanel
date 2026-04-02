@@ -83,6 +83,16 @@ const MobileMoreScreen = memo(({
           label="ETF Screener"
           onClick={() => onNavigate('etf')}
         />
+        <MenuItem
+          icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18" /><path d="M7 16l4-8 4 4 4-6" /></svg>}
+          label="Fundamental Screener"
+          onClick={() => onNavigate('screener')}
+        />
+        <MenuItem
+          icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="2" y1="12" x2="22" y2="12" /><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" /></svg>}
+          label="Macro Panel"
+          onClick={() => onNavigate('macro')}
+        />
 
       </div>
 

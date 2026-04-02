@@ -33,6 +33,8 @@ import HomePanelMobile from './components/panels/HomePanelMobile';
 import ChartsPanelMobile from './components/panels/ChartsPanelMobile';
 import MobileMoreScreen from './components/panels/MobileMoreScreen';
 import ETFPanel from './components/panels/ETFPanel';
+import ScreenerPanel from './components/panels/ScreenerPanel';
+import MacroPanel from './components/panels/MacroPanel';
 import OnboardingPresets from './components/onboarding/OnboardingPresets';
 import SuggestedScreens from './components/settings/SuggestedScreens';
 import { TickerTooltip } from './components/common/TickerTooltip';
@@ -237,6 +239,10 @@ function makePanelRenderer(panelId, props) {
       return <IndexPanel data={mergedData?.indices} loading={loading} onTickerClick={setChartTicker} onOpenDetail={setDetailTicker} />;
     case 'alerts':
       return <AlertsPanel onOpenDetail={setDetailTicker} />;
+    case 'screener':
+      return <ScreenerPanel onOpenDetail={setDetailTicker} />;
+    case 'macro':
+      return <MacroPanel />;
     default:
       return <div className="app-panel-placeholder">Panel: {panelId}</div>;
   }
@@ -1295,7 +1301,7 @@ export default function App() {
   }, []);
   const mobileScreenTitle = useMemo(() => {
     if (activeTab === 'more' && moreView) {
-      const titles = { news: 'News Feed', etf: 'ETF Screener' };
+      const titles = { news: 'News Feed', etf: 'ETF Screener', screener: 'Fundamental Screener', macro: 'Macro Panel' };
       return titles[moreView] || moreView;
     }
     return null;
@@ -1580,6 +1586,14 @@ export default function App() {
 
             {activeTab === 'more' && moreView === 'etf' && (
               <ETFPanel onOpenDetail={goDetail} />
+            )}
+
+            {activeTab === 'more' && moreView === 'screener' && (
+              <ScreenerPanel onOpenDetail={goDetail} />
+            )}
+
+            {activeTab === 'more' && moreView === 'macro' && (
+              <MacroPanel />
             )}
 
           </div>

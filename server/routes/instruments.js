@@ -381,4 +381,6 @@ router.get('/', (req, res) => {
   }
 });
 
+router.REGISTRY = REGISTRY;
+router.BY_KEY = BY_KEY;
 module.exports = router;

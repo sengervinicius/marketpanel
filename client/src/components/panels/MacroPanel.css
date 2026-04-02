@@ -1,0 +1,242 @@
+/* MacroPanel.css — Phase 7: Macro Indicators panel styles (dark theme) */
+
+.macro-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: var(--sp-3);
+  font-family: var(--font-ui);
+  color: var(--text-primary);
+  background: var(--bg-panel);
+}
+
+/* ── Header ────────────────────────────────────── */
+.macro-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--sp-2);
+}
+.macro-title {
+  font-size: var(--font-xs);
+  font-weight: 700;
+  letter-spacing: 1.8px;
+  color: var(--accent);
+}
+.macro-ai-btn {
+  padding: 5px 12px;
+  font-size: var(--font-xs);
+  font-weight: 700;
+  font-family: var(--font-ui);
+  letter-spacing: 0.5px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-md);
+  background: rgba(255, 102, 0, 0.1);
+  color: var(--accent);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.12s;
+}
+.macro-ai-btn:hover:not(:disabled) { background: rgba(255, 102, 0, 0.2); }
+.macro-ai-btn:disabled { opacity: 0.4; cursor: default; }
+
+/* ── AI Insight box ────────────────────────────── */
+.macro-insight {
+  padding: 8px 10px;
+  margin-bottom: var(--sp-2);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius-md);
+}
+.macro-insight-badge {
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 1px 6px;
+  border-radius: var(--radius-full, 9999px);
+  background: rgba(255, 102, 0, 0.08);
+  color: var(--accent);
+  border: 1px solid rgba(255, 102, 0, 0.15);
+  display: inline-block;
+  margin-bottom: 4px;
+}
+.macro-insight-text {
+  font-size: var(--font-sm);
+  line-height: 1.55;
+  color: var(--text-secondary);
+  margin: 0;
+}
+.macro-insight-meta {
+  display: block;
+  font-size: var(--font-xs);
+  color: var(--text-faint);
+  margin-top: 4px;
+}
+.macro-ai-error {
+  font-size: var(--font-sm);
+  color: var(--price-down);
+  margin-bottom: var(--sp-2);
+}
+
+/* ── Country selector ──────────────────────────── */
+.macro-countries {
+  margin-bottom: var(--sp-3);
+}
+.macro-label {
+  font-size: var(--font-xs);
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  color: var(--text-faint);
+  display: block;
+  margin-bottom: 4px;
+}
+.macro-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.macro-chip {
+  padding: 3px 8px;
+  font-size: var(--font-xs);
+  font-family: var(--font-ui);
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-faint);
+  cursor: pointer;
+  transition: all 0.12s;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+.macro-chip:hover { border-color: var(--text-muted); color: var(--text-secondary); }
+.macro-chip--active {
+  border-color: var(--accent);
+  background: rgba(255, 102, 0, 0.12);
+  color: var(--accent);
+}
+.macro-chip-name {
+  font-weight: 400;
+  font-size: 9px;
+  opacity: 0.7;
+}
+
+/* ── Loading / Error ───────────────────────────── */
+.macro-loading {
+  font-size: var(--font-sm);
+  color: var(--text-faint);
+  padding: var(--sp-3) 0;
+}
+.macro-error {
+  font-size: var(--font-sm);
+  color: var(--price-down);
+  margin-bottom: var(--sp-2);
+}
+
+/* ── Comparison table ──────────────────────────── */
+.macro-table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-bottom: var(--sp-3);
+}
+.macro-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-sm);
+  white-space: nowrap;
+}
+.macro-th {
+  font-size: var(--font-xs);
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: var(--text-faint);
+  padding: 6px 10px 6px 0;
+  text-align: left;
+  border-bottom: 1px solid var(--border-default);
+}
+.macro-th--country {
+  text-align: right;
+  padding-right: 0;
+  padding-left: 10px;
+  color: var(--accent);
+}
+.macro-tr { }
+.macro-tr:hover { background: rgba(255, 255, 255, 0.02); }
+.macro-td {
+  padding: 5px 10px 5px 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.macro-td--label {
+  font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: 0.3px;
+}
+.macro-td--value {
+  text-align: right;
+  padding-right: 0;
+  padding-left: 10px;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+.macro-source {
+  font-size: var(--font-xs);
+  color: var(--text-faint);
+  margin-top: 6px;
+  font-style: italic;
+}
+
+/* ── Mini bar chart ────────────────────────────── */
+.macro-mini-chart {
+  margin-top: var(--sp-2);
+}
+.macro-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+}
+.macro-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.macro-bar-label {
+  width: 28px;
+  font-size: var(--font-xs);
+  font-weight: 700;
+  color: var(--text-faint);
+  letter-spacing: 0.5px;
+  flex-shrink: 0;
+}
+.macro-bar-track {
+  flex: 1;
+  height: 14px;
+  background: var(--bg-surface);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.macro-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), #ff8533);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+.macro-bar-value {
+  width: 50px;
+  font-size: var(--font-xs);
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+  text-align: right;
+  flex-shrink: 0;
+}
+
+/* ── Mobile overrides ──────────────────────────── */
+@media (max-width: 768px) {
+  .macro-panel { padding: var(--sp-2) 10px; }
+}

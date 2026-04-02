@@ -17,6 +17,7 @@ const portfolioRoutes   = require('./routes/portfolio');
 const alertRoutes       = require('./routes/alerts');
 const iapRoutes         = require('./routes/iap');
 const searchRoutes      = require('./routes/search');
+const screenerRoutes    = require('./routes/screener');
 const { requireAuth, requireActiveSubscription } = require('./authMiddleware');
 const logger = require('./utils/logger');
 const { requestLogger } = require('./utils/logger');
@@ -93,6 +94,9 @@ app.use('/api/macro', requireAuth, requireActiveSubscription, macroRoutes);
 
 // Instrument registry: auth required (no subscription — needed for search from login page context)
 app.use('/api/instruments', requireAuth, instrumentsRoutes);
+
+// Screener: auth + subscription required
+app.use('/api/screener', requireAuth, requireActiveSubscription, screenerRoutes);
 
 // Portfolio: auth required (no subscription check — need portfolio even on expired trial)
 app.use('/api/portfolio', requireAuth, portfolioRoutes);

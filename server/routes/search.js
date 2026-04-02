@@ -463,4 +463,228 @@ Provide a 2-3 sentence technical analysis.`;
   }
 });
 
+/**
+ * POST /screener-helper — AI-powered filter generation for the fundamental screener
+ *
+ * Takes a natural-language query and returns structured screener filters.
+ */
+
+const _screenerHelperCache = new Map();
+const SCREENER_HELPER_TTL = 10 * 60 * 1000; // 10 minutes
+
+router.post('/screener-helper', async (req, res) => {
+  const apiKey = process.env.PERPLEXITY_API_KEY;
+  if (!apiKey) {
+    return res.status(503).json({ ok: false, error: 'AI not configured' });
+  }
+
+  const { query, universe } = req.body;
+  if (!query || typeof query !== 'string' || query.trim().length < 3) {
+    return res.status(400).json({ ok: false, error: 'Query is required (min 3 characters)' });
+  }
+
+  const cacheKey = query.toLowerCase().trim();
+  const cached = _screenerHelperCache.get(cacheKey);
+  if (cached && Date.now() < cached.exp) {
+    return res.json({ ...cached.v, cached: true });
+  }
+
+  const systemPrompt = `You are a financial screener assistant. The user describes what stocks or assets they want to find. You must return ONLY a JSON object with screener filter fields. No prose, no markdown, no explanation — just the JSON.
+
+Allowed filter fields:
+- assetClass: "equity" | "etf" (string or array)
+- country: array of ISO-2 codes, e.g. ["US","BR","GB","EU","JP"]
+- sector: array from ["Technology","Financial","Energy","Industrial","Consumer","Healthcare","Auto","Materials","Agriculture","Diversified"]
+- minPrice: number (USD)
+- maxPrice: number (USD)
+- minMarketCap: number (USD, e.g. 1000000000 for $1B)
+- maxMarketCap: number (USD)
+- minVolume: number (daily shares)
+- maxVolume: number
+
+Only include fields that are relevant to the query. Omit fields the user didn't mention.
+
+Examples:
+User: "US large cap tech" → {"assetClass":"equity","country":["US"],"sector":["Technology"],"minMarketCap":10000000000}
+User: "cheap Brazilian stocks under $20" → {"assetClass":"equity","country":["BR"],"maxPrice":20}
+User: "high volume ETFs" → {"assetClass":"etf","minVolume":1000000}`;
+
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 12000);
+
+  try {
+    const response = await fetch(PERPLEXITY_URL, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      signal: ctrl.signal,
+      body: JSON.stringify({
+        model: MODEL,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: query.trim() },
+        ],
+        max_tokens: 200,
+        temperature: 0.1,
+      }),
+    });
+
+    if (!response.ok) {
+      const errText = await response.text().catch(() => '');
+      console.error(`[Search/AI Screener Helper] Perplexity error ${response.status}:`, errText.substring(0, 200));
+      return res.status(502).json({ ok: false, error: 'ai_provider_error' });
+    }
+
+    const data = await response.json();
+    const raw = data.choices?.[0]?.message?.content;
+    if (!raw) {
+      return res.status(502).json({ ok: false, error: 'empty_response' });
+    }
+
+    // Parse JSON from response
+    let filters;
+    try {
+      const jsonStr = raw.replace(/^```json?\s*/i, '').replace(/```\s*$/i, '').trim();
+      filters = JSON.parse(jsonStr);
+    } catch (parseErr) {
+      console.error('[Search/AI Screener Helper] JSON parse failed:', raw.substring(0, 300));
+      return res.json({ ok: false, error: 'parse_error' });
+    }
+
+    // Build a compact explanation from the filters
+    const parts = [];
+    if (filters.assetClass) parts.push(`Asset: ${Array.isArray(filters.assetClass) ? filters.assetClass.join(', ') : filters.assetClass}`);
+    if (filters.country) parts.push(`Country: ${filters.country.join(', ')}`);
+    if (filters.sector) parts.push(`Sector: ${filters.sector.join(', ')}`);
+    if (filters.minMarketCap) parts.push(`MCap >= $${(filters.minMarketCap / 1e9).toFixed(0)}B`);
+    if (filters.maxMarketCap) parts.push(`MCap <= $${(filters.maxMarketCap / 1e9).toFixed(0)}B`);
+    if (filters.minPrice) parts.push(`Price >= $${filters.minPrice}`);
+    if (filters.maxPrice) parts.push(`Price <= $${filters.maxPrice}`);
+    if (filters.minVolume) parts.push(`Vol >= ${(filters.minVolume / 1e6).toFixed(1)}M`);
+    const explanation = parts.length > 0 ? parts.join(' | ') : 'General filter set';
+
+    const result = { ok: true, filters, explanation };
+
+    _screenerHelperCache.set(cacheKey, { v: result, exp: Date.now() + SCREENER_HELPER_TTL });
+    if (_screenerHelperCache.size > 50) {
+      const now = Date.now();
+      for (const [k, e] of _screenerHelperCache) { if (now > e.exp) _screenerHelperCache.delete(k); }
+    }
+
+    res.json(result);
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      return res.status(504).json({ ok: false, error: 'timeout' });
+    }
+    console.error('[Search/AI Screener Helper] Error:', err.message);
+    res.status(500).json({ ok: false, error: 'server_error' });
+  } finally {
+    clearTimeout(timer);
+  }
+});
+
+/**
+ * POST /macro-insight — AI-powered macro analysis comparing countries
+ */
+
+const _macroInsightCache = new Map();
+const MACRO_INSIGHT_TTL = 10 * 60 * 1000; // 10 minutes
+
+router.post('/macro-insight', async (req, res) => {
+  const apiKey = process.env.PERPLEXITY_API_KEY;
+  if (!apiKey) {
+    return res.status(503).json({ ok: false, error: 'AI not configured' });
+  }
+
+  const { countries, indicators, snapshot } = req.body;
+  if (!countries || !Array.isArray(countries) || countries.length === 0) {
+    return res.status(400).json({ ok: false, error: 'countries[] is required' });
+  }
+
+  const cacheKey = countries.sort().join(',') + ':' + (indicators || []).sort().join(',');
+  const cached = _macroInsightCache.get(cacheKey);
+  if (cached && Date.now() < cached.exp) {
+    return res.json({ ...cached.v, cached: true });
+  }
+
+  // Build context from the snapshot data
+  let dataBlock = '';
+  if (snapshot?.countries) {
+    dataBlock = snapshot.countries.map(c => {
+      const parts = [`${c.name || c.country} (${c.country})`];
+      if (c.policyRate != null) parts.push(`Policy Rate: ${(c.policyRate * 100).toFixed(2)}%`);
+      if (c.cpiYoY != null) parts.push(`CPI YoY: ${(c.cpiYoY * 100).toFixed(1)}%`);
+      if (c.gdpGrowthYoY != null) parts.push(`GDP Growth: ${(c.gdpGrowthYoY * 100).toFixed(1)}%`);
+      if (c.unemploymentRate != null) parts.push(`Unemployment: ${(c.unemploymentRate * 100).toFixed(1)}%`);
+      if (c.debtGDP != null) parts.push(`Debt/GDP: ${(c.debtGDP * 100).toFixed(0)}%`);
+      if (c.currentAcctGDP != null) parts.push(`Current Acct/GDP: ${(c.currentAcctGDP * 100).toFixed(1)}%`);
+      return parts.join(', ');
+    }).join('\n');
+  }
+
+  const systemPrompt = `You are a macro-economist at a Bloomberg-style terminal. Given macro indicators for multiple countries, produce a concise 3-5 sentence comparison. Focus on monetary policy stance, inflation dynamics, growth outlook, and relative risks. Do NOT give investment advice. Do NOT use emojis. Be professional and specific about the numbers.`;
+
+  const userPrompt = `Compare these countries' macro indicators:\n\n${dataBlock}\n\nProvide a 3-5 sentence macro comparison.`;
+
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 15000);
+
+  try {
+    const response = await fetch(PERPLEXITY_URL, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      signal: ctrl.signal,
+      body: JSON.stringify({
+        model: MODEL,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+        max_tokens: 300,
+        temperature: 0.2,
+      }),
+    });
+
+    if (!response.ok) {
+      const errText = await response.text().catch(() => '');
+      console.error(`[Search/AI Macro Insight] Perplexity error ${response.status}:`, errText.substring(0, 200));
+      return res.status(502).json({ ok: false, error: 'ai_provider_error' });
+    }
+
+    const data = await response.json();
+    const raw = data.choices?.[0]?.message?.content;
+    if (!raw) {
+      return res.status(502).json({ ok: false, error: 'empty_response' });
+    }
+
+    const result = {
+      ok: true,
+      insight: raw.trim(),
+      countries,
+      generatedAt: new Date().toISOString(),
+    };
+
+    _macroInsightCache.set(cacheKey, { v: result, exp: Date.now() + MACRO_INSIGHT_TTL });
+    if (_macroInsightCache.size > 50) {
+      const now = Date.now();
+      for (const [k, e] of _macroInsightCache) { if (now > e.exp) _macroInsightCache.delete(k); }
+    }
+
+    res.json(result);
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      return res.status(504).json({ ok: false, error: 'timeout' });
+    }
+    console.error('[Search/AI Macro Insight] Error:', err.message);
+    res.status(500).json({ ok: false, error: 'server_error' });
+  } finally {
+    clearTimeout(timer);
+  }
+});
+
 module.exports = router;
