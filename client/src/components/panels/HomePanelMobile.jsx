@@ -12,7 +12,7 @@
  * because MarketContext strips prefixes during normalization.
  */
 
-import { useState, useEffect, useMemo, memo } from 'react';
+import { useState, useEffect, useMemo, useCallback, memo } from 'react';
 import { useSettings } from '../../context/SettingsContext';
 import { useTickerPrice } from '../../context/PriceContext';
 import { apiFetch } from '../../utils/api';
@@ -98,6 +98,8 @@ const SectionCard = memo(function SectionCard({ section, tickers, onOpenDetail, 
 function HomePanelMobile({ onOpenDetail, onSearchClick }) {
   const { settings } = useSettings();
   const [news, setNews] = useState([]);
+  const [aiPulse, setAiPulse] = useState(null);
+  const [aiPulseLoading, setAiPulseLoading] = useState(false);
 
   // Fetch top news headlines
   useEffect(() => {
@@ -119,6 +121,24 @@ function HomePanelMobile({ onOpenDetail, onSearchClick }) {
       }));
   }, [settings?.home?.sections]);
 
+  const fetchAiPulse = useCallback(() => {
+    if (aiPulseLoading || aiPulse) return;
+    setAiPulseLoading(true);
+    apiFetch('/api/search/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: 'Give me a brief 2-sentence market pulse summary for today. Focus on major US indices, any notable moves, and overall sentiment.' }),
+    })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data?.reply || data?.response) {
+          setAiPulse(data.reply || data.response);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setAiPulseLoading(false));
+  }, [aiPulseLoading, aiPulse]);
+
   const handleSectionClick = (sectionId) => {
     if (onSearchClick) onSearchClick('search');
   };
@@ -139,6 +159,16 @@ function HomePanelMobile({ onOpenDetail, onSearchClick }) {
           onClick={onSearchClick}
           readOnly
         />
+      </div>
+
+      {/* AI Market Pulse card */}
+      <div className="hpm-ai-card" onClick={fetchAiPulse}>
+        <span className="hpm-ai-badge">MARKET PULSE</span>
+        {!aiPulse && !aiPulseLoading && (
+          <div className="hpm-ai-tagline">Tap for AI-powered market overview</div>
+        )}
+        {aiPulseLoading && <div className="hpm-ai-loading">Analyzing markets...</div>}
+        {aiPulse && <div className="hpm-ai-result">{aiPulse}</div>}
       </div>
 
       {/* Curated Section Cards */}

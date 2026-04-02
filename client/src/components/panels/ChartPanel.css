@@ -312,3 +312,221 @@
   color: var(--text-faint);
   font-size: var(--font-sm);
 }
+
+/* ════════════════════════════════════════════════════════════════════════════ */
+/*  Phase 15: MiniChart indicator bar, AI insight popover, indicator badges  */
+/* ════════════════════════════════════════════════════════════════════════════ */
+
+/* ── Indicator pill bar (desktop MiniChart) ──────── */
+.mc-ind-bar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 5px;
+  flex-shrink: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.mc-ind-bar::-webkit-scrollbar { display: none; }
+
+.mc-ind-pill {
+  padding: 1px 4px;
+  font-size: 7px;
+  font-family: inherit;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  border: 1px solid var(--border-default);
+  border-radius: 3px;
+  background: transparent;
+  color: var(--text-faint);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.1s;
+  flex-shrink: 0;
+}
+.mc-ind-pill:hover {
+  border-color: var(--text-muted);
+  color: var(--text-secondary);
+}
+.mc-ind-pill--active {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+/* ── Inline indicator badges (RSI / MACD in stats bar) ── */
+.mc-ind-badge {
+  font-size: 6.5px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  padding: 0 3px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.03);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── AI button in MiniChart header ──────────────── */
+.mc-ai-btn {
+  background: transparent;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  font-size: 7px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 1px 4px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.1s, opacity 0.1s;
+  flex-shrink: 0;
+}
+.mc-ai-btn:hover {
+  background: rgba(255, 102, 0, 0.1);
+}
+.mc-ai-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+/* ── AI Insight Popover (floating, per MiniChart) ── */
+.mc-ai-popover {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  right: 6px;
+  z-index: 20;
+  background: var(--bg-surface, #0d0d0d);
+  border: 1px solid var(--border-default, #1e1e1e);
+  border-left: 3px solid var(--accent, #ff6600);
+  border-radius: 4px;
+  padding: 5px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+}
+.mc-ai-popover-badge {
+  font-size: 7px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 1px 5px;
+  border-radius: 999px;
+  background: rgba(255, 102, 0, 0.08);
+  color: var(--accent, #ff6600);
+  border: 1px solid rgba(255, 102, 0, 0.15);
+  align-self: flex-start;
+}
+.mc-ai-popover-text {
+  font-size: 9px;
+  line-height: 1.45;
+  color: var(--text-secondary, #ccc);
+}
+.mc-ai-popover-text--loading {
+  color: var(--text-muted, #888);
+  font-style: italic;
+}
+.mc-ai-popover-text--error {
+  color: var(--text-muted, #888);
+  font-style: italic;
+}
+
+/* ════════════════════════════════════════════════════════════════════════════ */
+/*  Phase 15: Mobile chart indicator bar + AI insight box                   */
+/* ════════════════════════════════════════════════════════════════════════════ */
+
+/* ── Mobile indicator pill bar ───────────────────── */
+.mcm-ind-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  flex-shrink: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.mcm-ind-bar::-webkit-scrollbar { display: none; }
+
+.mcm-ind-pill {
+  padding: 3px 8px;
+  font-size: 9px;
+  font-family: inherit;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  border: 1px solid var(--border-default, #1e1e1e);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-faint, #555);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.12s;
+  flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+.mcm-ind-pill:active {
+  transform: scale(0.96);
+}
+.mcm-ind-pill--active {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+/* ── Mobile AI INSIGHT button ────────────────────── */
+.mcm-ai-btn {
+  padding: 4px 7px;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  border: 1px solid var(--accent, #ff6600);
+  border-radius: 3px;
+  flex-shrink: 0;
+  background: transparent;
+  color: var(--accent, #ff6600);
+  cursor: pointer;
+  font-family: inherit;
+  transition: opacity 0.1s, background 0.1s;
+  -webkit-tap-highlight-color: transparent;
+}
+.mcm-ai-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.mcm-ai-btn:active:not(:disabled) {
+  background: rgba(255, 102, 0, 0.12);
+}
+
+/* ── Mobile AI insight result box ────────────────── */
+.mcm-ai-box {
+  margin: 0 10px 4px;
+  padding: 6px 10px;
+  background: var(--bg-surface, #111);
+  border: 1px solid var(--border-default, #1e1e1e);
+  border-left: 3px solid var(--accent, #ff6600);
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex-shrink: 0;
+}
+.mcm-ai-badge {
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 1px 5px;
+  border-radius: 999px;
+  background: rgba(255, 102, 0, 0.08);
+  color: var(--accent, #ff6600);
+  border: 1px solid rgba(255, 102, 0, 0.15);
+  align-self: flex-start;
+}
+.mcm-ai-text {
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--text-secondary, #ccc);
+}
+.mcm-ai-text--loading {
+  color: var(--text-muted, #888);
+  font-style: italic;
+}
+.mcm-ai-text--error {
+  color: var(--text-muted, #888);
+  font-style: italic;
+}

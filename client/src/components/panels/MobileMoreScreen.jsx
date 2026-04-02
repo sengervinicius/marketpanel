@@ -164,7 +164,8 @@ const MobileMoreScreen = memo(({
 
       {/* Version footer */}
       <div className="mm-footer">
-        Senger Market v2.1
+        <span className="mm-footer-brand">SENGER MARKET v2.1</span>
+        <span className="mm-footer-sub">Terminal</span>
       </div>
 
       {/* Delete account confirmation modal */}

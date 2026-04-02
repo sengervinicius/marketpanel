@@ -24,12 +24,14 @@
 .hpm-section-card {
   background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
+  border-left: 3px solid var(--border-default);
   border-radius: 8px;
   padding: var(--sp-3);
   cursor: pointer;
   transition: border-color 120ms ease;
 }
 .hpm-section-card:active {
+  border-left-color: var(--accent);
   border-color: var(--accent);
   background: var(--bg-elevated);
 }
@@ -64,7 +66,11 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 3px 0;
+  padding: 5px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+}
+.hpm-ticker-row:last-child {
+  border-bottom: none;
 }
 
 .hpm-ticker-sym {
@@ -139,4 +145,48 @@
   font-size: var(--font-xs);
   color: var(--text-muted);
   margin-top: 2px;
+}
+
+/* ── AI Market Pulse card ─────────────────── */
+.hpm-ai-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-left: 3px solid var(--accent);
+  border-radius: 8px;
+  padding: var(--sp-3);
+  margin: 0 var(--sp-3) var(--sp-2);
+  cursor: pointer;
+  transition: border-color 120ms ease;
+}
+.hpm-ai-card:active {
+  border-color: var(--accent);
+}
+.hpm-ai-badge {
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: rgba(255, 102, 0, 0.08);
+  color: var(--accent);
+  border: 1px solid rgba(255, 102, 0, 0.15);
+  display: inline-block;
+  margin-bottom: 4px;
+}
+.hpm-ai-tagline {
+  font-size: var(--font-sm);
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+.hpm-ai-result {
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-top: 6px;
+}
+.hpm-ai-loading {
+  font-size: var(--font-sm);
+  color: var(--text-muted);
+  font-style: italic;
+  margin-top: 4px;
 }

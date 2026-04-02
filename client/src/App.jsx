@@ -1043,7 +1043,7 @@ function MobileTabBar({ activeTab, onTabChange }) {
       {MOBILE_TABS.map(tab => {
         const isActive = activeTab === tab.id;
         return (
-          <button className="btn m-tab-btn"
+          <button className="m-tab-btn"
             key={tab.id}
             data-active={isActive}
             onClick={() => onTabChange(tab.id)}
@@ -1789,14 +1789,14 @@ function MobileClockCompact() {
       setCity(CITY_OVERRIDES[raw] || raw);
     }
     const update = () => {
-      const opts = { hour: '2-digit', minute: '2-digit', hour12: false };
+      const opts = { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
       if (tz) opts.timeZone = tz;
       try { setTime(new Date().toLocaleTimeString('en-GB', opts)); }
-      catch (_) { setTime(new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })); }
+      catch (_) { setTime(new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })); }
       setMkt(_getMarketState());
     };
     update();
-    const id = setInterval(update, 30_000);
+    const id = setInterval(update, 1_000);
     return () => clearInterval(id);
   }, []);
 

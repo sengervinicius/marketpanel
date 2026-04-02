@@ -13,6 +13,10 @@ import {
   ReferenceLine, CartesianGrid, ReferenceArea, Customized,
 } from 'recharts';
 import { SMA, EMA, RSI, MACD, BollingerBands } from 'technicalindicators';
+import {
+  computeIndicators, buildChartInsightPayload,
+  IND_COLORS, INDICATOR_LIST,
+} from '../../utils/chartIndicators';
 
 const ORANGE = '#ff6600';
 const GREEN  = '#4caf50';
@@ -154,22 +158,7 @@ function DeltaLineOverlay({ xAxisMap, yAxisMap, bars, deltaA, deltaB, deltaInfo 
   );
 }
 
-// ── Indicator color constants ─────────────────────────────────────────────────
-const IND_COLORS = {
-  SMA20:  '#2196f3',   // blue
-  EMA50:  '#9c27b0',   // purple
-  RSI14:  '#ff9800',   // amber
-  MACD:   '#00bcd4',   // teal
-  BB:     '#ff9800',   // amber
-};
-
-const INDICATOR_LIST = [
-  { key: 'SMA20', label: 'SMA 20' },
-  { key: 'EMA50', label: 'EMA 50' },
-  { key: 'RSI14', label: 'RSI 14' },
-  { key: 'MACD',  label: 'MACD' },
-  { key: 'BB',    label: 'Bollinger' },
-];
+// IND_COLORS and INDICATOR_LIST are now imported from shared utils/chartIndicators.js
 
 // ── Custom Candlestick Bar shape ─────────────────────────────────────────────
 function CandlestickShape(props) {
@@ -498,75 +487,9 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
   const rangeClose = bars.length ? bars[bars.length - 1].close : null;
   const rangeChg   = (rangeOpen && rangeClose) ? ((rangeClose - rangeOpen) / rangeOpen) * 100 : null;
 
-  // ── Technical Indicators (Phase 6) ────────────────────────────────────
+  // ── Technical Indicators (Phase 6 — now using shared computeIndicators) ──
   const indicatorData = useMemo(() => {
-    if (bars.length < 5) return { bars: bars, hasOverlay: false, hasSubChart: false };
-    const closes = bars.map(b => b.close);
-    const highs  = bars.map(b => b.high);
-    const lows   = bars.map(b => b.low);
-
-    // SMA 20
-    let sma20Vals = [];
-    if (activeIndicators.has('SMA20') && closes.length >= 20) {
-      try { sma20Vals = SMA.calculate({ period: 20, values: closes }); } catch {}
-    }
-
-    // EMA 50
-    let ema50Vals = [];
-    if (activeIndicators.has('EMA50') && closes.length >= 50) {
-      try { ema50Vals = EMA.calculate({ period: 50, values: closes }); } catch {}
-    }
-
-    // RSI 14
-    let rsi14Vals = [];
-    if (activeIndicators.has('RSI14') && closes.length >= 15) {
-      try { rsi14Vals = RSI.calculate({ period: 14, values: closes }); } catch {}
-    }
-
-    // MACD (12, 26, 9)
-    let macdVals = [];
-    if (activeIndicators.has('MACD') && closes.length >= 26) {
-      try { macdVals = MACD.calculate({ values: closes, fastPeriod: 12, slowPeriod: 26, signalPeriod: 9, SimpleMAOscillator: false, SimpleMASignal: false }); } catch {}
-    }
-
-    // Bollinger Bands (20, 2)
-    let bbVals = [];
-    if (activeIndicators.has('BB') && closes.length >= 20) {
-      try { bbVals = BollingerBands.calculate({ period: 20, values: closes, stdDev: 2 }); } catch {}
-    }
-
-    // Merge into bars array
-    const enriched = bars.map((b, i) => {
-      const r = { ...b };
-      // SMA20: output has (closes.length - 20 + 1) values, aligned to end
-      const smaOffset = closes.length - sma20Vals.length;
-      if (i >= smaOffset && sma20Vals[i - smaOffset] != null) r.sma20 = sma20Vals[i - smaOffset];
-      // EMA50
-      const emaOffset = closes.length - ema50Vals.length;
-      if (i >= emaOffset && ema50Vals[i - emaOffset] != null) r.ema50 = ema50Vals[i - emaOffset];
-      // RSI14
-      const rsiOffset = closes.length - rsi14Vals.length;
-      if (i >= rsiOffset && rsi14Vals[i - rsiOffset] != null) r.rsi14 = rsi14Vals[i - rsiOffset];
-      // MACD
-      const macdOffset = closes.length - macdVals.length;
-      if (i >= macdOffset && macdVals[i - macdOffset]) {
-        r.macdLine = macdVals[i - macdOffset].MACD;
-        r.macdSignal = macdVals[i - macdOffset].signal;
-        r.macdHist = macdVals[i - macdOffset].histogram;
-      }
-      // Bollinger Bands
-      const bbOffset = closes.length - bbVals.length;
-      if (i >= bbOffset && bbVals[i - bbOffset]) {
-        r.bbUpper = bbVals[i - bbOffset].upper;
-        r.bbMiddle = bbVals[i - bbOffset].middle;
-        r.bbLower = bbVals[i - bbOffset].lower;
-      }
-      return r;
-    });
-
-    const hasOverlay = activeIndicators.has('SMA20') || activeIndicators.has('EMA50') || activeIndicators.has('BB');
-    const hasSubChart = activeIndicators.has('RSI14') || activeIndicators.has('MACD');
-    return { bars: enriched, hasOverlay, hasSubChart };
+    return computeIndicators(bars, activeIndicators);
   }, [bars, activeIndicators]);
 
   const toggleIndicator = (key) => {
@@ -578,7 +501,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
     });
   };
 
-  // ── AI Chart Insight fetch (Phase 6) ──────────────────────────────────
+  // ── AI Chart Insight fetch (Phase 6 — now using shared buildChartInsightPayload) ──
   const fetchChartInsight = useCallback(() => {
     if (bars.length < 5) return;
     const lastT = bars[bars.length - 1]?.t || bars[bars.length - 1]?.label || '';
@@ -593,24 +516,12 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
     setAiChartInsightError(null);
     setAiChartInsight(null);
 
-    // Gather latest indicator values for the prompt
-    const lastBar = indicatorData.bars[indicatorData.bars.length - 1];
-    const indicators = {};
-    if (lastBar?.sma20 != null) indicators.sma20 = lastBar.sma20;
-    if (lastBar?.ema50 != null) indicators.ema50 = lastBar.ema50;
-    if (lastBar?.rsi14 != null) indicators.rsi14 = lastBar.rsi14;
-    if (lastBar?.macdLine != null) indicators.macd = { MACD: lastBar.macdLine, signal: lastBar.macdSignal, histogram: lastBar.macdHist };
-    if (lastBar?.bbUpper != null) { indicators.bbUpper = lastBar.bbUpper; indicators.bbLower = lastBar.bbLower; }
-
-    // Send last 20 bars max to keep payload small
-    const recentBars = bars.slice(-20).map(b => ({
-      label: b.label, open: b.open, high: b.high, low: b.low, close: b.close, volume: b.volume,
-    }));
+    const payload = buildChartInsightPayload(norm, range.label, indicatorData.bars);
 
     apiFetch('/api/search/chart-insight', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ symbol: norm, range: range.label, bars: recentBars, indicators }),
+      body: JSON.stringify(payload),
     })
       .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
       .then(data => {

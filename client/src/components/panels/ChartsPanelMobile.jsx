@@ -1,24 +1,25 @@
 /**
  * ChartsPanelMobile.jsx
  *
- * Mobile-first charts panel:  ticker selector → single price+volume chart
+ * Mobile-first charts panel:  ticker selector -> single price+volume chart
  * Uses MobileChartContainer for explicit pixel heights (fixes 0-height bug).
  *
- * Phase 5 rewrite:
- *   - Ticker pills show symbol + short name
- *   - Active pill has distinct accent styling + auto-scroll-into-view
- *   - No-data state shows clear message instead of blank area
- *   - Stats row shows N/A when data is missing
- *   - Chart heading displays symbol — name above the chart
+ * Phase 15: indicator toggle bar, overlay lines (SMA/EMA/BB), RSI/MACD
+ * sub-charts, and AI Chart Insight box.
  */
-import { useState, useEffect, useRef, useCallback, memo } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
 import {
-  AreaChart, Area, BarChart, Bar, ComposedChart,
+  AreaChart, Area, BarChart, Bar, ComposedChart, Line,
   XAxis, YAxis, ResponsiveContainer, Tooltip, ReferenceLine,
+  CartesianGrid,
 } from 'recharts';
 import { apiFetch } from '../../utils/api';
 import { useTickerPrice } from '../../context/PriceContext';
 import MobileChartContainer from '../common/MobileChartContainer';
+import {
+  computeIndicators, buildChartInsightPayload,
+  IND_COLORS, INDICATOR_LIST,
+} from '../../utils/chartIndicators';
 
 const GREEN_MC = '#4caf50';
 const RED_MC   = '#f44336';
@@ -59,53 +60,22 @@ const RANGES = [
 
 /* ── Ticker metadata: short names for common chart symbols ───────────────── */
 const TICKER_NAMES = {
-  'SPY': 'S&P 500',
-  'QQQ': 'Nasdaq 100',
-  'DIA': 'Dow Jones',
-  'IWM': 'Russell 2000',
-  'AAPL': 'Apple',
-  'MSFT': 'Microsoft',
-  'GOOGL': 'Alphabet',
-  'GOOG': 'Alphabet',
-  'AMZN': 'Amazon',
-  'NVDA': 'Nvidia',
-  'TSLA': 'Tesla',
-  'META': 'Meta',
-  'GLD': 'Gold ETF',
-  'SLV': 'Silver ETF',
-  'USO': 'Crude Oil',
-  'UNG': 'Nat Gas',
-  'CPER': 'Copper ETF',
-  'BHP': 'BHP Group',
-  'EEM': 'EM Markets',
-  'EFA': 'Intl Dev.',
-  'EWZ': 'Brazil ETF',
-  'FXI': 'China ETF',
-  'BOVA11.SA': 'iBovespa',
-  'PETR4.SA': 'Petrobras',
-  'VALE3.SA': 'Vale',
-  'ITUB4.SA': 'Itau',
-  'BBDC4.SA': 'Bradesco',
-  'ABEV3.SA': 'Ambev',
-  'WEGE3.SA': 'WEG',
-  'C:EURUSD': 'EUR/USD',
-  'C:GBPUSD': 'GBP/USD',
-  'C:USDJPY': 'USD/JPY',
-  'C:USDBRL': 'USD/BRL',
-  'C:GBPBRL': 'GBP/BRL',
-  'C:USDCHF': 'USD/CHF',
-  'C:USDCNY': 'USD/CNY',
-  'C:USDMXN': 'USD/MXN',
-  'X:BTCUSD': 'Bitcoin',
-  'X:ETHUSD': 'Ethereum',
-  'X:SOLUSD': 'Solana',
-  'X:BNBUSD': 'BNB',
-  'X:XRPUSD': 'XRP',
-  'DEFT': 'DeFi Tech',
-  'ONCO3.SA': 'Oncoclínicas',
+  'SPY': 'S&P 500', 'QQQ': 'Nasdaq 100', 'DIA': 'Dow Jones', 'IWM': 'Russell 2000',
+  'AAPL': 'Apple', 'MSFT': 'Microsoft', 'GOOGL': 'Alphabet', 'GOOG': 'Alphabet',
+  'AMZN': 'Amazon', 'NVDA': 'Nvidia', 'TSLA': 'Tesla', 'META': 'Meta',
+  'GLD': 'Gold ETF', 'SLV': 'Silver ETF', 'USO': 'Crude Oil', 'UNG': 'Nat Gas',
+  'CPER': 'Copper ETF', 'BHP': 'BHP Group', 'EEM': 'EM Markets', 'EFA': 'Intl Dev.',
+  'EWZ': 'Brazil ETF', 'FXI': 'China ETF',
+  'BOVA11.SA': 'iBovespa', 'PETR4.SA': 'Petrobras', 'VALE3.SA': 'Vale',
+  'ITUB4.SA': 'Itau', 'BBDC4.SA': 'Bradesco', 'ABEV3.SA': 'Ambev', 'WEGE3.SA': 'WEG',
+  'C:EURUSD': 'EUR/USD', 'C:GBPUSD': 'GBP/USD', 'C:USDJPY': 'USD/JPY',
+  'C:USDBRL': 'USD/BRL', 'C:GBPBRL': 'GBP/BRL', 'C:USDCHF': 'USD/CHF',
+  'C:USDCNY': 'USD/CNY', 'C:USDMXN': 'USD/MXN',
+  'X:BTCUSD': 'Bitcoin', 'X:ETHUSD': 'Ethereum', 'X:SOLUSD': 'Solana',
+  'X:BNBUSD': 'BNB', 'X:XRPUSD': 'XRP',
+  'DEFT': 'DeFi Tech', 'ONCO3.SA': 'Oncoclínicas',
 };
 
-/** Display-friendly symbol (strips prefixes for UI) */
 function displaySymbol(sym) {
   if (!sym) return '';
   if (sym.startsWith('C:')) return sym.slice(2, 5) + '/' + sym.slice(5);
@@ -133,6 +103,17 @@ const fmtVol = v => {
   return String(Math.round(v));
 };
 
+// ── Gamification fire-and-forget ───────────────────────────────────────────
+const _gamificationFired = new Set();
+function fireGamificationEvent(type) {
+  if (_gamificationFired.has(type)) return;
+  _gamificationFired.add(type);
+  apiFetch('/api/gamification/event', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ type }),
+  }).catch(() => {});
+}
+
 /* ── Single-chart sub-component ───────────────────────────────────────────── */
 const MobileChart = memo(function MobileChart({ ticker }) {
   const shared = useTickerPrice(ticker);
@@ -143,9 +124,15 @@ const MobileChart = memo(function MobileChart({ ticker }) {
   const [chg, setChg] = useState(null);
   const [chgPct, setChgPct] = useState(null);
   const [noData, setNoData] = useState(false);
-  const [chartType, setChartType] = useState('area'); // 'area' | 'candle'
+  const [chartType, setChartType] = useState('area');
+
+  // Indicator state
+  const [activeIndicators, setActiveIndicators] = useState(new Set());
+
+  // AI insight state
   const [aiInsight, setAiInsight] = useState(null);
-  const [aiInsightLoading, setAiInsightLoading] = useState(false);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState(null);
   const aiInsightCacheRef = useRef({});
   const mountedRef = useRef(true);
 
@@ -202,42 +189,71 @@ const MobileChart = memo(function MobileChart({ ticker }) {
     return () => { mountedRef.current = false; clearInterval(iv); };
   }, [fetchData, rangeIdx]);
 
-  // Sync live price from PriceContext
   useEffect(() => {
     if (shared?.price) setPrice(shared.price);
     if (shared?.change != null) setChg(shared.change);
     if (shared?.changePct != null) setChgPct(shared.changePct);
   }, [shared]);
 
-  // AI Chart Insight
+  // ── Compute indicators ──────────────────────────────────────────────────
+  const indicatorResult = useMemo(() => {
+    if (activeIndicators.size === 0 || bars.length < 5) {
+      return { bars, hasOverlay: false, hasSubChart: false };
+    }
+    return computeIndicators(bars, activeIndicators);
+  }, [bars, activeIndicators]);
+
+  const chartBars = indicatorResult.bars;
+  const hasRSI = activeIndicators.has('RSI14') && indicatorResult.hasSubChart;
+  const hasMACD = activeIndicators.has('MACD') && indicatorResult.hasSubChart;
+
+  const toggleIndicator = (key) => {
+    setActiveIndicators(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else { next.add(key); fireGamificationEvent('technical_analysis'); }
+      return next;
+    });
+  };
+
+  // ── AI Chart Insight ────────────────────────────────────────────────────
   const fetchInsight = useCallback(() => {
     if (bars.length < 5) return;
     const lastT = bars[bars.length - 1]?.t || '';
     const cacheKey = `${ticker}:${RANGES[rangeIdx].label}:${lastT}`;
     if (aiInsightCacheRef.current[cacheKey]) {
       setAiInsight(aiInsightCacheRef.current[cacheKey]);
+      setAiError(null);
       return;
     }
-    setAiInsightLoading(true);
+    setAiLoading(true);
     setAiInsight(null);
-    const recentBars = bars.slice(-20).map(b => ({
-      label: b.label, open: b.open, high: b.high, low: b.low, close: b.close, volume: b.volume,
-    }));
+    setAiError(null);
+
+    const enriched = activeIndicators.size > 0 ? chartBars : bars;
+    const payload = buildChartInsightPayload(ticker, RANGES[rangeIdx].label, enriched);
+
     apiFetch('/api/search/chart-insight', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ symbol: ticker, range: RANGES[rangeIdx].label, bars: recentBars, indicators: {} }),
+      body: JSON.stringify(payload),
     })
       .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
       .then(data => {
         if (mountedRef.current) {
           aiInsightCacheRef.current[cacheKey] = data;
           setAiInsight(data);
-          setAiInsightLoading(false);
+          setAiLoading(false);
+          fireGamificationEvent('chart_insight');
         }
       })
-      .catch(() => { if (mountedRef.current) setAiInsightLoading(false); });
-  }, [ticker, bars, rangeIdx]);
+      .catch(err => {
+        if (mountedRef.current) {
+          setAiError(err.message || 'AI insight unavailable right now');
+          setAiLoading(false);
+        }
+      });
+  }, [ticker, bars, chartBars, activeIndicators, rangeIdx]);
 
   const isUp = (chgPct ?? 0) >= 0;
   const lineColor = isUp ? 'var(--price-up, #00c851)' : 'var(--price-down, #f44336)';
@@ -247,33 +263,28 @@ const MobileChart = memo(function MobileChart({ ticker }) {
   const tickerName = TICKER_NAMES[ticker] || '';
   const showCandle = chartType === 'candle';
 
+  // Tooltip style shared across sub-charts
+  const ttStyle = { background: '#0d0d0d', border: '1px solid #2a2a2a', fontSize: 10, padding: '4px 8px', borderRadius: 3 };
+
+  // Calculate heights: when sub-charts exist, compress main/volume
+  // We use factors of priceHeight+volumeHeight for sub-chart allocation
+  const subChartCount = (hasRSI ? 1 : 0) + (hasMACD ? 1 : 0);
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
-      {/* Chart heading: symbol — name */}
-      <div style={{
-        padding: '8px 10px 2px', flexShrink: 0,
-        display: 'flex', alignItems: 'baseline', gap: 6,
-      }}>
+      {/* Chart heading */}
+      <div style={{ padding: '8px 10px 2px', flexShrink: 0, display: 'flex', alignItems: 'baseline', gap: 6 }}>
         <span style={{ color: 'var(--accent, #ff6600)', fontSize: 14, fontWeight: 700, fontFamily: 'inherit', letterSpacing: '0.03em' }}>
           {displaySymbol(ticker)}
         </span>
-        {tickerName && (
-          <span style={{ color: 'var(--text-muted, #666)', fontSize: 11 }}>
-            {tickerName}
-          </span>
-        )}
+        {tickerName && <span style={{ color: 'var(--text-muted, #666)', fontSize: 11 }}>{tickerName}</span>}
       </div>
 
       {/* Stats row */}
-      <div style={{
-        display: 'flex', alignItems: 'baseline', gap: 10, padding: '2px 10px 6px',
-        flexShrink: 0, borderBottom: '1px solid var(--border-default, #1e1e1e)',
-      }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, padding: '2px 10px 6px', flexShrink: 0, borderBottom: '1px solid var(--border-default, #1e1e1e)' }}>
         {!noData && !loading ? (
           <>
-            <span style={{ color: 'var(--text-primary)', fontSize: 15, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
-              {fmtPrice(price)}
-            </span>
+            <span style={{ color: 'var(--text-primary)', fontSize: 15, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{fmtPrice(price)}</span>
             {chg != null && (
               <span style={{ color: lineColor, fontSize: 11 }}>
                 {isUp ? '+' : ''}{fmtPrice(chg)} ({isUp ? '+' : ''}{chgPct?.toFixed(2)}%)
@@ -287,7 +298,18 @@ const MobileChart = memo(function MobileChart({ ticker }) {
         )}
       </div>
 
-      {/* Range selector + chart type toggle + analyze */}
+      {/* Indicator toggle bar */}
+      <div className="mcm-ind-bar">
+        {INDICATOR_LIST.map(ind => (
+          <button key={ind.key}
+            className={`mcm-ind-pill${activeIndicators.has(ind.key) ? ' mcm-ind-pill--active' : ''}`}
+            style={activeIndicators.has(ind.key) ? { borderColor: IND_COLORS[ind.key], color: IND_COLORS[ind.key] } : undefined}
+            onClick={() => toggleIndicator(ind.key)}
+          >{ind.label}</button>
+        ))}
+      </div>
+
+      {/* Range selector + chart type toggle + AI INSIGHT */}
       <div style={{ display: 'flex', gap: 4, padding: '5px 10px', flexShrink: 0, alignItems: 'center' }}>
         {RANGES.map((r, i) => (
           <button key={r.label} onClick={() => setRangeIdx(i)} style={{
@@ -299,7 +321,6 @@ const MobileChart = memo(function MobileChart({ ticker }) {
             borderRadius: 3,
           }}>{r.label}</button>
         ))}
-        {/* AREA / CANDLE toggle */}
         <div style={{ display: 'inline-flex', border: '1px solid var(--border-default, #1e1e1e)', borderRadius: 3, overflow: 'hidden', flexShrink: 0, marginLeft: 2 }}>
           {['area', 'candle'].map(t => (
             <button key={t} onClick={() => setChartType(t)} style={{
@@ -310,138 +331,153 @@ const MobileChart = memo(function MobileChart({ ticker }) {
             }}>{t.toUpperCase()}</button>
           ))}
         </div>
-        {/* ANALYZE button */}
-        <button onClick={fetchInsight} disabled={aiInsightLoading || bars.length < 5} style={{
-          padding: '4px 7px', fontSize: 9, fontWeight: 600, letterSpacing: '0.04em',
-          border: '1px solid var(--accent, #ff6600)', borderRadius: 3, flexShrink: 0,
-          background: 'transparent', color: 'var(--accent, #ff6600)', cursor: 'pointer',
-          fontFamily: 'inherit', opacity: (aiInsightLoading || bars.length < 5) ? 0.4 : 1,
-        }}>{aiInsightLoading ? '...' : 'ANALYZE'}</button>
+        <button onClick={fetchInsight} disabled={aiLoading || bars.length < 5} className="mcm-ai-btn">
+          {aiLoading ? 'ANALYZING...' : 'AI INSIGHT'}
+        </button>
       </div>
 
-      {/* AI Chart Insight */}
-      {aiInsight && (
-        <div style={{
-          margin: '0 10px 4px', padding: '5px 8px', fontSize: 11, lineHeight: 1.45,
-          background: 'var(--bg-surface, #111)', border: '1px solid var(--border-default, #1e1e1e)',
-          borderLeft: '3px solid var(--accent, #ff6600)', borderRadius: 3,
-          color: 'var(--text-secondary, #ccc)',
-        }}>
-          <span style={{ fontSize: 8, fontWeight: 700, letterSpacing: '0.06em', color: 'var(--accent, #ff6600)', marginRight: 6 }}>AI INSIGHT</span>
-          {aiInsight.insight}
+      {/* AI Chart Insight box */}
+      {(aiInsight || aiLoading || aiError) && (
+        <div className="mcm-ai-box">
+          <span className="mcm-ai-badge">AI CHART INSIGHT</span>
+          {aiLoading && <span className="mcm-ai-text mcm-ai-text--loading">Analyzing...</span>}
+          {aiError && <span className="mcm-ai-text mcm-ai-text--error">AI insight unavailable right now</span>}
+          {aiInsight && <span className="mcm-ai-text">{aiInsight.insight || aiInsight}</span>}
         </div>
       )}
 
       {/* Charts via MobileChartContainer (explicit pixel heights) */}
       <MobileChartContainer>
-        {({ width, priceHeight, volumeHeight }) => (
-          <>
-            {loading ? (
-              <div style={{
-                height: priceHeight + volumeHeight,
-                display: 'flex', flexDirection: 'column',
-                alignItems: 'center', justifyContent: 'center',
-                color: 'var(--text-faint)', fontSize: 12,
-              }}>
-                <div style={{ marginBottom: 4 }}>Loading chart data...</div>
-              </div>
-            ) : noData || bars.length === 0 ? (
-              <div style={{
-                height: priceHeight + volumeHeight,
-                display: 'flex', flexDirection: 'column',
-                alignItems: 'center', justifyContent: 'center',
-                color: 'var(--text-muted, #555)',
-                gap: 6,
-              }}>
-                <div style={{ fontSize: 13, fontWeight: 600 }}>No chart data available</div>
-                <div style={{ fontSize: 11, color: 'var(--text-faint, #444)' }}>
-                  Try a different time range or check if this symbol is supported.
+        {({ width, priceHeight, volumeHeight }) => {
+          // Distribute heights — ensure main chart never squashes below 45%
+          const totalH = priceHeight + volumeHeight;
+          const subH = subChartCount > 0 ? Math.round(Math.max(totalH * 0.15, 60)) : 0;
+          const volH = Math.round(subChartCount > 0 ? totalH * 0.12 : volumeHeight);
+          const mainH = Math.max(Math.round(totalH * 0.45), totalH - volH - (subH * subChartCount));
+
+          return (
+            <>
+              {loading ? (
+                <div style={{ height: totalH, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--text-faint)', fontSize: 12 }}>
+                  <div style={{ marginBottom: 4 }}>Loading chart data...</div>
                 </div>
-              </div>
-            ) : (
-              <>
-                <ResponsiveContainer width={width} height={priceHeight}>
-                  {showCandle ? (
-                    <ComposedChart data={bars} margin={{ top: 6, right: 4, bottom: 0, left: 4 }}>
-                      <XAxis
-                        dataKey="label" tick={{ fill: '#444', fontSize: 9 }}
-                        tickLine={false} axisLine={{ stroke: '#1e1e1e' }}
-                        interval="preserveStartEnd"
-                      />
-                      <YAxis
-                        orientation="right" domain={['auto', 'auto']}
-                        tickFormatter={fmtPrice} tick={{ fill: '#444', fontSize: 9 }}
-                        tickLine={false} axisLine={false} width={52}
-                      />
-                      {openPrice && <ReferenceLine y={openPrice} stroke="#e8a020" strokeDasharray="3 3" strokeWidth={1} />}
-                      <Bar dataKey="close" name="Close" shape={<MobileCandleShape />} isAnimationActive={false} />
-                      <Tooltip
-                        contentStyle={{ background: '#0d0d0d', border: '1px solid #2a2a2a', fontSize: 10, padding: '4px 8px', borderRadius: 3 }}
-                        formatter={(v, n, props) => {
-                          const p = props?.payload;
-                          if (p) return [`O:${fmtPrice(p.open)} H:${fmtPrice(p.high)} L:${fmtPrice(p.low)} C:${fmtPrice(p.close)}`, ''];
-                          return [fmtPrice(v), 'Close'];
-                        }}
-                        labelFormatter={l => l}
-                      />
-                    </ComposedChart>
-                  ) : (
-                    <AreaChart data={bars} margin={{ top: 6, right: 4, bottom: 0, left: 4 }}>
-                      <defs>
-                        <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor={isUp ? '#1e50c8' : '#c81e1e'} stopOpacity={0.45} />
-                          <stop offset="95%" stopColor={isUp ? '#1e50c8' : '#c81e1e'} stopOpacity={0} />
-                        </linearGradient>
-                      </defs>
-                      <XAxis
-                        dataKey="label" tick={{ fill: '#444', fontSize: 9 }}
-                        tickLine={false} axisLine={{ stroke: '#1e1e1e' }}
-                        interval="preserveStartEnd"
-                      />
-                      <YAxis
-                        orientation="right" domain={['auto', 'auto']}
-                        tickFormatter={fmtPrice} tick={{ fill: '#444', fontSize: 9 }}
-                        tickLine={false} axisLine={false} width={52}
-                      />
-                      {openPrice && <ReferenceLine y={openPrice} stroke="#e8a020" strokeDasharray="3 3" strokeWidth={1} />}
-                      <Area
-                        type="monotone" dataKey="close" stroke={rawLineColor} strokeWidth={1.5}
-                        fill={`url(#${gradId})`} dot={false} isAnimationActive={false}
-                      />
-                      <Tooltip
-                        contentStyle={{ background: '#0d0d0d', border: '1px solid #2a2a2a', fontSize: 10, padding: '4px 8px', borderRadius: 3 }}
-                        itemStyle={{ color: rawLineColor }}
-                        formatter={v => [fmtPrice(v), 'Close']}
-                        labelFormatter={l => l}
-                      />
-                    </AreaChart>
+              ) : noData || bars.length === 0 ? (
+                <div style={{ height: totalH, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted, #555)', gap: 6 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600 }}>No chart data available</div>
+                  <div style={{ fontSize: 11, color: 'var(--text-faint, #444)' }}>Try a different time range or check if this symbol is supported.</div>
+                </div>
+              ) : (
+                <>
+                  {/* Main price chart */}
+                  <ResponsiveContainer width={width} height={mainH}>
+                    {showCandle ? (
+                      <ComposedChart data={chartBars} margin={{ top: 6, right: 4, bottom: 0, left: 4 }}>
+                        <XAxis dataKey="label" tick={{ fill: '#444', fontSize: 9 }} tickLine={false} axisLine={{ stroke: '#1e1e1e' }} interval="preserveStartEnd" />
+                        <YAxis orientation="right" domain={['auto', 'auto']} tickFormatter={fmtPrice} tick={{ fill: '#444', fontSize: 9 }} tickLine={false} axisLine={false} width={52} />
+                        {openPrice && <ReferenceLine y={openPrice} stroke="#e8a020" strokeDasharray="3 3" strokeWidth={1} />}
+                        {/* Bollinger Bands overlay */}
+                        {activeIndicators.has('BB') && (
+                          <>
+                            <Line type="monotone" dataKey="bbUpper" stroke={IND_COLORS.BB} strokeWidth={0.8} dot={false} strokeDasharray="4 2" connectNulls isAnimationActive={false} />
+                            <Line type="monotone" dataKey="bbLower" stroke={IND_COLORS.BB} strokeWidth={0.8} dot={false} strokeDasharray="4 2" connectNulls isAnimationActive={false} />
+                            <Line type="monotone" dataKey="bbMiddle" stroke={IND_COLORS.BB} strokeWidth={0.6} dot={false} strokeOpacity={0.4} connectNulls isAnimationActive={false} />
+                          </>
+                        )}
+                        <Bar dataKey="close" name="Close" shape={<MobileCandleShape />} isAnimationActive={false} />
+                        {activeIndicators.has('SMA20') && <Line type="monotone" dataKey="sma20" stroke={IND_COLORS.SMA20} strokeWidth={1} dot={false} connectNulls isAnimationActive={false} />}
+                        {activeIndicators.has('EMA50') && <Line type="monotone" dataKey="ema50" stroke={IND_COLORS.EMA50} strokeWidth={1} dot={false} connectNulls isAnimationActive={false} />}
+                        <Tooltip contentStyle={ttStyle}
+                          formatter={(v, n, props) => {
+                            const p = props?.payload;
+                            if (p) return [`O:${fmtPrice(p.open)} H:${fmtPrice(p.high)} L:${fmtPrice(p.low)} C:${fmtPrice(p.close)}`, ''];
+                            return [fmtPrice(v), 'Close'];
+                          }}
+                          labelFormatter={l => l}
+                        />
+                      </ComposedChart>
+                    ) : (
+                      <ComposedChart data={chartBars} margin={{ top: 6, right: 4, bottom: 0, left: 4 }}>
+                        <defs>
+                          <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor={isUp ? '#1e50c8' : '#c81e1e'} stopOpacity={0.45} />
+                            <stop offset="95%" stopColor={isUp ? '#1e50c8' : '#c81e1e'} stopOpacity={0} />
+                          </linearGradient>
+                        </defs>
+                        <XAxis dataKey="label" tick={{ fill: '#444', fontSize: 9 }} tickLine={false} axisLine={{ stroke: '#1e1e1e' }} interval="preserveStartEnd" />
+                        <YAxis orientation="right" domain={['auto', 'auto']} tickFormatter={fmtPrice} tick={{ fill: '#444', fontSize: 9 }} tickLine={false} axisLine={false} width={52} />
+                        {openPrice && <ReferenceLine y={openPrice} stroke="#e8a020" strokeDasharray="3 3" strokeWidth={1} />}
+                        {/* Bollinger Bands */}
+                        {activeIndicators.has('BB') && (
+                          <>
+                            <Line type="monotone" dataKey="bbUpper" stroke={IND_COLORS.BB} strokeWidth={0.8} dot={false} strokeDasharray="4 2" connectNulls isAnimationActive={false} />
+                            <Line type="monotone" dataKey="bbLower" stroke={IND_COLORS.BB} strokeWidth={0.8} dot={false} strokeDasharray="4 2" connectNulls isAnimationActive={false} />
+                            <Line type="monotone" dataKey="bbMiddle" stroke={IND_COLORS.BB} strokeWidth={0.6} dot={false} strokeOpacity={0.4} connectNulls isAnimationActive={false} />
+                          </>
+                        )}
+                        <Area type="monotone" dataKey="close" stroke={rawLineColor} strokeWidth={1.5} fill={`url(#${gradId})`} dot={false} isAnimationActive={false} />
+                        {/* SMA / EMA overlays */}
+                        {activeIndicators.has('SMA20') && <Line type="monotone" dataKey="sma20" stroke={IND_COLORS.SMA20} strokeWidth={1} dot={false} connectNulls isAnimationActive={false} />}
+                        {activeIndicators.has('EMA50') && <Line type="monotone" dataKey="ema50" stroke={IND_COLORS.EMA50} strokeWidth={1} dot={false} connectNulls isAnimationActive={false} />}
+                        <Tooltip contentStyle={ttStyle} itemStyle={{ color: rawLineColor }} formatter={v => [fmtPrice(v), 'Close']} labelFormatter={l => l} />
+                      </ComposedChart>
+                    )}
+                  </ResponsiveContainer>
+
+                  {/* Volume chart */}
+                  <ResponsiveContainer width={width} height={volH}>
+                    <BarChart data={chartBars} margin={{ top: 2, right: 4, bottom: 0, left: 4 }}>
+                      <XAxis dataKey="label" hide axisLine={false} />
+                      <YAxis tick={{ fill: '#333', fontSize: 8 }} width={52} tickFormatter={fmtVol} axisLine={false} />
+                      <Bar dataKey="volume" fill="#1a3352" opacity={0.85} radius={[1, 1, 0, 0]} />
+                      <Tooltip contentStyle={ttStyle} formatter={v => [fmtVol(v), 'Volume']} labelStyle={{ color: '#555' }} />
+                    </BarChart>
+                  </ResponsiveContainer>
+
+                  {/* RSI sub-chart */}
+                  {hasRSI && (
+                    <div style={{ borderTop: '1px solid var(--border-subtle, #1a1a1a)' }}>
+                      <ResponsiveContainer width={width} height={subH}>
+                        <ComposedChart data={chartBars} margin={{ top: 2, right: 4, bottom: 0, left: 4 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle, #1a1a1a)" />
+                          <XAxis dataKey="label" hide axisLine={false} />
+                          <YAxis domain={[0, 100]} ticks={[30, 70]} tick={{ fill: 'var(--text-faint, #555)', fontSize: 8 }} width={52} axisLine={false} />
+                          <ReferenceLine y={70} stroke="var(--price-down, #f44336)" strokeDasharray="3 3" strokeOpacity={0.5} />
+                          <ReferenceLine y={30} stroke="var(--price-up, #4caf50)" strokeDasharray="3 3" strokeOpacity={0.5} />
+                          <Tooltip contentStyle={ttStyle} formatter={v => [v != null ? v.toFixed(1) : '--', 'RSI']} labelStyle={{ color: '#555' }} />
+                          <Line type="monotone" dataKey="rsi14" stroke={IND_COLORS.RSI14} strokeWidth={1.2} dot={false} connectNulls isAnimationActive={false} />
+                        </ComposedChart>
+                      </ResponsiveContainer>
+                    </div>
                   )}
-                </ResponsiveContainer>
-                <ResponsiveContainer width={width} height={volumeHeight}>
-                  <BarChart data={bars} margin={{ top: 2, right: 4, bottom: 0, left: 4 }}>
-                    <XAxis dataKey="label" hide axisLine={false} />
-                    <YAxis
-                      tick={{ fill: '#333', fontSize: 8 }} width={52}
-                      tickFormatter={fmtVol} axisLine={false}
-                    />
-                    <Bar dataKey="volume" fill="#1a3352" opacity={0.85} radius={[1, 1, 0, 0]} />
-                    <Tooltip
-                      contentStyle={{ background: '#0d0d0d', border: '1px solid #2a2a2a', fontSize: 10, borderRadius: 3 }}
-                      formatter={v => [fmtVol(v), 'Volume']}
-                      labelStyle={{ color: '#555' }}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
-              </>
-            )}
-          </>
-        )}
+
+                  {/* MACD sub-chart */}
+                  {hasMACD && (
+                    <div style={{ borderTop: '1px solid var(--border-subtle, #1a1a1a)' }}>
+                      <ResponsiveContainer width={width} height={subH}>
+                        <ComposedChart data={chartBars} margin={{ top: 2, right: 4, bottom: 0, left: 4 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle, #1a1a1a)" />
+                          <XAxis dataKey="label" hide axisLine={false} />
+                          <YAxis tick={{ fill: 'var(--text-faint, #555)', fontSize: 8 }} width={52} axisLine={false} />
+                          <ReferenceLine y={0} stroke="var(--border-default, #1e1e1e)" />
+                          <Tooltip contentStyle={ttStyle} formatter={(v, n) => [v != null ? v.toFixed(3) : '--', n]} labelStyle={{ color: '#555' }} />
+                          <Bar dataKey="macdHist" name="Histogram" fill={IND_COLORS.MACD} opacity={0.35} radius={[1, 1, 0, 0]} isAnimationActive={false} />
+                          <Line type="monotone" dataKey="macdLine" stroke={IND_COLORS.MACD} strokeWidth={1.2} dot={false} connectNulls isAnimationActive={false} />
+                          <Line type="monotone" dataKey="macdSignal" stroke="#e91e63" strokeWidth={1} dot={false} connectNulls strokeDasharray="3 2" isAnimationActive={false} />
+                        </ComposedChart>
+                      </ResponsiveContainer>
+                    </div>
+                  )}
+                </>
+              )}
+            </>
+          );
+        }}
       </MobileChartContainer>
     </div>
   );
 });
 
-/* ── TickerPill: individual pill in the selector strip ────────────────────── */
+/* ── TickerPill ──────────────────────────────────────────────────────────────── */
 const TickerPill = memo(function TickerPill({ symbol, isActive, onClick, pillRef }) {
   const name = TICKER_NAMES[symbol] || '';
   const dSym = displaySymbol(symbol);
@@ -505,7 +541,6 @@ function ChartsPanelMobile({ onOpenDetail }) {
     return () => clearInterval(syncTimerRef.current);
   }, []);
 
-  // Auto-scroll active pill into view
   useEffect(() => {
     const el = pillRefs.current[activeSymbol];
     if (el && stripRef.current) {
@@ -519,6 +554,7 @@ function ChartsPanelMobile({ onOpenDetail }) {
     <div style={{
       display: 'flex', flexDirection: 'column', height: '100%',
       background: 'var(--bg-app)', fontFamily: 'inherit',
+      minHeight: 0, overflow: 'hidden',
     }}>
       {/* Symbol selector bar */}
       <div

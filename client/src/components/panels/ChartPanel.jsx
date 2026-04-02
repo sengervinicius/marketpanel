@@ -1,10 +1,12 @@
 // ChartPanel.jsx — Bloomberg-style multi-chart grid (fixed 4×4 = 16 slots)
 // Desktop: always-full 4×4 symmetric grid — no empty rows ever
 // Mobile: 2-col scrollable layout sharing same localStorage as desktop
+// Phase 15: indicator overlays + AI chart insight per MiniChart
 import { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
 import { useTickerPrice } from '../../context/PriceContext';
-import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip, ReferenceLine } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip, ReferenceLine, Line } from 'recharts';
 import { apiFetch } from '../../utils/api';
+import { computeIndicators, buildChartInsightPayload, getLatestIndicatorSnapshot, IND_COLORS, INDICATOR_LIST } from '../../utils/chartIndicators';
 import './ChartPanel.css';
 
 const LS_KEY = 'chartGrid_v3';
@@ -87,8 +89,42 @@ function assetType(t) {
   return 'EQUITY';
 }
 
+// ── Gamification fire-and-forget (session-scoped dedup) ────────────────────
+const _gamificationFired = new Set();
+function fireGamificationEvent(type) {
+  if (_gamificationFired.has(type)) return;
+  _gamificationFired.add(type);
+  apiFetch('/api/gamification/event', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ type }),
+  }).catch(() => {});
+}
+
+// ── AI Insight Popover ─────────────────────────────────────────────────────
+function AiInsightPopover({ insight, loading, error, onClose }) {
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) onClose(); };
+    const keyHandler = (e) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('mousedown', handler);
+    document.addEventListener('keydown', keyHandler);
+    return () => { document.removeEventListener('mousedown', handler); document.removeEventListener('keydown', keyHandler); };
+  }, [onClose]);
+
+  return (
+    <div ref={ref} className="mc-ai-popover">
+      <span className="mc-ai-popover-badge">AI CHART INSIGHT</span>
+      {loading && <span className="mc-ai-popover-text mc-ai-popover-text--loading">Analyzing...</span>}
+      {error && <span className="mc-ai-popover-text mc-ai-popover-text--error">AI unavailable</span>}
+      {insight && <span className="mc-ai-popover-text">{insight.insight || insight}</span>}
+    </div>
+  );
+}
+
 function MiniChart({ ticker, index, onRemove, onReplace, onSwap, onOpenDetail }) {
   const shared = useTickerPrice(ticker);
+  const [rawBars, setRawBars] = useState([]);
   const [data,    setData]    = useState([]);
   const [price,   setPrice]   = useState(null);
   const [chg,     setChg]     = useState(null);
@@ -100,9 +136,21 @@ function MiniChart({ ticker, index, onRemove, onReplace, onSwap, onOpenDetail })
   const [isDragging,  setIsDragging]  = useState(false);
   const [rangeIdx, setRangeIdx] = useState(0);
   const [name, setName] = useState('');
+
+  // Indicator state (per mini-chart)
+  const [activeIndicators, setActiveIndicators] = useState(new Set());
+  // AI insight state
+  const [showAi, setShowAi] = useState(false);
+  const [aiInsight, setAiInsight] = useState(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState(null);
+  const aiCacheRef = useRef(new Map());
+
   const mountedRef  = useRef(true);
   const intervalRef = useRef(null);
   const snapshotChgRef = useRef(null);
+  // Cache indicator results per symbol+range to avoid recomputing on every render
+  const indCacheRef = useRef(new Map());
 
   const fetchData = useCallback(async (rIdx) => {
     if (!ticker) return;
@@ -116,12 +164,24 @@ function MiniChart({ ticker, index, onRemove, onReplace, onSwap, onOpenDetail })
       if (!res.ok) throw new Error(res.status);
       const json = await res.json();
       if (!mountedRef.current) return;
-      let bars = (json.results || []).map(b => ({ t: b.t, v: b.c ?? b.vw ?? 0 }));
+      let bars = (json.results || []).map(b => ({
+        t: b.t,
+        v: b.c ?? b.vw ?? 0,
+        open: b.o ?? b.c ?? 0,
+        high: b.h ?? b.c ?? 0,
+        low: b.l ?? b.c ?? 0,
+        close: b.c ?? b.vw ?? 0,
+        volume: b.v ?? 0,
+        label: range.timespan === 'minute'
+          ? new Date(b.t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          : new Date(b.t).toLocaleDateString([], { month: 'short', day: 'numeric' }),
+      }));
       if (range.label === '1D') {
         const d0 = new Date(); d0.setHours(0,0,0,0);
         const tod = bars.filter(b => b.t >= d0.getTime());
         if (tod.length > 0) bars = tod;
       }
+      setRawBars(bars);
       setData(bars);
       if (bars.length >= 2) {
         const last  = bars[bars.length - 1].v;
@@ -137,8 +197,10 @@ function MiniChart({ ticker, index, onRemove, onReplace, onSwap, onOpenDetail })
         setHigh(Math.max(...bars.map(b => b.v)));
         setLow(Math.min(...bars.map(b => b.v)));
       }
+      // Invalidate indicator cache on new data
+      indCacheRef.current.clear();
     } catch (_) {
-      if (mountedRef.current) setData([]);
+      if (mountedRef.current) { setRawBars([]); setData([]); }
     } finally {
       if (mountedRef.current) setLoading(false);
     }
@@ -190,7 +252,72 @@ function MiniChart({ ticker, index, onRemove, onReplace, onSwap, onOpenDetail })
       }).catch(() => {});
   }, [ticker]);
 
-  const handleRangeChange = (idx) => { clearInterval(intervalRef.current); setRangeIdx(idx); };
+  const handleRangeChange = (idx) => { clearInterval(intervalRef.current); setRangeIdx(idx); indCacheRef.current.clear(); };
+
+  // ── Compute indicators (memoized with cache) ────────────────────────────
+  const indicatorResult = useMemo(() => {
+    if (activeIndicators.size === 0 || rawBars.length < 5) {
+      return { bars: rawBars, hasOverlay: false, hasSubChart: false };
+    }
+    const cacheKey = `${ticker}:${rangeIdx}:${rawBars.length}:${[...activeIndicators].sort().join(',')}`;
+    if (indCacheRef.current.has(cacheKey)) return indCacheRef.current.get(cacheKey);
+    const result = computeIndicators(rawBars, activeIndicators);
+    indCacheRef.current.set(cacheKey, result);
+    return result;
+  }, [rawBars, activeIndicators, ticker, rangeIdx]);
+
+  const chartBars = indicatorResult.bars;
+  const indSnapshot = useMemo(() => getLatestIndicatorSnapshot(chartBars), [chartBars]);
+
+  const toggleIndicator = (key) => {
+    setActiveIndicators(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else { next.add(key); fireGamificationEvent('technical_analysis'); }
+      return next;
+    });
+  };
+
+  // ── AI Chart Insight ────────────────────────────────────────────────────
+  const handleAiClick = useCallback(() => {
+    if (showAi) { setShowAi(false); return; }
+    if (rawBars.length < 5) return;
+    const range = RANGES[rangeIdx];
+    const lastT = rawBars[rawBars.length - 1]?.t || '';
+    const cacheKey = `${ticker}:${range.label}:${lastT}`;
+
+    if (aiCacheRef.current.has(cacheKey)) {
+      setAiInsight(aiCacheRef.current.get(cacheKey));
+      setAiError(null);
+      setShowAi(true);
+      return;
+    }
+
+    setAiLoading(true);
+    setAiError(null);
+    setAiInsight(null);
+    setShowAi(true);
+
+    const enriched = activeIndicators.size > 0 ? chartBars : rawBars;
+    const payload = buildChartInsightPayload(ticker, range.label, enriched);
+
+    apiFetch('/api/search/chart-insight', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+      .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+      .then(result => {
+        if (mountedRef.current) {
+          aiCacheRef.current.set(cacheKey, result);
+          setAiInsight(result);
+          setAiLoading(false);
+          fireGamificationEvent('chart_insight');
+        }
+      })
+      .catch(err => {
+        if (mountedRef.current) { setAiError(err.message); setAiLoading(false); }
+      });
+  }, [showAi, rawBars, chartBars, activeIndicators, ticker, rangeIdx]);
 
   const dispPrice  = shared?.price ?? price;
   const dispChg    = rangeIdx === 0 ? (shared?.change    ?? chg) : chg;
@@ -199,7 +326,7 @@ function MiniChart({ ticker, index, onRemove, onReplace, onSwap, onOpenDetail })
   const isUp     = (dispChg ?? 0) >= 0;
   const lineColor = isUp ? '#e8e8e8' : '#ff5555';
   const gradId    = 'g' + ticker.replace(/[^a-zA-Z0-9]/g, '');
-  const openPrice = data[0]?.v;
+  const openPrice = chartBars[0]?.v ?? chartBars[0]?.close;
   const xFmt = (ms) => {
     const d = new Date(ms);
     if (RANGES[rangeIdx].timespan === 'minute')
@@ -208,6 +335,15 @@ function MiniChart({ ticker, index, onRemove, onReplace, onSwap, onOpenDetail })
   };
 
   const cellClass = `mc-cell${isDragging ? ' mc-cell--dragging' : ''}${isDragOver ? ' mc-cell--dragover' : ''}`;
+
+  // RSI color logic
+  const rsiColor = indSnapshot.rsi14 != null
+    ? (indSnapshot.rsi14 >= 70 ? 'var(--price-down)' : indSnapshot.rsi14 <= 30 ? 'var(--price-up)' : IND_COLORS.RSI14)
+    : IND_COLORS.RSI14;
+  // MACD color logic
+  const macdColor = indSnapshot.macdHist != null
+    ? (indSnapshot.macdHist >= 0 ? 'var(--price-up)' : 'var(--price-down)')
+    : IND_COLORS.MACD;
 
   return (
     <div draggable
@@ -234,7 +370,7 @@ function MiniChart({ ticker, index, onRemove, onReplace, onSwap, onOpenDetail })
       {/* Header */}
       <div className="mc-header">
         <span className="mc-ticker">
-          {isDragOver ? '⇄ SWAP / REPLACE' : displayTicker(ticker) + (name ? ' · ' + name : '')}
+          {isDragOver ? 'SWAP / REPLACE' : displayTicker(ticker) + (name ? ' · ' + name : '')}
         </span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
           {dispPrice != null && <span className="mc-price">{fmtPrice(dispPrice)}</span>}
@@ -243,11 +379,26 @@ function MiniChart({ ticker, index, onRemove, onReplace, onSwap, onOpenDetail })
               {(isUp ? '+' : '') + dispChgPct.toFixed(2) + '%'}
             </span>
           )}
+          {/* AI insight trigger */}
+          <button onClick={handleAiClick} className="mc-ai-btn" title="AI Chart Insight" disabled={rawBars.length < 5}>
+            AI
+          </button>
           <button onClick={() => onRemove(ticker)} className="mc-remove" title="Remove">✕</button>
         </div>
       </div>
 
-      {/* Stats bar */}
+      {/* Indicator toggle bar */}
+      <div className="mc-ind-bar">
+        {INDICATOR_LIST.map(ind => (
+          <button key={ind.key}
+            className={`mc-ind-pill${activeIndicators.has(ind.key) ? ' mc-ind-pill--active' : ''}`}
+            style={activeIndicators.has(ind.key) ? { borderColor: IND_COLORS[ind.key], color: IND_COLORS[ind.key] } : undefined}
+            onClick={() => toggleIndicator(ind.key)}
+          >{ind.label}</button>
+        ))}
+      </div>
+
+      {/* Stats bar (includes RSI/MACD badges when active) */}
       <div className="mc-stats">
         <span className="mc-stat-label">Chg{' '}
           <span style={{ color: dispChg != null ? (isUp ? 'var(--price-up)' : 'var(--price-down)') : undefined }}>
@@ -256,27 +407,48 @@ function MiniChart({ ticker, index, onRemove, onReplace, onSwap, onOpenDetail })
         </span>
         <span className="mc-stat-label">Hi <span className="mc-stat-val">{fmtK(high)}</span></span>
         <span className="mc-stat-label">Lo <span className="mc-stat-val">{fmtK(low)}</span></span>
+        {activeIndicators.has('RSI14') && indSnapshot.rsi14 != null && (
+          <span className="mc-ind-badge" style={{ color: rsiColor }}>RSI {indSnapshot.rsi14.toFixed(0)}</span>
+        )}
+        {activeIndicators.has('MACD') && indSnapshot.macdHist != null && (
+          <span className="mc-ind-badge" style={{ color: macdColor }}>MACD {indSnapshot.macdHist >= 0 ? '+' : ''}{indSnapshot.macdHist.toFixed(2)}</span>
+        )}
       </div>
 
       {/* Chart */}
-      <div style={{ flex: 1, minHeight: 0, pointerEvents: isDragOver ? 'none' : 'auto' }}>
+      <div style={{ flex: 1, minHeight: 0, pointerEvents: isDragOver ? 'none' : 'auto', position: 'relative' }}>
         {loading ? (
           <div className="mc-msg">loading...</div>
         ) : data.length === 0 ? (
           <div className="mc-msg">NO DATA</div>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={data} margin={{ top: 4, right: 2, bottom: 2, left: 0 }}>
+            <AreaChart data={chartBars} margin={{ top: 4, right: 2, bottom: 2, left: 0 }}>
               <defs>
                 <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%"  stopColor={isUp ? '#1e50c8' : '#c81e1e'} stopOpacity={0.55} />
                   <stop offset="95%" stopColor={isUp ? '#1e50c8' : '#c81e1e'} stopOpacity={0.0}  />
                 </linearGradient>
               </defs>
-              <XAxis dataKey="t" tickFormatter={xFmt} tick={{ fill: 'var(--text-muted)', fontSize: 8 }} tickLine={false} axisLine={false} interval={Math.max(0, Math.ceil(data.length / 4) - 1)} height={14} />
+              <XAxis dataKey="t" tickFormatter={xFmt} tick={{ fill: 'var(--text-muted)', fontSize: 8 }} tickLine={false} axisLine={false} interval={Math.max(0, Math.ceil(chartBars.length / 4) - 1)} height={14} />
               <YAxis orientation="right" domain={['auto','auto']} tickFormatter={fmtK} tick={{ fill: 'var(--text-muted)', fontSize: 8 }} tickLine={false} axisLine={false} width={32} />
               {openPrice && <ReferenceLine y={openPrice} stroke="var(--accent-text)" strokeDasharray="3 3" strokeWidth={1} />}
               <Area type="monotone" dataKey="v" stroke={lineColor} strokeWidth={1.5} fill={`url(#${gradId})`} dot={false} isAnimationActive={false} />
+
+              {/* Indicator overlays */}
+              {activeIndicators.has('SMA20') && (
+                <Line type="monotone" dataKey="sma20" stroke={IND_COLORS.SMA20} strokeWidth={1} dot={false} connectNulls isAnimationActive={false} />
+              )}
+              {activeIndicators.has('EMA50') && (
+                <Line type="monotone" dataKey="ema50" stroke={IND_COLORS.EMA50} strokeWidth={1} dot={false} connectNulls isAnimationActive={false} />
+              )}
+              {activeIndicators.has('BB') && (
+                <>
+                  <Line type="monotone" dataKey="bbUpper" stroke={IND_COLORS.BB} strokeWidth={0.8} dot={false} strokeDasharray="4 2" connectNulls isAnimationActive={false} />
+                  <Line type="monotone" dataKey="bbLower" stroke={IND_COLORS.BB} strokeWidth={0.8} dot={false} strokeDasharray="4 2" connectNulls isAnimationActive={false} />
+                </>
+              )}
+
               <Tooltip
                 contentStyle={{ background: 'var(--bg-surface)', border: '1px solid var(--border-strong)', fontSize: 7, padding: '3px 6px' }}
                 itemStyle={{ color: lineColor }}
@@ -286,13 +458,21 @@ function MiniChart({ ticker, index, onRemove, onReplace, onSwap, onOpenDetail })
             </AreaChart>
           </ResponsiveContainer>
         )}
+        {/* AI Insight Popover */}
+        {showAi && (
+          <AiInsightPopover
+            insight={aiInsight}
+            loading={aiLoading}
+            error={aiError}
+            onClose={() => setShowAi(false)}
+          />
+        )}
       </div>
 
       {/* Range bar */}
       <div className="mc-range-bar">
         {RANGES.map((r, i) => (
-          <button className={`btn ${`mc-range-btn${i === rangeIdx ? ' mc-range-btn--active' : ''}`} key={r.label} onClick={() => handleRangeChange(i)}
-`}
+          <button key={r.label} className={`mc-range-btn${i === rangeIdx ? ' mc-range-btn--active' : ''}`} onClick={() => handleRangeChange(i)}
           >{r.label}</button>
         ))}
       </div>
@@ -300,7 +480,7 @@ function MiniChart({ ticker, index, onRemove, onReplace, onSwap, onOpenDetail })
       {/* Drag overlay */}
       {isDragOver && (
         <div className="mc-drag-overlay">
-          <span className="mc-drag-text">⇄ SWAP / REPLACE</span>
+          <span className="mc-drag-text">SWAP / REPLACE</span>
         </div>
       )}
     </div>
@@ -486,7 +666,7 @@ function ChartPanel({ ticker: externalTicker, onGridChange, mobile = false, onOp
           <span className="cp-subtitle">{tickers.length}/{MAX} // drag to reorder · drop to add</span>
           <div style={{ position: 'relative' }}>
             <button onClick={copyLink} className={`cp-sync-btn${copied ? ' cp-sync-btn--copied' : ''}`}>
-              {copied ? '✓ COPIED' : '→ SYNC TO MOBILE'}
+              {copied ? 'COPIED' : 'SYNC TO MOBILE'}
             </button>
             {showQR && (
               <div onClick={() => setShowQR(false)} className="cp-qr-backdrop">
