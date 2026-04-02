@@ -48,4 +48,5 @@ function MarketStatus() {
   );
 }
 
+export { getMarketState };
 export default memo(MarketStatus);

@@ -33,6 +33,7 @@ import OnboardingPresets from './components/onboarding/OnboardingPresets';
 import SuggestedScreens from './components/settings/SuggestedScreens';
 import { TickerTooltip } from './components/common/TickerTooltip';
 import InstrumentDetail from './components/common/InstrumentDetail';
+import { getMarketState as _getMarketState } from './components/common/MarketStatus';
 import './App.css';
 
 
@@ -725,15 +726,154 @@ function SubscriptionExpiredScreen({ onUpgrade, onLogout, onManageBilling, check
 }
 
 // ── Mobile tab definitions ───────────────────────────────────────────────────
+// SVG icon components for the bottom tab bar (no emoji)
+const TAB_ICONS = {
+  home: (c) => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>,
+  charts: (c) => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>,
+  portfolio: (c) => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>,
+  search: (c) => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>,
+  more: (c) => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>,
+};
+
 const MOBILE_TABS = [
-  { id: 'home',      label: 'HOME',   icon: '⌂' },
-  { id: 'charts',    label: 'CHARTS', icon: '◫' },
-  { id: 'watchlist', label: 'WATCH',  icon: '☆' },
-  { id: 'search',    label: 'FIND',   icon: '⊕' },
-  { id: 'etf',       label: 'ETF',    icon: '▧' },
-  { id: 'news',      label: 'NEWS',   icon: '◎' },
-  { id: 'chat',      label: 'CHAT',   icon: '✉' },
+  { id: 'home',      label: 'HOME',      icon: 'home' },
+  { id: 'charts',    label: 'CHARTS',    icon: 'charts' },
+  { id: 'watchlist', label: 'PORTFOLIO',  icon: 'portfolio' },
+  { id: 'search',    label: 'SEARCH',    icon: 'search' },
+  { id: 'more',      label: 'MORE',      icon: 'more' },
 ];
+
+// ── Mobile local clock helper ────────────────────────────────────────────────
+const CITY_OVERRIDES = {
+  'Sao Paulo': 'S\u00e3o Paulo', 'Novosibirsk': 'Novosibirsk',
+  'Kolkata': 'Kolkata', 'Ho Chi Minh': 'Ho Chi Minh',
+};
+
+function useLocalClock() {
+  const [time, setTime] = useState('');
+  const [city, setCity] = useState('');
+  useEffect(() => {
+    let tz;
+    try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone; } catch (_) {}
+    if (!tz) { setCity('UTC'); }
+    else {
+      const raw = tz.split('/').pop().replace(/_/g, ' ');
+      setCity(CITY_OVERRIDES[raw] || raw);
+    }
+    const update = () => {
+      const opts = { hour: '2-digit', minute: '2-digit', hour12: false };
+      if (tz) opts.timeZone = tz;
+      try { setTime(new Date().toLocaleTimeString('en-GB', opts)); }
+      catch (_) { setTime(new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })); }
+    };
+    update();
+    const id = setInterval(update, 30_000);
+    return () => clearInterval(id);
+  }, []);
+  return { time, city };
+}
+
+// ── Mobile market-status hook (reuses getMarketState from MarketStatus) ─────
+function useMobileMarketStatus() {
+  const [st, setSt] = useState(() => _getMarketState());
+  useEffect(() => {
+    const id = setInterval(() => setSt(_getMarketState()), 30_000);
+    return () => clearInterval(id);
+  }, []);
+  return st;
+}
+
+// ── MobileHeader component ───────────────────────────────────────────────────
+function MobileHeader({ user, onSettings, onLogout, onBilling, isPaid, feedStatus }) {
+  const clock = useLocalClock();
+  const mkt = useMobileMarketStatus();
+  const mktOpen = mkt.status === 'open';
+
+  // Feed status dot: green if any feed is 'connected', orange if degraded, red if all down
+  const feeds = Object.values(feedStatus || {});
+  const anyConn = feeds.some(f => f === 'connected');
+  const dotColor = anyConn ? 'var(--price-up, #00c853)' : feeds.length ? '#f44336' : '#333';
+
+  return (
+    <div style={{
+      height: 44, flexShrink: 0, display: 'flex', alignItems: 'center',
+      background: 'var(--bg-app, #0a0a0a)', borderBottom: '1px solid var(--border-default, #1e1e1e)',
+      padding: '0 10px', gap: 8,
+    }}>
+      {/* Left: brand */}
+      <span style={{ color: 'var(--accent, #ff6600)', fontWeight: 700, fontSize: 12, letterSpacing: '2px', flexShrink: 0 }}>
+        SENGER
+      </span>
+
+      {/* Center: local clock + market status */}
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, overflow: 'hidden', minWidth: 0 }}>
+        <span style={{
+          color: 'var(--text-muted, #888)', fontSize: 11, fontVariantNumeric: 'tabular-nums',
+          letterSpacing: '0.04em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+        }}>
+          {clock.city} {clock.time}
+        </span>
+        <span style={{
+          flexShrink: 0, padding: '2px 7px', borderRadius: 9999,
+          fontSize: 9, fontWeight: 700, letterSpacing: '0.06em',
+          background: mktOpen ? 'rgba(0,200,83,0.12)' : 'rgba(136,136,136,0.10)',
+          color: mktOpen ? 'var(--price-up, #00c853)' : 'var(--text-muted, #888)',
+          border: `1px solid ${mktOpen ? 'rgba(0,200,83,0.25)' : 'rgba(136,136,136,0.18)'}`,
+        }}>
+          {mktOpen ? 'MKT OPEN' : 'MKT CLOSED'}
+        </span>
+      </div>
+
+      {/* Right: feed dot + user menu */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+        <span style={{ width: 6, height: 6, borderRadius: '50%', background: dotColor, flexShrink: 0 }} />
+        {user && (
+          <UserDropdown
+            user={user}
+            onSettings={onSettings}
+            onLogout={onLogout}
+            onBilling={onBilling}
+            isPaid={isPaid}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── MobileMoreScreen ─────────────────────────────────────────────────────────
+const MORE_ITEMS = [
+  { id: 'news', label: 'NEWS FEED',   desc: 'Latest financial news' },
+  { id: 'etf',  label: 'ETF SCREENER', desc: 'Exchange-traded funds' },
+  { id: 'chat', label: 'MESSAGES',     desc: 'Chat & AI assistant' },
+];
+
+function MobileMoreScreen({ onNav }) {
+  return (
+    <div style={{ padding: '12px 10px', display: 'flex', flexDirection: 'column', gap: 2 }}>
+      <div style={{ color: '#555', fontSize: 9, letterSpacing: '0.12em', fontWeight: 700, padding: '6px 8px' }}>
+        MORE
+      </div>
+      {MORE_ITEMS.map(item => (
+        <button
+          key={item.id}
+          onClick={() => onNav(item.id)}
+          style={{
+            display: 'flex', flexDirection: 'column', gap: 2,
+            width: '100%', textAlign: 'left', padding: '14px 12px',
+            background: 'var(--bg-surface, #111)', border: '1px solid var(--border-default, #1e1e1e)',
+            borderRadius: 4, cursor: 'pointer', fontFamily: 'inherit',
+          }}
+        >
+          <span style={{ color: 'var(--accent, #ff6600)', fontSize: 11, fontWeight: 700, letterSpacing: '0.08em' }}>
+            {item.label}
+          </span>
+          <span style={{ color: '#555', fontSize: 9 }}>{item.desc}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
 
 const LS_TAB          = 'activeTab_m3';
 const LS_CHART_TICKER = 'chartTicker';
@@ -1141,19 +1281,14 @@ export default function App() {
       {showOnboarding && <OnboardingPresets />}
 
       {/* Mobile header bar */}
-      <div style={{ height: 38, flexShrink: 0, display:'flex', alignItems:'center', background:'#000', borderBottom:'1px solid #1e1e1e', padding:'0 12px', gap:8 }}>
-        <span style={{ color:'#ff6600', fontWeight:700, fontSize:'11px', letterSpacing:'2px' }}>SENGER</span>
-        <div style={{ flex: 1 }} />
-        {user && (
-          <UserDropdown
-            user={user}
-            onSettings={() => setSettingsOpen(s => !s)}
-            onLogout={logout}
-            onBilling={openBillingPortal}
-            isPaid={subscription?.status === 'active'}
-          />
-        )}
-      </div>
+      <MobileHeader
+        user={user}
+        onSettings={() => setSettingsOpen(s => !s)}
+        onLogout={logout}
+        onBilling={openBillingPortal}
+        isPaid={subscription?.status === 'active'}
+        feedStatus={feedStatus}
+      />
 
       {/* Mobile settings drawer */}
       {settingsOpen && (
@@ -1209,9 +1344,17 @@ export default function App() {
               <SearchPanel onTickerSelect={goDetail} onOpenDetail={goDetail} />
             )}
 
-            {activeTab === 'etf' && (
-              <ETFPanel onOpenDetail={goDetail} />
+            {activeTab === 'more' && (
+              <MobileMoreScreen
+                onNav={setActiveTabPersist}
+                onOpenDetail={goDetail}
+              />
             )}
+
+            {/* Sub-screens accessible from More */}
+            {activeTab === 'etf' && <ETFPanel onOpenDetail={goDetail} />}
+            {activeTab === 'news' && <NewsPanel />}
+            {activeTab === 'chat' && <ChatPanel />}
 
             {activeTab === 'detail' && (
               detailTicker
@@ -1221,46 +1364,43 @@ export default function App() {
                     asPage
                   />
                 : <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', height:'100%', gap:12 }}>
-                    <div style={{ color:'#2a2a2a', fontSize:32 }}>▦</div>
+                    <div style={{ color:'#2a2a2a', fontSize:32 }}>&#x25A6;</div>
                     <div style={{ color:'#333', fontSize:10, letterSpacing:'1px' }}>TAP ANY INSTRUMENT TO VIEW DETAILS</div>
                     <button
                       onClick={() => setActiveTabPersist('watchlist')}
                       style={{ marginTop:8, background:'none', border:'1px solid #2a2a2a', color:'#555', fontSize:9, padding:'6px 14px', cursor:'pointer', fontFamily:'inherit', borderRadius:2 }}
-                    >OPEN WATCHLIST →</button>
+                    >OPEN WATCHLIST &#x2192;</button>
                   </div>
             )}
-
-            {activeTab === 'news' && <NewsPanel />}
-
-            {activeTab === 'chat' && <ChatPanel />}
           </div>
 
           {/* ── Bottom tab bar ── */}
           <nav style={{
-            display: 'flex', background: '#000',
-            borderTop: '2px solid #1e1e1e',
+            display: 'flex', background: 'var(--bg-app, #0a0a0a)',
+            borderTop: '1px solid var(--border-default, #1e1e1e)',
             flexShrink: 0,
             paddingBottom: 'env(safe-area-inset-bottom)',
           }}>
             {MOBILE_TABS.map(tab => {
               const isActive = activeTab === tab.id;
+              const color = isActive ? 'var(--accent, #ff6600)' : '#555';
               return (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTabPersist(tab.id)}
                   style={{
-                    flex: 1, minHeight: '54px',
-                    padding: '8px 4px 6px',
-                    background: isActive ? '#140800' : 'transparent',
-                    color: isActive ? '#ff6600' : '#444',
+                    flex: 1, minHeight: 50, padding: '6px 4px 4px',
+                    background: isActive ? 'rgba(255,102,0,0.06)' : 'transparent',
+                    color,
                     border: 'none',
-                    borderTop: '2px solid ' + (isActive ? '#ff6600' : 'transparent'),
-                    fontSize: '7.5px', fontWeight: 800, letterSpacing: '0.3px',
+                    borderTop: `2px solid ${isActive ? 'var(--accent, #ff6600)' : 'transparent'}`,
+                    fontSize: 9, fontWeight: 700, letterSpacing: '0.4px',
                     cursor: 'pointer', fontFamily: 'inherit', textTransform: 'uppercase',
-                    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
-                    position: 'relative',
+                    display: 'flex', flexDirection: 'column', alignItems: 'center',
+                    justifyContent: 'center', gap: 3,
+                    WebkitTapHighlightColor: 'transparent',
                   }}>
-                  <span style={{ fontSize: 14, lineHeight: 1 }}>{tab.icon}</span>
+                  {TAB_ICONS[tab.icon]?.(color)}
                   {tab.label}
                 </button>
               );

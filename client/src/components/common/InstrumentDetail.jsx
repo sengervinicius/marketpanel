@@ -418,8 +418,8 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
     return (
       <>
         {/* Price chart */}
-        <div style={{ flex: 7, minHeight: 0 }}>
-          <ResponsiveContainer width="100%" height="100%">
+        <div style={{ flex: isMobile ? 'none' : 7, height: isMobile ? 'calc(50vh * 0.72)' : undefined, minHeight: 0 }}>
+          <ResponsiveContainer width="100%" height={isMobile ? '100%' : '100%'}>
             <AreaChart
               data={bars}
               margin={{ top: 8, right: 6, bottom: 0, left: 6 }}
@@ -494,8 +494,8 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
         </div>
 
         {/* Volume chart */}
-        <div style={{ flex: 2, minHeight: 0 }}>
-          <ResponsiveContainer width="100%" height="100%">
+        <div style={{ flex: isMobile ? 'none' : 2, height: isMobile ? 'calc(50vh * 0.22)' : undefined, minHeight: 0 }}>
+          <ResponsiveContainer width="100%" height={isMobile ? '100%' : '100%'}>
             <BarChart data={bars} margin={{ top: 2, right: 6, bottom: 0, left: 6 }}>
               <XAxis dataKey="label" hide axisLine={false} />
               <YAxis
@@ -1444,7 +1444,8 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
 
         {/* LEFT: CHART PANEL */}
         <div style={{
-          flex: isMobile ? '0 0 42vh' : 1,
+          flex: isMobile ? 'none' : 1,
+          height: isMobile ? '50vh' : undefined,
           display: 'flex', flexDirection: 'column',
           padding: '8px 10px', minWidth: 0, minHeight: 0,
         }}>
