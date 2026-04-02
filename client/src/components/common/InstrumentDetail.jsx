@@ -1,13 +1,14 @@
 // InstrumentDetail.jsx – Bloomberg GP-style full-screen instrument overlay
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { apiFetch } from '../../utils/api.js';
 import AlertEditor from './AlertEditor';
 import './InstrumentDetail.css';
 import {
-  AreaChart, Area, BarChart, Bar,
+  AreaChart, Area, BarChart, Bar, ComposedChart, Line,
   XAxis, YAxis, ResponsiveContainer, Tooltip,
   ReferenceLine, CartesianGrid, ReferenceArea, Customized,
 } from 'recharts';
+import { SMA, EMA, RSI, MACD, BollingerBands } from 'technicalindicators';
 
 const ORANGE = '#ff6600';
 const GREEN  = '#4caf50';
@@ -149,6 +150,54 @@ function DeltaLineOverlay({ xAxisMap, yAxisMap, bars, deltaA, deltaB, deltaInfo 
   );
 }
 
+// ── Indicator color constants ─────────────────────────────────────────────────
+const IND_COLORS = {
+  SMA20:  '#2196f3',   // blue
+  EMA50:  '#9c27b0',   // purple
+  RSI14:  '#ff9800',   // amber
+  MACD:   '#00bcd4',   // teal
+  BB:     '#ff9800',   // amber
+};
+
+const INDICATOR_LIST = [
+  { key: 'SMA20', label: 'SMA 20' },
+  { key: 'EMA50', label: 'EMA 50' },
+  { key: 'RSI14', label: 'RSI 14' },
+  { key: 'MACD',  label: 'MACD' },
+  { key: 'BB',    label: 'Bollinger' },
+];
+
+// ── Custom Candlestick Bar shape ─────────────────────────────────────────────
+function CandlestickShape(props) {
+  const { x, y, width, height, payload } = props;
+  if (!payload) return null;
+  const { open, high, low, close } = payload;
+  if (open == null || close == null || high == null || low == null) return null;
+
+  const isUp = close >= open;
+  const color = isUp ? GREEN : RED;
+  const bodyTop = Math.min(y, y + height);
+  const bodyH = Math.max(Math.abs(height), 1);
+  const centerX = x + width / 2;
+
+  // Wick: scale from data coords — we use the y position proportionally
+  // Since Recharts passes y/height based on dataKey range, we compute wick
+  // relative to the bar body
+  const yScale = bodyH / Math.abs(close - open || 0.001);
+  const wickTop = bodyTop - Math.abs((isUp ? high - close : high - open)) * yScale;
+  const wickBot = bodyTop + bodyH + Math.abs((isUp ? open - low : close - low)) * yScale;
+
+  return (
+    <g>
+      <line x1={centerX} y1={wickTop} x2={centerX} y2={wickBot}
+        stroke={color} strokeWidth={1} />
+      <rect x={x + 1} y={bodyTop} width={Math.max(width - 2, 2)} height={bodyH}
+        fill={isUp ? color : color} stroke={color} strokeWidth={0.5}
+        fillOpacity={isUp ? 0.3 : 0.85} />
+    </g>
+  );
+}
+
 // ── Shared sub-components ───────────────────────────────────────────────────
 function Section({ title, children }) {
   return (
@@ -219,6 +268,14 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
   const [aiFundsLoading, setAiFundsLoading] = useState(false);
   const [aiFundsError, setAiFundsError]     = useState(null);
   const aiFundsCacheRef = useRef({}); // symbol → data
+
+  // Phase 6: Chart type, indicators, AI Chart Insight
+  const [chartType, setChartType]     = useState('area'); // 'area' | 'candle'
+  const [activeIndicators, setActiveIndicators] = useState(new Set());
+  const [aiChartInsight, setAiChartInsight]         = useState(null);
+  const [aiChartInsightLoading, setAiChartInsightLoading] = useState(false);
+  const [aiChartInsightError, setAiChartInsightError]     = useState(null);
+  const aiChartInsightCacheRef = useRef({}); // "symbol:range:lastT" → data
 
   const range = RANGES[rangeIdx];
 
@@ -428,6 +485,132 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
   const rangeClose = bars.length ? bars[bars.length - 1].close : null;
   const rangeChg   = (rangeOpen && rangeClose) ? ((rangeClose - rangeOpen) / rangeOpen) * 100 : null;
 
+  // ── Technical Indicators (Phase 6) ────────────────────────────────────
+  const indicatorData = useMemo(() => {
+    if (bars.length < 5) return { bars: bars, hasOverlay: false, hasSubChart: false };
+    const closes = bars.map(b => b.close);
+    const highs  = bars.map(b => b.high);
+    const lows   = bars.map(b => b.low);
+
+    // SMA 20
+    let sma20Vals = [];
+    if (activeIndicators.has('SMA20') && closes.length >= 20) {
+      try { sma20Vals = SMA.calculate({ period: 20, values: closes }); } catch {}
+    }
+
+    // EMA 50
+    let ema50Vals = [];
+    if (activeIndicators.has('EMA50') && closes.length >= 50) {
+      try { ema50Vals = EMA.calculate({ period: 50, values: closes }); } catch {}
+    }
+
+    // RSI 14
+    let rsi14Vals = [];
+    if (activeIndicators.has('RSI14') && closes.length >= 15) {
+      try { rsi14Vals = RSI.calculate({ period: 14, values: closes }); } catch {}
+    }
+
+    // MACD (12, 26, 9)
+    let macdVals = [];
+    if (activeIndicators.has('MACD') && closes.length >= 26) {
+      try { macdVals = MACD.calculate({ values: closes, fastPeriod: 12, slowPeriod: 26, signalPeriod: 9, SimpleMAOscillator: false, SimpleMASignal: false }); } catch {}
+    }
+
+    // Bollinger Bands (20, 2)
+    let bbVals = [];
+    if (activeIndicators.has('BB') && closes.length >= 20) {
+      try { bbVals = BollingerBands.calculate({ period: 20, values: closes, stdDev: 2 }); } catch {}
+    }
+
+    // Merge into bars array
+    const enriched = bars.map((b, i) => {
+      const r = { ...b };
+      // SMA20: output has (closes.length - 20 + 1) values, aligned to end
+      const smaOffset = closes.length - sma20Vals.length;
+      if (i >= smaOffset && sma20Vals[i - smaOffset] != null) r.sma20 = sma20Vals[i - smaOffset];
+      // EMA50
+      const emaOffset = closes.length - ema50Vals.length;
+      if (i >= emaOffset && ema50Vals[i - emaOffset] != null) r.ema50 = ema50Vals[i - emaOffset];
+      // RSI14
+      const rsiOffset = closes.length - rsi14Vals.length;
+      if (i >= rsiOffset && rsi14Vals[i - rsiOffset] != null) r.rsi14 = rsi14Vals[i - rsiOffset];
+      // MACD
+      const macdOffset = closes.length - macdVals.length;
+      if (i >= macdOffset && macdVals[i - macdOffset]) {
+        r.macdLine = macdVals[i - macdOffset].MACD;
+        r.macdSignal = macdVals[i - macdOffset].signal;
+        r.macdHist = macdVals[i - macdOffset].histogram;
+      }
+      // Bollinger Bands
+      const bbOffset = closes.length - bbVals.length;
+      if (i >= bbOffset && bbVals[i - bbOffset]) {
+        r.bbUpper = bbVals[i - bbOffset].upper;
+        r.bbMiddle = bbVals[i - bbOffset].middle;
+        r.bbLower = bbVals[i - bbOffset].lower;
+      }
+      return r;
+    });
+
+    const hasOverlay = activeIndicators.has('SMA20') || activeIndicators.has('EMA50') || activeIndicators.has('BB');
+    const hasSubChart = activeIndicators.has('RSI14') || activeIndicators.has('MACD');
+    return { bars: enriched, hasOverlay, hasSubChart };
+  }, [bars, activeIndicators]);
+
+  const toggleIndicator = (key) => {
+    setActiveIndicators(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  // ── AI Chart Insight fetch (Phase 6) ──────────────────────────────────
+  const fetchChartInsight = useCallback(() => {
+    if (bars.length < 5) return;
+    const lastT = bars[bars.length - 1]?.t || bars[bars.length - 1]?.label || '';
+    const cacheKey = `${norm}:${range.label}:${lastT}`;
+
+    if (aiChartInsightCacheRef.current[cacheKey]) {
+      setAiChartInsight(aiChartInsightCacheRef.current[cacheKey]);
+      return;
+    }
+
+    setAiChartInsightLoading(true);
+    setAiChartInsightError(null);
+    setAiChartInsight(null);
+
+    // Gather latest indicator values for the prompt
+    const lastBar = indicatorData.bars[indicatorData.bars.length - 1];
+    const indicators = {};
+    if (lastBar?.sma20 != null) indicators.sma20 = lastBar.sma20;
+    if (lastBar?.ema50 != null) indicators.ema50 = lastBar.ema50;
+    if (lastBar?.rsi14 != null) indicators.rsi14 = lastBar.rsi14;
+    if (lastBar?.macdLine != null) indicators.macd = { MACD: lastBar.macdLine, signal: lastBar.macdSignal, histogram: lastBar.macdHist };
+    if (lastBar?.bbUpper != null) { indicators.bbUpper = lastBar.bbUpper; indicators.bbLower = lastBar.bbLower; }
+
+    // Send last 20 bars max to keep payload small
+    const recentBars = bars.slice(-20).map(b => ({
+      label: b.label, open: b.open, high: b.high, low: b.low, close: b.close, volume: b.volume,
+    }));
+
+    apiFetch('/api/search/chart-insight', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ symbol: norm, range: range.label, bars: recentBars, indicators }),
+    })
+      .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+      .then(data => {
+        aiChartInsightCacheRef.current[cacheKey] = data;
+        setAiChartInsight(data);
+        setAiChartInsightLoading(false);
+      })
+      .catch(err => {
+        setAiChartInsightError(err.message || 'Chart insight unavailable');
+        setAiChartInsightLoading(false);
+      });
+  }, [norm, range.label, bars, indicatorData.bars]);
+
   // ── Delta tool ─────────────────────────────────────────────────────────
   const deltaInfo = (() => {
     if (deltaA === null || deltaB === null || bars.length < 2) return null;
@@ -463,13 +646,41 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
     const aMin = deltaA !== null && deltaB !== null ? Math.min(deltaA, deltaB) : null;
     const aMax = deltaA !== null && deltaB !== null ? Math.max(deltaA, deltaB) : null;
 
+    const chartBars = indicatorData.bars;
+    const showCandle = chartType === 'candle';
+    const hasRSI = activeIndicators.has('RSI14');
+    const hasMACD = activeIndicators.has('MACD');
+
+    // Compute Y domain that includes BB bands if active
+    let yMin = chartMin, yMax = chartMax;
+    if (activeIndicators.has('BB')) {
+      const bbLows  = chartBars.map(b => b.bbLower).filter(v => v != null);
+      const bbHighs = chartBars.map(b => b.bbUpper).filter(v => v != null);
+      if (bbLows.length)  yMin = Math.min(yMin, Math.min(...bbLows) * 0.998);
+      if (bbHighs.length) yMax = Math.max(yMax, Math.max(...bbHighs) * 1.002);
+    }
+    // For candlestick, include high/low wicks
+    if (showCandle) {
+      const allHighs = chartBars.map(b => b.high).filter(v => v != null);
+      const allLows  = chartBars.map(b => b.low).filter(v => v != null);
+      if (allHighs.length) yMax = Math.max(yMax, Math.max(...allHighs) * 1.002);
+      if (allLows.length)  yMin = Math.min(yMin, Math.min(...allLows) * 0.998);
+    }
+
+    const commonTooltipStyle = {
+      background: 'var(--bg-surface)',
+      border: '1px solid var(--border-strong)',
+      fontSize: 11,
+      borderRadius: 3,
+    };
+
     return (
       <>
         {/* Price chart */}
-        <div className="id-chart-flex-main">
+        <div className={`id-chart-flex-main${(hasRSI || hasMACD) ? ' id-chart-flex-main--compressed' : ''}`}>
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart
-              data={bars}
+            <ComposedChart
+              data={chartBars}
               margin={{ top: 8, right: 6, bottom: 0, left: 6 }}
               onClick={handleChartClick}
               onMouseMove={e => e?.activePayload?.[0] && setHovered(e.activePayload[0].payload)}
@@ -481,6 +692,10 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
                   <stop offset="5%"  stopColor={isPos ? GREEN : RED} stopOpacity={0.25} />
                   <stop offset="95%" stopColor={isPos ? GREEN : RED} stopOpacity={0.01} />
                 </linearGradient>
+                <linearGradient id="idBBFill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%"  stopColor={IND_COLORS.BB} stopOpacity={0.08} />
+                  <stop offset="100%" stopColor={IND_COLORS.BB} stopOpacity={0.02} />
+                </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" />
               <XAxis
@@ -491,62 +706,85 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
                 axisLine={{ stroke: 'var(--border-default)' }}
               />
               <YAxis
-                domain={[chartMin, chartMax]}
+                domain={[yMin, yMax]}
                 tick={{ fill: 'var(--text-faint)', fontSize: 9 }}
                 width={64}
                 tickFormatter={v => fmt(v, v > 999 ? 0 : 2)}
                 axisLine={{ stroke: 'var(--border-default)' }}
               />
               <Tooltip
-                contentStyle={{
-                  background: 'var(--bg-surface)',
-                  border: '1px solid var(--border-strong)',
-                  fontSize: 11,
-                  borderRadius: 3,
-                }}
+                contentStyle={commonTooltipStyle}
                 formatter={(v, n) => [fmt(v), n]}
                 labelStyle={{ color: 'var(--text-muted)', marginBottom: 4 }}
               />
 
-              {aMin !== null && bars[aMin] && bars[aMax] && (
+              {aMin !== null && chartBars[aMin] && chartBars[aMax] && (
                 <ReferenceArea
-                  x1={bars[aMin].label}
-                  x2={bars[aMax].label}
+                  x1={chartBars[aMin].label}
+                  x2={chartBars[aMax].label}
                   fill={deltaInfo?.pct >= 0 ? GREEN : RED}
                   fillOpacity={0.06}
                   strokeOpacity={0}
                 />
               )}
 
-              {deltaA !== null && bars[deltaA] && (
-                <ReferenceLine x={bars[deltaA].label} stroke={ORANGE} strokeDasharray="4 2" strokeWidth={1.5}
+              {deltaA !== null && chartBars[deltaA] && (
+                <ReferenceLine x={chartBars[deltaA].label} stroke={ORANGE} strokeDasharray="4 2" strokeWidth={1.5}
                   label={{ value: 'A', fill: ORANGE, fontSize: 10, position: 'top' }} />
               )}
-              {deltaB !== null && bars[deltaB] && (
-                <ReferenceLine x={bars[deltaB].label} stroke={ORANGE} strokeDasharray="4 2" strokeWidth={1.5}
+              {deltaB !== null && chartBars[deltaB] && (
+                <ReferenceLine x={chartBars[deltaB].label} stroke={ORANGE} strokeDasharray="4 2" strokeWidth={1.5}
                   label={{ value: 'B', fill: ORANGE, fontSize: 10, position: 'top' }} />
               )}
 
-              <Area
-                type="monotone" dataKey="close" name="Close"
-                stroke={isPos ? GREEN : RED} strokeWidth={1.5}
-                fill="url(#idGradFill)" dot={false}
-                activeDot={{ r: 3, fill: isPos ? GREEN : RED, strokeWidth: 0 }}
-              />
+              {/* Bollinger Bands fill + lines */}
+              {activeIndicators.has('BB') && (
+                <>
+                  <Area type="monotone" dataKey="bbUpper" stroke="none" fill="url(#idBBFill)" dot={false} activeDot={false} name="BB Upper" />
+                  <Area type="monotone" dataKey="bbLower" stroke="none" fill="transparent" dot={false} activeDot={false} name="BB Lower" />
+                  <Line type="monotone" dataKey="bbUpper" stroke={IND_COLORS.BB} strokeWidth={1} dot={false} strokeDasharray="4 2" name="BB Upper" />
+                  <Line type="monotone" dataKey="bbLower" stroke={IND_COLORS.BB} strokeWidth={1} dot={false} strokeDasharray="4 2" name="BB Lower" />
+                  <Line type="monotone" dataKey="bbMiddle" stroke={IND_COLORS.BB} strokeWidth={0.8} dot={false} strokeOpacity={0.4} name="BB Mid" />
+                </>
+              )}
+
+              {/* Price: Area or Candlestick */}
+              {showCandle ? (
+                <Bar dataKey="close" name="Close" shape={<CandlestickShape />} isAnimationActive={false} />
+              ) : (
+                <Area
+                  type="monotone" dataKey="close" name="Close"
+                  stroke={isPos ? GREEN : RED} strokeWidth={1.5}
+                  fill="url(#idGradFill)" dot={false}
+                  activeDot={{ r: 3, fill: isPos ? GREEN : RED, strokeWidth: 0 }}
+                />
+              )}
+
+              {/* SMA 20 overlay */}
+              {activeIndicators.has('SMA20') && (
+                <Line type="monotone" dataKey="sma20" stroke={IND_COLORS.SMA20} strokeWidth={1.2}
+                  dot={false} name="SMA 20" connectNulls />
+              )}
+
+              {/* EMA 50 overlay */}
+              {activeIndicators.has('EMA50') && (
+                <Line type="monotone" dataKey="ema50" stroke={IND_COLORS.EMA50} strokeWidth={1.2}
+                  dot={false} name="EMA 50" connectNulls />
+              )}
 
               {deltaInfo && (
                 <Customized component={(chartProps) => (
-                  <DeltaLineOverlay {...chartProps} bars={bars} deltaA={deltaA} deltaB={deltaB} deltaInfo={deltaInfo} />
+                  <DeltaLineOverlay {...chartProps} bars={chartBars} deltaA={deltaA} deltaB={deltaB} deltaInfo={deltaInfo} />
                 )} />
               )}
-            </AreaChart>
+            </ComposedChart>
           </ResponsiveContainer>
         </div>
 
         {/* Volume chart */}
-        <div className="id-chart-flex-volume">
+        <div className={`id-chart-flex-volume${(hasRSI || hasMACD) ? ' id-chart-flex-volume--compressed' : ''}`}>
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={bars} margin={{ top: 2, right: 6, bottom: 0, left: 6 }}>
+            <BarChart data={chartBars} margin={{ top: 2, right: 6, bottom: 0, left: 6 }}>
               <XAxis dataKey="label" hide axisLine={false} />
               <YAxis
                 tick={{ fill: 'var(--text-faint)', fontSize: 8 }} width={64}
@@ -558,7 +796,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
                 axisLine={false}
               />
               <Tooltip
-                contentStyle={{ background: 'var(--bg-surface)', border: '1px solid var(--border-strong)', fontSize: 11, borderRadius: 3 }}
+                contentStyle={commonTooltipStyle}
                 formatter={v => [fmt(v, 0), 'Volume']}
                 labelStyle={{ color: 'var(--text-muted)' }}
               />
@@ -566,6 +804,41 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
             </BarChart>
           </ResponsiveContainer>
         </div>
+
+        {/* RSI 14 sub-chart */}
+        {hasRSI && (
+          <div className="id-chart-flex-sub">
+            <ResponsiveContainer width="100%" height="100%">
+              <ComposedChart data={chartBars} margin={{ top: 2, right: 6, bottom: 0, left: 6 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" />
+                <XAxis dataKey="label" hide axisLine={false} />
+                <YAxis domain={[0, 100]} ticks={[30, 50, 70]} tick={{ fill: 'var(--text-faint)', fontSize: 8 }} width={64} axisLine={false} />
+                <ReferenceLine y={70} stroke="var(--price-down)" strokeDasharray="3 3" strokeOpacity={0.5} />
+                <ReferenceLine y={30} stroke="var(--price-up)" strokeDasharray="3 3" strokeOpacity={0.5} />
+                <Tooltip contentStyle={commonTooltipStyle} formatter={v => [v != null ? v.toFixed(1) : '--', 'RSI']} labelStyle={{ color: 'var(--text-muted)' }} />
+                <Line type="monotone" dataKey="rsi14" stroke={IND_COLORS.RSI14} strokeWidth={1.2} dot={false} name="RSI 14" connectNulls />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+
+        {/* MACD sub-chart */}
+        {hasMACD && (
+          <div className="id-chart-flex-sub">
+            <ResponsiveContainer width="100%" height="100%">
+              <ComposedChart data={chartBars} margin={{ top: 2, right: 6, bottom: 0, left: 6 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" />
+                <XAxis dataKey="label" hide axisLine={false} />
+                <YAxis tick={{ fill: 'var(--text-faint)', fontSize: 8 }} width={64} axisLine={false} />
+                <ReferenceLine y={0} stroke="var(--border-default)" />
+                <Tooltip contentStyle={commonTooltipStyle} formatter={(v, n) => [v != null ? v.toFixed(3) : '--', n]} labelStyle={{ color: 'var(--text-muted)' }} />
+                <Bar dataKey="macdHist" name="Histogram" fill={IND_COLORS.MACD} opacity={0.35} radius={[1, 1, 0, 0]} />
+                <Line type="monotone" dataKey="macdLine" stroke={IND_COLORS.MACD} strokeWidth={1.2} dot={false} name="MACD" connectNulls />
+                <Line type="monotone" dataKey="macdSignal" stroke="#e91e63" strokeWidth={1} dot={false} name="Signal" connectNulls strokeDasharray="3 2" />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </div>
+        )}
       </>
     );
   }
@@ -1466,7 +1739,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
 
         {/* LEFT: CHART PANEL */}
         <div className={`id-chart-area${isMobile ? ' id-chart-area--mobile' : ''}`}>
-          {/* Range selector */}
+          {/* Range selector + Chart type toggle */}
           <div className="id-range-row">
             {RANGES.map((r, i) => (
               <button key={r.label}
@@ -1479,6 +1752,19 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
                 {rangeChg >= 0 ? '+' : ''}{fmt(rangeChg)}%
               </span>
             )}
+
+            {/* AREA / CANDLE toggle */}
+            <div className="id-chart-type-toggle">
+              <button
+                className={`id-ct-btn${chartType === 'area' ? ' id-ct-btn--active' : ''}`}
+                onClick={() => setChartType('area')}
+              >AREA</button>
+              <button
+                className={`id-ct-btn${chartType === 'candle' ? ' id-ct-btn--active' : ''}`}
+                onClick={() => setChartType('candle')}
+              >CANDLE</button>
+            </div>
+
             {/* Mobile: show delta badge inline */}
             {isMobile && deltaInfo && (
               <span className="id-delta-badge--mobile"
@@ -1489,6 +1775,36 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
             )}
             {isMobile && deltaHint && <span className="id-delta-hint">{deltaHint}</span>}
           </div>
+
+          {/* Indicator toggle bar */}
+          <div className="id-indicator-bar">
+            {INDICATOR_LIST.map(ind => (
+              <button key={ind.key}
+                className={`id-ind-btn${activeIndicators.has(ind.key) ? ' id-ind-btn--active' : ''}`}
+                style={activeIndicators.has(ind.key) ? { borderColor: IND_COLORS[ind.key], color: IND_COLORS[ind.key] } : undefined}
+                onClick={() => toggleIndicator(ind.key)}
+              >{ind.label}</button>
+            ))}
+            <button
+              className={`id-ind-btn id-ind-btn--analyze${aiChartInsightLoading ? ' id-ind-btn--loading' : ''}`}
+              onClick={fetchChartInsight}
+              disabled={aiChartInsightLoading || bars.length < 5}
+            >{aiChartInsightLoading ? 'ANALYZING...' : 'ANALYZE'}</button>
+          </div>
+
+          {/* AI Chart Insight inline */}
+          {(aiChartInsight || aiChartInsightError) && (
+            <div className="id-chart-insight">
+              {aiChartInsightError ? (
+                <span className="id-chart-insight-error">{aiChartInsightError}</span>
+              ) : (
+                <>
+                  <span className="id-chart-insight-badge">AI INSIGHT</span>
+                  <span className="id-chart-insight-text">{aiChartInsight.insight}</span>
+                </>
+              )}
+            </div>
+          )}
 
           {/* Chart area */}
           <div className="id-chart-container">

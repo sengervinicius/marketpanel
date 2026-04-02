@@ -327,4 +327,140 @@ function fmtBig(n) {
   return '$' + n.toLocaleString();
 }
 
+/**
+ * POST /chart-insight — AI-powered chart analysis
+ *
+ * Accepts recent OHLCV bars + computed indicators, returns a 2-3 sentence
+ * technical commentary via Perplexity Sonar Pro.
+ */
+
+const _chartInsightCache = new Map();
+const CHART_INSIGHT_TTL = 5 * 60 * 1000; // 5 minutes
+
+router.post('/chart-insight', async (req, res) => {
+  const apiKey = process.env.PERPLEXITY_API_KEY;
+  if (!apiKey) {
+    return res.status(503).json({ error: 'AI not configured — PERPLEXITY_API_KEY missing' });
+  }
+
+  const { symbol, range, bars, indicators } = req.body;
+  if (!symbol || !bars || !Array.isArray(bars) || bars.length === 0) {
+    return res.status(400).json({ error: 'symbol and bars[] are required' });
+  }
+
+  // Cache key based on symbol + range + last bar timestamp
+  const lastT = bars[bars.length - 1]?.t || bars[bars.length - 1]?.label || '';
+  const cacheKey = `${symbol}:${range || ''}:${lastT}`;
+  const cached = _chartInsightCache.get(cacheKey);
+  if (cached && Date.now() < cached.exp) {
+    return res.json({ ...cached.v, cached: true });
+  }
+
+  // Summarize bars for the prompt (last 5 bars + overall stats)
+  const last5 = bars.slice(-5);
+  const opens = bars.map(b => b.open).filter(v => v != null);
+  const closes = bars.map(b => b.close).filter(v => v != null);
+  const highs = bars.map(b => b.high).filter(v => v != null);
+  const lows = bars.map(b => b.low).filter(v => v != null);
+  const overallHigh = highs.length ? Math.max(...highs) : null;
+  const overallLow = lows.length ? Math.min(...lows) : null;
+  const firstClose = closes[0];
+  const lastClose = closes[closes.length - 1];
+  const returnPct = firstClose && lastClose ? ((lastClose - firstClose) / firstClose * 100).toFixed(2) : null;
+
+  const barSummary = last5.map(b =>
+    `${b.label || ''}: O=${b.open} H=${b.high} L=${b.low} C=${b.close} V=${b.volume || 0}`
+  ).join('\n');
+
+  // Build indicator summary
+  let indicatorBlock = '';
+  if (indicators) {
+    const parts = [];
+    if (indicators.sma20 != null) parts.push(`SMA(20): ${indicators.sma20.toFixed(2)}`);
+    if (indicators.ema50 != null) parts.push(`EMA(50): ${indicators.ema50.toFixed(2)}`);
+    if (indicators.rsi14 != null) parts.push(`RSI(14): ${indicators.rsi14.toFixed(1)}`);
+    if (indicators.macd) {
+      parts.push(`MACD: ${indicators.macd.MACD?.toFixed(2) || '--'}, Signal: ${indicators.macd.signal?.toFixed(2) || '--'}, Hist: ${indicators.macd.histogram?.toFixed(2) || '--'}`);
+    }
+    if (indicators.bbUpper != null && indicators.bbLower != null) {
+      parts.push(`Bollinger Bands: Upper=${indicators.bbUpper.toFixed(2)}, Lower=${indicators.bbLower.toFixed(2)}`);
+    }
+    if (parts.length > 0) indicatorBlock = '\n\nTechnical Indicators (latest values):\n' + parts.join('\n');
+  }
+
+  const systemPrompt = `You are a senior technical analyst at a Bloomberg-style terminal. Given chart data and indicators for a ticker, produce a concise 2-3 sentence technical analysis. Be specific about price levels, patterns, and indicator signals. Do NOT use emojis. Be professional and data-driven. Mention support/resistance levels if apparent. If indicators suggest a trend or reversal, state it clearly.`;
+
+  const userPrompt = `Ticker: ${symbol}
+Range: ${range || 'unknown'}
+Bars: ${bars.length} data points
+Period High: ${overallHigh}
+Period Low: ${overallLow}
+Period Return: ${returnPct != null ? returnPct + '%' : 'N/A'}
+Last Close: ${lastClose}
+
+Recent bars:
+${barSummary}${indicatorBlock}
+
+Provide a 2-3 sentence technical analysis.`;
+
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 15000);
+
+  try {
+    const response = await fetch(PERPLEXITY_URL, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      signal: ctrl.signal,
+      body: JSON.stringify({
+        model: MODEL,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+        max_tokens: 250,
+        temperature: 0.15,
+      }),
+    });
+
+    if (!response.ok) {
+      const errText = await response.text().catch(() => '');
+      console.error(`[Search/AI Chart Insight] Perplexity error ${response.status}:`, errText.substring(0, 200));
+      return res.status(502).json({ error: `AI provider error (${response.status})` });
+    }
+
+    const data = await response.json();
+    const raw = data.choices?.[0]?.message?.content;
+    if (!raw) {
+      return res.status(502).json({ error: 'Empty response from AI provider' });
+    }
+
+    const result = {
+      symbol,
+      range: range || '',
+      insight: raw.trim(),
+      generatedAt: new Date().toISOString(),
+    };
+
+    // Cache
+    _chartInsightCache.set(cacheKey, { v: result, exp: Date.now() + CHART_INSIGHT_TTL });
+    if (_chartInsightCache.size > 100) {
+      const now = Date.now();
+      for (const [k, e] of _chartInsightCache) { if (now > e.exp) _chartInsightCache.delete(k); }
+    }
+
+    res.json(result);
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      return res.status(504).json({ error: 'AI chart insight timed out (15s)' });
+    }
+    console.error('[Search/AI Chart Insight] Error:', err.message);
+    res.status(500).json({ error: 'AI chart insight failed' });
+  } finally {
+    clearTimeout(timer);
+  }
+});
+
 module.exports = router;

@@ -13,12 +13,38 @@
  */
 import { useState, useEffect, useRef, useCallback, memo } from 'react';
 import {
-  AreaChart, Area, BarChart, Bar,
+  AreaChart, Area, BarChart, Bar, ComposedChart,
   XAxis, YAxis, ResponsiveContainer, Tooltip, ReferenceLine,
 } from 'recharts';
 import { apiFetch } from '../../utils/api';
 import { useTickerPrice } from '../../context/PriceContext';
 import MobileChartContainer from '../common/MobileChartContainer';
+
+const GREEN_MC = '#4caf50';
+const RED_MC   = '#f44336';
+
+/** Candlestick bar shape for mobile charts */
+function MobileCandleShape(props) {
+  const { x, y, width, height, payload } = props;
+  if (!payload) return null;
+  const { open, high, low, close } = payload;
+  if (open == null || close == null || high == null || low == null) return null;
+  const isUp = close >= open;
+  const color = isUp ? GREEN_MC : RED_MC;
+  const bodyTop = Math.min(y, y + height);
+  const bodyH = Math.max(Math.abs(height), 1);
+  const centerX = x + width / 2;
+  const yScale = bodyH / Math.abs(close - open || 0.001);
+  const wickTop = bodyTop - Math.abs((isUp ? high - close : high - open)) * yScale;
+  const wickBot = bodyTop + bodyH + Math.abs((isUp ? open - low : close - low)) * yScale;
+  return (
+    <g>
+      <line x1={centerX} y1={wickTop} x2={centerX} y2={wickBot} stroke={color} strokeWidth={1} />
+      <rect x={x + 1} y={bodyTop} width={Math.max(width - 2, 2)} height={bodyH}
+        fill={color} stroke={color} strokeWidth={0.5} fillOpacity={isUp ? 0.3 : 0.85} />
+    </g>
+  );
+}
 
 const SYNC_INTERVAL = 30_000;
 
@@ -117,6 +143,10 @@ const MobileChart = memo(function MobileChart({ ticker }) {
   const [chg, setChg] = useState(null);
   const [chgPct, setChgPct] = useState(null);
   const [noData, setNoData] = useState(false);
+  const [chartType, setChartType] = useState('area'); // 'area' | 'candle'
+  const [aiInsight, setAiInsight] = useState(null);
+  const [aiInsightLoading, setAiInsightLoading] = useState(false);
+  const aiInsightCacheRef = useRef({});
   const mountedRef = useRef(true);
 
   const fetchData = useCallback(async (rIdx) => {
@@ -133,6 +163,9 @@ const MobileChart = memo(function MobileChart({ ticker }) {
       if (!mountedRef.current) return;
       let results = (json.results || []).map(b => ({
         t: b.t,
+        open: b.o ?? b.c ?? 0,
+        high: b.h ?? b.c ?? 0,
+        low: b.l ?? b.c ?? 0,
         close: b.c ?? b.vw ?? 0,
         volume: b.v ?? 0,
         label: range.timespan === 'minute'
@@ -176,12 +209,43 @@ const MobileChart = memo(function MobileChart({ ticker }) {
     if (shared?.changePct != null) setChgPct(shared.changePct);
   }, [shared]);
 
+  // AI Chart Insight
+  const fetchInsight = useCallback(() => {
+    if (bars.length < 5) return;
+    const lastT = bars[bars.length - 1]?.t || '';
+    const cacheKey = `${ticker}:${RANGES[rangeIdx].label}:${lastT}`;
+    if (aiInsightCacheRef.current[cacheKey]) {
+      setAiInsight(aiInsightCacheRef.current[cacheKey]);
+      return;
+    }
+    setAiInsightLoading(true);
+    setAiInsight(null);
+    const recentBars = bars.slice(-20).map(b => ({
+      label: b.label, open: b.open, high: b.high, low: b.low, close: b.close, volume: b.volume,
+    }));
+    apiFetch('/api/search/chart-insight', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ symbol: ticker, range: RANGES[rangeIdx].label, bars: recentBars, indicators: {} }),
+    })
+      .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+      .then(data => {
+        if (mountedRef.current) {
+          aiInsightCacheRef.current[cacheKey] = data;
+          setAiInsight(data);
+          setAiInsightLoading(false);
+        }
+      })
+      .catch(() => { if (mountedRef.current) setAiInsightLoading(false); });
+  }, [ticker, bars, rangeIdx]);
+
   const isUp = (chgPct ?? 0) >= 0;
   const lineColor = isUp ? 'var(--price-up, #00c851)' : 'var(--price-down, #f44336)';
   const rawLineColor = isUp ? '#00c851' : '#f44336';
   const openPrice = bars.length > 0 ? bars[0].close : null;
   const gradId = `mcg-${ticker}-${rangeIdx}`;
   const tickerName = TICKER_NAMES[ticker] || '';
+  const showCandle = chartType === 'candle';
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
@@ -223,8 +287,8 @@ const MobileChart = memo(function MobileChart({ ticker }) {
         )}
       </div>
 
-      {/* Range selector */}
-      <div style={{ display: 'flex', gap: 4, padding: '5px 10px', flexShrink: 0 }}>
+      {/* Range selector + chart type toggle + analyze */}
+      <div style={{ display: 'flex', gap: 4, padding: '5px 10px', flexShrink: 0, alignItems: 'center' }}>
         {RANGES.map((r, i) => (
           <button key={r.label} onClick={() => setRangeIdx(i)} style={{
             flex: 1, padding: '5px 0', fontSize: 10, cursor: 'pointer', fontFamily: 'inherit',
@@ -235,7 +299,38 @@ const MobileChart = memo(function MobileChart({ ticker }) {
             borderRadius: 3,
           }}>{r.label}</button>
         ))}
+        {/* AREA / CANDLE toggle */}
+        <div style={{ display: 'inline-flex', border: '1px solid var(--border-default, #1e1e1e)', borderRadius: 3, overflow: 'hidden', flexShrink: 0, marginLeft: 2 }}>
+          {['area', 'candle'].map(t => (
+            <button key={t} onClick={() => setChartType(t)} style={{
+              padding: '4px 6px', fontSize: 9, fontWeight: 600, letterSpacing: '0.04em',
+              border: 'none', cursor: 'pointer', fontFamily: 'inherit',
+              background: chartType === t ? 'var(--accent, #ff6600)' : 'transparent',
+              color: chartType === t ? '#fff' : 'var(--text-faint, #555)',
+            }}>{t.toUpperCase()}</button>
+          ))}
+        </div>
+        {/* ANALYZE button */}
+        <button onClick={fetchInsight} disabled={aiInsightLoading || bars.length < 5} style={{
+          padding: '4px 7px', fontSize: 9, fontWeight: 600, letterSpacing: '0.04em',
+          border: '1px solid var(--accent, #ff6600)', borderRadius: 3, flexShrink: 0,
+          background: 'transparent', color: 'var(--accent, #ff6600)', cursor: 'pointer',
+          fontFamily: 'inherit', opacity: (aiInsightLoading || bars.length < 5) ? 0.4 : 1,
+        }}>{aiInsightLoading ? '...' : 'ANALYZE'}</button>
       </div>
+
+      {/* AI Chart Insight */}
+      {aiInsight && (
+        <div style={{
+          margin: '0 10px 4px', padding: '5px 8px', fontSize: 11, lineHeight: 1.45,
+          background: 'var(--bg-surface, #111)', border: '1px solid var(--border-default, #1e1e1e)',
+          borderLeft: '3px solid var(--accent, #ff6600)', borderRadius: 3,
+          color: 'var(--text-secondary, #ccc)',
+        }}>
+          <span style={{ fontSize: 8, fontWeight: 700, letterSpacing: '0.06em', color: 'var(--accent, #ff6600)', marginRight: 6 }}>AI INSIGHT</span>
+          {aiInsight.insight}
+        </div>
+      )}
 
       {/* Charts via MobileChartContainer (explicit pixel heights) */}
       <MobileChartContainer>
@@ -266,35 +361,61 @@ const MobileChart = memo(function MobileChart({ ticker }) {
             ) : (
               <>
                 <ResponsiveContainer width={width} height={priceHeight}>
-                  <AreaChart data={bars} margin={{ top: 6, right: 4, bottom: 0, left: 4 }}>
-                    <defs>
-                      <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor={isUp ? '#1e50c8' : '#c81e1e'} stopOpacity={0.45} />
-                        <stop offset="95%" stopColor={isUp ? '#1e50c8' : '#c81e1e'} stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <XAxis
-                      dataKey="label" tick={{ fill: '#444', fontSize: 9 }}
-                      tickLine={false} axisLine={{ stroke: '#1e1e1e' }}
-                      interval="preserveStartEnd"
-                    />
-                    <YAxis
-                      orientation="right" domain={['auto', 'auto']}
-                      tickFormatter={fmtPrice} tick={{ fill: '#444', fontSize: 9 }}
-                      tickLine={false} axisLine={false} width={52}
-                    />
-                    {openPrice && <ReferenceLine y={openPrice} stroke="#e8a020" strokeDasharray="3 3" strokeWidth={1} />}
-                    <Area
-                      type="monotone" dataKey="close" stroke={rawLineColor} strokeWidth={1.5}
-                      fill={`url(#${gradId})`} dot={false} isAnimationActive={false}
-                    />
-                    <Tooltip
-                      contentStyle={{ background: '#0d0d0d', border: '1px solid #2a2a2a', fontSize: 10, padding: '4px 8px', borderRadius: 3 }}
-                      itemStyle={{ color: rawLineColor }}
-                      formatter={v => [fmtPrice(v), 'Close']}
-                      labelFormatter={l => l}
-                    />
-                  </AreaChart>
+                  {showCandle ? (
+                    <ComposedChart data={bars} margin={{ top: 6, right: 4, bottom: 0, left: 4 }}>
+                      <XAxis
+                        dataKey="label" tick={{ fill: '#444', fontSize: 9 }}
+                        tickLine={false} axisLine={{ stroke: '#1e1e1e' }}
+                        interval="preserveStartEnd"
+                      />
+                      <YAxis
+                        orientation="right" domain={['auto', 'auto']}
+                        tickFormatter={fmtPrice} tick={{ fill: '#444', fontSize: 9 }}
+                        tickLine={false} axisLine={false} width={52}
+                      />
+                      {openPrice && <ReferenceLine y={openPrice} stroke="#e8a020" strokeDasharray="3 3" strokeWidth={1} />}
+                      <Bar dataKey="close" name="Close" shape={<MobileCandleShape />} isAnimationActive={false} />
+                      <Tooltip
+                        contentStyle={{ background: '#0d0d0d', border: '1px solid #2a2a2a', fontSize: 10, padding: '4px 8px', borderRadius: 3 }}
+                        formatter={(v, n, props) => {
+                          const p = props?.payload;
+                          if (p) return [`O:${fmtPrice(p.open)} H:${fmtPrice(p.high)} L:${fmtPrice(p.low)} C:${fmtPrice(p.close)}`, ''];
+                          return [fmtPrice(v), 'Close'];
+                        }}
+                        labelFormatter={l => l}
+                      />
+                    </ComposedChart>
+                  ) : (
+                    <AreaChart data={bars} margin={{ top: 6, right: 4, bottom: 0, left: 4 }}>
+                      <defs>
+                        <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor={isUp ? '#1e50c8' : '#c81e1e'} stopOpacity={0.45} />
+                          <stop offset="95%" stopColor={isUp ? '#1e50c8' : '#c81e1e'} stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <XAxis
+                        dataKey="label" tick={{ fill: '#444', fontSize: 9 }}
+                        tickLine={false} axisLine={{ stroke: '#1e1e1e' }}
+                        interval="preserveStartEnd"
+                      />
+                      <YAxis
+                        orientation="right" domain={['auto', 'auto']}
+                        tickFormatter={fmtPrice} tick={{ fill: '#444', fontSize: 9 }}
+                        tickLine={false} axisLine={false} width={52}
+                      />
+                      {openPrice && <ReferenceLine y={openPrice} stroke="#e8a020" strokeDasharray="3 3" strokeWidth={1} />}
+                      <Area
+                        type="monotone" dataKey="close" stroke={rawLineColor} strokeWidth={1.5}
+                        fill={`url(#${gradId})`} dot={false} isAnimationActive={false}
+                      />
+                      <Tooltip
+                        contentStyle={{ background: '#0d0d0d', border: '1px solid #2a2a2a', fontSize: 10, padding: '4px 8px', borderRadius: 3 }}
+                        itemStyle={{ color: rawLineColor }}
+                        formatter={v => [fmtPrice(v), 'Close']}
+                        labelFormatter={l => l}
+                      />
+                    </AreaChart>
+                  )}
                 </ResponsiveContainer>
                 <ResponsiveContainer width={width} height={volumeHeight}>
                   <BarChart data={bars} margin={{ top: 2, right: 4, bottom: 0, left: 4 }}>
