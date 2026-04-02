@@ -5,6 +5,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import UserAvatar from '../common/UserAvatar';
+import ShareModal from '../common/ShareModal';
 import { getPersona } from '../../config/avatars';
 import './LeaderboardPanel.css';
 
@@ -39,13 +40,15 @@ function RankBadge({ rank }) {
 }
 
 export default function LeaderboardPanel({ mobile = false }) {
-  const { user } = useAuth();
+  const { user, triggerGamificationEvent } = useAuth();
   const [view, setView] = useState('global');
   const [entries, setEntries] = useState([]);
   const [userRank, setUserRank] = useState(null);
   const [total, setTotal] = useState(0);
   const [meta, setMeta] = useState({ title: 'Global Leaderboard', endsAt: null, generatedAt: null });
   const [loading, setLoading] = useState(true);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [shareType, setShareType] = useState('leaderboard');
 
   const fetchBoard = useCallback(async (v) => {
     setLoading(true);
@@ -151,8 +154,21 @@ export default function LeaderboardPanel({ mobile = false }) {
       {userRank != null && (
         <div className="lb-footer">
           Your rank: <strong>#{userRank}</strong> of {total}
+          <button
+            className="lb-share-btn"
+            onClick={() => { setShareType(view === 'weekly' ? 'weekly' : 'leaderboard'); setShareOpen(true); }}
+          >SHARE</button>
         </div>
       )}
+
+      {/* Share modal */}
+      <ShareModal
+        isOpen={shareOpen}
+        onClose={() => setShareOpen(false)}
+        cardType={shareType}
+        cardData={{ board: view }}
+        triggerGamificationEvent={triggerGamificationEvent}
+      />
     </div>
   );
 }

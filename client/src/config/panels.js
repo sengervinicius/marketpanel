@@ -254,6 +254,17 @@ export const PANEL_DEFINITIONS = {
     minSymbols:     0,
     maxSymbols:     0,
   },
+  referrals: {
+    id:             'referrals',
+    label:          'Referrals',
+    defaultTitle:   'Referrals',
+    defaultSymbols: [],
+    allowedGroups:  null,
+    editable:       false,
+    icon:           'RF',
+    minSymbols:     0,
+    maxSymbols:     0,
+  },
 };
 
 /**

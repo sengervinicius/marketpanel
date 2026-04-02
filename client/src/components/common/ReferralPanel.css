@@ -1,0 +1,158 @@
+/* ReferralPanel.css — Referral code UI
+   Phase 18: Terminal-consistent dark theme with .ref-* prefix */
+
+.ref-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3, 12px);
+  padding: var(--sp-3, 12px);
+  color: var(--text-primary, #e0e0e0);
+  font-family: var(--font-ui, -apple-system, BlinkMacSystemFont, sans-serif);
+}
+
+.ref-title {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: var(--text-faint, #666);
+}
+
+/* ── Your code section ─────────────────────────── */
+.ref-code-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.ref-code-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ref-code {
+  font-family: var(--font-mono, monospace);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: var(--accent, #ff6600);
+  padding: 6px 12px;
+  background: var(--bg-surface, #1a1a1a);
+  border: 1px solid var(--border-default, #333);
+  border-radius: 4px;
+  flex: 1;
+  text-align: center;
+}
+.ref-copy-btn {
+  padding: 6px 14px;
+  font-size: 10px;
+  font-weight: 700;
+  font-family: var(--font-ui, sans-serif);
+  letter-spacing: 0.5px;
+  border: 1px solid var(--accent, #ff6600);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--accent, #ff6600);
+  cursor: pointer;
+  transition: all 0.12s;
+  white-space: nowrap;
+}
+.ref-copy-btn:hover { background: rgba(255, 102, 0, 0.1); }
+.ref-copy-btn--done {
+  border-color: var(--price-up, #4caf50);
+  color: var(--price-up, #4caf50);
+}
+.ref-invite-text {
+  font-size: 11px;
+  color: var(--text-muted, #aaa);
+  line-height: 1.4;
+}
+.ref-copy-invite {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border: 1px solid var(--border-default, #333);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-muted, #aaa);
+  cursor: pointer;
+  transition: all 0.12s;
+  align-self: flex-start;
+}
+.ref-copy-invite:hover { border-color: var(--text-muted, #aaa); color: var(--text-primary, #e0e0e0); }
+
+/* ── Stats ─────────────────────────────────────── */
+.ref-stats {
+  display: flex;
+  gap: 24px;
+}
+.ref-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.ref-stat-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  color: var(--text-faint, #666);
+}
+.ref-stat-value {
+  font-size: 18px;
+  font-weight: 700;
+  font-family: var(--font-mono, monospace);
+  color: var(--text-primary, #e0e0e0);
+}
+.ref-stat-value--accent { color: var(--accent, #ff6600); }
+
+/* ── Redeem section ─────────────────────────────── */
+.ref-redeem {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: var(--sp-2, 8px);
+  border-top: 1px solid var(--border-subtle, rgba(255,255,255,0.06));
+}
+.ref-redeem-row {
+  display: flex;
+  gap: 6px;
+}
+.ref-redeem-input {
+  flex: 1;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-family: var(--font-mono, monospace);
+  letter-spacing: 1px;
+  background: var(--bg-surface, #1a1a1a);
+  border: 1px solid var(--border-default, #333);
+  border-radius: 4px;
+  color: var(--text-primary, #e0e0e0);
+  outline: none;
+  text-transform: uppercase;
+}
+.ref-redeem-input:focus { border-color: var(--accent, #ff6600); }
+.ref-redeem-input::placeholder { color: var(--text-faint, #555); text-transform: none; }
+.ref-redeem-btn {
+  padding: 6px 16px;
+  font-size: 10px;
+  font-weight: 700;
+  font-family: var(--font-ui, sans-serif);
+  letter-spacing: 0.8px;
+  border: 1px solid var(--accent, #ff6600);
+  border-radius: 4px;
+  background: var(--accent, #ff6600);
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.12s;
+}
+.ref-redeem-btn:hover:not(:disabled) { background: #e85d00; }
+.ref-redeem-btn:disabled { opacity: 0.4; cursor: default; }
+.ref-redeem-msg {
+  font-size: 11px;
+  line-height: 1.4;
+}
+.ref-redeem-msg--success { color: var(--price-up, #4caf50); }
+.ref-redeem-msg--error { color: var(--price-down, #f44336); }
+.ref-already-redeemed {
+  font-size: 11px;
+  color: var(--text-faint, #666);
+  font-style: italic;
+}

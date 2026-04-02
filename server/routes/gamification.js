@@ -35,6 +35,13 @@ const XP_TABLE = {
   options_change_expiry:    5,
   options_build_strategy:   15,
   options_view_payoff:      10,
+  // Sharing & referral events (Phase 18)
+  share_portfolio:          15,
+  share_ticker:             10,
+  share_leaderboard:        15,
+  share_weekly:             15,
+  redeem_referral:          50,
+  receive_referral:         50,
 };
 
 // Map gamification event types → mission IDs to progress
@@ -59,6 +66,13 @@ const EVENT_MISSION_MAP = {
   options_change_expiry:     [],
   options_build_strategy:    ['weekly-options-strategy'],
   options_view_payoff:       ['first-payoff'],
+  // Sharing & referral missions (Phase 18)
+  share_portfolio:           ['first-share', 'weekly-sharer'],
+  share_ticker:              ['first-share', 'weekly-sharer'],
+  share_leaderboard:         ['first-share', 'weekly-sharer'],
+  share_weekly:              ['first-share', 'weekly-sharer'],
+  redeem_referral:           [],
+  receive_referral:          ['invite-first-trader', 'referral-champion'],
 };
 
 // POST /api/gamification/event

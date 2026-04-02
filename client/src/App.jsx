@@ -36,6 +36,7 @@ import ETFPanel from './components/panels/ETFPanel';
 import ScreenerPanel from './components/panels/ScreenerPanel';
 import MacroPanel from './components/panels/MacroPanel';
 import LeaderboardPanel from './components/panels/LeaderboardPanel';
+import ReferralPanel from './components/common/ReferralPanel';
 import MissionsPanel from './components/panels/MissionsPanel';
 import MobileMissionsScreen from './components/panels/MobileMissionsScreen';
 import ToastContainer from './components/common/ToastContainer';
@@ -254,6 +255,8 @@ function makePanelRenderer(panelId, props) {
       return <LeaderboardPanel />;
     case 'missions':
       return <MissionsPanel />;
+    case 'referrals':
+      return <ReferralPanel />;
     default:
       return <div className="app-panel-placeholder">Panel: {panelId}</div>;
   }
@@ -1697,6 +1700,10 @@ export default function App() {
 
             {activeTab === 'more' && moreView === 'leaderboard' && (
               <LeaderboardPanel mobile />
+            )}
+
+            {activeTab === 'more' && moreView === 'referrals' && (
+              <ReferralPanel />
             )}
 
             {activeTab === 'more' && moreView === 'missions' && (

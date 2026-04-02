@@ -285,6 +285,9 @@ async function createUser(username, passwordPlain, email) {
     stripeSubscriptionId: null,
     persona:              defaultPersona(),
     gamification:         defaultGamification(),
+    referralCode:         generateReferralCode(),
+    referredBy:           null,
+    referralRewards:      { invited: 0, xpEarned: 0 },
     createdAt:            now,
   };
 
@@ -511,6 +514,79 @@ async function updateUser(userId, partial) {
   return user;
 }
 
+// ── Referral system ─────────────────────────────────────────────────────────
+
+function generateReferralCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no I/O/0/1 ambiguity
+  let code = 'SGR-';
+  for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
+  return code;
+}
+
+/**
+ * Find a user by their referral code.
+ */
+function findUserByReferralCode(code) {
+  if (!code) return null;
+  const upper = code.toUpperCase().trim();
+  for (const u of usersById.values()) {
+    if (u.referralCode === upper) return u;
+  }
+  return null;
+}
+
+/**
+ * Redeem a referral code for a user. Awards XP to both parties.
+ * @returns {{ referrer, invitee, xpAwarded }} on success
+ */
+async function redeemReferral(userId, referralCode) {
+  const user = getUserById(userId);
+  if (!user) throw new Error('User not found');
+  if (user.referredBy) throw new Error('Already redeemed a referral code');
+
+  const upper = referralCode.toUpperCase().trim();
+  if (user.referralCode === upper) throw new Error('Cannot use your own referral code');
+
+  const referrer = findUserByReferralCode(upper);
+  if (!referrer) throw new Error('Invalid referral code');
+
+  const REFERRAL_XP = 50;
+
+  // Mark invitee
+  user.referredBy = referrer.id;
+  await addXp(userId, REFERRAL_XP);
+
+  // Reward referrer
+  if (!referrer.referralRewards) referrer.referralRewards = { invited: 0, xpEarned: 0 };
+  referrer.referralRewards.invited += 1;
+  referrer.referralRewards.xpEarned += REFERRAL_XP;
+  await addXp(referrer.id, REFERRAL_XP);
+
+  await persistUser(user);
+  // referrer persisted by addXp
+
+  return { referrer: referrer.username, invitee: user.username, xpAwarded: REFERRAL_XP };
+}
+
+/**
+ * Get referral status for a user.
+ */
+function getReferralStatus(userId) {
+  const user = getUserById(userId);
+  if (!user) return null;
+
+  // Backfill referral fields for older users
+  if (!user.referralCode) user.referralCode = generateReferralCode();
+  if (!user.referralRewards) user.referralRewards = { invited: 0, xpEarned: 0 };
+
+  return {
+    referralCode: user.referralCode,
+    referredBy:   user.referredBy,
+    invited:      user.referralRewards.invited,
+    xpEarned:     user.referralRewards.xpEarned,
+  };
+}
+
 // ── Gamification update ──────────────────────────────────────────────────────
 
 async function addXp(userId, amount) {
@@ -544,4 +620,7 @@ module.exports = {
   findUserByStripeCustomerId,
   updateUser,
   getAllUsersWithPersona,
+  findUserByReferralCode,
+  redeemReferral,
+  getReferralStatus,
 };

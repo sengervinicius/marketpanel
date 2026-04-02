@@ -24,6 +24,8 @@ const screenerRoutes        = require('./routes/screener');
 const screenerPresetRoutes  = require('./routes/screenerPresets');
 const optionsRoutes         = require('./routes/options');
 const leaderboardRoutes = require('./routes/leaderboard');
+const shareRoutes       = require('./routes/share');
+const referralRoutes    = require('./routes/referrals');
 const { requireAuth, requireActiveSubscription } = require('./authMiddleware');
 const logger = require('./utils/logger');
 const { requestLogger } = require('./utils/logger');
@@ -58,6 +60,10 @@ app.use((req, res, next) => {
 });
 
 app.use(requestLogger);
+
+// ── Static file serving ───────────────────────────────────────────────────────
+const path = require('path');
+app.use('/cards', express.static(path.join(__dirname, 'public', 'cards'), { maxAge: '30m' }));
 
 // ── Public routes ──────────────────────────────────────────────────────────────
 app.get('/health', (req, res) => res.json({
@@ -120,6 +126,8 @@ app.use('/api/gamification', requireAuth, gamificationRoutes);
 app.use('/api/missions', requireAuth, missionsRoutes);
 app.use('/api/discord', requireAuth, discordRoutes);
 app.use('/api/leaderboard', requireAuth, leaderboardRoutes);
+app.use('/api/share', requireAuth, shareRoutes);
+app.use('/api/referrals', requireAuth, referralRoutes);
 
 // AI Search: auth + subscription required
 app.use('/api/search', requireAuth, requireActiveSubscription, searchRoutes);

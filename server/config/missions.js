@@ -220,6 +220,40 @@ const MISSION_CATALOG = [
     target: 3,
     personaType: 'macro_investor',
   },
+
+  // ── Sharing & Referral missions (Phase 18) ──────────────
+  {
+    id: 'first-share',
+    kind: 'one-time',
+    title: 'Social Trader',
+    description: 'Share your first card (portfolio, ticker, or leaderboard).',
+    xpReward: 25,
+    target: 1,
+  },
+  {
+    id: 'weekly-sharer',
+    kind: 'weekly',
+    title: 'Market Influencer',
+    description: 'Share 3 cards this week.',
+    xpReward: 30,
+    target: 3,
+  },
+  {
+    id: 'invite-first-trader',
+    kind: 'one-time',
+    title: 'Invite a Trader',
+    description: 'Have someone redeem your referral code.',
+    xpReward: 50,
+    target: 1,
+  },
+  {
+    id: 'referral-champion',
+    kind: 'one-time',
+    title: 'Referral Champion',
+    description: 'Refer 5 traders to the terminal.',
+    xpReward: 100,
+    target: 5,
+  },
 ];
 
 // Streak milestones with XP rewards

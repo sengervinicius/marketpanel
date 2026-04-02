@@ -18,8 +18,10 @@ import PositionEditor from '../common/PositionEditor';
 import EmptyState from '../common/EmptyState';
 import AlertEditor from '../common/AlertEditor';
 import Badge from '../ui/Badge';
+import ShareModal from '../common/ShareModal';
 import { usePortfolio } from '../../context/PortfolioContext';
 import { useTickerPrice } from '../../context/PriceContext';
+import { useAuth } from '../../context/AuthContext';
 import {
   fmt, fmtPct, fmtCompact, computeSummary, computeAllocation,
   computeBenchmarkComparison, suggestBenchmark, inferAssetType, assetTypeLabel,
@@ -208,9 +210,11 @@ const PositionRow = memo(function PositionRow({ position, onTickerClick, onOpenD
 // ── Main panel ──
 function PortfolioPanel({ onTickerClick, onOpenDetail }) {
   const { portfolios, positions, removePosition, syncStatus, retrySync } = usePortfolio();
+  const { triggerGamificationEvent } = useAuth();
   const [filterSubId, setFilterSubId] = useState('all');
   const [editorPos, setEditorPos]     = useState(null);
   const [showEditor, setShowEditor]   = useState(false);
+  const [shareOpen, setShareOpen]     = useState(false);
 
   // Build filter options
   const filterOptions = [];
@@ -309,6 +313,9 @@ function PortfolioPanel({ onTickerClick, onOpenDetail }) {
             {filterOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
         )}
+        <button className="pp-add-btn pp-add-btn--compact" onClick={() => setShareOpen(true)} title="Share portfolio">
+          SHARE
+        </button>
         <button className="pp-add-btn pp-add-btn--compact" onClick={() => setShowEditor(true)}>
           + ADD
         </button>
@@ -385,6 +392,15 @@ function PortfolioPanel({ onTickerClick, onOpenDetail }) {
           onClose={handleCloseEditor}
         />
       )}
+
+      {/* Share modal */}
+      <ShareModal
+        isOpen={shareOpen}
+        onClose={() => setShareOpen(false)}
+        cardType="portfolio"
+        cardData={{ portfolioId: filterSubId !== 'all' ? filterSubId : undefined }}
+        triggerGamificationEvent={triggerGamificationEvent}
+      />
     </PanelShell>
   );
 }
