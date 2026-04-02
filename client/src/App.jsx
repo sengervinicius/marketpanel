@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo, Component } from 'react';
 import { apiFetch } from './utils/api';
 import { useMarketData } from './hooks/useMarketData';
 import { useWebSocket } from './hooks/useWebSocket';
@@ -39,6 +39,46 @@ import { TickerTooltip } from './components/common/TickerTooltip';
 import InstrumentDetail from './components/common/InstrumentDetail';
 import './App.css';
 import './components/panels/Chat.css';
+
+// ── Error Boundary — catches runtime crashes and shows diagnostic info ─────
+class AppErrorBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null, errorInfo: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error, errorInfo) {
+    this.setState({ errorInfo });
+    console.error('[AppErrorBoundary] Caught render crash:', error, errorInfo);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{
+          position: 'fixed', inset: 0, background: '#0a0a0a',
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          color: '#e0e0e0', fontFamily: 'monospace', padding: 24, gap: 16,
+        }}>
+          <div style={{ color: '#ff6600', fontWeight: 700, fontSize: 13, letterSpacing: '3px' }}>SENGER</div>
+          <div style={{ color: '#f44336', fontSize: 14, fontWeight: 600 }}>App crashed — render error</div>
+          <div style={{ color: '#ff9900', fontSize: 11, maxWidth: 600, wordBreak: 'break-word', textAlign: 'center' }}>
+            {this.state.error?.message || 'Unknown error'}
+          </div>
+          <pre style={{ color: '#888', fontSize: 9, maxWidth: '90vw', maxHeight: '40vh', overflow: 'auto', whiteSpace: 'pre-wrap' }}>
+            {this.state.error?.stack || ''}{'\n'}{this.state.errorInfo?.componentStack || ''}
+          </pre>
+          <button
+            onClick={() => { this.setState({ hasError: false, error: null, errorInfo: null }); window.location.reload(); }}
+            style={{ background: '#ff6600', color: '#fff', border: 'none', padding: '8px 24px', borderRadius: 4, cursor: 'pointer', fontSize: 12, letterSpacing: '1px' }}
+          >RELOAD</button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 // ── Boot state machine ─────────────────────────────────────────────────────
 const BOOT = {
@@ -1258,6 +1298,7 @@ export default function App() {
   // ── DESKTOP ──────────────────────────────────────────────────────────────
   if (!isMobile) {
     return (
+      <AppErrorBoundary>
       <DragProvider>
       <PortfolioProvider>
       <AlertsProvider>
@@ -1381,6 +1422,7 @@ export default function App() {
       </AlertsProvider>
       </PortfolioProvider>
       </DragProvider>
+      </AppErrorBoundary>
     );
   }
 
@@ -1402,6 +1444,7 @@ export default function App() {
   }, [activeTab, moreView]);
 
   return (
+    <AppErrorBoundary>
     <DragProvider>
     <PortfolioProvider>
     <AlertsProvider>
@@ -1597,6 +1640,7 @@ export default function App() {
     </AlertsProvider>
     </PortfolioProvider>
     </DragProvider>
+    </AppErrorBoundary>
   );
 }
 
