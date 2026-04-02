@@ -247,3 +247,54 @@
   flex: 1;
   overflow-y: auto;
 }
+
+/* ─────────────────────────────────────────────────────────────── */
+/* Empty state + Add Position CTA */
+/* ─────────────────────────────────────────────────────────────── */
+.pp-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px var(--sp-4);
+  gap: var(--sp-3);
+  text-align: center;
+}
+
+.pp-empty-title {
+  font-size: var(--font-md);
+  font-weight: 600;
+  color: var(--text-primary);
+  font-family: var(--font-ui);
+}
+
+.pp-empty-sub {
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+  max-width: 240px;
+  line-height: 1.5;
+  font-family: var(--font-ui);
+}
+
+.pp-add-btn {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 10px 24px;
+  font-size: var(--font-sm);
+  font-weight: 700;
+  font-family: var(--font-ui);
+  cursor: pointer;
+  letter-spacing: 0.03em;
+  transition: opacity 120ms ease;
+}
+.pp-add-btn:hover  { opacity: 0.9; }
+.pp-add-btn:active { opacity: 0.8; }
+
+.pp-add-btn--compact {
+  padding: 4px 10px;
+  font-size: var(--font-xs);
+  border-radius: 4px;
+  letter-spacing: 0.04em;
+}

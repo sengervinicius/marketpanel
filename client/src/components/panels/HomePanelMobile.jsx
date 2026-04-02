@@ -1,121 +1,102 @@
 /**
  * HomePanelMobile.jsx
  *
- * Mobile Home tab — shows the user's desktop screens/boxes.
- * Each box is derived from settings.layout.desktopRows + PANEL_DEFINITIONS.
- * Tapping a box expands it to show its tickers with live prices.
+ * Mobile Home tab — curated 6 section cards + news card.
+ * Each section shows 3-4 key tickers with live price and change%.
+ * Tapping a card navigates to the full section.
  * Tapping a ticker opens InstrumentDetail.
  */
 
-import { useState, useMemo, memo } from 'react';
+import { useState, useEffect, useMemo, memo } from 'react';
 import { useStocksData, useForexData, useCryptoData } from '../../context/MarketContext';
-import { useSettings } from '../../context/SettingsContext';
-import { useWatchlist } from '../../context/PortfolioContext';
-import { PANEL_DEFINITIONS } from '../../config/panels';
+import { apiFetch } from '../../utils/api';
 import './HomePanelMobile.css';
 
-// Formatting helpers
-function fmtPct(v) {
-  return v == null ? '--' : (v >= 0 ? '+' : '') + v.toFixed(2) + '%';
-}
-function fmtPrice(v, dec = 2) {
-  return v == null ? '--' : v.toLocaleString('en-US', {
-    minimumFractionDigits: dec,
-    maximumFractionDigits: dec,
-  });
+const MOBILE_HOME_SECTIONS = [
+  { id: 'us-equities',    label: 'US Equities' },
+  { id: 'fx-rates',       label: 'FX / Rates' },
+  { id: 'global-indexes', label: 'Global Indexes' },
+  { id: 'brazil-b3',      label: 'Brazil B3' },
+  { id: 'commodities',    label: 'Commodities' },
+  { id: 'crypto',         label: 'Crypto' },
+];
+
+const SECTION_TICKERS = {
+  'us-equities':    ['SPY', 'QQQ', 'AAPL', 'MSFT'],
+  'fx-rates':       ['C:EURUSD', 'C:GBPUSD', 'C:USDJPY', 'C:USDBRL'],
+  'global-indexes': ['EEM', 'EFA', 'EWZ', 'FXI'],
+  'brazil-b3':      ['PETR4.SA', 'VALE3.SA', 'ITUB4.SA', 'BBDC4.SA'],
+  'commodities':    ['GLD', 'SLV', 'USO', 'UNG'],
+  'crypto':         ['X:BTCUSD', 'X:ETHUSD', 'X:SOLUSD', 'X:BNBUSD'],
+};
+
+function formatPrice(v) {
+  if (v == null) return '--';
+  return v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-/** Look up price data across all markets */
-function getPrice(sym, stocksData, forexData, cryptoData) {
-  return stocksData[sym] || forexData[sym] || cryptoData[sym] || null;
-}
-
-/** Display-friendly symbol */
 function displaySymbol(sym) {
   if (!sym) return '';
   if (sym.startsWith('C:')) return sym.slice(2, 5) + '/' + sym.slice(5);
-  if (sym.startsWith('X:')) return sym.slice(2).replace('USD', '') + '/USD';
+  if (sym.startsWith('X:')) return sym.slice(2).replace('USD', '');
   if (sym.endsWith('.SA')) return sym.slice(0, -3);
   return sym;
-}
-
-// Skeleton loader card
-function SkeletonCard() {
-  return (
-    <div className="hpm-skeleton" />
-  );
-}
-
-// Expanded row for each ticker inside a box
-function ExpandedTickerRow({ sym, data, onOpenDetail, onToggleWatch, isWatching }) {
-  const price = data?.price ?? null;
-  const changePct = data?.changePct ?? null;
-  const isPositive = (changePct ?? 0) >= 0;
-
-  return (
-    <div
-      className="hpm-ticker-row"
-      onClick={() => onOpenDetail?.(sym)}
-    >
-      <div className="hpm-ticker-info">
-        <div className="hpm-ticker-display">
-          {displaySymbol(sym)}
-        </div>
-        <div className="hpm-ticker-symbol">
-          {sym}
-        </div>
-      </div>
-
-      <div className="flex-row" style={{ gap: 12 }}>
-        <div className="hpm-ticker-price">
-          <div className="hpm-ticker-price-value">
-            {fmtPrice(price, 2)}
-          </div>
-          <div className={`hpm-ticker-price-change ${isPositive ? 'hpm-ticker-price-change-positive' : 'hpm-ticker-price-change-negative'}`}>
-            {fmtPct(changePct)}
-          </div>
-        </div>
-
-        <button className={`btn flex-row hpm-ticker-watch-btn ${isWatching ? 'hpm-ticker-watch-btn-active' : ''}`}
-          onClick={(e) => {
-            e.stopPropagation();
-            onToggleWatch(sym);
-          }}
-          title={isWatching ? 'In watchlist' : 'Add to watchlist'}
-        >
-          {isWatching ? '★' : '☆'}
-        </button>
-      </div>
-    </div>
-  );
 }
 
 function HomePanelMobile({ onOpenDetail, onSearchClick }) {
   const stocksData = useStocksData();
   const forexData = useForexData();
   const cryptoData = useCryptoData();
-  const { settings } = useSettings();
-  const { addTicker, isWatching } = useWatchlist();
+  const [news, setNews] = useState([]);
 
-  const [expandedBox, setExpandedBox] = useState(null);
+  // Fetch top news headlines
+  useEffect(() => {
+    apiFetch('/api/news')
+      .then(r => r.ok ? r.json() : { articles: [] })
+      .then(d => setNews((d.articles || d.results || []).slice(0, 5)))
+      .catch(() => {});
+  }, []);
 
-  // Derive boxes from desktop panel settings + layout order
-  const boxes = useMemo(() => {
-    const desktopRows = settings?.layout?.desktopRows || [];
-    const orderedIds = desktopRows.flat();
+  function getPrice(sym) {
+    return stocksData[sym] || forexData[sym] || cryptoData[sym] || null;
+  }
 
-    return orderedIds.map(panelId => {
-      const userCfg = settings?.panels?.[panelId] || {};
-      const def = PANEL_DEFINITIONS[panelId] || {};
-      return {
-        id: panelId,
-        title: userCfg.title || def.defaultTitle || panelId,
-        symbols: userCfg.symbols || def.defaultSymbols || [],
-      };
-    });
-  }, [settings]);
+  const sectionData = useMemo(() => {
+    const result = {};
+    for (const section of MOBILE_HOME_SECTIONS) {
+      const tickers = SECTION_TICKERS[section.id] || [];
+      result[section.id] = tickers.map(sym => {
+        const d = getPrice(sym);
+        return {
+          ticker: displaySymbol(sym),
+          rawSymbol: sym,
+          price: d?.price ?? null,
+          change: d?.change ?? null,
+          changePct: d?.changePct ?? null,
+        };
+      });
+    }
+    return result;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stocksData, forexData, cryptoData]);
 
-  const isLoadingBoxes = boxes.length === 0;
+  const openSection = (sectionId) => {
+    // Map section IDs to mobile tabs or detail views
+    const tabMap = {
+      'us-equities': 'search',
+      'fx-rates': 'search',
+      'global-indexes': 'search',
+      'brazil-b3': 'search',
+      'commodities': 'search',
+      'crypto': 'search',
+    };
+    if (onSearchClick) onSearchClick(tabMap[sectionId] || 'search');
+  };
+
+  const openNews = (item) => {
+    const url = item.article_url || item.link || item.url;
+    if (url) window.open(url, '_blank', 'noopener,noreferrer');
+  };
 
   return (
     <div className="hpm-container">
@@ -130,74 +111,56 @@ function HomePanelMobile({ onOpenDetail, onSearchClick }) {
         />
       </div>
 
-      {/* Your Screens — derived from desktop layout */}
-      <div className="hpm-screens-section">
-        <div className="hpm-section-label">YOUR SCREENS</div>
-
-        {isLoadingBoxes ? (
-          <>
-            <SkeletonCard />
-            <SkeletonCard />
-            <SkeletonCard />
-          </>
-        ) : boxes.length === 0 ? (
-          <div className="m-empty">
-            <div className="m-empty-text">
-              No screens configured. Add screens from the desktop view.
+      {/* Section Cards */}
+      <div className="hpm-section-grid">
+        {MOBILE_HOME_SECTIONS.map(section => (
+          <div className="hpm-section-card" key={section.id} onClick={() => openSection(section.id)}>
+            <div className="hpm-section-header">
+              <span className="hpm-section-title">{section.label}</span>
+              <span className="hpm-section-arrow">&rsaquo;</span>
+            </div>
+            <div className="hpm-ticker-list">
+              {(sectionData[section.id] || []).slice(0, 4).map(t => (
+                <div
+                  className="hpm-ticker-row"
+                  key={t.ticker}
+                  onClick={(e) => { e.stopPropagation(); onOpenDetail?.(t.rawSymbol); }}
+                >
+                  <span className="hpm-ticker-sym">{t.ticker}</span>
+                  <span className="hpm-ticker-price">{formatPrice(t.price)}</span>
+                  <span className={`hpm-ticker-chg ${t.changePct != null && t.changePct >= 0 ? 'up' : 'down'}`}>
+                    {t.changePct != null ? `${t.changePct >= 0 ? '+' : ''}${t.changePct.toFixed(2)}%` : '--'}
+                  </span>
+                </div>
+              ))}
             </div>
           </div>
-        ) : (
-          boxes.map((box) => {
-            const expanded = expandedBox === box.id;
-            const hasSymbols = box.symbols.length > 0;
-            const previewSymbols = box.symbols.slice(0, 3);
-
-            return (
-              <div key={box.id} className="hpm-card">
-                {/* Card Header */}
-                <div
-                  className="hpm-card-header"
-                  onClick={() => setExpandedBox(expanded ? null : box.id)}
-                >
-                  <div className="hpm-card-header-info">
-                    <span className="hpm-card-title">{box.title}</span>
-                    {hasSymbols && (
-                      <span className="hpm-card-subtitle">
-                        {previewSymbols.map((sym) => displaySymbol(sym)).join(' · ')}
-                        {box.symbols.length > 3 && ` +${box.symbols.length - 3}`}
-                      </span>
-                    )}
-                  </div>
-                  <span className={`hpm-card-chevron ${expanded ? 'hpm-card-chevron-rotated' : ''}`}>▼</span>
-                </div>
-
-                {/* Expanded List */}
-                {expanded && (
-                  <div className="hpm-card-content">
-                    {!hasSymbols ? (
-                      <div className="hpm-card-empty">No instruments configured</div>
-                    ) : (
-                      box.symbols.map((sym) => {
-                        const data = getPrice(sym, stocksData, forexData, cryptoData);
-                        return (
-                          <ExpandedTickerRow
-                            key={sym}
-                            sym={sym}
-                            data={data}
-                            onOpenDetail={onOpenDetail}
-                            onToggleWatch={addTicker}
-                            isWatching={isWatching(sym)}
-                          />
-                        );
-                      })
-                    )}
-                  </div>
-                )}
-              </div>
-            );
-          })
-        )}
+        ))}
       </div>
+
+      {/* News Feed Card */}
+      {news.length > 0 && (
+        <div className="hpm-news-card">
+          <div className="hpm-section-header">
+            <span className="hpm-section-title">News Feed</span>
+          </div>
+          {news.slice(0, 5).map((item, i) => (
+            <div className="hpm-news-item" key={i} onClick={() => openNews(item)}>
+              <div className="hpm-news-source">{item.publisher?.name || item.source || ''}</div>
+              <div className="hpm-news-headline">{item.title}</div>
+              <div className="hpm-news-time">
+                {item.published_utc ? (() => {
+                  const diff = (Date.now() - new Date(item.published_utc).getTime()) / 1000;
+                  if (diff < 60) return 'now';
+                  if (diff < 3600) return Math.round(diff / 60) + 'm ago';
+                  if (diff < 86400) return Math.round(diff / 3600) + 'h ago';
+                  return Math.round(diff / 86400) + 'd ago';
+                })() : ''}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

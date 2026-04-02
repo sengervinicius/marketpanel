@@ -248,9 +248,7 @@ function DebtPanel() {
         {/* View toggle */}
         <div style={{ display: 'flex', gap: 3 }}>
           {[['curve','CURVE'],['regional','REGION']].map(([v, lbl]) => (
-            <button className={`btn ${`dp-view-btn${view === v ? ' dp-view-btn--active' : ''}`} key={v} onClick={() => setView(v)}
-`}
-            >{lbl}</button>
+            <button className={`btn dp-view-btn${view === v ? ' dp-view-btn--active' : ''}`} key={v} onClick={() => setView(v)}>{lbl}</button>
           ))}
         </div>
 
@@ -300,7 +298,7 @@ function DebtPanel() {
             )}
           </div>
 
-          <div style={{ flex: 2, minHeight: 100, padding: '2px 4px' }}>
+          <div className="dp-chart-container">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={chartData} margin={{ top: 2, right: 8, bottom: 0, left: 2 }}>
                 <CartesianGrid strokeDasharray="2 4" stroke="var(--border-subtle)" />

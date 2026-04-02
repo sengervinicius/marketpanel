@@ -1048,15 +1048,28 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
     if (fundsError || !fundsData) return <div className="id-error-msg">Fundamentals unavailable</div>;
 
     const d = fundsData;
+
+    const fundItems = [
+      { label: 'Name', value: d.name },
+      { label: 'Currency', value: d.currency },
+      { label: 'Market Cap', value: d.marketCap ? fmt(d.marketCap, 0) : null },
+      { label: 'Exchange', value: d.primaryExchange },
+      { label: 'List Date', value: d.listDate },
+      { label: 'Sector', value: d.sector },
+      { label: 'Industry', value: d.industry },
+      { label: 'Employees', value: d.employees != null ? d.employees.toLocaleString() : null },
+    ].filter(item => item.value);
+
     return (
-      <>
+      <div className="id-fundamentals">
         <Section title="PROFILE">
-          <div className="id-stat-grid">
-            {d.name && <StatRow label="NAME" value={d.name} />}
-            {d.currency && <StatRow label="CURRENCY" value={d.currency} />}
-            {d.marketCap && <StatRow label="MARKET CAP" value={fmt(d.marketCap, 0)} />}
-            {d.primaryExchange && <StatRow label="EXCHANGE" value={d.primaryExchange} />}
-            {d.listDate && <StatRow label="LIST DATE" value={d.listDate} />}
+          <div className="id-fund-grid">
+            {fundItems.map(item => (
+              <div className="id-fund-item" key={item.label}>
+                <span className="id-fund-label">{item.label}</span>
+                <span className="id-fund-value">{item.value}</span>
+              </div>
+            ))}
           </div>
         </Section>
         {d.description && (
@@ -1074,7 +1087,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
             <p className="id-about-text">{d.sicDescription}</p>
           </Section>
         )}
-      </>
+      </div>
     );
   }
 

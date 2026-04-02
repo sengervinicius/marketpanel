@@ -331,15 +331,11 @@ function PortfolioMobile({ onOpenDetail, onManage }) {
 
       {/* List or Empty State */}
       {positions.length === 0 ? (
-        <div className="m-empty">
-          <div className="m-empty-icon">★</div>
-          <div className="m-empty-text">
-            Your portfolio is empty.
-            <br />
-            Add instruments to track holdings.
-          </div>
-          <button className="m-btn-primary" onClick={onManage}>
-            Add Instruments
+        <div className="pp-empty">
+          <div className="pp-empty-title">No positions yet</div>
+          <div className="pp-empty-sub">Track your investments and monitor P&L in real time</div>
+          <button className="pp-add-btn" onClick={onManage}>
+            + Add Position
           </button>
         </div>
       ) : (

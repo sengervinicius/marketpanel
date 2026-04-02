@@ -1,5 +1,204 @@
 /* DebtPanel.css */
 
+/* ── Panel layout ───────────────────────────────────── */
+.dp-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  font-size: var(--font-sm);
+}
+
+/* ── Header ─────────────────────────────────────────── */
+.dp-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border-strong);
+  background: var(--bg-elevated);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.dp-title {
+  color: var(--text-primary);
+  font-weight: 700;
+  letter-spacing: 1px;
+  font-size: var(--font-sm);
+}
+
+/* ── View toggle buttons ────────────────────────────── */
+.dp-view-btn {
+  font-size: var(--font-sm);
+  padding: 1px 6px;
+  border: 1px solid var(--border-strong);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.12s;
+}
+.dp-view-btn--active {
+  border-color: var(--accent);
+  background: rgba(255, 107, 0, 0.15);
+  color: var(--accent);
+}
+
+/* ── Dropdown selects ───────────────────────────────── */
+.dp-select {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  border: 1px solid var(--border-default);
+  border-radius: 4px;
+  padding: 3px 8px;
+  font-size: var(--font-sm);
+  font-family: var(--font-ui);
+  cursor: pointer;
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.dp-select:focus {
+  border-color: var(--accent);
+}
+.dp-select--flex {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ── Status messages ────────────────────────────────── */
+.dp-msg {
+  padding: 12px 8px;
+  text-align: center;
+  font-size: var(--font-sm);
+}
+.dp-msg--loading {
+  color: var(--text-faint);
+}
+.dp-msg--error {
+  color: var(--price-down);
+}
+
+/* ── Curve view ─────────────────────────────────────── */
+.dp-curve {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  padding: 4px 0;
+  min-height: 0;
+}
+
+.dp-source-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 2px 8px;
+  flex-shrink: 0;
+}
+
+.dp-source-label {
+  color: var(--text-muted);
+  font-size: var(--font-sm);
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.dp-source-badge {
+  font-size: var(--font-sm);
+  font-weight: 600;
+}
+
+/* ── Chart container ────────────────────────────────── */
+.dp-chart-container {
+  width: 100%;
+  height: 220px;
+  min-height: 180px;
+  padding: 2px 4px;
+  flex-shrink: 0;
+}
+
+/* ── Tenor table ────────────────────────────────────── */
+.dp-tenor-table {
+  padding: 4px 8px;
+  flex-shrink: 0;
+}
+
+.dp-tenor-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+  gap: 2px 8px;
+}
+
+.dp-tenor-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 2px 0;
+}
+
+.dp-tenor-label {
+  color: var(--text-muted);
+  font-size: var(--font-sm);
+  font-weight: 600;
+}
+
+.dp-tenor-value {
+  color: var(--text-primary);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  font-size: var(--font-sm);
+}
+
+/* ── Credit spreads section ─────────────────────────── */
+.dp-spreads {
+  border-top: 1px solid var(--border-subtle);
+  padding: 6px 8px;
+  overflow-y: auto;
+}
+
+.dp-spreads-title {
+  color: var(--text-muted);
+  font-size: var(--font-sm);
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+
+.dp-spreads-note {
+  color: var(--text-faint);
+  font-weight: 500;
+  margin-left: 6px;
+  font-size: var(--font-sm);
+}
+
+/* ── Regional view ──────────────────────────────────── */
+.dp-regional {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.dp-regional-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 8px;
+  color: var(--text-muted);
+  font-size: var(--font-sm);
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  flex-shrink: 0;
+}
+
+.dp-regional-legend {
+  color: var(--text-faint);
+  font-size: var(--font-sm);
+  font-weight: 500;
+}
+
+/* ── Spread rows ────────────────────────────────────── */
 .dp-spread-row {
   padding: 4px 0;
   display: flex;
