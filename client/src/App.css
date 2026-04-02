@@ -1297,6 +1297,139 @@ textarea:focus-visible { outline: 1px solid var(--accent); outline-offset: 0; bo
   letter-spacing: 0.5px;
 }
 
+/* ── Toast notifications ──────────────────────────────────── */
+.toast-container {
+  position: fixed;
+  bottom: 80px;
+  right: 20px;
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+@media (max-width: 1023px) {
+  .toast-container {
+    bottom: calc(70px + env(safe-area-inset-bottom, 0px));
+    right: 12px;
+    left: 12px;
+  }
+}
+.toast-item {
+  pointer-events: auto;
+  background: var(--bg-surface, #1a1a2e);
+  border: 1px solid var(--accent, #ff6600);
+  border-left: 3px solid var(--accent, #ff6600);
+  border-radius: 8px;
+  padding: 10px 14px;
+  cursor: pointer;
+  animation: toast-slide-in 300ms ease-out;
+  max-width: 320px;
+}
+.toast-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent, #ff6600);
+  letter-spacing: 0.03em;
+}
+.toast-body {
+  font-size: 11px;
+  color: var(--text-secondary, #aaa);
+  margin-top: 2px;
+  line-height: 1.3;
+}
+@keyframes toast-slide-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── MobileMoreScreen missions preview ────── */
+.mm-streak-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+}
+.mm-streak-text {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent);
+}
+.mm-mission-preview {
+  display: flex;
+  align-items: center;
+  padding: 6px 16px;
+  gap: 10px;
+}
+.mm-mission-preview-info {
+  flex: 1;
+  min-width: 0;
+}
+.mm-mission-preview-title {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-primary);
+  display: block;
+  margin-bottom: 3px;
+}
+.mm-mission-preview-bar-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.mm-mission-preview-bar {
+  flex: 1;
+  height: 3px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.mm-mission-preview-bar-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  transition: width 300ms ease;
+  min-width: 1px;
+}
+.mm-mission-preview-progress {
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+.mm-mission-preview-xp {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+/* ── Missions streak hero (mobile full screen) ── */
+.mis-streak-hero {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: rgba(255, 102, 0, 0.04);
+}
+.mis-streak-hero-text {
+  display: flex;
+  flex-direction: column;
+}
+.mis-streak-hero-num {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--accent);
+  line-height: 1;
+}
+.mis-streak-hero-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+  margin-top: 1px;
+}
+
 /* Settings section header */
 .app-settings-header {
   padding: 8px 12px 4px;

@@ -50,15 +50,27 @@ router.post('/login', authLimiter, async (req, res) => {
     const { username, password } = req.body;
     const user  = await verifyUser(username, password);
     const token = signToken(user);
+
+    // Update login streak (fire-and-forget, don't block response)
+    let streakInfo = null;
+    try {
+      const { updateLoginStreak } = require('../stores/missionStore');
+      streakInfo = await updateLoginStreak(user.id);
+    } catch (_) { /* streak failure shouldn't block login */ }
+
+    // Re-read user to get updated gamification after streak XP
+    const freshUser = getUserById(user.id);
+
     res.json({
       ok: true,
-      user: { id: user.id, username: user.username, persona: user.persona || null, gamification: user.gamification || null },
+      user: { id: freshUser.id, username: freshUser.username, persona: freshUser.persona || null, gamification: freshUser.gamification || null },
       token,
       subscription: {
-        isPaid:             user.isPaid,
-        subscriptionActive: user.subscriptionActive,
-        trialEndsAt:        user.trialEndsAt,
+        isPaid:             freshUser.isPaid,
+        subscriptionActive: freshUser.subscriptionActive,
+        trialEndsAt:        freshUser.trialEndsAt,
       },
+      streak: streakInfo,
     });
   } catch (e) {
     res.status(401).json({ error: e.message, code: 'invalid_credentials' });

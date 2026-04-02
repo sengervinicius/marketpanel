@@ -243,6 +243,17 @@ export const PANEL_DEFINITIONS = {
     minSymbols:     0,
     maxSymbols:     0,
   },
+  missions: {
+    id:             'missions',
+    label:          'Missions',
+    defaultTitle:   'Missions & Quests',
+    defaultSymbols: [],
+    allowedGroups:  null,
+    editable:       false,
+    icon:           'MI',
+    minSymbols:     0,
+    maxSymbols:     0,
+  },
 };
 
 /**

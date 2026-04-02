@@ -36,6 +36,9 @@ import ETFPanel from './components/panels/ETFPanel';
 import ScreenerPanel from './components/panels/ScreenerPanel';
 import MacroPanel from './components/panels/MacroPanel';
 import LeaderboardPanel from './components/panels/LeaderboardPanel';
+import MissionsPanel from './components/panels/MissionsPanel';
+import MobileMissionsScreen from './components/panels/MobileMissionsScreen';
+import ToastContainer from './components/common/ToastContainer';
 import OnboardingPresets from './components/onboarding/OnboardingPresets';
 import OnboardingTourOverlay from './components/onboarding/OnboardingTourOverlay';
 import SuggestedScreens from './components/settings/SuggestedScreens';
@@ -249,6 +252,8 @@ function makePanelRenderer(panelId, props) {
       return <MacroPanel />;
     case 'leaderboard':
       return <LeaderboardPanel />;
+    case 'missions':
+      return <MissionsPanel />;
     default:
       return <div className="app-panel-placeholder">Panel: {panelId}</div>;
   }
@@ -1387,7 +1392,7 @@ export default function App() {
   }, []);
   const mobileScreenTitle = useMemo(() => {
     if (activeTab === 'more' && moreView) {
-      const titles = { news: 'News Feed', etf: 'ETF Screener', screener: 'Fundamental Screener', macro: 'Macro Panel', leaderboard: 'Leaderboard' };
+      const titles = { news: 'News Feed', etf: 'ETF Screener', screener: 'Fundamental Screener', macro: 'Macro Panel', leaderboard: 'Leaderboard', missions: 'Missions & Quests' };
       return titles[moreView] || moreView;
     }
     return null;
@@ -1541,6 +1546,7 @@ export default function App() {
 
         {detailTicker && !subscriptionExpired && <InstrumentDetail ticker={detailTicker} onClose={() => setDetailTicker(null)} />}
         <TickerTooltip onOpenDetail={setDetailTicker} />
+        <ToastContainer />
       </div>
       </PriceProvider>
       </MarketProvider>
@@ -1693,6 +1699,10 @@ export default function App() {
               <LeaderboardPanel mobile />
             )}
 
+            {activeTab === 'more' && moreView === 'missions' && (
+              <MobileMissionsScreen />
+            )}
+
           </div>
 
           {/* ── Bottom tab bar ── */}
@@ -1758,6 +1768,7 @@ export default function App() {
       )}
 
       <TickerTooltip onOpenDetail={goDetail} />
+      <ToastContainer />
     </div>
     </PriceProvider>
     </MarketProvider>

@@ -192,20 +192,35 @@ export function AuthProvider({ children }) {
     return data;
   }, [_persist]);
 
+  // ── Refresh gamification status ───────────────────────────────────────────
+  const refreshGamification = useCallback(async () => {
+    const tok = localStorage.getItem(LS_TOKEN);
+    if (!tok) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/gamification/status`, {
+        headers: { Authorization: `Bearer ${tok}` },
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      setUser(prev => prev ? { ...prev, gamification: { xp: data.xp, level: data.level } } : prev);
+    } catch { /* silent fail */ }
+  }, []);
+
   // ── Gamification event ────────────────────────────────────────────────────
   const triggerGamificationEvent = useCallback(async (type) => {
     const tok = localStorage.getItem(LS_TOKEN);
-    if (!tok) return;
+    if (!tok) return null;
     try {
       const res = await fetch(`${API_BASE}/api/gamification/event`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tok}` },
         body: JSON.stringify({ type }),
       });
-      if (!res.ok) return;
+      if (!res.ok) return null;
       const data = await res.json();
       setUser(prev => prev ? { ...prev, gamification: { xp: data.xp, level: data.level } } : prev);
-    } catch { /* silent fail */ }
+      return data; // includes { missionCompleted } if a mission was completed
+    } catch { return null; }
   }, []);
 
   // ── Logout ────────────────────────────────────────────────────────────────
@@ -275,7 +290,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, setUser, token, subscription, authReady, login, register, loginWithApple, logout, startCheckout, openBillingPortal, refreshSubscription, restorePurchases, triggerGamificationEvent, billingPlatform: isIOS() ? 'apple' : 'stripe' }}>
+    <AuthContext.Provider value={{ user, setUser, token, subscription, authReady, login, register, loginWithApple, logout, startCheckout, openBillingPortal, refreshSubscription, refreshGamification, restorePurchases, triggerGamificationEvent, billingPlatform: isIOS() ? 'apple' : 'stripe' }}>
       {children}
     </AuthContext.Provider>
   );

@@ -10,6 +10,7 @@ const router  = express.Router();
 const logger  = require('../utils/logger');
 const { sendApiError } = require('../utils/apiError');
 const { getUserById, addXp } = require('../authStore');
+const { updateMissionProgress } = require('../stores/missionStore');
 
 const XP_TABLE = {
   complete_onboarding: 50,
@@ -17,6 +18,23 @@ const XP_TABLE = {
   create_alert:        15,
   apply_workspace:     10,
   select_persona:      25,
+  technical_analysis:  5,
+  chart_insight:       10,
+  open_alerts:         3,
+  open_screener:       5,
+  add_portfolio:       10,
+};
+
+// Map gamification event types → mission IDs to progress
+const EVENT_MISSION_MAP = {
+  chart_insight:       ['daily-ai-chart', 'first-ai-insight'],
+  technical_analysis:  ['quest-day-trader-charts'],
+  create_alert:        ['first-alert'],
+  open_alerts:         ['daily-alert-check'],
+  add_portfolio:       ['first-portfolio'],
+  complete_onboarding: ['complete-onboarding'],
+  open_instrument:     ['weekly-instruments'],
+  open_screener:       ['quest-value-fundamentals'],
 };
 
 // POST /api/gamification/event
@@ -28,7 +46,23 @@ router.post('/event', async (req, res) => {
       return sendApiError(res, 400, `Unknown event type: ${type}`);
     }
     const gamification = await addXp(req.user.id, xpGain);
-    res.json({ xp: gamification.xp, level: gamification.level, gained: xpGain });
+
+    // Progress any missions tied to this event type
+    const missionIds = EVENT_MISSION_MAP[type] || [];
+    let completedMission = null;
+    for (const missionId of missionIds) {
+      const updated = updateMissionProgress(req.user.id, missionId, 1);
+      if (updated && updated.status === 'completed') {
+        completedMission = { id: updated.id, title: updated.title, xpReward: updated.xpReward };
+      }
+    }
+
+    res.json({
+      xp: gamification.xp,
+      level: gamification.level,
+      gained: xpGain,
+      missionCompleted: completedMission,
+    });
   } catch (e) {
     logger.error('POST /gamification/event error:', e);
     sendApiError(res, 500, 'Failed to record event');

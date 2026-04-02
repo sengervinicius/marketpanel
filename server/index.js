@@ -18,6 +18,7 @@ const alertRoutes       = require('./routes/alerts');
 const iapRoutes         = require('./routes/iap');
 const searchRoutes      = require('./routes/search');
 const gamificationRoutes = require('./routes/gamification');
+const missionsRoutes     = require('./routes/missions');
 const discordRoutes     = require('./routes/discord');
 const screenerRoutes    = require('./routes/screener');
 const leaderboardRoutes = require('./routes/leaderboard');
@@ -110,6 +111,7 @@ app.use('/api/alerts', requireAuth, alertRoutes);
 
 // Gamification: auth required (no subscription check — XP is a core feature)
 app.use('/api/gamification', requireAuth, gamificationRoutes);
+app.use('/api/missions', requireAuth, missionsRoutes);
 app.use('/api/discord', requireAuth, discordRoutes);
 app.use('/api/leaderboard', requireAuth, leaderboardRoutes);
 

@@ -6,6 +6,7 @@ import InstrumentDetailPage from './pages/InstrumentDetailPage.jsx'
 import ChatPage from './pages/ChatPage.jsx'
 import LoginScreen from './components/auth/LoginScreen.jsx'
 import { AuthProvider, useAuth } from './context/AuthContext.jsx'
+import { ToastProvider } from './context/ToastContext.jsx'
 import { ThemeProvider } from './context/ThemeContext.jsx'
 import { SettingsProvider, useSettings } from './context/SettingsContext.jsx'
 
@@ -115,7 +116,9 @@ createRoot(document.getElementById('root')).render(
     <RootErrorBoundary>
     <HashRouter>
       <AuthProvider>
-        <AppShell />
+        <ToastProvider>
+          <AppShell />
+        </ToastProvider>
       </AuthProvider>
     </HashRouter>
     </RootErrorBoundary>

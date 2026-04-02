@@ -90,6 +90,9 @@ const MobileMoreScreen = memo(({
         </div>
       </div>
 
+      {/* Missions preview */}
+      <MobileMissionsPreview onNavigate={onNavigate} />
+
       {/* Primary navigation */}
       <div className="mm-section">
         <div className="m-section-label" style={{ padding: '0 16px' }}>TOOLS</div>
@@ -355,6 +358,63 @@ function MobileDiscordSection() {
           <span style={{ fontSize: 9, fontWeight: 700, color: '#5865F2', letterSpacing: '0.3px' }}>CONNECT</span>
         </button>
       )}
+    </div>
+  );
+}
+
+// ── Missions Preview (inline in MobileMoreScreen) ─────────────────────────
+function MobileMissionsPreview({ onNavigate }) {
+  const [missions, setMissions] = useState([]);
+  const [streak, setStreak] = useState({ current: 0 });
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    fetch('/api/missions', { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data) {
+          setMissions(data.missions || []);
+          setStreak(data.streak || { current: 0 });
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const active = missions.filter(m => m.status === 'active' || m.status === 'completed').slice(0, 3);
+  const completedCount = missions.filter(m => m.status === 'completed').length;
+
+  return (
+    <div className="mm-section">
+      <div className="m-section-label" style={{ padding: '0 16px' }}>MISSIONS & STREAKS</div>
+      {/* Streak display */}
+      <div className="mm-streak-row">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+        <span className="mm-streak-text">{streak.current}-day streak</span>
+      </div>
+      {/* Mission preview cards */}
+      {active.map(m => (
+        <div key={m.id} className="mm-mission-preview">
+          <div className="mm-mission-preview-info">
+            <span className="mm-mission-preview-title">{m.title}</span>
+            <div className="mm-mission-preview-bar-wrap">
+              <div className="mm-mission-preview-bar">
+                <div className="mm-mission-preview-bar-fill" style={{ width: `${Math.min(100, Math.round((m.progress.current / m.progress.target) * 100))}%` }} />
+              </div>
+              <span className="mm-mission-preview-progress">{m.progress.current}/{m.progress.target}</span>
+            </div>
+          </div>
+          <span className="mm-mission-preview-xp">+{m.xpReward}</span>
+        </div>
+      ))}
+      {/* View all link */}
+      <button className="mm-item" onClick={() => onNavigate('missions')}>
+        <span className="mm-item-icon" style={{ fontSize: 14 }}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        </span>
+        <span className="mm-item-label">View All Missions{completedCount > 0 ? ` (${completedCount} ready)` : ''}</span>
+        <svg className="mm-item-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
     </div>
   );
 }
