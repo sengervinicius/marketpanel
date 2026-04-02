@@ -122,7 +122,20 @@ const marketState = {
 const clients = new Map();
 
 wss.on('connection', (ws, req) => {
-  // Authenticate WS via ?token= query param
+  // ── Origin validation ──────────────────────────────────────────────
+  const origin = req.headers.origin || '';
+  const allowedOrigins = [
+    'https://senger-client.onrender.com',
+    'http://localhost:5173',
+    'http://localhost:3000',
+  ];
+  if (origin && !allowedOrigins.includes(origin)) {
+    console.warn(`[WS] Rejected connection from disallowed origin: ${origin}`);
+    ws.close(1008, 'Origin not allowed');
+    return;
+  }
+
+  // ── Authenticate WS via ?token= query param ───────────────────────
   const url    = new URL(req.url, 'ws://localhost');
   const token  = url.searchParams.get('token') || '';
   let userId   = null;
@@ -134,13 +147,15 @@ wss.on('connection', (ws, req) => {
       userId   = payload.id;
       username = payload.username;
     }
-  } catch {
+  } catch (err) {
     // Invalid token — close connection
+    console.warn(`[WS] Invalid token rejected: ${err.message}`);
     ws.close(4001, 'Invalid token');
     return;
   }
 
   if (!userId) {
+    console.warn('[WS] Connection rejected: no token provided');
     ws.close(4001, 'Authentication required');
     return;
   }

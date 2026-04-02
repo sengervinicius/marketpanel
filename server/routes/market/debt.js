@@ -416,9 +416,29 @@ function parseUsTreasury(xml) {
   const lastEntry = entries[entries.length - 1];
   const curve = [];
   for (const { tenor, field, months } of US_CURVE_FIELDS) {
-    const m = new RegExp(`<d:${field}[^>]*>([\\d.]+)<`).exec(lastEntry);
+    // Use exact field name match: require field name to be followed by a space
+    // (for attributes like m:type=) or '>' (end of opening tag), NOT another letter.
+    // This prevents BC_10YEAR from matching BC_10YEARDISPLAY etc.
+    const m = new RegExp(`<d:${field}(?:\\s[^>]*)?>([\\d.]+)<`).exec(lastEntry);
     if (m) curve.push({ tenor, months, rate: parseFloat(m[1]) });
   }
+
+  // ── Sanity check: US Treasury yields should be between 0% and 20% ──
+  // If parsed rates look unreasonable, reject them so FRED fallback takes over.
+  if (curve.length > 0) {
+    const avgRate = curve.reduce((s, p) => s + p.rate, 0) / curve.length;
+    if (avgRate > 20 || avgRate < 0) {
+      console.warn(`[Yield] US Treasury parsed avg rate ${avgRate.toFixed(2)}% is out of range — rejecting (likely wrong XML field matched)`);
+      return [];
+    }
+    // Additional check: 10Y should not deviate wildly from recent norms
+    const tenY = curve.find(p => p.tenor === '10Y');
+    if (tenY && tenY.rate > 15) {
+      console.warn(`[Yield] US 10Y parsed as ${tenY.rate}% — unreasonable, rejecting Treasury XML parse`);
+      return [];
+    }
+  }
+
   return curve;
 }
 
@@ -675,10 +695,16 @@ router.get('/yield-curves', async (req, res) => {
     if (usTreasuryRes.status === 'fulfilled') {
       usCurve = parseUsTreasury(usTreasuryRes.value);
       usSource = usCurve.length > 0 ? 'US Treasury' : 'unavailable';
+      if (usCurve.length > 0) {
+        const tenY = usCurve.find(p => p.tenor === '10Y');
+        console.log(`[Yield] US Treasury XML parsed: ${usCurve.length} points, 10Y=${tenY?.rate ?? '?'}%, source=${usSource}`);
+      }
+    } else {
+      console.warn('[Yield] US Treasury XML fetch failed:', usTreasuryRes.reason?.message);
     }
-    // FRED CSV fallback (Task 3): if Treasury XML failed or returned < 3 points
+    // FRED CSV fallback (Task 3): if Treasury XML failed, returned < 3 points, or sanity check rejected
     if (usCurve.length < 3) {
-      console.warn('[Yield] US Treasury parse returned <3 points, trying FRED CSV fallback…');
+      console.warn('[Yield] US Treasury parse returned <3 valid points, trying FRED CSV fallback…');
       const fredCurve = await fetchFredYieldCurve();
       if (fredCurve.length >= 3) {
         usCurve = fredCurve;

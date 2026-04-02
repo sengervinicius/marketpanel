@@ -21,6 +21,20 @@ const RECONNECT_INITIAL  = 1_500;
 const RECONNECT_MAX      = 15_000;
 const QUEUE_MAX          = 50;       // max buffered outgoing messages
 
+/**
+ * Build the full WebSocket URL with auth token appended as query parameter.
+ * The server requires ?token=<jwt> for authentication (server/index.js line 127).
+ */
+function buildWsUrl() {
+  const token = localStorage.getItem('arc_token');
+  if (!token) {
+    console.warn('[WS] No auth token found — connection will be rejected by server');
+    return null;
+  }
+  const separator = WS_URL.includes('?') ? '&' : '?';
+  return `${WS_URL}${separator}token=${encodeURIComponent(token)}`;
+}
+
 export function useWebSocket(onMessage) {
   const ws = useRef(null);
   const reconnectTimer = useRef(null);
@@ -73,10 +87,21 @@ export function useWebSocket(onMessage) {
 
   const connect = useCallback(() => {
     if (!mounted.current) return;
+
+    const url = buildWsUrl();
+    if (!url) {
+      // No token available — don't attempt WS connection (avoids auth-rejection loop)
+      console.warn('[WS] Skipping connection — no auth token. Will retry when token becomes available.');
+      reconnectTimer.current = setTimeout(() => {
+        if (mounted.current) connect();
+      }, RECONNECT_MAX); // Use max delay to avoid spamming
+      return;
+    }
+
     connectCount.current += 1;
 
     try {
-      ws.current = new WebSocket(WS_URL);
+      ws.current = new WebSocket(url);
       setReadyState(WebSocket.CONNECTING);
 
       ws.current.onopen = () => {
