@@ -955,6 +955,14 @@ export default function App() {
     return () => { mounted = false; };
   }, [bootState, authReady, user, settingsLoaded]);
 
+  // Emergency boot timeout — force READY after 5 s if boot sequence stalls
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setBootState(prev => prev !== BOOT.READY ? BOOT.READY : prev);
+    }, 5000);
+    return () => clearTimeout(timeout);
+  }, []);
+
   // ── Billing state ────────────────────────────────────────────────────────────
   const [billingState, setBillingState] = useState({ isLoading: false, error: null, showSuccess: false });
 
