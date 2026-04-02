@@ -212,17 +212,10 @@ const PositionRow = memo(function PositionRow({ position, onTickerClick, onOpenD
 
 // ── Main panel ──
 function PortfolioPanel({ onTickerClick, onOpenDetail }) {
-  const { portfolios, positions, removePosition, addTicker, syncStatus, retrySync } = usePortfolio();
+  const { portfolios, positions, removePosition, syncStatus, retrySync } = usePortfolio();
   const [filterSubId, setFilterSubId] = useState('all');
-  const [addInput, setAddInput]       = useState('');
-  const [showAdd, setShowAdd]         = useState(false);
   const [editorPos, setEditorPos]     = useState(null);
   const [showEditor, setShowEditor]   = useState(false);
-  const inputRef = useRef(null);
-
-  useEffect(() => {
-    if (showAdd) setTimeout(() => inputRef.current?.focus(), 50);
-  }, [showAdd]);
 
   // Build filter options
   const filterOptions = [];
@@ -281,12 +274,6 @@ function PortfolioPanel({ onTickerClick, onOpenDetail }) {
     return priceSnapshot[symbol] || null;
   }, [priceSnapshot]);
 
-  const handleAdd = (e) => {
-    e.preventDefault();
-    const sym = addInput.trim().toUpperCase();
-    if (sym) { addTicker(sym); setAddInput(''); setShowAdd(false); }
-  };
-
   const handleEdit = useCallback((position) => {
     setEditorPos(position);
   }, []);
@@ -327,10 +314,6 @@ function PortfolioPanel({ onTickerClick, onOpenDetail }) {
             {filterOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
         )}
-        <button className="btn pp-add-button"
-          onClick={() => setShowAdd(s => !s)}
-          style={{ background: showAdd ? '#1a0d00' : 'none' }}
-        >+ ADD</button>
         <button className="pp-add-btn pp-add-btn--compact" onClick={() => setShowEditor(true)}>
           + ADD
         </button>
@@ -344,21 +327,6 @@ function PortfolioPanel({ onTickerClick, onOpenDetail }) {
         benchmarkSymbol={benchmarkSymbol}
         benchmarkData={benchmarkData}
       />
-
-      {/* Quick-add ticker */}
-      {showAdd && (
-        <form onSubmit={handleAdd} className="flex-row pp-quick-add-form">
-          <input
-            ref={inputRef}
-            value={addInput}
-            onChange={e => setAddInput(e.target.value.toUpperCase())}
-            placeholder="e.g. AAPL or VALE3.SA"
-            className="pp-add-input"
-          />
-          <button className="btn pp-submit-button" type="submit">ADD</button>
-          <button className="btn pp-cancel-button" type="button" onClick={() => { setShowAdd(false); setAddInput(''); }}>✕</button>
-        </form>
-      )}
 
       {/* Column headers */}
       <div className="pp-headers" style={{ gridTemplateColumns: COLS }}>
