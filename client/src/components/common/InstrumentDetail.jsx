@@ -214,6 +214,12 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
   const [macroData,    setMacroData]    = useState(null);
   const [showAlertEditor, setShowAlertEditor] = useState(false);
 
+  // AI Fundamentals state
+  const [aiFunds, setAiFunds]         = useState(null);
+  const [aiFundsLoading, setAiFundsLoading] = useState(false);
+  const [aiFundsError, setAiFundsError]     = useState(null);
+  const aiFundsCacheRef = useRef({}); // symbol → data
+
   const range = RANGES[rangeIdx];
 
   const isBond = isBondTicker || etfMeta?.assetClass === 'fixed_income';
@@ -324,6 +330,39 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
       .then(r => r.json())
       .then(d => { setNews(d?.results || []); setNewsLoading(false); })
       .catch(() => setNewsLoading(false));
+  }, [norm]);
+
+  // ── Fetch AI Fundamentals ───────────────────────────────────────────────
+  useEffect(() => {
+    // Check in-memory cache first
+    if (aiFundsCacheRef.current[norm]) {
+      setAiFunds(aiFundsCacheRef.current[norm]);
+      setAiFundsLoading(false);
+      setAiFundsError(null);
+      return;
+    }
+    setAiFunds(null);
+    setAiFundsError(null);
+    setAiFundsLoading(true);
+
+    apiFetch('/api/search/fundamentals', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ symbol: norm }),
+    })
+      .then(r => {
+        if (!r.ok) throw new Error(`AI error (${r.status})`);
+        return r.json();
+      })
+      .then(data => {
+        aiFundsCacheRef.current[norm] = data;
+        setAiFunds(data);
+        setAiFundsLoading(false);
+      })
+      .catch(err => {
+        setAiFundsError(err.message || 'AI fundamentals unavailable');
+        setAiFundsLoading(false);
+      });
   }, [norm]);
 
   // ── Focus management + Escape key + mobile back-button support ────────
@@ -1114,6 +1153,97 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
     );
   }
 
+  // ── AI Fundamentals sub-render ──────────────────────────────────────────
+  function renderAIFundamentals() {
+    if (aiFundsLoading) {
+      return (
+        <div className="id-ai-section">
+          <div className="id-ai-header">
+            <span className="id-ai-label">AI FUNDAMENTALS</span>
+            <span className="id-ai-badge">LOADING</span>
+          </div>
+          <div className="id-ai-shimmer">
+            <div className="id-ai-shimmer-line" style={{ width: '90%' }} />
+            <div className="id-ai-shimmer-line" style={{ width: '75%' }} />
+            <div className="id-ai-shimmer-line" style={{ width: '85%' }} />
+            <div className="id-ai-shimmer-line" style={{ width: '60%' }} />
+          </div>
+        </div>
+      );
+    }
+
+    if (aiFundsError) {
+      return (
+        <div className="id-ai-section">
+          <div className="id-ai-header">
+            <span className="id-ai-label">AI FUNDAMENTALS</span>
+          </div>
+          <div className="id-ai-error">
+            AI summary is temporarily unavailable. Fundamentals and valuation tables above are still live.
+          </div>
+        </div>
+      );
+    }
+
+    if (!aiFunds) return null;
+
+    return (
+      <div className="id-ai-section">
+        <div className="id-ai-header">
+          <span className="id-ai-label">AI FUNDAMENTALS</span>
+          <span className="id-ai-badge">AI-GENERATED</span>
+        </div>
+
+        {aiFunds.summary && (
+          <p className="id-ai-summary">{aiFunds.summary}</p>
+        )}
+
+        {aiFunds.businessModel && (
+          <div className="id-ai-block">
+            <div className="id-ai-block-title">BUSINESS MODEL</div>
+            <p className="id-ai-text">{aiFunds.businessModel}</p>
+          </div>
+        )}
+
+        {aiFunds.segments?.length > 0 && (
+          <div className="id-ai-block">
+            <div className="id-ai-block-title">KEY SEGMENTS</div>
+            <ul className="id-ai-list">
+              {aiFunds.segments.map((s, i) => <li key={i}>{s}</li>)}
+            </ul>
+          </div>
+        )}
+
+        {aiFunds.financialHighlights?.length > 0 && (
+          <div className="id-ai-block">
+            <div className="id-ai-block-title">FINANCIAL HIGHLIGHTS</div>
+            <ul className="id-ai-list">
+              {aiFunds.financialHighlights.map((h, i) => <li key={i}>{h}</li>)}
+            </ul>
+          </div>
+        )}
+
+        {aiFunds.valuationSnapshot?.length > 0 && (
+          <div className="id-ai-block">
+            <div className="id-ai-block-title">VALUATION SNAPSHOT</div>
+            <ul className="id-ai-list">
+              {aiFunds.valuationSnapshot.map((v, i) => <li key={i}>{v}</li>)}
+            </ul>
+          </div>
+        )}
+
+        {aiFunds.riskFactors?.length > 0 && (
+          <div className="id-ai-block">
+            <div className="id-ai-block-title">KEY RISKS / DRIVERS</div>
+            <ul className="id-ai-list id-ai-list--risks">
+              {aiFunds.riskFactors.map((r, i) => <li key={i}>{r}</li>)}
+            </ul>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   // ── Fetch fundamentals (tab-triggered) ──────────────────────────────────
   const fetchFundamentals = useCallback(async () => {
     if (!isStock || activeTab !== 'FUND') return;
@@ -1143,7 +1273,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
     ? ['STATS', 'RISK', 'CASH FLOWS', ...(desc ? ['ABOUT'] : [])]
     : isFX
     ? ['STATS', 'MACRO', 'NEWS', ...(desc ? ['ABOUT'] : [])]
-    : ['STATS', 'FUND', 'NEWS', ...(desc ? ['ABOUT'] : [])];
+    : ['STATS', 'FUND', 'AI', 'NEWS', ...(desc ? ['ABOUT'] : [])];
 
   const deltaHint = deltaMode
     ? (deltaA === null ? '← tap A' : deltaB === null ? '← tap B' : 'tap to reset')
@@ -1398,6 +1528,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
                 {isFX && desktopTab === 'MACRO' && renderFXMacro()}
                 {isFX && desktopTab === 'NEWS'  && renderNews()}
                 {!isBond && !isFX && (isETF ? renderETFStats() : renderStats())}
+                {!isBond && !isFX && renderAIFundamentals()}
                 {!isBond && !isFX && renderNews()}
                 {!isBond && !isFX && renderAbout()}
                 {(isBond || isFX) && desktopTab === 'STATS' && renderAbout()}
@@ -1423,6 +1554,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
               {activeTab === 'CASH FLOWS' && renderCashFlows()}
               {activeTab === 'MACRO'      && renderFXMacro()}
               {activeTab === 'FUND'       && renderFundamentals()}
+              {activeTab === 'AI'         && renderAIFundamentals()}
               {activeTab === 'NEWS'       && renderNews()}
               {activeTab === 'ABOUT'      && renderAbout()}
             </div>
