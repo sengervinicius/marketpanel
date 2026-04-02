@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { apiFetch } from '../../utils/api.js';
 import AlertEditor from './AlertEditor';
+import InstrumentOptionsPanel from './InstrumentOptionsPanel';
 import './InstrumentDetail.css';
 
 // Track which instruments have been opened this session (for XP)
@@ -1470,7 +1471,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
     ? ['STATS', 'RISK', 'CASH FLOWS', ...(desc ? ['ABOUT'] : [])]
     : isFX
     ? ['STATS', 'MACRO', 'NEWS', ...(desc ? ['ABOUT'] : [])]
-    : ['STATS', 'FUND', 'AI', 'NEWS', ...(desc ? ['ABOUT'] : [])];
+    : ['STATS', 'FUND', 'AI', 'OPTIONS', 'NEWS', ...(desc ? ['ABOUT'] : [])];
 
   const deltaHint = deltaMode
     ? (deltaA === null ? '← tap A' : deltaB === null ? '← tap B' : 'tap to reset')
@@ -1769,6 +1770,14 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
                 {isFX && desktopTab === 'NEWS'  && renderNews()}
                 {!isBond && !isFX && (isETF ? renderETFStats() : renderStats())}
                 {!isBond && !isFX && renderAIFundamentals()}
+                {!isBond && !isFX && (
+                  <InstrumentOptionsPanel
+                    symbol={norm}
+                    spot={livePrice}
+                    isMobile={false}
+                    triggerGamificationEvent={triggerGamificationEvent}
+                  />
+                )}
                 {!isBond && !isFX && renderNews()}
                 {!isBond && !isFX && renderAbout()}
                 {(isBond || isFX) && desktopTab === 'STATS' && renderAbout()}
@@ -1795,6 +1804,14 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
               {activeTab === 'MACRO'      && renderFXMacro()}
               {activeTab === 'FUND'       && renderFundamentals()}
               {activeTab === 'AI'         && renderAIFundamentals()}
+              {activeTab === 'OPTIONS'    && (
+                <InstrumentOptionsPanel
+                  symbol={norm}
+                  spot={livePrice}
+                  isMobile={true}
+                  triggerGamificationEvent={triggerGamificationEvent}
+                />
+              )}
               {activeTab === 'NEWS'       && renderNews()}
               {activeTab === 'ABOUT'      && renderAbout()}
             </div>

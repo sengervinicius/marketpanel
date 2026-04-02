@@ -22,6 +22,7 @@ const missionsRoutes     = require('./routes/missions');
 const discordRoutes     = require('./routes/discord');
 const screenerRoutes        = require('./routes/screener');
 const screenerPresetRoutes  = require('./routes/screenerPresets');
+const optionsRoutes         = require('./routes/options');
 const leaderboardRoutes = require('./routes/leaderboard');
 const { requireAuth, requireActiveSubscription } = require('./authMiddleware');
 const logger = require('./utils/logger');
@@ -104,6 +105,9 @@ app.use('/api/instruments', requireAuth, instrumentsRoutes);
 // Screener: auth + subscription required
 app.use('/api/screener', requireAuth, requireActiveSubscription, screenerRoutes);
 app.use('/api/screener/presets', requireAuth, screenerPresetRoutes);
+
+// Options: auth + subscription required
+app.use('/api/options', requireAuth, requireActiveSubscription, optionsRoutes);
 
 // Portfolio: auth required (no subscription check — need portfolio even on expired trial)
 app.use('/api/portfolio', requireAuth, portfolioRoutes);

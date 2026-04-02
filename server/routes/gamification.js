@@ -30,6 +30,11 @@ const XP_TABLE = {
   screener_bulk_alerts:     20,
   screener_add_to_watchlist: 10,
   screener_save_preset:     10,
+  // Options events (Phase 20)
+  options_open_chain:       10,
+  options_change_expiry:    5,
+  options_build_strategy:   15,
+  options_view_payoff:      10,
 };
 
 // Map gamification event types → mission IDs to progress
@@ -49,6 +54,11 @@ const EVENT_MISSION_MAP = {
   screener_bulk_alerts:      ['screener-power-user'],
   screener_add_to_watchlist: ['screener-to-portfolio'],
   screener_save_preset:      ['first-screener-preset'],
+  // Options missions (Phase 20)
+  options_open_chain:        ['daily-options-chain', 'first-options-chain'],
+  options_change_expiry:     [],
+  options_build_strategy:    ['weekly-options-strategy'],
+  options_view_payoff:       ['first-payoff'],
 };
 
 // POST /api/gamification/event

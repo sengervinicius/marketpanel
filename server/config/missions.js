@@ -149,6 +149,40 @@ const MISSION_CATALOG = [
     target: 1,
   },
 
+  // ── Options (Phase 20) ───────────────────────────────────
+  {
+    id: 'daily-options-chain',
+    kind: 'daily',
+    title: 'Options Scout',
+    description: 'Open an options chain today.',
+    xpReward: 10,
+    target: 1,
+  },
+  {
+    id: 'weekly-options-strategy',
+    kind: 'weekly',
+    title: 'Strategist',
+    description: 'Build an options strategy this week.',
+    xpReward: 25,
+    target: 1,
+  },
+  {
+    id: 'first-options-chain',
+    kind: 'one-time',
+    title: 'Options Explorer',
+    description: 'View your first options chain.',
+    xpReward: 25,
+    target: 1,
+  },
+  {
+    id: 'first-payoff',
+    kind: 'one-time',
+    title: 'Payoff Pioneer',
+    description: 'Open your first payoff diagram.',
+    xpReward: 20,
+    target: 1,
+  },
+
   // ── Persona-specific quests ──────────────────────────────
   {
     id: 'quest-crypto-view',
