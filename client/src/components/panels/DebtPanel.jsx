@@ -112,6 +112,7 @@ function DebtPanel() {
   const [curve, setCurve]                           = useState(null);
   const [curveSource, setCurveSource]               = useState(null);
   const [curveLive, setCurveLive]                   = useState(false);
+  const [curveStub, setCurveStub]                   = useState(false);
   const [regional, setRegional]                     = useState(null);
   const [indexes, setIndexes]                       = useState([]);
   const [indexSource, setIndexSource]               = useState(null);
@@ -159,10 +160,12 @@ function DebtPanel() {
     if (!ld) return null;
     const key = LIVE_KEY[code];
     if (!key || !ld[key]?.curve?.length) return null;
+    const entry = ld[key];
     return {
-      points: ld[key].curve.map(p => ({ tenor: p.tenor, yield: p.rate })),
-      source: ld[key].source || key,
+      points: entry.curve.map(p => ({ tenor: p.tenor, yield: p.rate })),
+      source: entry.source || key,
       live: true,
+      stub: entry.stub === true,
     };
   }, []);
 
@@ -175,10 +178,17 @@ function DebtPanel() {
     try {
       // Step 1: Try live data from /api/yield-curves
       const live = getLiveCurve(selectedCountry);
-      if (live && live.points.length > 0) {
+      if (live && live.points.length > 0 && !live.stub) {
         setCurve({ points: live.points });
         setCurveSource(live.source);
         setCurveLive(true);
+        setCurveStub(false);
+      } else if (live && live.stub) {
+        // Live source returned but marked as stub (incomplete data)
+        setCurve({ points: live.points });
+        setCurveSource(live.source);
+        setCurveLive(false);
+        setCurveStub(true);
       } else {
         // Step 2: Fall back to /api/debt/sovereign/:code
         const resp = await apiFetch(`/api/debt/sovereign/${selectedCountry}`);
@@ -187,7 +197,8 @@ function DebtPanel() {
         if (data.error) throw new Error(data.error);
         setCurve(data);
         setCurveSource(data.source || 'Estimated');
-        setCurveLive(data.source && !['stub', 'stub_fallback', 'bcb_stub'].includes(data.source));
+        setCurveLive(data.source && !['stub', 'stub_fallback', 'bcb_stub', 'bcb_partial', 'unavailable'].includes(data.source));
+        setCurveStub(data.stub === true);
       }
 
       // Load credit indexes in parallel
@@ -204,6 +215,7 @@ function DebtPanel() {
       setCurve(null);
       setCurveSource(null);
       setCurveLive(false);
+      setCurveStub(false);
     } finally {
       setLoading(false);
     }
@@ -370,6 +382,14 @@ function DebtPanel() {
               <div className="dp-state dp-state--error">
                 <span>FAILED TO LOAD YIELD CURVE</span>
                 <span className="dp-state-detail">{error}</span>
+                <button className="dp-retry-btn" onClick={handleRetry}>RETRY</button>
+              </div>
+            ) : curveStub ? (
+              <div className="dp-state dp-state--empty">
+                <span>INCOMPLETE DATA FOR {countryMeta?.name?.toUpperCase() || selectedCountry}</span>
+                <span className="dp-state-detail">
+                  Live sources returned {chartData.length} point{chartData.length !== 1 ? 's' : ''}. Synthetic points disabled.
+                </span>
                 <button className="dp-retry-btn" onClick={handleRetry}>RETRY</button>
               </div>
             ) : chartData.length === 0 ? (

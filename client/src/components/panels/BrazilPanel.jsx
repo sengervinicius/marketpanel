@@ -1,6 +1,8 @@
 // BrazilPanel.jsx — B3 stocks via server Yahoo Finance proxy
-// Title and symbols are user-configurable via SettingsContext + PanelConfigModal.
-import { useState, useEffect, useCallback, useRef, memo } from 'react';
+// Phase 10: Removed bespoke polling loop; prices flow through PriceContext via PriceRow's
+// ticker prop. The initial /api/snapshot/brazil fetch seeds the batch map, and PriceRow's
+// useMergedTickerQuote handles fallback for any symbol not in the snapshot.
+import { useState, useEffect, useCallback, useRef, useMemo, memo } from 'react';
 import { useSettings } from '../../context/SettingsContext';
 import PanelConfigModal from '../common/PanelConfigModal';
 import EditablePanelHeader from '../common/EditablePanelHeader';
@@ -30,15 +32,17 @@ function BrazilPanel({ onTickerClick, onOpenDetail }) {
   const panelTitle   = panelCfg.title   || 'Brazil B3';
   const panelSymbols = panelCfg.symbols || [];
 
-  const [stocks, setStocks]         = useState([]);
-  const [loading, setLoading]       = useState(true);
-  const [error, setError]           = useState(null);
-  const [lastUpdate, setLastUpdate] = useState(null);
-  const [configOpen, setConfigOpen] = useState(false);
+  // Snapshot from server — used to seed names and initial prices.
+  // PriceRow handles live updates via PriceContext's ticker prop.
+  const [snapshot, setSnapshot]       = useState([]);
+  const [loading, setLoading]         = useState(true);
+  const [error, setError]             = useState(null);
+  const [lastUpdate, setLastUpdate]   = useState(null);
+  const [configOpen, setConfigOpen]   = useState(false);
   const [searchFilter, setSearchFilter] = useState('');
-  const [collapsed, setCollapsed] = useState(false);
-  const [sortKey, setSortKey] = useState(null);
-  const [sortDir, setSortDir] = useState('desc');
+  const [collapsed, setCollapsed]     = useState(false);
+  const [sortKey, setSortKey]         = useState(null);
+  const [sortDir, setSortDir]         = useState('desc');
 
   const handleDropTicker = (ticker) => {
     const sym = ticker.trim().toUpperCase();
@@ -53,13 +57,14 @@ function BrazilPanel({ onTickerClick, onOpenDetail }) {
     else { setSortKey(key); setSortDir('desc'); }
   };
 
+  // Fetch snapshot once + refresh every 30s (just for metadata/names; PriceContext handles live prices)
   const fetchData = useCallback(async () => {
     try {
       const res = await apiFetch('/api/snapshot/brazil');
       if (!res.ok) throw new Error('server ' + res.status);
       const json = await res.json();
       if (!json.results?.length) throw new Error('no results');
-      setStocks(json.results.map(s => ({
+      setSnapshot(json.results.map(s => ({
         symbol:    s.symbol,
         name:      s.name || s.symbol,
         price:     s.price,
@@ -78,19 +83,33 @@ function BrazilPanel({ onTickerClick, onOpenDetail }) {
 
   useEffect(() => {
     fetchData();
-    const id = setInterval(fetchData, 15_000);
+    const id = setInterval(fetchData, 30_000); // metadata refresh (PriceContext handles live)
     return () => clearInterval(id);
   }, [fetchData]);
+
+  // Build a batchMap keyed by both bare symbol and .SA symbol for PriceRow lookup
+  const batchMap = useMemo(() => {
+    const m = {};
+    snapshot.forEach(s => {
+      m[s.symbol] = s;
+      m[s.symbol + '.SA'] = s;
+      // Also keyed without .SA if it has it
+      if (s.symbol.endsWith('.SA')) {
+        m[s.symbol.replace('.SA', '')] = s;
+      }
+    });
+    return m;
+  }, [snapshot]);
 
   // Filter displayed rows to only the configured symbols (preserving order)
   let displayedStocks = panelSymbols.length > 0
     ? panelSymbols
         .map(sym => {
           const baseSym = sym.replace(/\.SA$/i, '');
-          return stocks.find(s => s.symbol === baseSym || s.symbol === sym);
+          return snapshot.find(s => s.symbol === baseSym || s.symbol === sym)
+            || { symbol: baseSym, name: baseSym, price: null, changePct: null }; // placeholder for PriceContext
         })
-        .filter(Boolean)
-    : stocks;
+    : snapshot;
 
   // Apply search filter
   if (searchFilter) {
@@ -100,14 +119,17 @@ function BrazilPanel({ onTickerClick, onOpenDetail }) {
     );
   }
 
-  // Apply sorting
+  // Apply sorting — uses batchMap for sort values; PriceContext extras aren't in the map
+  // but that's acceptable since batch data IS the same source as PriceContext
   if (sortKey) {
     displayedStocks = [...displayedStocks].sort((a, b) => {
       let va, vb;
+      const da = batchMap[a.symbol] || {};
+      const db = batchMap[b.symbol] || {};
       if (sortKey === 'symbol') { va = a.symbol; vb = b.symbol; }
       else if (sortKey === 'name') { va = a.name; vb = b.name; }
-      else if (sortKey === 'price') { va = a.price ?? -Infinity; vb = b.price ?? -Infinity; }
-      else if (sortKey === 'chg')   { va = a.changePct ?? -Infinity; vb = b.changePct ?? -Infinity; }
+      else if (sortKey === 'price') { va = da.price ?? -Infinity; vb = db.price ?? -Infinity; }
+      else if (sortKey === 'chg')   { va = da.changePct ?? -Infinity; vb = db.changePct ?? -Infinity; }
       if (typeof va === 'string') return sortDir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va);
       return sortDir === 'asc' ? va - vb : vb - va;
     });
@@ -147,36 +169,41 @@ function BrazilPanel({ onTickerClick, onOpenDetail }) {
 
         {/* Rows */}
         <div style={{ flex: 1, overflowY: 'auto' }}>
-          {loading && !stocks.length && (
+          {loading && !snapshot.length && (
             <div style={{ padding: 'var(--sp-5)', color: 'var(--text-muted)', textAlign: 'center' }}>LOADING...</div>
           )}
           {!loading && !error && !displayedStocks.length && (
             <div style={{ padding: 'var(--sp-5)', color: 'var(--text-muted)', textAlign: 'center' }}>NO DATA</div>
           )}
-          {displayedStocks.map(s => (
-            <PriceRow
-              key={s.symbol}
-              symbol={s.symbol + '.SA'}
-              ticker={s.symbol + '.SA'}
-              displaySymbol={s.symbol}
-              name={s.name}
-              price={s.price}
-              changePct={s.changePct}
-              symbolColor="var(--section-brazil)"
-              columns={COLS}
-              draggable
-              dragData={{ symbol: s.symbol + '.SA', name: s.name || s.symbol, type: 'BR' }}
-              onClick={() => onTickerClick?.(s.symbol + '.SA')}
-              onDoubleClick={() => onOpenDetail?.(s.symbol + '.SA')}
-              onTouchHold={() => onOpenDetail?.(s.symbol + '.SA')}
-              touchRef={ptRef}
-              dataAttrs={{
-                'data-ticker': s.symbol + '.SA',
-                'data-ticker-label': s.name || s.symbol,
-                'data-ticker-type': 'BR',
-              }}
-            />
-          ))}
+          {displayedStocks.map(s => {
+            const sym = s.symbol.endsWith('.SA') ? s.symbol : s.symbol + '.SA';
+            const displaySym = s.symbol.replace('.SA', '');
+            const d = batchMap[s.symbol] || {};
+            return (
+              <PriceRow
+                key={sym}
+                symbol={sym}
+                ticker={sym}
+                displaySymbol={displaySym}
+                name={s.name}
+                price={d.price}
+                changePct={d.changePct}
+                symbolColor="var(--section-brazil)"
+                columns={COLS}
+                draggable
+                dragData={{ symbol: sym, name: s.name || s.symbol, type: 'BR' }}
+                onClick={() => onTickerClick?.(sym)}
+                onDoubleClick={() => onOpenDetail?.(sym)}
+                onTouchHold={() => onOpenDetail?.(sym)}
+                touchRef={ptRef}
+                dataAttrs={{
+                  'data-ticker': sym,
+                  'data-ticker-label': s.name || s.symbol,
+                  'data-ticker-type': 'BR',
+                }}
+              />
+            );
+          })}
         </div>
       </>)}
 

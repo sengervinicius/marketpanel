@@ -60,7 +60,9 @@ function DICurvePanel({ compact = false }) {
 
       {/* 4 stacked curve blocks */}
       {CURVES.map((c, idx) => {
-        const curve  = all[c.id]?.curve || [];
+        const entry  = all[c.id] || {};
+        const curve  = entry.curve || [];
+        const isStub = entry.stub === true;
         const rates  = curve.map(p => p.rate);
         const minR   = rates.length ? Math.floor(Math.min(...rates) - 0.6) : 0;
         const maxR   = rates.length ? Math.ceil(Math.max(...rates)  + 0.6) : 20;
@@ -103,6 +105,14 @@ function DICurvePanel({ compact = false }) {
                   >
                     RETRY
                   </button>
+                </div>
+              ) : isStub ? (
+                <div className="dic-chart-error">
+                  <span>INCOMPLETE DATA ({curve.length} point{curve.length !== 1 ? 's' : ''})</span>
+                  <span style={{ fontSize: 5.5, color: 'var(--text-faint)', maxWidth: 120, textAlign: 'center' }}>
+                    Live sources returned insufficient data. Synthetic points disabled.
+                  </span>
+                  <button className="dic-retry-btn" onClick={load}>RETRY</button>
                 </div>
               ) : (
                 <ResponsiveContainer width="100%" height="100%">

@@ -319,28 +319,18 @@ router.get('/sovereign/:countryCode', async (req, res) => {
             source = 'tesouro';
           }
         }
-        // If Tesouro failed, build stub from SELIC
+        // Phase 10: No synthetic points. If too few real points, mark as stub.
         if (points.length < 3) {
-          const base = points[0]?.yield || 14.75;
-          points = [
-            { tenor: 'DI', yield: base },
-            { tenor: '3M', yield: parseFloat((base + 0.15).toFixed(2)) },
-            { tenor: '6M', yield: parseFloat((base + 0.10).toFixed(2)) },
-            { tenor: '1Y', yield: parseFloat((base - 0.50).toFixed(2)) },
-            { tenor: '2Y', yield: parseFloat((base - 1.50).toFixed(2)) },
-            { tenor: '5Y', yield: parseFloat((base - 3.00).toFixed(2)) },
-          ];
-          source = 'bcb_stub';
+          logger.warn('[debt] BR curve has fewer than 3 live points; stub=true. Points: ' + points.length);
+          source = points.length > 0 ? 'bcb_partial' : 'unavailable';
         }
       } catch (e) {
         logger.warn(`[debt] BR fallback fetch failed: ${e.message}`);
-        points = [
-          { tenor: 'DI', yield: 14.75 }, { tenor: '1Y', yield: 14.25 },
-          { tenor: '2Y', yield: 13.25 }, { tenor: '5Y', yield: 11.75 },
-        ];
-        source = 'stub';
+        // Return whatever we have (possibly empty) with stub flag
+        source = 'unavailable';
       }
-      const resp = { country: 'BR', ...COUNTRY_META.BR, points, asOf: Date.now(), source };
+      const isStub = points.length < 3;
+      const resp = { country: 'BR', ...COUNTRY_META.BR, points, stub: isStub, asOf: Date.now(), source };
       if (points.length > 0) cacheSet(ck, resp, TTL.curve);
       return res.json(resp);
     }

@@ -1779,22 +1779,16 @@ router.get('/di-curve', async (req, res) => {
       console.warn('[DI-Curve] Tesouro Direto failed:', tdRes.reason?.message);
     }
 
-    if (curve.length < 3) {
-      const base = diRate;
-      const synth = [
-        { tenor: '3M',  months: 3,  rate: parseFloat((base + 0.15).toFixed(2)) },
-        { tenor: '6M',  months: 6,  rate: parseFloat((base + 0.10).toFixed(2)) },
-        { tenor: '1Y',  months: 12, rate: parseFloat((base - 0.50).toFixed(2)) },
-        { tenor: '2Y',  months: 24, rate: parseFloat((base - 1.50).toFixed(2)) },
-        { tenor: '3Y',  months: 36, rate: parseFloat((base - 2.50).toFixed(2)) },
-        { tenor: '5Y',  months: 60, rate: parseFloat((base - 3.50).toFixed(2)) },
-      ];
-      curve.push(...synth.filter(s => s.rate > 0));
+    // Phase 10: No synthetic points. If we have too few real points, mark as stub.
+    const isStub = curve.length < 3;
+    if (isStub) {
+      console.warn('[DI-Curve] DI curve unavailable from live sources; returning stub=true with no synthetic points. Points:', curve.length);
     }
 
     res.json({
       curve,
-      source: tdRes.status === 'fulfilled' ? 'Tesouro Direto' : 'BCB+synthetic',
+      source: tdRes.status === 'fulfilled' ? 'Tesouro Direto' : (selicRes.status === 'fulfilled' ? 'BCB' : 'unavailable'),
+      stub: isStub,
       updatedAt: new Date().toISOString(),
     });
   } catch (err) {
@@ -1994,16 +1988,10 @@ router.get('/yield-curves', async (req, res) => {
         .sort((a, b_) => a.months - b_.months);
       brCurve.push(...prefixados);
     }
-    if (brCurve.length < 3) {
-      const base = diRate;
-      brCurve.push(
-        { tenor: '3M', months: 3, rate: parseFloat((base + 0.15).toFixed(2)) },
-        { tenor: '6M', months: 6, rate: parseFloat((base + 0.10).toFixed(2)) },
-        { tenor: '1Y', months: 12, rate: parseFloat((base - 0.50).toFixed(2)) },
-        { tenor: '2Y', months: 24, rate: parseFloat((base - 1.50).toFixed(2)) },
-        { tenor: '3Y', months: 36, rate: parseFloat((base - 2.50).toFixed(2)) },
-        { tenor: '5Y', months: 60, rate: parseFloat((base - 3.50).toFixed(2)) },
-      );
+    // Phase 10: No synthetic BR points. Mark as stub if insufficient live data.
+    const brStub = brCurve.length < 3;
+    if (brStub) {
+      console.warn('[Yield] Brazil DI curve has fewer than 3 live points; stub=true. Points:', brCurve.length);
     }
 
     // ââ US curve âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
@@ -2042,7 +2030,7 @@ router.get('/yield-curves', async (req, res) => {
     }
 
     res.json({
-      BR: { curve: brCurve, source: tdRes.status === 'fulfilled' ? 'Tesouro Direto' : 'BCB+synthetic', updatedAt: now.toISOString() },
+      BR: { curve: brCurve, source: tdRes.status === 'fulfilled' ? 'Tesouro Direto' : (selicRes.status === 'fulfilled' ? 'BCB' : 'unavailable'), stub: brStub, updatedAt: now.toISOString() },
       US: { curve: usCurve, source: usSource, updatedAt: now.toISOString() },
       UK: { curve: ukCurve, source: ukSource, updatedAt: now.toISOString() },
       EU: { curve: euCurve, source: euSource, updatedAt: now.toISOString() },
