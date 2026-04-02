@@ -16,6 +16,7 @@ const macroRoutes       = require('./routes/macro');
 const portfolioRoutes   = require('./routes/portfolio');
 const alertRoutes       = require('./routes/alerts');
 const iapRoutes         = require('./routes/iap');
+const searchRoutes      = require('./routes/search');
 const { requireAuth, requireActiveSubscription } = require('./authMiddleware');
 const logger = require('./utils/logger');
 const { requestLogger } = require('./utils/logger');
@@ -98,6 +99,9 @@ app.use('/api/portfolio', requireAuth, portfolioRoutes);
 
 // Alerts: auth required (no subscription check — alerts are a core feature)
 app.use('/api/alerts', requireAuth, alertRoutes);
+
+// AI Search: auth + subscription required
+app.use('/api/search', requireAuth, requireActiveSubscription, searchRoutes);
 
 // Market data: auth + subscription required
 app.use('/api', requireAuth, requireActiveSubscription, marketRoutes);

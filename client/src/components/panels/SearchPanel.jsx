@@ -19,7 +19,6 @@ const TYPE_COLOR = {
 };
 
 // ── Prominent asset type badge config ──
-// Each search result gets a clearly visible badge showing what kind of security it is
 const ASSET_TYPE_BADGE = {
   Equity:  { bg: '#001a2e', color: '#4fc3f7', label: 'EQUITY' },
   ETF:     { bg: '#0a2000', color: '#81c784', label: 'ETF' },
@@ -36,22 +35,18 @@ const ASSET_TYPE_BADGE = {
   OTC:     { bg: '#1a1a1a', color: '#999',    label: 'OTC' },
 };
 
-// Derive asset type from search result (client-side normalization)
 function deriveAssetType(item) {
-  // If server already sent an assetType, use it
   if (item.assetType && ASSET_TYPE_BADGE[item.assetType]) return item.assetType;
-
   const type = (item.type || '').toUpperCase();
   const ac   = (item.assetClass || '').toLowerCase();
   const sym  = (item.symbol || '').toUpperCase();
-
   if (item.local && type === 'CURRENCY') return 'FX';
   if (item.local && type === 'CRYPTO')   return 'Crypto';
   if (ac === 'etf'   || type === 'ETF')  return 'ETF';
   if (ac === 'forex' || type === 'CURRENCY') return 'FX';
   if (ac === 'crypto' || type === 'CRYPTO' || type === 'CRYPTOCURRENCY') return 'Crypto';
   if (ac === 'fixed_income' || type === 'BOND') return 'Bond';
-  if (ac === 'commodity')    return 'ETF'; // commodity ETFs
+  if (ac === 'commodity')    return 'ETF';
   if (ac === 'index' || type === 'INDEX') return 'Index';
   if (ac === 'fund'  || type === 'MUTUALFUND') return 'Fund';
   if (type === 'ADR' || type === 'ADRC') return 'ADR';
@@ -72,77 +67,34 @@ const MARKET_BADGE = {
   ARCX: { bg: '#001a2e', color: '#4fc3f7', label: 'ARCA'   },
 };
 
-// Yahoo Finance exchange codes with confirmed live coverage in this terminal
 const LIVE_EXCHANGES    = new Set(['NYQ', 'NMS', 'PCX', 'ARCX', 'NYE', 'ASE', 'BVSP', 'SAO']);
-// OTC / sparse coverage
 const LIMITED_EXCHANGES = new Set(['OTC', 'PNK', 'OTCM', 'GREY', 'OTCQX', 'OTCQB', 'PINK']);
-// International exchanges we definitively DO NOT cover — show red "NO DATA"
 const NO_DATA_EXCHANGES = new Set([
-  'LSE','LON','L',        // London
-  'TYO','TSE','T',        // Tokyo
-  'HKG','HK',            // Hong Kong
-  'SHH','SHZ',           // Shanghai/Shenzhen
-  'BOM','NSE','NS','BO', // India
-  'ASX','AX',            // Australia
-  'FRA','ETR','F',       // Frankfurt
-  'EPA','PA',            // Paris
-  'AMS','AS',            // Amsterdam
-  'BME','MC',            // Madrid
-  'MIL','MI',            // Milan
-  'STO','ST',            // Stockholm
-  'CPH','CO',            // Copenhagen
-  'OSL','OL',            // Oslo
-  'HEL','HE',            // Helsinki
-  'WSE','WAR',           // Warsaw
-  'SGX','SI',            // Singapore
-  'KRX','KS','KQ',       // Korea
+  'LSE','LON','L','TYO','TSE','T','HKG','HK','SHH','SHZ',
+  'BOM','NSE','NS','BO','ASX','AX','FRA','ETR','F','EPA','PA',
+  'AMS','AS','BME','MC','MIL','MI','STO','ST','CPH','CO',
+  'OSL','OL','HEL','HE','WSE','WAR','SGX','SI','KRX','KS','KQ',
 ]);
 
-/**
- * coverageLevel — returns 'live' | 'limited' | 'none' | 'unknown'
- *
- * ── KEY FIX ──────────────────────────────────────────────────────────────────
- * Polygon's search API returns `market` as a GENERIC CATEGORY:
- *   'stocks' | 'otc' | 'crypto' | 'fx' | 'indices'
- * NOT an exchange code (NMS, NYQ, etc.).
- * Old code compared these lowercase category strings against LIVE_EXCHANGES
- * (uppercase Yahoo codes), causing every Polygon result — including AAPL, MSFT,
- * DEFT, etc. — to be wrongly flagged 'none' / "NO DATA".
- * ─────────────────────────────────────────────────────────────────────────────
- */
 function coverageLevel(item) {
   if (!item) return 'unknown';
-
-  // Our locally-defined FX/crypto pairs — always live
   if (item.local) return 'live';
-
-  const type   = (item.type            || '').toUpperCase();
-  const market = (item.market          || '').toLowerCase(); // Polygon: 'stocks','otc','crypto','fx'
-  const exch   = (item.primaryExchange || item.market || '').toUpperCase(); // Yahoo: 'NMS','NYQ'
-
-  // ── Type shortcuts ────────────────────────────────────────────────────
+  const type   = (item.type || '').toUpperCase();
+  const market = (item.market || '').toLowerCase();
+  const exch   = (item.primaryExchange || item.market || '').toUpperCase();
   if (type === 'CRYPTO' || type === 'CRYPTOCURRENCY') return 'live';
-  if (type === 'CURRENCY')                            return 'live';
-  if (type === 'MUTUALFUND')                          return 'limited';
-
-  // ── Polygon generic CATEGORY strings (lowercase from Polygon API) ─────
-  // These are not exchange codes — handle them before checking exchange sets
-  if (market === 'stocks')  return 'live';    // all Polygon equity results
+  if (type === 'CURRENCY') return 'live';
+  if (type === 'MUTUALFUND') return 'limited';
+  if (market === 'stocks')  return 'live';
   if (market === 'crypto')  return 'live';
   if (market === 'fx' || market === 'forex') return 'live';
   if (market === 'otc')     return 'limited';
   if (market === 'indices') return 'limited';
-
-  // ── Yahoo Finance exchange codes (uppercase 2–5 chars) ────────────────
   if (LIVE_EXCHANGES.has(exch))    return 'live';
   if (LIMITED_EXCHANGES.has(exch)) return 'limited';
   if (NO_DATA_EXCHANGES.has(exch)) return 'none';
-
-  // Well-known international ticker suffixes
   const sym = (item.symbol || '').toUpperCase();
   if (/\.(L|T|HK|AX|TO|NS|BO|PA|DE|MI|AS|MC|ST|CO|OL|HE|SI|KS|KQ)$/.test(sym)) return 'none';
-
-  // Unknown — don't block the user, show grey dot (no red warning)
   return 'unknown';
 }
 
@@ -158,7 +110,11 @@ const COVERAGE_TAG = {
   limited: { bg: '#1a1400', color: YELLOW, label: 'LIMITED' },
 };
 
-// Fixed: use C: prefix (Polygon format) not =X (Yahoo format)
+const ASSET_CLASS_COLOR = {
+  equity: '#4fc3f7', etf: '#81c784', forex: '#ce93d8',
+  crypto: '#f48fb1', fixed_income: '#ffb74d', commodity: '#80cbc4', index: '#ffb74d',
+};
+
 function localSearch(q) {
   if (!q || q.trim().length < 2) return [];
   const uq = q.toUpperCase().replace(/[\s/\-]/g, '');
@@ -179,25 +135,66 @@ function displaySymbol(sym) {
   return sym;
 }
 
-const ASSET_FILTERS = [
-  { id: null,           label: 'ALL' },
-  { id: 'equity',       label: 'EQUITY' },
-  { id: 'etf',          label: 'ETF' },
-  { id: 'forex',        label: 'FX' },
-  { id: 'crypto',       label: 'CRYPTO' },
-  { id: 'fixed_income', label: 'BONDS' },
-  { id: 'commodity',    label: 'COMMOD' },
-];
+/* ── AI Summary Shimmer Loader ── */
+function AiShimmer() {
+  return (
+    <div className="sp-ai-shimmer">
+      <div className="sp-ai-shimmer-line" />
+      <div className="sp-ai-shimmer-line" />
+      <div className="sp-ai-shimmer-line" />
+      <div className="sp-ai-shimmer-line" />
+    </div>
+  );
+}
 
-const ASSET_CLASS_COLOR = {
-  equity:       '#4fc3f7',
-  etf:          '#81c784',
-  forex:        '#ce93d8',
-  crypto:       '#f48fb1',
-  fixed_income: '#ffb74d',
-  commodity:    '#80cbc4',
-  index:        '#ffb74d',
-};
+/* ── AI Summary Card ── */
+function AiSummaryCard({ aiData, aiLoading, aiError }) {
+  if (!aiLoading && !aiData && !aiError) return null;
+
+  return (
+    <div className="sp-ai-card">
+      <div className="sp-ai-card-header">
+        <span className="sp-ai-label">AI RESEARCH</span>
+        {aiData?.model && (
+          <span className="sp-ai-model">{aiData.model}</span>
+        )}
+      </div>
+
+      {aiLoading && <AiShimmer />}
+
+      {aiError && (
+        <div className="sp-ai-error">{aiError}</div>
+      )}
+
+      {aiData && !aiLoading && (
+        <>
+          <div
+            className="sp-ai-summary"
+            dangerouslySetInnerHTML={{
+              __html: aiData.summary
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\n/g, '<br/>')
+            }}
+          />
+          {aiData.citations?.length > 0 && (
+            <div className="sp-ai-citations">
+              {aiData.citations.map((c, i) => {
+                let label;
+                try { label = new URL(c.url).hostname.replace('www.', ''); } catch { label = c.title; }
+                return (
+                  <a key={i} href={c.url} target="_blank" rel="noopener noreferrer"
+                    className="sp-ai-citation" title={c.url}>
+                    {label}
+                  </a>
+                );
+              })}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
 
 function SearchPanel({ onTickerSelect, onOpenDetail }) {
   const [query,         setQuery]         = useState('');
@@ -207,18 +204,53 @@ function SearchPanel({ onTickerSelect, onOpenDetail }) {
   const [quote,         setQuote]         = useState(null);
   const [quoteLoading,  setQuoteLoading]  = useState(false);
   const [addedToHome,   setAddedToHome]   = useState(null);
-  const [assetFilter,   setAssetFilter]   = useState(null); // null = all
-  const debounceRef = useRef(null);
+
+  // AI search state
+  const [aiData,    setAiData]    = useState(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError,   setAiError]   = useState(null);
+
+  const debounceRef   = useRef(null);
+  const aiDebounceRef = useRef(null);
   const { addToHomeSection } = useSettings();
 
-  const search = useCallback((q, assetClass) => {
+  // Fetch AI summary from Perplexity Sonar Pro
+  const fetchAiSummary = useCallback((q) => {
+    if (!q || q.trim().length < 3) {
+      setAiData(null);
+      setAiLoading(false);
+      setAiError(null);
+      return;
+    }
+    setAiLoading(true);
+    setAiError(null);
+
+    apiFetch('/api/search/ai', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: q.trim() }),
+    })
+      .then(r => {
+        if (!r.ok) throw new Error(`AI search error (${r.status})`);
+        return r.json();
+      })
+      .then(data => {
+        setAiData(data);
+        setAiLoading(false);
+      })
+      .catch(err => {
+        setAiError(err.message || 'AI search unavailable');
+        setAiLoading(false);
+      });
+  }, []);
+
+  const search = useCallback((q) => {
     if (!q.trim()) { setResults([]); return; }
     const local = localSearch(q);
     setResults(local);
     setLoading(true);
 
-    // Query both instrument registry and Polygon simultaneously
-    const registryPath = `/api/instruments/search?q=${encodeURIComponent(q)}&limit=10${assetClass ? `&assetClass=${assetClass}` : ''}`;
+    const registryPath = `/api/instruments/search?q=${encodeURIComponent(q)}&limit=10`;
     const polygonPath  = `/api/search?q=${encodeURIComponent(q)}`;
 
     Promise.allSettled([
@@ -228,41 +260,27 @@ function SearchPanel({ onTickerSelect, onOpenDetail }) {
       const regItems   = regRes.status  === 'fulfilled' ? (regRes.value.results  || []) : [];
       const polyItems  = polyRes.status === 'fulfilled' ? (polyRes.value.results || []) : [];
 
-      // Map registry items to display format
       const fromRegistry = regItems.map(r => ({
-        symbol:     r.symbolKey,
-        name:       r.name,
-        type:       (r.assetClass || '').toUpperCase(),
-        assetClass: r.assetClass,
-        market:     'stocks', // so coverageLevel works
-        group:      r.group,
-        local:      false,
-        fromRegistry: true,
+        symbol: r.symbolKey, name: r.name, type: (r.assetClass || '').toUpperCase(),
+        assetClass: r.assetClass, market: 'stocks', group: r.group,
+        local: false, fromRegistry: true,
       }));
 
-      // Map Polygon/Yahoo items, skip if already in registry
       const regKeys = new Set([...local.map(l => l.symbol), ...fromRegistry.map(r => r.symbol)]);
       const fromPoly = polyItems
         .filter(r => !regKeys.has(r.ticker || r.symbol))
         .map(r => ({
-          symbol:          r.ticker || r.symbol,
-          name:            r.name,
-          type:            r.type,
-          assetType:       r.assetType || null,  // normalized type from server
-          market:          r.market,
+          symbol: r.ticker || r.symbol, name: r.name, type: r.type,
+          assetType: r.assetType || null, market: r.market,
           primaryExchange: r.primaryExchange || r.market || '',
-          exchange:        r.exchange || '',
-          active:          r.active,
+          exchange: r.exchange || '', active: r.active,
         }));
 
-      // Merge: local FX/crypto → registry → polygon, dedup
       const seen = new Set();
       const merged = [...local, ...fromRegistry, ...fromPoly]
         .filter(item => {
           if (seen.has(item.symbol)) return false;
           seen.add(item.symbol);
-          // Filter by asset class if active
-          if (assetClass && item.assetClass && item.assetClass !== assetClass) return false;
           return true;
         })
         .slice(0, 20);
@@ -277,13 +295,20 @@ function SearchPanel({ onTickerSelect, onOpenDetail }) {
     setQuery(q);
     setSelected(null);
     setQuote(null);
-    clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => search(q, assetFilter), 280);
-  };
 
-  const handleFilterChange = (f) => {
-    setAssetFilter(f);
-    if (query.trim()) search(query, f);
+    // Ticker search: fast debounce (280ms)
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => search(q), 280);
+
+    // AI summary: slower debounce (400ms) — only if query is 3+ chars
+    clearTimeout(aiDebounceRef.current);
+    if (q.trim().length >= 3) {
+      aiDebounceRef.current = setTimeout(() => fetchAiSummary(q), 400);
+    } else {
+      setAiData(null);
+      setAiLoading(false);
+      setAiError(null);
+    }
   };
 
   const handleSelect = useCallback((item) => {
@@ -291,10 +316,8 @@ function SearchPanel({ onTickerSelect, onOpenDetail }) {
     setResults([]);
     setQuery(displaySymbol(item.symbol));
     setQuote(null);
-
     const cov = coverageLevel(item);
-    if (cov === 'none') return; // don't bother fetching quote for no-coverage tickers
-
+    if (cov === 'none') return;
     setQuoteLoading(true);
     apiFetch(`/api/quote/${encodeURIComponent(item.symbol)}`)
       .then(r => r.json())
@@ -310,7 +333,7 @@ function SearchPanel({ onTickerSelect, onOpenDetail }) {
   };
 
   const handleAddToHome = (e, item) => {
-    e.stopPropagation(); // prevent triggering row click
+    e.stopPropagation();
     addToHomeSection(item.symbol, item.name);
     setAddedToHome(item.symbol);
     setTimeout(() => setAddedToHome(null), 1500);
@@ -337,36 +360,20 @@ function SearchPanel({ onTickerSelect, onOpenDetail }) {
           onChange={handleInput}
           placeholder="ticker or company name..."
           className="sp-search-input"
-          onFocus={e => e.target.style.borderColor = ORANGE}
-          onBlur={e => e.target.style.borderColor = '#2a2a2a'}
         />
         {loading && (
-          <span className="sp-search-loading">
-            SEARCHING...
-          </span>
+          <span className="sp-search-loading">SEARCHING...</span>
         )}
       </div>
 
-      {/* ── Asset class filter tabs ── */}
-      <div className="sp-filter-tabs">
-        {ASSET_FILTERS.map(f => (
-          <button className="btn sp-filter-btn"
-            key={String(f.id)}
-            onClick={() => handleFilterChange(f.id)}
-            style={{
-              background:   assetFilter === f.id ? '#1a0900' : 'transparent',
-              border:       `1px solid ${assetFilter === f.id ? ORANGE : '#1e1e1e'}`,
-              color:        assetFilter === f.id ? ORANGE : '#333',
-            }}
-          >{f.label}</button>
-        ))}
-      </div>
+      {/* ── AI Summary Card (shown when query is 3+ chars) ── */}
+      <AiSummaryCard aiData={aiData} aiLoading={aiLoading} aiError={aiError} />
 
       {/* ── Results list ── */}
       {results.length > 0 && (
         <div className="sp-results-container">
           <div className="sp-results-header">
-            <span className="sp-results-header-text">⠿ DRAG RESULTS TO ANY PANEL TO ADD TICKERS</span>
+            <span className="sp-results-header-text">DRAG RESULTS TO ANY PANEL TO ADD TICKERS</span>
           </div>
           {results.map(item => {
             const badge  = MARKET_BADGE[(item.market || '').toUpperCase()];
@@ -382,58 +389,38 @@ function SearchPanel({ onTickerSelect, onOpenDetail }) {
                 onDragStart={(e) => handleDragStart(e, item)}
                 onClick={() => handleSelect(item)}
                 title="Click to view details · Drag to any panel to add ticker"
-                className={`sp-result-row ${cov === 'none' ? 'sp-result-row no-coverage' : ''}`}
-                onMouseEnter={e => e.currentTarget.style.background = '#141414'}
-                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                className={`sp-result-row ${cov === 'none' ? 'no-coverage' : ''}`}
               >
-                {/* Drag grip indicator */}
                 <span className="sp-drag-icon" title="Drag to any panel">⠿</span>
-                {/* Coverage dot */}
                 <span
                   title={dot.title}
                   className={`sp-coverage-dot ${cov === 'live' ? 'sp-coverage-dot-live' : ''}`}
                   style={{ background: dot.color }}
                 />
-
-                {/* Drag grip */}
                 <span className="sp-drag-grip">⠿</span>
-
-                {/* Symbol */}
                 <span className="sp-symbol"
                   style={{
                     color: isBR ? '#8bc34a' : (ASSET_CLASS_COLOR[item.assetClass] || TYPE_COLOR[item.type] || '#aaa'),
                   }}>
                   {displaySymbol(item.symbol)}
                 </span>
-
-                {/* Name */}
-                <span className="sp-name">
-                  {item.name}
-                </span>
-
-                {/* Asset type badge + exchange + coverage + Add to Home */}
+                <span className="sp-name">{item.name}</span>
                 <div className="sp-badge-container">
-                  {/* Asset type badge — always visible */}
                   {(() => {
                     const assetType = deriveAssetType(item);
                     const typeBadge = ASSET_TYPE_BADGE[assetType];
                     return typeBadge ? (
                       <span className="sp-type-badge"
-                        style={{
-                          background: typeBadge.bg, color: typeBadge.color,
-                          border: `1px solid ${typeBadge.color}33`,
-                        }}>
+                        style={{ background: typeBadge.bg, color: typeBadge.color, border: `1px solid ${typeBadge.color}33` }}>
                         {typeBadge.label}
                       </span>
                     ) : null;
                   })()}
-                  {/* Exchange badge (B3, NYSE, NASDAQ, etc.) */}
                   {badge && (
                     <span className="sp-exchange-badge" style={{ background: badge.bg, color: badge.color }}>
                       {badge.label}
                     </span>
                   )}
-                  {/* Coverage warning tag */}
                   {covTag && (
                     <span className="sp-coverage-tag" style={{ background: covTag.bg, color: covTag.color }}>
                       {covTag.label}
@@ -456,92 +443,68 @@ function SearchPanel({ onTickerSelect, onOpenDetail }) {
         </div>
       )}
 
-      {/* ── Empty state ── */}
+      {/* ── Empty state (clean, no emojis) ── */}
       {!results.length && !query && !selected && (
         <div className="sp-empty-state">
           TYPE TO SEARCH<br />
-          <span className="sp-empty-state-hint">● CLICK RESULT → OPEN IN DEPTH</span><br />
-          <span className="sp-empty-state-hint">⠿ DRAG RESULT → ADD TO CHART</span>
+          <span className="sp-empty-state-hint">CLICK RESULT  —  OPEN IN DEPTH</span><br />
+          <span className="sp-empty-state-hint">DRAG RESULT  —  ADD TO CHART</span>
         </div>
       )}
       {query.trim().length > 0 && !results.length && !loading && !selected && (
-        <div className="sp-no-results">
-          NO RESULTS
-        </div>
+        <div className="sp-no-results">NO RESULTS</div>
       )}
 
       {/* ── Quote preview / action area ── */}
       {(selected || quoteLoading) && (
         <div className="sp-quote-section">
-
-          {/* Coverage warning banner */}
           {selected && coverageLevel(selected) !== 'live' && (
             <div className={`sp-coverage-warning ${coverageLevel(selected) === 'none' ? 'sp-coverage-warning-none' : 'sp-coverage-warning-limited'}`}>
               {coverageLevel(selected) === 'none'
-                ? '⚠ This ticker trades on an international exchange not covered by this terminal. Chart and price data will not be available.'
-                : '⚠ This ticker is OTC/fund class — data may be sparse or unavailable.'}
+                ? 'This ticker trades on an international exchange not covered by this terminal. Chart and price data will not be available.'
+                : 'This ticker is OTC/fund class — data may be sparse or unavailable.'}
             </div>
           )}
-
           {quoteLoading && (
             <div className="sp-quote-loading">LOADING...</div>
           )}
-
           {selected && !quoteLoading && (
             <>
-              {/* Action buttons */}
               <div className="sp-action-buttons">
                 <button className="btn sp-open-depth-btn"
-                  onClick={() => onOpenDetail?.(selected.symbol)}
-                >
+                  onClick={() => onOpenDetail?.(selected.symbol)}>
                   OPEN IN DEPTH →
                 </button>
                 <button className="btn sp-chart-btn"
                   draggable
                   onDragStart={(e) => handleDragStart(e, selected)}
                   onClick={() => onTickerSelect?.(selected.symbol)}
-                  title="Click to set as chart ticker, or drag to a chart slot"
-                >
+                  title="Click to set as chart ticker, or drag to a chart slot">
                   + CHART
                 </button>
               </div>
-
-              {/* Quote data (if available) */}
               {quote?.price != null ? (() => {
                 const up  = (quote.changePct ?? 0) >= 0;
                 const isBR = quote.currency === 'BRL' || quote.ticker?.endsWith('.SA');
                 return (
                   <div>
-                    {/* Ticker + currency row */}
                     <div className="sp-ticker-row">
-                      <span className="sp-ticker">
-                        {displaySymbol(quote.ticker || selected.symbol)}
-                      </span>
-                      {isBR && (
-                        <span className="sp-ticker-badge">B3</span>
-                      )}
+                      <span className="sp-ticker">{displaySymbol(quote.ticker || selected.symbol)}</span>
+                      {isBR && <span className="sp-ticker-badge">B3</span>}
                       {quote.name && quote.name !== quote.ticker && (
-                        <span className="sp-ticker-name">
-                          {quote.name}
-                        </span>
+                        <span className="sp-ticker-name">{quote.name}</span>
                       )}
                       <span className="sp-ticker-currency">{quote.currency}</span>
                     </div>
-
-                    {/* Price */}
-                    <div className="sp-price">
-                      {fmtNum(quote.price)}
-                    </div>
+                    <div className="sp-price">{fmtNum(quote.price)}</div>
                     <div className="sp-change" style={{ color: up ? '#00c853' : RED }}>
                       {(up ? '+' : '')}{fmtNum(quote.change)}&nbsp;({fmtPct(quote.changePct)})
                     </div>
-
-                    {/* OHLCV grid */}
                     <div className="sp-ohlcv-grid">
                       {[
-                        ['OPEN',   fmtNum(quote.open)],
-                        ['HIGH',   fmtNum(quote.high)],
-                        ['LOW',    fmtNum(quote.low)],
+                        ['OPEN', fmtNum(quote.open)],
+                        ['HIGH', fmtNum(quote.high)],
+                        ['LOW',  fmtNum(quote.low)],
                         ['VOLUME', fmtVol(quote.volume)],
                       ].map(([lbl, val]) => (
                         <div key={lbl}>
@@ -554,9 +517,7 @@ function SearchPanel({ onTickerSelect, onOpenDetail }) {
                 );
               })() : (
                 !quoteLoading && coverageLevel(selected) !== 'none' && (
-                  <div className="sp-no-quote">
-                    No quote data available
-                  </div>
+                  <div className="sp-no-quote">No quote data available</div>
                 )
               )}
             </>

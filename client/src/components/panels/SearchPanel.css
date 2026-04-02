@@ -1,8 +1,8 @@
-/* SearchPanel.css - Static styles extracted from inline styles */
+/* SearchPanel.css — Redesigned with AI search summary */
 
 .sp-container {
   height: 100%;
-  background: #0a0a0a;
+  background: var(--bg-app, #0a0a0a);
   display: flex;
   flex-direction: column;
 }
@@ -17,7 +17,7 @@
 }
 
 .sp-header-label {
-  color: #ff6b00;
+  color: var(--accent, #ff6b00);
   font-weight: 700;
   font-size: 11px;
   letter-spacing: 0.2em;
@@ -28,6 +28,7 @@
   font-size: 7px;
 }
 
+/* ── Search input ── */
 .sp-search-wrapper {
   position: relative;
   padding: 6px 8px;
@@ -44,10 +45,11 @@
   outline: none;
   box-sizing: border-box;
   min-height: 44px;
+  transition: border-color 0.2s;
 }
 
 .sp-search-input:focus {
-  border-color: #ff6b00;
+  border-color: var(--accent, #ff6b00);
 }
 
 .sp-search-loading {
@@ -59,20 +61,109 @@
   font-size: 7px;
 }
 
-.sp-filter-tabs {
-  display: flex;
-  gap: 3px;
-  padding: 4px 8px;
-  border-bottom: 1px solid #141414;
+/* ── AI Summary Card ── */
+.sp-ai-card {
+  margin: 6px 8px;
+  padding: 10px 12px;
+  background: #0d0d0d;
+  border: 1px solid #1a1a1a;
+  border-left: 2px solid var(--accent, #ff6b00);
   flex-shrink: 0;
-  flex-wrap: wrap;
 }
 
-.sp-filter-btn {
-  padding: 2px 5px;
+.sp-ai-card-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.sp-ai-label {
+  color: var(--accent, #ff6b00);
+  font-size: 8px;
   font-weight: 700;
+  letter-spacing: 0.15em;
 }
 
+.sp-ai-model {
+  color: #2a2a2a;
+  font-size: 7px;
+  margin-left: auto;
+}
+
+.sp-ai-summary {
+  color: #999;
+  font-size: 11px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.sp-ai-summary strong {
+  color: #ccc;
+  font-weight: 600;
+}
+
+/* Shimmer loading animation */
+.sp-ai-shimmer {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sp-ai-shimmer-line {
+  height: 10px;
+  background: linear-gradient(90deg, #111 25%, #1a1a1a 50%, #111 75%);
+  background-size: 200% 100%;
+  animation: sp-shimmer 1.5s ease-in-out infinite;
+  border-radius: 2px;
+}
+
+.sp-ai-shimmer-line:nth-child(1) { width: 90%; }
+.sp-ai-shimmer-line:nth-child(2) { width: 75%; }
+.sp-ai-shimmer-line:nth-child(3) { width: 85%; }
+.sp-ai-shimmer-line:nth-child(4) { width: 60%; }
+
+@keyframes sp-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* Citation pills */
+.sp-ai-citations {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.sp-ai-citation {
+  font-size: 8px;
+  padding: 2px 7px;
+  background: #111;
+  border: 1px solid #1e1e1e;
+  color: #555;
+  text-decoration: none;
+  transition: border-color 0.15s, color 0.15s;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: inline-block;
+}
+
+.sp-ai-citation:hover {
+  border-color: var(--accent, #ff6b00);
+  color: var(--accent, #ff6b00);
+}
+
+.sp-ai-error {
+  color: #555;
+  font-size: 9px;
+  padding: 8px 0 0;
+}
+
+/* ── Results list ── */
 .sp-results-container {
   border-bottom: 1px solid #1e1e1e;
   flex-shrink: 0;
@@ -82,7 +173,7 @@
 
 .sp-results-header {
   padding: 3px 10px;
-  background: #0a0a0a;
+  background: var(--bg-app, #0a0a0a);
   border-bottom: 1px solid #111;
   gap: 6px;
   display: flex;
@@ -103,6 +194,7 @@
   align-items: center;
   gap: 7px;
   user-select: none;
+  transition: background 0.1s;
 }
 
 .sp-result-row:hover {
@@ -190,16 +282,19 @@
   font-weight: bold;
 }
 
+/* ── Empty state (clean, no emojis) ── */
 .sp-empty-state {
-  padding: 16px 10px;
+  padding: 24px 16px;
   color: #2a2a2a;
-  font-size: 8px;
+  font-size: 9px;
   text-align: center;
-  line-height: 2;
+  line-height: 2.2;
+  letter-spacing: 0.1em;
 }
 
 .sp-empty-state-hint {
   color: #1e1e1e;
+  font-size: 8px;
 }
 
 .sp-no-results {
@@ -209,6 +304,7 @@
   letter-spacing: 0.1em;
 }
 
+/* ── Quote preview ── */
 .sp-quote-section {
   flex: 1;
   overflow-y: auto;
@@ -252,7 +348,7 @@
   flex: 2;
   padding: 9px 0;
   font-weight: 700;
-  background: #ff6b00;
+  background: var(--accent, #ff6b00);
   color: #fff;
   border: none;
 }
@@ -274,7 +370,7 @@
 }
 
 .sp-ticker {
-  color: #ff6b00;
+  color: var(--accent, #ff6b00);
   font-weight: 700;
   font-size: 13px;
 }
@@ -339,4 +435,14 @@
   font-size: 9px;
   text-align: center;
   padding: 8px 0;
+}
+
+/* ── Filter tabs (kept for backward compat but hidden by default) ── */
+.sp-filter-tabs {
+  display: none;
+}
+
+.sp-filter-btn {
+  padding: 2px 5px;
+  font-weight: 700;
 }
