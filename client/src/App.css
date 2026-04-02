@@ -525,6 +525,14 @@ html, body, #root {
   font-size: 15px;
   font-weight: 600;
   color: var(--text-primary);
+  margin-bottom: 2px;
+}
+.mm-persona-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--accent, #ff6600);
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
   margin-bottom: 4px;
 }
 .mm-user-meta {

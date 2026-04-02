@@ -58,7 +58,7 @@ router.get('/search', (req, res) => {
 const VALID_PERSONA_TYPES = [
   'value_investor','growth_investor','income_investor','crypto_degen',
   'day_trader','swing_trader','macro_investor','esg_investor',
-  'arbitrage_hunter','index_hugger',
+  'arbitrage_hunter','index_hugger','bulge_bracket',
 ];
 
 // GET /api/users/persona

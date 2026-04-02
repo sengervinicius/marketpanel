@@ -665,7 +665,7 @@ function UserDropdown({ user, onSettings, onLogout, onBilling, isPaid }) {
           padding: '2px 8px', gap: 5,
         }}
       >
-        <UserAvatar user={user} size="small" />
+        <UserAvatar user={user} size="small" interactive />
         <span style={{ color: open ? 'var(--accent)' : 'var(--text-faint)', fontSize: 8 }}>▼</span>
         <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', lineHeight: 1.2 }}>
           <span>{user.username?.toUpperCase()}</span>

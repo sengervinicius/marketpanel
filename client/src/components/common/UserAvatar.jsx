@@ -1,36 +1,48 @@
 /**
  * UserAvatar.jsx
- * Renders the user's persona avatar (PNG) or a fallback initial-letter circle.
+ * Renders a circular avatar from pre-made 3D chibi PNGs with glow ring
+ * and subtle breathe animation. Falls back to initial-letter circle.
+ *
+ * Props:
+ *   user        — { persona: { type }, username }
+ *   size        — 'small' | 'medium' | 'large'  (default: 'medium')
+ *   interactive — add breathe animation           (default: false)
  */
-import { getAvatarSrc, getPersona } from '../../config/avatars';
+import { getPersona, getAvatarSrc } from '../../config/avatars';
 import './UserAvatar.css';
 
-function UserAvatar({ user, size = 'medium' }) {
-  const type = user?.persona?.type;
-  const style = user?.persona?.avatarStyle || 'illustrated';
-  const borderStyle = user?.persona?.customization?.borderStyle || 'none';
-  const persona = getPersona(type);
-  const src = type ? getAvatarSrc(type, style) : null;
+function UserAvatar({ user, size = 'medium', interactive = false }) {
+  const personaType = user?.persona?.type || null;
+  const persona = getPersona(personaType);
+  const src = personaType ? getAvatarSrc(personaType) : null;
+  const initial = (user?.username || '?').charAt(0).toUpperCase();
+
+  const classes = [
+    'ua',
+    `ua--${size}`,
+    interactive ? 'ua--interactive' : '',
+    !src ? 'ua--fallback' : '',
+  ].join(' ').trim();
+
+  const color = persona?.color || 'var(--accent)';
 
   if (!src) {
-    const initial = (user?.username || '?').charAt(0).toUpperCase();
     return (
-      <div
-        className={`ua ua--${size} ua--fallback`}
-        style={{ background: persona?.color || 'var(--bg-elevated, #1a1a1a)' }}
-        title={user?.username}
-      >
-        {initial}
+      <div className={classes} style={{ '--ua-color': color }}>
+        <span className="ua-initial">{initial}</span>
       </div>
     );
   }
 
   return (
-    <div
-      className={`ua ua--${size} ua--border-${borderStyle}`}
-      title={persona?.label || type}
-    >
-      <img src={src} alt={persona?.label || type} className="ua-img" />
+    <div className={classes} style={{ '--ua-color': color }}>
+      <div className="ua-ring" />
+      <img
+        src={src}
+        alt={persona?.label || 'Investor avatar'}
+        className="ua-img"
+        draggable={false}
+      />
     </div>
   );
 }

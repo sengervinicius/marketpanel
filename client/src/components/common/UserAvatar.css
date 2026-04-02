@@ -1,25 +1,69 @@
+/* ── UserAvatar — circular mask, glow ring, breathe animation ────────────── */
 .ua {
-  border-radius: 50%;
+  position: relative;
+  border-radius: 999px;
   overflow: hidden;
-  flex-shrink: 0;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-weight: 700;
-  font-family: var(--font-ui);
-  color: #fff;
-  position: relative;
+  flex-shrink: 0;
+  --ua-color: var(--accent);
 }
-.ua--small   { width: 28px;  height: 28px;  font-size: 12px; }
-.ua--medium  { width: 40px;  height: 40px;  font-size: 16px; }
-.ua--large   { width: 64px;  height: 64px;  font-size: 24px; }
-.ua--fallback { background: var(--bg-elevated, #1a1a1a); color: var(--accent); }
-.ua--border-solid { border: 2px solid var(--accent); }
-.ua--border-glow  { border: 2px solid var(--accent); box-shadow: 0 0 10px var(--accent), 0 0 20px rgba(255,102,0,0.4); }
-.ua--border-none  { border: none; }
+
+/* Sizes */
+.ua--small  { width: 28px; height: 28px; }
+.ua--medium { width: 40px; height: 40px; }
+.ua--large  { width: 64px; height: 64px; }
+
+/* Breathe animation for interactive contexts */
+.ua--interactive {
+  animation: ua-breathe 3s ease-in-out infinite;
+}
+
+/* Conic-gradient glow ring behind the image */
+.ua-ring {
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  background: conic-gradient(
+    from 0deg,
+    rgba(255,255,255,0.15),
+    var(--ua-color),
+    rgba(255,255,255,0.4),
+    var(--ua-color)
+  );
+  opacity: 0.9;
+  z-index: 0;
+}
+
+/* Avatar image — sits inside the ring */
 .ua-img {
-  width: 100%;
-  height: 100%;
+  position: relative;
+  z-index: 1;
+  width: 92%;
+  height: 92%;
   object-fit: cover;
-  border-radius: 50%;
+  border-radius: inherit;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.45);
+}
+
+/* Fallback initial-letter circle */
+.ua--fallback {
+  background: radial-gradient(circle at 30% 0%, rgba(255,255,255,0.25), rgba(0,0,0,0.95));
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+}
+
+.ua-initial {
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: 0.8rem;
+  color: #fff;
+}
+
+.ua--large .ua-initial { font-size: 1.5rem; }
+.ua--small .ua-initial { font-size: 0.6rem; }
+
+@keyframes ua-breathe {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50%      { transform: translateY(-1px) scale(1.03); }
 }

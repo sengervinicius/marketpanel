@@ -2,6 +2,7 @@ import React, { memo, useState, useCallback, useMemo, useEffect } from 'react';
 import { useSettings } from '../../context/SettingsContext';
 import { getTemplatesGrouped, WORKSPACE_TEMPLATES } from '../../config/templates';
 import UserAvatar from '../common/UserAvatar';
+import { getPersona } from '../../config/avatars';
 
 const MobileMoreScreen = memo(({
   onNavigate,
@@ -60,10 +61,13 @@ const MobileMoreScreen = memo(({
       {/* User card */}
       <div className="mm-user-card">
         <div className="mm-avatar">
-          <UserAvatar user={user} size="large" />
+          <UserAvatar user={user} size="large" interactive />
         </div>
         <div className="mm-user-info">
           <div className="mm-user-name">{user?.username || user?.name || 'User'}</div>
+          {user?.persona?.type && (
+            <div className="mm-persona-label">{getPersona(user.persona.type)?.label}</div>
+          )}
           <div className="mm-user-meta">
             <span className="mm-badge">{subscriptionStatus}</span>
             {daysRemaining !== null && subscriptionStatus === 'TRIAL' && (

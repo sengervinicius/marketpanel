@@ -1,6 +1,7 @@
 /**
  * avatars.js
  * Investor persona manifest — types, labels, badge icons, colors, avatar paths.
+ * Avatar images are pre-made 3D chibi PNGs in /public/avatars/.
  */
 
 export const PERSONAS = [
@@ -14,27 +15,27 @@ export const PERSONAS = [
   { type: 'esg_investor',      label: 'ESG Investor',      description: 'Sustainability, impact, ethical investing',             badge: '\u{1F331}', color: '#1b7a34' },
   { type: 'arbitrage_hunter',  label: 'Arbitrage Hunter',  description: 'Price discrepancies, FX arb, stat arb',                badge: '\u{1F3AF}', color: '#c9a800' },
   { type: 'index_hugger',      label: 'Index Hugger',      description: 'ETFs, passive investing, low fees, just buy the dip',   badge: '\u{1F4E6}', color: '#5a5a6e' },
+  { type: 'bulge_bracket',     label: 'Bulge Bracket',     description: 'Patagonia vest, Rolex, institutional banker',           badge: '\u{1F4BC}', color: '#374151' },
 ];
 
 export const AVATAR_PATHS = {
-  value_investor:   { illustrated: '/avatars/value_investor/illustrated.png' },
-  growth_investor:  { illustrated: '/avatars/growth_investor/illustrated.png' },
-  income_investor:  { illustrated: '/avatars/income_investor/illustrated.png' },
-  crypto_degen:     { illustrated: '/avatars/crypto_degen/illustrated.png' },
-  day_trader:       { illustrated: '/avatars/day_trader/illustrated.png' },
-  swing_trader:     { illustrated: '/avatars/swing_trader/illustrated.png' },
-  macro_investor:   { illustrated: '/avatars/macro_investor/illustrated.png' },
-  esg_investor:     { illustrated: '/avatars/esg_investor/illustrated.png' },
-  arbitrage_hunter: { illustrated: '/avatars/arbitrage_hunter/illustrated.png' },
-  index_hugger:     { illustrated: '/avatars/index_hugger/illustrated.png' },
+  value_investor:   '/avatars/value_investor.png',
+  growth_investor:  '/avatars/growth_investor.png',
+  income_investor:  '/avatars/income_investor.png',
+  crypto_degen:     '/avatars/crypto_degen.png',
+  day_trader:       '/avatars/day_trader.png',
+  swing_trader:     '/avatars/swing_trader.png',
+  // macro_investor — no art yet, will use fallback
+  esg_investor:     '/avatars/esg_investor.png',
+  // arbitrage_hunter — no art yet, will use fallback
+  index_hugger:     '/avatars/index_hugger.png',
+  bulge_bracket:    '/avatars/bulge_bracket.png',
 };
-
-export function getAvatarSrc(personaType, style = 'illustrated') {
-  const p = AVATAR_PATHS[personaType];
-  if (!p) return null;
-  return p[style] || p.illustrated || null;
-}
 
 export function getPersona(type) {
   return PERSONAS.find(p => p.type === type) || null;
+}
+
+export function getAvatarSrc(type) {
+  return AVATAR_PATHS[type] || null;
 }
