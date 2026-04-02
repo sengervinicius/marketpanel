@@ -1204,7 +1204,6 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
           {heroMktCap != null && <span className="id-hero-stat">MCap <span>{fmt(heroMktCap, 0)}</span></span>}
         </div>
       </div>
-    >
 
       {/* ── HEADER ── */}
       <div className={`id-header${isMobile ? ' id-header--mobile' : ''}`}>
