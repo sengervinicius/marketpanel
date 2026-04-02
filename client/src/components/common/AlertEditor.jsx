@@ -276,8 +276,8 @@ function AlertEditor({
         {/* Footer */}
         <div className="pf-editor-footer">
           {isEditing && (
-            <button
-              className="pf-editor-btn pf-editor-btn-delete"
+            <button className="btn pf-editor-btn pf-editor-btn-delete"
+
               onClick={handleDelete}
               disabled={saving}
             >
@@ -285,15 +285,15 @@ function AlertEditor({
             </button>
           )}
           <div className="pf-editor-footer-spacer" />
-          <button
-            className="pf-editor-btn pf-editor-btn-cancel"
+          <button className="btn pf-editor-btn pf-editor-btn-cancel"
+
             onClick={onClose}
             disabled={saving}
           >
             Cancel
           </button>
-          <button
-            className="pf-editor-btn pf-editor-btn-primary"
+          <button className="btn pf-editor-btn pf-editor-btn-primary"
+
             onClick={handleSave}
             disabled={saving || !symbol.trim()}
           >

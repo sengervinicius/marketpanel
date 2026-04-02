@@ -8,6 +8,7 @@ import { memo, useState } from 'react';
 import { useStocksData } from '../../context/MarketContext';
 import { useWatchlist } from '../../context/PortfolioContext';
 import { ETF_CATEGORIES } from '../../utils/constants';
+import './ETFPanel.css';
 
 function fmtPrice(v, dec = 2) {
   if (v == null) return '--';
@@ -39,145 +40,24 @@ function ETFPanel({ onOpenDetail }) {
     setExpanded(prev => ({ ...prev, [cat]: !prev[cat] }));
   };
 
-  const containerStyle = {
-    backgroundColor: '#0a0a0a',
-    color: '#e0e0e0',
-    fontFamily: 'monospace',
-    display: 'flex',
-    flexDirection: 'column',
-    height: '100%',
-    WebkitOverflowScrolling: 'touch',
-  };
-
-  const headerStyle = {
-    padding: '10px 14px',
-    borderBottom: '1px solid #1e1e1e',
-    flexShrink: 0,
-  };
-
-  const titleStyle = {
-    color: '#ff6600',
-    fontSize: '11px',
-    letterSpacing: '0.2em',
-    fontWeight: 'bold',
-  };
-
-  const contentStyle = {
-    flex: 1,
-    overflowY: 'auto',
-    WebkitOverflowScrolling: 'touch',
-  };
-
-  const categoryHeaderStyle = {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: '12px 14px',
-    borderBottom: '1px solid #1e1e1e',
-    cursor: 'pointer',
-    backgroundColor: '#0d0d0d',
-    minHeight: '44px',
-  };
-
-  const categoryTitleStyle = {
-    fontSize: '10px',
-    fontWeight: 'bold',
-    letterSpacing: '0.1em',
-    color: '#ccc',
-  };
-
-  const expandIconStyle = {
-    fontSize: '12px',
-    color: '#666',
-    transition: 'transform 0.2s',
-  };
-
-  const rowStyle = {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: '10px 14px',
-    borderBottom: '1px solid #141414',
-    minHeight: '44px',
-    cursor: 'pointer',
-    WebkitTapHighlightColor: 'rgba(255, 102, 0, 0.15)',
-  };
-
-  const symbolStyle = {
-    fontSize: '11px',
-    fontWeight: 'bold',
-    color: '#ff6600',
-    minWidth: '50px',
-  };
-
-  const nameStyle = {
-    fontSize: '9px',
-    color: '#666',
-    marginLeft: '8px',
-    flex: 1,
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
-  };
-
-  const dataContainerStyle = {
-    display: 'flex',
-    gap: '12px',
-    alignItems: 'flex-end',
-    flexShrink: 0,
-  };
-
-  const priceStyle = {
-    fontSize: '11px',
-    fontVariantNumeric: 'tabular-nums',
-    minWidth: '50px',
-    textAlign: 'right',
-  };
-
-  const changeStyle = (changePct) => ({
-    fontSize: '10px',
-    color: changePct >= 0 ? '#00cc66' : '#ff4444',
-    minWidth: '45px',
-    textAlign: 'right',
-    fontVariantNumeric: 'tabular-nums',
-  });
-
-  const addButtonStyle = {
-    background: 'none',
-    border: '1px solid #2a2a2a',
-    color: '#666',
-    fontSize: '8px',
-    padding: '4px 8px',
-    cursor: 'pointer',
-    fontFamily: 'inherit',
-    borderRadius: '2px',
-    flexShrink: 0,
-    minWidth: '40px',
-    minHeight: '32px',
-    letterSpacing: '0.1em',
-  };
-
   return (
-    <div style={containerStyle}>
+    <div className="ep-container">
       {/* Header */}
-      <div style={headerStyle}>
-        <div style={titleStyle}>ETF CATEGORIES</div>
+      <div className="ep-header">
+        <div className="ep-header-title">ETF CATEGORIES</div>
       </div>
 
       {/* Content */}
-      <div style={contentStyle}>
+      <div className="ep-content">
         {Object.entries(ETF_CATEGORIES).map(([category, etfs]) => (
           <div key={category}>
             {/* Category header */}
             <div
-              style={categoryHeaderStyle}
+              className="ep-category-header"
               onClick={() => toggleCategory(category)}
             >
-              <span style={categoryTitleStyle}>{category.toUpperCase()}</span>
-              <span style={{
-                ...expandIconStyle,
-                transform: expanded[category] ? 'rotate(180deg)' : 'rotate(0deg)',
-              }}>
+              <span className="ep-category-title">{category.toUpperCase()}</span>
+              <span className={`ep-expand-icon ${expanded[category] ? 'ep-expand-icon-rotated' : ''}`}>
                 ▼
               </span>
             </div>
@@ -192,32 +72,31 @@ function ETFPanel({ onOpenDetail }) {
               return (
                 <div
                   key={etf.symbol}
-                  style={rowStyle}
+                  className="ep-row"
                   onClick={() => onOpenDetail?.(etf.symbol)}
                 >
                   {/* Symbol and name */}
-                  <div style={{ display: 'flex', alignItems: 'center', flex: 1, minWidth: 0 }}>
-                    <span style={symbolStyle}>{etf.symbol}</span>
-                    <span style={nameStyle}>{etf.label}</span>
+                  <div className="ep-row-left">
+                    <span className="ep-row-symbol">{etf.symbol}</span>
+                    <span className="ep-row-name">{etf.label}</span>
                   </div>
 
                   {/* Price and change */}
-                  <div style={dataContainerStyle}>
-                    <div style={priceStyle}>
+                  <div className="ep-row-data">
+                    <div className="ep-row-price">
                       {fmtPrice(price, 2)}
                     </div>
-                    <div style={changeStyle(changePct)}>
+                    <div className={`ep-row-change ${changePct >= 0 ? 'ep-row-change-positive' : 'ep-row-change-negative'}`}>
                       {fmtPct(changePct)}
                     </div>
                   </div>
 
                   {/* Add to watchlist button */}
-                  <button
+                  <button className="btn ep-add-btn"
                     onClick={(e) => {
                       e.stopPropagation();
                       addTicker(etf.symbol);
                     }}
-                    style={addButtonStyle}
                     title="Add to watchlist"
                   >
                     +

@@ -1,0 +1,155 @@
+/* OnboardingPresets.css */
+
+.obp-container {
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  background: #080808;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-ui);
+  padding: 24px 16px;
+  overflow-y: auto;
+}
+
+.obp-header {
+  text-align: center;
+  margin-bottom: 32px;
+  flex-shrink: 0;
+}
+
+.obp-header-label {
+  color: #ff6600;
+  font-size: 11px;
+  letter-spacing: 0.3em;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+.obp-header-title {
+  color: #e8e8e8;
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 6px;
+  letter-spacing: 0.03em;
+}
+
+.obp-header-subtitle {
+  color: #444;
+  letter-spacing: 0.1em;
+  font-size: 12px;
+}
+
+.obp-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 10px;
+  width: 100%;
+  max-width: 640px;
+  margin-bottom: 28px;
+}
+
+.obp-card {
+  background: #0d0d0d;
+  border: 1px solid #1e1e1e;
+  border-radius: 4px;
+  padding: 14px 16px;
+  cursor: pointer;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: border-color 0.12s;
+  font-family: var(--font-ui);
+  font-size: 12px;
+}
+
+.obp-card:hover {
+  border-color: #2a2a2a;
+}
+
+.obp-card.obp-card-active {
+  background: #100900;
+  border-color: #ff6600;
+}
+
+.obp-card:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
+.obp-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 2px;
+}
+
+.obp-card-title {
+  color: #e0e0e0;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.obp-card.obp-card-active .obp-card-title {
+  color: #ff6600;
+}
+
+.obp-card-radio {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  border: 1.5px solid #2a2a2a;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.obp-card.obp-card-active .obp-card-radio {
+  border-color: #ff6600;
+  background: #ff6600;
+}
+
+.obp-card-radio-inner {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #000;
+}
+
+.obp-card-description {
+  color: #555;
+  font-size: 9px;
+  line-height: 1.5;
+}
+
+.obp-card-includes {
+  color: #333;
+  font-size: 8px;
+  letter-spacing: 0.03em;
+  margin-top: 2px;
+}
+
+.obp-skip-btn {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: #2a2a2a;
+  font-size: 9px;
+  cursor: pointer;
+  letter-spacing: 0.12em;
+  padding: 6px 12px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  font-family: var(--font-ui);
+  text-transform: uppercase;
+}
+
+.obp-skip-btn:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}

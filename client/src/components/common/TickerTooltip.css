@@ -1,0 +1,96 @@
+/* TickerTooltip.css */
+
+.tt-overlay-base {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-overlay);
+  font-family: var(--font-mono);
+}
+
+.tt-context-menu {
+  position: fixed;
+  z-index: 100000;
+  min-width: 170px;
+}
+
+.tt-context-menu-header {
+  padding: 5px 10px 4px;
+  border-bottom: 1px solid var(--border-default);
+  font-weight: 700;
+  font-size: var(--font-md);
+  letter-spacing: 0.05em;
+}
+
+.tt-context-menu-header-label {
+  color: var(--text-faint);
+  font-size: var(--font-sm);
+  margin-left: 6px;
+  font-weight: 400;
+}
+
+.ctx-menu-item {
+  padding: 6px 10px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: var(--font-sm);
+  transition: background-color 0.15s;
+}
+
+.ctx-menu-item:hover {
+  background-color: var(--bg-hover);
+}
+
+.ctx-menu-item:last-child {
+  border-bottom: none;
+}
+
+.tt-hover-tooltip {
+  position: fixed;
+  z-index: 99999;
+  padding: 8px 12px;
+  max-width: 270px;
+  user-select: text;
+  pointer-events: auto;
+}
+
+.tt-tooltip-header {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-bottom: 5px;
+}
+
+.tt-tooltip-symbol {
+  font-size: var(--font-lg);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.tt-tooltip-label {
+  color: var(--text-muted);
+  font-size: var(--font-sm);
+}
+
+.tt-tooltip-type-badge {
+  margin-left: auto;
+  background: var(--bg-active);
+  border: 1px solid;
+  border-color: inherit;
+  padding: 0 4px;
+  font-size: var(--font-sm);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  border-radius: 2px;
+}
+
+.tt-tooltip-description {
+  color: var(--text-secondary);
+  line-height: 1.55;
+}
+
+.tt-tooltip-hint {
+  color: var(--text-faint);
+  font-size: var(--font-sm);
+  margin-top: 6px;
+}

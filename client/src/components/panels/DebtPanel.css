@@ -1,234 +1,79 @@
-/* DebtPanel.css — tokenized styles for sovereign yield curves + credit spreads */
+/* DebtPanel.css */
 
-.dp-panel {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  background: var(--bg-app);
-  font-family: var(--font-ui);
-  color: var(--text-primary);
-}
-
-/* Header */
-.dp-header {
-  padding: 6px 10px;
-  border-bottom: 1px solid var(--border-default);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-shrink: 0;
-  gap: 6px;
-}
-.dp-title {
-  color: var(--accent);
-  font-weight: bold;
-  font-size: var(--font-base);
-  letter-spacing: 0.15em;
-  flex-shrink: 0;
-}
-
-/* View toggle */
-.dp-view-btn {
-  border: 1px solid var(--border-strong);
-  background: transparent;
-  color: var(--text-muted);
-  padding: 1px 6px;
-  font-size: var(--font-sm);
-  cursor: pointer;
-  font-family: inherit;
-  border-radius: var(--radius-sm);
-  font-weight: bold;
-  transition: all 0.12s;
-}
-.dp-view-btn--active {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #000;
-}
-
-/* Select dropdowns */
-.dp-select {
-  background: var(--bg-elevated);
-  border: 1px solid var(--border-strong);
-  color: var(--text-primary);
-  font-size: var(--font-sm);
-  padding: 2px 4px;
-  border-radius: var(--radius-sm);
-  font-family: inherit;
-  cursor: pointer;
-}
-.dp-select--flex {
-  flex: 1;
-  min-width: 0;
-}
-
-/* Loading / error */
-.dp-msg {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: var(--font-md);
-}
-.dp-msg--loading { color: var(--text-faint); }
-.dp-msg--error   { color: var(--price-down); }
-
-/* Curve view */
-.dp-curve {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  overflow: hidden;
-}
-.dp-source-row {
-  padding: 3px 10px 2px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
-}
-.dp-source-label {
-  color: var(--text-faint);
-  font-size: var(--font-sm);
-  letter-spacing: 0.1em;
-}
-.dp-source-badge {
-  font-size: var(--font-xs);
-}
-
-/* Tenor table */
-.dp-tenor-table {
-  border-top: 1px solid var(--border-default);
-  padding: 6px 10px 0;
-  overflow-y: auto;
-}
-.dp-tenor-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1px;
-}
-.dp-tenor-row {
-  display: flex;
-  justify-content: space-between;
-  padding: 3px 0;
-  border-bottom: 1px solid var(--border-subtle);
-}
-.dp-tenor-label {
-  color: var(--text-faint);
-  font-size: var(--font-sm);
-}
-.dp-tenor-value {
-  color: var(--text-primary);
-  font-size: var(--font-base);
-  font-variant-numeric: tabular-nums;
-}
-
-/* Spreads */
-.dp-spreads {
-  border-top: 1px solid var(--border-default);
-  padding: 6px 10px;
-  flex-shrink: 0;
-  max-height: 170px;
-  overflow-y: auto;
-}
-.dp-spreads-title {
-  color: var(--text-faint);
-  font-size: var(--font-sm);
-  letter-spacing: 0.1em;
-  margin-bottom: 4px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.dp-spreads-note {
-  color: var(--text-muted);
-  font-size: var(--font-xs);
-}
-
-/* Spread row */
 .dp-spread-row {
+  padding: 4px 0;
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  padding: 5px 0;
-  border-bottom: 1px solid var(--border-subtle);
+  font-size: var(--font-sm);
 }
+
 .dp-spread-name {
   color: var(--text-primary);
-  font-size: var(--font-base);
-}
-.dp-spread-currency {
-  color: var(--text-muted);
+  font-weight: 600;
   font-size: var(--font-sm);
-}
-.dp-spread-value {
-  color: var(--text-primary);
-  font-size: var(--font-md);
-  font-weight: bold;
-  font-variant-numeric: tabular-nums;
-}
-.dp-spread-chg {
-  font-size: var(--font-sm);
-  font-variant-numeric: tabular-nums;
 }
 
-/* Regional snapshot */
-.dp-regional {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-}
-.dp-regional-header {
-  padding: 4px 10px 2px;
+.dp-spread-currency {
   color: var(--text-faint);
-  font-size: var(--font-sm);
-  letter-spacing: 0.1em;
-  flex-shrink: 0;
-  display: flex;
-  gap: 6px;
-}
-.dp-regional-legend {
-  color: var(--text-muted);
   font-size: var(--font-xs);
 }
-.dp-snapshot-row {
-  display: grid;
-  grid-template-columns: 36px 1fr 60px;
-  align-items: center;
-  gap: 6px;
-  padding: 5px 0;
-  border-bottom: 1px solid var(--border-subtle);
-}
-.dp-snapshot-code {
-  color: var(--text-secondary);
-  font-size: var(--font-sm);
+
+.dp-spread-value {
+  color: var(--text-primary);
   font-weight: 700;
+  font-size: var(--font-sm);
 }
+
+.dp-spread-chg {
+  font-size: var(--font-sm);
+  margin-top: 1px;
+  font-weight: 600;
+}
+
+.dp-snapshot-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  font-size: var(--font-sm);
+}
+
+.dp-snapshot-code {
+  width: 30px;
+  color: var(--text-muted);
+  font-weight: 700;
+  font-size: var(--font-xs);
+  flex-shrink: 0;
+}
+
 .dp-snapshot-bar {
-  position: relative;
-  height: 8px;
-  background: var(--border-default);
-  border-radius: var(--radius-sm);
+  flex: 1;
+  height: 16px;
+  background: var(--bg-surface);
+  border-radius: 2px;
+  overflow: hidden;
 }
+
 .dp-snapshot-fill {
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  border-radius: var(--radius-sm);
-  opacity: 0.8;
+  height: 100%;
+  transition: width 0.3s ease;
 }
+
 .dp-snapshot-value {
+  width: 50px;
   text-align: right;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
 }
+
 .dp-snapshot-yield {
   color: var(--text-primary);
-  font-size: var(--font-base);
-  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  font-size: var(--font-sm);
 }
+
 .dp-snapshot-live {
-  font-size: var(--font-xs);
-  margin-left: 4px;
+  font-size: 8px;
 }

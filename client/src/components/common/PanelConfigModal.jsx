@@ -5,6 +5,7 @@
 
 import { useState, useMemo } from 'react';
 import { INSTRUMENTS } from '../../utils/constants';
+import './PanelConfigModal.css';
 
 export default function PanelConfigModal({
   panelId,
@@ -107,84 +108,20 @@ export default function PanelConfigModal({
     }
   };
 
-  const overlay = {
-    position: 'fixed', inset: 0, zIndex: 10000,
-    background: 'rgba(0,0,0,0.85)',
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-  };
-
-  const modal = {
-    background: '#0d0d0d', border: '1px solid #2a2a2a',
-    borderRadius: 6, width: '90%', maxWidth: 560,
-    maxHeight: '80vh', display: 'flex', flexDirection: 'column',
-    fontFamily: 'var(--font-ui)',
-  };
-
-  const header = {
-    padding: '14px 18px', borderBottom: '1px solid #1a1a1a',
-    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-  };
-
-  const body = {
-    flex: 1, display: 'flex', gap: 0, minHeight: 0, overflow: 'hidden',
-  };
-
-  const col = {
-    flex: 1, display: 'flex', flexDirection: 'column',
-    padding: '12px 14px', minHeight: 0,
-  };
-
-  const colTitle = {
-    color: '#ff6600', fontSize: 9, letterSpacing: '0.2em',
-    marginBottom: 8, flexShrink: 0,
-  };
-
-  const inp = {
-    background: '#080808', border: '1px solid #2a2a2a', color: '#e0e0e0',
-    padding: '6px 10px', fontSize: 11, fontFamily: 'inherit',
-    outline: 'none', width: '100%', boxSizing: 'border-box', borderRadius: 3,
-    marginBottom: 8,
-  };
-
-  const list = {
-    flex: 1, overflowY: 'auto', fontSize: 10,
-  };
-
-  const item = (sel) => ({
-    padding: '5px 8px', cursor: 'pointer', display: 'flex',
-    justifyContent: 'space-between', alignItems: 'center',
-    borderRadius: 3, marginBottom: 2,
-    background: sel ? '#1a0900' : 'transparent',
-    color: sel ? '#ff6600' : '#888',
-  });
-
-  const footer = {
-    padding: '12px 18px', borderTop: '1px solid #1a1a1a',
-    display: 'flex', gap: 8, justifyContent: 'flex-end',
-  };
-
-  const btn = (primary) => ({
-    padding: '8px 20px', fontSize: 10, letterSpacing: '0.1em',
-    fontFamily: 'inherit', cursor: 'pointer', borderRadius: 3,
-    border: `1px solid ${primary ? '#ff6600' : '#2a2a2a'}`,
-    background: primary ? '#ff6600' : 'transparent',
-    color: primary ? '#000' : '#888', fontWeight: primary ? 'bold' : 'normal',
-  });
 
   return (
     <div
-      style={overlay}
+      className="pcm-overlay"
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
       onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}
       onKeyDown={handleKeyDown}
     >
-      <div style={modal}>
-        <div style={header}>
-          <span style={{ color: '#ff6600', fontSize: 12, fontWeight: 'bold' }}>CONFIGURE PANEL</span>
-          <button
+      <div className="pcm-modal">
+        <div className="pcm-header">
+          <span className="pcm-header-title">CONFIGURE PANEL</span>
+          <button className="btn pcm-header-close"
             onClick={onClose}
             title="Close (Esc)"
-            style={{ background: 'none', border: 'none', color: '#555', cursor: 'pointer', fontSize: 18 }}
             aria-label="Close"
           >
             ✕
@@ -192,10 +129,10 @@ export default function PanelConfigModal({
         </div>
 
         {/* Panel title input */}
-        <div style={{ padding: '12px 18px 0', flexShrink: 0 }}>
-          <div style={{ color: '#555', fontSize: 9, letterSpacing: '0.15em', marginBottom: 4 }}>PANEL TITLE</div>
+        <div className="pcm-title-section">
+          <div className="pcm-title-label">PANEL TITLE</div>
           <input
-            style={inp}
+            className="pcm-input"
             value={title}
             onChange={e => setTitle(e.target.value)}
             placeholder="Panel title…"
@@ -204,34 +141,31 @@ export default function PanelConfigModal({
         </div>
 
         {/* Two-column instrument picker */}
-        <div style={body}>
+        <div className="pcm-body">
           {/* Left: available with group headers */}
-          <div style={{ ...col, borderRight: '1px solid #1a1a1a' }}>
-            <div style={colTitle}>AVAILABLE INSTRUMENTS</div>
+          <div className="pcm-col pcm-col-left">
+            <div className="pcm-col-title">AVAILABLE INSTRUMENTS</div>
             <input
-              style={{ ...inp, marginBottom: 8 }}
+              className="pcm-input"
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Search…"
             />
-            <div style={list}>
+            <div className="pcm-list">
               {Object.keys(availableGrouped).length === 0 ? (
-                <div style={{ color: '#2a2a2a', fontSize: 10, padding: 8 }}>No instruments found</div>
+                <div className="pcm-empty-message">No instruments found</div>
               ) : (
                 Object.entries(availableGrouped).map(([groupName, instruments]) => (
                   <div key={groupName}>
-                    <div style={{
-                      color: '#ff6600', fontSize: 8, fontWeight: 700, letterSpacing: '0.5px',
-                      padding: '6px 8px 4px', marginTop: 4, marginBottom: 2,
-                    }}>
+                    <div className="pcm-group-header">
                       {groupName}
                     </div>
                     {instruments.map(ins => (
-                      <div key={ins.symbolKey} style={item(selected.includes(ins.symbolKey))}
+                      <div key={ins.symbolKey} className={`pcm-item ${selected.includes(ins.symbolKey) ? 'pcm-item-selected' : 'pcm-item-unselected'}`}
                         onClick={() => selected.includes(ins.symbolKey) ? remove(ins.symbolKey) : add(ins.symbolKey)}
                       >
                         <span>{ins.symbolKey}</span>
-                        <span style={{ color: '#333', fontSize: 9 }}>{ins.name || ins.assetClass}</span>
+                        <span className="pcm-item-name">{ins.name || ins.assetClass}</span>
                       </div>
                     ))}
                   </div>
@@ -241,58 +175,30 @@ export default function PanelConfigModal({
           </div>
 
           {/* Right: selected with reordering */}
-          <div style={col}>
-            <div style={{
-              ...colTitle,
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-            }}>
+          <div className="pcm-col">
+            <div className="pcm-col-title pcm-col-title-selected">
               <div>SELECTED ({selected.length}/{MAX_INSTRUMENTS})</div>
               {selected.length > 0 && (
-                <div style={{ fontSize: 7, color: '#666', letterSpacing: '0.5px' }}>
+                <div className="pcm-col-title-maxIndicator">
                   {selected.length === MAX_INSTRUMENTS && '(max)'}
                 </div>
               )}
             </div>
-            <div style={{
-              display: 'flex',
-              gap: 4,
-              marginBottom: 8,
-              flexShrink: 0,
-            }}>
-              <button
+            <div className="pcm-button-row">
+              <button className="btn pcm-button-selectall"
                 onClick={selectAll}
                 disabled={selected.length === MAX_INSTRUMENTS}
-                style={{
-                  flex: 1,
-                  padding: '4px 6px', fontSize: 8, letterSpacing: '0.1em',
-                  fontFamily: 'inherit', cursor: selected.length === MAX_INSTRUMENTS ? 'default' : 'pointer',
-                  border: '1px solid #2a2a2a',
-                  background: selected.length === MAX_INSTRUMENTS ? '#0a0a0a' : 'transparent',
-                  color: selected.length === MAX_INSTRUMENTS ? '#333' : '#666',
-                  borderRadius: 2,
-                }}
               >
                 SELECT ALL
               </button>
-              <button
+              <button className="btn pcm-button-clearall"
                 onClick={clearAll}
                 disabled={selected.length === 0}
-                style={{
-                  flex: 1,
-                  padding: '4px 6px', fontSize: 8, letterSpacing: '0.1em',
-                  fontFamily: 'inherit', cursor: selected.length === 0 ? 'default' : 'pointer',
-                  border: '1px solid #2a2a2a',
-                  background: selected.length === 0 ? '#0a0a0a' : 'transparent',
-                  color: selected.length === 0 ? '#333' : '#666',
-                  borderRadius: 2,
-                }}
               >
                 CLEAR ALL
               </button>
             </div>
-            <div style={list}>
+            <div className="pcm-list">
               {selected.map((sym, idx) => (
                 <div
                   key={sym}
@@ -300,46 +206,32 @@ export default function PanelConfigModal({
                   onDragStart={(e) => handleDragStart(e, sym)}
                   onDragOver={handleDragOver}
                   onDrop={(e) => handleDrop(e, sym)}
+                  className={`pcm-item pcm-item-selected pcm-item-dragging`}
                   style={{
-                    ...item(true),
-                    justifyContent: 'space-between',
                     opacity: draggedItem === sym ? 0.5 : 1,
-                    cursor: 'grab',
-                    transition: 'opacity 150ms',
                   }}
                 >
-                  <span style={{ userSelect: 'none' }}>⋮⋮ {sym}</span>
-                  <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-                    <button
+                  <span className="pcm-item-draggable">⋮⋮ {sym}</span>
+                  <div className="flex-row" style={{ gap: 4 }}>
+                    <button className="btn pcm-button-moveup"
                       onClick={() => moveUp(sym)}
                       disabled={idx === 0}
                       title="Move up"
-                      style={{
-                        background: 'none', border: 'none', color: idx === 0 ? '#222' : '#555',
-                        cursor: idx === 0 ? 'default' : 'pointer', fontSize: 12, lineHeight: 1, padding: 2
-                      }}
                       aria-label="Move up"
                     >
                       ↑
                     </button>
-                    <button
+                    <button className="btn pcm-button-movedown"
                       onClick={() => moveDown(sym)}
                       disabled={idx === selected.length - 1}
                       title="Move down"
-                      style={{
-                        background: 'none', border: 'none', color: idx === selected.length - 1 ? '#222' : '#555',
-                        cursor: idx === selected.length - 1 ? 'default' : 'pointer', fontSize: 12, lineHeight: 1, padding: 2
-                      }}
                       aria-label="Move down"
                     >
                       ↓
                     </button>
-                    <button
+                    <button className="btn pcm-button-remove"
                       onClick={() => remove(sym)}
                       title="Remove"
-                      style={{
-                        background: 'none', border: 'none', color: '#555', cursor: 'pointer', fontSize: 14, lineHeight: 1
-                      }}
                       aria-label="Remove"
                     >
                       ×
@@ -348,15 +240,15 @@ export default function PanelConfigModal({
                 </div>
               ))}
               {selected.length === 0 && (
-                <div style={{ color: '#2a2a2a', fontSize: 10, padding: 8 }}>No instruments selected</div>
+                <div className="pcm-empty-message">No instruments selected</div>
               )}
             </div>
           </div>
         </div>
 
-        <div style={footer}>
-          <button style={btn(false)} onClick={onClose}>CANCEL</button>
-          <button style={btn(true)}  onClick={save}>SAVE</button>
+        <div className="pcm-footer">
+          <button className="btn pcm-button-secondary" onClick={onClose}>CANCEL</button>
+          <button className="btn pcm-button-primary" onClick={save}>SAVE</button>
         </div>
       </div>
     </div>

@@ -1,0 +1,148 @@
+/* NewsPanel.css — prefix: np- */
+
+.np-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.np-header {
+  padding: 4px 8px;
+  border-bottom: 1px solid #2a2a2a;
+  background: #111;
+  flex-shrink: 0;
+  gap: 6px;
+  display: flex;
+  align-items: center;
+}
+
+.np-header-title {
+  color: #ff6600;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.np-header-count {
+  color: #333;
+  font-size: 8px;
+}
+
+.np-header-badge {
+  font-size: 7px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 1px 4px;
+  border: 1px solid;
+  border-radius: 2px;
+}
+
+.np-header-spacer {
+  flex: 1;
+}
+
+.np-collapse-btn {
+  background: none;
+  border: 1px solid #2a2a2a;
+  color: #555;
+  padding: 1px 5px;
+  font-size: 9px;
+}
+
+.np-error-banner {
+  padding: 4px 8px;
+  background: #1a0000;
+  border-bottom: 1px solid #3a0000;
+  gap: 6px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+
+.np-error-icon {
+  color: #ff4444;
+  font-size: 9px;
+}
+
+.np-error-text {
+  color: #aa3333;
+  font-size: 9px;
+}
+
+.np-content {
+  flex: 1;
+  overflow-y: auto;
+  background: #000;
+}
+
+.np-news-item {
+  padding: 4px 6px;
+  border-bottom: 1px solid #0d0d0d;
+  background: transparent;
+  transition: background 1s;
+  cursor: pointer;
+}
+
+.np-news-item.new {
+  background: #1a0a00;
+}
+
+.np-news-item.breaking {
+  background: #120000;
+}
+
+.np-news-header {
+  justify-content: space-between;
+  margin-bottom: 2px;
+  display: flex;
+  align-items: center;
+}
+
+.np-news-publisher {
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.np-news-publisher.breaking {
+  color: #ff2222;
+}
+
+.np-news-publisher.normal {
+  color: #ff6600;
+}
+
+.np-news-time {
+  color: #444;
+  font-size: 9px;
+}
+
+.np-news-title {
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.np-news-title.breaking {
+  color: #ff6666;
+  font-weight: 600;
+}
+
+.np-news-title.normal {
+  color: #c8c8c8;
+  font-weight: 400;
+}
+
+.np-news-tickers {
+  margin-top: 2px;
+  gap: 4px;
+  flex-wrap: wrap;
+  display: flex;
+  align-items: center;
+}
+
+.np-news-ticker {
+  color: #ff6600;
+  font-size: 9px;
+  background: #1a0d00;
+  padding: 1px 4px;
+  border: 1px solid #2a1500;
+}

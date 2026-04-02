@@ -278,7 +278,7 @@ function MiniChart({ ticker, index, onRemove, onReplace, onSwap, onOpenDetail })
               {openPrice && <ReferenceLine y={openPrice} stroke="var(--accent-text)" strokeDasharray="3 3" strokeWidth={1} />}
               <Area type="monotone" dataKey="v" stroke={lineColor} strokeWidth={1.5} fill={`url(#${gradId})`} dot={false} isAnimationActive={false} />
               <Tooltip
-                contentStyle={{ background: 'var(--bg-surface)', border: '1px solid var(--border-strong)', fontSize: 7, padding: '3px 6px', borderRadius: 2 }}
+                contentStyle={{ background: 'var(--bg-surface)', border: '1px solid var(--border-strong)', fontSize: 7, padding: '3px 6px' }}
                 itemStyle={{ color: lineColor }}
                 formatter={v => [fmtPrice(v), displayTicker(ticker)]}
                 labelFormatter={ms => xFmt(ms)}
@@ -291,8 +291,8 @@ function MiniChart({ ticker, index, onRemove, onReplace, onSwap, onOpenDetail })
       {/* Range bar */}
       <div className="mc-range-bar">
         {RANGES.map((r, i) => (
-          <button key={r.label} onClick={() => handleRangeChange(i)}
-            className={`mc-range-btn${i === rangeIdx ? ' mc-range-btn--active' : ''}`}
+          <button className={`btn ${`mc-range-btn${i === rangeIdx ? ' mc-range-btn--active' : ''}`} key={r.label} onClick={() => handleRangeChange(i)}
+`}
           >{r.label}</button>
         ))}
       </div>

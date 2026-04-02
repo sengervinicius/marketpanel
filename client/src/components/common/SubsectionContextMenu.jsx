@@ -7,6 +7,7 @@
  */
 
 import { useState, useEffect, useRef } from 'react';
+import './SubsectionContextMenu.css';
 
 const SECTION_COLORS = ['#ff6600', '#00bcd4', '#ce93d8', '#ffd54f', '#81c784', '#f48fb1', '#90caf9', '#ffb74d', '#ef5350', '#26a69a'];
 
@@ -87,151 +88,11 @@ export default function SubsectionContextMenu({
     setRenameVal(currentLabel);
   };
 
-  const S = {
-    overlay: { position: 'fixed', inset: 0, zIndex: 1000 },
-    menu: {
-      ...menuStyle,
-      background: '#111',
-      border: '1px solid #2a2a2a',
-      borderRadius: 3,
-      zIndex: 1001,
-      minWidth: 200,
-      maxWidth: 260,
-      boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
-    },
-    title: {
-      padding: '6px 8px',
-      borderBottom: '1px solid #1a1a1a',
-      color: '#444',
-      fontSize: 7,
-      fontWeight: 700,
-      letterSpacing: '0.12em',
-      textAlign: 'center',
-    },
-    itemRow: {
-      padding: '5px 8px',
-      display: 'flex',
-      alignItems: 'center',
-      gap: 6,
-      cursor: 'pointer',
-      color: '#888',
-      fontSize: 10,
-      borderBottom: '1px solid #0f0f0f',
-      transition: 'background-color 0.1s',
-    },
-    checkbox: {
-      width: 12,
-      height: 12,
-      border: '1px solid #444',
-      borderRadius: 2,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      fontSize: 9,
-      color: '#00bcd4',
-      flexShrink: 0,
-    },
-    label: {
-      flex: 1,
-      minWidth: 0,
-      overflow: 'hidden',
-      textOverflow: 'ellipsis',
-      whiteSpace: 'nowrap',
-    },
-    iconBtn: {
-      width: 16,
-      height: 16,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      color: '#444',
-      fontSize: 10,
-      cursor: 'pointer',
-      borderRadius: 2,
-      transition: 'color 0.1s, background-color 0.1s',
-      flexShrink: 0,
-      background: 'none',
-      border: 'none',
-      padding: 0,
-    },
-    renameInput: {
-      flex: 1,
-      background: '#080808',
-      border: '1px solid #ff6600',
-      color: '#e0e0e0',
-      fontSize: 10,
-      padding: '1px 4px',
-      fontFamily: 'var(--font-ui)',
-      outline: 'none',
-      borderRadius: 2,
-      minWidth: 0,
-    },
-    divider: { height: '1px', background: '#1a1a1a', margin: '4px 0' },
-    addButton: {
-      padding: '6px 8px',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 4,
-      cursor: 'pointer',
-      color: '#4caf50',
-      fontSize: 10,
-      fontWeight: 500,
-      transition: 'background-color 0.1s',
-      userSelect: 'none',
-    },
-    addInput: {
-      flex: 1,
-      background: '#080808',
-      border: '1px solid #4caf50',
-      color: '#e0e0e0',
-      fontSize: 10,
-      padding: '3px 6px',
-      fontFamily: 'var(--font-ui)',
-      outline: 'none',
-      borderRadius: 2,
-    },
-    addRow: {
-      padding: '5px 8px',
-      display: 'flex',
-      alignItems: 'center',
-      gap: 4,
-    },
-    manageButton: {
-      padding: '6px 8px',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 4,
-      cursor: 'pointer',
-      color: '#ff6600',
-      fontSize: 10,
-      fontWeight: 500,
-      transition: 'background-color 0.1s',
-      userSelect: 'none',
-    },
-    customTag: {
-      fontSize: 7,
-      color: '#333',
-      letterSpacing: '0.06em',
-      marginLeft: 2,
-    },
-  };
-
-  const hoverProps = {
-    onMouseEnter: (e) => { e.currentTarget.style.backgroundColor = '#1a1a1a'; },
-    onMouseLeave: (e) => { e.currentTarget.style.backgroundColor = 'transparent'; },
-  };
-
-  const iconHoverProps = {
-    onMouseEnter: (e) => { e.currentTarget.style.color = '#e0e0e0'; e.currentTarget.style.backgroundColor = '#222'; },
-    onMouseLeave: (e) => { e.currentTarget.style.color = '#444'; e.currentTarget.style.backgroundColor = 'transparent'; },
-  };
 
   return (
-    <div style={S.overlay} onClick={onClose}>
-      <div style={S.menu} ref={menuRef} onClick={e => e.stopPropagation()}>
-        <div style={S.title}>SECTIONS</div>
+    <div className="scm-overlay" onClick={onClose}>
+      <div className="scm-menu" style={menuStyle} ref={menuRef} onClick={e => e.stopPropagation()}>
+        <div className="scm-title">SECTIONS</div>
 
         {/* Built-in subsections */}
         {availableSubsections.map((sub) => {
@@ -240,10 +101,14 @@ export default function SubsectionContextMenu({
           const isRenaming = renamingKey === sub.key;
 
           return (
-            <div key={sub.key} style={S.itemRow} {...hoverProps}>
+            <div key={sub.key} className="scm-item-row"
+              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#1a1a1a'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+            >
               {/* Visibility toggle */}
               <div
-                style={{ ...S.checkbox, background: isVisible ? '#00bcd4' : 'transparent' }}
+                className="scm-checkbox"
+                style={{ background: isVisible ? '#00bcd4' : 'transparent' }}
                 onClick={() => onToggleSubsection?.(sub.key)}
                 title={isVisible ? 'Hide section' : 'Show section'}
               >
@@ -254,7 +119,7 @@ export default function SubsectionContextMenu({
               {isRenaming ? (
                 <input
                   ref={renameRef}
-                  style={S.renameInput}
+                  className="scm-rename-input"
                   value={renameVal}
                   onChange={(e) => setRenameVal(e.target.value)}
                   onBlur={() => handleRename(sub.key)}
@@ -266,7 +131,7 @@ export default function SubsectionContextMenu({
                 />
               ) : (
                 <span
-                  style={S.label}
+                  className="scm-label"
                   onDoubleClick={() => startRename(sub.key, displayLabel)}
                   title="Double-click to rename"
                 >
@@ -276,11 +141,11 @@ export default function SubsectionContextMenu({
 
               {/* Rename button */}
               {!isRenaming && (
-                <button
-                  style={S.iconBtn}
+                <button className="scm-icon-btn"
                   onClick={() => startRename(sub.key, displayLabel)}
                   title="Rename section"
-                  {...iconHoverProps}
+                  onMouseEnter={(e) => { e.currentTarget.style.color = '#e0e0e0'; e.currentTarget.style.backgroundColor = '#222'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.color = '#444'; e.currentTarget.style.backgroundColor = 'transparent'; }}
                 >✎</button>
               )}
             </div>
@@ -290,8 +155,8 @@ export default function SubsectionContextMenu({
         {/* Custom subsections */}
         {customSubsections.length > 0 && (
           <>
-            <div style={S.divider} />
-            <div style={{ ...S.title, color: '#333', borderBottom: 'none', padding: '4px 8px 2px' }}>CUSTOM SECTIONS</div>
+            <div className="scm-divider" />
+            <div className="scm-title" style={{ color: '#333', borderBottom: 'none', padding: '4px 8px 2px' }}>CUSTOM SECTIONS</div>
           </>
         )}
         {customSubsections.map((sub) => {
@@ -299,10 +164,14 @@ export default function SubsectionContextMenu({
           const isRenaming = renamingKey === sub.key;
 
           return (
-            <div key={sub.key} style={S.itemRow} {...hoverProps}>
+            <div key={sub.key} className="scm-item-row"
+              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#1a1a1a'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+            >
               {/* Visibility toggle */}
               <div
-                style={{ ...S.checkbox, background: isVisible ? (sub.color || '#ff6600') : 'transparent', borderColor: sub.color || '#444' }}
+                className="scm-checkbox"
+                style={{ background: isVisible ? (sub.color || '#ff6600') : 'transparent', borderColor: sub.color || '#444' }}
                 onClick={() => onToggleSubsection?.(sub.key)}
                 title={isVisible ? 'Hide section' : 'Show section'}
               >
@@ -313,7 +182,7 @@ export default function SubsectionContextMenu({
               {isRenaming ? (
                 <input
                   ref={renameRef}
-                  style={S.renameInput}
+                  className="scm-rename-input"
                   value={renameVal}
                   onChange={(e) => setRenameVal(e.target.value)}
                   onBlur={() => handleRename(sub.key)}
@@ -325,28 +194,29 @@ export default function SubsectionContextMenu({
                 />
               ) : (
                 <span
-                  style={{ ...S.label, color: sub.color || '#ff6600' }}
+                  className="scm-label"
+                  style={{ color: sub.color || '#ff6600' }}
                   onDoubleClick={() => startRename(sub.key, sub.label)}
                   title="Double-click to rename"
                 >
                   {sub.label}
-                  <span style={S.customTag}> ({sub.symbols?.length || 0})</span>
+                  <span className="scm-custom-tag"> ({sub.symbols?.length || 0})</span>
                 </span>
               )}
 
               {/* Rename button */}
               {!isRenaming && (
-                <button
-                  style={S.iconBtn}
+                <button className="scm-icon-btn"
                   onClick={() => startRename(sub.key, sub.label)}
                   title="Rename section"
-                  {...iconHoverProps}
+                  onMouseEnter={(e) => { e.currentTarget.style.color = '#e0e0e0'; e.currentTarget.style.backgroundColor = '#222'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.color = '#444'; e.currentTarget.style.backgroundColor = 'transparent'; }}
                 >✎</button>
               )}
 
               {/* Delete button */}
-              <button
-                style={{ ...S.iconBtn, color: '#555' }}
+              <button className="scm-icon-btn scm-delete-btn"
+                style={{ color: '#555' }}
                 onClick={() => {
                   if (sub.symbols?.length > 0) {
                     if (window.confirm(`Delete "${sub.label}" section and its ${sub.symbols.length} ticker(s)?`)) {
@@ -364,14 +234,14 @@ export default function SubsectionContextMenu({
           );
         })}
 
-        <div style={S.divider} />
+        <div className="scm-divider" />
 
         {/* Add new section */}
         {addMode ? (
-          <div style={S.addRow}>
+          <div className="scm-add-row">
             <input
               ref={addRef}
-              style={S.addInput}
+              className="scm-add-input"
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               onKeyDown={(e) => {
@@ -381,24 +251,25 @@ export default function SubsectionContextMenu({
               placeholder="Section name…"
               maxLength={30}
             />
-            <button
-              style={{ ...S.iconBtn, color: '#4caf50', fontSize: 12 }}
+            <button className="scm-icon-btn"
+              style={{ color: '#4caf50', fontSize: 12 }}
               onClick={handleAdd}
               title="Confirm"
               onMouseEnter={(e) => { e.currentTarget.style.color = '#81c784'; }}
               onMouseLeave={(e) => { e.currentTarget.style.color = '#4caf50'; }}
             >✓</button>
-            <button
-              style={{ ...S.iconBtn, color: '#555', fontSize: 12 }}
+            <button className="scm-icon-btn"
+              style={{ color: '#555', fontSize: 12 }}
               onClick={() => { setAddMode(false); setNewName(''); }}
               title="Cancel"
             >×</button>
           </div>
         ) : (
           <div
-            style={S.addButton}
+            className="scm-add-button"
             onClick={() => setAddMode(true)}
-            {...hoverProps}
+            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#1a1a1a'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
           >
             <span>+ ADD SECTION</span>
           </div>
@@ -407,11 +278,12 @@ export default function SubsectionContextMenu({
         {/* Manage tickers */}
         {onConfigOpen && (
           <>
-            <div style={S.divider} />
+            <div className="scm-divider" />
             <div
-              style={S.manageButton}
+              className="scm-manage-button"
               onClick={() => { onConfigOpen?.(); onClose?.(); }}
-              {...hoverProps}
+              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#1a1a1a'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
             >
               <span>✎ MANAGE TICKERS</span>
             </div>

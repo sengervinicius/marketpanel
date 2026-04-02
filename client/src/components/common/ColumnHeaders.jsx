@@ -28,7 +28,6 @@ function ColumnHeaders({ columns, gridColumns, sortKey, sortDir, onSortClick }) 
               letterSpacing: '1px',
               textAlign: align === 'right' ? 'right' : 'left',
               paddingRight: align === 'right' ? 4 : 0,
-              cursor: 'pointer',
               userSelect: 'none',
             }}
           >

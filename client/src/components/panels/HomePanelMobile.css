@@ -1,0 +1,178 @@
+/* HomePanelMobile.css — prefix: hpm- */
+
+.hpm-container {
+  background: var(--bg-app);
+  color: var(--text-primary);
+  padding: var(--sp-4);
+  padding-bottom: calc(var(--sp-4) + env(safe-area-inset-bottom, 0px));
+  min-height: 100vh;
+  -webkit-overflow-scrolling: touch;
+  overflow-y: auto;
+}
+
+.hpm-search-container {
+  margin-bottom: var(--sp-3);
+}
+
+.hpm-screens-section {
+  margin-bottom: var(--sp-3);
+}
+
+.hpm-section-label {
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  font-size: 11px;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+}
+
+.hpm-skeleton {
+  height: 56px;
+  background: linear-gradient(90deg, var(--bg-surface) 25%, var(--bg-elevated) 50%, var(--bg-surface) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 4px;
+  margin-bottom: 8px;
+}
+
+.hpm-card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.hpm-card-header {
+  padding: 12px 16px;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  min-height: 44px;
+  transition: background-color 0.2s ease;
+}
+
+.hpm-card-header-info {
+  min-width: 0;
+}
+
+.hpm-card-title {
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+.hpm-card-subtitle {
+  color: var(--text-secondary);
+  font-size: 11px;
+  margin-left: 8px;
+}
+
+.hpm-card-chevron {
+  color: var(--text-muted);
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+.hpm-card-chevron-rotated {
+  transform: rotate(180deg);
+}
+
+.hpm-card-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.hpm-card-empty {
+  padding: var(--sp-6);
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 12px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.hpm-ticker-row {
+  padding: 0 var(--sp-4);
+  border-top: 1px solid var(--border-subtle);
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  min-height: 60px;
+  cursor: pointer;
+}
+
+.hpm-ticker-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.hpm-ticker-display {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+}
+
+.hpm-ticker-symbol {
+  font-size: 11px;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hpm-ticker-price {
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.hpm-ticker-price-value {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+.hpm-ticker-price-change {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+
+.hpm-ticker-price-change-positive {
+  color: var(--price-up);
+}
+
+.hpm-ticker-price-change-negative {
+  color: var(--price-down);
+}
+
+.hpm-ticker-watch-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  padding: 4px 6px;
+  min-height: 44px;
+  min-width: 44px;
+  justify-content: center;
+  transition: color 0.2s ease;
+  flex-shrink: 0;
+}
+
+.hpm-ticker-watch-btn-active {
+  color: var(--accent);
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}

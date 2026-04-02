@@ -68,7 +68,6 @@ function PriceRow({
         gridTemplateColumns: columns,
         padding: '3px 8px',
         borderBottom: '1px solid var(--border-subtle)',
-        cursor: 'pointer',
         alignItems: 'center',
         transition: 'background-color 0.1s',
       }}
@@ -77,7 +76,6 @@ function PriceRow({
     >
       <span style={{
         color: symbolColor,
-        fontSize: 'var(--font-base)',
         fontWeight: 700,
       }}>
         {displaySymbol || symbol}
@@ -94,7 +92,6 @@ function PriceRow({
       </span>
       <span style={{
         color: 'var(--text-primary)',
-        fontSize: 'var(--font-base)',
         textAlign: 'right',
         paddingRight: 4,
         fontVariantNumeric: 'tabular-nums',
@@ -103,7 +100,6 @@ function PriceRow({
       </span>
       <span style={{
         color: pos ? 'var(--price-up)' : 'var(--price-down)',
-        fontSize: 'var(--font-base)',
         textAlign: 'right',
         fontWeight: 600,
         fontVariantNumeric: 'tabular-nums',

@@ -1,0 +1,183 @@
+/* WatchlistPanelMobile.css — prefix: wpm- */
+
+.wpm-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--bg-app);
+}
+
+.wpm-header {
+  padding: var(--sp-4);
+  border-bottom: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+  justify-content: space-between;
+}
+
+.wpm-header-title {
+  color: var(--text-primary);
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.3px;
+}
+
+.wpm-header-actions {
+  gap: 12px;
+}
+
+.wpm-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(255, 102, 0, 0.12);
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+}
+
+.wpm-manage-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid var(--accent);
+  background: none;
+  color: var(--accent);
+  padding: 0;
+  -webkit-tap-highlight-color: rgba(255, 102, 0, 0.1);
+}
+
+.wpm-search-container {
+  padding: var(--sp-2) var(--sp-4);
+  flex-shrink: 0;
+}
+
+.wpm-sort-chips {
+  gap: 8px;
+  padding: var(--sp-3) var(--sp-4);
+  flex-shrink: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-behavior: smooth;
+}
+
+.wpm-list-container {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
+.wpm-list-empty-msg {
+  padding: var(--sp-8) var(--sp-4);
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.wpm-row {
+  padding: 0 var(--sp-4);
+  min-height: 60px;
+}
+
+.wpm-row-info {
+  flex: 1;
+  min-width: 0;
+  justify-content: center;
+}
+
+.wpm-row-symbol {
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.2px;
+  margin-bottom: 3px;
+}
+
+.wpm-row-name {
+  color: var(--text-secondary);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wpm-row-data {
+  text-align: right;
+  margin-right: 12px;
+  justify-content: center;
+}
+
+.wpm-row-price {
+  color: var(--text-primary);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  margin-bottom: 3px;
+}
+
+.wpm-row-change {
+  font-size: 11px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.wpm-row-change-positive {
+  color: var(--price-up);
+}
+
+.wpm-row-change-negative {
+  color: var(--price-down);
+}
+
+.wpm-row-change-neutral {
+  color: var(--text-muted);
+}
+
+.wpm-remove-btn {
+  width: 40px;
+  height: 40px;
+  background: none;
+  border: none;
+  color: var(--text-faint);
+  font-size: 18px;
+  line-height: 1;
+  padding: 0;
+  flex-shrink: 0;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.wpm-toast {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--sp-4);
+  background: var(--bg-elevated);
+  border-top: 1px solid var(--border-strong);
+  flex-shrink: 0;
+}
+
+.wpm-toast-text {
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.wpm-toast-btn {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 0;
+  min-width: auto;
+  min-height: auto;
+  -webkit-tap-highlight-color: transparent;
+}

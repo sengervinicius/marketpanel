@@ -1,0 +1,150 @@
+/* WatchlistPanel.css — prefix: wp- */
+
+.wp-header {
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border-strong);
+  background: var(--bg-elevated);
+  flex-shrink: 0;
+  gap: 8px;
+}
+
+.wp-header-title {
+  color: var(--section-watchlist);
+  font-weight: 700;
+  letter-spacing: 1px;
+  flex: 1;
+}
+
+.wp-header-count {
+  color: var(--text-muted);
+  font-size: var(--font-sm);
+}
+
+.wp-add-btn {
+  background: none;
+  border: 1px solid var(--border-strong);
+  color: var(--section-watchlist);
+  padding: 1px 6px;
+}
+
+.wp-add-btn-active {
+  background: #1a0d00;
+}
+
+.wp-add-form {
+  gap: 4px;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border-default);
+  flex-shrink: 0;
+  background: var(--bg-surface);
+}
+
+.wp-add-input {
+  flex: 1;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-strong);
+  color: var(--text-primary);
+  padding: 3px 6px;
+  outline: none;
+}
+
+.wp-add-submit-btn {
+  background: #1a0d00;
+  border: 1px solid var(--section-watchlist);
+  color: var(--section-watchlist);
+  padding: 2px 8px;
+}
+
+.wp-add-cancel-btn {
+  background: none;
+  border: 1px solid var(--text-faint);
+  color: var(--text-muted);
+  padding: 2px 6px;
+}
+
+.wp-col-header {
+  display: grid;
+  grid-template-columns: 72px 1fr 72px 64px 24px;
+  padding: 2px 8px;
+  border-bottom: 1px solid var(--border-default);
+  flex-shrink: 0;
+}
+
+.wp-col-header-cell {
+  color: var(--text-muted);
+  font-size: var(--font-sm);
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-align: left;
+  padding-right: 0;
+}
+
+.wp-col-header-right {
+  text-align: right;
+  padding-right: 4px;
+}
+
+.wp-rows-container {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.wp-row {
+  display: grid;
+  grid-template-columns: 72px 1fr 72px 64px 24px;
+  padding: 3px 8px;
+  border-bottom: 1px solid var(--border-subtle);
+  align-items: center;
+  transition: background-color 0.1s;
+}
+
+.wp-row-symbol {
+  color: var(--section-watchlist);
+  font-weight: 700;
+}
+
+.wp-row-source {
+  color: var(--text-faint);
+  font-size: 9px;
+}
+
+.wp-row-price {
+  color: var(--text-primary);
+  text-align: right;
+  padding-right: 4px;
+  font-variant-numeric: tabular-nums;
+}
+
+.wp-row-change {
+  text-align: right;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.wp-row-change-positive {
+  color: var(--price-up);
+}
+
+.wp-row-change-negative {
+  color: var(--price-down);
+}
+
+.wp-remove-btn {
+  background: none;
+  border: none;
+  color: var(--text-faint);
+  padding: 0;
+  text-align: center;
+  transition: color 0.15s;
+}
+
+.wp-remove-btn:hover {
+  color: var(--price-down);
+}
+
+.wp-error-msg {
+  padding: 4px 8px;
+  color: #aa3333;
+  font-size: 9px;
+  border-top: 1px solid var(--border-default);
+}

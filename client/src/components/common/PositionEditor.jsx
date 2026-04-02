@@ -133,8 +133,8 @@ function PositionEditor({
           <span className="pf-editor-title">
             {isEditing ? 'EDIT POSITION' : 'ADD POSITION'}
           </span>
-          <button
-            className="pf-editor-close-btn"
+          <button className="btn pf-editor-close-btn"
+
             onClick={onClose}
             title="Close (Esc)"
             aria-label="Close"
@@ -257,8 +257,8 @@ function PositionEditor({
         {/* Footer */}
         <div className="pf-editor-footer">
           {isEditing && (
-            <button
-              className="pf-editor-btn pf-editor-btn-delete"
+            <button className="btn pf-editor-btn pf-editor-btn-delete"
+
               onClick={handleDelete}
               title={deleteConfirm ? 'Click again to confirm deletion' : 'Delete this position'}
             >
@@ -266,14 +266,14 @@ function PositionEditor({
             </button>
           )}
           <div className="pf-editor-footer-spacer"></div>
-          <button
-            className="pf-editor-btn pf-editor-btn-cancel"
+          <button className="btn pf-editor-btn pf-editor-btn-cancel"
+
             onClick={onClose}
           >
             CANCEL
           </button>
-          <button
-            className="pf-editor-btn pf-editor-btn-primary"
+          <button className="btn pf-editor-btn pf-editor-btn-primary"
+
             onClick={handleSave}
             title="Save (Ctrl+Enter)"
           >

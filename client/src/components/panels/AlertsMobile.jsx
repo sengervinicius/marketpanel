@@ -8,6 +8,7 @@
 import { memo, useState, useMemo, useCallback } from 'react';
 import AlertEditor from '../common/AlertEditor';
 import { useAlerts } from '../../context/AlertsContext';
+import './AlertsMobile.css';
 
 const ALERT_TYPE_LABELS = {
   price_above:         'Price Above',
@@ -78,59 +79,30 @@ function AlertsMobile({ onOpenDetail }) {
   }, []);
 
   return (
-    <div style={{
-      display: 'flex', flexDirection: 'column', height: '100%',
-      background: 'var(--bg-app)', fontFamily: 'inherit',
-    }}>
+    <div className="am-container">
       {/* Header */}
-      <div style={{
-        padding: 'var(--sp-4)',
-        borderBottom: '1px solid var(--border-subtle)',
-        flexShrink: 0,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-      }}>
-        <span style={{ color: 'var(--text-primary)', fontSize: 16, fontWeight: 600, letterSpacing: '-0.3px' }}>
+      <div className="am-header">
+        <span className="am-header-title">
           Alerts
         </span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div className="am-header-actions">
           {alerts.length > 0 && (
-            <div style={{
-              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-              backgroundColor: 'rgba(255, 102, 0, 0.12)',
-              color: 'var(--accent)',
-              fontSize: 12, fontWeight: 600,
-              borderRadius: '50%', width: 24, height: 24,
-            }}>{alerts.length}</div>
+            <div className="am-badge">{alerts.length}</div>
           )}
-          <button onClick={() => setShowNew(true)} style={{
-            width: 36, height: 36, borderRadius: '50%',
-            border: '2px solid var(--accent)',
-            background: 'none', color: 'var(--accent)',
-            fontSize: 20, cursor: 'pointer',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            padding: 0,
-            WebkitTapHighlightColor: 'rgba(255, 102, 0, 0.1)',
-          }} title="New alert">+</button>
+          <button className="btn am-new-btn" onClick={() => setShowNew(true)} title="New alert">+</button>
         </div>
       </div>
 
       {/* Filter chips */}
       {alerts.length > 0 && (
-        <div style={{
-          display: 'flex', gap: 8,
-          padding: 'var(--sp-3) var(--sp-4)',
-          flexShrink: 0, overflowX: 'auto',
-        }}>
+        <div className="am-filters">
           {[
             { key: 'all', label: 'All' },
             { key: 'active', label: 'Active' },
             { key: 'triggered', label: 'Triggered' },
           ].map(f => (
-            <button
+            <button className="btn m-chip"
               key={f.key}
-              className="m-chip"
               data-active={filter === f.key}
               onClick={() => setFilter(f.key)}
             >
@@ -154,15 +126,9 @@ function AlertsMobile({ onOpenDetail }) {
           </button>
         </div>
       ) : (
-        <div style={{
-          flex: 1, overflowY: 'auto', overflowX: 'hidden',
-          WebkitOverflowScrolling: 'touch',
-        }}>
+        <div className="am-list-container">
           {filtered.length === 0 ? (
-            <div style={{
-              padding: 'var(--sp-8) var(--sp-4)',
-              textAlign: 'center', color: 'var(--text-muted)', fontSize: 13,
-            }}>
+            <div className="am-list-empty-msg">
               No {filter} alerts
             </div>
           ) : (
@@ -173,80 +139,47 @@ function AlertsMobile({ onOpenDetail }) {
               return (
                 <div
                   key={alert.id}
-                  className="m-row"
+                  className={`m-row am-alert-row ${!alert.active && !isTriggered ? 'am-alert-row.inactive' : ''}`}
                   onClick={() => onOpenDetail?.(alert.symbol)}
-                  style={{
-                    padding: '0 var(--sp-4)', minHeight: 60,
-                    opacity: !alert.active && !isTriggered ? 0.5 : 1,
-                  }}
                 >
                   {/* Symbol + type + condition */}
-                  <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-                      <span style={{
-                        color: isTriggered ? 'var(--price-up)' : 'var(--text-primary)',
-                        fontSize: 13, fontWeight: 600, letterSpacing: '-0.2px',
-                      }}>
+                  <div className="am-alert-content">
+                    <div className="am-alert-header">
+                      <span className={`am-alert-symbol ${isTriggered ? 'am-alert-symbol.triggered' : ''}`}>
                         {alert.symbol}
                       </span>
-                      <span style={{
-                        color: 'var(--text-muted)', fontSize: 10,
-                        padding: '1px 4px', borderRadius: 2,
-                        background: 'var(--bg-elevated)',
-                      }}>
+                      <span className="am-alert-type">
                         {typeLabel}
                       </span>
                     </div>
-                    <div style={{
-                      color: 'var(--text-secondary)', fontSize: 12,
-                      fontVariantNumeric: 'tabular-nums',
-                    }}>
+                    <div className="am-alert-condition">
                       {conditionText(alert)}
                     </div>
                     {isTriggered && (
-                      <div style={{ color: 'var(--price-up)', fontSize: 11, marginTop: 2 }}>
+                      <div className="am-alert-triggered-time">
                         Triggered {timeAgo(alert.triggeredAt)}
                       </div>
                     )}
                     {alert.note && (
-                      <div style={{
-                        color: 'var(--text-faint)', fontSize: 11, marginTop: 1,
-                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                      }}>
+                      <div className="am-alert-note">
                         {alert.note}
                       </div>
                     )}
                   </div>
 
                   {/* Actions */}
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
+                  <div className="am-alert-actions">
                     {isTriggered && !alert.dismissed ? (
-                      <button
+                      <button className="btn am-dismiss-btn"
                         onClick={e => { e.stopPropagation(); handleDismiss(alert.id); }}
-                        style={{
-                          background: 'rgba(76,175,80,0.12)', border: 'none',
-                          color: 'var(--price-up)', borderRadius: 4,
-                          padding: '4px 8px', fontSize: 11, fontWeight: 600,
-                          cursor: 'pointer',
-                        }}
                       >Dismiss</button>
                     ) : (
-                      <button
+                      <button className={`btn am-toggle-btn ${alert.active ? 'am-toggle-btn.active' : 'am-toggle-btn.inactive'}`}
                         onClick={e => { e.stopPropagation(); handleToggle(alert); }}
-                        style={{
-                          background: 'none', border: 'none',
-                          color: alert.active ? 'var(--price-up)' : 'var(--text-faint)',
-                          cursor: 'pointer', fontSize: 16, padding: 4,
-                        }}
                       >{alert.active ? '●' : '○'}</button>
                     )}
-                    <button
+                    <button className="btn am-edit-btn"
                       onClick={e => { e.stopPropagation(); setEditorAlert(alert); }}
-                      style={{
-                        background: 'none', border: 'none',
-                        color: 'var(--text-faint)', cursor: 'pointer',
-                        fontSize: 16, padding: 4,
-                      }}
                     >✎</button>
                   </div>
                 </div>

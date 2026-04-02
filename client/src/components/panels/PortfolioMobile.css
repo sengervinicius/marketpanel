@@ -1,0 +1,351 @@
+/* PortfolioMobile.css - Mobile portfolio panel styles */
+
+/* Summary header container */
+.pm-summary-header {
+  padding: var(--sp-3) var(--sp-4);
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
+  flex-shrink: 0;
+}
+
+/* Summary header top row - value + P&L */
+.pm-summary-top {
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+/* Total value / amount display */
+.pm-total-value {
+  color: var(--text-primary);
+  font-size: 18px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.5px;
+}
+
+/* Placeholder for missing values */
+.pm-total-placeholder {
+  color: var(--text-muted);
+  font-size: 18px;
+  font-weight: 700;
+}
+
+/* Position count label */
+.pm-position-count {
+  color: var(--text-muted);
+  font-size: 11px;
+  margin-left: 6px;
+}
+
+/* Sync status label */
+.pm-sync-label {
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Summary metrics row (P&L, Day, Best) */
+.pm-metrics-row {
+  gap: 16px;
+  margin-bottom: 6px;
+}
+
+/* Label for metrics (Total P&L, Day, Best) */
+.pm-metric-label {
+  color: var(--text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Colored metric value (changes dynamically but structure is static) */
+.pm-metric-value {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Small note in metric (e.g., dollar amount in parentheses) */
+.pm-metric-note {
+  font-size: 11px;
+  font-weight: 500;
+  margin-left: 4px;
+  opacity: 0.7;
+}
+
+/* Best performer symbol */
+.pm-best-symbol {
+  color: var(--price-up);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* Allocation bar container */
+.pm-allocation-bar {
+  gap: 1px;
+  height: 5px;
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 4px;
+}
+
+/* Individual allocation segment */
+.pm-allocation-segment {
+  transition: flex 0.3s ease;
+}
+
+/* Allocation legend container */
+.pm-allocation-legend {
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Allocation legend item */
+.pm-allocation-legend-item {
+  color: var(--text-muted);
+}
+
+/* Inline colored dot for allocation legend */
+.pm-allocation-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  margin-right: 3px;
+  vertical-align: middle;
+}
+
+/* Main panel container */
+.pm-panel {
+  height: 100%;
+  background: var(--bg-app);
+}
+
+/* Header row with title and buttons */
+.pm-header {
+  padding: var(--sp-4);
+  border-bottom: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+  justify-content: space-between;
+}
+
+/* Header title */
+.pm-header-title {
+  color: var(--text-primary);
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.3px;
+}
+
+/* Position count badge */
+.pm-count-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(255, 102, 0, 0.12);
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+}
+
+/* Add button (circular, accent color) */
+.pm-add-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid var(--accent);
+  background: none;
+  color: var(--accent);
+  font-size: 20px;
+  justify-content: center;
+  padding: 0;
+  -webkit-tap-highlight-color: rgba(255, 102, 0, 0.1);
+  cursor: pointer;
+}
+
+/* Header control buttons group */
+.pm-header-controls {
+  gap: 12px;
+}
+
+/* Search container */
+.pm-search-container {
+  padding: var(--sp-2) var(--sp-4);
+  flex-shrink: 0;
+}
+
+/* Sort chips row */
+.pm-sort-row {
+  display: flex;
+  gap: 8px;
+  padding: var(--sp-3) var(--sp-4);
+  flex-shrink: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-behavior: smooth;
+}
+
+/* Portfolio filter chips row */
+.pm-filter-row {
+  display: flex;
+  gap: 8px;
+  padding: 0 var(--sp-4) var(--sp-3);
+  flex-shrink: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-behavior: smooth;
+}
+
+/* Subportfolio chip (appears dimmer) */
+.pm-filter-chip-sub {
+  opacity: 0.75;
+  font-size: 12px;
+}
+
+/* Main portfolio filter chip */
+.pm-filter-chip-main {
+  font-size: 13px;
+}
+
+/* Scrollable positions list */
+.pm-list-container {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* No results message */
+.pm-no-results {
+  padding: var(--sp-8) var(--sp-4);
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+/* Row item wrapper (each position) */
+.pm-position-row {
+  padding: 0 var(--sp-4);
+  min-height: 60px;
+}
+
+/* Left column: symbol + subportfolio name */
+.pm-position-left {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+/* Position symbol */
+.pm-position-symbol {
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.2px;
+  margin-bottom: 3px;
+}
+
+/* Subportfolio name under symbol */
+.pm-position-subname {
+  color: var(--text-muted);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Middle column: price + change */
+.pm-position-price {
+  text-align: right;
+  margin-right: 12px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+/* Price value */
+.pm-position-price-value {
+  color: var(--text-primary);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  margin-bottom: 3px;
+}
+
+/* Price change percent */
+.pm-position-change {
+  font-size: 11px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Right-left column: entry/invested amount */
+.pm-position-amount {
+  text-align: right;
+  margin-right: 12px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 60px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+/* Amount display with tabular numbers */
+.pm-position-amount-value {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Alert button (bell emoji) */
+.pm-alert-btn {
+  width: 32px;
+  height: 32px;
+  background: none;
+  border: none;
+  color: var(--text-faint);
+  line-height: 1;
+  padding: 0;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  -webkit-tap-highlight-color: transparent;
+  cursor: pointer;
+}
+
+/* Remove button (X) */
+.pm-remove-btn {
+  width: 40px;
+  height: 40px;
+  background: none;
+  border: none;
+  color: var(--text-faint);
+  font-size: 18px;
+  line-height: 1;
+  padding: 0;
+  flex-shrink: 0;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+  cursor: pointer;
+}
+
+/* Undo toast button */
+.pm-undo-btn {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 0;
+  min-width: auto;
+  min-height: auto;
+  -webkit-tap-highlight-color: transparent;
+  cursor: pointer;
+}

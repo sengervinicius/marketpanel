@@ -106,15 +106,15 @@ export function CryptoPanel({ data = {}, loading, onTickerClick, onOpenDetail })
         onSearchChange={setSearchFilter}
         feedBadge={{ bg: badge.bg, color: badge.color, text: badge.text }}
       >
-        <button
+        <button className="btn"
           onClick={() => setCollapsed(v => !v)}
           title={collapsed ? 'Expand' : 'Collapse'}
-          style={{ background: 'none', border: '1px solid var(--border-strong)', color: 'var(--text-muted)', fontSize: 9, padding: '1px 5px', cursor: 'pointer', fontFamily: 'inherit', borderRadius: 'var(--radius-sm)' }}
+          style={{ background: 'none', border: '1px solid var(--border-strong)', color: 'var(--text-muted)', fontSize: 9, padding: '1px 5px' }}
         >{collapsed ? '+' : '−'}</button>
-        <button
+        <button className="btn"
           onClick={() => setMoversOnly(v => !v)}
           title="Show only movers ≥ 3%"
-          style={{ background: moversOnly ? '#1a1000' : 'none', border: `1px solid ${moversOnly ? 'var(--accent-text)' : 'var(--border-strong)'}`, color: moversOnly ? 'var(--accent-text)' : 'var(--text-muted)', fontSize: 'var(--font-xs)', padding: '1px 4px', cursor: 'pointer', fontFamily: 'inherit', borderRadius: 'var(--radius-sm)' }}
+          style={{ background: moversOnly ? '#1a1000' : 'none', border: `1px solid ${moversOnly ? 'var(--accent-text)' : 'var(--border-strong)'}`, color: moversOnly ? 'var(--accent-text)' : 'var(--text-muted)', fontSize: 'var(--font-xs)', padding: '1px 4px' }}
         >≥3%</button>
       </EditablePanelHeader>
 
@@ -130,7 +130,7 @@ export function CryptoPanel({ data = {}, loading, onTickerClick, onOpenDetail })
 
         <div style={{ flex: 1, overflowY: 'auto' }}>
           {loading || !data ? (
-            <div style={{ padding: 'var(--sp-5)', textAlign: 'center', color: 'var(--text-muted)', fontSize: 'var(--font-base)' }}>LOADING...</div>
+            <div style={{ padding: 'var(--sp-5)', textAlign: 'center', color: 'var(--text-muted)' }}>LOADING...</div>
           ) : visiblePairs.length > 0 ? visiblePairs.map(c => {
             const d = data[c.symbol] || {};
             const chartSym = 'X:' + c.symbol;
@@ -158,7 +158,7 @@ export function CryptoPanel({ data = {}, loading, onTickerClick, onOpenDetail })
               />
             );
           }) : (
-            <div style={{ padding: 'var(--sp-5)', textAlign: 'center', color: 'var(--text-muted)', fontSize: 'var(--font-base)' }}>NO CRYPTO PAIRS</div>
+            <div style={{ padding: 'var(--sp-5)', textAlign: 'center', color: 'var(--text-muted)' }}>NO CRYPTO PAIRS</div>
           )}
         </div>
       </>)}

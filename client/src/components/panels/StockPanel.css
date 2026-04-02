@@ -1,0 +1,94 @@
+/* StockPanel.css */
+
+.stp-movers-btn {
+  background: none;
+  border: 1px solid var(--border-strong);
+  color: var(--text-muted);
+  font-size: var(--font-xs);
+  padding: 1px 4px;
+  cursor: pointer;
+  font-family: var(--font-ui);
+}
+
+.stp-movers-btn.stp-movers-btn-active {
+  background: #1a1000;
+  border-color: var(--accent-text);
+  color: var(--accent-text);
+}
+
+.stp-heatmap-btn {
+  background: none;
+  border: 1px solid var(--border-strong);
+  color: var(--text-muted);
+  font-size: var(--font-xs);
+  padding: 1px 4px;
+  cursor: pointer;
+  font-family: var(--font-ui);
+}
+
+.stp-heatmap-btn.stp-heatmap-btn-active {
+  background: #0a001a;
+  border-color: #ce93d8;
+  color: #ce93d8;
+}
+
+.stp-reset-btn {
+  background: none;
+  border: 1px solid var(--border-strong);
+  color: var(--text-muted);
+  font-size: 9px;
+  padding: 1px 5px;
+  cursor: pointer;
+  font-family: var(--font-ui);
+}
+
+.stp-content {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.stp-loading {
+  padding: var(--sp-5);
+  text-align: center;
+  color: var(--text-muted);
+  font-size: var(--font-sm);
+}
+
+.stp-movers-grid {
+  padding: 6px 4px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+
+.stp-movers-card {
+  border-radius: 3px;
+  padding: 4px 6px;
+  flex: 0 0 auto;
+}
+
+.stp-movers-symbol {
+  color: var(--text-primary);
+  font-size: var(--font-sm);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.stp-movers-pct {
+  color: inherit;
+  font-size: var(--font-sm);
+  font-weight: 600;
+  margin-top: 1px;
+}
+
+.stp-no-movers {
+  color: var(--text-muted);
+  font-size: 9px;
+  padding: var(--sp-3);
+}
+
+.stp-section-empty {
+  padding: var(--sp-2) var(--sp-3);
+  color: var(--text-faint);
+  font-size: 9px;
+}

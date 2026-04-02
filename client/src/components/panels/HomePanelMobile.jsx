@@ -12,6 +12,7 @@ import { useStocksData, useForexData, useCryptoData } from '../../context/Market
 import { useSettings } from '../../context/SettingsContext';
 import { useWatchlist } from '../../context/PortfolioContext';
 import { PANEL_DEFINITIONS } from '../../config/panels';
+import './HomePanelMobile.css';
 
 // Formatting helpers
 function fmtPct(v) {
@@ -41,7 +42,7 @@ function displaySymbol(sym) {
 // Skeleton loader card
 function SkeletonCard() {
   return (
-    <div className="m-card" style={{ height: 56, animation: 'shimmer 1.5s infinite' }} />
+    <div className="hpm-skeleton" />
   );
 }
 
@@ -53,72 +54,36 @@ function ExpandedTickerRow({ sym, data, onOpenDetail, onToggleWatch, isWatching 
 
   return (
     <div
-      className="m-row"
+      className="hpm-ticker-row"
       onClick={() => onOpenDetail?.(sym)}
-      style={{ padding: '0 var(--sp-4)', borderTop: '1px solid var(--border-subtle)' }}
     >
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{
-          fontSize: 13,
-          fontWeight: 600,
-          color: 'var(--text-primary)',
-          marginBottom: 2,
-        }}>
+      <div className="hpm-ticker-info">
+        <div className="hpm-ticker-display">
           {displaySymbol(sym)}
         </div>
-        <div style={{
-          fontSize: 11,
-          color: 'var(--text-secondary)',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap',
-        }}>
+        <div className="hpm-ticker-symbol">
           {sym}
         </div>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        <div style={{ textAlign: 'right' }}>
-          <div style={{
-            fontSize: 14,
-            fontVariantNumeric: 'tabular-nums',
-            color: 'var(--text-primary)',
-            marginBottom: 2,
-          }}>
+      <div className="flex-row" style={{ gap: 12 }}>
+        <div className="hpm-ticker-price">
+          <div className="hpm-ticker-price-value">
             {fmtPrice(price, 2)}
           </div>
-          <div style={{
-            fontSize: 12,
-            fontVariantNumeric: 'tabular-nums',
-            color: isPositive ? 'var(--price-up)' : 'var(--price-down)',
-            fontWeight: 500,
-          }}>
+          <div className={`hpm-ticker-price-change ${isPositive ? 'hpm-ticker-price-change-positive' : 'hpm-ticker-price-change-negative'}`}>
             {fmtPct(changePct)}
           </div>
         </div>
 
-        <button
+        <button className={`btn flex-row hpm-ticker-watch-btn ${isWatching ? 'hpm-ticker-watch-btn-active' : ''}`}
           onClick={(e) => {
             e.stopPropagation();
             onToggleWatch(sym);
           }}
-          style={{
-            background: 'none',
-            border: 'none',
-            color: isWatching ? 'var(--accent)' : 'var(--text-muted)',
-            fontSize: 20,
-            cursor: 'pointer',
-            padding: '4px 6px',
-            minHeight: 44,
-            minWidth: 44,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            transition: 'color 0.2s ease',
-          }}
           title={isWatching ? 'In watchlist' : 'Add to watchlist'}
         >
-          {isWatching ? '\u2605' : '\u2606'}
+          {isWatching ? '★' : '☆'}
         </button>
       </div>
     </div>
@@ -153,18 +118,9 @@ function HomePanelMobile({ onOpenDetail, onSearchClick }) {
   const isLoadingBoxes = boxes.length === 0;
 
   return (
-    <div style={{
-      background: 'var(--bg-app)',
-      color: 'var(--text-primary)',
-      fontFamily: 'inherit',
-      padding: 'var(--sp-4)',
-      paddingBottom: 'calc(var(--sp-4) + env(safe-area-inset-bottom, 0px))',
-      minHeight: '100vh',
-      WebkitOverflowScrolling: 'touch',
-      overflowY: 'auto',
-    }}>
+    <div className="hpm-container">
       {/* Search Bar */}
-      <div style={{ marginBottom: 'var(--sp-3)' }}>
+      <div className="hpm-search-container">
         <input
           type="text"
           className="m-search"
@@ -175,8 +131,8 @@ function HomePanelMobile({ onOpenDetail, onSearchClick }) {
       </div>
 
       {/* Your Screens — derived from desktop layout */}
-      <div style={{ marginBottom: 'var(--sp-3)' }}>
-        <div className="m-section-label">YOUR SCREENS</div>
+      <div className="hpm-screens-section">
+        <div className="hpm-section-label">YOUR SCREENS</div>
 
         {isLoadingBoxes ? (
           <>
@@ -197,49 +153,29 @@ function HomePanelMobile({ onOpenDetail, onSearchClick }) {
             const previewSymbols = box.symbols.slice(0, 3);
 
             return (
-              <div key={box.id} className="m-card">
+              <div key={box.id} className="hpm-card">
                 {/* Card Header */}
                 <div
-                  className="m-card-header"
+                  className="hpm-card-header"
                   onClick={() => setExpandedBox(expanded ? null : box.id)}
                 >
-                  <div style={{ minWidth: 0 }}>
-                    <span style={{
-                      color: 'var(--text-primary)',
-                      fontSize: 13,
-                      fontWeight: 600,
-                      letterSpacing: '0.03em',
-                    }}>{box.title}</span>
+                  <div className="hpm-card-header-info">
+                    <span className="hpm-card-title">{box.title}</span>
                     {hasSymbols && (
-                      <span style={{
-                        color: 'var(--text-secondary)',
-                        fontSize: 11,
-                        marginLeft: 8,
-                      }}>
-                        {previewSymbols.map((sym) => displaySymbol(sym)).join(' \u00B7 ')}
+                      <span className="hpm-card-subtitle">
+                        {previewSymbols.map((sym) => displaySymbol(sym)).join(' · ')}
                         {box.symbols.length > 3 && ` +${box.symbols.length - 3}`}
                       </span>
                     )}
                   </div>
-                  <span style={{
-                    color: 'var(--text-muted)',
-                    fontSize: 10,
-                    transition: 'transform 0.2s ease',
-                    transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)',
-                  }}>{'\u25BC'}</span>
+                  <span className={`hpm-card-chevron ${expanded ? 'hpm-card-chevron-rotated' : ''}`}>▼</span>
                 </div>
 
                 {/* Expanded List */}
                 {expanded && (
-                  <div>
+                  <div className="hpm-card-content">
                     {!hasSymbols ? (
-                      <div style={{
-                        padding: 'var(--sp-6)',
-                        textAlign: 'center',
-                        color: 'var(--text-muted)',
-                        fontSize: 12,
-                        borderTop: '1px solid var(--border-subtle)',
-                      }}>No instruments configured</div>
+                      <div className="hpm-card-empty">No instruments configured</div>
                     ) : (
                       box.symbols.map((sym) => {
                         const data = getPrice(sym, stocksData, forexData, cryptoData);

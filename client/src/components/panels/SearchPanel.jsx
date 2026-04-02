@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, memo } from 'react';
 import { FOREX_PAIRS, CRYPTO_PAIRS } from '../../utils/constants';
 import { useSettings } from '../../context/SettingsContext';
 import { apiFetch } from '../../utils/api';
+import './SearchPanel.css';
 
 const ORANGE = '#ff6b00';
 const GREEN  = '#4caf50';
@@ -320,52 +321,42 @@ function SearchPanel({ onTickerSelect, onOpenDetail }) {
   const fmtVol = (n) => !n ? '—' : n >= 1e9 ? (n/1e9).toFixed(1)+'B' : n >= 1e6 ? (n/1e6).toFixed(1)+'M' : n >= 1e3 ? (n/1e3).toFixed(0)+'K' : String(n);
 
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#0a0a0a', fontFamily: 'inherit' }}>
+    <div className="sp-container">
 
       {/* ── Header ── */}
-      <div style={{ padding: '6px 10px 4px', borderBottom: '1px solid #1e1e1e', flexShrink: 0, display: 'flex', alignItems: 'baseline', gap: 8 }}>
-        <span style={{ color: ORANGE, fontWeight: 700, fontSize: 11, letterSpacing: '0.2em' }}>SEARCH</span>
-        <span style={{ color: '#2a2a2a', fontSize: 7 }}>CLICK → DETAIL  ·  DRAG → CHART</span>
+      <div className="sp-header">
+        <span className="sp-header-label">SEARCH</span>
+        <span className="sp-header-hint">CLICK → DETAIL  ·  DRAG → CHART</span>
       </div>
 
       {/* ── Search input ── */}
-      <div style={{ position: 'relative', padding: '6px 8px', flexShrink: 0 }}>
+      <div className="sp-search-wrapper">
         <input
           autoFocus
           value={query}
           onChange={handleInput}
           placeholder="ticker or company name..."
-          style={{
-            width: '100%', background: '#0f0f0f',
-            border: '1px solid #2a2a2a', color: '#ccc',
-            fontSize: 15, padding: '9px 8px',
-            fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box',
-            borderRadius: 2,
-            minHeight: '44px',
-          }}
+          className="sp-search-input"
           onFocus={e => e.target.style.borderColor = ORANGE}
           onBlur={e => e.target.style.borderColor = '#2a2a2a'}
         />
         {loading && (
-          <span style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', color: '#444', fontSize: 7 }}>
+          <span className="sp-search-loading">
             SEARCHING...
           </span>
         )}
       </div>
 
       {/* ── Asset class filter tabs ── */}
-      <div style={{ display: 'flex', gap: 3, padding: '4px 8px', borderBottom: '1px solid #141414', flexShrink: 0, flexWrap: 'wrap' }}>
+      <div className="sp-filter-tabs">
         {ASSET_FILTERS.map(f => (
-          <button
+          <button className="btn sp-filter-btn"
             key={String(f.id)}
             onClick={() => handleFilterChange(f.id)}
             style={{
               background:   assetFilter === f.id ? '#1a0900' : 'transparent',
               border:       `1px solid ${assetFilter === f.id ? ORANGE : '#1e1e1e'}`,
               color:        assetFilter === f.id ? ORANGE : '#333',
-              fontSize:     7, padding: '2px 5px', cursor: 'pointer',
-              fontFamily:   'inherit', borderRadius: 2, fontWeight: 700,
-              letterSpacing: '0.05em',
             }}
           >{f.label}</button>
         ))}
@@ -373,9 +364,9 @@ function SearchPanel({ onTickerSelect, onOpenDetail }) {
 
       {/* ── Results list ── */}
       {results.length > 0 && (
-        <div style={{ borderBottom: '1px solid #1e1e1e', flexShrink: 0, maxHeight: '55vh', overflowY: 'auto' }}>
-          <div style={{ padding: '3px 10px', background: '#0a0a0a', borderBottom: '1px solid #111', display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ color: '#333', fontSize: 7, letterSpacing: '0.1em' }}>⠿ DRAG RESULTS TO ANY PANEL TO ADD TICKERS</span>
+        <div className="sp-results-container">
+          <div className="sp-results-header">
+            <span className="sp-results-header-text">⠿ DRAG RESULTS TO ANY PANEL TO ADD TICKERS</span>
           </div>
           {results.map(item => {
             const badge  = MARKET_BADGE[(item.market || '').toUpperCase()];
@@ -391,90 +382,69 @@ function SearchPanel({ onTickerSelect, onOpenDetail }) {
                 onDragStart={(e) => handleDragStart(e, item)}
                 onClick={() => handleSelect(item)}
                 title="Click to view details · Drag to any panel to add ticker"
-                style={{
-                  padding: '8px 10px', borderBottom: '1px solid #141414',
-                  cursor: 'grab', display: 'flex', alignItems: 'center',
-                  gap: 7, userSelect: 'none',
-                  opacity: cov === 'none' ? 0.55 : 1,
-                }}
+                className={`sp-result-row ${cov === 'none' ? 'sp-result-row no-coverage' : ''}`}
                 onMouseEnter={e => e.currentTarget.style.background = '#141414'}
                 onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
               >
                 {/* Drag grip indicator */}
-                <span style={{ color: '#333', fontSize: 8, flexShrink: 0, cursor: 'grab', letterSpacing: 1 }} title="Drag to any panel">⠿</span>
+                <span className="sp-drag-icon" title="Drag to any panel">⠿</span>
                 {/* Coverage dot */}
                 <span
                   title={dot.title}
-                  style={{
-                    width: 6, height: 6, borderRadius: '50%',
-                    background: dot.color, flexShrink: 0,
-                    boxShadow: cov === 'live' ? `0 0 4px ${dot.color}` : 'none',
-                  }}
+                  className={`sp-coverage-dot ${cov === 'live' ? 'sp-coverage-dot-live' : ''}`}
+                  style={{ background: dot.color }}
                 />
 
                 {/* Drag grip */}
-                <span style={{ color: '#1e1e1e', fontSize: 11, flexShrink: 0 }}>⠿</span>
+                <span className="sp-drag-grip">⠿</span>
 
                 {/* Symbol */}
-                <span style={{
-                  color: isBR ? '#8bc34a' : (ASSET_CLASS_COLOR[item.assetClass] || TYPE_COLOR[item.type] || '#aaa'),
-                  fontSize: 12, fontWeight: 700, minWidth: '68px', flexShrink: 0,
-                }}>
+                <span className="sp-symbol"
+                  style={{
+                    color: isBR ? '#8bc34a' : (ASSET_CLASS_COLOR[item.assetClass] || TYPE_COLOR[item.type] || '#aaa'),
+                  }}>
                   {displaySymbol(item.symbol)}
                 </span>
 
                 {/* Name */}
-                <span style={{ color: '#666', fontSize: 11, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+                <span className="sp-name">
                   {item.name}
                 </span>
 
                 {/* Asset type badge + exchange + coverage + Add to Home */}
-                <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexShrink: 0 }}>
+                <div className="sp-badge-container">
                   {/* Asset type badge — always visible */}
                   {(() => {
                     const assetType = deriveAssetType(item);
                     const typeBadge = ASSET_TYPE_BADGE[assetType];
                     return typeBadge ? (
-                      <span style={{
-                        fontSize: 8, padding: '2px 6px', borderRadius: 2,
-                        background: typeBadge.bg, color: typeBadge.color,
-                        fontWeight: 700, letterSpacing: '0.06em',
-                        border: `1px solid ${typeBadge.color}33`,
-                      }}>
+                      <span className="sp-type-badge"
+                        style={{
+                          background: typeBadge.bg, color: typeBadge.color,
+                          border: `1px solid ${typeBadge.color}33`,
+                        }}>
                         {typeBadge.label}
                       </span>
                     ) : null;
                   })()}
                   {/* Exchange badge (B3, NYSE, NASDAQ, etc.) */}
                   {badge && (
-                    <span style={{ fontSize: 7, padding: '1px 4px', borderRadius: 2, background: badge.bg, color: badge.color }}>
+                    <span className="sp-exchange-badge" style={{ background: badge.bg, color: badge.color }}>
                       {badge.label}
                     </span>
                   )}
                   {/* Coverage warning tag */}
                   {covTag && (
-                    <span style={{
-                      fontSize: 7, padding: '1px 4px', borderRadius: 2,
-                      background: covTag.bg, color: covTag.color,
-                      fontWeight: 700, letterSpacing: 0.3,
-                    }}>
+                    <span className="sp-coverage-tag" style={{ background: covTag.bg, color: covTag.color }}>
                       {covTag.label}
                     </span>
                   )}
-                  <button
+                  <button className={`btn sp-add-home-btn ${addedToHome === item.symbol ? 'sp-add-home-btn-active' : ''}`}
                     onClick={(e) => handleAddToHome(e, item)}
                     title="Add to home screen"
                     style={{
-                      background: 'none',
                       border: `1px solid ${addedToHome === item.symbol ? '#00cc66' : '#2a2a2a'}`,
                       color: addedToHome === item.symbol ? '#00cc66' : '#555',
-                      fontSize: 8,
-                      padding: '2px 6px',
-                      cursor: 'pointer',
-                      fontFamily: 'inherit',
-                      letterSpacing: '0.1em',
-                      fontWeight: addedToHome === item.symbol ? 'bold' : 'normal',
-                      transition: 'all 0.2s',
                     }}
                   >
                     {addedToHome === item.symbol ? '✓' : '+ HOME'}
@@ -488,31 +458,25 @@ function SearchPanel({ onTickerSelect, onOpenDetail }) {
 
       {/* ── Empty state ── */}
       {!results.length && !query && !selected && (
-        <div style={{ padding: '16px 10px', color: '#2a2a2a', fontSize: 8, textAlign: 'center', lineHeight: 2 }}>
+        <div className="sp-empty-state">
           TYPE TO SEARCH<br />
-          <span style={{ color: '#1e1e1e' }}>● CLICK RESULT → OPEN IN DEPTH</span><br />
-          <span style={{ color: '#1e1e1e' }}>⠿ DRAG RESULT → ADD TO CHART</span>
+          <span className="sp-empty-state-hint">● CLICK RESULT → OPEN IN DEPTH</span><br />
+          <span className="sp-empty-state-hint">⠿ DRAG RESULT → ADD TO CHART</span>
         </div>
       )}
       {query.trim().length > 0 && !results.length && !loading && !selected && (
-        <div style={{ padding: '20px', textAlign: 'center', color: '#444', fontSize: 10, letterSpacing: '0.1em' }}>
+        <div className="sp-no-results">
           NO RESULTS
         </div>
       )}
 
       {/* ── Quote preview / action area ── */}
       {(selected || quoteLoading) && (
-        <div style={{ flex: 1, overflowY: 'auto', padding: '10px 10px 12px' }}>
+        <div className="sp-quote-section">
 
           {/* Coverage warning banner */}
           {selected && coverageLevel(selected) !== 'live' && (
-            <div style={{
-              marginBottom: 10, padding: '6px 10px', borderRadius: 2,
-              background: coverageLevel(selected) === 'none' ? '#1a0000' : '#1a1400',
-              border: `1px solid ${coverageLevel(selected) === 'none' ? '#440000' : '#332200'}`,
-              color: coverageLevel(selected) === 'none' ? RED : YELLOW,
-              fontSize: 9, lineHeight: 1.5,
-            }}>
+            <div className={`sp-coverage-warning ${coverageLevel(selected) === 'none' ? 'sp-coverage-warning-none' : 'sp-coverage-warning-limited'}`}>
               {coverageLevel(selected) === 'none'
                 ? '⚠ This ticker trades on an international exchange not covered by this terminal. Chart and price data will not be available.'
                 : '⚠ This ticker is OTC/fund class — data may be sparse or unavailable.'}
@@ -520,35 +484,22 @@ function SearchPanel({ onTickerSelect, onOpenDetail }) {
           )}
 
           {quoteLoading && (
-            <div style={{ color: '#333', fontSize: 9, textAlign: 'center', padding: '12px 0' }}>LOADING...</div>
+            <div className="sp-quote-loading">LOADING...</div>
           )}
 
           {selected && !quoteLoading && (
             <>
               {/* Action buttons */}
-              <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
-                <button
+              <div className="sp-action-buttons">
+                <button className="btn sp-open-depth-btn"
                   onClick={() => onOpenDetail?.(selected.symbol)}
-                  style={{
-                    flex: 2, padding: '9px 0', fontSize: 10, fontWeight: 700,
-                    background: ORANGE, color: '#fff', border: 'none',
-                    borderRadius: 2, cursor: 'pointer', letterSpacing: 0.5,
-                    fontFamily: 'inherit',
-                  }}
                 >
                   OPEN IN DEPTH →
                 </button>
-                <button
+                <button className="btn sp-chart-btn"
                   draggable
                   onDragStart={(e) => handleDragStart(e, selected)}
                   onClick={() => onTickerSelect?.(selected.symbol)}
-                  style={{
-                    flex: 1, padding: '9px 0', fontSize: 10,
-                    background: 'transparent', color: '#555',
-                    border: '1px solid #252525',
-                    borderRadius: 2, cursor: 'grab', letterSpacing: 0.5,
-                    fontFamily: 'inherit',
-                  }}
                   title="Click to set as chart ticker, or drag to a chart slot"
                 >
                   + CHART
@@ -562,31 +513,31 @@ function SearchPanel({ onTickerSelect, onOpenDetail }) {
                 return (
                   <div>
                     {/* Ticker + currency row */}
-                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 2 }}>
-                      <span style={{ color: ORANGE, fontWeight: 700, fontSize: 13 }}>
+                    <div className="sp-ticker-row">
+                      <span className="sp-ticker">
                         {displaySymbol(quote.ticker || selected.symbol)}
                       </span>
                       {isBR && (
-                        <span style={{ fontSize: 7, padding: '1px 4px', borderRadius: 2, background: '#1a2800', color: '#8bc34a' }}>B3</span>
+                        <span className="sp-ticker-badge">B3</span>
                       )}
                       {quote.name && quote.name !== quote.ticker && (
-                        <span style={{ color: '#333', fontSize: 8, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <span className="sp-ticker-name">
                           {quote.name}
                         </span>
                       )}
-                      <span style={{ color: '#2a2a2a', fontSize: 7, marginLeft: 'auto', flexShrink: 0 }}>{quote.currency}</span>
+                      <span className="sp-ticker-currency">{quote.currency}</span>
                     </div>
 
                     {/* Price */}
-                    <div style={{ color: '#e0e0e0', fontSize: 22, fontVariantNumeric: 'tabular-nums', fontWeight: 600, lineHeight: 1.1 }}>
+                    <div className="sp-price">
                       {fmtNum(quote.price)}
                     </div>
-                    <div style={{ color: up ? '#00c853' : RED, fontSize: 13, marginTop: 3, marginBottom: 10 }}>
+                    <div className="sp-change" style={{ color: up ? '#00c853' : RED }}>
                       {(up ? '+' : '')}{fmtNum(quote.change)}&nbsp;({fmtPct(quote.changePct)})
                     </div>
 
                     {/* OHLCV grid */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 12px' }}>
+                    <div className="sp-ohlcv-grid">
                       {[
                         ['OPEN',   fmtNum(quote.open)],
                         ['HIGH',   fmtNum(quote.high)],
@@ -594,8 +545,8 @@ function SearchPanel({ onTickerSelect, onOpenDetail }) {
                         ['VOLUME', fmtVol(quote.volume)],
                       ].map(([lbl, val]) => (
                         <div key={lbl}>
-                          <div style={{ color: '#2a2a2a', fontSize: 7, letterSpacing: 0.5 }}>{lbl}</div>
-                          <div style={{ color: '#888', fontSize: 11, fontVariantNumeric: 'tabular-nums' }}>{val}</div>
+                          <div className="sp-ohlcv-label">{lbl}</div>
+                          <div className="sp-ohlcv-value">{val}</div>
                         </div>
                       ))}
                     </div>
@@ -603,7 +554,7 @@ function SearchPanel({ onTickerSelect, onOpenDetail }) {
                 );
               })() : (
                 !quoteLoading && coverageLevel(selected) !== 'none' && (
-                  <div style={{ color: '#2a2a2a', fontSize: 9, textAlign: 'center', padding: '8px 0' }}>
+                  <div className="sp-no-quote">
                     No quote data available
                   </div>
                 )

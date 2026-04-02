@@ -7,6 +7,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useDrag } from '../../context/DragContext';
 import SubsectionContextMenu from './SubsectionContextMenu';
+import './EditablePanelHeader.css';
 
 export default function EditablePanelHeader({
   title,
@@ -84,54 +85,39 @@ export default function EditablePanelHeader({
     if (ticker) { onDropTicker?.(ticker); endDrag?.(); }
   };
 
-  const S = {
-    header: { borderBottom: '1px solid var(--border-strong)', background: 'var(--bg-elevated)', flexShrink: 0, position: 'relative', transition: 'border-color 0.2s', borderColor: dragOver ? 'var(--accent)' : 'var(--border-strong)' },
-    row: { padding: '4px 8px', display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'var(--font-ui)' },
-    title: { color: 'var(--accent-text)', fontSize: 'var(--font-base)', fontWeight: 700, letterSpacing: '1px', cursor: 'pointer', userSelect: 'none', lineHeight: 1 },
-    titleInput: { background: 'var(--bg-app)', border: '1px solid var(--accent-text)', color: 'var(--accent-text)', fontSize: 'var(--font-base)', fontWeight: 700, letterSpacing: '1px', padding: '1px 4px', fontFamily: 'var(--font-ui)', outline: 'none', borderRadius: 'var(--radius-sm)', width: 120 },
-    sub: { color: 'var(--text-faint)', fontSize: 'var(--font-xs)', cursor: 'pointer', userSelect: 'none', padding: '0 3px', borderRadius: 'var(--radius-sm)', transition: 'color 0.15s' },
-    subInput: { background: 'var(--bg-app)', border: '1px solid var(--border-default)', color: 'var(--text-muted)', fontSize: 'var(--font-xs)', padding: '0 3px', fontFamily: 'var(--font-ui)', outline: 'none', borderRadius: 'var(--radius-sm)', width: 80 },
-    iconBtn: { background: 'none', border: 'none', color: 'var(--text-faint)', cursor: 'pointer', fontSize: 9, padding: '0 2px', lineHeight: 1, display: 'flex', alignItems: 'center' },
-    badge: { fontSize: 7, fontWeight: 700, letterSpacing: '0.08em', padding: '1px 4px', borderRadius: 'var(--radius-sm)', marginLeft: 4 },
-    dropOverlay: { position: 'absolute', inset: 0, zIndex: 5, background: 'rgba(255,102,0,0.08)', border: '1px dashed var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', borderRadius: 'var(--radius-sm)' },
-    dropText: { color: 'var(--accent)', fontSize: 9, fontWeight: 700, letterSpacing: '0.15em' },
-    searchRow: { padding: '2px 8px 4px', display: 'flex', gap: 4, alignItems: 'center' },
-    searchInput: { flex: 1, background: 'var(--bg-app)', border: '1px solid var(--border-strong)', color: 'var(--text-primary)', fontSize: 9, padding: '2px 6px', fontFamily: 'var(--font-ui)', outline: 'none', borderRadius: 'var(--radius-sm)' },
-    searchClose: { background: 'none', border: 'none', color: 'var(--text-faint)', cursor: 'pointer', fontSize: 10, padding: 0, lineHeight: 1 },
-  };
 
   return (
     <>
-      <div style={S.header} onDragOver={onDragOver} onDragLeave={onDragLeave} onDrop={onDrop} onContextMenu={handleContextMenu} ref={headerRef}>
-        {dragOver && (<div style={S.dropOverlay}><span style={S.dropText}>+ DROP TICKER HERE</span></div>)}
-        <div style={S.row}>
+      <div className={`eph-header ${dragOver ? 'eph-drag-over' : ''}`} onDragOver={onDragOver} onDragLeave={onDragLeave} onDrop={onDrop} onContextMenu={handleContextMenu} ref={headerRef}>
+        {dragOver && (<div className="eph-drop-overlay"><span className="eph-drop-text">+ DROP TICKER HERE</span></div>)}
+        <div className="eph-row">
         {editingTitle ? (
-          <input ref={titleRef} style={S.titleInput} value={titleVal} onChange={e => setTitleVal(e.target.value)} onBlur={saveTitle} onKeyDown={e => { if (e.key === 'Enter') saveTitle(); if (e.key === 'Escape') setEditingTitle(false); }} maxLength={50} />
+          <input ref={titleRef} className="eph-title-input" value={titleVal} onChange={e => setTitleVal(e.target.value)} onBlur={saveTitle} onKeyDown={e => { if (e.key === 'Enter') saveTitle(); if (e.key === 'Escape') setEditingTitle(false); }} maxLength={50} />
         ) : (
-          <span style={S.title} onClick={() => { setEditingTitle(true); setTitleVal(title); }} title="Click to rename · Right-click for sections">{title}</span>
+          <span className="eph-title" onClick={() => { setEditingTitle(true); setTitleVal(title); }} title="Click to rename · Right-click for sections">{title}</span>
         )}
         {subsections.map((sub, i) => (
           <span key={i}>
-            <span style={{ color: 'var(--border-default)', fontSize: 'var(--font-xs)' }}>·</span>
+            <span className="eph-divider">·</span>
             {editingSub === i ? (
-              <input ref={subRef} style={S.subInput} value={subVal} onChange={e => setSubVal(e.target.value)} onBlur={() => saveSub(i)} onKeyDown={e => { if (e.key === 'Enter') saveSub(i); if (e.key === 'Escape') setEditingSub(null); }} maxLength={40} />
+              <input ref={subRef} className="eph-sub-input" value={subVal} onChange={e => setSubVal(e.target.value)} onBlur={() => saveSub(i)} onKeyDown={e => { if (e.key === 'Enter') saveSub(i); if (e.key === 'Escape') setEditingSub(null); }} maxLength={40} />
             ) : (
-              <span style={S.sub} onClick={() => { setEditingSub(i); setSubVal(sub); }} title="Click to rename" onMouseEnter={e => e.target.style.color = 'var(--text-muted)'} onMouseLeave={e => e.target.style.color = 'var(--text-faint)'}>{sub}</span>
+              <span className="eph-sub" onClick={() => { setEditingSub(i); setSubVal(sub); }} title="Click to rename">{sub}</span>
             )}
           </span>
         ))}
-        {onConfigOpen && (<button style={S.iconBtn} onClick={onConfigOpen} title="Configure panel">✎</button>)}
-        {feedBadge && (<span style={{ ...S.badge, background: feedBadge.bg, color: feedBadge.color, border: `1px solid ${feedBadge.color}33` }}>{feedBadge.text}</span>)}
-        <div style={{ flex: 1 }} />
+        {onConfigOpen && (<button className="eph-icon-btn" onClick={onConfigOpen} title="Configure panel">✎</button>)}
+        {feedBadge && (<span className="eph-badge" style={{ background: feedBadge.bg, color: feedBadge.color, border: `1px solid ${feedBadge.color}33` }}>{feedBadge.text}</span>)}
+        <div className="eph-spacer" />
         {children}
         {onSearchChange && (
-          <button style={{ ...S.iconBtn, color: showSearch ? 'var(--accent)' : 'var(--text-faint)' }} onClick={() => { const next = !showSearch; setShowSearch(next); if (!next) { setSearchQ(''); onSearchChange(''); } }} title="Search in panel">⌕</button>
+          <button className="eph-icon-btn" style={{ color: showSearch ? 'var(--accent)' : 'var(--text-faint)' }} onClick={() => { const next = !showSearch; setShowSearch(next); if (!next) { setSearchQ(''); onSearchChange(''); } }} title="Search in panel">⌕</button>
         )}
       </div>
       {showSearch && (
-        <div style={S.searchRow}>
-          <input ref={searchRef} style={S.searchInput} value={searchQ} onChange={e => { setSearchQ(e.target.value); onSearchChange?.(e.target.value); }} onKeyDown={e => { if (e.key === 'Escape') { setShowSearch(false); setSearchQ(''); onSearchChange?.(''); } }} placeholder="Filter by ticker or name…" />
-          <button style={S.searchClose} onClick={() => { setShowSearch(false); setSearchQ(''); onSearchChange?.(''); }}>✕</button>
+        <div className="eph-search-row">
+          <input ref={searchRef} className="eph-search-input" value={searchQ} onChange={e => { setSearchQ(e.target.value); onSearchChange?.(e.target.value); }} onKeyDown={e => { if (e.key === 'Escape') { setShowSearch(false); setSearchQ(''); onSearchChange?.(''); } }} placeholder="Filter by ticker or name…" />
+          <button className="eph-search-close" onClick={() => { setShowSearch(false); setSearchQ(''); onSearchChange?.(''); }}>✕</button>
         </div>
       )}
     </div>
