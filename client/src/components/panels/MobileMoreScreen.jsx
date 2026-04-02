@@ -1,4 +1,6 @@
-import React, { memo, useState, useCallback } from 'react';
+import React, { memo, useState, useCallback, useMemo } from 'react';
+import { useSettings } from '../../context/SettingsContext';
+import { getTemplatesGrouped, WORKSPACE_TEMPLATES } from '../../config/templates';
 
 const MobileMoreScreen = memo(({
   onNavigate,
@@ -96,6 +98,9 @@ const MobileMoreScreen = memo(({
 
       </div>
 
+      {/* Workspace switcher */}
+      <MobileWorkspaceSection />
+
       {/* Settings & account */}
       <div className="mm-section">
         <div className="m-section-label" style={{ padding: '0 16px' }}>ACCOUNT</div>
@@ -181,6 +186,89 @@ const MobileMoreScreen = memo(({
     </div>
   );
 });
+
+// ── Mobile Workspace Section ────────────────────────────────────────────────
+function MobileWorkspaceSection() {
+  const { settings, applyTemplate } = useSettings();
+  const [applying, setApplying] = useState(null);
+  const [expanded, setExpanded] = useState(false);
+  const grouped = useMemo(() => getTemplatesGrouped(null), []);
+  const activeId = settings?.activeTemplate || null;
+
+  const handleApply = async (templateId) => {
+    if (applying) return;
+    setApplying(templateId);
+    try { await applyTemplate(templateId, 'full'); } catch {}
+    setApplying(null);
+  };
+
+  const activeLabel = activeId && WORKSPACE_TEMPLATES[activeId]
+    ? WORKSPACE_TEMPLATES[activeId].label
+    : 'Default';
+
+  return (
+    <div className="mm-section">
+      <div className="m-section-label" style={{ padding: '0 16px' }}>WORKSPACE</div>
+      <button className="mm-item" onClick={() => setExpanded(s => !s)}>
+        <span className="mm-item-icon" style={{ fontSize: 14 }}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /><rect x="14" y="14" width="7" height="7" /></svg>
+        </span>
+        <span className="mm-item-label">
+          {activeLabel}
+        </span>
+        <svg className="mm-item-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+          style={{ transform: expanded ? 'rotate(90deg)' : 'none', transition: 'transform 150ms' }}
+        >
+          <polyline points="9 18 15 12 9 6" />
+        </svg>
+      </button>
+
+      {expanded && (
+        <div style={{ padding: '0 0 4px' }}>
+          {Object.entries(grouped).map(([groupName, templates]) => (
+            <div key={groupName}>
+              <div style={{
+                padding: '6px 20px 2px',
+                fontSize: 9, fontWeight: 700, letterSpacing: '0.8px',
+                color: 'var(--text-faint)',
+              }}>
+                {groupName.toUpperCase()}
+              </div>
+              {templates.map(t => {
+                const isActive = activeId === t.id;
+                const isApplying = applying === t.id;
+                return (
+                  <button
+                    key={t.id}
+                    className="mm-item"
+                    onClick={() => handleApply(t.id)}
+                    disabled={isApplying}
+                    style={{ opacity: isApplying ? 0.5 : 1 }}
+                  >
+                    <span style={{
+                      flex: 1, fontSize: 12, fontWeight: 500,
+                      color: isActive ? 'var(--accent)' : 'var(--text-primary)',
+                      paddingLeft: 8,
+                    }}>
+                      {isActive && <span style={{ marginRight: 4 }}>●</span>}
+                      {t.label}
+                    </span>
+                    <span style={{
+                      fontSize: 9, fontWeight: 700, letterSpacing: '0.3px',
+                      color: isApplying ? 'var(--accent)' : isActive ? 'var(--accent)' : 'var(--text-faint)',
+                    }}>
+                      {isApplying ? '...' : isActive ? 'ACTIVE' : 'APPLY'}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function MenuItem({ icon, label, onClick, subtle, danger }) {
   return (

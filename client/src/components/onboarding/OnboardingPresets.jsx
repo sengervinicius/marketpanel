@@ -2,61 +2,34 @@
  * OnboardingPresets.jsx
  * First-login workspace picker. Professional 6-card grid.
  * Only shown once (settings.onboardingCompleted = false).
+ * Now reads from the unified WORKSPACE_TEMPLATES registry.
  */
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useSettings } from '../../context/SettingsContext';
+import { getTemplatesByCategory } from '../../config/templates';
 import './OnboardingPresets.css';
 
-const OPTIONS = [
-  {
-    key: 'brazilianInvestor',
-    title: 'Brazil Focus',
-    description: 'B3 equities, DI curve, BRL FX pairs, Ibovespa.',
-    includes: 'VALE3, PETR4, ITUB4, USD/BRL, DI Curve',
-  },
-  {
-    key: 'globalInvestor',
-    title: 'Global Markets',
-    description: 'US large-cap equities, global indexes, major FX, cross-asset overview.',
-    includes: 'SPY, QQQ, EUR/USD, GLD, EEM, EFA',
-  },
-  {
-    key: 'debtInvestor',
-    title: 'Debt & Fixed Income',
-    description: 'Sovereign yield curves, credit spreads, rate-sensitive ETFs.',
-    includes: 'US10Y, IG/HY OAS, TLT, HYG, LQD, EMB',
-  },
-  {
-    key: 'cryptoInvestor',
-    title: 'Crypto & Digital Assets',
-    description: 'Bitcoin, Ethereum, altcoins, and macro correlations.',
-    includes: 'BTC, ETH, SOL, XRP, MSTR, COIN',
-  },
-  {
-    key: 'commoditiesInvestor',
-    title: 'Commodities',
-    description: 'Energy, metals, agriculture, and commodity producers.',
-    includes: 'GLD, WTI, Copper, Corn, Wheat, Vale, XOM',
-  },
-  {
-    key: 'custom',
-    title: 'Custom Workspace',
-    description: 'Balanced defaults — configure everything to your preferences.',
-    includes: 'SPY, BTC, EUR/USD, GLD — minimal starting point',
-  },
-];
-
 export default function OnboardingPresets() {
-  const { applyPreset, completeOnboarding } = useSettings();
+  const { applyTemplate, completeOnboarding } = useSettings();
   const [selected, setSelected] = useState(null);
   const [loading,  setLoading]  = useState(false);
+
+  // Only show onboarding-category templates
+  const options = useMemo(() =>
+    getTemplatesByCategory('onboarding').map(t => ({
+      key:         t.id,
+      title:       t.label,
+      description: t.description,
+      includes:    t.focus,
+    })),
+  []);
 
   const pick = async (key) => {
     if (loading) return;
     setSelected(key);
     setLoading(true);
-    try { await applyPreset(key); } catch {}
+    try { await applyTemplate(key, 'full'); } catch {}
     setLoading(false);
   };
 
@@ -85,7 +58,7 @@ export default function OnboardingPresets() {
 
       {/* Cards — 2 columns on desktop, 1 on mobile */}
       <div className="obp-grid">
-        {OPTIONS.map(({ key, title, description, includes }) => {
+        {options.map(({ key, title, description, includes }) => {
           const active = selected === key;
           return (
             <button

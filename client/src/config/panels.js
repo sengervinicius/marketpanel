@@ -192,11 +192,11 @@ export const PANEL_DEFINITIONS = {
     id:             'etf',
     label:          'ETFs',
     defaultTitle:   'ETFs',
-    defaultSymbols: [],
+    defaultSymbols: ['SPY','QQQ','IWM','DIA','XLK','XLF','XLE','XLV','EFA','EEM','TLT','HYG'],
     allowedGroups:  ['Bond ETFs', 'Sector ETFs', 'International', 'Thematic'],
-    editable:       false,
+    editable:       true,
     icon:           'ET',
-    minSymbols:     0,
+    minSymbols:     1,
     maxSymbols:     20,
   },
   screener: {
@@ -274,7 +274,7 @@ export const DEFAULT_LAYOUT = {
  * @type {Array<Object>}
  */
 export const DEFAULT_HOME_SECTIONS = [
-  { id: 'indexes',    title: 'US Indexes',    symbols: ['SPY','QQQ','DIA'] },
+  { id: 'indexes',    title: 'US Markets',    symbols: ['SPY','QQQ','DIA'] },
   { id: 'forex',      title: 'FX',            symbols: ['EURUSD','USDBRL','USDJPY'] },
   { id: 'crypto',     title: 'Crypto',        symbols: ['BTCUSD','ETHUSD','SOLUSD'] },
   { id: 'commodities',title: 'Commodities',   symbols: ['GLD','USO','SLV'] },

@@ -37,6 +37,7 @@ import ScreenerPanel from './components/panels/ScreenerPanel';
 import MacroPanel from './components/panels/MacroPanel';
 import OnboardingPresets from './components/onboarding/OnboardingPresets';
 import SuggestedScreens from './components/settings/SuggestedScreens';
+import WorkspaceSwitcher from './components/common/WorkspaceSwitcher';
 import { TickerTooltip } from './components/common/TickerTooltip';
 import InstrumentDetail from './components/common/InstrumentDetail';
 import { getMarketState as _getMarketState } from './components/common/MarketStatus';
@@ -393,14 +394,8 @@ const START_PAGE_OPTIONS = [
   { value: '/news',      label: 'NEWS' },
 ];
 
-const PRESET_LIST = [
-  { key: 'brazilianInvestor',   label: 'Brazilian Investor' },
-  { key: 'globalInvestor',      label: 'Global Investor' },
-  { key: 'debtInvestor',        label: 'Debt / Fixed Income' },
-  { key: 'cryptoInvestor',      label: 'Crypto Trader' },
-  { key: 'commoditiesInvestor', label: 'Commodities' },
-  { key: 'custom',              label: 'Custom' },
-];
+import { getTemplateList } from './config/templates';
+const PRESET_LIST = getTemplateList('onboarding').map(t => ({ key: t.id, label: t.label }));
 
 function SettingsSection({ label }) {
   return (
@@ -411,7 +406,7 @@ function SettingsSection({ label }) {
 }
 
 function SettingsDrawer({ panelVisible, togglePanel, onClose }) {
-  const { settings, updateSettings, applyPreset } = useSettings();
+  const { settings, updateSettings, applyPreset, applyTemplate } = useSettings();
   const [applyingPreset, setApplyingPreset] = useState(null);
   const [resettingLayout, setResettingLayout] = useState(false);
 
@@ -1342,6 +1337,7 @@ export default function App() {
         <div className="flex-row app-header-bar">
           <span className="app-header-title">SENGER</span>
           <span className="app-header-subtitle">MARKET TERMINAL</span>
+          <WorkspaceSwitcher />
           <div className="flex-row" style={{ flex:1, justifyContent:'center' }}><WorldClock /></div>
           <div className="flex-row gap-8">
             {isRefreshing && <span className="app-header-status">&#9679; UPDATING</span>}

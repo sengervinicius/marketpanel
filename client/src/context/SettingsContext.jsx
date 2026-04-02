@@ -6,7 +6,7 @@
 
 import { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import { apiFetch } from '../utils/api';
-import { SCREEN_PRESETS } from '../config/presets';
+import { WORKSPACE_TEMPLATES, SCREEN_PRESETS } from '../config/templates';
 import { DEFAULT_LAYOUT, DEFAULT_HOME_SECTIONS, DEFAULT_CHARTS_CONFIG } from '../config/panels';
 
 const SettingsContext = createContext(null);
@@ -122,10 +122,45 @@ export function SettingsProvider({ children, isAuthenticated }) {
       home:                preset.home    || { sections: DEFAULT_HOME_SECTIONS },
       charts:              preset.charts  || DEFAULT_CHARTS_CONFIG,
       onboardingCompleted: true,
+      activeTemplate:      presetKey,
     };
     // Persist defaultStartPage if the preset defines one
     if (preset.defaultStartPage) partial.defaultStartPage = preset.defaultStartPage;
     setSettingsState(prev => ({ ...prev, ...partial }));
+    await persistSettings(partial);
+  }, [persistSettings]);
+
+  /**
+   * Apply a workspace template by ID. mode controls what gets overwritten:
+   *   'full'   — overwrite panels, layout, home, charts, watchlist (default)
+   *   'layout' — only overwrite layout + panels that the template defines
+   */
+  const applyTemplate = useCallback(async (templateId, mode = 'full') => {
+    const template = WORKSPACE_TEMPLATES[templateId];
+    if (!template) return;
+    let partial;
+    if (mode === 'layout') {
+      partial = { activeTemplate: templateId };
+      if (template.layout)  partial.layout  = template.layout;
+      if (template.panels)  partial.panels  = template.panels;
+      if (template.charts)  partial.charts  = template.charts;
+    } else {
+      partial = {
+        panels:              template.panels    || {},
+        watchlist:           template.watchlist  || [],
+        theme:               template.theme     || 'dark',
+        layout:              template.layout    || DEFAULT_LAYOUT,
+        home:                template.home      || { sections: DEFAULT_HOME_SECTIONS },
+        charts:              template.charts    || DEFAULT_CHARTS_CONFIG,
+        onboardingCompleted: true,
+        activeTemplate:      templateId,
+      };
+    }
+    setSettingsState(prev => ({
+      ...prev,
+      ...partial,
+      panels: { ...prev.panels, ...(partial.panels || {}) },
+    }));
     await persistSettings(partial);
   }, [persistSettings]);
 
@@ -186,7 +221,7 @@ export function SettingsProvider({ children, isAuthenticated }) {
   return (
     <SettingsContext.Provider value={{
       settings, subscription, loaded, settingsDirty,
-      updateSettings, updatePanelConfig, applyPreset, completeOnboarding,
+      updateSettings, updatePanelConfig, applyPreset, applyTemplate, completeOnboarding,
       updateLayout, updateHomeSection, addToHomeSection, updateChartsConfig,
     }}>
       {children}
