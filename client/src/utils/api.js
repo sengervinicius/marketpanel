@@ -16,9 +16,10 @@ function dedupeKey(path, options) {
 export async function apiFetch(path, options = {}) {
   const key = dedupeKey(path, options);
 
-  // Return in-flight request if one exists
+  // Return cloned response for deduplicated requests so each caller
+  // gets its own body stream (prevents "body stream already read" errors)
   if (_inflight.has(key)) {
-    return _inflight.get(key);
+    return _inflight.get(key).then(r => r.clone());
   }
 
   const token = localStorage.getItem(LS_TOKEN);

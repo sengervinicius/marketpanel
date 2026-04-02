@@ -1285,6 +1285,21 @@ export default function App() {
     }
   }, [startCheckout]);
 
+  // ── Mobile-specific hooks (must be before any early return) ─────────────
+  const handleMoreNavigate = useCallback((view) => {
+    setMoreView(view);
+  }, []);
+  const handleMoreBack = useCallback(() => {
+    setMoreView(null);
+  }, []);
+  const mobileScreenTitle = useMemo(() => {
+    if (activeTab === 'more' && moreView) {
+      const titles = { charts: 'Charts', news: 'News Feed', etf: 'ETF Screener' };
+      return titles[moreView] || moreView;
+    }
+    return null;
+  }, [activeTab, moreView]);
+
   // ── Boot screen ─────────────────────────────────────────────────────────
   if (bootState !== BOOT.READY) {
     return (
@@ -1427,22 +1442,6 @@ export default function App() {
   }
 
   // ── MOBILE ───────────────────────────────────────────────────────────────
-  const handleMoreNavigate = useCallback((view) => {
-    setMoreView(view);
-  }, []);
-  const handleMoreBack = useCallback(() => {
-    setMoreView(null);
-  }, []);
-
-  // Screen title for mobile header
-  const mobileScreenTitle = useMemo(() => {
-    if (activeTab === 'more' && moreView) {
-      const titles = { charts: 'Charts', news: 'News Feed', etf: 'ETF Screener' };
-      return titles[moreView] || moreView;
-    }
-    return null;
-  }, [activeTab, moreView]);
-
   return (
     <AppErrorBoundary>
     <DragProvider>
