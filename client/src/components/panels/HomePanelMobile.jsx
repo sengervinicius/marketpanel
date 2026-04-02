@@ -7,8 +7,9 @@
  * Tapping a ticker opens InstrumentDetail.
  */
 
-import { useState, useEffect, useMemo, memo } from 'react';
+import { useState, useEffect, useMemo, useRef, memo } from 'react';
 import { useStocksData, useForexData, useCryptoData } from '../../context/MarketContext';
+import { useSettings } from '../../context/SettingsContext';
 import { apiFetch } from '../../utils/api';
 import './HomePanelMobile.css';
 
@@ -47,7 +48,10 @@ function HomePanelMobile({ onOpenDetail, onSearchClick }) {
   const stocksData = useStocksData();
   const forexData = useForexData();
   const cryptoData = useCryptoData();
+  const { settings } = useSettings();
   const [news, setNews] = useState([]);
+  const [customQuotes, setCustomQuotes] = useState({});
+  const fetchedRef = useRef(new Set());
 
   // Fetch top news headlines
   useEffect(() => {
@@ -58,8 +62,61 @@ function HomePanelMobile({ onOpenDetail, onSearchClick }) {
   }, []);
 
   function getPrice(sym) {
-    return stocksData[sym] || forexData[sym] || cryptoData[sym] || null;
+    return stocksData[sym] || forexData[sym] || cryptoData[sym] || customQuotes[sym] || null;
   }
+
+  // Collect custom symbols from user-added home sections
+  const customSymbols = useMemo(() => {
+    const sections = settings?.home?.sections || [];
+    const syms = [];
+    for (const s of sections) {
+      for (const sym of (s.symbols || [])) {
+        // Skip if already in a curated section or already fetched
+        const inCurated = Object.values(SECTION_TICKERS).flat().includes(sym);
+        if (!inCurated) syms.push(sym);
+      }
+    }
+    return [...new Set(syms)].slice(0, 10); // cap at 10
+  }, [settings?.home?.sections]);
+
+  // Fetch quotes for custom symbols not in MarketContext data
+  useEffect(() => {
+    if (customSymbols.length === 0) return;
+    for (const sym of customSymbols) {
+      // Skip if already in market data or already fetched this session
+      if (stocksData[sym] || forexData[sym] || cryptoData[sym]) continue;
+      if (fetchedRef.current.has(sym)) continue;
+      fetchedRef.current.add(sym);
+      apiFetch(`/api/quote/${encodeURIComponent(sym)}`)
+        .then(r => r.ok ? r.json() : null)
+        .then(data => {
+          if (data && data.price != null) {
+            setCustomQuotes(prev => ({
+              ...prev,
+              [sym]: {
+                symbol: sym,
+                price: data.price,
+                change: data.change ?? null,
+                changePct: data.changePct ?? null,
+              },
+            }));
+          }
+        })
+        .catch(() => {});
+    }
+  }, [customSymbols, stocksData, forexData, cryptoData]);
+
+  // Build user-added sections for rendering alongside curated ones
+  const userSections = useMemo(() => {
+    const sections = settings?.home?.sections || [];
+    return sections
+      .filter(s => (s.symbols || []).some(sym => !Object.values(SECTION_TICKERS).flat().includes(sym)))
+      .map(s => ({
+        id: s.id,
+        label: s.title || s.id,
+        symbols: s.symbols || [],
+      }));
+  }, [settings?.home?.sections]);
 
   const sectionData = useMemo(() => {
     const result = {};
@@ -111,7 +168,7 @@ function HomePanelMobile({ onOpenDetail, onSearchClick }) {
         />
       </div>
 
-      {/* Section Cards */}
+      {/* Curated Section Cards */}
       <div className="hpm-section-grid">
         {MOBILE_HOME_SECTIONS.map(section => (
           <div className="hpm-section-card" key={section.id} onClick={() => openSection(section.id)}>
@@ -133,6 +190,33 @@ function HomePanelMobile({ onOpenDetail, onSearchClick }) {
                   </span>
                 </div>
               ))}
+            </div>
+          </div>
+        ))}
+
+        {/* User-Added Section Cards (from Search → Add to Home) */}
+        {userSections.map(section => (
+          <div className="hpm-section-card" key={`user-${section.id}`}>
+            <div className="hpm-section-header">
+              <span className="hpm-section-title">{section.label}</span>
+            </div>
+            <div className="hpm-ticker-list">
+              {section.symbols.slice(0, 4).map(sym => {
+                const d = getPrice(sym);
+                return (
+                  <div
+                    className="hpm-ticker-row"
+                    key={sym}
+                    onClick={(e) => { e.stopPropagation(); onOpenDetail?.(sym); }}
+                  >
+                    <span className="hpm-ticker-sym">{displaySymbol(sym)}</span>
+                    <span className="hpm-ticker-price">{formatPrice(d?.price)}</span>
+                    <span className={`hpm-ticker-chg ${d?.changePct != null && d.changePct >= 0 ? 'up' : 'down'}`}>
+                      {d?.changePct != null ? `${d.changePct >= 0 ? '+' : ''}${d.changePct.toFixed(2)}%` : '--'}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           </div>
         ))}
