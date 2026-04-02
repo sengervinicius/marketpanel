@@ -132,4 +132,199 @@ router.post('/ai', async (req, res) => {
   }
 });
 
+/**
+ * POST /fundamentals — AI-powered fundamentals analysis for a single ticker
+ *
+ * Gathers real data from internal APIs (fundamentals, quote, news) and sends
+ * a structured prompt to Perplexity for an analyst-quality company brief.
+ */
+
+// Cache for AI fundamentals: symbol → { result, exp }
+const _fundsCache = new Map();
+const FUNDS_CACHE_TTL = 15 * 60 * 1000; // 15 minutes
+
+router.post('/fundamentals', async (req, res) => {
+  const apiKey = process.env.PERPLEXITY_API_KEY;
+  if (!apiKey) {
+    return res.status(503).json({ error: 'AI not configured — PERPLEXITY_API_KEY missing' });
+  }
+
+  const { symbol } = req.body;
+  if (!symbol || typeof symbol !== 'string' || symbol.trim().length < 1) {
+    return res.status(400).json({ error: 'Symbol is required' });
+  }
+  const sym = symbol.trim().toUpperCase();
+
+  // Check cache
+  const cached = _fundsCache.get(sym);
+  if (cached && Date.now() < cached.exp) {
+    return res.json({ ...cached.v, cached: true });
+  }
+
+  // ── Gather internal data in parallel ──────────────────────────────────
+  const baseUrl = `http://localhost:${process.env.PORT || 3001}`;
+  const authHeader = req.headers.authorization || '';
+  const headers = { Authorization: authHeader, Accept: 'application/json' };
+
+  let fundamentals = null, quote = null, newsItems = [];
+
+  try {
+    const [fundsRes, quoteRes, newsRes] = await Promise.allSettled([
+      fetch(`${baseUrl}/api/fundamentals/${encodeURIComponent(sym)}`, { headers }).then(r => r.ok ? r.json() : null),
+      fetch(`${baseUrl}/api/quote/${encodeURIComponent(sym)}`, { headers }).then(r => r.ok ? r.json() : null),
+      fetch(`${baseUrl}/api/news?ticker=${encodeURIComponent(sym.replace(/^[XC]:/, ''))}&limit=5`, { headers }).then(r => r.ok ? r.json() : null),
+    ]);
+
+    fundamentals = fundsRes.status === 'fulfilled' ? fundsRes.value : null;
+    quote        = quoteRes.status === 'fulfilled' ? quoteRes.value : null;
+    const newsData = newsRes.status === 'fulfilled' ? newsRes.value : null;
+    newsItems = (newsData?.results || []).slice(0, 5).map(n => n.title).filter(Boolean);
+  } catch (err) {
+    console.error('[Search/AI Fundamentals] Data gathering error:', err.message);
+  }
+
+  // ── Build context block for the LLM ───────────────────────────────────
+  const lines = [`Ticker: ${sym}`];
+  if (fundamentals) {
+    if (fundamentals.sector)           lines.push(`Sector: ${fundamentals.sector}`);
+    if (fundamentals.industry)         lines.push(`Industry: ${fundamentals.industry}`);
+    if (fundamentals.marketCap)        lines.push(`Market Cap: ${fmtBig(fundamentals.marketCap)}`);
+    if (fundamentals.totalRevenue)     lines.push(`Revenue (TTM): ${fmtBig(fundamentals.totalRevenue)}`);
+    if (fundamentals.revenueGrowth != null) lines.push(`Revenue Growth: ${(fundamentals.revenueGrowth * 100).toFixed(1)}%`);
+    if (fundamentals.ebitda)           lines.push(`EBITDA: ${fmtBig(fundamentals.ebitda)}`);
+    if (fundamentals.profitMargins != null) lines.push(`Net Margin: ${(fundamentals.profitMargins * 100).toFixed(1)}%`);
+    if (fundamentals.operatingMargins != null) lines.push(`Operating Margin: ${(fundamentals.operatingMargins * 100).toFixed(1)}%`);
+    if (fundamentals.peRatio != null)  lines.push(`P/E (TTM): ${fundamentals.peRatio.toFixed(1)}x`);
+    if (fundamentals.forwardPE != null) lines.push(`P/E (FWD): ${fundamentals.forwardPE.toFixed(1)}x`);
+    if (fundamentals.priceToBook != null) lines.push(`P/B: ${fundamentals.priceToBook.toFixed(2)}x`);
+    if (fundamentals.eps != null)      lines.push(`EPS (TTM): $${fundamentals.eps.toFixed(2)}`);
+    if (fundamentals.dividendYield != null) lines.push(`Dividend Yield: ${(fundamentals.dividendYield * 100).toFixed(2)}%`);
+    if (fundamentals.returnOnEquity != null) lines.push(`ROE: ${(fundamentals.returnOnEquity * 100).toFixed(1)}%`);
+    if (fundamentals.totalCash)        lines.push(`Cash: ${fmtBig(fundamentals.totalCash)}`);
+    if (fundamentals.totalDebt)        lines.push(`Debt: ${fmtBig(fundamentals.totalDebt)}`);
+    if (fundamentals.beta != null)     lines.push(`Beta: ${fundamentals.beta.toFixed(2)}`);
+    if (fundamentals.employees)        lines.push(`Employees: ${fundamentals.employees.toLocaleString()}`);
+  }
+  if (quote) {
+    if (quote.price != null) lines.push(`Last Price: $${quote.price}`);
+    if (quote.changePct != null) lines.push(`Day Change: ${quote.changePct >= 0 ? '+' : ''}${quote.changePct.toFixed(2)}%`);
+  }
+  if (newsItems.length > 0) {
+    lines.push('', 'Recent headlines:');
+    newsItems.forEach((h, i) => lines.push(`${i + 1}. ${h}`));
+  }
+
+  const contextBlock = lines.join('\n');
+
+  // ── LLM prompt ────────────────────────────────────────────────────────
+  const systemPrompt = `You are a senior equity research analyst. Given a ticker and its financial data, produce a structured analysis. Respond ONLY with valid JSON matching this schema:
+{
+  "summary": "2-3 sentence overview of what the company does and its current market position",
+  "businessModel": "1-2 sentence description of how the company makes money",
+  "segments": ["segment1 description", "segment2 description", ...],
+  "financialHighlights": ["highlight1", "highlight2", ...],
+  "valuationSnapshot": ["metric1 vs sector comment", "metric2 comment", ...],
+  "riskFactors": ["risk1", "risk2", ...]
+}
+Rules:
+- Use the provided financial data as the source of truth for numbers. Do NOT invent specific numbers not in the data.
+- Keep each array item to 1-2 sentences max.
+- 3-5 items per array.
+- Be concise, professional, and factual.
+- If data is missing for a field, provide qualitative analysis based on your knowledge.
+- Do NOT include markdown formatting inside the JSON strings.`;
+
+  const userPrompt = `Analyze this instrument:\n\n${contextBlock}`;
+
+  // ── Call Perplexity ───────────────────────────────────────────────────
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 20000);
+
+  try {
+    const response = await fetch(PERPLEXITY_URL, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      signal: ctrl.signal,
+      body: JSON.stringify({
+        model: MODEL,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+        max_tokens: 800,
+        temperature: 0.15,
+      }),
+    });
+
+    if (!response.ok) {
+      const errText = await response.text().catch(() => '');
+      console.error(`[Search/AI Fundamentals] Perplexity error ${response.status}:`, errText.substring(0, 200));
+      return res.status(502).json({ error: `AI provider error (${response.status})` });
+    }
+
+    const data = await response.json();
+    const raw = data.choices?.[0]?.message?.content;
+    if (!raw) {
+      return res.status(502).json({ error: 'Empty response from AI provider' });
+    }
+
+    // Parse JSON from response (handle potential markdown code fences)
+    let parsed;
+    try {
+      const jsonStr = raw.replace(/^```json?\s*/i, '').replace(/```\s*$/i, '').trim();
+      parsed = JSON.parse(jsonStr);
+    } catch (parseErr) {
+      console.error('[Search/AI Fundamentals] JSON parse failed, raw:', raw.substring(0, 300));
+      // Return raw as summary fallback
+      parsed = {
+        summary: raw.replace(/```json?\s*/gi, '').replace(/```/g, '').trim(),
+        businessModel: '',
+        segments: [],
+        financialHighlights: [],
+        valuationSnapshot: [],
+        riskFactors: [],
+      };
+    }
+
+    const result = {
+      symbol: sym,
+      generatedAt: new Date().toISOString(),
+      summary: parsed.summary || '',
+      businessModel: parsed.businessModel || '',
+      segments: Array.isArray(parsed.segments) ? parsed.segments : [],
+      financialHighlights: Array.isArray(parsed.financialHighlights) ? parsed.financialHighlights : [],
+      valuationSnapshot: Array.isArray(parsed.valuationSnapshot) ? parsed.valuationSnapshot : [],
+      riskFactors: Array.isArray(parsed.riskFactors) ? parsed.riskFactors : [],
+    };
+
+    // Cache
+    _fundsCache.set(sym, { v: result, exp: Date.now() + FUNDS_CACHE_TTL });
+    if (_fundsCache.size > 100) {
+      const now = Date.now();
+      for (const [k, e] of _fundsCache) { if (now > e.exp) _fundsCache.delete(k); }
+    }
+
+    res.json(result);
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      return res.status(504).json({ error: 'AI fundamentals timed out (20s)' });
+    }
+    console.error('[Search/AI Fundamentals] Error:', err.message);
+    res.status(500).json({ error: 'AI fundamentals failed' });
+  } finally {
+    clearTimeout(timer);
+  }
+});
+
+function fmtBig(n) {
+  if (n == null) return null;
+  if (Math.abs(n) >= 1e12) return '$' + (n / 1e12).toFixed(1) + 'T';
+  if (Math.abs(n) >= 1e9)  return '$' + (n / 1e9).toFixed(1) + 'B';
+  if (Math.abs(n) >= 1e6)  return '$' + (n / 1e6).toFixed(1) + 'M';
+  return '$' + n.toLocaleString();
+}
+
 module.exports = router;

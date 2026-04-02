@@ -661,3 +661,111 @@
   .id-close { min-height: 36px; min-width: 36px; }
   .id-action-btn { min-height: 36px; }
 }
+
+/* ── AI Fundamentals Section ───────────────────────── */
+.id-ai-section {
+  margin: var(--sp-3) 0;
+  padding: var(--sp-3);
+  background: var(--bg-surface, #0d0d0d);
+  border: 1px solid var(--border-default, #1a1a1a);
+  border-left: 3px solid var(--accent, #ff6600);
+  border-radius: var(--radius-md, 4px);
+}
+.id-ai-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: var(--sp-2);
+}
+.id-ai-label {
+  font-size: var(--font-xs, 10px);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--accent, #ff6600);
+}
+.id-ai-badge {
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  padding: 1px 6px;
+  border-radius: var(--radius-full, 9999px);
+  background: rgba(255, 102, 0, 0.08);
+  color: var(--text-muted, #888);
+  border: 1px solid rgba(255, 102, 0, 0.15);
+}
+.id-ai-summary {
+  font-size: var(--font-sm, 12px);
+  line-height: 1.55;
+  color: var(--text-secondary, #ccc);
+  margin: 0 0 var(--sp-2);
+}
+.id-ai-block {
+  margin-top: var(--sp-2);
+}
+.id-ai-block-title {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--text-muted, #888);
+  margin-bottom: 4px;
+}
+.id-ai-text {
+  font-size: var(--font-sm, 12px);
+  line-height: 1.5;
+  color: var(--text-secondary, #ccc);
+  margin: 0;
+}
+.id-ai-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.id-ai-list li {
+  font-size: var(--font-sm, 12px);
+  line-height: 1.45;
+  color: var(--text-secondary, #ccc);
+  padding: 3px 0 3px 12px;
+  position: relative;
+}
+.id-ai-list li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 9px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--accent, #ff6600);
+  opacity: 0.6;
+}
+.id-ai-list--risks li::before {
+  background: var(--price-down, #f44336);
+}
+.id-ai-error {
+  font-size: var(--font-sm, 12px);
+  color: var(--text-muted, #888);
+  padding: 8px 0;
+}
+
+/* AI Shimmer loading animation */
+.id-ai-shimmer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 4px 0;
+}
+.id-ai-shimmer-line {
+  height: 10px;
+  border-radius: 3px;
+  background: linear-gradient(90deg,
+    rgba(255,255,255,0.03) 25%,
+    rgba(255,255,255,0.06) 50%,
+    rgba(255,255,255,0.03) 75%
+  );
+  background-size: 200% 100%;
+  animation: id-shimmer 1.5s ease-in-out infinite;
+}
+@keyframes id-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}

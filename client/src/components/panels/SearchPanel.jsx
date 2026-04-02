@@ -136,114 +136,14 @@ function displaySymbol(sym) {
   return sym;
 }
 
-/* ── AI Summary Shimmer Loader ── */
-function AiShimmer() {
-  return (
-    <div className="sp-ai-shimmer">
-      <div className="sp-ai-shimmer-line" />
-      <div className="sp-ai-shimmer-line" />
-      <div className="sp-ai-shimmer-line" />
-      <div className="sp-ai-shimmer-line" />
-    </div>
-  );
-}
-
-/* ── AI Summary Card ── */
-function AiSummaryCard({ aiData, aiLoading, aiError }) {
-  if (!aiLoading && !aiData && !aiError) return null;
-
-  return (
-    <div className="sp-ai-card">
-      <div className="sp-ai-card-header">
-        <span className="sp-ai-label">AI RESEARCH</span>
-        {aiData?.model && (
-          <span className="sp-ai-model">{aiData.model}</span>
-        )}
-      </div>
-
-      {aiLoading && <AiShimmer />}
-
-      {aiError && (
-        <div className="sp-ai-error">{aiError}</div>
-      )}
-
-      {aiData && !aiLoading && (
-        <>
-          <div
-            className="sp-ai-summary"
-            dangerouslySetInnerHTML={{
-              __html: aiData.summary
-                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                .replace(/\n/g, '<br/>')
-            }}
-          />
-          {aiData.citations?.length > 0 && (
-            <div className="sp-ai-citations">
-              {aiData.citations.map((c, i) => {
-                let label;
-                try { label = new URL(c.url).hostname.replace('www.', ''); } catch { label = c.title; }
-                return (
-                  <a key={i} href={c.url} target="_blank" rel="noopener noreferrer"
-                    className="sp-ai-citation" title={c.url}>
-                    {label}
-                  </a>
-                );
-              })}
-            </div>
-          )}
-        </>
-      )}
-    </div>
-  );
-}
-
 function SearchPanel({ onTickerSelect, onOpenDetail }) {
   const [query,         setQuery]         = useState('');
   const [results,       setResults]       = useState([]);
   const [loading,       setLoading]       = useState(false);
-  const [selected,      setSelected]      = useState(null);
-  const [quote,         setQuote]         = useState(null);
-  const [quoteLoading,  setQuoteLoading]  = useState(false);
   const [addedToHome,   setAddedToHome]   = useState(null);
 
-  // AI search state
-  const [aiData,    setAiData]    = useState(null);
-  const [aiLoading, setAiLoading] = useState(false);
-  const [aiError,   setAiError]   = useState(null);
-
   const debounceRef   = useRef(null);
-  const aiDebounceRef = useRef(null);
   const { addToHomeSection } = useSettings();
-
-  // Fetch AI summary from Perplexity Sonar Pro
-  const fetchAiSummary = useCallback((q) => {
-    if (!q || q.trim().length < 3) {
-      setAiData(null);
-      setAiLoading(false);
-      setAiError(null);
-      return;
-    }
-    setAiLoading(true);
-    setAiError(null);
-
-    apiFetch('/api/search/ai', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query: q.trim() }),
-    })
-      .then(r => {
-        if (!r.ok) throw new Error(`AI search error (${r.status})`);
-        return r.json();
-      })
-      .then(data => {
-        setAiData(data);
-        setAiLoading(false);
-      })
-      .catch(err => {
-        setAiError(err.message || 'AI search unavailable');
-        setAiLoading(false);
-      });
-  }, []);
 
   const search = useCallback((q) => {
     if (!q.trim()) { setResults([]); return; }
@@ -294,37 +194,18 @@ function SearchPanel({ onTickerSelect, onOpenDetail }) {
   const handleInput = (e) => {
     const q = e.target.value;
     setQuery(q);
-    setSelected(null);
-    setQuote(null);
 
-    // Ticker search: fast debounce (280ms)
     clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => search(q), 280);
-
-    // AI summary: slower debounce (400ms) — only if query is 3+ chars
-    clearTimeout(aiDebounceRef.current);
-    if (q.trim().length >= 3) {
-      aiDebounceRef.current = setTimeout(() => fetchAiSummary(q), 400);
-    } else {
-      setAiData(null);
-      setAiLoading(false);
-      setAiError(null);
-    }
   };
 
-  const handleSelect = useCallback((item) => {
-    setSelected(item);
-    setResults([]);
-    setQuery(displaySymbol(item.symbol));
-    setQuote(null);
-    const cov = coverageLevel(item);
-    if (cov === 'none') return;
-    setQuoteLoading(true);
-    apiFetch(`/api/quote/${encodeURIComponent(item.symbol)}`)
-      .then(r => r.json())
-      .then(d => { setQuote(d); setQuoteLoading(false); })
-      .catch(() => setQuoteLoading(false));
-  }, []);
+  // Enter key: open first result directly
+  const handleKeyDown = useCallback((e) => {
+    if (e.key === 'Enter' && results.length > 0) {
+      e.preventDefault();
+      onOpenDetail?.(results[0].symbol);
+    }
+  }, [results, onOpenDetail]);
 
   const handleDragStart = (e, item) => {
     e.dataTransfer.effectAllowed = 'copy';
@@ -339,10 +220,6 @@ function SearchPanel({ onTickerSelect, onOpenDetail }) {
     setAddedToHome(item.symbol);
     setTimeout(() => setAddedToHome(null), 1500);
   };
-
-  const fmtNum = (n) => n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const fmtPct = (n) => n == null ? '—' : (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
-  const fmtVol = (n) => !n ? '—' : n >= 1e9 ? (n/1e9).toFixed(1)+'B' : n >= 1e6 ? (n/1e6).toFixed(1)+'M' : n >= 1e3 ? (n/1e3).toFixed(0)+'K' : String(n);
 
   return (
     <div className="sp-container">
@@ -359,6 +236,7 @@ function SearchPanel({ onTickerSelect, onOpenDetail }) {
           autoFocus
           value={query}
           onChange={handleInput}
+          onKeyDown={handleKeyDown}
           placeholder="ticker or company name..."
           className="sp-search-input"
         />
@@ -441,89 +319,16 @@ function SearchPanel({ onTickerSelect, onOpenDetail }) {
         </div>
       )}
 
-      {/* ── AI Summary Card (informational, below results) ── */}
-      <AiSummaryCard aiData={aiData} aiLoading={aiLoading} aiError={aiError} />
-
-      {/* ── Empty state (clean, no emojis) ── */}
-      {!results.length && !query && !selected && (
+      {/* ── Empty state ── */}
+      {!results.length && !query && (
         <div className="sp-empty-state">
           TYPE TO SEARCH<br />
           <span className="sp-empty-state-hint">CLICK RESULT  —  OPEN IN DEPTH</span><br />
           <span className="sp-empty-state-hint">DRAG RESULT  —  ADD TO CHART</span>
         </div>
       )}
-      {query.trim().length > 0 && !results.length && !loading && !selected && (
+      {query.trim().length > 0 && !results.length && !loading && (
         <div className="sp-no-results">NO RESULTS</div>
-      )}
-
-      {/* ── Quote preview / action area ── */}
-      {(selected || quoteLoading) && (
-        <div className="sp-quote-section">
-          {selected && coverageLevel(selected) !== 'live' && (
-            <div className={`sp-coverage-warning ${coverageLevel(selected) === 'none' ? 'sp-coverage-warning-none' : 'sp-coverage-warning-limited'}`}>
-              {coverageLevel(selected) === 'none'
-                ? 'This ticker trades on an international exchange not covered by this terminal. Chart and price data will not be available.'
-                : 'This ticker is OTC/fund class — data may be sparse or unavailable.'}
-            </div>
-          )}
-          {quoteLoading && (
-            <div className="sp-quote-loading">LOADING...</div>
-          )}
-          {selected && !quoteLoading && (
-            <>
-              <div className="sp-action-buttons">
-                <button className="btn sp-open-depth-btn"
-                  onClick={() => onOpenDetail?.(selected.symbol)}>
-                  OPEN IN DEPTH →
-                </button>
-                <button className="btn sp-chart-btn"
-                  draggable
-                  onDragStart={(e) => handleDragStart(e, selected)}
-                  onClick={() => onTickerSelect?.(selected.symbol)}
-                  title="Click to set as chart ticker, or drag to a chart slot">
-                  + CHART
-                </button>
-              </div>
-              {quote?.price != null ? (() => {
-                const up  = (quote.changePct ?? 0) >= 0;
-                const isBR = quote.currency === 'BRL' || quote.ticker?.endsWith('.SA');
-                return (
-                  <div>
-                    <div className="sp-ticker-row">
-                      <span className="sp-ticker">{displaySymbol(quote.ticker || selected.symbol)}</span>
-                      {isBR && <span className="sp-ticker-badge">B3</span>}
-                      {quote.name && quote.name !== quote.ticker && (
-                        <span className="sp-ticker-name">{quote.name}</span>
-                      )}
-                      <span className="sp-ticker-currency">{quote.currency}</span>
-                    </div>
-                    <div className="sp-price">{fmtNum(quote.price)}</div>
-                    <div className="sp-change" style={{ color: up ? '#00c853' : RED }}>
-                      {(up ? '+' : '')}{fmtNum(quote.change)}&nbsp;({fmtPct(quote.changePct)})
-                    </div>
-                    <div className="sp-ohlcv-grid">
-                      {[
-                        ['OPEN', fmtNum(quote.open)],
-                        ['HIGH', fmtNum(quote.high)],
-                        ['LOW',  fmtNum(quote.low)],
-                        ['VOLUME', fmtVol(quote.volume)],
-                      ].map(([lbl, val]) => (
-                        <div key={lbl}>
-                          <div className="sp-ohlcv-label">{lbl}</div>
-                          <div className="sp-ohlcv-value">{val}</div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })() : (
-                !quoteLoading && coverageLevel(selected) !== 'none' && (
-                  <div className="sp-no-quote">No quote data available</div>
-                )
-              )}
-            </>
-          )}
-        </div>
       )}
     </div>
   );
