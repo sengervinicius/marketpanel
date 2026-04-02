@@ -34,6 +34,7 @@ const VALID_TYPES = [
   'price_above', 'price_below',
   'pct_move_from_entry',
   'fx_level_above', 'fx_level_below',
+  'screener',
 ];
 
 // ── GET /api/alerts ────────────────────────────────────────────────────────
@@ -164,6 +165,139 @@ router.delete('/:id', async (req, res) => {
   } catch (e) {
     logger.error('DELETE /alerts/:id error:', e);
     sendApiError(res, 500, 'Failed to delete alert');
+  }
+});
+
+// ── POST /api/alerts/screener ──────────────────────────────────────────────
+// Create a screener-type alert that triggers when filter results change.
+// Body: { screenerUniverse, screenerFilters, matchMode, note? }
+// matchMode: 'new_match' (notify when new symbols appear) | 'count_change' (count crosses threshold)
+router.post('/screener', async (req, res) => {
+  try {
+    const body = req.body;
+    if (!body || typeof body !== 'object') return sendApiError(res, 400, 'Body must be an alert object');
+    if (hasDangerousKeys(body)) return sendApiError(res, 400, 'Invalid payload');
+
+    const { screenerUniverse, screenerFilters, matchMode, note } = body;
+
+    if (!screenerUniverse || typeof screenerUniverse !== 'string') {
+      return sendApiError(res, 400, 'screenerUniverse is required');
+    }
+    if (!screenerFilters || typeof screenerFilters !== 'object') {
+      return sendApiError(res, 400, 'screenerFilters object is required');
+    }
+    if (!matchMode || !['new_match', 'count_change'].includes(matchMode)) {
+      return sendApiError(res, 400, 'matchMode must be "new_match" or "count_change"');
+    }
+
+    // Quota check
+    const existing = listAlerts(req.user.id);
+    if (existing.length >= 50) {
+      return sendApiError(res, 400, 'Maximum of 50 alerts reached. Delete some alerts first.');
+    }
+
+    const alert = await createAlert(req.user.id, {
+      type: 'screener',
+      symbol: '__SCREENER__', // placeholder — screener alerts are multi-symbol
+      parameters: {
+        screenerUniverse,
+        screenerFilters,
+        matchMode,
+        lastMatchedSymbols: [], // populated on first eval
+        lastMatchCount: 0,
+      },
+      note: note || null,
+    });
+
+    logger.info('Screener alert created', { userId: req.user.id, alertId: alert.id, matchMode });
+    res.status(201).json({ ok: true, data: alert });
+  } catch (e) {
+    logger.error('POST /alerts/screener error:', e);
+    sendApiError(res, 500, 'Failed to create screener alert');
+  }
+});
+
+// ── POST /api/alerts/bulk-from-screener ───────────────────────────────────
+// Create price_above or price_below alerts for multiple symbols in one call.
+// Body: { symbols: string[], type: 'price_above'|'price_below', pctOffset: number, note? }
+// pctOffset: % above/below current price to set the target (e.g. 5 = 5% above current)
+router.post('/bulk-from-screener', async (req, res) => {
+  try {
+    const { symbols, type, pctOffset, note } = req.body || {};
+
+    if (!Array.isArray(symbols) || symbols.length === 0) {
+      return sendApiError(res, 400, 'symbols array is required');
+    }
+    if (!type || !['price_above', 'price_below'].includes(type)) {
+      return sendApiError(res, 400, 'type must be "price_above" or "price_below"');
+    }
+    if (pctOffset == null || typeof pctOffset !== 'number' || pctOffset <= 0) {
+      return sendApiError(res, 400, 'pctOffset must be a positive number');
+    }
+
+    // Cap to 20 symbols per batch
+    const batch = symbols.slice(0, 20);
+
+    // Quota check
+    const existing = listAlerts(req.user.id);
+    const remaining = 50 - existing.length;
+    if (remaining <= 0) {
+      return sendApiError(res, 400, 'Maximum of 50 alerts reached.');
+    }
+    const toCreate = batch.slice(0, remaining);
+
+    // Fetch current prices for symbols
+    const priceMap = {};
+    try {
+      const fetch = require('node-fetch');
+      const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${toCreate.join(',')}`;
+      const r = await fetch(url, {
+        headers: { 'User-Agent': 'Mozilla/5.0 MarketPanel/1.0' },
+        timeout: 10000,
+      });
+      if (r.ok) {
+        const data = await r.json();
+        for (const q of (data?.quoteResponse?.result || [])) {
+          if (q.regularMarketPrice) {
+            priceMap[q.symbol.toUpperCase()] = q.regularMarketPrice;
+          }
+        }
+      }
+    } catch { /* proceed with whatever prices we got */ }
+
+    const created = [];
+    const skipped = [];
+
+    for (const sym of toCreate) {
+      const currentPrice = priceMap[sym.toUpperCase()];
+      if (!currentPrice) {
+        skipped.push(sym);
+        continue;
+      }
+
+      const multiplier = type === 'price_above' ? (1 + pctOffset / 100) : (1 - pctOffset / 100);
+      const targetPrice = parseFloat((currentPrice * multiplier).toFixed(4));
+
+      const alert = await createAlert(req.user.id, {
+        type,
+        symbol: sym.toUpperCase(),
+        parameters: { targetPrice },
+        note: note || `Bulk alert from screener (${pctOffset}% ${type === 'price_above' ? 'above' : 'below'})`,
+      });
+      created.push(alert);
+    }
+
+    logger.info('Bulk screener alerts created', { userId: req.user.id, count: created.length, skipped: skipped.length });
+    res.status(201).json({
+      ok: true,
+      created: created.length,
+      skipped: skipped.length,
+      skippedSymbols: skipped,
+      data: created,
+    });
+  } catch (e) {
+    logger.error('POST /alerts/bulk-from-screener error:', e);
+    sendApiError(res, 500, 'Failed to create bulk alerts');
   }
 });
 

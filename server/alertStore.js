@@ -173,6 +173,12 @@ async function createAlert(userId, data) {
       pctChange: data.parameters?.pctChange ?? null,
       entryPrice: data.parameters?.entryPrice ?? null,
       direction: data.parameters?.direction ?? null,
+      // Screener alert fields
+      screenerUniverse: data.parameters?.screenerUniverse ?? null,
+      screenerFilters: data.parameters?.screenerFilters ?? null,
+      matchMode: data.parameters?.matchMode ?? null,
+      lastMatchedSymbols: data.parameters?.lastMatchedSymbols ?? null,
+      lastMatchCount: data.parameters?.lastMatchCount ?? null,
     },
     note: data.note || null,
     active: true,

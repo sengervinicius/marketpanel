@@ -30,7 +30,7 @@
  *   - The alert will NOT be re-evaluated until manually reactivated by the user.
  */
 
-const { listAllActiveAlerts, markTriggered } = require('./alertStore');
+const { listAllActiveAlerts, markTriggered, updateAlert } = require('./alertStore');
 
 const EVAL_INTERVAL_MS = 45_000; // 45 seconds
 let _intervalId = null;
@@ -109,6 +109,68 @@ function evaluateAlert(alert, priceData) {
 }
 
 /**
+ * Evaluate a screener alert by running the screener internally and comparing
+ * the matched symbols against the last known set.
+ * Returns true if the alert should trigger.
+ */
+async function evaluateScreenerAlert(alert) {
+  try {
+    const params = alert.parameters || {};
+    const { screenerUniverse, screenerFilters, matchMode, lastMatchedSymbols = [] } = params;
+    if (!screenerUniverse || !screenerFilters) return false;
+
+    // Run screener via internal HTTP
+    const url = `http://127.0.0.1:${_serverPort}/api/screener/run`;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ universe: screenerUniverse, filters: screenerFilters, limit: 200 }),
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+
+    if (!res.ok) return false;
+    const data = await res.json();
+    if (!data.ok) return false;
+
+    const currentSymbols = (data.results || []).map(r => r.symbol);
+    const currentCount = currentSymbols.length;
+    const prevSet = new Set(lastMatchedSymbols);
+    const newSymbols = currentSymbols.filter(s => !prevSet.has(s));
+
+    // Always update lastMatchedSymbols/lastMatchCount for next eval cycle
+    await updateAlert(alert.userId, alert.id, {
+      parameters: {
+        ...params,
+        lastMatchedSymbols: currentSymbols,
+        lastMatchCount: currentCount,
+      },
+    });
+
+    if (matchMode === 'new_match') {
+      // Trigger if any new symbols appeared since last check
+      // Skip on first eval (when lastMatchedSymbols was empty — initial population)
+      if (lastMatchedSymbols.length === 0) return false;
+      return newSymbols.length > 0;
+    }
+
+    if (matchMode === 'count_change') {
+      // Trigger if result count changed from previous eval
+      if (lastMatchedSymbols.length === 0) return false;
+      return currentCount !== lastMatchedSymbols.length;
+    }
+
+    return false;
+  } catch (e) {
+    // Silence errors — screener alerts just skip this cycle
+    return false;
+  }
+}
+
+/**
  * Run one evaluation cycle.
  */
 async function runEvaluation() {
@@ -141,7 +203,12 @@ async function runEvaluation() {
 
     // Evaluate each alert
     let triggeredCount = 0;
-    for (const alert of activeAlerts) {
+
+    // Separate screener alerts from price alerts
+    const screenerAlerts = activeAlerts.filter(a => a.type === 'screener');
+    const priceAlerts = activeAlerts.filter(a => a.type !== 'screener');
+
+    for (const alert of priceAlerts) {
       const priceData = priceMap.get(alert.symbol);
       if (!priceData) continue;
 
@@ -149,6 +216,19 @@ async function runEvaluation() {
       if (shouldTrigger) {
         await markTriggered(alert.userId, alert.id, new Date().toISOString());
         triggeredCount++;
+      }
+    }
+
+    // Evaluate screener alerts (less frequently — every 3rd cycle to reduce API load)
+    if (!runEvaluation._cycleCount) runEvaluation._cycleCount = 0;
+    runEvaluation._cycleCount++;
+    if (screenerAlerts.length > 0 && runEvaluation._cycleCount % 3 === 0) {
+      for (const alert of screenerAlerts) {
+        const shouldTrigger = await evaluateScreenerAlert(alert);
+        if (shouldTrigger) {
+          await markTriggered(alert.userId, alert.id, new Date().toISOString());
+          triggeredCount++;
+        }
       }
     }
 

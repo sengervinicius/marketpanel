@@ -91,6 +91,64 @@ const MISSION_CATALOG = [
     target: 1,
   },
 
+  // ── Screener workflow (Phase 19) ─────────────────────────
+  {
+    id: 'daily-screener-run',
+    kind: 'daily',
+    title: 'Daily Scanner',
+    description: 'Run the screener at least once today.',
+    xpReward: 10,
+    target: 1,
+  },
+  {
+    id: 'first-screener-run',
+    kind: 'one-time',
+    title: 'First Scan',
+    description: 'Run the fundamental screener for the first time.',
+    xpReward: 20,
+    target: 1,
+  },
+  {
+    id: 'first-screener-ai',
+    kind: 'one-time',
+    title: 'AI Screener',
+    description: 'Use the AI helper on the screener.',
+    xpReward: 25,
+    target: 1,
+  },
+  {
+    id: 'first-screener-alert',
+    kind: 'one-time',
+    title: 'Screener Watcher',
+    description: 'Create your first screener alert.',
+    xpReward: 25,
+    target: 1,
+  },
+  {
+    id: 'screener-power-user',
+    kind: 'one-time',
+    title: 'Power User',
+    description: 'Create bulk alerts from screener results.',
+    xpReward: 30,
+    target: 1,
+  },
+  {
+    id: 'screener-to-portfolio',
+    kind: 'one-time',
+    title: 'From Screen to Portfolio',
+    description: 'Add screener results to your portfolio.',
+    xpReward: 20,
+    target: 1,
+  },
+  {
+    id: 'first-screener-preset',
+    kind: 'one-time',
+    title: 'Saved Strategy',
+    description: 'Save your first screener preset.',
+    xpReward: 20,
+    target: 1,
+  },
+
   // ── Persona-specific quests ──────────────────────────────
   {
     id: 'quest-crypto-view',

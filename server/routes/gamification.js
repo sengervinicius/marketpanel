@@ -23,6 +23,13 @@ const XP_TABLE = {
   open_alerts:         3,
   open_screener:       5,
   add_portfolio:       10,
+  // Screener workflow events (Phase 19)
+  screener_run:             5,
+  screener_ai_helper:       10,
+  screener_alert_created:   15,
+  screener_bulk_alerts:     20,
+  screener_add_to_watchlist: 10,
+  screener_save_preset:     10,
 };
 
 // Map gamification event types → mission IDs to progress
@@ -35,6 +42,13 @@ const EVENT_MISSION_MAP = {
   complete_onboarding: ['complete-onboarding'],
   open_instrument:     ['weekly-instruments'],
   open_screener:       ['quest-value-fundamentals'],
+  // Screener workflow missions (Phase 19)
+  screener_run:              ['daily-screener-run', 'first-screener-run'],
+  screener_ai_helper:        ['first-screener-ai'],
+  screener_alert_created:    ['first-screener-alert'],
+  screener_bulk_alerts:      ['screener-power-user'],
+  screener_add_to_watchlist: ['screener-to-portfolio'],
+  screener_save_preset:      ['first-screener-preset'],
 };
 
 // POST /api/gamification/event
