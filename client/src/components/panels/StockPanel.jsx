@@ -1,6 +1,8 @@
 // StockPanel.jsx — US equities + Brazil ADRs with section headers and sortable columns
 // Features: feed-status badge, collapse, movers filter, heatmap view, custom subsections
+// Phase 8: ticker prop on PriceRow + HeatmapCell with PriceContext fallback
 import { useRef, useState, useMemo, useCallback, memo } from 'react';
+import useMergedTickerQuote from '../common/useMergedTickerQuote';
 import { useSettings } from '../../context/SettingsContext';
 import PanelConfigModal from '../common/PanelConfigModal';
 import EditablePanelHeader from '../common/EditablePanelHeader';
@@ -55,6 +57,32 @@ function heatColor(pct) {
   return '#b71c1c';
 }
 
+// Phase 8: Heatmap cell that merges snapshot with PriceContext
+function HeatmapCell({ s, data, onTickerClick, onOpenDetail }) {
+  const d = data?.[s.symbol] || {};
+  const { changePct: pct } = useMergedTickerQuote(s.symbol, d);
+  const bg = heatColor(pct);
+  const pos = (pct ?? 0) >= 0;
+  return (
+    <div
+      className="stp-movers-card"
+      data-ticker={s.symbol}
+      data-ticker-label={s.label}
+      data-ticker-type="EQUITY"
+      onClick={() => onTickerClick?.(s.symbol)}
+      onDoubleClick={() => onOpenDetail?.(s.symbol)}
+      onContextMenu={e => showInfo(e, s.symbol, s.label, 'EQUITY')}
+      title={`${s.symbol}\n${fmtPct(pct)}`}
+      style={{ width: 54, height: 38, background: bg, border: '1px solid #222' }}
+      onMouseEnter={e => e.currentTarget.style.filter = 'brightness(1.4)'}
+      onMouseLeave={e => e.currentTarget.style.filter = 'none'}
+    >
+      <span className="stp-movers-symbol">{s.symbol.replace('.SA', '')}</span>
+      <span className="stp-movers-pct" style={{ color: pos ? '#81c784' : '#ef9a9a' }}>{fmtPct(pct)}</span>
+    </div>
+  );
+}
+
 function StockPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
   const ptRef = useRef(null);
   const { settings, updatePanelConfig } = useSettings();
@@ -81,6 +109,7 @@ function StockPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
   const [heatmap,    setHeatmap]    = useState(false);
   const [configOpen, setConfigOpen] = useState(false);
   const [searchFilter, setSearchFilter] = useState('');
+  const [flashSym, setFlashSym] = useState(null);
   const { getBadge } = useFeedStatus();
   const badge = getBadge('stocks');
 
@@ -103,6 +132,9 @@ function StockPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
       s.key === target.key ? { ...s, symbols: [...s.symbols, sym] } : s
     );
     saveCfg({ customSubsections: updated });
+    // Phase 8: flash the newly dropped row
+    setFlashSym(sym);
+    setTimeout(() => setFlashSym(null), 1500);
   };
 
   const handleSortClick = (key) => {
@@ -240,33 +272,9 @@ function StockPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
             ) : heatmap ? (
               /* Heatmap grid */
               <div className="stp-movers-grid">
-                {allItems.map(s => {
-                  const pct  = data?.[s.symbol]?.changePct ?? null;
-                  const bg   = heatColor(pct);
-                  const pos  = (pct ?? 0) >= 0;
-                  return (
-                    <div
-                      key={s.symbol}
-                      className="stp-movers-card"
-                      data-ticker={s.symbol}
-                      data-ticker-label={s.label}
-                      data-ticker-type="EQUITY"
-                      onClick={() => onTickerClick?.(s.symbol)}
-                      onDoubleClick={() => onOpenDetail?.(s.symbol)}
-                      onContextMenu={e => showInfo(e, s.symbol, s.label, 'EQUITY')}
-                      title={`${s.symbol}\n${fmtPct(pct)}`}
-                      style={{
-                        width: 54, height: 38, background: bg,
-                        border: '1px solid #222',
-                      }}
-                      onMouseEnter={e => e.currentTarget.style.filter = 'brightness(1.4)'}
-                      onMouseLeave={e => e.currentTarget.style.filter = 'none'}
-                    >
-                      <span className="stp-movers-symbol">{s.symbol.replace('.SA', '')}</span>
-                      <span className="stp-movers-pct" style={{ color: pos ? '#81c784' : '#ef9a9a' }}>{fmtPct(pct)}</span>
-                    </div>
-                  );
-                })}
+                {allItems.map(s => (
+                  <HeatmapCell key={s.symbol} s={s} data={data} onTickerClick={onTickerClick} onOpenDetail={onOpenDetail} />
+                ))}
                 {allItems.length === 0 && (
                   <div className="stp-no-movers">No movers matching filter.</div>
                 )}
@@ -278,6 +286,7 @@ function StockPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
                   <PriceRow
                     key={s.symbol}
                     symbol={s.symbol}
+                    ticker={s.symbol}
                     name={s.label}
                     price={(data[s.symbol] || {}).price}
                     changePct={(data[s.symbol] || {}).changePct}
@@ -308,6 +317,7 @@ function StockPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
                       <PriceRow
                         key={s.symbol}
                         symbol={s.symbol}
+                        ticker={s.symbol}
                         name={s.label}
                         price={(data[s.symbol] || {}).price}
                         changePct={(data[s.symbol] || {}).changePct}
@@ -346,6 +356,7 @@ function StockPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
                       onOpenDetail={onOpenDetail}
                       onAddTicker={handleAddTickerToSubsection}
                       onRemoveTicker={handleRemoveTickerFromSubsection}
+                      flashSymbol={flashSym}
                     />
                   );
                 })}

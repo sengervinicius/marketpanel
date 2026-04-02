@@ -5,7 +5,7 @@
  * Used by StockPanel, ForexPanel, CommoditiesPanel.
  */
 import { useState, useRef, useEffect, memo } from 'react';
-import { useTickerPrice } from '../../context/PriceContext';
+import useMergedTickerQuote from './useMergedTickerQuote';
 import './CustomSubsectionBlock.css';
 
 const fmt = (n) => n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -14,15 +14,12 @@ const fmtPct = (n) => n == null ? '—' : (n >= 0 ? '+' : '') + n.toFixed(2) + '
 /**
  * Individual ticker row that falls back to PriceContext when the
  * parent snapshot data doesn't contain this symbol's price.
+ * Phase 8: now uses shared useMergedTickerQuote hook.
  */
-function TickerRow({ sym, data, color, gridCols, subsection, onTickerClick, onOpenDetail, onRemoveTicker, onDragStart }) {
+function TickerRow({ sym, data, color, gridCols, subsection, onTickerClick, onOpenDetail, onRemoveTicker, onDragStart, flash }) {
   const d = data[sym] || {};
-  const priceCtx = useTickerPrice(d.price != null ? null : sym);
+  const { price, changePct, change } = useMergedTickerQuote(sym, d);
 
-  // Merge: prefer snapshot data, fall back to PriceContext
-  const price = d.price ?? priceCtx?.price ?? null;
-  const changePct = d.changePct ?? priceCtx?.changePct ?? null;
-  const change = d.change ?? priceCtx?.change ?? null;
   const name = d.name || sym;
   const pos = (changePct ?? 0) >= 0;
 
@@ -39,7 +36,7 @@ function TickerRow({ sym, data, color, gridCols, subsection, onTickerClick, onOp
       }}
       onClick={() => onTickerClick?.(sym)}
       onDoubleClick={() => onOpenDetail?.(sym)}
-      className="csb-row"
+      className={`csb-row${flash ? ' price-row-flash' : ''}`}
       style={{ gridTemplateColumns: gridCols }}
     >
       <span className="csb-symbol" style={{ color }}>{sym}</span>
@@ -73,6 +70,7 @@ function CustomSubsectionBlock({
   onAddTicker,      // (key, symbol) => void
   onRemoveTicker,   // (key, symbol) => void
   onDragStart,      // (e, symbol) => void (for drag from this section)
+  flashSymbol,      // Phase 8: symbol to flash (just dropped)
 }) {
   const [showAdd, setShowAdd] = useState(false);
   const [addVal, setAddVal] = useState('');
@@ -161,6 +159,7 @@ function CustomSubsectionBlock({
           onOpenDetail={onOpenDetail}
           onRemoveTicker={onRemoveTicker}
           onDragStart={onDragStart}
+          flash={flashSymbol === sym}
         />
       ))}
 

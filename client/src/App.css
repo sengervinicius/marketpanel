@@ -134,6 +134,22 @@ html, body, #root {
 .flash-down { animation: flashDown 0.8s ease-out forwards; }
 .flash-neu  { animation: flashNeutral 0.6s ease-out forwards; }
 
+/* Phase 8: row flash for newly dropped tickers */
+@keyframes priceRowFlash {
+  0%   { background: rgba(255, 102, 0, 0.25); }
+  100% { background: transparent; }
+}
+.price-row-flash { animation: priceRowFlash 1.2s ease-out forwards; }
+
+/* Phase 8: drop incompatible hint */
+.eph-drop-hint {
+  font-size: var(--font-xs);
+  color: var(--text-faint);
+  padding: 2px 8px;
+  text-align: center;
+  animation: flashNeutral 2s ease-out forwards;
+}
+
 /* ── Ticker tape ─────────────────────────────────── */
 @keyframes scrollLeft {
   from { transform: translateX(0); }

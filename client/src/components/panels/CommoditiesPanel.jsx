@@ -64,6 +64,7 @@ function CommoditiesPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
   const [configOpen, setConfigOpen] = useState(false);
   const [searchFilter, setSearchFilter] = useState('');
   const [moversOnly, setMoversOnly] = useState(false);
+  const [flashSym, setFlashSym] = useState(null);
   const { getBadge } = useFeedStatus();
   const badge = getBadge('commodities');
 
@@ -85,6 +86,8 @@ function CommoditiesPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
       s.key === target.key ? { ...s, symbols: [...s.symbols, sym] } : s
     );
     saveCfg({ customSubsections: updated });
+    setFlashSym(sym);
+    setTimeout(() => setFlashSym(null), 1500);
   };
 
   const handleSortClick = (key) => {
@@ -231,6 +234,7 @@ function CommoditiesPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
                       <PriceRow
                         key={c.symbol}
                         symbol={c.symbol}
+                        ticker={c.symbol}
                         name={c.label}
                         price={d.price}
                         changePct={d.changePct}
@@ -268,6 +272,7 @@ function CommoditiesPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
                   onOpenDetail={onOpenDetail}
                   onAddTicker={handleAddTickerToSubsection}
                   onRemoveTicker={handleRemoveTickerFromSubsection}
+                  flashSymbol={flashSym}
                 />
               );
             })}

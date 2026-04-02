@@ -66,6 +66,7 @@ function ForexPanel({ data = {}, cryptoData = {}, loading, onTickerClick, onOpen
   const [moversOnly,   setMoversOnly]   = useState(false);
   const [configOpen,   setConfigOpen]   = useState(false);
   const [searchFilter, setSearchFilter] = useState('');
+  const [flashSym, setFlashSym] = useState(null);
   const { getBadge } = useFeedStatus();
   const badge = getBadge('forex');
 
@@ -93,6 +94,8 @@ function ForexPanel({ data = {}, cryptoData = {}, loading, onTickerClick, onOpen
       s.key === target.key ? { ...s, symbols: [...s.symbols, sym] } : s
     );
     saveCfg({ customSubsections: updated });
+    setFlashSym(sym);
+    setTimeout(() => setFlashSym(null), 1500);
   };
 
   const filteredForexPairs = panelSymbols.length > 0
@@ -235,6 +238,7 @@ function ForexPanel({ data = {}, cryptoData = {}, loading, onTickerClick, onOpen
                 <PriceRow
                   key={pair.symbol}
                   symbol={pair.symbol}
+                  ticker={'C:' + pair.symbol}
                   name={pair.label}
                   price={price}
                   changePct={d.changePct}
@@ -272,6 +276,7 @@ function ForexPanel({ data = {}, cryptoData = {}, loading, onTickerClick, onOpen
                 <PriceRow
                   key={c.symbol}
                   symbol={c.symbol}
+                  ticker={'X:' + c.symbol}
                   displaySymbol={c.symbol.replace('USD', '')}
                   name={c.label}
                   price={d.price}
@@ -312,6 +317,7 @@ function ForexPanel({ data = {}, cryptoData = {}, loading, onTickerClick, onOpen
                   onOpenDetail={onOpenDetail}
                   onAddTicker={handleAddTickerToSubsection}
                   onRemoveTicker={handleRemoveTickerFromSubsection}
+                  flashSymbol={flashSym}
                 />
               );
             })}

@@ -157,6 +157,7 @@ function BrazilPanel({ onTickerClick, onOpenDetail }) {
             <PriceRow
               key={s.symbol}
               symbol={s.symbol + '.SA'}
+              ticker={s.symbol + '.SA'}
               displaySymbol={s.symbol}
               name={s.name}
               price={s.price}

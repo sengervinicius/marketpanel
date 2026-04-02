@@ -138,6 +138,7 @@ export function CryptoPanel({ data = {}, loading, onTickerClick, onOpenDetail })
               <PriceRow
                 key={c.symbol}
                 symbol={c.symbol}
+                ticker={'X:' + c.symbol}
                 displaySymbol={c.symbol.replace('USD', '')}
                 name={c.label}
                 price={d.price}

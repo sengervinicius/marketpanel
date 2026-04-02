@@ -157,6 +157,7 @@ function GlobalIndicesPanel({ data = {}, loading, onTickerClick, onOpenDetail })
                     <PriceRow
                       key={ticker}
                       symbol={ticker}
+                      ticker={ticker}
                       name={NAMES[ticker] || ticker}
                       price={d.price}
                       changePct={d.changePct}

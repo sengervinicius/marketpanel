@@ -3,8 +3,13 @@
  * Shared price row used across data panels (StockPanel, ForexPanel, CryptoPanel, WatchlistPanel).
  * Renders: symbol, name, price, change% in a grid layout.
  * Uses design tokens. Supports drag, click, double-click, touch-hold, right-click.
+ *
+ * Phase 8: Added `ticker` prop for PriceContext fallback. When `ticker` is provided
+ * and `price` is null, PriceRow automatically uses useMergedTickerQuote to fetch
+ * live prices via PriceContext, fixing the "--" bug for dropped tickers.
  */
 import { memo } from 'react';
+import useMergedTickerQuote from './useMergedTickerQuote';
 
 const fmt2 = (n) => n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmt4 = (n) => n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: 4, maximumFractionDigits: 4 });
@@ -14,8 +19,10 @@ function PriceRow({
   symbol,
   displaySymbol,
   name,
-  price,
-  changePct,
+  price: priceProp,
+  changePct: changePctProp,
+  // Phase 8: optional ticker for PriceContext fallback
+  ticker,
   symbolColor = 'var(--text-primary)',
   columns = '60px 1fr 68px 60px',
   decimals = 2,
@@ -29,11 +36,19 @@ function PriceRow({
   dragData,
   // Touch ref for hold detection
   touchRef,
+  // Phase 8: flash animation for newly dropped tickers
+  flash,
   // Extra content (e.g., remove button)
   trailing,
   // Data attributes for context menus
   dataAttrs,
 }) {
+  // Phase 8: merge snapshot price with PriceContext fallback
+  const snapshotQuote = priceProp != null ? { price: priceProp, changePct: changePctProp } : null;
+  const merged = useMergedTickerQuote(ticker || null, snapshotQuote);
+  const price = merged.price;
+  const changePct = merged.changePct;
+
   const pos = (changePct ?? 0) >= 0;
   const fmtFn = decimals >= 4 ? fmt4 : fmt2;
 
@@ -55,6 +70,7 @@ function PriceRow({
   return (
     <div
       {...(dataAttrs || {})}
+      className={flash ? 'price-row-flash' : undefined}
       draggable={draggable || undefined}
       onDragStart={draggable ? handleDragStart : undefined}
       onClick={onClick}
