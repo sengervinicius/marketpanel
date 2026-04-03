@@ -16,10 +16,15 @@
 import { useTickerPrice } from '../../context/PriceContext';
 
 export default function useMergedTickerQuote(symbol, snapshotQuote) {
-  // Only activate PriceContext polling if the snapshot doesn't have a price.
-  // Passing null to useTickerPrice is safe — it returns null and skips registration.
-  const hasSnapshot = snapshotQuote && snapshotQuote.price != null;
-  const priceCtx = useTickerPrice(hasSnapshot ? null : symbol);
+  // Always register the symbol with PriceContext. PriceContext already checks
+  // the batch first (lookupInBatch) and only starts extra fetches for tickers
+  // not covered by the batch, so there's no duplicated work.
+  //
+  // Previously we passed null when the snapshot had a price, but this caused
+  // dropped/custom tickers to show dashes when the snapshot object was empty
+  // ({}) — the conditional skipped PriceContext registration on the first
+  // render cycle, and subsequent re-renders never corrected it.
+  const priceCtx = useTickerPrice(symbol);
 
   return {
     price:     snapshotQuote?.price     ?? priceCtx?.price     ?? null,

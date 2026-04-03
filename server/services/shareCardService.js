@@ -13,9 +13,17 @@
 
 'use strict';
 
-const sharp = require('sharp');
 const path = require('path');
 const fs = require('fs');
+
+// sharp is an optional native dependency — gracefully degrade when unavailable
+// (e.g. Render deploy without native binaries)
+let sharp = null;
+try {
+  sharp = require('sharp');
+} catch (e) {
+  console.warn('[shareCardService] sharp not available — card generation disabled:', e.message);
+}
 const crypto = require('crypto');
 
 // ── Output directory ─────────────────────────────────────────────────────────
@@ -247,6 +255,9 @@ const MAX_CONCURRENT_RENDERS = 5;
  * @returns {{ imageUrl: string, shareText: string }}
  */
 async function generateCard(type, data) {
+  if (!sharp) {
+    throw new Error('Card generation unavailable — sharp module not installed');
+  }
   if (_activeRenders >= MAX_CONCURRENT_RENDERS) {
     throw new Error('Card generation busy — try again shortly');
   }
