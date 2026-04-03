@@ -403,9 +403,10 @@ function DebtPanel() {
                   <CartesianGrid strokeDasharray="2 4" stroke="var(--border-subtle)" />
                   <XAxis
                     dataKey="tenor"
-                    tick={{ fill: 'var(--text-faint)', fontSize: 8, fontFamily: 'var(--font-ui)' }}
+                    tick={{ fill: 'var(--text-faint)', fontSize: 8, fontFamily: 'var(--font-ui)', angle: -45, textAnchor: 'end' }}
                     axisLine={{ stroke: 'var(--border-default)' }}
                     tickLine={false}
+                    height={30}
                   />
                   <YAxis
                     tick={{ fill: 'var(--text-faint)', fontSize: 8, fontFamily: 'var(--font-mono)' }}

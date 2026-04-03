@@ -16,11 +16,11 @@ import Badge from '../ui/Badge';
 import './AlertsPanel.css';
 
 const ALERT_TYPE_LABELS = {
-  price_above:         '> Price',
-  price_below:         '< Price',
+  price_above:         '\u{1F514} Price Above',
+  price_below:         '\u{1F514} Price Below',
   pct_move_from_entry: '% Move',
-  fx_level_above:      '> FX',
-  fx_level_below:      '< FX',
+  fx_level_above:      '\u{1F4B1} FX Above',
+  fx_level_below:      '\u{1F4B1} FX Below',
 };
 
 function conditionSummary(alert) {
@@ -56,13 +56,13 @@ const AlertRow = memo(function AlertRow({ alert, onEdit, onOpenDetail, onToggle,
 
   return (
     <div
-      className={`ap-row ${!alert.active && !isTriggered ? 'ap-row.inactive' : ''}`}
+      className={`ap-row ${!alert.active && !isTriggered ? 'ap-row--inactive' : ''}`}
       onClick={() => onOpenDetail?.(alert.symbol)}
       onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--bg-hover)'}
       onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
     >
       {/* Symbol */}
-      <span className={`ap-row-symbol ${isTriggered ? 'ap-row-symbol.triggered' : 'ap-row-symbol.default'}`}>
+      <span className={`ap-row-symbol ${isTriggered ? 'ap-row-symbol--triggered' : 'ap-row-symbol--default'}`}>
         {alert.symbol}
       </span>
 
@@ -108,7 +108,7 @@ const AlertRow = memo(function AlertRow({ alert, onEdit, onOpenDetail, onToggle,
           title="Dismiss notification"
         >✓</button>
       ) : (
-        <button className={`btn ap-toggle-btn ${alert.active ? 'ap-toggle-btn.active' : 'ap-toggle-btn.inactive'}`}
+        <button className={`btn ap-toggle-btn ${alert.active ? 'ap-toggle-btn--active' : 'ap-toggle-btn--inactive'}`}
           onClick={e => { e.stopPropagation(); onToggle(alert); }}
           title={alert.active ? 'Deactivate' : 'Reactivate'}
         >{alert.active ? '●' : '○'}</button>

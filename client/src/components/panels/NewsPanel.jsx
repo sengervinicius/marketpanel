@@ -197,11 +197,18 @@ function NewsPanel() {
             message="Loading news feed..."
           />
         ) : news.length === 0 ? (
-          <EmptyState
-            icon="◎"
-            title="No news available"
-            message="News stories will appear here when the feed is available."
-          />
+          <div>
+            <EmptyState
+              icon="◎"
+              title="No news available"
+              message="News stories will appear here when the feed is available."
+            />
+            <div style={{ display: 'flex', justifyContent: 'center', marginTop: 16 }}>
+              <button onClick={() => load()} style={{ marginTop: 8, padding: '6px 12px', fontSize: 11, fontWeight: 600, background: 'transparent', border: '1px solid var(--accent)', borderRadius: 3, color: 'var(--accent)', cursor: 'pointer' }}>
+                REFRESH
+              </button>
+            </div>
+          </div>
         ) : (
           news.map(item => (
             <NewsItem key={item.id} item={item} isNew={newItems.has(item.id)} sentimentMap={sentimentMap} />

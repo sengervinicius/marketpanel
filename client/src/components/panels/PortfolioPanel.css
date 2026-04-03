@@ -34,7 +34,7 @@
 /* SummaryStrip */
 /* ─────────────────────────────────────────────────────────────── */
 .pp-summary-strip {
-  padding: 4px 8px;
+  padding: 8px 12px;
   border-bottom: 1px solid var(--border-strong);
   background: var(--bg-surface);
   flex-shrink: 0;
@@ -43,7 +43,7 @@
 .pp-metrics-row {
   gap: 12px;
   flex-wrap: wrap;
-  margin-bottom: 3px;
+  margin-bottom: 8px;
 }
 
 .pp-metric-label {

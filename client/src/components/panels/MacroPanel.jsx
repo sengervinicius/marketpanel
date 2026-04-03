@@ -7,6 +7,13 @@ import { useState, useCallback, useEffect } from 'react';
 import { apiFetch } from '../../utils/api';
 import './MacroPanel.css';
 
+const shimmerStyle = `
+  @keyframes macro-shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+`;
+
 const INDICATORS = [
   { key: 'policyRate',      label: 'Policy Rate',     fmt: v => v != null ? (v * 100).toFixed(2) + '%' : '--' },
   { key: 'cpiYoY',          label: 'CPI YoY',         fmt: v => v != null ? (v * 100).toFixed(1) + '%' : '--' },
@@ -153,7 +160,16 @@ export default function MacroPanel() {
       </div>
 
       {/* Comparison table */}
-      {loading && <div className="macro-loading">Loading macro data...</div>}
+      {loading && (
+        <>
+          <style>{shimmerStyle}</style>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, padding: '8px 0' }}>
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} style={{ height: 48, borderRadius: 3, background: 'linear-gradient(90deg, rgba(255,255,255,0.03) 25%, rgba(255,255,255,0.06) 50%, rgba(255,255,255,0.03) 75%)', backgroundSize: '200% 100%', animation: 'macro-shimmer 1.5s ease-in-out infinite' }} />
+            ))}
+          </div>
+        </>
+      )}
       {error && <div className="macro-error">{error}</div>}
 
       {data?.countries?.length > 0 && (

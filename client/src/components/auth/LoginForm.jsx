@@ -5,10 +5,25 @@
  * Y-004: Forgot password link + reset flow
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { apiFetch } from '../../utils/api';
 import './LoginForm.css';
+
+function getPasswordStrength(pw) {
+  if (!pw) return { label: '', color: 'transparent', width: '0%' };
+  let score = 0;
+  if (pw.length >= 6) score++;
+  if (pw.length >= 10) score++;
+  if (/[A-Z]/.test(pw)) score++;
+  if (/[0-9]/.test(pw)) score++;
+  if (/[^A-Za-z0-9]/.test(pw)) score++;
+  if (score <= 1) return { label: 'Weak', color: '#f44336', width: '33%' };
+  if (score <= 3) return { label: 'Fair', color: '#ff9800', width: '66%' };
+  return { label: 'Strong', color: '#4caf50', width: '100%' };
+}
+
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function LoginForm() {
   const [username, setUsername] = useState('');
@@ -20,12 +35,28 @@ export function LoginForm() {
   const [isRegister, setIsRegister] = useState(false);
   const [showForgot, setShowForgot] = useState(false);
   const [forgotUsername, setForgotUsername] = useState('');
+  const [failCount, setFailCount] = useState(0);
+  const [lockoutUntil, setLockoutUntil] = useState(null);
   const { login, register } = useAuth();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
     setInfo(null);
+
+    // Check lockout before proceeding
+    if (lockoutUntil && Date.now() < lockoutUntil) {
+      const secs = Math.ceil((lockoutUntil - Date.now()) / 1000);
+      setError(`Too many attempts. Try again in ${secs}s`);
+      return;
+    }
+
+    // Email validation
+    if (!emailRegex.test(username)) {
+      setError('Please enter a valid email address');
+      return;
+    }
+
     if (isRegister && password !== confirmPassword) {
       setError('Passwords do not match');
       return;
@@ -38,15 +69,39 @@ export function LoginForm() {
     try {
       if (isRegister) {
         await register(username, password);
+        setFailCount(0);
+        setLockoutUntil(null);
       } else {
         await login(username, password);
+        setFailCount(0);
+        setLockoutUntil(null);
       }
     } catch (err) {
       setError(err.message);
+      setFailCount(prev => {
+        const next = prev + 1;
+        if (next >= 3) {
+          const delays = [5000, 10000, 30000];
+          const delay = delays[Math.min(next - 3, delays.length - 1)] || 30000;
+          setLockoutUntil(Date.now() + delay);
+        }
+        return next;
+      });
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (!lockoutUntil) return;
+    const id = setInterval(() => {
+      if (Date.now() >= lockoutUntil) {
+        setLockoutUntil(null);
+        clearInterval(id);
+      }
+    }, 1000);
+    return () => clearInterval(id);
+  }, [lockoutUntil]);
 
   const handleForgotPassword = async (e) => {
     e.preventDefault();
@@ -128,10 +183,10 @@ export function LoginForm() {
       </h2>
 
       <input
-        type="text"
+        type="email"
         value={username}
         onChange={(e) => setUsername(e.target.value.toLowerCase())}
-        placeholder="Username"
+        placeholder="Email"
         disabled={loading}
         className="lf-input"
       />
@@ -144,6 +199,15 @@ export function LoginForm() {
         disabled={loading}
         className="lf-input"
       />
+
+      {password && (
+        <div style={{ marginTop: 4 }}>
+          <div style={{ height: 3, background: '#1a1a1a', borderRadius: 2, overflow: 'hidden' }}>
+            <div style={{ height: '100%', width: getPasswordStrength(password).width, background: getPasswordStrength(password).color, transition: 'all 0.3s', borderRadius: 2 }} />
+          </div>
+          <span style={{ fontSize: 10, color: getPasswordStrength(password).color, letterSpacing: '0.5px' }}>{getPasswordStrength(password).label}</span>
+        </div>
+      )}
 
       {isRegister && (
         <input

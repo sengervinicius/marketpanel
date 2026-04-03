@@ -7,6 +7,18 @@ import { useState, useCallback, memo } from 'react';
 import { apiFetch } from '../../utils/api';
 import './CalendarPanel.css';
 
+// Timezone detection: get user's local timezone abbreviation
+const USER_TZ = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+const USER_TZ_SHORT = (() => {
+  try {
+    return new Intl.DateTimeFormat(undefined, { timeZoneName: 'short' })
+      .formatToParts(new Date())
+      .find(p => p.type === 'timeZoneName')?.value || '';
+  } catch {
+    return '';
+  }
+})();
+
 // Static economic events calendar (curated, updated periodically by data team)
 const UPCOMING_EVENTS = [
   { id: 'fomc', name: 'FOMC Rate Decision', date: 'May 7, 2026', time: '14:00 ET', importance: 'high', previous: '4.25-4.50%', forecast: '4.25-4.50%' },
@@ -36,7 +48,7 @@ function EventRow({ event, expanded, onToggle, preview, previewLoading, previewE
         <span className={`cp-imp ${imp.cls}`}>{imp.label}</span>
         <div className="cp-event-info">
           <span className="cp-event-name">{event.name}</span>
-          <span className="cp-event-date">{event.date} · {event.time}</span>
+          <span className="cp-event-date">{event.date} · {event.time}{USER_TZ_SHORT ? ` (${USER_TZ_SHORT} local)` : ''}</span>
         </div>
         <div className="cp-event-data">
           <span className="cp-event-prev">Prev: {event.previous}</span>

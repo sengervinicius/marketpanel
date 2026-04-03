@@ -31,6 +31,77 @@ import './PortfolioPanel.css';
 
 const COLS = '72px 56px 72px 72px 64px 20px 24px';
 
+// ── MiniSparkline component ──
+function MiniSparkline({ positive }) {
+  // Generate a simple representative sparkline path
+  const points = positive
+    ? '0,16 8,14 16,12 24,13 32,10 40,8 48,6 56,5 60,3'
+    : '0,3 8,5 16,6 24,5 32,8 40,10 48,13 56,14 60,16';
+  const color = positive ? '#4caf50' : '#f44336';
+  return (
+    <svg width="60" height="18" viewBox="0 0 60 18" style={{ flexShrink: 0, opacity: 0.7 }}>
+      <polyline points={points} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+// ── AllocationDonut component ──
+function AllocationDonut({ positions }) {
+  if (!positions || positions.length < 2) return null;
+
+  const total = positions.reduce((s, p) => s + Math.abs(p.value || p.quantity * (p.currentPrice || 0)), 0);
+  if (total === 0) return null;
+
+  // Top 5 + Other
+  const sorted = [...positions].sort((a, b) =>
+    Math.abs(b.value || b.quantity * (b.currentPrice || 0)) - Math.abs(a.value || a.quantity * (a.currentPrice || 0))
+  );
+  const top5 = sorted.slice(0, 5);
+  const otherValue = sorted.slice(5).reduce((s, p) => s + Math.abs(p.value || p.quantity * (p.currentPrice || 0)), 0);
+
+  const colors = ['#ff6600', '#4fc3f7', '#4caf50', '#e91e63', '#ffd54f', '#888'];
+  const segments = top5.map((p, i) => ({
+    label: p.symbol,
+    value: Math.abs(p.value || p.quantity * (p.currentPrice || 0)),
+    color: colors[i],
+  }));
+  if (otherValue > 0) segments.push({ label: 'Other', value: otherValue, color: colors[5] });
+
+  // Build SVG arcs
+  const size = 48, cx = 24, cy = 24, r = 18, strokeW = 6;
+  const circumference = 2 * Math.PI * r;
+  let offset = 0;
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ transform: 'rotate(-90deg)', flexShrink: 0 }}>
+        {segments.map((seg, i) => {
+          const pct = seg.value / total;
+          const dash = circumference * pct;
+          const el = (
+            <circle key={i} cx={cx} cy={cy} r={r}
+              fill="none" stroke={seg.color} strokeWidth={strokeW}
+              strokeDasharray={`${dash} ${circumference - dash}`}
+              strokeDashoffset={-offset}
+              strokeLinecap="butt"
+            />
+          );
+          offset += dash;
+          return el;
+        })}
+      </svg>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2px 8px', fontSize: 9, color: 'var(--text-muted)' }}>
+        {segments.map((seg, i) => (
+          <span key={i} style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: seg.color, flexShrink: 0 }} />
+            {seg.label}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 const showInfo = (e, symbol) => {
   e.preventDefault();
   let assetType = 'EQUITY';
@@ -250,6 +321,11 @@ const SummaryStrip = memo(function SummaryStrip({ positions, getPriceData, portf
 
       {/* Allocation bar */}
       <AllocationBar items={allocation} />
+
+      {/* Allocation donut */}
+      <div style={{ marginTop: '8px', paddingBottom: '4px' }}>
+        <AllocationDonut positions={positions} />
+      </div>
     </div>
   );
 });
@@ -634,8 +710,9 @@ const PositionRowWithReport = memo(function PositionRowWithReport({ position, on
       <span className="pp-numeric-cell">
         {fmt(livePrice)}
       </span>
-      <span className={`pp-pnl-cell ${pnlPct != null ? (pnlPct >= 0 ? 'pp-pnl-positive' : 'pp-pnl-negative') : 'pp-pnl-neutral'}`}>
+      <span className={`pp-pnl-cell ${pnlPct != null ? (pnlPct >= 0 ? 'pp-pnl-positive' : 'pp-pnl-negative') : 'pp-pnl-neutral'}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px' }}>
         {fmtPct(pnlPct)}
+        <MiniSparkline positive={pnlPct != null && pnlPct >= 0} />
       </span>
       <button className="btn pp-row-button"
         onClick={e => { e.stopPropagation(); onCreateAlert(position, livePrice); }}

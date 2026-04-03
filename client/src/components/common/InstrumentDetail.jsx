@@ -163,33 +163,51 @@ function DeltaLineOverlay({ xAxisMap, yAxisMap, bars, deltaA, deltaB, deltaInfo 
 
 // IND_COLORS and INDICATOR_LIST are now imported from shared utils/chartIndicators.js
 
-// ── Custom Candlestick Bar shape ─────────────────────────────────────────────
-function CandlestickShape(props) {
-  const { x, y, width, height, payload } = props;
-  if (!payload) return null;
-  const { open, high, low, close } = payload;
-  if (open == null || close == null || high == null || low == null) return null;
+// ── Candlestick overlay via Customized — uses Y-axis scale directly ─────────
+function CandlestickOverlay({ formattedGraphicalItems, xAxisMap, yAxisMap, data }) {
+  if (!data || !data.length) return null;
+  const xAxis = xAxisMap && Object.values(xAxisMap)[0];
+  const yAxis = yAxisMap && Object.values(yAxisMap)[0];
+  if (!xAxis?.scale || !yAxis?.scale) return null;
 
-  const isUp = close >= open;
-  const color = isUp ? GREEN : RED;
-  const bodyTop = Math.min(y, y + height);
-  const bodyH = Math.max(Math.abs(height), 1);
-  const centerX = x + width / 2;
-
-  // Wick: scale from data coords — we use the y position proportionally
-  // Since Recharts passes y/height based on dataKey range, we compute wick
-  // relative to the bar body
-  const yScale = bodyH / Math.abs(close - open || 0.001);
-  const wickTop = bodyTop - Math.abs((isUp ? high - close : high - open)) * yScale;
-  const wickBot = bodyTop + bodyH + Math.abs((isUp ? open - low : close - low)) * yScale;
+  const bandwidth = xAxis.scale.bandwidth ? xAxis.scale.bandwidth() : 8;
+  const barWidth = Math.max(bandwidth * 0.7, 2);
 
   return (
     <g>
-      <line x1={centerX} y1={wickTop} x2={centerX} y2={wickBot}
-        stroke={color} strokeWidth={1} />
-      <rect x={x + 1} y={bodyTop} width={Math.max(width - 2, 2)} height={bodyH}
-        fill={isUp ? color : color} stroke={color} strokeWidth={0.5}
-        fillOpacity={isUp ? 0.3 : 0.85} />
+      {data.map((bar, i) => {
+        const { open, high, low, close, label } = bar;
+        if (open == null || close == null || high == null || low == null) return null;
+
+        const xCenter = xAxis.scale(label) + bandwidth / 2;
+        if (xCenter == null || isNaN(xCenter)) return null;
+
+        const yOpen  = yAxis.scale(open);
+        const yClose = yAxis.scale(close);
+        const yHigh  = yAxis.scale(high);
+        const yLow   = yAxis.scale(low);
+        if ([yOpen, yClose, yHigh, yLow].some(v => v == null || isNaN(v))) return null;
+
+        const isUp = close >= open;
+        const color = isUp ? GREEN : RED;
+        const bodyTop = Math.min(yOpen, yClose);
+        const bodyH = Math.max(Math.abs(yOpen - yClose), 1);
+
+        return (
+          <g key={i}>
+            {/* Wick */}
+            <line x1={xCenter} y1={yHigh} x2={xCenter} y2={yLow}
+              stroke={color} strokeWidth={1} />
+            {/* Body */}
+            <rect
+              x={xCenter - barWidth / 2} y={bodyTop}
+              width={barWidth} height={bodyH}
+              fill={color} stroke={color} strokeWidth={0.5}
+              fillOpacity={isUp ? 0.3 : 0.85}
+            />
+          </g>
+        );
+      })}
     </g>
   );
 }
@@ -282,6 +300,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
   const [showAlertEditor, setShowAlertEditor] = useState(false);
   const [showPositionEditor, setShowPositionEditor] = useState(false);
   const [showShareModal, setShowShareModal]   = useState(false);
+  const [copyToast, setCopyToast] = useState(false);
 
   // AI Fundamentals state
   const [aiFunds, setAiFunds]         = useState(null);
@@ -723,7 +742,13 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
 
               {/* Price: Area or Candlestick */}
               {showCandle ? (
-                <Bar dataKey="close" name="Close" shape={<CandlestickShape />} isAnimationActive={false} />
+                <>
+                  {/* Invisible area to keep Y-axis domain correct */}
+                  <Area dataKey="close" stroke="none" fill="none" dot={false} activeDot={false} />
+                  <Customized component={(props) => (
+                    <CandlestickOverlay {...props} data={chartBars} />
+                  )} />
+                </>
               ) : (
                 <Area
                   type="monotone" dataKey="close" name="Close"
@@ -1552,7 +1577,11 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
       catch (err) { if (err.name !== 'AbortError') fallbackCopyToClipboard(shareText); }
     } else { fallbackCopyToClipboard(shareText); }
   };
-  const fallbackCopyToClipboard = (text) => { navigator.clipboard?.writeText(text); };
+  const fallbackCopyToClipboard = (text) => {
+    navigator.clipboard?.writeText(text);
+    setCopyToast(true);
+    setTimeout(() => setCopyToast(false), 2000);
+  };
 
   const openPositionEditor = useCallback(() => { setShowPositionEditor(true); }, []);
   const openAlertCreator   = useCallback(() => { setShowAlertEditor(true); }, []);
@@ -1934,6 +1963,13 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
         cardData={{ symbol: norm, price: livePrice, changePct: dayChgPct, name }}
         triggerGamificationEvent={triggerGamificationEvent}
       />
+
+      {/* Link copied toast */}
+      {copyToast && (
+        <div style={{ position: 'fixed', bottom: 80, left: '50%', transform: 'translateX(-50%)', background: '#1a1a1a', border: '1px solid var(--accent)', color: '#fff', padding: '8px 16px', borderRadius: 6, fontSize: 12, fontWeight: 600, zIndex: 99999, animation: 'fadeInUp 200ms ease-out' }}>
+          Link copied!
+        </div>
+      )}
     </div>
   );
 }

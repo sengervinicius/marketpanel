@@ -213,25 +213,32 @@ function SentimentPanel({ data, loading }) {
         {loading || topMovers.length === 0 ? (
           <div className="sp-loading">Loading...</div>
         ) : (
-          <div className="sp-movers-grid">
-            {topMovers.map(s => {
-              const up        = (s.changePct ?? 0) >= 0;
-              const intensity = Math.min(Math.abs(s.changePct || 0) / 5, 1);
-              const bg = up
-                ? `rgba(0, ${Math.floor(80 + intensity * 120)}, ${Math.floor(30 + intensity * 50)}, ${0.15 + intensity * 0.4})`
-                : `rgba(${Math.floor(80 + intensity * 120)}, 0, 0, ${0.15 + intensity * 0.4})`;
-              return (
-                <div key={s.symbol} className="sp-mover-cell"
-                  style={{ background: bg, border: `1px solid ${up ? '#004400' : '#440000'}` }}
-                >
-                  <div className="sp-mover-symbol">{s.symbol}</div>
-                  <div className="sp-mover-chg" style={{ color: up ? 'var(--price-up)' : 'var(--price-down)' }}>
-                    {(s.changePct >= 0 ? '+' : '')}{s.changePct?.toFixed(2)}%
+          <>
+            <div className="sp-movers-grid">
+              {topMovers.map(s => {
+                const up        = (s.changePct ?? 0) >= 0;
+                const intensity = Math.min(Math.abs(s.changePct || 0) / 5, 1);
+                const bg = up
+                  ? `rgba(0, ${Math.floor(80 + intensity * 120)}, ${Math.floor(30 + intensity * 50)}, ${0.15 + intensity * 0.4})`
+                  : `rgba(${Math.floor(80 + intensity * 120)}, 0, 0, ${0.15 + intensity * 0.4})`;
+                return (
+                  <div key={s.symbol} className="sp-mover-cell"
+                    style={{ background: bg, border: `1px solid ${up ? '#004400' : '#440000'}` }}
+                  >
+                    <div className="sp-mover-symbol">{s.symbol}</div>
+                    <div className="sp-mover-chg" style={{ color: up ? 'var(--price-up)' : 'var(--price-down)' }}>
+                      {(s.changePct >= 0 ? '+' : '')}{s.changePct?.toFixed(2)}%
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 0', fontSize: 9, color: 'var(--text-faint)' }}>
+              <span>-5%</span>
+              <div style={{ flex: 1, height: 6, borderRadius: 3, background: 'linear-gradient(to right, rgba(244,67,54,0.6), rgba(244,67,54,0.15), rgba(255,255,255,0.05), rgba(76,175,80,0.15), rgba(76,175,80,0.6))' }} />
+              <span>+5%</span>
+            </div>
+          </>
         )}
       </div>
     </div>

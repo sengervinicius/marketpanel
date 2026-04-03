@@ -16,7 +16,8 @@ export default function OnboardingPresets() {
   const { user, setUser, triggerGamificationEvent } = useAuth();
   const [selected, setSelected] = useState(null);
   const [loading,  setLoading]  = useState(false);
-  const [step,     setStep]     = useState('workspace'); // 'workspace' | 'persona'
+  const [step,     setStep]     = useState('persona'); // 'persona' | 'workspace'
+  const [showSkipConfirm, setShowSkipConfirm] = useState(false);
 
   const options = useMemo(() =>
     getTemplatesByCategory('onboarding').map(t => ({
@@ -24,6 +25,7 @@ export default function OnboardingPresets() {
       title:       t.label,
       description: t.description,
       includes:    t.focus,
+      panels:      t.panels ? Object.keys(t.panels) : [],
     })),
   []);
 
@@ -36,12 +38,7 @@ export default function OnboardingPresets() {
       triggerGamificationEvent('apply_workspace');
     } catch {}
     setLoading(false);
-    // Advance to persona selection if user hasn't picked one
-    if (!user?.persona?.type) {
-      setStep('persona');
-    } else {
-      await completeOnboarding();
-    }
+    await completeOnboarding();
   };
 
   const skip = async () => {
@@ -56,15 +53,16 @@ export default function OnboardingPresets() {
       setUser(prev => prev ? { ...prev, persona: { ...prev.persona, type: personaType } } : prev);
       triggerGamificationEvent('select_persona');
     }
-    await completeOnboarding();
+    // Always advance to workspace selection after persona
+    setStep('workspace');
   };
 
-  // Step 2: Persona selector
+  // Step 1: Persona selector (mandatory — shown first)
   if (step === 'persona') {
     return <PersonaSelector onSelect={handlePersonaSelected} />;
   }
 
-  // Step 1: Workspace picker
+  // Step 2: Workspace picker
   return (
     <div className="obp-container">
       <div className="obp-header">
@@ -74,7 +72,7 @@ export default function OnboardingPresets() {
       </div>
 
       <div className="obp-grid">
-        {options.map(({ key, title, description, includes }) => {
+        {options.map(({ key, title, description, includes, panels }) => {
           const active = selected === key;
           return (
             <button
@@ -91,14 +89,36 @@ export default function OnboardingPresets() {
               </div>
               <div className="obp-card-description">{description}</div>
               <div className="obp-card-includes">INCLUDES: {includes}</div>
+              {panels && panels.length > 0 && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '3px', marginTop: '6px' }}>
+                  {panels.slice(0, 6).map((p, i) => (
+                    <span key={i} style={{ fontSize: '8px', padding: '1px 4px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '2px', color: 'var(--text-faint)', whiteSpace: 'nowrap' }}>
+                      {p}
+                    </span>
+                  ))}
+                </div>
+              )}
             </button>
           );
         })}
       </div>
 
-      <button onClick={skip} disabled={loading} className="obp-skip-btn">
+      <button onClick={() => setShowSkipConfirm(true)} disabled={loading} className="obp-skip-btn">
         {loading ? 'SETTING UP...' : 'SKIP — USE DEFAULTS'}
       </button>
+
+      {showSkipConfirm && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999 }}>
+          <div style={{ background: 'var(--bg-panel)', border: '1px solid var(--border-strong)', borderRadius: 8, padding: 24, maxWidth: 320, textAlign: 'center' }}>
+            <p style={{ fontSize: 14, color: 'var(--text-primary)', margin: '0 0 12px' }}>Skip workspace setup?</p>
+            <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '0 0 16px' }}>You can always change your layout later in Settings.</p>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+              <button onClick={() => setShowSkipConfirm(false)} style={{ padding: '6px 14px', fontSize: 11, fontWeight: 600, background: 'transparent', border: '1px solid var(--border-default)', borderRadius: 4, color: 'var(--text-secondary)', cursor: 'pointer', fontFamily: 'inherit' }}>Cancel</button>
+              <button onClick={() => { setShowSkipConfirm(false); skip(); }} style={{ padding: '6px 14px', fontSize: 11, fontWeight: 600, background: 'var(--accent)', border: 'none', borderRadius: 4, color: '#fff', cursor: 'pointer', fontFamily: 'inherit' }}>Skip anyway</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

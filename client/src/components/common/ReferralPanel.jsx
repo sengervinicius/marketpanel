@@ -23,6 +23,7 @@ export default function ReferralPanel() {
 
   const [codeCopied, setCodeCopied]     = useState(false);
   const [inviteCopied, setInviteCopied] = useState(false);
+  const [copyToast, setCopyToast]       = useState(false);
 
   // Fetch referral status
   useEffect(() => {
@@ -47,7 +48,9 @@ export default function ReferralPanel() {
     try {
       await navigator.clipboard.writeText(referralCode);
       setCodeCopied(true);
+      setCopyToast(true);
       setTimeout(() => setCodeCopied(false), 2000);
+      setTimeout(() => setCopyToast(false), 2000);
     } catch { /* silent */ }
   }, [referralCode]);
 
@@ -159,6 +162,13 @@ export default function ReferralPanel() {
           </>
         )}
       </div>
+
+      {/* Code copied toast */}
+      {copyToast && (
+        <div style={{ position: 'fixed', bottom: 80, left: '50%', transform: 'translateX(-50%)', background: '#1a1a1a', border: '1px solid var(--accent)', color: '#fff', padding: '8px 16px', borderRadius: 6, fontSize: 12, fontWeight: 600, zIndex: 99999, animation: 'fadeInUp 200ms ease-out' }}>
+          Code copied!
+        </div>
+      )}
     </div>
   );
 }

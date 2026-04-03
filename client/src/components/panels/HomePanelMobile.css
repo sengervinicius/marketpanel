@@ -95,6 +95,8 @@
 .hpm-ticker-list {
   display: flex;
   flex-direction: column;
+  transition: max-height 300ms ease-out, opacity 200ms ease-out;
+  overflow: hidden;
 }
 
 .hpm-ticker-row {
