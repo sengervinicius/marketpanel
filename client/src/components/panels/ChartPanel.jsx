@@ -89,16 +89,6 @@ function assetType(t) {
   return 'EQUITY';
 }
 
-// ── Gamification fire-and-forget (session-scoped dedup) ────────────────────
-const _gamificationFired = new Set();
-function fireGamificationEvent(type) {
-  if (_gamificationFired.has(type)) return;
-  _gamificationFired.add(type);
-  apiFetch('/api/gamification/event', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ type }),
-  }).catch(() => {});
-}
 
 // ── AI Insight Popover ─────────────────────────────────────────────────────
 function AiInsightPopover({ insight, loading, error, onClose }) {

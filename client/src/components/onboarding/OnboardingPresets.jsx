@@ -13,7 +13,7 @@ import './OnboardingPresets.css';
 
 export default function OnboardingPresets() {
   const { applyTemplate, completeOnboarding } = useSettings();
-  const { user, setUser, triggerGamificationEvent } = useAuth();
+  const { user, setUser } = useAuth();
   const [selected, setSelected] = useState(null);
   const [loading,  setLoading]  = useState(false);
   const [step,     setStep]     = useState('persona'); // 'persona' | 'workspace'
@@ -35,7 +35,6 @@ export default function OnboardingPresets() {
     setLoading(true);
     try {
       await applyTemplate(key, 'full');
-      triggerGamificationEvent('apply_workspace');
     } catch {}
     setLoading(false);
     await completeOnboarding();
@@ -51,7 +50,6 @@ export default function OnboardingPresets() {
   const handlePersonaSelected = async (personaType) => {
     if (personaType) {
       setUser(prev => prev ? { ...prev, persona: { ...prev.persona, type: personaType } } : prev);
-      triggerGamificationEvent('select_persona');
     }
     // Always advance to workspace selection after persona
     setStep('workspace');

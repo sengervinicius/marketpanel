@@ -136,7 +136,7 @@ app.use('/api/portfolio', requireAuth, portfolioRoutes);
 // Alerts: auth required (no subscription check — alerts are a core feature)
 app.use('/api/alerts', requireAuth, alertRoutes);
 
-// Gamification: auth required (no subscription check — XP is a core feature)
+// Legacy stubs (no-op) for removed gamification system
 app.use('/api/gamification', requireAuth, gamificationRoutes);
 app.use('/api/missions', requireAuth, missionsRoutes);
 app.use('/api/discord', requireAuth, discordRoutes);

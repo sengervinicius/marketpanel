@@ -74,19 +74,6 @@ const MobileMoreScreen = memo(({
               <span className="mm-days-left">{daysRemaining} days left</span>
             )}
           </div>
-          {user?.gamification && (
-            <div className="mm-xp-section">
-              <div className="mm-xp-text">
-                Lv {user.gamification.level || 1} · {user.gamification.xp || 0} XP
-              </div>
-              <div className="mm-xp-bar">
-                <div
-                  className="mm-xp-bar-fill"
-                  style={{ width: `${Math.min(100, Math.max(0, (user.gamification.xp || 0) % 100))}%` }}
-                />
-              </div>
-            </div>
-          )}
         </div>
       </div>
 

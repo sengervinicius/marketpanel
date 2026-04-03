@@ -385,7 +385,6 @@ const PositionRow = memo(function PositionRow({ position, onTickerClick, onOpenD
 // ── Main panel ──
 function PortfolioPanel({ onTickerClick, onOpenDetail }) {
   const { portfolios, positions, removePosition, syncStatus, retrySync } = usePortfolio();
-  const { triggerGamificationEvent } = useAuth();
   const [filterSubId, setFilterSubId] = useState('all');
   const [editorPos, setEditorPos]     = useState(null);
   const [showEditor, setShowEditor]   = useState(false);
@@ -658,7 +657,6 @@ function PortfolioPanel({ onTickerClick, onOpenDetail }) {
         onClose={() => setShareOpen(false)}
         cardType="portfolio"
         cardData={{ portfolioId: filterSubId !== 'all' ? filterSubId : undefined }}
-        triggerGamificationEvent={triggerGamificationEvent}
       />
     </PanelShell>
   );

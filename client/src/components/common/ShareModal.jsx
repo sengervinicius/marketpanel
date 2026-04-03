@@ -6,7 +6,6 @@
  *   onClose:   () => void
  *   cardType:  'portfolio' | 'ticker' | 'leaderboard' | 'weekly'
  *   cardData:  object — payload for the POST body (portfolioId, symbol, board, etc.)
- *   triggerGamificationEvent: (type) => void
  */
 
 import { useState, useEffect, useCallback } from 'react';
@@ -20,14 +19,7 @@ const CARD_ENDPOINTS = {
   weekly:      '/api/share/weekly-card',
 };
 
-const GAMIFICATION_EVENTS = {
-  portfolio:   'share_portfolio',
-  ticker:      'share_ticker',
-  leaderboard: 'share_leaderboard',
-  weekly:      'share_weekly',
-};
-
-export default function ShareModal({ isOpen, onClose, cardType, cardData, triggerGamificationEvent }) {
+export default function ShareModal({ isOpen, onClose, cardType, cardData }) {
   const [state, setState]   = useState('idle'); // idle | generating | success | error
   const [imageUrl, setImageUrl] = useState(null);
   const [shareText, setShareText] = useState('');
@@ -50,15 +42,11 @@ export default function ShareModal({ isOpen, onClose, cardType, cardData, trigge
       setImageUrl(json.imageUrl);
       setShareText(json.shareText || '');
       setState('success');
-
-      // Fire gamification event
-      const evt = GAMIFICATION_EVENTS[cardType];
-      if (evt && triggerGamificationEvent) triggerGamificationEvent(evt);
     } catch (e) {
       setState('error');
       setError(e.message || 'Failed to generate card');
     }
-  }, [cardType, cardData, triggerGamificationEvent]);
+  }, [cardType, cardData]);
 
   // Auto-generate when modal opens
   useEffect(() => {

@@ -13,7 +13,6 @@ const router  = express.Router();
 const { generateCard }      = require('../services/shareCardService');
 const { getUserById }       = require('../authStore');
 const { getPortfolio }      = require('../portfolioStore');
-const { addXp }             = require('../authStore');
 const {
   getGlobalLeaderboard,
   getPersonaLeaderboard,
@@ -146,7 +145,7 @@ router.post('/leaderboard-card', async (req, res) => {
       board,
       score:        entry?.score ?? 0,
       weeklyReturn: entry?.stats?.weeklyReturn ?? null,
-      level:        user.gamification?.level ?? 1,
+      level:        null,
       persona:      user.persona?.type ?? null,
     };
 
@@ -179,8 +178,8 @@ router.post('/weekly-card', async (req, res) => {
       rank,
       endsAt:       weeklyBoard.endsAt,
       persona:      user.persona?.type ?? null,
-      level:        user.gamification?.level ?? 1,
-      xp:           user.gamification?.xp ?? 0,
+      level:        null,
+      xp:           null,
     };
 
     const result = await generateCard('weekly', cardData);

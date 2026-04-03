@@ -8,7 +8,6 @@
 
 import { useState, useEffect, useCallback, memo } from 'react';
 import { apiFetch } from '../../utils/api';
-import { useAuth } from '../../context/AuthContext';
 import './NotificationPrefs.css';
 
 const CHANNELS = [
@@ -20,7 +19,6 @@ const CHANNELS = [
 ];
 
 function NotificationPrefs({ onClose }) {
-  const { triggerGamificationEvent } = useAuth();
   const [prefs, setPrefs] = useState(null);
   const [saving, setSaving] = useState(false);
   const [testStatus, setTestStatus] = useState('');
@@ -53,14 +51,6 @@ function NotificationPrefs({ onClose }) {
         const json = await res.json();
         setPrefs(prev => ({ ...prev, ...json.data }));
 
-        // Gamification: check if multi-channel enabled
-        const channels = updates.defaultChannels || prefs?.defaultChannels || [];
-        const nonDefault = channels.filter(c => c !== 'in_app');
-        if (nonDefault.length >= 1) {
-          if (channels.includes('email')) triggerGamificationEvent?.('alert_channel_email_enabled');
-          if (channels.includes('discord')) triggerGamificationEvent?.('alert_channel_discord_enabled');
-        }
-        if (updates.dailyDigest) triggerGamificationEvent?.('alert_digest_enabled');
       } else {
         const err = await res.json().catch(() => ({}));
         setError(err.message || 'Save failed');
@@ -70,7 +60,7 @@ function NotificationPrefs({ onClose }) {
     } finally {
       setSaving(false);
     }
-  }, [prefs, triggerGamificationEvent]);
+  }, [prefs]);
 
   const toggleChannel = useCallback((ch) => {
     if (ch === 'in_app') return; // Always on

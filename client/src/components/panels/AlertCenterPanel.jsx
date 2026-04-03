@@ -11,7 +11,6 @@ import PanelShell from '../common/PanelShell';
 import AlertEditor from '../common/AlertEditor';
 import EmptyState from '../common/EmptyState';
 import { useAlerts } from '../../context/AlertsContext';
-import { useAuth } from '../../context/AuthContext';
 import { apiFetch } from '../../utils/api';
 import Badge from '../ui/Badge';
 import './AlertCenterPanel.css';
@@ -160,7 +159,6 @@ const AlertCenterRow = memo(function AlertCenterRow({ alert, onEdit, onOpenDetai
 
 function AlertCenterPanel({ onOpenDetail }) {
   const { alerts, updateAlert, deleteAlert, dismissAlert, refreshAlerts } = useAlerts();
-  const { triggerGamificationEvent } = useAuth();
   const [tab, setTab] = useState('active');
   const [editorAlert, setEditorAlert] = useState(null);
   const [showNew, setShowNew] = useState(false);
@@ -186,7 +184,6 @@ function AlertCenterPanel({ onOpenDetail }) {
           break;
         case 'rearm':
           await apiFetch(`/api/alerts/${alert.id}/rearm`, { method: 'POST' });
-          triggerGamificationEvent?.('alert_rearmed');
           await refreshAlerts();
           break;
         case 'mute':
@@ -199,7 +196,6 @@ function AlertCenterPanel({ onOpenDetail }) {
           break;
         case 'snooze':
           await apiFetch(`/api/alerts/${alert.id}/snooze`, { method: 'POST', body: JSON.stringify({ duration: extra }) });
-          triggerGamificationEvent?.('alert_snoozed');
           await refreshAlerts();
           break;
         case 'delete':
@@ -209,7 +205,7 @@ function AlertCenterPanel({ onOpenDetail }) {
     } catch (e) {
       console.warn(`Alert action "${action}" failed:`, e.message);
     }
-  }, [dismissAlert, deleteAlert, refreshAlerts, triggerGamificationEvent]);
+  }, [dismissAlert, deleteAlert, refreshAlerts]);
 
   const triggeredCount = alerts.filter(a => a.triggeredAt && !a.dismissed).length;
 

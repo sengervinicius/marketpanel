@@ -19,12 +19,7 @@ const cache = {
  */
 function buildEntry(user) {
   const stats = user.persona?.stats || {};
-  const gam = user.gamification || {};
-  const score = calculateLeaderboardScore({
-    ...stats,
-    level: gam.level || 1,
-    xp: gam.xp || 0,
-  });
+  const score = calculateLeaderboardScore(stats);
   return {
     userId: user.id,
     username: user.username,
@@ -37,8 +32,8 @@ function buildEntry(user) {
       worstMonth: stats.worstMonth ?? 0,
       weeklyReturn: stats.weeklyReturn ?? 0,
     },
-    level: gam.level || 1,
-    xp: gam.xp || 0,
+    level: 1,
+    xp: 0,
     score,
   };
 }

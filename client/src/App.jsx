@@ -38,8 +38,6 @@ import MacroPanel from './components/panels/MacroPanel';
 import LeaderboardPanel from './components/panels/LeaderboardPanel';
 import { CalendarPanel } from './components/panels/CalendarPanel';
 import ReferralPanel from './components/common/ReferralPanel';
-import MissionsPanel from './components/panels/MissionsPanel';
-import MobileMissionsScreen from './components/panels/MobileMissionsScreen';
 import ToastContainer from './components/common/ToastContainer';
 import OnboardingPresets from './components/onboarding/OnboardingPresets';
 import OnboardingTourOverlay from './components/onboarding/OnboardingTourOverlay';
@@ -255,8 +253,6 @@ function makePanelRenderer(panelId, props) {
       return <MacroPanel />;
     case 'leaderboard':
       return <LeaderboardPanel />;
-    case 'missions':
-      return <MissionsPanel />;
     case 'referrals':
       return <ReferralPanel />;
     case 'calendar':
@@ -684,11 +680,6 @@ function UserDropdown({ user, onSettings, onLogout, onBilling, isPaid }) {
         <span style={{ color: open ? 'var(--accent)' : 'var(--text-faint)', fontSize: 8 }}>▼</span>
         <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', lineHeight: 1.2 }}>
           <span>{user.username?.toUpperCase()}</span>
-          {user.gamification && (
-            <span style={{ fontSize: 7, color: 'var(--accent)', fontWeight: 700, letterSpacing: '0.5px' }}>
-              Lv {user.gamification.level || 1} · {user.gamification.xp || 0} XP
-            </span>
-          )}
         </span>
       </button>
       {open && (
@@ -1759,10 +1750,6 @@ export default function App() {
               <PanelErrorBoundary name="Referrals">
                 <ReferralPanel />
               </PanelErrorBoundary>
-            )}
-
-            {activeTab === 'more' && moreView === 'missions' && (
-              <MobileMissionsScreen />
             )}
 
             {activeTab === 'more' && moreView === 'notification-prefs' && (

@@ -103,16 +103,6 @@ const fmtVol = v => {
   return String(Math.round(v));
 };
 
-// ── Gamification fire-and-forget ───────────────────────────────────────────
-const _gamificationFired = new Set();
-function fireGamificationEvent(type) {
-  if (_gamificationFired.has(type)) return;
-  _gamificationFired.add(type);
-  apiFetch('/api/gamification/event', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ type }),
-  }).catch(() => {});
-}
 
 /* ── Single-chart sub-component ───────────────────────────────────────────── */
 const MobileChart = memo(function MobileChart({ ticker }) {
@@ -211,7 +201,7 @@ const MobileChart = memo(function MobileChart({ ticker }) {
     setActiveIndicators(prev => {
       const next = new Set(prev);
       if (next.has(key)) next.delete(key);
-      else { next.add(key); fireGamificationEvent('technical_analysis'); }
+      else { next.add(key); }
       return next;
     });
   };

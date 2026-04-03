@@ -630,7 +630,7 @@ function findUserByReferralCode(code) {
 }
 
 /**
- * Redeem a referral code for a user. Awards XP to both parties.
+ * Redeem a referral code for a user. Awards referral bonus.
  * @returns {{ referrer, invitee, xpAwarded }} on success
  */
 async function redeemReferral(userId, referralCode) {
@@ -644,22 +644,17 @@ async function redeemReferral(userId, referralCode) {
   const referrer = findUserByReferralCode(upper);
   if (!referrer) throw new Error('Invalid referral code');
 
-  const REFERRAL_XP = 50;
-
   // Mark invitee
   user.referredBy = referrer.id;
-  await addXp(userId, REFERRAL_XP);
 
   // Reward referrer
   if (!referrer.referralRewards) referrer.referralRewards = { invited: 0, xpEarned: 0 };
   referrer.referralRewards.invited += 1;
-  referrer.referralRewards.xpEarned += REFERRAL_XP;
-  await addXp(referrer.id, REFERRAL_XP);
 
   await persistUser(user);
-  // referrer persisted by addXp
+  await persistUser(referrer);
 
-  return { referrer: referrer.username, invitee: user.username, xpAwarded: REFERRAL_XP };
+  return { referrer: referrer.username, invitee: user.username, xpAwarded: 0 };
 }
 
 /**
@@ -684,14 +679,8 @@ function getReferralStatus(userId) {
 // ── Gamification update ──────────────────────────────────────────────────────
 
 async function addXp(userId, amount) {
-  const user = getUserById(userId);
-  if (!user) throw new Error('User not found');
-  if (!user.gamification) user.gamification = defaultGamification();
-  user.gamification.xp += amount;
-  user.gamification.level = 1 + Math.floor(user.gamification.xp / 100);
-  user.gamification.lastXpEventAt = new Date().toISOString();
-  await persistUser(user);
-  return user.gamification;
+  // Legacy no-op: gamification has been removed
+  return { xp: 0, level: 1, lastXpEventAt: null };
 }
 
 module.exports = {

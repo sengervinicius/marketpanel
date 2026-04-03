@@ -21,8 +21,8 @@ router.post('/redeem', async (req, res) => {
     res.json({
       ok: true,
       referrer:   result.referrer,
-      xpAwarded:  result.xpAwarded,
-      message:    `Referral redeemed! Both you and ${result.referrer} received ${result.xpAwarded} XP.`,
+      xpAwarded:  0,
+      message:    'Referral redeemed! Welcome bonus applied.',
     });
   } catch (e) {
     const msg = e.message;

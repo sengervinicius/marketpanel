@@ -54,7 +54,7 @@ export default function ReferralPanel() {
     } catch { /* silent */ }
   }, [referralCode]);
 
-  const inviteText = `Join me on Senger Market Terminal — the AI-powered trading dashboard. Use my code ${referralCode} for bonus XP! https://senger.market`;
+  const inviteText = `Join me on Senger Market Terminal — the AI-powered trading dashboard. Use my code ${referralCode}! https://senger.market`;
 
   const handleCopyInvite = useCallback(async () => {
     try {
@@ -108,7 +108,7 @@ export default function ReferralPanel() {
           </button>
         </div>
         <span className="ref-invite-text">
-          Share your code with friends. You both earn 50 XP when they join!
+          Share your code with friends. They can use it when they join!
         </span>
         <button
           className="ref-copy-invite"

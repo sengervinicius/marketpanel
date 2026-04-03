@@ -7,7 +7,6 @@
  *   symbol:  string (underlying ticker)
  *   spot:    number|null (current underlying price)
  *   isMobile: boolean
- *   triggerGamificationEvent: function
  */
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { apiFetch } from '../../utils/api';
@@ -102,7 +101,7 @@ function longStraddleStrategy(spot, strike, callPremium, putPremium, contracts =
 
 // ── Main component ───────────────────────────────────────────────────────────
 
-export default function InstrumentOptionsPanel({ symbol, spot, isMobile, triggerGamificationEvent }) {
+export default function InstrumentOptionsPanel({ symbol, spot, isMobile }) {
   // ── State ──────────────────────────────────────────────────────────────────
   const [expiries, setExpiries]         = useState([]);
   const [selectedExpiry, setSelectedExpiry] = useState(null);
@@ -153,12 +152,6 @@ export default function InstrumentOptionsPanel({ symbol, spot, isMobile, trigger
         setError(e?.error || 'OPTIONS_UNAVAILABLE');
       })
       .finally(() => setLoading(false));
-
-    // Fire gamification event once per mount
-    if (!gamEventSent && triggerGamificationEvent) {
-      triggerGamificationEvent('options_open_chain');
-      setGamEventSent(true);
-    }
   }, [symbol]);
 
   // ── Fetch chain when expiry changes ────────────────────────────────────────
@@ -215,8 +208,7 @@ export default function InstrumentOptionsPanel({ symbol, spot, isMobile, trigger
     setSelectedCall(null);
     setSelectedPut(null);
     setShowPayoff(false);
-    if (triggerGamificationEvent) triggerGamificationEvent('options_change_expiry');
-  }, [triggerGamificationEvent]);
+  }, []);
 
   const handleCallClick = useCallback((contract) => {
     setSelectedCall(contract);
@@ -262,11 +254,7 @@ export default function InstrumentOptionsPanel({ symbol, spot, isMobile, trigger
   const handleBuildStrategy = useCallback(() => {
     if (!currentStrategy) return;
     setShowPayoff(true);
-    if (triggerGamificationEvent) {
-      triggerGamificationEvent('options_build_strategy');
-      triggerGamificationEvent('options_view_payoff');
-    }
-  }, [currentStrategy, triggerGamificationEvent]);
+  }, [currentStrategy]);
 
   // Handle AI outlook selection and fetch strategies
   const handleAiOutlookSelect = useCallback(async (outlook) => {

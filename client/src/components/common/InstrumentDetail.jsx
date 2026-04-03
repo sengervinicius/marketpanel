@@ -8,9 +8,6 @@ import ShareModal from './ShareModal';
 import PositionEditor from './PositionEditor';
 import InstrumentOptionsPanel from './InstrumentOptionsPanel';
 import './InstrumentDetail.css';
-
-// Track which instruments have been opened this session (for XP)
-const _openedThisSession = new Set();
 import {
   AreaChart, Area, BarChart, Bar, ComposedChart, Line,
   XAxis, YAxis, ResponsiveContainer, Tooltip,
@@ -239,7 +236,6 @@ function StatRow({ label, value, color, big }) {
 // ── Main Component ──────────────────────────────────────────────────────────
 // asPage=true: renders as a scrollable page (DETAIL tab on mobile), no fixed overlay
 export default function InstrumentDetail({ ticker, onClose, asPage = false, onOpenChat }) {
-  const { triggerGamificationEvent } = useAuth();
   const norm     = normalizeTicker(ticker);
   const disp     = displayTicker(norm);
   const isFX     = norm.startsWith('C:');
@@ -247,14 +243,6 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
   const isBrazil = norm.endsWith('.SA');
   const isBondTicker = /^(US|DE|GB|JP|BR)\d+Y$/i.test(norm);
   const isStock  = !isFX && !isCrypto && !isBondTicker;
-
-  // Fire open_instrument XP event (once per ticker per session)
-  useEffect(() => {
-    if (norm && !_openedThisSession.has(norm)) {
-      _openedThisSession.add(norm);
-      triggerGamificationEvent('open_instrument');
-    }
-  }, [norm, triggerGamificationEvent]);
 
   // Use matchMedia for reliable CSS-aware mobile detection
   const [isMobile, setIsMobile] = useState(() => {
@@ -1880,7 +1868,6 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
                     symbol={norm}
                     spot={livePrice}
                     isMobile={false}
-                    triggerGamificationEvent={triggerGamificationEvent}
                   />
                 )}
                 {!isBond && !isFX && renderNews()}
@@ -1914,7 +1901,6 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
                   symbol={norm}
                   spot={livePrice}
                   isMobile={true}
-                  triggerGamificationEvent={triggerGamificationEvent}
                 />
               )}
               {activeTab === 'NEWS'       && renderNews()}
@@ -1961,7 +1947,6 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
         onClose={() => setShowShareModal(false)}
         cardType="ticker"
         cardData={{ symbol: norm, price: livePrice, changePct: dayChgPct, name }}
-        triggerGamificationEvent={triggerGamificationEvent}
       />
 
       {/* Link copied toast */}

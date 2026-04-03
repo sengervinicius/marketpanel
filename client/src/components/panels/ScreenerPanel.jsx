@@ -46,7 +46,6 @@ function Modal({ open, onClose, title, children }) {
 }
 
 export default function ScreenerPanel({ onOpenDetail }) {
-  const { triggerGamificationEvent } = useAuth();
   const portfolio = usePortfolio() || {};
 
   // ── Filters ────────────────────────────────────────────────────────────────
@@ -149,14 +148,13 @@ export default function ScreenerPanel({ onOpenDetail }) {
       const data = await res.json();
       setResults(data.results || []);
       setResultCount(data.count ?? 0);
-      triggerGamificationEvent('screener_run');
     } catch (e) {
       setError(e.message || 'Screener request failed');
       setResults([]);
     } finally {
       setLoading(false);
     }
-  }, [buildFilters, triggerGamificationEvent]);
+  }, [buildFilters]);
 
   const resetFilters = () => {
     setAssetClass('');
@@ -195,13 +193,12 @@ export default function ScreenerPanel({ onOpenDetail }) {
       applyFiltersToState(f);
       setAiExplanation(data.explanation || '');
       await runScreener(f);
-      triggerGamificationEvent('screener_ai_helper');
     } catch (e) {
       setAiError('AI helper unavailable. Adjust filters manually.');
     } finally {
       setAiLoading(false);
     }
-  }, [aiQuery, runScreener, applyFiltersToState, triggerGamificationEvent]);
+  }, [aiQuery, runScreener, applyFiltersToState]);
 
   const toggleMulti = (arr, setArr, val) => {
     setArr(prev => prev.includes(val) ? prev.filter(v => v !== val) : [...prev, val]);
@@ -233,7 +230,6 @@ export default function ScreenerPanel({ onOpenDetail }) {
         setActivePresetId(data.data.id);
         setShowSavePreset(false);
         setPresetName('');
-        triggerGamificationEvent('screener_save_preset');
       }
     } catch { /* silent */ }
   };
@@ -311,7 +307,6 @@ export default function ScreenerPanel({ onOpenDetail }) {
       });
       if (!res.ok) throw new Error('Create failed');
       setShowScreenerAlert(false);
-      triggerGamificationEvent('screener_alert_created');
       setBulkStatus({ type: 'success', msg: 'Screener alert created!' });
       setTimeout(() => setBulkStatus(null), 3000);
     } catch {
@@ -338,7 +333,6 @@ export default function ScreenerPanel({ onOpenDetail }) {
       if (!res.ok) throw new Error('Bulk create failed');
       const data = await res.json();
       setShowBulkAlert(false);
-      triggerGamificationEvent('screener_bulk_alerts');
       setBulkStatus({ type: 'success', msg: `${data.created} alert(s) created${data.skipped ? `, ${data.skipped} skipped` : ''}` });
       setTimeout(() => setBulkStatus(null), 4000);
     } catch {
@@ -364,7 +358,6 @@ export default function ScreenerPanel({ onOpenDetail }) {
         });
       }
       setShowAddToPortfolio(false);
-      triggerGamificationEvent('screener_add_to_watchlist');
       setBulkStatus({ type: 'success', msg: `${selectedSymbols.length} symbol(s) added to portfolio` });
       setTimeout(() => setBulkStatus(null), 3000);
     } catch {

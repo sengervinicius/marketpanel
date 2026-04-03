@@ -4,7 +4,6 @@
  */
 import { useState } from 'react';
 import { useSettings } from '../../context/SettingsContext';
-import { useAuth } from '../../context/AuthContext';
 import './OnboardingTourOverlay.css';
 
 const STEPS = [
@@ -37,7 +36,6 @@ const STEPS = [
 
 export default function OnboardingTourOverlay({ isMobile }) {
   const { markTourCompleted } = useSettings();
-  const { triggerGamificationEvent } = useAuth();
   const [step, setStep] = useState(0);
 
   const current = STEPS[step];
@@ -53,7 +51,6 @@ export default function OnboardingTourOverlay({ isMobile }) {
 
   const handleComplete = async () => {
     await markTourCompleted();
-    triggerGamificationEvent('complete_onboarding');
   };
 
   // Adjust copy for mobile

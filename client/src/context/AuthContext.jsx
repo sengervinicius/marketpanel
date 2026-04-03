@@ -72,7 +72,7 @@ export function AuthProvider({ children }) {
         if (!res.ok) throw new Error('token invalid');
         const data = await res.json();
         // Token is valid — restore user + subscription
-        const restoredUser = { id: data.user.id, username: data.user.username, persona: data.user.persona || null, gamification: data.user.gamification || null };
+        const restoredUser = { id: data.user.id, username: data.user.username, persona: data.user.persona || null };
         setUser(restoredUser);
         setToken(storedToken);
         setSubscription(normalizeSubscription(data.subscription));
@@ -162,7 +162,7 @@ export function AuthProvider({ children }) {
     });
     const data = await res.json().catch(() => ({}));
     _extractUser(data, res, 'Login failed');
-    _persist({ id: data.user.id, username: data.user.username, persona: data.user.persona || null, gamification: data.user.gamification || null }, data.token, data.subscription);
+    _persist({ id: data.user.id, username: data.user.username, persona: data.user.persona || null }, data.token, data.subscription);
     return data;
   }, [_persist]);
 
@@ -175,7 +175,7 @@ export function AuthProvider({ children }) {
     });
     const data = await res.json().catch(() => ({}));
     _extractUser(data, res, 'Registration failed');
-    _persist({ id: data.user.id, username: data.user.username, persona: data.user.persona || null, gamification: data.user.gamification || null }, data.token, data.subscription);
+    _persist({ id: data.user.id, username: data.user.username, persona: data.user.persona || null }, data.token, data.subscription);
     return data;
   }, [_persist]);
 
@@ -192,36 +192,6 @@ export function AuthProvider({ children }) {
     return data;
   }, [_persist]);
 
-  // ── Refresh gamification status ───────────────────────────────────────────
-  const refreshGamification = useCallback(async () => {
-    const tok = localStorage.getItem(LS_TOKEN);
-    if (!tok) return;
-    try {
-      const res = await fetch(`${API_BASE}/api/gamification/status`, {
-        headers: { Authorization: `Bearer ${tok}` },
-      });
-      if (!res.ok) return;
-      const data = await res.json();
-      setUser(prev => prev ? { ...prev, gamification: { xp: data.xp, level: data.level } } : prev);
-    } catch { /* silent fail */ }
-  }, []);
-
-  // ── Gamification event ────────────────────────────────────────────────────
-  const triggerGamificationEvent = useCallback(async (type) => {
-    const tok = localStorage.getItem(LS_TOKEN);
-    if (!tok) return null;
-    try {
-      const res = await fetch(`${API_BASE}/api/gamification/event`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tok}` },
-        body: JSON.stringify({ type }),
-      });
-      if (!res.ok) return null;
-      const data = await res.json();
-      setUser(prev => prev ? { ...prev, gamification: { xp: data.xp, level: data.level } } : prev);
-      return data; // includes { missionCompleted } if a mission was completed
-    } catch { return null; }
-  }, []);
 
   // ── Logout ────────────────────────────────────────────────────────────────
   const logout = useCallback(() => {
@@ -290,7 +260,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, setUser, token, subscription, authReady, login, register, loginWithApple, logout, startCheckout, openBillingPortal, refreshSubscription, refreshGamification, restorePurchases, triggerGamificationEvent, billingPlatform: isIOS() ? 'apple' : 'stripe' }}>
+    <AuthContext.Provider value={{ user, setUser, token, subscription, authReady, login, register, loginWithApple, logout, startCheckout, openBillingPortal, refreshSubscription, restorePurchases, billingPlatform: isIOS() ? 'apple' : 'stripe' }}>
       {children}
     </AuthContext.Provider>
   );

@@ -43,7 +43,7 @@ function RankBadge({ rank }) {
 }
 
 export default function LeaderboardPanel({ mobile = false }) {
-  const { user, triggerGamificationEvent } = useAuth();
+  const { user } = useAuth();
   const [view, setView] = useState('global');
   const [entries, setEntries] = useState([]);
   const [userRank, setUserRank] = useState(null);
@@ -168,7 +168,6 @@ export default function LeaderboardPanel({ mobile = false }) {
                       <span className="lb-row-sharpe">SR {(e.stats.sharpeRatio ?? 0).toFixed(2)}</span>
                     )}
                   </div>
-                  <span className="lb-row-level">Lv {e.level}</span>
                   <span className="lb-row-score">{e.score}</span>
                 </div>
               );
@@ -205,7 +204,6 @@ export default function LeaderboardPanel({ mobile = false }) {
         onClose={() => setShareOpen(false)}
         cardType={shareType}
         cardData={{ board: view }}
-        triggerGamificationEvent={triggerGamificationEvent}
       />
     </div>
   );

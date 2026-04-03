@@ -12,38 +12,26 @@ const ACCESSORY_TIERS = [
 /**
  * Get user's XP level from total XP points
  * Assumes 100 XP per level
+ * De-gamification: always returns 0 (no XP system)
  */
 export function getXPLevel(xp) {
-  return Math.floor((xp || 0) / 100);
+  return 0;
 }
 
 /**
  * Get applicable accessories based on user XP
+ * De-gamification: always returns empty array (no accessories unlock)
  */
 export function getUserAccessories(xp) {
-  const level = getXPLevel(xp);
-  return ACCESSORY_TIERS.filter(t => level >= t.level).map(t => t.id);
+  return [];
 }
 
 /**
  * Get CSS classes/styles for avatar based on accessories
+ * De-gamification: always returns empty styles
  */
 export function getAvatarAccessoryStyles(xp) {
-  const accessories = getUserAccessories(xp);
-  const styles = {};
-  const classNames = [];
-
-  if (accessories.includes('gold_ring')) {
-    classNames.push('avatar-gold-ring');
-  }
-  if (accessories.includes('crown')) {
-    classNames.push('avatar-crown');
-  }
-  if (accessories.includes('radial_glow')) {
-    classNames.push('avatar-radial-glow');
-  }
-
-  return { classNames, styles };
+  return { classNames: [], styles: {} };
 }
 
 export { ACCESSORY_TIERS };

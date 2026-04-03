@@ -152,8 +152,7 @@ async function claimMission(userId, missionId) {
   if (mission.status !== 'completed') throw new Error('Mission not claimable');
 
   mission.status = 'claimed';
-  const gamification = await addXp(userId, mission.xpReward);
-  return { mission, gamification };
+  return { mission, gamification: { xp: 0, level: 1 } };
 }
 
 // ── Login streak logic ──────────────────────────────────────────────────────
@@ -186,11 +185,8 @@ async function updateLoginStreak(userId) {
   user.lastLoginAt = new Date(now).toISOString();
   await updateUser(userId, { loginStreak: streak, lastLoginAt: user.lastLoginAt });
 
-  // Check milestone
+  // Check milestone (no XP awarded, just tracking)
   const milestoneReached = STREAK_MILESTONES.find(m => m.days === streak) || null;
-  if (milestoneReached) {
-    await addXp(userId, milestoneReached.xp);
-  }
 
   // Also mark the daily-login mission as complete
   const data = ensureFresh(userId);
