@@ -418,6 +418,16 @@ async function boot() {
   };
   process.on('SIGTERM', () => shutdown('SIGTERM'));
   process.on('SIGINT', () => shutdown('SIGINT'));
+
+  // Prevent crashes from unhandled promise rejections and uncaught exceptions
+  process.on('unhandledRejection', (reason, promise) => {
+    logger.error('unhandledRejection', reason?.message || String(reason), { stack: reason?.stack });
+  });
+  process.on('uncaughtException', (err) => {
+    logger.error('uncaughtException', err.message, { stack: err.stack });
+    // Give logger time to flush, then exit
+    setTimeout(() => process.exit(1), 1000);
+  });
 }
 
 boot();

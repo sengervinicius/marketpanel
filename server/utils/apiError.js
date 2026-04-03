@@ -31,6 +31,10 @@ const STATUS_MAP = {
  * @param {string} context — e.g. '/api/snapshot/stocks'
  */
 function sendApiError(res, err, context = '') {
+  if (res.headersSent) {
+    logger.warn('sendApiError called after headers sent', { context, message: err.message });
+    return;
+  }
   const code = err.code || 'server_error';
   const status = STATUS_MAP[code] || 500;
   const body = {
@@ -48,6 +52,10 @@ function sendApiError(res, err, context = '') {
  * Express error handler middleware (last middleware in chain).
  */
 function errorHandler(err, req, res, _next) {
+  if (res.headersSent) {
+    logger.warn('errorHandler: headers already sent', { path: req.path, message: err.message });
+    return;
+  }
   logger.error('unhandled', err.message, { path: req.path, reqId: req.reqId });
   return sendApiError(res, err, req.path);
 }
