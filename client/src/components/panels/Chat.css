@@ -331,6 +331,60 @@
   color: var(--price-down, var(--negative));
 }
 
+/* ── AI Assistant Entry (pinned in list) ── */
+.chat-ai-entry {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-elevated);
+  cursor: pointer;
+  transition: background-color 120ms ease;
+}
+.chat-ai-entry:hover {
+  background: var(--bg-hover);
+}
+.chat-ai-entry--active {
+  background: rgba(255, 102, 0, 0.08);
+  border-left: 3px solid var(--accent);
+  padding-left: calc(var(--sp-3) - 3px);
+}
+.chat-ai-avatar {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  flex-shrink: 0;
+  background: rgba(255, 102, 0, 0.15);
+  border-radius: 50%;
+}
+.chat-ai-entry-body {
+  flex: 1;
+  min-width: 0;
+}
+.chat-ai-entry-name {
+  font-size: var(--font-base);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.chat-ai-entry-hint {
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+/* ── AI Message Bubble ── */
+.chat-bubble--ai {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  align-self: flex-start;
+  border-bottom-left-radius: 3px;
+  border-left: 3px solid var(--accent);
+}
+
 /* ── Mobile overrides ── */
 @media (max-width: 768px) {
   .chat-compose-input { font-size: 16px; min-height: 44px; }

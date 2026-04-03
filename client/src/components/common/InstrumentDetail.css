@@ -115,7 +115,7 @@
   cursor: pointer;
   border: 1px solid var(--border-strong);
   background: transparent;
-  color: var(--text-muted);
+  color: var(--text-secondary);
   white-space: nowrap;
   flex-shrink: 0;
   letter-spacing: 0.5px;
@@ -170,6 +170,8 @@
 }
 .id-body--mobile {
   flex-direction: column;
+  flex: none;
+  overflow: visible;
 }
 
 /* Chart area */
@@ -183,12 +185,12 @@
 }
 .id-chart-area--mobile {
   flex: none;
-  height: 44vh;
+  height: min(38vh, 300px);
   padding: var(--sp-2) 8px;
 }
 /* On mobile, give chart flex children explicit heights instead of flex ratios */
-.id-chart-area--mobile .id-chart-flex-main   { flex: none; height: calc(44vh * 0.72); }
-.id-chart-area--mobile .id-chart-flex-volume { flex: none; height: calc(44vh * 0.22); }
+.id-chart-area--mobile .id-chart-flex-main   { flex: none; height: calc(min(38vh, 300px) * 0.72); }
+.id-chart-area--mobile .id-chart-flex-volume { flex: none; height: calc(min(38vh, 300px) * 0.22); }
 
 /* Range selector row */
 .id-range-row {
@@ -278,21 +280,23 @@
   min-height: 40px;
   -webkit-tap-highlight-color: transparent;
 }
+/* Sticky mobile tab bar so it stays visible while scrolling tab content */
+.id-mobile-tabs .id-tab-bar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
 
 /* ── Mobile tabs panel ──────────────────────────── */
 .id-mobile-tabs {
-  flex: 1;
+  flex: none;
   display: flex;
   flex-direction: column;
   border-top: 1px solid var(--border-default);
   min-height: 0;
-  overflow: hidden;
 }
 .id-mobile-tab-content {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
+  flex: none;
   padding: 12px 14px 24px;
   font-size: 13px;
   background: var(--bg-surface);
@@ -659,6 +663,11 @@
 }
 .id-hero-stat span { color: var(--text-secondary); }
 
+/* Hide hero when rendered as page inside mobile bottom-sheet */
+.id-hero--hidden {
+  display: none;
+}
+
 /* Mobile hero enhancements */
 @media (max-width: 1023px) {
   .id-hero {
@@ -691,7 +700,7 @@
 /* ── Sticky Bottom Action Bar (mobile) ────────────── */
 .id-action-bar { display: none; }
 @media (max-width: 768px) {
-  .id-action-bar { display: flex; position: sticky; bottom: 0; background: var(--bg-surface); border-top: 1px solid var(--border-subtle); padding: var(--sp-2) var(--sp-3); padding-bottom: calc(var(--sp-2) + env(safe-area-inset-bottom, 0px)); gap: var(--sp-2); z-index: 20; }
+  .id-action-bar { display: flex; position: sticky; bottom: 0; background: var(--bg-surface); border-top: 1px solid var(--border-subtle); padding: var(--sp-2) var(--sp-3); padding-bottom: calc(var(--sp-2) + env(safe-area-inset-bottom, 0px)); gap: var(--sp-2); z-index: 50; }
 }
 .id-action-btn-bar { flex: 1; display: flex; align-items: center; justify-content: center; height: 40px; border-radius: 6px; font-size: var(--font-sm); font-weight: 600; font-family: var(--font-ui); cursor: pointer; border: 1px solid var(--border-default); background: var(--bg-elevated); color: var(--text-secondary); transition: all 120ms ease; -webkit-tap-highlight-color: transparent; }
 .id-action-btn-bar:active { background: var(--bg-overlay); transform: scale(0.97); }
@@ -997,6 +1006,6 @@
 .id-chart-flex-volume--compressed { flex: 1.5; }
 
 /* Mobile overrides for sub-charts */
-.id-chart-area--mobile .id-chart-flex-sub { flex: none; height: calc(44vh * 0.20); }
-.id-chart-area--mobile .id-chart-flex-main--compressed { flex: none; height: calc(44vh * 0.48); }
-.id-chart-area--mobile .id-chart-flex-volume--compressed { flex: none; height: calc(44vh * 0.14); }
+.id-chart-area--mobile .id-chart-flex-sub { flex: none; height: calc(min(38vh, 300px) * 0.20); }
+.id-chart-area--mobile .id-chart-flex-main--compressed { flex: none; height: calc(min(38vh, 300px) * 0.48); }
+.id-chart-area--mobile .id-chart-flex-volume--compressed { flex: none; height: calc(min(38vh, 300px) * 0.14); }

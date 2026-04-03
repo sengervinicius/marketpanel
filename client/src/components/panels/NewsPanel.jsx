@@ -1,6 +1,6 @@
 // NewsPanel — scrolling news feed (self-fetching)
 // Fetches from server /api/news every 60s
-import { useState, useEffect, useRef, memo } from 'react';
+import { useState, useEffect, useRef, memo, useCallback } from 'react';
 import { useFeedStatus } from '../../context/FeedStatusContext';
 import { apiFetch } from '../../utils/api';
 import EmptyState from '../common/EmptyState';
@@ -14,24 +14,33 @@ function timeAgo(dateStr) {
   return `${Math.floor(diff / 86400)}d ago`;
 }
 
-function NewsItem({ item, isNew }) {
+function NewsItem({ item, isNew, sentimentMap }) {
   const isBreaking = item.importance === 'high' ||
     (item.title || '').toUpperCase().includes('BREAKING') ||
     (item.title || '').toUpperCase().includes('ALERT');
   const url = item.article_url || item.link || item.url;
+  const sentiment = sentimentMap?.[item.id];
+
   return (
     <div
-      className={`np-news-item ${isNew ? 'np-news-item.new' : ''} ${isBreaking ? 'np-news-item.breaking' : ''}`}
+      className={`np-news-item ${isNew ? 'np-news-item--new' : ''} ${isBreaking ? 'np-news-item--breaking' : ''}`}
       onClick={() => url && window.open(url, '_blank', 'noopener,noreferrer')}
       style={{ cursor: url ? 'pointer' : 'default' }}
     >
       <div className="flex-row np-news-header">
-        <span className={`np-news-publisher ${isBreaking ? 'np-news-publisher.breaking' : 'np-news-publisher.normal'}`}>
-          {isBreaking ? '◆ BREAKING ' : ''}{(item.publisher?.name || 'NEWSWIRE').toUpperCase()}
-        </span>
+        <div className="flex-row np-news-publisher-wrapper">
+          <span className={`np-news-publisher ${isBreaking ? 'np-news-publisher--breaking' : 'np-news-publisher--normal'}`}>
+            {isBreaking ? '◆ BREAKING ' : ''}{(item.publisher?.name || 'NEWSWIRE').toUpperCase()}
+          </span>
+          {sentiment && (
+            <span className={`np-sentiment-badge np-sentiment-badge--${sentiment}`}>
+              {sentiment === 'bullish' ? '▲' : sentiment === 'bearish' ? '▼' : '◆'}
+            </span>
+          )}
+        </div>
         <span className="np-news-time">{timeAgo(item.published_utc)}</span>
       </div>
-      <div className={`np-news-title ${isBreaking ? 'np-news-title.breaking' : 'np-news-title.normal'}`}>
+      <div className={`np-news-title ${isBreaking ? 'np-news-title--breaking' : 'np-news-title--normal'}`}>
         {item.title}
       </div>
       {item.tickers?.length > 0 && (
@@ -51,6 +60,11 @@ function NewsPanel() {
   const [error, setError] = useState(null);
   const [newItems, setNewItems] = useState(new Set());
   const [collapsed, setCollapsed] = useState(false);
+  const [aiSummaryOpen, setAiSummaryOpen] = useState(false);
+  const [aiSummary, setAiSummary] = useState(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState(null);
+  const [sentimentMap, setSentimentMap] = useState({});
   const prevNews = useRef([]);
   const { getBadge } = useFeedStatus();
   const badge = getBadge('stocks');
@@ -77,6 +91,43 @@ function NewsPanel() {
     }
   }
 
+  const handleAiSummary = useCallback(async () => {
+    if (news.length === 0) return;
+
+    setAiLoading(true);
+    setAiError(null);
+
+    try {
+      const headlines = news.map(item => item.title);
+      const res = await apiFetch('/api/search/news-summary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ headlines })
+      });
+
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+
+      // Build sentiment map from items
+      const newSentimentMap = {};
+      if (data.items && Array.isArray(data.items)) {
+        data.items.forEach((item, idx) => {
+          if (idx < news.length) {
+            newSentimentMap[news[idx].id] = item.sentiment;
+          }
+        });
+      }
+      setSentimentMap(newSentimentMap);
+      setAiSummary(data.summary || []);
+      setAiSummaryOpen(true);
+    } catch (e) {
+      console.warn('AI summary error:', e.message);
+      setAiError(e.message);
+    } finally {
+      setAiLoading(false);
+    }
+  }, [news]);
+
   useEffect(() => {
     load();
     const iv = setInterval(load, 60000);
@@ -92,9 +143,46 @@ function NewsPanel() {
           {badge.text}
         </span>
         <div className="np-header-spacer" />
+        {news.length > 0 && (
+          <button
+            className="btn np-ai-btn"
+            onClick={handleAiSummary}
+            disabled={aiLoading}
+            title="Generate AI summary and sentiment"
+          >
+            {aiLoading ? '⟳' : '◆'} AI
+          </button>
+        )}
         <button className="btn np-collapse-btn" onClick={() => setCollapsed(v => !v)} title={collapsed ? 'Expand' : 'Collapse'}
         >{collapsed ? '+' : '−'}</button>
       </div>
+      {aiSummaryOpen && (
+        <div className="np-ai-summary">
+          {aiError && (
+            <div className="np-ai-error">
+              <span>Error: {aiError}</span>
+              <button className="np-ai-retry" onClick={handleAiSummary}>Retry</button>
+            </div>
+          )}
+          {aiSummary && aiSummary.length > 0 && (
+            <div className="np-ai-summary-bullets">
+              {aiSummary.slice(0, 3).map((bullet, idx) => (
+                <div key={idx} className="np-ai-summary-bullet">
+                  • {bullet}
+                </div>
+              ))}
+            </div>
+          )}
+          {aiLoading && (
+            <div className="np-ai-loading">Generating summary...</div>
+          )}
+          <button
+            className="np-ai-close-btn"
+            onClick={() => setAiSummaryOpen(false)}
+            title="Close summary"
+          >×</button>
+        </div>
+      )}
       {!collapsed && (<>
       {error && news.length === 0 && (
         <div className="flex-row np-error-banner">
@@ -116,7 +204,7 @@ function NewsPanel() {
           />
         ) : (
           news.map(item => (
-            <NewsItem key={item.id} item={item} isNew={newItems.has(item.id)} />
+            <NewsItem key={item.id} item={item} isNew={newItems.has(item.id)} sentimentMap={sentimentMap} />
           ))
         )}
       </div>

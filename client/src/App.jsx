@@ -24,12 +24,10 @@ import DebtPanel from './components/panels/DebtPanel';
 import BrazilPanel from './components/panels/BrazilPanel';
 import GlobalIndicesPanel from './components/panels/GlobalIndicesPanel';
 import PortfolioPanel from './components/panels/PortfolioPanel';
-import AlertsPanel from './components/panels/AlertsPanel';
 import AlertCenterPanel from './components/panels/AlertCenterPanel';
 import NotificationPrefs from './components/common/NotificationPrefs';
 import { DEFAULT_LAYOUT, PANEL_DEFINITIONS } from './config/panels';
 import PortfolioMobile from './components/panels/PortfolioMobile';
-import AlertsMobile from './components/panels/AlertsMobile';
 import { ChatPanel } from './components/panels/ChatPanel';
 import HomePanelMobile from './components/panels/HomePanelMobile';
 import ChartsPanelMobile from './components/panels/ChartsPanelMobile';
@@ -38,6 +36,7 @@ import ETFPanel from './components/panels/ETFPanel';
 import ScreenerPanel from './components/panels/ScreenerPanel';
 import MacroPanel from './components/panels/MacroPanel';
 import LeaderboardPanel from './components/panels/LeaderboardPanel';
+import { CalendarPanel } from './components/panels/CalendarPanel';
 import ReferralPanel from './components/common/ReferralPanel';
 import MissionsPanel from './components/panels/MissionsPanel';
 import MobileMissionsScreen from './components/panels/MobileMissionsScreen';
@@ -49,6 +48,7 @@ import WorkspaceSwitcher from './components/common/WorkspaceSwitcher';
 import UserAvatar from './components/common/UserAvatar';
 import { TickerTooltip } from './components/common/TickerTooltip';
 import InstrumentDetail from './components/common/InstrumentDetail';
+import PanelErrorBoundary from './components/common/PanelErrorBoundary';
 import { getMarketState as _getMarketState } from './components/common/MarketStatus';
 import './App.css';
 import './components/panels/Chat.css';
@@ -259,6 +259,8 @@ function makePanelRenderer(panelId, props) {
       return <MissionsPanel />;
     case 'referrals':
       return <ReferralPanel />;
+    case 'calendar':
+      return <CalendarPanel />;
     default:
       return <div className="app-panel-placeholder">Panel: {panelId}</div>;
   }
@@ -1277,25 +1279,34 @@ export default function App() {
   // Use matchMedia for reliable CSS-aware desktop/mobile detection.
   // window.innerWidth can report stale values before CSS is applied or when
   // DevTools is docked, causing desktop Chrome to incorrectly render mobile.
-  const [isMobile, setIsMobile] = useState(() => {
-    if (typeof window.matchMedia === 'function') {
-      return !window.matchMedia('(min-width: 1024px)').matches;
-    }
-    return window.innerWidth < 1024;
-  });
-  useEffect(() => {
-    if (typeof window.matchMedia !== 'function') {
-      const handler = () => setIsMobile(window.innerWidth < 1024);
-      window.addEventListener('resize', handler);
-      return () => window.removeEventListener('resize', handler);
-    }
-    const mql = window.matchMedia('(min-width: 1024px)');
-    const handler = (e) => setIsMobile(!e.matches);
-    // Sync once on mount in case the initial state was stale
-    setIsMobile(!mql.matches);
-    mql.addEventListener('change', handler);
-    return () => mql.removeEventListener('change', handler);
+  // We use BOTH matchMedia AND innerWidth as a cross-check: if either says
+  // desktop (≥1024), we trust it — this prevents false mobile detection.
+  const detectMobile = useCallback(() => {
+    const mqDesktop = typeof window.matchMedia === 'function'
+      ? window.matchMedia('(min-width: 1024px)').matches
+      : false;
+    const widthDesktop = window.innerWidth >= 1024;
+    // If EITHER method says desktop, treat as desktop
+    return !(mqDesktop || widthDesktop);
   }, []);
+  const [isMobile, setIsMobile] = useState(detectMobile);
+  useEffect(() => {
+    // Sync on mount (layout may have changed since useState initializer)
+    setIsMobile(detectMobile());
+    if (typeof window.matchMedia === 'function') {
+      const mql = window.matchMedia('(min-width: 1024px)');
+      const handler = () => setIsMobile(detectMobile());
+      mql.addEventListener('change', handler);
+      window.addEventListener('resize', handler);
+      return () => {
+        mql.removeEventListener('change', handler);
+        window.removeEventListener('resize', handler);
+      };
+    }
+    const handler = () => setIsMobile(detectMobile());
+    window.addEventListener('resize', handler);
+    return () => window.removeEventListener('resize', handler);
+  }, [detectMobile]);
 
   const [chartGridCount, setChartGridCount] = useState(() => {
     try {
@@ -1423,7 +1434,7 @@ export default function App() {
   if (bootState !== BOOT.READY) {
     return (
       <div className="boot-screen">
-        <div className="boot-logo">SENGER</div>
+        <img src="/icon-192.png" alt="Senger" className="boot-logo-img" /><div className="boot-logo">SENGER</div>
         <div className="boot-bar"><div className="boot-bar-fill" /></div>
       </div>
     );
@@ -1455,7 +1466,7 @@ export default function App() {
 
         {/* Header */}
         <div className="flex-row app-header-bar">
-          <span className="app-header-title">SENGER</span>
+          <img src="/icon-192.png" alt="Senger" style={{ width: 22, height: 22, borderRadius: 4, marginRight: 6 }} /><span className="app-header-title">SENGER</span>
           <span className="app-header-subtitle">MARKET TERMINAL</span>
           <WorkspaceSwitcher />
           <div className="flex-row" style={{ flex:1, justifyContent:'center' }}><WorldClock /></div>
@@ -1543,7 +1554,9 @@ export default function App() {
                           <div key={panelId} style={{ display: 'contents' }}>
                             {colIdx > 0 && <ColResizeHandle onStart={e => startResize(colIdx - 1, e)} />}
                             <div style={{ flex: colSizes[colIdx] || 1, minWidth: 0, borderRight: isLast ? 'none' : border, overflow:'hidden', height:'100%', position: 'relative' }}>
-                              {makePanelRenderer(panelId, panelProps)}
+                              <PanelErrorBoundary name={panelId}>
+                                {makePanelRenderer(panelId, panelProps)}
+                              </PanelErrorBoundary>
                               {layoutEdit && (
                                 <LayoutMoveOverlay
                                   panelId={panelId} rowIdx={rowIdx} colIdx={colIdx}
@@ -1565,7 +1578,7 @@ export default function App() {
           </>
         )}
 
-        {detailTicker && !subscriptionExpired && <InstrumentDetail ticker={detailTicker} onClose={() => setDetailTicker(null)} />}
+        {detailTicker && !subscriptionExpired && <InstrumentDetail ticker={detailTicker} onClose={() => setDetailTicker(null)} onOpenChat={() => setChatOpen(true)} />}
         <TickerTooltip onOpenDetail={setDetailTicker} />
         <ToastContainer />
       </div>
@@ -1614,7 +1627,7 @@ export default function App() {
         {mobileScreenTitle ? (
           <span className="m-header-title">{mobileScreenTitle}</span>
         ) : (
-          <span style={{ color: 'var(--accent)', fontWeight: 700, fontSize: 13, letterSpacing: '2.5px' }}>SENGER</span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><img src="/icon-192.png" alt="Senger" style={{ width: 22, height: 22, borderRadius: 4 }} /><span style={{ color: 'var(--accent)', fontWeight: 700, fontSize: 13, letterSpacing: '2.5px' }}>SENGER</span></span>
         )}
         {/* Feed status dot */}
         <div className="m-feed-dot" data-status={
@@ -1665,29 +1678,39 @@ export default function App() {
           <div className="m-app-content">
 
             {activeTab === 'home' && (
-              <HomePanelMobile
-                onOpenDetail={goDetail}
-                onSearchClick={() => setActiveTabPersist('search')}
-              />
+              <PanelErrorBoundary name="Home">
+                <HomePanelMobile
+                  onOpenDetail={goDetail}
+                  onSearchClick={() => setActiveTabPersist('search')}
+                />
+              </PanelErrorBoundary>
             )}
 
             {activeTab === 'charts' && (
-              <ChartsPanelMobile onOpenDetail={goDetail} />
+              <PanelErrorBoundary name="Charts">
+                <ChartsPanelMobile onOpenDetail={goDetail} />
+              </PanelErrorBoundary>
             )}
 
             {activeTab === 'search' && (
-              <SearchPanel onTickerSelect={goDetail} onOpenDetail={goDetail} />
+              <PanelErrorBoundary name="Search">
+                <SearchPanel onTickerSelect={goDetail} onOpenDetail={goDetail} />
+              </PanelErrorBoundary>
             )}
 
             {activeTab === 'watchlist' && (
-              <PortfolioMobile
-                onOpenDetail={goDetail}
-                onManage={() => setActiveTabPersist('search')}
-              />
+              <PanelErrorBoundary name="Portfolio">
+                <PortfolioMobile
+                  onOpenDetail={goDetail}
+                  onManage={() => setActiveTabPersist('search')}
+                />
+              </PanelErrorBoundary>
             )}
 
             {activeTab === 'alerts' && (
-              <AlertCenterPanel onOpenDetail={goDetail} />
+              <PanelErrorBoundary name="Alerts">
+                <AlertCenterPanel onOpenDetail={goDetail} />
+              </PanelErrorBoundary>
             )}
 
             {activeTab === 'more' && !moreView && (
@@ -1702,26 +1725,40 @@ export default function App() {
               />
             )}
 
-            {activeTab === 'more' && moreView === 'news' && <NewsPanel />}
+            {activeTab === 'more' && moreView === 'news' && (
+              <PanelErrorBoundary name="News">
+                <NewsPanel />
+              </PanelErrorBoundary>
+            )}
 
             {activeTab === 'more' && moreView === 'etf' && (
-              <ETFPanel onOpenDetail={goDetail} />
+              <PanelErrorBoundary name="ETF">
+                <ETFPanel onOpenDetail={goDetail} />
+              </PanelErrorBoundary>
             )}
 
             {activeTab === 'more' && moreView === 'screener' && (
-              <ScreenerPanel onOpenDetail={goDetail} />
+              <PanelErrorBoundary name="Screener">
+                <ScreenerPanel onOpenDetail={goDetail} />
+              </PanelErrorBoundary>
             )}
 
             {activeTab === 'more' && moreView === 'macro' && (
-              <MacroPanel />
+              <PanelErrorBoundary name="Macro">
+                <MacroPanel />
+              </PanelErrorBoundary>
             )}
 
             {activeTab === 'more' && moreView === 'leaderboard' && (
-              <LeaderboardPanel mobile />
+              <PanelErrorBoundary name="Leaderboard">
+                <LeaderboardPanel mobile />
+              </PanelErrorBoundary>
             )}
 
             {activeTab === 'more' && moreView === 'referrals' && (
-              <ReferralPanel />
+              <PanelErrorBoundary name="Referrals">
+                <ReferralPanel />
+              </PanelErrorBoundary>
             )}
 
             {activeTab === 'more' && moreView === 'missions' && (
@@ -1791,7 +1828,7 @@ export default function App() {
             </div>
             {/* Scrollable content */}
             <div className="m-detail-content">
-              <InstrumentDetail ticker={detailTicker} onClose={() => setDetailTicker(null)} asPage />
+              <InstrumentDetail ticker={detailTicker} onClose={() => setDetailTicker(null)} asPage onOpenChat={() => setChatOpen(true)} />
             </div>
           </div>
         </div>

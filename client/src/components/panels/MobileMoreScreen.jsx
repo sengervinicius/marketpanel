@@ -82,7 +82,7 @@ const MobileMoreScreen = memo(({
               <div className="mm-xp-bar">
                 <div
                   className="mm-xp-bar-fill"
-                  style={{ width: `${(user.gamification.xp || 0) % 100}%` }}
+                  style={{ width: `${Math.min(100, Math.max(0, (user.gamification.xp || 0) % 100))}%` }}
                 />
               </div>
             </div>

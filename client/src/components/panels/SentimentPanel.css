@@ -14,6 +14,9 @@
   border-bottom: 1px solid var(--border-strong);
   background: var(--bg-elevated);
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
 }
 .sp-section-header--alt {
   background: var(--bg-surface);
@@ -137,4 +140,100 @@
   font-size: var(--font-base);
   padding: var(--sp-2);
   text-align: center;
+}
+
+/* AI Rotation features */
+.sp-ai-btn {
+  margin-left: auto;
+  padding: 4px 12px;
+  background: var(--accent);
+  color: #fff;
+  border: 1px solid var(--accent);
+  border-radius: 3px;
+  font-size: var(--font-sm);
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  transition: all 0.12s;
+  flex-shrink: 0;
+}
+.sp-ai-btn:hover:not(:disabled) {
+  background: #e85d00;
+  border-color: #e85d00;
+}
+.sp-ai-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.sp-ai-strip {
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-default);
+  padding: var(--sp-2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+.sp-ai-signal-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 12px;
+  border-radius: 3px;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  width: fit-content;
+}
+
+.sp-ai-theme {
+  color: var(--accent);
+  font-size: var(--font-base);
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.sp-ai-commentary {
+  color: var(--text-secondary);
+  font-size: var(--font-sm);
+  line-height: 1.4;
+  margin: 2px 0;
+}
+
+.sp-ai-sectors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.sp-ai-sector-tag {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+
+.sp-ai-sector-tag--leading {
+  background: rgba(27, 94, 32, 0.3);
+  color: #4caf50;
+  border: 1px solid rgba(76, 175, 80, 0.3);
+}
+
+.sp-ai-sector-tag--lagging {
+  background: rgba(183, 28, 28, 0.3);
+  color: #ef5350;
+  border: 1px solid rgba(239, 83, 80, 0.3);
+}
+
+.sp-ai-error {
+  background: rgba(244, 67, 54, 0.1);
+  border-bottom: 1px solid rgba(244, 67, 54, 0.3);
+  padding: var(--sp-2);
+  color: #ef5350;
+  font-size: var(--font-sm);
 }

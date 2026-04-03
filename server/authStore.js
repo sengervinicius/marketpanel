@@ -397,9 +397,9 @@ function getUserById(id) {
 
 async function verifyUser(username, passwordPlain) {
   const user = findUserByUsername(username);
-  if (!user) throw new Error('Invalid credentials');
+  if (!user) throw new Error('No account found with that username.');
   const ok = await bcrypt.compare(passwordPlain, user.hash);
-  if (!ok) throw new Error('Invalid credentials');
+  if (!ok) throw new Error('Incorrect password. Try again.');
   return user;
 }
 

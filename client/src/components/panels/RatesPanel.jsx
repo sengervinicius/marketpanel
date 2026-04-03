@@ -7,18 +7,20 @@ import { useState, useEffect, memo } from 'react';
 import { apiFetch } from '../../utils/api';
 import './RatesPanel.css';
 
-// Static central bank rates not available from free APIs (update manually)
+// Static central bank rates not available from free APIs.
+// Last verified: 2026-04-03. These are indicative and may be outdated.
 const STATIC_CB_RATES = [
-  { symbol: 'ECB',  name: 'ECB DEPO', price: 2.50, note: 'TARGET RATE' },
-  { symbol: 'BOE',  name: 'BOE BASE', price: 4.50, note: 'TARGET RATE' },
-  { symbol: 'BOJ',  name: 'BOJ RATE', price: 0.50, note: 'TARGET RATE' },
+  { symbol: 'ECB',  name: 'ECB DEPO', price: 2.50, note: 'INDICATIVE' },
+  { symbol: 'BOE',  name: 'BOE BASE', price: 4.50, note: 'INDICATIVE' },
+  { symbol: 'BOJ',  name: 'BOJ RATE', price: 0.50, note: 'INDICATIVE' },
 ];
+const STATIC_CB_LAST_UPDATED = '2026-04-03';
 
 function PctChange({ v }) {
-  if (v == null) return <span className="rp-row-change rp-row-change.static">-</span>;
+  if (v == null) return <span className="rp-row-change rp-row-change--static">-</span>;
   const up = v >= 0;
   return (
-    <span className={`rp-row-change ${up ? 'rp-row-change.live' : 'rp-row-change.negative'}`}>
+    <span className={`rp-row-change ${up ? 'rp-row-change--live' : 'rp-row-change--negative'}`}>
       {up ? '+' : ''}{v.toFixed(2)}
     </span>
   );
@@ -55,14 +57,14 @@ function RatesPanel() {
 
   const ROW = ({ label, value, change, note, live = true }) => (
     <div className="rp-row">
-      <span className={`rp-row-label ${live ? 'rp-row-label.live' : 'rp-row-label.static'}`}>
+      <span className={`rp-row-label ${live ? 'rp-row-label--live' : 'rp-row-label--static'}`}>
         {label}
       </span>
-      <span className={`rp-row-value ${live ? 'rp-row-value.live' : 'rp-row-value.static'}`}>
+      <span className={`rp-row-value ${live ? 'rp-row-value--live' : 'rp-row-value--static'}`}>
         {value != null ? value.toFixed(2) + '%' : '-'}
       </span>
       <span>
-        {live ? <PctChange v={change} /> : <span className="rp-row-change rp-row-change.static">—</span>}
+        {live ? <PctChange v={change} /> : <span className="rp-row-change rp-row-change--static">—</span>}
       </span>
       <span className="rp-row-note">
         {note || ''}
@@ -93,7 +95,7 @@ function RatesPanel() {
       {/* Column headers */}
       <div className="rp-col-header">
         {['TENOR', 'YIELD', 'CHG', ''].map(h => (
-          <span key={h} className={`rp-col-header-cell ${h === 'YIELD' || h === 'CHG' ? 'rp-col-header-cell.right-align' : ''}`}>
+          <span key={h} className={`rp-col-header-cell ${h === 'YIELD' || h === 'CHG' ? 'rp-col-header-cell--right' : ''}`}>
             {h}
           </span>
         ))}
@@ -125,7 +127,7 @@ function RatesPanel() {
 
         <div className="rp-footer">
           <span className="rp-footer-text">
-            CB RATES INDICATIVE · SELIC LIVE VIA BCB
+            CB RATES INDICATIVE (LAST VERIFIED {STATIC_CB_LAST_UPDATED}) · SELIC LIVE VIA BCB
           </span>
         </div>
       </div>

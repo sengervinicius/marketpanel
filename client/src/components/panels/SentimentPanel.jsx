@@ -1,6 +1,7 @@
 // SentimentPanel.jsx — market breadth, live yields, top movers heatmap
 // Accepts full data object: { stocks, forex, crypto, rates }
-import { memo } from 'react';
+import { memo, useState } from 'react';
+import { apiFetch } from '../../utils/api';
 import './SentimentPanel.css';
 
 // Map Yahoo Finance treasury symbols → display labels
@@ -48,6 +49,52 @@ function SentimentPanel({ data, loading }) {
     .filter(s => s.changePct != null)
     .sort((a, b) => Math.abs(b.changePct) - Math.abs(a.changePct))
     .slice(0, 12);
+
+  // AI rotation state
+  const [rotationData, setRotationData] = useState(null);
+  const [rotationLoading, setRotationLoading] = useState(false);
+  const [rotationError, setRotationError] = useState(null);
+
+  const handleRequestRotationAI = async () => {
+    if (!topMovers.length) return;
+
+    setRotationLoading(true);
+    setRotationError(null);
+    setRotationData(null);
+
+    try {
+      // Gather sector data from topMovers
+      const sectors = topMovers.map(s => ({
+        name: s.symbol,
+        changePct: s.changePct || 0,
+      }));
+
+      // Calculate market breadth
+      const up = topMovers.filter(s => (s.changePct ?? 0) > 0).length;
+      const down = topMovers.length - up;
+
+      const payload = {
+        sectors,
+        marketBreadth: { up, down },
+      };
+
+      const response = await apiFetch('/api/search/sector-rotation', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch rotation data');
+      }
+
+      const result = await response.json();
+      setRotationData(result);
+    } catch (err) {
+      setRotationError(err?.message || 'Error fetching AI rotation analysis');
+    } finally {
+      setRotationLoading(false);
+    }
+  };
 
   return (
     <div className="sp-panel">
@@ -113,7 +160,55 @@ function SentimentPanel({ data, loading }) {
       {/* Top Movers */}
       <div className="sp-section-header sp-section-header--alt">
         <span className="sp-section-title">TOP MOVERS</span>
+        <button
+          className="sp-ai-btn"
+          onClick={handleRequestRotationAI}
+          disabled={rotationLoading || topMovers.length === 0}
+        >
+          {rotationLoading ? 'ANALYZING...' : 'AI TAKE'}
+        </button>
       </div>
+
+      {/* AI Rotation Strip */}
+      {rotationData && (
+        <div className="sp-ai-strip">
+          <div className="sp-ai-signal-badge" style={{
+            backgroundColor: rotationData.rotationSignal === 'risk-on' ? '#1b5e20'
+              : rotationData.rotationSignal === 'risk-off' ? '#b71c1c'
+              : rotationData.rotationSignal === 'mixed' ? '#f57f17'
+              : '#0277bd'
+          }}>
+            {rotationData.rotationSignal?.toUpperCase()}
+          </div>
+          {rotationData.theme && (
+            <div className="sp-ai-theme">{rotationData.theme}</div>
+          )}
+          {rotationData.commentary && (
+            <div className="sp-ai-commentary">{rotationData.commentary}</div>
+          )}
+          {(rotationData.leadingSectors || rotationData.laggingSectors) && (
+            <div className="sp-ai-sectors">
+              {rotationData.leadingSectors?.map((sec, i) => (
+                <span key={`lead-${i}`} className="sp-ai-sector-tag sp-ai-sector-tag--leading">
+                  {typeof sec === 'string' ? sec : sec.name || sec}
+                </span>
+              ))}
+              {rotationData.laggingSectors?.map((sec, i) => (
+                <span key={`lag-${i}`} className="sp-ai-sector-tag sp-ai-sector-tag--lagging">
+                  {typeof sec === 'string' ? sec : sec.name || sec}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {rotationError && (
+        <div className="sp-ai-error">
+          {rotationError}
+        </div>
+      )}
+
       <div className="sp-movers">
         {loading || topMovers.length === 0 ? (
           <div className="sp-loading">Loading...</div>

@@ -7,6 +7,7 @@
 import { memo, useState, useMemo, useRef, useEffect } from 'react';
 import { useWatchlist } from '../../context/WatchlistContext';
 import { useStocksData, useForexData, useCryptoData } from '../../context/MarketContext';
+import { apiFetch } from '../../utils/api';
 import './WatchlistPanelMobile.css';
 
 function fmtPrice(v, dec = 2) {
@@ -28,8 +29,51 @@ function WatchlistPanelMobile({ onOpenDetail, onManage }) {
   const [sortBy, setSortBy] = useState('added');
   const [undoItem, setUndoItem] = useState(null);
   const undoTimerRef = useRef(null);
+  const pressTimerRef = useRef(null);
+  const [whySymbol, setWhySymbol] = useState(null);
+  const [whySummary, setWhySummary] = useState(null);
+  const [whyLoading, setWhyLoading] = useState(false);
+  const [whyError, setWhyError] = useState(null);
 
   const getData = (sym) => stocks[sym] || forex[sym] || crypto[sym] || null;
+
+  const handleWhyPress = async (symbol) => {
+    setWhySymbol(symbol);
+    setWhyLoading(true);
+    setWhyError(null);
+    setWhySummary(null);
+
+    try {
+      const query = `Why is ${symbol} moving today? What are the latest catalysts and news driving ${symbol} price action?`;
+      const res = await apiFetch('/api/search/ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setWhyError(json.error || 'Failed to fetch analysis');
+        return;
+      }
+      setWhySummary(json.summary || '');
+    } catch (err) {
+      setWhyError(err.message || 'Error fetching analysis');
+    } finally {
+      setWhyLoading(false);
+    }
+  };
+
+  const handleRowTouchStart = (symbol, e) => {
+    pressTimerRef.current = setTimeout(() => {
+      handleWhyPress(symbol);
+    }, 600);
+  };
+
+  const handleRowTouchEnd = () => {
+    if (pressTimerRef.current) {
+      clearTimeout(pressTimerRef.current);
+    }
+  };
 
   // Filter by search query
   const filtered = useMemo(() => {
@@ -134,6 +178,9 @@ function WatchlistPanelMobile({ onOpenDetail, onManage }) {
                   key={sym}
                   className="m-row wpm-row"
                   onClick={() => onOpenDetail?.(sym)}
+                  onTouchStart={(e) => handleRowTouchStart(sym, e)}
+                  onTouchEnd={handleRowTouchEnd}
+                  onTouchMove={handleRowTouchEnd}
                 >
                   {/* Symbol + name */}
                   <div className="flex-col wpm-row-info">
@@ -191,6 +238,51 @@ function WatchlistPanelMobile({ onOpenDetail, onManage }) {
             UNDO
           </button>
         </div>
+      )}
+
+      {/* Why Sheet Overlay */}
+      {whySymbol && (
+        <>
+          <div className="wp-why-sheet-backdrop"
+            onClick={() => {
+              setWhySymbol(null);
+              setWhySummary(null);
+              setWhyError(null);
+            }}
+          />
+          <div className="wp-why-sheet">
+            <div className="wp-why-sheet-header">
+              <span className="wp-why-sheet-title">Why is {whySymbol} moving?</span>
+              <button className="btn wp-why-sheet-close"
+                onClick={() => {
+                  setWhySymbol(null);
+                  setWhySummary(null);
+                  setWhyError(null);
+                }}
+              >✕</button>
+            </div>
+            <div className="wp-why-sheet-content">
+              {whyLoading && (
+                <div className="wp-why-sheet-loading">
+                  <span>Loading analysis...</span>
+                </div>
+              )}
+              {whyError && (
+                <div className="wp-why-sheet-error">
+                  <span>{whyError}</span>
+                  <button className="btn wp-why-sheet-retry"
+                    onClick={() => handleWhyPress(whySymbol)}
+                  >Retry</button>
+                </div>
+              )}
+              {whySummary && (
+                <div className="wp-why-sheet-text">
+                  {whySummary}
+                </div>
+              )}
+            </div>
+          </div>
+        </>
       )}
     </div>
   );

@@ -1,6 +1,7 @@
 /**
  * LeaderboardPanel.jsx — Global, persona, and weekly competition leaderboards.
  * Shows ranked user rows with avatars, persona labels, stats, and level badges.
+ * Y-032: Added pagination (50 per page) with Load More button.
  */
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '../../context/AuthContext';
@@ -14,6 +15,8 @@ const VIEWS = [
   { key: 'persona', label: 'My Persona' },
   { key: 'weekly',  label: 'Weekly' },
 ];
+
+const PAGE_SIZE = 50;
 
 function formatPct(v) {
   if (v == null) return '—';
@@ -49,8 +52,10 @@ export default function LeaderboardPanel({ mobile = false }) {
   const [loading, setLoading] = useState(true);
   const [shareOpen, setShareOpen] = useState(false);
   const [shareType, setShareType] = useState('leaderboard');
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
 
-  const fetchBoard = useCallback(async (v) => {
+  const fetchBoard = useCallback(async (v, pageNum = 0, append = false) => {
     setLoading(true);
     const token = localStorage.getItem('token');
     if (!token) { setLoading(false); return; }
@@ -60,27 +65,49 @@ export default function LeaderboardPanel({ mobile = false }) {
     else if (v === 'persona') url = `/api/leaderboard/persona/${user?.persona?.type || 'value_investor'}`;
     else url = '/api/leaderboard/weekly';
 
+    // Add pagination params
+    const sep = url.includes('?') ? '&' : '?';
+    url += `${sep}limit=${PAGE_SIZE}&offset=${pageNum * PAGE_SIZE}`;
+
     try {
       const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
       if (!res.ok) throw new Error('fetch failed');
       const data = await res.json();
-      setEntries(data.leaderboard || []);
+      const newEntries = data.leaderboard || [];
+
+      if (append) {
+        setEntries(prev => [...prev, ...newEntries]);
+      } else {
+        setEntries(newEntries);
+      }
+
       setUserRank(data.userRank ?? null);
       setTotal(data.total ?? 0);
+      setHasMore(newEntries.length >= PAGE_SIZE);
       setMeta({
         title: v === 'weekly' ? (data.title || 'Weekly Challenge') : v === 'persona' ? 'Persona Leaderboard' : 'Global Leaderboard',
         endsAt: data.endsAt || null,
         generatedAt: data.generatedAt || null,
       });
     } catch {
-      setEntries([]);
+      if (!append) setEntries([]);
       setUserRank(null);
+      setHasMore(false);
     } finally {
       setLoading(false);
     }
   }, [user?.persona?.type]);
 
-  useEffect(() => { fetchBoard(view); }, [view, fetchBoard]);
+  useEffect(() => {
+    setPage(0);
+    fetchBoard(view, 0, false);
+  }, [view, fetchBoard]);
+
+  const loadMore = useCallback(() => {
+    const nextPage = page + 1;
+    setPage(nextPage);
+    fetchBoard(view, nextPage, true);
+  }, [page, view, fetchBoard]);
 
   const currentUserId = user?.id;
 
@@ -111,7 +138,7 @@ export default function LeaderboardPanel({ mobile = false }) {
 
       {/* Content */}
       <div className="lb-body">
-        {loading ? (
+        {loading && entries.length === 0 ? (
           <div className="lb-loading">Loading...</div>
         ) : entries.length === 0 ? (
           <div className="lb-empty">No entries yet. Start trading to appear here!</div>
@@ -146,6 +173,17 @@ export default function LeaderboardPanel({ mobile = false }) {
                 </div>
               );
             })}
+
+            {/* Load more button */}
+            {hasMore && (
+              <button
+                className="lb-load-more"
+                onClick={loadMore}
+                disabled={loading}
+              >
+                {loading ? 'Loading...' : `Load more (showing ${entries.length} of ${total})`}
+              </button>
+            )}
           </div>
         )}
       </div>

@@ -265,6 +265,17 @@ export const PANEL_DEFINITIONS = {
     minSymbols:     0,
     maxSymbols:     0,
   },
+  calendar: {
+    id:             'calendar',
+    label:          'Calendar',
+    defaultTitle:   'Economic Calendar',
+    defaultSymbols: [],
+    allowedGroups:  null,
+    editable:       false,
+    icon:           'CAL',
+    minSymbols:     0,
+    maxSymbols:     0,
+  },
 };
 
 /**

@@ -28,12 +28,12 @@ function fmtPct(n) {
 }
 
 function fmtIV(n) {
-  if (n == null) return '--';
+  if (n == null || isNaN(n) || !isFinite(n)) return '--';
   return (n * 100).toFixed(1) + '%';
 }
 
 function fmtGreek(n) {
-  if (n == null) return '--';
+  if (n == null || isNaN(n) || !isFinite(n)) return '--';
   return n.toFixed(4);
 }
 
@@ -120,6 +120,12 @@ export default function InstrumentOptionsPanel({ symbol, spot, isMobile, trigger
   const [selectedCall, setSelectedCall] = useState(null);
   const [selectedPut, setSelectedPut]   = useState(null);
   const [showPayoff, setShowPayoff]     = useState(false);
+
+  // AI strategy suggester
+  const [aiOutlook, setAiOutlook]       = useState(null);
+  const [aiStrategies, setAiStrategies] = useState([]);
+  const [aiLoading, setAiLoading]       = useState(false);
+  const [aiError, setAiError]           = useState(null);
 
   // ── Fetch expiries on mount ────────────────────────────────────────────────
   useEffect(() => {
@@ -261,6 +267,43 @@ export default function InstrumentOptionsPanel({ symbol, spot, isMobile, trigger
       triggerGamificationEvent('options_view_payoff');
     }
   }, [currentStrategy, triggerGamificationEvent]);
+
+  // Handle AI outlook selection and fetch strategies
+  const handleAiOutlookSelect = useCallback(async (outlook) => {
+    setAiOutlook(outlook);
+    setAiStrategies([]);
+    setAiError(null);
+    setAiLoading(true);
+
+    try {
+      const payload = {
+        symbol,
+        currentPrice: underlyingPrice,
+        outlook,
+      };
+
+      // Add IV if available from chain
+      if (chain?.underlying?.iv != null) {
+        payload.iv = chain.underlying.iv;
+      }
+
+      const response = await apiFetch('/api/search/options-strategy', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch AI strategies');
+      }
+
+      const result = await response.json();
+      setAiStrategies(result.strategies || []);
+    } catch (err) {
+      setAiError(err?.message || 'Error fetching AI strategies');
+    } finally {
+      setAiLoading(false);
+    }
+  }, [symbol, underlyingPrice, chain]);
 
   // ── Render helpers ─────────────────────────────────────────────────────────
 
@@ -443,6 +486,64 @@ export default function InstrumentOptionsPanel({ symbol, spot, isMobile, trigger
       {!loading && filteredCalls.length === 0 && filteredPuts.length === 0 && chain && (
         <div className="opt-empty">No contracts for this expiry. Try a different date.</div>
       )}
+
+      {/* ── AI Strategy Suggester ───────────────────────────────── */}
+      <div className="op-ai-section">
+        <div className="opt-strategy-header">
+          <span className="opt-strategy-title">AI STRATEGY SUGGESTER</span>
+        </div>
+
+        <div className="op-ai-outlook-btns">
+          {['bullish', 'bearish', 'neutral'].map(outlook => (
+            <button
+              key={outlook}
+              className={`op-ai-outlook-btn${aiOutlook === outlook ? ' op-ai-outlook-btn--active' : ''}`}
+              onClick={() => handleAiOutlookSelect(outlook)}
+              disabled={aiLoading}
+            >
+              {outlook.toUpperCase()}
+            </button>
+          ))}
+        </div>
+
+        {aiLoading && (
+          <div className="opt-loading opt-loading--inline">Analyzing strategies...</div>
+        )}
+
+        {aiError && (
+          <div className="opt-error">{aiError}</div>
+        )}
+
+        {aiStrategies.length > 0 && (
+          <div className="op-ai-strategies">
+            {aiStrategies.map((strat, idx) => (
+              <div key={idx} className="op-ai-strategy-card">
+                <div className="op-ai-strategy-name">{strat.name}</div>
+                {strat.legs && strat.legs.length > 0 && (
+                  <div className="op-ai-strategy-legs">
+                    {strat.legs.map((leg, legIdx) => (
+                      <div key={legIdx} className="op-ai-strategy-leg">
+                        {leg.action && <span>{leg.action}</span>}
+                        {leg.type && <span>{leg.type}</span>}
+                        {leg.strike && <span>${leg.strike}</span>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {strat.rationale && (
+                  <div className="op-ai-strategy-rationale">{strat.rationale}</div>
+                )}
+                {(strat.riskReward || strat.idealCondition) && (
+                  <div className="op-ai-strategy-meta">
+                    {strat.riskReward && <span className="op-ai-risk-reward">{strat.riskReward}</span>}
+                    {strat.idealCondition && <span className="op-ai-ideal-condition">{strat.idealCondition}</span>}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* ── Strategy builder ──────────────────────────────── */}
       <div className="opt-strategy">

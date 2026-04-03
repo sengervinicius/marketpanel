@@ -72,8 +72,10 @@ function ChatPanel({ mobile, initialUserId }) {
     initialUserId ? { id: initialUserId, username: '\u2026' } : null
   );
   const [messages,         setMessages]         = useState({});
+  const [aiMessages,       setAiMessages]       = useState([]);
   const [input,            setInput]            = useState('');
   const [loading,          setLoading]          = useState(false);
+  const [aiLoading,        setAiLoading]        = useState(false);
   const [mobileView,       setMobileView]       = useState('list');
   const [onlineMap,        setOnlineMap]        = useState({});
   const [typingMap,        setTypingMap]        = useState({});
@@ -187,6 +189,12 @@ function ChatPanel({ mobile, initialUserId }) {
   const openConversation = useCallback(async (otherUser) => {
     setActiveChatUser(otherUser);
     if (mobile) setMobileView('chat');
+
+    // AI Assistant doesn't load messages
+    if (otherUser.id === 'ai-assistant') {
+      return;
+    }
+
     if (!messages[otherUser.id]) {
       setLoading(true);
       try {
@@ -212,7 +220,8 @@ function ChatPanel({ mobile, initialUserId }) {
 
   // ── Typing indicator logic ──
   const sendTyping = useCallback((typing) => {
-    if (!activeChatUser || !wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
+    if (!activeChatUser || activeChatUser.id === 'ai-assistant') return;
+    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
     wsRef.current.send(JSON.stringify({
       type: 'typing',
       toUserId: activeChatUser.id,
@@ -222,6 +231,7 @@ function ChatPanel({ mobile, initialUserId }) {
 
   const handleInputChange = useCallback((e) => {
     setInput(e.target.value);
+    if (!activeChatUser || activeChatUser.id === 'ai-assistant') return;
     if (!isTyping.current) {
       isTyping.current = true;
       sendTyping(true);
@@ -231,10 +241,92 @@ function ChatPanel({ mobile, initialUserId }) {
       isTyping.current = false;
       sendTyping(false);
     }, 2000);
-  }, [sendTyping]);
+  }, [sendTyping, activeChatUser]);
+
+  // ── AI Chat: send message with streaming response ──
+  const sendAiMessage = useCallback(async () => {
+    const text = input.trim();
+    if (!text || !activeChatUser || activeChatUser.id !== 'ai-assistant') return;
+    setInput('');
+
+    const userMsg = { role: 'user', content: text, id: 'msg-' + Date.now() };
+    const assistantMsg = { role: 'assistant', content: '', id: 'msg-' + (Date.now() + 1) };
+
+    setAiMessages(prev => [...prev, userMsg, assistantMsg]);
+    setAiLoading(true);
+
+    try {
+      const authToken = localStorage.getItem('token');
+      const response = await fetch('/api/search/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({
+          messages: [...aiMessages, userMsg].map(m => ({
+            role: m.role,
+            content: m.content,
+          })),
+        }),
+      });
+
+      if (!response.ok) throw new Error('Failed to get AI response');
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6);
+            if (data === '[DONE]') break;
+            try {
+              const parsed = JSON.parse(data);
+              if (parsed.chunk) {
+                setAiMessages(prev => {
+                  const updated = [...prev];
+                  updated[updated.length - 1] = {
+                    ...updated[updated.length - 1],
+                    content: updated[updated.length - 1].content + parsed.chunk,
+                  };
+                  return updated;
+                });
+              }
+            } catch {}
+          }
+        }
+      }
+    } catch (err) {
+      console.error('AI chat error:', err);
+      setAiMessages(prev => {
+        const updated = [...prev];
+        updated[updated.length - 1] = {
+          ...updated[updated.length - 1],
+          content: 'Error: Failed to get response from AI.',
+        };
+        return updated;
+      });
+    } finally {
+      setAiLoading(false);
+      setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+    }
+  }, [input, activeChatUser, aiMessages]);
 
   // ── Send message ──
   const sendMessage = useCallback(async () => {
+    if (activeChatUser?.id === 'ai-assistant') {
+      return sendAiMessage();
+    }
+
     const text = input.trim();
     if (!text || !activeChatUser) return;
     setInput('');
@@ -275,7 +367,7 @@ function ChatPanel({ mobile, initialUserId }) {
         }));
       }
     }
-  }, [input, activeChatUser, user?.id, sendTyping]);
+  }, [input, activeChatUser, user?.id, sendTyping, sendAiMessage]);
 
   const handleKey = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
@@ -323,6 +415,18 @@ function ChatPanel({ mobile, initialUserId }) {
 
       {/* Conversation list */}
       <div className="chat-list">
+        {/* AI Assistant (pinned) */}
+        {!searchQuery && (
+          <div className={`chat-ai-entry${activeChatUser?.id === 'ai-assistant' ? ' chat-ai-entry--active' : ''}`}
+            onClick={() => openConversation({ id: 'ai-assistant', username: 'AI Assistant' })}>
+            <div className="chat-ai-avatar">🤖</div>
+            <div className="chat-ai-entry-body">
+              <div className="chat-ai-entry-name">AI Assistant</div>
+              <div className="chat-ai-entry-hint">Chat with AI</div>
+            </div>
+          </div>
+        )}
+
         {conversations.length === 0 && !searchQuery && (
           <div className="chat-empty">
             <div className="chat-empty-icon">{'\uD83D\uDCAC'}</div>
@@ -361,8 +465,81 @@ function ChatPanel({ mobile, initialUserId }) {
     </div>
   );
 
+  // ── AI Chat view ──
+  const renderAiChat = () => {
+    const isAiChat = activeChatUser?.id === 'ai-assistant';
+    if (!isAiChat) return null;
+
+    return (
+      <div className="chat-main">
+        <div className="chat-header">
+          {mobile && (
+            <button onClick={() => setMobileView('list')} className="chat-back-btn">
+              {'\u2190'}
+            </button>
+          )}
+          <div className="chat-header-title">
+            <span style={{ fontSize: '18px', marginRight: '8px' }}>🤖</span>
+            <div>
+              <span className="chat-header-name">AI Assistant</span>
+              <div className="chat-header-status chat-header-status--online">
+                Always available
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Messages */}
+        <div className="chat-messages">
+          {aiMessages.length === 0 && (
+            <div className="chat-empty">
+              <div className="chat-empty-icon">🤖</div>
+              <div className="chat-empty-title">Start a conversation</div>
+              <div>Ask AI Assistant anything below.</div>
+            </div>
+          )}
+          {aiMessages.map(m => (
+            <div key={m.id} className={`chat-msg-wrap chat-msg-wrap--${m.role === 'user' ? 'mine' : 'theirs'}`}>
+              <div className={`chat-bubble${m.role === 'user' ? ' chat-bubble--mine' : ' chat-bubble--ai'}`}>
+                {m.content}
+              </div>
+            </div>
+          ))}
+          {aiLoading && (
+            <div className="chat-typing-bubble">
+              <span className="chat-typing-dot" />
+              <span className="chat-typing-dot" />
+              <span className="chat-typing-dot" />
+            </div>
+          )}
+          <div ref={messagesEndRef} />
+        </div>
+
+        {/* Composer */}
+        <div className="chat-composer">
+          <input
+            className="chat-input"
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            onKeyDown={handleKey}
+            placeholder="Ask AI Assistant..."
+            maxLength={2000}
+          />
+          <button className="btn chat-send-btn"
+            onClick={sendMessage}
+            disabled={!input.trim() || aiLoading}
+
+          >{'\u2191'}</button>
+        </div>
+      </div>
+    );
+  };
+
   // ── Conversation view ──
   const renderChat = () => {
+    const isAiChat = activeChatUser?.id === 'ai-assistant';
+    if (isAiChat) return renderAiChat();
+
     const msgs = activeChatUser ? (messages[activeChatUser.id] || []) : [];
     const partnerTyping = activeChatUser ? typingMap[activeChatUser.id] : false;
     const partnerOnline = activeChatUser ? onlineMap[activeChatUser.id] : false;

@@ -47,7 +47,7 @@ function Modal({ open, onClose, title, children }) {
 
 export default function ScreenerPanel({ onOpenDetail }) {
   const { triggerGamificationEvent } = useAuth();
-  const portfolio = usePortfolio();
+  const portfolio = usePortfolio() || {};
 
   // ── Filters ────────────────────────────────────────────────────────────────
   const [assetClass, setAssetClass] = useState('');

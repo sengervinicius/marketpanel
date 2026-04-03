@@ -307,3 +307,101 @@
     opacity: 1;
   }
 }
+
+/* ── AI Suggestions Section ── */
+.pf-ai-suggestions {
+  background: var(--bg-app, #0a0a0a);
+  border: 1px solid var(--border-strong, #2a2a2a);
+  border-radius: var(--radius-sm, 3px);
+  padding: var(--sp-4, 8px);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3, 6px);
+  margin-top: var(--sp-2, 4px);
+}
+
+.pf-ai-suggestion-header {
+  color: var(--accent, #ff6600);
+  font-size: var(--font-sm, 9px);
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding-bottom: var(--sp-2, 4px);
+  border-bottom: 1px solid var(--border-default, #1a1a1a);
+}
+
+.pf-ai-suggestion-item {
+  background: var(--bg-panel, #0d0d0d);
+  border: 1px solid var(--border-default, #1a1a1a);
+  border-radius: var(--radius-sm, 3px);
+  padding: var(--sp-3, 6px);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2, 4px);
+  transition: border-color 150ms, background 150ms;
+}
+
+.pf-ai-suggestion-item:hover {
+  border-color: var(--accent, #ff6600);
+  background: rgba(255, 102, 0, 0.05);
+}
+
+.pf-ai-suggestion-type {
+  display: inline-block;
+  background: var(--accent, #ff6600);
+  color: #000;
+  padding: 2px 6px;
+  border-radius: 2px;
+  font-size: var(--font-sm, 9px);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.pf-ai-suggestion-price {
+  color: var(--accent, #ff6600);
+  font-size: var(--font-base, 11px);
+  font-weight: 600;
+}
+
+.pf-ai-suggestion-rationale {
+  color: var(--text-muted, #888);
+  font-size: var(--font-sm, 9px);
+  line-height: 1.4;
+  flex: 1;
+}
+
+.pf-ai-suggestion-use-btn {
+  align-self: flex-start;
+  background: transparent;
+  border: 1px solid var(--accent, #ff6600);
+  color: var(--accent, #ff6600);
+  padding: 2px 8px;
+  font-size: var(--font-sm, 9px);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  border-radius: var(--radius-sm, 3px);
+  transition: all 150ms;
+}
+
+.pf-ai-suggestion-use-btn:hover {
+  background: var(--accent, #ff6600);
+  color: #000;
+  box-shadow: 0 0 8px rgba(255, 102, 0, 0.3);
+}
+
+.pf-ai-loading {
+  color: var(--text-muted, #888);
+  font-size: var(--font-sm, 9px);
+  padding: var(--sp-3, 6px);
+  text-align: center;
+  font-style: italic;
+}
+
+.pf-ai-error {
+  color: var(--price-down, #ff1744);
+  font-size: var(--font-sm, 9px);
+  padding: var(--sp-2, 4px) 0;
+}

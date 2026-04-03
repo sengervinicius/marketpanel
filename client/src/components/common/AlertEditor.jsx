@@ -13,9 +13,10 @@
  *   mobile:       boolean for mobile-friendly layout
  */
 
-import { memo, useState, useCallback, useEffect } from 'react';
+import { memo, useState, useCallback, useEffect, useRef } from 'react';
 import { useAlerts } from '../../context/AlertsContext';
 import { useAuth } from '../../context/AuthContext';
+import { apiJSON } from '../../utils/api';
 import './PositionEditor.css'; // reuse same CSS
 
 const ALERT_TYPES = [
@@ -59,6 +60,12 @@ function AlertEditor({
   const [error, setError]             = useState('');
   const [confirmDelete, setConfirmDelete] = useState(false);
 
+  // AI suggestions state
+  const [aiSuggestions, setAiSuggestions] = useState([]);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState('');
+  const aiDebounceTimer = useRef(null);
+
   // Auto-detect FX types from symbol
   useEffect(() => {
     if (!isEditing && symbol) {
@@ -69,6 +76,56 @@ function AlertEditor({
       }
     }
   }, [symbol, isEditing, type]);
+
+  // Fetch AI suggestions with debouncing
+  useEffect(() => {
+    if (isEditing) return; // Don't fetch suggestions when editing existing alerts
+
+    if (aiDebounceTimer.current) {
+      clearTimeout(aiDebounceTimer.current);
+    }
+
+    if (!symbol.trim()) {
+      setAiSuggestions([]);
+      setAiError('');
+      return;
+    }
+
+    aiDebounceTimer.current = setTimeout(async () => {
+      setAiLoading(true);
+      setAiError('');
+      setAiSuggestions([]);
+
+      try {
+        const currentPrice = parseFloat(targetPrice) || parseFloat(defaultPrice) || null;
+        const payload = {
+          symbol: symbol.trim().toUpperCase(),
+          currentPrice,
+          positions: [], // Can be extended to include actual positions
+        };
+
+        const data = await apiJSON('/api/search/alert-suggest', {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        });
+
+        if (data.suggestions && Array.isArray(data.suggestions)) {
+          setAiSuggestions(data.suggestions);
+        }
+      } catch (err) {
+        // Non-blocking error — show hint but don't prevent form submission
+        setAiError(err.message || 'Could not load suggestions');
+      } finally {
+        setAiLoading(false);
+      }
+    }, 500); // 500ms debounce
+
+    return () => {
+      if (aiDebounceTimer.current) {
+        clearTimeout(aiDebounceTimer.current);
+      }
+    };
+  }, [symbol, targetPrice, defaultPrice, isEditing]);
 
   const isPctType = type === 'pct_move_from_entry';
   const symbolReadOnly = !!(defaultSymbol || isEditing);
@@ -129,6 +186,15 @@ function AlertEditor({
       setSaving(false);
     }
   }, [confirmDelete, alert, deleteAlert, onClose]);
+
+  const handleUseSuggestion = useCallback((suggestion) => {
+    if (suggestion.type) {
+      setType(suggestion.type);
+    }
+    if (suggestion.targetPrice) {
+      setTargetPrice(suggestion.targetPrice.toString());
+    }
+  }, []);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -253,6 +319,60 @@ function AlertEditor({
               maxLength={200}
             />
           </div>
+
+          {/* AI Suggestions Section */}
+          {!isEditing && symbol.trim() && (
+            <div className="pf-ai-suggestions">
+              <div className="pf-ai-suggestion-header">
+                <span>🤖 AI SUGGESTIONS</span>
+              </div>
+
+              {aiLoading && (
+                <div className="pf-ai-loading">
+                  Getting smart alerts...
+                </div>
+              )}
+
+              {aiError && (
+                <div className="pf-ai-error">
+                  {aiError}
+                </div>
+              )}
+
+              {!aiLoading && aiSuggestions.length > 0 && (
+                <div>
+                  {aiSuggestions.map((suggestion, idx) => (
+                    <div key={idx} className="pf-ai-suggestion-item">
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                        <span className="pf-ai-suggestion-type">
+                          {ALERT_TYPES.find(t => t.value === suggestion.type)?.label || suggestion.type}
+                        </span>
+                        <span className="pf-ai-suggestion-price">
+                          ${parseFloat(suggestion.targetPrice).toFixed(2)}
+                        </span>
+                      </div>
+                      <div className="pf-ai-suggestion-rationale">
+                        {suggestion.rationale}
+                      </div>
+                      <button
+                        className="pf-ai-suggestion-use-btn"
+                        onClick={() => handleUseSuggestion(suggestion)}
+                        type="button"
+                      >
+                        USE
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {!aiLoading && aiSuggestions.length === 0 && !aiError && (
+                <div style={{ color: 'var(--text-faint, #555)', fontSize: 'var(--font-sm, 9px)', padding: '4px 0' }}>
+                  No suggestions available for this symbol
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Linked position indicator */}
           {positionId && (

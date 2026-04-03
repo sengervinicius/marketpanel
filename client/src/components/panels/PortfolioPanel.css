@@ -140,7 +140,9 @@
   border-bottom: 1px solid var(--border-strong);
   background: var(--bg-elevated);
   flex-shrink: 0;
-  gap: 8px;
+  gap: 4px;
+  flex-wrap: wrap;
+  min-height: 28px;
 }
 
 .pp-header-title {
@@ -293,8 +295,264 @@
 .pp-add-btn:active { opacity: 0.8; }
 
 .pp-add-btn--compact {
-  padding: 4px 10px;
-  font-size: var(--font-xs);
-  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: var(--font-2xs);
+  border-radius: 3px;
   letter-spacing: 0.04em;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* ─────────────────────────────────────────────────────────────── */
+/* AI Health Check Button */
+/* ─────────────────────────────────────────────────────────────── */
+.pp-ai-btn {
+  background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+  color: #fff;
+  border: none;
+  border-radius: 3px;
+  padding: 2px 8px;
+  font-size: var(--font-2xs);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.pp-ai-btn:hover:not(:disabled) {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.pp-ai-btn:active:not(:disabled) {
+  opacity: 0.8;
+  transform: translateY(0);
+}
+
+.pp-ai-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ─────────────────────────────────────────────────────────────── */
+/* AI Health Card */
+/* ─────────────────────────────────────────────────────────────── */
+.pp-ai-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  margin: 8px 8px;
+  padding: 12px;
+  flex-shrink: 0;
+  animation: slideDown 0.2s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.pp-ai-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.pp-ai-risk-badge {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: var(--font-md);
+  color: #fff;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.pp-ai-risk-label {
+  font-size: var(--font-sm);
+  font-weight: 700;
+  color: var(--text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.pp-ai-close-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 20px;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  transition: color 0.15s;
+}
+
+.pp-ai-close-btn:hover {
+  color: var(--text-primary);
+}
+
+.pp-ai-summary {
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-bottom: 12px;
+  padding: 8px;
+  background: var(--bg-panel);
+  border-radius: 4px;
+}
+
+.pp-ai-section-title {
+  font-size: var(--font-sm);
+  font-weight: 700;
+  color: var(--text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+
+.pp-ai-warnings,
+.pp-ai-suggestions,
+.pp-ai-sector-exposure {
+  margin-bottom: 12px;
+}
+
+.pp-ai-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pp-ai-warning-item,
+.pp-ai-suggestion-item {
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+  line-height: 1.4;
+  padding: 4px 0 4px 16px;
+  position: relative;
+}
+
+.pp-ai-warning-item::before {
+  content: '⚠';
+  position: absolute;
+  left: 0;
+  color: #eab308;
+}
+
+.pp-ai-suggestion-item::before {
+  content: '→';
+  position: absolute;
+  left: 0;
+  color: var(--accent);
+}
+
+.pp-ai-sector-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  gap: 8px;
+}
+
+.pp-ai-sector-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 8px;
+  background: var(--bg-panel);
+  border-radius: 4px;
+  border-left: 3px solid var(--accent);
+}
+
+.pp-ai-sector-name {
+  font-size: var(--font-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.pp-ai-sector-pct {
+  font-size: var(--font-sm);
+  color: var(--text-muted);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ─────────────────────────────────────────────────────────────── */
+/* AI Health Loading State */
+/* ─────────────────────────────────────────────────────────────── */
+.pp-ai-loading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--text-secondary);
+  font-size: var(--font-sm);
+  justify-content: center;
+  padding: 16px;
+}
+
+.pp-ai-pulse {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────── */
+/* AI Health Error State */
+/* ─────────────────────────────────────────────────────────────── */
+.pp-ai-error {
+  padding: 12px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 4px;
+}
+
+.pp-ai-error-text {
+  color: var(--price-down);
+  font-size: var(--font-sm);
+  margin-bottom: 8px;
+}
+
+.pp-ai-retry-btn,
+.pp-ai-close-btn {
+  font-size: var(--font-2xs);
+  padding: 4px 8px;
+  border-radius: 3px;
+  border: 1px solid var(--border-strong);
+  background: var(--bg-panel);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.pp-ai-retry-btn:hover {
+  background: var(--bg-hover);
+}
+
+.flex-row {
+  display: flex;
+  flex-direction: row;
 }

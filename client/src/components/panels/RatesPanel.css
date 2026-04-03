@@ -47,7 +47,7 @@
   text-align: left;
 }
 
-.rp-col-header-cell.right-align {
+.rp-col-header-cell--right {
   text-align: right;
 }
 
@@ -84,11 +84,11 @@
   letter-spacing: 0.03em;
 }
 
-.rp-row-label.live {
+.rp-row-label--live {
   color: #888;
 }
 
-.rp-row-label.static {
+.rp-row-label--static {
   color: #555;
 }
 
@@ -98,11 +98,11 @@
   text-align: right;
 }
 
-.rp-row-value.live {
+.rp-row-value--live {
   color: #e8e8e8;
 }
 
-.rp-row-value.static {
+.rp-row-value--static {
   color: #666;
 }
 
@@ -110,15 +110,15 @@
   text-align: right;
 }
 
-.rp-row-change.live {
+.rp-row-change--live {
   color: #00cc44;
 }
 
-.rp-row-change.negative {
+.rp-row-change--negative {
   color: #cc2200;
 }
 
-.rp-row-change.static {
+.rp-row-change--static {
   color: #2a2a2a;
   font-size: 8px;
 }

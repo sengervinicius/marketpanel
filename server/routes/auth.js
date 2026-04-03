@@ -73,7 +73,11 @@ router.post('/login', authLimiter, async (req, res) => {
       streak: streakInfo,
     });
   } catch (e) {
-    res.status(401).json({ error: e.message, code: 'invalid_credentials' });
+    const msg = e.message || 'Login failed';
+    const code = msg.includes('No account') ? 'user_not_found'
+               : msg.includes('Incorrect password') ? 'wrong_password'
+               : 'invalid_credentials';
+    res.status(401).json({ error: msg, code });
   }
 });
 
@@ -89,6 +93,24 @@ router.get('/me', requireAuth, (req, res) => {
       trialEndsAt:        user.trialEndsAt,
     },
   });
+});
+
+// POST /api/auth/reset — password reset (stub: requires email integration for production)
+router.post('/reset', authLimiter, async (req, res) => {
+  try {
+    const { username } = req.body;
+    if (!username) {
+      return res.status(400).json({ error: 'Username is required', code: 'missing_username' });
+    }
+    // In production, this would send a reset email. For now, acknowledge the request
+    // without revealing whether the account exists (security best practice).
+    res.json({
+      ok: true,
+      message: 'If an account with that username exists, a password reset has been initiated. Check your email.',
+    });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to process reset request', code: 'reset_failed' });
+  }
 });
 
 // POST /api/auth/apple

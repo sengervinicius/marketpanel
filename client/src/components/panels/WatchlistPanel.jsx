@@ -38,6 +38,10 @@ function WatchlistPanel({ onTickerClick, onOpenDetail }) {
   const { addTicker }               = useWatchlist();
   const ptRef                       = useRef(null);
   const inputRef                    = useRef(null);
+  const [whySymbol, setWhySymbol]   = useState(null);
+  const [whySummary, setWhySummary] = useState(null);
+  const [whyLoading, setWhyLoading] = useState(false);
+  const [whyError, setWhyError]     = useState(null);
 
   // Fetch live quotes for all watchlist symbols
   const fetchQuotes = useCallback(async () => {
@@ -74,6 +78,32 @@ function WatchlistPanel({ onTickerClick, onOpenDetail }) {
     e.preventDefault();
     const sym = addInput.trim().toUpperCase();
     if (sym) { addTicker(sym); setAddInput(''); setShowAdd(false); }
+  };
+
+  const handleWhyClick = async (symbol) => {
+    setWhySymbol(symbol);
+    setWhyLoading(true);
+    setWhyError(null);
+    setWhySummary(null);
+
+    try {
+      const query = `Why is ${symbol} moving today? What are the latest catalysts and news driving ${symbol} price action?`;
+      const res = await apiFetch('/api/search/ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setWhyError(json.error || 'Failed to fetch analysis');
+        return;
+      }
+      setWhySummary(json.summary || '');
+    } catch (err) {
+      setWhyError(err.message || 'Error fetching analysis');
+    } finally {
+      setWhyLoading(false);
+    }
   };
 
   return (
@@ -147,12 +177,18 @@ function WatchlistPanel({ onTickerClick, onOpenDetail }) {
                 <span className="wp-row-source"></span>
                 <span className="wp-row-price">{fmt(q.price)}</span>
                 <span className={`wp-row-change ${pos ? 'wp-row-change-positive' : 'wp-row-change-negative'}`}>{fmtPct(q.changePct)}</span>
-                <button className="btn wp-remove-btn"
-                  onClick={e => { e.stopPropagation(); removeTicker(sym); }}
-                  title="Remove from watchlist"
-                  onMouseEnter={e => e.currentTarget.style.color = 'var(--price-down)'}
-                  onMouseLeave={e => e.currentTarget.style.color = 'var(--text-faint)'}
-                >✕</button>
+                <div className="wp-row-actions">
+                  <button className="btn wp-why-btn"
+                    onClick={e => { e.stopPropagation(); handleWhyClick(sym); }}
+                    title="Why is this moving?"
+                  >?</button>
+                  <button className="btn wp-remove-btn"
+                    onClick={e => { e.stopPropagation(); removeTicker(sym); }}
+                    title="Remove from watchlist"
+                    onMouseEnter={e => e.currentTarget.style.color = 'var(--price-down)'}
+                    onMouseLeave={e => e.currentTarget.style.color = 'var(--text-faint)'}
+                  >✕</button>
+                </div>
               </div>
             );
           })
@@ -163,6 +199,38 @@ function WatchlistPanel({ onTickerClick, onOpenDetail }) {
           </div>
         )}
       </div>
+
+      {/* Why Popover */}
+      {whySymbol && (
+        <div className="wp-why-popover">
+          <div className="wp-why-header">
+            <span className="wp-why-title">Why is {whySymbol} moving?</span>
+            <button className="btn wp-why-close"
+              onClick={() => { setWhySymbol(null); setWhySummary(null); setWhyError(null); }}
+            >✕</button>
+          </div>
+          <div className="wp-why-content">
+            {whyLoading && (
+              <div className="wp-why-loading">
+                <span>Loading analysis...</span>
+              </div>
+            )}
+            {whyError && (
+              <div className="wp-why-error">
+                <span>{whyError}</span>
+                <button className="btn wp-why-retry"
+                  onClick={() => handleWhyClick(whySymbol)}
+                >Retry</button>
+              </div>
+            )}
+            {whySummary && (
+              <div className="wp-why-text">
+                {whySummary}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </PanelShell>
   );
 }

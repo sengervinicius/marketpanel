@@ -89,3 +89,36 @@
   opacity: 0.6;
   cursor: not-allowed;
 }
+
+.lf-forgot-btn {
+  background: transparent;
+  border: none;
+  color: #888;
+  font-size: 9px;
+  padding: 2px 0;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  font-family: var(--font-ui);
+  cursor: pointer;
+  text-align: center;
+}
+
+.lf-forgot-btn:hover {
+  color: #ccc;
+}
+
+.lf-subtitle {
+  color: #666;
+  font-size: 9px;
+  margin: 0 0 4px 0;
+  line-height: 1.4;
+}
+
+.lf-info {
+  color: #4caf50;
+  font-size: 9px;
+  font-weight: 600;
+  padding: 6px;
+  background: #001a00;
+  border-radius: 2px;
+}

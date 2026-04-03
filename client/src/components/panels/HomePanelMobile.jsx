@@ -7,7 +7,7 @@
  * and adds "View all" expansion.
  */
 
-import { useState, useEffect, useMemo, useCallback, memo } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef, memo } from 'react';
 import { useSettings } from '../../context/SettingsContext';
 import { useTickerPrice } from '../../context/PriceContext';
 import { apiFetch } from '../../utils/api';
@@ -117,13 +117,58 @@ function HomePanelMobile({ onOpenDetail, onSearchClick }) {
   const [news, setNews] = useState([]);
   const [aiPulse, setAiPulse] = useState(null);
   const [aiPulseLoading, setAiPulseLoading] = useState(false);
+  const [aiPulseError, setAiPulseError] = useState(null);
 
-  useEffect(() => {
+  // ── Pull-to-refresh ──────────────────────────────────────────
+  const [refreshing, setRefreshing] = useState(false);
+  const [pullY, setPullY] = useState(0);
+  const touchStartY = useRef(0);
+  const containerRef = useRef(null);
+
+  const PULL_THRESHOLD = 60;
+
+  const handleTouchStart = useCallback((e) => {
+    if (containerRef.current && containerRef.current.scrollTop === 0) {
+      touchStartY.current = e.touches[0].clientY;
+    } else {
+      touchStartY.current = 0;
+    }
+  }, []);
+
+  const handleTouchMove = useCallback((e) => {
+    if (!touchStartY.current) return;
+    const dy = e.touches[0].clientY - touchStartY.current;
+    if (dy > 0 && dy <= 120) {
+      setPullY(dy);
+    }
+  }, []);
+
+  const handleTouchEnd = useCallback(() => {
+    if (pullY >= PULL_THRESHOLD && !refreshing) {
+      setRefreshing(true);
+      setPullY(0);
+      // Re-fetch news
+      apiFetch('/api/news')
+        .then(r => r.ok ? r.json() : { articles: [] })
+        .then(d => setNews((d.articles || d.results || []).slice(0, 5)))
+        .catch(() => {})
+        .finally(() => {
+          setTimeout(() => setRefreshing(false), 600);
+        });
+    } else {
+      setPullY(0);
+    }
+    touchStartY.current = 0;
+  }, [pullY, refreshing]);
+
+  const fetchNews = useCallback(() => {
     apiFetch('/api/news')
       .then(r => r.ok ? r.json() : { articles: [] })
       .then(d => setNews((d.articles || d.results || []).slice(0, 5)))
       .catch(() => {});
   }, []);
+
+  useEffect(() => { fetchNews(); }, [fetchNews]);
 
   const userSections = useMemo(() => {
     const sections = settings?.home?.sections || [];
@@ -137,22 +182,33 @@ function HomePanelMobile({ onOpenDetail, onSearchClick }) {
   }, [settings?.home?.sections]);
 
   const fetchAiPulse = useCallback(() => {
-    if (aiPulseLoading || aiPulse) return;
+    if (aiPulseLoading) return;
+    setAiPulse(null);
+    setAiPulseError(null);
     setAiPulseLoading(true);
-    apiFetch('/api/search/chat', {
+    apiFetch('/api/search/ai', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: 'Give me a brief 2-sentence market pulse summary for today. Focus on major US indices, any notable moves, and overall sentiment.' }),
+      body: JSON.stringify({ query: 'Give me a brief 2-sentence market pulse summary for today. Focus on major US indices, any notable moves, and overall sentiment.' }),
     })
-      .then(r => r.ok ? r.json() : null)
+      .then(r => {
+        if (!r.ok) throw new Error(`Server error (${r.status})`);
+        return r.json();
+      })
       .then(data => {
-        if (data?.reply || data?.response) {
-          setAiPulse(data.reply || data.response);
+        if (data?.summary) {
+          setAiPulse(data.summary);
+        } else if (data?.error) {
+          setAiPulseError(data.error);
+        } else {
+          setAiPulseError('No AI response received');
         }
       })
-      .catch(() => {})
+      .catch(err => {
+        setAiPulseError(err.message || 'Failed to load market pulse');
+      })
       .finally(() => setAiPulseLoading(false));
-  }, [aiPulseLoading, aiPulse]);
+  }, [aiPulseLoading]);
 
   const openNews = (item) => {
     const url = item.article_url || item.link || item.url;
@@ -160,7 +216,22 @@ function HomePanelMobile({ onOpenDetail, onSearchClick }) {
   };
 
   return (
-    <div className="hpm-container">
+    <div
+      className="hpm-container"
+      ref={containerRef}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
+      {/* Pull-to-refresh indicator */}
+      {(pullY > 10 || refreshing) && (
+        <div className="hpm-ptr-indicator" style={{ height: refreshing ? 36 : Math.min(pullY, 60), opacity: refreshing ? 1 : Math.min(pullY / PULL_THRESHOLD, 1) }}>
+          <span className={`hpm-ptr-text${refreshing ? ' hpm-ptr-spinning' : ''}`}>
+            {refreshing ? '↻ Refreshing...' : pullY >= PULL_THRESHOLD ? '↑ Release to refresh' : '↓ Pull to refresh'}
+          </span>
+        </div>
+      )}
+
       {/* Search Bar */}
       <div className="hpm-search-container">
         <input
@@ -175,10 +246,16 @@ function HomePanelMobile({ onOpenDetail, onSearchClick }) {
       {/* AI Market Pulse card */}
       <div className="hpm-ai-card" onClick={fetchAiPulse}>
         <span className="hpm-ai-badge">MARKET PULSE</span>
-        {!aiPulse && !aiPulseLoading && (
+        {!aiPulse && !aiPulseLoading && !aiPulseError && (
           <div className="hpm-ai-tagline">Tap for AI-powered market overview</div>
         )}
         {aiPulseLoading && <div className="hpm-ai-loading">Analyzing markets...</div>}
+        {aiPulseError && (
+          <div className="hpm-ai-error">
+            <span>{aiPulseError}</span>
+            <span className="hpm-ai-retry">Tap to retry</span>
+          </div>
+        )}
         {aiPulse && <div className="hpm-ai-result">{aiPulse}</div>}
       </div>
 

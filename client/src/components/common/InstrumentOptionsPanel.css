@@ -224,6 +224,111 @@
   font-size: 10px;
 }
 
+/* ── AI Strategy Suggester ────────────────────── */
+.op-ai-section {
+  margin-top: var(--sp-3, 12px);
+  padding-top: var(--sp-2, 8px);
+  border-top: 1px solid var(--border-subtle, rgba(255,255,255,0.06));
+}
+
+.op-ai-outlook-btns {
+  display: flex;
+  gap: 6px;
+  margin-bottom: var(--sp-2, 8px);
+  flex-wrap: wrap;
+}
+
+.op-ai-outlook-btn {
+  padding: 4px 12px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  border: 1px solid var(--border-default, #333);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-faint, #666);
+  cursor: pointer;
+  transition: all 0.12s;
+}
+.op-ai-outlook-btn:hover:not(:disabled) {
+  border-color: var(--accent, #ff6600);
+  color: var(--accent, #ff6600);
+}
+.op-ai-outlook-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.op-ai-outlook-btn--active {
+  border-color: var(--accent, #ff6600);
+  background: rgba(255, 102, 0, 0.12);
+  color: var(--accent, #ff6600);
+}
+
+.op-ai-strategies {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: var(--sp-2, 8px);
+}
+
+.op-ai-strategy-card {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-default, #333);
+  border-radius: 4px;
+  padding: var(--sp-2, 8px);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.op-ai-strategy-name {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  color: var(--accent, #ff6600);
+}
+
+.op-ai-strategy-legs {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 2px 0;
+  padding-left: 4px;
+  border-left: 2px solid rgba(255, 102, 0, 0.3);
+}
+
+.op-ai-strategy-leg {
+  font-size: 10px;
+  color: var(--text-secondary, #bbb);
+  font-family: var(--font-mono, monospace);
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.op-ai-strategy-rationale {
+  font-size: 10px;
+  color: var(--text-secondary, #bbb);
+  line-height: 1.3;
+  margin: 2px 0;
+}
+
+.op-ai-strategy-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 9px;
+  color: var(--text-faint, #666);
+}
+
+.op-ai-risk-reward,
+.op-ai-ideal-condition {
+  padding: 2px 6px;
+  background: rgba(255, 102, 0, 0.06);
+  border: 1px solid rgba(255, 102, 0, 0.2);
+  border-radius: 3px;
+}
+
 /* ── Strategy builder ─────────────────────────── */
 .opt-strategy {
   margin-top: var(--sp-3, 12px);

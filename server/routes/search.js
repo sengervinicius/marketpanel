@@ -687,4 +687,705 @@ router.post('/macro-insight', async (req, res) => {
   }
 });
 
+/**
+ * POST /news-summary — AI-powered news summary + sentiment for a list of headlines
+ *
+ * Body: { headlines: string[] }
+ * Returns: { items: [{ headline, sentiment, sentimentScore }], summary: string[] }
+ * Cache: 5 min by joined-headline hash
+ */
+
+const _newsSummaryCache = new Map();
+const NEWS_SUMMARY_TTL = 5 * 60 * 1000;
+
+router.post('/news-summary', async (req, res) => {
+  const apiKey = process.env.PERPLEXITY_API_KEY;
+  if (!apiKey) return res.status(503).json({ error: 'AI not configured' });
+
+  const { headlines } = req.body;
+  if (!headlines || !Array.isArray(headlines) || headlines.length === 0) {
+    return res.status(400).json({ error: 'headlines[] is required' });
+  }
+  const trimmed = headlines.slice(0, 20).map(h => (h || '').trim()).filter(Boolean);
+  if (trimmed.length === 0) return res.status(400).json({ error: 'No valid headlines provided' });
+
+  const cacheKey = trimmed.join('|').toLowerCase().substring(0, 300);
+  const cached = _newsSummaryCache.get(cacheKey);
+  if (cached && Date.now() < cached.exp) return res.json({ ...cached.v, cached: true });
+
+  const systemPrompt = `You are a financial news analyst at a Bloomberg-style terminal. Given a list of recent headlines, produce:
+1. For each headline: a sentiment label (bullish / bearish / neutral) and a confidence score 0-100.
+2. A 3-bullet executive summary of the key themes across all headlines.
+
+Respond ONLY with valid JSON matching this schema:
+{
+  "items": [
+    { "headline": "...", "sentiment": "bullish|bearish|neutral", "sentimentScore": 75 }
+  ],
+  "summary": ["bullet 1", "bullet 2", "bullet 3"]
+}
+Rules:
+- Keep bullets under 25 words each.
+- Be data-driven. No emojis. No disclaimers.
+- Sentiment must be exactly one of: bullish, bearish, neutral.`;
+
+  const userPrompt = `Analyze these ${trimmed.length} headlines:\n\n${trimmed.map((h, i) => `${i + 1}. ${h}`).join('\n')}`;
+
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 20000);
+
+  try {
+    const response = await fetch(PERPLEXITY_URL, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      signal: ctrl.signal,
+      body: JSON.stringify({
+        model: MODEL, messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ], max_tokens: 600, temperature: 0.15,
+      }),
+    });
+    if (!response.ok) return res.status(502).json({ error: `AI provider error (${response.status})` });
+
+    const data = await response.json();
+    const raw = data.choices?.[0]?.message?.content;
+    if (!raw) return res.status(502).json({ error: 'Empty response from AI' });
+
+    let parsed;
+    try {
+      parsed = JSON.parse(raw.replace(/^```json?\s*/i, '').replace(/```\s*$/i, '').trim());
+    } catch {
+      parsed = { items: [], summary: [raw.trim().substring(0, 200)] };
+    }
+
+    const result = {
+      items: Array.isArray(parsed.items) ? parsed.items : [],
+      summary: Array.isArray(parsed.summary) ? parsed.summary : [],
+      generatedAt: new Date().toISOString(),
+    };
+
+    _newsSummaryCache.set(cacheKey, { v: result, exp: Date.now() + NEWS_SUMMARY_TTL });
+    if (_newsSummaryCache.size > 50) {
+      const now = Date.now();
+      for (const [k, e] of _newsSummaryCache) { if (now > e.exp) _newsSummaryCache.delete(k); }
+    }
+
+    res.json(result);
+  } catch (err) {
+    if (err.name === 'AbortError') return res.status(504).json({ error: 'News summary timed out' });
+    console.error('[Search/AI News Summary] Error:', err.message);
+    res.status(500).json({ error: 'News summary failed' });
+  } finally { clearTimeout(timer); }
+});
+
+/**
+ * POST /portfolio-insight — AI-powered portfolio risk assessment
+ *
+ * Body: { positions: [{ symbol, weight, returnPct, sector }], totalValue: number }
+ * Returns SSE stream with risk score, concentration warnings, rebalance suggestions
+ */
+
+const _portfolioInsightCache = new Map();
+const PORTFOLIO_INSIGHT_TTL = 10 * 60 * 1000;
+
+router.post('/portfolio-insight', async (req, res) => {
+  const apiKey = process.env.PERPLEXITY_API_KEY;
+  if (!apiKey) return res.status(503).json({ error: 'AI not configured' });
+
+  const { positions, totalValue } = req.body;
+  if (!positions || !Array.isArray(positions) || positions.length === 0) {
+    return res.status(400).json({ error: 'positions[] is required' });
+  }
+
+  // Build cache key from sorted symbols
+  const cacheKey = positions.map(p => p.symbol).sort().join(',').toLowerCase();
+  const cached = _portfolioInsightCache.get(cacheKey);
+  if (cached && Date.now() < cached.exp) return res.json({ ...cached.v, cached: true });
+
+  const posBlock = positions.map(p =>
+    `${p.symbol}: weight=${(p.weight * 100).toFixed(1)}%, return=${p.returnPct != null ? p.returnPct.toFixed(1) + '%' : 'N/A'}, sector=${p.sector || 'Unknown'}`
+  ).join('\n');
+
+  const systemPrompt = `You are a portfolio risk analyst. Given portfolio positions with weights, returns, and sectors, produce a structured risk assessment. Respond ONLY with valid JSON:
+{
+  "riskScore": 1-10,
+  "riskLabel": "Low|Moderate|Elevated|High|Critical",
+  "concentrationWarnings": ["warning1", "warning2"],
+  "sectorExposure": { "Tech": 45.2, "Finance": 20.1 },
+  "rebalanceSuggestions": ["suggestion1", "suggestion2"],
+  "summary": "2-3 sentence overall assessment"
+}
+Rules:
+- riskScore 1=very safe, 10=very risky
+- Flag any single position >20% or sector >40%
+- Keep warnings and suggestions to 1 sentence each
+- Max 5 items per array
+- Be professional and data-driven`;
+
+  const userPrompt = `Portfolio (${positions.length} positions, total value: $${(totalValue || 0).toLocaleString()}):\n\n${posBlock}`;
+
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 20000);
+
+  try {
+    const response = await fetch(PERPLEXITY_URL, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      signal: ctrl.signal,
+      body: JSON.stringify({
+        model: MODEL, messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ], max_tokens: 600, temperature: 0.15,
+      }),
+    });
+    if (!response.ok) return res.status(502).json({ error: `AI provider error (${response.status})` });
+
+    const data = await response.json();
+    const raw = data.choices?.[0]?.message?.content;
+    if (!raw) return res.status(502).json({ error: 'Empty response from AI' });
+
+    let parsed;
+    try {
+      parsed = JSON.parse(raw.replace(/^```json?\s*/i, '').replace(/```\s*$/i, '').trim());
+    } catch {
+      parsed = { riskScore: 5, riskLabel: 'Moderate', concentrationWarnings: [], sectorExposure: {}, rebalanceSuggestions: [], summary: raw.trim().substring(0, 300) };
+    }
+
+    const result = {
+      riskScore: parsed.riskScore || 5,
+      riskLabel: parsed.riskLabel || 'Moderate',
+      concentrationWarnings: Array.isArray(parsed.concentrationWarnings) ? parsed.concentrationWarnings : [],
+      sectorExposure: parsed.sectorExposure || {},
+      rebalanceSuggestions: Array.isArray(parsed.rebalanceSuggestions) ? parsed.rebalanceSuggestions : [],
+      summary: parsed.summary || '',
+      generatedAt: new Date().toISOString(),
+    };
+
+    _portfolioInsightCache.set(cacheKey, { v: result, exp: Date.now() + PORTFOLIO_INSIGHT_TTL });
+    if (_portfolioInsightCache.size > 50) {
+      const now = Date.now();
+      for (const [k, e] of _portfolioInsightCache) { if (now > e.exp) _portfolioInsightCache.delete(k); }
+    }
+
+    res.json(result);
+  } catch (err) {
+    if (err.name === 'AbortError') return res.status(504).json({ error: 'Portfolio insight timed out' });
+    console.error('[Search/AI Portfolio Insight] Error:', err.message);
+    res.status(500).json({ error: 'Portfolio insight failed' });
+  } finally { clearTimeout(timer); }
+});
+
+/**
+ * POST /alert-suggest — AI-powered alert suggestions for a given symbol
+ *
+ * Body: { symbol: string, currentPrice: number, positions?: [] }
+ * Returns: { suggestions: [{ type, targetPrice, rationale }] }
+ */
+
+const _alertSuggestCache = new Map();
+const ALERT_SUGGEST_TTL = 10 * 60 * 1000;
+
+router.post('/alert-suggest', async (req, res) => {
+  const apiKey = process.env.PERPLEXITY_API_KEY;
+  if (!apiKey) return res.status(503).json({ error: 'AI not configured' });
+
+  const { symbol, currentPrice, positions } = req.body;
+  if (!symbol || typeof symbol !== 'string') return res.status(400).json({ error: 'symbol is required' });
+
+  const sym = symbol.trim().toUpperCase();
+  const cacheKey = `${sym}:${Math.round(currentPrice || 0)}`;
+  const cached = _alertSuggestCache.get(cacheKey);
+  if (cached && Date.now() < cached.exp) return res.json({ ...cached.v, cached: true });
+
+  let context = `Symbol: ${sym}`;
+  if (currentPrice) context += `\nCurrent Price: $${currentPrice}`;
+  if (positions?.length > 0) {
+    const pos = positions[0];
+    if (pos.entryPrice) context += `\nEntry Price: $${pos.entryPrice}`;
+    if (pos.quantity) context += `\nShares: ${pos.quantity}`;
+  }
+
+  const systemPrompt = `You are a trading alert advisor. Given a symbol and its current price, suggest 3-5 useful price alerts. Respond ONLY with valid JSON:
+{
+  "suggestions": [
+    { "type": "price_above", "targetPrice": 155.00, "rationale": "Near 52-week high resistance" },
+    { "type": "price_below", "targetPrice": 140.00, "rationale": "Key support level breakdown" }
+  ]
+}
+Rules:
+- type must be: price_above, price_below, or pct_move_from_entry
+- targetPrice must be a reasonable number relative to the current price
+- rationale should be 1 short sentence
+- Include a mix of upside and downside alerts
+- If entry price is provided, include a pct_move alert`;
+
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 15000);
+
+  try {
+    const response = await fetch(PERPLEXITY_URL, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      signal: ctrl.signal,
+      body: JSON.stringify({
+        model: MODEL, messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: context },
+        ], max_tokens: 400, temperature: 0.2,
+      }),
+    });
+    if (!response.ok) return res.status(502).json({ error: `AI provider error (${response.status})` });
+
+    const data = await response.json();
+    const raw = data.choices?.[0]?.message?.content;
+    if (!raw) return res.status(502).json({ error: 'Empty response from AI' });
+
+    let parsed;
+    try {
+      parsed = JSON.parse(raw.replace(/^```json?\s*/i, '').replace(/```\s*$/i, '').trim());
+    } catch { parsed = { suggestions: [] }; }
+
+    const result = {
+      symbol: sym,
+      suggestions: Array.isArray(parsed.suggestions) ? parsed.suggestions.slice(0, 5) : [],
+      generatedAt: new Date().toISOString(),
+    };
+
+    _alertSuggestCache.set(cacheKey, { v: result, exp: Date.now() + ALERT_SUGGEST_TTL });
+    if (_alertSuggestCache.size > 100) {
+      const now = Date.now();
+      for (const [k, e] of _alertSuggestCache) { if (now > e.exp) _alertSuggestCache.delete(k); }
+    }
+
+    res.json(result);
+  } catch (err) {
+    if (err.name === 'AbortError') return res.status(504).json({ error: 'Alert suggest timed out' });
+    console.error('[Search/AI Alert Suggest] Error:', err.message);
+    res.status(500).json({ error: 'Alert suggest failed' });
+  } finally { clearTimeout(timer); }
+});
+
+/**
+ * POST /event-preview — AI-powered economic event impact preview
+ *
+ * Body: { event: string, date: string, previousValue?: string, forecast?: string }
+ * Returns: { impact: string, affectedSectors: [], marketExpectation: string, tradingConsiderations: [] }
+ */
+
+const _eventPreviewCache = new Map();
+const EVENT_PREVIEW_TTL = 15 * 60 * 1000;
+
+router.post('/event-preview', async (req, res) => {
+  const apiKey = process.env.PERPLEXITY_API_KEY;
+  if (!apiKey) return res.status(503).json({ error: 'AI not configured' });
+
+  const { event, date, previousValue, forecast } = req.body;
+  if (!event || typeof event !== 'string') return res.status(400).json({ error: 'event name is required' });
+
+  const cacheKey = `${event}:${date || ''}`.toLowerCase().trim();
+  const cached = _eventPreviewCache.get(cacheKey);
+  if (cached && Date.now() < cached.exp) return res.json({ ...cached.v, cached: true });
+
+  let context = `Event: ${event}`;
+  if (date) context += `\nDate: ${date}`;
+  if (previousValue) context += `\nPrevious: ${previousValue}`;
+  if (forecast) context += `\nForecast: ${forecast}`;
+
+  const systemPrompt = `You are a macro-economic analyst. Given an upcoming economic event, provide a brief impact preview. Respond ONLY with valid JSON:
+{
+  "impact": "high|medium|low",
+  "summary": "1-2 sentence impact description",
+  "affectedSectors": ["sector1", "sector2"],
+  "affectedAssets": ["TICKER1", "TICKER2"],
+  "marketExpectation": "1 sentence on consensus",
+  "tradingConsiderations": ["consideration1", "consideration2"]
+}
+Rules:
+- Be specific about which sectors and assets are affected
+- Keep tradingConsiderations to max 3 items, 1 sentence each
+- affectedAssets should be actual ticker symbols
+- Do NOT give investment advice`;
+
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 15000);
+
+  try {
+    const response = await fetch(PERPLEXITY_URL, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      signal: ctrl.signal,
+      body: JSON.stringify({
+        model: MODEL, messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: context },
+        ], max_tokens: 400, temperature: 0.2,
+      }),
+    });
+    if (!response.ok) return res.status(502).json({ error: `AI provider error (${response.status})` });
+
+    const data = await response.json();
+    const raw = data.choices?.[0]?.message?.content;
+    if (!raw) return res.status(502).json({ error: 'Empty response from AI' });
+
+    let parsed;
+    try {
+      parsed = JSON.parse(raw.replace(/^```json?\s*/i, '').replace(/```\s*$/i, '').trim());
+    } catch { parsed = { impact: 'medium', summary: raw.trim().substring(0, 200), affectedSectors: [], affectedAssets: [], marketExpectation: '', tradingConsiderations: [] }; }
+
+    const result = {
+      event, date,
+      impact: parsed.impact || 'medium',
+      summary: parsed.summary || '',
+      affectedSectors: Array.isArray(parsed.affectedSectors) ? parsed.affectedSectors : [],
+      affectedAssets: Array.isArray(parsed.affectedAssets) ? parsed.affectedAssets : [],
+      marketExpectation: parsed.marketExpectation || '',
+      tradingConsiderations: Array.isArray(parsed.tradingConsiderations) ? parsed.tradingConsiderations : [],
+      generatedAt: new Date().toISOString(),
+    };
+
+    _eventPreviewCache.set(cacheKey, { v: result, exp: Date.now() + EVENT_PREVIEW_TTL });
+    if (_eventPreviewCache.size > 50) {
+      const now = Date.now();
+      for (const [k, e] of _eventPreviewCache) { if (now > e.exp) _eventPreviewCache.delete(k); }
+    }
+
+    res.json(result);
+  } catch (err) {
+    if (err.name === 'AbortError') return res.status(504).json({ error: 'Event preview timed out' });
+    console.error('[Search/AI Event Preview] Error:', err.message);
+    res.status(500).json({ error: 'Event preview failed' });
+  } finally { clearTimeout(timer); }
+});
+
+/**
+ * POST /sector-rotation — AI-powered sector rotation commentary
+ *
+ * Body: { sectors: [{ name, changePct, volume }], marketBreadth: { up, down } }
+ * Returns: { commentary: string, rotationSignal: string, leadingSectors: [], laggingSectors: [] }
+ */
+
+const _sectorRotationCache = new Map();
+const SECTOR_ROTATION_TTL = 10 * 60 * 1000;
+
+router.post('/sector-rotation', async (req, res) => {
+  const apiKey = process.env.PERPLEXITY_API_KEY;
+  if (!apiKey) return res.status(503).json({ error: 'AI not configured' });
+
+  const { sectors, marketBreadth } = req.body;
+  if (!sectors || !Array.isArray(sectors) || sectors.length === 0) {
+    return res.status(400).json({ error: 'sectors[] is required' });
+  }
+
+  const cacheKey = sectors.map(s => `${s.name}:${(s.changePct || 0).toFixed(1)}`).sort().join(',');
+  const cached = _sectorRotationCache.get(cacheKey);
+  if (cached && Date.now() < cached.exp) return res.json({ ...cached.v, cached: true });
+
+  const sectorBlock = sectors.map(s =>
+    `${s.name}: ${s.changePct >= 0 ? '+' : ''}${(s.changePct || 0).toFixed(2)}%`
+  ).join('\n');
+
+  let context = `Today's Sector Performance:\n${sectorBlock}`;
+  if (marketBreadth) {
+    context += `\n\nMarket Breadth: ${marketBreadth.up || 0} advancing, ${marketBreadth.down || 0} declining`;
+  }
+
+  const systemPrompt = `You are a sector rotation analyst. Given today's sector performance, provide a concise rotation analysis. Respond ONLY with valid JSON:
+{
+  "commentary": "2-3 sentence rotation analysis",
+  "rotationSignal": "risk-on|risk-off|mixed|sector-specific",
+  "leadingSectors": ["sector1", "sector2"],
+  "laggingSectors": ["sector1", "sector2"],
+  "theme": "1 sentence theme summary"
+}
+Rules:
+- Be specific about what the rotation implies for the market cycle
+- rotationSignal must be exactly one of the listed values
+- Keep commentary professional and data-driven
+- No emojis, no disclaimers`;
+
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 15000);
+
+  try {
+    const response = await fetch(PERPLEXITY_URL, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      signal: ctrl.signal,
+      body: JSON.stringify({
+        model: MODEL, messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: context },
+        ], max_tokens: 350, temperature: 0.2,
+      }),
+    });
+    if (!response.ok) return res.status(502).json({ error: `AI provider error (${response.status})` });
+
+    const data = await response.json();
+    const raw = data.choices?.[0]?.message?.content;
+    if (!raw) return res.status(502).json({ error: 'Empty response from AI' });
+
+    let parsed;
+    try {
+      parsed = JSON.parse(raw.replace(/^```json?\s*/i, '').replace(/```\s*$/i, '').trim());
+    } catch { parsed = { commentary: raw.trim().substring(0, 300), rotationSignal: 'mixed', leadingSectors: [], laggingSectors: [], theme: '' }; }
+
+    const result = {
+      commentary: parsed.commentary || '',
+      rotationSignal: parsed.rotationSignal || 'mixed',
+      leadingSectors: Array.isArray(parsed.leadingSectors) ? parsed.leadingSectors : [],
+      laggingSectors: Array.isArray(parsed.laggingSectors) ? parsed.laggingSectors : [],
+      theme: parsed.theme || '',
+      generatedAt: new Date().toISOString(),
+    };
+
+    _sectorRotationCache.set(cacheKey, { v: result, exp: Date.now() + SECTOR_ROTATION_TTL });
+    if (_sectorRotationCache.size > 50) {
+      const now = Date.now();
+      for (const [k, e] of _sectorRotationCache) { if (now > e.exp) _sectorRotationCache.delete(k); }
+    }
+
+    res.json(result);
+  } catch (err) {
+    if (err.name === 'AbortError') return res.status(504).json({ error: 'Sector rotation timed out' });
+    console.error('[Search/AI Sector Rotation] Error:', err.message);
+    res.status(500).json({ error: 'Sector rotation failed' });
+  } finally { clearTimeout(timer); }
+});
+
+/**
+ * POST /options-strategy — AI-powered options strategy suggestion
+ *
+ * Body: { symbol, currentPrice, outlook: 'bullish'|'bearish'|'neutral', expirations: [], iv: number }
+ * Returns: { strategies: [{ name, legs: [], rationale, maxProfit, maxLoss, breakeven }] }
+ */
+
+const _optionsStrategyCache = new Map();
+const OPTIONS_STRATEGY_TTL = 10 * 60 * 1000;
+
+router.post('/options-strategy', async (req, res) => {
+  const apiKey = process.env.PERPLEXITY_API_KEY;
+  if (!apiKey) return res.status(503).json({ error: 'AI not configured' });
+
+  const { symbol, currentPrice, outlook, iv } = req.body;
+  if (!symbol) return res.status(400).json({ error: 'symbol is required' });
+  if (!outlook || !['bullish', 'bearish', 'neutral'].includes(outlook)) {
+    return res.status(400).json({ error: 'outlook must be bullish, bearish, or neutral' });
+  }
+
+  const sym = symbol.toUpperCase().trim();
+  const cacheKey = `${sym}:${outlook}:${Math.round(currentPrice || 0)}`;
+  const cached = _optionsStrategyCache.get(cacheKey);
+  if (cached && Date.now() < cached.exp) return res.json({ ...cached.v, cached: true });
+
+  let context = `Symbol: ${sym}\nOutlook: ${outlook}`;
+  if (currentPrice) context += `\nCurrent Price: $${currentPrice}`;
+  if (iv) context += `\nImplied Volatility: ${(iv * 100).toFixed(1)}%`;
+
+  const systemPrompt = `You are an options strategist. Given a stock, its price, and the trader's outlook, suggest 2-3 options strategies. Respond ONLY with valid JSON:
+{
+  "strategies": [
+    {
+      "name": "Strategy Name (e.g., Bull Call Spread)",
+      "legs": [
+        { "action": "buy|sell", "type": "call|put", "strike": 150, "expiry": "30-45 DTE" }
+      ],
+      "rationale": "1-2 sentence explanation",
+      "riskReward": "defined risk|unlimited risk",
+      "idealCondition": "When to use this strategy"
+    }
+  ]
+}
+Rules:
+- Strikes should be realistic relative to current price
+- Include strategies appropriate for the outlook
+- For bullish: consider bull spreads, long calls, covered calls
+- For bearish: consider bear spreads, long puts, protective puts
+- For neutral: consider iron condors, strangles, butterflies
+- Keep it practical and professional`;
+
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 15000);
+
+  try {
+    const response = await fetch(PERPLEXITY_URL, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      signal: ctrl.signal,
+      body: JSON.stringify({
+        model: MODEL, messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: context },
+        ], max_tokens: 500, temperature: 0.2,
+      }),
+    });
+    if (!response.ok) return res.status(502).json({ error: `AI provider error (${response.status})` });
+
+    const data = await response.json();
+    const raw = data.choices?.[0]?.message?.content;
+    if (!raw) return res.status(502).json({ error: 'Empty response from AI' });
+
+    let parsed;
+    try {
+      parsed = JSON.parse(raw.replace(/^```json?\s*/i, '').replace(/```\s*$/i, '').trim());
+    } catch { parsed = { strategies: [] }; }
+
+    const result = {
+      symbol: sym,
+      outlook,
+      strategies: Array.isArray(parsed.strategies) ? parsed.strategies.slice(0, 3) : [],
+      generatedAt: new Date().toISOString(),
+    };
+
+    _optionsStrategyCache.set(cacheKey, { v: result, exp: Date.now() + OPTIONS_STRATEGY_TTL });
+    if (_optionsStrategyCache.size > 50) {
+      const now = Date.now();
+      for (const [k, e] of _optionsStrategyCache) { if (now > e.exp) _optionsStrategyCache.delete(k); }
+    }
+
+    res.json(result);
+  } catch (err) {
+    if (err.name === 'AbortError') return res.status(504).json({ error: 'Options strategy timed out' });
+    console.error('[Search/AI Options Strategy] Error:', err.message);
+    res.status(500).json({ error: 'Options strategy failed' });
+  } finally { clearTimeout(timer); }
+});
+
+/**
+ * POST /chat — AI-powered multi-turn financial chat
+ *
+ * Body: { messages: [{ role: 'user'|'assistant', content: string }], context?: string }
+ * Returns SSE stream: data: { chunk: string } ... data: [DONE]
+ */
+
+router.post('/chat', async (req, res) => {
+  const apiKey = process.env.PERPLEXITY_API_KEY;
+  if (!apiKey) return res.status(503).json({ error: 'AI not configured' });
+
+  const { messages, context } = req.body;
+  if (!messages || !Array.isArray(messages) || messages.length === 0) {
+    return res.status(400).json({ error: 'messages[] is required' });
+  }
+
+  // Limit conversation history
+  const history = messages.slice(-20);
+  const lastMsg = history[history.length - 1];
+  if (!lastMsg || lastMsg.role !== 'user' || !lastMsg.content?.trim()) {
+    return res.status(400).json({ error: 'Last message must be a user message with content' });
+  }
+
+  const systemPrompt = `You are an AI financial assistant embedded in the Senger Market Terminal — a Bloomberg-style market terminal. You help traders and investors with market analysis, portfolio questions, technical analysis, macro economics, and trading ideas.
+
+Rules:
+- Be concise and data-driven. Use specific numbers when possible.
+- Format key metrics and tickers in bold (**AAPL**, **$150.25**).
+- Keep responses under 300 words unless the question requires more detail.
+- Do NOT give specific investment advice or recommendations to buy/sell.
+- You can reference common financial concepts, indicators, and market dynamics.
+- Be professional but conversational.
+${context ? `\nAdditional context: ${context}` : ''}`;
+
+  // Set up SSE
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    Connection: 'keep-alive',
+    'X-Accel-Buffering': 'no',
+  });
+
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 30000);
+
+  try {
+    const response = await fetch(PERPLEXITY_URL, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      signal: ctrl.signal,
+      body: JSON.stringify({
+        model: MODEL,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          ...history.map(m => ({ role: m.role, content: m.content })),
+        ],
+        max_tokens: 600,
+        temperature: 0.3,
+        stream: true,
+      }),
+    });
+
+    if (!response.ok) {
+      const errText = await response.text().catch(() => '');
+      console.error(`[Search/AI Chat] Perplexity error ${response.status}:`, errText.substring(0, 200));
+      res.write(`data: ${JSON.stringify({ error: `AI provider error (${response.status})` })}\n\n`);
+      res.write('data: [DONE]\n\n');
+      res.end();
+      return;
+    }
+
+    // Stream response chunks
+    const reader = response.body;
+    let buffer = '';
+
+    reader.on('data', (chunk) => {
+      buffer += chunk.toString();
+      const lines = buffer.split('\n');
+      buffer = lines.pop(); // Keep incomplete line in buffer
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed || !trimmed.startsWith('data: ')) continue;
+        const payload = trimmed.slice(6);
+        if (payload === '[DONE]') {
+          res.write('data: [DONE]\n\n');
+          return;
+        }
+        try {
+          const parsed = JSON.parse(payload);
+          const content = parsed.choices?.[0]?.delta?.content;
+          if (content) {
+            res.write(`data: ${JSON.stringify({ chunk: content })}\n\n`);
+          }
+        } catch {}
+      }
+    });
+
+    reader.on('end', () => {
+      // Process any remaining buffer
+      if (buffer.trim()) {
+        const trimmed = buffer.trim();
+        if (trimmed.startsWith('data: ') && trimmed.slice(6) !== '[DONE]') {
+          try {
+            const parsed = JSON.parse(trimmed.slice(6));
+            const content = parsed.choices?.[0]?.delta?.content;
+            if (content) res.write(`data: ${JSON.stringify({ chunk: content })}\n\n`);
+          } catch {}
+        }
+      }
+      res.write('data: [DONE]\n\n');
+      res.end();
+    });
+
+    reader.on('error', (err) => {
+      console.error('[Search/AI Chat] Stream error:', err.message);
+      res.write(`data: ${JSON.stringify({ error: 'Stream interrupted' })}\n\n`);
+      res.write('data: [DONE]\n\n');
+      res.end();
+    });
+
+    // Handle client disconnect
+    req.on('close', () => { ctrl.abort(); });
+
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      res.write(`data: ${JSON.stringify({ error: 'Chat timed out (30s)' })}\n\n`);
+    } else {
+      console.error('[Search/AI Chat] Error:', err.message);
+      res.write(`data: ${JSON.stringify({ error: 'AI chat failed' })}\n\n`);
+    }
+    res.write('data: [DONE]\n\n');
+    res.end();
+  } finally { clearTimeout(timer); }
+});
+
 module.exports = router;

@@ -22,6 +22,7 @@ import ShareModal from '../common/ShareModal';
 import { usePortfolio } from '../../context/PortfolioContext';
 import { useTickerPrice } from '../../context/PriceContext';
 import { useAuth } from '../../context/AuthContext';
+import { apiJSON } from '../../utils/api';
 import {
   fmt, fmtPct, fmtCompact, computeSummary, computeAllocation,
   computeBenchmarkComparison, suggestBenchmark, inferAssetType, assetTypeLabel,
@@ -78,6 +79,104 @@ const AllocationBar = memo(function AllocationBar({ items }) {
       ))}
     </div>
   );
+});
+
+// ── AI Health Card ──
+const AIHealthCard = memo(function AIHealthCard({ aiInsight, aiLoading, aiError, onRetry, onClose }) {
+  if (!aiInsight && !aiLoading && !aiError) return null;
+
+  const getRiskColor = (score) => {
+    if (score <= 3) return '#4ade80'; // green
+    if (score <= 6) return '#eab308'; // yellow
+    return '#ef4444'; // red
+  };
+
+  if (aiLoading) {
+    return (
+      <div className="pp-ai-card">
+        <div className="pp-ai-loading">
+          <div className="pp-ai-pulse"></div>
+          <span>Analyzing portfolio...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (aiError) {
+    return (
+      <div className="pp-ai-card">
+        <div className="pp-ai-error">
+          <div className="pp-ai-error-text">{aiError}</div>
+          <div className="flex-row" style={{ gap: '4px', marginTop: '8px' }}>
+            <button className="pp-ai-retry-btn" onClick={onRetry}>Retry</button>
+            <button className="pp-ai-close-btn" onClick={onClose}>Dismiss</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (aiInsight) {
+    return (
+      <div className="pp-ai-card">
+        <div className="pp-ai-card-header">
+          <div className="flex-row" style={{ gap: '8px', alignItems: 'center', flex: 1 }}>
+            <div
+              className="pp-ai-risk-badge"
+              style={{ backgroundColor: getRiskColor(aiInsight.riskScore) }}
+              title={`Risk score: ${aiInsight.riskScore}/10`}
+            >
+              {aiInsight.riskScore}
+            </div>
+            <div className="pp-ai-risk-label">{aiInsight.riskLabel}</div>
+          </div>
+          <button className="pp-ai-close-btn" onClick={onClose} title="Close">×</button>
+        </div>
+
+        {aiInsight.summary && (
+          <div className="pp-ai-summary">{aiInsight.summary}</div>
+        )}
+
+        {aiInsight.concentrationWarnings && aiInsight.concentrationWarnings.length > 0 && (
+          <div className="pp-ai-warnings">
+            <div className="pp-ai-section-title">Concentration Warnings</div>
+            <ul className="pp-ai-list">
+              {aiInsight.concentrationWarnings.map((warning, i) => (
+                <li key={i} className="pp-ai-warning-item">{warning}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {aiInsight.rebalanceSuggestions && aiInsight.rebalanceSuggestions.length > 0 && (
+          <div className="pp-ai-suggestions">
+            <div className="pp-ai-section-title">Rebalance Suggestions</div>
+            <ul className="pp-ai-list">
+              {aiInsight.rebalanceSuggestions.map((suggestion, i) => (
+                <li key={i} className="pp-ai-suggestion-item">{suggestion}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {aiInsight.sectorExposure && Object.keys(aiInsight.sectorExposure).length > 0 && (
+          <div className="pp-ai-sector-exposure">
+            <div className="pp-ai-section-title">Sector Exposure</div>
+            <div className="pp-ai-sector-grid">
+              {Object.entries(aiInsight.sectorExposure).map(([sector, pct]) => (
+                <div key={sector} className="pp-ai-sector-item">
+                  <span className="pp-ai-sector-name">{sector}</span>
+                  <span className="pp-ai-sector-pct">{(pct * 100).toFixed(1)}%</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return null;
 });
 
 // ── Summary strip ──
@@ -216,6 +315,12 @@ function PortfolioPanel({ onTickerClick, onOpenDetail }) {
   const [showEditor, setShowEditor]   = useState(false);
   const [shareOpen, setShareOpen]     = useState(false);
 
+  // AI Health Check state
+  const [aiInsight, setAiInsight] = useState(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState(null);
+  const priceSnapshotRef = useRef({});
+
   // Build filter options
   const filterOptions = [];
   portfolios.forEach(p => {
@@ -252,7 +357,6 @@ function PortfolioPanel({ onTickerClick, onOpenDetail }) {
   //
   // Actually the simplest: import PriceCtx directly and use getPrice.
   const [priceSnapshot, setPriceSnapshot] = useState({});
-  const priceSnapshotRef = useRef({});
 
   // Collect prices reported by rows
   const reportPrice = useCallback((symbol, data) => {
@@ -295,6 +399,68 @@ function PortfolioPanel({ onTickerClick, onOpenDetail }) {
     setAlertEditorData(null);
   }, []);
 
+  // AI Health Check handler
+  const handleAIHealthCheck = useCallback(async () => {
+    if (filtered.length === 0) {
+      setAiError('No positions to analyze');
+      return;
+    }
+
+    setAiLoading(true);
+    setAiError(null);
+    setAiInsight(null);
+
+    try {
+      // Calculate total portfolio value from positions
+      let totalValue = 0;
+      const positionsData = filtered.map(pos => {
+        const priceData = priceSnapshot[pos.symbol] || {};
+        const currentPrice = priceData.price || pos.entryPrice || 0;
+        const positionValue = (pos.quantity || 0) * currentPrice;
+        totalValue += positionValue;
+        return {
+          symbol: pos.symbol,
+          weight: positionValue,
+          returnPct: pos.entryPrice
+            ? ((currentPrice - pos.entryPrice) / pos.entryPrice) * 100
+            : 0,
+          sector: pos.sector || 'Unknown',
+        };
+      });
+
+      // Compute weights as fractions
+      if (totalValue > 0) {
+        positionsData.forEach(p => {
+          p.weight = p.weight / totalValue;
+        });
+      }
+
+      const response = await apiJSON('/api/search/portfolio-insight', {
+        method: 'POST',
+        body: JSON.stringify({
+          positions: positionsData,
+          totalValue,
+        }),
+      });
+
+      setAiInsight(response);
+    } catch (err) {
+      setAiError(err.message || 'Failed to analyze portfolio');
+    } finally {
+      setAiLoading(false);
+    }
+  }, [filtered, priceSnapshot]);
+
+  const handleAIRetry = useCallback(() => {
+    handleAIHealthCheck();
+  }, [handleAIHealthCheck]);
+
+  const handleAIClose = useCallback(() => {
+    setAiInsight(null);
+    setAiError(null);
+    setAiLoading(false);
+  }, []);
+
   return (
     <PanelShell>
       {/* Header */}
@@ -313,6 +479,14 @@ function PortfolioPanel({ onTickerClick, onOpenDetail }) {
             {filterOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
         )}
+        <button
+          className="pp-ai-btn"
+          onClick={handleAIHealthCheck}
+          disabled={filtered.length === 0 || aiLoading}
+          title="Run AI health check on portfolio"
+        >
+          🤖 AI HEALTH CHECK
+        </button>
         <button className="pp-add-btn pp-add-btn--compact" onClick={() => setShareOpen(true)} title="Share portfolio">
           SHARE
         </button>
@@ -320,6 +494,15 @@ function PortfolioPanel({ onTickerClick, onOpenDetail }) {
           + ADD
         </button>
       </div>
+
+      {/* AI Health Card */}
+      <AIHealthCard
+        aiInsight={aiInsight}
+        aiLoading={aiLoading}
+        aiError={aiError}
+        onRetry={handleAIRetry}
+        onClose={handleAIClose}
+      />
 
       {/* Summary strip */}
       <SummaryStrip

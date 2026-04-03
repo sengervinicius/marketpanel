@@ -17,6 +17,7 @@ import './PositionEditor.css';
 
 function PositionEditor({
   position,
+  defaultSymbol,
   defaultPortfolioId,
   defaultSubportfolioId,
   onClose,
@@ -27,7 +28,7 @@ function PositionEditor({
   const isEditing = !!position;
 
   // Initialize form state
-  const [symbol, setSymbol] = useState(position?.symbol || '');
+  const [symbol, setSymbol] = useState(position?.symbol || defaultSymbol || '');
   const [portfolioId, setPortfolioId] = useState(
     position?.portfolioId || defaultPortfolioId || (portfolios[0]?.id || '')
   );
@@ -73,6 +74,22 @@ function PositionEditor({
   const handleSave = useCallback(() => {
     if (!symbol.trim()) {
       alert('Symbol is required');
+      return;
+    }
+    // Validate non-negative values
+    const qty = quantity ? parseFloat(quantity) : null;
+    const price = entryPrice ? parseFloat(entryPrice) : null;
+    const invested = investedAmount ? parseFloat(investedAmount) : null;
+    if (qty != null && qty < 0) {
+      alert('Quantity cannot be negative');
+      return;
+    }
+    if (price != null && price < 0) {
+      alert('Entry price cannot be negative');
+      return;
+    }
+    if (invested != null && invested < 0) {
+      alert('Invested amount cannot be negative');
       return;
     }
 
@@ -205,6 +222,7 @@ function PositionEditor({
               onChange={(e) => setInvestedAmount(e.target.value)}
               placeholder="0.00"
               step="0.01"
+              min="0"
             />
           </div>
 
@@ -218,6 +236,7 @@ function PositionEditor({
               onChange={(e) => setQuantity(e.target.value)}
               placeholder="0.00"
               step="0.01"
+              min="0"
             />
           </div>
 
@@ -231,6 +250,7 @@ function PositionEditor({
               onChange={(e) => setEntryPrice(e.target.value)}
               placeholder="0.00"
               step="0.01"
+              min="0"
             />
           </div>
 

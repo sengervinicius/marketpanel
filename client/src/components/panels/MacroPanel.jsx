@@ -64,10 +64,17 @@ export default function MacroPanel() {
     fetchComparison();
   }, [fetchComparison]);
 
+  const [maxWarning, setMaxWarning] = useState(false);
+
   const toggleCountry = (code) => {
     setSelected(prev => {
       if (prev.includes(code)) return prev.filter(c => c !== code);
-      if (prev.length >= 4) return prev; // max 4
+      if (prev.length >= 4) {
+        setMaxWarning(true);
+        setTimeout(() => setMaxWarning(false), 3000);
+        return prev; // max 4
+      }
+      setMaxWarning(false);
       return [...prev, code];
     });
   };
@@ -123,16 +130,25 @@ export default function MacroPanel() {
 
       {/* Country selector */}
       <div className="macro-countries">
-        <label className="macro-label">COUNTRIES (max 4)</label>
+        <label className="macro-label">
+          COUNTRIES (max 4)
+          {maxWarning && <span style={{ color: '#f44336', marginLeft: 8, fontSize: '0.85em' }}>Maximum 4 countries selected</span>}
+        </label>
         <div className="macro-chips">
-          {availableCountries.map(c => (
-            <button key={c.code}
-              className={`macro-chip${selected.includes(c.code) ? ' macro-chip--active' : ''}`}
-              onClick={() => toggleCountry(c.code)}
-            >
-              {c.code} <span className="macro-chip-name">{c.name}</span>
-            </button>
-          ))}
+          {availableCountries.map(c => {
+            const isSelected = selected.includes(c.code);
+            const isDisabled = !isSelected && selected.length >= 4;
+            return (
+              <button key={c.code}
+                className={`macro-chip${isSelected ? ' macro-chip--active' : ''}${isDisabled ? ' macro-chip--disabled' : ''}`}
+                onClick={() => toggleCountry(c.code)}
+                disabled={isDisabled}
+                style={isDisabled ? { opacity: 0.35, cursor: 'not-allowed' } : undefined}
+              >
+                {c.code} <span className="macro-chip-name">{c.name}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
