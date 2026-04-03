@@ -1,7 +1,8 @@
 // StockPanel.jsx — US equities + Brazil ADRs with section headers and sortable columns
 // Features: feed-status badge, collapse, movers filter, heatmap view, custom subsections
 // Phase 8: ticker prop on PriceRow + HeatmapCell with PriceContext fallback
-import { useRef, useState, useMemo, useCallback, memo } from 'react';
+// Fix 4: Heatmap cells show shimmer when data is loading
+import { useRef, useState, useMemo, useCallback, memo, useEffect } from 'react';
 import useMergedTickerQuote from '../common/useMergedTickerQuote';
 import { useSettings } from '../../context/SettingsContext';
 import PanelConfigModal from '../common/PanelConfigModal';
@@ -13,6 +14,7 @@ import { SectionHeader } from '../common/SectionHeader';
 import ColumnHeaders from '../common/ColumnHeaders';
 import { US_STOCKS, BRAZIL_ADRS } from '../../utils/constants';
 import { useFeedStatus } from '../../context/FeedStatusContext';
+import '../common/Shimmer.css';
 import './StockPanel.css';
 
 const fmt    = (n) => n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -58,11 +60,26 @@ function heatColor(pct) {
 }
 
 // Phase 8: Heatmap cell that merges snapshot with PriceContext
+// Fix 4: Shows shimmer when pct is null
 function HeatmapCell({ s, data, onTickerClick, onOpenDetail }) {
   const d = data?.[s.symbol] || {};
   const { changePct: pct } = useMergedTickerQuote(s.symbol, d);
+  const [showShimmer, setShowShimmer] = useState(true);
+
+  // Fix 4: After 10 seconds, stop showing shimmer
+  useEffect(() => {
+    const timer = setTimeout(() => setShowShimmer(false), 10000);
+    return () => clearTimeout(timer);
+  }, []);
+
   const bg = heatColor(pct);
   const pos = (pct ?? 0) >= 0;
+
+  // Fix 4: Show shimmer when pct is null and within 10s window
+  const pctDisplay = pct == null && showShimmer
+    ? <span className="price-shimmer price-shimmer--narrow" style={{ height: 8 }} />
+    : fmtPct(pct);
+
   return (
     <div
       className="stp-movers-card"
@@ -78,7 +95,7 @@ function HeatmapCell({ s, data, onTickerClick, onOpenDetail }) {
       onMouseLeave={e => e.currentTarget.style.filter = 'none'}
     >
       <span className="stp-movers-symbol">{s.symbol.replace('.SA', '')}</span>
-      <span className="stp-movers-pct" style={{ color: pos ? '#81c784' : '#ef9a9a' }}>{fmtPct(pct)}</span>
+      <span className="stp-movers-pct" style={{ color: pos ? '#81c784' : '#ef9a9a', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{pctDisplay}</span>
     </div>
   );
 }

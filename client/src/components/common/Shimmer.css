@@ -1,0 +1,29 @@
+/* Shimmer.css — global price shimmer placeholder */
+
+.price-shimmer {
+  display: inline-block;
+  width: 48px;
+  height: 10px;
+  border-radius: 2px;
+  background: linear-gradient(90deg,
+    rgba(255,255,255,0.03) 25%,
+    rgba(255,255,255,0.07) 50%,
+    rgba(255,255,255,0.03) 75%
+  );
+  background-size: 200% 100%;
+  animation: price-shimmer 1.5s ease-in-out infinite;
+  vertical-align: middle;
+}
+
+.price-shimmer--wide {
+  width: 64px;
+}
+
+.price-shimmer--narrow {
+  width: 32px;
+}
+
+@keyframes price-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}

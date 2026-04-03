@@ -141,9 +141,33 @@ function SearchPanel({ onTickerSelect, onOpenDetail }) {
   const [results,       setResults]       = useState([]);
   const [loading,       setLoading]       = useState(false);
   const [addedToHome,   setAddedToHome]   = useState(null);
+  const [aiResults,     setAiResults]     = useState([]);
+  const [aiLoading,     setAiLoading]     = useState(false);
+  const [aiError,       setAiError]       = useState(null);
 
   const debounceRef   = useRef(null);
   const { addToHomeSection } = useSettings();
+
+  const handleAiSearch = useCallback(async (q) => {
+    if (!q || q.trim().length < 3) return;
+    setAiLoading(true);
+    setAiError(null);
+    try {
+      const res = await apiFetch('/api/search/instrument-lookup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: q.trim() }),
+      });
+      if (!res.ok) throw new Error('AI search failed');
+      const data = await res.json();
+      setAiResults(data.results || []);
+    } catch (err) {
+      setAiError(err.message || 'AI search unavailable');
+      setAiResults([]);
+    } finally {
+      setAiLoading(false);
+    }
+  }, []);
 
   const search = useCallback((q) => {
     if (!q.trim()) { setResults([]); return; }
@@ -188,6 +212,10 @@ function SearchPanel({ onTickerSelect, onOpenDetail }) {
 
       setResults(merged);
       setLoading(false);
+
+      if (merged.length < 3 && q.trim().length >= 3) {
+        handleAiSearch(q);
+      }
     });
   }, []);
 
@@ -317,6 +345,48 @@ function SearchPanel({ onTickerSelect, onOpenDetail }) {
             );
           })}
         </div>
+      )}
+
+      {/* AI-powered semantic results */}
+      {aiLoading && (
+        <div className="sp-ai-loading">
+          <span className="sp-ai-badge">AI</span> SEARCHING...
+        </div>
+      )}
+      {aiError && (
+        <div className="sp-ai-error">{aiError}</div>
+      )}
+      {aiResults.length > 0 && !aiLoading && (
+        <div className="sp-ai-results">
+          <div className="sp-ai-header">
+            <span className="sp-ai-badge">AI</span>
+            <span className="sp-ai-header-text">SEMANTIC MATCHES</span>
+          </div>
+          {aiResults.map(item => (
+            <div
+              key={item.symbol}
+              draggable
+              onDragStart={(e) => handleDragStart(e, item)}
+              onClick={() => onOpenDetail?.(item.symbol)}
+              className="sp-result-row sp-result-row--ai"
+            >
+              <span className="sp-drag-icon">⠿</span>
+              <span className="sp-symbol" style={{ color: '#ff6b00' }}>
+                {item.symbol}
+              </span>
+              <span className="sp-name">{item.name}</span>
+              {item.reason && (
+                <span className="sp-ai-reason">{item.reason}</span>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {query.trim().length >= 3 && !aiLoading && (
+        <button className="sp-ai-search-btn" onClick={() => handleAiSearch(query)}>
+          AI SEARCH
+        </button>
       )}
 
       {/* ── Empty state ── */}

@@ -2,6 +2,7 @@
  * WatchlistPanel.jsx
  * User-defined watchlist stored in localStorage.
  * Tickers are fetched on-demand via /api/snapshot/stocks?tickers= (ad-hoc endpoint).
+ * Fix 4: Shows shimmer placeholder while loading quotes instead of dashes.
  */
 import { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { useWatchlist } from '../../context/WatchlistContext';
@@ -10,6 +11,7 @@ import { apiFetch } from '../../utils/api';
 import EmptyState from '../common/EmptyState';
 import PanelShell from '../common/PanelShell';
 import { PriceRow } from '../common/PriceRow';
+import '../common/Shimmer.css';
 import './WatchlistPanel.css';
 
 const fmt    = (n) => n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -42,6 +44,8 @@ function WatchlistPanel({ onTickerClick, onOpenDetail }) {
   const [whySummary, setWhySummary] = useState(null);
   const [whyLoading, setWhyLoading] = useState(false);
   const [whyError, setWhyError]     = useState(null);
+  // Fix 4: Track per-symbol shimmer timeout state
+  const [shimmerTimeouts, setShimmerTimeouts] = useState({});
 
   // Fetch live quotes for all watchlist symbols
   const fetchQuotes = useCallback(async () => {
@@ -55,12 +59,40 @@ function WatchlistPanel({ onTickerClick, onOpenDetail }) {
       const map = {};
       (json.tickers || []).forEach(t => { map[t.ticker] = normalizePolygonQuote(t); });
       setQuotes(map);
+      // Fix 4: Clear shimmer timeouts for symbols that now have data
+      setShimmerTimeouts(prev => {
+        const updated = { ...prev };
+        Object.keys(map).forEach(sym => delete updated[sym]);
+        return updated;
+      });
     } catch (e) {
       setError(e.message);
     } finally {
       setLoading(false);
     }
   }, [watchlist]);
+
+  // Fix 4: Initialize 10-second shimmer timeout for new symbols without data
+  useEffect(() => {
+    const newTimeouts = {};
+    watchlist.forEach(sym => {
+      if (!quotes[sym] && !shimmerTimeouts[sym]) {
+        newTimeouts[sym] = setTimeout(() => {
+          setShimmerTimeouts(prev => {
+            const updated = { ...prev };
+            updated[sym] = true; // Mark as expired (show dash)
+            return updated;
+          });
+        }, 10000);
+      }
+    });
+    if (Object.keys(newTimeouts).length > 0) {
+      setShimmerTimeouts(prev => ({ ...prev, ...newTimeouts }));
+    }
+    return () => {
+      Object.values(newTimeouts).forEach(timer => clearTimeout(timer));
+    };
+  }, [watchlist, quotes, shimmerTimeouts]);
 
   // Re-fetch when watchlist changes, and poll every 10s
   useEffect(() => {
@@ -157,6 +189,12 @@ function WatchlistPanel({ onTickerClick, onOpenDetail }) {
             if (/^[A-Z]{6}$/.test(sym)) assetType = sym.endsWith('USD') ? (sym.slice(0, 3) === 'BTC' || sym.slice(0, 3) === 'ETH' ? 'CRYPTO' : 'FX') : 'FX';
             if (sym.endsWith('.SA')) assetType = 'BR';
 
+            // Fix 4: Show shimmer for price/change when data is missing and within 10s window
+            const hasData = quotes[sym];
+            const showShimmer = !hasData && !shimmerTimeouts[sym];
+            const priceDisplay = showShimmer ? <span className="price-shimmer" /> : fmt(q.price);
+            const changeDisplay = showShimmer ? <span className="price-shimmer price-shimmer--narrow" /> : fmtPct(q.changePct);
+
             return (
               <div
                 key={sym}
@@ -175,8 +213,8 @@ function WatchlistPanel({ onTickerClick, onOpenDetail }) {
               >
                 <span className="wp-row-symbol">{sym}</span>
                 <span className="wp-row-source"></span>
-                <span className="wp-row-price">{fmt(q.price)}</span>
-                <span className={`wp-row-change ${pos ? 'wp-row-change-positive' : 'wp-row-change-negative'}`}>{fmtPct(q.changePct)}</span>
+                <span className="wp-row-price">{priceDisplay}</span>
+                <span className={`wp-row-change ${pos ? 'wp-row-change-positive' : 'wp-row-change-negative'}`}>{changeDisplay}</span>
                 <div className="wp-row-actions">
                   <button className="btn wp-why-btn"
                     onClick={e => { e.stopPropagation(); handleWhyClick(sym); }}

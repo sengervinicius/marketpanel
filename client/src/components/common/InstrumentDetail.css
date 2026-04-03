@@ -185,12 +185,13 @@
 }
 .id-chart-area--mobile {
   flex: none;
-  height: min(38vh, 300px);
+  height: min(42vh, 340px);
   padding: var(--sp-2) 8px;
+  overflow: hidden;
 }
 /* On mobile, give chart flex children explicit heights instead of flex ratios */
-.id-chart-area--mobile .id-chart-flex-main   { flex: none; height: calc(min(38vh, 300px) * 0.72); }
-.id-chart-area--mobile .id-chart-flex-volume { flex: none; height: calc(min(38vh, 300px) * 0.22); }
+.id-chart-area--mobile .id-chart-flex-main   { flex: none; height: calc(min(42vh, 340px) * 0.58); }
+.id-chart-area--mobile .id-chart-flex-volume { flex: none; height: calc(min(42vh, 340px) * 0.18); }
 
 /* Range selector row */
 .id-range-row {
@@ -1006,6 +1007,6 @@
 .id-chart-flex-volume--compressed { flex: 1.5; }
 
 /* Mobile overrides for sub-charts */
-.id-chart-area--mobile .id-chart-flex-sub { flex: none; height: calc(min(38vh, 300px) * 0.20); }
-.id-chart-area--mobile .id-chart-flex-main--compressed { flex: none; height: calc(min(38vh, 300px) * 0.48); }
-.id-chart-area--mobile .id-chart-flex-volume--compressed { flex: none; height: calc(min(38vh, 300px) * 0.14); }
+.id-chart-area--mobile .id-chart-flex-sub { flex: none; height: calc(min(42vh, 340px) * 0.18); }
+.id-chart-area--mobile .id-chart-flex-main--compressed { flex: none; height: calc(min(42vh, 340px) * 0.40); }
+.id-chart-area--mobile .id-chart-flex-volume--compressed { flex: none; height: calc(min(42vh, 340px) * 0.12); }

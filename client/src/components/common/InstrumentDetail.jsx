@@ -1,9 +1,11 @@
 // InstrumentDetail.jsx – Bloomberg GP-style full-screen instrument overlay
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useAuth } from '../../context/AuthContext';
 import { apiFetch } from '../../utils/api.js';
 import AlertEditor from './AlertEditor';
 import ShareModal from './ShareModal';
+import PositionEditor from './PositionEditor';
 import InstrumentOptionsPanel from './InstrumentOptionsPanel';
 import './InstrumentDetail.css';
 
@@ -14,7 +16,6 @@ import {
   XAxis, YAxis, ResponsiveContainer, Tooltip,
   ReferenceLine, CartesianGrid, ReferenceArea, Customized,
 } from 'recharts';
-import { SMA, EMA, RSI, MACD, BollingerBands } from 'technicalindicators';
 import {
   computeIndicators, buildChartInsightPayload,
   IND_COLORS, INDICATOR_LIST,
@@ -219,7 +220,7 @@ function StatRow({ label, value, color, big }) {
 
 // ── Main Component ──────────────────────────────────────────────────────────
 // asPage=true: renders as a scrollable page (DETAIL tab on mobile), no fixed overlay
-export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
+export default function InstrumentDetail({ ticker, onClose, asPage = false, onOpenChat }) {
   const { triggerGamificationEvent } = useAuth();
   const norm     = normalizeTicker(ticker);
   const disp     = displayTicker(norm);
@@ -279,6 +280,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
   const [desktopTab,   setDesktopTab]   = useState('STATS');
   const [macroData,    setMacroData]    = useState(null);
   const [showAlertEditor, setShowAlertEditor] = useState(false);
+  const [showPositionEditor, setShowPositionEditor] = useState(false);
   const [showShareModal, setShowShareModal]   = useState(false);
 
   // AI Fundamentals state
@@ -293,6 +295,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
   const [aiChartInsight, setAiChartInsight]         = useState(null);
   const [aiChartInsightLoading, setAiChartInsightLoading] = useState(false);
   const [aiChartInsightError, setAiChartInsightError]     = useState(null);
+  const [showAnalysis, setShowAnalysis] = useState(false); // toggle for Analyze panel
   const aiChartInsightCacheRef = useRef({}); // "symbol:range:lastT" → data
 
   const range = RANGES[rangeIdx];
@@ -517,39 +520,69 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
     });
   };
 
-  // ── AI Chart Insight fetch (Phase 6 — now using shared buildChartInsightPayload) ──
+  // ── AI Chart Insight fetch (Phase 6 — toggle-aware, structured analysis) ──
   const fetchChartInsight = useCallback(() => {
+    // Toggle behavior: if already showing, hide
+    if (showAnalysis && (aiChartInsight || aiChartInsightError)) {
+      setShowAnalysis(false);
+      return;
+    }
     if (bars.length < 5) return;
     const lastT = bars[bars.length - 1]?.t || bars[bars.length - 1]?.label || '';
     const cacheKey = `${norm}:${range.label}:${lastT}`;
 
     if (aiChartInsightCacheRef.current[cacheKey]) {
       setAiChartInsight(aiChartInsightCacheRef.current[cacheKey]);
+      setShowAnalysis(true);
       return;
     }
 
     setAiChartInsightLoading(true);
     setAiChartInsightError(null);
     setAiChartInsight(null);
+    setShowAnalysis(true);
 
+    // Build a richer payload requesting fundamentals + chart analysis
     const payload = buildChartInsightPayload(norm, range.label, indicatorData.bars);
 
-    apiFetch('/api/search/chart-insight', {
+    // Fetch fundamentals summary (best-effort) + chart insight in parallel
+    const chartP = apiFetch('/api/search/chart-insight', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
-    })
-      .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
-      .then(data => {
-        aiChartInsightCacheRef.current[cacheKey] = data;
-        setAiChartInsight(data);
+    }).then(r => r.ok ? r.json() : null).catch(() => null);
+
+    const fundsP = apiFetch('/api/search/fundamentals', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ symbol: norm }),
+    }).then(r => r.ok ? r.json() : null).catch(() => null);
+
+    const newsP = apiFetch('/api/search/ai', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: `Why is ${norm} stock moving today? Give 1-2 sentence summary of any relevant recent news or catalysts. If nothing notable, say "No significant catalysts identified."` }),
+    }).then(r => r.ok ? r.json() : null).catch(() => null);
+
+    Promise.all([fundsP, newsP, chartP])
+      .then(([fundsData, newsData, chartData]) => {
+        const result = {
+          symbol: norm,
+          range: range.label,
+          fundamentals: fundsData?.analysis || fundsData?.summary || null,
+          news: newsData?.summary || null,
+          insight: chartData?.insight || null,
+          generatedAt: new Date().toISOString(),
+        };
+        aiChartInsightCacheRef.current[cacheKey] = result;
+        setAiChartInsight(result);
         setAiChartInsightLoading(false);
       })
       .catch(err => {
-        setAiChartInsightError(err.message || 'Chart insight unavailable');
+        setAiChartInsightError(err.message || 'Analysis unavailable');
         setAiChartInsightLoading(false);
       });
-  }, [norm, range.label, bars, indicatorData.bars]);
+  }, [norm, range.label, bars, indicatorData.bars, showAnalysis, aiChartInsight, aiChartInsightError]);
 
   // ── Delta tool ─────────────────────────────────────────────────────────
   const deltaInfo = (() => {
@@ -1521,18 +1554,19 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
   };
   const fallbackCopyToClipboard = (text) => { navigator.clipboard?.writeText(text); };
 
-  // TODO: wire openPositionEditor to portfolio module when available
-  const openPositionEditor = (t) => { console.log('openPositionEditor placeholder:', t); };
-  // TODO: wire openAlertCreator to alerts module when available
-  const openAlertCreator = (t) => { console.log('openAlertCreator placeholder:', t); };
+  const openPositionEditor = useCallback(() => { setShowPositionEditor(true); }, []);
+  const openAlertCreator   = useCallback(() => { setShowAlertEditor(true); }, []);
+  const sendToChat = useCallback(() => {
+    if (typeof onOpenChat === 'function') onOpenChat(norm);
+  }, [onOpenChat, norm]);
 
   return (
     <div
       className={asPage ? 'id-page' : 'id-overlay'}
       onMouseDown={asPage ? undefined : (e => { if (e.target === e.currentTarget) onClose(); })}
     >
-      {/* ── HERO PRICE BLOCK ── */}
-      <div className="id-hero">
+      {/* ── HERO PRICE BLOCK (hidden on mobile asPage to save space) ── */}
+      <div className={`id-hero${asPage && isMobile ? ' id-hero--hidden' : ''}`}>
         <div className="id-hero-meta">
           <div>
             <div className="id-hero-ticker">{disp}</div>
@@ -1542,8 +1576,8 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
             <div className="id-hero-badge">{heroExchange}{heroExchange && heroAssetClass ? ' \u00b7 ' : ''}{heroAssetClass}</div>
             {/* Desktop action buttons */}
             <div className="id-hero-actions">
-              <button className="id-hero-action-btn" onClick={() => openPositionEditor(norm)}>+ Portfolio</button>
-              <button className="id-hero-action-btn" onClick={() => openAlertCreator(norm)}>{String.fromCharCode(128276)} Alert</button>
+              <button className="id-hero-action-btn" onClick={openPositionEditor}>+ Portfolio</button>
+              <button className="id-hero-action-btn" onClick={openAlertCreator}>{String.fromCharCode(128276)} Alert</button>
               <button className="id-hero-action-btn" onClick={handleShare}>{String.fromCharCode(8599)} Share</button>
             </div>
           </div>
@@ -1733,21 +1767,46 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
               >{ind.label}</button>
             ))}
             <button
-              className={`id-ind-btn id-ind-btn--analyze${aiChartInsightLoading ? ' id-ind-btn--loading' : ''}`}
+              className={`id-ind-btn id-ind-btn--analyze${aiChartInsightLoading ? ' id-ind-btn--loading' : ''}${showAnalysis && (aiChartInsight || aiChartInsightError) ? ' id-ind-btn--active' : ''}`}
               onClick={fetchChartInsight}
               disabled={aiChartInsightLoading || bars.length < 5}
-            >{aiChartInsightLoading ? 'ANALYZING...' : 'ANALYZE'}</button>
+            >{aiChartInsightLoading ? 'ANALYZING...' : showAnalysis && aiChartInsight ? 'HIDE' : 'ANALYZE'}</button>
           </div>
 
-          {/* AI Chart Insight inline */}
-          {(aiChartInsight || aiChartInsightError) && (
+          {/* AI Analysis panel — structured: Fundamentals → News → Chart */}
+          {showAnalysis && (aiChartInsight || aiChartInsightError || aiChartInsightLoading) && (
             <div className="id-chart-insight">
               {aiChartInsightError ? (
                 <span className="id-chart-insight-error">{aiChartInsightError}</span>
+              ) : aiChartInsightLoading ? (
+                <span className="id-chart-insight-text" style={{ fontStyle: 'italic', color: 'var(--text-muted)' }}>Loading analysis...</span>
               ) : (
                 <>
-                  <span className="id-chart-insight-badge">AI INSIGHT</span>
-                  <span className="id-chart-insight-text">{aiChartInsight.insight}</span>
+                  {/* 1. Fundamentals (always first) */}
+                  {aiChartInsight.fundamentals && (
+                    <div className="id-analysis-section">
+                      <span className="id-chart-insight-badge">FUNDAMENTALS</span>
+                      <span className="id-chart-insight-text">{aiChartInsight.fundamentals}</span>
+                    </div>
+                  )}
+                  {/* 2. News / Catalysts (if relevant) */}
+                  {aiChartInsight.news && !aiChartInsight.news.toLowerCase().includes('no significant catalysts') && (
+                    <div className="id-analysis-section">
+                      <span className="id-chart-insight-badge" style={{ background: 'rgba(76,175,80,0.08)', color: '#4caf50', borderColor: 'rgba(76,175,80,0.15)' }}>WHY IT MAY BE MOVING</span>
+                      <span className="id-chart-insight-text">{aiChartInsight.news}</span>
+                    </div>
+                  )}
+                  {/* 3. Chart / Technical analysis (always last) */}
+                  {aiChartInsight.insight && (
+                    <div className="id-analysis-section">
+                      <span className="id-chart-insight-badge" style={{ background: 'rgba(33,150,243,0.08)', color: '#2196f3', borderColor: 'rgba(33,150,243,0.15)' }}>CHART ANALYSIS</span>
+                      <span className="id-chart-insight-text">{aiChartInsight.insight}</span>
+                    </div>
+                  )}
+                  {/* Fallback if none populated */}
+                  {!aiChartInsight.fundamentals && !aiChartInsight.insight && (
+                    <span className="id-chart-insight-text" style={{ color: 'var(--text-muted)' }}>Analysis data unavailable</span>
+                  )}
                 </>
               )}
             </div>
@@ -1765,11 +1824,6 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
           const fxDesktopTabs   = ['STATS', 'MACRO', 'NEWS'];
           const hasTabs = isBond || isFX;
           const tabList = isBond ? bondDesktopTabs : isFX ? fxDesktopTabs : [];
-          // TODO: Send to Chat — placeholder for Phase 4 chat integration
-  const sendToChat = (ticker, price, change, changePct, instrumentName) => {
-    console.log('sendToChat placeholder:', { ticker, price, change, changePct, instrumentName });
-    // Future: open chat overlay with pre-filled instrument card message
-  };
 
   return (
             <div className="id-sidebar">
@@ -1844,20 +1898,32 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
 
       {/* ── STICKY BOTTOM ACTION BAR (mobile only) ── */}
       <div className="id-action-bar">
-        <button className="id-action-btn-bar id-action-btn-bar--primary" onClick={() => openPositionEditor(norm)}>+ Portfolio</button>
-        <button className="id-action-btn-bar" onClick={() => openAlertCreator(norm)}>{String.fromCharCode(128276)} Alert</button>
+        <button className="id-action-btn-bar id-action-btn-bar--primary" onClick={openPositionEditor}>+ Portfolio</button>
+        <button className="id-action-btn-bar" onClick={openAlertCreator}>{String.fromCharCode(128276)} Alert</button>
         <button className="id-action-btn-bar" onClick={handleShare}>{String.fromCharCode(8599)} Share</button>
       </div>
 
-      {/* Alert editor modal */}
-      {showAlertEditor && (
+      {/* Alert editor modal — portaled to body to escape scroll container on mobile */}
+      {showAlertEditor && createPortal(
         <AlertEditor
           alert={null}
           defaultSymbol={norm}
           defaultPrice={livePrice}
           onClose={() => setShowAlertEditor(false)}
           mobile={isMobile}
-        />
+        />,
+        document.body
+      )}
+
+      {/* Position editor modal — portaled to body */}
+      {showPositionEditor && createPortal(
+        <PositionEditor
+          position={null}
+          defaultSymbol={norm}
+          onClose={() => setShowPositionEditor(false)}
+          mobile={isMobile}
+        />,
+        document.body
       )}
 
       {/* Share ticker card modal */}

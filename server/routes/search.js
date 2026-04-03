@@ -1388,4 +1388,111 @@ ${context ? `\nAdditional context: ${context}` : ''}`;
   } finally { clearTimeout(timer); }
 });
 
+/**
+ * POST /instrument-lookup — AI-powered semantic instrument search
+ * Two-layer system: fast local matching + AI fuzzy lookup
+ * Cache: 10 min, Rate: lightweight (30/min)
+ */
+const _instrumentLookupCache = new Map();
+const INSTRUMENT_LOOKUP_TTL = 10 * 60 * 1000;
+
+router.post('/instrument-lookup', async (req, res) => {
+  const apiKey = process.env.PERPLEXITY_API_KEY;
+  if (!apiKey) {
+    return res.status(503).json({ error: 'AI search not configured' });
+  }
+
+  const { query } = req.body;
+  if (!query || typeof query !== 'string' || query.trim().length < 2) {
+    return res.status(400).json({ error: 'Query required (min 2 chars)' });
+  }
+  if (query.length > 200) {
+    return res.status(400).json({ error: 'Query too long (max 200 chars)' });
+  }
+
+  const cacheKey = `inst:${query.toLowerCase().trim()}`;
+  const cached = _instrumentLookupCache.get(cacheKey);
+  if (cached && Date.now() < cached.exp) {
+    return res.json({ ...cached.v, cached: true });
+  }
+
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 12000);
+
+  try {
+    const response = await fetch(PERPLEXITY_URL, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      signal: ctrl.signal,
+      body: JSON.stringify({
+        model: MODEL,
+        messages: [
+          {
+            role: 'system',
+            content: `You are a financial instrument search assistant. Given a user query (which may be a company description, sector, concept, or natural language question), return a JSON array of matching tickers/instruments. Each item must have: symbol (string, US ticker format), name (string, company/instrument name), reason (string, 1-sentence why it matches). Return 3-8 results. Focus on US-listed equities, ETFs, and major instruments. Respond ONLY with a valid JSON array, no markdown fences.`
+          },
+          {
+            role: 'user',
+            content: query.trim()
+          }
+        ],
+        max_tokens: 400,
+        temperature: 0.1,
+      }),
+    });
+
+    if (!response.ok) {
+      const errText = await response.text().catch(() => '');
+      console.error(`[Search/Instrument Lookup] Perplexity error ${response.status}:`, errText.substring(0, 200));
+      return res.status(502).json({ error: `AI provider error (${response.status})` });
+    }
+
+    const data = await response.json();
+    const raw = data.choices?.[0]?.message?.content;
+    if (!raw) {
+      return res.status(502).json({ error: 'Empty response from AI' });
+    }
+
+    let parsed;
+    try {
+      const jsonStr = raw.replace(/^```json?\s*/i, '').replace(/```\s*$/i, '').trim();
+      parsed = JSON.parse(jsonStr);
+    } catch {
+      console.error('[Search/Instrument Lookup] JSON parse failed:', raw.substring(0, 300));
+      return res.status(502).json({ error: 'Failed to parse AI response' });
+    }
+
+    if (!Array.isArray(parsed)) {
+      parsed = parsed.results || parsed.instruments || [];
+    }
+
+    const results = parsed.slice(0, 8).map(item => ({
+      symbol: String(item.symbol || item.ticker || '').toUpperCase(),
+      name: String(item.name || item.company || ''),
+      reason: String(item.reason || item.description || ''),
+    })).filter(item => item.symbol && item.name);
+
+    const result = { results, query: query.trim(), generatedAt: new Date().toISOString() };
+
+    _instrumentLookupCache.set(cacheKey, { v: result, exp: Date.now() + INSTRUMENT_LOOKUP_TTL });
+    if (_instrumentLookupCache.size > 100) {
+      const now = Date.now();
+      for (const [k, e] of _instrumentLookupCache) { if (now > e.exp) _instrumentLookupCache.delete(k); }
+    }
+
+    res.json(result);
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      return res.status(504).json({ error: 'AI search timed out (12s)' });
+    }
+    console.error('[Search/Instrument Lookup] Error:', err.message);
+    res.status(500).json({ error: 'AI search failed' });
+  } finally {
+    clearTimeout(timer);
+  }
+});
+
 module.exports = router;

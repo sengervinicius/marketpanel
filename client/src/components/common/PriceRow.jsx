@@ -7,9 +7,13 @@
  * Phase 8: Added `ticker` prop for PriceContext fallback. When `ticker` is provided
  * and `price` is null, PriceRow automatically uses useMergedTickerQuote to fetch
  * live prices via PriceContext, fixing the "--" bug for dropped tickers.
+ *
+ * Fix 4: Replaced dashes with shimmer loading states. Shows animated shimmer
+ * placeholder when price is null (loading), falls back to dash after 10 seconds.
  */
-import { memo } from 'react';
+import { memo, useState, useEffect } from 'react';
 import useMergedTickerQuote from './useMergedTickerQuote';
+import './Shimmer.css';
 
 const fmt2 = (n) => n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmt4 = (n) => n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: 4, maximumFractionDigits: 4 });
@@ -43,6 +47,15 @@ function PriceRow({
   // Data attributes for context menus
   dataAttrs,
 }) {
+  // Fix 4: Track whether data has timed out (after 10s, show dash instead of shimmer)
+  const [showShimmer, setShowShimmer] = useState(true);
+
+  // Fix 4: Set timeout to switch from shimmer to dash after 10 seconds
+  useEffect(() => {
+    const timer = setTimeout(() => setShowShimmer(false), 10000);
+    return () => clearTimeout(timer);
+  }, []);
+
   // Phase 8: merge snapshot price with PriceContext fallback
   const snapshotQuote = priceProp != null ? { price: priceProp, changePct: changePctProp } : null;
   const merged = useMergedTickerQuote(ticker || null, snapshotQuote);
@@ -51,6 +64,22 @@ function PriceRow({
 
   const pos = (changePct ?? 0) >= 0;
   const fmtFn = decimals >= 4 ? fmt4 : fmt2;
+
+  // Fix 4: Helper to render price with shimmer or formatted value
+  const renderPrice = (val) => {
+    if (val == null) {
+      return showShimmer ? <span className="price-shimmer" /> : '—';
+    }
+    return fmtFn(val);
+  };
+
+  // Fix 4: Helper to render change% with shimmer or formatted value
+  const renderChangePct = (val) => {
+    if (val == null) {
+      return showShimmer ? <span className="price-shimmer price-shimmer--narrow" /> : '—';
+    }
+    return fmtPct(val);
+  };
 
   const handleTouchStart = (e) => {
     if (!onTouchHold || !touchRef) return;
@@ -112,7 +141,7 @@ function PriceRow({
         paddingRight: 4,
         fontVariantNumeric: 'tabular-nums',
       }}>
-        {fmtFn(price)}
+        {renderPrice(price)}
       </span>
       <span style={{
         color: pos ? 'var(--price-up)' : 'var(--price-down)',
@@ -120,7 +149,7 @@ function PriceRow({
         fontWeight: 600,
         fontVariantNumeric: 'tabular-nums',
       }}>
-        {fmtPct(changePct)}
+        {renderChangePct(changePct)}
       </span>
       {trailing}
     </div>
