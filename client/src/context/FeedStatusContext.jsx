@@ -23,15 +23,23 @@ export function FeedStatusProvider({ status, children }) {
 
 export function useFeedStatus() {
   const status = useContext(FeedStatusContext);
-  const getStatus  = (feed) => status?.[feed] ?? 'connecting';
+
+  // Handle both old string format and new object format
+  const getLevel = (feedVal) => {
+    if (!feedVal) return 'connecting';
+    if (typeof feedVal === 'string') return feedVal;
+    return feedVal.level || 'connecting';
+  };
+
+  const getStatus = (feed) => getLevel(status?.[feed]);
 
   // Returns the worst status across all feeds:
   // 'error' > 'degraded' > 'connecting' > 'live'
   const getOverallStatus = () => {
-    const feeds = Object.values(status || {});
-    if (feeds.includes('error'))     return 'error';
-    if (feeds.includes('degraded'))  return 'degraded';
-    if (feeds.includes('connecting')) return 'connecting';
+    const levels = Object.values(status || {}).map(v => getLevel(v));
+    if (levels.includes('error'))     return 'error';
+    if (levels.includes('degraded'))  return 'degraded';
+    if (levels.includes('connecting')) return 'connecting';
     return 'live';
   };
 
@@ -49,5 +57,18 @@ export function useFeedStatus() {
     if (lvl === 'error')    return { text: 'FEED DOWN',   color: '#ff3333', bg: '#1a0000' };
     return                          { text: 'CONNECTING', color: '#444',    bg: '#111' };
   };
-  return { status, getStatus, getOverallStatus, getColor, getBadge };
+
+  const getLatency = (feed) => {
+    const val = status?.[feed];
+    if (!val || typeof val === 'string') return null;
+    return val.latencyMs ?? null;
+  };
+
+  const getReconnects = (feed) => {
+    const val = status?.[feed];
+    if (!val || typeof val === 'string') return 0;
+    return val.reconnects ?? 0;
+  };
+
+  return { status, getStatus, getOverallStatus, getColor, getBadge, getLatency, getReconnects };
 }

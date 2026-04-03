@@ -84,7 +84,7 @@
   min-height: 60px;
 }
 
-.am-alert-row.inactive {
+.am-alert-row--inactive {
   opacity: 0.5;
 }
 
@@ -110,7 +110,7 @@
   letter-spacing: -0.2px;
 }
 
-.am-alert-symbol.triggered {
+.am-alert-symbol--triggered {
   color: var(--price-up);
 }
 
@@ -165,11 +165,11 @@
   padding: 4px;
 }
 
-.am-toggle-btn.active {
+.am-toggle-btn--active {
   color: var(--price-up);
 }
 
-.am-toggle-btn.inactive {
+.am-toggle-btn--inactive {
   color: var(--text-faint);
 }
 

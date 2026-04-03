@@ -139,13 +139,13 @@ function AlertsMobile({ onOpenDetail }) {
               return (
                 <div
                   key={alert.id}
-                  className={`m-row am-alert-row ${!alert.active && !isTriggered ? 'am-alert-row.inactive' : ''}`}
+                  className={`m-row am-alert-row ${!alert.active && !isTriggered ? 'am-alert-row--inactive' : ''}`}
                   onClick={() => onOpenDetail?.(alert.symbol)}
                 >
                   {/* Symbol + type + condition */}
                   <div className="am-alert-content">
                     <div className="am-alert-header">
-                      <span className={`am-alert-symbol ${isTriggered ? 'am-alert-symbol.triggered' : ''}`}>
+                      <span className={`am-alert-symbol ${isTriggered ? 'am-alert-symbol--triggered' : ''}`}>
                         {alert.symbol}
                       </span>
                       <span className="am-alert-type">
@@ -174,7 +174,7 @@ function AlertsMobile({ onOpenDetail }) {
                         onClick={e => { e.stopPropagation(); handleDismiss(alert.id); }}
                       >Dismiss</button>
                     ) : (
-                      <button className={`btn am-toggle-btn ${alert.active ? 'am-toggle-btn.active' : 'am-toggle-btn.inactive'}`}
+                      <button className={`btn am-toggle-btn ${alert.active ? 'am-toggle-btn--active' : 'am-toggle-btn--inactive'}`}
                         onClick={e => { e.stopPropagation(); handleToggle(alert); }}
                       >{alert.active ? '●' : '○'}</button>
                     )}

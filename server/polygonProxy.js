@@ -100,6 +100,10 @@ function connectFeed(feedName, wsUrl, marketState, broadcast) {
     ws.on('open', () => {
       console.log(`[Polygon] ${feedName} connected`);
       reconnectDelay = 2000;
+      if (marketState.feedMeta?.[feedName]) {
+        marketState.feedMeta[feedName].lastStatusAt = Date.now();
+        marketState.feedMeta[feedName].lastError = null;
+      }
     });
 
     ws.on('message', (raw) => {
@@ -146,6 +150,7 @@ function connectFeed(feedName, wsUrl, marketState, broadcast) {
               change:        prev != null ? ev.p - prev : (marketState.stocks[sym].change || 0),
             };
             dirtySymbols.add(sym); dirtyCategory[sym] = 'stocks';
+            marketState.feedMeta.stocks.lastTickAt = Date.now();
             break;
           }
 
@@ -164,6 +169,7 @@ function connectFeed(feedName, wsUrl, marketState, broadcast) {
               updatedAt:     Date.now(),
             };
             dirtySymbols.add(sym); dirtyCategory[sym] = 'stocks';
+            marketState.feedMeta.stocks.lastTickAt = Date.now();
             break;
           }
 
@@ -184,6 +190,7 @@ function connectFeed(feedName, wsUrl, marketState, broadcast) {
               updatedAt:     Date.now(),
             };
             dirtySymbols.add(pair); dirtyCategory[pair] = 'forex';
+            marketState.feedMeta.forex.lastTickAt = Date.now();
             break;
           }
 
@@ -201,6 +208,7 @@ function connectFeed(feedName, wsUrl, marketState, broadcast) {
               updatedAt:     Date.now(),
             };
             dirtySymbols.add(pair); dirtyCategory[pair] = 'crypto';
+            marketState.feedMeta.crypto.lastTickAt = Date.now();
             break;
           }
         }
@@ -211,18 +219,52 @@ function connectFeed(feedName, wsUrl, marketState, broadcast) {
       clearInterval(pingInterval);
       console.warn(`[Polygon] ${feedName} closed (${code}). Reconnecting in ${reconnectDelay}ms...`);
       broadcast({ type: 'status', feed: feedName, level: 'degraded', message: `${feedName} reconnecting` });
+      if (marketState.feedMeta?.[feedName]) {
+        marketState.feedMeta[feedName].reconnects += 1;
+        marketState.feedMeta[feedName].lastStatusAt = Date.now();
+        marketState.feedMeta[feedName].lastError = `Closed with code ${code}`;
+      }
       setTimeout(connect, reconnectDelay);
       reconnectDelay = Math.min(reconnectDelay * 2, 30000);
     });
 
     ws.on('error', (err) => {
       console.error(`[Polygon] ${feedName} error:`, err.message);
+      if (marketState.feedMeta?.[feedName]) {
+        marketState.feedMeta[feedName].reconnects += 1;
+        marketState.feedMeta[feedName].lastError = err?.message || 'Unknown error';
+      }
       ws.terminate();
     });
   }
 
   connect();
   return flushInterval; // returned so caller can clean it up if needed
+}
+
+// ─── Feed health computation ───────────────────────────────────────────────────
+function computeFeedHealth(feedName, marketState) {
+  const meta = marketState.feedMeta?.[feedName] || {};
+  const now = Date.now();
+  const lastTickMs = meta.lastTickAt ? now - meta.lastTickAt : null;
+  let level = 'connecting';
+  if (lastTickMs == null) {
+    level = 'connecting';
+  } else if (lastTickMs <= 2000) {
+    level = 'live';
+  } else if (lastTickMs <= 10000) {
+    level = 'degraded';
+  } else {
+    level = 'error';
+  }
+  return {
+    feed: feedName,
+    level,
+    latencyMs: lastTickMs,
+    lastTickAt: meta.lastTickAt ? new Date(meta.lastTickAt).toISOString() : null,
+    reconnects: meta.reconnects || 0,
+    lastError: meta.lastError || null,
+  };
 }
 
 // ─── Memory pruning ────────────────────────────────────────────────────────────
@@ -284,12 +326,33 @@ function scheduleDailyReset(marketState) {
 
 // ─── Main entry point ─────────────────────────────────────────────────────────
 function connectPolygon(marketState, broadcast) {
+  // Initialize feedMeta for health tracking
+  if (!marketState.feedMeta) {
+    marketState.feedMeta = {
+      stocks: { lastTickAt: null, lastStatusAt: null, reconnects: 0, lastError: null },
+      forex:  { lastTickAt: null, lastStatusAt: null, reconnects: 0, lastError: null },
+      crypto: { lastTickAt: null, lastStatusAt: null, reconnects: 0, lastError: null },
+    };
+  }
+
   connectFeed('stocks', POLYGON_WS.stocks, marketState, broadcast);
   connectFeed('forex',  POLYGON_WS.forex,  marketState, broadcast);
   connectFeed('crypto', POLYGON_WS.crypto, marketState, broadcast);
+
+  // Periodic feed health broadcast (every 2 seconds)
+  setInterval(() => {
+    broadcast({
+      type: 'feedHealth',
+      feeds: [
+        computeFeedHealth('stocks', marketState),
+        computeFeedHealth('forex', marketState),
+        computeFeedHealth('crypto', marketState),
+      ],
+    });
+  }, 2000);
 
   schedulePruning(marketState);
   scheduleDailyReset(marketState);
 }
 
-module.exports = { connectPolygon };
+module.exports = { connectPolygon, computeFeedHealth };

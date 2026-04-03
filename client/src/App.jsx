@@ -749,6 +749,19 @@ function FeedStatusBar({ feedStatus }) {
     { key: 'forex',  label: 'FX' },
     { key: 'crypto', label: 'CRYPTO' },
   ];
+  const getLevel = (val) => {
+    if (!val) return 'connecting';
+    if (typeof val === 'string') return val;
+    return val.level || 'connecting';
+  };
+  const getLatencyText = (val) => {
+    if (!val || typeof val === 'string') return null;
+    const ms = val.latencyMs;
+    if (ms == null) return null;
+    if (ms < 1000) return '<1s';
+    if (ms < 5000) return `~${Math.round(ms / 1000)}s`;
+    return `>${Math.round(ms / 1000)}s`;
+  };
   const color = (level) => {
     if (level === 'live')      return '#00cc66';
     if (level === 'degraded')  return '#ff9900';
@@ -769,7 +782,9 @@ function FeedStatusBar({ feedStatus }) {
     }} className="flex-row">
       <span style={{ color: '#282828', fontSize: 8, letterSpacing: '1px' }}>FEED</span>
       {feeds.map(({ key, label }) => {
-        const level = feedStatus?.[key] || 'connecting';
+        const val = feedStatus?.[key];
+        const level = getLevel(val);
+        const latency = getLatencyText(val);
         return (
           <span key={key} className="flex-row gap-4">
             <span style={{ color: color(level), fontSize: 9 }}>{dot(level)}</span>
@@ -777,6 +792,9 @@ function FeedStatusBar({ feedStatus }) {
             <span style={{ color: color(level), fontSize: 8, fontWeight: 700, letterSpacing: '0.5px', opacity: 0.9 }}>
               {level.toUpperCase()}
             </span>
+            {latency && (
+              <span style={{ color: '#555', fontSize: 7, letterSpacing: '0.3px' }}>{latency}</span>
+            )}
           </span>
         );
       })}
@@ -802,6 +820,12 @@ function DataErrorBanner({ error, endpointErrors }) {
   } else if (error === 'Data endpoints unreachable') {
     msg    = 'FEED UNREACHABLE';
     detail = 'Cannot connect to market data server. Check your network or server status.';
+  } else if (error === 'ratelimit') {
+    msg    = 'RATE LIMITED';
+    detail = 'Upstream provider is rate limiting requests. Serving cached data where possible.';
+  } else if (error === 'timeout') {
+    msg    = 'DATA DELAYED';
+    detail = 'Upstream provider did not respond in time. Charts and snapshots may be stale.';
   } else {
     // Generic: show the raw error string (includes endpoint path + HTTP status)
     msg    = 'MARKET DATA ERROR';
@@ -1117,6 +1141,23 @@ export default function App() {
   const handleWsMessage = useCallback((msg) => {
     if (msg.type === 'status') {
       setFeedStatus(prev => ({ ...prev, [msg.feed]: msg.level }));
+      return;
+    }
+    if (msg.type === 'feedHealth' && Array.isArray(msg.feeds)) {
+      setFeedStatus(prev => {
+        const next = { ...prev };
+        for (const f of msg.feeds) {
+          if (!f.feed) continue;
+          next[f.feed] = {
+            level: f.level || 'connecting',
+            latencyMs: f.latencyMs ?? null,
+            lastTickAt: f.lastTickAt ?? null,
+            reconnects: f.reconnects ?? 0,
+            lastError: f.lastError ?? null,
+          };
+        }
+        return next;
+      });
       return;
     }
     if (msg.type === 'snapshot') {

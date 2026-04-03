@@ -26,7 +26,34 @@ function alphaVantageKey() { return process.env.ALPHA_VANTAGE_KEY; }
 // Kept as local alias for backward compat
 const ApiError = ProviderError;
 
+// ── Timeout helper ──────────────────────────────────────────────────
+async function withTimeout(fn, ms, label) {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), ms);
+  try {
+    return await fn(controller.signal);
+  } catch (e) {
+    if (e.name === 'AbortError') {
+      const err = new ProviderError(`${label} timeout after ${ms}ms`, 'timeout');
+      throw err;
+    }
+    throw e;
+  } finally {
+    clearTimeout(id);
+  }
+}
+
 // ── Error classification ────────────────────────────────────────────
+function classifyErrorCode(err) {
+  if (err.code === 'rate_limit') return 'ratelimit';
+  if (err.code === 'timeout') return 'timeout';
+  if (err.code === 'auth_error') return 'authrequired';
+  if (err.code === 'not_found') return 'notfound';
+  if (err.code === 'upstream_error') return 'upstream5xx';
+  if (err.message?.includes('ECONNREFUSED') || err.message?.includes('ENOTFOUND') || err.message?.includes('network')) return 'networkerror';
+  return 'unknown';
+}
+
 function classifyHttpError(status, headers) {
   if (status === 429) {
     const retryAfter = parseInt(headers?.get?.('retry-after') || headers?.['retry-after'] || '60', 10);
@@ -42,7 +69,20 @@ function classifyHttpError(status, headers) {
 }
 
 function sendError(res, err, context = '') {
-  return sendApiError(res, err, context);
+  if (res.headersSent) return;
+  const codeMap = {
+    rate_limit: 429, auth_error: 403, not_found: 404,
+    upstream_error: 502, timeout: 504, server_error: 500,
+  };
+  const status = codeMap[err.code] || 500;
+  return res.status(status).json({
+    ok: false,
+    error: classifyErrorCode(err),
+    message: err.message || 'Unknown error',
+    context: context || undefined,
+    provider: err.provider || undefined,
+    retryAfter: err.retryAfter ?? undefined,
+  });
 }
 
 // ── Polygon.io fetcher ──────────────────────────────────────────────
@@ -258,6 +298,7 @@ async function finnhubQuote(symbol) {
     const data = await res.json();
     return data;
   } catch (e) {
+    e.provider = 'finnhub';
     throw new Error(`Finnhub error: ${e.message}`);
   } finally {
     clearTimeout(timeout);
@@ -282,6 +323,7 @@ async function alphaVantageQuote(symbol) {
     if (data.Note || data['Error Message']) throw new Error(`Alpha Vantage: ${data.Note || data['Error Message']}`);
     return data['Global Quote'] || {};
   } catch (e) {
+    e.provider = 'alphavantage';
     throw new Error(`Alpha Vantage error: ${e.message}`);
   } finally {
     clearTimeout(timeout);
@@ -298,6 +340,7 @@ async function fetchWithFallback(symbol) {
       return { data: quotes[0], source: 'yahoo' };
     }
   } catch (e) {
+    e.provider = 'yahoo';
     logger.warn('provider', `Yahoo Finance failed: ${e.message}`);
   }
 
@@ -322,6 +365,7 @@ async function fetchWithFallback(symbol) {
         };
       }
     } catch (e) {
+      e.provider = 'finnhub';
       logger.warn('provider', `Finnhub failed: ${e.message}`);
     }
   }
@@ -347,6 +391,7 @@ async function fetchWithFallback(symbol) {
         };
       }
     } catch (e) {
+      e.provider = 'alphavantage';
       console.warn(`[Provider] Alpha Vantage failed: ${e.message}`);
     }
   }
@@ -432,7 +477,9 @@ module.exports = {
   ApiError,
   // Error handling
   classifyHttpError,
+  classifyErrorCode,
   sendError,
+  withTimeout,
   // Fetchers
   polyFetch,
   getYahooCrumb,

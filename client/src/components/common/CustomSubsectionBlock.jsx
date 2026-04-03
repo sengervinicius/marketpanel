@@ -17,7 +17,12 @@ const fmtPct = (n) => n == null ? '—' : (n >= 0 ? '+' : '') + n.toFixed(2) + '
  * Phase 8: now uses shared useMergedTickerQuote hook.
  */
 function TickerRow({ sym, data, color, gridCols, subsection, onTickerClick, onOpenDetail, onRemoveTicker, onDragStart, flash }) {
-  const d = data[sym] || {};
+  // Look up snapshot: try raw symbol first, then strip C:/X: prefix (batch data
+  // uses unprefixed keys like 'EURUSD' while drag symbols use 'C:EURUSD').
+  const rawKey = sym.startsWith('C:') ? sym.slice(2)
+               : sym.startsWith('X:') ? sym.slice(2)
+               : sym;
+  const d = data[sym] || data[rawKey] || {};
   const { price, changePct, change } = useMergedTickerQuote(sym, d);
 
   const name = d.name || sym;

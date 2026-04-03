@@ -3,7 +3,8 @@ const express = require('express');
 const cors = require('cors');
 const { createServer } = require('http');
 const WebSocket = require('ws');
-const { connectPolygon } = require('./polygonProxy');
+const { connectPolygon, computeFeedHealth } = require('./polygonProxy');
+const { feedRouter, initFeedRouter } = require('./routes/feed');
 const marketRoutes      = require('./routes/market/index');
 const authRoutes        = require('./routes/auth');
 const settingsRoutes    = require('./routes/settings');
@@ -153,6 +154,9 @@ app.use('/api/search', requireAuth, requireActiveSubscription,
   rateLimitByUser({ key: 'search', windowSec: 60, max: 15 }),
   requestTimeout(20000),
   searchRoutes);
+
+// Feed health: no auth required (public endpoint for monitoring)
+app.use('/api/feed', feedRouter);
 
 // Market data: auth + subscription required + timeout
 app.use('/api', requireAuth, requireActiveSubscription, requestTimeout(15000), marketRoutes);
@@ -364,6 +368,9 @@ function broadcast(update) {
 }
 
 connectPolygon(marketState, broadcast);
+
+// Late-bind marketState + computeFeedHealth into the feed router
+initFeedRouter(marketState, computeFeedHealth);
 
 // Boot sequence: Postgres → Redis → MongoDB → seed → jobs → HTTP server
 async function boot() {

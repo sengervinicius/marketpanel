@@ -9,7 +9,7 @@
   transition: background-color 0.1s;
 }
 
-.ap-row.inactive {
+.ap-row--inactive {
   opacity: 0.5;
 }
 
@@ -17,11 +17,11 @@
   font-weight: 700;
 }
 
-.ap-row-symbol.triggered {
+.ap-row-symbol--triggered {
   color: var(--price-up);
 }
 
-.ap-row-symbol.default {
+.ap-row-symbol--default {
   color: var(--section-watchlist);
 }
 
@@ -85,11 +85,11 @@
   text-align: center;
 }
 
-.ap-toggle-btn.active {
+.ap-toggle-btn--active {
   color: var(--price-up);
 }
 
-.ap-toggle-btn.inactive {
+.ap-toggle-btn--inactive {
   color: var(--text-faint);
 }
 

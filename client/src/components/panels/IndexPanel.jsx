@@ -36,7 +36,7 @@ function IndexPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
       {/* Column headers */}
       <div className="ip-col-header">
         {['TICKER', 'NAME', 'LAST', 'CHG%'].map((h, i) => (
-          <span key={h} className={`ip-col-header-cell ${i >= 2 ? 'ip-col-header-cell.right-align' : ''}`}>
+          <span key={h} className={`ip-col-header-cell ${i >= 2 ? 'ip-col-header-cell--right' : ''}`}>
             {h}
           </span>
         ))}

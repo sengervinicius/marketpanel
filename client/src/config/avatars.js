@@ -5,17 +5,17 @@
  */
 
 export const PERSONAS = [
-  { type: 'value_investor',    label: 'Value Investor',    description: 'Warren Buffett style — fundamentals, PE, dividends',   badge: '\u{1F4CA}', color: '#1a4d7a' },
-  { type: 'growth_investor',   label: 'Growth Investor',   description: 'Cathie Wood style — disruptive tech, innovation',       badge: '\u{1F680}', color: '#7b2cbf' },
-  { type: 'income_investor',   label: 'Income Investor',   description: 'REITs, dividends, stable yield, bonds',                 badge: '\u{1F4B0}', color: '#2d6a4f' },
-  { type: 'crypto_degen',      label: 'Crypto Degen',      description: 'BTC, altcoins, maximum volatility',                     badge: '\u{20BF}',  color: '#e85d04' },
-  { type: 'day_trader',        label: 'Day Trader',        description: 'Technical analysis, intraday momentum',                  badge: '\u{26A1}',  color: '#c1121f' },
-  { type: 'swing_trader',      label: 'Swing Trader',      description: 'Multi-day trends, breakouts, chart patterns',           badge: '\u{1F4C8}', color: '#0096c7' },
-  { type: 'macro_investor',    label: 'Macro Investor',    description: 'Ray Dalio style — currencies, rates, commodities',      badge: '\u{1F30D}', color: '#b5860d' },
-  { type: 'esg_investor',      label: 'ESG Investor',      description: 'Sustainability, impact, ethical investing',             badge: '\u{1F331}', color: '#1b7a34' },
-  { type: 'arbitrage_hunter',  label: 'Arbitrage Hunter',  description: 'Price discrepancies, FX arb, stat arb',                badge: '\u{1F3AF}', color: '#c9a800' },
-  { type: 'index_hugger',      label: 'Index Hugger',      description: 'ETFs, passive investing, low fees, just buy the dip',   badge: '\u{1F4E6}', color: '#5a5a6e' },
-  { type: 'bulge_bracket',     label: 'Bulge Bracket',     description: 'Patagonia vest, Rolex, institutional banker',           badge: '\u{1F4BC}', color: '#374151' },
+  { type: 'value_investor',    label: 'Value Investor',    description: 'Moats, margins, and margin of safety. You read 10-Ks for fun.',   badge: '\u{1F4CA}', color: '#1a4d7a' },
+  { type: 'growth_investor',   label: 'Growth Investor',   description: 'If it\'s not disrupting something, you\'re not interested.',       badge: '\u{1F680}', color: '#7b2cbf' },
+  { type: 'income_investor',   label: 'Income Investor',   description: 'Dividends are love letters from the market. You collect them all.', badge: '\u{1F4B0}', color: '#2d6a4f' },
+  { type: 'crypto_degen',      label: 'Crypto Degen',      description: 'WAGMI. You live for the 3 AM pump and the morning rug.',           badge: '\u{20BF}',  color: '#e85d04' },
+  { type: 'day_trader',        label: 'Day Trader',        description: 'In by 9:30, out by 4. Your RSI has RSI.',                          badge: '\u{26A1}',  color: '#c1121f' },
+  { type: 'swing_trader',      label: 'Swing Trader',      description: 'Patient enough to wait for the setup. Impatient with everything else.', badge: '\u{1F4C8}', color: '#0096c7' },
+  { type: 'macro_investor',    label: 'Macro Investor',    description: 'You trade the world, not the ticker. Central banks fear your takes.',  badge: '\u{1F30D}', color: '#b5860d' },
+  { type: 'esg_investor',      label: 'ESG Investor',      description: 'Doing well by doing good. Your portfolio has a conscience.',         badge: '\u{1F331}', color: '#1b7a34' },
+  { type: 'arbitrage_hunter',  label: 'Arbitrage Hunter',  description: 'If two prices disagree, that\'s your signal. Pure alpha, zero beta.', badge: '\u{1F3AF}', color: '#c9a800' },
+  { type: 'index_hugger',      label: 'Index Hugger',      description: 'VOO and chill. Why pick stocks when the market does it for you?',    badge: '\u{1F4E6}', color: '#5a5a6e' },
+  { type: 'bulge_bracket',     label: 'Bulge Bracket',     description: 'Patagonia vest, Rolex, and a Bloomberg terminal addiction.',         badge: '\u{1F4BC}', color: '#374151' },
 ];
 
 export const AVATAR_PATHS = {

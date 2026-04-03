@@ -65,7 +65,7 @@
   padding-right: 0;
 }
 
-.ip-col-header-cell.right-align {
+.ip-col-header-cell--right {
   text-align: right;
   padding-right: 4px;
 }
