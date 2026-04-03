@@ -1767,31 +1767,32 @@ export default function App() {
           </div>
         </>
       )}
-      {/* ── Instrument Detail slide-up overlay ── */}
+      {/* ── Instrument Detail bottom-sheet overlay ── */}
       {detailTicker && !subscriptionExpired && (
-        <div className="flex-col" style={{
-          position: 'fixed', inset: 0, zIndex: 1500,
-          background: 'var(--bg-app)',
-          paddingTop: 'env(safe-area-inset-top)',
-        }}>
-          {/* Detail header with close button */}
-          <div className="m-header">
-            <button className="btn flex-row"
-              onClick={() => setDetailTicker(null)}
-              style={{
-                background: 'none', border: 'none', color: 'var(--accent)',
-                padding: '8px 8px 8px 0', gap: 4,
-              }}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="15 18 9 12 15 6" />
-              </svg>
-              Back
-            </button>
-            <div className="flex-1" />
-          </div>
-          <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
-            <InstrumentDetail ticker={detailTicker} onClose={() => setDetailTicker(null)} asPage />
+        <div className="m-detail-overlay">
+          <div className="m-detail-backdrop" onClick={() => setDetailTicker(null)} />
+          <div className="m-detail-sheet">
+            {/* Handle bar */}
+            <div className="m-detail-handle-row">
+              <div className="m-detail-handle" />
+            </div>
+            {/* Sheet header */}
+            <div className="m-detail-header">
+              <button
+                className="m-detail-close-btn"
+                onClick={() => setDetailTicker(null)}
+                aria-label="Close"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="15 18 9 12 15 6" />
+                </svg>
+                Back
+              </button>
+            </div>
+            {/* Scrollable content */}
+            <div className="m-detail-content">
+              <InstrumentDetail ticker={detailTicker} onClose={() => setDetailTicker(null)} asPage />
+            </div>
           </div>
         </div>
       )}

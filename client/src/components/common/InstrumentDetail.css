@@ -183,11 +183,12 @@
 }
 .id-chart-area--mobile {
   flex: none;
-  height: 50vh;
+  height: 44vh;
+  padding: var(--sp-2) 8px;
 }
 /* On mobile, give chart flex children explicit heights instead of flex ratios */
-.id-chart-area--mobile .id-chart-flex-main   { flex: none; height: calc(50vh * 0.72); }
-.id-chart-area--mobile .id-chart-flex-volume { flex: none; height: calc(50vh * 0.22); }
+.id-chart-area--mobile .id-chart-flex-main   { flex: none; height: calc(44vh * 0.72); }
+.id-chart-area--mobile .id-chart-flex-volume { flex: none; height: calc(44vh * 0.22); }
 
 /* Range selector row */
 .id-range-row {
@@ -272,8 +273,10 @@
   color: var(--accent);
 }
 .id-tab--mobile {
-  padding: 10px 0;
-  font-size: var(--font-md);
+  padding: 10px 2px;
+  font-size: 11px;
+  min-height: 40px;
+  -webkit-tap-highlight-color: transparent;
 }
 
 /* ── Mobile tabs panel ──────────────────────────── */
@@ -290,9 +293,10 @@
   min-height: 0;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  padding: var(--sp-3) 14px;
-  font-size: var(--font-md);
+  padding: 12px 14px 24px;
+  font-size: 13px;
   background: var(--bg-surface);
+  line-height: 1.5;
 }
 
 /* ── Section (stats panels) ─────────────────────── */
@@ -584,20 +588,99 @@
 }
 
 /* ── Hero Price Block ──────────────────────────────── */
-.id-hero { padding: var(--sp-4) var(--sp-4) var(--sp-3); border-bottom: 1px solid var(--border-subtle); background: var(--bg-surface); }
-.id-hero-meta { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--sp-2); }
-.id-hero-ticker { font-family: var(--font-mono); font-size: var(--font-lg); font-weight: 700; color: var(--text-primary); letter-spacing: 0.04em; }
-.id-hero-name { font-size: var(--font-sm); color: var(--text-secondary); margin-top: 2px; }
-.id-hero-badge { font-size: var(--font-xs); color: var(--text-muted); background: var(--bg-elevated); border: 1px solid var(--border-subtle); border-radius: 4px; padding: 2px 6px; font-family: var(--font-mono); letter-spacing: 0.05em; white-space: nowrap; }
-.id-hero-price-row { display: flex; align-items: baseline; gap: var(--sp-3); margin-bottom: var(--sp-2); }
-.id-hero-price { font-family: var(--font-mono); font-size: var(--font-2xl); font-weight: 600; color: var(--text-primary); font-variant-numeric: tabular-nums; line-height: 1; }
-.id-hero-change { font-family: var(--font-mono); font-size: var(--font-lg); font-weight: 500; font-variant-numeric: tabular-nums; }
+.id-hero {
+  padding: var(--sp-4) var(--sp-4) var(--sp-3);
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
+}
+.id-hero-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--sp-2);
+}
+.id-hero-ticker {
+  font-family: var(--font-mono);
+  font-size: var(--font-lg);
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: 0.04em;
+}
+.id-hero-name {
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+.id-hero-badge {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-family: var(--font-mono);
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+.id-hero-price-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-2);
+}
+.id-hero-price {
+  font-family: var(--font-mono);
+  font-size: var(--font-2xl);
+  font-weight: 600;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.id-hero-change {
+  font-family: var(--font-mono);
+  font-size: var(--font-lg);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
 .id-hero-change.up { color: var(--price-up, var(--positive)); }
 .id-hero-change.down { color: var(--price-down, var(--negative)); }
 .id-hero-change.flat { color: var(--text-secondary); }
-.id-hero-stats { display: flex; flex-wrap: wrap; gap: var(--sp-3); margin-top: var(--sp-1); }
-.id-hero-stat { font-size: var(--font-xs); color: var(--text-muted); font-family: var(--font-mono); white-space: nowrap; }
+.id-hero-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+  margin-top: var(--sp-1);
+}
+.id-hero-stat {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  white-space: nowrap;
+}
 .id-hero-stat span { color: var(--text-secondary); }
+
+/* Mobile hero enhancements */
+@media (max-width: 1023px) {
+  .id-hero {
+    padding: 14px 14px 10px;
+  }
+  .id-hero-ticker {
+    font-size: 16px;
+  }
+  .id-hero-price {
+    font-size: 28px;
+    font-weight: 700;
+  }
+  .id-hero-change {
+    font-size: 14px;
+  }
+  .id-hero-stats {
+    gap: 10px;
+  }
+  .id-hero-stat {
+    font-size: 10px;
+  }
+}
 
 /* ── Hero Desktop Action Row ──────────────────────── */
 .id-hero-actions { display: flex; gap: var(--sp-2); align-items: center; }
@@ -658,8 +741,32 @@
     padding-top: env(safe-area-inset-top);
     padding-bottom: env(safe-area-inset-bottom);
   }
+  .id-page {
+    min-height: auto;
+  }
   .id-close { min-height: 36px; min-width: 36px; }
-  .id-action-btn { min-height: 36px; }
+  .id-action-btn { min-height: 36px; padding: 6px 12px; font-size: 12px; }
+  .id-header--mobile {
+    gap: 6px;
+    padding: 6px 10px;
+    min-height: 40px;
+  }
+  .id-range-btn {
+    padding: 6px 8px;
+    font-size: 11px;
+    min-height: 32px;
+  }
+  .id-ind-btn {
+    padding: 4px 8px;
+    font-size: 10px;
+    min-height: 28px;
+  }
+  .id-stat-row {
+    padding: 2px 0;
+  }
+  .id-section {
+    margin-bottom: 14px;
+  }
 }
 
 /* ── AI Fundamentals Section ───────────────────────── */
@@ -890,6 +997,6 @@
 .id-chart-flex-volume--compressed { flex: 1.5; }
 
 /* Mobile overrides for sub-charts */
-.id-chart-area--mobile .id-chart-flex-sub { flex: none; height: calc(50vh * 0.22); }
-.id-chart-area--mobile .id-chart-flex-main--compressed { flex: none; height: calc(50vh * 0.48); }
-.id-chart-area--mobile .id-chart-flex-volume--compressed { flex: none; height: calc(50vh * 0.14); }
+.id-chart-area--mobile .id-chart-flex-sub { flex: none; height: calc(44vh * 0.20); }
+.id-chart-area--mobile .id-chart-flex-main--compressed { flex: none; height: calc(44vh * 0.48); }
+.id-chart-area--mobile .id-chart-flex-volume--compressed { flex: none; height: calc(44vh * 0.14); }

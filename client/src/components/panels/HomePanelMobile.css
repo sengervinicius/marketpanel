@@ -1,162 +1,200 @@
-/* HomePanelMobile.css — prefix: hpm- */
+/* HomePanelMobile.css — Phase M: premium mobile home */
 
 .hpm-container {
   background: var(--bg-app);
   color: var(--text-primary);
   padding-bottom: calc(var(--sp-4) + env(safe-area-inset-bottom, 0px));
-  min-height: 100vh;
   -webkit-overflow-scrolling: touch;
-  overflow-y: auto;
 }
 
+/* ── Search bar ────────────────────────── */
 .hpm-search-container {
-  padding: var(--sp-3) var(--sp-3) 0;
+  padding: var(--sp-2) var(--sp-3) 0;
   margin-bottom: var(--sp-2);
 }
+.hpm-search-input {
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 13px;
+  font-family: var(--font-ui);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  color: var(--text-muted);
+  outline: none;
+  box-sizing: border-box;
+}
 
+/* ── Section grid ──────────────────────── */
 .hpm-section-grid {
   display: flex;
   flex-direction: column;
-  gap: var(--sp-2);
-  padding: var(--sp-3);
+  gap: 10px;
+  padding: 0 var(--sp-3) var(--sp-3);
 }
 
+/* ── Section card ──────────────────────── */
 .hpm-section-card {
   background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
-  border-left: 3px solid var(--border-default);
-  border-radius: 8px;
-  padding: var(--sp-3);
-  cursor: pointer;
-  transition: border-color 120ms ease;
-}
-.hpm-section-card:active {
-  border-left-color: var(--accent);
-  border-color: var(--accent);
-  background: var(--bg-elevated);
+  border-radius: 10px;
+  overflow: hidden;
 }
 
 .hpm-section-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: var(--sp-2);
+  padding: 10px 12px 6px;
 }
 
 .hpm-section-title {
-  font-size: var(--font-base);
-  font-weight: 600;
+  font-size: 13px;
+  font-weight: 700;
   color: var(--text-primary);
   font-family: var(--font-ui);
+  letter-spacing: 0.01em;
 }
 
-.hpm-section-arrow {
-  font-size: var(--font-lg);
+.hpm-section-count {
+  font-size: 10px;
+  font-weight: 600;
   color: var(--text-muted);
-  font-family: var(--font-ui);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  padding: 1px 7px;
+  font-family: var(--font-mono);
 }
 
+/* ── Ticker list ───────────────────────── */
 .hpm-ticker-list {
   display: flex;
   flex-direction: column;
-  gap: 2px;
 }
 
 .hpm-ticker-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 5px 0;
-  border-bottom: 1px solid rgba(255,255,255,0.03);
+  padding: 9px 12px;
+  border-top: 1px solid rgba(255,255,255,0.03);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 80ms ease;
+  min-height: 40px;
 }
-.hpm-ticker-row:last-child {
-  border-bottom: none;
+.hpm-ticker-row:active {
+  background: var(--bg-hover, rgba(255,255,255,0.03));
 }
 
 .hpm-ticker-sym {
   font-family: var(--font-mono);
-  font-size: var(--font-sm);
+  font-size: 12px;
+  font-weight: 600;
   color: var(--text-secondary);
-  min-width: 60px;
+  min-width: 56px;
+  letter-spacing: 0.02em;
 }
 
 .hpm-ticker-price {
   font-family: var(--font-mono);
-  font-size: var(--font-sm);
+  font-size: 12px;
   color: var(--text-primary);
   flex: 1;
   text-align: right;
-  padding-right: var(--sp-3);
+  padding-right: 12px;
+  font-variant-numeric: tabular-nums;
 }
 
 .hpm-ticker-chg {
   font-family: var(--font-mono);
-  font-size: var(--font-sm);
-  min-width: 58px;
+  font-size: 11px;
+  font-weight: 500;
+  min-width: 62px;
   text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
 }
 .hpm-ticker-chg.up   { color: var(--price-up); }
 .hpm-ticker-chg.down { color: var(--price-down); }
 
-/* Loading shimmer for price placeholder */
+/* Loading placeholder */
 .hpm-ticker-loading {
-  display: inline-block;
-  font-size: var(--font-xs);
   color: var(--text-muted);
-  letter-spacing: 0.08em;
-  animation: hpm-pulse 1.2s ease-in-out infinite;
-}
-@keyframes hpm-pulse {
-  0%, 100% { opacity: 0.3; }
-  50%      { opacity: 0.8; }
+  font-size: 11px;
 }
 
+/* ── View all button ───────────────────── */
+.hpm-view-all-btn {
+  display: block;
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: var(--font-ui);
+  color: var(--accent);
+  background: transparent;
+  border: none;
+  border-top: 1px solid var(--border-subtle);
+  cursor: pointer;
+  text-align: center;
+  letter-spacing: 0.02em;
+  -webkit-tap-highlight-color: transparent;
+}
+.hpm-view-all-btn:active {
+  background: rgba(255, 102, 0, 0.05);
+}
+
+/* ── News card ─────────────────────────── */
 .hpm-news-card {
   background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
-  border-radius: 8px;
-  padding: var(--sp-3);
+  border-radius: 10px;
+  overflow: hidden;
   margin: 0 var(--sp-3) var(--sp-3);
 }
 
 .hpm-news-item {
-  padding: var(--sp-2) 0;
-  border-bottom: 1px solid var(--border-subtle);
+  padding: 10px 12px;
+  border-top: 1px solid rgba(255,255,255,0.03);
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
-.hpm-news-item:last-child { border-bottom: none; }
+.hpm-news-item:active {
+  background: var(--bg-hover, rgba(255,255,255,0.03));
+}
 
 .hpm-news-source {
-  font-size: var(--font-xs);
+  font-size: 9px;
   color: var(--accent);
-  font-weight: 600;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
   margin-bottom: 2px;
 }
 
 .hpm-news-headline {
-  font-size: var(--font-sm);
+  font-size: 13px;
   color: var(--text-primary);
   line-height: 1.4;
 }
 
 .hpm-news-time {
-  font-size: var(--font-xs);
+  font-size: 10px;
   color: var(--text-muted);
-  margin-top: 2px;
+  margin-top: 3px;
 }
 
-/* ── AI Market Pulse card ─────────────────── */
+/* ── AI Market Pulse card ──────────────── */
 .hpm-ai-card {
   background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
   border-left: 3px solid var(--accent);
-  border-radius: 8px;
-  padding: var(--sp-3);
-  margin: 0 var(--sp-3) var(--sp-2);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin: 0 var(--sp-3) 10px;
   cursor: pointer;
-  transition: border-color 120ms ease;
+  -webkit-tap-highlight-color: transparent;
 }
 .hpm-ai-card:active {
   border-color: var(--accent);
@@ -174,18 +212,18 @@
   margin-bottom: 4px;
 }
 .hpm-ai-tagline {
-  font-size: var(--font-sm);
+  font-size: 12px;
   color: var(--text-muted);
   line-height: 1.4;
 }
 .hpm-ai-result {
-  font-size: var(--font-sm);
+  font-size: 12px;
   color: var(--text-secondary);
   line-height: 1.5;
-  margin-top: 6px;
+  margin-top: 4px;
 }
 .hpm-ai-loading {
-  font-size: var(--font-sm);
+  font-size: 12px;
   color: var(--text-muted);
   font-style: italic;
   margin-top: 4px;

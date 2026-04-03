@@ -447,8 +447,8 @@
 .mcm-ind-bar::-webkit-scrollbar { display: none; }
 
 .mcm-ind-pill {
-  padding: 3px 8px;
-  font-size: 9px;
+  padding: 5px 10px;
+  font-size: 10px;
   font-family: inherit;
   font-weight: 600;
   letter-spacing: 0.3px;
@@ -461,6 +461,7 @@
   transition: all 0.12s;
   flex-shrink: 0;
   -webkit-tap-highlight-color: transparent;
+  min-height: 28px;
 }
 .mcm-ind-pill:active {
   transform: scale(0.96);
@@ -471,12 +472,12 @@
 
 /* ── Mobile AI INSIGHT button ────────────────────── */
 .mcm-ai-btn {
-  padding: 4px 7px;
-  font-size: 9px;
+  padding: 5px 10px;
+  font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.04em;
   border: 1px solid var(--accent, #ff6600);
-  border-radius: 3px;
+  border-radius: 4px;
   flex-shrink: 0;
   background: transparent;
   color: var(--accent, #ff6600);
@@ -484,6 +485,8 @@
   font-family: inherit;
   transition: opacity 0.1s, background 0.1s;
   -webkit-tap-highlight-color: transparent;
+  min-height: 28px;
+  white-space: nowrap;
 }
 .mcm-ai-btn:disabled {
   opacity: 0.4;

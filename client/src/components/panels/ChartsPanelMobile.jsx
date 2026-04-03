@@ -309,28 +309,33 @@ const MobileChart = memo(function MobileChart({ ticker }) {
         ))}
       </div>
 
-      {/* Range selector + chart type toggle + AI INSIGHT */}
-      <div style={{ display: 'flex', gap: 4, padding: '5px 10px', flexShrink: 0, alignItems: 'center' }}>
+      {/* Range selector row */}
+      <div style={{ display: 'flex', gap: 3, padding: '5px 10px 2px', flexShrink: 0, alignItems: 'center' }}>
         {RANGES.map((r, i) => (
           <button key={r.label} onClick={() => setRangeIdx(i)} style={{
-            flex: 1, padding: '5px 0', fontSize: 10, cursor: 'pointer', fontFamily: 'inherit',
+            flex: 1, padding: '6px 0', fontSize: 10, cursor: 'pointer', fontFamily: 'inherit',
             fontWeight: i === rangeIdx ? 700 : 400, letterSpacing: '0.05em',
             background: i === rangeIdx ? 'rgba(255,102,0,0.1)' : 'transparent',
             border: `1px solid ${i === rangeIdx ? 'var(--accent, #ff6600)' : 'var(--border-default, #1e1e1e)'}`,
             color: i === rangeIdx ? 'var(--accent, #ff6600)' : 'var(--text-muted, #555)',
-            borderRadius: 3,
+            borderRadius: 4, minHeight: 28, WebkitTapHighlightColor: 'transparent',
           }}>{r.label}</button>
         ))}
-        <div style={{ display: 'inline-flex', border: '1px solid var(--border-default, #1e1e1e)', borderRadius: 3, overflow: 'hidden', flexShrink: 0, marginLeft: 2 }}>
+      </div>
+      {/* Chart type + AI insight row */}
+      <div style={{ display: 'flex', gap: 6, padding: '2px 10px 4px', flexShrink: 0, alignItems: 'center' }}>
+        <div style={{ display: 'inline-flex', border: '1px solid var(--border-default, #1e1e1e)', borderRadius: 4, overflow: 'hidden', flexShrink: 0 }}>
           {['area', 'candle'].map(t => (
             <button key={t} onClick={() => setChartType(t)} style={{
-              padding: '4px 6px', fontSize: 9, fontWeight: 600, letterSpacing: '0.04em',
+              padding: '5px 10px', fontSize: 10, fontWeight: 600, letterSpacing: '0.04em',
               border: 'none', cursor: 'pointer', fontFamily: 'inherit',
               background: chartType === t ? 'var(--accent, #ff6600)' : 'transparent',
               color: chartType === t ? '#fff' : 'var(--text-faint, #555)',
+              minHeight: 28, WebkitTapHighlightColor: 'transparent',
             }}>{t.toUpperCase()}</button>
           ))}
         </div>
+        <div style={{ flex: 1 }} />
         <button onClick={fetchInsight} disabled={aiLoading || bars.length < 5} className="mcm-ai-btn">
           {aiLoading ? 'ANALYZING...' : 'AI INSIGHT'}
         </button>

@@ -237,11 +237,24 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false }) {
     }
   }, [norm, triggerGamificationEvent]);
 
-  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 1024);
+  // Use matchMedia for reliable CSS-aware mobile detection
+  const [isMobile, setIsMobile] = useState(() => {
+    if (typeof window.matchMedia === 'function') {
+      return !window.matchMedia('(min-width: 1024px)').matches;
+    }
+    return window.innerWidth < 1024;
+  });
   useEffect(() => {
-    const handler = () => setIsMobile(window.innerWidth < 1024);
-    window.addEventListener('resize', handler);
-    return () => window.removeEventListener('resize', handler);
+    if (typeof window.matchMedia !== 'function') {
+      const handler = () => setIsMobile(window.innerWidth < 1024);
+      window.addEventListener('resize', handler);
+      return () => window.removeEventListener('resize', handler);
+    }
+    const mql = window.matchMedia('(min-width: 1024px)');
+    const handler = (e) => setIsMobile(!e.matches);
+    setIsMobile(!mql.matches);
+    mql.addEventListener('change', handler);
+    return () => mql.removeEventListener('change', handler);
   }, []);
 
   const [rangeIdx,     setRangeIdx]     = useState(0);
