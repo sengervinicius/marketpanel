@@ -24,6 +24,10 @@ import GamePortfolioPanel from '../panels/GamePortfolioPanel';
 import ReferralPanel from '../common/ReferralPanel';
 import { CalendarPanel } from '../panels/CalendarPanel';
 import ETFPanel from '../panels/ETFPanel';
+import {
+  DefenceScreen, CommoditiesScreen, GlobalMacroScreen, FixedIncomeScreen,
+  BrazilScreen, FxCryptoScreen, EnergyScreen, TechAIScreen,
+} from '../screens';
 
 // ── MarketTickBridge — dispatches live WS ticks into MarketContext reducer ────
 export function MarketTickBridge({ batchTicks }) {
@@ -172,6 +176,23 @@ export function makePanelRenderer(panelId, props) {
       return <ReferralPanel />;
     case 'calendar':
       return <CalendarPanel />;
+    // ── Phase D1 sector screens ──────────────────────────
+    case 'defenceScreen':
+      return <DefenceScreen onTickerClick={setChartTicker} onOpenDetail={setDetailTicker} />;
+    case 'commoditiesScreen':
+      return <CommoditiesScreen onTickerClick={setChartTicker} onOpenDetail={setDetailTicker} />;
+    case 'globalMacroScreen':
+      return <GlobalMacroScreen onTickerClick={setChartTicker} onOpenDetail={setDetailTicker} />;
+    case 'fixedIncomeScreen':
+      return <FixedIncomeScreen onTickerClick={setChartTicker} onOpenDetail={setDetailTicker} />;
+    case 'brazilScreen':
+      return <BrazilScreen onTickerClick={setChartTicker} onOpenDetail={setDetailTicker} />;
+    case 'fxCryptoScreen':
+      return <FxCryptoScreen onTickerClick={setChartTicker} onOpenDetail={setDetailTicker} />;
+    case 'energyScreen':
+      return <EnergyScreen onTickerClick={setChartTicker} onOpenDetail={setDetailTicker} />;
+    case 'techAIScreen':
+      return <TechAIScreen onTickerClick={setChartTicker} onOpenDetail={setDetailTicker} />;
     default:
       return <div className="app-panel-placeholder">Panel: {panelId}</div>;
   }

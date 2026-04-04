@@ -1,0 +1,236 @@
+/* SectorScreen.css — Phase D1 shared sector screen styles */
+
+.ss-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--bg-app);
+  color: var(--text-primary);
+  overflow: hidden;
+}
+
+/* ── Header ──────────────────────────────── */
+.ss-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px 8px;
+  border-bottom: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+}
+
+.ss-header-accent {
+  width: 4px;
+  height: 24px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.ss-header-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.ss-header-title {
+  font: 700 14px var(--font-ui, system-ui);
+  color: var(--text-primary);
+  letter-spacing: 0.01em;
+}
+
+.ss-header-desc {
+  font: 400 10px var(--font-ui, system-ui);
+  color: var(--text-muted);
+  margin-top: 1px;
+}
+
+.ss-header-ai-btn {
+  background: none;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  padding: 5px 10px;
+  font: 600 9px var(--font-mono, monospace);
+  color: var(--accent, #ff6600);
+  cursor: pointer;
+  letter-spacing: 0.5px;
+  transition: background 0.15s, border-color 0.15s;
+  flex-shrink: 0;
+}
+
+.ss-header-ai-btn:hover {
+  background: rgba(255, 102, 0, 0.06);
+  border-color: rgba(255, 102, 0, 0.2);
+}
+
+.ss-header-ai-btn:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+
+/* ── AI Insight Card ─────────────────────── */
+.ss-ai-card {
+  margin: 8px 14px;
+  padding: 10px 12px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-left: 3px solid var(--accent, #ff6600);
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.ss-ai-badge {
+  font: 700 8px var(--font-mono, monospace);
+  letter-spacing: 0.06em;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: rgba(255, 102, 0, 0.08);
+  color: var(--accent, #ff6600);
+  border: 1px solid rgba(255, 102, 0, 0.15);
+  display: inline-block;
+  margin-bottom: 4px;
+}
+
+.ss-ai-text {
+  font-size: 11px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.ss-ai-loading {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.ss-ai-error {
+  font-size: 11px;
+  color: #f44336;
+}
+
+/* ── Ticker Strip ────────────────────────── */
+.ss-ticker-strip {
+  display: flex;
+  gap: 6px;
+  padding: 6px 14px;
+  overflow-x: auto;
+  flex-shrink: 0;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.ss-ticker-strip::-webkit-scrollbar { display: none; }
+
+.ss-ticker-chip {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.1s, border-color 0.1s;
+  min-width: 0;
+}
+
+.ss-ticker-chip:hover {
+  background: var(--bg-hover, rgba(255, 255, 255, 0.04));
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.ss-ticker-sym {
+  font: 600 10px var(--font-mono, monospace);
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.ss-ticker-price {
+  font: 400 10px var(--font-mono, monospace);
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.ss-ticker-chg {
+  font: 500 9px var(--font-mono, monospace);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.ss-ticker-chg.up { color: var(--price-up); }
+.ss-ticker-chg.down { color: var(--price-down); }
+
+/* ── Tab bar (sub-panels) ────────────────── */
+.ss-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--border-subtle);
+  padding: 0 14px;
+  flex-shrink: 0;
+}
+
+.ss-tab {
+  padding: 7px 12px;
+  font: 600 10px var(--font-ui, system-ui);
+  color: var(--text-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  letter-spacing: 0.3px;
+  border-bottom: 2px solid transparent;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.ss-tab:hover {
+  color: var(--text-secondary);
+}
+
+.ss-tab--active {
+  color: var(--accent, #ff6600);
+  border-bottom-color: var(--accent, #ff6600);
+}
+
+/* ── Content area ────────────────────────── */
+.ss-content {
+  flex: 1;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ── ETF row ─────────────────────────────── */
+.ss-etf-strip {
+  display: flex;
+  gap: 6px;
+  padding: 6px 14px;
+  overflow-x: auto;
+  flex-shrink: 0;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.ss-etf-strip::-webkit-scrollbar { display: none; }
+
+.ss-etf-chip {
+  flex-shrink: 0;
+  padding: 3px 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 4px;
+  font: 600 9px var(--font-mono, monospace);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.ss-etf-chip:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-secondary);
+}
+
+/* ── Section label ───────────────────────── */
+.ss-section-label {
+  font: 700 8px var(--font-mono, monospace);
+  letter-spacing: 1.2px;
+  color: var(--text-faint, #555);
+  padding: 8px 14px 4px;
+}

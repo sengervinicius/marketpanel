@@ -1,26 +1,54 @@
 {
-  "_comment": "Polygon.io WebSocket subscription lists. Edit symbols here — no code changes needed.",
-  "_doc_stocks": "T.* = trade events. ~32 US equities + ETFs. Covers major indexes (SPY/QQQ/IWM/DIA), mega-cap tech, financials, energy, consumer, commodities ETFs, and top LatAm ADRs.",
-  "_doc_forex": "C.* = currency pair quotes. 13 FX pairs covering G10 + key EM (BRL, ARS, CNY, MXN, CLP).",
-  "_doc_crypto": "XT.* = crypto trade events. Top 6 by market cap.",
-  "_doc_limits": "Polygon free tier: 1 WS connection, unlimited symbols. If you hit rate limits, reduce the stock list first (commodities ETFs are lowest priority).",
+  "_comment": "Polygon.io WebSocket subscription lists. Phase D1 expansion: ~30 → ~150 tickers.",
+  "_doc_stocks": "T.* = trade events. US equities, ETFs, sector leaders, LatAm ADRs, commodity ETFs.",
+  "_doc_forex": "C.* = currency pair quotes. G10 + key EM currencies.",
+  "_doc_crypto": "XT.* = crypto trade events. Top coins by market cap + DeFi.",
+  "_doc_limits": "Polygon free tier: 1 WS connection, unlimited symbols. If you hit rate limits, reduce sector ETFs and international ETFs first.",
   "stocks": [
-    "T.SPY",  "T.QQQ",  "T.IWM",  "T.DIA",
+    "T.SPY",  "T.QQQ",  "T.IWM",  "T.DIA",  "T.VOO",
+
     "T.AAPL", "T.MSFT", "T.NVDA", "T.GOOGL", "T.AMZN",
     "T.META", "T.TSLA", "T.BRKB", "T.JPM",   "T.GS",
     "T.BAC",  "T.V",    "T.MA",   "T.XOM",   "T.CAT",
     "T.BA",   "T.WMT",  "T.LLY",  "T.UNH",
+    "T.JNJ",  "T.PG",   "T.HD",   "T.CRM",   "T.AVGO",
+    "T.COST", "T.MRK",  "T.ABBV", "T.PEP",   "T.TMO",
+    "T.ACN",  "T.LIN",  "T.AMD",  "T.INTC",  "T.NFLX",
+    "T.ADBE", "T.ORCL", "T.CSCO", "T.TXN",   "T.NEE",
+    "T.RTX",  "T.LMT",  "T.NOC",  "T.GD",
+    "T.CVX",  "T.COP",  "T.SLB",  "T.EOG",
+    "T.WFC",  "T.MS",   "T.BLK",  "T.SCHW",  "T.C",
+    "T.DE",   "T.MMM",  "T.HON",  "T.UPS",
+
     "T.GLD",  "T.SLV",  "T.USO",  "T.UNG",
-    "T.VALE", "T.PBR",  "T.ITUB", "T.BBD"
+    "T.TLT",  "T.IEF",  "T.SHY",  "T.LQD",  "T.HYG",
+    "T.AGG",  "T.BND",  "T.EMB",  "T.TIP",  "T.MUB",
+
+    "T.XLK",  "T.XLF",  "T.XLE",  "T.XLV",  "T.XLI",
+    "T.XLY",  "T.XLP",  "T.XLU",  "T.XLRE", "T.XLB",
+    "T.XLC",  "T.SMH",  "T.ARKK", "T.KWEB",
+
+    "T.EEM",  "T.EFA",  "T.VWO",  "T.EWZ",  "T.FXI",
+    "T.EWJ",  "T.INDA", "T.EWY",  "T.EWT",
+
+    "T.VALE", "T.PBR",  "T.ITUB", "T.BBD",  "T.BABA",
+    "T.TSM",  "T.NVO",  "T.ASML", "T.SAP",  "T.UL",
+    "T.MELI", "T.NU",   "T.SQM",  "T.GLOB"
   ],
   "forex": [
     "C.EUR/USD", "C.GBP/USD", "C.USD/JPY", "C.USD/BRL",
     "C.GBP/BRL", "C.EUR/BRL",
     "C.USD/ARS", "C.USD/CHF", "C.USD/CNY", "C.USD/MXN",
-    "C.AUD/USD", "C.USD/CAD", "C.USD/CLP"
+    "C.AUD/USD", "C.USD/CAD", "C.USD/CLP",
+    "C.NZD/USD", "C.USD/NOK", "C.USD/SEK", "C.USD/ZAR",
+    "C.USD/TRY", "C.USD/INR", "C.USD/KRW", "C.EUR/GBP",
+    "C.EUR/JPY", "C.GBP/JPY", "C.AUD/JPY", "C.EUR/CHF"
   ],
   "crypto": [
     "XT.BTC-USD", "XT.ETH-USD", "XT.SOL-USD",
-    "XT.XRP-USD", "XT.BNB-USD", "XT.DOGE-USD"
+    "XT.XRP-USD", "XT.BNB-USD", "XT.DOGE-USD",
+    "XT.ADA-USD", "XT.AVAX-USD", "XT.DOT-USD",
+    "XT.MATIC-USD", "XT.LINK-USD", "XT.UNI-USD",
+    "XT.AAVE-USD", "XT.LTC-USD", "XT.NEAR-USD"
   ]
 }

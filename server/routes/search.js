@@ -1495,4 +1495,165 @@ router.post('/instrument-lookup', async (req, res) => {
   }
 });
 
+// ══════════════════════════════════════════════════════════════════════════════
+// Phase D1 — 6 new specialised AI endpoints
+// ══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Helper: make a Perplexity call with a specialised system prompt.
+ * Shared by all D1 endpoints.
+ */
+async function perplexityCall(systemPrompt, userQuery, opts = {}) {
+  const apiKey = process.env.PERPLEXITY_API_KEY;
+  if (!apiKey) throw new Error('PERPLEXITY_API_KEY not configured');
+
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), opts.timeout || TIMEOUT_MS);
+
+  try {
+    const response = await fetch(PERPLEXITY_URL, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      signal: ctrl.signal,
+      body: JSON.stringify({
+        model: MODEL,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userQuery },
+        ],
+        max_tokens: opts.maxTokens || 600,
+        temperature: opts.temperature || 0.2,
+        return_citations: true,
+        search_domain_filter: opts.domains || [],
+        search_recency_filter: opts.recency || 'week',
+      }),
+    });
+
+    if (!response.ok) {
+      const errText = await response.text().catch(() => '');
+      throw new Error(`Perplexity ${response.status}: ${errText.slice(0, 200)}`);
+    }
+
+    const data = await response.json();
+    const choice = data.choices?.[0];
+    if (!choice?.message?.content) throw new Error('Empty AI response');
+
+    return {
+      summary: choice.message.content,
+      citations: (data.citations || []).map((url, i) => ({ title: `Source ${i + 1}`, url })),
+      model: data.model || MODEL,
+    };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// ── POST /sector-brief ───────────────────────────────────────────────────────
+// AI-generated sector analysis brief
+router.post('/sector-brief', async (req, res) => {
+  try {
+    const { sector, tickers } = req.body;
+    if (!sector) return res.status(400).json({ error: 'sector is required' });
+
+    const tickerContext = tickers?.length ? `Key tickers: ${tickers.join(', ')}.` : '';
+    const systemPrompt = `You are a senior equity analyst at a bulge-bracket investment bank. Provide a concise sector brief for the ${sector} sector. ${tickerContext} Include: 1) Current sector dynamics and drivers, 2) Key risks and catalysts, 3) Relative valuation vs history, 4) Top picks with brief thesis. Keep under 300 words. Use specific data points.`;
+
+    const result = await perplexityCall(systemPrompt, `Give me a current sector brief for ${sector}. ${tickerContext}`);
+    res.json(result);
+  } catch (e) {
+    console.error('[Search/sector-brief]', e.message);
+    res.status(e.message.includes('not configured') ? 503 : 502).json({ error: e.message });
+  }
+});
+
+// ── POST /yield-curve-analysis ───────────────────────────────────────────────
+// AI analysis of yield curve shape and implications
+router.post('/yield-curve-analysis', async (req, res) => {
+  try {
+    const { countries } = req.body;
+    const countryList = countries?.length ? countries.join(', ') : 'US, Germany, Japan, UK';
+
+    const systemPrompt = `You are a fixed income strategist. Analyze the current yield curve shape for: ${countryList}. Cover: 1) Curve shape (normal/flat/inverted) and what it signals, 2) Key spread metrics (2s10s, 5s30s), 3) Central bank policy implications, 4) Cross-country divergences, 5) Trading implications. Be specific with current yield levels. Under 300 words.`;
+
+    const result = await perplexityCall(systemPrompt, `Analyze current yield curves for ${countryList}. What are curves signaling about growth and policy?`);
+    res.json(result);
+  } catch (e) {
+    console.error('[Search/yield-curve-analysis]', e.message);
+    res.status(e.message.includes('not configured') ? 503 : 502).json({ error: e.message });
+  }
+});
+
+// ── POST /bond-screener-insight ──────────────────────────────────────────────
+// AI-powered bond screening recommendations
+router.post('/bond-screener-insight', async (req, res) => {
+  try {
+    const { criteria, riskProfile } = req.body;
+    const profile = riskProfile || 'moderate';
+
+    const systemPrompt = `You are a fixed income portfolio manager. Based on a ${profile} risk profile, recommend specific bonds or bond ETFs. ${criteria ? `Additional criteria: ${criteria}.` : ''} Include: 1) Specific bond/ETF names with tickers, 2) Current yield and duration, 3) Credit quality assessment, 4) Risk/reward analysis. Under 250 words.`;
+
+    const result = await perplexityCall(systemPrompt, `Recommend bonds/bond ETFs for a ${profile} risk profile. ${criteria || 'Focus on current market conditions.'}`);
+    res.json(result);
+  } catch (e) {
+    console.error('[Search/bond-screener-insight]', e.message);
+    res.status(e.message.includes('not configured') ? 503 : 502).json({ error: e.message });
+  }
+});
+
+// ── POST /commodity-brief ────────────────────────────────────────────────────
+// AI commodity market analysis
+router.post('/commodity-brief', async (req, res) => {
+  try {
+    const { commodity, symbols } = req.body;
+    const target = commodity || 'energy and metals';
+    const symContext = symbols?.length ? `Tracking: ${symbols.join(', ')}.` : '';
+
+    const systemPrompt = `You are a commodities strategist. Provide a brief on ${target} markets. ${symContext} Cover: 1) Supply/demand dynamics, 2) Key price drivers and geopolitical factors, 3) Seasonality and positioning, 4) Price outlook and key levels. Use specific prices and percentages. Under 250 words.`;
+
+    const result = await perplexityCall(systemPrompt, `What's the current state of ${target} markets? ${symContext}`);
+    res.json(result);
+  } catch (e) {
+    console.error('[Search/commodity-brief]', e.message);
+    res.status(e.message.includes('not configured') ? 503 : 502).json({ error: e.message });
+  }
+});
+
+// ── POST /em-country-brief ───────────────────────────────────────────────────
+// AI emerging market country analysis
+router.post('/em-country-brief', async (req, res) => {
+  try {
+    const { country } = req.body;
+    if (!country) return res.status(400).json({ error: 'country is required' });
+
+    const systemPrompt = `You are an emerging markets strategist. Provide an investment brief on ${country}. Cover: 1) Macro backdrop (GDP, inflation, fiscal position), 2) Central bank policy and rates outlook, 3) Currency dynamics and risks, 4) Key sectors and equity opportunities, 5) Fixed income: sovereign and corporate spread levels, 6) Political risks. Use specific data. Under 300 words.`;
+
+    const result = await perplexityCall(systemPrompt, `Give me a comprehensive EM investment brief for ${country}.`);
+    res.json(result);
+  } catch (e) {
+    console.error('[Search/em-country-brief]', e.message);
+    res.status(e.message.includes('not configured') ? 503 : 502).json({ error: e.message });
+  }
+});
+
+// ── POST /cross-asset-signal ─────────────────────────────────────────────────
+// AI cross-asset correlation and signal analysis
+router.post('/cross-asset-signal', async (req, res) => {
+  try {
+    const { assets, theme } = req.body;
+    const assetList = assets?.length ? assets.join(', ') : 'equities, bonds, commodities, FX, crypto';
+    const themeContext = theme ? `Focus theme: ${theme}.` : '';
+
+    const systemPrompt = `You are a cross-asset macro strategist. Analyze intermarket signals across: ${assetList}. ${themeContext} Cover: 1) Key cross-asset correlations and divergences, 2) Risk-on vs risk-off regime assessment, 3) Unusual cross-asset moves or breakdowns, 4) Macro implications and positioning signals. Be specific with numbers. Under 300 words.`;
+
+    const result = await perplexityCall(systemPrompt, `Analyze current cross-asset signals and correlations. ${themeContext} What are intermarket relationships telling us?`);
+    res.json(result);
+  } catch (e) {
+    console.error('[Search/cross-asset-signal]', e.message);
+    res.status(e.message.includes('not configured') ? 503 : 502).json({ error: e.message });
+  }
+});
+
 module.exports = router;

@@ -18,6 +18,8 @@ const portfolioRoutes   = require('./routes/portfolio');
 const alertRoutes       = require('./routes/alerts');
 const iapRoutes         = require('./routes/iap');
 const searchRoutes      = require('./routes/search');
+const bondsRoutes       = require('./routes/bonds');
+const derivativesRoutes = require('./routes/derivatives');
 const gamificationRoutes = require('./routes/gamification');
 const missionsRoutes     = require('./routes/missions');
 const discordRoutes     = require('./routes/discord');
@@ -154,6 +156,18 @@ app.use('/api/share', requireAuth,
   shareRoutes);
 app.use('/api/referrals', requireAuth, referralRoutes);
 app.use('/api/notifications', requireAuth, notificationRoutes);
+
+// Bonds: auth + subscription required + rate limit + timeout
+app.use('/api/bonds', requireAuth, requireActiveSubscription,
+  rateLimitByUser({ key: 'bonds', windowSec: 60, max: 20 }),
+  requestTimeout(15000),
+  bondsRoutes);
+
+// Derivatives: auth + subscription required + rate limit + timeout
+app.use('/api/derivatives', requireAuth, requireActiveSubscription,
+  rateLimitByUser({ key: 'derivatives', windowSec: 60, max: 20 }),
+  requestTimeout(15000),
+  derivativesRoutes);
 
 // AI Search: auth + subscription required + rate limit + timeout
 app.use('/api/search', requireAuth, requireActiveSubscription,
