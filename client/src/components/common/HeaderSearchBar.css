@@ -323,3 +323,30 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* ── Multi-listing alternates ── */
+
+.hsb-alternate-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 12px 4px 36px;
+  font-size: 10px;
+  color: var(--text-faint);
+}
+
+.hsb-alternate-label {
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.hsb-alternate-link {
+  color: var(--text-muted);
+  cursor: pointer;
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.hsb-alternate-link:hover {
+  color: var(--accent);
+}

@@ -724,4 +724,65 @@ router.get('/fundamentals/:symbol', async (req, res) => {
   }
 });
 
+// ── /snapshot/quote — On-demand single quote with currency & data delay ─────
+router.get('/snapshot/quote', async (req, res) => {
+  try {
+    const symbol = (req.query.symbol || '').toUpperCase().trim();
+    if (!symbol || !isTicker(symbol)) {
+      return res.status(400).json({ ok: false, error: 'bad_request', message: 'Missing or invalid symbol parameter' });
+    }
+
+    // Check cache first
+    const cacheKey = `snapshot:quote:${symbol}`;
+    const cached = cacheGet(cacheKey);
+    if (cached) return res.json(cached);
+
+    // Try to fetch the quote
+    const quotes = await yahooQuote(symbol);
+    if (!quotes || quotes.length === 0) {
+      return res.status(404).json({ ok: false, error: 'not_found', message: `No quote found for ${symbol}` });
+    }
+
+    const quote = quotes[0];
+
+    // Import the helper functions from instruments.js to get currency and dataDelay
+    const instrumentsRouter = require('../instruments');
+    let currency = 'USD';
+    let dataDelay = '15min';
+    let exchange = quote.exchange || null;
+
+    // For real instruments in the registry
+    if (instrumentsRouter.BY_KEY && instrumentsRouter.BY_KEY[symbol]) {
+      const inst = instrumentsRouter.BY_KEY[symbol];
+      currency = inst.currency || 'USD';
+      exchange = inst.exchange || quote.exchange || null;
+      dataDelay = instrumentsRouter.inferDataDelay(symbol, exchange) || '15min';
+    } else {
+      // Fallback: infer from symbol suffix
+      currency = instrumentsRouter.inferCurrencyFromSymbol(symbol);
+      dataDelay = instrumentsRouter.inferDataDelay(symbol, exchange);
+    }
+
+    const result = {
+      symbolKey: symbol,
+      price: quote.regularMarketPrice ?? null,
+      currency,
+      change: quote.regularMarketChange ?? null,
+      changePct: quote.regularMarketChangePercent ?? null,
+      exchange,
+      shortName: quote.shortName || quote.longName || null,
+      dataDelay,
+      timestamp: new Date().toISOString(),
+    };
+
+    // Cache for 60 seconds
+    cacheSet(cacheKey, result, TTL.stocksSnapshot);
+
+    res.json(result);
+  } catch (err) {
+    console.error('[API] /snapshot/quote error:', err.message);
+    sendError(res, err);
+  }
+});
+
 module.exports = router;

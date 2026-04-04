@@ -723,6 +723,57 @@
 .id-hero-action-btn { height: 28px; padding: 0 var(--sp-2); border-radius: 4px; font-size: var(--font-xs); font-weight: 600; font-family: var(--font-ui); cursor: pointer; border: 1px solid var(--border-default); background: transparent; color: var(--text-secondary); transition: all 120ms ease; white-space: nowrap; }
 .id-hero-action-btn:hover { border-color: rgba(255,102,0,0.3); color: var(--accent); background: var(--accent-dim); }
 
+/* ── Step 4.2: Multi-listing switcher ──────────────── */
+.id-listing-switcher {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.id-listing-current {
+  font: 600 10px var(--font-mono);
+  color: var(--accent);
+  padding: 2px 6px;
+  background: rgba(255, 102, 0, 0.08);
+  border: 1px solid var(--accent);
+  border-radius: 3px;
+}
+
+.id-listing-alt {
+  font: 10px var(--font-mono);
+  color: var(--text-muted);
+  padding: 2px 6px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.id-listing-alt:hover {
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+}
+
+/* ── Step 5.1: Data freshness badges ──────────────── */
+.id-delay-badge {
+  font: 9px var(--font-mono);
+  padding: 1px 5px;
+  border-radius: 2px;
+  margin-left: 8px;
+}
+
+.id-delay-badge--delayed {
+  color: var(--text-muted);
+  background: var(--bg-surface);
+}
+
+.id-delay-badge--slow {
+  color: #ff9800;
+  background: rgba(255, 152, 0, 0.08);
+}
+
 /* ── Sticky Bottom Action Bar (mobile) ────────────── */
 .id-action-bar { display: none; }
 @media (max-width: 768px) {

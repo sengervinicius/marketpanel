@@ -105,6 +105,10 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
   const [showAnalysis, setShowAnalysis] = useState(false); // toggle for Analyze panel
   const aiChartInsightCacheRef = useRef({}); // "symbol:range:lastT" → data
 
+  // Step 4.2: Multi-listing support
+  const [otherListings, setOtherListings] = useState([]);
+  const [instrumentCompanyId, setInstrumentCompanyId] = useState(null);
+
   const range = RANGES[rangeIdx];
 
   const isBond = isBondTicker || etfMeta?.assetClass === 'fixed_income';
@@ -173,7 +177,23 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
     setEtfMeta(null);
     apiFetch(`/api/instruments/${encodeURIComponent(disp)}`)
       .then(r => r.ok ? r.json() : null)
-      .then(d => { if (d && !d.error) setEtfMeta(d); })
+      .then(d => {
+        if (d && !d.error) {
+          setEtfMeta(d);
+          // Step 4.2: If this instrument has a companyId, fetch other listings
+          if (d.companyId) {
+            setInstrumentCompanyId(d.companyId);
+            apiFetch(`/api/instruments/search?companyId=${encodeURIComponent(d.companyId)}&limit=20`)
+              .then(r => r.json())
+              .then(data => {
+                // Filter out the current symbol
+                const others = (data.results || []).filter(item => item.symbolKey !== disp);
+                setOtherListings(others);
+              })
+              .catch(() => setOtherListings([]));
+          }
+        }
+      })
       .catch(() => {});
   }, [disp]);
 
@@ -297,13 +317,24 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
 
   // Currency-aware price display
   const instrumentCurrency = etfMeta?.currency || (isBrazil ? 'BRL' : 'USD');
+
+  // Step 5.2: Handle GBX (London Stock Exchange pence)
+  const isGBX = instrumentCurrency === 'GBX';
+  const priceLiveFormatted = livePrice != null
+    ? (isGBX ? livePrice / 100 : livePrice)
+    : null;
+  const displayCurrency = isGBX ? 'GBP' : instrumentCurrency;
+
   const displayPrice = isBond && livePrice != null
     ? fmt(livePrice, 3) + '%'
     : isFX && livePrice != null
       ? livePrice.toLocaleString('en-US', { minimumFractionDigits: 4, maximumFractionDigits: 4 })
-      : livePrice != null
-        ? formatPrice(livePrice, instrumentCurrency)
+      : priceLiveFormatted != null
+        ? formatPrice(priceLiveFormatted, displayCurrency)
         : null;
+
+  // Step 5.1: Data freshness badge (from etfMeta.dataDelay)
+  const dataDelay = etfMeta?.dataDelay; // 'realtime', '15min', '30min'
 
   // FX direction label (e.g. "1 USD = 5.18 BRL")
   const fxDirection = isFX ? fxDirectionLabel(
@@ -1407,6 +1438,11 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
     if (typeof onOpenChat === 'function') onOpenChat(norm);
   }, [onOpenChat, norm]);
 
+  // Step 4.2: Switch to another listing
+  const onSwitchListing = useCallback((symbolKey) => {
+    onOpenDetail?.(symbolKey);
+  }, [onOpenDetail]);
+
   return (
     <div
       className={asPage ? 'id-page' : 'id-overlay'}
@@ -1434,11 +1470,38 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
         </div>
         <div className="id-hero-price-row">
           <span className="id-hero-price">{formattedPrice}</span>
-          {!isBond && !isFX && <span className="id-hero-ccy">{currencyLabel(instrumentCurrency)}</span>}
+          {!isBond && !isFX && <span className="id-hero-ccy">{currencyLabel(displayCurrency)}</span>}
           <span className={`id-hero-change ${changeDirection}`}>{changeArrow} {formattedChange} {formattedChangePct}</span>
+          {/* Step 5.1: Data delay badge */}
+          {dataDelay && dataDelay !== 'realtime' && (
+            <span className={`id-delay-badge ${dataDelay === '15min' ? 'id-delay-badge--delayed' : 'id-delay-badge--slow'}`}>
+              [{dataDelay === '15min' ? '15-min' : '30-min'} delay]
+            </span>
+          )}
         </div>
+        {/* Step 4.2: Listing switcher */}
+        {otherListings.length > 0 && (
+          <div className="id-listing-switcher">
+            <span className="id-listing-current">{heroExchange} · {displayCurrency}</span>
+            {otherListings.map(l => (
+              <button
+                key={l.symbolKey}
+                className="id-listing-alt"
+                onClick={() => onSwitchListing(l.symbolKey)}
+              >
+                {l.exchange} · {l.currency || 'N/A'}
+              </button>
+            ))}
+          </div>
+        )}
         {/* FX direction sub-line */}
         {fxDirection && <div className="id-hero-context">{fxDirection}</div>}
+        {/* Step 5.2: GBX note */}
+        {isGBX && (
+          <div className="id-hero-context">
+            £{fmt(priceLiveFormatted, 2)} (LSE price in pence)
+          </div>
+        )}
         {/* Commodity ETF proxy context */}
         {commodityCtx && <div className="id-hero-context" title={commodityCtx.note}>{commodityCtx.label}</div>}
         {/* Futures contract context */}

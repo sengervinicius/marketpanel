@@ -29,6 +29,44 @@ const KNOWN_ASSET_CLASSES = [
   'equity', 'etf', 'fund', 'forex', 'crypto', 'commodity', 'index', 'fixed_income', 'rate'
 ];
 
+// ─── Exchange suffix → currency mapping ──────────────────────────────────────
+const EXCHANGE_SUFFIX_CURRENCY = {
+  ".HK": "HKD", ".T": "JPY", ".KS": "KRW", ".KQ": "KRW",
+  ".SS": "CNY", ".SZ": "CNY", ".F": "EUR", ".DE": "EUR",
+  ".L": "GBX", ".AX": "AUD", ".NS": "INR", ".BO": "INR",
+  ".TO": "CAD", ".V": "CAD", ".CN": "CAD", ".NE": "CAD",
+  ".SA": "BRL", ".PA": "EUR", ".AS": "EUR", ".MC": "EUR",
+  ".SW": "CHF", ".SG": "SGD", ".NZ": "NZD", ".JO": "ZAR",
+};
+
+// ─── Exchange suffix → data delay ────────────────────────────────────────────
+const EXCHANGE_DATA_DELAY = {
+  ".HK": "15min", ".T": "15min", ".KS": "15min", ".KQ": "15min",
+  ".SS": "30min", ".SZ": "30min", ".F": "15min", ".DE": "15min",
+  ".L": "15min", ".AX": "20min", ".NS": "realtime", ".BO": "realtime",
+  ".TO": "15min", ".V": "15min", ".CN": "15min", ".NE": "realtime",
+  ".SA": "15min", ".PA": "15min", ".AS": "15min", ".MC": "15min",
+  ".SW": "15min", ".SG": "15min", ".NZ": "15min", ".JO": "15min",
+};
+
+function inferCurrencyFromSymbol(symbol) {
+  const upper = symbol.toUpperCase();
+  for (const [suffix, currency] of Object.entries(EXCHANGE_SUFFIX_CURRENCY)) {
+    if (upper.endsWith(suffix.toUpperCase())) return currency;
+  }
+  return "USD";
+}
+
+function inferDataDelay(symbol, exchange) {
+  const upper = symbol.toUpperCase();
+  for (const [suffix, delay] of Object.entries(EXCHANGE_DATA_DELAY)) {
+    if (upper.endsWith(suffix.toUpperCase())) return delay;
+  }
+  if (exchange === "NYSE" || exchange === "NASDAQ") return "realtime";
+  if (exchange === "OTC") return "15min";
+  return "15min";
+}
+
 const REGISTRY = [
   // ── US Equities ──────────────────────────────────────────────────────────
   { symbolKey:'AAPL',  name:'Apple Inc',             assetClass:'equity',      group:'US Tech',         exchange:'NASDAQ', currency:'USD' },
@@ -90,7 +128,7 @@ const REGISTRY = [
 
   // ── Global Mining / Producers ─────────────────────────────────────────────
   { symbolKey:'RIO',   name:'Rio Tinto',             assetClass:'equity',      group:'Global Equity',   exchange:'NYSE',   currency:'USD' },
-  { symbolKey:'BHP',   name:'BHP Group',             assetClass:'equity',      group:'Global Equity',   exchange:'NYSE',   currency:'USD' },
+  { symbolKey:'BHP',   name:'BHP Group',             assetClass:'equity',      group:'Global Equity',   exchange:'NYSE',   currency:'USD', companyId:'bhp', searchAliases:['bhp','bhp billiton'] },
 
   // ── ETFs ─────────────────────────────────────────────────────────────────
   { symbolKey:'SPY',   name:'SPDR S&P 500 ETF',      assetClass:'etf',         group:'US Indices',      exchange:'NYSE',   currency:'USD' },
@@ -185,6 +223,109 @@ const REGISTRY = [
   { symbolKey:'BR10Y', name:'Brazil 10Y DI Rate',    assetClass:'fixed_income',group:'EM Yields',       currency:'BRL' },
   { symbolKey:'GB10Y', name:'UK 10Y Gilt Yield',     assetClass:'fixed_income',group:'EU Yields',       currency:'GBP' },
   { symbolKey:'JP10Y', name:'Japan 10Y JGB Yield',   assetClass:'fixed_income',group:'Asia Yields',     currency:'JPY' },
+
+  // ── CHINA & HONG KONG ────────────────────────────────────────────────────────
+  { symbolKey:'BABA',      name:'Alibaba Group (NYSE ADR)',     assetClass:'equity', group:'Asia Pacific', exchange:'NYSE',     currency:'USD', companyId:'alibaba', region:'China', searchAliases:['alibaba','baba','taobao','tmall'] },
+  { symbolKey:'9988.HK',   name:'Alibaba Group (HK)',           assetClass:'equity', group:'Asia Pacific', exchange:'HKEX',     currency:'HKD', companyId:'alibaba', region:'China' },
+  { symbolKey:'TCEHY',     name:'Tencent Holdings (OTC)',       assetClass:'equity', group:'Asia Pacific', exchange:'OTC',      currency:'USD', companyId:'tencent', region:'China', searchAliases:['tencent','wechat'] },
+  { symbolKey:'0700.HK',   name:'Tencent Holdings (HK)',        assetClass:'equity', group:'Asia Pacific', exchange:'HKEX',     currency:'HKD', companyId:'tencent', region:'China' },
+  { symbolKey:'BYDDY',     name:'BYD Co. (OTC ADR)',            assetClass:'equity', group:'Asia Pacific', exchange:'OTC',      currency:'USD', companyId:'byd', region:'China', searchAliases:['byd','byd ev'] },
+  { symbolKey:'1211.HK',   name:'BYD Co. (HK)',                 assetClass:'equity', group:'Asia Pacific', exchange:'HKEX',     currency:'HKD', companyId:'byd', region:'China' },
+  { symbolKey:'300750.SZ', name:'CATL (Shenzhen)',              assetClass:'equity', group:'Asia Pacific', exchange:'SZSE',     currency:'CNY', companyId:'catl', region:'China', searchAliases:['catl','contemporary amperex'] },
+  { symbolKey:'3931.HK',   name:'CATL (HK)',                    assetClass:'equity', group:'Asia Pacific', exchange:'HKEX',     currency:'HKD', companyId:'catl', region:'China' },
+  { symbolKey:'PDD',       name:'PDD Holdings (Nasdaq)',        assetClass:'equity', group:'Asia Pacific', exchange:'NASDAQ',   currency:'USD', searchAliases:['pdd','pinduoduo','temu'] },
+  { symbolKey:'3690.HK',   name:'Meituan (HK)',                 assetClass:'equity', group:'Asia Pacific', exchange:'HKEX',     currency:'HKD', searchAliases:['meituan'] },
+  { symbolKey:'JD',        name:'JD.com (Nasdaq)',              assetClass:'equity', group:'Asia Pacific', exchange:'NASDAQ',   currency:'USD', companyId:'jd', searchAliases:['jd','jd.com','jingdong'] },
+  { symbolKey:'9618.HK',   name:'JD.com (HK)',                  assetClass:'equity', group:'Asia Pacific', exchange:'HKEX',     currency:'HKD', companyId:'jd' },
+  { symbolKey:'BIDU',      name:'Baidu (Nasdaq)',               assetClass:'equity', group:'Asia Pacific', exchange:'NASDAQ',   currency:'USD', searchAliases:['baidu'] },
+  { symbolKey:'HSBC',      name:'HSBC Holdings (NYSE)',         assetClass:'equity', group:'Asia Pacific', exchange:'NYSE',     currency:'USD', companyId:'hsbc', searchAliases:['hsbc'] },
+  { symbolKey:'0005.HK',   name:'HSBC Holdings (HK)',           assetClass:'equity', group:'Asia Pacific', exchange:'HKEX',     currency:'HKD', companyId:'hsbc' },
+  { symbolKey:'HSBA.L',    name:'HSBC Holdings (LSE)',          assetClass:'equity', group:'Europe',      exchange:'LSE',      currency:'GBX', companyId:'hsbc' },
+
+  // ── JAPAN ────────────────────────────────────────────────────────────────────
+  { symbolKey:'TM',        name:'Toyota Motor (NYSE ADR)',      assetClass:'equity', group:'Asia Pacific', exchange:'NYSE',     currency:'USD', companyId:'toyota', searchAliases:['toyota'] },
+  { symbolKey:'7203.T',    name:'Toyota Motor (Tokyo)',         assetClass:'equity', group:'Asia Pacific', exchange:'TSE',      currency:'JPY', companyId:'toyota' },
+  { symbolKey:'SONY',      name:'Sony Group (NYSE ADR)',        assetClass:'equity', group:'Asia Pacific', exchange:'NYSE',     currency:'USD', companyId:'sony', searchAliases:['sony','playstation'] },
+  { symbolKey:'6758.T',    name:'Sony Group (Tokyo)',           assetClass:'equity', group:'Asia Pacific', exchange:'TSE',      currency:'JPY', companyId:'sony' },
+  { symbolKey:'SFTBY',     name:'SoftBank Group (OTC)',         assetClass:'equity', group:'Asia Pacific', exchange:'OTC',      currency:'USD', companyId:'softbank', searchAliases:['softbank'] },
+  { symbolKey:'9984.T',    name:'SoftBank Group (Tokyo)',       assetClass:'equity', group:'Asia Pacific', exchange:'TSE',      currency:'JPY', companyId:'softbank' },
+  { symbolKey:'NTDOY',     name:'Nintendo (OTC ADR)',           assetClass:'equity', group:'Asia Pacific', exchange:'OTC',      currency:'USD', companyId:'nintendo', searchAliases:['nintendo'] },
+  { symbolKey:'7974.T',    name:'Nintendo (Tokyo)',             assetClass:'equity', group:'Asia Pacific', exchange:'TSE',      currency:'JPY', companyId:'nintendo' },
+
+  // ── KOREA ────────────────────────────────────────────────────────────────────
+  { symbolKey:'005930.KS', name:'Samsung Electronics (KRX)',    assetClass:'equity', group:'Asia Pacific', exchange:'KRX',      currency:'KRW', searchAliases:['samsung','samsung electronics'] },
+  { symbolKey:'SSNLF',     name:'Samsung Electronics (OTC)',    assetClass:'equity', group:'Asia Pacific', exchange:'OTC',      currency:'USD', companyId:'samsung' },
+  { symbolKey:'000660.KS', name:'SK Hynix (KRX)',               assetClass:'equity', group:'Asia Pacific', exchange:'KRX',      currency:'KRW', searchAliases:['sk hynix','hynix'] },
+  { symbolKey:'035720.KS', name:'Kakao Corp (KRX)',             assetClass:'equity', group:'Asia Pacific', exchange:'KRX',      currency:'KRW', searchAliases:['kakao','kakaotalk'] },
+  { symbolKey:'005380.KS', name:'Hyundai Motor (KRX)',          assetClass:'equity', group:'Asia Pacific', exchange:'KRX',      currency:'KRW', searchAliases:['hyundai'] },
+  { symbolKey:'035420.KS', name:'NAVER Corp (KRX)',             assetClass:'equity', group:'Asia Pacific', exchange:'KRX',      currency:'KRW', searchAliases:['naver'] },
+  { symbolKey:'066570.KS', name:'LG Electronics (KRX)',         assetClass:'equity', group:'Asia Pacific', exchange:'KRX',      currency:'KRW', searchAliases:['lg','lg electronics'] },
+
+  // ── GERMANY ──────────────────────────────────────────────────────────────────
+  { symbolKey:'SAP',       name:'SAP SE (NYSE ADR)',            assetClass:'equity', group:'Europe',      exchange:'NYSE',     currency:'USD', companyId:'sap', searchAliases:['sap','erp'] },
+  { symbolKey:'SAP.DE',    name:'SAP SE (Xetra)',              assetClass:'equity', group:'Europe',      exchange:'XETRA',    currency:'EUR', companyId:'sap' },
+  { symbolKey:'VWAGY',     name:'Volkswagen (OTC ADR)',         assetClass:'equity', group:'Europe',      exchange:'OTC',      currency:'USD', companyId:'vw', searchAliases:['volkswagen','vw'] },
+  { symbolKey:'VOW3.DE',   name:'Volkswagen (Xetra)',           assetClass:'equity', group:'Europe',      exchange:'XETRA',    currency:'EUR', companyId:'vw' },
+  { symbolKey:'SIEGY',     name:'Siemens (OTC ADR)',            assetClass:'equity', group:'Europe',      exchange:'OTC',      currency:'USD', companyId:'siemens', searchAliases:['siemens'] },
+  { symbolKey:'SIE.DE',    name:'Siemens (Xetra)',              assetClass:'equity', group:'Europe',      exchange:'XETRA',    currency:'EUR', companyId:'siemens' },
+
+  // ── DEFI TECHNOLOGIES ────────────────────────────────────────────────────────
+  { symbolKey:'DEFT',      name:'DeFi Technologies (Nasdaq)',   assetClass:'equity', group:'US Tech',     exchange:'NASDAQ',   currency:'USD', companyId:'defi-tech', searchAliases:['defi technologies','defi tech','valour'] },
+  { symbolKey:'DEFTF',     name:'DeFi Technologies (OTC)',      assetClass:'equity', group:'US Tech',     exchange:'OTC',      currency:'USD', companyId:'defi-tech' },
+  { symbolKey:'DEFI.CN',   name:'DeFi Technologies (CBOE Canada)',assetClass:'equity',group:'Canada',     exchange:'CBOE CA',  currency:'CAD', companyId:'defi-tech' },
+  { symbolKey:'R9B.F',     name:'DeFi Technologies (Frankfurt)', assetClass:'equity', group:'Europe',      exchange:'FSE',      currency:'EUR', companyId:'defi-tech' },
+
+  // ── UK ───────────────────────────────────────────────────────────────────────
+  { symbolKey:'BP',        name:'BP (NYSE ADR)',                assetClass:'equity', group:'Europe',      exchange:'NYSE',     currency:'USD', companyId:'bp', searchAliases:['bp','british petroleum'] },
+  { symbolKey:'BP.L',      name:'BP (LSE)',                     assetClass:'equity', group:'Europe',      exchange:'LSE',      currency:'GBX', companyId:'bp' },
+  { symbolKey:'AZN',       name:'AstraZeneca (Nasdaq)',         assetClass:'equity', group:'Europe',      exchange:'NASDAQ',   currency:'USD', companyId:'astrazeneca', searchAliases:['astrazeneca'] },
+  { symbolKey:'AZN.L',     name:'AstraZeneca (LSE)',            assetClass:'equity', group:'Europe',      exchange:'LSE',      currency:'GBX', companyId:'astrazeneca' },
+  { symbolKey:'SHEL',      name:'Shell (NYSE)',                 assetClass:'equity', group:'Europe',      exchange:'NYSE',     currency:'USD', companyId:'shell', searchAliases:['shell','royal dutch shell'] },
+  { symbolKey:'SHEL.L',    name:'Shell (LSE)',                  assetClass:'equity', group:'Europe',      exchange:'LSE',      currency:'GBX', companyId:'shell' },
+
+  // ── FRANCE / SWITZERLAND / NETHERLANDS ───────────────────────────────────────
+  { symbolKey:'LVMHF',     name:'LVMH (OTC)',                   assetClass:'equity', group:'Europe',      exchange:'OTC',      currency:'USD', companyId:'lvmh', searchAliases:['lvmh','louis vuitton'] },
+  { symbolKey:'MC.PA',     name:'LVMH (Euronext Paris)',        assetClass:'equity', group:'Europe',      exchange:'Euronext Paris', currency:'EUR', companyId:'lvmh' },
+  { symbolKey:'NSRGY',     name:'Nestlé (OTC ADR)',             assetClass:'equity', group:'Europe',      exchange:'OTC',      currency:'USD', companyId:'nestle', searchAliases:['nestle','nestlé','nescafe'] },
+  { symbolKey:'NESN.SW',   name:'Nestlé (SIX Swiss)',           assetClass:'equity', group:'Europe',      exchange:'SIX',      currency:'CHF', companyId:'nestle' },
+  { symbolKey:'ASML',      name:'ASML (Nasdaq)',                assetClass:'equity', group:'Europe',      exchange:'NASDAQ',   currency:'USD', companyId:'asml', searchAliases:['asml','euv lithography'] },
+  { symbolKey:'ASML.AS',   name:'ASML (Euronext Amsterdam)',    assetClass:'equity', group:'Europe',      exchange:'Euronext Amsterdam', currency:'EUR', companyId:'asml' },
+
+  // ── INDIA ────────────────────────────────────────────────────────────────────
+  { symbolKey:'RELIANCE.NS', name:'Reliance Industries (NSE)', assetClass:'equity', group:'India',       exchange:'NSE',      currency:'INR', searchAliases:['reliance','reliance industries','jio','ambani'] },
+  { symbolKey:'INFY',      name:'Infosys (NYSE ADR)',           assetClass:'equity', group:'India',       exchange:'NYSE',     currency:'USD', companyId:'infosys', searchAliases:['infosys'] },
+  { symbolKey:'INFY.NS',   name:'Infosys (NSE)',                assetClass:'equity', group:'India',       exchange:'NSE',      currency:'INR', companyId:'infosys' },
+  { symbolKey:'TCS.NS',    name:'Tata Consultancy Services (NSE)',assetClass:'equity', group:'India',    exchange:'NSE',      currency:'INR', searchAliases:['tcs','tata consultancy'] },
+  { symbolKey:'HDB',       name:'HDFC Bank (NYSE ADR)',         assetClass:'equity', group:'India',       exchange:'NYSE',     currency:'USD', companyId:'hdfc', searchAliases:['hdfc','hdfc bank'] },
+  { symbolKey:'HDFCBANK.NS', name:'HDFC Bank (NSE)',             assetClass:'equity', group:'India',       exchange:'NSE',      currency:'INR', companyId:'hdfc' },
+
+  // ── CANADA ───────────────────────────────────────────────────────────────────
+  { symbolKey:'SHOP',      name:'Shopify (NYSE)',               assetClass:'equity', group:'Canada',      exchange:'NYSE',     currency:'USD', companyId:'shopify', searchAliases:['shopify'] },
+  { symbolKey:'SHOP.TO',   name:'Shopify (TSX)',                assetClass:'equity', group:'Canada',      exchange:'TSX',      currency:'CAD', companyId:'shopify' },
+  { symbolKey:'CNQ',       name:'Canadian Natural Resources (NYSE)',assetClass:'equity', group:'Canada', exchange:'NYSE',     currency:'USD', companyId:'cnq', searchAliases:['cnq','canadian natural resources'] },
+  { symbolKey:'CNQ.TO',    name:'Canadian Natural Resources (TSX)',assetClass:'equity', group:'Canada', exchange:'TSX',      currency:'CAD', companyId:'cnq' },
+
+  // ── AUSTRALIA ────────────────────────────────────────────────────────────────
+  { symbolKey:'BHP.AX',    name:'BHP Group (ASX)',              assetClass:'equity', group:'Australia',   exchange:'ASX',      currency:'AUD', companyId:'bhp' },
+  { symbolKey:'CBA.AX',    name:'Commonwealth Bank (ASX)',      assetClass:'equity', group:'Australia',   exchange:'ASX',      currency:'AUD', searchAliases:['commonwealth bank','cba','commbank'] },
+
+  // ── WORLD INDICES ────────────────────────────────────────────────────────────
+  { symbolKey:'^N225',     name:'Nikkei 225',                   assetClass:'index',  group:'Asia Pacific', exchange:'TSE',      currency:'JPY', searchAliases:['nikkei','japan index'] },
+  { symbolKey:'^HSI',      name:'Hang Seng Index',              assetClass:'index',  group:'Asia Pacific', exchange:'HKEX',     currency:'HKD', searchAliases:['hang seng','hsi'] },
+  { symbolKey:'^KS11',     name:'KOSPI',                        assetClass:'index',  group:'Asia Pacific', exchange:'KRX',      currency:'KRW', searchAliases:['kospi','korea index'] },
+  { symbolKey:'^SSEC',     name:'Shanghai Composite',           assetClass:'index',  group:'Asia Pacific', exchange:'SSE',      currency:'CNY', searchAliases:['shanghai composite','china index'] },
+  { symbolKey:'^GDAXI',    name:'DAX 40',                       assetClass:'index',  group:'Europe',      exchange:'XETRA',    currency:'EUR', searchAliases:['dax','germany index'] },
+  { symbolKey:'^FTSE',     name:'FTSE 100',                     assetClass:'index',  group:'Europe',      exchange:'LSE',      currency:'GBP', searchAliases:['ftse','ftse 100','uk index'] },
+  { symbolKey:'^FCHI',     name:'CAC 40',                       assetClass:'index',  group:'Europe',      exchange:'Euronext Paris', currency:'EUR', searchAliases:['cac','cac 40'] },
+  { symbolKey:'^STOXX50E', name:'Euro Stoxx 50',                assetClass:'index',  group:'Europe',      exchange:'Euronext', currency:'EUR', searchAliases:['euro stoxx','stoxx 50'] },
+  { symbolKey:'^AXJO',     name:'ASX 200',                      assetClass:'index',  group:'Australia',   exchange:'ASX',      currency:'AUD', searchAliases:['asx 200','australia index'] },
+  { symbolKey:'^NSEI',     name:'Nifty 50',                     assetClass:'index',  group:'India',       exchange:'NSE',      currency:'INR', searchAliases:['nifty','nifty 50','india index'] },
+
+  // ── GOVERNMENT BOND YIELDS ───────────────────────────────────────────────────
+  { symbolKey:'^TNX',      name:'US 10-Year Treasury Yield',    assetClass:'rate',   group:'US Yields',   currency:'USD', searchAliases:['us 10y','10 year yield','us treasury'] },
+  { symbolKey:'^TYX',      name:'US 30-Year Treasury Yield',    assetClass:'rate',   group:'US Yields',   currency:'USD' },
+  { symbolKey:'^FVX',      name:'US 5-Year Treasury Yield',     assetClass:'rate',   group:'US Yields',   currency:'USD' },
+  { symbolKey:'^IRX',      name:'US 3-Month Treasury Yield',    assetClass:'rate',   group:'US Yields',   currency:'USD' },
 ];
 
 // Build lookup maps
@@ -284,6 +425,83 @@ const SEARCH_ALIASES = {
   'ibovespa':     ['EWZ'],
   'bovespa':      ['EWZ'],
   'b3':           ['EWZ'],
+  // CHINA / HK
+  'alibaba':      ['BABA', '9988.HK'],
+  'tencent':      ['TCEHY', '0700.HK'],
+  'byd':          ['BYDDY', '1211.HK'],
+  'catl':         ['300750.SZ', '3931.HK'],
+  'meituan':      ['3690.HK'],
+  'baidu':        ['BIDU'],
+  'jd':           ['JD', '9618.HK'],
+  'jd.com':       ['JD'],
+  'pdd':          ['PDD'],
+  'temu':         ['PDD'],
+  'pinduoduo':    ['PDD'],
+  'hang seng':    ['^HSI'],
+  'hsi':          ['^HSI'],
+  // JAPAN
+  'toyota':       ['TM', '7203.T'],
+  'sony':         ['SONY', '6758.T'],
+  'softbank':     ['SFTBY', '9984.T'],
+  'nintendo':     ['NTDOY', '7974.T'],
+  'nikkei':       ['^N225'],
+  // KOREA
+  'samsung':      ['005930.KS', 'SSNLF'],
+  'samsung electronics': ['005930.KS'],
+  'sk hynix':     ['000660.KS'],
+  'hynix':        ['000660.KS'],
+  'kakao':        ['035720.KS'],
+  'hyundai':      ['005380.KS'],
+  'naver':        ['035420.KS'],
+  'kospi':        ['^KS11'],
+  // GERMANY
+  'sap':          ['SAP', 'SAP.DE'],
+  'volkswagen':   ['VWAGY', 'VOW3.DE'],
+  'vw':           ['VWAGY'],
+  'siemens':      ['SIEGY', 'SIE.DE'],
+  'dax':          ['^GDAXI'],
+  // UK
+  'hsbc':         ['HSBC', '0005.HK', 'HSBA.L'],
+  'bp':           ['BP', 'BP.L'],
+  'shell':        ['SHEL', 'SHEL.L'],
+  'astrazeneca':  ['AZN', 'AZN.L'],
+  'ftse':         ['^FTSE'],
+  'ftse 100':     ['^FTSE'],
+  // FRANCE
+  'lvmh':         ['LVMHF', 'MC.PA'],
+  'louis vuitton': ['LVMHF', 'MC.PA'],
+  'cac':          ['^FCHI'],
+  'cac 40':       ['^FCHI'],
+  // SWITZERLAND
+  'nestle':       ['NSRGY', 'NESN.SW'],
+  'nestlé':       ['NSRGY', 'NESN.SW'],
+  // NETHERLANDS
+  'asml':         ['ASML', 'ASML.AS'],
+  // INDIA
+  'reliance':     ['RELIANCE.NS'],
+  'reliance industries': ['RELIANCE.NS'],
+  'infosys':      ['INFY', 'INFY.NS'],
+  'tcs':          ['TCS.NS'],
+  'hdfc':         ['HDB', 'HDFCBANK.NS'],
+  'nifty':        ['^NSEI'],
+  // AUSTRALIA
+  'bhp':          ['BHP', 'BHP.AX'],
+  'commonwealth bank': ['CBA.AX'],
+  'cba':          ['CBA.AX'],
+  'asx 200':      ['^AXJO'],
+  // CANADA
+  'shopify':      ['SHOP', 'SHOP.TO'],
+  'defi technologies': ['DEFT', 'DEFI.CN'],
+  'defi tech':    ['DEFT'],
+  'valour':       ['DEFT', 'DEFI.CN'],
+  // DEFI TECHNOLOGIES
+  'deft':         ['DEFT', 'DEFI.CN'],
+  'deftf':        ['DEFTF'],
+  // RATES
+  'us 10y':       ['^TNX'],
+  '10 year yield': ['^TNX'],
+  'us treasury':  ['^TNX'],
+  'treasury yield': ['^TNX'],
 };
 
 // Build reverse alias map: symbolKey → [alias terms]
@@ -366,7 +584,11 @@ router.get('/search', (req, res) => {
     }
 
     if (!q) {
-      return res.json({ results: pool.slice(0, limit), total: pool.length, query: '' });
+      const results = pool.slice(0, limit).map(item => ({
+        ...item,
+        dataDelay: inferDataDelay(item.symbolKey, item.exchange)
+      }));
+      return res.json({ results, total: pool.length, query: '' });
     }
 
     // Score every item, keep non-zero scores
@@ -397,7 +619,10 @@ router.get('/search', (req, res) => {
     // Sort descending by score, then alphabetically by symbol
     scored.sort((a, b) => b.score - a.score || a.item.symbolKey.localeCompare(b.item.symbolKey));
 
-    const results = scored.slice(0, limit).map(s => s.item);
+    const results = scored.slice(0, limit).map(s => ({
+      ...s.item,
+      dataDelay: inferDataDelay(s.item.symbolKey, s.item.exchange)
+    }));
 
     res.json({
       results,
@@ -688,4 +913,6 @@ router.get('/', (req, res) => {
 
 router.REGISTRY = REGISTRY;
 router.BY_KEY = BY_KEY;
+router.inferCurrencyFromSymbol = inferCurrencyFromSymbol;
+router.inferDataDelay = inferDataDelay;
 module.exports = router;

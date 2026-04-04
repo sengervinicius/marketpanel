@@ -74,18 +74,49 @@ export default function HeaderSearchBar({ onSelectTicker, onOpenDetail }) {
     return () => clearTimeout(timer);
   }, [query]);
 
+  // Group results by companyId (multi-listing support)
+  const groupedByCompany = useMemo(() => {
+    const companyGroups = {};
+    const ungrouped = [];
+    for (const r of results) {
+      if (r.companyId) {
+        if (!companyGroups[r.companyId]) companyGroups[r.companyId] = [];
+        companyGroups[r.companyId].push(r);
+      } else {
+        ungrouped.push(r);
+      }
+    }
+    // Build display list: primary + alternates
+    const displayItems = [];
+    for (const [cid, items] of Object.entries(companyGroups)) {
+      displayItems.push({ ...items[0], _alternates: items.slice(1) });
+    }
+    displayItems.push(...ungrouped);
+    // Maintain original order by tracking positions
+    const posMap = {};
+    results.forEach((r, idx) => {
+      if (!posMap[r.companyId || r.symbolKey]) posMap[r.companyId || r.symbolKey] = idx;
+    });
+    displayItems.sort((a, b) => {
+      const aPos = posMap[a.companyId || a.symbolKey] ?? results.length;
+      const bPos = posMap[b.companyId || b.symbolKey] ?? results.length;
+      return aPos - bPos;
+    });
+    return displayItems;
+  }, [results]);
+
   // Build combined flat list for keyboard nav: registry results + AI results
   const allItems = useMemo(() => {
-    const items = results.map(r => ({ ...r, _source: 'registry' }));
+    const items = groupedByCompany.map(r => ({ ...r, _source: 'registry' }));
     // Add AI results that aren't already in registry results
-    const registryKeys = new Set(results.map(r => r.symbolKey));
+    const registryKeys = new Set(groupedByCompany.map(r => r.symbolKey));
     for (const ai of aiResults) {
       if (!registryKeys.has(ai.symbol)) {
         items.push({ symbolKey: ai.symbol, name: ai.name, assetClass: ai.assetClass, aiReason: ai.aiReason, _source: 'ai' });
       }
     }
     return items;
-  }, [results, aiResults]);
+  }, [groupedByCompany, aiResults]);
 
   // Keyboard nav
   const handleKeyDown = useCallback((e) => {
@@ -119,9 +150,9 @@ export default function HeaderSearchBar({ onSelectTicker, onOpenDetail }) {
     return labels[item.assetClass] || item.assetClass?.toUpperCase() || '';
   };
 
-  // Group results by asset class
+  // Group results by asset class (using grouped-by-company results)
   const grouped = {};
-  for (const r of results) {
+  for (const r of groupedByCompany) {
     const cls = r.isFutures ? 'Futures / Commodities' :
                 r.isETFProxy ? 'ETF Proxies' :
                 r.assetClass === 'equity' ? 'Equities' :
@@ -178,16 +209,32 @@ export default function HeaderSearchBar({ onSelectTicker, onOpenDetail }) {
               {items.map((item) => {
                 const idx = flatIdx++;
                 return (
-                  <div
-                    key={item.symbolKey}
-                    className={`hsb-result ${idx === selectedIdx ? 'hsb-result--active' : ''}`}
-                    onClick={() => selectItem(item)}
-                    onMouseEnter={() => setSelectedIdx(idx)}
-                  >
-                    <span className={`hsb-badge hsb-badge--${item.assetClass}`}>{typeBadge(item)}</span>
-                    <span className="hsb-symbol">{item.symbolKey}</span>
-                    <span className="hsb-name">{item.name}</span>
-                    {item.exchange && <span className="hsb-exchange">{item.exchange}</span>}
+                  <div key={item.symbolKey}>
+                    <div
+                      className={`hsb-result ${idx === selectedIdx ? 'hsb-result--active' : ''}`}
+                      onClick={() => selectItem(item)}
+                      onMouseEnter={() => setSelectedIdx(idx)}
+                    >
+                      <span className={`hsb-badge hsb-badge--${item.assetClass}`}>{typeBadge(item)}</span>
+                      <span className="hsb-symbol">{item.symbolKey}</span>
+                      <span className="hsb-name">{item.name}</span>
+                      {item.exchange && <span className="hsb-exchange">{item.exchange}</span>}
+                    </div>
+                    {/* Alternates row */}
+                    {item._alternates && item._alternates.length > 0 && (
+                      <div className="hsb-alternate-row">
+                        <span className="hsb-alternate-label">Also:</span>
+                        {item._alternates.map((alt) => (
+                          <a
+                            key={alt.symbolKey}
+                            className="hsb-alternate-link"
+                            onClick={() => selectItem(alt)}
+                          >
+                            {alt.exchange} ({alt.symbolKey} · {alt.currency || 'N/A'})
+                          </a>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 );
               })}
