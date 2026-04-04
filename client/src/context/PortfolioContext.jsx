@@ -99,7 +99,6 @@ function migrateFromWatchlist(state) {
         createdAt: new Date().toISOString(),
       }));
 
-    console.log(`[Portfolio] Migrated ${newPositions.length} symbols from legacy watchlist`);
     return {
       ...state,
       migrated: true,
@@ -240,7 +239,6 @@ export function PortfolioProvider({ children }) {
 
       if (serverData && Array.isArray(serverData.portfolios) && serverData.portfolios.length > 0) {
         // Case 1: Server has data → use it
-        console.log(`[Portfolio] Loaded from server: ${serverData.portfolios.length} portfolio(s), ${serverData.positions?.length || 0} position(s)`);
         let normalized = {
           version: serverData.version || 1,
           migrated: true,
@@ -254,13 +252,12 @@ export function PortfolioProvider({ children }) {
       } else {
         // Case 2 & 3: Server is empty → use local state (which may include migration result)
         const localState = loadLocalState();
-        console.log(`[Portfolio] No server data — using local state (${localState.positions.length} positions). Seeding server...`);
         setState(localState);
         // Seed server with the local state
         setSyncStatus('syncing');
         const ok = await syncToServer(localState);
         if (!cancelled) setSyncStatus(ok ? 'synced' : 'error');
-        if (ok) console.log('[Portfolio] Initial sync to server complete');
+        // sync complete
       }
 
       if (!cancelled) {

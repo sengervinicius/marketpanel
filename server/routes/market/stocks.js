@@ -281,14 +281,12 @@ router.get('/snapshot/brazil', async (req, res) => {
     ];
     const requestedSymbols = tickers.map(t => t.replace(/\.SA$/i, ''));
 
-    console.log('[Brazil] Attempting Yahoo Finance...');
     let quotes = [];
     try {
       quotes = await yahooQuote(tickers.join(','));
     } catch (e) {
       console.warn('[Brazil] Yahoo Finance failed:', e.message);
       if (require('./lib/providers').finnhubKey()) {
-        console.log('[Brazil] Attempting Finnhub fallback...');
         for (const ticker of tickers.slice(0, 5)) {
           try {
             const data = await finnhubQuote(ticker);
@@ -317,9 +315,6 @@ router.get('/snapshot/brazil', async (req, res) => {
 
     const returnedSymbols = new Set(results.map(r => r.symbol));
     const missingSymbols = requestedSymbols.filter(s => !returnedSymbols.has(s));
-    if (missingSymbols.length > 0) {
-      console.warn(`[API] Brazil snapshot missing ${missingSymbols.length} symbols:`, missingSymbols.join(', '));
-    }
 
     if (!results.length) throw new Error('All providers returned no B3 results');
     const payload = { results, source: 'yahoo', missing: missingSymbols };
@@ -463,12 +458,10 @@ router.get('/chart/:ticker', async (req, res) => {
 
     if (!ticker.toUpperCase().endsWith('.SA')) {
       try {
-        console.log(`[Chart] Attempting Polygon for ${ticker}...`);
         const data = await polyFetch(
           `/v2/aggs/ticker/${ticker}/range/${multiplier}/${timespan}/${fromDate}/${toDate}?adjusted=true&sort=asc&limit=500`
         );
         cacheSet(chartCacheKey, data, TTL.chart);
-        console.log(`[Chart] Polygon succeeded for ${ticker}`);
         return res.json(data);
       } catch (e) {
         console.warn(`[Chart] Polygon failed: ${e.message}`);
@@ -476,7 +469,6 @@ router.get('/chart/:ticker', async (req, res) => {
       }
     }
 
-    console.log(`[Chart] Attempting Yahoo Finance for ${ticker}...`);
     const { crumb, cookie } = await getYahooCrumb();
     const period1 = Math.floor(new Date(fromDate + 'T00:00:00Z').getTime() / 1000);
     const period2 = Math.floor(new Date(toDate + 'T23:59:59Z').getTime() / 1000);
@@ -493,7 +485,6 @@ router.get('/chart/:ticker', async (req, res) => {
       .filter(b => b.c != null && b.c > 0);
     const chartPayload = { results: chartResults, ticker, status: 'OK' };
     cacheSet(chartCacheKey, chartPayload, TTL.chart);
-    console.log(`[Chart] Yahoo Finance succeeded for ${ticker}`);
     return res.json(chartPayload);
   } catch (e) {
     console.error(`[API] /chart/${req.params.ticker}:`, e.message);

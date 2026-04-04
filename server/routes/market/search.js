@@ -45,8 +45,6 @@ router.get('/search', async (req, res) => {
           type:            r.type || 'CS',
         });
       }
-    } else {
-      console.log('[Search] Polygon failed:', polyResult.reason?.message);
     }
 
     if (yahooResult.status === 'fulfilled') {
@@ -63,8 +61,6 @@ router.get('/search', async (req, res) => {
           type:            r.quoteType || 'EQUITY',
         });
       }
-    } else {
-      console.log('[Search] Yahoo fallback failed:', yahooResult.reason?.message);
     }
 
     // Merge Eulerpool results (typically European / global tickers not in Polygon/Yahoo)
@@ -83,8 +79,6 @@ router.get('/search', async (req, res) => {
           source:          'eulerpool',
         });
       }
-    } else {
-      console.log('[Search] Eulerpool failed:', eulerResult.reason?.message);
     }
 
     res.json({ results: results.slice(0, 20) });

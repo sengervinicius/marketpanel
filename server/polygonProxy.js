@@ -291,9 +291,6 @@ function schedulePruning(marketState) {
       });
     });
 
-    if (pruned > 0) {
-      console.log(`[Polygon] Pruned ${pruned} stale symbols from marketState`);
-    }
   }, PRUNE_INTERVAL);
 }
 
@@ -315,7 +312,6 @@ function scheduleDailyReset(marketState) {
         cleared++;
       });
     });
-    console.log(`[Polygon] Daily reset: cleared intraday state for ${cleared} symbols`);
     // Schedule next reset
     setTimeout(doReset, msUntilMidnightUTC());
   }

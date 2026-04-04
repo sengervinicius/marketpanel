@@ -44,20 +44,14 @@ router.get('/news', async (req, res) => {
 
     if (polyRes.status === 'fulfilled') {
       results.push(...(polyRes.value?.results || []));
-    } else {
-      console.warn('[News] Polygon:', polyRes.reason?.message);
     }
 
     if (bloomRes.status === 'fulfilled') {
       results.push(...parseRss(bloomRes.value, 'Bloomberg', 'https://www.bloomberg.com'));
-    } else {
-      console.warn('[News] Bloomberg RSS:', bloomRes.reason?.message);
     }
 
     if (ftRes.status === 'fulfilled') {
       results.push(...parseRss(ftRes.value, 'Financial Times', 'https://www.ft.com'));
-    } else {
-      console.warn('[News] FT RSS:', ftRes.reason?.message);
     }
 
     results.sort((a, b) => {

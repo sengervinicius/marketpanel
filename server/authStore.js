@@ -113,7 +113,7 @@ async function persistUser(user) {
         { upsert: true },
       );
     } catch (e) {
-      console.error('[authStore] MongoDB write error:', e.message);
+      // MongoDB write failure — will attempt Postgres fallback
     }
   }
 
@@ -147,7 +147,7 @@ async function persistUser(user) {
         user.createdAt || Date.now(),
       ]);
     } catch (e) {
-      console.error('[authStore] Postgres write error:', e.message);
+      // Postgres write failure — data will be retained in memory
     }
   }
 }
@@ -286,7 +286,6 @@ async function seedUsersFromEnv() {
       existingUser.subscriptionActive = true;
       existingUser.trialEndsAt = now + 365 * 24 * 60 * 60 * 1000;
       await persistUser(existingUser);
-      console.log(`[authStore] Seed: updated existing user '${username}' to admin status`);
       continue;
     }
 
@@ -311,9 +310,8 @@ async function seedUsersFromEnv() {
       usersByUsername.set(key, user);
       usersById.set(id, user);
       await persistUser(user);
-      console.log(`[authStore] Seeded user: '${username}'`);
     } catch (e) {
-      console.error(`[authStore] Failed to seed '${username}':`, e.message);
+      // Seed user failed — continuing with other users
     }
   }
 }

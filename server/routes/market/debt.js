@@ -699,7 +699,6 @@ router.get('/yield-curves', async (req, res) => {
       usSource = usCurve.length > 0 ? 'US Treasury' : 'unavailable';
       if (usCurve.length > 0) {
         const tenY = usCurve.find(p => p.tenor === '10Y');
-        console.log(`[Yield] US Treasury XML parsed: ${usCurve.length} points, 10Y=${tenY?.rate ?? '?'}%, source=${usSource}`);
       }
     } else {
       console.warn('[Yield] US Treasury XML fetch failed:', usTreasuryRes.reason?.message);
@@ -711,7 +710,6 @@ router.get('/yield-curves', async (req, res) => {
       if (fredCurve.length >= 3) {
         usCurve = fredCurve;
         usSource = 'FRED';
-        console.log(`[Yield] FRED fallback succeeded: ${fredCurve.length} points`);
       } else {
         console.warn('[Yield] FRED fallback also insufficient:', fredCurve.length, 'points');
       }

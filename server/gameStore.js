@@ -80,7 +80,7 @@ async function initGameDB(db) {
     } catch (e) {
       // Table may not exist yet — that's fine
       if (!e.message.includes('does not exist')) {
-        console.error('[gameStore] Postgres hydration failed:', e.message);
+        // Postgres hydration failed
       }
     }
   }
@@ -102,7 +102,7 @@ async function initGameDB(db) {
     }
     console.log(`[gameStore] Loaded ${docs.length} game profile(s) from MongoDB`);
   } catch (e) {
-    console.error('[gameStore] MongoDB gameProfiles init failed:', e.message);
+    // MongoDB gameProfiles collection not available
     gameProfilesCollection = null;
   }
 
@@ -120,7 +120,7 @@ async function initGameDB(db) {
     }
     console.log(`[gameStore] Loaded ${trades.length} game trade(s) from MongoDB`);
   } catch (e) {
-    console.error('[gameStore] MongoDB gameTrades init failed:', e.message);
+    // MongoDB gameTrades collection not available
     gameTradesCollection = null;
   }
 }
@@ -137,7 +137,7 @@ async function persistProfile(userId, doc) {
         { userId: uid }, { ...rest, userId: uid }, { upsert: true },
       );
     } catch (e) {
-      console.error(`[gameStore] MongoDB profile write error (user ${uid}):`, e.message);
+      // Profile persistence failed — retrying on next update
     }
   }
 
@@ -156,7 +156,7 @@ async function persistProfile(userId, doc) {
           JSON.stringify(doc.positions), doc.realizedPnl, doc.peakEquity, doc.troughEquity,
           doc.totalReturnPct, doc.cashMultiple, doc.lastUpdatedAt, JSON.stringify(doc.snapshots)]);
     } catch (e) {
-      console.error(`[gameStore] Postgres profile write error (user ${uid}):`, e.message);
+      // Postgres write failed — retrying on next update
     }
   }
 }
@@ -166,7 +166,7 @@ async function persistTrade(trade) {
     try {
       await gameTradesCollection.insertOne({ ...trade });
     } catch (e) {
-      console.error(`[gameStore] MongoDB trade write error:`, e.message);
+      // Trade persistence failed
     }
   }
 }

@@ -398,11 +398,9 @@ async function fetchWithFallback(symbol) {
 
   const isEuropean = /\.(DE|L|PA|AS|SW|MC|BR|MI|ST|HE|CO|OL|LS)$/i.test(symbol);
   if (isEuropean && eulerpool.isConfigured()) {
-    console.log(`[Provider] Attempting Eulerpool for European symbol ${symbol}...`);
     try {
       const q = await eulerpool.getQuote(symbol);
       if (q && q.price) {
-        console.log(`[Provider] Eulerpool succeeded for ${symbol}`);
         return {
           data: {
             symbol,

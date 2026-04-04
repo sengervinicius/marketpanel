@@ -119,7 +119,6 @@ class YahooFinanceCache {
     for (const [key, bucket] of this.rateLimitBuckets) {
       if (now - bucket.windowStart > this.rateLimitWindow * 2) this.rateLimitBuckets.delete(key);
     }
-    if (cleaned > 0) console.log('[Cache] Cleaned ' + cleaned + ' stale entries');
   }
 
   stats() {

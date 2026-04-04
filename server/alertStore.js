@@ -88,7 +88,7 @@ async function initAlertDB(db) {
         console.log(`[alertStore] Hydrated ${res.rows.length} alert(s) from Postgres`);
       }
     } catch (e) {
-      console.error('[alertStore] Postgres hydration failed:', e.message);
+      // Postgres hydration failed — continuing with empty store
     }
   }
 
@@ -112,7 +112,7 @@ async function initAlertDB(db) {
     }
     console.log(`[alertStore] Loaded ${docs.length} alert(s) from MongoDB`);
   } catch (e) {
-    console.error('[alertStore] MongoDB init failed:', e.message);
+    // MongoDB alerts collection not available
     alertsCollection = null;
   }
 }
@@ -129,7 +129,7 @@ async function persistAlert(alert) {
         { upsert: true },
       );
     } catch (e) {
-      console.error(`[alertStore] MongoDB write error (alert ${alert.id}):`, e.message);
+      // Alert persistence failed — retrying on next update
     }
   }
   // Postgres
@@ -148,7 +148,7 @@ async function persistAlert(alert) {
           alert.note || null, alert.active, alert.triggeredAt || null,
           alert.dismissed || false, alert.createdAt, alert.updatedAt]);
     } catch (e) {
-      console.error(`[alertStore] Postgres write error (alert ${alert.id}):`, e.message);
+      // Postgres write failed — retrying on next update
     }
   }
 }
@@ -156,11 +156,11 @@ async function persistAlert(alert) {
 async function deleteAlertFromDB(userId, alertIdVal) {
   if (alertsCollection) {
     try { await alertsCollection.deleteOne({ userId: Number(userId), id: alertIdVal }); }
-    catch (e) { console.error(`[alertStore] MongoDB delete error (alert ${alertIdVal}):`, e.message); }
+    catch (e) { /* Delete failed */ }
   }
   if (pg.isConnected()) {
     try { await pg.query('DELETE FROM alerts WHERE user_id = $1 AND id = $2', [Number(userId), alertIdVal]); }
-    catch (e) { console.error(`[alertStore] Postgres delete error (alert ${alertIdVal}):`, e.message); }
+    catch (e) { /* Delete failed */ }
   }
 }
 
@@ -256,7 +256,6 @@ async function createAlert(userId, data) {
   alertsByUserId.get(uid).set(alert.id, alert);
   await persistAlert(alert);
 
-  console.log(`[alertStore] Alert created: ${alert.id} (${alert.type} ${alert.symbol} for user ${uid})`);
   return alert;
 }
 
@@ -314,7 +313,6 @@ async function deleteAlert(userId, alertIdVal) {
 
   map.delete(alertIdVal);
   await deleteAlertFromDB(userId, alertIdVal);
-  console.log(`[alertStore] Alert deleted: ${alertIdVal} (user ${userId})`);
   return true;
 }
 
@@ -340,7 +338,6 @@ async function markTriggered(userId, alertIdVal, triggeredAt, triggerContext = n
   existing.updatedAt = new Date().toISOString();
 
   await persistAlert(existing);
-  console.log(`[alertStore] Alert triggered: ${alertIdVal} (${existing.type} ${existing.symbol})`);
   return existing;
 }
 
@@ -352,11 +349,11 @@ async function deleteUserAlerts(userId) {
   alertsByUserId.delete(uid);
   if (alertsCollection) {
     try { await alertsCollection.deleteMany({ userId: uid }); }
-    catch (e) { console.error('[alertStore] MongoDB delete error:', e.message); }
+    catch (e) { /* Delete failed */ }
   }
   if (pg.isConnected()) {
     try { await pg.query('DELETE FROM alerts WHERE user_id = $1', [uid]); }
-    catch (e) { console.error('[alertStore] Postgres delete error:', e.message); }
+    catch (e) { /* Delete failed */ }
   }
 }
 

@@ -1,7 +1,6 @@
 // InstrumentDetail.jsx – Bloomberg GP-style full-screen instrument overlay
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { useAuth } from '../../context/AuthContext';
 import { apiFetch } from '../../utils/api.js';
 import AlertEditor from './AlertEditor';
 import ShareModal from './ShareModal';
@@ -21,221 +20,13 @@ import {
 import {
   formatPrice, currencyLabel, fxDirectionLabel, commodityContextLabel, assetClassBadge,
 } from '../../utils/formatPrice';
-
-const ORANGE = '#ff6600';
-const GREEN  = '#4caf50';
-const RED    = '#f44336';
-
-const RANGES = [
-  { label: '1D', multiplier: 5,  timespan: 'minute', days: 1    },
-  { label: '5D', multiplier: 30, timespan: 'minute', days: 5    },
-  { label: '1M', multiplier: 1,  timespan: 'day',    days: 30   },
-  { label: '3M', multiplier: 1,  timespan: 'day',    days: 90   },
-  { label: '6M', multiplier: 1,  timespan: 'day',    days: 180  },
-  { label: '1Y', multiplier: 1,  timespan: 'day',    days: 365  },
-  { label: '5Y', multiplier: 1,  timespan: 'week',   days: 1825 },
-];
-
-function normalizeTicker(raw) {
-  if (!raw) return 'SPY';
-  if (/^[A-Z]:/.test(raw)) return raw;
-  if (/^[A-Z]{6}$/.test(raw)) return 'C:' + raw;
-  return raw;
-}
-
-function displayTicker(norm) {
-  if (norm.startsWith('C:')) return norm.slice(2, 5) + '/' + norm.slice(5);
-  if (norm.startsWith('X:')) return norm.slice(2, 5) + '/' + norm.slice(5);
-  if (norm.endsWith('.SA')) return norm.slice(0, -3);
-  return norm;
-}
-
-function getFromDate(range) {
-  const now = new Date();
-  const from = new Date(now);
-  from.setDate(from.getDate() - range.days);
-  return from.toISOString().split('T')[0];
-}
-
-function fmt(n, dec = 2) {
-  if (n == null || isNaN(n)) return '--';
-  if (Math.abs(n) >= 1e12) return (n / 1e12).toFixed(1) + 'T';
-  if (Math.abs(n) >= 1e9)  return (n / 1e9).toFixed(1) + 'B';
-  if (Math.abs(n) >= 1e6)  return (n / 1e6).toFixed(1) + 'M';
-  return n.toLocaleString('en-US', { minimumFractionDigits: dec, maximumFractionDigits: dec });
-}
-
-function fmtLabel(ts, timespan) {
-  if (!ts) return '';
-  const d = new Date(ts);
-  if (timespan === 'minute') {
-    return d.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
-  }
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-}
-
-function timeAgo(utc) {
-  if (!utc) return '';
-  const diff = (Date.now() - new Date(utc).getTime()) / 1000;
-  if (diff < 60)    return 'now';
-  if (diff < 3600)  return Math.round(diff / 60) + 'm';
-  if (diff < 86400) return Math.round(diff / 3600) + 'h';
-  return Math.round(diff / 86400) + 'd';
-}
-
-function pct(v, dec = 1) {
-  if (v == null) return '--';
-  return (v >= 0 ? '+' : '') + (v * 100).toFixed(dec) + '%';
-}
-
-// ── Export chart data as CSV ────────────────────────────────────────────────
-function exportToCSV(bars, ticker, rangeLabel) {
-  if (!bars.length) return;
-  const disp = displayTicker(normalizeTicker(ticker));
-  const header = 'Date,Open,High,Low,Close,Volume';
-  const rows = bars.map(b => {
-    const date = b.t ? new Date(b.t).toISOString().split('T')[0] : b.label;
-    return [date, b.open ?? '', b.high ?? '', b.low ?? '', b.close ?? '', b.volume ?? ''].join(',');
-  });
-  const csv = [header, ...rows].join('\n');
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `${disp}_${rangeLabel}_${new Date().toISOString().split('T')[0]}.csv`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-}
-
-// ── Custom SVG overlay: diagonal line A→B with delta badge ─────────────────
-function DeltaLineOverlay({ xAxisMap, yAxisMap, bars, deltaA, deltaB, deltaInfo }) {
-  if (!deltaInfo || deltaA === null || deltaB === null) return null;
-  const [i1, i2] = [deltaA, deltaB].sort((a, b) => a - b);
-  const barA = bars[i1], barB = bars[i2];
-  if (!barA || !barB) return null;
-
-  const xAxis = xAxisMap && xAxisMap[0];
-  const yAxis = yAxisMap && yAxisMap[0];
-  if (!xAxis?.scale || !yAxis?.scale) return null;
-
-  const bw = xAxis.scale.bandwidth ? xAxis.scale.bandwidth() / 2 : 0;
-  const xA = xAxis.scale(barA.label);
-  const xB = xAxis.scale(barB.label);
-  if (xA == null || xB == null) return null;
-  const xAc = xA + bw, xBc = xB + bw;
-  const yAc = yAxis.scale(barA.close);
-  const yBc = yAxis.scale(barB.close);
-
-  if ([xAc, xBc, yAc, yBc].some(v => isNaN(v) || v == null)) return null;
-
-  const midX = (xAc + xBc) / 2;
-  const midY = (yAc + yBc) / 2 - 18;
-
-  const color  = deltaInfo.pct >= 0 ? GREEN : RED;
-  const pctStr = (deltaInfo.pct >= 0 ? '+' : '') + deltaInfo.pct.toFixed(2) + '%';
-  const absStr = (deltaInfo.delta >= 0 ? '+' : '') + fmt(Math.abs(deltaInfo.delta));
-  const daysStr = deltaInfo.days != null ? `${deltaInfo.days}d` : null;
-  const badgeW = 76;
-  const badgeH = daysStr ? 44 : 32;
-
-  return (
-    <g>
-      <line x1={xAc} y1={yAc} x2={xBc} y2={yBc} stroke="#000" strokeWidth={4} opacity={0.4} />
-      <line x1={xAc} y1={yAc} x2={xBc} y2={yBc} stroke={color} strokeWidth={1.5} strokeDasharray="6 3" opacity={0.9} />
-      <circle cx={xAc} cy={yAc} r={5} fill={color} stroke="#000" strokeWidth={1.5} />
-      <circle cx={xBc} cy={yBc} r={5} fill={color} stroke="#000" strokeWidth={1.5} />
-      <text x={xAc} y={yAc - 10} textAnchor="middle" fill={ORANGE} fontSize={9} fontFamily="var(--font-mono)" fontWeight="bold">A</text>
-      <text x={xBc} y={yBc - 10} textAnchor="middle" fill={ORANGE} fontSize={9} fontFamily="var(--font-mono)" fontWeight="bold">B</text>
-      <rect x={midX - badgeW / 2} y={midY - badgeH / 2} width={badgeW} height={badgeH} rx={4}
-        fill="#0a0a0a" stroke={color} strokeWidth={1} />
-      <text x={midX} y={midY - (daysStr ? 8 : 2)} textAnchor="middle" fill={color}
-        fontSize={12} fontFamily="var(--font-mono)" fontWeight="bold">{pctStr}</text>
-      <text x={midX} y={midY + (daysStr ? 8 : 12)} textAnchor="middle" fill="#888"
-        fontSize={9} fontFamily="var(--font-mono)">{absStr}</text>
-      {daysStr && (
-        <text x={midX} y={midY + 22} textAnchor="middle" fill="#444"
-          fontSize={8} fontFamily="var(--font-mono)">{daysStr}</text>
-      )}
-    </g>
-  );
-}
-
-// IND_COLORS and INDICATOR_LIST are now imported from shared utils/chartIndicators.js
-
-// ── Candlestick overlay via Customized — uses Y-axis scale directly ─────────
-function CandlestickOverlay({ formattedGraphicalItems, xAxisMap, yAxisMap, data }) {
-  if (!data || !data.length) return null;
-  const xAxis = xAxisMap && Object.values(xAxisMap)[0];
-  const yAxis = yAxisMap && Object.values(yAxisMap)[0];
-  if (!xAxis?.scale || !yAxis?.scale) return null;
-
-  const bandwidth = xAxis.scale.bandwidth ? xAxis.scale.bandwidth() : 8;
-  const barWidth = Math.max(bandwidth * 0.7, 2);
-
-  return (
-    <g>
-      {data.map((bar, i) => {
-        const { open, high, low, close, label } = bar;
-        if (open == null || close == null || high == null || low == null) return null;
-
-        const xCenter = xAxis.scale(label) + bandwidth / 2;
-        if (xCenter == null || isNaN(xCenter)) return null;
-
-        const yOpen  = yAxis.scale(open);
-        const yClose = yAxis.scale(close);
-        const yHigh  = yAxis.scale(high);
-        const yLow   = yAxis.scale(low);
-        if ([yOpen, yClose, yHigh, yLow].some(v => v == null || isNaN(v))) return null;
-
-        const isUp = close >= open;
-        const color = isUp ? GREEN : RED;
-        const bodyTop = Math.min(yOpen, yClose);
-        const bodyH = Math.max(Math.abs(yOpen - yClose), 1);
-
-        return (
-          <g key={i}>
-            {/* Wick */}
-            <line x1={xCenter} y1={yHigh} x2={xCenter} y2={yLow}
-              stroke={color} strokeWidth={1} />
-            {/* Body */}
-            <rect
-              x={xCenter - barWidth / 2} y={bodyTop}
-              width={barWidth} height={bodyH}
-              fill={color} stroke={color} strokeWidth={0.5}
-              fillOpacity={isUp ? 0.3 : 0.85}
-            />
-          </g>
-        );
-      })}
-    </g>
-  );
-}
-
-// ── Shared sub-components ───────────────────────────────────────────────────
-function Section({ title, children }) {
-  return (
-    <div className="id-section">
-      <div className="id-section-title">{title}</div>
-      {children}
-    </div>
-  );
-}
-
-function StatRow({ label, value, color, big }) {
-  return (
-    <div className="id-stat-row">
-      <span className="id-stat-label">{label}</span>
-      <span
-        className={`id-stat-value${big ? ' id-stat-value--big' : ''}`}
-        style={color ? { color } : undefined}
-      >
-        {value}
-      </span>
-    </div>
-  );
-}
+import { useWatchlist } from '../../context/WatchlistContext';
+import {
+  ORANGE, GREEN, RED, RANGES,
+  normalizeTicker, displayTicker, getFromDate, fmt, fmtLabel, timeAgo, pct, exportToCSV,
+} from './InstrumentDetailHelpers';
+import { DeltaLineOverlay, CandlestickOverlay } from './InstrumentDetailCharts';
+import { Section, StatRow } from './InstrumentDetailSections';
 
 // ── Main Component ──────────────────────────────────────────────────────────
 // asPage=true: renders as a scrollable page (DETAIL tab on mobile), no fixed overlay
@@ -247,6 +38,10 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
   const isBrazil = norm.endsWith('.SA');
   const isBondTicker = /^(US|DE|GB|JP|BR)\d+Y$/i.test(norm);
   const isStock  = !isFX && !isCrypto && !isBondTicker;
+
+  // Watchlist toggle
+  const { isWatching, toggle: toggleWatchlist } = useWatchlist();
+  const watched = isWatching(disp);
 
   // Use matchMedia for reliable CSS-aware mobile detection
   const [isMobile, setIsMobile] = useState(() => {
@@ -1617,9 +1412,11 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
             <div className="id-hero-badge">{heroExchange}{heroExchange && heroAssetClass ? ' \u00b7 ' : ''}{heroAssetClass}</div>
             {/* Desktop action buttons */}
             <div className="id-hero-actions">
+              <button className="id-hero-action-btn" onClick={() => toggleWatchlist(disp)}>{watched ? '\u2605' : '\u2606'} Watch</button>
               <button className="id-hero-action-btn" onClick={openPositionEditor}>+ Portfolio</button>
               <button className="id-hero-action-btn" onClick={openAlertCreator}>{String.fromCharCode(128276)} Alert</button>
               <button className="id-hero-action-btn" onClick={() => setShowGameTrade(true)} style={{ minHeight: 44 }}>Game Trade</button>
+              {onOpenChat && <button className="id-hero-action-btn" onClick={sendToChat}>{String.fromCharCode(128172)} Chat</button>}
               <button className="id-hero-action-btn" onClick={handleShare}>{String.fromCharCode(8599)} Share</button>
             </div>
           </div>
@@ -1943,9 +1740,11 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
 
       {/* ── STICKY BOTTOM ACTION BAR (mobile only) ── */}
       <div className="id-action-bar">
+        <button className="id-action-btn-bar" onClick={() => toggleWatchlist(disp)}>{watched ? '\u2605' : '\u2606'} Watch</button>
         <button className="id-action-btn-bar id-action-btn-bar--primary" onClick={openPositionEditor}>+ Portfolio</button>
         <button className="id-action-btn-bar" onClick={openAlertCreator}>{String.fromCharCode(128276)} Alert</button>
         <button className="id-action-btn-bar" onClick={() => setShowGameTrade(true)} style={{ minHeight: 44 }}>Game Trade</button>
+        {onOpenChat && <button className="id-action-btn-bar" onClick={sendToChat}>{String.fromCharCode(128172)} Chat</button>}
         <button className="id-action-btn-bar" onClick={handleShare}>{String.fromCharCode(8599)} Share</button>
       </div>
 

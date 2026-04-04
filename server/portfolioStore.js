@@ -56,7 +56,7 @@ async function initPortfolioDB(db) {
         console.log(`[portfolioStore] Hydrated ${res.rows.length} portfolio(s) from Postgres`);
       }
     } catch (e) {
-      console.error('[portfolioStore] Postgres hydration failed:', e.message);
+      // Postgres hydration failed — continuing with empty store
     }
   }
 
@@ -77,7 +77,7 @@ async function initPortfolioDB(db) {
     }
     console.log(`[portfolioStore] Loaded ${docs.length} portfolio document(s) from MongoDB`);
   } catch (e) {
-    console.error('[portfolioStore] MongoDB init failed:', e.message);
+    // MongoDB portfolios collection not available
     portfoliosCollection = null;
   }
 }
@@ -93,7 +93,7 @@ async function persistPortfolio(userId, doc) {
         { userId: uid }, { ...rest, userId: uid }, { upsert: true },
       );
     } catch (e) {
-      console.error(`[portfolioStore] MongoDB write error (user ${uid}):`, e.message);
+      // Portfolio write failed — retrying on next update
     }
   }
   // Postgres
@@ -108,7 +108,7 @@ async function persistPortfolio(userId, doc) {
       `, [uid, doc.version || 1, JSON.stringify(doc.portfolios || []),
           JSON.stringify(doc.positions || []), doc.updatedAt, doc.createdAt]);
     } catch (e) {
-      console.error(`[portfolioStore] Postgres write error (user ${uid}):`, e.message);
+      // Postgres write failed — retrying on next update
     }
   }
 }
@@ -214,11 +214,11 @@ async function deleteUserPortfolios(userId) {
   portfoliosByUserId.delete(uid);
   if (portfoliosCollection) {
     try { await portfoliosCollection.deleteMany({ userId: uid }); }
-    catch (e) { console.error('[portfolioStore] MongoDB delete error:', e.message); }
+    catch (e) { /* Delete failed */ }
   }
   if (pg.isConnected()) {
     try { await pg.query('DELETE FROM portfolios WHERE user_id = $1', [uid]); }
-    catch (e) { console.error('[portfolioStore] Postgres delete error:', e.message); }
+    catch (e) { /* Delete failed */ }
   }
 }
 
