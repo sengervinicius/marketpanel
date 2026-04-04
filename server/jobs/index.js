@@ -70,8 +70,11 @@ function initJobs(ctx = {}) {
   const { port = 3001 } = ctx;
 
   // ── Leaderboard precompute: every 4 hours + on start ────────────────
-  const { computeLeaderboards } = require('./leaderboards');
-  registerJob('leaderboard-compute', '0 */4 * * *', computeLeaderboards, { runOnStart: true });
+  const { computeLeaderboards, computeGameLeaderboards } = require('./leaderboards');
+  registerJob('leaderboard-compute', '0 */4 * * *', () => {
+    computeLeaderboards();
+    computeGameLeaderboards();
+  }, { runOnStart: true });
 
   // ── Share-card cleanup: every 5 minutes ──────────────────────────────
   const { cleanupCards } = require('./cardCleanup');

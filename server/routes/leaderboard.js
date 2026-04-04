@@ -12,6 +12,7 @@ const {
   getGlobalLeaderboard,
   getPersonaLeaderboard,
   getWeeklyLeaderboard,
+  getGameLeaderboard,
 } = require('../jobs/leaderboards');
 
 /**
@@ -58,6 +59,25 @@ router.get('/weekly', (req, res) => {
     total: board.data.length,
     endsAt: board.endsAt,
     generatedAt: board.generatedAt,
+  });
+});
+
+// ── Game leaderboards (returns-only ranking) ────────────────────────────────
+
+const GAME_PERIODS = ['global', 'weekly', 'monthly', 'quarterly', 'annual'];
+
+GAME_PERIODS.forEach(period => {
+  router.get(`/game/${period}`, (req, res) => {
+    const board = getGameLeaderboard(period);
+    const userId = req.userId;
+    const response = {
+      leaderboard: board.data.slice(0, 100),
+      userRank: findUserRank(board.data, userId),
+      total: board.data.length,
+      generatedAt: board.generatedAt,
+    };
+    if (board.endsAt) response.endsAt = board.endsAt;
+    res.json(response);
   });
 });
 

@@ -232,6 +232,17 @@ export const PANEL_DEFINITIONS = {
     minSymbols:     0,
     maxSymbols:     0,
   },
+  game: {
+    id:             'game',
+    label:          'Investing Game',
+    defaultTitle:   'Virtual $1M Portfolio',
+    defaultSymbols: [],
+    allowedGroups:  null,
+    editable:       false,
+    icon:           'GM',
+    minSymbols:     0,
+    maxSymbols:     0,
+  },
   leaderboard: {
     id:             'leaderboard',
     label:          'Leaderboard',

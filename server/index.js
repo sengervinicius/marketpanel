@@ -28,6 +28,7 @@ const leaderboardRoutes = require('./routes/leaderboard');
 const shareRoutes       = require('./routes/share');
 const referralRoutes    = require('./routes/referrals');
 const notificationRoutes = require('./routes/notifications');
+const gameRoutes        = require('./routes/game');
 const { requireAuth, requireActiveSubscription } = require('./authMiddleware');
 const logger = require('./utils/logger');
 const { requestLogger } = require('./utils/logger');
@@ -42,6 +43,7 @@ const { getUserById, seedUsersFromEnv, initDB } = require('./authStore');
 const { verifyToken } = require('./authStore');
 const { initPortfolioDB } = require('./portfolioStore');
 const { initAlertDB } = require('./alertStore');
+const { initGameDB } = require('./gameStore');
 
 const app = express();
 
@@ -136,6 +138,9 @@ app.use('/api/portfolio', requireAuth, portfolioRoutes);
 
 // Alerts: auth required (no subscription check — alerts are a core feature)
 app.use('/api/alerts', requireAuth, alertRoutes);
+
+// Game: auth required (no subscription check — game is free tier)
+app.use('/api/game', requireAuth, gameRoutes);
 
 // Legacy stubs (no-op) for removed gamification system
 app.use('/api/gamification', requireAuth, gamificationRoutes);
@@ -398,6 +403,7 @@ async function boot() {
   const mongoDB = await initDB();  // connect MongoDB, load users into memory
   await initPortfolioDB(mongoDB);  // load portfolio data
   await initAlertDB(mongoDB);      // load alert data
+  await initGameDB(mongoDB);       // load game profiles + trades
   await seedUsersFromEnv();        // create any SEED_USERS accounts if missing
 
   const PORT = process.env.PORT || 3001;

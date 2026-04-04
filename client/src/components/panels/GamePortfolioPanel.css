@@ -1,0 +1,293 @@
+/**
+ * GamePortfolioPanel.css
+ * Styles for the virtual investing game panel.
+ */
+
+/* ── Summary strip ────────────────────────────────────────────── */
+.gp-summary {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-strong);
+  background: var(--bg-surface);
+  flex-shrink: 0;
+}
+
+.gp-balance-row {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
+.gp-equity {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.5px;
+}
+
+.gp-return {
+  font-size: var(--font-sm);
+  font-weight: 600;
+}
+
+.gp-return--pos { color: var(--green); }
+.gp-return--neg { color: var(--red); }
+.gp-return--flat { color: var(--text-muted); }
+
+.gp-metrics {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.gp-metric {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.gp-metric-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+}
+
+.gp-metric-value {
+  font-size: var(--font-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* ── Trade form ───────────────────────────────────────────────── */
+.gp-trade-form {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-strong);
+  background: var(--bg-surface);
+}
+
+.gp-trade-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.gp-trade-input {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border-strong);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: var(--font-sm);
+  outline: none;
+}
+
+.gp-trade-input:focus {
+  border-color: var(--accent);
+}
+
+.gp-trade-input--symbol {
+  max-width: 100px;
+  text-transform: uppercase;
+}
+
+.gp-trade-input--qty {
+  max-width: 90px;
+}
+
+.gp-trade-btn {
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: none;
+  font-size: var(--font-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  white-space: nowrap;
+}
+
+.gp-trade-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.gp-trade-btn--buy {
+  background: var(--green);
+  color: #fff;
+}
+
+.gp-trade-btn--sell {
+  background: var(--red);
+  color: #fff;
+}
+
+.gp-trade-error {
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--red);
+}
+
+.gp-trade-success {
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--green);
+}
+
+/* ── Positions table ──────────────────────────────────────────── */
+.gp-positions {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0;
+}
+
+.gp-section-label {
+  padding: 8px 12px 4px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.gp-position-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.gp-position-row:hover {
+  background: var(--bg-hover);
+}
+
+.gp-pos-left {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.gp-pos-symbol {
+  font-weight: 600;
+  font-size: var(--font-sm);
+  color: var(--text-primary);
+}
+
+.gp-pos-detail {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.gp-pos-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+}
+
+.gp-pos-value {
+  font-weight: 600;
+  font-size: var(--font-sm);
+  color: var(--text-primary);
+}
+
+.gp-pos-pnl {
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.gp-pos-pnl--pos { color: var(--green); }
+.gp-pos-pnl--neg { color: var(--red); }
+
+/* ── Empty state ──────────────────────────────────────────────── */
+.gp-empty {
+  text-align: center;
+  padding: 32px 16px;
+  color: var(--text-muted);
+  font-size: var(--font-sm);
+}
+
+.gp-empty-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+/* ── Tabs ─────────────────────────────────────────────────────── */
+.gp-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border-strong);
+  background: var(--bg-surface);
+  flex-shrink: 0;
+}
+
+.gp-tab {
+  flex: 1;
+  padding: 8px 0;
+  text-align: center;
+  font-size: var(--font-sm);
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: color 0.15s, border-color 0.15s;
+  background: none;
+  border-top: none;
+  border-left: none;
+  border-right: none;
+}
+
+.gp-tab--active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+/* ── Trades list ──────────────────────────────────────────────── */
+.gp-trade-row-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.gp-trade-side {
+  font-weight: 700;
+  font-size: 11px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  text-transform: uppercase;
+}
+
+.gp-trade-side--BUY { background: rgba(var(--green-rgb, 16, 185, 129), 0.15); color: var(--green); }
+.gp-trade-side--SELL { background: rgba(var(--red-rgb, 239, 68, 68), 0.15); color: var(--red); }
+
+.gp-trade-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex: 1;
+  margin-left: 8px;
+}
+
+.gp-trade-symbol {
+  font-weight: 600;
+  font-size: var(--font-sm);
+  color: var(--text-primary);
+}
+
+.gp-trade-detail {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.gp-trade-amount {
+  font-weight: 600;
+  font-size: var(--font-sm);
+  color: var(--text-primary);
+}

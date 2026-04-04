@@ -10,6 +10,7 @@ import { PortfolioProvider } from './context/PortfolioContext';
 import { MarketProvider, useMarketDispatch } from './context/MarketContext';
 import { DragProvider } from './context/DragContext';
 import { AlertsProvider, useAlerts } from './context/AlertsContext';
+import { GameProvider, useGame } from './context/GameContext';
 import { IndexPanel } from './components/panels/IndexPanel';
 import { StockPanel } from './components/panels/StockPanel';
 import { ForexPanel } from './components/panels/ForexPanel';
@@ -36,6 +37,7 @@ import ETFPanel from './components/panels/ETFPanel';
 import ScreenerPanel from './components/panels/ScreenerPanel';
 import MacroPanel from './components/panels/MacroPanel';
 import LeaderboardPanel from './components/panels/LeaderboardPanel';
+import GamePortfolioPanel from './components/panels/GamePortfolioPanel';
 import { CalendarPanel } from './components/panels/CalendarPanel';
 import ReferralPanel from './components/common/ReferralPanel';
 import ToastContainer from './components/common/ToastContainer';
@@ -253,6 +255,8 @@ function makePanelRenderer(panelId, props) {
       return <MacroPanel />;
     case 'leaderboard':
       return <LeaderboardPanel />;
+    case 'game':
+      return <GamePortfolioPanel onSelectSymbol={setDetailTicker} />;
     case 'referrals':
       return <ReferralPanel />;
     case 'calendar':
@@ -1456,7 +1460,7 @@ export default function App() {
   }, []);
   const mobileScreenTitle = useMemo(() => {
     if (activeTab === 'more' && moreView) {
-      const titles = { news: 'News Feed', etf: 'ETF Screener', screener: 'Fundamental Screener', macro: 'Macro Panel', leaderboard: 'Leaderboard', missions: 'Missions & Quests' };
+      const titles = { news: 'News Feed', etf: 'ETF Screener', screener: 'Fundamental Screener', macro: 'Macro Panel', leaderboard: 'Leaderboard', game: 'Investing Game', missions: 'Missions & Quests' };
       return titles[moreView] || moreView;
     }
     return null;
@@ -1478,6 +1482,7 @@ export default function App() {
       <AppErrorBoundary>
       <DragProvider>
       <PortfolioProvider>
+      <GameProvider>
       <AlertsProvider>
       <FeedStatusProvider status={feedStatus}>
       <MarketProvider restData={mergedData}>
@@ -1618,6 +1623,7 @@ export default function App() {
       </MarketProvider>
       </FeedStatusProvider>
       </AlertsProvider>
+      </GameProvider>
       </PortfolioProvider>
       </DragProvider>
       </AppErrorBoundary>
@@ -1629,6 +1635,7 @@ export default function App() {
     <AppErrorBoundary>
     <DragProvider>
     <PortfolioProvider>
+    <GameProvider>
     <AlertsProvider>
     <FeedStatusProvider status={feedStatus}>
     <MarketProvider restData={mergedData}>
@@ -1787,6 +1794,12 @@ export default function App() {
               </PanelErrorBoundary>
             )}
 
+            {activeTab === 'more' && moreView === 'game' && (
+              <PanelErrorBoundary name="Game">
+                <GamePortfolioPanel mobile onSelectSymbol={(sym) => { setDetailTicker(sym); goDetail(); }} />
+              </PanelErrorBoundary>
+            )}
+
             {activeTab === 'more' && moreView === 'referrals' && (
               <PanelErrorBoundary name="Referrals">
                 <ReferralPanel />
@@ -1869,6 +1882,7 @@ export default function App() {
     </MarketProvider>
     </FeedStatusProvider>
     </AlertsProvider>
+    </GameProvider>
     </PortfolioProvider>
     </DragProvider>
     </AppErrorBoundary>
