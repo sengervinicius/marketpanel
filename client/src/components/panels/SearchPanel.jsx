@@ -1,9 +1,12 @@
-import { useState, useRef, useCallback, memo } from 'react';
+import { useState, useRef, useCallback, memo, useEffect } from 'react';
 import { FOREX_PAIRS, CRYPTO_PAIRS } from '../../utils/constants';
 import { useSettings } from '../../context/SettingsContext';
 import { apiFetch } from '../../utils/api';
 import Badge from '../ui/Badge';
 import './SearchPanel.css';
+
+// Module-level recent searches store (survives re-renders but not page refresh)
+let _recentSearches = [];
 
 const ORANGE = '#ff6b00';
 const GREEN  = '#4caf50';
@@ -144,9 +147,18 @@ function SearchPanel({ onTickerSelect, onOpenDetail }) {
   const [aiResults,     setAiResults]     = useState([]);
   const [aiLoading,     setAiLoading]     = useState(false);
   const [aiError,       setAiError]       = useState(null);
+  const [isFocused,     setIsFocused]     = useState(false);
+  const [selectedIdx,   setSelectedIdx]   = useState(-1);
+  const [recents,       setRecents]       = useState(_recentSearches);
 
   const debounceRef   = useRef(null);
+  const inputRef      = useRef(null);
   const { addToHomeSection } = useSettings();
+
+  // Reset selectedIdx when results change
+  useEffect(() => {
+    setSelectedIdx(-1);
+  }, [results]);
 
   const handleAiSearch = useCallback(async (q) => {
     if (!q || q.trim().length < 3) return;
@@ -227,13 +239,43 @@ function SearchPanel({ onTickerSelect, onOpenDetail }) {
     debounceRef.current = setTimeout(() => search(q), 280);
   };
 
-  // Enter key: open first result directly
+  // Arrow key navigation, Enter, Escape
   const handleKeyDown = useCallback((e) => {
-    if (e.key === 'Enter' && results.length > 0) {
+    if (e.key === 'ArrowDown') {
       e.preventDefault();
-      onOpenDetail?.(results[0].symbol);
+      setSelectedIdx(i => Math.min(i + 1, results.length - 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setSelectedIdx(i => Math.max(i - 1, -1));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      const targetIdx = selectedIdx >= 0 ? selectedIdx : 0;
+      if (results.length > targetIdx && targetIdx >= 0) {
+        handleSelect(results[targetIdx]);
+      }
+    } else if (e.key === 'Escape') {
+      setQuery('');
+      setResults([]);
+      setSelectedIdx(-1);
+      setIsFocused(false);
     }
-  }, [results, onOpenDetail]);
+  }, [results, selectedIdx]);
+
+  const handleSelect = useCallback((item) => {
+    const updated = [item, ...recents.filter(x => (x.symbolKey || x.symbol) !== (item.symbolKey || item.symbol))].slice(0, 5);
+    _recentSearches = updated;
+    setRecents(updated);
+    onOpenDetail?.(item.symbol);
+  }, [recents, onOpenDetail]);
+
+  const badgeClass = (item) => {
+    if (item.isFutures || item.assetClass === 'commodity') return 'badge-commodity';
+    if (item.assetClass === 'crypto') return 'badge-crypto';
+    if (item.assetClass === 'forex') return 'badge-forex';
+    if (item.assetClass === 'index') return 'badge-index';
+    if (item.assetClass === 'rate') return 'badge-rate';
+    return 'badge-equity';
+  };
 
   const handleDragStart = (e, item) => {
     e.dataTransfer.effectAllowed = 'copy';
@@ -252,26 +294,57 @@ function SearchPanel({ onTickerSelect, onOpenDetail }) {
   return (
     <div className="sp-container">
 
-      {/* ── Header ── */}
-      <div className="sp-header">
-        <span className="sp-header-label">SEARCH</span>
-        <span className="sp-header-hint">CLICK → DETAIL  ·  DRAG → CHART</span>
+      {/* ── Header with labels ── */}
+      <div className="search-panel-header">
+        <span className="search-panel-title">SEARCH INSTRUMENTS</span>
+        <span className="search-panel-hint">
+          Stocks · ETFs · Crypto · FX · Futures · Indices · Bonds
+        </span>
       </div>
 
       {/* ── Search input ── */}
       <div className="sp-search-wrapper">
         <input
+          ref={inputRef}
           autoFocus
           value={query}
           onChange={handleInput}
           onKeyDown={handleKeyDown}
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => setIsFocused(false)}
           placeholder="ticker or company name..."
           className="sp-search-input"
         />
+        {!query && !isFocused && (
+          <span className="search-shortcut-badge">Press / to search</span>
+        )}
         {loading && (
           <span className="sp-search-loading">SEARCHING...</span>
         )}
       </div>
+
+      {/* ── Recent searches (when focused, empty query, and no results) ── */}
+      {isFocused && !query && !results.length && recents.length > 0 && (
+        <div className="sp-results-container">
+          <div className="search-recent-header">RECENT</div>
+          {recents.map((item, idx) => (
+            <div
+              key={item.symbol}
+              className={`sp-result-row ${idx === selectedIdx ? 'selected' : ''}`}
+              onClick={() => handleSelect(item)}
+              title="Click to open detail"
+            >
+              <span className="sp-symbol"
+                style={{
+                  color: item.assetClass ? '#888' : '#666',
+                }}>
+                {displaySymbol(item.symbol)}
+              </span>
+              <span className="sp-name">{item.name}</span>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* ── Results list (ABOVE AI card — clickable to open InstrumentDetail) ── */}
       {results.length > 0 && (
@@ -279,7 +352,7 @@ function SearchPanel({ onTickerSelect, onOpenDetail }) {
           <div className="sp-results-header">
             <span className="sp-results-header-text">DRAG RESULTS TO ANY PANEL TO ADD TICKERS</span>
           </div>
-          {results.map(item => {
+          {results.map((item, idx) => {
             const badge  = MARKET_BADGE[(item.market || '').toUpperCase()];
             const isBR   = item.symbol?.endsWith('.SA');
             const cov    = coverageLevel(item);
@@ -291,9 +364,9 @@ function SearchPanel({ onTickerSelect, onOpenDetail }) {
                 key={item.symbol}
                 draggable
                 onDragStart={(e) => handleDragStart(e, item)}
-                onClick={() => onOpenDetail?.(item.symbol)}
+                onClick={() => handleSelect(item)}
                 title="Click to open detail · Drag to any panel to add ticker"
-                className={`sp-result-row ${cov === 'none' ? 'no-coverage' : ''}`}
+                className={`sp-result-row ${cov === 'none' ? 'no-coverage' : ''} ${idx === selectedIdx ? 'selected' : ''}`}
               >
                 <span className="sp-drag-icon" title="Drag to any panel">⠿</span>
                 <span
@@ -329,6 +402,11 @@ function SearchPanel({ onTickerSelect, onOpenDetail }) {
                     <Badge variant={cov === 'none' ? 'error' : 'warning'} size="xs">
                       {covTag.label}
                     </Badge>
+                  )}
+                  {item.assetClass && (
+                    <span className={`spr-badge ${badgeClass(item)}`}>
+                      {item.assetClass.toUpperCase()}
+                    </span>
                   )}
                   <button className={`btn sp-add-home-btn ${addedToHome === item.symbol ? 'sp-add-home-btn-active' : ''}`}
                     onClick={(e) => handleAddToHome(e, item)}

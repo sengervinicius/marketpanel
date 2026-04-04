@@ -7,6 +7,28 @@
   flex-direction: column;
 }
 
+/* New header labels */
+.search-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 6px;
+  padding: 0 4px;
+}
+
+.search-panel-title {
+  font: 600 10px var(--font-mono);
+  letter-spacing: 0.12em;
+  color: var(--accent);
+  text-transform: uppercase;
+}
+
+.search-panel-hint {
+  font: 10px var(--font-ui);
+  color: var(--text-faint);
+  letter-spacing: 0.04em;
+}
+
 .sp-header {
   padding: 6px 10px 4px;
   border-bottom: 1px solid #1e1e1e;
@@ -59,6 +81,21 @@
   transform: translateY(-50%);
   color: #444;
   font-size: var(--font-micro);
+}
+
+.search-shortcut-badge {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  font: 10px var(--font-mono);
+  color: var(--text-faint);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: 3px;
+  padding: 1px 6px;
+  white-space: nowrap;
+  pointer-events: none;
 }
 
 /* ── AI Summary Card ── */
@@ -203,6 +240,36 @@
 
 .sp-result-row.no-coverage {
   opacity: 0.55;
+}
+
+.sp-result-row.selected {
+  background: var(--bg-hover, #1a1a1a);
+}
+
+/* Asset class badges */
+.spr-badge {
+  font: 600 9px var(--font-mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 1px 5px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.badge-equity { color: #4caf50; background: rgba(76, 175, 80, 0.08); }
+.badge-crypto { color: #e91e63; background: rgba(233, 30, 99, 0.08); }
+.badge-commodity { color: #ff6600; background: rgba(255, 102, 0, 0.08); }
+.badge-forex { color: #2196f3; background: rgba(33, 150, 243, 0.08); }
+.badge-index { color: #ff9800; background: rgba(255, 152, 0, 0.08); }
+.badge-rate { color: #ffd700; background: rgba(255, 215, 0, 0.08); }
+
+/* Recent searches */
+.search-recent-header {
+  font: 600 9px var(--font-mono);
+  color: var(--text-muted);
+  letter-spacing: 0.1em;
+  padding: 8px 16px 4px;
+  text-transform: uppercase;
 }
 
 .sp-drag-icon {
