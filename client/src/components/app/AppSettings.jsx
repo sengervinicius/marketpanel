@@ -131,7 +131,7 @@ export function SettingsDrawer({ panelVisible, togglePanel, onClose }) {
       </div>
 
       {/* ── Workspace Presets ── */}
-      <SettingsSection label="APPLY WORKSPACE PRESET" />
+      <SettingsSection label="HOME WORKSPACE" />
       {PRESET_LIST.map(({ key, label }) => (
         <div
           key={key}
@@ -207,8 +207,8 @@ export function SettingsDrawer({ panelVisible, togglePanel, onClose }) {
       <SettingsSection label="COMMUNITY" />
       <DiscordLinkRow />
 
-      {/* ── Suggested Screens ── */}
-      <SettingsSection label="SUGGESTED SCREENS" />
+      {/* ── Market Screens ── */}
+      <SettingsSection label="BROWSE MARKET SCREENS" />
       <SuggestedScreens onApply={onClose} />
     </div>
   );

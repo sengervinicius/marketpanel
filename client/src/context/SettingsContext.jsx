@@ -6,7 +6,7 @@
 
 import { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import { apiFetch } from '../utils/api';
-import { WORKSPACE_TEMPLATES, SCREEN_PRESETS } from '../config/templates';
+import { WORKSPACE_TEMPLATES, SCREEN_PRESETS, getTemplate } from '../config/templates';
 import { DEFAULT_LAYOUT, DEFAULT_HOME_SECTIONS, DEFAULT_CHARTS_CONFIG } from '../config/panels';
 
 const SettingsContext = createContext(null);
@@ -112,7 +112,7 @@ export function SettingsProvider({ children, isAuthenticated }) {
   }, [persistSettings]);
 
   const applyPreset = useCallback(async (presetKey) => {
-    const preset = SCREEN_PRESETS[presetKey];
+    const preset = getTemplate(presetKey);
     if (!preset) return;
     const partial = {
       panels:              preset.panels  || {},
@@ -136,7 +136,7 @@ export function SettingsProvider({ children, isAuthenticated }) {
    *   'layout' — only overwrite layout + panels that the template defines
    */
   const applyTemplate = useCallback(async (templateId, mode = 'full') => {
-    const template = WORKSPACE_TEMPLATES[templateId];
+    const template = getTemplate(templateId);
     if (!template) return;
     let partial;
     if (mode === 'layout') {

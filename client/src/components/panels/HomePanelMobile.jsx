@@ -14,6 +14,7 @@ import { apiFetch } from '../../utils/api';
 import {
   US_STOCKS, BRAZIL_ADRS, FOREX_PAIRS, CRYPTO_PAIRS, COMMODITIES,
 } from '../../utils/constants';
+import { getMobileHomeScreens } from '../../config/templates';
 import './HomePanelMobile.css';
 
 const MOBILE_HOME_SECTIONS = [
@@ -111,9 +112,52 @@ const SectionCard = memo(function SectionCard({ section, tickers, onOpenDetail }
   );
 });
 
+/* ── MarketScreensGallery: horizontal-scroll screen cards ──── */
+const MarketScreensGallery = memo(function MarketScreensGallery({ onApplyScreen }) {
+  const screens = useMemo(() => getMobileHomeScreens(), []);
+  const [applying, setApplying] = useState(null);
+
+  const handleTap = useCallback(async (screen) => {
+    if (applying) return;
+    setApplying(screen.id);
+    try { await onApplyScreen?.(screen.id, 'full'); } catch {}
+    setTimeout(() => setApplying(null), 600);
+  }, [applying, onApplyScreen]);
+
+  if (!screens.length) return null;
+
+  return (
+    <div className="hpm-screens-section">
+      <div className="hpm-section-header" style={{ padding: '0 16px' }}>
+        <span className="hpm-section-title">Market Screens</span>
+        <span className="hpm-section-count">{screens.length}</span>
+      </div>
+      <div className="hpm-screens-scroll">
+        {screens.map(s => (
+          <div
+            key={s.id}
+            className={`hpm-screen-card ${applying === s.id ? 'hpm-screen-card--applying' : ''}`}
+            style={{ borderLeftColor: s.mobileCardStyle || '#ff6600' }}
+            onClick={() => handleTap(s)}
+          >
+            <div className="hpm-screen-card-label">{s.visualLabel}</div>
+            <div className="hpm-screen-card-subtitle">{s.subtitle}</div>
+            <div className="hpm-screen-card-heroes">
+              {(s.heroSymbols || []).slice(0, 3).map(sym => (
+                <span key={sym} className="hpm-screen-card-hero">{sym.replace('.SA','').replace('=F','')}</span>
+              ))}
+            </div>
+            {applying === s.id && <div className="hpm-screen-card-applying">Applying...</div>}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+});
+
 /* ── Main component ──────────────────────────────────────────────── */
 function HomePanelMobile({ onOpenDetail, onSearchClick }) {
-  const { settings } = useSettings();
+  const { settings, applyTemplate } = useSettings();
   const [news, setNews] = useState([]);
   const [aiPulse, setAiPulse] = useState(null);
   const [aiPulseLoading, setAiPulseLoading] = useState(false);
@@ -258,6 +302,9 @@ function HomePanelMobile({ onOpenDetail, onSearchClick }) {
         )}
         {aiPulse && <div className="hpm-ai-result">{aiPulse}</div>}
       </div>
+
+      {/* Market Screens Gallery — horizontal scroll */}
+      <MarketScreensGallery onApplyScreen={applyTemplate} />
 
       {/* Curated Section Cards — full ticker lists with View All */}
       <div className="hpm-section-grid">

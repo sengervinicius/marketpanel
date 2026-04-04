@@ -32,6 +32,7 @@ import ToastContainer from './components/common/ToastContainer';
 import OnboardingPresets from './components/onboarding/OnboardingPresets';
 import OnboardingTourOverlay from './components/onboarding/OnboardingTourOverlay';
 import WorkspaceSwitcher from './components/common/WorkspaceSwitcher';
+import MarketScreenGallery from './components/common/MarketScreenGallery';
 import { TickerTooltip } from './components/common/TickerTooltip';
 import InstrumentDetail from './components/common/InstrumentDetail';
 import PanelErrorBoundary from './components/common/PanelErrorBoundary';
@@ -583,6 +584,9 @@ export default function App() {
         <div className="app-search-strip">
           <HeaderSearchBar onOpenDetail={setDetailTicker} />
         </div>
+
+        {/* Market Screens gallery — collapsible strip */}
+        <MarketScreenGallery />
 
         {/* Trial banner */}
         <TrialBanner

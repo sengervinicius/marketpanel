@@ -1,0 +1,128 @@
+/* ══════════════════════════════════════════════════════
+   MarketScreenGallery — Desktop card gallery
+   ══════════════════════════════════════════════════════ */
+
+.msg-container {
+  padding: 0 14px 4px;
+}
+
+/* ─── Toggle button ─────────────────────────────── */
+
+.msg-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 0;
+  font-family: inherit;
+}
+
+.msg-toggle-label {
+  font: 700 8px var(--font-mono, monospace);
+  letter-spacing: 1.2px;
+  color: var(--text-faint, #555);
+  transition: color 0.15s;
+}
+
+.msg-toggle:hover .msg-toggle-label {
+  color: var(--accent, #ff6600);
+}
+
+.msg-toggle-count {
+  font: 600 8px var(--font-mono, monospace);
+  color: var(--text-faint, #444);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 3px;
+  padding: 1px 5px;
+}
+
+.msg-toggle-arrow {
+  font-size: 8px;
+  color: var(--text-faint, #444);
+  margin-left: auto;
+}
+
+/* ─── Card Grid ─────────────────────────────────── */
+
+.msg-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 8px;
+  padding: 6px 0 8px;
+}
+
+.msg-card {
+  background: rgba(255, 255, 255, 0.015);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-left: 3px solid var(--accent, #ff6600);
+  border-radius: 6px;
+  padding: 8px 10px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.msg-card:hover {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.msg-card--active {
+  border-left-color: var(--accent, #ff6600);
+  background: rgba(255, 102, 0, 0.03);
+}
+
+.msg-card--applying {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.msg-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2px;
+}
+
+.msg-card-label {
+  font: 700 10px var(--font-ui, system-ui);
+  color: var(--text-primary, #e0e0e0);
+}
+
+.msg-card-status {
+  font-size: 8px;
+  color: var(--accent, #ff6600);
+}
+
+.msg-card-subtitle {
+  font-size: 8px;
+  color: var(--text-faint, #555);
+  letter-spacing: 0.2px;
+  margin-bottom: 6px;
+}
+
+.msg-card-heroes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin-bottom: 4px;
+}
+
+.msg-card-hero {
+  font: 600 7px var(--font-mono, monospace);
+  color: var(--text-muted, #666);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 1px 4px;
+  border-radius: 2px;
+}
+
+.msg-card-thesis {
+  font-size: 8px;
+  color: var(--text-faint, #444);
+  line-height: 1.35;
+  font-style: italic;
+}

@@ -1,6 +1,6 @@
 import React, { memo, useState, useCallback, useMemo, useEffect } from 'react';
 import { useSettings } from '../../context/SettingsContext';
-import { getTemplatesGrouped, WORKSPACE_TEMPLATES } from '../../config/templates';
+import { getTemplatesGrouped, getTemplate } from '../../config/templates';
 import UserAvatar from '../common/UserAvatar';
 import { getPersona } from '../../config/avatars';
 
@@ -235,9 +235,8 @@ function MobileWorkspaceSection() {
     setApplying(null);
   };
 
-  const activeLabel = activeId && WORKSPACE_TEMPLATES[activeId]
-    ? WORKSPACE_TEMPLATES[activeId].label
-    : 'Default';
+  const activeTemplate = activeId ? getTemplate(activeId) : null;
+  const activeLabel = activeTemplate ? activeTemplate.label : 'Default';
 
   return (
     <div className="mm-section">

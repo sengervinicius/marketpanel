@@ -6,7 +6,7 @@
 
 import { useState, useMemo, memo } from 'react';
 import { useSettings } from '../../context/SettingsContext';
-import { getTemplatesByCategory, WORKSPACE_TEMPLATES } from '../../config/templates';
+import { getTemplatesByCategory } from '../../config/templates';
 import { PANEL_DEFINITIONS } from '../../config/panels';
 
 // ── Build panel label map for tooltips ──────────────────────────────────────

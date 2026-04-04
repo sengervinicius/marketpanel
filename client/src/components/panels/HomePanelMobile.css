@@ -269,3 +269,83 @@
   font-weight: 600;
   letter-spacing: 0.04em;
 }
+
+/* ── Market Screens Gallery ─────────────── */
+
+.hpm-screens-section {
+  margin: 12px 0 8px;
+}
+
+.hpm-screens-scroll {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding: 8px 16px 12px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.hpm-screens-scroll::-webkit-scrollbar { display: none; }
+
+.hpm-screen-card {
+  flex-shrink: 0;
+  width: 140px;
+  background: var(--bg-panel, #111);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-left: 3px solid var(--accent, #ff6600);
+  border-radius: 8px;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: border-color 0.15s, transform 0.1s;
+  position: relative;
+}
+
+.hpm-screen-card:active {
+  transform: scale(0.97);
+}
+
+.hpm-screen-card--applying {
+  opacity: 0.7;
+}
+
+.hpm-screen-card-label {
+  font: 700 11px var(--font-ui, system-ui);
+  color: var(--text-primary, #e0e0e0);
+  margin-bottom: 2px;
+}
+
+.hpm-screen-card-subtitle {
+  font-size: 9px;
+  color: var(--text-faint, #555);
+  margin-bottom: 8px;
+  letter-spacing: 0.2px;
+}
+
+.hpm-screen-card-heroes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.hpm-screen-card-hero {
+  font: 600 8px var(--font-mono, monospace);
+  color: var(--text-muted, #666);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 1px 4px;
+  border-radius: 2px;
+}
+
+.hpm-screen-card-applying {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 8px;
+  font-size: 10px;
+  color: var(--accent, #ff6600);
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}

@@ -5,7 +5,7 @@
  */
 import { useState, useRef, useEffect, useMemo, memo } from 'react';
 import { useSettings } from '../../context/SettingsContext';
-import { WORKSPACE_TEMPLATES, getTemplatesGrouped } from '../../config/templates';
+import { WORKSPACE_TEMPLATES, getTemplatesGrouped, getTemplate } from '../../config/templates';
 
 function WorkspaceSwitcher() {
   const { settings, applyTemplate } = useSettings();
@@ -34,9 +34,8 @@ function WorkspaceSwitcher() {
 
   // Detect active template
   const activeId = settings?.activeTemplate || null;
-  const activeLabel = activeId && WORKSPACE_TEMPLATES[activeId]
-    ? WORKSPACE_TEMPLATES[activeId].label
-    : null;
+  const activeTemplate = activeId ? getTemplate(activeId) : null;
+  const activeLabel = activeTemplate ? activeTemplate.label : null;
 
   // Group templates for the dropdown
   const grouped = useMemo(() => getTemplatesGrouped(null), []);
