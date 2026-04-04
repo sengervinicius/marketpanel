@@ -105,22 +105,45 @@ const REGISTRY = [
   { symbolKey:'EWW',   name:'iShares MSCI Mexico',   assetClass:'etf',         group:'Global Indices',  exchange:'NYSE',   currency:'USD' },
   { symbolKey:'EWA',   name:'iShares MSCI Australia',assetClass:'etf',         group:'Global Indices',  exchange:'NYSE',   currency:'USD' },
   { symbolKey:'EWC',   name:'iShares MSCI Canada',   assetClass:'etf',         group:'Global Indices',  exchange:'NYSE',   currency:'USD' },
-  { symbolKey:'GLD',   name:'SPDR Gold Shares',      assetClass:'etf',         group:'Metals',          exchange:'NYSE',   currency:'USD', underlyingName:'Gold', underlyingUnit:'oz', conversionFactor:10, isETFProxy:true },
-  { symbolKey:'SLV',   name:'iShares Silver Trust',  assetClass:'etf',         group:'Metals',          exchange:'NYSE',   currency:'USD', underlyingName:'Silver', underlyingUnit:'oz', conversionFactor:100, isETFProxy:true },
-  { symbolKey:'USO',   name:'US Oil Fund',           assetClass:'etf',         group:'Energy',          exchange:'NYSE',   currency:'USD', underlyingName:'WTI Crude Oil', underlyingUnit:'bbl', isETFProxy:true },
-  { symbolKey:'UNG',   name:'US Natural Gas Fund',   assetClass:'etf',         group:'Energy',          exchange:'NYSE',   currency:'USD', underlyingName:'Natural Gas', underlyingUnit:'MMBtu', isETFProxy:true },
+  { symbolKey:'GLD',   name:'SPDR Gold Shares',      assetClass:'etf',         group:'Metals',          exchange:'NYSE',   currency:'USD', underlyingName:'Gold', underlyingUnit:'oz', conversionFactor:10, isETFProxy:true, realContractSymbol:'GC=F' },
+  { symbolKey:'SLV',   name:'iShares Silver Trust',  assetClass:'etf',         group:'Metals',          exchange:'NYSE',   currency:'USD', underlyingName:'Silver', underlyingUnit:'oz', conversionFactor:100, isETFProxy:true, realContractSymbol:'SI=F' },
+  { symbolKey:'USO',   name:'US Oil Fund',           assetClass:'etf',         group:'Energy',          exchange:'NYSE',   currency:'USD', underlyingName:'WTI Crude Oil', underlyingUnit:'bbl', isETFProxy:true, realContractSymbol:'CL=F' },
+  { symbolKey:'UNG',   name:'US Natural Gas Fund',   assetClass:'etf',         group:'Energy',          exchange:'NYSE',   currency:'USD', underlyingName:'Natural Gas', underlyingUnit:'MMBtu', isETFProxy:true, realContractSymbol:'NG=F' },
   { symbolKey:'TLT',   name:'iShares 20+ Yr Treasury',assetClass:'etf',        group:'US Yields',       exchange:'NASDAQ', currency:'USD' },
   { symbolKey:'HYG',   name:'iShares HY Corp Bond',  assetClass:'etf',         group:'US Yields',       exchange:'NYSE',   currency:'USD' },
   { symbolKey:'LQD',   name:'iShares IG Corp Bond',  assetClass:'etf',         group:'US Yields',       exchange:'NYSE',   currency:'USD' },
   { symbolKey:'EMB',   name:'iShares EM Bond',       assetClass:'etf',         group:'EM Yields',       exchange:'NYSE',   currency:'USD' },
   { symbolKey:'JNK',   name:'SPDR HY Bond',          assetClass:'etf',         group:'US Yields',       exchange:'NYSE',   currency:'USD' },
   { symbolKey:'BNDX',  name:'Vanguard Total Intl Bond',assetClass:'etf',       group:'Global Yields',   exchange:'NASDAQ', currency:'USD' },
-  { symbolKey:'CORN',  name:'Teucrium Corn Fund',    assetClass:'etf',         group:'Agriculture',     exchange:'NYSE',   currency:'USD', underlyingName:'Corn', underlyingUnit:'bu', isETFProxy:true },
-  { symbolKey:'WEAT',  name:'Teucrium Wheat Fund',   assetClass:'etf',         group:'Agriculture',     exchange:'NYSE',   currency:'USD', underlyingName:'Wheat', underlyingUnit:'bu', isETFProxy:true },
-  { symbolKey:'SOYB',  name:'Teucrium Soybean Fund', assetClass:'etf',         group:'Agriculture',     exchange:'NYSE',   currency:'USD', underlyingName:'Soybeans', underlyingUnit:'bu', isETFProxy:true },
-  { symbolKey:'CPER',  name:'US Copper Index Fund',  assetClass:'etf',         group:'Metals',          exchange:'NYSE',   currency:'USD', underlyingName:'Copper', underlyingUnit:'lb', isETFProxy:true },
+  { symbolKey:'CORN',  name:'Teucrium Corn Fund',    assetClass:'etf',         group:'Agriculture',     exchange:'NYSE',   currency:'USD', underlyingName:'Corn', underlyingUnit:'bu', isETFProxy:true, realContractSymbol:'ZC=F' },
+  { symbolKey:'WEAT',  name:'Teucrium Wheat Fund',   assetClass:'etf',         group:'Agriculture',     exchange:'NYSE',   currency:'USD', underlyingName:'Wheat', underlyingUnit:'bu', isETFProxy:true, realContractSymbol:'ZW=F' },
+  { symbolKey:'SOYB',  name:'Teucrium Soybean Fund', assetClass:'etf',         group:'Agriculture',     exchange:'NYSE',   currency:'USD', underlyingName:'Soybeans', underlyingUnit:'bu', isETFProxy:true, realContractSymbol:'ZS=F' },
+  { symbolKey:'CPER',  name:'US Copper Index Fund',  assetClass:'etf',         group:'Metals',          exchange:'NYSE',   currency:'USD', underlyingName:'Copper', underlyingUnit:'lb', isETFProxy:true, realContractSymbol:'HG=F' },
   { symbolKey:'REMX',  name:'VanEck Rare Earth ETF', assetClass:'etf',         group:'Metals',          exchange:'NYSE',   currency:'USD', underlyingName:'Rare Earths', isETFProxy:true },
   { symbolKey:'DBA',   name:'Invesco Agri Commodity',assetClass:'etf',         group:'Agriculture',     exchange:'NYSE',   currency:'USD', underlyingName:'Agriculture Basket', isETFProxy:true },
+
+  // ── Commodity Futures (real prices via Yahoo Finance) ────────────────────
+  // ── Energy Futures ────────────────────────────────────────────────────────
+  { symbolKey:'CL=F',  name:'WTI Crude Oil (Front Month)', assetClass:'commodity', group:'Energy', exchange:'NYMEX', currency:'USD', underlyingName:'WTI Crude Oil', underlyingUnit:'bbl', isFutures:true, isSpotPrice:true, contractNote:'NYMEX front-month continuous contract. $/barrel.' },
+  { symbolKey:'BZ=F',  name:'Brent Crude Oil (Front Month)', assetClass:'commodity', group:'Energy', exchange:'ICE', currency:'USD', underlyingName:'Brent Crude Oil', underlyingUnit:'bbl', isFutures:true, isSpotPrice:true, contractNote:'ICE front-month continuous contract. $/barrel.' },
+  { symbolKey:'NG=F',  name:'Natural Gas (Front Month)', assetClass:'commodity', group:'Energy', exchange:'NYMEX', currency:'USD', underlyingName:'Natural Gas', underlyingUnit:'MMBtu', isFutures:true, isSpotPrice:true, contractNote:'Henry Hub front-month. $/MMBtu.' },
+  { symbolKey:'RB=F',  name:'RBOB Gasoline (Front Month)', assetClass:'commodity', group:'Energy', exchange:'NYMEX', currency:'USD', underlyingName:'RBOB Gasoline', underlyingUnit:'gal', isFutures:true, isSpotPrice:true, contractNote:'NYMEX RBOB gasoline front-month. $/gallon.' },
+  { symbolKey:'HO=F',  name:'Heating Oil (Front Month)', assetClass:'commodity', group:'Energy', exchange:'NYMEX', currency:'USD', underlyingName:'Heating Oil', underlyingUnit:'gal', isFutures:true, isSpotPrice:true, contractNote:'NYMEX heating oil front-month. $/gallon.' },
+
+  // ── Metal Futures ────────────────────────────────────────────────────────
+  { symbolKey:'GC=F',  name:'Gold (Front Month)', assetClass:'commodity', group:'Metals', exchange:'COMEX', currency:'USD', underlyingName:'Gold', underlyingUnit:'oz', isFutures:true, isSpotPrice:true, contractNote:'COMEX front-month. $/troy oz.' },
+  { symbolKey:'SI=F',  name:'Silver (Front Month)', assetClass:'commodity', group:'Metals', exchange:'COMEX', currency:'USD', underlyingName:'Silver', underlyingUnit:'oz', isFutures:true, isSpotPrice:true, contractNote:'COMEX front-month. $/troy oz.' },
+  { symbolKey:'HG=F',  name:'Copper (Front Month)', assetClass:'commodity', group:'Metals', exchange:'COMEX', currency:'USD', underlyingName:'Copper', underlyingUnit:'lb', isFutures:true, isSpotPrice:true, contractNote:'COMEX HG front-month. $/lb.' },
+  { symbolKey:'PL=F',  name:'Platinum (Front Month)', assetClass:'commodity', group:'Metals', exchange:'NYMEX', currency:'USD', underlyingName:'Platinum', underlyingUnit:'oz', isFutures:true, isSpotPrice:true, contractNote:'NYMEX platinum front-month. $/troy oz.' },
+  { symbolKey:'PA=F',  name:'Palladium (Front Month)', assetClass:'commodity', group:'Metals', exchange:'NYMEX', currency:'USD', underlyingName:'Palladium', underlyingUnit:'oz', isFutures:true, isSpotPrice:true, contractNote:'NYMEX palladium front-month. $/troy oz.' },
+
+  // ── Agricultural Futures ────────────────────────────────────────────────────
+  { symbolKey:'ZC=F',  name:'Corn (Front Month)', assetClass:'commodity', group:'Agriculture', exchange:'CBOT', currency:'USD', underlyingName:'Corn', underlyingUnit:'bu', isFutures:true, isSpotPrice:true, contractNote:'CBOT corn front-month. cents/bushel.' },
+  { symbolKey:'ZW=F',  name:'Wheat (Front Month)', assetClass:'commodity', group:'Agriculture', exchange:'CBOT', currency:'USD', underlyingName:'Wheat', underlyingUnit:'bu', isFutures:true, isSpotPrice:true, contractNote:'CBOT wheat front-month. cents/bushel.' },
+  { symbolKey:'ZS=F',  name:'Soybeans (Front Month)', assetClass:'commodity', group:'Agriculture', exchange:'CBOT', currency:'USD', underlyingName:'Soybeans', underlyingUnit:'bu', isFutures:true, isSpotPrice:true, contractNote:'CBOT soybean front-month. cents/bushel.' },
+  { symbolKey:'KC=F',  name:'Coffee (Front Month)', assetClass:'commodity', group:'Agriculture', exchange:'ICEU', currency:'USD', underlyingName:'Coffee (Arabica)', underlyingUnit:'lb', isFutures:true, isSpotPrice:true, contractNote:'ICE Coffee C front-month. cents/lb.' },
+  { symbolKey:'SB=F',  name:'Sugar #11 (Front Month)', assetClass:'commodity', group:'Agriculture', exchange:'ICEU', currency:'USD', underlyingName:'Raw Sugar', underlyingUnit:'lb', isFutures:true, isSpotPrice:true, contractNote:'ICE Sugar #11 front-month. cents/lb.' },
+  { symbolKey:'CT=F',  name:'Cotton (Front Month)', assetClass:'commodity', group:'Agriculture', exchange:'ICEU', currency:'USD', underlyingName:'Cotton', underlyingUnit:'lb', isFutures:true, isSpotPrice:true, contractNote:'ICE Cotton #2 front-month. cents/lb.' },
 
   // ── FX Pairs ─────────────────────────────────────────────────────────────
   { symbolKey:'EURUSD', name:'Euro / US Dollar',     assetClass:'forex',       group:'Majors',          currency:'USD', baseCurrency:'EUR', quoteCurrency:'USD' },
@@ -175,51 +198,92 @@ REGISTRY.forEach(i => {
 // Maps common natural-language terms to registry symbols so users can type
 // "gold" and find GLD, "bitcoin" and find BTCUSD, etc.
 const SEARCH_ALIASES = {
-  'gold':       ['GLD', 'GOLD', 'NEM'],
-  'silver':     ['SLV'],
-  'oil':        ['USO', 'XOM', 'CVX', 'COP'],
-  'crude':      ['USO'],
-  'gas':        ['UNG'],
-  'natural gas':['UNG'],
-  'copper':     ['CPER', 'FCX'],
-  'iron':       ['BHP', 'RIO', 'VALE'],
-  'iron ore':   ['BHP', 'RIO', 'VALE'],
-  'corn':       ['CORN'],
-  'wheat':      ['WEAT'],
-  'soy':        ['SOYB'],
-  'soybeans':   ['SOYB'],
-  'bitcoin':    ['BTCUSD', 'MSTR', 'COIN'],
-  'btc':        ['BTCUSD'],
-  'ethereum':   ['ETHUSD'],
-  'eth':        ['ETHUSD'],
-  'solana':     ['SOLUSD'],
-  'sol':        ['SOLUSD'],
-  'xrp':        ['XRPUSD'],
-  'ripple':     ['XRPUSD'],
-  'doge':       ['DOGEUSD'],
-  'dogecoin':   ['DOGEUSD'],
-  'real':       ['USDBRL', 'EURBRL', 'GBPBRL'],
-  'brl':        ['USDBRL', 'EURBRL', 'GBPBRL'],
-  'dollar':     ['EURUSD', 'USDJPY', 'USDBRL'],
-  'euro':       ['EURUSD', 'EURBRL'],
-  'yen':        ['USDJPY'],
-  'yuan':       ['USDCNY'],
-  'peso':       ['USDMXN', 'USDARS', 'USDCOP'],
-  'treasury':   ['US2Y', 'US5Y', 'US10Y', 'US30Y', 'TLT'],
-  'bond':       ['TLT', 'HYG', 'LQD', 'EMB', 'JNK'],
-  'brazil':     ['EWZ', 'VALE', 'PBR', 'ITUB', 'USDBRL'],
-  'china':      ['FXI', 'USDCNY'],
-  'japan':      ['EWJ', 'USDJPY'],
-  'sp500':      ['SPY'],
-  's&p':        ['SPY'],
-  'nasdaq':     ['QQQ'],
-  'dow':        ['DIA'],
-  'russell':    ['IWM'],
-  'emerging':   ['EEM', 'EMB'],
-  'tech':       ['QQQ', 'AAPL', 'MSFT', 'NVDA', 'GOOGL', 'AMZN', 'META'],
-  'bank':       ['JPM', 'GS', 'BAC', 'ITUB', 'BBD'],
-  'petrobras':  ['PBR', 'PETR4.SA', 'PETR3.SA'],
-  'vale':       ['VALE', 'VALE3.SA'],
+  // ENERGY — real futures first, then ETF proxies
+  'oil':          ['CL=F', 'BZ=F', 'USO', 'XOM', 'CVX', 'COP'],
+  'crude':        ['CL=F', 'BZ=F', 'USO'],
+  'crude oil':    ['CL=F', 'BZ=F'],
+  'wti':          ['CL=F'],
+  'brent':        ['BZ=F'],
+  'brent crude':  ['BZ=F'],
+  'natural gas':  ['NG=F', 'UNG'],
+  'nat gas':      ['NG=F'],
+  'gas':          ['NG=F', 'UNG'],
+  'gasoline':     ['RB=F'],
+  'heating oil':  ['HO=F'],
+  // METALS — futures first
+  'gold':         ['GC=F', 'GLD', 'GOLD', 'NEM'],
+  'silver':       ['SI=F', 'SLV'],
+  'copper':       ['HG=F', 'CPER', 'FCX'],
+  'platinum':     ['PL=F'],
+  'palladium':    ['PA=F'],
+  'iron':         ['BHP', 'RIO', 'VALE'],
+  'iron ore':     ['BHP', 'RIO', 'VALE'],
+  // AGRICULTURE — futures first
+  'corn':         ['ZC=F', 'CORN'],
+  'wheat':        ['ZW=F', 'WEAT'],
+  'soybeans':     ['ZS=F', 'SOYB'],
+  'soy':          ['ZS=F', 'SOYB'],
+  'coffee':       ['KC=F'],
+  'sugar':        ['SB=F'],
+  'cotton':       ['CT=F'],
+  // CRYPTO
+  'bitcoin':      ['BTCUSD', 'MSTR', 'COIN'],
+  'btc':          ['BTCUSD'],
+  'ethereum':     ['ETHUSD'],
+  'eth':          ['ETHUSD'],
+  'solana':       ['SOLUSD'],
+  'sol':          ['SOLUSD'],
+  'xrp':          ['XRPUSD'],
+  'ripple':       ['XRPUSD'],
+  'doge':         ['DOGEUSD'],
+  'dogecoin':     ['DOGEUSD'],
+  // FX
+  'real':         ['USDBRL', 'EURBRL', 'GBPBRL'],
+  'brl':          ['USDBRL', 'EURBRL', 'GBPBRL'],
+  'dollar':       ['EURUSD', 'USDJPY', 'USDBRL'],
+  'dollar real':  ['USDBRL'],
+  'euro':         ['EURUSD', 'EURBRL'],
+  'pound':        ['GBPUSD'],
+  'sterling':     ['GBPUSD'],
+  'yen':          ['USDJPY'],
+  'yuan':         ['USDCNY'],
+  'peso':         ['USDMXN', 'USDARS', 'USDCOP'],
+  'swiss franc':  ['USDCHF'],
+  'franc':        ['USDCHF'],
+  'aussie':       ['AUDUSD'],
+  'loonie':       ['USDCAD'],
+  'kiwi':         ['NZDUSD'],
+  'reais':        ['USDBRL'],
+  // INDICES
+  'sp500':        ['SPY'],
+  's&p':          ['SPY'],
+  's&p 500':      ['SPY'],
+  'nasdaq':       ['QQQ'],
+  'dow':          ['DIA'],
+  'dow jones':    ['DIA'],
+  'russell':      ['IWM'],
+  'vix':          ['VIX'],
+  'volatility':   ['VIX'],
+  // FIXED INCOME
+  'treasury':     ['US2Y', 'US5Y', 'US10Y', 'US30Y', 'TLT'],
+  'bond':         ['TLT', 'HYG', 'LQD', 'EMB', 'JNK'],
+  // COUNTRIES / REGIONS
+  'brazil':       ['EWZ', 'VALE', 'PBR', 'ITUB', 'USDBRL'],
+  'china':        ['FXI', 'USDCNY'],
+  'japan':        ['EWJ', 'USDJPY'],
+  'emerging':     ['EEM', 'EMB'],
+  // SECTORS
+  'tech':         ['QQQ', 'AAPL', 'MSFT', 'NVDA', 'GOOGL', 'AMZN', 'META'],
+  'bank':         ['JPM', 'GS', 'BAC', 'ITUB', 'BBD'],
+  // BRAZIL EQUITIES
+  'petrobras':    ['PBR', 'PETR4.SA', 'PETR3.SA'],
+  'vale':         ['VALE', 'VALE3.SA'],
+  'itau':         ['ITUB', 'ITUB4.SA'],
+  'bradesco':     ['BBD', 'BBDC4.SA'],
+  'ambev':        ['ABEV', 'ABEV3.SA'],
+  'ibovespa':     ['EWZ'],
+  'bovespa':      ['EWZ'],
+  'b3':           ['EWZ'],
 };
 
 // Build reverse alias map: symbolKey → [alias terms]
@@ -238,6 +302,9 @@ function scoreMatch(item, q) {
 
   // Exact symbol match
   if (sym === q) return 100;
+
+  // Inline searchAliases on the item itself (e.g. CL=F has searchAliases: ["wti","crude","oil",...])
+  if (item.searchAliases && item.searchAliases.some(a => a.toLowerCase() === q)) return 95;
 
   // Alias match — user typed a natural term that maps to this symbol
   const aliases = SEARCH_ALIASES[q];
@@ -269,6 +336,14 @@ function scoreMatch(item, q) {
   return 0;
 }
 
+// Post-scoring adjustments: boost futures, penalize ETF proxies
+function adjustScore(item, baseScore) {
+  let s = baseScore;
+  if (item.isFutures && item.isSpotPrice) s += 20; // real contracts rank higher
+  if (item.isETFProxy) s -= 10; // ETF proxies rank lower than real contracts
+  return s;
+}
+
 // ─── Search ───────────────────────────────────────────────────────────────────
 // GET /api/instruments/search?q=apple&assetClass=equity&limit=20
 router.get('/search', (req, res) => {
@@ -297,18 +372,25 @@ router.get('/search', (req, res) => {
     // Score every item, keep non-zero scores
     const scored = [];
     for (const item of pool) {
-      const s = scoreMatch(item, q);
+      const s = adjustScore(item, scoreMatch(item, q));
       if (s > 0) scored.push({ item, score: s });
     }
 
     // Also add alias-resolved items that may not have been caught by direct match
+    // AND apply position bonus to items already scored (preserves alias ordering intent)
     const aliasSymbols = SEARCH_ALIASES[q] || [];
-    for (const sym of aliasSymbols) {
+    for (let ai = 0; ai < aliasSymbols.length; ai++) {
+      const sym = aliasSymbols[ai];
       const entry = BY_KEY[sym.toUpperCase()];
       if (!entry) continue;
       if (assetClass && entry.assetClass !== assetClass) continue;
-      if (!scored.find(s => s.item.symbolKey === entry.symbolKey)) {
-        scored.push({ item: entry, score: 90 });
+      // Position bonus: first in alias list gets +5, second +4, etc.
+      const posBonus = Math.max(5 - ai, 0);
+      const existing = scored.find(s => s.item.symbolKey === entry.symbolKey);
+      if (existing) {
+        existing.score += posBonus; // boost already-scored items by position
+      } else {
+        scored.push({ item: entry, score: adjustScore(entry, 90) + posBonus });
       }
     }
 

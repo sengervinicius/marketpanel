@@ -1014,6 +1014,17 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
           </div>
         </Section>
 
+        {etfMeta?.contractNote && (
+          <Section title="CONTRACT INFO">
+            <div style={{ fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.4, padding: '4px 0' }}>
+              {etfMeta.contractNote}
+            </div>
+            <div style={{ fontSize: 10, color: 'var(--text-faint)', marginTop: 4 }}>
+              Front-month futures roll near expiry. Price reflects the nearest active contract.
+            </div>
+          </Section>
+        )}
+
         <Section title={`${range.label} PERFORMANCE`}>
           <div className="id-stat-grid">
             <StatRow label="HIGH" value={fmt(rangeHigh)} />
@@ -1430,6 +1441,12 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
         {fxDirection && <div className="id-hero-context">{fxDirection}</div>}
         {/* Commodity ETF proxy context */}
         {commodityCtx && <div className="id-hero-context" title={commodityCtx.note}>{commodityCtx.label}</div>}
+        {/* Futures contract context */}
+        {etfMeta?.isFutures && (
+          <div className="id-hero-context">
+            {etfMeta.underlyingName} · {etfMeta.exchange} front-month · per {etfMeta.underlyingUnit}
+          </div>
+        )}
         <div className="id-hero-stats">
           {heroOpen != null && <span className="id-hero-stat">Open <span>{fmt(heroOpen)}</span></span>}
           {heroHigh != null && <span className="id-hero-stat">High <span>{fmt(heroHigh)}</span></span>}

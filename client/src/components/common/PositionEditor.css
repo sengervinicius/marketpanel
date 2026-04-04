@@ -405,3 +405,105 @@
   font-size: var(--font-sm, 9px);
   padding: var(--sp-2, 4px) 0;
 }
+
+/* ── Search Dropdown Styles ── */
+.pf-search-container {
+  position: relative;
+  width: 100%;
+}
+
+.pf-search-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: var(--bg-elevated, #181818);
+  border: 1px solid var(--border-strong, #2a2a2a);
+  border-radius: var(--radius-sm, 3px);
+  border-top: none;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 10;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  margin-top: -1px;
+}
+
+.pf-search-item {
+  padding: 6px 10px;
+  cursor: pointer;
+  display: flex;
+  gap: 8px;
+  font-size: var(--font-base, 11px);
+  align-items: center;
+  transition: background 100ms;
+  border-bottom: 1px solid var(--border-default, #1a1a1a);
+}
+
+.pf-search-item:last-child {
+  border-bottom: none;
+}
+
+.pf-search-item:hover,
+.pf-search-item-selected {
+  background: var(--bg-hover, rgba(255, 102, 0, 0.1));
+}
+
+.pf-search-badge {
+  font-size: 9px;
+  font-family: var(--font-mono, 'Courier New', monospace);
+  padding: 1px 4px;
+  border-radius: 2px;
+  background: var(--bg-surface, #0a0a0a);
+  color: var(--text-muted, #888);
+  border: 1px solid var(--border-default, #1a1a1a);
+  white-space: nowrap;
+  flex-shrink: 0;
+  font-weight: 500;
+}
+
+.pf-search-sym {
+  font-weight: 600;
+  color: var(--text-primary, #e0e0e0);
+  flex-shrink: 0;
+}
+
+.pf-search-name {
+  color: var(--text-secondary, #999);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.pf-search-loading,
+.pf-search-empty,
+.pf-search-error {
+  padding: 8px 10px;
+  text-align: center;
+  font-size: var(--font-base, 11px);
+  color: var(--text-muted, #888);
+}
+
+.pf-search-error {
+  color: var(--price-down, #ff1744);
+}
+
+/* ── Dropdown Scrollbar Styling ── */
+.pf-search-dropdown::-webkit-scrollbar {
+  width: 6px;
+}
+
+.pf-search-dropdown::-webkit-scrollbar-track {
+  background: var(--bg-elevated, #181818);
+}
+
+.pf-search-dropdown::-webkit-scrollbar-thumb {
+  background: var(--border-strong, #2a2a2a);
+  border-radius: 3px;
+}
+
+.pf-search-dropdown::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted, #888);
+}

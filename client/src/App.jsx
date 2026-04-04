@@ -12,6 +12,7 @@ import { DragProvider } from './context/DragContext';
 import { AlertsProvider } from './context/AlertsContext';
 import { GameProvider } from './context/GameContext';
 import NotificationPrefs from './components/common/NotificationPrefs';
+import HeaderSearchBar from './components/common/HeaderSearchBar';
 import { DEFAULT_LAYOUT } from './config/panels';
 import PortfolioMobile from './components/panels/PortfolioMobile';
 import HomePanelMobile from './components/panels/HomePanelMobile';
@@ -529,6 +530,7 @@ export default function App() {
           <img src="/icon-192.png" alt="Senger" style={{ width: 22, height: 22, borderRadius: 4, marginRight: 6 }} /><span className="app-header-title">SENGER</span>
           <span className="app-header-subtitle">MARKET TERMINAL</span>
           <WorkspaceSwitcher />
+          <HeaderSearchBar onOpenDetail={setDetailTicker} />
           <div className="flex-row" style={{ flex:1, justifyContent:'center' }}><WorldClock /></div>
           <div className="flex-row gap-8">
             {isRefreshing && <span className="app-header-status">&#9679; UPDATING</span>}

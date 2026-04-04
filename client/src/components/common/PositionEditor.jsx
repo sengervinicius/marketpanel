@@ -11,8 +11,9 @@
  *   mobile: boolean for mobile-friendly layout
  */
 
-import { memo, useState, useCallback } from 'react';
+import { memo, useState, useCallback, useRef, useEffect } from 'react';
 import { usePortfolio } from '../../context/PortfolioContext';
+import { apiJSON } from '../../utils/api';
 import './PositionEditor.css';
 
 function PositionEditor({
@@ -43,6 +44,15 @@ function PositionEditor({
   const [note, setNote] = useState(position?.note || '');
   const [deleteConfirm, setDeleteConfirm] = useState(false);
 
+  // Search dropdown state
+  const [searchResults, setSearchResults] = useState([]);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchError, setSearchError] = useState(null);
+  const [selectedIndex, setSelectedIndex] = useState(-1);
+  const searchDebounceRef = useRef(null);
+  const dropdownRef = useRef(null);
+
   // Live-computed Total Cost
   const totalCost = (quantity && entryPrice)
     ? (parseFloat(quantity) * parseFloat(entryPrice)).toFixed(2)
@@ -58,8 +68,44 @@ function PositionEditor({
     : (subportfolios[0]?.id || '');
 
   const handleSymbolChange = useCallback((e) => {
-    setSymbol(e.target.value.toUpperCase());
-  }, []);
+    const newSymbol = e.target.value.toUpperCase();
+    setSymbol(newSymbol);
+
+    // Only show search dropdown when not editing
+    if (isEditing) {
+      return;
+    }
+
+    // Clear previous debounce
+    if (searchDebounceRef.current) {
+      clearTimeout(searchDebounceRef.current);
+    }
+
+    if (!newSymbol.trim()) {
+      setShowDropdown(false);
+      setSearchResults([]);
+      setSelectedIndex(-1);
+      return;
+    }
+
+    setSearchLoading(true);
+    setSearchError(null);
+    setSelectedIndex(-1);
+
+    // Debounce search by 250ms
+    searchDebounceRef.current = setTimeout(async () => {
+      try {
+        const data = await apiJSON(`/api/instruments/search?q=${encodeURIComponent(newSymbol)}&limit=10`);
+        setSearchResults(data.results || []);
+        setShowDropdown(true);
+      } catch (err) {
+        setSearchError(err.message || 'Search failed');
+        setSearchResults([]);
+      } finally {
+        setSearchLoading(false);
+      }
+    }, 250);
+  }, [isEditing]);
 
   const handlePortfolioChange = useCallback((e) => {
     const newPortfolioId = e.target.value;
@@ -145,6 +191,60 @@ function PositionEditor({
     }
   }, [onClose]);
 
+  const handleSelectSearchResult = useCallback((result) => {
+    setSymbol(result.symbol.toUpperCase());
+    setShowDropdown(false);
+    setSearchResults([]);
+    setSelectedIndex(-1);
+  }, []);
+
+  const handleSearchKeyDown = useCallback((e) => {
+    if (!showDropdown || searchResults.length === 0) {
+      return;
+    }
+
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        setSelectedIndex(prev =>
+          prev < searchResults.length - 1 ? prev + 1 : prev
+        );
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        setSelectedIndex(prev => prev > 0 ? prev - 1 : -1);
+        break;
+      case 'Enter':
+        e.preventDefault();
+        if (selectedIndex >= 0) {
+          handleSelectSearchResult(searchResults[selectedIndex]);
+        }
+        break;
+      case 'Escape':
+        e.preventDefault();
+        setShowDropdown(false);
+        break;
+      default:
+        break;
+    }
+  }, [showDropdown, searchResults, selectedIndex, handleSelectSearchResult]);
+
+  const handleSearchBlur = useCallback(() => {
+    // Delay hiding dropdown to allow click handler to fire
+    setTimeout(() => {
+      setShowDropdown(false);
+    }, 150);
+  }, []);
+
+  // Clean up debounce on unmount
+  useEffect(() => {
+    return () => {
+      if (searchDebounceRef.current) {
+        clearTimeout(searchDebounceRef.current);
+      }
+    };
+  }, []);
+
   return (
     <div
       className={`pf-editor-overlay ${mobile ? 'pf-editor-mobile' : ''}`}
@@ -173,15 +273,46 @@ function PositionEditor({
           {/* Symbol */}
           <div className="pf-editor-field-group">
             <label className="pf-editor-label">SYMBOL</label>
-            <input
-              type="text"
-              className={`pf-editor-input ${isEditing ? 'pf-editor-input-readonly' : ''}`}
-              value={symbol}
-              onChange={handleSymbolChange}
-              placeholder="e.g., AAPL"
-              readOnly={isEditing}
-              autoFocus={!isEditing}
-            />
+            <div className="pf-search-container" style={{ position: 'relative' }} ref={dropdownRef}>
+              <input
+                type="text"
+                className={`pf-editor-input ${isEditing ? 'pf-editor-input-readonly' : ''}`}
+                value={symbol}
+                onChange={handleSymbolChange}
+                onKeyDown={handleSearchKeyDown}
+                onBlur={handleSearchBlur}
+                placeholder="e.g., AAPL"
+                readOnly={isEditing}
+                autoFocus={!isEditing}
+              />
+              {!isEditing && showDropdown && (
+                <div className="pf-search-dropdown">
+                  {searchLoading && (
+                    <div className="pf-search-loading">Searching...</div>
+                  )}
+                  {searchError && (
+                    <div className="pf-search-error">Error: {searchError}</div>
+                  )}
+                  {!searchLoading && searchResults.length === 0 && !searchError && (
+                    <div className="pf-search-empty">No results found</div>
+                  )}
+                  {!searchLoading && searchResults.length > 0 && (
+                    searchResults.map((result, idx) => (
+                      <div
+                        key={`${result.symbol}-${idx}`}
+                        className={`pf-search-item ${selectedIndex === idx ? 'pf-search-item-selected' : ''}`}
+                        onClick={() => handleSelectSearchResult(result)}
+                        onMouseEnter={() => setSelectedIndex(idx)}
+                      >
+                        <span className="pf-search-badge">{result.type || 'INST'}</span>
+                        <span className="pf-search-sym">{result.symbol}</span>
+                        <span className="pf-search-name">{result.name}</span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Portfolio */}

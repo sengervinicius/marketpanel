@@ -112,6 +112,7 @@ export function fxDirectionLabel(symbol, price, baseCcy, quoteCcy) {
 /**
  * Returns a context label for commodity ETF proxies.
  * Shows the approximate underlying spot price and a disclaimer.
+ * Returns null for futures symbols (e.g. "CL=F", "GC=F") or unknown symbols.
  * @param {string} symbol  e.g. "GLD"
  * @param {number} price   e.g. 185.42  (ETF share price)
  * @returns {{ label: string, note: string, spotApprox: number|null }|null}

@@ -109,15 +109,38 @@ const SEED_INSTRUMENTS = [
   { id: 'ADA_CRYPTO',  symbol: 'ADAUSD',  name: 'Cardano',     assetClass: 'crypto', currency: 'USD', identifiers: { vendor: { polygon: 'X:ADAUSD',  yahoo: 'ADA-USD'  } } },
 
   // ── Commodities (ETF proxies) ─────────────────────────────────────────────────
-  { id: 'GLD_COMMODITY',  symbol: 'GLD',  name: 'Gold (SPDR GLD)',        assetClass: 'commodity', exchange: 'NYSE',   currency: 'USD', identifiers: { vendor: { polygon: 'GLD',  yahoo: 'GLD'  } } },
-  { id: 'SLV_COMMODITY',  symbol: 'SLV',  name: 'Silver (iShares SLV)',   assetClass: 'commodity', exchange: 'NYSE',   currency: 'USD', identifiers: { vendor: { polygon: 'SLV',  yahoo: 'SLV'  } } },
-  { id: 'USO_COMMODITY',  symbol: 'USO',  name: 'WTI Oil (USO Fund)',     assetClass: 'commodity', exchange: 'NYSE',   currency: 'USD', identifiers: { vendor: { polygon: 'USO',  yahoo: 'USO'  } } },
-  { id: 'UNG_COMMODITY',  symbol: 'UNG',  name: 'Natural Gas (UNG Fund)', assetClass: 'commodity', exchange: 'NYSE',   currency: 'USD', identifiers: { vendor: { polygon: 'UNG',  yahoo: 'UNG'  } } },
-  { id: 'CORN_COMMODITY', symbol: 'CORN', name: 'Corn (CORN ETF)',        assetClass: 'commodity', exchange: 'NASDAQ', currency: 'USD', identifiers: { vendor: { polygon: 'CORN', yahoo: 'CORN' } } },
-  { id: 'WEAT_COMMODITY', symbol: 'WEAT', name: 'Wheat (WEAT ETF)',       assetClass: 'commodity', exchange: 'NYSE',   currency: 'USD', identifiers: { vendor: { polygon: 'WEAT', yahoo: 'WEAT' } } },
-  { id: 'SOYB_COMMODITY', symbol: 'SOYB', name: 'Soybeans (SOYB ETF)',    assetClass: 'commodity', exchange: 'NYSE',   currency: 'USD', identifiers: { vendor: { polygon: 'SOYB', yahoo: 'SOYB' } } },
+  { id: 'GLD_COMMODITY',  symbol: 'GLD',  name: 'Gold (SPDR GLD)',        assetClass: 'commodity', exchange: 'NYSE',   currency: 'USD', realContractSymbol: 'GC=F', identifiers: { vendor: { polygon: 'GLD',  yahoo: 'GLD'  } } },
+  { id: 'SLV_COMMODITY',  symbol: 'SLV',  name: 'Silver (iShares SLV)',   assetClass: 'commodity', exchange: 'NYSE',   currency: 'USD', realContractSymbol: 'SI=F', identifiers: { vendor: { polygon: 'SLV',  yahoo: 'SLV'  } } },
+  { id: 'USO_COMMODITY',  symbol: 'USO',  name: 'WTI Oil (USO Fund)',     assetClass: 'commodity', exchange: 'NYSE',   currency: 'USD', realContractSymbol: 'CL=F', identifiers: { vendor: { polygon: 'USO',  yahoo: 'USO'  } } },
+  { id: 'UNG_COMMODITY',  symbol: 'UNG',  name: 'Natural Gas (UNG Fund)', assetClass: 'commodity', exchange: 'NYSE',   currency: 'USD', realContractSymbol: 'NG=F', identifiers: { vendor: { polygon: 'UNG',  yahoo: 'UNG'  } } },
+  { id: 'CORN_COMMODITY', symbol: 'CORN', name: 'Corn (CORN ETF)',        assetClass: 'commodity', exchange: 'NASDAQ', currency: 'USD', realContractSymbol: 'ZC=F', identifiers: { vendor: { polygon: 'CORN', yahoo: 'CORN' } } },
+  { id: 'WEAT_COMMODITY', symbol: 'WEAT', name: 'Wheat (WEAT ETF)',       assetClass: 'commodity', exchange: 'NYSE',   currency: 'USD', realContractSymbol: 'ZW=F', identifiers: { vendor: { polygon: 'WEAT', yahoo: 'WEAT' } } },
+  { id: 'SOYB_COMMODITY', symbol: 'SOYB', name: 'Soybeans (SOYB ETF)',    assetClass: 'commodity', exchange: 'NYSE',   currency: 'USD', realContractSymbol: 'ZS=F', identifiers: { vendor: { polygon: 'SOYB', yahoo: 'SOYB' } } },
   { id: 'BHP_COMMODITY',  symbol: 'BHP',  name: 'BHP Group (Fe proxy)',   assetClass: 'commodity', exchange: 'NYSE',   currency: 'USD', identifiers: { vendor: { polygon: 'BHP',  yahoo: 'BHP'  } } },
-  { id: 'CPER_COMMODITY', symbol: 'CPER', name: 'Copper (CPER ETF)',      assetClass: 'commodity', exchange: 'NYSE',   currency: 'USD', identifiers: { vendor: { polygon: 'CPER', yahoo: 'CPER' } } },
+  { id: 'CPER_COMMODITY', symbol: 'CPER', name: 'Copper (CPER ETF)',      assetClass: 'commodity', exchange: 'NYSE',   currency: 'USD', realContractSymbol: 'HG=F', identifiers: { vendor: { polygon: 'CPER', yahoo: 'CPER' } } },
+
+  // ── Commodity Futures ────────────────────────────────────────────────────────
+  // ── Energy Futures ────────────────────────────────────────────────────────
+  { id: 'CLF_COMMODITY', symbol: 'CL=F', name: 'WTI Crude Oil (Front Month)', assetClass: 'commodity', group: 'Energy', exchange: 'NYMEX', currency: 'USD', underlyingName: 'WTI Crude Oil', underlyingUnit: 'bbl', isFutures: true, isSpotPrice: true, identifiers: { vendor: { yahoo: 'CL=F' } } },
+  { id: 'BZF_COMMODITY', symbol: 'BZ=F', name: 'Brent Crude Oil (Front Month)', assetClass: 'commodity', group: 'Energy', exchange: 'ICE', currency: 'USD', underlyingName: 'Brent Crude Oil', underlyingUnit: 'bbl', isFutures: true, isSpotPrice: true, identifiers: { vendor: { yahoo: 'BZ=F' } } },
+  { id: 'NGF_COMMODITY', symbol: 'NG=F', name: 'Natural Gas (Front Month)', assetClass: 'commodity', group: 'Energy', exchange: 'NYMEX', currency: 'USD', underlyingName: 'Natural Gas', underlyingUnit: 'MMBtu', isFutures: true, isSpotPrice: true, identifiers: { vendor: { yahoo: 'NG=F' } } },
+  { id: 'RBF_COMMODITY', symbol: 'RB=F', name: 'RBOB Gasoline (Front Month)', assetClass: 'commodity', group: 'Energy', exchange: 'NYMEX', currency: 'USD', underlyingName: 'RBOB Gasoline', underlyingUnit: 'gal', isFutures: true, isSpotPrice: true, identifiers: { vendor: { yahoo: 'RB=F' } } },
+  { id: 'HOF_COMMODITY', symbol: 'HO=F', name: 'Heating Oil (Front Month)', assetClass: 'commodity', group: 'Energy', exchange: 'NYMEX', currency: 'USD', underlyingName: 'Heating Oil', underlyingUnit: 'gal', isFutures: true, isSpotPrice: true, identifiers: { vendor: { yahoo: 'HO=F' } } },
+
+  // ── Metal Futures ────────────────────────────────────────────────────────
+  { id: 'GCF_COMMODITY', symbol: 'GC=F', name: 'Gold (Front Month)', assetClass: 'commodity', group: 'Metals', exchange: 'COMEX', currency: 'USD', underlyingName: 'Gold', underlyingUnit: 'oz', isFutures: true, isSpotPrice: true, identifiers: { vendor: { yahoo: 'GC=F' } } },
+  { id: 'SIF_COMMODITY', symbol: 'SI=F', name: 'Silver (Front Month)', assetClass: 'commodity', group: 'Metals', exchange: 'COMEX', currency: 'USD', underlyingName: 'Silver', underlyingUnit: 'oz', isFutures: true, isSpotPrice: true, identifiers: { vendor: { yahoo: 'SI=F' } } },
+  { id: 'HGF_COMMODITY', symbol: 'HG=F', name: 'Copper (Front Month)', assetClass: 'commodity', group: 'Metals', exchange: 'COMEX', currency: 'USD', underlyingName: 'Copper', underlyingUnit: 'lb', isFutures: true, isSpotPrice: true, identifiers: { vendor: { yahoo: 'HG=F' } } },
+  { id: 'PLF_COMMODITY', symbol: 'PL=F', name: 'Platinum (Front Month)', assetClass: 'commodity', group: 'Metals', exchange: 'NYMEX', currency: 'USD', underlyingName: 'Platinum', underlyingUnit: 'oz', isFutures: true, isSpotPrice: true, identifiers: { vendor: { yahoo: 'PL=F' } } },
+  { id: 'PAF_COMMODITY', symbol: 'PA=F', name: 'Palladium (Front Month)', assetClass: 'commodity', group: 'Metals', exchange: 'NYMEX', currency: 'USD', underlyingName: 'Palladium', underlyingUnit: 'oz', isFutures: true, isSpotPrice: true, identifiers: { vendor: { yahoo: 'PA=F' } } },
+
+  // ── Agricultural Futures ────────────────────────────────────────────────────
+  { id: 'ZCF_COMMODITY', symbol: 'ZC=F', name: 'Corn (Front Month)', assetClass: 'commodity', group: 'Agriculture', exchange: 'CBOT', currency: 'USD', underlyingName: 'Corn', underlyingUnit: 'bu', isFutures: true, isSpotPrice: true, identifiers: { vendor: { yahoo: 'ZC=F' } } },
+  { id: 'ZWF_COMMODITY', symbol: 'ZW=F', name: 'Wheat (Front Month)', assetClass: 'commodity', group: 'Agriculture', exchange: 'CBOT', currency: 'USD', underlyingName: 'Wheat', underlyingUnit: 'bu', isFutures: true, isSpotPrice: true, identifiers: { vendor: { yahoo: 'ZW=F' } } },
+  { id: 'ZSF_COMMODITY', symbol: 'ZS=F', name: 'Soybeans (Front Month)', assetClass: 'commodity', group: 'Agriculture', exchange: 'CBOT', currency: 'USD', underlyingName: 'Soybeans', underlyingUnit: 'bu', isFutures: true, isSpotPrice: true, identifiers: { vendor: { yahoo: 'ZS=F' } } },
+  { id: 'KCF_COMMODITY', symbol: 'KC=F', name: 'Coffee (Front Month)', assetClass: 'commodity', group: 'Agriculture', exchange: 'ICEU', currency: 'USD', underlyingName: 'Coffee (Arabica)', underlyingUnit: 'lb', isFutures: true, isSpotPrice: true, identifiers: { vendor: { yahoo: 'KC=F' } } },
+  { id: 'SBF_COMMODITY', symbol: 'SB=F', name: 'Sugar #11 (Front Month)', assetClass: 'commodity', group: 'Agriculture', exchange: 'ICEU', currency: 'USD', underlyingName: 'Raw Sugar', underlyingUnit: 'lb', isFutures: true, isSpotPrice: true, identifiers: { vendor: { yahoo: 'SB=F' } } },
+  { id: 'CTF_COMMODITY', symbol: 'CT=F', name: 'Cotton (Front Month)', assetClass: 'commodity', group: 'Agriculture', exchange: 'ICEU', currency: 'USD', underlyingName: 'Cotton', underlyingUnit: 'lb', isFutures: true, isSpotPrice: true, identifiers: { vendor: { yahoo: 'CT=F' } } },
 
   // ── US Rates (ETF proxies for yield curve) ───────────────────────────────────
   { id: 'SHY_RATE',  symbol: 'SHY',  name: '1-3Y Treasury ETF',    assetClass: 'rate', exchange: 'NASDAQ', currency: 'USD', identifiers: { vendor: { polygon: 'SHY',  yahoo: 'SHY'  } } },
