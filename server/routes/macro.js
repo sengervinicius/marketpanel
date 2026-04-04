@@ -7,11 +7,8 @@
  * Phase 1: Input validation (country codes, comma-separated lists, max limits)
  * Phase 3: Hardening (provider abstraction, standardized errors, logging)
  *
- * TODO(provider): Replace macroProvider stubs with real macro data from:
- *   - FRED (Federal Reserve) — https://fred.stlouisfed.org/docs/api/fred/
- *   - World Bank API — https://datahelpdesk.worldbank.org/
- *   - BCB (Banco Central do Brasil) — https://dadosabertos.bcb.gov.br/
- *   - TradingEconomics — https://tradingeconomics.com/api/
+ * Phase D1: macroProvider now calls Eulerpool (primary) with FRED/BCB fallbacks.
+ * Stubs remain as last-resort fallback for unsupported countries.
  */
 
 'use strict';
@@ -47,7 +44,7 @@ function parseCodeList(str, maxCount = 10) {
  * Phase 1: validates country code (2-letter alpha uppercase)
  * Phase 3: uses macroProvider, standardized 404 with stub flag
  */
-router.get('/country/:code', (req, res) => {
+router.get('/country/:code', async (req, res) => {
   try {
     const code = (req.params.code || '').toUpperCase();
 
@@ -61,8 +58,8 @@ router.get('/country/:code', (req, res) => {
       });
     }
 
-    // Phase 3: Use macroProvider to fetch data
-    const snap = macroProvider.getSnapshot(code);
+    // Phase 3: Use macroProvider to fetch data (async since D1)
+    const snap = await macroProvider.getSnapshot(code);
 
     if (!snap) {
       logger.warn('macro/country', 'Country not found', { code });
@@ -75,8 +72,8 @@ router.get('/country/:code', (req, res) => {
       });
     }
 
-    // Phase 0: explicit return
-    return res.json({ ok: true, data: { ...snap, stub: true } });
+    // Phase 0: explicit return — include stub flag from provider (false = real data)
+    return res.json({ ok: true, data: { ...snap, stub: snap.stub ?? false } });
   } catch (err) {
     logger.error('macro/country', err.message, { code: req.params.code });
     return sendApiError(res, err, '/api/macro/country/:code');
@@ -89,7 +86,7 @@ router.get('/country/:code', (req, res) => {
  * Phase 1: validates countries/indicators (comma-separated, max 10 each)
  * Phase 3: skips unknown countries gracefully, consistent response shape
  */
-router.get('/compare', (req, res) => {
+router.get('/compare', async (req, res) => {
   try {
     // Phase 1: Validate and parse countries (max 10)
     const countriesStr = req.query.countries || 'US,BR,EU';
@@ -121,15 +118,18 @@ router.get('/compare', (req, res) => {
     }
 
     // Phase 3: Fetch data and build comparison (skip unknown countries gracefully)
+    // getSnapshot is async since D1 — await all in parallel
+    const snapshots = await Promise.allSettled(codes.map(c => macroProvider.getSnapshot(c)));
     const result = [];
-    for (const code of codes) {
-      const snap = macroProvider.getSnapshot(code);
+    let anyStub = false;
+    for (let i = 0; i < codes.length; i++) {
+      const snap = snapshots[i].status === 'fulfilled' ? snapshots[i].value : null;
       if (!snap) {
-        // Skip unknown countries gracefully instead of returning error row
-        logger.debug?.('macro/compare', 'Country not found in comparison', { code });
+        logger.debug?.('macro/compare', 'Country not found in comparison', { code: codes[i] });
         continue;
       }
-      const row = { country: code, name: snap.name, currency: snap.currency };
+      if (snap.stub) anyStub = true;
+      const row = { country: codes[i], name: snap.name, currency: snap.currency };
       for (const ind of indicators) {
         row[ind] = snap[ind] ?? null;
       }
@@ -143,7 +143,7 @@ router.get('/compare', (req, res) => {
         indicators,
         countries: result,
         asOf: new Date().toISOString(),
-        stub: true,
+        stub: anyStub,
       },
     });
   } catch (err) {

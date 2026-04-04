@@ -117,7 +117,7 @@ router.get('/spreads', async (req, res, next) => {
     const results = await Promise.allSettled(
       comparisons.map(async (country) => {
         const data = await bonds.getYield(country, tenor);
-        return { country, ...data };
+        return { country, ...(data || {}) };
       })
     );
 
