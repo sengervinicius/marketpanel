@@ -88,16 +88,16 @@ const SEED_INSTRUMENTS = [
   { id: 'USO_US_ETF',   symbol: 'USO',   name: 'US Oil Fund',            assetClass: 'etf',    exchange: 'NYSE',   currency: 'USD', country: 'US', identifiers: { vendor: { polygon: 'USO',  yahoo: 'USO'  } } },
 
   // ── FX Pairs ─────────────────────────────────────────────────────────────────
-  { id: 'EURUSD_FX', symbol: 'EURUSD', name: 'Euro / US Dollar',        assetClass: 'fx', currency: 'USD', country: 'EU', identifiers: { vendor: { polygon: 'C:EURUSD', yahoo: 'EURUSD=X' } } },
-  { id: 'GBPUSD_FX', symbol: 'GBPUSD', name: 'Sterling / US Dollar',   assetClass: 'fx', currency: 'USD', country: 'GB', identifiers: { vendor: { polygon: 'C:GBPUSD', yahoo: 'GBPUSD=X' } } },
-  { id: 'USDJPY_FX', symbol: 'USDJPY', name: 'US Dollar / Yen',        assetClass: 'fx', currency: 'JPY', country: 'JP', identifiers: { vendor: { polygon: 'C:USDJPY', yahoo: 'USDJPY=X' } } },
-  { id: 'USDBRL_FX', symbol: 'USDBRL', name: 'US Dollar / Real',       assetClass: 'fx', currency: 'BRL', country: 'BR', identifiers: { vendor: { polygon: 'C:USDBRL', yahoo: 'USDBRL=X' } } },
-  { id: 'USDCHF_FX', symbol: 'USDCHF', name: 'US Dollar / Swiss Franc',assetClass: 'fx', currency: 'CHF', country: 'CH', identifiers: { vendor: { polygon: 'C:USDCHF', yahoo: 'USDCHF=X' } } },
-  { id: 'USDCNY_FX', symbol: 'USDCNY', name: 'US Dollar / Yuan',       assetClass: 'fx', currency: 'CNY', country: 'CN', identifiers: { vendor: { polygon: 'C:USDCNY', yahoo: 'USDCNY=X' } } },
-  { id: 'USDMXN_FX', symbol: 'USDMXN', name: 'US Dollar / Peso',       assetClass: 'fx', currency: 'MXN', country: 'MX', identifiers: { vendor: { polygon: 'C:USDMXN', yahoo: 'USDMXN=X' } } },
-  { id: 'AUDUSD_FX', symbol: 'AUDUSD', name: 'Australian Dollar / USD', assetClass: 'fx', currency: 'USD', country: 'AU', identifiers: { vendor: { polygon: 'C:AUDUSD', yahoo: 'AUDUSD=X' } } },
-  { id: 'USDCAD_FX', symbol: 'USDCAD', name: 'US Dollar / CAD',        assetClass: 'fx', currency: 'CAD', country: 'CA', identifiers: { vendor: { polygon: 'C:USDCAD', yahoo: 'USDCAD=X' } } },
-  { id: 'EURBRL_FX', symbol: 'EURBRL', name: 'Euro / Real',            assetClass: 'fx', currency: 'BRL', country: 'BR', identifiers: { vendor: { polygon: 'C:EURBRL', yahoo: 'EURBRL=X' } } },
+  { id: 'EURUSD_FOREX', symbol: 'EURUSD', name: 'Euro / US Dollar',        assetClass: 'forex', currency: 'USD', country: 'EU', baseCurrency: 'EUR', quoteCurrency: 'USD', identifiers: { vendor: { polygon: 'C:EURUSD', yahoo: 'EURUSD=X' } } },
+  { id: 'GBPUSD_FOREX', symbol: 'GBPUSD', name: 'Sterling / US Dollar',   assetClass: 'forex', currency: 'USD', country: 'GB', baseCurrency: 'GBP', quoteCurrency: 'USD', identifiers: { vendor: { polygon: 'C:GBPUSD', yahoo: 'GBPUSD=X' } } },
+  { id: 'USDJPY_FOREX', symbol: 'USDJPY', name: 'US Dollar / Yen',        assetClass: 'forex', currency: 'JPY', country: 'JP', baseCurrency: 'USD', quoteCurrency: 'JPY', identifiers: { vendor: { polygon: 'C:USDJPY', yahoo: 'USDJPY=X' } } },
+  { id: 'USDBRL_FOREX', symbol: 'USDBRL', name: 'US Dollar / Real',       assetClass: 'forex', currency: 'BRL', country: 'BR', baseCurrency: 'USD', quoteCurrency: 'BRL', identifiers: { vendor: { polygon: 'C:USDBRL', yahoo: 'USDBRL=X' } } },
+  { id: 'USDCHF_FOREX', symbol: 'USDCHF', name: 'US Dollar / Swiss Franc',assetClass: 'forex', currency: 'CHF', country: 'CH', baseCurrency: 'USD', quoteCurrency: 'CHF', identifiers: { vendor: { polygon: 'C:USDCHF', yahoo: 'USDCHF=X' } } },
+  { id: 'USDCNY_FOREX', symbol: 'USDCNY', name: 'US Dollar / Yuan',       assetClass: 'forex', currency: 'CNY', country: 'CN', baseCurrency: 'USD', quoteCurrency: 'CNY', identifiers: { vendor: { polygon: 'C:USDCNY', yahoo: 'USDCNY=X' } } },
+  { id: 'USDMXN_FOREX', symbol: 'USDMXN', name: 'US Dollar / Peso',       assetClass: 'forex', currency: 'MXN', country: 'MX', baseCurrency: 'USD', quoteCurrency: 'MXN', identifiers: { vendor: { polygon: 'C:USDMXN', yahoo: 'USDMXN=X' } } },
+  { id: 'AUDUSD_FOREX', symbol: 'AUDUSD', name: 'Australian Dollar / USD', assetClass: 'forex', currency: 'USD', country: 'AU', baseCurrency: 'AUD', quoteCurrency: 'USD', identifiers: { vendor: { polygon: 'C:AUDUSD', yahoo: 'AUDUSD=X' } } },
+  { id: 'USDCAD_FOREX', symbol: 'USDCAD', name: 'US Dollar / CAD',        assetClass: 'forex', currency: 'CAD', country: 'CA', baseCurrency: 'USD', quoteCurrency: 'CAD', identifiers: { vendor: { polygon: 'C:USDCAD', yahoo: 'USDCAD=X' } } },
+  { id: 'EURBRL_FOREX', symbol: 'EURBRL', name: 'Euro / Real',            assetClass: 'forex', currency: 'BRL', country: 'BR', baseCurrency: 'EUR', quoteCurrency: 'BRL', identifiers: { vendor: { polygon: 'C:EURBRL', yahoo: 'EURBRL=X' } } },
 
   // ── Crypto ───────────────────────────────────────────────────────────────────
   { id: 'BTC_CRYPTO',  symbol: 'BTCUSD',  name: 'Bitcoin',     assetClass: 'crypto', currency: 'USD', identifiers: { vendor: { polygon: 'X:BTCUSD',  yahoo: 'BTC-USD'  } } },

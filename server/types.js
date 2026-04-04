@@ -11,7 +11,7 @@
 
 // ── Asset Class ──────────────────────────────────────────────────────────────
 /**
- * @typedef {'equity' | 'etf' | 'fund' | 'bond' | 'fx' | 'crypto' | 'index' | 'commodity' | 'rate'} AssetClass
+ * @typedef {'equity' | 'etf' | 'fund' | 'bond' | 'forex' | 'crypto' | 'index' | 'commodity' | 'rate' | 'fixed_income'} AssetClass
  */
 
 // ── Instrument (base) ────────────────────────────────────────────────────────

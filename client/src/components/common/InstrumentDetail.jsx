@@ -18,6 +18,9 @@ import {
   computeIndicators, buildChartInsightPayload,
   IND_COLORS, INDICATOR_LIST,
 } from '../../utils/chartIndicators';
+import {
+  formatPrice, currencyLabel, fxDirectionLabel, commodityContextLabel, assetClassBadge,
+} from '../../utils/formatPrice';
 
 const ORANGE = '#ff6600';
 const GREEN  = '#4caf50';
@@ -497,7 +500,26 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
   const isPos      = (dayChgPct ?? 0) >= 0;
   const name       = bondData?.name || info?.name || fundsData?.longName || disp;
 
-  const displayPrice = isBond && livePrice != null ? fmt(livePrice, 3) + '%' : livePrice != null ? fmt(livePrice) : null;
+  // Currency-aware price display
+  const instrumentCurrency = etfMeta?.currency || (isBrazil ? 'BRL' : 'USD');
+  const displayPrice = isBond && livePrice != null
+    ? fmt(livePrice, 3) + '%'
+    : isFX && livePrice != null
+      ? livePrice.toLocaleString('en-US', { minimumFractionDigits: 4, maximumFractionDigits: 4 })
+      : livePrice != null
+        ? formatPrice(livePrice, instrumentCurrency)
+        : null;
+
+  // FX direction label (e.g. "1 USD = 5.18 BRL")
+  const fxDirection = isFX ? fxDirectionLabel(
+    norm.replace('C:', ''),
+    livePrice,
+    etfMeta?.baseCurrency,
+    etfMeta?.quoteCurrency
+  ) : null;
+
+  // Commodity context label
+  const commodityCtx = commodityContextLabel(disp, livePrice);
   const displayChange = isBond && dayChgPct != null
     ? `${isPos ? '+' : ''}${(dayChange * 100).toFixed(0)} bps`
     : dayChgPct != null ? `${isPos ? '+' : ''}${fmt(dayChgPct)}%` : null;
@@ -1604,8 +1626,13 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
         </div>
         <div className="id-hero-price-row">
           <span className="id-hero-price">{formattedPrice}</span>
+          {!isBond && !isFX && <span className="id-hero-ccy">{currencyLabel(instrumentCurrency)}</span>}
           <span className={`id-hero-change ${changeDirection}`}>{changeArrow} {formattedChange} {formattedChangePct}</span>
         </div>
+        {/* FX direction sub-line */}
+        {fxDirection && <div className="id-hero-context">{fxDirection}</div>}
+        {/* Commodity ETF proxy context */}
+        {commodityCtx && <div className="id-hero-context" title={commodityCtx.note}>{commodityCtx.label}</div>}
         <div className="id-hero-stats">
           {heroOpen != null && <span className="id-hero-stat">Open <span>{fmt(heroOpen)}</span></span>}
           {heroHigh != null && <span className="id-hero-stat">High <span>{fmt(heroHigh)}</span></span>}

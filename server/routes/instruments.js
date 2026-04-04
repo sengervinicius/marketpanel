@@ -105,41 +105,41 @@ const REGISTRY = [
   { symbolKey:'EWW',   name:'iShares MSCI Mexico',   assetClass:'etf',         group:'Global Indices',  exchange:'NYSE',   currency:'USD' },
   { symbolKey:'EWA',   name:'iShares MSCI Australia',assetClass:'etf',         group:'Global Indices',  exchange:'NYSE',   currency:'USD' },
   { symbolKey:'EWC',   name:'iShares MSCI Canada',   assetClass:'etf',         group:'Global Indices',  exchange:'NYSE',   currency:'USD' },
-  { symbolKey:'GLD',   name:'SPDR Gold Shares',      assetClass:'etf',         group:'Metals',          exchange:'NYSE',   currency:'USD' },
-  { symbolKey:'SLV',   name:'iShares Silver Trust',  assetClass:'etf',         group:'Metals',          exchange:'NYSE',   currency:'USD' },
-  { symbolKey:'USO',   name:'US Oil Fund',           assetClass:'etf',         group:'Energy',          exchange:'NYSE',   currency:'USD' },
-  { symbolKey:'UNG',   name:'US Natural Gas Fund',   assetClass:'etf',         group:'Energy',          exchange:'NYSE',   currency:'USD' },
+  { symbolKey:'GLD',   name:'SPDR Gold Shares',      assetClass:'etf',         group:'Metals',          exchange:'NYSE',   currency:'USD', underlyingName:'Gold', underlyingUnit:'oz', conversionFactor:10, isETFProxy:true },
+  { symbolKey:'SLV',   name:'iShares Silver Trust',  assetClass:'etf',         group:'Metals',          exchange:'NYSE',   currency:'USD', underlyingName:'Silver', underlyingUnit:'oz', conversionFactor:100, isETFProxy:true },
+  { symbolKey:'USO',   name:'US Oil Fund',           assetClass:'etf',         group:'Energy',          exchange:'NYSE',   currency:'USD', underlyingName:'WTI Crude Oil', underlyingUnit:'bbl', isETFProxy:true },
+  { symbolKey:'UNG',   name:'US Natural Gas Fund',   assetClass:'etf',         group:'Energy',          exchange:'NYSE',   currency:'USD', underlyingName:'Natural Gas', underlyingUnit:'MMBtu', isETFProxy:true },
   { symbolKey:'TLT',   name:'iShares 20+ Yr Treasury',assetClass:'etf',        group:'US Yields',       exchange:'NASDAQ', currency:'USD' },
   { symbolKey:'HYG',   name:'iShares HY Corp Bond',  assetClass:'etf',         group:'US Yields',       exchange:'NYSE',   currency:'USD' },
   { symbolKey:'LQD',   name:'iShares IG Corp Bond',  assetClass:'etf',         group:'US Yields',       exchange:'NYSE',   currency:'USD' },
   { symbolKey:'EMB',   name:'iShares EM Bond',       assetClass:'etf',         group:'EM Yields',       exchange:'NYSE',   currency:'USD' },
   { symbolKey:'JNK',   name:'SPDR HY Bond',          assetClass:'etf',         group:'US Yields',       exchange:'NYSE',   currency:'USD' },
   { symbolKey:'BNDX',  name:'Vanguard Total Intl Bond',assetClass:'etf',       group:'Global Yields',   exchange:'NASDAQ', currency:'USD' },
-  { symbolKey:'CORN',  name:'Teucrium Corn Fund',    assetClass:'etf',         group:'Agriculture',     exchange:'NYSE',   currency:'USD' },
-  { symbolKey:'WEAT',  name:'Teucrium Wheat Fund',   assetClass:'etf',         group:'Agriculture',     exchange:'NYSE',   currency:'USD' },
-  { symbolKey:'SOYB',  name:'Teucrium Soybean Fund', assetClass:'etf',         group:'Agriculture',     exchange:'NYSE',   currency:'USD' },
-  { symbolKey:'CPER',  name:'US Copper Index Fund',  assetClass:'etf',         group:'Metals',          exchange:'NYSE',   currency:'USD' },
-  { symbolKey:'REMX',  name:'VanEck Rare Earth ETF', assetClass:'etf',         group:'Metals',          exchange:'NYSE',   currency:'USD' },
-  { symbolKey:'DBA',   name:'Invesco Agri Commodity',assetClass:'etf',         group:'Agriculture',     exchange:'NYSE',   currency:'USD' },
+  { symbolKey:'CORN',  name:'Teucrium Corn Fund',    assetClass:'etf',         group:'Agriculture',     exchange:'NYSE',   currency:'USD', underlyingName:'Corn', underlyingUnit:'bu', isETFProxy:true },
+  { symbolKey:'WEAT',  name:'Teucrium Wheat Fund',   assetClass:'etf',         group:'Agriculture',     exchange:'NYSE',   currency:'USD', underlyingName:'Wheat', underlyingUnit:'bu', isETFProxy:true },
+  { symbolKey:'SOYB',  name:'Teucrium Soybean Fund', assetClass:'etf',         group:'Agriculture',     exchange:'NYSE',   currency:'USD', underlyingName:'Soybeans', underlyingUnit:'bu', isETFProxy:true },
+  { symbolKey:'CPER',  name:'US Copper Index Fund',  assetClass:'etf',         group:'Metals',          exchange:'NYSE',   currency:'USD', underlyingName:'Copper', underlyingUnit:'lb', isETFProxy:true },
+  { symbolKey:'REMX',  name:'VanEck Rare Earth ETF', assetClass:'etf',         group:'Metals',          exchange:'NYSE',   currency:'USD', underlyingName:'Rare Earths', isETFProxy:true },
+  { symbolKey:'DBA',   name:'Invesco Agri Commodity',assetClass:'etf',         group:'Agriculture',     exchange:'NYSE',   currency:'USD', underlyingName:'Agriculture Basket', isETFProxy:true },
 
   // ── FX Pairs ─────────────────────────────────────────────────────────────
-  { symbolKey:'EURUSD', name:'Euro / US Dollar',     assetClass:'forex',       group:'Majors',          currency:'USD' },
-  { symbolKey:'GBPUSD', name:'British Pound / USD',  assetClass:'forex',       group:'Majors',          currency:'USD' },
-  { symbolKey:'USDJPY', name:'USD / Japanese Yen',   assetClass:'forex',       group:'Majors',          currency:'JPY' },
-  { symbolKey:'USDCHF', name:'USD / Swiss Franc',    assetClass:'forex',       group:'Majors',          currency:'CHF' },
-  { symbolKey:'AUDUSD', name:'Australian Dollar / USD',assetClass:'forex',     group:'Majors',          currency:'USD' },
-  { symbolKey:'USDCAD', name:'USD / Canadian Dollar',assetClass:'forex',       group:'Majors',          currency:'CAD' },
-  { symbolKey:'NZDUSD', name:'NZ Dollar / USD',      assetClass:'forex',       group:'Majors',          currency:'USD' },
-  { symbolKey:'USDBRL', name:'USD / Brazilian Real', assetClass:'forex',       group:'BRL Crosses',     currency:'BRL' },
-  { symbolKey:'EURBRL', name:'Euro / Brazilian Real',assetClass:'forex',       group:'BRL Crosses',     currency:'BRL' },
-  { symbolKey:'GBPBRL', name:'GBP / Brazilian Real', assetClass:'forex',       group:'BRL Crosses',     currency:'BRL' },
-  { symbolKey:'USDARS', name:'USD / Argentine Peso', assetClass:'forex',       group:'LatAm',           currency:'ARS' },
-  { symbolKey:'USDMXN', name:'USD / Mexican Peso',   assetClass:'forex',       group:'LatAm',           currency:'MXN' },
-  { symbolKey:'USDCOP', name:'USD / Colombian Peso', assetClass:'forex',       group:'LatAm',           currency:'COP' },
-  { symbolKey:'USDCNY', name:'USD / Chinese Yuan',   assetClass:'forex',       group:'EM',              currency:'CNY' },
-  { symbolKey:'USDINR', name:'USD / Indian Rupee',   assetClass:'forex',       group:'EM',              currency:'INR' },
-  { symbolKey:'USDZAR', name:'USD / South African Rand',assetClass:'forex',    group:'EM',              currency:'ZAR' },
-  { symbolKey:'USDKRW', name:'USD / Korean Won',     assetClass:'forex',       group:'EM',              currency:'KRW' },
+  { symbolKey:'EURUSD', name:'Euro / US Dollar',     assetClass:'forex',       group:'Majors',          currency:'USD', baseCurrency:'EUR', quoteCurrency:'USD' },
+  { symbolKey:'GBPUSD', name:'British Pound / USD',  assetClass:'forex',       group:'Majors',          currency:'USD', baseCurrency:'GBP', quoteCurrency:'USD' },
+  { symbolKey:'USDJPY', name:'USD / Japanese Yen',   assetClass:'forex',       group:'Majors',          currency:'JPY', baseCurrency:'USD', quoteCurrency:'JPY' },
+  { symbolKey:'USDCHF', name:'USD / Swiss Franc',    assetClass:'forex',       group:'Majors',          currency:'CHF', baseCurrency:'USD', quoteCurrency:'CHF' },
+  { symbolKey:'AUDUSD', name:'Australian Dollar / USD',assetClass:'forex',     group:'Majors',          currency:'USD', baseCurrency:'AUD', quoteCurrency:'USD' },
+  { symbolKey:'USDCAD', name:'USD / Canadian Dollar',assetClass:'forex',       group:'Majors',          currency:'CAD', baseCurrency:'USD', quoteCurrency:'CAD' },
+  { symbolKey:'NZDUSD', name:'NZ Dollar / USD',      assetClass:'forex',       group:'Majors',          currency:'USD', baseCurrency:'NZD', quoteCurrency:'USD' },
+  { symbolKey:'USDBRL', name:'USD / Brazilian Real', assetClass:'forex',       group:'BRL Crosses',     currency:'BRL', baseCurrency:'USD', quoteCurrency:'BRL' },
+  { symbolKey:'EURBRL', name:'Euro / Brazilian Real',assetClass:'forex',       group:'BRL Crosses',     currency:'BRL', baseCurrency:'EUR', quoteCurrency:'BRL' },
+  { symbolKey:'GBPBRL', name:'GBP / Brazilian Real', assetClass:'forex',       group:'BRL Crosses',     currency:'BRL', baseCurrency:'GBP', quoteCurrency:'BRL' },
+  { symbolKey:'USDARS', name:'USD / Argentine Peso', assetClass:'forex',       group:'LatAm',           currency:'ARS', baseCurrency:'USD', quoteCurrency:'ARS' },
+  { symbolKey:'USDMXN', name:'USD / Mexican Peso',   assetClass:'forex',       group:'LatAm',           currency:'MXN', baseCurrency:'USD', quoteCurrency:'MXN' },
+  { symbolKey:'USDCOP', name:'USD / Colombian Peso', assetClass:'forex',       group:'LatAm',           currency:'COP', baseCurrency:'USD', quoteCurrency:'COP' },
+  { symbolKey:'USDCNY', name:'USD / Chinese Yuan',   assetClass:'forex',       group:'EM',              currency:'CNY', baseCurrency:'USD', quoteCurrency:'CNY' },
+  { symbolKey:'USDINR', name:'USD / Indian Rupee',   assetClass:'forex',       group:'EM',              currency:'INR', baseCurrency:'USD', quoteCurrency:'INR' },
+  { symbolKey:'USDZAR', name:'USD / South African Rand',assetClass:'forex',    group:'EM',              currency:'ZAR', baseCurrency:'USD', quoteCurrency:'ZAR' },
+  { symbolKey:'USDKRW', name:'USD / Korean Won',     assetClass:'forex',       group:'EM',              currency:'KRW', baseCurrency:'USD', quoteCurrency:'KRW' },
 
   // ── Crypto ───────────────────────────────────────────────────────────────
   { symbolKey:'BTCUSD',  name:'Bitcoin',             assetClass:'crypto',      group:'Crypto',          currency:'USD' },
@@ -171,19 +171,112 @@ REGISTRY.forEach(i => {
   (BY_CLASS[i.assetClass] = BY_CLASS[i.assetClass] || []).push(i);
 });
 
+// ─── Search aliases ──────────────────────────────────────────────────────────
+// Maps common natural-language terms to registry symbols so users can type
+// "gold" and find GLD, "bitcoin" and find BTCUSD, etc.
+const SEARCH_ALIASES = {
+  'gold':       ['GLD', 'GOLD', 'NEM'],
+  'silver':     ['SLV'],
+  'oil':        ['USO', 'XOM', 'CVX', 'COP'],
+  'crude':      ['USO'],
+  'gas':        ['UNG'],
+  'natural gas':['UNG'],
+  'copper':     ['CPER', 'FCX'],
+  'iron':       ['BHP', 'RIO', 'VALE'],
+  'iron ore':   ['BHP', 'RIO', 'VALE'],
+  'corn':       ['CORN'],
+  'wheat':      ['WEAT'],
+  'soy':        ['SOYB'],
+  'soybeans':   ['SOYB'],
+  'bitcoin':    ['BTCUSD', 'MSTR', 'COIN'],
+  'btc':        ['BTCUSD'],
+  'ethereum':   ['ETHUSD'],
+  'eth':        ['ETHUSD'],
+  'solana':     ['SOLUSD'],
+  'sol':        ['SOLUSD'],
+  'xrp':        ['XRPUSD'],
+  'ripple':     ['XRPUSD'],
+  'doge':       ['DOGEUSD'],
+  'dogecoin':   ['DOGEUSD'],
+  'real':       ['USDBRL', 'EURBRL', 'GBPBRL'],
+  'brl':        ['USDBRL', 'EURBRL', 'GBPBRL'],
+  'dollar':     ['EURUSD', 'USDJPY', 'USDBRL'],
+  'euro':       ['EURUSD', 'EURBRL'],
+  'yen':        ['USDJPY'],
+  'yuan':       ['USDCNY'],
+  'peso':       ['USDMXN', 'USDARS', 'USDCOP'],
+  'treasury':   ['US2Y', 'US5Y', 'US10Y', 'US30Y', 'TLT'],
+  'bond':       ['TLT', 'HYG', 'LQD', 'EMB', 'JNK'],
+  'brazil':     ['EWZ', 'VALE', 'PBR', 'ITUB', 'USDBRL'],
+  'china':      ['FXI', 'USDCNY'],
+  'japan':      ['EWJ', 'USDJPY'],
+  'sp500':      ['SPY'],
+  's&p':        ['SPY'],
+  'nasdaq':     ['QQQ'],
+  'dow':        ['DIA'],
+  'russell':    ['IWM'],
+  'emerging':   ['EEM', 'EMB'],
+  'tech':       ['QQQ', 'AAPL', 'MSFT', 'NVDA', 'GOOGL', 'AMZN', 'META'],
+  'bank':       ['JPM', 'GS', 'BAC', 'ITUB', 'BBD'],
+  'petrobras':  ['PBR', 'PETR4.SA', 'PETR3.SA'],
+  'vale':       ['VALE', 'VALE3.SA'],
+};
+
+// Build reverse alias map: symbolKey → [alias terms]
+const ALIAS_REVERSE = {};
+for (const [term, syms] of Object.entries(SEARCH_ALIASES)) {
+  for (const sym of syms) {
+    (ALIAS_REVERSE[sym.toUpperCase()] = ALIAS_REVERSE[sym.toUpperCase()] || []).push(term);
+  }
+}
+
+// ─── Scoring function ────────────────────────────────────────────────────────
+function scoreMatch(item, q) {
+  const sym  = item.symbolKey.toLowerCase();
+  const name = item.name.toLowerCase();
+  const grp  = (item.group || '').toLowerCase();
+
+  // Exact symbol match
+  if (sym === q) return 100;
+
+  // Alias match — user typed a natural term that maps to this symbol
+  const aliases = SEARCH_ALIASES[q];
+  if (aliases && aliases.some(a => a.toUpperCase() === item.symbolKey.toUpperCase())) return 90;
+
+  // Symbol starts with query
+  if (sym.startsWith(q)) return 80;
+
+  // Name starts with query
+  if (name.startsWith(q)) return 70;
+
+  // Symbol contains query
+  if (sym.includes(q)) return 60;
+
+  // Name contains query (word boundary)
+  const wordBoundary = new RegExp(`\\b${q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`);
+  if (wordBoundary.test(name)) return 55;
+
+  // Name contains query (anywhere)
+  if (name.includes(q)) return 50;
+
+  // Group matches
+  if (grp.includes(q)) return 40;
+
+  // Reverse alias: item has an alias term that contains q
+  const revAliases = ALIAS_REVERSE[item.symbolKey.toUpperCase()] || [];
+  if (revAliases.some(a => a.includes(q))) return 35;
+
+  return 0;
+}
+
 // ─── Search ───────────────────────────────────────────────────────────────────
 // GET /api/instruments/search?q=apple&assetClass=equity&limit=20
-// Phase 0: Wrapped in try/catch with proper error handling
-// Phase 1: Validates q, assetClass, limit
-// Phase 8: Cache TTL: ~15 minutes recommended for search results
 router.get('/search', (req, res) => {
   try {
-    // Phase 1: Validate and sanitize query
-    const q          = sanitizeText(req.query.q || '', 100).toLowerCase();
+    const q          = sanitizeText(req.query.q || '', 100).toLowerCase().trim();
     const assetClass = req.query.assetClass || null;
     const limit      = clampInt(req.query.limit || '20', 1, 100, 20);
 
-    // Phase 1: Validate assetClass
     if (assetClass && !KNOWN_ASSET_CLASSES.includes(assetClass)) {
       return sendApiError(
         res,
@@ -192,29 +285,41 @@ router.get('/search', (req, res) => {
       );
     }
 
-    let results = REGISTRY;
-
+    let pool = REGISTRY;
     if (assetClass) {
-      results = results.filter(i => i.assetClass === assetClass);
+      pool = pool.filter(i => i.assetClass === assetClass);
     }
 
-    if (q) {
-      results = results.filter(i =>
-        i.symbolKey.toLowerCase().includes(q) ||
-        i.name.toLowerCase().includes(q) ||
-        (i.group || '').toLowerCase().includes(q)
-      );
-      // Boost exact symbol matches to top
-      results.sort((a, b) => {
-        const aExact = a.symbolKey.toLowerCase() === q ? 0 : 1;
-        const bExact = b.symbolKey.toLowerCase() === q ? 0 : 1;
-        return aExact - bExact;
-      });
+    if (!q) {
+      return res.json({ results: pool.slice(0, limit), total: pool.length, query: '' });
     }
+
+    // Score every item, keep non-zero scores
+    const scored = [];
+    for (const item of pool) {
+      const s = scoreMatch(item, q);
+      if (s > 0) scored.push({ item, score: s });
+    }
+
+    // Also add alias-resolved items that may not have been caught by direct match
+    const aliasSymbols = SEARCH_ALIASES[q] || [];
+    for (const sym of aliasSymbols) {
+      const entry = BY_KEY[sym.toUpperCase()];
+      if (!entry) continue;
+      if (assetClass && entry.assetClass !== assetClass) continue;
+      if (!scored.find(s => s.item.symbolKey === entry.symbolKey)) {
+        scored.push({ item: entry, score: 90 });
+      }
+    }
+
+    // Sort descending by score, then alphabetically by symbol
+    scored.sort((a, b) => b.score - a.score || a.item.symbolKey.localeCompare(b.item.symbolKey));
+
+    const results = scored.slice(0, limit).map(s => s.item);
 
     res.json({
-      results: results.slice(0, limit),
-      total:   results.length,
+      results,
+      total:   scored.length,
       query:   q,
     });
   } catch (err) {
@@ -265,6 +370,16 @@ router.get('/:symbolKey/detail', async (req, res) => {
       country:     null,
       identifiers: { vendor: {} },
     };
+
+    // FX metadata
+    if (base.baseCurrency)    instrument.baseCurrency    = base.baseCurrency;
+    if (base.quoteCurrency)   instrument.quoteCurrency   = base.quoteCurrency;
+
+    // Commodity ETF proxy metadata
+    if (base.isETFProxy)      instrument.isETFProxy      = true;
+    if (base.underlyingName)  instrument.underlyingName  = base.underlyingName;
+    if (base.underlyingUnit)  instrument.underlyingUnit  = base.underlyingUnit;
+    if (base.conversionFactor) instrument.conversionFactor = base.conversionFactor;
 
     // Attempt multiAssetProvider detail
     let detail = null;
@@ -352,6 +467,114 @@ router.get('/:symbolKey', async (req, res) => {
   } catch (err) {
     logger.error('GET /api/instruments/:symbolKey', err.message, { error: err });
     return sendApiError(res, err, 'GET /api/instruments/:symbolKey');
+  }
+});
+
+// ─── AI semantic search ──────────────────────────────────────────────────────
+// POST /api/instruments/semantic-search
+// Uses Perplexity Sonar Pro to find instruments by natural-language description.
+// Returns up to 10 instruments with AI-generated reasoning.
+const PERPLEXITY_URL = 'https://api.perplexity.ai/chat/completions';
+const _semanticCache = new Map();
+const SEMANTIC_CACHE_TTL = 10 * 60 * 1000; // 10 min
+
+router.post('/semantic-search', async (req, res) => {
+  const apiKey = process.env.PERPLEXITY_API_KEY;
+  if (!apiKey) {
+    return res.status(503).json({ error: 'AI search not configured' });
+  }
+
+  try {
+    const { query } = req.body;
+    if (!query || typeof query !== 'string' || query.trim().length < 2) {
+      return res.status(400).json({ error: 'Query required (min 2 chars)' });
+    }
+    const q = query.trim().slice(0, 300);
+
+    // Check cache
+    const cacheKey = q.toLowerCase();
+    const cached = _semanticCache.get(cacheKey);
+    if (cached && Date.now() < cached.exp) {
+      return res.json({ ...cached.v, cached: true });
+    }
+
+    const fetch = require('node-fetch');
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 12000);
+
+    const response = await fetch(PERPLEXITY_URL, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type':  'application/json',
+      },
+      signal: ctrl.signal,
+      body: JSON.stringify({
+        model: 'sonar-pro',
+        messages: [
+          {
+            role: 'system',
+            content: `You are a financial instrument classifier. Given a user query, return a JSON array of ticker symbols that best match. Each entry: {"symbol":"AAPL","name":"Apple Inc","assetClass":"equity","reason":"..."}. Return up to 10 results. Asset classes: equity, etf, forex, crypto, commodity, index, fixed_income. For commodities, prefer ETF proxies (GLD for gold, USO for oil, etc). For forex, use 6-letter pairs like EURUSD. For crypto, use pairs like BTCUSD. Return ONLY the JSON array, no markdown.`
+          },
+          { role: 'user', content: q }
+        ],
+        max_tokens: 600,
+        temperature: 0.1,
+      }),
+    });
+    clearTimeout(timer);
+
+    if (!response.ok) {
+      return res.status(502).json({ error: `AI provider error (${response.status})` });
+    }
+
+    const data = await response.json();
+    const raw = data.choices?.[0]?.message?.content || '[]';
+
+    // Parse JSON from response (strip markdown fences if present)
+    let instruments = [];
+    try {
+      const cleaned = raw.replace(/```json?\s*/g, '').replace(/```/g, '').trim();
+      instruments = JSON.parse(cleaned);
+      if (!Array.isArray(instruments)) instruments = [];
+    } catch {
+      logger.warn('POST /api/instruments/semantic-search', 'Failed to parse AI response', { raw: raw.slice(0, 200) });
+      instruments = [];
+    }
+
+    // Enrich with registry data where available
+    const results = instruments.slice(0, 10).map(ai => {
+      const reg = BY_KEY[(ai.symbol || '').toUpperCase()];
+      return {
+        symbol:     (ai.symbol || '').toUpperCase(),
+        name:       reg ? reg.name : (ai.name || ai.symbol),
+        assetClass: reg ? reg.assetClass : (ai.assetClass || 'equity'),
+        group:      reg ? reg.group : null,
+        currency:   reg ? reg.currency : 'USD',
+        inRegistry: !!reg,
+        aiReason:   ai.reason || null,
+        // FX metadata
+        ...(reg?.baseCurrency  ? { baseCurrency: reg.baseCurrency } : {}),
+        ...(reg?.quoteCurrency ? { quoteCurrency: reg.quoteCurrency } : {}),
+        // Commodity metadata
+        ...(reg?.isETFProxy    ? { isETFProxy: true, underlyingName: reg.underlyingName } : {}),
+      };
+    });
+
+    const result = { results, query: q, model: data.model || 'sonar-pro' };
+    _semanticCache.set(cacheKey, { v: result, exp: Date.now() + SEMANTIC_CACHE_TTL });
+    if (_semanticCache.size > 100) {
+      const now = Date.now();
+      for (const [k, e] of _semanticCache) { if (now > e.exp) _semanticCache.delete(k); }
+    }
+
+    return res.json(result);
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      return res.status(504).json({ error: 'AI search timed out' });
+    }
+    logger.error('POST /api/instruments/semantic-search', err.message, { error: err });
+    return sendApiError(res, err, 'POST /api/instruments/semantic-search');
   }
 });
 

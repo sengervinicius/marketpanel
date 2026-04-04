@@ -23,7 +23,7 @@ export function inferAssetType(symbol) {
   const s = symbol.toUpperCase();
   if (s.endsWith('.SA')) return 'brazil';
   if (/^(BTC|ETH|SOL|XRP|BNB|DOGE|ADA|DOT|AVAX|MATIC|LINK|UNI|ATOM|NEAR|APT)USD$/.test(s)) return 'crypto';
-  if (/^[A-Z]{6}$/.test(s) && !s.endsWith('USD')) return 'fx';
+  if (/^[A-Z]{6}$/.test(s) && !s.endsWith('USD')) return 'forex';
   if (/^(GLD|SLV|USO|UNG|CORN|WEAT|SOYB|DBA|CPER|REMX|BHP|RIO|NEM|GOLD)$/.test(s)) return 'commodity';
   if (/^(SPY|QQQ|DIA|IWM|EWZ|EEM|EFA|FXI|EWJ|EWW|EWA|EWC|TLT|HYG|LQD|EMB|JNK|BNDX|VTI|VOO|IVV)$/.test(s)) return 'etf';
   return 'equity';

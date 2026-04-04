@@ -96,7 +96,8 @@ async function getInstrumentDetail(instrument) {
     case 'fund':
       return ETF_STUBS[sym] || _genericEtfStub(instrument);
 
-    case 'fx':
+    case 'forex':
+    case 'fx': // backward compat
       return FX_STUBS[sym] || { baseCurrency: sym.slice(0, 3), quoteCurrency: sym.slice(3, 6), forwardPoints: {} };
 
     case 'crypto':
