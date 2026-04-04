@@ -167,14 +167,18 @@ export default function HeaderSearchBar({ onSelectTicker, onOpenDetail }) {
   // Flat list for keyboard nav
   let flatIdx = 0;
 
+  const isMac = typeof navigator !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.userAgent);
+  const shortcutLabel = isMac ? '\u2318K' : 'Ctrl K';
+
   if (!open) {
     return (
       <div className="hsb-trigger" onClick={() => { setOpen(true); setTimeout(() => inputRef.current?.focus(), 50); }}>
-        <svg className="hsb-trigger-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <svg className="hsb-trigger-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
           <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
         </svg>
-        <span className="hsb-trigger-text">Search instruments, markets, news...</span>
-        <span className="hsb-trigger-shortcut">/</span>
+        <span className="hsb-trigger-label">SEARCH</span>
+        <span className="hsb-trigger-text">Ticker, company, macro theme, or ask AI...</span>
+        <span className="hsb-trigger-shortcut">{shortcutLabel}</span>
       </div>
     );
   }
@@ -182,16 +186,17 @@ export default function HeaderSearchBar({ onSelectTicker, onOpenDetail }) {
   return (
     <div className="hsb-container" ref={containerRef}>
       <div className="hsb-input-row">
-        <svg className="hsb-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <svg className="hsb-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
           <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
         </svg>
+        <span className="hsb-input-label">SEARCH</span>
         <input
           ref={inputRef}
           className="hsb-input"
           value={query}
           onChange={e => setQuery(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Search instruments, markets, news..."
+          placeholder="Search any ticker, company, theme, or ask AI..."
           autoFocus
         />
         {query && <button className="hsb-clear" onClick={() => { setQuery(''); inputRef.current?.focus(); }}>&times;</button>}

@@ -1707,12 +1707,12 @@ textarea:focus-visible { outline: 1px solid var(--accent); outline-offset: 0; bo
 
 /* Header bar (desktop) */
 .app-header-bar {
-  height: 36px;
+  height: 44px;
   flex-shrink: 0;
   background: var(--bg-app);
-  border-bottom: 2px solid var(--accent);
-  padding: 0 12px;
-  gap: 12px;
+  border-bottom: 1px solid rgba(255, 102, 0, 0.25);
+  padding: 0 14px;
+  gap: 14px;
   position: relative;
   z-index: 10;
 }
@@ -1720,14 +1720,15 @@ textarea:focus-visible { outline: 1px solid var(--accent); outline-offset: 0; bo
 .app-header-title {
   color: var(--accent);
   font-weight: 700;
-  font-size: 13px;
-  letter-spacing: 2px;
+  font-size: 12px;
+  letter-spacing: 2.5px;
 }
 
 .app-header-subtitle {
   color: var(--text-faint);
-  font-size: 9px;
-  letter-spacing: 1px;
+  font-size: 8px;
+  letter-spacing: 1.2px;
+  opacity: 0.7;
 }
 
 .app-header-status {
