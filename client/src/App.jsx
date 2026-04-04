@@ -531,7 +531,7 @@ export default function App() {
           <span className="app-header-subtitle">MARKET TERMINAL</span>
           <WorkspaceSwitcher />
           <HeaderSearchBar onOpenDetail={setDetailTicker} />
-          <div className="flex-row" style={{ flex:1, justifyContent:'center' }}><WorldClock /></div>
+          <WorldClock />
           <div className="flex-row gap-8">
             {isRefreshing && <span className="app-header-status">&#9679; UPDATING</span>}
             {lastUpdated && !isRefreshing && <span style={{ color:'var(--text-faint)', fontSize:'8px' }}>SNAP {lastUpdated.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'})}</span>}

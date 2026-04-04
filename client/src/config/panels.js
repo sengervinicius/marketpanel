@@ -319,7 +319,7 @@ export const DEFAULT_LAYOUT = {
   desktopRows: [
     ['charts',       'usEquities',  'forex'],
     ['globalIndices','brazilB3',    'commodities', 'crypto'],
-    ['debt',         'search',      'news',        'watchlist'],
+    ['debt',         'news',        'watchlist'],
   ],
   mobileTabs: ['home', 'charts', 'watchlist', 'search', 'detail', 'news'],
 };
