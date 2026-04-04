@@ -1,48 +1,49 @@
-/* ── HeaderSearchBar — Premium desktop command bar ── */
+/* ══════════════════════════════════════════════════════
+   HeaderSearchBar — Premium full-width command surface
+   ══════════════════════════════════════════════════════ */
 
-/* ─── Trigger (collapsed state) ──────────────────── */
+/* ─── Trigger (collapsed) ────────────────────────── */
 
 .hsb-trigger {
   display: flex;
   align-items: center;
-  flex: 4;
-  min-width: 0;
-  height: 34px;
-  padding: 0 14px;
-  background: var(--bg-surface, #111);
-  border: 1px solid var(--border-default, #2a2a2a);
+  width: 100%;
+  height: 36px;
+  padding: 0 16px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 102, 0, 0.2);
   border-radius: 8px;
   cursor: pointer;
-  gap: 10px;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
-  position: relative;
+  gap: 12px;
+  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
 }
 
 .hsb-trigger:hover {
-  border-color: var(--border-strong, #444);
-  background: var(--bg-elevated, #161616);
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.03), 0 2px 8px rgba(0, 0, 0, 0.25);
+  border-color: rgba(255, 102, 0, 0.4);
+  background: rgba(255, 102, 0, 0.03);
+  box-shadow:
+    0 0 0 1px rgba(255, 102, 0, 0.08),
+    0 0 20px rgba(255, 102, 0, 0.04);
 }
 
 .hsb-trigger-icon {
   color: var(--accent, #ff6600);
   flex-shrink: 0;
-  opacity: 0.85;
+  opacity: 0.7;
 }
 
 .hsb-trigger-label {
-  font: 600 8px var(--font-mono, monospace);
-  letter-spacing: 1.5px;
+  font: 700 9px var(--font-mono, monospace);
+  letter-spacing: 2px;
   color: var(--accent, #ff6600);
   text-transform: uppercase;
-  opacity: 0.7;
+  opacity: 0.55;
   flex-shrink: 0;
-  margin-right: 2px;
 }
 
 .hsb-trigger-text {
   color: var(--text-muted, #777);
-  font: 13px/1 var(--font-ui, system-ui);
+  font: 400 13px/1 var(--font-ui, system-ui);
   flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -55,53 +56,52 @@
   gap: 3px;
   color: var(--text-faint, #555);
   font: 500 10px var(--font-mono, monospace);
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 4px;
-  padding: 2px 7px;
+  padding: 2px 8px;
   flex-shrink: 0;
-  letter-spacing: 0.3px;
+  letter-spacing: 0.5px;
 }
 
-/* ─── Container (expanded state) ─────────────────── */
+/* ─── Container (expanded) ───────────────────────── */
 
 .hsb-container {
   position: relative;
-  flex: 4;
-  min-width: 0;
+  width: 100%;
   z-index: 1000;
 }
 
 .hsb-input-row {
   display: flex;
   align-items: center;
-  background: var(--bg-surface, #111);
-  border: 1px solid var(--accent, #ff6600);
+  width: 100%;
+  height: 36px;
+  background: rgba(255, 102, 0, 0.03);
+  border: 1px solid rgba(255, 102, 0, 0.45);
   border-radius: 8px;
   box-shadow:
-    0 0 0 1px rgba(255, 102, 0, 0.15),
-    0 0 12px rgba(255, 102, 0, 0.06),
-    0 2px 8px rgba(0, 0, 0, 0.3);
-  padding: 0 14px;
-  height: 34px;
-  gap: 10px;
-  transition: box-shadow 0.2s ease;
+    0 0 0 1px rgba(255, 102, 0, 0.1),
+    0 0 24px rgba(255, 102, 0, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.02);
+  padding: 0 16px;
+  gap: 12px;
+  transition: box-shadow 0.2s;
 }
 
 .hsb-input-label {
-  font: 600 8px var(--font-mono, monospace);
-  letter-spacing: 1.5px;
+  font: 700 9px var(--font-mono, monospace);
+  letter-spacing: 2px;
   color: var(--accent, #ff6600);
   text-transform: uppercase;
-  opacity: 0.6;
+  opacity: 0.5;
   flex-shrink: 0;
-  margin-right: 2px;
 }
 
 .hsb-icon {
   color: var(--accent, #ff6600);
   flex-shrink: 0;
-  opacity: 0.8;
+  opacity: 0.7;
 }
 
 .hsb-input {
@@ -131,7 +131,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: color 0.15s ease;
+  transition: color 0.15s;
   line-height: 1;
 }
 
@@ -139,7 +139,7 @@
   color: var(--text-primary, #e0e0e0);
 }
 
-/* ─── Dropdown results ───────────────────────────── */
+/* ─── Dropdown ───────────────────────────────────── */
 
 .hsb-dropdown {
   position: absolute;
@@ -147,11 +147,12 @@
   left: 0;
   right: 0;
   background: var(--bg-elevated, #141414);
-  border: 1px solid var(--border-strong, #333);
+  border: 1px solid rgba(255, 102, 0, 0.15);
   border-radius: 10px;
   box-shadow:
-    0 12px 40px rgba(0, 0, 0, 0.55),
-    0 0 0 1px rgba(255, 255, 255, 0.03);
+    0 16px 48px rgba(0, 0, 0, 0.6),
+    0 0 0 1px rgba(255, 255, 255, 0.02),
+    0 0 32px rgba(255, 102, 0, 0.03);
   max-height: 520px;
   overflow-y: auto;
   z-index: 1001;
@@ -159,7 +160,7 @@
 }
 
 .hsb-group {
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
 }
 
 .hsb-group:last-child {
@@ -171,17 +172,17 @@
   text-transform: uppercase;
   letter-spacing: 0.8px;
   color: var(--text-muted, #666);
-  padding: 10px 14px 5px;
+  padding: 10px 16px 5px;
 }
 
 .hsb-result {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 7px 14px;
+  padding: 8px 16px;
   cursor: pointer;
   font-size: 12px;
-  transition: background-color 0.1s ease;
+  transition: background-color 0.1s;
   border-radius: 4px;
   margin: 0 4px;
 }
@@ -195,7 +196,7 @@
   background: rgba(255, 102, 0, 0.06);
 }
 
-/* ─── Result badges ──────────────────────────────── */
+/* ─── Badges ─────────────────────────────────────── */
 
 .hsb-badge {
   font: 600 8px var(--font-mono, monospace);
@@ -210,50 +211,15 @@
 }
 
 .hsb-badge--commodity,
-.hsb-badge--futures {
-  color: #ff8c33;
-  background: rgba(255, 102, 0, 0.1);
-}
-
-.hsb-badge--equity {
-  color: #66bb6a;
-  background: rgba(76, 175, 80, 0.08);
-}
-
-.hsb-badge--etf {
-  color: #64b5f6;
-  background: rgba(33, 150, 243, 0.08);
-}
-
-.hsb-badge--forex {
-  color: #4dd0e1;
-  background: rgba(0, 188, 212, 0.08);
-}
-
-.hsb-badge--crypto {
-  color: #f06292;
-  background: rgba(233, 30, 99, 0.07);
-}
-
-.hsb-badge--fixed_income {
-  color: #ffb74d;
-  background: rgba(255, 152, 0, 0.08);
-}
-
-.hsb-badge--index {
-  color: #ffb74d;
-  background: rgba(255, 152, 0, 0.08);
-}
-
-.hsb-badge--rate {
-  color: #ffd54f;
-  background: rgba(255, 215, 0, 0.08);
-}
-
-.hsb-badge--fund {
-  color: #4dd0e1;
-  background: rgba(0, 188, 212, 0.08);
-}
+.hsb-badge--futures { color: #ff8c33; background: rgba(255, 102, 0, 0.1); }
+.hsb-badge--equity  { color: #66bb6a; background: rgba(76, 175, 80, 0.08); }
+.hsb-badge--etf     { color: #64b5f6; background: rgba(33, 150, 243, 0.08); }
+.hsb-badge--forex   { color: #4dd0e1; background: rgba(0, 188, 212, 0.08); }
+.hsb-badge--crypto  { color: #f06292; background: rgba(233, 30, 99, 0.07); }
+.hsb-badge--fixed_income { color: #ffb74d; background: rgba(255, 152, 0, 0.08); }
+.hsb-badge--index   { color: #ffb74d; background: rgba(255, 152, 0, 0.08); }
+.hsb-badge--rate    { color: #ffd54f; background: rgba(255, 215, 0, 0.08); }
+.hsb-badge--fund    { color: #4dd0e1; background: rgba(0, 188, 212, 0.08); }
 
 .hsb-symbol {
   font: 600 12px var(--font-mono, monospace);
@@ -309,7 +275,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 14px;
+  padding: 10px 16px;
   color: var(--accent, #ff6600);
   font-size: 11px;
   font-style: italic;
@@ -332,7 +298,7 @@
 }
 
 .hsb-ai-note {
-  padding: 8px 14px;
+  padding: 8px 16px;
   color: var(--text-faint, #555);
   font-size: 11px;
   font-style: italic;
@@ -360,7 +326,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 2px 14px 5px 84px;
+  padding: 2px 16px 5px 84px;
   font-size: 10px;
   color: var(--text-faint, #555);
 }
@@ -376,7 +342,7 @@
   color: var(--text-muted, #666);
   cursor: pointer;
   text-decoration: none;
-  transition: color 0.15s ease;
+  transition: color 0.15s;
   font-size: 10px;
 }
 

@@ -11,6 +11,7 @@ import { MarketProvider } from './context/MarketContext';
 import { DragProvider } from './context/DragContext';
 import { AlertsProvider } from './context/AlertsContext';
 import { GameProvider } from './context/GameContext';
+import { WatchlistProvider } from './context/WatchlistContext';
 import NotificationPrefs from './components/common/NotificationPrefs';
 import HeaderSearchBar from './components/common/HeaderSearchBar';
 import { SearchPanel } from './components/panels/SearchPanel';
@@ -515,6 +516,7 @@ export default function App() {
       <AppErrorBoundary>
       <DragProvider>
       <PortfolioProvider>
+      <WatchlistProvider>
       <GameProvider>
       <AlertsProvider>
       <FeedStatusProvider status={feedStatus}>
@@ -539,7 +541,7 @@ export default function App() {
           <img src="/icon-192.png" alt="Senger" style={{ width: 22, height: 22, borderRadius: 4, marginRight: 6 }} /><span className="app-header-title">SENGER</span>
           <span className="app-header-subtitle">MARKET TERMINAL</span>
           <WorkspaceSwitcher />
-          <HeaderSearchBar onOpenDetail={setDetailTicker} />
+          <div style={{ flex: 1 }} />
           <WorldClock />
           <div className="flex-row gap-8">
             {isRefreshing && <span className="app-header-status">&#9679; UPDATING</span>}
@@ -575,6 +577,11 @@ export default function App() {
               : <button className="btn" onClick={() => setSettingsOpen(s => !s)} style={{ color: settingsOpen ? 'var(--accent)' : 'var(--text-faint)' }}>⚙ SETTINGS</button>
             }
           </div>
+        </div>
+
+        {/* Search command strip — full width */}
+        <div className="app-search-strip">
+          <HeaderSearchBar onOpenDetail={setDetailTicker} />
         </div>
 
         {/* Trial banner */}
@@ -658,6 +665,7 @@ export default function App() {
       </FeedStatusProvider>
       </AlertsProvider>
       </GameProvider>
+      </WatchlistProvider>
       </PortfolioProvider>
       </DragProvider>
       </AppErrorBoundary>
@@ -669,6 +677,7 @@ export default function App() {
     <AppErrorBoundary>
     <DragProvider>
     <PortfolioProvider>
+    <WatchlistProvider>
     <GameProvider>
     <AlertsProvider>
     <FeedStatusProvider status={feedStatus}>
@@ -917,6 +926,7 @@ export default function App() {
     </FeedStatusProvider>
     </AlertsProvider>
     </GameProvider>
+    </WatchlistProvider>
     </PortfolioProvider>
     </DragProvider>
     </AppErrorBoundary>

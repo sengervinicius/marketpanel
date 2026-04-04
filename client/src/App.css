@@ -1707,14 +1707,24 @@ textarea:focus-visible { outline: 1px solid var(--accent); outline-offset: 0; bo
 
 /* Header bar (desktop) */
 .app-header-bar {
-  height: 44px;
+  height: 36px;
   flex-shrink: 0;
   background: var(--bg-app);
-  border-bottom: 1px solid rgba(255, 102, 0, 0.25);
+  border-bottom: none;
   padding: 0 14px;
   gap: 14px;
   position: relative;
   z-index: 10;
+}
+
+/* Search command strip — full-width row below header */
+.app-search-strip {
+  flex-shrink: 0;
+  padding: 6px 14px 8px;
+  background: var(--bg-app);
+  border-bottom: 1px solid rgba(255, 102, 0, 0.2);
+  position: relative;
+  z-index: 11;
 }
 
 .app-header-title {
