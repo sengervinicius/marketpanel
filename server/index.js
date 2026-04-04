@@ -44,6 +44,7 @@ const { verifyToken } = require('./authStore');
 const { initPortfolioDB } = require('./portfolioStore');
 const { initAlertDB } = require('./alertStore');
 const { initGameDB } = require('./gameStore');
+require('./jobs/markToMarket'); // batch mark-to-market (self-scheduling)
 
 const app = express();
 

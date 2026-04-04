@@ -75,6 +75,7 @@ GAME_PERIODS.forEach(period => {
       userRank: findUserRank(board.data, userId),
       total: board.data.length,
       generatedAt: board.generatedAt,
+      ready: board.ready ?? false,
     };
     if (board.endsAt) response.endsAt = board.endsAt;
     res.json(response);

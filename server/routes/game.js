@@ -55,7 +55,7 @@ router.get('/profile', async (req, res) => {
 router.get('/snapshots', async (req, res) => {
   try {
     const gp = await getOrCreateGameProfile(req.user.id);
-    const snapshots = (gp.snapshots || []).slice(-365);
+    const snapshots = (gp.snapshots || []).slice(-90);
     res.json({ snapshots });
   } catch (e) {
     console.error('[game] GET /snapshots error:', e.message);

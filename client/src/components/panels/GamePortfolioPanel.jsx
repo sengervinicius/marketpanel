@@ -11,6 +11,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useGame } from '../../context/GameContext';
 import { apiJSON } from '../../utils/api';
+import EquityCurveChart from '../EquityCurveChart';
 import './GamePortfolioPanel.css';
 
 // ── Formatting helpers ──────────────────────────────────────────────────────
@@ -64,6 +65,16 @@ export default function GamePortfolioPanel({ onSelectSymbol, mobile = false }) {
   const [localError, setLocalError] = useState(null);
   const [trades, setTrades] = useState([]);
   const [tradesLoaded, setTradesLoaded] = useState(false);
+  const [snapshots, setSnapshots] = useState([]);
+  const [snapshotsLoading, setSnapshotsLoading] = useState(true);
+
+  // Load equity curve snapshots
+  useEffect(() => {
+    apiJSON('/api/game/snapshots')
+      .then(data => setSnapshots(data.snapshots || []))
+      .catch(() => setSnapshots([]))
+      .finally(() => setSnapshotsLoading(false));
+  }, []);
 
   // Load trades when tab switches
   useEffect(() => {
@@ -142,6 +153,17 @@ export default function GamePortfolioPanel({ onSelectSymbol, mobile = false }) {
             <span className="gp-metric-value">{positions.length}</span>
           </div>
         </div>
+      </div>
+
+      {/* ── Equity curve ─────────────────────────────────────────── */}
+      <div className="gp-equity-curve">
+        <div className="gp-section-label">EQUITY CURVE</div>
+        <EquityCurveChart
+          snapshots={snapshots}
+          height={mobile ? 100 : 120}
+          startBalance={gameProfile.startBalance}
+          loading={snapshotsLoading}
+        />
       </div>
 
       {/* ── Trade form ────────────────────────────────────────────── */}

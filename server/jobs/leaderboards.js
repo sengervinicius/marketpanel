@@ -17,11 +17,11 @@ const cache = {
 
 // ── Game leaderboard cache ──────────────────────────────────────────────────
 const gameLeaderboards = {
-  global:    { data: [], generatedAt: null },
-  weekly:    { data: [], generatedAt: null, endsAt: null },
-  monthly:   { data: [], generatedAt: null, endsAt: null },
-  quarterly: { data: [], generatedAt: null, endsAt: null },
-  annual:    { data: [], generatedAt: null, endsAt: null },
+  global:    { data: [], generatedAt: null, ready: false },
+  weekly:    { data: [], generatedAt: null, ready: false, endsAt: null },
+  monthly:   { data: [], generatedAt: null, ready: false, endsAt: null },
+  quarterly: { data: [], generatedAt: null, ready: false, endsAt: null },
+  annual:    { data: [], generatedAt: null, ready: false, endsAt: null },
 };
 
 /**
@@ -202,6 +202,7 @@ function computeGameLeaderboards() {
     gameLeaderboards.global = {
       data: [...entries].sort((a, b) => b.totalReturnPct - a.totalReturnPct),
       generatedAt: now,
+      ready: true,
     };
 
     // Weekly
@@ -209,6 +210,7 @@ function computeGameLeaderboards() {
       data: [...entries].sort((a, b) => b.weeklyReturn - a.weeklyReturn),
       generatedAt: now,
       endsAt: nextSundayEnd().toISOString(),
+      ready: true,
     };
 
     // Monthly
@@ -216,6 +218,7 @@ function computeGameLeaderboards() {
       data: [...entries].sort((a, b) => b.monthlyReturn - a.monthlyReturn),
       generatedAt: now,
       endsAt: getMonthEnd().toISOString(),
+      ready: true,
     };
 
     // Quarterly
@@ -223,6 +226,7 @@ function computeGameLeaderboards() {
       data: [...entries].sort((a, b) => b.quarterlyReturn - a.quarterlyReturn),
       generatedAt: now,
       endsAt: getQuarterEnd().toISOString(),
+      ready: true,
     };
 
     // Annual
@@ -230,6 +234,7 @@ function computeGameLeaderboards() {
       data: [...entries].sort((a, b) => b.annualReturn - a.annualReturn),
       generatedAt: now,
       endsAt: getYearEnd().toISOString(),
+      ready: true,
     };
 
     console.log(

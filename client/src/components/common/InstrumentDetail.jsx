@@ -6,6 +6,7 @@ import { apiFetch } from '../../utils/api.js';
 import AlertEditor from './AlertEditor';
 import ShareModal from './ShareModal';
 import PositionEditor from './PositionEditor';
+import TradeModal from './TradeModal';
 import InstrumentOptionsPanel from './InstrumentOptionsPanel';
 import './InstrumentDetail.css';
 import {
@@ -288,6 +289,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
   const [showAlertEditor, setShowAlertEditor] = useState(false);
   const [showPositionEditor, setShowPositionEditor] = useState(false);
   const [showShareModal, setShowShareModal]   = useState(false);
+  const [showGameTrade, setShowGameTrade]     = useState(false);
   const [copyToast, setCopyToast] = useState(false);
 
   // AI Fundamentals state
@@ -1595,6 +1597,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
             <div className="id-hero-actions">
               <button className="id-hero-action-btn" onClick={openPositionEditor}>+ Portfolio</button>
               <button className="id-hero-action-btn" onClick={openAlertCreator}>{String.fromCharCode(128276)} Alert</button>
+              <button className="id-hero-action-btn" onClick={() => setShowGameTrade(true)} style={{ minHeight: 44 }}>Game Trade</button>
               <button className="id-hero-action-btn" onClick={handleShare}>{String.fromCharCode(8599)} Share</button>
             </div>
           </div>
@@ -1915,6 +1918,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
       <div className="id-action-bar">
         <button className="id-action-btn-bar id-action-btn-bar--primary" onClick={openPositionEditor}>+ Portfolio</button>
         <button className="id-action-btn-bar" onClick={openAlertCreator}>{String.fromCharCode(128276)} Alert</button>
+        <button className="id-action-btn-bar" onClick={() => setShowGameTrade(true)} style={{ minHeight: 44 }}>Game Trade</button>
         <button className="id-action-btn-bar" onClick={handleShare}>{String.fromCharCode(8599)} Share</button>
       </div>
 
@@ -1948,6 +1952,15 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
         cardType="ticker"
         cardData={{ symbol: norm, price: livePrice, changePct: dayChgPct, name }}
       />
+
+      {/* Game trade modal */}
+      {showGameTrade && (
+        <TradeModal
+          isOpen={showGameTrade}
+          onClose={() => setShowGameTrade(false)}
+          defaultSymbol={norm}
+        />
+      )}
 
       {/* Link copied toast */}
       {copyToast && (

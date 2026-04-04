@@ -59,6 +59,13 @@
   color: var(--text-primary);
 }
 
+/* ── Equity curve ─────────────────────────────────────────────── */
+.gp-equity-curve {
+  border-bottom: 1px solid var(--border-strong);
+  background: var(--bg-surface);
+  overflow: hidden;
+}
+
 /* ── Trade form ───────────────────────────────────────────────── */
 .gp-trade-form {
   padding: 10px 12px;
@@ -290,4 +297,76 @@
   font-weight: 600;
   font-size: var(--font-sm);
   color: var(--text-primary);
+}
+
+/* ── Mobile layout fixes ─────────────────────────────────────── */
+@media (max-width: 767px) {
+  .gp-summary {
+    padding: 8px 12px;
+  }
+
+  .gp-equity {
+    font-size: 1.25rem;
+  }
+
+  .gp-metrics {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+
+  .gp-equity-curve {
+    width: 100%;
+    max-width: 100%;
+    overflow: hidden;
+  }
+
+  .gp-trade-row {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .gp-trade-input--symbol {
+    flex: 1;
+    max-width: none;
+    min-width: 80px;
+  }
+
+  .gp-trade-input--qty {
+    flex: 0 0 70px;
+    max-width: 70px;
+  }
+
+  .gp-trade-btn {
+    flex: 1;
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  .gp-position-row {
+    min-height: 44px;
+    padding: 8px 12px;
+  }
+
+  .gp-pos-symbol {
+    font-size: 13px;
+  }
+
+  .gp-pos-detail {
+    font-size: 11px;
+    word-break: break-word;
+  }
+
+  .gp-pos-value {
+    font-size: 13px;
+  }
+
+  .gp-positions {
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .gp-trade-row-item {
+    min-height: 44px;
+  }
 }

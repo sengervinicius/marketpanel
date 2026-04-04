@@ -14,6 +14,7 @@ const VIEWS = [
   { key: 'global',  label: 'Global' },
   { key: 'persona', label: 'My Persona' },
   { key: 'weekly',  label: 'Weekly' },
+  { key: 'game',    label: 'Game' },
 ];
 
 const PAGE_SIZE = 50;
@@ -54,6 +55,7 @@ export default function LeaderboardPanel({ mobile = false }) {
   const [shareType, setShareType] = useState('leaderboard');
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(false);
+  const [ready, setReady] = useState(true); // game leaderboard ready flag
 
   const fetchBoard = useCallback(async (v, pageNum = 0, append = false) => {
     setLoading(true);
@@ -63,6 +65,7 @@ export default function LeaderboardPanel({ mobile = false }) {
     let url;
     if (v === 'global') url = '/api/leaderboard/global';
     else if (v === 'persona') url = `/api/leaderboard/persona/${user?.persona?.type || 'value_investor'}`;
+    else if (v === 'game') url = '/api/leaderboard/game/global';
     else url = '/api/leaderboard/weekly';
 
     // Add pagination params
@@ -84,8 +87,9 @@ export default function LeaderboardPanel({ mobile = false }) {
       setUserRank(data.userRank ?? null);
       setTotal(data.total ?? 0);
       setHasMore(newEntries.length >= PAGE_SIZE);
+      setReady(data.ready !== false); // game boards have explicit ready flag
       setMeta({
-        title: v === 'weekly' ? (data.title || 'Weekly Challenge') : v === 'persona' ? 'Persona Leaderboard' : 'Global Leaderboard',
+        title: v === 'game' ? 'Game Leaderboard' : v === 'weekly' ? (data.title || 'Weekly Challenge') : v === 'persona' ? 'Persona Leaderboard' : 'Global Leaderboard',
         endsAt: data.endsAt || null,
         generatedAt: data.generatedAt || null,
       });
@@ -139,15 +143,49 @@ export default function LeaderboardPanel({ mobile = false }) {
       {/* Content */}
       <div className="lb-body">
         {loading && entries.length === 0 ? (
-          <div className="lb-loading">Loading...</div>
+          <div className="lb-loading-state">
+            <div className="lb-spinner" />
+            <span className="lb-loading-text">Computing leaderboard...</span>
+          </div>
+        ) : !ready ? (
+          <div className="lb-loading-state">
+            <div className="lb-spinner" />
+            <span className="lb-loading-text">Leaderboard initialising...</span>
+          </div>
         ) : entries.length === 0 ? (
-          <div className="lb-empty">No entries yet. Start trading to appear here!</div>
+          <div className="lb-empty">{view === 'game' ? 'No game trades yet. Place your first trade to appear here!' : 'No entries yet. Start trading to appear here!'}</div>
         ) : (
           <div className="lb-list">
             {entries.map((e, i) => {
               const rank = i + 1;
               const persona = getPersona(e.personaType);
               const isMe = e.userId === currentUserId;
+
+              // Game view: show return % and MoC
+              if (view === 'game') {
+                const returnPct = (e.totalReturnPct ?? 0) * 100;
+                return (
+                  <div key={e.userId} className={`lb-row ${isMe ? 'lb-row--me' : ''}`}>
+                    <RankBadge rank={rank} />
+                    <UserAvatar
+                      user={{ persona: { type: e.personaType }, username: e.username }}
+                      size="small"
+                    />
+                    <div className="lb-row-info">
+                      <span className="lb-row-name">{e.username}</span>
+                      <span className="lb-row-persona">{persona?.label || '—'}</span>
+                    </div>
+                    <div className="lb-row-metrics">
+                      <span className={`lb-row-return ${returnPct >= 0 ? 'lb-row-return--up' : 'lb-row-return--down'}`}>
+                        {formatPct(returnPct)}
+                      </span>
+                      <span className="lb-row-sharpe">{(e.cashMultiple ?? 1).toFixed(3)}x</span>
+                    </div>
+                  </div>
+                );
+              }
+
+              // Default views
               const mainMetric = view === 'weekly' ? e.stats.weeklyReturn : e.stats.totalReturn;
               return (
                 <div key={e.userId} className={`lb-row ${isMe ? 'lb-row--me' : ''}`}>
