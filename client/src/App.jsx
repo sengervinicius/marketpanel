@@ -2,8 +2,13 @@ import { useState, useEffect, useCallback, useRef, useMemo, Component } from 're
 import { apiFetch } from './utils/api';
 import { useMarketData } from './hooks/useMarketData';
 import { useWebSocket } from './hooks/useWebSocket';
+import { useIsMobile } from './hooks/useIsMobile';
+import { useBootSequence } from './hooks/useBootSequence';
+import { useWebSocketTicks } from './hooks/useWebSocketTicks';
+import { useLayoutManager } from './hooks/useLayoutManager';
 import { useAuth } from './context/AuthContext';
 import { useSettings } from './context/SettingsContext';
+import { OpenDetailProvider } from './context/OpenDetailContext';
 import { PriceProvider } from './context/PriceContext';
 import { FeedStatusProvider } from './context/FeedStatusContext';
 import { PortfolioProvider } from './context/PortfolioContext';
@@ -12,6 +17,7 @@ import { DragProvider } from './context/DragContext';
 import { AlertsProvider } from './context/AlertsContext';
 import { GameProvider } from './context/GameContext';
 import { WatchlistProvider } from './context/WatchlistContext';
+import { PanelProvider } from './context/PanelContext';
 import NotificationPrefs from './components/common/NotificationPrefs';
 import HeaderSearchBar from './components/common/HeaderSearchBar';
 import { SearchPanel } from './components/panels/SearchPanel';
@@ -23,7 +29,7 @@ import MacroPanel from './components/panels/MacroPanel';
 import LeaderboardPanel from './components/panels/LeaderboardPanel';
 import GamePortfolioPanel from './components/panels/GamePortfolioPanel';
 import ReferralPanel from './components/common/ReferralPanel';
-import { DEFAULT_LAYOUT } from './config/panels';
+import ChatPanel from './components/panels/ChatPanel';
 import PortfolioMobile from './components/panels/PortfolioMobile';
 import HomePanelMobile from './components/panels/HomePanelMobile';
 import ChartsPanelMobile from './components/panels/ChartsPanelMobile';
@@ -43,8 +49,6 @@ import {
   ColResizeHandle,
   LayoutMoveOverlay,
   makePanelRenderer,
-  useResizableFlex,
-  useResizableColumns,
 } from './components/app/AppLayoutHelpers';
 import {
   SettingsDrawer,
@@ -105,132 +109,22 @@ class AppErrorBoundary extends Component {
   }
 }
 
-// ── Boot state machine ─────────────────────────────────────────────────────
-const BOOT = {
-  INIT: 'INIT',
-  AUTH_PENDING: 'AUTH_PENDING',
-  AUTH_DONE: 'AUTH_DONE',
-  SETTINGS_PENDING: 'SETTINGS_PENDING',
-  READY: 'READY',
-};
-
-// ── Safe localStorage wrapper ──────────────────────────────────────────────
-const safeGet = (key, fallback = null) => {
-  try {
-    const val = localStorage.getItem(key);
-    return val ? JSON.parse(val) : fallback;
-  } catch {
-    console.warn(`localStorage read failed for key: ${key}`);
-    return fallback;
-  }
-};
-
-
 const LS_TAB          = 'activeTab_m3';
 const LS_CHART_TICKER = 'chartTicker';
-const LS_CHART_GRID   = 'chartGrid_v3';
 
 export default function App() {
   const { data, loading, isRefreshing, lastUpdated, error: feedError, endpointErrors } = useMarketData();
   const { user, subscription, startCheckout, logout, authReady, openBillingPortal, refreshSubscription, restorePurchases, billingPlatform } = useAuth();
   const { settings, loaded: settingsLoaded } = useSettings();
 
-  // ── Boot state machine ───────────────────────────────────────────────────
-  const [bootState, setBootState] = useState(BOOT.INIT);
-
-  // Boot state transitions
-  useEffect(() => {
-    let mounted = true;
-    if (bootState === BOOT.INIT) {
-      setBootState(BOOT.AUTH_PENDING);
-    } else if (bootState === BOOT.AUTH_PENDING && authReady) {
-      setBootState(BOOT.AUTH_DONE);
-    } else if (bootState === BOOT.AUTH_DONE) {
-      if (user) {
-        setBootState(BOOT.SETTINGS_PENDING);
-      } else {
-        setBootState(BOOT.READY);
-      }
-    } else if (bootState === BOOT.SETTINGS_PENDING && settingsLoaded) {
-      if (!mounted) return;
-      setBootState(BOOT.READY);
-    }
-    return () => { mounted = false; };
-  }, [bootState, authReady, user, settingsLoaded]);
-
-  // Emergency boot timeout — force READY after 5 s if boot sequence stalls
-  useEffect(() => {
-    const timeout = setTimeout(() => {
-      setBootState(prev => prev !== BOOT.READY ? BOOT.READY : prev);
-    }, 5000);
-    return () => clearTimeout(timeout);
-  }, []);
+  // ── Boot sequence ────────────────────────────────────────────────────────
+  const { isReady: bootReady } = useBootSequence({ authReady, user, settingsLoaded });
 
   // ── Billing state ────────────────────────────────────────────────────────────
   const [billingState, setBillingState] = useState({ isLoading: false, error: null, showSuccess: false });
 
   // ── Live WebSocket overlay (throttled at 250 ms) ─────────────────────────
-  const [feedStatus, setFeedStatus] = useState({ stocks: 'connecting', forex: 'connecting', crypto: 'connecting' });
-  const liveOverlayRef   = useRef({});
-  const tickBufferRef    = useRef([]);
-  const throttleTimerRef = useRef(null);
-  const [liveTick, setLiveTick] = useState(0);
-  const [batchTicks, setBatchTicks] = useState([]);
-
-  const handleWsMessage = useCallback((msg) => {
-    if (msg.type === 'status') {
-      setFeedStatus(prev => ({ ...prev, [msg.feed]: msg.level }));
-      return;
-    }
-    if (msg.type === 'feedHealth' && Array.isArray(msg.feeds)) {
-      setFeedStatus(prev => {
-        const next = { ...prev };
-        for (const f of msg.feeds) {
-          if (!f.feed) continue;
-          next[f.feed] = {
-            level: f.level || 'connecting',
-            latencyMs: f.latencyMs ?? null,
-            lastTickAt: f.lastTickAt ?? null,
-            reconnects: f.reconnects ?? 0,
-            lastError: f.lastError ?? null,
-          };
-        }
-        return next;
-      });
-      return;
-    }
-    if (msg.type === 'snapshot') {
-      const snap = msg.data;
-      ['stocks', 'forex', 'crypto'].forEach(cat => {
-        if (!snap?.[cat]) return;
-        Object.entries(snap[cat]).forEach(([sym, info]) => {
-          liveOverlayRef.current[sym] = { ...info, _cat: cat };
-        });
-      });
-      setLiveTick(n => n + 1);
-      return;
-    }
-    if (msg.type === 'tick' || msg.type === 'quote') {
-      tickBufferRef.current.push(msg);
-      if (!throttleTimerRef.current) {
-        throttleTimerRef.current = setTimeout(() => {
-          throttleTimerRef.current = null;
-          const ticks = tickBufferRef.current.splice(0);
-          if (ticks.length === 0) return;
-          const normalizedTicks = [];
-          ticks.forEach(t => {
-            if (t.symbol && t.data) {
-              liveOverlayRef.current[t.symbol] = { ...liveOverlayRef.current[t.symbol], ...t.data, _cat: t.category };
-              normalizedTicks.push({ category: t.category, symbol: t.symbol, data: t.data });
-            }
-          });
-          setLiveTick(n => n + 1);
-          if (normalizedTicks.length > 0) setBatchTicks(normalizedTicks);
-        }, 250);
-      }
-    }
-  }, []);
-
+  const { feedStatus, batchTicks, mergedData, handleWsMessage } = useWebSocketTicks(data);
   useWebSocket(handleWsMessage);
 
   // ── Billing success handling ──────────────────────────────────────────────────
@@ -270,29 +164,6 @@ export default function App() {
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, []);
-
-  // Merge REST snapshot with WS live overlay
-  const mergedData = useMemo(() => {
-    if (!data) return data;
-    const overlay = liveOverlayRef.current;
-    if (Object.keys(overlay).length === 0) return data;
-    const merged = { ...data };
-    ['stocks', 'forex', 'crypto'].forEach(cat => {
-      if (!data[cat]) return;
-      const updates = {};
-      Object.entries(overlay).forEach(([sym, info]) => {
-        if (info._cat === cat && data[cat][sym]) {
-          updates[sym] = { ...data[cat][sym], ...info };
-        }
-      });
-      if (Object.keys(updates).length > 0) {
-        merged[cat] = { ...data[cat], ...updates };
-      }
-    });
-    merged.indices = merged.stocks || {};
-    return merged;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data, liveTick]);
 
   const [activeTab, setActiveTab] = useState(() => {
     let saved;
@@ -347,109 +218,30 @@ export default function App() {
     }, 800);
   }, []);
 
-  // Use matchMedia for reliable CSS-aware desktop/mobile detection.
-  // window.innerWidth can report stale values before CSS is applied or when
-  // DevTools is docked, causing desktop Chrome to incorrectly render mobile.
-  // We use BOTH matchMedia AND innerWidth as a cross-check: if either says
-  // desktop (≥1024), we trust it — this prevents false mobile detection.
-  const detectMobile = useCallback(() => {
-    const mqDesktop = typeof window.matchMedia === 'function'
-      ? window.matchMedia('(min-width: 1024px)').matches
-      : false;
-    const widthDesktop = window.innerWidth >= 1024;
-    // If EITHER method says desktop, treat as desktop
-    return !(mqDesktop || widthDesktop);
-  }, []);
-  const [isMobile, setIsMobile] = useState(detectMobile);
-  useEffect(() => {
-    // Sync on mount (layout may have changed since useState initializer)
-    setIsMobile(detectMobile());
-    if (typeof window.matchMedia === 'function') {
-      const mql = window.matchMedia('(min-width: 1024px)');
-      const handler = () => setIsMobile(detectMobile());
-      mql.addEventListener('change', handler);
-      window.addEventListener('resize', handler);
-      return () => {
-        mql.removeEventListener('change', handler);
-        window.removeEventListener('resize', handler);
-      };
-    }
-    const handler = () => setIsMobile(detectMobile());
-    window.addEventListener('resize', handler);
-    return () => window.removeEventListener('resize', handler);
-  }, [detectMobile]);
+  // ── Mobile detection ─────────────────────────────────────────────────────
+  const isMobile = useIsMobile();
 
-  const [chartGridCount, setChartGridCount] = useState(() => {
-    try {
-      const arr = safeGet(LS_CHART_GRID, ['SPY','QQQ']);
-      return Array.isArray(arr) ? Math.max(2, arr.length) : 2;
-    } catch { return 2; }
-  });
-
-  // ── Dynamic layout from settings ───────────────────────────────────────────
-  const { updateLayout } = useSettings();
-  const desktopRows = settings?.layout?.desktopRows || DEFAULT_LAYOUT.desktopRows;
-  const row0 = desktopRows[0] || [];
-  const row1 = desktopRows[1] || [];
-  const row2 = desktopRows[2] || [];
-
-  const [layoutEdit, setLayoutEdit] = useState(false);
-
-  const handleLayoutMove = useCallback((panelId, rowIdx, colIdx, direction) => {
-    const newRows = desktopRows.map(r => [...r]);
-
-    if (direction === 'left' && colIdx > 0) {
-      [newRows[rowIdx][colIdx], newRows[rowIdx][colIdx - 1]] = [newRows[rowIdx][colIdx - 1], newRows[rowIdx][colIdx]];
-    } else if (direction === 'right' && colIdx < newRows[rowIdx].length - 1) {
-      [newRows[rowIdx][colIdx], newRows[rowIdx][colIdx + 1]] = [newRows[rowIdx][colIdx + 1], newRows[rowIdx][colIdx]];
-    } else if (direction === 'up' && rowIdx > 0) {
-      newRows[rowIdx].splice(colIdx, 1);
-      newRows[rowIdx - 1].push(panelId);
-    } else if (direction === 'down' && rowIdx < newRows.length - 1) {
-      newRows[rowIdx].splice(colIdx, 1);
-      newRows[rowIdx + 1].unshift(panelId);
-    } else if (direction === 'down' && rowIdx === newRows.length - 1 && newRows.length < 4) {
-      // Allow adding a 4th row if moving down from the last row
-      newRows[rowIdx].splice(colIdx, 1);
-      newRows.push([panelId]);
-    }
-
-    // Prevent creating empty rows (keep at least 1 panel per non-empty row)
-    const nonEmptyRows = newRows.filter(r => r.length > 0);
-    // If all rows are empty, restore the original layout
-    if (nonEmptyRows.length === 0) {
-      return;
-    }
-
-    // Pad to 3 rows minimum if we have fewer than 3
-    while (nonEmptyRows.length < 3) nonEmptyRows.push([]);
-
-    updateLayout({ desktopRows: nonEmptyRows });
-  }, [desktopRows, updateLayout]);
-
-  const [rowSizes, startRowResize] = useResizableFlex('rowFlexSizes_v2', [2, 1.5, 1.5]);
-  const [colSizes0, startColResize0] = useResizableColumns('colSizes_r0_' + row0.length, Array(Math.max(1, row0.length)).fill(1));
-  const [colSizes1, startColResize1] = useResizableColumns('colSizes_r1_' + row1.length, Array(Math.max(1, row1.length)).fill(1));
-  const [colSizes2, startColResize2] = useResizableColumns('colSizes_r2_' + row2.length, Array(Math.max(1, row2.length)).fill(1));
-  const colSizesPerRow  = [colSizes0,      colSizes1,      colSizes2];
-  const startResizePerRow = [startColResize0, startColResize1, startColResize2];
+  // ── Layout manager ───────────────────────────────────────────────────────
+  const {
+    desktopRows, row0, row1, row2,
+    layoutEdit, setLayoutEdit,
+    handleLayoutMove,
+    rowSizes, startRowResize,
+    colSizesPerRow, startResizePerRow,
+    chartGridCount, setChartGridCount,
+    panelVisible, togglePanel, isPanelVisible,
+  } = useLayoutManager();
 
   const border = '1px solid #1e1e1e';
 
+  // ── Shared panel context value ──────────────────────────────────────────
+  const panelCtx = useMemo(() => ({
+    mergedData, loading, setChartTicker, chartTicker, setChartGridCount,
+  }), [mergedData, loading, setChartTicker, chartTicker, setChartGridCount]);
+
+  // ── Detail ticker state ──────────────────────────────────────────────────
   const [detailTicker, setDetailTicker] = useState(null);
   const [settingsOpen, setSettingsOpen]  = useState(false);
-
-  const [panelVisible, setPanelVisible] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('panelVisible_v1')) || {}; } catch { return {}; }
-  });
-  const togglePanel = useCallback((id) => {
-    setPanelVisible(prev => {
-      const next = { ...prev, [id]: !(prev[id] ?? true) };
-      localStorage.setItem('panelVisible_v1', JSON.stringify(next));
-      return next;
-    });
-  }, []);
-  const isPanelVisible = (id) => panelVisible[id] ?? true;
 
   const goChart = useCallback((t) => {
     const sym = typeof t === 'object' ? (t.symbol || t) : t;
@@ -468,8 +260,8 @@ export default function App() {
   // default settings), and only if the user has not yet completed onboarding.
   // This ensures a logged-in user with onboardingCompleted=true never sees the
   // preset screen again on refresh.
-  const showOnboarding = bootState === BOOT.READY && !!user && settings && !settings.onboardingCompleted;
-  const showTour = bootState === BOOT.READY && !!user && settings && settings.onboardingCompleted && settings.onboarding && !settings.onboarding.completed;
+  const showOnboarding = bootReady && !!user && settings && !settings.onboardingCompleted;
+  const showTour = bootReady && !!user && settings && settings.onboardingCompleted && settings.onboarding && !settings.onboarding.completed;
 
   // ── Subscription gating ──────────────────────────────────────────────────
   // Show paywall if subscription has expired
@@ -502,7 +294,7 @@ export default function App() {
   }, [activeTab, moreView]);
 
   // ── Boot screen ─────────────────────────────────────────────────────────
-  if (bootState !== BOOT.READY) {
+  if (!bootReady) {
     return (
       <div className="boot-screen">
         <img src="/icon-192.png" alt="Senger" className="boot-logo-img" /><div className="boot-logo">SENGER</div>
@@ -515,6 +307,7 @@ export default function App() {
   if (!isMobile) {
     return (
       <AppErrorBoundary>
+      <OpenDetailProvider externalTicker={detailTicker} externalSetTicker={setDetailTicker}>
       <DragProvider>
       <PortfolioProvider>
       <WatchlistProvider>
@@ -523,6 +316,7 @@ export default function App() {
       <FeedStatusProvider status={feedStatus}>
       <MarketProvider restData={mergedData}>
       <PriceProvider marketData={data}>
+      <PanelProvider value={panelCtx}>
       <div className="flex-col" style={{
         height: '100vh',
         background: '#0a0a0a',
@@ -582,7 +376,7 @@ export default function App() {
 
         {/* Search command strip — full width */}
         <div className="app-search-strip">
-          <HeaderSearchBar onOpenDetail={setDetailTicker} />
+          <HeaderSearchBar />
         </div>
 
         {/* Market Screens gallery — collapsible strip */}
@@ -619,7 +413,7 @@ export default function App() {
 
             {/* Dynamic rows from settings.layout.desktopRows */}
             {(() => {
-              const panelProps = { mergedData, loading, setChartTicker, setDetailTicker, chartTicker, setChartGridCount };
+              const panelProps = { mergedData, loading, setChartTicker, chartTicker, setChartGridCount };
               const minHeights = [220, 180, 160];
               return [row0, row1, row2].map((row, rowIdx) => {
                 if (!row || row.length === 0) return null;
@@ -661,9 +455,10 @@ export default function App() {
         )}
 
         {detailTicker && !subscriptionExpired && <PanelErrorBoundary name="InstrumentDetail"><InstrumentDetail ticker={detailTicker} onClose={() => setDetailTicker(null)} onOpenChat={() => setChatOpen(true)} /></PanelErrorBoundary>}
-        <TickerTooltip onOpenDetail={setDetailTicker} />
+        <TickerTooltip />
         <ToastContainer />
       </div>
+      </PanelProvider>
       </PriceProvider>
       </MarketProvider>
       </FeedStatusProvider>
@@ -672,6 +467,7 @@ export default function App() {
       </WatchlistProvider>
       </PortfolioProvider>
       </DragProvider>
+      </OpenDetailProvider>
       </AppErrorBoundary>
     );
   }
@@ -679,6 +475,7 @@ export default function App() {
   // ── MOBILE ───────────────────────────────────────────────────────────────
   return (
     <AppErrorBoundary>
+    <OpenDetailProvider externalTicker={detailTicker} externalSetTicker={setDetailTicker}>
     <DragProvider>
     <PortfolioProvider>
     <WatchlistProvider>
@@ -688,6 +485,7 @@ export default function App() {
     <MarketProvider restData={mergedData}>
     <MarketTickBridge batchTicks={batchTicks} />
     <PriceProvider marketData={data}>
+    <PanelProvider value={panelCtx}>
     <div className="m-app-shell">
 
       {/* Onboarding overlay */}
@@ -766,7 +564,6 @@ export default function App() {
             {activeTab === 'home' && (
               <PanelErrorBoundary name="Home">
                 <HomePanelMobile
-                  onOpenDetail={goDetail}
                   onSearchClick={() => setActiveTabPersist('search')}
                 />
               </PanelErrorBoundary>
@@ -774,20 +571,19 @@ export default function App() {
 
             {activeTab === 'charts' && (
               <PanelErrorBoundary name="Charts">
-                <ChartsPanelMobile onOpenDetail={goDetail} />
+                <ChartsPanelMobile />
               </PanelErrorBoundary>
             )}
 
             {activeTab === 'search' && (
               <PanelErrorBoundary name="Search">
-                <SearchPanel onTickerSelect={goDetail} onOpenDetail={goDetail} />
+                <SearchPanel onTickerSelect={goDetail} />
               </PanelErrorBoundary>
             )}
 
             {activeTab === 'watchlist' && (
               <PanelErrorBoundary name="Portfolio">
                 <PortfolioMobile
-                  onOpenDetail={goDetail}
                   onManage={() => setActiveTabPersist('search')}
                 />
               </PanelErrorBoundary>
@@ -795,7 +591,7 @@ export default function App() {
 
             {activeTab === 'alerts' && (
               <PanelErrorBoundary name="Alerts">
-                <AlertCenterPanel onOpenDetail={goDetail} />
+                <AlertCenterPanel />
               </PanelErrorBoundary>
             )}
 
@@ -819,13 +615,13 @@ export default function App() {
 
             {activeTab === 'more' && moreView === 'etf' && (
               <PanelErrorBoundary name="ETF">
-                <ETFPanel onOpenDetail={goDetail} />
+                <ETFPanel />
               </PanelErrorBoundary>
             )}
 
             {activeTab === 'more' && moreView === 'screener' && (
               <PanelErrorBoundary name="Screener">
-                <ScreenerPanel onOpenDetail={goDetail} />
+                <ScreenerPanel />
               </PanelErrorBoundary>
             )}
 
@@ -843,7 +639,7 @@ export default function App() {
 
             {activeTab === 'more' && moreView === 'game' && (
               <PanelErrorBoundary name="Game">
-                <GamePortfolioPanel mobile onSelectSymbol={(sym) => { setDetailTicker(sym); goDetail(); }} />
+                <GamePortfolioPanel mobile />
               </PanelErrorBoundary>
             )}
 
@@ -922,9 +718,10 @@ export default function App() {
         </div>
       )}
 
-      <TickerTooltip onOpenDetail={goDetail} />
+      <TickerTooltip />
       <ToastContainer />
     </div>
+    </PanelProvider>
     </PriceProvider>
     </MarketProvider>
     </FeedStatusProvider>
@@ -933,7 +730,7 @@ export default function App() {
     </WatchlistProvider>
     </PortfolioProvider>
     </DragProvider>
+    </OpenDetailProvider>
     </AppErrorBoundary>
   );
 }
-

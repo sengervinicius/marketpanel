@@ -8,6 +8,7 @@
 import { memo, useState, useMemo, useCallback } from 'react';
 import AlertEditor from '../common/AlertEditor';
 import { useAlerts } from '../../context/AlertsContext';
+import { useOpenDetail } from '../../context/OpenDetailContext';
 import './AlertsMobile.css';
 
 const ALERT_TYPE_LABELS = {
@@ -45,11 +46,12 @@ function timeAgo(iso) {
   return `${Math.floor(diff / 86400_000)}d ago`;
 }
 
-function AlertsMobile({ onOpenDetail }) {
+function AlertsMobile() {
   const { alerts, updateAlert, dismissAlert } = useAlerts();
   const [filter, setFilter] = useState('all'); // 'all' | 'active' | 'triggered'
   const [editorAlert, setEditorAlert] = useState(null);
   const [showNew, setShowNew] = useState(false);
+  const openDetail = useOpenDetail();
 
   const filtered = useMemo(() => {
     if (filter === 'active') return alerts.filter(a => a.active);
@@ -140,7 +142,7 @@ function AlertsMobile({ onOpenDetail }) {
                 <div
                   key={alert.id}
                   className={`m-row am-alert-row ${!alert.active && !isTriggered ? 'am-alert-row--inactive' : ''}`}
-                  onClick={() => onOpenDetail?.(alert.symbol)}
+                  onClick={() => openDetail(alert.symbol)}
                 >
                   {/* Symbol + type + condition */}
                   <div className="am-alert-content">

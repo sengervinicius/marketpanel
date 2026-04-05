@@ -6,12 +6,12 @@
  * Props:
  *   - screen: config object from screenRegistry.js
  *   - onTickerClick: (symbol) => void — navigate to chart
- *   - onOpenDetail: (symbol) => void — open instrument detail
  *   - children: optional panel content to render in the content area
  */
 
 import { useState, useCallback, memo } from 'react';
 import { useTickerPrice } from '../../context/PriceContext';
+import { useOpenDetail } from '../../context/OpenDetailContext';
 import { apiFetch } from '../../utils/api';
 import './SectorScreen.css';
 
@@ -43,7 +43,8 @@ const TickerChip = memo(function TickerChip({ symbol, onClick }) {
 });
 
 /* ── Main component ───────────────────────────────────────────────────────── */
-function SectorScreenBase({ screen, onTickerClick, onOpenDetail, children }) {
+function SectorScreenBase({ screen, onTickerClick, children }) {
+  const openDetail = useOpenDetail();
   const [aiInsight, setAiInsight] = useState(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState(null);
@@ -127,7 +128,7 @@ function SectorScreenBase({ screen, onTickerClick, onOpenDetail, children }) {
           <div className="ss-section-label">EQUITIES & ETFS</div>
           <div className="ss-ticker-strip">
             {allTickers.map(sym => (
-              <TickerChip key={sym} symbol={sym} onClick={onOpenDetail || onTickerClick} />
+              <TickerChip key={sym} symbol={sym} onClick={openDetail || onTickerClick} />
             ))}
           </div>
         </>
@@ -139,7 +140,7 @@ function SectorScreenBase({ screen, onTickerClick, onOpenDetail, children }) {
           <div className="ss-section-label">FX RATES</div>
           <div className="ss-ticker-strip">
             {fxTickers.map(sym => (
-              <TickerChip key={sym} symbol={sym} onClick={onOpenDetail || onTickerClick} />
+              <TickerChip key={sym} symbol={sym} onClick={openDetail || onTickerClick} />
             ))}
           </div>
         </>
@@ -151,7 +152,7 @@ function SectorScreenBase({ screen, onTickerClick, onOpenDetail, children }) {
           <div className="ss-section-label">CRYPTO</div>
           <div className="ss-ticker-strip">
             {cryptoTickers.map(sym => (
-              <TickerChip key={sym} symbol={sym} onClick={onOpenDetail || onTickerClick} />
+              <TickerChip key={sym} symbol={sym} onClick={openDetail || onTickerClick} />
             ))}
           </div>
         </>
@@ -163,7 +164,7 @@ function SectorScreenBase({ screen, onTickerClick, onOpenDetail, children }) {
           <div className="ss-section-label">FUTURES</div>
           <div className="ss-etf-strip">
             {screen.futures.map(sym => (
-              <div key={sym} className="ss-etf-chip" onClick={() => (onOpenDetail || onTickerClick)?.(sym)}>
+              <div key={sym} className="ss-etf-chip" onClick={() => (openDetail || onTickerClick)?.(sym)}>
                 {sym.replace('=F', '')}
               </div>
             ))}

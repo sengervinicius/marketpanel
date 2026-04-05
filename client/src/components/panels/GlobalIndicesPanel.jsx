@@ -1,5 +1,6 @@
 import { useState, useRef, useMemo, memo } from 'react';
 import { useSettings } from '../../context/SettingsContext';
+import { useOpenDetail } from '../../context/OpenDetailContext';
 import PanelConfigModal from '../common/PanelConfigModal';
 import EditablePanelHeader from '../common/EditablePanelHeader';
 import PanelShell from '../common/PanelShell';
@@ -37,7 +38,8 @@ const SORT_COLS = [
   { key: 'chg',    label: 'CHG%', align: 'right' },
 ];
 
-function GlobalIndicesPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
+function GlobalIndicesPanel({ data = {}, loading, onTickerClick }) {
+  const openDetail = useOpenDetail();
   const ptRef = useRef(null);
   const { settings, updatePanelConfig } = useSettings();
 
@@ -166,8 +168,8 @@ function GlobalIndicesPanel({ data = {}, loading, onTickerClick, onOpenDetail })
                       draggable
                       dragData={{ symbol: ticker, name: NAMES[ticker] || ticker, type: 'ETF' }}
                       onClick={() => onTickerClick?.(ticker)}
-                      onDoubleClick={() => onOpenDetail?.(ticker)}
-                      onTouchHold={() => onOpenDetail?.(ticker)}
+                      onDoubleClick={() => openDetail(ticker)}
+                      onTouchHold={() => openDetail(ticker)}
                       touchRef={ptRef}
                       onContextMenu={e => showInfo(e, ticker, NAMES[ticker] || ticker, 'ETF')}
                       dataAttrs={{

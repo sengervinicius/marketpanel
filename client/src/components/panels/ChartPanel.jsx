@@ -4,6 +4,7 @@
 // Phase 15: indicator overlays + AI chart insight per MiniChart
 import { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
 import { useTickerPrice } from '../../context/PriceContext';
+import { useOpenDetail } from '../../context/OpenDetailContext';
 import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip, ReferenceLine, Line } from 'recharts';
 import { apiFetch } from '../../utils/api';
 import { computeIndicators, buildChartInsightPayload, getLatestIndicatorSnapshot, IND_COLORS, INDICATOR_LIST } from '../../utils/chartIndicators';
@@ -112,7 +113,8 @@ function AiInsightPopover({ insight, loading, error, onClose }) {
   );
 }
 
-function MiniChart({ ticker, index, onRemove, onReplace, onSwap, onOpenDetail }) {
+function MiniChart({ ticker, index, onRemove, onReplace, onSwap }) {
+  const openDetail = useOpenDetail();
   const shared = useTickerPrice(ticker);
   const [rawBars, setRawBars] = useState([]);
   const [data,    setData]    = useState([]);
@@ -339,7 +341,7 @@ function MiniChart({ ticker, index, onRemove, onReplace, onSwap, onOpenDetail })
     <div draggable
       data-ticker={ticker}
       data-ticker-label={displayTicker(ticker)}
-      onDoubleClick={() => onOpenDetail?.(ticker)}
+      onDoubleClick={() => openDetail(ticker)}
       data-ticker-type={assetType(ticker)}
       className={cellClass}
       onDragStart={e => { setIsDragging(true); e.dataTransfer.setData('application/x-chart-index', String(index)); e.dataTransfer.effectAllowed = 'move'; }}
@@ -501,7 +503,7 @@ function EmptySlot({ index, onAdd, onSwap }) {
   );
 }
 
-function ChartPanel({ ticker: externalTicker, onGridChange, mobile = false, onOpenDetail }) {
+function ChartPanel({ ticker: externalTicker, onGridChange, mobile = false }) {
   const [tickers, setTickers] = useState(() => {
     try {
       const urlParam = mobile ? null : new URLSearchParams(window.location.search).get('c');
@@ -640,7 +642,7 @@ function ChartPanel({ ticker: externalTicker, onGridChange, mobile = false, onOp
         </div>
         <div className="cp-grid cp-grid--mobile">
           {tickers.map((t, i) => (
-            <MiniChart key={t} ticker={t} index={i} onRemove={removeTicker} onReplace={replaceTicker} onSwap={swapTickers} onOpenDetail={onOpenDetail} />
+            <MiniChart key={t} ticker={t} index={i} onRemove={removeTicker} onReplace={replaceTicker} onSwap={swapTickers} />
           ))}
           {tickers.length < MAX && <EmptySlot index={tickers.length} onAdd={addTicker} onSwap={swapTickers} />}
         </div>
@@ -675,7 +677,7 @@ function ChartPanel({ ticker: externalTicker, onGridChange, mobile = false, onOp
         {Array.from({ length: MAX }, (_, i) => {
           const t = tickers[i];
           return t
-            ? <MiniChart key={t} ticker={t} index={i} onRemove={removeTicker} onReplace={replaceTicker} onSwap={swapTickers} onOpenDetail={onOpenDetail} />
+            ? <MiniChart key={t} ticker={t} index={i} onRemove={removeTicker} onReplace={replaceTicker} onSwap={swapTickers} />
             : <EmptySlot key={`empty-${i}`} index={i} onAdd={addTicker} onSwap={swapTickers} />;
         })}
       </div>

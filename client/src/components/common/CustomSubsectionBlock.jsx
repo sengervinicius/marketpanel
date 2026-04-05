@@ -5,6 +5,7 @@
  * Used by StockPanel, ForexPanel, CommoditiesPanel.
  */
 import { useState, useRef, useEffect, memo } from 'react';
+import { useOpenDetail } from '../../context/OpenDetailContext';
 import useMergedTickerQuote from './useMergedTickerQuote';
 import './CustomSubsectionBlock.css';
 
@@ -16,7 +17,8 @@ const fmtPct = (n) => n == null ? '—' : (n >= 0 ? '+' : '') + n.toFixed(2) + '
  * parent snapshot data doesn't contain this symbol's price.
  * Phase 8: now uses shared useMergedTickerQuote hook.
  */
-function TickerRow({ sym, data, color, gridCols, subsection, onTickerClick, onOpenDetail, onRemoveTicker, onDragStart, flash }) {
+function TickerRow({ sym, data, color, gridCols, subsection, onTickerClick, onRemoveTicker, onDragStart, flash }) {
+  const openDetail = useOpenDetail();
   // Look up snapshot: try raw symbol first, then strip C:/X: prefix (batch data
   // uses unprefixed keys like 'EURUSD' while drag symbols use 'C:EURUSD').
   const rawKey = sym.startsWith('C:') ? sym.slice(2)
@@ -40,7 +42,7 @@ function TickerRow({ sym, data, color, gridCols, subsection, onTickerClick, onOp
         onDragStart?.(e, sym);
       }}
       onClick={() => onTickerClick?.(sym)}
-      onDoubleClick={() => onOpenDetail?.(sym)}
+      onDoubleClick={() => openDetail?.(sym)}
       className={`csb-row${flash ? ' price-row-flash' : ''}`}
       style={{ gridTemplateColumns: gridCols }}
     >
@@ -71,7 +73,6 @@ function CustomSubsectionBlock({
   data = {},        // market data object
   gridCols = '60px 1fr 68px 60px',
   onTickerClick,
-  onOpenDetail,
   onAddTicker,      // (key, symbol) => void
   onRemoveTicker,   // (key, symbol) => void
   onDragStart,      // (e, symbol) => void (for drag from this section)
@@ -161,7 +162,6 @@ function CustomSubsectionBlock({
           gridCols={gridCols}
           subsection={subsection}
           onTickerClick={onTickerClick}
-          onOpenDetail={onOpenDetail}
           onRemoveTicker={onRemoveTicker}
           onDragStart={onDragStart}
           flash={flashSymbol === sym}

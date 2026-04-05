@@ -12,6 +12,7 @@ import PanelShell from '../common/PanelShell';
 import AlertEditor from '../common/AlertEditor';
 import EmptyState from '../common/EmptyState';
 import { useAlerts } from '../../context/AlertsContext';
+import { useOpenDetail } from '../../context/OpenDetailContext';
 import Badge from '../ui/Badge';
 import './AlertsPanel.css';
 
@@ -50,14 +51,15 @@ function timeAgo(iso) {
 
 const COLS = '72px 56px 1fr 56px 24px';
 
-const AlertRow = memo(function AlertRow({ alert, onEdit, onOpenDetail, onToggle, onDismiss }) {
+const AlertRow = memo(function AlertRow({ alert, onEdit, onToggle, onDismiss }) {
+  const openDetail = useOpenDetail();
   const isTriggered = !!alert.triggeredAt;
   const typeLabel = ALERT_TYPE_LABELS[alert.type] || alert.type;
 
   return (
     <div
       className={`ap-row ${!alert.active && !isTriggered ? 'ap-row--inactive' : ''}`}
-      onClick={() => onOpenDetail?.(alert.symbol)}
+      onClick={() => openDetail(alert.symbol)}
       onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--bg-hover)'}
       onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
     >
@@ -117,7 +119,8 @@ const AlertRow = memo(function AlertRow({ alert, onEdit, onOpenDetail, onToggle,
   );
 });
 
-function AlertsPanel({ onOpenDetail }) {
+function AlertsPanel() {
+  const openDetail = useOpenDetail();
   const { alerts, updateAlert, dismissAlert } = useAlerts();
   const [editorAlert, setEditorAlert] = useState(null); // null or alert obj to edit
   const [showNew, setShowNew] = useState(false);
@@ -178,7 +181,6 @@ function AlertsPanel({ onOpenDetail }) {
               key={a.id}
               alert={a}
               onEdit={handleEdit}
-              onOpenDetail={onOpenDetail}
               onToggle={handleToggle}
               onDismiss={handleDismiss}
             />

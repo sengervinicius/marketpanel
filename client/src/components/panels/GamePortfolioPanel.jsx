@@ -10,6 +10,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { useGame } from '../../context/GameContext';
+import { useOpenDetail } from '../../context/OpenDetailContext';
 import { apiJSON } from '../../utils/api';
 import EquityCurveChart from '../EquityCurveChart';
 import './GamePortfolioPanel.css';
@@ -55,7 +56,8 @@ function fmtDate(iso) {
 
 // ── Component ───────────────────────────────────────────────────────────────
 
-export default function GamePortfolioPanel({ onSelectSymbol, mobile = false }) {
+export default function GamePortfolioPanel({ mobile = false }) {
+  const openDetail = useOpenDetail();
   const { gameProfile, executeTrade, tradeLoading, tradeError, refreshGame } = useGame() || {};
 
   const [tab, setTab] = useState('positions');   // positions | trades
@@ -238,7 +240,7 @@ export default function GamePortfolioPanel({ onSelectSymbol, mobile = false }) {
               <div
                 key={pos.symbol}
                 className="gp-position-row"
-                onClick={() => onSelectSymbol?.(pos.symbol)}
+                onClick={() => openDetail(pos.symbol)}
               >
                 <div className="gp-pos-left">
                   <span className="gp-pos-symbol">{pos.symbol}</span>

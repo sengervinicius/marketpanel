@@ -15,6 +15,7 @@ import {
 } from 'recharts';
 import { apiFetch } from '../../utils/api';
 import { useTickerPrice } from '../../context/PriceContext';
+import { useOpenDetail } from '../../context/OpenDetailContext';
 import MobileChartContainer from '../common/MobileChartContainer';
 import {
   computeIndicators, buildChartInsightPayload,
@@ -510,12 +511,13 @@ const TickerPill = memo(function TickerPill({ symbol, isActive, onClick, pillRef
 });
 
 /* ── Main panel ───────────────────────────────────────────────────────────── */
-function ChartsPanelMobile({ onOpenDetail }) {
+function ChartsPanelMobile() {
   const [chartSymbols, setChartSymbols] = useState(['SPY', 'QQQ']);
   const [activeSymbol, setActiveSymbol] = useState('SPY');
   const syncTimerRef = useRef(null);
   const pillRefs = useRef({});
   const stripRef = useRef(null);
+  const openDetail = useOpenDetail();
 
   useEffect(() => {
     const fetchGrid = async () => {
@@ -570,9 +572,9 @@ function ChartsPanelMobile({ onOpenDetail }) {
             pillRef={el => { pillRefs.current[sym] = el; }}
           />
         ))}
-        {onOpenDetail && currentSymbol && (
+        {currentSymbol && (
           <button
-            onClick={() => onOpenDetail(currentSymbol)}
+            onClick={() => openDetail(currentSymbol)}
             style={{
               padding: '6px 10px', fontSize: 10, fontFamily: 'inherit',
               background: 'transparent', color: 'var(--accent, #ff6600)',

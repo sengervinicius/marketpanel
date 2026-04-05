@@ -1,18 +1,21 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { apiFetch } from '../../utils/api';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { useInstrumentSearch } from '../../hooks/useInstrumentSearch';
+import { useOpenDetail } from '../../context/OpenDetailContext';
+import { resolveAlias } from '../../config/instrumentAliases';
 import './HeaderSearchBar.css';
 
-export default function HeaderSearchBar({ onSelectTicker, onOpenDetail }) {
+export default function HeaderSearchBar({ onSelectTicker }) {
+
   const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState('');
-  const [results, setResults] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [selectedIdx, setSelectedIdx] = useState(0);
-  const [aiResults, setAiResults] = useState([]);
-  const [aiLoading, setAiLoading] = useState(false);
-  const [aiError, setAiError] = useState(false);
   const inputRef = useRef(null);
   const containerRef = useRef(null);
+
+  // Use the search hook
+  const {
+    query, setQuery, results, groupedByCompany, allItems,
+    loading, aiResults, aiLoading, aiError,
+    selectedIdx, setSelectedIdx, clearSearch,
+  } = useInstrumentSearch({ debounceMs: 200, registryLimit: 20 });
 
   // Open on "/" or Cmd+K
   useEffect(() => {
@@ -34,113 +37,34 @@ export default function HeaderSearchBar({ onSelectTicker, onOpenDetail }) {
     const handler = (e) => {
       if (containerRef.current && !containerRef.current.contains(e.target)) {
         setOpen(false);
-        setQuery('');
-        setResults([]);
-        setAiResults([]);
+        clearSearch();
       }
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
-  }, [open]);
-
-  // Search debounced — registry + AI in parallel
-  useEffect(() => {
-    if (!query.trim()) { setResults([]); setAiResults([]); setAiLoading(false); setAiError(false); return; }
-    setLoading(true);
-    const timer = setTimeout(() => {
-      // Registry search
-      apiFetch(`/api/instruments/search?q=${encodeURIComponent(query)}&limit=20`)
-        .then(r => r.json())
-        .then(d => { setResults(d.results || []); setLoading(false); setSelectedIdx(0); })
-        .catch(() => setLoading(false));
-
-      // AI semantic search in parallel (min 3 chars)
-      if (query.trim().length >= 3) {
-        setAiLoading(true);
-        setAiError(false);
-        apiFetch('/api/instruments/semantic-search', {
-          method: 'POST',
-          body: JSON.stringify({ query: query.trim() }),
-        })
-          .then(r => { if (!r.ok) throw new Error('AI error'); return r.json(); })
-          .then(d => { setAiResults(d.results || []); setAiLoading(false); })
-          .catch(() => { setAiResults([]); setAiLoading(false); setAiError(true); });
-      } else {
-        setAiResults([]);
-        setAiLoading(false);
-        setAiError(false);
-      }
-    }, 200);
-    return () => clearTimeout(timer);
-  }, [query]);
-
-  // Group results by companyId (multi-listing support)
-  const groupedByCompany = useMemo(() => {
-    const companyGroups = {};
-    const ungrouped = [];
-    for (const r of results) {
-      if (r.companyId) {
-        if (!companyGroups[r.companyId]) companyGroups[r.companyId] = [];
-        companyGroups[r.companyId].push(r);
-      } else {
-        ungrouped.push(r);
-      }
-    }
-    // Build display list: primary + alternates
-    const displayItems = [];
-    for (const [cid, items] of Object.entries(companyGroups)) {
-      displayItems.push({ ...items[0], _alternates: items.slice(1) });
-    }
-    displayItems.push(...ungrouped);
-    // Maintain original order by tracking positions
-    const posMap = {};
-    results.forEach((r, idx) => {
-      if (!posMap[r.companyId || r.symbolKey]) posMap[r.companyId || r.symbolKey] = idx;
-    });
-    displayItems.sort((a, b) => {
-      const aPos = posMap[a.companyId || a.symbolKey] ?? results.length;
-      const bPos = posMap[b.companyId || b.symbolKey] ?? results.length;
-      return aPos - bPos;
-    });
-    return displayItems;
-  }, [results]);
-
-  // Build combined flat list for keyboard nav: registry results + AI results
-  const allItems = useMemo(() => {
-    const items = groupedByCompany.map(r => ({ ...r, _source: 'registry' }));
-    // Add AI results that aren't already in registry results
-    const registryKeys = new Set(groupedByCompany.map(r => r.symbolKey));
-    for (const ai of aiResults) {
-      if (!registryKeys.has(ai.symbol)) {
-        items.push({ symbolKey: ai.symbol, name: ai.name, assetClass: ai.assetClass, aiReason: ai.aiReason, _source: 'ai' });
-      }
-    }
-    return items;
-  }, [groupedByCompany, aiResults]);
+  }, [open, clearSearch]);
 
   // Keyboard nav
   const handleKeyDown = useCallback((e) => {
-    if (e.key === 'Escape') { setOpen(false); setQuery(''); setResults([]); setAiResults([]); }
+    if (e.key === 'Escape') { setOpen(false); clearSearch(); }
     else if (e.key === 'ArrowDown') { e.preventDefault(); setSelectedIdx(i => Math.min(i + 1, allItems.length - 1)); }
     else if (e.key === 'ArrowUp') { e.preventDefault(); setSelectedIdx(i => Math.max(i - 1, 0)); }
     else if (e.key === 'Enter' && allItems[selectedIdx]) {
       e.preventDefault();
       const item = allItems[selectedIdx];
-      onOpenDetail?.(item.symbolKey);
-      setOpen(false);
-      setQuery('');
-      setResults([]);
-      setAiResults([]);
+      selectItem(item);
     }
-  }, [allItems, selectedIdx, onOpenDetail]);
+  }, [allItems, selectedIdx, clearSearch]);
 
-  const selectItem = (item) => {
-    onOpenDetail?.(item.symbolKey || item.symbol);
-    setOpen(false);
-    setQuery('');
-    setResults([]);
-    setAiResults([]);
-  };
+  const openDetail = useOpenDetail();
+  const selectItem = useCallback((item) => {
+    const sym = resolveAlias(item.symbolKey || item.symbol);
+    if (sym) {
+      openDetail(sym);
+      clearSearch();
+      setOpen(false);
+    }
+  }, [openDetail, clearSearch]);
 
   // Asset class badge
   const typeBadge = (item) => {
@@ -196,7 +120,7 @@ export default function HeaderSearchBar({ onSelectTicker, onOpenDetail }) {
           value={query}
           onChange={e => setQuery(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Search any ticker, company, theme, or ask AI..."
+          placeholder="Search stocks, ETFs, FX, crypto, commodities... (⌘K)"
           autoFocus
         />
         {query && <button className="hsb-clear" onClick={() => { setQuery(''); inputRef.current?.focus(); }}>&times;</button>}

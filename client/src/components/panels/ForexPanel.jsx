@@ -2,6 +2,7 @@
 // Features: feed-status badge, collapse, movers filter, custom subsections
 import { useRef, useState, useMemo, useCallback, memo } from 'react';
 import { useSettings } from '../../context/SettingsContext';
+import { useOpenDetail } from '../../context/OpenDetailContext';
 import PanelConfigModal from '../common/PanelConfigModal';
 import EditablePanelHeader from '../common/EditablePanelHeader';
 import CustomSubsectionBlock from '../common/CustomSubsectionBlock';
@@ -41,7 +42,8 @@ function sortPairs(pairs, getRate, getChg, sortKey, sortDir) {
   });
 }
 
-function ForexPanel({ data = {}, cryptoData = {}, loading, onTickerClick, onOpenDetail }) {
+function ForexPanel({ data = {}, cryptoData = {}, loading, onTickerClick }) {
+  const openDetail = useOpenDetail();
   const ptRef = useRef(null);
   const { settings, updatePanelConfig } = useSettings();
 
@@ -248,8 +250,8 @@ function ForexPanel({ data = {}, cryptoData = {}, loading, onTickerClick, onOpen
                   draggable
                   dragData={{ symbol: chartSym, name: pair.label, type: 'CURRENCY' }}
                   onClick={() => onTickerClick?.(chartSym)}
-                  onDoubleClick={() => onOpenDetail?.(chartSym)}
-                  onTouchHold={() => onOpenDetail?.(chartSym)}
+                  onDoubleClick={() => openDetail(chartSym)}
+                  onTouchHold={() => openDetail(chartSym)}
                   touchRef={ptRef}
                   onContextMenu={e => showInfo(e, pair.symbol, pair.label, 'FX')}
                   dataAttrs={{
@@ -286,8 +288,8 @@ function ForexPanel({ data = {}, cryptoData = {}, loading, onTickerClick, onOpen
                   draggable
                   dragData={{ symbol: chartSym, name: c.label, type: 'CRYPTO' }}
                   onClick={() => onTickerClick?.(chartSym)}
-                  onDoubleClick={() => onOpenDetail?.(chartSym)}
-                  onTouchHold={() => onOpenDetail?.(chartSym)}
+                  onDoubleClick={() => openDetail(chartSym)}
+                  onTouchHold={() => openDetail(chartSym)}
                   touchRef={ptRef}
                   onContextMenu={e => showInfo(e, c.symbol, c.label, 'CRYPTO')}
                   dataAttrs={{
@@ -314,7 +316,6 @@ function ForexPanel({ data = {}, cryptoData = {}, loading, onTickerClick, onOpen
                   data={mergedData}
                   gridCols={COLS}
                   onTickerClick={onTickerClick}
-                  onOpenDetail={onOpenDetail}
                   onAddTicker={handleAddTickerToSubsection}
                   onRemoveTicker={handleRemoveTickerFromSubsection}
                   flashSymbol={flashSym}

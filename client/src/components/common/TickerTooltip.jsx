@@ -5,6 +5,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useWatchlist } from '../../context/PortfolioContext';
+import { useOpenDetail } from '../../context/OpenDetailContext';
 import './TickerTooltip.css';
 
 // ── Security descriptions ─────────────────────────────────────────────────────
@@ -136,7 +137,8 @@ function accentFor(type) {
 
 
 // ── Context Menu ───────────────────────────────────────────────────────────────
-function ContextMenu({ symbol, label, type, x, y, onClose, onOpenDetail }) {
+function ContextMenu({ symbol, label, type, x, y, onClose }) {
+  const openDetail = useOpenDetail();
   const { isWatching, toggle } = useWatchlist();
   const watching = isWatching(symbol);
   const accent   = accentFor(type);
@@ -179,7 +181,7 @@ function ContextMenu({ symbol, label, type, x, y, onClose, onOpenDetail }) {
       </div>
       <div
         className="ctx-menu-item"
-        onClick={() => { onOpenDetail?.(symbol); onClose(); }}
+        onClick={() => { openDetail?.(symbol); onClose(); }}
         style={{ color: 'var(--text-primary)' }}
       >
         ↗ Open Chart
@@ -190,7 +192,7 @@ function ContextMenu({ symbol, label, type, x, y, onClose, onOpenDetail }) {
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
-export function TickerTooltip({ onOpenDetail }) {
+export function TickerTooltip() {
   const [tooltip,  setTooltip]  = useState(null); // hover info popup
   const [ctxMenu,  setCtxMenu]  = useState(null); // right-click context menu
   const activeElRef = useRef(null);
@@ -349,7 +351,6 @@ export function TickerTooltip({ onOpenDetail }) {
         <ContextMenu
           {...ctxMenu}
           onClose={() => setCtxMenu(null)}
-          onOpenDetail={onOpenDetail}
         />
       )}
     </>

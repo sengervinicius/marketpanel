@@ -2,6 +2,7 @@
 // Features: feed-status badge, collapse, editable header, search, drag-drop, custom subsections
 import { useRef, useState, useMemo, useCallback, memo } from 'react';
 import { useSettings } from '../../context/SettingsContext';
+import { useOpenDetail } from '../../context/OpenDetailContext';
 import PanelConfigModal from '../common/PanelConfigModal';
 import EditablePanelHeader from '../common/EditablePanelHeader';
 import CustomSubsectionBlock from '../common/CustomSubsectionBlock';
@@ -35,7 +36,8 @@ const showInfo = (e, symbol, label, type) => {
   }));
 };
 
-function CommoditiesPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
+function CommoditiesPanel({ data = {}, loading, onTickerClick }) {
+  const openDetail = useOpenDetail();
   const ptRef = useRef(null);
   const { settings, updatePanelConfig } = useSettings();
 
@@ -243,8 +245,8 @@ function CommoditiesPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
                         draggable
                         dragData={{ symbol: c.symbol, name: c.label, type: 'ETF' }}
                         onClick={() => onTickerClick?.(c.symbol)}
-                        onDoubleClick={() => onOpenDetail?.(c.symbol)}
-                        onTouchHold={() => onOpenDetail?.(c.symbol)}
+                        onDoubleClick={() => openDetail(c.symbol)}
+                        onTouchHold={() => openDetail(c.symbol)}
                         touchRef={ptRef}
                         onContextMenu={e => showInfo(e, c.symbol, c.label, 'COMMODITY')}
                         dataAttrs={{
@@ -269,7 +271,6 @@ function CommoditiesPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
                   data={data}
                   gridCols={COLS}
                   onTickerClick={onTickerClick}
-                  onOpenDetail={onOpenDetail}
                   onAddTicker={handleAddTickerToSubsection}
                   onRemoveTicker={handleRemoveTickerFromSubsection}
                   flashSymbol={flashSym}

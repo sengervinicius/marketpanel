@@ -5,6 +5,7 @@
 import { useRef, useState, useMemo, useCallback, memo, useEffect } from 'react';
 import useMergedTickerQuote from '../common/useMergedTickerQuote';
 import { useSettings } from '../../context/SettingsContext';
+import { useOpenDetail } from '../../context/OpenDetailContext';
 import PanelConfigModal from '../common/PanelConfigModal';
 import EditablePanelHeader from '../common/EditablePanelHeader';
 import CustomSubsectionBlock from '../common/CustomSubsectionBlock';
@@ -61,7 +62,8 @@ function heatColor(pct) {
 
 // Phase 8: Heatmap cell that merges snapshot with PriceContext
 // Fix 4: Shows shimmer when pct is null
-function HeatmapCell({ s, data, onTickerClick, onOpenDetail }) {
+function HeatmapCell({ s, data, onTickerClick }) {
+  const openDetail = useOpenDetail();
   const d = data?.[s.symbol] || {};
   const { changePct: pct } = useMergedTickerQuote(s.symbol, d);
   const [showShimmer, setShowShimmer] = useState(true);
@@ -87,7 +89,7 @@ function HeatmapCell({ s, data, onTickerClick, onOpenDetail }) {
       data-ticker-label={s.label}
       data-ticker-type="EQUITY"
       onClick={() => onTickerClick?.(s.symbol)}
-      onDoubleClick={() => onOpenDetail?.(s.symbol)}
+      onDoubleClick={() => openDetail(s.symbol)}
       onContextMenu={e => showInfo(e, s.symbol, s.label, 'EQUITY')}
       title={`${s.symbol}\n${fmtPct(pct)}`}
       style={{ width: 54, height: 38, background: bg, border: '1px solid #222' }}
@@ -100,7 +102,8 @@ function HeatmapCell({ s, data, onTickerClick, onOpenDetail }) {
   );
 }
 
-function StockPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
+function StockPanel({ data = {}, loading, onTickerClick }) {
+  const openDetail = useOpenDetail();
   const ptRef = useRef(null);
   const { settings, updatePanelConfig } = useSettings();
 
@@ -290,7 +293,7 @@ function StockPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
               /* Heatmap grid */
               <div className="stp-movers-grid">
                 {allItems.map(s => (
-                  <HeatmapCell key={s.symbol} s={s} data={data} onTickerClick={onTickerClick} onOpenDetail={onOpenDetail} />
+                  <HeatmapCell key={s.symbol} s={s} data={data} onTickerClick={onTickerClick} />
                 ))}
                 {allItems.length === 0 && (
                   <div className="stp-no-movers">No movers matching filter.</div>
@@ -312,8 +315,8 @@ function StockPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
                     draggable
                     dragData={{ symbol: s.symbol, name: s.label, type: 'EQUITY' }}
                     onClick={() => onTickerClick?.(s.symbol)}
-                    onDoubleClick={() => onOpenDetail?.(s.symbol)}
-                    onTouchHold={() => onOpenDetail?.(s.symbol)}
+                    onDoubleClick={() => openDetail(s.symbol)}
+                    onTouchHold={() => openDetail(s.symbol)}
                     touchRef={ptRef}
                     onContextMenu={e => showInfo(e, s.symbol, s.label, 'EQUITY')}
                     dataAttrs={{
@@ -343,8 +346,8 @@ function StockPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
                         draggable
                         dragData={{ symbol: s.symbol, name: s.label, type: 'EQUITY' }}
                         onClick={() => onTickerClick?.(s.symbol)}
-                        onDoubleClick={() => onOpenDetail?.(s.symbol)}
-                        onTouchHold={() => onOpenDetail?.(s.symbol)}
+                        onDoubleClick={() => openDetail(s.symbol)}
+                        onTouchHold={() => openDetail(s.symbol)}
                         touchRef={ptRef}
                         onContextMenu={e => showInfo(e, s.symbol, s.label, 'ADR')}
                         dataAttrs={{
@@ -370,7 +373,6 @@ function StockPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
                       data={data}
                       gridCols={COLS}
                       onTickerClick={onTickerClick}
-                      onOpenDetail={onOpenDetail}
                       onAddTicker={handleAddTickerToSubsection}
                       onRemoveTicker={handleRemoveTickerFromSubsection}
                       flashSymbol={flashSym}

@@ -1,9 +1,11 @@
-import { useState, useRef, useCallback, memo, useEffect } from 'react';
+import { useState, useRef, useCallback, memo } from 'react';
 import { FOREX_PAIRS, CRYPTO_PAIRS } from '../../utils/constants';
 import { useSettings } from '../../context/SettingsContext';
-import { apiFetch } from '../../utils/api';
+import { useInstrumentSearch } from '../../hooks/useInstrumentSearch';
+import { useOpenDetail } from '../../context/OpenDetailContext';
 import Badge from '../ui/Badge';
 import './SearchPanel.css';
+import { resolveAlias } from '../../config/instrumentAliases';
 
 // Module-level recent searches store (survives re-renders but not page refresh)
 let _recentSearches = [];
@@ -139,105 +141,23 @@ function displaySymbol(sym) {
   return sym;
 }
 
-function SearchPanel({ onTickerSelect, onOpenDetail }) {
-  const [query,         setQuery]         = useState('');
-  const [results,       setResults]       = useState([]);
-  const [loading,       setLoading]       = useState(false);
-  const [addedToHome,   setAddedToHome]   = useState(null);
-  const [aiResults,     setAiResults]     = useState([]);
-  const [aiLoading,     setAiLoading]     = useState(false);
-  const [aiError,       setAiError]       = useState(null);
-  const [isFocused,     setIsFocused]     = useState(false);
-  const [selectedIdx,   setSelectedIdx]   = useState(-1);
-  const [recents,       setRecents]       = useState(_recentSearches);
+function SearchPanel({ onTickerSelect }) {
+  const openDetail = useOpenDetail();
 
-  const debounceRef   = useRef(null);
-  const inputRef      = useRef(null);
+  const [addedToHome,   setAddedToHome]   = useState(null);
+  const [isFocused,     setIsFocused]     = useState(false);
+  const [searchError,   setSearchError]   = useState(null);
+
+  const inputRef = useRef(null);
   const { addToHomeSection } = useSettings();
 
-  // Reset selectedIdx when results change
-  useEffect(() => {
-    setSelectedIdx(-1);
-  }, [results]);
-
-  const handleAiSearch = useCallback(async (q) => {
-    if (!q || q.trim().length < 3) return;
-    setAiLoading(true);
-    setAiError(null);
-    try {
-      const res = await apiFetch('/api/search/instrument-lookup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: q.trim() }),
-      });
-      if (!res.ok) throw new Error('AI search failed');
-      const data = await res.json();
-      setAiResults(data.results || []);
-    } catch (err) {
-      setAiError(err.message || 'AI search unavailable');
-      setAiResults([]);
-    } finally {
-      setAiLoading(false);
-    }
-  }, []);
-
-  const search = useCallback((q) => {
-    if (!q.trim()) { setResults([]); return; }
-    const local = localSearch(q);
-    setResults(local);
-    setLoading(true);
-
-    const registryPath = `/api/instruments/search?q=${encodeURIComponent(q)}&limit=10`;
-    const polygonPath  = `/api/search?q=${encodeURIComponent(q)}`;
-
-    Promise.allSettled([
-      apiFetch(registryPath).then(r => r.json()),
-      apiFetch(polygonPath).then(r => r.json()),
-    ]).then(([regRes, polyRes]) => {
-      const regItems   = regRes.status  === 'fulfilled' ? (regRes.value.results  || []) : [];
-      const polyItems  = polyRes.status === 'fulfilled' ? (polyRes.value.results || []) : [];
-
-      const fromRegistry = regItems.map(r => ({
-        symbol: r.symbolKey, name: r.name, type: (r.assetClass || '').toUpperCase(),
-        assetClass: r.assetClass, market: 'stocks', group: r.group,
-        local: false, fromRegistry: true,
-      }));
-
-      const regKeys = new Set([...local.map(l => l.symbol), ...fromRegistry.map(r => r.symbol)]);
-      const fromPoly = polyItems
-        .filter(r => !regKeys.has(r.ticker || r.symbol))
-        .map(r => ({
-          symbol: r.ticker || r.symbol, name: r.name, type: r.type,
-          assetType: r.assetType || null, market: r.market,
-          primaryExchange: r.primaryExchange || r.market || '',
-          exchange: r.exchange || '', active: r.active,
-        }));
-
-      const seen = new Set();
-      const merged = [...local, ...fromRegistry, ...fromPoly]
-        .filter(item => {
-          if (seen.has(item.symbol)) return false;
-          seen.add(item.symbol);
-          return true;
-        })
-        .slice(0, 20);
-
-      setResults(merged);
-      setLoading(false);
-
-      if (merged.length < 3 && q.trim().length >= 3) {
-        handleAiSearch(q);
-      }
-    });
-  }, []);
-
-  const handleInput = (e) => {
-    const q = e.target.value;
-    setQuery(q);
-
-    clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => search(q), 280);
-  };
+  // Use the search hook with Polygon + auto AI enabled
+  const {
+    query, setQuery, results, loading,
+    aiResults, aiLoading, aiError,
+    selectedIdx, setSelectedIdx,
+    recentSearches, addToRecents, searchAI, handleResultClick,
+  } = useInstrumentSearch({ debounceMs: 280, enablePolygon: true, enableAiAuto: true });
 
   // Arrow key navigation, Enter, Escape
   const handleKeyDown = useCallback((e) => {
@@ -255,18 +175,21 @@ function SearchPanel({ onTickerSelect, onOpenDetail }) {
       }
     } else if (e.key === 'Escape') {
       setQuery('');
-      setResults([]);
       setSelectedIdx(-1);
       setIsFocused(false);
     }
   }, [results, selectedIdx]);
 
   const handleSelect = useCallback((item) => {
-    const updated = [item, ...recents.filter(x => (x.symbolKey || x.symbol) !== (item.symbolKey || item.symbol))].slice(0, 5);
-    _recentSearches = updated;
-    setRecents(updated);
-    onOpenDetail?.(item.symbol);
-  }, [recents, onOpenDetail]);
+    addToRecents(item);
+    const normalized = handleResultClick(item);
+    if (normalized) {
+      openDetail(normalized.symbol);
+      setSearchError(null);
+    } else {
+      setSearchError('Cannot open this instrument yet.');
+    }
+  }, [addToRecents, openDetail, handleResultClick]);
 
   const badgeClass = (item) => {
     if (item.isFutures || item.assetClass === 'commodity') return 'badge-commodity';
@@ -308,7 +231,10 @@ function SearchPanel({ onTickerSelect, onOpenDetail }) {
           ref={inputRef}
           autoFocus
           value={query}
-          onChange={handleInput}
+          onChange={e => {
+            setQuery(e.target.value);
+            setSearchError(null);
+          }}
           onKeyDown={handleKeyDown}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
@@ -322,12 +248,17 @@ function SearchPanel({ onTickerSelect, onOpenDetail }) {
           <span className="sp-search-loading">SEARCHING...</span>
         )}
       </div>
+      {searchError && (
+        <div style={{ fontSize: '13px', color: '#f44336', padding: '8px 12px', marginTop: '-4px' }}>
+          {searchError}
+        </div>
+      )}
 
       {/* ── Recent searches (when focused, empty query, and no results) ── */}
-      {isFocused && !query && !results.length && recents.length > 0 && (
+      {isFocused && !query && !results.length && recentSearches.length > 0 && (
         <div className="sp-results-container">
           <div className="search-recent-header">RECENT</div>
-          {recents.map((item, idx) => (
+          {recentSearches.map((item, idx) => (
             <div
               key={item.symbol}
               className={`sp-result-row ${idx === selectedIdx ? 'selected' : ''}`}
@@ -445,7 +376,7 @@ function SearchPanel({ onTickerSelect, onOpenDetail }) {
               key={item.symbol}
               draggable
               onDragStart={(e) => handleDragStart(e, item)}
-              onClick={() => onOpenDetail?.(item.symbol)}
+              onClick={() => openDetail(item.symbol)}
               className="sp-result-row sp-result-row--ai"
             >
               <span className="sp-drag-icon">⠿</span>
@@ -462,7 +393,7 @@ function SearchPanel({ onTickerSelect, onOpenDetail }) {
       )}
 
       {query.trim().length >= 3 && !aiLoading && (
-        <button className="sp-ai-search-btn" onClick={() => handleAiSearch(query)}>
+        <button className="sp-ai-search-btn" onClick={() => searchAI(query)}>
           AI SEARCH
         </button>
       )}

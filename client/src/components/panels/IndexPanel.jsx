@@ -1,6 +1,7 @@
 // IndexPanel.jsx — world index ETF proxies, BBG-style
 import { useRef, useState, memo } from 'react';
 import { useFeedStatus } from '../../context/FeedStatusContext';
+import { useOpenDetail } from '../../context/OpenDetailContext';
 import { WORLD_INDEXES } from '../../utils/constants';
 import './IndexPanel.css';
 
@@ -15,7 +16,8 @@ const showInfo = (e, symbol, label, type) => {
   }));
 };
 
-function IndexPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
+function IndexPanel({ data = {}, loading, onTickerClick }) {
+  const openDetail = useOpenDetail();
   const ptRef = useRef(null);
   const [collapsed, setCollapsed] = useState(false);
   const { getBadge } = useFeedStatus();
@@ -59,8 +61,8 @@ function IndexPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
                 e.dataTransfer.setData('application/x-ticker', JSON.stringify({ symbol: idx.symbol, name: idx.label, type: 'ETF' }));
               }}
               onClick={() => onTickerClick?.(idx.symbol)}
-              onDoubleClick={() => onOpenDetail?.(idx.symbol)}
-              onTouchStart={e => { e.stopPropagation(); clearTimeout(ptRef.current); ptRef.current = setTimeout(() => onOpenDetail?.(idx.symbol), 500); }}
+              onDoubleClick={() => openDetail(idx.symbol)}
+              onTouchStart={e => { e.stopPropagation(); clearTimeout(ptRef.current); ptRef.current = setTimeout(() => openDetail(idx.symbol), 500); }}
               onTouchEnd={() => clearTimeout(ptRef.current)}
               onTouchMove={() => clearTimeout(ptRef.current)}
               onContextMenu={e => showInfo(e, idx.symbol, idx.label, 'ETF')}

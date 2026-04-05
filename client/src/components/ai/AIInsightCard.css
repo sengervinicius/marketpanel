@@ -1,0 +1,355 @@
+/* AIInsightCard.css - Unified AI insight display component */
+
+.ai-card {
+  background: #111;
+  border: 1px solid #1e1e1e;
+  border-radius: 2px;
+  padding: 12px;
+  font-family: var(--font-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
+  color: #ccc;
+  font-size: 12px;
+  line-height: 1.5;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.ai-card:hover {
+  background: #151515;
+  border-color: #2a2a2a;
+}
+
+.ai-card--compact {
+  padding: 8px;
+  font-size: 11px;
+}
+
+.ai-card--empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 60px;
+}
+
+.ai-card--loading {
+  opacity: 0.8;
+}
+
+.ai-card--loaded {
+  opacity: 1;
+}
+
+.ai-card--error {
+  border-color: #3a2020;
+  background: #1a0f0f;
+}
+
+/* Header layout */
+.ai-card__header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #1e1e1e;
+}
+
+.ai-card--compact .ai-card__header {
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  gap: 8px;
+}
+
+.ai-card__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: #ff6b00;
+  color: #000;
+  font-size: 10px;
+  font-weight: 700;
+  border-radius: 1px;
+  flex-shrink: 0;
+  letter-spacing: 0.05em;
+}
+
+.ai-card--compact .ai-card__badge {
+  width: 24px;
+  height: 24px;
+  font-size: 9px;
+}
+
+.ai-card__badge--error {
+  background: #8b4545;
+  color: #e8a8a8;
+}
+
+.ai-card__title {
+  flex: 1;
+  font-weight: 600;
+  color: #e8e8e8;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ai-card--compact .ai-card__title {
+  font-size: 11px;
+}
+
+.ai-card__title--error {
+  color: #d0a0a0;
+}
+
+.ai-card__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.ai-card__time {
+  color: #888;
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.ai-card--compact .ai-card__time {
+  font-size: 9px;
+}
+
+.ai-card__refresh {
+  background: none;
+  border: 1px solid #2a2a2a;
+  color: #888;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border-radius: 1px;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ai-card__refresh:hover:not(:disabled) {
+  background: #1a1a1a;
+  border-color: #3a3a3a;
+  color: #e8a020;
+}
+
+.ai-card__refresh:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Trigger button for empty state */
+.ai-card__trigger {
+  background: none;
+  border: 1px dashed #2a2a2a;
+  color: #888;
+  padding: 10px 16px;
+  border-radius: 2px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  justify-content: center;
+  transition: all 0.2s ease;
+  font-family: var(--font-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
+  font-size: 12px;
+}
+
+.ai-card__trigger:hover {
+  background: #0a0a0a;
+  border-color: #ff6b00;
+  color: #ff6b00;
+}
+
+.ai-card__trigger-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  background: #ff6b00;
+  color: #000;
+  font-size: 10px;
+  font-weight: 700;
+  border-radius: 1px;
+}
+
+.ai-card__trigger-text {
+  letter-spacing: 0.02em;
+}
+
+/* Body content */
+.ai-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ai-card--compact .ai-card__body {
+  gap: 8px;
+}
+
+.ai-card__text {
+  margin: 0;
+  color: #ccc;
+  line-height: 1.6;
+  word-wrap: break-word;
+}
+
+.ai-card--compact .ai-card__text {
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.ai-card__bullets {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ai-card--compact .ai-card__bullets {
+  gap: 5px;
+}
+
+.ai-card__bullet {
+  color: #bbb;
+  padding-left: 16px;
+  position: relative;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.ai-card__bullet::before {
+  content: '•';
+  position: absolute;
+  left: 4px;
+  color: #ff6b00;
+  font-weight: 700;
+}
+
+.ai-card--compact .ai-card__bullet {
+  font-size: 10px;
+  padding-left: 14px;
+}
+
+/* Error state */
+.ai-card__error-text {
+  margin: 0 0 8px 0;
+  color: #d0a0a0;
+  line-height: 1.5;
+}
+
+.ai-card__retry {
+  background: #2a1515;
+  border: 1px solid #4a2525;
+  color: #e8a8a8;
+  padding: 6px 12px;
+  border-radius: 2px;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
+  transition: all 0.15s ease;
+  align-self: flex-start;
+  font-family: var(--font-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
+}
+
+.ai-card__retry:hover {
+  background: #3a1f1f;
+  border-color: #6a3535;
+  color: #f0b8b8;
+}
+
+/* Loading skeleton */
+.ai-card__skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 4px 0;
+}
+
+.ai-card--compact .ai-card__skeleton {
+  gap: 6px;
+}
+
+.ai-card__skeleton-line {
+  height: 8px;
+  background: linear-gradient(
+    90deg,
+    #1a1a1a 0%,
+    #252525 50%,
+    #1a1a1a 100%
+  );
+  background-size: 200% 100%;
+  border-radius: 2px;
+  animation: shimmer 2s infinite;
+}
+
+.ai-card__skeleton-line--long {
+  width: 100%;
+}
+
+.ai-card__skeleton-line--medium {
+  width: 85%;
+}
+
+.ai-card__skeleton-line--short {
+  width: 60%;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .ai-card {
+    padding: 10px;
+    font-size: 11px;
+  }
+
+  .ai-card--compact {
+    padding: 6px;
+    font-size: 10px;
+  }
+
+  .ai-card__badge {
+    width: 24px;
+    height: 24px;
+    font-size: 9px;
+  }
+
+  .ai-card__title {
+    font-size: 11px;
+  }
+
+  .ai-card__text {
+    font-size: 11px;
+  }
+
+  .ai-card__bullet {
+    font-size: 10px;
+  }
+}

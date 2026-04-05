@@ -1,6 +1,7 @@
 // CryptoPanel.jsx — crypto pairs, settings-integrated
 import { useRef, useState, memo } from 'react';
 import { useSettings } from '../../context/SettingsContext';
+import { useOpenDetail } from '../../context/OpenDetailContext';
 import PanelConfigModal from '../common/PanelConfigModal';
 import EditablePanelHeader from '../common/EditablePanelHeader';
 import PanelShell from '../common/PanelShell';
@@ -18,7 +19,8 @@ const SORT_COLS = [
   { key: 'chg',    label: 'CHG%', align: 'right' },
 ];
 
-export function CryptoPanel({ data = {}, loading, onTickerClick, onOpenDetail }) {
+export function CryptoPanel({ data = {}, loading, onTickerClick }) {
+  const openDetail = useOpenDetail();
   const ptRef = useRef(null);
   const { settings, updatePanelConfig } = useSettings();
   const { getBadge } = useFeedStatus();
@@ -148,8 +150,8 @@ export function CryptoPanel({ data = {}, loading, onTickerClick, onOpenDetail })
                 draggable
                 dragData={{ symbol: chartSym, name: c.label, type: 'CRYPTO' }}
                 onClick={() => onTickerClick?.(chartSym)}
-                onDoubleClick={() => onOpenDetail?.(chartSym)}
-                onTouchHold={() => onOpenDetail?.(c.symbol)}
+                onDoubleClick={() => openDetail(chartSym)}
+                onTouchHold={() => openDetail(c.symbol)}
                 touchRef={ptRef}
                 dataAttrs={{
                   'data-ticker': c.symbol,

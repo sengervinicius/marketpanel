@@ -128,74 +128,70 @@ export function LayoutMoveOverlay({ panelId, rowIdx, colIdx, rowLen, totalRows, 
   );
 }
 
-// ── Panel registry — maps panelId → render function ───────────────────────────
-export function makePanelRenderer(panelId, props) {
-  const { mergedData, loading, setChartTicker, setDetailTicker, chartTicker, setChartGridCount } = props;
-  switch (panelId) {
-    case 'charts':
-      return <ChartPanel ticker={chartTicker} onTickerChange={setChartTicker} onGridChange={setChartGridCount} onOpenDetail={setDetailTicker} />;
-    case 'usEquities':
-      return <StockPanel data={mergedData?.stocks} loading={loading} onTickerClick={setChartTicker} onOpenDetail={setDetailTicker} />;
-    case 'forex':
-      return <ForexPanel data={mergedData?.forex} cryptoData={mergedData?.crypto} loading={loading} onTickerClick={setChartTicker} onOpenDetail={setDetailTicker} />;
-    case 'globalIndices':
-      return <GlobalIndicesPanel data={mergedData?.stocks} loading={loading} onTickerClick={setChartTicker} onOpenDetail={setDetailTicker} />;
-    case 'brazilB3':
-      return <BrazilPanel onTickerClick={setChartTicker} onOpenDetail={setDetailTicker} />;
-    case 'commodities':
-      return <CommoditiesPanel data={mergedData?.stocks} loading={loading} onTickerClick={setChartTicker} onOpenDetail={setDetailTicker} />;
-    case 'crypto':
-      return <CryptoPanel data={mergedData?.crypto} loading={loading} onTickerClick={setChartTicker} onOpenDetail={setDetailTicker} />;
-    case 'debt':
-      return <DebtPanel />;
-    case 'search':
-      return <SearchPanel onTickerSelect={setChartTicker} onOpenDetail={setDetailTicker} />;
-    case 'news':
-      return <NewsPanel />;
-    case 'watchlist':
-      return <PortfolioPanel onTickerClick={setChartTicker} onOpenDetail={setDetailTicker} />;
-    case 'sentiment':
-      return <SentimentPanel />;
-    case 'chat':
-      return <ChatPanel />;
-    case 'curves':
-      return <DICurvePanel compact />;
-    case 'indices':
-      return <IndexPanel data={mergedData?.indices} loading={loading} onTickerClick={setChartTicker} onOpenDetail={setDetailTicker} />;
-    case 'alerts':
-      return <AlertCenterPanel onOpenDetail={setDetailTicker} />;
-    case 'screener':
-      return <ScreenerPanel onOpenDetail={setDetailTicker} />;
-    case 'macro':
-      return <MacroPanel />;
-    case 'leaderboard':
-      return <LeaderboardPanel />;
-    case 'game':
-      return <GamePortfolioPanel onSelectSymbol={setDetailTicker} />;
-    case 'referrals':
-      return <ReferralPanel />;
-    case 'calendar':
-      return <CalendarPanel />;
-    // ── Phase D1 sector screens ──────────────────────────
-    case 'defenceScreen':
-      return <DefenceScreen onTickerClick={setChartTicker} onOpenDetail={setDetailTicker} />;
-    case 'commoditiesScreen':
-      return <CommoditiesScreen onTickerClick={setChartTicker} onOpenDetail={setDetailTicker} />;
-    case 'globalMacroScreen':
-      return <GlobalMacroScreen onTickerClick={setChartTicker} onOpenDetail={setDetailTicker} />;
-    case 'fixedIncomeScreen':
-      return <FixedIncomeScreen onTickerClick={setChartTicker} onOpenDetail={setDetailTicker} />;
-    case 'brazilScreen':
-      return <BrazilScreen onTickerClick={setChartTicker} onOpenDetail={setDetailTicker} />;
-    case 'fxCryptoScreen':
-      return <FxCryptoScreen onTickerClick={setChartTicker} onOpenDetail={setDetailTicker} />;
-    case 'energyScreen':
-      return <EnergyScreen onTickerClick={setChartTicker} onOpenDetail={setDetailTicker} />;
-    case 'techAIScreen':
-      return <TechAIScreen onTickerClick={setChartTicker} onOpenDetail={setDetailTicker} />;
-    default:
-      return <div className="app-panel-placeholder">Panel: {panelId}</div>;
-  }
+// ── Panel registry — data-driven map from panelId → component + prop resolver ─
+// Each entry: { component, getProps?, mobileComponent? }
+// getProps receives the shared panel context and returns the props for the component.
+// If getProps is omitted, the component receives no props.
+//
+// mobileComponent (S2.D): optional reference to the mobile-specific variant.
+// When present, a future S3 merge can unify desktop/mobile rendering by checking
+// isMobile and picking the appropriate component automatically.
+// Current mobile variants (rendered directly in App.jsx mobile section):
+//   charts   → ChartsPanelMobile    (601 lines — separate chart grid UX)
+//   watchlist → PortfolioMobile      (451 lines — simplified positions view)
+//   home     → HomePanelMobile      (358 lines — mobile-only home screen)
+//   watchlistMobile → WatchlistPanelMobile (291 lines — mobile watchlist)
+//   alerts   → AlertsMobile          (compact alert list)
+const PANEL_REGISTRY = {
+  // ── Core panels ──────────────────────────────────────────────────────────
+  charts:         { component: ChartPanel,         getProps: (c) => ({ ticker: c.chartTicker, onTickerChange: c.setChartTicker, onGridChange: c.setChartGridCount }), hasMobileVariant: true },
+  usEquities:     { component: StockPanel,         getProps: (c) => ({ data: c.mergedData?.stocks, loading: c.loading, onTickerClick: c.setChartTicker }) },
+  forex:          { component: ForexPanel,         getProps: (c) => ({ data: c.mergedData?.forex, cryptoData: c.mergedData?.crypto, loading: c.loading, onTickerClick: c.setChartTicker }) },
+  globalIndices:  { component: GlobalIndicesPanel,  getProps: (c) => ({ data: c.mergedData?.stocks, loading: c.loading, onTickerClick: c.setChartTicker }) },
+  brazilB3:       { component: BrazilPanel,         getProps: (c) => ({ onTickerClick: c.setChartTicker }) },
+  commodities:    { component: CommoditiesPanel,    getProps: (c) => ({ data: c.mergedData?.stocks, loading: c.loading, onTickerClick: c.setChartTicker }) },
+  crypto:         { component: CryptoPanel,         getProps: (c) => ({ data: c.mergedData?.crypto, loading: c.loading, onTickerClick: c.setChartTicker }) },
+  indices:        { component: IndexPanel,          getProps: (c) => ({ data: c.mergedData?.indices, loading: c.loading, onTickerClick: c.setChartTicker }) },
+  search:         { component: SearchPanel,         getProps: (c) => ({ onTickerSelect: c.setChartTicker }) },
+  watchlist:      { component: PortfolioPanel,      getProps: (c) => ({ onTickerClick: c.setChartTicker }), hasMobileVariant: true },
+  curves:         { component: DICurvePanel,        getProps: () => ({ compact: true }) },
+
+  // ── No-prop panels ───────────────────────────────────────────────────────
+  debt:           { component: DebtPanel },
+  news:           { component: NewsPanel },
+  sentiment:      { component: SentimentPanel },
+  chat:           { component: ChatPanel },
+  alerts:         { component: AlertCenterPanel, hasMobileVariant: true },
+  screener:       { component: ScreenerPanel },
+  macro:          { component: MacroPanel },
+  leaderboard:    { component: LeaderboardPanel },
+  game:           { component: GamePortfolioPanel },
+  referrals:      { component: ReferralPanel },
+  calendar:       { component: CalendarPanel },
+
+  // ── Phase D1 sector screens ──────────────────────────────────────────────
+  defenceScreen:      { component: DefenceScreen,      getProps: (c) => ({ onTickerClick: c.setChartTicker }) },
+  commoditiesScreen:  { component: CommoditiesScreen,  getProps: (c) => ({ onTickerClick: c.setChartTicker }) },
+  globalMacroScreen:  { component: GlobalMacroScreen,  getProps: (c) => ({ onTickerClick: c.setChartTicker }) },
+  fixedIncomeScreen:  { component: FixedIncomeScreen,  getProps: (c) => ({ onTickerClick: c.setChartTicker }) },
+  brazilScreen:       { component: BrazilScreen,       getProps: (c) => ({ onTickerClick: c.setChartTicker }) },
+  fxCryptoScreen:     { component: FxCryptoScreen,     getProps: (c) => ({ onTickerClick: c.setChartTicker }) },
+  energyScreen:       { component: EnergyScreen,       getProps: (c) => ({ onTickerClick: c.setChartTicker }) },
+  techAIScreen:       { component: TechAIScreen,       getProps: (c) => ({ onTickerClick: c.setChartTicker }) },
+};
+
+export { PANEL_REGISTRY };
+
+/**
+ * makePanelRenderer — resolves a panelId to its React element.
+ * Looks up the component and prop-resolver from PANEL_REGISTRY.
+ */
+export function makePanelRenderer(panelId, ctx) {
+  const entry = PANEL_REGISTRY[panelId];
+  if (!entry) return <div className="app-panel-placeholder">Panel: {panelId}</div>;
+  const { component: Comp, getProps } = entry;
+  const panelProps = getProps ? getProps(ctx) : {};
+  return <Comp {...panelProps} />;
 }
 
 // ── Resizable row-flex hook ──────────────────────────────────────────────────

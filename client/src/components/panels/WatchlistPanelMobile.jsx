@@ -7,6 +7,7 @@
 import { memo, useState, useMemo, useRef, useEffect } from 'react';
 import { useWatchlist } from '../../context/WatchlistContext';
 import { useStocksData, useForexData, useCryptoData } from '../../context/MarketContext';
+import { useOpenDetail } from '../../context/OpenDetailContext';
 import { apiFetch } from '../../utils/api';
 import './WatchlistPanelMobile.css';
 
@@ -20,11 +21,12 @@ function fmtPct(v) {
   return (v >= 0 ? '+' : '') + v.toFixed(2) + '%';
 }
 
-function WatchlistPanelMobile({ onOpenDetail, onManage }) {
+function WatchlistPanelMobile({ onManage }) {
   const { watchlist, removeTicker, addTicker } = useWatchlist();
   const stocks = useStocksData();
   const forex = useForexData();
   const crypto = useCryptoData();
+  const openDetail = useOpenDetail();
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('added');
   const [undoItem, setUndoItem] = useState(null);
@@ -177,7 +179,7 @@ function WatchlistPanelMobile({ onOpenDetail, onManage }) {
                 <div
                   key={sym}
                   className="m-row wpm-row"
-                  onClick={() => onOpenDetail?.(sym)}
+                  onClick={() => openDetail(sym)}
                   onTouchStart={(e) => handleRowTouchStart(sym, e)}
                   onTouchEnd={handleRowTouchEnd}
                   onTouchMove={handleRowTouchEnd}

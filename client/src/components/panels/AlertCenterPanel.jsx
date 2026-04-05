@@ -11,6 +11,7 @@ import PanelShell from '../common/PanelShell';
 import AlertEditor from '../common/AlertEditor';
 import EmptyState from '../common/EmptyState';
 import { useAlerts } from '../../context/AlertsContext';
+import { useOpenDetail } from '../../context/OpenDetailContext';
 import { apiFetch } from '../../utils/api';
 import Badge from '../ui/Badge';
 import './AlertCenterPanel.css';
@@ -92,7 +93,8 @@ const SNOOZE_OPTIONS = [
   { label: '1 week', value: '1w' },
 ];
 
-const AlertCenterRow = memo(function AlertCenterRow({ alert, onEdit, onOpenDetail, onAction }) {
+const AlertCenterRow = memo(function AlertCenterRow({ alert, onEdit, onAction }) {
+  const openDetail = useOpenDetail();
   const [showSnooze, setShowSnooze] = useState(false);
   const typeLabel = TYPE_LABELS[alert.type] || alert.type;
   const isMuted = alert.status === 'muted';
@@ -102,7 +104,7 @@ const AlertCenterRow = memo(function AlertCenterRow({ alert, onEdit, onOpenDetai
 
   return (
     <div className={`ac-row ${!alert.active && !isTriggered ? 'ac-row--dim' : ''}`}>
-      <div className="ac-row-main" onClick={() => onOpenDetail?.(alert.symbol)}>
+      <div className="ac-row-main" onClick={() => openDetail(alert.symbol)}>
         <div className="ac-row-top">
           <span className="ac-row-symbol">{alert.symbol === '__SCREENER__' ? 'SCREENER' : alert.symbol}</span>
           <Badge variant={isTriggered ? 'error' : isMuted ? 'warning' : 'neutral'} size="xs">{typeLabel}</Badge>
@@ -157,7 +159,8 @@ const AlertCenterRow = memo(function AlertCenterRow({ alert, onEdit, onOpenDetai
   );
 });
 
-function AlertCenterPanel({ onOpenDetail }) {
+function AlertCenterPanel() {
+  const openDetail = useOpenDetail();
   const { alerts, updateAlert, deleteAlert, dismissAlert, refreshAlerts } = useAlerts();
   const [tab, setTab] = useState('active');
   const [editorAlert, setEditorAlert] = useState(null);
@@ -246,7 +249,6 @@ function AlertCenterPanel({ onOpenDetail }) {
               key={a.id}
               alert={a}
               onEdit={setEditorAlert}
-              onOpenDetail={onOpenDetail}
               onAction={handleAction}
             />
           ))

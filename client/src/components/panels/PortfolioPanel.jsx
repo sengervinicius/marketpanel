@@ -21,6 +21,7 @@ import ShareModal from '../common/ShareModal';
 import { usePortfolio } from '../../context/PortfolioContext';
 import { useTickerPrice } from '../../context/PriceContext';
 import { useAuth } from '../../context/AuthContext';
+import { useOpenDetail } from '../../context/OpenDetailContext';
 import { apiJSON } from '../../utils/api';
 import {
   fmt, fmtPct, suggestBenchmark, inferAssetType, assetTypeLabel,
@@ -34,7 +35,8 @@ import './PortfolioPanel.css';
 const COLS = '72px 56px 72px 72px 64px 20px 24px';
 
 // ── Individual position row with live price ──
-const PositionRow = memo(function PositionRow({ position, onTickerClick, onOpenDetail, onEdit, onRemove }) {
+const PositionRow = memo(function PositionRow({ position, onTickerClick, onEdit, onRemove }) {
+  const openDetail = useOpenDetail();
   const { price, changePct } = useTickerPrice(position.symbol) || {};
   const ptRef = useRef(null);
 
@@ -52,9 +54,9 @@ const PositionRow = memo(function PositionRow({ position, onTickerClick, onOpenD
         if (e.ctrlKey || e.altKey || e.metaKey) { onEdit(position); }
         else { onTickerClick?.(position.symbol); }
       }}
-      onDoubleClick={() => onOpenDetail?.(position.symbol)}
+      onDoubleClick={() => openDetail(position.symbol)}
       onContextMenu={(e) => showInfo(e, position.symbol)}
-      onTouchStart={(e) => { e.stopPropagation(); clearTimeout(ptRef.current); ptRef.current = setTimeout(() => onOpenDetail?.(position.symbol), 500); }}
+      onTouchStart={(e) => { e.stopPropagation(); clearTimeout(ptRef.current); ptRef.current = setTimeout(() => openDetail(position.symbol), 500); }}
       onTouchEnd={() => clearTimeout(ptRef.current)}
       onTouchMove={() => clearTimeout(ptRef.current)}
       className="pp-row-container"
@@ -86,7 +88,8 @@ const PositionRow = memo(function PositionRow({ position, onTickerClick, onOpenD
 });
 
 // ── Main panel ──
-function PortfolioPanel({ onTickerClick, onOpenDetail }) {
+function PortfolioPanel({ onTickerClick }) {
+  const openDetail = useOpenDetail();
   const { portfolios, positions, removePosition, syncStatus, retrySync } = usePortfolio();
   const [filterSubId, setFilterSubId] = useState('all');
   const [editorPos, setEditorPos]     = useState(null);
@@ -314,7 +317,6 @@ function PortfolioPanel({ onTickerClick, onOpenDetail }) {
               key={pos.id}
               position={pos}
               onTickerClick={onTickerClick}
-              onOpenDetail={onOpenDetail}
               onEdit={handleEdit}
               onRemove={removePosition}
               onReportPrice={reportPrice}
@@ -366,7 +368,8 @@ function PortfolioPanel({ onTickerClick, onOpenDetail }) {
 }
 
 // ── Position row wrapper that reports price back to parent ──
-const PositionRowWithReport = memo(function PositionRowWithReport({ position, onTickerClick, onOpenDetail, onEdit, onRemove, onReportPrice, onCreateAlert }) {
+const PositionRowWithReport = memo(function PositionRowWithReport({ position, onTickerClick, onEdit, onRemove, onReportPrice, onCreateAlert }) {
+  const openDetail = useOpenDetail();
   const priceData = useTickerPrice(position.symbol);
   const ptRef = useRef(null);
 
@@ -391,9 +394,9 @@ const PositionRowWithReport = memo(function PositionRowWithReport({ position, on
         if (e.ctrlKey || e.altKey || e.metaKey) { onEdit(position); }
         else { onTickerClick?.(position.symbol); }
       }}
-      onDoubleClick={() => onOpenDetail?.(position.symbol)}
+      onDoubleClick={() => openDetail(position.symbol)}
       onContextMenu={(e) => showInfo(e, position.symbol)}
-      onTouchStart={(e) => { e.stopPropagation(); clearTimeout(ptRef.current); ptRef.current = setTimeout(() => onOpenDetail?.(position.symbol), 500); }}
+      onTouchStart={(e) => { e.stopPropagation(); clearTimeout(ptRef.current); ptRef.current = setTimeout(() => openDetail(position.symbol), 500); }}
       onTouchEnd={() => clearTimeout(ptRef.current)}
       onTouchMove={() => clearTimeout(ptRef.current)}
       className="pp-row-container"

@@ -9,6 +9,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { apiFetch } from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
 import { usePortfolio } from '../../context/PortfolioContext';
+import { useOpenDetail } from '../../context/OpenDetailContext';
 import './ScreenerPanel.css';
 
 const COUNTRIES     = ['US','BR','GB','EU','JP','AU','CA'];
@@ -45,7 +46,8 @@ function Modal({ open, onClose, title, children }) {
   );
 }
 
-export default function ScreenerPanel({ onOpenDetail }) {
+export default function ScreenerPanel() {
+  const openDetail = useOpenDetail();
   const portfolio = usePortfolio() || {};
 
   // ── Filters ────────────────────────────────────────────────────────────────
@@ -561,8 +563,8 @@ export default function ScreenerPanel({ onOpenDetail }) {
                       <input type="checkbox" checked={selectedRows.has(r.symbol)} onChange={() => toggleRow(r.symbol)} />
                     </td>
                     <td className="scr-td scr-td--symbol"
-                      onClick={() => onOpenDetail && onOpenDetail(r.symbol)}
-                      style={{ cursor: onOpenDetail ? 'pointer' : 'default' }}
+                      onClick={() => openDetail(r.symbol)}
+                      style={{ cursor: 'pointer' }}
                     >{r.symbol.replace('.SA', '')}</td>
                     <td className="scr-td scr-td--name">{r.name}</td>
                     <td className="scr-td">{r.country}</td>

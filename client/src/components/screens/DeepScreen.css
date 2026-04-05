@@ -1,0 +1,238 @@
+/* ── DeepScreen layout ─────────────────────────────────────────────────── */
+.ds-screen {
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: #0a0a0a;
+  font-family: var(--font-ui);
+}
+
+/* Header */
+.ds-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid #1e1e1e;
+  position: sticky;
+  top: 0;
+  background: #0a0a0a;
+  z-index: 2;
+}
+.ds-header-accent {
+  width: 3px;
+  height: 18px;
+  border-radius: 1px;
+}
+.ds-header-title {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: #e0e0e0;
+  text-transform: uppercase;
+}
+
+/* AI slot */
+.ds-ai-slot {
+  padding: 8px 12px;
+  border-bottom: 1px solid #1e1e1e;
+}
+
+/* Grid */
+.ds-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  background: #1e1e1e;
+  flex: 1;
+}
+.ds-grid--mobile {
+  grid-template-columns: 1fr;
+}
+
+/* Section */
+.ds-section {
+  background: #0a0a0a;
+  display: flex;
+  flex-direction: column;
+  min-height: 180px;
+  overflow: hidden;
+}
+.ds-section-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-bottom: 1px solid #151515;
+  background: #0d0d0d;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+.ds-section-title {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  color: #999;
+  text-transform: uppercase;
+}
+.ds-section-badge {
+  font-size: 8px;
+  letter-spacing: 0.5px;
+  color: #666;
+  background: #1a1a1a;
+  padding: 1px 5px;
+  border-radius: 2px;
+}
+.ds-section-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+
+/* Skeleton */
+.ds-skeleton {
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ds-skeleton-row {
+  height: 10px;
+  background: linear-gradient(90deg, #1a1a1a 25%, #222 50%, #1a1a1a 75%);
+  background-size: 200% 100%;
+  animation: ds-shimmer 1.5s infinite;
+  border-radius: 2px;
+}
+@keyframes ds-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* Error */
+.ds-error {
+  color: #f44336;
+  font-size: 10px;
+  padding: 10px;
+  text-align: center;
+  opacity: 0.8;
+}
+
+/* Ticker cell (used in ETF strips, producer lists, etc.) */
+.ds-ticker-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  background: #111;
+  border: 1px solid #1e1e1e;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 10px;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+.ds-ticker-cell:hover {
+  background: #1a1a1a;
+}
+.ds-ticker-sym {
+  font-weight: 600;
+  color: #e0e0e0;
+  letter-spacing: 0.5px;
+}
+.ds-ticker-price {
+  color: #999;
+}
+.ds-ticker-chg.up { color: #4caf50; }
+.ds-ticker-chg.down { color: #f44336; }
+
+/* Generic data table for deep screens */
+.ds-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 10px;
+}
+.ds-table th {
+  text-align: left;
+  font-weight: 600;
+  color: #666;
+  font-size: 8px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  padding: 4px 6px;
+  border-bottom: 1px solid #1e1e1e;
+  position: sticky;
+  top: 0;
+  background: #0d0d0d;
+}
+.ds-table th:not(:first-child) {
+  text-align: right;
+}
+.ds-table td {
+  padding: 3px 6px;
+  color: #ccc;
+  border-bottom: 1px solid #111;
+}
+.ds-table td:not(:first-child) {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.ds-table tr:hover {
+  background: #111;
+}
+
+/* ETF strip (full-width below grid) */
+.ds-etf-strip {
+  padding: 8px 12px;
+  border-top: 1px solid #1e1e1e;
+}
+.ds-etf-strip-label {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  color: #666;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+.ds-etf-strip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+/* Clickable row for detail */
+.ds-row-clickable {
+  cursor: pointer;
+}
+.ds-row-clickable:hover {
+  background: #151515;
+}
+
+/* ETF/Ticker strip */
+.ds-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px 6px;
+}
+
+/* Ticker column (clickable) */
+.ds-ticker-col {
+  cursor: pointer;
+  font-weight: 500;
+  color: #e0e0e0;
+}
+.ds-ticker-col:hover {
+  color: #fff;
+  text-decoration: underline;
+}
+
+/* Table row colors for gains/losses */
+.ds-up { color: #4caf50; }
+.ds-down { color: #f44336; }
+
+/* Value coloring */
+.ds-val-pos { color: #4caf50; }
+.ds-val-neg { color: #f44336; }
+.ds-val-muted { color: #555; }
+.ds-val-accent { color: #ff6b00; }

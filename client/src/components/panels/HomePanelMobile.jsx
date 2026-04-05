@@ -10,6 +10,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef, memo } from 'react';
 import { useSettings } from '../../context/SettingsContext';
 import { useTickerPrice } from '../../context/PriceContext';
+import { useOpenDetail } from '../../context/OpenDetailContext';
 import { apiFetch } from '../../utils/api';
 import {
   US_STOCKS, BRAZIL_ADRS, FOREX_PAIRS, CRYPTO_PAIRS, COMMODITIES,
@@ -53,17 +54,18 @@ function displaySymbol(sym) {
 }
 
 /* ── TickerRow: individual row with live price from PriceContext ──── */
-const TickerRow = memo(function TickerRow({ symbol, onOpenDetail }) {
+const TickerRow = memo(function TickerRow({ symbol }) {
   const quote = useTickerPrice(symbol);
   const priceStr = formatPrice(quote?.price);
   const pct = quote?.changePct;
+  const openDetail = useOpenDetail();
 
   return (
     <div
       className="hpm-ticker-row"
       onClick={(e) => {
         e.stopPropagation();
-        onOpenDetail?.(symbol);
+        openDetail(symbol);
       }}
     >
       <span className="hpm-ticker-sym">{displaySymbol(symbol)}</span>
@@ -84,7 +86,7 @@ const TickerRow = memo(function TickerRow({ symbol, onOpenDetail }) {
 });
 
 /* ── SectionCard: expandable card with View All ─────────────────── */
-const SectionCard = memo(function SectionCard({ section, tickers, onOpenDetail }) {
+const SectionCard = memo(function SectionCard({ section, tickers }) {
   const [expanded, setExpanded] = useState(false);
   const needsExpand = tickers.length > PREVIEW_COUNT;
   const visibleTickers = expanded ? tickers : tickers.slice(0, PREVIEW_COUNT);
@@ -97,7 +99,7 @@ const SectionCard = memo(function SectionCard({ section, tickers, onOpenDetail }
       </div>
       <div className="hpm-ticker-list">
         {visibleTickers.map(sym => (
-          <TickerRow key={sym} symbol={sym} onOpenDetail={onOpenDetail} />
+          <TickerRow key={sym} symbol={sym} />
         ))}
       </div>
       {needsExpand && (
@@ -156,7 +158,7 @@ const MarketScreensGallery = memo(function MarketScreensGallery({ onApplyScreen 
 });
 
 /* ── Main component ──────────────────────────────────────────────── */
-function HomePanelMobile({ onOpenDetail, onSearchClick }) {
+function HomePanelMobile({ onSearchClick }) {
   const { settings, applyTemplate } = useSettings();
   const [news, setNews] = useState([]);
   const [aiPulse, setAiPulse] = useState(null);
@@ -313,7 +315,6 @@ function HomePanelMobile({ onOpenDetail, onSearchClick }) {
             key={section.id}
             section={section}
             tickers={SECTION_TICKERS[section.id] || []}
-            onOpenDetail={onOpenDetail}
           />
         ))}
 
@@ -323,7 +324,6 @@ function HomePanelMobile({ onOpenDetail, onSearchClick }) {
             key={`user-${section.id}`}
             section={{ id: section.id, label: section.label }}
             tickers={section.symbols}
-            onOpenDetail={onOpenDetail}
           />
         ))}
       </div>

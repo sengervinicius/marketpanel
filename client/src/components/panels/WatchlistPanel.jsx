@@ -6,6 +6,7 @@
  */
 import { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { useWatchlist } from '../../context/WatchlistContext';
+import { useOpenDetail } from '../../context/OpenDetailContext';
 import { normalizeSymbol } from '../../utils/format';
 import { apiFetch } from '../../utils/api';
 import EmptyState from '../common/EmptyState';
@@ -30,7 +31,8 @@ function normalizePolygonQuote(t) {
   return { symbol: t.ticker, price, changePct: t.todaysChangePerc ?? null, change: t.todaysChange ?? null };
 }
 
-function WatchlistPanel({ onTickerClick, onOpenDetail }) {
+function WatchlistPanel({ onTickerClick }) {
+  const openDetail = useOpenDetail();
   const { watchlist, removeTicker } = useWatchlist();
   const [quotes, setQuotes]         = useState({});
   const [loading, setLoading]       = useState(false);
@@ -202,9 +204,9 @@ function WatchlistPanel({ onTickerClick, onOpenDetail }) {
                 data-ticker-label={sym}
                 data-ticker-type={assetType}
                 onClick={() => onTickerClick?.(sym)}
-                onDoubleClick={() => onOpenDetail?.(sym)}
+                onDoubleClick={() => openDetail(sym)}
                 onContextMenu={e => showInfo(e, sym, sym, assetType)}
-                onTouchStart={e => { e.stopPropagation(); clearTimeout(ptRef.current); ptRef.current = setTimeout(() => onOpenDetail?.(sym), 500); }}
+                onTouchStart={e => { e.stopPropagation(); clearTimeout(ptRef.current); ptRef.current = setTimeout(() => openDetail(sym), 500); }}
                 onTouchEnd={() => clearTimeout(ptRef.current)}
                 onTouchMove={() => clearTimeout(ptRef.current)}
                 className="wp-row"

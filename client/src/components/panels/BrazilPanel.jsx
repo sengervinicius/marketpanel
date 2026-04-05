@@ -4,6 +4,7 @@
 // useMergedTickerQuote handles fallback for any symbol not in the snapshot.
 import { useState, useEffect, useCallback, useRef, useMemo, memo } from 'react';
 import { useSettings } from '../../context/SettingsContext';
+import { useOpenDetail } from '../../context/OpenDetailContext';
 import PanelConfigModal from '../common/PanelConfigModal';
 import EditablePanelHeader from '../common/EditablePanelHeader';
 import PanelShell from '../common/PanelShell';
@@ -20,7 +21,8 @@ const SORT_COLS = [
   { key: 'chg',    label: 'CHG%',   align: 'right' },
 ];
 
-function BrazilPanel({ onTickerClick, onOpenDetail }) {
+function BrazilPanel({ onTickerClick }) {
+  const openDetail = useOpenDetail();
   const ptRef = useRef(null);
   const { settings, updatePanelConfig } = useSettings();
 
@@ -193,8 +195,8 @@ function BrazilPanel({ onTickerClick, onOpenDetail }) {
                 draggable
                 dragData={{ symbol: sym, name: s.name || s.symbol, type: 'BR' }}
                 onClick={() => onTickerClick?.(sym)}
-                onDoubleClick={() => onOpenDetail?.(sym)}
-                onTouchHold={() => onOpenDetail?.(sym)}
+                onDoubleClick={() => openDetail(sym)}
+                onTouchHold={() => openDetail(sym)}
                 touchRef={ptRef}
                 dataAttrs={{
                   'data-ticker': sym,

@@ -12,6 +12,7 @@
 import { memo, useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { usePortfolio } from '../../context/PortfolioContext';
 import { useStocksData, useForexData, useCryptoData } from '../../context/MarketContext';
+import { useOpenDetail } from '../../context/OpenDetailContext';
 import AlertEditor from '../common/AlertEditor';
 import Badge from '../ui/Badge';
 import {
@@ -143,11 +144,12 @@ const MobileSummaryHeader = memo(function MobileSummaryHeader({ positions, getPr
   );
 });
 
-function PortfolioMobile({ onOpenDetail, onManage }) {
+function PortfolioMobile({ onManage }) {
   const { positions, portfolios, removePosition, addPosition, syncStatus, retrySync } = usePortfolio();
   const stocks = useStocksData();
   const forex = useForexData();
   const crypto = useCryptoData();
+  const openDetail = useOpenDetail();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('added');
@@ -361,7 +363,7 @@ function PortfolioMobile({ onOpenDetail, onManage }) {
                 <div
                   key={pos.id}
                   className="m-row pm-position-row"
-                  onClick={() => onOpenDetail?.(pos.symbol)}
+                  onClick={() => openDetail(pos.symbol)}
                 >
                   {/* Symbol + subportfolio name */}
                   <div className="pm-position-left">

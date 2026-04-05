@@ -1,0 +1,329 @@
+/* FixedIncomeScreen.css — Phase D2 Bloomberg-style Fixed Income deep screen */
+
+/* ── Container ──────────────────────────────── */
+.fi-screen {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--bg-app);
+  color: var(--text-primary);
+  overflow: hidden;
+}
+
+/* ── Header (minimal) ───────────────────────── */
+.fi-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px 6px;
+  border-bottom: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+}
+
+.fi-header-accent {
+  width: 4px;
+  height: 20px;
+  border-radius: 2px;
+  background: #20b2aa;
+  flex-shrink: 0;
+}
+
+.fi-header-title {
+  font: 700 13px var(--font-ui, system-ui);
+  color: var(--text-primary);
+  letter-spacing: 0.01em;
+}
+
+.fi-header-updated {
+  margin-left: auto;
+  font: 400 9px var(--font-mono, monospace);
+  color: var(--text-faint, #555);
+  letter-spacing: 0.02em;
+}
+
+/* ── 2x2 Grid (desktop) ────────────────────── */
+.fi-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 1px;
+  flex: 1;
+  overflow: hidden;
+  background: var(--border-subtle);
+}
+
+/* ── Section (each grid cell) ───────────────── */
+.fi-section {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-app);
+  overflow: hidden;
+  min-height: 0;
+}
+
+.fi-section-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px 4px;
+  flex-shrink: 0;
+}
+
+.fi-section-title {
+  font: 700 10px var(--font-mono, monospace);
+  letter-spacing: 0.8px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.fi-section-badge {
+  font: 600 8px var(--font-mono, monospace);
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: rgba(32, 178, 170, 0.08);
+  color: #20b2aa;
+  border: 1px solid rgba(32, 178, 170, 0.15);
+}
+
+.fi-section-body {
+  flex: 1;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+/* ── ETF Strip (full-width below grid) ──────── */
+.fi-etf-strip-wrap {
+  flex-shrink: 0;
+  border-top: 1px solid var(--border-subtle);
+  padding: 0;
+}
+
+.fi-etf-strip-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px 3px;
+}
+
+.fi-etf-strip {
+  display: flex;
+  gap: 6px;
+  padding: 4px 10px 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.fi-etf-strip::-webkit-scrollbar { display: none; }
+
+.fi-etf-card {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.1s, border-color 0.1s;
+  min-width: 90px;
+}
+
+.fi-etf-card:hover {
+  background: var(--bg-hover, rgba(255, 255, 255, 0.04));
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.fi-etf-sym {
+  font: 700 10px var(--font-mono, monospace);
+  color: var(--text-secondary);
+}
+
+.fi-etf-price {
+  font: 400 10px var(--font-mono, monospace);
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.fi-etf-chg {
+  font: 500 9px var(--font-mono, monospace);
+  font-variant-numeric: tabular-nums;
+}
+
+.fi-etf-chg.up { color: var(--price-up); }
+.fi-etf-chg.down { color: var(--price-down); }
+
+/* ── Tables (shared) ────────────────────────── */
+.fi-table {
+  width: 100%;
+  border-collapse: collapse;
+  font: 400 10px var(--font-mono, monospace);
+  font-variant-numeric: tabular-nums;
+}
+
+.fi-table th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--bg-elevated, #1a1a1a);
+  font: 600 8px var(--font-mono, monospace);
+  letter-spacing: 0.6px;
+  color: var(--text-faint, #555);
+  text-transform: uppercase;
+  padding: 5px 6px;
+  text-align: right;
+  border-bottom: 1px solid var(--border-subtle);
+  white-space: nowrap;
+}
+
+.fi-table th:first-child {
+  text-align: left;
+  padding-left: 10px;
+}
+
+.fi-table td {
+  padding: 4px 6px;
+  text-align: right;
+  color: var(--text-primary);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+  white-space: nowrap;
+}
+
+.fi-table td:first-child {
+  text-align: left;
+  padding-left: 10px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.fi-table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.fi-table tbody tr {
+  cursor: pointer;
+}
+
+/* ── Yield coloring ─────────────────────────── */
+.fi-yield { color: var(--text-primary); }
+.fi-yield--high { color: #f39c12; }
+.fi-yield--vhigh { color: #e74c3c; }
+
+/* ── Spread coloring ────────────────────────── */
+.fi-spread { font-weight: 500; }
+.fi-spread--pos { color: #e74c3c; }
+.fi-spread--neg { color: #2ecc71; }
+.fi-spread--flat { color: var(--text-muted); }
+
+/* ── Rating badge ───────────────────────────── */
+.fi-rating {
+  font: 700 8px var(--font-mono, monospace);
+  padding: 1px 4px;
+  border-radius: 3px;
+  display: inline-block;
+}
+
+.fi-rating--ig {
+  background: rgba(46, 204, 113, 0.1);
+  color: #2ecc71;
+  border: 1px solid rgba(46, 204, 113, 0.2);
+}
+
+.fi-rating--hy {
+  background: rgba(231, 76, 60, 0.1);
+  color: #e74c3c;
+  border: 1px solid rgba(231, 76, 60, 0.2);
+}
+
+/* ── Loading skeleton ───────────────────────── */
+.fi-skeleton {
+  padding: 12px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.fi-skeleton-row {
+  height: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 4px;
+  animation: fi-pulse 1.2s ease-in-out infinite;
+}
+
+.fi-skeleton-row:nth-child(2n) { width: 80%; }
+.fi-skeleton-row:nth-child(3n) { width: 60%; }
+
+@keyframes fi-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.8; }
+}
+
+/* ── Error banner ───────────────────────────── */
+.fi-error {
+  padding: 8px 10px;
+  font: 400 10px var(--font-ui, system-ui);
+  color: #f44336;
+  background: rgba(244, 67, 54, 0.05);
+  border-bottom: 1px solid rgba(244, 67, 54, 0.1);
+}
+
+/* ── Spreads section specific ───────────────── */
+.fi-spreads-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 6px;
+  padding: 6px 10px;
+}
+
+.fi-spread-card {
+  padding: 8px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+}
+
+.fi-spread-card-country {
+  font: 700 10px var(--font-mono, monospace);
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+
+.fi-spread-card-yield {
+  font: 400 10px var(--font-mono, monospace);
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.fi-spread-card-bps {
+  font: 700 12px var(--font-mono, monospace);
+  font-variant-numeric: tabular-nums;
+  margin-top: 2px;
+}
+
+.fi-base-label {
+  font: 600 9px var(--font-mono, monospace);
+  color: var(--text-faint);
+  padding: 4px 10px 0;
+  letter-spacing: 0.3px;
+}
+
+/* ── Mobile: vertical stack ─────────────────── */
+@media (max-width: 768px) {
+  .fi-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    overflow: auto;
+  }
+
+  .fi-section {
+    min-height: 200px;
+    max-height: none;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .fi-section-body {
+    overflow: visible;
+  }
+}

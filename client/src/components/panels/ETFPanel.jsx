@@ -7,6 +7,7 @@
 import { memo, useState } from 'react';
 import { useStocksData } from '../../context/MarketContext';
 import { useWatchlist } from '../../context/PortfolioContext';
+import { useOpenDetail } from '../../context/OpenDetailContext';
 import { ETF_CATEGORIES } from '../../utils/constants';
 import './ETFPanel.css';
 
@@ -28,7 +29,8 @@ function fmtVol(n) {
   return String(n);
 }
 
-function ETFPanel({ onOpenDetail }) {
+function ETFPanel() {
+  const openDetail = useOpenDetail();
   const stocksData = useStocksData();
   const { addTicker } = useWatchlist();
   const [expanded, setExpanded] = useState(() => {
@@ -73,7 +75,7 @@ function ETFPanel({ onOpenDetail }) {
                 <div
                   key={etf.symbol}
                   className="ep-row"
-                  onClick={() => onOpenDetail?.(etf.symbol)}
+                  onClick={() => openDetail(etf.symbol)}
                 >
                   {/* Symbol and name */}
                   <div className="ep-row-left">

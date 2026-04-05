@@ -1,7 +1,9 @@
 // InstrumentDetail.jsx – Bloomberg GP-style full-screen instrument overlay
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { apiFetch } from '../../utils/api.js';
+import { useIsMobile } from '../../hooks/useIsMobile';
+import { useOpenDetail } from '../../context/OpenDetailContext';
+import { useInstrumentData } from '../../hooks/useInstrumentData';
 import AlertEditor from './AlertEditor';
 import ShareModal from './ShareModal';
 import PositionEditor from './PositionEditor';
@@ -23,7 +25,7 @@ import {
 import { useWatchlist } from '../../context/WatchlistContext';
 import {
   ORANGE, GREEN, RED, RANGES,
-  normalizeTicker, displayTicker, getFromDate, fmt, fmtLabel, timeAgo, pct, exportToCSV,
+  fmt, fmtLabel, timeAgo, pct, exportToCSV,
 } from './InstrumentDetailHelpers';
 import { DeltaLineOverlay, CandlestickOverlay } from './InstrumentDetailCharts';
 import { Section, StatRow } from './InstrumentDetailSections';
@@ -31,72 +33,44 @@ import { Section, StatRow } from './InstrumentDetailSections';
 // ── Main Component ──────────────────────────────────────────────────────────
 // asPage=true: renders as a scrollable page (DETAIL tab on mobile), no fixed overlay
 export default function InstrumentDetail({ ticker, onClose, asPage = false, onOpenChat }) {
-  const norm     = normalizeTicker(ticker);
-  const disp     = displayTicker(norm);
-  const isFX     = norm.startsWith('C:');
-  const isCrypto = norm.startsWith('X:');
-  const isBrazil = norm.endsWith('.SA');
-  const isBondTicker = /^(US|DE|GB|JP|BR)\d+Y$/i.test(norm);
-  const isStock  = !isFX && !isCrypto && !isBondTicker;
+  const openDetail = useOpenDetail();
+
+  // Use the mobile detection hook
+  const isMobile = useIsMobile();
+
+  // Use the instrument data hook
+  const instrumentData = useInstrumentData(ticker);
+  const {
+    norm, disp, isFX, isCrypto, isBrazil, isBondTicker, isStock, isBond, isETF,
+    rangeIdx, setRangeIdx, bars, loading, range,
+    snap, info,
+    fundsData, fundsLoading, fundsError, refetchFundamentals,
+    etfMeta, otherListings, instrumentCompanyId,
+    bondData, bondLoading,
+    macroData,
+    news, newsLoading,
+    aiFunds, aiFundsLoading, aiFundsError,
+  } = instrumentData;
 
   // Watchlist toggle
   const { isWatching, toggle: toggleWatchlist } = useWatchlist();
   const watched = isWatching(disp);
 
-  // Use matchMedia for reliable CSS-aware mobile detection
-  const [isMobile, setIsMobile] = useState(() => {
-    if (typeof window.matchMedia === 'function') {
-      return !window.matchMedia('(min-width: 1024px)').matches;
-    }
-    return window.innerWidth < 1024;
-  });
-  useEffect(() => {
-    if (typeof window.matchMedia !== 'function') {
-      const handler = () => setIsMobile(window.innerWidth < 1024);
-      window.addEventListener('resize', handler);
-      return () => window.removeEventListener('resize', handler);
-    }
-    const mql = window.matchMedia('(min-width: 1024px)');
-    const handler = (e) => setIsMobile(!e.matches);
-    setIsMobile(!mql.matches);
-    mql.addEventListener('change', handler);
-    return () => mql.removeEventListener('change', handler);
-  }, []);
-
-  const [rangeIdx,     setRangeIdx]     = useState(0);
-  const [bars,         setBars]         = useState([]);
-  const [snap,         setSnap]         = useState(null);
-  const [info,         setInfo]         = useState(null);
-  const [loading,      setLoading]      = useState(true);
+  // UI interaction states (kept local, not data-fetching)
   const [deltaMode,    setDeltaMode]    = useState(false);
   const [deltaA,       setDeltaA]       = useState(null);
   const [deltaB,       setDeltaB]       = useState(null);
   const [hovered,      setHovered]      = useState(null);
-  const [fundsData,    setFundsData]    = useState(null);
-  const [fundsLoading, setFundsLoading] = useState(false);
-  const [fundsError,   setFundsError]   = useState(false);
-  const [news,         setNews]         = useState([]);
-  const [newsLoading,  setNewsLoading]  = useState(true);
   const [activeTab,    setActiveTab]    = useState('STATS');
   const [descExpanded, setDescExpanded] = useState(false);
-  const [etfMeta,      setEtfMeta]      = useState(null);
-  const [bondData,     setBondData]     = useState(null);
-  const [bondLoading,  setBondLoading]  = useState(false);
   const [desktopTab,   setDesktopTab]   = useState('STATS');
-  const [macroData,    setMacroData]    = useState(null);
   const [showAlertEditor, setShowAlertEditor] = useState(false);
   const [showPositionEditor, setShowPositionEditor] = useState(false);
   const [showShareModal, setShowShareModal]   = useState(false);
   const [showGameTrade, setShowGameTrade]     = useState(false);
   const [copyToast, setCopyToast] = useState(false);
 
-  // AI Fundamentals state
-  const [aiFunds, setAiFunds]         = useState(null);
-  const [aiFundsLoading, setAiFundsLoading] = useState(false);
-  const [aiFundsError, setAiFundsError]     = useState(null);
-  const aiFundsCacheRef = useRef({}); // symbol → data
-
-  // Phase 6: Chart type, indicators, AI Chart Insight
+  // Chart type, indicators, AI Chart Insight
   const [chartType, setChartType]     = useState('area'); // 'area' | 'candle'
   const [activeIndicators, setActiveIndicators] = useState(new Set());
   const [aiChartInsight, setAiChartInsight]         = useState(null);
@@ -105,170 +79,19 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
   const [showAnalysis, setShowAnalysis] = useState(false); // toggle for Analyze panel
   const aiChartInsightCacheRef = useRef({}); // "symbol:range:lastT" → data
 
-  // Step 4.2: Multi-listing support
-  const [otherListings, setOtherListings] = useState([]);
-  const [instrumentCompanyId, setInstrumentCompanyId] = useState(null);
-
-  const range = RANGES[rangeIdx];
-
-  const isBond = isBondTicker || etfMeta?.assetClass === 'fixed_income';
-  const isETF  = etfMeta?.assetClass === 'etf';
-
-  // ── Fetch bars ─────────────────────────────────────────────────────────
+  // ── Clear delta state when range changes ───────────────────────────────
   useEffect(() => {
-    setLoading(true);
-    setBars([]);
     setDeltaA(null);
     setDeltaB(null);
     setDeltaMode(false);
-    const from = getFromDate(range);
-    const to   = new Date().toISOString().split('T')[0];
-    apiFetch(
-      `/api/chart/${encodeURIComponent(norm)}` +
-      `?multiplier=${range.multiplier}&timespan=${range.timespan}&from=${from}&to=${to}`
-    )
-      .then(r => r.json())
-      .then(d => {
-        const results = Array.isArray(d.results) ? d.results : (Array.isArray(d) ? d : []);
-        setBars(results.map(b => ({
-          t: b.t, label: fmtLabel(b.t, range.timespan),
-          open: b.o, high: b.h, low: b.l, close: b.c, volume: b.v ?? 0,
-        })));
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
-  }, [norm, rangeIdx]);
+  }, [rangeIdx]);
 
-  // ── Fetch snapshot ─────────────────────────────────────────────────────
+  // ── Refetch fundamentals when FUND tab is active ────────────────────────
   useEffect(() => {
-    apiFetch(`/api/snapshot/ticker/${encodeURIComponent(norm)}`)
-      .then(r => r.json())
-      .then(d => setSnap(d?.ticker ?? d))
-      .catch(() => {});
-  }, [norm]);
-
-  // ── Fetch reference info (stocks only) ────────────────────────────────
-  useEffect(() => {
-    if (isFX || isCrypto) return;
-    apiFetch(`/api/ticker/${encodeURIComponent(norm)}`)
-      .then(r => r.json())
-      .then(d => setInfo(d?.results ?? d))
-      .catch(() => {});
-  }, [norm]);
-
-  // ── Fetch fundamentals ─────────────────────────────────────────────────
-  useEffect(() => {
-    if (!isStock || isBondTicker) return;
-    setFundsData(null);
-    setFundsError(false);
-    setFundsLoading(true);
-    apiFetch('/api/fundamentals/' + encodeURIComponent(norm))
-      .then(r => r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)))
-      .then(d => {
-        if (d && !d.error) setFundsData(d);
-        else setFundsError(true);
-        setFundsLoading(false);
-      })
-      .catch(() => { setFundsError(true); setFundsLoading(false); });
-  }, [norm]);
-
-  // ── Fetch instrument registry metadata (ETF/fund enrichment) ─────────
-  useEffect(() => {
-    setEtfMeta(null);
-    apiFetch(`/api/instruments/${encodeURIComponent(disp)}`)
-      .then(r => r.ok ? r.json() : null)
-      .then(d => {
-        if (d && !d.error) {
-          setEtfMeta(d);
-          // Step 4.2: If this instrument has a companyId, fetch other listings
-          if (d.companyId) {
-            setInstrumentCompanyId(d.companyId);
-            apiFetch(`/api/instruments/search?companyId=${encodeURIComponent(d.companyId)}&limit=20`)
-              .then(r => r.json())
-              .then(data => {
-                // Filter out the current symbol
-                const others = (data.results || []).filter(item => item.symbolKey !== disp);
-                setOtherListings(others);
-              })
-              .catch(() => setOtherListings([]));
-          }
-        }
-      })
-      .catch(() => {});
-  }, [disp]);
-
-  // ── Fetch bond-specific data ──────────────────────────────────────────
-  useEffect(() => {
-    if (!isBondTicker) return;
-    setBondLoading(true);
-    setBondData(null);
-    apiFetch(`/api/debt/bond/${encodeURIComponent(norm)}`)
-      .then(r => r.ok ? r.json() : null)
-      .then(d => { if (d && !d.error) setBondData(d); setBondLoading(false); })
-      .catch(() => setBondLoading(false));
-  }, [norm, isBondTicker]);
-
-  // ── Fetch macro data for FX pairs ─────────────────────────────────────
-  const FX_CCY_MAP = { USD:'US', EUR:'EU', GBP:'GB', JPY:'JP', BRL:'BR', CNY:'CN', MXN:'MX', AUD:'AU', CAD:'CA', CHF:'CH' };
-  useEffect(() => {
-    if (!isFX) return;
-    setMacroData(null);
-    const raw = norm.replace(/^C:/, '');
-    const base = raw.slice(0, 3);
-    const quote = raw.slice(3);
-    const baseCty  = FX_CCY_MAP[base];
-    const quoteCty = FX_CCY_MAP[quote];
-    const countries = [baseCty, quoteCty].filter(Boolean);
-    if (countries.length === 0) return;
-    apiFetch(`/api/macro/compare?countries=${countries.join(',')}&indicators=policyRate,cpiYoY,gdpGrowthYoY,unemploymentRate,debtGDP`)
-      .then(r => r.ok ? r.json() : null)
-      .then(d => { if (d && d.countries) setMacroData(d); })
-      .catch(() => {});
-  }, [norm, isFX]);
-
-  // ── Fetch ticker-specific news ─────────────────────────────────────────
-  useEffect(() => {
-    setNewsLoading(true);
-    setNews([]);
-    const newsTicker = norm.replace(/^[XCI]:/, '');
-    apiFetch(`/api/news?ticker=${encodeURIComponent(newsTicker)}&limit=12`)
-      .then(r => r.json())
-      .then(d => { setNews(d?.results || []); setNewsLoading(false); })
-      .catch(() => setNewsLoading(false));
-  }, [norm]);
-
-  // ── Fetch AI Fundamentals ───────────────────────────────────────────────
-  useEffect(() => {
-    // Check in-memory cache first
-    if (aiFundsCacheRef.current[norm]) {
-      setAiFunds(aiFundsCacheRef.current[norm]);
-      setAiFundsLoading(false);
-      setAiFundsError(null);
-      return;
+    if (activeTab === 'FUND' && isStock) {
+      refetchFundamentals();
     }
-    setAiFunds(null);
-    setAiFundsError(null);
-    setAiFundsLoading(true);
-
-    apiFetch('/api/search/fundamentals', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ symbol: norm }),
-    })
-      .then(r => {
-        if (!r.ok) throw new Error(`AI error (${r.status})`);
-        return r.json();
-      })
-      .then(data => {
-        aiFundsCacheRef.current[norm] = data;
-        setAiFunds(data);
-        setAiFundsLoading(false);
-      })
-      .catch(err => {
-        setAiFundsError(err.message || 'AI fundamentals unavailable');
-        setAiFundsLoading(false);
-      });
-  }, [norm]);
+  }, [activeTab, isStock, refetchFundamentals]);
 
   // ── Focus management + Escape key + mobile back-button support ────────
   const closeButtonRef = useRef(null);
@@ -1438,10 +1261,10 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
     if (typeof onOpenChat === 'function') onOpenChat(norm);
   }, [onOpenChat, norm]);
 
-  // Step 4.2: Switch to another listing
+  // Step 4.2: Switch to another listing via context
   const onSwitchListing = useCallback((symbolKey) => {
-    onOpenDetail?.(symbolKey);
-  }, [onOpenDetail]);
+    openDetail(symbolKey);
+  }, [openDetail]);
 
   return (
     <div
