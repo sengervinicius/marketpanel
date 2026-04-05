@@ -122,6 +122,9 @@ function StockPanel({ data = {}, loading, onTickerClick }) {
   const subsectionLabels     = panelCfg.subsectionLabels     || {};
   const availableSubsections = [{ key: 'brazilAdrs', label: 'BRAZIL ADRs' }];
 
+  // Check if panel has been customized with a non-default title (indicating template override)
+  const isCustomized = panelTitle !== 'US Equities';
+
   const [sortKey,    setSortKey]    = useState(null);
   const [sortDir,    setSortDir]    = useState('desc');
   const [collapsed,  setCollapsed]  = useState(false);
@@ -301,7 +304,7 @@ function StockPanel({ data = {}, loading, onTickerClick }) {
               </div>
             ) : (
               <>
-                <SectionHeader label={subsectionLabels['usEquities'] || 'US EQUITIES'} color="var(--section-equity)" />
+                {!isCustomized && <SectionHeader label={subsectionLabels['usEquities'] || 'US EQUITIES'} color="var(--section-equity)" />}
                 {filteredUS.map(s => (
                   <PriceRow
                     key={s.symbol}
@@ -332,7 +335,7 @@ function StockPanel({ data = {}, loading, onTickerClick }) {
 
                 {!hiddenSubsections.includes('brazilAdrs') && (
                   <>
-                    <SectionHeader label={subsectionLabels['brazilAdrs'] || 'BRAZIL ADRs'} color="var(--section-brazil)" />
+                    {!isCustomized && <SectionHeader label={subsectionLabels['brazilAdrs'] || 'BRAZIL ADRs'} color="var(--section-brazil)" />}
                     {filteredBrazil.map(s => (
                       <PriceRow
                         key={s.symbol}

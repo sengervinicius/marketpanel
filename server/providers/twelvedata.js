@@ -193,8 +193,14 @@ const YAHOO_TO_TD_EXCHANGE = {
  * Parse a Yahoo-style symbol into Twelve Data symbol + exchange.
  * e.g. 'SAP.DE' → { symbol: 'SAP', exchange: 'XETR' }
  *      'AAPL'   → { symbol: 'AAPL', exchange: undefined }
+ *      'CL=F'   → { symbol: 'CL', exchange: undefined }
  */
 function parseTicker(yahooSymbol) {
+  // Handle futures: CL=F → CL, BZ=F → BZ, GC=F → GC, etc.
+  if (yahooSymbol.toUpperCase().includes('=F')) {
+    return { symbol: yahooSymbol.replace(/=F$/i, ''), exchange: undefined };
+  }
+
   for (const [suffix, exchange] of Object.entries(YAHOO_TO_TD_EXCHANGE)) {
     if (yahooSymbol.toUpperCase().endsWith(suffix.toUpperCase())) {
       return {

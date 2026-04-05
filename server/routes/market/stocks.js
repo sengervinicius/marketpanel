@@ -358,6 +358,9 @@ router.get('/snapshot/ticker/:symbol', async (req, res) => {
       yahooTicker = `${crypto}-${fiat}`;
     } else if (sym.startsWith('C:')) {
       yahooTicker = `${sym.replace(/^C:/, '')}=X`;
+    } else if (sym.includes('=F') || sym.includes('=')) {
+      // Futures - Yahoo Finance handles these natively (CL=F, BZ=F, GC=F, etc.)
+      yahooTicker = sym;
     }
 
     const quotes = await yahooQuote(yahooTicker);
@@ -456,7 +459,14 @@ router.get('/chart/:ticker', async (req, res) => {
       return d.toISOString().split('T')[0];
     })();
 
-    if (!ticker.toUpperCase().endsWith('.SA')) {
+    // Detect futures symbols (CL=F, BZ=F, GC=F, etc.)
+    const isFutures = ticker.toUpperCase().includes('=F') || ticker.toUpperCase().includes('=');
+
+    if (isFutures) {
+      console.log(`[Chart] Futures detected (${ticker}), using Yahoo Finance`);
+      // Skip Polygon (no futures support) and TD (unreliable for futures)
+      // Go straight to Yahoo Finance
+    } else if (!ticker.toUpperCase().endsWith('.SA')) {
       try {
         const data = await polyFetch(
           `/v2/aggs/ticker/${ticker}/range/${multiplier}/${timespan}/${fromDate}/${toDate}?adjusted=true&sort=asc&limit=500`
@@ -470,7 +480,8 @@ router.get('/chart/:ticker', async (req, res) => {
     }
 
     // ── Twelve Data fallback (especially for international exchanges) ──
-    if (twelvedata.isConfigured()) {
+    // Skip for futures as Twelve Data is unreliable for futures symbols
+    if (!isFutures && twelvedata.isConfigured()) {
       try {
         // Map Vite timespan → Twelve Data interval
         const tdIntervalMap = { minute: `${multiplier}min`, hour: `${multiplier}h`, day: '1day', week: '1week', month: '1month' };

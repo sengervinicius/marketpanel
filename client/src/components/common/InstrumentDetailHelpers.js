@@ -25,6 +25,7 @@ export function displayTicker(norm) {
   if (norm.startsWith('C:')) return norm.slice(2, 5) + '/' + norm.slice(5);
   if (norm.startsWith('X:')) return norm.slice(2, 5) + '/' + norm.slice(5);
   if (norm.endsWith('.SA')) return norm.slice(0, -3);
+  if (norm.includes('=F')) return norm.replace('=F', '');  // CL=F → CL, BZ=F → BZ
   return norm;
 }
 

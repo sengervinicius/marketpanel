@@ -1,10 +1,14 @@
 /**
- * @deprecated — This monolith has been split into domain-scoped files under
- * routes/market/. The new entry point is routes/market/index.js.
- * This file is kept for reference only and is no longer imported.
- * Safe to delete after confirming the new structure works in production.
+ * DEPRECATED & UNUSED — routes/market.js
  *
- * routes/market.js — Market data REST endpoints (DEPRECATED)
+ * This monolith has been split into domain-scoped files under routes/market/.
+ * The new entry point is routes/market/index.js.
+ *
+ * STATUS: Not imported anywhere in the codebase (verified 2024).
+ * Kept for reference only. Safe to delete after confirming the new structure
+ * works in production and all fallback scenarios are covered by routes/market/*.
+ *
+ * Legacy routes/market.js — Market data REST endpoints (DEPRECATED)
  *
  * Multi-provider architecture with automatic fallback chains:
  *   Primary:    Yahoo Finance (crumb-based auth, v7/v8/v10 endpoints)

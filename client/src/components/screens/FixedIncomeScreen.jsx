@@ -15,6 +15,7 @@
 
 import { useState, useEffect, useCallback, memo, useMemo } from 'react';
 import SectorChartStrip from './SectorChartStrip';
+import DataUnavailable from '../common/DataUnavailable';
 import { useTickerPrice } from '../../context/PriceContext';
 import { useOpenDetail } from '../../context/OpenDetailContext';
 import { apiFetch } from '../../utils/api';
@@ -52,7 +53,7 @@ const REFRESH_INTERVAL = 120_000; // 2 minutes
 
 /**
  * Generic data-fetching hook with loading/error/data states.
- * Auto-refreshes on interval.
+ * Auto-refreshes on interval with timeout handling.
  */
 function useSectionData(fetchFn, deps = []) {
   const [data, setData] = useState(null);
@@ -60,9 +61,16 @@ function useSectionData(fetchFn, deps = []) {
   const [error, setError] = useState(null);
 
   const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+
+    // Create a timeout promise that rejects after 15 seconds
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Data fetch timeout')), 15000)
+    );
+
     try {
-      setError(null);
-      const result = await fetchFn();
+      const result = await Promise.race([fetchFn(), timeoutPromise]);
       setData(result);
     } catch (e) {
       setError(e.message || 'Failed to load data');
@@ -79,7 +87,7 @@ function useSectionData(fetchFn, deps = []) {
     return () => clearInterval(id);
   }, [load]);
 
-  return { data, loading, error };
+  return { data, loading, error, refresh: load };
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -198,10 +206,10 @@ function fmtPct(val) {
 }
 
 /* ── Sovereign Grid Table ────────────────────────────────────────────────── */
-const SovereignGridTable = memo(function SovereignGridTable({ data, loading, error }) {
+const SovereignGridTable = memo(function SovereignGridTable({ data, loading, error, onRetry }) {
   if (loading) return <SectionSkeleton rows={8} />;
-  if (error) return <SectionError message={error} />;
-  if (!data || data.length === 0) return <SectionError message="No sovereign data available" />;
+  if (error) return <DataUnavailable reason={error} onRetry={onRetry} />;
+  if (!data || data.length === 0) return <DataUnavailable reason="No sovereign data available" onRetry={onRetry} />;
 
   return (
     <table className="fi-table">
@@ -232,10 +240,10 @@ const SovereignGridTable = memo(function SovereignGridTable({ data, loading, err
 });
 
 /* ── Corporate Bond Table ────────────────────────────────────────────────── */
-const CorporateTable = memo(function CorporateTable({ data, loading, error, ratingType }) {
+const CorporateTable = memo(function CorporateTable({ data, loading, error, ratingType, onRetry }) {
   if (loading) return <SectionSkeleton rows={8} />;
-  if (error) return <SectionError message={error} />;
-  if (!data || data.length === 0) return <SectionError message={`No ${ratingType} bonds available`} />;
+  if (error) return <DataUnavailable reason={error} onRetry={onRetry} />;
+  if (!data || data.length === 0) return <DataUnavailable reason={`No ${ratingType} bonds available`} onRetry={onRetry} />;
 
   return (
     <table className="fi-table">
@@ -270,10 +278,10 @@ const CorporateTable = memo(function CorporateTable({ data, loading, error, rati
 });
 
 /* ── Spreads & Curves Panel ──────────────────────────────────────────────── */
-const SpreadsPanel = memo(function SpreadsPanel({ data, loading, error }) {
+const SpreadsPanel = memo(function SpreadsPanel({ data, loading, error, onRetry }) {
   if (loading) return <SectionSkeleton rows={6} />;
-  if (error) return <SectionError message={error} />;
-  if (!data) return <SectionError message="No spread data available" />;
+  if (error) return <DataUnavailable reason={error} onRetry={onRetry} />;
+  if (!data) return <DataUnavailable reason="No spread data available" onRetry={onRetry} />;
 
   const base = data.base;
   const spreads = data.spreads || [];
@@ -306,7 +314,7 @@ const SpreadsPanel = memo(function SpreadsPanel({ data, loading, error }) {
           })}
         </div>
       ) : (
-        <SectionError message="No spread comparisons available" />
+        <DataUnavailable reason="No spread comparisons available" onRetry={onRetry} />
       )}
     </div>
   );
@@ -336,7 +344,7 @@ const EtfCard = memo(function EtfCard({ symbol, etfData, onClick }) {
 });
 
 /* ── Bond ETF Strip ──────────────────────────────────────────────────────── */
-const BondEtfStrip = memo(function BondEtfStrip({ data, loading, error, onTickerClick }) {
+const BondEtfStrip = memo(function BondEtfStrip({ data, loading, error, onTickerClick, onRetry }) {
   // Merge API data with live prices
   const etfMap = useMemo(() => {
     const m = {};
@@ -346,12 +354,24 @@ const BondEtfStrip = memo(function BondEtfStrip({ data, loading, error, onTicker
     return m;
   }, [data]);
 
+  if (error) {
+    return (
+      <div className="fi-etf-strip-wrap">
+        <div className="fi-etf-strip-head">
+          <span className="fi-section-title">Bond ETFs</span>
+        </div>
+        <div className="fi-etf-strip">
+          <DataUnavailable reason={error} onRetry={onRetry} />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="fi-etf-strip-wrap">
       <div className="fi-etf-strip-head">
         <span className="fi-section-title">Bond ETFs</span>
         {loading && <span className="fi-section-badge">Loading...</span>}
-        {error && <span className="fi-error" style={{ padding: '0 6px', fontSize: 9 }}>{error}</span>}
       </div>
       <div className="fi-etf-strip">
         {BOND_ETFS.map(sym => (
@@ -418,6 +438,7 @@ function FixedIncomeScreen({ onTickerClick }) {
               data={sovereign.data}
               loading={sovereign.loading}
               error={sovereign.error}
+              onRetry={sovereign.refresh}
             />
           </div>
         </div>
@@ -434,6 +455,7 @@ function FixedIncomeScreen({ onTickerClick }) {
               loading={igCorp.loading}
               error={igCorp.error}
               ratingType="IG"
+              onRetry={igCorp.refresh}
             />
           </div>
         </div>
@@ -449,6 +471,7 @@ function FixedIncomeScreen({ onTickerClick }) {
               data={spreads.data}
               loading={spreads.loading}
               error={spreads.error}
+              onRetry={spreads.refresh}
             />
           </div>
         </div>
@@ -465,6 +488,7 @@ function FixedIncomeScreen({ onTickerClick }) {
               loading={hyCorp.loading}
               error={hyCorp.error}
               ratingType="HY"
+              onRetry={hyCorp.refresh}
             />
           </div>
         </div>
@@ -479,6 +503,7 @@ function FixedIncomeScreen({ onTickerClick }) {
         loading={etfs.loading}
         error={etfs.error}
         onTickerClick={handleClick}
+        onRetry={etfs.refresh}
       />
     </div>
   );

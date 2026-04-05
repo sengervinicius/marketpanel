@@ -131,7 +131,7 @@ const EtfStripSection = memo(function EtfStripSection() {
 });
 
 function EnergyScreenImpl() {
-  const statsMap = useDeepScreenData(ALL_EQUITIES);
+  const { data: statsMap } = useDeepScreenData(ALL_EQUITIES);
 
   const sections = useMemo(() => [
     { id: 'majors', title: 'Integrated Majors',         component: () => <EquitySection tickers={INTEGRATED_MAJORS} statsMap={statsMap} /> },

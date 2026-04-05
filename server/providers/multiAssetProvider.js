@@ -1,10 +1,11 @@
 /**
- * multiAssetProvider.js
- * Abstraction layer for a multi-asset data vendor.
+ * STUB — multiAssetProvider.js
  *
+ * Abstraction layer for a multi-asset data vendor (stub implementation).
  * Currently: stub data for development and demo purposes.
- *
+ * This file provides hardcoded data for testing and demonstration.
  * TODO(provider): Replace stub implementations with real API calls.
+ *
  * Recommended vendors (ranked by coverage):
  *   - Leeway (leeway.tech) — global equities, bonds, FX, macro; REST + WS
  *   - Refinitiv/LSEG Data — gold standard; requires enterprise contract

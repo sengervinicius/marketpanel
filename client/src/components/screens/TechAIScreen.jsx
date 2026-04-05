@@ -90,7 +90,7 @@ const EtfStripSection = memo(function EtfStripSection() {
 });
 
 function TechAIScreen() {
-  const statsMap = useDeepScreenData(ALL_STOCKS);
+  const { data: statsMap } = useDeepScreenData(ALL_STOCKS);
 
   const sections = useMemo(() => [
     { id: 'megacap',  title: 'MEGA-CAP TECH',       component: () => <SectionTable tickers={MEGA_CAP} statsMap={statsMap} /> },

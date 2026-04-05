@@ -143,7 +143,7 @@ const CryptoInfraSection = memo(function CryptoInfraSection({ statsMap }) {
 });
 
 function FxCryptoScreen() {
-  const statsMap = useDeepScreenData(CRYPTO_INFRA);
+  const { data: statsMap } = useDeepScreenData(CRYPTO_INFRA);
 
   const sections = useMemo(() => [
     { id: 'g10fx',        title: 'G10 FX PAIRS',                  component: G10FxSection },

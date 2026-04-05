@@ -95,7 +95,7 @@ const EtfStripSection = memo(function EtfStripSection() {
 });
 
 function DefenceScreenImpl() {
-  const statsMap = useDeepScreenData(ALL_EQUITIES);
+  const { data: statsMap } = useDeepScreenData(ALL_EQUITIES);
 
   const sections = useMemo(() => [
     { id: 'primes',      title: 'US Defence Primes',  component: () => <SectionTable tickers={US_PRIMES} statsMap={statsMap} /> },

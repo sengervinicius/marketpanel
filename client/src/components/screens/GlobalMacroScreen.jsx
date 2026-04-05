@@ -7,6 +7,7 @@
 import { memo } from 'react';
 import DeepScreenBase, { DeepSection, DeepSkeleton, DeepError, TickerCell } from './DeepScreenBase';
 import SectorChartStrip from './SectorChartStrip';
+import DataUnavailable from '../common/DataUnavailable';
 import useSectionData from '../../hooks/useSectionData';
 import { useOpenDetail } from '../../context/OpenDetailContext';
 import { useTickerPrice } from '../../context/PriceContext';
@@ -199,7 +200,7 @@ function FxRow({ pair, openDetail }) {
 /* ─────────────────────────────────────────────────────────────────────── */
 function EuropeanMarkets() {
   const openDetail = useOpenDetail();
-  const { data, loading, error } = useSectionData({
+  const { data, loading, error, refresh } = useSectionData({
     cacheKey: 'screen:macro:european',
     fetcher: async () => {
       const res = await apiFetch('/api/snapshot/european');
@@ -210,8 +211,8 @@ function EuropeanMarkets() {
   });
 
   if (loading) return <DeepSkeleton rows={6} />;
-  if (error) return <DeepError message={error} />;
-  if (!data?.stocks) return <DeepError message="No European data" />;
+  if (error) return <DataUnavailable reason={error} onRetry={refresh} />;
+  if (!data?.stocks) return <DataUnavailable reason="No European data" onRetry={refresh} />;
 
   const stocks = Object.entries(data.stocks)
     .filter(([, v]) => v?.price != null)

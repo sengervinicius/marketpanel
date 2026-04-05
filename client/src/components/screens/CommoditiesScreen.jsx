@@ -6,6 +6,7 @@
 import { memo, useMemo } from 'react';
 import DeepScreenBase, { DeepSection, TickerCell } from './DeepScreenBase';
 import SectorChartStrip from './SectorChartStrip';
+import DataUnavailable from '../common/DataUnavailable';
 import { useOpenDetail } from '../../context/OpenDetailContext';
 import { useTickerPrice } from '../../context/PriceContext';
 import { useDeepScreenData } from '../../hooks/useDeepScreenData';
@@ -109,8 +110,17 @@ const BenchmarksSection = memo(function BenchmarksSection() {
   );
 });
 
-const ProducersSection = memo(function ProducersSection({ statsMap }) {
+const ProducersSection = memo(function ProducersSection({ statsMap, loading, error, onRetry }) {
   const openDetail = useOpenDetail();
+
+  if (loading && statsMap.size === 0) {
+    return <div style={{ padding: 16, textAlign: 'center', color: '#666', fontSize: 11 }}>Loading statistics...</div>;
+  }
+
+  if (error && statsMap.size === 0) {
+    return <DataUnavailable reason={error} onRetry={onRetry} />;
+  }
+
   return (
     <table className="ds-table">
       <thead>
@@ -154,13 +164,13 @@ const EtfStripSection = memo(function EtfStripSection() {
 });
 
 function CommoditiesScreenImpl() {
-  const statsMap = useDeepScreenData(PRODUCERS);
+  const { data: statsMap, loading, error, refresh } = useDeepScreenData(PRODUCERS);
 
   const sections = useMemo(() => [
     { id: 'benchmarks', title: 'Benchmarks',                    component: BenchmarksSection },
-    { id: 'producers',  title: 'Producers & Miners',            component: () => <ProducersSection statsMap={statsMap} /> },
+    { id: 'producers',  title: 'Producers & Miners',            component: () => <ProducersSection statsMap={statsMap} loading={loading} error={error} onRetry={refresh} /> },
     { id: 'agsoft',     title: 'Agriculture & Soft Commodities', component: AgSoftSection },
-  ], [statsMap]);
+  ], [statsMap, loading, error, refresh]);
 
   return (
     <DeepScreenBase
