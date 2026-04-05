@@ -23,7 +23,7 @@
 const express = require('express');
 const router  = express.Router();
 const { cacheGet, cacheSet, TTL } = require('./lib/cache');
-const { polyFetch, eulerpool, sendError } = require('./lib/providers');
+const { polyFetch, eulerpool, twelvedata, sendError } = require('./lib/providers');
 const logger = require('../../utils/logger');
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -388,6 +388,210 @@ router.get('/market/options-ref/:ticker', async (req, res) => {
     res.json({ ok: true, data: results, ticker, source: 'polygon' });
   } catch (e) {
     logger.warn(`GET /market/options-ref/${req.params.ticker} error:`, e.message);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+//  TWELVE DATA ENDPOINTS (S4.6)
+// ═══════════════════════════════════════════════════════════════════════
+
+/**
+ * GET /market/td/profile/:ticker
+ * Returns company profile from Twelve Data (sector, industry, description, CEO, etc.)
+ */
+router.get('/market/td/profile/:ticker', async (req, res) => {
+  try {
+    const ticker = req.params.ticker.toUpperCase();
+    if (!twelvedata.isConfigured()) return res.json({ ok: true, data: null, source: 'unavailable' });
+
+    const ck = `td-profile:${ticker}`;
+    const cached = cacheGet(ck);
+    if (cached) return res.json({ ok: true, data: cached, source: 'twelvedata' });
+
+    const data = await twelvedata.getProfile(ticker);
+    if (data) cacheSet(ck, data, 3600_000);
+    res.json({ ok: true, data: data || null, source: 'twelvedata' });
+  } catch (e) {
+    logger.warn(`GET /market/td/profile/${req.params.ticker} error:`, e.message);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+/**
+ * GET /market/td/statistics/:ticker
+ * Returns PE, EPS, beta, market cap, 52-week range from Twelve Data.
+ */
+router.get('/market/td/statistics/:ticker', async (req, res) => {
+  try {
+    const ticker = req.params.ticker.toUpperCase();
+    if (!twelvedata.isConfigured()) return res.json({ ok: true, data: null, source: 'unavailable' });
+
+    const ck = `td-stats:${ticker}`;
+    const cached = cacheGet(ck);
+    if (cached) return res.json({ ok: true, data: cached, source: 'twelvedata' });
+
+    const data = await twelvedata.getStatistics(ticker);
+    if (data) cacheSet(ck, data, 300_000);
+    res.json({ ok: true, data: data || null, source: 'twelvedata' });
+  } catch (e) {
+    logger.warn(`GET /market/td/statistics/${req.params.ticker} error:`, e.message);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+/**
+ * GET /market/td/earnings/:ticker
+ * Returns earnings history from Twelve Data.
+ */
+router.get('/market/td/earnings/:ticker', async (req, res) => {
+  try {
+    const ticker = req.params.ticker.toUpperCase();
+    if (!twelvedata.isConfigured()) return res.json({ ok: true, data: null, source: 'unavailable' });
+
+    const ck = `td-earn:${ticker}`;
+    const cached = cacheGet(ck);
+    if (cached) return res.json({ ok: true, data: cached, source: 'twelvedata' });
+
+    const data = await twelvedata.getEarnings(ticker);
+    if (data) cacheSet(ck, data, 600_000);
+    res.json({ ok: true, data: data || null, source: 'twelvedata' });
+  } catch (e) {
+    logger.warn(`GET /market/td/earnings/${req.params.ticker} error:`, e.message);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+/**
+ * GET /market/td/financials/:ticker?period=annual
+ * Returns income statement, balance sheet, cash flow from Twelve Data.
+ */
+router.get('/market/td/financials/:ticker', async (req, res) => {
+  try {
+    const ticker = req.params.ticker.toUpperCase();
+    const period = req.query.period === 'quarterly' ? 'quarterly' : 'annual';
+    if (!twelvedata.isConfigured()) return res.json({ ok: true, data: null, source: 'unavailable' });
+
+    const ck = `td-financials:${ticker}:${period}`;
+    const cached = cacheGet(ck);
+    if (cached) return res.json({ ok: true, data: cached, source: 'twelvedata' });
+
+    const [income, balance, cashflow] = await Promise.allSettled([
+      twelvedata.getIncomeStatement(ticker, period),
+      twelvedata.getBalanceSheet(ticker, period),
+      twelvedata.getCashFlow(ticker, period),
+    ]);
+
+    const data = {
+      income_statement: income.status === 'fulfilled' ? income.value : null,
+      balance_sheet:    balance.status === 'fulfilled' ? balance.value : null,
+      cash_flow:        cashflow.status === 'fulfilled' ? cashflow.value : null,
+    };
+
+    cacheSet(ck, data, 600_000);
+    res.json({ ok: true, data, ticker, period, source: 'twelvedata' });
+  } catch (e) {
+    logger.warn(`GET /market/td/financials/${req.params.ticker} error:`, e.message);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+/**
+ * GET /market/td/insider/:ticker
+ * Returns insider transactions from Twelve Data.
+ */
+router.get('/market/td/insider/:ticker', async (req, res) => {
+  try {
+    const ticker = req.params.ticker.toUpperCase();
+    if (!twelvedata.isConfigured()) return res.json({ ok: true, data: [], source: 'unavailable' });
+
+    const ck = `td-insider:${ticker}`;
+    const cached = cacheGet(ck);
+    if (cached) return res.json({ ok: true, data: cached, source: 'twelvedata' });
+
+    const data = await twelvedata.getInsiderTransactions(ticker);
+    const result = Array.isArray(data) ? data : [];
+
+    if (result.length > 0) cacheSet(ck, result, 600_000);
+    res.json({ ok: true, data: result, ticker, source: 'twelvedata' });
+  } catch (e) {
+    logger.warn(`GET /market/td/insider/${req.params.ticker} error:`, e.message);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+/**
+ * GET /market/td/holders/:ticker
+ * Returns institutional + fund holders from Twelve Data.
+ */
+router.get('/market/td/holders/:ticker', async (req, res) => {
+  try {
+    const ticker = req.params.ticker.toUpperCase();
+    if (!twelvedata.isConfigured()) return res.json({ ok: true, data: null, source: 'unavailable' });
+
+    const ck = `td-holders:${ticker}`;
+    const cached = cacheGet(ck);
+    if (cached) return res.json({ ok: true, data: cached, source: 'twelvedata' });
+
+    const [institutional, fund] = await Promise.allSettled([
+      twelvedata.getInstitutionalHolders(ticker),
+      twelvedata.getFundHolders(ticker),
+    ]);
+
+    const data = {
+      institutional: institutional.status === 'fulfilled' ? institutional.value : [],
+      fund:          fund.status === 'fulfilled' ? fund.value : [],
+    };
+
+    cacheSet(ck, data, 600_000);
+    res.json({ ok: true, data, ticker, source: 'twelvedata' });
+  } catch (e) {
+    logger.warn(`GET /market/td/holders/${req.params.ticker} error:`, e.message);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+/**
+ * GET /market/td/logo/:ticker
+ * Returns company logo URL from Twelve Data.
+ */
+router.get('/market/td/logo/:ticker', async (req, res) => {
+  try {
+    const ticker = req.params.ticker.toUpperCase();
+    if (!twelvedata.isConfigured()) return res.json({ ok: true, url: null, source: 'unavailable' });
+
+    const ck = `td-logo:${ticker}`;
+    const cached = cacheGet(ck);
+    if (cached) return res.json({ ok: true, url: cached, source: 'twelvedata' });
+
+    const url = await twelvedata.getLogo(ticker);
+    if (url) cacheSet(ck, url, 86400_000);
+    res.json({ ok: true, url: url || null, source: 'twelvedata' });
+  } catch (e) {
+    res.json({ ok: true, url: null, source: 'twelvedata' });
+  }
+});
+
+/**
+ * GET /market/td/executives/:ticker
+ * Returns key executives from Twelve Data.
+ */
+router.get('/market/td/executives/:ticker', async (req, res) => {
+  try {
+    const ticker = req.params.ticker.toUpperCase();
+    if (!twelvedata.isConfigured()) return res.json({ ok: true, data: [], source: 'unavailable' });
+
+    const ck = `td-execs:${ticker}`;
+    const cached = cacheGet(ck);
+    if (cached) return res.json({ ok: true, data: cached, source: 'twelvedata' });
+
+    const data = await twelvedata.getKeyExecutives(ticker);
+    const result = Array.isArray(data) ? data : [];
+
+    if (result.length > 0) cacheSet(ck, result, 3600_000);
+    res.json({ ok: true, data: result, ticker, source: 'twelvedata' });
+  } catch (e) {
+    logger.warn(`GET /market/td/executives/${req.params.ticker} error:`, e.message);
     res.status(500).json({ ok: false, error: e.message });
   }
 });

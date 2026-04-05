@@ -70,6 +70,9 @@ export function useInstrumentData(ticker) {
   const [splitsData, setSplitsData]         = useState(null);
   const [polyFinancials, setPolyFinancials] = useState(null);
 
+  // S4.6: Company logo from Twelve Data
+  const [logoUrl, setLogoUrl]               = useState(null);
+
   const range = RANGES[rangeIdx];
 
   // Derived
@@ -295,6 +298,12 @@ export function useInstrumentData(ticker) {
       .then(d => { if (!stale && d?.data) setPolyFinancials(d.data); })
       .catch(() => {});
 
+    // Company logo (Twelve Data)
+    apiFetch(`/api/market/td/logo/${encodeURIComponent(norm)}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (!stale && d?.url) setLogoUrl(d.url); })
+      .catch(() => {});
+
     return () => { stale = true; };
   }, [norm, isStock]);
 
@@ -355,5 +364,6 @@ export function useInstrumentData(ticker) {
     dividendLoading,
     splitsData,
     polyFinancials,
+    logoUrl,
   };
 }

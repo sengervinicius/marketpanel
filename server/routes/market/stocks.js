@@ -8,7 +8,7 @@ const { isTicker, parseTickerList, clampInt, sanitizeText } = require('../../uti
 const { cacheGet, cacheSet, TTL, yahooCache } = require('./lib/cache');
 const {
   yahooQuote, finnhubQuote, fetchWithFallback, polyFetch,
-  getYahooCrumb, resetYahooCrumb, sendError, eulerpool, fetch, YF_UA,
+  getYahooCrumb, resetYahooCrumb, sendError, eulerpool, twelvedata, fetch, YF_UA,
 } = require('./lib/providers');
 
 // ── Default stock tickers ───────────────────────────────────────────
@@ -466,6 +466,30 @@ router.get('/chart/:ticker', async (req, res) => {
       } catch (e) {
         console.warn(`[Chart] Polygon failed: ${e.message}`);
         if (e.code !== 'rate_limit' && e.code !== 'network_error') throw e;
+      }
+    }
+
+    // ── Twelve Data fallback (especially for international exchanges) ──
+    if (twelvedata.isConfigured()) {
+      try {
+        // Map Vite timespan → Twelve Data interval
+        const tdIntervalMap = { minute: `${multiplier}min`, hour: `${multiplier}h`, day: '1day', week: '1week', month: '1month' };
+        const tdInterval = tdIntervalMap[timespan] || '1day';
+
+        const tdData = await twelvedata.getTimeSeries(ticker, {
+          interval: tdInterval,
+          start_date: fromDate,
+          end_date: toDate,
+          outputsize: 500,
+        });
+
+        if (tdData?.bars?.length > 0) {
+          const chartPayload = { results: tdData.bars, ticker, status: 'OK', source: 'twelvedata' };
+          cacheSet(chartCacheKey, chartPayload, TTL.chart);
+          return res.json(chartPayload);
+        }
+      } catch (e) {
+        console.warn(`[Chart] Twelve Data failed for ${ticker}: ${e.message}`);
       }
     }
 

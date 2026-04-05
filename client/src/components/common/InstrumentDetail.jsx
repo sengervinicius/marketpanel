@@ -33,12 +33,9 @@ import { useAIInsight } from '../../hooks/useAIInsight';
 import { getExchangeName } from '../../config/exchangeNames';
 
 // ── NO_DATA exchanges (mirrored from SearchPanel for coverage detection) ──
-const NO_DATA_EXCHANGES = new Set([
-  'LSE','LON','L','TYO','TSE','T','HKG','HK','SHH','SHZ',
-  'BOM','NSE','NS','BO','ASX','AX','FRA','ETR','F','EPA','PA',
-  'AMS','AS','BME','MC','MIL','MI','STO','ST','CPH','CO',
-  'OSL','OL','HEL','HE','WSE','WAR','SGX','SI','KRX','KS','KQ',
-]);
+// S4.6: Most international exchanges now served by Twelve Data.
+// Only truly unsupported/exotic exchanges remain here.
+const NO_DATA_EXCHANGES = new Set([]);
 
 // ── Main Component ──────────────────────────────────────────────────────────
 // asPage=true: renders as a scrollable page (DETAIL tab on mobile), no fixed overlay
@@ -63,6 +60,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
     insiderData, insiderLoading,
     dividendData, dividendLoading,
     splitsData, polyFinancials,
+    logoUrl,
   } = instrumentData;
 
   // ── NO DATA detection and AI fallback (S4.5.A) ──
@@ -1482,7 +1480,10 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
       <div className={`id-hero${asPage && isMobile ? ' id-hero--hidden' : ''}`}>
         <div className="id-hero-meta">
           <div>
-            <div className="id-hero-ticker">{disp}</div>
+            <div className="id-hero-ticker" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {logoUrl && <img src={logoUrl} alt="" style={{ width: 24, height: 24, borderRadius: 4, objectFit: 'contain', background: '#222' }} onError={e => { e.target.style.display = 'none'; }} />}
+              {disp}
+            </div>
             <div className="id-hero-name">{name}</div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)' }}>

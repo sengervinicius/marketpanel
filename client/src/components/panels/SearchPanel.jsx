@@ -77,12 +77,14 @@ const MARKET_BADGE = {
 
 const LIVE_EXCHANGES    = new Set(['NYQ', 'NMS', 'PCX', 'ARCX', 'NYE', 'ASE', 'BVSP', 'SAO']);
 const LIMITED_EXCHANGES = new Set(['OTC', 'PNK', 'OTCM', 'GREY', 'OTCQX', 'OTCQB', 'PINK']);
-const NO_DATA_EXCHANGES = new Set([
+// S4.6: International exchanges now covered by Twelve Data — promoted to LIMITED.
+const INTL_EXCHANGES = new Set([
   'LSE','LON','L','TYO','TSE','T','HKG','HK','SHH','SHZ',
   'BOM','NSE','NS','BO','ASX','AX','FRA','ETR','F','EPA','PA',
   'AMS','AS','BME','MC','MIL','MI','STO','ST','CPH','CO',
   'OSL','OL','HEL','HE','WSE','WAR','SGX','SI','KRX','KS','KQ',
 ]);
+const NO_DATA_EXCHANGES = new Set([]);
 
 function coverageLevel(item) {
   if (!item) return 'unknown';
@@ -100,9 +102,10 @@ function coverageLevel(item) {
   if (market === 'indices') return 'limited';
   if (LIVE_EXCHANGES.has(exch))    return 'live';
   if (LIMITED_EXCHANGES.has(exch)) return 'limited';
+  if (INTL_EXCHANGES.has(exch))    return 'limited'; // S4.6: Twelve Data coverage
   if (NO_DATA_EXCHANGES.has(exch)) return 'none';
   const sym = (item.symbol || '').toUpperCase();
-  if (/\.(L|T|HK|AX|TO|NS|BO|PA|DE|MI|AS|MC|ST|CO|OL|HE|SI|KS|KQ)$/.test(sym)) return 'none';
+  if (/\.(L|T|HK|AX|TO|NS|BO|PA|DE|MI|AS|MC|ST|CO|OL|HE|SI|KS|KQ)$/.test(sym)) return 'limited';
   return 'unknown';
 }
 

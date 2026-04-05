@@ -11,6 +11,7 @@
 
 const fetch = require('node-fetch');
 const eulerpool = require('../../../providers/eulerpool');
+const twelvedata = require('../../../providers/twelvedata');
 const { ProviderError, sendApiError } = require('../../../utils/apiError');
 const logger = require('../../../utils/logger');
 const { yahooCache } = require('./cache');
@@ -396,6 +397,34 @@ async function fetchWithFallback(symbol) {
     }
   }
 
+  // ── Twelve Data: international + US fallback ─────────────────────────
+  if (twelvedata.isConfigured()) {
+    logger.info('provider', `Attempting Twelve Data for ${symbol}...`);
+    try {
+      const q = await twelvedata.getQuote(symbol);
+      if (q && q.price) {
+        logger.info('provider', `Twelve Data succeeded for ${symbol}`);
+        return {
+          data: {
+            symbol,
+            regularMarketPrice:         q.price,
+            regularMarketChange:        q.change     ?? null,
+            regularMarketChangePercent: q.changePct  ?? null,
+            regularMarketOpen:          q.open       ?? null,
+            regularMarketDayHigh:       q.high       ?? null,
+            regularMarketDayLow:        q.low        ?? null,
+            regularMarketVolume:        q.volume     ?? null,
+            shortName:                  q.name       ?? symbol,
+            currency:                   q.currency   ?? null,
+          },
+          source: 'twelvedata',
+        };
+      }
+    } catch (e) {
+      logger.warn('provider', `Twelve Data failed for ${symbol}: ${e.message}`);
+    }
+  }
+
   const isEuropean = /\.(DE|L|PA|AS|SW|MC|BR|MI|ST|HE|CO|OL|LS)$/i.test(symbol);
   if (isEuropean && eulerpool.isConfigured()) {
     try {
@@ -491,5 +520,6 @@ module.exports = {
   parseRss,
   // Re-exports
   eulerpool,
+  twelvedata,
   fetch,
 };
