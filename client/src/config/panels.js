@@ -299,6 +299,18 @@ export const PANEL_DEFINITIONS = {
     maxSymbols:     0,
   },
 
+  heatmap: {
+    id:             'heatmap',
+    label:          'Heatmap',
+    defaultTitle:   'Sector Heatmap',
+    defaultSymbols: [],
+    allowedGroups:  null,
+    editable:       false,
+    icon:           'HM',
+    minSymbols:     0,
+    maxSymbols:     0,
+  },
+
   // ── Phase D1 sector screens ──────────────────────────
   defenceScreen: {
     id:             'defenceScreen',

@@ -5,6 +5,7 @@
  */
 import { memo, useMemo } from 'react';
 import DeepScreenBase, { DeepSection, TickerCell } from './DeepScreenBase';
+import SectorChartStrip from './SectorChartStrip';
 import { useOpenDetail } from '../../context/OpenDetailContext';
 import { useTickerPrice } from '../../context/PriceContext';
 import { useDeepScreenData } from '../../hooks/useDeepScreenData';
@@ -20,6 +21,8 @@ const fmtB = (n) => {
   if (v >= 1e6)  return '$' + (v/1e6).toFixed(0) + 'M';
   return '$' + v.toFixed(0);
 };
+
+const CHART_TICKERS = ['GC=F', 'SI=F', 'CL=F', 'HG=F', 'NG=F', 'NEM', 'FCX', 'BHP'];
 
 const BENCHMARKS = [
   { symbol: 'CL=F', label: 'WTI Crude' },
@@ -168,6 +171,7 @@ function CommoditiesScreenImpl() {
       aiContext={{ commodity: 'broad', symbols: ['CL=F', 'GC=F', 'SI=F', 'BZ=F', 'NG=F', 'HG=F', 'ZS=F'] }}
       aiCacheKey="commodity:broad"
     >
+      <SectorChartStrip tickers={CHART_TICKERS} title="COMMODITY CHARTS" />
       <DeepSection title="Commodity ETFs">
         <EtfStripSection />
       </DeepSection>

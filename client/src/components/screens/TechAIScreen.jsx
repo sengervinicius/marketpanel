@@ -5,6 +5,7 @@
  */
 import { memo, useMemo } from 'react';
 import DeepScreenBase, { DeepSection, TickerCell } from './DeepScreenBase';
+import SectorChartStrip from './SectorChartStrip';
 import { useOpenDetail } from '../../context/OpenDetailContext';
 import { useTickerPrice } from '../../context/PriceContext';
 import { useDeepScreenData } from '../../hooks/useDeepScreenData';
@@ -24,6 +25,9 @@ const MEGA_CAP  = ['AAPL', 'MSFT', 'GOOGL', 'META', 'AMZN', 'TSLA', 'NFLX'];
 const SEMIS     = ['NVDA', 'AMD', 'AVGO', 'TSM', 'QCOM', 'MRVL', 'MU', 'AMAT'];
 const AI_CLOUD  = ['CRM', 'SNOW', 'PLTR', 'AI', 'PATH', 'NOW', 'DDOG', 'SMCI'];
 const ETF_SYMBOLS = ['QQQ', 'XLK', 'SOXX', 'SMH', 'AIQ', 'BOTZ', 'ROBO', 'IGV', 'ARKK'];
+
+// Sector-specific chart tickers — curated for Tech & AI coverage
+const CHART_TICKERS = ['NVDA', 'MSFT', 'AAPL', 'GOOGL', 'TSM', 'AVGO', 'META', 'AMZN'];
 
 const LABELS = {
   AAPL: 'Apple', MSFT: 'Microsoft', GOOGL: 'Alphabet', META: 'Meta', AMZN: 'Amazon',
@@ -103,6 +107,7 @@ function TechAIScreen() {
       aiContext={{ sector: 'Technology & AI', tickers: ['NVDA', 'MSFT', 'GOOGL', 'AAPL', 'AMZN', 'TSM', 'AVGO'] }}
       aiCacheKey="sector:tech-ai"
     >
+      <SectorChartStrip tickers={CHART_TICKERS} title="TECH & AI CHARTS" />
       <DeepSection title="TECH & AI ETF STRIP">
         <EtfStripSection />
       </DeepSection>

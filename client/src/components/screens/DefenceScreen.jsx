@@ -5,6 +5,7 @@
  */
 import { memo, useMemo } from 'react';
 import DeepScreenBase, { DeepSection, TickerCell } from './DeepScreenBase';
+import SectorChartStrip from './SectorChartStrip';
 import { useOpenDetail } from '../../context/OpenDetailContext';
 import { useTickerPrice } from '../../context/PriceContext';
 import { useDeepScreenData } from '../../hooks/useDeepScreenData';
@@ -58,6 +59,8 @@ function EnhancedRow({ symbol, label, stats, onClick }) {
   );
 }
 
+const CHART_TICKERS = ['LMT', 'NOC', 'RTX', 'BA', 'GD', 'PLTR', 'RKLB', 'KTOS'];
+
 const SectionTable = memo(function SectionTable({ tickers, statsMap, labels }) {
   const openDetail = useOpenDetail();
   return (
@@ -110,6 +113,7 @@ function DefenceScreenImpl() {
       aiContext={{ sector: 'Defence & Aerospace', tickers: ['LMT', 'NOC', 'RTX', 'BA', 'GD', 'BAESY', 'RNMBY'] }}
       aiCacheKey="sector:defence"
     >
+      <SectorChartStrip tickers={CHART_TICKERS} title="DEFENCE & AERO CHARTS" />
       <DeepSection title="Sector ETFs">
         <EtfStripSection />
       </DeepSection>

@@ -6,10 +6,13 @@
  */
 import { memo } from 'react';
 import DeepScreenBase, { DeepSection, DeepSkeleton, DeepError, TickerCell } from './DeepScreenBase';
+import SectorChartStrip from './SectorChartStrip';
 import useSectionData from '../../hooks/useSectionData';
 import { useOpenDetail } from '../../context/OpenDetailContext';
 import { useTickerPrice } from '../../context/PriceContext';
 import { apiFetch } from '../../utils/api';
+
+const CHART_TICKERS = ['SPY', 'EEM', 'EWZ', 'FXI', 'C:EURUSD', 'C:USDJPY', 'GC=F', 'TLT'];
 
 const fmt = (n, d = 2) =>
   n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -192,6 +195,52 @@ function FxRow({ pair, openDetail }) {
 }
 
 /* ─────────────────────────────────────────────────────────────────────── */
+/* EUROPEAN MARKETS — S6 (leveraging /api/snapshot/european endpoint) */
+/* ─────────────────────────────────────────────────────────────────────── */
+function EuropeanMarkets() {
+  const openDetail = useOpenDetail();
+  const { data, loading, error } = useSectionData({
+    cacheKey: 'screen:macro:european',
+    fetcher: async () => {
+      const res = await apiFetch('/api/snapshot/european');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.json();
+    },
+    refreshMs: 120000,
+  });
+
+  if (loading) return <DeepSkeleton rows={6} />;
+  if (error) return <DeepError message={error} />;
+  if (!data?.stocks) return <DeepError message="No European data" />;
+
+  const stocks = Object.entries(data.stocks)
+    .filter(([, v]) => v?.price != null)
+    .sort((a, b) => Math.abs(b[1].changePct || 0) - Math.abs(a[1].changePct || 0))
+    .slice(0, 12);
+
+  return (
+    <table className="ds-table">
+      <thead>
+        <tr><th>Ticker</th><th>Name</th><th>Price</th><th>1D %</th><th style={{ fontSize: 9 }}>CCY</th></tr>
+      </thead>
+      <tbody>
+        {stocks.map(([sym, d]) => (
+          <tr key={sym} className="ds-row-clickable" onClick={() => openDetail(sym)}>
+            <td className="ds-ticker-col">{sym.replace('.L','').replace('.DE','').replace('.PA','')}</td>
+            <td>{(d.name || sym).slice(0, 18)}</td>
+            <td>{fmt(d.price)}</td>
+            <td className={d.changePct != null && d.changePct >= 0 ? 'ds-up' : 'ds-down'}>
+              {fmtPct(d.changePct)}
+            </td>
+            <td style={{ color: '#666', fontSize: 9 }}>{d.currency || '—'}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────── */
 /* KEY INDEXES */
 /* ─────────────────────────────────────────────────────────────────────── */
 function KeyIndexes() {
@@ -216,6 +265,7 @@ function GlobalMacroScreenImpl() {
     { id: 'snapshot',   title: 'Global Snapshot',      component: GlobalSnapshot },
     { id: 'volatility', title: 'Volatility & Risk',    component: VolatilitySection },
     { id: 'fx',         title: 'FX & Yield Linkage',   component: FxYieldSection },
+    { id: 'european',   title: 'European Markets',     component: EuropeanMarkets },
   ];
 
   return (
@@ -230,6 +280,7 @@ function GlobalMacroScreenImpl() {
       }}
       aiCacheKey="macro:global"
     >
+      <SectorChartStrip tickers={CHART_TICKERS} title="GLOBAL MACRO CHARTS" />
       <DeepSection title="Key Indexes">
         <KeyIndexes />
       </DeepSection>

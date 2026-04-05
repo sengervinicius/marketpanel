@@ -5,6 +5,7 @@
  */
 import { memo, useMemo } from 'react';
 import DeepScreenBase, { DeepSection, TickerCell } from './DeepScreenBase';
+import SectorChartStrip from './SectorChartStrip';
 import { useOpenDetail } from '../../context/OpenDetailContext';
 import { useTickerPrice } from '../../context/PriceContext';
 import { useDeepScreenData } from '../../hooks/useDeepScreenData';
@@ -19,6 +20,8 @@ const fmtB = (n) => {
   if (v >= 1e6)  return '$' + (v/1e6).toFixed(0) + 'M';
   return '$' + v.toFixed(0);
 };
+
+const CHART_TICKERS = ['C:EURUSD', 'C:USDJPY', 'C:GBPUSD', 'C:USDBRL', 'X:BTCUSD', 'X:ETHUSD', 'X:SOLUSD', 'COIN'];
 
 const G10_FX = ['C:EURUSD', 'C:USDJPY', 'C:GBPUSD', 'C:AUDUSD', 'C:USDCAD', 'C:USDCHF', 'C:NZDUSD'];
 const EM_FX  = ['C:USDBRL', 'C:USDMXN', 'C:USDINR', 'C:USDZAR', 'C:USDTRY', 'C:USDCNY'];
@@ -157,7 +160,9 @@ function FxCryptoScreen() {
       aiType="cross-asset"
       aiContext={{ assets: ['FX', 'Crypto'], theme: 'FX & Digital Assets' }}
       aiCacheKey="cross:fxcrypto"
-    />
+    >
+      <SectorChartStrip tickers={CHART_TICKERS} title="FX & CRYPTO CHARTS" />
+    </DeepScreenBase>
   );
 }
 

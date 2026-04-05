@@ -14,6 +14,7 @@
  */
 
 import { useState, useEffect, useCallback, memo, useMemo } from 'react';
+import SectorChartStrip from './SectorChartStrip';
 import { useTickerPrice } from '../../context/PriceContext';
 import { useOpenDetail } from '../../context/OpenDetailContext';
 import { apiFetch } from '../../utils/api';
@@ -22,6 +23,8 @@ import './FixedIncomeScreen.css';
 /* ═══════════════════════════════════════════════════════════════════════════
    CONSTANTS
    ═══════════════════════════════════════════════════════════════════════════ */
+
+const CHART_TICKERS = ['TLT', 'IEF', 'AGG', 'LQD', 'HYG', 'EMB', 'TIP', 'SHY'];
 
 const SOVEREIGN_COUNTRIES = [
   'US', 'DE', 'GB', 'FR', 'IT', 'ES', 'PT', 'NL',
@@ -466,6 +469,9 @@ function FixedIncomeScreen({ onTickerClick }) {
           </div>
         </div>
       </div>
+
+      {/* Sector Chart Strip */}
+      <SectorChartStrip tickers={CHART_TICKERS} title="FIXED INCOME CHARTS" />
 
       {/* Full-width ETF Strip */}
       <BondEtfStrip

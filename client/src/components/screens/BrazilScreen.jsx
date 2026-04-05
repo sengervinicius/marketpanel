@@ -5,10 +5,13 @@
  */
 import { memo, useMemo } from 'react';
 import DeepScreenBase, { DeepSection, DeepSkeleton, DeepError, TickerCell } from './DeepScreenBase';
+import SectorChartStrip from './SectorChartStrip';
 import useSectionData from '../../hooks/useSectionData';
 import { useOpenDetail } from '../../context/OpenDetailContext';
 import { useTickerPrice } from '../../context/PriceContext';
 import { apiFetch } from '../../utils/api';
+
+const CHART_TICKERS = ['PETR4.SA', 'VALE3.SA', 'ITUB4.SA', 'WEGE3.SA', 'EMBR3.SA', 'C:USDBRL', 'EWZ', 'MELI'];
 
 const fmt = (n, d = 2) => n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
 const fmtPct = (n) => n == null ? '—' : (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
@@ -230,6 +233,7 @@ function BrazilScreen() {
       aiContext={{ country: 'Brazil' }}
       aiCacheKey="em:brazil"
     >
+      <SectorChartStrip tickers={CHART_TICKERS} title="BRAZIL & LATAM CHARTS" />
       <DeepSection title="BRAZIL ETF STRIP">
         <EtfStripSection />
       </DeepSection>

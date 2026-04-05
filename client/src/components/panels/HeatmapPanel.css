@@ -1,0 +1,114 @@
+/* ── HeatmapPanel — S6 ─────────────────────────────────────────────────── */
+.hm-panel {
+  height: 100%;
+  overflow-y: auto;
+  background: #0a0a0a;
+  font-family: var(--font-ui, monospace);
+}
+
+.hm-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-bottom: 1px solid #1e1e1e;
+  position: sticky;
+  top: 0;
+  background: #0a0a0a;
+  z-index: 1;
+}
+
+.hm-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: #e0e0e0;
+}
+
+.hm-tf-bar {
+  display: flex;
+  gap: 2px;
+  background: #111;
+  border-radius: 3px;
+  padding: 2px;
+}
+
+.hm-tf-btn {
+  background: transparent;
+  border: none;
+  color: #555;
+  font-family: var(--font-mono, monospace);
+  font-size: 9px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.hm-tf-btn:hover { color: #aaa; background: #1a1a1a; }
+.hm-tf-btn--active { color: #ff6600; background: #1a0800; }
+
+.hm-body {
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.hm-sector {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.hm-sector-label {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  color: #666;
+}
+
+.hm-sector-tiles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+
+.hm-tile {
+  width: 72px;
+  height: 48px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: transform 0.12s, box-shadow 0.15s;
+  border: 1px solid rgba(255,255,255,0.05);
+}
+.hm-tile:hover {
+  transform: scale(1.06);
+  box-shadow: 0 0 8px rgba(255,255,255,0.1);
+  z-index: 1;
+}
+
+.hm-tile-sym {
+  font-size: 10px;
+  font-weight: 700;
+  color: #e0e0e0;
+  letter-spacing: 0.5px;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+}
+
+.hm-tile-chg {
+  font-size: 8px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.8);
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+}
+
+/* Scrollbar */
+.hm-panel::-webkit-scrollbar { width: 4px; }
+.hm-panel::-webkit-scrollbar-track { background: transparent; }
+.hm-panel::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }

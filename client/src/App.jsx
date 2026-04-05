@@ -39,6 +39,7 @@ import OnboardingPresets from './components/onboarding/OnboardingPresets';
 import OnboardingTourOverlay from './components/onboarding/OnboardingTourOverlay';
 import WorkspaceSwitcher from './components/common/WorkspaceSwitcher';
 import MarketScreenGallery from './components/common/MarketScreenGallery';
+import MarketStatus from './components/common/MarketStatus';
 import { TickerTooltip } from './components/common/TickerTooltip';
 import InstrumentDetail from './components/common/InstrumentDetail';
 import PanelErrorBoundary from './components/common/PanelErrorBoundary';
@@ -338,6 +339,7 @@ export default function App() {
           <WorkspaceSwitcher />
           <div style={{ flex: 1 }} />
           <WorldClock />
+          <MarketStatus />
           <div className="flex-row gap-8">
             {isRefreshing && <span className="app-header-status">&#9679; UPDATING</span>}
             {lastUpdated && !isRefreshing && <span style={{ color:'var(--text-faint)', fontSize:'8px' }}>SNAP {lastUpdated.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'})}</span>}

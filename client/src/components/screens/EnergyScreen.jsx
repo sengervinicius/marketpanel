@@ -5,6 +5,7 @@
  */
 import { memo, useMemo } from 'react';
 import DeepScreenBase, { DeepSection, TickerCell } from './DeepScreenBase';
+import SectorChartStrip from './SectorChartStrip';
 import { useOpenDetail } from '../../context/OpenDetailContext';
 import { useTickerPrice } from '../../context/PriceContext';
 import { useDeepScreenData } from '../../hooks/useDeepScreenData';
@@ -32,6 +33,9 @@ const FUTURES = [
   { symbol: 'RB=F', label: 'RBOB Gasoline' },
 ];
 const ETF_SYMBOLS = ['XLE', 'XOP', 'ICLN', 'TAN', 'URA', 'LIT', 'OIH'];
+
+// Sector-specific chart tickers — energy benchmarks + majors
+const CHART_TICKERS = ['CL=F', 'BZ=F', 'NG=F', 'XOM', 'CVX', 'SHEL', 'NEE', 'ENPH'];
 
 const LABELS = {
   XOM: 'Exxon Mobil', CVX: 'Chevron', SHEL: 'Shell', BP: 'BP', TTE: 'TotalEnergies', COP: 'ConocoPhillips',
@@ -145,6 +149,7 @@ function EnergyScreenImpl() {
       aiContext={{ sector: 'Energy & Transition', tickers: ['XOM', 'CVX', 'SLB', 'CL=F', 'ENPH', 'CCJ'] }}
       aiCacheKey="sector:energy"
     >
+      <SectorChartStrip tickers={CHART_TICKERS} title="ENERGY CHARTS" />
       <DeepSection title="Energy ETFs">
         <EtfStripSection />
       </DeepSection>
