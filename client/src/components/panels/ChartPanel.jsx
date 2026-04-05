@@ -6,6 +6,7 @@ import { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
 import { useTickerPrice } from '../../context/PriceContext';
 import { useOpenDetail } from '../../context/OpenDetailContext';
 import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip, ReferenceLine, Line } from 'recharts';
+import { useAIInsight } from '../../hooks/useAIInsight';
 import { apiFetch } from '../../utils/api';
 import { computeIndicators, buildChartInsightPayload, getLatestIndicatorSnapshot, IND_COLORS, INDICATOR_LIST } from '../../utils/chartIndicators';
 import './ChartPanel.css';
@@ -108,7 +109,7 @@ function AiInsightPopover({ insight, loading, error, onClose }) {
       <span className="mc-ai-popover-badge">AI CHART INSIGHT</span>
       {loading && <span className="mc-ai-popover-text mc-ai-popover-text--loading">Analyzing...</span>}
       {error && <span className="mc-ai-popover-text mc-ai-popover-text--error">AI unavailable</span>}
-      {insight && <span className="mc-ai-popover-text">{insight.insight || insight}</span>}
+      {insight && <span className="mc-ai-popover-text">{insight.body || insight}</span>}
     </div>
   );
 }
@@ -133,10 +134,6 @@ function MiniChart({ ticker, index, onRemove, onReplace, onSwap }) {
   const [activeIndicators, setActiveIndicators] = useState(new Set());
   // AI insight state
   const [showAi, setShowAi] = useState(false);
-  const [aiInsight, setAiInsight] = useState(null);
-  const [aiLoading, setAiLoading] = useState(false);
-  const [aiError, setAiError] = useState(null);
-  const aiCacheRef = useRef(new Map());
 
   const mountedRef  = useRef(true);
   const intervalRef = useRef(null);
@@ -271,45 +268,37 @@ function MiniChart({ ticker, index, onRemove, onReplace, onSwap }) {
   };
 
   // ── AI Chart Insight ────────────────────────────────────────────────────
-  const handleAiClick = useCallback(() => {
-    if (showAi) { setShowAi(false); return; }
-    if (rawBars.length < 5) return;
-    const range = RANGES[rangeIdx];
-    const lastT = rawBars[rawBars.length - 1]?.t || '';
-    const cacheKey = `${ticker}:${range.label}:${lastT}`;
-
-    if (aiCacheRef.current.has(cacheKey)) {
-      setAiInsight(aiCacheRef.current.get(cacheKey));
-      setAiError(null);
-      setShowAi(true);
-      return;
-    }
-
-    setAiLoading(true);
-    setAiError(null);
-    setAiInsight(null);
-    setShowAi(true);
-
+  const aiCacheKey = showAi ? `chart:${ticker}:${RANGES[rangeIdx].label}` : null;
+  const aiContext = useMemo(() => {
+    if (!showAi || rawBars.length < 5) return {};
     const enriched = activeIndicators.size > 0 ? chartBars : rawBars;
-    const payload = buildChartInsightPayload(ticker, range.label, enriched);
+    return buildChartInsightPayload(ticker, RANGES[rangeIdx].label, enriched);
+  }, [showAi, ticker, rangeIdx, rawBars, chartBars, activeIndicators]);
 
-    apiFetch('/api/search/chart-insight', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    })
-      .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
-      .then(result => {
-        if (mountedRef.current) {
-          aiCacheRef.current.set(cacheKey, result);
-          setAiInsight(result);
-          setAiLoading(false);
-          fireGamificationEvent('chart_insight');
-        }
-      })
-      .catch(err => {
-        if (mountedRef.current) { setAiError(err.message); setAiLoading(false); }
-      });
-  }, [showAi, rawBars, chartBars, activeIndicators, ticker, rangeIdx]);
+  const { insight: aiInsight, loading: aiLoading, error: aiError, refresh: fetchAiInsight } = useAIInsight({
+    type: 'chart',
+    context: aiContext,
+    cacheKey: aiCacheKey || `chart:${ticker}:${RANGES[rangeIdx].label}`,
+    ttlMs: 300000,
+    autoFetch: false,
+  });
+
+  const handleAiClick = useCallback(() => {
+    if (rawBars.length < 5) return;
+    if (!showAi) {
+      setShowAi(true);
+      fetchAiInsight();
+    } else {
+      setShowAi(false);
+    }
+  }, [showAi, rawBars, fetchAiInsight]);
+
+  // Fire gamification event when insight is received
+  useEffect(() => {
+    if (aiInsight && showAi) {
+      fireGamificationEvent('chart_insight');
+    }
+  }, [aiInsight, showAi]);
 
   const dispPrice  = shared?.price ?? price;
   const dispChg    = rangeIdx === 0 ? (shared?.change    ?? chg) : chg;

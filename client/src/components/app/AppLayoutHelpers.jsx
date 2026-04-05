@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
 import { useMarketDispatch } from '../../context/MarketContext';
 import { PANEL_DEFINITIONS } from '../../config/panels';
 import { ChartPanel } from '../panels/ChartPanel';
@@ -24,10 +24,18 @@ import GamePortfolioPanel from '../panels/GamePortfolioPanel';
 import ReferralPanel from '../common/ReferralPanel';
 import { CalendarPanel } from '../panels/CalendarPanel';
 import ETFPanel from '../panels/ETFPanel';
-import {
-  DefenceScreen, CommoditiesScreen, GlobalMacroScreen, FixedIncomeScreen,
-  BrazilScreen, FxCryptoScreen, EnergyScreen, TechAIScreen,
-} from '../screens';
+import MissionsPanel from '../panels/MissionsPanel';
+import RatesPanel from '../panels/RatesPanel';
+
+// ── Code-split sector screens using React.lazy ──────────────────────────────
+const DefenceScreen = lazy(() => import('../screens/DefenceScreen'));
+const CommoditiesScreen = lazy(() => import('../screens/CommoditiesScreen'));
+const GlobalMacroScreen = lazy(() => import('../screens/GlobalMacroScreen'));
+const FixedIncomeScreen = lazy(() => import('../screens/FixedIncomeScreen'));
+const BrazilScreen = lazy(() => import('../screens/BrazilScreen'));
+const FxCryptoScreen = lazy(() => import('../screens/FxCryptoScreen'));
+const EnergyScreen = lazy(() => import('../screens/EnergyScreen'));
+const TechAIScreen = lazy(() => import('../screens/TechAIScreen'));
 
 // ── MarketTickBridge — dispatches live WS ticks into MarketContext reducer ────
 export function MarketTickBridge({ batchTicks }) {
@@ -166,6 +174,9 @@ const PANEL_REGISTRY = {
   macro:          { component: MacroPanel },
   leaderboard:    { component: LeaderboardPanel },
   game:           { component: GamePortfolioPanel },
+  etf:            { component: ETFPanel },
+  missions:       { component: MissionsPanel },
+  rates:          { component: RatesPanel },
   referrals:      { component: ReferralPanel },
   calendar:       { component: CalendarPanel },
 
@@ -182,15 +193,30 @@ const PANEL_REGISTRY = {
 
 export { PANEL_REGISTRY };
 
+// ── Identify sector screen panels for Suspense wrapping ───────────────────────
+const SCREEN_PANEL_IDS = new Set([
+  'defenceScreen', 'commoditiesScreen', 'globalMacroScreen', 'fixedIncomeScreen',
+  'brazilScreen', 'fxCryptoScreen', 'energyScreen', 'techAIScreen',
+]);
+
 /**
  * makePanelRenderer — resolves a panelId to its React element.
  * Looks up the component and prop-resolver from PANEL_REGISTRY.
+ * Wraps lazy-loaded sector screens in Suspense for code-splitting.
  */
 export function makePanelRenderer(panelId, ctx) {
   const entry = PANEL_REGISTRY[panelId];
   if (!entry) return <div className="app-panel-placeholder">Panel: {panelId}</div>;
   const { component: Comp, getProps } = entry;
   const panelProps = getProps ? getProps(ctx) : {};
+
+  if (SCREEN_PANEL_IDS.has(panelId)) {
+    return (
+      <Suspense fallback={<div className="screen-loading">Loading...</div>}>
+        <Comp {...panelProps} />
+      </Suspense>
+    );
+  }
   return <Comp {...panelProps} />;
 }
 

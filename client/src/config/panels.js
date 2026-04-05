@@ -100,6 +100,17 @@ export const PANEL_DEFINITIONS = {
     minSymbols:     1,
     maxSymbols:     15,
   },
+  indices: {
+    id:             'indices',
+    label:          'Indices',
+    defaultTitle:   'Global Indices',
+    defaultSymbols: ['SPY','QQQ','DIA','IWM','EWZ','EEM','EFA','FXI'],
+    allowedGroups:  ['US Indexes','Global Indexes'],
+    editable:       false,
+    icon:           'IX',
+    minSymbols:     0,
+    maxSymbols:     0,
+  },
   debt: {
     id:             'debt',
     label:          'Debt Markets',

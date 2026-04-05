@@ -2,9 +2,9 @@ import { PANEL_DEFINITIONS } from '../src/config/panels';
 import { PANEL_REGISTRY } from '../src/components/app/AppLayoutHelpers';
 
 describe('Panel Registry Sync', () => {
-  // Known legitimate mismatches
-  const PLANNED_NOT_IN_REGISTRY = ['etf', 'missions', 'rates'];
-  const IN_REGISTRY_NOT_DEFINED = ['indices'];
+  // All sync gaps resolved in S3 Cleanup — no known exceptions remain
+  const PLANNED_NOT_IN_REGISTRY = [];
+  const IN_REGISTRY_NOT_DEFINED = [];
 
   // Core panels that must exist in both
   const CORE_PANELS = [
@@ -177,17 +177,17 @@ describe('Panel Registry Sync', () => {
     });
   });
 
-  describe('Known exceptions validation', () => {
-    it('planned panels not yet in registry should be marked correctly', () => {
-      PLANNED_NOT_IN_REGISTRY.forEach((key) => {
+  describe('Full sync validation (no exceptions)', () => {
+    it('etf, missions, rates now exist in both PANEL_DEFINITIONS and PANEL_REGISTRY', () => {
+      ['etf', 'missions', 'rates'].forEach((key) => {
         expect(PANEL_DEFINITIONS).toHaveProperty(key);
-        expect(PANEL_REGISTRY).not.toHaveProperty(key);
+        expect(PANEL_REGISTRY).toHaveProperty(key);
       });
     });
 
-    it('indices should exist in registry but not in definitions (S2 addition)', () => {
+    it('indices now exists in both PANEL_DEFINITIONS and PANEL_REGISTRY', () => {
       expect(PANEL_REGISTRY).toHaveProperty('indices');
-      expect(PANEL_DEFINITIONS).not.toHaveProperty('indices');
+      expect(PANEL_DEFINITIONS).toHaveProperty('indices');
     });
   });
 });

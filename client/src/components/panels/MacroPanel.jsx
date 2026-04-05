@@ -3,8 +3,8 @@
  *
  * Phase 7: Select countries, view macro indicators, get AI analysis.
  */
-import { useState, useCallback, useEffect } from 'react';
-import { apiFetch } from '../../utils/api';
+import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useAIInsight } from '../../hooks/useAIInsight';
 import './MacroPanel.css';
 
 const shimmerStyle = `
@@ -30,14 +30,24 @@ export default function MacroPanel() {
   const [loading, setLoading]   = useState(false);
   const [error, setError]       = useState(null);
 
-  // AI Insight
-  const [aiInsight, setAiInsight]       = useState(null);
-  const [aiLoading, setAiLoading]       = useState(false);
-  const [aiError, setAiError]           = useState(null);
+  // AI Insight using useAIInsight hook
+  const aiContext = useMemo(() => ({
+    countries: selected,
+    indicators: INDICATORS.map(i => i.key),
+    snapshot: data,
+  }), [selected, data]);
+
+  const { insight: aiInsight, loading: aiLoading, error: aiError, refresh: askMacroAI } = useAIInsight({
+    type: 'macro',
+    context: aiContext,
+    cacheKey: `macro:${selected.join(',')}`,
+    ttlMs: 300000,
+    autoFetch: false,
+  });
 
   // Fetch available countries on mount
   useEffect(() => {
-    apiFetch('/api/macro/countries')
+    fetch('/api/macro/countries')
       .then(r => r.ok ? r.json() : null)
       .then(d => {
         if (d?.ok && d.data?.countries) {
@@ -53,7 +63,7 @@ export default function MacroPanel() {
     setError(null);
     try {
       const indicators = INDICATORS.map(i => i.key).join(',');
-      const res = await apiFetch(`/api/macro/compare?countries=${selected.join(',')}&indicators=${indicators}`);
+      const res = await fetch(`/api/macro/compare?countries=${selected.join(',')}&indicators=${indicators}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const d = await res.json();
       if (d.ok) setData(d.data);
@@ -86,31 +96,6 @@ export default function MacroPanel() {
     });
   };
 
-  const askMacroAI = useCallback(async () => {
-    if (!data?.countries?.length) return;
-    setAiLoading(true);
-    setAiError(null);
-    setAiInsight(null);
-    try {
-      const res = await apiFetch('/api/search/macro-insight', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          countries: selected,
-          indicators: INDICATORS.map(i => i.key),
-          snapshot: data,
-        }),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const d = await res.json();
-      if (d.ok) setAiInsight(d);
-      else throw new Error(d.error || 'AI error');
-    } catch (e) {
-      setAiError('Macro insight unavailable');
-    } finally {
-      setAiLoading(false);
-    }
-  }, [data, selected]);
 
   return (
     <div className="macro-panel">
@@ -127,9 +112,9 @@ export default function MacroPanel() {
       {aiInsight && (
         <div className="macro-insight">
           <span className="macro-insight-badge">AI MACRO INSIGHT</span>
-          <p className="macro-insight-text">{aiInsight.insight}</p>
+          <p className="macro-insight-text">{aiInsight.body}</p>
           <span className="macro-insight-meta">
-            {aiInsight.countries?.join(', ')} -- generated {new Date(aiInsight.generatedAt).toLocaleTimeString()}
+            {selected.join(', ')} -- generated {new Date(aiInsight.generatedAt).toLocaleTimeString()}
           </span>
         </div>
       )}
