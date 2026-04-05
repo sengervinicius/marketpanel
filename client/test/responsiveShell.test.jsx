@@ -20,7 +20,7 @@ describe('useIsMobile', () => {
     vi.clearAllMocks();
   });
 
-  it('returns false (desktop) when window width >= 1024', () => {
+  it('returns false (desktop) when window width >= 768', () => {
     Object.defineProperty(window, 'innerWidth', {
       writable: true,
       configurable: true,
@@ -33,11 +33,11 @@ describe('useIsMobile', () => {
     expect(result.current).toBe(false);
   });
 
-  it('returns true (mobile) when window width < 1024 and matchMedia does not match', () => {
+  it('returns true (mobile) when window width < 768 and matchMedia does not match', () => {
     Object.defineProperty(window, 'innerWidth', {
       writable: true,
       configurable: true,
-      value: 768,
+      value: 600,
     });
     mockMatchMedia(false);
 

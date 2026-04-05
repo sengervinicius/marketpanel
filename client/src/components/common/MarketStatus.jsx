@@ -10,14 +10,20 @@ const EXCHANGES = [
 ];
 
 function isExchangeOpen(tz, openMin, closeMin) {
-  const now = new Date();
-  const timeStr = now.toLocaleString('en-US', { timeZone: tz, hour12: false, hour: '2-digit', minute: '2-digit', weekday: 'short' });
-  const parts = timeStr.split(', ');
-  const dayStr = parts[0];
-  if (dayStr === 'Sat' || dayStr === 'Sun') return false;
-  const [h, m] = parts[1].split(':').map(Number);
-  const mins = h * 60 + m;
-  return mins >= openMin && mins < closeMin;
+  try {
+    const now = new Date();
+    // Get day of week in the exchange timezone
+    const dayStr = now.toLocaleDateString('en-US', { timeZone: tz, weekday: 'short' });
+    if (dayStr === 'Sat' || dayStr === 'Sun') return false;
+    // Get hour and minute separately to avoid locale parsing issues
+    const h = parseInt(now.toLocaleString('en-US', { timeZone: tz, hour: 'numeric', hour12: false }), 10);
+    const m = parseInt(now.toLocaleString('en-US', { timeZone: tz, minute: 'numeric' }), 10);
+    if (isNaN(h) || isNaN(m)) return false;
+    const mins = h * 60 + m;
+    return mins >= openMin && mins < closeMin;
+  } catch {
+    return false;
+  }
 }
 
 function getMarketState() {

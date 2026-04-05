@@ -10,7 +10,7 @@ import { useState, useEffect, useCallback } from 'react';
  *
  * Threshold: 1024px (matches existing app behavior).
  */
-const DESKTOP_MQ = '(min-width: 1024px)';
+const DESKTOP_MQ = '(min-width: 768px)';
 
 export function useIsMobile() {
   const detectMobile = useCallback(() => {
@@ -18,7 +18,7 @@ export function useIsMobile() {
     const mqDesktop = typeof window.matchMedia === 'function'
       ? window.matchMedia(DESKTOP_MQ).matches
       : false;
-    const widthDesktop = window.innerWidth >= 1024;
+    const widthDesktop = window.innerWidth >= 768;
     // If EITHER method says desktop, treat as desktop
     return !(mqDesktop || widthDesktop);
   }, []);
