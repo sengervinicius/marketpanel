@@ -188,8 +188,16 @@ function connectTwelveData(marketState, broadcast) {
     });
 
     ws.on('error', (err) => {
-      logger.error('[TwelveData WS] Error:', err.message);
       marketState.feedMeta.twelvedata.lastError = err.message;
+      // HTTP 200 instead of 101 = plan doesn't include WebSocket streaming
+      if (err.message && err.message.includes('Unexpected server response: 200')) {
+        logger.warn('[TwelveData WS] WebSocket endpoint returned HTTP 200 — plan may not include streaming. Disabling reconnect.');
+        cleanup();
+        if (ws) { try { ws.removeAllListeners(); ws.terminate(); } catch {} }
+        ws = null;
+        return;
+      }
+      logger.error('[TwelveData WS] Error:', err.message);
     });
   }
 
