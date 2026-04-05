@@ -4,6 +4,7 @@ const cors = require('cors');
 const { createServer } = require('http');
 const WebSocket = require('ws');
 const { connectPolygon, computeFeedHealth } = require('./polygonProxy');
+const { connectTwelveData } = require('./twelvedataWs');
 const { feedRouter, initFeedRouter } = require('./routes/feed');
 const marketRoutes      = require('./routes/market/index');
 const authRoutes        = require('./routes/auth');
@@ -388,6 +389,7 @@ function broadcast(update) {
 }
 
 connectPolygon(marketState, broadcast);
+connectTwelveData(marketState, broadcast); // S5.7: International equity streaming
 
 // Late-bind marketState + computeFeedHealth into the feed router
 initFeedRouter(marketState, computeFeedHealth);

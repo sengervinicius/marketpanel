@@ -3,10 +3,32 @@
  * Configurable layout grid for deep sector/thematic screens.
  * Each section component fetches its own data via useSectionData.
  */
-import { memo } from 'react';
+import { memo, Component } from 'react';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import AIInsightCard from '../ai/AIInsightCard';
 import './DeepScreen.css';
+
+/* ── Section-level error boundary ───────────────────────────────────────── */
+class SectionErrorBoundary extends Component {
+  constructor(props) { super(props); this.state = { hasError: false, error: null }; }
+  static getDerivedStateFromError(error) { return { hasError: true, error }; }
+  componentDidCatch(error, info) { console.error(`[DeepScreen] ${this.props.section || 'Section'} error:`, error, info); }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ padding: '12px 8px', color: '#888', fontSize: 10, textAlign: 'center' }}>
+          <span style={{ color: '#ef5350' }}>Failed to load section</span>
+          <div style={{ color: '#555', marginTop: 4 }}>{this.state.error?.message || 'Unknown error'}</div>
+          <button onClick={() => this.setState({ hasError: false, error: null })}
+            style={{ marginTop: 6, background: 'transparent', border: '1px solid #444', color: '#aaa', padding: '3px 10px', borderRadius: 3, cursor: 'pointer', fontSize: 9 }}>
+            RETRY
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 /* ── Section chrome — wraps each section component ───────────────────────── */
 export function DeepSection({ title, badge, children }) {
@@ -94,7 +116,9 @@ function DeepScreenBase({ title, accentColor, sections, aiType, aiContext, aiCac
       <div className={`ds-grid ${isMobile ? 'ds-grid--mobile' : ''}`}>
         {sections && sections.map((sec) => (
           <DeepSection key={sec.id} title={sec.title} badge={sec.badge}>
-            <sec.component />
+            <SectionErrorBoundary section={sec.title}>
+              <sec.component />
+            </SectionErrorBoundary>
           </DeepSection>
         ))}
       </div>

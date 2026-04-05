@@ -1,16 +1,25 @@
 /**
- * CommoditiesScreen.jsx — S4.2.D
+ * CommoditiesScreen.jsx — S5.4 (enhanced from S4.2.D)
  * Deep Bloomberg-style Commodities coverage screen.
- * 32 tickers: Benchmarks (8 futures), Producers (10), Agriculture (4 futures), ETFs (10)
+ * 32 tickers: Benchmarks, Producers (with Mkt Cap/P/E/Div%), Agriculture, ETFs
  */
-import { memo } from 'react';
+import { memo, useMemo } from 'react';
 import DeepScreenBase, { DeepSection, TickerCell } from './DeepScreenBase';
 import { useOpenDetail } from '../../context/OpenDetailContext';
 import { useTickerPrice } from '../../context/PriceContext';
+import { useDeepScreenData } from '../../hooks/useDeepScreenData';
 
 const fmt = (n, d = 2) =>
   n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
 const fmtPct = (n) => n == null ? '—' : (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
+const fmtB = (n) => {
+  if (n == null || isNaN(n)) return '—';
+  const v = parseFloat(n);
+  if (v >= 1e12) return '$' + (v/1e12).toFixed(1) + 'T';
+  if (v >= 1e9)  return '$' + (v/1e9).toFixed(0) + 'B';
+  if (v >= 1e6)  return '$' + (v/1e6).toFixed(0) + 'M';
+  return '$' + v.toFixed(0);
+};
 
 const BENCHMARKS = [
   { symbol: 'CL=F', label: 'WTI Crude' },
@@ -24,6 +33,11 @@ const BENCHMARKS = [
 ];
 
 const PRODUCERS = ['XOM', 'CVX', 'VALE', 'BHP', 'RIO', 'FCX', 'NEM', 'GOLD', 'AA', 'ADM'];
+
+const LABELS = {
+  XOM: 'Exxon Mobil', CVX: 'Chevron', VALE: 'Vale', BHP: 'BHP Group', RIO: 'Rio Tinto',
+  FCX: 'Freeport-McMoRan', NEM: 'Newmont', GOLD: 'Barrick Gold', AA: 'Alcoa', ADM: 'Archer-Daniels',
+};
 
 const AG_SOFT = [
   { symbol: 'ZS=F', label: 'Soybeans' },
@@ -47,14 +61,21 @@ function CommodityRow({ symbol, label, openDetail }) {
   );
 }
 
-function CompanyRow({ symbol, openDetail }) {
+function ProducerRow({ symbol, stats, openDetail }) {
   const q = useTickerPrice(symbol);
+  const pe = stats?.pe_ratio;
+  const mktCap = stats?.market_capitalization;
+  const divYield = stats?.dividend_yield;
   return (
     <tr className="ds-row-clickable" onClick={() => openDetail(symbol)}>
       <td className="ds-ticker-col">{symbol}</td>
+      <td>{LABELS[symbol] || '—'}</td>
       <td>{fmt(q?.price, 2)}</td>
-      <td className={q?.changePct != null && q.changePct >= 0 ? 'ds-up' : 'ds-down'}>
-        {fmtPct(q?.changePct)}
+      <td className={q?.changePct != null && q.changePct >= 0 ? 'ds-up' : 'ds-down'}>{fmtPct(q?.changePct)}</td>
+      <td style={{ fontFamily: 'monospace', fontSize: 10, color: '#888' }}>{fmtB(mktCap)}</td>
+      <td style={{ fontFamily: 'monospace', fontSize: 10, color: '#ccc' }}>{pe != null ? parseFloat(pe).toFixed(1) + 'x' : '—'}</td>
+      <td style={{ fontFamily: 'monospace', fontSize: 10, color: '#66bb6a' }}>
+        {divYield != null ? (parseFloat(divYield) * 100).toFixed(1) + '%' : '—'}
       </td>
     </tr>
   );
@@ -62,25 +83,43 @@ function CompanyRow({ symbol, openDetail }) {
 
 const BenchmarksSection = memo(function BenchmarksSection() {
   const openDetail = useOpenDetail();
+  const gold = useTickerPrice('GC=F');
+  const silver = useTickerPrice('SI=F');
+  const gsRatio = (gold?.price != null && silver?.price != null && silver.price > 0) ? (gold.price / silver.price) : null;
+
   return (
-    <table className="ds-table">
-      <thead><tr><th>Commodity</th><th>Price</th><th>1D %</th></tr></thead>
-      <tbody>
-        {BENCHMARKS.map(({ symbol, label }) => (
-          <CommodityRow key={symbol} symbol={symbol} label={label} openDetail={openDetail} />
-        ))}
-      </tbody>
-    </table>
+    <>
+      <table className="ds-table">
+        <thead><tr><th>Commodity</th><th>Price</th><th>1D%</th></tr></thead>
+        <tbody>
+          {BENCHMARKS.map(({ symbol, label }) => (
+            <CommodityRow key={symbol} symbol={symbol} label={label} openDetail={openDetail} />
+          ))}
+        </tbody>
+      </table>
+      {gsRatio != null && (
+        <div style={{ fontSize: 10, color: '#ff9800', padding: '6px 4px 2px', borderTop: '1px solid #1a1a1a' }}>
+          Gold/Silver Ratio: {gsRatio.toFixed(1)}x
+        </div>
+      )}
+    </>
   );
 });
 
-const ProducersSection = memo(function ProducersSection() {
+const ProducersSection = memo(function ProducersSection({ statsMap }) {
   const openDetail = useOpenDetail();
   return (
     <table className="ds-table">
-      <thead><tr><th>Company</th><th>Price</th><th>1D %</th></tr></thead>
+      <thead>
+        <tr>
+          <th>Ticker</th><th>Name</th><th>Price</th><th>1D%</th>
+          <th style={{ fontSize: 9 }}>Mkt Cap</th>
+          <th style={{ fontSize: 9 }}>P/E</th>
+          <th style={{ fontSize: 9 }}>Div%</th>
+        </tr>
+      </thead>
       <tbody>
-        {PRODUCERS.map(sym => <CompanyRow key={sym} symbol={sym} openDetail={openDetail} />)}
+        {PRODUCERS.map(sym => <ProducerRow key={sym} symbol={sym} stats={statsMap.get(sym)} openDetail={openDetail} />)}
       </tbody>
     </table>
   );
@@ -90,7 +129,7 @@ const AgSoftSection = memo(function AgSoftSection() {
   const openDetail = useOpenDetail();
   return (
     <table className="ds-table">
-      <thead><tr><th>Commodity</th><th>Price</th><th>1D %</th></tr></thead>
+      <thead><tr><th>Commodity</th><th>Price</th><th>1D%</th></tr></thead>
       <tbody>
         {AG_SOFT.map(({ symbol, label }) => (
           <CommodityRow key={symbol} symbol={symbol} label={label} openDetail={openDetail} />
@@ -112,11 +151,13 @@ const EtfStripSection = memo(function EtfStripSection() {
 });
 
 function CommoditiesScreenImpl() {
-  const sections = [
-    { id: 'benchmarks', title: 'Benchmarks',              component: BenchmarksSection },
-    { id: 'producers',  title: 'Producers & Miners',       component: ProducersSection },
+  const statsMap = useDeepScreenData(PRODUCERS);
+
+  const sections = useMemo(() => [
+    { id: 'benchmarks', title: 'Benchmarks',                    component: BenchmarksSection },
+    { id: 'producers',  title: 'Producers & Miners',            component: () => <ProducersSection statsMap={statsMap} /> },
     { id: 'agsoft',     title: 'Agriculture & Soft Commodities', component: AgSoftSection },
-  ];
+  ], [statsMap]);
 
   return (
     <DeepScreenBase
@@ -124,10 +165,7 @@ function CommoditiesScreenImpl() {
       accentColor="#ffb74d"
       sections={sections}
       aiType="commodity"
-      aiContext={{
-        commodity: 'broad',
-        symbols: ['CL=F', 'GC=F', 'SI=F', 'BZ=F', 'NG=F', 'HG=F', 'ZS=F'],
-      }}
+      aiContext={{ commodity: 'broad', symbols: ['CL=F', 'GC=F', 'SI=F', 'BZ=F', 'NG=F', 'HG=F', 'ZS=F'] }}
       aiCacheKey="commodity:broad"
     >
       <DeepSection title="Commodity ETFs">

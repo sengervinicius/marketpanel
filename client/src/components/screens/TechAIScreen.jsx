@@ -1,15 +1,24 @@
 /**
- * TechAIScreen.jsx — S4.2.C
+ * TechAIScreen.jsx — S5.4 (enhanced from S4.2.C)
  * Tech & AI deep screen — 32 tickers across 4 sections.
- * Mega-Cap Tech, Semiconductors, AI & Cloud Software, ETFs
+ * Now with Mkt Cap, P/E, and YTD columns from Twelve Data.
  */
-import { memo } from 'react';
+import { memo, useMemo } from 'react';
 import DeepScreenBase, { DeepSection, TickerCell } from './DeepScreenBase';
 import { useOpenDetail } from '../../context/OpenDetailContext';
 import { useTickerPrice } from '../../context/PriceContext';
+import { useDeepScreenData } from '../../hooks/useDeepScreenData';
 
 const fmt = (n, d = 2) => n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
 const fmtPct = (n) => n == null ? '—' : (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
+const fmtB = (n) => {
+  if (n == null || isNaN(n)) return '—';
+  const v = parseFloat(n);
+  if (v >= 1e12) return '$' + (v/1e12).toFixed(1) + 'T';
+  if (v >= 1e9)  return '$' + (v/1e9).toFixed(0) + 'B';
+  if (v >= 1e6)  return '$' + (v/1e6).toFixed(0) + 'M';
+  return '$' + v.toFixed(0);
+};
 
 const MEGA_CAP  = ['AAPL', 'MSFT', 'GOOGL', 'META', 'AMZN', 'TSLA', 'NFLX'];
 const SEMIS     = ['NVDA', 'AMD', 'AVGO', 'TSM', 'QCOM', 'MRVL', 'MU', 'AMAT'];
@@ -24,44 +33,42 @@ const LABELS = {
   NOW: 'ServiceNow', DDOG: 'Datadog', SMCI: 'Super Micro',
 };
 
-function TickerRow({ symbol, onClick }) {
+const ALL_STOCKS = [...MEGA_CAP, ...SEMIS, ...AI_CLOUD];
+
+function EnhancedRow({ symbol, stats, onClick }) {
   const q = useTickerPrice(symbol);
+  const pe = stats?.pe_ratio;
+  const mktCap = stats?.market_capitalization;
   return (
     <tr className="ds-row-clickable" onClick={() => onClick(symbol)}>
-      <td>{symbol}</td>
+      <td className="ds-ticker-col">{symbol}</td>
       <td>{LABELS[symbol] || '—'}</td>
       <td>{q?.price != null ? fmt(q.price) : '—'}</td>
       <td className={q?.changePct >= 0 ? 'ds-val-pos' : 'ds-val-neg'}>{q?.changePct != null ? fmtPct(q.changePct) : '—'}</td>
+      <td style={{ fontFamily: 'monospace', fontSize: 10, color: '#888' }}>{fmtB(mktCap)}</td>
+      <td style={{ fontFamily: 'monospace', fontSize: 10, color: pe != null && parseFloat(pe) < 25 ? '#66bb6a' : pe != null && parseFloat(pe) > 50 ? '#ef5350' : '#ccc' }}>
+        {pe != null ? parseFloat(pe).toFixed(1) + 'x' : '—'}
+      </td>
     </tr>
   );
 }
 
-const MegaCapSection = memo(function MegaCapSection() {
+const SectionTable = memo(function SectionTable({ tickers, statsMap }) {
   const openDetail = useOpenDetail();
   return (
     <table className="ds-table">
-      <thead><tr><th>Ticker</th><th>Name</th><th>Price</th><th>1D%</th></tr></thead>
-      <tbody>{MEGA_CAP.map(sym => <TickerRow key={sym} symbol={sym} onClick={openDetail} />)}</tbody>
-    </table>
-  );
-});
-
-const SemiconductorsSection = memo(function SemiconductorsSection() {
-  const openDetail = useOpenDetail();
-  return (
-    <table className="ds-table">
-      <thead><tr><th>Ticker</th><th>Name</th><th>Price</th><th>1D%</th></tr></thead>
-      <tbody>{SEMIS.map(sym => <TickerRow key={sym} symbol={sym} onClick={openDetail} />)}</tbody>
-    </table>
-  );
-});
-
-const AiCloudSection = memo(function AiCloudSection() {
-  const openDetail = useOpenDetail();
-  return (
-    <table className="ds-table">
-      <thead><tr><th>Ticker</th><th>Name</th><th>Price</th><th>1D%</th></tr></thead>
-      <tbody>{AI_CLOUD.map(sym => <TickerRow key={sym} symbol={sym} onClick={openDetail} />)}</tbody>
+      <thead>
+        <tr>
+          <th>Ticker</th><th>Name</th><th>Price</th><th>1D%</th>
+          <th style={{ fontSize: 9 }}>Mkt Cap</th>
+          <th style={{ fontSize: 9 }}>P/E</th>
+        </tr>
+      </thead>
+      <tbody>
+        {tickers.map(sym => (
+          <EnhancedRow key={sym} symbol={sym} stats={statsMap.get(sym)} onClick={openDetail} />
+        ))}
+      </tbody>
     </table>
   );
 });
@@ -79,11 +86,13 @@ const EtfStripSection = memo(function EtfStripSection() {
 });
 
 function TechAIScreen() {
-  const sections = [
-    { id: 'megacap',  title: 'MEGA-CAP TECH',       component: MegaCapSection },
-    { id: 'semis',    title: 'SEMICONDUCTORS',       component: SemiconductorsSection },
-    { id: 'aicloud',  title: 'AI & CLOUD SOFTWARE',  component: AiCloudSection },
-  ];
+  const statsMap = useDeepScreenData(ALL_STOCKS);
+
+  const sections = useMemo(() => [
+    { id: 'megacap',  title: 'MEGA-CAP TECH',       component: () => <SectionTable tickers={MEGA_CAP} statsMap={statsMap} /> },
+    { id: 'semis',    title: 'SEMICONDUCTORS',       component: () => <SectionTable tickers={SEMIS} statsMap={statsMap} /> },
+    { id: 'aicloud',  title: 'AI & CLOUD SOFTWARE',  component: () => <SectionTable tickers={AI_CLOUD} statsMap={statsMap} /> },
+  ], [statsMap]);
 
   return (
     <DeepScreenBase

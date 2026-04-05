@@ -17,6 +17,7 @@ const shimmerStyle = `
 const INDICATORS = [
   { key: 'policyRate',      label: 'Policy Rate',     fmt: v => v != null ? (v * 100).toFixed(2) + '%' : '--' },
   { key: 'cpiYoY',          label: 'CPI YoY',         fmt: v => v != null ? (v * 100).toFixed(1) + '%' : '--' },
+  { key: 'realRate',        label: 'Real Rate',        fmt: v => v != null ? (v * 100).toFixed(1) + '%' : '--', derived: true },
   { key: 'gdpGrowthYoY',    label: 'GDP Growth',      fmt: v => v != null ? (v * 100).toFixed(1) + '%' : '--' },
   { key: 'unemploymentRate', label: 'Unemployment',    fmt: v => v != null ? (v * 100).toFixed(1) + '%' : '--' },
   { key: 'debtGDP',         label: 'Debt/GDP',         fmt: v => v != null ? (v * 100).toFixed(0) + '%' : '--' },
@@ -86,7 +87,7 @@ export default function MacroPanel() {
   const toggleCountry = (code) => {
     setSelected(prev => {
       if (prev.includes(code)) return prev.filter(c => c !== code);
-      if (prev.length >= 4) {
+      if (prev.length >= 6) {
         setMaxWarning(true);
         setTimeout(() => setMaxWarning(false), 3000);
         return prev; // max 4
@@ -123,13 +124,13 @@ export default function MacroPanel() {
       {/* Country selector */}
       <div className="macro-countries">
         <label className="macro-label">
-          COUNTRIES (max 4)
-          {maxWarning && <span style={{ color: '#f44336', marginLeft: 8, fontSize: '0.85em' }}>Maximum 4 countries selected</span>}
+          COUNTRIES (max 6)
+          {maxWarning && <span style={{ color: '#f44336', marginLeft: 8, fontSize: '0.85em' }}>Maximum 6 countries selected</span>}
         </label>
         <div className="macro-chips">
           {availableCountries.map(c => {
             const isSelected = selected.includes(c.code);
-            const isDisabled = !isSelected && selected.length >= 4;
+            const isDisabled = !isSelected && selected.length >= 6;
             return (
               <button key={c.code}
                 className={`macro-chip${isSelected ? ' macro-chip--active' : ''}${isDisabled ? ' macro-chip--disabled' : ''}`}
@@ -157,13 +158,19 @@ export default function MacroPanel() {
       )}
       {error && <div className="macro-error">{error}</div>}
 
-      {data?.countries?.length > 0 && (
+      {data?.countries?.length > 0 && (() => {
+        // Derive real rate = policy rate - CPI
+        const enriched = data.countries.map(c => ({
+          ...c,
+          realRate: (c.policyRate != null && c.cpiYoY != null) ? c.policyRate - c.cpiYoY : null,
+        }));
+        return (
         <div className="macro-table-wrap">
           <table className="macro-table">
             <thead>
               <tr>
                 <th className="macro-th">Indicator</th>
-                {data.countries.map(c => (
+                {enriched.map(c => (
                   <th key={c.country} className="macro-th macro-th--country">{c.name || c.country}</th>
                 ))}
               </tr>
@@ -172,7 +179,7 @@ export default function MacroPanel() {
               {INDICATORS.map(ind => (
                 <tr key={ind.key} className="macro-tr">
                   <td className="macro-td macro-td--label">{ind.label}</td>
-                  {data.countries.map(c => {
+                  {enriched.map(c => {
                     const val = c[ind.key];
                     // Color policy rate and CPI for visual emphasis
                     let color = 'var(--text-secondary)';
@@ -184,6 +191,9 @@ export default function MacroPanel() {
                     }
                     if (ind.key === 'gdpGrowthYoY' && val != null) {
                       color = val >= 0.03 ? 'var(--price-up)' : val < 0.01 ? 'var(--price-down)' : 'var(--text-secondary)';
+                    }
+                    if (ind.key === 'realRate' && val != null) {
+                      color = val > 0 ? 'var(--price-up)' : 'var(--price-down)';
                     }
                     return (
                       <td key={c.country} className="macro-td macro-td--value" style={{ color }}>
@@ -197,9 +207,10 @@ export default function MacroPanel() {
           </table>
           {data.stub && <div className="macro-source">Source: stub data (FRED / ECB / BCB)</div>}
         </div>
-      )}
+        );
+      })()}
 
-      {/* Mini policy rate bar chart */}
+      {/* Mini policy rate + CPI bar chart */}
       {data?.countries?.length > 0 && (
         <div className="macro-mini-chart">
           <label className="macro-label">POLICY RATE COMPARISON</label>
@@ -215,6 +226,24 @@ export default function MacroPanel() {
                     <div className="macro-bar-fill" style={{ width: `${width}%` }} />
                   </div>
                   <span className="macro-bar-value">{rate.toFixed(2)}%</span>
+                </div>
+              );
+            })}
+          </div>
+          <label className="macro-label" style={{ marginTop: 12 }}>CPI YoY COMPARISON</label>
+          <div className="macro-bars">
+            {data.countries.map(c => {
+              const cpi = c.cpiYoY != null ? c.cpiYoY * 100 : 0;
+              const maxCpi = 12;
+              const width = Math.min(100, (Math.abs(cpi) / maxCpi) * 100);
+              const color = cpi > 4 ? '#d32f2f' : cpi > 2 ? '#f57c00' : '#388e3c';
+              return (
+                <div key={c.country} className="macro-bar-row">
+                  <span className="macro-bar-label">{c.country}</span>
+                  <div className="macro-bar-track">
+                    <div className="macro-bar-fill" style={{ width: `${width}%`, background: color }} />
+                  </div>
+                  <span className="macro-bar-value">{cpi.toFixed(1)}%</span>
                 </div>
               );
             })}

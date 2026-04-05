@@ -61,6 +61,8 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
     dividendData, dividendLoading,
     splitsData, polyFinancials,
     logoUrl,
+    tdProfile, tdStatistics, tdFinancials, tdFinancialsLoading,
+    tdHolders, tdHoldersLoading, tdExecutives, tdEarnings,
   } = instrumentData;
 
   // ── NO DATA detection and AI fallback (S4.5.A) ──
@@ -862,8 +864,8 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
               value={rangeChg != null ? (rangeChg>=0?'+':'')+fmt(rangeChg)+'%' : '--'}
               color={rangeChg != null ? (rangeChg>=0 ? GREEN : RED) : undefined}
             />
-            {fundsData?.fiftyTwoWeekHigh != null && <StatRow label="52W HIGH" value={fmt(fundsData.fiftyTwoWeekHigh)} />}
-            {fundsData?.fiftyTwoWeekLow  != null && <StatRow label="52W LOW"  value={fmt(fundsData.fiftyTwoWeekLow)} />}
+            {(fundsData?.fiftyTwoWeekHigh ?? tdStatistics?.['52_week_high']) != null && <StatRow label="52W HIGH" value={fmt(fundsData?.fiftyTwoWeekHigh ?? tdStatistics?.['52_week_high'])} />}
+            {(fundsData?.fiftyTwoWeekLow ?? tdStatistics?.['52_week_low']) != null && <StatRow label="52W LOW" value={fmt(fundsData?.fiftyTwoWeekLow ?? tdStatistics?.['52_week_low'])} />}
           </div>
         </Section>
 
@@ -955,8 +957,8 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
               value={rangeChg != null ? (rangeChg>=0?'+':'')+fmt(rangeChg)+'%' : '--'}
               color={rangeChg != null ? (rangeChg>=0 ? GREEN : RED) : undefined}
             />
-            {fundsData?.fiftyTwoWeekHigh != null && <StatRow label="52W HIGH" value={fmt(fundsData.fiftyTwoWeekHigh)} />}
-            {fundsData?.fiftyTwoWeekLow  != null && <StatRow label="52W LOW"  value={fmt(fundsData.fiftyTwoWeekLow)} />}
+            {(fundsData?.fiftyTwoWeekHigh ?? tdStatistics?.['52_week_high']) != null && <StatRow label="52W HIGH" value={fmt(fundsData?.fiftyTwoWeekHigh ?? tdStatistics?.['52_week_high'])} />}
+            {(fundsData?.fiftyTwoWeekLow ?? tdStatistics?.['52_week_low']) != null && <StatRow label="52W LOW" value={fmt(fundsData?.fiftyTwoWeekLow ?? tdStatistics?.['52_week_low'])} />}
             {fundsData?.fiftyTwoWeekChange != null && (
               <StatRow label="52W CHG"
                 value={pct(fundsData.fiftyTwoWeekChange)}
@@ -994,18 +996,18 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
         {isStock && (
           <Section title="VALUATION">
             <div className="id-stat-grid">
-              {mktCap != null && <StatRow label="MKT CAP" value={fmt(mktCap, 0)} />}
+              {(mktCap ?? tdStatistics?.market_capitalization) != null && <StatRow label="MKT CAP" value={fmt(mktCap ?? tdStatistics?.market_capitalization, 0)} />}
               {fundsData?.enterpriseValue != null && <StatRow label="EV" value={fmt(fundsData.enterpriseValue, 0)} />}
-              {fundsData?.peRatio    != null && <StatRow label="P/E (TTM)"  value={fundsData.peRatio.toFixed(1)+'x'} />}
+              {(fundsData?.peRatio ?? tdStatistics?.pe_ratio) != null && <StatRow label="P/E (TTM)" value={parseFloat(fundsData?.peRatio ?? tdStatistics?.pe_ratio).toFixed(1)+'x'} />}
               {fundsData?.forwardPE  != null && <StatRow label="P/E (FWD)"  value={fundsData.forwardPE.toFixed(1)+'x'} />}
               {fundsData?.pegRatio   != null && <StatRow label="PEG"        value={fundsData.pegRatio.toFixed(2)+'x'} />}
               {fundsData?.priceToBook != null && <StatRow label="P/B"       value={fundsData.priceToBook.toFixed(2)+'x'} />}
               {fundsData?.priceToSales != null && <StatRow label="P/S"      value={fundsData.priceToSales.toFixed(2)+'x'} />}
-              {fundsData?.eps        != null && <StatRow label="EPS (TTM)"  value={'$'+fundsData.eps.toFixed(2)} />}
+              {(fundsData?.eps ?? tdStatistics?.eps) != null && <StatRow label="EPS (TTM)" value={'$'+parseFloat(fundsData?.eps ?? tdStatistics?.eps).toFixed(2)} />}
               {fundsData?.forwardEps != null && <StatRow label="EPS (FWD)"  value={'$'+fundsData.forwardEps.toFixed(2)} />}
               {fundsData?.earningsDate && <StatRow label="EARNINGS" value={fundsData.earningsDate} color={ORANGE} />}
-              {fundsData?.beta       != null && <StatRow label="BETA"       value={fundsData.beta.toFixed(2)} />}
-              {fundsData?.dividendYield != null && <StatRow label="DIV YIELD" value={(fundsData.dividendYield*100).toFixed(2)+'%'} color={GREEN} />}
+              {(fundsData?.beta ?? tdStatistics?.beta) != null && <StatRow label="BETA" value={parseFloat(fundsData?.beta ?? tdStatistics?.beta).toFixed(2)} />}
+              {(fundsData?.dividendYield ?? tdStatistics?.dividend_yield) != null && <StatRow label="DIV YIELD" value={(parseFloat(fundsData?.dividendYield ?? tdStatistics?.dividend_yield)*100).toFixed(2)+'%'} color={GREEN} />}
               {fundsData?.shortPercentFloat != null && (
                 <StatRow label="SHORT %"
                   value={(fundsData.shortPercentFloat*100).toFixed(1)+'%'}
@@ -1094,21 +1096,32 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
   // ── About sub-render ───────────────────────────────────────────────────
   function renderFundamentals() {
     if (!isStock) return <div className="id-info-msg">Fundamentals only for stocks</div>;
-    if (fundsLoading) return <div className="id-loading">LOADING FUNDAMENTALS...</div>;
-    if (fundsError || !fundsData) return <div className="id-error-msg">Fundamentals unavailable</div>;
+    if (fundsLoading && !tdProfile) return <div className="id-loading">LOADING FUNDAMENTALS...</div>;
 
-    const d = fundsData;
+    // Merge: fundsData (Polygon/Finnhub) + tdProfile (Twelve Data) + tdStatistics
+    const d = fundsData || {};
+    const tp = tdProfile || {};
+    const ts = tdStatistics || {};
+
+    const hasSomething = fundsData || tdProfile || tdStatistics;
+    if (!hasSomething) return <div className="id-error-msg">Fundamentals unavailable</div>;
 
     const fundItems = [
-      { label: 'Name', value: d.name },
-      { label: 'Currency', value: d.currency },
-      { label: 'Market Cap', value: d.marketCap ? fmt(d.marketCap, 0) : null },
-      { label: 'Exchange', value: d.primaryExchange },
+      { label: 'Name', value: d.name || tp.name },
+      { label: 'Currency', value: d.currency || tp.currency },
+      { label: 'Market Cap', value: (d.marketCap || ts.market_capitalization) ? fmt(d.marketCap || ts.market_capitalization, 0) : null },
+      { label: 'Exchange', value: d.primaryExchange || tp.exchange },
       { label: 'List Date', value: d.listDate },
-      { label: 'Sector', value: d.sector },
-      { label: 'Industry', value: d.industry },
-      { label: 'Employees', value: d.employees != null ? d.employees.toLocaleString() : null },
+      { label: 'Sector', value: d.sector || tp.sector },
+      { label: 'Industry', value: d.industry || tp.industry },
+      { label: 'Employees', value: (d.employees || tp.employees) != null ? Number(d.employees || tp.employees).toLocaleString() : null },
+      { label: 'CEO', value: tp.ceo },
+      { label: 'Country', value: tp.country },
+      { label: 'Type', value: tp.type },
     ].filter(item => item.value);
+
+    const aboutText = d.description || tp.description;
+    const webUrl = d.homepageUrl || tp.website;
 
     return (
       <div className="id-fundamentals">
@@ -1122,14 +1135,139 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
             ))}
           </div>
         </Section>
-        {d.description && (
+
+        {/* Key Executives from Twelve Data */}
+        {Array.isArray(tdExecutives) && tdExecutives.length > 0 && (
+          <Section title="KEY EXECUTIVES">
+            <table className="id-stat-table" style={{ width: '100%', fontSize: 10 }}>
+              <thead>
+                <tr style={{ color: '#888', fontSize: 8 }}>
+                  <th style={{ textAlign: 'left', padding: '2px 4px' }}>Name</th>
+                  <th style={{ textAlign: 'left', padding: '2px 4px' }}>Title</th>
+                </tr>
+              </thead>
+              <tbody>
+                {tdExecutives.slice(0, 8).map((ex, i) => (
+                  <tr key={i} style={{ borderBottom: '1px solid #1a1a1a' }}>
+                    <td style={{ padding: '3px 4px', color: '#e0e0e0' }}>{ex.name}</td>
+                    <td style={{ padding: '3px 4px', color: '#888', maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {ex.title}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </Section>
+        )}
+
+        {/* Institutional & Fund Holders from Twelve Data */}
+        {tdHolders && (
+          <>
+            {Array.isArray(tdHolders.institutional) && tdHolders.institutional.length > 0 && (
+              <Section title="TOP INSTITUTIONAL HOLDERS">
+                <table className="id-stat-table" style={{ width: '100%', fontSize: 10 }}>
+                  <thead>
+                    <tr style={{ color: '#888', fontSize: 8 }}>
+                      <th style={{ textAlign: 'left', padding: '2px 4px' }}>Holder</th>
+                      <th style={{ textAlign: 'right', padding: '2px 4px' }}>Shares</th>
+                      <th style={{ textAlign: 'right', padding: '2px 4px' }}>Value</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {tdHolders.institutional.slice(0, 10).map((h, i) => (
+                      <tr key={i} style={{ borderBottom: '1px solid #1a1a1a' }}>
+                        <td style={{ padding: '3px 4px', color: '#e0e0e0', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {h.entity_name || h.name}
+                        </td>
+                        <td style={{ padding: '3px 4px', textAlign: 'right', fontFamily: 'monospace' }}>
+                          {h.shares != null ? Number(h.shares).toLocaleString() : '—'}
+                        </td>
+                        <td style={{ padding: '3px 4px', textAlign: 'right', fontFamily: 'monospace', color: '#4fc3f7' }}>
+                          {h.value != null ? '$' + (h.value >= 1e9 ? (h.value/1e9).toFixed(1) + 'B' : h.value >= 1e6 ? (h.value/1e6).toFixed(0) + 'M' : Number(h.value).toLocaleString()) : '—'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </Section>
+            )}
+            {Array.isArray(tdHolders.fund) && tdHolders.fund.length > 0 && (
+              <Section title="TOP FUND HOLDERS">
+                <table className="id-stat-table" style={{ width: '100%', fontSize: 10 }}>
+                  <thead>
+                    <tr style={{ color: '#888', fontSize: 8 }}>
+                      <th style={{ textAlign: 'left', padding: '2px 4px' }}>Fund</th>
+                      <th style={{ textAlign: 'right', padding: '2px 4px' }}>Shares</th>
+                      <th style={{ textAlign: 'right', padding: '2px 4px' }}>Weight</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {tdHolders.fund.slice(0, 10).map((h, i) => (
+                      <tr key={i} style={{ borderBottom: '1px solid #1a1a1a' }}>
+                        <td style={{ padding: '3px 4px', color: '#e0e0e0', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {h.entity_name || h.name}
+                        </td>
+                        <td style={{ padding: '3px 4px', textAlign: 'right', fontFamily: 'monospace' }}>
+                          {h.shares != null ? Number(h.shares).toLocaleString() : '—'}
+                        </td>
+                        <td style={{ padding: '3px 4px', textAlign: 'right', fontFamily: 'monospace', color: '#ce93d8' }}>
+                          {h.weight != null ? (parseFloat(h.weight) * 100).toFixed(2) + '%' : '—'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </Section>
+            )}
+          </>
+        )}
+
+        {/* Earnings History from Twelve Data */}
+        {tdEarnings && (Array.isArray(tdEarnings) ? tdEarnings : tdEarnings.earnings ? tdEarnings.earnings : []).length > 0 && (
+          <Section title="EARNINGS HISTORY">
+            <table className="id-stat-table" style={{ width: '100%', fontSize: 10 }}>
+              <thead>
+                <tr style={{ color: '#888', fontSize: 8 }}>
+                  <th style={{ textAlign: 'left', padding: '2px 4px' }}>Date</th>
+                  <th style={{ textAlign: 'right', padding: '2px 4px' }}>EPS Est.</th>
+                  <th style={{ textAlign: 'right', padding: '2px 4px' }}>EPS Act.</th>
+                  <th style={{ textAlign: 'right', padding: '2px 4px' }}>Surprise</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(Array.isArray(tdEarnings) ? tdEarnings : tdEarnings.earnings || []).slice(0, 8).map((e, i) => {
+                  const est = parseFloat(e.eps_estimate);
+                  const act = parseFloat(e.eps_actual);
+                  const surprise = (!isNaN(est) && !isNaN(act) && est !== 0) ? ((act - est) / Math.abs(est) * 100) : null;
+                  return (
+                    <tr key={i} style={{ borderBottom: '1px solid #1a1a1a' }}>
+                      <td style={{ padding: '3px 4px', color: '#888' }}>{e.date || e.report_date || '—'}</td>
+                      <td style={{ padding: '3px 4px', textAlign: 'right', fontFamily: 'monospace' }}>
+                        {!isNaN(est) ? '$' + est.toFixed(2) : '—'}
+                      </td>
+                      <td style={{ padding: '3px 4px', textAlign: 'right', fontFamily: 'monospace', fontWeight: 600 }}>
+                        {!isNaN(act) ? '$' + act.toFixed(2) : '—'}
+                      </td>
+                      <td style={{ padding: '3px 4px', textAlign: 'right', fontFamily: 'monospace',
+                        color: surprise != null ? (surprise >= 0 ? '#66bb6a' : '#ef5350') : undefined }}>
+                        {surprise != null ? (surprise >= 0 ? '+' : '') + surprise.toFixed(1) + '%' : '—'}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </Section>
+        )}
+
+        {aboutText && (
           <Section title="ABOUT">
-            {d.homepageUrl && (
-              <a href={d.homepageUrl} target="_blank" rel="noopener noreferrer" className="id-about-link">
-                {d.homepageUrl.replace(/^https?:\/\//, '')}
+            {webUrl && (
+              <a href={webUrl} target="_blank" rel="noopener noreferrer" className="id-about-link">
+                {webUrl.replace(/^https?:\/\//, '')}
               </a>
             )}
-            <p className="id-about-text">{d.description}</p>
+            <p className="id-about-text">{aboutText}</p>
           </Section>
         )}
         {d.sicDescription && (
@@ -1416,12 +1554,103 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
     }
   }, [activeTab, isStock, fetchFundamentals]);
 
+  // ── S5: Render Financial Statements (Income, Balance Sheet, Cash Flow) ──
+  function renderFinancials() {
+    if (!isStock) return <div className="id-info-msg">Financials only for stocks</div>;
+    if (tdFinancialsLoading) return <div className="id-loading">LOADING FINANCIALS...</div>;
+    if (!tdFinancials) return <div className="id-error-msg">Financial statements unavailable</div>;
+
+    const fmtB = (n) => {
+      if (n == null || isNaN(n)) return '—';
+      const v = parseFloat(n);
+      if (Math.abs(v) >= 1e12) return '$' + (v/1e12).toFixed(1) + 'T';
+      if (Math.abs(v) >= 1e9)  return '$' + (v/1e9).toFixed(1) + 'B';
+      if (Math.abs(v) >= 1e6)  return '$' + (v/1e6).toFixed(0) + 'M';
+      if (Math.abs(v) >= 1e3)  return '$' + (v/1e3).toFixed(0) + 'K';
+      return '$' + v.toFixed(0);
+    };
+
+    const renderFinTable = (title, color, data, rows) => {
+      if (!data || !Array.isArray(data) || data.length === 0) return null;
+      const periods = data.slice(0, 4);
+      return (
+        <Section title={title}>
+          <table className="id-stat-table" style={{ width: '100%', fontSize: 10 }}>
+            <thead>
+              <tr style={{ color: '#888', fontSize: 8 }}>
+                <th style={{ textAlign: 'left', padding: '2px 4px' }}>Metric</th>
+                {periods.map((p, i) => (
+                  <th key={i} style={{ textAlign: 'right', padding: '2px 4px' }}>{p.fiscal_date || p.period || `Y${i+1}`}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map(({ label, key }) => (
+                <tr key={key} style={{ borderBottom: '1px solid #1a1a1a' }}>
+                  <td style={{ padding: '3px 4px', color: color, fontSize: 9 }}>{label}</td>
+                  {periods.map((p, i) => {
+                    const val = p[key];
+                    const num = parseFloat(val);
+                    return (
+                      <td key={i} style={{ padding: '3px 4px', textAlign: 'right', fontFamily: 'monospace',
+                        color: !isNaN(num) && num < 0 ? '#ef5350' : '#e0e0e0' }}>
+                        {fmtB(val)}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Section>
+      );
+    };
+
+    const incRows = [
+      { label: 'Revenue', key: 'sales' },
+      { label: 'Gross Profit', key: 'gross_profit' },
+      { label: 'Operating Inc.', key: 'operating_income' },
+      { label: 'Net Income', key: 'net_income' },
+      { label: 'EBITDA', key: 'ebitda' },
+      { label: 'EPS', key: 'eps' },
+      { label: 'EPS Diluted', key: 'eps_diluted' },
+    ];
+
+    const bsRows = [
+      { label: 'Total Assets', key: 'assets' },
+      { label: 'Total Liabilities', key: 'liabilities' },
+      { label: 'Equity', key: 'shareholders_equity' },
+      { label: 'Cash & Equiv.', key: 'cash_and_equivalents' },
+      { label: 'Total Debt', key: 'total_debt' },
+      { label: 'Net Debt', key: 'net_debt' },
+    ];
+
+    const cfRows = [
+      { label: 'Operating CF', key: 'operating_cashflow' },
+      { label: 'Investing CF', key: 'investing_cashflow' },
+      { label: 'Financing CF', key: 'financing_cashflow' },
+      { label: 'Free Cash Flow', key: 'free_cashflow' },
+      { label: 'CapEx', key: 'capital_expenditure' },
+    ];
+
+    return (
+      <div className="id-section-group">
+        {renderFinTable('INCOME STATEMENT', '#4fc3f7', tdFinancials.income_statement, incRows)}
+        {renderFinTable('BALANCE SHEET', '#ce93d8', tdFinancials.balance_sheet, bsRows)}
+        {renderFinTable('CASH FLOW', '#66bb6a', tdFinancials.cash_flow, cfRows)}
+        {!tdFinancials.income_statement && !tdFinancials.balance_sheet && !tdFinancials.cash_flow && (
+          <div className="id-error-msg">No financial statement data available for this ticker</div>
+        )}
+      </div>
+    );
+  }
+
   // ── RENDER ──────────────────────────────────────────────────────────────
   const mobileTabs = isBond
     ? ['STATS', 'RISK', 'CASH FLOWS', ...(desc ? ['ABOUT'] : [])]
     : isFX
     ? ['STATS', 'MACRO', 'NEWS', ...(desc ? ['ABOUT'] : [])]
-    : ['STATS', 'FUND', 'AI', 'OPTIONS', 'INSIDER', 'NEWS', ...(desc ? ['ABOUT'] : [])];
+    : ['STATS', 'FUND', 'AI', 'FIN', 'OPTIONS', 'INSIDER', 'NEWS', ...(desc ? ['ABOUT'] : [])];
 
   const deltaHint = deltaMode
     ? (deltaA === null ? '← tap A' : deltaB === null ? '← tap B' : 'tap to reset')
@@ -1808,6 +2037,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
                     isMobile={false}
                   />
                 )}
+                {!isBond && !isFX && renderFinancials()}
                 {!isBond && !isFX && renderInsider()}
                 {!isBond && !isFX && renderNews()}
                 {!isBond && !isFX && renderAbout()}
@@ -1835,6 +2065,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
               {activeTab === 'MACRO'      && renderFXMacro()}
               {activeTab === 'FUND'       && renderFundamentals()}
               {activeTab === 'AI'         && renderAIFundamentals()}
+              {activeTab === 'FIN'        && renderFinancials()}
               {activeTab === 'INSIDER'    && renderInsider()}
               {activeTab === 'OPTIONS'    && (
                 <InstrumentOptionsPanel

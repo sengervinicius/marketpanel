@@ -73,6 +73,16 @@ export function useInstrumentData(ticker) {
   // S4.6: Company logo from Twelve Data
   const [logoUrl, setLogoUrl]               = useState(null);
 
+  // S5: Twelve Data deep fundamentals
+  const [tdProfile, setTdProfile]           = useState(null);
+  const [tdStatistics, setTdStatistics]     = useState(null);
+  const [tdFinancials, setTdFinancials]     = useState(null);
+  const [tdFinancialsLoading, setTdFinancialsLoading] = useState(false);
+  const [tdHolders, setTdHolders]           = useState(null);
+  const [tdHoldersLoading, setTdHoldersLoading] = useState(false);
+  const [tdExecutives, setTdExecutives]     = useState(null);
+  const [tdEarnings, setTdEarnings]         = useState(null);
+
   const range = RANGES[rangeIdx];
 
   // Derived
@@ -304,6 +314,46 @@ export function useInstrumentData(ticker) {
       .then(d => { if (!stale && d?.url) setLogoUrl(d.url); })
       .catch(() => {});
 
+    // S5: Twelve Data profile (sector, industry, description, CEO, website)
+    apiFetch(`/api/market/td/profile/${encodeURIComponent(norm)}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (!stale && d?.data) setTdProfile(d.data); })
+      .catch(() => {});
+
+    // S5: Twelve Data statistics (PE, EPS, beta, market cap, 52w range)
+    apiFetch(`/api/market/td/statistics/${encodeURIComponent(norm)}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (!stale && d?.data) setTdStatistics(d.data); })
+      .catch(() => {});
+
+    // S5: Twelve Data earnings history
+    apiFetch(`/api/market/td/earnings/${encodeURIComponent(norm)}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (!stale && d?.data) setTdEarnings(d.data); })
+      .catch(() => {});
+
+    // S5: Twelve Data executives
+    apiFetch(`/api/market/td/executives/${encodeURIComponent(norm)}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (!stale && d?.data) setTdExecutives(d.data); })
+      .catch(() => {});
+
+    // S5: Twelve Data holders (institutional + fund)
+    setTdHoldersLoading(true);
+    apiFetch(`/api/market/td/holders/${encodeURIComponent(norm)}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (!stale && d?.data) setTdHolders(d.data); })
+      .catch(() => {})
+      .finally(() => { if (!stale) setTdHoldersLoading(false); });
+
+    // S5: Twelve Data financials (income, balance sheet, cash flow)
+    setTdFinancialsLoading(true);
+    apiFetch(`/api/market/td/financials/${encodeURIComponent(norm)}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (!stale && d?.data) setTdFinancials(d.data); })
+      .catch(() => {})
+      .finally(() => { if (!stale) setTdFinancialsLoading(false); });
+
     return () => { stale = true; };
   }, [norm, isStock]);
 
@@ -365,5 +415,15 @@ export function useInstrumentData(ticker) {
     splitsData,
     polyFinancials,
     logoUrl,
+
+    // S5: Twelve Data deep fundamentals
+    tdProfile,
+    tdStatistics,
+    tdFinancials,
+    tdFinancialsLoading,
+    tdHolders,
+    tdHoldersLoading,
+    tdExecutives,
+    tdEarnings,
   };
 }
