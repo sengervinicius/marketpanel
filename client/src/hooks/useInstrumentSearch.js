@@ -1,10 +1,28 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import { apiFetch } from '../utils/api';
 import { FOREX_PAIRS, CRYPTO_PAIRS } from '../utils/constants';
-import { resolveAlias } from '../config/instrumentAliases';
+import { resolveAlias, resolveIndexProxy, resolveScreenAlias, SCREEN_LABELS } from '../config/instrumentAliases';
 
-// ── Module-level recent searches store (survives re-renders, not page refresh) ──
-let _recentSearches = [];
+// ── Persistent recent searches (S4.4.D) ──
+const RECENTS_KEY = 'senger_recent_searches';
+const MAX_RECENTS = 20;
+
+function _loadRecents() {
+  try {
+    const raw = localStorage.getItem(RECENTS_KEY);
+    return raw ? JSON.parse(raw).slice(0, MAX_RECENTS) : [];
+  } catch { return []; }
+}
+
+let _recentSearches = _loadRecents();
+let _recentWriteTimer = null;
+
+function _persistRecents(items) {
+  clearTimeout(_recentWriteTimer);
+  _recentWriteTimer = setTimeout(() => {
+    try { localStorage.setItem(RECENTS_KEY, JSON.stringify(items.slice(0, MAX_RECENTS))); } catch {}
+  }, 300); // debounce writes
+}
 
 /**
  * Local FX/Crypto search from constants
@@ -60,9 +78,10 @@ export function useInstrumentSearch({ debounceMs = 220, registryLimit = 20, enab
 
   const addToRecents = useCallback((item) => {
     const key = item.symbolKey || item.symbol;
-    const updated = [item, ..._recentSearches.filter(x => (x.symbolKey || x.symbol) !== key)].slice(0, 5);
+    const updated = [item, ..._recentSearches.filter(x => (x.symbolKey || x.symbol) !== key)].slice(0, MAX_RECENTS);
     _recentSearches = updated;
     setRecentSearches(updated);
+    _persistRecents(updated);
   }, []);
 
   // Clear search state
@@ -135,6 +154,39 @@ export function useInstrumentSearch({ debounceMs = 220, registryLimit = 20, enab
 
     // Start with local results immediately
     const local = localSearch(q);
+
+    // ── Screen alias injection (S4.4.A) ──
+    const screenId = resolveScreenAlias(q);
+    if (screenId) {
+      const screenLabel = SCREEN_LABELS[screenId] || screenId;
+      local.unshift({
+        symbol: screenId,
+        symbolKey: screenId,
+        name: `${screenLabel} Screen`,
+        type: 'SCREEN',
+        assetClass: 'navigation',
+        screenId,
+        local: true,
+        _source: 'screen-alias',
+      });
+    }
+
+    // ── Index proxy injection (S4.4.B) ──
+    const proxy = resolveIndexProxy(q);
+    if (proxy) {
+      local.unshift({
+        symbol: proxy.etf,
+        symbolKey: proxy.etf,
+        name: `${proxy.etf} (ETF proxy for ${proxy.indexName})`,
+        type: 'ETF',
+        assetClass: 'etf',
+        isETFProxy: true,
+        _proxyNote: `Showing ETF proxy ${proxy.etf} for ${proxy.indexName}. Live index data requires a premium data feed.`,
+        local: true,
+        _source: 'index-proxy',
+      });
+    }
+
     setResults(local);
     setLoading(true);
     setSelectedIdx(0);
@@ -321,6 +373,19 @@ export function useInstrumentSearch({ debounceMs = 220, registryLimit = 20, enab
   // Handle result click: normalize and apply alias resolution
   const handleResultClick = useCallback((result) => {
     if (!result) return null;
+
+    // Screen navigation results — return special shape
+    if (result.type === 'SCREEN' && result.screenId) {
+      return {
+        symbol: result.screenId,
+        name: result.name,
+        assetClass: 'navigation',
+        screenId: result.screenId,
+        isScreen: true,
+        raw: result,
+      };
+    }
+
     const rawSymbol = result.symbolKey || result.symbol;
     if (!rawSymbol) return null;
     const resolved = resolveAlias(rawSymbol);
@@ -329,6 +394,7 @@ export function useInstrumentSearch({ debounceMs = 220, registryLimit = 20, enab
       name: result.name || result.label || resolved,
       assetClass: result.assetClass || result.type || 'unknown',
       exchange: result.exchange || null,
+      proxyNote: result._proxyNote || null,
       raw: result,
     };
   }, []);

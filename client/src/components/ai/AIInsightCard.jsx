@@ -17,7 +17,7 @@ import './AIInsightCard.css';
  * @param {boolean} [props.compact=false] - Compact mode for smaller spaces
  */
 export default function AIInsightCard({ type, context, cacheKey, ttlMs, autoFetch = false, title: titleOverride, compact = false }) {
-  const { loading, error, insight, refresh } = useAIInsight({
+  const { loading, error, insight, refresh, available } = useAIInsight({
     type,
     context,
     cacheKey,
@@ -37,6 +37,19 @@ export default function AIInsightCard({ type, context, cacheKey, ttlMs, autoFetc
       return null;
     }
   }, [insight?.generatedAt]);
+
+  // AI unavailable — clean empty state, no spinner/error/retry
+  if (!available && !insight) {
+    return (
+      <div className={`ai-card ai-card--empty ${compact ? 'ai-card--compact' : ''}`}>
+        <div className="ai-card__header">
+          <span className="ai-card__badge" style={{ opacity: 0.5 }}>AI</span>
+          <span className="ai-card__title" style={{ opacity: 0.5 }}>{displayTitle}</span>
+        </div>
+        <p className="ai-card__text" style={{ color: '#666', fontStyle: 'italic' }}>AI insights coming soon</p>
+      </div>
+    );
+  }
 
   // Not yet fetched — show trigger button
   if (!loading && !error && !insight) {

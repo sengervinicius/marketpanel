@@ -29,6 +29,16 @@ import {
 } from './InstrumentDetailHelpers';
 import { DeltaLineOverlay, CandlestickOverlay } from './InstrumentDetailCharts';
 import { Section, StatRow } from './InstrumentDetailSections';
+import { useAIInsight } from '../../hooks/useAIInsight';
+import { getExchangeName } from '../../config/exchangeNames';
+
+// ── NO_DATA exchanges (mirrored from SearchPanel for coverage detection) ──
+const NO_DATA_EXCHANGES = new Set([
+  'LSE','LON','L','TYO','TSE','T','HKG','HK','SHH','SHZ',
+  'BOM','NSE','NS','BO','ASX','AX','FRA','ETR','F','EPA','PA',
+  'AMS','AS','BME','MC','MIL','MI','STO','ST','CPH','CO',
+  'OSL','OL','HEL','HE','WSE','WAR','SGX','SI','KRX','KS','KQ',
+]);
 
 // ── Main Component ──────────────────────────────────────────────────────────
 // asPage=true: renders as a scrollable page (DETAIL tab on mobile), no fixed overlay
@@ -51,6 +61,26 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
     news, newsLoading,
     aiFunds, aiFundsLoading, aiFundsError,
   } = instrumentData;
+
+  // ── NO DATA detection and AI fallback (S4.5.A) ──
+  const detectedExchange = info?.primary_exchange || etfMeta?.exchange || '';
+  const isNoDataExchange = NO_DATA_EXCHANGES.has(detectedExchange.toUpperCase());
+  const hasNoCoverage = isNoDataExchange && !isFX && !isCrypto && !loading && bars.length === 0;
+
+  const aiOverviewContext = useMemo(() => {
+    if (!hasNoCoverage) return null;
+    const name = info?.name || norm || disp;
+    return {
+      query: `Provide a current overview of ${name} (${disp}) including recent price, market cap, key metrics, and latest news.`,
+    };
+  }, [hasNoCoverage, info?.name, norm, disp]);
+
+  const { insight: aiOverview, loading: aiOverviewLoading, refresh: fetchAiOverview } = useAIInsight({
+    type: 'general',
+    context: aiOverviewContext,
+    cacheKey: hasNoCoverage ? `no-data-overview:${norm}` : null,
+    autoFetch: hasNoCoverage,
+  });
 
   // Watchlist toggle
   const { isWatching, toggle: toggleWatchlist } = useWatchlist();
@@ -294,6 +324,43 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
   // ── Chart sub-render ───────────────────────────────────────────────────
   function renderChart() {
     if (loading) return <div className="id-chart-msg">Loading...</div>;
+
+    // ── AI Overview fallback for NO DATA instruments (S4.5.A) ──
+    if (hasNoCoverage) {
+      const exchangeLabel = getExchangeName(detectedExchange);
+      return (
+        <div className="id-ai-overview-fallback" style={{ padding: '16px' }}>
+          <div style={{
+            background: '#1a1400', border: '1px solid #ffd54f33', borderRadius: 6,
+            padding: '10px 14px', marginBottom: 12, color: '#ffd54f', fontSize: 13,
+          }}>
+            This instrument is on {exchangeLabel}. Live data is not available. Showing AI-generated overview.
+          </div>
+          {aiOverviewLoading && (
+            <div style={{ color: '#888', padding: '20px 0' }}>
+              <span style={{ animation: 'pulse 1.5s infinite' }}>Generating AI overview...</span>
+            </div>
+          )}
+          {aiOverview?.body && (
+            <div style={{ color: '#ccc', lineHeight: 1.6, fontSize: 14 }}>
+              {aiOverview.body}
+            </div>
+          )}
+          {!aiOverviewLoading && !aiOverview && (
+            <button
+              onClick={fetchAiOverview}
+              style={{
+                background: '#1a1a2e', border: '1px solid #4fc3f733', borderRadius: 6,
+                color: '#4fc3f7', padding: '8px 16px', cursor: 'pointer', fontSize: 13,
+              }}
+            >
+              Generate AI Overview
+            </button>
+          )}
+        </div>
+      );
+    }
+
     if (bars.length === 0) return <div className="id-chart-msg">No data for this range</div>;
 
     const aMin = deltaA !== null && deltaB !== null ? Math.min(deltaA, deltaB) : null;

@@ -6,6 +6,35 @@ const _aiCache = new Map();
 const THROTTLE_MS = 5000;
 const _lastFetchTime = new Map();
 
+// ── Global AI availability flag ──
+// Checked once on app boot via /api/search/health. Consumers can
+// call checkAIAvailable() synchronously to decide whether to show AI UI.
+let _aiAvailable = true; // optimistic default
+let _healthChecked = false;
+
+function _checkHealth() {
+  if (_healthChecked) return;
+  _healthChecked = true;
+  try {
+    const p = apiFetch('/api/search/health');
+    if (p && typeof p.then === 'function') {
+      p.then(r => r.json())
+        .then(d => { _aiAvailable = !!d.ai; })
+        .catch(() => { /* keep optimistic default */ });
+    }
+  } catch { /* safe in test environments where apiFetch may not be available */ }
+}
+// Fire on import (module load)
+_checkHealth();
+
+/**
+ * checkAIAvailable — synchronous check of whether the server has
+ * a configured AI key. Returns true if not yet checked (optimistic).
+ */
+export function checkAIAvailable() {
+  return _aiAvailable;
+}
+
 /**
  * Endpoint mapping by insight type
  */
@@ -34,6 +63,7 @@ const ENDPOINT_MAP = {
 export function useAIInsight({ type, context, cacheKey, ttlMs = 300000, autoFetch = false }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const available = _aiAvailable;
   const [insight, setInsight] = useState(() => {
     // Return cached data if available and not expired
     if (cacheKey && _aiCache.has(cacheKey)) {
@@ -65,6 +95,12 @@ export function useAIInsight({ type, context, cacheKey, ttlMs = 300000, autoFetc
   }, [cacheKey, ttlMs]);
 
   const fetchInsight = useCallback(async () => {
+    // If AI is known unavailable, skip the network request entirely
+    if (!_aiAvailable) {
+      setError('AI analysis temporarily unavailable');
+      return;
+    }
+
     const endpoint = ENDPOINT_MAP[type];
     if (!endpoint) {
       setError(`Unknown AI insight type: ${type}`);
@@ -125,7 +161,16 @@ export function useAIInsight({ type, context, cacheKey, ttlMs = 300000, autoFetc
       setLoading(false);
     } catch (err) {
       if (!mountedRef.current) return;
-      setError(err.message || 'AI insight unavailable');
+      // User-friendly messages — never pass through raw server strings
+      const msg = err.message || '';
+      if (msg.includes('503') || msg.includes('not configured')) {
+        setError('AI analysis temporarily unavailable');
+        _aiAvailable = false;
+      } else if (msg.includes('400')) {
+        setError('AI analysis temporarily unavailable');
+      } else {
+        setError('AI analysis temporarily unavailable');
+      }
       setLoading(false);
     }
   }, [type, context, cacheKey, ttlMs]);
@@ -137,7 +182,7 @@ export function useAIInsight({ type, context, cacheKey, ttlMs = 300000, autoFetc
     }
   }, [autoFetch]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  return { loading, error, insight, refresh: fetchInsight };
+  return { loading, error, insight, refresh: fetchInsight, available };
 }
 
 /**

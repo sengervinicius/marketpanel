@@ -39,9 +39,11 @@ const ASSET_TYPE_BADGE = {
   Option:  { bg: '#2a0a1a', color: '#ef9a9a', label: 'OPTION' },
   Future:  { bg: '#1a0a00', color: '#ff8a65', label: 'FUTURE' },
   OTC:     { bg: '#1a1a1a', color: '#999',    label: 'OTC' },
+  Screen:  { bg: '#001a3a', color: '#4fc3f7', label: 'SCREEN' },
 };
 
 function deriveAssetType(item) {
+  if (item.type === 'SCREEN') return 'Screen';
   if (item.assetType && ASSET_TYPE_BADGE[item.assetType]) return item.assetType;
   const type = (item.type || '').toUpperCase();
   const ac   = (item.assetClass || '').toLowerCase();
@@ -107,12 +109,12 @@ function coverageLevel(item) {
 const COVERAGE_DOT = {
   live:    { color: '#00c853', title: 'Live data available' },
   limited: { color: YELLOW,   title: 'Limited data (OTC/fund) — chart may be empty' },
-  none:    { color: RED,      title: 'No data — international exchange not covered' },
+  none:    { color: YELLOW,   title: 'Live data not available for this exchange. Tap for AI-generated summary.' },
   unknown: { color: '#444',   title: 'Coverage unknown' },
 };
 
 const COVERAGE_TAG = {
-  none:    { bg: '#2a0000', color: RED,    label: 'NO DATA' },
+  none:    { bg: '#1a1400', color: YELLOW, label: 'AI OVERVIEW' },
   limited: { bg: '#1a1400', color: YELLOW, label: 'LIMITED' },
 };
 
@@ -183,12 +185,18 @@ function SearchPanel({ onTickerSelect }) {
   const handleSelect = useCallback((item) => {
     addToRecents(item);
     const normalized = handleResultClick(item);
-    if (normalized) {
-      openDetail(normalized.symbol);
-      setSearchError(null);
-    } else {
+    if (!normalized) {
       setSearchError('Cannot open this instrument yet.');
+      return;
     }
+    // Screen navigation — dispatch a custom event for the layout to handle
+    if (normalized.isScreen && normalized.screenId) {
+      window.dispatchEvent(new CustomEvent('senger:navigate-screen', { detail: { screenId: normalized.screenId } }));
+      setSearchError(null);
+      return;
+    }
+    openDetail(normalized.symbol);
+    setSearchError(null);
   }, [addToRecents, openDetail, handleResultClick]);
 
   const badgeClass = (item) => {
@@ -330,7 +338,7 @@ function SearchPanel({ onTickerSelect }) {
                     </span>
                   )}
                   {covTag && (
-                    <Badge variant={cov === 'none' ? 'error' : 'warning'} size="xs">
+                    <Badge variant="warning" size="xs" title={dot.title}>
                       {covTag.label}
                     </Badge>
                   )}

@@ -16,6 +16,7 @@ import {
   US_STOCKS, BRAZIL_ADRS, FOREX_PAIRS, CRYPTO_PAIRS, COMMODITIES,
 } from '../../utils/constants';
 import { getMobileHomeScreens } from '../../config/templates';
+import { checkAIAvailable } from '../../hooks/useAIInsight';
 import './HomePanelMobile.css';
 
 const MOBILE_HOME_SECTIONS = [
@@ -229,31 +230,45 @@ function HomePanelMobile({ onSearchClick }) {
 
   const fetchAiPulse = useCallback(() => {
     if (aiPulseLoading) return;
+
+    // Check if AI is available before attempting fetch
+    if (!checkAIAvailable()) {
+      setAiPulseError('_unavailable');
+      return;
+    }
+
     setAiPulse(null);
     setAiPulseError(null);
     setAiPulseLoading(true);
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 10000);
+
     apiFetch('/api/search/ai', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ query: 'Give me a brief 2-sentence market pulse summary for today. Focus on major US indices, any notable moves, and overall sentiment.' }),
+      signal: controller.signal,
     })
       .then(r => {
-        if (!r.ok) throw new Error(`Server error (${r.status})`);
+        if (!r.ok) throw new Error('unavailable');
         return r.json();
       })
       .then(data => {
         if (data?.summary) {
           setAiPulse(data.summary);
-        } else if (data?.error) {
-          setAiPulseError(data.error);
         } else {
-          setAiPulseError('No AI response received');
+          setAiPulseError('_unavailable');
         }
       })
-      .catch(err => {
-        setAiPulseError(err.message || 'Failed to load market pulse');
+      .catch(() => {
+        // Never show raw error — use sentinel for "unavailable" state
+        setAiPulseError('_unavailable');
       })
-      .finally(() => setAiPulseLoading(false));
+      .finally(() => {
+        clearTimeout(timer);
+        setAiPulseLoading(false);
+      });
   }, [aiPulseLoading]);
 
   const openNews = (item) => {
@@ -296,9 +311,9 @@ function HomePanelMobile({ onSearchClick }) {
           <div className="hpm-ai-tagline">Tap for AI-powered market overview</div>
         )}
         {aiPulseLoading && <div className="hpm-ai-loading">Analyzing markets...</div>}
-        {aiPulseError && (
-          <div className="hpm-ai-error">
-            <span>{aiPulseError}</span>
+        {aiPulseError && !aiPulseLoading && (
+          <div className="hpm-ai-error" style={{ color: '#888' }}>
+            <span>Market data is loading</span>
             <span className="hpm-ai-retry">Tap to retry</span>
           </div>
         )}

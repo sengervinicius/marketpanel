@@ -39,6 +39,13 @@ function cacheSet(q, v) {
 }
 
 /**
+ * GET /health — check whether AI features are available
+ */
+router.get('/health', (req, res) => {
+  res.json({ ai: !!process.env.PERPLEXITY_API_KEY });
+});
+
+/**
  * POST /ai — AI-powered financial research summary
  */
 router.post('/ai', async (req, res) => {

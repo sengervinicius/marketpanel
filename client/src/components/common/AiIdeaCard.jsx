@@ -1,27 +1,47 @@
 /**
  * AiIdeaCard.jsx
  * AI-powered trading idea card for market screens.
- * Shows a short AI-generated idea based on the current screen's thesis/context.
- * Tappable to refresh. Appears at the top of the desktop workspace or mobile home.
+ * Shows the screen thesis by default; user taps to request an AI idea.
+ * Never auto-fetches. Gracefully handles errors (no raw server messages).
+ * Includes a 10-second timeout guard.
  */
 
-import { useState, useCallback, memo } from 'react';
+import { useState, useCallback, useRef, memo } from 'react';
 import { apiFetch } from '../../utils/api';
+import { checkAIAvailable } from '../../hooks/useAIInsight';
 import './AiIdeaCard.css';
+
+const FETCH_TIMEOUT_MS = 10000;
 
 function AiIdeaCard({ screen }) {
   const [idea, setIdea] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [failed, setFailed] = useState(false); // true = last attempt failed (no raw msg shown)
+  const abortRef = useRef(null);
 
   const hasContext = screen?.aiIdeaContext && screen?.thesis;
   const screenLabel = screen?.visualLabel || screen?.label || 'Market';
 
   const fetchIdea = useCallback(() => {
     if (loading || !hasContext) return;
+
+    // If AI is known to be unavailable, don't even try
+    if (!checkAIAvailable()) {
+      setFailed(true);
+      return;
+    }
+
     setIdea(null);
-    setError(null);
+    setFailed(false);
     setLoading(true);
+
+    // Abort previous request if any
+    if (abortRef.current) abortRef.current.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    // Timeout guard — abort after 10s
+    const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 
     const prompt = [
       `You are a senior market strategist. Give ONE concise, actionable trading idea (2-3 sentences max) for this market screen.`,
@@ -36,22 +56,28 @@ function AiIdeaCard({ screen }) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ query: prompt }),
+      signal: controller.signal,
     })
       .then(r => {
-        if (!r.ok) throw new Error(`Server ${r.status}`);
+        if (!r.ok) throw new Error('unavailable');
         return r.json();
       })
       .then(data => {
         if (data?.summary) {
           setIdea(data.summary);
-        } else if (data?.error) {
-          setError(data.error);
+          setFailed(false);
         } else {
-          setError('No response');
+          setFailed(true);
         }
       })
-      .catch(err => setError(err.message || 'Failed'))
-      .finally(() => setLoading(false));
+      .catch(() => {
+        // Graceful: never show raw error messages
+        setFailed(true);
+      })
+      .finally(() => {
+        clearTimeout(timer);
+        setLoading(false);
+      });
   }, [loading, hasContext, screen]);
 
   if (!hasContext) return null;
@@ -66,11 +92,15 @@ function AiIdeaCard({ screen }) {
         </span>
       </div>
 
-      {!idea && !loading && !error && (
-        <div className="aic-prompt">
-          <span className="aic-prompt-icon">✦</span>
-          <span>Tap for an AI-generated trading idea based on this screen</span>
-        </div>
+      {/* Default state: show thesis + tap prompt */}
+      {!idea && !loading && !failed && (
+        <>
+          <div className="aic-thesis">{screen.thesis}</div>
+          <div className="aic-prompt">
+            <span className="aic-prompt-icon">✦</span>
+            <span>Tap for AI analysis</span>
+          </div>
+        </>
       )}
 
       {loading && (
@@ -80,19 +110,18 @@ function AiIdeaCard({ screen }) {
         </div>
       )}
 
-      {error && !loading && (
-        <div className="aic-error">
-          <span>{error}</span>
-          <span className="aic-retry">Tap to retry</span>
-        </div>
+      {/* Failure: show thesis with muted retry prompt — never a raw error */}
+      {failed && !loading && (
+        <>
+          <div className="aic-thesis">{screen.thesis}</div>
+          <div className="aic-prompt aic-prompt--muted">
+            <span>AI unavailable — tap to retry</span>
+          </div>
+        </>
       )}
 
       {idea && !loading && (
         <div className="aic-idea">{idea}</div>
-      )}
-
-      {screen.thesis && !idea && !loading && !error && (
-        <div className="aic-thesis">{screen.thesis}</div>
       )}
     </div>
   );
