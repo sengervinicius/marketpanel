@@ -487,6 +487,64 @@ async function fetchWithFallback(symbol) {
   throw new Error(`All providers failed for ${symbol}`);
 }
 
+
+// === S4.3.A - Sector Metrics Endpoint ========================================
+// GET /sector-metrics?tickers=LMT,NOC,RTX&period=1d
+// Returns enriched data per ticker: changePct1d, volume, volumeRatio, 52-week data
+router.get('/sector-metrics', async (req, res) => {
+  const tickerParam = req.query.tickers;
+  if (!tickerParam) return res.status(400).json({ ok: false, error: 'tickers param required' });
+
+  const syms = tickerParam.split(',').map(s => s.trim().toUpperCase()).filter(Boolean).slice(0, 50);
+  if (!syms.length) return res.status(400).json({ ok: false, error: 'no valid tickers' });
+
+  const cacheKey = `sector-metrics:${syms.sort().join(',')}`;
+  const cached = cacheGet(cacheKey);
+  if (cached) return res.json(cached);
+
+  try {
+    const BATCH_SIZE = 15;
+    const batches = [];
+    for (let i = 0; i < syms.length; i += BATCH_SIZE) {
+      batches.push(syms.slice(i, i + BATCH_SIZE));
+    }
+
+    const results = await Promise.allSettled(
+      batches.map(batch => yahooQuote(batch.join(',')))
+    );
+
+    const data = {};
+    for (const r of results) {
+      if (r.status !== 'fulfilled' || !r.value) continue;
+      const quotes = Array.isArray(r.value) ? r.value : [r.value];
+      for (const q of quotes) {
+        const sym = q.symbol || q.ticker;
+        if (!sym) continue;
+        data[sym] = {
+          price: q.regularMarketPrice ?? q.price ?? null,
+          changePct1d: q.regularMarketChangePercent ?? q.changePercent ?? null,
+          volume: q.regularMarketVolume ?? q.volume ?? null,
+          avgVolume: q.averageDailyVolume3Month ?? q.avgVolume ?? null,
+          volumeRatio: (q.regularMarketVolume && q.averageDailyVolume3Month)
+            ? +(q.regularMarketVolume / q.averageDailyVolume3Month).toFixed(2) : null,
+          high52w: q.fiftyTwoWeekHigh ?? null,
+          low52w: q.fiftyTwoWeekLow ?? null,
+          distFrom52wHigh: (q.regularMarketPrice && q.fiftyTwoWeekHigh)
+            ? +((q.regularMarketPrice - q.fiftyTwoWeekHigh) / q.fiftyTwoWeekHigh).toFixed(4) : null,
+          marketCap: q.marketCap ?? null,
+        };
+      }
+    }
+
+    const result = { ok: true, data };
+    cacheSet(cacheKey, result);
+    res.json(result);
+  } catch (err) {
+    console.error('[sector-metrics] Error:', err.message);
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
 // âââ Snapshots ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 const DEFAULT_STOCK_TICKERS = [

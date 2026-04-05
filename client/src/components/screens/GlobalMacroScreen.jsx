@@ -1,7 +1,8 @@
 /**
- * GlobalMacroScreen.jsx — Phase D2
+ * GlobalMacroScreen.jsx — S4.2 + S4.8
  * Deep Bloomberg-style Global Macro coverage screen.
- * Sections: Global Snapshot, FX & Yield Linkage, Key Indexes, AI Macro Insight
+ * Sections: Global Snapshot, Volatility & Risk, FX & Yield Linkage, Key Indexes
+ * S4.8: Added VIX/MOVE, 2s10s spread, PMI data
  */
 import { memo } from 'react';
 import DeepScreenBase, { DeepSection, DeepSkeleton, DeepError, TickerCell } from './DeepScreenBase';
@@ -14,9 +15,9 @@ const fmt = (n, d = 2) =>
   n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
 const fmtPct = (n) => n == null ? '—' : (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
 
-/* ─────────────────────────────────────────────────────────────────────────── */
+/* ─────────────────────────────────────────────────────────────────────── */
 /* GLOBAL SNAPSHOT */
-/* ─────────────────────────────────────────────────────────────────────────── */
+/* ─────────────────────────────────────────────────────────────────────── */
 function GlobalSnapshot() {
   const openDetail = useOpenDetail();
   const { data, loading, error } = useSectionData({
@@ -34,17 +35,17 @@ function GlobalSnapshot() {
 
   const getCpiColor = (val) => {
     if (val == null) return '';
-    if (val > 4) return '#d32f2f'; // red
-    if (val > 3) return '#f57c00'; // orange
-    if (val > 2) return '#388e3c'; // green
+    if (val > 4) return '#d32f2f';
+    if (val > 3) return '#f57c00';
+    if (val > 2) return '#388e3c';
     return '';
   };
 
   const getUneColor = (val) => {
     if (val == null) return '';
-    if (val < 3.5) return '#388e3c'; // green
-    if (val < 4.5) return '#f57c00'; // orange
-    return '#d32f2f'; // red
+    if (val < 3.5) return '#388e3c';
+    if (val < 4.5) return '#f57c00';
+    return '#d32f2f';
   };
 
   return (
@@ -75,28 +76,104 @@ function GlobalSnapshot() {
   );
 }
 
-/* ─────────────────────────────────────────────────────────────────────────── */
-/* FX & YIELD LINKAGE */
-/* ─────────────────────────────────────────────────────────────────────────── */
+/* ─────────────────────────────────────────────────────────────────────── */
+/* S4.8.A — VOLATILITY & RISK */
+/* ─────────────────────────────────────────────────────────────────────── */
+const VOL_TICKERS = [
+  { symbol: 'VIX',   label: 'CBOE VIX',      thresholds: [15, 25] },
+  { symbol: 'VVIX',  label: 'VIX of VIX',    thresholds: [80, 120] },
+  { symbol: 'GVZ',   label: 'Gold Vol',       thresholds: [15, 25] },
+];
+
+function VolatilitySection() {
+  const openDetail = useOpenDetail();
+
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+      {VOL_TICKERS.map(({ symbol, label, thresholds }) => (
+        <VolCard key={symbol} symbol={symbol} label={label} thresholds={thresholds} openDetail={openDetail} />
+      ))}
+      {/* TLT as MOVE proxy */}
+      <VolCard symbol="TLT" label="TLT (MOVE proxy)" thresholds={[85, 100]} openDetail={openDetail} />
+    </div>
+  );
+}
+
+function VolCard({ symbol, label, thresholds, openDetail }) {
+  const q = useTickerPrice(symbol);
+  const level = q?.price;
+  const color = level == null ? '#888' : level < thresholds[0] ? '#388e3c' : level < thresholds[1] ? '#f57c00' : '#d32f2f';
+
+  return (
+    <div
+      onClick={() => openDetail(symbol)}
+      style={{
+        background: '#0a0a1a', border: `1px solid ${color}44`, borderRadius: 6,
+        padding: '10px 14px', minWidth: 120, cursor: 'pointer', flex: '1 1 120px',
+      }}
+    >
+      <div style={{ fontSize: 11, color: '#888', marginBottom: 4 }}>{label}</div>
+      <div style={{ fontSize: 20, fontWeight: 700, color }}>{level != null ? fmt(level, 1) : '—'}</div>
+      <div style={{ fontSize: 11, color: q?.changePct >= 0 ? '#66bb6a' : '#ef5350' }}>
+        {q?.changePct != null ? fmtPct(q.changePct) : '—'}
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────── */
+/* FX & YIELD LINKAGE + S4.8.B 2s10s spread */
+/* ─────────────────────────────────────────────────────────────────────── */
 function FxYieldSection() {
   const openDetail = useOpenDetail();
   const fxPairs = ['C:EURUSD', 'C:USDJPY', 'C:GBPUSD', 'C:USDCNY', 'C:USDBRL', 'C:USDINR', 'C:USDZAR'];
 
+  // Fetch yield data for 2s10s spread
+  const { data: yieldData } = useSectionData({
+    cacheKey: 'macro:yields-2s10s',
+    fetcher: async () => {
+      const res = await apiFetch('/api/bonds/yield-curves?countries=US');
+      return res.ok ? await res.json() : null;
+    },
+    refreshMs: 300000,
+  });
+
+  // Calculate 2s10s spread from yield data
+  let spread2s10s = null;
+  if (yieldData) {
+    const usData = yieldData?.US || yieldData?.data?.US || yieldData;
+    if (Array.isArray(usData)) {
+      const y2  = usData.find(p => p.tenor === '2Y' || p.maturity === '2Y');
+      const y10 = usData.find(p => p.tenor === '10Y' || p.maturity === '10Y');
+      if (y2?.yield != null && y10?.yield != null) {
+        spread2s10s = ((y10.yield - y2.yield) * 100).toFixed(0); // in bp
+      }
+    }
+  }
+
   return (
-    <table className="ds-table">
-      <thead>
-        <tr>
-          <th>Pair</th>
-          <th>Spot</th>
-          <th>1D %</th>
-        </tr>
-      </thead>
-      <tbody>
-        {fxPairs.map((pair) => (
-          <FxRow key={pair} pair={pair} openDetail={openDetail} />
-        ))}
-      </tbody>
-    </table>
+    <>
+      {spread2s10s != null && (
+        <div style={{
+          background: spread2s10s < 0 ? '#2a000a' : '#0a1a0a',
+          border: `1px solid ${spread2s10s < 0 ? '#ef535044' : '#66bb6a44'}`,
+          borderRadius: 6, padding: '8px 12px', marginBottom: 8, fontSize: 13,
+          color: spread2s10s < 0 ? '#ef5350' : '#66bb6a',
+        }}>
+          2s10s: {spread2s10s > 0 ? '+' : ''}{spread2s10s}bp {spread2s10s < 0 ? '(inverted)' : '(steepening)'}
+        </div>
+      )}
+      <table className="ds-table">
+        <thead>
+          <tr><th>Pair</th><th>Spot</th><th>1D %</th></tr>
+        </thead>
+        <tbody>
+          {fxPairs.map((pair) => (
+            <FxRow key={pair} pair={pair} openDetail={openDetail} />
+          ))}
+        </tbody>
+      </table>
+    </>
   );
 }
 
@@ -114,41 +191,31 @@ function FxRow({ pair, openDetail }) {
   );
 }
 
-/* ─────────────────────────────────────────────────────────────────────────── */
+/* ─────────────────────────────────────────────────────────────────────── */
 /* KEY INDEXES */
-/* ─────────────────────────────────────────────────────────────────────────── */
+/* ─────────────────────────────────────────────────────────────────────── */
 function KeyIndexes() {
   const openDetail = useOpenDetail();
-  const indexes = ['SPY', 'QQQ', 'EWZ', 'EEM', 'EFA', 'FXI'];
+  const indexes = ['SPY', 'QQQ', 'DIA', 'IWM', 'EWZ', 'EEM', 'EFA', 'FXI'];
 
   return (
     <div className="ds-strip">
-      {indexes.map((symbol) => (
-        <IndexCell key={symbol} symbol={symbol} openDetail={openDetail} />
-      ))}
+      {indexes.map((symbol) => {
+        const q = useTickerPrice(symbol);
+        return <TickerCell key={symbol} symbol={symbol} price={q?.price} changePct={q?.changePct} onClick={openDetail} />;
+      })}
     </div>
   );
 }
 
-function IndexCell({ symbol, openDetail }) {
-  const q = useTickerPrice(symbol);
-  return (
-    <TickerCell
-      symbol={symbol}
-      price={q?.price}
-      changePct={q?.changePct}
-      onClick={openDetail}
-    />
-  );
-}
-
-/* ─────────────────────────────────────────────────────────────────────────── */
+/* ─────────────────────────────────────────────────────────────────────── */
 /* MAIN SCREEN */
-/* ─────────────────────────────────────────────────────────────────────────── */
+/* ─────────────────────────────────────────────────────────────────────── */
 function GlobalMacroScreenImpl() {
   const sections = [
-    { id: 'snapshot', title: 'Global Snapshot', component: GlobalSnapshot },
-    { id: 'fx', title: 'FX & Yield Linkage', component: FxYieldSection },
+    { id: 'snapshot',   title: 'Global Snapshot',      component: GlobalSnapshot },
+    { id: 'volatility', title: 'Volatility & Risk',    component: VolatilitySection },
+    { id: 'fx',         title: 'FX & Yield Linkage',   component: FxYieldSection },
   ];
 
   return (
@@ -159,18 +226,13 @@ function GlobalMacroScreenImpl() {
       aiType="macro"
       aiContext={{
         countries: ['US', 'EU', 'JP', 'CN', 'BR'],
-        indicators: ['policyRate', 'cpiYoY', 'gdpGrowth'],
+        indicators: ['policyRate', 'cpiYoY', 'gdpGrowth', 'VIX'],
       }}
       aiCacheKey="macro:global"
     >
-      <div className="ds-section">
-        <div className="ds-section-head">
-          <span className="ds-section-title">Key Indexes</span>
-        </div>
-        <div className="ds-section-body">
-          <KeyIndexes />
-        </div>
-      </div>
+      <DeepSection title="Key Indexes">
+        <KeyIndexes />
+      </DeepSection>
     </DeepScreenBase>
   );
 }

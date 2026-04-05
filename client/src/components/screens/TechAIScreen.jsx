@@ -1,143 +1,88 @@
 /**
- * TechAIScreen.jsx — Phase D1
- * Tech & AI deep screen with mega-cap tech, AI infrastructure, software/cloud, and ETF strip.
+ * TechAIScreen.jsx — S4.2.C
+ * Tech & AI deep screen — 32 tickers across 4 sections.
+ * Mega-Cap Tech, Semiconductors, AI & Cloud Software, ETFs
  */
-
 import { memo } from 'react';
-import DeepScreenBase, { DeepSection, DeepSkeleton, DeepError, TickerCell } from './DeepScreenBase';
+import DeepScreenBase, { DeepSection, TickerCell } from './DeepScreenBase';
 import { useOpenDetail } from '../../context/OpenDetailContext';
 import { useTickerPrice } from '../../context/PriceContext';
 
 const fmt = (n, d = 2) => n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
 const fmtPct = (n) => n == null ? '—' : (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
 
-const MEGA_CAP = ['AAPL', 'MSFT', 'GOOGL', 'META', 'AMZN'];
-const AI_INFRA = ['NVDA', 'AMD', 'AVGO', 'TSM', 'INTC'];
-const AI_SOFTWARE = ['CRM', 'SNOW', 'PLTR', 'AI', 'PATH'];
-const ETF_SYMBOLS = ['QQQ', 'XLK', 'SOXX', 'AIQ', 'BOTZ', 'ROBO'];
+const MEGA_CAP  = ['AAPL', 'MSFT', 'GOOGL', 'META', 'AMZN', 'TSLA', 'NFLX'];
+const SEMIS     = ['NVDA', 'AMD', 'AVGO', 'TSM', 'QCOM', 'MRVL', 'MU', 'AMAT'];
+const AI_CLOUD  = ['CRM', 'SNOW', 'PLTR', 'AI', 'PATH', 'NOW', 'DDOG', 'SMCI'];
+const ETF_SYMBOLS = ['QQQ', 'XLK', 'SOXX', 'SMH', 'AIQ', 'BOTZ', 'ROBO', 'IGV', 'ARKK'];
 
-const MEGA_LABELS = {
-  'AAPL': 'Apple', 'MSFT': 'Microsoft', 'GOOGL': 'Alphabet',
-  'META': 'Meta', 'AMZN': 'Amazon',
+const LABELS = {
+  AAPL: 'Apple', MSFT: 'Microsoft', GOOGL: 'Alphabet', META: 'Meta', AMZN: 'Amazon',
+  TSLA: 'Tesla', NFLX: 'Netflix', NVDA: 'NVIDIA', AMD: 'AMD', AVGO: 'Broadcom',
+  TSM: 'TSMC', QCOM: 'Qualcomm', MRVL: 'Marvell', MU: 'Micron', AMAT: 'Applied Materials',
+  CRM: 'Salesforce', SNOW: 'Snowflake', PLTR: 'Palantir', AI: 'C3.ai', PATH: 'UiPath',
+  NOW: 'ServiceNow', DDOG: 'Datadog', SMCI: 'Super Micro',
 };
 
-const INFRA_LABELS = {
-  'NVDA': 'NVIDIA', 'AMD': 'AMD', 'AVGO': 'Broadcom',
-  'TSM': 'TSMC', 'INTC': 'Intel',
-};
-
-const SOFTWARE_LABELS = {
-  'CRM': 'Salesforce', 'SNOW': 'Snowflake', 'PLTR': 'Palantir',
-  'AI': 'C3.ai', 'PATH': 'UiPath',
-};
-
-/* ── Generic Ticker Row ────────────────────────────────────────────────── */
-function TickerRow({ symbol, label, onClick }) {
+function TickerRow({ symbol, onClick }) {
   const q = useTickerPrice(symbol);
   return (
     <tr className="ds-row-clickable" onClick={() => onClick(symbol)}>
       <td>{symbol}</td>
-      <td>{label || '—'}</td>
+      <td>{LABELS[symbol] || '—'}</td>
       <td>{q?.price != null ? fmt(q.price) : '—'}</td>
       <td className={q?.changePct >= 0 ? 'ds-val-pos' : 'ds-val-neg'}>{q?.changePct != null ? fmtPct(q.changePct) : '—'}</td>
     </tr>
   );
 }
 
-/* ── Mega-Cap Tech Section ──────────────────────────────────────────────── */
 const MegaCapSection = memo(function MegaCapSection() {
   const openDetail = useOpenDetail();
   return (
     <table className="ds-table">
-      <thead>
-        <tr>
-          <th>Company</th>
-          <th>Label</th>
-          <th>Price</th>
-          <th>1D%</th>
-        </tr>
-      </thead>
-      <tbody>
-        {MEGA_CAP.map(sym => (
-          <TickerRow key={sym} symbol={sym} label={MEGA_LABELS[sym]} onClick={openDetail} />
-        ))}
-      </tbody>
+      <thead><tr><th>Ticker</th><th>Name</th><th>Price</th><th>1D%</th></tr></thead>
+      <tbody>{MEGA_CAP.map(sym => <TickerRow key={sym} symbol={sym} onClick={openDetail} />)}</tbody>
     </table>
   );
 });
 
-/* ── AI Infrastructure Section ──────────────────────────────────────────── */
-const AiInfraSection = memo(function AiInfraSection() {
+const SemiconductorsSection = memo(function SemiconductorsSection() {
   const openDetail = useOpenDetail();
   return (
     <table className="ds-table">
-      <thead>
-        <tr>
-          <th>Company</th>
-          <th>Label</th>
-          <th>Price</th>
-          <th>1D%</th>
-        </tr>
-      </thead>
-      <tbody>
-        {AI_INFRA.map(sym => (
-          <TickerRow key={sym} symbol={sym} label={INFRA_LABELS[sym]} onClick={openDetail} />
-        ))}
-      </tbody>
+      <thead><tr><th>Ticker</th><th>Name</th><th>Price</th><th>1D%</th></tr></thead>
+      <tbody>{SEMIS.map(sym => <TickerRow key={sym} symbol={sym} onClick={openDetail} />)}</tbody>
     </table>
   );
 });
 
-/* ── AI Software & Cloud Section ────────────────────────────────────────── */
-const AiSoftwareSection = memo(function AiSoftwareSection() {
+const AiCloudSection = memo(function AiCloudSection() {
   const openDetail = useOpenDetail();
   return (
     <table className="ds-table">
-      <thead>
-        <tr>
-          <th>Company</th>
-          <th>Label</th>
-          <th>Price</th>
-          <th>1D%</th>
-        </tr>
-      </thead>
-      <tbody>
-        {AI_SOFTWARE.map(sym => (
-          <TickerRow key={sym} symbol={sym} label={SOFTWARE_LABELS[sym]} onClick={openDetail} />
-        ))}
-      </tbody>
+      <thead><tr><th>Ticker</th><th>Name</th><th>Price</th><th>1D%</th></tr></thead>
+      <tbody>{AI_CLOUD.map(sym => <TickerRow key={sym} symbol={sym} onClick={openDetail} />)}</tbody>
     </table>
   );
 });
 
-/* ── ETF Strip Section ──────────────────────────────────────────────────── */
 const EtfStripSection = memo(function EtfStripSection() {
   const openDetail = useOpenDetail();
   return (
     <div className="ds-etf-strip">
       {ETF_SYMBOLS.map(sym => {
         const q = useTickerPrice(sym);
-        return (
-          <TickerCell
-            key={sym}
-            symbol={sym}
-            label={sym}
-            price={q?.price}
-            changePct={q?.changePct}
-            onClick={openDetail}
-          />
-        );
+        return <TickerCell key={sym} symbol={sym} label={sym} price={q?.price} changePct={q?.changePct} onClick={openDetail} />;
       })}
     </div>
   );
 });
 
-/* ── Main Component ────────────────────────────────────────────────────── */
 function TechAIScreen() {
   const sections = [
-    { id: 'megacap', title: 'MEGA-CAP TECH', component: MegaCapSection },
-    { id: 'aiinfra', title: 'AI INFRASTRUCTURE', component: AiInfraSection },
-    { id: 'aisoftware', title: 'AI SOFTWARE & CLOUD', component: AiSoftwareSection },
+    { id: 'megacap',  title: 'MEGA-CAP TECH',       component: MegaCapSection },
+    { id: 'semis',    title: 'SEMICONDUCTORS',       component: SemiconductorsSection },
+    { id: 'aicloud',  title: 'AI & CLOUD SOFTWARE',  component: AiCloudSection },
   ];
 
   return (
@@ -146,7 +91,7 @@ function TechAIScreen() {
       accentColor="#4fc3f7"
       sections={sections}
       aiType="sector"
-      aiContext={{ sector: 'Technology & AI', tickers: ['NVDA', 'MSFT', 'GOOGL', 'AAPL', 'AMZN'] }}
+      aiContext={{ sector: 'Technology & AI', tickers: ['NVDA', 'MSFT', 'GOOGL', 'AAPL', 'AMZN', 'TSM', 'AVGO'] }}
       aiCacheKey="sector:tech-ai"
     >
       <DeepSection title="TECH & AI ETF STRIP">

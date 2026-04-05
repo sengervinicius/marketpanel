@@ -1,7 +1,7 @@
 /**
- * DefenceScreen.jsx — Phase D2
+ * DefenceScreen.jsx — S4.2.A
  * Deep Bloomberg-style Defence & Aerospace coverage screen.
- * Sections: Primes, Supply Chain & Tech, ETF Strip, AI Defence Brief
+ * 34 tickers across 5 sections: Primes, EU Defence, Supply Chain, Space & Cyber, ETFs
  */
 import { memo } from 'react';
 import DeepScreenBase, { DeepSection, TickerCell } from './DeepScreenBase';
@@ -12,36 +12,26 @@ const fmt = (n, d = 2) =>
   n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
 const fmtPct = (n) => n == null ? '—' : (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
 
-/* ─────────────────────────────────────────────────────────────────────────── */
-/* PRIMES */
-/* ─────────────────────────────────────────────────────────────────────────── */
-function PrimesSection() {
-  const openDetail = useOpenDetail();
-  const primes = ['LMT', 'NOC', 'RTX', 'BA', 'GD', 'KTOS'];
+const US_PRIMES   = ['LMT', 'NOC', 'RTX', 'BA', 'GD', 'LHX'];
+const EU_DEFENCE  = [
+  { symbol: 'BAESY', name: 'BAE Systems' },
+  { symbol: 'RNMBY', name: 'Rheinmetall' },
+  { symbol: 'EADSY', name: 'Airbus Defence' },
+  { symbol: 'SAABF', name: 'Saab' },
+  { symbol: 'FINMY', name: 'Leonardo' },
+  { symbol: 'THLEF', name: 'Thales' },
+];
+const SUPPLY_CHAIN = ['LDOS', 'BWXT', 'HII', 'MRCY', 'AXON', 'TDG'];
+const SPACE_CYBER  = ['RKLB', 'PLTR', 'KTOS', 'SPR', 'IRDM'];
+const ETF_SYMBOLS  = ['ITA', 'XAR', 'PPA', 'DFEN', 'UFO'];
 
-  return (
-    <table className="ds-table">
-      <thead>
-        <tr>
-          <th>Company</th>
-          <th>Price</th>
-          <th>1D %</th>
-        </tr>
-      </thead>
-      <tbody>
-        {primes.map((symbol) => (
-          <DefenceRow key={symbol} symbol={symbol} openDetail={openDetail} />
-        ))}
-      </tbody>
-    </table>
-  );
-}
-
-function DefenceRow({ symbol, openDetail }) {
+/* ── Generic row ──────────────────────────────────────────────────────── */
+function DefenceRow({ symbol, label, openDetail }) {
   const q = useTickerPrice(symbol);
   return (
-    <tr onClick={() => openDetail(symbol)}>
+    <tr className="ds-row-clickable" onClick={() => openDetail(symbol)}>
       <td className="ds-ticker-col">{symbol}</td>
+      <td>{label || '—'}</td>
       <td>{fmt(q?.price, 2)}</td>
       <td className={q?.changePct != null && q.changePct >= 0 ? 'ds-up' : 'ds-down'}>
         {fmtPct(q?.changePct)}
@@ -50,60 +40,79 @@ function DefenceRow({ symbol, openDetail }) {
   );
 }
 
-/* ─────────────────────────────────────────────────────────────────────────── */
-/* SUPPLY CHAIN & TECH */
-/* ─────────────────────────────────────────────────────────────────────────── */
-function SupplyChainSection() {
+/* ── US Primes ─────────────────────────────────────────────────────────── */
+const PrimesSection = memo(function PrimesSection() {
   const openDetail = useOpenDetail();
-  const suppliers = ['LDOS', 'BWXT', 'HII', 'MRCY', 'AXON'];
-
   return (
     <table className="ds-table">
-      <thead>
-        <tr>
-          <th>Company</th>
-          <th>Price</th>
-          <th>1D %</th>
-        </tr>
-      </thead>
+      <thead><tr><th>Ticker</th><th>Name</th><th>Price</th><th>1D %</th></tr></thead>
       <tbody>
-        {suppliers.map((symbol) => (
-          <DefenceRow key={symbol} symbol={symbol} openDetail={openDetail} />
+        {US_PRIMES.map(sym => <DefenceRow key={sym} symbol={sym} openDetail={openDetail} />)}
+      </tbody>
+    </table>
+  );
+});
+
+/* ── EU Defence (ADRs) ─────────────────────────────────────────────────── */
+const EuDefenceSection = memo(function EuDefenceSection() {
+  const openDetail = useOpenDetail();
+  return (
+    <table className="ds-table">
+      <thead><tr><th>Ticker</th><th>Name</th><th>Price</th><th>1D %</th></tr></thead>
+      <tbody>
+        {EU_DEFENCE.map(({ symbol, name }) => (
+          <DefenceRow key={symbol} symbol={symbol} label={name} openDetail={openDetail} />
         ))}
       </tbody>
     </table>
   );
-}
+});
 
-/* ─────────────────────────────────────────────────────────────────────────── */
-/* ETF STRIP */
-/* ─────────────────────────────────────────────────────────────────────────── */
-function EtfStripSection() {
+/* ── Supply Chain & Tech ───────────────────────────────────────────────── */
+const SupplyChainSection = memo(function SupplyChainSection() {
   const openDetail = useOpenDetail();
-  const etfs = ['ITA', 'XAR', 'PPA', 'DFEN'];
+  return (
+    <table className="ds-table">
+      <thead><tr><th>Ticker</th><th>Name</th><th>Price</th><th>1D %</th></tr></thead>
+      <tbody>
+        {SUPPLY_CHAIN.map(sym => <DefenceRow key={sym} symbol={sym} openDetail={openDetail} />)}
+      </tbody>
+    </table>
+  );
+});
 
+/* ── Space & Cyber ─────────────────────────────────────────────────────── */
+const SpaceCyberSection = memo(function SpaceCyberSection() {
+  const openDetail = useOpenDetail();
+  return (
+    <table className="ds-table">
+      <thead><tr><th>Ticker</th><th>Name</th><th>Price</th><th>1D %</th></tr></thead>
+      <tbody>
+        {SPACE_CYBER.map(sym => <DefenceRow key={sym} symbol={sym} openDetail={openDetail} />)}
+      </tbody>
+    </table>
+  );
+});
+
+/* ── ETF Strip ─────────────────────────────────────────────────────────── */
+const EtfStripSection = memo(function EtfStripSection() {
+  const openDetail = useOpenDetail();
   return (
     <div className="ds-strip">
-      {etfs.map((symbol) => (
-        <TickerCell
-          key={symbol}
-          symbol={symbol}
-          price={useTickerPrice(symbol)?.price}
-          changePct={useTickerPrice(symbol)?.changePct}
-          onClick={openDetail}
-        />
+      {ETF_SYMBOLS.map(sym => (
+        <TickerCell key={sym} symbol={sym} price={useTickerPrice(sym)?.price} changePct={useTickerPrice(sym)?.changePct} onClick={openDetail} />
       ))}
     </div>
   );
-}
+});
 
-/* ─────────────────────────────────────────────────────────────────────────── */
-/* MAIN SCREEN */
-/* ─────────────────────────────────────────────────────────────────────────── */
+/* ── Main Screen ───────────────────────────────────────────────────────── */
 function DefenceScreenImpl() {
   const sections = [
-    { id: 'primes', title: 'Defence Primes', component: PrimesSection },
-    { id: 'supply', title: 'Supply Chain & Tech', component: SupplyChainSection },
+    { id: 'primes',      title: 'US Defence Primes', component: PrimesSection },
+    { id: 'eu-defence',  title: 'EU Defence (ADRs)',  component: EuDefenceSection },
+    { id: 'supply',      title: 'Supply Chain & Tech', component: SupplyChainSection },
+    { id: 'space-cyber', title: 'Space & Cyber',       component: SpaceCyberSection },
   ];
 
   return (
@@ -114,18 +123,13 @@ function DefenceScreenImpl() {
       aiType="sector"
       aiContext={{
         sector: 'Defence & Aerospace',
-        tickers: ['LMT', 'NOC', 'RTX', 'BA', 'GD'],
+        tickers: ['LMT', 'NOC', 'RTX', 'BA', 'GD', 'BAESY', 'RNMBY'],
       }}
       aiCacheKey="sector:defence"
     >
-      <div className="ds-section">
-        <div className="ds-section-head">
-          <span className="ds-section-title">Sector ETFs</span>
-        </div>
-        <div className="ds-section-body">
-          <EtfStripSection />
-        </div>
-      </div>
+      <DeepSection title="Sector ETFs">
+        <EtfStripSection />
+      </DeepSection>
     </DeepScreenBase>
   );
 }
