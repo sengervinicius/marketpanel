@@ -62,6 +62,14 @@ export function useInstrumentData(ticker) {
   const [aiFundsError, setAiFundsError]     = useState(null);
   const aiFundsCacheRef = useRef({});
 
+  // S4 Wave 3: Insider transactions, dividends, splits (Eulerpool + Polygon)
+  const [insiderData, setInsiderData]       = useState(null);
+  const [insiderLoading, setInsiderLoading] = useState(false);
+  const [dividendData, setDividendData]     = useState(null);
+  const [dividendLoading, setDividendLoading] = useState(false);
+  const [splitsData, setSplitsData]         = useState(null);
+  const [polyFinancials, setPolyFinancials] = useState(null);
+
   const range = RANGES[rangeIdx];
 
   // Derived
@@ -256,6 +264,40 @@ export function useInstrumentData(ticker) {
     }
   }, [norm, isStock]);
 
+  // ── S4 Wave 3: Fetch insider, dividends, splits, Polygon financials ────
+  useEffect(() => {
+    if (!isStock || !norm) return;
+    let stale = false;
+
+    // Insider transactions (Eulerpool)
+    setInsiderLoading(true);
+    apiFetch(`/api/market/insider/${encodeURIComponent(norm)}?limit=15`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (!stale && d?.data) setInsiderData(d.data); })
+      .catch(() => {})
+      .finally(() => { if (!stale) setInsiderLoading(false); });
+
+    // Dividends (Polygon)
+    apiFetch(`/api/market/dividends/${encodeURIComponent(norm)}?limit=12`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (!stale && d?.data) setDividendData(d.data); })
+      .catch(() => {});
+
+    // Splits (Polygon)
+    apiFetch(`/api/market/splits/${encodeURIComponent(norm)}?limit=10`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (!stale && d?.data) setSplitsData(d.data); })
+      .catch(() => {});
+
+    // Polygon financials
+    apiFetch(`/api/market/financials/${encodeURIComponent(norm)}?limit=4&timeframe=annual`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (!stale && d?.data) setPolyFinancials(d.data); })
+      .catch(() => {});
+
+    return () => { stale = true; };
+  }, [norm, isStock]);
+
   return {
     // Ticker info
     norm,
@@ -305,5 +347,13 @@ export function useInstrumentData(ticker) {
     aiFunds,
     aiFundsLoading,
     aiFundsError,
+
+    // S4 Wave 3: Enhanced data
+    insiderData,
+    insiderLoading,
+    dividendData,
+    dividendLoading,
+    splitsData,
+    polyFinancials,
   };
 }

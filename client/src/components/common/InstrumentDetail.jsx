@@ -60,6 +60,9 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
     macroData,
     news, newsLoading,
     aiFunds, aiFundsLoading, aiFundsError,
+    insiderData, insiderLoading,
+    dividendData, dividendLoading,
+    splitsData, polyFinancials,
   } = instrumentData;
 
   // ── NO DATA detection and AI fallback (S4.5.A) ──
@@ -1254,6 +1257,143 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
     );
   }
 
+  // ── S4 Wave 3: Render Insider tab (transactions + dividends + splits) ────
+  function renderInsider() {
+    const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' }) : '—';
+    const fmtAmt = (n) => n == null ? '—' : '$' + Math.abs(n).toLocaleString('en-US', { maximumFractionDigits: 0 });
+
+    const insiders = Array.isArray(insiderData) ? insiderData : [];
+    const dividends = Array.isArray(dividendData) ? dividendData : [];
+    const splits = Array.isArray(splitsData) ? splitsData : [];
+
+    return (
+      <div className="id-section-group">
+        {/* Insider Transactions */}
+        <div className="id-section-title" style={{ color: '#ce93d8' }}>INSIDER TRANSACTIONS</div>
+        {insiderLoading && <div className="id-loading">Loading...</div>}
+        {!insiderLoading && insiders.length === 0 && (
+          <div style={{ fontSize: 10, color: '#666', padding: '4px 0' }}>No insider data available</div>
+        )}
+        {insiders.length > 0 && (
+          <table className="id-stat-table" style={{ width: '100%', fontSize: 10 }}>
+            <thead>
+              <tr style={{ color: '#888', fontSize: 8 }}>
+                <th style={{ textAlign: 'left', padding: '2px 4px' }}>Date</th>
+                <th style={{ textAlign: 'left', padding: '2px 4px' }}>Insider</th>
+                <th style={{ textAlign: 'left', padding: '2px 4px' }}>Type</th>
+                <th style={{ textAlign: 'right', padding: '2px 4px' }}>Shares</th>
+                <th style={{ textAlign: 'right', padding: '2px 4px' }}>Value</th>
+              </tr>
+            </thead>
+            <tbody>
+              {insiders.slice(0, 15).map((tx, i) => {
+                const isBuy = (tx.type || tx.transactionType || '').toLowerCase().includes('buy') ||
+                              (tx.type || tx.transactionType || '').toLowerCase().includes('purchase');
+                return (
+                  <tr key={i} style={{ borderBottom: '1px solid #1a1a1a' }}>
+                    <td style={{ padding: '3px 4px', color: '#888' }}>{fmtDate(tx.date || tx.filingDate)}</td>
+                    <td style={{ padding: '3px 4px', maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {tx.name || tx.ownerName || tx.insider || '—'}
+                    </td>
+                    <td style={{ padding: '3px 4px', color: isBuy ? '#66bb6a' : '#ef5350', fontWeight: 600 }}>
+                      {(tx.type || tx.transactionType || '—').toUpperCase()}
+                    </td>
+                    <td style={{ padding: '3px 4px', textAlign: 'right', fontFamily: 'monospace' }}>
+                      {tx.shares != null ? Math.abs(tx.shares).toLocaleString() : '—'}
+                    </td>
+                    <td style={{ padding: '3px 4px', textAlign: 'right', fontFamily: 'monospace', color: isBuy ? '#66bb6a' : '#ef5350' }}>
+                      {fmtAmt(tx.value || tx.amount)}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+
+        {/* Dividends */}
+        {dividends.length > 0 && (
+          <>
+            <div className="id-section-title" style={{ color: '#66bb6a', marginTop: 12 }}>DIVIDEND HISTORY</div>
+            <table className="id-stat-table" style={{ width: '100%', fontSize: 10 }}>
+              <thead>
+                <tr style={{ color: '#888', fontSize: 8 }}>
+                  <th style={{ textAlign: 'left', padding: '2px 4px' }}>Ex Date</th>
+                  <th style={{ textAlign: 'right', padding: '2px 4px' }}>Amount</th>
+                  <th style={{ textAlign: 'left', padding: '2px 4px' }}>Frequency</th>
+                  <th style={{ textAlign: 'left', padding: '2px 4px' }}>Pay Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {dividends.slice(0, 8).map((d, i) => (
+                  <tr key={i} style={{ borderBottom: '1px solid #1a1a1a' }}>
+                    <td style={{ padding: '3px 4px', color: '#888' }}>{fmtDate(d.ex_dividend_date)}</td>
+                    <td style={{ padding: '3px 4px', textAlign: 'right', fontFamily: 'monospace', color: '#66bb6a' }}>
+                      ${d.cash_amount?.toFixed(4) ?? '—'}
+                    </td>
+                    <td style={{ padding: '3px 4px' }}>{d.frequency ?? '—'}</td>
+                    <td style={{ padding: '3px 4px', color: '#888' }}>{fmtDate(d.pay_date)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        )}
+
+        {/* Splits */}
+        {splits.length > 0 && (
+          <>
+            <div className="id-section-title" style={{ color: '#ff9800', marginTop: 12 }}>STOCK SPLITS</div>
+            {splits.map((s, i) => (
+              <div key={i} style={{ fontSize: 10, padding: '3px 0', color: '#ccc' }}>
+                <span style={{ color: '#888' }}>{fmtDate(s.execution_date)}</span>
+                {' '}{s.split_from}:{s.split_to}
+              </div>
+            ))}
+          </>
+        )}
+
+        {/* Polygon Financials summary */}
+        {Array.isArray(polyFinancials) && polyFinancials.length > 0 && (
+          <>
+            <div className="id-section-title" style={{ color: '#4fc3f7', marginTop: 12 }}>ANNUAL FINANCIALS (POLYGON)</div>
+            <table className="id-stat-table" style={{ width: '100%', fontSize: 10 }}>
+              <thead>
+                <tr style={{ color: '#888', fontSize: 8 }}>
+                  <th style={{ textAlign: 'left', padding: '2px 4px' }}>Period</th>
+                  <th style={{ textAlign: 'right', padding: '2px 4px' }}>Revenue</th>
+                  <th style={{ textAlign: 'right', padding: '2px 4px' }}>Net Inc.</th>
+                  <th style={{ textAlign: 'right', padding: '2px 4px' }}>EPS</th>
+                </tr>
+              </thead>
+              <tbody>
+                {polyFinancials.slice(0, 4).map((f, i) => {
+                  const inc = f.financials?.income_statement;
+                  const rev = inc?.revenues?.value;
+                  const net = inc?.net_income_loss?.value;
+                  const eps = inc?.basic_earnings_per_share?.value ?? inc?.diluted_earnings_per_share?.value;
+                  const fmtB = (n) => n == null ? '—' : (n >= 1e9 ? `$${(n/1e9).toFixed(1)}B` : n >= 1e6 ? `$${(n/1e6).toFixed(0)}M` : `$${n.toFixed(0)}`);
+                  return (
+                    <tr key={i} style={{ borderBottom: '1px solid #1a1a1a' }}>
+                      <td style={{ padding: '3px 4px', color: '#888' }}>{f.fiscal_year || f.fiscal_period || '—'}</td>
+                      <td style={{ padding: '3px 4px', textAlign: 'right', fontFamily: 'monospace' }}>{fmtB(rev)}</td>
+                      <td style={{ padding: '3px 4px', textAlign: 'right', fontFamily: 'monospace', color: net != null && net >= 0 ? '#66bb6a' : '#ef5350' }}>
+                        {fmtB(net)}
+                      </td>
+                      <td style={{ padding: '3px 4px', textAlign: 'right', fontFamily: 'monospace' }}>
+                        {eps != null ? `$${eps.toFixed(2)}` : '—'}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </>
+        )}
+      </div>
+    );
+  }
+
   // ── Fetch fundamentals (tab-triggered) ──────────────────────────────────
   const fetchFundamentals = useCallback(async () => {
     if (!isStock || activeTab !== 'FUND') return;
@@ -1283,7 +1423,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
     ? ['STATS', 'RISK', 'CASH FLOWS', ...(desc ? ['ABOUT'] : [])]
     : isFX
     ? ['STATS', 'MACRO', 'NEWS', ...(desc ? ['ABOUT'] : [])]
-    : ['STATS', 'FUND', 'AI', 'OPTIONS', 'NEWS', ...(desc ? ['ABOUT'] : [])];
+    : ['STATS', 'FUND', 'AI', 'OPTIONS', 'INSIDER', 'NEWS', ...(desc ? ['ABOUT'] : [])];
 
   const deltaHint = deltaMode
     ? (deltaA === null ? '← tap A' : deltaB === null ? '← tap B' : 'tap to reset')
@@ -1667,6 +1807,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
                     isMobile={false}
                   />
                 )}
+                {!isBond && !isFX && renderInsider()}
                 {!isBond && !isFX && renderNews()}
                 {!isBond && !isFX && renderAbout()}
                 {(isBond || isFX) && desktopTab === 'STATS' && renderAbout()}
@@ -1693,6 +1834,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
               {activeTab === 'MACRO'      && renderFXMacro()}
               {activeTab === 'FUND'       && renderFundamentals()}
               {activeTab === 'AI'         && renderAIFundamentals()}
+              {activeTab === 'INSIDER'    && renderInsider()}
               {activeTab === 'OPTIONS'    && (
                 <InstrumentOptionsPanel
                   symbol={norm}
