@@ -4,6 +4,18 @@ import { getTemplatesGrouped, getTemplate } from '../../config/templates';
 import UserAvatar from '../common/UserAvatar';
 import { getPersona } from '../../config/avatars';
 
+function MenuItem({ icon, label, onClick, subtle, danger }) {
+  return (
+    <button className="mm-item" onClick={onClick} data-subtle={subtle || undefined} data-danger={danger || undefined}>
+      <span className="mm-item-icon">{icon}</span>
+      <span className="mm-item-label">{label}</span>
+      <svg className="mm-item-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="9 18 15 12 9 6" />
+      </svg>
+    </button>
+  );
+}
+
 const MobileMoreScreen = memo(({
   onNavigate,
   user,
@@ -343,19 +355,6 @@ function MobileDiscordSection() {
         </button>
       )}
     </div>
-  );
-}
-
-
-function MenuItem({ icon, label, onClick, subtle, danger }) {
-  return (
-    <button className="mm-item" onClick={onClick} data-subtle={subtle || undefined} data-danger={danger || undefined}>
-      <span className="mm-item-icon">{icon}</span>
-      <span className="mm-item-label">{label}</span>
-      <svg className="mm-item-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <polyline points="9 18 15 12 9 6" />
-      </svg>
-    </button>
   );
 }
 
