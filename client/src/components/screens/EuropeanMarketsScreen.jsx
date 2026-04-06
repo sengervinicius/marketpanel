@@ -1,0 +1,425 @@
+/**
+ * EuropeanMarketsScreen.jsx — Full-page European Markets Screen
+ * Comprehensive coverage of DAX, CAC, FTSE, Nordic, and Southern European equities,
+ * FX pairs, sovereign spreads, and macro indicators.
+ * Integrates FullPageScreenLayout, FundamentalsTable, SectorChartPanel, InsiderActivity,
+ * and custom macro/spread tables for multi-dimensional European market analysis.
+ */
+import { memo, useMemo, useState } from 'react';
+import FullPageScreenLayout from './shared/FullPageScreenLayout';
+import { FundamentalsTable } from './shared/FundamentalsTable';
+import { SectorChartPanel } from './shared/SectorChartPanel';
+import { InsiderActivity } from './shared/InsiderActivity';
+import { useOpenDetail } from '../../context/OpenDetailContext';
+import { useTickerPrice } from '../../context/PriceContext';
+import { useDeepScreenData } from '../../hooks/useDeepScreenData';
+import { useSectionData } from '../../hooks/useSectionData';
+import { apiFetch } from '../../utils/api';
+import { DeepSkeleton, DeepError, TickerCell } from './DeepScreenBase';
+
+/* ── Formatting utilities ──────────────────────────────────────────────── */
+const fmt = (n, d = 2) =>
+  n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
+const fmtPct = (n) => n == null ? '—' : (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
+const fmtB = (n) => {
+  if (n == null || isNaN(n)) return '—';
+  const v = parseFloat(n);
+  if (v >= 1e12) return '$' + (v/1e12).toFixed(1) + 'T';
+  if (v >= 1e9)  return '$' + (v/1e9).toFixed(0) + 'B';
+  if (v >= 1e6)  return '$' + (v/1e6).toFixed(0) + 'M';
+  return '$' + v.toFixed(0);
+};
+
+/* ── Ticker Universe ───────────────────────────────────────────────────── */
+const GERMANY = [
+  { symbol: 'SAP', name: 'SAP SE' },
+  { symbol: 'SIEGY', name: 'Siemens' },
+  { symbol: 'DTEKY', name: 'DT Telekom' },
+  { symbol: 'BASFY', name: 'BASF' },
+  { symbol: 'BMWYY', name: 'BMW' },
+];
+
+const FRANCE = [
+  { symbol: 'LVMUY', name: 'LVMH' },
+  { symbol: 'TTE', name: 'TotalEnergies' },
+  { symbol: 'LRLCY', name: "L'Oreal" },
+  { symbol: 'EADSY', name: 'Airbus' },
+];
+
+const UNITED_KINGDOM = [
+  { symbol: 'AZN', name: 'AstraZeneca' },
+  { symbol: 'SHEL', name: 'Shell' },
+  { symbol: 'HSBC', name: 'HSBC' },
+  { symbol: 'UL', name: 'Unilever' },
+  { symbol: 'RIO', name: 'Rio Tinto' },
+  { symbol: 'BP', name: 'BP' },
+];
+
+const NORDIC = [
+  { symbol: 'NVO', name: 'Novo Nordisk' },
+  { symbol: 'ERIC', name: 'Ericsson' },
+  { symbol: 'SPOT', name: 'Spotify' },
+  { symbol: 'VLVLY', name: 'Volvo' },
+];
+
+const SOUTHERN_EUROPE = [
+  { symbol: 'SAN', name: 'Banco Santander' },
+  { symbol: 'ING', name: 'ING Group' },
+];
+
+const FX_PAIRS = ['C:EURUSD', 'C:GBPUSD', 'C:EURCHF', 'C:EURSEK'];
+
+const ETFS = ['EZU', 'EWG', 'EWU', 'EWQ', 'VGK'];
+
+const CHART_TICKERS = ['SAP', 'AZN', 'NVO', 'SHEL', 'LVMUY', 'TTE'];
+
+const ALL_EQUITIES = [
+  ...GERMANY.map(e => e.symbol),
+  ...FRANCE.map(e => e.symbol),
+  ...UNITED_KINGDOM.map(e => e.symbol),
+  ...NORDIC.map(e => e.symbol),
+  ...SOUTHERN_EUROPE.map(e => e.symbol),
+];
+
+const INSIDER_TICKERS = ['SAP', 'AZN', 'NVO', 'SHEL', 'LVMUY', 'HSBC'];
+
+const LABELS = {
+  SAP: 'SAP SE', SIEGY: 'Siemens', DTEKY: 'DT Telekom', BASFY: 'BASF', BMWYY: 'BMW',
+  LVMUY: 'LVMH', TTE: 'TotalEnergies', LRLCY: "L'Oreal", EADSY: 'Airbus',
+  AZN: 'AstraZeneca', SHEL: 'Shell', HSBC: 'HSBC', UL: 'Unilever', RIO: 'Rio Tinto', BP: 'BP',
+  NVO: 'Novo Nordisk', ERIC: 'Ericsson', SPOT: 'Spotify', VLVLY: 'Volvo',
+  SAN: 'Banco Santander', ING: 'ING Group',
+};
+
+/* ── Section Table Component ───────────────────────────────────────────── */
+const SectionTable = memo(function SectionTable({ tickers, statsMap }) {
+  const openDetail = useOpenDetail();
+
+  return (
+    <div style={{ overflow: 'auto' }}>
+      <table className="ds-table">
+        <thead>
+          <tr>
+            <th>Ticker</th>
+            <th>Name</th>
+            <th>Price</th>
+            <th>1D%</th>
+            <th style={{ fontSize: 9 }}>Mkt Cap</th>
+            <th style={{ fontSize: 9 }}>P/E</th>
+          </tr>
+        </thead>
+        <tbody>
+          {tickers.map(t => {
+            const sym = typeof t === 'string' ? t : t.symbol;
+            const name = typeof t === 'string' ? undefined : t.name;
+            const q = useTickerPrice(sym);
+            return (
+              <tr key={sym} className="ds-row-clickable" onClick={() => openDetail(sym)}>
+                <td className="ds-ticker-col">{sym}</td>
+                <td>{name || LABELS[sym] || '—'}</td>
+                <td>{fmt(q?.price, 2)}</td>
+                <td className={q?.changePct != null && q.changePct >= 0 ? 'ds-up' : 'ds-down'}>
+                  {fmtPct(q?.changePct)}
+                </td>
+                <td style={{ fontFamily: 'monospace', fontSize: 10, color: '#888' }}>
+                  {fmtB(statsMap.get(sym)?.market_capitalization)}
+                </td>
+                <td style={{ fontFamily: 'monospace', fontSize: 10, color: '#ccc' }}>
+                  {statsMap.get(sym)?.pe_ratio != null ? parseFloat(statsMap.get(sym)?.pe_ratio).toFixed(1) + 'x' : '—'}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+});
+
+/* ── FX Pairs Component ────────────────────────────────────────────────── */
+const FxPairsTable = memo(function FxPairsTable() {
+  const openDetail = useOpenDetail();
+
+  return (
+    <div style={{ overflow: 'auto' }}>
+      <table className="ds-table">
+        <thead>
+          <tr>
+            <th>Pair</th>
+            <th>Rate</th>
+            <th>1D%</th>
+          </tr>
+        </thead>
+        <tbody>
+          {FX_PAIRS.map(pair => {
+            const q = useTickerPrice(pair);
+            const display = pair.replace(/^C:/, '');
+            return (
+              <tr key={pair} className="ds-row-clickable" onClick={() => openDetail(pair)}>
+                <td className="ds-ticker-col">{display}</td>
+                <td>{fmt(q?.price, 4)}</td>
+                <td className={q?.changePct != null && q.changePct >= 0 ? 'ds-up' : 'ds-down'}>
+                  {fmtPct(q?.changePct)}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+});
+
+/* ── Macro Indicators Table Component ───────────────────────────────────── */
+const MacroTable = memo(function MacroTable({ data, loading, error }) {
+  if (loading) return <DeepSkeleton rows={6} />;
+  if (error) return <DeepError message={`Error: ${error}`} />;
+  if (!data || data.length === 0) {
+    return <div style={{ padding: '10px', color: '#666', fontSize: 10 }}>No data available</div>;
+  }
+
+  return (
+    <div style={{ overflow: 'auto' }}>
+      <table className="ds-table">
+        <thead>
+          <tr>
+            <th>Region</th>
+            <th>Policy Rate (%)</th>
+            <th>CPI YoY (%)</th>
+            <th>GDP Growth (%)</th>
+            <th>Unemployment (%)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {data.map((row, idx) => (
+            <tr key={idx}>
+              <td style={{ fontWeight: 500 }}>{row.country || '—'}</td>
+              <td>{row.policyRate != null ? row.policyRate.toFixed(2) : '—'}</td>
+              <td className={row.cpiYoY != null && row.cpiYoY >= 0 ? 'ds-up' : 'ds-down'}>
+                {row.cpiYoY != null ? row.cpiYoY.toFixed(2) : '—'}
+              </td>
+              <td className={row.gdpGrowth != null && row.gdpGrowth >= 0 ? 'ds-up' : 'ds-down'}>
+                {row.gdpGrowth != null ? row.gdpGrowth.toFixed(2) : '—'}
+              </td>
+              <td>{row.unemploymentRate != null ? row.unemploymentRate.toFixed(2) : '—'}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+});
+
+/* ── Bund Spread Monitor Component ──────────────────────────────────────── */
+const BundSpreadMonitor = memo(function BundSpreadMonitor({ data, loading, error }) {
+  if (loading) return <DeepSkeleton rows={5} />;
+  if (error) return <DeepError message={`Error: ${error}`} />;
+  if (!data || data.length === 0) {
+    return <div style={{ padding: '10px', color: '#666', fontSize: 10 }}>No data available</div>;
+  }
+
+  const getSpreadColor = (bps) => {
+    if (bps < 50) return '#4caf50'; // Tight spread (green)
+    if (bps < 150) return '#ff9800'; // Wide-ish (orange)
+    return '#f44336'; // Very wide (red)
+  };
+
+  return (
+    <div style={{ overflow: 'auto' }}>
+      <table className="ds-table">
+        <thead>
+          <tr>
+            <th>Country</th>
+            <th>10Y Spread (bps)</th>
+            <th style={{ fontSize: 8, color: '#666' }}>vs German Bunds</th>
+          </tr>
+        </thead>
+        <tbody>
+          {data.map((row, idx) => (
+            <tr key={idx}>
+              <td style={{ fontWeight: 500 }}>{row.country || '—'}</td>
+              <td style={{ color: getSpreadColor(row.spreadBps), fontWeight: 500 }}>
+                {row.spreadBps != null ? row.spreadBps.toFixed(1) : '—'}
+              </td>
+              <td style={{ fontSize: 8, color: '#666' }}>
+                {row.tenor || '10Y'}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+});
+
+/* ── ETF Strip Component ───────────────────────────────────────────────── */
+const EtfStrip = memo(function EtfStrip() {
+  const openDetail = useOpenDetail();
+  return (
+    <div className="ds-strip" style={{ display: 'flex', gap: 0, borderTop: '1px solid #1e1e1e' }}>
+      {ETFS.map(sym => (
+        <TickerCell
+          key={sym}
+          symbol={sym}
+          price={useTickerPrice(sym)?.price}
+          changePct={useTickerPrice(sym)?.changePct}
+          onClick={openDetail}
+        />
+      ))}
+    </div>
+  );
+});
+
+/* ── Main Screen Implementation ────────────────────────────────────────── */
+function EuropeanMarketsScreenImpl() {
+  const openDetail = useOpenDetail();
+  const { data: statsMap } = useDeepScreenData(ALL_EQUITIES);
+
+  /* ── Fetch macro data ────────────────────────────────────────────────── */
+  const { data: macroData, loading: macroLoading, error: macroError } = useSectionData({
+    cacheKey: 'euro-macro',
+    fetcher: async () => {
+      const res = await apiFetch('/api/macro/compare?countries=EU,DE,FR,IT,GB&indicators=policyRate,cpiYoY,gdpGrowth,unemploymentRate');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.json();
+    },
+    refreshMs: 300000, // 5 min
+  });
+
+  /* ── Fetch bond spreads data ─────────────────────────────────────────── */
+  const { data: spreadData, loading: spreadLoading, error: spreadError } = useSectionData({
+    cacheKey: 'euro-spreads',
+    fetcher: async () => {
+      const res = await apiFetch('/api/bonds/spreads?base=DE&comparisons=IT,ES,FR&tenor=10Y');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.json();
+    },
+    refreshMs: 300000, // 5 min
+  });
+
+  /* ── Build section definitions ─────────────────────────────────────── */
+  const sections = useMemo(() => [
+    {
+      id: 'charts',
+      title: 'Sector Charts',
+      span: 'full',
+      component: () => (
+        <SectorChartPanel
+          tickers={CHART_TICKERS}
+          height={200}
+          cols={3}
+        />
+      ),
+    },
+    {
+      id: 'germany',
+      title: 'Germany (DAX)',
+      component: () => (
+        <SectionTable tickers={GERMANY} statsMap={statsMap} />
+      ),
+    },
+    {
+      id: 'france',
+      title: 'France (CAC)',
+      component: () => (
+        <SectionTable tickers={FRANCE} statsMap={statsMap} />
+      ),
+    },
+    {
+      id: 'uk',
+      title: 'United Kingdom (FTSE)',
+      component: () => (
+        <SectionTable tickers={UNITED_KINGDOM} statsMap={statsMap} />
+      ),
+    },
+    {
+      id: 'nordic',
+      title: 'Nordic',
+      component: () => (
+        <SectionTable tickers={NORDIC} statsMap={statsMap} />
+      ),
+    },
+    {
+      id: 'southern',
+      title: 'Southern Europe',
+      component: () => (
+        <SectionTable tickers={SOUTHERN_EUROPE} statsMap={statsMap} />
+      ),
+    },
+    {
+      id: 'fx',
+      title: 'European FX',
+      component: () => (
+        <FxPairsTable />
+      ),
+    },
+    {
+      id: 'fundamentals',
+      title: 'Fundamentals Comparison',
+      span: 'full',
+      component: () => (
+        <FundamentalsTable
+          tickers={ALL_EQUITIES}
+          metrics={['pe', 'marketCap', 'revenue', 'grossMargins', 'operatingMargins', 'returnOnEquity']}
+          title="All Equities - Key Metrics"
+          onTickerClick={openDetail}
+        />
+      ),
+    },
+    {
+      id: 'macro',
+      title: 'Euro Area Macro Indicators',
+      span: 'full',
+      component: () => (
+        <MacroTable
+          data={Array.isArray(macroData) ? macroData : macroData?.data || []}
+          loading={macroLoading}
+          error={macroError}
+        />
+      ),
+    },
+    {
+      id: 'spreads',
+      title: 'Bund Spread Monitor (10Y)',
+      span: 'full',
+      component: () => (
+        <BundSpreadMonitor
+          data={Array.isArray(spreadData) ? spreadData : spreadData?.data || []}
+          loading={spreadLoading}
+          error={spreadError}
+        />
+      ),
+    },
+    {
+      id: 'insider',
+      title: 'Insider Activity',
+      span: 'full',
+      component: () => (
+        <InsiderActivity
+          tickers={INSIDER_TICKERS}
+          limit={10}
+          onTickerClick={openDetail}
+        />
+      ),
+    },
+  ], [statsMap, macroData, macroLoading, macroError, spreadData, spreadLoading, spreadError, openDetail]);
+
+  return (
+    <FullPageScreenLayout
+      title="EUROPEAN MARKETS"
+      subtitle="DAX, CAC, FTSE, Nordic & Southern Europe — equities, FX, and sovereign spreads"
+      accentColor="#3f51b5"
+      sections={sections}
+      lastUpdated={new Date()}
+    >
+      <div style={{ padding: '12px', borderTop: '1px solid #1e1e1e' }}>
+        <div style={{ fontSize: 10, fontWeight: 600, color: '#aaa', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+          European ETFs
+        </div>
+        <EtfStrip />
+      </div>
+    </FullPageScreenLayout>
+  );
+}
+
+export default memo(EuropeanMarketsScreenImpl);

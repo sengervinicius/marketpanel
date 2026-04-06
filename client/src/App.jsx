@@ -39,7 +39,8 @@ import WelcomeModal from './components/onboarding/WelcomeModal';
 import SectorScreenSelector from './components/common/SectorScreenSelector';
 import {
   DefenceScreen, CommoditiesScreen, GlobalMacroScreen, FixedIncomeScreen,
-  BrazilScreen, FxCryptoScreen, EnergyScreen, TechAIScreen,
+  BrazilScreen, TechAIScreen,
+  GlobalRetailScreen, AsianMarketsScreen, EuropeanMarketsScreen, CryptoScreen,
 } from './components/screens';
 import MarketStatus from './components/common/MarketStatus';
 import { TickerTooltip } from './components/common/TickerTooltip';
@@ -259,11 +260,11 @@ export default function App() {
     'technology':       TechAIScreen,
     'global-macro':     GlobalMacroScreen,
     'fixed-income':     FixedIncomeScreen,
-    // New screens (Wave 3/4 — placeholder until built):
-    'global-retail':    null,
-    'asian-markets':    null,
-    'european-markets': null,
-    'crypto':           FxCryptoScreen,
+    // Wave 4 — all 10 screens fully built:
+    'global-retail':    GlobalRetailScreen,
+    'asian-markets':    AsianMarketsScreen,
+    'european-markets': EuropeanMarketsScreen,
+    'crypto':           CryptoScreen,
   }), []);
 
   const handleSelectSectorScreen = useCallback((screenId) => {
