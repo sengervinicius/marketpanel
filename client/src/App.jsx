@@ -151,52 +151,6 @@ export default function App() {
     }
   }, [refreshSubscription]);
 
-  // Global keyboard shortcuts
-  useEffect(() => {
-    const handler = (e) => {
-      // Ignore if typing in input/textarea
-      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-
-      // Ctrl/Cmd + K = focus search (if search panel exists)
-      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
-        e.preventDefault();
-        // Find and focus the search input
-        const searchInput = document.querySelector('.search-panel input, [placeholder*="Search"], [placeholder*="search"]');
-        if (searchInput) searchInput.focus();
-      }
-
-      // Ctrl/Cmd + 1-9 and 0 = sector screens
-      if ((e.ctrlKey || e.metaKey) && e.key >= '1' && e.key <= '9') {
-        e.preventDefault();
-        const sectorScreens = ['defence', 'commodities', 'brazil-em', 'technology', 'global-macro', 'fixed-income', 'global-retail', 'asian-markets', 'european-markets'];
-        const index = parseInt(e.key) - 1;
-        if (index < sectorScreens.length) {
-          setActiveSectorScreen(sectorScreens[index]);
-        }
-      } else if ((e.ctrlKey || e.metaKey) && e.key === '0') {
-        e.preventDefault();
-        setActiveSectorScreen('crypto');
-      }
-
-      // Ctrl/Cmd + H = home
-      if ((e.ctrlKey || e.metaKey) && e.key === 'h') {
-        e.preventDefault();
-        handleGoHome();
-      }
-
-      // Escape = close sector selector or go home from sector screen
-      if (e.key === 'Escape') {
-        if (sectorSelectorOpen) {
-          setSectorSelectorOpen(false);
-        } else if (activeSectorScreen) {
-          handleGoHome();
-        }
-      }
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [setActiveSectorScreen, handleGoHome, sectorSelectorOpen, activeSectorScreen, setSectorSelectorOpen]);
-
   const [activeTab, setActiveTab] = useState(() => {
     let saved;
     try { saved = localStorage.getItem(LS_TAB); } catch { saved = null; }
@@ -304,6 +258,45 @@ export default function App() {
     setActiveSectorScreen(null);
     setSectorSelectorOpen(false);
   }, []);
+
+  // Global keyboard shortcuts (placed after state/callback declarations it depends on)
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+      // Ctrl/Cmd + K = focus search
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        const searchInput = document.querySelector('.search-panel input, [placeholder*="Search"], [placeholder*="search"]');
+        if (searchInput) searchInput.focus();
+      }
+
+      // Ctrl/Cmd + 1-9 and 0 = sector screens
+      if ((e.ctrlKey || e.metaKey) && e.key >= '1' && e.key <= '9') {
+        e.preventDefault();
+        const screens = ['defence', 'commodities', 'brazil-em', 'technology', 'global-macro', 'fixed-income', 'global-retail', 'asian-markets', 'european-markets'];
+        const idx = parseInt(e.key) - 1;
+        if (idx < screens.length) setActiveSectorScreen(screens[idx]);
+      } else if ((e.ctrlKey || e.metaKey) && e.key === '0') {
+        e.preventDefault();
+        setActiveSectorScreen('crypto');
+      }
+
+      // Ctrl/Cmd + H = home
+      if ((e.ctrlKey || e.metaKey) && e.key === 'h') {
+        e.preventDefault();
+        handleGoHome();
+      }
+
+      // Escape = close selector or go home
+      if (e.key === 'Escape') {
+        if (sectorSelectorOpen) setSectorSelectorOpen(false);
+        else if (activeSectorScreen) handleGoHome();
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [setActiveSectorScreen, handleGoHome, sectorSelectorOpen, activeSectorScreen, setSectorSelectorOpen]);
 
   const goChart = useCallback((t) => {
     const sym = typeof t === 'object' ? (t.symbol || t) : t;
