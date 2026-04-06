@@ -1,0 +1,161 @@
+/**
+ * FullPageScreenLayout.jsx
+ * Upgraded version of DeepScreenBase designed for full-page sector screens.
+ */
+import { Component } from 'react';
+import { useIsMobile } from '../../../hooks/useIsMobile';
+import './ScreenShared.css';
+
+/**
+ * Section-level error boundary with retry capability.
+ */
+class SectionErrorBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, info) {
+    console.error(`[FullPageScreenLayout] ${this.props.section || 'Section'} error:`, error, info);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{
+          padding: '12px 8px',
+          color: '#888',
+          fontSize: 10,
+          textAlign: 'center',
+          background: '#0a0a0a',
+        }}>
+          <span style={{ color: '#ef5350' }}>Failed to load section</span>
+          <div style={{ color: '#555', marginTop: 4, fontSize: 9 }}>
+            {this.state.error?.message || 'Unknown error'}
+          </div>
+          <button
+            onClick={() => this.setState({ hasError: false, error: null })}
+            style={{
+              marginTop: 6,
+              background: 'transparent',
+              border: '1px solid #444',
+              color: '#aaa',
+              padding: '3px 10px',
+              borderRadius: 3,
+              cursor: 'pointer',
+              fontSize: 9,
+              fontWeight: 600,
+              textTransform: 'uppercase',
+              letterSpacing: 0.5,
+            }}
+          >
+            Retry
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+/**
+ * Section wrapper with sticky header and error boundary.
+ */
+function ScreenSection({ id, title, badge, span, component, isMobile }) {
+  const spanClass = !isMobile && span === 'full' ? 'fsl-section--full' : '';
+
+  return (
+    <div key={id} className={`fsl-section ${spanClass}`}>
+      <div className="fsl-section-head">
+        <span className="fsl-section-title">{title}</span>
+        {badge && <span className="fsl-section-badge">{badge}</span>}
+      </div>
+      <div className="fsl-section-body">
+        <SectionErrorBoundary section={title}>
+          {typeof component === 'function' ? <component /> : component}
+        </SectionErrorBoundary>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Main layout component for full-page sector screens.
+ */
+function FullPageScreenLayout({
+  title,
+  accentColor = '#ff6b00',
+  subtitle,
+  lastUpdated,
+  onBack,
+  sections = [],
+  children,
+}) {
+  const isMobile = useIsMobile();
+
+  const formattedTime = lastUpdated
+    ? new Date(lastUpdated).toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+      })
+    : null;
+
+  return (
+    <div className="fsl-screen">
+      {/* Header */}
+      <div className="fsl-header" style={{ borderLeftColor: accentColor }}>
+        <div className="fsl-header-content">
+          {onBack && (
+            <button
+              className="fsl-back-button"
+              onClick={onBack}
+              title="Back to home"
+            >
+              ← Back
+            </button>
+          )}
+          <div className="fsl-header-text">
+            <div className="fsl-header-title">{title}</div>
+            {subtitle && <div className="fsl-header-subtitle">{subtitle}</div>}
+          </div>
+          {formattedTime && (
+            <div className="fsl-header-time">
+              Last updated
+              <br />
+              <span style={{ fontFamily: 'monospace', fontSize: 9 }}>{formattedTime}</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Grid */}
+      <div className={`fsl-grid ${isMobile ? 'fsl-grid--mobile' : 'fsl-grid--desktop'}`}>
+        {sections.map((sec) => (
+          <ScreenSection
+            key={sec.id}
+            id={sec.id}
+            title={sec.title}
+            badge={sec.badge}
+            span={sec.span}
+            component={sec.component}
+            isMobile={isMobile}
+          />
+        ))}
+      </div>
+
+      {/* Children (ETF strips, additional content) */}
+      {children && (
+        <div className="fsl-children">
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default FullPageScreenLayout;

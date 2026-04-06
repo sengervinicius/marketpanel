@@ -1,0 +1,239 @@
+/**
+ * SectorChartPanel.jsx
+ * Multi-chart grid for sector-wide technical analysis.
+ */
+import { useState, useEffect } from 'react';
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, defs, linearGradient, stop } from 'recharts';
+import { apiFetch } from '../../../utils/api';
+import { useIsMobile } from '../../../hooks/useIsMobile';
+
+function CustomTooltip({ active, payload }) {
+  if (active && payload && payload[0]) {
+    const { date, close } = payload[0].payload;
+    return (
+      <div style={{
+        background: '#0a0a0a',
+        border: '1px solid #1e1e1e',
+        padding: '6px 8px',
+        borderRadius: 3,
+        fontSize: 9,
+        color: '#e0e0e0',
+      }}>
+        <div style={{ color: '#999' }}>{date}</div>
+        <div>${close.toFixed(2)}</div>
+      </div>
+    );
+  }
+  return null;
+}
+
+function ChartSkeleton({ height = 200 }) {
+  return (
+    <div style={{
+      height,
+      background: 'linear-gradient(90deg, #1a1a1a 25%, #222 50%, #1a1a1a 75%)',
+      backgroundSize: '200% 100%',
+      animation: 'ds-shimmer 1.5s infinite',
+      borderRadius: 2,
+    }} />
+  );
+}
+
+function SingleChart({ ticker, data, height, onTickerClick }) {
+  if (!data || data.length === 0) {
+    return (
+      <div style={{
+        border: '1px solid #1e1e1e',
+        borderRadius: 2,
+        padding: 8,
+        height,
+        display: 'flex',
+        flexDirection: 'column',
+        background: '#0a0a0a',
+      }}>
+        <div style={{ fontSize: 10, fontWeight: 600, color: '#e0e0e0', marginBottom: 8, cursor: 'pointer' }} onClick={() => onTickerClick?.(ticker)}>
+          {ticker}
+        </div>
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#555', fontSize: 9 }}>
+          No data
+        </div>
+      </div>
+    );
+  }
+
+  const first = data[0].close;
+  const last = data[data.length - 1].close;
+  const isUp = last >= first;
+  const changePct = ((last - first) / first * 100).toFixed(2);
+  const areaColor = isUp ? '#4caf50' : '#f44336';
+
+  const dateRange = `${data[0].date} - ${data[data.length - 1].date}`;
+
+  return (
+    <div style={{
+      border: '1px solid #1e1e1e',
+      borderRadius: 2,
+      padding: 8,
+      height,
+      display: 'flex',
+      flexDirection: 'column',
+      background: '#0a0a0a',
+    }}>
+      <div style={{
+        display: 'flex',
+        alignItems: 'baseline',
+        gap: 8,
+        marginBottom: 8,
+        borderBottom: '1px solid #151515',
+        paddingBottom: 6,
+      }}>
+        <div
+          style={{ fontSize: 11, fontWeight: 600, color: '#e0e0e0', cursor: 'pointer' }}
+          onClick={() => onTickerClick?.(ticker)}
+        >
+          {ticker}
+        </div>
+        <div style={{ fontSize: 9, color: '#999' }}>${last.toFixed(2)}</div>
+        <div style={{ fontSize: 9, color: isUp ? '#4caf50' : '#f44336', fontWeight: 500 }}>
+          {isUp ? '+' : ''}{changePct}%
+        </div>
+      </div>
+      <ResponsiveContainer width="100%" height="100%">
+        <AreaChart data={data} margin={{ top: 0, right: 8, bottom: 24, left: 30 }}>
+          <defs>
+            <linearGradient id={`grad-${ticker}`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={areaColor} stopOpacity={0.3} />
+              <stop offset="100%" stopColor={areaColor} stopOpacity={0.01} />
+            </linearGradient>
+          </defs>
+          <XAxis dataKey="date" style={{ fontSize: 8, fill: '#666' }} />
+          <YAxis domain="dataMin" style={{ fontSize: 8, fill: '#666' }} />
+          <Tooltip content={<CustomTooltip />} />
+          <Area
+            type="monotone"
+            dataKey="close"
+            fill={`url(#grad-${ticker})`}
+            stroke={areaColor}
+            strokeWidth={2}
+            isAnimationActive={false}
+          />
+        </AreaChart>
+      </ResponsiveContainer>
+      <div style={{
+        fontSize: 8,
+        color: '#555',
+        marginTop: 6,
+        textAlign: 'center',
+      }}>
+        {dateRange}
+      </div>
+    </div>
+  );
+}
+
+export function SectorChartPanel({ tickers = [], height = 200, cols = 2 }) {
+  const isMobile = useIsMobile();
+  const [chartData, setChartData] = useState({});
+  const [loading, setLoading] = useState(true);
+
+  const gridCols = isMobile ? 1 : cols;
+
+  useEffect(() => {
+    if (!tickers || tickers.length === 0) {
+      setChartData({});
+      setLoading(false);
+      return;
+    }
+
+    const fetchCharts = async () => {
+      try {
+        setLoading(true);
+        const promises = tickers.map(ticker =>
+          apiFetch(`/api/chart/${ticker}?range=3mo&interval=1d`)
+            .then(res => res.ok ? res.json() : null)
+            .catch(() => null)
+        );
+
+        const results = await Promise.all(promises);
+        const newChartData = {};
+
+        results.forEach((result, idx) => {
+          const ticker = tickers[idx];
+          if (result) {
+            let dataArray = [];
+
+            // Handle both direct array and {results: [...]} format
+            if (Array.isArray(result)) {
+              dataArray = result;
+            } else if (result.results && Array.isArray(result.results)) {
+              dataArray = result.results;
+            }
+
+            // Transform OHLCV to chartable format
+            const transformed = dataArray
+              .filter(bar => bar.close != null)
+              .map(bar => ({
+                date: bar.date ? new Date(bar.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—',
+                close: parseFloat(bar.close),
+              }));
+
+            if (transformed.length > 0) {
+              newChartData[ticker] = transformed;
+            }
+          }
+        });
+
+        setChartData(newChartData);
+      } catch (err) {
+        console.error('[SectorChartPanel] Error fetching charts:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCharts();
+  }, [tickers]);
+
+  const handleTickerClick = (ticker) => {
+    // Navigation would happen in parent
+    console.log('Chart ticker clicked:', ticker);
+  };
+
+  if (loading) {
+    return (
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: `repeat(${gridCols}, 1fr)`,
+        gap: '1px',
+        background: '#1e1e1e',
+        padding: '1px',
+      }}>
+        {tickers.map(ticker => (
+          <ChartSkeleton key={ticker} height={height} />
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div style={{
+      display: 'grid',
+      gridTemplateColumns: `repeat(${gridCols}, 1fr)`,
+      gap: '1px',
+      background: '#1e1e1e',
+      padding: '1px',
+    }}>
+      {tickers.map(ticker => (
+        <SingleChart
+          key={ticker}
+          ticker={ticker}
+          data={chartData[ticker]}
+          height={height}
+          onTickerClick={handleTickerClick}
+        />
+      ))}
+    </div>
+  );
+}
+
+export default SectorChartPanel;

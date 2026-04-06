@@ -35,10 +35,12 @@ import HomePanelMobile from './components/panels/HomePanelMobile';
 import ChartsPanelMobile from './components/panels/ChartsPanelMobile';
 import MobileMoreScreen from './components/panels/MobileMoreScreen';
 import ToastContainer from './components/common/ToastContainer';
-import OnboardingPresets from './components/onboarding/OnboardingPresets';
-import OnboardingTourOverlay from './components/onboarding/OnboardingTourOverlay';
-import WorkspaceSwitcher from './components/common/WorkspaceSwitcher';
-import MarketScreenGallery from './components/common/MarketScreenGallery';
+import WelcomeModal from './components/onboarding/WelcomeModal';
+import SectorScreenSelector from './components/common/SectorScreenSelector';
+import {
+  DefenceScreen, CommoditiesScreen, GlobalMacroScreen, FixedIncomeScreen,
+  BrazilScreen, FxCryptoScreen, EnergyScreen, TechAIScreen,
+} from './components/screens';
 import MarketStatus from './components/common/MarketStatus';
 import { TickerTooltip } from './components/common/TickerTooltip';
 import InstrumentDetail from './components/common/InstrumentDetail';
@@ -244,6 +246,36 @@ export default function App() {
   const [detailTicker, setDetailTicker] = useState(null);
   const [settingsOpen, setSettingsOpen]  = useState(false);
 
+  // ── Sector screen state (Wave 2) ────────────────────────────────────────
+  const [activeSectorScreen, setActiveSectorScreen] = useState(null);
+  const [sectorSelectorOpen, setSectorSelectorOpen] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(false);
+
+  // Map selector IDs → screen components
+  const SCREEN_MAP = useMemo(() => ({
+    'defence':          DefenceScreen,
+    'commodities':      CommoditiesScreen,
+    'brazil-em':        BrazilScreen,
+    'technology':       TechAIScreen,
+    'global-macro':     GlobalMacroScreen,
+    'fixed-income':     FixedIncomeScreen,
+    // New screens (Wave 3/4 — placeholder until built):
+    'global-retail':    null,
+    'asian-markets':    null,
+    'european-markets': null,
+    'crypto':           FxCryptoScreen,
+  }), []);
+
+  const handleSelectSectorScreen = useCallback((screenId) => {
+    setActiveSectorScreen(screenId);
+    setSectorSelectorOpen(false);
+  }, []);
+
+  const handleGoHome = useCallback(() => {
+    setActiveSectorScreen(null);
+    setSectorSelectorOpen(false);
+  }, []);
+
   const goChart = useCallback((t) => {
     const sym = typeof t === 'object' ? (t.symbol || t) : t;
     setChartTicker(sym);
@@ -261,8 +293,7 @@ export default function App() {
   // default settings), and only if the user has not yet completed onboarding.
   // This ensures a logged-in user with onboardingCompleted=true never sees the
   // preset screen again on refresh.
-  const showOnboarding = bootReady && !!user && settings && !settings.onboardingCompleted;
-  const showTour = bootReady && !!user && settings && settings.onboardingCompleted && settings.onboarding && !settings.onboarding.completed;
+  // Wave 2: Old onboarding removed — WelcomeModal is shown via showWelcome state
 
   // ── Subscription gating ──────────────────────────────────────────────────
   // Show paywall if subscription has expired
@@ -326,17 +357,54 @@ export default function App() {
         color: '#e0e0e0', userSelect: 'none',
       }}>
 
-        {/* Onboarding overlay */}
-        {showOnboarding && <OnboardingPresets />}
+        {/* Welcome modal (replaces old onboarding) */}
+        {showWelcome && <WelcomeModal onClose={() => setShowWelcome(false)} />}
 
-        {/* Onboarding tour */}
-        {showTour && <OnboardingTourOverlay />}
+        {/* Sector Screen Selector overlay */}
+        <SectorScreenSelector
+          isOpen={sectorSelectorOpen}
+          onClose={() => setSectorSelectorOpen(false)}
+          onSelect={handleSelectSectorScreen}
+          activeScreen={activeSectorScreen}
+        />
 
         {/* Header */}
         <div className="flex-row app-header-bar">
           <img src="/icon-192.png" alt="Senger" style={{ width: 22, height: 22, borderRadius: 4, marginRight: 6 }} /><span className="app-header-title">SENGER</span>
           <span className="app-header-subtitle">MARKET TERMINAL</span>
-          <WorkspaceSwitcher />
+          {/* Navigation buttons */}
+          <button
+            className="btn"
+            onClick={handleGoHome}
+            title="Home Screen"
+            style={{
+              marginLeft: 16,
+              padding: '3px 10px',
+              fontSize: 11,
+              fontWeight: 600,
+              letterSpacing: '0.5px',
+              color: !activeSectorScreen ? 'var(--accent)' : 'var(--text-faint)',
+              border: `1px solid ${!activeSectorScreen ? 'var(--accent)' : 'var(--border-strong)'}`,
+              background: !activeSectorScreen ? '#1a0800' : 'none',
+              borderRadius: 4,
+            }}
+          >⌂ HOME</button>
+          <button
+            className="btn"
+            onClick={() => setSectorSelectorOpen(s => !s)}
+            title="Open Sector Screens"
+            style={{
+              marginLeft: 6,
+              padding: '3px 10px',
+              fontSize: 11,
+              fontWeight: 600,
+              letterSpacing: '0.5px',
+              color: sectorSelectorOpen || activeSectorScreen ? 'var(--accent)' : 'var(--text-faint)',
+              border: `1px solid ${sectorSelectorOpen || activeSectorScreen ? 'var(--accent)' : 'var(--border-strong)'}`,
+              background: sectorSelectorOpen || activeSectorScreen ? '#1a0800' : 'none',
+              borderRadius: 4,
+            }}
+          >◈ SECTOR SCREENS</button>
           <div style={{ flex: 1 }} />
           <WorldClock />
           <MarketStatus />
@@ -381,8 +449,7 @@ export default function App() {
           <HeaderSearchBar />
         </div>
 
-        {/* Market Screens gallery — collapsible strip */}
-        <MarketScreenGallery />
+        {/* (MarketScreenGallery removed — Wave 2: use Sector Screens button instead) */}
 
         {/* Trial banner */}
         <TrialBanner
@@ -413,44 +480,70 @@ export default function App() {
 
             <MarketTickBridge batchTicks={batchTicks} />
 
-            {/* Dynamic rows from settings.layout.desktopRows */}
-            {(() => {
-              const panelProps = { mergedData, loading, setChartTicker, chartTicker, setChartGridCount };
-              const minHeights = [220, 180, 160];
-              return [row0, row1, row2].map((row, rowIdx) => {
-                if (!row || row.length === 0) return null;
-                const colSizes = colSizesPerRow[rowIdx];
-                const startResize = startResizePerRow[rowIdx];
-                return (
-                  <div key={rowIdx} className="display-contents">
-                    {rowIdx > 0 && <ResizeHandle onStart={e => startRowResize(rowIdx - 1, e)} />}
-                    <div style={{ flex: rowSizes[rowIdx] || 1, flexShrink: 0, display:'flex', overflow:'hidden', minHeight: minHeights[rowIdx] || 160 }}>
-                      {row.map((panelId, colIdx) => {
-                        if (!isPanelVisible(panelId)) return null;
-                        const isLast = colIdx === row.filter(id => isPanelVisible(id)).length - 1;
-                        return (
-                          <div key={panelId} style={{ display: 'contents' }}>
-                            {colIdx > 0 && <ColResizeHandle onStart={e => startResize(colIdx - 1, e)} />}
-                            <div style={{ flex: colSizes[colIdx] || 1, minWidth: 0, borderRight: isLast ? 'none' : border, overflow:'hidden', height:'100%', position: 'relative' }}>
-                              <PanelErrorBoundary name={panelId}>
-                                {makePanelRenderer(panelId, panelProps)}
-                              </PanelErrorBoundary>
-                              {layoutEdit && (
-                                <LayoutMoveOverlay
-                                  panelId={panelId} rowIdx={rowIdx} colIdx={colIdx}
-                                  rowLen={row.length} totalRows={[row0, row1, row2].filter(r => r.length > 0).length}
-                                  onMove={handleLayoutMove}
-                                />
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              });
-            })()}
+            {/* Full-page sector screen OR home panel grid */}
+            {activeSectorScreen && SCREEN_MAP[activeSectorScreen] ? (
+              <div style={{ flex: 1, overflow: 'auto' }}>
+                <PanelErrorBoundary name={`Screen:${activeSectorScreen}`}>
+                  {(() => {
+                    const ScreenComp = SCREEN_MAP[activeSectorScreen];
+                    return <ScreenComp />;
+                  })()}
+                </PanelErrorBoundary>
+              </div>
+            ) : activeSectorScreen && !SCREEN_MAP[activeSectorScreen] ? (
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 12 }}>
+                <div style={{ fontSize: 36 }}>🚧</div>
+                <div style={{ color: '#888', fontSize: 13, fontFamily: 'var(--font-mono)' }}>
+                  {activeSectorScreen.replace(/-/g, ' ').toUpperCase()} — Coming in Wave 3/4
+                </div>
+                <button
+                  className="btn"
+                  onClick={handleGoHome}
+                  style={{ marginTop: 8, padding: '6px 16px', border: '1px solid var(--accent)', color: 'var(--accent)', borderRadius: 4, fontSize: 11, letterSpacing: '0.5px' }}
+                >← BACK TO HOME</button>
+              </div>
+            ) : (
+              <>
+                {/* Dynamic rows from settings.layout.desktopRows */}
+                {(() => {
+                  const panelProps = { mergedData, loading, setChartTicker, chartTicker, setChartGridCount };
+                  const minHeights = [220, 180, 160];
+                  return [row0, row1, row2].map((row, rowIdx) => {
+                    if (!row || row.length === 0) return null;
+                    const colSizes = colSizesPerRow[rowIdx];
+                    const startResize = startResizePerRow[rowIdx];
+                    return (
+                      <div key={rowIdx} className="display-contents">
+                        {rowIdx > 0 && <ResizeHandle onStart={e => startRowResize(rowIdx - 1, e)} />}
+                        <div style={{ flex: rowSizes[rowIdx] || 1, flexShrink: 0, display:'flex', overflow:'hidden', minHeight: minHeights[rowIdx] || 160 }}>
+                          {row.map((panelId, colIdx) => {
+                            if (!isPanelVisible(panelId)) return null;
+                            const isLast = colIdx === row.filter(id => isPanelVisible(id)).length - 1;
+                            return (
+                              <div key={panelId} style={{ display: 'contents' }}>
+                                {colIdx > 0 && <ColResizeHandle onStart={e => startResize(colIdx - 1, e)} />}
+                                <div style={{ flex: colSizes[colIdx] || 1, minWidth: 0, borderRight: isLast ? 'none' : border, overflow:'hidden', height:'100%', position: 'relative' }}>
+                                  <PanelErrorBoundary name={panelId}>
+                                    {makePanelRenderer(panelId, panelProps)}
+                                  </PanelErrorBoundary>
+                                  {layoutEdit && (
+                                    <LayoutMoveOverlay
+                                      panelId={panelId} rowIdx={rowIdx} colIdx={colIdx}
+                                      rowLen={row.length} totalRows={[row0, row1, row2].filter(r => r.length > 0).length}
+                                      onMove={handleLayoutMove}
+                                    />
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  });
+                })()}
+              </>
+            )}
 
             <FeedStatusBar feedStatus={feedStatus} />
           </>
@@ -490,19 +583,23 @@ export default function App() {
     <PanelProvider value={panelCtx}>
     <div className="m-app-shell">
 
-      {/* Onboarding overlay */}
-      {showOnboarding && <OnboardingPresets />}
+      {/* Welcome modal (mobile) */}
+      {showWelcome && <WelcomeModal onClose={() => setShowWelcome(false)} />}
 
-      {/* Onboarding tour (mobile) */}
-      {showTour && <OnboardingTourOverlay isMobile />}
+      {/* Sector Screen Selector overlay (mobile) */}
+      <SectorScreenSelector
+        isOpen={sectorSelectorOpen}
+        onClose={() => setSectorSelectorOpen(false)}
+        onSelect={handleSelectSectorScreen}
+        activeScreen={activeSectorScreen}
+      />
 
       {/* ── Mobile header ── */}
       <div className="m-header">
-        {/* Back button for secondary views */}
-        {(activeTab === 'more' && moreView) ? (
+        {/* Back button for secondary views or active sector screen */}
+        {(activeTab === 'more' && moreView) || activeSectorScreen ? (
           <button className="btn m-header-back"
-            onClick={handleMoreBack}
-
+            onClick={activeSectorScreen ? handleGoHome : handleMoreBack}
             aria-label="Back"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -515,6 +612,22 @@ export default function App() {
         ) : (
           <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><img src="/icon-192.png" alt="Senger" style={{ width: 22, height: 22, borderRadius: 4 }} /><span style={{ color: 'var(--accent)', fontWeight: 700, fontSize: 13, letterSpacing: '2.5px' }}>SENGER</span></span>
         )}
+        {/* Sector Screens button (mobile) */}
+        <button
+          className="btn"
+          onClick={() => setSectorSelectorOpen(s => !s)}
+          title="Sector Screens"
+          style={{
+            marginLeft: 8,
+            padding: '2px 8px',
+            fontSize: 10,
+            fontWeight: 600,
+            color: sectorSelectorOpen || activeSectorScreen ? 'var(--accent)' : 'var(--text-faint)',
+            border: `1px solid ${sectorSelectorOpen || activeSectorScreen ? 'var(--accent)' : 'var(--border-strong)'}`,
+            background: sectorSelectorOpen || activeSectorScreen ? '#1a0800' : 'none',
+            borderRadius: 4,
+          }}
+        >◈ SCREENS</button>
         {/* Feed status dot */}
         <div className="m-feed-dot" data-status={
           Object.values(feedStatus).every(s => s === 'live') ? 'live'
@@ -563,7 +676,24 @@ export default function App() {
           {/* ── Tab content area ── */}
           <div className="m-app-content">
 
-            {activeTab === 'home' && (
+            {/* Full-page sector screen on mobile */}
+            {activeSectorScreen && SCREEN_MAP[activeSectorScreen] ? (
+              <PanelErrorBoundary name={`Screen:${activeSectorScreen}`}>
+                {(() => { const S = SCREEN_MAP[activeSectorScreen]; return <S />; })()}
+              </PanelErrorBoundary>
+            ) : activeSectorScreen && !SCREEN_MAP[activeSectorScreen] ? (
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 12, padding: 24 }}>
+                <div style={{ fontSize: 36 }}>🚧</div>
+                <div style={{ color: '#888', fontSize: 12, fontFamily: 'var(--font-mono)', textAlign: 'center' }}>
+                  {activeSectorScreen.replace(/-/g, ' ').toUpperCase()} — Coming Soon
+                </div>
+                <button className="btn" onClick={handleGoHome}
+                  style={{ marginTop: 8, padding: '6px 16px', border: '1px solid var(--accent)', color: 'var(--accent)', borderRadius: 4, fontSize: 11 }}
+                >← BACK TO HOME</button>
+              </div>
+            ) : null}
+
+            {!activeSectorScreen && activeTab === 'home' && (
               <PanelErrorBoundary name="Home">
                 <HomePanelMobile
                   onSearchClick={() => setActiveTabPersist('search')}
@@ -571,19 +701,19 @@ export default function App() {
               </PanelErrorBoundary>
             )}
 
-            {activeTab === 'charts' && (
+            {!activeSectorScreen && activeTab === 'charts' && (
               <PanelErrorBoundary name="Charts">
                 <ChartsPanelMobile />
               </PanelErrorBoundary>
             )}
 
-            {activeTab === 'search' && (
+            {!activeSectorScreen && activeTab === 'search' && (
               <PanelErrorBoundary name="Search">
                 <SearchPanel onTickerSelect={goDetail} />
               </PanelErrorBoundary>
             )}
 
-            {activeTab === 'watchlist' && (
+            {!activeSectorScreen && activeTab === 'watchlist' && (
               <PanelErrorBoundary name="Portfolio">
                 <PortfolioMobile
                   onManage={() => setActiveTabPersist('search')}
@@ -591,13 +721,13 @@ export default function App() {
               </PanelErrorBoundary>
             )}
 
-            {activeTab === 'alerts' && (
+            {!activeSectorScreen && activeTab === 'alerts' && (
               <PanelErrorBoundary name="Alerts">
                 <AlertCenterPanel />
               </PanelErrorBoundary>
             )}
 
-            {activeTab === 'more' && !moreView && (
+            {!activeSectorScreen && activeTab === 'more' && !moreView && (
               <MobileMoreScreen
                 onNavigate={handleMoreNavigate}
                 user={user}
@@ -609,49 +739,49 @@ export default function App() {
               />
             )}
 
-            {activeTab === 'more' && moreView === 'news' && (
+            {!activeSectorScreen && activeTab === 'more' && moreView === 'news' && (
               <PanelErrorBoundary name="News">
                 <NewsPanel />
               </PanelErrorBoundary>
             )}
 
-            {activeTab === 'more' && moreView === 'etf' && (
+            {!activeSectorScreen && activeTab === 'more' && moreView === 'etf' && (
               <PanelErrorBoundary name="ETF">
                 <ETFPanel />
               </PanelErrorBoundary>
             )}
 
-            {activeTab === 'more' && moreView === 'screener' && (
+            {!activeSectorScreen && activeTab === 'more' && moreView === 'screener' && (
               <PanelErrorBoundary name="Screener">
                 <ScreenerPanel />
               </PanelErrorBoundary>
             )}
 
-            {activeTab === 'more' && moreView === 'macro' && (
+            {!activeSectorScreen && activeTab === 'more' && moreView === 'macro' && (
               <PanelErrorBoundary name="Macro">
                 <MacroPanel />
               </PanelErrorBoundary>
             )}
 
-            {activeTab === 'more' && moreView === 'leaderboard' && (
+            {!activeSectorScreen && activeTab === 'more' && moreView === 'leaderboard' && (
               <PanelErrorBoundary name="Leaderboard">
                 <LeaderboardPanel mobile />
               </PanelErrorBoundary>
             )}
 
-            {activeTab === 'more' && moreView === 'game' && (
+            {!activeSectorScreen && activeTab === 'more' && moreView === 'game' && (
               <PanelErrorBoundary name="Game">
                 <GamePortfolioPanel mobile />
               </PanelErrorBoundary>
             )}
 
-            {activeTab === 'more' && moreView === 'referrals' && (
+            {!activeSectorScreen && activeTab === 'more' && moreView === 'referrals' && (
               <PanelErrorBoundary name="Referrals">
                 <ReferralPanel />
               </PanelErrorBoundary>
             )}
 
-            {activeTab === 'more' && moreView === 'notification-prefs' && (
+            {!activeSectorScreen && activeTab === 'more' && moreView === 'notification-prefs' && (
               <NotificationPrefs onClose={() => setMoreView(null)} />
             )}
 
