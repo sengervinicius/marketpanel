@@ -170,45 +170,72 @@ function MacroDashboard() {
   );
 }
 
-/* ── FX Monitor Component ──────────────────────────────────────────────────── */
-function FxMonitor() {
+/* ── FX Cell Component ─────────────────────────────────────────────────────── */
+const FxCell = memo(function FxCell({ pair }) {
   const openDetail = useOpenDetail();
+  const q = useTickerPrice(pair);
+  const displaySym = pair.replace('C:', '');
 
   return (
+    <div
+      className="ds-ticker-cell"
+      onClick={() => openDetail(pair)}
+      style={{ cursor: 'pointer' }}
+      title={LABELS[pair] || pair}
+    >
+      <span className="ds-ticker-sym">{displaySym}</span>
+      {q?.price != null && (
+        <span className="ds-ticker-price">
+          {q.price.toLocaleString('en-US', { minimumFractionDigits: 4, maximumFractionDigits: 4 })}
+        </span>
+      )}
+      {q?.changePct != null && (
+        <span className={`ds-ticker-chg ${q.changePct >= 0 ? 'up' : 'down'}`}>
+          {q.changePct >= 0 ? '+' : ''}{q.changePct.toFixed(2)}%
+        </span>
+      )}
+    </div>
+  );
+});
+
+/* ── FX Monitor Component ──────────────────────────────────────────────────── */
+function FxMonitor() {
+  return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '1px', background: '#1e1e1e', padding: '1px' }}>
-      {FX_PAIRS.map(pair => {
-        const q = useTickerPrice(pair);
-        const displaySym = pair.replace('C:', '');
-        return (
-          <div
-            key={pair}
-            className="ds-ticker-cell"
-            onClick={() => openDetail(pair)}
-            style={{ cursor: 'pointer' }}
-            title={LABELS[pair] || pair}
-          >
-            <span className="ds-ticker-sym">{displaySym}</span>
-            {q?.price != null && (
-              <span className="ds-ticker-price">
-                {q.price.toLocaleString('en-US', { minimumFractionDigits: 4, maximumFractionDigits: 4 })}
-              </span>
-            )}
-            {q?.changePct != null && (
-              <span className={`ds-ticker-chg ${q.changePct >= 0 ? 'up' : 'down'}`}>
-                {q.changePct >= 0 ? '+' : ''}{q.changePct.toFixed(2)}%
-              </span>
-            )}
-          </div>
-        );
-      })}
+      {FX_PAIRS.map(pair => (
+        <FxCell key={pair} pair={pair} />
+      ))}
     </div>
   );
 }
 
+/* ── Table Row Component ───────────────────────────────────────────────────── */
+const TableRow = memo(function TableRow({ ticker, statsMap }) {
+  const openDetail = useOpenDetail();
+  const sym = typeof ticker === 'string' ? ticker : ticker.symbol;
+  const name = typeof ticker === 'string' ? undefined : ticker.name;
+  const q = useTickerPrice(sym);
+
+  return (
+    <tr className="ds-row-clickable" onClick={() => openDetail(sym)}>
+      <td className="ds-ticker-col">{sym}</td>
+      <td>{name || LABELS[sym] || '—'}</td>
+      <td>{fmt(q?.price, 2)}</td>
+      <td className={q?.changePct != null && q.changePct >= 0 ? 'ds-up' : 'ds-down'}>
+        {fmtPct(q?.changePct)}
+      </td>
+      <td style={{ fontFamily: 'monospace', fontSize: 10, color: '#888' }}>
+        {fmtB(statsMap.get(sym)?.market_capitalization)}
+      </td>
+      <td style={{ fontFamily: 'monospace', fontSize: 10, color: '#ccc' }}>
+        {statsMap.get(sym)?.pe_ratio != null ? parseFloat(statsMap.get(sym)?.pe_ratio).toFixed(1) + 'x' : '—'}
+      </td>
+    </tr>
+  );
+});
+
 /* ── Section Table Component ───────────────────────────────────────────────── */
 const SectionTable = memo(function SectionTable({ tickers, statsMap }) {
-  const openDetail = useOpenDetail();
-
   return (
     <div style={{ overflow: 'auto' }}>
       <table className="ds-table">
@@ -225,23 +252,8 @@ const SectionTable = memo(function SectionTable({ tickers, statsMap }) {
         <tbody>
           {tickers.map(t => {
             const sym = typeof t === 'string' ? t : t.symbol;
-            const name = typeof t === 'string' ? undefined : t.name;
-            const q = useTickerPrice(sym);
             return (
-              <tr key={sym} className="ds-row-clickable" onClick={() => openDetail(sym)}>
-                <td className="ds-ticker-col">{sym}</td>
-                <td>{name || LABELS[sym] || '—'}</td>
-                <td>{fmt(q?.price, 2)}</td>
-                <td className={q?.changePct != null && q.changePct >= 0 ? 'ds-up' : 'ds-down'}>
-                  {fmtPct(q?.changePct)}
-                </td>
-                <td style={{ fontFamily: 'monospace', fontSize: 10, color: '#888' }}>
-                  {fmtB(statsMap.get(sym)?.market_capitalization)}
-                </td>
-                <td style={{ fontFamily: 'monospace', fontSize: 10, color: '#ccc' }}>
-                  {statsMap.get(sym)?.pe_ratio != null ? parseFloat(statsMap.get(sym)?.pe_ratio).toFixed(1) + 'x' : '—'}
-                </td>
-              </tr>
+              <TableRow key={sym} ticker={t} statsMap={statsMap} />
             );
           })}
         </tbody>
@@ -250,20 +262,28 @@ const SectionTable = memo(function SectionTable({ tickers, statsMap }) {
   );
 });
 
+/* ── ETF Cell Component ────────────────────────────────────────────────────── */
+const EtfCell = memo(function EtfCell({ symbol }) {
+  const openDetail = useOpenDetail();
+  const q = useTickerPrice(symbol);
+
+  return (
+    <TickerCell
+      symbol={symbol}
+      label={LABELS[symbol]}
+      price={q?.price}
+      changePct={q?.changePct}
+      onClick={openDetail}
+    />
+  );
+});
+
 /* ── ETF Strip Component ───────────────────────────────────────────────────── */
 const EtfStrip = memo(function EtfStrip() {
-  const openDetail = useOpenDetail();
   return (
     <div className="ds-strip" style={{ display: 'flex', gap: 0, borderTop: '1px solid #1e1e1e' }}>
       {REGIONAL_ETFS.map(sym => (
-        <TickerCell
-          key={sym}
-          symbol={sym}
-          label={LABELS[sym]}
-          price={useTickerPrice(sym)?.price}
-          changePct={useTickerPrice(sym)?.changePct}
-          onClick={openDetail}
-        />
+        <EtfCell key={sym} symbol={sym} />
       ))}
     </div>
   );

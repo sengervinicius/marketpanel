@@ -27,6 +27,41 @@ const fmtB = (n) => {
   return '$' + v.toFixed(0);
 };
 
+/* ── Table Row Component (extracts hook call out of map) ────────────────── */
+const TableRow = memo(function TableRow({ sym, name, openDetail }) {
+  const priceData = useTickerPrice(sym);
+  return (
+    <tr key={sym} className="ds-row-clickable" onClick={() => openDetail(sym)}>
+      <td className="ds-ticker-col">{sym}</td>
+      <td>{name || LABELS[sym] || '—'}</td>
+      <td>{fmt(priceData?.price, 2)}</td>
+      <td className={priceData?.changePct != null && priceData.changePct >= 0 ? 'ds-up' : 'ds-down'}>
+        {fmtPct(priceData?.changePct)}
+      </td>
+      <td style={{ fontFamily: 'monospace', fontSize: 10, color: '#888' }}>
+        {'—'}
+      </td>
+      <td style={{ fontFamily: 'monospace', fontSize: 10, color: '#ccc' }}>
+        {'—'}
+      </td>
+    </tr>
+  );
+});
+
+/* ── ETF Cell Component (extracts hook call out of map) ────────────────── */
+const EtfCell = memo(function EtfCell({ sym, openDetail }) {
+  const priceData = useTickerPrice(sym);
+  return (
+    <TickerCell
+      key={sym}
+      symbol={sym}
+      price={priceData?.price}
+      changePct={priceData?.changePct}
+      onClick={openDetail}
+    />
+  );
+});
+
 /* ── Sector Tickers ────────────────────────────────────────────────────── */
 const US_DISCRETIONARY = ['AMZN', 'WMT', 'COST', 'TGT', 'HD', 'LOW', 'NKE', 'SBUX', 'MCD', 'TJX'];
 const US_STAPLES = ['PG', 'KO', 'PEP', 'CL', 'PM', 'MO', 'KHC', 'GIS', 'SYY'];
@@ -82,23 +117,7 @@ const SectionTable = memo(function SectionTable({ tickers }) {
           {tickers.map(t => {
             const sym = typeof t === 'string' ? t : t.symbol;
             const name = typeof t === 'string' ? undefined : t.name;
-            const priceData = useTickerPrice(sym);
-            return (
-              <tr key={sym} className="ds-row-clickable" onClick={() => openDetail(sym)}>
-                <td className="ds-ticker-col">{sym}</td>
-                <td>{name || LABELS[sym] || '—'}</td>
-                <td>{fmt(priceData?.price, 2)}</td>
-                <td className={priceData?.changePct != null && priceData.changePct >= 0 ? 'ds-up' : 'ds-down'}>
-                  {fmtPct(priceData?.changePct)}
-                </td>
-                <td style={{ fontFamily: 'monospace', fontSize: 10, color: '#888' }}>
-                  {'—'}
-                </td>
-                <td style={{ fontFamily: 'monospace', fontSize: 10, color: '#ccc' }}>
-                  {'—'}
-                </td>
-              </tr>
-            );
+            return <TableRow key={sym} sym={sym} name={name} openDetail={openDetail} />;
           })}
         </tbody>
       </table>
@@ -112,13 +131,7 @@ const EtfStrip = memo(function EtfStrip() {
   return (
     <div className="ds-strip" style={{ display: 'flex', gap: 0, borderTop: '1px solid #1e1e1e' }}>
       {RETAIL_ETFS.map(sym => (
-        <TickerCell
-          key={sym}
-          symbol={sym}
-          price={useTickerPrice(sym)?.price}
-          changePct={useTickerPrice(sym)?.changePct}
-          onClick={openDetail}
-        />
+        <EtfCell key={sym} sym={sym} openDetail={openDetail} />
       ))}
     </div>
   );

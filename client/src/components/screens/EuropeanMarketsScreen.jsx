@@ -91,6 +91,30 @@ const LABELS = {
   SAN: 'Banco Santander', ING: 'ING Group',
 };
 
+/* ── Table Row Component ───────────────────────────────────────────────── */
+const TableRow = memo(function TableRow({ ticker, name, statsMap, openDetail }) {
+  const sym = typeof ticker === 'string' ? ticker : ticker.symbol;
+  const displayName = typeof ticker === 'string' ? name : ticker.name;
+  const q = useTickerPrice(sym);
+
+  return (
+    <tr className="ds-row-clickable" onClick={() => openDetail(sym)}>
+      <td className="ds-ticker-col">{sym}</td>
+      <td>{displayName || LABELS[sym] || '—'}</td>
+      <td>{fmt(q?.price, 2)}</td>
+      <td className={q?.changePct != null && q.changePct >= 0 ? 'ds-up' : 'ds-down'}>
+        {fmtPct(q?.changePct)}
+      </td>
+      <td style={{ fontFamily: 'monospace', fontSize: 10, color: '#888' }}>
+        {fmtB(statsMap.get(sym)?.market_capitalization)}
+      </td>
+      <td style={{ fontFamily: 'monospace', fontSize: 10, color: '#ccc' }}>
+        {statsMap.get(sym)?.pe_ratio != null ? parseFloat(statsMap.get(sym)?.pe_ratio).toFixed(1) + 'x' : '—'}
+      </td>
+    </tr>
+  );
+});
+
 /* ── Section Table Component ───────────────────────────────────────────── */
 const SectionTable = memo(function SectionTable({ tickers, statsMap }) {
   const openDetail = useOpenDetail();
@@ -109,30 +133,28 @@ const SectionTable = memo(function SectionTable({ tickers, statsMap }) {
           </tr>
         </thead>
         <tbody>
-          {tickers.map(t => {
-            const sym = typeof t === 'string' ? t : t.symbol;
-            const name = typeof t === 'string' ? undefined : t.name;
-            const q = useTickerPrice(sym);
-            return (
-              <tr key={sym} className="ds-row-clickable" onClick={() => openDetail(sym)}>
-                <td className="ds-ticker-col">{sym}</td>
-                <td>{name || LABELS[sym] || '—'}</td>
-                <td>{fmt(q?.price, 2)}</td>
-                <td className={q?.changePct != null && q.changePct >= 0 ? 'ds-up' : 'ds-down'}>
-                  {fmtPct(q?.changePct)}
-                </td>
-                <td style={{ fontFamily: 'monospace', fontSize: 10, color: '#888' }}>
-                  {fmtB(statsMap.get(sym)?.market_capitalization)}
-                </td>
-                <td style={{ fontFamily: 'monospace', fontSize: 10, color: '#ccc' }}>
-                  {statsMap.get(sym)?.pe_ratio != null ? parseFloat(statsMap.get(sym)?.pe_ratio).toFixed(1) + 'x' : '—'}
-                </td>
-              </tr>
-            );
-          })}
+          {tickers.map(t => (
+            <TableRow key={typeof t === 'string' ? t : t.symbol} ticker={t} statsMap={statsMap} openDetail={openDetail} />
+          ))}
         </tbody>
       </table>
     </div>
+  );
+});
+
+/* ── FX Pair Row Component ─────────────────────────────────────────────── */
+const FxPairRow = memo(function FxPairRow({ pair, openDetail }) {
+  const q = useTickerPrice(pair);
+  const display = pair.replace(/^C:/, '');
+
+  return (
+    <tr className="ds-row-clickable" onClick={() => openDetail(pair)}>
+      <td className="ds-ticker-col">{display}</td>
+      <td>{fmt(q?.price, 4)}</td>
+      <td className={q?.changePct != null && q.changePct >= 0 ? 'ds-up' : 'ds-down'}>
+        {fmtPct(q?.changePct)}
+      </td>
+    </tr>
   );
 });
 
@@ -151,19 +173,9 @@ const FxPairsTable = memo(function FxPairsTable() {
           </tr>
         </thead>
         <tbody>
-          {FX_PAIRS.map(pair => {
-            const q = useTickerPrice(pair);
-            const display = pair.replace(/^C:/, '');
-            return (
-              <tr key={pair} className="ds-row-clickable" onClick={() => openDetail(pair)}>
-                <td className="ds-ticker-col">{display}</td>
-                <td>{fmt(q?.price, 4)}</td>
-                <td className={q?.changePct != null && q.changePct >= 0 ? 'ds-up' : 'ds-down'}>
-                  {fmtPct(q?.changePct)}
-                </td>
-              </tr>
-            );
-          })}
+          {FX_PAIRS.map(pair => (
+            <FxPairRow key={pair} pair={pair} openDetail={openDetail} />
+          ))}
         </tbody>
       </table>
     </div>
@@ -252,19 +264,27 @@ const BundSpreadMonitor = memo(function BundSpreadMonitor({ data, loading, error
   );
 });
 
+/* ── ETF Cell Component ────────────────────────────────────────────────── */
+const EtfCell = memo(function EtfCell({ symbol, openDetail }) {
+  const q = useTickerPrice(symbol);
+
+  return (
+    <TickerCell
+      symbol={symbol}
+      price={q?.price}
+      changePct={q?.changePct}
+      onClick={openDetail}
+    />
+  );
+});
+
 /* ── ETF Strip Component ───────────────────────────────────────────────── */
 const EtfStrip = memo(function EtfStrip() {
   const openDetail = useOpenDetail();
   return (
     <div className="ds-strip" style={{ display: 'flex', gap: 0, borderTop: '1px solid #1e1e1e' }}>
       {ETFS.map(sym => (
-        <TickerCell
-          key={sym}
-          symbol={sym}
-          price={useTickerPrice(sym)?.price}
-          changePct={useTickerPrice(sym)?.changePct}
-          onClick={openDetail}
-        />
+        <EtfCell key={sym} symbol={sym} openDetail={openDetail} />
       ))}
     </div>
   );

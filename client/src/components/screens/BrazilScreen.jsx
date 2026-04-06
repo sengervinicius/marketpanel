@@ -164,6 +164,20 @@ const DiCurveComponent = memo(function DiCurveComponent() {
 });
 
 /* ── FX & Rates ────────────────────────────────────────────────────────── */
+function FxRateRow({ sym, openDetail }) {
+  const q = useTickerPrice(sym);
+  const label = sym === 'C:USDBRL' ? 'USD/BRL' : 'EUR/BRL';
+  return (
+    <tr key={sym} className="ds-row-clickable" onClick={() => openDetail(sym)}>
+      <td>{label}</td>
+      <td>{q?.price != null ? fmt(q.price) : '—'}</td>
+      <td className={q?.changePct >= 0 ? 'ds-val-pos' : 'ds-val-neg'}>
+        {q?.changePct != null ? fmtPct(q.changePct) : '—'}
+      </td>
+    </tr>
+  );
+}
+
 const FxRatesComponent = memo(function FxRatesComponent() {
   const openDetail = useOpenDetail();
   const { data: macroData, loading } = useSectionData({
@@ -187,19 +201,9 @@ const FxRatesComponent = memo(function FxRatesComponent() {
           </tr>
         </thead>
         <tbody>
-          {['C:USDBRL', 'C:EURBRL'].map(sym => {
-            const q = useTickerPrice(sym);
-            const label = sym === 'C:USDBRL' ? 'USD/BRL' : 'EUR/BRL';
-            return (
-              <tr key={sym} className="ds-row-clickable" onClick={() => openDetail(sym)}>
-                <td>{label}</td>
-                <td>{q?.price != null ? fmt(q.price) : '—'}</td>
-                <td className={q?.changePct >= 0 ? 'ds-val-pos' : 'ds-val-neg'}>
-                  {q?.changePct != null ? fmtPct(q.changePct) : '—'}
-                </td>
-              </tr>
-            );
-          })}
+          {['C:USDBRL', 'C:EURBRL'].map(sym => (
+            <FxRateRow key={sym} sym={sym} openDetail={openDetail} />
+          ))}
           <tr style={{ borderTop: '1px solid #1e1e1e', background: '#0d0d0d' }}>
             <td style={{ fontWeight: 600, color: '#999' }}>Selic Rate</td>
             <td colSpan="2">{brData.policyRate != null ? fmtPct(brData.policyRate) : loading ? '...' : '—'}</td>
@@ -260,6 +264,20 @@ const LatAmMacroComponent = memo(function LatAmMacroComponent() {
 });
 
 /* ── EM FX Monitor ─────────────────────────────────────────────────────── */
+function EmFxRow({ sym, openDetail }) {
+  const q = useTickerPrice(sym);
+  const label = sym.replace('C:', '').replace('USD', '');
+  return (
+    <tr key={sym} className="ds-row-clickable" onClick={() => openDetail(sym)}>
+      <td>{label}</td>
+      <td>{q?.price != null ? fmt(q.price) : '—'}</td>
+      <td className={q?.changePct >= 0 ? 'ds-val-pos' : 'ds-val-neg'}>
+        {q?.changePct != null ? fmtPct(q.changePct) : '—'}
+      </td>
+    </tr>
+  );
+}
+
 const EmFxMonitorComponent = memo(function EmFxMonitorComponent() {
   const openDetail = useOpenDetail();
 
@@ -274,19 +292,9 @@ const EmFxMonitorComponent = memo(function EmFxMonitorComponent() {
           </tr>
         </thead>
         <tbody>
-          {EM_FX_PAIRS.map(sym => {
-            const q = useTickerPrice(sym);
-            const label = sym.replace('C:', '').replace('USD', '');
-            return (
-              <tr key={sym} className="ds-row-clickable" onClick={() => openDetail(sym)}>
-                <td>{label}</td>
-                <td>{q?.price != null ? fmt(q.price) : '—'}</td>
-                <td className={q?.changePct >= 0 ? 'ds-val-pos' : 'ds-val-neg'}>
-                  {q?.changePct != null ? fmtPct(q.changePct) : '—'}
-                </td>
-              </tr>
-            );
-          })}
+          {EM_FX_PAIRS.map(sym => (
+            <EmFxRow key={sym} sym={sym} openDetail={openDetail} />
+          ))}
         </tbody>
       </table>
     </div>
@@ -294,6 +302,22 @@ const EmFxMonitorComponent = memo(function EmFxMonitorComponent() {
 });
 
 /* ── EM Equity Benchmarks ──────────────────────────────────────────────── */
+const EM_EQUITY_NAMES = { 'EWZ': 'Brazil', 'EWW': 'Mexico', 'INDA': 'India', 'FXI': 'China', 'EEM': 'EM', 'VWO': 'Dev EM' };
+
+function EmEtfCell({ sym, openDetail }) {
+  const q = useTickerPrice(sym);
+  return (
+    <tr key={sym} className="ds-row-clickable" onClick={() => openDetail(sym)}>
+      <td style={{ fontWeight: 600 }}>{sym}</td>
+      <td>{q?.price != null ? fmt(q.price) : '—'}</td>
+      <td className={q?.changePct >= 0 ? 'ds-val-pos' : 'ds-val-neg'}>
+        {q?.changePct != null ? fmtPct(q.changePct) : '—'}
+      </td>
+      <td style={{ fontSize: 9, color: '#999' }}>{EM_EQUITY_NAMES[sym]}</td>
+    </tr>
+  );
+}
+
 const EmEquityBenchmarksComponent = memo(function EmEquityBenchmarksComponent() {
   const openDetail = useOpenDetail();
 
@@ -309,20 +333,9 @@ const EmEquityBenchmarksComponent = memo(function EmEquityBenchmarksComponent() 
           </tr>
         </thead>
         <tbody>
-          {EM_EQUITY_ETFS.map(sym => {
-            const q = useTickerPrice(sym);
-            const names = { 'EWZ': 'Brazil', 'EWW': 'Mexico', 'INDA': 'India', 'FXI': 'China', 'EEM': 'EM', 'VWO': 'Dev EM' };
-            return (
-              <tr key={sym} className="ds-row-clickable" onClick={() => openDetail(sym)}>
-                <td style={{ fontWeight: 600 }}>{sym}</td>
-                <td>{q?.price != null ? fmt(q.price) : '—'}</td>
-                <td className={q?.changePct >= 0 ? 'ds-val-pos' : 'ds-val-neg'}>
-                  {q?.changePct != null ? fmtPct(q.changePct) : '—'}
-                </td>
-                <td style={{ fontSize: 9, color: '#999' }}>{names[sym]}</td>
-              </tr>
-            );
-          })}
+          {EM_EQUITY_ETFS.map(sym => (
+            <EmEtfCell key={sym} sym={sym} openDetail={openDetail} />
+          ))}
         </tbody>
       </table>
     </div>
@@ -334,6 +347,41 @@ const FundamentalsComponent = memo(function FundamentalsComponent() {
   const openDetail = useOpenDetail();
   return <FundamentalsTable tickers={BLUE_CHIPS} onTickerClick={openDetail} />;
 });
+
+/* ── Brazil ETF Cell ───────────────────────────────────────────────── */
+function BrazilEtfCell({ sym, openDetail }) {
+  const q = useTickerPrice(sym);
+  return (
+    <div
+      key={sym}
+      onClick={() => openDetail(sym)}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '6px',
+        padding: '6px 10px',
+        background: '#111',
+        border: '1px solid #1e1e1e',
+        borderRadius: '3px',
+        cursor: 'pointer',
+        fontSize: 10,
+        fontWeight: 600,
+        color: '#e0e0e0',
+        transition: 'background 0.15s',
+      }}
+      onMouseEnter={(e) => e.target.parentElement.style.background = '#1a1a1a'}
+      onMouseLeave={(e) => e.target.parentElement.style.background = '#111'}
+    >
+      <span>{sym}</span>
+      {q?.price != null && <span style={{ color: '#999', fontSize: 9 }}>${fmt(q.price)}</span>}
+      {q?.changePct != null && (
+        <span style={{ color: q.changePct >= 0 ? '#4caf50' : '#f44336', fontSize: 9 }}>
+          {q.changePct >= 0 ? '+' : ''}{q.changePct.toFixed(2)}%
+        </span>
+      )}
+    </div>
+  );
+}
 
 /* ── Main Component ────────────────────────────────────────────────────── */
 function BrazilScreenImpl() {
@@ -411,39 +459,9 @@ function BrazilScreenImpl() {
           Brazil & EM ETFs
         </div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-          {BRAZIL_ETFS.map(sym => {
-            const q = useTickerPrice(sym);
-            return (
-              <div
-                key={sym}
-                onClick={() => openDetail(sym)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '6px 10px',
-                  background: '#111',
-                  border: '1px solid #1e1e1e',
-                  borderRadius: '3px',
-                  cursor: 'pointer',
-                  fontSize: 10,
-                  fontWeight: 600,
-                  color: '#e0e0e0',
-                  transition: 'background 0.15s',
-                }}
-                onMouseEnter={(e) => e.target.parentElement.style.background = '#1a1a1a'}
-                onMouseLeave={(e) => e.target.parentElement.style.background = '#111'}
-              >
-                <span>{sym}</span>
-                {q?.price != null && <span style={{ color: '#999', fontSize: 9 }}>${fmt(q.price)}</span>}
-                {q?.changePct != null && (
-                  <span style={{ color: q.changePct >= 0 ? '#4caf50' : '#f44336', fontSize: 9 }}>
-                    {q.changePct >= 0 ? '+' : ''}{q.changePct.toFixed(2)}%
-                  </span>
-                )}
-              </div>
-            );
-          })}
+          {BRAZIL_ETFS.map(sym => (
+            <BrazilEtfCell key={sym} sym={sym} openDetail={openDetail} />
+          ))}
         </div>
       </div>
     </FullPageScreenLayout>

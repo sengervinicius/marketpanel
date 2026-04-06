@@ -82,6 +82,34 @@ function EnhancedTableRow({ symbol, label, stats, onClick }) {
   );
 }
 
+/* ── Table Row Component ───────────────────────────────────────────────── */
+function SectionTableRow({ sym, name, statsMap, onClickRow, withMiniCharts }) {
+  const q = useTickerPrice(sym);
+  const stats = statsMap.get(sym);
+
+  return (
+    <tr className="ds-row-clickable" onClick={() => onClickRow(sym)}>
+      <td className="ds-ticker-col">{sym}</td>
+      <td>{name || LABELS[sym] || '—'}</td>
+      <td>{fmt(q?.price, 2)}</td>
+      <td className={q?.changePct != null && q.changePct >= 0 ? 'ds-up' : 'ds-down'}>
+        {fmtPct(q?.changePct)}
+      </td>
+      <td style={{ fontFamily: 'monospace', fontSize: 10, color: '#888' }}>
+        {fmtB(stats?.market_capitalization)}
+      </td>
+      <td style={{ fontFamily: 'monospace', fontSize: 10, color: '#ccc' }}>
+        {stats?.pe_ratio != null ? parseFloat(stats?.pe_ratio).toFixed(1) + 'x' : '—'}
+      </td>
+      {withMiniCharts && (
+        <td style={{ padding: '4px', maxWidth: 200 }}>
+          <MiniFinancials ticker={sym} onError={() => {}} />
+        </td>
+      )}
+    </tr>
+  );
+}
+
 /* ── Section Table Component ───────────────────────────────────────────── */
 const SectionTable = memo(function SectionTable({ tickers, statsMap, labels, withMiniCharts }) {
   const openDetail = useOpenDetail();
@@ -105,25 +133,14 @@ const SectionTable = memo(function SectionTable({ tickers, statsMap, labels, wit
             const sym = typeof t === 'string' ? t : t.symbol;
             const name = typeof t === 'string' ? undefined : t.name;
             return (
-              <tr key={sym} className="ds-row-clickable" onClick={() => openDetail(sym)}>
-                <td className="ds-ticker-col">{sym}</td>
-                <td>{name || LABELS[sym] || '—'}</td>
-                <td>{fmt(useTickerPrice(sym)?.price, 2)}</td>
-                <td className={useTickerPrice(sym)?.changePct != null && useTickerPrice(sym)?.changePct >= 0 ? 'ds-up' : 'ds-down'}>
-                  {fmtPct(useTickerPrice(sym)?.changePct)}
-                </td>
-                <td style={{ fontFamily: 'monospace', fontSize: 10, color: '#888' }}>
-                  {fmtB(statsMap.get(sym)?.market_capitalization)}
-                </td>
-                <td style={{ fontFamily: 'monospace', fontSize: 10, color: '#ccc' }}>
-                  {statsMap.get(sym)?.pe_ratio != null ? parseFloat(statsMap.get(sym)?.pe_ratio).toFixed(1) + 'x' : '—'}
-                </td>
-                {withMiniCharts && (
-                  <td style={{ padding: '4px', maxWidth: 200 }}>
-                    <MiniFinancials ticker={sym} onError={() => {}} />
-                  </td>
-                )}
-              </tr>
+              <SectionTableRow
+                key={sym}
+                sym={sym}
+                name={name}
+                statsMap={statsMap}
+                onClickRow={openDetail}
+                withMiniCharts={withMiniCharts}
+              />
             );
           })}
         </tbody>
@@ -132,18 +149,29 @@ const SectionTable = memo(function SectionTable({ tickers, statsMap, labels, wit
   );
 });
 
+/* ── ETF Ticker Cell Component ────────────────────────────────────────── */
+function EtfTickerCell({ sym, onClickCell }) {
+  const q = useTickerPrice(sym);
+  return (
+    <TickerCell
+      symbol={sym}
+      price={q?.price}
+      changePct={q?.changePct}
+      onClick={onClickCell}
+    />
+  );
+}
+
 /* ── ETF Strip Component ───────────────────────────────────────────────── */
 const EtfStrip = memo(function EtfStrip() {
   const openDetail = useOpenDetail();
   return (
     <div className="ds-strip" style={{ display: 'flex', gap: 0, borderTop: '1px solid #1e1e1e' }}>
       {ETFS.map(sym => (
-        <TickerCell
+        <EtfTickerCell
           key={sym}
-          symbol={sym}
-          price={useTickerPrice(sym)?.price}
-          changePct={useTickerPrice(sym)?.changePct}
-          onClick={openDetail}
+          sym={sym}
+          onClickCell={openDetail}
         />
       ))}
     </div>
