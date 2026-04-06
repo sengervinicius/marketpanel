@@ -110,6 +110,14 @@ function SectorScreenSelector({ isOpen, onClose, onSelect, activeScreen }) {
     }
   }, [isOpen]);
 
+  // ALL hooks must be called before any early return
+  const handleCardClick = useCallback(
+    (screenId) => {
+      onSelect(screenId);
+    },
+    [onSelect],
+  );
+
   if (!mounted) return null;
 
   const handleBackdropClick = (e) => {
@@ -117,13 +125,6 @@ function SectorScreenSelector({ isOpen, onClose, onSelect, activeScreen }) {
       onClose();
     }
   };
-
-  const handleCardClick = useCallback(
-    (screenId) => {
-      onSelect(screenId);
-    },
-    [onSelect],
-  );
 
   return (
     <div
