@@ -119,12 +119,25 @@ const FuturesSection = memo(function FuturesSection() {
   );
 });
 
+function EtfCell({ sym, onClick }) {
+  const q = useTickerPrice(sym);
+  return (
+    <TickerCell
+      key={sym}
+      symbol={sym}
+      price={q?.price}
+      changePct={q?.changePct}
+      onClick={onClick}
+    />
+  );
+}
+
 const EtfStripSection = memo(function EtfStripSection() {
   const openDetail = useOpenDetail();
   return (
     <div className="ds-strip">
       {ETF_SYMBOLS.map(sym => (
-        <TickerCell key={sym} symbol={sym} price={useTickerPrice(sym)?.price} changePct={useTickerPrice(sym)?.changePct} onClick={openDetail} />
+        <EtfCell key={sym} sym={sym} onClick={openDetail} />
       ))}
     </div>
   );

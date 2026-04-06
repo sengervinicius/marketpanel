@@ -434,35 +434,39 @@ function EuropeanMarkets() {
 /* ─────────────────────────────────────────────────────────────────────── */
 /* 9. GLOBAL EQUITY INDEXES */
 /* ─────────────────────────────────────────────────────────────────────── */
+function IndexCell({ symbol, onClick }) {
+  const q = useTickerPrice(symbol);
+
+  return (
+    <div
+      onClick={() => onClick(symbol)}
+      style={{
+        background: '#0a0a1a',
+        border: `1px solid ${q?.changePct >= 0 ? '#66bb6a' : '#ef5350'}44`,
+        borderRadius: 6,
+        padding: '10px 12px',
+        cursor: 'pointer',
+        textAlign: 'center',
+      }}
+    >
+      <div style={{ fontSize: 10, fontWeight: 600, color: '#e0e0e0', marginBottom: 4 }}>{symbol}</div>
+      <div style={{ fontSize: 14, fontWeight: 600, color: '#e0e0e0', marginBottom: 2 }}>{q?.price != null ? fmt(q.price) : '—'}</div>
+      <div style={{ fontSize: 9, color: q?.changePct >= 0 ? '#66bb6a' : '#ef5350' }}>
+        {fmtPct(q?.changePct)}
+      </div>
+    </div>
+  );
+}
+
 function GlobalEquityIndexes() {
   const openDetail = useOpenDetail();
   const indexes = ['SPY', 'QQQ', 'DIA', 'IWM', 'EWZ', 'EEM', 'EFA', 'FXI', 'EWJ', 'EWG'];
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 8 }}>
-      {indexes.map((symbol) => {
-        const q = useTickerPrice(symbol);
-        return (
-          <div
-            key={symbol}
-            onClick={() => openDetail(symbol)}
-            style={{
-              background: '#0a0a1a',
-              border: `1px solid ${q?.changePct >= 0 ? '#66bb6a' : '#ef5350'}44`,
-              borderRadius: 6,
-              padding: '10px 12px',
-              cursor: 'pointer',
-              textAlign: 'center',
-            }}
-          >
-            <div style={{ fontSize: 10, fontWeight: 600, color: '#e0e0e0', marginBottom: 4 }}>{symbol}</div>
-            <div style={{ fontSize: 14, fontWeight: 600, color: '#e0e0e0', marginBottom: 2 }}>{q?.price != null ? fmt(q.price) : '—'}</div>
-            <div style={{ fontSize: 9, color: q?.changePct >= 0 ? '#66bb6a' : '#ef5350' }}>
-              {fmtPct(q?.changePct)}
-            </div>
-          </div>
-        );
-      })}
+      {indexes.map((symbol) => (
+        <IndexCell key={symbol} symbol={symbol} onClick={openDetail} />
+      ))}
     </div>
   );
 }

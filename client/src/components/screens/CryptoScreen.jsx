@@ -413,19 +413,27 @@ function CryptoDominanceSection() {
   );
 }
 
+/* ── Crypto ETF Cell Component ────────────────────────────────────────────── */
+function CryptoEtfCell({ sym, onClick }) {
+  const q = useTickerPrice(sym);
+  return (
+    <TickerCell
+      key={sym}
+      symbol={sym}
+      price={q?.price}
+      changePct={q?.changePct}
+      onClick={onClick}
+    />
+  );
+}
+
 /* ── ETF Strip Component ───────────────────────────────────────────────────── */
 const EtfStrip = memo(function EtfStrip() {
   const openDetail = useOpenDetail();
   return (
     <div className="ds-strip" style={{ display: 'flex', gap: 0, borderTop: '1px solid #1e1e1e' }}>
       {CRYPTO_ETFS.map(sym => (
-        <TickerCell
-          key={sym}
-          symbol={sym}
-          price={useTickerPrice(sym)?.price}
-          changePct={useTickerPrice(sym)?.changePct}
-          onClick={openDetail}
-        />
+        <CryptoEtfCell key={sym} sym={sym} onClick={openDetail} />
       ))}
     </div>
   );

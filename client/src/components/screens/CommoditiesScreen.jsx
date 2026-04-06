@@ -313,18 +313,24 @@ function SpreadAnalysisSection() {
   );
 }
 
+function EtfCell({ sym, onClick }) {
+  const q = useTickerPrice(sym);
+  return (
+    <TickerCell
+      symbol={sym}
+      price={q?.price}
+      changePct={q?.changePct}
+      onClick={onClick}
+    />
+  );
+}
+
 const EtfStripSection = memo(function EtfStripSection() {
   const openDetail = useOpenDetail();
   return (
     <div style={{ padding: '0 6px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(80px, 1fr))', gap: '1px', background: '#1e1e1e' }}>
       {ETF_SYMBOLS.map(sym => (
-        <TickerCell
-          key={sym}
-          symbol={sym}
-          price={useTickerPrice(sym)?.price}
-          changePct={useTickerPrice(sym)?.changePct}
-          onClick={openDetail}
-        />
+        <EtfCell key={sym} sym={sym} onClick={openDetail} />
       ))}
     </div>
   );
