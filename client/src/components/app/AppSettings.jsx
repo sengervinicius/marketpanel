@@ -2,8 +2,6 @@ import { useState, useEffect, useRef } from 'react';
 import { useSettings } from '../../context/SettingsContext';
 import { useAlerts } from '../../context/AlertsContext';
 import { PANEL_DEFINITIONS, DEFAULT_LAYOUT } from '../../config/panels';
-import { getTemplateList } from '../../config/templates';
-import SuggestedScreens from '../settings/SuggestedScreens';
 import UserAvatar from '../common/UserAvatar';
 
 // ── Settings Drawer Constants ────────────────────────────────────────────────
@@ -21,8 +19,6 @@ export const START_PAGE_OPTIONS = [
   { value: '/news',      label: 'NEWS' },
 ];
 
-export const PRESET_LIST = getTemplateList('onboarding').map(t => ({ key: t.id, label: t.label }));
-
 // ── SettingsSection ──────────────────────────────────────────────────────────
 export function SettingsSection({ label }) {
   return (
@@ -34,8 +30,7 @@ export function SettingsSection({ label }) {
 
 // ── Settings Drawer ─────────────────────────────────────────────────────────
 export function SettingsDrawer({ panelVisible, togglePanel, onClose }) {
-  const { settings, updateSettings, applyPreset, applyTemplate, resetTour } = useSettings();
-  const [applyingPreset, setApplyingPreset] = useState(null);
+  const { settings, updateSettings, resetTour } = useSettings();
   const [resettingLayout, setResettingLayout] = useState(false);
 
   const defaultStartPage = settings?.defaultStartPage || '/';
@@ -43,10 +38,6 @@ export function SettingsDrawer({ panelVisible, togglePanel, onClose }) {
 
   const handleStartPage = (val) => { updateSettings({ defaultStartPage: val }); };
   const handleTheme = () => { updateSettings({ theme: theme === 'dark' ? 'light' : 'dark' }); };
-  const handlePreset = async (key) => {
-    setApplyingPreset(key);
-    try { await applyPreset(key); } finally { setApplyingPreset(null); }
-  };
   const handleResetLayout = async () => {
     setResettingLayout(true);
     try {
@@ -130,26 +121,6 @@ export function SettingsDrawer({ panelVisible, togglePanel, onClose }) {
         <span className="app-text-accent-bold-small">TOGGLE</span>
       </div>
 
-      {/* ── Workspace Presets ── */}
-      <SettingsSection label="HOME WORKSPACE" />
-      {PRESET_LIST.map(({ key, label }) => (
-        <div
-          key={key}
-          role="button"
-          tabIndex={0}
-          style={{ ...rowStyle, cursor: applyingPreset ? 'wait' : 'pointer' }}
-          {...makeRowClickable(() => !applyingPreset && handlePreset(key))}
-          onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
-          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-          aria-busy={applyingPreset === key}
-        >
-          <span className="app-text-muted-small">{label}</span>
-          {applyingPreset === key
-            ? <span className="app-text-accent-small">APPLYING…</span>
-            : <span className="app-text-faint-small">APPLY →</span>}
-        </div>
-      ))}
-
       {/* ── Reset Layout ── */}
       <SettingsSection label="LAYOUT" />
       <div
@@ -207,9 +178,6 @@ export function SettingsDrawer({ panelVisible, togglePanel, onClose }) {
       <SettingsSection label="COMMUNITY" />
       <DiscordLinkRow />
 
-      {/* ── Market Screens ── */}
-      <SettingsSection label="BROWSE MARKET SCREENS" />
-      <SuggestedScreens onApply={onClose} />
     </div>
   );
 }
