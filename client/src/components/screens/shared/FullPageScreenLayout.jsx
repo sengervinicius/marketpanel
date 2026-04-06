@@ -2,9 +2,65 @@
  * FullPageScreenLayout.jsx
  * Upgraded version of DeepScreenBase designed for full-page sector screens.
  */
-import { Component } from 'react';
+import { Component, useRef, useState, useEffect } from 'react';
 import { useIsMobile } from '../../../hooks/useIsMobile';
 import './ScreenShared.css';
+
+/**
+ * LazySection component that uses IntersectionObserver for lazy loading.
+ * Renders a placeholder until the section enters the viewport (200px margin).
+ */
+function LazySection({ children }) {
+  const ref = useRef(null);
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setVisible(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: '200px' }
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div ref={ref}>
+      {visible ? (
+        children
+      ) : (
+        <div
+          style={{
+            minHeight: 120,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <span
+            style={{
+              color: '#333',
+              fontSize: 9,
+              fontWeight: 600,
+              letterSpacing: '0.5px',
+              textTransform: 'uppercase',
+            }}
+          >
+            Loading...
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
 
 /**
  * Section-level error boundary with retry capability.
@@ -63,10 +119,16 @@ class SectionErrorBoundary extends Component {
 }
 
 /**
- * Section wrapper with sticky header and error boundary.
+ * Section wrapper with sticky header, error boundary, and optional lazy loading.
  */
-function ScreenSection({ id, title, badge, span, component, isMobile }) {
+function ScreenSection({ id, title, badge, span, component, isMobile, lazy }) {
   const spanClass = !isMobile && span === 'full' ? 'fsl-section--full' : '';
+
+  const content = (
+    <SectionErrorBoundary section={title}>
+      {typeof component === 'function' ? <component /> : component}
+    </SectionErrorBoundary>
+  );
 
   return (
     <div key={id} className={`fsl-section ${spanClass}`}>
@@ -75,9 +137,7 @@ function ScreenSection({ id, title, badge, span, component, isMobile }) {
         {badge && <span className="fsl-section-badge">{badge}</span>}
       </div>
       <div className="fsl-section-body">
-        <SectionErrorBoundary section={title}>
-          {typeof component === 'function' ? <component /> : component}
-        </SectionErrorBoundary>
+        {lazy ? <LazySection>{content}</LazySection> : content}
       </div>
     </div>
   );
@@ -135,7 +195,7 @@ function FullPageScreenLayout({
 
       {/* Grid */}
       <div className={`fsl-grid ${isMobile ? 'fsl-grid--mobile' : 'fsl-grid--desktop'}`}>
-        {sections.map((sec) => (
+        {sections.map((sec, idx) => (
           <ScreenSection
             key={sec.id}
             id={sec.id}
@@ -144,6 +204,7 @@ function FullPageScreenLayout({
             span={sec.span}
             component={sec.component}
             isMobile={isMobile}
+            lazy={idx >= 2}
           />
         ))}
       </div>

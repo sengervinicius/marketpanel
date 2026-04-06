@@ -270,45 +270,49 @@ function MiniFinancialsStrip() {
   );
 }
 
+// ETF Cell — extracted so useTickerPrice is called at top level of a component
+function EtfCell({ sym, onClick }) {
+  const q = useTickerPrice(sym);
+  const isUp = q?.changePct >= 0;
+  return (
+    <div
+      className="ds-ticker-cell"
+      onClick={() => onClick(sym)}
+      style={{
+        cursor: 'pointer',
+        padding: '8px 12px',
+        border: '1px solid #1e1e1e',
+        borderRadius: 2,
+        textAlign: 'center',
+        transition: 'all 0.2s',
+      }}
+    >
+      <div style={{ fontSize: 10, fontWeight: 600, color: '#e0e0e0' }}>
+        {sym}
+      </div>
+      <div style={{ fontSize: 9, color: '#999', marginTop: 2 }}>
+        {q?.price != null ? fmt(q.price) : '—'}
+      </div>
+      <div style={{
+        fontSize: 9,
+        color: isUp ? '#4caf50' : '#f44336',
+        fontWeight: 500,
+        marginTop: 2,
+      }}>
+        {q?.changePct != null ? fmtPct(q.changePct) : '—'}
+      </div>
+    </div>
+  );
+}
+
 // ETF Strip
 function EtfStripSection() {
   const openDetail = useOpenDetail();
   return (
     <div className="ds-etf-strip" style={{ padding: '0 6px' }}>
-      {ETF_SYMBOLS.map(sym => {
-        const q = useTickerPrice(sym);
-        const isUp = q?.changePct >= 0;
-        return (
-          <div
-            key={sym}
-            className="ds-ticker-cell"
-            onClick={() => openDetail(sym)}
-            style={{
-              cursor: 'pointer',
-              padding: '8px 12px',
-              border: '1px solid #1e1e1e',
-              borderRadius: 2,
-              textAlign: 'center',
-              transition: 'all 0.2s',
-            }}
-          >
-            <div style={{ fontSize: 10, fontWeight: 600, color: '#e0e0e0' }}>
-              {sym}
-            </div>
-            <div style={{ fontSize: 9, color: '#999', marginTop: 2 }}>
-              {q?.price != null ? fmt(q.price) : '—'}
-            </div>
-            <div style={{
-              fontSize: 9,
-              color: isUp ? '#4caf50' : '#f44336',
-              fontWeight: 500,
-              marginTop: 2,
-            }}>
-              {q?.changePct != null ? fmtPct(q.changePct) : '—'}
-            </div>
-          </div>
-        );
-      })}
+      {ETF_SYMBOLS.map(sym => (
+        <EtfCell key={sym} sym={sym} onClick={openDetail} />
+      ))}
     </div>
   );
 }

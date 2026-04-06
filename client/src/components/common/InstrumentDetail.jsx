@@ -1899,6 +1899,33 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
 
       </div>
 
+      {/* ── KEY METRICS STRIP (stocks only) ── */}
+      {isStock && !isBond && !isFX && (
+        <div className="id-metrics-strip">
+          {(() => {
+            const ts = tdStatistics || {};
+            const fd = fundsData || {};
+            const metricsItems = [
+              { label: 'MKT CAP', value: (() => { const v = parseFloat(fd.marketCap || ts.market_capitalization); if (!v || isNaN(v)) return null; if (v >= 1e12) return '$' + (v/1e12).toFixed(1) + 'T'; if (v >= 1e9) return '$' + (v/1e9).toFixed(0) + 'B'; if (v >= 1e6) return '$' + (v/1e6).toFixed(0) + 'M'; return '$' + v.toFixed(0); })() },
+              { label: 'P/E', value: (fd.peRatio ?? ts.pe_ratio) != null ? parseFloat(fd.peRatio ?? ts.pe_ratio).toFixed(1) + 'x' : null },
+              { label: 'EPS', value: (fd.eps ?? ts.eps) != null ? '$' + parseFloat(fd.eps ?? ts.eps).toFixed(2) : null },
+              { label: 'BETA', value: (fd.beta ?? ts.beta) != null ? parseFloat(fd.beta ?? ts.beta).toFixed(2) : null },
+              { label: 'DIV', value: (fd.dividendYield ?? ts.dividend_yield) != null ? (parseFloat(fd.dividendYield ?? ts.dividend_yield) * 100).toFixed(2) + '%' : null, color: '#66bb6a' },
+              { label: 'VOL', value: volume != null ? (volume >= 1e6 ? (volume/1e6).toFixed(1) + 'M' : volume >= 1e3 ? (volume/1e3).toFixed(0) + 'K' : volume.toFixed(0)) : null },
+              { label: '52W H', value: (fd.fiftyTwoWeekHigh ?? ts['52_week_high']) != null ? fmt(fd.fiftyTwoWeekHigh ?? ts['52_week_high']) : null },
+              { label: '52W L', value: (fd.fiftyTwoWeekLow ?? ts['52_week_low']) != null ? fmt(fd.fiftyTwoWeekLow ?? ts['52_week_low']) : null },
+            ].filter(m => m.value != null);
+            if (metricsItems.length === 0) return null;
+            return metricsItems.map(m => (
+              <div key={m.label} className="id-metric-chip">
+                <span className="id-metric-label">{m.label}</span>
+                <span className="id-metric-value" style={m.color ? { color: m.color } : undefined}>{m.value}</span>
+              </div>
+            ));
+          })()}
+        </div>
+      )}
+
       {/* ── BODY ── */}
       <div className={`id-body${isMobile ? ' id-body--mobile' : ''}`}>
 

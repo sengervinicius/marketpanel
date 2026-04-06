@@ -77,8 +77,6 @@ const MobileMoreScreen = memo(({
         </div>
       </div>
 
-      {/* Missions preview */}
-      <MobileMissionsPreview onNavigate={onNavigate} />
 
       {/* Primary navigation */}
       <div className="mm-section">
@@ -102,21 +100,6 @@ const MobileMoreScreen = memo(({
           icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="2" y1="12" x2="22" y2="12" /><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" /></svg>}
           label="Macro Panel"
           onClick={() => onNavigate('macro')}
-        />
-        <MenuItem
-          icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M12 17v4"/><path d="M8 21h8"/><path d="M7 10l3-3 2 2 5-5"/></svg>}
-          label="Investing Game"
-          onClick={() => onNavigate('game')}
-        />
-        <MenuItem
-          icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20V10" /><path d="M6 20v-4" /><path d="M18 20V4" /><circle cx="12" cy="7" r="2" fill="currentColor" /><circle cx="6" cy="13" r="2" fill="currentColor" /><circle cx="18" cy="2" r="2" fill="currentColor" /></svg>}
-          label="Leaderboard"
-          onClick={() => onNavigate('leaderboard')}
-        />
-        <MenuItem
-          icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>}
-          label="Referrals"
-          onClick={() => onNavigate('referrals')}
         />
         <MenuItem
           icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/><line x1="1" y1="1" x2="23" y2="23"/></svg>}
@@ -363,62 +346,6 @@ function MobileDiscordSection() {
   );
 }
 
-// ── Missions Preview (inline in MobileMoreScreen) ─────────────────────────
-function MobileMissionsPreview({ onNavigate }) {
-  const [missions, setMissions] = useState([]);
-  const [streak, setStreak] = useState({ current: 0 });
-
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (!token) return;
-    fetch('/api/missions', { headers: { Authorization: `Bearer ${token}` } })
-      .then(r => r.ok ? r.json() : null)
-      .then(data => {
-        if (data) {
-          setMissions(data.missions || []);
-          setStreak(data.streak || { current: 0 });
-        }
-      })
-      .catch(() => {});
-  }, []);
-
-  const active = missions.filter(m => m.status === 'active' || m.status === 'completed').slice(0, 3);
-  const completedCount = missions.filter(m => m.status === 'completed').length;
-
-  return (
-    <div className="mm-section">
-      <div className="m-section-label" style={{ padding: '0 16px' }}>MISSIONS & STREAKS</div>
-      {/* Streak display */}
-      <div className="mm-streak-row">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
-        <span className="mm-streak-text">{streak.current}-day streak</span>
-      </div>
-      {/* Mission preview cards */}
-      {active.map(m => (
-        <div key={m.id} className="mm-mission-preview">
-          <div className="mm-mission-preview-info">
-            <span className="mm-mission-preview-title">{m.title}</span>
-            <div className="mm-mission-preview-bar-wrap">
-              <div className="mm-mission-preview-bar">
-                <div className="mm-mission-preview-bar-fill" style={{ width: `${Math.min(100, Math.round((m.progress.current / m.progress.target) * 100))}%` }} />
-              </div>
-              <span className="mm-mission-preview-progress">{m.progress.current}/{m.progress.target}</span>
-            </div>
-          </div>
-          <span className="mm-mission-preview-xp">+{m.xpReward}</span>
-        </div>
-      ))}
-      {/* View all link */}
-      <button className="mm-item" onClick={() => onNavigate('missions')}>
-        <span className="mm-item-icon" style={{ fontSize: 14 }}>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-        </span>
-        <span className="mm-item-label">View All Missions{completedCount > 0 ? ` (${completedCount} ready)` : ''}</span>
-        <svg className="mm-item-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-      </button>
-    </div>
-  );
-}
 
 function MenuItem({ icon, label, onClick, subtle, danger }) {
   return (

@@ -164,10 +164,38 @@ export default function App() {
         const searchInput = document.querySelector('.search-panel input, [placeholder*="Search"], [placeholder*="search"]');
         if (searchInput) searchInput.focus();
       }
+
+      // Ctrl/Cmd + 1-9 and 0 = sector screens
+      if ((e.ctrlKey || e.metaKey) && e.key >= '1' && e.key <= '9') {
+        e.preventDefault();
+        const sectorScreens = ['defence', 'commodities', 'brazil-em', 'technology', 'global-macro', 'fixed-income', 'global-retail', 'asian-markets', 'european-markets'];
+        const index = parseInt(e.key) - 1;
+        if (index < sectorScreens.length) {
+          setActiveSectorScreen(sectorScreens[index]);
+        }
+      } else if ((e.ctrlKey || e.metaKey) && e.key === '0') {
+        e.preventDefault();
+        setActiveSectorScreen('crypto');
+      }
+
+      // Ctrl/Cmd + H = home
+      if ((e.ctrlKey || e.metaKey) && e.key === 'h') {
+        e.preventDefault();
+        handleGoHome();
+      }
+
+      // Escape = close sector selector or go home from sector screen
+      if (e.key === 'Escape') {
+        if (sectorSelectorOpen) {
+          setSectorSelectorOpen(false);
+        } else if (activeSectorScreen) {
+          handleGoHome();
+        }
+      }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, []);
+  }, [setActiveSectorScreen, handleGoHome, sectorSelectorOpen, activeSectorScreen, setSectorSelectorOpen]);
 
   const [activeTab, setActiveTab] = useState(() => {
     let saved;
@@ -320,7 +348,7 @@ export default function App() {
   }, []);
   const mobileScreenTitle = useMemo(() => {
     if (activeTab === 'more' && moreView) {
-      const titles = { news: 'News Feed', etf: 'ETF Screener', screener: 'Fundamental Screener', macro: 'Macro Panel', leaderboard: 'Leaderboard', game: 'Investing Game', missions: 'Missions & Quests' };
+      const titles = { news: 'News Feed', etf: 'ETF Screener', screener: 'Fundamental Screener', macro: 'Macro Panel' };
       return titles[moreView] || moreView;
     }
     return null;
@@ -410,8 +438,10 @@ export default function App() {
           <WorldClock />
           <MarketStatus />
           <div className="flex-row gap-8">
-            {isRefreshing && <span className="app-header-status">&#9679; UPDATING</span>}
-            {lastUpdated && !isRefreshing && <span style={{ color:'var(--text-faint)', fontSize:'8px' }}>SNAP {lastUpdated.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'})}</span>}
+            <span className="app-refresh-indicator" data-active={isRefreshing || undefined}>
+              <span className="app-refresh-dot" />
+              {isRefreshing ? 'LIVE' : lastUpdated ? lastUpdated.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'}) : ''}
+            </span>
             <AlertBadge />
             {/* Chat icon */}
             <button
@@ -764,23 +794,6 @@ export default function App() {
               </PanelErrorBoundary>
             )}
 
-            {!activeSectorScreen && activeTab === 'more' && moreView === 'leaderboard' && (
-              <PanelErrorBoundary name="Leaderboard">
-                <LeaderboardPanel mobile />
-              </PanelErrorBoundary>
-            )}
-
-            {!activeSectorScreen && activeTab === 'more' && moreView === 'game' && (
-              <PanelErrorBoundary name="Game">
-                <GamePortfolioPanel mobile />
-              </PanelErrorBoundary>
-            )}
-
-            {!activeSectorScreen && activeTab === 'more' && moreView === 'referrals' && (
-              <PanelErrorBoundary name="Referrals">
-                <ReferralPanel />
-              </PanelErrorBoundary>
-            )}
 
             {!activeSectorScreen && activeTab === 'more' && moreView === 'notification-prefs' && (
               <NotificationPrefs onClose={() => setMoreView(null)} />

@@ -1712,7 +1712,7 @@ textarea:focus-visible { outline: 1px solid var(--accent); outline-offset: 0; bo
   background: var(--bg-app);
   border-bottom: none;
   padding: 0 14px;
-  gap: 14px;
+  gap: 10px;
   position: relative;
   z-index: 50;
 }
@@ -1720,11 +1720,16 @@ textarea:focus-visible { outline: 1px solid var(--accent); outline-offset: 0; bo
 /* Search command strip — full-width row below header */
 .app-search-strip {
   flex-shrink: 0;
-  padding: 6px 14px 8px;
+  padding: 4px 14px 6px;
   background: var(--bg-app);
   border-bottom: 1px solid rgba(255, 102, 0, 0.2);
   position: relative;
   z-index: 11;
+}
+
+.app-search-strip input {
+  width: 100%;
+  max-width: none;
 }
 
 .app-header-title {
@@ -1745,6 +1750,38 @@ textarea:focus-visible { outline: 1px solid var(--accent); outline-offset: 0; bo
   color: var(--accent);
   font-size: 8px;
   letter-spacing: 1px;
+}
+
+.app-refresh-indicator {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 0.8px;
+  color: var(--text-faint);
+  font-family: var(--font-mono);
+}
+
+.app-refresh-indicator[data-active] {
+  color: var(--price-up);
+}
+
+.app-refresh-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--text-faint);
+}
+
+.app-refresh-indicator[data-active] .app-refresh-dot {
+  background: var(--price-up);
+  animation: pulse-dot 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(1.4); }
 }
 
 /* Flex utility for common layout patterns */

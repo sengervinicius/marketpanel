@@ -162,6 +162,42 @@
 }
 
 /* ── Body layout ────────────────────────────────── */
+/* ── Key Metrics Strip ── */
+.id-metrics-strip {
+  display: flex;
+  gap: 0;
+  padding: 0 var(--sp-4);
+  border-bottom: 1px solid var(--border-default);
+  background: var(--bg-surface);
+  overflow-x: auto;
+  flex-shrink: 0;
+}
+.id-metric-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 4px 10px;
+  border-right: 1px solid var(--border-subtle);
+  min-width: 0;
+  flex-shrink: 0;
+}
+.id-metric-chip:last-child { border-right: none; }
+.id-metric-label {
+  font-size: 7px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.id-metric-value {
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
 .id-body {
   flex: 1;
   display: flex;
