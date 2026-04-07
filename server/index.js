@@ -97,6 +97,88 @@ app.get('/health', (req, res) => res.json({
 }));
 app.use('/api/auth', authRoutes);
 
+// ── TEMPORARY: Admin account reset (remove after testing) ─────────────────────
+app.post('/api/admin/reset-user', async (req, res) => {
+  try {
+    const { username, adminKey } = req.body || {};
+    // Simple protection — must know the key
+    if (adminKey !== 'senger-launch-2026') return res.status(403).json({ error: 'forbidden' });
+    if (!username) return res.status(400).json({ error: 'username required' });
+
+    const authStore = require('./authStore');
+    const user = authStore.findUserByUsername(username);
+    if (!user) return res.status(404).json({ error: `user '${username}' not found` });
+
+    // 1. Reset settings to factory defaults
+    const defaults = {
+      theme: 'dark',
+      onboardingCompleted: false,
+      selectedPresetId: null,
+      defaultStartPage: '/',
+      watchlist: [],
+      panels: {
+        usEquities:   { title: 'US Equities',    symbols: ['AAPL','MSFT','NVDA','GOOGL','AMZN','META','TSLA','JPM','XOM','BRKB','GS','WMT','LLY'] },
+        globalIndices:{ title: 'Global Indexes',  symbols: ['SPY','QQQ','DIA','EWZ','EEM','VGK','EWJ','FXI'] },
+        forex:        { title: 'FX Markets',      symbols: ['EURUSD','GBPUSD','USDJPY','USDBRL','USDCHF','USDCNY','USDMXN','AUDUSD','USDCAD'] },
+        crypto:       { title: 'Crypto',          symbols: ['BTCUSD','ETHUSD','SOLUSD','XRPUSD','BNBUSD','DOGEUSD'] },
+        commodities:  { title: 'Commodities',     symbols: ['GLD','SLV','USO','UNG','CORN','WEAT','SOYB','CPER','BHP'] },
+        brazilB3:     { title: 'Brazil B3',       symbols: ['VALE3.SA','PETR4.SA','ITUB4.SA','BBDC4.SA','ABEV3.SA','WEGE3.SA','RENT3.SA','B3SA3.SA','MGLU3.SA','BBAS3.SA','GGBR4.SA','SUZB3.SA'] },
+        debt:         { title: 'Yields & Rates',  symbols: [] },
+      },
+      layout: {
+        desktopRows: [
+          ['charts',       'usEquities',    'globalIndices'],
+          ['forex',        'commodities',   'crypto',  'brazilB3'],
+          ['debt',         'news',          'watchlist'],
+        ],
+        mobileTabs: ['home', 'charts', 'watchlist', 'search', 'news'],
+      },
+      home: {
+        sections: [
+          { id: 'indexes',     title: 'US Equities',     symbols: ['SPY','QQQ','DIA','AAPL','MSFT','NVDA','TSLA','AMZN'] },
+          { id: 'global',      title: 'Global Indexes',   symbols: ['EWZ','EEM','VGK','EWJ','FXI','EFA','IWM'] },
+          { id: 'forex',       title: 'FX Markets',       symbols: ['EURUSD','USDJPY','GBPUSD','USDBRL','USDCNY','USDCHF'] },
+          { id: 'crypto',      title: 'Crypto',           symbols: ['BTCUSD','ETHUSD','SOLUSD','XRPUSD','BNBUSD','DOGEUSD'] },
+          { id: 'commodities', title: 'Commodities',      symbols: ['GLD','SLV','USO','UNG','CORN'] },
+          { id: 'brazilB3',    title: 'Brazil B3',        symbols: ['VALE3.SA','PETR4.SA','ITUB4.SA','BBDC4.SA','WEGE3.SA','B3SA3.SA','ABEV3.SA','BBAS3.SA'] },
+        ],
+      },
+      charts: {
+        symbols: ['SPY', 'QQQ', 'C:EURUSD', 'C:USDJPY', 'GLD', 'USO', 'EEM', 'EWZ', 'X:BTCUSD', 'VGK'],
+        primary: 'SPY',
+      },
+    };
+    await authStore.mergeSettings(user.id, defaults);
+
+    // 2. Reset subscription to fresh 2-day trial
+    await authStore.updateSubscription(user.id, {
+      isPaid: false,
+      subscriptionActive: false,
+      trialEndsAt: Date.now() + 2 * 24 * 60 * 60 * 1000,
+      stripeCustomerId: null,
+      stripeSubscriptionId: null,
+    });
+
+    // 3. Clear portfolio
+    try {
+      const portfolioStore = require('./portfolioStore');
+      if (portfolioStore.deleteUserPortfolios) await portfolioStore.deleteUserPortfolios(user.id);
+    } catch (e) { console.log('[reset] portfolio clear skipped:', e.message); }
+
+    // 4. Clear alerts
+    try {
+      const alertStore = require('./alertStore');
+      if (alertStore.deleteUserAlerts) await alertStore.deleteUserAlerts(user.id);
+    } catch (e) { console.log('[reset] alerts clear skipped:', e.message); }
+
+    console.log(`[admin] Reset user '${username}' (id=${user.id}) to factory defaults`);
+    res.json({ ok: true, message: `User '${username}' reset to factory defaults with 2-day trial` });
+  } catch (err) {
+    console.error('[admin] reset-user error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ── Protected routes ───────────────────────────────────────────────────────────
 // Stripe webhook: MUST be before requireAuth — Stripe cannot authenticate as a user.
 // Raw body parsing is handled inside the route (express.raw).
