@@ -45,17 +45,23 @@ function LazySection({ children }) {
             justifyContent: 'center',
           }}
         >
-          <span
-            style={{
-              color: '#333',
+          <div style={{ textAlign: 'center' }}>
+            <div style={{
+              width: 24, height: 24, margin: '0 auto 8px',
+              border: '2px solid #333', borderTopColor: '#888',
+              borderRadius: '50%',
+              animation: 'fsl-spin 0.8s linear infinite',
+            }} />
+            <span style={{
+              color: '#888',
               fontSize: 9,
               fontWeight: 600,
               letterSpacing: '0.5px',
               textTransform: 'uppercase',
-            }}
-          >
-            Loading...
-          </span>
+            }}>
+              Loading...
+            </span>
+          </div>
         </div>
       )}
     </div>

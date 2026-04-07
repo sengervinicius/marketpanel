@@ -54,8 +54,12 @@ function SingleChart({ ticker, data, height, onTickerClick }) {
         <div style={{ fontSize: 10, fontWeight: 600, color: '#e0e0e0', marginBottom: 8, cursor: 'pointer' }} onClick={() => onTickerClick?.(ticker)}>
           {ticker}
         </div>
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#555', fontSize: 9 }}>
-          No data
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+          <div style={{ width: '60%', height: 1, background: '#1e1e1e' }} />
+          <span style={{ color: '#888', fontSize: 10, fontWeight: 500, letterSpacing: '0.5px' }}>
+            Chart data unavailable
+          </span>
+          <div style={{ width: '60%', height: 1, background: '#1e1e1e' }} />
         </div>
       </div>
     );
@@ -135,6 +139,8 @@ export function SectorChartPanel({ tickers = [], height = 200, cols = 2 }) {
   const isMobile = useIsMobile();
   const [chartData, setChartData] = useState({});
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(null);
+  const [retryCount, setRetryCount] = useState(0);
 
   const gridCols = isMobile ? 1 : cols;
 
@@ -148,8 +154,19 @@ export function SectorChartPanel({ tickers = [], height = 200, cols = 2 }) {
     const fetchCharts = async () => {
       try {
         setLoading(true);
+        setFetchError(null);
+
+        // Build correct query params: server expects from, to, timespan, multiplier
+        const now = new Date();
+        const toDate = now.toISOString().split('T')[0];
+        const fromDate = (() => {
+          const d = new Date(now);
+          d.setMonth(d.getMonth() - 3);
+          return d.toISOString().split('T')[0];
+        })();
+
         const promises = tickers.map(ticker =>
-          apiFetch(`/api/chart/${ticker}?range=3mo&interval=1d`)
+          apiFetch(`/api/chart/${ticker}?from=${fromDate}&to=${toDate}&timespan=day&multiplier=1`)
             .then(res => res.ok ? res.json() : null)
             .catch(() => null)
         );
@@ -175,12 +192,17 @@ export function SectorChartPanel({ tickers = [], height = 200, cols = 2 }) {
             }
 
             // Transform OHLCV to chartable format
+            // Server may return { t, c, o, h, l } (Polygon/Yahoo) or { date, close } (TwelveData)
             const transformed = dataArray
-              .filter(bar => bar.close != null)
-              .map(bar => ({
-                date: bar.date ? new Date(bar.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—',
-                close: parseFloat(bar.close),
-              }));
+              .filter(bar => (bar.close ?? bar.c) != null)
+              .map(bar => {
+                const closeVal = parseFloat(bar.close ?? bar.c);
+                const rawDate = bar.date || (bar.t ? new Date(bar.t) : null);
+                const dateStr = rawDate
+                  ? new Date(rawDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                  : '—';
+                return { date: dateStr, close: closeVal };
+              });
 
             if (transformed.length > 0) {
               newChartData[ticker] = transformed;
@@ -191,13 +213,14 @@ export function SectorChartPanel({ tickers = [], height = 200, cols = 2 }) {
         setChartData(newChartData);
       } catch (err) {
         console.error('[SectorChartPanel] Error fetching charts:', err);
+        setFetchError(err.message || 'Failed to load charts');
       } finally {
         setLoading(false);
       }
     };
 
     fetchCharts();
-  }, [tickers]);
+  }, [tickers, retryCount]);
 
   const handleTickerClick = (ticker) => {
     // Navigation would happen in parent
@@ -216,6 +239,35 @@ export function SectorChartPanel({ tickers = [], height = 200, cols = 2 }) {
         {tickers.map(ticker => (
           <ChartSkeleton key={ticker} height={height} />
         ))}
+      </div>
+    );
+  }
+
+  if (fetchError) {
+    return (
+      <div style={{
+        padding: '20px 16px',
+        textAlign: 'center',
+        color: '#888',
+        fontSize: 11,
+      }}>
+        <div style={{ color: '#ef5350', fontWeight: 600, marginBottom: 6 }}>Charts unavailable</div>
+        <div style={{ color: '#666', fontSize: 10, marginBottom: 10 }}>{fetchError}</div>
+        <button
+          onClick={() => setRetryCount(c => c + 1)}
+          style={{
+            background: 'transparent',
+            border: '1px solid #444',
+            color: '#aaa',
+            padding: '4px 12px',
+            borderRadius: 3,
+            cursor: 'pointer',
+            fontSize: 9,
+            fontWeight: 600,
+            textTransform: 'uppercase',
+            letterSpacing: '0.5px',
+          }}
+        >RETRY</button>
       </div>
     );
   }

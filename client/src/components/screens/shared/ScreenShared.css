@@ -171,3 +171,7 @@
 .fsl-section-body::-webkit-scrollbar-thumb:hover {
   background: #555;
 }
+
+@keyframes fsl-spin {
+  to { transform: rotate(360deg); }
+}
