@@ -233,6 +233,7 @@ function GlobalRetailScreenImpl() {
           metrics={['pe', 'marketCap', 'revenue', 'grossMargins', 'profitMargins', 'returnOnEquity']}
           title="All Retail Equities - Key Metrics"
           onTickerClick={openDetail}
+          statsMap={statsMap}
         />
       ),
     },

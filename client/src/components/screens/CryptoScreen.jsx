@@ -519,6 +519,7 @@ function CryptoScreenImpl() {
           metrics={['pe', 'marketCap', 'revenue', 'grossMargins', 'operatingMargins', 'profitMargins']}
           title="All Crypto Equities - Key Metrics"
           onTickerClick={openDetail}
+          statsMap={statsMap}
         />
       ),
     },

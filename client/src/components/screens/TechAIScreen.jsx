@@ -364,6 +364,7 @@ function TechAIScreenImpl() {
           tickers={ALL_TICKERS}
           metrics={['pe', 'marketCap', 'revenue', 'grossMargins', 'operatingMargins', 'profitMargins', 'returnOnEquity']}
           onTickerClick={openDetail}
+          statsMap={statsMap}
         />
       ),
     },

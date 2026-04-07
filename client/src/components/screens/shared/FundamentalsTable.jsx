@@ -1,8 +1,14 @@
 /**
- * FundamentalsTable.jsx
+ * FundamentalsTable.jsx — Sprint 5 fix
  * Sortable comparison table for batch fundamentals data.
+ *
+ * Sprint 5 fixes:
+ *  - Accepts optional `statsMap` prop (from useDeepScreenData) as a fallback
+ *    for fields the batch endpoint doesn't return (revenue, margins, ROE, etc.)
+ *  - Server's Yahoo fallback only returns pe, eps, marketCap;
+ *    Twelve Data statistics (via statsMap) fills in the rest.
  */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { apiFetch } from '../../../utils/api';
 import { DeepSkeleton, DeepError } from '../DeepScreenBase';
 
@@ -22,11 +28,36 @@ const METRIC_INFO = {
   sharesOutstanding: { label: 'Shares Out', format: 'abbrev' },
 };
 
+/**
+ * Map from useDeepScreenData's Twelve Data stats fields to FundamentalsTable field names.
+ * This lets us fill in missing values from the batch endpoint.
+ */
+const TD_STATS_MAP = {
+  pe_ratio: 'pe',
+  earnings_per_share: 'eps',
+  market_capitalization: 'marketCap',
+  revenue: 'revenue',
+  // Twelve Data gross_margin, operating_margin, profit_margin are 0-1 ratios → multiply by 100
+  gross_margin: { key: 'grossMargins', multiply: 100 },
+  operating_margin: { key: 'operatingMargins', multiply: 100 },
+  profit_margin: { key: 'profitMargins', multiply: 100 },
+  return_on_equity: { key: 'returnOnEquity', multiply: 100 },
+  return_on_assets: null, // no corresponding field in fundamentals table
+  beta: 'beta',
+  shares_outstanding: 'sharesOutstanding',
+};
+
 function formatValue(value, format, decimals = 2) {
   if (value == null || value === '') return '—';
 
-  if (format === 'number') return value.toFixed(decimals);
-  if (format === 'percent') return `${value.toFixed(decimals)}%`;
+  if (format === 'number') {
+    const n = parseFloat(value);
+    return isNaN(n) ? '—' : n.toFixed(decimals);
+  }
+  if (format === 'percent') {
+    const n = parseFloat(value);
+    return isNaN(n) ? '—' : `${n.toFixed(decimals)}%`;
+  }
   if (format === 'abbrev') {
     const num = parseFloat(value);
     if (isNaN(num)) return '—';
@@ -41,6 +72,7 @@ function formatValue(value, format, decimals = 2) {
 function getCellColor(metric, value) {
   if (value == null || value === '') return {};
   const num = parseFloat(value);
+  if (isNaN(num)) return {};
 
   if (metric === 'pe') {
     if (num < 15) return { color: '#4caf50' };
@@ -49,11 +81,49 @@ function getCellColor(metric, value) {
     if (num > 20) return { color: '#4caf50' };
     if (num < 10) return { color: '#ff9800' };
     if (num < 0) return { color: '#f44336' };
+  } else if (metric === 'returnOnEquity') {
+    if (num > 15) return { color: '#4caf50' };
+    if (num < 5) return { color: '#ff9800' };
+    if (num < 0) return { color: '#f44336' };
   }
   return {};
 }
 
-export function FundamentalsTable({ tickers, metrics = null, title, onTickerClick }) {
+/**
+ * Merge batch endpoint data with Twelve Data statistics for a single ticker.
+ * Batch data takes priority; TD stats fill gaps.
+ */
+function mergeWithStats(batchRow, tdStats) {
+  if (!tdStats) return batchRow;
+  const merged = { ...batchRow };
+
+  for (const [tdKey, mapping] of Object.entries(TD_STATS_MAP)) {
+    if (!mapping) continue;
+    const tdVal = tdStats[tdKey];
+    if (tdVal == null) continue;
+
+    let targetKey, multiplier;
+    if (typeof mapping === 'string') {
+      targetKey = mapping;
+      multiplier = 1;
+    } else {
+      targetKey = mapping.key;
+      multiplier = mapping.multiply || 1;
+    }
+
+    // Only fill if the batch endpoint didn't provide a value
+    if (merged[targetKey] == null || merged[targetKey] === '' || merged[targetKey] === '—') {
+      const numVal = parseFloat(tdVal);
+      if (!isNaN(numVal)) {
+        merged[targetKey] = numVal * multiplier;
+      }
+    }
+  }
+
+  return merged;
+}
+
+export function FundamentalsTable({ tickers, metrics = null, title, onTickerClick, statsMap }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -80,7 +150,6 @@ export function FundamentalsTable({ tickers, metrics = null, title, onTickerClic
           throw new Error(`HTTP ${res.status}`);
         }
         const json = await res.json();
-        // Server returns { ok, data: { TICKER: {...}, ... } } — convert object to array
         const raw = json.data || json || {};
         if (Array.isArray(raw)) {
           setData(raw);
@@ -100,6 +169,17 @@ export function FundamentalsTable({ tickers, metrics = null, title, onTickerClic
     fetchData();
   }, [tickers]);
 
+  // Sprint 5: Merge batch data with Twelve Data statistics (from useDeepScreenData)
+  const mergedData = useMemo(() => {
+    if (!data || data.length === 0) return data;
+    if (!statsMap || statsMap.size === 0) return data;
+
+    return data.map(row => {
+      const tdStats = statsMap.get(row.ticker);
+      return mergeWithStats(row, tdStats);
+    });
+  }, [data, statsMap]);
+
   const handleSort = (metric) => {
     if (sortConfig.key === metric) {
       setSortConfig({ key: metric, dir: sortConfig.dir === 'asc' ? 'desc' : 'asc' });
@@ -108,7 +188,7 @@ export function FundamentalsTable({ tickers, metrics = null, title, onTickerClic
     }
   };
 
-  let sortedData = [...(data || [])];
+  let sortedData = [...(mergedData || [])];
   if (sortConfig.key !== 'ticker') {
     sortedData.sort((a, b) => {
       const aVal = parseFloat(a[sortConfig.key]) || 0;
@@ -125,7 +205,7 @@ export function FundamentalsTable({ tickers, metrics = null, title, onTickerClic
 
   if (loading) return <DeepSkeleton rows={8} />;
   if (error) return <DeepError message={`Error: ${error}`} />;
-  if (!data || data.length === 0) return <div style={{ padding: '10px', color: '#666', fontSize: 10 }}>No data</div>;
+  if (!mergedData || mergedData.length === 0) return <div style={{ padding: '10px', color: '#666', fontSize: 10 }}>No data</div>;
 
   return (
     <div style={{ padding: '0 6px', overflow: 'auto' }}>

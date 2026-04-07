@@ -1,11 +1,17 @@
 /**
- * MiniFinancials.jsx — Sprint 4 rewrite
+ * MiniFinancials.jsx — Sprint 5 fix
  * Compact 3-year revenue + net income bar chart for sector table rows.
  * Shows side-by-side bars (not stacked) with formatted Y-axis, year labels,
  * metric title, and proper color coding.
+ *
+ * Sprint 5 fixes:
+ *  - useEffect deps: only [ticker] — removes onError/accentColor re-fetch loop
+ *  - Year label: uses fiscal_date (not fiscal_period) from Twelve Data API
+ *  - Increased chart height (90 -> 110px) and bar size for visibility
+ *  - Brighter bar colors for dark background contrast
  */
-import { useState, useEffect, memo } from 'react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, Legend } from 'recharts';
+import { useState, useEffect, useRef, memo } from 'react';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { apiFetch } from '../../../utils/api';
 
 /* ── Value formatter: $1.2T / $45B / $120M ────────────────────────────── */
@@ -53,12 +59,26 @@ function yAxisFormatter(value) {
   return `${sign}${abs.toFixed(0)}`;
 }
 
+/**
+ * Extract a 4-char year string from a Twelve Data income_statement entry.
+ * Twelve Data fields vary — try fiscal_date, date, fiscal_period, period in order.
+ */
+function extractYear(entry) {
+  const raw = entry.fiscal_date || entry.date || entry.fiscal_period || entry.period || '';
+  if (!raw) return '—';
+  // If ISO date like "2024-12-31", take first 4 chars
+  if (typeof raw === 'string' && raw.length >= 4) return raw.slice(0, 4);
+  return String(raw);
+}
+
 /* ── Main component ───────────────────────────────────────────────────── */
-const FETCH_TIMEOUT = 12000; // 12s timeout
+const FETCH_TIMEOUT = 15000; // 15s timeout (was 12s)
 
 export const MiniFinancials = memo(function MiniFinancials({ ticker, accentColor = '#4a90d9', onError }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const onErrorRef = useRef(onError);
+  onErrorRef.current = onError;
 
   useEffect(() => {
     if (!ticker) { setLoading(false); return; }
@@ -93,15 +113,15 @@ export const MiniFinancials = memo(function MiniFinancials({ ticker, accentColor
         }
 
         const chartData = results.map(year => ({
-          year: year.fiscal_period ? year.fiscal_period.slice(0, 4) : '—',
-          revenue: parseFloat(year.revenue) || 0,
-          netIncome: parseFloat(year.net_income) || 0,
+          year: extractYear(year),
+          revenue: parseFloat(year.revenue) || parseFloat(year.total_revenue) || 0,
+          netIncome: parseFloat(year.net_income) || parseFloat(year.net_income_loss) || 0,
         }));
 
         if (!cancelled) setData(chartData);
       } catch (err) {
         if (!cancelled && err.name !== 'AbortError') {
-          onError?.(err);
+          onErrorRef.current?.(err);
           setData([]);
         }
       } finally {
@@ -112,12 +132,12 @@ export const MiniFinancials = memo(function MiniFinancials({ ticker, accentColor
 
     fetchData();
     return () => { cancelled = true; controller.abort(); clearTimeout(timer); };
-  }, [ticker, onError, accentColor]);
+  }, [ticker]); // Sprint 5: ONLY depend on ticker — not onError or accentColor
 
   /* ── Loading state: shimmer ─────────────────────────────────────────── */
   if (loading) {
     return (
-      <div style={{ height: 90, padding: '4px 0' }}>
+      <div style={{ height: 110, padding: '4px 0' }}>
         <div style={{
           height: '100%',
           background: 'linear-gradient(90deg, #1a1a1a 25%, #222 50%, #1a1a1a 75%)',
@@ -133,7 +153,7 @@ export const MiniFinancials = memo(function MiniFinancials({ ticker, accentColor
   if (!data || data.length === 0) {
     return (
       <div style={{
-        height: 90,
+        height: 110,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -152,7 +172,7 @@ export const MiniFinancials = memo(function MiniFinancials({ ticker, accentColor
   if (!hasRevenue && !hasNetIncome) {
     return (
       <div style={{
-        height: 90,
+        height: 110,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -165,37 +185,38 @@ export const MiniFinancials = memo(function MiniFinancials({ ticker, accentColor
   }
 
   return (
-    <div style={{ height: 90, position: 'relative' }}>
+    <div style={{ height: 110, position: 'relative' }}>
       {/* Metric label */}
       <div style={{
         fontSize: 8,
-        color: '#666',
+        color: '#888',
         textAlign: 'center',
         lineHeight: '10px',
-        marginBottom: 1,
+        marginBottom: 2,
         letterSpacing: '0.3px',
+        fontWeight: 500,
       }}>
         Revenue{hasNetIncome ? ' & Net Income' : ''}
       </div>
-      <ResponsiveContainer width="100%" height={78}>
+      <ResponsiveContainer width="100%" height={96}>
         <BarChart
           data={data}
-          margin={{ top: 2, right: 2, bottom: 0, left: 0 }}
-          barGap={1}
-          barCategoryGap="20%"
+          margin={{ top: 2, right: 4, bottom: 0, left: 0 }}
+          barGap={2}
+          barCategoryGap="15%"
         >
           <XAxis
             dataKey="year"
-            tick={{ fontSize: 8, fill: '#666' }}
+            tick={{ fontSize: 9, fill: '#888' }}
             tickLine={false}
             axisLine={false}
           />
           <YAxis
             tickFormatter={yAxisFormatter}
-            tick={{ fontSize: 7, fill: '#555' }}
+            tick={{ fontSize: 7, fill: '#666' }}
             tickLine={false}
             axisLine={false}
-            width={36}
+            width={38}
             tickCount={3}
           />
           <Tooltip content={<CustomTooltip />} />
@@ -204,10 +225,10 @@ export const MiniFinancials = memo(function MiniFinancials({ ticker, accentColor
               dataKey="revenue"
               name="Revenue"
               radius={[2, 2, 0, 0]}
-              maxBarSize={20}
+              maxBarSize={28}
             >
               {data.map((entry, idx) => (
-                <Cell key={`rev-${idx}`} fill={accentColor} fillOpacity={0.85} />
+                <Cell key={`rev-${idx}`} fill={accentColor} fillOpacity={0.95} />
               ))}
             </Bar>
           )}
@@ -216,13 +237,13 @@ export const MiniFinancials = memo(function MiniFinancials({ ticker, accentColor
               dataKey="netIncome"
               name="Net Income"
               radius={[2, 2, 0, 0]}
-              maxBarSize={20}
+              maxBarSize={28}
             >
               {data.map((entry, idx) => (
                 <Cell
                   key={`ni-${idx}`}
-                  fill={entry.netIncome >= 0 ? '#4caf50' : '#ef5350'}
-                  fillOpacity={0.85}
+                  fill={entry.netIncome >= 0 ? '#66bb6a' : '#ef5350'}
+                  fillOpacity={0.95}
                 />
               ))}
             </Bar>

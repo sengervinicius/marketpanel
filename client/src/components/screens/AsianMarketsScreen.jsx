@@ -417,6 +417,7 @@ function AsianMarketsScreenImpl() {
           metrics={['pe', 'marketCap', 'revenue', 'grossMargins', 'operatingMargins', 'returnOnEquity']}
           title="All Equities - Key Metrics"
           onTickerClick={openDetail}
+          statsMap={statsMap}
         />
       ),
     },

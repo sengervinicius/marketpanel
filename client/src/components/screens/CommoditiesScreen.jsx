@@ -391,6 +391,7 @@ function CommoditiesScreenImpl() {
           onTickerClick={(ticker) => {
             // Navigation happens via OpenDetailContext in the component
           }}
+          statsMap={statsMap}
         />
       </div>
 

@@ -1,11 +1,28 @@
 /**
- * SectorChartPanel.jsx
+ * SectorChartPanel.jsx — Sprint 5 rewrite
  * Multi-chart grid for sector-wide technical analysis.
+ *
+ * Sprint 5 fixes:
+ *  - Task 3: Fixed chart blinking — serialize tickers for useEffect deps
+ *    instead of using array reference (new reference each render bypassed memo)
+ *  - Task 4: Added timeframe selector (1D/1W/1M/3M/6M/1Y) matching home screen
+ *    and SectorChartStrip patterns
+ *  - Task 5: Updated visual styling to match home screen chart style
  */
-import { useState, useEffect, useMemo, memo } from 'react';
-import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, defs, linearGradient, stop } from 'recharts';
+import { useState, useEffect, useMemo, useRef, memo, useCallback } from 'react';
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { apiFetch } from '../../../utils/api';
 import { useIsMobile } from '../../../hooks/useIsMobile';
+
+/* ── Timeframe ranges (same as home screen ChartPanel + SectorChartStrip) ── */
+const RANGES = [
+  { label: '1D', multiplier: 5,  timespan: 'minute', days: 1   },
+  { label: '1W', multiplier: 30, timespan: 'minute', days: 7   },
+  { label: '1M', multiplier: 1,  timespan: 'day',    days: 30  },
+  { label: '3M', multiplier: 1,  timespan: 'day',    days: 90  },
+  { label: '6M', multiplier: 1,  timespan: 'day',    days: 180 },
+  { label: '1Y', multiplier: 1,  timespan: 'day',    days: 365 },
+];
 
 function CustomTooltip({ active, payload }) {
   if (active && payload && payload[0]) {
@@ -142,15 +159,51 @@ const SingleChart = memo(function SingleChart({ ticker, data, height, onTickerCl
   );
 });
 
-export function SectorChartPanel({ tickers = [], height = 200, cols = 2 }) {
+/* ── Range Selector Bar ──────────────────────────────────────────────── */
+function RangeBar({ rangeIdx, onChange, accentColor }) {
+  return (
+    <div style={{
+      display: 'flex',
+      gap: 2,
+      padding: '4px 0 8px',
+    }}>
+      {RANGES.map((r, i) => (
+        <button
+          key={r.label}
+          onClick={() => onChange(i)}
+          style={{
+            background: i === rangeIdx ? (accentColor || '#ff6b00') : 'transparent',
+            color: i === rangeIdx ? '#000' : '#888',
+            border: i === rangeIdx ? 'none' : '1px solid #333',
+            borderRadius: 3,
+            padding: '3px 8px',
+            fontSize: 9,
+            fontWeight: i === rangeIdx ? 700 : 500,
+            cursor: 'pointer',
+            letterSpacing: '0.5px',
+            transition: 'all 0.15s ease',
+          }}
+        >
+          {r.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+export function SectorChartPanel({ tickers = [], height = 200, cols = 2, accentColor }) {
   const isMobile = useIsMobile();
   const [chartData, setChartData] = useState({});
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState(null);
   const [retryCount, setRetryCount] = useState(0);
   const [timedOut, setTimedOut] = useState(false);
+  const [rangeIdx, setRangeIdx] = useState(3); // Default to 3M
 
   const gridCols = isMobile ? 1 : cols;
+
+  // Sprint 5: Serialize tickers for stable dependency comparison
+  const tickerKey = useMemo(() => tickers.join(','), [tickers]);
 
   // Sprint 3: 10s loading timeout for charts
   useEffect(() => {
@@ -164,28 +217,30 @@ export function SectorChartPanel({ tickers = [], height = 200, cols = 2 }) {
   }, [loading]);
 
   useEffect(() => {
-    if (!tickers || tickers.length === 0) {
+    if (!tickerKey) {
       setChartData({});
       setLoading(false);
       return;
     }
+
+    const tickerList = tickerKey.split(',');
 
     const fetchCharts = async () => {
       try {
         setLoading(true);
         setFetchError(null);
 
-        // Build correct query params: server expects from, to, timespan, multiplier
+        const range = RANGES[rangeIdx];
         const now = new Date();
         const toDate = now.toISOString().split('T')[0];
         const fromDate = (() => {
           const d = new Date(now);
-          d.setMonth(d.getMonth() - 3);
+          d.setDate(d.getDate() - range.days);
           return d.toISOString().split('T')[0];
         })();
 
-        const promises = tickers.map(ticker =>
-          apiFetch(`/api/chart/${ticker}?from=${fromDate}&to=${toDate}&timespan=day&multiplier=1`)
+        const promises = tickerList.map(ticker =>
+          apiFetch(`/api/chart/${ticker}?from=${fromDate}&to=${toDate}&timespan=${range.timespan}&multiplier=${range.multiplier}`)
             .then(res => res.ok ? res.json() : null)
             .catch(() => null)
         );
@@ -194,14 +249,10 @@ export function SectorChartPanel({ tickers = [], height = 200, cols = 2 }) {
         const newChartData = {};
 
         results.forEach((result, idx) => {
-          const ticker = tickers[idx];
+          const ticker = tickerList[idx];
           if (result) {
             let dataArray = [];
 
-            // Handle all server response shapes:
-            // - direct array: [...]
-            // - Polygon/Yahoo/TwelveData: { results: [...] }
-            // - wrapped: { ok, data: [...] }
             if (Array.isArray(result)) {
               dataArray = result;
             } else if (result.results && Array.isArray(result.results)) {
@@ -210,8 +261,6 @@ export function SectorChartPanel({ tickers = [], height = 200, cols = 2 }) {
               dataArray = result.data;
             }
 
-            // Transform OHLCV to chartable format
-            // Server may return { t, c, o, h, l } (Polygon/Yahoo) or { date, close } (TwelveData)
             const transformed = dataArray
               .filter(bar => (bar.close ?? bar.c) != null)
               .map(bar => {
@@ -239,15 +288,66 @@ export function SectorChartPanel({ tickers = [], height = 200, cols = 2 }) {
     };
 
     fetchCharts();
-  }, [tickers, retryCount]);
+  }, [tickerKey, rangeIdx, retryCount]); // Sprint 5: tickerKey (string) instead of tickers (array ref)
 
-  const handleTickerClick = (ticker) => {
-    // Navigation would happen in parent
+  const handleTickerClick = useCallback((ticker) => {
     console.log('Chart ticker clicked:', ticker);
-  };
+  }, []);
 
   if (loading) {
     return (
+      <div>
+        <RangeBar rangeIdx={rangeIdx} onChange={setRangeIdx} accentColor={accentColor} />
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: `repeat(${gridCols}, 1fr)`,
+          gap: '1px',
+          background: '#1e1e1e',
+          padding: '1px',
+        }}>
+          {tickerKey.split(',').map(ticker => (
+            <ChartSkeleton key={ticker} height={height} />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (fetchError) {
+    return (
+      <div>
+        <RangeBar rangeIdx={rangeIdx} onChange={setRangeIdx} accentColor={accentColor} />
+        <div style={{
+          padding: '20px 16px',
+          textAlign: 'center',
+          color: '#888',
+          fontSize: 11,
+        }}>
+          <div style={{ color: '#ef5350', fontWeight: 600, marginBottom: 6 }}>Charts unavailable</div>
+          <div style={{ color: '#666', fontSize: 10, marginBottom: 10 }}>{fetchError}</div>
+          <button
+            onClick={() => setRetryCount(c => c + 1)}
+            style={{
+              background: 'transparent',
+              border: '1px solid #444',
+              color: '#aaa',
+              padding: '4px 12px',
+              borderRadius: 3,
+              cursor: 'pointer',
+              fontSize: 9,
+              fontWeight: 600,
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px',
+            }}
+          >RETRY</button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <RangeBar rangeIdx={rangeIdx} onChange={setRangeIdx} accentColor={accentColor} />
       <div style={{
         display: 'grid',
         gridTemplateColumns: `repeat(${gridCols}, 1fr)`,
@@ -255,59 +355,16 @@ export function SectorChartPanel({ tickers = [], height = 200, cols = 2 }) {
         background: '#1e1e1e',
         padding: '1px',
       }}>
-        {tickers.map(ticker => (
-          <ChartSkeleton key={ticker} height={height} />
+        {tickerKey.split(',').map(ticker => (
+          <SingleChart
+            key={ticker}
+            ticker={ticker}
+            data={chartData[ticker]}
+            height={height}
+            onTickerClick={handleTickerClick}
+          />
         ))}
       </div>
-    );
-  }
-
-  if (fetchError) {
-    return (
-      <div style={{
-        padding: '20px 16px',
-        textAlign: 'center',
-        color: '#888',
-        fontSize: 11,
-      }}>
-        <div style={{ color: '#ef5350', fontWeight: 600, marginBottom: 6 }}>Charts unavailable</div>
-        <div style={{ color: '#666', fontSize: 10, marginBottom: 10 }}>{fetchError}</div>
-        <button
-          onClick={() => setRetryCount(c => c + 1)}
-          style={{
-            background: 'transparent',
-            border: '1px solid #444',
-            color: '#aaa',
-            padding: '4px 12px',
-            borderRadius: 3,
-            cursor: 'pointer',
-            fontSize: 9,
-            fontWeight: 600,
-            textTransform: 'uppercase',
-            letterSpacing: '0.5px',
-          }}
-        >RETRY</button>
-      </div>
-    );
-  }
-
-  return (
-    <div style={{
-      display: 'grid',
-      gridTemplateColumns: `repeat(${gridCols}, 1fr)`,
-      gap: '1px',
-      background: '#1e1e1e',
-      padding: '1px',
-    }}>
-      {tickers.map(ticker => (
-        <SingleChart
-          key={ticker}
-          ticker={ticker}
-          data={chartData[ticker]}
-          height={height}
-          onTickerClick={handleTickerClick}
-        />
-      ))}
     </div>
   );
 }
