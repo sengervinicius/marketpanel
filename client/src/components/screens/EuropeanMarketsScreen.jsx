@@ -108,16 +108,18 @@ const TableRow = memo(function TableRow({ ticker, name, statsMap, openDetail }) 
 
   return (
     <tr className="ds-row-clickable" onClick={() => openDetail(sym)}>
-      <td className="ds-ticker-col">{sym}</td>
-      <td>{displayName || LABELS[sym] || '—'}</td>
-      <td>{fmt(q?.price, 2)}</td>
-      <td className={q?.changePct != null && q.changePct >= 0 ? 'ds-up' : 'ds-down'}>
+      <td className="ds-ticker-col" style={{ fontSize: 12, letterSpacing: '0.5px' }}>{sym}</td>
+      <td style={{ fontSize: 13, color: '#aaa' }}>{displayName || LABELS[sym] || '—'}</td>
+      <td style={{ fontSize: 14, color: '#fff', fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>
+        {q?.price != null ? '$' + fmt(q.price, 2) : '—'}
+      </td>
+      <td className={q?.changePct != null && q.changePct >= 0 ? 'ds-up' : 'ds-down'} style={{ fontSize: 13, fontWeight: 500 }}>
         {fmtPct(q?.changePct)}
       </td>
-      <td style={{ fontFamily: 'monospace', fontSize: 10, color: '#888' }}>
+      <td style={{ fontFamily: 'monospace', fontSize: 13, color: '#999', fontVariantNumeric: 'tabular-nums' }}>
         {fmtB(statsMap.get(sym)?.market_capitalization)}
       </td>
-      <td style={{ fontFamily: 'monospace', fontSize: 10, color: '#ccc' }}>
+      <td style={{ fontFamily: 'monospace', fontSize: 13, color: '#ccc', fontVariantNumeric: 'tabular-nums' }}>
         {statsMap.get(sym)?.pe_ratio != null ? parseFloat(statsMap.get(sym)?.pe_ratio).toFixed(1) + 'x' : '—'}
       </td>
     </tr>
@@ -133,12 +135,12 @@ const SectionTable = memo(function SectionTable({ tickers, statsMap }) {
       <table className="ds-table">
         <thead>
           <tr>
-            <th>Ticker</th>
-            <th>Name</th>
+            <th style={{ textAlign: 'left' }}>Ticker</th>
+            <th style={{ textAlign: 'left' }}>Name</th>
             <th>Price</th>
             <th>1D%</th>
-            <th style={{ fontSize: 9 }}>Mkt Cap</th>
-            <th style={{ fontSize: 9 }}>P/E</th>
+            <th>Mkt Cap</th>
+            <th>P/E</th>
           </tr>
         </thead>
         <tbody>

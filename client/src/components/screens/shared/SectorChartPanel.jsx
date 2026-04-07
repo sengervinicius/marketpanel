@@ -2,7 +2,7 @@
  * SectorChartPanel.jsx
  * Multi-chart grid for sector-wide technical analysis.
  */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, memo } from 'react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, defs, linearGradient, stop } from 'recharts';
 import { apiFetch } from '../../../utils/api';
 import { useIsMobile } from '../../../hooks/useIsMobile';
@@ -39,7 +39,7 @@ function ChartSkeleton({ height = 200 }) {
   );
 }
 
-function SingleChart({ ticker, data, height, onTickerClick }) {
+const SingleChart = memo(function SingleChart({ ticker, data, height, onTickerClick }) {
   if (!data || data.length === 0) {
     return (
       <div style={{
@@ -111,7 +111,14 @@ function SingleChart({ ticker, data, height, onTickerClick }) {
             </linearGradient>
           </defs>
           <XAxis dataKey="date" style={{ fontSize: 8, fill: '#666' }} />
-          <YAxis domain="dataMin" style={{ fontSize: 8, fill: '#666' }} />
+          <YAxis
+            domain={['dataMin', 'dataMax']}
+            tick={{ fontSize: 8, fill: '#666' }}
+            tickLine={false}
+            axisLine={false}
+            tickFormatter={(v) => `$${v >= 1000 ? (v/1000).toFixed(0) + 'k' : v.toFixed(0)}`}
+            width={45}
+          />
           <Tooltip content={<CustomTooltip />} />
           <Area
             type="monotone"
@@ -133,7 +140,7 @@ function SingleChart({ ticker, data, height, onTickerClick }) {
       </div>
     </div>
   );
-}
+});
 
 export function SectorChartPanel({ tickers = [], height = 200, cols = 2 }) {
   const isMobile = useIsMobile();

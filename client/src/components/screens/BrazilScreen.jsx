@@ -307,7 +307,7 @@ function EmEtfCell({ sym, openDetail }) {
       <td className={q?.changePct >= 0 ? 'ds-val-pos' : 'ds-val-neg'}>
         {q?.changePct != null ? fmtPct(q.changePct) : '—'}
       </td>
-      <td style={{ fontSize: 9, color: '#999' }}>{EM_EQUITY_NAMES[sym]}</td>
+      <td style={{ fontSize: 11, color: '#999' }}>{EM_EQUITY_NAMES[sym]}</td>
     </tr>
   );
 }

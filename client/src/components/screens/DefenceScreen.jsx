@@ -83,27 +83,30 @@ function EnhancedTableRow({ symbol, label, stats, onClick }) {
 }
 
 /* ── Table Row Component ───────────────────────────────────────────────── */
-function SectionTableRow({ sym, name, statsMap, onClickRow, withMiniCharts }) {
+function SectionTableRow({ sym, name, statsMap, onClickRow, withMiniCharts, accentColor }) {
   const q = useTickerPrice(sym);
   const stats = statsMap.get(sym);
 
   return (
-    <tr className="ds-row-clickable" onClick={() => onClickRow(sym)}>
-      <td className="ds-ticker-col">{sym}</td>
-      <td>{name || LABELS[sym] || '—'}</td>
-      <td>{fmt(q?.price, 2)}</td>
-      <td className={q?.changePct != null && q.changePct >= 0 ? 'ds-up' : 'ds-down'}>
+    <tr className="ds-row-clickable" onClick={() => onClickRow(sym)} style={{ minHeight: withMiniCharts ? 100 : 44 }}>
+      <td className="ds-ticker-col" style={{ fontSize: 12, letterSpacing: '0.5px' }}>{sym}</td>
+      <td style={{ fontSize: 13, color: '#aaa' }}>{name || LABELS[sym] || '—'}</td>
+      <td style={{ fontSize: 14, color: '#fff', fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>
+        {q?.price != null ? '$' + fmt(q.price, 2) : '—'}
+      </td>
+      <td className={q?.changePct != null && q.changePct >= 0 ? 'ds-up' : 'ds-down'}
+          style={{ fontSize: 13, fontWeight: 500 }}>
         {fmtPct(q?.changePct)}
       </td>
-      <td style={{ fontFamily: 'monospace', fontSize: 10, color: '#888' }}>
+      <td style={{ fontFamily: 'monospace', fontSize: 13, color: '#999', fontVariantNumeric: 'tabular-nums' }}>
         {fmtB(stats?.market_capitalization)}
       </td>
-      <td style={{ fontFamily: 'monospace', fontSize: 10, color: '#ccc' }}>
+      <td style={{ fontFamily: 'monospace', fontSize: 13, color: '#ccc', fontVariantNumeric: 'tabular-nums' }}>
         {stats?.pe_ratio != null ? parseFloat(stats?.pe_ratio).toFixed(1) + 'x' : '—'}
       </td>
       {withMiniCharts && (
-        <td style={{ padding: '4px', maxWidth: 200 }}>
-          <MiniFinancials ticker={sym} onError={() => {}} />
+        <td style={{ padding: '2px 4px', width: 200, minWidth: 180 }}>
+          <MiniFinancials ticker={sym} accentColor={accentColor || '#4a90d9'} onError={() => {}} />
         </td>
       )}
     </tr>
@@ -111,7 +114,7 @@ function SectionTableRow({ sym, name, statsMap, onClickRow, withMiniCharts }) {
 }
 
 /* ── Section Table Component ───────────────────────────────────────────── */
-const SectionTable = memo(function SectionTable({ tickers, statsMap, labels, withMiniCharts }) {
+const SectionTable = memo(function SectionTable({ tickers, statsMap, labels, withMiniCharts, accentColor }) {
   const openDetail = useOpenDetail();
 
   return (
@@ -119,13 +122,13 @@ const SectionTable = memo(function SectionTable({ tickers, statsMap, labels, wit
       <table className="ds-table">
         <thead>
           <tr>
-            <th>Ticker</th>
-            <th>Name</th>
+            <th style={{ textAlign: 'left' }}>Ticker</th>
+            <th style={{ textAlign: 'left' }}>Name</th>
             <th>Price</th>
             <th>1D%</th>
-            <th style={{ fontSize: 9 }}>Mkt Cap</th>
-            <th style={{ fontSize: 9 }}>P/E</th>
-            {withMiniCharts && <th style={{ fontSize: 9 }}>3-Year Financials</th>}
+            <th>Mkt Cap</th>
+            <th>P/E</th>
+            {withMiniCharts && <th style={{ minWidth: 180 }}>3-Year Financials</th>}
           </tr>
         </thead>
         <tbody>
@@ -140,6 +143,7 @@ const SectionTable = memo(function SectionTable({ tickers, statsMap, labels, wit
                 statsMap={statsMap}
                 onClickRow={openDetail}
                 withMiniCharts={withMiniCharts}
+                accentColor={accentColor}
               />
             );
           })}
@@ -220,7 +224,7 @@ function DefenceScreenImpl() {
       title: 'US Defence Primes',
       component: () => (
         <StatsLoadGate statsMap={statsMap} loading={statsLoading} error={statsError} refresh={statsRefresh}>
-          <SectionTable tickers={US_PRIMES} statsMap={statsMap} withMiniCharts={true} />
+          <SectionTable tickers={US_PRIMES} statsMap={statsMap} withMiniCharts={true} accentColor="#ef5350" />
         </StatsLoadGate>
       ),
     },

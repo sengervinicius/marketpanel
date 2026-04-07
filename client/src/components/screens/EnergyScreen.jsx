@@ -50,13 +50,17 @@ function EnhancedEquityRow({ symbol, stats, onClick }) {
   const divYield = stats?.dividend_yield;
   return (
     <tr className="ds-row-clickable" onClick={() => onClick(symbol)}>
-      <td className="ds-ticker-col">{symbol}</td>
-      <td>{LABELS[symbol] || '—'}</td>
-      <td>{fmt(q?.price, 2)}</td>
-      <td className={q?.changePct != null && q.changePct >= 0 ? 'ds-up' : 'ds-down'}>{fmtPct(q?.changePct)}</td>
-      <td style={{ fontFamily: 'monospace', fontSize: 10, color: '#888' }}>{fmtB(mktCap)}</td>
-      <td style={{ fontFamily: 'monospace', fontSize: 10, color: '#ccc' }}>{pe != null ? parseFloat(pe).toFixed(1) + 'x' : '—'}</td>
-      <td style={{ fontFamily: 'monospace', fontSize: 10, color: '#66bb6a' }}>
+      <td className="ds-ticker-col" style={{ fontSize: 12, letterSpacing: '0.5px' }}>{symbol}</td>
+      <td style={{ fontSize: 13, color: '#aaa' }}>{LABELS[symbol] || '—'}</td>
+      <td style={{ fontSize: 14, color: '#fff', fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>
+        {q?.price != null ? '$' + fmt(q.price, 2) : '—'}
+      </td>
+      <td className={q?.changePct != null && q.changePct >= 0 ? 'ds-up' : 'ds-down'} style={{ fontSize: 13, fontWeight: 500 }}>
+        {fmtPct(q?.changePct)}
+      </td>
+      <td style={{ fontFamily: 'monospace', fontSize: 13, color: '#999', fontVariantNumeric: 'tabular-nums' }}>{fmtB(mktCap)}</td>
+      <td style={{ fontFamily: 'monospace', fontSize: 13, color: '#ccc', fontVariantNumeric: 'tabular-nums' }}>{pe != null ? parseFloat(pe).toFixed(1) + 'x' : '—'}</td>
+      <td style={{ fontFamily: 'monospace', fontSize: 13, color: 'var(--price-up, #4caf50)', fontVariantNumeric: 'tabular-nums' }}>
         {divYield != null ? (parseFloat(divYield) * 100).toFixed(1) + '%' : '—'}
       </td>
     </tr>
@@ -70,9 +74,9 @@ const EquitySection = memo(function EquitySection({ tickers, statsMap }) {
       <thead>
         <tr>
           <th>Ticker</th><th>Name</th><th>Price</th><th>1D%</th>
-          <th style={{ fontSize: 9 }}>Mkt Cap</th>
-          <th style={{ fontSize: 9 }}>P/E</th>
-          <th style={{ fontSize: 9 }}>Div%</th>
+          <th>Mkt Cap</th>
+          <th>P/E</th>
+          <th>Div%</th>
         </tr>
       </thead>
       <tbody>

@@ -91,16 +91,18 @@ function CryptoEquityRow({ symbol, label, stats, onClick }) {
 
   return (
     <tr className="ds-row-clickable" onClick={() => onClick(symbol)}>
-      <td className="ds-ticker-col">{symbol}</td>
-      <td>{label || '—'}</td>
-      <td>{q?.price != null ? fmt(q.price, 2) : '—'}</td>
-      <td className={q?.changePct != null && q.changePct >= 0 ? 'ds-val-pos' : 'ds-val-neg'}>
+      <td className="ds-ticker-col" style={{ fontSize: 12, letterSpacing: '0.5px' }}>{symbol}</td>
+      <td style={{ fontSize: 13, color: '#aaa' }}>{label || '—'}</td>
+      <td style={{ fontSize: 14, color: '#fff', fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>
+        {q?.price != null ? '$' + fmt(q.price, 2) : '—'}
+      </td>
+      <td className={q?.changePct != null && q.changePct >= 0 ? 'ds-val-pos' : 'ds-val-neg'} style={{ fontSize: 13, fontWeight: 500 }}>
         {fmtPct(q?.changePct)}
       </td>
-      <td style={{ fontFamily: 'monospace', fontSize: 10, color: '#888' }}>
+      <td style={{ fontFamily: 'monospace', fontSize: 13, color: '#999', fontVariantNumeric: 'tabular-nums' }}>
         {fmtB(mktCap)}
       </td>
-      <td style={{ fontFamily: 'monospace', fontSize: 10, color: '#ccc' }}>
+      <td style={{ fontFamily: 'monospace', fontSize: 13, color: '#ccc', fontVariantNumeric: 'tabular-nums' }}>
         {pe != null ? parseFloat(pe).toFixed(1) + 'x' : '—'}
       </td>
     </tr>
@@ -170,12 +172,12 @@ const CryptoEquitiesSection = memo(function CryptoEquitiesSection({ statsMap }) 
       <table className="ds-table">
         <thead>
           <tr>
-            <th>Ticker</th>
-            <th>Name</th>
+            <th style={{ textAlign: 'left' }}>Ticker</th>
+            <th style={{ textAlign: 'left' }}>Name</th>
             <th>Price</th>
             <th>1D%</th>
-            <th style={{ fontSize: 9 }}>Mkt Cap</th>
-            <th style={{ fontSize: 9 }}>P/E</th>
+            <th>Mkt Cap</th>
+            <th>P/E</th>
           </tr>
         </thead>
         <tbody>
