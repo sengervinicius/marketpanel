@@ -98,7 +98,13 @@ app.get('/health', (req, res) => res.json({
 app.use('/api/auth', authRoutes);
 
 // ── Protected routes ───────────────────────────────────────────────────────────
-// Billing: auth required, subscription check is inside (create-session / status)
+// Stripe webhook: MUST be before requireAuth — Stripe cannot authenticate as a user.
+// Raw body parsing is handled inside the route (express.raw).
+app.post('/api/billing/webhook', express.raw({ type: 'application/json' }), (req, res) => {
+  const { handleBillingWebhook } = require('./billing');
+  handleBillingWebhook(req, res);
+});
+// Billing: auth required for all other endpoints (create-session, status, portal)
 app.use('/api/billing', requireAuth, billingRoutes);
 // Apple IAP: mounted under /api/billing/iap (auth handled per-route inside)
 app.use('/api/billing/iap', iapRoutes);

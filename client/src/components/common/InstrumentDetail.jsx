@@ -40,6 +40,9 @@ const NO_DATA_EXCHANGES = new Set([]);
 // ── Main Component ──────────────────────────────────────────────────────────
 // asPage=true: renders as a scrollable page (DETAIL tab on mobile), no fixed overlay
 export default function InstrumentDetail({ ticker, onClose, asPage = false, onOpenChat }) {
+  // Crash-hardening: safe callbacks that never throw if caller forgets to pass them
+  const handleClose = typeof onClose === 'function' ? onClose : () => {};
+  const handleOpenChat = typeof onOpenChat === 'function' ? onOpenChat : null;
   const openDetail = useOpenDetail();
 
   // Use the mobile detection hook
@@ -128,8 +131,8 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
 
   // ── Focus management + Escape key + mobile back-button support ────────
   const closeButtonRef = useRef(null);
-  const onCloseRef = useRef(onClose);
-  useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
+  const onCloseRef = useRef(handleClose);
+  useEffect(() => { onCloseRef.current = handleClose; }, [handleClose]);
 
   useEffect(() => {
     if (!asPage) {
@@ -1692,8 +1695,8 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
   const openPositionEditor = useCallback(() => { setShowPositionEditor(true); }, []);
   const openAlertCreator   = useCallback(() => { setShowAlertEditor(true); }, []);
   const sendToChat = useCallback(() => {
-    if (typeof onOpenChat === 'function') onOpenChat(norm);
-  }, [onOpenChat, norm]);
+    if (handleOpenChat) handleOpenChat(norm);
+  }, [handleOpenChat, norm]);
 
   // Step 4.2: Switch to another listing via context
   const onSwitchListing = useCallback((symbolKey) => {
@@ -1703,7 +1706,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
   return (
     <div
       className={asPage ? 'id-page' : 'id-overlay'}
-      onMouseDown={asPage ? undefined : (e => { if (e.target === e.currentTarget) onClose(); })}
+      onMouseDown={asPage ? undefined : (e => { if (e.target === e.currentTarget) handleClose(); })}
     >
       {/* ── HERO PRICE BLOCK (hidden on mobile asPage to save space) ── */}
       <div className={`id-hero${asPage && isMobile ? ' id-hero--hidden' : ''}`}>
@@ -1723,7 +1726,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
               <button className="id-hero-action-btn" onClick={openPositionEditor}>+ Portfolio</button>
               <button className="id-hero-action-btn" onClick={openAlertCreator}>{String.fromCharCode(128276)} Alert</button>
               <button className="id-hero-action-btn" onClick={() => setShowGameTrade(true)} style={{ minHeight: 44 }}>Game Trade</button>
-              {onOpenChat && <button className="id-hero-action-btn" onClick={sendToChat}>{String.fromCharCode(128172)} Chat</button>}
+              {handleOpenChat && <button className="id-hero-action-btn" onClick={sendToChat}>{String.fromCharCode(128172)} Chat</button>}
               <button className="id-hero-action-btn" onClick={handleShare}>{String.fromCharCode(8599)} Share</button>
             </div>
           </div>
@@ -1785,7 +1788,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
         {/* Close button */}
         <button
           ref={closeButtonRef}
-          onClick={onClose}
+          onClick={handleClose}
           title="Close (Esc)"
           className={`id-close${isMobile ? ' id-close--mobile' : ''}`}
         >✕</button>
@@ -2115,7 +2118,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
         <button className="id-action-btn-bar id-action-btn-bar--primary" onClick={openPositionEditor}>+ Portfolio</button>
         <button className="id-action-btn-bar" onClick={openAlertCreator}>{String.fromCharCode(128276)} Alert</button>
         <button className="id-action-btn-bar" onClick={() => setShowGameTrade(true)} style={{ minHeight: 44 }}>Game Trade</button>
-        {onOpenChat && <button className="id-action-btn-bar" onClick={sendToChat}>{String.fromCharCode(128172)} Chat</button>}
+        {handleOpenChat && <button className="id-action-btn-bar" onClick={sendToChat}>{String.fromCharCode(128172)} Chat</button>}
         <button className="id-action-btn-bar" onClick={handleShare}>{String.fromCharCode(8599)} Share</button>
       </div>
 

@@ -292,8 +292,8 @@ function BitcoinOnChainSection() {
   const volume = data?.volume || {};
   const mktData = data?.mktData || {};
 
-  if (error) {
-    return <DeepError message={`Error loading BTC on-chain data: ${error}`} />;
+  if (error && !data) {
+    return <div style={{ padding: 10, color: '#555', fontSize: 10, textAlign: 'center' }}>On-chain data temporarily unavailable</div>;
   }
 
   return (
@@ -308,28 +308,28 @@ function BitcoinOnChainSection() {
         value={onChain.active_addresses ? (onChain.active_addresses / 1e6).toFixed(1) : null}
         unit="Million"
         loading={loading}
-        error={error}
+        error={false}
       />
       <OnChainCard
         label="Transaction Volume"
         value={onChain.transaction_volume ? (onChain.transaction_volume / 1e9).toFixed(2) : null}
         unit="Billions"
         loading={loading}
-        error={error}
+        error={false}
       />
       <OnChainCard
         label="Hash Rate"
         value={onChain.hash_rate ? (onChain.hash_rate / 1e9).toFixed(1) : null}
         unit="EH/s"
         loading={loading}
-        error={error}
+        error={false}
       />
       <OnChainCard
         label="Mkt Cap Dominance"
         value={mktData.btc_dominance ? mktData.btc_dominance.toFixed(1) : null}
         unit="%"
         loading={loading}
-        error={error}
+        error={false}
       />
     </div>
   );
@@ -350,8 +350,8 @@ function EthereumOnChainSection() {
   const onChain = data?.onChain || {};
   const defi = data?.defi || {};
 
-  if (error) {
-    return <DeepError message={`Error loading ETH on-chain data: ${error}`} />;
+  if (error && !data) {
+    return <div style={{ padding: 10, color: '#555', fontSize: 10, textAlign: 'center' }}>On-chain data temporarily unavailable</div>;
   }
 
   return (
@@ -366,28 +366,28 @@ function EthereumOnChainSection() {
         value={onChain.staking_ratio ? (onChain.staking_ratio * 100).toFixed(1) : null}
         unit="%"
         loading={loading}
-        error={error}
+        error={false}
       />
       <OnChainCard
         label="Gas Price (Gwei)"
         value={onChain.avg_gas_price ? onChain.avg_gas_price.toFixed(1) : null}
         unit="Gwei"
         loading={loading}
-        error={error}
+        error={false}
       />
       <OnChainCard
         label="Active Addresses"
         value={onChain.active_addresses ? (onChain.active_addresses / 1e6).toFixed(1) : null}
         unit="Million"
         loading={loading}
-        error={error}
+        error={false}
       />
       <OnChainCard
         label="DeFi TVL"
         value={defi.total_value_locked ? (defi.total_value_locked / 1e9).toFixed(1) : null}
         unit="Billions"
         loading={loading}
-        error={error}
+        error={false}
       />
     </div>
   );
@@ -397,13 +397,14 @@ function EthereumOnChainSection() {
 function CryptoDominanceSection() {
   const btc = useTickerPrice('X:BTCUSD');
   const eth = useTickerPrice('X:ETHUSD');
-  const { data: btcOnChain } = useSectionData('bitcoin');
 
   const ethBtcRatio = (eth?.price != null && btc?.price != null && btc.price > 0)
     ? (eth.price / btc.price)
     : null;
 
-  const btcDominance = btcOnChain?.mktData?.btc_dominance || null;
+  // BTC dominance requires a dedicated on-chain data endpoint (not yet implemented).
+  // Show null gracefully instead of crashing via useSectionData with no fetcher.
+  const btcDominance = null;
 
   return (
     <div style={{

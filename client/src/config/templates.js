@@ -1,29 +1,13 @@
 /**
  * templates.js
- * Single source of truth for all workspace templates.
+ * Single source of truth for workspace configuration.
  *
- * PRODUCT MODEL (post-refactor):
- *   kind: 'home'          — User workspace defaults (onboarding profiles)
- *   kind: 'market-screen' — Curated thematic screens (browsable gallery)
- *
- * category (legacy compat):
- *   'onboarding' — shown in first-login picker (kind='home')
- *   'layout'     — shown in workspace switcher / settings (kind='market-screen')
- *   'both'       — shown everywhere
- *
- * group (user-facing label):
- *   'Home'            — was 'Investor Profiles'
- *   'Market Screens'  — was 'Trading Screens'
- *
- * New metadata fields:
- *   kind             — 'home' | 'market-screen'
- *   visibleInMobileHome — show in mobile home gallery
- *   visualLabel      — short display name for cards
- *   subtitle         — 2nd line on gallery cards
- *   thesis           — 1-sentence investment thesis
- *   aiIdeaContext     — context string for AI trading idea generation
- *   heroSymbols      — 3-4 key symbols shown on preview cards
- *   mobileCardStyle  — card accent color for mobile gallery
+ * PRODUCT MODEL (current):
+ *   - ONE curated home screen (the default experience)
+ *   - Sector screens are standalone full-page components (not templates)
+ *   - Legacy "investor profile" templates (brazilianInvestor, globalInvestor,
+ *     debtInvestor, cryptoInvestor, commoditiesInvestor) were removed —
+ *     the product now has a single curated home + sector screens.
  *
  * @typedef {Object} WorkspaceTemplate
  * @property {string}   id
@@ -33,13 +17,6 @@
  * @property {string}   category
  * @property {string}   group
  * @property {string}   kind
- * @property {boolean}  visibleInMobileHome
- * @property {string}   visualLabel
- * @property {string}   subtitle
- * @property {string}   thesis
- * @property {string}   aiIdeaContext
- * @property {string[]} heroSymbols
- * @property {string}   mobileCardStyle
  * @property {string}   theme
  * @property {string[]} watchlist
  * @property {Object}   panels
@@ -50,274 +27,50 @@
 import { DEFAULT_LAYOUT, DEFAULT_HOME_SECTIONS, DEFAULT_CHARTS_CONFIG } from './panels.js';
 
 // ═══════════════════════════════════════════════════════════════════
-// HOME — User workspace defaults (shown during onboarding)
+// DEFAULT — The single curated home experience
 // ═══════════════════════════════════════════════════════════════════
 
-const brazilianInvestor = {
-  id:          'brazilianInvestor',
-  label:       'Brazilian Investor',
-  description: 'B3 equities, DI curve, Ibovespa, BRL FX, and Brazilian macro.',
-  focus:       'VALE3, PETR4, ITUB4, USDBRL, DI Curve',
+const defaultHome = {
+  id:          'default',
+  label:       'Senger Terminal',
+  description: 'Global market terminal with curated panels, charts, and live data.',
+  focus:       'SPY, QQQ, EUR/USD, BTC, GLD — globally representative',
   category:    'onboarding',
   group:       'Home',
   kind:        'home',
   visibleInMobileHome: false,
-  visualLabel: 'Brazil',
-  subtitle:    'B3 + BRL + DI',
-  thesis:      '',
-  aiIdeaContext: '',
-  heroSymbols: ['VALE3.SA', 'PETR4.SA', 'USDBRL'],
-  mobileCardStyle: '#2d6a4f',
-  theme:       'dark',
-  watchlist:   ['VALE3.SA','PETR4.SA','ITUB4.SA','BBDC4.SA','ABEV3.SA','WEGE3.SA','EWZ','USDBRL'],
-  panels: {
-    brazilB3:     { title: 'Brazil B3',      symbols: ['VALE3.SA','PETR4.SA','ITUB4.SA','BBDC4.SA','ABEV3.SA','WEGE3.SA','RENT3.SA','B3SA3.SA','MGLU3.SA','BBAS3.SA','GGBR4.SA','SUZB3.SA'] },
-    usEquities:   { title: 'Global Equities',symbols: ['SPY','EWZ','EEM','VALE','PBR','ITUB','ERJ','BRFS'] },
-    globalIndices:{ title: 'World Markets',  symbols: ['SPY','QQQ','EWZ','EEM','EWJ','FXI'] },
-    forex:        { title: 'FX — BRL Focus', symbols: ['USDBRL','EURBRL','GBPBRL','USDARS','USDMXN','EURUSD'] },
-    crypto:       { title: 'Crypto',         symbols: ['BTCUSD','ETHUSD','SOLUSD'] },
-    commodities:  { title: 'Commodities',    symbols: ['GLD','SLV','USO','UNG','CORN','SOYB','BHP'] },
-    debt:         { title: 'Brazil Rates',   symbols: [] },
-  },
-  layout: {
-    desktopRows: [
-      ['brazilB3', 'charts',  'forex'],
-      ['globalIndices', 'commodities', 'crypto', 'usEquities'],
-      ['debt', 'news', 'watchlist'],
-    ],
-    mobileTabs: ['home', 'charts', 'watchlist', 'search', 'detail', 'news'],
-  },
-  home: {
-    sections: [
-      { id: 'brazil',     title: 'Brazil B3',   symbols: ['VALE3.SA','PETR4.SA','ITUB4.SA'] },
-      { id: 'brl',        title: 'BRL Pairs',   symbols: ['USDBRL','EURBRL','GBPBRL'] },
-      { id: 'world',      title: 'World Mkts',  symbols: ['SPY','EWZ','EEM'] },
-      { id: 'commodities',title: 'Commodities', symbols: ['GLD','USO','SLV'] },
-    ],
-  },
-  charts: { symbols: ['VALE3.SA','PETR4.SA','EWZ','USDBRL'], primary: 'VALE3.SA' },
-};
-
-const globalInvestor = {
-  id:          'globalInvestor',
-  label:       'Global Investor',
-  description: 'US large-cap equities, global indexes, FX, and cross-asset overview.',
-  focus:       'AAPL, MSFT, SPY, EUR/USD, global sectors',
-  category:    'onboarding',
-  group:       'Home',
-  kind:        'home',
-  visibleInMobileHome: false,
-  visualLabel: 'Global',
-  subtitle:    'US + World',
-  thesis:      '',
-  aiIdeaContext: '',
-  heroSymbols: ['SPY', 'AAPL', 'EURUSD'],
-  mobileCardStyle: '#1a4d7a',
-  theme:       'dark',
-  watchlist:   ['AAPL','MSFT','NVDA','GOOGL','AMZN','JPM','XOM','BRKB','GS'],
-  panels: {
-    usEquities:   { title: 'US Equities',    symbols: ['AAPL','MSFT','NVDA','GOOGL','AMZN','META','TSLA','JPM','XOM','BRKB','GS','WMT','LLY'] },
-    globalIndices:{ title: 'Global Indexes', symbols: ['SPY','QQQ','DIA','IWM','EFA','EEM','EWJ','FXI','EWZ','EWW'] },
-    forex:        { title: 'FX Majors',      symbols: ['EURUSD','GBPUSD','USDJPY','USDCHF','AUDUSD','USDCAD','USDCNY'] },
-    crypto:       { title: 'Crypto',         symbols: ['BTCUSD','ETHUSD','SOLUSD','XRPUSD'] },
-    commodities:  { title: 'Commodities',    symbols: ['GLD','SLV','USO','UNG','CORN'] },
-    brazilB3:     { title: 'Brazil B3',      symbols: ['VALE3.SA','PETR4.SA','EWZ'] },
-    debt:         { title: 'US Rates',       symbols: [] },
-  },
-  layout: {
-    desktopRows: [
-      ['charts',       'usEquities', 'globalIndices'],
-      ['forex',        'crypto',     'commodities',  'brazilB3'],
-      ['debt',         'news',       'watchlist'],
-    ],
-    mobileTabs: ['home', 'charts', 'watchlist', 'search', 'detail', 'news'],
-  },
-  home: {
-    sections: [
-      { id: 'us',         title: 'US Markets',  symbols: ['SPY','QQQ','DIA'] },
-      { id: 'fx',         title: 'FX',          symbols: ['EURUSD','GBPUSD','USDJPY'] },
-      { id: 'world',      title: 'Global',      symbols: ['EEM','EFA','EWJ'] },
-      { id: 'crypto',     title: 'Crypto',      symbols: ['BTCUSD','ETHUSD'] },
-    ],
-  },
-  charts: { symbols: ['SPY','QQQ','AAPL','MSFT'], primary: 'SPY' },
-};
-
-const debtInvestor = {
-  id:          'debtInvestor',
-  label:       'Debt & Fixed Income',
-  description: 'Sovereign yield curves, credit spreads, and fixed income.',
-  focus:       'US10Y, IG/HY OAS, DI curve, sovereign curves',
-  category:    'onboarding',
-  group:       'Home',
-  kind:        'home',
-  visibleInMobileHome: false,
-  visualLabel: 'Fixed Income',
-  subtitle:    'Curves + Credit',
-  thesis:      '',
-  aiIdeaContext: '',
-  heroSymbols: ['TLT', 'HYG', 'LQD'],
-  mobileCardStyle: '#b5860d',
-  theme:       'dark',
-  watchlist:   ['SPY','TLT','HYG','LQD','EMB','USDBRL','US10Y','DE10Y'],
-  panels: {
-    debt:         { title: 'Sovereign Curves',symbols: [] },
-    usEquities:   { title: 'Risk Assets',     symbols: ['SPY','QQQ','HYG','LQD','TLT','EMB','JNK','BNDX'] },
-    globalIndices:{ title: 'Global Indexes',  symbols: ['SPY','QQQ','DIA','EWZ','EEM','VGK','EWJ','FXI'] },
-    forex:        { title: 'FX Markets',      symbols: ['EURUSD','USDJPY','USDCHF','GBPUSD','USDCAD','USDBRL'] },
-    commodities:  { title: 'Commodities',     symbols: ['GLD','SLV','USO','UNG','CORN'] },
-    brazilB3:     { title: 'EM Markets',      symbols: ['VALE3.SA','EWZ','USDBRL','PETR4.SA','EEM','EMB'] },
-    crypto:       { title: 'Macro Signals',   symbols: ['BTCUSD','ETHUSD'] },
-  },
-  layout: {
-    desktopRows: [
-      ['debt',         'charts',    'usEquities'],
-      ['globalIndices','forex',     'commodities', 'brazilB3'],
-      ['news',         'curves',    'watchlist'],
-    ],
-    mobileTabs: ['home', 'charts', 'watchlist', 'search', 'detail', 'news'],
-  },
-  home: {
-    sections: [
-      { id: 'rates',      title: 'US Yields',   symbols: ['US2Y','US10Y','US30Y'] },
-      { id: 'risk',       title: 'Risk Assets', symbols: ['HYG','LQD','TLT'] },
-      { id: 'fx',         title: 'FX',          symbols: ['EURUSD','USDJPY','USDCHF'] },
-      { id: 'em',         title: 'EM',          symbols: ['EEM','EWZ','EMB'] },
-    ],
-  },
-  charts: { symbols: ['TLT','HYG','SPY','GLD'], primary: 'TLT' },
-};
-
-const cryptoInvestor = {
-  id:          'cryptoInvestor',
-  label:       'Crypto & Digital Assets',
-  description: 'Bitcoin, Ethereum, altcoins, and macro correlations.',
-  focus:       'BTC, ETH, SOL, macro correlations',
-  category:    'onboarding',
-  group:       'Home',
-  kind:        'home',
-  visibleInMobileHome: false,
-  visualLabel: 'Crypto',
-  subtitle:    'BTC + Alts',
-  thesis:      '',
-  aiIdeaContext: '',
-  heroSymbols: ['BTCUSD', 'ETHUSD', 'SOLUSD'],
-  mobileCardStyle: '#e85d04',
-  theme:       'dark',
-  watchlist:   ['BTCUSD','ETHUSD','SOLUSD','XRPUSD','BNBUSD','DOGEUSD','MSTR','COIN'],
-  panels: {
-    crypto:       { title: 'Crypto',         symbols: ['BTCUSD','ETHUSD','SOLUSD','XRPUSD','BNBUSD','DOGEUSD','ADAUSD'] },
-    usEquities:   { title: 'Crypto Equities',symbols: ['MSTR','COIN','NVDA','AMD','AAPL','GOOGL'] },
-    globalIndices:{ title: 'Macro',          symbols: ['SPY','QQQ','GLD','TLT','EEM'] },
-    forex:        { title: 'FX Signals',     symbols: ['EURUSD','USDJPY','USDBRL','USDCHF'] },
-    commodities:  { title: 'Macro Hedge',    symbols: ['GLD','SLV','USO'] },
-    brazilB3:     { title: 'Brazil',         symbols: ['VALE3.SA','PETR4.SA','EWZ'] },
-    debt:         { title: 'Rate Context',   symbols: [] },
-  },
-  layout: {
-    desktopRows: [
-      ['charts',       'crypto',     'usEquities'],
-      ['globalIndices','forex',      'commodities', 'brazilB3'],
-      ['debt',         'news',       'watchlist'],
-    ],
-    mobileTabs: ['home', 'charts', 'watchlist', 'search', 'detail', 'news'],
-  },
-  home: {
-    sections: [
-      { id: 'crypto',     title: 'Crypto',     symbols: ['BTCUSD','ETHUSD','SOLUSD'] },
-      { id: 'alts',       title: 'Altcoins',   symbols: ['XRPUSD','BNBUSD','DOGEUSD'] },
-      { id: 'macro',      title: 'Macro',      symbols: ['SPY','QQQ','GLD'] },
-      { id: 'fx',         title: 'FX',         symbols: ['EURUSD','USDJPY'] },
-    ],
-  },
-  charts: { symbols: ['BTCUSD','ETHUSD','SOLUSD','SPY'], primary: 'BTCUSD' },
-};
-
-const commoditiesInvestor = {
-  id:          'commoditiesInvestor',
-  label:       'Commodities Investor',
-  description: 'Energy, metals, agriculture, and commodity producers.',
-  focus:       'GLD, WTI, copper, agriculture, miners',
-  category:    'onboarding',
-  group:       'Home',
-  kind:        'home',
-  visibleInMobileHome: false,
-  visualLabel: 'Commodities',
-  subtitle:    'Energy + Metals + Agri',
-  thesis:      '',
-  aiIdeaContext: '',
-  heroSymbols: ['GLD', 'USO', 'CORN'],
-  mobileCardStyle: '#c9a800',
-  theme:       'dark',
-  watchlist:   ['GLD','SLV','USO','UNG','CORN','WEAT','XOM','CVX','FCX','BHP','VALE'],
-  panels: {
-    commodities:  { title: 'Commodities',     symbols: ['GLD','SLV','USO','UNG','CORN','WEAT','SOYB','DBA','CPER','REMX'] },
-    usEquities:   { title: 'Producers',       symbols: ['XOM','CVX','COP','SLB','FCX','BHP','RIO','VALE','NEM','GOLD'] },
-    globalIndices:{ title: 'Global Risk',     symbols: ['EEM','EWZ','FXI','EWW','SPY','EWA','EWC'] },
-    forex:        { title: 'Commodity FX',    symbols: ['USDBRL','USDMXN','USDCAD','AUDUSD','USDARS'] },
-    brazilB3:     { title: 'Brazil Producers',symbols: ['VALE3.SA','PETR4.SA','SUZB3.SA','GGBR4.SA','CSNA3.SA'] },
-    debt:         { title: 'Rate Context',    symbols: [] },
-    crypto:       { title: 'Inflation Watch', symbols: ['BTCUSD','ETHUSD'] },
-  },
-  layout: {
-    desktopRows: [
-      ['charts',       'commodities','usEquities'],
-      ['globalIndices','forex',      'brazilB3',  'crypto'],
-      ['debt',         'news',       'watchlist'],
-    ],
-    mobileTabs: ['home', 'charts', 'watchlist', 'search', 'detail', 'news'],
-  },
-  home: {
-    sections: [
-      { id: 'metals',     title: 'Metals',     symbols: ['GLD','SLV','CPER'] },
-      { id: 'energy',     title: 'Energy',     symbols: ['USO','UNG','XOM'] },
-      { id: 'agri',       title: 'Agriculture',symbols: ['CORN','WEAT','SOYB'] },
-      { id: 'fx',         title: 'Commodity FX',symbols: ['USDCAD','AUDUSD','USDBRL'] },
-    ],
-  },
-  charts: { symbols: ['GLD','USO','CORN','XOM'], primary: 'GLD' },
-};
-
-const custom = {
-  id:          'custom',
-  label:       'Custom Workspace',
-  description: 'Start with balanced defaults and configure everything yourself.',
-  focus:       'SPY, BTC, EUR/USD, GLD — balanced starting point',
-  category:    'onboarding',
-  group:       'Home',
-  kind:        'home',
-  visibleInMobileHome: false,
-  visualLabel: 'Custom',
-  subtitle:    'Build your own',
+  visualLabel: 'Home',
+  subtitle:    'Global Markets',
   thesis:      '',
   aiIdeaContext: '',
   heroSymbols: ['SPY', 'BTCUSD', 'GLD'],
-  mobileCardStyle: '#5a5a6e',
+  mobileCardStyle: '#1a4d7a',
   theme:       'dark',
-  watchlist:   ['SPY','AAPL','BTCUSD','EURUSD','GLD'],
+  watchlist:   ['SPY', 'QQQ', 'AAPL', 'NVDA', 'GLD', 'BTCUSD', 'EWZ'],
   panels: {
-    usEquities:   { title: 'US Equities',   symbols: ['SPY','AAPL','MSFT','NVDA','GOOGL','AMZN'] },
-    brazilB3:     { title: 'Brazil B3',     symbols: ['VALE3.SA','PETR4.SA','ITUB4.SA'] },
-    forex:        { title: 'FX Markets',    symbols: ['EURUSD','USDJPY','GBPUSD','USDCHF','USDBRL','AUDUSD'] },
-    crypto:       { title: 'Crypto',        symbols: ['BTCUSD','ETHUSD','SOLUSD'] },
-    commodities:  { title: 'Commodities',   symbols: ['GLD','USO','SLV'] },
-    globalIndices:{ title: 'Global Indexes', symbols: ['SPY','QQQ','DIA','EWZ','EEM','VGK','EWJ','FXI'] },
-    debt:         { title: 'Rates',         symbols: [] },
+    usEquities:   { title: 'US Equities',    symbols: ['AAPL','MSFT','NVDA','GOOGL','AMZN','META','TSLA','JPM','XOM','BRKB','GS','WMT','LLY'] },
+    globalIndices:{ title: 'Global Indexes',  symbols: ['SPY','QQQ','DIA','EWZ','EEM','VGK','EWJ','FXI'] },
+    forex:        { title: 'FX Markets',      symbols: ['EURUSD','USDJPY','GBPUSD','USDBRL','USDCHF','USDCNY','USDMXN','AUDUSD','USDCAD'] },
+    crypto:       { title: 'Crypto',          symbols: ['BTCUSD','ETHUSD','SOLUSD','XRPUSD','BNBUSD','DOGEUSD'] },
+    commodities:  { title: 'Commodities',     symbols: ['GLD','SLV','USO','UNG','CORN','WEAT','SOYB','CPER','BHP'] },
+    brazilB3:     { title: 'Brazil B3',       symbols: ['VALE3.SA','PETR4.SA','ITUB4.SA','BBDC4.SA','ABEV3.SA','WEGE3.SA','RENT3.SA','B3SA3.SA','MGLU3.SA','BBAS3.SA','GGBR4.SA','SUZB3.SA'] },
+    debt:         { title: 'Yields & Rates',  symbols: [] },
   },
   layout: DEFAULT_LAYOUT,
   home: { sections: DEFAULT_HOME_SECTIONS },
   charts: DEFAULT_CHARTS_CONFIG,
 };
 
-
-// ═══════════════════════════════════════════════════════════════════
-// MARKET SCREENS — REMOVED (Wave 2)
-// Sector screens are now full-page components accessed via SectorScreenSelector.
-// The 10 market-screen templates (defenseAerospace, fixedIncomeCredit, commodityChain,
-// ratesFxDivergence, globalLiquidityMacro, brazilCrossAsset, cryptoRiskAppetite,
-// energySecurity, emStressMonitor, dividendIncome) were removed in Wave 2 to eliminate
-// shallow-screen clutter and consolidate around home templates and standalone components.
-// ═══════════════════════════════════════════════════════════════════
+// Legacy aliases — existing users with saved activeTemplate IDs
+// still resolve to the default home experience.
+const LEGACY_ALIASES = {
+  brazilianInvestor: defaultHome,
+  globalInvestor:    defaultHome,
+  debtInvestor:      defaultHome,
+  cryptoInvestor:    defaultHome,
+  commoditiesInvestor: defaultHome,
+  custom:            defaultHome,
+};
 
 
 // ═══════════════════════════════════════════════════════════════════
@@ -329,22 +82,16 @@ const custom = {
  * @type {Object<string, WorkspaceTemplate>}
  */
 export const WORKSPACE_TEMPLATES = {
-  // Home (onboarding profiles)
-  brazilianInvestor,
-  globalInvestor,
-  debtInvestor,
-  cryptoInvestor,
-  commoditiesInvestor,
-  custom,
+  default: defaultHome,
 };
 
 /**
- * Get a template by ID.
+ * Get a template by ID. Supports legacy aliases for existing users.
  * @param {string} templateId
  * @returns {WorkspaceTemplate|null}
  */
 export function getTemplate(templateId) {
-  return WORKSPACE_TEMPLATES[templateId] || null;
+  return WORKSPACE_TEMPLATES[templateId] || LEGACY_ALIASES[templateId] || null;
 }
 
 /**
@@ -371,7 +118,7 @@ export function getTemplatesByKind(kind) {
 
 /**
  * Get market screens visible in mobile home gallery.
- * Note: Market screens were removed in Wave 2. This function now returns an empty array.
+ * Sector screens are now standalone components — this returns empty.
  * @returns {WorkspaceTemplate[]}
  */
 export function getMobileHomeScreens() {

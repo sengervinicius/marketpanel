@@ -27,12 +27,12 @@ export const PANEL_DEFINITIONS = {
     id:             'charts',
     label:          'Charts',
     defaultTitle:   'Charts',
-    defaultSymbols: ['SPY', 'QQQ'],
+    defaultSymbols: ['SPY', 'QQQ', 'C:EURUSD', 'C:USDJPY', 'GLD', 'USO', 'EEM', 'EWZ', 'X:BTCUSD', 'VGK'],
     allowedGroups:  null, // any instrument
     editable:       false, // special panel
     icon:           'CH',
     minSymbols:     1,
-    maxSymbols:     6,
+    maxSymbols:     16,
   },
   usEquities: {
     id:             'usEquities',
@@ -69,8 +69,8 @@ export const PANEL_DEFINITIONS = {
   },
   forex: {
     id:             'forex',
-    label:          'FX / Rates',
-    defaultTitle:   'FX / Rates',
+    label:          'FX Markets',
+    defaultTitle:   'FX Markets',
     defaultSymbols: ['EURUSD','GBPUSD','USDJPY','USDBRL','USDCHF','USDCNY','USDMXN','AUDUSD','USDCAD'],
     allowedGroups:  ['Majors','BRL Crosses','LatAm','EM'],
     editable:       true,
@@ -442,10 +442,12 @@ export const DEFAULT_LAYOUT = {
  * @type {Array<Object>}
  */
 export const DEFAULT_HOME_SECTIONS = [
-  { id: 'indexes',    title: 'US Markets',    symbols: ['SPY','QQQ','DIA'] },
-  { id: 'forex',      title: 'FX',            symbols: ['EURUSD','USDBRL','USDJPY'] },
-  { id: 'crypto',     title: 'Crypto',        symbols: ['BTCUSD','ETHUSD','SOLUSD'] },
-  { id: 'commodities',title: 'Commodities',   symbols: ['GLD','USO','SLV'] },
+  { id: 'indexes',    title: 'US Equities',     symbols: ['SPY','QQQ','DIA','AAPL','MSFT','NVDA','TSLA','AMZN'] },
+  { id: 'global',     title: 'Global Indexes',   symbols: ['EWZ','EEM','VGK','EWJ','FXI','EFA','IWM'] },
+  { id: 'forex',      title: 'FX Markets',       symbols: ['EURUSD','USDJPY','GBPUSD','USDBRL','USDCNY','USDCHF'] },
+  { id: 'crypto',     title: 'Crypto',           symbols: ['BTCUSD','ETHUSD','SOLUSD','XRPUSD','BNBUSD','DOGEUSD'] },
+  { id: 'commodities',title: 'Commodities',      symbols: ['GLD','SLV','USO','UNG','CORN'] },
+  { id: 'brazilB3',   title: 'Brazil B3',        symbols: ['VALE3.SA','PETR4.SA','ITUB4.SA','BBDC4.SA','WEGE3.SA','B3SA3.SA','ABEV3.SA','BBAS3.SA'] },
 ];
 
 /**

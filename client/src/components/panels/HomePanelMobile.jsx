@@ -19,26 +19,28 @@ import { getMobileHomeScreens } from '../../config/templates';
 import { checkAIAvailable } from '../../hooks/useAIInsight';
 import './HomePanelMobile.css';
 
+// Curated sections aligned to SENGER_HOME_SCREEN_REPORT.md audit
+// Order: US leadership → global overview → FX → crypto → commodities → Brazil
 const MOBILE_HOME_SECTIONS = [
   { id: 'us-equities',    label: 'US Equities' },
-  { id: 'fx-rates',       label: 'FX / Rates' },
   { id: 'global-indexes', label: 'Global Indexes' },
-  { id: 'brazil-b3',      label: 'Brazil B3' },
-  { id: 'commodities',    label: 'Commodities' },
+  { id: 'fx-markets',     label: 'FX Markets' },
   { id: 'crypto',         label: 'Crypto' },
+  { id: 'commodities',    label: 'Commodities' },
+  { id: 'brazil-b3',      label: 'Brazil B3' },
 ];
 
 // Preview tickers shown collapsed (first N per section)
 const PREVIEW_COUNT = 4;
 
-// Full ticker lists per section — matches desktop panels
+// Curated ticker lists per section — globally representative, audit-aligned
 const SECTION_TICKERS = {
-  'us-equities':    US_STOCKS.map(s => s.symbol),
-  'fx-rates':       FOREX_PAIRS.map(s => 'C:' + s.symbol),
-  'global-indexes': ['SPY', 'QQQ', 'DIA', 'IWM', 'EEM', 'EFA', 'EWZ', 'FXI', 'EWJ'],
-  'brazil-b3':      ['PETR4.SA', 'VALE3.SA', 'ITUB4.SA', 'BBDC4.SA', 'ABEV3.SA', 'PETR3.SA', 'WEGE3.SA'],
-  'commodities':    COMMODITIES.map(s => s.symbol),
-  'crypto':         CRYPTO_PAIRS.map(s => 'X:' + s.symbol),
+  'us-equities':    ['AAPL', 'MSFT', 'NVDA', 'GOOGL', 'AMZN', 'META', 'TSLA', 'JPM', 'XOM', 'GS', 'WMT', 'LLY', 'BRKB'],
+  'global-indexes': ['SPY', 'QQQ', 'DIA', 'IWM', 'EWZ', 'EEM', 'VGK', 'EWJ', 'FXI', 'EFA'],
+  'fx-markets':     ['C:EURUSD', 'C:USDJPY', 'C:GBPUSD', 'C:USDBRL', 'C:USDCNY', 'C:USDCHF', 'C:AUDUSD', 'C:USDCAD', 'C:USDMXN'],
+  'brazil-b3':      ['PETR4.SA', 'VALE3.SA', 'ITUB4.SA', 'BBDC4.SA', 'ABEV3.SA', 'WEGE3.SA', 'B3SA3.SA', 'BBAS3.SA'],
+  'commodities':    ['GLD', 'SLV', 'USO', 'UNG', 'CORN', 'WEAT', 'SOYB', 'CPER', 'BHP'],
+  'crypto':         ['X:BTCUSD', 'X:ETHUSD', 'X:SOLUSD', 'X:XRPUSD', 'X:BNBUSD', 'X:DOGEUSD'],
 };
 
 function formatPrice(v) {
@@ -343,13 +345,24 @@ function HomePanelMobile({ onSearchClick }) {
         ))}
       </div>
 
-      {/* News Feed Card */}
-      {news.length > 0 && (
-        <div className="hpm-news-card">
-          <div className="hpm-section-header">
-            <span className="hpm-section-title">News Feed</span>
+      {/* News Feed Card — always visible, shows loading skeleton or headlines */}
+      <div className="hpm-news-card">
+        <div className="hpm-section-header">
+          <span className="hpm-section-title">News Feed</span>
+          {news.length > 0 && <span className="hpm-section-count">{news.length}</span>}
+        </div>
+        {news.length === 0 ? (
+          <div className="hpm-news-loading">
+            {[1,2,3].map(i => (
+              <div key={i} className="hpm-news-item" style={{ opacity: 0.4 }}>
+                <div className="shimmer-bar" style={{ width: '30%', height: 10, marginBottom: 4 }} />
+                <div className="shimmer-bar" style={{ width: '90%', height: 14, marginBottom: 4 }} />
+                <div className="shimmer-bar" style={{ width: '20%', height: 10 }} />
+              </div>
+            ))}
           </div>
-          {news.slice(0, 5).map((item, i) => (
+        ) : (
+          news.slice(0, 5).map((item, i) => (
             <div className="hpm-news-item" key={i} onClick={() => openNews(item)}>
               <div className="hpm-news-source">{item.publisher?.name || item.source || ''}</div>
               <div className="hpm-news-headline">{item.title}</div>
@@ -363,9 +376,9 @@ function HomePanelMobile({ onSearchClick }) {
                 })() : ''}
               </div>
             </div>
-          ))}
-        </div>
-      )}
+          ))
+        )}
+      </div>
     </div>
   );
 }
