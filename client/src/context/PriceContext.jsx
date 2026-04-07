@@ -202,7 +202,7 @@ export function PriceProvider({ marketData, children }) {
   // marketData in the dep list (which would recreate the fn every 6s for nothing).
   const getPrice = useCallback((ticker) => {
     return lookupInBatch(mdRef.current, ticker) ?? extras[ticker] ?? null;
-  }, [extras]); // only re-derive when extras map changes
+  }, [extras]); // re-derive when extras map changes so consumers re-render
 
   return (
     <PriceCtx.Provider value={{ getPrice, register, unregister }}>
@@ -218,15 +218,29 @@ export function PriceProvider({ marketData, children }) {
  * Returns { price, changePct, change } from the central price store.
  * Automatically registers the ticker on mount and cleans up on unmount.
  * Safe to call with null/undefined — returns null.
+ *
+ * IMPORTANT: The useEffect depends only on `ticker` — NOT on `ctx`.
+ * Previously it depended on `ctx`, which caused a destructive cycle:
+ *   extras change → context value changes → effect re-runs → cleanup
+ *   unregisters ticker (deleting from extras) → re-registers → fetch
+ *   succeeds → extras change again → infinite loop.
+ * By using refs for register/unregister (which are stable useCallback refs
+ * anyway), the effect only runs when the ticker itself changes.
  */
 export function useTickerPrice(ticker) {
   const ctx = useContext(PriceCtx);
 
+  // Store register/unregister in refs so the effect doesn't depend on ctx
+  const registerRef = useRef(null);
+  const unregisterRef = useRef(null);
+  registerRef.current = ctx?.register;
+  unregisterRef.current = ctx?.unregister;
+
   useEffect(() => {
-    if (!ticker || !ctx) return;
-    ctx.register(ticker);
-    return () => ctx.unregister(ticker);
-  }, [ticker, ctx]);
+    if (!ticker || !registerRef.current) return;
+    registerRef.current(ticker);
+    return () => unregisterRef.current?.(ticker);
+  }, [ticker]);
 
   if (!ticker || !ctx) return null;
   return ctx.getPrice(ticker);

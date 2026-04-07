@@ -7,6 +7,7 @@
 import { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { useWatchlist } from '../../context/WatchlistContext';
 import { useOpenDetail } from '../../context/OpenDetailContext';
+import { useTickerPrice } from '../../context/PriceContext';
 import { normalizeSymbol } from '../../utils/format';
 import { apiFetch } from '../../utils/api';
 import EmptyState from '../common/EmptyState';
@@ -29,6 +30,56 @@ const showInfo = (e, symbol, label, type) => {
 function normalizePolygonQuote(t) {
   const price = (t.min?.c > 0 ? t.min.c : null) ?? (t.day?.c > 0 ? t.day.c : null) ?? t.lastTrade?.p ?? t.prevDay?.c ?? null;
   return { symbol: t.ticker, price, changePct: t.todaysChangePerc ?? null, change: t.todaysChange ?? null };
+}
+
+/**
+ * WatchlistRow — renders a single watchlist item, merging batch quote data
+ * with PriceContext fallback. This ensures crypto (BTCUSD), forex, and BR
+ * tickers display prices even though the batch /api/snapshot/stocks endpoint
+ * only handles US equities.
+ */
+function WatchlistRow({ sym, quote, onTickerClick, openDetail, removeTicker, handleWhyClick }) {
+  const priceCtx = useTickerPrice(sym);
+  const q = quote || {};
+  // Prefer batch quote, fall back to PriceContext
+  const price = q.price ?? priceCtx?.price ?? null;
+  const changePct = q.changePct ?? priceCtx?.changePct ?? null;
+  const pos = (changePct ?? 0) >= 0;
+
+  let assetType = 'EQUITY';
+  if (/^[A-Z]{6}$/.test(sym)) assetType = sym.endsWith('USD') ? (sym.slice(0, 3) === 'BTC' || sym.slice(0, 3) === 'ETH' ? 'CRYPTO' : 'FX') : 'FX';
+  if (sym.endsWith('.SA')) assetType = 'BR';
+
+  return (
+    <div
+      data-ticker={sym}
+      data-ticker-label={sym}
+      data-ticker-type={assetType}
+      onClick={() => onTickerClick?.(sym)}
+      onDoubleClick={() => openDetail(sym)}
+      onContextMenu={e => showInfo(e, sym, sym, assetType)}
+      className="wp-row"
+      onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--bg-hover)'}
+      onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
+    >
+      <span className="wp-row-symbol">{sym}</span>
+      <span className="wp-row-source"></span>
+      <span className="wp-row-price">{fmt(price)}</span>
+      <span className={`wp-row-change ${pos ? 'wp-row-change-positive' : 'wp-row-change-negative'}`}>{fmtPct(changePct)}</span>
+      <div className="wp-row-actions">
+        <button className="btn wp-why-btn"
+          onClick={e => { e.stopPropagation(); handleWhyClick(sym); }}
+          title="Why is this moving?"
+        >?</button>
+        <button className="btn wp-remove-btn"
+          onClick={e => { e.stopPropagation(); removeTicker(sym); }}
+          title="Remove from watchlist"
+          onMouseEnter={e => e.currentTarget.style.color = 'var(--price-down)'}
+          onMouseLeave={e => e.currentTarget.style.color = 'var(--text-faint)'}
+        >&#10005;</button>
+      </div>
+    </div>
+  );
 }
 
 function WatchlistPanel({ onTickerClick }) {
@@ -183,55 +234,17 @@ function WatchlistPanel({ onTickerClick }) {
         ) : loading && Object.keys(quotes).length === 0 ? (
           <div style={{ padding: 'var(--sp-5)', textAlign: 'center', color: 'var(--text-muted)' }}>LOADING...</div>
         ) : (
-          watchlist.map(sym => {
-            const q = quotes[sym] || {};
-            const pos = (q.changePct ?? 0) >= 0;
-            // Determine asset type for right-click menu
-            let assetType = 'EQUITY';
-            if (/^[A-Z]{6}$/.test(sym)) assetType = sym.endsWith('USD') ? (sym.slice(0, 3) === 'BTC' || sym.slice(0, 3) === 'ETH' ? 'CRYPTO' : 'FX') : 'FX';
-            if (sym.endsWith('.SA')) assetType = 'BR';
-
-            // Fix 4: Show shimmer for price/change when data is missing and within 10s window
-            const hasData = quotes[sym];
-            const showShimmer = !hasData && !shimmerTimeouts[sym];
-            const priceDisplay = showShimmer ? <span className="price-shimmer" /> : fmt(q.price);
-            const changeDisplay = showShimmer ? <span className="price-shimmer price-shimmer--narrow" /> : fmtPct(q.changePct);
-
-            return (
-              <div
-                key={sym}
-                data-ticker={sym}
-                data-ticker-label={sym}
-                data-ticker-type={assetType}
-                onClick={() => onTickerClick?.(sym)}
-                onDoubleClick={() => openDetail(sym)}
-                onContextMenu={e => showInfo(e, sym, sym, assetType)}
-                onTouchStart={e => { e.stopPropagation(); clearTimeout(ptRef.current); ptRef.current = setTimeout(() => openDetail(sym), 500); }}
-                onTouchEnd={() => clearTimeout(ptRef.current)}
-                onTouchMove={() => clearTimeout(ptRef.current)}
-                className="wp-row"
-                onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--bg-hover)'}
-                onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
-              >
-                <span className="wp-row-symbol">{sym}</span>
-                <span className="wp-row-source"></span>
-                <span className="wp-row-price">{priceDisplay}</span>
-                <span className={`wp-row-change ${pos ? 'wp-row-change-positive' : 'wp-row-change-negative'}`}>{changeDisplay}</span>
-                <div className="wp-row-actions">
-                  <button className="btn wp-why-btn"
-                    onClick={e => { e.stopPropagation(); handleWhyClick(sym); }}
-                    title="Why is this moving?"
-                  >?</button>
-                  <button className="btn wp-remove-btn"
-                    onClick={e => { e.stopPropagation(); removeTicker(sym); }}
-                    title="Remove from watchlist"
-                    onMouseEnter={e => e.currentTarget.style.color = 'var(--price-down)'}
-                    onMouseLeave={e => e.currentTarget.style.color = 'var(--text-faint)'}
-                  >✕</button>
-                </div>
-              </div>
-            );
-          })
+          watchlist.map(sym => (
+            <WatchlistRow
+              key={sym}
+              sym={sym}
+              quote={quotes[sym]}
+              onTickerClick={onTickerClick}
+              openDetail={openDetail}
+              removeTicker={removeTicker}
+              handleWhyClick={handleWhyClick}
+            />
+          ))
         )}
         {error && (
           <div className="wp-error-msg">
