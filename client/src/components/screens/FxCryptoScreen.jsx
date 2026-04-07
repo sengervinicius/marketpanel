@@ -4,7 +4,7 @@
  * G10 FX, EM FX, Crypto Majors (with BTC dominance), Crypto Infra (with Mkt Cap/P/E)
  */
 import { memo, useMemo } from 'react';
-import DeepScreenBase, { DeepSection, TickerCell } from './DeepScreenBase';
+import DeepScreenBase, { DeepSection, TickerCell, StatsLoadGate } from './DeepScreenBase';
 import SectorChartStrip from './SectorChartStrip';
 import { useOpenDetail } from '../../context/OpenDetailContext';
 import { useTickerPrice } from '../../context/PriceContext';
@@ -143,14 +143,14 @@ const CryptoInfraSection = memo(function CryptoInfraSection({ statsMap }) {
 });
 
 function FxCryptoScreen() {
-  const { data: statsMap } = useDeepScreenData(CRYPTO_INFRA);
+  const { data: statsMap, loading: statsLoading, error: statsError, refresh: statsRefresh } = useDeepScreenData(CRYPTO_INFRA);
 
   const sections = useMemo(() => [
     { id: 'g10fx',        title: 'G10 FX PAIRS',                  component: G10FxSection },
     { id: 'emfx',         title: 'EM FX',                          component: EmFxSection },
     { id: 'cryptomajors', title: 'CRYPTO MAJORS',                  component: CryptoMajorsSection },
-    { id: 'cryptoinfra',  title: 'CRYPTO INFRASTRUCTURE & DeFi',   component: () => <CryptoInfraSection statsMap={statsMap} /> },
-  ], [statsMap]);
+    { id: 'cryptoinfra',  title: 'CRYPTO INFRASTRUCTURE & DeFi',   component: () => <StatsLoadGate statsMap={statsMap} loading={statsLoading} error={statsError} refresh={statsRefresh}><CryptoInfraSection statsMap={statsMap} /></StatsLoadGate> },
+  ], [statsMap, statsLoading, statsError, statsRefresh]);
 
   return (
     <DeepScreenBase

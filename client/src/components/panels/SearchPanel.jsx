@@ -118,8 +118,10 @@ const COVERAGE_DOT = {
 };
 
 const COVERAGE_TAG = {
+  live:    { bg: '#002a0a', color: GREEN,  label: 'LIVE' },
   none:    { bg: '#1a1400', color: YELLOW, label: 'AI OVERVIEW' },
   limited: { bg: '#1a1400', color: YELLOW, label: 'LIMITED' },
+  unknown: { bg: '#1a1a1a', color: '#888', label: 'PARTIAL' },
 };
 
 const ASSET_CLASS_COLOR = {

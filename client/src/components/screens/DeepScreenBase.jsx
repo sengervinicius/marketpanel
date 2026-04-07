@@ -57,8 +57,29 @@ export function DeepSkeleton({ rows = 6 }) {
 }
 
 /* ── Error banner ────────────────────────────────────────────────────────── */
-export function DeepError({ message }) {
-  return <div className="ds-error">{message || 'Failed to load data'}</div>;
+export function DeepError({ message, onRetry }) {
+  return (
+    <div className="ds-error">
+      {message || 'Failed to load data'}
+      {onRetry && (
+        <button onClick={onRetry}
+          style={{ marginLeft: 10, background: 'transparent', border: '1px solid #555', color: '#aaa', padding: '2px 8px', borderRadius: 3, cursor: 'pointer', fontSize: 9 }}>
+          RETRY
+        </button>
+      )}
+    </div>
+  );
+}
+
+/* ── Stats load gate — shows skeleton/error/children based on useDeepScreenData state ── */
+export function StatsLoadGate({ statsMap, loading, error, refresh, rows = 6, children }) {
+  if (loading && (!statsMap || statsMap.size === 0)) {
+    return <DeepSkeleton rows={rows} />;
+  }
+  if (error && (!statsMap || statsMap.size === 0)) {
+    return <DeepError message={`Data unavailable — ${error}`} onRetry={refresh} />;
+  }
+  return children;
 }
 
 /* ── Ticker chip with click ──────────────────────────────────────────────── */

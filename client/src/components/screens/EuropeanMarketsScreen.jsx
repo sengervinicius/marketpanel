@@ -15,7 +15,7 @@ import { useTickerPrice } from '../../context/PriceContext';
 import { useDeepScreenData } from '../../hooks/useDeepScreenData';
 import { useSectionData } from '../../hooks/useSectionData';
 import { apiFetch } from '../../utils/api';
-import { DeepSkeleton, DeepError, TickerCell } from './DeepScreenBase';
+import { DeepSkeleton, DeepError, TickerCell, StatsLoadGate } from './DeepScreenBase';
 
 /* ── Formatting utilities ──────────────────────────────────────────────── */
 const fmt = (n, d = 2) =>
@@ -293,7 +293,7 @@ const EtfStrip = memo(function EtfStrip() {
 /* ── Main Screen Implementation ────────────────────────────────────────── */
 function EuropeanMarketsScreenImpl() {
   const openDetail = useOpenDetail();
-  const { data: statsMap } = useDeepScreenData(ALL_EQUITIES);
+  const { data: statsMap, loading: statsLoading, error: statsError, refresh: statsRefresh } = useDeepScreenData(ALL_EQUITIES);
 
   /* ── Fetch macro data ────────────────────────────────────────────────── */
   const { data: macroData, loading: macroLoading, error: macroError } = useSectionData({
@@ -335,35 +335,45 @@ function EuropeanMarketsScreenImpl() {
       id: 'germany',
       title: 'Germany (DAX)',
       component: () => (
-        <SectionTable tickers={GERMANY} statsMap={statsMap} />
+        <StatsLoadGate statsMap={statsMap} loading={statsLoading} error={statsError} refresh={statsRefresh}>
+          <SectionTable tickers={GERMANY} statsMap={statsMap} />
+        </StatsLoadGate>
       ),
     },
     {
       id: 'france',
       title: 'France (CAC)',
       component: () => (
-        <SectionTable tickers={FRANCE} statsMap={statsMap} />
+        <StatsLoadGate statsMap={statsMap} loading={statsLoading} error={statsError} refresh={statsRefresh}>
+          <SectionTable tickers={FRANCE} statsMap={statsMap} />
+        </StatsLoadGate>
       ),
     },
     {
       id: 'uk',
       title: 'United Kingdom (FTSE)',
       component: () => (
-        <SectionTable tickers={UNITED_KINGDOM} statsMap={statsMap} />
+        <StatsLoadGate statsMap={statsMap} loading={statsLoading} error={statsError} refresh={statsRefresh}>
+          <SectionTable tickers={UNITED_KINGDOM} statsMap={statsMap} />
+        </StatsLoadGate>
       ),
     },
     {
       id: 'nordic',
       title: 'Nordic',
       component: () => (
-        <SectionTable tickers={NORDIC} statsMap={statsMap} />
+        <StatsLoadGate statsMap={statsMap} loading={statsLoading} error={statsError} refresh={statsRefresh}>
+          <SectionTable tickers={NORDIC} statsMap={statsMap} />
+        </StatsLoadGate>
       ),
     },
     {
       id: 'southern',
       title: 'Southern Europe',
       component: () => (
-        <SectionTable tickers={SOUTHERN_EUROPE} statsMap={statsMap} />
+        <StatsLoadGate statsMap={statsMap} loading={statsLoading} error={statsError} refresh={statsRefresh}>
+          <SectionTable tickers={SOUTHERN_EUROPE} statsMap={statsMap} />
+        </StatsLoadGate>
       ),
     },
     {
@@ -422,7 +432,7 @@ function EuropeanMarketsScreenImpl() {
         />
       ),
     },
-  ], [statsMap, macroData, macroLoading, macroError, spreadData, spreadLoading, spreadError, openDetail]);
+  ], [statsMap, statsLoading, statsError, statsRefresh, macroData, macroLoading, macroError, spreadData, spreadLoading, spreadError, openDetail]);
 
   return (
     <FullPageScreenLayout

@@ -11,6 +11,7 @@ import { SectorChartPanel, FundamentalsTable, SectorScatterPlot, InsiderActivity
 import { useOpenDetail } from '../../context/OpenDetailContext';
 import { useTickerPrice } from '../../context/PriceContext';
 import { useDeepScreenData } from '../../hooks/useDeepScreenData';
+import { StatsLoadGate } from './DeepScreenBase';
 import { apiFetch } from '../../utils/api';
 
 const fmt = (n, d = 2) => n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -319,7 +320,7 @@ function EtfStripSection() {
 
 // Main component
 function TechAIScreenImpl() {
-  const { data: statsMap } = useDeepScreenData(ALL_TICKERS);
+  const { data: statsMap, loading: statsLoading, error: statsError, refresh: statsRefresh } = useDeepScreenData(ALL_TICKERS);
   const openDetail = useOpenDetail();
 
   const sections = useMemo(() => [
@@ -332,17 +333,17 @@ function TechAIScreenImpl() {
     {
       id: 'megacap',
       title: 'MEGA-CAP TECH',
-      component: () => <SectionTable tickers={MEGA_CAP} statsMap={statsMap} />,
+      component: () => <StatsLoadGate statsMap={statsMap} loading={statsLoading} error={statsError} refresh={statsRefresh}><SectionTable tickers={MEGA_CAP} statsMap={statsMap} /></StatsLoadGate>,
     },
     {
       id: 'semis',
       title: 'SEMICONDUCTORS',
-      component: () => <SectionTable tickers={SEMIS} statsMap={statsMap} />,
+      component: () => <StatsLoadGate statsMap={statsMap} loading={statsLoading} error={statsError} refresh={statsRefresh}><SectionTable tickers={SEMIS} statsMap={statsMap} /></StatsLoadGate>,
     },
     {
       id: 'aicloud',
       title: 'AI & CLOUD SOFTWARE',
-      component: () => <SectionTable tickers={AI_CLOUD} statsMap={statsMap} />,
+      component: () => <StatsLoadGate statsMap={statsMap} loading={statsLoading} error={statsError} refresh={statsRefresh}><SectionTable tickers={AI_CLOUD} statsMap={statsMap} /></StatsLoadGate>,
     },
     {
       id: 'minifinancials',
@@ -386,7 +387,7 @@ function TechAIScreenImpl() {
       span: 'full',
       component: () => <EtfStripSection />,
     },
-  ], [statsMap]);
+  ], [statsMap, statsLoading, statsError, statsRefresh]);
 
   return (
     <FullPageScreenLayout

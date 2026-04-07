@@ -88,9 +88,36 @@ const TickerRow = memo(function TickerRow({ symbol }) {
   );
 });
 
+/* ── SectionLoadingCheck: returns true if at least one ticker has data ── */
+function useSectionHasData(tickers) {
+  // Check first 4 tickers (preview set) for any loaded price
+  const t0 = useTickerPrice(tickers[0]);
+  const t1 = useTickerPrice(tickers[1] || tickers[0]);
+  const t2 = useTickerPrice(tickers[2] || tickers[0]);
+  const t3 = useTickerPrice(tickers[3] || tickers[0]);
+  return t0?.price != null || t1?.price != null || t2?.price != null || t3?.price != null;
+}
+
+/* ── Section skeleton for loading state ────────────────────────── */
+function SectionSkeleton({ count = 4 }) {
+  return (
+    <div className="hpm-ticker-list">
+      {Array.from({ length: count }, (_, i) => (
+        <div key={i} className="hpm-ticker-row" style={{ opacity: 0.3 }}>
+          <span className="hpm-ticker-sym" style={{ background: '#1a1a1a', borderRadius: 3, width: 40, height: 12, display: 'inline-block' }} />
+          <span className="hpm-ticker-price" style={{ background: '#1a1a1a', borderRadius: 3, width: 50, height: 12, display: 'inline-block' }} />
+          <span style={{ background: '#1a1a1a', borderRadius: 3, width: 40, height: 12, display: 'inline-block' }} />
+        </div>
+      ))}
+      <div style={{ textAlign: 'center', fontSize: 9, color: '#555', padding: '4px 0' }}>Loading prices...</div>
+    </div>
+  );
+}
+
 /* ── SectionCard: expandable card with View All ─────────────────── */
 const SectionCard = memo(function SectionCard({ section, tickers }) {
   const [expanded, setExpanded] = useState(false);
+  const hasData = useSectionHasData(tickers);
   const needsExpand = tickers.length > PREVIEW_COUNT;
   const visibleTickers = expanded ? tickers : tickers.slice(0, PREVIEW_COUNT);
 
@@ -100,12 +127,16 @@ const SectionCard = memo(function SectionCard({ section, tickers }) {
         <span className="hpm-section-title">{section.label}</span>
         <span className="hpm-section-count">{tickers.length}</span>
       </div>
-      <div className="hpm-ticker-list">
-        {visibleTickers.map(sym => (
-          <TickerRow key={sym} symbol={sym} />
-        ))}
-      </div>
-      {needsExpand && (
+      {!hasData ? (
+        <SectionSkeleton count={Math.min(tickers.length, PREVIEW_COUNT)} />
+      ) : (
+        <div className="hpm-ticker-list">
+          {visibleTickers.map(sym => (
+            <TickerRow key={sym} symbol={sym} />
+          ))}
+        </div>
+      )}
+      {needsExpand && hasData && (
         <button
           className="hpm-view-all-btn"
           onClick={(e) => { e.stopPropagation(); setExpanded(v => !v); }}

@@ -4,7 +4,7 @@
  * 35 tickers with Mkt Cap + P/E for equity sections, spread analysis for futures.
  */
 import { memo, useMemo } from 'react';
-import DeepScreenBase, { DeepSection, TickerCell } from './DeepScreenBase';
+import DeepScreenBase, { DeepSection, TickerCell, StatsLoadGate } from './DeepScreenBase';
 import SectorChartStrip from './SectorChartStrip';
 import { useOpenDetail } from '../../context/OpenDetailContext';
 import { useTickerPrice } from '../../context/PriceContext';
@@ -144,14 +144,14 @@ const EtfStripSection = memo(function EtfStripSection() {
 });
 
 function EnergyScreenImpl() {
-  const { data: statsMap } = useDeepScreenData(ALL_EQUITIES);
+  const { data: statsMap, loading: statsLoading, error: statsError, refresh: statsRefresh } = useDeepScreenData(ALL_EQUITIES);
 
   const sections = useMemo(() => [
-    { id: 'majors', title: 'Integrated Majors',         component: () => <EquitySection tickers={INTEGRATED_MAJORS} statsMap={statsMap} /> },
-    { id: 'ofs',    title: 'OFS & Midstream',            component: () => <EquitySection tickers={OFS_MIDSTREAM} statsMap={statsMap} /> },
-    { id: 'clean',  title: 'Clean Energy & Transition',  component: () => <EquitySection tickers={CLEAN_ENERGY} statsMap={statsMap} /> },
+    { id: 'majors', title: 'Integrated Majors',         component: () => <StatsLoadGate statsMap={statsMap} loading={statsLoading} error={statsError} refresh={statsRefresh}><EquitySection tickers={INTEGRATED_MAJORS} statsMap={statsMap} /></StatsLoadGate> },
+    { id: 'ofs',    title: 'OFS & Midstream',            component: () => <StatsLoadGate statsMap={statsMap} loading={statsLoading} error={statsError} refresh={statsRefresh}><EquitySection tickers={OFS_MIDSTREAM} statsMap={statsMap} /></StatsLoadGate> },
+    { id: 'clean',  title: 'Clean Energy & Transition',  component: () => <StatsLoadGate statsMap={statsMap} loading={statsLoading} error={statsError} refresh={statsRefresh}><EquitySection tickers={CLEAN_ENERGY} statsMap={statsMap} /></StatsLoadGate> },
     { id: 'futures', title: 'Energy Futures & Spreads',  component: FuturesSection },
-  ], [statsMap]);
+  ], [statsMap, statsLoading, statsError, statsRefresh]);
 
   return (
     <DeepScreenBase

@@ -14,7 +14,7 @@ import { InsiderActivity } from './shared/InsiderActivity';
 import { useOpenDetail } from '../../context/OpenDetailContext';
 import { useTickerPrice } from '../../context/PriceContext';
 import { useDeepScreenData } from '../../hooks/useDeepScreenData';
-import DeepScreenBase, { TickerCell } from './DeepScreenBase';
+import DeepScreenBase, { TickerCell, StatsLoadGate } from './DeepScreenBase';
 
 const fmt = (n, d = 2) =>
   n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -181,7 +181,7 @@ const EtfStrip = memo(function EtfStrip() {
 /* ── Main Screen Implementation ────────────────────────────────────────── */
 function DefenceScreenImpl() {
   const openDetail = useOpenDetail();
-  const { data: statsMap } = useDeepScreenData(ALL_EQUITIES);
+  const { data: statsMap, loading: statsLoading, error: statsError, refresh: statsRefresh } = useDeepScreenData(ALL_EQUITIES);
 
   /* ── Prepare scatter plot data: P/E vs Market Cap ──────────────────── */
   const scatterData = useMemo(() => {
@@ -219,14 +219,18 @@ function DefenceScreenImpl() {
       id: 'us-primes',
       title: 'US Defence Primes',
       component: () => (
-        <SectionTable tickers={US_PRIMES} statsMap={statsMap} withMiniCharts={true} />
+        <StatsLoadGate statsMap={statsMap} loading={statsLoading} error={statsError} refresh={statsRefresh}>
+          <SectionTable tickers={US_PRIMES} statsMap={statsMap} withMiniCharts={true} />
+        </StatsLoadGate>
       ),
     },
     {
       id: 'eu-defence',
       title: 'EU Defence (ADRs)',
       component: () => (
-        <SectionTable tickers={EU_DEFENCE} statsMap={statsMap} />
+        <StatsLoadGate statsMap={statsMap} loading={statsLoading} error={statsError} refresh={statsRefresh}>
+          <SectionTable tickers={EU_DEFENCE} statsMap={statsMap} />
+        </StatsLoadGate>
       ),
     },
     {
@@ -246,14 +250,18 @@ function DefenceScreenImpl() {
       id: 'supply-chain',
       title: 'Supply Chain & Tech',
       component: () => (
-        <SectionTable tickers={SUPPLY_CHAIN} statsMap={statsMap} />
+        <StatsLoadGate statsMap={statsMap} loading={statsLoading} error={statsError} refresh={statsRefresh}>
+          <SectionTable tickers={SUPPLY_CHAIN} statsMap={statsMap} />
+        </StatsLoadGate>
       ),
     },
     {
       id: 'space-cyber',
       title: 'Space & Cyber',
       component: () => (
-        <SectionTable tickers={SPACE_CYBER} statsMap={statsMap} />
+        <StatsLoadGate statsMap={statsMap} loading={statsLoading} error={statsError} refresh={statsRefresh}>
+          <SectionTable tickers={SPACE_CYBER} statsMap={statsMap} />
+        </StatsLoadGate>
       ),
     },
     {
@@ -282,7 +290,7 @@ function DefenceScreenImpl() {
         />
       ),
     },
-  ], [statsMap, scatterData, openDetail]);
+  ], [statsMap, statsLoading, statsError, statsRefresh, scatterData, openDetail]);
 
   return (
     <FullPageScreenLayout

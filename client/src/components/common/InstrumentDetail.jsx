@@ -1703,6 +1703,18 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
     openDetail(symbolKey);
   }, [openDetail]);
 
+  // ── Degraded data banner ─────────────────────────────────────────────────
+  const degradedSources = useMemo(() => {
+    if (loading) return []; // still initial load, don't show yet
+    const failed = [];
+    if (bars.length === 0 && !loading) failed.push('chart');
+    if (fundsError) failed.push('fundamentals');
+    if (aiFundsError) failed.push('AI analysis');
+    if (isStock && !snap && !info) failed.push('quote');
+    return failed;
+  }, [loading, bars, fundsError, aiFundsError, isStock, snap, info]);
+  const isDegraded = degradedSources.length >= 2;
+
   return (
     <div
       className={asPage ? 'id-page' : 'id-overlay'}
@@ -1781,6 +1793,14 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
           {heroMktCap != null && <span className="id-hero-stat">MCap <span>{fmt(heroMktCap, 0)}</span></span>}
         </div>
       </div>
+
+      {/* ── Degraded data banner ── */}
+      {isDegraded && (
+        <div style={{ background: '#2a1a00', borderBottom: '1px solid #4a3000', padding: '6px 12px', fontSize: 10, color: '#ff9800', display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ fontSize: 12 }}>&#9888;</span>
+          <span>Partial coverage — {degradedSources.join(', ')} unavailable for this instrument</span>
+        </div>
+      )}
 
       {/* ── HEADER ── */}
       <div className={`id-header${isMobile ? ' id-header--mobile' : ''}`}>

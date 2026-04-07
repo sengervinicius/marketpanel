@@ -13,7 +13,7 @@ import { InsiderActivity } from './shared/InsiderActivity';
 import { useOpenDetail } from '../../context/OpenDetailContext';
 import { useTickerPrice } from '../../context/PriceContext';
 import { useDeepScreenData } from '../../hooks/useDeepScreenData';
-import DeepScreenBase, { TickerCell } from './DeepScreenBase';
+import DeepScreenBase, { TickerCell, StatsLoadGate } from './DeepScreenBase';
 
 const fmt = (n, d = 2) =>
   n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -142,7 +142,7 @@ const EtfStrip = memo(function EtfStrip() {
 /* ── Main Screen Implementation ────────────────────────────────────────── */
 function GlobalRetailScreenImpl() {
   const openDetail = useOpenDetail();
-  const { data: statsMap } = useDeepScreenData(ALL_EQUITIES);
+  const { data: statsMap, loading: statsLoading, error: statsError, refresh: statsRefresh } = useDeepScreenData(ALL_EQUITIES);
 
   /* ── Prepare scatter plot data: P/E vs Market Cap ──────────────────── */
   const scatterData = useMemo(() => {
@@ -180,35 +180,45 @@ function GlobalRetailScreenImpl() {
       id: 'us-discretionary',
       title: 'US Consumer Discretionary',
       component: () => (
-        <SectionTable tickers={US_DISCRETIONARY} statsMap={statsMap} />
+        <StatsLoadGate statsMap={statsMap} loading={statsLoading} error={statsError} refresh={statsRefresh}>
+          <SectionTable tickers={US_DISCRETIONARY} statsMap={statsMap} />
+        </StatsLoadGate>
       ),
     },
     {
       id: 'us-staples',
       title: 'US Consumer Staples',
       component: () => (
-        <SectionTable tickers={US_STAPLES} statsMap={statsMap} />
+        <StatsLoadGate statsMap={statsMap} loading={statsLoading} error={statsError} refresh={statsRefresh}>
+          <SectionTable tickers={US_STAPLES} statsMap={statsMap} />
+        </StatsLoadGate>
       ),
     },
     {
       id: 'global-luxury',
       title: 'Global Luxury',
       component: () => (
-        <SectionTable tickers={GLOBAL_LUXURY} statsMap={statsMap} />
+        <StatsLoadGate statsMap={statsMap} loading={statsLoading} error={statsError} refresh={statsRefresh}>
+          <SectionTable tickers={GLOBAL_LUXURY} statsMap={statsMap} />
+        </StatsLoadGate>
       ),
     },
     {
       id: 'ecommerce-fintech',
       title: 'E-Commerce & FinTech',
       component: () => (
-        <SectionTable tickers={ECOMMERCE_FINTECH} statsMap={statsMap} />
+        <StatsLoadGate statsMap={statsMap} loading={statsLoading} error={statsError} refresh={statsRefresh}>
+          <SectionTable tickers={ECOMMERCE_FINTECH} statsMap={statsMap} />
+        </StatsLoadGate>
       ),
     },
     {
       id: 'specialty-retail',
       title: 'Specialty Retail',
       component: () => (
-        <SectionTable tickers={SPECIALTY_RETAIL} statsMap={statsMap} />
+        <StatsLoadGate statsMap={statsMap} loading={statsLoading} error={statsError} refresh={statsRefresh}>
+          <SectionTable tickers={SPECIALTY_RETAIL} statsMap={statsMap} />
+        </StatsLoadGate>
       ),
     },
     {
@@ -250,7 +260,7 @@ function GlobalRetailScreenImpl() {
         />
       ),
     },
-  ], [statsMap, scatterData, openDetail]);
+  ], [statsMap, statsLoading, statsError, statsRefresh, scatterData, openDetail]);
 
   return (
     <FullPageScreenLayout

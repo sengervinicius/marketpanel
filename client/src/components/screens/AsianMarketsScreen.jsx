@@ -13,7 +13,7 @@ import { useTickerPrice } from '../../context/PriceContext';
 import { useDeepScreenData } from '../../hooks/useDeepScreenData';
 import { useSectionData } from '../../hooks/useSectionData';
 import { apiFetch } from '../../utils/api';
-import DeepScreenBase, { TickerCell, DeepSkeleton, DeepError } from './DeepScreenBase';
+import DeepScreenBase, { TickerCell, DeepSkeleton, DeepError, StatsLoadGate } from './DeepScreenBase';
 
 /* ── Formatting Utilities ──────────────────────────────────────────────────── */
 const fmt = (n, d = 2) =>
@@ -304,7 +304,7 @@ const EtfStrip = memo(function EtfStrip() {
 /* ── Main Screen Implementation ────────────────────────────────────────────── */
 function AsianMarketsScreenImpl() {
   const openDetail = useOpenDetail();
-  const { data: statsMap } = useDeepScreenData(ALL_EQUITIES);
+  const { data: statsMap, loading: statsLoading, error: statsError, refresh: statsRefresh } = useDeepScreenData(ALL_EQUITIES);
 
   /* ── Build section definitions ─────────────────────────────────────────── */
   const sections = useMemo(() => [
@@ -324,35 +324,45 @@ function AsianMarketsScreenImpl() {
       id: 'japan',
       title: 'Japan',
       component: () => (
-        <SectionTable tickers={JAPAN} statsMap={statsMap} />
+        <StatsLoadGate statsMap={statsMap} loading={statsLoading} error={statsError} refresh={statsRefresh}>
+          <SectionTable tickers={JAPAN} statsMap={statsMap} />
+        </StatsLoadGate>
       ),
     },
     {
       id: 'china-hk',
       title: 'China & Hong Kong',
       component: () => (
-        <SectionTable tickers={CHINA_HK} statsMap={statsMap} />
+        <StatsLoadGate statsMap={statsMap} loading={statsLoading} error={statsError} refresh={statsRefresh}>
+          <SectionTable tickers={CHINA_HK} statsMap={statsMap} />
+        </StatsLoadGate>
       ),
     },
     {
       id: 'india',
       title: 'India',
       component: () => (
-        <SectionTable tickers={INDIA} statsMap={statsMap} />
+        <StatsLoadGate statsMap={statsMap} loading={statsLoading} error={statsError} refresh={statsRefresh}>
+          <SectionTable tickers={INDIA} statsMap={statsMap} />
+        </StatsLoadGate>
       ),
     },
     {
       id: 'korea',
       title: 'Korea',
       component: () => (
-        <SectionTable tickers={KOREA} statsMap={statsMap} />
+        <StatsLoadGate statsMap={statsMap} loading={statsLoading} error={statsError} refresh={statsRefresh}>
+          <SectionTable tickers={KOREA} statsMap={statsMap} />
+        </StatsLoadGate>
       ),
     },
     {
       id: 'taiwan-asean',
       title: 'Taiwan & ASEAN',
       component: () => (
-        <SectionTable tickers={[...TAIWAN, ...ASEAN]} statsMap={statsMap} />
+        <StatsLoadGate statsMap={statsMap} loading={statsLoading} error={statsError} refresh={statsRefresh}>
+          <SectionTable tickers={[...TAIWAN, ...ASEAN]} statsMap={statsMap} />
+        </StatsLoadGate>
       ),
     },
     {
@@ -391,7 +401,7 @@ function AsianMarketsScreenImpl() {
         />
       ),
     },
-  ], [statsMap, openDetail]);
+  ], [statsMap, statsLoading, statsError, statsRefresh, openDetail]);
 
   return (
     <FullPageScreenLayout
