@@ -68,9 +68,9 @@ function HeatmapCell({ s, data, onTickerClick }) {
   const { changePct: pct } = useMergedTickerQuote(s.symbol, d);
   const [showShimmer, setShowShimmer] = useState(true);
 
-  // Fix 4: After 10 seconds, stop showing shimmer
+  // Sprint 3: Standardized timeout — 8s shimmer then show dash
   useEffect(() => {
-    const timer = setTimeout(() => setShowShimmer(false), 10000);
+    const timer = setTimeout(() => setShowShimmer(false), 8000);
     return () => clearTimeout(timer);
   }, []);
 

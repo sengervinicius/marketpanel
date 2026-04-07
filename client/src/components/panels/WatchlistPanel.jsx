@@ -125,7 +125,7 @@ function WatchlistPanel({ onTickerClick }) {
     }
   }, [watchlist]);
 
-  // Fix 4: Initialize 10-second shimmer timeout for new symbols without data
+  // Sprint 3: Standardized 8s shimmer timeout for new symbols without data
   useEffect(() => {
     const newTimeouts = {};
     watchlist.forEach(sym => {
@@ -136,7 +136,7 @@ function WatchlistPanel({ onTickerClick }) {
             updated[sym] = true; // Mark as expired (show dash)
             return updated;
           });
-        }, 10000);
+        }, 8000);
       }
     });
     if (Object.keys(newTimeouts).length > 0) {

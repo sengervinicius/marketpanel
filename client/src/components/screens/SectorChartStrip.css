@@ -153,8 +153,8 @@
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
-.scs-chart-chg.up { color: #4caf50; }
-.scs-chart-chg.down { color: #f44336; }
+.scs-chart-chg.up { color: var(--price-up, #4caf50); }
+.scs-chart-chg.down { color: var(--price-down, #f44336); }
 
 /* Responsive: mobile wraps */
 @media (max-width: 768px) {

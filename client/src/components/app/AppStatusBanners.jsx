@@ -37,6 +37,8 @@ export function FeedStatusBar({ feedStatus }) {
       height: 20, flexShrink: 0,
       background: '#060606', borderTop: '1px solid #1a1a1a',
       padding: '0 12px', gap: 20,
+      position: 'fixed', bottom: 0, left: 0, right: 0,
+      zIndex: 50,
     }} className="flex-row">
       <span style={{ color: '#282828', fontSize: 8, letterSpacing: '1px' }}>FEED</span>
       {feeds.map(({ key, label }) => {

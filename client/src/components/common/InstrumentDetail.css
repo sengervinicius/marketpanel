@@ -510,6 +510,31 @@
   font-size: var(--font-base);
   padding: 12px 0;
 }
+
+/* Sprint 3: Skeleton shimmer for async sections */
+.id-skeleton {
+  padding: 12px 0;
+}
+.id-skeleton-bar {
+  height: 14px;
+  margin-bottom: 8px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, #1a1a1a 25%, #252525 50%, #1a1a1a 75%);
+  background-size: 200% 100%;
+  animation: id-shimmer 1.5s ease-in-out infinite;
+}
+.id-skeleton-bar--lg {
+  height: 200px;
+  margin-bottom: 8px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, #1a1a1a 25%, #252525 50%, #1a1a1a 75%);
+  background-size: 200% 100%;
+  animation: id-shimmer 1.5s ease-in-out infinite;
+}
+@keyframes id-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
 .id-info-msg {
   color: var(--text-muted);
   font-size: var(--font-base);

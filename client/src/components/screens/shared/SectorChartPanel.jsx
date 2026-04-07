@@ -141,8 +141,20 @@ export function SectorChartPanel({ tickers = [], height = 200, cols = 2 }) {
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState(null);
   const [retryCount, setRetryCount] = useState(0);
+  const [timedOut, setTimedOut] = useState(false);
 
   const gridCols = isMobile ? 1 : cols;
+
+  // Sprint 3: 10s loading timeout for charts
+  useEffect(() => {
+    if (!loading) { setTimedOut(false); return; }
+    const timer = setTimeout(() => {
+      setTimedOut(true);
+      setLoading(false);
+      setFetchError('Charts timed out after 10 seconds');
+    }, 10000);
+    return () => clearTimeout(timer);
+  }, [loading]);
 
   useEffect(() => {
     if (!tickers || tickers.length === 0) {

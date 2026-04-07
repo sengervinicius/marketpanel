@@ -50,9 +50,9 @@ function PriceRow({
   // Fix 4: Track whether data has timed out (after 10s, show dash instead of shimmer)
   const [showShimmer, setShowShimmer] = useState(true);
 
-  // Fix 4: Set timeout to switch from shimmer to dash after 10 seconds
+  // Sprint 3: Standardized timeout — 8s shimmer then show dash
   useEffect(() => {
-    const timer = setTimeout(() => setShowShimmer(false), 10000);
+    const timer = setTimeout(() => setShowShimmer(false), 8000);
     return () => clearTimeout(timer);
   }, []);
 

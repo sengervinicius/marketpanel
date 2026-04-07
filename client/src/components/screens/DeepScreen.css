@@ -111,7 +111,7 @@
 
 /* Error */
 .ds-error {
-  color: #f44336;
+  color: var(--price-down, #f44336);
   font-size: 10px;
   padding: 10px;
   text-align: center;
@@ -143,8 +143,8 @@
 .ds-ticker-price {
   color: #999;
 }
-.ds-ticker-chg.up { color: #4caf50; }
-.ds-ticker-chg.down { color: #f44336; }
+.ds-ticker-chg.up { color: var(--price-up, #4caf50); }
+.ds-ticker-chg.down { color: var(--price-down, #f44336); }
 
 /* Generic data table for deep screens */
 .ds-table {
@@ -228,11 +228,11 @@
 }
 
 /* Table row colors for gains/losses */
-.ds-up { color: #4caf50; }
-.ds-down { color: #f44336; }
+.ds-up { color: var(--price-up, #4caf50); }
+.ds-down { color: var(--price-down, #f44336); }
 
 /* Value coloring */
-.ds-val-pos { color: #4caf50; }
-.ds-val-neg { color: #f44336; }
+.ds-val-pos { color: var(--price-up, #4caf50); }
+.ds-val-neg { color: var(--price-down, #f44336); }
 .ds-val-muted { color: #555; }
 .ds-val-accent { color: #ff6b00; }

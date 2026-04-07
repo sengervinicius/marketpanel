@@ -76,7 +76,7 @@
 }
 .cp-imp--high {
   background: rgba(244, 67, 54, 0.15);
-  color: #f44336;
+  color: var(--price-down, #f44336);
   border: 1px solid rgba(244, 67, 54, 0.3);
 }
 .cp-imp--medium {
@@ -86,7 +86,7 @@
 }
 .cp-imp--low {
   background: rgba(76, 175, 80, 0.15);
-  color: #4caf50;
+  color: var(--price-up, #4caf50);
   border: 1px solid rgba(76, 175, 80, 0.3);
 }
 

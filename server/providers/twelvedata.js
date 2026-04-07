@@ -89,10 +89,12 @@ const TTL = {
 };
 
 // ── Rate limiting ───────────────────────────────────────────────────────────
-// Pro plan: 800 req/min. We track to stay safe.
+// Pro plan: ~30 credits/min (1597 credits/day).
+// Previously set to 750 which is way above actual plan limit.
+// Conservative limit prevents 429 errors from the API.
 let _requestsThisMinute = 0;
 let _minuteStart = Date.now();
-const MAX_RPM = 750; // leave headroom
+const MAX_RPM = 28; // leave headroom below ~30/min pro plan limit
 
 function _checkRateLimit() {
   const now = Date.now();
@@ -139,7 +141,25 @@ async function tdFetch(path, params = {}) {
     throw new Error(`[TwelveData] Auth error (${res.status})`);
   }
   if (res.status === 429) {
-    throw new Error('[TwelveData] Rate limited (429)');
+    // Back off and retry once after a short delay
+    const retryAfter = parseInt(res.headers.get('retry-after') || '2', 10);
+    const waitMs = Math.min(retryAfter * 1000, 5000);
+    logger.warn('twelvedata', `Rate limited (429), retrying after ${waitMs}ms`);
+    await new Promise(r => setTimeout(r, waitMs));
+    const retryRes = await fetch(url, {
+      headers: { 'Accept': 'application/json', 'User-Agent': 'SengerMarketTerminal/1.0' },
+    });
+    if (retryRes.status === 429) {
+      throw new Error('[TwelveData] Rate limited (429) after retry');
+    }
+    if (!retryRes.ok) {
+      throw new Error(`[TwelveData] HTTP ${retryRes.status} after retry`);
+    }
+    const retryJson = await retryRes.json();
+    if (retryJson.status === 'error') {
+      throw new Error(`[TwelveData] ${retryJson.message || 'Unknown error'} after retry`);
+    }
+    return retryJson;
   }
   if (!res.ok) {
     const body = await res.text().catch(() => '');

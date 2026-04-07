@@ -29,7 +29,14 @@ function LazySection({ children }) {
     );
 
     observer.observe(el);
-    return () => observer.disconnect();
+
+    // Sprint 3: Force render after 5s even if not yet in viewport
+    const fallbackTimer = setTimeout(() => setVisible(true), 5000);
+
+    return () => {
+      observer.disconnect();
+      clearTimeout(fallbackTimer);
+    };
   }, []);
 
   return (

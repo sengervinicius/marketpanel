@@ -330,7 +330,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
 
   // ── Chart sub-render ───────────────────────────────────────────────────
   function renderChart() {
-    if (loading) return <div className="id-chart-msg">Loading...</div>;
+    if (loading) return <div className="id-chart-msg"><div className="id-skeleton"><div className="id-skeleton-bar--lg" style={{ width: '100%' }} /></div></div>;
 
     // ── AI Overview fallback for NO DATA instruments (S4.5.A) ──
     if (hasNoCoverage) {
@@ -690,7 +690,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
           </Section>
         )}
 
-        {bondLoading && !bd && <div className="id-loading">Loading bond data...</div>}
+        {bondLoading && !bd && <div className="id-skeleton"><div className="id-skeleton-bar" style={{ width: '75%' }} /><div className="id-skeleton-bar" style={{ width: '60%' }} /></div>}
       </>
     );
   }
@@ -698,7 +698,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
   // ── Bond Risk tab ────────────────────────────────────────────────────
   function renderBondRisk() {
     const bd = bondData;
-    if (!bd && bondLoading) return <div className="id-loading">Loading...</div>;
+    if (!bd && bondLoading) return <div className="id-skeleton"><div className="id-skeleton-bar" style={{ width: '80%' }} /><div className="id-skeleton-bar" style={{ width: '65%' }} /></div>;
     if (!bd) return <div className="id-loading">No risk data available.</div>;
     const dur = bd.duration;
     const conv = bd.convexity;
@@ -756,7 +756,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
   // ── Bond Cash Flows tab ──────────────────────────────────────────────
   function renderCashFlows() {
     const bd = bondData;
-    if (!bd && bondLoading) return <div className="id-loading">Loading...</div>;
+    if (!bd && bondLoading) return <div className="id-skeleton"><div className="id-skeleton-bar" style={{ width: '80%' }} /><div className="id-skeleton-bar" style={{ width: '65%' }} /></div>;
     if (!bd || !bd.cashFlows?.length) return <div className="id-loading">No cash flow data available.</div>;
     const totalFlow = bd.cashFlows.reduce((s, cf) => s + cf.amount, 0);
     return (
@@ -1031,7 +1031,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
                 <div className="id-grid-msg id-grid-msg--pt">loading ratios...</div>
               )}
               {fundsLoading && mktCap == null && (
-                <div className="id-grid-msg id-grid-msg--lg">Loading...</div>
+                <div className="id-skeleton" style={{ padding: '8px 12px' }}><div className="id-skeleton-bar" style={{ width: '90%' }} /><div className="id-skeleton-bar" style={{ width: '70%' }} /><div className="id-skeleton-bar" style={{ width: '80%' }} /></div>
               )}
               {!fundsLoading && fundsError && mktCap == null && (
                 <div className="id-grid-msg">Fundamental data unavailable</div>
@@ -1077,7 +1077,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
   function renderNews() {
     return (
       <Section title="NEWS">
-        {newsLoading && <div className="id-loading">Loading...</div>}
+        {newsLoading && <div className="id-skeleton"><div className="id-skeleton-bar" style={{ width: '90%' }} /><div className="id-skeleton-bar" style={{ width: '75%' }} /><div className="id-skeleton-bar" style={{ width: '60%' }} /></div>}
         {!newsLoading && news.length === 0 && (
           <div className="id-loading">No recent news found.</div>
         )}
@@ -1108,7 +1108,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
   // ── About sub-render ───────────────────────────────────────────────────
   function renderFundamentals() {
     if (!isStock) return <div className="id-info-msg">Fundamentals only for stocks</div>;
-    if (fundsLoading && !tdProfile) return <div className="id-loading">LOADING FUNDAMENTALS...</div>;
+    if (fundsLoading && !tdProfile) return <div className="id-skeleton"><div className="id-skeleton-bar" style={{ width: '90%' }} /><div className="id-skeleton-bar" style={{ width: '75%' }} /><div className="id-skeleton-bar" style={{ width: '85%' }} /><div className="id-skeleton-bar" style={{ width: '60%' }} /><div className="id-skeleton-bar" style={{ width: '70%' }} /></div>;
 
     // Merge: fundsData (Polygon/Finnhub) + tdProfile (Twelve Data) + tdStatistics
     const d = fundsData || {};
@@ -1418,7 +1418,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
       <div className="id-section-group">
         {/* Insider Transactions */}
         <div className="id-section-title" style={{ color: '#ce93d8' }}>INSIDER TRANSACTIONS</div>
-        {insiderLoading && <div className="id-loading">Loading...</div>}
+        {insiderLoading && <div className="id-skeleton"><div className="id-skeleton-bar" style={{ width: '85%' }} /><div className="id-skeleton-bar" style={{ width: '70%' }} /><div className="id-skeleton-bar" style={{ width: '55%' }} /></div>}
         {!insiderLoading && insiders.length === 0 && (
           <div style={{ fontSize: 10, color: '#666', padding: '4px 0' }}>No insider data available</div>
         )}
@@ -1569,7 +1569,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
   // ── S5: Render Financial Statements (Income, Balance Sheet, Cash Flow) ──
   function renderFinancials() {
     if (!isStock) return <div className="id-info-msg">Financials only for stocks</div>;
-    if (tdFinancialsLoading) return <div className="id-loading">LOADING FINANCIALS...</div>;
+    if (tdFinancialsLoading) return <div className="id-skeleton"><div className="id-skeleton-bar" style={{ width: '95%' }} /><div className="id-skeleton-bar" style={{ width: '80%' }} /><div className="id-skeleton-bar" style={{ width: '70%' }} /><div className="id-skeleton-bar" style={{ width: '85%' }} /></div>;
     if (!tdFinancials) return <div className="id-error-msg">Financial statements unavailable</div>;
 
     const fmtB = (n) => {

@@ -137,13 +137,17 @@ export function useDeepScreenData(tickers) {
           }
         }
 
+        const CHUNK_SIZE = 10; // Pro plan supports higher concurrency
         const chunks = [];
-        for (let i = 0; i < uncached.length; i += 6) {
-          chunks.push(uncached.slice(i, i + 6));
+        for (let i = 0; i < uncached.length; i += CHUNK_SIZE) {
+          chunks.push(uncached.slice(i, i + CHUNK_SIZE));
         }
 
-        for (const chunk of chunks) {
+        for (let ci = 0; ci < chunks.length; ci++) {
+          const chunk = chunks[ci];
           if (!mountedRef.current || signal?.aborted) return;
+          // Small inter-chunk delay to avoid rate limit spikes (skip first chunk)
+          if (ci > 0) await new Promise(r => setTimeout(r, 300));
           // Use Promise.allSettled so one failed ticker never drops the whole chunk
           const settled = await Promise.allSettled(
             chunk.map(async (ticker) => {

@@ -9,6 +9,8 @@
   font-family: var(--font-ui, 'Inter', system-ui, sans-serif);
   display: flex;
   flex-direction: column;
+  max-width: 100vw;
+  padding-bottom: 22px; /* Space for fixed FeedStatusBar */
 }
 
 /* Header */
@@ -219,6 +221,75 @@
 .fsl-screen::-webkit-scrollbar-thumb:hover,
 .fsl-section-body::-webkit-scrollbar-thumb:hover {
   background: var(--text-muted, #555);
+}
+
+/* ── Sprint 3: Responsive breakpoints ─────────────────────────────────── */
+
+/* Tablet: tighter padding, keep 2-col but reduce section min-height */
+@media (max-width: 1024px) {
+  .fsl-header {
+    padding: var(--sp-2, 8px) var(--sp-3, 12px);
+  }
+  .fsl-section {
+    min-height: 160px;
+  }
+  .fsl-section-head {
+    padding: var(--sp-2, 8px) var(--sp-2, 8px);
+  }
+  .ds-table td, .ds-table th {
+    padding: 4px 6px;
+  }
+}
+
+/* Small tablet / large phone: switch to single column */
+@media (max-width: 768px) {
+  .fsl-grid--desktop {
+    grid-template-columns: 1fr;
+  }
+  .fsl-section {
+    min-height: 120px;
+  }
+  .fsl-header-title {
+    font-size: var(--font-sm, 12px);
+    letter-spacing: 1px;
+  }
+  .ds-table {
+    font-size: 10px;
+  }
+  .ds-table th {
+    font-size: 8px;
+  }
+  .ds-table td {
+    font-size: 9px;
+  }
+}
+
+/* Mobile: maximum density, no horizontal scroll */
+@media (max-width: 375px) {
+  .fsl-header {
+    padding: var(--sp-1, 4px) var(--sp-2, 8px);
+  }
+  .fsl-header-title {
+    font-size: var(--font-xs, 11px);
+    letter-spacing: 0.5px;
+  }
+  .fsl-header-subtitle {
+    font-size: 8px;
+  }
+  .fsl-section-head {
+    padding: var(--sp-1, 4px) var(--sp-2, 8px);
+  }
+  .fsl-section-title {
+    font-size: 8px;
+    letter-spacing: 1px;
+  }
+  .ds-table td, .ds-table th {
+    padding: 3px 4px;
+    font-size: 8px;
+  }
+  .fsl-children {
+    padding: var(--sp-2, 8px);
+  }
 }
 
 @keyframes fsl-spin {

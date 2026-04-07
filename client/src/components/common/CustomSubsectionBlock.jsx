@@ -80,6 +80,8 @@ function CustomSubsectionBlock({
 }) {
   const [showAdd, setShowAdd] = useState(false);
   const [addVal, setAddVal] = useState('');
+  const [isDragOver, setIsDragOver] = useState(false);
+  const [dropResult, setDropResult] = useState(null); // 'success' | 'invalid' | null
   const addRef = useRef(null);
 
   useEffect(() => {
@@ -101,12 +103,15 @@ function CustomSubsectionBlock({
     <div>
       {/* Section header */}
       <div
-        className="csb-header"
+        className={`csb-header${isDragOver ? ' csb-header--drag-over' : ''}${dropResult === 'success' ? ' csb-header--drop-success' : ''}${dropResult === 'invalid' ? ' csb-header--drop-invalid' : ''}`}
         style={{ color }}
-        onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; }}
+        onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; setIsDragOver(true); }}
+        onDragEnter={(e) => { e.preventDefault(); setIsDragOver(true); }}
+        onDragLeave={() => setIsDragOver(false)}
         onDrop={(e) => {
           e.preventDefault();
           e.stopPropagation();
+          setIsDragOver(false);
           let ticker = null;
           const xTicker = e.dataTransfer?.getData('application/x-ticker');
           if (xTicker) {
@@ -115,7 +120,13 @@ function CustomSubsectionBlock({
           if (!ticker) ticker = e.dataTransfer?.getData('text/plain');
           if (ticker) {
             const sym = ticker.trim().toUpperCase();
-            if (!symbols.includes(sym)) onAddTicker?.(subsection.key, sym);
+            if (!symbols.includes(sym) && /^[A-Z0-9.:=\-^]+$/.test(sym)) {
+              onAddTicker?.(subsection.key, sym);
+              setDropResult('success');
+            } else {
+              setDropResult('invalid');
+            }
+            setTimeout(() => setDropResult(null), 1500);
           }
         }}
       >

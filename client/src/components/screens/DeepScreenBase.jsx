@@ -3,7 +3,7 @@
  * Configurable layout grid for deep sector/thematic screens.
  * Each section component fetches its own data via useSectionData.
  */
-import { memo, Component } from 'react';
+import { memo, Component, useState, useEffect } from 'react';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import AIInsightCard from '../ai/AIInsightCard';
 import './DeepScreen.css';
@@ -72,11 +72,25 @@ export function DeepError({ message, onRetry }) {
 }
 
 /* ── Stats load gate — shows skeleton/error/children based on useDeepScreenData state ── */
+/* Sprint 3: 12s timeout — if still loading after 12s, show error card with Retry */
 export function StatsLoadGate({ statsMap, loading, error, refresh, rows = 6, children }) {
-  if (loading && (!statsMap || statsMap.size === 0)) {
+  const [timedOut, setTimedOut] = useState(false);
+
+  useEffect(() => {
+    if (!loading) { setTimedOut(false); return; }
+    const timer = setTimeout(() => setTimedOut(true), 12000);
+    return () => clearTimeout(timer);
+  }, [loading]);
+
+  const hasData = statsMap && statsMap.size > 0;
+
+  if (timedOut && !hasData) {
+    return <DeepError message="Statistics timed out — data may be rate-limited" onRetry={() => { setTimedOut(false); refresh?.(); }} />;
+  }
+  if (loading && !hasData) {
     return <DeepSkeleton rows={rows} />;
   }
-  if (error && (!statsMap || statsMap.size === 0)) {
+  if (error && !hasData) {
     return <DeepError message={`Data unavailable — ${error}`} onRetry={refresh} />;
   }
   return children;

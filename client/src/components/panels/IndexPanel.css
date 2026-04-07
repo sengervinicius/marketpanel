@@ -118,9 +118,9 @@
 }
 
 .ip-row-change-positive {
-  color: #4caf50;
+  color: var(--price-up, #4caf50);
 }
 
 .ip-row-change-negative {
-  color: #f44336;
+  color: var(--price-down, #f44336);
 }
