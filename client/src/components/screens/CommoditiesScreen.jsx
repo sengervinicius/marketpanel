@@ -24,7 +24,7 @@ import { useTickerPrice } from '../../context/PriceContext';
 import { useDeepScreenData } from '../../hooks/useDeepScreenData';
 import { useSectionData } from '../../hooks/useSectionData';
 import { apiFetch } from '../../utils/api';
-import { DeepSkeleton, DeepError, TickerCell } from './DeepScreenBase';
+import { DeepSkeleton, DeepError, StatsLoadGate, TickerCell } from './DeepScreenBase';
 
 const fmt = (n, d = 2) =>
   n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -228,55 +228,43 @@ function FuturesTermStructureSection() {
   );
 }
 
-const EnergyMajorsSection = memo(function EnergyMajorsSection({ statsMap, loading, error }) {
-  if (loading && statsMap.size === 0) {
-    return <DeepSkeleton rows={6} />;
-  }
-
-  if (error && statsMap.size === 0) {
-    return <DeepError message={`Error: ${error}`} />;
-  }
-
+const EnergyMajorsSection = memo(function EnergyMajorsSection({ statsMap, loading, error, refresh }) {
   return (
-    <div style={{ padding: '0 6px', overflow: 'auto' }}>
-      <table className="ds-table">
-        <thead>
-          <tr>
-            <th>Ticker</th><th>Company</th><th>Price</th><th>1D%</th>
-            <th style={{ fontSize: 9 }}>Mkt Cap</th><th style={{ fontSize: 9 }}>P/E</th><th style={{ fontSize: 9 }}>Div%</th>
-          </tr>
-        </thead>
-        <tbody>
-          {ENERGY_MAJORS.map(sym => <ProducerRow key={sym} symbol={sym} stats={statsMap.get(sym)} />)}
-        </tbody>
-      </table>
-    </div>
+    <StatsLoadGate statsMap={statsMap} loading={loading} error={error} refresh={refresh} rows={6}>
+      <div style={{ padding: '0 6px', overflow: 'auto' }}>
+        <table className="ds-table">
+          <thead>
+            <tr>
+              <th>Ticker</th><th>Company</th><th>Price</th><th>1D%</th>
+              <th style={{ fontSize: 9 }}>Mkt Cap</th><th style={{ fontSize: 9 }}>P/E</th><th style={{ fontSize: 9 }}>Div%</th>
+            </tr>
+          </thead>
+          <tbody>
+            {ENERGY_MAJORS.map(sym => <ProducerRow key={sym} symbol={sym} stats={statsMap.get(sym)} />)}
+          </tbody>
+        </table>
+      </div>
+    </StatsLoadGate>
   );
 });
 
-const MiningMajorsSection = memo(function MiningMajorsSection({ statsMap, loading, error }) {
-  if (loading && statsMap.size === 0) {
-    return <DeepSkeleton rows={7} />;
-  }
-
-  if (error && statsMap.size === 0) {
-    return <DeepError message={`Error: ${error}`} />;
-  }
-
+const MiningMajorsSection = memo(function MiningMajorsSection({ statsMap, loading, error, refresh }) {
   return (
-    <div style={{ padding: '0 6px', overflow: 'auto' }}>
-      <table className="ds-table">
-        <thead>
-          <tr>
-            <th>Ticker</th><th>Company</th><th>Price</th><th>1D%</th>
-            <th style={{ fontSize: 9 }}>Mkt Cap</th><th style={{ fontSize: 9 }}>P/E</th><th style={{ fontSize: 9 }}>Div%</th>
-          </tr>
-        </thead>
-        <tbody>
-          {MINING_MAJORS.map(sym => <ProducerRow key={sym} symbol={sym} stats={statsMap.get(sym)} />)}
-        </tbody>
-      </table>
-    </div>
+    <StatsLoadGate statsMap={statsMap} loading={loading} error={error} refresh={refresh} rows={7}>
+      <div style={{ padding: '0 6px', overflow: 'auto' }}>
+        <table className="ds-table">
+          <thead>
+            <tr>
+              <th>Ticker</th><th>Company</th><th>Price</th><th>1D%</th>
+              <th style={{ fontSize: 9 }}>Mkt Cap</th><th style={{ fontSize: 9 }}>P/E</th><th style={{ fontSize: 9 }}>Div%</th>
+            </tr>
+          </thead>
+          <tbody>
+            {MINING_MAJORS.map(sym => <ProducerRow key={sym} symbol={sym} stats={statsMap.get(sym)} />)}
+          </tbody>
+        </table>
+      </div>
+    </StatsLoadGate>
   );
 });
 
@@ -337,7 +325,7 @@ const EtfStripSection = memo(function EtfStripSection() {
 });
 
 function CommoditiesScreenImpl() {
-  const { data: statsMap, loading: statsLoading, error: statsError } = useDeepScreenData(ALL_PRODUCERS);
+  const { data: statsMap, loading: statsLoading, error: statsError, refresh: statsRefresh } = useDeepScreenData(ALL_PRODUCERS);
 
   const sections = useMemo(() => [
     {
@@ -370,19 +358,19 @@ function CommoditiesScreenImpl() {
     {
       id: 'energy-majors',
       title: 'Energy Majors',
-      component: () => <EnergyMajorsSection statsMap={statsMap} loading={statsLoading} error={statsError} />,
+      component: () => <EnergyMajorsSection statsMap={statsMap} loading={statsLoading} error={statsError} refresh={statsRefresh} />,
     },
     {
       id: 'mining-majors',
       title: 'Mining Majors',
-      component: () => <MiningMajorsSection statsMap={statsMap} loading={statsLoading} error={statsError} />,
+      component: () => <MiningMajorsSection statsMap={statsMap} loading={statsLoading} error={statsError} refresh={statsRefresh} />,
     },
     {
       id: 'spread-analysis',
       title: 'Spread Analysis',
       component: SpreadAnalysisSection,
     },
-  ], [statsMap, statsLoading, statsError]);
+  ], [statsMap, statsLoading, statsError, statsRefresh]);
 
   return (
     <FullPageScreenLayout

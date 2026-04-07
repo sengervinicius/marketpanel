@@ -887,7 +887,28 @@ router.get('/search', async (req, res) => {
       };
     });
 
-    const ranked = rankResults(enriched, q).slice(0, limit);
+    let ranked = rankResults(enriched, q);
+
+    // ── Commodity/futures relevance filter ──
+    // Only show commodity futures when the query actually suggests commodities.
+    // Prevents futures from spamming unrelated searches (e.g. "apple" showing corn).
+    const COMMODITY_TERMS = new Set([
+      'oil','crude','wti','brent','natural gas','nat gas','gas','gasoline','heating oil',
+      'gold','silver','copper','platinum','palladium','iron','iron ore',
+      'corn','wheat','soybeans','soy','coffee','sugar','cotton',
+      'commodity','commodities','futures','metals','agriculture','energy',
+      'cl=f','bz=f','ng=f','rb=f','ho=f','gc=f','si=f','hg=f','pl=f','pa=f',
+      'zc=f','zw=f','zs=f','kc=f','sb=f','ct=f',
+    ]);
+    const qIsCommodityRelevant = COMMODITY_TERMS.has(q) ||
+      [...COMMODITY_TERMS].some(t => q.includes(t)) ||
+      (assetClass === 'commodity');
+
+    if (!qIsCommodityRelevant) {
+      ranked = ranked.filter(r => !(r.isFutures && r.assetClass === 'commodity'));
+    }
+
+    ranked = ranked.slice(0, limit);
 
     const sources = ['registry'];
     if (tdResults.length > 0) sources.push('twelvedata');

@@ -13,7 +13,7 @@ import { useOpenDetail } from '../../context/OpenDetailContext';
 import { useTickerPrice } from '../../context/PriceContext';
 import { useDeepScreenData } from '../../hooks/useDeepScreenData';
 import { useSectionData } from '../../hooks/useSectionData';
-import DeepScreenBase, { TickerCell, DeepSkeleton, DeepError } from './DeepScreenBase';
+import DeepScreenBase, { TickerCell, DeepSkeleton, DeepError, StatsLoadGate } from './DeepScreenBase';
 import { apiFetch } from '../../utils/api';
 
 /* ── Formatting utilities ──────────────────────────────────────────────────── */
@@ -460,7 +460,7 @@ const EtfStrip = memo(function EtfStrip() {
 /* ── Main CryptoScreen Implementation ───────────────────────────────────────── */
 function CryptoScreenImpl() {
   const openDetail = useOpenDetail();
-  const { data: statsMap } = useDeepScreenData(CRYPTO_EQUITIES);
+  const { data: statsMap, loading: statsLoading, error: statsError, refresh: statsRefresh } = useDeepScreenData(CRYPTO_EQUITIES);
 
   /* ── Build section definitions ────────────────────────────────────────── */
   const sections = useMemo(() => [
@@ -478,7 +478,11 @@ function CryptoScreenImpl() {
     {
       id: 'crypto-equities',
       title: 'Crypto Equities & Infrastructure',
-      component: () => <CryptoEquitiesSection statsMap={statsMap} />,
+      component: () => (
+        <StatsLoadGate statsMap={statsMap} loading={statsLoading} error={statsError} refresh={statsRefresh} rows={7}>
+          <CryptoEquitiesSection statsMap={statsMap} />
+        </StatsLoadGate>
+      ),
     },
     {
       id: 'crypto-etfs',
@@ -528,7 +532,7 @@ function CryptoScreenImpl() {
         />
       ),
     },
-  ], [statsMap, openDetail]);
+  ], [statsMap, statsLoading, statsError, statsRefresh, openDetail]);
 
   return (
     <FullPageScreenLayout

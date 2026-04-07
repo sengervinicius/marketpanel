@@ -11,75 +11,97 @@
  */
 
 import { useState, useEffect, useCallback, memo } from 'react';
+import {
+  Shield,
+  Pickaxe,
+  Globe,
+  Cpu,
+  TrendingUp,
+  BarChart3,
+  ShoppingCart,
+  Landmark,
+  Building2,
+  Bitcoin,
+} from 'lucide-react';
+
+/* ── Icon mapping: sector id → Lucide component ──────────────────────── */
+const SECTOR_ICON_MAP = {
+  'defence':          Shield,
+  'commodities':      Pickaxe,
+  'brazil-em':        Globe,
+  'technology':       Cpu,
+  'global-macro':     TrendingUp,
+  'fixed-income':     BarChart3,
+  'global-retail':    ShoppingCart,
+  'asian-markets':    Landmark,
+  'european-markets': Building2,
+  'crypto':           Bitcoin,
+};
+
+function SectorIcon({ screenId, color, size = 24 }) {
+  const Icon = SECTOR_ICON_MAP[screenId];
+  if (!Icon) return null;
+  return <Icon size={size} color={color} strokeWidth={1.5} />;
+}
 
 const SECTOR_SCREENS = [
   {
     id: 'defence',
     label: 'Defence & Aerospace',
-    icon: '🛡️',
     thesis: 'NATO spending, Indo-Pacific, Ukraine restocking',
     color: '#66bb6a',
   },
   {
     id: 'commodities',
     label: 'Commodities',
-    icon: '⛏️',
     thesis: 'Supercycle: underinvestment, green transition, geopolitics',
     color: '#ffb74d',
   },
   {
     id: 'brazil-em',
     label: 'Brazil & EM',
-    icon: '🌎',
     thesis: 'B3, LatAm, ADR arbitrage, EM FX & rates',
     color: '#4caf50',
   },
   {
     id: 'technology',
     label: 'Technology',
-    icon: '🤖',
     thesis: 'AI capex, semiconductors, mega-cap dominance',
     color: '#4fc3f7',
   },
   {
     id: 'global-macro',
     label: 'Global Macro',
-    icon: '🌐',
     thesis: 'Cross-asset flows, central bank divergence, risk regimes',
     color: '#ce93d8',
   },
   {
     id: 'fixed-income',
     label: 'Fixed Income',
-    icon: '📊',
     thesis: 'Yield curves, credit spreads, sovereign debt dynamics',
     color: '#90a4ae',
   },
   {
     id: 'global-retail',
     label: 'Global Retail',
-    icon: '🛒',
     thesis: 'Consumer discretionary, staples, luxury, e-commerce',
     color: '#f48fb1',
   },
   {
     id: 'asian-markets',
     label: 'Asian Markets',
-    icon: '🏯',
     thesis: 'Japan, China, India, Korea, ASEAN equities & FX',
     color: '#ef5350',
   },
   {
     id: 'european-markets',
     label: 'European Markets',
-    icon: '🏰',
     thesis: 'DAX, CAC, FTSE, Nordic, Bund spreads, ECB path',
     color: '#5c6bc0',
   },
   {
     id: 'crypto',
     label: 'Crypto',
-    icon: '₿',
     thesis: 'BTC, ETH, on-chain analytics, DeFi, ETF flows',
     color: '#ffa726',
   },
@@ -174,7 +196,7 @@ function SectorScreenSelector({ isOpen, onClose, onSelect, activeScreen }) {
               >
                 {/* Icon */}
                 <div style={styles.iconWrapper}>
-                  <div style={styles.icon}>{screen.icon}</div>
+                  <SectorIcon screenId={screen.id} color={screen.color} size={26} />
                 </div>
 
                 {/* Label */}
@@ -318,8 +340,9 @@ const styles = {
   },
 
   icon: {
-    fontSize: '28px',
-    lineHeight: 1,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   // Label (screen name)
