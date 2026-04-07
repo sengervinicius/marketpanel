@@ -148,12 +148,13 @@ app.post('/api/admin/reset-user', async (req, res) => {
         primary: 'SPY',
       },
     };
-    await authStore.mergeSettings(user.id, defaults);
+    // Full REPLACE (not merge) — wipe old panels/layout entirely
+    await authStore.updateUser(user.id, { settings: defaults });
 
     // 2. Reset subscription to fresh 2-day trial
     await authStore.updateSubscription(user.id, {
       isPaid: false,
-      subscriptionActive: false,
+      subscriptionActive: true,   // must be true — matches new-user default
       trialEndsAt: Date.now() + 2 * 24 * 60 * 60 * 1000,
       stripeCustomerId: null,
       stripeSubscriptionId: null,
