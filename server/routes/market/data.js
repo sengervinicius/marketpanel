@@ -665,4 +665,49 @@ router.get('/market/td/executives/:ticker', async (req, res) => {
   }
 });
 
+/**
+ * GET /market/td/diag
+ * Temporary diagnostic endpoint — checks Twelve Data API key, plan, and rate limits.
+ * TODO: Remove after Sprint 3 verification.
+ */
+router.get('/market/td/diag', async (req, res) => {
+  try {
+    const k = process.env.TWELVEDATA_API_KEY;
+    if (!k) return res.json({ ok: false, error: 'TWELVEDATA_API_KEY not set', keyLength: 0 });
+
+    const nodeFetch = require('node-fetch');
+
+    // 1) Check api_usage
+    const usageRes = await nodeFetch(`https://api.twelvedata.com/api_usage?apikey=${k}`, {
+      headers: { 'Accept': 'application/json' },
+    });
+    const usageJson = await usageRes.json();
+
+    // 2) Make a sample quote call and capture response headers
+    const quoteRes = await nodeFetch(`https://api.twelvedata.com/quote?symbol=AAPL&apikey=${k}`, {
+      headers: { 'Accept': 'application/json' },
+    });
+    const rateLimitHeaders = {};
+    for (const [hk, hv] of quoteRes.headers.entries()) {
+      if (hk.toLowerCase().startsWith('x-ratelimit') || hk.toLowerCase().includes('plan')) {
+        rateLimitHeaders[hk] = hv;
+      }
+    }
+    const quoteJson = await quoteRes.json();
+
+    res.json({
+      ok: true,
+      keyLength: k.length,
+      keyPrefix: k.substring(0, 4) + '...',
+      apiUsage: usageJson,
+      rateLimitHeaders,
+      sampleQuoteStatus: quoteRes.status,
+      sampleQuoteOk: quoteJson.status !== 'error',
+      sampleQuoteError: quoteJson.status === 'error' ? quoteJson.message : null,
+    });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
 module.exports = router;
