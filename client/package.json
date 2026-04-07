@@ -8,9 +8,15 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "cap:sync": "npx cap sync",
+    "cap:open:ios": "npx cap open ios",
+    "cap:open:android": "npx cap open android",
+    "cap:build:ios": "npm run build && npx cap sync ios",
+    "cap:build:android": "npm run build && npx cap sync android"
   },
   "dependencies": {
+    "@capacitor-community/apple-sign-in": "^6.0.0",
     "@capacitor/android": "^8.3.0",
     "@capacitor/cli": "^8.3.0",
     "@capacitor/core": "^8.3.0",

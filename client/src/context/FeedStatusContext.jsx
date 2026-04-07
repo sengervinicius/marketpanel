@@ -55,7 +55,7 @@ export function useFeedStatus() {
     if (lvl === 'live')     return { text: 'L1 REAL-TIME', color: '#00cc66', bg: '#001a0d' };
     if (lvl === 'degraded') return { text: 'DEGRADED',    color: '#ff9900', bg: '#1a0e00' };
     if (lvl === 'error')    return { text: 'FEED DOWN',   color: '#ff3333', bg: '#1a0000' };
-    return                          { text: 'CONNECTING', color: '#444',    bg: '#111' };
+    return                          { text: '●', color: '#555',    bg: 'transparent' };
   };
 
   const getLatency = (feed) => {

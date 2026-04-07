@@ -60,7 +60,7 @@ export const PANEL_DEFINITIONS = {
     id:             'globalIndices',
     label:          'Global Indexes',
     defaultTitle:   'Global Indexes',
-    defaultSymbols: ['SPY','QQQ','DIA','IWM','EWZ','EEM','EFA','FXI','EWJ','EWW'],
+    defaultSymbols: ['SPY','QQQ','DIA','EWZ','EEM','VGK','EWJ','FXI'],
     allowedGroups:  ['US Indexes','Global Indexes'],
     editable:       true,
     icon:           'GX',
@@ -113,8 +113,8 @@ export const PANEL_DEFINITIONS = {
   },
   debt: {
     id:             'debt',
-    label:          'Debt Markets',
-    defaultTitle:   'Debt Markets',
+    label:          'Yields & Rates',
+    defaultTitle:   'Yields & Rates',
     defaultSymbols: [], // debt panel uses country selector, not ticker list
     allowedGroups:  ['US Yields','EM Yields','EU Yields'],
     editable:       false, // special panel with its own country selector UI
@@ -124,8 +124,8 @@ export const PANEL_DEFINITIONS = {
   },
   watchlist: {
     id:             'watchlist',
-    label:          'Portfolio',
-    defaultTitle:   'Portfolio',
+    label:          'Watchlist',
+    defaultTitle:   'Watchlist',
     defaultSymbols: [],
     allowedGroups:  null,
     editable:       false,
@@ -190,8 +190,8 @@ export const PANEL_DEFINITIONS = {
   },
   curves: {
     id:             'curves',
-    label:          'Yield Curves',
-    defaultTitle:   'Yield Curves',
+    label:          'Global Rates',
+    defaultTitle:   'Global Rates',
     defaultSymbols: [],
     allowedGroups:  null,
     editable:       false,
@@ -430,9 +430,9 @@ export function getEditablePanels() {
  */
 export const DEFAULT_LAYOUT = {
   desktopRows: [
-    ['charts',       'usEquities',  'forex'],
-    ['globalIndices','brazilB3',    'commodities', 'crypto'],
-    ['debt',         'news',        'watchlist'],
+    ['charts',       'usEquities',    'globalIndices'],
+    ['forex',        'commodities',   'crypto',  'brazilB3'],
+    ['debt',         'news',          'watchlist'],
   ],
   mobileTabs: ['home', 'charts', 'watchlist', 'search', 'detail', 'news'],
 };
@@ -453,6 +453,6 @@ export const DEFAULT_HOME_SECTIONS = [
  * @type {Object}
  */
 export const DEFAULT_CHARTS_CONFIG = {
-  symbols: ['SPY', 'QQQ'],
+  symbols: ['SPY', 'QQQ', 'C:EURUSD', 'C:USDJPY', 'GLD', 'USO', 'EEM', 'EWZ', 'X:BTCUSD', 'VGK'],
   primary: 'SPY',
 };

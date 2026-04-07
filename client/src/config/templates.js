@@ -163,10 +163,10 @@ const debtInvestor = {
   panels: {
     debt:         { title: 'Sovereign Curves',symbols: [] },
     usEquities:   { title: 'Risk Assets',     symbols: ['SPY','QQQ','HYG','LQD','TLT','EMB','JNK','BNDX'] },
-    globalIndices:{ title: 'Global Indexes',  symbols: ['SPY','EEM','EFA','EWZ','EWJ'] },
-    forex:        { title: 'Safe-Haven FX',   symbols: ['EURUSD','USDJPY','USDCHF','GBPUSD','USDCAD'] },
-    commodities:  { title: 'Inflation Watch', symbols: ['GLD','SLV','USO','UNG','CORN'] },
-    brazilB3:     { title: 'Brazil EM',       symbols: ['VALE3.SA','EWZ','USDBRL','PETR4.SA'] },
+    globalIndices:{ title: 'Global Indexes',  symbols: ['SPY','QQQ','DIA','EWZ','EEM','VGK','EWJ','FXI'] },
+    forex:        { title: 'FX Markets',      symbols: ['EURUSD','USDJPY','USDCHF','GBPUSD','USDCAD','USDBRL'] },
+    commodities:  { title: 'Commodities',     symbols: ['GLD','SLV','USO','UNG','CORN'] },
+    brazilB3:     { title: 'EM Markets',      symbols: ['VALE3.SA','EWZ','USDBRL','PETR4.SA','EEM','EMB'] },
     crypto:       { title: 'Macro Signals',   symbols: ['BTCUSD','ETHUSD'] },
   },
   layout: {
@@ -298,10 +298,10 @@ const custom = {
   panels: {
     usEquities:   { title: 'US Equities',   symbols: ['SPY','AAPL','MSFT','NVDA','GOOGL','AMZN'] },
     brazilB3:     { title: 'Brazil B3',     symbols: ['VALE3.SA','PETR4.SA','ITUB4.SA'] },
-    forex:        { title: 'FX',            symbols: ['EURUSD','USDBRL','USDJPY','GBPUSD'] },
+    forex:        { title: 'FX Markets',    symbols: ['EURUSD','USDJPY','GBPUSD','USDCHF','USDBRL','AUDUSD'] },
     crypto:       { title: 'Crypto',        symbols: ['BTCUSD','ETHUSD','SOLUSD'] },
     commodities:  { title: 'Commodities',   symbols: ['GLD','USO','SLV'] },
-    globalIndices:{ title: 'Global',        symbols: ['SPY','QQQ','EEM','EWZ'] },
+    globalIndices:{ title: 'Global Indexes', symbols: ['SPY','QQQ','DIA','EWZ','EEM','VGK','EWJ','FXI'] },
     debt:         { title: 'Rates',         symbols: [] },
   },
   layout: DEFAULT_LAYOUT,

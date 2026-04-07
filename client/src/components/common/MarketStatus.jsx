@@ -2,11 +2,13 @@ import { useState, useEffect, memo } from 'react';
 
 const EXCHANGES = [
   { code: 'NYSE',  label: 'US',  tz: 'America/New_York',  open: 570,  close: 960  }, // 9:30-16:00
-  { code: 'B3',    label: 'B3',  tz: 'America/Sao_Paulo', open: 600,  close: 1020 }, // 10:00-17:00
+  { code: 'B3',    label: 'B3',  tz: 'America/Sao_Paulo', open: 600,  close: 1075 }, // 10:00-17:55
   { code: 'LSE',   label: 'LDN', tz: 'Europe/London',     open: 480,  close: 990  }, // 8:00-16:30
   { code: 'XETR',  label: 'FRA', tz: 'Europe/Berlin',     open: 540,  close: 1050 }, // 9:00-17:30
+  { code: 'KRX',   label: 'KRX', tz: 'Asia/Seoul',        open: 540,  close: 930  }, // 9:00-15:30
+  { code: 'TWSE',  label: 'TWN', tz: 'Asia/Taipei',       open: 540,  close: 810  }, // 9:00-13:30
   { code: 'HKEX',  label: 'HKG', tz: 'Asia/Hong_Kong',    open: 570,  close: 960  }, // 9:30-16:00
-  { code: 'TSE',   label: 'TKY', tz: 'Asia/Tokyo',        open: 540,  close: 900  }, // 9:00-15:00
+  { code: 'TSE',   label: 'TKY', tz: 'Asia/Tokyo',        open: 540,  close: 930  }, // 9:00-15:30
 ];
 
 function isExchangeOpen(tz, openMin, closeMin) {

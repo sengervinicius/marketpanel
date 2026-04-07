@@ -11,11 +11,14 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { isIOS, isNative } from '../../services/platform';
 import './LoginScreen.css';
 
 // ── Apple Sign In SDK loader ─────────────────────────────────────────────────
-// Apple's official JS library. Loaded only once, lazily.
+// On native iOS, use Capacitor's SignInWithApple plugin.
+// On web, load Apple's official JS library lazily.
 function loadAppleSDK() {
+  if (isNative() && isIOS()) return Promise.resolve(); // native uses Capacitor plugin
   return new Promise((resolve) => {
     if (window.AppleID) { resolve(); return; }
     const s = document.createElement('script');
@@ -84,28 +87,54 @@ export default function LoginScreen({ children }) {
     try {
       await loadAppleSDK();
 
-      if (!window.AppleID) {
-        throw new Error('Apple Sign In is not available. Please try username/password login.');
+      let identityToken, authorizationCode, appleUser;
+
+      // ── Native iOS: use Capacitor SignInWithApple plugin ──────────────────
+      if (isNative() && isIOS()) {
+        try {
+          // Dynamic import — only resolved when running in native iOS build
+          const pluginId = '@capacitor-community' + '/apple-sign-in';
+          const mod = await import(/* @vite-ignore */ pluginId);
+          const SignInWithApple = mod.SignInWithApple || mod.default;
+          const result = await SignInWithApple.authorize({
+            clientId: import.meta.env.VITE_APPLE_CLIENT_ID || 'com.arccapital.senger',
+            redirectURI: import.meta.env.VITE_APPLE_REDIRECT_URI || window.location.origin,
+            scopes: 'email name',
+          });
+          identityToken = result.response?.identityToken;
+          authorizationCode = result.response?.authorizationCode;
+          appleUser = result.response?.givenName
+            ? { name: { firstName: result.response.givenName, lastName: result.response.familyName }, email: result.response.email }
+            : null;
+        } catch (nativeErr) {
+          console.warn('[Apple Sign In] Native plugin not available, falling back to web SDK', nativeErr);
+          throw new Error('Native Apple Sign In failed. Please try again.');
+        }
+      } else {
+        // ── Web: use Apple JS SDK ──────────────────────────────────────────
+        if (!window.AppleID) {
+          throw new Error('Apple Sign In is not available. Please try username/password login.');
+        }
+
+        const clientId   = import.meta.env.VITE_APPLE_CLIENT_ID;
+        const redirectURI = import.meta.env.VITE_APPLE_REDIRECT_URI || window.location.origin;
+
+        if (!clientId) {
+          throw new Error('Apple Sign In is not configured for this environment.');
+        }
+
+        window.AppleID.auth.init({
+          clientId,
+          scope:       'name email',
+          redirectURI,
+          usePopup:    true,
+        });
+
+        const response = await window.AppleID.auth.signIn();
+        identityToken = response.authorization?.id_token;
+        authorizationCode = response.authorization?.code;
+        appleUser = response.user || null; // only provided on first sign-in
       }
-
-      const clientId   = import.meta.env.VITE_APPLE_CLIENT_ID;
-      const redirectURI = import.meta.env.VITE_APPLE_REDIRECT_URI || window.location.origin;
-
-      if (!clientId) {
-        throw new Error('Apple Sign In is not configured for this environment.');
-      }
-
-      window.AppleID.auth.init({
-        clientId,
-        scope:       'name email',
-        redirectURI,
-        usePopup:    true,
-      });
-
-      const response = await window.AppleID.auth.signIn();
-      const identityToken = response.authorization?.id_token;
-      const authorizationCode = response.authorization?.code;
-      const appleUser = response.user || null; // only provided on first sign-in
 
       if (!identityToken) {
         throw new Error('Apple did not return an identity token. Please try again.');

@@ -19,6 +19,7 @@ const { sanitizeText, clampInt, isTicker } = require('../utils/validate');
 const { getFundData, isEtf } = require('../providers/fundsProvider');
 const multiAssetProvider = require('../providers/multiAssetProvider');
 const instrumentStore    = require('../stores/instrumentStore');
+const twelvedata         = require('../providers/twelvedata');
 
 // ─── Canonical instrument registry ───────────────────────────────────────────
 // Mirrors client/src/utils/constants.js INSTRUMENTS, plus extras.
@@ -564,7 +565,16 @@ function adjustScore(item, baseScore) {
 
 // ─── Search ───────────────────────────────────────────────────────────────────
 // GET /api/instruments/search?q=apple&assetClass=equity&limit=20
-router.get('/search', (req, res) => {
+//
+// Search strategy:
+//   1. Instant: score local REGISTRY (hand-curated ~210 instruments)
+//   2. Live:    call Twelve Data /symbol_search (covers ALL global exchanges)
+//   3. Merge:   registry results first (familiar tickers), then live results deduped
+//
+// If Twelve Data is unavailable or slow, registry results are returned immediately.
+// The client receives a `meta.source` field indicating data provenance.
+
+router.get('/search', async (req, res) => {
   try {
     const q          = sanitizeText(req.query.q || '', 100).toLowerCase().trim();
     const assetClass = req.query.assetClass || null;
@@ -578,62 +588,175 @@ router.get('/search', (req, res) => {
       );
     }
 
-    let pool = REGISTRY;
-    if (assetClass) {
-      pool = pool.filter(i => i.assetClass === assetClass);
-    }
-
+    // ── Empty query: return registry sample ──
     if (!q) {
+      let pool = REGISTRY;
+      if (assetClass) pool = pool.filter(i => i.assetClass === assetClass);
       const results = pool.slice(0, limit).map(item => ({
         ...item,
         dataDelay: inferDataDelay(item.symbolKey, item.exchange)
       }));
-      return res.json({ results, total: pool.length, query: '' });
+      return res.json({ results, total: pool.length, query: '', meta: { source: 'registry' } });
     }
 
-    // Score every item, keep non-zero scores
+    // ── 1. Score local REGISTRY (synchronous, instant) ──
+    let pool = REGISTRY;
+    if (assetClass) pool = pool.filter(i => i.assetClass === assetClass);
+
     const scored = [];
     for (const item of pool) {
       const s = adjustScore(item, scoreMatch(item, q));
       if (s > 0) scored.push({ item, score: s });
     }
 
-    // Also add alias-resolved items that may not have been caught by direct match
-    // AND apply position bonus to items already scored (preserves alias ordering intent)
     const aliasSymbols = SEARCH_ALIASES[q] || [];
     for (let ai = 0; ai < aliasSymbols.length; ai++) {
       const sym = aliasSymbols[ai];
       const entry = BY_KEY[sym.toUpperCase()];
       if (!entry) continue;
       if (assetClass && entry.assetClass !== assetClass) continue;
-      // Position bonus: first in alias list gets +5, second +4, etc.
       const posBonus = Math.max(5 - ai, 0);
       const existing = scored.find(s => s.item.symbolKey === entry.symbolKey);
       if (existing) {
-        existing.score += posBonus; // boost already-scored items by position
+        existing.score += posBonus;
       } else {
         scored.push({ item: entry, score: adjustScore(entry, 90) + posBonus });
       }
     }
 
-    // Sort descending by score, then alphabetically by symbol
     scored.sort((a, b) => b.score - a.score || a.item.symbolKey.localeCompare(b.item.symbolKey));
 
-    const results = scored.slice(0, limit).map(s => ({
+    const registryResults = scored.slice(0, limit).map(s => ({
       ...s.item,
-      dataDelay: inferDataDelay(s.item.symbolKey, s.item.exchange)
+      _source: 'registry',
+      dataDelay: inferDataDelay(s.item.symbolKey, s.item.exchange),
     }));
 
+    // ── 2. Call Twelve Data symbol_search (async, live) ──
+    let liveResults = [];
+    let liveSource = 'none';
+    try {
+      const tdResults = await twelvedata.symbolSearch(q, limit);
+      liveSource = 'twelvedata';
+      liveResults = tdResults.map(r => {
+        // Build a symbolKey compatible with our system
+        // For Brazilian stocks: ONCO3 → ONCO3.SA (Yahoo-style suffix)
+        // For other international: use mic_code to infer suffix
+        const symbolKey = _buildSymbolKey(r.symbol, r.mic, r.exchange);
+        return {
+          symbolKey,
+          name:       r.name,
+          assetClass: _mapInstrumentType(r.instrumentType),
+          exchange:   r.exchange,
+          currency:   r.currency,
+          country:    r.country,
+          mic:        r.mic,
+          _source:    'twelvedata',
+          dataDelay:  inferDataDelay(symbolKey, r.exchange),
+        };
+      });
+    } catch (err) {
+      logger.warn('[instruments/search] Twelve Data symbolSearch failed:', err.message);
+      // Graceful degradation: registry results still available
+    }
+
+    // ── 3. Merge: registry first, then live (deduped) ──
+    const seen = new Set(registryResults.map(r => r.symbolKey.toUpperCase()));
+    const deduped = liveResults.filter(r => {
+      const k = r.symbolKey.toUpperCase();
+      if (seen.has(k)) return false;
+      // Also check without suffix (e.g., VALE3.SA vs VALE3)
+      const bare = k.replace(/\.[A-Z]{1,3}$/, '');
+      if (seen.has(bare)) return false;
+      seen.add(k);
+      return true;
+    });
+
+    const merged = [...registryResults, ...deduped].slice(0, limit);
+
     res.json({
-      results,
-      total:   scored.length,
+      results: merged,
+      total:   merged.length,
       query:   q,
+      meta:    {
+        source: liveSource !== 'none' ? 'registry+twelvedata' : 'registry',
+        registryCount: registryResults.length,
+        liveCount:     liveResults.length,
+      },
     });
   } catch (err) {
     logger.error('GET /api/instruments/search', err.message, { error: err });
     return sendApiError(res, err, 'GET /api/instruments/search');
   }
 });
+
+// ── Helper: build symbolKey from Twelve Data response ──
+// Maps Twelve Data's mic_code to Yahoo-style suffix for consistency.
+const TD_MIC_TO_SUFFIX = {
+  'BVMF': '.SA',    // Brazil B3
+  'XETR': '.DE',    // XETRA
+  'XFRA': '.F',     // Frankfurt
+  'XLON': '.L',     // London
+  'XPAR': '.PA',    // Euronext Paris
+  'XAMS': '.AS',    // Euronext Amsterdam
+  'XMAD': '.MC',    // Madrid
+  'XMIL': '.MI',    // Milan
+  'XSWX': '.SW',    // SIX Swiss
+  'XSTO': '.ST',    // Stockholm
+  'XCSE': '.CO',    // Copenhagen
+  'XOSL': '.OL',    // Oslo
+  'XHEL': '.HE',    // Helsinki
+  'XHKG': '.HK',    // Hong Kong
+  'XTKS': '.T',     // Tokyo
+  'XKRX': '.KS',    // Korea
+  'XKOS': '.KQ',    // Korea KOSDAQ
+  'XASX': '.AX',    // Australia
+  'XSES': '.SI',    // Singapore
+  'XNSE': '.NS',    // India NSE
+  'XBOM': '.BO',    // India BSE
+  'XSHG': '.SS',    // Shanghai
+  'XSHE': '.SZ',    // Shenzhen
+  'XWAR': '.WA',    // Warsaw
+  'XLIS': '.LS',    // Lisbon
+  'XTSE': '.TO',    // Toronto TSX
+  'XCNQ': '.CN',    // Canadian CSE
+  'XNZE': '.NZ',    // New Zealand
+  'XJSE': '.JO',    // Johannesburg
+};
+
+function _buildSymbolKey(symbol, mic, exchange) {
+  if (!symbol) return '';
+  const s = symbol.toUpperCase();
+
+  // US exchanges don't need a suffix
+  const US_MICS = new Set(['XNYS', 'XNAS', 'XASE', 'ARCX', 'BATS', 'IEXG', 'XNMS', 'XNCM', 'XNGS']);
+  if (US_MICS.has(mic)) return s;
+
+  // OTC
+  if (mic === 'OTCM' || mic === 'XOTC') return s;
+
+  // Map mic_code to suffix
+  const suffix = TD_MIC_TO_SUFFIX[mic];
+  if (suffix) return s + suffix;
+
+  // Fallback: return as-is (mainly for US stocks without explicit mic)
+  return s;
+}
+
+// ── Helper: map Twelve Data instrument_type to our assetClass ──
+function _mapInstrumentType(tdType) {
+  if (!tdType) return 'equity';
+  const t = tdType.toLowerCase();
+  if (t.includes('common stock') || t.includes('preferred stock') || t.includes('depositary receipt')) return 'equity';
+  if (t.includes('etf') || t.includes('exchange traded fund')) return 'etf';
+  if (t.includes('mutual fund') || t.includes('fund')) return 'fund';
+  if (t.includes('bond') || t.includes('fixed income')) return 'fixed_income';
+  if (t.includes('index')) return 'index';
+  if (t.includes('forex') || t.includes('currency')) return 'forex';
+  if (t.includes('crypto')) return 'crypto';
+  if (t.includes('commodity') || t.includes('futures')) return 'commodity';
+  return 'equity';
+}
 
 // ─── Phase 1.2: Instrument detail envelope ───────────────────────────────────
 // GET /api/instruments/:symbolKey/detail

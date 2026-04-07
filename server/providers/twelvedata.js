@@ -601,6 +601,81 @@ function isInternationalSymbol(symbol) {
   return false;
 }
 
+// ── Symbol Search ──────────────────────────────────────────────────────────
+// GET /symbol_search — searches ALL instruments across all exchanges.
+// Does NOT require an API key (free reference data endpoint).
+// Response: { data: [{ symbol, instrument_name, exchange, mic_code,
+//             exchange_timezone, instrument_type, country, currency }], status: 'ok' }
+const SEARCH_CACHE_TTL = 60_000; // 60 seconds
+
+async function symbolSearch(query, outputsize = 20) {
+  if (!query || query.trim().length < 1) return [];
+
+  const cacheKey = `sym_search:${query.trim().toLowerCase()}:${outputsize}`;
+  const cached = cacheGet(cacheKey);
+  if (cached) return cached;
+
+  // symbol_search does NOT require an API key, but include it if available
+  // to get higher rate limits on Twelve Data's side.
+  const params = {
+    symbol: query.trim(),
+    outputsize: String(outputsize),
+  };
+  if (key()) params.apikey = key();
+
+  const qs = new URLSearchParams(params);
+  const url = `${BASE}/symbol_search?${qs.toString()}`;
+
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
+
+  let res;
+  try {
+    res = await fetch(url, {
+      headers: {
+        'Accept': 'application/json',
+        'User-Agent': 'SengerMarketTerminal/1.0',
+      },
+      signal: ctrl.signal,
+    });
+  } catch (e) {
+    clearTimeout(timer);
+    if (e.name === 'AbortError') {
+      logger.warn('[TwelveData] symbolSearch timed out for query:', query);
+      return [];
+    }
+    logger.error('[TwelveData] symbolSearch network error:', e.message);
+    return [];
+  } finally {
+    clearTimeout(timer);
+  }
+
+  if (!res.ok) {
+    logger.warn(`[TwelveData] symbolSearch HTTP ${res.status} for query: ${query}`);
+    return [];
+  }
+
+  const json = await res.json();
+  if (json.status === 'error') {
+    logger.warn(`[TwelveData] symbolSearch error: ${json.message}`);
+    return [];
+  }
+
+  const results = (json.data || []).map(item => ({
+    symbol:          item.symbol,
+    name:            item.instrument_name,
+    exchange:        item.exchange,
+    mic:             item.mic_code,
+    timezone:        item.exchange_timezone,
+    instrumentType:  item.instrument_type,
+    country:         item.country,
+    currency:        item.currency,
+  }));
+
+  cacheSet(cacheKey, results, SEARCH_CACHE_TTL);
+  return results;
+}
+
 module.exports = {
   // Core price data
   getPrice,
@@ -622,6 +697,9 @@ module.exports = {
   getFundHolders,
   getKeyExecutives,
   getLogo,
+
+  // Search
+  symbolSearch,
 
   // Utility
   isConfigured,

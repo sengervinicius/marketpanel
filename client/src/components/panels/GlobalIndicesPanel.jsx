@@ -17,16 +17,19 @@ const showInfo = (e, symbol, label, type) => {
 
 const REGIONS = {
   AMERICAS: { label: 'AMERICAS',  tickers: ['SPY','QQQ','DIA','EWZ','EWW','EWC'] },
-  EMEA:     { label: 'EMEA',      tickers: ['EZU','EWU','EWG','EWQ','EWP','EWI','EWL','EWD'] },
-  ASIA:     { label: 'ASIA-PAC',  tickers: ['EWJ','EWH','EWY','EWA','MCHI','EWT','EWS','INDA'] },
+  EMEA:     { label: 'EMEA',      tickers: ['VGK','EWU','EZU','EWG','EWQ','EWP','EWI','EWL','EWD'] },
+  ASIA:     { label: 'ASIA-PAC',  tickers: ['EWJ','EWH','EWY','EWA','FXI','MCHI','EWT','EWS','INDA'] },
+  BROAD:    { label: 'BROAD',     tickers: ['EEM','EFA','IWM'] },
 };
 
 const NAMES = {
-  SPY:'S&P 500', QQQ:'NASDAQ 100', DIA:'DOW JONES', EWZ:'BRAZIL', EWW:'MEXICO', EWC:'CANADA',
-  EZU:'EURO STOXX', EWU:'UK FTSE', EWG:'GERMANY DAX', EWQ:'FRANCE CAC', EWP:'SPAIN IBEX',
+  SPY:'S&P 500', QQQ:'NASDAQ 100', DIA:'DOW JONES', IWM:'RUSSELL 2000',
+  EWZ:'BRAZIL', EWW:'MEXICO', EWC:'CANADA',
+  VGK:'EUROPE', EZU:'EURO STOXX', EWU:'UK FTSE', EWG:'GERMANY DAX', EWQ:'FRANCE CAC', EWP:'SPAIN IBEX',
   EWI:'ITALY MIB', EWL:'SWITZERLAND', EWD:'SWEDEN',
   EWJ:'JAPAN NIKKEI', EWH:'HONG KONG', EWY:'KOREA KOSPI', EWA:'AUSTRALIA ASX',
-  MCHI:'CHINA', EWT:'TAIWAN', EWS:'SINGAPORE', INDA:'INDIA',
+  FXI:'CHINA', MCHI:'CHINA A-SHARES', EWT:'TAIWAN', EWS:'SINGAPORE', INDA:'INDIA',
+  EEM:'EMERGING MKTS', EFA:'EAFE',
 };
 
 const COLS = '44px 1fr 56px 52px';

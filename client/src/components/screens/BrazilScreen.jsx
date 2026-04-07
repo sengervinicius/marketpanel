@@ -52,26 +52,6 @@ const SectorChartsComponent = memo(function SectorChartsComponent() {
 /* ── B3 Blue Chips ─────────────────────────────────────────────────────── */
 const BlueChipsComponent = memo(function BlueChipsComponent() {
   const openDetail = useOpenDetail();
-  const { data, loading, error } = useSectionData({
-    cacheKey: 'brazil-bluechips',
-    fetcher: async () => {
-      try {
-        const res = await apiFetch(`/api/market/fundamentals/batch?tickers=${BLUE_CHIPS.join(',')}`);
-        return res.ok ? await res.json() : null;
-      } catch {
-        return null;
-      }
-    },
-    refreshMs: 300000,
-  });
-
-  if (loading) return <DeepSkeleton rows={10} />;
-  if (error) return <DeepError message={error} />;
-
-  if (!data || data.length === 0) {
-    return <FundamentalsTable tickers={BLUE_CHIPS} title="B3 Blue Chips" onTickerClick={openDetail} />;
-  }
-
   return <FundamentalsTable tickers={BLUE_CHIPS} title="B3 Blue Chips" onTickerClick={openDetail} />;
 });
 

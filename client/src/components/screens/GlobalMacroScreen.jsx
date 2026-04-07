@@ -4,7 +4,7 @@
  * Sections: Charts, Global Snapshot, Volatility, FX Heatmap, Yield Curves,
  *           Central Bank Rates, Risk Appetite, European Markets, Equity Indexes, Macro Calendar
  */
-import { memo } from 'react';
+import { memo, useMemo } from 'react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import FullPageScreenLayout from './shared/FullPageScreenLayout';
 import { SectorChartPanel } from './shared/SectorChartPanel';
@@ -531,7 +531,7 @@ function MacroCalendar() {
 /* MAIN SCREEN — Bloomberg Economics Equivalent */
 /* ─────────────────────────────────────────────────────────────────────── */
 function GlobalMacroScreenImpl() {
-  const sections = [
+  const sections = useMemo(() => [
     {
       id: 'charts',
       title: 'Sector & Asset Charts',
@@ -589,7 +589,7 @@ function GlobalMacroScreenImpl() {
       span: 'full',
       component: MacroCalendar,
     },
-  ];
+  ], []);
 
   return (
     <FullPageScreenLayout

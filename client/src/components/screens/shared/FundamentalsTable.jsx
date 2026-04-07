@@ -80,7 +80,15 @@ export function FundamentalsTable({ tickers, metrics = null, title, onTickerClic
           throw new Error(`HTTP ${res.status}`);
         }
         const json = await res.json();
-        setData(json.data || json || []);
+        // Server returns { ok, data: { TICKER: {...}, ... } } — convert object to array
+        const raw = json.data || json || {};
+        if (Array.isArray(raw)) {
+          setData(raw);
+        } else if (raw && typeof raw === 'object') {
+          setData(Object.entries(raw).map(([ticker, vals]) => ({ ticker, ...(vals || {}) })));
+        } else {
+          setData([]);
+        }
       } catch (err) {
         setError(err.message);
         setData([]);

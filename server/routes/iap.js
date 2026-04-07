@@ -73,26 +73,50 @@ router.post('/purchase', requireAuth, async (req, res) => {
     }
 
     // ── Receipt validation with Apple ────────────────────────────────────────
-    // In production, validate receiptData with Apple:
-    //
-    // const APPLE_SHARED_SECRET = process.env.APPLE_IAP_SHARED_SECRET;
-    // const verifyUrl = process.env.NODE_ENV === 'production'
-    //   ? 'https://buy.itunes.apple.com/verifyReceipt'
-    //   : 'https://sandbox.itunes.apple.com/verifyReceipt';
-    //
-    // const appleRes = await fetch(verifyUrl, {
-    //   method: 'POST',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify({
-    //     'receipt-data': receiptData,
-    //     'password': APPLE_SHARED_SECRET,
-    //     'exclude-old-transactions': true,
-    //   }),
-    // });
-    // const appleData = await appleRes.json();
-    // if (appleData.status !== 0) throw new Error('Receipt validation failed');
-    //
-    // Parse latest_receipt_info for expiration date, etc.
+    const APPLE_SHARED_SECRET = process.env.APPLE_IAP_SHARED_SECRET;
+    let verifiedExpiry = null;
+
+    if (receiptData && APPLE_SHARED_SECRET) {
+      // Try production first, fall back to sandbox (status 21007)
+      let verifyUrl = 'https://buy.itunes.apple.com/verifyReceipt';
+      const payload = JSON.stringify({
+        'receipt-data': receiptData,
+        'password': APPLE_SHARED_SECRET,
+        'exclude-old-transactions': true,
+      });
+
+      let appleRes = await fetch(verifyUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: payload,
+      });
+      let appleData = await appleRes.json();
+
+      // Status 21007 = sandbox receipt sent to production — retry with sandbox
+      if (appleData.status === 21007) {
+        verifyUrl = 'https://sandbox.itunes.apple.com/verifyReceipt';
+        appleRes = await fetch(verifyUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: payload,
+        });
+        appleData = await appleRes.json();
+      }
+
+      if (appleData.status !== 0) {
+        console.warn(`[iap] Apple receipt status: ${appleData.status}`);
+        return res.status(400).json({ error: 'Receipt validation failed', code: 'invalid_receipt', appleStatus: appleData.status });
+      }
+
+      // Parse latest_receipt_info for subscription expiry
+      const latestReceipt = (appleData.latest_receipt_info || [])
+        .filter(r => r.product_id === productId)
+        .sort((a, b) => parseInt(b.expires_date_ms || 0) - parseInt(a.expires_date_ms || 0))[0];
+
+      if (latestReceipt?.expires_date_ms) {
+        verifiedExpiry = parseInt(latestReceipt.expires_date_ms);
+      }
+    }
     // ─────────────────────────────────────────────────────────────────────────
 
     // Activate subscription
@@ -100,14 +124,15 @@ router.post('/purchase', requireAuth, async (req, res) => {
     const duration = product.period === 'yearly'
       ? 365 * 24 * 60 * 60 * 1000
       : 30 * 24 * 60 * 60 * 1000;
+    const expiresAt = verifiedExpiry || (now + duration);
 
     await updateSubscription(userId, {
       isPaid: true,
-      subscriptionActive: true,
-      trialEndsAt: now + duration,
+      subscriptionActive: expiresAt > now,
+      trialEndsAt: expiresAt,
       appleProductId: productId,
       appleTransactionId: transactionId || null,
-      appleReceiptData: receiptData ? receiptData.slice(0, 100) + '...' : null, // store truncated for reference
+      appleReceiptData: receiptData ? receiptData.slice(0, 100) + '...' : null,
       billingPlatform: 'apple',
     });
 

@@ -4,7 +4,7 @@
  * Integrates FullPageScreenLayout, FundamentalsTable, SectorChartPanel, SectorScatterPlot,
  * and InsiderActivity for multi-dimensional retail sector analysis.
  */
-import { memo, useMemo, useState } from 'react';
+import { memo, useMemo } from 'react';
 import FullPageScreenLayout from './shared/FullPageScreenLayout';
 import { FundamentalsTable } from './shared/FundamentalsTable';
 import { SectorChartPanel } from './shared/SectorChartPanel';
@@ -28,8 +28,10 @@ const fmtB = (n) => {
 };
 
 /* ── Table Row Component (extracts hook call out of map) ────────────────── */
-const TableRow = memo(function TableRow({ sym, name, openDetail }) {
+const TableRow = memo(function TableRow({ sym, name, openDetail, stats }) {
   const priceData = useTickerPrice(sym);
+  const mktCap = stats?.market_capitalization ? parseFloat(stats.market_capitalization) : null;
+  const pe = stats?.pe_ratio ? parseFloat(stats.pe_ratio) : null;
   return (
     <tr key={sym} className="ds-row-clickable" onClick={() => openDetail(sym)}>
       <td className="ds-ticker-col">{sym}</td>
@@ -39,10 +41,10 @@ const TableRow = memo(function TableRow({ sym, name, openDetail }) {
         {fmtPct(priceData?.changePct)}
       </td>
       <td style={{ fontFamily: 'monospace', fontSize: 10, color: '#888' }}>
-        {'—'}
+        {fmtB(mktCap)}
       </td>
       <td style={{ fontFamily: 'monospace', fontSize: 10, color: '#ccc' }}>
-        {'—'}
+        {pe != null ? pe.toFixed(1) : '—'}
       </td>
     </tr>
   );
@@ -97,7 +99,7 @@ const ALL_EQUITIES = [
 ];
 
 /* ── Section Table Component ───────────────────────────────────────────── */
-const SectionTable = memo(function SectionTable({ tickers }) {
+const SectionTable = memo(function SectionTable({ tickers, statsMap }) {
   const openDetail = useOpenDetail();
 
   return (
@@ -117,7 +119,7 @@ const SectionTable = memo(function SectionTable({ tickers }) {
           {tickers.map(t => {
             const sym = typeof t === 'string' ? t : t.symbol;
             const name = typeof t === 'string' ? undefined : t.name;
-            return <TableRow key={sym} sym={sym} name={name} openDetail={openDetail} />;
+            return <TableRow key={sym} sym={sym} name={name} openDetail={openDetail} stats={statsMap?.get(sym)} />;
           })}
         </tbody>
       </table>
@@ -141,7 +143,6 @@ const EtfStrip = memo(function EtfStrip() {
 function GlobalRetailScreenImpl() {
   const openDetail = useOpenDetail();
   const { data: statsMap } = useDeepScreenData(ALL_EQUITIES);
-  const [selectedScatterTicker, setSelectedScatterTicker] = useState(null);
 
   /* ── Prepare scatter plot data: P/E vs Market Cap ──────────────────── */
   const scatterData = useMemo(() => {
@@ -179,35 +180,35 @@ function GlobalRetailScreenImpl() {
       id: 'us-discretionary',
       title: 'US Consumer Discretionary',
       component: () => (
-        <SectionTable tickers={US_DISCRETIONARY} />
+        <SectionTable tickers={US_DISCRETIONARY} statsMap={statsMap} />
       ),
     },
     {
       id: 'us-staples',
       title: 'US Consumer Staples',
       component: () => (
-        <SectionTable tickers={US_STAPLES} />
+        <SectionTable tickers={US_STAPLES} statsMap={statsMap} />
       ),
     },
     {
       id: 'global-luxury',
       title: 'Global Luxury',
       component: () => (
-        <SectionTable tickers={GLOBAL_LUXURY} />
+        <SectionTable tickers={GLOBAL_LUXURY} statsMap={statsMap} />
       ),
     },
     {
       id: 'ecommerce-fintech',
       title: 'E-Commerce & FinTech',
       component: () => (
-        <SectionTable tickers={ECOMMERCE_FINTECH} />
+        <SectionTable tickers={ECOMMERCE_FINTECH} statsMap={statsMap} />
       ),
     },
     {
       id: 'specialty-retail',
       title: 'Specialty Retail',
       component: () => (
-        <SectionTable tickers={SPECIALTY_RETAIL} />
+        <SectionTable tickers={SPECIALTY_RETAIL} statsMap={statsMap} />
       ),
     },
     {

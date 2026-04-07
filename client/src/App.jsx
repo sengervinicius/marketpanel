@@ -119,7 +119,7 @@ const LS_CHART_TICKER = 'chartTicker';
 export default function App() {
   const { data, loading, isRefreshing, lastUpdated, error: feedError, endpointErrors } = useMarketData();
   const { user, subscription, startCheckout, logout, authReady, openBillingPortal, refreshSubscription, restorePurchases, billingPlatform } = useAuth();
-  const { settings, loaded: settingsLoaded } = useSettings();
+  const { settings, loaded: settingsLoaded, updateLayout } = useSettings();
 
   // ── Boot sequence ────────────────────────────────────────────────────────
   const { isReady: bootReady } = useBootSequence({ authReady, user, settingsLoaded });
@@ -234,6 +234,15 @@ export default function App() {
   const [sectorSelectorOpen, setSectorSelectorOpen] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
 
+  // ── First-visit onboarding hint ─────────────────────────────────────────
+  const [showLayoutHint, setShowLayoutHint] = useState(() => {
+    try { return !localStorage.getItem('senger_layout_seen'); } catch { return true; }
+  });
+  const dismissLayoutHint = useCallback(() => {
+    setShowLayoutHint(false);
+    try { localStorage.setItem('senger_layout_seen', '1'); } catch {}
+  }, []);
+
   // Map selector IDs → screen components
   const SCREEN_MAP = useMemo(() => ({
     'defence':          DefenceScreen,
@@ -264,8 +273,13 @@ export default function App() {
     const handler = (e) => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
 
-      // Ctrl/Cmd + K = focus search
+      // Ctrl/Cmd + K = toggle AI chat
       if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        setChatOpen(prev => !prev);
+      }
+      // / = focus search (when not in input)
+      if (e.key === '/' && !e.ctrlKey && !e.metaKey) {
         e.preventDefault();
         const searchInput = document.querySelector('.search-panel input, [placeholder*="Search"], [placeholder*="search"]');
         if (searchInput) searchInput.focus();
@@ -439,21 +453,23 @@ export default function App() {
             {/* Chat icon */}
             <button
               className="btn"
-              onClick={() => setChatOpen(true)}
-              title="Messages"
+              onClick={() => setChatOpen(prev => !prev)}
+              title="AI Chat (Cmd+K)"
               style={{
                 color: chatOpen ? 'var(--accent)' : 'var(--text-faint)',
                 padding: '2px 6px',
+                display: 'flex', alignItems: 'center', gap: 4,
               }}
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
               </svg>
+              <span style={{ fontSize: 9, letterSpacing: '0.5px', opacity: 0.6 }}>AI</span>
             </button>
-            <button className="btn"
-              onClick={() => setLayoutEdit(s => !s)}
-              title="Reorder panels"
-              style={{ background: layoutEdit ? '#1a0800' : 'none', border:`1px solid ${layoutEdit ? 'var(--accent)' : 'var(--border-strong)'}`, color: layoutEdit ? 'var(--accent)' : 'var(--text-faint)' }}
+            <button className={`btn${showLayoutHint && !layoutEdit ? ' layout-btn-pulse' : ''}`}
+              onClick={() => { setLayoutEdit(s => !s); if (showLayoutHint) dismissLayoutHint(); }}
+              title="Customize your workspace — drag, resize, and rearrange panels"
+              style={{ background: layoutEdit ? '#1a0800' : 'none', border:`1px solid ${layoutEdit ? 'var(--accent)' : showLayoutHint ? 'var(--accent)' : 'var(--border-strong)'}`, color: layoutEdit ? 'var(--accent)' : showLayoutHint ? 'var(--accent)' : 'var(--text-faint)' }}
             >⇄ LAYOUT</button>
             {user
               ? <UserDropdown
@@ -527,11 +543,45 @@ export default function App() {
                 >← BACK TO HOME</button>
               </div>
             ) : (
-              <>
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
+                {/* Layout edit toolbar */}
+                {layoutEdit && (
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: 12, padding: '6px 16px',
+                    background: '#1a0800', borderBottom: '1px solid var(--accent)',
+                    fontSize: 11, color: 'var(--accent)', fontWeight: 600, letterSpacing: '0.5px',
+                    flexShrink: 0,
+                  }}>
+                    <span>EDITING LAYOUT</span>
+                    <span style={{ color: '#666', fontWeight: 400 }}>Use arrows to move panels. Drag borders to resize.</span>
+                    <div style={{ flex: 1 }} />
+                    <button className="btn" onClick={() => {
+                      updateLayout({
+                        desktopRows: [
+                          ['charts',       'usEquities',    'globalIndices'],
+                          ['forex',        'commodities',   'crypto',  'brazilB3'],
+                          ['debt',         'news',          'watchlist'],
+                        ],
+                      });
+                      // Reset column sizes
+                      try {
+                        Object.keys(localStorage).filter(k => k.startsWith('colSizes_') || k.startsWith('rowFlexSizes_')).forEach(k => localStorage.removeItem(k));
+                      } catch {}
+                      window.location.reload();
+                    }} style={{
+                      padding: '3px 12px', background: 'none', color: '#888',
+                      border: '1px solid #333', borderRadius: 3, fontWeight: 600, fontSize: 10, letterSpacing: '0.5px',
+                    }}>RESET DEFAULT</button>
+                    <button className="btn" onClick={() => setLayoutEdit(false)} style={{
+                      padding: '3px 12px', background: 'var(--accent)', color: '#000',
+                      border: 'none', borderRadius: 3, fontWeight: 700, fontSize: 10, letterSpacing: '0.5px',
+                    }}>DONE</button>
+                  </div>
+                )}
                 {/* Dynamic rows from settings.layout.desktopRows */}
                 {(() => {
                   const panelProps = { mergedData, loading, setChartTicker, chartTicker, setChartGridCount };
-                  const minHeights = [220, 180, 160];
+                  const minHeights = [260, 220, 200];
                   return [row0, row1, row2].map((row, rowIdx) => {
                     if (!row || row.length === 0) return null;
                     const colSizes = colSizesPerRow[rowIdx];
@@ -539,7 +589,7 @@ export default function App() {
                     return (
                       <div key={rowIdx} className="display-contents">
                         {rowIdx > 0 && <ResizeHandle onStart={e => startRowResize(rowIdx - 1, e)} />}
-                        <div style={{ flex: rowSizes[rowIdx] || 1, flexShrink: 0, display:'flex', overflow:'hidden', minHeight: minHeights[rowIdx] || 160 }}>
+                        <div style={{ flex: rowSizes[rowIdx] || 1, flexShrink: 0, display:'flex', overflow:'hidden', minHeight: minHeights[rowIdx] || 200 }}>
                           {row.map((panelId, colIdx) => {
                             if (!isPanelVisible(panelId)) return null;
                             const isLast = colIdx === row.filter(id => isPanelVisible(id)).length - 1;
@@ -566,7 +616,7 @@ export default function App() {
                     );
                   });
                 })()}
-              </>
+              </div>
             )}
 
             <FeedStatusBar feedStatus={feedStatus} />
@@ -650,6 +700,11 @@ export default function App() {
             border: `1px solid ${sectorSelectorOpen || activeSectorScreen ? 'var(--accent)' : 'var(--border-strong)'}`,
             background: sectorSelectorOpen || activeSectorScreen ? '#1a0800' : 'none',
             borderRadius: 4,
+            whiteSpace: 'nowrap',
+            flexShrink: 0,
+            maxWidth: 90,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
           }}
         >◈ SCREENS</button>
         {/* Feed status dot */}

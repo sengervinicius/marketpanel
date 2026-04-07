@@ -51,14 +51,16 @@ export function InsiderActivity({ tickers, limit = 5, onTickerClick }) {
         const allTransactions = [];
 
         results.forEach((txList, idx) => {
-          if (Array.isArray(txList)) {
-            txList.slice(0, limit).forEach(tx => {
-              allTransactions.push({
-                ...tx,
-                ticker: tickersToFetch[idx],
-              });
+          // Server returns { ok, data: [...] } — unwrap if needed
+          const items = Array.isArray(txList)
+            ? txList
+            : Array.isArray(txList?.data) ? txList.data : [];
+          items.slice(0, limit).forEach(tx => {
+            allTransactions.push({
+              ...tx,
+              ticker: tickersToFetch[idx],
             });
-          }
+          });
         });
 
         // Sort by date, newest first

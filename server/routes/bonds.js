@@ -183,4 +183,63 @@ router.get('/etfs', async (req, res, next) => {
   }
 });
 
+// ── GET /search ─────────────────────────────────────────────────────────────
+// Search for bonds by issuer name or ISIN
+const MAJOR_EUR_BONDS = [
+  { issuer: 'LVMH', isin: 'FR0013505062', coupon: 1.125, maturity: '2027-06-11', currency: 'EUR', rating: 'A+', yieldApprox: 3.2 },
+  { issuer: 'Volkswagen', isin: 'XS2049583224', coupon: 1.625, maturity: '2029-08-16', currency: 'EUR', rating: 'BBB+', yieldApprox: 3.8 },
+  { issuer: 'TotalEnergies', isin: 'XS2055758804', coupon: 0.750, maturity: '2028-03-05', currency: 'EUR', rating: 'A+', yieldApprox: 3.1 },
+  { issuer: 'BNP Paribas', isin: 'FR0013476223', coupon: 1.250, maturity: '2031-03-19', currency: 'EUR', rating: 'A+', yieldApprox: 3.6 },
+  { issuer: 'Siemens', isin: 'XS2002013399', coupon: 0.500, maturity: '2027-06-05', currency: 'EUR', rating: 'A+', yieldApprox: 2.9 },
+  { issuer: 'Airbus', isin: 'XS2187689034', coupon: 1.375, maturity: '2030-06-09', currency: 'EUR', rating: 'A', yieldApprox: 3.3 },
+  { issuer: 'Deutsche Telekom', isin: 'XS2049820345', coupon: 0.875, maturity: '2029-01-30', currency: 'EUR', rating: 'BBB+', yieldApprox: 3.4 },
+  { issuer: 'ENEL', isin: 'XS2198631998', coupon: 1.875, maturity: '2032-07-17', currency: 'EUR', rating: 'BBB+', yieldApprox: 3.7 },
+  { issuer: 'Iberdrola', isin: 'XS2189592517', coupon: 1.250, maturity: '2031-06-15', currency: 'EUR', rating: 'BBB+', yieldApprox: 3.5 },
+  { issuer: 'Sanofi', isin: 'FR0013509304', coupon: 0.500, maturity: '2028-06-04', currency: 'EUR', rating: 'AA', yieldApprox: 2.8 },
+  { issuer: 'BMW', isin: 'XS2176621259', coupon: 1.500, maturity: '2030-04-20', currency: 'EUR', rating: 'A', yieldApprox: 3.2 },
+  { issuer: 'Daimler', isin: 'XS2180007947', coupon: 2.125, maturity: '2032-05-11', currency: 'EUR', rating: 'A', yieldApprox: 3.6 },
+  { issuer: 'Orange', isin: 'FR0013480704', coupon: 1.375, maturity: '2030-01-16', currency: 'EUR', rating: 'BBB+', yieldApprox: 3.3 },
+  { issuer: 'Unilever', isin: 'XS2187689117', coupon: 0.375, maturity: '2027-09-22', currency: 'EUR', rating: 'A+', yieldApprox: 2.9 },
+  { issuer: 'Nestle', isin: 'XS2177361160', coupon: 0.000, maturity: '2026-10-02', currency: 'EUR', rating: 'AA', yieldApprox: 2.7 },
+  { issuer: 'Shell', isin: 'XS2176621333', coupon: 1.750, maturity: '2032-04-20', currency: 'EUR', rating: 'AA-', yieldApprox: 3.1 },
+  { issuer: 'Anheuser-Busch InBev', isin: 'BE6312118630', coupon: 2.750, maturity: '2036-03-17', currency: 'EUR', rating: 'BBB+', yieldApprox: 3.9 },
+  { issuer: 'Roche', isin: 'XS2177361244', coupon: 0.500, maturity: '2028-03-27', currency: 'EUR', rating: 'AA', yieldApprox: 2.8 },
+];
+
+router.get('/search', async (req, res, next) => {
+  try {
+    const q = (req.query.q || '').toLowerCase().trim();
+    if (!q || q.length < 2) {
+      return res.json({ bonds: [], query: q, source: 'none' });
+    }
+
+    // Try Eulerpool first if configured
+    if (euler.isConfigured()) {
+      try {
+        const results = await euler.searchBonds(q);
+        if (results && results.length > 0) {
+          return res.json({ bonds: results, query: q, source: 'eulerpool' });
+        }
+      } catch (e) {
+        console.warn('[bonds/search] Eulerpool search failed:', e.message);
+      }
+    }
+
+    // Fallback to static list
+    const matches = MAJOR_EUR_BONDS.filter(b =>
+      b.issuer.toLowerCase().includes(q) ||
+      b.isin.toLowerCase().includes(q)
+    );
+
+    res.json({
+      bonds: matches,
+      query: q,
+      source: 'static',
+      dataAsOf: '2024-06',
+    });
+  } catch (e) {
+    next(e);
+  }
+});
+
 module.exports = router;

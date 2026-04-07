@@ -121,12 +121,12 @@ class SectionErrorBoundary extends Component {
 /**
  * Section wrapper with sticky header, error boundary, and optional lazy loading.
  */
-function ScreenSection({ id, title, badge, span, component, isMobile, lazy }) {
+function ScreenSection({ id, title, badge, span, component: Component, isMobile, lazy }) {
   const spanClass = !isMobile && span === 'full' ? 'fsl-section--full' : '';
 
   const content = (
     <SectionErrorBoundary section={title}>
-      {typeof component === 'function' ? <component /> : component}
+      {typeof Component === 'function' || (Component && Component.$$typeof) ? <Component /> : Component}
     </SectionErrorBoundary>
   );
 

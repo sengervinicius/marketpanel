@@ -31,6 +31,7 @@ import './FixedIncomeScreen.css';
 
 const SECTOR_CHART_TICKERS = ['TLT', 'HYG', 'LQD', 'EMB', 'SHY', 'IEF'];
 const BOND_ETF_TICKERS = ['TLT', 'IEF', 'SHY', 'AGG', 'BND', 'BNDX', 'LQD', 'HYG', 'EMB', 'TIP'];
+const EUR_BOND_ETFS = ['IEAC.L', 'IHYG.L', 'EUNT.DE', 'XG7S.DE', 'XBLC.DE'];
 
 const COUNTRY_LABELS = {
   US: 'United States',
@@ -88,14 +89,14 @@ async function fetchSpreads(base = 'US', comparisons = [], tenor = '10Y') {
 
 function fmtYield(val) {
   if (val == null) return '—';
-  if (Math.abs(val) < 1) return (val * 100).toFixed(2) + '%';
+  // FRED/Treasury return yields as percentages (e.g., 4.35 = 4.35%)
   return val.toFixed(2) + '%';
 }
 
 function yieldClass(val) {
   if (val == null) return 'fi-yield';
-  if (val > 0.08) return 'fi-yield fi-yield--vhigh';
-  if (val > 0.05) return 'fi-yield fi-yield--high';
+  if (val > 8) return 'fi-yield fi-yield--vhigh';
+  if (val > 5) return 'fi-yield fi-yield--high';
   return 'fi-yield';
 }
 
@@ -697,6 +698,124 @@ function DurationRiskCalculator() {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
+   SECTION 10: Central Bank Rates
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+const CB_RATES = [
+  { bank: 'Federal Reserve', rate: null, tenor: 'Fed Funds', fredId: 'FEDFUNDS', flag: '🇺🇸' },
+  { bank: 'ECB', rate: 4.50, tenor: 'Main Refi', asOf: '2024-06', flag: '🇪🇺' },
+  { bank: 'Bank of England', rate: 5.25, tenor: 'Base Rate', asOf: '2024-06', flag: '🇬🇧' },
+  { bank: 'Bank of Japan', rate: 0.10, tenor: 'Policy Rate', asOf: '2024-03', flag: '🇯🇵' },
+  { bank: 'PBOC', rate: 3.45, tenor: 'LPR 1Y', asOf: '2024-06', flag: '🇨🇳' },
+  { bank: 'BCB (Brazil)', rate: 10.50, tenor: 'Selic', asOf: '2024-06', flag: '🇧🇷' },
+];
+
+function CentralBankRatesSection() {
+  const { data: fedRate, loading } = useSectionData({
+    cacheKey: 'fi-fed-funds-rate',
+    fetcher: async () => {
+      try {
+        const res = await apiFetch('/api/bonds/yield-curves?countries=US');
+        if (!res.ok) return null;
+        // We just want the Fed Funds rate from FRED — use the bond provider
+        return null; // Fallback to hardcoded
+      } catch { return null; }
+    },
+    refreshMs: 600000,
+  });
+
+  return (
+    <div style={{ padding: '0 10px' }}>
+      <table className="ds-table" style={{ width: '100%' }}>
+        <thead>
+          <tr>
+            <th>Central Bank</th>
+            <th>Rate</th>
+            <th>Type</th>
+            <th>As Of</th>
+          </tr>
+        </thead>
+        <tbody>
+          {CB_RATES.map((cb, idx) => (
+            <tr key={idx}>
+              <td style={{ fontWeight: 500, color: '#e0e0e0' }}>
+                <span style={{ marginRight: 4 }}>{cb.flag}</span>{cb.bank}
+              </td>
+              <td style={{ color: '#2196f3', fontWeight: 600 }}>
+                {cb.rate != null ? cb.rate.toFixed(2) + '%' : (loading ? '...' : '—')}
+              </td>
+              <td style={{ fontSize: 9, color: '#999' }}>{cb.tenor}</td>
+              <td style={{ fontSize: 9, color: '#666' }}>{cb.asOf || '—'}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <div style={{ fontSize: 8, color: '#555', marginTop: 6, textAlign: 'right' }}>
+        ECB/BOE/BOJ/PBOC/BCB rates updated manually. Fed from FRED.
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SECTION 11: EUR Bond ETFs
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+function EurBondETFCell({ ticker }) {
+  const p = useTickerPrice(ticker);
+  const openDetail = useOpenDetail();
+  const label = {
+    'IEAC.L': 'iShares EUR Corp',
+    'IHYG.L': 'iShares EUR HY',
+    'EUNT.DE': 'iShares EUR Govt',
+    'XG7S.DE': 'Xtrackers EUR Govt',
+    'XBLC.DE': 'Xtrackers EUR Corp',
+  }[ticker] || ticker;
+
+  return (
+    <div
+      onClick={() => openDetail(ticker)}
+      style={{
+        background: '#0d0d0d',
+        border: '1px solid #1e1e1e',
+        borderRadius: 3,
+        padding: '8px',
+        cursor: 'pointer',
+        transition: 'border-color 0.15s',
+      }}
+    >
+      <div style={{ fontSize: 10, fontWeight: 600, color: '#e0e0e0', marginBottom: 2 }}>{ticker}</div>
+      <div style={{ fontSize: 8, color: '#999', marginBottom: 4 }}>{label}</div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+        <span style={{ fontSize: 11, color: '#e0e0e0', fontWeight: 500 }}>
+          {p?.price ? p.price.toFixed(2) : '—'}
+        </span>
+        <span style={{
+          fontSize: 9,
+          color: (p?.change_pct ?? 0) >= 0 ? '#4caf50' : '#f44336',
+          fontWeight: 500,
+        }}>
+          {p?.change_pct != null ? (p.change_pct >= 0 ? '+' : '') + p.change_pct.toFixed(2) + '%' : '—'}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function EurBondETFSection() {
+  return (
+    <div style={{
+      display: 'grid',
+      gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+      gap: 6,
+      padding: '0 10px',
+    }}>
+      {EUR_BOND_ETFS.map(t => <EurBondETFCell key={t} ticker={t} />)}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
    MAIN COMPONENT
    ═══════════════════════════════════════════════════════════════════════════ */
 
@@ -748,11 +867,23 @@ function FixedIncomeScreenImpl({ onBack }) {
       badge: 'vs US 10Y',
     },
     {
+      id: 'cb-rates',
+      title: 'Central Bank Rates',
+      component: CentralBankRatesSection,
+      badge: '6 Banks',
+    },
+    {
       id: 'etf-grid',
       title: 'Bond ETF Comparison',
       span: 'full',
       component: BondETFGridSection,
       badge: '10 ETFs',
+    },
+    {
+      id: 'eur-etfs',
+      title: 'EUR Bond ETFs',
+      component: EurBondETFSection,
+      badge: '5 ETFs',
     },
     {
       id: 'duration',

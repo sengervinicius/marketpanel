@@ -48,10 +48,22 @@ export function MiniFinancials({ ticker, onError }) {
         }
         const json = await res.json();
 
-        // Extract last 3 years from income statement
-        const statements = json.statements || [];
-        const incomeStmt = statements.find(s => s.type === 'income') || {};
-        const results = (incomeStmt.results || []).slice(0, 3).reverse();
+        // Server returns { ok, data: { income_statement, balance_sheet, cash_flow } }
+        const payload = json.data || json || {};
+        const incomeData = payload.income_statement || payload;
+
+        // Twelve Data income_statement is an array of annual periods
+        let results = [];
+        if (Array.isArray(incomeData)) {
+          results = incomeData.slice(0, 3).reverse();
+        } else if (incomeData?.income_statement && Array.isArray(incomeData.income_statement)) {
+          results = incomeData.income_statement.slice(0, 3).reverse();
+        } else {
+          // Legacy format: { statements: [{type: 'income', results: [...]}] }
+          const statements = json.statements || [];
+          const incomeStmt = statements.find(s => s.type === 'income') || {};
+          results = (incomeStmt.results || []).slice(0, 3).reverse();
+        }
 
         const chartData = results.map(year => ({
           year: year.fiscal_period ? year.fiscal_period.slice(0, 4) : '—',

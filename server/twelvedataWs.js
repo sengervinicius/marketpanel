@@ -45,12 +45,28 @@ const INTL_SUBSCRIPTIONS = [
   // Asia — Hong Kong
   { symbol: '0700', exchange: 'HKEX', yahooKey: '0700.HK' },
   { symbol: '9988', exchange: 'HKEX', yahooKey: '9988.HK' },
+  // Korea — KRX
+  { symbol: '005930', exchange: 'KRX', yahooKey: '005930.KS' },  // Samsung Electronics
+  { symbol: '000660', exchange: 'KRX', yahooKey: '000660.KS' },  // SK Hynix
+  { symbol: '035420', exchange: 'KRX', yahooKey: '035420.KS' },  // NAVER
+  { symbol: '051910', exchange: 'KRX', yahooKey: '051910.KS' },  // LG Chem
+  { symbol: '005380', exchange: 'KRX', yahooKey: '005380.KS' },  // Hyundai Motor
+  // Taiwan — TWSE
+  { symbol: '2330', exchange: 'TWSE', yahooKey: '2330.TW' },     // TSMC
+  { symbol: '2317', exchange: 'TWSE', yahooKey: '2317.TW' },     // Hon Hai (Foxconn)
   // Brazil — B3 (augment Polygon's ADR-only coverage)
   { symbol: 'PETR4', exchange: 'BOVESPA', yahooKey: 'PETR4.SA' },
   { symbol: 'VALE3', exchange: 'BOVESPA', yahooKey: 'VALE3.SA' },
   { symbol: 'ITUB4', exchange: 'BOVESPA', yahooKey: 'ITUB4.SA' },
   { symbol: 'BBDC4', exchange: 'BOVESPA', yahooKey: 'BBDC4.SA' },
   { symbol: 'WEGE3', exchange: 'BOVESPA', yahooKey: 'WEGE3.SA' },
+  { symbol: 'RENT3', exchange: 'BOVESPA', yahooKey: 'RENT3.SA' },  // Localiza
+  { symbol: 'SUZB3', exchange: 'BOVESPA', yahooKey: 'SUZB3.SA' },  // Suzano
+  { symbol: 'EMBR3', exchange: 'BOVESPA', yahooKey: 'EMBR3.SA' },  // Embraer
+  { symbol: 'RDOR3', exchange: 'BOVESPA', yahooKey: 'RDOR3.SA' },  // Rede D'Or
+  { symbol: 'B3SA3', exchange: 'BOVESPA', yahooKey: 'B3SA3.SA' },  // B3 Exchange
+  { symbol: 'HAPV3', exchange: 'BOVESPA', yahooKey: 'HAPV3.SA' },  // Hapvida
+  { symbol: 'FLRY3', exchange: 'BOVESPA', yahooKey: 'FLRY3.SA' },  // Fleury
 ];
 
 // Build lookup: "SAP:XETR" → "SAP.DE"

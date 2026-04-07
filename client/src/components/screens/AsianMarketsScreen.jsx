@@ -3,7 +3,7 @@
  * Comprehensive coverage of Japan, China, India, Korea & ASEAN markets.
  * Integrates FullPageScreenLayout, FundamentalsTable, SectorChartPanel, and InsiderActivity.
  */
-import { memo, useMemo, useState } from 'react';
+import { memo, useEffect, useMemo, useState } from 'react';
 import FullPageScreenLayout from './shared/FullPageScreenLayout';
 import { FundamentalsTable } from './shared/FundamentalsTable';
 import { SectorChartPanel } from './shared/SectorChartPanel';
@@ -32,13 +32,15 @@ const fmtB = (n) => {
 const JAPAN = ['TM', 'SONY', 'SFTBY', 'MUFG', 'NTDOY', 'TOELY', 'NMR', 'SMFG'];
 const CHINA_HK = ['BABA', 'TCEHY', 'BYDDY', 'JD', 'PDD', 'NIO', 'LI', 'MPNGY'];
 const INDIA = ['HDB', 'INFY', 'TTM', 'WIT', 'IBN'];
-const KOREA_ASEAN = ['SE', 'GRAB'];
+const KOREA = ['005930.KS', '000660.KS', '035420.KS', '051910.KS', '005380.KS', 'SE'];
+const TAIWAN = ['TSM', '2330.TW', '2317.TW'];
+const ASEAN = ['GRAB'];
 const FX_PAIRS = ['C:USDJPY', 'C:USDCNY', 'C:USDINR', 'C:USDKRW'];
 const REGIONAL_ETFS = ['FXI', 'EWJ', 'INDA', 'EWY', 'EWT', 'VWO', 'AAXJ'];
 
-const CHART_TICKERS = ['BABA', 'TM', 'SONY', 'HDB', 'TCEHY', 'NIO'];
+const CHART_TICKERS = ['BABA', 'TM', 'SONY', 'HDB', 'TSM', '005930.KS'];
 
-const ALL_EQUITIES = [...JAPAN, ...CHINA_HK, ...INDIA, ...KOREA_ASEAN];
+const ALL_EQUITIES = [...JAPAN, ...CHINA_HK, ...INDIA, ...KOREA, ...TAIWAN, ...ASEAN];
 
 /* ── Labels Mapping ────────────────────────────────────────────────────────── */
 const LABELS = {
@@ -66,8 +68,18 @@ const LABELS = {
   TTM: 'Tata Motors',
   WIT: 'Wipro',
   IBN: 'ICICI Bank',
-  // Korea & ASEAN
+  // Korea
+  '005930.KS': 'Samsung',
+  '000660.KS': 'SK Hynix',
+  '035420.KS': 'NAVER',
+  '051910.KS': 'LG Chem',
+  '005380.KS': 'Hyundai Motor',
   SE: 'Sea Ltd',
+  // Taiwan
+  TSM: 'TSMC (ADR)',
+  '2330.TW': 'TSMC',
+  '2317.TW': 'Hon Hai',
+  // ASEAN
   GRAB: 'Grab',
   // FX
   'C:USDJPY': 'USD/JPY',
@@ -90,7 +102,7 @@ function MacroDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  useMemo(() => {
+  useEffect(() => {
     const fetchMacro = async () => {
       try {
         setLoading(true);
@@ -330,10 +342,17 @@ function AsianMarketsScreenImpl() {
       ),
     },
     {
-      id: 'korea-asean',
-      title: 'Korea & ASEAN',
+      id: 'korea',
+      title: 'Korea',
       component: () => (
-        <SectionTable tickers={KOREA_ASEAN} statsMap={statsMap} />
+        <SectionTable tickers={KOREA} statsMap={statsMap} />
+      ),
+    },
+    {
+      id: 'taiwan-asean',
+      title: 'Taiwan & ASEAN',
+      component: () => (
+        <SectionTable tickers={[...TAIWAN, ...ASEAN]} statsMap={statsMap} />
       ),
     },
     {

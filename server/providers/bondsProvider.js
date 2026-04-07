@@ -37,7 +37,7 @@ async function fredYield(tenor) {
 
   try {
     const url = `https://fred.stlouisfed.org/graph/fredgraph.csv?id=${seriesId}&cosd=${daysAgo(7)}`;
-    const res = await fetch(url, { timeout: 8000 });
+    const res = await fetch(url, { timeout: 5000 });
     if (!res.ok) return null;
     const text = await res.text();
     const lines = text.trim().split('\n').filter(l => !l.startsWith('DATE'));
@@ -82,7 +82,7 @@ async function treasuryYieldCurve() {
   const url = `https://home.treasury.gov/resource-center/data-chart-center/interest-rates/pages/xml?data=daily_treasury_yield_curve&field_tdr_date_value_month=${now.getFullYear()}${month}`;
 
   try {
-    const res = await fetch(url, { timeout: 10000 });
+    const res = await fetch(url, { timeout: 6000 });
     if (!res.ok) return null;
     const text = await res.text();
     // Simple XML parse — extract latest entry
@@ -200,17 +200,23 @@ async function getYieldCurve(countryCode) {
     }
   }
 
-  // US fallbacks
+  // US fallbacks — run Treasury XML and FRED in parallel to avoid cascading timeouts
   if (countryCode === 'US') {
-    // Try Treasury XML
-    const treasury = await treasuryYieldCurve();
-    if (treasury) return treasury;
-
-    // Try FRED individual series
     const tenors = Object.keys(FRED_SERIES);
-    const results = await Promise.allSettled(tenors.map(t => fredYield(t)));
+    const [treasuryResult, fredResults] = await Promise.allSettled([
+      treasuryYieldCurve(),
+      Promise.allSettled(tenors.map(t => fredYield(t))),
+    ]).then(r => [
+      r[0].status === 'fulfilled' ? r[0].value : null,
+      r[1].status === 'fulfilled' ? r[1].value : [],
+    ]);
+
+    // Prefer Treasury XML (more complete curve with 12 tenors)
+    if (treasuryResult) return treasuryResult;
+
+    // Fall back to FRED individual series
     const curve = [];
-    results.forEach((r, i) => {
+    (fredResults || []).forEach((r, i) => {
       if (r.status === 'fulfilled' && r.value?.yield != null) {
         curve.push({ tenor: tenors[i], yield: r.value.yield, change: r.value.change });
       }

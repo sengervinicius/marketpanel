@@ -11,13 +11,15 @@ const LS_KEY = 'senger_watchlist_v1';
 // Maximum watchlist size and duplicate protection (case-insensitive)
 const MAX_WATCHLIST_SIZE = 50;
 
+const SEED_WATCHLIST = ['SPY', 'QQQ', 'AAPL', 'NVDA', 'GLD', 'BTCUSD', 'EWZ'];
+
 function loadWatchlist() {
   try {
     const raw = localStorage.getItem(LS_KEY);
     const arr = JSON.parse(raw);
-    return Array.isArray(arr) ? arr : [];
+    return Array.isArray(arr) && arr.length > 0 ? arr : SEED_WATCHLIST;
   } catch {
-    return [];
+    return SEED_WATCHLIST;
   }
 }
 

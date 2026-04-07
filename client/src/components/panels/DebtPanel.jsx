@@ -126,10 +126,14 @@ function DebtPanel() {
 
   // ---- Load live yield-curve data + country list (once) ----
   useEffect(() => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000); // 10s client-side timeout
+
     Promise.allSettled([
-      apiFetch('/api/yield-curves').then(r => r.ok ? r.json() : null),
-      apiFetch('/api/debt/countries').then(r => r.json()),
+      apiFetch('/api/yield-curves', { signal: controller.signal }).then(r => r.ok ? r.json() : null),
+      apiFetch('/api/debt/countries', { signal: controller.signal }).then(r => r.json()),
     ]).then(([liveRes, countriesRes]) => {
+      clearTimeout(timeout);
       if (liveRes.status === 'fulfilled' && liveRes.value) {
         liveDataRef.current = liveRes.value;
       }
@@ -151,7 +155,14 @@ function DebtPanel() {
 
       // Trigger curve load now that liveData is ready
       setCurve(prev => prev); // force re-render to pick up liveLoadedRef
+    }).catch(() => {
+      clearTimeout(timeout);
+      liveLoadedRef.current = true;
+      setLoading(false);
+      setError('Yield data timed out — click RETRY');
     });
+
+    return () => { clearTimeout(timeout); controller.abort(); };
   }, []);
 
   // ---- Extract live curve for a given country code ----
@@ -316,7 +327,7 @@ function DebtPanel() {
     <div className="dp-panel">
       {/* Header */}
       <div className="dp-header">
-        <span className="dp-title">DEBT</span>
+        <span className="dp-title">YIELDS</span>
 
         {/* View toggle */}
         <div className="dp-view-group">
@@ -377,7 +388,13 @@ function DebtPanel() {
           {/* Chart area with explicit states */}
           <div className="dp-chart-container">
             {loading ? (
-              <div className="dp-state dp-state--loading">LOADING YIELD CURVE...</div>
+              <div className="dp-state dp-state--loading">
+                <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', gap: 6, padding: '12px 8px' }}>
+                  {[80, 60, 90, 70, 85, 50].map((w, i) => (
+                    <div key={i} className="shimmer-bar" style={{ width: `${w}%`, height: 8, borderRadius: 3, background: '#1a1a1a' }} />
+                  ))}
+                </div>
+              </div>
             ) : error ? (
               <div className="dp-state dp-state--error">
                 <span>FAILED TO LOAD YIELD CURVE</span>

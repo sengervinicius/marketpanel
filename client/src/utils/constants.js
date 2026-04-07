@@ -13,16 +13,20 @@ export const WS_URL = import.meta.env.VITE_WS_URL ||
 
 // Instrument definitions for the terminal panels
 export const WORLD_INDEXES = [
-  { symbol: 'SPY',  label: 'S&P 500',      region: 'US' },
-  { symbol: 'QQQ',  label: 'NASDAQ 100',   region: 'US' },
-  { symbol: 'DIA',  label: 'Dow Jones',    region: 'US' },
-  { symbol: 'IWM',  label: 'Russell 2000', region: 'US' },
-  { symbol: 'EWZ',  label: 'Ibovespa ETF', region: 'BR' },
-  { symbol: 'EWW',  label: 'Mexico ETF',   region: 'MX' },
-  { symbol: 'EEM',  label: 'Emerg Markets',region: 'EM' },
-  { symbol: 'EFA',  label: 'EAFE',         region: 'INT' },
-  { symbol: 'FXI',  label: 'China ETF',    region: 'CN' },
-  { symbol: 'EWJ',  label: 'Japan ETF',    region: 'JP' },
+  // Americas
+  { symbol: 'SPY',  label: 'S&P 500',      region: 'AMERICAS' },
+  { symbol: 'QQQ',  label: 'NASDAQ 100',   region: 'AMERICAS' },
+  { symbol: 'DIA',  label: 'Dow Jones',    region: 'AMERICAS' },
+  { symbol: 'EWZ',  label: 'Ibovespa ETF', region: 'AMERICAS' },
+  // Europe
+  { symbol: 'VGK',  label: 'Europe ETF',   region: 'EMEA' },
+  { symbol: 'EWU',  label: 'UK ETF',       region: 'EMEA' },
+  // Asia-Pacific
+  { symbol: 'EWJ',  label: 'Japan ETF',    region: 'ASIA-PAC' },
+  { symbol: 'FXI',  label: 'China ETF',    region: 'ASIA-PAC' },
+  // Broad
+  { symbol: 'EEM',  label: 'Emerg Markets',region: 'BROAD' },
+  { symbol: 'EFA',  label: 'EAFE',         region: 'BROAD' },
 ];
 
 // US large-cap stocks — diversified across sectors

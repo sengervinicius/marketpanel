@@ -83,6 +83,7 @@ const INTL_EXCHANGES = new Set([
   'BOM','NSE','NS','BO','ASX','AX','FRA','ETR','F','EPA','PA',
   'AMS','AS','BME','MC','MIL','MI','STO','ST','CPH','CO',
   'OSL','OL','HEL','HE','WSE','WAR','SGX','SI','KRX','KS','KQ',
+  'TWSE','TW','TWO','TAI',
 ]);
 const NO_DATA_EXCHANGES = new Set([]);
 

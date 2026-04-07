@@ -4,7 +4,7 @@
  * Integrates FullPageScreenLayout, FundamentalsTable, SectorChartPanel, SectorScatterPlot,
  * MiniFinancials, and InsiderActivity for multi-dimensional sector analysis.
  */
-import { memo, useMemo, useState } from 'react';
+import { memo, useMemo } from 'react';
 import FullPageScreenLayout from './shared/FullPageScreenLayout';
 import { FundamentalsTable } from './shared/FundamentalsTable';
 import { SectorChartPanel } from './shared/SectorChartPanel';
@@ -182,7 +182,6 @@ const EtfStrip = memo(function EtfStrip() {
 function DefenceScreenImpl() {
   const openDetail = useOpenDetail();
   const { data: statsMap } = useDeepScreenData(ALL_EQUITIES);
-  const [selectedScatterTicker, setSelectedScatterTicker] = useState(null);
 
   /* ── Prepare scatter plot data: P/E vs Market Cap ──────────────────── */
   const scatterData = useMemo(() => {

@@ -45,7 +45,9 @@ function IndexPanel({ data = {}, loading, onTickerClick }) {
       </div>
       <div className="ip-content">
         {loading || !data ? (
-          <div className="ip-loading">LOADING...</div>
+          <div className="ip-loading" style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '8px 6px' }}>
+            {[1,2,3,4,5].map(i => <div key={i} className="shimmer-bar" style={{ width: `${85 - i*8}%`, height: 10, borderRadius: 3 }} />)}
+          </div>
         ) : WORLD_INDEXES.map(idx => {
           const d   = data[idx.symbol] || {};
           const pos = (d.changePct ?? 0) >= 0;

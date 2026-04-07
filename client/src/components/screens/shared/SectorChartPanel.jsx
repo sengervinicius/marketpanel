@@ -162,11 +162,16 @@ export function SectorChartPanel({ tickers = [], height = 200, cols = 2 }) {
           if (result) {
             let dataArray = [];
 
-            // Handle both direct array and {results: [...]} format
+            // Handle all server response shapes:
+            // - direct array: [...]
+            // - Polygon/Yahoo/TwelveData: { results: [...] }
+            // - wrapped: { ok, data: [...] }
             if (Array.isArray(result)) {
               dataArray = result;
             } else if (result.results && Array.isArray(result.results)) {
               dataArray = result.results;
+            } else if (result.data && Array.isArray(result.data)) {
+              dataArray = result.data;
             }
 
             // Transform OHLCV to chartable format

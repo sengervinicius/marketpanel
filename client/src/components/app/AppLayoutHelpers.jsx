@@ -12,6 +12,7 @@ import DebtPanel from '../panels/DebtPanel';
 import { SearchPanel } from '../panels/SearchPanel';
 import { NewsPanel } from '../panels/NewsPanel';
 import PortfolioPanel from '../panels/PortfolioPanel';
+import WatchlistPanel from '../panels/WatchlistPanel';
 import { SentimentPanel } from '../panels/SentimentPanel';
 import { ChatPanel } from '../panels/ChatPanel';
 import { DICurvePanel } from '../panels/DICurvePanel';
@@ -162,7 +163,8 @@ const PANEL_REGISTRY = {
   crypto:         { component: CryptoPanel,         getProps: (c) => ({ data: c.mergedData?.crypto, loading: c.loading, onTickerClick: c.setChartTicker }) },
   indices:        { component: IndexPanel,          getProps: (c) => ({ data: c.mergedData?.indices, loading: c.loading, onTickerClick: c.setChartTicker }) },
   search:         { component: SearchPanel,         getProps: (c) => ({ onTickerSelect: c.setChartTicker }) },
-  watchlist:      { component: PortfolioPanel,      getProps: (c) => ({ onTickerClick: c.setChartTicker }), hasMobileVariant: true },
+  watchlist:      { component: WatchlistPanel,       getProps: (c) => ({ onTickerClick: c.setChartTicker }), hasMobileVariant: true },
+  portfolio:      { component: PortfolioPanel,      getProps: (c) => ({ onTickerClick: c.setChartTicker }), hasMobileVariant: true },
   curves:         { component: DICurvePanel,        getProps: () => ({ compact: true }) },
 
   // ── No-prop panels ───────────────────────────────────────────────────────

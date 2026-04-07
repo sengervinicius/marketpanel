@@ -508,7 +508,7 @@ function ChartPanel({ ticker: externalTicker, onGridChange, mobile = false }) {
       const v2 = JSON.parse(localStorage.getItem('chartGrid_v2'));
       if (Array.isArray(v2) && v2.length) return v2.slice(0, MAX);
     } catch (_) {}
-    return ['SPY', 'QQQ'];
+    return ['SPY', 'QQQ', 'C:EURUSD', 'C:USDJPY', 'GLD', 'USO', 'EEM', 'EWZ', 'X:BTCUSD', 'VGK'];
   });
 
   const [copied,  setCopied]  = useState(false);

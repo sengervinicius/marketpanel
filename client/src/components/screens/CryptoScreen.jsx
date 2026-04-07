@@ -14,6 +14,7 @@ import { useTickerPrice } from '../../context/PriceContext';
 import { useDeepScreenData } from '../../hooks/useDeepScreenData';
 import { useSectionData } from '../../hooks/useSectionData';
 import DeepScreenBase, { TickerCell, DeepSkeleton, DeepError } from './DeepScreenBase';
+import { apiFetch } from '../../utils/api';
 
 /* ── Formatting utilities ──────────────────────────────────────────────────── */
 const fmt = (n, d = 2) =>
@@ -277,7 +278,15 @@ function OnChainCard({ label, value, unit, loading, error }) {
 
 /* ── Bitcoin On-Chain Section ──────────────────────────────────────────────── */
 function BitcoinOnChainSection() {
-  const { data, loading, error } = useSectionData('bitcoin');
+  const { data, loading, error } = useSectionData({
+    cacheKey: 'crypto-onchain-bitcoin',
+    fetcher: async () => {
+      const res = await apiFetch('/api/market/crypto-extended/bitcoin');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      return json.data || null;
+    },
+  });
 
   const onChain = data?.onChain || {};
   const volume = data?.volume || {};
@@ -328,7 +337,15 @@ function BitcoinOnChainSection() {
 
 /* ── Ethereum On-Chain Section ─────────────────────────────────────────────── */
 function EthereumOnChainSection() {
-  const { data, loading, error } = useSectionData('ethereum');
+  const { data, loading, error } = useSectionData({
+    cacheKey: 'crypto-onchain-ethereum',
+    fetcher: async () => {
+      const res = await apiFetch('/api/market/crypto-extended/ethereum');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      return json.data || null;
+    },
+  });
 
   const onChain = data?.onChain || {};
   const defi = data?.defi || {};
