@@ -368,7 +368,7 @@ router.get('/snapshot/ticker/:symbol', async (req, res) => {
     }
 
     // Fallback: Finnhub (only for plain equity tickers — no prefix, no suffix)
-    if (!q && !sym.startsWith('X:') && !sym.startsWith('C:') && !sym.includes('=') && finnhubKey()) {
+    if (!q && !sym.startsWith('X:') && !sym.startsWith('C:') && !sym.includes('=') && require('./lib/providers').finnhubKey()) {
       try {
         const fData = await finnhubQuote(sym);
         if (fData && fData.c > 0) {
