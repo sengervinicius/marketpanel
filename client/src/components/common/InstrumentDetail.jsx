@@ -31,10 +31,11 @@ import { DeltaLineOverlay, CandlestickOverlay } from './InstrumentDetailCharts';
 import { Section, StatRow } from './InstrumentDetailSections';
 import { useAIInsight } from '../../hooks/useAIInsight';
 import { getExchangeName } from '../../config/exchangeNames';
+import {
+  detectExchangeGroup, getProviderRouting, getDataTypeCoverage, getCoverageDisplay, COVERAGE,
+} from '../../config/providerMatrix';
 
-// ── NO_DATA exchanges (mirrored from SearchPanel for coverage detection) ──
-// S4.6: Most international exchanges now served by Twelve Data.
-// Only truly unsupported/exotic exchanges remain here.
+// ── NO_DATA exchanges — now driven by providerMatrix ──
 const NO_DATA_EXCHANGES = new Set([]);
 
 // ── Main Component ──────────────────────────────────────────────────────────
@@ -367,7 +368,15 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
       );
     }
 
-    if (bars.length === 0) return <div className="id-chart-msg">No data for this range</div>;
+    if (bars.length === 0) {
+      const grp = detectExchangeGroup(norm);
+      const routing = getProviderRouting(norm);
+      const chartProviders = routing.providers.chart;
+      const msg = chartProviders.length === 0
+        ? 'Chart data not available for this instrument type'
+        : `Historical chart data unavailable — ${routing.groupInfo.label}`;
+      return <div className="id-chart-msg" style={{ color: '#ff9800' }}>{msg}</div>;
+    }
 
     const aMin = deltaA !== null && deltaB !== null ? Math.min(deltaA, deltaB) : null;
     const aMax = deltaA !== null && deltaB !== null ? Math.max(deltaA, deltaB) : null;
@@ -1703,9 +1712,26 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
     openDetail(symbolKey);
   }, [openDetail]);
 
-  // ── Degraded data banner ─────────────────────────────────────────────────
+  // ── DATA COVERAGE HEADER — matrix-driven ─────────────────────────────────
+  const coverageInfo = useMemo(() => {
+    const exchange = info?.primary_exchange || etfMeta?.exchange || '';
+    return getDataTypeCoverage(norm, exchange, {
+      hasLiveQuote: !!snap?.min?.c,
+      hasSnapshot:  !!snap,
+      hasBars:      bars.length > 0,
+      chartLoading: loading,
+      hasFundamentals: !!(fundsData || tdStatistics || tdProfile),
+      fundsLoading: fundsLoading || tdFinancialsLoading,
+      hasAI:        !!aiFunds,
+      aiLoading:    aiFundsLoading,
+      aiError:      !!aiFundsError,
+    });
+  }, [norm, info, etfMeta, snap, bars, loading, fundsData, tdStatistics, tdProfile,
+      fundsLoading, tdFinancialsLoading, aiFunds, aiFundsLoading, aiFundsError]);
+
+  // Legacy degraded detection (still used for amber warning)
   const degradedSources = useMemo(() => {
-    if (loading) return []; // still initial load, don't show yet
+    if (loading) return [];
     const failed = [];
     if (bars.length === 0 && !loading) failed.push('chart');
     if (fundsError) failed.push('fundamentals');
@@ -1794,7 +1820,36 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
         </div>
       </div>
 
-      {/* ── Degraded data banner ── */}
+      {/* ── DATA COVERAGE HEADER ── */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 12px', background: '#0a0a0a', borderBottom: '1px solid #222', flexWrap: 'wrap', fontSize: 9, letterSpacing: '0.5px' }}>
+        {[
+          { key: 'QUOTE', ...coverageInfo.quote },
+          { key: 'CHART', ...coverageInfo.chart },
+          { key: 'FUNDAMENTALS', ...coverageInfo.fundamentals },
+          { key: 'AI', ...coverageInfo.ai },
+        ].map(b => (
+          <span key={b.key} style={{ background: b.bg, color: b.color, border: `1px solid ${b.color}33`, borderRadius: 3, padding: '1px 6px', fontFamily: 'monospace', fontWeight: 600 }}>
+            {b.key}: {b.label}
+          </span>
+        ))}
+      </div>
+      {/* ── ADR indicator banner ── */}
+      {(() => {
+        const nameLC = (name || '').toLowerCase();
+        const exchUp = (heroExchange || '').toUpperCase();
+        const grp = detectExchangeGroup(norm, heroExchange);
+        const isADR = (nameLC.includes('adr') || nameLC.includes('depositary')) ||
+          (!norm.includes('.') && ['NYSE','NASDAQ','OTC'].some(e => exchUp.includes(e)) &&
+           !['US','ETF','FX','CRYPTO'].includes(grp));
+        if (!isADR) return null;
+        return (
+          <div style={{ background: '#0a1520', borderBottom: '1px solid #1a3050', padding: '4px 12px', fontSize: 10, color: '#4dd0e1', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontSize: 11, fontWeight: 700 }}>ADR</span>
+            <span>US-listed depositary receipt — quote data via US providers, local exchange data may differ</span>
+          </div>
+        );
+      })()}
+      {/* ── Degraded data banner (amber warning when 2+ sources fail) ── */}
       {isDegraded && (
         <div style={{ background: '#2a1a00', borderBottom: '1px solid #4a3000', padding: '6px 12px', fontSize: 10, color: '#ff9800', display: 'flex', alignItems: 'center', gap: 6 }}>
           <span style={{ fontSize: 12 }}>&#9888;</span>

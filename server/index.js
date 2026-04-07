@@ -32,6 +32,7 @@ const shareRoutes       = require('./routes/share');
 const referralRoutes    = require('./routes/referrals');
 const notificationRoutes = require('./routes/notifications');
 const gameRoutes        = require('./routes/game');
+const screenTickerRoutes = require('./routes/screenTickers');
 const { requireAuth, requireActiveSubscription } = require('./authMiddleware');
 const logger = require('./utils/logger');
 const { requestLogger } = require('./utils/logger');
@@ -212,6 +213,9 @@ app.use('/api/macro', requireAuth, requireActiveSubscription,
 
 // Instrument registry: auth required (no subscription — needed for search from login page context)
 app.use('/api/instruments', requireAuth, instrumentsRoutes);
+
+// Screen tickers: auth required (dynamic ticker resolution for sector screens)
+app.use('/api/screen-tickers', requireAuth, screenTickerRoutes);
 
 // Screener: auth + subscription required + rate limit + timeout
 app.use('/api/screener', requireAuth, requireActiveSubscription,

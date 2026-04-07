@@ -10,6 +10,7 @@ import { DeepSkeleton, DeepError } from './DeepScreenBase';
 import useSectionData from '../../hooks/useSectionData';
 import { useOpenDetail } from '../../context/OpenDetailContext';
 import { useTickerPrice } from '../../context/PriceContext';
+import { useScreenTickers } from '../../hooks/useScreenTickers';
 import { apiFetch } from '../../utils/api';
 
 const fmt = (n, d = 2) => n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -49,10 +50,18 @@ const SectorChartsComponent = memo(function SectorChartsComponent() {
   return <SectorChartPanel tickers={SECTOR_CHART_TICKERS} height={180} cols={3} />;
 });
 
-/* ── B3 Blue Chips ─────────────────────────────────────────────────────── */
+/* ── B3 Blue Chips (dynamic: resolves top 40 B3 stocks, falls back to static) ── */
 const BlueChipsComponent = memo(function BlueChipsComponent() {
   const openDetail = useOpenDetail();
-  return <FundamentalsTable tickers={BLUE_CHIPS} title="B3 Blue Chips" onTickerClick={openDetail} />;
+  const { tickers: dynamicTickers, loading: tickersLoading } = useScreenTickers({
+    exchange: 'BOVESPA',
+    limit: 40,
+    fallback: BLUE_CHIPS,
+  });
+  if (tickersLoading && dynamicTickers.length <= BLUE_CHIPS.length) {
+    return <DeepSkeleton rows={6} />;
+  }
+  return <FundamentalsTable tickers={dynamicTickers} title="B3 Blue Chips" onTickerClick={openDetail} />;
 });
 
 /* ── ADR Cross-Reference ───────────────────────────────────────────────── */

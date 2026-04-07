@@ -13,6 +13,7 @@ import { useTickerPrice } from '../../context/PriceContext';
 import { useDeepScreenData } from '../../hooks/useDeepScreenData';
 import { useSectionData } from '../../hooks/useSectionData';
 import { apiFetch } from '../../utils/api';
+import { useMultiScreenTickers } from '../../hooks/useMultiScreenTickers';
 import DeepScreenBase, { TickerCell, DeepSkeleton, DeepError, StatsLoadGate } from './DeepScreenBase';
 
 /* ── Formatting Utilities ──────────────────────────────────────────────────── */
@@ -40,7 +41,16 @@ const REGIONAL_ETFS = ['FXI', 'EWJ', 'INDA', 'EWY', 'EWT', 'VWO', 'AAXJ'];
 
 const CHART_TICKERS = ['BABA', 'TM', 'SONY', 'HDB', 'TSM', '005930.KS'];
 
-const ALL_EQUITIES = [...JAPAN, ...CHINA_HK, ...INDIA, ...KOREA, ...TAIWAN, ...ASEAN];
+// Static fallback only — dynamic ALL_EQUITIES computed inside component
+const STATIC_ALL_EQUITIES = [...JAPAN, ...CHINA_HK, ...INDIA, ...KOREA, ...TAIWAN, ...ASEAN];
+
+// Exchange configs for dynamic ticker resolution
+const EXCHANGE_CONFIGS = [
+  { exchange: 'TSE',  limit: 15, fallback: JAPAN },
+  { exchange: 'KRX',  limit: 10, fallback: KOREA },
+  { exchange: 'TWSE', limit: 10, fallback: TAIWAN },
+  { exchange: 'HKEX', limit: 15, fallback: CHINA_HK },
+];
 
 /* ── Labels Mapping ────────────────────────────────────────────────────────── */
 const LABELS = {
@@ -304,7 +314,32 @@ const EtfStrip = memo(function EtfStrip() {
 /* ── Main Screen Implementation ────────────────────────────────────────────── */
 function AsianMarketsScreenImpl() {
   const openDetail = useOpenDetail();
-  const { data: statsMap, loading: statsLoading, error: statsError, refresh: statsRefresh } = useDeepScreenData(ALL_EQUITIES);
+
+  // ── Dynamic ticker resolution for TSE, KRX, TWSE, HKEX ──
+  const {
+    tickersByExchange,
+    nameMap,
+    allEquities: dynamicEquities,
+    loading: tickersLoading,
+  } = useMultiScreenTickers(EXCHANGE_CONFIGS);
+
+  // Merge dynamic exchange tickers with static India/ASEAN (ADR-only markets)
+  const allEquities = useMemo(
+    () => [...dynamicEquities, ...INDIA, ...ASEAN],
+    [dynamicEquities],
+  );
+
+  const { data: statsMap, loading: statsLoading, error: statsError, refresh: statsRefresh } = useDeepScreenData(allEquities);
+
+  // Helper: build ticker objects with names from dynamic nameMap + static LABELS
+  const withNames = (syms) =>
+    syms.map(s => ({ symbol: s, name: nameMap.get(s) || LABELS[s] || s }));
+
+  // Per-section resolved tickers
+  const japanTickers  = withNames(tickersByExchange['TSE']  || JAPAN);
+  const koreaTickers  = withNames(tickersByExchange['KRX']  || KOREA);
+  const taiwanTickers = withNames(tickersByExchange['TWSE'] || TAIWAN);
+  const hkTickers     = withNames(tickersByExchange['HKEX'] || CHINA_HK);
 
   /* ── Build section definitions ─────────────────────────────────────────── */
   const sections = useMemo(() => [
@@ -322,19 +357,19 @@ function AsianMarketsScreenImpl() {
     },
     {
       id: 'japan',
-      title: 'Japan',
+      title: `Japan${tickersByExchange['TSE']?.length ? ` (${tickersByExchange['TSE'].length})` : ''}`,
       component: () => (
-        <StatsLoadGate statsMap={statsMap} loading={statsLoading} error={statsError} refresh={statsRefresh}>
-          <SectionTable tickers={JAPAN} statsMap={statsMap} />
+        <StatsLoadGate statsMap={statsMap} loading={statsLoading || tickersLoading} error={statsError} refresh={statsRefresh}>
+          <SectionTable tickers={japanTickers} statsMap={statsMap} />
         </StatsLoadGate>
       ),
     },
     {
       id: 'china-hk',
-      title: 'China & Hong Kong',
+      title: `China & Hong Kong${hkTickers.length > CHINA_HK.length ? ` (${hkTickers.length})` : ''}`,
       component: () => (
-        <StatsLoadGate statsMap={statsMap} loading={statsLoading} error={statsError} refresh={statsRefresh}>
-          <SectionTable tickers={CHINA_HK} statsMap={statsMap} />
+        <StatsLoadGate statsMap={statsMap} loading={statsLoading || tickersLoading} error={statsError} refresh={statsRefresh}>
+          <SectionTable tickers={hkTickers} statsMap={statsMap} />
         </StatsLoadGate>
       ),
     },
@@ -349,19 +384,19 @@ function AsianMarketsScreenImpl() {
     },
     {
       id: 'korea',
-      title: 'Korea',
+      title: `Korea${koreaTickers.length > KOREA.length ? ` (${koreaTickers.length})` : ''}`,
       component: () => (
-        <StatsLoadGate statsMap={statsMap} loading={statsLoading} error={statsError} refresh={statsRefresh}>
-          <SectionTable tickers={KOREA} statsMap={statsMap} />
+        <StatsLoadGate statsMap={statsMap} loading={statsLoading || tickersLoading} error={statsError} refresh={statsRefresh}>
+          <SectionTable tickers={koreaTickers} statsMap={statsMap} />
         </StatsLoadGate>
       ),
     },
     {
       id: 'taiwan-asean',
-      title: 'Taiwan & ASEAN',
+      title: `Taiwan & ASEAN${taiwanTickers.length > TAIWAN.length ? ` (${taiwanTickers.length})` : ''}`,
       component: () => (
-        <StatsLoadGate statsMap={statsMap} loading={statsLoading} error={statsError} refresh={statsRefresh}>
-          <SectionTable tickers={[...TAIWAN, ...ASEAN]} statsMap={statsMap} />
+        <StatsLoadGate statsMap={statsMap} loading={statsLoading || tickersLoading} error={statsError} refresh={statsRefresh}>
+          <SectionTable tickers={[...taiwanTickers, ...ASEAN.map(s => ({ symbol: s, name: LABELS[s] || s }))]} statsMap={statsMap} />
         </StatsLoadGate>
       ),
     },
@@ -376,7 +411,7 @@ function AsianMarketsScreenImpl() {
       span: 'full',
       component: () => (
         <FundamentalsTable
-          tickers={ALL_EQUITIES}
+          tickers={allEquities}
           metrics={['pe', 'marketCap', 'revenue', 'grossMargins', 'operatingMargins', 'returnOnEquity']}
           title="All Equities - Key Metrics"
           onTickerClick={openDetail}
@@ -401,7 +436,7 @@ function AsianMarketsScreenImpl() {
         />
       ),
     },
-  ], [statsMap, statsLoading, statsError, statsRefresh, openDetail]);
+  ], [statsMap, statsLoading, statsError, statsRefresh, openDetail, tickersLoading, tickersByExchange, japanTickers, hkTickers, koreaTickers, taiwanTickers, allEquities, nameMap]);
 
   return (
     <FullPageScreenLayout

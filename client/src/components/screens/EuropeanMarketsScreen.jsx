@@ -14,6 +14,7 @@ import { useOpenDetail } from '../../context/OpenDetailContext';
 import { useTickerPrice } from '../../context/PriceContext';
 import { useDeepScreenData } from '../../hooks/useDeepScreenData';
 import { useSectionData } from '../../hooks/useSectionData';
+import { useMultiScreenTickers } from '../../hooks/useMultiScreenTickers';
 import { apiFetch } from '../../utils/api';
 import { DeepSkeleton, DeepError, TickerCell, StatsLoadGate } from './DeepScreenBase';
 
@@ -73,7 +74,8 @@ const ETFS = ['EZU', 'EWG', 'EWU', 'EWQ', 'VGK'];
 
 const CHART_TICKERS = ['SAP', 'AZN', 'NVO', 'SHEL', 'LVMUY', 'TTE'];
 
-const ALL_EQUITIES = [
+// Static fallback only — dynamic ALL_EQUITIES computed inside component
+const STATIC_ALL_EQUITIES = [
   ...GERMANY.map(e => e.symbol),
   ...FRANCE.map(e => e.symbol),
   ...UNITED_KINGDOM.map(e => e.symbol),
@@ -82,6 +84,13 @@ const ALL_EQUITIES = [
 ];
 
 const INSIDER_TICKERS = ['SAP', 'AZN', 'NVO', 'SHEL', 'LVMUY', 'HSBC'];
+
+// Exchange configs for dynamic ticker resolution
+const EXCHANGE_CONFIGS = [
+  { exchange: 'XETRA',    limit: 15, fallback: GERMANY.map(e => e.symbol) },
+  { exchange: 'LSE',      limit: 15, fallback: UNITED_KINGDOM.map(e => e.symbol) },
+  { exchange: 'EURONEXT', limit: 15, fallback: [...FRANCE, ...SOUTHERN_EUROPE].map(e => e.symbol) },
+];
 
 const LABELS = {
   SAP: 'SAP SE', SIEGY: 'Siemens', DTEKY: 'DT Telekom', BASFY: 'BASF', BMWYY: 'BMW',
@@ -293,7 +302,31 @@ const EtfStrip = memo(function EtfStrip() {
 /* ── Main Screen Implementation ────────────────────────────────────────── */
 function EuropeanMarketsScreenImpl() {
   const openDetail = useOpenDetail();
-  const { data: statsMap, loading: statsLoading, error: statsError, refresh: statsRefresh } = useDeepScreenData(ALL_EQUITIES);
+
+  // ── Dynamic ticker resolution for XETRA, LSE, EURONEXT ──
+  const {
+    tickersByExchange,
+    nameMap,
+    allEquities: dynamicEquities,
+    loading: tickersLoading,
+  } = useMultiScreenTickers(EXCHANGE_CONFIGS);
+
+  // Merge dynamic exchange tickers with static Nordic (ADR-only)
+  const allEquities = useMemo(
+    () => [...dynamicEquities, ...NORDIC.map(e => e.symbol)],
+    [dynamicEquities],
+  );
+
+  const { data: statsMap, loading: statsLoading, error: statsError, refresh: statsRefresh } = useDeepScreenData(allEquities);
+
+  // Helper: build ticker objects with names from dynamic nameMap + static LABELS
+  const withNames = (syms) =>
+    syms.map(s => ({ symbol: s, name: nameMap.get(s) || LABELS[s] || s }));
+
+  // Per-section resolved tickers
+  const germanyTickers  = withNames(tickersByExchange['XETRA']    || GERMANY.map(e => e.symbol));
+  const ukTickers       = withNames(tickersByExchange['LSE']      || UNITED_KINGDOM.map(e => e.symbol));
+  const euronextTickers = withNames(tickersByExchange['EURONEXT'] || [...FRANCE, ...SOUTHERN_EUROPE].map(e => e.symbol));
 
   /* ── Fetch macro data ────────────────────────────────────────────────── */
   const { data: macroData, loading: macroLoading, error: macroError } = useSectionData({
@@ -333,28 +366,28 @@ function EuropeanMarketsScreenImpl() {
     },
     {
       id: 'germany',
-      title: 'Germany (DAX)',
+      title: `Germany (DAX)${germanyTickers.length > GERMANY.length ? ` — ${germanyTickers.length}` : ''}`,
       component: () => (
-        <StatsLoadGate statsMap={statsMap} loading={statsLoading} error={statsError} refresh={statsRefresh}>
-          <SectionTable tickers={GERMANY} statsMap={statsMap} />
+        <StatsLoadGate statsMap={statsMap} loading={statsLoading || tickersLoading} error={statsError} refresh={statsRefresh}>
+          <SectionTable tickers={germanyTickers} statsMap={statsMap} />
         </StatsLoadGate>
       ),
     },
     {
-      id: 'france',
-      title: 'France (CAC)',
+      id: 'france-south',
+      title: `France & Southern Europe${euronextTickers.length > (FRANCE.length + SOUTHERN_EUROPE.length) ? ` — ${euronextTickers.length}` : ''}`,
       component: () => (
-        <StatsLoadGate statsMap={statsMap} loading={statsLoading} error={statsError} refresh={statsRefresh}>
-          <SectionTable tickers={FRANCE} statsMap={statsMap} />
+        <StatsLoadGate statsMap={statsMap} loading={statsLoading || tickersLoading} error={statsError} refresh={statsRefresh}>
+          <SectionTable tickers={euronextTickers} statsMap={statsMap} />
         </StatsLoadGate>
       ),
     },
     {
       id: 'uk',
-      title: 'United Kingdom (FTSE)',
+      title: `United Kingdom (FTSE)${ukTickers.length > UNITED_KINGDOM.length ? ` — ${ukTickers.length}` : ''}`,
       component: () => (
-        <StatsLoadGate statsMap={statsMap} loading={statsLoading} error={statsError} refresh={statsRefresh}>
-          <SectionTable tickers={UNITED_KINGDOM} statsMap={statsMap} />
+        <StatsLoadGate statsMap={statsMap} loading={statsLoading || tickersLoading} error={statsError} refresh={statsRefresh}>
+          <SectionTable tickers={ukTickers} statsMap={statsMap} />
         </StatsLoadGate>
       ),
     },
@@ -364,15 +397,6 @@ function EuropeanMarketsScreenImpl() {
       component: () => (
         <StatsLoadGate statsMap={statsMap} loading={statsLoading} error={statsError} refresh={statsRefresh}>
           <SectionTable tickers={NORDIC} statsMap={statsMap} />
-        </StatsLoadGate>
-      ),
-    },
-    {
-      id: 'southern',
-      title: 'Southern Europe',
-      component: () => (
-        <StatsLoadGate statsMap={statsMap} loading={statsLoading} error={statsError} refresh={statsRefresh}>
-          <SectionTable tickers={SOUTHERN_EUROPE} statsMap={statsMap} />
         </StatsLoadGate>
       ),
     },
@@ -389,7 +413,7 @@ function EuropeanMarketsScreenImpl() {
       span: 'full',
       component: () => (
         <FundamentalsTable
-          tickers={ALL_EQUITIES}
+          tickers={allEquities}
           metrics={['pe', 'marketCap', 'revenue', 'grossMargins', 'operatingMargins', 'returnOnEquity']}
           title="All Equities - Key Metrics"
           onTickerClick={openDetail}
@@ -432,7 +456,7 @@ function EuropeanMarketsScreenImpl() {
         />
       ),
     },
-  ], [statsMap, statsLoading, statsError, statsRefresh, macroData, macroLoading, macroError, spreadData, spreadLoading, spreadError, openDetail]);
+  ], [statsMap, statsLoading, statsError, statsRefresh, macroData, macroLoading, macroError, spreadData, spreadLoading, spreadError, openDetail, tickersLoading, germanyTickers, ukTickers, euronextTickers, allEquities]);
 
   return (
     <FullPageScreenLayout

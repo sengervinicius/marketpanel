@@ -6,6 +6,7 @@ import { useOpenDetail } from '../../context/OpenDetailContext';
 import Badge from '../ui/Badge';
 import './SearchPanel.css';
 import { resolveAlias } from '../../config/instrumentAliases';
+import { detectExchangeGroup, getProviderRouting, COVERAGE } from '../../config/providerMatrix';
 
 // Module-level recent searches store (survives re-renders but not page refresh)
 let _recentSearches = [];
@@ -89,25 +90,19 @@ const NO_DATA_EXCHANGES = new Set([]);
 
 function coverageLevel(item) {
   if (!item) return 'unknown';
-  if (item.local) return 'live';
-  const type   = (item.type || '').toUpperCase();
-  const market = (item.market || '').toLowerCase();
-  const exch   = (item.primaryExchange || item.market || '').toUpperCase();
-  if (type === 'CRYPTO' || type === 'CRYPTOCURRENCY') return 'live';
-  if (type === 'CURRENCY') return 'live';
-  if (type === 'MUTUALFUND') return 'limited';
-  if (market === 'stocks')  return 'live';
-  if (market === 'crypto')  return 'live';
-  if (market === 'fx' || market === 'forex') return 'live';
-  if (market === 'otc')     return 'limited';
-  if (market === 'indices') return 'limited';
-  if (LIVE_EXCHANGES.has(exch))    return 'live';
-  if (LIMITED_EXCHANGES.has(exch)) return 'limited';
-  if (INTL_EXCHANGES.has(exch))    return 'limited'; // S4.6: Twelve Data coverage
-  if (NO_DATA_EXCHANGES.has(exch)) return 'none';
-  const sym = (item.symbol || '').toUpperCase();
-  if (/\.(L|T|HK|AX|TO|NS|BO|PA|DE|MI|AS|MC|ST|CO|OL|HE|SI|KS|KQ)$/.test(sym)) return 'limited';
-  return 'unknown';
+  const sym = item.symbol || item.symbolKey || '';
+  const exch = item.primaryExchange || item.exchange || '';
+  const { coverage } = getProviderRouting(sym, exch);
+  // Map providerMatrix coverage to legacy tag keys for backward compat
+  switch (coverage) {
+    case COVERAGE.FULL:            return 'live';
+    case COVERAGE.DELAYED:         return 'limited';
+    case COVERAGE.HISTORICAL_ONLY: return 'limited';
+    case COVERAGE.PARTIAL:         return 'limited';
+    case COVERAGE.AI_ONLY:         return 'none';
+    case COVERAGE.UNSUPPORTED:     return 'none';
+    default:                       return 'unknown';
+  }
 }
 
 const COVERAGE_DOT = {
@@ -120,7 +115,7 @@ const COVERAGE_DOT = {
 const COVERAGE_TAG = {
   live:    { bg: '#002a0a', color: GREEN,  label: 'LIVE' },
   none:    { bg: '#1a1400', color: YELLOW, label: 'AI OVERVIEW' },
-  limited: { bg: '#1a1400', color: YELLOW, label: 'LIMITED' },
+  limited: { bg: '#1a1400', color: YELLOW, label: 'DELAYED' },
   unknown: { bg: '#1a1a1a', color: '#888', label: 'PARTIAL' },
 };
 
@@ -304,9 +299,30 @@ function SearchPanel({ onTickerSelect }) {
             const dot    = COVERAGE_DOT[cov];
             const covTag = COVERAGE_TAG[cov];
 
+            // Exchange group label from server-side providerMatrix + ADR flag
+            const exchGroup = item._exchangeGroup || detectExchangeGroup(item.symbol || item.symbolKey || '', item.exchange || '');
+            const isADR = item._isADR || (!isBR && exchGroup === 'US' && /\bADR\b|depositary/i.test(item.name || ''));
+            const exchLabel = (() => {
+              if (isADR) return 'ADR';
+              if (item.exchange) {
+                const e = item.exchange.toUpperCase();
+                if (e.includes('BOVESPA') || e.includes('BVMF')) return 'B3';
+                if (e.includes('KRX') || e.includes('KOSDAQ') || e.includes('XKRX')) return 'KRX';
+                if (e.includes('TSE') || e.includes('XTKS')) return 'TSE';
+                if (e.includes('TWSE') || e.includes('TPEX')) return 'TWSE';
+                if (e.includes('HKEX') || e.includes('XHKG')) return 'HKEX';
+                if (e.includes('XETRA') || e.includes('XETR')) return 'XETRA';
+                if (e.includes('LSE') || e.includes('XLON')) return 'LSE';
+                if (e.includes('NYSE')) return 'NYSE';
+                if (e.includes('NASDAQ') || e.includes('XNAS')) return 'NASDAQ';
+                return e.length > 8 ? e.slice(0, 6) : e;
+              }
+              return '';
+            })();
+
             return (
               <div
-                key={item.symbol}
+                key={item.symbol || item.symbolKey}
                 draggable
                 onDragStart={(e) => handleDragStart(e, item)}
                 onClick={() => handleSelect(item)}
@@ -324,9 +340,12 @@ function SearchPanel({ onTickerSelect }) {
                   style={{
                     color: isBR ? '#8bc34a' : (ASSET_CLASS_COLOR[item.assetClass] || TYPE_COLOR[item.type] || '#aaa'),
                   }}>
-                  {displaySymbol(item.symbol)}
+                  {displaySymbol(item.symbol || item.symbolKey)}
                 </span>
-                <span className="sp-name">{item.name}</span>
+                <span className="sp-name">
+                  {item.name}
+                  {exchLabel && <span style={{ color: '#666', fontSize: '0.85em', marginLeft: 4 }}>({exchLabel})</span>}
+                </span>
                 <div className="sp-badge-container">
                   {(() => {
                     const assetType = deriveAssetType(item);
@@ -338,30 +357,23 @@ function SearchPanel({ onTickerSelect }) {
                       </span>
                     ) : null;
                   })()}
-                  {badge && (
-                    <span className="sp-exchange-badge" style={{ background: badge.bg, color: badge.color }}>
-                      {badge.label}
-                    </span>
-                  )}
                   {covTag && (
                     <Badge variant="warning" size="xs" title={dot.title}>
                       {covTag.label}
                     </Badge>
                   )}
-                  {item.assetClass && (
-                    <span className={`spr-badge ${badgeClass(item)}`}>
-                      {item.assetClass.toUpperCase()}
-                    </span>
+                  {item.currency && item.currency !== 'USD' && (
+                    <span style={{ fontSize: 9, color: '#555', fontFamily: 'monospace' }}>{item.currency}</span>
                   )}
-                  <button className={`btn sp-add-home-btn ${addedToHome === item.symbol ? 'sp-add-home-btn-active' : ''}`}
+                  <button className={`btn sp-add-home-btn ${addedToHome === (item.symbol || item.symbolKey) ? 'sp-add-home-btn-active' : ''}`}
                     onClick={(e) => handleAddToHome(e, item)}
                     title="Add to home screen"
                     style={{
-                      border: `1px solid ${addedToHome === item.symbol ? '#00cc66' : '#2a2a2a'}`,
-                      color: addedToHome === item.symbol ? '#00cc66' : '#555',
+                      border: `1px solid ${addedToHome === (item.symbol || item.symbolKey) ? '#00cc66' : '#2a2a2a'}`,
+                      color: addedToHome === (item.symbol || item.symbolKey) ? '#00cc66' : '#555',
                     }}
                   >
-                    {addedToHome === item.symbol ? 'ADDED' : '+ HOME'}
+                    {addedToHome === (item.symbol || item.symbolKey) ? 'ADDED' : '+ HOME'}
                   </button>
                 </div>
               </div>

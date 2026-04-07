@@ -13,6 +13,7 @@
 
 const express            = require('express');
 const router             = express.Router();
+const fetch              = require('node-fetch');
 const logger             = require('../utils/logger');
 const { sendApiError }   = require('../utils/apiError');
 const { sanitizeText, clampInt, isTicker } = require('../utils/validate');
@@ -20,6 +21,168 @@ const { getFundData, isEtf } = require('../providers/fundsProvider');
 const multiAssetProvider = require('../providers/multiAssetProvider');
 const instrumentStore    = require('../stores/instrumentStore');
 const twelvedata         = require('../providers/twelvedata');
+const { getProviderRouting, detectExchangeGroup, COVERAGE } = require('../config/providerMatrix');
+
+// ── Polygon + Yahoo helpers ──────────────────────────────────────────────────
+const POLYGON_BASE = 'https://api.polygon.io';
+const YF_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+function polyKey() { return process.env.POLYGON_API_KEY; }
+
+async function polygonSearch(query, limit = 20) {
+  const key = polyKey();
+  if (!key) return [];
+  const url = `${POLYGON_BASE}/v3/reference/tickers?search=${encodeURIComponent(query)}&active=true&limit=${limit}&sort=ticker&apiKey=${key}`;
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 5000);
+  try {
+    const res = await fetch(url, { signal: ctrl.signal, headers: { 'Accept': 'application/json' } });
+    clearTimeout(timer);
+    if (!res.ok) return [];
+    const json = await res.json();
+    return (json.results || []).map(r => ({
+      symbolKey:      (r.ticker || '').toUpperCase(),
+      name:           r.name || r.ticker,
+      assetClass:     _mapPolygonType(r.type, r.market),
+      exchange:       r.primary_exchange || '',
+      currency:       r.currency_name || 'USD',
+      market:         r.market || '',
+      _source:        'polygon',
+      dataDelay:      'realtime',
+    }));
+  } catch (e) {
+    clearTimeout(timer);
+    if (e.name !== 'AbortError') logger.warn('[instruments/search] Polygon search failed:', e.message);
+    return [];
+  }
+}
+
+function _mapPolygonType(type, market) {
+  if (!type) return 'equity';
+  const t = type.toUpperCase();
+  if (t === 'ETF' || t === 'ETN') return 'etf';
+  if (t === 'FUND') return 'fund';
+  if (market === 'crypto') return 'crypto';
+  if (market === 'fx') return 'forex';
+  if (market === 'indices') return 'index';
+  return 'equity';
+}
+
+async function yahooSearch(query, limit = 10) {
+  const url = `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(query)}&lang=en-US&region=BR&quotesCount=${limit}&newsCount=0&enableFuzzyQuery=false`;
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 4000);
+  try {
+    const res = await fetch(url, {
+      signal: ctrl.signal,
+      headers: { 'User-Agent': YF_UA, 'Accept': 'application/json', 'Referer': 'https://finance.yahoo.com/' },
+    });
+    clearTimeout(timer);
+    if (!res.ok) return [];
+    const json = await res.json();
+    return (json.quotes || []).map(r => {
+      const sym = (r.symbol || '').toUpperCase();
+      return {
+        symbolKey:      sym,
+        name:           r.longname || r.shortname || sym,
+        assetClass:     _mapYahooType(r.quoteType),
+        exchange:       r.exchange || r.exchDisp || '',
+        currency:       r.currency || inferCurrencyFromSymbol(sym),
+        _source:        'yahoo',
+        dataDelay:      inferDataDelay(sym, r.exchange || ''),
+      };
+    });
+  } catch (e) {
+    clearTimeout(timer);
+    if (e.name !== 'AbortError') logger.warn('[instruments/search] Yahoo search failed:', e.message);
+    return [];
+  }
+}
+
+function _mapYahooType(quoteType) {
+  if (!quoteType) return 'equity';
+  const t = quoteType.toUpperCase();
+  if (t === 'ETF') return 'etf';
+  if (t === 'MUTUALFUND') return 'fund';
+  if (t === 'CRYPTOCURRENCY') return 'crypto';
+  if (t === 'CURRENCY') return 'forex';
+  if (t === 'INDEX') return 'index';
+  if (t === 'FUTURE') return 'commodity';
+  return 'equity';
+}
+
+// ── B3 / KRX company name → ticker maps ──────────────────────────────────────
+let B3_NAMES = {};
+let KRX_NAMES = {};
+try { B3_NAMES = require('../data/b3Names.json'); } catch { /* ok if missing */ }
+try { KRX_NAMES = require('../data/krxNames.json'); } catch { /* ok if missing */ }
+
+const _B3_LOOKUP  = Object.fromEntries(Object.entries(B3_NAMES).map(([k, v]) => [k.toLowerCase(), v]));
+const _KRX_LOOKUP = Object.fromEntries(Object.entries(KRX_NAMES).map(([k, v]) => [k.toLowerCase(), v]));
+
+function nameMapSearch(query) {
+  const q = query.toLowerCase();
+  const results = [];
+  for (const [name, ticker] of Object.entries(_B3_LOOKUP)) {
+    if (name.includes(q) || q.includes(name)) {
+      results.push({ symbolKey: ticker, name: Object.keys(B3_NAMES).find(k => B3_NAMES[k] === ticker) || name, assetClass: 'equity', exchange: 'BOVESPA', currency: 'BRL', _source: 'b3_names', dataDelay: '15min' });
+    }
+  }
+  for (const [name, ticker] of Object.entries(_KRX_LOOKUP)) {
+    if (name.includes(q) || q.includes(name)) {
+      results.push({ symbolKey: ticker, name: Object.keys(KRX_NAMES).find(k => KRX_NAMES[k] === ticker) || name, assetClass: 'equity', exchange: 'KRX', currency: 'KRW', _source: 'krx_names', dataDelay: '15min' });
+    }
+  }
+  return results;
+}
+
+// ── Intelligent ranking for merged results ────────────────────────────────────
+function rankResults(results, query) {
+  const q = query.toLowerCase();
+  const qUp = query.toUpperCase();
+
+  return results.map(r => {
+    let score = 0;
+    const sym = (r.symbolKey || '').toUpperCase();
+    const name = (r.name || '').toLowerCase();
+    const group = detectExchangeGroup(sym, r.exchange);
+    const routing = getProviderRouting(sym, r.exchange);
+
+    // 1. Exact ticker match (highest priority)
+    if (sym === qUp) score += 200;
+    else if (sym.replace(/\.[A-Z]{1,3}$/, '') === qUp) score += 180; // VALE3 matches VALE3.SA
+    else if (sym.startsWith(qUp)) score += 100;
+
+    // 2. Exact name match
+    if (name === q) score += 150;
+    else if (name.startsWith(q)) score += 80;
+    else if (name.includes(q)) score += 40;
+
+    // 3. Active instruments boost (from registry or known active)
+    if (r._source === 'registry') score += 30;
+
+    // 4. Coverage quality ranking
+    if (routing.coverage === COVERAGE.FULL) score += 20;
+    else if (routing.coverage === COVERAGE.DELAYED) score += 10;
+    else if (routing.coverage === COVERAGE.HISTORICAL_ONLY) score += 5;
+
+    // 5. Local listing preference for name searches
+    // If searching "Samsung", prefer 005930.KS over SSNLF (OTC pink sheet)
+    // If searching "Petrobras", prefer PETR4.SA over PBR (ADR)
+    if (name.includes(q) && !sym.includes(qUp)) {
+      // This is a name match, not ticker match — prefer local listing
+      const isLocal = ['B3','KRX','TSE','TWSE','HKEX','EUROPE','CHINA','INDIA'].includes(group);
+      if (isLocal) score += 15;
+    }
+
+    // 6. Penalize OTC and pink sheets
+    const exch = (r.exchange || '').toUpperCase();
+    if (exch.includes('OTC') || exch.includes('PINK') || r.market === 'otc') score -= 20;
+
+    return { ...r, _rankScore: score };
+  })
+  .sort((a, b) => b._rankScore - a._rankScore)
+  .map(({ _rankScore, ...r }) => r);
+}
 
 // ─── Canonical instrument registry ───────────────────────────────────────────
 // Mirrors client/src/utils/constants.js INSTRUMENTS, plus extras.
@@ -632,56 +795,117 @@ router.get('/search', async (req, res) => {
       dataDelay: inferDataDelay(s.item.symbolKey, s.item.exchange),
     }));
 
-    // ── 2. Call Twelve Data symbol_search (async, live) ──
-    let liveResults = [];
-    let liveSource = 'none';
-    try {
-      const tdResults = await twelvedata.symbolSearch(q, limit);
-      liveSource = 'twelvedata';
-      liveResults = tdResults.map(r => {
-        // Build a symbolKey compatible with our system
-        // For Brazilian stocks: ONCO3 → ONCO3.SA (Yahoo-style suffix)
-        // For other international: use mic_code to infer suffix
-        const symbolKey = _buildSymbolKey(r.symbol, r.mic, r.exchange);
-        return {
-          symbolKey,
-          name:       r.name,
-          assetClass: _mapInstrumentType(r.instrumentType),
-          exchange:   r.exchange,
-          currency:   r.currency,
-          country:    r.country,
-          mic:        r.mic,
-          _source:    'twelvedata',
-          dataDelay:  inferDataDelay(symbolKey, r.exchange),
-        };
-      });
-    } catch (err) {
-      logger.warn('[instruments/search] Twelve Data symbolSearch failed:', err.message);
-      // Graceful degradation: registry results still available
-    }
+    // ── 2. PARALLEL: Twelve Data + Polygon + Yahoo + B3/KRX name maps ──
+    const [tdResult, polyResult, yahooResult] = await Promise.allSettled([
+      twelvedata.symbolSearch(q, limit).catch(e => {
+        logger.warn('[instruments/search] Twelve Data failed:', e.message);
+        return [];
+      }),
+      polygonSearch(q, limit),
+      yahooSearch(q, 10),
+    ]);
 
-    // ── 3. Merge: registry first, then live (deduped) ──
-    const seen = new Set(registryResults.map(r => r.symbolKey.toUpperCase()));
-    const deduped = liveResults.filter(r => {
-      const k = r.symbolKey.toUpperCase();
-      if (seen.has(k)) return false;
-      // Also check without suffix (e.g., VALE3.SA vs VALE3)
-      const bare = k.replace(/\.[A-Z]{1,3}$/, '');
-      if (seen.has(bare)) return false;
-      seen.add(k);
-      return true;
+    // Normalize Twelve Data results
+    const tdResults = (tdResult.status === 'fulfilled' ? tdResult.value : []).map(r => {
+      const symbolKey = _buildSymbolKey(r.symbol, r.mic, r.exchange);
+      return {
+        symbolKey,
+        name:       r.name,
+        assetClass: _mapInstrumentType(r.instrumentType),
+        exchange:   r.exchange,
+        currency:   r.currency,
+        country:    r.country,
+        mic:        r.mic,
+        _source:    'twelvedata',
+        dataDelay:  inferDataDelay(symbolKey, r.exchange),
+      };
     });
 
-    const merged = [...registryResults, ...deduped].slice(0, limit);
+    const polyResults = polyResult.status === 'fulfilled' ? polyResult.value : [];
+    const yahooResults = yahooResult.status === 'fulfilled' ? yahooResult.value : [];
+
+    // B3/KRX name maps (synchronous)
+    let nameMapResults = [];
+    try { nameMapResults = nameMapSearch(q); } catch { /* ok */ }
+
+    // ── 3. Merge all sources, deduplicate by symbolKey ──
+    const seen = new Set(registryResults.map(r => r.symbolKey.toUpperCase()));
+    function dedup(arr) {
+      return arr.filter(r => {
+        if (!r.symbolKey) return false;
+        const k = r.symbolKey.toUpperCase();
+        if (seen.has(k)) return false;
+        // Also check bare symbol without suffix
+        const bare = k.replace(/\.[A-Z]{1,3}$/, '');
+        if (bare !== k && seen.has(bare)) return false;
+        seen.add(k);
+        return true;
+      });
+    }
+
+    const dedupedTD    = dedup(tdResults);
+    const dedupedPoly  = dedup(polyResults);
+    const dedupedYahoo = dedup(yahooResults);
+    const dedupedNames = dedup(nameMapResults);
+
+    // Combine all results
+    const allResults = [...registryResults, ...dedupedTD, ...dedupedPoly, ...dedupedYahoo, ...dedupedNames];
+
+    // Add coverage + exchange group + ADR metadata, then rank intelligently
+    const enriched = allResults.map(r => {
+      const routing = getProviderRouting(r.symbolKey, r.exchange);
+      const sym = (r.symbolKey || '').toUpperCase();
+      const exch = (r.exchange || '').toUpperCase();
+      const nameLC = (r.name || '').toLowerCase();
+      const group = (r.group || '').toLowerCase();
+
+      // ADR detection: US-listed equity representing a foreign company
+      const isADR = (
+        (nameLC.includes('adr') || nameLC.includes('depositary') || group.includes('adr')) ||
+        (!sym.includes('.') && ['OTC','PINK','NYSE','NASDAQ'].some(e => exch.includes(e)) &&
+         routing.group !== 'US' && routing.group !== 'ETF' && routing.group !== 'FX' && routing.group !== 'CRYPTO')
+      );
+
+      // Coverage note for display
+      let coverageNote = '';
+      if (isADR) {
+        coverageNote = 'ADR — US-listed, full quote data via US providers';
+      } else if (routing.coverage === 'FULL') {
+        coverageNote = 'Full real-time coverage';
+      } else if (routing.coverage === 'DELAYED') {
+        coverageNote = 'Delayed quotes — local exchange';
+      } else if (routing.coverage === 'HISTORICAL_ONLY') {
+        coverageNote = 'Historical data only — limited live coverage';
+      }
+
+      return {
+        ...r,
+        _coverage:      routing.coverage,
+        _exchangeGroup: routing.group,
+        _isADR:         isADR || undefined,
+        _coverageNote:  coverageNote || undefined,
+      };
+    });
+
+    const ranked = rankResults(enriched, q).slice(0, limit);
+
+    const sources = ['registry'];
+    if (tdResults.length > 0) sources.push('twelvedata');
+    if (polyResults.length > 0) sources.push('polygon');
+    if (yahooResults.length > 0) sources.push('yahoo');
+    if (dedupedNames.length > 0) sources.push('namemaps');
 
     res.json({
-      results: merged,
-      total:   merged.length,
+      results: ranked,
+      total:   ranked.length,
       query:   q,
       meta:    {
-        source: liveSource !== 'none' ? 'registry+twelvedata' : 'registry',
+        source:        sources.join('+'),
         registryCount: registryResults.length,
-        liveCount:     liveResults.length,
+        tdCount:       tdResults.length,
+        polygonCount:  polyResults.length,
+        yahooCount:    yahooResults.length,
+        nameMapCount:  dedupedNames.length,
       },
     });
   } catch (err) {

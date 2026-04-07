@@ -676,6 +676,63 @@ async function symbolSearch(query, outputsize = 20) {
   return results;
 }
 
+// GET /stocks — lists all available stocks for a given exchange.
+// Free reference endpoint, no API key required (but recommended for rate limits).
+// Response: { data: [{ symbol, name, currency, exchange, mic_code, country, type }], status: 'ok' }
+const STOCKS_LIST_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
+
+async function getStocksList(exchange = 'NYSE') {
+  const cacheKey = `stocks_list:${exchange}`;
+  const cached = cacheGet(cacheKey);
+  if (cached) return cached;
+
+  const params = { exchange, show_plan: 'false' };
+  if (key()) params.apikey = key();
+  const qs = new URLSearchParams(params);
+  const url = `${BASE}/stocks?${qs.toString()}`;
+
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
+
+  let res;
+  try {
+    res = await fetch(url, {
+      headers: { 'Accept': 'application/json', 'User-Agent': 'SengerMarketTerminal/1.0' },
+      signal: ctrl.signal,
+    });
+  } catch (e) {
+    clearTimeout(timer);
+    logger.warn(`[TwelveData] getStocksList error for ${exchange}:`, e.message);
+    return [];
+  } finally {
+    clearTimeout(timer);
+  }
+
+  if (!res.ok) {
+    logger.warn(`[TwelveData] getStocksList HTTP ${res.status} for ${exchange}`);
+    return [];
+  }
+
+  const json = await res.json();
+  if (json.status === 'error') {
+    logger.warn(`[TwelveData] getStocksList error: ${json.message}`);
+    return [];
+  }
+
+  const results = (json.data || []).map(item => ({
+    symbol:    item.symbol,
+    name:      item.name,
+    currency:  item.currency,
+    exchange:  item.exchange,
+    mic_code:  item.mic_code,
+    country:   item.country,
+    type:      item.type,
+  }));
+
+  cacheSet(cacheKey, results, STOCKS_LIST_CACHE_TTL);
+  return results;
+}
+
 module.exports = {
   // Core price data
   getPrice,
@@ -700,6 +757,9 @@ module.exports = {
 
   // Search
   symbolSearch,
+
+  // Reference data
+  getStocksList,
 
   // Utility
   isConfigured,
