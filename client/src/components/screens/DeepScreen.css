@@ -227,12 +227,12 @@
   text-decoration: underline;
 }
 
-/* Table row colors for gains/losses */
-.ds-up { color: var(--price-up, #4caf50); }
-.ds-down { color: var(--price-down, #f44336); }
+/* Table row colors for gains/losses — !important to beat .ds-table td specificity */
+.ds-up { color: var(--price-up, #4caf50) !important; }
+.ds-down { color: var(--price-down, #f44336) !important; }
 
-/* Value coloring */
-.ds-val-pos { color: var(--price-up, #4caf50); }
-.ds-val-neg { color: var(--price-down, #f44336); }
+/* Value coloring — !important to beat .ds-table td specificity */
+.ds-val-pos { color: var(--price-up, #4caf50) !important; }
+.ds-val-neg { color: var(--price-down, #f44336) !important; }
 .ds-val-muted { color: #555; }
 .ds-val-accent { color: #ff6b00; }
