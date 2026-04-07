@@ -29,15 +29,35 @@ export async function apiFetch(path, options = {}) {
     ...(options.headers || {}),
   };
 
+  // Support external AbortSignal (e.g. from component unmount) alongside timeout
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 15000);
 
+  // If caller provides a signal, abort our controller when it fires
+  const externalSignal = options.signal;
+  if (externalSignal) {
+    if (externalSignal.aborted) {
+      clearTimeout(timeout);
+      controller.abort();
+    } else {
+      externalSignal.addEventListener('abort', () => controller.abort(), { once: true });
+    }
+  }
+
   const promise = (async () => {
     try {
-      const res = await fetch(`${API_BASE}${path}`, { ...options, signal: controller.signal, headers });
+      const res = await fetch(`${API_BASE}${path}`, {
+        ...options,
+        signal: controller.signal,
+        headers,
+      });
       return res;
     } catch (e) {
       if (e.name === 'AbortError') {
+        // Distinguish between external abort (unmount) and timeout
+        if (externalSignal?.aborted) {
+          throw e; // Re-throw raw AbortError so callers can identify it
+        }
         throw new Error('Request timed out. Please check your connection.');
       }
       throw e;

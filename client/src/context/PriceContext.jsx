@@ -79,11 +79,15 @@ export function PriceProvider({ marketData, children }) {
   // ticker → setInterval id
   const intervalIds = useRef(new Map());
 
-  // Retry/dead ticker tracking: stop retrying if a custom ticker fails 3+ times in a row
+  // Retry/dead ticker tracking: stop retrying if a custom ticker fails 5+ times in a row
   // fetchErrors: ticker → consecutive failure count
-  // deadTickers: set of tickers that have failed too many times
+  // deadTickers: set of tickers that have failed too many times (not persisted to localStorage)
   const fetchErrors = useRef(new Map());
   const deadTickers = useRef(new Set());
+
+  // Exponential backoff delays (ms) for consecutive failures:
+  // Attempt 1: immediate, 2: 10s, 3: 30s, 4: 60s, 5: 120s, then dead
+  const BACKOFF_DELAYS = [0, 10_000, 30_000, 60_000, 120_000];
 
   // Normalize ticker for API calls — crypto needs X: prefix, forex needs C: prefix
   const normalizeForApi = useCallback((ticker) => {
@@ -94,6 +98,42 @@ export function PriceProvider({ marketData, children }) {
     return ticker;
   }, []);
 
+  // Track failure and apply backoff. Returns true if ticker is now dead.
+  const trackFailure = useCallback((ticker) => {
+    const failures = (fetchErrors.current.get(ticker) ?? 0) + 1;
+    fetchErrors.current.set(ticker, failures);
+    if (failures >= 5) {
+      deadTickers.current.add(ticker);
+      console.warn(`[PriceContext] Ticker ${ticker} marked dead after 5 failures`);
+      // Stop the interval for this dead ticker
+      const id = intervalIds.current.get(ticker);
+      if (id) { clearInterval(id); intervalIds.current.delete(ticker); }
+      return true;
+    }
+    // Apply exponential backoff: pause the interval, resume after delay
+    const backoffMs = BACKOFF_DELAYS[failures] || 120_000;
+    if (backoffMs > 0) {
+      const id = intervalIds.current.get(ticker);
+      if (id) {
+        clearInterval(id);
+        intervalIds.current.delete(ticker);
+      }
+      // Schedule a single retry after the backoff delay
+      const timerId = setTimeout(() => {
+        if (deadTickers.current.has(ticker)) return;
+        if ((refCounts.current.get(ticker) ?? 0) <= 0) return;
+        fetchExtra(ticker);
+        // Re-establish the normal polling interval
+        intervalIds.current.set(ticker, setInterval(() => {
+          if (!lookupInBatch(mdRef.current, ticker)) fetchExtra(ticker);
+        }, REFRESH_MS));
+      }, backoffMs);
+      // Store the timeout id (negative to distinguish from interval)
+      intervalIds.current.set(ticker, timerId);
+    }
+    return false;
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Fetch a single ticker from the server and store in extras
   const fetchExtra = useCallback(async (ticker) => {
     // Skip if this ticker has failed too many times
@@ -103,13 +143,7 @@ export function PriceProvider({ marketData, children }) {
       const apiTicker = normalizeForApi(ticker);
       const r = await apiFetch(`/api/snapshot/ticker/${encodeURIComponent(apiTicker)}`);
       if (!r.ok) {
-        // Track failed fetch: increment error count and add to dead set if >= 3
-        const failures = (fetchErrors.current.get(ticker) ?? 0) + 1;
-        fetchErrors.current.set(ticker, failures);
-        if (failures >= 3) {
-          deadTickers.current.add(ticker);
-          console.warn(`[PriceContext] ticker '${ticker}' failed 3 times; stopping retries`);
-        }
+        trackFailure(ticker);
         return;
       }
       const d  = await r.json();
@@ -130,16 +164,11 @@ export function PriceProvider({ marketData, children }) {
         },
       }));
     } catch (e) {
+      if (e.name === 'AbortError') return; // unmount — don't track as failure
       console.warn('[PriceContext] fetch error:', e.message);
-      // Track error: increment count and add to dead set if >= 3
-      const failures = (fetchErrors.current.get(ticker) ?? 0) + 1;
-      fetchErrors.current.set(ticker, failures);
-      if (failures >= 3) {
-        deadTickers.current.add(ticker);
-        console.warn(`[PriceContext] ticker '${ticker}' failed 3 times; stopping retries`);
-      }
+      trackFailure(ticker);
     }
-  }, [normalizeForApi]);
+  }, [normalizeForApi, trackFailure]);
 
   // Register interest in a ticker (called by useTickerPrice on mount)
   const register = useCallback((ticker) => {

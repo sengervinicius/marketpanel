@@ -348,6 +348,16 @@ wss.on('connection', (ws, req) => {
   // Send full snapshot on connect
   if (ws.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify({ type: 'snapshot', data: marketState }));
+
+    // Send current feed status immediately so the client doesn't have to wait
+    // for the next periodic feedHealth broadcast (up to 2s delay)
+    if (marketState.feedMeta) {
+      const { computeFeedHealth } = require('./polygonProxy');
+      ws.send(JSON.stringify({
+        type: 'feedHealth',
+        feeds: ['stocks', 'forex', 'crypto'].map(f => computeFeedHealth(f, marketState)),
+      }));
+    }
   }
 
   // Rate limit: max 30 messages per 10 seconds per client

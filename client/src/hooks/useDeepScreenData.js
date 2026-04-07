@@ -12,6 +12,64 @@ const statsCache = new Map();
 const CACHE_TTL = 5 * 60 * 1000; // 5 min
 const FETCH_TIMEOUT = 15000; // 15 seconds
 
+/**
+ * Normalize the nested Twelve Data /statistics response into a flat object
+ * with the field names that sector screen components expect.
+ *
+ * Twelve Data returns: { statistics: { valuations_metrics: {...}, financials: {...}, stock_price: {...}, ... } }
+ * Screens expect flat: { pe_ratio, market_capitalization, beta, revenue, ... }
+ *
+ * If the data is already flat (e.g. from cache or a different provider), pass it through.
+ */
+function normalizeStats(raw) {
+  if (!raw) return null;
+
+  // If data already has flat fields (e.g. pe_ratio at top level), return as-is
+  if (raw.pe_ratio !== undefined || raw.market_capitalization !== undefined) return raw;
+
+  const stats = raw.statistics || raw;
+  const vm = stats.valuations_metrics || {};
+  const fin = stats.financials || {};
+  const sp = stats.stock_price || {};
+  const ds = stats.dividends_and_splits || {};
+  const ss = stats.stock_statistics || {};
+
+  return {
+    // Valuations
+    pe_ratio: vm.trailing_pe ?? vm.pe_ratio ?? null,
+    forward_pe: vm.forward_pe ?? null,
+    peg_ratio: vm.peg_ratio ?? null,
+    market_capitalization: vm.market_capitalization ?? null,
+    enterprise_value: vm.enterprise_value ?? null,
+    price_to_sales: vm.price_to_sales_ttm ?? null,
+    price_to_book: vm.price_to_book_mrq ?? null,
+
+    // Financials
+    revenue: fin.revenue ?? null,
+    profit_margin: fin.profit_margin ?? null,
+    operating_margin: fin.operating_margin ?? null,
+    gross_margin: fin.gross_margin ?? null,
+    return_on_equity: fin.return_on_equity ?? null,
+    return_on_assets: fin.return_on_assets ?? null,
+    revenue_per_share: fin.revenue_per_share ?? null,
+    earnings_per_share: fin.diluted_eps ?? fin.earnings_per_share ?? null,
+
+    // Stock price / risk
+    beta: sp.beta ?? null,
+    '52_week_high': sp['52_week_high'] ?? null,
+    '52_week_low': sp['52_week_low'] ?? null,
+    '52_week_change': sp['52_week_change'] ?? null,
+
+    // Dividends
+    dividend_yield: ds.forward_annual_dividend_yield ?? ds.trailing_annual_dividend_yield ?? null,
+    dividend_rate: ds.forward_annual_dividend_rate ?? null,
+
+    // Shares
+    shares_outstanding: ss.shares_outstanding ?? null,
+    float_shares: ss.float_shares ?? null,
+  };
+}
+
 export function useDeepScreenData(tickers) {
   const [data, setData] = useState(() => {
     // Pre-populate from cache
@@ -31,10 +89,11 @@ export function useDeepScreenData(tickers) {
   const [error, setError] = useState(null);
   const timeoutRef = useRef(null);
   const mountedRef = useRef(true);
+  const abortRef = useRef(null);
 
   const tickerKey = tickers.join(',');
 
-  const performFetch = useCallback(async () => {
+  const performFetch = useCallback(async (signal) => {
     if (!mountedRef.current) return;
     setLoading(true);
     setError(null);
@@ -84,17 +143,27 @@ export function useDeepScreenData(tickers) {
         }
 
         for (const chunk of chunks) {
-          if (!mountedRef.current) return;
+          if (!mountedRef.current || signal?.aborted) return;
           const promises = chunk.map(async (ticker) => {
             try {
-              const res = await apiFetch(`/api/market/td/statistics/${encodeURIComponent(ticker)}`);
+              const res = await apiFetch(
+                `/api/market/td/statistics/${encodeURIComponent(ticker)}`,
+                signal ? { signal } : {}
+              );
               if (!res.ok) return;
               const json = await res.json();
               if (json?.data && mountedRef.current) {
-                results.set(ticker, json.data);
-                statsCache.set(ticker, { data: json.data, ts: Date.now() });
+                const normalized = normalizeStats(json.data);
+                if (normalized) {
+                  results.set(ticker, normalized);
+                  statsCache.set(ticker, { data: normalized, ts: Date.now() });
+                }
               }
-            } catch { /* individual ticker failure — continue with others */ }
+            } catch (e) {
+              // Silently ignore abort errors (component unmounted)
+              if (e.name === 'AbortError') return;
+              /* individual ticker failure — continue with others */
+            }
           });
           await Promise.all(promises);
         }
@@ -108,6 +177,8 @@ export function useDeepScreenData(tickers) {
       if (timeoutRef.current) { clearTimeout(timeoutRef.current); timeoutRef.current = null; }
     } catch (err) {
       if (timeoutRef.current) { clearTimeout(timeoutRef.current); timeoutRef.current = null; }
+      // Don't set error state for aborted requests
+      if (err.name === 'AbortError') return;
       if (mountedRef.current) {
         setError(err.message || 'Failed to load statistics');
       }
@@ -121,12 +192,18 @@ export function useDeepScreenData(tickers) {
 
   useEffect(() => {
     mountedRef.current = true;
-    performFetch();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    performFetch(controller.signal);
     return () => {
       mountedRef.current = false;
+      controller.abort();
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
     };
   }, [performFetch]);
 
-  return { data, loading, error, refresh: performFetch };
+  // Manual refresh (no abort signal — user-initiated)
+  const refresh = useCallback(() => performFetch(), [performFetch]);
+
+  return { data, loading, error, refresh };
 }

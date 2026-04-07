@@ -70,6 +70,8 @@ function LazySection({ children }) {
 
 /**
  * Section-level error boundary with retry capability.
+ * Wraps each individual section so a crash in one doesn't take down the whole screen.
+ * Shows the section title, a visible error message, and a Retry button that remounts.
  */
 class SectionErrorBoundary extends Component {
   constructor(props) {
@@ -82,38 +84,56 @@ class SectionErrorBoundary extends Component {
   }
 
   componentDidCatch(error, info) {
-    console.error(`[FullPageScreenLayout] ${this.props.section || 'Section'} error:`, error, info);
+    console.error(`[SectionErrorBoundary] "${this.props.section || 'Unknown'}" crashed:`, error, info);
   }
 
   render() {
     if (this.state.hasError) {
+      const sectionTitle = this.props.section || 'Section';
+      const accentColor = this.props.accentColor || '#ef5350';
       return (
         <div style={{
-          padding: '12px 8px',
-          color: '#888',
-          fontSize: 10,
+          padding: '20px 16px',
           textAlign: 'center',
-          background: '#0a0a0a',
+          background: '#111',
+          border: `1px solid ${accentColor}33`,
+          borderLeft: `3px solid ${accentColor}`,
+          borderRadius: 4,
+          minHeight: 80,
         }}>
-          <span style={{ color: '#ef5350' }}>Failed to load section</span>
-          <div style={{ color: '#555', marginTop: 4, fontSize: 9 }}>
-            {this.state.error?.message || 'Unknown error'}
+          <div style={{
+            fontSize: 11,
+            fontWeight: 700,
+            color: '#ccc',
+            textTransform: 'uppercase',
+            letterSpacing: 0.5,
+            marginBottom: 6,
+          }}>
+            {sectionTitle}
+          </div>
+          <div style={{ color: accentColor, fontSize: 11, fontWeight: 600, marginBottom: 4 }}>
+            Failed to load
+          </div>
+          <div style={{ color: '#888', fontSize: 10, marginBottom: 10, maxWidth: 300, margin: '0 auto 10px' }}>
+            {this.state.error?.message || 'An unexpected error occurred in this section.'}
           </div>
           <button
             onClick={() => this.setState({ hasError: false, error: null })}
             style={{
-              marginTop: 6,
-              background: 'transparent',
-              border: '1px solid #444',
-              color: '#aaa',
-              padding: '3px 10px',
-              borderRadius: 3,
+              background: `${accentColor}22`,
+              border: `1px solid ${accentColor}66`,
+              color: accentColor,
+              padding: '5px 16px',
+              borderRadius: 4,
               cursor: 'pointer',
-              fontSize: 9,
-              fontWeight: 600,
+              fontSize: 10,
+              fontWeight: 700,
               textTransform: 'uppercase',
-              letterSpacing: 0.5,
+              letterSpacing: 0.8,
+              transition: 'background 0.15s',
             }}
+            onMouseEnter={e => e.target.style.background = `${accentColor}44`}
+            onMouseLeave={e => e.target.style.background = `${accentColor}22`}
           >
             Retry
           </button>
@@ -127,11 +147,11 @@ class SectionErrorBoundary extends Component {
 /**
  * Section wrapper with sticky header, error boundary, and optional lazy loading.
  */
-function ScreenSection({ id, title, badge, span, component: Component, isMobile, lazy }) {
+function ScreenSection({ id, title, badge, span, component: Component, isMobile, lazy, accentColor }) {
   const spanClass = !isMobile && span === 'full' ? 'fsl-section--full' : '';
 
   const content = (
-    <SectionErrorBoundary section={title}>
+    <SectionErrorBoundary section={title} accentColor={accentColor}>
       {typeof Component === 'function' || (Component && Component.$$typeof) ? <Component /> : Component}
     </SectionErrorBoundary>
   );
@@ -211,6 +231,7 @@ function FullPageScreenLayout({
             component={sec.component}
             isMobile={isMobile}
             lazy={idx >= 2}
+            accentColor={accentColor}
           />
         ))}
       </div>
