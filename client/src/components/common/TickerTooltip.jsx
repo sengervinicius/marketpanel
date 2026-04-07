@@ -29,7 +29,7 @@ const DESCRIPTIONS = {
   AMZN:  'Amazon.com Inc. — e-commerce marketplace, AWS cloud (leader), Prime Video, Alexa, advertising business.',
   META:  'Meta Platforms — Facebook, Instagram, WhatsApp (3B+ users combined), Reality Labs VR/AR headsets.',
   TSLA:  'Tesla Inc. — electric vehicles (Model S/3/X/Y/Cybertruck), energy storage (Powerwall/Megapack), Full Self-Driving AI.',
-  BRKB:  "Berkshire Hathaway B — Warren Buffett's diversified holding co.; insurance (GEICO), BNSF rail, energy, large equity stakes.",
+  'BRK-B':  "Berkshire Hathaway B — Warren Buffett's diversified holding co.; insurance (GEICO), BNSF rail, energy, large equity stakes.",
   JPM:   'JPMorgan Chase — largest US bank by assets; investment banking, commercial banking, consumer (Chase), asset mgmt.',
   GS:    'Goldman Sachs — global investment banking, M&A advisory, FICC & equities trading, asset & wealth management.',
   BAC:   'Bank of America — US retail banking (#2), credit cards, Merrill Lynch brokerage & investment banking.',

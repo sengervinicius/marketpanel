@@ -58,7 +58,11 @@ function lookupInBatch(marketData, ticker) {
   if (!marketData || !ticker) return null;
   const { ns, key } = batchKey(ticker) ?? {};
   if (!ns || !key) return null;
-  return marketData[ns]?.[key] ?? null;
+  const entry = marketData[ns]?.[key] ?? null;
+  // Only return batch entry if it has a valid price — otherwise fall through
+  // to extras so individual ticker fetches can provide the data
+  if (entry && entry.price == null) return null;
+  return entry;
 }
 
 // ── Provider ────────────────────────────────────────────────────────────────
@@ -81,13 +85,23 @@ export function PriceProvider({ marketData, children }) {
   const fetchErrors = useRef(new Map());
   const deadTickers = useRef(new Set());
 
+  // Normalize ticker for API calls — crypto needs X: prefix, forex needs C: prefix
+  const normalizeForApi = useCallback((ticker) => {
+    if (!ticker) return ticker;
+    const bk = batchKey(ticker);
+    if (bk?.ns === 'crypto' && !ticker.startsWith('X:')) return `X:${ticker}`;
+    if (bk?.ns === 'forex'  && !ticker.startsWith('C:')) return `C:${ticker}`;
+    return ticker;
+  }, []);
+
   // Fetch a single ticker from the server and store in extras
   const fetchExtra = useCallback(async (ticker) => {
     // Skip if this ticker has failed too many times
     if (deadTickers.current.has(ticker)) return;
 
     try {
-      const r = await apiFetch(`/api/snapshot/ticker/${encodeURIComponent(ticker)}`);
+      const apiTicker = normalizeForApi(ticker);
+      const r = await apiFetch(`/api/snapshot/ticker/${encodeURIComponent(apiTicker)}`);
       if (!r.ok) {
         // Track failed fetch: increment error count and add to dead set if >= 3
         const failures = (fetchErrors.current.get(ticker) ?? 0) + 1;
@@ -125,7 +139,7 @@ export function PriceProvider({ marketData, children }) {
         console.warn(`[PriceContext] ticker '${ticker}' failed 3 times; stopping retries`);
       }
     }
-  }, []);
+  }, [normalizeForApi]);
 
   // Register interest in a ticker (called by useTickerPrice on mount)
   const register = useCallback((ticker) => {

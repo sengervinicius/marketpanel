@@ -177,7 +177,10 @@ const FxRatesComponent = memo(function FxRatesComponent() {
     },
   });
 
-  const brData = macroData?.data?.find(row => row.country === 'BR') || {};
+  // API returns {data: {countries: [...]}} — extract the countries array safely
+  const countriesArr = Array.isArray(macroData?.data?.countries) ? macroData.data.countries
+                     : Array.isArray(macroData?.data) ? macroData.data : [];
+  const brData = countriesArr.find(row => row.country === 'BR') || {};
 
   return (
     <div style={{ padding: '0 6px', overflow: 'auto' }}>
@@ -221,7 +224,9 @@ const LatAmMacroComponent = memo(function LatAmMacroComponent() {
   if (loading) return <DeepSkeleton rows={8} />;
   if (error) return <DeepError message={error} />;
 
-  const countries = data?.data || [];
+  // API returns {data: {countries: [...]}} — extract the countries array safely
+  const countries = Array.isArray(data?.data?.countries) ? data.data.countries
+                  : Array.isArray(data?.data) ? data.data : [];
   if (countries.length === 0) return <div style={{ padding: '10px', color: '#666', fontSize: 10 }}>No data available</div>;
 
   return (

@@ -35,7 +35,7 @@ const PREVIEW_COUNT = 4;
 
 // Curated ticker lists per section — globally representative, audit-aligned
 const SECTION_TICKERS = {
-  'us-equities':    ['AAPL', 'MSFT', 'NVDA', 'GOOGL', 'AMZN', 'META', 'TSLA', 'JPM', 'XOM', 'GS', 'WMT', 'LLY', 'BRKB'],
+  'us-equities':    ['AAPL', 'MSFT', 'NVDA', 'GOOGL', 'AMZN', 'META', 'TSLA', 'JPM', 'XOM', 'GS', 'WMT', 'LLY', 'BRK-B'],
   'global-indexes': ['SPY', 'QQQ', 'DIA', 'IWM', 'EWZ', 'EEM', 'VGK', 'EWJ', 'FXI', 'EFA'],
   'fx-markets':     ['C:EURUSD', 'C:USDJPY', 'C:GBPUSD', 'C:USDBRL', 'C:USDCNY', 'C:USDCHF', 'C:AUDUSD', 'C:USDCAD', 'C:USDMXN'],
   'brazil-b3':      ['PETR4.SA', 'VALE3.SA', 'ITUB4.SA', 'BBDC4.SA', 'ABEV3.SA', 'WEGE3.SA', 'B3SA3.SA', 'BBAS3.SA'],

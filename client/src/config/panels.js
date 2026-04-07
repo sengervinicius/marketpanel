@@ -38,7 +38,7 @@ export const PANEL_DEFINITIONS = {
     id:             'usEquities',
     label:          'US Equities',
     defaultTitle:   'US Equities',
-    defaultSymbols: ['AAPL','MSFT','NVDA','GOOGL','AMZN','META','TSLA','JPM','XOM','BRKB','GS','WMT','LLY'],
+    defaultSymbols: ['AAPL','MSFT','NVDA','GOOGL','AMZN','META','TSLA','JPM','XOM','BRK-B','GS','WMT','LLY'],
     allowedGroups:  ['US Tech','US Financials','US Energy','US Industrials','US Consumer','US Healthcare','US Auto','Brazil ADRs'],
     editable:       true,
     icon:           'EQ',

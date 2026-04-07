@@ -1,12 +1,16 @@
 // Server URL — auto-detect prod vs dev
 export const SERVER_URL = import.meta.env.VITE_API_URL || import.meta.env.VITE_SERVER_URL || '';
 
-// WebSocket URL — MUST be explicitly configured in production
+// WebSocket URL — derive from SERVER_URL in production (client is a separate static site)
 export const WS_URL = import.meta.env.VITE_WS_URL ||
   (() => {
-    if (process.env.NODE_ENV === 'production') {
-      console.warn('[WARN] VITE_WS_URL is not set. WebSocket will attempt same-origin fallback.');
+    // If SERVER_URL is set (separate API server), derive WS URL from it
+    if (SERVER_URL) {
+      const wsProto = SERVER_URL.startsWith('https') ? 'wss://' : 'ws://';
+      const host = SERVER_URL.replace(/^https?:\/\//, '').replace(/\/$/, '');
+      return `${wsProto}${host}/ws`;
     }
+    // Same-origin fallback (dev mode or single-server deploy)
     return (window.location.protocol === 'https:' ? 'wss://' : 'ws://') +
            window.location.host + '/ws';
   })();
@@ -40,7 +44,7 @@ export const US_STOCKS = [
   { symbol: 'META',  label: 'Meta',         sector: 'Tech' },
   { symbol: 'TSLA',  label: 'Tesla',        sector: 'Auto' },
   // Financials
-  { symbol: 'BRKB',  label: 'Berkshire B',  sector: 'Fin'  },
+  { symbol: 'BRK-B', label: 'Berkshire B',  sector: 'Fin'  },
   { symbol: 'JPM',   label: 'JPMorgan',     sector: 'Fin'  },
   { symbol: 'GS',    label: 'Goldman',      sector: 'Fin'  },
   { symbol: 'BAC',   label: 'Bank of Am.',  sector: 'Fin'  },
@@ -212,7 +216,7 @@ export const INSTRUMENTS = [
   { symbolKey: 'AMZN',  name: 'Amazon',            assetClass: 'equity',       group: 'US Tech' },
   { symbolKey: 'META',  name: 'Meta',              assetClass: 'equity',       group: 'US Tech' },
   { symbolKey: 'TSLA',  name: 'Tesla',             assetClass: 'equity',       group: 'US Auto' },
-  { symbolKey: 'BRKB',  name: 'Berkshire B',       assetClass: 'equity',       group: 'US Financials' },
+  { symbolKey: 'BRK-B', name: 'Berkshire B',       assetClass: 'equity',       group: 'US Financials' },
   { symbolKey: 'JPM',   name: 'JPMorgan',          assetClass: 'equity',       group: 'US Financials' },
   { symbolKey: 'GS',    name: 'Goldman Sachs',     assetClass: 'equity',       group: 'US Financials' },
   { symbolKey: 'BAC',   name: 'Bank of America',   assetClass: 'equity',       group: 'US Financials' },
