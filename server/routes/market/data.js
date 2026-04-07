@@ -23,7 +23,7 @@
 const express = require('express');
 const router  = express.Router();
 const { cacheGet, cacheSet, TTL } = require('./lib/cache');
-const { polyFetch, eulerpool, twelvedata, sendError } = require('./lib/providers');
+const { polyFetch, eulerpool, twelvedata, sendError, yahooQuote } = require('./lib/providers');
 const logger = require('../../utils/logger');
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -151,18 +151,87 @@ router.get('/market/fundamentals/batch', async (req, res) => {
 
     if (!tickers.length) return res.status(400).json({ ok: false, error: 'tickers param required' });
 
-    if (!eulerpool.isConfigured()) {
-      return res.json({ ok: true, data: {}, source: 'unavailable' });
-    }
-
     const ck = `funds-batch:${tickers.sort().join(',')}`;
     const cached = cacheGet(ck);
-    if (cached) return res.json({ ok: true, data: cached, source: 'eulerpool' });
+    if (cached) return res.json({ ok: true, data: cached, source: 'cache' });
 
-    const data = await eulerpool.getBatchFundamentals(tickers);
+    // Separate .SA tickers (Brazilian) from regular tickers
+    const saTickers = tickers.filter(t => t.endsWith('.SA'));
+    const regularTickers = tickers.filter(t => !t.endsWith('.SA'));
+
+    let data = {};
+
+    // Fetch regular tickers from Eulerpool
+    if (regularTickers.length > 0 && eulerpool.isConfigured()) {
+      try {
+        const eulerData = await eulerpool.getBatchFundamentals(regularTickers);
+        if (eulerData) Object.assign(data, eulerData);
+      } catch (e) {
+        console.warn('[fundamentals/batch] Eulerpool failed:', e.message);
+      }
+    }
+
+    // Fetch .SA tickers from Yahoo Finance (Eulerpool doesn't cover B3)
+    if (saTickers.length > 0) {
+      try {
+        const quotes = await yahooQuote(saTickers.join(','));
+        for (const q of (quotes || [])) {
+          const sym = (q.symbol || '').toUpperCase();
+          if (!sym) continue;
+          data[sym] = {
+            ticker: sym,
+            pe: q.trailingPE ?? q.forwardPE ?? null,
+            eps: q.epsTrailingTwelveMonths ?? null,
+            marketCap: q.marketCap ?? null,
+            revenue: null,
+            ebitda: null,
+            grossMargins: null,
+            operatingMargins: null,
+            profitMargins: null,
+            totalCash: null,
+            totalDebt: null,
+            returnOnEquity: null,
+            beta: null,
+            sharesOutstanding: q.sharesOutstanding ?? null,
+          };
+        }
+      } catch (e) {
+        console.warn('[fundamentals/batch] Yahoo .SA fallback failed:', e.message);
+      }
+    }
+
+    // Also try Yahoo fallback for any regular tickers Eulerpool missed
+    const missing = regularTickers.filter(t => !data[t]);
+    if (missing.length > 0) {
+      try {
+        const quotes = await yahooQuote(missing.join(','));
+        for (const q of (quotes || [])) {
+          const sym = (q.symbol || '').toUpperCase();
+          if (!sym || data[sym]) continue;
+          data[sym] = {
+            ticker: sym,
+            pe: q.trailingPE ?? q.forwardPE ?? null,
+            eps: q.epsTrailingTwelveMonths ?? null,
+            marketCap: q.marketCap ?? null,
+            revenue: null,
+            ebitda: null,
+            grossMargins: null,
+            operatingMargins: null,
+            profitMargins: null,
+            totalCash: null,
+            totalDebt: null,
+            returnOnEquity: null,
+            beta: null,
+            sharesOutstanding: q.sharesOutstanding ?? null,
+          };
+        }
+      } catch (e) {
+        console.warn('[fundamentals/batch] Yahoo fallback failed:', e.message);
+      }
+    }
 
     if (data && Object.keys(data).length > 0) cacheSet(ck, data, 300_000);
-    res.json({ ok: true, data: data || {}, source: 'eulerpool' });
+    res.json({ ok: true, data: data || {}, source: 'mixed' });
   } catch (e) {
     logger.error('GET /market/fundamentals/batch error:', e);
     res.status(500).json({ ok: false, error: e.message });

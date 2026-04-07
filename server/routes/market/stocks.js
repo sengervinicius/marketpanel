@@ -351,21 +351,45 @@ router.get('/snapshot/ticker/:symbol', async (req, res) => {
       return res.status(400).json({ ok: false, error: 'bad_request', message: 'Invalid symbol format' });
     }
 
-    let yahooTicker = sym;
-    if (sym.startsWith('X:')) {
-      const pair = sym.replace(/^X:/, '');
-      const [crypto, fiat] = [pair.slice(0, -3), pair.slice(-3)];
-      yahooTicker = `${crypto}-${fiat}`;
-    } else if (sym.startsWith('C:')) {
-      yahooTicker = `${sym.replace(/^C:/, '')}=X`;
-    } else if (sym.includes('=F') || sym.includes('=')) {
-      // Futures - Yahoo Finance handles these natively (CL=F, BZ=F, GC=F, etc.)
+    const { toYahoo } = require('../../utils/tickerNormalize');
+    let yahooTicker = toYahoo(sym);
+    // Futures - Yahoo Finance handles these natively (CL=F, BZ=F, GC=F, etc.)
+    if (sym.includes('=F') || sym.includes('=')) {
       yahooTicker = sym;
     }
 
-    const quotes = await yahooQuote(yahooTicker);
-    const q = quotes?.[0];
-    if (!q) throw new Error(`No Yahoo Finance data for ${sym}`);
+    // Primary: Yahoo Finance
+    let q = null;
+    try {
+      const quotes = await yahooQuote(yahooTicker);
+      q = quotes?.[0];
+    } catch (yErr) {
+      console.warn(`[snapshot/ticker] Yahoo failed for ${sym}: ${yErr.message}`);
+    }
+
+    // Fallback: Finnhub (only for plain equity tickers — no prefix, no suffix)
+    if (!q && !sym.startsWith('X:') && !sym.startsWith('C:') && !sym.includes('=') && finnhubKey()) {
+      try {
+        const fData = await finnhubQuote(sym);
+        if (fData && fData.c > 0) {
+          q = {
+            regularMarketPrice:           fData.c,
+            regularMarketOpen:            fData.o ?? null,
+            regularMarketDayHigh:         fData.h ?? null,
+            regularMarketDayLow:          fData.l ?? null,
+            regularMarketPreviousClose:   fData.pc ?? null,
+            regularMarketChange:          fData.d ?? null,
+            regularMarketChangePercent:   fData.dp ?? null,
+            regularMarketVolume:          0,
+          };
+          console.log(`[snapshot/ticker] Finnhub fallback succeeded for ${sym}: $${fData.c}`);
+        }
+      } catch (fErr) {
+        console.warn(`[snapshot/ticker] Finnhub fallback also failed for ${sym}: ${fErr.message}`);
+      }
+    }
+
+    if (!q) throw new Error(`No data for ${sym} from any provider`);
     res.json({
       ticker: {
         min:    { c: q.regularMarketPrice },

@@ -114,7 +114,7 @@ const DiCurveComponent = memo(function DiCurveComponent() {
   const { data, loading, error } = useSectionData({
     cacheKey: 'brazil-di-curve',
     fetcher: async () => {
-      const res = await apiFetch('/api/market/di-curve');
+      const res = await apiFetch('/api/di-curve');
       return res.ok ? await res.json() : null;
     },
     refreshMs: 120000,

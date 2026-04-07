@@ -144,28 +144,38 @@ export function useDeepScreenData(tickers) {
 
         for (const chunk of chunks) {
           if (!mountedRef.current || signal?.aborted) return;
-          const promises = chunk.map(async (ticker) => {
-            try {
+          // Use Promise.allSettled so one failed ticker never drops the whole chunk
+          const settled = await Promise.allSettled(
+            chunk.map(async (ticker) => {
               const res = await apiFetch(
                 `/api/market/td/statistics/${encodeURIComponent(ticker)}`,
                 signal ? { signal } : {}
               );
-              if (!res.ok) return;
+              if (!res.ok) throw new Error(`HTTP ${res.status} for ${ticker}`);
               const json = await res.json();
-              if (json?.data && mountedRef.current) {
-                const normalized = normalizeStats(json.data);
-                if (normalized) {
-                  results.set(ticker, normalized);
-                  statsCache.set(ticker, { data: normalized, ts: Date.now() });
-                }
+              return { ticker, data: json?.data };
+            })
+          );
+          for (const result of settled) {
+            if (result.status === 'fulfilled' && result.value?.data && mountedRef.current) {
+              const { ticker, data: rawData } = result.value;
+              const normalized = normalizeStats(rawData);
+              if (normalized) {
+                results.set(ticker, normalized);
+                statsCache.set(ticker, { data: normalized, ts: Date.now() });
               }
-            } catch (e) {
-              // Silently ignore abort errors (component unmounted)
-              if (e.name === 'AbortError') return;
-              /* individual ticker failure — continue with others */
+            } else if (result.status === 'rejected') {
+              // Log individual ticker failures but don't propagate — other tickers unaffected
+              const msg = result.reason?.message || '';
+              if (!msg.includes('AbortError') && !msg.includes('abort')) {
+                console.warn(`[useDeepScreenData] Chunk ticker failed: ${msg}`);
+              }
             }
-          });
-          await Promise.all(promises);
+          }
+          // Update data progressively after each chunk so UI shows partial results
+          if (mountedRef.current && results.size > 0) {
+            setData(new Map(results));
+          }
         }
 
         if (mountedRef.current) {
@@ -202,8 +212,31 @@ export function useDeepScreenData(tickers) {
     };
   }, [performFetch]);
 
+  // Re-fetch stale data when the browser tab becomes visible again
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState !== 'visible' || !mountedRef.current) return;
+      // Check if any cached ticker is stale (>CACHE_TTL old)
+      const hasStale = tickers.some(t => {
+        const entry = statsCache.get(t);
+        return !entry || Date.now() - entry.ts >= CACHE_TTL;
+      });
+      if (hasStale) {
+        setIsRefreshing(true);
+        const controller = new AbortController();
+        abortRef.current = controller;
+        performFetch(controller.signal).finally(() => {
+          if (mountedRef.current) setIsRefreshing(false);
+        });
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, [performFetch, tickers]);
+
   // Manual refresh (no abort signal — user-initiated)
   const refresh = useCallback(() => performFetch(), [performFetch]);
 
-  return { data, loading, error, refresh };
+  return { data, loading, error, refresh, isRefreshing };
 }

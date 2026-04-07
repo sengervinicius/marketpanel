@@ -43,8 +43,12 @@ export function useWebSocketTicks(restData) {
       const snap = msg.data;
       ['stocks', 'forex', 'crypto'].forEach(cat => {
         if (!snap?.[cat]) return;
+        // Strip C: (forex) and X: (crypto) prefixes from keys so they match
+        // the REST batch data keys (which are already stripped by normalizePolygon)
+        const prefix = cat === 'forex' ? 'C:' : cat === 'crypto' ? 'X:' : '';
         Object.entries(snap[cat]).forEach(([sym, info]) => {
-          liveOverlayRef.current[sym] = { ...info, _cat: cat };
+          const key = prefix && sym.startsWith(prefix) ? sym.slice(prefix.length) : sym;
+          liveOverlayRef.current[key] = { ...info, symbol: key, _cat: cat };
         });
       });
       setLiveTick(n => n + 1);
@@ -60,8 +64,12 @@ export function useWebSocketTicks(restData) {
           const normalizedTicks = [];
           ticks.forEach(t => {
             if (t.symbol && t.data) {
-              liveOverlayRef.current[t.symbol] = { ...liveOverlayRef.current[t.symbol], ...t.data, _cat: t.category };
-              normalizedTicks.push({ category: t.category, symbol: t.symbol, data: t.data });
+              // Strip C: / X: prefixes for consistent keying with REST data
+              let sym = t.symbol;
+              if (t.category === 'forex' && sym.startsWith('C:')) sym = sym.slice(2);
+              if (t.category === 'crypto' && sym.startsWith('X:')) sym = sym.slice(2);
+              liveOverlayRef.current[sym] = { ...liveOverlayRef.current[sym], ...t.data, symbol: sym, _cat: t.category };
+              normalizedTicks.push({ category: t.category, symbol: sym, data: t.data });
             }
           });
           setLiveTick(n => n + 1);
