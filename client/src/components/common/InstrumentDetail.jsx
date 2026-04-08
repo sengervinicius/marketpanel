@@ -173,13 +173,14 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
   const [comparisonTickers, setComparisonTickers] = useState([]);
   const [showComparisonSearch, setShowComparisonSearch] = useState(false);
   const [comparisonData, setComparisonData] = useState({}); // symbol → bars
-  const comparisonSearchHook = useInstrumentSearch();
+  const comparisonSearchHook = useInstrumentSearch({ enablePolygon: true });
 
   // ── Phase 4.9: Custom Date Range Picker ──
   const [showCustomRange, setShowCustomRange] = useState(false);
   const [customRangeFrom, setCustomRangeFrom] = useState('');
   const [customRangeTo, setCustomRangeTo] = useState('');
   const [customRangeLoading, setCustomRangeLoading] = useState(false);
+  const [customRangeBars, setCustomRangeBars] = useState(null); // null = use default bars from hook
 
   // ── Phase 4.11: Inline Price Alert ──
   const [showInlineAlert, setShowInlineAlert] = useState(false);
@@ -319,18 +320,21 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
   const mktCap     = fundsData?.marketCap ?? info?.market_cap ?? null;
   const desc       = info?.description || fundsData?.description || null;
 
-  const chartMin   = bars.length ? Math.min(...bars.map(b => b.close)) * 0.997 : 0;
-  const chartMax   = bars.length ? Math.max(...bars.map(b => b.close)) * 1.003 : 1;
-  const rangeHigh  = bars.length ? Math.max(...bars.map(b => b.high))  : null;
-  const rangeLow   = bars.length ? Math.min(...bars.map(b => b.low))   : null;
-  const rangeOpen  = bars.length ? bars[0].open : null;
-  const rangeClose = bars.length ? bars[bars.length - 1].close : null;
+  // ── Use custom range bars if available, otherwise use default bars ──
+  const displayBars = customRangeBars || bars;
+
+  const chartMin   = displayBars.length ? Math.min(...displayBars.map(b => b.close)) * 0.997 : 0;
+  const chartMax   = displayBars.length ? Math.max(...displayBars.map(b => b.close)) * 1.003 : 1;
+  const rangeHigh  = displayBars.length ? Math.max(...displayBars.map(b => b.high))  : null;
+  const rangeLow   = displayBars.length ? Math.min(...displayBars.map(b => b.low))   : null;
+  const rangeOpen  = displayBars.length ? displayBars[0].open : null;
+  const rangeClose = displayBars.length ? displayBars[displayBars.length - 1].close : null;
   const rangeChg   = (rangeOpen && rangeClose) ? ((rangeClose - rangeOpen) / rangeOpen) * 100 : null;
 
   // ── Technical Indicators (Phase 6 — now using shared computeIndicators) ──
   const indicatorData = useMemo(() => {
-    return computeIndicators(bars, activeIndicators);
-  }, [bars, activeIndicators]);
+    return computeIndicators(displayBars, activeIndicators);
+  }, [displayBars, activeIndicators]);
 
   const toggleIndicator = (key) => {
     setActiveIndicators(prev => {
@@ -508,9 +512,21 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
       const res = await apiFetch(`/api/market/history/${encodeURIComponent(norm)}?from=${fromMs}&to=${toMs}`);
       if (!res.ok) throw new Error('Failed to fetch custom range');
       const data = await res.json();
-      // For now, we'll just close the picker. The chart will update via the bars data
-      // In a full implementation, you'd need to update the state to reflect custom range
-      showToast('Custom range loaded', 'success');
+      const fetchedBars = (data.bars || data.results || []).map(bar => ({
+        date: bar.date || (bar.t ? new Date(bar.t).toISOString().slice(0, 10) : ''),
+        open: parseFloat(bar.open ?? bar.o ?? 0),
+        high: parseFloat(bar.high ?? bar.h ?? 0),
+        low: parseFloat(bar.low ?? bar.l ?? 0),
+        close: parseFloat(bar.close ?? bar.c ?? 0),
+        volume: parseFloat(bar.volume ?? bar.v ?? 0),
+      })).filter(b => b.close > 0);
+
+      if (fetchedBars.length > 0) {
+        setCustomRangeBars(fetchedBars);
+        showToast(`Custom range: ${fetchedBars.length} bars loaded`, 'success');
+      } else {
+        showToast('No data found for selected range', 'warning');
+      }
       setShowCustomRange(false);
     } catch (err) {
       showToast('Failed to load custom range', 'error');
@@ -518,6 +534,38 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
       setCustomRangeLoading(false);
     }
   }, [customRangeFrom, customRangeTo, norm, showToast]);
+
+  // ── Helper: Set preset date ranges ──
+  const applyPresetRange = useCallback((preset) => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    const todayStr = `${year}-${month}-${day}`;
+
+    let fromDateStr = todayStr;
+
+    if (preset === 'YTD') {
+      fromDateStr = `${year}-01-01`;
+    } else if (preset === '1Y') {
+      const oneYearAgo = new Date(today);
+      oneYearAgo.setFullYear(year - 1);
+      fromDateStr = `${oneYearAgo.getFullYear()}-${String(oneYearAgo.getMonth() + 1).padStart(2, '0')}-${String(oneYearAgo.getDate()).padStart(2, '0')}`;
+    } else if (preset === '3Y') {
+      const threeYearsAgo = new Date(today);
+      threeYearsAgo.setFullYear(year - 3);
+      fromDateStr = `${threeYearsAgo.getFullYear()}-${String(threeYearsAgo.getMonth() + 1).padStart(2, '0')}-${String(threeYearsAgo.getDate()).padStart(2, '0')}`;
+    } else if (preset === '5Y') {
+      const fiveYearsAgo = new Date(today);
+      fiveYearsAgo.setFullYear(year - 5);
+      fromDateStr = `${fiveYearsAgo.getFullYear()}-${String(fiveYearsAgo.getMonth() + 1).padStart(2, '0')}-${String(fiveYearsAgo.getDate()).padStart(2, '0')}`;
+    } else if (preset === 'MAX') {
+      fromDateStr = '1990-01-01'; // Reasonable max range
+    }
+
+    setCustomRangeFrom(fromDateStr);
+    setCustomRangeTo(todayStr);
+  }, []);
 
   // ── Phase 4.11: Inline Price Alert ────────────────────────────────────────
   const createInlineAlert = useCallback(async () => {
@@ -579,7 +627,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
       );
     }
 
-    if (bars.length === 0) {
+    if (displayBars.length === 0) {
       const grp = detectExchangeGroup(norm);
       const routing = getProviderRouting(norm);
       const chartProviders = routing.providers.chart;
@@ -2553,8 +2601,45 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
           {/* Phase 4.9: Custom Date Range Panel */}
           {showCustomRange && (
             <div className="id-custom-range-panel">
+              <div style={{ marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid #444' }}>
+                <h4 style={{ margin: '0 0 8px 0', fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#fff' }}>CUSTOM DATE RANGE</h4>
+              </div>
+
+              {/* Preset buttons */}
+              <div style={{ marginBottom: 12, display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 6 }}>
+                {['YTD', '1Y', '3Y', '5Y', 'MAX'].map(preset => (
+                  <button
+                    key={preset}
+                    onClick={() => applyPresetRange(preset)}
+                    style={{
+                      padding: '6px 8px',
+                      fontSize: 11,
+                      fontWeight: 500,
+                      backgroundColor: '#333',
+                      color: '#aaa',
+                      border: '1px solid #555',
+                      borderRadius: 4,
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.target.style.backgroundColor = '#444';
+                      e.target.style.color = ORANGE;
+                      e.target.style.borderColor = ORANGE;
+                    }}
+                    onMouseLeave={(e) => {
+                      e.target.style.backgroundColor = '#333';
+                      e.target.style.color = '#aaa';
+                      e.target.style.borderColor = '#555';
+                    }}
+                  >
+                    {preset}
+                  </button>
+                ))}
+              </div>
+
               <div style={{ marginBottom: 12 }}>
-                <label style={{ display: 'block', marginBottom: 4, fontSize: 12 }}>FROM DATE</label>
+                <label style={{ display: 'block', marginBottom: 4, fontSize: 12, fontWeight: 500, color: '#aaa' }}>FROM DATE</label>
                 <input
                   type="date"
                   value={customRangeFrom}
@@ -2563,7 +2648,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
                 />
               </div>
               <div style={{ marginBottom: 12 }}>
-                <label style={{ display: 'block', marginBottom: 4, fontSize: 12 }}>TO DATE</label>
+                <label style={{ display: 'block', marginBottom: 4, fontSize: 12, fontWeight: 500, color: '#aaa' }}>TO DATE</label>
                 <input
                   type="date"
                   value={customRangeTo}
@@ -2575,7 +2660,19 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
                 onClick={applyCustomRange}
                 disabled={customRangeLoading}
                 className="id-range-btn"
-                style={{ width: '100%', marginBottom: 8 }}
+                style={{
+                  width: '100%',
+                  marginBottom: 8,
+                  padding: '10px 12px',
+                  backgroundColor: ORANGE,
+                  color: '#1a1a1a',
+                  fontWeight: 600,
+                  border: 'none',
+                  borderRadius: 4,
+                  cursor: customRangeLoading ? 'not-allowed' : 'pointer',
+                  opacity: customRangeLoading ? 0.6 : 1,
+                  transition: 'opacity 0.2s',
+                }}
               >{customRangeLoading ? 'Loading...' : 'Apply'}</button>
             </div>
           )}

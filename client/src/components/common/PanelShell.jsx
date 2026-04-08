@@ -29,9 +29,9 @@ function PanelShell({ children, onDropTicker, style }) {
         display: 'flex',
         flexDirection: 'column',
         background: 'var(--bg-panel)',
-        outline: isDragOver ? '1px dashed var(--accent, #ff6600)' : 'none',
-        outlineOffset: '-2px',
-        transition: 'outline 0.15s',
+        border: isDragOver ? '2px solid var(--accent, #ff6600)' : '2px solid transparent',
+        boxShadow: isDragOver ? '0 0 12px var(--accent, #ff6600)66' : 'none',
+        transition: 'border 0.15s, box-shadow 0.15s',
         ...style,
       }}
       onDragOver={onDropTicker ? handleDragOver : undefined}

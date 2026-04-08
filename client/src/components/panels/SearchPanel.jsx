@@ -218,6 +218,21 @@ function EnhancedResultRow({ item, idx, isSelected, onSelect, onDragStart, cover
       onTouchEnd={(e) => { e.preventDefault(); onSelect(item); }}
       title="Click to open detail · Drag to any panel to add ticker"
     >
+      {/* Drag handle icon */}
+      <span
+        className="sp-drag-handle"
+        style={{
+          cursor: 'grab',
+          color: 'var(--text-muted)',
+          fontSize: '12px',
+          marginRight: '6px',
+          letterSpacing: '2px',
+        }}
+        title="Drag to any panel to customize"
+      >
+        ⠿
+      </span>
+
       {/* Coverage indicator */}
       <span
         title={dot.title}

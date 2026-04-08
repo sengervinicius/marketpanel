@@ -119,15 +119,15 @@ function DebtPanel() {
   const [loading, setLoading]                       = useState(true);
   const [error, setError]                           = useState(null);
   const [countryGroup, setCountryGroup]             = useState('G10');
+  const [liveReady, setLiveReady]                   = useState(false);
 
   // Persistent ref for live data (no re-render race)
   const liveDataRef   = useRef(null);
-  const liveLoadedRef = useRef(false);
 
   // ---- Load live yield-curve data + country list (once) ----
   useEffect(() => {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 10000); // 10s client-side timeout
+    const timeout = setTimeout(() => controller.abort(), 20000); // 20s client-side timeout
 
     Promise.allSettled([
       apiFetch('/api/yield-curves', { signal: controller.signal }).then(r => r.ok ? r.json() : null),
@@ -137,7 +137,6 @@ function DebtPanel() {
       if (liveRes.status === 'fulfilled' && liveRes.value) {
         liveDataRef.current = liveRes.value;
       }
-      liveLoadedRef.current = true;
 
       if (countriesRes.status === 'fulfilled') {
         const stubList = countriesRes.value?.countries || [];
@@ -153,11 +152,11 @@ function DebtPanel() {
         setAvailableCountries(merged);
       }
 
-      // Trigger curve load now that liveData is ready
-      setCurve(prev => prev); // force re-render to pick up liveLoadedRef
+      // Signal that live data is ready for loadCurve effect
+      setLiveReady(true);
     }).catch(() => {
       clearTimeout(timeout);
-      liveLoadedRef.current = true;
+      setLiveReady(true);
       setLoading(false);
       setError('Yield data timed out — click RETRY');
     });
@@ -182,7 +181,7 @@ function DebtPanel() {
 
   // ---- Load curve for selected country (curve view) ----
   const loadCurve = useCallback(async () => {
-    if (!liveLoadedRef.current) return; // wait for init
+    if (!liveReady) return; // wait for init to complete
     setLoading(true);
     setError(null);
 
@@ -230,7 +229,7 @@ function DebtPanel() {
     } finally {
       setLoading(false);
     }
-  }, [selectedCountry, getLiveCurve]);
+  }, [selectedCountry, getLiveCurve, liveReady]);
 
   // Trigger curve load when view is 'curve'
   useEffect(() => {
@@ -243,7 +242,7 @@ function DebtPanel() {
 
   // ---- Load regional snapshot ----
   const loadRegional = useCallback(async () => {
-    if (!liveLoadedRef.current) return;
+    if (!liveReady) return;
     setLoading(true);
     setError(null);
 
@@ -299,7 +298,7 @@ function DebtPanel() {
     } finally {
       setLoading(false);
     }
-  }, [countryGroup, regionalTenor, getLiveCurve, availableCountries]);
+  }, [countryGroup, regionalTenor, getLiveCurve, availableCountries, liveReady]);
 
   useEffect(() => {
     if (view !== 'regional') return;

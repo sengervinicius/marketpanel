@@ -82,6 +82,7 @@ export const COMMODITIES = [
   { symbol: 'CPER', label: 'Copper',       unit: 'lb',    group: 'Metals' },
   { symbol: 'REMX', label: 'Rare Earth',   unit: 'ETF',   group: 'Metals' },
   // Energy
+  { symbol: 'BZ=F', label: 'Brent Crude',  unit: 'bbl',   group: 'Energy' },
   { symbol: 'USO',  label: 'WTI Oil',      unit: 'bbl',   group: 'Energy' },
   { symbol: 'UNG',  label: 'Nat. Gas',     unit: 'MMBtu', group: 'Energy' },
   // Agriculture

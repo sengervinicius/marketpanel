@@ -93,7 +93,7 @@ export const PANEL_DEFINITIONS = {
     id:             'commodities',
     label:          'Commodities',
     defaultTitle:   'Commodities',
-    defaultSymbols: ['GLD','SLV','USO','UNG','CORN','WEAT','SOYB','CPER','BHP'],
+    defaultSymbols: ['GLD','SLV','BZ=F','USO','UNG','CORN','WEAT','SOYB','CPER','BHP'],
     allowedGroups:  ['Metals','Energy','Agriculture','Mining'],
     editable:       true,
     icon:           'CM',
@@ -446,7 +446,7 @@ export const DEFAULT_HOME_SECTIONS = [
   { id: 'global',     title: 'Global Indexes',   symbols: ['EWZ','EEM','VGK','EWJ','FXI','EFA','IWM'] },
   { id: 'forex',      title: 'FX Markets',       symbols: ['EURUSD','USDJPY','GBPUSD','USDBRL','USDCNY','USDCHF'] },
   { id: 'crypto',     title: 'Crypto',           symbols: ['BTCUSD','ETHUSD','SOLUSD','XRPUSD','BNBUSD','DOGEUSD'] },
-  { id: 'commodities',title: 'Commodities',      symbols: ['GLD','SLV','USO','UNG','CORN'] },
+  { id: 'commodities',title: 'Commodities',      symbols: ['GLD','SLV','BZ=F','USO','UNG','CORN'] },
   { id: 'brazilB3',   title: 'Brazil B3',        symbols: ['VALE3.SA','PETR4.SA','ITUB4.SA','BBDC4.SA','WEGE3.SA','B3SA3.SA','ABEV3.SA','BBAS3.SA'] },
 ];
 
