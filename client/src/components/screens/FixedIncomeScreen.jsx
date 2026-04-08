@@ -181,9 +181,9 @@ function USTreasuryCurveSection() {
     <div style={{ padding: '0 10px' }}>
       {isInverted && (
         <div style={{
-          background: 'rgba(244, 67, 54, 0.1)',
-          border: '1px solid rgba(244, 67, 54, 0.3)',
-          color: '#f44336',
+          background: 'rgba(239, 83, 80, 0.1)',
+          border: '1px solid rgba(239, 83, 80, 0.3)',
+          color: 'var(--semantic-down)',
           padding: '6px 8px',
           marginBottom: '8px',
           borderRadius: '3px',

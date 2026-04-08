@@ -57,12 +57,12 @@ function LazySection({ children }) {
           <div style={{ textAlign: 'center' }}>
             <div style={{
               width: 24, height: 24, margin: '0 auto 8px',
-              border: '2px solid #333', borderTopColor: '#888',
+              border: '2px solid var(--border-strong)', borderTopColor: '#888',
               borderRadius: '50%',
               animation: 'fsl-spin 0.8s linear infinite',
             }} />
             <span style={{
-              color: '#888',
+              color: 'var(--text-secondary)',
               fontSize: 9,
               fontWeight: 600,
               letterSpacing: '0.5px',
@@ -104,7 +104,7 @@ class SectionErrorBoundary extends Component {
         <div style={{
           padding: '20px 16px',
           textAlign: 'center',
-          background: '#111',
+          background: 'var(--bg-elevated)',
           border: `1px solid ${accentColor}33`,
           borderLeft: `3px solid ${accentColor}`,
           borderRadius: 4,
@@ -113,7 +113,7 @@ class SectionErrorBoundary extends Component {
           <div style={{
             fontSize: 11,
             fontWeight: 700,
-            color: '#ccc',
+            color: 'var(--text-primary)',
             textTransform: 'uppercase',
             letterSpacing: 0.5,
             marginBottom: 6,
@@ -123,7 +123,7 @@ class SectionErrorBoundary extends Component {
           <div style={{ color: accentColor, fontSize: 11, fontWeight: 600, marginBottom: 4 }}>
             Failed to load
           </div>
-          <div style={{ color: '#888', fontSize: 10, marginBottom: 10, maxWidth: 300, margin: '0 auto 10px' }}>
+          <div style={{ color: 'var(--text-secondary)', fontSize: 10, marginBottom: 10, maxWidth: 300, margin: '0 auto 10px' }}>
             {this.state.error?.message || 'An unexpected error occurred in this section.'}
           </div>
           <button

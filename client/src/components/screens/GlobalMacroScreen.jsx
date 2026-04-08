@@ -258,7 +258,7 @@ function YieldCurveAnalysis() {
               type="monotone"
               dataKey="yield"
               stroke={isInverted ? 'var(--semantic-down)' : 'var(--semantic-up)'}
-              dot={{ fill: '#9c27b0', r: 4 }}
+              dot={{ fill: '#9c27b0', r: 4 }}  /* SVG fill: matches --sector-macro */
               activeDot={{ r: 6 }}
               strokeWidth={2}
               isAnimationActive={false}
@@ -309,7 +309,7 @@ function CentralBankRates() {
               }}
             />
           </div>
-          <div style={{ minWidth: 50, textAlign: 'right', fontSize: 11, fontWeight: 600, color: '#9c27b0' }}>
+          <div style={{ minWidth: 50, textAlign: 'right', fontSize: 11, fontWeight: 600, color: 'var(--sector-macro)' }}>
             {fmt(row.policyRate, 2)}%
           </div>
         </div>

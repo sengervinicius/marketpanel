@@ -69,17 +69,17 @@ function RichTooltip({ active, payload, label }) {
     return (
       <div
         style={{
-          background: 'rgba(13, 13, 20, 0.95)',
-          border: '1px solid rgba(255,255,255,0.1)',
+          background: 'var(--bg-tooltip)',
+          border: '1px solid var(--border-strong)',
           borderRadius: '4px',
           padding: '8px 12px',
           fontSize: '10px',
-          color: '#e8e8ed',
+          color: 'var(--text-primary)',
           backdropFilter: 'blur(8px)',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
+          boxShadow: '0 4px 16px rgba(0,0,0,0.6)',
         }}
       >
-        <div style={{ color: 'rgba(255,255,255,0.4)', marginBottom: 4, fontSize: '9px' }}>
+        <div style={{ color: 'var(--text-muted)', marginBottom: 4, fontSize: '9px' }}>
           {data.dateLabel || label}
         </div>
         <div style={{
@@ -92,7 +92,7 @@ function RichTooltip({ active, payload, label }) {
           {formatDisplayPrice(price)}
         </div>
         {volume != null && volume > 0 && (
-          <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.3)', marginTop: 3 }}>
+          <div style={{ fontSize: '9px', color: 'var(--text-faint)', marginTop: 3 }}>
             Vol: {formatPrice(volume, 0)}
           </div>
         )}
@@ -186,7 +186,7 @@ const PriceLabel = memo(function PriceLabel({ ticker, openPrice, closePrice, acc
       <span style={{
         fontSize: '13px',
         fontWeight: 600,
-        color: '#e8e8ed',
+        color: 'var(--text-primary)',
         fontFamily: 'var(--font-mono)',
         fontVariantNumeric: 'tabular-nums',
       }}>

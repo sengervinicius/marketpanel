@@ -78,16 +78,16 @@ function getCellColor(metric, value) {
   if (isNaN(num)) return {};
 
   if (metric === 'pe') {
-    if (num < 15) return { color: '#4caf50' };
-    if (num > 30) return { color: '#f44336' };
+    if (num < 15) return { color: 'var(--semantic-up)' };
+    if (num > 30) return { color: 'var(--semantic-down)' };
   } else if (metric === 'grossMargins' || metric === 'operatingMargins' || metric === 'profitMargins') {
-    if (num > 20) return { color: '#4caf50' };
-    if (num < 10) return { color: '#ff9800' };
-    if (num < 0) return { color: '#f44336' };
+    if (num > 20) return { color: 'var(--semantic-up)' };
+    if (num < 10) return { color: 'var(--semantic-warn)' };
+    if (num < 0) return { color: 'var(--semantic-down)' };
   } else if (metric === 'returnOnEquity') {
-    if (num > 15) return { color: '#4caf50' };
-    if (num < 5) return { color: '#ff9800' };
-    if (num < 0) return { color: '#f44336' };
+    if (num > 15) return { color: 'var(--semantic-up)' };
+    if (num < 5) return { color: 'var(--semantic-warn)' };
+    if (num < 0) return { color: 'var(--semantic-down)' };
   }
   return {};
 }
@@ -208,11 +208,11 @@ export function FundamentalsTable({ tickers, metrics = null, title, onTickerClic
 
   if (loading) return <DeepSkeleton rows={8} />;
   if (error) return <DeepError message={`Error: ${error}`} />;
-  if (!mergedData || mergedData.length === 0) return <div style={{ padding: '10px', color: '#666', fontSize: 10 }}>No data</div>;
+  if (!mergedData || mergedData.length === 0) return <div style={{ padding: '10px', color: 'var(--text-muted)', fontSize: 10 }}>No data</div>;
 
   return (
     <div style={{ padding: '0 6px', overflow: 'auto' }}>
-      {title && <div style={{ fontSize: 9, color: '#666', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>{title}</div>}
+      {title && <div style={{ fontSize: 9, color: 'var(--text-muted)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>{title}</div>}
       <table className="ds-table">
         <thead>
           <tr>
@@ -233,7 +233,7 @@ export function FundamentalsTable({ tickers, metrics = null, title, onTickerClic
         <tbody>
           {sortedData.map((row, idx) => (
             <tr key={row.ticker || idx} className={onTickerClick ? 'ds-row-clickable' : ''} onClick={() => onTickerClick?.(row.ticker)}>
-              <td style={{ fontWeight: 500, color: '#e0e0e0' }}>{row.ticker}</td>
+              <td style={{ fontWeight: 500, color: 'var(--text-primary)' }}>{row.ticker}</td>
               {displayMetrics.map(metric => {
                 const value = row[metric];
                 const info = METRIC_INFO[metric];

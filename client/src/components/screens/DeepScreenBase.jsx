@@ -17,11 +17,11 @@ class SectionErrorBoundary extends Component {
   render() {
     if (this.state.hasError) {
       return (
-        <div style={{ padding: '12px 8px', color: '#888', fontSize: 10, textAlign: 'center' }}>
-          <span style={{ color: '#ef5350' }}>Failed to load section</span>
-          <div style={{ color: '#555', marginTop: 4 }}>{this.state.error?.message || 'Unknown error'}</div>
+        <div style={{ padding: '12px 8px', color: 'var(--text-secondary)', fontSize: 10, textAlign: 'center' }}>
+          <span style={{ color: 'var(--semantic-down)' }}>Failed to load section</span>
+          <div style={{ color: 'var(--text-muted)', marginTop: 4 }}>{this.state.error?.message || 'Unknown error'}</div>
           <button onClick={() => this.setState({ hasError: false, error: null })}
-            style={{ marginTop: 6, background: 'transparent', border: '1px solid #444', color: '#aaa', padding: '3px 10px', borderRadius: 3, cursor: 'pointer', fontSize: 9 }}>
+            style={{ marginTop: 6, background: 'transparent', border: '1px solid var(--border-strong)', color: 'var(--text-secondary)', padding: '3px 10px', borderRadius: 3, cursor: 'pointer', fontSize: 9 }}>
             RETRY
           </button>
         </div>
@@ -64,7 +64,7 @@ export function DeepError({ message, onRetry }) {
       {message || 'Failed to load data'}
       {onRetry && (
         <button onClick={onRetry}
-          style={{ marginLeft: 10, background: 'transparent', border: '1px solid #555', color: '#aaa', padding: '2px 8px', borderRadius: 3, cursor: 'pointer', fontSize: 9 }}>
+          style={{ marginLeft: 10, background: 'transparent', border: '1px solid var(--border-strong)', color: 'var(--text-secondary)', padding: '2px 8px', borderRadius: 3, cursor: 'pointer', fontSize: 9 }}>
           RETRY
         </button>
       )}

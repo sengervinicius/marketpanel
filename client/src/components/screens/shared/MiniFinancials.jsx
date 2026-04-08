@@ -31,14 +31,15 @@ function CustomTooltip({ active, payload, label }) {
   if (!active || !payload || !payload.length) return null;
   return (
     <div style={{
-      background: '#111',
-      border: '1px solid #333',
+      background: 'var(--bg-tooltip)',
+      border: '1px solid var(--border-strong)',
       padding: '5px 8px',
-      borderRadius: 3,
+      borderRadius: 4,
       fontSize: 9,
       lineHeight: '14px',
+      boxShadow: '0 2px 12px rgba(0,0,0,0.6)',
     }}>
-      <div style={{ color: '#aaa', marginBottom: 2, fontWeight: 600 }}>{label}</div>
+      <div style={{ color: 'var(--text-secondary)', marginBottom: 2, fontWeight: 600 }}>{label}</div>
       {(Array.isArray(payload) ? payload : []).map((entry, idx) => (
         <div key={idx} style={{ color: entry.fill || entry.color }}>
           {entry.name}: {fmtFinancial(entry.value)}
@@ -157,7 +158,7 @@ export const MiniFinancials = memo(function MiniFinancials({ ticker, accentColor
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        color: '#444',
+        color: 'var(--text-faint)',
         fontSize: 9,
       }}>
         No financials
@@ -176,7 +177,7 @@ export const MiniFinancials = memo(function MiniFinancials({ ticker, accentColor
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        color: '#444',
+        color: 'var(--text-faint)',
         fontSize: 9,
       }}>
         No financials
@@ -189,7 +190,7 @@ export const MiniFinancials = memo(function MiniFinancials({ ticker, accentColor
       {/* Metric label */}
       <div style={{
         fontSize: 8,
-        color: '#888',
+        color: 'var(--text-secondary)',
         textAlign: 'center',
         lineHeight: '10px',
         marginBottom: 2,
@@ -207,7 +208,7 @@ export const MiniFinancials = memo(function MiniFinancials({ ticker, accentColor
         >
           <XAxis
             dataKey="year"
-            tick={{ fontSize: 9, fill: '#888' }}
+            tick={{ fontSize: 9, fill: '#555570' }}
             tickLine={false}
             axisLine={false}
           />
