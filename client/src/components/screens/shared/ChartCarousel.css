@@ -65,28 +65,32 @@
 }
 
 .chart-carousel-dot {
-  min-width: 44px;
-  min-height: 44px;
+  /* 44px touch target via padding, 8px visual dot */
   width: 8px;
   height: 8px;
-  padding: 0;
-  background: var(--border-default);
+  padding: 18px;
+  background: var(--border-strong);
+  background-clip: content-box;
   border: none;
   border-radius: var(--radius-full);
   cursor: pointer;
   transition: background 0.2s ease, transform 0.2s ease;
+  box-sizing: content-box;
 }
 
 .chart-carousel-dot:active,
 .chart-carousel-dot:hover {
-  background: var(--border-strong);
-  transform: scale(1.2);
+  background: rgba(255,255,255,0.3);
+  background-clip: content-box;
+  transform: scale(1.1);
 }
 
 .chart-carousel-dot--active {
   background: var(--accent);
-  width: 12px;
-  height: 12px;
+  background-clip: content-box;
+  width: 20px;
+  height: 8px;
+  border-radius: 4px;
 }
 
 /* Position indicator */
