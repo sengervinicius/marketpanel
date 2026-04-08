@@ -101,6 +101,8 @@ export function SettingsDrawer({ panelVisible, togglePanel, onClose }) {
           {...makeRowClickable(() => handleStartPage(value))}
           onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
           onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+          aria-label={`Set default start page to ${label}`}
+          aria-pressed={defaultStartPage === value}
         >
           <span style={{ color: defaultStartPage === value ? 'var(--accent)' : 'var(--text-muted)', fontSize: 9, letterSpacing: '0.5px' }}>{label}</span>
           <span style={{ color: defaultStartPage === value ? 'var(--accent)' : 'var(--border-strong)' }}>{defaultStartPage === value ? '●' : '○'}</span>
@@ -116,6 +118,8 @@ export function SettingsDrawer({ panelVisible, togglePanel, onClose }) {
         {...makeRowClickable(handleTheme)}
         onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
         onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+        aria-label={`Toggle theme. Current: ${theme === 'dark' ? 'Dark mode' : 'Light mode'}`}
+        aria-pressed={theme === 'dark'}
       >
         <span className="app-text-muted-small">{theme === 'dark' ? '◑ DARK MODE' : '☀ LIGHT MODE'}</span>
         <span className="app-text-accent-bold-small">TOGGLE</span>
@@ -130,6 +134,7 @@ export function SettingsDrawer({ panelVisible, togglePanel, onClose }) {
         {...makeRowClickable(handleResetLayout)}
         onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
         onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+        aria-label="Reset layout to default"
       >
         <span className="app-text-muted-small">Reset to Default</span>
         {resettingLayout
@@ -151,6 +156,7 @@ export function SettingsDrawer({ panelVisible, togglePanel, onClose }) {
             onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
             onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
             aria-pressed={visible}
+            aria-label={`${label}: ${visible ? 'on' : 'off'}. Click to toggle`}
           >
             <span style={{ color: visible ? 'var(--text-primary)' : 'var(--text-faint)', fontSize: 9, letterSpacing: '0.5px' }}>{label}</span>
             <span style={{ color: visible ? 'var(--price-up)' : 'var(--text-faint)', fontSize: 9, fontWeight: 700 }}>
@@ -169,6 +175,7 @@ export function SettingsDrawer({ panelVisible, togglePanel, onClose }) {
         {...makeRowClickable(() => { resetTour(); onClose(); })}
         onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
         onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+        aria-label="Restart onboarding tour"
       >
         <span className="app-text-muted-small">Restart Onboarding Tour</span>
         <span className="app-text-faint-small">&#8635; RESTART</span>
@@ -234,6 +241,7 @@ export function DiscordLinkRow() {
       onClick={handleLink}
       onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
       onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+      aria-label="Connect to our Discord community"
     >
       <span className="app-text-muted-small">Join our Discord</span>
       <span style={{ fontSize: 9, fontWeight: 700, color: '#5865F2', letterSpacing: '0.3px' }}>CONNECT</span>
@@ -258,6 +266,8 @@ export function UserDropdown({ user, onSettings, onLogout, onBilling, isPaid }) 
         style={{
           padding: '2px 8px', gap: 5,
         }}
+        aria-label={`User menu for ${user.username}`}
+        aria-expanded={open}
       >
         <UserAvatar user={user} size="small" interactive />
         <span style={{ color: open ? 'var(--accent)' : 'var(--text-faint)', fontSize: 8 }}>▼</span>
@@ -277,6 +287,9 @@ export function UserDropdown({ user, onSettings, onLogout, onBilling, isPaid }) 
               className="app-dropdown-item app-text-muted"
               onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-hover)'; e.currentTarget.style.color = 'var(--price-up)'; }}
               onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-muted)'; }}
+              role="button"
+              tabIndex={0}
+              aria-label="View billing and subscription details"
             >💳 BILLING</div>
           )}
           <div
@@ -284,12 +297,18 @@ export function UserDropdown({ user, onSettings, onLogout, onBilling, isPaid }) 
             className="app-dropdown-item"
             onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-hover)'; e.currentTarget.style.color = 'var(--accent)'; }}
             onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-muted)'; }}
+            role="button"
+            tabIndex={0}
+            aria-label="Open settings"
           >⚙ SETTINGS</div>
           <div
             onClick={() => { setOpen(false); onLogout(); }}
             className="app-dropdown-item-last"
             onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-hover)'; e.currentTarget.style.color = 'var(--price-down)'; }}
             onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-muted)'; }}
+            role="button"
+            tabIndex={0}
+            aria-label="Log out of your account"
           >→ LOG OUT</div>
         </div>
       )}

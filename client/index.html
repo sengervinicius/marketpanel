@@ -27,6 +27,23 @@
     <!-- SEO / Social -->
     <meta name="description" content="Professional market data terminal — real-time prices, portfolio tracking, alerts, and analysis." />
 
+    <!-- Open Graph Meta Tags -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Senger Market Terminal — Professional Market Intelligence" />
+    <meta property="og:description" content="Real-time market data terminal with live prices, portfolio tracking, AI insights, and professional analysis tools. Built by Arc Capital." />
+    <meta property="og:image" content="https://senger-client.onrender.com/og-image.png" />
+    <meta property="og:url" content="https://senger-client.onrender.com/" />
+    <meta property="og:site_name" content="Senger Market" />
+
+    <!-- Twitter Card Meta Tags -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Senger Market Terminal — Professional Market Intelligence" />
+    <meta name="twitter:description" content="Real-time market data terminal with live prices, portfolio tracking, AI insights, and professional analysis tools." />
+    <meta name="twitter:image" content="https://senger-client.onrender.com/og-image.png" />
+
+    <!-- Canonical URL -->
+    <link rel="canonical" href="https://senger-client.onrender.com/" />
+
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -47,10 +64,20 @@
       }
       /* Prevent rubber-band overscroll on iOS */
       html, body { overscroll-behavior: none; }
+      /* Loading animation */
+      @keyframes loader { 0%{transform:translateX(-100%)} 50%{transform:translateX(150%)} 100%{transform:translateX(-100%)} }
     </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div id="app-loader" style="position:fixed;inset:0;background:#0a0a0f;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:99999;font-family:'IBM Plex Mono',monospace;">
+        <div style="font-size:32px;font-weight:600;color:#fff;letter-spacing:8px;margin-bottom:8px;">SENGER</div>
+        <div style="font-size:12px;color:#666;letter-spacing:4px;margin-bottom:32px;">MARKET TERMINAL</div>
+        <div style="width:120px;height:2px;background:#1a1a1a;border-radius:1px;overflow:hidden;">
+          <div style="width:40%;height:100%;background:#ff6600;border-radius:1px;animation:loader 1.2s ease-in-out infinite;"></div>
+        </div>
+      </div>
+    </div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

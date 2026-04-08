@@ -21,6 +21,7 @@ import { PanelProvider } from './context/PanelContext';
 import { ScreenProvider } from './context/ScreenContext';
 import NotificationPrefs from './components/common/NotificationPrefs';
 import HeaderSearchBar from './components/common/HeaderSearchBar';
+import KeyboardShortcutsModal from './components/common/KeyboardShortcutsModal';
 import { SearchPanel } from './components/panels/SearchPanel';
 import AlertCenterPanel from './components/panels/AlertCenterPanel';
 import { NewsPanel } from './components/panels/NewsPanel';
@@ -234,6 +235,7 @@ export default function App() {
   const [activeSectorScreen, setActiveSectorScreen] = useState(null);
   const [sectorSelectorOpen, setSectorSelectorOpen] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
+  const [showShortcuts, setShowShortcuts] = useState(false);
 
   // ── First-visit onboarding hint ─────────────────────────────────────────
   const [showLayoutHint, setShowLayoutHint] = useState(() => {
@@ -307,6 +309,12 @@ export default function App() {
       if (e.key === 'Escape') {
         if (sectorSelectorOpen) setSectorSelectorOpen(false);
         else if (activeSectorScreen) handleGoHome();
+      }
+
+      // ? = show keyboard shortcuts
+      if (e.key === '?') {
+        e.preventDefault();
+        setShowShortcuts(true);
       }
     };
     window.addEventListener('keydown', handler);
@@ -398,6 +406,9 @@ export default function App() {
         {/* Welcome modal (replaces old onboarding) */}
         {showWelcome && <WelcomeModal onClose={() => setShowWelcome(false)} />}
 
+        {/* Keyboard shortcuts modal */}
+        {showShortcuts && <KeyboardShortcutsModal onClose={() => setShowShortcuts(false)} />}
+
         {/* Sector Screen Selector overlay */}
         <SectorScreenSelector
           isOpen={sectorSelectorOpen}
@@ -415,6 +426,7 @@ export default function App() {
             className="btn"
             onClick={handleGoHome}
             title="Home Screen"
+            aria-label="Go to home screen"
             style={{
               marginLeft: 16,
               padding: '3px 10px',
@@ -431,6 +443,8 @@ export default function App() {
             className="btn"
             onClick={() => setSectorSelectorOpen(s => !s)}
             title="Open Sector Screens"
+            aria-label="Open sector screens"
+            aria-expanded={sectorSelectorOpen}
             style={{
               marginLeft: 6,
               padding: '3px 10px',
@@ -457,6 +471,8 @@ export default function App() {
               className="btn"
               onClick={() => setChatOpen(prev => !prev)}
               title="AI Chat (Cmd+K)"
+              aria-label="Open AI chat"
+              aria-expanded={chatOpen}
               style={{
                 color: chatOpen ? 'var(--accent)' : 'var(--text-faint)',
                 padding: '2px 6px',
@@ -471,6 +487,8 @@ export default function App() {
             <button className={`btn${showLayoutHint && !layoutEdit ? ' layout-btn-pulse' : ''}`}
               onClick={() => { setLayoutEdit(s => !s); if (showLayoutHint) dismissLayoutHint(); }}
               title="Customize your workspace — drag, resize, and rearrange panels"
+              aria-label="Customize workspace layout"
+              aria-pressed={layoutEdit}
               style={{ background: layoutEdit ? 'rgba(255, 102, 0, 0.08)' : 'none', border:`1px solid ${layoutEdit ? 'var(--accent)' : showLayoutHint ? 'var(--accent)' : 'var(--border-strong)'}`, color: layoutEdit ? 'var(--accent)' : showLayoutHint ? 'var(--accent)' : 'var(--text-faint)' }}
             >⇄ LAYOUT</button>
             {user
@@ -664,6 +682,9 @@ export default function App() {
       {/* Welcome modal (mobile) */}
       {showWelcome && <WelcomeModal onClose={() => setShowWelcome(false)} />}
 
+      {/* Keyboard shortcuts modal (mobile) */}
+      {showShortcuts && <KeyboardShortcutsModal onClose={() => setShowShortcuts(false)} />}
+
       {/* Sector Screen Selector overlay (mobile) */}
       <SectorScreenSelector
         isOpen={sectorSelectorOpen}
@@ -695,6 +716,8 @@ export default function App() {
           className="btn"
           onClick={() => setSectorSelectorOpen(s => !s)}
           title="Sector Screens"
+          aria-label="Open sector screens"
+          aria-expanded={sectorSelectorOpen}
           style={{
             marginLeft: 8,
             padding: '2px 8px',

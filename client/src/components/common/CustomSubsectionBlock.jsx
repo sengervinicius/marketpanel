@@ -45,6 +45,9 @@ function TickerRow({ sym, data, color, gridCols, subsection, onTickerClick, onRe
       onDoubleClick={() => openDetail?.(sym)}
       className={`csb-row${flash ? ' price-row-flash' : ''}`}
       style={{ gridTemplateColumns: gridCols }}
+      role="button"
+      tabIndex={0}
+      aria-label={`${sym}: Price ${fmt(price)}, Change ${fmtPct(changePct)}. Click to view details.`}
     >
       <span className="csb-symbol" style={{ color }}>{sym}</span>
       <span className="csb-name">
@@ -54,14 +57,15 @@ function TickerRow({ sym, data, color, gridCols, subsection, onTickerClick, onRe
         {fmt(price)}
       </span>
       <span className="csb-change-section">
-        <span className="csb-change" style={{ color: pos ? 'var(--price-up)' : 'var(--price-down)' }}>
-          {fmtPct(changePct)}
+        <span className="csb-change" style={{ color: pos ? 'var(--price-up)' : 'var(--price-down)' }} aria-live="polite" aria-atomic="true">
+          {pos ? '▲' : '▼'} {fmtPct(changePct)}
         </span>
         <button className="csb-remove-btn"
           onClick={(e) => { e.stopPropagation(); onRemoveTicker?.(subsection.key, sym); }}
           onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--price-down)'; }}
           onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--border-strong)'; }}
           title={`Remove ${sym} from ${subsection.label}`}
+          aria-label={`Remove ${sym} from ${subsection.label}`}
         >×</button>
       </span>
     </div>
@@ -137,6 +141,8 @@ function CustomSubsectionBlock({
           className={`csb-add-header-btn ${showAdd ? 'csb-add-header-btn-active' : ''}`}
           onClick={() => setShowAdd(v => !v)}
           title="Add ticker to this section"
+          aria-label={`${showAdd ? 'Hide' : 'Show'} add ticker form for ${subsection.label}`}
+          aria-pressed={showAdd}
         >+</button>
       </div>
 
@@ -154,11 +160,13 @@ function CustomSubsectionBlock({
               if (e.key === 'Escape') { setShowAdd(false); setAddVal(''); }
             }}
             placeholder="Type ticker symbol…"
+            aria-label={`Add ticker symbol to ${subsection.label}`}
           />
           <button
             className="csb-add-submit-btn"
             onClick={handleAdd}
             style={{ background: color }}
+            aria-label={`Add ${addVal || 'ticker'} to ${subsection.label}`}
           >ADD</button>
         </div>
       )}

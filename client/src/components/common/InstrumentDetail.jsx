@@ -2170,12 +2170,12 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
             <div className="id-hero-badge">{heroExchange}{heroExchange && heroAssetClass ? ' \u00b7 ' : ''}{heroAssetClass}</div>
             {/* Desktop action buttons */}
             <div className="id-hero-actions">
-              <button className="id-hero-action-btn" onClick={() => toggleWatchlist(disp)}>{watched ? '\u2605' : '\u2606'} Watch</button>
-              <button className="id-hero-action-btn" onClick={openPositionEditor}>+ Portfolio</button>
-              <button className="id-hero-action-btn" onClick={openAlertCreator}>{String.fromCharCode(128276)} Alert</button>
-              <button className="id-hero-action-btn" onClick={() => setShowGameTrade(true)} style={{ minHeight: 44 }}>Game Trade</button>
-              {handleOpenChat && <button className="id-hero-action-btn" onClick={sendToChat}>{String.fromCharCode(128172)} Chat</button>}
-              <button className="id-hero-action-btn" onClick={handleShare}>{String.fromCharCode(8599)} Share</button>
+              <button className="id-hero-action-btn" onClick={() => toggleWatchlist(disp)} aria-label={watched ? 'Remove from watchlist' : 'Add to watchlist'}>{watched ? '\u2605' : '\u2606'} Watch</button>
+              <button className="id-hero-action-btn" onClick={openPositionEditor} aria-label="Add to portfolio">+ Portfolio</button>
+              <button className="id-hero-action-btn" onClick={openAlertCreator} aria-label="Create price alert">{String.fromCharCode(128276)} Alert</button>
+              <button className="id-hero-action-btn" onClick={() => setShowGameTrade(true)} style={{ minHeight: 44 }} aria-label="Open game trade">Game Trade</button>
+              {handleOpenChat && <button className="id-hero-action-btn" onClick={sendToChat} aria-label="Send to chat">{String.fromCharCode(128172)} Chat</button>}
+              <button className="id-hero-action-btn" onClick={handleShare} aria-label="Share ticker information">{String.fromCharCode(8599)} Share</button>
             </div>
           </div>
         </div>
@@ -2276,6 +2276,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
           onClick={handleClose}
           title="Close (Esc)"
           className={`id-close${isMobile ? ' id-close--mobile' : ''}`}
+          aria-label="Close detail view"
         >✕</button>
 
         {/* Breadcrumb navigation for sector context */}
@@ -2566,7 +2567,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
             <div className="id-comparison-panel">
               <div className="id-comparison-header">
                 <span>Add Comparison Tickers (Max 4)</span>
-                <button onClick={() => setShowComparisonSearch(false)} style={{ cursor: 'pointer', background: 'none', border: 'none', color: 'inherit', fontSize: 16 }}>×</button>
+                <button onClick={() => setShowComparisonSearch(false)} style={{ cursor: 'pointer', background: 'none', border: 'none', color: 'inherit', fontSize: 16 }} aria-label="Close comparison search">×</button>
               </div>
               <input
                 type="text"
@@ -2590,7 +2591,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
                   {comparisonTickers.map((ticker, idx) => (
                     <div key={ticker} className="id-comparison-pill" style={{ borderLeftColor: Object.values(COMPARISON_COLORS)[idx] }}>
                       <span>{ticker}</span>
-                      <button onClick={() => removeComparisonTicker(ticker)} style={{ cursor: 'pointer', background: 'none', border: 'none', color: 'inherit', marginLeft: '4px' }}>×</button>
+                      <button onClick={() => removeComparisonTicker(ticker)} style={{ cursor: 'pointer', background: 'none', border: 'none', color: 'inherit', marginLeft: '4px' }} aria-label={`Remove ${ticker} from comparison`}>×</button>
                     </div>
                   ))}
                 </div>
@@ -2735,11 +2736,14 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
           return (
             <div className="id-sidebar">
               {hasTabs && (
-                <div className="id-tab-bar">
+                <div className="id-tab-bar" role="tablist">
                   {tabList.map(t => (
                     <button key={t}
                       onClick={() => setDesktopTab(t)}
                       className={`id-tab${desktopTab === t ? ' id-tab--active' : ''}`}
+                      role="tab"
+                      aria-selected={desktopTab === t}
+                      aria-label={`${t} tab`}
                     >{t}</button>
                   ))}
                 </div>
@@ -2774,11 +2778,14 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
         {/* BOTTOM: TABS (mobile) */}
         {isMobile && (
           <div className="id-mobile-tabs">
-            <div className="id-tab-bar">
+            <div className="id-tab-bar" role="tablist">
               {mobileTabs.map(t => (
                 <button key={t}
                   onClick={() => setActiveTab(t)}
                   className={`id-tab id-tab--mobile${activeTab === t ? ' id-tab--active' : ''}`}
+                  role="tab"
+                  aria-selected={activeTab === t}
+                  aria-label={`${t} tab`}
                 >{t}</button>
               ))}
             </div>
@@ -2808,12 +2815,12 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
 
       {/* ── STICKY BOTTOM ACTION BAR (mobile only) ── */}
       <div className="id-action-bar">
-        <button className="id-action-btn-bar" onClick={() => toggleWatchlist(disp)}>{watched ? '\u2605' : '\u2606'} Watch</button>
-        <button className="id-action-btn-bar id-action-btn-bar--primary" onClick={openPositionEditor}>+ Portfolio</button>
-        <button className="id-action-btn-bar" onClick={openAlertCreator}>{String.fromCharCode(128276)} Alert</button>
-        <button className="id-action-btn-bar" onClick={() => setShowGameTrade(true)} style={{ minHeight: 44 }}>Game Trade</button>
-        {handleOpenChat && <button className="id-action-btn-bar" onClick={sendToChat}>{String.fromCharCode(128172)} Chat</button>}
-        <button className="id-action-btn-bar" onClick={handleShare}>{String.fromCharCode(8599)} Share</button>
+        <button className="id-action-btn-bar" onClick={() => toggleWatchlist(disp)} aria-label={watched ? 'Remove from watchlist' : 'Add to watchlist'}>{watched ? '\u2605' : '\u2606'} Watch</button>
+        <button className="id-action-btn-bar id-action-btn-bar--primary" onClick={openPositionEditor} aria-label="Add to portfolio">+ Portfolio</button>
+        <button className="id-action-btn-bar" onClick={openAlertCreator} aria-label="Create price alert">{String.fromCharCode(128276)} Alert</button>
+        <button className="id-action-btn-bar" onClick={() => setShowGameTrade(true)} style={{ minHeight: 44 }} aria-label="Open game trade">Game Trade</button>
+        {handleOpenChat && <button className="id-action-btn-bar" onClick={sendToChat} aria-label="Send to chat">{String.fromCharCode(128172)} Chat</button>}
+        <button className="id-action-btn-bar" onClick={handleShare} aria-label="Share ticker information">{String.fromCharCode(8599)} Share</button>
       </div>
 
       {/* Alert editor modal — portaled to body to escape scroll container on mobile */}

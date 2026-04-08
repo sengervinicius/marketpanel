@@ -4,6 +4,7 @@ import { HashRouter, Routes, Route, useNavigate, useLocation } from 'react-route
 import App from './App.jsx'
 import InstrumentDetailPage from './pages/InstrumentDetailPage.jsx'
 import ChatPage from './pages/ChatPage.jsx'
+import NotFoundPage from './components/common/NotFoundPage.jsx'
 import LoginScreen from './components/auth/LoginScreen.jsx'
 import { AuthProvider, useAuth } from './context/AuthContext.jsx'
 import { ToastProvider } from './context/ToastContext.jsx'
@@ -102,8 +103,8 @@ function AppShell() {
             <Route path="/detail/:symbolKey" element={<InstrumentDetailPage />} />
             <Route path="/chat" element={<ChatPage />} />
             <Route path="/chat/:userId" element={<ChatPage />} />
-            {/* Catch-all → main app */}
-            <Route path="*" element={<App />} />
+            {/* Catch-all → 404 page */}
+            <Route path="*" element={<NotFoundPage />} />
           </Routes>
         </LoginScreen>
       </ThemeSync>

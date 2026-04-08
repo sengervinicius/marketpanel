@@ -229,6 +229,9 @@ function EnhancedResultRow({ item, idx, isSelected, onSelect, onDragStart, cover
           letterSpacing: '2px',
         }}
         title="Drag to any panel to customize"
+        aria-label={`Drag ${displaySymbol(item.symbol || item.symbolKey)} to any panel to customize`}
+        role="button"
+        tabIndex="0"
       >
         ⠿
       </span>
@@ -411,6 +414,7 @@ function SearchPanel({ onTickerSelect }) {
           onBlur={() => setIsFocused(false)}
           placeholder="ticker or company name..."
           className="sp-search-input"
+          aria-label="Search for stocks, ETFs, crypto, forex, futures, indices, or bonds"
         />
         {!query && !isFocused && (
           <span className="search-shortcut-badge">Press / to search</span>
