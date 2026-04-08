@@ -5,10 +5,11 @@
   "backgroundColor": "#0a0a0f",
   "ios": {
     "contentInset": "automatic",
-    "allowsLinkPreview": false,
+    "allowsLinkPreview": true,
     "scheme": "Senger",
     "backgroundColor": "#0a0a0f",
-    "scrollEnabled": false
+    "scrollEnabled": true,
+    "preferredContentMode": "mobile"
   },
   "android": {
     "allowMixedContent": false,
@@ -21,9 +22,23 @@
   },
   "plugins": {
     "SplashScreen": {
-      "launchShowDuration": 2000,
+      "launchShowDuration": 1500,
+      "launchAutoHide": true,
       "backgroundColor": "#0a0a0f",
-      "showSpinner": false
+      "showSpinner": false,
+      "splashImmersive": true,
+      "splashFullScreen": true
+    },
+    "StatusBar": {
+      "style": "DARK",
+      "backgroundColor": "#0a0a0f"
+    },
+    "Keyboard": {
+      "resize": "body",
+      "resizeOnFullScreen": true
+    },
+    "PushNotifications": {
+      "presentationOptions": ["badge", "sound", "alert"]
     }
   }
 }
