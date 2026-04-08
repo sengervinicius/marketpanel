@@ -39,19 +39,19 @@ const TableRow = memo(function TableRow({ sym, name, openDetail, stats }) {
       onClick={() => openDetail(sym)}
       onTouchEnd={(e) => { e.preventDefault(); openDetail(sym); }}
     >
-      <td className="ds-ticker-col" style={{ fontSize: 12, letterSpacing: '0.5px' }}>{sym}</td>
-      <td style={{ fontSize: 13, color: '#aaa' }}>{name || LABELS[sym] || '—'}</td>
-      <td style={{ fontSize: 14, color: '#fff', fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>
-        {priceData?.price != null ? '$' + fmt(priceData.price, 2) : '—'}
+      <td className="ds-ticker-col" style={{ fontSize: 13, letterSpacing: '0.5px' }}>{sym}</td>
+      <td style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{name || LABELS[sym] || <span className="ds-dash">—</span>}</td>
+      <td style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 600, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>
+        {priceData?.price != null ? '$' + fmt(priceData.price, 2) : <span className="ds-dash">—</span>}
       </td>
-      <td className={priceData?.changePct != null && priceData.changePct >= 0 ? 'ds-up' : 'ds-down'} style={{ fontSize: 13, fontWeight: 500 }}>
-        {fmtPct(priceData?.changePct)}
+      <td className={priceData?.changePct != null && priceData.changePct >= 0 ? 'ds-up' : 'ds-down'} style={{ fontSize: 13, fontWeight: 600, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>
+        {priceData?.changePct != null ? fmtPct(priceData?.changePct) : <span className="ds-dash">—</span>}
       </td>
-      <td style={{ fontFamily: 'monospace', fontSize: 13, color: '#999', fontVariantNumeric: 'tabular-nums' }}>
-        {fmtB(mktCap)}
+      <td style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text-secondary)', fontVariantNumeric: 'tabular-nums' }}>
+        {fmtB(mktCap) || <span className="ds-dash">—</span>}
       </td>
-      <td style={{ fontFamily: 'monospace', fontSize: 13, color: '#ccc', fontVariantNumeric: 'tabular-nums' }}>
-        {pe != null ? pe.toFixed(1) + 'x' : '—'}
+      <td style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text-secondary)', fontVariantNumeric: 'tabular-nums' }}>
+        {pe != null ? pe.toFixed(1) + 'x' : <span className="ds-dash">—</span>}
       </td>
     </tr>
   );

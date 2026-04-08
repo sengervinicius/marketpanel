@@ -95,15 +95,19 @@ function AdrPairRow({ b3, adr, name, openDetail }) {
   const qAdr = useTickerPrice(adr);
   return (
     <tr className="ds-row-clickable">
-      <td>{name}</td>
-      <td onClick={() => openDetail(b3)} style={{ cursor: 'pointer', fontWeight: 600 }}>
+      <td style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{name}</td>
+      <td onClick={() => openDetail(b3)} style={{ cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>
         {b3.replace('.SA', '')}
       </td>
-      <td>{qB3?.price != null ? fmt(qB3.price) : '—'}</td>
-      <td onClick={() => openDetail(adr)} style={{ cursor: 'pointer', fontWeight: 600 }}>
+      <td style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 600, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>
+        {qB3?.price != null ? fmt(qB3.price) : <span className="ds-dash">—</span>}
+      </td>
+      <td onClick={() => openDetail(adr)} style={{ cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>
         {adr}
       </td>
-      <td>{qAdr?.price != null ? fmt(qAdr.price) : '—'}</td>
+      <td style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 600, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>
+        {qAdr?.price != null ? fmt(qAdr.price) : <span className="ds-dash">—</span>}
+      </td>
     </tr>
   );
 }
@@ -163,10 +167,12 @@ function FxRateRow({ sym, openDetail }) {
       onClick={() => openDetail(sym)}
       onTouchEnd={(e) => { e.preventDefault(); openDetail(sym); }}
     >
-      <td>{label}</td>
-      <td>{q?.price != null ? fmt(q.price) : '—'}</td>
-      <td className={q?.changePct >= 0 ? 'ds-val-pos' : 'ds-val-neg'}>
-        {q?.changePct != null ? fmtPct(q.changePct) : '—'}
+      <td style={{ fontSize: 13 }}>{label}</td>
+      <td style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 600, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>
+        {q?.price != null ? fmt(q.price) : <span className="ds-dash">—</span>}
+      </td>
+      <td className={q?.changePct >= 0 ? 'ds-val-pos' : 'ds-val-neg'} style={{ fontSize: 13, fontWeight: 600, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>
+        {q?.changePct != null ? fmtPct(q.changePct) : <span className="ds-dash">—</span>}
       </td>
     </tr>
   );

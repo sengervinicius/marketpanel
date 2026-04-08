@@ -66,17 +66,19 @@ function EnhancedTableRow({ symbol, label, stats, onClick, sectorName = null }) 
 
   return (
     <tr className="ds-row-clickable" onClick={() => onClick(symbol, sectorName)}>
-      <td className="ds-ticker-col">{symbol}</td>
-      <td>{label || LABELS[symbol] || '—'}</td>
-      <td>{fmt(q?.price, 2)}</td>
-      <td className={q?.changePct != null && q.changePct >= 0 ? 'ds-up' : 'ds-down'}>
-        {fmtPct(q?.changePct)}
+      <td className="ds-ticker-col" style={{ fontSize: 13 }}>{symbol}</td>
+      <td style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{label || LABELS[symbol] || <span className="ds-dash">—</span>}</td>
+      <td style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 600, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>
+        {q?.price != null ? fmt(q?.price, 2) : <span className="ds-dash">—</span>}
       </td>
-      <td style={{ fontFamily: 'monospace', fontSize: 10, color: '#888' }}>
-        {fmtB(mktCap)}
+      <td className={q?.changePct != null && q.changePct >= 0 ? 'ds-up' : 'ds-down'} style={{ fontSize: 13, fontWeight: 600, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>
+        {q?.changePct != null ? fmtPct(q?.changePct) : <span className="ds-dash">—</span>}
       </td>
-      <td style={{ fontFamily: 'monospace', fontSize: 10, color: '#ccc' }}>
-        {pe != null ? parseFloat(pe).toFixed(1) + 'x' : '—'}
+      <td style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text-secondary)', fontVariantNumeric: 'tabular-nums' }}>
+        {fmtB(mktCap) || <span className="ds-dash">—</span>}
+      </td>
+      <td style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text-secondary)', fontVariantNumeric: 'tabular-nums' }}>
+        {pe != null ? parseFloat(pe).toFixed(1) + 'x' : <span className="ds-dash">—</span>}
       </td>
     </tr>
   );
@@ -89,20 +91,20 @@ function SectionTableRow({ sym, name, statsMap, onClickRow, withMiniCharts, acce
 
   return (
     <tr className="ds-row-clickable" onClick={() => onClickRow(sym, sectorName)} style={{ minHeight: withMiniCharts ? 100 : 44 }}>
-      <td className="ds-ticker-col" style={{ fontSize: 12, letterSpacing: '0.5px' }}>{sym}</td>
-      <td style={{ fontSize: 13, color: '#aaa' }}>{name || LABELS[sym] || '—'}</td>
-      <td style={{ fontSize: 14, color: '#fff', fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>
-        {q?.price != null ? '$' + fmt(q.price, 2) : '—'}
+      <td className="ds-ticker-col" style={{ fontSize: 13, letterSpacing: '0.5px' }}>{sym}</td>
+      <td style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{name || LABELS[sym] || <span className="ds-dash">—</span>}</td>
+      <td style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 600, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>
+        {q?.price != null ? '$' + fmt(q.price, 2) : <span className="ds-dash">—</span>}
       </td>
       <td className={q?.changePct != null && q.changePct >= 0 ? 'ds-up' : 'ds-down'}
-          style={{ fontSize: 13, fontWeight: 500 }}>
-        {fmtPct(q?.changePct)}
+          style={{ fontSize: 13, fontWeight: 600, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>
+        {q?.changePct != null ? fmtPct(q?.changePct) : <span className="ds-dash">—</span>}
       </td>
-      <td style={{ fontFamily: 'monospace', fontSize: 13, color: '#999', fontVariantNumeric: 'tabular-nums' }}>
-        {fmtB(stats?.market_capitalization)}
+      <td style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text-secondary)', fontVariantNumeric: 'tabular-nums' }}>
+        {fmtB(stats?.market_capitalization) || <span className="ds-dash">—</span>}
       </td>
-      <td style={{ fontFamily: 'monospace', fontSize: 13, color: '#ccc', fontVariantNumeric: 'tabular-nums' }}>
-        {stats?.pe_ratio != null ? parseFloat(stats?.pe_ratio).toFixed(1) + 'x' : '—'}
+      <td style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text-secondary)', fontVariantNumeric: 'tabular-nums' }}>
+        {stats?.pe_ratio != null ? parseFloat(stats?.pe_ratio).toFixed(1) + 'x' : <span className="ds-dash">—</span>}
       </td>
       {withMiniCharts && (
         <td style={{ padding: '2px 4px', width: 200, minWidth: 180 }}>

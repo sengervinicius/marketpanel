@@ -1,0 +1,248 @@
+/* ──────────────────────────────────────────────────────────────────
+   SectorChartContainer.css — Professional Chart Styling
+   ────────────────────────────────────────────────────────────────── */
+
+/* Shimmer animation for skeleton loaders */
+@keyframes scc-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* Chart container defaults */
+.scc-root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.scc-root--highlighted {
+  background: var(--bg-hover);
+  border-radius: var(--radius-md);
+  padding: var(--space-2);
+  margin: calc(var(--space-2) * -1);
+}
+
+/* Timeframe selector */
+.scc-timeframe-selector {
+  display: flex;
+  gap: var(--space-1);
+  padding: var(--space-1) 0 var(--space-2);
+}
+
+.scc-timeframe-btn {
+  background: transparent;
+  border: 1px solid var(--border-default);
+  color: var(--text-muted);
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-2xs);
+  font-weight: 500;
+  font-family: var(--font-mono);
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  transition: all var(--duration-instant) ease;
+}
+
+.scc-timeframe-btn:hover {
+  border-color: var(--border-strong);
+  color: var(--text-secondary);
+}
+
+.scc-timeframe-btn--active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #000;
+  font-weight: 700;
+}
+
+/* Price label section */
+.scc-price-label {
+  margin-bottom: var(--space-2);
+  padding-bottom: var(--space-1);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.scc-ticker {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  margin-bottom: var(--space-1);
+  color: var(--accent);
+}
+
+.scc-price-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+}
+
+.scc-price {
+  font-size: var(--text-lg);
+  font-weight: 700;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.scc-change {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.scc-change.up {
+  color: var(--semantic-up);
+}
+
+.scc-change.down {
+  color: var(--semantic-down);
+}
+
+/* Chart section container */
+.scc-chart-section {
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--bg-panel);
+  overflow: hidden;
+  transition: all var(--duration-instant) ease;
+}
+
+.scc-chart-section--highlighted {
+  border: 2px solid var(--accent);
+  box-shadow: 0 0 12px rgba(255, 102, 0, 0.2);
+}
+
+.scc-chart-section--hoverable:hover {
+  background: var(--bg-hover);
+}
+
+/* Main chart area */
+.scc-chart-main {
+  height: 280px;
+  position: relative;
+}
+
+/* Volume chart area */
+.scc-chart-volume {
+  height: 40px;
+  border-top: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
+}
+
+/* Recharts tooltip styling override */
+.scc-chart-tooltip {
+  background: var(--bg-tooltip) !important;
+  border: 1px solid var(--border-strong) !important;
+  border-radius: var(--radius-md) !important;
+  padding: 8px 10px !important;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.6) !important;
+}
+
+.scc-chart-tooltip-label {
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+  margin-bottom: 4px;
+  font-family: var(--font-mono);
+}
+
+.scc-chart-tooltip-value {
+  font-size: var(--text-2xs);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Error state */
+.scc-error-state {
+  padding: var(--space-5) var(--space-4);
+  text-align: center;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--bg-panel);
+}
+
+.scc-error-title {
+  color: var(--semantic-down);
+  font-weight: 600;
+  margin-bottom: var(--space-2);
+}
+
+.scc-error-message {
+  color: var(--text-faint);
+  font-size: var(--text-2xs);
+  margin-bottom: var(--space-3);
+}
+
+.scc-error-button {
+  background: transparent;
+  border: 1px solid var(--border-default);
+  color: var(--text-secondary);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-family: var(--font-mono);
+  transition: all var(--duration-instant) ease;
+}
+
+.scc-error-button:hover {
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+/* Loading skeleton */
+.scc-skeleton {
+  height: 280px;
+  background: linear-gradient(90deg, var(--bg-elevated) 25%, var(--bg-active) 50%, var(--bg-elevated) 75%);
+  background-size: 200% 100%;
+  animation: scc-shimmer 1.5s infinite;
+  border-radius: var(--radius-md);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .scc-chart-main {
+    height: 200px;
+  }
+
+  .scc-chart-volume {
+    height: 30px;
+  }
+
+  .scc-price {
+    font-size: var(--text-md);
+  }
+
+  .scc-ticker {
+    font-size: var(--text-2xs);
+  }
+}
+
+@media (max-width: 480px) {
+  .scc-chart-main {
+    height: 150px;
+  }
+
+  .scc-chart-volume {
+    height: 24px;
+  }
+
+  .scc-price-row {
+    gap: var(--space-2);
+  }
+
+  .scc-timeframe-btn {
+    padding: 2px 6px;
+    font-size: 8px;
+  }
+}

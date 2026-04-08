@@ -64,18 +64,22 @@ function EnhancedEquityRow({ symbol, stats, onClick, isSelected }) {
         transition: 'background 0.15s ease',
       }}
     >
-      <td className="ds-ticker-col" style={{ fontSize: 12, letterSpacing: '0.5px' }}>{symbol}</td>
-      <td style={{ fontSize: 13, color: '#aaa' }}>{LABELS[symbol] || '—'}</td>
-      <td style={{ fontSize: 14, color: '#fff', fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>
-        {q?.price != null ? '$' + fmt(q.price, 2) : '—'}
+      <td className="ds-ticker-col" style={{ fontSize: 13, letterSpacing: '0.5px' }}>{symbol}</td>
+      <td style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{LABELS[symbol] || <span className="ds-dash">—</span>}</td>
+      <td style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 600, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>
+        {q?.price != null ? '$' + fmt(q.price, 2) : <span className="ds-dash">—</span>}
       </td>
-      <td className={q?.changePct != null && q.changePct >= 0 ? 'ds-up' : 'ds-down'} style={{ fontSize: 13, fontWeight: 500 }}>
-        {fmtPct(q?.changePct)}
+      <td className={q?.changePct != null && q.changePct >= 0 ? 'ds-up' : 'ds-down'} style={{ fontSize: 13, fontWeight: 600, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>
+        {q?.changePct != null ? fmtPct(q?.changePct) : <span className="ds-dash">—</span>}
       </td>
-      <td style={{ fontFamily: 'monospace', fontSize: 13, color: '#999', fontVariantNumeric: 'tabular-nums' }}>{fmtB(mktCap)}</td>
-      <td style={{ fontFamily: 'monospace', fontSize: 13, color: '#ccc', fontVariantNumeric: 'tabular-nums' }}>{pe != null ? parseFloat(pe).toFixed(1) + 'x' : '—'}</td>
-      <td style={{ fontFamily: 'monospace', fontSize: 13, color: 'var(--price-up, #4caf50)', fontVariantNumeric: 'tabular-nums' }}>
-        {divYield != null ? (parseFloat(divYield) * 100).toFixed(1) + '%' : '—'}
+      <td style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text-secondary)', fontVariantNumeric: 'tabular-nums' }}>
+        {fmtB(mktCap) || <span className="ds-dash">—</span>}
+      </td>
+      <td style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text-secondary)', fontVariantNumeric: 'tabular-nums' }}>
+        {pe != null ? parseFloat(pe).toFixed(1) + 'x' : <span className="ds-dash">—</span>}
+      </td>
+      <td style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--price-up, #4caf50)', fontVariantNumeric: 'tabular-nums' }}>
+        {divYield != null ? (parseFloat(divYield) * 100).toFixed(1) + '%' : <span className="ds-dash">—</span>}
       </td>
     </tr>
   );
@@ -121,10 +125,14 @@ function FuturesRow({ symbol, label, openDetail }) {
       onClick={() => openDetail(symbol)}
       onTouchEnd={(e) => { e.preventDefault(); openDetail(symbol); }}
     >
-      <td className="ds-ticker-col">{symbol.replace('=F', '')}</td>
-      <td>{label}</td>
-      <td>{fmt(q?.price, 2)}</td>
-      <td className={q?.changePct != null && q.changePct >= 0 ? 'ds-up' : 'ds-down'}>{fmtPct(q?.changePct)}</td>
+      <td className="ds-ticker-col" style={{ fontSize: 13 }}>{symbol.replace('=F', '')}</td>
+      <td style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{label}</td>
+      <td style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 600, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>
+        {q?.price != null ? fmt(q?.price, 2) : <span className="ds-dash">—</span>}
+      </td>
+      <td className={q?.changePct != null && q.changePct >= 0 ? 'ds-up' : 'ds-down'} style={{ fontSize: 13, fontWeight: 600, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>
+        {q?.changePct != null ? fmtPct(q?.changePct) : <span className="ds-dash">—</span>}
+      </td>
     </tr>
   );
 }

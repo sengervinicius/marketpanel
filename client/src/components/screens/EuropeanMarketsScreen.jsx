@@ -112,19 +112,19 @@ const TableRow = memo(function TableRow({ ticker, name, statsMap, openDetail }) 
       onClick={() => openDetail(sym)}
       onTouchEnd={(e) => { e.preventDefault(); openDetail(sym); }}
     >
-      <td className="ds-ticker-col" style={{ fontSize: 12, letterSpacing: '0.5px' }}>{sym}</td>
-      <td style={{ fontSize: 13, color: '#aaa' }}>{displayName || LABELS[sym] || '—'}</td>
-      <td style={{ fontSize: 14, color: '#fff', fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>
-        {q?.price != null ? '$' + fmt(q.price, 2) : '—'}
+      <td className="ds-ticker-col" style={{ fontSize: 13, letterSpacing: '0.5px' }}>{sym}</td>
+      <td style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{displayName || LABELS[sym] || <span className="ds-dash">—</span>}</td>
+      <td style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 600, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>
+        {q?.price != null ? '$' + fmt(q.price, 2) : <span className="ds-dash">—</span>}
       </td>
-      <td className={q?.changePct != null && q.changePct >= 0 ? 'ds-up' : 'ds-down'} style={{ fontSize: 13, fontWeight: 500 }}>
-        {fmtPct(q?.changePct)}
+      <td className={q?.changePct != null && q.changePct >= 0 ? 'ds-up' : 'ds-down'} style={{ fontSize: 13, fontWeight: 600, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>
+        {q?.changePct != null ? fmtPct(q?.changePct) : <span className="ds-dash">—</span>}
       </td>
-      <td style={{ fontFamily: 'monospace', fontSize: 13, color: '#999', fontVariantNumeric: 'tabular-nums' }}>
-        {fmtB(statsMap.get(sym)?.market_capitalization)}
+      <td style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text-secondary)', fontVariantNumeric: 'tabular-nums' }}>
+        {fmtB(statsMap.get(sym)?.market_capitalization) || <span className="ds-dash">—</span>}
       </td>
-      <td style={{ fontFamily: 'monospace', fontSize: 13, color: '#ccc', fontVariantNumeric: 'tabular-nums' }}>
-        {statsMap.get(sym)?.pe_ratio != null ? parseFloat(statsMap.get(sym)?.pe_ratio).toFixed(1) + 'x' : '—'}
+      <td style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text-secondary)', fontVariantNumeric: 'tabular-nums' }}>
+        {statsMap.get(sym)?.pe_ratio != null ? parseFloat(statsMap.get(sym)?.pe_ratio).toFixed(1) + 'x' : <span className="ds-dash">—</span>}
       </td>
     </tr>
   );
@@ -168,10 +168,12 @@ const FxPairRow = memo(function FxPairRow({ pair, openDetail }) {
       onClick={() => openDetail(pair)}
       onTouchEnd={(e) => { e.preventDefault(); openDetail(pair); }}
     >
-      <td className="ds-ticker-col">{display}</td>
-      <td>{fmt(q?.price, 4)}</td>
-      <td className={q?.changePct != null && q.changePct >= 0 ? 'ds-up' : 'ds-down'}>
-        {fmtPct(q?.changePct)}
+      <td className="ds-ticker-col" style={{ fontSize: 13 }}>{display}</td>
+      <td style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 600, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>
+        {q?.price != null ? fmt(q?.price, 4) : <span className="ds-dash">—</span>}
+      </td>
+      <td className={q?.changePct != null && q.changePct >= 0 ? 'ds-up' : 'ds-down'} style={{ fontSize: 13, fontWeight: 600, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>
+        {q?.changePct != null ? fmtPct(q?.changePct) : <span className="ds-dash">—</span>}
       </td>
     </tr>
   );
