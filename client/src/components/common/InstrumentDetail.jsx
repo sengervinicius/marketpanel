@@ -227,6 +227,10 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
     }
   }, [activeTab, isStock, refetchFundamentals]);
 
+  // ── Derived values (must be before effects that reference them) ──────────
+  const livePrice = snap?.min?.c || snap?.day?.c || snap?.lastTrade?.p || snap?.prevDay?.c
+                 || (bars.length ? bars[bars.length - 1].close : null);
+
   // ── Initialize inline alert price when livePrice is available ────────────
   useEffect(() => {
     if (livePrice != null && !inlineAlertPrice) {
@@ -269,10 +273,6 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
       }
     };
   }, [asPage]);
-
-  // ── Derived values ─────────────────────────────────────────────────────
-  const livePrice = snap?.min?.c || snap?.day?.c || snap?.lastTrade?.p || snap?.prevDay?.c
-                 || (bars.length ? bars[bars.length - 1].close : null);
   const prevClose  = snap?.prevDay?.c;
   const dayChange  = (livePrice && prevClose) ? livePrice - prevClose : null;
   const dayChgPct  = (dayChange && prevClose) ? (dayChange / prevClose) * 100 : null;
