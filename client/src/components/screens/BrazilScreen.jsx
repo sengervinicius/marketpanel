@@ -468,6 +468,9 @@ function BrazilScreenImpl() {
       lastUpdated={lastUpdated}
       onBack={() => window.history.back()}
       sections={sections}
+      aiType="em-country"
+      aiContext={{ country: 'Brazil', tickers: ['EWZ', 'VALE3.SA', 'PETR4.SA', 'ITUB4.SA'] }}
+      aiCacheKey="em-country:brazil"
     >
       {/* Brazil & EM ETFs strip */}
       <div style={{ padding: '12px 16px' }}>

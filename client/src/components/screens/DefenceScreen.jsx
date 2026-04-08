@@ -348,6 +348,9 @@ function DefenceScreenImpl() {
       lastUpdated={new Date()}
       screenKey="defence"
       visibleTickers={ALL_EQUITIES}
+      aiType="sector"
+      aiContext={{ sector: 'Defence & Aerospace', tickers: ['LMT', 'RTX', 'BA', 'NOC', 'GD'] }}
+      aiCacheKey="sector:defence"
     >
       <div style={{ padding: '12px', borderTop: '1px solid var(--border-default)' }}>
         <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>

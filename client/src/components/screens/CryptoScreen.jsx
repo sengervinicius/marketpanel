@@ -561,6 +561,9 @@ function CryptoScreenImpl() {
       accentColor="#f7931a"
       sections={sections}
       lastUpdated={new Date()}
+      aiType="sector"
+      aiContext={{ sector: 'Crypto & Digital Assets', tickers: ['BTC', 'ETH', 'SOL', 'XRP'] }}
+      aiCacheKey="sector:crypto"
     >
       <div style={{ padding: '12px', borderTop: '1px solid var(--border-default)' }}>
         <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>

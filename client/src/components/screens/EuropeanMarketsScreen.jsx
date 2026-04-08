@@ -481,6 +481,9 @@ function EuropeanMarketsScreenImpl() {
       accentColor="#3f51b5"
       sections={sections}
       lastUpdated={new Date()}
+      aiType="macro"
+      aiContext={{ region: 'Europe', tickers: ['VGK', 'EWG', 'EWQ'] }}
+      aiCacheKey="macro:european"
     >
       <div style={{ padding: '12px', borderTop: '1px solid var(--border-default)' }}>
         <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>

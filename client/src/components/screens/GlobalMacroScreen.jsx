@@ -612,6 +612,9 @@ function GlobalMacroScreenImpl() {
       accentColor="#9c27b0"
       subtitle="Central banks, rates, FX, volatility, and cross-asset risk monitor"
       sections={sections}
+      aiType="macro"
+      aiContext={{ scope: 'Global Macro' }}
+      aiCacheKey="macro:global"
     />
   );
 }

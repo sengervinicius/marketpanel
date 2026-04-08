@@ -415,6 +415,9 @@ function TechAIScreenImpl() {
       sections={sections}
       screenKey="technology"
       visibleTickers={allTickers}
+      aiType="sector"
+      aiContext={{ sector: 'Technology & AI', tickers: ['NVDA', 'MSFT', 'AAPL', 'GOOGL', 'META'] }}
+      aiCacheKey="sector:tech"
     />
   );
 }

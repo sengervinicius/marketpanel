@@ -902,6 +902,9 @@ function FixedIncomeScreenImpl({ onBack }) {
       accentColor="#2196f3"
       onBack={onBack}
       sections={sections}
+      aiType="yield-curve"
+      aiContext={{ scope: 'Fixed Income & Rates' }}
+      aiCacheKey="yield-curve:overview"
     />
   );
 }

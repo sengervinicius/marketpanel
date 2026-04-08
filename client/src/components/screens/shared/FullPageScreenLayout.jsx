@@ -5,6 +5,7 @@
 import { Component, useRef, useState, useEffect } from 'react';
 import { useIsMobile } from '../../../hooks/useIsMobile';
 import { useScreenContext } from '../../../context/ScreenContext';
+import AIInsightCard from '../../ai/AIInsightCard';
 import './ScreenShared.css';
 
 /**
@@ -190,6 +191,9 @@ function FullPageScreenLayout({
   children,
   screenKey,
   visibleTickers = [],
+  aiType,
+  aiContext,
+  aiCacheKey,
 }) {
   const isMobile = useIsMobile();
   const { updateScreen } = useScreenContext();
@@ -236,6 +240,19 @@ function FullPageScreenLayout({
           )}
         </div>
       </div>
+
+      {/* AI Insight — auto-fetch on mount */}
+      {aiType && (
+        <div style={{ padding: '0 1px', marginBottom: 1 }}>
+          <AIInsightCard
+            type={aiType}
+            context={aiContext}
+            cacheKey={aiCacheKey || `${aiType}:${title}`}
+            compact={isMobile}
+            autoFetch={true}
+          />
+        </div>
+      )}
 
       {/* Grid */}
       <div className={`fsl-grid ${isMobile ? 'fsl-grid--mobile' : 'fsl-grid--desktop'}`}>

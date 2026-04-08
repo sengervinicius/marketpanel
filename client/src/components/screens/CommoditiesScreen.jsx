@@ -397,6 +397,9 @@ function CommoditiesScreenImpl() {
       subtitle="Energy, metals, agriculture — futures, producers, and supply chain"
       accentColor="#ff9800"
       sections={sections}
+      aiType="commodity"
+      aiContext={{ sector: 'Commodities', tickers: ['GLD', 'SLV', 'USO', 'CPER'] }}
+      aiCacheKey="commodity:overview"
     >
       <div style={{ padding: '16px 6px' }}>
         <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: 0.5 }}>Fundamentals Comparison</div>
