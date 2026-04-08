@@ -70,7 +70,7 @@ export function SectorChartPanel({
     <div style={{
       display: 'grid',
       gridTemplateColumns: `repeat(${cols}, 1fr)`,
-      gap: '8px',
+      gap: '12px',
     }}>
       {tickerList.map(ticker => (
         <SectorChartContainer
