@@ -311,7 +311,7 @@ function BitcoinOnChainSection() {
   const mktData = data?.mktData || {};
 
   if (error && !data) {
-    return <div style={{ padding: 10, color: 'var(--text-muted)', fontSize: 10, textAlign: 'center' }}>On-chain data temporarily unavailable</div>;
+    return <div style={{ padding: 10, color: 'var(--text-muted)', fontSize: 10, textAlign: 'center' }}>Coming soon</div>;
   }
 
   return (
@@ -369,7 +369,7 @@ function EthereumOnChainSection() {
   const defi = data?.defi || {};
 
   if (error && !data) {
-    return <div style={{ padding: 10, color: 'var(--text-muted)', fontSize: 10, textAlign: 'center' }}>On-chain data temporarily unavailable</div>;
+    return <div style={{ padding: 10, color: 'var(--text-muted)', fontSize: 10, textAlign: 'center' }}>Coming soon</div>;
   }
 
   return (

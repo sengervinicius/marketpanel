@@ -101,7 +101,7 @@ const SparkChart = memo(function SparkChart({ ticker, label, rangeIdx, sectorNam
   const changePct = shared?.changePct;
   const isUp = changePct != null ? changePct >= 0 : (bars.length >= 2 ? bars[bars.length - 1].v >= bars[0].v : true);
   // Must use hex, not CSS vars — SVG stopColor can't resolve CSS custom properties
-  const color = isUp ? '#4caf50' : '#ef5350';
+  const color = isUp ? 'var(--semantic-up)' : 'var(--semantic-down)';
 
   const displayTicker = (ticker || '')
     .replace(/^C:/, '').replace(/^X:/, '')

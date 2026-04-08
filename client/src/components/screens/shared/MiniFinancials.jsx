@@ -73,7 +73,9 @@ function extractYear(entry) {
 }
 
 /* ── Main component ───────────────────────────────────────────────────── */
-const FETCH_TIMEOUT = 15000; // 15s timeout (was 12s)
+const FETCH_TIMEOUT = 25000; // 25s timeout for slow API responses
+const MAX_RETRIES = 2;
+const RETRY_DELAY = 2000; // 2s delay between retries
 
 export const MiniFinancials = memo(function MiniFinancials({ ticker, accentColor = '#4a90d9', onError }) {
   const [data, setData] = useState(null);
@@ -91,35 +93,54 @@ export const MiniFinancials = memo(function MiniFinancials({ ticker, accentColor
     const fetchData = async () => {
       try {
         setLoading(true);
-        const res = await apiFetch(
-          `/api/market/td/financials/${encodeURIComponent(ticker)}?period=annual`,
-          { signal: controller.signal }
-        );
+        let lastError;
 
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json = await res.json();
+        for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+          try {
+            const res = await apiFetch(
+              `/api/market/td/financials/${encodeURIComponent(ticker)}?period=annual`,
+              { signal: controller.signal }
+            );
 
-        const payload = json.data || json || {};
-        const incomeData = payload.income_statement || payload;
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const json = await res.json();
 
-        let results = [];
-        if (Array.isArray(incomeData)) {
-          results = incomeData.slice(0, 3).reverse();
-        } else if (incomeData?.income_statement && Array.isArray(incomeData.income_statement)) {
-          results = incomeData.income_statement.slice(0, 3).reverse();
-        } else {
-          const statements = json.statements || [];
-          const incomeStmt = statements.find(s => s.type === 'income') || {};
-          results = (incomeStmt.results || []).slice(0, 3).reverse();
+            const payload = json.data || json || {};
+            const incomeData = payload.income_statement || payload;
+
+            let results = [];
+            if (Array.isArray(incomeData)) {
+              results = incomeData.slice(0, 3).reverse();
+            } else if (incomeData?.income_statement && Array.isArray(incomeData.income_statement)) {
+              results = incomeData.income_statement.slice(0, 3).reverse();
+            } else {
+              const statements = json.statements || [];
+              const incomeStmt = statements.find(s => s.type === 'income') || {};
+              results = (incomeStmt.results || []).slice(0, 3).reverse();
+            }
+
+            const chartData = results.map(year => {
+              const rev = parseFloat(year.revenue ?? year.total_revenue ?? year.totalRevenue);
+              const ni = parseFloat(year.net_income ?? year.net_income_loss ?? year.netIncome ?? year.net_income_continuous_operations);
+              return {
+                year: extractYear(year),
+                revenue: isNaN(rev) ? null : rev,
+                netIncome: isNaN(ni) ? null : ni,
+              };
+            });
+
+            if (!cancelled) setData(chartData);
+            return; // Success - exit retry loop
+          } catch (err) {
+            lastError = err;
+            if (err.name === 'AbortError') throw err;
+            if (attempt < MAX_RETRIES) {
+              await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+            }
+          }
         }
 
-        const chartData = results.map(year => ({
-          year: extractYear(year),
-          revenue: parseFloat(year.revenue) || parseFloat(year.total_revenue) || 0,
-          netIncome: parseFloat(year.net_income) || parseFloat(year.net_income_loss) || 0,
-        }));
-
-        if (!cancelled) setData(chartData);
+        throw lastError;
       } catch (err) {
         if (!cancelled && err.name !== 'AbortError') {
           onErrorRef.current?.(err);
@@ -158,17 +179,20 @@ export const MiniFinancials = memo(function MiniFinancials({ ticker, accentColor
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        color: 'var(--text-faint)',
-        fontSize: 9,
+        opacity: 0.3,
       }}>
-        No financials
+        <svg width="60" height="40" viewBox="0 0 60 40">
+          <rect x="4" y="20" width="12" height="20" rx="1" fill="#555570" />
+          <rect x="20" y="10" width="12" height="30" rx="1" fill="#555570" />
+          <rect x="36" y="5" width="12" height="35" rx="1" fill="#555570" />
+        </svg>
       </div>
     );
   }
 
   /* ── Determine if we have any meaningful data ───────────────────────── */
-  const hasRevenue = data.some(d => d.revenue !== 0);
-  const hasNetIncome = data.some(d => d.netIncome !== 0);
+  const hasRevenue = data.some(d => d.revenue !== null && d.revenue !== undefined);
+  const hasNetIncome = data.some(d => d.netIncome !== null && d.netIncome !== undefined);
 
   if (!hasRevenue && !hasNetIncome) {
     return (
@@ -177,10 +201,13 @@ export const MiniFinancials = memo(function MiniFinancials({ ticker, accentColor
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        color: 'var(--text-faint)',
-        fontSize: 9,
+        opacity: 0.3,
       }}>
-        No financials
+        <svg width="60" height="40" viewBox="0 0 60 40">
+          <rect x="4" y="20" width="12" height="20" rx="1" fill="#555570" />
+          <rect x="20" y="10" width="12" height="30" rx="1" fill="#555570" />
+          <rect x="36" y="5" width="12" height="35" rx="1" fill="#555570" />
+        </svg>
       </div>
     );
   }
@@ -214,7 +241,7 @@ export const MiniFinancials = memo(function MiniFinancials({ ticker, accentColor
           />
           <YAxis
             tickFormatter={yAxisFormatter}
-            tick={{ fontSize: 7, fill: '#666' }}
+            tick={{ fontSize: 7, fill: '#555570' }}
             tickLine={false}
             axisLine={false}
             width={38}
@@ -243,7 +270,7 @@ export const MiniFinancials = memo(function MiniFinancials({ ticker, accentColor
               {data.map((entry, idx) => (
                 <Cell
                   key={`ni-${idx}`}
-                  fill={entry.netIncome >= 0 ? '#66bb6a' : '#ef5350'}
+                  fill={entry.netIncome >= 0 ? '#4caf50' : '#ef5350'}
                   fillOpacity={0.95}
                 />
               ))}

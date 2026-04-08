@@ -86,10 +86,10 @@
 /* Grid */
 .fsl-grid {
   display: grid;
-  gap: 1px;
+  gap: 4px;
   background: var(--border-subtle, var(--bg-hover));
   flex: 1;
-  padding: 1px;
+  padding: 2px;
 }
 
 .fsl-grid--desktop {
@@ -118,7 +118,7 @@
   align-items: center;
   gap: var(--sp-2, 8px);
   padding: 10px 12px;
-  border-bottom: 1px solid rgba(255, 107, 0, 0.15);
+  border-bottom: 1px solid color-mix(in srgb, var(--accent, #ff6600) 15%, transparent);
   background: var(--bg-surface);
   position: sticky;
   top: 0;
@@ -277,7 +277,7 @@
     font-size: 8px;
   }
   .ds-table td {
-    font-size: 9px;
+    font-size: 11px;
   }
 }
 
@@ -302,7 +302,7 @@
   }
   .ds-table td, .ds-table th {
     padding: 3px 4px;
-    font-size: 8px;
+    font-size: 10px;
   }
   .fsl-children {
     padding: var(--sp-2, 8px);

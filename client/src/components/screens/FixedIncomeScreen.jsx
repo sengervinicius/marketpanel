@@ -49,10 +49,10 @@ const COUNTRY_LABELS = {
 };
 
 const CURVE_COLORS = {
-  US: '#2196f3',
-  DE: '#f39c12',
-  JP: '#e74c3c',
-  GB: '#27ae60',
+  US: '#4488ff',
+  DE: '#ff9800',
+  JP: '#ef5350',
+  GB: '#4caf50',
 };
 
 const TENORS_SORT = ['2Y', '5Y', '10Y', '30Y'];

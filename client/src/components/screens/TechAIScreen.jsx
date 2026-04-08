@@ -49,10 +49,10 @@ const LABELS = {
 function getPEColor(pe) {
   if (pe == null) return '#ccc';
   const val = parseFloat(pe);
-  if (val < 25) return '#66bb6a';      // green
-  if (val < 35) return '#ffeb3b';      // yellow
-  if (val < 50) return '#ff9800';      // orange
-  return '#ef5350';                    // red
+  if (val < 25) return 'var(--semantic-up)';      // green
+  if (val < 35) return 'var(--semantic-warn)';      // yellow
+  if (val < 50) return 'var(--semantic-warn)';      // orange
+  return 'var(--semantic-down)';                    // red
 }
 
 // Enhanced row for stock tables

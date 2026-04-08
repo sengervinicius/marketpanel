@@ -39,17 +39,17 @@ function GlobalSnapshot() {
 
   const getCpiColor = (val) => {
     if (val == null) return '';
-    if (val > 4) return '#d32f2f';
-    if (val > 3) return '#f57c00';
-    if (val > 2) return '#388e3c';
+    if (val > 4) return 'var(--semantic-down)';
+    if (val > 3) return 'var(--semantic-warn)';
+    if (val > 2) return 'var(--semantic-up)';
     return '';
   };
 
   const getUneColor = (val) => {
     if (val == null) return '';
-    if (val < 3.5) return '#388e3c';
-    if (val < 4.5) return '#f57c00';
-    return '#d32f2f';
+    if (val < 3.5) return 'var(--semantic-up)';
+    if (val < 4.5) return 'var(--semantic-warn)';
+    return 'var(--semantic-down)';
   };
 
   return (

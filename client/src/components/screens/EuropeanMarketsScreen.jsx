@@ -252,9 +252,9 @@ const BundSpreadMonitor = memo(function BundSpreadMonitor({ data, loading, error
   }
 
   const getSpreadColor = (bps) => {
-    if (bps < 50) return '#4caf50'; // Tight spread (green)
-    if (bps < 150) return '#ff9800'; // Wide-ish (orange)
-    return '#f44336'; // Very wide (red)
+    if (bps < 50) return 'var(--semantic-up)'; // Tight spread (green)
+    if (bps < 150) return 'var(--semantic-warn)'; // Wide-ish (orange)
+    return 'var(--semantic-down)'; // Very wide (red)
   };
 
   return (

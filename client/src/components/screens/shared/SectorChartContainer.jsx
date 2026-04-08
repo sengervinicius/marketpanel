@@ -177,7 +177,7 @@ const PriceLabel = memo(function PriceLabel({ ticker, openPrice, closePrice, acc
       <span style={{
         fontSize: '13px',
         fontWeight: 700,
-        color: accentColor || '#ff6600',
+        color: accentColor || 'var(--accent)',
         letterSpacing: '0.8px',
         fontFamily: 'var(--font-ui)',
       }}>
@@ -195,7 +195,7 @@ const PriceLabel = memo(function PriceLabel({ ticker, openPrice, closePrice, acc
       <span style={{
         fontSize: '11px',
         fontWeight: 600,
-        color: isUp ? '#4caf50' : '#ef5350',
+        color: isUp ? 'var(--semantic-up)' : 'var(--semantic-down)',
         fontVariantNumeric: 'tabular-nums',
         fontFamily: 'var(--font-mono)',
       }}>
@@ -275,7 +275,7 @@ const ChartSection = memo(function ChartSection({
           >
             <defs>
               {/* Gradient: 5%-95% offsets, green/red based on direction */}
-              <linearGradient id={`grad-${ticker}`} x1="0" y1="0" x2="0" y2="1">
+              <linearGradient id={`grad-${ticker}-${chartIdRef.current}`} x1="0" y1="0" x2="0" y2="1">
                 <stop
                   offset="5%"
                   stopColor={lastClose >= firstClose ? '#4caf50' : '#ef5350'}
@@ -336,7 +336,7 @@ const ChartSection = memo(function ChartSection({
               type="monotone"
               dataKey="close"
               yAxisId="price"
-              fill={`url(#grad-${ticker})`}
+              fill={`url(#grad-${ticker}-${chartIdRef.current})`}
               stroke={priceColor}
               strokeWidth={1.8}
               isAnimationActive={false}
@@ -396,20 +396,27 @@ export function SectorChartContainer({
   const [fetchError, setFetchError] = useState(null);
   const [retryCount, setRetryCount] = useState(0);
   const mountedRef = useRef(true);
+  const chartIdRef = useRef(Math.random().toString(36).slice(2, 8));
 
-  // 10s timeout
+  // 20s timeout with exponential backoff retry support
   useEffect(() => {
     if (!loading) return;
     const timer = setTimeout(() => {
       if (mountedRef.current) {
-        setLoading(false);
-        setFetchError('Chart timed out after 10 seconds');
+        // Check if we can retry (max 2 retries)
+        if (retryCount < 2) {
+          setLoading(false);
+          setFetchError('Chart timed out. Retrying...');
+        } else {
+          setLoading(false);
+          setFetchError('Chart timed out after 20 seconds. Max retries reached.');
+        }
       }
-    }, 10000);
+    }, 20000);
     return () => clearTimeout(timer);
-  }, [loading]);
+  }, [loading, retryCount]);
 
-  // Fetch data when ticker or timeframe changes
+  // Fetch data when ticker or timeframe changes, with exponential backoff retry
   useEffect(() => {
     mountedRef.current = true;
 
@@ -423,6 +430,14 @@ export function SectorChartContainer({
       try {
         setLoading(true);
         setFetchError(null);
+
+        // Calculate exponential backoff delay: 0ms for initial, 2000ms for retry 1, 5000ms for retry 2
+        const backoffDelays = [0, 2000, 5000];
+        const delay = backoffDelays[Math.min(retryCount, 2)];
+
+        if (delay > 0) {
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
 
         const range = RANGES[rangeIdx];
         const now = new Date();
@@ -475,7 +490,18 @@ export function SectorChartContainer({
       } catch (err) {
         if (mountedRef.current) {
           console.error(`[SectorChartContainer] Error fetching ${ticker}:`, err);
-          setFetchError(err.message || 'Failed to load chart');
+          // Auto-retry on error (max 2 retries)
+          if (retryCount < 2) {
+            setFetchError(`Failed to load chart. Retrying... (Attempt ${retryCount + 2}/3)`);
+            // Schedule automatic retry
+            setTimeout(() => {
+              if (mountedRef.current) {
+                setRetryCount(c => c + 1);
+              }
+            }, retryCount === 0 ? 2000 : 5000);
+          } else {
+            setFetchError(err.message || 'Failed to load chart after max retries');
+          }
           setChartData(null);
         }
       } finally {
@@ -515,6 +541,7 @@ export function SectorChartContainer({
   }
 
   if (fetchError) {
+    const isMaxRetriesReached = retryCount >= 2;
     return (
       <div style={containerStyle}>
         <TimeframeSelector rangeIdx={rangeIdx} onChange={setRangeIdx} accentColor={accentColor} />
@@ -524,9 +551,10 @@ export function SectorChartContainer({
             textAlign: 'center',
             color: 'var(--text-muted)',
             fontSize: 'var(--text-sm)',
-            border: '1px solid var(--border-default)',
+            border: `1px solid ${isMaxRetriesReached ? 'var(--semantic-down)' : 'var(--border-default)'}`,
             borderRadius: 'var(--radius-md)',
-            background: 'var(--bg-panel)',
+            background: isMaxRetriesReached ? 'rgba(239, 83, 80, 0.05)' : 'var(--bg-panel)',
+            transition: 'all 200ms ease',
           }}
         >
           <div
@@ -534,6 +562,7 @@ export function SectorChartContainer({
               color: 'var(--semantic-down)',
               fontWeight: 600,
               marginBottom: 'var(--space-2)',
+              fontSize: 'var(--text-sm)',
             }}
           >
             Chart unavailable
@@ -543,36 +572,40 @@ export function SectorChartContainer({
               color: 'var(--text-faint)',
               fontSize: 'var(--text-2xs)',
               marginBottom: 'var(--space-3)',
+              lineHeight: '1.4',
             }}
           >
             {fetchError}
           </div>
-          <button
-            onClick={() => setRetryCount(c => c + 1)}
-            style={{
-              background: 'transparent',
-              border: '1px solid var(--border-default)',
-              color: 'var(--text-secondary)',
-              padding: 'var(--space-1) var(--space-3)',
-              borderRadius: 'var(--radius-sm)',
-              cursor: 'pointer',
-              fontSize: 'var(--text-2xs)',
-              fontWeight: 600,
-              textTransform: 'uppercase',
-              letterSpacing: '0.5px',
-              transition: 'all var(--duration-instant) ease',
-            }}
-            onMouseEnter={(e) => {
-              e.target.style.borderColor = 'var(--border-strong)';
-              e.target.style.color = 'var(--text-primary)';
-            }}
-            onMouseLeave={(e) => {
-              e.target.style.borderColor = 'var(--border-default)';
-              e.target.style.color = 'var(--text-secondary)';
-            }}
-          >
-            Retry
-          </button>
+          {!isMaxRetriesReached && (
+            <button
+              onClick={() => setRetryCount(c => c + 1)}
+              style={{
+                background: 'var(--accent)',
+                border: 'none',
+                color: '#000',
+                padding: 'var(--space-2) var(--space-3)',
+                borderRadius: 'var(--radius-sm)',
+                cursor: 'pointer',
+                fontSize: 'var(--text-2xs)',
+                fontWeight: 700,
+                textTransform: 'uppercase',
+                letterSpacing: '0.5px',
+                transition: 'all var(--duration-instant) ease',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.opacity = '0.9';
+                e.target.style.boxShadow = '0 4px 12px rgba(0,0,0,0.3)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.opacity = '1';
+                e.target.style.boxShadow = '0 2px 8px rgba(0,0,0,0.2)';
+              }}
+            >
+              Retry
+            </button>
+          )}
         </div>
       </div>
     );

@@ -76,10 +76,10 @@ function SectorPerformanceSection({ tickers = [], title }) {
             <td className={r.changePct1d != null && r.changePct1d >= 0 ? 'ds-up' : 'ds-down'}>
               {fmtPct(r.changePct1d)}
             </td>
-            <td style={{ color: r.volumeRatio > 1.5 ? '#ff9800' : r.volumeRatio > 1 ? '#66bb6a' : '#888' }}>
+            <td style={{ color: r.volumeRatio > 1.5 ? 'var(--semantic-warn)' : r.volumeRatio > 1 ? 'var(--semantic-up)' : 'var(--text-muted)' }}>
               {r.volumeRatio != null ? r.volumeRatio.toFixed(2) + 'x' : '—'}
             </td>
-            <td style={{ color: r.distFrom52wHigh != null && r.distFrom52wHigh > -0.05 ? '#66bb6a' : '#ef5350' }}>
+            <td style={{ color: r.distFrom52wHigh != null && r.distFrom52wHigh > -0.05 ? 'var(--semantic-up)' : 'var(--semantic-down)' }}>
               {r.distFrom52wHigh != null ? fmtPct(r.distFrom52wHigh * 100) : '—'}
             </td>
           </tr>
