@@ -399,9 +399,9 @@ function TechAIScreenImpl() {
   ], [statsMap, statsLoading, statsError, statsRefresh]);
 
   const allTickers = [
-    ...MEGA_CAP_TECH,
-    ...SEMICONDUCTORS.map(s => s.symbol),
-    ...AI_INFRA_CLOUD.map(s => s.symbol),
+    ...MEGA_CAP,
+    ...SEMIS,
+    ...AI_CLOUD,
   ];
 
   return (

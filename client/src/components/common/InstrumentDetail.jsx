@@ -2594,7 +2594,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
           const hasTabs = isBond || isFX;
           const tabList = isBond ? bondDesktopTabs : isFX ? fxDesktopTabs : [];
 
-  return (
+          return (
             <div className="id-sidebar">
               {hasTabs && (
                 <div className="id-tab-bar">
