@@ -355,7 +355,7 @@ export default function App() {
   }, []);
   const mobileScreenTitle = useMemo(() => {
     if (activeTab === 'more' && moreView) {
-      const titles = { news: 'News Feed', etf: 'ETF Screener', screener: 'Fundamental Screener', macro: 'Macro Panel' };
+      const titles = { news: 'News Feed', etf: 'ETF Screener', screener: 'Fundamental Screener', macro: 'Macro Panel', sectors: 'Sector Screens' };
       return titles[moreView] || moreView;
     }
     return null;
@@ -522,7 +522,7 @@ export default function App() {
 
             {/* Full-page sector screen OR home panel grid */}
             {activeSectorScreen && SCREEN_MAP[activeSectorScreen] ? (
-              <div style={{ flex: 1, overflow: 'auto' }}>
+              <div className="screen-transition-enter" style={{ flex: 1, overflow: 'auto' }}>
                 <PanelErrorBoundary name={`Screen:${activeSectorScreen}`}>
                   {(() => {
                     const ScreenComp = SCREEN_MAP[activeSectorScreen];
@@ -531,7 +531,7 @@ export default function App() {
                 </PanelErrorBoundary>
               </div>
             ) : activeSectorScreen && !SCREEN_MAP[activeSectorScreen] ? (
-              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 12 }}>
+              <div className="screen-transition-enter" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 12 }}>
                 <div style={{ fontSize: 36 }}>🚧</div>
                 <div style={{ color: '#888', fontSize: 13, fontFamily: 'var(--font-mono)' }}>
                   {activeSectorScreen.replace(/-/g, ' ').toUpperCase()} — Coming in Wave 3/4
@@ -842,6 +842,16 @@ export default function App() {
               </PanelErrorBoundary>
             )}
 
+            {!activeSectorScreen && activeTab === 'more' && moreView === 'sectors' && (
+              <PanelErrorBoundary name="Sectors">
+                <SectorScreenSelector
+                  isOpen={true}
+                  onClose={() => setMoreView(null)}
+                  onSelect={handleSelectSectorScreen}
+                  activeScreen={activeSectorScreen}
+                />
+              </PanelErrorBoundary>
+            )}
 
             {!activeSectorScreen && activeTab === 'more' && moreView === 'notification-prefs' && (
               <NotificationPrefs onClose={() => setMoreView(null)} />

@@ -1,9 +1,11 @@
-import { useState, useRef, useCallback, memo } from 'react';
+import { useState, useRef, useCallback, memo, useMemo } from 'react';
 import { FOREX_PAIRS, CRYPTO_PAIRS } from '../../utils/constants';
 import { useSettings } from '../../context/SettingsContext';
 import { useInstrumentSearch } from '../../hooks/useInstrumentSearch';
 import { useOpenDetail } from '../../context/OpenDetailContext';
+import { useTickerPrice } from '../../context/PriceContext';
 import Badge from '../ui/Badge';
+import Sparkline from '../shared/Sparkline';
 import './SearchPanel.css';
 import { resolveAlias } from '../../config/instrumentAliases';
 import { detectExchangeGroup, getProviderRouting, COVERAGE } from '../../config/providerMatrix';
@@ -124,6 +126,25 @@ const ASSET_CLASS_COLOR = {
   crypto: '#f48fb1', fixed_income: '#ffb74d', commodity: '#80cbc4', index: '#ffb74d',
 };
 
+// Format market cap display (e.g., $2.1T, $500B)
+function formatMarketCap(cap) {
+  if (cap == null || isNaN(cap)) return '—';
+  const v = parseFloat(cap);
+  if (v >= 1e12) return '$' + (v / 1e12).toFixed(1) + 'T';
+  if (v >= 1e9) return '$' + (v / 1e9).toFixed(0) + 'B';
+  if (v >= 1e6) return '$' + (v / 1e6).toFixed(0) + 'M';
+  if (v >= 1e3) return '$' + (v / 1e3).toFixed(0) + 'K';
+  return '$' + v.toFixed(0);
+}
+
+// Format price change percentage with color
+function formatChangePercent(changePct, style = {}) {
+  if (changePct == null) return { text: '—', color: 'var(--text-muted)' };
+  const sign = changePct >= 0 ? '+' : '';
+  const color = changePct >= 0 ? 'var(--semantic-up, #4caf50)' : 'var(--semantic-down, #f44336)';
+  return { text: sign + changePct.toFixed(2) + '%', color };
+}
+
 function localSearch(q) {
   if (!q || q.trim().length < 2) return [];
   const uq = q.toUpperCase().replace(/[\s/\-]/g, '');
@@ -142,6 +163,132 @@ function displaySymbol(sym) {
   if (sym.startsWith('X:')) return sym.slice(2).replace('USD', '') + '/USD';
   if (sym.endsWith('.SA')) return sym.slice(0, -3);
   return sym;
+}
+
+// Enhanced result row component with price, sparkline, change, market cap
+function EnhancedResultRow({ item, idx, isSelected, onSelect, onDragStart, coverageLevel, COVERAGE_DOT, COVERAGE_TAG, ASSET_TYPE_BADGE }) {
+  const priceData = useTickerPrice(item.symbol || item.symbolKey);
+
+  // Get pricing data with fallback
+  const currentPrice = priceData?.price;
+  const changePct = priceData?.changePct;
+  const marketCap = priceData?.marketCap || item.marketCap;
+
+  // Generate sparkline data from chart history if available
+  const sparklineData = useMemo(() => {
+    if (!priceData?.bars || priceData.bars.length < 2) return [];
+    return priceData.bars.map(b => b.c || b.close).slice(-20); // last 20 bars
+  }, [priceData?.bars]);
+
+  const isPositive = changePct != null && changePct >= 0;
+  const changeDisplay = formatChangePercent(changePct);
+
+  const badge = MARKET_BADGE[(item.market || '').toUpperCase()];
+  const isBR = item.symbol?.endsWith('.SA');
+  const cov = coverageLevel(item);
+  const dot = COVERAGE_DOT[cov];
+  const covTag = COVERAGE_TAG[cov];
+
+  const exchGroup = item._exchangeGroup || detectExchangeGroup(item.symbol || item.symbolKey || '', item.exchange || '');
+  const isADR = item._isADR || (!isBR && exchGroup === 'US' && /\bADR\b|depositary/i.test(item.name || ''));
+  const exchLabel = (() => {
+    if (isADR) return 'ADR';
+    if (item.exchange) {
+      const e = item.exchange.toUpperCase();
+      if (e.includes('BOVESPA') || e.includes('BVMF')) return 'B3';
+      if (e.includes('KRX') || e.includes('KOSDAQ') || e.includes('XKRX')) return 'KRX';
+      if (e.includes('TSE') || e.includes('XTKS')) return 'TSE';
+      if (e.includes('TWSE') || e.includes('TPEX')) return 'TWSE';
+      if (e.includes('HKEX') || e.includes('XHKG')) return 'HKEX';
+      if (e.includes('XETRA') || e.includes('XETR')) return 'XETRA';
+      if (e.includes('LSE') || e.includes('XLON')) return 'LSE';
+      if (e.includes('NYSE')) return 'NYSE';
+      if (e.includes('NASDAQ') || e.includes('XNAS')) return 'NASDAQ';
+      return e.length > 8 ? e.slice(0, 6) : e;
+    }
+    return '';
+  })();
+
+  return (
+    <div
+      className={`sp-result-row ${cov === 'none' ? 'no-coverage' : ''} ${idx === isSelected ? 'selected' : ''}`}
+      draggable
+      onDragStart={(e) => onDragStart(e, item)}
+      onClick={() => onSelect(item)}
+      onTouchEnd={(e) => { e.preventDefault(); onSelect(item); }}
+      title="Click to open detail · Drag to any panel to add ticker"
+    >
+      {/* Coverage indicator */}
+      <span
+        title={dot.title}
+        className={`sp-coverage-dot ${cov === 'live' ? 'sp-coverage-dot-live' : ''}`}
+        style={{ background: dot.color }}
+      />
+
+      {/* Ticker (bold) */}
+      <span className="sp-symbol sp-symbol-enhanced"
+        style={{
+          color: isBR ? '#8bc34a' : (ASSET_CLASS_COLOR[item.assetClass] || TYPE_COLOR[item.type] || '#aaa'),
+          fontWeight: 700,
+        }}>
+        {displaySymbol(item.symbol || item.symbolKey)}
+      </span>
+
+      {/* Company name */}
+      <span className="sp-name sp-name-enhanced">
+        {item.name}
+        {exchLabel && <span style={{ color: 'var(--text-muted)', fontSize: '0.8em', marginLeft: 4 }}>({exchLabel})</span>}
+      </span>
+
+      {/* Sparkline */}
+      {sparklineData.length >= 2 && (
+        <div className="sp-sparkline-container" title={`${sparklineData.length} data points`}>
+          <Sparkline data={sparklineData} isPositive={isPositive} width={50} height={16} />
+        </div>
+      )}
+
+      {/* Current price */}
+      {currentPrice != null && (
+        <span className="sp-price-cell" style={{ color: 'var(--text-primary)' }}>
+          {currentPrice.toFixed(2)}
+        </span>
+      )}
+
+      {/* 1D% change (colored) */}
+      <span className="sp-change-cell" style={{ color: changeDisplay.color }}>
+        {changeDisplay.text}
+      </span>
+
+      {/* Market cap */}
+      {marketCap != null && (
+        <span className="sp-marketcap-cell" style={{ color: 'var(--text-muted)' }}>
+          {formatMarketCap(marketCap)}
+        </span>
+      )}
+
+      {/* Badges container */}
+      <div className="sp-badge-container">
+        {(() => {
+          const assetType = deriveAssetType(item);
+          const typeBadge = ASSET_TYPE_BADGE[assetType];
+          return typeBadge ? (
+            <span className="sp-type-badge"
+              style={{ background: typeBadge.bg, color: typeBadge.color, border: `1px solid ${typeBadge.color}33` }}>
+              {typeBadge.label}
+            </span>
+          ) : null;
+        })()}
+        {covTag && (
+          <Badge variant="warning" size="xs" title={dot.title}>
+            {covTag.label}
+          </Badge>
+        )}
+        {item.currency && item.currency !== 'USD' && (
+          <span style={{ fontSize: 9, color: 'var(--text-muted)', fontFamily: 'monospace' }}>{item.currency}</span>
+        )}
+      </div>
+    </div>
+  );
 }
 
 function SearchPanel({ onTickerSelect }) {
@@ -292,93 +439,20 @@ function SearchPanel({ onTickerSelect }) {
           <div className="sp-results-header">
             <span className="sp-results-header-text">DRAG RESULTS TO ANY PANEL TO ADD TICKERS</span>
           </div>
-          {results.map((item, idx) => {
-            const badge  = MARKET_BADGE[(item.market || '').toUpperCase()];
-            const isBR   = item.symbol?.endsWith('.SA');
-            const cov    = coverageLevel(item);
-            const dot    = COVERAGE_DOT[cov];
-            const covTag = COVERAGE_TAG[cov];
-
-            // Exchange group label from server-side providerMatrix + ADR flag
-            const exchGroup = item._exchangeGroup || detectExchangeGroup(item.symbol || item.symbolKey || '', item.exchange || '');
-            const isADR = item._isADR || (!isBR && exchGroup === 'US' && /\bADR\b|depositary/i.test(item.name || ''));
-            const exchLabel = (() => {
-              if (isADR) return 'ADR';
-              if (item.exchange) {
-                const e = item.exchange.toUpperCase();
-                if (e.includes('BOVESPA') || e.includes('BVMF')) return 'B3';
-                if (e.includes('KRX') || e.includes('KOSDAQ') || e.includes('XKRX')) return 'KRX';
-                if (e.includes('TSE') || e.includes('XTKS')) return 'TSE';
-                if (e.includes('TWSE') || e.includes('TPEX')) return 'TWSE';
-                if (e.includes('HKEX') || e.includes('XHKG')) return 'HKEX';
-                if (e.includes('XETRA') || e.includes('XETR')) return 'XETRA';
-                if (e.includes('LSE') || e.includes('XLON')) return 'LSE';
-                if (e.includes('NYSE')) return 'NYSE';
-                if (e.includes('NASDAQ') || e.includes('XNAS')) return 'NASDAQ';
-                return e.length > 8 ? e.slice(0, 6) : e;
-              }
-              return '';
-            })();
-
-            return (
-              <div
-                key={item.symbol || item.symbolKey}
-                draggable
-                onDragStart={(e) => handleDragStart(e, item)}
-                onClick={() => handleSelect(item)}
-                title="Click to open detail · Drag to any panel to add ticker"
-                className={`sp-result-row ${cov === 'none' ? 'no-coverage' : ''} ${idx === selectedIdx ? 'selected' : ''}`}
-              >
-                <span className="sp-drag-icon" title="Drag to any panel">⠿</span>
-                <span
-                  title={dot.title}
-                  className={`sp-coverage-dot ${cov === 'live' ? 'sp-coverage-dot-live' : ''}`}
-                  style={{ background: dot.color }}
-                />
-                <span className="sp-drag-grip">⠿</span>
-                <span className="sp-symbol"
-                  style={{
-                    color: isBR ? '#8bc34a' : (ASSET_CLASS_COLOR[item.assetClass] || TYPE_COLOR[item.type] || '#aaa'),
-                  }}>
-                  {displaySymbol(item.symbol || item.symbolKey)}
-                </span>
-                <span className="sp-name">
-                  {item.name}
-                  {exchLabel && <span style={{ color: '#666', fontSize: '0.85em', marginLeft: 4 }}>({exchLabel})</span>}
-                </span>
-                <div className="sp-badge-container">
-                  {(() => {
-                    const assetType = deriveAssetType(item);
-                    const typeBadge = ASSET_TYPE_BADGE[assetType];
-                    return typeBadge ? (
-                      <span className="sp-type-badge"
-                        style={{ background: typeBadge.bg, color: typeBadge.color, border: `1px solid ${typeBadge.color}33` }}>
-                        {typeBadge.label}
-                      </span>
-                    ) : null;
-                  })()}
-                  {covTag && (
-                    <Badge variant="warning" size="xs" title={dot.title}>
-                      {covTag.label}
-                    </Badge>
-                  )}
-                  {item.currency && item.currency !== 'USD' && (
-                    <span style={{ fontSize: 9, color: '#555', fontFamily: 'monospace' }}>{item.currency}</span>
-                  )}
-                  <button className={`btn sp-add-home-btn ${addedToHome === (item.symbol || item.symbolKey) ? 'sp-add-home-btn-active' : ''}`}
-                    onClick={(e) => handleAddToHome(e, item)}
-                    title="Add to home screen"
-                    style={{
-                      border: `1px solid ${addedToHome === (item.symbol || item.symbolKey) ? '#00cc66' : '#2a2a2a'}`,
-                      color: addedToHome === (item.symbol || item.symbolKey) ? '#00cc66' : '#555',
-                    }}
-                  >
-                    {addedToHome === (item.symbol || item.symbolKey) ? 'ADDED' : '+ HOME'}
-                  </button>
-                </div>
-              </div>
-            );
-          })}
+          {results.map((item, idx) => (
+            <EnhancedResultRow
+              key={item.symbol || item.symbolKey}
+              item={item}
+              idx={idx}
+              isSelected={selectedIdx}
+              onSelect={handleSelect}
+              onDragStart={handleDragStart}
+              coverageLevel={coverageLevel}
+              COVERAGE_DOT={COVERAGE_DOT}
+              COVERAGE_TAG={COVERAGE_TAG}
+              ASSET_TYPE_BADGE={ASSET_TYPE_BADGE}
+            />
+          ))}
         </div>
       )}
 

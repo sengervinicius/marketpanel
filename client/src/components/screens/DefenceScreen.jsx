@@ -4,7 +4,7 @@
  * Integrates FullPageScreenLayout, FundamentalsTable, SectorChartPanel, SectorScatterPlot,
  * MiniFinancials, and InsiderActivity for multi-dimensional sector analysis.
  */
-import { memo, useMemo } from 'react';
+import { memo, useMemo, useCallback } from 'react';
 import FullPageScreenLayout from './shared/FullPageScreenLayout';
 import { FundamentalsTable } from './shared/FundamentalsTable';
 import { SectorChartPanel } from './shared/SectorChartPanel';
@@ -59,13 +59,13 @@ const ALL_EQUITIES = [
 ];
 
 /* ── Enhanced Table Row Component ──────────────────────────────────────── */
-function EnhancedTableRow({ symbol, label, stats, onClick }) {
+function EnhancedTableRow({ symbol, label, stats, onClick, sectorName = null }) {
   const q = useTickerPrice(symbol);
   const pe = stats?.pe_ratio;
   const mktCap = stats?.market_capitalization;
 
   return (
-    <tr className="ds-row-clickable" onClick={() => onClick(symbol)}>
+    <tr className="ds-row-clickable" onClick={() => onClick(symbol, sectorName)}>
       <td className="ds-ticker-col">{symbol}</td>
       <td>{label || LABELS[symbol] || '—'}</td>
       <td>{fmt(q?.price, 2)}</td>
@@ -83,12 +83,12 @@ function EnhancedTableRow({ symbol, label, stats, onClick }) {
 }
 
 /* ── Table Row Component ───────────────────────────────────────────────── */
-function SectionTableRow({ sym, name, statsMap, onClickRow, withMiniCharts, accentColor }) {
+function SectionTableRow({ sym, name, statsMap, onClickRow, withMiniCharts, accentColor, sectorName = null }) {
   const q = useTickerPrice(sym);
   const stats = statsMap.get(sym);
 
   return (
-    <tr className="ds-row-clickable" onClick={() => onClickRow(sym)} style={{ minHeight: withMiniCharts ? 100 : 44 }}>
+    <tr className="ds-row-clickable" onClick={() => onClickRow(sym, sectorName)} style={{ minHeight: withMiniCharts ? 100 : 44 }}>
       <td className="ds-ticker-col" style={{ fontSize: 12, letterSpacing: '0.5px' }}>{sym}</td>
       <td style={{ fontSize: 13, color: '#aaa' }}>{name || LABELS[sym] || '—'}</td>
       <td style={{ fontSize: 14, color: '#fff', fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>
@@ -114,7 +114,7 @@ function SectionTableRow({ sym, name, statsMap, onClickRow, withMiniCharts, acce
 }
 
 /* ── Section Table Component ───────────────────────────────────────────── */
-const SectionTable = memo(function SectionTable({ tickers, statsMap, labels, withMiniCharts, accentColor }) {
+const SectionTable = memo(function SectionTable({ tickers, statsMap, labels, withMiniCharts, accentColor, sectionName = null }) {
   const openDetail = useOpenDetail();
 
   return (
@@ -144,6 +144,7 @@ const SectionTable = memo(function SectionTable({ tickers, statsMap, labels, wit
                 onClickRow={openDetail}
                 withMiniCharts={withMiniCharts}
                 accentColor={accentColor}
+                sectorName={sectionName}
               />
             );
           })}
@@ -187,6 +188,11 @@ function DefenceScreenImpl() {
   const openDetail = useOpenDetail();
   const { data: statsMap, loading: statsLoading, error: statsError, refresh: statsRefresh } = useDeepScreenData(ALL_EQUITIES);
 
+  // Wrapper to pass sector context when opening details from this screen
+  const openDetailWithContext = useCallback((symbol) => {
+    openDetail(symbol, 'Defence & Aerospace');
+  }, [openDetail]);
+
   /* ── Prepare scatter plot data: P/E vs Market Cap ──────────────────── */
   const scatterData = useMemo(() => {
     if (statsMap.size === 0) return [];
@@ -224,7 +230,7 @@ function DefenceScreenImpl() {
       title: 'US Defence Primes',
       component: () => (
         <StatsLoadGate statsMap={statsMap} loading={statsLoading} error={statsError} refresh={statsRefresh}>
-          <SectionTable tickers={US_PRIMES} statsMap={statsMap} withMiniCharts={true} accentColor="#ef5350" />
+          <SectionTable tickers={US_PRIMES} statsMap={statsMap} withMiniCharts={true} accentColor="#ef5350" sectionName="Defence & Aerospace" />
         </StatsLoadGate>
       ),
     },
@@ -233,7 +239,7 @@ function DefenceScreenImpl() {
       title: 'EU Defence (ADRs)',
       component: () => (
         <StatsLoadGate statsMap={statsMap} loading={statsLoading} error={statsError} refresh={statsRefresh}>
-          <SectionTable tickers={EU_DEFENCE} statsMap={statsMap} />
+          <SectionTable tickers={EU_DEFENCE} statsMap={statsMap} sectionName="Defence & Aerospace" />
         </StatsLoadGate>
       ),
     },
@@ -246,7 +252,7 @@ function DefenceScreenImpl() {
           tickers={ALL_EQUITIES}
           metrics={['pe', 'marketCap', 'revenue', 'grossMargins', 'operatingMargins', 'returnOnEquity']}
           title="All Equities - Key Metrics"
-          onTickerClick={openDetail}
+          onTickerClick={openDetailWithContext}
           statsMap={statsMap}
         />
       ),
@@ -256,7 +262,7 @@ function DefenceScreenImpl() {
       title: 'Supply Chain & Tech',
       component: () => (
         <StatsLoadGate statsMap={statsMap} loading={statsLoading} error={statsError} refresh={statsRefresh}>
-          <SectionTable tickers={SUPPLY_CHAIN} statsMap={statsMap} />
+          <SectionTable tickers={SUPPLY_CHAIN} statsMap={statsMap} sectionName="Defence & Aerospace" />
         </StatsLoadGate>
       ),
     },
@@ -265,7 +271,7 @@ function DefenceScreenImpl() {
       title: 'Space & Cyber',
       component: () => (
         <StatsLoadGate statsMap={statsMap} loading={statsLoading} error={statsError} refresh={statsRefresh}>
-          <SectionTable tickers={SPACE_CYBER} statsMap={statsMap} />
+          <SectionTable tickers={SPACE_CYBER} statsMap={statsMap} sectionName="Defence & Aerospace" />
         </StatsLoadGate>
       ),
     },

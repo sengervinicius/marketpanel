@@ -17,6 +17,7 @@ function normalizeSymbol(input) {
 
 export function OpenDetailProvider({ children, externalTicker, externalSetTicker }) {
   const [internalTicker, internalSetTicker] = useState(null);
+  const [sectorContext, setSectorContext] = useState(null); // Track sector/screen context
 
   // Support both controlled (external state) and uncontrolled (internal state) modes
   const detailTicker = externalTicker !== undefined ? externalTicker : internalTicker;
@@ -26,18 +27,20 @@ export function OpenDetailProvider({ children, externalTicker, externalSetTicker
   const setDetailTickerRef = useRef(setDetailTicker);
   setDetailTickerRef.current = setDetailTicker;
 
-  const openDetail = useCallback((input) => {
+  const openDetail = useCallback((input, fromSector = null) => {
     const sym = normalizeSymbol(input);
     if (!sym) return; // silently no-op
+    setSectorContext(fromSector); // Store sector context if provided
     setDetailTickerRef.current(sym);
   }, []);
 
   const closeDetail = useCallback(() => {
     setDetailTickerRef.current(null);
+    setSectorContext(null);
   }, []);
 
   return (
-    <OpenDetailContext.Provider value={{ detailTicker, setDetailTicker, openDetail, closeDetail }}>
+    <OpenDetailContext.Provider value={{ detailTicker, setDetailTicker, openDetail, closeDetail, sectorContext, setSectorContext }}>
       {children}
     </OpenDetailContext.Provider>
   );
@@ -67,6 +70,17 @@ export function useDetailTicker() {
     return [null, () => {}, () => {}];
   }
   return [ctx.detailTicker, ctx.setDetailTicker, ctx.closeDetail];
+}
+
+/**
+ * useSectorContext — returns the current sector/screen context when opening a detail view
+ */
+export function useSectorContext() {
+  const ctx = useContext(OpenDetailContext);
+  if (!ctx) {
+    return null;
+  }
+  return ctx.sectorContext;
 }
 
 export default OpenDetailContext;

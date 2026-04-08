@@ -1,7 +1,8 @@
 // IndexPanel.jsx — world index ETF proxies, BBG-style
-import { useRef, useState, memo } from 'react';
+import { useRef, useState, memo, useEffect } from 'react';
 import { useFeedStatus } from '../../context/FeedStatusContext';
 import { useOpenDetail } from '../../context/OpenDetailContext';
+import SkeletonLoader from '../shared/SkeletonLoader';
 import { WORLD_INDEXES } from '../../utils/constants';
 import './IndexPanel.css';
 
@@ -20,8 +21,14 @@ function IndexPanel({ data = {}, loading, onTickerClick }) {
   const openDetail = useOpenDetail();
   const ptRef = useRef(null);
   const [collapsed, setCollapsed] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState(new Date());
   const { getBadge } = useFeedStatus();
   const badge = getBadge('stocks');
+
+  // Phase 2: Update timestamp whenever data changes
+  useEffect(() => {
+    setLastUpdated(new Date());
+  }, [data]);
   return (
     <div className="ip-container">
       <div className="ip-header">
@@ -30,6 +37,11 @@ function IndexPanel({ data = {}, loading, onTickerClick }) {
         <span className="ip-header-badge" style={{ background: badge.bg, color: badge.color, border: `1px solid ${badge.color}33` }}>
           {badge.text}
         </span>
+        {lastUpdated && (
+          <span style={{ color: 'var(--text-muted)', fontSize: 'var(--text-2xs)', fontFamily: 'var(--font-mono)', paddingLeft: '8px', borderLeft: '1px solid var(--border-subtle)' }} title={new Date(lastUpdated).toLocaleString()}>
+            {new Date(lastUpdated).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}
+          </span>
+        )}
         <div className="ip-header-spacer" />
         <button className="btn ip-collapse-btn" onClick={() => setCollapsed(v => !v)} title={collapsed ? 'Expand' : 'Collapse'}
         >{collapsed ? '+' : '−'}</button>
@@ -45,9 +57,7 @@ function IndexPanel({ data = {}, loading, onTickerClick }) {
       </div>
       <div className="ip-content">
         {loading || !data ? (
-          <div className="ip-loading" style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '8px 6px' }}>
-            {[1,2,3,4,5].map(i => <div key={i} className="shimmer-bar" style={{ width: `${85 - i*8}%`, height: 10, borderRadius: 3 }} />)}
-          </div>
+          <SkeletonLoader type="table" rows={6} columns={4} width="100%" height="auto" />
         ) : WORLD_INDEXES.map(idx => {
           const d   = data[idx.symbol] || {};
           const pos = (d.changePct ?? 0) >= 0;
@@ -69,7 +79,7 @@ function IndexPanel({ data = {}, loading, onTickerClick }) {
               onTouchMove={() => clearTimeout(ptRef.current)}
               onContextMenu={e => showInfo(e, idx.symbol, idx.label, 'ETF')}
               className="ip-row"
-              onMouseEnter={e => e.currentTarget.style.background = '#141414'}
+              onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
               onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
             >
               <span className="ip-row-symbol">{idx.symbol}</span>

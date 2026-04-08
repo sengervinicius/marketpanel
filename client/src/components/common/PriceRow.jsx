@@ -10,9 +10,12 @@
  *
  * Fix 4: Replaced dashes with shimmer loading states. Shows animated shimmer
  * placeholder when price is null (loading), falls back to dash after 10 seconds.
+ *
+ * Phase 2: Added `sparklineData` prop for optional inline sparklines (array of numbers).
  */
 import { memo, useState, useEffect } from 'react';
 import useMergedTickerQuote from './useMergedTickerQuote';
+import Sparkline from '../shared/Sparkline';
 import './Shimmer.css';
 
 const fmt2 = (n) => n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -27,6 +30,8 @@ function PriceRow({
   changePct: changePctProp,
   // Phase 8: optional ticker for PriceContext fallback
   ticker,
+  // Phase 2: optional sparkline data (array of numbers)
+  sparklineData = null,
   symbolColor = 'var(--text-primary)',
   columns = '60px 1fr 68px 60px',
   decimals = 2,
@@ -148,8 +153,14 @@ function PriceRow({
         textAlign: 'right',
         fontWeight: 600,
         fontVariantNumeric: 'tabular-nums',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'flex-end',
       }}>
         {renderChangePct(changePct)}
+        {sparklineData && sparklineData.length >= 2 && (
+          <Sparkline data={sparklineData} width={50} height={16} />
+        )}
       </span>
       {trailing}
     </div>

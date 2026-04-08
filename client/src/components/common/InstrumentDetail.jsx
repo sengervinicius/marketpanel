@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useIsMobile } from '../../hooks/useIsMobile';
-import { useOpenDetail } from '../../context/OpenDetailContext';
+import { useOpenDetail, useSectorContext } from '../../context/OpenDetailContext';
 import { useInstrumentData } from '../../hooks/useInstrumentData';
 import AlertEditor from './AlertEditor';
 import ShareModal from './ShareModal';
@@ -45,6 +45,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
   const handleClose = typeof onClose === 'function' ? onClose : () => {};
   const handleOpenChat = typeof onOpenChat === 'function' ? onOpenChat : null;
   const openDetail = useOpenDetail();
+  const sectorContext = useSectorContext();
 
   // Use the mobile detection hook
   const isMobile = useIsMobile();
@@ -1867,6 +1868,45 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
           title="Close (Esc)"
           className={`id-close${isMobile ? ' id-close--mobile' : ''}`}
         >✕</button>
+
+        {/* Breadcrumb navigation for sector context */}
+        {sectorContext && (
+          <div className="id-breadcrumb" style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            fontSize: '11px',
+            color: 'var(--text-muted)',
+            marginRight: '8px',
+          }}>
+            <button
+              onClick={() => {
+                // Navigate back to sector screen
+                window.dispatchEvent(new CustomEvent('senger:navigate-screen', {
+                  detail: { screenId: sectorContext.toLowerCase().replace(/\s+/g, '-') }
+                }));
+                handleClose();
+              }}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'var(--text-muted)',
+                cursor: 'pointer',
+                padding: 0,
+                fontSize: '11px',
+                textDecoration: 'none',
+                transition: 'color 0.15s',
+              }}
+              onMouseEnter={(e) => e.target.style.color = 'var(--text-primary)'}
+              onMouseLeave={(e) => e.target.style.color = 'var(--text-muted)'}
+              title="Back to sector"
+            >
+              {sectorContext}
+            </button>
+            <span style={{ color: 'var(--text-faint)' }}>›</span>
+            <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{disp}</span>
+          </div>
+        )}
 
         {isMobile ? (
           <div className="id-header-col id-header-col--flex">

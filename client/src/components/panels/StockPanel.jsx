@@ -13,6 +13,7 @@ import PanelShell from '../common/PanelShell';
 import { PriceRow } from '../common/PriceRow';
 import { SectionHeader } from '../common/SectionHeader';
 import ColumnHeaders from '../common/ColumnHeaders';
+import SkeletonLoader from '../shared/SkeletonLoader';
 import { US_STOCKS, BRAZIL_ADRS } from '../../utils/constants';
 import { useFeedStatus } from '../../context/FeedStatusContext';
 import '../common/Shimmer.css';
@@ -50,14 +51,17 @@ function sortItems(items, data, sortKey, sortDir) {
 }
 
 // Heatmap cell color based on % change
+// Uses semantic colors with opacity variations for intensity
 function heatColor(pct) {
   if (pct == null) return 'var(--border-default)';
-  if (pct >= 3)  return '#1b5e20';
-  if (pct >= 1)  return '#2e7d32';
-  if (pct >= 0)  return '#1a3a1a';
-  if (pct >= -1) return '#3a1a1a';
-  if (pct >= -3) return '#7f1010';
-  return '#b71c1c';
+  // Green intensity scale (positive)
+  if (pct >= 3)  return 'rgba(76, 175, 80, 0.6)';  // semantic-up, high intensity
+  if (pct >= 1)  return 'rgba(76, 175, 80, 0.4)';  // semantic-up, med intensity
+  if (pct >= 0)  return 'rgba(76, 175, 80, 0.15)'; // semantic-up, subtle
+  // Red intensity scale (negative)
+  if (pct >= -1) return 'rgba(239, 83, 80, 0.15)'; // semantic-down, subtle
+  if (pct >= -3) return 'rgba(239, 83, 80, 0.4)';  // semantic-down, med intensity
+  return 'rgba(239, 83, 80, 0.6)';                // semantic-down, high intensity
 }
 
 // Phase 8: Heatmap cell that merges snapshot with PriceContext
@@ -92,12 +96,12 @@ function HeatmapCell({ s, data, onTickerClick }) {
       onDoubleClick={() => openDetail(s.symbol)}
       onContextMenu={e => showInfo(e, s.symbol, s.label, 'EQUITY')}
       title={`${s.symbol}\n${fmtPct(pct)}`}
-      style={{ width: 54, height: 38, background: bg, border: '1px solid #222' }}
+      style={{ width: 54, height: 38, background: bg, border: '1px solid var(--border-subtle)' }}
       onMouseEnter={e => e.currentTarget.style.filter = 'brightness(1.4)'}
       onMouseLeave={e => e.currentTarget.style.filter = 'none'}
     >
       <span className="stp-movers-symbol">{s.symbol.replace('.SA', '')}</span>
-      <span className="stp-movers-pct" style={{ color: pos ? '#81c784' : '#ef9a9a', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{pctDisplay}</span>
+      <span className="stp-movers-pct" style={{ color: pos ? 'var(--semantic-up)' : 'var(--semantic-down)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{pctDisplay}</span>
     </div>
   );
 }
@@ -133,8 +137,14 @@ function StockPanel({ data = {}, loading, onTickerClick }) {
   const [configOpen, setConfigOpen] = useState(false);
   const [searchFilter, setSearchFilter] = useState('');
   const [flashSym, setFlashSym] = useState(null);
+  const [lastUpdated, setLastUpdated] = useState(new Date());
   const { getBadge } = useFeedStatus();
   const badge = getBadge('stocks');
+
+  // Phase 2: Update timestamp whenever data changes
+  useEffect(() => {
+    setLastUpdated(new Date());
+  }, [data]);
 
   const saveCfg = useCallback((updates) => {
     updatePanelConfig('usEquities', { ...panelCfg, ...updates });
@@ -258,6 +268,7 @@ function StockPanel({ data = {}, loading, onTickerClick }) {
         onDropTicker={handleDropTicker}
         onSearchChange={setSearchFilter}
         feedBadge={badge}
+        lastUpdated={lastUpdated}
       >
         {/* Movers filter toggle */}
         <button className={`stp-movers-btn ${moversOnly ? 'stp-movers-btn-active' : ''}`}
@@ -291,7 +302,7 @@ function StockPanel({ data = {}, loading, onTickerClick }) {
 
           <div className="stp-content">
             {loading || !data ? (
-              <div className="stp-loading">LOADING...</div>
+              <SkeletonLoader type="table" rows={8} columns={4} width="100%" height="auto" />
             ) : heatmap ? (
               /* Heatmap grid */
               <div className="stp-movers-grid">

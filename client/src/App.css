@@ -64,6 +64,37 @@ html, body, #root {
   animation: flashNeutral 2s ease-out forwards;
 }
 
+/* ── Phase 2: Screen Transition Animations ──────────── */
+@keyframes screenEnter {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes screenExit {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+}
+
+.screen-transition-enter {
+  animation: screenEnter var(--duration-fast) var(--ease-default) forwards;
+}
+
+.screen-transition-exit {
+  animation: screenExit var(--duration-fast) var(--ease-default) forwards;
+}
+
 /* ── Ticker tape ─────────────────────────────────── */
 @keyframes scrollLeft {
   from { transform: translateX(0); }

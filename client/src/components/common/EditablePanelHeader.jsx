@@ -26,6 +26,8 @@ export default function EditablePanelHeader({
   onDropTicker,
   onSearchChange,
   feedBadge,
+  // Phase 2: Last updated timestamp (ISO string or Date)
+  lastUpdated = null,
   children,
 }) {
   const [editingTitle, setEditingTitle] = useState(false);
@@ -108,6 +110,14 @@ export default function EditablePanelHeader({
         ))}
         {onConfigOpen && (<button className="eph-icon-btn" onClick={onConfigOpen} title="Configure panel">✎</button>)}
         {feedBadge && (<span className="eph-badge" style={{ background: feedBadge.bg, color: feedBadge.color, border: `1px solid ${feedBadge.color}33` }}>{feedBadge.text}</span>)}
+        {lastUpdated && (
+          <span className="eph-timestamp" title={new Date(lastUpdated).toLocaleString()}>
+            {(() => {
+              const date = new Date(lastUpdated);
+              return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+            })()}
+          </span>
+        )}
         <div className="eph-spacer" />
         {children}
         {onSearchChange && (

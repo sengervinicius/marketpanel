@@ -304,6 +304,11 @@
   flex-shrink: 0;
 }
 
+.sp-symbol-enhanced {
+  min-width: 60px;
+  flex-shrink: 0;
+}
+
 .sp-name {
   color: var(--text-muted);
   font-size: var(--font-xs);
@@ -311,6 +316,48 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   flex: 1;
+}
+
+.sp-name-enhanced {
+  flex: 1.5;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sp-sparkline-container {
+  flex-shrink: 0;
+  width: 50px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  margin: 0 4px;
+}
+
+.sp-price-cell {
+  font-size: var(--font-xs);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  min-width: 48px;
+  flex-shrink: 0;
+  text-align: right;
+}
+
+.sp-change-cell {
+  font-size: var(--font-xs);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  min-width: 42px;
+  flex-shrink: 0;
+  text-align: right;
+}
+
+.sp-marketcap-cell {
+  font-size: var(--font-2xs);
+  font-variant-numeric: tabular-nums;
+  min-width: 48px;
+  flex-shrink: 0;
+  text-align: right;
 }
 
 .sp-badge-container {
