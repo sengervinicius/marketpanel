@@ -69,22 +69,30 @@ function RichTooltip({ active, payload, label }) {
     return (
       <div
         style={{
-          background: 'var(--bg-tooltip)',
-          border: '1px solid var(--border-strong)',
-          borderRadius: 'var(--radius-md)',
-          padding: '8px 10px',
-          fontSize: 'var(--text-2xs)',
-          color: 'var(--text-secondary)',
+          background: 'rgba(13, 13, 20, 0.95)',
+          border: '1px solid rgba(255,255,255,0.1)',
+          borderRadius: '4px',
+          padding: '8px 12px',
+          fontSize: '10px',
+          color: '#e8e8ed',
+          backdropFilter: 'blur(8px)',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
         }}
       >
-        <div style={{ color: 'var(--text-muted)', marginBottom: 4 }}>
+        <div style={{ color: 'rgba(255,255,255,0.4)', marginBottom: 4, fontSize: '9px' }}>
           {data.dateLabel || label}
         </div>
-        <div style={{ fontFamily: 'var(--font-mono)', fontVariantNumeric: 'tabular-nums' }}>
-          Price: {formatDisplayPrice(price)}
+        <div style={{
+          fontFamily: 'var(--font-mono)',
+          fontVariantNumeric: 'tabular-nums',
+          fontSize: '12px',
+          fontWeight: 600,
+          letterSpacing: '0.3px',
+        }}>
+          {formatDisplayPrice(price)}
         </div>
-        {volume != null && (
-          <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-muted)', marginTop: 3 }}>
+        {volume != null && volume > 0 && (
+          <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.3)', marginTop: 3 }}>
             Vol: {formatPrice(volume, 0)}
           </div>
         )}
@@ -161,46 +169,38 @@ const PriceLabel = memo(function PriceLabel({ ticker, openPrice, closePrice, acc
 
   return (
     <div style={{
-      marginBottom: 'var(--space-2)',
-      paddingBottom: 'var(--space-1)',
-      borderBottom: '1px solid var(--border-subtle)',
+      display: 'flex',
+      alignItems: 'baseline',
+      gap: '10px',
+      marginBottom: '6px',
     }}>
-      <div style={{
-        fontSize: 'var(--text-xs)',
+      <span style={{
+        fontSize: '13px',
         fontWeight: 700,
-        color: accentColor || 'var(--accent)',
-        letterSpacing: '0.5px',
-        marginBottom: 'var(--space-1)',
+        color: accentColor || '#ff6600',
+        letterSpacing: '0.8px',
+        fontFamily: 'var(--font-ui)',
       }}>
         {ticker}
-      </div>
-      <div style={{
-        display: 'flex',
-        alignItems: 'baseline',
-        gap: 'var(--space-3)',
+      </span>
+      <span style={{
+        fontSize: '13px',
+        fontWeight: 600,
+        color: '#e8e8ed',
+        fontFamily: 'var(--font-mono)',
+        fontVariantNumeric: 'tabular-nums',
       }}>
-        <div
-          style={{
-            fontSize: 'var(--text-lg)',
-            fontWeight: 700,
-            color: 'var(--text-primary)',
-            fontFamily: 'var(--font-mono)',
-            fontVariantNumeric: 'tabular-nums',
-          }}
-        >
-          {formatDisplayPrice(closePrice)}
-        </div>
-        <div
-          style={{
-            fontSize: 'var(--text-sm)',
-            fontWeight: 600,
-            color: isUp ? 'var(--semantic-up)' : 'var(--semantic-down)',
-            fontVariantNumeric: 'tabular-nums',
-          }}
-        >
-          {isUp ? '+' : ''}{changePct}%
-        </div>
-      </div>
+        {formatDisplayPrice(closePrice)}
+      </span>
+      <span style={{
+        fontSize: '11px',
+        fontWeight: 600,
+        color: isUp ? '#4caf50' : '#ef5350',
+        fontVariantNumeric: 'tabular-nums',
+        fontFamily: 'var(--font-mono)',
+      }}>
+        {isUp ? '+' : ''}{changePct}%
+      </span>
     </div>
   );
 });
@@ -246,25 +246,26 @@ const ChartSection = memo(function ChartSection({
 
   return (
     <div
+      className="scc-chart-wrapper"
       style={{
         border: isHighlighted
-          ? `2px solid ${accentColor || 'var(--accent)'}`
-          : '1px solid var(--border-default)',
-        borderRadius: 'var(--radius-md)',
+          ? `1px solid ${accentColor || 'var(--accent)'}`
+          : '1px solid rgba(255,255,255,0.06)',
+        borderRadius: '6px',
         background: 'var(--bg-panel)',
         overflow: 'hidden',
-        transition: 'all var(--duration-instant) ease',
+        transition: 'all 200ms ease',
         boxShadow: isHighlighted
-          ? `0 0 12px ${accentColor || 'var(--accent)'}33`
-          : 'none',
+          ? `0 0 16px ${accentColor || 'var(--accent)'}22`
+          : '0 1px 4px rgba(0,0,0,0.3)',
       }}
     >
       {/* Price Chart */}
-      <div style={{ height: 280, position: 'relative' }}>
+      <div style={{ height: 260, position: 'relative' }}>
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart
             data={data}
-            margin={{ top: 8, right: 6, bottom: 0, left: 6 }}
+            margin={{ top: 10, right: 4, bottom: 0, left: 4 }}
             onMouseMove={(e) => {
               if (e?.activePayload?.[0]) {
                 setHoveredIndex(e.activePayload[0].payload.index);
@@ -277,71 +278,74 @@ const ChartSection = memo(function ChartSection({
               <linearGradient id={`grad-${ticker}`} x1="0" y1="0" x2="0" y2="1">
                 <stop
                   offset="5%"
-                  stopColor={lastClose >= firstClose ? 'var(--semantic-up)' : 'var(--semantic-down)'}
-                  stopOpacity={0.25}
+                  stopColor={lastClose >= firstClose ? '#4caf50' : '#ef5350'}
+                  stopOpacity={0.35}
                 />
                 <stop
                   offset="95%"
-                  stopColor={lastClose >= firstClose ? 'var(--semantic-up)' : 'var(--semantic-down)'}
-                  stopOpacity={0.01}
+                  stopColor={lastClose >= firstClose ? '#4caf50' : '#ef5350'}
+                  stopOpacity={0.02}
                 />
               </linearGradient>
             </defs>
 
-            {/* Professional grid */}
+            {/* Professional grid — visible on dark bg */}
             <CartesianGrid
-              strokeDasharray="3 3"
-              stroke="var(--border-subtle)"
-              verticalPoints={[]}
+              strokeDasharray="3 6"
+              stroke="rgba(255,255,255,0.05)"
+              horizontal={true}
+              vertical={false}
             />
 
             {/* Axes */}
             <XAxis
               dataKey="dateLabel"
-              tick={{ fill: 'var(--text-faint)', fontSize: 9 }}
+              tick={{ fill: 'rgba(255,255,255,0.25)', fontSize: 9, fontFamily: 'var(--font-mono)' }}
               interval={Math.max(0, Math.floor(data.length / 6))}
               tickLine={false}
-              axisLine={{ stroke: 'var(--border-default)' }}
+              axisLine={{ stroke: 'rgba(255,255,255,0.06)' }}
             />
             <YAxis
-              yAxisId="right"
-              position="right"
-              tick={{ fill: 'var(--text-faint)', fontSize: 9 }}
-              width={50}
+              yAxisId="price"
+              orientation="right"
+              tick={{ fill: 'rgba(255,255,255,0.25)', fontSize: 9, fontFamily: 'var(--font-mono)' }}
+              width={52}
               tickFormatter={(v) => '$' + formatPrice(v, 0)}
-              axisLine={{ stroke: 'var(--border-default)' }}
+              axisLine={false}
+              tickLine={false}
+              domain={['auto', 'auto']}
             />
 
-            {/* Rich tooltip */}
+            {/* Rich tooltip with crosshair cursor */}
             <Tooltip
               content={<RichTooltip />}
-              cursor={false}
+              cursor={{ stroke: 'rgba(255,255,255,0.15)', strokeWidth: 1, strokeDasharray: '4 4' }}
             />
 
             {/* Reference line at opening price */}
             <ReferenceLine
               y={firstClose}
-              yAxisId="right"
-              stroke="var(--border-subtle)"
-              strokeDasharray="3 3"
+              yAxisId="price"
+              stroke="rgba(255,255,255,0.08)"
+              strokeDasharray="4 4"
               strokeWidth={1}
-              strokeOpacity={0.5}
             />
 
             {/* Price area */}
             <Area
               type="monotone"
               dataKey="close"
-              yAxisId="right"
+              yAxisId="price"
               fill={`url(#grad-${ticker})`}
               stroke={priceColor}
-              strokeWidth={1.5}
+              strokeWidth={1.8}
               isAnimationActive={false}
               dot={false}
               activeDot={{
-                r: 3,
+                r: 4,
                 fill: priceColor,
-                strokeWidth: 0,
+                stroke: '#fff',
+                strokeWidth: 1.5,
               }}
             />
           </ComposedChart>
@@ -349,15 +353,15 @@ const ChartSection = memo(function ChartSection({
       </div>
 
       {/* Volume Chart */}
-      <div style={{ height: 40, borderTop: '1px solid var(--border-subtle)' }}>
+      <div style={{ height: 40, borderTop: '1px solid rgba(255,255,255,0.04)' }}>
         <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart data={data} margin={{ top: 2, right: 6, bottom: 0, left: 6 }}>
+          <ComposedChart data={data} margin={{ top: 2, right: 52, bottom: 0, left: 6 }}>
             <Bar
               dataKey="volume"
               yAxisId="volAxis"
-              fill="#1a3352"
-              opacity={0.6}
-              radius={[0, 0, 0, 0]}
+              fill="rgba(33, 150, 243, 0.25)"
+              radius={[1, 1, 0, 0]}
+              isAnimationActive={false}
             />
             <YAxis
               yAxisId="volAxis"

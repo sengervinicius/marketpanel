@@ -12,6 +12,15 @@
   }
 }
 
+/* Chart wrapper hover effect */
+.scc-chart-wrapper {
+  transition: border-color 200ms ease, box-shadow 200ms ease;
+}
+.scc-chart-wrapper:hover {
+  border-color: rgba(255,255,255,0.12) !important;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.4) !important;
+}
+
 /* Chart container defaults */
 .scc-root {
   display: flex;
