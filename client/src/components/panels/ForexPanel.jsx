@@ -1,6 +1,6 @@
 // ForexPanel.jsx — FX pairs + Crypto subsection, BBG-style, with sortable columns
 // Features: feed-status badge, collapse, movers filter, custom subsections
-import { useRef, useState, useMemo, useCallback, memo } from 'react';
+import { useRef, useState, useMemo, useCallback, memo, useEffect } from 'react';
 import { useSettings } from '../../context/SettingsContext';
 import { useOpenDetail } from '../../context/OpenDetailContext';
 import PanelConfigModal from '../common/PanelConfigModal';
@@ -12,6 +12,8 @@ import { SectionHeader } from '../common/SectionHeader';
 import ColumnHeaders from '../common/ColumnHeaders';
 import { FOREX_PAIRS, CRYPTO_PAIRS } from '../../utils/constants';
 import { useFeedStatus } from '../../context/FeedStatusContext';
+import { useSparklineData } from '../../hooks/useSparklineData';
+import SkeletonLoader from '../shared/SkeletonLoader';
 
 const COLS = '72px 1fr 76px 64px';
 
@@ -72,6 +74,12 @@ function ForexPanel({ data = {}, cryptoData = {}, loading, onTickerClick }) {
   const { getBadge } = useFeedStatus();
   const badge = getBadge('forex');
 
+  // Phase 2: Last-updated timestamp
+  const [lastUpdated, setLastUpdated] = useState(null);
+  useEffect(() => {
+    if (data && Object.keys(data).length > 0) setLastUpdated(new Date());
+  }, [data]);
+
   const saveCfg = useCallback((updates) => {
     updatePanelConfig('forex', { ...panelCfg, ...updates });
   }, [panelCfg, updatePanelConfig]);
@@ -125,6 +133,13 @@ function ForexPanel({ data = {}, cryptoData = {}, loading, onTickerClick }) {
   // Movers filter: abs(changePct) >= 1% for FX
   const filteredForex  = useMemo(() => moversOnly ? sortedForex.filter(p  => Math.abs(data?.[p.symbol]?.changePct ?? 0) >= 1)        : sortedForex,  [sortedForex,  data, moversOnly]);
   const filteredCrypto = useMemo(() => moversOnly ? sortedCrypto.filter(c => Math.abs(cryptoData?.[c.symbol]?.changePct ?? 0) >= 1)    : sortedCrypto, [sortedCrypto, cryptoData, moversOnly]);
+
+  // Phase 2: Sparkline data
+  const allFxTickers = useMemo(() => [
+    ...filteredForex.map(p => p.symbol),
+    ...filteredCrypto.map(c => 'X:' + c.symbol),
+  ], [filteredForex, filteredCrypto]);
+  const sparklines = useSparklineData(allFxTickers);
 
   // --- Subsection handlers ---
   const handleToggleSubsection = (key) => {
@@ -199,6 +214,7 @@ function ForexPanel({ data = {}, cryptoData = {}, loading, onTickerClick }) {
         onDropTicker={handleDropTicker}
         onSearchChange={setSearchFilter}
         feedBadge={badge}
+        lastUpdated={lastUpdated}
       >
         {/* Movers filter */}
         <button className="btn"
@@ -227,7 +243,7 @@ function ForexPanel({ data = {}, cryptoData = {}, loading, onTickerClick }) {
 
       <div style={{ flex: 1, overflowY: 'auto' }}>
         {loading ? (
-          <div style={{ padding: 'var(--sp-5)', textAlign: 'center', color: 'var(--text-muted)' }}>LOADING...</div>
+          <SkeletonLoader type="table" rows={6} columns={4} width="100%" height="auto" />
         ) : (
           <>
             {/* ── FX PAIRS ── */}
@@ -259,6 +275,7 @@ function ForexPanel({ data = {}, cryptoData = {}, loading, onTickerClick }) {
                     'data-ticker-label': pair.label,
                     'data-ticker-type': 'FX',
                   }}
+                  sparklineData={sparklines[pair.symbol]}
                 />
               );
             })}
@@ -297,6 +314,7 @@ function ForexPanel({ data = {}, cryptoData = {}, loading, onTickerClick }) {
                     'data-ticker-label': c.label,
                     'data-ticker-type': 'CRYPTO',
                   }}
+                  sparklineData={sparklines['X:' + c.symbol]}
                 />
               );
             })}

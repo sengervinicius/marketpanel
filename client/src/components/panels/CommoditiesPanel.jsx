@@ -1,6 +1,6 @@
 // CommoditiesPanel.jsx — commodities grouped by category, with sortable columns
 // Features: feed-status badge, collapse, editable header, search, drag-drop, custom subsections
-import { useRef, useState, useMemo, useCallback, memo } from 'react';
+import { useRef, useState, useMemo, useCallback, memo, useEffect } from 'react';
 import { useSettings } from '../../context/SettingsContext';
 import { useOpenDetail } from '../../context/OpenDetailContext';
 import PanelConfigModal from '../common/PanelConfigModal';
@@ -12,6 +12,8 @@ import { SectionHeader } from '../common/SectionHeader';
 import ColumnHeaders from '../common/ColumnHeaders';
 import { COMMODITIES } from '../../utils/constants';
 import { useFeedStatus } from '../../context/FeedStatusContext';
+import { useSparklineData } from '../../hooks/useSparklineData';
+import SkeletonLoader from '../shared/SkeletonLoader';
 
 const COLS = '44px 1fr 68px 60px';
 
@@ -69,6 +71,12 @@ function CommoditiesPanel({ data = {}, loading, onTickerClick }) {
   const [flashSym, setFlashSym] = useState(null);
   const { getBadge } = useFeedStatus();
   const badge = getBadge('commodities');
+
+  // Phase 2: Last-updated timestamp
+  const [lastUpdated, setLastUpdated] = useState(null);
+  useEffect(() => {
+    if (data && Object.keys(data).length > 0) setLastUpdated(new Date());
+  }, [data]);
 
   const saveCfg = useCallback((updates) => {
     updatePanelConfig('commodities', { ...panelCfg, ...updates });
@@ -178,6 +186,9 @@ function CommoditiesPanel({ data = {}, loading, onTickerClick }) {
     });
   }, [data, sortKey, sortDir, panelSymbols, searchFilter, moversOnly]);
 
+  const commodityTickers = useMemo(() => COMMODITIES.map(c => c.symbol), []);
+  const sparklines = useSparklineData(commodityTickers);
+
   return (
     <PanelShell onDropTicker={handleDropTicker}>
       {/* Header */}
@@ -187,6 +198,7 @@ function CommoditiesPanel({ data = {}, loading, onTickerClick }) {
         hiddenSubsections={hiddenSubsections}
         customSubsections={customSubsections}
         subsectionLabels={subsectionLabels}
+        lastUpdated={lastUpdated}
         onToggleSubsection={handleToggleSubsection}
         onTitleChange={(v) => saveCfg({ title: v })}
         onAddSubsection={handleAddSubsection}
@@ -221,7 +233,7 @@ function CommoditiesPanel({ data = {}, loading, onTickerClick }) {
 
         <div style={{ flex: 1, overflowY: 'auto' }}>
           {loading || !data ? (
-            <div style={{ padding: 'var(--sp-5)', textAlign: 'center', color: 'var(--text-muted)' }}>LOADING...</div>
+            <SkeletonLoader type="table" rows={6} columns={4} width="100%" height="auto" />
           ) : (
             <>
             {sortedGroups.map(g => {
@@ -248,6 +260,7 @@ function CommoditiesPanel({ data = {}, loading, onTickerClick }) {
                         onDoubleClick={() => openDetail(c.symbol)}
                         onTouchHold={() => openDetail(c.symbol)}
                         touchRef={ptRef}
+                        sparklineData={sparklines[c.symbol]}
                         onContextMenu={e => showInfo(e, c.symbol, c.label, 'COMMODITY')}
                         dataAttrs={{
                           'data-ticker': c.symbol,

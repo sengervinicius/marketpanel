@@ -6,6 +6,7 @@ import { useRef, useState, useMemo, useCallback, memo, useEffect } from 'react';
 import useMergedTickerQuote from '../common/useMergedTickerQuote';
 import { useSettings } from '../../context/SettingsContext';
 import { useOpenDetail } from '../../context/OpenDetailContext';
+import { useSparklineData } from '../../hooks/useSparklineData';
 import PanelConfigModal from '../common/PanelConfigModal';
 import EditablePanelHeader from '../common/EditablePanelHeader';
 import CustomSubsectionBlock from '../common/CustomSubsectionBlock';
@@ -145,6 +146,10 @@ function StockPanel({ data = {}, loading, onTickerClick }) {
   useEffect(() => {
     setLastUpdated(new Date());
   }, [data]);
+
+  // Phase 2: Sparkline data for stock tickers
+  const stockSparkTickers = useMemo(() => [...US_STOCKS, ...BRAZIL_ADRS].map(s => s.symbol), []);
+  const sparklines = useSparklineData(stockSparkTickers);
 
   const saveCfg = useCallback((updates) => {
     updatePanelConfig('usEquities', { ...panelCfg, ...updates });
@@ -332,6 +337,7 @@ function StockPanel({ data = {}, loading, onTickerClick }) {
                     onDoubleClick={() => openDetail(s.symbol)}
                     onTouchHold={() => openDetail(s.symbol)}
                     touchRef={ptRef}
+                    sparklineData={sparklines[s.symbol]}
                     onContextMenu={e => showInfo(e, s.symbol, s.label, 'EQUITY')}
                     dataAttrs={{
                       'data-ticker': s.symbol,
@@ -363,6 +369,7 @@ function StockPanel({ data = {}, loading, onTickerClick }) {
                         onDoubleClick={() => openDetail(s.symbol)}
                         onTouchHold={() => openDetail(s.symbol)}
                         touchRef={ptRef}
+                        sparklineData={sparklines[s.symbol]}
                         onContextMenu={e => showInfo(e, s.symbol, s.label, 'ADR')}
                         dataAttrs={{
                           'data-ticker': s.symbol,

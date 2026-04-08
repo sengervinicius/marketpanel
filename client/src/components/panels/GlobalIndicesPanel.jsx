@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo, memo } from 'react';
+import { useState, useRef, useMemo, memo, useEffect } from 'react';
 import { useSettings } from '../../context/SettingsContext';
 import { useOpenDetail } from '../../context/OpenDetailContext';
 import PanelConfigModal from '../common/PanelConfigModal';
@@ -7,6 +7,8 @@ import PanelShell from '../common/PanelShell';
 import { PriceRow } from '../common/PriceRow';
 import { SectionHeader } from '../common/SectionHeader';
 import ColumnHeaders from '../common/ColumnHeaders';
+import { useSparklineData } from '../../hooks/useSparklineData';
+import SkeletonLoader from '../shared/SkeletonLoader';
 
 const showInfo = (e, symbol, label, type) => {
   e.preventDefault();
@@ -45,6 +47,11 @@ function GlobalIndicesPanel({ data = {}, loading, onTickerClick }) {
   const openDetail = useOpenDetail();
   const ptRef = useRef(null);
   const { settings, updatePanelConfig } = useSettings();
+
+  const [lastUpdated, setLastUpdated] = useState(null);
+  useEffect(() => {
+    if (data && Object.keys(data).length > 0) setLastUpdated(new Date());
+  }, [data]);
 
   const panelCfg = settings?.panels?.globalIndices || {
     title: 'Global Indexes',
@@ -120,12 +127,18 @@ function GlobalIndicesPanel({ data = {}, loading, onTickerClick }) {
     return result;
   }, [panelSymbols, searchFilter, sortKey, sortDir, data]);
 
+  const allIndexTickers = useMemo(() =>
+    Object.values(REGIONS).flatMap(r => r.tickers),
+  []);
+  const sparklines = useSparklineData(allIndexTickers);
+
   return (
     <PanelShell onDropTicker={handleDropTicker}>
       <EditablePanelHeader
         title={panelTitle}
         availableSubsections={availableSubsections}
         hiddenSubsections={hiddenSubsections}
+        lastUpdated={lastUpdated}
         onToggleSubsection={(key) => {
           const current = hiddenSubsections || [];
           const updated = current.includes(key)
@@ -138,7 +151,7 @@ function GlobalIndicesPanel({ data = {}, loading, onTickerClick }) {
         onDropTicker={handleDropTicker}
         onSearchChange={setSearchFilter}
       >
-        {loading && <span style={{ color: 'var(--text-faint)', fontSize: 'var(--font-xs)' }}>LOADING...</span>}
+        {loading && <SkeletonLoader type="table" rows={6} columns={4} width="100%" height="auto" />}
       </EditablePanelHeader>
 
       {/* Sortable column headers */}
@@ -174,6 +187,7 @@ function GlobalIndicesPanel({ data = {}, loading, onTickerClick }) {
                       onDoubleClick={() => openDetail(ticker)}
                       onTouchHold={() => openDetail(ticker)}
                       touchRef={ptRef}
+                      sparklineData={sparklines[ticker]}
                       onContextMenu={e => showInfo(e, ticker, NAMES[ticker] || ticker, 'ETF')}
                       dataAttrs={{
                         'data-ticker': ticker,

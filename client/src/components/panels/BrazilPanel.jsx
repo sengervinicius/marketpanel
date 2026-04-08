@@ -5,6 +5,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo, memo } from 'react';
 import { useSettings } from '../../context/SettingsContext';
 import { useOpenDetail } from '../../context/OpenDetailContext';
+import { useSparklineData } from '../../hooks/useSparklineData';
 import PanelConfigModal from '../common/PanelConfigModal';
 import EditablePanelHeader from '../common/EditablePanelHeader';
 import PanelShell from '../common/PanelShell';
@@ -40,11 +41,23 @@ function BrazilPanel({ onTickerClick }) {
   const [loading, setLoading]         = useState(true);
   const [error, setError]             = useState(null);
   const [lastUpdate, setLastUpdate]   = useState(null);
+  const [lastUpdated, setLastUpdated] = useState(new Date());
   const [configOpen, setConfigOpen]   = useState(false);
   const [searchFilter, setSearchFilter] = useState('');
   const [collapsed, setCollapsed]     = useState(false);
   const [sortKey, setSortKey]         = useState(null);
   const [sortDir, setSortDir]         = useState('desc');
+
+  // Phase 2: Sparkline data for Brazil tickers
+  const brazilTickers = useMemo(() => panelSymbols.map(sym => sym.endsWith('.SA') ? sym : sym + '.SA'), [panelSymbols]);
+  const sparklines = useSparklineData(brazilTickers);
+
+  // Update lastUpdated when snapshot changes
+  useEffect(() => {
+    if (snapshot.length > 0) {
+      setLastUpdated(new Date());
+    }
+  }, [snapshot]);
 
   const handleDropTicker = (ticker) => {
     const sym = ticker.trim().toUpperCase();
@@ -151,6 +164,7 @@ function BrazilPanel({ onTickerClick }) {
         onDropTicker={handleDropTicker}
         onSearchChange={setSearchFilter}
         feedBadge={badge}
+        lastUpdated={lastUpdated}
       >
         <button className="btn"
           onClick={() => setCollapsed(v => !v)}
@@ -198,6 +212,7 @@ function BrazilPanel({ onTickerClick }) {
                 onDoubleClick={() => openDetail(sym)}
                 onTouchHold={() => openDetail(sym)}
                 touchRef={ptRef}
+                sparklineData={sparklines[sym]}
                 dataAttrs={{
                   'data-ticker': sym,
                   'data-ticker-label': s.name || s.symbol,

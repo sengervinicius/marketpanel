@@ -1,5 +1,5 @@
 // CryptoPanel.jsx — crypto pairs, settings-integrated
-import { useRef, useState, memo } from 'react';
+import { useRef, useState, memo, useEffect, useMemo } from 'react';
 import { useSettings } from '../../context/SettingsContext';
 import { useOpenDetail } from '../../context/OpenDetailContext';
 import PanelConfigModal from '../common/PanelConfigModal';
@@ -9,6 +9,8 @@ import { PriceRow } from '../common/PriceRow';
 import ColumnHeaders from '../common/ColumnHeaders';
 import { CRYPTO_PAIRS } from '../../utils/constants';
 import { useFeedStatus } from '../../context/FeedStatusContext';
+import { useSparklineData } from '../../hooks/useSparklineData';
+import SkeletonLoader from '../shared/SkeletonLoader';
 
 const COLS = '56px 1fr 80px 64px';
 
@@ -25,6 +27,12 @@ export function CryptoPanel({ data = {}, loading, onTickerClick }) {
   const { settings, updatePanelConfig } = useSettings();
   const { getBadge } = useFeedStatus();
   const badge = getBadge('crypto');
+
+  // Phase 2: Last-updated timestamp
+  const [lastUpdated, setLastUpdated] = useState(null);
+  useEffect(() => {
+    if (data && Object.keys(data).length > 0) setLastUpdated(new Date());
+  }, [data]);
 
   // Panel config from settings (with fallback defaults)
   const panelCfg = settings?.panels?.crypto || {
@@ -88,6 +96,10 @@ export function CryptoPanel({ data = {}, loading, onTickerClick }) {
     });
   }
 
+  // Phase 2: Sparkline data for crypto tickers
+  const cryptoSparkTickers = useMemo(() => visiblePairs.map(c => 'X:' + c.symbol), [visiblePairs]);
+  const sparklines = useSparklineData(cryptoSparkTickers);
+
   return (
     <PanelShell onDropTicker={handleDropTicker}>
       {/* Header */}
@@ -95,6 +107,7 @@ export function CryptoPanel({ data = {}, loading, onTickerClick }) {
         title={panelTitle}
         availableSubsections={availableSubsections}
         hiddenSubsections={hiddenSubsections}
+        lastUpdated={lastUpdated}
         onToggleSubsection={(key) => {
           const current = hiddenSubsections || [];
           const updated = current.includes(key)
@@ -132,7 +145,7 @@ export function CryptoPanel({ data = {}, loading, onTickerClick }) {
 
         <div style={{ flex: 1, overflowY: 'auto' }}>
           {loading || !data ? (
-            <div style={{ padding: 'var(--sp-5)', textAlign: 'center', color: 'var(--text-muted)' }}>LOADING...</div>
+            <SkeletonLoader type="table" rows={6} columns={4} width="100%" height="auto" />
           ) : visiblePairs.length > 0 ? visiblePairs.map(c => {
             const d = data[c.symbol] || {};
             const chartSym = 'X:' + c.symbol;
@@ -153,6 +166,7 @@ export function CryptoPanel({ data = {}, loading, onTickerClick }) {
                 onDoubleClick={() => openDetail(chartSym)}
                 onTouchHold={() => openDetail(c.symbol)}
                 touchRef={ptRef}
+                sparklineData={sparklines['X:' + c.symbol]}
                 dataAttrs={{
                   'data-ticker': c.symbol,
                   'data-ticker-label': c.label || c.name || c.symbol,
