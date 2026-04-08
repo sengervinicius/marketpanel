@@ -10,6 +10,7 @@ import ShareModal from './ShareModal';
 import PositionEditor from './PositionEditor';
 import TradeModal from './TradeModal';
 import InstrumentOptionsPanel from './InstrumentOptionsPanel';
+import { useTickerPrice } from '../../context/PriceContext';
 import './InstrumentDetail.css';
 import {
   AreaChart, Area, BarChart, Bar, ComposedChart, Line,
@@ -42,6 +43,51 @@ import {
 
 // ── NO_DATA exchanges — now driven by providerMatrix ──
 const NO_DATA_EXCHANGES = new Set([]);
+
+// ── Name overrides for display ──
+const RELATED_NAMES = {
+  LMT:'Lockheed', RTX:'Raytheon', BA:'Boeing', NOC:'Northrop', GD:'Gen Dynamics', BAESY:'BAE', PLTR:'Palantir', RKLB:'Rocket Lab', KTOS:'Kratos',
+  NVDA:'NVIDIA', MSFT:'Microsoft', AAPL:'Apple', GOOGL:'Alphabet', META:'Meta', AMZN:'Amazon', TSM:'TSMC', AMD:'AMD', AVGO:'Broadcom',
+  XOM:'Exxon', CVX:'Chevron', SHEL:'Shell', COP:'Conoco', SLB:'Schlumberger', NEE:'NextEra', ENPH:'Enphase', FSLR:'First Solar',
+  EWZ:'Brazil ETF', MELI:'MercadoLibre', NU:'Nu Holdings', VALE:'Vale ADR',
+  TLT:'20Y Treasury', IEF:'7-10Y Treasury', SHY:'1-3Y Treasury', AGG:'US Agg Bond', HYG:'High Yield', LQD:'IG Corporate', EMB:'EM Bonds', TIP:'TIPS',
+  SPY:'S&P 500', QQQ:'Nasdaq 100', DIA:'Dow Jones', IWM:'Russell 2000', GLD:'Gold', USO:'Oil',
+  MSTR:'MicroStrategy', COIN:'Coinbase', IBIT:'iShares BTC',
+  BABA:'Alibaba', TM:'Toyota', SONY:'Sony', HDB:'HDFC Bank', INFY:'Infosys', TCEHY:'Tencent',
+  SAP:'SAP', AZN:'AstraZeneca', NVO:'Novo Nordisk', LVMUY:'LVMH', HSBC:'HSBC', TTE:'TotalEnergies',
+  WMT:'Walmart', COST:'Costco', TGT:'Target', HD:'Home Depot', NKE:'Nike', SBUX:'Starbucks',
+};
+
+// ── Related Ticker Chip (mini component for "Also In" section) ──
+function RelatedTickerChip({ ticker, onOpen, sectorContext }) {
+  const priceData = useTickerPrice(ticker);
+  const displayTk = (ticker || '').replace(/^C:/, '').replace(/^X:/, '').replace('.SA', '').replace('=F', '');
+  const name = RELATED_NAMES[ticker] || RELATED_NAMES[displayTk] || displayTk;
+  const price = priceData?.price;
+  const changePct = priceData?.changePct;
+  const isUp = changePct != null ? changePct >= 0 : true;
+
+  return (
+    <div
+      className="id-related-chip"
+      onClick={() => onOpen(ticker, sectorContext)}
+      onTouchEnd={(e) => { e.preventDefault(); onOpen(ticker, sectorContext); }}
+    >
+      <span className="id-related-chip-ticker">{displayTk}</span>
+      <span className="id-related-chip-name">{name}</span>
+      {price != null && (
+        <span className="id-related-chip-price">
+          {price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+        </span>
+      )}
+      {changePct != null && (
+        <span className={`id-related-chip-chg ${isUp ? 'up' : 'down'}`}>
+          {changePct >= 0 ? '+' : ''}{changePct.toFixed(2)}%
+        </span>
+      )}
+    </div>
+  );
+}
 
 // ── Main Component ──────────────────────────────────────────────────────────
 // asPage=true: renders as a scrollable page (DETAIL tab on mobile), no fixed overlay
@@ -504,9 +550,9 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
       const exchangeLabel = getExchangeName(detectedExchange);
       return (
         <div className="id-ai-overview-fallback" style={{ padding: '16px' }}>
-          <div style={{
-            background: '#1a1400', border: '1px solid #ffd54f33', borderRadius: 6,
-            padding: '10px 14px', marginBottom: 12, color: '#ffd54f', fontSize: 13,
+          <div className="id-degraded-banner" style={{
+            borderRadius: 6,
+            marginBottom: 12,
           }}>
             This instrument is on {exchangeLabel}. Live data is not available. Showing AI-generated overview.
           </div>
@@ -516,17 +562,15 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
             </div>
           )}
           {aiOverview?.body && (
-            <div style={{ color: '#ccc', lineHeight: 1.6, fontSize: 14 }}>
+            <div style={{ color: 'var(--text-secondary)', lineHeight: 1.6, fontSize: 14 }}>
               {aiOverview.body}
             </div>
           )}
           {!aiOverviewLoading && !aiOverview && (
             <button
               onClick={fetchAiOverview}
-              style={{
-                background: '#1a1a2e', border: '1px solid #4fc3f733', borderRadius: 6,
-                color: '#4fc3f7', padding: '8px 16px', cursor: 'pointer', fontSize: 13,
-              }}
+              className="id-action-btn"
+              style={{ borderRadius: 6 }}
             >
               Generate AI Overview
             </button>
@@ -799,7 +843,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
                 formatter={v => [fmt(v, 0), 'Volume']}
                 labelStyle={{ color: 'var(--text-muted)' }}
               />
-              <Bar dataKey="volume" fill="#1a3352" opacity={0.85} radius={[1, 1, 0, 0]} />
+              <Bar dataKey="volume" fill="var(--bg-active, #1a3352)" opacity={0.85} radius={[1, 1, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -1409,20 +1453,18 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
         {/* Key Executives from Twelve Data */}
         {Array.isArray(tdExecutives) && tdExecutives.length > 0 && (
           <Section title="KEY EXECUTIVES">
-            <table className="id-stat-table" style={{ width: '100%', fontSize: 10 }}>
+            <table className="id-stat-table">
               <thead>
-                <tr style={{ color: '#888', fontSize: 8 }}>
-                  <th style={{ textAlign: 'left', padding: '2px 4px' }}>Name</th>
-                  <th style={{ textAlign: 'left', padding: '2px 4px' }}>Title</th>
+                <tr>
+                  <th>Name</th>
+                  <th>Title</th>
                 </tr>
               </thead>
               <tbody>
                 {tdExecutives.slice(0, 8).map((ex, i) => (
-                  <tr key={i} style={{ borderBottom: '1px solid #1a1a1a' }}>
-                    <td style={{ padding: '3px 4px', color: '#e0e0e0' }}>{ex.name}</td>
-                    <td style={{ padding: '3px 4px', color: '#888', maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {ex.title}
-                    </td>
+                  <tr key={i}>
+                    <td className="val-primary">{ex.name}</td>
+                    <td className="val-muted cell-truncate">{ex.title}</td>
                   </tr>
                 ))}
               </tbody>
@@ -1435,24 +1477,24 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
           <>
             {Array.isArray(tdHolders.institutional) && tdHolders.institutional.length > 0 && (
               <Section title="TOP INSTITUTIONAL HOLDERS">
-                <table className="id-stat-table" style={{ width: '100%', fontSize: 10 }}>
+                <table className="id-stat-table">
                   <thead>
-                    <tr style={{ color: '#888', fontSize: 8 }}>
-                      <th style={{ textAlign: 'left', padding: '2px 4px' }}>Holder</th>
-                      <th style={{ textAlign: 'right', padding: '2px 4px' }}>Shares</th>
-                      <th style={{ textAlign: 'right', padding: '2px 4px' }}>Value</th>
+                    <tr>
+                      <th>Holder</th>
+                      <th className="text-right">Shares</th>
+                      <th className="text-right">Value</th>
                     </tr>
                   </thead>
                   <tbody>
                     {tdHolders.institutional.slice(0, 10).map((h, i) => (
-                      <tr key={i} style={{ borderBottom: '1px solid #1a1a1a' }}>
-                        <td style={{ padding: '3px 4px', color: '#e0e0e0', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <tr key={i}>
+                        <td className="val-primary cell-truncate">
                           {h.entity_name || h.name}
                         </td>
-                        <td style={{ padding: '3px 4px', textAlign: 'right', fontFamily: 'monospace' }}>
+                        <td className="val-mono">
                           {h.shares != null ? Number(h.shares).toLocaleString() : '—'}
                         </td>
-                        <td style={{ padding: '3px 4px', textAlign: 'right', fontFamily: 'monospace', color: '#4fc3f7' }}>
+                        <td className="val-mono val-info">
                           {h.value != null ? '$' + (h.value >= 1e9 ? (h.value/1e9).toFixed(1) + 'B' : h.value >= 1e6 ? (h.value/1e6).toFixed(0) + 'M' : Number(h.value).toLocaleString()) : '—'}
                         </td>
                       </tr>
@@ -1463,24 +1505,24 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
             )}
             {Array.isArray(tdHolders.fund) && tdHolders.fund.length > 0 && (
               <Section title="TOP FUND HOLDERS">
-                <table className="id-stat-table" style={{ width: '100%', fontSize: 10 }}>
+                <table className="id-stat-table">
                   <thead>
-                    <tr style={{ color: '#888', fontSize: 8 }}>
-                      <th style={{ textAlign: 'left', padding: '2px 4px' }}>Fund</th>
-                      <th style={{ textAlign: 'right', padding: '2px 4px' }}>Shares</th>
-                      <th style={{ textAlign: 'right', padding: '2px 4px' }}>Weight</th>
+                    <tr>
+                      <th>Fund</th>
+                      <th className="text-right">Shares</th>
+                      <th className="text-right">Weight</th>
                     </tr>
                   </thead>
                   <tbody>
                     {tdHolders.fund.slice(0, 10).map((h, i) => (
-                      <tr key={i} style={{ borderBottom: '1px solid #1a1a1a' }}>
-                        <td style={{ padding: '3px 4px', color: '#e0e0e0', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <tr key={i}>
+                        <td className="val-primary cell-truncate">
                           {h.entity_name || h.name}
                         </td>
-                        <td style={{ padding: '3px 4px', textAlign: 'right', fontFamily: 'monospace' }}>
+                        <td className="val-mono">
                           {h.shares != null ? Number(h.shares).toLocaleString() : '—'}
                         </td>
-                        <td style={{ padding: '3px 4px', textAlign: 'right', fontFamily: 'monospace', color: '#ce93d8' }}>
+                        <td className="val-mono val-purple">
                           {h.weight != null ? (parseFloat(h.weight) * 100).toFixed(2) + '%' : '—'}
                         </td>
                       </tr>
@@ -1495,13 +1537,13 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
         {/* Earnings History from Twelve Data */}
         {tdEarnings && (Array.isArray(tdEarnings) ? tdEarnings : tdEarnings.earnings ? tdEarnings.earnings : []).length > 0 && (
           <Section title="EARNINGS HISTORY">
-            <table className="id-stat-table" style={{ width: '100%', fontSize: 10 }}>
+            <table className="id-stat-table">
               <thead>
-                <tr style={{ color: '#888', fontSize: 8 }}>
-                  <th style={{ textAlign: 'left', padding: '2px 4px' }}>Date</th>
-                  <th style={{ textAlign: 'right', padding: '2px 4px' }}>EPS Est.</th>
-                  <th style={{ textAlign: 'right', padding: '2px 4px' }}>EPS Act.</th>
-                  <th style={{ textAlign: 'right', padding: '2px 4px' }}>Surprise</th>
+                <tr>
+                  <th>Date</th>
+                  <th className="text-right">EPS Est.</th>
+                  <th className="text-right">EPS Act.</th>
+                  <th className="text-right">Surprise</th>
                 </tr>
               </thead>
               <tbody>
@@ -1510,16 +1552,15 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
                   const act = parseFloat(e.eps_actual);
                   const surprise = (!isNaN(est) && !isNaN(act) && est !== 0) ? ((act - est) / Math.abs(est) * 100) : null;
                   return (
-                    <tr key={i} style={{ borderBottom: '1px solid #1a1a1a' }}>
-                      <td style={{ padding: '3px 4px', color: '#888' }}>{e.date || e.report_date || '—'}</td>
-                      <td style={{ padding: '3px 4px', textAlign: 'right', fontFamily: 'monospace' }}>
+                    <tr key={i}>
+                      <td className="val-muted">{e.date || e.report_date || '—'}</td>
+                      <td className="val-mono">
                         {!isNaN(est) ? '$' + est.toFixed(2) : '—'}
                       </td>
-                      <td style={{ padding: '3px 4px', textAlign: 'right', fontFamily: 'monospace', fontWeight: 600 }}>
+                      <td className="val-mono val-bold">
                         {!isNaN(act) ? '$' + act.toFixed(2) : '—'}
                       </td>
-                      <td style={{ padding: '3px 4px', textAlign: 'right', fontFamily: 'monospace',
-                        color: surprise != null ? (surprise >= 0 ? '#66bb6a' : '#ef5350') : undefined }}>
+                      <td className={`val-mono ${surprise != null ? (surprise >= 0 ? 'val-up' : 'val-down') : ''}`}>
                         {surprise != null ? (surprise >= 0 ? '+' : '') + surprise.toFixed(1) + '%' : '—'}
                       </td>
                     </tr>
@@ -1573,16 +1614,34 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
   }
 
   // ── Related Tickers sub-render (from same sector) ──────────────────────────
+  const SECTOR_TICKER_MAP = useMemo(() => ({
+    'Defence & Aerospace': ['LMT', 'RTX', 'BA', 'NOC', 'GD', 'BAESY', 'PLTR', 'RKLB', 'KTOS'],
+    'Technology & AI': ['NVDA', 'MSFT', 'AAPL', 'GOOGL', 'META', 'AMZN', 'TSM', 'AMD', 'AVGO'],
+    'Energy & Commodities': ['XOM', 'CVX', 'SHEL', 'COP', 'SLB', 'NEE', 'ENPH', 'FSLR'],
+    'Brazil & EM': ['EWZ', 'MELI', 'NU', 'VALE', 'PETR4.SA', 'VALE3.SA', 'ITUB4.SA'],
+    'Fixed Income': ['TLT', 'IEF', 'SHY', 'AGG', 'HYG', 'LQD', 'EMB', 'TIP'],
+    'Global Macro': ['SPY', 'QQQ', 'DIA', 'IWM', 'GLD', 'USO', 'VIX'],
+    'FX & Crypto': ['X:BTCUSD', 'X:ETHUSD', 'X:SOLUSD', 'MSTR', 'COIN'],
+    'Crypto': ['X:BTCUSD', 'X:ETHUSD', 'X:SOLUSD', 'MSTR', 'COIN', 'IBIT'],
+    'Asian Markets': ['BABA', 'TM', 'SONY', 'HDB', 'TSM', 'INFY', 'TCEHY'],
+    'European Markets': ['SAP', 'AZN', 'NVO', 'SHEL', 'LVMUY', 'HSBC', 'TTE'],
+    'Global Retail': ['AMZN', 'WMT', 'COST', 'TGT', 'HD', 'NKE', 'SBUX'],
+  }), []);
+
   function renderRelatedTickers() {
     if (!sectorContext) return null;
 
-    // Get sector data from context - this is a placeholder for finding related tickers
-    // In production, you'd fetch actual ticker lists from the sector screen context
-    // For now, we'll show a simple message if sector context exists
+    const sectorTickers = SECTOR_TICKER_MAP[sectorContext] || [];
+    // Filter out current ticker
+    const related = sectorTickers.filter(t => t !== norm && t !== disp).slice(0, 8);
+    if (related.length === 0) return null;
+
     return (
       <Section title={`ALSO IN ${sectorContext.toUpperCase()}`}>
-        <div style={{ fontSize: '12px', color: 'var(--text-muted)', padding: '8px 0' }}>
-          Related tickers from {sectorContext} sector would appear here. Implementation pending sector data integration.
+        <div className="id-related-strip">
+          {related.map(ticker => (
+            <RelatedTickerChip key={ticker} ticker={ticker} onOpen={openDetail} sectorContext={sectorContext} />
+          ))}
         </div>
       </Section>
     );
@@ -1719,20 +1778,20 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
     return (
       <div className="id-section-group">
         {/* Insider Transactions */}
-        <div className="id-section-title" style={{ color: '#ce93d8' }}>INSIDER TRANSACTIONS</div>
+        <div className="id-section-title id-section-title--purple">INSIDER TRANSACTIONS</div>
         {insiderLoading && <div className="id-skeleton"><div className="id-skeleton-bar" style={{ width: '85%' }} /><div className="id-skeleton-bar" style={{ width: '70%' }} /><div className="id-skeleton-bar" style={{ width: '55%' }} /></div>}
         {!insiderLoading && insiders.length === 0 && (
-          <div style={{ fontSize: 10, color: '#666', padding: '4px 0' }}>No insider data available</div>
+          <div className="id-section-title--no-data">No insider data available</div>
         )}
         {insiders.length > 0 && (
-          <table className="id-stat-table" style={{ width: '100%', fontSize: 10 }}>
+          <table className="id-stat-table">
             <thead>
-              <tr style={{ color: '#888', fontSize: 8 }}>
-                <th style={{ textAlign: 'left', padding: '2px 4px' }}>Date</th>
-                <th style={{ textAlign: 'left', padding: '2px 4px' }}>Insider</th>
-                <th style={{ textAlign: 'left', padding: '2px 4px' }}>Type</th>
-                <th style={{ textAlign: 'right', padding: '2px 4px' }}>Shares</th>
-                <th style={{ textAlign: 'right', padding: '2px 4px' }}>Value</th>
+              <tr>
+                <th>Date</th>
+                <th>Insider</th>
+                <th>Type</th>
+                <th className="text-right">Shares</th>
+                <th className="text-right">Value</th>
               </tr>
             </thead>
             <tbody>
@@ -1740,18 +1799,18 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
                 const isBuy = (tx.type || tx.transactionType || '').toLowerCase().includes('buy') ||
                               (tx.type || tx.transactionType || '').toLowerCase().includes('purchase');
                 return (
-                  <tr key={i} style={{ borderBottom: '1px solid #1a1a1a' }}>
-                    <td style={{ padding: '3px 4px', color: '#888' }}>{fmtDate(tx.date || tx.filingDate)}</td>
-                    <td style={{ padding: '3px 4px', maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <tr key={i}>
+                    <td className="val-muted">{fmtDate(tx.date || tx.filingDate)}</td>
+                    <td className="cell-truncate">
                       {tx.name || tx.ownerName || tx.insider || '—'}
                     </td>
-                    <td style={{ padding: '3px 4px', color: isBuy ? '#66bb6a' : '#ef5350', fontWeight: 600 }}>
+                    <td className={`val-bold ${isBuy ? 'val-up' : 'val-down'}`}>
                       {(tx.type || tx.transactionType || '—').toUpperCase()}
                     </td>
-                    <td style={{ padding: '3px 4px', textAlign: 'right', fontFamily: 'monospace' }}>
+                    <td className="val-mono">
                       {tx.shares != null ? Math.abs(tx.shares).toLocaleString() : '—'}
                     </td>
-                    <td style={{ padding: '3px 4px', textAlign: 'right', fontFamily: 'monospace', color: isBuy ? '#66bb6a' : '#ef5350' }}>
+                    <td className={`val-mono ${isBuy ? 'val-up' : 'val-down'}`}>
                       {fmtAmt(tx.value || tx.amount)}
                     </td>
                   </tr>
@@ -1764,25 +1823,25 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
         {/* Dividends */}
         {dividends.length > 0 && (
           <>
-            <div className="id-section-title" style={{ color: '#66bb6a', marginTop: 12 }}>DIVIDEND HISTORY</div>
-            <table className="id-stat-table" style={{ width: '100%', fontSize: 10 }}>
+            <div className="id-section-title id-section-title--up" style={{ marginTop: 12 }}>DIVIDEND HISTORY</div>
+            <table className="id-stat-table">
               <thead>
-                <tr style={{ color: '#888', fontSize: 8 }}>
-                  <th style={{ textAlign: 'left', padding: '2px 4px' }}>Ex Date</th>
-                  <th style={{ textAlign: 'right', padding: '2px 4px' }}>Amount</th>
-                  <th style={{ textAlign: 'left', padding: '2px 4px' }}>Frequency</th>
-                  <th style={{ textAlign: 'left', padding: '2px 4px' }}>Pay Date</th>
+                <tr>
+                  <th>Ex Date</th>
+                  <th className="text-right">Amount</th>
+                  <th>Frequency</th>
+                  <th>Pay Date</th>
                 </tr>
               </thead>
               <tbody>
                 {dividends.slice(0, 8).map((d, i) => (
-                  <tr key={i} style={{ borderBottom: '1px solid #1a1a1a' }}>
-                    <td style={{ padding: '3px 4px', color: '#888' }}>{fmtDate(d.ex_dividend_date)}</td>
-                    <td style={{ padding: '3px 4px', textAlign: 'right', fontFamily: 'monospace', color: '#66bb6a' }}>
+                  <tr key={i}>
+                    <td className="val-muted">{fmtDate(d.ex_dividend_date)}</td>
+                    <td className="val-mono val-up">
                       ${d.cash_amount?.toFixed(4) ?? '—'}
                     </td>
-                    <td style={{ padding: '3px 4px' }}>{d.frequency ?? '—'}</td>
-                    <td style={{ padding: '3px 4px', color: '#888' }}>{fmtDate(d.pay_date)}</td>
+                    <td>{d.frequency ?? '—'}</td>
+                    <td className="val-muted">{fmtDate(d.pay_date)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -1793,10 +1852,10 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
         {/* Splits */}
         {splits.length > 0 && (
           <>
-            <div className="id-section-title" style={{ color: '#ff9800', marginTop: 12 }}>STOCK SPLITS</div>
+            <div className="id-section-title id-section-title--warn" style={{ marginTop: 12 }}>STOCK SPLITS</div>
             {splits.map((s, i) => (
-              <div key={i} style={{ fontSize: 10, padding: '3px 0', color: '#ccc' }}>
-                <span style={{ color: '#888' }}>{fmtDate(s.execution_date)}</span>
+              <div key={i} className="id-section-title--no-data" style={{ color: 'var(--text-secondary)' }}>
+                <span className="val-muted">{fmtDate(s.execution_date)}</span>
                 {' '}{s.split_from}:{s.split_to}
               </div>
             ))}
@@ -1806,14 +1865,14 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
         {/* Polygon Financials summary */}
         {Array.isArray(polyFinancials) && polyFinancials.length > 0 && (
           <>
-            <div className="id-section-title" style={{ color: '#4fc3f7', marginTop: 12 }}>ANNUAL FINANCIALS (POLYGON)</div>
-            <table className="id-stat-table" style={{ width: '100%', fontSize: 10 }}>
+            <div className="id-section-title id-section-title--info" style={{ marginTop: 12 }}>ANNUAL FINANCIALS (POLYGON)</div>
+            <table className="id-stat-table">
               <thead>
-                <tr style={{ color: '#888', fontSize: 8 }}>
-                  <th style={{ textAlign: 'left', padding: '2px 4px' }}>Period</th>
-                  <th style={{ textAlign: 'right', padding: '2px 4px' }}>Revenue</th>
-                  <th style={{ textAlign: 'right', padding: '2px 4px' }}>Net Inc.</th>
-                  <th style={{ textAlign: 'right', padding: '2px 4px' }}>EPS</th>
+                <tr>
+                  <th>Period</th>
+                  <th className="text-right">Revenue</th>
+                  <th className="text-right">Net Inc.</th>
+                  <th className="text-right">EPS</th>
                 </tr>
               </thead>
               <tbody>
@@ -1824,13 +1883,13 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
                   const eps = inc?.basic_earnings_per_share?.value ?? inc?.diluted_earnings_per_share?.value;
                   const fmtB = (n) => n == null ? '—' : (n >= 1e9 ? `$${(n/1e9).toFixed(1)}B` : n >= 1e6 ? `$${(n/1e6).toFixed(0)}M` : `$${n.toFixed(0)}`);
                   return (
-                    <tr key={i} style={{ borderBottom: '1px solid #1a1a1a' }}>
-                      <td style={{ padding: '3px 4px', color: '#888' }}>{f.fiscal_year || f.fiscal_period || '—'}</td>
-                      <td style={{ padding: '3px 4px', textAlign: 'right', fontFamily: 'monospace' }}>{fmtB(rev)}</td>
-                      <td style={{ padding: '3px 4px', textAlign: 'right', fontFamily: 'monospace', color: net != null && net >= 0 ? '#66bb6a' : '#ef5350' }}>
+                    <tr key={i}>
+                      <td className="val-muted">{f.fiscal_year || f.fiscal_period || '—'}</td>
+                      <td className="val-mono">{fmtB(rev)}</td>
+                      <td className={`val-mono ${net != null && net >= 0 ? 'val-up' : 'val-down'}`}>
                         {fmtB(net)}
                       </td>
-                      <td style={{ padding: '3px 4px', textAlign: 'right', fontFamily: 'monospace' }}>
+                      <td className="val-mono">
                         {eps != null ? `$${eps.toFixed(2)}` : '—'}
                       </td>
                     </tr>
@@ -1884,30 +1943,31 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
       return '$' + v.toFixed(0);
     };
 
+    const colorClassMap = { '#4fc3f7': 'val-info', '#ce93d8': 'val-purple', '#66bb6a': 'val-up' };
     const renderFinTable = (title, color, data, rows) => {
       if (!data || !Array.isArray(data) || data.length === 0) return null;
       const periods = data.slice(0, 4);
+      const labelClass = colorClassMap[color] || 'val-accent';
       return (
         <Section title={title}>
-          <table className="id-stat-table" style={{ width: '100%', fontSize: 10 }}>
+          <table className="id-stat-table">
             <thead>
-              <tr style={{ color: '#888', fontSize: 8 }}>
-                <th style={{ textAlign: 'left', padding: '2px 4px' }}>Metric</th>
+              <tr>
+                <th>Metric</th>
                 {periods.map((p, i) => (
-                  <th key={i} style={{ textAlign: 'right', padding: '2px 4px' }}>{p.fiscal_date || p.period || `Y${i+1}`}</th>
+                  <th key={i} className="text-right">{p.fiscal_date || p.period || `Y${i+1}`}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {rows.map(({ label, key }) => (
-                <tr key={key} style={{ borderBottom: '1px solid #1a1a1a' }}>
-                  <td style={{ padding: '3px 4px', color: color, fontSize: 9 }}>{label}</td>
+                <tr key={key}>
+                  <td className={labelClass} style={{ fontSize: 9 }}>{label}</td>
                   {periods.map((p, i) => {
                     const val = p[key];
                     const num = parseFloat(val);
                     return (
-                      <td key={i} style={{ padding: '3px 4px', textAlign: 'right', fontFamily: 'monospace',
-                        color: !isNaN(num) && num < 0 ? '#ef5350' : '#e0e0e0' }}>
+                      <td key={i} className={`val-mono ${!isNaN(num) && num < 0 ? 'val-down' : 'val-primary'}`}>
                         {fmtB(val)}
                       </td>
                     );
@@ -2053,7 +2113,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
         <div className="id-hero-meta">
           <div>
             <div className="id-hero-ticker" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              {logoUrl && <img src={logoUrl} alt="" style={{ width: 24, height: 24, borderRadius: 4, objectFit: 'contain', background: '#222' }} onError={e => { e.target.style.display = 'none'; }} />}
+              {logoUrl && <img src={logoUrl} alt="" style={{ width: 24, height: 24, borderRadius: 4, objectFit: 'contain', background: 'var(--bg-elevated)' }} onError={e => { e.target.style.display = 'none'; }} />}
               {disp}
             </div>
             <div className="id-hero-name">{name}</div>
@@ -2123,14 +2183,14 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
       </div>
 
       {/* ── DATA COVERAGE HEADER ── */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 12px', background: '#0a0a0a', borderBottom: '1px solid #222', flexWrap: 'wrap', fontSize: 9, letterSpacing: '0.5px' }}>
+      <div className="id-coverage-bar">
         {[
           { key: 'QUOTE', ...coverageInfo.quote },
           { key: 'CHART', ...coverageInfo.chart },
           { key: 'FUNDAMENTALS', ...coverageInfo.fundamentals },
           { key: 'AI', ...coverageInfo.ai },
         ].map(b => (
-          <span key={b.key} style={{ background: b.bg, color: b.color, border: `1px solid ${b.color}33`, borderRadius: 3, padding: '1px 6px', fontFamily: 'monospace', fontWeight: 600 }}>
+          <span key={b.key} className="id-coverage-badge" style={{ background: b.bg, color: b.color, borderColor: `${b.color}33` }}>
             {b.key}: {b.label}
           </span>
         ))}
@@ -2145,16 +2205,16 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
            !['US','ETF','FX','CRYPTO'].includes(grp));
         if (!isADR) return null;
         return (
-          <div style={{ background: '#0a1520', borderBottom: '1px solid #1a3050', padding: '4px 12px', fontSize: 10, color: '#4dd0e1', display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ fontSize: 11, fontWeight: 700 }}>ADR</span>
+          <div className="id-adr-banner">
+            <strong>ADR</strong>
             <span>US-listed depositary receipt — quote data via US providers, local exchange data may differ</span>
           </div>
         );
       })()}
       {/* ── Degraded data banner (amber warning when 2+ sources fail) ── */}
       {isDegraded && (
-        <div style={{ background: '#2a1a00', borderBottom: '1px solid #4a3000', padding: '6px 12px', fontSize: 10, color: '#ff9800', display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ fontSize: 12 }}>&#9888;</span>
+        <div className="id-degraded-banner">
+          <span className="icon">&#9888;</span>
           <span>Partial coverage — {degradedSources.join(', ')} unavailable for this instrument</span>
         </div>
       )}
@@ -2172,40 +2232,21 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
 
         {/* Breadcrumb navigation for sector context */}
         {sectorContext && (
-          <div className="id-breadcrumb" style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            fontSize: '11px',
-            color: 'var(--text-muted)',
-            marginRight: '8px',
-          }}>
+          <div className="id-breadcrumb">
             <button
+              className="id-breadcrumb-link"
               onClick={() => {
-                // Navigate back to sector screen
                 window.dispatchEvent(new CustomEvent('senger:navigate-screen', {
                   detail: { screenId: sectorContext.toLowerCase().replace(/\s+/g, '-') }
                 }));
                 handleClose();
               }}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: 'var(--text-muted)',
-                cursor: 'pointer',
-                padding: 0,
-                fontSize: '11px',
-                textDecoration: 'none',
-                transition: 'color 0.15s',
-              }}
-              onMouseEnter={(e) => e.target.style.color = 'var(--text-primary)'}
-              onMouseLeave={(e) => e.target.style.color = 'var(--text-muted)'}
               title="Back to sector"
             >
               {sectorContext}
             </button>
-            <span style={{ color: 'var(--text-faint)' }}>›</span>
-            <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{disp}</span>
+            <span className="id-breadcrumb-sep">›</span>
+            <span className="id-breadcrumb-current">{disp}</span>
           </div>
         )}
 
@@ -2329,7 +2370,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
               { label: 'P/E', value: (fd.peRatio ?? ts.pe_ratio) != null ? parseFloat(fd.peRatio ?? ts.pe_ratio).toFixed(1) + 'x' : null },
               { label: 'EPS', value: (fd.eps ?? ts.eps) != null ? '$' + parseFloat(fd.eps ?? ts.eps).toFixed(2) : null },
               { label: 'BETA', value: (fd.beta ?? ts.beta) != null ? parseFloat(fd.beta ?? ts.beta).toFixed(2) : null },
-              { label: 'DIV', value: (fd.dividendYield ?? ts.dividend_yield) != null ? (parseFloat(fd.dividendYield ?? ts.dividend_yield) * 100).toFixed(2) + '%' : null, color: '#66bb6a' },
+              { label: 'DIV', value: (fd.dividendYield ?? ts.dividend_yield) != null ? (parseFloat(fd.dividendYield ?? ts.dividend_yield) * 100).toFixed(2) + '%' : null, color: 'var(--semantic-up)' },
               { label: 'VOL', value: volume != null ? (volume >= 1e6 ? (volume/1e6).toFixed(1) + 'M' : volume >= 1e3 ? (volume/1e3).toFixed(0) + 'K' : volume.toFixed(0)) : null },
               { label: '52W H', value: (fd.fiftyTwoWeekHigh ?? ts['52_week_high']) != null ? fmt(fd.fiftyTwoWeekHigh ?? ts['52_week_high']) : null },
               { label: '52W L', value: (fd.fiftyTwoWeekLow ?? ts['52_week_low']) != null ? fmt(fd.fiftyTwoWeekLow ?? ts['52_week_low']) : null },
