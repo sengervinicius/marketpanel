@@ -1,0 +1,58 @@
+/* SectionHeader.css — Unified section header styling */
+
+.sh-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-4) 0;
+  border-bottom: 1px solid;
+  border-bottom-color: color-mix(in srgb, currentColor 20%, transparent);
+  gap: var(--space-4);
+  font-family: var(--font-ui);
+}
+
+.sh-left {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  flex: 1;
+}
+
+.sh-title {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  line-height: var(--leading-tight);
+  margin: 0;
+  padding: 0;
+}
+
+.sh-subtitle {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  line-height: var(--leading-normal);
+  margin: 0;
+  padding: 0;
+}
+
+.sh-right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+/* ── Responsive ────────────────────────────── */
+
+@media (max-width: 768px) {
+  .sh-container {
+    flex-wrap: wrap;
+    padding: var(--space-3) 0;
+  }
+
+  .sh-right {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}

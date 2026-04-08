@@ -60,6 +60,7 @@ const AlertRow = memo(function AlertRow({ alert, onEdit, onToggle, onDismiss }) 
     <div
       className={`ap-row ${!alert.active && !isTriggered ? 'ap-row--inactive' : ''}`}
       onClick={() => openDetail(alert.symbol)}
+      onTouchEnd={(e) => { e.preventDefault(); openDetail(alert.symbol); }}
       onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--bg-hover)'}
       onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
     >

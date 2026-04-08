@@ -49,7 +49,11 @@ function EnhancedEquityRow({ symbol, stats, onClick }) {
   const mktCap = stats?.market_capitalization;
   const divYield = stats?.dividend_yield;
   return (
-    <tr className="ds-row-clickable" onClick={() => onClick(symbol)}>
+    <tr
+      className="ds-row-clickable"
+      onClick={() => onClick(symbol)}
+      onTouchEnd={(e) => { e.preventDefault(); onClick(symbol); }}
+    >
       <td className="ds-ticker-col" style={{ fontSize: 12, letterSpacing: '0.5px' }}>{symbol}</td>
       <td style={{ fontSize: 13, color: '#aaa' }}>{LABELS[symbol] || '—'}</td>
       <td style={{ fontSize: 14, color: '#fff', fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>
@@ -80,7 +84,7 @@ const EquitySection = memo(function EquitySection({ tickers, statsMap }) {
         </tr>
       </thead>
       <tbody>
-        {tickers.map(sym => <EnhancedEquityRow key={sym} symbol={sym} stats={statsMap.get(sym)} onClick={openDetail} />)}
+        {(Array.isArray(tickers) ? tickers : []).map(sym => <EnhancedEquityRow key={sym} symbol={sym} stats={statsMap.get(sym)} onClick={openDetail} />)}
       </tbody>
     </table>
   );
@@ -89,7 +93,11 @@ const EquitySection = memo(function EquitySection({ tickers, statsMap }) {
 function FuturesRow({ symbol, label, openDetail }) {
   const q = useTickerPrice(symbol);
   return (
-    <tr className="ds-row-clickable" onClick={() => openDetail(symbol)}>
+    <tr
+      className="ds-row-clickable"
+      onClick={() => openDetail(symbol)}
+      onTouchEnd={(e) => { e.preventDefault(); openDetail(symbol); }}
+    >
       <td className="ds-ticker-col">{symbol.replace('=F', '')}</td>
       <td>{label}</td>
       <td>{fmt(q?.price, 2)}</td>
@@ -109,7 +117,7 @@ const FuturesSection = memo(function FuturesSection() {
       <table className="ds-table">
         <thead><tr><th>Contract</th><th>Label</th><th>Price</th><th>1D%</th></tr></thead>
         <tbody>
-          {FUTURES.map(({ symbol, label }) => (
+          {(Array.isArray(FUTURES) ? FUTURES : []).map(({ symbol, label }) => (
             <FuturesRow key={symbol} symbol={symbol} label={label} openDetail={openDetail} />
           ))}
         </tbody>
@@ -140,7 +148,7 @@ const EtfStripSection = memo(function EtfStripSection() {
   const openDetail = useOpenDetail();
   return (
     <div className="ds-strip">
-      {ETF_SYMBOLS.map(sym => (
+      {(Array.isArray(ETF_SYMBOLS) ? ETF_SYMBOLS : []).map(sym => (
         <EtfCell key={sym} sym={sym} onClick={openDetail} />
       ))}
     </div>

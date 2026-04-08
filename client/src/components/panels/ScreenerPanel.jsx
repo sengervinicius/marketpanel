@@ -562,8 +562,10 @@ export default function ScreenerPanel() {
                     <td className="scr-td scr-td--check">
                       <input type="checkbox" checked={selectedRows.has(r.symbol)} onChange={() => toggleRow(r.symbol)} />
                     </td>
-                    <td className="scr-td scr-td--symbol"
+                    <td
+                      className="scr-td scr-td--symbol"
                       onClick={() => openDetail(r.symbol)}
+                      onTouchEnd={(e) => { e.preventDefault(); openDetail(r.symbol); }}
                       style={{ cursor: 'pointer' }}
                     >{r.symbol.replace('.SA', '')}</td>
                     <td className="scr-td scr-td--name">{r.name}</td>

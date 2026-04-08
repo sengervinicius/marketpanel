@@ -33,7 +33,12 @@ const TableRow = memo(function TableRow({ sym, name, openDetail, stats }) {
   const mktCap = stats?.market_capitalization ? parseFloat(stats.market_capitalization) : null;
   const pe = stats?.pe_ratio ? parseFloat(stats.pe_ratio) : null;
   return (
-    <tr key={sym} className="ds-row-clickable" onClick={() => openDetail(sym)}>
+    <tr
+      key={sym}
+      className="ds-row-clickable"
+      onClick={() => openDetail(sym)}
+      onTouchEnd={(e) => { e.preventDefault(); openDetail(sym); }}
+    >
       <td className="ds-ticker-col" style={{ fontSize: 12, letterSpacing: '0.5px' }}>{sym}</td>
       <td style={{ fontSize: 13, color: '#aaa' }}>{name || LABELS[sym] || '—'}</td>
       <td style={{ fontSize: 14, color: '#fff', fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>

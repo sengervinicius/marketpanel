@@ -1,0 +1,83 @@
+/* EmptyState.css — Empty/failed data state styling */
+
+.es-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  padding: var(--space-8);
+  background: var(--bg-panel);
+  border-radius: var(--radius-md);
+  border: 1px dashed var(--border-subtle);
+  min-height: 200px;
+  font-family: var(--font-ui);
+  text-align: center;
+}
+
+.es-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  background: var(--bg-surface);
+  border-radius: var(--radius-lg);
+  color: var(--text-muted);
+  font-size: 24px;
+}
+
+.es-message {
+  margin: 0;
+  padding: 0;
+  color: var(--text-muted);
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
+  max-width: 300px;
+}
+
+.es-retry-button {
+  padding: var(--space-2) var(--space-4);
+  background: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  color: white;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  font-family: var(--font-ui);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: all var(--duration-instant) var(--ease-default);
+}
+
+.es-retry-button:hover {
+  background: color-mix(in srgb, var(--accent) 85%, black);
+  border-color: color-mix(in srgb, var(--accent) 85%, black);
+  transform: translateY(-1px);
+}
+
+.es-retry-button:active {
+  transform: translateY(0);
+  opacity: 0.9;
+}
+
+/* ── Accessibility ────────────────────────── */
+
+.es-retry-button:focus {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+}
+
+/* ── Responsive ────────────────────────────– */
+
+@media (max-width: 768px) {
+  .es-container {
+    padding: var(--space-4);
+    min-height: 150px;
+  }
+
+  .es-message {
+    font-size: var(--text-sm);
+  }
+}

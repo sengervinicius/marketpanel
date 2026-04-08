@@ -118,7 +118,11 @@ const SparkChart = memo(function SparkChart({ ticker, label, rangeIdx }) {
   const firstVal = bars.length > 0 ? bars[0].v : null;
 
   return (
-    <div className="scs-chart" onClick={() => openDetail(ticker)}>
+    <div
+      className="scs-chart"
+      onClick={() => openDetail(ticker)}
+      onTouchEnd={(e) => { e.preventDefault(); openDetail(ticker); }}
+    >
       {/* Header */}
       <div className="scs-chart-head">
         <span className="scs-chart-ticker">{displayTicker}</span>

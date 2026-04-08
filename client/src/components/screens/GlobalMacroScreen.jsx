@@ -64,8 +64,13 @@ function GlobalSnapshot() {
         </tr>
       </thead>
       <tbody>
-        {data.map((row) => (
-          <tr key={row.country || row.code} className="ds-row-clickable" onClick={() => openDetail(row.country)}>
+        {(Array.isArray(data) ? data : []).map((row) => (
+          <tr
+            key={row.country || row.code}
+            className="ds-row-clickable"
+            onClick={() => openDetail(row.country)}
+            onTouchEnd={(e) => { e.preventDefault(); openDetail(row.country); }}
+          >
             <td className="ds-ticker-col">{row.country || row.code}</td>
             <td>{fmt(row.policyRate, 2)}</td>
             <td style={{ color: getCpiColor(row.cpiYoY) }}>{fmt(row.cpiYoY, 2)}</td>
@@ -284,11 +289,11 @@ function CentralBankRates() {
   if (error) return <DataUnavailable reason={error} />;
   if (!data || !Array.isArray(data)) return <DataUnavailable reason="No rate data" />;
 
-  const maxRate = Math.max(...data.map(d => d.policyRate || 0));
+  const maxRate = Math.max(...(Array.isArray(data) ? data : []).map(d => d.policyRate || 0));
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      {data.map((row) => (
+      {(Array.isArray(data) ? data : []).map((row) => (
         <div key={row.country} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <div style={{ minWidth: 60, fontSize: 11, fontWeight: 600, color: '#e0e0e0' }}>
             {row.country}
@@ -415,8 +420,13 @@ function EuropeanMarkets() {
         <tr><th>Ticker</th><th>Name</th><th>Price</th><th>1D %</th><th style={{ fontSize: 9 }}>CCY</th></tr>
       </thead>
       <tbody>
-        {stocks.map(([sym, d]) => (
-          <tr key={sym} className="ds-row-clickable" onClick={() => openDetail(sym)}>
+        {(Array.isArray(stocks) ? stocks : []).map(([sym, d]) => (
+          <tr
+            key={sym}
+            className="ds-row-clickable"
+            onClick={() => openDetail(sym)}
+            onTouchEnd={(e) => { e.preventDefault(); openDetail(sym); }}
+          >
             <td className="ds-ticker-col">{sym.replace('.L','').replace('.DE','').replace('.PA','')}</td>
             <td>{(d.name || sym).slice(0, 18)}</td>
             <td>{fmt(d.price)}</td>
@@ -464,7 +474,7 @@ function GlobalEquityIndexes() {
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 8 }}>
-      {indexes.map((symbol) => (
+      {(Array.isArray(indexes) ? indexes : []).map((symbol) => (
         <IndexCell key={symbol} symbol={symbol} onClick={openDetail} />
       ))}
     </div>
@@ -510,8 +520,13 @@ function MacroCalendar() {
         </tr>
       </thead>
       <tbody>
-        {events.map((ev, idx) => (
-          <tr key={idx} className="ds-row-clickable" onClick={() => ev.country && openDetail(ev.country)}>
+        {(Array.isArray(events) ? events : []).map((ev, idx) => (
+          <tr
+            key={idx}
+            className="ds-row-clickable"
+            onClick={() => ev.country && openDetail(ev.country)}
+            onTouchEnd={(e) => { e.preventDefault(); ev.country && openDetail(ev.country); }}
+          >
             <td style={{ fontSize: 10, color: '#999' }}>
               {ev.date ? new Date(ev.date).toLocaleDateString('en-US', { month: 'short', day: '2-digit' }) : '—'}
             </td>

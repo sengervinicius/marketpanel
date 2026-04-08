@@ -82,7 +82,11 @@ function CommodityRow({ symbol, label }) {
   const q = useTickerPrice(symbol);
   const openDetail = useOpenDetail();
   return (
-    <tr className="ds-row-clickable" onClick={() => openDetail(symbol)}>
+    <tr
+      className="ds-row-clickable"
+      onClick={() => openDetail(symbol)}
+      onTouchEnd={(e) => { e.preventDefault(); openDetail(symbol); }}
+    >
       <td className="ds-ticker-col">{label || symbol}</td>
       <td>{fmt(q?.price, 2)}</td>
       <td className={q?.changePct != null && q.changePct >= 0 ? 'ds-up' : 'ds-down'}>
@@ -99,7 +103,11 @@ function ProducerRow({ symbol, stats }) {
   const mktCap = stats?.market_capitalization;
   const divYield = stats?.dividend_yield;
   return (
-    <tr className="ds-row-clickable" onClick={() => openDetail(symbol)}>
+    <tr
+      className="ds-row-clickable"
+      onClick={() => openDetail(symbol)}
+      onTouchEnd={(e) => { e.preventDefault(); openDetail(symbol); }}
+    >
       <td className="ds-ticker-col" style={{ fontSize: 12, letterSpacing: '0.5px' }}>{symbol}</td>
       <td style={{ fontSize: 13, color: '#aaa' }}>{PRODUCER_LABELS[symbol] || '—'}</td>
       <td style={{ fontSize: 14, color: '#fff', fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>

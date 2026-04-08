@@ -39,7 +39,7 @@ function CustomTooltip({ active, payload, label }) {
       lineHeight: '14px',
     }}>
       <div style={{ color: '#aaa', marginBottom: 2, fontWeight: 600 }}>{label}</div>
-      {payload.map((entry, idx) => (
+      {(Array.isArray(payload) ? payload : []).map((entry, idx) => (
         <div key={idx} style={{ color: entry.fill || entry.color }}>
           {entry.name}: {fmtFinancial(entry.value)}
         </div>

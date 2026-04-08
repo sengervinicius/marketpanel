@@ -59,7 +59,7 @@ export function useScreenTickers({ exchange, limit = 40, sector = null, fallback
       .then(data => {
         if (!mountedRef.current) return;
         if (data.tickers && data.tickers.length > 0) {
-          const symbols = data.tickers.map(t => t.symbolKey);
+          const symbols = (Array.isArray(data.tickers) ? data.tickers : []).map(t => t.symbolKey);
           _cache.set(cacheKey, { data: symbols, ts: Date.now() });
           setTickers(symbols);
         } else {

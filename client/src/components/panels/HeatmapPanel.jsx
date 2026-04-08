@@ -43,6 +43,7 @@ function Tile({ ticker }) {
       className="hm-tile"
       style={{ background: bg }}
       onClick={() => openDetail(ticker)}
+      onTouchEnd={(e) => { e.preventDefault(); openDetail(ticker); }}
       title={`${ticker}: ${txt}`}
     >
       <span className="hm-tile-sym">{ticker}</span>

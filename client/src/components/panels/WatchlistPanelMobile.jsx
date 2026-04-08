@@ -181,7 +181,7 @@ function WatchlistPanelMobile({ onManage }) {
                   className="m-row wpm-row"
                   onClick={() => openDetail(sym)}
                   onTouchStart={(e) => handleRowTouchStart(sym, e)}
-                  onTouchEnd={handleRowTouchEnd}
+                  onTouchEnd={(e) => { handleRowTouchEnd(e); e.preventDefault(); openDetail(sym); }}
                   onTouchMove={handleRowTouchEnd}
                 >
                   {/* Symbol + name */}

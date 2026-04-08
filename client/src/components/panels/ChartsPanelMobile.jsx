@@ -575,6 +575,7 @@ function ChartsPanelMobile() {
         {currentSymbol && (
           <button
             onClick={() => openDetail(currentSymbol)}
+            onTouchEnd={(e) => { e.preventDefault(); openDetail(currentSymbol); }}
             style={{
               padding: '6px 10px', fontSize: 10, fontFamily: 'inherit',
               background: 'transparent', color: 'var(--accent, #ff6600)',

@@ -76,6 +76,7 @@ function ETFPanel() {
                   key={etf.symbol}
                   className="ep-row"
                   onClick={() => openDetail(etf.symbol)}
+                  onTouchEnd={(e) => { e.preventDefault(); openDetail(etf.symbol); }}
                 >
                   {/* Symbol and name */}
                   <div className="ep-row-left">

@@ -48,7 +48,11 @@ const INFRA_LABELS = {
 function FxRow({ symbol, label, onClick }) {
   const q = useTickerPrice(symbol);
   return (
-    <tr className="ds-row-clickable" onClick={() => onClick(symbol)}>
+    <tr
+      className="ds-row-clickable"
+      onClick={() => onClick(symbol)}
+      onTouchEnd={(e) => { e.preventDefault(); onClick(symbol); }}
+    >
       <td>{symbol.replace('C:', '')}</td>
       <td>{label || '—'}</td>
       <td>{q?.price != null ? fmt(q.price, 4) : '—'}</td>
@@ -60,7 +64,11 @@ function FxRow({ symbol, label, onClick }) {
 function CryptoRow({ symbol, label, onClick }) {
   const q = useTickerPrice(symbol);
   return (
-    <tr className="ds-row-clickable" onClick={() => onClick(symbol)}>
+    <tr
+      className="ds-row-clickable"
+      onClick={() => onClick(symbol)}
+      onTouchEnd={(e) => { e.preventDefault(); onClick(symbol); }}
+    >
       <td>{symbol.replace('X:', '')}</td>
       <td>{label || '—'}</td>
       <td>{q?.price != null ? fmt(q.price, 2) : '—'}</td>
@@ -74,7 +82,11 @@ function InfraRow({ symbol, stats, onClick }) {
   const mktCap = stats?.market_capitalization;
   const pe = stats?.pe_ratio;
   return (
-    <tr className="ds-row-clickable" onClick={() => onClick(symbol)}>
+    <tr
+      className="ds-row-clickable"
+      onClick={() => onClick(symbol)}
+      onTouchEnd={(e) => { e.preventDefault(); onClick(symbol); }}
+    >
       <td className="ds-ticker-col" style={{ fontSize: 12, letterSpacing: '0.5px' }}>{symbol}</td>
       <td style={{ fontSize: 13, color: '#aaa' }}>{INFRA_LABELS[symbol] || '—'}</td>
       <td style={{ fontSize: 14, color: '#fff', fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>

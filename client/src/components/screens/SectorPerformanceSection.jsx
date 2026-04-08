@@ -65,7 +65,12 @@ function SectorPerformanceSection({ tickers = [], title }) {
       </thead>
       <tbody>
         {rows.map(r => (
-          <tr key={r.symbol} className="ds-row-clickable" onClick={() => openDetail(r.symbol)}>
+          <tr
+            key={r.symbol}
+            className="ds-row-clickable"
+            onClick={() => openDetail(r.symbol)}
+            onTouchEnd={(e) => { e.preventDefault(); openDetail(r.symbol); }}
+          >
             <td className="ds-ticker-col">{r.symbol}</td>
             <td>{fmt(r.price)}</td>
             <td className={r.changePct1d != null && r.changePct1d >= 0 ? 'ds-up' : 'ds-down'}>

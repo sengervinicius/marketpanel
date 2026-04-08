@@ -172,7 +172,7 @@ function USTreasuryCurveSection() {
   const isInverted = spread2s10s != null && spread2s10s < 0;
 
   // Chart data
-  const chartData = parsed.map(p => ({
+  const chartData = (Array.isArray(parsed) ? parsed : []).map(p => ({
     tenor: p.tenor,
     yield: p.yield,
   })).filter(d => d.yield != null);
@@ -261,7 +261,7 @@ function MultiCountryCurvesSection() {
     return a.localeCompare(b);
   });
 
-  const chartData = tenorList.map(tenor => {
+  const chartData = (Array.isArray(tenorList) ? tenorList : []).map(tenor => {
     const row = { tenor };
     for (const country of ['US', 'DE', 'JP', 'GB']) {
       const pt = curveMap[country]?.find(p => p.tenor === tenor);
@@ -326,12 +326,12 @@ function SovereignYieldGridSection() {
         </tr>
       </thead>
       <tbody>
-        {countries.map(country => {
+        {(Array.isArray(countries) ? countries : []).map(country => {
           const curve = curveMap[country] || [];
           return (
             <tr key={country}>
               <td title={COUNTRY_LABELS[country]}>{country}</td>
-              {TENORS_SORT.map(tenor => {
+              {(Array.isArray(TENORS_SORT) ? TENORS_SORT : []).map(tenor => {
                 const pt = curve.find(p => p.tenor === tenor);
                 const val = pt?.yield;
                 return (
@@ -374,7 +374,7 @@ function IGCorporateSection() {
         </tr>
       </thead>
       <tbody>
-        {bonds.map((bond, i) => {
+        {(Array.isArray(bonds) ? bonds : []).map((bond, i) => {
           const coupon = bond.coupon != null
             ? (typeof bond.coupon === 'number' && bond.coupon < 1
                 ? (bond.coupon * 100).toFixed(2)
@@ -421,7 +421,7 @@ function HYCorporateSection() {
         </tr>
       </thead>
       <tbody>
-        {bonds.map((bond, i) => {
+        {(Array.isArray(bonds) ? bonds : []).map((bond, i) => {
           const coupon = bond.coupon != null
             ? (typeof bond.coupon === 'number' && bond.coupon < 1
                 ? (bond.coupon * 100).toFixed(2)
@@ -461,7 +461,7 @@ function SpreadDashboardSection() {
 
   return (
     <div className="fi-spreads-grid">
-      {spreads.slice(0, 6).map(s => {
+      {(Array.isArray(spreads) ? spreads : []).slice(0, 6).map(s => {
         const spreadCls = s.spread > 0 ? 'fi-spread--pos' : 'fi-spread--neg';
         return (
           <div key={s.country} className="fi-spread-card">
@@ -775,6 +775,7 @@ function EurBondETFCell({ ticker }) {
   return (
     <div
       onClick={() => openDetail(ticker)}
+      onTouchEnd={(e) => { e.preventDefault(); openDetail(ticker); }}
       style={{
         background: '#0d0d0d',
         border: '1px solid #1e1e1e',

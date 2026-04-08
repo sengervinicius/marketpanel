@@ -364,6 +364,7 @@ function PortfolioMobile({ onManage }) {
                   key={pos.id}
                   className="m-row pm-position-row"
                   onClick={() => openDetail(pos.symbol)}
+                  onTouchEnd={(e) => { e.preventDefault(); openDetail(pos.symbol); }}
                 >
                   {/* Symbol + subportfolio name */}
                   <div className="pm-position-left">

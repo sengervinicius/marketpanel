@@ -107,7 +107,11 @@ const TableRow = memo(function TableRow({ ticker, name, statsMap, openDetail }) 
   const q = useTickerPrice(sym);
 
   return (
-    <tr className="ds-row-clickable" onClick={() => openDetail(sym)}>
+    <tr
+      className="ds-row-clickable"
+      onClick={() => openDetail(sym)}
+      onTouchEnd={(e) => { e.preventDefault(); openDetail(sym); }}
+    >
       <td className="ds-ticker-col" style={{ fontSize: 12, letterSpacing: '0.5px' }}>{sym}</td>
       <td style={{ fontSize: 13, color: '#aaa' }}>{displayName || LABELS[sym] || '—'}</td>
       <td style={{ fontSize: 14, color: '#fff', fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>
@@ -159,7 +163,11 @@ const FxPairRow = memo(function FxPairRow({ pair, openDetail }) {
   const display = pair.replace(/^C:/, '');
 
   return (
-    <tr className="ds-row-clickable" onClick={() => openDetail(pair)}>
+    <tr
+      className="ds-row-clickable"
+      onClick={() => openDetail(pair)}
+      onTouchEnd={(e) => { e.preventDefault(); openDetail(pair); }}
+    >
       <td className="ds-ticker-col">{display}</td>
       <td>{fmt(q?.price, 4)}</td>
       <td className={q?.changePct != null && q.changePct >= 0 ? 'ds-up' : 'ds-down'}>

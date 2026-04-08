@@ -157,7 +157,12 @@ function FxRateRow({ sym, openDetail }) {
   const q = useTickerPrice(sym);
   const label = sym === 'C:USDBRL' ? 'USD/BRL' : 'EUR/BRL';
   return (
-    <tr key={sym} className="ds-row-clickable" onClick={() => openDetail(sym)}>
+    <tr
+      key={sym}
+      className="ds-row-clickable"
+      onClick={() => openDetail(sym)}
+      onTouchEnd={(e) => { e.preventDefault(); openDetail(sym); }}
+    >
       <td>{label}</td>
       <td>{q?.price != null ? fmt(q.price) : '—'}</td>
       <td className={q?.changePct >= 0 ? 'ds-val-pos' : 'ds-val-neg'}>
@@ -262,7 +267,12 @@ function EmFxRow({ sym, openDetail }) {
   const q = useTickerPrice(sym);
   const label = sym.replace('C:', '').replace('USD', '');
   return (
-    <tr key={sym} className="ds-row-clickable" onClick={() => openDetail(sym)}>
+    <tr
+      key={sym}
+      className="ds-row-clickable"
+      onClick={() => openDetail(sym)}
+      onTouchEnd={(e) => { e.preventDefault(); openDetail(sym); }}
+    >
       <td>{label}</td>
       <td>{q?.price != null ? fmt(q.price) : '—'}</td>
       <td className={q?.changePct >= 0 ? 'ds-val-pos' : 'ds-val-neg'}>
@@ -301,7 +311,12 @@ const EM_EQUITY_NAMES = { 'EWZ': 'Brazil', 'EWW': 'Mexico', 'INDA': 'India', 'FX
 function EmEtfCell({ sym, openDetail }) {
   const q = useTickerPrice(sym);
   return (
-    <tr key={sym} className="ds-row-clickable" onClick={() => openDetail(sym)}>
+    <tr
+      key={sym}
+      className="ds-row-clickable"
+      onClick={() => openDetail(sym)}
+      onTouchEnd={(e) => { e.preventDefault(); openDetail(sym); }}
+    >
       <td style={{ fontWeight: 600 }}>{sym}</td>
       <td>{q?.price != null ? fmt(q.price) : '—'}</td>
       <td className={q?.changePct >= 0 ? 'ds-val-pos' : 'ds-val-neg'}>

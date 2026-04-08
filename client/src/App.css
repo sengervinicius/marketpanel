@@ -1874,3 +1874,11 @@ textarea:focus-visible { outline: 1px solid var(--accent); outline-offset: 0; bo
 .layout-btn-pulse {
   animation: layout-pulse 2s ease-in-out infinite;
 }
+
+/* ── Touch/Tap Handling for iOS 300ms Delay Fix ────────────────── */
+[onTouchEnd], .interactive-row, .ds-row-clickable, .hm-tile, .ap-row, .ac-row-main, 
+.am-alert-row, .gp-position-row, .ep-row, .pm-position-row, .scr-td--symbol,
+.scs-chart, .ds-ticker-cell {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}

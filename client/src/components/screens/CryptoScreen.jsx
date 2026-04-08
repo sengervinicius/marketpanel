@@ -72,7 +72,11 @@ function CryptoMajorRow({ symbol, label, onClick }) {
   const q = useTickerPrice(symbol);
   const displaySym = symbol.replace('X:', '');
   return (
-    <tr className="ds-row-clickable" onClick={() => onClick(symbol)}>
+    <tr
+      className="ds-row-clickable"
+      onClick={() => onClick(symbol)}
+      onTouchEnd={(e) => { e.preventDefault(); onClick(symbol); }}
+    >
       <td className="ds-ticker-col">{displaySym}</td>
       <td>{label || '—'}</td>
       <td>{q?.price != null ? fmt(q.price, displaySym === 'BTC' ? 0 : 2) : '—'}</td>
@@ -90,7 +94,11 @@ function CryptoEquityRow({ symbol, label, stats, onClick }) {
   const pe = stats?.pe_ratio;
 
   return (
-    <tr className="ds-row-clickable" onClick={() => onClick(symbol)}>
+    <tr
+      className="ds-row-clickable"
+      onClick={() => onClick(symbol)}
+      onTouchEnd={(e) => { e.preventDefault(); onClick(symbol); }}
+    >
       <td className="ds-ticker-col" style={{ fontSize: 12, letterSpacing: '0.5px' }}>{symbol}</td>
       <td style={{ fontSize: 13, color: '#aaa' }}>{label || '—'}</td>
       <td style={{ fontSize: 14, color: '#fff', fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>
@@ -113,7 +121,11 @@ function CryptoEquityRow({ symbol, label, stats, onClick }) {
 function CryptoEtfRow({ symbol, label, onClick }) {
   const q = useTickerPrice(symbol);
   return (
-    <tr className="ds-row-clickable" onClick={() => onClick(symbol)}>
+    <tr
+      className="ds-row-clickable"
+      onClick={() => onClick(symbol)}
+      onTouchEnd={(e) => { e.preventDefault(); onClick(symbol); }}
+    >
       <td className="ds-ticker-col">{symbol}</td>
       <td>{label || '—'}</td>
       <td>{q?.price != null ? fmt(q.price, 2) : '—'}</td>

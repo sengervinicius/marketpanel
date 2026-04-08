@@ -143,6 +143,7 @@ function AlertsMobile() {
                   key={alert.id}
                   className={`m-row am-alert-row ${!alert.active && !isTriggered ? 'am-alert-row--inactive' : ''}`}
                   onClick={() => openDetail(alert.symbol)}
+                  onTouchEnd={(e) => { e.preventDefault(); openDetail(alert.symbol); }}
                 >
                   {/* Symbol + type + condition */}
                   <div className="am-alert-content">

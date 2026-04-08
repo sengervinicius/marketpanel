@@ -62,7 +62,11 @@ function EnhancedRow({ symbol, stats, onClick }) {
   const mktCap = stats?.market_capitalization;
 
   return (
-    <tr className="ds-row-clickable" onClick={() => onClick(symbol)}>
+    <tr
+      className="ds-row-clickable"
+      onClick={() => onClick(symbol)}
+      onTouchEnd={(e) => { e.preventDefault(); onClick(symbol); }}
+    >
       <td className="ds-ticker-col" style={{ fontSize: 12, letterSpacing: '0.5px' }}>{symbol}</td>
       <td style={{ fontSize: 13, color: '#aaa' }}>{LABELS[symbol] || '—'}</td>
       <td style={{ fontSize: 14, color: '#fff', fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>

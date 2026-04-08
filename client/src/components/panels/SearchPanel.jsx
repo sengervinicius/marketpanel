@@ -403,6 +403,7 @@ function SearchPanel({ onTickerSelect }) {
               draggable
               onDragStart={(e) => handleDragStart(e, item)}
               onClick={() => openDetail(item.symbol)}
+              onTouchEnd={(e) => { e.preventDefault(); openDetail(item.symbol); }}
               className="sp-result-row sp-result-row--ai"
             >
               <span className="sp-drag-icon">⠿</span>

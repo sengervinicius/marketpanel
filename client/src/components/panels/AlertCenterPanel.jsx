@@ -104,7 +104,11 @@ const AlertCenterRow = memo(function AlertCenterRow({ alert, onEdit, onAction })
 
   return (
     <div className={`ac-row ${!alert.active && !isTriggered ? 'ac-row--dim' : ''}`}>
-      <div className="ac-row-main" onClick={() => openDetail(alert.symbol)}>
+      <div
+        className="ac-row-main"
+        onClick={() => openDetail(alert.symbol)}
+        onTouchEnd={(e) => { e.preventDefault(); openDetail(alert.symbol); }}
+      >
         <div className="ac-row-top">
           <span className="ac-row-symbol">{alert.symbol === '__SCREENER__' ? 'SCREENER' : alert.symbol}</span>
           <Badge variant={isTriggered ? 'error' : isMuted ? 'warning' : 'neutral'} size="xs">{typeLabel}</Badge>

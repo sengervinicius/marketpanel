@@ -274,7 +274,7 @@ export function useInstrumentSearch({ debounceMs = 220, registryLimit = 20, enab
       }));
 
       // Normalize Polygon results (deduped)
-      const seen = new Set([...local.map(l => l.symbol), ...fromRegistry.map(r => r.symbol)]);
+      const seen = new Set([...(Array.isArray(local) ? local : []).map(l => l.symbol), ...(Array.isArray(fromRegistry) ? fromRegistry : []).map(r => r.symbol)]);
       const fromPoly = polyItems
         .filter(r => !seen.has(r.ticker || r.symbol))
         .map(r => ({

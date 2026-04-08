@@ -241,6 +241,7 @@ export default function GamePortfolioPanel({ mobile = false }) {
                 key={pos.symbol}
                 className="gp-position-row"
                 onClick={() => openDetail(pos.symbol)}
+                onTouchEnd={(e) => { e.preventDefault(); openDetail(pos.symbol); }}
               >
                 <div className="gp-pos-left">
                   <span className="gp-pos-symbol">{pos.symbol}</span>
