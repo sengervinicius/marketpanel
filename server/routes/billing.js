@@ -23,7 +23,8 @@ router.post('/create-session', async (req, res) => {
       );
     }
 
-    const result = await createCheckoutSession(req.user.id);
+    const plan = req.body?.plan === 'annual' ? 'annual' : 'monthly';
+    const result = await createCheckoutSession(req.user.id, plan);
     if (result.error) {
       logger.warn('POST /api/billing/create-session', `Checkout creation failed for user ${req.user.id}`, { error: result.error });
       return res.status(503).json(result);

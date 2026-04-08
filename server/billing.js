@@ -46,9 +46,13 @@ async function ensureStripeCustomer(stripe, user) {
  * Create a Stripe Checkout session.
  * Returns { checkoutUrl } on success, or an error object if Stripe is not configured.
  */
-async function createCheckoutSession(userId) {
+async function createCheckoutSession(userId, plan = 'monthly') {
   const stripe = getStripe();
-  if (!stripe || !process.env.STRIPE_PRICE_ID) {
+  const monthlyPriceId = process.env.STRIPE_PRICE_ID;
+  const annualPriceId  = process.env.STRIPE_ANNUAL_PRICE_ID;
+  const priceId = plan === 'annual' && annualPriceId ? annualPriceId : monthlyPriceId;
+
+  if (!stripe || !priceId) {
     return {
       error: 'Billing not configured',
       message: 'Billing not configured — set STRIPE_SECRET_KEY and STRIPE_PRICE_ID',
@@ -68,7 +72,7 @@ async function createCheckoutSession(userId) {
     payment_method_types: ['card'],            // enables Apple Pay & Google Pay automatically on eligible browsers
     payment_method_collection: 'always',       // always save the card for future charges
     line_items: [{
-      price:    process.env.STRIPE_PRICE_ID,
+      price:    priceId,
       quantity: 1,
     }],
     allow_promotion_codes: true,
@@ -76,7 +80,7 @@ async function createCheckoutSession(userId) {
     success_url: `${clientUrl}/?billing=success`,
     cancel_url:  `${clientUrl}/?billing=cancelled`,
     subscription_data: {
-      metadata: { userId: String(userId) },
+      metadata: { userId: String(userId), plan },
     },
   });
 
@@ -188,6 +192,44 @@ async function handleWebhookEvent(stripe, event) {
         const userId = Number(session.metadata.userId);
         await updateSubscription(userId, { stripeCustomerId: session.customer });
       }
+      break;
+    }
+
+    case 'invoice.payment_failed': {
+      // Payment failed — flag user with grace period before deactivation
+      const invoice = sub;
+      const customerId = invoice.customer;
+      const userId = await findUserIdByCustomer(customerId);
+      if (!userId) { console.warn('[billing] payment_failed: no userId for customer', customerId); break; }
+
+      const attemptCount = invoice.attempt_count || 1;
+      console.warn(`[billing] payment failed for user ${userId}, attempt #${attemptCount}`);
+
+      // After 3 failed attempts, deactivate subscription
+      if (attemptCount >= 3) {
+        await updateSubscription(userId, {
+          isPaid: false,
+          subscriptionActive: false,
+        });
+        console.warn(`[billing] user ${userId} deactivated after ${attemptCount} failed payment attempts`);
+      }
+      // Stripe handles retry scheduling via Smart Retries
+      break;
+    }
+
+    case 'customer.updated': {
+      // Track card expiry or customer info changes
+      const customer = sub;
+      const userId = await findUserIdByCustomer(customer.id);
+      if (!userId) break;
+      console.log(`[billing] customer updated for user ${userId}`);
+      break;
+    }
+
+    case 'charge.dispute.created': {
+      // Chargeback/dispute — log for manual review
+      const dispute = sub;
+      console.error(`[billing] DISPUTE created: ${dispute.id}, amount: ${dispute.amount}, reason: ${dispute.reason}`);
       break;
     }
 
