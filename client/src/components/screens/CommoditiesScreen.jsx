@@ -13,7 +13,7 @@
  * - Insider Activity (top 6 producers)
  * - Commodity ETFs
  */
-import { memo, useMemo } from 'react';
+import { memo, useMemo, useState } from 'react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import FullPageScreenLayout from './shared/FullPageScreenLayout';
 import { FundamentalsTable } from './shared/FundamentalsTable';
@@ -132,8 +132,8 @@ function ProducerRow({ symbol, stats }) {
 }
 
 /* ── Section components (memoized) ──────────────────────────────────────── */
-function SectorChartsSection() {
-  return <SectorChartPanel tickers={SECTOR_CHART_TICKERS} height={200} cols={3} />;
+function SectorChartsSection({ selectedTicker, onChartClick }) {
+  return <SectorChartPanel tickers={SECTOR_CHART_TICKERS} height={200} cols={3} selectedTicker={selectedTicker} onChartClick={onChartClick} />;
 }
 
 function EnergyFuturesSection() {
@@ -344,12 +344,13 @@ const EtfStripSection = memo(function EtfStripSection() {
 
 function CommoditiesScreenImpl() {
   const { data: statsMap, loading: statsLoading, error: statsError, refresh: statsRefresh } = useDeepScreenData(ALL_PRODUCERS);
+  const [selectedTicker, setSelectedTicker] = useState(null);
 
   const sections = useMemo(() => [
     {
       id: 'sector-charts',
       title: 'Sector Charts',
-      component: SectorChartsSection,
+      component: () => <SectorChartsSection selectedTicker={selectedTicker} onChartClick={setSelectedTicker} />,
       span: 'full',
     },
     {

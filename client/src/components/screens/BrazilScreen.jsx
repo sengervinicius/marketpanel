@@ -46,8 +46,8 @@ const EM_EQUITY_ETFS = ['EWZ', 'EWW', 'INDA', 'FXI', 'EEM', 'VWO'];
 const BRAZIL_ETFS = ['EWZ', 'FLBR', 'EWW', 'ARGT', 'INDA', 'FXI', 'EEM'];
 
 /* ── Sector Chart Panel ────────────────────────────────────────────────── */
-const SectorChartsComponent = memo(function SectorChartsComponent() {
-  return <SectorChartPanel tickers={SECTOR_CHART_TICKERS} height={180} cols={3} />;
+const SectorChartsComponent = memo(function SectorChartsComponent({ selectedTicker, onChartClick }) {
+  return <SectorChartPanel tickers={SECTOR_CHART_TICKERS} height={180} cols={3} selectedTicker={selectedTicker} onChartClick={onChartClick} />;
 });
 
 /* ── B3 Blue Chips (dynamic: resolves top 40 B3 stocks, falls back to static) ── */
@@ -402,6 +402,7 @@ function BrazilEtfCell({ sym, openDetail }) {
 function BrazilScreenImpl() {
   const openDetail = useOpenDetail();
   const [lastUpdated, setLastUpdated] = useState(new Date());
+  const [selectedTicker, setSelectedTicker] = useState(null);
 
   useEffect(() => {
     const interval = setInterval(() => setLastUpdated(new Date()), 30000);
@@ -412,7 +413,7 @@ function BrazilScreenImpl() {
     {
       id: 'sector-charts',
       title: 'SECTOR CHARTS',
-      component: SectorChartsComponent,
+      component: () => <SectorChartsComponent selectedTicker={selectedTicker} onChartClick={setSelectedTicker} />,
       span: 'full',
     },
     {

@@ -4,7 +4,7 @@
  * Integrates FullPageScreenLayout, FundamentalsTable, SectorChartPanel, SectorScatterPlot,
  * and InsiderActivity for multi-dimensional retail sector analysis.
  */
-import { memo, useMemo } from 'react';
+import { memo, useMemo, useState } from 'react';
 import FullPageScreenLayout from './shared/FullPageScreenLayout';
 import { FundamentalsTable } from './shared/FundamentalsTable';
 import { SectorChartPanel } from './shared/SectorChartPanel';
@@ -150,6 +150,7 @@ const EtfStrip = memo(function EtfStrip() {
 function GlobalRetailScreenImpl() {
   const openDetail = useOpenDetail();
   const { data: statsMap, loading: statsLoading, error: statsError, refresh: statsRefresh } = useDeepScreenData(ALL_EQUITIES);
+  const [selectedTicker, setSelectedTicker] = useState(null);
 
   /* ── Prepare scatter plot data: P/E vs Market Cap ──────────────────── */
   const scatterData = useMemo(() => {
@@ -180,6 +181,8 @@ function GlobalRetailScreenImpl() {
           tickers={CHART_TICKERS}
           height={200}
           cols={3}
+          selectedTicker={selectedTicker}
+          onChartClick={setSelectedTicker}
         />
       ),
     },

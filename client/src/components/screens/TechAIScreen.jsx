@@ -332,13 +332,14 @@ function EtfStripSection() {
 function TechAIScreenImpl() {
   const { data: statsMap, loading: statsLoading, error: statsError, refresh: statsRefresh } = useDeepScreenData(ALL_TICKERS);
   const openDetail = useOpenDetail();
+  const [selectedTicker, setSelectedTicker] = useState(null);
 
   const sections = useMemo(() => [
     {
       id: 'charts',
       title: 'SECTOR CHARTS',
       span: 'full',
-      component: () => <SectorChartPanel tickers={CHART_TICKERS} cols={3} height={180} />,
+      component: () => <SectorChartPanel tickers={CHART_TICKERS} cols={3} height={180} selectedTicker={selectedTicker} onChartClick={setSelectedTicker} />,
     },
     {
       id: 'megacap',

@@ -321,6 +321,7 @@ const EtfStrip = memo(function EtfStrip() {
 /* ── Main Screen Implementation ────────────────────────────────────────────── */
 function AsianMarketsScreenImpl() {
   const openDetail = useOpenDetail();
+  const [selectedTicker, setSelectedTicker] = useState(null);
 
   // ── Dynamic ticker resolution for TSE, KRX, TWSE, HKEX ──
   const {
@@ -359,6 +360,8 @@ function AsianMarketsScreenImpl() {
           tickers={CHART_TICKERS}
           height={200}
           cols={3}
+          selectedTicker={selectedTicker}
+          onChartClick={setSelectedTicker}
         />
       ),
     },

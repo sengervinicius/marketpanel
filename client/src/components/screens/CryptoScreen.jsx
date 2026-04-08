@@ -139,12 +139,14 @@ function CryptoEtfRow({ symbol, label, onClick }) {
 }
 
 /* ── Sector Charts Section ─────────────────────────────────────────────────── */
-const ChartsSection = memo(function ChartsSection() {
+const ChartsSection = memo(function ChartsSection({ selectedTicker, onChartClick }) {
   return (
     <SectorChartPanel
       tickers={CHART_TICKERS}
       height={200}
       cols={3}
+      selectedTicker={selectedTicker}
+      onChartClick={onChartClick}
     />
   );
 });
@@ -477,6 +479,7 @@ const EtfStrip = memo(function EtfStrip() {
 function CryptoScreenImpl() {
   const openDetail = useOpenDetail();
   const { data: statsMap, loading: statsLoading, error: statsError, refresh: statsRefresh } = useDeepScreenData(CRYPTO_EQUITIES);
+  const [selectedTicker, setSelectedTicker] = useState(null);
 
   /* ── Build section definitions ────────────────────────────────────────── */
   const sections = useMemo(() => [
@@ -484,7 +487,7 @@ function CryptoScreenImpl() {
       id: 'charts',
       title: 'Sector Charts',
       span: 'full',
-      component: ChartsSection,
+      component: () => <ChartsSection selectedTicker={selectedTicker} onChartClick={setSelectedTicker} />,
     },
     {
       id: 'crypto-majors',

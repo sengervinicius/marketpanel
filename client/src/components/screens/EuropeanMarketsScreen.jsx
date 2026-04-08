@@ -314,6 +314,7 @@ const EtfStrip = memo(function EtfStrip() {
 /* ── Main Screen Implementation ────────────────────────────────────────── */
 function EuropeanMarketsScreenImpl() {
   const openDetail = useOpenDetail();
+  const [selectedTicker, setSelectedTicker] = useState(null);
 
   // ── Dynamic ticker resolution for XETRA, LSE, EURONEXT ──
   const {
@@ -373,6 +374,8 @@ function EuropeanMarketsScreenImpl() {
           tickers={CHART_TICKERS}
           height={200}
           cols={3}
+          selectedTicker={selectedTicker}
+          onChartClick={setSelectedTicker}
         />
       ),
     },
