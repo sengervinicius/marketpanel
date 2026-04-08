@@ -38,6 +38,7 @@ const logger = require('./utils/logger');
 const { requestLogger } = require('./utils/logger');
 const { errorHandler } = require('./utils/apiError');
 const { rateLimitByUser } = require('./middleware/rateLimitByUser');
+const { rateLimitByIP } = require('./middleware/rateLimitByIP');
 const { requestTimeout } = require('./middleware/requestTimeout');
 const { initPostgres, isConnected: pgConnected } = require('./db/postgres');
 const { initRedis, isConnected: redisConnected } = require('./cache/redisClient');
@@ -52,13 +53,22 @@ require('./jobs/markToMarket'); // batch mark-to-market (self-scheduling)
 
 const app = express();
 
-// In production, prefer an explicit CLIENT_URL for strict CORS.
-// If absent we fall back to permissive '*' and log a loud warning rather than
-// crashing the process — a missing CLIENT_URL should not take the whole service down.
-const ALLOWED_ORIGIN = process.env.CLIENT_URL || '*';
-if (!process.env.CLIENT_URL && process.env.NODE_ENV === 'production') {
-  console.warn('[WARN] CLIENT_URL not set — CORS is permissive (*). Set CLIENT_URL in Render env vars.');
+// In production, restrict CORS to explicit CLIENT_URL only (no wildcard fallback).
+// Warn loudly if CLIENT_URL is not set, but don't crash the process.
+let ALLOWED_ORIGIN = '*';
+if (process.env.NODE_ENV === 'production') {
+  if (!process.env.CLIENT_URL) {
+    console.warn('[WARN] PRODUCTION MODE: CLIENT_URL not set — CORS will be permissive (*). This is a security risk.');
+    console.warn('[WARN] Set CLIENT_URL in Render environment to restrict CORS to a specific origin.');
+  } else {
+    ALLOWED_ORIGIN = process.env.CLIENT_URL;
+    console.log('[INFO] PRODUCTION MODE: CORS restricted to ' + ALLOWED_ORIGIN);
+  }
+} else {
+  // Development: allow localhost origins + CLIENT_URL if set
+  ALLOWED_ORIGIN = process.env.CLIENT_URL || ['http://localhost:5173', 'http://localhost:3000', 'http://127.0.0.1:5173'];
 }
+
 app.use(cors({
   origin: ALLOWED_ORIGIN,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
@@ -199,11 +209,15 @@ app.use('/api/settings', requireAuth, settingsRoutes);
 // Users (chat search): auth required
 app.use('/api/users', requireAuth, usersRoutes);
 
-// Chat REST: auth + subscription required
-app.use('/api/chat', requireAuth, requireActiveSubscription, chatRoutes);
+// Chat REST: auth + subscription required + rate limit
+app.use('/api/chat', requireAuth, requireActiveSubscription,
+  rateLimitByIP({ max: 120, windowMs: 60000 }),
+  chatRoutes);
 
-// Debt data: auth + subscription required
-app.use('/api/debt', requireAuth, requireActiveSubscription, debtRoutes);
+// Debt data: auth + subscription required + rate limit
+app.use('/api/debt', requireAuth, requireActiveSubscription,
+  rateLimitByIP({ max: 30, windowMs: 60000 }),
+  debtRoutes);
 
 // Macro data: auth + subscription required + rate limit + timeout
 app.use('/api/macro', requireAuth, requireActiveSubscription,
@@ -272,8 +286,10 @@ app.use('/api/search', requireAuth, requireActiveSubscription,
 // Feed health: no auth required (public endpoint for monitoring)
 app.use('/api/feed', feedRouter);
 
-// Market data: auth + subscription required + timeout
-app.use('/api', requireAuth, requireActiveSubscription, requestTimeout(15000), marketRoutes);
+// Market data: auth + subscription required + rate limit + timeout
+app.use('/api', requireAuth, requireActiveSubscription,
+  rateLimitByIP({ max: 120, windowMs: 60000 }),
+  requestTimeout(15000), marketRoutes);
 
 app.use(errorHandler);
 
@@ -512,6 +528,19 @@ async function boot() {
   recommended.filter(k => !process.env[k]).forEach(k => {
     logger.warn('boot', `${k} not set — some features will be limited`);
   });
+
+  // Production-specific security checks
+  if (process.env.NODE_ENV === 'production') {
+    // Warn if JWT_SECRET is default or weak
+    const jwtSecret = process.env.JWT_SECRET || '';
+    if (!jwtSecret || jwtSecret.length < 16 || jwtSecret === 'dev-secret-key') {
+      logger.warn('boot', '[SECURITY] JWT_SECRET is weak or default. Use a strong, random 32+ character secret in production.');
+    }
+    // Warn if POLYGON_API_KEY is not configured
+    if (!process.env.POLYGON_API_KEY) {
+      logger.warn('boot', '[SECURITY] POLYGON_API_KEY is not set. Market data features will be unavailable or degraded.');
+    }
+  }
 
   // 1. Platform services (optional — app works without them)
   await initPostgres();

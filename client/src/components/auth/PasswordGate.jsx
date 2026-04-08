@@ -22,7 +22,8 @@ export default function PasswordGate({ children }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (password === 'ARCScreen') {
+    const expectedPassword = import.meta.env.VITE_ACCESS_PASSWORD || 'ARCScreen';
+    if (password === expectedPassword) {
       sessionStorage.setItem('arc_auth', '1');
       setAuth(true);
     } else {
