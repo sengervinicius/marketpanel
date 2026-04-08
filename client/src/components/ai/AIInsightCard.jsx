@@ -46,7 +46,7 @@ export default function AIInsightCard({ type, context, cacheKey, ttlMs, autoFetc
           <span className="ai-card__badge" style={{ opacity: 0.5 }}>AI</span>
           <span className="ai-card__title" style={{ opacity: 0.5 }}>{displayTitle}</span>
         </div>
-        <p className="ai-card__text" style={{ color: '#666', fontStyle: 'italic' }}>AI insights coming soon</p>
+        <p className="ai-card__text" style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>AI insights coming soon</p>
       </div>
     );
   }

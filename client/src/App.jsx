@@ -219,7 +219,7 @@ export default function App() {
     panelVisible, togglePanel, isPanelVisible,
   } = useLayoutManager();
 
-  const border = '1px solid #1e1e1e';
+  const border = '1px solid var(--border-subtle)';
 
   // ── Shared panel context value ──────────────────────────────────────────
   const panelCtx = useMemo(() => ({
@@ -389,10 +389,10 @@ export default function App() {
       <PanelProvider value={panelCtx}>
       <div className="flex-col" style={{
         height: '100vh',
-        background: '#0a0a0a',
+        background: 'var(--bg-app)',
         fontFamily: 'var(--font-ui)',
         overflowY: 'auto', overflowX: 'hidden',
-        color: '#e0e0e0', userSelect: 'none',
+        color: 'var(--text-primary)', userSelect: 'none',
       }}>
 
         {/* Welcome modal (replaces old onboarding) */}
@@ -423,7 +423,7 @@ export default function App() {
               letterSpacing: '0.5px',
               color: !activeSectorScreen ? 'var(--accent)' : 'var(--text-faint)',
               border: `1px solid ${!activeSectorScreen ? 'var(--accent)' : 'var(--border-strong)'}`,
-              background: !activeSectorScreen ? '#1a0800' : 'none',
+              background: !activeSectorScreen ? 'rgba(255, 102, 0, 0.08)' : 'none',
               borderRadius: 4,
             }}
           >⌂ HOME</button>
@@ -439,7 +439,7 @@ export default function App() {
               letterSpacing: '0.5px',
               color: sectorSelectorOpen || activeSectorScreen ? 'var(--accent)' : 'var(--text-faint)',
               border: `1px solid ${sectorSelectorOpen || activeSectorScreen ? 'var(--accent)' : 'var(--border-strong)'}`,
-              background: sectorSelectorOpen || activeSectorScreen ? '#1a0800' : 'none',
+              background: sectorSelectorOpen || activeSectorScreen ? 'rgba(255, 102, 0, 0.08)' : 'none',
               borderRadius: 4,
             }}
           >◈ SECTOR SCREENS</button>
@@ -471,7 +471,7 @@ export default function App() {
             <button className={`btn${showLayoutHint && !layoutEdit ? ' layout-btn-pulse' : ''}`}
               onClick={() => { setLayoutEdit(s => !s); if (showLayoutHint) dismissLayoutHint(); }}
               title="Customize your workspace — drag, resize, and rearrange panels"
-              style={{ background: layoutEdit ? '#1a0800' : 'none', border:`1px solid ${layoutEdit ? 'var(--accent)' : showLayoutHint ? 'var(--accent)' : 'var(--border-strong)'}`, color: layoutEdit ? 'var(--accent)' : showLayoutHint ? 'var(--accent)' : 'var(--text-faint)' }}
+              style={{ background: layoutEdit ? 'rgba(255, 102, 0, 0.08)' : 'none', border:`1px solid ${layoutEdit ? 'var(--accent)' : showLayoutHint ? 'var(--accent)' : 'var(--border-strong)'}`, color: layoutEdit ? 'var(--accent)' : showLayoutHint ? 'var(--accent)' : 'var(--text-faint)' }}
             >⇄ LAYOUT</button>
             {user
               ? <UserDropdown
@@ -535,7 +535,7 @@ export default function App() {
             ) : activeSectorScreen && !SCREEN_MAP[activeSectorScreen] ? (
               <div className="screen-transition-enter" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 12 }}>
                 <div style={{ fontSize: 36 }}>🚧</div>
-                <div style={{ color: '#888', fontSize: 13, fontFamily: 'var(--font-mono)' }}>
+                <div style={{ color: 'var(--text-secondary)', fontSize: 13, fontFamily: 'var(--font-mono)' }}>
                   {activeSectorScreen.replace(/-/g, ' ').toUpperCase()} — Coming in Wave 3/4
                 </div>
                 <button
@@ -550,12 +550,12 @@ export default function App() {
                 {layoutEdit && (
                   <div style={{
                     display: 'flex', alignItems: 'center', gap: 12, padding: '6px 16px',
-                    background: '#1a0800', borderBottom: '1px solid var(--accent)',
+                    background: 'rgba(255, 102, 0, 0.08)', borderBottom: '1px solid var(--accent)',
                     fontSize: 11, color: 'var(--accent)', fontWeight: 600, letterSpacing: '0.5px',
                     flexShrink: 0,
                   }}>
                     <span>EDITING LAYOUT</span>
-                    <span style={{ color: '#666', fontWeight: 400 }}>Use arrows to move panels. Drag borders to resize.</span>
+                    <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>Use arrows to move panels. Drag borders to resize.</span>
                     <div style={{ flex: 1 }} />
                     <button className="btn" onClick={() => {
                       updateLayout({
@@ -571,11 +571,11 @@ export default function App() {
                       } catch {}
                       window.location.reload();
                     }} style={{
-                      padding: '3px 12px', background: 'none', color: '#888',
-                      border: '1px solid #333', borderRadius: 3, fontWeight: 600, fontSize: 10, letterSpacing: '0.5px',
+                      padding: '3px 12px', background: 'none', color: 'var(--text-secondary)',
+                      border: '1px solid var(--border-default)', borderRadius: 3, fontWeight: 600, fontSize: 10, letterSpacing: '0.5px',
                     }}>RESET DEFAULT</button>
                     <button className="btn" onClick={() => setLayoutEdit(false)} style={{
-                      padding: '3px 12px', background: 'var(--accent)', color: '#000',
+                      padding: '3px 12px', background: 'var(--accent)', color: 'var(--bg-app)',
                       border: 'none', borderRadius: 3, fontWeight: 700, fontSize: 10, letterSpacing: '0.5px',
                     }}>DONE</button>
                   </div>
@@ -702,7 +702,7 @@ export default function App() {
             fontWeight: 600,
             color: sectorSelectorOpen || activeSectorScreen ? 'var(--accent)' : 'var(--text-faint)',
             border: `1px solid ${sectorSelectorOpen || activeSectorScreen ? 'var(--accent)' : 'var(--border-strong)'}`,
-            background: sectorSelectorOpen || activeSectorScreen ? '#1a0800' : 'none',
+            background: sectorSelectorOpen || activeSectorScreen ? 'rgba(255, 102, 0, 0.08)' : 'none',
             borderRadius: 4,
             whiteSpace: 'nowrap',
             flexShrink: 0,
@@ -767,7 +767,7 @@ export default function App() {
             ) : activeSectorScreen && !SCREEN_MAP[activeSectorScreen] ? (
               <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 12, padding: 24 }}>
                 <div style={{ fontSize: 36 }}>🚧</div>
-                <div style={{ color: '#888', fontSize: 12, fontFamily: 'var(--font-mono)', textAlign: 'center' }}>
+                <div style={{ color: 'var(--text-secondary)', fontSize: 12, fontFamily: 'var(--font-mono)', textAlign: 'center' }}>
                   {activeSectorScreen.replace(/-/g, ' ').toUpperCase()} — Coming Soon
                 </div>
                 <button className="btn" onClick={handleGoHome}

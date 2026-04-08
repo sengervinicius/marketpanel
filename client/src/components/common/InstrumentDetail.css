@@ -1259,7 +1259,7 @@
 .id-range-btn--alert.id-range-btn--active {
   background: var(--accent);
   border-color: var(--accent);
-  color: #000;
+  color: var(--bg-app);
 }
 
 .id-comparison-panel {
@@ -1403,5 +1403,111 @@
 .id-toggle-btn--active {
   background: var(--accent);
   border-color: var(--accent);
-  color: #000;
+  color: var(--bg-app);
+}
+
+/* ── Phase 7: Mobile bottom sheet improvements ────────── */
+
+/* Drag handle at top of bottom sheet */
+.id-overlay--mobile-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(0, 0, 0, 0.97);
+  display: flex;
+  flex-direction: column;
+}
+
+.id-overlay--mobile-sheet::before {
+  content: '';
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 40px;
+  height: 4px;
+  background: var(--border-strong);
+  border-radius: 2px;
+  z-index: 10;
+}
+
+/* Tab content scroll without overflow */
+.id-mobile-tabs {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+  overflow: hidden;
+}
+
+.id-mobile-tab-content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  min-height: 0;
+}
+
+.id-mobile-tab-content > * {
+  padding: var(--space-3);
+}
+
+/* Ensure all touch targets on mobile are >= 44px */
+.id-action-btn--mobile {
+  min-width: 44px;
+  min-height: 44px;
+  touch-action: manipulation;
+}
+
+.id-close--mobile {
+  min-width: var(--row-height-touch);
+  min-height: var(--row-height-touch);
+}
+
+/* ── Phase 7: Search full-screen mobile ────────────────── */
+.search-results-mobile {
+  position: fixed;
+  inset: 0;
+  z-index: 1500;
+  background: var(--bg-panel);
+  display: flex;
+  flex-direction: column;
+}
+
+.search-results-mobile-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--border-default);
+  background: var(--bg-surface);
+  flex-shrink: 0;
+  min-height: 44px;
+}
+
+.search-results-mobile-header button {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+.search-results-mobile-list {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
+.search-results-mobile-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  min-height: 52px;
+  border-bottom: 1px solid var(--border-subtle);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.search-results-mobile-row:active {
+  background: var(--bg-active);
 }

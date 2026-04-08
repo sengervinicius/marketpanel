@@ -30,13 +30,57 @@ html, body, #root {
 ::-webkit-scrollbar-thumb { background: var(--border-default); border-radius: var(--radius-sm); }
 ::-webkit-scrollbar-thumb:hover { background: var(--border-strong); }
 
-/* ── Price flash animations ──────────────────────── */
+/* ── Consistent Hover Micro-interactions ─────────── */
+/* Row hover: smooth transition to bg-hover */
+.interactive-row,
+[role="row"],
+tbody tr {
+  transition: background-color var(--duration-instant) var(--ease-default);
+}
+.interactive-row:hover,
+[role="row"]:hover,
+tbody tr:hover {
+  background-color: var(--bg-hover);
+}
+
+/* Button hover: subtle scale effect */
+button, .btn, [role="button"],
+.chart-button, .icon-button {
+  transition: background-color var(--duration-instant) var(--ease-default),
+              transform var(--duration-instant) var(--ease-default),
+              color var(--duration-instant) var(--ease-default);
+}
+button:hover, .btn:hover, [role="button"]:hover,
+.chart-button:hover, .icon-button:hover {
+  transform: scale(1.02);
+}
+
+/* Tooltip appear: opacity 0→1 */
+[role="tooltip"],
+.tooltip, .hint {
+  opacity: 0;
+  transition: opacity var(--duration-instant) var(--ease-default);
+  pointer-events: none;
+}
+[role="tooltip"]:not([hidden]),
+.tooltip.show, .hint.show {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Chart crosshair: smooth appearance */
+.chart-crosshair,
+.chart-reference-line {
+  transition: opacity var(--duration-instant) var(--ease-default);
+}
+
+/* Price flash animations ──────────────────────── */
 @keyframes flashUp {
-  0%   { background: rgba(0, 200, 83, 0.35); }
+  0%   { background: rgba(76, 175, 80, 0.35); }    /* var(--semantic-up) with transparency */
   100% { background: transparent; }
 }
 @keyframes flashDown {
-  0%   { background: rgba(244, 67, 54, 0.35); }
+  0%   { background: rgba(239, 83, 80, 0.35); }    /* var(--semantic-down) with transparency */
   100% { background: transparent; }
 }
 @keyframes flashNeutral {
@@ -44,16 +88,16 @@ html, body, #root {
   100% { background: transparent; }
 }
 
-.flash-up   { animation: flashUp   0.8s ease-out forwards; }
-.flash-down { animation: flashDown 0.8s ease-out forwards; }
-.flash-neu  { animation: flashNeutral 0.6s ease-out forwards; }
+.flash-up   { animation: flashUp   var(--duration-slow) var(--ease-out) forwards; }
+.flash-down { animation: flashDown var(--duration-slow) var(--ease-out) forwards; }
+.flash-neu  { animation: flashNeutral var(--duration-fast) var(--ease-out) forwards; }
 
 /* Phase 8: row flash for newly dropped tickers */
 @keyframes priceRowFlash {
-  0%   { background: rgba(255, 102, 0, 0.25); }
+  0%   { background: rgba(255, 102, 0, 0.25); }    /* var(--accent) with transparency */
   100% { background: transparent; }
 }
-.price-row-flash { animation: priceRowFlash 1.2s ease-out forwards; }
+.price-row-flash { animation: priceRowFlash var(--duration-slow) var(--ease-out) forwards; }
 
 /* Phase 8: drop incompatible hint */
 .eph-drop-hint {
@@ -111,13 +155,20 @@ html, body, #root {
 .tabular { font-variant-numeric: tabular-nums; }
 
 /* ── Mobile / PWA ────────────────────────────────── */
-@media (max-width: 1023px) {
+@media (max-width: 768px) {
   html, body, #root { overflow: auto; }
 
-  /* Global touch targets */
-  button, [role="button"] {
-    min-height: 36px;
-    min-width: 36px;
+  /* Phase 7: Global touch targets >= 44px (WCAG AAA) */
+  button, [role="button"], a, input[type="checkbox"], input[type="radio"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Allow smaller touch targets in tables/dense layouts */
+  .dt-header-cell,
+  .ds-table td,
+  td, th {
+    min-height: 44px;
   }
 
   /* Better font sizes for readability */
@@ -362,7 +413,7 @@ html, body, #root {
   width: 32px;
   height: 4px;
   border-radius: 2px;
-  background: var(--border-strong, #444);
+  background: var(--border-strong);
 }
 .m-detail-header {
   display: flex;
@@ -575,7 +626,7 @@ html, body, #root {
 .mm-persona-label {
   font-size: 10px;
   font-weight: 600;
-  color: var(--accent, #ff6600);
+  color: var(--accent);
   letter-spacing: 0.4px;
   text-transform: uppercase;
   margin-bottom: 4px;
@@ -664,8 +715,8 @@ html, body, #root {
 }
 
 /* Danger item styling */
-.mm-item[data-danger] { color: var(--price-down, #e74c3c); }
-.mm-item[data-danger] .mm-item-icon { color: var(--price-down, #e74c3c); }
+.mm-item[data-danger] { color: var(--price-down); }
+.mm-item[data-danger] .mm-item-icon { color: var(--price-down); }
 
 /* Delete account modal */
 .mm-overlay {
@@ -676,7 +727,7 @@ html, body, #root {
   padding: 24px;
 }
 .mm-modal {
-  background: var(--bg-surface, #1a1a2e);
+  background: var(--bg-surface);
   border-radius: 16px;
   padding: 24px;
   max-width: 340px;
@@ -685,12 +736,12 @@ html, body, #root {
 .mm-modal-title {
   font-size: 18px;
   font-weight: 700;
-  color: var(--text-primary, #fff);
+  color: var(--text-primary);
   margin-bottom: 12px;
 }
 .mm-modal-text {
   font-size: 14px;
-  color: var(--text-secondary, #999);
+  color: var(--text-secondary);
   line-height: 1.5;
   margin: 8px 0;
 }
@@ -703,16 +754,16 @@ html, body, #root {
   flex: 1;
   padding: 12px 16px;
   border-radius: 10px;
-  border: 1px solid var(--border, #333);
+  border: 1px solid var(--border-default);
   background: transparent;
-  color: var(--text-primary, #fff);
+  color: var(--text-primary);
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
 }
 .mm-modal-btn-danger {
-  background: var(--price-down, #e74c3c);
-  border-color: var(--price-down, #e74c3c);
+  background: var(--price-down);
+  border-color: var(--price-down);
   color: var(--text-primary);
 }
 

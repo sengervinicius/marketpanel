@@ -1,0 +1,155 @@
+/* MobileTableRow.css — Phase 7: Mobile table row with expansion */
+
+.mobile-table-row {
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-panel);
+  overflow: hidden;
+}
+
+/* Compact row (always visible) */
+.mobile-table-row-compact {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  min-height: 44px;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  background: var(--bg-panel);
+  transition: background 0.15s ease;
+}
+
+.mobile-table-row-compact:active {
+  background: var(--bg-active);
+}
+
+.mobile-table-row-compact:focus {
+  outline: none;
+  background: var(--bg-hover);
+}
+
+/* Columns in compact row */
+.mobile-row-col {
+  font-size: var(--text-base);
+  font-variant-numeric: tabular-nums;
+}
+
+.mobile-row-ticker {
+  flex: 0 0 auto;
+  min-width: 50px;
+}
+
+.mobile-row-price {
+  flex: 0 0 auto;
+  min-width: 70px;
+  text-align: right;
+  color: var(--text-primary);
+  font-weight: var(--weight-medium);
+}
+
+.mobile-row-change {
+  flex: 0 0 auto;
+  min-width: 60px;
+  text-align: right;
+  font-weight: var(--weight-medium);
+}
+
+.mobile-row-change--up {
+  color: var(--semantic-up);
+}
+
+.mobile-row-change--down {
+  color: var(--semantic-down);
+}
+
+/* Expand icon */
+.mobile-row-expand-icon {
+  flex: 0 0 auto;
+  min-width: 20px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  transition: transform 0.2s ease;
+}
+
+.mobile-table-row-compact:active .mobile-row-expand-icon {
+  transform: scale(1.2);
+}
+
+/* Ticker button inside row */
+.mobile-ticker-btn {
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0;
+  color: var(--accent);
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
+  cursor: pointer;
+  min-width: 44px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: underline;
+  transition: color 0.15s ease;
+}
+
+.mobile-ticker-btn:active {
+  color: var(--accent-text);
+}
+
+/* Expandable section */
+.mobile-table-row-expandable {
+  overflow: hidden;
+  transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  background: var(--bg-surface);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.mobile-table-row-expandable--open {
+  /* max-height set by JS */
+}
+
+.mobile-table-row-expanded {
+  padding: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* Metrics grid in expanded row */
+.mobile-expanded-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+  gap: var(--space-3);
+}
+
+.mobile-metric {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.mobile-metric-label {
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0.05em;
+}
+
+.mobile-metric-value {
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Mini chart in expanded row */
+.mobile-expanded-chart {
+  width: 100%;
+  min-height: 100px;
+  margin-top: var(--space-2);
+}

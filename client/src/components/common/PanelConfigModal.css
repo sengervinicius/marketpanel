@@ -120,7 +120,7 @@
 }
 
 .pcm-item-selected {
-  background: #1a0900;
+  background: rgba(255, 102, 0, 0.08);
   color: var(--accent);
 }
 

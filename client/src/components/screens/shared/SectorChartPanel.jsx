@@ -1,5 +1,5 @@
 /**
- * SectorChartPanel.jsx — Sprint 5 Phase 5 refactor
+ * SectorChartPanel.jsx — Sprint 5 Phase 5 refactor + Phase 7 mobile carousel
  * Multi-chart grid for sector-wide technical analysis.
  *
  * Phase 5 refactor:
@@ -8,6 +8,10 @@
  *  - Each chart independently manages its data & per-chart timeframe selector
  *  - Supports linked ticker selection (highlight on table click)
  *
+ * Phase 7 mobile improvements:
+ *  - Mobile: swipeable chart carousel (one chart at a time)
+ *  - Desktop: multi-column grid (2-4 charts per row)
+ *
  * Sprint 5 fixes:
  *  - Task 3: Fixed chart blinking — serialize tickers for useEffect deps
  *  - Task 4: Added timeframe selector (1D/1W/1M/3M/6M/1Y)
@@ -15,6 +19,7 @@
  */
 import { useState, useMemo, memo, useCallback } from 'react';
 import { SectorChartContainer } from './SectorChartContainer';
+import { ChartCarousel } from './ChartCarousel';
 import { useIsMobile } from '../../../hooks/useIsMobile';
 
 
@@ -37,7 +42,6 @@ export function SectorChartPanel({
   onChartClick = null,
 }) {
   const isMobile = useIsMobile();
-  const gridCols = isMobile ? 1 : cols;
 
   // Serialize tickers for stable comparison
   const tickerList = useMemo(() => {
@@ -48,10 +52,24 @@ export function SectorChartPanel({
     return null;
   }
 
+  // Mobile: use carousel, Desktop: use grid
+  if (isMobile) {
+    return (
+      <ChartCarousel
+        tickers={tickerList}
+        height={height}
+        accentColor={accentColor}
+        selectedTicker={selectedTicker}
+        onChartClick={onChartClick}
+      />
+    );
+  }
+
+  // Desktop: multi-column grid
   return (
     <div style={{
       display: 'grid',
-      gridTemplateColumns: `repeat(${gridCols}, 1fr)`,
+      gridTemplateColumns: `repeat(${cols}, 1fr)`,
       gap: '8px',
     }}>
       {tickerList.map(ticker => (

@@ -1,0 +1,98 @@
+/* ChartCarousel.css — Phase 7: Mobile chart carousel */
+
+.chart-carousel {
+  position: relative;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3);
+}
+
+.chart-carousel-chart {
+  position: relative;
+  width: 100%;
+  min-height: 200px;
+}
+
+/* Navigation buttons */
+.chart-carousel-nav {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  transform: translateY(-50%);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 var(--space-2);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.chart-carousel-btn {
+  min-width: 44px;
+  min-height: 44px;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-full);
+  color: var(--text-primary);
+  font-size: var(--text-lg);
+  font-weight: bold;
+  cursor: pointer;
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.chart-carousel-btn:active,
+.chart-carousel-btn:hover {
+  background: rgba(0, 0, 0, 0.8);
+  border-color: var(--border-strong);
+}
+
+/* Dot indicators */
+.chart-carousel-dots {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.chart-carousel-dot {
+  min-width: 44px;
+  min-height: 44px;
+  width: 8px;
+  height: 8px;
+  padding: 0;
+  background: var(--border-default);
+  border: none;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.chart-carousel-dot:active,
+.chart-carousel-dot:hover {
+  background: var(--border-strong);
+  transform: scale(1.2);
+}
+
+.chart-carousel-dot--active {
+  background: var(--accent);
+  width: 12px;
+  height: 12px;
+}
+
+/* Position indicator */
+.chart-carousel-position {
+  text-align: center;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}

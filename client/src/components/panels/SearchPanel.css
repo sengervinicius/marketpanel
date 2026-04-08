@@ -434,14 +434,14 @@
 }
 
 .sp-coverage-warning-none {
-  background: rgba(255, 0, 0, 0.04);
-  border-color: #440000;
+  background: rgba(239, 83, 80, 0.04);
+  border-color: rgba(239, 83, 80, 0.3);
   color: var(--semantic-down);
 }
 
 .sp-coverage-warning-limited {
-  background: #1a1400;
-  border-color: #332200;
+  background: rgba(255, 152, 0, 0.05);
+  border-color: rgba(255, 152, 0, 0.3);
   color: var(--semantic-warn);
 }
 
@@ -492,8 +492,8 @@
 .sp-ticker-badge {
   font-size: var(--font-micro);
   padding: 1px 4px;
-  background: #1a2800;
-  color: #8bc34a;
+  background: rgba(76, 175, 80, 0.08);
+  color: var(--semantic-up);
 }
 
 .sp-ticker-name {

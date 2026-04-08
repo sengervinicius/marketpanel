@@ -38,8 +38,8 @@
 }
 
 .ai-card--error {
-  border-color: #3a2020;
-  background: #1a0f0f;
+  border-color: rgba(239, 83, 80, 0.3);
+  background: rgba(239, 83, 80, 0.05);
 }
 
 /* Header layout */
@@ -80,8 +80,8 @@
 }
 
 .ai-card__badge--error {
-  background: var(--text-faint);
-  color: #e8a8a8;
+  background: var(--semantic-down);
+  color: var(--text-primary);
 }
 
 .ai-card__title {
@@ -102,7 +102,7 @@
 }
 
 .ai-card__title--error {
-  color: #d0a0a0;
+  color: var(--semantic-down);
 }
 
 .ai-card__actions {
@@ -253,14 +253,14 @@
 /* Error state */
 .ai-card__error-text {
   margin: 0 0 8px 0;
-  color: #d0a0a0;
+  color: var(--semantic-down);
   line-height: 1.5;
 }
 
 .ai-card__retry {
-  background: #2a1515;
-  border: 1px solid #4a2525;
-  color: #e8a8a8;
+  background: rgba(239, 83, 80, 0.1);
+  border: 1px solid rgba(239, 83, 80, 0.3);
+  color: var(--semantic-down);
   padding: 6px 12px;
   border-radius: 2px;
   cursor: pointer;
@@ -272,9 +272,9 @@
 }
 
 .ai-card__retry:hover {
-  background: #3a1f1f;
-  border-color: #6a3535;
-  color: #f0b8b8;
+  background: rgba(239, 83, 80, 0.15);
+  border-color: rgba(239, 83, 80, 0.5);
+  color: var(--semantic-down);
 }
 
 /* Loading skeleton */
@@ -294,7 +294,7 @@
   background: linear-gradient(
     90deg,
     var(--bg-active) 0%,
-    #252525 50%,
+    var(--bg-hover) 50%,
     var(--bg-active) 100%
   );
   background-size: 200% 100%;
