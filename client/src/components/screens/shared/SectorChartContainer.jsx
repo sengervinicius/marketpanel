@@ -216,6 +216,7 @@ const ChartSection = memo(function ChartSection({
   priceColor,
   isHighlighted,
   accentColor,
+  chartId,
 }) {
   const [hoveredIndex, setHoveredIndex] = useState(null);
 
@@ -275,7 +276,7 @@ const ChartSection = memo(function ChartSection({
           >
             <defs>
               {/* Gradient: 5%-95% offsets, green/red based on direction */}
-              <linearGradient id={`grad-${ticker}-${chartIdRef.current}`} x1="0" y1="0" x2="0" y2="1">
+              <linearGradient id={`grad-${ticker}-${chartId}`} x1="0" y1="0" x2="0" y2="1">
                 <stop
                   offset="5%"
                   stopColor={lastClose >= firstClose ? '#4caf50' : '#ef5350'}
@@ -336,7 +337,7 @@ const ChartSection = memo(function ChartSection({
               type="monotone"
               dataKey="close"
               yAxisId="price"
-              fill={`url(#grad-${ticker}-${chartIdRef.current})`}
+              fill={`url(#grad-${ticker}-${chartId})`}
               stroke={priceColor}
               strokeWidth={1.8}
               isAnimationActive={false}
@@ -628,6 +629,7 @@ export function SectorChartContainer({
         priceColor={priceColor}
         isHighlighted={isHighlighted}
         accentColor={accentColor}
+        chartId={chartIdRef.current}
       />
     </div>
   );

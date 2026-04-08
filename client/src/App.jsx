@@ -618,20 +618,30 @@ export default function App() {
                           if (!isPanelVisible(panelId)) return null;
                           const isLast = colIdx === row.filter(id => isPanelVisible(id)).length - 1;
                           return (
-                            <div key={panelId} style={{ display: 'contents' }}>
+                            <div
+                              key={panelId}
+                              style={{
+                                flex: colSizes[colIdx] || 1,
+                                minWidth: 0,
+                                borderRight: isLast ? 'none' : border,
+                                overflow: 'hidden',
+                                height: '100%',
+                                position: 'relative',
+                                display: 'flex',
+                                flexDirection: 'column',
+                              }}
+                            >
                               {colIdx > 0 && <ColResizeHandle onStart={e => startResize(colIdx - 1, e)} />}
-                              <div style={{ flex: colSizes[colIdx] || 1, minWidth: 0, borderRight: isLast ? 'none' : border, overflow:'hidden', height:'100%', position: 'relative' }}>
-                                <PanelErrorBoundary name={panelId}>
-                                  {makePanelRenderer(panelId, panelProps)}
-                                </PanelErrorBoundary>
-                                {layoutEdit && (
-                                  <LayoutMoveOverlay
-                                    panelId={panelId} rowIdx={rowIdx} colIdx={colIdx}
-                                    rowLen={row.length} totalRows={[row0, row1, row2].filter(r => r.length > 0).length}
-                                    onMove={handleLayoutMove}
-                                  />
-                                )}
-                              </div>
+                              <PanelErrorBoundary name={panelId}>
+                                {makePanelRenderer(panelId, panelProps)}
+                              </PanelErrorBoundary>
+                              {layoutEdit && (
+                                <LayoutMoveOverlay
+                                  panelId={panelId} rowIdx={rowIdx} colIdx={colIdx}
+                                  rowLen={row.length} totalRows={[row0, row1, row2].filter(r => r.length > 0).length}
+                                  onMove={handleLayoutMove}
+                                />
+                              )}
                             </div>
                           );
                         })}

@@ -1,17 +1,17 @@
 /**
- * MiniFinancials.jsx — Sprint 5 fix
- * Compact 3-year revenue + net income bar chart for sector table rows.
- * Shows side-by-side bars (not stacked) with formatted Y-axis, year labels,
- * metric title, and proper color coding.
+ * MiniFinancials.jsx — Minimalist horizontal bars
+ * Clean 3-year revenue display with simple horizontal bars instead of complex chart.
+ * Shows years (2023–2025) with proportional green bars and formatted values.
+ * Red tint if net income is negative in that year.
  *
- * Sprint 5 fixes:
- *  - useEffect deps: only [ticker] — removes onError/accentColor re-fetch loop
- *  - Year label: uses fiscal_date (not fiscal_period) from Twelve Data API
- *  - Increased chart height (90 -> 110px) and bar size for visibility
- *  - Brighter bar colors for dark background contrast
+ * Design:
+ *  - Simple horizontal bars (CSS divs, no Recharts)
+ *  - Clean, minimalist look
+ *  - Max width ~180px to fit table cells
+ *  - Proportional bar widths based on revenue max
+ *  - Loading skeleton and error states preserved
  */
 import { useState, useEffect, useRef, memo } from 'react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { apiFetch } from '../../../utils/api';
 
 /* ── Value formatter: $1.2T / $45B / $120M ────────────────────────────── */
@@ -26,39 +26,6 @@ function fmtFinancial(value) {
   return `${sign}$${abs.toFixed(0)}`;
 }
 
-/* ── Custom tooltip ───────────────────────────────────────────────────── */
-function CustomTooltip({ active, payload, label }) {
-  if (!active || !payload || !payload.length) return null;
-  return (
-    <div style={{
-      background: 'var(--bg-tooltip)',
-      border: '1px solid var(--border-strong)',
-      padding: '5px 8px',
-      borderRadius: 4,
-      fontSize: 9,
-      lineHeight: '14px',
-      boxShadow: '0 2px 12px rgba(0,0,0,0.6)',
-    }}>
-      <div style={{ color: 'var(--text-secondary)', marginBottom: 2, fontWeight: 600 }}>{label}</div>
-      {(Array.isArray(payload) ? payload : []).map((entry, idx) => (
-        <div key={idx} style={{ color: entry.fill || entry.color }}>
-          {entry.name}: {fmtFinancial(entry.value)}
-        </div>
-      ))}
-    </div>
-  );
-}
-
-/* ── Y-axis tick formatter ────────────────────────────────────────────── */
-function yAxisFormatter(value) {
-  if (value === 0) return '0';
-  const abs = Math.abs(value);
-  const sign = value < 0 ? '-' : '';
-  if (abs >= 1e12) return `${sign}${(abs / 1e12).toFixed(1)}T`;
-  if (abs >= 1e9)  return `${sign}${(abs / 1e9).toFixed(0)}B`;
-  if (abs >= 1e6)  return `${sign}${(abs / 1e6).toFixed(0)}M`;
-  return `${sign}${abs.toFixed(0)}`;
-}
 
 /**
  * Extract a 4-char year string from a Twelve Data income_statement entry.
@@ -212,72 +179,65 @@ export const MiniFinancials = memo(function MiniFinancials({ ticker, accentColor
     );
   }
 
+  // Find max revenue for proportional scaling
+  const maxRevenue = Math.max(...data.map(d => d.revenue || 0));
+
   return (
-    <div style={{ height: 110, position: 'relative' }}>
-      {/* Metric label */}
-      <div style={{
-        fontSize: 8,
-        color: 'var(--text-secondary)',
-        textAlign: 'center',
-        lineHeight: '10px',
-        marginBottom: 2,
-        letterSpacing: '0.3px',
-        fontWeight: 500,
-      }}>
-        Revenue{hasNetIncome ? ' & Net Income' : ''}
-      </div>
-      <ResponsiveContainer width="100%" height={96}>
-        <BarChart
-          data={data}
-          margin={{ top: 2, right: 4, bottom: 0, left: 0 }}
-          barGap={2}
-          barCategoryGap="15%"
-        >
-          <XAxis
-            dataKey="year"
-            tick={{ fontSize: 9, fill: '#555570' }}
-            tickLine={false}
-            axisLine={false}
-          />
-          <YAxis
-            tickFormatter={yAxisFormatter}
-            tick={{ fontSize: 7, fill: '#555570' }}
-            tickLine={false}
-            axisLine={false}
-            width={38}
-            tickCount={3}
-          />
-          <Tooltip content={<CustomTooltip />} />
-          {hasRevenue && (
-            <Bar
-              dataKey="revenue"
-              name="Revenue"
-              radius={[2, 2, 0, 0]}
-              maxBarSize={28}
-            >
-              {data.map((entry, idx) => (
-                <Cell key={`rev-${idx}`} fill={accentColor} fillOpacity={0.95} />
-              ))}
-            </Bar>
-          )}
-          {hasNetIncome && (
-            <Bar
-              dataKey="netIncome"
-              name="Net Income"
-              radius={[2, 2, 0, 0]}
-              maxBarSize={28}
-            >
-              {data.map((entry, idx) => (
-                <Cell
-                  key={`ni-${idx}`}
-                  fill={entry.netIncome >= 0 ? '#4caf50' : '#ef5350'}
-                  fillOpacity={0.95}
-                />
-              ))}
-            </Bar>
-          )}
-        </BarChart>
-      </ResponsiveContainer>
+    <div style={{
+      width: '100%',
+      maxWidth: 180,
+      padding: '4px 0',
+    }}>
+      {/* Simple horizontal bars, no axes or labels */}
+      {data.map((d, idx) => {
+        const hasNegativeNI = d.netIncome !== null && d.netIncome !== undefined && d.netIncome < 0;
+        const barWidthPercent = maxRevenue > 0 ? (d.revenue || 0) / maxRevenue * 100 : 0;
+        const barColor = hasNegativeNI ? '#d32f2f' : '#4caf50'; // red if neg net income, else green
+
+        return (
+          <div key={idx} style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            marginBottom: idx < data.length - 1 ? '6px' : 0,
+            fontSize: '11px',
+            height: '18px',
+          }}>
+            {/* Year label */}
+            <span style={{
+              minWidth: '28px',
+              color: 'var(--text-secondary)',
+              fontSize: '10px',
+              fontWeight: 500,
+            }}>
+              {d.year}
+            </span>
+
+            {/* Horizontal bar */}
+            <div style={{
+              flex: 1,
+              minHeight: '8px',
+              backgroundColor: barColor,
+              borderRadius: '2px',
+              width: `${barWidthPercent}%`,
+              opacity: hasNegativeNI ? 0.6 : 0.9,
+              transition: 'width 0.3s ease',
+            }} />
+
+            {/* Revenue value */}
+            <span style={{
+              minWidth: '32px',
+              textAlign: 'right',
+              color: 'var(--text-primary)',
+              fontSize: '10px',
+              fontWeight: 500,
+              whiteSpace: 'nowrap',
+            }}>
+              {fmtFinancial(d.revenue)}
+            </span>
+          </div>
+        );
+      })}
     </div>
   );
 });
