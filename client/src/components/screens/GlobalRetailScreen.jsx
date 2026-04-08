@@ -138,7 +138,7 @@ const SectionTable = memo(function SectionTable({ tickers, statsMap }) {
 const EtfStrip = memo(function EtfStrip() {
   const openDetail = useOpenDetail();
   return (
-    <div className="ds-strip" style={{ display: 'flex', gap: 0, borderTop: '1px solid #1e1e1e' }}>
+    <div className="ds-strip" style={{ display: 'flex', gap: 0, borderTop: '1px solid var(--border-default)' }}>
       {RETAIL_ETFS.map(sym => (
         <EtfCell key={sym} sym={sym} openDetail={openDetail} />
       ))}
@@ -278,8 +278,8 @@ function GlobalRetailScreenImpl() {
       sections={sections}
       lastUpdated={new Date()}
     >
-      <div style={{ padding: '12px', borderTop: '1px solid #1e1e1e' }}>
-        <div style={{ fontSize: 10, fontWeight: 600, color: '#aaa', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+      <div style={{ padding: '12px', borderTop: '1px solid var(--border-default)' }}>
+        <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>
           RETAIL ETFs
         </div>
         <EtfStrip />

@@ -154,7 +154,7 @@ const FuturesSection = memo(function FuturesSection() {
         </tbody>
       </table>
       {spread != null && (
-        <div style={{ fontSize: 10, color: '#ff9800', padding: '6px 4px 2px', borderTop: '1px solid #1a1a1a' }}>
+        <div style={{ fontSize: 10, color: 'var(--semantic-warn)', padding: '6px 4px 2px', borderTop: '1px solid var(--border-default)' }}>
           Brent-WTI Spread: ${spread.toFixed(2)} / bbl
         </div>
       )}

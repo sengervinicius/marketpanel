@@ -193,29 +193,29 @@ function USTreasuryCurveSection() {
           INVERSION WARNING: 2s10s spread = {spread2s10s.toFixed(2)} bps
         </div>
       )}
-      <div style={{ fontSize: '9px', color: '#999', marginBottom: '6px' }}>
-        2s10s Spread: <span style={{ color: '#e0e0e0', fontWeight: 600 }}>
+      <div style={{ fontSize: '9px', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+        2s10s Spread: <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
           {spread2s10s != null ? spread2s10s.toFixed(2) + ' bps' : '—'}
         </span>
       </div>
       <ResponsiveContainer width="100%" height={200}>
         <LineChart data={chartData} margin={{ top: 5, right: 20, bottom: 20, left: 50 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#1e1e1e" />
-          <XAxis dataKey="tenor" stroke="#666" style={{ fontSize: 9 }} />
-          <YAxis stroke="#666" style={{ fontSize: 9 }} />
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--border-default)" />
+          <XAxis dataKey="tenor" stroke="var(--text-muted)" style={{ fontSize: 9 }} />
+          <YAxis stroke="var(--text-muted)" style={{ fontSize: 9 }} />
           <Tooltip
             contentStyle={{
-              background: '#0a0a0a',
-              border: '1px solid #1e1e1e',
+              background: 'var(--bg-panel)',
+              border: '1px solid var(--border-default)',
               borderRadius: 3,
             }}
             formatter={(val) => fmtYield(val)}
-            labelStyle={{ color: '#e0e0e0' }}
+            labelStyle={{ color: 'var(--text-primary)' }}
           />
           <Line
             type="monotone"
             dataKey="yield"
-            stroke="#2196f3"
+            stroke="var(--semantic-info)"
             strokeWidth={2}
             dot={{ r: 3 }}
             activeDot={{ r: 5 }}
@@ -273,19 +273,19 @@ function MultiCountryCurvesSection() {
   return (
     <ResponsiveContainer width="100%" height={220}>
       <LineChart data={chartData} margin={{ top: 5, right: 20, bottom: 20, left: 50 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#1e1e1e" />
-        <XAxis dataKey="tenor" stroke="#666" style={{ fontSize: 9 }} />
-        <YAxis stroke="#666" style={{ fontSize: 9 }} />
+        <CartesianGrid strokeDasharray="3 3" stroke="var(--border-default)" />
+        <XAxis dataKey="tenor" stroke="var(--text-muted)" style={{ fontSize: 9 }} />
+        <YAxis stroke="var(--text-muted)" style={{ fontSize: 9 }} />
         <Tooltip
           contentStyle={{
-            background: '#0a0a0a',
-            border: '1px solid #1e1e1e',
+            background: 'var(--bg-panel)',
+            border: '1px solid var(--border-default)',
             borderRadius: 3,
           }}
           formatter={(val) => fmtYield(val)}
-          labelStyle={{ color: '#e0e0e0' }}
+          labelStyle={{ color: 'var(--text-primary)' }}
         />
-        <Legend wrapperStyle={{ fontSize: 9, color: '#999' }} />
+        <Legend wrapperStyle={{ fontSize: 9, color: 'var(--text-secondary)' }} />
         <Line type="monotone" dataKey="US" stroke={CURVE_COLORS.US} strokeWidth={2} dot={{ r: 2 }} />
         <Line type="monotone" dataKey="DE" stroke={CURVE_COLORS.DE} strokeWidth={2} dot={{ r: 2 }} />
         <Line type="monotone" dataKey="JP" stroke={CURVE_COLORS.JP} strokeWidth={2} dot={{ r: 2 }} />
@@ -586,7 +586,7 @@ function DurationRiskCalculator() {
   return (
     <div style={{ padding: '0 10px' }}>
       <div style={{ marginBottom: '12px' }}>
-        <div style={{ fontSize: '9px', color: '#999', marginBottom: '4px' }}>
+        <div style={{ fontSize: '9px', color: 'var(--text-secondary)', marginBottom: '4px' }}>
           Short (2Y): {shortPct}%
         </div>
         <input
@@ -600,7 +600,7 @@ function DurationRiskCalculator() {
       </div>
 
       <div style={{ marginBottom: '12px' }}>
-        <div style={{ fontSize: '9px', color: '#999', marginBottom: '4px' }}>
+        <div style={{ fontSize: '9px', color: 'var(--text-secondary)', marginBottom: '4px' }}>
           Mid (5Y): {midPct}%
         </div>
         <input
@@ -614,7 +614,7 @@ function DurationRiskCalculator() {
       </div>
 
       <div style={{ marginBottom: '12px' }}>
-        <div style={{ fontSize: '9px', color: '#999', marginBottom: '4px' }}>
+        <div style={{ fontSize: '9px', color: 'var(--text-secondary)', marginBottom: '4px' }}>
           Long (20Y): {longPct}%
         </div>
         <input
@@ -628,16 +628,16 @@ function DurationRiskCalculator() {
       </div>
 
       <div style={{
-        background: '#0d0d0d',
-        border: '1px solid #1e1e1e',
+        background: 'var(--bg-surface)',
+        border: '1px solid var(--border-default)',
         borderRadius: '3px',
         padding: '8px',
         marginBottom: '8px',
       }}>
-        <div style={{ fontSize: '9px', color: '#999', marginBottom: '2px' }}>
+        <div style={{ fontSize: '9px', color: 'var(--text-secondary)', marginBottom: '2px' }}>
           Portfolio Duration
         </div>
-        <div style={{ fontSize: '14px', fontWeight: 600, color: '#2196f3' }}>
+        <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--semantic-info)' }}>
           {portfolioDuration.toFixed(2)} years
         </div>
       </div>
@@ -648,46 +648,46 @@ function DurationRiskCalculator() {
         gap: '6px',
       }}>
         <div style={{
-          background: '#0d0d0d',
-          border: '1px solid #1e1e1e',
+          background: 'var(--bg-surface)',
+          border: '1px solid var(--border-default)',
           borderRadius: '3px',
           padding: '6px',
         }}>
-          <div style={{ fontSize: '8px', color: '#999' }}>+25bp</div>
+          <div style={{ fontSize: '8px', color: 'var(--text-secondary)' }}>+25bp</div>
           <div style={{
             fontSize: '11px',
             fontWeight: 600,
-            color: pnl25 < 0 ? '#f44336' : '#4caf50',
+            color: pnl25 < 0 ? 'var(--semantic-down)' : 'var(--semantic-up)',
           }}>
             {pnl25.toFixed(3)}%
           </div>
         </div>
         <div style={{
-          background: '#0d0d0d',
-          border: '1px solid #1e1e1e',
+          background: 'var(--bg-surface)',
+          border: '1px solid var(--border-default)',
           borderRadius: '3px',
           padding: '6px',
         }}>
-          <div style={{ fontSize: '8px', color: '#999' }}>+50bp</div>
+          <div style={{ fontSize: '8px', color: 'var(--text-secondary)' }}>+50bp</div>
           <div style={{
             fontSize: '11px',
             fontWeight: 600,
-            color: pnl50 < 0 ? '#f44336' : '#4caf50',
+            color: pnl50 < 0 ? 'var(--semantic-down)' : 'var(--semantic-up)',
           }}>
             {pnl50.toFixed(3)}%
           </div>
         </div>
         <div style={{
-          background: '#0d0d0d',
-          border: '1px solid #1e1e1e',
+          background: 'var(--bg-surface)',
+          border: '1px solid var(--border-default)',
           borderRadius: '3px',
           padding: '6px',
         }}>
-          <div style={{ fontSize: '8px', color: '#999' }}>+100bp</div>
+          <div style={{ fontSize: '8px', color: 'var(--text-secondary)' }}>+100bp</div>
           <div style={{
             fontSize: '11px',
             fontWeight: 600,
-            color: pnl100 < 0 ? '#f44336' : '#4caf50',
+            color: pnl100 < 0 ? 'var(--semantic-down)' : 'var(--semantic-up)',
           }}>
             {pnl100.toFixed(3)}%
           </div>
@@ -738,19 +738,19 @@ function CentralBankRatesSection() {
         <tbody>
           {CB_RATES.map((cb, idx) => (
             <tr key={idx}>
-              <td style={{ fontWeight: 500, color: '#e0e0e0' }}>
+              <td style={{ fontWeight: 500, color: 'var(--text-primary)' }}>
                 <span style={{ marginRight: 4 }}>{cb.flag}</span>{cb.bank}
               </td>
-              <td style={{ color: '#2196f3', fontWeight: 600 }}>
+              <td style={{ color: 'var(--semantic-info)', fontWeight: 600 }}>
                 {cb.rate != null ? cb.rate.toFixed(2) + '%' : (loading ? '...' : '—')}
               </td>
-              <td style={{ fontSize: 9, color: '#999' }}>{cb.tenor}</td>
-              <td style={{ fontSize: 9, color: '#666' }}>{cb.asOf || '—'}</td>
+              <td style={{ fontSize: 9, color: 'var(--text-secondary)' }}>{cb.tenor}</td>
+              <td style={{ fontSize: 9, color: 'var(--text-muted)' }}>{cb.asOf || '—'}</td>
             </tr>
           ))}
         </tbody>
       </table>
-      <div style={{ fontSize: 8, color: '#555', marginTop: 6, textAlign: 'right' }}>
+      <div style={{ fontSize: 8, color: 'var(--text-muted)', marginTop: 6, textAlign: 'right' }}>
         ECB/BOE/BOJ/PBOC/BCB rates updated manually. Fed from FRED.
       </div>
     </div>
@@ -777,23 +777,23 @@ function EurBondETFCell({ ticker }) {
       onClick={() => openDetail(ticker)}
       onTouchEnd={(e) => { e.preventDefault(); openDetail(ticker); }}
       style={{
-        background: '#0d0d0d',
-        border: '1px solid #1e1e1e',
+        background: 'var(--bg-surface)',
+        border: '1px solid var(--border-default)',
         borderRadius: 3,
         padding: '8px',
         cursor: 'pointer',
         transition: 'border-color 0.15s',
       }}
     >
-      <div style={{ fontSize: 10, fontWeight: 600, color: '#e0e0e0', marginBottom: 2 }}>{ticker}</div>
-      <div style={{ fontSize: 8, color: '#999', marginBottom: 4 }}>{label}</div>
+      <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 2 }}>{ticker}</div>
+      <div style={{ fontSize: 8, color: 'var(--text-secondary)', marginBottom: 4 }}>{label}</div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-        <span style={{ fontSize: 11, color: '#e0e0e0', fontWeight: 500 }}>
+        <span style={{ fontSize: 11, color: 'var(--text-primary)', fontWeight: 500 }}>
           {p?.price ? p.price.toFixed(2) : '—'}
         </span>
         <span style={{
           fontSize: 9,
-          color: (p?.change_pct ?? 0) >= 0 ? '#4caf50' : '#f44336',
+          color: (p?.change_pct ?? 0) >= 0 ? 'var(--semantic-up)' : 'var(--semantic-down)',
           fontWeight: 500,
         }}>
           {p?.change_pct != null ? (p.change_pct >= 0 ? '+' : '') + p.change_pct.toFixed(2) + '%' : '—'}

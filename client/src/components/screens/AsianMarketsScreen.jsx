@@ -135,7 +135,7 @@ function MacroDashboard() {
   if (error) return <DeepError message={`Error: ${error}`} />;
   if (!data || data.length === 0) {
     return (
-      <div style={{ padding: '10px', color: '#666', fontSize: 10, textAlign: 'center' }}>
+      <div style={{ padding: '10px', color: 'var(--text-muted)', fontSize: 10, textAlign: 'center' }}>
         No macro data available
       </div>
     );
@@ -174,7 +174,7 @@ function MacroDashboard() {
         <tbody>
           {data.map((row, idx) => (
             <tr key={idx}>
-              <td style={{ fontWeight: 600, color: '#e0e0e0' }}>{row.country || '—'}</td>
+              <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{row.country || '—'}</td>
               <td style={getCellColor('policyRate', row.policyRate)}>
                 {row.policyRate != null ? row.policyRate.toFixed(2) : '—'}
               </td>
@@ -224,7 +224,7 @@ const FxCell = memo(function FxCell({ pair }) {
 /* ── FX Monitor Component ──────────────────────────────────────────────────── */
 function FxMonitor() {
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '1px', background: '#1e1e1e', padding: '1px' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '1px', background: 'var(--border-default)', padding: '1px' }}>
       {FX_PAIRS.map(pair => (
         <FxCell key={pair} pair={pair} />
       ))}
@@ -310,7 +310,7 @@ const EtfCell = memo(function EtfCell({ symbol }) {
 /* ── ETF Strip Component ───────────────────────────────────────────────────── */
 const EtfStrip = memo(function EtfStrip() {
   return (
-    <div className="ds-strip" style={{ display: 'flex', gap: 0, borderTop: '1px solid #1e1e1e' }}>
+    <div className="ds-strip" style={{ display: 'flex', gap: 0, borderTop: '1px solid var(--border-default)' }}>
       {REGIONAL_ETFS.map(sym => (
         <EtfCell key={sym} symbol={sym} />
       ))}
@@ -454,8 +454,8 @@ function AsianMarketsScreenImpl() {
       sections={sections}
       lastUpdated={new Date()}
     >
-      <div style={{ padding: '12px', borderTop: '1px solid #1e1e1e' }}>
-        <div style={{ fontSize: 10, fontWeight: 600, color: '#aaa', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+      <div style={{ padding: '12px', borderTop: '1px solid var(--border-default)' }}>
+        <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>
           REGIONAL INDEX ETFs
         </div>
         <EtfStrip />

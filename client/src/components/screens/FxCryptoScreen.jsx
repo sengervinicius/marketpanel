@@ -146,7 +146,7 @@ const CryptoMajorsSection = memo(function CryptoMajorsSection() {
         <tbody>{CRYPTO_MAJORS.map(sym => <CryptoRow key={sym} symbol={sym} label={CRYPTO_LABELS[sym]} onClick={openDetail} />)}</tbody>
       </table>
       {ethBtcRatio != null && (
-        <div style={{ fontSize: 10, color: '#ce93d8', padding: '6px 4px 2px', borderTop: '1px solid #1a1a1a' }}>
+        <div style={{ fontSize: 10, color: '#ce93d8', padding: '6px 4px 2px', borderTop: '1px solid var(--border-default)' }}>
           ETH/BTC Ratio: {ethBtcRatio.toFixed(4)}
         </div>
       )}

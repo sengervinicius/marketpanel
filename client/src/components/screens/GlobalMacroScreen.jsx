@@ -110,13 +110,13 @@ function VolCard({ symbol, label, thresholds, openDetail }) {
   const q = useTickerPrice(symbol);
   const level = q?.price;
 
-  let color = '#888';
+  let color = 'var(--text-muted)';
   if (level != null) {
     // For HYG, inverted logic (higher prices = safer)
     if (symbol === 'HYG') {
-      color = level > thresholds[0] ? '#388e3c' : level > thresholds[1] ? '#f57c00' : '#d32f2f';
+      color = level > thresholds[0] ? 'var(--semantic-up)' : level > thresholds[1] ? 'var(--semantic-warn)' : 'var(--semantic-down)';
     } else {
-      color = level < thresholds[0] ? '#388e3c' : level < thresholds[1] ? '#f57c00' : '#d32f2f';
+      color = level < thresholds[0] ? 'var(--semantic-up)' : level < thresholds[1] ? 'var(--semantic-warn)' : 'var(--semantic-down)';
     }
   }
 
@@ -124,7 +124,7 @@ function VolCard({ symbol, label, thresholds, openDetail }) {
     <div
       onClick={() => openDetail(symbol)}
       style={{
-        background: '#0a0a1a',
+        background: 'var(--bg-elevated)',
         border: `2px solid ${color}`,
         borderRadius: 6,
         padding: '12px 14px',
@@ -132,9 +132,9 @@ function VolCard({ symbol, label, thresholds, openDetail }) {
         transition: 'all 0.2s',
       }}
     >
-      <div style={{ fontSize: 10, color: '#888', marginBottom: 4, fontWeight: 500 }}>{label}</div>
+      <div style={{ fontSize: 10, color: 'var(--text-muted)', marginBottom: 4, fontWeight: 500 }}>{label}</div>
       <div style={{ fontSize: 22, fontWeight: 700, color, marginBottom: 4 }}>{level != null ? fmt(level, 1) : '—'}</div>
-      <div style={{ fontSize: 10, color: q?.changePct >= 0 ? '#66bb6a' : '#ef5350' }}>
+      <div style={{ fontSize: 10, color: q?.changePct >= 0 ? 'var(--semantic-up)' : 'var(--semantic-down)' }}>
         {q?.changePct != null ? fmtPct(q.changePct) : '—'}
       </div>
     </div>
@@ -161,13 +161,13 @@ function FxCell({ pair, openDetail }) {
   const q = useTickerPrice(pair);
   const displayPair = pair.replace(/^C:/, '');
   const changePct = q?.changePct || 0;
-  const color = changePct >= 0 ? '#4caf50' : '#ef5350';
+  const color = changePct >= 0 ? 'var(--semantic-up)' : 'var(--semantic-down)';
 
   return (
     <div
       onClick={() => openDetail(pair)}
       style={{
-        background: '#0a0a1a',
+        background: 'var(--bg-elevated)',
         border: `1px solid ${color}44`,
         borderRadius: 6,
         padding: '10px 12px',
@@ -175,8 +175,8 @@ function FxCell({ pair, openDetail }) {
         textAlign: 'center',
       }}
     >
-      <div style={{ fontSize: 10, fontWeight: 600, color: '#e0e0e0', marginBottom: 6 }}>{displayPair}</div>
-      <div style={{ fontSize: 14, fontWeight: 600, color: '#e0e0e0', marginBottom: 4 }}>{q?.price != null ? fmt(q.price, 4) : '—'}</div>
+      <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 6 }}>{displayPair}</div>
+      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>{q?.price != null ? fmt(q.price, 4) : '—'}</div>
       <div style={{ fontSize: 10, fontWeight: 500, color }}>{fmtPct(changePct)}</div>
     </div>
   );
@@ -233,13 +233,13 @@ function YieldCurveAnalysis() {
     <>
       {spread2s10s != null && (
         <div style={{
-          background: isInverted ? '#2a000a' : '#0a1a0a',
-          border: `1px solid ${isInverted ? '#ef535044' : '#66bb6a44'}`,
+          background: isInverted ? 'rgba(244, 67, 54, 0.08)' : 'rgba(102, 187, 106, 0.08)',
+          border: `1px solid ${isInverted ? 'var(--semantic-down)' : 'var(--semantic-up)'}44`,
           borderRadius: 6,
           padding: '8px 12px',
           marginBottom: 12,
           fontSize: 12,
-          color: isInverted ? '#ef5350' : '#66bb6a',
+          color: isInverted ? 'var(--semantic-down)' : 'var(--semantic-up)',
           fontWeight: 500,
         }}>
           2s10s Spread: {spread2s10s > 0 ? '+' : ''}{(spread2s10s * 100).toFixed(0)}bp {isInverted ? '— INVERTED' : '— Steepening'}
@@ -248,16 +248,16 @@ function YieldCurveAnalysis() {
       {chartData.length > 0 ? (
         <ResponsiveContainer width="100%" height={240}>
           <LineChart data={chartData}>
-            <XAxis dataKey="tenor" style={{ fontSize: 10, fill: '#666' }} />
-            <YAxis style={{ fontSize: 10, fill: '#666' }} label={{ value: 'Yield (%)', angle: -90, position: 'insideLeft' }} />
+            <XAxis dataKey="tenor" style={{ fontSize: 10, fill: 'var(--text-muted)' }} />
+            <YAxis style={{ fontSize: 10, fill: 'var(--text-muted)' }} label={{ value: 'Yield (%)', angle: -90, position: 'insideLeft' }} />
             <Tooltip
-              contentStyle={{ background: '#0a0a0a', border: '1px solid #1e1e1e', borderRadius: 3, fontSize: 10 }}
+              contentStyle={{ background: 'var(--bg-panel)', border: '1px solid var(--border-default)', borderRadius: 3, fontSize: 10 }}
               formatter={(value) => value.toFixed(3)}
             />
             <Line
               type="monotone"
               dataKey="yield"
-              stroke={isInverted ? '#ef5350' : '#66bb6a'}
+              stroke={isInverted ? 'var(--semantic-down)' : 'var(--semantic-up)'}
               dot={{ fill: '#9c27b0', r: 4 }}
               activeDot={{ r: 6 }}
               strokeWidth={2}
@@ -295,10 +295,10 @@ function CentralBankRates() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       {(Array.isArray(data) ? data : []).map((row) => (
         <div key={row.country} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{ minWidth: 60, fontSize: 11, fontWeight: 600, color: '#e0e0e0' }}>
+          <div style={{ minWidth: 60, fontSize: 11, fontWeight: 600, color: 'var(--text-primary)' }}>
             {row.country}
           </div>
-          <div style={{ flex: 1, height: 24, background: '#1a1a1a', borderRadius: 3, position: 'relative', overflow: 'hidden' }}>
+          <div style={{ flex: 1, height: 24, background: 'var(--border-default)', borderRadius: 3, position: 'relative', overflow: 'hidden' }}>
             <div
               style={{
                 height: '100%',
@@ -337,16 +337,16 @@ function RiskAppetiteIndicators() {
       <div
         onClick={() => openDetail('HYG')}
         style={{
-          background: '#0a0a1a',
-          border: `1px solid ${hyg?.price && hyg.price > 95 ? '#66bb6a' : hyg?.price && hyg.price > 90 ? '#f57c00' : '#ef5350'}44`,
+          background: 'var(--bg-elevated)',
+          border: `1px solid ${hyg?.price && hyg.price > 95 ? 'var(--semantic-up)' : hyg?.price && hyg.price > 90 ? 'var(--semantic-warn)' : 'var(--semantic-down)'}44`,
           borderRadius: 6,
           padding: '12px 14px',
           cursor: 'pointer',
         }}
       >
-        <div style={{ fontSize: 10, color: '#888', marginBottom: 4, fontWeight: 500 }}>Credit Risk (HYG)</div>
-        <div style={{ fontSize: 18, fontWeight: 700, color: '#e0e0e0', marginBottom: 4 }}>{fmt(hyg?.price)}</div>
-        <div style={{ fontSize: 10, color: hyg?.changePct >= 0 ? '#66bb6a' : '#ef5350' }}>
+        <div style={{ fontSize: 10, color: 'var(--text-muted)', marginBottom: 4, fontWeight: 500 }}>Credit Risk (HYG)</div>
+        <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>{fmt(hyg?.price)}</div>
+        <div style={{ fontSize: 10, color: hyg?.changePct >= 0 ? 'var(--semantic-up)' : 'var(--semantic-down)' }}>
           {fmtPct(hyg?.changePct)}
         </div>
       </div>
@@ -355,16 +355,16 @@ function RiskAppetiteIndicators() {
       <div
         onClick={() => openDetail('EEM')}
         style={{
-          background: '#0a0a1a',
-          border: `1px solid ${emRiskChange && emRiskChange >= 0 ? '#4caf50' : '#f44336'}44`,
+          background: 'var(--bg-elevated)',
+          border: `1px solid ${emRiskChange && emRiskChange >= 0 ? 'var(--semantic-up)' : 'var(--semantic-down)'}44`,
           borderRadius: 6,
           padding: '12px 14px',
           cursor: 'pointer',
         }}
       >
-        <div style={{ fontSize: 10, color: '#888', marginBottom: 4, fontWeight: 500 }}>EM Risk Appetite</div>
-        <div style={{ fontSize: 18, fontWeight: 700, color: '#e0e0e0', marginBottom: 4 }}>{emRiskRatio || '—'}</div>
-        <div style={{ fontSize: 10, color: emRiskChange >= 0 ? '#66bb6a' : '#ef5350' }}>
+        <div style={{ fontSize: 10, color: 'var(--text-muted)', marginBottom: 4, fontWeight: 500 }}>EM Risk Appetite</div>
+        <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>{emRiskRatio || '—'}</div>
+        <div style={{ fontSize: 10, color: emRiskChange >= 0 ? 'var(--semantic-up)' : 'var(--semantic-down)' }}>
           EEM/SPY {emRiskChange != null ? (emRiskChange >= 0 ? '+' : '') + emRiskChange + '%' : '—'}
         </div>
       </div>
@@ -373,16 +373,16 @@ function RiskAppetiteIndicators() {
       <div
         onClick={() => openDetail('GLD')}
         style={{
-          background: '#0a0a1a',
-          border: `1px solid ${gld?.changePct && gld.changePct >= 0 ? '#f57c00' : '#66bb6a'}44`,
+          background: 'var(--bg-elevated)',
+          border: `1px solid ${gld?.changePct && gld.changePct >= 0 ? 'var(--semantic-warn)' : 'var(--semantic-up)'}44`,
           borderRadius: 6,
           padding: '12px 14px',
           cursor: 'pointer',
         }}
       >
-        <div style={{ fontSize: 10, color: '#888', marginBottom: 4, fontWeight: 500 }}>Safe Haven (Gold)</div>
-        <div style={{ fontSize: 18, fontWeight: 700, color: '#e0e0e0', marginBottom: 4 }}>{fmt(gld?.price)}</div>
-        <div style={{ fontSize: 10, color: gld?.changePct >= 0 ? '#66bb6a' : '#ef5350' }}>
+        <div style={{ fontSize: 10, color: 'var(--text-muted)', marginBottom: 4, fontWeight: 500 }}>Safe Haven (Gold)</div>
+        <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>{fmt(gld?.price)}</div>
+        <div style={{ fontSize: 10, color: gld?.changePct >= 0 ? 'var(--semantic-up)' : 'var(--semantic-down)' }}>
           {fmtPct(gld?.changePct)}
         </div>
       </div>
@@ -433,7 +433,7 @@ function EuropeanMarkets() {
             <td className={d.changePct != null && d.changePct >= 0 ? 'ds-up' : 'ds-down'}>
               {fmtPct(d.changePct)}
             </td>
-            <td style={{ color: '#666', fontSize: 9 }}>{d.currency || '—'}</td>
+            <td style={{ color: 'var(--text-muted)', fontSize: 9 }}>{d.currency || '—'}</td>
           </tr>
         ))}
       </tbody>
@@ -451,17 +451,17 @@ function IndexCell({ symbol, onClick }) {
     <div
       onClick={() => onClick(symbol)}
       style={{
-        background: '#0a0a1a',
-        border: `1px solid ${q?.changePct >= 0 ? '#66bb6a' : '#ef5350'}44`,
+        background: 'var(--bg-elevated)',
+        border: `1px solid ${q?.changePct >= 0 ? 'var(--semantic-up)' : 'var(--semantic-down)'}44`,
         borderRadius: 6,
         padding: '10px 12px',
         cursor: 'pointer',
         textAlign: 'center',
       }}
     >
-      <div style={{ fontSize: 10, fontWeight: 600, color: '#e0e0e0', marginBottom: 4 }}>{symbol}</div>
-      <div style={{ fontSize: 14, fontWeight: 600, color: '#e0e0e0', marginBottom: 2 }}>{q?.price != null ? fmt(q.price) : '—'}</div>
-      <div style={{ fontSize: 9, color: q?.changePct >= 0 ? '#66bb6a' : '#ef5350' }}>
+      <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>{symbol}</div>
+      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 2 }}>{q?.price != null ? fmt(q.price) : '—'}</div>
+      <div style={{ fontSize: 9, color: q?.changePct >= 0 ? 'var(--semantic-up)' : 'var(--semantic-down)' }}>
         {fmtPct(q?.changePct)}
       </div>
     </div>
@@ -502,11 +502,11 @@ function MacroCalendar() {
   const events = data.slice(0, 7);
 
   const getImpactColor = (impact) => {
-    if (!impact) return '#888';
+    if (!impact) return 'var(--text-muted)';
     const lower = impact.toLowerCase();
-    if (lower === 'high') return '#d32f2f';
-    if (lower === 'medium' || lower === 'med') return '#f57c00';
-    return '#388e3c';
+    if (lower === 'high') return 'var(--semantic-down)';
+    if (lower === 'medium' || lower === 'med') return 'var(--semantic-warn)';
+    return 'var(--semantic-up)';
   };
 
   return (
@@ -527,11 +527,11 @@ function MacroCalendar() {
             onClick={() => ev.country && openDetail(ev.country)}
             onTouchEnd={(e) => { e.preventDefault(); ev.country && openDetail(ev.country); }}
           >
-            <td style={{ fontSize: 10, color: '#999' }}>
+            <td style={{ fontSize: 10, color: 'var(--text-secondary)' }}>
               {ev.date ? new Date(ev.date).toLocaleDateString('en-US', { month: 'short', day: '2-digit' }) : '—'}
             </td>
             <td style={{ fontSize: 11 }}>{ev.event || '—'}</td>
-            <td style={{ fontSize: 10, color: '#999' }}>{ev.country || '—'}</td>
+            <td style={{ fontSize: 10, color: 'var(--text-secondary)' }}>{ev.country || '—'}</td>
             <td style={{ color: getImpactColor(ev.impact), fontSize: 10, fontWeight: 500 }}>
               {ev.impact || '—'}
             </td>
