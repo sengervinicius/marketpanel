@@ -94,7 +94,7 @@ function AdrPairRow({ b3, adr, name, openDetail }) {
   const qB3 = useTickerPrice(b3);
   const qAdr = useTickerPrice(adr);
   return (
-    <tr className="ds-row-clickable">
+    <tr className="ds-row-clickable" onClick={() => openDetail(b3)} onTouchEnd={(e) => { e.preventDefault(); openDetail(b3); }}>
       <td style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{name}</td>
       <td onClick={() => openDetail(b3)} style={{ cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>
         {b3.replace('.SA', '')}

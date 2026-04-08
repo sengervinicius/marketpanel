@@ -12,3 +12,4 @@ export { MobileTableRow } from './MobileTableRow';
 export { MobileSection } from './MobileSection';
 export { default as SectorPriceLabel } from './SectorPriceLabel';
 export { default as FullPageScreenLayout } from './FullPageScreenLayout';
+export { TableExportBar } from './TableExportBar';

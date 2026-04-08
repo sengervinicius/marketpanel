@@ -11,6 +11,7 @@ import { SectorChartPanel } from './shared/SectorChartPanel';
 import { SectorScatterPlot } from './shared/SectorScatterPlot';
 import { MiniFinancials } from './shared/MiniFinancials';
 import { InsiderActivity } from './shared/InsiderActivity';
+import { TableExportBar } from './shared/TableExportBar';
 import { useOpenDetail } from '../../context/OpenDetailContext';
 import { useTickerPrice } from '../../context/PriceContext';
 import { useDeepScreenData } from '../../hooks/useDeepScreenData';
@@ -65,7 +66,7 @@ function EnhancedTableRow({ symbol, label, stats, onClick, sectorName = null }) 
   const mktCap = stats?.market_capitalization;
 
   return (
-    <tr className="ds-row-clickable" onClick={() => onClick(symbol, sectorName)}>
+    <tr className="ds-row-clickable" onClick={() => onClick(symbol, sectorName)} onTouchEnd={(e) => { e.preventDefault(); onClick(symbol, sectorName); }}>
       <td className="ds-ticker-col" style={{ fontSize: 13 }}>{symbol}</td>
       <td style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{label || LABELS[symbol] || <span className="ds-dash">—</span>}</td>
       <td style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 600, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>
@@ -90,7 +91,7 @@ function SectionTableRow({ sym, name, statsMap, onClickRow, withMiniCharts, acce
   const stats = statsMap.get(sym);
 
   return (
-    <tr className="ds-row-clickable" onClick={() => onClickRow(sym, sectorName)} style={{ minHeight: withMiniCharts ? 100 : 44 }}>
+    <tr className="ds-row-clickable" onClick={() => onClickRow(sym, sectorName)} onTouchEnd={(e) => { e.preventDefault(); onClickRow(sym, sectorName); }} style={{ minHeight: withMiniCharts ? 100 : 44 }}>
       <td className="ds-ticker-col" style={{ fontSize: 13, letterSpacing: '0.5px' }}>{sym}</td>
       <td style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{name || LABELS[sym] || <span className="ds-dash">—</span>}</td>
       <td style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 600, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>
@@ -232,7 +233,37 @@ function DefenceScreenImpl() {
       title: 'US Defence Primes',
       component: () => (
         <StatsLoadGate statsMap={statsMap} loading={statsLoading} error={statsError} refresh={statsRefresh}>
-          <SectionTable tickers={US_PRIMES} statsMap={statsMap} withMiniCharts={true} accentColor="#ef5350" sectionName="Defence & Aerospace" />
+          <div>
+            <TableExportBar
+              columns={[
+                { label: 'Ticker', key: 'symbol' },
+                { label: 'Name', key: 'name' },
+                { label: 'Price', key: 'price' },
+                { label: '1D%', key: 'changePct' },
+                { label: 'Mkt Cap', key: 'mktCap' },
+                { label: 'P/E', key: 'pe' },
+              ]}
+              getData={() => {
+                const priceContext = {};
+                US_PRIMES.forEach(sym => {
+                  // Note: This is a simplified approach; in production you'd use useTickerPrice hook
+                  priceContext[sym] = { price: null, changePct: null };
+                });
+                return US_PRIMES.map(sym => {
+                  const stats = statsMap.get(sym);
+                  return {
+                    symbol: sym,
+                    name: LABELS[sym] || sym,
+                    price: stats ? `$${(stats.price || 0).toFixed(2)}` : '—',
+                    changePct: stats ? `${(stats.changePct || 0).toFixed(2)}%` : '—',
+                    mktCap: stats?.market_capitalization ? `$${(stats.market_capitalization / 1e9).toFixed(1)}B` : '—',
+                    pe: stats?.pe_ratio ? `${parseFloat(stats.pe_ratio).toFixed(1)}x` : '—',
+                  };
+                });
+              }}
+            />
+            <SectionTable tickers={US_PRIMES} statsMap={statsMap} withMiniCharts={true} accentColor="#ef5350" sectionName="Defence & Aerospace" />
+          </div>
         </StatsLoadGate>
       ),
     },
