@@ -223,9 +223,9 @@
 .scr-btn--primary {
   border: 1px solid var(--accent);
   background: var(--accent);
-  color: #fff;
+  color: var(--text-primary);
 }
-.scr-btn--primary:hover:not(:disabled) { background: #e85d00; }
+.scr-btn--primary:hover:not(:disabled) { background: var(--accent); }
 .scr-btn--primary:disabled { opacity: 0.5; cursor: default; }
 .scr-btn--secondary {
   border: 1px solid var(--border-strong);

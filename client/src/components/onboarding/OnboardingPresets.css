@@ -4,7 +4,7 @@
   position: fixed;
   inset: 0;
   z-index: 9998;
-  background: #080808;
+  background: var(--bg-app);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -21,7 +21,7 @@
 }
 
 .obp-header-label {
-  color: #ff6600;
+  color: var(--accent);
   font-size: 11px;
   letter-spacing: 0.3em;
   font-weight: 700;
@@ -29,7 +29,7 @@
 }
 
 .obp-header-title {
-  color: #e8e8e8;
+  color: var(--text-primary);
   font-size: 18px;
   font-weight: 700;
   margin-bottom: 6px;
@@ -37,7 +37,7 @@
 }
 
 .obp-header-subtitle {
-  color: #444;
+  color: var(--text-faint);
   letter-spacing: 0.1em;
   font-size: 12px;
 }
@@ -52,8 +52,8 @@
 }
 
 .obp-card {
-  background: #0d0d0d;
-  border: 1px solid #1e1e1e;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
   border-radius: 4px;
   padding: 14px 16px;
   cursor: pointer;
@@ -67,12 +67,12 @@
 }
 
 .obp-card:hover {
-  border-color: #2a2a2a;
+  border-color: var(--border-strong);
 }
 
 .obp-card.obp-card-active {
   background: #100900;
-  border-color: #ff6600;
+  border-color: var(--accent);
 }
 
 .obp-card:disabled {
@@ -88,13 +88,13 @@
 }
 
 .obp-card-title {
-  color: #e0e0e0;
+  color: var(--text-primary);
   font-size: 12px;
   font-weight: 700;
 }
 
 .obp-card.obp-card-active .obp-card-title {
-  color: #ff6600;
+  color: var(--accent);
 }
 
 .obp-card-radio {
@@ -102,7 +102,7 @@
   height: 14px;
   border-radius: 50%;
   flex-shrink: 0;
-  border: 1.5px solid #2a2a2a;
+  border: 1.5px solid var(--border-strong);
   background: transparent;
   display: flex;
   align-items: center;
@@ -110,25 +110,25 @@
 }
 
 .obp-card.obp-card-active .obp-card-radio {
-  border-color: #ff6600;
-  background: #ff6600;
+  border-color: var(--accent);
+  background: var(--accent);
 }
 
 .obp-card-radio-inner {
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: #000;
+  background: var(--bg-app);
 }
 
 .obp-card-description {
-  color: #555;
+  color: var(--text-muted);
   font-size: 9px;
   line-height: 1.5;
 }
 
 .obp-card-includes {
-  color: #333;
+  color: var(--text-faint);
   font-size: 8px;
   letter-spacing: 0.03em;
   margin-top: 2px;
@@ -138,7 +138,7 @@
   flex-shrink: 0;
   background: none;
   border: none;
-  color: #2a2a2a;
+  color: var(--border-strong);
   font-size: 9px;
   cursor: pointer;
   letter-spacing: 0.12em;

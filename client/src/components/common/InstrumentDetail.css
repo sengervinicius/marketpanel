@@ -82,7 +82,7 @@
 /* Price block */
 .id-price {
   font-size: 22px;
-  color: #fff;
+  color: var(--text-primary);
   font-weight: bold;
   line-height: 1;
 }
@@ -252,7 +252,7 @@
 .id-range-btn--active {
   border-color: var(--accent);
   background: var(--accent);
-  color: #fff;
+  color: var(--text-primary);
 }
 .id-range-chg {
   font-size: var(--font-base);
@@ -341,7 +341,7 @@
   width: 32px;
   height: 40px;
   pointer-events: none;
-  background: linear-gradient(to right, transparent, var(--bg-panel, #0a0a0a));
+  background: linear-gradient(to right, transparent, var(--bg-panel));
   z-index: 11;
 }
 .id-mobile-tab-content {
@@ -519,7 +519,7 @@
   height: 14px;
   margin-bottom: 8px;
   border-radius: 2px;
-  background: linear-gradient(90deg, #1a1a1a 25%, #252525 50%, #1a1a1a 75%);
+  background: linear-gradient(90deg, var(--bg-active) 25%, #252525 50%, var(--bg-active) 75%);
   background-size: 200% 100%;
   animation: id-shimmer 1.5s ease-in-out infinite;
 }
@@ -527,7 +527,7 @@
   height: 200px;
   margin-bottom: 8px;
   border-radius: 2px;
-  background: linear-gradient(90deg, #1a1a1a 25%, #252525 50%, #1a1a1a 75%);
+  background: linear-gradient(90deg, var(--bg-active) 25%, #252525 50%, var(--bg-active) 75%);
   background-size: 200% 100%;
   animation: id-shimmer 1.5s ease-in-out infinite;
 }
@@ -720,8 +720,8 @@
   font-weight: 500;
   font-variant-numeric: tabular-nums;
 }
-.id-hero-change.up { color: var(--price-up, var(--positive)); }
-.id-hero-change.down { color: var(--price-down, var(--negative)); }
+.id-hero-change.up { color: var(--price-up); }
+.id-hero-change.down { color: var(--price-down); }
 .id-hero-change.flat { color: var(--text-secondary); }
 .id-hero-ccy {
   font-size: var(--font-sm);
@@ -831,7 +831,7 @@
 }
 
 .id-delay-badge--slow {
-  color: #ff9800;
+  color: var(--semantic-warn);
   background: rgba(255, 152, 0, 0.08);
 }
 
@@ -843,7 +843,7 @@
 .id-action-btn-bar { flex: 1; display: flex; align-items: center; justify-content: center; height: 40px; border-radius: 6px; font-size: var(--font-sm); font-weight: 600; font-family: var(--font-ui); cursor: pointer; border: 1px solid var(--border-default); background: var(--bg-elevated); color: var(--text-secondary); transition: all 120ms ease; -webkit-tap-highlight-color: transparent; }
 .id-action-btn-bar:active { background: var(--bg-overlay); transform: scale(0.97); }
 .id-action-btn-bar--primary { background: var(--accent-dim); border-color: rgba(255,102,0,0.3); color: var(--accent); }
-.id-action-btn-bar--primary:active { background: var(--accent); color: #fff; }
+.id-action-btn-bar--primary:active { background: var(--accent); color: var(--text-primary); }
 
 /* ── Fundamentals section ─────────────────────────── */
 .id-fundamentals {
@@ -920,9 +920,9 @@
 .id-ai-section {
   margin: var(--sp-3) 0;
   padding: var(--sp-3);
-  background: var(--bg-surface, #0d0d0d);
-  border: 1px solid var(--border-default, #1a1a1a);
-  border-left: 3px solid var(--accent, #ff6600);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-left: 3px solid var(--accent);
   border-radius: var(--radius-md, 4px);
 }
 .id-ai-header {
@@ -935,7 +935,7 @@
   font-size: var(--font-xs, 10px);
   font-weight: 700;
   letter-spacing: 0.08em;
-  color: var(--accent, #ff6600);
+  color: var(--accent);
 }
 .id-ai-badge {
   font-size: 8px;
@@ -944,13 +944,13 @@
   padding: 1px 6px;
   border-radius: var(--radius-full, 9999px);
   background: rgba(255, 102, 0, 0.08);
-  color: var(--text-muted, #888);
+  color: var(--text-muted, var(--text-faint));
   border: 1px solid rgba(255, 102, 0, 0.15);
 }
 .id-ai-summary {
   font-size: var(--font-sm, 12px);
   line-height: 1.55;
-  color: var(--text-secondary, #ccc);
+  color: var(--text-secondary, var(--text-secondary));
   margin: 0 0 var(--sp-2);
 }
 .id-ai-block {
@@ -960,13 +960,13 @@
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.08em;
-  color: var(--text-muted, #888);
+  color: var(--text-muted, var(--text-faint));
   margin-bottom: 4px;
 }
 .id-ai-text {
   font-size: var(--font-sm, 12px);
   line-height: 1.5;
-  color: var(--text-secondary, #ccc);
+  color: var(--text-secondary, var(--text-secondary));
   margin: 0;
 }
 .id-ai-list {
@@ -977,7 +977,7 @@
 .id-ai-list li {
   font-size: var(--font-sm, 12px);
   line-height: 1.45;
-  color: var(--text-secondary, #ccc);
+  color: var(--text-secondary, var(--text-secondary));
   padding: 3px 0 3px 12px;
   position: relative;
 }
@@ -989,15 +989,15 @@
   width: 4px;
   height: 4px;
   border-radius: 50%;
-  background: var(--accent, #ff6600);
+  background: var(--accent);
   opacity: 0.6;
 }
 .id-ai-list--risks li::before {
-  background: var(--price-down, #f44336);
+  background: var(--semantic-down);
 }
 .id-ai-error {
   font-size: var(--font-sm, 12px);
-  color: var(--text-muted, #888);
+  color: var(--text-muted, var(--text-faint));
   padding: 8px 0;
 }
 
@@ -1047,7 +1047,7 @@
 }
 .id-ct-btn--active {
   background: var(--accent);
-  color: #fff;
+  color: var(--text-primary);
 }
 
 /* ── Phase 6: Indicator Toggle Bar ───────────────── */

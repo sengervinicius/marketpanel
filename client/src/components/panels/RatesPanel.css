@@ -9,17 +9,17 @@
 
 .rp-header {
   justify-content: space-between;
-  border-bottom: 1px solid #1a1a1a;
+  border-bottom: 1px solid var(--bg-active);
   padding: 0 6px;
   height: 22px;
   flex-shrink: 0;
-  background: #070707;
+  background: var(--bg-app);
   display: flex;
   align-items: center;
 }
 
 .rp-header-title {
-  color: #e55a00;
+  color: var(--accent);
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.12em;
@@ -27,7 +27,7 @@
 }
 
 .rp-header-time {
-  color: #1e1e1e;
+  color: var(--border-subtle);
   font-size: 7.5px;
   font-family: var(--font-mono);
 }
@@ -36,12 +36,12 @@
   display: grid;
   grid-template-columns: 70px 52px 44px 1fr;
   padding: 1px 6px;
-  background: #070707;
-  border-bottom: 1px solid #111;
+  background: var(--bg-app);
+  border-bottom: 1px solid var(--bg-elevated);
 }
 
 .rp-col-header-cell {
-  color: #2a2a2a;
+  color: var(--border-strong);
   font-size: 7px;
   font-family: var(--font-mono);
   text-align: left;
@@ -58,12 +58,12 @@
 
 .rp-section-label {
   padding: 3px 6px 1px;
-  background: #060606;
-  border-bottom: 1px solid #111;
+  background: var(--bg-app);
+  border-bottom: 1px solid var(--bg-elevated);
 }
 
 .rp-section-label-text {
-  color: #2a2a2a;
+  color: var(--border-strong);
   font-size: 7px;
   font-family: var(--font-mono);
   letter-spacing: 0.08em;
@@ -74,22 +74,22 @@
   grid-template-columns: 70px 52px 44px 1fr;
   align-items: center;
   padding: 2px 6px;
-  border-bottom: 1px solid #0d0d0d;
+  border-bottom: 1px solid var(--bg-surface);
 }
 
 .rp-row-label {
-  color: #888;
+  color: var(--text-faint);
   font-size: 9px;
   font-family: var(--font-mono);
   letter-spacing: 0.03em;
 }
 
 .rp-row-label--live {
-  color: #888;
+  color: var(--text-faint);
 }
 
 .rp-row-label--static {
-  color: #555;
+  color: var(--text-muted);
 }
 
 .rp-row-value {
@@ -99,11 +99,11 @@
 }
 
 .rp-row-value--live {
-  color: #e8e8e8;
+  color: var(--text-primary);
 }
 
 .rp-row-value--static {
-  color: #666;
+  color: var(--text-muted);
 }
 
 .rp-row-change {
@@ -115,16 +115,16 @@
 }
 
 .rp-row-change--negative {
-  color: #cc2200;
+  color: var(--semantic-down);
 }
 
 .rp-row-change--static {
-  color: #2a2a2a;
+  color: var(--border-strong);
   font-size: 8px;
 }
 
 .rp-row-note {
-  color: #2a2a2a;
+  color: var(--border-strong);
   font-size: 7.5px;
   text-align: right;
   font-family: var(--font-mono);
@@ -137,7 +137,7 @@
 }
 
 .rp-footer-text {
-  color: #141414;
+  color: var(--bg-hover);
   font-size: 7px;
   font-family: var(--font-mono);
 }

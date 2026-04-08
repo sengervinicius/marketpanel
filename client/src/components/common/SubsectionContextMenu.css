@@ -8,8 +8,8 @@
 
 .scm-menu {
   position: fixed;
-  background: #111;
-  border: 1px solid #2a2a2a;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-strong);
   border-radius: 3px;
   z-index: 1001;
   min-width: 200px;
@@ -19,8 +19,8 @@
 
 .scm-title {
   padding: 6px 8px;
-  border-bottom: 1px solid #1a1a1a;
-  color: #444;
+  border-bottom: 1px solid var(--bg-active);
+  color: var(--text-faint);
   font-size: 7px;
   font-weight: 700;
   letter-spacing: 0.12em;
@@ -32,24 +32,24 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  color: #888;
-  border-bottom: 1px solid #0f0f0f;
+  color: var(--text-faint);
+  border-bottom: 1px solid var(--bg-app);
   transition: background-color 0.1s;
 }
 
 .scm-item-row:hover {
-  background-color: #1a1a1a;
+  background-color: var(--bg-active);
 }
 
 .scm-checkbox {
   width: 12px;
   height: 12px;
-  border: 1px solid #444;
+  border: 1px solid var(--text-faint);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 9px;
-  color: #00bcd4;
+  color: var(--sector-tech);
   flex-shrink: 0;
 }
 
@@ -67,7 +67,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #444;
+  color: var(--text-faint);
   transition: color 0.1s, background-color 0.1s;
   flex-shrink: 0;
   background: none;
@@ -77,15 +77,15 @@
 }
 
 .scm-icon-btn:hover {
-  color: #e0e0e0;
-  background-color: #222;
+  color: var(--text-primary);
+  background-color: var(--bg-elevated);
 }
 
 .scm-rename-input {
   flex: 1;
-  background: #080808;
-  border: 1px solid #ff6600;
-  color: #e0e0e0;
+  background: var(--bg-app);
+  border: 1px solid var(--accent);
+  color: var(--text-primary);
   padding: 1px 4px;
   font-family: var(--font-ui);
   outline: none;
@@ -94,7 +94,7 @@
 
 .scm-divider {
   height: 1px;
-  background: #1a1a1a;
+  background: var(--bg-active);
   margin: 4px 0;
 }
 
@@ -104,7 +104,7 @@
   align-items: center;
   justify-content: center;
   gap: 4px;
-  color: #4caf50;
+  color: var(--semantic-up);
   font-weight: 500;
   transition: background-color 0.1s;
   user-select: none;
@@ -112,14 +112,14 @@
 }
 
 .scm-add-button:hover {
-  background-color: #1a1a1a;
+  background-color: var(--bg-active);
 }
 
 .scm-add-input {
   flex: 1;
-  background: #080808;
-  border: 1px solid #4caf50;
-  color: #e0e0e0;
+  background: var(--bg-app);
+  border: 1px solid var(--semantic-up);
+  color: var(--text-primary);
   padding: 3px 6px;
   font-family: var(--font-ui);
   outline: none;
@@ -138,7 +138,7 @@
   align-items: center;
   justify-content: center;
   gap: 4px;
-  color: #ff6600;
+  color: var(--accent);
   font-weight: 500;
   transition: background-color 0.1s;
   user-select: none;
@@ -146,17 +146,17 @@
 }
 
 .scm-manage-button:hover {
-  background-color: #1a1a1a;
+  background-color: var(--bg-active);
 }
 
 .scm-custom-tag {
   font-size: 7px;
-  color: #333;
+  color: var(--text-faint);
   letter-spacing: 0.06em;
   margin-left: 2px;
 }
 
 .scm-delete-btn:hover {
-  color: #f44336 !important;
-  background-color: #1a0000 !important;
+  color: var(--semantic-down) !important;
+  background-color: rgba(255, 0, 0, 0.04) !important;
 }

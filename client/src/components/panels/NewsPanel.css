@@ -9,8 +9,8 @@
 
 .np-header {
   padding: 4px 8px;
-  border-bottom: 1px solid #2a2a2a;
-  background: #111;
+  border-bottom: 1px solid var(--border-strong);
+  background: var(--bg-elevated);
   flex-shrink: 0;
   gap: 6px;
   display: flex;
@@ -18,13 +18,13 @@
 }
 
 .np-header-title {
-  color: #ff6600;
+  color: var(--accent);
   font-weight: 700;
   letter-spacing: 1px;
 }
 
 .np-header-count {
-  color: #333;
+  color: var(--text-faint);
   font-size: 8px;
 }
 
@@ -43,8 +43,8 @@
 
 .np-ai-btn {
   background: none;
-  border: 1px solid #2a2a2a;
-  color: #555;
+  border: 1px solid var(--border-strong);
+  color: var(--text-muted);
   padding: 1px 5px;
   font-size: 9px;
   cursor: pointer;
@@ -52,8 +52,8 @@
 }
 
 .np-ai-btn:hover:not(:disabled) {
-  color: #ff6600;
-  border-color: #ff6600;
+  color: var(--accent);
+  border-color: var(--accent);
 }
 
 .np-ai-btn:disabled {
@@ -63,16 +63,16 @@
 
 .np-collapse-btn {
   background: none;
-  border: 1px solid #2a2a2a;
-  color: #555;
+  border: 1px solid var(--border-strong);
+  color: var(--text-muted);
   padding: 1px 5px;
   font-size: 9px;
 }
 
 .np-error-banner {
   padding: 4px 8px;
-  background: #1a0000;
-  border-bottom: 1px solid #3a0000;
+  background: rgba(255, 0, 0, 0.04);
+  border-bottom: 1px solid rgba(255, 0, 0, 0.08);
   gap: 6px;
   flex-shrink: 0;
   display: flex;
@@ -80,12 +80,12 @@
 }
 
 .np-error-icon {
-  color: #ff4444;
+  color: var(--semantic-down);
   font-size: 9px;
 }
 
 .np-error-text {
-  color: #aa3333;
+  color: var(--semantic-down);
   font-size: 9px;
 }
 
@@ -93,7 +93,7 @@
   padding: 6px 8px;
   background: #0a1a2e;
   border-bottom: 1px solid #1a3a4e;
-  border-left: 2px solid #ff6600;
+  border-left: 2px solid var(--accent);
   flex-shrink: 0;
   position: relative;
   display: flex;
@@ -115,7 +115,7 @@
 }
 
 .np-ai-loading {
-  color: #666;
+  color: var(--text-muted);
   font-size: 9px;
   font-style: italic;
 }
@@ -125,21 +125,21 @@
   align-items: center;
   gap: 6px;
   padding: 4px;
-  background: #1a0000;
-  border: 1px solid #3a0000;
+  background: rgba(255, 0, 0, 0.04);
+  border: 1px solid rgba(255, 0, 0, 0.08);
   border-radius: 2px;
 }
 
 .np-ai-error span {
-  color: #ff4444;
+  color: var(--semantic-down);
   font-size: 9px;
   flex: 1;
 }
 
 .np-ai-retry {
   background: none;
-  border: 1px solid #3a0000;
-  color: #ff4444;
+  border: 1px solid rgba(255, 0, 0, 0.08);
+  color: var(--semantic-down);
   padding: 1px 4px;
   font-size: 8px;
   cursor: pointer;
@@ -147,7 +147,7 @@
 }
 
 .np-ai-retry:hover {
-  border-color: #ff4444;
+  border-color: var(--semantic-down);
 }
 
 .np-ai-close-btn {
@@ -156,7 +156,7 @@
   right: 4px;
   background: none;
   border: none;
-  color: #555;
+  color: var(--text-muted);
   font-size: 14px;
   cursor: pointer;
   padding: 0;
@@ -169,18 +169,18 @@
 }
 
 .np-ai-close-btn:hover {
-  color: #ff6600;
+  color: var(--accent);
 }
 
 .np-content {
   flex: 1;
   overflow-y: auto;
-  background: #000;
+  background: var(--bg-app);
 }
 
 .np-news-item {
   padding: 4px 6px;
-  border-bottom: 1px solid #0d0d0d;
+  border-bottom: 1px solid var(--bg-surface);
   background: transparent;
   transition: background 1s;
   cursor: pointer;
@@ -207,15 +207,15 @@
 }
 
 .np-news-publisher--breaking {
-  color: #ff2222;
+  color: var(--semantic-down);
 }
 
 .np-news-publisher--normal {
-  color: #ff6600;
+  color: var(--accent);
 }
 
 .np-news-time {
-  color: #444;
+  color: var(--text-faint);
   font-size: 9px;
 }
 
@@ -225,7 +225,7 @@
 }
 
 .np-news-title--breaking {
-  color: #ff6666;
+  color: var(--semantic-down);
   font-weight: 600;
 }
 
@@ -243,9 +243,9 @@
 }
 
 .np-news-ticker {
-  color: #ff6600;
+  color: var(--accent);
   font-size: 9px;
-  background: #1a0d00;
+  background: rgba(255, 0, 0, 0.04);
   padding: 1px 4px;
   border: 1px solid #2a1500;
 }
@@ -265,16 +265,16 @@
 }
 
 .np-sentiment-badge--bullish {
-  background: #4caf50;
-  color: #000;
+  background: var(--semantic-up);
+  color: var(--bg-app);
 }
 
 .np-sentiment-badge--bearish {
-  background: #f44336;
-  color: #fff;
+  background: var(--semantic-down);
+  color: var(--text-primary);
 }
 
 .np-sentiment-badge--neutral {
-  background: #888;
-  color: #fff;
+  background: var(--text-faint);
+  color: var(--text-primary);
 }

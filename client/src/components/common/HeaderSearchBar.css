@@ -27,7 +27,7 @@
 }
 
 .hsb-trigger-icon {
-  color: var(--accent, #ff6600);
+  color: var(--accent);
   flex-shrink: 0;
   opacity: 0.7;
 }
@@ -35,14 +35,14 @@
 .hsb-trigger-label {
   font: 700 9px var(--font-mono, monospace);
   letter-spacing: 2px;
-  color: var(--accent, #ff6600);
+  color: var(--accent);
   text-transform: uppercase;
   opacity: 0.55;
   flex-shrink: 0;
 }
 
 .hsb-trigger-text {
-  color: var(--text-muted, #777);
+  color: var(--text-muted, var(--text-muted));
   font: 400 13px/1 var(--font-ui, system-ui);
   flex: 1;
   overflow: hidden;
@@ -54,7 +54,7 @@
   display: flex;
   align-items: center;
   gap: 3px;
-  color: var(--text-faint, #555);
+  color: var(--text-faint);
   font: 500 10px var(--font-mono, monospace);
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.06);
@@ -92,14 +92,14 @@
 .hsb-input-label {
   font: 700 9px var(--font-mono, monospace);
   letter-spacing: 2px;
-  color: var(--accent, #ff6600);
+  color: var(--accent);
   text-transform: uppercase;
   opacity: 0.5;
   flex-shrink: 0;
 }
 
 .hsb-icon {
-  color: var(--accent, #ff6600);
+  color: var(--accent);
   flex-shrink: 0;
   opacity: 0.7;
 }
@@ -110,20 +110,20 @@
   border: none;
   outline: none;
   font: 13px/1 var(--font-ui, system-ui);
-  color: var(--text-primary, #e0e0e0);
+  color: var(--text-primary);
   padding: 0;
-  caret-color: var(--accent, #ff6600);
+  caret-color: var(--accent);
 }
 
 .hsb-input::placeholder {
-  color: var(--text-muted, #666);
+  color: var(--text-muted);
   font-weight: 400;
 }
 
 .hsb-clear {
   background: none;
   border: none;
-  color: var(--text-muted, #666);
+  color: var(--text-muted);
   cursor: pointer;
   font-size: 14px;
   padding: 0 4px;
@@ -136,7 +136,7 @@
 }
 
 .hsb-clear:hover {
-  color: var(--text-primary, #e0e0e0);
+  color: var(--text-primary);
 }
 
 /* ─── Dropdown ───────────────────────────────────── */
@@ -146,7 +146,7 @@
   top: calc(100% + 6px);
   left: 0;
   right: 0;
-  background: var(--bg-elevated, #141414);
+  background: var(--bg-elevated, var(--bg-hover));
   border: 1px solid rgba(255, 102, 0, 0.15);
   border-radius: 10px;
   box-shadow:
@@ -171,7 +171,7 @@
   font: 600 9px var(--font-mono, monospace);
   text-transform: uppercase;
   letter-spacing: 0.8px;
-  color: var(--text-muted, #666);
+  color: var(--text-muted);
   padding: 10px 16px 5px;
 }
 
@@ -216,20 +216,20 @@
 .hsb-badge--etf     { color: #64b5f6; background: rgba(33, 150, 243, 0.08); }
 .hsb-badge--forex   { color: #4dd0e1; background: rgba(0, 188, 212, 0.08); }
 .hsb-badge--crypto  { color: #f06292; background: rgba(233, 30, 99, 0.07); }
-.hsb-badge--fixed_income { color: #ffb74d; background: rgba(255, 152, 0, 0.08); }
-.hsb-badge--index   { color: #ffb74d; background: rgba(255, 152, 0, 0.08); }
-.hsb-badge--rate    { color: #ffd54f; background: rgba(255, 215, 0, 0.08); }
+.hsb-badge--fixed_income { color: var(--semantic-warn); background: rgba(255, 152, 0, 0.08); }
+.hsb-badge--index   { color: var(--semantic-warn); background: rgba(255, 152, 0, 0.08); }
+.hsb-badge--rate    { color: var(--semantic-warn); background: rgba(255, 215, 0, 0.08); }
 .hsb-badge--fund    { color: #4dd0e1; background: rgba(0, 188, 212, 0.08); }
 
 .hsb-symbol {
   font: 600 12px var(--font-mono, monospace);
-  color: var(--text-primary, #e0e0e0);
+  color: var(--text-primary);
   min-width: 64px;
   flex-shrink: 0;
 }
 
 .hsb-name {
-  color: var(--text-secondary, #999);
+  color: var(--text-secondary);
   flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -238,7 +238,7 @@
 }
 
 .hsb-exchange {
-  color: var(--text-faint, #555);
+  color: var(--text-faint);
   font: 10px var(--font-mono, monospace);
   flex-shrink: 0;
 }
@@ -247,7 +247,7 @@
 .hsb-empty {
   padding: 16px;
   text-align: center;
-  color: var(--text-muted, #666);
+  color: var(--text-muted);
   font-size: 12px;
 }
 
@@ -265,7 +265,7 @@
 }
 
 .hsb-ai-header {
-  color: var(--accent, #ff6600);
+  color: var(--accent);
   font-weight: 700;
   letter-spacing: 1px;
   opacity: 0.85;
@@ -276,7 +276,7 @@
   align-items: center;
   gap: 8px;
   padding: 10px 16px;
-  color: var(--accent, #ff6600);
+  color: var(--accent);
   font-size: 11px;
   font-style: italic;
   opacity: 0.8;
@@ -286,7 +286,7 @@
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: var(--accent, #ff6600);
+  background: var(--accent);
   display: inline-block;
   animation: hsb-pulse 1.4s ease-in-out infinite;
   flex-shrink: 0;
@@ -299,7 +299,7 @@
 
 .hsb-ai-note {
   padding: 8px 16px;
-  color: var(--text-faint, #555);
+  color: var(--text-faint);
   font-size: 11px;
   font-style: italic;
 }
@@ -310,7 +310,7 @@
 }
 
 .hsb-ai-reason {
-  color: var(--text-faint, #555);
+  color: var(--text-faint);
   font-size: 10px;
   font-style: italic;
   flex-shrink: 0;
@@ -328,18 +328,18 @@
   gap: 6px;
   padding: 2px 16px 5px 84px;
   font-size: 10px;
-  color: var(--text-faint, #555);
+  color: var(--text-faint);
 }
 
 .hsb-alternate-label {
   font-weight: 600;
-  color: var(--text-muted, #666);
+  color: var(--text-muted);
   font-size: 9px;
   letter-spacing: 0.3px;
 }
 
 .hsb-alternate-link {
-  color: var(--text-muted, #666);
+  color: var(--text-muted);
   cursor: pointer;
   text-decoration: none;
   transition: color 0.15s;
@@ -347,7 +347,7 @@
 }
 
 .hsb-alternate-link:hover {
-  color: var(--accent, #ff6600);
+  color: var(--accent);
 }
 
 /* ─── Responsive ─────────────────────────────────── */

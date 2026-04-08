@@ -3,7 +3,7 @@
   height: 100%;
   overflow-y: auto;
   overflow-x: hidden;
-  background: #0a0a0a;
+  background: var(--bg-panel);
   font-family: var(--font-ui);
 }
 
@@ -13,10 +13,10 @@
   align-items: center;
   gap: 8px;
   padding: 8px 12px;
-  border-bottom: 1px solid #1e1e1e;
+  border-bottom: 1px solid var(--border-subtle);
   position: sticky;
   top: 0;
-  background: #0a0a0a;
+  background: var(--bg-panel);
   z-index: 2;
 }
 .ds-header-accent {
@@ -28,14 +28,14 @@
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 2px;
-  color: #e0e0e0;
+  color: var(--text-primary);
   text-transform: uppercase;
 }
 
 /* AI slot */
 .ds-ai-slot {
   padding: 8px 12px;
-  border-bottom: 1px solid #1e1e1e;
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 /* Grid */
@@ -43,7 +43,7 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 1px;
-  background: #1e1e1e;
+  background: var(--border-subtle);
   flex: 1;
 }
 .ds-grid--mobile {
@@ -52,7 +52,7 @@
 
 /* Section */
 .ds-section {
-  background: #0a0a0a;
+  background: var(--bg-panel);
   display: flex;
   flex-direction: column;
   min-height: 180px;
@@ -63,8 +63,8 @@
   align-items: center;
   gap: 8px;
   padding: 8px 10px;
-  border-bottom: 1px solid #151515;
-  background: #0d0d0d;
+  border-bottom: 1px solid var(--bg-hover);
+  background: var(--bg-surface);
   position: sticky;
   top: 0;
   z-index: 1;
@@ -73,14 +73,14 @@
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 1.5px;
-  color: #999;
+  color: var(--text-secondary);
   text-transform: uppercase;
 }
 .ds-section-badge {
   font-size: 8px;
   letter-spacing: 0.5px;
-  color: #666;
-  background: #1a1a1a;
+  color: var(--text-muted);
+  background: var(--bg-active);
   padding: 1px 5px;
   border-radius: 2px;
 }
@@ -99,7 +99,7 @@
 }
 .ds-skeleton-row {
   height: 10px;
-  background: linear-gradient(90deg, #1a1a1a 25%, #222 50%, #1a1a1a 75%);
+  background: linear-gradient(90deg, var(--bg-active) 25%, var(--bg-elevated) 50%, var(--bg-active) 75%);
   background-size: 200% 100%;
   animation: ds-shimmer 1.5s infinite;
   border-radius: 2px;
@@ -111,7 +111,7 @@
 
 /* Error */
 .ds-error {
-  color: var(--price-down, #f44336);
+  color: var(--semantic-down);
   font-size: 10px;
   padding: 10px;
   text-align: center;
@@ -124,8 +124,8 @@
   align-items: center;
   gap: 6px;
   padding: 4px 8px;
-  background: #111;
-  border: 1px solid #1e1e1e;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
   border-radius: 3px;
   cursor: pointer;
   font-size: 10px;
@@ -133,18 +133,18 @@
   transition: background 0.15s;
 }
 .ds-ticker-cell:hover {
-  background: #1a1a1a;
+  background: var(--bg-active);
 }
 .ds-ticker-sym {
   font-weight: 600;
-  color: #e0e0e0;
+  color: var(--text-primary);
   letter-spacing: 0.5px;
 }
 .ds-ticker-price {
-  color: #999;
+  color: var(--text-secondary);
 }
-.ds-ticker-chg.up { color: var(--price-up, #4caf50); }
-.ds-ticker-chg.down { color: var(--price-down, #f44336); }
+.ds-ticker-chg.up { color: var(--price-up, var(--semantic-up)); }
+.ds-ticker-chg.down { color: var(--semantic-down); }
 
 /* Generic data table for deep screens */
 .ds-table {
@@ -155,42 +155,42 @@
 .ds-table th {
   text-align: left;
   font-weight: 600;
-  color: #666;
+  color: var(--text-muted);
   font-size: 8px;
   letter-spacing: 0.5px;
   text-transform: uppercase;
   padding: 4px 6px;
-  border-bottom: 1px solid #1e1e1e;
+  border-bottom: 1px solid var(--border-subtle);
   position: sticky;
   top: 0;
-  background: #0d0d0d;
+  background: var(--bg-surface);
 }
 .ds-table th:not(:first-child) {
   text-align: right;
 }
 .ds-table td {
   padding: 3px 6px;
-  color: #ccc;
-  border-bottom: 1px solid #111;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--bg-elevated);
 }
 .ds-table td:not(:first-child) {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
 .ds-table tr:hover {
-  background: #111;
+  background: var(--bg-elevated);
 }
 
 /* ETF strip (full-width below grid) */
 .ds-etf-strip {
   padding: 8px 12px;
-  border-top: 1px solid #1e1e1e;
+  border-top: 1px solid var(--border-subtle);
 }
 .ds-etf-strip-label {
   font-size: 9px;
   font-weight: 600;
   letter-spacing: 1px;
-  color: #666;
+  color: var(--text-muted);
   text-transform: uppercase;
   margin-bottom: 6px;
 }
@@ -205,7 +205,7 @@
   cursor: pointer;
 }
 .ds-row-clickable:hover {
-  background: #151515;
+  background: var(--bg-hover);
 }
 
 /* ETF/Ticker strip */
@@ -220,19 +220,19 @@
 .ds-ticker-col {
   cursor: pointer;
   font-weight: 500;
-  color: #e0e0e0;
+  color: var(--text-primary);
 }
 .ds-ticker-col:hover {
-  color: #fff;
+  color: var(--text-primary);
   text-decoration: underline;
 }
 
 /* Table row colors for gains/losses — !important to beat .ds-table td specificity */
-.ds-up { color: var(--price-up, #4caf50) !important; }
-.ds-down { color: var(--price-down, #f44336) !important; }
+.ds-up { color: var(--price-up, var(--semantic-up)) !important; }
+.ds-down { color: var(--semantic-down) !important; }
 
 /* Value coloring — !important to beat .ds-table td specificity */
-.ds-val-pos { color: var(--price-up, #4caf50) !important; }
-.ds-val-neg { color: var(--price-down, #f44336) !important; }
-.ds-val-muted { color: #555; }
-.ds-val-accent { color: #ff6b00; }
+.ds-val-pos { color: var(--price-up, var(--semantic-up)) !important; }
+.ds-val-neg { color: var(--semantic-down) !important; }
+.ds-val-muted { color: var(--text-muted); }
+.ds-val-accent { color: var(--accent); }

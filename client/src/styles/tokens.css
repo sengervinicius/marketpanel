@@ -1,0 +1,183 @@
+/* ================================================================
+   DESIGN TOKENS — Single Source of Truth
+   MARKETPANEL MEGAZORD DESIGN SYSTEM v2.0
+   ================================================================
+   RULE: Every visual value in the app comes from this file.
+   No hardcoded hex colors, font sizes, or spacing values anywhere
+   else in the codebase (except SVG icons).
+   ================================================================ */
+
+:root {
+  /* ── Backgrounds ────────────────────────────────── */
+  --bg-app:         #050508;   /* Deepest background (page) */
+  --bg-panel:       #0a0a0f;   /* Panel/card background */
+  --bg-surface:     #0d0d14;   /* Elevated surface */
+  --bg-hover:       #12121a;   /* Hover state */
+  --bg-active:      #1a1a26;   /* Active/pressed state */
+  --bg-tooltip:     #111118;   /* Tooltip background */
+  --bg-input:       #0a0a0f;   /* Input field background */
+  --bg-elevated:    #111118;   /* Elevated element bg */
+  --bg-overlay:     #0d0d14;   /* Overlay/modal background */
+
+  /* ── Borders ────────────────────────────────────── */
+  --border-subtle:  #141420;   /* Very subtle dividers */
+  --border-default: #1a1a2a;   /* Standard borders */
+  --border-strong:  #2a2a3a;   /* Prominent borders */
+  --border-focus:   #3a3a50;   /* Focus ring */
+
+  /* ── Text ───────────────────────────────────────── */
+  --text-primary:   #e8e8ed;   /* Primary content */
+  --text-secondary: #999999;   /* Labels, headers */
+  --text-muted:     #555570;   /* Disabled, null values */
+  --text-faint:     #3a3a4a;   /* Dashes, placeholders */
+
+  /* ── Semantic ───────────────────────────────────── */
+  --semantic-up:    #4caf50;   /* Positive/gain */
+  --semantic-down:  #ef5350;   /* Negative/loss */
+  --semantic-warn:  #ff9800;   /* Warning/caution */
+  --semantic-info:  #2196f3;   /* Information */
+  --semantic-ai:    #a855f7;   /* AI-generated content */
+
+  /* Legacy aliases (backward compat — existing code refs these) */
+  --price-up:       var(--semantic-up);
+  --price-down:     var(--semantic-down);
+  --price-neutral:  #888888;
+
+  /* ── Brand ──────────────────────────────────────── */
+  --accent:         #ff6600;   /* Senger orange */
+  --accent-muted:   rgba(255,102,0,0.15);
+  --accent-text:    #ff9900;
+
+  /* ── Sector Accents ─────────────────────────────── */
+  --sector-defence:    #ef5350;
+  --sector-tech:       #00bcd4;
+  --sector-retail:     #e91e63;
+  --sector-asia:       #26c6da;
+  --sector-europe:     #3f51b5;
+  --sector-brazil:     #4caf50;
+  --sector-crypto:     #f7931a;
+  --sector-commodities:#ff9800;
+  --sector-macro:      #9c27b0;
+  --sector-fixed:      #607d8b;
+  --sector-energy:     #ff5722;
+  --sector-fxcrypto:   #ce93d8;
+
+  /* Legacy section aliases (backward compat) */
+  --section-equity:    var(--sector-tech);
+  --section-brazil:    #ffa726;
+  --section-fx:        var(--sector-fxcrypto);
+  --section-crypto:    #f48fb1;
+  --section-watchlist:  var(--accent-text);
+
+  /* ── Comparison Series Colors (multi-ticker chart) ── */
+  --compare-1: #00bcd4;   /* First added ticker */
+  --compare-2: #4caf50;   /* Second added ticker */
+  --compare-3: #ff9800;   /* Third added ticker */
+  --compare-4: #a855f7;   /* Fourth added ticker */
+
+  /* ── Font Families ──────────────────────────────── */
+  --font-ui:    'Inter', 'SF Pro Display', system-ui, sans-serif;
+  --font-mono:  'JetBrains Mono', 'SF Mono', 'IBM Plex Mono', monospace;
+
+  /* ── Font Sizes (type scale) ────────────────────── */
+  --text-2xs:   9px;    /* Axis labels, timestamps */
+  --text-xs:    10px;   /* Column headers, captions */
+  --text-sm:    11px;   /* Section headers, badges */
+  --text-base:  13px;   /* Body text, table data */
+  --text-md:    14px;   /* Prices, input text */
+  --text-lg:    16px;   /* Section titles */
+  --text-xl:    20px;   /* Screen titles */
+  --text-2xl:   28px;   /* Hero numbers (InstrumentDetail price) */
+
+  /* Legacy font-size aliases (backward compat) */
+  --font-micro: 7px;
+  --font-2xs:   var(--text-2xs);
+  --font-xs:    var(--text-sm);
+  --font-sm:    12px;
+  --font-base:  var(--text-md);
+  --font-md:    15px;
+  --font-lg:    17px;
+  --font-xl:    22px;
+  --font-2xl:   30px;
+  --font-hero:  40px;
+
+  /* ── Font Weights ───────────────────────────────── */
+  --weight-normal:   400;
+  --weight-medium:   500;
+  --weight-semibold: 600;
+  --weight-bold:     700;
+
+  /* ── Line Heights ───────────────────────────────── */
+  --leading-tight:   1.2;
+  --leading-normal:  1.4;
+  --leading-relaxed: 1.6;
+
+  /* ── Spacing (4px base unit) ────────────────────── */
+  --space-1:   4px;
+  --space-2:   8px;
+  --space-3:   12px;
+  --space-4:   16px;
+  --space-5:   20px;
+  --space-6:   24px;
+  --space-8:   32px;
+  --space-10:  40px;
+  --space-12:  48px;
+  --space-16:  64px;
+
+  /* Legacy spacing aliases */
+  --sp-1: var(--space-1);
+  --sp-2: var(--space-2);
+  --sp-3: var(--space-3);
+  --sp-4: var(--space-4);
+  --sp-5: var(--space-5);
+  --sp-6: var(--space-6);
+  --sp-8: var(--space-8);
+
+  /* ── Border Radius ──────────────────────────────── */
+  --radius-sm:   2px;
+  --radius-md:   4px;
+  --radius-lg:   8px;
+  --radius-full: 9999px;
+
+  /* ── Animation Tokens ───────────────────────────── */
+  --duration-instant: 100ms;  /* Hover, active states */
+  --duration-fast:    200ms;  /* Micro-interactions */
+  --duration-normal:  300ms;  /* Screen transitions */
+  --duration-slow:    500ms;  /* Chart animations */
+
+  --ease-default:  cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-in:       cubic-bezier(0.4, 0, 1, 1);
+  --ease-out:      cubic-bezier(0, 0, 0.2, 1);
+  --ease-bounce:   cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* ── Z-index Layers ─────────────────────────────── */
+  --z-panel:    1;
+  --z-header:   10;
+  --z-overlay:  100;
+  --z-modal:    1000;
+  --z-detail:   1500;
+  --z-tooltip:  2000;
+
+  /* ── Row Heights ────────────────────────────────── */
+  --row-height:       26px;
+  --row-height-touch: 44px;
+
+  /* ── Shadows ────────────────────────────────────── */
+  --shadow-overlay:  0 6px 24px rgba(0,0,0,0.8);
+  --shadow-dropdown: 0 4px 20px rgba(0,0,0,0.9);
+  --shadow-tooltip:  0 2px 12px rgba(0,0,0,0.6);
+}
+
+/* ── Global Numeric Formatting ────────────────────── */
+/* Apply tabular-nums to all numeric-displaying elements */
+.tabular-nums,
+td, th,
+[data-numeric],
+.price, .change, .pct, .value, .metric,
+.ds-price, .ds-change, .ds-pct,
+.ds-table-cell,
+.mini-fin-value,
+.fund-value {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}

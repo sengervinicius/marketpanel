@@ -363,7 +363,7 @@
 }
 .pp-add-btn {
   background: var(--accent);
-  color: #fff;
+  color: var(--text-primary);
   border: none;
   border-radius: 6px;
   padding: 10px 24px;

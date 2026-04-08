@@ -2,7 +2,7 @@
 .hm-panel {
   height: 100%;
   overflow-y: auto;
-  background: #0a0a0a;
+  background: var(--bg-panel);
   font-family: var(--font-ui, monospace);
 }
 
@@ -11,10 +11,10 @@
   align-items: center;
   justify-content: space-between;
   padding: 8px 12px;
-  border-bottom: 1px solid #1e1e1e;
+  border-bottom: 1px solid var(--border-subtle);
   position: sticky;
   top: 0;
-  background: #0a0a0a;
+  background: var(--bg-panel);
   z-index: 1;
 }
 
@@ -22,13 +22,13 @@
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 2px;
-  color: #e0e0e0;
+  color: var(--text-primary);
 }
 
 .hm-tf-bar {
   display: flex;
   gap: 2px;
-  background: #111;
+  background: var(--bg-elevated);
   border-radius: 3px;
   padding: 2px;
 }
@@ -36,7 +36,7 @@
 .hm-tf-btn {
   background: transparent;
   border: none;
-  color: #555;
+  color: var(--text-muted);
   font-family: var(--font-mono, monospace);
   font-size: 9px;
   font-weight: 600;
@@ -45,8 +45,8 @@
   cursor: pointer;
   transition: all 0.15s;
 }
-.hm-tf-btn:hover { color: #aaa; background: #1a1a1a; }
-.hm-tf-btn--active { color: #ff6600; background: #1a0800; }
+.hm-tf-btn:hover { color: var(--text-secondary); background: var(--bg-active); }
+.hm-tf-btn--active { color: var(--accent); background: rgba(255, 0, 0, 0.03); }
 
 .hm-body {
   padding: 8px 12px;
@@ -65,7 +65,7 @@
   font-size: 9px;
   font-weight: 600;
   letter-spacing: 1.5px;
-  color: #666;
+  color: var(--text-muted);
 }
 
 .hm-sector-tiles {
@@ -95,7 +95,7 @@
 .hm-tile-sym {
   font-size: 10px;
   font-weight: 700;
-  color: #e0e0e0;
+  color: var(--text-primary);
   letter-spacing: 0.5px;
   text-shadow: 0 1px 2px rgba(0,0,0,0.5);
 }
@@ -111,4 +111,4 @@
 /* Scrollbar */
 .hm-panel::-webkit-scrollbar { width: 4px; }
 .hm-panel::-webkit-scrollbar-track { background: transparent; }
-.hm-panel::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
+.hm-panel::-webkit-scrollbar-thumb { background: var(--text-faint); border-radius: 2px; }

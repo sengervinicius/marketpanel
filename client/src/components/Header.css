@@ -1,8 +1,8 @@
 /* Header.css - Top bar with branding, clocks, and ticker styling */
 
 .hdr-main {
-  background: #0a0a0f;
-  border-bottom: 1px solid #e55a00;
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--accent);
   flex-shrink: 0;
   font-family: var(--font-ui);
 }
@@ -15,12 +15,12 @@
 .hdr-branding-col {
   justify-content: center;
   padding: 0 14px;
-  border-right: 1px solid #1a1a1a;
+  border-right: 1px solid var(--bg-active);
   min-width: 200px;
 }
 
 .hdr-title {
-  color: #e55a00;
+  color: var(--accent);
   font-weight: 700;
   font-size: 13px;
   letter-spacing: 0.12em;
@@ -45,14 +45,14 @@
 }
 
 .hdr-feed-label {
-  color: #666;
+  color: var(--text-muted);
   font-size: 7px;
   letter-spacing: 0.2em;
   text-transform: uppercase;
 }
 
 .hdr-status-badge {
-  color: #fff;
+  color: var(--text-primary);
   font-size: 7px;
   padding: 2px 5px;
   font-weight: 600;
@@ -73,12 +73,12 @@
 .hdr-clock {
   text-align: center;
   min-width: 90px;
-  border-right: 1px solid #1a1a1a;
+  border-right: 1px solid var(--bg-active);
   padding: 0 10px;
 }
 
 .hdr-clock-label {
-  color: #555;
+  color: var(--text-muted);
   font-size: 7px;
   font-weight: 400;
   letter-spacing: 0.15em;
@@ -86,7 +86,7 @@
 }
 
 .hdr-clock-time {
-  color: #ccc;
+  color: var(--text-secondary);
   font-size: 11px;
   font-weight: 500;
   letter-spacing: 0.05em;
@@ -94,14 +94,14 @@
 }
 
 .hdr-clock-date {
-  color: #555;
+  color: var(--text-muted);
   font-size: 7px;
 }
 
 .hdr-quickfx-section {
   gap: 16px;
   padding: 0 16px;
-  border-left: 1px solid #1a1a1a;
+  border-left: 1px solid var(--bg-active);
 }
 
 .hdr-fx-item {
@@ -109,14 +109,14 @@
 }
 
 .hdr-fx-label {
-  color: #555;
+  color: var(--text-muted);
   font-size: 7px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
 
 .hdr-fx-price {
-  color: #ccc;
+  color: var(--text-secondary);
   font-size: 11px;
   font-weight: 500;
   font-variant-numeric: tabular-nums;
@@ -132,15 +132,15 @@
 
 .hdr-theme-button {
   background: none;
-  border: 1px solid #2a2a2a;
-  color: #555;
+  border: 1px solid var(--border-strong);
+  color: var(--text-muted);
   padding: 3px 6px;
 }
 
 .hdr-ticker-container {
   overflow: hidden;
-  background: #0a0a0f;
-  border-bottom: 1px solid #1a1a1a;
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--bg-active);
   padding: 3px 0;
 }
 
@@ -156,14 +156,14 @@
 }
 
 .hdr-ticker-symbol {
-  color: #e8a020;
+  color: var(--accent-text);
   font-weight: 500;
   margin-right: 5px;
   font-size: 9px;
 }
 
 .hdr-ticker-price {
-  color: #ccc;
+  color: var(--text-secondary);
   margin-right: 4px;
   font-size: 9px;
 }

@@ -14,8 +14,8 @@
 @keyframes share-fade-in { from { opacity: 0; } to { opacity: 1; } }
 
 .share-modal {
-  background: var(--bg-panel, #0d0d0d);
-  border: 1px solid var(--border-default, #333);
+  background: var(--bg-panel, var(--bg-surface));
+  border: 1px solid var(--border-default, var(--text-faint));
   border-radius: 8px;
   min-width: 320px;
   max-width: 480px;
@@ -34,18 +34,18 @@
   font-size: var(--font-sm, 13px);
   font-weight: 700;
   letter-spacing: 0.8px;
-  color: var(--text-primary, #e0e0e0);
+  color: var(--text-primary);
 }
 .share-close {
   background: none;
   border: none;
-  color: var(--text-faint, #666);
+  color: var(--text-faint);
   font-size: 18px;
   cursor: pointer;
   padding: 0 4px;
   line-height: 1;
 }
-.share-close:hover { color: var(--text-secondary, #ccc); }
+.share-close:hover { color: var(--text-secondary, var(--text-secondary)); }
 
 .share-body {
   padding: 16px;
@@ -58,8 +58,8 @@
 .share-preview {
   border-radius: 6px;
   overflow: hidden;
-  border: 1px solid var(--border-default, #333);
-  background: var(--bg-surface, #1a1a1a);
+  border: 1px solid var(--border-default, var(--text-faint));
+  background: var(--bg-surface, var(--bg-active));
   min-height: 120px;
   display: flex;
   align-items: center;
@@ -70,12 +70,12 @@
   display: block;
 }
 .share-preview--loading {
-  color: var(--text-faint, #666);
+  color: var(--text-faint);
   font-size: var(--font-sm, 13px);
   padding: 32px 0;
 }
 .share-preview--error {
-  color: var(--price-down, #f44336);
+  color: var(--semantic-down);
   font-size: var(--font-sm, 13px);
   padding: 24px 16px;
   text-align: center;
@@ -92,10 +92,10 @@
   padding: 6px 10px;
   font-size: 11px;
   font-family: var(--font-mono, monospace);
-  background: var(--bg-surface, #1a1a1a);
-  border: 1px solid var(--border-default, #333);
+  background: var(--bg-surface, var(--bg-active));
+  border: 1px solid var(--border-default, var(--text-faint));
   border-radius: 4px;
-  color: var(--text-secondary, #bbb);
+  color: var(--text-secondary, var(--text-secondary));
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -106,18 +106,18 @@
   font-weight: 700;
   font-family: var(--font-ui, sans-serif);
   letter-spacing: 0.5px;
-  border: 1px solid var(--accent, #ff6600);
+  border: 1px solid var(--accent);
   border-radius: 4px;
   background: transparent;
-  color: var(--accent, #ff6600);
+  color: var(--accent);
   cursor: pointer;
   transition: all 0.12s;
   white-space: nowrap;
 }
 .share-copy-btn:hover { background: rgba(255, 102, 0, 0.1); }
 .share-copy-btn--done {
-  border-color: var(--price-up, #4caf50);
-  color: var(--price-up, #4caf50);
+  border-color: var(--price-up, var(--semantic-up));
+  color: var(--price-up, var(--semantic-up));
 }
 
 /* ── Social buttons ────────────────────────────────── */
@@ -134,15 +134,15 @@
   font-weight: 700;
   font-family: var(--font-ui, sans-serif);
   letter-spacing: 0.5px;
-  border: 1px solid var(--border-default, #333);
+  border: 1px solid var(--border-default, var(--text-faint));
   border-radius: 4px;
-  background: var(--bg-surface, #1a1a1a);
-  color: var(--text-secondary, #ccc);
+  background: var(--bg-surface, var(--bg-active));
+  color: var(--text-secondary, var(--text-secondary));
   cursor: pointer;
   transition: all 0.12s;
   text-align: center;
 }
-.share-social-btn:hover { border-color: var(--text-muted, #aaa); color: var(--text-primary, #e0e0e0); }
+.share-social-btn:hover { border-color: var(--text-muted, var(--text-secondary)); color: var(--text-primary); }
 .share-social-btn--wa { border-color: #25d366; color: #25d366; }
 .share-social-btn--wa:hover { background: rgba(37, 211, 102, 0.08); }
 .share-social-btn--x { border-color: #1da1f2; color: #1da1f2; }
@@ -157,16 +157,16 @@
   font-weight: 700;
   font-family: var(--font-ui, sans-serif);
   letter-spacing: 0.8px;
-  border: 1px solid var(--accent, #ff6600);
+  border: 1px solid var(--accent);
   border-radius: 4px;
-  background: var(--accent, #ff6600);
-  color: #fff;
+  background: var(--accent);
+  color: var(--text-primary);
   cursor: pointer;
   transition: all 0.12s;
   align-self: stretch;
   text-align: center;
 }
-.share-download:hover { background: #e85d00; }
+.share-download:hover { background: var(--accent); }
 
 /* ── Mobile overrides ──────────────────────────────── */
 @media (max-width: 768px) {

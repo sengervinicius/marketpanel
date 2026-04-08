@@ -38,7 +38,7 @@
 
 .badge--warning {
   background: rgba(255, 213, 79, 0.12);
-  color: #ffd54f;
+  color: var(--semantic-warn);
   border: 1px solid rgba(255, 213, 79, 0.25);
 }
 

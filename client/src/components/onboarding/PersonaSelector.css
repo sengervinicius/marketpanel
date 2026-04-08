@@ -2,7 +2,7 @@
   position: fixed;
   inset: 0;
   z-index: 10000;
-  background: #0a0a0a;
+  background: var(--bg-panel);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -18,19 +18,19 @@
 .ps-header-label {
   font-size: 8px;
   letter-spacing: 2px;
-  color: var(--accent, #ff6600);
+  color: var(--accent);
   font-weight: 700;
   margin-bottom: 8px;
 }
 .ps-header-title {
   font-size: 20px;
   font-weight: 700;
-  color: #e0e0e0;
+  color: var(--text-primary);
   margin-bottom: 6px;
 }
 .ps-header-subtitle {
   font-size: 12px;
-  color: #666;
+  color: var(--text-muted);
 }
 
 /* ── Horizontal carousel ─────────────────────── */
@@ -50,8 +50,8 @@
 .ps-card {
   flex: 0 0 auto;
   width: 140px;
-  background: #111;
-  border: 1.5px solid #1a1a1a;
+  background: var(--bg-elevated);
+  border: 1.5px solid var(--bg-active);
   border-radius: 10px;
   padding: 16px 10px 12px;
   cursor: pointer;
@@ -61,11 +61,11 @@
   scroll-snap-align: center;
 }
 .ps-card:hover {
-  border-color: #333;
+  border-color: var(--text-faint);
   transform: translateY(-2px);
 }
 .ps-card--active {
-  border-color: var(--accent, #ff6600);
+  border-color: var(--accent);
   box-shadow: 0 0 20px rgba(255, 102, 0, 0.25);
   transform: translateY(-4px);
 }
@@ -83,7 +83,7 @@
   transition: border-color 150ms;
 }
 .ps-card--active .ps-card-avatar {
-  border-color: var(--accent, #ff6600);
+  border-color: var(--accent);
 }
 .ps-card-img {
   width: 100%;
@@ -103,17 +103,17 @@
 .ps-card-label {
   font-size: 11px;
   font-weight: 700;
-  color: #e0e0e0;
+  color: var(--text-primary);
   letter-spacing: 0.3px;
   margin-bottom: 4px;
 }
 .ps-card-desc {
   font-size: 9px;
-  color: #777;
+  color: var(--text-muted);
   line-height: 1.35;
 }
 .ps-error {
-  color: #ff4444;
+  color: var(--semantic-down);
   font-size: 10px;
   margin-top: 8px;
   flex-shrink: 0;
@@ -127,8 +127,8 @@
   flex-shrink: 0;
 }
 .ps-confirm-btn {
-  background: var(--accent, #ff6600);
-  color: #000;
+  background: var(--accent);
+  color: var(--bg-app);
   border: none;
   padding: 12px 32px;
   font-size: 12px;

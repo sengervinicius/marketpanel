@@ -1,20 +1,20 @@
 /* AIInsightCard.css - Unified AI insight display component */
 
 .ai-card {
-  background: #111;
-  border: 1px solid #1e1e1e;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
   border-radius: 2px;
   padding: 12px;
   font-family: var(--font-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
-  color: #ccc;
+  color: var(--text-secondary);
   font-size: 12px;
   line-height: 1.5;
   transition: background-color 0.2s ease, border-color 0.2s ease;
 }
 
 .ai-card:hover {
-  background: #151515;
-  border-color: #2a2a2a;
+  background: var(--bg-hover);
+  border-color: var(--border-strong);
 }
 
 .ai-card--compact {
@@ -49,7 +49,7 @@
   gap: 10px;
   margin-bottom: 10px;
   padding-bottom: 8px;
-  border-bottom: 1px solid #1e1e1e;
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 .ai-card--compact .ai-card__header {
@@ -64,8 +64,8 @@
   justify-content: center;
   width: 28px;
   height: 28px;
-  background: #ff6b00;
-  color: #000;
+  background: var(--accent);
+  color: var(--bg-app);
   font-size: 10px;
   font-weight: 700;
   border-radius: 1px;
@@ -80,14 +80,14 @@
 }
 
 .ai-card__badge--error {
-  background: #8b4545;
+  background: var(--text-faint);
   color: #e8a8a8;
 }
 
 .ai-card__title {
   flex: 1;
   font-weight: 600;
-  color: #e8e8e8;
+  color: var(--text-primary);
   font-size: 12px;
   letter-spacing: 0.02em;
   text-transform: uppercase;
@@ -114,7 +114,7 @@
 }
 
 .ai-card__time {
-  color: #888;
+  color: var(--text-faint);
   font-size: 10px;
   letter-spacing: 0.05em;
   white-space: nowrap;
@@ -126,8 +126,8 @@
 
 .ai-card__refresh {
   background: none;
-  border: 1px solid #2a2a2a;
-  color: #888;
+  border: 1px solid var(--border-strong);
+  color: var(--text-faint);
   width: 24px;
   height: 24px;
   padding: 0;
@@ -142,9 +142,9 @@
 }
 
 .ai-card__refresh:hover:not(:disabled) {
-  background: #1a1a1a;
-  border-color: #3a3a3a;
-  color: #e8a020;
+  background: var(--bg-active);
+  border-color: var(--text-faint);
+  color: var(--accent-text);
 }
 
 .ai-card__refresh:disabled {
@@ -155,8 +155,8 @@
 /* Trigger button for empty state */
 .ai-card__trigger {
   background: none;
-  border: 1px dashed #2a2a2a;
-  color: #888;
+  border: 1px dashed var(--border-strong);
+  color: var(--text-faint);
   padding: 10px 16px;
   border-radius: 2px;
   cursor: pointer;
@@ -171,9 +171,9 @@
 }
 
 .ai-card__trigger:hover {
-  background: #0a0a0a;
-  border-color: #ff6b00;
-  color: #ff6b00;
+  background: var(--bg-app);
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 .ai-card__trigger-icon {
@@ -182,8 +182,8 @@
   justify-content: center;
   width: 24px;
   height: 24px;
-  background: #ff6b00;
-  color: #000;
+  background: var(--accent);
+  color: var(--bg-app);
   font-size: 10px;
   font-weight: 700;
   border-radius: 1px;
@@ -206,7 +206,7 @@
 
 .ai-card__text {
   margin: 0;
-  color: #ccc;
+  color: var(--text-secondary);
   line-height: 1.6;
   word-wrap: break-word;
 }
@@ -230,7 +230,7 @@
 }
 
 .ai-card__bullet {
-  color: #bbb;
+  color: var(--text-secondary);
   padding-left: 16px;
   position: relative;
   font-size: 11px;
@@ -241,7 +241,7 @@
   content: '•';
   position: absolute;
   left: 4px;
-  color: #ff6b00;
+  color: var(--accent);
   font-weight: 700;
 }
 
@@ -293,9 +293,9 @@
   height: 8px;
   background: linear-gradient(
     90deg,
-    #1a1a1a 0%,
+    var(--bg-active) 0%,
     #252525 50%,
-    #1a1a1a 100%
+    var(--bg-active) 100%
   );
   background-size: 200% 100%;
   border-radius: 2px;

@@ -5,7 +5,7 @@
   height: 100vh;
   overflow-y: auto;
   overflow-x: hidden;
-  background: var(--bg-app, #0a0a0a);
+  background: var(--bg-app, var(--bg-panel));
   font-family: var(--font-ui, 'Inter', system-ui, sans-serif);
   display: flex;
   flex-direction: column;
@@ -15,10 +15,10 @@
 
 /* Header */
 .fsl-header {
-  border-left: 4px solid #ff6b00;
+  border-left: 4px solid var(--accent);
   padding: var(--sp-3, 12px) var(--sp-4, 16px);
-  background: var(--bg-surface, #0d0d0d);
-  border-bottom: 1px solid var(--border-default, #1a1a1a);
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-default);
   position: sticky;
   top: 0;
   z-index: var(--z-header, 10);
@@ -36,8 +36,8 @@
 
 .fsl-back-button {
   background: transparent;
-  border: 1px solid var(--border-strong, #2a2a2a);
-  color: var(--text-secondary, #999);
+  border: 1px solid var(--border-strong);
+  color: var(--text-secondary);
   padding: 6px 12px;
   border-radius: var(--radius-sm, 2px);
   cursor: pointer;
@@ -50,9 +50,9 @@
 }
 
 .fsl-back-button:hover {
-  color: var(--text-primary, #e0e0e0);
-  border-color: var(--text-muted, #555);
-  background: var(--bg-hover, #141414);
+  color: var(--text-primary);
+  border-color: var(--text-muted);
+  background: var(--bg-hover);
 }
 
 .fsl-header-text {
@@ -63,21 +63,21 @@
   font-size: 20px;
   font-weight: 500;
   letter-spacing: 2px;
-  color: #ffffff;
+  color: var(--text-primary);
   text-transform: uppercase;
   margin-bottom: 2px;
 }
 
 .fsl-header-subtitle {
   font-size: 12px;
-  color: #666;
+  color: var(--text-muted);
   letter-spacing: 0.5px;
   line-height: 1.3;
 }
 
 .fsl-header-time {
   font-size: 8px;
-  color: var(--text-muted, #555);
+  color: var(--text-muted);
   text-align: right;
   letter-spacing: 0.5px;
   font-family: var(--font-mono, monospace);
@@ -87,7 +87,7 @@
 .fsl-grid {
   display: grid;
   gap: 1px;
-  background: var(--border-subtle, #141414);
+  background: var(--border-subtle, var(--bg-hover));
   flex: 1;
   padding: 1px;
 }
@@ -106,7 +106,7 @@
 
 /* Section */
 .fsl-section {
-  background: var(--bg-app, #0a0a0a);
+  background: var(--bg-app, var(--bg-panel));
   display: flex;
   flex-direction: column;
   min-height: 200px;
@@ -119,7 +119,7 @@
   gap: var(--sp-2, 8px);
   padding: 10px 12px;
   border-bottom: 1px solid rgba(255, 107, 0, 0.15);
-  background: var(--bg-surface, #0d0d0d);
+  background: var(--bg-surface);
   position: sticky;
   top: 0;
   z-index: 2;
@@ -130,15 +130,15 @@
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 2px;
-  color: #ccc;
+  color: var(--text-secondary);
   text-transform: uppercase;
 }
 
 .fsl-section-badge {
   font-size: 8px;
   letter-spacing: 0.5px;
-  color: var(--text-muted, #555);
-  background: var(--bg-active, #1a1a1a);
+  color: var(--text-muted);
+  background: var(--bg-active);
   padding: 1px 6px;
   border-radius: var(--radius-sm, 2px);
 }
@@ -151,9 +151,9 @@
 
 /* Children container */
 .fsl-children {
-  border-top: 1px solid var(--border-default, #1a1a1a);
+  border-top: 1px solid var(--border-default);
   padding: var(--sp-3, 12px) var(--sp-4, 16px);
-  background: var(--bg-app, #0a0a0a);
+  background: var(--bg-app, var(--bg-panel));
 }
 
 /* ── Deep screen table styles (ds-table, used by sector components) ──── */
@@ -171,9 +171,9 @@
   font-size: 10px;
   letter-spacing: 1.5px;
   text-transform: uppercase;
-  color: #555;
-  border-bottom: 1px solid var(--border-default, #1a1a1a);
-  background: var(--bg-surface, #0d0d0d);
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border-default);
+  background: var(--bg-surface);
   white-space: nowrap;
 }
 
@@ -184,7 +184,7 @@
 
 .ds-table td {
   padding: 6px 8px;
-  color: #ccc;
+  color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
   font-family: var(--font-ui, 'Inter', system-ui, sans-serif);
   font-size: 13px;
@@ -196,20 +196,20 @@
 }
 
 .ds-table tbody tr {
-  border-bottom: 1px solid var(--border-subtle, #141414);
+  border-bottom: 1px solid var(--border-subtle, var(--bg-hover));
   transition: background 0.12s;
 }
 
 .ds-table tbody tr:hover {
-  background: var(--bg-hover, #141414);
+  background: var(--bg-hover);
 }
 
 .ds-row-clickable {
   cursor: pointer;
 }
 
-.ds-val-pos { color: var(--price-up, #4caf50) !important; }
-.ds-val-neg { color: var(--price-down, #f44336) !important; }
+.ds-val-pos { color: var(--price-up, var(--semantic-up)) !important; }
+.ds-val-neg { color: var(--semantic-down) !important; }
 
 /* Scrollbar styling */
 .fsl-screen::-webkit-scrollbar,
@@ -219,18 +219,18 @@
 
 .fsl-screen::-webkit-scrollbar-track,
 .fsl-section-body::-webkit-scrollbar-track {
-  background: var(--bg-app, #0a0a0a);
+  background: var(--bg-app, var(--bg-panel));
 }
 
 .fsl-screen::-webkit-scrollbar-thumb,
 .fsl-section-body::-webkit-scrollbar-thumb {
-  background: var(--border-strong, #2a2a2a);
+  background: var(--border-strong);
   border-radius: 3px;
 }
 
 .fsl-screen::-webkit-scrollbar-thumb:hover,
 .fsl-section-body::-webkit-scrollbar-thumb:hover {
-  background: var(--text-muted, #555);
+  background: var(--text-muted);
 }
 
 /* ── Sprint 3: Responsive breakpoints ─────────────────────────────────── */

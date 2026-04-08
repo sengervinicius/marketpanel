@@ -28,8 +28,8 @@
 
 .stp-heatmap-btn.stp-heatmap-btn-active {
   background: #0a001a;
-  border-color: #ce93d8;
-  color: #ce93d8;
+  border-color: var(--semantic-ai);
+  color: var(--semantic-ai);
 }
 
 .stp-reset-btn {

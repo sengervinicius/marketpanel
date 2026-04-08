@@ -178,7 +178,7 @@
 }
 
 .pp-add-button-active {
-  background: #1a0d00;
+  background: rgba(255, 0, 0, 0.04);
 }
 
 /* ─────────────────────────────────────────────────────────────── */
@@ -204,7 +204,7 @@
 }
 
 .pp-submit-button {
-  background: #1a0d00;
+  background: rgba(255, 0, 0, 0.04);
   border: 1px solid var(--section-watchlist);
   color: var(--section-watchlist);
   font-size: var(--font-2xs);
@@ -280,7 +280,7 @@
 
 .pp-add-btn {
   background: var(--accent);
-  color: #fff;
+  color: var(--text-primary);
   border: none;
   border-radius: 6px;
   padding: 10px 24px;
@@ -308,7 +308,7 @@
 /* ─────────────────────────────────────────────────────────────── */
 .pp-ai-btn {
   background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
-  color: #fff;
+  color: var(--text-primary);
   border: none;
   border-radius: 3px;
   padding: 2px 8px;
@@ -376,7 +376,7 @@
   justify-content: center;
   font-weight: 700;
   font-size: var(--font-md);
-  color: #fff;
+  color: var(--text-primary);
   flex-shrink: 0;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }

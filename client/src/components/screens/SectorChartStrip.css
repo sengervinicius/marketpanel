@@ -1,7 +1,7 @@
 /* ── SectorChartStrip — S6 ──────────────────────────────────────────────── */
 .scs-strip {
-  border-top: 1px solid #1e1e1e;
-  background: #0a0a0a;
+  border-top: 1px solid var(--border-subtle);
+  background: var(--bg-panel);
   padding: 8px 12px 12px;
 }
 
@@ -16,7 +16,7 @@
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 1.5px;
-  color: #666;
+  color: var(--text-muted);
   text-transform: uppercase;
 }
 
@@ -24,14 +24,14 @@
 .scs-range-bar {
   display: flex;
   gap: 2px;
-  background: #111;
+  background: var(--bg-elevated);
   border-radius: 3px;
   padding: 2px;
 }
 .scs-range-btn {
   background: transparent;
   border: none;
-  color: #555;
+  color: var(--text-muted);
   font-family: var(--font-mono, monospace);
   font-size: 8px;
   font-weight: 600;
@@ -42,12 +42,12 @@
   transition: all 0.15s;
 }
 .scs-range-btn:hover {
-  color: #aaa;
-  background: #1a1a1a;
+  color: var(--text-secondary);
+  background: var(--bg-active);
 }
 .scs-range-btn--active {
-  color: #ff6600;
-  background: #1a0800;
+  color: var(--accent);
+  background: rgba(255, 0, 0, 0.03);
 }
 
 /* Charts row — horizontal scroll */
@@ -57,7 +57,7 @@
   overflow-x: auto;
   padding-bottom: 4px;
   scrollbar-width: thin;
-  scrollbar-color: #333 transparent;
+  scrollbar-color: var(--text-faint) transparent;
 }
 .scs-charts-row::-webkit-scrollbar {
   height: 4px;
@@ -66,7 +66,7 @@
   background: transparent;
 }
 .scs-charts-row::-webkit-scrollbar-thumb {
-  background: #333;
+  background: var(--text-faint);
   border-radius: 2px;
 }
 
@@ -75,16 +75,16 @@
   min-width: 150px;
   max-width: 180px;
   flex: 0 0 auto;
-  background: #0e0e0e;
-  border: 1px solid #1a1a1a;
+  background: var(--bg-surface);
+  border: 1px solid var(--bg-active);
   border-radius: 4px;
   cursor: pointer;
   transition: border-color 0.15s, background 0.15s;
   overflow: hidden;
 }
 .scs-chart:hover {
-  border-color: #333;
-  background: #111;
+  border-color: var(--text-faint);
+  background: var(--bg-elevated);
 }
 
 .scs-chart-head {
@@ -96,12 +96,12 @@
 .scs-chart-ticker {
   font-size: 10px;
   font-weight: 700;
-  color: #e0e0e0;
+  color: var(--text-primary);
   letter-spacing: 0.5px;
 }
 .scs-chart-name {
   font-size: 8px;
-  color: #666;
+  color: var(--text-muted);
   letter-spacing: 0.3px;
   white-space: nowrap;
   overflow: hidden;
@@ -115,7 +115,7 @@
 
 .scs-chart-loading {
   height: 100%;
-  background: linear-gradient(90deg, #111 25%, #1a1a1a 50%, #111 75%);
+  background: linear-gradient(90deg, var(--bg-elevated) 25%, var(--bg-active) 50%, var(--bg-elevated) 75%);
   background-size: 200% 100%;
   animation: scs-shimmer 1.5s infinite;
   border-radius: 2px;
@@ -132,7 +132,7 @@
   justify-content: center;
   height: 100%;
   font-size: 8px;
-  color: #444;
+  color: var(--text-faint);
   letter-spacing: 1px;
 }
 
@@ -145,7 +145,7 @@
 .scs-chart-price {
   font-size: 10px;
   font-weight: 600;
-  color: #ccc;
+  color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
 }
 .scs-chart-chg {
@@ -153,8 +153,8 @@
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
-.scs-chart-chg.up { color: var(--price-up, #4caf50); }
-.scs-chart-chg.down { color: var(--price-down, #f44336); }
+.scs-chart-chg.up { color: var(--price-up, var(--semantic-up)); }
+.scs-chart-chg.down { color: var(--semantic-down); }
 
 /* Responsive: mobile wraps */
 @media (max-width: 768px) {

@@ -1,8 +1,8 @@
 /* ETFPanel.css — prefix: ep- */
 
 .ep-container {
-  background-color: #0a0a0a;
-  color: #e0e0e0;
+  background-color: var(--bg-panel);
+  color: var(--text-primary);
   font-family: monospace;
   display: flex;
   flex-direction: column;
@@ -12,12 +12,12 @@
 
 .ep-header {
   padding: 10px 14px;
-  border-bottom: 1px solid #1e1e1e;
+  border-bottom: 1px solid var(--border-subtle);
   flex-shrink: 0;
 }
 
 .ep-header-title {
-  color: #ff6600;
+  color: var(--accent);
   font-size: 11px;
   letter-spacing: 0.2em;
   font-weight: bold;
@@ -34,8 +34,8 @@
   align-items: center;
   justify-content: space-between;
   padding: 12px 14px;
-  border-bottom: 1px solid #1e1e1e;
-  background-color: #0d0d0d;
+  border-bottom: 1px solid var(--border-subtle);
+  background-color: var(--bg-surface);
   min-height: 44px;
   cursor: pointer;
 }
@@ -43,12 +43,12 @@
 .ep-category-title {
   font-weight: bold;
   letter-spacing: 0.1em;
-  color: #ccc;
+  color: var(--text-secondary);
 }
 
 .ep-expand-icon {
   font-size: 12px;
-  color: #666;
+  color: var(--text-muted);
   transition: transform 0.2s;
   flex-shrink: 0;
 }
@@ -62,7 +62,7 @@
   justify-content: space-between;
   align-items: center;
   padding: 10px 14px;
-  border-bottom: 1px solid #141414;
+  border-bottom: 1px solid var(--bg-hover);
   min-height: 44px;
   -webkit-tap-highlight-color: rgba(255, 102, 0, 0.15);
   cursor: pointer;
@@ -78,14 +78,14 @@
 .ep-row-symbol {
   font-size: 11px;
   font-weight: bold;
-  color: #ff6600;
+  color: var(--accent);
   min-width: 50px;
   flex-shrink: 0;
 }
 
 .ep-row-name {
   font-size: 9px;
-  color: #666;
+  color: var(--text-muted);
   margin-left: 8px;
   flex: 1;
   overflow: hidden;
@@ -105,7 +105,7 @@
   font-variant-numeric: tabular-nums;
   min-width: 50px;
   text-align: right;
-  color: #ccc;
+  color: var(--text-secondary);
 }
 
 .ep-row-change {
@@ -120,13 +120,13 @@
 }
 
 .ep-row-change-negative {
-  color: #ff4444;
+  color: var(--semantic-down);
 }
 
 .ep-add-btn {
   background: none;
-  border: 1px solid #2a2a2a;
-  color: #666;
+  border: 1px solid var(--border-strong);
+  color: var(--text-muted);
   font-size: 8px;
   padding: 4px 8px;
   flex-shrink: 0;

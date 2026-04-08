@@ -28,7 +28,7 @@
 }
 
 .wp-add-btn-active {
-  background: #1a0d00;
+  background: rgba(255, 0, 0, 0.04);
 }
 
 .wp-add-form {
@@ -49,7 +49,7 @@
 }
 
 .wp-add-submit-btn {
-  background: #1a0d00;
+  background: rgba(255, 0, 0, 0.04);
   border: 1px solid var(--section-watchlist);
   color: var(--section-watchlist);
   padding: 2px 8px;
@@ -258,14 +258,14 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  color: #aa3333;
+  color: var(--semantic-down);
   font-size: 12px;
 }
 
 .wp-why-retry {
   background: none;
-  border: 1px solid #aa3333;
-  color: #aa3333;
+  border: 1px solid var(--semantic-down);
+  color: var(--semantic-down);
   padding: 4px 8px;
   border-radius: 4px;
   font-size: 11px;
@@ -280,7 +280,7 @@
 
 .wp-error-msg {
   padding: 4px 8px;
-  color: #aa3333;
+  color: var(--semantic-down);
   font-size: 9px;
   border-top: 1px solid var(--border-default);
 }

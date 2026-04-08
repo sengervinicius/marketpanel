@@ -57,7 +57,7 @@
   font-family: var(--font-ui);
   font-weight: 700;
   font-size: 0.8rem;
-  color: #fff;
+  color: var(--text-primary);
 }
 
 .ua--large .ua-initial { font-size: 1.5rem; }

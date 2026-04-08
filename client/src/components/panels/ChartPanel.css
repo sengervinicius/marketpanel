@@ -215,7 +215,7 @@
 }
 .cp-empty-slot--dragover {
   border-color: var(--accent);
-  background: #1a0d00;
+  background: rgba(255, 0, 0, 0.04);
   color: var(--accent);
 }
 .cp-empty-icon {
@@ -394,9 +394,9 @@
   left: 6px;
   right: 6px;
   z-index: 20;
-  background: var(--bg-surface, #0d0d0d);
-  border: 1px solid var(--border-default, #1e1e1e);
-  border-left: 3px solid var(--accent, #ff6600);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default, var(--border-subtle));
+  border-left: 3px solid var(--accent);
   border-radius: 4px;
   padding: 5px 8px;
   display: flex;
@@ -411,21 +411,21 @@
   padding: 1px 5px;
   border-radius: 999px;
   background: rgba(255, 102, 0, 0.08);
-  color: var(--accent, #ff6600);
+  color: var(--accent);
   border: 1px solid rgba(255, 102, 0, 0.15);
   align-self: flex-start;
 }
 .mc-ai-popover-text {
   font-size: 9px;
   line-height: 1.45;
-  color: var(--text-secondary, #ccc);
+  color: var(--text-secondary, var(--text-secondary));
 }
 .mc-ai-popover-text--loading {
-  color: var(--text-muted, #888);
+  color: var(--text-muted, var(--text-faint));
   font-style: italic;
 }
 .mc-ai-popover-text--error {
-  color: var(--text-muted, #888);
+  color: var(--text-muted, var(--text-faint));
   font-style: italic;
 }
 
@@ -452,10 +452,10 @@
   font-family: inherit;
   font-weight: 600;
   letter-spacing: 0.3px;
-  border: 1px solid var(--border-default, #1e1e1e);
+  border: 1px solid var(--border-default, var(--border-subtle));
   border-radius: 4px;
   background: transparent;
-  color: var(--text-faint, #555);
+  color: var(--text-faint);
   cursor: pointer;
   white-space: nowrap;
   transition: all 0.12s;
@@ -476,11 +476,11 @@
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.04em;
-  border: 1px solid var(--accent, #ff6600);
+  border: 1px solid var(--accent);
   border-radius: 4px;
   flex-shrink: 0;
   background: transparent;
-  color: var(--accent, #ff6600);
+  color: var(--accent);
   cursor: pointer;
   font-family: inherit;
   transition: opacity 0.1s, background 0.1s;
@@ -500,9 +500,9 @@
 .mcm-ai-box {
   margin: 0 10px 4px;
   padding: 6px 10px;
-  background: var(--bg-surface, #111);
-  border: 1px solid var(--border-default, #1e1e1e);
-  border-left: 3px solid var(--accent, #ff6600);
+  background: var(--bg-surface, var(--bg-elevated));
+  border: 1px solid var(--border-default, var(--border-subtle));
+  border-left: 3px solid var(--accent);
   border-radius: 4px;
   display: flex;
   flex-direction: column;
@@ -516,20 +516,20 @@
   padding: 1px 5px;
   border-radius: 999px;
   background: rgba(255, 102, 0, 0.08);
-  color: var(--accent, #ff6600);
+  color: var(--accent);
   border: 1px solid rgba(255, 102, 0, 0.15);
   align-self: flex-start;
 }
 .mcm-ai-text {
   font-size: 11px;
   line-height: 1.45;
-  color: var(--text-secondary, #ccc);
+  color: var(--text-secondary, var(--text-secondary));
 }
 .mcm-ai-text--loading {
-  color: var(--text-muted, #888);
+  color: var(--text-muted, var(--text-faint));
   font-style: italic;
 }
 .mcm-ai-text--error {
-  color: var(--text-muted, #888);
+  color: var(--text-muted, var(--text-faint));
   font-style: italic;
 }

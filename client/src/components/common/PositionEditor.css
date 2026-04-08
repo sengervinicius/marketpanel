@@ -17,8 +17,8 @@
 }
 
 .pf-editor-modal {
-  background: var(--bg-panel, #0d0d0d);
-  border: 1px solid var(--border-strong, #2a2a2a);
+  background: var(--bg-panel, var(--bg-surface));
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm, 3px);
   width: 90%;
   max-width: 500px;
@@ -32,16 +32,16 @@
 /* ── Header ── */
 .pf-editor-header {
   padding: var(--sp-5, 12px) var(--sp-4, 8px);
-  border-bottom: 1px solid var(--border-default, #1a1a1a);
+  border-bottom: 1px solid var(--border-default);
   display: flex;
   align-items: center;
   justify-content: space-between;
   flex-shrink: 0;
-  background: var(--bg-elevated, #181818);
+  background: var(--bg-elevated, var(--bg-elevated));
 }
 
 .pf-editor-title {
-  color: var(--accent, #ff6600);
+  color: var(--accent);
   font-size: var(--font-base, 11px);
   font-weight: 600;
   letter-spacing: 0.15em;
@@ -51,7 +51,7 @@
 .pf-editor-close-btn {
   background: none;
   border: none;
-  color: var(--text-muted, #888);
+  color: var(--text-muted, var(--text-faint));
   cursor: pointer;
   font-size: 16px;
   line-height: 1;
@@ -66,7 +66,7 @@
 }
 
 .pf-editor-close-btn:hover {
-  color: var(--accent, #ff6600);
+  color: var(--accent);
   background: rgba(255, 102, 0, 0.1);
 }
 
@@ -89,7 +89,7 @@
 }
 
 .pf-editor-label {
-  color: var(--text-muted, #888);
+  color: var(--text-muted, var(--text-faint));
   font-size: var(--font-sm, 9px);
   font-weight: 500;
   letter-spacing: 0.1em;
@@ -99,9 +99,9 @@
 /* ── Inputs ── */
 .pf-editor-input,
 .pf-editor-select {
-  background: var(--bg-app, #0a0a0a);
-  border: 1px solid var(--border-strong, #2a2a2a);
-  color: var(--text-primary, #e0e0e0);
+  background: var(--bg-app, var(--bg-panel));
+  border: 1px solid var(--border-strong);
+  color: var(--text-primary);
   padding: var(--sp-3, 6px) var(--sp-3, 6px);
   font-size: var(--font-base, 11px);
   font-family: var(--font-ui);
@@ -114,23 +114,23 @@
 
 .pf-editor-input:focus,
 .pf-editor-select:focus {
-  border-color: var(--accent, #ff6600);
+  border-color: var(--accent);
   box-shadow: 0 0 8px rgba(255, 102, 0, 0.3);
 }
 
 .pf-editor-input::placeholder {
-  color: var(--text-faint, #555);
+  color: var(--text-faint);
 }
 
 .pf-editor-input-readonly {
-  background: var(--bg-elevated, #181818);
-  border-color: var(--border-default, #1a1a1a);
-  color: var(--accent, #ff6600);
+  background: var(--bg-elevated, var(--bg-elevated));
+  border-color: var(--border-default);
+  color: var(--accent);
   cursor: not-allowed;
 }
 
 .pf-editor-input-readonly:focus {
-  border-color: var(--border-default, #1a1a1a);
+  border-color: var(--border-default);
   box-shadow: none;
 }
 
@@ -153,13 +153,13 @@
 /* ── Footer ── */
 .pf-editor-footer {
   padding: var(--sp-5, 12px) var(--sp-4, 8px);
-  border-top: 1px solid var(--border-default, #1a1a1a);
+  border-top: 1px solid var(--border-default);
   display: flex;
   gap: var(--sp-3, 6px);
   justify-content: flex-end;
   align-items: center;
   flex-shrink: 0;
-  background: var(--bg-elevated, #181818);
+  background: var(--bg-elevated, var(--bg-elevated));
   flex-wrap: wrap;
 }
 
@@ -177,16 +177,16 @@
   text-transform: uppercase;
   cursor: pointer;
   border-radius: var(--radius-sm, 3px);
-  border: 1px solid var(--border-strong, #2a2a2a);
+  border: 1px solid var(--border-strong);
   background: transparent;
-  color: var(--text-muted, #888);
+  color: var(--text-muted, var(--text-faint));
   transition: all 150ms;
   white-space: nowrap;
 }
 
 .pf-editor-btn:hover:not(:disabled) {
-  border-color: var(--text-muted, #888);
-  color: var(--text-primary, #e0e0e0);
+  border-color: var(--text-muted, var(--text-faint));
+  color: var(--text-primary);
 }
 
 .pf-editor-btn:disabled {
@@ -195,31 +195,31 @@
 }
 
 .pf-editor-btn-primary {
-  background: var(--accent, #ff6600);
-  color: #000;
-  border-color: var(--accent, #ff6600);
+  background: var(--accent);
+  color: var(--bg-app);
+  border-color: var(--accent);
   font-weight: 600;
 }
 
 .pf-editor-btn-primary:hover:not(:disabled) {
-  background: #ff8533;
-  border-color: #ff8533;
+  background: var(--accent-text);
+  border-color: var(--accent-text);
   box-shadow: 0 0 12px rgba(255, 102, 0, 0.4);
 }
 
 .pf-editor-btn-cancel {
-  color: var(--text-muted, #888);
-  border-color: var(--border-strong, #2a2a2a);
+  color: var(--text-muted, var(--text-faint));
+  border-color: var(--border-strong);
 }
 
 .pf-editor-btn-cancel:hover:not(:disabled) {
-  border-color: var(--text-muted, #888);
-  color: var(--text-primary, #e0e0e0);
+  border-color: var(--text-muted, var(--text-faint));
+  color: var(--text-primary);
 }
 
 .pf-editor-btn-delete {
-  color: var(--price-down, #ff1744);
-  border-color: var(--price-down, #ff1744);
+  color: var(--price-down, var(--semantic-down));
+  border-color: var(--price-down, var(--semantic-down));
   margin-right: auto;
 }
 
@@ -267,16 +267,16 @@
 }
 
 .pf-editor-body::-webkit-scrollbar-track {
-  background: var(--bg-app, #0a0a0a);
+  background: var(--bg-app, var(--bg-panel));
 }
 
 .pf-editor-body::-webkit-scrollbar-thumb {
-  background: var(--border-strong, #2a2a2a);
+  background: var(--border-strong);
   border-radius: 3px;
 }
 
 .pf-editor-body::-webkit-scrollbar-thumb:hover {
-  background: var(--text-muted, #888);
+  background: var(--text-muted, var(--text-faint));
 }
 
 /* ── Animations ── */
@@ -310,8 +310,8 @@
 
 /* ── AI Suggestions Section ── */
 .pf-ai-suggestions {
-  background: var(--bg-app, #0a0a0a);
-  border: 1px solid var(--border-strong, #2a2a2a);
+  background: var(--bg-app, var(--bg-panel));
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm, 3px);
   padding: var(--sp-4, 8px);
   display: flex;
@@ -321,18 +321,18 @@
 }
 
 .pf-ai-suggestion-header {
-  color: var(--accent, #ff6600);
+  color: var(--accent);
   font-size: var(--font-sm, 9px);
   font-weight: 600;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   padding-bottom: var(--sp-2, 4px);
-  border-bottom: 1px solid var(--border-default, #1a1a1a);
+  border-bottom: 1px solid var(--border-default);
 }
 
 .pf-ai-suggestion-item {
-  background: var(--bg-panel, #0d0d0d);
-  border: 1px solid var(--border-default, #1a1a1a);
+  background: var(--bg-panel, var(--bg-surface));
+  border: 1px solid var(--border-default);
   border-radius: var(--radius-sm, 3px);
   padding: var(--sp-3, 6px);
   display: flex;
@@ -342,14 +342,14 @@
 }
 
 .pf-ai-suggestion-item:hover {
-  border-color: var(--accent, #ff6600);
+  border-color: var(--accent);
   background: rgba(255, 102, 0, 0.05);
 }
 
 .pf-ai-suggestion-type {
   display: inline-block;
-  background: var(--accent, #ff6600);
-  color: #000;
+  background: var(--accent);
+  color: var(--bg-app);
   padding: 2px 6px;
   border-radius: 2px;
   font-size: var(--font-sm, 9px);
@@ -359,13 +359,13 @@
 }
 
 .pf-ai-suggestion-price {
-  color: var(--accent, #ff6600);
+  color: var(--accent);
   font-size: var(--font-base, 11px);
   font-weight: 600;
 }
 
 .pf-ai-suggestion-rationale {
-  color: var(--text-muted, #888);
+  color: var(--text-muted, var(--text-faint));
   font-size: var(--font-sm, 9px);
   line-height: 1.4;
   flex: 1;
@@ -374,8 +374,8 @@
 .pf-ai-suggestion-use-btn {
   align-self: flex-start;
   background: transparent;
-  border: 1px solid var(--accent, #ff6600);
-  color: var(--accent, #ff6600);
+  border: 1px solid var(--accent);
+  color: var(--accent);
   padding: 2px 8px;
   font-size: var(--font-sm, 9px);
   font-weight: 600;
@@ -387,13 +387,13 @@
 }
 
 .pf-ai-suggestion-use-btn:hover {
-  background: var(--accent, #ff6600);
-  color: #000;
+  background: var(--accent);
+  color: var(--bg-app);
   box-shadow: 0 0 8px rgba(255, 102, 0, 0.3);
 }
 
 .pf-ai-loading {
-  color: var(--text-muted, #888);
+  color: var(--text-muted, var(--text-faint));
   font-size: var(--font-sm, 9px);
   padding: var(--sp-3, 6px);
   text-align: center;
@@ -401,7 +401,7 @@
 }
 
 .pf-ai-error {
-  color: var(--price-down, #ff1744);
+  color: var(--price-down, var(--semantic-down));
   font-size: var(--font-sm, 9px);
   padding: var(--sp-2, 4px) 0;
 }
@@ -417,8 +417,8 @@
   top: 100%;
   left: 0;
   right: 0;
-  background: var(--bg-elevated, #181818);
-  border: 1px solid var(--border-strong, #2a2a2a);
+  background: var(--bg-elevated, var(--bg-elevated));
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm, 3px);
   border-top: none;
   border-top-left-radius: 0;
@@ -438,7 +438,7 @@
   font-size: var(--font-base, 11px);
   align-items: center;
   transition: background 100ms;
-  border-bottom: 1px solid var(--border-default, #1a1a1a);
+  border-bottom: 1px solid var(--border-default);
 }
 
 .pf-search-item:last-child {
@@ -455,9 +455,9 @@
   font-family: var(--font-mono, 'Courier New', monospace);
   padding: 1px 4px;
   border-radius: 2px;
-  background: var(--bg-surface, #0a0a0a);
-  color: var(--text-muted, #888);
-  border: 1px solid var(--border-default, #1a1a1a);
+  background: var(--bg-surface, var(--bg-panel));
+  color: var(--text-muted, var(--text-faint));
+  border: 1px solid var(--border-default);
   white-space: nowrap;
   flex-shrink: 0;
   font-weight: 500;
@@ -465,12 +465,12 @@
 
 .pf-search-sym {
   font-weight: 600;
-  color: var(--text-primary, #e0e0e0);
+  color: var(--text-primary);
   flex-shrink: 0;
 }
 
 .pf-search-name {
-  color: var(--text-secondary, #999);
+  color: var(--text-secondary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -483,11 +483,11 @@
   padding: 8px 10px;
   text-align: center;
   font-size: var(--font-base, 11px);
-  color: var(--text-muted, #888);
+  color: var(--text-muted, var(--text-faint));
 }
 
 .pf-search-error {
-  color: var(--price-down, #ff1744);
+  color: var(--price-down, var(--semantic-down));
 }
 
 /* ── Dropdown Scrollbar Styling ── */
@@ -496,14 +496,14 @@
 }
 
 .pf-search-dropdown::-webkit-scrollbar-track {
-  background: var(--bg-elevated, #181818);
+  background: var(--bg-elevated, var(--bg-elevated));
 }
 
 .pf-search-dropdown::-webkit-scrollbar-thumb {
-  background: var(--border-strong, #2a2a2a);
+  background: var(--border-strong);
   border-radius: 3px;
 }
 
 .pf-search-dropdown::-webkit-scrollbar-thumb:hover {
-  background: var(--text-muted, #888);
+  background: var(--text-muted, var(--text-faint));
 }

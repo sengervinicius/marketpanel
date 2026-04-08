@@ -11,8 +11,8 @@
 }
 
 .pcm-modal {
-  background: #0d0d0d;
-  border: 1px solid #2a2a2a;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-strong);
   border-radius: 6px;
   width: 90%;
   max-width: 560px;
@@ -24,14 +24,14 @@
 
 .pcm-header {
   padding: 14px 18px;
-  border-bottom: 1px solid #1a1a1a;
+  border-bottom: 1px solid var(--bg-active);
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
 
 .pcm-header-title {
-  color: #ff6600;
+  color: var(--accent);
   font-size: 12px;
   font-weight: bold;
 }
@@ -39,7 +39,7 @@
 .pcm-header-close {
   background: none;
   border: none;
-  color: #555;
+  color: var(--text-muted);
 }
 
 .pcm-body {
@@ -59,11 +59,11 @@
 }
 
 .pcm-col-left {
-  border-right: 1px solid #1a1a1a;
+  border-right: 1px solid var(--bg-active);
 }
 
 .pcm-col-title {
-  color: #ff6600;
+  color: var(--accent);
   font-size: 9px;
   letter-spacing: 0.2em;
   margin-bottom: 8px;
@@ -78,14 +78,14 @@
 
 .pcm-col-title-maxIndicator {
   font-size: 7px;
-  color: #666;
+  color: var(--text-muted);
   letter-spacing: 0.5px;
 }
 
 .pcm-input {
-  background: #080808;
-  border: 1px solid #2a2a2a;
-  color: #e0e0e0;
+  background: var(--bg-app);
+  border: 1px solid var(--border-strong);
+  color: var(--text-primary);
   padding: 6px 10px;
   font-size: 11px;
   outline: none;
@@ -101,7 +101,7 @@
 }
 
 .pcm-group-header {
-  color: #ff6600;
+  color: var(--accent);
   font-size: 8px;
   font-weight: 700;
   letter-spacing: 0.5px;
@@ -121,16 +121,16 @@
 
 .pcm-item-selected {
   background: #1a0900;
-  color: #ff6600;
+  color: var(--accent);
 }
 
 .pcm-item-unselected {
   background: transparent;
-  color: #888;
+  color: var(--text-faint);
 }
 
 .pcm-item-name {
-  color: #333;
+  color: var(--text-faint);
   font-size: 9px;
 }
 
@@ -157,18 +157,18 @@
   padding: 4px 6px;
   font-size: 8px;
   letter-spacing: 0.1em;
-  border: 1px solid #2a2a2a;
+  border: 1px solid var(--border-strong);
 }
 
 .pcm-button-selectall:disabled {
-  background: #0a0a0a;
-  color: #333;
+  background: var(--bg-panel);
+  color: var(--text-faint);
   cursor: default;
 }
 
 .pcm-button-selectall:not(:disabled) {
   background: transparent;
-  color: #666;
+  color: var(--text-muted);
   cursor: pointer;
 }
 
@@ -177,18 +177,18 @@
   padding: 4px 6px;
   font-size: 8px;
   letter-spacing: 0.1em;
-  border: 1px solid #2a2a2a;
+  border: 1px solid var(--border-strong);
 }
 
 .pcm-button-clearall:disabled {
-  background: #0a0a0a;
-  color: #333;
+  background: var(--bg-panel);
+  color: var(--text-faint);
   cursor: default;
 }
 
 .pcm-button-clearall:not(:disabled) {
   background: transparent;
-  color: #666;
+  color: var(--text-muted);
   cursor: pointer;
 }
 
@@ -199,12 +199,12 @@
 }
 
 .pcm-button-moveup:disabled {
-  color: #222;
+  color: var(--bg-elevated);
   cursor: default;
 }
 
 .pcm-button-moveup:not(:disabled) {
-  color: #555;
+  color: var(--text-muted);
   cursor: pointer;
 }
 
@@ -217,25 +217,25 @@
 }
 
 .pcm-button-movedown:disabled {
-  color: #222;
+  color: var(--bg-elevated);
   cursor: default;
 }
 
 .pcm-button-movedown:not(:disabled) {
-  color: #555;
+  color: var(--text-muted);
   cursor: pointer;
 }
 
 .pcm-button-remove {
   background: none;
   border: none;
-  color: #555;
+  color: var(--text-muted);
   line-height: 1;
 }
 
 .pcm-footer {
   padding: 12px 18px;
-  border-top: 1px solid #1a1a1a;
+  border-top: 1px solid var(--bg-active);
   display: flex;
   gap: 8px;
   justify-content: flex-end;
@@ -245,9 +245,9 @@
   padding: 8px 20px;
   letter-spacing: 0.1em;
   border-radius: 3px;
-  border: 1px solid #2a2a2a;
+  border: 1px solid var(--border-strong);
   background: transparent;
-  color: #888;
+  color: var(--text-faint);
   font-weight: normal;
 }
 
@@ -255,9 +255,9 @@
   padding: 8px 20px;
   letter-spacing: 0.1em;
   border-radius: 3px;
-  border: 1px solid #ff6600;
-  background: #ff6600;
-  color: #000;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: var(--bg-app);
   font-weight: bold;
 }
 
@@ -267,13 +267,13 @@
 }
 
 .pcm-title-label {
-  color: #555;
+  color: var(--text-muted);
   font-size: 9px;
   letter-spacing: 0.15em;
   margin-bottom: 4px;
 }
 
 .pcm-empty-message {
-  color: #2a2a2a;
+  color: var(--border-strong);
   padding: 8px;
 }

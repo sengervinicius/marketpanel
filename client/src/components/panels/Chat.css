@@ -68,7 +68,7 @@
   position: relative;
   background: none;
   border: none;
-  color: var(--text-secondary, #888);
+  color: var(--text-secondary, var(--text-faint));
   cursor: pointer;
   padding: 4px;
   display: flex;
@@ -76,14 +76,14 @@
   justify-content: center;
 }
 .chat-icon-btn:hover {
-  color: var(--text-primary, #ccc);
+  color: var(--text-primary, var(--text-secondary));
 }
 .chat-icon-badge {
   position: absolute;
   top: -2px;
   right: -4px;
-  background: #e55a00;
-  color: #fff;
+  background: var(--accent);
+  color: var(--text-primary);
   border-radius: 10px;
   font-size: 9px;
   font-weight: 700;
@@ -114,7 +114,7 @@
   outline: none;
 }
 .chat-inbox-search input::placeholder {
-  color: var(--text-muted, #555);
+  color: var(--text-muted);
 }
 .chat-inbox-search input:focus {
   border-color: var(--accent);
@@ -162,7 +162,7 @@
 }
 .chat-row-time {
   font-size: 10px;
-  color: var(--text-muted, #555);
+  color: var(--text-muted);
 }
 .chat-row-preview {
   font-size: var(--font-sm);
@@ -174,7 +174,7 @@
 }
 .chat-row-badge {
   background: var(--accent);
-  color: #fff;
+  color: var(--text-primary);
   border-radius: 10px;
   font-size: 10px;
   font-weight: 700;
@@ -224,7 +224,7 @@
 }
 .chat-bubble--sent {
   background: var(--accent);
-  color: #fff;
+  color: var(--text-primary);
   align-self: flex-end;
   border-bottom-right-radius: 3px;
 }
@@ -236,7 +236,7 @@
 }
 .chat-bubble-time {
   font-size: 10px;
-  color: var(--text-muted, #555);
+  color: var(--text-muted);
   margin-top: 2px;
   padding: 0 var(--sp-1);
 }
@@ -269,7 +269,7 @@
   border-color: var(--accent);
 }
 .chat-compose-input::placeholder {
-  color: var(--text-muted, #555);
+  color: var(--text-muted);
 }
 .chat-send-btn {
   width: 36px;
@@ -282,7 +282,7 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  color: #fff;
+  color: var(--text-primary);
 }
 .chat-send-btn:disabled {
   opacity: 0.35;
@@ -325,10 +325,10 @@
   font-size: var(--font-sm);
 }
 .chat-instrument-card-change.up {
-  color: var(--price-up, var(--positive));
+  color: var(--price-up);
 }
 .chat-instrument-card-change.down {
-  color: var(--price-down, var(--negative));
+  color: var(--price-down);
 }
 
 /* ── AI Assistant Entry (pinned in list) ── */

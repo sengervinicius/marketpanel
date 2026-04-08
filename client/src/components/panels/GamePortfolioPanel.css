@@ -122,12 +122,12 @@
 
 .gp-trade-btn--buy {
   background: var(--green);
-  color: #fff;
+  color: var(--text-primary);
 }
 
 .gp-trade-btn--sell {
   background: var(--red);
-  color: #fff;
+  color: var(--text-primary);
 }
 
 .gp-trade-error {

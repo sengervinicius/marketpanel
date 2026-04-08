@@ -61,7 +61,7 @@
 
 .ac-tab-badge {
   background: var(--price-up);
-  color: #000;
+  color: var(--bg-app);
   border-radius: 8px;
   padding: 0 5px;
   font-size: 10px;
@@ -177,7 +177,7 @@
 .ac-action--dismiss:hover { color: var(--price-up); border-color: var(--price-up); }
 .ac-action--delete:hover { color: var(--price-down); border-color: var(--price-down); }
 .ac-action--mute:hover { color: var(--text-faint); }
-.ac-action--snooze:hover { color: #a78bfa; border-color: #a78bfa; }
+.ac-action--snooze:hover { color: var(--semantic-ai); border-color: var(--semantic-ai); }
 
 .ac-snooze-bar {
   display: flex;
@@ -197,9 +197,9 @@
 }
 
 .ac-snooze-option:hover {
-  background: #a78bfa22;
-  border-color: #a78bfa;
-  color: #a78bfa;
+  background: var(--semantic-ai)22;
+  border-color: var(--semantic-ai);
+  color: var(--semantic-ai);
 }
 
 /* Mobile responsive */
