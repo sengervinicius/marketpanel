@@ -158,7 +158,7 @@ function RevenueGrowthChart() {
     return (
       <div style={{
         height: 200,
-        background: 'linear-gradient(90deg, #1a1a1a 25%, #222 50%, #1a1a1a 75%)',
+        background: 'linear-gradient(90deg, var(--bg-hover) 25%, var(--bg-active) 50%, var(--bg-hover) 75%)',
         backgroundSize: '200% 100%',
         animation: 'ds-shimmer 1.5s infinite',
         borderRadius: 2,
@@ -173,7 +173,7 @@ function RevenueGrowthChart() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        color: '#666',
+        color: 'var(--text-muted)',
         fontSize: 10,
       }}>
         No revenue data available
@@ -184,15 +184,15 @@ function RevenueGrowthChart() {
   return (
     <ResponsiveContainer width="100%" height={200}>
       <BarChart data={data} margin={{ top: 8, right: 16, bottom: 32, left: 40 }}>
-        <XAxis dataKey="ticker" style={{ fontSize: 9, fill: '#666' }} />
-        <YAxis style={{ fontSize: 9, fill: '#666' }} />
+        <XAxis dataKey="ticker" style={{ fontSize: 9, fill: 'var(--text-muted)' }} />
+        <YAxis style={{ fontSize: 9, fill: 'var(--text-muted)' }} />
         <Tooltip
           contentStyle={{
-            background: '#0a0a0a',
-            border: '1px solid #1e1e1e',
+            background: 'var(--bg-panel)',
+            border: '1px solid var(--border-default)',
             borderRadius: 3,
             fontSize: 9,
-            color: '#e0e0e0',
+            color: 'var(--text-primary)',
           }}
           formatter={(value) => `${value.toFixed(2)}%`}
         />
@@ -200,7 +200,7 @@ function RevenueGrowthChart() {
           {data.map((entry, idx) => (
             <Cell
               key={`bar-${idx}`}
-              fill={entry.growth >= 0 ? '#4caf50' : '#f44336'}
+              fill={entry.growth >= 0 ? 'var(--semantic-up)' : 'var(--semantic-down)'}
             />
           ))}
         </Bar>
@@ -260,16 +260,16 @@ function MiniFinancialsStrip() {
           style={{
             flex: '0 0 calc(33.333% - 6px)',
             minWidth: 200,
-            border: '1px solid #1e1e1e',
+            border: '1px solid var(--border-default)',
             borderRadius: 2,
             padding: 8,
-            background: '#0a0a0a',
+            background: 'var(--bg-panel)',
           }}
         >
           <div style={{
             fontSize: 10,
             fontWeight: 600,
-            color: '#e0e0e0',
+            color: 'var(--text-primary)',
             marginBottom: 8,
           }}>
             {ticker}
@@ -292,21 +292,21 @@ function EtfCell({ sym, onClick }) {
       style={{
         cursor: 'pointer',
         padding: '8px 12px',
-        border: '1px solid #1e1e1e',
+        border: '1px solid var(--border-default)',
         borderRadius: 2,
         textAlign: 'center',
         transition: 'all 0.2s',
       }}
     >
-      <div style={{ fontSize: 10, fontWeight: 600, color: '#e0e0e0' }}>
+      <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-primary)' }}>
         {sym}
       </div>
-      <div style={{ fontSize: 9, color: '#999', marginTop: 2 }}>
+      <div style={{ fontSize: 9, color: 'var(--text-secondary)', marginTop: 2 }}>
         {q?.price != null ? fmt(q.price) : '—'}
       </div>
       <div style={{
         fontSize: 9,
-        color: isUp ? '#4caf50' : '#f44336',
+        color: isUp ? 'var(--semantic-up)' : 'var(--semantic-down)',
         fontWeight: 500,
         marginTop: 2,
       }}>

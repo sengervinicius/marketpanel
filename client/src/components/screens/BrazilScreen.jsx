@@ -137,19 +137,19 @@ const DiCurveComponent = memo(function DiCurveComponent() {
 
   if (loading) return <DeepSkeleton rows={6} />;
   if (error) return <DeepError message={error} />;
-  if (chartData.length === 0) return <div style={{ padding: '10px', color: '#666', fontSize: 10 }}>DI curve data unavailable</div>;
+  if (chartData.length === 0) return <div style={{ padding: '10px', color: 'var(--text-muted)', fontSize: 10 }}>DI curve data unavailable</div>;
 
   return (
     <div style={{ padding: '8px', height: '240px' }}>
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={chartData} margin={{ top: 8, right: 16, bottom: 24, left: 40 }}>
-          <XAxis dataKey="label" style={{ fontSize: 8, fill: '#666' }} />
-          <YAxis style={{ fontSize: 8, fill: '#666' }} />
+          <XAxis dataKey="label" style={{ fontSize: 8, fill: 'var(--text-muted)' }} />
+          <YAxis style={{ fontSize: 8, fill: 'var(--text-muted)' }} />
           <Tooltip
-            contentStyle={{ background: '#0a0a0a', border: '1px solid #1e1e1e', borderRadius: 3 }}
-            labelStyle={{ color: '#e0e0e0', fontSize: 9 }}
+            contentStyle={{ background: 'var(--bg-panel)', border: '1px solid var(--border-default)', borderRadius: 3 }}
+            labelStyle={{ color: 'var(--text-primary)', fontSize: 9 }}
           />
-          <Line type="monotone" dataKey="rate" stroke="#4caf50" strokeWidth={2} dot={false} isAnimationActive={false} />
+          <Line type="monotone" dataKey="rate" stroke="var(--semantic-up)" strokeWidth={2} dot={false} isAnimationActive={false} />
         </LineChart>
       </ResponsiveContainer>
     </div>
@@ -207,12 +207,12 @@ const FxRatesComponent = memo(function FxRatesComponent() {
           {['C:USDBRL', 'C:EURBRL'].map(sym => (
             <FxRateRow key={sym} sym={sym} openDetail={openDetail} />
           ))}
-          <tr style={{ borderTop: '1px solid #1e1e1e', background: '#0d0d0d' }}>
-            <td style={{ fontWeight: 600, color: '#999' }}>Selic Rate</td>
+          <tr style={{ borderTop: '1px solid var(--border-default)', background: 'var(--bg-surface)' }}>
+            <td style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>Selic Rate</td>
             <td colSpan="2">{brData.policyRate != null ? fmtPct(brData.policyRate) : loading ? '...' : '—'}</td>
           </tr>
-          <tr style={{ background: '#0d0d0d' }}>
-            <td style={{ fontWeight: 600, color: '#999' }}>CPI YoY</td>
+          <tr style={{ background: 'var(--bg-surface)' }}>
+            <td style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>CPI YoY</td>
             <td colSpan="2">{brData.cpiYoY != null ? fmtPct(brData.cpiYoY) : loading ? '...' : '—'}</td>
           </tr>
         </tbody>
@@ -238,7 +238,7 @@ const LatAmMacroComponent = memo(function LatAmMacroComponent() {
   // API returns {data: {countries: [...]}} — extract the countries array safely
   const countries = Array.isArray(data?.data?.countries) ? data.data.countries
                   : Array.isArray(data?.data) ? data.data : [];
-  if (countries.length === 0) return <div style={{ padding: '10px', color: '#666', fontSize: 10 }}>No data available</div>;
+  if (countries.length === 0) return <div style={{ padding: '10px', color: 'var(--text-muted)', fontSize: 10 }}>No data available</div>;
 
   return (
     <div style={{ padding: '0 6px', overflow: 'auto' }}>
@@ -328,7 +328,7 @@ function EmEtfCell({ sym, openDetail }) {
       <td className={q?.changePct >= 0 ? 'ds-val-pos' : 'ds-val-neg'}>
         {q?.changePct != null ? fmtPct(q.changePct) : '—'}
       </td>
-      <td style={{ fontSize: 11, color: '#999' }}>{EM_EQUITY_NAMES[sym]}</td>
+      <td style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{EM_EQUITY_NAMES[sym]}</td>
     </tr>
   );
 }
@@ -375,22 +375,22 @@ function BrazilEtfCell({ sym, openDetail }) {
         alignItems: 'center',
         gap: '6px',
         padding: '6px 10px',
-        background: '#111',
-        border: '1px solid #1e1e1e',
+        background: 'var(--bg-elevated)',
+        border: '1px solid var(--border-default)',
         borderRadius: '3px',
         cursor: 'pointer',
         fontSize: 10,
         fontWeight: 600,
-        color: '#e0e0e0',
+        color: 'var(--text-primary)',
         transition: 'background 0.15s',
       }}
-      onMouseEnter={(e) => e.target.parentElement.style.background = '#1a1a1a'}
-      onMouseLeave={(e) => e.target.parentElement.style.background = '#111'}
+      onMouseEnter={(e) => e.target.parentElement.style.background = 'var(--bg-hover)'}
+      onMouseLeave={(e) => e.target.parentElement.style.background = 'var(--bg-elevated)'}
     >
       <span>{sym}</span>
-      {q?.price != null && <span style={{ color: '#999', fontSize: 9 }}>${fmt(q.price)}</span>}
+      {q?.price != null && <span style={{ color: 'var(--text-secondary)', fontSize: 9 }}>${fmt(q.price)}</span>}
       {q?.changePct != null && (
-        <span style={{ color: q.changePct >= 0 ? '#4caf50' : '#f44336', fontSize: 9 }}>
+        <span style={{ color: q.changePct >= 0 ? 'var(--semantic-up)' : 'var(--semantic-down)', fontSize: 9 }}>
           {q.changePct >= 0 ? '+' : ''}{q.changePct.toFixed(2)}%
         </span>
       )}
@@ -470,7 +470,7 @@ function BrazilScreenImpl() {
     >
       {/* Brazil & EM ETFs strip */}
       <div style={{ padding: '12px 16px' }}>
-        <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 1, color: '#999', textTransform: 'uppercase', marginBottom: 8 }}>
+        <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 1, color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: 8 }}>
           Brazil & EM ETFs
         </div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>

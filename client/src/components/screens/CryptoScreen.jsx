@@ -244,50 +244,50 @@ function OnChainCard({ label, value, unit, loading, error }) {
   if (loading) {
     return (
       <div style={{
-        background: '#0a0a0a',
-        border: '1px solid #1e1e1e',
+        background: 'var(--bg-panel)',
+        border: '1px solid var(--border-default)',
         borderRadius: 4,
         padding: '12px',
         textAlign: 'center',
-        color: '#666',
+        color: 'var(--text-muted)',
         fontSize: 10,
       }}>
-        <div style={{ color: '#888', marginBottom: 6 }}>{label}</div>
-        <div style={{ height: 20, background: '#1a1a1a', borderRadius: 2 }} />
+        <div style={{ color: 'var(--text-faint)', marginBottom: 6 }}>{label}</div>
+        <div style={{ height: 20, background: 'var(--bg-hover)', borderRadius: 2 }} />
       </div>
     );
   }
   if (error) {
     return (
       <div style={{
-        background: '#0a0a0a',
-        border: '1px solid #1e1e1e',
+        background: 'var(--bg-panel)',
+        border: '1px solid var(--border-default)',
         borderRadius: 4,
         padding: '12px',
         textAlign: 'center',
-        color: '#666',
+        color: 'var(--text-muted)',
         fontSize: 10,
       }}>
-        <div style={{ color: '#999', marginBottom: 6 }}>{label}</div>
-        <div style={{ color: '#666', fontSize: 9 }}>—</div>
+        <div style={{ color: 'var(--text-secondary)', marginBottom: 6 }}>{label}</div>
+        <div style={{ color: 'var(--text-muted)', fontSize: 9 }}>—</div>
       </div>
     );
   }
   return (
     <div style={{
-      background: '#0a0a0a',
-      border: '1px solid #1e1e1e',
+      background: 'var(--bg-panel)',
+      border: '1px solid var(--border-default)',
       borderRadius: 4,
       padding: '12px',
       textAlign: 'center',
     }}>
-      <div style={{ color: '#999', fontSize: 9, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+      <div style={{ color: 'var(--text-secondary)', fontSize: 9, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>
         {label}
       </div>
-      <div style={{ color: '#e0e0e0', fontSize: 14, fontWeight: 600, fontFamily: 'monospace' }}>
+      <div style={{ color: 'var(--text-primary)', fontSize: 14, fontWeight: 600, fontFamily: 'monospace' }}>
         {value || '—'}
       </div>
-      {unit && <div style={{ color: '#666', fontSize: 8, marginTop: 4 }}>{unit}</div>}
+      {unit && <div style={{ color: 'var(--text-muted)', fontSize: 8, marginTop: 4 }}>{unit}</div>}
     </div>
   );
 }
@@ -309,7 +309,7 @@ function BitcoinOnChainSection() {
   const mktData = data?.mktData || {};
 
   if (error && !data) {
-    return <div style={{ padding: 10, color: '#555', fontSize: 10, textAlign: 'center' }}>On-chain data temporarily unavailable</div>;
+    return <div style={{ padding: 10, color: 'var(--text-muted)', fontSize: 10, textAlign: 'center' }}>On-chain data temporarily unavailable</div>;
   }
 
   return (
@@ -367,7 +367,7 @@ function EthereumOnChainSection() {
   const defi = data?.defi || {};
 
   if (error && !data) {
-    return <div style={{ padding: 10, color: '#555', fontSize: 10, textAlign: 'center' }}>On-chain data temporarily unavailable</div>;
+    return <div style={{ padding: 10, color: 'var(--text-muted)', fontSize: 10, textAlign: 'center' }}>On-chain data temporarily unavailable</div>;
   }
 
   return (
@@ -465,7 +465,7 @@ function CryptoEtfCell({ sym, onClick }) {
 const EtfStrip = memo(function EtfStrip() {
   const openDetail = useOpenDetail();
   return (
-    <div className="ds-strip" style={{ display: 'flex', gap: 0, borderTop: '1px solid #1e1e1e' }}>
+    <div className="ds-strip" style={{ display: 'flex', gap: 0, borderTop: '1px solid var(--border-default)' }}>
       {CRYPTO_ETFS.map(sym => (
         <CryptoEtfCell key={sym} sym={sym} onClick={openDetail} />
       ))}
@@ -559,8 +559,8 @@ function CryptoScreenImpl() {
       sections={sections}
       lastUpdated={new Date()}
     >
-      <div style={{ padding: '12px', borderTop: '1px solid #1e1e1e' }}>
-        <div style={{ fontSize: 10, fontWeight: 600, color: '#aaa', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+      <div style={{ padding: '12px', borderTop: '1px solid var(--border-default)' }}>
+        <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>
           CRYPTO ETFs
         </div>
         <EtfStrip />

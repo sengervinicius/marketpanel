@@ -169,7 +169,7 @@ function PreciousMetalsSection() {
         </tbody>
       </table>
       {gsRatio != null && (
-        <div style={{ fontSize: 10, color: '#ff9800', padding: '6px 4px 2px', borderTop: '1px solid #1a1a1a' }}>
+        <div style={{ fontSize: 10, color: 'var(--semantic-warn)', padding: '6px 4px 2px', borderTop: '1px solid var(--border-subtle)' }}>
           Gold/Silver Ratio: {gsRatio.toFixed(2)}x
         </div>
       )}
@@ -206,7 +206,7 @@ function FuturesTermStructureSection() {
   if (clLoading) return <DeepSkeleton rows={6} />;
   if (clError) return <DeepError message={`Error: ${clError}`} />;
   if (!clData || !Array.isArray(clData)) {
-    return <div style={{ padding: '10px', color: '#666', fontSize: 10, textAlign: 'center' }}>No futures data</div>;
+    return <div style={{ padding: '10px', color: 'var(--text-muted)', fontSize: 10, textAlign: 'center' }}>No futures data</div>;
   }
 
   // Prepare chart data from futures contracts
@@ -223,23 +223,23 @@ function FuturesTermStructureSection() {
     <div style={{ padding: '0 6px', overflow: 'auto' }}>
       <ResponsiveContainer width="100%" height={250}>
         <LineChart data={chartData} margin={{ top: 5, right: 30, left: 0, bottom: 30 }}>
-          <XAxis dataKey="name" style={{ fontSize: 8, fill: '#666' }} />
-          <YAxis style={{ fontSize: 8, fill: '#666' }} />
+          <XAxis dataKey="name" style={{ fontSize: 8, fill: 'var(--text-muted)' }} />
+          <YAxis style={{ fontSize: 8, fill: 'var(--text-muted)' }} />
           <Tooltip
-            contentStyle={{ background: '#0a0a0a', border: '1px solid #1e1e1e', borderRadius: 3 }}
-            labelStyle={{ color: '#e0e0e0' }}
+            contentStyle={{ background: 'var(--bg-panel)', border: '1px solid var(--border-default)', borderRadius: 3 }}
+            labelStyle={{ color: 'var(--text-primary)' }}
           />
           <Line
             type="monotone"
             dataKey="price"
-            stroke={isContango ? '#4caf50' : '#ff9800'}
+            stroke={isContango ? 'var(--semantic-up)' : 'var(--semantic-warn)'}
             strokeWidth={2}
             dot={false}
             isAnimationActive={false}
           />
         </LineChart>
       </ResponsiveContainer>
-      <div style={{ fontSize: 9, color: '#ff9800', padding: '6px 4px 2px', borderTop: '1px solid #1a1a1a', textAlign: 'center' }}>
+      <div style={{ fontSize: 9, color: 'var(--semantic-warn)', padding: '6px 4px 2px', borderTop: '1px solid var(--border-subtle)', textAlign: 'center' }}>
         {isContango ? 'CONTANGO' : 'BACKWARDATION'}
       </div>
     </div>
@@ -301,15 +301,15 @@ function SpreadAnalysisSection() {
     <div style={{ padding: '8px 6px', fontSize: 10 }}>
       <table style={{ width: '100%', borderCollapse: 'collapse' }}>
         <tbody>
-          <tr style={{ borderBottom: '1px solid #1a1a1a' }}>
-            <td style={{ padding: '6px 0', color: '#aaa' }}>WTI-Brent Spread</td>
-            <td style={{ padding: '6px 0', textAlign: 'right', color: wtiSpread != null && wtiSpread > 0 ? '#4caf50' : '#f44336', fontWeight: 500 }}>
+          <tr style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+            <td style={{ padding: '6px 0', color: 'var(--text-secondary)' }}>WTI-Brent Spread</td>
+            <td style={{ padding: '6px 0', textAlign: 'right', color: wtiSpread != null && wtiSpread > 0 ? 'var(--semantic-up)' : 'var(--semantic-down)', fontWeight: 500 }}>
               {wtiSpread != null ? `$${wtiSpread.toFixed(2)}/bbl` : '—'}
             </td>
           </tr>
           <tr>
-            <td style={{ padding: '6px 0', color: '#aaa' }}>Gold/Silver Ratio</td>
-            <td style={{ padding: '6px 0', textAlign: 'right', fontFamily: 'monospace', fontWeight: 500, color: '#e0e0e0' }}>
+            <td style={{ padding: '6px 0', color: 'var(--text-secondary)' }}>Gold/Silver Ratio</td>
+            <td style={{ padding: '6px 0', textAlign: 'right', fontFamily: 'monospace', fontWeight: 500, color: 'var(--text-primary)' }}>
               {gsRatio != null ? `${gsRatio.toFixed(2)}x` : '—'}
             </td>
           </tr>
@@ -334,7 +334,7 @@ function EtfCell({ sym, onClick }) {
 const EtfStripSection = memo(function EtfStripSection() {
   const openDetail = useOpenDetail();
   return (
-    <div style={{ padding: '0 6px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(80px, 1fr))', gap: '1px', background: '#1e1e1e' }}>
+    <div style={{ padding: '0 6px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(80px, 1fr))', gap: '1px', background: 'var(--border-default)' }}>
       {ETF_SYMBOLS.map(sym => (
         <EtfCell key={sym} sym={sym} onClick={openDetail} />
       ))}
@@ -398,7 +398,7 @@ function CommoditiesScreenImpl() {
       sections={sections}
     >
       <div style={{ padding: '16px 6px' }}>
-        <div style={{ fontSize: 11, fontWeight: 600, color: '#e0e0e0', marginBottom: 12, textTransform: 'uppercase', letterSpacing: 0.5 }}>Fundamentals Comparison</div>
+        <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: 0.5 }}>Fundamentals Comparison</div>
         <FundamentalsTable
           tickers={ALL_PRODUCERS}
           metrics={['pe', 'marketCap', 'ebitda', 'profitMargins', 'returnOnEquity', 'beta']}
@@ -410,12 +410,12 @@ function CommoditiesScreenImpl() {
       </div>
 
       <div style={{ padding: '16px 6px' }}>
-        <div style={{ fontSize: 11, fontWeight: 600, color: '#e0e0e0', marginBottom: 12, textTransform: 'uppercase', letterSpacing: 0.5 }}>Insider Activity</div>
+        <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: 0.5 }}>Insider Activity</div>
         <InsiderActivity tickers={INSIDER_TICKERS} limit={5} />
       </div>
 
       <div style={{ padding: '16px 6px' }}>
-        <div style={{ fontSize: 11, fontWeight: 600, color: '#e0e0e0', marginBottom: 12, textTransform: 'uppercase', letterSpacing: 0.5 }}>Commodity ETFs</div>
+        <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: 0.5 }}>Commodity ETFs</div>
         <EtfStripSection />
       </div>
     </FullPageScreenLayout>
