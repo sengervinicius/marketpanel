@@ -243,6 +243,40 @@
   flex-shrink: 0;
 }
 
+/* ─── Enriched result data cells ────────────────── */
+
+.hsb-spark {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  opacity: 0.85;
+}
+
+.hsb-price {
+  font: 600 11px var(--font-mono, monospace);
+  color: var(--text-primary);
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+  min-width: 52px;
+  text-align: right;
+}
+
+.hsb-change {
+  font: 600 10px var(--font-mono, monospace);
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+  min-width: 52px;
+  text-align: right;
+}
+
+.hsb-mktcap {
+  font: 10px var(--font-mono, monospace);
+  color: var(--text-muted);
+  flex-shrink: 0;
+  min-width: 44px;
+  text-align: right;
+}
+
 .hsb-loading,
 .hsb-empty {
   padding: 16px;

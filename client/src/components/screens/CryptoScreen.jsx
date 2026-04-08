@@ -74,8 +74,8 @@ function CryptoMajorRow({ symbol, label, onClick }) {
   return (
     <tr
       className="ds-row-clickable"
-      onClick={() => onClick(symbol)}
-      onTouchEnd={(e) => { e.preventDefault(); onClick(symbol); }}
+      onClick={() => onClick(symbol, 'Crypto & Digital Assets')}
+      onTouchEnd={(e) => { e.preventDefault(); onClick(symbol, 'Crypto & Digital Assets'); }}
     >
       <td className="ds-ticker-col" style={{ fontSize: 13 }}>{displaySym}</td>
       <td style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{label || <span className="ds-dash">—</span>}</td>
@@ -98,8 +98,8 @@ function CryptoEquityRow({ symbol, label, stats, onClick }) {
   return (
     <tr
       className="ds-row-clickable"
-      onClick={() => onClick(symbol)}
-      onTouchEnd={(e) => { e.preventDefault(); onClick(symbol); }}
+      onClick={() => onClick(symbol, 'Crypto & Digital Assets')}
+      onTouchEnd={(e) => { e.preventDefault(); onClick(symbol, 'Crypto & Digital Assets'); }}
     >
       <td className="ds-ticker-col" style={{ fontSize: 13, letterSpacing: '0.5px' }}>{symbol}</td>
       <td style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{label || <span className="ds-dash">—</span>}</td>
@@ -125,8 +125,8 @@ function CryptoEtfRow({ symbol, label, onClick }) {
   return (
     <tr
       className="ds-row-clickable"
-      onClick={() => onClick(symbol)}
-      onTouchEnd={(e) => { e.preventDefault(); onClick(symbol); }}
+      onClick={() => onClick(symbol, 'Crypto & Digital Assets')}
+      onTouchEnd={(e) => { e.preventDefault(); onClick(symbol, 'Crypto & Digital Assets'); }}
     >
       <td className="ds-ticker-col">{symbol}</td>
       <td>{label || '—'}</td>
@@ -467,7 +467,7 @@ const EtfStrip = memo(function EtfStrip() {
   return (
     <div className="ds-strip" style={{ display: 'flex', gap: 0, borderTop: '1px solid var(--border-default)' }}>
       {CRYPTO_ETFS.map(sym => (
-        <CryptoEtfCell key={sym} sym={sym} onClick={openDetail} />
+        <CryptoEtfCell key={sym} sym={sym} onClick={(sym) => openDetail(sym, 'Crypto & Digital Assets')} />
       ))}
     </div>
   );
@@ -532,7 +532,7 @@ function CryptoScreenImpl() {
           tickers={CRYPTO_EQUITIES}
           metrics={['pe', 'marketCap', 'revenue', 'grossMargins', 'operatingMargins', 'profitMargins']}
           title="All Crypto Equities - Key Metrics"
-          onTickerClick={openDetail}
+          onTickerClick={(symbol) => openDetail(symbol, 'Crypto & Digital Assets')}
           statsMap={statsMap}
         />
       ),
@@ -545,7 +545,7 @@ function CryptoScreenImpl() {
         <InsiderActivity
           tickers={CRYPTO_EQUITIES}
           limit={10}
-          onTickerClick={openDetail}
+          onTickerClick={(symbol) => openDetail(symbol, 'Crypto & Digital Assets')}
         />
       ),
     },

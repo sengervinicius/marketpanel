@@ -64,8 +64,8 @@ function EnhancedRow({ symbol, stats, onClick }) {
   return (
     <tr
       className="ds-row-clickable"
-      onClick={() => onClick(symbol)}
-      onTouchEnd={(e) => { e.preventDefault(); onClick(symbol); }}
+      onClick={() => onClick(symbol, 'Technology & AI')}
+      onTouchEnd={(e) => { e.preventDefault(); onClick(symbol, 'Technology & AI'); }}
     >
       <td className="ds-ticker-col" style={{ fontSize: 13, letterSpacing: '0.5px' }}>{symbol}</td>
       <td style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{LABELS[symbol] || <span className="ds-dash">—</span>}</td>
@@ -240,7 +240,7 @@ function ValuationScatterComponent() {
       xLabel="Market Cap ($B)"
       yLabel="P/E Ratio (x)"
       height={280}
-      onDotClick={openDetail}
+      onDotClick={(symbol) => openDetail(symbol, 'Technology & AI')}
     />
   );
 }
@@ -288,7 +288,7 @@ function EtfCell({ sym, onClick }) {
   return (
     <div
       className="ds-ticker-cell"
-      onClick={() => onClick(sym)}
+      onClick={() => onClick(sym, 'Technology & AI')}
       style={{
         cursor: 'pointer',
         padding: '8px 12px',
@@ -369,7 +369,7 @@ function TechAIScreenImpl() {
         <FundamentalsTable
           tickers={ALL_TICKERS}
           metrics={['pe', 'marketCap', 'revenue', 'grossMargins', 'operatingMargins', 'profitMargins', 'returnOnEquity']}
-          onTickerClick={openDetail}
+          onTickerClick={(symbol) => openDetail(symbol, 'Technology & AI')}
           statsMap={statsMap}
         />
       ),
@@ -390,7 +390,7 @@ function TechAIScreenImpl() {
       id: 'insider',
       title: 'INSIDER ACTIVITY',
       span: 'full',
-      component: () => <InsiderActivity tickers={INSIDER_TICKERS} limit={5} onTickerClick={openDetail} />,
+      component: () => <InsiderActivity tickers={INSIDER_TICKERS} limit={5} onTickerClick={(symbol) => openDetail(symbol, 'Technology & AI')} />,
     },
     {
       id: 'etfs',

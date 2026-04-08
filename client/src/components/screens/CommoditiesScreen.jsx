@@ -84,8 +84,8 @@ function CommodityRow({ symbol, label }) {
   return (
     <tr
       className="ds-row-clickable"
-      onClick={() => openDetail(symbol)}
-      onTouchEnd={(e) => { e.preventDefault(); openDetail(symbol); }}
+      onClick={() => openDetail(symbol, 'Commodities')}
+      onTouchEnd={(e) => { e.preventDefault(); openDetail(symbol, 'Commodities'); }}
     >
       <td className="ds-ticker-col" style={{ fontSize: 13 }}>{label || symbol}</td>
       <td style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 600, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>
@@ -107,8 +107,8 @@ function ProducerRow({ symbol, stats }) {
   return (
     <tr
       className="ds-row-clickable"
-      onClick={() => openDetail(symbol)}
-      onTouchEnd={(e) => { e.preventDefault(); openDetail(symbol); }}
+      onClick={() => openDetail(symbol, 'Commodities')}
+      onTouchEnd={(e) => { e.preventDefault(); openDetail(symbol, 'Commodities'); }}
     >
       <td className="ds-ticker-col" style={{ fontSize: 13, letterSpacing: '0.5px' }}>{symbol}</td>
       <td style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{PRODUCER_LABELS[symbol] || <span className="ds-dash">—</span>}</td>
@@ -336,7 +336,7 @@ const EtfStripSection = memo(function EtfStripSection() {
   return (
     <div style={{ padding: '0 6px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(80px, 1fr))', gap: '1px', background: 'var(--border-default)' }}>
       {ETF_SYMBOLS.map(sym => (
-        <EtfCell key={sym} sym={sym} onClick={openDetail} />
+        <EtfCell key={sym} sym={sym} onClick={(sym) => openDetail(sym, 'Commodities')} />
       ))}
     </div>
   );

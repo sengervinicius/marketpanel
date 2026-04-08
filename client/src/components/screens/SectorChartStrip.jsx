@@ -54,7 +54,7 @@ function getFromDate(range) {
 }
 
 // ── Single Sparkline Chart ────────────────────────────────────────────────────
-const SparkChart = memo(function SparkChart({ ticker, label, rangeIdx }) {
+const SparkChart = memo(function SparkChart({ ticker, label, rangeIdx, sectorName }) {
   const openDetail = useOpenDetail();
   const shared = useTickerPrice(ticker);
   const [bars, setBars] = useState([]);
@@ -121,8 +121,8 @@ const SparkChart = memo(function SparkChart({ ticker, label, rangeIdx }) {
   return (
     <div
       className="scs-chart"
-      onClick={() => openDetail(ticker)}
-      onTouchEnd={(e) => { e.preventDefault(); openDetail(ticker); }}
+      onClick={() => openDetail(ticker, sectorName || null)}
+      onTouchEnd={(e) => { e.preventDefault(); openDetail(ticker, sectorName || null); }}
     >
       {/* Header */}
       <div className="scs-chart-head">
@@ -177,7 +177,7 @@ const SparkChart = memo(function SparkChart({ ticker, label, rangeIdx }) {
 });
 
 // ── Main Strip ────────────────────────────────────────────────────────────────
-function SectorChartStrip({ tickers, labels, title, defaultRange }) {
+function SectorChartStrip({ tickers, labels, title, defaultRange, sectorName }) {
   const [rangeIdx, setRangeIdx] = useState(defaultRange ?? 2); // default 1M
 
   if (!tickers || tickers.length === 0) return null;
@@ -205,6 +205,7 @@ function SectorChartStrip({ tickers, labels, title, defaultRange }) {
             ticker={typeof t === 'string' ? t : t.symbol}
             label={labels?.[i] || (typeof t === 'object' ? t.label : null)}
             rangeIdx={rangeIdx}
+            sectorName={sectorName}
           />
         ))}
       </div>

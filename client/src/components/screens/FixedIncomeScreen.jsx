@@ -511,7 +511,7 @@ const ETFTickerCell = memo(function ETFTickerCell({ symbol, onClick }) {
 function BondETFGridSection() {
   const openDetail = useOpenDetail();
   const handleClick = useCallback((sym) => {
-    if (openDetail) openDetail(sym);
+    if (openDetail) openDetail(sym, 'Fixed Income');
   }, [openDetail]);
 
   return (
@@ -774,8 +774,8 @@ function EurBondETFCell({ ticker }) {
 
   return (
     <div
-      onClick={() => openDetail(ticker)}
-      onTouchEnd={(e) => { e.preventDefault(); openDetail(ticker); }}
+      onClick={() => openDetail(ticker, 'Fixed Income')}
+      onTouchEnd={(e) => { e.preventDefault(); openDetail(ticker, 'Fixed Income'); }}
       style={{
         background: 'var(--bg-surface)',
         border: '1px solid var(--border-default)',

@@ -68,8 +68,8 @@ function GlobalSnapshot() {
           <tr
             key={row.country || row.code}
             className="ds-row-clickable"
-            onClick={() => openDetail(row.country)}
-            onTouchEnd={(e) => { e.preventDefault(); openDetail(row.country); }}
+            onClick={() => openDetail(row.country, 'Global Macro')}
+            onTouchEnd={(e) => { e.preventDefault(); openDetail(row.country, 'Global Macro'); }}
           >
             <td className="ds-ticker-col">{row.country || row.code}</td>
             <td>{fmt(row.policyRate, 2)}</td>
@@ -122,7 +122,7 @@ function VolCard({ symbol, label, thresholds, openDetail }) {
 
   return (
     <div
-      onClick={() => openDetail(symbol)}
+      onClick={() => openDetail(symbol, 'Global Macro')}
       style={{
         background: 'var(--bg-elevated)',
         border: `2px solid ${color}`,
@@ -165,7 +165,7 @@ function FxCell({ pair, openDetail }) {
 
   return (
     <div
-      onClick={() => openDetail(pair)}
+      onClick={() => openDetail(pair, 'Global Macro')}
       style={{
         background: 'var(--bg-elevated)',
         border: `1px solid ${color}44`,
@@ -335,7 +335,7 @@ function RiskAppetiteIndicators() {
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 10 }}>
       {/* Credit Risk (HYG) */}
       <div
-        onClick={() => openDetail('HYG')}
+        onClick={() => openDetail('HYG', 'Global Macro')}
         style={{
           background: 'var(--bg-elevated)',
           border: `1px solid ${hyg?.price && hyg.price > 95 ? 'var(--semantic-up)' : hyg?.price && hyg.price > 90 ? 'var(--semantic-warn)' : 'var(--semantic-down)'}44`,
@@ -353,7 +353,7 @@ function RiskAppetiteIndicators() {
 
       {/* EM Risk (EEM/SPY) */}
       <div
-        onClick={() => openDetail('EEM')}
+        onClick={() => openDetail('EEM', 'Global Macro')}
         style={{
           background: 'var(--bg-elevated)',
           border: `1px solid ${emRiskChange && emRiskChange >= 0 ? 'var(--semantic-up)' : 'var(--semantic-down)'}44`,
@@ -371,7 +371,7 @@ function RiskAppetiteIndicators() {
 
       {/* Safe Haven (GLD) */}
       <div
-        onClick={() => openDetail('GLD')}
+        onClick={() => openDetail('GLD', 'Global Macro')}
         style={{
           background: 'var(--bg-elevated)',
           border: `1px solid ${gld?.changePct && gld.changePct >= 0 ? 'var(--semantic-warn)' : 'var(--semantic-up)'}44`,
@@ -424,8 +424,8 @@ function EuropeanMarkets() {
           <tr
             key={sym}
             className="ds-row-clickable"
-            onClick={() => openDetail(sym)}
-            onTouchEnd={(e) => { e.preventDefault(); openDetail(sym); }}
+            onClick={() => openDetail(sym, 'Global Macro')}
+            onTouchEnd={(e) => { e.preventDefault(); openDetail(sym, 'Global Macro'); }}
           >
             <td className="ds-ticker-col">{sym.replace('.L','').replace('.DE','').replace('.PA','')}</td>
             <td>{(d.name || sym).slice(0, 18)}</td>
@@ -449,7 +449,7 @@ function IndexCell({ symbol, onClick }) {
 
   return (
     <div
-      onClick={() => onClick(symbol)}
+      onClick={() => onClick(symbol, 'Global Macro')}
       style={{
         background: 'var(--bg-elevated)',
         border: `1px solid ${q?.changePct >= 0 ? 'var(--semantic-up)' : 'var(--semantic-down)'}44`,
@@ -475,7 +475,7 @@ function GlobalEquityIndexes() {
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 8 }}>
       {(Array.isArray(indexes) ? indexes : []).map((symbol) => (
-        <IndexCell key={symbol} symbol={symbol} onClick={openDetail} />
+        <IndexCell key={symbol} symbol={symbol} onClick={(sym) => openDetail(sym, 'Global Macro')} />
       ))}
     </div>
   );
@@ -524,8 +524,8 @@ function MacroCalendar() {
           <tr
             key={idx}
             className="ds-row-clickable"
-            onClick={() => ev.country && openDetail(ev.country)}
-            onTouchEnd={(e) => { e.preventDefault(); ev.country && openDetail(ev.country); }}
+            onClick={() => ev.country && openDetail(ev.country, 'Global Macro')}
+            onTouchEnd={(e) => { e.preventDefault(); ev.country && openDetail(ev.country, 'Global Macro'); }}
           >
             <td style={{ fontSize: 10, color: 'var(--text-secondary)' }}>
               {ev.date ? new Date(ev.date).toLocaleDateString('en-US', { month: 'short', day: '2-digit' }) : '—'}

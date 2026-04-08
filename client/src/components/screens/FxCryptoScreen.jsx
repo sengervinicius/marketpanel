@@ -50,8 +50,8 @@ function FxRow({ symbol, label, onClick }) {
   return (
     <tr
       className="ds-row-clickable"
-      onClick={() => onClick(symbol)}
-      onTouchEnd={(e) => { e.preventDefault(); onClick(symbol); }}
+      onClick={() => onClick(symbol, 'FX & Crypto')}
+      onTouchEnd={(e) => { e.preventDefault(); onClick(symbol, 'FX & Crypto'); }}
     >
       <td style={{ fontSize: 13 }}>{symbol.replace('C:', '')}</td>
       <td style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{label || <span className="ds-dash">—</span>}</td>
@@ -70,8 +70,8 @@ function CryptoRow({ symbol, label, onClick }) {
   return (
     <tr
       className="ds-row-clickable"
-      onClick={() => onClick(symbol)}
-      onTouchEnd={(e) => { e.preventDefault(); onClick(symbol); }}
+      onClick={() => onClick(symbol, 'FX & Crypto')}
+      onTouchEnd={(e) => { e.preventDefault(); onClick(symbol, 'FX & Crypto'); }}
     >
       <td style={{ fontSize: 13 }}>{symbol.replace('X:', '')}</td>
       <td style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{label || <span className="ds-dash">—</span>}</td>
@@ -92,8 +92,8 @@ function InfraRow({ symbol, stats, onClick }) {
   return (
     <tr
       className="ds-row-clickable"
-      onClick={() => onClick(symbol)}
-      onTouchEnd={(e) => { e.preventDefault(); onClick(symbol); }}
+      onClick={() => onClick(symbol, 'FX & Crypto')}
+      onTouchEnd={(e) => { e.preventDefault(); onClick(symbol, 'FX & Crypto'); }}
     >
       <td className="ds-ticker-col" style={{ fontSize: 13, letterSpacing: '0.5px' }}>{symbol}</td>
       <td style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{INFRA_LABELS[symbol] || <span className="ds-dash">—</span>}</td>
@@ -189,7 +189,7 @@ function FxCryptoScreen() {
       aiContext={{ assets: ['FX', 'Crypto'], theme: 'FX & Digital Assets' }}
       aiCacheKey="cross:fxcrypto"
     >
-      <SectorChartStrip tickers={CHART_TICKERS} title="FX & CRYPTO CHARTS" />
+      <SectorChartStrip tickers={CHART_TICKERS} title="FX & CRYPTO CHARTS" sectorName="FX & Crypto" />
     </DeepScreenBase>
   );
 }

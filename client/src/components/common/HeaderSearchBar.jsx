@@ -1,8 +1,67 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useInstrumentSearch } from '../../hooks/useInstrumentSearch';
 import { useOpenDetail } from '../../context/OpenDetailContext';
+import { useTickerPrice } from '../../context/PriceContext';
 import { resolveAlias } from '../../config/instrumentAliases';
+import Sparkline from '../shared/Sparkline';
 import './HeaderSearchBar.css';
+
+// ── Format helpers ──
+function fmtMktCap(v) {
+  if (v == null || isNaN(v)) return null;
+  const n = parseFloat(v);
+  if (n >= 1e12) return '$' + (n / 1e12).toFixed(1) + 'T';
+  if (n >= 1e9)  return '$' + (n / 1e9).toFixed(0) + 'B';
+  if (n >= 1e6)  return '$' + (n / 1e6).toFixed(0) + 'M';
+  return null;
+}
+
+function fmtPrice(p) {
+  if (p == null) return null;
+  return p >= 1000 ? p.toLocaleString(undefined, { maximumFractionDigits: 2 }) : p.toFixed(2);
+}
+
+// ── Enriched result row with live price data ──
+function HsbEnrichedRow({ item, idx, selectedIdx, onSelect, onMouseEnter, typeBadge }) {
+  const priceData = useTickerPrice(item.symbolKey || item.symbol);
+  const price = priceData?.price;
+  const changePct = priceData?.changePct;
+  const mktCap = priceData?.marketCap || item.marketCap;
+  const isPos = changePct != null && changePct >= 0;
+  const sparkData = useMemo(() => {
+    if (!priceData?.bars || priceData.bars.length < 2) return [];
+    return priceData.bars.map(b => b.c || b.close).slice(-20);
+  }, [priceData?.bars]);
+
+  return (
+    <div
+      className={`hsb-result ${idx === selectedIdx ? 'hsb-result--active' : ''}`}
+      onClick={() => onSelect(item)}
+      onMouseEnter={() => onMouseEnter(idx)}
+    >
+      <span className={`hsb-badge hsb-badge--${item.assetClass}`}>{typeBadge(item)}</span>
+      <span className="hsb-symbol">{item.symbolKey}</span>
+      <span className="hsb-name">{item.name}</span>
+      {sparkData.length >= 2 && (
+        <span className="hsb-spark">
+          <Sparkline data={sparkData} isPositive={isPos} width={48} height={14} />
+        </span>
+      )}
+      {price != null && (
+        <span className="hsb-price">{fmtPrice(price)}</span>
+      )}
+      {changePct != null && (
+        <span className="hsb-change" style={{ color: isPos ? 'var(--semantic-up, #4caf50)' : 'var(--semantic-down, #ef5350)' }}>
+          {isPos ? '+' : ''}{changePct.toFixed(2)}%
+        </span>
+      )}
+      {fmtMktCap(mktCap) && (
+        <span className="hsb-mktcap">{fmtMktCap(mktCap)}</span>
+      )}
+      {!price && item.exchange && <span className="hsb-exchange">{item.exchange}</span>}
+    </div>
+  );
+}
 
 export default function HeaderSearchBar({ onSelectTicker }) {
 
@@ -139,16 +198,14 @@ export default function HeaderSearchBar({ onSelectTicker }) {
                 const idx = flatIdx++;
                 return (
                   <div key={item.symbolKey}>
-                    <div
-                      className={`hsb-result ${idx === selectedIdx ? 'hsb-result--active' : ''}`}
-                      onClick={() => selectItem(item)}
-                      onMouseEnter={() => setSelectedIdx(idx)}
-                    >
-                      <span className={`hsb-badge hsb-badge--${item.assetClass}`}>{typeBadge(item)}</span>
-                      <span className="hsb-symbol">{item.symbolKey}</span>
-                      <span className="hsb-name">{item.name}</span>
-                      {item.exchange && <span className="hsb-exchange">{item.exchange}</span>}
-                    </div>
+                    <HsbEnrichedRow
+                      item={item}
+                      idx={idx}
+                      selectedIdx={selectedIdx}
+                      onSelect={selectItem}
+                      onMouseEnter={setSelectedIdx}
+                      typeBadge={typeBadge}
+                    />
                     {/* Alternates row */}
                     {item._alternates && item._alternates.length > 0 && (
                       <div className="hsb-alternate-row">

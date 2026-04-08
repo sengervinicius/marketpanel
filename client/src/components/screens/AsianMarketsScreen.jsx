@@ -201,8 +201,8 @@ const FxCell = memo(function FxCell({ pair }) {
   return (
     <div
       className="ds-ticker-cell"
-      onClick={() => openDetail(pair)}
-      onTouchEnd={(e) => { e.preventDefault(); openDetail(pair); }}
+      onClick={() => openDetail(pair, 'Asian Markets')}
+      onTouchEnd={(e) => { e.preventDefault(); openDetail(pair, 'Asian Markets'); }}
       style={{ cursor: 'pointer' }}
       title={LABELS[pair] || pair}
     >
@@ -242,8 +242,8 @@ const TableRow = memo(function TableRow({ ticker, statsMap }) {
   return (
     <tr
       className="ds-row-clickable"
-      onClick={() => openDetail(sym)}
-      onTouchEnd={(e) => { e.preventDefault(); openDetail(sym); }}
+      onClick={() => openDetail(sym, 'Asian Markets')}
+      onTouchEnd={(e) => { e.preventDefault(); openDetail(sym, 'Asian Markets'); }}
     >
       <td className="ds-ticker-col" style={{ fontSize: 13, letterSpacing: '0.5px' }}>{sym}</td>
       <td style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{name || LABELS[sym] || <span className="ds-dash">—</span>}</td>

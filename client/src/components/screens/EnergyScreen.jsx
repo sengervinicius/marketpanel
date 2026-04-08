@@ -89,7 +89,7 @@ const EquitySection = memo(function EquitySection({ tickers, statsMap, selectedT
   const openDetail = useOpenDetail();
   const handleRowClick = (symbol) => {
     onSelectTicker?.(symbol);
-    openDetail(symbol);
+    openDetail(symbol, 'Energy & Oil');
   };
 
   return (
@@ -122,8 +122,8 @@ function FuturesRow({ symbol, label, openDetail }) {
   return (
     <tr
       className="ds-row-clickable"
-      onClick={() => openDetail(symbol)}
-      onTouchEnd={(e) => { e.preventDefault(); openDetail(symbol); }}
+      onClick={() => openDetail(symbol, 'Energy & Oil')}
+      onTouchEnd={(e) => { e.preventDefault(); openDetail(symbol, 'Energy & Oil'); }}
     >
       <td className="ds-ticker-col" style={{ fontSize: 13 }}>{symbol.replace('=F', '')}</td>
       <td style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{label}</td>
@@ -180,7 +180,7 @@ const EtfStripSection = memo(function EtfStripSection() {
   return (
     <div className="ds-strip">
       {(Array.isArray(ETF_SYMBOLS) ? ETF_SYMBOLS : []).map(sym => (
-        <EtfCell key={sym} sym={sym} onClick={openDetail} />
+        <EtfCell key={sym} sym={sym} onClick={(sym) => openDetail(sym, 'Energy & Oil')} />
       ))}
     </div>
   );
@@ -206,7 +206,7 @@ function EnergyScreenImpl() {
       aiContext={{ sector: 'Energy & Transition', tickers: ['XOM', 'CVX', 'SLB', 'CL=F', 'ENPH', 'CCJ'] }}
       aiCacheKey="sector:energy"
     >
-      <SectorChartStrip tickers={CHART_TICKERS} title="ENERGY CHARTS" />
+      <SectorChartStrip tickers={CHART_TICKERS} title="ENERGY CHARTS" sectorName="Energy & Oil" />
       <DeepSection title="Energy ETFs">
         <EtfStripSection />
       </DeepSection>

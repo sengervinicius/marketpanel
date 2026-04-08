@@ -36,8 +36,8 @@ const TableRow = memo(function TableRow({ sym, name, openDetail, stats }) {
     <tr
       key={sym}
       className="ds-row-clickable"
-      onClick={() => openDetail(sym)}
-      onTouchEnd={(e) => { e.preventDefault(); openDetail(sym); }}
+      onClick={() => openDetail(sym, 'Global Retail & Consumer')}
+      onTouchEnd={(e) => { e.preventDefault(); openDetail(sym, 'Global Retail & Consumer'); }}
     >
       <td className="ds-ticker-col" style={{ fontSize: 13, letterSpacing: '0.5px' }}>{sym}</td>
       <td style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{name || LABELS[sym] || <span className="ds-dash">—</span>}</td>
@@ -140,7 +140,7 @@ const EtfStrip = memo(function EtfStrip() {
   return (
     <div className="ds-strip" style={{ display: 'flex', gap: 0, borderTop: '1px solid var(--border-default)' }}>
       {RETAIL_ETFS.map(sym => (
-        <EtfCell key={sym} sym={sym} openDetail={openDetail} />
+        <EtfCell key={sym} sym={sym} openDetail={(sym) => openDetail(sym, 'Global Retail & Consumer')} />
       ))}
     </div>
   );
@@ -237,7 +237,7 @@ function GlobalRetailScreenImpl() {
           tickers={ALL_EQUITIES}
           metrics={['pe', 'marketCap', 'revenue', 'grossMargins', 'profitMargins', 'returnOnEquity']}
           title="All Retail Equities - Key Metrics"
-          onTickerClick={openDetail}
+          onTickerClick={(symbol) => openDetail(symbol, 'Global Retail & Consumer')}
           statsMap={statsMap}
         />
       ),
@@ -252,7 +252,7 @@ function GlobalRetailScreenImpl() {
           xLabel="P/E Ratio"
           yLabel="Market Cap ($ Billions)"
           height={280}
-          onDotClick={openDetail}
+          onDotClick={(symbol) => openDetail(symbol, 'Global Retail & Consumer')}
         />
       ),
     },
@@ -264,7 +264,7 @@ function GlobalRetailScreenImpl() {
         <InsiderActivity
           tickers={['AMZN', 'WMT', 'COST', 'NKE', 'PG', 'KO']}
           limit={10}
-          onTickerClick={openDetail}
+          onTickerClick={(symbol) => openDetail(symbol, 'Global Retail & Consumer')}
         />
       ),
     },

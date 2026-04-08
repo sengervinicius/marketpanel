@@ -109,8 +109,8 @@ const TableRow = memo(function TableRow({ ticker, name, statsMap, openDetail }) 
   return (
     <tr
       className="ds-row-clickable"
-      onClick={() => openDetail(sym)}
-      onTouchEnd={(e) => { e.preventDefault(); openDetail(sym); }}
+      onClick={() => openDetail(sym, 'European Markets')}
+      onTouchEnd={(e) => { e.preventDefault(); openDetail(sym, 'European Markets'); }}
     >
       <td className="ds-ticker-col" style={{ fontSize: 13, letterSpacing: '0.5px' }}>{sym}</td>
       <td style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{displayName || LABELS[sym] || <span className="ds-dash">—</span>}</td>
@@ -165,8 +165,8 @@ const FxPairRow = memo(function FxPairRow({ pair, openDetail }) {
   return (
     <tr
       className="ds-row-clickable"
-      onClick={() => openDetail(pair)}
-      onTouchEnd={(e) => { e.preventDefault(); openDetail(pair); }}
+      onClick={() => openDetail(pair, 'European Markets')}
+      onTouchEnd={(e) => { e.preventDefault(); openDetail(pair, 'European Markets'); }}
     >
       <td className="ds-ticker-col" style={{ fontSize: 13 }}>{display}</td>
       <td style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 600, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>

@@ -94,15 +94,15 @@ function AdrPairRow({ b3, adr, name, openDetail }) {
   const qB3 = useTickerPrice(b3);
   const qAdr = useTickerPrice(adr);
   return (
-    <tr className="ds-row-clickable" onClick={() => openDetail(b3)} onTouchEnd={(e) => { e.preventDefault(); openDetail(b3); }}>
+    <tr className="ds-row-clickable" onClick={() => openDetail(b3, 'Brazil & EM')} onTouchEnd={(e) => { e.preventDefault(); openDetail(b3, 'Brazil & EM'); }}>
       <td style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{name}</td>
-      <td onClick={() => openDetail(b3)} style={{ cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>
+      <td onClick={() => openDetail(b3, 'Brazil & EM')} style={{ cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>
         {b3.replace('.SA', '')}
       </td>
       <td style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 600, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>
         {qB3?.price != null ? fmt(qB3.price) : <span className="ds-dash">—</span>}
       </td>
-      <td onClick={() => openDetail(adr)} style={{ cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>
+      <td onClick={() => openDetail(adr, 'Brazil & EM')} style={{ cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>
         {adr}
       </td>
       <td style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 600, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>
@@ -164,8 +164,8 @@ function FxRateRow({ sym, openDetail }) {
     <tr
       key={sym}
       className="ds-row-clickable"
-      onClick={() => openDetail(sym)}
-      onTouchEnd={(e) => { e.preventDefault(); openDetail(sym); }}
+      onClick={() => openDetail(sym, 'Brazil & EM')}
+      onTouchEnd={(e) => { e.preventDefault(); openDetail(sym, 'Brazil & EM'); }}
     >
       <td style={{ fontSize: 13 }}>{label}</td>
       <td style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 600, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>
@@ -276,8 +276,8 @@ function EmFxRow({ sym, openDetail }) {
     <tr
       key={sym}
       className="ds-row-clickable"
-      onClick={() => openDetail(sym)}
-      onTouchEnd={(e) => { e.preventDefault(); openDetail(sym); }}
+      onClick={() => openDetail(sym, 'Brazil & EM')}
+      onTouchEnd={(e) => { e.preventDefault(); openDetail(sym, 'Brazil & EM'); }}
     >
       <td>{label}</td>
       <td>{q?.price != null ? fmt(q.price) : '—'}</td>
@@ -320,8 +320,8 @@ function EmEtfCell({ sym, openDetail }) {
     <tr
       key={sym}
       className="ds-row-clickable"
-      onClick={() => openDetail(sym)}
-      onTouchEnd={(e) => { e.preventDefault(); openDetail(sym); }}
+      onClick={() => openDetail(sym, 'Brazil & EM')}
+      onTouchEnd={(e) => { e.preventDefault(); openDetail(sym, 'Brazil & EM'); }}
     >
       <td style={{ fontWeight: 600 }}>{sym}</td>
       <td>{q?.price != null ? fmt(q.price) : '—'}</td>
@@ -360,7 +360,7 @@ const EmEquityBenchmarksComponent = memo(function EmEquityBenchmarksComponent() 
 /* ── Fundamentals Comparison ───────────────────────────────────────────── */
 const FundamentalsComponent = memo(function FundamentalsComponent() {
   const openDetail = useOpenDetail();
-  return <FundamentalsTable tickers={BLUE_CHIPS} onTickerClick={openDetail} />;
+  return <FundamentalsTable tickers={BLUE_CHIPS} onTickerClick={(symbol) => openDetail(symbol, 'Brazil & EM')} />;
 });
 
 /* ── Brazil ETF Cell ───────────────────────────────────────────────── */
@@ -369,7 +369,7 @@ function BrazilEtfCell({ sym, openDetail }) {
   return (
     <div
       key={sym}
-      onClick={() => openDetail(sym)}
+      onClick={() => openDetail(sym, 'Brazil & EM')}
       style={{
         display: 'flex',
         alignItems: 'center',
