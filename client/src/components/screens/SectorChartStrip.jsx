@@ -100,7 +100,8 @@ const SparkChart = memo(function SparkChart({ ticker, label, rangeIdx }) {
   const price = shared?.price;
   const changePct = shared?.changePct;
   const isUp = changePct != null ? changePct >= 0 : (bars.length >= 2 ? bars[bars.length - 1].v >= bars[0].v : true);
-  const color = isUp ? '#4caf50' : '#f44336';
+  // Must use hex, not CSS vars — SVG stopColor can't resolve CSS custom properties
+  const color = isUp ? '#4caf50' : '#ef5350';
 
   const displayTicker = (ticker || '')
     .replace(/^C:/, '').replace(/^X:/, '')
@@ -146,7 +147,7 @@ const SparkChart = memo(function SparkChart({ ticker, label, rangeIdx }) {
               </defs>
               <YAxis domain={['dataMin', 'dataMax']} hide />
               {firstVal != null && (
-                <ReferenceLine y={firstVal} stroke="#333" strokeDasharray="2 2" />
+                <ReferenceLine y={firstVal} stroke="rgba(255,255,255,0.08)" strokeDasharray="2 2" />
               )}
               <Area
                 type="monotone"

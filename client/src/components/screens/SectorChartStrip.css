@@ -47,7 +47,7 @@
 }
 .scs-range-btn--active {
   color: var(--accent);
-  background: rgba(255, 0, 0, 0.03);
+  background: var(--accent-muted);
 }
 
 /* Charts row — horizontal scroll */
