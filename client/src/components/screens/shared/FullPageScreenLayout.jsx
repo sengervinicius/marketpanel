@@ -4,6 +4,7 @@
  */
 import { Component, useRef, useState, useEffect } from 'react';
 import { useIsMobile } from '../../../hooks/useIsMobile';
+import { useScreenContext } from '../../../context/ScreenContext';
 import './ScreenShared.css';
 
 /**
@@ -187,8 +188,18 @@ function FullPageScreenLayout({
   onBack,
   sections = [],
   children,
+  screenKey,
+  visibleTickers = [],
 }) {
   const isMobile = useIsMobile();
+  const { updateScreen } = useScreenContext();
+
+  // Update screen context on mount
+  useEffect(() => {
+    if (screenKey) {
+      updateScreen(screenKey, title, visibleTickers);
+    }
+  }, [screenKey, title, visibleTickers, updateScreen]);
 
   const formattedTime = lastUpdated
     ? new Date(lastUpdated).toLocaleTimeString('en-US', {

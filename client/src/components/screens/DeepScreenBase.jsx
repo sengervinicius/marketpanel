@@ -5,6 +5,7 @@
  */
 import { memo, Component, useState, useEffect } from 'react';
 import { useIsMobile } from '../../hooks/useIsMobile';
+import { useScreenContext } from '../../context/ScreenContext';
 import AIInsightCard from '../ai/AIInsightCard';
 import './DeepScreen.css';
 
@@ -124,8 +125,14 @@ export function TickerCell({ symbol, label, price, changePct, onClick }) {
 }
 
 /* ── Main DeepScreenBase ─────────────────────────────────────────────────── */
-function DeepScreenBase({ title, accentColor, sections, aiType, aiContext, aiCacheKey, children }) {
+function DeepScreenBase({ title, accentColor, sections, aiType, aiContext, aiCacheKey, children, screenKey, visibleTickers = [] }) {
   const isMobile = useIsMobile();
+  const { updateScreen } = useScreenContext();
+
+  // Update screen context on mount
+  useEffect(() => {
+    updateScreen(screenKey, title, visibleTickers);
+  }, [screenKey, title, visibleTickers, updateScreen]);
 
   return (
     <div className="ds-screen">
@@ -135,7 +142,7 @@ function DeepScreenBase({ title, accentColor, sections, aiType, aiContext, aiCac
         <div className="ds-header-title">{title}</div>
       </div>
 
-      {/* AI Insight */}
+      {/* AI Insight — auto-fetch enabled */}
       {aiType && (
         <div className="ds-ai-slot">
           <AIInsightCard
@@ -143,6 +150,7 @@ function DeepScreenBase({ title, accentColor, sections, aiType, aiContext, aiCac
             context={aiContext}
             cacheKey={aiCacheKey || `${aiType}:${title}`}
             compact={isMobile}
+            autoFetch={true}
           />
         </div>
       )}

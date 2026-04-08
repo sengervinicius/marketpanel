@@ -310,6 +310,8 @@ function DefenceScreenImpl() {
       accentColor="#ef5350"
       sections={sections}
       lastUpdated={new Date()}
+      screenKey="defence"
+      visibleTickers={ALL_EQUITIES}
     >
       <div style={{ padding: '12px', borderTop: '1px solid #1e1e1e' }}>
         <div style={{ fontSize: 10, fontWeight: 600, color: '#aaa', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>

@@ -18,6 +18,7 @@ const METRIC_INFO = {
   marketCap: { label: 'Mkt Cap', format: 'abbrev' },
   revenue: { label: 'Revenue', format: 'abbrev' },
   ebitda: { label: 'EBITDA', format: 'abbrev' },
+  dividendYield: { label: 'Div %', format: 'percent', decimals: 2 },
   grossMargins: { label: 'Gross %', format: 'percent', decimals: 1 },
   operatingMargins: { label: 'Op %', format: 'percent', decimals: 1 },
   profitMargins: { label: 'Net %', format: 'percent', decimals: 1 },
@@ -37,10 +38,12 @@ const TD_STATS_MAP = {
   earnings_per_share: 'eps',
   market_capitalization: 'marketCap',
   revenue: 'revenue',
+  ebitda: 'ebitda',
   // Twelve Data gross_margin, operating_margin, profit_margin are 0-1 ratios → multiply by 100
   gross_margin: { key: 'grossMargins', multiply: 100 },
   operating_margin: { key: 'operatingMargins', multiply: 100 },
   profit_margin: { key: 'profitMargins', multiply: 100 },
+  dividend_yield: { key: 'dividendYield', multiply: 100 }, // Twelve Data 0-1 ratio → percent
   return_on_equity: { key: 'returnOnEquity', multiply: 100 },
   return_on_assets: null, // no corresponding field in fundamentals table
   beta: 'beta',

@@ -398,12 +398,20 @@ function TechAIScreenImpl() {
     },
   ], [statsMap, statsLoading, statsError, statsRefresh]);
 
+  const allTickers = [
+    ...MEGA_CAP_TECH,
+    ...SEMICONDUCTORS.map(s => s.symbol),
+    ...AI_INFRA_CLOUD.map(s => s.symbol),
+  ];
+
   return (
     <FullPageScreenLayout
       title="TECHNOLOGY"
       accentColor="#00bcd4"
       subtitle="Mega-cap tech, semiconductors, AI & cloud — valuation and growth analysis"
       sections={sections}
+      screenKey="technology"
+      visibleTickers={allTickers}
     />
   );
 }

@@ -13,6 +13,8 @@
 
 import { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { useScreenContext } from '../../context/ScreenContext';
+import { useAIChatWithContext } from '../../hooks/useAIChatWithContext';
 import { apiFetch } from '../../utils/api';
 import { WS_URL } from '../../utils/constants';
 import UserAvatar from '../common/UserAvatar';
@@ -65,6 +67,8 @@ export function ChatInstrumentCard({ ticker, name, price, change, changePct, onC
 
 function ChatPanel({ mobile, initialUserId }) {
   const { user, token } = useAuth();
+  const screenContext = useScreenContext();
+  const { buildContextualMessage } = useAIChatWithContext();
   const [conversations,    setConversations]    = useState([]);
   const [searchQuery,      setSearchQuery]      = useState('');
   const [searchResults,    setSearchResults]    = useState([]);
@@ -249,7 +253,10 @@ function ChatPanel({ mobile, initialUserId }) {
     if (!text || !activeChatUser || activeChatUser.id !== 'ai-assistant') return;
     setInput('');
 
+    // Display original user message, but build contextual content for API
+    const contextualContent = buildContextualMessage(text);
     const userMsg = { role: 'user', content: text, id: 'msg-' + Date.now() };
+    const userMsgForApi = { role: 'user', content: contextualContent };
     const assistantMsg = { role: 'assistant', content: '', id: 'msg-' + (Date.now() + 1) };
 
     setAiMessages(prev => [...prev, userMsg, assistantMsg]);
@@ -264,10 +271,13 @@ function ChatPanel({ mobile, initialUserId }) {
           'Authorization': `Bearer ${authToken}`,
         },
         body: JSON.stringify({
-          messages: [...aiMessages, userMsg].map(m => ({
-            role: m.role,
-            content: m.content,
-          })),
+          messages: [
+            ...aiMessages.map(m => ({
+              role: m.role,
+              content: m.content,
+            })),
+            userMsgForApi,
+          ],
         }),
       });
 
@@ -319,7 +329,7 @@ function ChatPanel({ mobile, initialUserId }) {
       setAiLoading(false);
       setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
     }
-  }, [input, activeChatUser, aiMessages]);
+  }, [input, activeChatUser, aiMessages, buildContextualMessage]);
 
   // ── Send message ──
   const sendMessage = useCallback(async () => {

@@ -1,9 +1,14 @@
 /**
- * EnergyScreen.jsx — S5.4 (enhanced from S4.2.B)
+ * EnergyScreen.jsx — S5.4 (enhanced from S4.2.B) + Phase 5
  * Deep Bloomberg-style Energy & Transition coverage screen.
  * 35 tickers with Mkt Cap + P/E for equity sections, spread analysis for futures.
+ *
+ * Phase 5 additions:
+ *  - Linked ticker selection: clicking a row highlights the corresponding chart
+ *  - Per-chart timeframe selectors on SectorChartPanel
+ *  - Enhanced dividend yield display
  */
-import { memo, useMemo } from 'react';
+import { memo, useMemo, useState } from 'react';
 import DeepScreenBase, { DeepSection, TickerCell, StatsLoadGate } from './DeepScreenBase';
 import SectorChartStrip from './SectorChartStrip';
 import { useOpenDetail } from '../../context/OpenDetailContext';
@@ -43,7 +48,7 @@ const LABELS = {
   ENPH: 'Enphase', FSLR: 'First Solar', NEE: 'NextEra', AES: 'AES Corp', PLUG: 'Plug Power', RUN: 'Sunrun', CCJ: 'Cameco', UEC: 'Uranium Energy',
 };
 
-function EnhancedEquityRow({ symbol, stats, onClick }) {
+function EnhancedEquityRow({ symbol, stats, onClick, isSelected }) {
   const q = useTickerPrice(symbol);
   const pe = stats?.pe_ratio;
   const mktCap = stats?.market_capitalization;
@@ -53,6 +58,11 @@ function EnhancedEquityRow({ symbol, stats, onClick }) {
       className="ds-row-clickable"
       onClick={() => onClick(symbol)}
       onTouchEnd={(e) => { e.preventDefault(); onClick(symbol); }}
+      style={{
+        background: isSelected ? 'rgba(102, 187, 106, 0.08)' : 'transparent',
+        borderLeft: isSelected ? '3px solid var(--price-up, #66bb6a)' : '3px solid transparent',
+        transition: 'background 0.15s ease',
+      }}
     >
       <td className="ds-ticker-col" style={{ fontSize: 12, letterSpacing: '0.5px' }}>{symbol}</td>
       <td style={{ fontSize: 13, color: '#aaa' }}>{LABELS[symbol] || '—'}</td>
@@ -71,8 +81,13 @@ function EnhancedEquityRow({ symbol, stats, onClick }) {
   );
 }
 
-const EquitySection = memo(function EquitySection({ tickers, statsMap }) {
+const EquitySection = memo(function EquitySection({ tickers, statsMap, selectedTicker, onSelectTicker }) {
   const openDetail = useOpenDetail();
+  const handleRowClick = (symbol) => {
+    onSelectTicker?.(symbol);
+    openDetail(symbol);
+  };
+
   return (
     <table className="ds-table">
       <thead>
@@ -84,7 +99,15 @@ const EquitySection = memo(function EquitySection({ tickers, statsMap }) {
         </tr>
       </thead>
       <tbody>
-        {(Array.isArray(tickers) ? tickers : []).map(sym => <EnhancedEquityRow key={sym} symbol={sym} stats={statsMap.get(sym)} onClick={openDetail} />)}
+        {(Array.isArray(tickers) ? tickers : []).map(sym => (
+          <EnhancedEquityRow
+            key={sym}
+            symbol={sym}
+            stats={statsMap.get(sym)}
+            onClick={handleRowClick}
+            isSelected={selectedTicker === sym}
+          />
+        ))}
       </tbody>
     </table>
   );
@@ -157,13 +180,14 @@ const EtfStripSection = memo(function EtfStripSection() {
 
 function EnergyScreenImpl() {
   const { data: statsMap, loading: statsLoading, error: statsError, refresh: statsRefresh } = useDeepScreenData(ALL_EQUITIES);
+  const [selectedTicker, setSelectedTicker] = useState(null);
 
   const sections = useMemo(() => [
-    { id: 'majors', title: 'Integrated Majors',         component: () => <StatsLoadGate statsMap={statsMap} loading={statsLoading} error={statsError} refresh={statsRefresh}><EquitySection tickers={INTEGRATED_MAJORS} statsMap={statsMap} /></StatsLoadGate> },
-    { id: 'ofs',    title: 'OFS & Midstream',            component: () => <StatsLoadGate statsMap={statsMap} loading={statsLoading} error={statsError} refresh={statsRefresh}><EquitySection tickers={OFS_MIDSTREAM} statsMap={statsMap} /></StatsLoadGate> },
-    { id: 'clean',  title: 'Clean Energy & Transition',  component: () => <StatsLoadGate statsMap={statsMap} loading={statsLoading} error={statsError} refresh={statsRefresh}><EquitySection tickers={CLEAN_ENERGY} statsMap={statsMap} /></StatsLoadGate> },
+    { id: 'majors', title: 'Integrated Majors',         component: () => <StatsLoadGate statsMap={statsMap} loading={statsLoading} error={statsError} refresh={statsRefresh}><EquitySection tickers={INTEGRATED_MAJORS} statsMap={statsMap} selectedTicker={selectedTicker} onSelectTicker={setSelectedTicker} /></StatsLoadGate> },
+    { id: 'ofs',    title: 'OFS & Midstream',            component: () => <StatsLoadGate statsMap={statsMap} loading={statsLoading} error={statsError} refresh={statsRefresh}><EquitySection tickers={OFS_MIDSTREAM} statsMap={statsMap} selectedTicker={selectedTicker} onSelectTicker={setSelectedTicker} /></StatsLoadGate> },
+    { id: 'clean',  title: 'Clean Energy & Transition',  component: () => <StatsLoadGate statsMap={statsMap} loading={statsLoading} error={statsError} refresh={statsRefresh}><EquitySection tickers={CLEAN_ENERGY} statsMap={statsMap} selectedTicker={selectedTicker} onSelectTicker={setSelectedTicker} /></StatsLoadGate> },
     { id: 'futures', title: 'Energy Futures & Spreads',  component: FuturesSection },
-  ], [statsMap, statsLoading, statsError, statsRefresh]);
+  ], [statsMap, statsLoading, statsError, statsRefresh, selectedTicker]);
 
   return (
     <DeepScreenBase

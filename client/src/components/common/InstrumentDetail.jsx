@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { useOpenDetail, useSectorContext } from '../../context/OpenDetailContext';
+import { useScreenContext } from '../../context/ScreenContext';
 import { useInstrumentData } from '../../hooks/useInstrumentData';
 import AlertEditor from './AlertEditor';
 import ShareModal from './ShareModal';
@@ -50,6 +51,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
   const handleOpenChat = typeof onOpenChat === 'function' ? onOpenChat : null;
   const openDetail = useOpenDetail();
   const sectorContext = useSectorContext();
+  const { updateSelectedTicker } = useScreenContext();
 
   // Use the mobile detection hook
   const isMobile = useIsMobile();
@@ -140,12 +142,28 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
   const { addAlert } = useAlerts();
   const { showToast } = useToast();
 
+  // ── Phase 6: AI Chat Quick Ask ──
+  const [quickAskInput, setQuickAskInput] = useState('');
+
   // ── Clear delta state when range changes ───────────────────────────────
   useEffect(() => {
     setDeltaA(null);
     setDeltaB(null);
     setDeltaMode(false);
   }, [rangeIdx]);
+
+  // ── Phase 6: Update screen context with selected ticker ──
+  useEffect(() => {
+    updateSelectedTicker(disp);
+  }, [disp, updateSelectedTicker]);
+
+  // ── Phase 6: Handle quick ask to AI chat ──
+  const handleQuickAsk = useCallback(() => {
+    if (!quickAskInput.trim() || !handleOpenChat) return;
+    // Call onOpenChat with the ticker and question
+    handleOpenChat({ ticker: disp, question: quickAskInput });
+    setQuickAskInput('');
+  }, [quickAskInput, disp, handleOpenChat]);
 
   // ── Clear comparison data when modal closes ────────────────────────────────
   useEffect(() => {
@@ -1655,6 +1673,34 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
             <ul className="id-ai-list id-ai-list--risks">
               {aiFunds.riskFactors.map((r, i) => <li key={i}>{r}</li>)}
             </ul>
+          </div>
+        )}
+
+        {/* Quick Ask AI Chat Input */}
+        {handleOpenChat && (
+          <div className="id-ai-quick-ask">
+            <input
+              type="text"
+              className="id-ai-quick-ask-input"
+              placeholder={`Ask anything about ${disp}...`}
+              value={quickAskInput}
+              onChange={(e) => setQuickAskInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleQuickAsk();
+                }
+              }}
+              maxLength={500}
+            />
+            <button
+              className="id-ai-quick-ask-btn"
+              onClick={handleQuickAsk}
+              disabled={!quickAskInput.trim()}
+              title="Open AI chat with your question"
+            >
+              {'\u2191'}
+            </button>
           </div>
         )}
       </div>

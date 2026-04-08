@@ -18,6 +18,7 @@ import { AlertsProvider } from './context/AlertsContext';
 import { GameProvider } from './context/GameContext';
 import { WatchlistProvider } from './context/WatchlistContext';
 import { PanelProvider } from './context/PanelContext';
+import { ScreenProvider } from './context/ScreenContext';
 import NotificationPrefs from './components/common/NotificationPrefs';
 import HeaderSearchBar from './components/common/HeaderSearchBar';
 import { SearchPanel } from './components/panels/SearchPanel';
@@ -375,6 +376,7 @@ export default function App() {
   if (!isMobile) {
     return (
       <AppErrorBoundary>
+      <ScreenProvider>
       <OpenDetailProvider externalTicker={detailTicker} externalSetTicker={setDetailTicker}>
       <DragProvider>
       <PortfolioProvider>
@@ -637,6 +639,7 @@ export default function App() {
       </PortfolioProvider>
       </DragProvider>
       </OpenDetailProvider>
+      </ScreenProvider>
       </AppErrorBoundary>
     );
   }
@@ -644,6 +647,7 @@ export default function App() {
   // ── MOBILE ───────────────────────────────────────────────────────────────
   return (
     <AppErrorBoundary>
+    <ScreenProvider>
     <OpenDetailProvider externalTicker={detailTicker} externalSetTicker={setDetailTicker}>
     <DragProvider>
     <PortfolioProvider>
@@ -935,6 +939,7 @@ export default function App() {
     </PortfolioProvider>
     </DragProvider>
     </OpenDetailProvider>
+    </ScreenProvider>
     </AppErrorBoundary>
   );
 }
