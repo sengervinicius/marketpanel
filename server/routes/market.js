@@ -2345,18 +2345,35 @@ router.get('/history/:symbol', async (req, res) => {
   try {
     const symbol   = req.params.symbol.toUpperCase();
     if (!isTicker(symbol)) return res.status(400).json({ ok: false, error: 'bad_request', message: 'Invalid symbol format' });
-    const period   = (req.query.period   || '1M').toUpperCase();
     const interval = (req.query.interval || '1d').toLowerCase();
 
-    const rangeConfig = PERIOD_TO_RANGE[period];
-    if (!rangeConfig) {
-      return res.status(400).json({ error: `Unsupported period: ${period}. Use: ${Object.keys(PERIOD_TO_RANGE).join(', ')}` });
+    let from, to, period;
+
+    // Check for custom date range (from/to in milliseconds)
+    if (req.query.from && req.query.to) {
+      const fromDate = new Date(parseInt(req.query.from));
+      const toDate = new Date(parseInt(req.query.to));
+      from = fromDate.toISOString().slice(0, 10);
+      to = toDate.toISOString().slice(0, 10);
+      period = (req.query.period || '1M').toUpperCase();
+    } else {
+      // Period-based (existing logic)
+      period = (req.query.period || req.query.range || '1M').toUpperCase();
+      const rangeConfig = PERIOD_TO_RANGE[period];
+      if (!rangeConfig) {
+        return res.status(400).json({ error: `Unsupported period: ${period}. Use: ${Object.keys(PERIOD_TO_RANGE).join(', ')}` });
+      }
+
+      const toDate   = new Date();
+      const fromDate = new Date(toDate.getTime() - rangeConfig.days * 86400 * 1000);
+      from     = fromDate.toISOString().slice(0, 10);
+      to       = toDate.toISOString().slice(0, 10);
     }
 
-    const toDate   = new Date();
-    const fromDate = new Date(toDate.getTime() - rangeConfig.days * 86400 * 1000);
-    const from     = fromDate.toISOString().slice(0, 10);
-    const to       = toDate.toISOString().slice(0, 10);
+    const rangeConfig = PERIOD_TO_RANGE[period];
+    if (!rangeConfig && !(req.query.from && req.query.to)) {
+      return res.status(400).json({ error: `Unsupported period: ${period}. Use: ${Object.keys(PERIOD_TO_RANGE).join(', ')}` });
+    }
 
     // Prefer Polygon for US equities + ETFs; fall back to Yahoo chart
     // Polygon ticker for crypto uses X: prefix, forex uses C: prefix
@@ -2432,7 +2449,8 @@ router.get('/history/:symbol', async (req, res) => {
       symbol,
       interval,
       period,
-      candles,
+      bars: candles,      // ADD THIS — client expects 'bars'
+      candles,            // Keep for backwards compat
       count: candles.length,
       asOf: new Date().toISOString(),
     });

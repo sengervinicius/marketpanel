@@ -540,104 +540,107 @@ export default function App() {
 
             <MarketTickBridge batchTicks={batchTicks} />
 
-            {/* Full-page sector screen OR home panel grid */}
-            {activeSectorScreen && SCREEN_MAP[activeSectorScreen] ? (
-              <div className="screen-transition-enter" style={{ flex: 1, overflow: 'auto' }}>
-                <PanelErrorBoundary name={`Screen:${activeSectorScreen}`}>
-                  {(() => {
-                    const ScreenComp = SCREEN_MAP[activeSectorScreen];
-                    return <ScreenComp />;
-                  })()}
-                </PanelErrorBoundary>
-              </div>
-            ) : activeSectorScreen && !SCREEN_MAP[activeSectorScreen] ? (
-              <div className="screen-transition-enter" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 12 }}>
-                <div style={{ fontSize: 36 }}>🚧</div>
-                <div style={{ color: 'var(--text-secondary)', fontSize: 13, fontFamily: 'var(--font-mono)' }}>
-                  {activeSectorScreen.replace(/-/g, ' ').toUpperCase()} — Coming in Wave 3/4
-                </div>
-                <button
-                  className="btn"
-                  onClick={handleGoHome}
-                  style={{ marginTop: 8, padding: '6px 16px', border: '1px solid var(--accent)', color: 'var(--accent)', borderRadius: 4, fontSize: 11, letterSpacing: '0.5px' }}
-                >← BACK TO HOME</button>
-              </div>
-            ) : (
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
-                {/* Layout edit toolbar */}
-                {layoutEdit && (
-                  <div style={{
-                    display: 'flex', alignItems: 'center', gap: 12, padding: '6px 16px',
-                    background: 'rgba(255, 102, 0, 0.08)', borderBottom: '1px solid var(--accent)',
-                    fontSize: 11, color: 'var(--accent)', fontWeight: 600, letterSpacing: '0.5px',
-                    flexShrink: 0,
-                  }}>
-                    <span>EDITING LAYOUT</span>
-                    <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>Use arrows to move panels. Drag borders to resize.</span>
-                    <div style={{ flex: 1 }} />
-                    <button className="btn" onClick={() => {
-                      updateLayout({
-                        desktopRows: [
-                          ['charts',       'usEquities',    'globalIndices'],
-                          ['forex',        'commodities',   'crypto',  'brazilB3'],
-                          ['debt',         'news',          'watchlist'],
-                        ],
-                      });
-                      // Reset column sizes
-                      try {
-                        Object.keys(localStorage).filter(k => k.startsWith('colSizes_') || k.startsWith('rowFlexSizes_')).forEach(k => localStorage.removeItem(k));
-                      } catch {}
-                      window.location.reload();
-                    }} style={{
-                      padding: '3px 12px', background: 'none', color: 'var(--text-secondary)',
-                      border: '1px solid var(--border-default)', borderRadius: 3, fontWeight: 600, fontSize: 10, letterSpacing: '0.5px',
-                    }}>RESET DEFAULT</button>
-                    <button className="btn" onClick={() => setLayoutEdit(false)} style={{
-                      padding: '3px 12px', background: 'var(--accent)', color: 'var(--bg-app)',
-                      border: 'none', borderRadius: 3, fontWeight: 700, fontSize: 10, letterSpacing: '0.5px',
-                    }}>DONE</button>
-                  </div>
+            {/* Sector screen — ALWAYS mounted when active, hidden when not */}
+            {activeSectorScreen && (
+              <div className="screen-transition-enter" style={{ flex: 1, overflow: 'auto', display: SCREEN_MAP[activeSectorScreen] ? 'block' : 'flex', alignItems: SCREEN_MAP[activeSectorScreen] ? undefined : 'center', justifyContent: SCREEN_MAP[activeSectorScreen] ? undefined : 'center', flexDirection: SCREEN_MAP[activeSectorScreen] ? undefined : 'column', gap: SCREEN_MAP[activeSectorScreen] ? undefined : 12 }}>
+                {SCREEN_MAP[activeSectorScreen] ? (
+                  <PanelErrorBoundary name={`Screen:${activeSectorScreen}`}>
+                    {(() => {
+                      const ScreenComp = SCREEN_MAP[activeSectorScreen];
+                      return <ScreenComp />;
+                    })()}
+                  </PanelErrorBoundary>
+                ) : (
+                  <>
+                    <div style={{ fontSize: 36 }}>🚧</div>
+                    <div style={{ color: 'var(--text-secondary)', fontSize: 13, fontFamily: 'var(--font-mono)' }}>
+                      {activeSectorScreen.replace(/-/g, ' ').toUpperCase()} — Coming in Wave 3/4
+                    </div>
+                    <button
+                      className="btn"
+                      onClick={handleGoHome}
+                      style={{ marginTop: 8, padding: '6px 16px', border: '1px solid var(--accent)', color: 'var(--accent)', borderRadius: 4, fontSize: 11, letterSpacing: '0.5px' }}
+                    >← BACK TO HOME</button>
+                  </>
                 )}
-                {/* Dynamic rows from settings.layout.desktopRows */}
-                {(() => {
-                  const panelProps = { mergedData, loading, setChartTicker, chartTicker, setChartGridCount };
-                  const minHeights = [260, 220, 200];
-                  return [row0, row1, row2].map((row, rowIdx) => {
-                    if (!row || row.length === 0) return null;
-                    const colSizes = colSizesPerRow[rowIdx];
-                    const startResize = startResizePerRow[rowIdx];
-                    return (
-                      <div key={rowIdx} className="display-contents">
-                        {rowIdx > 0 && <ResizeHandle onStart={e => startRowResize(rowIdx - 1, e)} />}
-                        <div style={{ flex: rowSizes[rowIdx] || 1, flexShrink: 0, display:'flex', overflow:'hidden', minHeight: minHeights[rowIdx] || 200 }}>
-                          {row.map((panelId, colIdx) => {
-                            if (!isPanelVisible(panelId)) return null;
-                            const isLast = colIdx === row.filter(id => isPanelVisible(id)).length - 1;
-                            return (
-                              <div key={panelId} style={{ display: 'contents' }}>
-                                {colIdx > 0 && <ColResizeHandle onStart={e => startResize(colIdx - 1, e)} />}
-                                <div style={{ flex: colSizes[colIdx] || 1, minWidth: 0, borderRight: isLast ? 'none' : border, overflow:'hidden', height:'100%', position: 'relative' }}>
-                                  <PanelErrorBoundary name={panelId}>
-                                    {makePanelRenderer(panelId, panelProps)}
-                                  </PanelErrorBoundary>
-                                  {layoutEdit && (
-                                    <LayoutMoveOverlay
-                                      panelId={panelId} rowIdx={rowIdx} colIdx={colIdx}
-                                      rowLen={row.length} totalRows={[row0, row1, row2].filter(r => r.length > 0).length}
-                                      onMove={handleLayoutMove}
-                                    />
-                                  )}
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    );
-                  });
-                })()}
               </div>
             )}
+
+            {/* Home grid — ALWAYS mounted, hidden via display:none when sector screen is active */}
+            <div style={{ flex: 1, display: activeSectorScreen ? 'none' : 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
+              {/* Layout edit toolbar */}
+              {layoutEdit && (
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: 12, padding: '6px 16px',
+                  background: 'rgba(255, 102, 0, 0.08)', borderBottom: '1px solid var(--accent)',
+                  fontSize: 11, color: 'var(--accent)', fontWeight: 600, letterSpacing: '0.5px',
+                  flexShrink: 0,
+                }}>
+                  <span>EDITING LAYOUT</span>
+                  <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>Use arrows to move panels. Drag borders to resize.</span>
+                  <div style={{ flex: 1 }} />
+                  <button className="btn" onClick={() => {
+                    updateLayout({
+                      desktopRows: [
+                        ['charts',       'usEquities',    'globalIndices'],
+                        ['forex',        'commodities',   'crypto',  'brazilB3'],
+                        ['debt',         'news',          'watchlist'],
+                      ],
+                    });
+                    // Reset column sizes
+                    try {
+                      Object.keys(localStorage).filter(k => k.startsWith('colSizes_') || k.startsWith('rowFlexSizes_')).forEach(k => localStorage.removeItem(k));
+                    } catch {}
+                    window.location.reload();
+                  }} style={{
+                    padding: '3px 12px', background: 'none', color: 'var(--text-secondary)',
+                    border: '1px solid var(--border-default)', borderRadius: 3, fontWeight: 600, fontSize: 10, letterSpacing: '0.5px',
+                  }}>RESET DEFAULT</button>
+                  <button className="btn" onClick={() => setLayoutEdit(false)} style={{
+                    padding: '3px 12px', background: 'var(--accent)', color: 'var(--bg-app)',
+                    border: 'none', borderRadius: 3, fontWeight: 700, fontSize: 10, letterSpacing: '0.5px',
+                  }}>DONE</button>
+                </div>
+              )}
+              {/* Dynamic rows from settings.layout.desktopRows */}
+              {(() => {
+                const panelProps = { mergedData, loading, setChartTicker, chartTicker, setChartGridCount };
+                const minHeights = [260, 220, 200];
+                return [row0, row1, row2].map((row, rowIdx) => {
+                  if (!row || row.length === 0) return null;
+                  const colSizes = colSizesPerRow[rowIdx];
+                  const startResize = startResizePerRow[rowIdx];
+                  return (
+                    <div key={rowIdx} className="display-contents">
+                      {rowIdx > 0 && <ResizeHandle onStart={e => startRowResize(rowIdx - 1, e)} />}
+                      <div style={{ flex: rowSizes[rowIdx] || 1, flexShrink: 0, display:'flex', overflow:'hidden', minHeight: minHeights[rowIdx] || 200 }}>
+                        {row.map((panelId, colIdx) => {
+                          if (!isPanelVisible(panelId)) return null;
+                          const isLast = colIdx === row.filter(id => isPanelVisible(id)).length - 1;
+                          return (
+                            <div key={panelId} style={{ display: 'contents' }}>
+                              {colIdx > 0 && <ColResizeHandle onStart={e => startResize(colIdx - 1, e)} />}
+                              <div style={{ flex: colSizes[colIdx] || 1, minWidth: 0, borderRight: isLast ? 'none' : border, overflow:'hidden', height:'100%', position: 'relative' }}>
+                                <PanelErrorBoundary name={panelId}>
+                                  {makePanelRenderer(panelId, panelProps)}
+                                </PanelErrorBoundary>
+                                {layoutEdit && (
+                                  <LayoutMoveOverlay
+                                    panelId={panelId} rowIdx={rowIdx} colIdx={colIdx}
+                                    rowLen={row.length} totalRows={[row0, row1, row2].filter(r => r.length > 0).length}
+                                    onMove={handleLayoutMove}
+                                  />
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                });
+              })()}
+            </div>
 
             <FeedStatusBar feedStatus={feedStatus} />
           </>
@@ -782,58 +785,63 @@ export default function App() {
           {/* ── Tab content area ── */}
           <div className="m-app-content">
 
-            {/* Full-page sector screen on mobile */}
-            {activeSectorScreen && SCREEN_MAP[activeSectorScreen] ? (
-              <PanelErrorBoundary name={`Screen:${activeSectorScreen}`}>
-                {(() => { const S = SCREEN_MAP[activeSectorScreen]; return <S />; })()}
-              </PanelErrorBoundary>
-            ) : activeSectorScreen && !SCREEN_MAP[activeSectorScreen] ? (
-              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 12, padding: 24 }}>
-                <div style={{ fontSize: 36 }}>🚧</div>
-                <div style={{ color: 'var(--text-secondary)', fontSize: 12, fontFamily: 'var(--font-mono)', textAlign: 'center' }}>
-                  {activeSectorScreen.replace(/-/g, ' ').toUpperCase()} — Coming Soon
-                </div>
-                <button className="btn" onClick={handleGoHome}
-                  style={{ marginTop: 8, padding: '6px 16px', border: '1px solid var(--accent)', color: 'var(--accent)', borderRadius: 4, fontSize: 11 }}
-                >← BACK TO HOME</button>
+            {/* Full-page sector screen on mobile — ALWAYS mounted when active, hidden when not */}
+            {activeSectorScreen && (
+              <div style={{ flex: 1, overflow: 'auto', display: SCREEN_MAP[activeSectorScreen] ? 'block' : 'flex', alignItems: SCREEN_MAP[activeSectorScreen] ? undefined : 'center', justifyContent: SCREEN_MAP[activeSectorScreen] ? undefined : 'center', flexDirection: SCREEN_MAP[activeSectorScreen] ? undefined : 'column', gap: SCREEN_MAP[activeSectorScreen] ? undefined : 12, padding: SCREEN_MAP[activeSectorScreen] ? undefined : 24 }}>
+                {SCREEN_MAP[activeSectorScreen] ? (
+                  <PanelErrorBoundary name={`Screen:${activeSectorScreen}`}>
+                    {(() => { const S = SCREEN_MAP[activeSectorScreen]; return <S />; })()}
+                  </PanelErrorBoundary>
+                ) : (
+                  <>
+                    <div style={{ fontSize: 36 }}>🚧</div>
+                    <div style={{ color: 'var(--text-secondary)', fontSize: 12, fontFamily: 'var(--font-mono)', textAlign: 'center' }}>
+                      {activeSectorScreen.replace(/-/g, ' ').toUpperCase()} — Coming Soon
+                    </div>
+                    <button className="btn" onClick={handleGoHome}
+                      style={{ marginTop: 8, padding: '6px 16px', border: '1px solid var(--accent)', color: 'var(--accent)', borderRadius: 4, fontSize: 11 }}
+                    >← BACK TO HOME</button>
+                  </>
+                )}
               </div>
-            ) : null}
+            )}
 
-            {!activeSectorScreen && activeTab === 'home' && (
+            {/* Mobile tabs — ALWAYS mounted, hidden via display:none when not active or sector screen is showing */}
+            <div style={{ flex: 1, display: activeSectorScreen || activeTab !== 'home' ? 'none' : 'flex' }}>
               <PanelErrorBoundary name="Home">
                 <HomePanelMobile
                   onSearchClick={() => setActiveTabPersist('search')}
                 />
               </PanelErrorBoundary>
-            )}
+            </div>
 
-            {!activeSectorScreen && activeTab === 'charts' && (
+            <div style={{ flex: 1, display: activeSectorScreen || activeTab !== 'charts' ? 'none' : 'flex' }}>
               <PanelErrorBoundary name="Charts">
                 <ChartsPanelMobile />
               </PanelErrorBoundary>
-            )}
+            </div>
 
-            {!activeSectorScreen && activeTab === 'search' && (
+            <div style={{ flex: 1, display: activeSectorScreen || activeTab !== 'search' ? 'none' : 'flex' }}>
               <PanelErrorBoundary name="Search">
                 <SearchPanel onTickerSelect={goDetail} />
               </PanelErrorBoundary>
-            )}
+            </div>
 
-            {!activeSectorScreen && activeTab === 'watchlist' && (
+            <div style={{ flex: 1, display: activeSectorScreen || activeTab !== 'watchlist' ? 'none' : 'flex' }}>
               <PanelErrorBoundary name="Portfolio">
                 <PortfolioMobile
                   onManage={() => setActiveTabPersist('search')}
                 />
               </PanelErrorBoundary>
-            )}
+            </div>
 
-            {!activeSectorScreen && activeTab === 'alerts' && (
+            <div style={{ flex: 1, display: activeSectorScreen || activeTab !== 'alerts' ? 'none' : 'flex' }}>
               <PanelErrorBoundary name="Alerts">
                 <AlertCenterPanel />
               </PanelErrorBoundary>
-            )}
+            </div>
 
-            {!activeSectorScreen && activeTab === 'more' && !moreView && (
+            <div style={{ flex: 1, display: activeSectorScreen || activeTab !== 'more' || moreView ? 'none' : 'flex' }}>
               <MobileMoreScreen
                 onNavigate={handleMoreNavigate}
                 user={user}
@@ -843,33 +851,33 @@ export default function App() {
                 isPaid={subscription?.status === 'active'}
                 subscription={subscription}
               />
-            )}
+            </div>
 
-            {!activeSectorScreen && activeTab === 'more' && moreView === 'news' && (
+            <div style={{ flex: 1, display: activeSectorScreen || activeTab !== 'more' || moreView !== 'news' ? 'none' : 'flex' }}>
               <PanelErrorBoundary name="News">
                 <NewsPanel />
               </PanelErrorBoundary>
-            )}
+            </div>
 
-            {!activeSectorScreen && activeTab === 'more' && moreView === 'etf' && (
+            <div style={{ flex: 1, display: activeSectorScreen || activeTab !== 'more' || moreView !== 'etf' ? 'none' : 'flex' }}>
               <PanelErrorBoundary name="ETF">
                 <ETFPanel />
               </PanelErrorBoundary>
-            )}
+            </div>
 
-            {!activeSectorScreen && activeTab === 'more' && moreView === 'screener' && (
+            <div style={{ flex: 1, display: activeSectorScreen || activeTab !== 'more' || moreView !== 'screener' ? 'none' : 'flex' }}>
               <PanelErrorBoundary name="Screener">
                 <ScreenerPanel />
               </PanelErrorBoundary>
-            )}
+            </div>
 
-            {!activeSectorScreen && activeTab === 'more' && moreView === 'macro' && (
+            <div style={{ flex: 1, display: activeSectorScreen || activeTab !== 'more' || moreView !== 'macro' ? 'none' : 'flex' }}>
               <PanelErrorBoundary name="Macro">
                 <MacroPanel />
               </PanelErrorBoundary>
-            )}
+            </div>
 
-            {!activeSectorScreen && activeTab === 'more' && moreView === 'sectors' && (
+            <div style={{ flex: 1, display: activeSectorScreen || activeTab !== 'more' || moreView !== 'sectors' ? 'none' : 'flex' }}>
               <PanelErrorBoundary name="Sectors">
                 <SectorScreenSelector
                   isOpen={true}
@@ -878,11 +886,11 @@ export default function App() {
                   activeScreen={activeSectorScreen}
                 />
               </PanelErrorBoundary>
-            )}
+            </div>
 
-            {!activeSectorScreen && activeTab === 'more' && moreView === 'notification-prefs' && (
+            <div style={{ flex: 1, display: activeSectorScreen || activeTab !== 'more' || moreView !== 'notification-prefs' ? 'none' : 'flex' }}>
               <NotificationPrefs onClose={() => setMoreView(null)} />
-            )}
+            </div>
 
           </div>
 

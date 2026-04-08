@@ -10,6 +10,14 @@ const router  = express.Router();
 const { cacheGet, cacheSet, TTL } = require('./lib/cache');
 const { yahooQuote, sendError, fetch, YF_UA } = require('./lib/providers');
 
+// ── Timeout helper for external API calls ────────────────────────────
+function fetchWithTimeout(url, options = {}, timeoutMs = 8000) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  return fetch(url, { ...options, signal: controller.signal })
+    .finally(() => clearTimeout(timeout));
+}
+
 // ── Bond metadata map ───────────────────────────────────────────────
 const BOND_YAHOO_MAP = {
   'US2Y':  { yahoo: '^TYA', tenor: '2Y',  maturityYears: 2,  couponFreq: 2, faceValue: 1000, country: 'US', currency: 'USD', name: 'US 2-Year Treasury Note' },
@@ -630,23 +638,23 @@ router.get('/yield-curves', async (req, res) => {
     const yyyy = now.getFullYear();
 
     const [tdRes, selicRes, usTreasuryRes, ukBoeRes, ecbYcRes] = await Promise.allSettled([
-      fetch('https://www.tesourodireto.com.br/json/br/com/b3/tesourodireto/service/api/treasurybondsfile.json', {
+      fetchWithTimeout('https://www.tesourodireto.com.br/json/br/com/b3/tesourodireto/service/api/treasurybondsfile.json', {
         headers: { 'User-Agent': YF_UA, 'Accept': 'application/json', 'Accept-Language': 'pt-BR,pt;q=0.9', 'Referer': 'https://www.tesourodireto.com.br/' },
       }).then(r => { if (!r.ok) throw new Error(`TD ${r.status}`); return r.json(); }),
 
-      fetch('https://api.bcb.gov.br/dados/serie/bcdata.sgs.432/dados/ultimos/1?formato=json', {
+      fetchWithTimeout('https://api.bcb.gov.br/dados/serie/bcdata.sgs.432/dados/ultimos/1?formato=json', {
         headers: { 'Accept': 'application/json' },
       }).then(r => r.json()),
 
-      fetch(`https://home.treasury.gov/resource-center/data-chart-center/interest-rates/pages/xml?data=daily_treasury_yield_curve&field_tdate_value=${yyyymm}`, {
+      fetchWithTimeout(`https://home.treasury.gov/resource-center/data-chart-center/interest-rates/pages/xml?data=daily_treasury_yield_curve&field_tdate_value=${yyyymm}`, {
         headers: { 'User-Agent': YF_UA, 'Accept': 'application/xml,text/xml,*/*' },
       }).then(r => { if (!r.ok) throw new Error(`Treasury ${r.status}`); return r.text(); }),
 
-      fetch(`https://www.bankofengland.co.uk/boeapps/database/fromshowcolumns.asp?csv.x=yes&CSVF=TN&UsingCodes=Y&VFD=N&DP=2&Datefrom=01/${mm}/${yyyy}&Dateto=${dd}/${mm}/${yyyy}&SeriesCodes=IUMVZC,IUM2ZC,IUM5ZC,IUM10ZC,IUM20ZC`, {
+      fetchWithTimeout(`https://www.bankofengland.co.uk/boeapps/database/fromshowcolumns.asp?csv.x=yes&CSVF=TN&UsingCodes=Y&VFD=N&DP=2&Datefrom=01/${mm}/${yyyy}&Dateto=${dd}/${mm}/${yyyy}&SeriesCodes=IUMVZC,IUM2ZC,IUM5ZC,IUM10ZC,IUM20ZC`, {
         headers: { 'User-Agent': YF_UA, 'Accept': 'text/csv,text/plain,*/*', 'Referer': 'https://www.bankofengland.co.uk/' },
       }).then(r => { if (!r.ok) throw new Error(`BoE ${r.status}`); return r.text(); }),
 
-      fetch('https://data-api.ecb.europa.eu/service/data/YC/B.U2.EUR.4F.G_N_A.SV_C_YM.SR_3M+SR_6M+SR_1Y+SR_2Y+SR_3Y+SR_5Y+SR_7Y+SR_10Y+SR_20Y+SR_30Y?lastNObservations=1&format=jsondata', {
+      fetchWithTimeout('https://data-api.ecb.europa.eu/service/data/YC/B.U2.EUR.4F.G_N_A.SV_C_YM.SR_3M+SR_6M+SR_1Y+SR_2Y+SR_3Y+SR_5Y+SR_7Y+SR_10Y+SR_20Y+SR_30Y?lastNObservations=1&format=jsondata', {
         headers: { 'Accept': 'application/json', 'User-Agent': YF_UA },
       }).then(r => { if (!r.ok) throw new Error(`ECB ${r.status}`); return r.json(); }),
     ]);

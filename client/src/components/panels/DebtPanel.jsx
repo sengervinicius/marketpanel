@@ -134,6 +134,7 @@ function DebtPanel() {
       apiFetch('/api/debt/countries', { signal: controller.signal }).then(r => r.json()),
     ]).then(([liveRes, countriesRes]) => {
       clearTimeout(timeout);
+
       if (liveRes.status === 'fulfilled' && liveRes.value) {
         liveDataRef.current = liveRes.value;
       }
@@ -152,13 +153,20 @@ function DebtPanel() {
         setAvailableCountries(merged);
       }
 
+      // Check if BOTH fetches failed (no data available)
+      if (liveRes.status === 'rejected' && countriesRes.status === 'rejected') {
+        setLoading(false);
+        setError('Yield data unavailable — click RETRY');
+      }
+
       // Signal that live data is ready for loadCurve effect
       setLiveReady(true);
     }).catch(() => {
+      // This catches network errors or abort signals
       clearTimeout(timeout);
       setLiveReady(true);
       setLoading(false);
-      setError('Yield data timed out — click RETRY');
+      setError('Yield data request failed — click RETRY');
     });
 
     return () => { clearTimeout(timeout); controller.abort(); };

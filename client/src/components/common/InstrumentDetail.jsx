@@ -460,7 +460,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
       const res = await apiFetch(`/api/market/history/${encodeURIComponent(sym)}?range=${range.label}`);
       if (!res.ok) throw new Error('Failed to fetch comparison data');
       const data = await res.json();
-      const newBars = data.bars || [];
+      const newBars = data.bars || data.candles || [];
 
       setComparisonTickers(prev => [...prev, sym]);
       setComparisonData(prev => ({ ...prev, [sym]: newBars }));
@@ -512,7 +512,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
       const res = await apiFetch(`/api/market/history/${encodeURIComponent(norm)}?from=${fromMs}&to=${toMs}`);
       if (!res.ok) throw new Error('Failed to fetch custom range');
       const data = await res.json();
-      const fetchedBars = (data.bars || data.results || []).map(bar => ({
+      const fetchedBars = (data.bars || data.candles || data.results || []).map(bar => ({
         date: bar.date || (bar.t ? new Date(bar.t).toISOString().slice(0, 10) : ''),
         open: parseFloat(bar.open ?? bar.o ?? 0),
         high: parseFloat(bar.high ?? bar.h ?? 0),
