@@ -493,7 +493,8 @@ router.get('/chart/:ticker', async (req, res) => {
     } else if (!ticker.toUpperCase().endsWith('.SA')) {
       try {
         const data = await polyFetch(
-          `/v2/aggs/ticker/${ticker}/range/${multiplier}/${timespan}/${fromDate}/${toDate}?adjusted=true&sort=asc&limit=500`
+          `/v2/aggs/ticker/${ticker}/range/${multiplier}/${timespan}/${fromDate}/${toDate}?adjusted=true&sort=asc&limit=500`,
+          { priority: 15, label: 'chart' }  // High priority for charts
         );
         cacheSet(chartCacheKey, data, TTL.chart);
         return res.json(data);
@@ -728,7 +729,10 @@ router.get('/fundamentals/:symbol', async (req, res) => {
 
     let polyMktCap = null;
     try {
-      const polyRef = await polyFetch(`/v3/reference/tickers/${encodeURIComponent(symbol)}`);
+      const polyRef = await polyFetch(
+        `/v3/reference/tickers/${encodeURIComponent(symbol)}`,
+        { priority: 5, label: 'reference' }  // Medium priority
+      );
       polyMktCap = polyRef?.results?.market_cap ?? null;
     } catch (_) { /* non-fatal */ }
 

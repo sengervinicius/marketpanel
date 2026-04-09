@@ -37,16 +37,17 @@ setInterval(() => {
 
 /**
  * Cache TTL configuration (milliseconds).
+ * Updated to reduce Polygon API calls during rate limiting.
  */
 const TTL = {
-  stocksSnapshot: 10_000,   // 10 s — real-time quotes
-  forexSnapshot:  10_000,   // 10 s — FX pairs
-  cryptoSnapshot: 10_000,   // 10 s — crypto pairs
+  stocksSnapshot: 60_000,   // 60 s — real-time quotes (increased from 10s)
+  forexSnapshot:  60_000,   // 60 s — FX pairs (increased from 10s)
+  cryptoSnapshot: 60_000,   // 60 s — crypto pairs (increased from 10s)
   news:           60_000,   // 60 s — aggregated news feed
-  chart:          30_000,   // 30 s — per ticker+range combo
-  yields:         60_000,   // 60 s — sovereign bond yields
-  etfs:           30_000,   // 30 s — ETF category snapshots
-  fred:          300_000,   // 5 min — FRED yield curve fallback
+  chart:          60_000,   // 60 s — per ticker+range combo (increased from 30s)
+  yields:         300_000,  // 5 min — sovereign bond yields (increased from 60s)
+  etfs:           60_000,   // 60 s — ETF category snapshots (increased from 30s)
+  fred:           300_000,  // 5 min — FRED yield curve fallback
 };
 
 module.exports = {

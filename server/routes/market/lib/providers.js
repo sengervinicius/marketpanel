@@ -15,6 +15,7 @@ const twelvedata = require('../../../providers/twelvedata');
 const { ProviderError, sendApiError } = require('../../../utils/apiError');
 const logger = require('../../../utils/logger');
 const { yahooCache } = require('./cache');
+const RequestQueue = require('../../../lib/requestQueue');
 
 // ── API base URLs & keys ────────────────────────────────────────────
 const POLYGON_BASE = 'https://api.polygon.io';
@@ -23,6 +24,13 @@ const YF_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHT
 function apiKey()          { return process.env.POLYGON_API_KEY; }
 function finnhubKey()      { return process.env.FINNHUB_API_KEY; }
 function alphaVantageKey() { return process.env.ALPHA_VANTAGE_KEY; }
+
+// ── Request queue for Polygon API (rate limiting) ──────────────────
+// Free tier allows ~5 req/min; 250ms delay = ~4 req/sec = 240 req/min
+const polygonQueue = new RequestQueue({
+  delay: 250,
+  maxConcurrent: 1,
+});
 
 // Kept as local alias for backward compat
 const ApiError = ProviderError;
@@ -86,8 +94,8 @@ function sendError(res, err, context = '') {
   });
 }
 
-// ── Polygon.io fetcher ──────────────────────────────────────────────
-async function polyFetch(path, retries = 2) {
+// ── Polygon.io raw fetcher (retry logic) ───────────────────────────
+async function _polyFetchRaw(path, retries = 2) {
   for (let attempt = 0; attempt <= retries; attempt++) {
     const sep = path.includes('?') ? '&' : '?';
     const url = `${POLYGON_BASE}${path}${sep}apiKey=${apiKey()}`;
@@ -117,6 +125,17 @@ async function polyFetch(path, retries = 2) {
     return res.json();
   }
   throw new ApiError('Polygon: exhausted retries', 'network_error');
+}
+
+// ── Polygon.io fetcher with request queue (rate limiting) ──────────
+async function polyFetch(path, options = {}) {
+  const priority = options.priority || 0;  // Higher = earlier in queue (for charts, snapshots)
+  const label = options.label || `polygon:${path.split('?')[0]}`;
+
+  return polygonQueue.add(
+    () => _polyFetchRaw(path, 2),
+    { priority, label }
+  );
 }
 
 // ── Yahoo Finance crumb authentication ──────────────────────────────
@@ -239,7 +258,7 @@ async function _yahooQuoteRaw(symbols) {
   const HOSTS = ['query1', 'query2'];
   for (let attempt = 0; attempt < 2; attempt++) {
     const { crumb, cookie } = await getYahooCrumb();
-    const fields = 'regularMarketPrice,regularMarketChange,regularMarketChangePercent,regularMarketVolume,regularMarketOpen,regularMarketDayHigh,regularMarketDayLow,shortName,longName,currency,marketCap';
+    const fields = 'regularMarketPrice,regularMarketChange,regularMarketChangePercent,regularMarketVolume,regularMarketOpen,regularMarketDayHigh,regularMarketDayLow,shortName,longName,currency,marketCap,trailingPE,forwardPE,epsTrailingTwelveMonths,sharesOutstanding,trailingAnnualDividendYield,fiftyTwoWeekLow,fiftyTwoWeekHigh';
     const host = HOSTS[attempt % HOSTS.length];
     const url = `https://${host}.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbols)}&crumb=${encodeURIComponent(crumb)}&fields=${fields}&lang=en-US`;
     const quoteController = new AbortController();
@@ -280,6 +299,74 @@ async function _yahooQuoteRaw(symbols) {
 async function yahooQuote(symbols) {
   const normalizedKey = `yq:${symbols.split(',').map(s => s.trim().toUpperCase()).sort().join(',')}`;
   return yahooCache.wrap(normalizedKey, () => _yahooQuoteRaw(symbols), 60 * 1000);
+}
+
+// ── Yahoo quoteSummary (financialData module) ──────────────────────
+async function _yahooQuoteSummaryRaw(symbol) {
+  const HOSTS = ['query1', 'query2'];
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const { crumb, cookie } = await getYahooCrumb();
+    const host = HOSTS[attempt % HOSTS.length];
+    const modules = 'financialData,defaultKeyStatistics';
+    const url = `https://${host}.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(symbol)}?modules=${modules}&crumb=${encodeURIComponent(crumb)}&lang=en-US`;
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 10000);
+    let r;
+    try {
+      r = await fetch(url, {
+        headers: {
+          'User-Agent': YF_UA,
+          'Accept': 'application/json',
+          'Cookie': cookie,
+          'Referer': 'https://finance.yahoo.com/',
+        },
+        signal: ctrl.signal,
+      });
+    } finally { clearTimeout(t); }
+    if (r.status === 401 || r.status === 403) {
+      _yfCrumb = null; _yfCookie = null; _yfCrumbExpiry = 0;
+      if (attempt === 0) { console.warn(`[Yahoo QS] ${r.status} on ${host}, retrying`); continue; }
+      throw new Error(`Yahoo quoteSummary HTTP ${r.status}`);
+    }
+    if (r.status === 429) { const e = new Error('Yahoo quoteSummary 429'); e.code = 'rate_limit'; throw e; }
+    if (!r.ok) throw new Error(`Yahoo quoteSummary HTTP ${r.status}`);
+    const json = await r.json();
+    const result = json?.quoteSummary?.result?.[0];
+    if (!result) return null;
+    const fd = result.financialData || {};
+    const ks = result.defaultKeyStatistics || {};
+    // Extract raw values (Yahoo wraps numbers in {raw, fmt} objects)
+    const raw = (v) => (v && typeof v === 'object' && 'raw' in v) ? v.raw : (v ?? null);
+    return {
+      revenue: raw(fd.totalRevenue),
+      ebitda: raw(fd.ebitda),
+      grossMargins: raw(fd.grossMargins),
+      operatingMargins: raw(fd.operatingMargins),
+      profitMargins: raw(fd.profitMargins),
+      returnOnEquity: raw(fd.returnOnEquity),
+      totalCash: raw(fd.totalCash),
+      totalDebt: raw(fd.totalDebt),
+      currentRatio: raw(fd.currentRatio),
+      revenueGrowth: raw(fd.revenueGrowth),
+      earningsGrowth: raw(fd.earningsGrowth),
+      operatingCashflow: raw(fd.operatingCashflow),
+      freeCashflow: raw(fd.freeCashflow),
+      targetMeanPrice: raw(fd.targetMeanPrice),
+      recommendationMean: raw(fd.recommendationMean),
+      beta: raw(ks.beta),
+      priceToBook: raw(ks.priceToBook),
+      enterpriseValue: raw(ks.enterpriseValue),
+      forwardEps: raw(ks.forwardEps),
+      pegRatio: raw(ks.pegRatio),
+      shortPercentOfFloat: raw(ks.shortPercentOfFloat),
+    };
+  }
+  throw new Error('Yahoo quoteSummary: exhausted retries');
+}
+
+async function yahooQuoteSummary(symbol) {
+  const key = `yqs:${symbol.toUpperCase()}`;
+  return yahooCache.wrap(key, () => _yahooQuoteSummaryRaw(symbol), 120 * 1000);
 }
 
 // ── Finnhub fallback provider ───────────────────────────────────────
@@ -512,10 +599,13 @@ module.exports = {
   getYahooCrumb,
   _yahooChartRaw,
   yahooQuote,
+  yahooQuoteSummary,
   finnhubQuote,
   alphaVantageQuote,
   fetchWithFallback,
   resetYahooCrumb,
+  // Request queue (for monitoring)
+  polygonQueue,
   // Utilities
   parseRss,
   // Re-exports

@@ -16,7 +16,10 @@ router.get('/search', async (req, res) => {
     if (!q.trim()) return res.json({ results: [] });
 
     const [polyResult, yahooResult, eulerResult] = await Promise.allSettled([
-      polyFetch(`/v3/reference/tickers?search=${encodeURIComponent(q.trim())}&active=true&limit=${limit}&sort=ticker`),
+      polyFetch(
+        `/v3/reference/tickers?search=${encodeURIComponent(q.trim())}&active=true&limit=${limit}&sort=ticker`,
+        { priority: 8, label: 'search' }  // Medium-high priority for search
+      ),
       yahooCache.wrap(`yf_search:${q.trim().toLowerCase()}`, async () => {
         const r = await fetch(
           `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(q.trim())}&lang=en-US&region=BR&quotesCount=8&newsCount=0&enableFuzzyQuery=false`,

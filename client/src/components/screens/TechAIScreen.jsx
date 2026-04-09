@@ -261,35 +261,41 @@ function ValuationScatterComponent() {
 }
 
 // Mini Financials Strip
-function MiniFinancialsStrip() {
+function MiniFinancialsStrip({ statsMap }) {
   return (
     <div style={{
       display: 'flex',
-      gap: '8px',
-      padding: '0 6px',
+      gap: '12px',
+      padding: '4px 12px',
       overflowX: 'auto',
     }}>
       {MINI_FIN_TICKERS.map(ticker => (
         <div
           key={ticker}
           style={{
-            flex: '0 0 calc(33.333% - 6px)',
+            flex: '0 0 auto',
+            width: 220,
             minWidth: 200,
             border: '1px solid var(--border-default)',
-            borderRadius: 2,
-            padding: 8,
+            borderRadius: 6,
+            padding: '10px 12px',
             background: 'var(--bg-panel)',
+            boxSizing: 'border-box',
           }}
         >
           <div style={{
-            fontSize: 10,
+            fontSize: 12,
             fontWeight: 600,
             color: 'var(--text-primary)',
             marginBottom: 8,
           }}>
             {ticker}
           </div>
-          <MiniFinancials ticker={ticker} accentColor="#00bcd4" />
+          <MiniFinancials
+            ticker={ticker}
+            accentColor="#00bcd4"
+            statsData={statsMap.get(ticker)}
+          />
         </div>
       ))}
     </div>
@@ -374,7 +380,7 @@ function TechAIScreenImpl() {
       id: 'minifinancials',
       title: 'TOP 3 FINANCIALS',
       span: 'full',
-      component: () => <MiniFinancialsStrip />,
+      component: () => <MiniFinancialsStrip statsMap={statsMap} />,
     },
     {
       id: 'fundamentals',

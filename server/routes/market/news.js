@@ -19,10 +19,11 @@ router.get('/news', async (req, res) => {
       const cached = cacheGet(cacheKey);
       if (cached) return res.json(cached);
       const data = await polyFetch(
-        `/v2/reference/news?ticker=${encodeURIComponent(tickerFilter)}&limit=${limit}&order=desc&sort=published_utc`
+        `/v2/reference/news?ticker=${encodeURIComponent(tickerFilter)}&limit=${limit}&order=desc&sort=published_utc`,
+        { priority: 6, label: 'news' }  // Medium priority
       );
       const result = { results: data?.results || [], status: 'OK' };
-      cacheSet(cacheKey, result, TTL.news);
+      cacheSet(cacheKey, result, 60_000); // Increased to 60s (TTL.news is 60s already)
       return res.json(result);
     }
 
@@ -31,7 +32,10 @@ router.get('/news', async (req, res) => {
     if (cached) return res.json(cached);
 
     const [polyRes, bloomRes, ftRes] = await Promise.allSettled([
-      polyFetch(`/v2/reference/news?limit=${limit}&order=desc&sort=published_utc`),
+      polyFetch(
+        `/v2/reference/news?limit=${limit}&order=desc&sort=published_utc`,
+        { priority: 6, label: 'news-all' }  // Medium priority
+      ),
       fetch('https://feeds.bloomberg.com/markets/news.rss', {
         headers: { 'User-Agent': YF_UA, 'Accept': 'application/rss+xml,*/*' },
       }).then(r => { if (!r.ok) throw new Error(`Bloomberg RSS ${r.status}`); return r.text(); }),

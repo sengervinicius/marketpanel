@@ -291,18 +291,18 @@ function SpreadAnalysisSection() {
     : null;
 
   return (
-    <div style={{ padding: '8px 6px', fontSize: 10 }}>
+    <div style={{ padding: '12px', fontSize: 13 }}>
       <table style={{ width: '100%', borderCollapse: 'collapse' }}>
         <tbody>
           <tr style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-            <td style={{ padding: '6px 0', color: 'var(--text-secondary)' }}>WTI-Brent Spread</td>
-            <td style={{ padding: '6px 0', textAlign: 'right', color: wtiSpread != null && wtiSpread > 0 ? 'var(--semantic-up)' : 'var(--semantic-down)', fontWeight: 500 }}>
+            <td style={{ padding: '10px 8px', color: 'var(--text-secondary)', fontSize: 13, width: '50%' }}>WTI-Brent Spread</td>
+            <td style={{ padding: '10px 8px', textAlign: 'right', color: wtiSpread != null && wtiSpread > 0 ? 'var(--semantic-up)' : 'var(--semantic-down)', fontWeight: 600, fontSize: 14, fontFamily: 'var(--font-mono)', fontVariantNumeric: 'tabular-nums' }}>
               {wtiSpread != null ? `$${wtiSpread.toFixed(2)}/bbl` : '—'}
             </td>
           </tr>
           <tr>
-            <td style={{ padding: '6px 0', color: 'var(--text-secondary)' }}>Gold/Silver Ratio</td>
-            <td style={{ padding: '6px 0', textAlign: 'right', fontFamily: 'monospace', fontWeight: 500, color: 'var(--text-primary)' }}>
+            <td style={{ padding: '10px 8px', color: 'var(--text-secondary)', fontSize: 13, width: '50%' }}>Gold/Silver Ratio</td>
+            <td style={{ padding: '10px 8px', textAlign: 'right', fontFamily: 'var(--font-mono)', fontWeight: 600, fontSize: 14, color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}>
               {gsRatio != null ? `${gsRatio.toFixed(2)}x` : '—'}
             </td>
           </tr>

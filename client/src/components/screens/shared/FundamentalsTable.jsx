@@ -208,11 +208,11 @@ export function FundamentalsTable({ tickers, metrics = null, title, onTickerClic
 
   if (loading) return <DeepSkeleton rows={8} />;
   if (error) return <DeepError message={`Error: ${error}`} />;
-  if (!mergedData || mergedData.length === 0) return <div style={{ padding: '10px', color: 'var(--text-muted)', fontSize: 10 }}>No data</div>;
+  if (!mergedData || mergedData.length === 0) return <div style={{ padding: '12px', color: 'var(--text-muted)', fontSize: 12 }}>No data</div>;
 
   return (
-    <div style={{ padding: '0 6px', overflow: 'auto' }}>
-      {title && <div style={{ fontSize: 9, color: 'var(--text-muted)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>{title}</div>}
+    <div style={{ padding: '0 12px', overflow: 'auto' }}>
+      {title && <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 0.8, fontWeight: 600 }}>{title}</div>}
       <table className="ds-table">
         <thead>
           <tr>

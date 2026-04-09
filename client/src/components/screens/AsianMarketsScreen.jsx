@@ -121,7 +121,9 @@ function MacroDashboard() {
         const res = await apiFetch('/api/macro/compare?countries=JP,CN,IN,KR&indicators=policyRate,cpiYoY,gdpGrowth');
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = await res.json();
-        setData(json.data || json || []);
+        // Extract countries array from the nested response structure
+        const countries = json?.data?.countries || json?.countries || [];
+        setData(Array.isArray(countries) ? countries : []);
       } catch (err) {
         setError(err.message);
         setData([]);
@@ -173,7 +175,7 @@ function MacroDashboard() {
           </tr>
         </thead>
         <tbody>
-          {data.map((row, idx) => (
+          {Array.isArray(data) ? data.map((row, idx) => (
             <tr key={idx}>
               <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{row.country || '—'}</td>
               <td style={getCellColor('policyRate', row.policyRate)}>
@@ -186,7 +188,7 @@ function MacroDashboard() {
                 {row.gdpGrowth != null ? row.gdpGrowth.toFixed(2) : '—'}
               </td>
             </tr>
-          ))}
+          )) : null}
         </tbody>
       </table>
     </div>

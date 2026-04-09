@@ -157,19 +157,49 @@ const DiCurveComponent = memo(function DiCurveComponent() {
 
   if (loading) return <DeepSkeleton rows={6} />;
   if (error) return <DeepError message={error} />;
-  if (chartData.length === 0) return <div style={{ padding: '10px', color: 'var(--text-muted)', fontSize: 10 }}>DI curve data unavailable</div>;
+  if (chartData.length === 0) return <div style={{ padding: '12px', color: 'var(--text-muted)', fontSize: 12 }}>DI curve data unavailable</div>;
 
   return (
-    <div style={{ padding: '8px', height: '240px' }}>
+    <div style={{ padding: '12px', height: '260px' }}>
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={chartData} margin={{ top: 8, right: 16, bottom: 24, left: 40 }}>
-          <XAxis dataKey="label" style={{ fontSize: 8, fill: 'var(--text-muted)' }} />
-          <YAxis style={{ fontSize: 8, fill: 'var(--text-muted)' }} />
-          <Tooltip
-            contentStyle={{ background: 'var(--bg-panel)', border: '1px solid var(--border-default)', borderRadius: 3 }}
-            labelStyle={{ color: 'var(--text-primary)', fontSize: 9 }}
+        <LineChart data={chartData} margin={{ top: 12, right: 20, bottom: 40, left: 48 }}>
+          <defs>
+            <linearGradient id="diCurveGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="var(--semantic-up)" stopOpacity={0.3} />
+              <stop offset="100%" stopColor="var(--semantic-up)" stopOpacity={0.02} />
+            </linearGradient>
+          </defs>
+          <XAxis
+            dataKey="label"
+            tick={{ fontSize: 10, fill: 'var(--text-muted)' }}
+            angle={-35}
+            textAnchor="end"
+            height={50}
+            tickLine={{ stroke: 'var(--border-subtle)' }}
+            axisLine={{ stroke: 'var(--border-subtle)' }}
           />
-          <Line type="monotone" dataKey="rate" stroke="var(--semantic-up)" strokeWidth={2} dot={false} isAnimationActive={false} />
+          <YAxis
+            tick={{ fontSize: 10, fill: 'var(--text-muted)' }}
+            tickFormatter={(v) => `${v.toFixed(1)}%`}
+            width={50}
+            tickLine={{ stroke: 'var(--border-subtle)' }}
+            axisLine={{ stroke: 'var(--border-subtle)' }}
+          />
+          <Tooltip
+            contentStyle={{ background: 'var(--bg-panel)', border: '1px solid var(--border-default)', borderRadius: 6, padding: '8px 12px' }}
+            labelStyle={{ color: 'var(--text-primary)', fontSize: 12, fontWeight: 600, marginBottom: 4 }}
+            itemStyle={{ color: 'var(--text-secondary)', fontSize: 12 }}
+            formatter={(val) => [`${Number(val).toFixed(2)}%`, 'Rate']}
+          />
+          <Line
+            type="monotone"
+            dataKey="rate"
+            stroke="var(--semantic-up)"
+            strokeWidth={2.5}
+            dot={{ r: 3, fill: 'var(--semantic-up)', strokeWidth: 0 }}
+            activeDot={{ r: 5, fill: 'var(--semantic-up)', stroke: 'rgba(255,255,255,0.3)', strokeWidth: 2 }}
+            isAnimationActive={false}
+          />
         </LineChart>
       </ResponsiveContainer>
     </div>
@@ -386,9 +416,10 @@ const FundamentalsComponent = memo(function FundamentalsComponent() {
 /* ── MiniFinancials Strip Component ────────────────────────────────────── */
 function BrazilMiniFinStrip() {
   return (
-    <div style={{ display: 'flex', gap: 8, padding: '0 6px', overflowX: 'auto' }}>
+    <div style={{ display: 'flex', gap: 12, padding: '4px 12px', overflowX: 'auto' }}>
       {['PBR', 'VALE', 'ITUB'].map(t => (
-        <div key={t} style={{ flex: '1 0 140px', minWidth: 140 }}>
+        <div key={t} style={{ flex: '0 0 auto', width: 220, minWidth: 200, border: '1px solid var(--border-default)', borderRadius: 6, padding: '10px 12px', background: 'var(--bg-panel)', boxSizing: 'border-box' }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 8 }}>{t}</div>
           <MiniFinancials ticker={t} accentColor="#4caf50" />
         </div>
       ))}

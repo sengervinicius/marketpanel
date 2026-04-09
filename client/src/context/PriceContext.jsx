@@ -22,12 +22,77 @@
  *         refreshed on the same cycle, via the correct endpoint. Mismatches
  *         are structurally impossible.
  */
-import { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useRef, useCallback, useSyncExternalStore } from 'react';
 import { apiFetch } from '../utils/api';
 
 const REFRESH_MS = 6_000;
 
 const PriceCtx = createContext(null);
+
+/**
+ * Subscription-based extras store.
+ * Instead of React state (which re-renders the Provider + all consumers on every update),
+ * this uses a pub/sub model where each useTickerPrice only re-renders when ITS ticker changes.
+ */
+function createExtrasStore() {
+  let data = {};
+  const listeners = new Map(); // ticker → Set<callback>
+  const globalListeners = new Set();
+
+  // Batch pending updates — flush on next animation frame
+  let pendingUpdates = null;
+  let rafId = null;
+
+  function flush() {
+    if (!pendingUpdates) return;
+    const updates = pendingUpdates;
+    pendingUpdates = null;
+    rafId = null;
+
+    // Apply all pending updates at once
+    data = { ...data, ...updates };
+
+    // Notify only the affected tickers' listeners
+    for (const ticker of Object.keys(updates)) {
+      const set = listeners.get(ticker);
+      if (set) set.forEach(cb => cb());
+    }
+    // Notify global listeners (for context value stability)
+    globalListeners.forEach(cb => cb());
+  }
+
+  return {
+    get(ticker) {
+      return data[ticker] ?? null;
+    },
+    getAll() {
+      return data;
+    },
+    set(ticker, value) {
+      // Queue the update
+      if (!pendingUpdates) pendingUpdates = {};
+      pendingUpdates[ticker] = value;
+      // Schedule flush on next frame (batches rapid sequential updates)
+      if (!rafId) rafId = requestAnimationFrame(flush);
+    },
+    delete(ticker) {
+      const next = { ...data };
+      delete next[ticker];
+      data = next;
+      const set = listeners.get(ticker);
+      if (set) set.forEach(cb => cb());
+    },
+    subscribe(ticker, callback) {
+      if (!listeners.has(ticker)) listeners.set(ticker, new Set());
+      listeners.get(ticker).add(callback);
+      return () => listeners.get(ticker)?.delete(callback);
+    },
+    subscribeGlobal(callback) {
+      globalListeners.add(callback);
+      return () => globalListeners.delete(callback);
+    },
+  };
+}
 
 // Known crypto base symbols whose bare 6-char pairs (e.g. BTCUSD) would otherwise
 // be misclassified as FX by the /^[A-Z]{6}$/ regex below.
@@ -69,10 +134,17 @@ function lookupInBatch(marketData, ticker) {
 export function PriceProvider({ marketData, children }) {
   // Keep a ref so interval callbacks always read the freshest batch data
   const mdRef = useRef(marketData);
-  useEffect(() => { mdRef.current = marketData; }, [marketData]);
+  useEffect(() => {
+    mdRef.current = marketData;
+    mdRef_global = marketData;
+    _notifyBatchUpdate();
+  }, [marketData]);
 
   // Extra prices for tickers NOT covered by the static batch
-  const [extras, setExtras] = useState({});
+  // Uses subscription store to avoid re-rendering provider on every ticker update
+  const extrasStoreRef = useRef(null);
+  if (!extrasStoreRef.current) extrasStoreRef.current = createExtrasStore();
+  const extrasStore = extrasStoreRef.current;
 
   // ticker → subscriber count (so 10 MiniCharts on the same ticker = 1 interval)
   const refCounts = useRef(new Map());
@@ -155,14 +227,11 @@ export function PriceProvider({ marketData, children }) {
       if (price == null) return;
       // Reset error count on successful fetch
       fetchErrors.current.set(ticker, 0);
-      setExtras(prev => ({
-        ...prev,
-        [ticker]: {
-          price,
-          changePct: t?.todaysChangePerc ?? null,
-          change:    t?.todaysChange     ?? null,
-        },
-      }));
+      extrasStore.set(ticker, {
+        price,
+        changePct: t?.todaysChangePerc ?? null,
+        change:    t?.todaysChange     ?? null,
+      });
     } catch (e) {
       if (e.name === 'AbortError') return; // unmount — don't track as failure
       console.warn('[PriceContext] fetch error:', e.message);
@@ -214,7 +283,7 @@ export function PriceProvider({ marketData, children }) {
       refCounts.current.delete(ticker);
       const id = intervalIds.current.get(ticker);
       if (id) { clearInterval(id); intervalIds.current.delete(ticker); }
-      setExtras(p => { const n = { ...p }; delete n[ticker]; return n; });
+      extrasStore.delete(ticker);
     } else {
       refCounts.current.set(ticker, prev - 1);
     }
@@ -226,15 +295,23 @@ export function PriceProvider({ marketData, children }) {
   }, []);
 
   // getPrice: always prefer batch (authoritative, already on 6s cycle)
-  // Fall back to extras for custom tickers.
-  // Uses mdRef.current so it always reads the freshest batch without needing
-  // marketData in the dep list (which would recreate the fn every 6s for nothing).
+  // Fall back to extras store for custom tickers.
+  // This function is STABLE — it never changes reference. Individual consumers
+  // re-render via useSyncExternalStore subscriptions, not context value changes.
   const getPrice = useCallback((ticker) => {
-    return lookupInBatch(mdRef.current, ticker) ?? extras[ticker] ?? null;
-  }, [extras]); // re-derive when extras map changes so consumers re-render
+    return lookupInBatch(mdRef.current, ticker) ?? extrasStore.get(ticker) ?? null;
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Context value is now STABLE — getPrice, register, unregister never change.
+  // This means the Provider never forces a re-render on its children.
+  const ctxValue = useRef({ getPrice, register, unregister, extrasStore });
+  ctxValue.current.getPrice = getPrice;
+  ctxValue.current.register = register;
+  ctxValue.current.unregister = unregister;
+  ctxValue.current.extrasStore = extrasStore;
 
   return (
-    <PriceCtx.Provider value={{ getPrice, register, unregister }}>
+    <PriceCtx.Provider value={ctxValue.current}>
       {children}
     </PriceCtx.Provider>
   );
@@ -271,6 +348,47 @@ export function useTickerPrice(ticker) {
     return () => unregisterRef.current?.(ticker);
   }, [ticker]);
 
+  // Subscribe to extras store for THIS ticker only.
+  // When this ticker's data changes, only THIS component re-renders.
+  // useSyncExternalStore gives us tear-free reads + selective re-renders.
+  const extrasStore = ctx?.extrasStore;
+  const subscribe = useCallback(
+    (onStoreChange) => {
+      if (!ticker || !extrasStore) return () => {};
+      return extrasStore.subscribe(ticker, onStoreChange);
+    },
+    [ticker, extrasStore]
+  );
+  const getSnapshot = useCallback(() => {
+    if (!ticker || !ctx) return null;
+    return lookupInBatch(mdRef_global, ticker) ?? extrasStore?.get(ticker) ?? null;
+  }, [ticker, ctx, extrasStore]);
+
+  // Also re-render when the batch marketData updates (every 6s)
+  // We detect this via a simple version counter
+  const batchVersion = useBatchVersion();
+
+  const extrasData = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+
   if (!ticker || !ctx) return null;
+  // Re-derive from getPrice which checks batch first, then extras
   return ctx.getPrice(ticker);
+}
+
+// Global ref for batch data so getSnapshot can access it without closure issues
+let mdRef_global = null;
+
+// Tiny hook to force re-render when batch data updates (every 6s)
+const batchListeners = new Set();
+let batchVer = 0;
+export function _notifyBatchUpdate() {
+  batchVer++;
+  batchListeners.forEach(cb => cb());
+}
+function useBatchVersion() {
+  return useSyncExternalStore(
+    (cb) => { batchListeners.add(cb); return () => batchListeners.delete(cb); },
+    () => batchVer,
+    () => batchVer,
+  );
 }

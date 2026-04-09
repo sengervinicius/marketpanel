@@ -61,26 +61,26 @@ export const KPICard = memo(function KPICard({
     <div style={{
       display: 'flex',
       flexDirection: 'column',
-      gap: 2,
-      padding: small ? '6px 8px' : '8px 12px',
+      gap: 4,
+      padding: small ? '8px 10px' : '10px 14px',
       background: 'var(--bg-elevated)',
-      border: '1px solid rgba(255,255,255,0.05)',
-      borderRadius: 4,
-      minWidth: small ? 80 : 100,
+      border: '1px solid rgba(255,255,255,0.06)',
+      borderRadius: 6,
+      minWidth: small ? 90 : 110,
       flex: '1 1 0',
     }}>
       <span style={{
-        fontSize: 8,
+        fontSize: 10,
         fontWeight: 600,
-        color: 'var(--text-faint)',
+        color: 'var(--text-muted)',
         letterSpacing: '0.8px',
         textTransform: 'uppercase',
-        lineHeight: 1,
+        lineHeight: 1.2,
       }}>
         {label}
       </span>
       <span style={{
-        fontSize: small ? 14 : 16,
+        fontSize: small ? 15 : 17,
         fontWeight: 700,
         color: accentColor || 'var(--text-primary)',
         fontFamily: 'var(--font-mono)',
@@ -91,7 +91,7 @@ export const KPICard = memo(function KPICard({
       </span>
       {change != null && (
         <span style={{
-          fontSize: 10,
+          fontSize: 11,
           fontWeight: 600,
           color: changeColor,
           fontFamily: 'var(--font-mono)',
@@ -112,8 +112,8 @@ export const KPIRibbon = memo(function KPIRibbon({ items = [], accentColor }) {
   return (
     <div style={{
       display: 'flex',
-      gap: 6,
-      padding: '4px 0',
+      gap: 8,
+      padding: '6px 4px',
       overflowX: 'auto',
       scrollbarWidth: 'none',
     }}>
@@ -151,10 +151,10 @@ export const HeatmapCell = memo(function HeatmapCell({ value, format = 'pct', in
       background: bg,
       color,
       fontWeight: 600,
-      fontSize: 11,
+      fontSize: 12,
       fontFamily: 'var(--font-mono)',
       fontVariantNumeric: 'tabular-nums',
-      padding: '4px 8px',
+      padding: '6px 10px',
       textAlign: 'right',
       whiteSpace: 'nowrap',
       transition: 'background 0.3s ease',
@@ -316,11 +316,11 @@ function TickerChip({ ticker, onClick }) {
       style={{
         display: 'flex',
         alignItems: 'center',
-        gap: 4,
-        padding: '3px 8px',
+        gap: 6,
+        padding: '6px 10px',
         background: 'var(--bg-elevated)',
         border: '1px solid rgba(255,255,255,0.06)',
-        borderRadius: 3,
+        borderRadius: 4,
         cursor: 'pointer',
         flexShrink: 0,
         transition: 'border-color 0.15s',
@@ -328,7 +328,7 @@ function TickerChip({ ticker, onClick }) {
       }}
     >
       <span style={{
-        fontSize: 10,
+        fontSize: 11,
         fontWeight: 700,
         color: 'var(--text-primary)',
         letterSpacing: '0.3px',
@@ -337,7 +337,7 @@ function TickerChip({ ticker, onClick }) {
       </span>
       {changePct != null && (
         <span style={{
-          fontSize: 9,
+          fontSize: 11,
           fontWeight: 600,
           color: isUp ? 'var(--semantic-up)' : 'var(--semantic-down)',
         }}>
@@ -352,8 +352,8 @@ export const TickerRibbon = memo(function TickerRibbon({ tickers = [], onClick }
   return (
     <div style={{
       display: 'flex',
-      gap: 4,
-      padding: '4px 0',
+      gap: 8,
+      padding: '6px 0',
       overflowX: 'auto',
       scrollbarWidth: 'none',
     }}>

@@ -157,12 +157,17 @@ const EtfStrip = memo(function EtfStrip() {
 });
 
 /* ── MiniFinancials Strip Component ────────────────────────────────────── */
-function RetailMiniFinStrip() {
+function RetailMiniFinStrip({ statsMap }) {
   return (
-    <div style={{ display: 'flex', gap: 8, padding: '0 6px', overflowX: 'auto' }}>
+    <div style={{ display: 'flex', gap: 12, padding: '4px 12px', overflowX: 'auto' }}>
       {['AMZN', 'WMT', 'COST'].map(t => (
-        <div key={t} style={{ flex: '1 0 140px', minWidth: 140 }}>
-          <MiniFinancials ticker={t} accentColor="#e91e63" />
+        <div key={t} style={{ flex: '0 0 auto', width: 220, minWidth: 200, border: '1px solid var(--border-default)', borderRadius: 6, padding: '10px 12px', background: 'var(--bg-panel)', boxSizing: 'border-box' }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 8 }}>{t}</div>
+          <MiniFinancials
+            ticker={t}
+            accentColor="#e91e63"
+            statsData={statsMap.get(t)}
+          />
         </div>
       ))}
     </div>
@@ -264,7 +269,7 @@ function GlobalRetailScreenImpl() {
       id: 'minifinancials',
       title: 'TOP 3 FINANCIALS',
       span: 'full',
-      component: RetailMiniFinStrip,
+      component: () => <RetailMiniFinStrip statsMap={statsMap} />,
     },
     {
       id: 'fundamentals',

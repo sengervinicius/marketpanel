@@ -479,12 +479,17 @@ const TickerRibbonComponent = memo(function TickerRibbonComponent() {
 });
 
 /* ── MiniFinancials Strip Component ────────────────────────────────────── */
-function CryptoMiniFinStrip() {
+function CryptoMiniFinStrip({ statsMap }) {
   return (
-    <div style={{ display: 'flex', gap: 8, padding: '0 6px', overflowX: 'auto' }}>
+    <div style={{ display: 'flex', gap: 12, padding: '4px 12px', overflowX: 'auto' }}>
       {['MSTR', 'COIN', 'MARA'].map(t => (
-        <div key={t} style={{ flex: '1 0 140px', minWidth: 140 }}>
-          <MiniFinancials ticker={t} accentColor="#f7931a" />
+        <div key={t} style={{ flex: '0 0 auto', width: 220, minWidth: 200, border: '1px solid var(--border-default)', borderRadius: 6, padding: '10px 12px', background: 'var(--bg-panel)', boxSizing: 'border-box' }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 8 }}>{t}</div>
+          <MiniFinancials
+            ticker={t}
+            accentColor="#f7931a"
+            statsData={statsMap.get(t)}
+          />
         </div>
       ))}
     </div>
@@ -549,7 +554,7 @@ function CryptoScreenImpl() {
       id: 'minifinancials',
       title: 'TOP 3 FINANCIALS',
       span: 'full',
-      component: CryptoMiniFinStrip,
+      component: () => <CryptoMiniFinStrip statsMap={statsMap} />,
     },
     {
       id: 'btc-onchain',

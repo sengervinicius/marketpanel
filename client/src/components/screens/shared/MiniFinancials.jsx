@@ -37,14 +37,37 @@ const FETCH_TIMEOUT = 25000;
 const MAX_RETRIES = 2;
 const RETRY_DELAY = 2000;
 
-export const MiniFinancials = memo(function MiniFinancials({ ticker, accentColor = '#4a90d9', onError }) {
+export const MiniFinancials = memo(function MiniFinancials({ ticker, accentColor = '#4a90d9', onError, statsData }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const onErrorRef = useRef(onError);
   onErrorRef.current = onError;
 
+  // Helper to build financial snapshot from statsData (from useDeepScreenData)
+  const buildDataFromStats = (stats) => {
+    if (!stats) return null;
+    // Create a minimal 1-year snapshot from available stats data
+    return [{
+      year: new Date().getFullYear().toString(),
+      revenue: stats.revenue || null,
+      netIncome: stats.net_income || null,
+      pe: stats.pe_ratio || null,
+      marketCap: stats.market_capitalization || null,
+      grossMargin: stats.gross_margin || null,
+      profitMargin: stats.profit_margin || null,
+    }];
+  };
+
   useEffect(() => {
     if (!ticker) { setLoading(false); return; }
+
+    // If statsData is provided, use it instead of API call
+    if (statsData && Object.keys(statsData).length > 0) {
+      const snapshot = buildDataFromStats(statsData);
+      setData(snapshot);
+      setLoading(false);
+      return;
+    }
 
     let cancelled = false;
     const controller = new AbortController();
@@ -114,12 +137,12 @@ export const MiniFinancials = memo(function MiniFinancials({ ticker, accentColor
 
     fetchData();
     return () => { cancelled = true; controller.abort(); clearTimeout(timer); };
-  }, [ticker]);
+  }, [ticker, statsData]);
 
   /* ── Loading state: shimmer ─────────────────────────────────────────── */
   if (loading) {
     return (
-      <div style={{ width: '100%', maxWidth: 200, padding: '4px 0' }}>
+      <div style={{ width: '100%', minWidth: 180, maxWidth: 240, padding: '4px 0' }}>
         <div style={{
           height: 72,
           background: 'linear-gradient(90deg, rgba(255,255,255,0.03) 25%, rgba(255,255,255,0.06) 50%, rgba(255,255,255,0.03) 75%)',
@@ -136,17 +159,18 @@ export const MiniFinancials = memo(function MiniFinancials({ ticker, accentColor
     return (
       <div style={{
         width: '100%',
-        maxWidth: 200,
+        minWidth: 180,
+        maxWidth: 240,
         height: 72,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        opacity: 0.25,
-        fontSize: 9,
-        color: 'var(--text-faint)',
+        opacity: 0.5,
+        fontSize: 11,
+        color: 'var(--text-muted)',
         letterSpacing: '0.5px',
       }}>
-        NO DATA
+        Financial data unavailable
       </div>
     );
   }
@@ -156,17 +180,18 @@ export const MiniFinancials = memo(function MiniFinancials({ ticker, accentColor
     return (
       <div style={{
         width: '100%',
-        maxWidth: 200,
+        minWidth: 180,
+        maxWidth: 240,
         height: 72,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        opacity: 0.25,
-        fontSize: 9,
-        color: 'var(--text-faint)',
+        opacity: 0.5,
+        fontSize: 11,
+        color: 'var(--text-muted)',
         letterSpacing: '0.5px',
       }}>
-        NO DATA
+        Financial data unavailable
       </div>
     );
   }
@@ -176,8 +201,9 @@ export const MiniFinancials = memo(function MiniFinancials({ ticker, accentColor
   return (
     <div style={{
       width: '100%',
-      maxWidth: 200,
-      padding: '2px 0',
+      minWidth: 180,
+      maxWidth: 240,
+      padding: '4px 0',
       fontFamily: 'var(--font-mono)',
       fontVariantNumeric: 'tabular-nums',
     }}>
@@ -186,14 +212,14 @@ export const MiniFinancials = memo(function MiniFinancials({ ticker, accentColor
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 4,
-        paddingBottom: 2,
-        borderBottom: '1px solid rgba(255,255,255,0.04)',
+        marginBottom: 6,
+        paddingBottom: 3,
+        borderBottom: '1px solid rgba(255,255,255,0.06)',
       }}>
         <span style={{
-          fontSize: 8,
+          fontSize: 10,
           fontWeight: 600,
-          color: 'var(--text-faint)',
+          color: 'var(--text-secondary)',
           letterSpacing: '0.8px',
           textTransform: 'uppercase',
         }}>
@@ -217,14 +243,14 @@ export const MiniFinancials = memo(function MiniFinancials({ ticker, accentColor
           <div key={idx} style={{
             display: 'flex',
             alignItems: 'center',
-            gap: 4,
-            height: 18,
-            marginBottom: idx < data.length - 1 ? 2 : 0,
+            gap: 6,
+            height: 20,
+            marginBottom: idx < data.length - 1 ? 3 : 0,
           }}>
             {/* Year */}
             <span style={{
-              width: 26,
-              fontSize: 9,
+              width: 28,
+              fontSize: 11,
               color: 'var(--text-muted)',
               fontWeight: 500,
               flexShrink: 0,
@@ -252,9 +278,9 @@ export const MiniFinancials = memo(function MiniFinancials({ ticker, accentColor
 
             {/* Revenue value */}
             <span style={{
-              width: 36,
+              width: 48,
               textAlign: 'right',
-              fontSize: 9,
+              fontSize: 11,
               color: 'var(--text-primary)',
               fontWeight: 500,
               flexShrink: 0,
@@ -264,9 +290,9 @@ export const MiniFinancials = memo(function MiniFinancials({ ticker, accentColor
 
             {/* YoY growth arrow */}
             <span style={{
-              width: 32,
+              width: 38,
               textAlign: 'right',
-              fontSize: 8,
+              fontSize: 10,
               fontWeight: 600,
               flexShrink: 0,
               color: yoyGrowth == null ? 'transparent'

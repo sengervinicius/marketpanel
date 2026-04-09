@@ -90,8 +90,35 @@ export function InsiderActivity({ tickers, limit = 5, onTickerClick }) {
   if (error) return <DeepError message={`Error: ${error}`} />;
   if (!data || data.length === 0) {
     return (
-      <div style={{ padding: '10px', color: 'var(--text-muted)', fontSize: 10, textAlign: 'center' }}>
-        No insider activity
+      <div style={{
+        padding: '16px',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: '120px',
+        background: 'rgba(76, 175, 80, 0.02)',
+        borderRadius: 4,
+        border: '1px solid rgba(76, 175, 80, 0.1)',
+      }}>
+        <div style={{
+          fontSize: 11,
+          fontWeight: 600,
+          color: 'var(--text-primary)',
+          marginBottom: 4,
+          textTransform: 'uppercase',
+          letterSpacing: '0.5px',
+        }}>
+          Insider Data
+        </div>
+        <div style={{
+          fontSize: 9,
+          color: 'var(--text-muted)',
+          textAlign: 'center',
+          lineHeight: 1.4,
+        }}>
+          Requires premium data feed
+        </div>
       </div>
     );
   }

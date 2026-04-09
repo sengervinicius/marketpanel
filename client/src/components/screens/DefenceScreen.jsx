@@ -129,7 +129,12 @@ function SectionTableRow({ sym, name, statsMap, onClickRow, withMiniCharts, acce
       </td>
       {withMiniCharts && (
         <td style={{ padding: '2px 4px', width: 200, minWidth: 180 }}>
-          <MiniFinancials ticker={sym} accentColor={accentColor || '#4a90d9'} onError={() => {}} />
+          <MiniFinancials
+            ticker={sym}
+            accentColor={accentColor || '#4a90d9'}
+            onError={() => {}}
+            statsData={stats}
+          />
         </td>
       )}
     </tr>

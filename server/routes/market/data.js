@@ -23,7 +23,7 @@
 const express = require('express');
 const router  = express.Router();
 const { cacheGet, cacheSet, TTL } = require('./lib/cache');
-const { polyFetch, eulerpool, twelvedata, sendError, yahooQuote } = require('./lib/providers');
+const { polyFetch, eulerpool, twelvedata, sendError, yahooQuote, yahooQuoteSummary } = require('./lib/providers');
 const logger = require('../../utils/logger');
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -183,18 +183,24 @@ router.get('/market/fundamentals/batch', async (req, res) => {
             pe: q.trailingPE ?? q.forwardPE ?? null,
             eps: q.epsTrailingTwelveMonths ?? null,
             marketCap: q.marketCap ?? null,
-            revenue: null,
-            ebitda: null,
-            grossMargins: null,
-            operatingMargins: null,
-            profitMargins: null,
-            totalCash: null,
-            totalDebt: null,
-            returnOnEquity: null,
+            revenue: null, ebitda: null, grossMargins: null,
+            operatingMargins: null, profitMargins: null,
+            totalCash: null, totalDebt: null, returnOnEquity: null,
             beta: null,
             sharesOutstanding: q.sharesOutstanding ?? null,
+            dividendYield: q.trailingAnnualDividendYield ?? null,
+            fiftyTwoWeekLow: q.fiftyTwoWeekLow ?? null,
+            fiftyTwoWeekHigh: q.fiftyTwoWeekHigh ?? null,
           };
         }
+        // Enrich .SA tickers with quoteSummary data (revenue, margins, etc.)
+        const saEnrich = saTickers.slice(0, 8).map(async (t) => {
+          try {
+            const qs = await yahooQuoteSummary(t);
+            if (qs && data[t.toUpperCase()]) Object.assign(data[t.toUpperCase()], { ...qs, ...Object.fromEntries(Object.entries(data[t.toUpperCase()]).filter(([, v]) => v != null)) });
+          } catch (e) { console.warn(`[fundamentals] quoteSummary ${t}:`, e.message); }
+        });
+        await Promise.allSettled(saEnrich);
       } catch (e) {
         console.warn('[fundamentals/batch] Yahoo .SA fallback failed:', e.message);
       }
@@ -213,18 +219,31 @@ router.get('/market/fundamentals/batch', async (req, res) => {
             pe: q.trailingPE ?? q.forwardPE ?? null,
             eps: q.epsTrailingTwelveMonths ?? null,
             marketCap: q.marketCap ?? null,
-            revenue: null,
-            ebitda: null,
-            grossMargins: null,
-            operatingMargins: null,
-            profitMargins: null,
-            totalCash: null,
-            totalDebt: null,
-            returnOnEquity: null,
+            revenue: null, ebitda: null, grossMargins: null,
+            operatingMargins: null, profitMargins: null,
+            totalCash: null, totalDebt: null, returnOnEquity: null,
             beta: null,
             sharesOutstanding: q.sharesOutstanding ?? null,
+            dividendYield: q.trailingAnnualDividendYield ?? null,
+            fiftyTwoWeekLow: q.fiftyTwoWeekLow ?? null,
+            fiftyTwoWeekHigh: q.fiftyTwoWeekHigh ?? null,
           };
         }
+        // Enrich missing tickers with quoteSummary data (revenue, margins, etc.)
+        const enrichTickers = missing.slice(0, 10);
+        const enrichJobs = enrichTickers.map(async (t) => {
+          try {
+            const qs = await yahooQuoteSummary(t);
+            const sym = t.toUpperCase();
+            if (qs && data[sym]) {
+              // quoteSummary fills nulls, existing non-null values preserved
+              for (const [k, v] of Object.entries(qs)) {
+                if (data[sym][k] == null && v != null) data[sym][k] = v;
+              }
+            }
+          } catch (e) { console.warn(`[fundamentals] quoteSummary ${t}:`, e.message); }
+        });
+        await Promise.allSettled(enrichJobs);
       } catch (e) {
         console.warn('[fundamentals/batch] Yahoo fallback failed:', e.message);
       }
@@ -335,10 +354,13 @@ router.get('/market/snapshot/:ticker', async (req, res) => {
     const cached = cacheGet(ck);
     if (cached) return res.json({ ok: true, data: cached, source: 'polygon' });
 
-    const data = await polyFetch(`/v2/snapshot/locale/us/markets/stocks/tickers/${encodeURIComponent(ticker)}`);
+    const data = await polyFetch(
+      `/v2/snapshot/locale/us/markets/stocks/tickers/${encodeURIComponent(ticker)}`,
+      { priority: 10, label: 'snapshot' }  // High priority for snapshots
+    );
 
     const snapshot = data?.ticker ?? data;
-    if (snapshot) cacheSet(ck, snapshot, 30_000); // 30s cache
+    if (snapshot) cacheSet(ck, snapshot, 60_000); // Increased to 60s cache
 
     res.json({ ok: true, data: snapshot || null, source: 'polygon' });
   } catch (e) {
@@ -362,11 +384,12 @@ router.get('/market/financials/:ticker', async (req, res) => {
     if (cached) return res.json({ ok: true, data: cached, source: 'polygon' });
 
     const data = await polyFetch(
-      `/vX/reference/financials?ticker=${encodeURIComponent(ticker)}&limit=${limit}&timeframe=${timeframe}&order=desc&sort=filing_date`
+      `/vX/reference/financials?ticker=${encodeURIComponent(ticker)}&limit=${limit}&timeframe=${timeframe}&order=desc&sort=filing_date`,
+      { priority: 2, label: 'financials' }  // Lower priority, bulk data
     );
 
     const results = data?.results ?? [];
-    if (results.length > 0) cacheSet(ck, results, 600_000); // 10 min
+    if (results.length > 0) cacheSet(ck, results, 300_000); // Increased to 5 min (300s)
 
     res.json({ ok: true, data: results, ticker, timeframe, source: 'polygon' });
   } catch (e) {
@@ -389,11 +412,12 @@ router.get('/market/dividends/:ticker', async (req, res) => {
     if (cached) return res.json({ ok: true, data: cached, source: 'polygon' });
 
     const data = await polyFetch(
-      `/v3/reference/dividends?ticker=${encodeURIComponent(ticker)}&limit=${limit}&order=desc&sort=ex_dividend_date`
+      `/v3/reference/dividends?ticker=${encodeURIComponent(ticker)}&limit=${limit}&order=desc&sort=ex_dividend_date`,
+      { priority: 2, label: 'dividends' }  // Lower priority
     );
 
     const results = data?.results ?? [];
-    if (results.length > 0) cacheSet(ck, results, 600_000);
+    if (results.length > 0) cacheSet(ck, results, 300_000); // Increased to 5 min (300s)
 
     res.json({ ok: true, data: results, ticker, source: 'polygon' });
   } catch (e) {
@@ -416,11 +440,12 @@ router.get('/market/splits/:ticker', async (req, res) => {
     if (cached) return res.json({ ok: true, data: cached, source: 'polygon' });
 
     const data = await polyFetch(
-      `/v3/reference/stock_splits?ticker=${encodeURIComponent(ticker)}&limit=${limit}&order=desc&sort=execution_date`
+      `/v3/reference/stock_splits?ticker=${encodeURIComponent(ticker)}&limit=${limit}&order=desc&sort=execution_date`,
+      { priority: 2, label: 'splits' }  // Lower priority
     );
 
     const results = data?.results ?? [];
-    if (results.length > 0) cacheSet(ck, results, 600_000);
+    if (results.length > 0) cacheSet(ck, results, 300_000); // Increased to 5 min (300s)
 
     res.json({ ok: true, data: results, ticker, source: 'polygon' });
   } catch (e) {
@@ -449,10 +474,10 @@ router.get('/market/options-ref/:ticker', async (req, res) => {
     const cached = cacheGet(ck);
     if (cached) return res.json({ ok: true, data: cached, source: 'polygon' });
 
-    const data = await polyFetch(path);
+    const data = await polyFetch(path, { priority: 2, label: 'options-ref' }); // Lower priority
 
     const results = data?.results ?? [];
-    if (results.length > 0) cacheSet(ck, results, 300_000);
+    if (results.length > 0) cacheSet(ck, results, 300_000); // Increased to 5 min (300s)
 
     res.json({ ok: true, data: results, ticker, source: 'polygon' });
   } catch (e) {
@@ -494,15 +519,74 @@ router.get('/market/td/profile/:ticker', async (req, res) => {
 router.get('/market/td/statistics/:ticker', async (req, res) => {
   try {
     const ticker = req.params.ticker.toUpperCase();
-    if (!twelvedata.isConfigured()) return res.json({ ok: true, data: null, source: 'unavailable' });
-
     const ck = `td-stats:${ticker}`;
     const cached = cacheGet(ck);
-    if (cached) return res.json({ ok: true, data: cached, source: 'twelvedata' });
+    if (cached) return res.json({ ok: true, data: cached, source: 'cache' });
 
-    const data = await twelvedata.getStatistics(ticker);
+    // Try TwelveData first, fall back to Yahoo quoteSummary
+    let data = null;
+    let source = 'unavailable';
+
+    if (twelvedata.isConfigured()) {
+      try {
+        data = await twelvedata.getStatistics(ticker);
+        source = 'twelvedata';
+      } catch (e) { console.warn(`[td/statistics] TwelveData failed for ${ticker}:`, e.message); }
+    }
+
+    if (!data) {
+      // Yahoo quoteSummary fallback — provides revenue, margins, ROE, beta, etc.
+      try {
+        const qs = await yahooQuoteSummary(ticker);
+        const qt = (await yahooQuote(ticker))?.[0];
+        if (qs || qt) {
+          data = {
+            statistics: {
+              valuations_metrics: {
+                market_capitalization: qt?.marketCap ?? null,
+                trailing_pe: qt?.trailingPE ?? null,
+                forward_pe: qt?.forwardPE ?? null,
+                price_to_book: qs?.priceToBook ?? null,
+                enterprise_value: qs?.enterpriseValue ?? null,
+                peg_ratio: qs?.pegRatio ?? null,
+              },
+              financials: {
+                revenue: qs?.revenue ?? null,
+                ebitda: qs?.ebitda ?? null,
+                gross_margin: qs?.grossMargins != null ? (qs.grossMargins * 100) : null,
+                operating_margin: qs?.operatingMargins != null ? (qs.operatingMargins * 100) : null,
+                profit_margin: qs?.profitMargins != null ? (qs.profitMargins * 100) : null,
+                return_on_equity: qs?.returnOnEquity != null ? (qs.returnOnEquity * 100) : null,
+                return_on_assets: null,
+                revenue_per_share: null,
+                diluted_eps: qt?.epsTrailingTwelveMonths ?? null,
+                revenue_growth: qs?.revenueGrowth != null ? (qs.revenueGrowth * 100) : null,
+                earnings_growth: qs?.earningsGrowth != null ? (qs.earningsGrowth * 100) : null,
+                operating_cashflow: qs?.operatingCashflow ?? null,
+                free_cashflow: qs?.freeCashflow ?? null,
+              },
+              stock_price: {
+                beta: qs?.beta ?? null,
+                '52_week_low': qt?.fiftyTwoWeekLow ?? null,
+                '52_week_high': qt?.fiftyTwoWeekHigh ?? null,
+              },
+              dividends_and_splits: {
+                forward_annual_dividend_yield: qt?.trailingAnnualDividendYield != null ? (qt.trailingAnnualDividendYield * 100) : null,
+                trailing_annual_dividend_yield: qt?.trailingAnnualDividendYield != null ? (qt.trailingAnnualDividendYield * 100) : null,
+              },
+              stock_statistics: {
+                shares_outstanding: qt?.sharesOutstanding ?? null,
+                short_percent_of_float: qs?.shortPercentOfFloat != null ? (qs.shortPercentOfFloat * 100) : null,
+              },
+            },
+          };
+          source = 'yahoo';
+        }
+      } catch (e) { console.warn(`[td/statistics] Yahoo fallback failed for ${ticker}:`, e.message); }
+    }
+
     if (data) cacheSet(ck, data, 300_000);
-    res.json({ ok: true, data: data || null, source: 'twelvedata' });
+    res.json({ ok: true, data: data || null, source });
   } catch (e) {
     logger.warn(`GET /market/td/statistics/${req.params.ticker} error:`, e.message);
     res.status(500).json({ ok: false, error: e.message });

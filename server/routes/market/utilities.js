@@ -7,12 +7,15 @@ const path    = require('path');
 const fs      = require('fs');
 const router  = express.Router();
 const { yahooCache } = require('./lib/cache');
-const { polyFetch, sendError } = require('./lib/providers');
+const { polyFetch, polygonQueue, sendError } = require('./lib/providers');
 
 // ── /ticker/:symbol — Polygon ticker reference ─────────────────────
 router.get('/ticker/:symbol', async (req, res) => {
   try {
-    const data = await polyFetch(`/v3/reference/tickers/${req.params.symbol}`);
+    const data = await polyFetch(
+      `/v3/reference/tickers/${req.params.symbol}`,
+      { priority: 3, label: 'ticker-util' }  // Lower priority utility call
+    );
     res.json(data);
   } catch (e) {
     sendError(res, e);
@@ -22,7 +25,10 @@ router.get('/ticker/:symbol', async (req, res) => {
 // ── /status — Market open/close status ──────────────────────────────
 router.get('/status', async (req, res) => {
   try {
-    const data = await polyFetch('/v1/marketstatus/now');
+    const data = await polyFetch(
+      '/v1/marketstatus/now',
+      { priority: 7, label: 'market-status' }  // Higher priority for status checks
+    );
     res.json(data);
   } catch (e) {
     sendError(res, e);
@@ -60,9 +66,12 @@ router.post('/settings', (req, res) => {
   }
 });
 
-// ── /cache/stats — LRU cache diagnostics ────────────────────────────
+// ── /cache/stats — LRU cache + queue diagnostics ────────────────────
 router.get('/cache/stats', (req, res) => {
-  res.json(yahooCache.stats());
+  res.json({
+    yahooCache: yahooCache.stats(),
+    polygonQueue: polygonQueue.getStats(),
+  });
 });
 
 module.exports = router;
