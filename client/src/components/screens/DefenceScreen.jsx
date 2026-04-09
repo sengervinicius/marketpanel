@@ -12,6 +12,7 @@ import { SectorScatterPlot } from './shared/SectorScatterPlot';
 import { MiniFinancials } from './shared/MiniFinancials';
 import { InsiderActivity } from './shared/InsiderActivity';
 import { TableExportBar } from './shared/TableExportBar';
+import { KPIRibbon, TickerRibbon, heatColor } from './shared/SectorUI';
 import { useOpenDetail } from '../../context/OpenDetailContext';
 import { useTickerPrice } from '../../context/PriceContext';
 import { useDeepScreenData } from '../../hooks/useDeepScreenData';
@@ -59,6 +60,23 @@ const ALL_EQUITIES = [
   ...SPACE_CYBER
 ];
 
+/* ── KPI Ribbon for Defence Screen ─────────────────────────────────────── */
+const DefenceKPIRibbon = memo(function DefenceKPIRibbon() {
+  const ita = useTickerPrice('ITA');
+  const lmt = useTickerPrice('LMT');
+  const ba  = useTickerPrice('BA');
+  const rtx = useTickerPrice('RTX');
+
+  const items = [
+    { label: 'ITA ETF', value: ita?.price != null ? `$${fmt(ita.price)}` : '—', change: ita?.changePct },
+    { label: 'LMT', value: lmt?.price != null ? `$${fmt(lmt.price)}` : '—', change: lmt?.changePct },
+    { label: 'RTX', value: rtx?.price != null ? `$${fmt(rtx.price)}` : '—', change: rtx?.changePct },
+    { label: 'BA', value: ba?.price != null ? `$${fmt(ba.price)}` : '—', change: ba?.changePct },
+  ];
+
+  return <KPIRibbon items={items} accentColor="#ef5350" />;
+});
+
 /* ── Enhanced Table Row Component ──────────────────────────────────────── */
 function EnhancedTableRow({ symbol, label, stats, onClick, sectorName = null }) {
   const q = useTickerPrice(symbol);
@@ -98,7 +116,7 @@ function SectionTableRow({ sym, name, statsMap, onClickRow, withMiniCharts, acce
         {q?.price != null ? '$' + fmt(q.price, 2) : <span className="ds-dash">—</span>}
       </td>
       <td className={q?.changePct != null && q.changePct >= 0 ? 'ds-up' : 'ds-down'}
-          style={{ fontSize: 13, fontWeight: 600, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>
+          style={{ fontSize: 13, fontWeight: 600, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)', background: heatColor(q?.changePct), transition: 'background 0.3s' }}>
         {q?.changePct != null ? fmtPct(q?.changePct) : <span className="ds-dash">—</span>}
       </td>
       <td style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text-secondary)', fontVariantNumeric: 'tabular-nums' }}>
@@ -217,6 +235,12 @@ function DefenceScreenImpl() {
 
   /* ── Build section definitions ─────────────────────────────────────── */
   const sections = useMemo(() => [
+    {
+      id: 'kpi',
+      title: 'Key Metrics',
+      span: 'full',
+      component: () => <DefenceKPIRibbon />,
+    },
     {
       id: 'charts',
       title: 'Sector Charts',
@@ -353,10 +377,10 @@ function DefenceScreenImpl() {
       aiCacheKey="sector:defence"
     >
       <div style={{ padding: '12px', borderTop: '1px solid var(--border-default)' }}>
-        <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+        <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--text-faint)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.8px' }}>
           SECTOR ETFs
         </div>
-        <EtfStrip />
+        <TickerRibbon tickers={ETFS} onClick={openDetailWithContext} />
       </div>
     </FullPageScreenLayout>
   );
