@@ -17,6 +17,7 @@ import { useSectionData } from '../../hooks/useSectionData';
 import { useMultiScreenTickers } from '../../hooks/useMultiScreenTickers';
 import { apiFetch } from '../../utils/api';
 import { DeepSkeleton, DeepError, TickerCell, StatsLoadGate } from './DeepScreenBase';
+import { KPIRibbon } from './shared/SectorUI';
 
 /* ── Formatting utilities ──────────────────────────────────────────────── */
 const fmt = (n, d = 2) =>
@@ -363,8 +364,29 @@ function EuropeanMarketsScreenImpl() {
     refreshMs: 300000, // 5 min
   });
 
+  /* ── KPI Ribbon ────────────────────────────────────────────────────────── */
+  function EuropeKPIRibbon() {
+    const vgk = useTickerPrice('VGK');
+    const ezu = useTickerPrice('EZU');
+    const ewg = useTickerPrice('EWG');
+    const ewu = useTickerPrice('EWU');
+    const items = [
+      { label: 'EUROPE',   value: vgk?.price != null ? '$' + fmt(vgk.price) : '—', change: vgk?.changePct },
+      { label: 'EUROZONE', value: ezu?.price != null ? '$' + fmt(ezu.price) : '—', change: ezu?.changePct },
+      { label: 'GERMANY',  value: ewg?.price != null ? '$' + fmt(ewg.price) : '—', change: ewg?.changePct },
+      { label: 'UK',       value: ewu?.price != null ? '$' + fmt(ewu.price) : '—', change: ewu?.changePct },
+    ];
+    return <KPIRibbon items={items} accentColor="#3f51b5" />;
+  }
+
   /* ── Build section definitions ─────────────────────────────────────── */
   const sections = useMemo(() => [
+    {
+      id: 'kpi',
+      title: 'KEY METRICS',
+      span: 'full',
+      component: EuropeKPIRibbon,
+    },
     {
       id: 'charts',
       title: 'Sector Charts',

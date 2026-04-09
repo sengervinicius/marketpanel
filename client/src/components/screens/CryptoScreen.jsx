@@ -15,6 +15,7 @@ import { useDeepScreenData } from '../../hooks/useDeepScreenData';
 import { useSectionData } from '../../hooks/useSectionData';
 import DeepScreenBase, { TickerCell, DeepSkeleton, DeepError, StatsLoadGate } from './DeepScreenBase';
 import { apiFetch } from '../../utils/api';
+import { KPIRibbon } from './shared/SectorUI';
 
 /* ── Formatting utilities ──────────────────────────────────────────────────── */
 const fmt = (n, d = 2) =>
@@ -475,6 +476,21 @@ const EtfStrip = memo(function EtfStrip() {
   );
 });
 
+/* ── KPI Ribbon ────────────────────────────────────────────────────────── */
+function CryptoKPIRibbon() {
+  const btc  = useTickerPrice('X:BTCUSD');
+  const eth  = useTickerPrice('X:ETHUSD');
+  const mstr = useTickerPrice('MSTR');
+  const coin = useTickerPrice('COIN');
+  const items = [
+    { label: 'BITCOIN',  value: btc?.price != null ? '$' + fmt(btc.price, 0) : '—',  change: btc?.changePct },
+    { label: 'ETHEREUM', value: eth?.price != null ? '$' + fmt(eth.price) : '—', change: eth?.changePct },
+    { label: 'MSTR',     value: mstr?.price != null ? '$' + fmt(mstr.price) : '—', change: mstr?.changePct },
+    { label: 'COINBASE', value: coin?.price != null ? '$' + fmt(coin.price) : '—', change: coin?.changePct },
+  ];
+  return <KPIRibbon items={items} accentColor="#f7931a" />;
+}
+
 /* ── Main CryptoScreen Implementation ───────────────────────────────────────── */
 function CryptoScreenImpl() {
   const openDetail = useOpenDetail();
@@ -483,6 +499,12 @@ function CryptoScreenImpl() {
 
   /* ── Build section definitions ────────────────────────────────────────── */
   const sections = useMemo(() => [
+    {
+      id: 'kpi',
+      title: 'KEY METRICS',
+      span: 'full',
+      component: CryptoKPIRibbon,
+    },
     {
       id: 'charts',
       title: 'Sector Charts',

@@ -7,7 +7,7 @@
 import { memo, useMemo, useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import FullPageScreenLayout from './shared/FullPageScreenLayout';
-import { SectorChartPanel, FundamentalsTable, SectorScatterPlot, InsiderActivity, MiniFinancials } from './shared';
+import { SectorChartPanel, FundamentalsTable, SectorScatterPlot, InsiderActivity, MiniFinancials, KPIRibbon, heatColor } from './shared';
 import { useOpenDetail } from '../../context/OpenDetailContext';
 import { useTickerPrice } from '../../context/PriceContext';
 import { useDeepScreenData } from '../../hooks/useDeepScreenData';
@@ -36,6 +36,21 @@ const REVENUE_GROWTH_TICKERS = ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA', 'META']
 const MINI_FIN_TICKERS = ['AAPL', 'MSFT', 'NVDA'];
 
 const ALL_TICKERS = [...MEGA_CAP, ...SEMIS, ...AI_CLOUD];
+
+/* ── KPI Ribbon ────────────────────────────────────────────────────────── */
+function TechKPIRibbon() {
+  const qqq  = useTickerPrice('QQQ');
+  const nvda = useTickerPrice('NVDA');
+  const aapl = useTickerPrice('AAPL');
+  const msft = useTickerPrice('MSFT');
+  const items = [
+    { label: 'NASDAQ 100',  value: qqq?.price != null ? fmt(qqq.price) : '—',  change: qqq?.changePct },
+    { label: 'NVDA',        value: nvda?.price != null ? '$' + fmt(nvda.price) : '—', change: nvda?.changePct },
+    { label: 'AAPL',        value: aapl?.price != null ? '$' + fmt(aapl.price) : '—', change: aapl?.changePct },
+    { label: 'MSFT',        value: msft?.price != null ? '$' + fmt(msft.price) : '—', change: msft?.changePct },
+  ];
+  return <KPIRibbon items={items} accentColor="#00bcd4" />;
+}
 
 const LABELS = {
   AAPL: 'Apple', MSFT: 'Microsoft', GOOGL: 'Alphabet', META: 'Meta', AMZN: 'Amazon',
@@ -335,6 +350,12 @@ function TechAIScreenImpl() {
   const [selectedTicker, setSelectedTicker] = useState(null);
 
   const sections = useMemo(() => [
+    {
+      id: 'kpi',
+      title: 'KEY METRICS',
+      span: 'full',
+      component: TechKPIRibbon,
+    },
     {
       id: 'charts',
       title: 'SECTOR CHARTS',

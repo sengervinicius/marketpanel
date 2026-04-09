@@ -21,7 +21,7 @@ import { useSectionData } from '../../hooks/useSectionData';
 import { useOpenDetail } from '../../context/OpenDetailContext';
 import { useTickerPrice } from '../../context/PriceContext';
 import { apiFetch } from '../../utils/api';
-import { FullPageScreenLayout, SectorChartPanel } from './shared';
+import { FullPageScreenLayout, SectorChartPanel, KPIRibbon } from './shared';
 import DataUnavailable from '../common/DataUnavailable';
 import './FixedIncomeScreen.css';
 
@@ -817,11 +817,36 @@ function EurBondETFSection() {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
+   KPI RIBBON
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+function FixedIncomeKPIRibbon() {
+  const tlt = useTickerPrice('TLT');
+  const agg = useTickerPrice('AGG');
+  const hyg = useTickerPrice('HYG');
+  const lqd = useTickerPrice('LQD');
+  const f = (n) => n == null ? '—' : '$' + n.toFixed(2);
+  const items = [
+    { label: 'US 20Y+ BOND', value: tlt?.price != null ? f(tlt.price) : '—', change: tlt?.changePct },
+    { label: 'AGG (TOTAL)',   value: agg?.price != null ? f(agg.price) : '—', change: agg?.changePct },
+    { label: 'HIGH YIELD',    value: hyg?.price != null ? f(hyg.price) : '—', change: hyg?.changePct },
+    { label: 'IG CORPORATE',  value: lqd?.price != null ? f(lqd.price) : '—', change: lqd?.changePct },
+  ];
+  return <KPIRibbon items={items} accentColor="#2196f3" />;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
    MAIN COMPONENT
    ═══════════════════════════════════════════════════════════════════════════ */
 
 function FixedIncomeScreenImpl({ onBack }) {
   const sections = [
+    {
+      id: 'kpi',
+      title: 'KEY METRICS',
+      span: 'full',
+      component: FixedIncomeKPIRibbon,
+    },
     {
       id: 'sector-charts',
       title: 'Bond ETF Sector Charts',

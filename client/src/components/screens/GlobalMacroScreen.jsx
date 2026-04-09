@@ -14,10 +14,26 @@ import { useOpenDetail } from '../../context/OpenDetailContext';
 import { useTickerPrice } from '../../context/PriceContext';
 import { apiFetch } from '../../utils/api';
 import { DeepSkeleton, DeepError, TickerCell } from './DeepScreenBase';
+import { KPIRibbon, heatColor } from './shared/SectorUI';
 
 const fmt = (n, d = 2) =>
   n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
 const fmtPct = (n) => n == null ? '—' : (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
+
+/* ── KPI Ribbon ────────────────────────────────────────────────────────── */
+function MacroKPIRibbon() {
+  const spy = useTickerPrice('SPY');
+  const tlt = useTickerPrice('TLT');
+  const vix = useTickerPrice('^VIX');
+  const eem = useTickerPrice('EEM');
+  const items = [
+    { label: 'S&P 500',    value: spy?.price != null ? fmt(spy.price) : '—',  change: spy?.changePct },
+    { label: 'US 20Y BOND', value: tlt?.price != null ? '$' + fmt(tlt.price) : '—', change: tlt?.changePct },
+    { label: 'VIX',         value: vix?.price != null ? fmt(vix.price) : '—', change: vix?.changePct },
+    { label: 'EM EQUITY',   value: eem?.price != null ? '$' + fmt(eem.price) : '—', change: eem?.changePct },
+  ];
+  return <KPIRibbon items={items} accentColor="#9c27b0" />;
+}
 
 /* ─────────────────────────────────────────────────────────────────────── */
 /* 2. GLOBAL MACRO SNAPSHOT */
@@ -547,6 +563,12 @@ function MacroCalendar() {
 /* ─────────────────────────────────────────────────────────────────────── */
 function GlobalMacroScreenImpl() {
   const sections = useMemo(() => [
+    {
+      id: 'kpi',
+      title: 'KEY METRICS',
+      span: 'full',
+      component: MacroKPIRibbon,
+    },
     {
       id: 'charts',
       title: 'Sector & Asset Charts',

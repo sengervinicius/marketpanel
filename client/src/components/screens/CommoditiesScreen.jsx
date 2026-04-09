@@ -25,6 +25,7 @@ import { useDeepScreenData } from '../../hooks/useDeepScreenData';
 import { useSectionData } from '../../hooks/useSectionData';
 import { apiFetch } from '../../utils/api';
 import { DeepSkeleton, DeepError, StatsLoadGate, TickerCell } from './DeepScreenBase';
+import { KPIRibbon, heatColor } from './shared/SectorUI';
 
 const fmt = (n, d = 2) =>
   n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -76,6 +77,21 @@ const PRODUCER_LABELS = {
 
 const INSIDER_TICKERS = ['XOM', 'CVX', 'BHP', 'RIO', 'FCX', 'NEM'];
 const ETF_SYMBOLS = ['DBC', 'USO', 'GLD', 'SLV', 'PDBC', 'CPER', 'UNG', 'CORN', 'WEAT', 'SOYB'];
+
+/* ── KPI Ribbon ────────────────────────────────────────────────────────── */
+function CommodityKPIRibbon() {
+  const wti   = useTickerPrice('CL=F');
+  const gold  = useTickerPrice('GC=F');
+  const natgas = useTickerPrice('NG=F');
+  const xom   = useTickerPrice('XOM');
+  const items = [
+    { label: 'WTI CRUDE', value: wti?.price != null ? '$' + fmt(wti.price) : '—', change: wti?.changePct },
+    { label: 'GOLD',      value: gold?.price != null ? '$' + fmt(gold.price) : '—', change: gold?.changePct },
+    { label: 'NAT GAS',   value: natgas?.price != null ? '$' + fmt(natgas.price) : '—', change: natgas?.changePct },
+    { label: 'EXXON',     value: xom?.price != null ? '$' + fmt(xom.price) : '—', change: xom?.changePct },
+  ];
+  return <KPIRibbon items={items} accentColor="#ff9800" />;
+}
 
 /* ── Helper row components ──────────────────────────────────────────────── */
 function CommodityRow({ symbol, label }) {
@@ -347,6 +363,12 @@ function CommoditiesScreenImpl() {
   const [selectedTicker, setSelectedTicker] = useState(null);
 
   const sections = useMemo(() => [
+    {
+      id: 'kpi',
+      title: 'KEY METRICS',
+      span: 'full',
+      component: CommodityKPIRibbon,
+    },
     {
       id: 'sector-charts',
       title: 'Sector Charts',

@@ -8,6 +8,7 @@ import FullPageScreenLayout from './shared/FullPageScreenLayout';
 import { FundamentalsTable } from './shared/FundamentalsTable';
 import { SectorChartPanel } from './shared/SectorChartPanel';
 import { InsiderActivity } from './shared/InsiderActivity';
+import { KPIRibbon } from './shared/SectorUI';
 import { useOpenDetail } from '../../context/OpenDetailContext';
 import { useTickerPrice } from '../../context/PriceContext';
 import { useDeepScreenData } from '../../hooks/useDeepScreenData';
@@ -349,8 +350,29 @@ function AsianMarketsScreenImpl() {
   const taiwanTickers = withNames(tickersByExchange['TWSE'] || TAIWAN);
   const hkTickers     = withNames(tickersByExchange['HKEX'] || CHINA_HK);
 
+  /* ── KPI Ribbon ────────────────────────────────────────────────────────── */
+  function AsianKPIRibbon() {
+    const ewj  = useTickerPrice('EWJ');
+    const fxi  = useTickerPrice('FXI');
+    const inda = useTickerPrice('INDA');
+    const ewy  = useTickerPrice('EWY');
+    const items = [
+      { label: 'JAPAN',   value: ewj?.price != null ? '$' + fmt(ewj.price) : '—', change: ewj?.changePct },
+      { label: 'CHINA',   value: fxi?.price != null ? '$' + fmt(fxi.price) : '—', change: fxi?.changePct },
+      { label: 'INDIA',   value: inda?.price != null ? '$' + fmt(inda.price) : '—', change: inda?.changePct },
+      { label: 'KOREA',   value: ewy?.price != null ? '$' + fmt(ewy.price) : '—', change: ewy?.changePct },
+    ];
+    return <KPIRibbon items={items} accentColor="#ff5722" />;
+  }
+
   /* ── Build section definitions ─────────────────────────────────────────── */
   const sections = useMemo(() => [
+    {
+      id: 'kpi',
+      title: 'KEY METRICS',
+      span: 'full',
+      component: AsianKPIRibbon,
+    },
     {
       id: 'charts',
       title: 'Sector Charts',

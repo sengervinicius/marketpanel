@@ -10,6 +10,7 @@ import { FundamentalsTable } from './shared/FundamentalsTable';
 import { SectorChartPanel } from './shared/SectorChartPanel';
 import { SectorScatterPlot } from './shared/SectorScatterPlot';
 import { InsiderActivity } from './shared/InsiderActivity';
+import { KPIRibbon } from './shared/SectorUI';
 import { useOpenDetail } from '../../context/OpenDetailContext';
 import { useTickerPrice } from '../../context/PriceContext';
 import { useDeepScreenData } from '../../hooks/useDeepScreenData';
@@ -26,6 +27,21 @@ const fmtB = (n) => {
   if (v >= 1e6)  return '$' + (v/1e6).toFixed(0) + 'M';
   return '$' + v.toFixed(0);
 };
+
+/* ── KPI Ribbon ────────────────────────────────────────────────────────── */
+function RetailKPIRibbon() {
+  const xly  = useTickerPrice('XLY');
+  const amzn = useTickerPrice('AMZN');
+  const wmt  = useTickerPrice('WMT');
+  const nke  = useTickerPrice('NKE');
+  const items = [
+    { label: 'CONSUMER DISC', value: xly?.price != null ? '$' + fmt(xly.price) : '—', change: xly?.changePct },
+    { label: 'AMAZON',        value: amzn?.price != null ? '$' + fmt(amzn.price) : '—', change: amzn?.changePct },
+    { label: 'WALMART',       value: wmt?.price != null ? '$' + fmt(wmt.price) : '—', change: wmt?.changePct },
+    { label: 'NIKE',           value: nke?.price != null ? '$' + fmt(nke.price) : '—', change: nke?.changePct },
+  ];
+  return <KPIRibbon items={items} accentColor="#e91e63" />;
+}
 
 /* ── Table Row Component (extracts hook call out of map) ────────────────── */
 const TableRow = memo(function TableRow({ sym, name, openDetail, stats }) {
@@ -172,6 +188,12 @@ function GlobalRetailScreenImpl() {
 
   /* ── Build section definitions ─────────────────────────────────────── */
   const sections = useMemo(() => [
+    {
+      id: 'kpi',
+      title: 'KEY METRICS',
+      span: 'full',
+      component: RetailKPIRibbon,
+    },
     {
       id: 'charts',
       title: 'Sector Charts',
