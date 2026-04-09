@@ -6,6 +6,10 @@
 import { memo, useMemo } from 'react';
 import DeepScreenBase, { DeepSection, TickerCell, StatsLoadGate } from './DeepScreenBase';
 import SectorChartStrip from './SectorChartStrip';
+import EarningsCalendarStrip from './shared/EarningsCalendarStrip';
+import AnalystActionsCard from './shared/AnalystActionsCard';
+import OwnershipBreakdown from './shared/OwnershipBreakdown';
+import TechnicalSignalsCard from './shared/TechnicalSignalsCard';
 import { useOpenDetail } from '../../context/OpenDetailContext';
 import { useTickerPrice } from '../../context/PriceContext';
 import { useDeepScreenData } from '../../hooks/useDeepScreenData';
@@ -27,6 +31,12 @@ const G10_FX = ['C:EURUSD', 'C:USDJPY', 'C:GBPUSD', 'C:AUDUSD', 'C:USDCAD', 'C:U
 const EM_FX  = ['C:USDBRL', 'C:USDMXN', 'C:USDINR', 'C:USDZAR', 'C:USDTRY', 'C:USDCNY'];
 const CRYPTO_MAJORS = ['X:BTCUSD', 'X:ETHUSD', 'X:SOLUSD', 'X:BNBUSD', 'X:XRPUSD', 'X:DOGEUSD'];
 const CRYPTO_INFRA  = ['MSTR', 'COIN', 'MARA', 'RIOT', 'IBIT', 'ETHE', 'ARKB'];
+
+// Crypto infrastructure tickers for deep-data components
+const EARNINGS_TICKERS = ['MSTR', 'COIN', 'MARA', 'RIOT'];
+const OWNERSHIP_TICKERS = ['MSTR', 'COIN', 'MARA', 'RIOT'];
+const SIGNALS_TICKERS = ['MSTR', 'COIN', 'MARA', 'RIOT', 'IBIT'];
+const ANALYST_TICKERS = ['MSTR', 'COIN', 'MARA', 'RIOT'];
 
 const FX_LABELS = {
   'C:EURUSD': 'EUR/USD', 'C:USDJPY': 'USD/JPY', 'C:GBPUSD': 'GBP/USD',
@@ -170,6 +180,23 @@ const CryptoInfraSection = memo(function CryptoInfraSection({ statsMap }) {
   );
 });
 
+/* ── Deep-Data Component Wrappers ──────────────────────────────────────── */
+const EarningsSection = memo(function EarningsSection() {
+  return <EarningsCalendarStrip tickers={EARNINGS_TICKERS} accentColor="#ce93d8" />;
+});
+
+const AnalystSection = memo(function AnalystSection() {
+  return <AnalystActionsCard tickers={ANALYST_TICKERS} accentColor="#ce93d8" />;
+});
+
+const OwnershipSection = memo(function OwnershipSection() {
+  return <OwnershipBreakdown tickers={OWNERSHIP_TICKERS} accentColor="#ce93d8" />;
+});
+
+const SignalsSection = memo(function SignalsSection() {
+  return <TechnicalSignalsCard tickers={SIGNALS_TICKERS} accentColor="#ce93d8" />;
+});
+
 function FxCryptoScreen() {
   const { data: statsMap, loading: statsLoading, error: statsError, refresh: statsRefresh } = useDeepScreenData(CRYPTO_INFRA);
 
@@ -178,6 +205,10 @@ function FxCryptoScreen() {
     { id: 'emfx',         title: 'EM FX',                          component: EmFxSection },
     { id: 'cryptomajors', title: 'CRYPTO MAJORS',                  component: CryptoMajorsSection },
     { id: 'cryptoinfra',  title: 'CRYPTO INFRASTRUCTURE & DeFi',   component: () => <StatsLoadGate statsMap={statsMap} loading={statsLoading} error={statsError} refresh={statsRefresh}><CryptoInfraSection statsMap={statsMap} /></StatsLoadGate> },
+    { id: 'earnings',     title: 'EARNINGS CALENDAR',              component: EarningsSection },
+    { id: 'analyst',      title: 'ANALYST ACTIONS',                component: AnalystSection },
+    { id: 'ownership',    title: 'OWNERSHIP BREAKDOWN',            component: OwnershipSection },
+    { id: 'signals',      title: 'TECHNICAL SIGNALS',              component: SignalsSection },
   ], [statsMap, statsLoading, statsError, statsRefresh]);
 
   return (

@@ -338,6 +338,153 @@ router.get('/market/screener', async (req, res) => {
   }
 });
 
+/**
+ * GET /market/yield-curve/:country
+ * Sovereign yield curve data from Eulerpool.
+ */
+router.get('/market/yield-curve/:country', async (req, res) => {
+  try {
+    const country = (req.params.country || 'US').toUpperCase();
+    if (!eulerpool.isConfigured()) {
+      return res.json({ ok: true, data: null, source: 'unavailable', country });
+    }
+    const ck = `yield-curve:${country}`;
+    const cached = cacheGet(ck);
+    if (cached) return res.json({ ok: true, data: cached, source: 'eulerpool', country });
+
+    const data = await eulerpool.getYieldCurve(country);
+    cacheSet(ck, data, 300_000);
+    res.json({ ok: true, data, source: 'eulerpool', country });
+  } catch (e) {
+    logger.error(`GET /market/yield-curve/${req.params.country} error:`, e);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+/**
+ * GET /market/bonds/corporate?rating=&sector=&currency=&limit=50
+ * Corporate bonds from Eulerpool.
+ */
+router.get('/market/bonds/corporate', async (req, res) => {
+  try {
+    if (!eulerpool.isConfigured()) {
+      return res.json({ ok: true, data: [], source: 'unavailable' });
+    }
+    const { rating, sector, currency, limit } = req.query;
+    const opts = {};
+    if (rating) opts.rating = rating;
+    if (sector) opts.sector = sector;
+    if (currency) opts.currency = currency;
+    if (limit) opts.limit = parseInt(limit, 10);
+
+    const ck = `corp-bonds:${JSON.stringify(opts)}`;
+    const cached = cacheGet(ck);
+    if (cached) return res.json({ ok: true, data: cached, source: 'eulerpool' });
+
+    const data = await eulerpool.getCorpBonds(opts);
+    cacheSet(ck, data, 300_000);
+    res.json({ ok: true, data, source: 'eulerpool' });
+  } catch (e) {
+    logger.error('GET /market/bonds/corporate error:', e);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+/**
+ * GET /market/bonds/sovereign/:country
+ * Sovereign bonds from Eulerpool.
+ */
+router.get('/market/bonds/sovereign/:country', async (req, res) => {
+  try {
+    const country = (req.params.country || 'US').toUpperCase();
+    if (!eulerpool.isConfigured()) {
+      return res.json({ ok: true, data: [], source: 'unavailable', country });
+    }
+    const ck = `sov-bonds:${country}`;
+    const cached = cacheGet(ck);
+    if (cached) return res.json({ ok: true, data: cached, source: 'eulerpool', country });
+
+    const data = await eulerpool.getSovereignBonds(country);
+    cacheSet(ck, data, 300_000);
+    res.json({ ok: true, data, source: 'eulerpool', country });
+  } catch (e) {
+    logger.error(`GET /market/bonds/sovereign/${req.params.country} error:`, e);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+/**
+ * GET /market/sentiment/:ticker
+ * Sentiment data (news sentiment, analyst consensus) from Eulerpool.
+ */
+router.get('/market/sentiment/:ticker', async (req, res) => {
+  try {
+    const ticker = req.params.ticker.toUpperCase();
+    if (!eulerpool.isConfigured()) {
+      return res.json({ ok: true, data: null, source: 'unavailable', ticker });
+    }
+    const ck = `sentiment:${ticker}`;
+    const cached = cacheGet(ck);
+    if (cached) return res.json({ ok: true, data: cached, source: 'eulerpool', ticker });
+
+    const data = await eulerpool.getSentiment(ticker);
+    cacheSet(ck, data, 300_000);
+    res.json({ ok: true, data, source: 'eulerpool', ticker });
+  } catch (e) {
+    logger.error(`GET /market/sentiment/${req.params.ticker} error:`, e);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+/**
+ * GET /market/forex-rates/:currency
+ * Forex rates from Eulerpool.
+ */
+router.get('/market/forex-rates/:currency', async (req, res) => {
+  try {
+    const currency = (req.params.currency || 'USD').toUpperCase();
+    if (!eulerpool.isConfigured()) {
+      return res.json({ ok: true, data: null, source: 'unavailable', currency });
+    }
+    const ck = `forex-rates:${currency}`;
+    const cached = cacheGet(ck);
+    if (cached) return res.json({ ok: true, data: cached, source: 'eulerpool', currency });
+
+    const data = await eulerpool.getForexRates(currency);
+    cacheSet(ck, data, 60_000);
+    res.json({ ok: true, data, source: 'eulerpool', currency });
+  } catch (e) {
+    logger.error(`GET /market/forex-rates/${req.params.currency} error:`, e);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+/**
+ * GET /market/screener?sector=Technology&country=US&limit=50
+ * Stock screener from Eulerpool.
+ */
+router.get('/market/screener', async (req, res) => {
+  try {
+    if (!eulerpool.isConfigured()) {
+      return res.json({ ok: true, data: [], source: 'unavailable' });
+    }
+    const filters = { ...req.query };
+    const limit = parseInt(filters.limit, 10) || 50;
+    delete filters.limit;
+
+    const ck = `screener:${JSON.stringify(filters)}:${limit}`;
+    const cached = cacheGet(ck);
+    if (cached) return res.json({ ok: true, data: cached, source: 'eulerpool' });
+
+    const data = await eulerpool.getScreener(filters, limit);
+    cacheSet(ck, data, 180_000);
+    res.json({ ok: true, data, source: 'eulerpool' });
+  } catch (e) {
+    logger.error('GET /market/screener error:', e);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
 // ═══════════════════════════════════════════════════════════════════════
 //  POLYGON.IO ENDPOINTS
 // ═══════════════════════════════════════════════════════════════════════
@@ -482,6 +629,37 @@ router.get('/market/options-ref/:ticker', async (req, res) => {
     res.json({ ok: true, data: results, ticker, source: 'polygon' });
   } catch (e) {
     logger.warn(`GET /market/options-ref/${req.params.ticker} error:`, e.message);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+/**
+ * GET /market/movers/:direction
+ * Top gainers or losers from Polygon snapshot.
+ * :direction = "gainers" or "losers"
+ */
+router.get('/market/movers/:direction', async (req, res) => {
+  try {
+    const direction = req.params.direction === 'losers' ? 'losers' : 'gainers';
+    const ck = `movers:${direction}`;
+    const cached = cacheGet(ck);
+    if (cached) return res.json({ ok: true, data: cached, source: 'polygon', direction });
+
+    const raw = await polyFetch(
+      `/v2/snapshot/locale/us/markets/stocks/${direction}`,
+      { priority: 8, label: `polygon:movers:${direction}` }
+    );
+    const tickers = (raw?.tickers || []).slice(0, 20).map(t => ({
+      ticker: t.ticker,
+      price: t.day?.c || t.lastTrade?.p || null,
+      change: t.todaysChange || null,
+      changePct: t.todaysChangePerc || null,
+      volume: t.day?.v || null,
+    }));
+    cacheSet(ck, tickers, 60_000);
+    res.json({ ok: true, data: tickers, source: 'polygon', direction });
+  } catch (e) {
+    logger.error(`GET /market/movers/${req.params.direction} error:`, e);
     res.status(500).json({ ok: false, error: e.message });
   }
 });
@@ -749,6 +927,121 @@ router.get('/market/td/executives/:ticker', async (req, res) => {
   }
 });
 
+// ═══════════════════════════════════════════════════════════════════════
+//  TWELVEDATA — PREVIOUSLY UNEXPOSED ENDPOINTS
+// ═══════════════════════════════════════════════════════════════════════
+
+/**
+ * GET /market/td/earnings-calendar?symbol=AAPL
+ * Upcoming and past earnings dates from TwelveData.
+ */
+router.get('/market/td/earnings-calendar', async (req, res) => {
+  try {
+    if (!twelvedata.isConfigured()) {
+      return res.json({ ok: true, data: [], source: 'unavailable' });
+    }
+    const { symbol } = req.query;
+    const ck = `td-ecal:${symbol || 'all'}`;
+    const cached = cacheGet(ck);
+    if (cached) return res.json({ ok: true, data: cached, source: 'twelvedata' });
+
+    const data = await twelvedata.getEarningsCalendar(symbol ? { symbol } : {});
+    const result = Array.isArray(data) ? data : (data?.earnings || []);
+    cacheSet(ck, result, 600_000);
+    res.json({ ok: true, data: result, source: 'twelvedata' });
+  } catch (e) {
+    logger.error('GET /market/td/earnings-calendar error:', e);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+/**
+ * GET /market/td/dividends/:ticker?range=5y
+ * Dividend history from TwelveData.
+ */
+router.get('/market/td/dividends/:ticker', async (req, res) => {
+  try {
+    if (!twelvedata.isConfigured()) {
+      return res.json({ ok: true, data: [], source: 'unavailable' });
+    }
+    const ticker = req.params.ticker.toUpperCase();
+    const range = req.query.range || '5y';
+    const ck = `td-div:${ticker}:${range}`;
+    const cached = cacheGet(ck);
+    if (cached) return res.json({ ok: true, data: cached, source: 'twelvedata', ticker });
+
+    const data = await twelvedata.getDividends(ticker);
+    const result = Array.isArray(data) ? data : (data?.dividends || []);
+    cacheSet(ck, result, 600_000);
+    res.json({ ok: true, data: result, source: 'twelvedata', ticker });
+  } catch (e) {
+    logger.error(`GET /market/td/dividends/${req.params.ticker} error:`, e);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+/**
+ * GET /market/td/splits/:ticker
+ * Stock split history from TwelveData.
+ */
+router.get('/market/td/splits/:ticker', async (req, res) => {
+  try {
+    if (!twelvedata.isConfigured()) {
+      return res.json({ ok: true, data: [], source: 'unavailable' });
+    }
+    const ticker = req.params.ticker.toUpperCase();
+    const ck = `td-splits:${ticker}`;
+    const cached = cacheGet(ck);
+    if (cached) return res.json({ ok: true, data: cached, source: 'twelvedata', ticker });
+
+    const data = await twelvedata.getSplits(ticker);
+    const result = Array.isArray(data) ? data : (data?.splits || []);
+    cacheSet(ck, result, 600_000);
+    res.json({ ok: true, data: result, source: 'twelvedata', ticker });
+  } catch (e) {
+    logger.error(`GET /market/td/splits/${req.params.ticker} error:`, e);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+/**
+ * GET /market/td/technicals/:ticker?indicators=RSI,MACD,BBANDS&interval=1day
+ * Technical indicators from TwelveData. Returns multiple indicators in parallel.
+ */
+router.get('/market/td/technicals/:ticker', async (req, res) => {
+  try {
+    if (!twelvedata.isConfigured()) {
+      return res.json({ ok: true, data: {}, source: 'unavailable' });
+    }
+    const ticker = req.params.ticker.toUpperCase();
+    const indicatorList = (req.query.indicators || 'RSI,MACD,BBANDS').split(',').map(s => s.trim().toUpperCase());
+    const interval = req.query.interval || '1day';
+
+    const ck = `td-tech:${ticker}:${indicatorList.join(',')}:${interval}`;
+    const cached = cacheGet(ck);
+    if (cached) return res.json({ ok: true, data: cached, source: 'twelvedata', ticker });
+
+    // Fetch all indicators in parallel (capped at 5)
+    const capped = indicatorList.slice(0, 5);
+    const results = await Promise.allSettled(
+      capped.map(ind => twelvedata.getTechnicalIndicator(ticker, ind, interval))
+    );
+
+    const data = {};
+    results.forEach((r, i) => {
+      if (r.status === 'fulfilled' && r.value) {
+        data[capped[i]] = r.value;
+      }
+    });
+
+    cacheSet(ck, data, 300_000);
+    res.json({ ok: true, data, source: 'twelvedata', ticker });
+  } catch (e) {
+    logger.error(`GET /market/td/technicals/${req.params.ticker} error:`, e);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
 /**
  * GET /market/td/diag
  * Temporary diagnostic endpoint — checks Twelve Data API key, plan, and rate limits.
@@ -790,6 +1083,127 @@ router.get('/market/td/diag', async (req, res) => {
       sampleQuoteError: quoteJson.status === 'error' ? quoteJson.message : null,
     });
   } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+//  UNIFIED ENRICHED TICKER ENDPOINT
+//  Combines Yahoo deep fundamentals, TwelveData technicals, Eulerpool
+//  sentiment into a single call for sector screen deep-dives.
+// ═══════════════════════════════════════════════════════════════════════
+
+/**
+ * GET /market/enriched/:ticker
+ * Returns comprehensive data for a single ticker from all available providers.
+ * Includes: fundamentals, earnings history, analyst actions, insider holdings,
+ * institutional ownership, technical indicators, sentiment.
+ */
+router.get('/market/enriched/:ticker', async (req, res) => {
+  try {
+    const ticker = req.params.ticker.toUpperCase();
+    const ck = `enriched:${ticker}`;
+    const cached = cacheGet(ck);
+    if (cached) return res.json({ ok: true, data: cached, source: 'multi', ticker });
+
+    // Fire ALL data sources in parallel — never wait for one to finish before starting another
+    const [
+      yahooDeep,
+      technicals,
+      sentiment,
+      tdEarnings,
+      tdDividends,
+    ] = await Promise.allSettled([
+      // 1. Yahoo quoteSummary — now returns 50+ fields from 11 modules
+      yahooQuoteSummary(ticker).catch(() => null),
+      // 2. TwelveData technical indicators (RSI, MACD, BBANDS)
+      twelvedata.isConfigured()
+        ? Promise.allSettled([
+            twelvedata.getTechnicalIndicator(ticker, 'RSI', '1day', { time_period: '14' }),
+            twelvedata.getTechnicalIndicator(ticker, 'MACD', '1day'),
+            twelvedata.getTechnicalIndicator(ticker, 'BBANDS', '1day'),
+            twelvedata.getTechnicalIndicator(ticker, 'ADX', '1day'),
+          ]).then(results => {
+            const out = {};
+            const names = ['RSI', 'MACD', 'BBANDS', 'ADX'];
+            results.forEach((r, i) => {
+              if (r.status === 'fulfilled' && r.value) out[names[i]] = r.value;
+            });
+            return out;
+          })
+        : Promise.resolve(null),
+      // 3. Eulerpool sentiment
+      eulerpool.isConfigured()
+        ? eulerpool.getSentiment(ticker).catch(() => null)
+        : Promise.resolve(null),
+      // 4. TwelveData earnings
+      twelvedata.isConfigured()
+        ? twelvedata.getEarnings(ticker).catch(() => null)
+        : Promise.resolve(null),
+      // 5. TwelveData dividends
+      twelvedata.isConfigured()
+        ? twelvedata.getDividends(ticker).catch(() => null)
+        : Promise.resolve(null),
+    ]);
+
+    const result = {
+      ticker,
+      // Yahoo deep fundamentals (margins, growth, valuation, ownership, etc.)
+      fundamentals: yahooDeep.status === 'fulfilled' ? yahooDeep.value : null,
+      // Technical indicators
+      technicals: technicals.status === 'fulfilled' ? technicals.value : null,
+      // Sentiment (news, social, analyst consensus)
+      sentiment: sentiment.status === 'fulfilled' ? sentiment.value : null,
+      // Earnings history
+      earnings: tdEarnings.status === 'fulfilled' ? tdEarnings.value : null,
+      // Dividends
+      dividends: tdDividends.status === 'fulfilled' ? tdDividends.value : null,
+      // Metadata
+      providers: {
+        yahoo: yahooDeep.status === 'fulfilled' && yahooDeep.value ? true : false,
+        twelvedata: twelvedata.isConfigured(),
+        eulerpool: eulerpool.isConfigured(),
+      },
+      fetchedAt: new Date().toISOString(),
+    };
+
+    cacheSet(ck, result, 180_000); // 3 min cache
+    res.json({ ok: true, data: result, source: 'multi', ticker });
+  } catch (e) {
+    logger.error(`GET /market/enriched/${req.params.ticker} error:`, e);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+/**
+ * GET /market/enriched-batch?tickers=AAPL,MSFT,NVDA
+ * Batch enriched data for sector screens — fetches up to 8 tickers in parallel.
+ * Returns a lighter version (fundamentals + key technicals only, no full histories).
+ */
+router.get('/market/enriched-batch', async (req, res) => {
+  try {
+    const tickerStr = req.query.tickers || '';
+    const tickers = tickerStr.split(',').map(t => t.trim().toUpperCase()).filter(Boolean).slice(0, 8);
+    if (!tickers.length) return res.status(400).json({ ok: false, error: 'tickers param required' });
+
+    const ck = `enriched-batch:${tickers.sort().join(',')}`;
+    const cached = cacheGet(ck);
+    if (cached) return res.json({ ok: true, data: cached, source: 'multi' });
+
+    // Fetch Yahoo quoteSummary for all tickers in parallel
+    const results = await Promise.allSettled(
+      tickers.map(t => yahooQuoteSummary(t).catch(() => null))
+    );
+
+    const data = {};
+    results.forEach((r, i) => {
+      data[tickers[i]] = r.status === 'fulfilled' ? r.value : null;
+    });
+
+    cacheSet(ck, data, 180_000);
+    res.json({ ok: true, data, source: 'multi' });
+  } catch (e) {
+    logger.error('GET /market/enriched-batch error:', e);
     res.status(500).json({ ok: false, error: e.message });
   }
 });

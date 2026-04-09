@@ -216,7 +216,7 @@ router.get('/search', async (req, res, next) => {
     // Try Eulerpool first if configured
     if (euler.isConfigured()) {
       try {
-        const results = await euler.searchBonds(q);
+        const results = await euler.search(q);
         if (results && results.length > 0) {
           return res.json({ bonds: results, query: q, source: 'eulerpool' });
         }

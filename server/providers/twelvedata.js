@@ -621,6 +621,35 @@ function isInternationalSymbol(symbol) {
   return false;
 }
 
+/**
+ * Get technical indicator values for a ticker.
+ * @param {string} ticker
+ * @param {string} indicator  RSI, MACD, BBANDS, EMA, SMA, ADX, STOCH, ATR, OBV, VWAP
+ * @param {string} interval   1min, 5min, 15min, 1h, 4h, 1day, 1week, 1month
+ * @param {object} opts       Additional params (time_period, series_type, etc.)
+ */
+async function getTechnicalIndicator(ticker, indicator, interval = '1day', opts = {}) {
+  const ck = `td:tech:${ticker}:${indicator}:${interval}:${JSON.stringify(opts)}`;
+  const cached = cacheGet(ck);
+  if (cached) return cached;
+
+  try {
+    const params = {
+      ...buildParams(ticker),
+      interval,
+      ...opts,
+    };
+    const data = await tdFetch(`/${indicator.toLowerCase()}`, params);
+    const values = data?.values || data?.data || (Array.isArray(data) ? data : []);
+    const result = { indicator, interval, ticker, values };
+    cacheSet(ck, result, 300_000); // 5 min
+    return result;
+  } catch (e) {
+    logger.warn(`[TwelveData] getTechnicalIndicator(${ticker}, ${indicator}) failed:`, e.message);
+    return { indicator, interval, ticker, values: [], error: e.message };
+  }
+}
+
 // ── Symbol Search ──────────────────────────────────────────────────────────
 // GET /symbol_search — searches ALL instruments across all exchanges.
 // Does NOT require an API key (free reference data endpoint).
@@ -774,6 +803,9 @@ module.exports = {
   getFundHolders,
   getKeyExecutives,
   getLogo,
+
+  // Technical indicators
+  getTechnicalIndicator,
 
   // Search
   symbolSearch,

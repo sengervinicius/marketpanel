@@ -82,7 +82,11 @@ export const CorrelationMatrix = memo(function CorrelationMatrix({
   const [tooltip, setTooltip] = useState(null);
   const mountedRef = useRef(true);
 
-  const tickerList = useMemo(() => tickers.slice(0, 12), [tickers]); // Cap at 12
+  // Stabilize tickers reference using JSON key — prevents infinite re-fetch
+  // when parent passes a new array literal with the same values
+  const tickerKey = JSON.stringify(tickers);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const tickerList = useMemo(() => tickers.slice(0, 12), [tickerKey]);
 
   const fetchMatrix = useCallback(async () => {
     if (tickerList.length < 2) return;

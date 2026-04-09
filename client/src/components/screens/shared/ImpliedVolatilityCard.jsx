@@ -142,9 +142,11 @@ export const ImpliedVolatilityCard = memo(function ImpliedVolatilityCard({
         <div style={{ height: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', color: TOKEN_HEX.textFaint, fontSize: 9 }}>
           Loading…
         </div>
-      ) : !data || data.source === 'unavailable' ? (
-        <div style={{ textAlign: 'center', color: TOKEN_HEX.textMuted, fontSize: 9, padding: '8px 0' }}>
-          IV data unavailable
+      ) : !data || data.source === 'unavailable' || (data.iv == null && data.ivRank == null && data.putCallRatio == null) ? (
+        <div style={{ textAlign: 'center', color: TOKEN_HEX.textMuted, fontSize: 10, padding: '10px 0', lineHeight: 1.5 }}>
+          Options data not available
+          <br />
+          <span style={{ fontSize: 9, color: TOKEN_HEX.textFaint }}>Requires options data feed</span>
         </div>
       ) : (
         <>

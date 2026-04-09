@@ -24,3 +24,12 @@ export { CorrelationMatrix } from './CorrelationMatrix';
 export { ComparisonBarChart } from './ComparisonBarChart';
 export { FuturesCurveChart } from './FuturesCurveChart';
 export { ImpliedVolatilityCard } from './ImpliedVolatilityCard';
+
+/* ── Sector screen data depth components ───────────────────────────── */
+export { EarningsCalendarStrip } from './EarningsCalendarStrip';
+export { AnalystActionsCard } from './AnalystActionsCard';
+export { OwnershipBreakdown } from './OwnershipBreakdown';
+export { TechnicalSignalsCard } from './TechnicalSignalsCard';
+export { MarketMovers } from './MarketMovers';
+export { SentimentCard } from './SentimentCard';
+export { MacroCalendarStrip } from './MacroCalendarStrip';

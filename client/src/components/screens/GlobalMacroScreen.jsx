@@ -15,10 +15,24 @@ import { useTickerPrice } from '../../context/PriceContext';
 import { apiFetch } from '../../utils/api';
 import { DeepSkeleton, DeepError, TickerCell } from './DeepScreenBase';
 import { KPIRibbon, heatColor } from './shared/SectorUI';
+import MarketMovers from './shared/MarketMovers';
 
 const fmt = (n, d = 2) =>
   n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
 const fmtPct = (n) => n == null ? '—' : (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
+
+const BANNER_TICKERS = [
+  { ticker: 'SPY', label: 'S&P 500' },
+  { ticker: 'DIA', label: 'DOW 30' },
+  { ticker: 'QQQ', label: 'NASDAQ 100' },
+  { ticker: 'IWM', label: 'RUSSELL 2000' },
+  { ticker: '^VIX', label: 'VIX' },
+  { ticker: 'DXY', label: 'USD INDEX' },
+  { ticker: 'TLT', label: 'US 20Y BOND' },
+  { ticker: 'GC=F', label: 'GOLD' },
+  { ticker: 'EEM', label: 'EM EQUITY' },
+  { ticker: 'C:EURUSD', label: 'EUR/USD' },
+];
 
 /* ── KPI Ribbon ────────────────────────────────────────────────────────── */
 function MacroKPIRibbon() {
@@ -593,6 +607,12 @@ function GlobalMacroScreenImpl() {
       component: FxHeatmap,
     },
     {
+      id: 'market-movers',
+      title: 'Market Movers',
+      span: 'full',
+      component: MarketMovers,
+    },
+    {
       id: 'yields',
       title: 'US Yield Curve',
       component: YieldCurveAnalysis,
@@ -634,6 +654,7 @@ function GlobalMacroScreenImpl() {
       accentColor="#9c27b0"
       subtitle="Central banks, rates, FX, volatility, and cross-asset risk monitor"
       sections={sections}
+      tickerBanner={BANNER_TICKERS}
       aiType="macro"
       aiContext={{ scope: 'Global Macro' }}
       aiCacheKey="macro:global"

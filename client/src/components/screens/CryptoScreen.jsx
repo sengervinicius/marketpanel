@@ -19,6 +19,10 @@ import { apiFetch } from '../../utils/api';
 import { KPIRibbon, heatColor, TickerRibbon } from './shared/SectorUI';
 import { CorrelationMatrix } from './shared/CorrelationMatrix';
 import { ComparisonBarChart } from './shared/ComparisonBarChart';
+import { EarningsCalendarStrip } from './shared/EarningsCalendarStrip';
+import { AnalystActionsCard } from './shared/AnalystActionsCard';
+import { OwnershipBreakdown } from './shared/OwnershipBreakdown';
+import { TechnicalSignalsCard } from './shared/TechnicalSignalsCard';
 
 /* ── Formatting utilities ──────────────────────────────────────────────────── */
 const fmt = (n, d = 2) =>
@@ -37,6 +41,17 @@ const fmtB = (n) => {
 const CRYPTO_MAJORS = ['X:BTCUSD', 'X:ETHUSD', 'X:SOLUSD', 'X:XRPUSD', 'X:BNBUSD', 'X:ADAUSD', 'X:AVAXUSD', 'X:DOTUSD', 'X:LINKUSD', 'X:MATICUSD'];
 const CRYPTO_EQUITIES = ['MSTR', 'COIN', 'MARA', 'RIOT', 'HUT', 'BITF', 'CLSK'];
 const CRYPTO_ETFS = ['IBIT', 'ETHE', 'ARKB', 'BITO', 'GBTC'];
+
+const BANNER_TICKERS = [
+  { ticker: 'X:BTCUSD', label: 'BTC' },
+  { ticker: 'X:ETHUSD', label: 'ETH' },
+  { ticker: 'X:SOLUSD', label: 'SOL' },
+  { ticker: 'X:XRPUSD', label: 'XRP' },
+  { ticker: 'X:BNBUSD', label: 'BNB' },
+  { ticker: 'IBIT', label: 'IBIT' },
+  { ticker: 'MSTR', label: 'MSTR' },
+  { ticker: 'COIN', label: 'COIN' },
+];
 
 const CHART_TICKERS = ['X:BTCUSD', 'X:ETHUSD', 'X:SOLUSD', 'MSTR', 'COIN', 'IBIT'];
 
@@ -70,6 +85,29 @@ const ETF_LABELS = {
   'BITO': 'ProShares Bitcoin Futures',
   'GBTC': 'Grayscale Bitcoin Mini Trust',
 };
+
+/* ── Data-Depth Component Tickers ──────────────────────────────────────── */
+const EARNINGS_TICKERS = ['MSTR', 'COIN', 'MARA', 'RIOT', 'HUT', 'BITF', 'CLSK'];
+const OWNERSHIP_TICKERS = ['MSTR', 'COIN', 'MARA', 'RIOT', 'CLSK'];
+const SIGNALS_TICKERS = ['MSTR', 'COIN', 'MARA', 'RIOT', 'HUT', 'BITF', 'CLSK'];
+const ANALYST_TICKERS = ['MSTR', 'COIN', 'MARA', 'RIOT'];
+
+/* ── Wrapper Components for Data-Depth Sections ──────────────────────── */
+const EarningsSection = memo(function EarningsSection() {
+  return <EarningsCalendarStrip tickers={EARNINGS_TICKERS} accentColor="#f7931a" />;
+});
+
+const AnalystSection = memo(function AnalystSection() {
+  return <AnalystActionsCard tickers={ANALYST_TICKERS} accentColor="#f7931a" />;
+});
+
+const OwnershipSection = memo(function OwnershipSection() {
+  return <OwnershipBreakdown tickers={OWNERSHIP_TICKERS} accentColor="#f7931a" />;
+});
+
+const SignalsSection = memo(function SignalsSection() {
+  return <TechnicalSignalsCard tickers={SIGNALS_TICKERS} accentColor="#f7931a" />;
+});
 
 /* ── Crypto Major Row Component ────────────────────────────────────────────── */
 function CryptoMajorRow({ symbol, label, onClick }) {
@@ -500,13 +538,19 @@ function CryptoMiniFinStrip({ statsMap }) {
 function CryptoKPIRibbon() {
   const btc  = useTickerPrice('X:BTCUSD');
   const eth  = useTickerPrice('X:ETHUSD');
-  const mstr = useTickerPrice('MSTR');
-  const coin = useTickerPrice('COIN');
+  const sol  = useTickerPrice('X:SOLUSD');
+  const ibit = useTickerPrice('IBIT');
+
+  // ETH/BTC ratio — key metric for crypto traders
+  const ethBtcRatio = (eth?.price != null && btc?.price != null && btc.price > 0)
+    ? eth.price / btc.price : null;
+
   const items = [
-    { label: 'BITCOIN',  value: btc?.price != null ? '$' + fmt(btc.price, 0) : '—',  change: btc?.changePct },
-    { label: 'ETHEREUM', value: eth?.price != null ? '$' + fmt(eth.price) : '—', change: eth?.changePct },
-    { label: 'MSTR',     value: mstr?.price != null ? '$' + fmt(mstr.price) : '—', change: mstr?.changePct },
-    { label: 'COINBASE', value: coin?.price != null ? '$' + fmt(coin.price) : '—', change: coin?.changePct },
+    { label: 'BITCOIN',   value: btc?.price != null ? '$' + fmt(btc.price, 0) : '—', change: btc?.changePct },
+    { label: 'ETHEREUM',  value: eth?.price != null ? '$' + fmt(eth.price, 0) : '—', change: eth?.changePct },
+    { label: 'ETH/BTC',   value: ethBtcRatio != null ? ethBtcRatio.toFixed(4) : '—' },
+    { label: 'SOLANA',    value: sol?.price != null ? '$' + fmt(sol.price) : '—', change: sol?.changePct },
+    { label: 'IBIT ETF',  value: ibit?.price != null ? '$' + fmt(ibit.price) : '—', change: ibit?.changePct },
   ];
   return <KPIRibbon items={items} accentColor="#f7931a" />;
 }
@@ -589,6 +633,27 @@ function CryptoScreenImpl() {
       ),
     },
     {
+      id: 'tech-signals',
+      title: 'Technical Signals',
+      component: SignalsSection,
+    },
+    {
+      id: 'earnings-calendar',
+      title: 'Upcoming Earnings',
+      span: 'full',
+      component: EarningsSection,
+    },
+    {
+      id: 'analyst-actions',
+      title: 'Analyst Actions',
+      component: AnalystSection,
+    },
+    {
+      id: 'ownership',
+      title: 'Ownership Structure',
+      component: OwnershipSection,
+    },
+    {
       id: 'fundamentals',
       title: 'Crypto Equities - Fundamentals Comparison',
       span: 'full',
@@ -622,6 +687,7 @@ function CryptoScreenImpl() {
       subtitle="Digital assets, on-chain analytics, crypto equities, and ETF flows"
       accentColor="#f7931a"
       sections={sections}
+      tickerBanner={BANNER_TICKERS}
       lastUpdated={new Date()}
       aiType="sector"
       aiContext={{ sector: 'Crypto & Digital Assets', tickers: ['BTC', 'ETH', 'SOL', 'XRP'] }}

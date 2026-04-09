@@ -2,7 +2,7 @@
  * InsiderActivity.jsx
  * Sector-wide insider buy/sell summary.
  */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { apiFetch } from '../../../utils/api';
 import { DeepSkeleton, DeepError } from '../DeepScreenBase';
 
@@ -27,8 +27,13 @@ export function InsiderActivity({ tickers, limit = 5, onTickerClick }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Stabilize tickers reference to prevent re-fetch loops
+  const tickerKey = JSON.stringify(tickers);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const stableTickers = useMemo(() => tickers || [], [tickerKey]);
+
   useEffect(() => {
-    if (!tickers || tickers.length === 0) {
+    if (!stableTickers || stableTickers.length === 0) {
       setData([]);
       setLoading(false);
       return;
@@ -40,7 +45,7 @@ export function InsiderActivity({ tickers, limit = 5, onTickerClick }) {
         setError(null);
 
         // Fetch for up to 8 tickers in parallel
-        const tickersToFetch = tickers.slice(0, 8);
+        const tickersToFetch = stableTickers.slice(0, 8);
         const promises = tickersToFetch.map(ticker =>
           apiFetch(`/api/market/insider/${ticker}`)
             .then(res => res.ok ? res.json() : [])
@@ -80,7 +85,7 @@ export function InsiderActivity({ tickers, limit = 5, onTickerClick }) {
     };
 
     fetchData();
-  }, [tickers, limit]);
+  }, [stableTickers, limit]);
 
   const handleRetry = () => {
     setLoading(true);
@@ -97,27 +102,31 @@ export function InsiderActivity({ tickers, limit = 5, onTickerClick }) {
         alignItems: 'center',
         justifyContent: 'center',
         minHeight: '120px',
-        background: 'rgba(76, 175, 80, 0.02)',
+        background: 'rgba(255,255,255,0.02)',
         borderRadius: 4,
-        border: '1px solid rgba(76, 175, 80, 0.1)',
+        border: '1px solid rgba(255,255,255,0.06)',
       }}>
         <div style={{
-          fontSize: 11,
+          fontSize: 12,
           fontWeight: 600,
-          color: 'var(--text-primary)',
-          marginBottom: 4,
+          color: 'var(--text-secondary)',
+          marginBottom: 6,
           textTransform: 'uppercase',
           letterSpacing: '0.5px',
         }}>
-          Insider Data
+          Insider Transactions
         </div>
         <div style={{
-          fontSize: 9,
+          fontSize: 11,
           color: 'var(--text-muted)',
           textAlign: 'center',
-          lineHeight: 1.4,
+          lineHeight: 1.5,
         }}>
-          Requires premium data feed
+          No recent insider activity reported for these tickers.
+          <br />
+          <span style={{ fontSize: 10, color: 'var(--text-faint)' }}>
+            Data sourced from SEC filings (Form 4). Updates daily.
+          </span>
         </div>
       </div>
     );

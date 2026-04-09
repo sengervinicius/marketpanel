@@ -10,6 +10,11 @@ import { KPIRibbon, heatColor, TickerRibbon } from './shared/SectorUI';
 import { InsiderActivity } from './shared/InsiderActivity';
 import { MiniFinancials } from './shared/MiniFinancials';
 import { DeepSkeleton, DeepError } from './DeepScreenBase';
+import EarningsCalendarStrip from './shared/EarningsCalendarStrip';
+import AnalystActionsCard from './shared/AnalystActionsCard';
+import OwnershipBreakdown from './shared/OwnershipBreakdown';
+import TechnicalSignalsCard from './shared/TechnicalSignalsCard';
+import MacroCalendarStrip from './shared/MacroCalendarStrip';
 import useSectionData from '../../hooks/useSectionData';
 import { useOpenDetail } from '../../context/OpenDetailContext';
 import { useTickerPrice } from '../../context/PriceContext';
@@ -47,6 +52,25 @@ const EM_EQUITY_ETFS = ['EWZ', 'EWW', 'INDA', 'FXI', 'EEM', 'VWO'];
 
 // Brazil ETFs
 const BRAZIL_ETFS = ['EWZ', 'FLBR', 'EWW', 'ARGT', 'INDA', 'FXI', 'EEM'];
+
+// ADR tickers for deep-data components
+const EARNINGS_TICKERS = ['PBR', 'VALE', 'ITUB', 'BBD', 'ERJ', 'ABEV', 'SBS'];
+const OWNERSHIP_TICKERS = ['PBR', 'VALE', 'ITUB', 'BBD', 'ERJ'];
+const SIGNALS_TICKERS = ['PBR', 'VALE', 'ITUB', 'BBD', 'ERJ', 'ABEV', 'SBS'];
+const ANALYST_TICKERS = ['PBR', 'VALE', 'ITUB', 'BBD', 'ERJ', 'ABEV'];
+
+const BANNER_TICKERS = [
+  { ticker: 'EWZ', label: 'BRAZIL ETF' },
+  { ticker: 'PETR4.SA', label: 'PETR4' },
+  { ticker: 'VALE3.SA', label: 'VALE3' },
+  { ticker: 'ITUB4.SA', label: 'ITUB4' },
+  { ticker: 'BBD', label: 'BRADESCO' },
+  { ticker: 'PBR', label: 'PETROBRAS' },
+  { ticker: 'VALE', label: 'VALE ADR' },
+  { ticker: 'C:USDBRL', label: 'USD/BRL' },
+  { ticker: 'EEM', label: 'EM EQUITY' },
+  { ticker: 'ARGT', label: 'ARGT ETF' },
+];
 
 /* ── KPI Ribbon ───────────────────────────────────────────────────────── */
 const BrazilKPIRibbon = memo(function BrazilKPIRibbon() {
@@ -427,6 +451,27 @@ function BrazilMiniFinStrip() {
   );
 }
 
+/* ── Deep-Data Component Wrappers ──────────────────────────────────────── */
+const EarningsSection = memo(function EarningsSection() {
+  return <EarningsCalendarStrip tickers={EARNINGS_TICKERS} accentColor="#4caf50" />;
+});
+
+const AnalystSection = memo(function AnalystSection() {
+  return <AnalystActionsCard tickers={ANALYST_TICKERS} accentColor="#4caf50" />;
+});
+
+const OwnershipSection = memo(function OwnershipSection() {
+  return <OwnershipBreakdown tickers={OWNERSHIP_TICKERS} accentColor="#4caf50" />;
+});
+
+const SignalsSection = memo(function SignalsSection() {
+  return <TechnicalSignalsCard tickers={SIGNALS_TICKERS} accentColor="#4caf50" />;
+});
+
+const MacroCalendarSection = memo(function MacroCalendarSection() {
+  return <MacroCalendarStrip countries={['BR', 'US']} limit={12} accentColor="#4caf50" />;
+});
+
 /* ── Brazil ETF Cell ───────────────────────────────────────────────── */
 function BrazilEtfCell({ sym, openDetail }) {
   const q = useTickerPrice(sym);
@@ -540,6 +585,36 @@ function BrazilScreenImpl() {
       span: 'full',
       component: () => <InsiderActivity tickers={['PBR', 'VALE', 'ITUB', 'BBD', 'EWZ', 'BSBR']} limit={5} />,
     },
+    {
+      id: 'earnings',
+      title: 'EARNINGS CALENDAR',
+      span: 'full',
+      component: EarningsSection,
+    },
+    {
+      id: 'analyst',
+      title: 'ANALYST ACTIONS',
+      span: 'full',
+      component: AnalystSection,
+    },
+    {
+      id: 'ownership',
+      title: 'OWNERSHIP BREAKDOWN',
+      span: 'full',
+      component: OwnershipSection,
+    },
+    {
+      id: 'signals',
+      title: 'TECHNICAL SIGNALS',
+      span: 'full',
+      component: SignalsSection,
+    },
+    {
+      id: 'macro-calendar',
+      title: 'MACRO CALENDAR',
+      span: 'full',
+      component: MacroCalendarSection,
+    },
   ];
 
   return (
@@ -550,6 +625,7 @@ function BrazilScreenImpl() {
       lastUpdated={lastUpdated}
       onBack={() => window.history.back()}
       sections={sections}
+      tickerBanner={BANNER_TICKERS}
       aiType="em-country"
       aiContext={{ country: 'Brazil', tickers: ['EWZ', 'VALE3.SA', 'PETR4.SA', 'ITUB4.SA'] }}
       aiCacheKey="em-country:brazil"

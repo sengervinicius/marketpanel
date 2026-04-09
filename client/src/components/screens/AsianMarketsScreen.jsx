@@ -5,7 +5,7 @@
  */
 import { memo, useEffect, useMemo, useState } from 'react';
 import FullPageScreenLayout from './shared/FullPageScreenLayout';
-import { FundamentalsTable } from './shared/FundamentalsTable';
+import { FundamentalsTable, EarningsCalendarStrip, AnalystActionsCard, OwnershipBreakdown, TechnicalSignalsCard, MacroCalendarStrip } from './shared';
 import { SectorChartPanel } from './shared/SectorChartPanel';
 import { InsiderActivity } from './shared/InsiderActivity';
 import { KPIRibbon, heatColor, TickerRibbon } from './shared/SectorUI';
@@ -44,6 +44,19 @@ const CHART_TICKERS = ['BABA', 'TM', 'SONY', 'HDB', 'TSM', '005930.KS'];
 
 // Static fallback only — dynamic ALL_EQUITIES computed inside component
 const STATIC_ALL_EQUITIES = [...JAPAN, ...CHINA_HK, ...INDIA, ...KOREA, ...TAIWAN, ...ASEAN];
+
+const BANNER_TICKERS = [
+  { ticker: 'EWJ', label: 'JAPAN ETF' },
+  { ticker: 'FXI', label: 'CHINA ETF' },
+  { ticker: 'INDA', label: 'INDIA ETF' },
+  { ticker: 'EWY', label: 'KOREA ETF' },
+  { ticker: 'EWT', label: 'TAIWAN ETF' },
+  { ticker: 'TSM', label: 'TSMC ADR' },
+  { ticker: 'TM', label: 'TOYOTA' },
+  { ticker: 'BABA', label: 'ALIBABA' },
+  { ticker: 'HDB', label: 'HDFC BANK' },
+  { ticker: 'VWO', label: 'EM EQUITY' },
+];
 
 // Exchange configs for dynamic ticker resolution
 const EXCHANGE_CONFIGS = [
@@ -106,6 +119,32 @@ const LABELS = {
   VWO: 'Vanguard Emerging Markets',
   AAXJ: 'iShares ASEAN ETF',
 };
+
+/* ── Phase 1 Deep Data Components ──────────────────────────────────── */
+const EARNINGS_TICKERS = ['BABA', 'TM', 'SONY', 'HDB', 'INFY', 'TSM', 'TCEHY', 'NIO'];
+const OWNERSHIP_TICKERS = ['BABA', 'TM', 'SONY', 'HDB', 'TSM', 'TCEHY'];
+const SIGNALS_TICKERS = ['BABA', 'TM', 'SONY', 'HDB', 'INFY', 'TSM', 'TCEHY', 'NIO'];
+const ANALYST_TICKERS = ['BABA', 'TM', 'SONY', 'HDB', 'TSM', 'INFY'];
+
+const TechnicalSignalsSection = memo(function TechnicalSignalsSection() {
+  return <TechnicalSignalsCard tickers={SIGNALS_TICKERS} accentColor="#ff5722" />;
+});
+
+const EarningsSection = memo(function EarningsSection() {
+  return <EarningsCalendarStrip tickers={EARNINGS_TICKERS} accentColor="#ff5722" />;
+});
+
+const AnalystSection = memo(function AnalystSection() {
+  return <AnalystActionsCard tickers={ANALYST_TICKERS} accentColor="#ff5722" />;
+});
+
+const OwnershipSection = memo(function OwnershipSection() {
+  return <OwnershipBreakdown tickers={OWNERSHIP_TICKERS} accentColor="#ff5722" />;
+});
+
+const MacroCalendarSection = memo(function MacroCalendarSection() {
+  return <MacroCalendarStrip countries={['JP', 'CN', 'IN', 'KR', 'AU']} limit={12} accentColor="#ff5722" />;
+});
 
 /* ── Macro Dashboard Component ─────────────────────────────────────────────── */
 function MacroDashboard() {
@@ -454,6 +493,33 @@ function AsianMarketsScreenImpl() {
       component: MacroDashboard,
     },
     {
+      id: 'tech-signals',
+      title: 'Technical Signals',
+      component: TechnicalSignalsSection,
+    },
+    {
+      id: 'earnings-calendar',
+      title: 'Upcoming Earnings',
+      span: 'full',
+      component: EarningsSection,
+    },
+    {
+      id: 'analyst-actions',
+      title: 'Analyst Actions',
+      component: AnalystSection,
+    },
+    {
+      id: 'ownership',
+      title: 'Ownership Structure',
+      component: OwnershipSection,
+    },
+    {
+      id: 'macro-calendar',
+      title: 'Macro Calendar',
+      span: 'full',
+      component: MacroCalendarSection,
+    },
+    {
       id: 'insider',
       title: 'Insider Activity',
       span: 'full',
@@ -473,6 +539,7 @@ function AsianMarketsScreenImpl() {
       subtitle="Japan, China, India, Korea & ASEAN — ADRs, FX, and regional macro"
       accentColor="#ff5722"
       sections={sections}
+      tickerBanner={BANNER_TICKERS}
       lastUpdated={new Date()}
       aiType="macro"
       aiContext={{ region: 'Asia-Pacific', tickers: ['EWJ', 'FXI', '2800.HK'] }}

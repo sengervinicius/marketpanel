@@ -15,6 +15,11 @@ import { TableExportBar } from './shared/TableExportBar';
 import { KPIRibbon, TickerRibbon, heatColor } from './shared/SectorUI';
 import { CorrelationMatrix } from './shared/CorrelationMatrix';
 import { ImpliedVolatilityCard } from './shared/ImpliedVolatilityCard';
+import { EarningsCalendarStrip } from './shared/EarningsCalendarStrip';
+import { AnalystActionsCard } from './shared/AnalystActionsCard';
+import { OwnershipBreakdown } from './shared/OwnershipBreakdown';
+import { TechnicalSignalsCard } from './shared/TechnicalSignalsCard';
+import { SentimentCard } from './shared/SentimentCard';
 import { useOpenDetail } from '../../context/OpenDetailContext';
 import { useTickerPrice } from '../../context/PriceContext';
 import { useDeepScreenData } from '../../hooks/useDeepScreenData';
@@ -60,6 +65,47 @@ const ALL_EQUITIES = [
   ...EU_DEFENCE.map(e => e.symbol),
   ...SUPPLY_CHAIN,
   ...SPACE_CYBER
+];
+
+/* ── Data-Depth Component Tickers ──────────────────────────────────────── */
+const EARNINGS_TICKERS = ['LMT', 'RTX', 'NOC', 'BA', 'GD', 'HII', 'PLTR', 'RKLB'];
+const OWNERSHIP_TICKERS = ['LMT', 'RTX', 'NOC', 'BA', 'GD', 'PLTR'];
+const SIGNALS_TICKERS = ['LMT', 'RTX', 'NOC', 'BA', 'GD', 'HII', 'PLTR', 'RKLB'];
+const ANALYST_TICKERS = ['LMT', 'RTX', 'NOC', 'BA', 'GD', 'PLTR'];
+const SENTIMENT_TICKERS = ['LMT', 'RTX', 'NOC', 'BA', 'GD', 'PLTR'];
+
+/* ── Wrapper Components for Data-Depth Sections ──────────────────────── */
+const EarningsSection = memo(function EarningsSection() {
+  return <EarningsCalendarStrip tickers={EARNINGS_TICKERS} accentColor="#ef5350" />;
+});
+
+const AnalystSection = memo(function AnalystSection() {
+  return <AnalystActionsCard tickers={ANALYST_TICKERS} accentColor="#ef5350" />;
+});
+
+const OwnershipSection = memo(function OwnershipSection() {
+  return <OwnershipBreakdown tickers={OWNERSHIP_TICKERS} accentColor="#ef5350" />;
+});
+
+const SignalsSection = memo(function SignalsSection() {
+  return <TechnicalSignalsCard tickers={SIGNALS_TICKERS} accentColor="#ef5350" />;
+});
+
+const SentimentSection = memo(function SentimentSection() {
+  return <SentimentCard tickers={SENTIMENT_TICKERS} accentColor="#ef5350" />;
+});
+
+const BANNER_TICKERS = [
+  { ticker: 'LMT', label: 'LMT' },
+  { ticker: 'RTX', label: 'RTX' },
+  { ticker: 'NOC', label: 'NOC' },
+  { ticker: 'BA', label: 'BA' },
+  { ticker: 'GD', label: 'GD' },
+  { ticker: 'LHX', label: 'LHX' },
+  { ticker: 'ITA', label: 'ITA ETF' },
+  { ticker: 'XAR', label: 'XAR ETF' },
+  { ticker: 'PPA', label: 'PPA ETF' },
+  { ticker: 'DFEN', label: 'DFEN ETF' },
 ];
 
 /* ── KPI Ribbon for Defence Screen ─────────────────────────────────────── */
@@ -382,6 +428,32 @@ function DefenceScreenImpl() {
       ),
     },
     {
+      id: 'tech-signals',
+      title: 'Technical Signals',
+      component: SignalsSection,
+    },
+    {
+      id: 'earnings-calendar',
+      title: 'Upcoming Earnings',
+      span: 'full',
+      component: EarningsSection,
+    },
+    {
+      id: 'analyst-actions',
+      title: 'Analyst Actions',
+      component: AnalystSection,
+    },
+    {
+      id: 'ownership',
+      title: 'Ownership Structure',
+      component: OwnershipSection,
+    },
+    {
+      id: 'sentiment',
+      title: 'News Sentiment',
+      component: SentimentSection,
+    },
+    {
       id: 'iv-monitor',
       title: 'Implied Volatility Monitor',
       span: 'full',
@@ -403,6 +475,7 @@ function DefenceScreenImpl() {
       subtitle="Global defense primes, aerospace supply chain, and geopolitical risk"
       accentColor="#ef5350"
       sections={sections}
+      tickerBanner={BANNER_TICKERS}
       lastUpdated={new Date()}
       screenKey="defence"
       visibleTickers={ALL_EQUITIES}

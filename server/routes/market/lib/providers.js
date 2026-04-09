@@ -301,13 +301,13 @@ async function yahooQuote(symbols) {
   return yahooCache.wrap(normalizedKey, () => _yahooQuoteRaw(symbols), 60 * 1000);
 }
 
-// ── Yahoo quoteSummary (financialData module) ──────────────────────
+// ── Yahoo quoteSummary (expanded modules) ───────────────────────────
 async function _yahooQuoteSummaryRaw(symbol) {
   const HOSTS = ['query1', 'query2'];
   for (let attempt = 0; attempt < 2; attempt++) {
     const { crumb, cookie } = await getYahooCrumb();
     const host = HOSTS[attempt % HOSTS.length];
-    const modules = 'financialData,defaultKeyStatistics';
+    const modules = 'financialData,defaultKeyStatistics,summaryDetail,summaryProfile,earningsHistory,earningsTrend,upgradeDowngradeHistory,insiderHolders,institutionOwnership,majorHoldersBreakdown,calendarEvents';
     const url = `https://${host}.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(symbol)}?modules=${modules}&crumb=${encodeURIComponent(crumb)}&lang=en-US`;
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), 10000);
@@ -333,11 +333,79 @@ async function _yahooQuoteSummaryRaw(symbol) {
     const json = await r.json();
     const result = json?.quoteSummary?.result?.[0];
     if (!result) return null;
-    const fd = result.financialData || {};
-    const ks = result.defaultKeyStatistics || {};
+
     // Extract raw values (Yahoo wraps numbers in {raw, fmt} objects)
     const raw = (v) => (v && typeof v === 'object' && 'raw' in v) ? v.raw : (v ?? null);
+
+    // Existing modules
+    const fd = result.financialData || {};
+    const ks = result.defaultKeyStatistics || {};
+
+    // New modules
+    const sd = result.summaryDetail || {};
+    const sp = result.summaryProfile || {};
+    const eh = result.earningsHistory || {};
+    const et = result.earningsTrend || {};
+    const udh = result.upgradeDowngradeHistory || {};
+    const ih = result.insiderHolders || {};
+    const io = result.institutionOwnership || {};
+    const mhb = result.majorHoldersBreakdown || {};
+    const ce = result.calendarEvents || {};
+
+    // Helper: extract last N quarters from earningsHistory
+    const getLastQuarters = (arr, n = 4) => {
+      if (!Array.isArray(arr)) return [];
+      return arr.slice(-n).map(q => ({
+        date: q.date || null,
+        epsActual: raw(q.epsActual),
+        epsEstimate: raw(q.epsEstimate),
+        epsDifference: raw(q.epsDifference),
+        surprisePercent: raw(q.surprisePercent),
+      }));
+    };
+
+    // Helper: extract earnings trend for a quarter
+    const getTrendQuarter = (trend) => {
+      if (!trend) return null;
+      return {
+        endDate: trend.endDate || null,
+        growth: raw(trend.growth),
+        earningsEstimate: trend.earningsEstimate ? {
+          avg: raw(trend.earningsEstimate.avg),
+          low: raw(trend.earningsEstimate.low),
+          high: raw(trend.earningsEstimate.high),
+          numberOfAnalysts: trend.earningsEstimate.numberOfAnalysts || null,
+        } : null,
+      };
+    };
+
+    // Helper: extract last N analyst actions
+    const getLastActions = (arr, n = 10) => {
+      if (!Array.isArray(arr)) return [];
+      return arr.slice(-n).map(a => ({
+        firm: a.firm || null,
+        toGrade: a.toGrade || null,
+        fromGrade: a.fromGrade || null,
+        action: a.action || null,
+        epochGradeDate: a.epochGradeDate || null,
+      }));
+    };
+
+    // Helper: extract insider holders
+    const getInsiderHolders = (arr) => {
+      if (!Array.isArray(arr)) return [];
+      return arr.map(h => ({
+        name: h.name || null,
+        relation: h.relation || null,
+        transactionDescription: h.transactionDescription || null,
+        latestTransDate: h.latestTransDate || null,
+        positionDirect: raw(h.positionDirect),
+        positionDirectDate: h.positionDirectDate || null,
+      }));
+    };
+
     return {
+      // Existing financialData fields
       revenue: raw(fd.totalRevenue),
       ebitda: raw(fd.ebitda),
       grossMargins: raw(fd.grossMargins),
@@ -353,12 +421,76 @@ async function _yahooQuoteSummaryRaw(symbol) {
       freeCashflow: raw(fd.freeCashflow),
       targetMeanPrice: raw(fd.targetMeanPrice),
       recommendationMean: raw(fd.recommendationMean),
+
+      // Existing defaultKeyStatistics fields
       beta: raw(ks.beta),
       priceToBook: raw(ks.priceToBook),
       enterpriseValue: raw(ks.enterpriseValue),
       forwardEps: raw(ks.forwardEps),
       pegRatio: raw(ks.pegRatio),
       shortPercentOfFloat: raw(ks.shortPercentOfFloat),
+
+      // summaryDetail fields
+      dividendRate: raw(sd.dividendRate),
+      dividendYield: raw(sd.dividendYield),
+      exDividendDate: sd.exDividendDate || null,
+      payoutRatio: raw(sd.payoutRatio),
+      fiveYearAvgDividendYield: raw(sd.fiveYearAvgDividendYield),
+      trailingPE: raw(sd.trailingPE),
+      forwardPE: raw(sd.forwardPE),
+      volume: raw(sd.volume),
+      averageVolume: raw(sd.averageVolume),
+      averageVolume10days: raw(sd.averageVolume10days),
+      marketCap: raw(sd.marketCap),
+      fiftyTwoWeekLow: raw(sd.fiftyTwoWeekLow),
+      fiftyTwoWeekHigh: raw(sd.fiftyTwoWeekHigh),
+      fiftyDayAverage: raw(sd.fiftyDayAverage),
+      twoHundredDayAverage: raw(sd.twoHundredDayAverage),
+
+      // summaryProfile fields
+      sector: sp.sector || null,
+      industry: sp.industry || null,
+      fullTimeEmployees: sp.fullTimeEmployees || null,
+      longBusinessSummary: (sp.longBusinessSummary || '').slice(0, 200),
+      country: sp.country || null,
+      city: sp.city || null,
+      website: sp.website || null,
+
+      // earningsHistory (last 4 quarters)
+      earningsHistory: getLastQuarters(eh.history),
+
+      // earningsTrend (current and next quarter)
+      earningsTrend: {
+        currentQtr: getTrendQuarter(et.trend?.[0]),
+        nextQtr: getTrendQuarter(et.trend?.[1]),
+      },
+
+      // upgradeDowngradeHistory (last 10)
+      analystActions: getLastActions(udh.history),
+
+      // insiderHolders
+      insiderHolders: getInsiderHolders(ih.holders),
+
+      // institutionOwnership
+      institutionOwnership: {
+        count: io.ownershipList?.length || 0,
+        pctHeld: raw(io.totalHolding),
+      },
+
+      // majorHoldersBreakdown
+      holdersBreakdown: {
+        insidersPercentHeld: raw(mhb.insidersPercentHeld),
+        institutionsPercentHeld: raw(mhb.institutionsPercentHeld),
+        institutionsFloatPercentHeld: raw(mhb.institutionsFloatPercentHeld),
+        institutionsCount: mhb.institutionsCount || null,
+      },
+
+      // calendarEvents
+      calendarEvents: {
+        earningsDate: (ce.earnings?.earningsDate || []).map(d => d || null),
+        dividendDate: ce.dividends?.dividendDate || null,
+        exDividendDate: ce.dividends?.exDividendDate || null,
+      },
     };
   }
   throw new Error('Yahoo quoteSummary: exhausted retries');

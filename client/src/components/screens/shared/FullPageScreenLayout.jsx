@@ -2,11 +2,116 @@
  * FullPageScreenLayout.jsx
  * Upgraded version of DeepScreenBase designed for full-page sector screens.
  */
-import { Component, useRef, useState, useEffect } from 'react';
+import { Component, useRef, useState, useEffect, memo } from 'react';
 import { useIsMobile } from '../../../hooks/useIsMobile';
 import { useScreenContext } from '../../../context/ScreenContext';
+import { useTickerPrice } from '../../../context/PriceContext';
 import AIInsightCard from '../../ai/AIInsightCard';
 import './ScreenShared.css';
+
+/* ═══════════════════════════════════════════════════════════════════════
+   LiveTickerBanner — Bloomberg TV-style horizontal scrolling ticker strip
+   Sits below the screen header, shows ETFs/indices with live prices.
+   CSS animation scrolls continuously; data updates in-place via hooks.
+   ═══════════════════════════════════════════════════════════════════════ */
+const BannerTick = memo(function BannerTick({ ticker, label, accentColor }) {
+  const q = useTickerPrice(ticker);
+  const isUp = q?.changePct != null ? q.changePct >= 0 : null;
+  const displayTicker = (ticker || '')
+    .replace(/^C:/, '').replace(/^X:/, '')
+    .replace('.SA', '').replace('=F', '');
+
+  return (
+    <span style={{
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 6,
+      padding: '0 16px',
+      whiteSpace: 'nowrap',
+      fontSize: 11,
+      fontFamily: 'var(--font-mono)',
+      letterSpacing: '0.3px',
+    }}>
+      <span style={{
+        fontWeight: 700,
+        color: accentColor || 'var(--text-primary)',
+        fontSize: 10,
+        letterSpacing: '0.5px',
+      }}>
+        {label || displayTicker}
+      </span>
+      <span style={{
+        fontWeight: 600,
+        color: 'var(--text-primary)',
+        fontVariantNumeric: 'tabular-nums',
+      }}>
+        {q?.price != null
+          ? q.price >= 1000
+            ? q.price.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
+            : q.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+          : '—'}
+      </span>
+      {q?.changePct != null && (
+        <span style={{
+          fontWeight: 700,
+          fontSize: 10,
+          color: isUp ? 'var(--semantic-up)' : 'var(--semantic-down)',
+        }}>
+          {isUp ? '▲' : '▼'} {Math.abs(q.changePct).toFixed(2)}%
+        </span>
+      )}
+      <span style={{
+        color: 'rgba(255,255,255,0.08)',
+        fontSize: 8,
+        padding: '0 4px',
+      }}>│</span>
+    </span>
+  );
+});
+
+function LiveTickerBanner({ tickers = [], accentColor }) {
+  if (!tickers || tickers.length === 0) return null;
+
+  // Duplicate tickers for seamless scroll loop
+  const tickerItems = tickers.map(t =>
+    typeof t === 'string' ? { ticker: t } : t
+  );
+
+  return (
+    <div style={{
+      overflow: 'hidden',
+      background: 'rgba(0,0,0,0.3)',
+      borderBottom: '1px solid rgba(255,255,255,0.04)',
+      height: 28,
+      display: 'flex',
+      alignItems: 'center',
+      position: 'relative',
+    }}>
+      <div
+        className="fsl-ticker-scroll"
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        {/* Render twice for seamless loop */}
+        {[0, 1].map(pass => (
+          <span key={pass} style={{ display: 'inline-flex', alignItems: 'center' }}>
+            {tickerItems.map((t, i) => (
+              <BannerTick
+                key={`${pass}-${t.ticker}-${i}`}
+                ticker={t.ticker}
+                label={t.label}
+                accentColor={accentColor}
+              />
+            ))}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 /**
  * LazySection component that uses IntersectionObserver for lazy loading.
@@ -178,6 +283,7 @@ function FullPageScreenLayout({
   aiType,
   aiContext,
   aiCacheKey,
+  tickerBanner,  // Array of { ticker, label } for Bloomberg-style scrolling banner
 }) {
   const isMobile = useIsMobile();
   const { updateScreen } = useScreenContext();
@@ -224,6 +330,11 @@ function FullPageScreenLayout({
           )}
         </div>
       </div>
+
+      {/* Bloomberg-style Scrolling Ticker Banner */}
+      {tickerBanner && tickerBanner.length > 0 && (
+        <LiveTickerBanner tickers={tickerBanner} accentColor={accentColor} />
+      )}
 
       {/* AI Insight — auto-fetch on mount */}
       {aiType && (

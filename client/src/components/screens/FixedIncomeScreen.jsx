@@ -57,6 +57,19 @@ const CURVE_COLORS = {
 
 const TENORS_SORT = ['2Y', '5Y', '10Y', '30Y'];
 
+const BANNER_TICKERS = [
+  { ticker: 'TLT', label: 'TLT 20Y' },
+  { ticker: 'IEF', label: 'IEF 7Y' },
+  { ticker: 'SHY', label: 'SHY 1-3Y' },
+  { ticker: 'AGG', label: 'AGG TOTAL' },
+  { ticker: 'LQD', label: 'LQD IG CORP' },
+  { ticker: 'HYG', label: 'HYG HY CORP' },
+  { ticker: 'EMB', label: 'EMB EM BONDS' },
+  { ticker: 'BND', label: 'BND TOTAL' },
+  { ticker: 'BNDX', label: 'BNDX INTL' },
+  { ticker: 'TIP', label: 'TIP TIPS' },
+];
+
 /* ═══════════════════════════════════════════════════════════════════════════
    DATA FETCHERS
    ═══════════════════════════════════════════════════════════════════════════ */
@@ -927,6 +940,7 @@ function FixedIncomeScreenImpl({ onBack }) {
       accentColor="#2196f3"
       onBack={onBack}
       sections={sections}
+      tickerBanner={BANNER_TICKERS}
       aiType="yield-curve"
       aiContext={{ scope: 'Fixed Income & Rates' }}
       aiCacheKey="yield-curve:overview"

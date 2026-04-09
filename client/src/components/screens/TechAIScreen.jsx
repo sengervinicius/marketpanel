@@ -7,7 +7,7 @@
 import { memo, useMemo, useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import FullPageScreenLayout from './shared/FullPageScreenLayout';
-import { SectorChartPanel, FundamentalsTable, SectorScatterPlot, InsiderActivity, MiniFinancials, KPIRibbon, heatColor, TickerRibbon, CorrelationMatrix, ComparisonBarChart, ImpliedVolatilityCard } from './shared';
+import { SectorChartPanel, FundamentalsTable, SectorScatterPlot, InsiderActivity, MiniFinancials, KPIRibbon, heatColor, TickerRibbon, CorrelationMatrix, ComparisonBarChart, ImpliedVolatilityCard, EarningsCalendarStrip, AnalystActionsCard, OwnershipBreakdown, TechnicalSignalsCard, SentimentCard } from './shared';
 import { useOpenDetail } from '../../context/OpenDetailContext';
 import { useTickerPrice } from '../../context/PriceContext';
 import { useDeepScreenData } from '../../hooks/useDeepScreenData';
@@ -30,6 +30,19 @@ const MEGA_CAP  = ['AAPL', 'MSFT', 'GOOGL', 'META', 'AMZN', 'TSLA', 'NFLX'];
 const SEMIS     = ['NVDA', 'AMD', 'AVGO', 'TSM', 'QCOM', 'MRVL', 'MU', 'AMAT'];
 const AI_CLOUD  = ['CRM', 'SNOW', 'PLTR', 'AI', 'PATH', 'NOW', 'DDOG', 'SMCI'];
 const ETF_SYMBOLS = ['QQQ', 'XLK', 'SOXX', 'SMH', 'AIQ', 'BOTZ', 'ROBO', 'IGV', 'ARKK'];
+
+const BANNER_TICKERS = [
+  { ticker: 'QQQ', label: 'QQQ' },
+  { ticker: 'XLK', label: 'XLK' },
+  { ticker: 'SOXX', label: 'SOXX' },
+  { ticker: 'SMH', label: 'SMH' },
+  { ticker: 'NVDA', label: 'NVDA' },
+  { ticker: 'AAPL', label: 'AAPL' },
+  { ticker: 'MSFT', label: 'MSFT' },
+  { ticker: 'GOOGL', label: 'GOOGL' },
+  { ticker: 'META', label: 'META' },
+  { ticker: 'TSM', label: 'TSM' },
+];
 const CHART_TICKERS = ['NVDA', 'MSFT', 'AAPL', 'GOOGL', 'TSM', 'META'];
 const INSIDER_TICKERS = ['AAPL', 'MSFT', 'GOOGL', 'META', 'NVDA', 'AMZN'];
 const REVENUE_GROWTH_TICKERS = ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA', 'META'];
@@ -37,17 +50,44 @@ const MINI_FIN_TICKERS = ['AAPL', 'MSFT', 'NVDA'];
 
 const ALL_TICKERS = [...MEGA_CAP, ...SEMIS, ...AI_CLOUD];
 
+// Module-level constants for stable props
+const TECH_EARNINGS_TICKERS = ['AAPL', 'MSFT', 'GOOGL', 'NVDA', 'META', 'AMZN', 'TSM', 'AMD'];
+const TECH_OWNERSHIP_TICKERS = ['AAPL', 'MSFT', 'NVDA', 'GOOGL', 'META', 'AMZN'];
+const TECH_SIGNALS_TICKERS = ['NVDA', 'AAPL', 'MSFT', 'GOOGL', 'META', 'TSM', 'AMD', 'AVGO'];
+const TECH_ANALYST_TICKERS = ['NVDA', 'AAPL', 'MSFT', 'GOOGL', 'META', 'AMZN'];
+const SENTIMENT_TICKERS = ['NVDA', 'AAPL', 'MSFT', 'GOOGL', 'META', 'AMZN', 'TSM', 'AMD'];
+
+function TechEarningsSection() {
+  return <EarningsCalendarStrip tickers={TECH_EARNINGS_TICKERS} accentColor="#00bcd4" />;
+}
+
+function TechAnalystSection() {
+  return <AnalystActionsCard tickers={TECH_ANALYST_TICKERS} limit={12} accentColor="#00bcd4" />;
+}
+
+function TechOwnershipSection() {
+  return <OwnershipBreakdown tickers={TECH_OWNERSHIP_TICKERS} accentColor="#00bcd4" />;
+}
+
+function TechSignalsSection() {
+  return <TechnicalSignalsCard tickers={TECH_SIGNALS_TICKERS} accentColor="#00bcd4" />;
+}
+
+const SentimentSection = memo(function SentimentSection() {
+  return <SentimentCard tickers={SENTIMENT_TICKERS} accentColor="#00bcd4" />;
+});
+
 /* ── KPI Ribbon ────────────────────────────────────────────────────────── */
 function TechKPIRibbon() {
   const qqq  = useTickerPrice('QQQ');
-  const nvda = useTickerPrice('NVDA');
-  const aapl = useTickerPrice('AAPL');
-  const msft = useTickerPrice('MSFT');
+  const xlk  = useTickerPrice('XLK');
+  const soxx = useTickerPrice('SOXX');
+  const smh  = useTickerPrice('SMH');
   const items = [
-    { label: 'NASDAQ 100',  value: qqq?.price != null ? fmt(qqq.price) : '—',  change: qqq?.changePct },
-    { label: 'NVDA',        value: nvda?.price != null ? '$' + fmt(nvda.price) : '—', change: nvda?.changePct },
-    { label: 'AAPL',        value: aapl?.price != null ? '$' + fmt(aapl.price) : '—', change: aapl?.changePct },
-    { label: 'MSFT',        value: msft?.price != null ? '$' + fmt(msft.price) : '—', change: msft?.changePct },
+    { label: 'NASDAQ 100',  value: qqq?.price != null ? fmt(qqq.price, 0) : '—',  change: qqq?.changePct },
+    { label: 'TECH SELECT', value: xlk?.price != null ? '$' + fmt(xlk.price) : '—', change: xlk?.changePct },
+    { label: 'SEMIS (SOXX)', value: soxx?.price != null ? '$' + fmt(soxx.price) : '—', change: soxx?.changePct },
+    { label: 'SEMIS (SMH)',  value: smh?.price != null ? '$' + fmt(smh.price) : '—', change: smh?.changePct },
   ];
   return <KPIRibbon items={items} accentColor="#00bcd4" />;
 }
@@ -421,6 +461,32 @@ function TechAIScreenImpl() {
       ),
     },
     {
+      id: 'tech-signals',
+      title: 'Technical Signals',
+      component: TechSignalsSection,
+    },
+    {
+      id: 'earnings-calendar',
+      title: 'Upcoming Earnings',
+      span: 'full',
+      component: TechEarningsSection,
+    },
+    {
+      id: 'analyst-actions',
+      title: 'Analyst Actions',
+      component: TechAnalystSection,
+    },
+    {
+      id: 'ownership',
+      title: 'Ownership Structure',
+      component: TechOwnershipSection,
+    },
+    {
+      id: 'sentiment',
+      title: 'News Sentiment',
+      component: SentimentSection,
+    },
+    {
       id: 'iv-monitor',
       title: 'IMPLIED VOLATILITY',
       span: 'full',
@@ -460,6 +526,7 @@ function TechAIScreenImpl() {
       accentColor="#00bcd4"
       subtitle="Mega-cap tech, semiconductors, AI & cloud — valuation and growth analysis"
       sections={sections}
+      tickerBanner={BANNER_TICKERS}
       screenKey="technology"
       visibleTickers={allTickers}
       aiType="sector"

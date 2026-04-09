@@ -12,6 +12,11 @@ import { SectorScatterPlot } from './shared/SectorScatterPlot';
 import { InsiderActivity } from './shared/InsiderActivity';
 import { MiniFinancials } from './shared/MiniFinancials';
 import { KPIRibbon, heatColor, TickerRibbon } from './shared/SectorUI';
+import { CorrelationMatrix } from './shared/CorrelationMatrix';
+import { EarningsCalendarStrip } from './shared/EarningsCalendarStrip';
+import { AnalystActionsCard } from './shared/AnalystActionsCard';
+import { OwnershipBreakdown } from './shared/OwnershipBreakdown';
+import { TechnicalSignalsCard } from './shared/TechnicalSignalsCard';
 import { useOpenDetail } from '../../context/OpenDetailContext';
 import { useTickerPrice } from '../../context/PriceContext';
 import { useDeepScreenData } from '../../hooks/useDeepScreenData';
@@ -101,6 +106,18 @@ const ECOMMERCE_FINTECH = ['SHOP', 'MELI', 'SE', 'BABA', 'JD', 'PDD'];
 const SPECIALTY_RETAIL = ['LULU', 'DECK', 'ULTA', 'ROST', 'FIVE'];
 const RETAIL_ETFS = ['XLY', 'XLP', 'IBUY', 'ONLN', 'RETL'];
 
+const BANNER_TICKERS = [
+  { ticker: 'XLY', label: 'DISCRET' },
+  { ticker: 'XLP', label: 'STAPLES' },
+  { ticker: 'AMZN', label: 'AMZN' },
+  { ticker: 'WMT', label: 'WMT' },
+  { ticker: 'COST', label: 'COST' },
+  { ticker: 'NKE', label: 'NKE' },
+  { ticker: 'LVMUY', label: 'LVMH' },
+  { ticker: 'MELI', label: 'MELI' },
+  { ticker: 'SHOP', label: 'SHOP' },
+];
+
 const CHART_TICKERS = ['AMZN', 'WMT', 'COST', 'NKE', 'LVMUY', 'MELI'];
 
 const LABELS = {
@@ -121,6 +138,29 @@ const ALL_EQUITIES = [
   ...ECOMMERCE_FINTECH,
   ...SPECIALTY_RETAIL,
 ];
+
+/* ── Data-Depth Component Tickers ──────────────────────────────────────── */
+const EARNINGS_TICKERS = ['AMZN', 'WMT', 'COST', 'NKE', 'LULU', 'MELI', 'SHOP', 'TGT'];
+const OWNERSHIP_TICKERS = ['AMZN', 'WMT', 'COST', 'NKE', 'LULU', 'TGT'];
+const SIGNALS_TICKERS = ['AMZN', 'WMT', 'COST', 'NKE', 'LULU', 'MELI', 'SHOP', 'TGT'];
+const ANALYST_TICKERS = ['AMZN', 'WMT', 'COST', 'NKE', 'MELI', 'SHOP'];
+
+/* ── Wrapper Components for Data-Depth Sections ──────────────────────── */
+const EarningsSection = memo(function EarningsSection() {
+  return <EarningsCalendarStrip tickers={EARNINGS_TICKERS} accentColor="#e91e63" />;
+});
+
+const AnalystSection = memo(function AnalystSection() {
+  return <AnalystActionsCard tickers={ANALYST_TICKERS} accentColor="#e91e63" />;
+});
+
+const OwnershipSection = memo(function OwnershipSection() {
+  return <OwnershipBreakdown tickers={OWNERSHIP_TICKERS} accentColor="#e91e63" />;
+});
+
+const SignalsSection = memo(function SignalsSection() {
+  return <TechnicalSignalsCard tickers={SIGNALS_TICKERS} accentColor="#e91e63" />;
+});
 
 /* ── Section Table Component ───────────────────────────────────────────── */
 const SectionTable = memo(function SectionTable({ tickers, statsMap }) {
@@ -311,6 +351,27 @@ function GlobalRetailScreenImpl() {
         />
       ),
     },
+    {
+      id: 'tech-signals',
+      title: 'Technical Signals',
+      component: SignalsSection,
+    },
+    {
+      id: 'earnings-calendar',
+      title: 'Upcoming Earnings',
+      span: 'full',
+      component: EarningsSection,
+    },
+    {
+      id: 'analyst-actions',
+      title: 'Analyst Actions',
+      component: AnalystSection,
+    },
+    {
+      id: 'ownership',
+      title: 'Ownership Structure',
+      component: OwnershipSection,
+    },
   ], [statsMap, statsLoading, statsError, statsRefresh, scatterData, openDetail]);
 
   return (
@@ -319,6 +380,7 @@ function GlobalRetailScreenImpl() {
       subtitle="Consumer discretionary, staples, luxury, e-commerce, and specialty retail"
       accentColor="#e91e63"
       sections={sections}
+      tickerBanner={BANNER_TICKERS}
       lastUpdated={new Date()}
       aiType="sector"
       aiContext={{ sector: 'Global Retail & Consumer', tickers: ['WMT', 'COST', 'TGT', 'NKE'] }}

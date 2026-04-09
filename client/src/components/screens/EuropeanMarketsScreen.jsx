@@ -7,7 +7,7 @@
  */
 import { memo, useMemo, useState } from 'react';
 import FullPageScreenLayout from './shared/FullPageScreenLayout';
-import { FundamentalsTable } from './shared/FundamentalsTable';
+import { FundamentalsTable, EarningsCalendarStrip, AnalystActionsCard, OwnershipBreakdown, TechnicalSignalsCard, MacroCalendarStrip } from './shared';
 import { SectorChartPanel } from './shared/SectorChartPanel';
 import { InsiderActivity } from './shared/InsiderActivity';
 import { useOpenDetail } from '../../context/OpenDetailContext';
@@ -93,6 +93,19 @@ const EXCHANGE_CONFIGS = [
   { exchange: 'EURONEXT', limit: 15, fallback: [...FRANCE, ...SOUTHERN_EUROPE].map(e => e.symbol) },
 ];
 
+const BANNER_TICKERS = [
+  { ticker: 'VGK', label: 'EUROPE ETF' },
+  { ticker: 'EZU', label: 'EUROZONE ETF' },
+  { ticker: 'EWG', label: 'GERMANY ETF' },
+  { ticker: 'EWU', label: 'UK ETF' },
+  { ticker: 'EWQ', label: 'FRANCE ETF' },
+  { ticker: 'SAP', label: 'SAP' },
+  { ticker: 'AZN', label: 'ASTRAZENECA' },
+  { ticker: 'SHEL', label: 'SHELL' },
+  { ticker: 'NVO', label: 'NOVO NORDISK' },
+  { ticker: 'TTE', label: 'TOTALENERGIES' },
+];
+
 const LABELS = {
   SAP: 'SAP SE', SIEGY: 'Siemens', DTEKY: 'DT Telekom', BASFY: 'BASF', BMWYY: 'BMW',
   LVMUY: 'LVMH', TTE: 'TotalEnergies', LRLCY: "L'Oreal", EADSY: 'Airbus',
@@ -100,6 +113,32 @@ const LABELS = {
   NVO: 'Novo Nordisk', ERIC: 'Ericsson', SPOT: 'Spotify', VLVLY: 'Volvo',
   SAN: 'Banco Santander', ING: 'ING Group',
 };
+
+/* ── Phase 1 Deep Data Components ──────────────────────────────────── */
+const EARNINGS_TICKERS = ['SAP', 'AZN', 'NVO', 'SHEL', 'LVMUY', 'TTE', 'HSBC', 'UL'];
+const OWNERSHIP_TICKERS = ['SAP', 'AZN', 'NVO', 'SHEL', 'HSBC', 'UL'];
+const SIGNALS_TICKERS = ['SAP', 'AZN', 'NVO', 'SHEL', 'LVMUY', 'TTE', 'HSBC', 'UL'];
+const ANALYST_TICKERS = ['SAP', 'AZN', 'NVO', 'SHEL', 'TTE', 'HSBC'];
+
+const TechnicalSignalsSection = memo(function TechnicalSignalsSection() {
+  return <TechnicalSignalsCard tickers={SIGNALS_TICKERS} accentColor="#3f51b5" />;
+});
+
+const EarningsSection = memo(function EarningsSection() {
+  return <EarningsCalendarStrip tickers={EARNINGS_TICKERS} accentColor="#3f51b5" />;
+});
+
+const AnalystSection = memo(function AnalystSection() {
+  return <AnalystActionsCard tickers={ANALYST_TICKERS} accentColor="#3f51b5" />;
+});
+
+const OwnershipSection = memo(function OwnershipSection() {
+  return <OwnershipBreakdown tickers={OWNERSHIP_TICKERS} accentColor="#3f51b5" />;
+});
+
+const MacroCalendarSection = memo(function MacroCalendarSection() {
+  return <MacroCalendarStrip countries={['EU', 'DE', 'GB', 'FR', 'IT', 'CH']} limit={12} accentColor="#3f51b5" />;
+});
 
 /* ── Table Row Component ───────────────────────────────────────────────── */
 const TableRow = memo(function TableRow({ ticker, name, statsMap, openDetail }) {
@@ -476,6 +515,33 @@ function EuropeanMarketsScreenImpl() {
       ),
     },
     {
+      id: 'tech-signals',
+      title: 'Technical Signals',
+      component: TechnicalSignalsSection,
+    },
+    {
+      id: 'earnings-calendar',
+      title: 'Upcoming Earnings',
+      span: 'full',
+      component: EarningsSection,
+    },
+    {
+      id: 'analyst-actions',
+      title: 'Analyst Actions',
+      component: AnalystSection,
+    },
+    {
+      id: 'ownership',
+      title: 'Ownership Structure',
+      component: OwnershipSection,
+    },
+    {
+      id: 'macro-calendar',
+      title: 'Macro Calendar',
+      span: 'full',
+      component: MacroCalendarSection,
+    },
+    {
       id: 'insider',
       title: 'Insider Activity',
       span: 'full',
@@ -495,6 +561,7 @@ function EuropeanMarketsScreenImpl() {
       subtitle="DAX, CAC, FTSE, Nordic & Southern Europe — equities, FX, and sovereign spreads"
       accentColor="#3f51b5"
       sections={sections}
+      tickerBanner={BANNER_TICKERS}
       lastUpdated={new Date()}
       aiType="macro"
       aiContext={{ region: 'Europe', tickers: ['VGK', 'EWG', 'EWQ'] }}

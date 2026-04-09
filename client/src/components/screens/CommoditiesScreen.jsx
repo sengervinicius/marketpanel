@@ -29,6 +29,11 @@ import { KPIRibbon, heatColor, TickerRibbon } from './shared/SectorUI';
 import { CorrelationMatrix } from './shared/CorrelationMatrix';
 import { FuturesCurveChart } from './shared/FuturesCurveChart';
 import { ComparisonBarChart } from './shared/ComparisonBarChart';
+import { EarningsCalendarStrip } from './shared/EarningsCalendarStrip';
+import { AnalystActionsCard } from './shared/AnalystActionsCard';
+import { OwnershipBreakdown } from './shared/OwnershipBreakdown';
+import { TechnicalSignalsCard } from './shared/TechnicalSignalsCard';
+import { SentimentCard } from './shared/SentimentCard';
 
 const fmt = (n, d = 2) =>
   n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -81,17 +86,46 @@ const PRODUCER_LABELS = {
 const INSIDER_TICKERS = ['XOM', 'CVX', 'BHP', 'RIO', 'FCX', 'NEM'];
 const ETF_SYMBOLS = ['DBC', 'USO', 'GLD', 'SLV', 'PDBC', 'CPER', 'UNG', 'CORN', 'WEAT', 'SOYB'];
 
+// Data-depth component tickers
+const COMMODITY_EARNINGS_TICKERS = ['XOM', 'CVX', 'SHEL', 'BP', 'COP', 'BHP', 'RIO', 'NEM'];
+const COMMODITY_OWNERSHIP_TICKERS = ['XOM', 'CVX', 'SHEL', 'BHP', 'RIO', 'FCX'];
+const COMMODITY_SIGNALS_TICKERS = ['XOM', 'CVX', 'SHEL', 'BHP', 'RIO', 'FCX', 'NEM', 'VALE'];
+const COMMODITY_ANALYST_TICKERS = ['XOM', 'CVX', 'SHEL', 'BHP', 'RIO', 'NEM'];
+const SENTIMENT_TICKERS = ['XOM', 'CVX', 'BHP', 'RIO', 'NEM', 'FCX'];
+
+const BANNER_TICKERS = [
+  { ticker: 'BZ=F', label: 'BRENT' },
+  { ticker: 'CL=F', label: 'WTI' },
+  { ticker: 'GC=F', label: 'GOLD' },
+  { ticker: 'SI=F', label: 'SILVER' },
+  { ticker: 'NG=F', label: 'NATGAS' },
+  { ticker: 'HG=F', label: 'COPPER' },
+  { ticker: 'PL=F', label: 'PLATINUM' },
+  { ticker: 'DBC',  label: 'DBC ETF' },
+  { ticker: 'USO',  label: 'USO ETF' },
+  { ticker: 'GLD',  label: 'GLD ETF' },
+];
+
 /* ── KPI Ribbon ────────────────────────────────────────────────────────── */
 function CommodityKPIRibbon() {
-  const wti   = useTickerPrice('CL=F');
-  const gold  = useTickerPrice('GC=F');
+  const brent  = useTickerPrice('BZ=F');
+  const wti    = useTickerPrice('CL=F');
+  const gold   = useTickerPrice('GC=F');
+  const silver = useTickerPrice('SI=F');
   const natgas = useTickerPrice('NG=F');
-  const xom   = useTickerPrice('XOM');
+
+  // Computed spreads and ratios — more useful than raw stock prices
+  const brentWtiSpread = (brent?.price != null && wti?.price != null)
+    ? (brent.price - wti.price) : null;
+  const goldSilverRatio = (gold?.price != null && silver?.price != null && silver.price > 0)
+    ? (gold.price / silver.price) : null;
+
   const items = [
-    { label: 'WTI CRUDE', value: wti?.price != null ? '$' + fmt(wti.price) : '—', change: wti?.changePct },
-    { label: 'GOLD',      value: gold?.price != null ? '$' + fmt(gold.price) : '—', change: gold?.changePct },
-    { label: 'NAT GAS',   value: natgas?.price != null ? '$' + fmt(natgas.price) : '—', change: natgas?.changePct },
-    { label: 'EXXON',     value: xom?.price != null ? '$' + fmt(xom.price) : '—', change: xom?.changePct },
+    { label: 'BRENT CRUDE', value: brent?.price != null ? '$' + fmt(brent.price) : '—', change: brent?.changePct },
+    { label: 'GOLD',        value: gold?.price != null ? '$' + fmt(gold.price, 0) : '—', change: gold?.changePct },
+    { label: 'BRENT-WTI',   value: brentWtiSpread != null ? '$' + brentWtiSpread.toFixed(2) : '—', suffix: '/bbl' },
+    { label: 'GOLD/SILVER', value: goldSilverRatio != null ? goldSilverRatio.toFixed(1) + 'x' : '—' },
+    { label: 'NAT GAS',     value: natgas?.price != null ? '$' + fmt(natgas.price) : '—', change: natgas?.changePct },
   ];
   return <KPIRibbon items={items} accentColor="#ff9800" />;
 }
@@ -214,7 +248,7 @@ function AgricultureSoftsSection() {
 function FuturesTermStructureSection() {
   return (
     <div>
-      <FuturesCurveChart symbol="CL" title="WTI Crude Oil Futures Curve" accentColor="#ff9800" height={220} />
+      <FuturesCurveChart symbol="BZ" title="Brent Crude Oil Futures Curve" accentColor="#ff9800" height={220} />
     </div>
   );
 }
@@ -238,6 +272,26 @@ function CommodityCorrelationSection() {
     />
   );
 }
+
+function CommodityEarningsSection() {
+  return <EarningsCalendarStrip tickers={COMMODITY_EARNINGS_TICKERS} accentColor="#ff9800" />;
+}
+
+function CommodityAnalystSection() {
+  return <AnalystActionsCard tickers={COMMODITY_ANALYST_TICKERS} limit={10} accentColor="#ff9800" />;
+}
+
+function CommodityOwnershipSection() {
+  return <OwnershipBreakdown tickers={COMMODITY_OWNERSHIP_TICKERS} accentColor="#ff9800" />;
+}
+
+function CommoditySignalsSection() {
+  return <TechnicalSignalsCard tickers={COMMODITY_SIGNALS_TICKERS} accentColor="#ff9800" />;
+}
+
+const SentimentSection = memo(function SentimentSection() {
+  return <SentimentCard tickers={SENTIMENT_TICKERS} accentColor="#ff9800" />;
+});
 
 const EnergyMajorsSection = memo(function EnergyMajorsSection({ statsMap, loading, error, refresh }) {
   return (
@@ -363,7 +417,7 @@ function CommoditiesScreenImpl() {
     },
     {
       id: 'futures-term-structure',
-      title: 'WTI Futures Curve',
+      title: 'Brent Futures Curve',
       component: FuturesTermStructureSection,
     },
     {
@@ -392,6 +446,32 @@ function CommoditiesScreenImpl() {
       span: 'full',
       component: CommodityCorrelationSection,
     },
+    {
+      id: 'tech-signals',
+      title: 'Technical Signals (Producers)',
+      component: CommoditySignalsSection,
+    },
+    {
+      id: 'earnings-calendar',
+      title: 'Upcoming Earnings',
+      span: 'full',
+      component: CommodityEarningsSection,
+    },
+    {
+      id: 'analyst-actions',
+      title: 'Analyst Actions',
+      component: CommodityAnalystSection,
+    },
+    {
+      id: 'ownership',
+      title: 'Ownership Structure',
+      component: CommodityOwnershipSection,
+    },
+    {
+      id: 'sentiment',
+      title: 'News Sentiment',
+      component: SentimentSection,
+    },
   ], [statsMap, statsLoading, statsError, statsRefresh]);
 
   return (
@@ -400,6 +480,7 @@ function CommoditiesScreenImpl() {
       subtitle="Energy, metals, agriculture — futures, producers, and supply chain"
       accentColor="#ff9800"
       sections={sections}
+      tickerBanner={BANNER_TICKERS}
       aiType="commodity"
       aiContext={{ sector: 'Commodities', tickers: ['GLD', 'SLV', 'USO', 'CPER'] }}
       aiCacheKey="commodity:overview"

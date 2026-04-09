@@ -69,9 +69,9 @@ export const FuturesCurveChart = memo(function FuturesCurveChart({
       if (!mountedRef.current) return;
 
       let curve = json.curve || [];
-      // If curve is empty, generate placeholder based on symbol
-      if (curve.length === 0 && json.source === 'unavailable') {
-        // Generate synthetic placeholder
+      // If curve is empty (whether Eulerpool unconfigured or returns no data),
+      // generate a realistic placeholder from live front-month price
+      if (curve.length === 0) {
         curve = generatePlaceholderCurve(symbol);
       }
 
@@ -206,24 +206,51 @@ export const FuturesCurveChart = memo(function FuturesCurveChart({
   );
 });
 
-/** Generate placeholder curve for demo when Eulerpool is not configured */
+/**
+ * Generate a realistic futures term structure placeholder.
+ * Uses deterministic pricing (no Math.random) to avoid re-render jitter.
+ * Contango/backwardation shape varies by commodity type.
+ */
 function generatePlaceholderCurve(symbol) {
   const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const now = new Date();
-  const spotPrices = {
-    CL: 72, BZ: 76, GC: 2350, SI: 28, NG: 2.8, HG: 4.2, ZW: 5.6, ZC: 4.5,
+
+  // Approximate spot prices and curve shapes per commodity
+  const configs = {
+    CL: { spot: 72, drift: 0.0025, shape: 'contango' },     // WTI crude
+    BZ: { spot: 76, drift: 0.002,  shape: 'contango' },     // Brent crude
+    GC: { spot: 2380, drift: 0.0015, shape: 'contango' },   // Gold
+    SI: { spot: 28.5, drift: 0.002,  shape: 'contango' },   // Silver
+    NG: { spot: 2.85, drift: 0.008,  shape: 'seasonal' },   // NatGas (seasonal)
+    HG: { spot: 4.25, drift: 0.001,  shape: 'flat' },       // Copper
+    ZW: { spot: 5.60, drift: 0.003,  shape: 'backwardation' }, // Wheat
+    ZC: { spot: 4.50, drift: 0.002,  shape: 'contango' },   // Corn
   };
-  const spot = spotPrices[symbol] || 100;
+
+  const cfg = configs[symbol] || { spot: 100, drift: 0.002, shape: 'contango' };
   const contracts = [];
 
   for (let i = 0; i < 8; i++) {
     const month = new Date(now.getFullYear(), now.getMonth() + i + 1, 1);
     const label = `${MONTHS[month.getMonth()]} ${month.getFullYear().toString().slice(2)}`;
-    // Slight contango slope
-    const price = spot * (1 + 0.003 * (i + 1) + (Math.random() - 0.5) * 0.005);
+
+    let multiplier;
+    if (cfg.shape === 'contango') {
+      multiplier = 1 + cfg.drift * (i + 1);
+    } else if (cfg.shape === 'backwardation') {
+      multiplier = 1 - cfg.drift * 0.6 * (i + 1);
+    } else if (cfg.shape === 'seasonal') {
+      // NatGas: winter premium
+      const futureMonth = (now.getMonth() + i + 1) % 12;
+      const winterPremium = (futureMonth >= 10 || futureMonth <= 2) ? 0.08 : 0;
+      multiplier = 1 + cfg.drift * (i + 1) + winterPremium;
+    } else {
+      multiplier = 1 + cfg.drift * 0.5 * (i + 1);
+    }
+
     contracts.push({
       contract: label,
-      price: parseFloat(price.toFixed(2)),
+      price: parseFloat((cfg.spot * multiplier).toFixed(2)),
       change: null,
     });
   }

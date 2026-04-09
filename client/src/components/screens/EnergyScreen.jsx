@@ -13,6 +13,12 @@ import DeepScreenBase, { DeepSection, TickerCell, StatsLoadGate } from './DeepSc
 import SectorChartStrip from './SectorChartStrip';
 import { FuturesCurveChart } from './shared/FuturesCurveChart';
 import { CorrelationMatrix } from './shared/CorrelationMatrix';
+import { EarningsCalendarStrip } from './shared/EarningsCalendarStrip';
+import { AnalystActionsCard } from './shared/AnalystActionsCard';
+import { OwnershipBreakdown } from './shared/OwnershipBreakdown';
+import { TechnicalSignalsCard } from './shared/TechnicalSignalsCard';
+import MacroCalendarStrip from './shared/MacroCalendarStrip';
+import { KPIRibbon } from './shared/SectorUI';
 import { useOpenDetail } from '../../context/OpenDetailContext';
 import { useTickerPrice } from '../../context/PriceContext';
 import { useDeepScreenData } from '../../hooks/useDeepScreenData';
@@ -40,6 +46,53 @@ const FUTURES = [
   { symbol: 'RB=F', label: 'RBOB Gasoline' },
 ];
 const ETF_SYMBOLS = ['XLE', 'XOP', 'ICLN', 'TAN', 'URA', 'LIT', 'OIH'];
+
+/* ── Data-Depth Component Tickers ──────────────────────────────────────── */
+const EARNINGS_TICKERS = ['XOM', 'CVX', 'SHEL', 'BP', 'COP', 'TTE', 'NEE', 'ENPH'];
+const OWNERSHIP_TICKERS = ['XOM', 'CVX', 'SHEL', 'COP', 'NEE', 'ENPH'];
+const SIGNALS_TICKERS = ['XOM', 'CVX', 'SHEL', 'BP', 'COP', 'TTE', 'NEE', 'ENPH'];
+const ANALYST_TICKERS = ['XOM', 'CVX', 'SHEL', 'COP', 'NEE', 'ENPH'];
+
+/* ── KPI Ribbon ────────────────────────────────────────────────────────── */
+const EnergyKPIRibbon = memo(function EnergyKPIRibbon() {
+  const wti = useTickerPrice('CL=F');
+  const brent = useTickerPrice('BZ=F');
+  const natgas = useTickerPrice('NG=F');
+  const xle = useTickerPrice('XLE');
+
+  const fmt = (n, d = 2) =>
+    n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
+
+  const items = [
+    { label: 'WTI CRUDE', value: wti?.price != null ? fmt(wti.price, 2) : '—', change: wti?.changePct },
+    { label: 'BRENT', value: brent?.price != null ? fmt(brent.price, 2) : '—', change: brent?.changePct },
+    { label: 'NAT GAS', value: natgas?.price != null ? fmt(natgas.price, 4) : '—', change: natgas?.changePct },
+    { label: 'ENERGY ETF', value: xle?.price != null ? '$' + fmt(xle.price, 2) : '—', change: xle?.changePct },
+  ];
+
+  return <KPIRibbon items={items} accentColor="#66bb6a" />;
+});
+
+/* ── Wrapper Components for Data-Depth Sections ──────────────────────── */
+const EarningsSection = memo(function EarningsSection() {
+  return <EarningsCalendarStrip tickers={EARNINGS_TICKERS} accentColor="#66bb6a" />;
+});
+
+const AnalystSection = memo(function AnalystSection() {
+  return <AnalystActionsCard tickers={ANALYST_TICKERS} accentColor="#66bb6a" />;
+});
+
+const OwnershipSection = memo(function OwnershipSection() {
+  return <OwnershipBreakdown tickers={OWNERSHIP_TICKERS} accentColor="#66bb6a" />;
+});
+
+const SignalsSection = memo(function SignalsSection() {
+  return <TechnicalSignalsCard tickers={SIGNALS_TICKERS} accentColor="#66bb6a" />;
+});
+
+const MacroCalendarSection = memo(function MacroCalendarSection() {
+  return <MacroCalendarStrip countries={['US']} limit={12} accentColor="#66bb6a" />;
+});
 
 // Sector-specific chart tickers — energy benchmarks + majors
 const CHART_TICKERS = ['CL=F', 'BZ=F', 'NG=F', 'XOM', 'CVX', 'SHEL', 'NEE', 'ENPH'];
@@ -193,10 +246,16 @@ function EnergyScreenImpl() {
   const [selectedTicker, setSelectedTicker] = useState(null);
 
   const sections = useMemo(() => [
+    { id: 'kpi', title: 'KEY METRICS', component: EnergyKPIRibbon },
     { id: 'majors', title: 'Integrated Majors',         component: () => <StatsLoadGate statsMap={statsMap} loading={statsLoading} error={statsError} refresh={statsRefresh}><EquitySection tickers={INTEGRATED_MAJORS} statsMap={statsMap} selectedTicker={selectedTicker} onSelectTicker={setSelectedTicker} /></StatsLoadGate> },
     { id: 'ofs',    title: 'OFS & Midstream',            component: () => <StatsLoadGate statsMap={statsMap} loading={statsLoading} error={statsError} refresh={statsRefresh}><EquitySection tickers={OFS_MIDSTREAM} statsMap={statsMap} selectedTicker={selectedTicker} onSelectTicker={setSelectedTicker} /></StatsLoadGate> },
     { id: 'clean',  title: 'Clean Energy & Transition',  component: () => <StatsLoadGate statsMap={statsMap} loading={statsLoading} error={statsError} refresh={statsRefresh}><EquitySection tickers={CLEAN_ENERGY} statsMap={statsMap} selectedTicker={selectedTicker} onSelectTicker={setSelectedTicker} /></StatsLoadGate> },
     { id: 'futures', title: 'Energy Futures & Spreads',  component: FuturesSection },
+    { id: 'ownership', title: 'Ownership Structure', component: OwnershipSection },
+    { id: 'macro-calendar', title: 'Macro Calendar', component: MacroCalendarSection },
+    { id: 'tech-signals', title: 'Technical Signals', component: SignalsSection },
+    { id: 'earnings-calendar', title: 'Upcoming Earnings', component: EarningsSection },
+    { id: 'analyst-actions', title: 'Analyst Actions', component: AnalystSection },
   ], [statsMap, statsLoading, statsError, statsRefresh, selectedTicker]);
 
   return (
