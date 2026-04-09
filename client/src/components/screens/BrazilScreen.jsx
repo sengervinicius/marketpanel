@@ -6,6 +6,7 @@ import { memo, useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import FullPageScreenLayout from './shared/FullPageScreenLayout';
 import { FundamentalsTable, SectorChartPanel } from './shared';
+import { KPIRibbon, heatColor } from './shared/SectorUI';
 import { DeepSkeleton, DeepError } from './DeepScreenBase';
 import useSectionData from '../../hooks/useSectionData';
 import { useOpenDetail } from '../../context/OpenDetailContext';
@@ -44,6 +45,23 @@ const EM_EQUITY_ETFS = ['EWZ', 'EWW', 'INDA', 'FXI', 'EEM', 'VWO'];
 
 // Brazil ETFs
 const BRAZIL_ETFS = ['EWZ', 'FLBR', 'EWW', 'ARGT', 'INDA', 'FXI', 'EEM'];
+
+/* ── KPI Ribbon ───────────────────────────────────────────────────────── */
+const BrazilKPIRibbon = memo(function BrazilKPIRibbon() {
+  const ewz = useTickerPrice('EWZ');
+  const usdbrl = useTickerPrice('C:USDBRL');
+  const petr4 = useTickerPrice('PETR4.SA');
+  const vale3 = useTickerPrice('VALE3.SA');
+
+  const items = [
+    { label: 'EWZ', value: ewz?.price != null ? `$${fmt(ewz.price)}` : '—', change: ewz?.changePct },
+    { label: 'USD/BRL', value: usdbrl?.price != null ? fmt(usdbrl.price, 4) : '—', change: usdbrl?.changePct },
+    { label: 'PETR4', value: petr4?.price != null ? `R$${fmt(petr4.price)}` : '—', change: petr4?.changePct },
+    { label: 'VALE3', value: vale3?.price != null ? `R$${fmt(vale3.price)}` : '—', change: vale3?.changePct },
+  ];
+
+  return <KPIRibbon items={items} accentColor="#2196f3" />;
+});
 
 /* ── Sector Chart Panel ────────────────────────────────────────────────── */
 const SectorChartsComponent = memo(function SectorChartsComponent({ selectedTicker, onChartClick }) {
@@ -410,6 +428,12 @@ function BrazilScreenImpl() {
   }, []);
 
   const sections = [
+    {
+      id: 'kpi',
+      title: 'Key Metrics',
+      span: 'full',
+      component: () => <BrazilKPIRibbon />,
+    },
     {
       id: 'sector-charts',
       title: 'SECTOR CHARTS',
