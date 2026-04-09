@@ -4,7 +4,7 @@
  * Integrates FullPageScreenLayout, FundamentalsTable, SectorChartPanel, InsiderActivity,
  * on-chain analytics for BTC & ETH, and crypto majors/equities/ETF coverage.
  */
-import { memo, useMemo, useState, useEffect } from 'react';
+import { memo, useMemo, useState } from 'react';
 import FullPageScreenLayout from './shared/FullPageScreenLayout';
 import { FundamentalsTable } from './shared/FundamentalsTable';
 import { SectorChartPanel } from './shared/SectorChartPanel';
@@ -17,6 +17,8 @@ import { useSectionData } from '../../hooks/useSectionData';
 import DeepScreenBase, { TickerCell, DeepSkeleton, DeepError, StatsLoadGate } from './DeepScreenBase';
 import { apiFetch } from '../../utils/api';
 import { KPIRibbon, heatColor, TickerRibbon } from './shared/SectorUI';
+import { CorrelationMatrix } from './shared/CorrelationMatrix';
+import { ComparisonBarChart } from './shared/ComparisonBarChart';
 
 /* ── Formatting utilities ──────────────────────────────────────────────────── */
 const fmt = (n, d = 2) =>
@@ -566,6 +568,20 @@ function CryptoScreenImpl() {
       title: 'Market Dominance & Ratios',
       span: 'full',
       component: CryptoDominanceSection,
+    },
+    {
+      id: 'correlation',
+      title: 'Crypto Correlation Matrix (60D)',
+      span: 'full',
+      component: () => (
+        <CorrelationMatrix
+          tickers={['X:BTCUSD', 'X:ETHUSD', 'X:SOLUSD', 'MSTR', 'COIN', 'IBIT']}
+          labels={{ 'X:BTCUSD': 'BTC', 'X:ETHUSD': 'ETH', 'X:SOLUSD': 'SOL' }}
+          title="Crypto 60-Day Return Correlations"
+          accentColor="#f7931a"
+          days={60}
+        />
+      ),
     },
     {
       id: 'fundamentals',

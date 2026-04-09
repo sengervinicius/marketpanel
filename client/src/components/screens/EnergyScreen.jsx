@@ -11,6 +11,8 @@
 import { memo, useMemo, useState } from 'react';
 import DeepScreenBase, { DeepSection, TickerCell, StatsLoadGate } from './DeepScreenBase';
 import SectorChartStrip from './SectorChartStrip';
+import { FuturesCurveChart } from './shared/FuturesCurveChart';
+import { CorrelationMatrix } from './shared/CorrelationMatrix';
 import { useOpenDetail } from '../../context/OpenDetailContext';
 import { useTickerPrice } from '../../context/PriceContext';
 import { useDeepScreenData } from '../../hooks/useDeepScreenData';
@@ -207,6 +209,20 @@ function EnergyScreenImpl() {
       aiCacheKey="sector:energy"
     >
       <SectorChartStrip tickers={CHART_TICKERS} title="ENERGY CHARTS" sectorName="Energy & Oil" />
+      <DeepSection title="WTI Futures Curve">
+        <FuturesCurveChart symbol="CL" accentColor="#66bb6a" height={200} />
+      </DeepSection>
+      <DeepSection title="Natural Gas Futures Curve">
+        <FuturesCurveChart symbol="NG" accentColor="#66bb6a" height={200} />
+      </DeepSection>
+      <DeepSection title="Energy Correlations (60D)">
+        <CorrelationMatrix
+          tickers={['CL=F', 'BZ=F', 'NG=F', 'XOM', 'CVX', 'SHEL', 'NEE', 'ENPH']}
+          labels={{ 'CL=F': 'WTI', 'BZ=F': 'Brent', 'NG=F': 'NatGas' }}
+          accentColor="#66bb6a"
+          days={60}
+        />
+      </DeepSection>
       <DeepSection title="Energy ETFs">
         <EtfStripSection />
       </DeepSection>

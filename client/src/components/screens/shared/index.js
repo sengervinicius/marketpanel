@@ -18,3 +18,9 @@ export {
   SectorTable, TickerRibbon, SectionDivider,
   fmtNum, fmtPct, fmtCompact, heatColor,
 } from './SectorUI';
+
+/* ── Phase C analytical components ─────────────────────────────────── */
+export { CorrelationMatrix } from './CorrelationMatrix';
+export { ComparisonBarChart } from './ComparisonBarChart';
+export { FuturesCurveChart } from './FuturesCurveChart';
+export { ImpliedVolatilityCard } from './ImpliedVolatilityCard';

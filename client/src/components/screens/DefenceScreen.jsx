@@ -13,6 +13,8 @@ import { MiniFinancials } from './shared/MiniFinancials';
 import { InsiderActivity } from './shared/InsiderActivity';
 import { TableExportBar } from './shared/TableExportBar';
 import { KPIRibbon, TickerRibbon, heatColor } from './shared/SectorUI';
+import { CorrelationMatrix } from './shared/CorrelationMatrix';
+import { ImpliedVolatilityCard } from './shared/ImpliedVolatilityCard';
 import { useOpenDetail } from '../../context/OpenDetailContext';
 import { useTickerPrice } from '../../context/PriceContext';
 import { useDeepScreenData } from '../../hooks/useDeepScreenData';
@@ -359,6 +361,33 @@ function DefenceScreenImpl() {
           height={280}
           onDotClick={openDetail}
         />
+      ),
+    },
+    {
+      id: 'correlation',
+      title: 'Defence Correlation Matrix (90D)',
+      span: 'full',
+      component: () => (
+        <CorrelationMatrix
+          tickers={['LMT', 'RTX', 'NOC', 'BA', 'GD', 'HII', 'PLTR', 'RKLB']}
+          title="Defence & Aerospace 90-Day Return Correlations"
+          accentColor="#ef5350"
+          days={90}
+        />
+      ),
+    },
+    {
+      id: 'iv-monitor',
+      title: 'Implied Volatility Monitor',
+      span: 'full',
+      component: () => (
+        <div style={{ display: 'flex', gap: 8, padding: '0 8px', overflowX: 'auto' }}>
+          {['LMT', 'RTX', 'BA', 'NOC'].map(t => (
+            <div key={t} style={{ flex: '1 0 160px' }}>
+              <ImpliedVolatilityCard ticker={t} accentColor="#ef5350" />
+            </div>
+          ))}
+        </div>
       ),
     },
   ], [statsMap, statsLoading, statsError, statsRefresh, scatterData, openDetail]);

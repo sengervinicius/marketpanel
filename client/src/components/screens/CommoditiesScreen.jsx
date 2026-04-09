@@ -26,6 +26,9 @@ import { useSectionData } from '../../hooks/useSectionData';
 import { apiFetch } from '../../utils/api';
 import { DeepSkeleton, DeepError, StatsLoadGate, TickerCell } from './DeepScreenBase';
 import { KPIRibbon, heatColor, TickerRibbon } from './shared/SectorUI';
+import { CorrelationMatrix } from './shared/CorrelationMatrix';
+import { FuturesCurveChart } from './shared/FuturesCurveChart';
+import { ComparisonBarChart } from './shared/ComparisonBarChart';
 
 const fmt = (n, d = 2) =>
   n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -209,56 +212,30 @@ function AgricultureSoftsSection() {
 }
 
 function FuturesTermStructureSection() {
-  const { data: clData, loading: clLoading, error: clError } = useSectionData({
-    cacheKey: 'futures:cl-term-structure',
-    fetcher: async () => {
-      const res = await apiFetch('/api/derivatives/futures/CL');
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      return res.json();
-    },
-    refreshMs: 300000, // 5 min
-  });
-
-  if (clLoading) return <DeepSkeleton rows={6} />;
-  if (clError) return <DeepError message={`Error: ${clError}`} />;
-  if (!clData || !Array.isArray(clData)) {
-    return <div style={{ padding: '10px', color: 'var(--text-muted)', fontSize: 10, textAlign: 'center' }}>No futures data</div>;
-  }
-
-  // Prepare chart data from futures contracts
-  const chartData = clData.slice(0, 12).map((contract, idx) => ({
-    name: contract.expiry || `M${idx + 1}`,
-    price: parseFloat(contract.price) || 0,
-  }));
-
-  const firstPrice = chartData[0]?.price || 0;
-  const lastPrice = chartData[chartData.length - 1]?.price || 0;
-  const isContango = lastPrice > firstPrice;
-
   return (
-    <div style={{ padding: '0 6px', overflow: 'auto' }}>
-      <ResponsiveContainer width="100%" height={250}>
-        <LineChart data={chartData} margin={{ top: 5, right: 30, left: 0, bottom: 30 }}>
-          <XAxis dataKey="name" style={{ fontSize: 8, fill: 'var(--text-muted)' }} />
-          <YAxis style={{ fontSize: 8, fill: 'var(--text-muted)' }} />
-          <Tooltip
-            contentStyle={{ background: 'var(--bg-panel)', border: '1px solid var(--border-default)', borderRadius: 3 }}
-            labelStyle={{ color: 'var(--text-primary)' }}
-          />
-          <Line
-            type="monotone"
-            dataKey="price"
-            stroke={isContango ? 'var(--semantic-up)' : 'var(--semantic-warn)'}
-            strokeWidth={2}
-            dot={false}
-            isAnimationActive={false}
-          />
-        </LineChart>
-      </ResponsiveContainer>
-      <div style={{ fontSize: 9, color: 'var(--semantic-warn)', padding: '6px 4px 2px', borderTop: '1px solid var(--border-subtle)', textAlign: 'center' }}>
-        {isContango ? 'CONTANGO' : 'BACKWARDATION'}
-      </div>
+    <div>
+      <FuturesCurveChart symbol="CL" title="WTI Crude Oil Futures Curve" accentColor="#ff9800" height={220} />
     </div>
+  );
+}
+
+function GoldFuturesCurveSection() {
+  return (
+    <div>
+      <FuturesCurveChart symbol="GC" title="Gold Futures Curve" accentColor="#ffd700" height={220} />
+    </div>
+  );
+}
+
+function CommodityCorrelationSection() {
+  return (
+    <CorrelationMatrix
+      tickers={['CL=F', 'BZ=F', 'GC=F', 'SI=F', 'NG=F', 'HG=F', 'XOM', 'CVX', 'BHP']}
+      labels={{ 'CL=F': 'WTI', 'BZ=F': 'Brent', 'GC=F': 'Gold', 'SI=F': 'Silver', 'NG=F': 'NatGas', 'HG=F': 'Copper' }}
+      title="Commodity Correlation Matrix"
+      accentColor="#ff9800"
+      days={60}
+    />
   );
 }
 
@@ -386,8 +363,13 @@ function CommoditiesScreenImpl() {
     },
     {
       id: 'futures-term-structure',
-      title: 'Futures Term Structure',
+      title: 'WTI Futures Curve',
       component: FuturesTermStructureSection,
+    },
+    {
+      id: 'gold-futures-curve',
+      title: 'Gold Futures Curve',
+      component: GoldFuturesCurveSection,
     },
     {
       id: 'energy-majors',
@@ -403,6 +385,12 @@ function CommoditiesScreenImpl() {
       id: 'spread-analysis',
       title: 'Spread Analysis',
       component: SpreadAnalysisSection,
+    },
+    {
+      id: 'correlation',
+      title: 'Commodity Correlations',
+      span: 'full',
+      component: CommodityCorrelationSection,
     },
   ], [statsMap, statsLoading, statsError, statsRefresh]);
 

@@ -7,7 +7,7 @@
 import { memo, useMemo, useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import FullPageScreenLayout from './shared/FullPageScreenLayout';
-import { SectorChartPanel, FundamentalsTable, SectorScatterPlot, InsiderActivity, MiniFinancials, KPIRibbon, heatColor, TickerRibbon } from './shared';
+import { SectorChartPanel, FundamentalsTable, SectorScatterPlot, InsiderActivity, MiniFinancials, KPIRibbon, heatColor, TickerRibbon, CorrelationMatrix, ComparisonBarChart, ImpliedVolatilityCard } from './shared';
 import { useOpenDetail } from '../../context/OpenDetailContext';
 import { useTickerPrice } from '../../context/PriceContext';
 import { useDeepScreenData } from '../../hooks/useDeepScreenData';
@@ -400,6 +400,33 @@ function TechAIScreenImpl() {
       title: 'VALUATION SCATTER',
       span: 'full',
       component: () => <ValuationScatterComponent />,
+    },
+    {
+      id: 'correlation',
+      title: 'CORRELATION MATRIX (90D)',
+      span: 'full',
+      component: () => (
+        <CorrelationMatrix
+          tickers={['NVDA', 'AAPL', 'MSFT', 'GOOGL', 'META', 'AMZN', 'TSM', 'AMD', 'AVGO']}
+          title="Tech & AI 90-Day Return Correlations"
+          accentColor="#00bcd4"
+          days={90}
+        />
+      ),
+    },
+    {
+      id: 'iv-monitor',
+      title: 'IMPLIED VOLATILITY',
+      span: 'full',
+      component: () => (
+        <div style={{ display: 'flex', gap: 8, padding: '0 8px', overflowX: 'auto' }}>
+          {['NVDA', 'AAPL', 'TSLA', 'META'].map(t => (
+            <div key={t} style={{ flex: '1 0 160px' }}>
+              <ImpliedVolatilityCard ticker={t} accentColor="#00bcd4" />
+            </div>
+          ))}
+        </div>
+      ),
     },
     {
       id: 'insider',
