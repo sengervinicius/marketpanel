@@ -7,6 +7,8 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'rec
 import FullPageScreenLayout from './shared/FullPageScreenLayout';
 import { FundamentalsTable, SectorChartPanel } from './shared';
 import { KPIRibbon, heatColor, TickerRibbon } from './shared/SectorUI';
+import { InsiderActivity } from './shared/InsiderActivity';
+import { MiniFinancials } from './shared/MiniFinancials';
 import { DeepSkeleton, DeepError } from './DeepScreenBase';
 import useSectionData from '../../hooks/useSectionData';
 import { useOpenDetail } from '../../context/OpenDetailContext';
@@ -381,6 +383,19 @@ const FundamentalsComponent = memo(function FundamentalsComponent() {
   return <FundamentalsTable tickers={BLUE_CHIPS} onTickerClick={(symbol) => openDetail(symbol, 'Brazil & EM')} />;
 });
 
+/* ── MiniFinancials Strip Component ────────────────────────────────────── */
+function BrazilMiniFinStrip() {
+  return (
+    <div style={{ display: 'flex', gap: 8, padding: '0 6px', overflowX: 'auto' }}>
+      {['PBR', 'VALE', 'ITUB'].map(t => (
+        <div key={t} style={{ flex: '1 0 140px', minWidth: 140 }}>
+          <MiniFinancials ticker={t} accentColor="#4caf50" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /* ── Brazil ETF Cell ───────────────────────────────────────────────── */
 function BrazilEtfCell({ sym, openDetail }) {
   const q = useTickerPrice(sym);
@@ -481,6 +496,18 @@ function BrazilScreenImpl() {
       title: 'FUNDAMENTALS COMPARISON',
       component: FundamentalsComponent,
       span: 'full',
+    },
+    {
+      id: 'minifinancials',
+      title: 'TOP 3 FINANCIALS',
+      span: 'full',
+      component: BrazilMiniFinStrip,
+    },
+    {
+      id: 'insider',
+      title: 'INSIDER ACTIVITY',
+      span: 'full',
+      component: () => <InsiderActivity tickers={['PBR', 'VALE', 'ITUB', 'BBD', 'EWZ', 'BSBR']} limit={5} />,
     },
   ];
 

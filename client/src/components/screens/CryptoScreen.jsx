@@ -9,6 +9,7 @@ import FullPageScreenLayout from './shared/FullPageScreenLayout';
 import { FundamentalsTable } from './shared/FundamentalsTable';
 import { SectorChartPanel } from './shared/SectorChartPanel';
 import { InsiderActivity } from './shared/InsiderActivity';
+import { MiniFinancials } from './shared/MiniFinancials';
 import { useOpenDetail } from '../../context/OpenDetailContext';
 import { useTickerPrice } from '../../context/PriceContext';
 import { useDeepScreenData } from '../../hooks/useDeepScreenData';
@@ -475,6 +476,19 @@ const TickerRibbonComponent = memo(function TickerRibbonComponent() {
   );
 });
 
+/* ── MiniFinancials Strip Component ────────────────────────────────────── */
+function CryptoMiniFinStrip() {
+  return (
+    <div style={{ display: 'flex', gap: 8, padding: '0 6px', overflowX: 'auto' }}>
+      {['MSTR', 'COIN', 'MARA'].map(t => (
+        <div key={t} style={{ flex: '1 0 140px', minWidth: 140 }}>
+          <MiniFinancials ticker={t} accentColor="#f7931a" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /* ── KPI Ribbon ────────────────────────────────────────────────────────── */
 function CryptoKPIRibbon() {
   const btc  = useTickerPrice('X:BTCUSD');
@@ -528,6 +542,12 @@ function CryptoScreenImpl() {
       id: 'crypto-etfs',
       title: 'Crypto ETFs',
       component: CryptoEtfsSection,
+    },
+    {
+      id: 'minifinancials',
+      title: 'TOP 3 FINANCIALS',
+      span: 'full',
+      component: CryptoMiniFinStrip,
     },
     {
       id: 'btc-onchain',

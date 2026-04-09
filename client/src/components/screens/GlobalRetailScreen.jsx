@@ -10,6 +10,7 @@ import { FundamentalsTable } from './shared/FundamentalsTable';
 import { SectorChartPanel } from './shared/SectorChartPanel';
 import { SectorScatterPlot } from './shared/SectorScatterPlot';
 import { InsiderActivity } from './shared/InsiderActivity';
+import { MiniFinancials } from './shared/MiniFinancials';
 import { KPIRibbon, heatColor, TickerRibbon } from './shared/SectorUI';
 import { useOpenDetail } from '../../context/OpenDetailContext';
 import { useTickerPrice } from '../../context/PriceContext';
@@ -155,6 +156,19 @@ const EtfStrip = memo(function EtfStrip() {
   return <TickerRibbon tickers={RETAIL_ETFS} sectorName="Global Retail & Consumer" />;
 });
 
+/* ── MiniFinancials Strip Component ────────────────────────────────────── */
+function RetailMiniFinStrip() {
+  return (
+    <div style={{ display: 'flex', gap: 8, padding: '0 6px', overflowX: 'auto' }}>
+      {['AMZN', 'WMT', 'COST'].map(t => (
+        <div key={t} style={{ flex: '1 0 140px', minWidth: 140 }}>
+          <MiniFinancials ticker={t} accentColor="#e91e63" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /* ── Main Screen Implementation ────────────────────────────────────────── */
 function GlobalRetailScreenImpl() {
   const openDetail = useOpenDetail();
@@ -245,6 +259,12 @@ function GlobalRetailScreenImpl() {
           <SectionTable tickers={SPECIALTY_RETAIL} statsMap={statsMap} />
         </StatsLoadGate>
       ),
+    },
+    {
+      id: 'minifinancials',
+      title: 'TOP 3 FINANCIALS',
+      span: 'full',
+      component: RetailMiniFinStrip,
     },
     {
       id: 'fundamentals',
