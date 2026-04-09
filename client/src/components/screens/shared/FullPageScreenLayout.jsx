@@ -49,29 +49,13 @@ function LazySection({ children }) {
         <div
           style={{
             minHeight: 120,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
+            background: 'linear-gradient(90deg, rgba(255,255,255,0.02) 25%, rgba(255,255,255,0.04) 50%, rgba(255,255,255,0.02) 75%)',
+            backgroundSize: '200% 100%',
+            animation: 'fsl-shimmer 1.8s ease-in-out infinite',
+            borderRadius: 4,
+            border: '1px solid rgba(255,255,255,0.03)',
           }}
-        >
-          <div style={{ textAlign: 'center' }}>
-            <div style={{
-              width: 24, height: 24, margin: '0 auto 8px',
-              border: '2px solid var(--border-strong)', borderTopColor: '#888',
-              borderRadius: '50%',
-              animation: 'fsl-spin 0.8s linear infinite',
-            }} />
-            <span style={{
-              color: 'var(--text-secondary)',
-              fontSize: 9,
-              fontWeight: 600,
-              letterSpacing: '0.5px',
-              textTransform: 'uppercase',
-            }}>
-              Loading...
-            </span>
-          </div>
-        </div>
+        />
       )}
     </div>
   );

@@ -1,15 +1,14 @@
 /**
- * MiniFinancials.jsx — Minimalist horizontal bars
- * Clean 3-year revenue display with simple horizontal bars instead of complex chart.
- * Shows years (2023–2025) with proportional green bars and formatted values.
- * Red tint if net income is negative in that year.
+ * MiniFinancials.jsx — Professional Financial Snapshot Card
+ * Compact 3-year revenue/net-income display for sector screen tables.
  *
  * Design:
- *  - Simple horizontal bars (CSS divs, no Recharts)
- *  - Clean, minimalist look
- *  - Max width ~180px to fit table cells
- *  - Proportional bar widths based on revenue max
- *  - Loading skeleton and error states preserved
+ *  - 3-year horizontal bar chart with revenue proportional widths
+ *  - YoY growth indicators (▲/▼ + %)
+ *  - Net margin indicator per year
+ *  - Color-coded: green for positive margin, red for negative
+ *  - Fits in ~180px table cell width
+ *  - Loading skeleton & error states
  */
 import { useState, useEffect, useRef, memo } from 'react';
 import { apiFetch } from '../../../utils/api';
@@ -26,23 +25,17 @@ function fmtFinancial(value) {
   return `${sign}$${abs.toFixed(0)}`;
 }
 
-
-/**
- * Extract a 4-char year string from a Twelve Data income_statement entry.
- * Twelve Data fields vary — try fiscal_date, date, fiscal_period, period in order.
- */
 function extractYear(entry) {
   const raw = entry.fiscal_date || entry.date || entry.fiscal_period || entry.period || '';
   if (!raw) return '—';
-  // If ISO date like "2024-12-31", take first 4 chars
   if (typeof raw === 'string' && raw.length >= 4) return raw.slice(0, 4);
   return String(raw);
 }
 
 /* ── Main component ───────────────────────────────────────────────────── */
-const FETCH_TIMEOUT = 25000; // 25s timeout for slow API responses
+const FETCH_TIMEOUT = 25000;
 const MAX_RETRIES = 2;
-const RETRY_DELAY = 2000; // 2s delay between retries
+const RETRY_DELAY = 2000;
 
 export const MiniFinancials = memo(function MiniFinancials({ ticker, accentColor = '#4a90d9', onError }) {
   const [data, setData] = useState(null);
@@ -97,7 +90,7 @@ export const MiniFinancials = memo(function MiniFinancials({ ticker, accentColor
             });
 
             if (!cancelled) setData(chartData);
-            return; // Success - exit retry loop
+            return;
           } catch (err) {
             lastError = err;
             if (err.name === 'AbortError') throw err;
@@ -121,18 +114,18 @@ export const MiniFinancials = memo(function MiniFinancials({ ticker, accentColor
 
     fetchData();
     return () => { cancelled = true; controller.abort(); clearTimeout(timer); };
-  }, [ticker]); // Sprint 5: ONLY depend on ticker — not onError or accentColor
+  }, [ticker]);
 
   /* ── Loading state: shimmer ─────────────────────────────────────────── */
   if (loading) {
     return (
-      <div style={{ height: 110, padding: '4px 0' }}>
+      <div style={{ width: '100%', maxWidth: 200, padding: '4px 0' }}>
         <div style={{
-          height: '100%',
-          background: 'linear-gradient(90deg, #1a1a1a 25%, #222 50%, #1a1a1a 75%)',
+          height: 72,
+          background: 'linear-gradient(90deg, rgba(255,255,255,0.03) 25%, rgba(255,255,255,0.06) 50%, rgba(255,255,255,0.03) 75%)',
           backgroundSize: '200% 100%',
           animation: 'ds-shimmer 1.5s infinite',
-          borderRadius: 2,
+          borderRadius: 3,
         }} />
       </div>
     );
@@ -142,99 +135,163 @@ export const MiniFinancials = memo(function MiniFinancials({ ticker, accentColor
   if (!data || data.length === 0) {
     return (
       <div style={{
-        height: 110,
+        width: '100%',
+        maxWidth: 200,
+        height: 72,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        opacity: 0.3,
+        opacity: 0.25,
+        fontSize: 9,
+        color: 'var(--text-faint)',
+        letterSpacing: '0.5px',
       }}>
-        <svg width="60" height="40" viewBox="0 0 60 40">
-          <rect x="4" y="20" width="12" height="20" rx="1" fill="#555570" />
-          <rect x="20" y="10" width="12" height="30" rx="1" fill="#555570" />
-          <rect x="36" y="5" width="12" height="35" rx="1" fill="#555570" />
-        </svg>
+        NO DATA
       </div>
     );
   }
 
-  /* ── Determine if we have any meaningful data ───────────────────────── */
-  const hasRevenue = data.some(d => d.revenue !== null && d.revenue !== undefined);
-  const hasNetIncome = data.some(d => d.netIncome !== null && d.netIncome !== undefined);
-
-  if (!hasRevenue && !hasNetIncome) {
+  const hasRevenue = data.some(d => d.revenue != null);
+  if (!hasRevenue) {
     return (
       <div style={{
-        height: 110,
+        width: '100%',
+        maxWidth: 200,
+        height: 72,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        opacity: 0.3,
+        opacity: 0.25,
+        fontSize: 9,
+        color: 'var(--text-faint)',
+        letterSpacing: '0.5px',
       }}>
-        <svg width="60" height="40" viewBox="0 0 60 40">
-          <rect x="4" y="20" width="12" height="20" rx="1" fill="#555570" />
-          <rect x="20" y="10" width="12" height="30" rx="1" fill="#555570" />
-          <rect x="36" y="5" width="12" height="35" rx="1" fill="#555570" />
-        </svg>
+        NO DATA
       </div>
     );
   }
 
-  // Find max revenue for proportional scaling
   const maxRevenue = Math.max(...data.map(d => d.revenue || 0));
 
   return (
     <div style={{
       width: '100%',
-      maxWidth: 180,
-      padding: '4px 0',
+      maxWidth: 200,
+      padding: '2px 0',
+      fontFamily: 'var(--font-mono)',
+      fontVariantNumeric: 'tabular-nums',
     }}>
-      {/* Simple horizontal bars, no axes or labels */}
+      {/* Header row */}
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 4,
+        paddingBottom: 2,
+        borderBottom: '1px solid rgba(255,255,255,0.04)',
+      }}>
+        <span style={{
+          fontSize: 8,
+          fontWeight: 600,
+          color: 'var(--text-faint)',
+          letterSpacing: '0.8px',
+          textTransform: 'uppercase',
+        }}>
+          Revenue & Net Income
+        </span>
+      </div>
+
+      {/* Year rows */}
       {data.map((d, idx) => {
-        const hasNegativeNI = d.netIncome !== null && d.netIncome !== undefined && d.netIncome < 0;
-        const barWidthPercent = maxRevenue > 0 ? (d.revenue || 0) / maxRevenue * 100 : 0;
-        const barColor = hasNegativeNI ? '#d32f2f' : '#4caf50'; // red if neg net income, else green
+        const hasNegativeNI = d.netIncome != null && d.netIncome < 0;
+        const margin = (d.revenue && d.netIncome != null) ? (d.netIncome / d.revenue * 100) : null;
+        const barWidthPct = maxRevenue > 0 && d.revenue ? (d.revenue / maxRevenue * 100) : 0;
+
+        // YoY growth
+        const prevRev = idx > 0 ? data[idx - 1].revenue : null;
+        const yoyGrowth = (prevRev && d.revenue) ? ((d.revenue - prevRev) / prevRev * 100) : null;
+
+        const barColor = hasNegativeNI ? '#d32f2f' : '#4caf50';
 
         return (
           <div key={idx} style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '6px',
-            marginBottom: idx < data.length - 1 ? '6px' : 0,
-            fontSize: '11px',
-            height: '18px',
+            gap: 4,
+            height: 18,
+            marginBottom: idx < data.length - 1 ? 2 : 0,
           }}>
-            {/* Year label */}
+            {/* Year */}
             <span style={{
-              minWidth: '28px',
-              color: 'var(--text-secondary)',
-              fontSize: '10px',
+              width: 26,
+              fontSize: 9,
+              color: 'var(--text-muted)',
               fontWeight: 500,
+              flexShrink: 0,
             }}>
-              {d.year}
+              {d.year.slice(-2)}
             </span>
 
-            {/* Horizontal bar */}
+            {/* Bar container */}
             <div style={{
               flex: 1,
-              minHeight: '8px',
-              backgroundColor: barColor,
-              borderRadius: '2px',
-              width: `${barWidthPercent}%`,
-              opacity: hasNegativeNI ? 0.6 : 0.9,
-              transition: 'width 0.3s ease',
-            }} />
+              height: 10,
+              background: 'rgba(255,255,255,0.03)',
+              borderRadius: 2,
+              overflow: 'hidden',
+              position: 'relative',
+            }}>
+              <div style={{
+                width: `${barWidthPct}%`,
+                height: '100%',
+                background: `linear-gradient(90deg, ${barColor}88, ${barColor}cc)`,
+                borderRadius: 2,
+                transition: 'width 0.4s ease',
+              }} />
+            </div>
 
             {/* Revenue value */}
             <span style={{
-              minWidth: '32px',
+              width: 36,
               textAlign: 'right',
+              fontSize: 9,
               color: 'var(--text-primary)',
-              fontSize: '10px',
               fontWeight: 500,
-              whiteSpace: 'nowrap',
+              flexShrink: 0,
             }}>
               {fmtFinancial(d.revenue)}
             </span>
+
+            {/* YoY growth arrow */}
+            <span style={{
+              width: 32,
+              textAlign: 'right',
+              fontSize: 8,
+              fontWeight: 600,
+              flexShrink: 0,
+              color: yoyGrowth == null ? 'transparent'
+                : yoyGrowth >= 0 ? 'var(--semantic-up)' : 'var(--semantic-down)',
+            }}>
+              {yoyGrowth != null
+                ? `${yoyGrowth >= 0 ? '▲' : '▼'}${Math.abs(yoyGrowth).toFixed(0)}%`
+                : '—'
+              }
+            </span>
+
+            {/* Net margin dot */}
+            {margin != null && (
+              <span
+                title={`Net margin: ${margin.toFixed(1)}%`}
+                style={{
+                  width: 6,
+                  height: 6,
+                  borderRadius: '50%',
+                  background: margin >= 0 ? '#4caf50' : '#d32f2f',
+                  flexShrink: 0,
+                  opacity: 0.8,
+                }}
+              />
+            )}
           </div>
         );
       })}

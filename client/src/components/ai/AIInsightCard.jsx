@@ -4,6 +4,160 @@ import AIError from './AIError';
 import './AIInsightCard.css';
 
 /**
+ * Simple markdown-to-JSX renderer for AI insight text.
+ * Handles: **bold**, *italic*, ## headers, [n] footnotes, newlines, bullet lists.
+ */
+function renderMarkdown(text) {
+  if (!text) return null;
+
+  // Split into lines and process
+  const lines = text.split('\n');
+  const elements = [];
+  let key = 0;
+
+  for (let i = 0; i < lines.length; i++) {
+    let line = lines[i].trim();
+    if (!line) continue;
+
+    // Headers: ##, ###, ####
+    const headerMatch = line.match(/^(#{1,4})\s+(.+)/);
+    if (headerMatch) {
+      const level = headerMatch[1].length;
+      const content = formatInline(headerMatch[2]);
+      const fontSize = level <= 2 ? '12px' : '11px';
+      elements.push(
+        <div key={key++} style={{
+          fontSize,
+          fontWeight: 700,
+          color: 'var(--text-primary)',
+          marginTop: elements.length > 0 ? '10px' : '0',
+          marginBottom: '4px',
+          letterSpacing: '0.3px',
+          textTransform: level <= 2 ? 'uppercase' : 'none',
+        }}>
+          {content}
+        </div>
+      );
+      continue;
+    }
+
+    // Bullet points: - or *
+    if (line.match(/^[-*]\s+/)) {
+      const content = formatInline(line.replace(/^[-*]\s+/, ''));
+      elements.push(
+        <div key={key++} style={{
+          display: 'flex',
+          gap: '6px',
+          marginBottom: '3px',
+          fontSize: '11px',
+          lineHeight: '1.5',
+        }}>
+          <span style={{ color: 'var(--accent)', flexShrink: 0 }}>•</span>
+          <span style={{ color: 'var(--text-secondary)' }}>{content}</span>
+        </div>
+      );
+      continue;
+    }
+
+    // Numbered items: 1) or 1.
+    if (line.match(/^\d+[.)]\s+/)) {
+      const num = line.match(/^(\d+)[.)]/)[1];
+      const content = formatInline(line.replace(/^\d+[.)]\s+/, ''));
+      elements.push(
+        <div key={key++} style={{
+          display: 'flex',
+          gap: '6px',
+          marginBottom: '3px',
+          fontSize: '11px',
+          lineHeight: '1.5',
+        }}>
+          <span style={{ color: 'var(--accent)', flexShrink: 0, fontWeight: 600 }}>{num}.</span>
+          <span style={{ color: 'var(--text-secondary)' }}>{content}</span>
+        </div>
+      );
+      continue;
+    }
+
+    // Regular paragraph
+    elements.push(
+      <p key={key++} style={{
+        fontSize: '11px',
+        lineHeight: '1.5',
+        color: 'var(--text-secondary)',
+        marginBottom: '4px',
+      }}>
+        {formatInline(line)}
+      </p>
+    );
+  }
+
+  return elements;
+}
+
+/**
+ * Format inline markdown: **bold**, *italic*, [n] footnotes
+ */
+function formatInline(text) {
+  if (!text) return text;
+
+  // Remove footnote references like [1], [2], [1][2]
+  let clean = text.replace(/\[\d+\]/g, '');
+
+  // Split on **bold** and *italic* patterns
+  const parts = [];
+  let remaining = clean;
+  let partKey = 0;
+
+  while (remaining.length > 0) {
+    // Match **bold**
+    const boldMatch = remaining.match(/\*\*(.+?)\*\*/);
+    // Match *italic*
+    const italicMatch = remaining.match(/\*(.+?)\*/);
+
+    // Find earliest match
+    let match = null;
+    let type = null;
+
+    if (boldMatch && (!italicMatch || boldMatch.index <= italicMatch.index)) {
+      match = boldMatch;
+      type = 'bold';
+    } else if (italicMatch) {
+      match = italicMatch;
+      type = 'italic';
+    }
+
+    if (!match) {
+      parts.push(remaining);
+      break;
+    }
+
+    // Add text before the match
+    if (match.index > 0) {
+      parts.push(remaining.slice(0, match.index));
+    }
+
+    // Add formatted text
+    if (type === 'bold') {
+      parts.push(
+        <strong key={`b${partKey++}`} style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
+          {match[1]}
+        </strong>
+      );
+    } else {
+      parts.push(
+        <em key={`i${partKey++}`} style={{ color: 'var(--text-primary)' }}>
+          {match[1]}
+        </em>
+      );
+    }
+
+    remaining = remaining.slice(match.index + match[0].length);
+  }
+
+  return parts.length === 1 && typeof parts[0] === 'string' ? parts[0] : parts;
+}
+
+/**
  * AIInsightCard — universal AI insight display component.
  * Wraps useAIInsight and renders loading, error, or insight content.
  *
@@ -104,11 +258,15 @@ export default function AIInsightCard({ type, context, cacheKey, ttlMs, autoFetc
         </div>
       </div>
       <div className="ai-card__body">
-        {insight.body && <p className="ai-card__text">{insight.body}</p>}
+        {insight.body && (
+          <div className="ai-card__text">
+            {renderMarkdown(insight.body)}
+          </div>
+        )}
         {insight.bullets && insight.bullets.length > 0 && (
           <ul className="ai-card__bullets">
             {insight.bullets.map((b, i) => (
-              <li key={i} className="ai-card__bullet">{b}</li>
+              <li key={i} className="ai-card__bullet">{typeof b === 'string' ? formatInline(b) : b}</li>
             ))}
           </ul>
         )}

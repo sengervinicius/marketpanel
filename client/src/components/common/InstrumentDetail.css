@@ -34,8 +34,9 @@
   overflow: hidden;
 }
 .id-header--mobile {
-  gap: 8px;
+  gap: 6px;
   padding: var(--sp-2) 10px;
+  flex-wrap: wrap;
 }
 
 /* Close button */
@@ -69,6 +70,10 @@
 }
 .id-ticker--mobile {
   font-size: var(--text-md);
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .id-name {
   font-size: var(--text-sm);
@@ -666,7 +671,8 @@
   flex: 1;
 }
 .id-header-spacer--mobile {
-  flex: 0;
+  flex: 1 1 0;
+  min-width: 4px;
 }
 
 /* ── Mobile delta badge ────────────────────────── */
@@ -921,6 +927,7 @@
     gap: 6px;
     padding: 6px 10px;
     min-height: 40px;
+    flex-wrap: wrap;
   }
   .id-range-btn {
     padding: 6px 8px;
