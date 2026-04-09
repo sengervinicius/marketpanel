@@ -8,7 +8,7 @@ import FullPageScreenLayout from './shared/FullPageScreenLayout';
 import { FundamentalsTable } from './shared/FundamentalsTable';
 import { SectorChartPanel } from './shared/SectorChartPanel';
 import { InsiderActivity } from './shared/InsiderActivity';
-import { KPIRibbon } from './shared/SectorUI';
+import { KPIRibbon, heatColor, TickerRibbon } from './shared/SectorUI';
 import { useOpenDetail } from '../../context/OpenDetailContext';
 import { useTickerPrice } from '../../context/PriceContext';
 import { useDeepScreenData } from '../../hooks/useDeepScreenData';
@@ -251,7 +251,7 @@ const TableRow = memo(function TableRow({ ticker, statsMap }) {
       <td style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 600, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>
         {q?.price != null ? '$' + fmt(q.price, 2) : <span className="ds-dash">—</span>}
       </td>
-      <td className={q?.changePct != null && q.changePct >= 0 ? 'ds-up' : 'ds-down'} style={{ fontSize: 13, fontWeight: 600, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>
+      <td className={q?.changePct != null && q.changePct >= 0 ? 'ds-up' : 'ds-down'} style={{ fontSize: 13, fontWeight: 600, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)', background: heatColor(q?.changePct) }}>
         {q?.changePct != null ? fmtPct(q?.changePct) : <span className="ds-dash">—</span>}
       </td>
       <td style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text-secondary)', fontVariantNumeric: 'tabular-nums' }}>
@@ -308,15 +308,9 @@ const EtfCell = memo(function EtfCell({ symbol }) {
   );
 });
 
-/* ── ETF Strip Component ───────────────────────────────────────────────────── */
+/* ── ETF Strip Component (replaced with TickerRibbon) ────────────────────── */
 const EtfStrip = memo(function EtfStrip() {
-  return (
-    <div className="ds-strip" style={{ display: 'flex', gap: 0, borderTop: '1px solid var(--border-default)' }}>
-      {REGIONAL_ETFS.map(sym => (
-        <EtfCell key={sym} symbol={sym} />
-      ))}
-    </div>
-  );
+  return <TickerRibbon tickers={REGIONAL_ETFS} sectorName="Asian Markets" />;
 });
 
 /* ── Main Screen Implementation ────────────────────────────────────────────── */

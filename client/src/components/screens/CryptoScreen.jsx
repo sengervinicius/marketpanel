@@ -15,7 +15,7 @@ import { useDeepScreenData } from '../../hooks/useDeepScreenData';
 import { useSectionData } from '../../hooks/useSectionData';
 import DeepScreenBase, { TickerCell, DeepSkeleton, DeepError, StatsLoadGate } from './DeepScreenBase';
 import { apiFetch } from '../../utils/api';
-import { KPIRibbon } from './shared/SectorUI';
+import { KPIRibbon, heatColor, TickerRibbon } from './shared/SectorUI';
 
 /* ── Formatting utilities ──────────────────────────────────────────────────── */
 const fmt = (n, d = 2) =>
@@ -83,7 +83,7 @@ function CryptoMajorRow({ symbol, label, onClick }) {
       <td style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 600, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>
         {q?.price != null ? fmt(q.price, displaySym === 'BTC' ? 0 : 2) : <span className="ds-dash">—</span>}
       </td>
-      <td className={q?.changePct != null && q.changePct >= 0 ? 'ds-val-pos' : 'ds-val-neg'} style={{ fontSize: 13, fontWeight: 600, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>
+      <td className={q?.changePct != null && q.changePct >= 0 ? 'ds-val-pos' : 'ds-val-neg'} style={{ fontSize: 13, fontWeight: 600, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)', background: heatColor(q?.changePct) }}>
         {q?.changePct != null ? fmtPct(q?.changePct) : <span className="ds-dash">—</span>}
       </td>
     </tr>
@@ -107,7 +107,7 @@ function CryptoEquityRow({ symbol, label, stats, onClick }) {
       <td style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 600, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>
         {q?.price != null ? '$' + fmt(q.price, 2) : <span className="ds-dash">—</span>}
       </td>
-      <td className={q?.changePct != null && q.changePct >= 0 ? 'ds-val-pos' : 'ds-val-neg'} style={{ fontSize: 13, fontWeight: 600, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>
+      <td className={q?.changePct != null && q.changePct >= 0 ? 'ds-val-pos' : 'ds-val-neg'} style={{ fontSize: 13, fontWeight: 600, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)', background: heatColor(q?.changePct) }}>
         {q?.changePct != null ? fmtPct(q?.changePct) : <span className="ds-dash">—</span>}
       </td>
       <td style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text-secondary)', fontVariantNumeric: 'tabular-nums' }}>
@@ -132,7 +132,7 @@ function CryptoEtfRow({ symbol, label, onClick }) {
       <td className="ds-ticker-col">{symbol}</td>
       <td>{label || '—'}</td>
       <td>{q?.price != null ? fmt(q.price, 2) : '—'}</td>
-      <td className={q?.changePct != null && q.changePct >= 0 ? 'ds-val-pos' : 'ds-val-neg'}>
+      <td className={q?.changePct != null && q.changePct >= 0 ? 'ds-val-pos' : 'ds-val-neg'} style={{ background: heatColor(q?.changePct) }}>
         {fmtPct(q?.changePct)}
       </td>
     </tr>
@@ -464,15 +464,14 @@ function CryptoEtfCell({ sym, onClick }) {
   );
 }
 
-/* ── ETF Strip Component ───────────────────────────────────────────────────── */
-const EtfStrip = memo(function EtfStrip() {
+/* ── TickerRibbon Component ───────────────────────────────────────────────────── */
+const TickerRibbonComponent = memo(function TickerRibbonComponent() {
   const openDetail = useOpenDetail();
   return (
-    <div className="ds-strip" style={{ display: 'flex', gap: 0, borderTop: '1px solid var(--border-default)' }}>
-      {CRYPTO_ETFS.map(sym => (
-        <CryptoEtfCell key={sym} sym={sym} onClick={(sym) => openDetail(sym, 'Crypto & Digital Assets')} />
-      ))}
-    </div>
+    <TickerRibbon
+      tickers={CRYPTO_ETFS}
+      onTickerClick={(sym) => openDetail(sym, 'Crypto & Digital Assets')}
+    />
   );
 });
 
@@ -591,7 +590,7 @@ function CryptoScreenImpl() {
         <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>
           CRYPTO ETFs
         </div>
-        <EtfStrip />
+        <TickerRibbonComponent />
       </div>
     </FullPageScreenLayout>
   );

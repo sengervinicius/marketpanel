@@ -10,7 +10,7 @@ import { FundamentalsTable } from './shared/FundamentalsTable';
 import { SectorChartPanel } from './shared/SectorChartPanel';
 import { SectorScatterPlot } from './shared/SectorScatterPlot';
 import { InsiderActivity } from './shared/InsiderActivity';
-import { KPIRibbon } from './shared/SectorUI';
+import { KPIRibbon, heatColor, TickerRibbon } from './shared/SectorUI';
 import { useOpenDetail } from '../../context/OpenDetailContext';
 import { useTickerPrice } from '../../context/PriceContext';
 import { useDeepScreenData } from '../../hooks/useDeepScreenData';
@@ -60,7 +60,7 @@ const TableRow = memo(function TableRow({ sym, name, openDetail, stats }) {
       <td style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 600, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>
         {priceData?.price != null ? '$' + fmt(priceData.price, 2) : <span className="ds-dash">—</span>}
       </td>
-      <td className={priceData?.changePct != null && priceData.changePct >= 0 ? 'ds-up' : 'ds-down'} style={{ fontSize: 13, fontWeight: 600, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>
+      <td className={priceData?.changePct != null && priceData.changePct >= 0 ? 'ds-up' : 'ds-down'} style={{ fontSize: 13, fontWeight: 600, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)', background: heatColor(priceData?.changePct) }}>
         {priceData?.changePct != null ? fmtPct(priceData?.changePct) : <span className="ds-dash">—</span>}
       </td>
       <td style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text-secondary)', fontVariantNumeric: 'tabular-nums' }}>
@@ -150,16 +150,9 @@ const SectionTable = memo(function SectionTable({ tickers, statsMap }) {
   );
 });
 
-/* ── ETF Strip Component ───────────────────────────────────────────────── */
+/* ── ETF Strip Component (replaced with TickerRibbon) ──────────────────── */
 const EtfStrip = memo(function EtfStrip() {
-  const openDetail = useOpenDetail();
-  return (
-    <div className="ds-strip" style={{ display: 'flex', gap: 0, borderTop: '1px solid var(--border-default)' }}>
-      {RETAIL_ETFS.map(sym => (
-        <EtfCell key={sym} sym={sym} openDetail={(sym) => openDetail(sym, 'Global Retail & Consumer')} />
-      ))}
-    </div>
-  );
+  return <TickerRibbon tickers={RETAIL_ETFS} sectorName="Global Retail & Consumer" />;
 });
 
 /* ── Main Screen Implementation ────────────────────────────────────────── */

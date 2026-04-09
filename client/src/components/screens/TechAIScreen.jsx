@@ -7,7 +7,7 @@
 import { memo, useMemo, useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import FullPageScreenLayout from './shared/FullPageScreenLayout';
-import { SectorChartPanel, FundamentalsTable, SectorScatterPlot, InsiderActivity, MiniFinancials, KPIRibbon, heatColor } from './shared';
+import { SectorChartPanel, FundamentalsTable, SectorScatterPlot, InsiderActivity, MiniFinancials, KPIRibbon, heatColor, TickerRibbon } from './shared';
 import { useOpenDetail } from '../../context/OpenDetailContext';
 import { useTickerPrice } from '../../context/PriceContext';
 import { useDeepScreenData } from '../../hooks/useDeepScreenData';
@@ -87,7 +87,7 @@ function EnhancedRow({ symbol, stats, onClick }) {
       <td style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 600, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>
         {q?.price != null ? '$' + fmt(q.price) : <span className="ds-dash">—</span>}
       </td>
-      <td className={q?.changePct >= 0 ? 'ds-val-pos' : 'ds-val-neg'} style={{ fontSize: 13, fontWeight: 600, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>
+      <td className={q?.changePct >= 0 ? 'ds-val-pos' : 'ds-val-neg'} style={{ fontSize: 13, fontWeight: 600, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)', background: heatColor(q?.changePct) }}>
         {q?.changePct != null ? fmtPct(q.changePct) : <span className="ds-dash">—</span>}
       </td>
       <td style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text-secondary)', fontVariantNumeric: 'tabular-nums' }}>
@@ -333,14 +333,7 @@ function EtfCell({ sym, onClick }) {
 
 // ETF Strip
 function EtfStripSection() {
-  const openDetail = useOpenDetail();
-  return (
-    <div className="ds-etf-strip" style={{ padding: '0 6px' }}>
-      {ETF_SYMBOLS.map(sym => (
-        <EtfCell key={sym} sym={sym} onClick={openDetail} />
-      ))}
-    </div>
-  );
+  return <TickerRibbon tickers={ETF_SYMBOLS} sectorName="Technology & AI" />;
 }
 
 // Main component

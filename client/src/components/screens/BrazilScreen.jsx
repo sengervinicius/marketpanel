@@ -6,7 +6,7 @@ import { memo, useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import FullPageScreenLayout from './shared/FullPageScreenLayout';
 import { FundamentalsTable, SectorChartPanel } from './shared';
-import { KPIRibbon, heatColor } from './shared/SectorUI';
+import { KPIRibbon, heatColor, TickerRibbon } from './shared/SectorUI';
 import { DeepSkeleton, DeepError } from './DeepScreenBase';
 import useSectionData from '../../hooks/useSectionData';
 import { useOpenDetail } from '../../context/OpenDetailContext';
@@ -117,13 +117,13 @@ function AdrPairRow({ b3, adr, name, openDetail }) {
       <td onClick={() => openDetail(b3, 'Brazil & EM')} style={{ cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>
         {b3.replace('.SA', '')}
       </td>
-      <td style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 600, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>
+      <td style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 600, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)', background: heatColor(qB3?.changePct) }}>
         {qB3?.price != null ? fmt(qB3.price) : <span className="ds-dash">—</span>}
       </td>
       <td onClick={() => openDetail(adr, 'Brazil & EM')} style={{ cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>
         {adr}
       </td>
-      <td style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 600, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>
+      <td style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 600, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)', background: heatColor(qAdr?.changePct) }}>
         {qAdr?.price != null ? fmt(qAdr.price) : <span className="ds-dash">—</span>}
       </td>
     </tr>
@@ -189,7 +189,7 @@ function FxRateRow({ sym, openDetail }) {
       <td style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 600, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>
         {q?.price != null ? fmt(q.price) : <span className="ds-dash">—</span>}
       </td>
-      <td className={q?.changePct >= 0 ? 'ds-val-pos' : 'ds-val-neg'} style={{ fontSize: 13, fontWeight: 600, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>
+      <td className={q?.changePct >= 0 ? 'ds-val-pos' : 'ds-val-neg'} style={{ fontSize: 13, fontWeight: 600, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)', background: heatColor(q?.changePct) }}>
         {q?.changePct != null ? fmtPct(q.changePct) : <span className="ds-dash">—</span>}
       </td>
     </tr>
@@ -299,7 +299,7 @@ function EmFxRow({ sym, openDetail }) {
     >
       <td>{label}</td>
       <td>{q?.price != null ? fmt(q.price) : '—'}</td>
-      <td className={q?.changePct >= 0 ? 'ds-val-pos' : 'ds-val-neg'}>
+      <td className={q?.changePct >= 0 ? 'ds-val-pos' : 'ds-val-neg'} style={{ background: heatColor(q?.changePct) }}>
         {q?.changePct != null ? fmtPct(q.changePct) : '—'}
       </td>
     </tr>
@@ -343,7 +343,7 @@ function EmEtfCell({ sym, openDetail }) {
     >
       <td style={{ fontWeight: 600 }}>{sym}</td>
       <td>{q?.price != null ? fmt(q.price) : '—'}</td>
-      <td className={q?.changePct >= 0 ? 'ds-val-pos' : 'ds-val-neg'}>
+      <td className={q?.changePct >= 0 ? 'ds-val-pos' : 'ds-val-neg'} style={{ background: heatColor(q?.changePct) }}>
         {q?.changePct != null ? fmtPct(q.changePct) : '—'}
       </td>
       <td style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{EM_EQUITY_NAMES[sym]}</td>
@@ -496,17 +496,10 @@ function BrazilScreenImpl() {
       aiContext={{ country: 'Brazil', tickers: ['EWZ', 'VALE3.SA', 'PETR4.SA', 'ITUB4.SA'] }}
       aiCacheKey="em-country:brazil"
     >
-      {/* Brazil & EM ETFs strip */}
-      <div style={{ padding: '12px 16px' }}>
-        <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 1, color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: 8 }}>
-          Brazil & EM ETFs
-        </div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-          {BRAZIL_ETFS.map(sym => (
-            <BrazilEtfCell key={sym} sym={sym} openDetail={openDetail} />
-          ))}
-        </div>
-      </div>
+      <TickerRibbon
+        tickers={BRAZIL_ETFS}
+        onTickerClick={(sym) => openDetail(sym, 'Brazil & EM')}
+      />
     </FullPageScreenLayout>
   );
 }
