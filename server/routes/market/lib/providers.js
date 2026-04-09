@@ -550,124 +550,177 @@ async function alphaVantageQuote(symbol) {
   }
 }
 
-// ── fetchWithFallback: Try Yahoo, then Finnhub, then AV, then Eulerpool ─
-async function fetchWithFallback(symbol) {
+// ── Symbol classification ──────────────────────────────────────────
+// International tickers (non-US exchanges) get TwelveData/Eulerpool first
+// since Yahoo frequently fails for XETRA, TSE, KRX, HKEX, etc.
+const _intlSuffixRe = /\.(DE|F|L|PA|AS|MC|MI|SW|ST|CO|OL|HE|HK|T|KS|KQ|AX|SI|SA|NS|BO|SS|SZ|WA|LS|TW)$/i;
+const _europeanRe   = /\.(DE|F|L|PA|AS|SW|MC|MI|ST|HE|CO|OL|LS)$/i;
+const _isFx         = (s) => s.startsWith('C:');
+const _isCrypto     = (s) => s.startsWith('X:');
+
+function _classifySymbol(symbol) {
+  if (_isFx(symbol))                     return 'fx';
+  if (_isCrypto(symbol))                 return 'crypto';
+  if (_intlSuffixRe.test(symbol))        return 'international';
+  return 'us';
+}
+
+// ── Provider attempt helpers (DRY) ─────────────────────────────────
+async function _tryYahoo(symbol) {
   logger.info('provider', `Attempting Yahoo Finance for ${symbol}...`);
-  try {
-    const quotes = await yahooQuote(symbol);
-    if (quotes.length > 0) {
-      logger.info('provider', `Yahoo Finance succeeded for ${symbol}`);
-      return { data: quotes[0], source: 'yahoo' };
-    }
-  } catch (e) {
-    e.provider = 'yahoo';
-    logger.warn('provider', `Yahoo Finance failed: ${e.message}`);
+  const quotes = await yahooQuote(symbol);
+  if (quotes.length > 0) {
+    logger.info('provider', `Yahoo Finance succeeded for ${symbol}`);
+    return { data: quotes[0], source: 'yahoo' };
+  }
+  return null;
+}
+
+async function _tryFinnhub(symbol) {
+  if (!finnhubKey()) return null;
+  logger.info('provider', `Attempting Finnhub for ${symbol}...`);
+  const data = await finnhubQuote(symbol);
+  if (data.c) {
+    logger.info('provider', `Finnhub succeeded for ${symbol}`);
+    return {
+      data: {
+        symbol,
+        regularMarketPrice: data.c,
+        regularMarketChange: data.d,
+        regularMarketChangePercent: data.dp,
+        regularMarketOpen: data.o,
+        regularMarketDayHigh: data.h,
+        regularMarketDayLow: data.l,
+        regularMarketVolume: null,
+      },
+      source: 'finnhub',
+    };
+  }
+  return null;
+}
+
+async function _tryAlphaVantage(symbol) {
+  if (!alphaVantageKey()) return null;
+  logger.info('provider', `Attempting Alpha Vantage for ${symbol}...`);
+  const data = await alphaVantageQuote(symbol);
+  if (data['05. price']) {
+    logger.info('provider', `Alpha Vantage succeeded for ${symbol}`);
+    return {
+      data: {
+        symbol: data['01. symbol'],
+        regularMarketPrice: parseFloat(data['05. price']),
+        regularMarketChange: parseFloat(data['09. change'] || 0),
+        regularMarketChangePercent: parseFloat(data['10. change percent']?.replace('%', '') || 0),
+        regularMarketOpen: null,
+        regularMarketDayHigh: null,
+        regularMarketDayLow: null,
+        regularMarketVolume: null,
+      },
+      source: 'alphavantage',
+    };
+  }
+  return null;
+}
+
+async function _tryTwelveData(symbol) {
+  if (!twelvedata.isConfigured()) return null;
+  logger.info('provider', `Attempting Twelve Data for ${symbol}...`);
+  const q = await twelvedata.getQuote(symbol);
+  if (q && q.price) {
+    logger.info('provider', `Twelve Data succeeded for ${symbol}`);
+    return {
+      data: {
+        symbol,
+        regularMarketPrice:         q.price,
+        regularMarketChange:        q.change     ?? null,
+        regularMarketChangePercent: q.changePct  ?? null,
+        regularMarketOpen:          q.open       ?? null,
+        regularMarketDayHigh:       q.high       ?? null,
+        regularMarketDayLow:        q.low        ?? null,
+        regularMarketVolume:        q.volume     ?? null,
+        shortName:                  q.name       ?? symbol,
+        currency:                   q.currency   ?? null,
+      },
+      source: 'twelvedata',
+    };
+  }
+  return null;
+}
+
+async function _tryEulerpool(symbol) {
+  if (!eulerpool.isConfigured()) return null;
+  logger.info('provider', `Attempting Eulerpool for ${symbol}...`);
+  const q = await eulerpool.getQuote(symbol);
+  if (q && q.price) {
+    logger.info('provider', `Eulerpool succeeded for ${symbol}`);
+    return {
+      data: {
+        symbol,
+        regularMarketPrice:         q.price,
+        regularMarketChange:        q.change     ?? null,
+        regularMarketChangePercent: q.changePct  ?? null,
+        regularMarketVolume:        q.volume     ?? null,
+        shortName:                  q.name       ?? symbol,
+        currency:                   q.currency   ?? null,
+      },
+      source: 'eulerpool',
+    };
+  }
+  return null;
+}
+
+// ── fetchWithFallback: Smart routing by symbol type ────────────────
+// US stocks:           Yahoo → Finnhub → AV → TwelveData
+// International:       TwelveData → Eulerpool → Yahoo → Finnhub
+// FX (C:EURUSD):       TwelveData → Yahoo
+// Crypto (X:BTCUSD):   Yahoo → TwelveData
+async function fetchWithFallback(symbol) {
+  const kind = _classifySymbol(symbol);
+
+  // Build ordered provider chain based on symbol type
+  let chain;
+  switch (kind) {
+    case 'international':
+      chain = [
+        () => _tryTwelveData(symbol),
+        () => _europeanRe.test(symbol) ? _tryEulerpool(symbol) : null,
+        () => _tryYahoo(symbol),
+        () => _tryFinnhub(symbol),
+      ];
+      break;
+    case 'fx':
+      chain = [
+        () => _tryTwelveData(symbol),
+        () => _tryYahoo(symbol),
+      ];
+      break;
+    case 'crypto':
+      chain = [
+        () => _tryYahoo(symbol),
+        () => _tryTwelveData(symbol),
+      ];
+      break;
+    default: // 'us'
+      chain = [
+        () => _tryYahoo(symbol),
+        () => _tryFinnhub(symbol),
+        () => _tryAlphaVantage(symbol),
+        () => _tryTwelveData(symbol),
+      ];
   }
 
-  if (finnhubKey()) {
-    logger.info('provider', `Attempting Finnhub for ${symbol}...`);
+  logger.info('provider', `fetchWithFallback: ${symbol} classified as "${kind}", chain length=${chain.length}`);
+
+  for (const tryProvider of chain) {
     try {
-      const data = await finnhubQuote(symbol);
-      if (data.c) {
-        logger.info('provider', `Finnhub succeeded for ${symbol}`);
-        return {
-          data: {
-            symbol: symbol,
-            regularMarketPrice: data.c,
-            regularMarketChange: data.d,
-            regularMarketChangePercent: data.dp,
-            regularMarketOpen: data.o,
-            regularMarketDayHigh: data.h,
-            regularMarketDayLow: data.l,
-            regularMarketVolume: null,
-          },
-          source: 'finnhub',
-        };
-      }
+      const result = await tryProvider();
+      if (result) return result;
     } catch (e) {
-      e.provider = 'finnhub';
-      logger.warn('provider', `Finnhub failed: ${e.message}`);
+      logger.warn('provider', `Provider failed for ${symbol}: ${e.message}`);
     }
   }
 
-  if (alphaVantageKey()) {
-    logger.info('provider', `Attempting Alpha Vantage for ${symbol}...`);
-    try {
-      const data = await alphaVantageQuote(symbol);
-      if (data['05. price']) {
-        logger.info('provider', `Alpha Vantage succeeded for ${symbol}`);
-        return {
-          data: {
-            symbol: data['01. symbol'],
-            regularMarketPrice: parseFloat(data['05. price']),
-            regularMarketChange: parseFloat(data['09. change'] || 0),
-            regularMarketChangePercent: parseFloat(data['10. change percent']?.replace('%', '') || 0),
-            regularMarketOpen: null,
-            regularMarketDayHigh: null,
-            regularMarketDayLow: null,
-            regularMarketVolume: null,
-          },
-          source: 'alphavantage',
-        };
-      }
-    } catch (e) {
-      e.provider = 'alphavantage';
-      console.warn(`[Provider] Alpha Vantage failed: ${e.message}`);
-    }
-  }
-
-  // ── Twelve Data: international + US fallback ─────────────────────────
-  if (twelvedata.isConfigured()) {
-    logger.info('provider', `Attempting Twelve Data for ${symbol}...`);
-    try {
-      const q = await twelvedata.getQuote(symbol);
-      if (q && q.price) {
-        logger.info('provider', `Twelve Data succeeded for ${symbol}`);
-        return {
-          data: {
-            symbol,
-            regularMarketPrice:         q.price,
-            regularMarketChange:        q.change     ?? null,
-            regularMarketChangePercent: q.changePct  ?? null,
-            regularMarketOpen:          q.open       ?? null,
-            regularMarketDayHigh:       q.high       ?? null,
-            regularMarketDayLow:        q.low        ?? null,
-            regularMarketVolume:        q.volume     ?? null,
-            shortName:                  q.name       ?? symbol,
-            currency:                   q.currency   ?? null,
-          },
-          source: 'twelvedata',
-        };
-      }
-    } catch (e) {
-      logger.warn('provider', `Twelve Data failed for ${symbol}: ${e.message}`);
-    }
-  }
-
-  const isEuropean = /\.(DE|L|PA|AS|SW|MC|BR|MI|ST|HE|CO|OL|LS)$/i.test(symbol);
-  if (isEuropean && eulerpool.isConfigured()) {
-    try {
-      const q = await eulerpool.getQuote(symbol);
-      if (q && q.price) {
-        return {
-          data: {
-            symbol,
-            regularMarketPrice:         q.price,
-            regularMarketChange:        q.change     ?? null,
-            regularMarketChangePercent: q.changePct  ?? null,
-            regularMarketVolume:        q.volume     ?? null,
-            shortName:                  q.name       ?? symbol,
-            currency:                   q.currency   ?? null,
-          },
-          source: 'eulerpool',
-        };
-      }
-    } catch (e) {
-      console.warn(`[Provider] Eulerpool failed for ${symbol}:`, e.message);
-    }
-  }
-
-  throw new Error(`All providers failed for ${symbol}`);
+  throw new Error(`All providers failed for ${symbol} (type: ${kind})`);
 }
 
 // ── RSS feed parser ─────────────────────────────────────────────────
