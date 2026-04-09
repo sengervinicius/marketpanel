@@ -12,7 +12,7 @@ Last updated: Phase 5E (April 2026)
 - **Safe-area handling**: env(safe-area-inset-*) applied to header, tab bar, content areas, and toast notifications.
 - **Input zoom prevention**: font-size: 16px on mobile inputs prevents iOS auto-zoom.
 - **Overscroll behavior**: disabled rubber-banding for native feel.
-- **Capacitor native wrapper**: configured with `com.arccapital.senger` bundle ID, iOS/Android platform settings, and remote server hostname.
+- **Capacitor native wrapper**: configured with `com.senger.market` bundle ID, iOS/Android platform settings, and remote server hostname.
 - **App icons**: all required sizes generated (192, 512, maskable-192, maskable-512, 1024) via `scripts/generate-icons.js`.
 - **Privacy policy**: publicly accessible at `/privacy.html`, covering data collection, storage, third-party services, deletion rights, and children's privacy.
 - **Account deletion**: `DELETE /api/auth/account` endpoint removes user account plus all portfolio, alert, and settings data. Two-step confirmation dialog in MobileMoreScreen. Satisfies Apple's account deletion requirement.
@@ -85,7 +85,7 @@ Start with **Option A** for initial launch to ensure smooth App Store approval. 
 ## Recommended Next Steps (In Order)
 
 1. **Open in Xcode** — `cd client && npx cap open ios`. Configure signing with your Apple Developer team.
-2. **Create App Store Connect app** — Bundle ID `com.arccapital.senger`, add IAP subscription products matching `IAP_PRODUCTS` in `services/iap.js`.
+2. **Create App Store Connect app** — Bundle ID `com.senger.market`, add IAP subscription products matching `IAP_PRODUCTS` in `services/iap.js`.
 3. **Set env vars on Render** — `APPLE_IAP_SHARED_SECRET` for receipt validation, `APPLE_CLIENT_ID` for Sign In with Apple.
 4. **Capture final screenshots** — Replace the generated placeholder screenshots with real captures from Xcode Simulator at required resolutions.
 5. **Test in Simulator** — Verify all flows: login, portfolio, alerts, charts, account deletion, offline fallback.

@@ -21,7 +21,7 @@ const { getUserById, updateSubscription } = require('../authStore');
 // Product catalog — must match App Store Connect
 const PRODUCTS = [
   {
-    id: 'com.arccapital.senger.pro.monthly',
+    id: 'com.senger.market.pro.monthly',
     title: 'Senger Pro Monthly',
     description: 'Full access to all market data, alerts, and portfolio tools.',
     period: 'monthly',
@@ -29,7 +29,7 @@ const PRODUCTS = [
     priceDisplay: '$9.99/month',
   },
   {
-    id: 'com.arccapital.senger.pro.yearly',
+    id: 'com.senger.market.pro.yearly',
     title: 'Senger Pro Yearly',
     description: 'Full access — save 40% with annual billing.',
     period: 'yearly',

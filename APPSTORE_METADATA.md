@@ -9,7 +9,7 @@ Senger Market
 Real-Time Financial Terminal
 
 ### Bundle ID
-com.arccapital.senger
+com.senger.market
 
 ### SKU
 senger-market-001

@@ -9,16 +9,16 @@
  *   - On web/Android: falls back to Stripe checkout (existing flow)
  *
  * Product IDs must match App Store Connect configuration:
- *   - com.arccapital.senger.pro.monthly
- *   - com.arccapital.senger.pro.yearly
+ *   - com.senger.market.pro.monthly
+ *   - com.senger.market.pro.yearly
  */
 
 import { isIOS, isWeb } from './platform';
 
 // IAP product identifiers (must match App Store Connect)
 export const IAP_PRODUCTS = {
-  MONTHLY: 'com.arccapital.senger.pro.monthly',
-  YEARLY:  'com.arccapital.senger.pro.yearly',
+  MONTHLY: 'com.senger.market.pro.monthly',
+  YEARLY:  'com.senger.market.pro.yearly',
 };
 
 /**

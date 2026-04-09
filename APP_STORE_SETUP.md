@@ -23,7 +23,7 @@ npx cap open ios
 - Select the "App" target
 - Go to "Signing & Capabilities"
 - Team: Select your Apple Developer team (Arc Capital)
-- Bundle Identifier: `com.arccapital.senger`
+- Bundle Identifier: `com.senger.market`
 - Enable: Push Notifications capability
 - Enable: In-App Purchase capability
 - Enable: Sign in with Apple capability
@@ -77,8 +77,8 @@ Then in Xcode:
 
 ### 10. IAP Products
 Configure in App Store Connect → In-App Purchases:
-- `com.arccapital.senger.pro.monthly` — $9.99/month
-- `com.arccapital.senger.pro.yearly` — $69.99/year
+- `com.senger.market.pro.monthly` — $9.99/month
+- `com.senger.market.pro.yearly` — $69.99/year
 
 ### 11. Review Notes
 Include demo account credentials:

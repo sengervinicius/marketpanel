@@ -252,7 +252,7 @@ export function AuthProvider({ children }) {
       if (data.portalUrl) {
         window.location.href = data.portalUrl;
       } else {
-        alert('Billing portal not yet configured. Contact vinicius@arccapital.com.br');
+        alert('Billing portal not yet configured. Contact vinicius@senger.market');
       }
     } catch {
       alert('Could not open billing portal. Please try again later.');
