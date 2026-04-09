@@ -76,9 +76,36 @@ function SentimentBar({ score, accentColor }) {
 }
 
 function TickerSentimentRow({ ticker, data, accentColor }) {
-  const score = data?.sentimentScore ?? data?.score ?? null;
-  const consensus = data?.analystConsensus ?? data?.consensus ?? null;
-  const newsCount = data?.newsCount ?? data?.articles ?? null;
+  // Handle multiple field name variations from Eulerpool API
+  // The API may return sentiment score as: sentiment_score, sentimentScore, score, or in a nested object
+  let score = null;
+  if (data) {
+    score = data.sentimentScore ?? data.sentiment_score ??
+            data.score ??
+            data.sentiment?.score ??
+            data.sentiment?.sentimentScore ?? null;
+    if (score != null) score = parseFloat(score);
+  }
+
+  // Handle consensus/analyst opinion variations
+  let consensus = null;
+  if (data) {
+    consensus = data.analystConsensus ?? data.analyst_consensus ??
+                data.consensus ??
+                data.opinion ??
+                data.sentiment?.consensus ?? null;
+    if (consensus && typeof consensus === 'string') consensus = consensus.trim();
+  }
+
+  // Handle news count variations
+  let newsCount = null;
+  if (data) {
+    newsCount = data.newsCount ?? data.news_count ??
+                data.articles ?? data.article_count ??
+                data.news?.count ?? null;
+    if (newsCount != null) newsCount = parseInt(newsCount, 10);
+  }
+
   const label = sentimentLabel(score);
 
   return (

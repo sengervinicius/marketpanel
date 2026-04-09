@@ -69,6 +69,7 @@ function EnhancedTooltip({ active, payload, xLabel, yLabel }) {
 }
 
 function TickerLabel({ cx, cy, payload }) {
+  if (!payload?.ticker) return null;
   return (
     <text
       x={cx}
@@ -96,22 +97,26 @@ export function SectorScatterPlot({
 }) {
   // Enrich data with colors and calculate medians for reference lines
   const enrichedData = useMemo(() => {
-    return data.map((d, i) => ({
-      ...d,
-      color: DOT_COLORS[i % DOT_COLORS.length],
-    }));
+    return data
+      .filter(d => d != null && d.ticker != null && typeof d.x === 'number' && typeof d.y === 'number')
+      .map((d, i) => ({
+        ...d,
+        color: DOT_COLORS[i % DOT_COLORS.length],
+      }));
   }, [data]);
 
   const medianX = useMemo(() => {
-    if (data.length === 0) return 0;
-    const sorted = [...data].sort((a, b) => a.x - b.x);
-    return sorted[Math.floor(sorted.length / 2)].x;
+    const validData = data.filter(d => d != null && typeof d.x === 'number');
+    if (validData.length === 0) return 0;
+    const sorted = [...validData].sort((a, b) => a.x - b.x);
+    return sorted[Math.floor(sorted.length / 2)]?.x || 0;
   }, [data]);
 
   const medianY = useMemo(() => {
-    if (data.length === 0) return 0;
-    const sorted = [...data].sort((a, b) => a.y - b.y);
-    return sorted[Math.floor(sorted.length / 2)].y;
+    const validData = data.filter(d => d != null && typeof d.y === 'number');
+    if (validData.length === 0) return 0;
+    const sorted = [...validData].sort((a, b) => a.y - b.y);
+    return sorted[Math.floor(sorted.length / 2)]?.y || 0;
   }, [data]);
 
   if (!data || data.length === 0) {
@@ -238,29 +243,32 @@ export function SectorScatterPlot({
         paddingTop: 8,
         borderTop: '1px solid rgba(255,255,255,0.04)',
       }}>
-        {enrichedData.slice(0, 15).map((d) => (
-          <span
-            key={d.ticker}
-            onClick={() => onDotClick?.(d.ticker)}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 4,
-              fontSize: 9,
-              color: TOKEN_HEX.textSecondary,
-              cursor: onDotClick ? 'pointer' : 'default',
-            }}
-          >
-            <span style={{
-              width: 6,
-              height: 6,
-              borderRadius: '50%',
-              background: d.color,
-              flexShrink: 0,
-            }} />
-            {d.ticker}
-          </span>
-        ))}
+        {enrichedData.slice(0, 15).map((d) => {
+          if (!d?.ticker) return null;
+          return (
+            <span
+              key={d.ticker}
+              onClick={() => onDotClick?.(d.ticker)}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4,
+                fontSize: 9,
+                color: TOKEN_HEX.textSecondary,
+                cursor: onDotClick ? 'pointer' : 'default',
+              }}
+            >
+              <span style={{
+                width: 6,
+                height: 6,
+                borderRadius: '50%',
+                background: d.color,
+                flexShrink: 0,
+              }} />
+              {d.ticker}
+            </span>
+          );
+        })}
       </div>
     </div>
   );

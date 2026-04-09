@@ -152,7 +152,29 @@ export const TechnicalSignalsCard = memo(function TechnicalSignalsCard({
 
       tickerList.forEach((ticker, idx) => {
         const result = results[idx];
-        techMap[ticker] = result || { rsi: null, macd: null, macdSignal: null };
+        let rsi = null;
+        let macd = null;
+        let macdSignal = null;
+
+        if (result && result.data) {
+          // Extract RSI: API returns { RSI: { indicator, interval, ticker, values: [...] } }
+          // We want the latest RSI value
+          if (result.data.RSI && Array.isArray(result.data.RSI.values) && result.data.RSI.values.length > 0) {
+            const rsiValues = result.data.RSI.values;
+            rsi = parseFloat(rsiValues[rsiValues.length - 1]);
+          }
+
+          // Extract MACD: API returns { MACD: { indicator, interval, ticker, values: [...] } }
+          // MACD values are typically { macd, macd_signal, macd_histogram } objects
+          if (result.data.MACD && Array.isArray(result.data.MACD.values) && result.data.MACD.values.length > 0) {
+            const macdValues = result.data.MACD.values;
+            const latestMacd = macdValues[macdValues.length - 1];
+            macd = parseFloat(latestMacd.macd);
+            macdSignal = parseFloat(latestMacd.macd_signal);
+          }
+        }
+
+        techMap[ticker] = { rsi, macd, macdSignal };
       });
 
       if (mountedRef.current) setTechnicals(techMap);

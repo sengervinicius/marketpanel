@@ -136,13 +136,16 @@ export const AnalystActionsCard = memo(function AnalystActionsCard({
 
       // Flatten analyst actions from all tickers
       const allActions = [];
-      if (json.data && Array.isArray(json.data)) {
-        json.data.forEach(tickerData => {
-          if (tickerData.yahoo && Array.isArray(tickerData.yahoo.analystActions)) {
-            tickerData.yahoo.analystActions.forEach(act => {
+      if (json.data && typeof json.data === 'object') {
+        // API returns data as { TICKER: { analystActions, ... }, ... }
+        Object.entries(json.data).forEach(([ticker, tickerData]) => {
+          if (tickerData && Array.isArray(tickerData.analystActions)) {
+            tickerData.analystActions.forEach(act => {
               allActions.push({
                 ...act,
-                ticker: tickerData.ticker,
+                ticker: ticker,
+                // Convert epochGradeDate to date if needed
+                date: act.epochGradeDate ? new Date(act.epochGradeDate * 1000).toISOString() : act.date,
               });
             });
           }

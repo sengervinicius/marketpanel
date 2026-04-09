@@ -175,16 +175,24 @@ export const FuturesCurveChart = memo(function FuturesCurveChart({
             <XAxis
               dataKey="contract"
               stroke={TOKEN_HEX.borderDefault}
-              tick={{ fontSize: 8, fill: TOKEN_HEX.textMuted }}
-              angle={-30}
-              textAnchor="end"
-              height={35}
+              tick={{ fontSize: 9, fill: TOKEN_HEX.textMuted }}
+              tickLine={false}
+              axisLine={{ stroke: TOKEN_HEX.borderDefault }}
+              interval={0}
+              height={28}
             />
             <YAxis
               domain={['auto', 'auto']}
               stroke={TOKEN_HEX.borderDefault}
               tick={{ fontSize: 9, fill: TOKEN_HEX.textMuted }}
-              tickFormatter={(v) => v.toFixed(1)}
+              tickLine={false}
+              axisLine={false}
+              width={55}
+              tickFormatter={(v) => {
+                if (v >= 1000) return v.toLocaleString('en-US', { maximumFractionDigits: 0 });
+                if (v >= 10)   return v.toFixed(1);
+                return v.toFixed(2);
+              }}
             />
             <Tooltip content={<CurveTooltip />} />
             {spotPrice != null && (
@@ -232,7 +240,7 @@ function generatePlaceholderCurve(symbol) {
 
   for (let i = 0; i < 8; i++) {
     const month = new Date(now.getFullYear(), now.getMonth() + i + 1, 1);
-    const label = `${MONTHS[month.getMonth()]} ${month.getFullYear().toString().slice(2)}`;
+    const label = `${MONTHS[month.getMonth()]}'${month.getFullYear().toString().slice(2)}`;
 
     let multiplier;
     if (cfg.shape === 'contango') {

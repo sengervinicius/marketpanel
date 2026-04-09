@@ -161,12 +161,18 @@ export const OwnershipBreakdown = memo(function OwnershipBreakdown({
       const json = await res.json();
 
       const breakdownMap = {};
-      if (json.data && Array.isArray(json.data)) {
-        json.data.forEach(tickerData => {
-          if (tickerData.yahoo && tickerData.yahoo.holdersBreakdown) {
-            breakdownMap[tickerData.ticker] = tickerData.yahoo.holdersBreakdown;
+      if (json.data && typeof json.data === 'object') {
+        // API returns data as { TICKER: { holdersBreakdown, ... }, ... }
+        Object.entries(json.data).forEach(([ticker, tickerData]) => {
+          if (tickerData && tickerData.holdersBreakdown) {
+            // Map API field names to component field names
+            breakdownMap[ticker] = {
+              insider: tickerData.holdersBreakdown.insidersPercentHeld || 0,
+              institutional: tickerData.holdersBreakdown.institutionsPercentHeld || 0,
+              float: 100 - (tickerData.holdersBreakdown.insidersPercentHeld || 0) - (tickerData.holdersBreakdown.institutionsPercentHeld || 0),
+            };
           } else {
-            breakdownMap[tickerData.ticker] = { insider: 0, institutional: 0, float: 0 };
+            breakdownMap[ticker] = { insider: 0, institutional: 0, float: 0 };
           }
         });
       }

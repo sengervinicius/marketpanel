@@ -27,8 +27,14 @@ function formatDate(dateStr) {
 }
 
 function EarningsRow({ event, accentColor }) {
-  const beatMiss = event.actual != null && event.estimate != null
-    ? event.actual > event.estimate ? 'BEAT' : event.actual < event.estimate ? 'MISS' : '—'
+  // Handle field name variations from TwelveData API
+  const ticker = event.ticker || event.symbol || '?';
+  const date = event.date || event.earnings_date || event.reportDate || null;
+  const estimate = event.estimate ?? event.estimated_eps ?? event.eps_estimate ?? null;
+  const actual = event.actual ?? event.actual_eps ?? event.eps_actual ?? null;
+
+  const beatMiss = actual != null && estimate != null
+    ? actual > estimate ? 'BEAT' : actual < estimate ? 'MISS' : '—'
     : '—';
 
   const beatMissColor = beatMiss === 'BEAT' ? TOKEN_HEX.up : beatMiss === 'MISS' ? TOKEN_HEX.down : TOKEN_HEX.textMuted;
@@ -43,7 +49,7 @@ function EarningsRow({ event, accentColor }) {
         fontFamily: 'var(--font-mono, monospace)',
         whiteSpace: 'nowrap',
       }}>
-        {event.ticker}
+        {ticker}
       </td>
       <td style={{
         padding: '6px 8px',
@@ -51,7 +57,7 @@ function EarningsRow({ event, accentColor }) {
         color: TOKEN_HEX.textMuted,
         whiteSpace: 'nowrap',
       }}>
-        {formatDate(event.date)}
+        {formatDate(date)}
       </td>
       <td style={{
         padding: '6px 8px',
@@ -61,17 +67,17 @@ function EarningsRow({ event, accentColor }) {
         textAlign: 'right',
         whiteSpace: 'nowrap',
       }}>
-        {event.estimate != null ? `$${event.estimate.toFixed(2)}` : '—'}
+        {estimate != null ? `$${parseFloat(estimate).toFixed(2)}` : '—'}
       </td>
       <td style={{
         padding: '6px 8px',
         fontSize: 10,
-        color: event.actual != null ? TOKEN_HEX.textPrimary : TOKEN_HEX.textMuted,
+        color: actual != null ? TOKEN_HEX.textPrimary : TOKEN_HEX.textMuted,
         fontFamily: 'var(--font-mono, monospace)',
         textAlign: 'right',
         whiteSpace: 'nowrap',
       }}>
-        {event.actual != null ? `$${event.actual.toFixed(2)}` : '—'}
+        {actual != null ? `$${parseFloat(actual).toFixed(2)}` : '—'}
       </td>
       <td style={{
         padding: '6px 8px',
@@ -110,15 +116,27 @@ export const EarningsCalendarStrip = memo(function EarningsCalendarStrip({
       const res = await apiFetch('/api/market/td/earnings-calendar');
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
-      let allEvents = json.events || [];
-      // Filter to tickers we care about
-      allEvents = allEvents.filter(e => tickerList.includes(e.ticker));
+      // Server returns { ok: true, data: [...], source: '...' }
+      let allEvents = json.data || json.events || [];
+      if (!Array.isArray(allEvents)) allEvents = [];
+
+      // Filter to tickers we care about (handle various field name variations)
+      allEvents = allEvents.filter(e => {
+        const eventTicker = (e.ticker || e.symbol || '').toUpperCase();
+        return tickerList.some(t => t.toUpperCase() === eventTicker);
+      });
+
       // Sort by date, nearest first
-      allEvents.sort((a, b) => new Date(a.date) - new Date(b.date));
+      allEvents.sort((a, b) => {
+        const dateA = new Date(a.date || a.earnings_date || 0);
+        const dateB = new Date(b.date || b.earnings_date || 0);
+        return dateA - dateB;
+      });
+
       // Limit to 12
       allEvents = allEvents.slice(0, 12);
       if (mountedRef.current) setEvents(allEvents);
-    } catch {
+    } catch (err) {
       if (mountedRef.current) setEvents([]);
     } finally {
       if (mountedRef.current) setLoading(false);
