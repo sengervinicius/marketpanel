@@ -67,8 +67,13 @@ export default function MacroPanel() {
       const res = await fetch(`/api/macro/compare?countries=${selected.join(',')}&indicators=${indicators}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const d = await res.json();
-      if (d.ok) setData(d.data);
-      else throw new Error(d.error || 'Unknown error');
+      if (d.ok) {
+        // Server returns { data: { indicators, countries: [...], asOf, stub } }
+        const countries = d.data?.countries || d.data;
+        setData({ ...d.data, countries: Array.isArray(countries) ? countries : [] });
+      } else {
+        throw new Error(d.error || 'Unknown error');
+      }
     } catch (e) {
       setError(e.message);
       setData(null);

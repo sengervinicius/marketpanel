@@ -453,20 +453,7 @@ function DefenceScreenImpl() {
       title: 'News Sentiment',
       component: SentimentSection,
     },
-    {
-      id: 'iv-monitor',
-      title: 'Implied Volatility Monitor',
-      span: 'full',
-      component: () => (
-        <div style={{ display: 'flex', gap: 8, padding: '0 8px', overflowX: 'auto' }}>
-          {['LMT', 'RTX', 'BA', 'NOC'].map(t => (
-            <div key={t} style={{ flex: '1 0 160px' }}>
-              <ImpliedVolatilityCard ticker={t} accentColor="#ef5350" />
-            </div>
-          ))}
-        </div>
-      ),
-    },
+    /* IV Monitor removed — no options data feed available */
   ], [statsMap, statsLoading, statsError, statsRefresh, scatterData, openDetail]);
 
   return (

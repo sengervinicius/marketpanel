@@ -486,20 +486,7 @@ function TechAIScreenImpl() {
       title: 'News Sentiment',
       component: SentimentSection,
     },
-    {
-      id: 'iv-monitor',
-      title: 'IMPLIED VOLATILITY',
-      span: 'full',
-      component: () => (
-        <div style={{ display: 'flex', gap: 8, padding: '0 8px', overflowX: 'auto' }}>
-          {['NVDA', 'AAPL', 'TSLA', 'META'].map(t => (
-            <div key={t} style={{ flex: '1 0 160px' }}>
-              <ImpliedVolatilityCard ticker={t} accentColor="#00bcd4" />
-            </div>
-          ))}
-        </div>
-      ),
-    },
+    /* IV Monitor removed — no options data feed available */
     {
       id: 'insider',
       title: 'INSIDER ACTIVITY',

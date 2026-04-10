@@ -54,18 +54,21 @@ function MacroKPIRibbon() {
 /* ─────────────────────────────────────────────────────────────────────── */
 function GlobalSnapshot() {
   const openDetail = useOpenDetail();
-  const { data, loading, error } = useSectionData({
+  const { data: rawData, loading, error } = useSectionData({
     cacheKey: 'screen:macro:snapshot',
     fetcher: async () => {
       const res = await apiFetch('/api/macro/compare?countries=US,EU,DE,FR,IT,GB,JP,CN,BR,MX,IN,ZA&indicators=policyRate,cpiYoY,gdpGrowth,unemploymentRate');
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      return res.json();
+      const json = await res.json();
+      // Server returns { ok, data: { countries: [...] } }
+      return json?.data?.countries || json?.data || json || [];
     },
   });
+  const data = Array.isArray(rawData) ? rawData : [];
 
   if (loading) return <DeepSkeleton rows={8} />;
   if (error) return <DataUnavailable reason={error} />;
-  if (!data || !Array.isArray(data)) return <DataUnavailable reason="No snapshot data" />;
+  if (data.length === 0) return <DataUnavailable reason="No snapshot data" />;
 
   const getCpiColor = (val) => {
     if (val == null) return '';
@@ -306,20 +309,22 @@ function YieldCurveAnalysis() {
 /* 6. CENTRAL BANK RATES */
 /* ─────────────────────────────────────────────────────────────────────── */
 function CentralBankRates() {
-  const { data, loading, error } = useSectionData({
-    cacheKey: 'screen:macro:snapshot',
+  const { data: rawData, loading, error } = useSectionData({
+    cacheKey: 'screen:macro:cb-rates',
     fetcher: async () => {
       const res = await apiFetch('/api/macro/compare?countries=US,EU,JP,GB,BR,CN,IN&indicators=policyRate');
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      return res.json();
+      const json = await res.json();
+      return json?.data?.countries || json?.data || json || [];
     },
   });
+  const data = Array.isArray(rawData) ? rawData : [];
 
   if (loading) return <DeepSkeleton rows={6} />;
   if (error) return <DataUnavailable reason={error} />;
-  if (!data || !Array.isArray(data)) return <DataUnavailable reason="No rate data" />;
+  if (data.length === 0) return <DataUnavailable reason="No rate data" />;
 
-  const maxRate = Math.max(...(Array.isArray(data) ? data : []).map(d => d.policyRate || 0));
+  const maxRate = Math.max(...data.map(d => d.policyRate || 0));
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>

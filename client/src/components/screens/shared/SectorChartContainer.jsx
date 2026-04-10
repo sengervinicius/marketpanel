@@ -390,6 +390,7 @@ export function SectorChartContainer({
   accentColor,
   isHighlighted = false,
   onChartClick,
+  loadDelay = 0, // stagger initial fetch to avoid Polygon 429s
 }) {
   const [rangeIdx, setRangeIdx] = useState(3); // Default 3M
   const [chartData, setChartData] = useState(null);
@@ -405,7 +406,7 @@ export function SectorChartContainer({
     const timer = setTimeout(() => {
       if (mountedRef.current) {
         // Check if we can retry (max 2 retries)
-        if (retryCount < 2) {
+        if (retryCount < 1) {
           setLoading(false);
           setFetchError('Chart timed out. Retrying...');
         } else {
@@ -428,6 +429,11 @@ export function SectorChartContainer({
     }
 
     const fetchChart = async () => {
+      // Stagger initial fetch to avoid overwhelming Polygon free tier
+      if (loadDelay > 0 && retryCount === 0) {
+        await new Promise(resolve => setTimeout(resolve, loadDelay));
+        if (!mountedRef.current) return;
+      }
       try {
         setLoading(true);
         setFetchError(null);
@@ -492,7 +498,7 @@ export function SectorChartContainer({
         if (mountedRef.current) {
           console.error(`[SectorChartContainer] Error fetching ${ticker}:`, err);
           // Auto-retry on error (max 2 retries)
-          if (retryCount < 2) {
+          if (retryCount < 1) {
             setFetchError(`Failed to load chart. Retrying... (Attempt ${retryCount + 2}/3)`);
             // Schedule automatic retry
             setTimeout(() => {
@@ -542,7 +548,7 @@ export function SectorChartContainer({
   }
 
   if (fetchError) {
-    const isMaxRetriesReached = retryCount >= 2;
+    const isMaxRetriesReached = retryCount >= 1;
     return (
       <div style={containerStyle}>
         <TimeframeSelector rangeIdx={rangeIdx} onChange={setRangeIdx} accentColor={accentColor} />

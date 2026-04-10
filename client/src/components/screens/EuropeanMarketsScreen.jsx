@@ -496,7 +496,7 @@ function EuropeanMarketsScreenImpl() {
       span: 'full',
       component: () => (
         <MacroTable
-          data={Array.isArray(macroData) ? macroData : macroData?.data || []}
+          data={Array.isArray(macroData) ? macroData : macroData?.data?.countries || macroData?.data || []}
           loading={macroLoading}
           error={macroError}
         />

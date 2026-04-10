@@ -72,7 +72,7 @@ export function SectorChartPanel({
       gridTemplateColumns: `repeat(${cols}, 1fr)`,
       gap: '12px',
     }}>
-      {tickerList.map(ticker => (
+      {tickerList.map((ticker, idx) => (
         <SectorChartContainer
           key={ticker}
           ticker={ticker}
@@ -80,6 +80,7 @@ export function SectorChartPanel({
           accentColor={accentColor}
           isHighlighted={selectedTicker === ticker}
           onChartClick={onChartClick}
+          loadDelay={idx * 1200}
         />
       ))}
     </div>

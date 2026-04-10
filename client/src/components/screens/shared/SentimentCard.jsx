@@ -204,9 +204,10 @@ export const SentimentCard = memo(function SentimentCard({
     const promises = stableTickers.map(async (ticker) => {
       try {
         const res = await apiFetch(`/api/market/sentiment/${encodeURIComponent(ticker)}`);
-        if (res && typeof res === 'object') {
-          results[ticker] = res;
-        }
+        if (!res.ok) { results[ticker] = null; return; }
+        const json = await res.json();
+        // Server returns { ok, data, source, ticker } — extract inner data
+        results[ticker] = json?.data ?? json ?? null;
       } catch (err) {
         // Individual ticker failure is OK — just skip
         results[ticker] = null;
@@ -226,8 +227,13 @@ export const SentimentCard = memo(function SentimentCard({
     return () => { mountedRef.current = false; };
   }, [fetchSentiment]);
 
-  // Check if we have any actual data
-  const hasData = Object.values(data).some(v => v != null);
+  // Check if we have any actual data with real sentiment fields
+  const hasData = Object.values(data).some(v => {
+    if (v == null) return false;
+    // Check if there's at least one real sentiment field
+    return (v.sentimentScore ?? v.sentiment_score ?? v.score ??
+            v.sentiment?.score ?? v.sentiment?.sentimentScore) != null;
+  });
 
   return (
     <div style={{
