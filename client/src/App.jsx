@@ -75,7 +75,7 @@ import {
 } from './components/app/AppMobile';
 import './App.css';
 import './components/panels/Chat.css';
-import 'react-joyride/lib/react-joyride.css';
+// react-joyride v2+ uses inline styles — no separate CSS import needed
 
 // ── Error Boundary — catches runtime crashes and shows diagnostic info ─────
 class AppErrorBoundary extends Component {
