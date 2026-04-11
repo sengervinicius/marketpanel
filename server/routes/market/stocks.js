@@ -600,7 +600,7 @@ router.get('/history/:symbol', async (req, res) => {
         const ctrl = new AbortController();
         const timer = setTimeout(() => ctrl.abort(), 10000);
         try {
-          const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: ctrl.signal });
+          const r = await fetch(url, { headers: { 'User-Agent': YF_UA }, signal: ctrl.signal });
           if (r.status === 429) { const e = new Error('Yahoo history 429'); e.code = 'rate_limit'; throw e; }
           if (!r.ok) throw new Error(`Yahoo history HTTP ${r.status}`);
           return r.json();
@@ -650,6 +650,38 @@ router.get('/history/:symbol', async (req, res) => {
         } catch (pe) {
           console.warn(`[history] Polygon fallback failed for ${symbol}: ${pe.message}`);
         }
+      }
+    }
+
+    // ── 3. TwelveData fallback (if both Yahoo and Polygon returned nothing) ──
+    if (candles.length === 0) {
+      try {
+        const tdInterval = interval === '1d' ? '1day' : interval === '1h' ? '1h' : '5min';
+        const outputSize = period === '1D' ? 390 : period === '5D' ? 1950 : period === '1M' ? 30 : period === '3M' ? 90 : period === '6M' ? 180 : period === '1Y' ? 365 : period === '3Y' ? 1095 : 1825;
+        const tdSym = symbol.replace('.SA', '');
+        const tdUrl = `https://api.twelvedata.com/time_series?symbol=${encodeURIComponent(tdSym)}&interval=${tdInterval}&outputsize=${Math.min(outputSize, 5000)}&apikey=${process.env.TWELVEDATA_API_KEY}`;
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 10000);
+        try {
+          const r = await fetch(tdUrl, { signal: ctrl.signal });
+          if (r.ok) {
+            const json = await r.json();
+            if (json.values && Array.isArray(json.values)) {
+              candles = json.values.reverse().map(v => ({
+                t: new Date(v.datetime).getTime(),
+                o: parseFloat(v.open),
+                h: parseFloat(v.high),
+                l: parseFloat(v.low),
+                c: parseFloat(v.close),
+                v: parseInt(v.volume) || 0,
+              })).filter(c => !isNaN(c.c));
+            }
+          }
+        } finally {
+          clearTimeout(timer);
+        }
+      } catch (te) {
+        console.warn(`[history] TwelveData fallback failed for ${symbol}: ${te.message}`);
       }
     }
 

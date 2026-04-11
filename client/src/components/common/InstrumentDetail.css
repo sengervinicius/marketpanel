@@ -1755,3 +1755,101 @@
   gap: 12px;
   padding: 1px 0;
 }
+
+/* ── Mobile polish (Sprint 3 — 375px viewport) ────────────────── */
+@media (max-width: 480px) {
+  .id-header--mobile {
+    gap: 4px;
+    padding: 6px 8px;
+  }
+  .id-ticker--mobile {
+    font-size: 12px;
+    max-width: 70px;
+  }
+  .id-name {
+    max-width: 100px;
+    font-size: 10px;
+  }
+  .id-price--mobile {
+    font-size: 13px;
+  }
+  .id-change--mobile {
+    font-size: 11px;
+  }
+  .id-action-btn--mobile {
+    padding: 2px 6px;
+    font-size: 9px;
+  }
+  .id-metrics-strip {
+    flex-wrap: wrap;
+    gap: 4px;
+    padding: 4px 8px;
+  }
+  .id-metric-badge {
+    min-width: 0;
+    flex: 1 1 calc(50% - 4px);
+    padding: 4px 6px;
+    font-size: 10px;
+  }
+  .id-metric-badge-label {
+    font-size: 8px;
+  }
+  .id-metric-badge-value {
+    font-size: 11px;
+  }
+  /* Chart area */
+  .id-chart-container {
+    min-height: 200px;
+  }
+  /* Range tabs */
+  .id-range-tabs {
+    gap: 2px;
+    padding: 4px 8px;
+  }
+  .id-range-tab {
+    padding: 3px 6px;
+    font-size: 9px;
+  }
+  /* Sections */
+  .id-section {
+    padding: 8px;
+  }
+  .id-section-title {
+    font-size: 11px;
+  }
+  /* Related chips */
+  .id-related-chip {
+    padding: 4px 8px;
+    font-size: 10px;
+    min-width: 0;
+  }
+  /* Stat rows */
+  .id-stat-row {
+    padding: 3px 0;
+    font-size: 11px;
+  }
+  /* Scroll container */
+  .id-scroll {
+    -webkit-overflow-scrolling: touch;
+  }
+  /* AI insight section */
+  .id-ai-insight {
+    padding: 8px;
+    font-size: 12px;
+    line-height: 1.5;
+  }
+}
+
+/* Extra small (320px) */
+@media (max-width: 360px) {
+  .id-header--mobile {
+    padding: 4px 6px;
+  }
+  .id-ticker--mobile {
+    font-size: 11px;
+    max-width: 60px;
+  }
+  .id-metric-badge {
+    flex: 1 1 100%;
+  }
+}

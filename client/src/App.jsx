@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useMemo, Component } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo, Component, lazy, Suspense } from 'react';
 import { apiFetch } from './utils/api';
 import { useMarketData } from './hooks/useMarketData';
 import { useWebSocket } from './hooks/useWebSocket';
@@ -40,14 +40,22 @@ import ToastContainer from './components/common/ToastContainer';
 import WelcomeModal from './components/onboarding/WelcomeModal';
 import OnboardingTour from './components/common/OnboardingTour';
 import SectorScreenSelector from './components/common/SectorScreenSelector';
-import {
-  DefenceScreen, CommoditiesScreen, GlobalMacroScreen, FixedIncomeScreen,
-  BrazilScreen, TechAIScreen,
-  GlobalRetailScreen, AsianMarketsScreen, EuropeanMarketsScreen, CryptoScreen,
-} from './components/screens';
 import MarketStatus from './components/common/MarketStatus';
 import { TickerTooltip } from './components/common/TickerTooltip';
-import InstrumentDetail from './components/common/InstrumentDetail';
+
+// Lazy-loaded sector screens — split into separate chunks
+const DefenceScreen = lazy(() => import('./components/screens/DefenceScreen'));
+const CommoditiesScreen = lazy(() => import('./components/screens/CommoditiesScreen'));
+const GlobalMacroScreen = lazy(() => import('./components/screens/GlobalMacroScreen'));
+const FixedIncomeScreen = lazy(() => import('./components/screens/FixedIncomeScreen'));
+const BrazilScreen = lazy(() => import('./components/screens/BrazilScreen'));
+const TechAIScreen = lazy(() => import('./components/screens/TechAIScreen'));
+const GlobalRetailScreen = lazy(() => import('./components/screens/GlobalRetailScreen'));
+const AsianMarketsScreen = lazy(() => import('./components/screens/AsianMarketsScreen'));
+const EuropeanMarketsScreen = lazy(() => import('./components/screens/EuropeanMarketsScreen'));
+const CryptoScreen = lazy(() => import('./components/screens/CryptoScreen'));
+
+const InstrumentDetail = lazy(() => import('./components/common/InstrumentDetail'));
 import PanelErrorBoundary from './components/common/PanelErrorBoundary';
 import {
   MarketTickBridge,
@@ -115,6 +123,62 @@ class AppErrorBoundary extends Component {
     }
     return this.props.children;
   }
+}
+
+// ── Lazy-load fallback — matches dark terminal aesthetic ──────────────────────────
+function ScreenFallback() {
+  return (
+    <div style={{
+      flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
+      background: 'var(--bg-panel)', color: 'var(--text-faint)', fontSize: 12,
+      fontFamily: 'var(--font-mono)', letterSpacing: '1px',
+    }}>
+      <div style={{ textAlign: 'center' }}>
+        <div style={{ color: 'var(--accent)', fontSize: 11, marginBottom: 8 }}>LOADING</div>
+        <div className="boot-bar" style={{ width: 120, height: 2, margin: '0 auto' }}>
+          <div className="boot-bar-fill" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── InstrumentDetail skeleton (shimmer placeholder) ──────────────────────────
+function InstrumentDetailSkeleton() {
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 9999,
+      background: 'rgba(0, 0, 0, 0.97)',
+      display: 'flex', flexDirection: 'column',
+      fontFamily: 'var(--font-ui)', color: 'var(--text-primary)',
+    }}>
+      {/* Header skeleton */}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 10,
+        padding: '8px 16px', borderBottom: '1px solid var(--border-default)',
+        background: 'var(--bg-panel)',
+      }}>
+        <div className="skeleton-shimmer" style={{ width: 32, height: 32, borderRadius: '50%' }} />
+        <div className="skeleton-shimmer" style={{ width: 80, height: 18, borderRadius: 4 }} />
+        <div className="skeleton-shimmer" style={{ width: 120, height: 14, borderRadius: 4 }} />
+        <div style={{ flex: 1 }} />
+        <div className="skeleton-shimmer" style={{ width: 100, height: 24, borderRadius: 4 }} />
+        <div className="skeleton-shimmer" style={{ width: 80, height: 18, borderRadius: 4 }} />
+      </div>
+      {/* Chart skeleton */}
+      <div style={{ flex: 1, padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div className="skeleton-shimmer" style={{ width: '100%', height: 300, borderRadius: 8 }} />
+        {/* Metrics strip skeleton */}
+        <div style={{ display: 'flex', gap: 8 }}>
+          {[1,2,3,4,5].map(i => (
+            <div key={i} className="skeleton-shimmer" style={{ flex: 1, height: 48, borderRadius: 6 }} />
+          ))}
+        </div>
+        {/* Fundamentals skeleton */}
+        <div className="skeleton-shimmer" style={{ width: '100%', height: 200, borderRadius: 8 }} />
+      </div>
+    </div>
+  );
 }
 
 const LS_TAB          = 'activeTab_m3';
@@ -541,12 +605,14 @@ export default function App() {
             {activeSectorScreen && (
               <div className="screen-transition-enter" style={{ flex: 1, overflow: 'auto', display: SCREEN_MAP[activeSectorScreen] ? 'block' : 'flex', alignItems: SCREEN_MAP[activeSectorScreen] ? undefined : 'center', justifyContent: SCREEN_MAP[activeSectorScreen] ? undefined : 'center', flexDirection: SCREEN_MAP[activeSectorScreen] ? undefined : 'column', gap: SCREEN_MAP[activeSectorScreen] ? undefined : 12 }}>
                 {SCREEN_MAP[activeSectorScreen] ? (
-                  <PanelErrorBoundary name={`Screen:${activeSectorScreen}`}>
-                    {(() => {
-                      const ScreenComp = SCREEN_MAP[activeSectorScreen];
-                      return <ScreenComp />;
-                    })()}
-                  </PanelErrorBoundary>
+                  <Suspense fallback={<ScreenFallback />}>
+                    <PanelErrorBoundary name={`Screen:${activeSectorScreen}`}>
+                      {(() => {
+                        const ScreenComp = SCREEN_MAP[activeSectorScreen];
+                        return <ScreenComp />;
+                      })()}
+                    </PanelErrorBoundary>
+                  </Suspense>
                 ) : (
                   <>
                     <div style={{ fontSize: 36 }}>🚧</div>
@@ -653,7 +719,7 @@ export default function App() {
           </>
         )}
 
-        {detailTicker && !subscriptionExpired && <PanelErrorBoundary name="InstrumentDetail"><InstrumentDetail ticker={detailTicker} onClose={() => setDetailTicker(null)} onOpenChat={() => setChatOpen(true)} /></PanelErrorBoundary>}
+        {detailTicker && !subscriptionExpired && <Suspense fallback={<InstrumentDetailSkeleton />}><PanelErrorBoundary name="InstrumentDetail"><InstrumentDetail ticker={detailTicker} onClose={() => setDetailTicker(null)} onOpenChat={() => setChatOpen(true)} /></PanelErrorBoundary></Suspense>}
         <TickerTooltip />
         <ToastContainer />
       </div>
@@ -796,9 +862,11 @@ export default function App() {
             {activeSectorScreen && (
               <div style={{ flex: 1, overflow: 'auto', display: SCREEN_MAP[activeSectorScreen] ? 'block' : 'flex', alignItems: SCREEN_MAP[activeSectorScreen] ? undefined : 'center', justifyContent: SCREEN_MAP[activeSectorScreen] ? undefined : 'center', flexDirection: SCREEN_MAP[activeSectorScreen] ? undefined : 'column', gap: SCREEN_MAP[activeSectorScreen] ? undefined : 12, padding: SCREEN_MAP[activeSectorScreen] ? undefined : 24 }}>
                 {SCREEN_MAP[activeSectorScreen] ? (
-                  <PanelErrorBoundary name={`Screen:${activeSectorScreen}`}>
-                    {(() => { const S = SCREEN_MAP[activeSectorScreen]; return <S />; })()}
-                  </PanelErrorBoundary>
+                  <Suspense fallback={<ScreenFallback />}>
+                    <PanelErrorBoundary name={`Screen:${activeSectorScreen}`}>
+                      {(() => { const S = SCREEN_MAP[activeSectorScreen]; return <S />; })()}
+                    </PanelErrorBoundary>
+                  </Suspense>
                 ) : (
                   <>
                     <div style={{ fontSize: 36 }}>🚧</div>

@@ -7,8 +7,9 @@
  *   window.open(window.location.origin + '/#/detail/AAPL', '_blank', 'width=1100,height=700')
  */
 
+import { lazy, Suspense } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import InstrumentDetail from '../components/common/InstrumentDetail';
+const InstrumentDetail = lazy(() => import('../components/common/InstrumentDetail'));
 import { useAuth } from '../context/AuthContext';
 
 export default function InstrumentDetailPage() {
@@ -56,11 +57,13 @@ export default function InstrumentDetailPage() {
 
       {/* Full InstrumentDetail in page mode (no overlay backdrop) */}
       <div style={{ flex: 1, overflow: 'hidden' }}>
-        <InstrumentDetail
-          ticker={decodedSymbol}
-          onClose={() => window.close()}
-          asPage
-        />
+        <Suspense fallback={<div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#555', fontSize: 11 }}>Loading...</div>}>
+          <InstrumentDetail
+            ticker={decodedSymbol}
+            onClose={() => window.close()}
+            asPage
+          />
+        </Suspense>
       </div>
     </div>
   );

@@ -1963,9 +1963,20 @@ textarea:focus-visible { outline: 1px solid var(--accent); outline-offset: 0; bo
 }
 
 /* ── Touch/Tap Handling for iOS 300ms Delay Fix ────────────────── */
-[onTouchEnd], .interactive-row, .ds-row-clickable, .hm-tile, .ap-row, .ac-row-main, 
+[onTouchEnd], .interactive-row, .ds-row-clickable, .hm-tile, .ap-row, .ac-row-main,
 .am-alert-row, .gp-position-row, .ep-row, .pm-position-row, .scr-td--symbol,
 .scs-chart, .ds-ticker-cell {
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
+}
+
+/* ── Skeleton shimmer (Sprint 3) ──────────────────────────────── */
+.skeleton-shimmer {
+  background: linear-gradient(90deg, var(--bg-elevated) 25%, var(--bg-panel) 50%, var(--bg-elevated) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+@keyframes shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }
