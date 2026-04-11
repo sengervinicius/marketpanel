@@ -42,7 +42,7 @@ export default function OnboardingTour() {
       disableBeacon: true,
     },
     {
-      target: 'button[aria-label="Open sector screens"]',
+      target: '.app-header-bar button',
       content: 'Click here to explore Sector Screens - deep-dive into Defence, Tech, Commodities, and other thematic markets.',
       title: 'Sector Screens',
       placement: 'bottom',
