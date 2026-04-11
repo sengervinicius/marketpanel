@@ -12,7 +12,7 @@ import { SectorScatterPlot } from './shared/SectorScatterPlot';
 import { MiniFinancials } from './shared/MiniFinancials';
 import { InsiderActivity } from './shared/InsiderActivity';
 import { TableExportBar } from './shared/TableExportBar';
-import { KPIRibbon, TickerRibbon, heatColor } from './shared/SectorUI';
+import { KPIRibbon, TickerRibbon } from './shared/SectorUI';
 import { CorrelationMatrix } from './shared/CorrelationMatrix';
 import { ImpliedVolatilityCard } from './shared/ImpliedVolatilityCard';
 import { EarningsCalendarStrip } from './shared/EarningsCalendarStrip';
@@ -133,20 +133,16 @@ function EnhancedTableRow({ symbol, label, stats, onClick, sectorName = null }) 
 
   return (
     <tr className="ds-row-clickable" onClick={() => onClick(symbol, sectorName)} onTouchEnd={(e) => { e.preventDefault(); onClick(symbol, sectorName); }}>
-      <td className="ds-ticker-col" style={{ fontSize: 13 }}>{symbol}</td>
-      <td style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{label || LABELS[symbol] || <span className="ds-dash">—</span>}</td>
-      <td style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 600, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>
+      <td className="ds-ticker-col">{symbol}</td>
+      <td>{label || LABELS[symbol] || <span className="ds-dash">—</span>}</td>
+      <td style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
         {q?.price != null ? fmt(q?.price, 2) : <span className="ds-dash">—</span>}
       </td>
-      <td className={q?.changePct != null && q.changePct >= 0 ? 'ds-up' : 'ds-down'} style={{ fontSize: 13, fontWeight: 600, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>
+      <td className={q?.changePct != null && q.changePct >= 0 ? 'ds-up' : 'ds-down'}>
         {q?.changePct != null ? fmtPct(q?.changePct) : <span className="ds-dash">—</span>}
       </td>
-      <td style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text-secondary)', fontVariantNumeric: 'tabular-nums' }}>
-        {fmtB(mktCap) || <span className="ds-dash">—</span>}
-      </td>
-      <td style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text-secondary)', fontVariantNumeric: 'tabular-nums' }}>
-        {pe != null ? parseFloat(pe).toFixed(1) + 'x' : <span className="ds-dash">—</span>}
-      </td>
+      <td>{fmtB(mktCap) || <span className="ds-dash">—</span>}</td>
+      <td>{pe != null ? parseFloat(pe).toFixed(1) + 'x' : <span className="ds-dash">—</span>}</td>
     </tr>
   );
 }
@@ -157,22 +153,17 @@ function SectionTableRow({ sym, name, statsMap, onClickRow, withMiniCharts, acce
   const stats = statsMap.get(sym);
 
   return (
-    <tr className="ds-row-clickable" onClick={() => onClickRow(sym, sectorName)} onTouchEnd={(e) => { e.preventDefault(); onClickRow(sym, sectorName); }} style={{ minHeight: withMiniCharts ? 100 : 44 }}>
-      <td className="ds-ticker-col" style={{ fontSize: 13, letterSpacing: '0.5px' }}>{sym}</td>
-      <td style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{name || LABELS[sym] || <span className="ds-dash">—</span>}</td>
-      <td style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 600, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>
-        {q?.price != null ? '$' + fmt(q.price, 2) : <span className="ds-dash">—</span>}
+    <tr className="ds-row-clickable" onClick={() => onClickRow(sym, sectorName)} onTouchEnd={(e) => { e.preventDefault(); onClickRow(sym, sectorName); }} style={withMiniCharts ? { minHeight: 80 } : undefined}>
+      <td className="ds-ticker-col">{sym}</td>
+      <td>{name || LABELS[sym] || <span className="ds-dash">—</span>}</td>
+      <td style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
+        {q?.price != null ? fmt(q.price, 2) : <span className="ds-dash">—</span>}
       </td>
-      <td className={q?.changePct != null && q.changePct >= 0 ? 'ds-up' : 'ds-down'}
-          style={{ fontSize: 13, fontWeight: 600, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)', background: heatColor(q?.changePct), transition: 'background 0.3s' }}>
+      <td className={q?.changePct != null && q.changePct >= 0 ? 'ds-up' : 'ds-down'}>
         {q?.changePct != null ? fmtPct(q?.changePct) : <span className="ds-dash">—</span>}
       </td>
-      <td style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text-secondary)', fontVariantNumeric: 'tabular-nums' }}>
-        {fmtB(stats?.market_capitalization) || <span className="ds-dash">—</span>}
-      </td>
-      <td style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text-secondary)', fontVariantNumeric: 'tabular-nums' }}>
-        {stats?.pe_ratio != null ? parseFloat(stats?.pe_ratio).toFixed(1) + 'x' : <span className="ds-dash">—</span>}
-      </td>
+      <td>{fmtB(stats?.market_capitalization) || <span className="ds-dash">—</span>}</td>
+      <td>{stats?.pe_ratio != null ? parseFloat(stats?.pe_ratio).toFixed(1) + 'x' : <span className="ds-dash">—</span>}</td>
       {withMiniCharts && (
         <td style={{ padding: '2px 4px', width: 200, minWidth: 180 }}>
           <MiniFinancials

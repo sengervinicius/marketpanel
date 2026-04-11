@@ -140,11 +140,11 @@ function CommodityRow({ symbol, label }) {
       onClick={() => openDetail(symbol, 'Commodities')}
       onTouchEnd={(e) => { e.preventDefault(); openDetail(symbol, 'Commodities'); }}
     >
-      <td className="ds-ticker-col" style={{ fontSize: 13 }}>{label || symbol}</td>
-      <td style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 600, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>
+      <td className="ds-ticker-col">{label || symbol}</td>
+      <td style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
         {q?.price != null ? fmt(q?.price, 2) : <span className="ds-dash">—</span>}
       </td>
-      <td className={q?.changePct != null && q.changePct >= 0 ? 'ds-up' : 'ds-down'} style={{ fontSize: 13, fontWeight: 600, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)', background: heatColor(q?.changePct) }}>
+      <td className={q?.changePct != null && q.changePct >= 0 ? 'ds-up' : 'ds-down'}>
         {q?.changePct != null ? fmtPct(q?.changePct) : <span className="ds-dash">—</span>}
       </td>
     </tr>
@@ -163,21 +163,21 @@ function ProducerRow({ symbol, stats }) {
       onClick={() => openDetail(symbol, 'Commodities')}
       onTouchEnd={(e) => { e.preventDefault(); openDetail(symbol, 'Commodities'); }}
     >
-      <td className="ds-ticker-col" style={{ fontSize: 13, letterSpacing: '0.5px' }}>{symbol}</td>
-      <td style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{PRODUCER_LABELS[symbol] || <span className="ds-dash">—</span>}</td>
-      <td style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 600, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>
-        {q?.price != null ? '$' + fmt(q.price, 2) : <span className="ds-dash">—</span>}
+      <td className="ds-ticker-col">{symbol}</td>
+      <td>{PRODUCER_LABELS[symbol] || <span className="ds-dash">—</span>}</td>
+      <td style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
+        {q?.price != null ? fmt(q.price, 2) : <span className="ds-dash">—</span>}
       </td>
-      <td className={q?.changePct != null && q.changePct >= 0 ? 'ds-up' : 'ds-down'} style={{ fontSize: 13, fontWeight: 600, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)', background: heatColor(q?.changePct) }}>
+      <td className={q?.changePct != null && q.changePct >= 0 ? 'ds-up' : 'ds-down'}>
         {q?.changePct != null ? fmtPct(q?.changePct) : <span className="ds-dash">—</span>}
       </td>
-      <td style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text-secondary)', fontVariantNumeric: 'tabular-nums' }}>
+      <td>
         {fmtB(mktCap) || <span className="ds-dash">—</span>}
       </td>
-      <td style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text-secondary)', fontVariantNumeric: 'tabular-nums' }}>
+      <td>
         {pe != null ? parseFloat(pe).toFixed(1) + 'x' : <span className="ds-dash">—</span>}
       </td>
-      <td style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--price-up, #4caf50)', fontVariantNumeric: 'tabular-nums' }}>
+      <td>
         {divYield != null ? (parseFloat(divYield) * 100).toFixed(1) + '%' : <span className="ds-dash">—</span>}
       </td>
     </tr>

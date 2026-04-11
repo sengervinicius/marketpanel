@@ -152,18 +152,18 @@ const TableRow = memo(function TableRow({ ticker, name, statsMap, openDetail }) 
       onClick={() => openDetail(sym, 'European Markets')}
       onTouchEnd={(e) => { e.preventDefault(); openDetail(sym, 'European Markets'); }}
     >
-      <td className="ds-ticker-col" style={{ fontSize: 13, letterSpacing: '0.5px' }}>{sym}</td>
-      <td style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{displayName || LABELS[sym] || <span className="ds-dash">—</span>}</td>
-      <td style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 600, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>
-        {q?.price != null ? '$' + fmt(q.price, 2) : <span className="ds-dash">—</span>}
+      <td className="ds-ticker-col">{sym}</td>
+      <td>{displayName || LABELS[sym] || <span className="ds-dash">—</span>}</td>
+      <td style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
+        {q?.price != null ? fmt(q.price, 2) : <span className="ds-dash">—</span>}
       </td>
-      <td className={q?.changePct != null && q.changePct >= 0 ? 'ds-up' : 'ds-down'} style={{ fontSize: 13, fontWeight: 600, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)', background: heatColor(q?.changePct) }}>
+      <td className={q?.changePct != null && q.changePct >= 0 ? 'ds-up' : 'ds-down'}>
         {q?.changePct != null ? fmtPct(q?.changePct) : <span className="ds-dash">—</span>}
       </td>
-      <td style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text-secondary)', fontVariantNumeric: 'tabular-nums' }}>
+      <td>
         {fmtB(statsMap.get(sym)?.market_capitalization) || <span className="ds-dash">—</span>}
       </td>
-      <td style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text-secondary)', fontVariantNumeric: 'tabular-nums' }}>
+      <td>
         {statsMap.get(sym)?.pe_ratio != null ? parseFloat(statsMap.get(sym)?.pe_ratio).toFixed(1) + 'x' : <span className="ds-dash">—</span>}
       </td>
     </tr>
@@ -208,11 +208,11 @@ const FxPairRow = memo(function FxPairRow({ pair, openDetail }) {
       onClick={() => openDetail(pair, 'European Markets')}
       onTouchEnd={(e) => { e.preventDefault(); openDetail(pair, 'European Markets'); }}
     >
-      <td className="ds-ticker-col" style={{ fontSize: 13 }}>{display}</td>
-      <td style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 600, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>
+      <td className="ds-ticker-col">{display}</td>
+      <td style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
         {q?.price != null ? fmt(q?.price, 4) : <span className="ds-dash">—</span>}
       </td>
-      <td className={q?.changePct != null && q.changePct >= 0 ? 'ds-up' : 'ds-down'} style={{ fontSize: 13, fontWeight: 600, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>
+      <td className={q?.changePct != null && q.changePct >= 0 ? 'ds-up' : 'ds-down'}>
         {q?.changePct != null ? fmtPct(q?.changePct) : <span className="ds-dash">—</span>}
       </td>
     </tr>
@@ -269,10 +269,10 @@ const MacroTable = memo(function MacroTable({ data, loading, error }) {
               <td style={{ fontWeight: 500 }}>{row.country || '—'}</td>
               <td>{row.policyRate != null ? row.policyRate.toFixed(2) : '—'}</td>
               <td className={row.cpiYoY != null && row.cpiYoY >= 0 ? 'ds-up' : 'ds-down'}>
-                {row.cpiYoY != null ? row.cpiYoY.toFixed(2) : '—'}
+                {row.cpiYoY != null ? (row.cpiYoY >= 0 ? '+' : '') + row.cpiYoY.toFixed(2) : '—'}
               </td>
               <td className={row.gdpGrowth != null && row.gdpGrowth >= 0 ? 'ds-up' : 'ds-down'}>
-                {row.gdpGrowth != null ? row.gdpGrowth.toFixed(2) : '—'}
+                {row.gdpGrowth != null ? (row.gdpGrowth >= 0 ? '+' : '') + row.gdpGrowth.toFixed(2) : '—'}
               </td>
               <td>{row.unemploymentRate != null ? row.unemploymentRate.toFixed(2) : '—'}</td>
             </tr>
@@ -403,10 +403,10 @@ function EuropeanMarketsScreenImpl() {
     const ewg = useTickerPrice('EWG');
     const ewu = useTickerPrice('EWU');
     const items = [
-      { label: 'EUROPE',   value: vgk?.price != null ? '$' + fmt(vgk.price) : '—', change: vgk?.changePct },
-      { label: 'EUROZONE', value: ezu?.price != null ? '$' + fmt(ezu.price) : '—', change: ezu?.changePct },
-      { label: 'GERMANY',  value: ewg?.price != null ? '$' + fmt(ewg.price) : '—', change: ewg?.changePct },
-      { label: 'UK',       value: ewu?.price != null ? '$' + fmt(ewu.price) : '—', change: ewu?.changePct },
+      { label: 'EUROPE',   value: vgk?.price != null ? fmt(vgk.price) : '—', change: vgk?.changePct },
+      { label: 'EUROZONE', value: ezu?.price != null ? fmt(ezu.price) : '—', change: ezu?.changePct },
+      { label: 'GERMANY',  value: ewg?.price != null ? fmt(ewg.price) : '—', change: ewg?.changePct },
+      { label: 'UK',       value: ewu?.price != null ? fmt(ewu.price) : '—', change: ewu?.changePct },
     ];
     return <KPIRibbon items={items} accentColor="#3f51b5" />;
   }

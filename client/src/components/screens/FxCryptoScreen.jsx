@@ -63,12 +63,12 @@ function FxRow({ symbol, label, onClick }) {
       onClick={() => onClick(symbol, 'FX & Crypto')}
       onTouchEnd={(e) => { e.preventDefault(); onClick(symbol, 'FX & Crypto'); }}
     >
-      <td style={{ fontSize: 13 }}>{symbol.replace('C:', '')}</td>
-      <td style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{label || <span className="ds-dash">—</span>}</td>
-      <td style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 600, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>
+      <td className="ds-ticker-col">{symbol.replace('C:', '')}</td>
+      <td>{label || <span className="ds-dash">—</span>}</td>
+      <td style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
         {q?.price != null ? fmt(q.price, 4) : <span className="ds-dash">—</span>}
       </td>
-      <td className={q?.changePct >= 0 ? 'ds-val-pos' : 'ds-val-neg'} style={{ fontSize: 13, fontWeight: 600, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>
+      <td className={q?.changePct >= 0 ? 'ds-up' : 'ds-down'}>
         {q?.changePct != null ? fmtPct(q.changePct) : <span className="ds-dash">—</span>}
       </td>
     </tr>
@@ -83,12 +83,12 @@ function CryptoRow({ symbol, label, onClick }) {
       onClick={() => onClick(symbol, 'FX & Crypto')}
       onTouchEnd={(e) => { e.preventDefault(); onClick(symbol, 'FX & Crypto'); }}
     >
-      <td style={{ fontSize: 13 }}>{symbol.replace('X:', '')}</td>
-      <td style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{label || <span className="ds-dash">—</span>}</td>
-      <td style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 600, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>
+      <td className="ds-ticker-col">{symbol.replace('X:', '')}</td>
+      <td>{label || <span className="ds-dash">—</span>}</td>
+      <td style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
         {q?.price != null ? fmt(q.price, 2) : <span className="ds-dash">—</span>}
       </td>
-      <td className={q?.changePct >= 0 ? 'ds-val-pos' : 'ds-val-neg'} style={{ fontSize: 13, fontWeight: 600, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>
+      <td className={q?.changePct >= 0 ? 'ds-up' : 'ds-down'}>
         {q?.changePct != null ? fmtPct(q.changePct) : <span className="ds-dash">—</span>}
       </td>
     </tr>
@@ -105,20 +105,16 @@ function InfraRow({ symbol, stats, onClick }) {
       onClick={() => onClick(symbol, 'FX & Crypto')}
       onTouchEnd={(e) => { e.preventDefault(); onClick(symbol, 'FX & Crypto'); }}
     >
-      <td className="ds-ticker-col" style={{ fontSize: 13, letterSpacing: '0.5px' }}>{symbol}</td>
-      <td style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{INFRA_LABELS[symbol] || <span className="ds-dash">—</span>}</td>
-      <td style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 600, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>
-        {q?.price != null ? '$' + fmt(q.price) : <span className="ds-dash">—</span>}
+      <td className="ds-ticker-col">{symbol}</td>
+      <td>{INFRA_LABELS[symbol] || <span className="ds-dash">—</span>}</td>
+      <td style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
+        {q?.price != null ? fmt(q.price) : <span className="ds-dash">—</span>}
       </td>
-      <td className={q?.changePct >= 0 ? 'ds-val-pos' : 'ds-val-neg'} style={{ fontSize: 13, fontWeight: 600, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>
+      <td className={q?.changePct >= 0 ? 'ds-up' : 'ds-down'}>
         {q?.changePct != null ? fmtPct(q.changePct) : <span className="ds-dash">—</span>}
       </td>
-      <td style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text-secondary)', fontVariantNumeric: 'tabular-nums' }}>
-        {fmtB(mktCap) || <span className="ds-dash">—</span>}
-      </td>
-      <td style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text-secondary)', fontVariantNumeric: 'tabular-nums' }}>
-        {pe != null ? parseFloat(pe).toFixed(1) + 'x' : <span className="ds-dash">—</span>}
-      </td>
+      <td>{fmtB(mktCap) || <span className="ds-dash">—</span>}</td>
+      <td>{pe != null ? parseFloat(pe).toFixed(1) + 'x' : <span className="ds-dash">—</span>}</td>
     </tr>
   );
 }

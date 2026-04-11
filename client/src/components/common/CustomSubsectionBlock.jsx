@@ -57,8 +57,13 @@ function TickerRow({ sym, data, color, gridCols, subsection, onTickerClick, onRe
         {fmt(price)}
       </span>
       <span className="csb-change-section">
-        <span className="csb-change" style={{ color: pos ? 'var(--price-up)' : 'var(--price-down)' }} aria-live="polite" aria-atomic="true">
-          {pos ? '▲' : '▼'} {fmtPct(changePct)}
+        <span className="csb-change" style={{
+          color: pos ? 'var(--price-up)' : 'var(--price-down)',
+          fontWeight: 600,
+          fontVariantNumeric: 'tabular-nums',
+          textAlign: 'right',
+        }} aria-live="polite" aria-atomic="true">
+          {fmtPct(changePct)}
         </span>
         <button className="csb-remove-btn"
           onClick={(e) => { e.stopPropagation(); onRemoveTicker?.(subsection.key, sym); }}

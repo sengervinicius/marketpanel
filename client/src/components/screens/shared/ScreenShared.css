@@ -156,24 +156,25 @@
   background: var(--bg-app, var(--bg-panel));
 }
 
-/* ── Deep screen table styles (ds-table, used by sector components) ──── */
+/* ── Deep screen table styles (ds-table, used by sector components) ────
+   Harmonized with home screen panel formatting (PriceRow, ColumnHeaders).
+   Uses compact row heights, no heat-color backgrounds, clean text-only
+   color coding for positive/negative values. ──────────────────────────── */
 .ds-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13px;
   font-family: var(--font-ui, 'Inter', system-ui, sans-serif);
 }
 
 .ds-table th {
-  padding: 8px 8px;
+  padding: 2px 8px;
   text-align: right;
-  font-weight: 600;
-  font-size: 10px;
+  font-weight: 700;
+  font-size: var(--font-sm, 12px);
   letter-spacing: 1px;
   text-transform: uppercase;
   color: var(--text-muted);
   border-bottom: 1px solid var(--border-default);
-  background: var(--bg-surface);
   white-space: nowrap;
 }
 
@@ -183,13 +184,12 @@
 }
 
 .ds-table td {
-  padding: 6px 8px;
+  padding: 3px 8px;
   color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
   font-family: var(--font-ui, 'Inter', system-ui, sans-serif);
-  font-size: 13px;
+  font-size: var(--text-base, 13px);
   white-space: nowrap;
-  height: 44px;
 }
 
 .ds-table td:not(:first-child):not(:nth-child(2)) {
@@ -198,8 +198,7 @@
 
 .ds-table tbody tr {
   border-bottom: 1px solid var(--border-subtle, var(--bg-hover));
-  transition: background 0.12s;
-  min-height: 44px;
+  transition: background-color 0.1s;
 }
 
 .ds-table tbody tr:hover {
@@ -210,13 +209,20 @@
   cursor: pointer;
 }
 
+/* ── Ticker column (first column) — matches home screen symbol style ── */
+.ds-ticker-col {
+  color: var(--text-primary) !important;
+  font-weight: 700 !important;
+}
+
 /* Dash/null indicator styling */
 .ds-dash {
   color: var(--text-faint, var(--text-muted));
 }
 
-.ds-val-pos { color: var(--price-up, var(--semantic-up)) !important; }
-.ds-val-neg { color: var(--semantic-down) !important; }
+/* ── Change % color classes — text-only, no backgrounds ─────────────── */
+.ds-up { color: var(--price-up, var(--semantic-up)) !important; font-weight: 600; }
+.ds-down { color: var(--semantic-down) !important; font-weight: 600; }
 
 /* Scrollbar styling */
 .fsl-screen::-webkit-scrollbar,

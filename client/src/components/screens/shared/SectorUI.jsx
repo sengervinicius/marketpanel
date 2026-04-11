@@ -191,20 +191,12 @@ export const LiveTickerRow = memo(function LiveTickerRow({
         transition: 'background 0.15s',
       }}
     >
-      <td style={{
-        padding: '5px 8px',
-        fontSize: 11,
-        fontWeight: 700,
-        color: accentColor || 'var(--accent)',
-        fontFamily: 'var(--font-mono)',
-        letterSpacing: '0.5px',
-      }}>
+      <td className="ds-ticker-col" style={{ color: accentColor || 'var(--accent)' }}>
         {displayTicker}
       </td>
       <td style={{
-        padding: '5px 8px',
-        fontSize: 10,
-        color: 'var(--text-secondary)',
+        color: 'var(--text-muted)',
+        fontSize: '9px',
         maxWidth: 120,
         overflow: 'hidden',
         textOverflow: 'ellipsis',
@@ -213,34 +205,20 @@ export const LiveTickerRow = memo(function LiveTickerRow({
         {name || displayTicker}
       </td>
       <td style={{
-        padding: '5px 8px',
-        fontSize: 11,
-        fontWeight: 600,
         color: 'var(--text-primary)',
-        fontFamily: 'var(--font-mono)',
-        fontVariantNumeric: 'tabular-nums',
+        fontWeight: 600,
         textAlign: 'right',
       }}>
         {price != null ? fmtNum(price) : '—'}
       </td>
-      <td style={{
-        padding: '5px 8px',
-        fontSize: 11,
-        fontWeight: 600,
-        color: changePct == null ? 'var(--text-muted)' : isUp ? 'var(--semantic-up)' : 'var(--semantic-down)',
-        fontFamily: 'var(--font-mono)',
-        fontVariantNumeric: 'tabular-nums',
+      <td className={changePct == null ? '' : isUp ? 'ds-up' : 'ds-down'} style={{
         textAlign: 'right',
-        background: heatColor(changePct),
       }}>
         {changePct != null ? fmtPct(changePct) : '—'}
       </td>
       {extraCols.map((col, i) => (
         <td key={i} style={{
-          padding: '5px 8px',
-          fontSize: 10,
           color: 'var(--text-secondary)',
-          fontFamily: 'var(--font-mono)',
           textAlign: 'right',
         }}>
           {col}

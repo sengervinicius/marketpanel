@@ -139,17 +139,17 @@ function AdrPairRow({ b3, adr, name, openDetail }) {
   const qAdr = useTickerPrice(adr);
   return (
     <tr className="ds-row-clickable" onClick={() => openDetail(b3, 'Brazil & EM')} onTouchEnd={(e) => { e.preventDefault(); openDetail(b3, 'Brazil & EM'); }}>
-      <td style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{name}</td>
-      <td onClick={() => openDetail(b3, 'Brazil & EM')} style={{ cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>
+      <td>{name}</td>
+      <td onClick={() => openDetail(b3, 'Brazil & EM')} style={{ cursor: 'pointer', fontWeight: 600 }}>
         {b3.replace('.SA', '')}
       </td>
-      <td style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 600, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)', background: heatColor(qB3?.changePct) }}>
+      <td style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
         {qB3?.price != null ? fmt(qB3.price) : <span className="ds-dash">—</span>}
       </td>
-      <td onClick={() => openDetail(adr, 'Brazil & EM')} style={{ cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>
+      <td onClick={() => openDetail(adr, 'Brazil & EM')} style={{ cursor: 'pointer', fontWeight: 600 }}>
         {adr}
       </td>
-      <td style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 600, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)', background: heatColor(qAdr?.changePct) }}>
+      <td style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
         {qAdr?.price != null ? fmt(qAdr.price) : <span className="ds-dash">—</span>}
       </td>
     </tr>
@@ -241,11 +241,11 @@ function FxRateRow({ sym, openDetail }) {
       onClick={() => openDetail(sym, 'Brazil & EM')}
       onTouchEnd={(e) => { e.preventDefault(); openDetail(sym, 'Brazil & EM'); }}
     >
-      <td style={{ fontSize: 13 }}>{label}</td>
-      <td style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 600, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>
+      <td>{label}</td>
+      <td style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
         {q?.price != null ? fmt(q.price) : <span className="ds-dash">—</span>}
       </td>
-      <td className={q?.changePct >= 0 ? 'ds-val-pos' : 'ds-val-neg'} style={{ fontSize: 13, fontWeight: 600, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)', background: heatColor(q?.changePct) }}>
+      <td className={q?.changePct >= 0 ? 'ds-up' : 'ds-down'}>
         {q?.changePct != null ? fmtPct(q.changePct) : <span className="ds-dash">—</span>}
       </td>
     </tr>
@@ -355,7 +355,7 @@ function EmFxRow({ sym, openDetail }) {
     >
       <td>{label}</td>
       <td>{q?.price != null ? fmt(q.price) : '—'}</td>
-      <td className={q?.changePct >= 0 ? 'ds-val-pos' : 'ds-val-neg'} style={{ background: heatColor(q?.changePct) }}>
+      <td className={q?.changePct >= 0 ? 'ds-up' : 'ds-down'}>
         {q?.changePct != null ? fmtPct(q.changePct) : '—'}
       </td>
     </tr>
@@ -397,12 +397,12 @@ function EmEtfCell({ sym, openDetail }) {
       onClick={() => openDetail(sym, 'Brazil & EM')}
       onTouchEnd={(e) => { e.preventDefault(); openDetail(sym, 'Brazil & EM'); }}
     >
-      <td style={{ fontWeight: 600 }}>{sym}</td>
+      <td className="ds-ticker-col">{sym}</td>
       <td>{q?.price != null ? fmt(q.price) : '—'}</td>
-      <td className={q?.changePct >= 0 ? 'ds-val-pos' : 'ds-val-neg'} style={{ background: heatColor(q?.changePct) }}>
+      <td className={q?.changePct >= 0 ? 'ds-up' : 'ds-down'}>
         {q?.changePct != null ? fmtPct(q.changePct) : '—'}
       </td>
-      <td style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{EM_EQUITY_NAMES[sym]}</td>
+      <td>{EM_EQUITY_NAMES[sym]}</td>
     </tr>
   );
 }

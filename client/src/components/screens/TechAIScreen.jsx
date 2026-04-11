@@ -122,18 +122,18 @@ function EnhancedRow({ symbol, stats, onClick }) {
       onClick={() => onClick(symbol, 'Technology & AI')}
       onTouchEnd={(e) => { e.preventDefault(); onClick(symbol, 'Technology & AI'); }}
     >
-      <td className="ds-ticker-col" style={{ fontSize: 13, letterSpacing: '0.5px' }}>{symbol}</td>
-      <td style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{LABELS[symbol] || <span className="ds-dash">—</span>}</td>
-      <td style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 600, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)' }}>
-        {q?.price != null ? '$' + fmt(q.price) : <span className="ds-dash">—</span>}
+      <td className="ds-ticker-col">{symbol}</td>
+      <td style={{ color: 'var(--text-secondary)' }}>{LABELS[symbol] || <span className="ds-dash">—</span>}</td>
+      <td style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
+        {q?.price != null ? fmt(q.price) : <span className="ds-dash">—</span>}
       </td>
-      <td className={q?.changePct >= 0 ? 'ds-val-pos' : 'ds-val-neg'} style={{ fontSize: 13, fontWeight: 600, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)', background: heatColor(q?.changePct) }}>
+      <td className={q?.changePct >= 0 ? 'ds-up' : 'ds-down'}>
         {q?.changePct != null ? fmtPct(q.changePct) : <span className="ds-dash">—</span>}
       </td>
-      <td style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text-secondary)', fontVariantNumeric: 'tabular-nums' }}>
+      <td style={{ color: 'var(--text-secondary)' }}>
         {fmtB(mktCap) || <span className="ds-dash">—</span>}
       </td>
-      <td style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: getPEColor(pe), fontVariantNumeric: 'tabular-nums' }}>
+      <td style={{ color: getPEColor(pe) }}>
         {pe != null ? parseFloat(pe).toFixed(1) + 'x' : <span className="ds-dash">—</span>}
       </td>
     </tr>
