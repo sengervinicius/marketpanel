@@ -272,6 +272,7 @@ const LS_WELCOME_SHOWN = 'senger_welcome_sub_shown';
 export function WelcomeSubscriptionModal({ subscription, onUpgrade, onDismiss }) {
   const [visible, setVisible] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     // Only show once, only for trial users who haven't seen it
@@ -293,10 +294,12 @@ export function WelcomeSubscriptionModal({ subscription, onUpgrade, onDismiss })
 
   const handleSubscribe = async () => {
     setLoading(true);
+    setError(null);
     localStorage.setItem(LS_WELCOME_SHOWN, '1');
     try {
       await onUpgrade();
-    } finally {
+    } catch (err) {
+      setError(err?.message || 'Could not start checkout.');
       setLoading(false);
     }
   };
@@ -322,6 +325,13 @@ export function WelcomeSubscriptionModal({ subscription, onUpgrade, onDismiss })
         <div style={{ fontSize: 13, color: '#888', marginBottom: 28, lineHeight: 1.6 }}>
           Real-time market data, AI insights, and deep sector analysis — all in one terminal.
         </div>
+
+        {/* Error message */}
+        {error && (
+          <div style={{ color: '#ff6666', fontSize: 11, marginBottom: 12, lineHeight: 1.5 }}>
+            {error}
+          </div>
+        )}
 
         {/* Subscribe button */}
         <button

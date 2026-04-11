@@ -66,23 +66,35 @@ async function createCheckoutSession(userId, plan = 'monthly') {
   const customerId = await ensureStripeCustomer(stripe, user);
   const clientUrl  = process.env.CLIENT_URL || 'http://localhost:5173';
 
-  const session = await stripe.checkout.sessions.create({
-    customer:             customerId,
-    mode:                 'subscription',
-    payment_method_types: ['card'],            // enables Apple Pay & Google Pay automatically on eligible browsers
-    payment_method_collection: 'always',       // always save the card for future charges
-    line_items: [{
-      price:    priceId,
-      quantity: 1,
-    }],
-    allow_promotion_codes: true,
-    billing_address_collection: 'auto',
-    success_url: `${clientUrl}/?billing=success`,
-    cancel_url:  `${clientUrl}/?billing=cancelled`,
-    subscription_data: {
-      metadata: { userId: String(userId), plan },
-    },
-  });
+  let session;
+  try {
+    session = await stripe.checkout.sessions.create({
+      customer:             customerId,
+      mode:                 'subscription',
+      payment_method_types: ['card'],            // enables Apple Pay & Google Pay automatically on eligible browsers
+      payment_method_collection: 'always',       // always save the card for future charges
+      line_items: [{
+        price:    priceId,
+        quantity: 1,
+      }],
+      allow_promotion_codes: true,
+      billing_address_collection: 'auto',
+      success_url: `${clientUrl}/?billing=success`,
+      cancel_url:  `${clientUrl}/?billing=cancelled`,
+      subscription_data: {
+        metadata: { userId: String(userId), plan },
+      },
+    });
+  } catch (stripeErr) {
+    const code = stripeErr.code || stripeErr.type || 'unknown';
+    console.error(`[billing] Stripe error (${code}):`, stripeErr.message);
+    return {
+      error: code === 'resource_missing'
+        ? 'Subscription plan not yet configured. Please check STRIPE_PRICE_ID.'
+        : `Checkout failed: ${stripeErr.message}`,
+      configured: false,
+    };
+  }
 
   return { checkoutUrl: session.url };
 }

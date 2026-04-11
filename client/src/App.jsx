@@ -409,8 +409,8 @@ export default function App() {
     try {
       await startCheckout();
     } catch (err) {
-      setBillingState({ isLoading: false, error: 'Failed to start checkout', showSuccess: false });
-      throw err;
+      const msg = err?.message || 'Failed to start checkout';
+      setBillingState({ isLoading: false, error: msg, showSuccess: false });
     }
   }, [startCheckout]);
 

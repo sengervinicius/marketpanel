@@ -217,45 +217,35 @@ export function AuthProvider({ children }) {
 
     // Web / Android → Stripe
     const tok = localStorage.getItem(LS_TOKEN);
-    try {
-      const res  = await fetch(`${API_BASE}/api/billing/create-session`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tok}` },
-      });
-      const data = await res.json();
+    const res  = await fetch(`${API_BASE}/api/billing/create-session`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tok}` },
+    });
+    const data = await res.json();
 
-      if (!res.ok) {
-        throw new Error(data?.error || 'Failed to create checkout session');
-      }
-
-      if (data.checkoutUrl) {
-        window.location.href = data.checkoutUrl;
-      } else {
-        throw new Error('Stripe not yet configured. Please contact support.');
-      }
-    } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : 'Could not initiate checkout. Please try again later.';
-      alert(errorMsg);
-      throw err;
+    if (!res.ok || !data.checkoutUrl) {
+      // Surface error via throw — UI components handle it via billingState
+      const msg = data?.configured === false
+        ? 'Subscription setup is not yet available. We will notify you when it is ready.'
+        : data?.error || 'Could not start checkout. Please try again later.';
+      throw new Error(msg);
     }
+
+    window.location.href = data.checkoutUrl;
   }, []);
 
   // ── Open Stripe billing portal (manage saved cards, invoices, cancel) ─────
   const openBillingPortal = useCallback(async () => {
     const tok = localStorage.getItem(LS_TOKEN);
-    try {
-      const res  = await fetch(`${API_BASE}/api/billing/portal`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tok}` },
-      });
-      const data = await res.json();
-      if (data.portalUrl) {
-        window.location.href = data.portalUrl;
-      } else {
-        alert('Billing portal not yet configured. Contact vinicius@senger.market');
-      }
-    } catch {
-      alert('Could not open billing portal. Please try again later.');
+    const res  = await fetch(`${API_BASE}/api/billing/portal`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tok}` },
+    });
+    const data = await res.json();
+    if (data.portalUrl) {
+      window.location.href = data.portalUrl;
+    } else {
+      throw new Error('Billing portal is not yet available.');
     }
   }, []);
 
