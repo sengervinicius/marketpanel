@@ -249,6 +249,20 @@ router.get('/market/fundamentals/batch', async (req, res) => {
       }
     }
 
+    // Normalize margin fields: convert 0-1 ratios to 0-100 percentages
+    // Eulerpool & Yahoo return margins as decimals (e.g. 0.46 = 46%)
+    const RATIO_FIELDS = ['grossMargins', 'operatingMargins', 'profitMargins', 'returnOnEquity', 'dividendYield'];
+    for (const sym of Object.keys(data)) {
+      const row = data[sym];
+      if (!row) continue;
+      for (const field of RATIO_FIELDS) {
+        const v = parseFloat(row[field]);
+        if (!isNaN(v) && Math.abs(v) <= 1 && v !== 0) {
+          row[field] = v * 100;
+        }
+      }
+    }
+
     if (data && Object.keys(data).length > 0) cacheSet(ck, data, 300_000);
     res.json({ ok: true, data: data || {}, source: 'mixed' });
   } catch (e) {
