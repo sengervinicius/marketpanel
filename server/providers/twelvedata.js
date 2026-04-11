@@ -477,8 +477,8 @@ async function getIncomeStatement(ticker, period = 'annual') {
 
   try {
     const data = await tdFetch('/income_statement', buildParams(ticker, { period }));
-    const result = data.income_statement || data;
-    cacheSet(ck, result, TTL.financials);
+    const result = Array.isArray(data.income_statement) ? data.income_statement : null;
+    if (result && result.length > 0) cacheSet(ck, result, TTL.financials);
     return result;
   } catch (e) {
     logger.warn('twelvedata', `getIncomeStatement(${ticker}) failed: ${e.message}`);
@@ -496,8 +496,8 @@ async function getBalanceSheet(ticker, period = 'annual') {
 
   try {
     const data = await tdFetch('/balance_sheet', buildParams(ticker, { period }));
-    const result = data.balance_sheet || data;
-    cacheSet(ck, result, TTL.financials);
+    const result = Array.isArray(data.balance_sheet) ? data.balance_sheet : null;
+    if (result && result.length > 0) cacheSet(ck, result, TTL.financials);
     return result;
   } catch (e) {
     logger.warn('twelvedata', `getBalanceSheet(${ticker}) failed: ${e.message}`);
@@ -515,8 +515,8 @@ async function getCashFlow(ticker, period = 'annual') {
 
   try {
     const data = await tdFetch('/cash_flow', buildParams(ticker, { period }));
-    const result = data.cash_flow || data;
-    cacheSet(ck, result, TTL.financials);
+    const result = Array.isArray(data.cash_flow) ? data.cash_flow : null;
+    if (result && result.length > 0) cacheSet(ck, result, TTL.financials);
     return result;
   } catch (e) {
     logger.warn('twelvedata', `getCashFlow(${ticker}) failed: ${e.message}`);

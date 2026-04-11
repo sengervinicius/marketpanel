@@ -784,10 +784,17 @@ router.get('/market/td/financials/:ticker', async (req, res) => {
     }
 
     // ── 2. Yahoo Finance fallback for missing statements ──────────────
-    // Check if balance sheet or cash flow is empty/null — if so, try Yahoo
-    const bsEmpty  = !balanceData || (Array.isArray(balanceData) && balanceData.length === 0);
-    const cfEmpty  = !cashflowData || (Array.isArray(cashflowData) && cashflowData.length === 0);
-    const incEmpty = !incomeData || (Array.isArray(incomeData) && incomeData.length === 0);
+    // Financial data MUST be a non-empty array of statement periods.
+    // TwelveData can return: null (error), [] (no data), or a non-array object
+    // (e.g. {meta:{}, status:"ok"} when the key is missing from response).
+    // All of these should trigger the Yahoo fallback.
+    const isUsableArray = (d) => Array.isArray(d) && d.length > 0;
+    const bsEmpty  = !isUsableArray(balanceData);
+    const cfEmpty  = !isUsableArray(cashflowData);
+    const incEmpty = !isUsableArray(incomeData);
+
+    if (bsEmpty) logger.warn(`[financials] TwelveData balance_sheet empty/invalid for ${ticker} (type: ${typeof balanceData}, isArray: ${Array.isArray(balanceData)})`);
+    if (cfEmpty) logger.warn(`[financials] TwelveData cash_flow empty/invalid for ${ticker} (type: ${typeof cashflowData}, isArray: ${Array.isArray(cashflowData)})`);
 
     if (bsEmpty || cfEmpty || incEmpty) {
       try {
@@ -890,6 +897,9 @@ router.get('/market/td/financials/:ticker', async (req, res) => {
         logger.warn(`[financials] Yahoo fallback for ${ticker}:`, yfe.message);
       }
     }
+
+    // Log final state for debugging
+    logger.info(`[financials] ${ticker} final → income: ${Array.isArray(incomeData) ? incomeData.length : 'null'}, balance: ${Array.isArray(balanceData) ? balanceData.length : 'null'}, cashflow: ${Array.isArray(cashflowData) ? cashflowData.length : 'null'} (source: ${source})`);
 
     const data = {
       income_statement: incomeData,
