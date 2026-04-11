@@ -180,6 +180,20 @@ export default function LoginScreen({ children }) {
 
   return (
     <div className="ls-overlay">
+      {/* Background video — blended dark, mysterious */}
+      <video
+        className="ls-video-bg"
+        autoPlay
+        muted
+        loop
+        playsInline
+        preload="auto"
+        poster=""
+      >
+        <source src="/video.mp4" type="video/mp4" />
+      </video>
+      <div className="ls-video-overlay" />
+
       <Particles />
 
       <div className="ls-content">
