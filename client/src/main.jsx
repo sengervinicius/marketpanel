@@ -1,6 +1,6 @@
-import { StrictMode, useEffect, useRef, Component } from 'react'
+import { StrictMode, useEffect, Component } from 'react'
 import { createRoot } from 'react-dom/client'
-import { HashRouter, Routes, Route, useNavigate, useLocation } from 'react-router-dom'
+import { HashRouter, Routes, Route } from 'react-router-dom'
 import App from './App.jsx'
 // LandingPage removed — LoginScreen IS the landing page
 import InstrumentDetailPage from './pages/InstrumentDetailPage.jsx'
@@ -41,29 +41,7 @@ function ThemeSync({ children }) {
   );
 }
 
-/**
- * DefaultPageRedirect — fires once after settings load.
- * If the user is at the root path "/" and has a non-root defaultStartPage,
- * navigate there. Handles the case where a user prefers to always open on
- * /chat, /detail/:symbol, etc. Uses a ref so it only triggers once per session.
- */
-function DefaultPageRedirect() {
-  const { settings, loaded } = useSettings();
-  const navigate = useNavigate();
-  const location = useLocation();
-  const didRedirect = useRef(false);
-
-  useEffect(() => {
-    if (!loaded || didRedirect.current) return;
-    const dest = settings?.defaultStartPage;
-    // Never redirect to /chat — it's a standalone route, not a valid start page
-    if (!dest || dest === '/' || dest === '/chat' || location.pathname !== '/') return;
-    didRedirect.current = true;
-    navigate(dest, { replace: true });
-  }, [loaded, settings?.defaultStartPage, location.pathname, navigate]);
-
-  return null;
-}
+// DefaultPageRedirect removed — app now uses defaultStartTab (tab-based navigation)
 
 // ── Top-level ErrorBoundary ─────────────────────────────────────────────────
 class RootErrorBoundary extends Component {
@@ -100,7 +78,6 @@ function AppShell() {
         <ThemeSync>
           <LoginScreen>
             {/* Routing is only mounted after auth check passes and user is logged in */}
-            <DefaultPageRedirect />
             <Routes>
               <Route path="/" element={<App />} />
               <Route path="/detail/:symbolKey" element={<InstrumentDetailPage />} />

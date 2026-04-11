@@ -11,12 +11,11 @@ export const PANEL_DEFS = Object.values(PANEL_DEFINITIONS).map(def => ({
   label: def.label,
 }));
 
-export const START_PAGE_OPTIONS = [
-  { value: '/',          label: 'HOME' },
-  { value: '/charts',    label: 'CHARTS' },
-  { value: '/watchlist', label: 'PORTFOLIO' },
-  { value: '/search',    label: 'SEARCH' },
-  { value: '/news',      label: 'NEWS' },
+export const START_TAB_OPTIONS = [
+  { value: 'home',      label: 'HOME' },
+  { value: 'charts',    label: 'CHARTS' },
+  { value: 'watchlist', label: 'PORTFOLIO' },
+  { value: 'search',    label: 'SEARCH' },
 ];
 
 // ── SettingsSection ──────────────────────────────────────────────────────────
@@ -33,10 +32,10 @@ export function SettingsDrawer({ panelVisible, togglePanel, onClose }) {
   const { settings, updateSettings, resetTour } = useSettings();
   const [resettingLayout, setResettingLayout] = useState(false);
 
-  const defaultStartPage = settings?.defaultStartPage || '/';
+  const defaultStartTab = settings?.defaultStartTab || 'home';
   const theme = settings?.theme || 'dark';
 
-  const handleStartPage = (val) => { updateSettings({ defaultStartPage: val }); };
+  const handleStartTab = (val) => { updateSettings({ defaultStartTab: val }); };
   const handleTheme = () => { updateSettings({ theme: theme === 'dark' ? 'light' : 'dark' }); };
   const handleResetLayout = async () => {
     setResettingLayout(true);
@@ -90,22 +89,22 @@ export function SettingsDrawer({ panelVisible, togglePanel, onClose }) {
         </button>
       </div>
 
-      {/* ── Default Start Page ── */}
-      <SettingsSection label="DEFAULT START PAGE" />
-      {START_PAGE_OPTIONS.map(({ value, label }) => (
+      {/* ── Default Start Tab ── */}
+      <SettingsSection label="DEFAULT START TAB" />
+      {START_TAB_OPTIONS.map(({ value, label }) => (
         <div
           key={value}
           role="button"
           tabIndex={0}
           style={rowStyle}
-          {...makeRowClickable(() => handleStartPage(value))}
+          {...makeRowClickable(() => handleStartTab(value))}
           onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
           onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-          aria-label={`Set default start page to ${label}`}
-          aria-pressed={defaultStartPage === value}
+          aria-label={`Set default start tab to ${label}`}
+          aria-pressed={defaultStartTab === value}
         >
-          <span style={{ color: defaultStartPage === value ? 'var(--accent)' : 'var(--text-muted)', fontSize: 9, letterSpacing: '0.5px' }}>{label}</span>
-          <span style={{ color: defaultStartPage === value ? 'var(--accent)' : 'var(--border-strong)' }}>{defaultStartPage === value ? '●' : '○'}</span>
+          <span style={{ color: defaultStartTab === value ? 'var(--accent)' : 'var(--text-muted)', fontSize: 9, letterSpacing: '0.5px' }}>{label}</span>
+          <span style={{ color: defaultStartTab === value ? 'var(--accent)' : 'var(--border-strong)' }}>{defaultStartTab === value ? '●' : '○'}</span>
         </div>
       ))}
 

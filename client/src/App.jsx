@@ -225,8 +225,11 @@ export default function App() {
     try { saved = localStorage.getItem(LS_TAB); } catch { saved = null; }
     // Migrate old tab IDs
     if (saved === 'markets') return 'home';
-    // charts is now a primary tab (Phase M)
-    return MOBILE_TABS.find(t => t.id === saved) ? saved : 'home';
+    // Use saved tab if valid, otherwise fall back to defaultStartTab from settings
+    if (MOBILE_TABS.find(t => t.id === saved)) return saved;
+    const startTab = settings?.defaultStartTab;
+    if (startTab && ['home','charts','watchlist','search'].includes(startTab)) return startTab;
+    return 'home';
   });
   // Secondary view inside "more" tab (charts, news, etf, chat)
   const [moreView, setMoreView] = useState(null);
