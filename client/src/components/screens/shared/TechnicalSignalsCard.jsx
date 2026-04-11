@@ -161,7 +161,9 @@ export const TechnicalSignalsCard = memo(function TechnicalSignalsCard({
           // We want the latest RSI value
           if (result.data.RSI && Array.isArray(result.data.RSI.values) && result.data.RSI.values.length > 0) {
             const rsiValues = result.data.RSI.values;
-            rsi = parseFloat(rsiValues[rsiValues.length - 1]);
+            const latest = rsiValues[rsiValues.length - 1];
+            // TwelveData returns objects like { datetime, rsi: "42.5" }
+            rsi = parseFloat(latest?.rsi ?? latest);
           }
 
           // Extract MACD: API returns { MACD: { indicator, interval, ticker, values: [...] } }
