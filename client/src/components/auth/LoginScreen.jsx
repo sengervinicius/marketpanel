@@ -1,30 +1,25 @@
 /**
  * LoginScreen.jsx
  *
- * Full-screen sign-in / create account screen.
- *
- * Auth options:
- *   1. Continue with Apple  (Sign in with Apple — requires APPLE_CLIENT_ID on server)
- *   2. Username + password  (LOG IN)
- *   3. Username + password  (CREATE ACCOUNT)
+ * Minimal landing + auth screen. This IS the landing page.
+ * Centered login with Apple ID, subtle animated background,
+ * and a single catchphrase. Nothing else.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { isIOS, isNative } from '../../services/platform';
 import './LoginScreen.css';
 
 // ── Apple Sign In SDK loader ─────────────────────────────────────────────────
-// On native iOS, use Capacitor's SignInWithApple plugin.
-// On web, load Apple's official JS library lazily.
 function loadAppleSDK() {
-  if (isNative() && isIOS()) return Promise.resolve(); // native uses Capacitor plugin
+  if (isNative() && isIOS()) return Promise.resolve();
   return new Promise((resolve) => {
     if (window.AppleID) { resolve(); return; }
     const s = document.createElement('script');
     s.src = 'https://appleid.cdn-apple.com/appleauth/static/jsapi/appleid/1/en_US/appleid.auth.js';
     s.onload = resolve;
-    s.onerror = resolve; // fail silently — Apple button will show error state
+    s.onerror = resolve;
     document.head.appendChild(s);
   });
 }
@@ -38,11 +33,48 @@ function AppleLogo() {
   );
 }
 
+// ── Floating particles ────────────────────────────────────────────────────────
+function Particles() {
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const particles = [];
+    const COUNT = 20;
+
+    for (let i = 0; i < COUNT; i++) {
+      const p = document.createElement('div');
+      p.className = 'ls-particle';
+      const size = 1 + Math.random() * 2;
+      const x = Math.random() * 100;
+      const duration = 12 + Math.random() * 20;
+      const delay = Math.random() * duration;
+      p.style.cssText = `
+        left: ${x}%;
+        bottom: -4px;
+        width: ${size}px;
+        height: ${size}px;
+        animation-duration: ${duration}s;
+        animation-delay: -${delay}s;
+        opacity: ${0.15 + Math.random() * 0.25};
+      `;
+      el.appendChild(p);
+      particles.push(p);
+    }
+
+    return () => particles.forEach(p => p.remove());
+  }, []);
+
+  return <div ref={containerRef} style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none' }} />;
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 export default function LoginScreen({ children }) {
   const { user, login, register, loginWithApple } = useAuth?.() || {};
 
-  const [mode,     setMode]     = useState('login'); // 'login' | 'register'
+  const [mode,     setMode]     = useState('login');
   const [username, setUsername] = useState('');
   const [email,    setEmail]    = useState('');
   const [password, setPassword] = useState('');
@@ -51,7 +83,6 @@ export default function LoginScreen({ children }) {
   const [error,    setError]    = useState('');
   const [shake,    setShake]    = useState(false);
 
-  // Pre-load Apple SDK on mount so the button is ready
   useEffect(() => { loadAppleSDK(); }, []);
 
   if (user) return children;
@@ -86,13 +117,10 @@ export default function LoginScreen({ children }) {
     setAppleLoading(true);
     try {
       await loadAppleSDK();
-
       let identityToken, authorizationCode, appleUser;
 
-      // ── Native iOS: use Capacitor SignInWithApple plugin ──────────────────
       if (isNative() && isIOS()) {
         try {
-          // Dynamic import — only resolved when running in native iOS build
           const pluginId = '@capacitor-community' + '/apple-sign-in';
           const mod = await import(/* @vite-ignore */ pluginId);
           const SignInWithApple = mod.SignInWithApple || mod.default;
@@ -107,51 +135,32 @@ export default function LoginScreen({ children }) {
             ? { name: { firstName: result.response.givenName, lastName: result.response.familyName }, email: result.response.email }
             : null;
         } catch (nativeErr) {
-          console.warn('[Apple Sign In] Native plugin not available, falling back to web SDK', nativeErr);
+          console.warn('[Apple Sign In] Native plugin not available', nativeErr);
           throw new Error('Native Apple Sign In failed. Please try again.');
         }
       } else {
-        // ── Web: use Apple JS SDK ──────────────────────────────────────────
         if (!window.AppleID) {
           throw new Error('Apple Sign In is not available. Please try username/password login.');
         }
-
-        const clientId   = import.meta.env.VITE_APPLE_CLIENT_ID;
+        const clientId = import.meta.env.VITE_APPLE_CLIENT_ID;
         const redirectURI = import.meta.env.VITE_APPLE_REDIRECT_URI || window.location.origin;
-
         if (!clientId) {
           throw new Error('Apple Sign In is not configured for this environment.');
         }
-
-        window.AppleID.auth.init({
-          clientId,
-          scope:       'name email',
-          redirectURI,
-          usePopup:    true,
-        });
-
+        window.AppleID.auth.init({ clientId, scope: 'name email', redirectURI, usePopup: true });
         const response = await window.AppleID.auth.signIn();
         identityToken = response.authorization?.id_token;
         authorizationCode = response.authorization?.code;
-        appleUser = response.user || null; // only provided on first sign-in
+        appleUser = response.user || null;
       }
 
       if (!identityToken) {
         throw new Error('Apple did not return an identity token. Please try again.');
       }
-
       await loginWithApple(identityToken, authorizationCode, appleUser);
     } catch (err) {
-      // Apple popup closed by user — don't show error
-      if (err.error === 'popup_closed_by_user' || err.type === 'popup_closed_by_user') {
-        setAppleLoading(false);
-        return;
-      }
-      // User cancelled
-      if (err.error === 'user_cancelled_authorize') {
-        setAppleLoading(false);
-        return;
-      }
+      if (err.error === 'popup_closed_by_user' || err.type === 'popup_closed_by_user') { setAppleLoading(false); return; }
+      if (err.error === 'user_cancelled_authorize') { setAppleLoading(false); return; }
       console.error('[Apple Sign In]', err);
       triggerShake(err.message || 'Apple Sign In failed. Please try username/password login.');
     } finally {
@@ -167,91 +176,105 @@ export default function LoginScreen({ children }) {
     setEmail('');
   };
 
-
   const isLogin = mode === 'login';
 
   return (
     <div className="ls-overlay">
-      {/* Logo */}
-      <div className="ls-logo">
-        <div className="ls-logo-title">SENGER</div>
-        <div className="ls-logo-sub">PROFESSIONAL MARKET DATA TERMINAL</div>
-      </div>
+      <Particles />
 
-      <div className={`ls-card ${shake ? 'ls-shake' : ''}`}>
-
-        {/* ── Continue with Apple ── */}
-        <button
-          type="button"
-          className="ls-apple-btn"
-          onClick={handleApple}
-          disabled={appleLoading || loading}
-        >
-          <AppleLogo />
-          {appleLoading ? 'Connecting...' : 'Continue with Apple'}
-        </button>
-
-        {/* ── OR divider ── */}
-        <div className="ls-divider">
-          <div className="ls-divider-line" />
-          <span className="ls-divider-text">OR</span>
-          <div className="ls-divider-line" />
+      <div className="ls-content">
+        {/* Logo */}
+        <div className="ls-logo">
+          <div className="ls-logo-title">SENGER</div>
         </div>
 
-        {/* ── Mode label ── */}
-        <div className="ls-mode-label">
-          {isLogin ? 'SIGN IN WITH USERNAME' : 'CREATE YOUR ACCOUNT'}
+        {/* Catchphrase */}
+        <div className="ls-catchphrase">
+          <div className="ls-catchphrase-main">
+            <span className="ls-catchphrase-accent">Powerful tools, honest pricing.</span>
+            <br />
+            We're here to debunk the status quo.
+          </div>
         </div>
 
-        {/* ── Error ── */}
-        <div className="ls-error">{error}</div>
+        {/* Login card */}
+        <div className={`ls-card ${shake ? 'ls-shake' : ''}`}>
 
-        {/* ── Form ── */}
-        <form onSubmit={handleSubmit} autoComplete="on">
-          <input
-            type="text"
-            placeholder="USERNAME"
-            value={username}
-            onChange={e => setUsername(e.target.value)}
-            className="ls-input"
-            disabled={loading}
-            autoComplete="username"
-            autoFocus
-          />
-          {!isLogin && (
+          {/* Continue with Apple */}
+          <button
+            type="button"
+            className="ls-apple-btn"
+            onClick={handleApple}
+            disabled={appleLoading || loading}
+          >
+            <AppleLogo />
+            {appleLoading ? 'Connecting...' : 'Continue with Apple'}
+          </button>
+
+          {/* OR divider */}
+          <div className="ls-divider">
+            <div className="ls-divider-line" />
+            <span className="ls-divider-text">OR</span>
+            <div className="ls-divider-line" />
+          </div>
+
+          {/* Mode label */}
+          <div className="ls-mode-label">
+            {isLogin ? 'SIGN IN WITH USERNAME' : 'CREATE YOUR ACCOUNT'}
+          </div>
+
+          {/* Error */}
+          <div className="ls-error">{error}</div>
+
+          {/* Form */}
+          <form onSubmit={handleSubmit} autoComplete="on">
             <input
-              type="email"
-              placeholder="EMAIL"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
+              type="text"
+              placeholder="USERNAME"
+              value={username}
+              onChange={e => setUsername(e.target.value)}
               className="ls-input"
               disabled={loading}
-              autoComplete="email"
+              autoComplete="username"
+              autoFocus
             />
-          )}
-          <input
-            type="password"
-            placeholder="PASSWORD"
-            value={password}
-            onChange={e => setPassword(e.target.value)}
-            className="ls-input"
-            disabled={loading}
-            autoComplete={isLogin ? 'current-password' : 'new-password'}
-          />
-          <button type="submit" className="ls-primary-btn" disabled={loading}>
-            {loading
-              ? (isLogin ? 'SIGNING IN...' : 'CREATING ACCOUNT...')
-              : (isLogin ? 'LOG IN' : 'CREATE ACCOUNT')
-            }
+            {!isLogin && (
+              <input
+                type="email"
+                placeholder="EMAIL"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                className="ls-input"
+                disabled={loading}
+                autoComplete="email"
+              />
+            )}
+            <input
+              type="password"
+              placeholder="PASSWORD"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              className="ls-input"
+              disabled={loading}
+              autoComplete={isLogin ? 'current-password' : 'new-password'}
+            />
+            <button type="submit" className="ls-primary-btn" disabled={loading}>
+              {loading
+                ? (isLogin ? 'SIGNING IN...' : 'CREATING ACCOUNT...')
+                : (isLogin ? 'LOG IN' : 'CREATE ACCOUNT')
+              }
+            </button>
+          </form>
+
+          {/* Switch mode */}
+          <button type="button" className="ls-secondary-btn" onClick={switchMode} disabled={loading}>
+            {isLogin ? 'CREATE NEW ACCOUNT' : 'BACK TO SIGN IN'}
           </button>
-        </form>
-
-        {/* ── Switch mode button ── */}
-        <button type="button" className="ls-secondary-btn" onClick={switchMode} disabled={loading}>
-          {isLogin ? 'CREATE NEW ACCOUNT' : 'BACK TO SIGN IN'}
-        </button>
-
+        </div>
       </div>
+
+      {/* Footer */}
+      <div className="ls-footer">ARC CAPITAL</div>
     </div>
   );
 }

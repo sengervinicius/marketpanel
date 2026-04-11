@@ -37,7 +37,7 @@ const INDIA = ['HDB', 'INFY', 'TTM', 'WIT', 'IBN'];
 const KOREA = ['005930.KS', '000660.KS', '035420.KS', '051910.KS', '005380.KS', 'SE'];
 const TAIWAN = ['TSM', '2330.TW', '2317.TW'];
 const ASEAN = ['GRAB'];
-const FX_PAIRS = ['C:USDJPY', 'C:USDCNY', 'C:USDINR', 'C:USDKRW'];
+const FX_PAIRS = ['C:USDJPY', 'C:USDCNY', 'C:USDINR', 'C:USDKRW', 'C:USDSGD', 'C:USDTHB', 'C:USDIDR', 'C:USDPHP'];
 const REGIONAL_ETFS = ['FXI', 'EWJ', 'INDA', 'EWY', 'EWT', 'VWO', 'AAXJ'];
 
 const CHART_TICKERS = ['BABA', 'TM', 'SONY', 'HDB', 'TSM', '005930.KS'];
@@ -110,6 +110,10 @@ const LABELS = {
   'C:USDCNY': 'USD/CNY',
   'C:USDINR': 'USD/INR',
   'C:USDKRW': 'USD/KRW',
+  'C:USDSGD': 'USD/SGD',
+  'C:USDTHB': 'USD/THB',
+  'C:USDIDR': 'USD/IDR',
+  'C:USDPHP': 'USD/PHP',
   // ETFs
   FXI: 'iShares China ETF',
   EWJ: 'iShares Japan ETF',

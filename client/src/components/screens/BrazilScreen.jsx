@@ -45,7 +45,17 @@ const ADR_PAIRS = [
 ];
 
 // EM FX pairs
-const EM_FX_PAIRS = ['C:USDBRL', 'C:USDMXN', 'C:USDZAR', 'C:USDTRY', 'C:USDINR'];
+const EM_FX_PAIRS = [
+  'C:USDBRL', 'C:GBPBRL', 'C:EURBRL', 'C:JPYBRL',
+  'C:USDMXN', 'C:USDARS', 'C:USDCLP', 'C:USDCOP',
+  'C:USDZAR', 'C:USDTRY', 'C:USDINR',
+];
+
+const EM_FX_NAMES = {
+  'C:USDBRL': 'USD/BRL', 'C:GBPBRL': 'GBP/BRL', 'C:EURBRL': 'EUR/BRL', 'C:JPYBRL': 'JPY/BRL',
+  'C:USDMXN': 'USD/MXN', 'C:USDARS': 'USD/ARS', 'C:USDCLP': 'USD/CLP', 'C:USDCOP': 'USD/COP',
+  'C:USDZAR': 'USD/ZAR', 'C:USDTRY': 'USD/TRY', 'C:USDINR': 'USD/INR',
+};
 
 // EM Equity Benchmarks
 const EM_EQUITY_ETFS = ['EWZ', 'EWW', 'INDA', 'FXI', 'EEM', 'VWO'];
@@ -233,7 +243,7 @@ const DiCurveComponent = memo(function DiCurveComponent() {
 /* ── FX & Rates ────────────────────────────────────────────────────────── */
 function FxRateRow({ sym, openDetail }) {
   const q = useTickerPrice(sym);
-  const label = sym === 'C:USDBRL' ? 'USD/BRL' : 'EUR/BRL';
+  const label = EM_FX_NAMES[sym] || sym.replace('C:', '');
   return (
     <tr
       key={sym}
@@ -278,7 +288,7 @@ const FxRatesComponent = memo(function FxRatesComponent() {
           </tr>
         </thead>
         <tbody>
-          {['C:USDBRL', 'C:EURBRL'].map(sym => (
+          {['C:USDBRL', 'C:GBPBRL', 'C:EURBRL', 'C:JPYBRL'].map(sym => (
             <FxRateRow key={sym} sym={sym} openDetail={openDetail} />
           ))}
           <tr style={{ borderTop: '1px solid var(--border-default)', background: 'var(--bg-surface)' }}>
@@ -345,7 +355,7 @@ const LatAmMacroComponent = memo(function LatAmMacroComponent() {
 /* ── EM FX Monitor ─────────────────────────────────────────────────────── */
 function EmFxRow({ sym, openDetail }) {
   const q = useTickerPrice(sym);
-  const label = sym.replace('C:', '').replace('USD', '');
+  const label = EM_FX_NAMES[sym] || sym.replace('C:', '');
   return (
     <tr
       key={sym}

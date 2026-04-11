@@ -14,9 +14,11 @@ router.get('/snapshot/forex', async (req, res) => {
   try {
     const polygonTickers = [
       'C:EURUSD','C:GBPUSD','C:USDJPY','C:USDBRL',
-      'C:GBPBRL','C:EURBRL',
-      'C:USDARS','C:USDCHF','C:USDCNY','C:USDMXN',
-      'C:AUDUSD','C:USDCAD','C:USDCLP',
+      'C:GBPBRL','C:EURBRL','C:JPYBRL',
+      'C:USDARS','C:USDCHF','C:USDCNY','C:USDMXN','C:USDCOP',
+      'C:AUDUSD','C:USDCAD','C:USDCLP','C:USDZAR','C:USDTRY','C:USDINR',
+      'C:USDSGD','C:USDTHB','C:USDIDR','C:USDPHP',
+      'C:EURGBP','C:EURJPY','C:EURNOK','C:EURPLN','C:USDNOK',
     ];
 
     const yahooTickers = polygonTickers.map(t => {

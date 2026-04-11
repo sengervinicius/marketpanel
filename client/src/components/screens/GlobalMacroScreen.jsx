@@ -179,7 +179,7 @@ function VolCard({ symbol, label, thresholds, openDetail }) {
 /* ─────────────────────────────────────────────────────────────────────── */
 function FxHeatmap() {
   const openDetail = useOpenDetail();
-  const fxPairs = ['C:EURUSD', 'C:USDJPY', 'C:GBPUSD', 'C:USDCHF', 'C:AUDUSD', 'C:USDCAD', 'C:USDBRL', 'C:USDMXN'];
+  const fxPairs = ['C:EURUSD', 'C:USDJPY', 'C:GBPUSD', 'C:USDCHF', 'C:AUDUSD', 'C:USDCAD', 'C:USDBRL', 'C:USDMXN', 'C:USDZAR', 'C:USDNOK'];
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 8 }}>

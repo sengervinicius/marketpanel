@@ -69,7 +69,7 @@ const SOUTHERN_EUROPE = [
   { symbol: 'ING', name: 'ING Group' },
 ];
 
-const FX_PAIRS = ['C:EURUSD', 'C:GBPUSD', 'C:EURCHF', 'C:EURSEK'];
+const FX_PAIRS = ['C:EURUSD', 'C:GBPUSD', 'C:EURCHF', 'C:EURSEK', 'C:EURGBP', 'C:EURJPY', 'C:EURNOK', 'C:EURPLN'];
 
 const ETFS = ['EZU', 'EWG', 'EWU', 'EWQ', 'VGK'];
 
@@ -112,6 +112,8 @@ const LABELS = {
   AZN: 'AstraZeneca', SHEL: 'Shell', HSBC: 'HSBC', UL: 'Unilever', RIO: 'Rio Tinto', BP: 'BP',
   NVO: 'Novo Nordisk', ERIC: 'Ericsson', SPOT: 'Spotify', VLVLY: 'Volvo',
   SAN: 'Banco Santander', ING: 'ING Group',
+  'C:EURUSD': 'EUR/USD', 'C:GBPUSD': 'GBP/USD', 'C:EURCHF': 'EUR/CHF', 'C:EURSEK': 'EUR/SEK',
+  'C:EURGBP': 'EUR/GBP', 'C:EURJPY': 'EUR/JPY', 'C:EURNOK': 'EUR/NOK', 'C:EURPLN': 'EUR/PLN',
 };
 
 /* ── Phase 1 Deep Data Components ──────────────────────────────────── */

@@ -2,6 +2,7 @@ import { StrictMode, useEffect, useRef, Component } from 'react'
 import { createRoot } from 'react-dom/client'
 import { HashRouter, Routes, Route, useNavigate, useLocation } from 'react-router-dom'
 import App from './App.jsx'
+// LandingPage removed — LoginScreen IS the landing page
 import InstrumentDetailPage from './pages/InstrumentDetailPage.jsx'
 import ChatPage from './pages/ChatPage.jsx'
 import NotFoundPage from './components/common/NotFoundPage.jsx'
@@ -92,24 +93,30 @@ function AppShell() {
   // Show loading screen until the initial /api/auth/me check completes
   if (!authReady) return <AuthLoadingScreen />;
 
-  return (
-    <SettingsProvider isAuthenticated={!!user}>
-      <ThemeSync>
-        <LoginScreen>
-          {/* Routing is only mounted after auth check passes and user is logged in */}
-          <DefaultPageRedirect />
-          <Routes>
-            <Route path="/" element={<App />} />
-            <Route path="/detail/:symbolKey" element={<InstrumentDetailPage />} />
-            <Route path="/chat" element={<ChatPage />} />
-            <Route path="/chat/:userId" element={<ChatPage />} />
-            {/* Catch-all → 404 page */}
-            <Route path="*" element={<NotFoundPage />} />
-          </Routes>
-        </LoginScreen>
-      </ThemeSync>
-    </SettingsProvider>
-  );
+  // Authenticated users see the full app
+  if (user) {
+    return (
+      <SettingsProvider isAuthenticated={!!user}>
+        <ThemeSync>
+          <LoginScreen>
+            {/* Routing is only mounted after auth check passes and user is logged in */}
+            <DefaultPageRedirect />
+            <Routes>
+              <Route path="/" element={<App />} />
+              <Route path="/detail/:symbolKey" element={<InstrumentDetailPage />} />
+              <Route path="/chat" element={<ChatPage />} />
+              <Route path="/chat/:userId" element={<ChatPage />} />
+              {/* Catch-all → 404 page */}
+              <Route path="*" element={<NotFoundPage />} />
+            </Routes>
+          </LoginScreen>
+        </ThemeSync>
+      </SettingsProvider>
+    );
+  }
+
+  // Unauthenticated users see the login screen (which IS the landing page)
+  return <LoginScreen />;
 }
 
 createRoot(document.getElementById('root')).render(

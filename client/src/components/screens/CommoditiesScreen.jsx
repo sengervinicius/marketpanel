@@ -48,7 +48,7 @@ const fmtB = (n) => {
 };
 
 // Commodity & Energy Futures for charts & tables
-const SECTOR_CHART_TICKERS = ['CL=F', 'GC=F', 'NG=F', 'HG=F', 'SI=F', 'BZ=F'];
+const SECTOR_CHART_TICKERS = ['CL=F', 'GC=F', 'NG=F', 'HG=F', 'SI=F', 'BZ=F', 'DX-Y.NYB'];
 
 const ENERGY_FUTURES = [
   { symbol: 'CL=F', label: 'WTI Crude Oil' },
@@ -101,6 +101,7 @@ const BANNER_TICKERS = [
   { ticker: 'NG=F', label: 'NATGAS' },
   { ticker: 'HG=F', label: 'COPPER' },
   { ticker: 'PL=F', label: 'PLATINUM' },
+  { ticker: 'DX-Y.NYB', label: 'DXY INDEX' },
   { ticker: 'DBC',  label: 'DBC ETF' },
   { ticker: 'USO',  label: 'USO ETF' },
   { ticker: 'GLD',  label: 'GLD ETF' },
