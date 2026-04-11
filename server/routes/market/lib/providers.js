@@ -26,9 +26,10 @@ function finnhubKey()      { return process.env.FINNHUB_API_KEY; }
 function alphaVantageKey() { return process.env.ALPHA_VANTAGE_KEY; }
 
 // ── Request queue for Polygon API (rate limiting) ──────────────────
-// Free tier allows ~5 req/min; 250ms delay = ~4 req/sec = 240 req/min
+// Free tier allows ~5 req/min → 12s between requests minimum
+// Using 13s to leave margin; charts stagger client-side too (1.2s each)
 const polygonQueue = new RequestQueue({
-  delay: 250,
+  delay: 13000,
   maxConcurrent: 1,
 });
 

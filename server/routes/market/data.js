@@ -297,60 +297,7 @@ router.get('/market/crypto-extended/:name', async (req, res) => {
   }
 });
 
-/**
- * GET /market/forex-rates/:currency
- * Returns all FX rates for a given base currency from Eulerpool.
- */
-router.get('/market/forex-rates/:currency', async (req, res) => {
-  try {
-    const currency = req.params.currency.toUpperCase();
-
-    if (!eulerpool.isConfigured()) {
-      return res.json({ ok: true, data: null, source: 'unavailable' });
-    }
-
-    const ck = `fx-rates:${currency}`;
-    const cached = cacheGet(ck);
-    if (cached) return res.json({ ok: true, data: cached, source: 'eulerpool' });
-
-    const data = await eulerpool.getForexRates(currency);
-
-    if (data) cacheSet(ck, data, 60_000);
-    res.json({ ok: true, data: data || null, source: 'eulerpool' });
-  } catch (e) {
-    logger.error(`GET /market/forex-rates/${req.params.currency} error:`, e);
-    res.status(500).json({ ok: false, error: e.message });
-  }
-});
-
-/**
- * GET /market/screener?sector=Technology&country=US&pe_max=30&limit=50
- * Runs Eulerpool screener with filters.
- */
-router.get('/market/screener', async (req, res) => {
-  try {
-    if (!eulerpool.isConfigured()) {
-      return res.json({ ok: true, data: [], source: 'unavailable' });
-    }
-
-    const limit = Math.min(parseInt(req.query.limit) || 50, 100);
-    const filters = { ...req.query };
-    delete filters.limit;
-
-    const ck = `screener:${JSON.stringify({ ...filters, limit })}`;
-    const cached = cacheGet(ck);
-    if (cached) return res.json({ ok: true, data: cached, source: 'eulerpool' });
-
-    const data = await eulerpool.getScreener(filters, limit);
-    const result = Array.isArray(data) ? data : [];
-
-    cacheSet(ck, result, 180_000);
-    res.json({ ok: true, data: result, source: 'eulerpool' });
-  } catch (e) {
-    logger.error('GET /market/screener error:', e);
-    res.status(500).json({ ok: false, error: e.message });
-  }
-});
+/* forex-rates and screener routes defined below (after sentiment) */
 
 /**
  * GET /market/yield-curve/:country
@@ -1056,50 +1003,7 @@ router.get('/market/td/technicals/:ticker', async (req, res) => {
   }
 });
 
-/**
- * GET /market/td/diag
- * Temporary diagnostic endpoint — checks Twelve Data API key, plan, and rate limits.
- * TODO: Remove after Sprint 3 verification.
- */
-router.get('/market/td/diag', async (req, res) => {
-  try {
-    const k = process.env.TWELVEDATA_API_KEY;
-    if (!k) return res.json({ ok: false, error: 'TWELVEDATA_API_KEY not set', keyLength: 0 });
-
-    const nodeFetch = require('node-fetch');
-
-    // 1) Check api_usage
-    const usageRes = await nodeFetch(`https://api.twelvedata.com/api_usage?apikey=${k}`, {
-      headers: { 'Accept': 'application/json' },
-    });
-    const usageJson = await usageRes.json();
-
-    // 2) Make a sample quote call and capture response headers
-    const quoteRes = await nodeFetch(`https://api.twelvedata.com/quote?symbol=AAPL&apikey=${k}`, {
-      headers: { 'Accept': 'application/json' },
-    });
-    const rateLimitHeaders = {};
-    for (const [hk, hv] of quoteRes.headers.entries()) {
-      if (hk.toLowerCase().startsWith('x-ratelimit') || hk.toLowerCase().includes('plan')) {
-        rateLimitHeaders[hk] = hv;
-      }
-    }
-    const quoteJson = await quoteRes.json();
-
-    res.json({
-      ok: true,
-      keyLength: k.length,
-      keyPrefix: k.substring(0, 4) + '...',
-      apiUsage: usageJson,
-      rateLimitHeaders,
-      sampleQuoteStatus: quoteRes.status,
-      sampleQuoteOk: quoteJson.status !== 'error',
-      sampleQuoteError: quoteJson.status === 'error' ? quoteJson.message : null,
-    });
-  } catch (e) {
-    res.status(500).json({ ok: false, error: e.message });
-  }
-});
+/* /market/td/diag diagnostic endpoint removed for production security */
 
 // ═══════════════════════════════════════════════════════════════════════
 //  UNIFIED ENRICHED TICKER ENDPOINT
