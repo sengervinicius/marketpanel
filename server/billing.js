@@ -61,10 +61,17 @@ async function createCheckoutSession(userId, plan = 'monthly') {
   }
 
   const user = getUserById(userId);
-  if (!user) throw new Error('User not found');
+  if (!user) {
+    return {
+      error: 'Session expired. Please log out and log back in.',
+      configured: true,
+    };
+  }
 
   const customerId = await ensureStripeCustomer(stripe, user);
   const clientUrl  = process.env.CLIENT_URL || 'http://localhost:5173';
+
+  console.log(`[billing] Creating checkout session for user ${userId}, priceId: ${priceId?.slice(0, 20)}...`);
 
   let session;
   try {
@@ -90,7 +97,7 @@ async function createCheckoutSession(userId, plan = 'monthly') {
     console.error(`[billing] Stripe error (${code}):`, stripeErr.message);
     return {
       error: code === 'resource_missing'
-        ? 'Subscription plan not yet configured. Please check STRIPE_PRICE_ID.'
+        ? 'Subscription plan not found. The STRIPE_PRICE_ID may not match the STRIPE_SECRET_KEY mode (test vs live).'
         : `Checkout failed: ${stripeErr.message}`,
       configured: false,
     };
@@ -118,7 +125,12 @@ async function createPortalSession(userId) {
   }
 
   const user = getUserById(userId);
-  if (!user) throw new Error('User not found');
+  if (!user) {
+    return {
+      error: 'Session expired. Please log out and log back in.',
+      configured: true,
+    };
+  }
   if (!user.stripeCustomerId) throw new Error('No billing account found — subscribe first');
 
   const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
