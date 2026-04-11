@@ -479,7 +479,7 @@ export default function App() {
         />
 
         {/* Header */}
-        <div className="flex-row app-header-bar">
+        <div className="flex-row app-header-bar" data-tour="header">
           <img src="/icon-192.png" alt="Senger" style={{ width: 22, height: 22, borderRadius: 4, marginRight: 6 }} /><span className="app-header-title">SENGER</span>
           <span className="app-header-subtitle">MARKET TERMINAL</span>
           {/* Navigation buttons */}
@@ -502,6 +502,7 @@ export default function App() {
           >⌂ HOME</button>
           <button
             className="btn"
+            data-tour="sector-screens"
             onClick={() => setSectorSelectorOpen(s => !s)}
             title="Open Sector Screens"
             aria-label="Open sector screens"
@@ -545,7 +546,7 @@ export default function App() {
               </svg>
               <span style={{ fontSize: 9, letterSpacing: '0.5px', opacity: 0.6 }}>AI</span>
             </button>
-            <button className={`btn${showLayoutHint && !layoutEdit ? ' layout-btn-pulse' : ''}`}
+            <button data-tour="layout" className={`btn${showLayoutHint && !layoutEdit ? ' layout-btn-pulse' : ''}`}
               onClick={() => { setLayoutEdit(s => !s); if (showLayoutHint) dismissLayoutHint(); }}
               title="Customize your workspace — drag, resize, and rearrange panels"
               aria-label="Customize workspace layout"
@@ -566,7 +567,7 @@ export default function App() {
         </div>
 
         {/* Search command strip — full width */}
-        <div className="app-search-strip">
+        <div className="app-search-strip" data-tour="search">
           <HeaderSearchBar />
         </div>
 
@@ -630,7 +631,7 @@ export default function App() {
             )}
 
             {/* Home grid — ALWAYS mounted, hidden via display:none when sector screen is active */}
-            <div style={{ flex: 1, display: activeSectorScreen ? 'none' : 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
+            <div data-tour="workspace" style={{ flex: 1, display: activeSectorScreen ? 'none' : 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
               {/* Layout edit toolbar */}
               {layoutEdit && (
                 <div style={{
