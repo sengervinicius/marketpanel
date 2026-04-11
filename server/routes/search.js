@@ -168,18 +168,30 @@ router.post('/fundamentals', async (req, res) => {
     return res.json({ ...cached.v, cached: true });
   }
 
-  // ── Gather internal data in parallel ──────────────────────────────────
+  // ── Gather internal data in parallel (with tight individual timeouts) ──
   const baseUrl = `http://localhost:${process.env.PORT || 3001}`;
   const authHeader = req.headers.authorization || '';
   const headers = { Authorization: authHeader, Accept: 'application/json' };
+  const DATA_TIMEOUT = 8000; // 8s max for internal API calls — leaves 12s for LLM
 
   let fundamentals = null, quote = null, newsItems = [];
 
   try {
+    // Each internal fetch has its own AbortController so one slow call doesn't block others
+    const fetchWithTimeout = async (url, timeoutMs = DATA_TIMEOUT) => {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+      try {
+        const r = await fetch(url, { headers, signal: ctrl.signal });
+        return r.ok ? r.json() : null;
+      } catch { return null; }
+      finally { clearTimeout(timer); }
+    };
+
     const [fundsRes, quoteRes, newsRes] = await Promise.allSettled([
-      fetch(`${baseUrl}/api/fundamentals/${encodeURIComponent(sym)}`, { headers }).then(r => r.ok ? r.json() : null),
-      fetch(`${baseUrl}/api/quote/${encodeURIComponent(sym)}`, { headers }).then(r => r.ok ? r.json() : null),
-      fetch(`${baseUrl}/api/news?ticker=${encodeURIComponent(sym.replace(/^[XC]:/, ''))}&limit=5`, { headers }).then(r => r.ok ? r.json() : null),
+      fetchWithTimeout(`${baseUrl}/api/fundamentals/${encodeURIComponent(sym)}`),
+      fetchWithTimeout(`${baseUrl}/api/quote/${encodeURIComponent(sym)}`),
+      fetchWithTimeout(`${baseUrl}/api/news?ticker=${encodeURIComponent(sym.replace(/^[XC]:/, ''))}&limit=5`),
     ]);
 
     fundamentals = fundsRes.status === 'fulfilled' ? fundsRes.value : null;
@@ -244,8 +256,9 @@ Rules:
   const userPrompt = `Analyze this instrument:\n\n${contextBlock}`;
 
   // ── Call Perplexity ───────────────────────────────────────────────────
+  // 10s timeout for LLM — combined with 8s data gather stays under 20s route timeout
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 20000);
+  const timer = setTimeout(() => ctrl.abort(), 10000);
 
   try {
     const response = await fetch(PERPLEXITY_URL, {
@@ -317,7 +330,7 @@ Rules:
     res.json(result);
   } catch (err) {
     if (err.name === 'AbortError') {
-      return res.status(504).json({ error: 'AI fundamentals timed out (20s)' });
+      return res.status(504).json({ error: 'AI fundamentals timed out (10s)' });
     }
     console.error('[Search/AI Fundamentals] Error:', err.message);
     res.status(500).json({ error: 'AI fundamentals failed' });

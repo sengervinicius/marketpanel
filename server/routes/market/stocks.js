@@ -486,29 +486,36 @@ router.get('/chart/:ticker', async (req, res) => {
     // Detect futures symbols (CL=F, BZ=F, GC=F, etc.)
     const isFutures = ticker.toUpperCase().includes('=F') || ticker.toUpperCase().includes('=');
 
-    if (isFutures) {
-      console.log(`[Chart] Futures detected (${ticker}), using Yahoo Finance`);
-      // Skip Polygon (no futures support) and TD (unreliable for futures)
-      // Go straight to Yahoo Finance
-    } else if (!ticker.toUpperCase().endsWith('.SA')) {
-      try {
-        const data = await polyFetch(
-          `/v2/aggs/ticker/${ticker}/range/${multiplier}/${timespan}/${fromDate}/${toDate}?adjusted=true&sort=asc&limit=500`,
-          { priority: 15, label: 'chart' }  // High priority for charts
-        );
-        cacheSet(chartCacheKey, data, TTL.chart);
-        return res.json(data);
-      } catch (e) {
-        console.warn(`[Chart] Polygon failed: ${e.message}`);
-        if (e.code !== 'rate_limit' && e.code !== 'network_error') throw e;
+    // ── 1. Try Yahoo Finance FIRST (fast, no rate-limit queue) ────────
+    // Yahoo handles US equities, FX, crypto, futures, ETFs, .SA (B3)
+    try {
+      const { crumb, cookie } = await getYahooCrumb();
+      const period1 = Math.floor(new Date(fromDate + 'T00:00:00Z').getTime() / 1000);
+      const period2 = Math.floor(new Date(toDate + 'T23:59:59Z').getTime() / 1000);
+      const yfInterval = timespan === 'minute' ? `${multiplier}m` : timespan === 'hour' ? '60m' : '1d';
+      const yfChartCacheKey = `yf_chart:${ticker}:${period1}:${period2}:${yfInterval}`;
+      const { _yahooChartRaw } = require('./lib/providers');
+      const json = await yahooCache.wrap(yfChartCacheKey, () => _yahooChartRaw(ticker, period1, period2, yfInterval, crumb, cookie), 60 * 1000);
+      const result = json?.chart?.result?.[0];
+      if (result) {
+        const timestamps = result.timestamp || [];
+        const q = result.indicators?.quote?.[0] || {};
+        const chartResults = timestamps
+          .map((t, i) => ({ t: t * 1000, c: q.close?.[i], o: q.open?.[i], h: q.high?.[i], l: q.low?.[i], v: q.volume?.[i] ?? 0 }))
+          .filter(b => b.c != null && b.c > 0);
+        if (chartResults.length > 0) {
+          const chartPayload = { results: chartResults, ticker, status: 'OK', source: 'yahoo' };
+          cacheSet(chartCacheKey, chartPayload, TTL.chart);
+          return res.json(chartPayload);
+        }
       }
+    } catch (ye) {
+      console.warn(`[Chart] Yahoo Finance failed for ${ticker}: ${ye.message}`);
     }
 
-    // ── Twelve Data fallback (especially for international exchanges) ──
-    // Skip for futures as Twelve Data is unreliable for futures symbols
+    // ── 2. Twelve Data fallback (international exchanges) ─────────────
     if (!isFutures && twelvedata.isConfigured()) {
       try {
-        // Map Vite timespan → Twelve Data interval
         const tdIntervalMap = { minute: `${multiplier}min`, hour: `${multiplier}h`, day: '1day', week: '1week', month: '1month' };
         const tdInterval = tdIntervalMap[timespan] || '1day';
 
@@ -529,23 +536,22 @@ router.get('/chart/:ticker', async (req, res) => {
       }
     }
 
-    const { crumb, cookie } = await getYahooCrumb();
-    const period1 = Math.floor(new Date(fromDate + 'T00:00:00Z').getTime() / 1000);
-    const period2 = Math.floor(new Date(toDate + 'T23:59:59Z').getTime() / 1000);
-    const interval = timespan === 'minute' ? `${multiplier}m` : '1d';
-    const yfChartCacheKey = `yf_chart:${ticker}:${period1}:${period2}:${interval}`;
-    const { _yahooChartRaw } = require('./lib/providers');
-    const json = await yahooCache.wrap(yfChartCacheKey, () => _yahooChartRaw(ticker, period1, period2, interval, crumb, cookie), 30 * 1000);
-    const result = json?.chart?.result?.[0];
-    if (!result) throw new Error(`No Yahoo chart data for ${ticker}`);
-    const timestamps = result.timestamp || [];
-    const q = result.indicators?.quote?.[0] || {};
-    const chartResults = timestamps
-      .map((t, i) => ({ t: t * 1000, c: q.close?.[i], o: q.open?.[i], h: q.high?.[i], l: q.low?.[i] }))
-      .filter(b => b.c != null && b.c > 0);
-    const chartPayload = { results: chartResults, ticker, status: 'OK' };
-    cacheSet(chartCacheKey, chartPayload, TTL.chart);
-    return res.json(chartPayload);
+    // ── 3. Polygon fallback (lowest priority — queued, rate-limited) ──
+    if (!isFutures && !ticker.toUpperCase().endsWith('.SA')) {
+      try {
+        const data = await polyFetch(
+          `/v2/aggs/ticker/${ticker}/range/${multiplier}/${timespan}/${fromDate}/${toDate}?adjusted=true&sort=asc&limit=500`,
+          { priority: 15, label: 'chart' }
+        );
+        cacheSet(chartCacheKey, data, TTL.chart);
+        return res.json(data);
+      } catch (e) {
+        console.warn(`[Chart] Polygon failed: ${e.message}`);
+      }
+    }
+
+    // ── All providers failed — return empty result (not 504) ──────────
+    return res.json({ results: [], ticker, status: 'NO_DATA', message: 'No chart data available from any provider' });
   } catch (e) {
     console.error(`[API] /chart/${req.params.ticker}:`, e.message);
     sendError(res, e);
@@ -579,59 +585,71 @@ router.get('/history/:symbol', async (req, res) => {
     const fromDate = new Date(toDate.getTime() - rangeConfig.days * 86400 * 1000);
     const from     = fromDate.toISOString().slice(0, 10);
     const to       = toDate.toISOString().slice(0, 10);
-    const polygonTicker = symbol;
-
-    const { apiKey: getApiKey, POLYGON_BASE } = require('./lib/providers');
-    const key = getApiKey();
     let candles = [];
 
-    if (key) {
-      try {
-        const url = `${POLYGON_BASE}/v2/aggs/ticker/${polygonTicker}/range/${rangeConfig.multiplier}/${rangeConfig.timespan}/${from}/${to}?adjusted=true&sort=asc&limit=5000&apiKey=${key}`;
-        const r   = await fetch(url, { timeout: 15000 });
-        if (r.ok) {
-          const json = await r.json();
-          candles = (json.results || []).map(bar => ({
-            t: bar.t, o: bar.o, h: bar.h, l: bar.l, c: bar.c, v: bar.v,
-          }));
-        }
-      } catch (pe) {
-        console.warn(`[history] Polygon failed for ${symbol}: ${pe.message}`);
-      }
-    }
-
-    if (candles.length === 0) {
-      try {
-        const yInterval = interval === '1d' ? '1d' : interval === '1h' ? '60m' : '5m';
-        const yRange    = period === '1D' ? '1d' : period === '5D' ? '5d' : period === '1M' ? '1mo' : period === '3M' ? '3mo' : period === '6M' ? '6mo' : period === '1Y' ? '1y' : period === '3Y' ? '3y' : '5y';
-        const yahooSym  = symbol.startsWith('X:') ? symbol.replace('X:', '').replace('USD', '-USD')
-          : symbol.startsWith('C:') ? symbol.replace('C:', '') + '=X'
-          : symbol;
-        const histCacheKey = `yf_hist:${yahooSym}:${yInterval}:${yRange}`;
-        const json = await yahooCache.wrap(histCacheKey, async () => {
-          const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahooSym)}?interval=${yInterval}&range=${yRange}&includePrePost=false`;
-          const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+    // ── 1. Yahoo Finance FIRST (fast, no rate-limit queue) ────────────
+    try {
+      const yInterval = interval === '1d' ? '1d' : interval === '1h' ? '60m' : '5m';
+      const yRange    = period === '1D' ? '1d' : period === '5D' ? '5d' : period === '1M' ? '1mo' : period === '3M' ? '3mo' : period === '6M' ? '6mo' : period === '1Y' ? '1y' : period === '3Y' ? '3y' : '5y';
+      const yahooSym  = symbol.startsWith('X:') ? symbol.replace('X:', '').replace('USD', '-USD')
+        : symbol.startsWith('C:') ? symbol.replace('C:', '') + '=X'
+        : symbol;
+      const histCacheKey = `yf_hist:${yahooSym}:${yInterval}:${yRange}`;
+      const json = await yahooCache.wrap(histCacheKey, async () => {
+        const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahooSym)}?interval=${yInterval}&range=${yRange}&includePrePost=false`;
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 10000);
+        try {
+          const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: ctrl.signal });
           if (r.status === 429) { const e = new Error('Yahoo history 429'); e.code = 'rate_limit'; throw e; }
           if (!r.ok) throw new Error(`Yahoo history HTTP ${r.status}`);
           return r.json();
-        }, 30 * 1000);
-        if (json) {
-          const chart = json?.chart?.result?.[0];
-          if (chart) {
-            const times  = chart.timestamp || [];
-            const q      = chart.indicators?.quote?.[0] || {};
-            candles = times.map((t, i) => ({
-              t: t * 1000,
-              o: q.open?.[i]  ?? q.close?.[i] ?? null,
-              h: q.high?.[i]  ?? q.close?.[i] ?? null,
-              l: q.low?.[i]   ?? q.close?.[i] ?? null,
-              c: q.close?.[i] ?? null,
-              v: q.volume?.[i] ?? 0,
-            })).filter(c => c.c !== null);
-          }
+        } finally {
+          clearTimeout(timer);
         }
-      } catch (ye) {
-        console.warn(`[history] Yahoo fallback failed for ${symbol}: ${ye.message}`);
+      }, 60 * 1000);
+      if (json) {
+        const chart = json?.chart?.result?.[0];
+        if (chart) {
+          const times  = chart.timestamp || [];
+          const q      = chart.indicators?.quote?.[0] || {};
+          candles = times.map((t, i) => ({
+            t: t * 1000,
+            o: q.open?.[i]  ?? q.close?.[i] ?? null,
+            h: q.high?.[i]  ?? q.close?.[i] ?? null,
+            l: q.low?.[i]   ?? q.close?.[i] ?? null,
+            c: q.close?.[i] ?? null,
+            v: q.volume?.[i] ?? 0,
+          })).filter(c => c.c !== null);
+        }
+      }
+    } catch (ye) {
+      console.warn(`[history] Yahoo Finance failed for ${symbol}: ${ye.message}`);
+    }
+
+    // ── 2. Polygon fallback (only if Yahoo returned nothing) ──────────
+    if (candles.length === 0) {
+      const { apiKey: getApiKey, POLYGON_BASE } = require('./lib/providers');
+      const key = getApiKey();
+      if (key) {
+        try {
+          const ctrl = new AbortController();
+          const timer = setTimeout(() => ctrl.abort(), 10000);
+          try {
+            const url = `${POLYGON_BASE}/v2/aggs/ticker/${symbol}/range/${rangeConfig.multiplier}/${rangeConfig.timespan}/${from}/${to}?adjusted=true&sort=asc&limit=5000&apiKey=${key}`;
+            const r   = await fetch(url, { signal: ctrl.signal });
+            if (r.ok) {
+              const json = await r.json();
+              candles = (json.results || []).map(bar => ({
+                t: bar.t, o: bar.o, h: bar.h, l: bar.l, c: bar.c, v: bar.v,
+              }));
+            }
+          } finally {
+            clearTimeout(timer);
+          }
+        } catch (pe) {
+          console.warn(`[history] Polygon fallback failed for ${symbol}: ${pe.message}`);
+        }
       }
     }
 

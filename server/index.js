@@ -198,9 +198,10 @@ app.use('/api/derivatives', requireAuth, requireActiveSubscription,
   derivativesRoutes);
 
 // AI Search: auth + subscription required + rate limit + timeout
+// Increased from 20s to 25s — internal data (8s max) + LLM (10s) needs headroom
 app.use('/api/search', requireAuth, requireActiveSubscription,
   rateLimitByUser({ key: 'search', windowSec: 60, max: 15 }),
-  requestTimeout(20000),
+  requestTimeout(25000),
   searchRoutes);
 
 // Feed health: no auth required (public endpoint for monitoring)

@@ -756,32 +756,149 @@ router.get('/market/td/earnings/:ticker', async (req, res) => {
 
 /**
  * GET /market/td/financials/:ticker?period=annual
- * Returns income statement, balance sheet, cash flow from Twelve Data.
+ * Returns income statement, balance sheet, cash flow.
+ * Primary: TwelveData. Fallback: Yahoo Finance quoteSummary for missing statements.
  */
 router.get('/market/td/financials/:ticker', async (req, res) => {
   try {
     const ticker = req.params.ticker.toUpperCase();
     const period = req.query.period === 'quarterly' ? 'quarterly' : 'annual';
-    if (!twelvedata.isConfigured()) return res.json({ ok: true, data: null, source: 'unavailable' });
 
     const ck = `td-financials:${ticker}:${period}`;
     const cached = cacheGet(ck);
-    if (cached) return res.json({ ok: true, data: cached, source: 'twelvedata' });
+    if (cached) return res.json({ ok: true, data: cached, source: 'cached' });
 
-    const [income, balance, cashflow] = await Promise.allSettled([
-      twelvedata.getIncomeStatement(ticker, period),
-      twelvedata.getBalanceSheet(ticker, period),
-      twelvedata.getCashFlow(ticker, period),
-    ]);
+    // ── 1. Try TwelveData for all three statements ────────────────────
+    let incomeData = null, balanceData = null, cashflowData = null;
+    let source = 'twelvedata';
+
+    if (twelvedata.isConfigured()) {
+      const [income, balance, cashflow] = await Promise.allSettled([
+        twelvedata.getIncomeStatement(ticker, period),
+        twelvedata.getBalanceSheet(ticker, period),
+        twelvedata.getCashFlow(ticker, period),
+      ]);
+      incomeData   = income.status === 'fulfilled' ? income.value : null;
+      balanceData  = balance.status === 'fulfilled' ? balance.value : null;
+      cashflowData = cashflow.status === 'fulfilled' ? cashflow.value : null;
+    }
+
+    // ── 2. Yahoo Finance fallback for missing statements ──────────────
+    // Check if balance sheet or cash flow is empty/null — if so, try Yahoo
+    const bsEmpty  = !balanceData || (Array.isArray(balanceData) && balanceData.length === 0);
+    const cfEmpty  = !cashflowData || (Array.isArray(cashflowData) && cashflowData.length === 0);
+    const incEmpty = !incomeData || (Array.isArray(incomeData) && incomeData.length === 0);
+
+    if (bsEmpty || cfEmpty || incEmpty) {
+      try {
+        const { getYahooCrumb, YF_UA } = require('./lib/providers');
+        const fetch = require('node-fetch');
+        const { crumb, cookie } = await getYahooCrumb();
+        const modules = [
+          incEmpty ? 'incomeStatementHistory' : null,
+          bsEmpty ? 'balanceSheetHistory' : null,
+          cfEmpty ? 'cashflowStatementHistory' : null,
+        ].filter(Boolean).join(',');
+
+        if (modules) {
+          const yfPeriod = period === 'quarterly' ? 'Quarterly' : '';
+          const yfModules = modules.replace(/History/g, `History${yfPeriod}`);
+          const ctrl = new AbortController();
+          const timer = setTimeout(() => ctrl.abort(), 10000);
+          try {
+            const url = `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(ticker)}?modules=${yfModules}&crumb=${encodeURIComponent(crumb)}&lang=en-US`;
+            const r = await fetch(url, {
+              headers: { 'User-Agent': YF_UA, 'Accept': 'application/json', 'Cookie': cookie, 'Referer': 'https://finance.yahoo.com/' },
+              signal: ctrl.signal,
+            });
+            if (r.ok) {
+              const json = await r.json();
+              const result = json?.quoteSummary?.result?.[0];
+              if (result) {
+                const raw = (v) => (v && typeof v === 'object' && 'raw' in v) ? v.raw : (v ?? null);
+
+                // Parse Yahoo balance sheet
+                if (bsEmpty) {
+                  const bsKey = period === 'quarterly' ? 'balanceSheetHistoryQuarterly' : 'balanceSheetHistory';
+                  const bsStatements = result[bsKey]?.balanceSheetStatements || [];
+                  if (bsStatements.length > 0) {
+                    balanceData = bsStatements.map(s => ({
+                      fiscal_date: s.endDate?.fmt || null,
+                      total_assets: raw(s.totalAssets),
+                      total_liabilities: raw(s.totalLiab),
+                      total_shareholder_equity: raw(s.totalStockholderEquity),
+                      cash_and_short_term_investments: raw(s.cash) || raw(s.shortTermInvestments),
+                      total_debt: raw(s.longTermDebt) != null && raw(s.shortLongTermDebt) != null
+                        ? (raw(s.longTermDebt) + raw(s.shortLongTermDebt)) : raw(s.longTermDebt),
+                      net_debt: raw(s.netDebt),
+                      current_assets: raw(s.totalCurrentAssets),
+                      current_liabilities: raw(s.totalCurrentLiabilities),
+                      retained_earnings: raw(s.retainedEarnings),
+                      common_stock_shares_outstanding: raw(s.commonStockSharesOutstanding),
+                    }));
+                    source = 'yahoo+twelvedata';
+                  }
+                }
+
+                // Parse Yahoo cash flow
+                if (cfEmpty) {
+                  const cfKey = period === 'quarterly' ? 'cashflowStatementHistoryQuarterly' : 'cashflowStatementHistory';
+                  const cfStatements = result[cfKey]?.cashflowStatements || [];
+                  if (cfStatements.length > 0) {
+                    cashflowData = cfStatements.map(s => ({
+                      fiscal_date: s.endDate?.fmt || null,
+                      operating_cashflow: raw(s.totalCashFromOperatingActivities),
+                      investing_cashflow: raw(s.totalCashflowsFromInvestingActivities),
+                      financing_cashflow: raw(s.totalCashFromFinancingActivities),
+                      free_cashflow: raw(s.totalCashFromOperatingActivities) != null && raw(s.capitalExpenditures) != null
+                        ? raw(s.totalCashFromOperatingActivities) + raw(s.capitalExpenditures) : null,
+                      capital_expenditure: raw(s.capitalExpenditures),
+                      net_income: raw(s.netIncome),
+                      depreciation: raw(s.depreciation),
+                      change_in_working_capital: raw(s.changeInWorkingCapital) || raw(s.changeToOperatingActivities),
+                    }));
+                    source = 'yahoo+twelvedata';
+                  }
+                }
+
+                // Parse Yahoo income statement (if TwelveData also failed)
+                if (incEmpty) {
+                  const incKey = period === 'quarterly' ? 'incomeStatementHistoryQuarterly' : 'incomeStatementHistory';
+                  const incStatements = result[incKey]?.incomeStatementHistory || [];
+                  if (incStatements.length > 0) {
+                    incomeData = incStatements.map(s => ({
+                      fiscal_date: s.endDate?.fmt || null,
+                      total_revenue: raw(s.totalRevenue),
+                      gross_profit: raw(s.grossProfit),
+                      operating_income: raw(s.operatingIncome),
+                      net_income: raw(s.netIncome),
+                      ebitda: raw(s.ebitda),
+                      cost_of_revenue: raw(s.costOfRevenue),
+                      research_and_development: raw(s.researchDevelopment),
+                      selling_general_and_administrative: raw(s.sellingGeneralAdministrative),
+                    }));
+                    source = 'yahoo+twelvedata';
+                  }
+                }
+              }
+            }
+          } finally {
+            clearTimeout(timer);
+          }
+        }
+      } catch (yfe) {
+        logger.warn(`[financials] Yahoo fallback for ${ticker}:`, yfe.message);
+      }
+    }
 
     const data = {
-      income_statement: income.status === 'fulfilled' ? income.value : null,
-      balance_sheet:    balance.status === 'fulfilled' ? balance.value : null,
-      cash_flow:        cashflow.status === 'fulfilled' ? cashflow.value : null,
+      income_statement: incomeData,
+      balance_sheet:    balanceData,
+      cash_flow:        cashflowData,
     };
 
     cacheSet(ck, data, 600_000);
-    res.json({ ok: true, data, ticker, period, source: 'twelvedata' });
+    res.json({ ok: true, data, ticker, period, source });
   } catch (e) {
     logger.warn(`GET /market/td/financials/${req.params.ticker} error:`, e.message);
     res.status(500).json({ ok: false, error: e.message });
