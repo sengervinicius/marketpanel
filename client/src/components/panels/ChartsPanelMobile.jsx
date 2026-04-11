@@ -16,6 +16,7 @@ import {
 import { apiFetch } from '../../utils/api';
 import { useTickerPrice } from '../../context/PriceContext';
 import { useOpenDetail } from '../../context/OpenDetailContext';
+import { useSettings } from '../../context/SettingsContext';
 import MobileChartContainer from '../common/MobileChartContainer';
 import {
   computeIndicators, buildChartInsightPayload,
@@ -47,8 +48,6 @@ function MobileCandleShape(props) {
     </g>
   );
 }
-
-const SYNC_INTERVAL = 30_000;
 
 const RANGES = [
   { label: '1D', multiplier: 5,  timespan: 'minute', days: 1   },
@@ -512,31 +511,19 @@ const TickerPill = memo(function TickerPill({ symbol, isActive, onClick, pillRef
 
 /* ── Main panel ───────────────────────────────────────────────────────────── */
 function ChartsPanelMobile() {
-  const [chartSymbols, setChartSymbols] = useState(['SPY', 'QQQ']);
-  const [activeSymbol, setActiveSymbol] = useState('SPY');
-  const syncTimerRef = useRef(null);
+  const { settings } = useSettings();
+  const chartGrid = settings?.charts?.symbols;
+  const chartSymbols = Array.isArray(chartGrid) && chartGrid.length > 0
+    ? chartGrid : ['SPY', 'QQQ'];
+  const [activeSymbol, setActiveSymbol] = useState(chartSymbols[0]);
   const pillRefs = useRef({});
   const stripRef = useRef(null);
   const openDetail = useOpenDetail();
 
+  // Keep activeSymbol in sync when chartGrid changes from settings
   useEffect(() => {
-    const fetchGrid = async () => {
-      try {
-        const res = await apiFetch('/api/settings');
-        if (res.ok) {
-          const data = await res.json();
-          const grid = data.settings?.chartGrid;
-          if (Array.isArray(grid) && grid.length > 0) {
-            setChartSymbols(grid);
-            setActiveSymbol(prev => grid.includes(prev) ? prev : grid[0]);
-          }
-        }
-      } catch (_) {}
-    };
-    fetchGrid();
-    syncTimerRef.current = setInterval(fetchGrid, SYNC_INTERVAL);
-    return () => clearInterval(syncTimerRef.current);
-  }, []);
+    setActiveSymbol(prev => chartSymbols.includes(prev) ? prev : chartSymbols[0]);
+  }, [chartSymbols]);
 
   useEffect(() => {
     const el = pillRefs.current[activeSymbol];

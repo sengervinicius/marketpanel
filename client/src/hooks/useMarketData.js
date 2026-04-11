@@ -12,6 +12,7 @@ const ENDPOINTS = {
 };
 
 const REFRESH_MS = 6_000; // 6 seconds — keeps prices feeling live
+const MOBILE_REFRESH_MS = 15_000; // 15 seconds on mobile — saves bandwidth/battery
 
 // Normalize Brazil (Yahoo Finance) snapshot → same shape as normalizePolygon
 function normalizeBrazil(data) {
@@ -181,11 +182,29 @@ export function useMarketData() {
 
   useEffect(() => {
     isMountedRef.current = true;
+    const isMobile = window.innerWidth < 1024;
+    const interval = isMobile ? MOBILE_REFRESH_MS : REFRESH_MS;
+
     fetchAll();
-    intervalRef.current = setInterval(() => fetchAll(true), REFRESH_MS);
+    intervalRef.current = setInterval(() => fetchAll(true), interval);
+
+    // Pause polling when tab/app is hidden, resume on visibility
+    const handleVisibility = () => {
+      if (document.visibilityState === 'hidden') {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      } else {
+        // Refresh immediately on return, then restart interval
+        fetchAll(true);
+        intervalRef.current = setInterval(() => fetchAll(true), interval);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
     return () => {
       isMountedRef.current = false;
       clearInterval(intervalRef.current);
+      document.removeEventListener('visibilitychange', handleVisibility);
     };
   }, [fetchAll]);
 

@@ -172,25 +172,17 @@ export default function App() {
 
   const syncTimer = useRef(null);
 
+  // Sync chartTicker from SettingsContext (no extra /api/settings call needed)
   useEffect(() => {
-    let mounted = true;
-    apiFetch('/api/settings')
-      .then(r => r.ok ? r.json() : null)
-      .then(s => {
-        if (!mounted) return;
-        let currentTicker;
-        try { currentTicker = localStorage.getItem(LS_CHART_TICKER); } catch { currentTicker = null; }
-        if (s?.settings?.chartTicker && s.settings.chartTicker !== currentTicker) {
-          setChartTickerState(s.settings.chartTicker);
-          try { localStorage.setItem(LS_CHART_TICKER, s.settings.chartTicker); } catch {}
-        } else if (s?.chartTicker && s.chartTicker !== currentTicker) {
-          setChartTickerState(s.chartTicker);
-          try { localStorage.setItem(LS_CHART_TICKER, s.chartTicker); } catch {}
-        }
-      })
-      .catch(() => {});
-    return () => { mounted = false; };
-  }, []);
+    const serverTicker = settings?.chartTicker;
+    if (!serverTicker) return;
+    let currentTicker;
+    try { currentTicker = localStorage.getItem(LS_CHART_TICKER); } catch { currentTicker = null; }
+    if (serverTicker !== currentTicker) {
+      setChartTickerState(serverTicker);
+      try { localStorage.setItem(LS_CHART_TICKER, serverTicker); } catch {}
+    }
+  }, [settings?.chartTicker]);
 
   const setChartTicker = useCallback((t) => {
     const sym = typeof t === 'object' ? (t.symbol || t) : t;
