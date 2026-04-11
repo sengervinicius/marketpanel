@@ -9,9 +9,9 @@ import { DeepSkeleton, DeepError } from '../DeepScreenBase';
 function formatValue(value) {
   if (value == null) return '—';
   const num = parseFloat(value);
-  if (num >= 1e6) return `$${(num / 1e6).toFixed(1)}M`;
-  if (num >= 1e3) return `$${(num / 1e3).toFixed(1)}K`;
-  return `$${num.toFixed(0)}`;
+  if (num >= 1e6) return `${(num / 1e6).toFixed(1)}M`;
+  if (num >= 1e3) return `${(num / 1e3).toFixed(1)}K`;
+  return num.toFixed(0);
 }
 
 function formatShares(shares) {
@@ -148,16 +148,12 @@ export function InsiderActivity({ tickers, limit = 5, onTickerClick }) {
         <tbody>
           {data.map((row, idx) => {
             const isBuy = (row.transaction_type || '').toLowerCase().includes('buy');
-            const rowStyle = isBuy
-              ? { background: 'rgba(76, 175, 80, 0.05)' }   /* semantic-up with transparency */
-              : { background: 'rgba(239, 83, 80, 0.05)' };  /* semantic-down with transparency */
 
             return (
               <tr
                 key={idx}
                 className={onTickerClick ? 'ds-row-clickable' : ''}
                 onClick={() => onTickerClick?.(row.ticker)}
-                style={rowStyle}
               >
                 <td style={{ fontSize: 9, color: 'var(--text-secondary)' }}>
                   {row.transaction_date ? new Date(row.transaction_date).toLocaleDateString('en-US', {
@@ -165,7 +161,7 @@ export function InsiderActivity({ tickers, limit = 5, onTickerClick }) {
                     day: 'numeric',
                   }) : '—'}
                 </td>
-                <td style={{ fontWeight: 600, color: 'var(--text-primary)', cursor: 'pointer' }}>{row.ticker}</td>
+                <td style={{ fontWeight: 700, color: 'var(--text-primary)', cursor: 'pointer' }} className="ds-ticker-col">{row.ticker}</td>
                 <td style={{ fontSize: 9, color: 'var(--text-secondary)' }}>
                   {row.name ? row.name.substring(0, 20) : '—'}
                 </td>

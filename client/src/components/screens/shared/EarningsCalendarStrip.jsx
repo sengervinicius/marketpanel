@@ -6,19 +6,6 @@
 import { useState, useEffect, useMemo, memo, useRef, useCallback } from 'react';
 import { apiFetch } from '../../../utils/api';
 
-const TOKEN_HEX = {
-  bgPanel:       '#0a0a0f',
-  bgSurface:     '#0d0d14',
-  borderDefault: '#1a1a2a',
-  textPrimary:   '#e8e8ed',
-  textSecondary: '#999999',
-  textMuted:     '#555570',
-  textFaint:     '#3a3a4a',
-  accent:        '#ff6600',
-  up:            '#22c55e',
-  down:          '#ef4444',
-};
-
 function formatDate(dateStr) {
   if (!dateStr) return '—';
   const date = new Date(dateStr);
@@ -37,50 +24,50 @@ function EarningsRow({ event, accentColor }) {
     ? actual > estimate ? 'BEAT' : actual < estimate ? 'MISS' : '—'
     : '—';
 
-  const beatMissColor = beatMiss === 'BEAT' ? TOKEN_HEX.up : beatMiss === 'MISS' ? TOKEN_HEX.down : TOKEN_HEX.textMuted;
+  const beatMissColor = beatMiss === 'BEAT' ? 'var(--up)' : beatMiss === 'MISS' ? 'var(--down)' : 'var(--text-muted)';
 
   return (
     <tr>
-      <td style={{
-        padding: '6px 8px',
+      <td className="ds-ticker-col" style={{
+        padding: '4px 8px',
         fontSize: 11,
-        fontWeight: 600,
-        color: accentColor || TOKEN_HEX.accent,
+        fontWeight: 700,
+        color: accentColor || 'var(--accent)',
         fontFamily: 'var(--font-mono, monospace)',
         whiteSpace: 'nowrap',
       }}>
         {ticker}
       </td>
       <td style={{
-        padding: '6px 8px',
+        padding: '4px 8px',
         fontSize: 10,
-        color: TOKEN_HEX.textMuted,
+        color: 'var(--text-muted)',
         whiteSpace: 'nowrap',
       }}>
         {formatDate(date)}
       </td>
       <td style={{
-        padding: '6px 8px',
+        padding: '4px 8px',
         fontSize: 10,
-        color: TOKEN_HEX.textSecondary,
+        color: 'var(--text-secondary)',
         fontFamily: 'var(--font-mono, monospace)',
         textAlign: 'right',
         whiteSpace: 'nowrap',
       }}>
-        {estimate != null ? `$${parseFloat(estimate).toFixed(2)}` : '—'}
+        {estimate != null ? `${parseFloat(estimate).toFixed(2)}` : '—'}
       </td>
       <td style={{
-        padding: '6px 8px',
+        padding: '4px 8px',
         fontSize: 10,
-        color: actual != null ? TOKEN_HEX.textPrimary : TOKEN_HEX.textMuted,
+        color: actual != null ? 'var(--text-primary)' : 'var(--text-muted)',
         fontFamily: 'var(--font-mono, monospace)',
         textAlign: 'right',
         whiteSpace: 'nowrap',
       }}>
-        {actual != null ? `$${parseFloat(actual).toFixed(2)}` : '—'}
+        {actual != null ? `${parseFloat(actual).toFixed(2)}` : '—'}
       </td>
       <td style={{
-        padding: '6px 8px',
+        padding: '4px 8px',
         fontSize: 9,
         color: beatMissColor,
         fontWeight: 600,
@@ -152,14 +139,14 @@ export const EarningsCalendarStrip = memo(function EarningsCalendarStrip({
   if (tickerList.length === 0) return null;
 
   return (
-    <div style={{ padding: '8px' }}>
+    <div style={{ padding: '4px' }}>
       <div style={{
         fontSize: 9,
         color: accentColor || 'var(--text-muted)',
-        marginBottom: 10,
+        marginBottom: 8,
         textTransform: 'uppercase',
         letterSpacing: 1,
-        fontWeight: 600,
+        fontWeight: 700,
       }}>
         EARNINGS CALENDAR
       </div>
@@ -170,7 +157,7 @@ export const EarningsCalendarStrip = memo(function EarningsCalendarStrip({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          color: TOKEN_HEX.textFaint,
+          color: 'var(--text-faint)',
           fontSize: 10,
         }}>
           Loading earnings…
@@ -181,14 +168,14 @@ export const EarningsCalendarStrip = memo(function EarningsCalendarStrip({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          color: TOKEN_HEX.textMuted,
+          color: 'var(--text-muted)',
           fontSize: 10,
         }}>
           No upcoming earnings found
         </div>
       ) : (
         <div style={{ overflowX: 'auto' }}>
-          <table style={{
+          <table className="ds-table" style={{
             borderCollapse: 'collapse',
             fontSize: 11,
             width: '100%',
@@ -196,62 +183,62 @@ export const EarningsCalendarStrip = memo(function EarningsCalendarStrip({
             <thead>
               <tr>
                 <th style={{
-                  padding: '6px 8px',
-                  color: TOKEN_HEX.textFaint,
+                  padding: '4px 8px',
+                  color: 'var(--text-faint)',
                   fontSize: 8,
-                  fontWeight: 500,
+                  fontWeight: 700,
                   textAlign: 'left',
                   textTransform: 'uppercase',
                   letterSpacing: 0.3,
-                  borderBottom: `1px solid ${TOKEN_HEX.borderDefault}`,
+                  borderBottom: `1px solid var(--border-default)`,
                 }}>
                   Ticker
                 </th>
                 <th style={{
-                  padding: '6px 8px',
-                  color: TOKEN_HEX.textFaint,
+                  padding: '4px 8px',
+                  color: 'var(--text-faint)',
                   fontSize: 8,
-                  fontWeight: 500,
+                  fontWeight: 700,
                   textAlign: 'left',
                   textTransform: 'uppercase',
                   letterSpacing: 0.3,
-                  borderBottom: `1px solid ${TOKEN_HEX.borderDefault}`,
+                  borderBottom: `1px solid var(--border-default)`,
                 }}>
                   Date
                 </th>
                 <th style={{
-                  padding: '6px 8px',
-                  color: TOKEN_HEX.textFaint,
+                  padding: '4px 8px',
+                  color: 'var(--text-faint)',
                   fontSize: 8,
-                  fontWeight: 500,
+                  fontWeight: 700,
                   textAlign: 'right',
                   textTransform: 'uppercase',
                   letterSpacing: 0.3,
-                  borderBottom: `1px solid ${TOKEN_HEX.borderDefault}`,
+                  borderBottom: `1px solid var(--border-default)`,
                 }}>
                   Est. EPS
                 </th>
                 <th style={{
-                  padding: '6px 8px',
-                  color: TOKEN_HEX.textFaint,
+                  padding: '4px 8px',
+                  color: 'var(--text-faint)',
                   fontSize: 8,
-                  fontWeight: 500,
+                  fontWeight: 700,
                   textAlign: 'right',
                   textTransform: 'uppercase',
                   letterSpacing: 0.3,
-                  borderBottom: `1px solid ${TOKEN_HEX.borderDefault}`,
+                  borderBottom: `1px solid var(--border-default)`,
                 }}>
                   Actual EPS
                 </th>
                 <th style={{
-                  padding: '6px 8px',
-                  color: TOKEN_HEX.textFaint,
+                  padding: '4px 8px',
+                  color: 'var(--text-faint)',
                   fontSize: 8,
-                  fontWeight: 500,
+                  fontWeight: 700,
                   textAlign: 'center',
                   textTransform: 'uppercase',
                   letterSpacing: 0.3,
-                  borderBottom: `1px solid ${TOKEN_HEX.borderDefault}`,
+                  borderBottom: `1px solid var(--border-default)`,
                 }}>
                   Result
                 </th>

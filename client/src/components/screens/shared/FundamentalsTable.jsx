@@ -72,25 +72,6 @@ function formatValue(value, format, decimals = 2) {
   return value;
 }
 
-function getCellColor(metric, value) {
-  if (value == null || value === '') return {};
-  const num = parseFloat(value);
-  if (isNaN(num)) return {};
-
-  if (metric === 'pe') {
-    if (num < 15) return { color: 'var(--semantic-up)' };
-    if (num > 30) return { color: 'var(--semantic-down)' };
-  } else if (metric === 'grossMargins' || metric === 'operatingMargins' || metric === 'profitMargins') {
-    if (num > 20) return { color: 'var(--semantic-up)' };
-    if (num < 10) return { color: 'var(--semantic-warn)' };
-    if (num < 0) return { color: 'var(--semantic-down)' };
-  } else if (metric === 'returnOnEquity') {
-    if (num > 15) return { color: 'var(--semantic-up)' };
-    if (num < 5) return { color: 'var(--semantic-warn)' };
-    if (num < 0) return { color: 'var(--semantic-down)' };
-  }
-  return {};
-}
 
 /**
  * Merge batch endpoint data with Twelve Data statistics for a single ticker.
@@ -211,7 +192,7 @@ export function FundamentalsTable({ tickers, metrics = null, title, onTickerClic
   if (!mergedData || mergedData.length === 0) return <div style={{ padding: '12px', color: 'var(--text-muted)', fontSize: 12 }}>No data</div>;
 
   return (
-    <div style={{ padding: '0 12px', overflow: 'auto' }}>
+    <div style={{ overflow: 'auto' }}>
       {title && <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 0.8, fontWeight: 600 }}>{title}</div>}
       <table className="ds-table">
         <thead>
@@ -233,13 +214,12 @@ export function FundamentalsTable({ tickers, metrics = null, title, onTickerClic
         <tbody>
           {sortedData.map((row, idx) => (
             <tr key={row.ticker || idx} className={onTickerClick ? 'ds-row-clickable' : ''} onClick={() => onTickerClick?.(row.ticker)}>
-              <td style={{ fontWeight: 500, color: 'var(--text-primary)' }}>{row.ticker}</td>
+              <td className="ds-ticker-col" style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{row.ticker}</td>
               {displayMetrics.map(metric => {
                 const value = row[metric];
                 const info = METRIC_INFO[metric];
-                const cellStyle = getCellColor(metric, value);
                 return (
-                  <td key={metric} style={cellStyle}>
+                  <td key={metric} style={{ color: 'var(--text-primary)' }}>
                     {formatValue(value, info.format, info.decimals)}
                   </td>
                 );

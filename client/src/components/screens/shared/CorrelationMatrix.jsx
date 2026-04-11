@@ -7,28 +7,18 @@
 import { useState, useEffect, useMemo, memo, useRef, useCallback } from 'react';
 import { apiFetch } from '../../../utils/api';
 
-/* SVG elements cannot resolve CSS custom properties */
-const TOKEN_HEX = {
-  bgPanel:       '#0a0a0f',
-  bgSurface:     '#0d0d14',
-  borderDefault: '#1a1a2a',
-  textPrimary:   '#e8e8ed',
-  textSecondary: '#999999',
-  textMuted:     '#555570',
-  textFaint:     '#3a3a4a',
-  accent:        '#ff6600',
-};
-
-/** Convert -1…+1 correlation to color */
+/** Convert -1…+1 correlation to very subtle background tint */
 function corrColor(val) {
-  if (val == null || isNaN(val)) return 'rgba(255,255,255,0.03)';
-  // Deep red (-1) → neutral (0) → deep green (+1)
-  const t = (val + 1) / 2; // 0 = -1, 0.5 = 0, 1 = +1
-  const r = Math.round(t < 0.5 ? 200 : 200 - (t - 0.5) * 2 * 160);
-  const g = Math.round(t < 0.5 ? 40 + t * 2 * 160 : 200);
-  const b = 40;
-  const a = 0.25 + Math.abs(val) * 0.35;
-  return `rgba(${r}, ${g}, ${b}, ${a})`;
+  if (val == null || isNaN(val)) return 'transparent';
+  // Positive correlation: very faint green
+  // Negative correlation: very faint red
+  // Text values are the primary information, not the background
+  if (val > 0) {
+    return `rgba(76, 175, 80, ${Math.abs(val) * 0.08})`; // Green tint max 0.08
+  } else if (val < 0) {
+    return `rgba(239, 83, 80, ${Math.abs(val) * 0.08})`; // Red tint max 0.08
+  }
+  return 'transparent';
 }
 
 /** Fetch daily close prices for a ticker */
@@ -146,7 +136,7 @@ export const CorrelationMatrix = memo(function CorrelationMatrix({
           marginBottom: 10,
           textTransform: 'uppercase',
           letterSpacing: 1,
-          fontWeight: 600,
+          fontWeight: 700,
         }}>
           {title} <span style={{ color: 'var(--text-faint)', fontWeight: 400 }}>({days}D)</span>
         </div>
@@ -175,14 +165,14 @@ export const CorrelationMatrix = memo(function CorrelationMatrix({
           }}>
             <thead>
               <tr>
-                <th style={{ padding: '4px 6px', color: TOKEN_HEX.textFaint, fontSize: 8 }}></th>
+                <th style={{ padding: '4px 6px', color: 'var(--text-faint)', fontSize: 8 }}></th>
                 {tickerList.map(t => (
                   <th key={t} style={{
                     padding: '4px 4px',
-                    color: TOKEN_HEX.textMuted,
+                    color: 'var(--text-muted)',
                     fontSize: 8,
                     textAlign: 'center',
-                    fontWeight: 500,
+                    fontWeight: 700,
                     letterSpacing: 0.3,
                     width: cellSize,
                     maxWidth: cellSize,
@@ -200,8 +190,8 @@ export const CorrelationMatrix = memo(function CorrelationMatrix({
                 <tr key={rowT}>
                   <td style={{
                     padding: '4px 6px',
-                    color: TOKEN_HEX.textSecondary,
-                    fontWeight: 500,
+                    color: 'var(--text-secondary)',
+                    fontWeight: 700,
                     fontSize: 8,
                     whiteSpace: 'nowrap',
                   }}>
@@ -217,11 +207,11 @@ export const CorrelationMatrix = memo(function CorrelationMatrix({
                           height: cellSize,
                           textAlign: 'center',
                           background: corrColor(val),
-                          color: val != null ? TOKEN_HEX.textPrimary : TOKEN_HEX.textFaint,
+                          color: val != null ? 'var(--text-primary)' : 'var(--text-faint)',
                           fontWeight: i === j ? 700 : 400,
                           fontSize: 9,
                           cursor: 'default',
-                          border: `1px solid ${TOKEN_HEX.borderDefault}`,
+                          border: `1px solid var(--border-default)`,
                           transition: 'background 0.15s',
                         }}
                         title={`${displayTicker(rowT)} ↔ ${displayTicker(colT)}: ${val != null ? val.toFixed(3) : 'N/A'}`}
@@ -244,14 +234,14 @@ export const CorrelationMatrix = memo(function CorrelationMatrix({
             gap: 8,
             marginTop: 8,
             fontSize: 8,
-            color: TOKEN_HEX.textFaint,
+            color: 'var(--text-faint)',
           }}>
             <span>−1</span>
             <div style={{
               flex: 1,
               height: 6,
               borderRadius: 3,
-              background: 'linear-gradient(90deg, rgba(200,40,40,0.5), rgba(120,120,40,0.2), rgba(40,200,40,0.5))',
+              background: 'linear-gradient(90deg, rgba(239,83,80,0.08), rgba(120,120,40,0.02), rgba(76,175,80,0.08))',
             }} />
             <span>+1</span>
           </div>

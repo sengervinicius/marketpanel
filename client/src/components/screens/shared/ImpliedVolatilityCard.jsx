@@ -6,88 +6,6 @@
 import { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { apiFetch } from '../../../utils/api';
 
-const TOKEN_HEX = {
-  textPrimary:   '#e8e8ed',
-  textSecondary: '#999999',
-  textMuted:     '#555570',
-  textFaint:     '#3a3a4a',
-  accent:        '#ff6600',
-  up:            '#22c55e',
-  down:          '#ef4444',
-};
-
-function MetricRow({ label, value, color }) {
-  return (
-    <div style={{
-      display: 'flex',
-      justifyContent: 'space-between',
-      padding: '4px 0',
-      borderBottom: '1px solid rgba(255,255,255,0.03)',
-    }}>
-      <span style={{ fontSize: 9, color: TOKEN_HEX.textMuted, textTransform: 'uppercase', letterSpacing: 0.3 }}>
-        {label}
-      </span>
-      <span style={{
-        fontSize: 11,
-        fontWeight: 600,
-        color: color || TOKEN_HEX.textPrimary,
-        fontFamily: 'var(--font-mono, monospace)',
-      }}>
-        {value || '—'}
-      </span>
-    </div>
-  );
-}
-
-/** Visual gauge for IV percentile (0-100) */
-function IVGauge({ value, accentColor }) {
-  if (value == null) return null;
-  const pct = Math.max(0, Math.min(100, value));
-  const gaugeColor = pct > 70 ? TOKEN_HEX.down : pct > 40 ? TOKEN_HEX.accent : TOKEN_HEX.up;
-
-  return (
-    <div style={{ marginTop: 6 }}>
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        fontSize: 8,
-        color: TOKEN_HEX.textFaint,
-        marginBottom: 2,
-      }}>
-        <span>LOW</span>
-        <span>IV RANK</span>
-        <span>HIGH</span>
-      </div>
-      <div style={{
-        width: '100%',
-        height: 4,
-        background: 'rgba(255,255,255,0.05)',
-        borderRadius: 2,
-        position: 'relative',
-      }}>
-        <div style={{
-          width: `${pct}%`,
-          height: '100%',
-          background: gaugeColor,
-          borderRadius: 2,
-          transition: 'width 0.3s ease',
-        }} />
-        <div style={{
-          position: 'absolute',
-          top: -2,
-          left: `${pct}%`,
-          width: 8,
-          height: 8,
-          borderRadius: '50%',
-          background: gaugeColor,
-          border: '1px solid #0a0a0f',
-          transform: 'translateX(-50%)',
-        }} />
-      </div>
-    </div>
-  );
-}
-
 export const ImpliedVolatilityCard = memo(function ImpliedVolatilityCard({
   ticker,
   label,
@@ -125,52 +43,65 @@ export const ImpliedVolatilityCard = memo(function ImpliedVolatilityCard({
       background: 'var(--bg-elevated, #111118)',
       border: '1px solid var(--border-default, #1a1a2a)',
       borderRadius: 4,
-      padding: '10px 12px',
+      padding: '2px 4px',
       minWidth: 160,
     }}>
       <div style={{
         fontSize: 10,
         fontWeight: 600,
-        color: accentColor || TOKEN_HEX.accent,
-        marginBottom: 8,
+        textTransform: 'uppercase',
         letterSpacing: 0.5,
+        color: 'var(--text-primary)',
+        marginBottom: 4,
+        paddingBottom: 4,
+        borderBottom: '1px solid rgba(255,255,255,0.03)',
       }}>
-        {displayTicker}
+        IMPLIED VOLATILITY
       </div>
 
       {loading ? (
-        <div style={{ height: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', color: TOKEN_HEX.textFaint, fontSize: 9 }}>
+        <div style={{ height: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-faint)', fontSize: 9 }}>
           Loading…
         </div>
       ) : !data || data.source === 'unavailable' || (data.iv == null && data.ivRank == null && data.putCallRatio == null) ? (
-        <div style={{ textAlign: 'center', color: TOKEN_HEX.textMuted, fontSize: 10, padding: '10px 0', lineHeight: 1.5 }}>
+        <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: 10, padding: '10px 0', lineHeight: 1.5 }}>
           Options data not available
           <br />
-          <span style={{ fontSize: 9, color: TOKEN_HEX.textFaint }}>Requires options data feed</span>
+          <span style={{ fontSize: 9, color: 'var(--text-faint)' }}>Requires options data feed</span>
         </div>
       ) : (
-        <>
-          <MetricRow
-            label="Implied Vol"
-            value={data.iv != null ? `${(data.iv * 100).toFixed(1)}%` : null}
-            color={TOKEN_HEX.textPrimary}
-          />
-          <MetricRow
-            label="IV Rank"
-            value={data.ivRank != null ? `${data.ivRank.toFixed(0)}` : null}
-            color={data.ivRank > 70 ? TOKEN_HEX.down : data.ivRank > 40 ? TOKEN_HEX.accent : TOKEN_HEX.up}
-          />
-          <MetricRow
-            label="IV Percentile"
-            value={data.ivPercentile != null ? `${data.ivPercentile.toFixed(0)}th` : null}
-          />
-          <MetricRow
-            label="Put/Call Ratio"
-            value={data.putCallRatio != null ? data.putCallRatio.toFixed(2) : null}
-            color={data.putCallRatio > 1.0 ? TOKEN_HEX.down : TOKEN_HEX.up}
-          />
-          <IVGauge value={data.ivRank} accentColor={accentColor} />
-        </>
+        <table className="ds-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <tbody>
+            <tr>
+              <td style={{ fontSize: 9, color: 'var(--text-secondary)', textTransform: 'uppercase', padding: '2px 0' }}>TICKER</td>
+              <td style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-primary)', textAlign: 'right', padding: '2px 4px', fontFamily: 'var(--font-mono, monospace)' }} className="ds-ticker-col">{displayTicker}</td>
+            </tr>
+            {data.iv != null && (
+              <tr>
+                <td style={{ fontSize: 9, color: 'var(--text-secondary)', textTransform: 'uppercase', padding: '2px 0' }}>IV</td>
+                <td style={{ fontSize: 10, color: 'var(--text-primary)', textAlign: 'right', padding: '2px 4px', fontFamily: 'var(--font-mono, monospace)' }}>{(data.iv * 100).toFixed(1)}%</td>
+              </tr>
+            )}
+            {data.ivRank != null && (
+              <tr>
+                <td style={{ fontSize: 9, color: 'var(--text-secondary)', textTransform: 'uppercase', padding: '2px 0' }}>IV RANK</td>
+                <td style={{ fontSize: 10, color: 'var(--text-primary)', textAlign: 'right', padding: '2px 4px', fontFamily: 'var(--font-mono, monospace)' }}>{data.ivRank.toFixed(0)}</td>
+              </tr>
+            )}
+            {data.ivPercentile != null && (
+              <tr>
+                <td style={{ fontSize: 9, color: 'var(--text-secondary)', textTransform: 'uppercase', padding: '2px 0' }}>IV PERCENTILE</td>
+                <td style={{ fontSize: 10, color: 'var(--text-primary)', textAlign: 'right', padding: '2px 4px', fontFamily: 'var(--font-mono, monospace)' }}>{data.ivPercentile.toFixed(0)}th</td>
+              </tr>
+            )}
+            {data.putCallRatio != null && (
+              <tr>
+                <td style={{ fontSize: 9, color: 'var(--text-secondary)', textTransform: 'uppercase', padding: '2px 0' }}>PUT/CALL RATIO</td>
+                <td style={{ fontSize: 10, color: 'var(--text-primary)', textAlign: 'right', padding: '2px 4px', fontFamily: 'var(--font-mono, monospace)' }}>{data.putCallRatio.toFixed(2)}</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
       )}
     </div>
   );

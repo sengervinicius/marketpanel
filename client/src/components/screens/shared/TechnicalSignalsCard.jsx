@@ -6,50 +6,33 @@
 import { useState, useEffect, useMemo, memo, useRef, useCallback } from 'react';
 import { apiFetch } from '../../../utils/api';
 
-const TOKEN_HEX = {
-  textPrimary:   '#e8e8ed',
-  textSecondary: '#999999',
-  textMuted:     '#555570',
-  textFaint:     '#3a3a4a',
-  borderDefault: '#1a1a2a',
-  accent:        '#ff6600',
-  up:            '#22c55e',
-  down:          '#ef4444',
-};
-
 function RSIBadge({ rsi }) {
-  if (rsi == null || isNaN(rsi)) return <span style={{ color: TOKEN_HEX.textMuted }}>—</span>;
+  if (rsi == null || isNaN(rsi)) return <span style={{ color: 'var(--text-muted)' }}>—</span>;
 
-  let bgColor, textColor, label;
+  let textColor, label;
   if (rsi > 70) {
-    bgColor = 'rgba(239, 68, 68, 0.15)';
-    textColor = TOKEN_HEX.down;
-    label = 'OB';
+    textColor = 'var(--semantic-down)';
+    label = 'Overbought';
   } else if (rsi < 30) {
-    bgColor = 'rgba(34, 197, 94, 0.15)';
-    textColor = TOKEN_HEX.up;
-    label = 'OS';
+    textColor = 'var(--price-up)';
+    label = 'Oversold';
   } else {
-    bgColor = 'rgba(255, 102, 0, 0.1)';
-    textColor = TOKEN_HEX.accent;
-    label = 'N';
+    textColor = 'var(--text-muted)';
+    label = 'Neutral';
   }
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
       <span style={{
-        background: bgColor,
         color: textColor,
-        padding: '2px 4px',
-        borderRadius: 2,
-        fontSize: 8,
-        fontWeight: 700,
-        letterSpacing: 0.3,
+        fontFamily: 'var(--font-mono, monospace)',
+        fontSize: 10,
+        fontWeight: 600,
       }}>
         {label}
       </span>
       <span style={{
-        color: TOKEN_HEX.textPrimary,
+        color: 'var(--text-primary)',
         fontFamily: 'var(--font-mono, monospace)',
         fontSize: 10,
       }}>
@@ -61,28 +44,25 @@ function RSIBadge({ rsi }) {
 
 function MACDSignal({ macd, signal }) {
   if (macd == null || signal == null || isNaN(macd) || isNaN(signal)) {
-    return <span style={{ color: TOKEN_HEX.textMuted }}>—</span>;
+    return <span style={{ color: 'var(--text-muted)' }}>—</span>;
   }
 
   const isBullish = macd > signal;
-  const color = isBullish ? TOKEN_HEX.up : TOKEN_HEX.down;
-  const label = isBullish ? 'BULL' : 'BEAR';
+  const color = isBullish ? 'var(--price-up)' : 'var(--semantic-down)';
+  const label = isBullish ? 'Bullish' : 'Bearish';
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
       <span style={{
-        background: isBullish ? 'rgba(34, 197, 94, 0.15)' : 'rgba(239, 68, 68, 0.15)',
         color: color,
-        padding: '2px 4px',
-        borderRadius: 2,
-        fontSize: 8,
-        fontWeight: 700,
-        letterSpacing: 0.3,
+        fontFamily: 'var(--font-mono, monospace)',
+        fontSize: 10,
+        fontWeight: 600,
       }}>
         {label}
       </span>
       <span style={{
-        color: TOKEN_HEX.textSecondary,
+        color: 'var(--text-secondary)',
         fontFamily: 'var(--font-mono, monospace)',
         fontSize: 9,
       }}>
@@ -96,23 +76,24 @@ function TechnicalRow({ ticker, technicals, accentColor }) {
   return (
     <tr>
       <td style={{
-        padding: '6px 8px',
+        padding: '4px 8px',
         fontSize: 11,
-        fontWeight: 600,
-        color: accentColor || TOKEN_HEX.accent,
+        fontWeight: 700,
+        color: accentColor || 'var(--accent)',
         fontFamily: 'var(--font-mono, monospace)',
         whiteSpace: 'nowrap',
-      }}>
+      }}
+      className="ds-ticker-col">
         {ticker}
       </td>
       <td style={{
-        padding: '6px 8px',
+        padding: '4px 8px',
         textAlign: 'center',
       }}>
         <RSIBadge rsi={technicals?.rsi} />
       </td>
       <td style={{
-        padding: '6px 8px',
+        padding: '4px 8px',
         textAlign: 'center',
       }}>
         <MACDSignal macd={technicals?.macd} signal={technicals?.macdSignal} />
@@ -199,14 +180,14 @@ export const TechnicalSignalsCard = memo(function TechnicalSignalsCard({
   if (tickerList.length === 0) return null;
 
   return (
-    <div style={{ padding: '8px' }}>
+    <div style={{ padding: '4px' }}>
       <div style={{
         fontSize: 9,
         color: accentColor || 'var(--text-muted)',
-        marginBottom: 10,
+        marginBottom: 8,
         textTransform: 'uppercase',
         letterSpacing: 1,
-        fontWeight: 600,
+        fontWeight: 700,
       }}>
         TECHNICAL SIGNALS
       </div>
@@ -217,7 +198,7 @@ export const TechnicalSignalsCard = memo(function TechnicalSignalsCard({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          color: TOKEN_HEX.textFaint,
+          color: 'var(--text-faint)',
           fontSize: 10,
         }}>
           Loading technicals…
@@ -228,13 +209,13 @@ export const TechnicalSignalsCard = memo(function TechnicalSignalsCard({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          color: TOKEN_HEX.textMuted,
+          color: 'var(--text-muted)',
           fontSize: 10,
         }}>
           No technical data available
         </div>
       ) : (
-        <div style={{ overflowX: 'auto' }}>
+        <div style={{ overflowX: 'auto' }} className="ds-table">
           <table style={{
             borderCollapse: 'collapse',
             width: '100%',
@@ -242,38 +223,38 @@ export const TechnicalSignalsCard = memo(function TechnicalSignalsCard({
             <thead>
               <tr>
                 <th style={{
-                  padding: '6px 8px',
-                  color: TOKEN_HEX.textFaint,
+                  padding: '4px 8px',
+                  color: 'var(--text-faint)',
                   fontSize: 8,
                   fontWeight: 500,
                   textAlign: 'left',
                   textTransform: 'uppercase',
                   letterSpacing: 0.3,
-                  borderBottom: `1px solid ${TOKEN_HEX.borderDefault}`,
+                  borderBottom: '1px solid var(--border-default)',
                 }}>
                   Ticker
                 </th>
                 <th style={{
-                  padding: '6px 8px',
-                  color: TOKEN_HEX.textFaint,
+                  padding: '4px 8px',
+                  color: 'var(--text-faint)',
                   fontSize: 8,
                   fontWeight: 500,
                   textAlign: 'center',
                   textTransform: 'uppercase',
                   letterSpacing: 0.3,
-                  borderBottom: `1px solid ${TOKEN_HEX.borderDefault}`,
+                  borderBottom: '1px solid var(--border-default)',
                 }}>
                   RSI
                 </th>
                 <th style={{
-                  padding: '6px 8px',
-                  color: TOKEN_HEX.textFaint,
+                  padding: '4px 8px',
+                  color: 'var(--text-faint)',
                   fontSize: 8,
                   fontWeight: 500,
                   textAlign: 'center',
                   textTransform: 'uppercase',
                   letterSpacing: 0.3,
-                  borderBottom: `1px solid ${TOKEN_HEX.borderDefault}`,
+                  borderBottom: '1px solid var(--border-default)',
                 }}>
                   MACD
                 </th>
@@ -293,19 +274,6 @@ export const TechnicalSignalsCard = memo(function TechnicalSignalsCard({
           </table>
         </div>
       )}
-
-      {/* Legend */}
-      <div style={{
-        display: 'flex',
-        gap: 12,
-        marginTop: 10,
-        fontSize: 8,
-        color: TOKEN_HEX.textFaint,
-      }}>
-        <span title="Overbought">OB = Overbought (&gt;70)</span>
-        <span title="Oversold">OS = Oversold (&lt;30)</span>
-        <span title="Neutral">N = Neutral</span>
-      </div>
     </div>
   );
 });

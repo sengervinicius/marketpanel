@@ -6,27 +6,14 @@
 import { useState, useEffect, useMemo, memo, useRef, useCallback } from 'react';
 import { apiFetch } from '../../../utils/api';
 
-const TOKEN_HEX = {
-  bgPanel:       '#0a0a0f',
-  bgSurface:     '#0d0d14',
-  borderDefault: '#1a1a2a',
-  textPrimary:   '#e8e8ed',
-  textSecondary: '#999999',
-  textMuted:     '#555570',
-  textFaint:     '#3a3a4a',
-  accent:        '#ff6600',
-  up:            '#22c55e',
-  down:          '#ef4444',
-};
-
 const IMPACT_COLORS = {
-  high:   '#ef4444',
-  medium: '#eab308',
-  low:    '#555570',
+  high:   'var(--semantic-down)',
+  medium: 'var(--semantic-warning)',
+  low:    'var(--text-muted)',
 };
 
 function impactDot(impact) {
-  const color = IMPACT_COLORS[impact?.toLowerCase?.()] || TOKEN_HEX.textMuted;
+  const color = IMPACT_COLORS[impact?.toLowerCase?.()] || 'var(--text-muted)';
   return (
     <span style={{
       display: 'inline-block',
@@ -69,28 +56,28 @@ function EventRow({ event, accentColor }) {
   return (
     <tr>
       <td style={{
-        padding: '6px 8px',
+        padding: '3px 8px',
         fontSize: 10,
-        fontWeight: 600,
-        color: TOKEN_HEX.textSecondary,
+        fontWeight: 700,
+        color: 'var(--text-secondary)',
         fontFamily: 'var(--font-mono, monospace)',
         whiteSpace: 'nowrap',
       }}>
         {formatEventDate(event.date || event.datetime)}
       </td>
       <td style={{
-        padding: '6px 8px',
+        padding: '3px 8px',
         fontSize: 10,
-        color: TOKEN_HEX.textMuted,
+        color: 'var(--text-muted)',
         whiteSpace: 'nowrap',
       }}>
         {countryFlag(event.country)} {event.country || '—'}
       </td>
       <td style={{
-        padding: '6px 8px',
+        padding: '3px 8px',
         fontSize: 10,
-        color: TOKEN_HEX.textPrimary,
-        fontWeight: 500,
+        color: 'var(--text-primary)',
+        fontWeight: 700,
       }}>
         <span style={{ display: 'flex', alignItems: 'center' }}>
           {impactDot(event.impact)}
@@ -98,20 +85,20 @@ function EventRow({ event, accentColor }) {
         </span>
       </td>
       <td style={{
-        padding: '6px 8px',
+        padding: '3px 8px',
         fontSize: 10,
         fontFamily: 'var(--font-mono, monospace)',
-        color: TOKEN_HEX.textSecondary,
+        color: 'var(--text-secondary)',
         textAlign: 'right',
         whiteSpace: 'nowrap',
       }}>
         {event.forecast ?? event.expected ?? '—'}
       </td>
       <td style={{
-        padding: '6px 8px',
+        padding: '3px 8px',
         fontSize: 10,
         fontFamily: 'var(--font-mono, monospace)',
-        color: TOKEN_HEX.textMuted,
+        color: 'var(--text-muted)',
         textAlign: 'right',
         whiteSpace: 'nowrap',
       }}>
@@ -173,8 +160,8 @@ export const MacroCalendarStrip = memo(function MacroCalendarStrip({
 
   return (
     <div style={{
-      background: TOKEN_HEX.bgSurface,
-      border: `1px solid ${TOKEN_HEX.borderDefault}`,
+      background: 'var(--bg-surface)',
+      border: '1px solid var(--border-default)',
       borderRadius: 4,
       overflow: 'hidden',
     }}>
@@ -184,45 +171,45 @@ export const MacroCalendarStrip = memo(function MacroCalendarStrip({
         alignItems: 'center',
         justifyContent: 'space-between',
         padding: '8px 10px',
-        borderBottom: `1px solid ${TOKEN_HEX.borderDefault}`,
+        borderBottom: '1px solid var(--border-default)',
       }}>
         <span style={{
           fontSize: 9,
           fontWeight: 700,
           letterSpacing: '1.2px',
-          color: TOKEN_HEX.textSecondary,
+          color: 'var(--text-secondary)',
           textTransform: 'uppercase',
         }}>
-          Macro Calendar {countries.length > 0 ? `(${countries.join(', ')})` : ''}
+          MACRO CALENDAR {countries.length > 0 ? `(${countries.join(', ')})` : ''}
         </span>
-        <span style={{ fontSize: 8, color: TOKEN_HEX.textFaint }}>
+        <span style={{ fontSize: 8, color: 'var(--text-muted)' }}>
           EULERPOOL
         </span>
       </div>
 
       {/* body */}
       {loading ? (
-        <div style={{ padding: '20px 10px', textAlign: 'center', color: TOKEN_HEX.textMuted, fontSize: 10 }}>
+        <div style={{ padding: '20px 10px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 10 }}>
           Loading macro events…
         </div>
       ) : error || events.length === 0 ? (
-        <div style={{ padding: '20px 10px', textAlign: 'center', color: TOKEN_HEX.textMuted, fontSize: 10 }}>
+        <div style={{ padding: '20px 10px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 10 }}>
           {error || 'No upcoming macro events'}
         </div>
       ) : (
         <div style={{ overflow: 'auto' }}>
-          <table style={{
+          <table className="ds-table" style={{
             width: '100%',
             borderCollapse: 'collapse',
             tableLayout: 'auto',
           }}>
             <thead>
-              <tr style={{ borderBottom: `1px solid ${TOKEN_HEX.borderDefault}` }}>
-                <th style={{ padding: '4px 8px', fontSize: 8, color: TOKEN_HEX.textMuted, fontWeight: 600, textAlign: 'left' }}>DATE</th>
-                <th style={{ padding: '4px 8px', fontSize: 8, color: TOKEN_HEX.textMuted, fontWeight: 600, textAlign: 'left' }}>COUNTRY</th>
-                <th style={{ padding: '4px 8px', fontSize: 8, color: TOKEN_HEX.textMuted, fontWeight: 600, textAlign: 'left' }}>EVENT</th>
-                <th style={{ padding: '4px 8px', fontSize: 8, color: TOKEN_HEX.textMuted, fontWeight: 600, textAlign: 'right' }}>FORECAST</th>
-                <th style={{ padding: '4px 8px', fontSize: 8, color: TOKEN_HEX.textMuted, fontWeight: 600, textAlign: 'right' }}>PREVIOUS</th>
+              <tr style={{ borderBottom: '1px solid var(--border-default)' }}>
+                <th style={{ padding: '3px 8px', fontSize: 8, color: 'var(--text-muted)', fontWeight: 700, textAlign: 'left' }}>DATE</th>
+                <th style={{ padding: '3px 8px', fontSize: 8, color: 'var(--text-muted)', fontWeight: 700, textAlign: 'left' }}>COUNTRY</th>
+                <th style={{ padding: '3px 8px', fontSize: 8, color: 'var(--text-muted)', fontWeight: 700, textAlign: 'left' }}>EVENT</th>
+                <th style={{ padding: '3px 8px', fontSize: 8, color: 'var(--text-muted)', fontWeight: 700, textAlign: 'right' }}>FORECAST</th>
+                <th style={{ padding: '3px 8px', fontSize: 8, color: 'var(--text-muted)', fontWeight: 700, textAlign: 'right' }}>PREVIOUS</th>
               </tr>
             </thead>
             <tbody>
@@ -239,10 +226,10 @@ export const MacroCalendarStrip = memo(function MacroCalendarStrip({
         display: 'flex',
         gap: 12,
         padding: '5px 10px',
-        borderTop: `1px solid ${TOKEN_HEX.borderDefault}`,
+        borderTop: '1px solid var(--border-default)',
       }}>
         {['High', 'Medium', 'Low'].map(level => (
-          <span key={level} style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 8, color: TOKEN_HEX.textMuted }}>
+          <span key={level} style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 8, color: 'var(--text-muted)' }}>
             {impactDot(level)} {level}
           </span>
         ))}

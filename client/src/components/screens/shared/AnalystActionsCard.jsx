@@ -6,17 +6,6 @@
 import { useState, useEffect, useMemo, memo, useRef, useCallback } from 'react';
 import { apiFetch } from '../../../utils/api';
 
-const TOKEN_HEX = {
-  textPrimary:   '#e8e8ed',
-  textSecondary: '#999999',
-  textMuted:     '#555570',
-  textFaint:     '#3a3a4a',
-  borderDefault: '#1a1a2a',
-  accent:        '#ff6600',
-  up:            '#22c55e',
-  down:          '#ef4444',
-};
-
 function formatDate(dateStr) {
   if (!dateStr) return '—';
   const date = new Date(dateStr);
@@ -24,54 +13,30 @@ function formatDate(dateStr) {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-function ActionBadge({ action }) {
-  let bgColor, textColor, label;
-  if (action === 'upgrade') {
-    bgColor = 'rgba(34, 197, 94, 0.15)';
-    textColor = TOKEN_HEX.up;
-    label = 'UPG';
-  } else if (action === 'downgrade') {
-    bgColor = 'rgba(239, 68, 68, 0.15)';
-    textColor = TOKEN_HEX.down;
-    label = 'DWN';
-  } else {
-    bgColor = 'rgba(255, 102, 0, 0.1)';
-    textColor = TOKEN_HEX.accent;
-    label = 'INIT';
-  }
-
-  return (
-    <span style={{
-      background: bgColor,
-      color: textColor,
-      padding: '2px 5px',
-      borderRadius: 2,
-      fontSize: 8,
-      fontWeight: 700,
-      letterSpacing: 0.3,
-      whiteSpace: 'nowrap',
-    }}>
-      {label}
-    </span>
-  );
+function getActionColor(action) {
+  if (action === 'upgrade') return 'var(--price-up)';
+  if (action === 'downgrade') return 'var(--semantic-down)';
+  return 'var(--text-muted)';
 }
 
-function ActionRow({ action, accentColor }) {
+function getActionLabel(action) {
+  if (action === 'upgrade') return 'Upgrade';
+  if (action === 'downgrade') return 'Downgrade';
+  if (action === 'init') return 'Init';
+  return 'Reiterate';
+}
+
+function ActionRow({ action }) {
   return (
     <tr>
       <td style={{
-        padding: '6px 8px',
-        fontSize: 9,
-        color: TOKEN_HEX.textMuted,
+        color: 'var(--text-muted)',
         whiteSpace: 'nowrap',
       }}>
         {formatDate(action.date)}
       </td>
       <td style={{
-        padding: '6px 8px',
-        fontSize: 10,
-        color: TOKEN_HEX.textSecondary,
-        fontFamily: 'var(--font-mono, monospace)',
+        color: 'var(--text-primary)',
         whiteSpace: 'nowrap',
         maxWidth: 100,
         overflow: 'hidden',
@@ -80,27 +45,20 @@ function ActionRow({ action, accentColor }) {
         {action.firm}
       </td>
       <td style={{
-        padding: '6px 8px',
-        textAlign: 'center',
+        color: getActionColor(action.action),
+        whiteSpace: 'nowrap',
       }}>
-        <ActionBadge action={action.action} />
+        {getActionLabel(action.action)}
       </td>
       <td style={{
-        padding: '6px 8px',
-        fontSize: 9,
-        color: TOKEN_HEX.textMuted,
-        fontFamily: 'var(--font-mono, monospace)',
+        color: 'var(--text-primary)',
         whiteSpace: 'nowrap',
       }}>
         {action.fromGrade} → {action.toGrade}
       </td>
-      <td style={{
-        padding: '6px 8px',
-        fontSize: 10,
-        fontWeight: 600,
-        color: accentColor || TOKEN_HEX.accent,
-        fontFamily: 'var(--font-mono, monospace)',
-        textAlign: 'center',
+      <td className="ds-ticker-col" style={{
+        fontWeight: 700,
+        color: 'var(--text-primary)',
         whiteSpace: 'nowrap',
       }}>
         {action.ticker}
@@ -112,7 +70,6 @@ function ActionRow({ action, accentColor }) {
 export const AnalystActionsCard = memo(function AnalystActionsCard({
   tickers = [],
   limit = 10,
-  accentColor,
 }) {
   const [actions, setActions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -173,16 +130,16 @@ export const AnalystActionsCard = memo(function AnalystActionsCard({
   if (tickerList.length === 0) return null;
 
   return (
-    <div style={{ padding: '8px' }}>
+    <div style={{ padding: '4px' }}>
       <div style={{
         fontSize: 9,
-        color: accentColor || 'var(--text-muted)',
-        marginBottom: 10,
+        color: 'var(--text-muted)',
+        marginBottom: 8,
         textTransform: 'uppercase',
-        letterSpacing: 1,
-        fontWeight: 600,
+        letterSpacing: 0.5,
+        fontWeight: 500,
       }}>
-        ANALYST ACTIONS
+        Analyst Actions
       </div>
 
       {loading ? (
@@ -191,7 +148,7 @@ export const AnalystActionsCard = memo(function AnalystActionsCard({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          color: TOKEN_HEX.textFaint,
+          color: 'var(--text-muted)',
           fontSize: 10,
         }}>
           Loading actions…
@@ -202,78 +159,45 @@ export const AnalystActionsCard = memo(function AnalystActionsCard({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          color: TOKEN_HEX.textMuted,
+          color: 'var(--text-muted)',
           fontSize: 10,
         }}>
           No analyst actions found
         </div>
       ) : (
         <div style={{ overflowX: 'auto' }}>
-          <table style={{
-            borderCollapse: 'collapse',
-            fontSize: 10,
+          <table className="ds-table" style={{
             width: '100%',
           }}>
             <thead>
               <tr>
                 <th style={{
-                  padding: '6px 8px',
-                  color: TOKEN_HEX.textFaint,
-                  fontSize: 8,
-                  fontWeight: 500,
                   textAlign: 'left',
-                  textTransform: 'uppercase',
-                  letterSpacing: 0.3,
-                  borderBottom: `1px solid ${TOKEN_HEX.borderDefault}`,
                   whiteSpace: 'nowrap',
                 }}>
                   Date
                 </th>
                 <th style={{
-                  padding: '6px 8px',
-                  color: TOKEN_HEX.textFaint,
-                  fontSize: 8,
-                  fontWeight: 500,
                   textAlign: 'left',
-                  textTransform: 'uppercase',
-                  letterSpacing: 0.3,
-                  borderBottom: `1px solid ${TOKEN_HEX.borderDefault}`,
+                  whiteSpace: 'nowrap',
                 }}>
                   Firm
                 </th>
                 <th style={{
-                  padding: '6px 8px',
-                  color: TOKEN_HEX.textFaint,
-                  fontSize: 8,
-                  fontWeight: 500,
-                  textAlign: 'center',
-                  textTransform: 'uppercase',
-                  letterSpacing: 0.3,
-                  borderBottom: `1px solid ${TOKEN_HEX.borderDefault}`,
+                  textAlign: 'left',
+                  whiteSpace: 'nowrap',
                 }}>
                   Action
                 </th>
                 <th style={{
-                  padding: '6px 8px',
-                  color: TOKEN_HEX.textFaint,
-                  fontSize: 8,
-                  fontWeight: 500,
                   textAlign: 'left',
-                  textTransform: 'uppercase',
-                  letterSpacing: 0.3,
-                  borderBottom: `1px solid ${TOKEN_HEX.borderDefault}`,
+                  whiteSpace: 'nowrap',
                 }}>
                   Rating
                 </th>
                 <th style={{
-                  padding: '6px 8px',
-                  color: TOKEN_HEX.textFaint,
-                  fontSize: 8,
-                  fontWeight: 500,
-                  textAlign: 'center',
-                  textTransform: 'uppercase',
-                  letterSpacing: 0.3,
-                  borderBottom: `1px solid ${TOKEN_HEX.borderDefault}`,
+                  textAlign: 'left',
+                  whiteSpace: 'nowrap',
                 }}>
                   Ticker
                 </th>
@@ -281,9 +205,7 @@ export const AnalystActionsCard = memo(function AnalystActionsCard({
             </thead>
             <tbody>
               {actions.map((action, idx) => (
-                <tr key={idx}>
-                  <ActionRow action={action} accentColor={accentColor} />
-                </tr>
+                <ActionRow key={idx} action={action} />
               ))}
             </tbody>
           </table>

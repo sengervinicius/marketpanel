@@ -6,66 +6,17 @@
 import { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { apiFetch } from '../../../utils/api';
 
-const TOKEN_HEX = {
-  textPrimary:   '#e8e8ed',
-  textSecondary: '#999999',
-  textMuted:     '#555570',
-  textFaint:     '#3a3a4a',
-  borderDefault: '#1a1a2a',
-  accent:        '#ff6600',
-  up:            '#22c55e',
-  down:          '#ef4444',
-};
-
-function MoverRow({ mover, accentColor, isGainer }) {
-  const color = isGainer ? TOKEN_HEX.up : TOKEN_HEX.down;
+function MoverRow({ mover, isGainer }) {
   const changeStr = mover.change >= 0 ? `+${mover.change.toFixed(2)}` : mover.change.toFixed(2);
   const changePctStr = mover.changePercent >= 0 ? `+${mover.changePercent.toFixed(2)}%` : `${mover.changePercent.toFixed(2)}%`;
+  const cls = isGainer ? 'ds-up' : 'ds-down';
 
   return (
     <tr>
-      <td style={{
-        padding: '6px 8px',
-        fontSize: 11,
-        fontWeight: 600,
-        color: accentColor || TOKEN_HEX.accent,
-        fontFamily: 'var(--font-mono, monospace)',
-        whiteSpace: 'nowrap',
-      }}>
-        {mover.ticker}
-      </td>
-      <td style={{
-        padding: '6px 8px',
-        fontSize: 10,
-        color: TOKEN_HEX.textPrimary,
-        fontFamily: 'var(--font-mono, monospace)',
-        textAlign: 'right',
-        whiteSpace: 'nowrap',
-      }}>
-        ${mover.price.toFixed(2)}
-      </td>
-      <td style={{
-        padding: '6px 8px',
-        fontSize: 10,
-        fontWeight: 600,
-        color: color,
-        fontFamily: 'var(--font-mono, monospace)',
-        textAlign: 'right',
-        whiteSpace: 'nowrap',
-      }}>
-        {changeStr}
-      </td>
-      <td style={{
-        padding: '6px 8px',
-        fontSize: 10,
-        fontWeight: 600,
-        color: color,
-        fontFamily: 'var(--font-mono, monospace)',
-        textAlign: 'right',
-        whiteSpace: 'nowrap',
-      }}>
-        {changePctStr}
-      </td>
+      <td className="ds-ticker-col">{mover.ticker}</td>
+      <td style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{mover.price.toFixed(2)}</td>
+      <td className={cls}>{changeStr}</td>
+      <td className={cls}>{changePctStr}</td>
     </tr>
   );
 }
@@ -80,94 +31,44 @@ function MoverPanel({ title, movers, limit, accentColor, isGainer }) {
     }}>
       <div style={{
         fontSize: 9,
-        color: accentColor || 'var(--text-muted)',
-        marginBottom: 10,
+        color: 'var(--text-muted)',
+        marginBottom: 6,
         textTransform: 'uppercase',
         letterSpacing: 1,
-        fontWeight: 600,
+        fontWeight: 700,
       }}>
         {title}
       </div>
 
       {displayMovers.length === 0 ? (
         <div style={{
-          height: 100,
+          height: 60,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          color: TOKEN_HEX.textMuted,
+          color: 'var(--text-muted)',
           fontSize: 10,
         }}>
           No data available
         </div>
       ) : (
         <div style={{ overflowX: 'auto' }}>
-          <table style={{
-            borderCollapse: 'collapse',
-            width: '100%',
-            fontSize: 10,
-          }}>
+          <table className="ds-table">
             <thead>
               <tr>
-                <th style={{
-                  padding: '6px 8px',
-                  color: TOKEN_HEX.textFaint,
-                  fontSize: 8,
-                  fontWeight: 500,
-                  textAlign: 'left',
-                  textTransform: 'uppercase',
-                  letterSpacing: 0.3,
-                  borderBottom: `1px solid ${TOKEN_HEX.borderDefault}`,
-                }}>
-                  Ticker
-                </th>
-                <th style={{
-                  padding: '6px 8px',
-                  color: TOKEN_HEX.textFaint,
-                  fontSize: 8,
-                  fontWeight: 500,
-                  textAlign: 'right',
-                  textTransform: 'uppercase',
-                  letterSpacing: 0.3,
-                  borderBottom: `1px solid ${TOKEN_HEX.borderDefault}`,
-                }}>
-                  Price
-                </th>
-                <th style={{
-                  padding: '6px 8px',
-                  color: TOKEN_HEX.textFaint,
-                  fontSize: 8,
-                  fontWeight: 500,
-                  textAlign: 'right',
-                  textTransform: 'uppercase',
-                  letterSpacing: 0.3,
-                  borderBottom: `1px solid ${TOKEN_HEX.borderDefault}`,
-                }}>
-                  Change
-                </th>
-                <th style={{
-                  padding: '6px 8px',
-                  color: TOKEN_HEX.textFaint,
-                  fontSize: 8,
-                  fontWeight: 500,
-                  textAlign: 'right',
-                  textTransform: 'uppercase',
-                  letterSpacing: 0.3,
-                  borderBottom: `1px solid ${TOKEN_HEX.borderDefault}`,
-                }}>
-                  Chg %
-                </th>
+                <th style={{ textAlign: 'left' }}>Ticker</th>
+                <th>Price</th>
+                <th>Change</th>
+                <th>Chg %</th>
               </tr>
             </thead>
             <tbody>
               {displayMovers.map((mover, idx) => (
-                <tr key={idx}>
                   <MoverRow
+                    key={idx}
                     mover={mover}
-                    accentColor={accentColor}
                     isGainer={isGainer}
                   />
-                </tr>
               ))}
             </tbody>
           </table>
@@ -235,7 +136,7 @@ export const MarketMovers = memo(function MarketMovers({
         alignItems: 'center',
         justifyContent: 'center',
         height: 150,
-        color: TOKEN_HEX.textFaint,
+        color: 'var(--text-faint)',
         fontSize: 10,
       }}>
         Loading market movers…
@@ -253,14 +154,12 @@ export const MarketMovers = memo(function MarketMovers({
           title="TOP GAINERS"
           movers={gainers}
           limit={limit}
-          accentColor={TOKEN_HEX.up}
           isGainer={true}
         />
         <MoverPanel
           title="TOP LOSERS"
           movers={losers}
           limit={limit}
-          accentColor={TOKEN_HEX.down}
           isGainer={false}
         />
       </div>

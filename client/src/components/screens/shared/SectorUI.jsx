@@ -135,11 +135,9 @@ export const KPIRibbon = memo(function KPIRibbon({ items = [], accentColor }) {
 /* ═══════════════════════════════════════════════════════════════════════
    HeatmapCell — Color-coded table cell
    ═══════════════════════════════════════════════════════════════════════ */
-export const HeatmapCell = memo(function HeatmapCell({ value, format = 'pct', intensity = 1 }) {
+export const HeatmapCell = memo(function HeatmapCell({ value, format = 'pct' }) {
   const numVal = typeof value === 'number' ? value : parseFloat(value);
-  const bg = heatColor(numVal, intensity);
-  const color = numVal == null || isNaN(numVal) ? 'var(--text-muted)'
-    : numVal >= 0 ? 'var(--semantic-up)' : 'var(--semantic-down)';
+  const cls = numVal == null || isNaN(numVal) ? '' : numVal >= 0 ? 'ds-up' : 'ds-down';
 
   const formatted = format === 'pct' ? fmtPct(numVal)
     : format === 'number' ? fmtNum(numVal)
@@ -147,18 +145,7 @@ export const HeatmapCell = memo(function HeatmapCell({ value, format = 'pct', in
     : String(value);
 
   return (
-    <td style={{
-      background: bg,
-      color,
-      fontWeight: 600,
-      fontSize: 12,
-      fontFamily: 'var(--font-mono)',
-      fontVariantNumeric: 'tabular-nums',
-      padding: '6px 10px',
-      textAlign: 'right',
-      whiteSpace: 'nowrap',
-      transition: 'background 0.3s ease',
-    }}>
+    <td className={cls}>
       {formatted}
     </td>
   );

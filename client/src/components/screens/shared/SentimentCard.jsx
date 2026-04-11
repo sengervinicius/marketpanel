@@ -6,73 +6,22 @@
 import { useState, useEffect, useMemo, memo, useRef, useCallback } from 'react';
 import { apiFetch } from '../../../utils/api';
 
-const TOKEN_HEX = {
-  bgPanel:       '#0a0a0f',
-  bgSurface:     '#0d0d14',
-  borderDefault: '#1a1a2a',
-  textPrimary:   '#e8e8ed',
-  textSecondary: '#999999',
-  textMuted:     '#555570',
-  textFaint:     '#3a3a4a',
-  accent:        '#ff6600',
-  up:            '#22c55e',
-  down:          '#ef4444',
-  neutral:       '#eab308',
-};
-
 function sentimentColor(score) {
-  if (score == null) return TOKEN_HEX.textMuted;
-  if (score >= 0.3) return TOKEN_HEX.up;
-  if (score <= -0.3) return TOKEN_HEX.down;
-  return TOKEN_HEX.neutral;
+  if (score == null) return 'var(--text-muted)';
+  if (score >= 0.3) return 'var(--price-up)';
+  if (score <= -0.3) return 'var(--semantic-down)';
+  return 'var(--text-muted)';
 }
 
 function sentimentLabel(score) {
   if (score == null) return '—';
-  if (score >= 0.5) return 'Very Bullish';
+  if (score >= 0.5) return 'Bullish';
   if (score >= 0.3) return 'Bullish';
-  if (score >= 0.1) return 'Slightly Bullish';
+  if (score >= 0.1) return 'Bullish';
   if (score > -0.1) return 'Neutral';
-  if (score > -0.3) return 'Slightly Bearish';
+  if (score > -0.3) return 'Bearish';
   if (score > -0.5) return 'Bearish';
-  return 'Very Bearish';
-}
-
-/** Mini horizontal bar for sentiment score (-1 to +1) */
-function SentimentBar({ score, accentColor }) {
-  const pct = score != null ? Math.round((score + 1) * 50) : 50;
-  const color = sentimentColor(score);
-  return (
-    <div style={{
-      width: '100%',
-      height: 6,
-      borderRadius: 3,
-      background: 'rgba(255,255,255,0.04)',
-      position: 'relative',
-      overflow: 'hidden',
-    }}>
-      <div style={{
-        position: 'absolute',
-        left: 0,
-        top: 0,
-        height: '100%',
-        width: `${pct}%`,
-        borderRadius: 3,
-        background: color,
-        opacity: 0.7,
-        transition: 'width 0.4s ease',
-      }} />
-      {/* center line for neutral */}
-      <div style={{
-        position: 'absolute',
-        left: '50%',
-        top: 0,
-        width: 1,
-        height: '100%',
-        background: 'rgba(255,255,255,0.1)',
-      }} />
-    </div>
-  );
+  return 'Bearish';
 }
 
 function TickerSentimentRow({ ticker, data, accentColor }) {
@@ -87,98 +36,41 @@ function TickerSentimentRow({ ticker, data, accentColor }) {
     if (score != null) score = parseFloat(score);
   }
 
-  // Handle consensus/analyst opinion variations
-  let consensus = null;
-  if (data) {
-    consensus = data.analystConsensus ?? data.analyst_consensus ??
-                data.consensus ??
-                data.opinion ??
-                data.sentiment?.consensus ?? null;
-    if (consensus && typeof consensus === 'string') consensus = consensus.trim();
-  }
-
-  // Handle news count variations
-  let newsCount = null;
-  if (data) {
-    newsCount = data.newsCount ?? data.news_count ??
-                data.articles ?? data.article_count ??
-                data.news?.count ?? null;
-    if (newsCount != null) newsCount = parseInt(newsCount, 10);
-  }
-
   const label = sentimentLabel(score);
 
   return (
-    <div style={{
-      display: 'flex',
-      alignItems: 'center',
-      gap: 10,
-      padding: '8px 10px',
-      borderBottom: `1px solid ${TOKEN_HEX.borderDefault}`,
-    }}>
-      {/* ticker */}
-      <span style={{
-        minWidth: 52,
+    <tr>
+      <td style={{
+        padding: '4px 8px',
         fontSize: 11,
         fontWeight: 700,
-        color: accentColor || TOKEN_HEX.accent,
+        color: accentColor || 'var(--accent)',
         fontFamily: 'var(--font-mono, monospace)',
-        letterSpacing: '0.5px',
-      }}>
+        whiteSpace: 'nowrap',
+      }}
+      className="ds-ticker-col">
         {ticker}
-      </span>
-
-      {/* sentiment bar */}
-      <div style={{ flex: 1, minWidth: 60 }}>
-        <SentimentBar score={score} accentColor={accentColor} />
-      </div>
-
-      {/* label */}
-      <span style={{
-        minWidth: 80,
+      </td>
+      <td style={{
+        padding: '4px 8px',
+        textAlign: 'center',
         fontSize: 10,
         fontWeight: 600,
         color: sentimentColor(score),
-        textAlign: 'center',
       }}>
         {label}
-      </span>
-
-      {/* score */}
-      <span style={{
-        minWidth: 36,
+      </td>
+      <td style={{
+        padding: '4px 8px',
+        textAlign: 'right',
         fontSize: 10,
         fontFamily: 'var(--font-mono, monospace)',
-        color: sentimentColor(score),
-        textAlign: 'right',
+        color: 'var(--text-primary)',
         fontWeight: 600,
       }}>
         {score != null ? (score > 0 ? '+' : '') + score.toFixed(2) : '—'}
-      </span>
-
-      {/* consensus */}
-      <span style={{
-        minWidth: 40,
-        fontSize: 9,
-        color: TOKEN_HEX.textSecondary,
-        textAlign: 'right',
-        textTransform: 'uppercase',
-      }}>
-        {consensus || '—'}
-      </span>
-
-      {/* news count */}
-      {newsCount != null && (
-        <span style={{
-          fontSize: 8,
-          color: TOKEN_HEX.textMuted,
-          minWidth: 24,
-          textAlign: 'right',
-        }}>
-          {newsCount} art.
-        </span>
-      )}
-    </div>
+      </td>
+    </tr>
   );
 }
 
@@ -236,67 +128,99 @@ export const SentimentCard = memo(function SentimentCard({
   });
 
   return (
-    <div style={{
-      background: TOKEN_HEX.bgSurface,
-      border: `1px solid ${TOKEN_HEX.borderDefault}`,
-      borderRadius: 4,
-      overflow: 'hidden',
-    }}>
-      {/* header */}
+    <div style={{ padding: '4px' }}>
       <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '8px 10px',
-        borderBottom: `1px solid ${TOKEN_HEX.borderDefault}`,
+        fontSize: 9,
+        color: accentColor || 'var(--text-muted)',
+        marginBottom: 8,
+        textTransform: 'uppercase',
+        letterSpacing: 1,
+        fontWeight: 700,
       }}>
-        <span style={{
-          fontSize: 9,
-          fontWeight: 700,
-          letterSpacing: '1.2px',
-          color: TOKEN_HEX.textSecondary,
-          textTransform: 'uppercase',
-        }}>
-          News Sentiment
-        </span>
-        <span style={{ fontSize: 8, color: TOKEN_HEX.textFaint }}>
-          EULERPOOL
-        </span>
+        SENTIMENT
       </div>
 
-      {/* column headers */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 10,
-        padding: '4px 10px',
-        borderBottom: `1px solid ${TOKEN_HEX.borderDefault}`,
-      }}>
-        <span style={{ minWidth: 52, fontSize: 8, color: TOKEN_HEX.textMuted, fontWeight: 600 }}>TICKER</span>
-        <span style={{ flex: 1, minWidth: 60, fontSize: 8, color: TOKEN_HEX.textMuted, fontWeight: 600, textAlign: 'center' }}>SENTIMENT</span>
-        <span style={{ minWidth: 80, fontSize: 8, color: TOKEN_HEX.textMuted, fontWeight: 600, textAlign: 'center' }}>SIGNAL</span>
-        <span style={{ minWidth: 36, fontSize: 8, color: TOKEN_HEX.textMuted, fontWeight: 600, textAlign: 'right' }}>SCORE</span>
-        <span style={{ minWidth: 40, fontSize: 8, color: TOKEN_HEX.textMuted, fontWeight: 600, textAlign: 'right' }}>VIEW</span>
-      </div>
-
-      {/* body */}
       {loading ? (
-        <div style={{ padding: '20px 10px', textAlign: 'center', color: TOKEN_HEX.textMuted, fontSize: 10 }}>
+        <div style={{
+          height: 80,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: 'var(--text-muted)',
+          fontSize: 10,
+        }}>
           Loading sentiment data…
         </div>
       ) : !hasData ? (
-        <div style={{ padding: '20px 10px', textAlign: 'center', color: TOKEN_HEX.textMuted, fontSize: 10 }}>
+        <div style={{
+          height: 60,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: 'var(--text-muted)',
+          fontSize: 10,
+        }}>
           Sentiment data unavailable
         </div>
       ) : (
-        stableTickers.map((ticker) => (
-          <TickerSentimentRow
-            key={ticker}
-            ticker={ticker}
-            data={data[ticker]}
-            accentColor={accentColor}
-          />
-        ))
+        <div style={{ overflowX: 'auto' }} className="ds-table">
+          <table style={{
+            borderCollapse: 'collapse',
+            width: '100%',
+          }}>
+            <thead>
+              <tr>
+                <th style={{
+                  padding: '4px 8px',
+                  color: 'var(--text-faint)',
+                  fontSize: 8,
+                  fontWeight: 500,
+                  textAlign: 'left',
+                  textTransform: 'uppercase',
+                  letterSpacing: 0.3,
+                  borderBottom: '1px solid var(--border-default)',
+                }}>
+                  Ticker
+                </th>
+                <th style={{
+                  padding: '4px 8px',
+                  color: 'var(--text-faint)',
+                  fontSize: 8,
+                  fontWeight: 500,
+                  textAlign: 'center',
+                  textTransform: 'uppercase',
+                  letterSpacing: 0.3,
+                  borderBottom: '1px solid var(--border-default)',
+                }}>
+                  Sentiment
+                </th>
+                <th style={{
+                  padding: '4px 8px',
+                  color: 'var(--text-faint)',
+                  fontSize: 8,
+                  fontWeight: 500,
+                  textAlign: 'right',
+                  textTransform: 'uppercase',
+                  letterSpacing: 0.3,
+                  borderBottom: '1px solid var(--border-default)',
+                }}>
+                  Score
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {stableTickers.map((ticker) => (
+                <tr key={ticker}>
+                  <TickerSentimentRow
+                    ticker={ticker}
+                    data={data[ticker]}
+                    accentColor={accentColor}
+                  />
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );
