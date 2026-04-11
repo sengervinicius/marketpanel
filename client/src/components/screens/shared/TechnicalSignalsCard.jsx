@@ -18,7 +18,7 @@ const TOKEN_HEX = {
 };
 
 function RSIBadge({ rsi }) {
-  if (rsi == null) return <span style={{ color: TOKEN_HEX.textMuted }}>—</span>;
+  if (rsi == null || isNaN(rsi)) return <span style={{ color: TOKEN_HEX.textMuted }}>—</span>;
 
   let bgColor, textColor, label;
   if (rsi > 70) {
@@ -60,7 +60,7 @@ function RSIBadge({ rsi }) {
 }
 
 function MACDSignal({ macd, signal }) {
-  if (macd == null || signal == null) {
+  if (macd == null || signal == null || isNaN(macd) || isNaN(signal)) {
     return <span style={{ color: TOKEN_HEX.textMuted }}>—</span>;
   }
 
@@ -163,7 +163,10 @@ export const TechnicalSignalsCard = memo(function TechnicalSignalsCard({
             const rsiValues = result.data.RSI.values;
             const latest = rsiValues[rsiValues.length - 1];
             // TwelveData returns objects like { datetime, rsi: "42.5" }
-            rsi = parseFloat(latest?.rsi ?? latest);
+            // Try multiple possible field names for robustness
+            const rsiRaw = latest?.rsi ?? latest?.value ?? latest?.RSI;
+            rsi = (typeof rsiRaw === 'number') ? rsiRaw : parseFloat(rsiRaw);
+            if (isNaN(rsi)) rsi = null;
           }
 
           // Extract MACD: API returns { MACD: { indicator, interval, ticker, values: [...] } }

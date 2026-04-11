@@ -166,6 +166,8 @@ export function useAIInsight({ type, context, cacheKey, ttlMs = 300000, autoFetc
       if (msg.includes('503') || msg.includes('not configured')) {
         setError('AI analysis temporarily unavailable');
         _aiAvailable = false;
+        // Auto-recover after 60s so other screens can retry
+        setTimeout(() => { _aiAvailable = true; }, 60_000);
       } else if (msg.includes('400')) {
         setError('AI analysis temporarily unavailable');
       } else {

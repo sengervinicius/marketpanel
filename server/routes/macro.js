@@ -130,8 +130,16 @@ router.get('/compare', async (req, res) => {
       }
       if (snap.stub) anyStub = true;
       const row = { country: codes[i], name: snap.name, currency: snap.currency };
+      // Macro rate/percentage fields are stored as 0-1 decimals (e.g. 0.055 = 5.5%)
+      // Normalize to display-ready percentages (×100) for the client
+      // Only fields that are always < 100% (< 1.0 in decimal form)
+      const RATE_FIELDS = ['policyRate', 'cpiYoY', 'gdpGrowthYoY', 'gdpGrowth', 'unemploymentRate'];
       for (const ind of indicators) {
-        row[ind] = snap[ind] ?? null;
+        let val = snap[ind] ?? null;
+        if (val != null && RATE_FIELDS.includes(ind) && typeof val === 'number' && Math.abs(val) < 1) {
+          val = +(val * 100).toFixed(2);
+        }
+        row[ind] = val;
       }
       result.push(row);
     }
