@@ -549,7 +549,8 @@ function ChartsPanelMobile() {
 
   return (
     <div style={{
-      display: 'flex', flexDirection: 'column', height: '100%',
+      display: 'flex', flexDirection: 'column',
+      position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
       background: 'var(--bg-app)', fontFamily: 'inherit',
       minHeight: 0, overflow: 'hidden',
     }}>

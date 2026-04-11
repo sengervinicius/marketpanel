@@ -226,6 +226,7 @@ button:hover, .btn:hover, [role="button"]:hover,
   overflow-y: auto;
   overflow-x: hidden;
   min-height: 0;
+  position: relative;
   -webkit-overflow-scrolling: touch;
 }
 

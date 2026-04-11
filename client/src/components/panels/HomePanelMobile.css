@@ -1,9 +1,11 @@
 /* HomePanelMobile.css — Phase M: premium mobile home */
 
 .hpm-container {
+  width: 100%;
   background: var(--bg-app);
   color: var(--text-primary);
   padding-bottom: calc(var(--sp-4) + env(safe-area-inset-bottom, 0px));
+  min-height: 100%;
   -webkit-overflow-scrolling: touch;
 }
 
@@ -51,6 +53,7 @@
 
 /* ── Section grid ──────────────────────── */
 .hpm-section-grid {
+  width: 100%;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -59,6 +62,7 @@
 
 /* ── Section card ──────────────────────── */
 .hpm-section-card {
+  width: 100%;
   background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
   border-radius: 10px;
