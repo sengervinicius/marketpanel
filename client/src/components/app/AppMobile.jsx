@@ -90,8 +90,10 @@ export function MobileTabBar({ activeTab, onTabChange }) {
 
 // ── Mobile local clock + city + market status ──
 export const CITY_OVERRIDES = {
-  'Sao Paulo': 'São Paulo', 'New York': 'New York',
-  'Los Angeles': 'Los Angeles', 'Ho Chi Minh': 'Ho Chi Minh',
+  'Sao Paulo': 'SP', 'New York': 'NY',
+  'Los Angeles': 'LA', 'Ho Chi Minh': 'HCM',
+  'Buenos Aires': 'BA', 'Mexico City': 'MX',
+  'Hong Kong': 'HK', 'Kuala Lumpur': 'KL',
 };
 
 export function MobileClockCompact() {

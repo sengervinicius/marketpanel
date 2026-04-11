@@ -240,6 +240,7 @@ button:hover, .btn:hover, [role="button"]:hover,
 }
 .m-tab-btn {
   flex: 1;
+  min-width: 0;
   min-height: 44px;
   padding: 4px 4px 2px;
   background: transparent;
@@ -256,6 +257,9 @@ button:hover, .btn:hover, [role="button"]:hover,
   align-items: center;
   justify-content: center;
   gap: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
   transition: color 0.15s, background 0.15s;
