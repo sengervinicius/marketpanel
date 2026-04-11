@@ -153,7 +153,7 @@ function SectionTableRow({ sym, name, statsMap, onClickRow, withMiniCharts, acce
   const stats = statsMap.get(sym);
 
   return (
-    <tr className="ds-row-clickable" onClick={() => onClickRow(sym, sectorName)} onTouchEnd={(e) => { e.preventDefault(); onClickRow(sym, sectorName); }} style={withMiniCharts ? { minHeight: 80 } : undefined}>
+    <tr className="ds-row-clickable" onClick={() => onClickRow(sym, sectorName)} onTouchEnd={(e) => { e.preventDefault(); onClickRow(sym, sectorName); }}>
       <td className="ds-ticker-col">{sym}</td>
       <td>{name || LABELS[sym] || <span className="ds-dash">—</span>}</td>
       <td style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
@@ -165,7 +165,7 @@ function SectionTableRow({ sym, name, statsMap, onClickRow, withMiniCharts, acce
       <td>{fmtB(stats?.market_capitalization) || <span className="ds-dash">—</span>}</td>
       <td>{stats?.pe_ratio != null ? parseFloat(stats?.pe_ratio).toFixed(1) + 'x' : <span className="ds-dash">—</span>}</td>
       {withMiniCharts && (
-        <td style={{ padding: '2px 4px', width: 200, minWidth: 180 }}>
+        <td style={{ padding: '2px 4px' }}>
           <MiniFinancials
             ticker={sym}
             accentColor={accentColor || '#4a90d9'}

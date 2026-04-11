@@ -142,9 +142,9 @@ export const MiniFinancials = memo(function MiniFinancials({ ticker, accentColor
   /* ── Loading state: shimmer ─────────────────────────────────────────── */
   if (loading) {
     return (
-      <div style={{ width: '100%', minWidth: 180, maxWidth: 240, padding: '4px 0' }}>
+      <div style={{ width: '100%', minWidth: 140, maxWidth: 240, padding: '2px 0' }}>
         <div style={{
-          height: 72,
+          height: 16,
           background: 'linear-gradient(90deg, rgba(255,255,255,0.03) 25%, rgba(255,255,255,0.06) 50%, rgba(255,255,255,0.03) 75%)',
           backgroundSize: '200% 100%',
           animation: 'ds-shimmer 1.5s infinite',
@@ -158,17 +158,11 @@ export const MiniFinancials = memo(function MiniFinancials({ ticker, accentColor
   if (!data || data.length === 0) {
     return (
       <div style={{
-        width: '100%',
-        minWidth: 180,
-        maxWidth: 240,
-        height: 72,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        opacity: 0.5,
-        fontSize: 11,
+        opacity: 0.4,
+        fontSize: 10,
         color: 'var(--text-muted)',
         letterSpacing: '0.5px',
+        whiteSpace: 'nowrap',
       }}>
         Financial data unavailable
       </div>
@@ -179,17 +173,11 @@ export const MiniFinancials = memo(function MiniFinancials({ ticker, accentColor
   if (!hasRevenue) {
     return (
       <div style={{
-        width: '100%',
-        minWidth: 180,
-        maxWidth: 240,
-        height: 72,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        opacity: 0.5,
-        fontSize: 11,
+        opacity: 0.4,
+        fontSize: 10,
         color: 'var(--text-muted)',
         letterSpacing: '0.5px',
+        whiteSpace: 'nowrap',
       }}>
         Financial data unavailable
       </div>
