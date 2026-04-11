@@ -75,6 +75,7 @@ import {
   DataErrorBanner,
   TrialBanner,
   SubscriptionExpiredScreen,
+  WelcomeSubscriptionModal,
 } from './components/app/AppStatusBanners';
 import {
   MOBILE_TABS,
@@ -466,6 +467,12 @@ export default function App() {
 
         {/* 5-Step Onboarding Tour */}
         <OnboardingTour />
+
+        {/* Welcome subscription prompt (first login only) */}
+        <WelcomeSubscriptionModal
+          subscription={subscription}
+          onUpgrade={handleCheckout}
+        />
 
         {/* Keyboard shortcuts modal */}
         {showShortcuts && <KeyboardShortcutsModal onClose={() => setShowShortcuts(false)} />}

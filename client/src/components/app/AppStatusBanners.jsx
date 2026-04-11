@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 // ── Feed Status Bar ──────────────────────────────────────────────────────────
 export function FeedStatusBar({ feedStatus }) {
@@ -261,6 +261,103 @@ export function SubscriptionExpiredScreen({ onUpgrade, onLogout, onManageBilling
       {restoreMsg && (
         <div style={{ color: '#888', marginTop: 8 }}>{restoreMsg}</div>
       )}
+    </div>
+  );
+}
+
+// ── Welcome Subscription Modal (shown on first login) ────────────────────────
+// Offers "Subscribe" or "Start Free Trial" after a user's first login.
+const LS_WELCOME_SHOWN = 'senger_welcome_sub_shown';
+
+export function WelcomeSubscriptionModal({ subscription, onUpgrade, onDismiss }) {
+  const [visible, setVisible] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    // Only show once, only for trial users who haven't seen it
+    if (!subscription) return;
+    if (subscription.status === 'active') return; // already subscribed
+    if (localStorage.getItem(LS_WELCOME_SHOWN) === '1') return;
+    // Delay slightly so the app finishes loading first
+    const t = setTimeout(() => setVisible(true), 1200);
+    return () => clearTimeout(t);
+  }, [subscription]);
+
+  if (!visible) return null;
+
+  const dismiss = () => {
+    localStorage.setItem(LS_WELCOME_SHOWN, '1');
+    setVisible(false);
+    onDismiss?.();
+  };
+
+  const handleSubscribe = async () => {
+    setLoading(true);
+    localStorage.setItem(LS_WELCOME_SHOWN, '1');
+    try {
+      await onUpgrade();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const days = subscription?.trialDaysRemaining ?? 7;
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 9500,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      background: 'rgba(0, 0, 0, 0.75)', backdropFilter: 'blur(4px)',
+    }} onClick={dismiss}>
+      <div onClick={e => e.stopPropagation()} style={{
+        background: '#0c0c0f', border: '1px solid #1a1a1a',
+        borderRadius: 12, padding: '36px 32px', maxWidth: 380, width: '90%',
+        textAlign: 'center', color: '#e0e0e0',
+        fontFamily: 'var(--font-ui, -apple-system, sans-serif)',
+        boxShadow: '0 24px 80px rgba(0, 0, 0, 0.6)',
+      }}>
+        <div style={{ fontSize: 32, color: '#ff6600', fontWeight: 800, letterSpacing: '0.06em', marginBottom: 8 }}>
+          SENGER
+        </div>
+        <div style={{ fontSize: 13, color: '#888', marginBottom: 28, lineHeight: 1.6 }}>
+          Real-time market data, AI insights, and deep sector analysis — all in one terminal.
+        </div>
+
+        {/* Subscribe button */}
+        <button
+          onClick={handleSubscribe}
+          disabled={loading}
+          style={{
+            width: '100%', padding: '13px 20px', marginBottom: 10,
+            background: loading ? '#aa4400' : 'linear-gradient(180deg, #ff6600 0%, #e55a00 100%)',
+            color: '#000', border: 'none', borderRadius: 8,
+            fontWeight: 700, fontSize: 12, letterSpacing: '0.1em',
+            cursor: loading ? 'not-allowed' : 'pointer',
+            fontFamily: 'var(--font-ui)',
+          }}
+        >
+          {loading ? 'SETTING UP...' : 'SUBSCRIBE NOW'}
+        </button>
+
+        {/* Free trial button */}
+        <button
+          onClick={dismiss}
+          style={{
+            width: '100%', padding: '11px 20px', marginBottom: 0,
+            background: 'transparent', color: '#666',
+            border: '1px solid #1a1a1a', borderRadius: 8,
+            fontWeight: 600, fontSize: 11, letterSpacing: '0.08em',
+            cursor: 'pointer',
+            fontFamily: 'var(--font-ui)',
+          }}
+        >
+          START FREE TRIAL ({days} DAYS)
+        </button>
+
+        <div style={{ marginTop: 16, fontSize: 9, color: '#333', letterSpacing: '0.05em' }}>
+          Cancel anytime. No commitment.
+        </div>
+      </div>
     </div>
   );
 }

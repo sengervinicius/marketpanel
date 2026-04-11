@@ -163,13 +163,14 @@ export default function OnboardingTour() {
   const tooltipRef = useRef(null);
   const animFrame = useRef(null);
 
-  // Start tour if not completed
+  // Start tour if not completed — check both server settings AND localStorage fallback
   useEffect(() => {
-    if (settings && !settings.onboardingCompleted) {
-      // Slight delay to let the UI settle
-      const t = setTimeout(() => setActive(true), 800);
-      return () => clearTimeout(t);
-    }
+    if (!settings) return;
+    // localStorage fallback: if server settings lost the flag, don't re-show tour
+    const localDone = localStorage.getItem('senger_tour_completed') === '1';
+    if (localDone || settings.onboardingCompleted) return;
+    const t = setTimeout(() => setActive(true), 800);
+    return () => clearTimeout(t);
   }, [settings]);
 
   // Track target element position
@@ -230,11 +231,13 @@ export default function OnboardingTour() {
 
   const handleSkip = useCallback(async () => {
     setActive(false);
+    localStorage.setItem('senger_tour_completed', '1');
     await markTourCompleted();
   }, [markTourCompleted]);
 
   const handleFinish = useCallback(async () => {
     setActive(false);
+    localStorage.setItem('senger_tour_completed', '1');
     await markTourCompleted();
   }, [markTourCompleted]);
 

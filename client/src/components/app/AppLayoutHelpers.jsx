@@ -96,9 +96,7 @@ export function ColResizeHandle({ onStart }) {
     <div
       onMouseDown={e => { e.preventDefault(); onStart(e); }}
       className="app-resize-handle-vertical"
-    >
-      <div className="app-resize-indicator-v" />
-    </div>
+    />
   );
 }
 

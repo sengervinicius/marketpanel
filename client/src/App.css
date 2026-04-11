@@ -1545,17 +1545,18 @@ textarea:focus-visible { outline: 1px solid var(--accent); outline-offset: 0; bo
 }
 
 .app-resize-handle-vertical {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
   width: 5px;
-  flex-shrink: 0;
   cursor: col-resize;
-  background: var(--bg-app);
-  border-left: 1px solid var(--border-default);
-  border-right: 1px solid var(--border-default);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  user-select: none;
   z-index: 20;
+  user-select: none;
+}
+
+.app-resize-handle-vertical:hover {
+  background: rgba(255, 102, 0, 0.12);
 }
 
 .app-resize-indicator-h {

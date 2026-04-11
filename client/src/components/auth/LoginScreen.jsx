@@ -273,8 +273,7 @@ export default function LoginScreen({ children }) {
         </div>
       </div>
 
-      {/* Footer */}
-      <div className="ls-footer">ARC CAPITAL</div>
+      {/* Footer removed — no branding */}
     </div>
   );
 }
