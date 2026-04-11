@@ -23,12 +23,16 @@ export function FeedStatusBar({ feedStatus }) {
   const color = (level) => {
     if (level === 'live')      return '#00cc66';
     if (level === 'degraded')  return '#ff9900';
+    if (level === 'delayed')   return '#ffcc00';
+    if (level === 'closed')    return '#666';
     if (level === 'error')     return '#ff3333';
     return '#444';
   };
   const dot = (level) => {
     if (level === 'live')     return '●';
     if (level === 'degraded') return '◐';
+    if (level === 'delayed')  return '◑';
+    if (level === 'closed')   return '⊙';
     if (level === 'error')    return '✕';
     return '○';
   };

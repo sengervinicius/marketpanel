@@ -315,6 +315,7 @@ function SearchPanel({ onTickerSelect }) {
   const [addedToHome,   setAddedToHome]   = useState(null);
   const [isFocused,     setIsFocused]     = useState(false);
   const [searchError,   setSearchError]   = useState(null);
+  const [isAIMode,      setIsAIMode]      = useState(false);
 
   const inputRef = useRef(null);
   const { addToHomeSection } = useSettings();
@@ -327,6 +328,12 @@ function SearchPanel({ onTickerSelect }) {
     recentSearches, addToRecents, searchAI, handleResultClick,
   } = useInstrumentSearch({ debounceMs: 280, enablePolygon: true, enableAiAuto: true });
 
+  // Detect AI mode from query prefix
+  const detectAIMode = (q) => {
+    const trimmed = q.trim();
+    return trimmed.startsWith('@ai ') || trimmed.startsWith('?');
+  };
+
   // Arrow key navigation, Enter, Escape
   const handleKeyDown = useCallback((e) => {
     if (e.key === 'ArrowDown') {
@@ -337,16 +344,26 @@ function SearchPanel({ onTickerSelect }) {
       setSelectedIdx(i => Math.max(i - 1, -1));
     } else if (e.key === 'Enter') {
       e.preventDefault();
-      const targetIdx = selectedIdx >= 0 ? selectedIdx : 0;
-      if (results.length > targetIdx && targetIdx >= 0) {
-        handleSelect(results[targetIdx]);
+      if (isAIMode) {
+        // In AI mode: search with AI
+        const cleanQuery = query.replace(/^@ai\s+/, '').replace(/^\?/, '').trim();
+        if (cleanQuery) {
+          searchAI(cleanQuery);
+        }
+      } else {
+        // In ticker mode: select from results
+        const targetIdx = selectedIdx >= 0 ? selectedIdx : 0;
+        if (results.length > targetIdx && targetIdx >= 0) {
+          handleSelect(results[targetIdx]);
+        }
       }
     } else if (e.key === 'Escape') {
       setQuery('');
       setSelectedIdx(-1);
       setIsFocused(false);
+      setIsAIMode(false);
     }
-  }, [results, selectedIdx]);
+  }, [results, selectedIdx, isAIMode, query, searchAI]);
 
   const handleSelect = useCallback((item) => {
     addToRecents(item);
@@ -406,21 +423,31 @@ function SearchPanel({ onTickerSelect }) {
           autoFocus
           value={query}
           onChange={e => {
-            setQuery(e.target.value);
+            const newQuery = e.target.value;
+            setQuery(newQuery);
+            setIsAIMode(detectAIMode(newQuery));
             setSearchError(null);
           }}
           onKeyDown={handleKeyDown}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
-          placeholder="ticker or company name..."
-          className="sp-search-input"
-          aria-label="Search for stocks, ETFs, crypto, forex, futures, indices, or bonds"
+          placeholder={isAIMode ? "Ask AI anything..." : "ticker or company name..."}
+          className={`sp-search-input ${isAIMode ? 'sp-search-input--ai-mode' : ''}`}
+          aria-label={isAIMode ? "Ask AI about markets" : "Search for stocks, ETFs, crypto, forex, futures, indices, or bonds"}
         />
-        {!query && !isFocused && (
+        {isAIMode && (
+          <span className="sp-mode-badge sp-mode-badge--ai" title="AI Mode - type your question">
+            AI MODE
+          </span>
+        )}
+        {!isAIMode && !query && !isFocused && (
           <span className="search-shortcut-badge">Press / to search</span>
         )}
-        {loading && (
-          <span className="sp-search-loading">SEARCHING...</span>
+        {!isAIMode && !query && !isFocused && (
+          <span className="sp-mode-hint">Type @ai or ? to ask AI</span>
+        )}
+        {(loading || aiLoading) && (
+          <span className="sp-search-loading">{isAIMode ? 'AI THINKING...' : 'SEARCHING...'}</span>
         )}
       </div>
       {searchError && (

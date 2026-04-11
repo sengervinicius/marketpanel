@@ -66,6 +66,7 @@ function HsbEnrichedRow({ item, idx, selectedIdx, onSelect, onMouseEnter, typeBa
 export default function HeaderSearchBar({ onSelectTicker }) {
 
   const [open, setOpen] = useState(false);
+  const [isAIMode, setIsAIMode] = useState(false);
   const inputRef = useRef(null);
   const containerRef = useRef(null);
 
@@ -125,6 +126,12 @@ export default function HeaderSearchBar({ onSelectTicker }) {
     }
   }, [openDetail, clearSearch]);
 
+  // Detect AI mode from query prefix
+  const detectAIMode = (q) => {
+    const trimmed = q.trim();
+    return trimmed.startsWith('@ai ') || trimmed.startsWith('?');
+  };
+
   // Asset class badge
   const typeBadge = (item) => {
     if (item.isFutures) return 'FUTURES';
@@ -172,14 +179,20 @@ export default function HeaderSearchBar({ onSelectTicker }) {
         <svg className="hsb-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
           <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
         </svg>
-        <span className="hsb-input-label">SEARCH</span>
+        <span className={`hsb-input-label ${isAIMode ? 'hsb-input-label--ai' : ''}`}>
+          {isAIMode ? 'AI MODE' : 'SEARCH'}
+        </span>
         <input
           ref={inputRef}
-          className="hsb-input"
+          className={`hsb-input ${isAIMode ? 'hsb-input--ai-mode' : ''}`}
           value={query}
-          onChange={e => setQuery(e.target.value)}
+          onChange={e => {
+            const newQuery = e.target.value;
+            setQuery(newQuery);
+            setIsAIMode(detectAIMode(newQuery));
+          }}
           onKeyDown={handleKeyDown}
-          placeholder="Search stocks, ETFs, FX, crypto, commodities... (⌘K)"
+          placeholder={isAIMode ? "Ask AI anything..." : "Search stocks, ETFs, FX, crypto, commodities... (⌘K)"}
           autoFocus
         />
         {query && <button className="hsb-clear" onClick={() => { setQuery(''); inputRef.current?.focus(); }}>&times;</button>}

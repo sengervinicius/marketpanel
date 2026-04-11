@@ -240,6 +240,11 @@ router.get('/bond-detail/:symbol', async (req, res) => {
 
 // ── /snapshot/rates ─────────────────────────────────────────────────
 router.get('/snapshot/rates', async (req, res) => {
+  // Cache TTL: 60 seconds for rates endpoint
+  const cacheKey = 'snapshot:rates';
+  const cached = cacheGet(cacheKey);
+  if (cached) return res.json(cached);
+
   try {
     const [usResult, selicResult] = await Promise.allSettled([
       yahooQuote('^IRX,^FVX,^TNX,^TYX'),
@@ -274,28 +279,46 @@ router.get('/snapshot/rates', async (req, res) => {
     results.push({ symbol: 'SELIC', name: 'SELIC', price: selicRate, change: null, changePct: null, note: 'BCB TARGET RATE', type: 'policy' });
 
     let fedFundsRate = 4.33;
+    let ecbRate = 3.50;
     try {
       const fredController = new AbortController();
       const fredTimeout = setTimeout(() => fredController.abort(), 5000);
       try {
-        const fredRes = await fetch(
-          'https://api.stlouisfed.org/fred/series/observations?series_id=DFEDTARU&sort_order=desc&limit=1&file_type=json&api_key=DEMO_KEY',
-          { signal: fredController.signal, headers: { 'Accept': 'application/json' } }
-        );
-        if (fredRes.ok) {
-          const fredData = await fredRes.json();
+        // FRED API Key: DEMO_KEY (limited rate; use API_KEY env var in production)
+        const [dffRes, ecbRes] = await Promise.all([
+          fetch(
+            'https://api.stlouisfed.org/fred/series/observations?series_id=DFF&sort_order=desc&limit=1&file_type=json&api_key=DEMO_KEY',
+            { signal: fredController.signal, headers: { 'Accept': 'application/json' } }
+          ),
+          fetch(
+            'https://api.stlouisfed.org/fred/series/observations?series_id=ECBDFR&sort_order=desc&limit=1&file_type=json&api_key=DEMO_KEY',
+            { signal: fredController.signal, headers: { 'Accept': 'application/json' } }
+          ),
+        ]);
+
+        if (dffRes.ok) {
+          const fredData = await dffRes.json();
           const lastObs = fredData?.observations?.[0];
           if (lastObs?.value && lastObs.value !== '.') fedFundsRate = parseFloat(lastObs.value);
+        }
+
+        if (ecbRes.ok) {
+          const ecbData = await ecbRes.json();
+          const lastObs = ecbData?.observations?.[0];
+          if (lastObs?.value && lastObs.value !== '.') ecbRate = parseFloat(lastObs.value);
         }
       } finally {
         clearTimeout(fredTimeout);
       }
     } catch (e) {
-      console.warn('[API] FRED Fed Funds fetch failed, using fallback:', e.message);
+      console.warn('[API] FRED rates fetch failed, using fallback:', e.message);
     }
     results.push({ symbol: 'FEDFUNDS', name: 'FED FUNDS', price: fedFundsRate, change: null, changePct: null, note: 'TARGET RATE', type: 'policy' });
+    results.push({ symbol: 'ECBRATE', name: 'ECB RATE', price: ecbRate, change: null, changePct: null, note: 'MAIN REFINANCING RATE', type: 'policy' });
 
-    res.json({ results });
+    const payload = { results };
+    cacheSet(cacheKey, payload, 60_000); // Cache for 60 seconds
+    res.json(payload);
   } catch (err) {
     console.error('[API] /snapshot/rates error:', err.message);
     sendError(res, err);

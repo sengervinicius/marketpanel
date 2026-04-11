@@ -38,22 +38,35 @@ setInterval(() => {
 /**
  * Cache TTL configuration (milliseconds).
  * Updated to reduce Polygon API calls during rate limiting.
+ * Chart TTLs now vary by timespan: intraday (5m), daily/weekly (24h).
  */
 const TTL = {
   stocksSnapshot: 60_000,   // 60 s — real-time quotes (increased from 10s)
   forexSnapshot:  60_000,   // 60 s — FX pairs (increased from 10s)
   cryptoSnapshot: 60_000,   // 60 s — crypto pairs (increased from 10s)
   news:           60_000,   // 60 s — aggregated news feed
-  chart:          60_000,   // 60 s — per ticker+range combo (increased from 30s)
+  chartIntraday:  300_000,  // 5 min — per ticker+range combo (minute/hour timespans)
+  chartDaily:     86_400_000, // 24 hr — daily/weekly/monthly timespans
   yields:         300_000,  // 5 min — sovereign bond yields (increased from 60s)
   etfs:           60_000,   // 60 s — ETF category snapshots (increased from 30s)
   fred:           300_000,  // 5 min — FRED yield curve fallback
 };
 
+/**
+ * Helper function to get chart TTL based on timespan.
+ * @param {string} timespan — 'minute', 'hour', 'day', 'week', or 'month'
+ * @returns {number} TTL in milliseconds
+ */
+function getChartTTL(timespan) {
+  const intradayTimespans = ['minute', 'hour'];
+  return intradayTimespans.includes(timespan) ? TTL.chartIntraday : TTL.chartDaily;
+}
+
 module.exports = {
   cacheGet,
   cacheSet,
   TTL,
+  getChartTTL,
   yahooCache,
   _ttlCache, // exposed for /cache/stats
 };

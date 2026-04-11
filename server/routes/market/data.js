@@ -724,8 +724,42 @@ router.get('/market/td/statistics/:ticker', async (req, res) => {
       } catch (e) { console.warn(`[td/statistics] Yahoo fallback failed for ${ticker}:`, e.message); }
     }
 
-    if (data) cacheSet(ck, data, 300_000);
-    res.json({ ok: true, data: data || null, source });
+    // Normalize nested statistics into flat keys the client expects
+    let flat = null;
+    if (data) {
+      const s = data.statistics || data;
+      const vm = s.valuations_metrics || {};
+      const fi = s.financials || {};
+      const sp = s.stock_price || {};
+      const ds = s.dividends_and_splits || {};
+      const ss = s.stock_statistics || {};
+      flat = {
+        market_capitalization: vm.market_capitalization ?? null,
+        pe_ratio:              vm.trailing_pe ?? null,
+        forward_pe:            vm.forward_pe ?? null,
+        price_to_book:         vm.price_to_book ?? null,
+        enterprise_value:      vm.enterprise_value ?? null,
+        peg_ratio:             vm.peg_ratio ?? null,
+        eps:                   fi.diluted_eps ?? null,
+        revenue:               fi.revenue ?? null,
+        ebitda:                fi.ebitda ?? null,
+        gross_margin:          fi.gross_margin ?? null,
+        operating_margin:      fi.operating_margin ?? null,
+        profit_margin:         fi.profit_margin ?? null,
+        return_on_equity:      fi.return_on_equity ?? null,
+        revenue_growth:        fi.revenue_growth ?? null,
+        earnings_growth:       fi.earnings_growth ?? null,
+        beta:                  sp.beta ?? null,
+        '52_week_low':         sp['52_week_low'] ?? null,
+        '52_week_high':        sp['52_week_high'] ?? null,
+        dividend_yield:        ds.forward_annual_dividend_yield != null ? ds.forward_annual_dividend_yield / 100 : ds.trailing_annual_dividend_yield != null ? ds.trailing_annual_dividend_yield / 100 : null,
+        shares_outstanding:    ss.shares_outstanding ?? null,
+        // Preserve raw nested data for any consumers that need it
+        _raw: data,
+      };
+      cacheSet(ck, flat, 300_000);
+    }
+    res.json({ ok: true, data: flat, source });
   } catch (e) {
     logger.warn(`GET /market/td/statistics/${req.params.ticker} error:`, e.message);
     res.status(500).json({ ok: false, error: e.message });

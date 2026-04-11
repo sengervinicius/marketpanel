@@ -34,19 +34,22 @@ export function useFeedStatus() {
   const getStatus = (feed) => getLevel(status?.[feed]);
 
   // Returns the worst status across all feeds:
-  // 'error' > 'degraded' > 'connecting' > 'live'
+  // 'error' > 'degraded' > 'connecting' > 'delayed' > 'closed' > 'live'
   const getOverallStatus = () => {
     const levels = Object.values(status || {}).map(v => getLevel(v));
     if (levels.includes('error'))     return 'error';
     if (levels.includes('degraded'))  return 'degraded';
     if (levels.includes('connecting')) return 'connecting';
-    return 'live';
+    if (levels.includes('delayed'))   return 'delayed';
+    return 'live'; // live or closed both indicate no connectivity issue
   };
 
   const getColor   = (feed) => {
     const lvl = getStatus(feed);
     if (lvl === 'live')     return '#00cc66';
     if (lvl === 'degraded') return '#ff9900';
+    if (lvl === 'delayed')  return '#ffcc00';
+    if (lvl === 'closed')   return '#666';
     if (lvl === 'error')    return '#ff3333';
     return '#444'; // connecting
   };
@@ -54,6 +57,8 @@ export function useFeedStatus() {
     const lvl = getStatus(feed);
     if (lvl === 'live')     return { text: 'L1 REAL-TIME', color: '#00cc66', bg: '#001a0d' };
     if (lvl === 'degraded') return { text: 'DEGRADED',    color: '#ff9900', bg: '#1a0e00' };
+    if (lvl === 'delayed')  return { text: 'DELAYED',     color: '#ffcc00', bg: '#1a1400' };
+    if (lvl === 'closed')   return { text: 'CLOSED',      color: '#666',    bg: '#0d0d0d' };
     if (lvl === 'error')    return { text: 'FEED DOWN',   color: '#ff3333', bg: '#1a0000' };
     return                          { text: '●', color: '#555',    bg: 'transparent' };
   };

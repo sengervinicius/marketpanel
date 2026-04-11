@@ -19,12 +19,24 @@ const TIMEOUT_MS     = 15000;
 
 // Simple in-memory cache: query → { result, exp }
 const _cache = new Map();
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const CACHE_TTL = 60 * 60 * 1000; // 1 hour (increased from 5 minutes)
+
+// Cache stats
+let _cacheHits = 0;
+let _cacheMisses = 0;
 
 function cacheGet(q) {
   const e = _cache.get(q.toLowerCase().trim());
-  if (!e) return null;
-  if (Date.now() > e.exp) { _cache.delete(q.toLowerCase().trim()); return null; }
+  if (!e) {
+    _cacheMisses++;
+    return null;
+  }
+  if (Date.now() > e.exp) {
+    _cache.delete(q.toLowerCase().trim());
+    _cacheMisses++;
+    return null;
+  }
+  _cacheHits++;
   return e.v;
 }
 function cacheSet(q, v) {
@@ -43,6 +55,36 @@ function cacheSet(q, v) {
  */
 router.get('/health', (req, res) => {
   res.json({ ai: !!process.env.PERPLEXITY_API_KEY });
+});
+
+/**
+ * GET /cache-stats — Cache diagnostics for AI endpoints
+ */
+router.get('/cache-stats', (req, res) => {
+  const totalRequests = _cacheHits + _cacheMisses;
+  const hitRate = totalRequests > 0 ? ((_cacheHits / totalRequests) * 100).toFixed(2) : 'N/A';
+
+  const fundsTotalRequests = _fundsCacheHits + _fundsCacheMisses;
+  const fundsHitRate = fundsTotalRequests > 0 ? ((_fundsCacheHits / fundsTotalRequests) * 100).toFixed(2) : 'N/A';
+
+  res.json({
+    ai_search: {
+      hits: _cacheHits,
+      misses: _cacheMisses,
+      total: totalRequests,
+      hitRate: hitRate + '%',
+      cacheSize: _cache.size,
+      ttlMinutes: CACHE_TTL / (60 * 1000),
+    },
+    fundamentals: {
+      hits: _fundsCacheHits,
+      misses: _fundsCacheMisses,
+      total: fundsTotalRequests,
+      hitRate: fundsHitRate + '%',
+      cacheSize: _fundsCache.size,
+      ttlHours: FUNDS_CACHE_TTL / (60 * 60 * 1000),
+    },
+  });
 });
 
 /**
@@ -148,7 +190,11 @@ router.post('/ai', async (req, res) => {
 
 // Cache for AI fundamentals: symbol → { result, exp }
 const _fundsCache = new Map();
-const FUNDS_CACHE_TTL = 15 * 60 * 1000; // 15 minutes
+const FUNDS_CACHE_TTL = 4 * 60 * 60 * 1000; // 4 hours (increased from 15 minutes)
+
+// Fundamentals cache stats
+let _fundsCacheHits = 0;
+let _fundsCacheMisses = 0;
 
 router.post('/fundamentals', async (req, res) => {
   const apiKey = process.env.PERPLEXITY_API_KEY;
@@ -165,8 +211,10 @@ router.post('/fundamentals', async (req, res) => {
   // Check cache
   const cached = _fundsCache.get(sym);
   if (cached && Date.now() < cached.exp) {
+    _fundsCacheHits++;
     return res.json({ ...cached.v, cached: true });
   }
+  _fundsCacheMisses++;
 
   // ── Gather internal data in parallel (with tight individual timeouts) ──
   const baseUrl = `http://localhost:${process.env.PORT || 3001}`;

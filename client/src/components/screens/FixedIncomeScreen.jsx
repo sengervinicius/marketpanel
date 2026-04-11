@@ -15,7 +15,7 @@
  * ~550 lines, using FullPageScreenLayout + Recharts + useSectionData
  */
 
-import { useState, useCallback, memo } from 'react';
+import { useState, useCallback, memo, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { useSectionData } from '../../hooks/useSectionData';
 import { useOpenDetail } from '../../context/OpenDetailContext';
@@ -714,28 +714,42 @@ function DurationRiskCalculator() {
    SECTION 10: Central Bank Rates
    ═══════════════════════════════════════════════════════════════════════════ */
 
-const CB_RATES = [
-  { bank: 'Federal Reserve', rate: null, tenor: 'Fed Funds', fredId: 'FEDFUNDS', flag: '🇺🇸' },
-  { bank: 'ECB', rate: 4.50, tenor: 'Main Refi', asOf: '2024-06', flag: '🇪🇺' },
-  { bank: 'Bank of England', rate: 5.25, tenor: 'Base Rate', asOf: '2024-06', flag: '🇬🇧' },
-  { bank: 'Bank of Japan', rate: 0.10, tenor: 'Policy Rate', asOf: '2024-03', flag: '🇯🇵' },
-  { bank: 'PBOC', rate: 3.45, tenor: 'LPR 1Y', asOf: '2024-06', flag: '🇨🇳' },
-  { bank: 'BCB (Brazil)', rate: 10.50, tenor: 'Selic', asOf: '2024-06', flag: '🇧🇷' },
+const CB_RATES_TEMPLATE = [
+  { bank: 'Federal Reserve', tenor: 'Fed Funds', fredId: 'FEDFUNDS', flag: '🇺🇸', key: 'fed' },
+  { bank: 'ECB', tenor: 'Main Refi', flag: '🇪🇺', key: 'ecb' },
+  { bank: 'Bank of England', tenor: 'Base Rate', flag: '🇬🇧', key: 'boe' },
+  { bank: 'Bank of Japan', tenor: 'Policy Rate', flag: '🇯🇵', key: 'boj' },
+  { bank: 'PBOC', tenor: 'LPR 1Y', flag: '🇨🇳', key: 'pboc' },
+  { bank: 'BCB (Brazil)', tenor: 'Selic', flag: '🇧🇷', key: 'bcb' },
 ];
 
 function CentralBankRatesSection() {
-  const { data: fedRate, loading } = useSectionData({
-    cacheKey: 'fi-fed-funds-rate',
-    fetcher: async () => {
+  const [rates, setRates] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const fetchRates = async () => {
       try {
-        const res = await apiFetch('/api/bonds/yield-curves?countries=US');
-        if (!res.ok) return null;
-        // We just want the Fed Funds rate from FRED — use the bond provider
-        return null; // Fallback to hardcoded
-      } catch { return null; }
-    },
-    refreshMs: 600000,
-  });
+        setLoading(true);
+        setError(null);
+        const res = await apiFetch('/api/snapshot/rates');
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        setRates(data);
+      } catch (err) {
+        console.error('Failed to fetch central bank rates:', err);
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchRates();
+    // Refresh every 10 minutes
+    const interval = setInterval(fetchRates, 600000);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <div style={{ padding: '0 10px' }}>
@@ -749,22 +763,28 @@ function CentralBankRatesSection() {
           </tr>
         </thead>
         <tbody>
-          {CB_RATES.map((cb, idx) => (
-            <tr key={idx}>
-              <td style={{ fontWeight: 500, color: 'var(--text-primary)' }}>
-                <span style={{ marginRight: 4 }}>{cb.flag}</span>{cb.bank}
-              </td>
-              <td style={{ color: 'var(--semantic-info)', fontWeight: 600 }}>
-                {cb.rate != null ? cb.rate.toFixed(2) + '%' : (loading ? '...' : '—')}
-              </td>
-              <td style={{ fontSize: 9, color: 'var(--text-secondary)' }}>{cb.tenor}</td>
-              <td style={{ fontSize: 9, color: 'var(--text-muted)' }}>{cb.asOf || '—'}</td>
-            </tr>
-          ))}
+          {CB_RATES_TEMPLATE.map((cb, idx) => {
+            const rateData = rates[cb.key];
+            const rate = rateData?.rate;
+            const date = rateData?.date;
+
+            return (
+              <tr key={idx}>
+                <td style={{ fontWeight: 500, color: 'var(--text-primary)' }}>
+                  <span style={{ marginRight: 4 }}>{cb.flag}</span>{cb.bank}
+                </td>
+                <td style={{ color: 'var(--semantic-info)', fontWeight: 600 }}>
+                  {loading ? 'Loading...' : (rate != null ? rate.toFixed(2) + '%' : '—')}
+                </td>
+                <td style={{ fontSize: 9, color: 'var(--text-secondary)' }}>{cb.tenor}</td>
+                <td style={{ fontSize: 9, color: 'var(--text-muted)' }}>{date || '—'}</td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
       <div style={{ fontSize: 8, color: 'var(--text-muted)', marginTop: 6, textAlign: 'right' }}>
-        ECB/BOE/BOJ/PBOC/BCB rates updated manually. Fed from FRED.
+        Rates fetched from /api/snapshot/rates. {error && <span style={{ color: 'var(--semantic-down)' }}>Error: {error}</span>}
       </div>
     </div>
   );

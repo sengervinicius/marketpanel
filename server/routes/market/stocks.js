@@ -5,7 +5,7 @@
 const express = require('express');
 const router  = express.Router();
 const { isTicker, parseTickerList, clampInt, sanitizeText } = require('../../utils/validate');
-const { cacheGet, cacheSet, TTL, yahooCache } = require('./lib/cache');
+const { cacheGet, cacheSet, TTL, getChartTTL, yahooCache } = require('./lib/cache');
 const {
   yahooQuote, finnhubQuote, fetchWithFallback, polyFetch,
   getYahooCrumb, resetYahooCrumb, sendError, eulerpool, twelvedata, fetch, YF_UA,
@@ -505,7 +505,7 @@ router.get('/chart/:ticker', async (req, res) => {
           .filter(b => b.c != null && b.c > 0);
         if (chartResults.length > 0) {
           const chartPayload = { results: chartResults, ticker, status: 'OK', source: 'yahoo' };
-          cacheSet(chartCacheKey, chartPayload, TTL.chart);
+          cacheSet(chartCacheKey, chartPayload, getChartTTL(timespan));
           return res.json(chartPayload);
         }
       }
@@ -528,7 +528,7 @@ router.get('/chart/:ticker', async (req, res) => {
 
         if (tdData?.bars?.length > 0) {
           const chartPayload = { results: tdData.bars, ticker, status: 'OK', source: 'twelvedata' };
-          cacheSet(chartCacheKey, chartPayload, TTL.chart);
+          cacheSet(chartCacheKey, chartPayload, getChartTTL(timespan));
           return res.json(chartPayload);
         }
       } catch (e) {
@@ -543,7 +543,7 @@ router.get('/chart/:ticker', async (req, res) => {
           `/v2/aggs/ticker/${ticker}/range/${multiplier}/${timespan}/${fromDate}/${toDate}?adjusted=true&sort=asc&limit=500`,
           { priority: 15, label: 'chart' }
         );
-        cacheSet(chartCacheKey, data, TTL.chart);
+        cacheSet(chartCacheKey, data, getChartTTL(timespan));
         return res.json(data);
       } catch (e) {
         console.warn(`[Chart] Polygon failed: ${e.message}`);

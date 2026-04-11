@@ -637,3 +637,45 @@
 .sp-ai-search-btn:hover {
   background: rgba(255, 102, 0, 0.08);
 }
+
+/* ── AI Mode Indicator ── */
+.sp-search-input--ai-mode {
+  border-color: var(--accent, #ff6b00) !important;
+  background: rgba(255, 102, 0, 0.04);
+}
+
+.sp-search-input--ai-mode:focus {
+  border-color: var(--accent, #ff6b00) !important;
+  box-shadow: 0 0 0 2px rgba(255, 102, 0, 0.15);
+}
+
+.sp-mode-badge {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  font: 600 8px var(--font-mono);
+  letter-spacing: 0.1em;
+  padding: 2px 6px;
+  border-radius: 2px;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.sp-mode-badge--ai {
+  background: var(--accent, #ff6b00);
+  color: var(--text-primary, #fff);
+  border: none;
+}
+
+.sp-mode-hint {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  font: 9px var(--font-ui);
+  color: var(--text-faint);
+  pointer-events: none;
+  opacity: 0.6;
+}

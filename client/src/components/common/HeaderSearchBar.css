@@ -384,6 +384,27 @@
   color: var(--accent);
 }
 
+/* ─── AI Mode Styling ────────────────────────────── */
+
+.hsb-input--ai-mode {
+  /* AI mode is handled by parent row styling */
+}
+
+.hsb-input-row:has(.hsb-input--ai-mode) {
+  background: rgba(255, 102, 0, 0.06);
+  border-color: rgba(255, 102, 0, 0.6);
+  box-shadow:
+    0 0 0 1px rgba(255, 102, 0, 0.15),
+    0 0 32px rgba(255, 102, 0, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.02);
+}
+
+.hsb-input-label--ai {
+  color: var(--accent);
+  opacity: 1;
+  font-weight: 700;
+}
+
 /* ─── Responsive ─────────────────────────────────── */
 
 @media (max-width: 1280px) {

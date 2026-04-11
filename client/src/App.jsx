@@ -38,6 +38,7 @@ import ChartsPanelMobile from './components/panels/ChartsPanelMobile';
 import MobileMoreScreen from './components/panels/MobileMoreScreen';
 import ToastContainer from './components/common/ToastContainer';
 import WelcomeModal from './components/onboarding/WelcomeModal';
+import OnboardingTour from './components/common/OnboardingTour';
 import SectorScreenSelector from './components/common/SectorScreenSelector';
 import {
   DefenceScreen, CommoditiesScreen, GlobalMacroScreen, FixedIncomeScreen,
@@ -74,6 +75,7 @@ import {
 } from './components/app/AppMobile';
 import './App.css';
 import './components/panels/Chat.css';
+import 'react-joyride/lib/react-joyride.css';
 
 // ── Error Boundary — catches runtime crashes and shows diagnostic info ─────
 class AppErrorBoundary extends Component {
@@ -397,6 +399,9 @@ export default function App() {
 
         {/* Welcome modal (replaces old onboarding) */}
         {showWelcome && <WelcomeModal onClose={() => setShowWelcome(false)} />}
+
+        {/* 5-Step Onboarding Tour */}
+        <OnboardingTour />
 
         {/* Keyboard shortcuts modal */}
         {showShortcuts && <KeyboardShortcutsModal onClose={() => setShowShortcuts(false)} />}

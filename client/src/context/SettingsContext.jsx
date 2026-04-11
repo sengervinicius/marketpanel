@@ -207,11 +207,11 @@ export function SettingsProvider({ children, isAuthenticated }) {
 
   // ── Onboarding tour ──────────────────────────────────────────────────────
   const markTourCompleted = useCallback(async () => {
-    await updateSettings({ onboarding: { completed: true, lastStep: null } });
+    await updateSettings({ onboardingCompleted: true });
   }, [updateSettings]);
 
   const resetTour = useCallback(async () => {
-    await updateSettings({ onboarding: { completed: false, lastStep: null } });
+    await updateSettings({ onboardingCompleted: false });
   }, [updateSettings]);
 
   // Flush pending saves on unmount
