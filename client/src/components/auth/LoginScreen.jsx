@@ -1,9 +1,9 @@
 /**
  * LoginScreen.jsx
  *
- * Minimal landing + auth screen. This IS the landing page.
- * Centered login with Apple ID, subtle animated background,
- * and a single catchphrase. Nothing else.
+ * Premium futuristic landing + auth screen.
+ * Centered login with Apple ID, animated video background
+ * with orange volumetric blobs, glassmorphism card, floating particles.
  */
 
 import { useState, useEffect, useRef } from 'react';
@@ -33,7 +33,7 @@ function AppleLogo() {
   );
 }
 
-// ── Floating particles ────────────────────────────────────────────────────────
+// ── Floating particles — soft glowing dots ───────────────────────────────────
 function Particles() {
   const containerRef = useRef(null);
 
@@ -42,14 +42,14 @@ function Particles() {
     if (!el) return;
 
     const particles = [];
-    const COUNT = 20;
+    const COUNT = 28;
 
     for (let i = 0; i < COUNT; i++) {
       const p = document.createElement('div');
       p.className = 'ls-particle';
-      const size = 1 + Math.random() * 2;
+      const size = 1 + Math.random() * 2.5;
       const x = Math.random() * 100;
-      const duration = 12 + Math.random() * 20;
+      const duration = 14 + Math.random() * 22;
       const delay = Math.random() * duration;
       p.style.cssText = `
         left: ${x}%;
@@ -58,7 +58,8 @@ function Particles() {
         height: ${size}px;
         animation-duration: ${duration}s;
         animation-delay: -${delay}s;
-        opacity: ${0.15 + Math.random() * 0.25};
+        opacity: ${0.15 + Math.random() * 0.35};
+        box-shadow: 0 0 ${3 + size * 2}px rgba(255, 120, 40, ${0.15 + Math.random() * 0.2});
       `;
       el.appendChild(p);
       particles.push(p);
@@ -67,7 +68,7 @@ function Particles() {
     return () => particles.forEach(p => p.remove());
   }, []);
 
-  return <div ref={containerRef} style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none' }} />;
+  return <div ref={containerRef} style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none', zIndex: 3 }} />;
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
@@ -180,7 +181,7 @@ export default function LoginScreen({ children }) {
 
   return (
     <div className="ls-overlay">
-      {/* Background video — blended dark, mysterious */}
+      {/* Background video — orange volumetric blobs, visible and ambient */}
       <video
         className="ls-video-bg"
         autoPlay
@@ -238,7 +239,7 @@ export default function LoginScreen({ children }) {
           </div>
 
           {/* Error */}
-          <div className="ls-error">{error}</div>
+          {error && <div className="ls-error">{error}</div>}
 
           {/* Form */}
           <form onSubmit={handleSubmit} autoComplete="on">
@@ -286,8 +287,6 @@ export default function LoginScreen({ children }) {
           </button>
         </div>
       </div>
-
-      {/* Footer removed — no branding */}
     </div>
   );
 }
