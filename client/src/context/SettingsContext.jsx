@@ -24,7 +24,7 @@ function defaultSettings() {
       globalIndices:{ title: 'Global Indexes', symbols: ['SPY','QQQ','DIA','IWM','EWZ','EEM','FXI'] },
       forex:        { title: 'FX / Rates',     symbols: ['EURUSD','GBPUSD','USDJPY','USDBRL','USDCHF','USDCNY','USDMXN','BTCUSD','ETHUSD','SOLUSD','XRPUSD','BNBUSD'] },
       crypto:       { title: 'Crypto',         symbols: ['BTCUSD','ETHUSD','SOLUSD','XRPUSD'] },
-      commodities:  { title: 'Commodities',    symbols: ['GLD','SLV','USO','UNG'] },
+      commodities:  { title: 'Commodities',    symbols: ['BZ=F','GLD','SLV','USO','UNG'] },
       debt:         { title: 'Debt Markets',   symbols: ['US10Y','US2Y','BR10Y','DE10Y'] },
     },
     layout: DEFAULT_LAYOUT,

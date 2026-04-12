@@ -52,7 +52,7 @@ const defaultHome = {
     globalIndices:{ title: 'Global Indexes',  symbols: ['SPY','QQQ','DIA','EWZ','EEM','VGK','EWJ','FXI'] },
     forex:        { title: 'FX Markets',      symbols: ['EURUSD','USDJPY','GBPUSD','USDBRL','USDCHF','USDCNY','USDMXN','AUDUSD','USDCAD'] },
     crypto:       { title: 'Crypto',          symbols: ['BTCUSD','ETHUSD','SOLUSD','XRPUSD','BNBUSD','DOGEUSD'] },
-    commodities:  { title: 'Commodities',     symbols: ['GLD','SLV','BZ=F','USO','UNG','CORN','WEAT','SOYB','CPER','BHP'] },
+    commodities:  { title: 'Commodities',     symbols: ['BZ=F','GLD','SLV','USO','UNG','CORN','WEAT','SOYB','CPER','BHP'] },
     brazilB3:     { title: 'Brazil B3',       symbols: ['VALE3.SA','PETR4.SA','ITUB4.SA','BBDC4.SA','ABEV3.SA','WEGE3.SA','RENT3.SA','B3SA3.SA','MGLU3.SA','BBAS3.SA','GGBR4.SA','SUZB3.SA'] },
     debt:         { title: 'Yields & Rates',  symbols: [] },
   },
