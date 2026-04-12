@@ -78,10 +78,20 @@ async function createCheckoutSession(userId, plan = 'monthly') {
     };
   }
 
-  const customerId = await ensureStripeCustomer(stripe, user);
+  let customerId;
+  try {
+    customerId = await ensureStripeCustomer(stripe, user);
+  } catch (custErr) {
+    console.error(`[billing] Customer error:`, custErr.message);
+    return {
+      error: `Checkout failed: ${custErr.message}`,
+      configured: true,
+    };
+  }
+
   const clientUrl  = process.env.CLIENT_URL || 'http://localhost:5173';
 
-  console.log(`[billing] Creating checkout session for user ${userId}, priceId: ${priceId?.slice(0, 20)}...`);
+  console.log(`[billing] Creating checkout session for user ${userId}, priceId: ${priceId?.slice(0, 20)}..., customer: ${customerId}`);
 
   let session;
   try {
@@ -107,7 +117,7 @@ async function createCheckoutSession(userId, plan = 'monthly') {
     console.error(`[billing] Stripe error (${code}):`, stripeErr.message);
     return {
       error: `Checkout failed: ${stripeErr.message}`,
-      configured: false,
+      configured: true,
     };
   }
 
