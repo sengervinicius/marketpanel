@@ -28,7 +28,17 @@ function getStripe() {
 
 /** Ensure a Stripe customer exists for this user; return stripeCustomerId. */
 async function ensureStripeCustomer(stripe, user) {
-  if (user.stripeCustomerId) return user.stripeCustomerId;
+  // If user already has a stripeCustomerId, verify it still exists
+  // (handles test→live mode switch where old customer IDs are invalid)
+  if (user.stripeCustomerId) {
+    try {
+      await stripe.customers.retrieve(user.stripeCustomerId);
+      return user.stripeCustomerId;
+    } catch (err) {
+      console.warn(`[billing] Stale stripeCustomerId ${user.stripeCustomerId} for user ${user.id} — creating new customer`);
+      // Fall through to create a new customer
+    }
+  }
 
   const customer = await stripe.customers.create({
     metadata: { userId: String(user.id) },
@@ -96,9 +106,7 @@ async function createCheckoutSession(userId, plan = 'monthly') {
     const code = stripeErr.code || stripeErr.type || 'unknown';
     console.error(`[billing] Stripe error (${code}):`, stripeErr.message);
     return {
-      error: code === 'resource_missing'
-        ? 'Subscription plan not found. The STRIPE_PRICE_ID may not match the STRIPE_SECRET_KEY mode (test vs live).'
-        : `Checkout failed: ${stripeErr.message}`,
+      error: `Checkout failed: ${stripeErr.message}`,
       configured: false,
     };
   }
