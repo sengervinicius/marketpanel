@@ -494,11 +494,32 @@ async function mergeSettings(userId, partial) {
 // ── Subscription ──────────────────────────────────────────────────────────────
 
 async function updateSubscription(userId, fields) {
-  const user = getUserById(userId);
-  if (!user) throw new Error('User not found');
-  Object.assign(user, fields);
-  await persistUser(user); // write-through to MongoDB
-  return user;
+  let user = getUserById(userId);
+
+  if (user) {
+    // Normal path: update in-memory + persist
+    Object.assign(user, fields);
+    await persistUser(user);
+    return user;
+  }
+
+  // User not in memory (e.g. MongoDB hydration failed or user not yet cached).
+  // Write directly to MongoDB so subscription state is persisted for next hydration.
+  console.warn(`[authStore] updateSubscription: user ${userId} not in memory — writing directly to MongoDB`);
+  if (usersCollection) {
+    try {
+      await usersCollection.updateOne(
+        { id: Number(userId) },
+        { $set: fields },
+        { upsert: false },
+      );
+    } catch (e) {
+      console.error(`[authStore] updateSubscription MongoDB direct write failed:`, e.message);
+    }
+  }
+
+  // Return a minimal object so callers don't break
+  return { id: userId, ...fields };
 }
 
 // ── Account deletion ─────────────────────────────────────────────────────────

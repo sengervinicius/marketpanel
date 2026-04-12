@@ -36,8 +36,26 @@ async function ensureStripeCustomer(stripe, user) {
       return user.stripeCustomerId;
     } catch (err) {
       console.warn(`[billing] Stale stripeCustomerId ${user.stripeCustomerId} for user ${user.id} — creating new customer`);
-      // Fall through to create a new customer
+      // Fall through to search / create
     }
+  }
+
+  // Search Stripe for existing customer by userId metadata (handles case where
+  // in-memory store is empty but customer was already created in a previous session)
+  try {
+    const existing = await stripe.customers.search({
+      query: `metadata["userId"]:"${user.id}"`,
+      limit: 1,
+    });
+    if (existing.data.length > 0) {
+      const cid = existing.data[0].id;
+      console.log(`[billing] Found existing Stripe customer ${cid} for user ${user.id} via search`);
+      await updateSubscription(user.id, { stripeCustomerId: cid });
+      return cid;
+    }
+  } catch (searchErr) {
+    console.warn(`[billing] Stripe customer search failed:`, searchErr.message);
+    // Fall through to create new
   }
 
   const customer = await stripe.customers.create({
@@ -55,8 +73,12 @@ async function ensureStripeCustomer(stripe, user) {
 /**
  * Create a Stripe Checkout session.
  * Returns { checkoutUrl } on success, or an error object if Stripe is not configured.
+ *
+ * @param {number} userId - User ID from JWT
+ * @param {string} plan - 'monthly' or 'annual'
+ * @param {object} userContext - { username, email } from the route handler (JWT-verified)
  */
-async function createCheckoutSession(userId, plan = 'monthly') {
+async function createCheckoutSession(userId, plan = 'monthly', userContext = {}) {
   const stripe = getStripe();
   const monthlyPriceId = process.env.STRIPE_PRICE_ID;
   const annualPriceId  = process.env.STRIPE_ANNUAL_PRICE_ID;
@@ -70,11 +92,17 @@ async function createCheckoutSession(userId, plan = 'monthly') {
     };
   }
 
-  const user = getUserById(userId);
+  // Build user object: prefer in-memory store, fall back to JWT-provided context.
+  // This ensures billing works even when the in-memory store hasn't been populated
+  // (e.g. MongoDB is empty or hydration failed).
+  let user = getUserById(userId);
   if (!user) {
-    return {
-      error: 'Session expired. Please log out and log back in.',
-      configured: true,
+    console.warn(`[billing] getUserById(${userId}) returned null — using JWT context`);
+    user = {
+      id: userId,
+      username: userContext.username || null,
+      email: userContext.email || null,
+      stripeCustomerId: null,
     };
   }
 
@@ -132,7 +160,7 @@ async function createCheckoutSession(userId, plan = 'monthly') {
  *   - Cancel or modify their subscription
  *   - Download invoices
  */
-async function createPortalSession(userId) {
+async function createPortalSession(userId, userContext = {}) {
   const stripe = getStripe();
   if (!stripe) {
     return {
@@ -142,18 +170,44 @@ async function createPortalSession(userId) {
     };
   }
 
-  const user = getUserById(userId);
+  // Try in-memory store first, fall back to JWT context
+  let user = getUserById(userId);
   if (!user) {
+    console.warn(`[billing] portal: getUserById(${userId}) returned null — using JWT context`);
+    user = {
+      id: userId,
+      username: userContext.username || null,
+      stripeCustomerId: null,
+    };
+  }
+
+  // If we don't have stripeCustomerId from memory, try to find it via Stripe search
+  let customerId = user.stripeCustomerId;
+  if (!customerId) {
+    try {
+      const customers = await stripe.customers.search({
+        query: `metadata["userId"]:"${userId}"`,
+        limit: 1,
+      });
+      if (customers.data.length > 0) {
+        customerId = customers.data[0].id;
+        console.log(`[billing] portal: found customer ${customerId} via Stripe search for user ${userId}`);
+      }
+    } catch (searchErr) {
+      console.warn(`[billing] portal: Stripe customer search failed:`, searchErr.message);
+    }
+  }
+
+  if (!customerId) {
     return {
-      error: 'Session expired. Please log out and log back in.',
+      error: 'No billing account found — subscribe first',
       configured: true,
     };
   }
-  if (!user.stripeCustomerId) throw new Error('No billing account found — subscribe first');
 
   const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
   const session = await stripe.billingPortal.sessions.create({
-    customer:   user.stripeCustomerId,
+    customer:   customerId,
     return_url: clientUrl,
   });
 
@@ -282,27 +336,72 @@ async function handleWebhookEvent(stripe, event) {
 }
 
 async function findUserIdByCustomer(customerId) {
+  // Try in-memory store first
   const { findUserByStripeCustomerId } = require('./authStore');
   const user = findUserByStripeCustomerId(customerId);
-  return user ? user.id : null;
+  if (user) return user.id;
+
+  // Fallback: look up customer in Stripe to get userId from metadata
+  const stripe = getStripe();
+  if (stripe) {
+    try {
+      const customer = await stripe.customers.retrieve(customerId);
+      if (customer.metadata?.userId) {
+        return Number(customer.metadata.userId);
+      }
+    } catch (err) {
+      console.warn(`[billing] findUserIdByCustomer: Stripe lookup failed for ${customerId}:`, err.message);
+    }
+  }
+
+  return null;
 }
 
 // ── Subscription status ───────────────────────────────────────────────────────
 
 async function getSubscriptionStatus(userId) {
   const user = getUserById(userId);
-  if (!user) return { status: 'unknown' };
-  const now = Date.now();
-  if (user.isPaid && user.subscriptionActive) return { status: 'active', isPaid: true };
-  if (user.trialEndsAt && now < user.trialEndsAt) {
-    return {
-      status: 'trial',
-      isPaid: false,
-      trialEndsAt: user.trialEndsAt,
-      trialDaysRemaining: Math.max(0, Math.ceil((user.trialEndsAt - now) / 86400000)),
-    };
+
+  // If user is in memory, use cached subscription fields
+  if (user) {
+    const now = Date.now();
+    if (user.isPaid && user.subscriptionActive) return { status: 'active', isPaid: true };
+    if (user.trialEndsAt && now < user.trialEndsAt) {
+      return {
+        status: 'trial',
+        isPaid: false,
+        trialEndsAt: user.trialEndsAt,
+        trialDaysRemaining: Math.max(0, Math.ceil((user.trialEndsAt - now) / 86400000)),
+      };
+    }
+    return { status: 'expired', isPaid: false };
   }
-  return { status: 'expired', isPaid: false };
+
+  // User not in memory — try to check subscription via Stripe API
+  const stripe = getStripe();
+  if (!stripe) return { status: 'unknown' };
+
+  try {
+    const customers = await stripe.customers.search({
+      query: `metadata["userId"]:"${userId}"`,
+      limit: 1,
+    });
+    if (customers.data.length > 0) {
+      const subscriptions = await stripe.subscriptions.list({
+        customer: customers.data[0].id,
+        status: 'active',
+        limit: 1,
+      });
+      if (subscriptions.data.length > 0) {
+        return { status: 'active', isPaid: true };
+      }
+    }
+  } catch (err) {
+    console.warn(`[billing] getSubscriptionStatus: Stripe lookup failed for user ${userId}:`, err.message);
+  }
+
+  // Default: treat as trial/new user (not expired) so checkout flow works
+  return { status: 'unknown', isPaid: false };
 }
 
 module.exports = {

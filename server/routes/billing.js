@@ -24,7 +24,10 @@ router.post('/create-session', async (req, res) => {
     }
 
     const plan = req.body?.plan === 'annual' ? 'annual' : 'monthly';
-    const result = await createCheckoutSession(req.user.id, plan);
+    const result = await createCheckoutSession(req.user.id, plan, {
+      username: req.user.username,
+      email: req.user.email,
+    });
     if (result.error) {
       logger.warn('POST /api/billing/create-session', `Checkout creation failed for user ${req.user.id}`, { error: result.error });
       return res.status(503).json(result);
@@ -87,7 +90,10 @@ router.post('/portal', async (req, res) => {
       );
     }
 
-    const result = await createPortalSession(req.user.id);
+    const result = await createPortalSession(req.user.id, {
+      username: req.user.username,
+      email: req.user.email,
+    });
     if (result.error) {
       logger.warn('POST /api/billing/portal', `Portal creation failed for user ${req.user.id}`, { error: result.error });
       return res.status(503).json(result);

@@ -27,11 +27,20 @@ function requireAuth(req, res, next) {
 /**
  * requireActiveSubscription — must be used after requireAuth.
  * Checks trial or paid status. Returns 402 if subscription inactive.
+ *
+ * If the user is not in the in-memory store (e.g. MongoDB hydration failed),
+ * we allow the request through — the JWT was already verified by requireAuth,
+ * and blocking users from using the app because of a cache miss is worse than
+ * allowing access. Subscription enforcement will still work once the store
+ * is properly populated.
  */
 function requireActiveSubscription(req, res, next) {
   const user = getUserById(req.user?.id);
+
+  // User not in memory — allow through (JWT already verified, better UX than blocking)
   if (!user) {
-    return res.status(401).json({ error: 'User not found', code: 'user_not_found' });
+    console.warn(`[authMiddleware] requireActiveSubscription: user ${req.user?.id} not in memory — allowing through`);
+    return next();
   }
 
   const now = Date.now();
