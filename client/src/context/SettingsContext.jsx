@@ -16,6 +16,7 @@ function defaultSettings() {
   return {
     theme: 'dark',
     onboardingCompleted: false,
+    termsAccepted: false,
     defaultStartTab: 'home',
     watchlist: [],
     panels: {
@@ -210,6 +211,10 @@ export function SettingsProvider({ children, isAuthenticated }) {
     await updateSettings({ onboardingCompleted: true });
   }, [updateSettings]);
 
+  const acceptTerms = useCallback(async () => {
+    await updateSettings({ termsAccepted: true });
+  }, [updateSettings]);
+
   const resetTour = useCallback(async () => {
     await updateSettings({ onboardingCompleted: false });
   }, [updateSettings]);
@@ -232,7 +237,7 @@ export function SettingsProvider({ children, isAuthenticated }) {
       settings, subscription, loaded, settingsDirty,
       updateSettings, updatePanelConfig, applyPreset, applyTemplate, completeOnboarding,
       updateLayout, updateHomeSection, addToHomeSection, updateChartsConfig,
-      markTourCompleted, resetTour,
+      markTourCompleted, resetTour, acceptTerms,
     }}>
       {children}
     </SettingsContext.Provider>
