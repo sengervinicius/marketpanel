@@ -920,7 +920,7 @@ export default function App() {
               </PanelErrorBoundary>
             </div>
 
-            <div style={{ flex: 1, display: activeSectorScreen || activeTab !== 'watchlist' ? 'none' : 'flex' }}>
+            <div style={{ flex: 1, display: activeSectorScreen || activeTab !== 'watchlist' ? 'none' : 'flex', flexDirection: 'column', minWidth: 0, width: '100%' }}>
               <PanelErrorBoundary name="Portfolio">
                 <PortfolioMobile
                   onManage={() => setActiveTabPersist('search')}
@@ -928,13 +928,13 @@ export default function App() {
               </PanelErrorBoundary>
             </div>
 
-            <div style={{ flex: 1, display: activeSectorScreen || activeTab !== 'alerts' ? 'none' : 'flex' }}>
+            <div style={{ flex: 1, display: activeSectorScreen || activeTab !== 'alerts' ? 'none' : 'flex', flexDirection: 'column', minWidth: 0, width: '100%' }}>
               <PanelErrorBoundary name="Alerts">
                 <AlertCenterPanel />
               </PanelErrorBoundary>
             </div>
 
-            <div style={{ flex: 1, display: activeSectorScreen || activeTab !== 'more' || moreView ? 'none' : 'flex' }}>
+            <div style={{ flex: 1, display: activeSectorScreen || activeTab !== 'more' || moreView ? 'none' : 'flex', flexDirection: 'column', minWidth: 0, width: '100%' }}>
               <MobileMoreScreen
                 onNavigate={handleMoreNavigate}
                 user={user}
