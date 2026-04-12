@@ -88,6 +88,21 @@ app.use(requestLogger);
 const path = require('path');
 app.use('/cards', express.static(path.join(__dirname, 'public', 'cards'), { maxAge: '30m' }));
 
+// ── Apple Pay domain verification (proxied from Stripe — always up to date) ──
+app.get('/.well-known/apple-developer-merchantid-domain-association', async (req, res) => {
+  try {
+    const response = await fetch('https://stripe.com/files/apple-pay/apple-developer-merchantid-domain-association');
+    if (!response.ok) throw new Error(`Stripe returned ${response.status}`);
+    res.set('Content-Type', 'application/octet-stream');
+    res.set('Cache-Control', 'public, max-age=86400'); // cache 24h
+    const buffer = Buffer.from(await response.arrayBuffer());
+    res.send(buffer);
+  } catch (err) {
+    console.error('[apple-pay] Failed to proxy verification file:', err.message);
+    res.status(502).send('Failed to fetch Apple Pay verification file');
+  }
+});
+
 // ── Public routes ──────────────────────────────────────────────────────────────
 app.get('/health', (req, res) => res.json({
   status: 'ok',
