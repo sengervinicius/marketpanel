@@ -53,25 +53,36 @@ require('./jobs/markToMarket'); // batch mark-to-market (self-scheduling)
 
 const app = express();
 
-// In production, restrict CORS to explicit CLIENT_URL only (no wildcard fallback).
+// In production, restrict CORS to explicit CLIENT_URL + known deploy origins.
 // Warn loudly if CLIENT_URL is not set, but don't crash the process.
-let ALLOWED_ORIGIN = '*';
+let ALLOWED_ORIGINS;
 if (process.env.NODE_ENV === 'production') {
   if (!process.env.CLIENT_URL) {
     console.error('[FATAL] PRODUCTION MODE: CLIENT_URL is required but not set.');
-    console.error('[FATAL] Set CLIENT_URL in Render environment (e.g., https://senger-client.onrender.com).');
+    console.error('[FATAL] Set CLIENT_URL in Render environment to https://app.sengermarket.com');
     console.error('[FATAL] Falling back to permissive CORS — FIX THIS IMMEDIATELY.');
+    ALLOWED_ORIGINS = '*';
   } else {
-    ALLOWED_ORIGIN = process.env.CLIENT_URL;
-    console.log('[INFO] PRODUCTION MODE: CORS restricted to ' + ALLOWED_ORIGIN);
+    // Allow both the custom domain and the original Render URL during transition
+    ALLOWED_ORIGINS = [
+      process.env.CLIENT_URL,
+      'https://senger-client.onrender.com',
+      'https://app.sengermarket.com',
+    ].filter((v, i, a) => a.indexOf(v) === i); // deduplicate
+    console.log('[INFO] PRODUCTION MODE: CORS restricted to', ALLOWED_ORIGINS);
   }
 } else {
   // Development: allow localhost origins + CLIENT_URL if set
-  ALLOWED_ORIGIN = process.env.CLIENT_URL || ['http://localhost:5173', 'http://localhost:3000', 'http://127.0.0.1:5173'];
+  ALLOWED_ORIGINS = [
+    'http://localhost:5173',
+    'http://localhost:3000',
+    'http://127.0.0.1:5173',
+    ...(process.env.CLIENT_URL ? [process.env.CLIENT_URL] : []),
+  ];
 }
 
 app.use(cors({
-  origin: ALLOWED_ORIGIN,
+  origin: ALLOWED_ORIGINS,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
   credentials: true,
 }));
@@ -250,8 +261,8 @@ wss.on('connection', (ws, req) => {
   // ── Origin validation ──────────────────────────────────────────────
   const origin = req.headers.origin || '';
   const allowedOrigins = process.env.NODE_ENV === 'production'
-    ? [process.env.CLIENT_URL || 'https://senger-client.onrender.com']
-    : ['https://senger-client.onrender.com', 'http://localhost:5173', 'http://localhost:3000'];
+    ? [process.env.CLIENT_URL, 'https://senger-client.onrender.com', 'https://app.sengermarket.com'].filter(Boolean)
+    : ['https://senger-client.onrender.com', 'https://app.sengermarket.com', 'http://localhost:5173', 'http://localhost:3000'];
   if (origin && !allowedOrigins.includes(origin)) {
     console.warn(`[WS] Rejected connection from disallowed origin: ${origin}`);
     ws.close(1008, 'Origin not allowed');
