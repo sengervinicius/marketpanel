@@ -1,6 +1,22 @@
 require('dotenv').config();
+
+// ── Sentry error monitoring ───────────────────────────────────────────────────
+const Sentry = require('@sentry/node');
+if (process.env.SENTRY_DSN) {
+  Sentry.init({
+    dsn: process.env.SENTRY_DSN,
+    environment: process.env.NODE_ENV || 'development',
+    tracesSampleRate: 0.1, // 10% of transactions for performance monitoring
+  });
+  console.log('[INFO] Sentry error monitoring initialized');
+} else {
+  console.warn('[WARN] SENTRY_DSN not set — error monitoring disabled. Set it in Render environment.');
+}
+
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
+const cookieParser = require('cookie-parser');
 const { createServer } = require('http');
 const WebSocket = require('ws');
 const { connectPolygon, computeFeedHealth } = require('./polygonProxy');
@@ -60,8 +76,12 @@ if (process.env.NODE_ENV === 'production') {
   if (!process.env.CLIENT_URL) {
     console.error('[FATAL] PRODUCTION MODE: CLIENT_URL is required but not set.');
     console.error('[FATAL] Set CLIENT_URL in Render environment to https://app.sengermarket.com');
-    console.error('[FATAL] Falling back to permissive CORS — FIX THIS IMMEDIATELY.');
-    ALLOWED_ORIGINS = '*';
+    console.error('[FATAL] Falling back to hardcoded known origins — set CLIENT_URL ASAP.');
+    // Never use wildcard '*' — hardcode known production origins as safety net
+    ALLOWED_ORIGINS = [
+      'https://app.sengermarket.com',
+      'https://senger-client.onrender.com',
+    ];
   } else {
     // Allow both the custom domain and the original Render URL during transition
     ALLOWED_ORIGINS = [
@@ -87,11 +107,32 @@ app.use(cors({
   credentials: true,
 }));
 
+// ── Security headers (Helmet) ─────────────────────────────────────────────────
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "https://appleid.cdn-apple.com", "https://js.stripe.com"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      fontSrc: ["'self'"],
+      imgSrc: ["'self'", "data:", "blob:", "https:"],
+      connectSrc: ["'self'", "https://senger-server.onrender.com", "wss://senger-server.onrender.com", "https://app.sengermarket.com", "https://api.stripe.com", "https://appleid.cdn-apple.com"],
+      frameSrc: ["'self'", "https://js.stripe.com", "https://appleid.apple.com"],
+      objectSrc: ["'none'"],
+      upgradeInsecureRequests: [],
+    },
+  },
+  crossOriginEmbedderPolicy: false, // Allow third-party resources (Stripe)
+  hsts: { maxAge: 63072000, includeSubDomains: true, preload: true }, // 2 years
+}));
+
 // NOTE: express.json() is applied globally EXCEPT for billing/webhook (needs raw body)
 app.use((req, res, next) => {
   if (req.originalUrl === '/api/billing/webhook') return next();
   express.json()(req, res, next);
 });
+
+app.use(cookieParser());
 
 app.use(requestLogger);
 
@@ -237,6 +278,11 @@ app.use('/api/feed', feedRouter);
 app.use('/api', requireAuth, requireActiveSubscription,
   rateLimitByIP({ max: 120, windowMs: 60000 }),
   requestTimeout(15000), marketRoutes);
+
+// Sentry error handler (must be before other error handlers)
+if (process.env.SENTRY_DSN) {
+  Sentry.setupExpressErrorHandler(app);
+}
 
 app.use(errorHandler);
 

@@ -187,7 +187,7 @@ const LS_CHART_TICKER = 'chartTicker';
 
 export default function App() {
   const { data, loading, isRefreshing, lastUpdated, error: feedError, endpointErrors } = useMarketData();
-  const { user, subscription, startCheckout, logout, authReady, openBillingPortal, refreshSubscription, restorePurchases, billingPlatform } = useAuth();
+  const { user, token, subscription, startCheckout, logout, authReady, openBillingPortal, refreshSubscription, restorePurchases, billingPlatform } = useAuth();
   const { settings, loaded: settingsLoaded, updateLayout } = useSettings();
 
   // ── Boot sequence ────────────────────────────────────────────────────────
@@ -198,7 +198,7 @@ export default function App() {
 
   // ── Live WebSocket overlay (throttled at 250 ms) ─────────────────────────
   const { feedStatus, batchTicks, mergedData, handleWsMessage } = useWebSocketTicks(data);
-  useWebSocket(handleWsMessage);
+  useWebSocket(handleWsMessage, token);
 
   // ── Billing success handling ──────────────────────────────────────────────────
   useEffect(() => {
@@ -731,6 +731,13 @@ export default function App() {
         )}
 
         {detailTicker && !subscriptionExpired && <Suspense fallback={<InstrumentDetailSkeleton />}><PanelErrorBoundary name="InstrumentDetail"><InstrumentDetail ticker={detailTicker} onClose={() => setDetailTicker(null)} onOpenChat={() => setChatOpen(true)} /></PanelErrorBoundary></Suspense>}
+
+        {/* Financial disclaimer footer */}
+        <div className="app-disclaimer-footer">
+          <span>Data provided for informational purposes only. Not financial advice. </span>
+          <a href="/terms" className="app-disclaimer-link">See Terms</a>
+        </div>
+
         <TickerTooltip />
         <ToastContainer />
       </div>
@@ -1042,6 +1049,12 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* Financial disclaimer footer */}
+      <div className="m-disclaimer-footer">
+        <span>Data provided for informational purposes only. Not financial advice. </span>
+        <a href="/terms" className="m-disclaimer-link">See Terms</a>
+      </div>
 
       <TickerTooltip />
       <ToastContainer />

@@ -51,6 +51,7 @@ if (!process.env.JWT_SECRET) {
 const usersByUsername = new Map();   // username_lower → user object
 const usersById       = new Map();   // id (number) → user object
 let   nextId          = 1;
+const loginAttempts   = new Map();   // username -> { count, lockedUntil }
 
 // ── MongoDB handles ──────────────────────────────────────────────────────────
 let usersCollection = null;          // null when MongoDB is not configured
@@ -123,20 +124,20 @@ async function persistUser(user) {
   if (pg.isConnected()) {
     try {
       await pg.query(`
-        INSERT INTO users (id, username, email, hash, apple_user_id, settings, is_paid,
+        INSERT INTO users (id, username, email, email_verified, hash, apple_user_id, settings, is_paid,
           subscription_active, trial_ends_at, stripe_customer_id, stripe_subscription_id,
           persona, gamification, referral_code, referred_by, referral_rewards, created_at)
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
         ON CONFLICT (id) DO UPDATE SET
-          username=EXCLUDED.username, email=EXCLUDED.email, hash=EXCLUDED.hash,
-          apple_user_id=EXCLUDED.apple_user_id, settings=EXCLUDED.settings,
+          username=EXCLUDED.username, email=EXCLUDED.email, email_verified=EXCLUDED.email_verified,
+          hash=EXCLUDED.hash, apple_user_id=EXCLUDED.apple_user_id, settings=EXCLUDED.settings,
           is_paid=EXCLUDED.is_paid, subscription_active=EXCLUDED.subscription_active,
           trial_ends_at=EXCLUDED.trial_ends_at, stripe_customer_id=EXCLUDED.stripe_customer_id,
           stripe_subscription_id=EXCLUDED.stripe_subscription_id, persona=EXCLUDED.persona,
           gamification=EXCLUDED.gamification, referral_code=EXCLUDED.referral_code,
           referred_by=EXCLUDED.referred_by, referral_rewards=EXCLUDED.referral_rewards
       `, [
-        user.id, user.username, user.email || null, user.hash,
+        user.id, user.username, user.email || null, user.emailVerified || false, user.hash,
         user.appleUserId || null,
         JSON.stringify(user.settings || {}),
         user.isPaid || false, user.subscriptionActive ?? true,
@@ -168,6 +169,7 @@ async function hydrateFromPostgres() {
         id: row.id,
         username: row.username,
         email: row.email || null,
+        emailVerified: row.email_verified || false,
         hash: row.hash,
         appleUserId: row.apple_user_id || null,
         settings: row.settings || defaultSettings(),
@@ -366,11 +368,12 @@ async function createUser(username, passwordPlain, email) {
     id,
     username,
     email:                email || null,
+    emailVerified:        false,
     hash,
     settings:             defaultSettings(),
     isPaid:               false,
     subscriptionActive:   true,
-    trialEndsAt:          now + 2 * 24 * 60 * 60 * 1000, // 2-day trial
+    trialEndsAt:          now + (parseInt(process.env.TRIAL_DAYS, 10) || 14) * 24 * 60 * 60 * 1000, // 14-day trial (configurable via TRIAL_DAYS env)
     stripeCustomerId:     null,
     stripeSubscriptionId: null,
     persona:              defaultPersona(),
@@ -384,6 +387,26 @@ async function createUser(username, passwordPlain, email) {
   usersByUsername.set(key, user);
   usersById.set(id, user);
   await persistUser(user); // write-through to MongoDB
+
+  // Record trial usage to prevent re-registration abuse
+  if (email) {
+    try {
+      const pgResult = await pg.query('SELECT email FROM used_trials WHERE LOWER(email) = LOWER($1)', [email]);
+      if (pgResult && pgResult.rows && pgResult.rows.length > 0) {
+        // Email already had a trial — revoke the trial period
+        user.trialEndsAt = now;
+        usersByUsername.set(key, user);
+        usersById.set(id, user);
+        await persistUser(user);
+      } else {
+        await pg.query('INSERT INTO used_trials (email, first_trial_at) VALUES ($1, $2) ON CONFLICT DO NOTHING', [email, now]);
+      }
+    } catch (e) {
+      // Don't block registration if trial-check fails
+      console.warn('[authStore] Trial abuse check failed:', e.message);
+    }
+  }
+
   return user;
 }
 
@@ -391,26 +414,181 @@ function findUserByUsername(username) {
   return usersByUsername.get(username.toLowerCase()) || null;
 }
 
+function findUserByEmail(email) {
+  if (!email) return null;
+  const lower = email.toLowerCase();
+  for (const user of usersById.values()) {
+    if (user.email && user.email.toLowerCase() === lower) return user;
+  }
+  return null;
+}
+
 function getUserById(id) {
   return usersById.get(Number(id)) || null;
 }
 
 async function verifyUser(username, passwordPlain) {
+  const key = username.toLowerCase();
+
+  // Check account lockout
+  const attempts = loginAttempts.get(key);
+  if (attempts && attempts.lockedUntil && Date.now() < attempts.lockedUntil) {
+    const waitSec = Math.ceil((attempts.lockedUntil - Date.now()) / 1000);
+    throw new Error(`Account temporarily locked. Try again in ${waitSec} seconds.`);
+  }
+
   const user = findUserByUsername(username);
-  if (!user) throw new Error('No account found with that username.');
+  if (!user) {
+    // Constant-time: still run bcrypt compare against a dummy hash so timing
+    // doesn't reveal whether the username exists.
+    await bcrypt.compare(passwordPlain, '$2a$12$XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX');
+    recordFailedLogin(key);
+    throw new Error('Invalid credentials.');
+  }
   const ok = await bcrypt.compare(passwordPlain, user.hash);
-  if (!ok) throw new Error('Incorrect password. Try again.');
+  if (!ok) {
+    recordFailedLogin(key);
+    throw new Error('Invalid credentials.');
+  }
+
+  // Success — clear failed attempts
+  loginAttempts.delete(key);
   return user;
+}
+
+function recordFailedLogin(key) {
+  const now = Date.now();
+  const attempts = loginAttempts.get(key) || { count: 0, lockedUntil: null };
+  attempts.count += 1;
+
+  if (attempts.count >= 10) {
+    attempts.lockedUntil = now + 60 * 60 * 1000; // 1 hour lockout
+  } else if (attempts.count >= 5) {
+    attempts.lockedUntil = now + 15 * 60 * 1000; // 15 min lockout
+  }
+
+  loginAttempts.set(key, attempts);
 }
 
 // ── Token helpers ─────────────────────────────────────────────────────────────
 
 function signToken(user) {
-  return jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: '30d' });
+  return jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: '15m' });
 }
 
 function verifyToken(token) {
   return jwt.verify(token, JWT_SECRET);
+}
+
+/**
+ * Create a refresh token for a user.
+ * Returns { token, familyId, expiresAt }
+ */
+async function createRefreshToken(userId) {
+  const crypto = require('crypto');
+  const token = crypto.randomBytes(64).toString('hex');
+  const familyId = crypto.randomBytes(16).toString('hex');
+  const expiresAt = Date.now() + 30 * 24 * 60 * 60 * 1000; // 30 days
+  const now = Date.now();
+
+  if (pg.isConnected()) {
+    try {
+      await pg.query(
+        'INSERT INTO refresh_tokens (token, user_id, family_id, expires_at, revoked, created_at) VALUES ($1, $2, $3, $4, FALSE, $5)',
+        [token, userId, familyId, expiresAt, now]
+      );
+    } catch (e) {
+      console.error('[authStore] createRefreshToken failed:', e.message);
+      throw e;
+    }
+  }
+
+  return { token, familyId, expiresAt };
+}
+
+/**
+ * Rotate a refresh token (one-time use, replay-attack detection).
+ * Returns { token, userId, familyId, expiresAt } on success, null on failure.
+ */
+async function rotateRefreshToken(oldToken) {
+  if (!pg.isConnected()) {
+    return null;
+  }
+
+  try {
+    const result = await pg.query(
+      'SELECT token, user_id, family_id, expires_at, revoked FROM refresh_tokens WHERE token = $1',
+      [oldToken]
+    );
+
+    if (!result || !result.rows || result.rows.length === 0) {
+      return null; // Token not found
+    }
+
+    const old = result.rows[0];
+
+    // If token was already revoked, this is a replay attack — revoke entire family
+    if (old.revoked) {
+      await pg.query('UPDATE refresh_tokens SET revoked = TRUE WHERE family_id = $1', [old.family_id]);
+      return null;
+    }
+
+    if (Date.now() > old.expires_at) {
+      return null; // Expired
+    }
+
+    // Revoke old token
+    await pg.query('UPDATE refresh_tokens SET revoked = TRUE WHERE token = $1', [oldToken]);
+
+    // Issue new token in same family
+    const crypto = require('crypto');
+    const newToken = crypto.randomBytes(64).toString('hex');
+    const expiresAt = Date.now() + 30 * 24 * 60 * 60 * 1000;
+    const now = Date.now();
+
+    await pg.query(
+      'INSERT INTO refresh_tokens (token, user_id, family_id, expires_at, revoked, created_at) VALUES ($1, $2, $3, $4, FALSE, $5)',
+      [newToken, old.user_id, old.family_id, expiresAt, now]
+    );
+
+    return { token: newToken, userId: old.user_id, familyId: old.family_id, expiresAt };
+  } catch (e) {
+    console.error('[authStore] rotateRefreshToken failed:', e.message);
+    return null;
+  }
+}
+
+/**
+ * Revoke all refresh tokens for a user (logout).
+ */
+async function revokeUserRefreshTokens(userId) {
+  if (!pg.isConnected()) {
+    return;
+  }
+
+  try {
+    await pg.query('UPDATE refresh_tokens SET revoked = TRUE WHERE user_id = $1', [userId]);
+  } catch (e) {
+    console.error('[authStore] revokeUserRefreshTokens failed:', e.message);
+  }
+}
+
+async function updateUserPassword(userId, newPassword) {
+  const user = getUserById(userId);
+  if (!user) throw new Error('User not found');
+  const hash = await bcrypt.hash(newPassword, 12);
+  user.hash = hash;
+  usersById.set(user.id, user);
+  usersByUsername.set(user.username.toLowerCase(), user);
+  await persistUser(user);
+  // Also update Postgres directly
+  if (pg.isConnected()) {
+    try {
+      await pg.query('UPDATE users SET hash = $1 WHERE id = $2', [hash, user.id]);
+    } catch (e) {
+      console.error('[authStore] updateUserPassword Postgres update failed:', e.message);
+    }
+  }
 }
 
 // ── User search (for chat) ────────────────────────────────────────────────────
@@ -592,6 +770,7 @@ async function findOrCreateAppleUser(appleUserId, email, firstName) {
     hash,
     appleUserId,
     email: email || null,
+    emailVerified:        false,
     settings:             defaultSettings(),
     isPaid:               false,
     subscriptionActive:   true,
@@ -709,10 +888,15 @@ module.exports = {
   createUser,
   deleteUser,
   findUserByUsername,
+  findUserByEmail,
   getUserById,
   verifyUser,
   signToken,
   verifyToken,
+  createRefreshToken,
+  rotateRefreshToken,
+  revokeUserRefreshTokens,
+  updateUserPassword,
   listUsers,
   mergeSettings,
   updateSubscription,

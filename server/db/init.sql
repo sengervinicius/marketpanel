@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS users (
   id                      SERIAL PRIMARY KEY,
   username                TEXT UNIQUE NOT NULL,
   email                   TEXT UNIQUE,
+  email_verified          BOOLEAN NOT NULL DEFAULT FALSE,
   hash                    TEXT NOT NULL,
   apple_user_id           TEXT UNIQUE,
   settings                JSONB NOT NULL DEFAULT '{}',
@@ -56,3 +57,42 @@ CREATE TABLE IF NOT EXISTS alerts (
 );
 
 CREATE INDEX IF NOT EXISTS idx_alerts_active ON alerts (user_id, active) WHERE active = TRUE;
+
+-- ── Trial abuse prevention ────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS used_trials (
+  email TEXT PRIMARY KEY,
+  first_trial_at BIGINT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_used_trials_email ON used_trials(LOWER(email));
+
+-- ── Password resets ───────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS password_resets (
+  token TEXT PRIMARY KEY,
+  user_id INTEGER NOT NULL,
+  expires_at BIGINT NOT NULL,
+  used BOOLEAN DEFAULT FALSE,
+  created_at BIGINT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_password_resets_user ON password_resets(user_id);
+
+-- ── Email verification tokens ────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS email_verifications (
+  token       TEXT PRIMARY KEY,
+  user_id     INTEGER NOT NULL,
+  email       TEXT NOT NULL,
+  expires_at  BIGINT NOT NULL,
+  verified    BOOLEAN DEFAULT FALSE,
+  created_at  BIGINT NOT NULL
+);
+
+-- ── Refresh tokens (rotation-safe) ──────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS refresh_tokens (
+  token       TEXT PRIMARY KEY,
+  user_id     INTEGER NOT NULL,
+  family_id   TEXT NOT NULL,
+  expires_at  BIGINT NOT NULL,
+  revoked     BOOLEAN DEFAULT FALSE,
+  created_at  BIGINT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user ON refresh_tokens(user_id);
+CREATE INDEX IF NOT EXISTS idx_refresh_tokens_family ON refresh_tokens(family_id);

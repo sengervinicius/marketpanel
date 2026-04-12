@@ -270,6 +270,9 @@ export default function AIInsightCard({ type, context, cacheKey, ttlMs, autoFetc
             ))}
           </ul>
         )}
+        <div className="ai-card__disclaimer">
+          AI-generated analysis. Not investment advice.
+        </div>
       </div>
     </div>
   );

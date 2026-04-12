@@ -102,4 +102,53 @@ async function sendAlertEmail(user, payload) {
   }
 }
 
-module.exports = { initEmail, isConfigured, sendAlertEmail };
+/**
+ * Send a generic email.
+ * Accepts either (user, emailData) signature for backward compat or ({ to, subject, html, text }) signature.
+ * @returns {boolean} true if sent
+ */
+async function sendEmail(userOrOptions, emailData) {
+  if (!transporter) return false;
+
+  let to, subject, html, text;
+
+  // Handle both signatures: (user, emailData) and ({ to, subject, html, text })
+  if (typeof userOrOptions === 'object' && userOrOptions.to) {
+    // New signature: single options object
+    to = userOrOptions.to;
+    subject = userOrOptions.subject;
+    html = userOrOptions.html;
+    text = userOrOptions.text || html;
+  } else if (userOrOptions.email && emailData) {
+    // Old signature: (user, emailData)
+    to = userOrOptions.email;
+    subject = emailData.subject;
+    html = emailData.html;
+    text = emailData.text;
+  } else {
+    logger.warn('email', 'Invalid sendEmail arguments');
+    return false;
+  }
+
+  if (!to) {
+    logger.warn('email', 'No recipient email address');
+    return false;
+  }
+
+  try {
+    await transporter.sendMail({
+      from: `"Senger Market" <${FROM_ADDR()}>`,
+      to,
+      subject,
+      html,
+      text,
+    });
+    logger.info('email', 'Email sent', { to, subject });
+    return true;
+  } catch (e) {
+    logger.error('email', 'Send failed', { to, subject, error: e.message });
+    return false;
+  }
+}
+
+module.exports = { initEmail, isConfigured, sendAlertEmail, sendEmail };

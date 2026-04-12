@@ -1,7 +1,18 @@
+import * as Sentry from '@sentry/react';
 import { StrictMode, useEffect, Component } from 'react'
 import { createRoot } from 'react-dom/client'
 import { HashRouter, Routes, Route } from 'react-router-dom'
 import App from './App.jsx'
+
+if (import.meta.env.VITE_SENTRY_DSN) {
+  Sentry.init({
+    dsn: import.meta.env.VITE_SENTRY_DSN,
+    environment: import.meta.env.MODE,
+    tracesSampleRate: 0.1,
+    replaysSessionSampleRate: 0,
+    replaysOnErrorSampleRate: 0.5,
+  });
+}
 // LandingPage removed — LoginScreen IS the landing page
 import InstrumentDetailPage from './pages/InstrumentDetailPage.jsx'
 import ChatPage from './pages/ChatPage.jsx'

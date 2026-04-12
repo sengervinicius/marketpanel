@@ -25,8 +25,7 @@ const QUEUE_MAX          = 50;       // max buffered outgoing messages
  * Build the full WebSocket URL with auth token appended as query parameter.
  * The server requires ?token=<jwt> for authentication (server/index.js line 127).
  */
-function buildWsUrl() {
-  const token = localStorage.getItem('arc_token');
+function buildWsUrl(token) {
   if (!token) {
     console.warn('[WS] No auth token found — connection will be rejected by server');
     return null;
@@ -35,7 +34,7 @@ function buildWsUrl() {
   return `${WS_URL}${separator}token=${encodeURIComponent(token)}`;
 }
 
-export function useWebSocket(onMessage) {
+export function useWebSocket(onMessage, token) {
   const ws = useRef(null);
   const reconnectTimer = useRef(null);
   const heartbeatInterval = useRef(null);
@@ -88,7 +87,7 @@ export function useWebSocket(onMessage) {
   const connect = useCallback(() => {
     if (!mounted.current) return;
 
-    const url = buildWsUrl();
+    const url = buildWsUrl(token);
     if (!url) {
       // No token available — don't attempt WS connection (avoids auth-rejection loop)
       console.warn('[WS] Skipping connection — no auth token. Will retry when token becomes available.');
@@ -150,7 +149,7 @@ export function useWebSocket(onMessage) {
       console.error('[WS] Connection failed:', e);
       setReadyState(WebSocket.CLOSED);
     }
-  }, [onMessage, startHeartbeat, stopHeartbeat, flushQueue]);
+  }, [onMessage, token, startHeartbeat, stopHeartbeat, flushQueue]);
 
   useEffect(() => {
     mounted.current = true;

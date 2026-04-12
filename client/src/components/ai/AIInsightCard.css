@@ -353,3 +353,14 @@
     font-size: 10px;
   }
 }
+
+/* ── AI Card Disclaimer ────────────────────────────────────────── */
+.ai-card__disclaimer {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-subtle);
+  font-size: 9px;
+  color: var(--text-faint);
+  font-style: italic;
+  line-height: 1.3;
+}

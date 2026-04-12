@@ -1,9 +1,9 @@
 /**
  * api.js
- * Auth-aware fetch helper. Reads token from localStorage and attaches to requests.
+ * Auth-aware fetch helper. Uses httpOnly cookies for authentication.
+ * Credentials are sent automatically with each request.
  */
 
-const LS_TOKEN   = 'arc_token';
 export const API_BASE = import.meta.env.VITE_API_URL || '';
 
 // In-flight request deduplication — prevents duplicate concurrent fetches
@@ -12,6 +12,8 @@ const _inflight = new Map();
 function dedupeKey(path, options) {
   return `${options?.method || 'GET'}:${path}`;
 }
+
+let _refreshing = false;
 
 export async function apiFetch(path, options = {}) {
   const key = dedupeKey(path, options);
@@ -22,10 +24,8 @@ export async function apiFetch(path, options = {}) {
     return _inflight.get(key).then(r => r.clone());
   }
 
-  const token = localStorage.getItem(LS_TOKEN);
   const headers = {
     'Content-Type': 'application/json',
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...(options.headers || {}),
   };
 
@@ -46,11 +46,39 @@ export async function apiFetch(path, options = {}) {
 
   const promise = (async () => {
     try {
-      const res = await fetch(`${API_BASE}${path}`, {
+      let res = await fetch(`${API_BASE}${path}`, {
         ...options,
         signal: controller.signal,
         headers,
+        credentials: 'include',
       });
+
+      // If 401 and not already refreshing, attempt a single refresh
+      if (res.status === 401 && !_refreshing && path !== '/api/auth/refresh') {
+        _refreshing = true;
+        try {
+          const refreshRes = await fetch(`${API_BASE}/api/auth/refresh`, {
+            method: 'POST',
+            credentials: 'include',
+          });
+
+          if (refreshRes.ok) {
+            // Refresh succeeded, retry original request
+            res = await fetch(`${API_BASE}${path}`, {
+              ...options,
+              signal: controller.signal,
+              headers,
+              credentials: 'include',
+            });
+          }
+        } catch (e) {
+          // Refresh attempt failed, return original 401
+          console.error('[apiFetch] Token refresh failed:', e);
+        } finally {
+          _refreshing = false;
+        }
+      }
+
       return res;
     } catch (e) {
       if (e.name === 'AbortError') {

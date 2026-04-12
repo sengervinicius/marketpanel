@@ -10,13 +10,12 @@
  * was no token to check). Use this to avoid flashing login screen on refresh.
  */
 
-import { createContext, useContext, useState, useCallback, useEffect, useMemo } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { API_BASE } from '../utils/api';
 import { isIOS } from '../services/platform';
 import { purchase, restorePurchases, IAP_PRODUCTS } from '../services/iap';
 
 const LS_USER  = 'arc_user';
-const LS_TOKEN = 'arc_token';
 
 const AuthContext = createContext(null);
 
@@ -56,33 +55,52 @@ export function AuthProvider({ children }) {
   // authReady: false until we've completed the initial token validation check
   const [authReady,    setAuthReady]    = useState(false);
 
-  // ── On mount: validate stored token ──────────────────────────────────────
-  useEffect(() => {
-    const storedToken = localStorage.getItem(LS_TOKEN);
-    if (!storedToken) {
-      setAuthReady(true);
-      return;
-    }
+  // ── Automatic token refresh ──────────────────────────────────────────────────
+  const refreshInterval = useRef(null);
 
-    // Validate token by calling /api/auth/me
-    fetch(`${API_BASE}/api/auth/me`, {
-      headers: { Authorization: `Bearer ${storedToken}` },
-    })
+  const refreshToken = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/refresh`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      if (!res.ok) {
+        // Refresh failed — session expired
+        setUser(null);
+        setToken(null);
+        setSubscription(null);
+        localStorage.removeItem(LS_USER);
+        return;
+      }
+      const data = await res.json();
+      setToken(data.token); // Update in-memory token for WS
+      if (data.user) {
+        setUser({ id: data.user.id, username: data.user.username, persona: data.user.persona || null });
+      }
+    } catch (e) {
+      console.error('[AuthContext] Token refresh failed:', e);
+    }
+  }, []);
+
+  // ── On mount: validate session via httpOnly cookie ─────────────────────────
+  useEffect(() => {
+    // Validate session via httpOnly cookie (sent automatically)
+    fetch(`${API_BASE}/api/auth/me`, { credentials: 'include' })
       .then(async (res) => {
-        if (!res.ok) throw new Error('token invalid');
+        if (!res.ok) throw new Error('session invalid');
         const data = await res.json();
-        // Token is valid — restore user + subscription
+        // Session is valid — restore user + subscription
         const restoredUser = { id: data.user.id, username: data.user.username, persona: data.user.persona || null };
         setUser(restoredUser);
-        setToken(storedToken);
+        // Token comes from server response for WebSocket use
+        setToken(data.token || null);
         setSubscription(normalizeSubscription(data.subscription));
         // Keep localStorage in sync with server-fresh user object
         localStorage.setItem(LS_USER, JSON.stringify(restoredUser));
       })
       .catch(() => {
-        // Token invalid or expired — clear everything
+        // Session invalid or expired — clear everything
         localStorage.removeItem(LS_USER);
-        localStorage.removeItem(LS_TOKEN);
         setUser(null);
         setToken(null);
         setSubscription(null);
@@ -91,6 +109,14 @@ export function AuthProvider({ children }) {
         setAuthReady(true);
       });
   }, []); // runs once on mount
+
+  // ── Refresh access token every 13 minutes (token expires at 15m) ────────────
+  useEffect(() => {
+    if (user) {
+      refreshInterval.current = setInterval(refreshToken, 13 * 60 * 1000);
+      return () => clearInterval(refreshInterval.current);
+    }
+  }, [user, refreshToken]);
 
   // ── Check for billing URL params on mount ─────────────────────────────────
   useEffect(() => {
@@ -113,11 +139,9 @@ export function AuthProvider({ children }) {
 
   // ── Refresh subscription status ───────────────────────────────────────────
   const refreshSubscription = useCallback(async () => {
-    const tok = localStorage.getItem(LS_TOKEN);
-    if (!tok) return;
     try {
       const res = await fetch(`${API_BASE}/api/billing/status`, {
-        headers: { Authorization: `Bearer ${tok}` },
+        credentials: 'include',
       });
       if (!res.ok) throw new Error('Failed to refresh subscription');
       const data = await res.json();
@@ -130,10 +154,11 @@ export function AuthProvider({ children }) {
   // ── Persist helper ────────────────────────────────────────────────────────
   const _persist = useCallback((userObj, tok, sub) => {
     setUser(userObj);
-    setToken(tok);
+    setToken(tok);  // Keep in memory for WebSocket
     setSubscription(normalizeSubscription(sub));
-    localStorage.setItem(LS_USER,  JSON.stringify(userObj));
-    localStorage.setItem(LS_TOKEN, tok);
+    // User info kept in localStorage for quick UI restore (non-sensitive)
+    localStorage.setItem(LS_USER, JSON.stringify(userObj));
+    // Token is now in httpOnly cookie — no longer stored in localStorage
   }, []);
 
   // ── Auth response helper ─────────────────────────────────────────────────
@@ -159,6 +184,7 @@ export function AuthProvider({ children }) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, password }),
+      credentials: 'include',
     });
     const data = await res.json().catch(() => ({}));
     _extractUser(data, res, 'Login failed');
@@ -172,6 +198,7 @@ export function AuthProvider({ children }) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, password, email }),
+      credentials: 'include',
     });
     const data = await res.json().catch(() => ({}));
     _extractUser(data, res, 'Registration failed');
@@ -185,6 +212,7 @@ export function AuthProvider({ children }) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ identityToken, authorizationCode, user: appleUser }),
+      credentials: 'include',
     });
     const data = await res.json().catch(() => ({}));
     _extractUser(data, res, 'Apple Sign In failed');
@@ -194,12 +222,14 @@ export function AuthProvider({ children }) {
 
 
   // ── Logout ────────────────────────────────────────────────────────────────
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    try {
+      await fetch(`${API_BASE}/api/auth/logout`, { method: 'POST', credentials: 'include' });
+    } catch (e) { /* best-effort */ }
     setUser(null);
     setToken(null);
     setSubscription(null);
     localStorage.removeItem(LS_USER);
-    localStorage.removeItem(LS_TOKEN);
   }, []);
 
   // ── Platform-aware checkout ────────────────────────────────────────────────
@@ -216,10 +246,10 @@ export function AuthProvider({ children }) {
     }
 
     // Web / Android → Stripe
-    const tok = localStorage.getItem(LS_TOKEN);
     const res  = await fetch(`${API_BASE}/api/billing/create-session`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tok}` },
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
     });
     const data = await res.json();
 
@@ -236,10 +266,10 @@ export function AuthProvider({ children }) {
 
   // ── Open Stripe billing portal (manage saved cards, invoices, cancel) ─────
   const openBillingPortal = useCallback(async () => {
-    const tok = localStorage.getItem(LS_TOKEN);
     const res  = await fetch(`${API_BASE}/api/billing/portal`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tok}` },
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
     });
     const data = await res.json();
     if (data.portalUrl) {
