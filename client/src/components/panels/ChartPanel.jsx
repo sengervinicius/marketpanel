@@ -643,24 +643,7 @@ function ChartPanel({ ticker: externalTicker, onGridChange, mobile = false }) {
     <div className="cp-panel" {...outerDrop}>
       <div className="cp-header">
         <span className="cp-title">CHARTS</span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span className="cp-subtitle">{tickers.length}/{MAX} // drag to reorder · drop to add</span>
-          <div style={{ position: 'relative' }}>
-            <button onClick={copyLink} className={`cp-sync-btn${copied ? ' cp-sync-btn--copied' : ''}`}>
-              {copied ? 'COPIED' : 'SYNC TO MOBILE'}
-            </button>
-            {showQR && (
-              <div onClick={() => setShowQR(false)} className="cp-qr-backdrop">
-                <div onClick={e => e.stopPropagation()} className="cp-qr-box">
-                  <span className="cp-qr-title">SYNC TO MOBILE</span>
-                  <span className="cp-qr-desc">Scan with your phone to open your {tickers.length} charts</span>
-                  <img src={qrUrl} alt="QR Code" style={{ width: 180, height: 180, borderRadius: 4 }} />
-                  <span className="cp-qr-note">Link also copied to clipboard · click anywhere to close</span>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
+        <span className="cp-subtitle">{tickers.length}/{MAX} // drag to reorder · drop to add</span>
       </div>
       <div className="cp-grid cp-grid--desktop">
         {Array.from({ length: MAX }, (_, i) => {

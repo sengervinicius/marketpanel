@@ -21,12 +21,7 @@ import { API_BASE } from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
 
 const PLACEHOLDERS = [
-  'What is moving in markets today?',
-  'Analyze my portfolio risk',
-  'What do analysts say about AAPL?',
-  'Compare tech vs energy this quarter',
-  'What happened in Asia overnight?',
-  'Show me the top movers today',
+  'Ask Particle anything...',
 ];
 
 export default function ParticleScreen() {

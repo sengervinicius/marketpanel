@@ -166,17 +166,7 @@ export const PANEL_DEFINITIONS = {
     minSymbols:     0,
     maxSymbols:     0,
   },
-  search: {
-    id:             'search',
-    label:          'Search',
-    defaultTitle:   'Search',
-    defaultSymbols: [],
-    allowedGroups:  null,
-    editable:       false,
-    icon:           'SR',
-    minSymbols:     0,
-    maxSymbols:     0,
-  },
+  // search panel removed from desktop layout — use header searchbar
   chat: {
     id:             'chat',
     label:          'Messages',

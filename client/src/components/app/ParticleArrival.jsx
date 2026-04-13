@@ -148,16 +148,7 @@ export default function ParticleArrival({ onComplete }) {
               </div>
             </form>
 
-            {/* Suggestion text below search bar */}
-            <div
-              className="pa-suggestion"
-              style={{
-                opacity: phase >= 4 ? 1 : 0,
-                transition: phase === 4 ? 'opacity 300ms ease-out 100ms' : 'none',
-              }}
-            >
-              Try asking: what is happening in markets today?
-            </div>
+            {/* Breathing space below search */}
           </div>
         </div>
       )}

@@ -9,7 +9,7 @@ import BrazilPanel from '../panels/BrazilPanel';
 import { CommoditiesPanel } from '../panels/CommoditiesPanel';
 import { CryptoPanel } from '../panels/CryptoPanel';
 import DebtPanel from '../panels/DebtPanel';
-import { SearchPanel } from '../panels/SearchPanel';
+// SearchPanel removed from desktop layout — header searchbar is the single search entry-point
 import { NewsPanel } from '../panels/NewsPanel';
 import PortfolioPanel from '../panels/PortfolioPanel';
 import WatchlistPanel from '../panels/WatchlistPanel';
@@ -162,7 +162,7 @@ const PANEL_REGISTRY = {
   commodities:    { component: CommoditiesPanel,    getProps: (c) => ({ data: c.mergedData?.stocks, loading: c.loading, onTickerClick: c.setChartTicker }) },
   crypto:         { component: CryptoPanel,         getProps: (c) => ({ data: c.mergedData?.crypto, loading: c.loading, onTickerClick: c.setChartTicker }) },
   indices:        { component: IndexPanel,          getProps: (c) => ({ data: c.mergedData?.indices, loading: c.loading, onTickerClick: c.setChartTicker }) },
-  search:         { component: SearchPanel,         getProps: (c) => ({ onTickerSelect: c.setChartTicker }) },
+  // search panel removed from desktop — header searchbar is the single search entry-point
   watchlist:      { component: WatchlistPanel,       getProps: (c) => ({ onTickerClick: c.setChartTicker }), hasMobileVariant: true },
   portfolio:      { component: PortfolioPanel,      getProps: (c) => ({ onTickerClick: c.setChartTicker }), hasMobileVariant: true },
   curves:         { component: DICurvePanel,        getProps: () => ({ compact: true }) },
