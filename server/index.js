@@ -33,6 +33,7 @@ const instrumentsRoutes = require('./routes/instruments');
 const macroRoutes       = require('./routes/macro');
 const portfolioRoutes   = require('./routes/portfolio');
 const alertRoutes       = require('./routes/alerts');
+const anomaliesRoutes   = require('./routes/anomalies');
 const iapRoutes         = require('./routes/iap');
 const searchRoutes      = require('./routes/search');
 const bondsRoutes       = require('./routes/bonds');
@@ -75,6 +76,7 @@ const wireRoutes = require('./routes/wire');
 const { init: initBehavior } = require('./services/behaviorTracker');
 const behaviorRoutes = require('./routes/behavior');
 const { init: initDeepAnalysis } = require('./services/deepAnalysis');
+const anomalyScanner = require('./services/anomalyScanner');
 
 const app = express();
 
@@ -245,6 +247,9 @@ app.use('/api/portfolio', requireAuth, portfolioRoutes);
 
 // Alerts: auth required (no subscription check — alerts are a core feature)
 app.use('/api/alerts', requireAuth, alertRoutes);
+
+// Anomalies: auth required (no subscription check — anomaly detection is a core feature)
+app.use('/api/anomalies', requireAuth, anomaliesRoutes);
 
 // Game: auth required (no subscription check — game is free tier)
 app.use('/api/game', requireAuth, gameRoutes);
@@ -550,6 +555,23 @@ initBehavior({ mergeSettings: require('./authStore').mergeSettings, getUserById 
 // Initialize deep analysis tools (portfolio autopsy, counter-thesis, scenario)
 initDeepAnalysis({ marketState, getPortfolio, getUserById });
 
+// Helper to collect all user watchlists for anomaly scanner
+function getAllWatchlists() {
+  const { getAllUsersWithPersona } = require('./authStore');
+  const watchlistsByUserId = {};
+  for (const user of getAllUsersWithPersona()) {
+    if (user.settings && Array.isArray(user.settings.watchlist)) {
+      watchlistsByUserId[user.id] = user.settings.watchlist;
+    } else {
+      watchlistsByUserId[user.id] = [];
+    }
+  }
+  return watchlistsByUserId;
+}
+
+// Start anomaly detection scanner (every 10 minutes)
+anomalyScanner.init({ marketState, getWatchlists: getAllWatchlists });
+
 // Boot sequence: Postgres → Redis → MongoDB → seed → jobs → HTTP server
 async function boot() {
   // Validate required environment variables
@@ -608,6 +630,7 @@ async function boot() {
   const shutdown = async (signal) => {
     logger.info('boot', `${signal} received — shutting down`);
     stopJobs();
+    anomalyScanner.stop();
     server.close();
     const { closePostgres } = require('./db/postgres');
     const { closeRedis } = require('./cache/redisClient');

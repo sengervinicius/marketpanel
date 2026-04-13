@@ -21,11 +21,17 @@ router.post('/track', async (req, res) => {
     const userId = req.user?.id || req.user?.userId;
     if (!userId) return res.status(401).json({ error: 'Not authenticated' });
 
-    const { eventType, payload } = req.body;
+    const { eventType, payload, timezone } = req.body;
     if (!eventType) return res.status(400).json({ error: 'eventType required' });
 
+    // Merge timezone into payload if provided
+    const enrichedPayload = { ...payload };
+    if (timezone) {
+      enrichedPayload.timezone = timezone;
+    }
+
     // Fire-and-forget — don't block the response
-    behaviorTracker.track(userId, eventType, payload || {}).catch(() => {});
+    behaviorTracker.track(userId, eventType, enrichedPayload).catch(() => {});
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: 'Track failed' });

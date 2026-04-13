@@ -31,6 +31,7 @@ const EVENT_TYPES = {
   SECTOR_VIEW:  'sector_view',    // browsed a sector screen
   ALERT_SET:    'alert_set',      // set an alert on a ticker
   BRIEF_READ:   'brief_read',     // read morning brief section
+  BRIEF_SCROLL: 'brief_scroll',   // scrolled into morning brief section
   CHIP_CLICK:   'chip_click',     // clicked a quick chip
   WIRE_CLICK:   'wire_click',     // clicked a wire entry
 };
@@ -160,6 +161,11 @@ function trackChipClick(userId, chip)    { return track(userId, EVENT_TYPES.CHIP
  *   sectors:  { tech: 0.85, crypto: 0.6, brazil: 0.4, ... },
  *   tickers:  { NVDA: 0.9, AAPL: 0.7, ... },
  *   topics:   { fed_rates: 0.8, macro: 0.6, ... },
+ *   timezone: 'America/New_York',
+ *   activeHours: { primary: '07:00-09:00', secondary: '14:00-16:00' },
+ *   preferredAnswerLength: 'detailed' | 'concise',
+ *   engagementRates: { overnight: 0.94, positions: 0.87, calendar: 0.61, ... },
+ *   brazilExposure: boolean,
  *   lastComputed: timestamp
  * }
  */
@@ -182,14 +188,31 @@ async function computeProfile(userId) {
     const sectorWeights  = {};
     const tickerWeights  = {};
     const topicWeights   = {};
+    const hourCounts     = {}; // for activeHours
+    const sectionEngagement = {}; // for engagementRates
+    const allTickers     = []; // for brazilExposure
+    let mostRecentTimezone = null;
+    let followUpCount    = 0; // for preferredAnswerLength
+    let totalSearchCount = 0;
 
     for (const row of result.rows) {
       const age = (now - new Date(row.created_at).getTime()) / (86400000); // days
       const decay = Math.pow(0.5, age / DECAY_HALF_LIFE_DAYS);
       const payload = row.payload || {};
+      const eventTime = new Date(row.created_at);
+
+      // Track timezone from most recent event with timezone
+      if (!mostRecentTimezone && payload.timezone) {
+        mostRecentTimezone = payload.timezone;
+      }
+
+      // Track hour of day (UTC-based, will be adjusted if user timezone available)
+      const hourOfDay = eventTime.getUTCHours();
+      hourCounts[hourOfDay] = (hourCounts[hourOfDay] || 0) + 1;
 
       switch (row.event_type) {
         case EVENT_TYPES.SEARCH: {
+          totalSearchCount++;
           const q = payload.query || '';
           // Extract topics from query
           for (const { topic, pattern } of TOPIC_PATTERNS) {
@@ -202,6 +225,7 @@ async function computeProfile(userId) {
           if (tickerMatches) {
             for (const t of tickerMatches) {
               const ticker = t.replace('$', '');
+              allTickers.push(ticker);
               tickerWeights[ticker] = (tickerWeights[ticker] || 0) + decay;
               const sector = TICKER_SECTORS[ticker];
               if (sector) sectorWeights[sector] = (sectorWeights[sector] || 0) + decay * 0.5;
@@ -213,7 +237,8 @@ async function computeProfile(userId) {
         case EVENT_TYPES.TICKER_VIEW: {
           const ticker = payload.ticker;
           if (ticker) {
-            tickerWeights[ticker] = (tickerWeights[ticker] || 0) + decay * 1.5; // higher weight for explicit view
+            allTickers.push(ticker);
+            tickerWeights[ticker] = (tickerWeights[ticker] || 0) + decay * 1.5;
             const sector = TICKER_SECTORS[ticker];
             if (sector) sectorWeights[sector] = (sectorWeights[sector] || 0) + decay;
           }
@@ -240,7 +265,8 @@ async function computeProfile(userId) {
         case EVENT_TYPES.ALERT_SET: {
           const ticker = payload.ticker;
           if (ticker) {
-            tickerWeights[ticker] = (tickerWeights[ticker] || 0) + decay * 2; // strong signal
+            allTickers.push(ticker);
+            tickerWeights[ticker] = (tickerWeights[ticker] || 0) + decay * 2;
             const sector = TICKER_SECTORS[ticker];
             if (sector) sectorWeights[sector] = (sectorWeights[sector] || 0) + decay;
           }
@@ -256,6 +282,13 @@ async function computeProfile(userId) {
           }
           break;
         }
+
+        case EVENT_TYPES.BRIEF_SCROLL: {
+          const section = payload.section || 'unknown';
+          const depth = payload.depth || 0;
+          sectionEngagement[section] = (sectionEngagement[section] || []).concat(depth);
+          break;
+        }
       }
     }
 
@@ -264,15 +297,59 @@ async function computeProfile(userId) {
       const max = Math.max(...Object.values(obj), 0.01);
       const result = {};
       for (const [k, v] of Object.entries(obj)) {
-        result[k] = Math.round((v / max) * 100) / 100; // 2 decimal places
+        result[k] = Math.round((v / max) * 100) / 100;
       }
       return result;
     };
+
+    // Compute activeHours: top 2 hour ranges
+    const sortedHours = Object.entries(hourCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 2);
+
+    const formatHourRange = (hour) => {
+      const h = parseInt(hour);
+      return `${String(h).padStart(2, '0')}:00-${String(h + 1).padStart(2, '0')}:00`;
+    };
+
+    let activeHours = null;
+    if (sortedHours.length >= 1) {
+      activeHours = { primary: formatHourRange(sortedHours[0][0]) };
+      if (sortedHours.length >= 2) {
+        activeHours.secondary = formatHourRange(sortedHours[1][0]);
+      }
+    }
+
+    // Compute preferredAnswerLength based on follow-up behavior
+    // In a real system, we'd track follow-ups via conversation metadata
+    // For now, use a heuristic: high search frequency suggests preference for detail
+    const preferredAnswerLength = totalSearchCount > 20 ? 'detailed' : 'concise';
+
+    // Compute engagementRates from brief scroll events
+    const engagementRates = {};
+    for (const [section, depths] of Object.entries(sectionEngagement)) {
+      const avgDepth = depths.reduce((a, b) => a + b, 0) / depths.length;
+      engagementRates[section] = Math.round(avgDepth * 100) / 100;
+    }
+
+    // Compute brazilExposure
+    const hasBrazilTicker = allTickers.some(t =>
+      t.endsWith('.SA') || ['EWZ', 'VALE', 'PBR', 'ITUB'].includes(t)
+    );
+    const brazilTopicWeight = topicWeights.brazil || 0;
+    const totalTopicWeight = Object.values(topicWeights).reduce((a, b) => a + b, 0) || 1;
+    const brazilTopicPercent = brazilTopicWeight / totalTopicWeight;
+    const brazilExposure = hasBrazilTicker || brazilTopicPercent > 0.05;
 
     const profile = {
       sectors:  normalize(sectorWeights),
       tickers:  normalize(tickerWeights),
       topics:   normalize(topicWeights),
+      timezone: mostRecentTimezone || 'UTC',
+      activeHours: activeHours,
+      preferredAnswerLength,
+      engagementRates: Object.keys(engagementRates).length > 0 ? engagementRates : null,
+      brazilExposure,
       lastComputed: Date.now(),
     };
 
@@ -348,6 +425,41 @@ function formatForAI(profile) {
     .filter(([, v]) => v > 0.2)
     .map(([k]) => k.replace(/_/g, ' '));
   if (topTopics.length) parts.push(`Topics of interest: ${topTopics.join(', ')}`);
+
+  // Timezone
+  if (profile.timezone && profile.timezone !== 'UTC') {
+    parts.push(`Timezone: ${profile.timezone}`);
+  }
+
+  // Active hours
+  if (profile.activeHours) {
+    const hours = [profile.activeHours.primary];
+    if (profile.activeHours.secondary) hours.push(profile.activeHours.secondary);
+    parts.push(`Peak activity hours: ${hours.join(', ')}`);
+  }
+
+  // Preferred answer length
+  if (profile.preferredAnswerLength) {
+    const lengthHint = profile.preferredAnswerLength === 'detailed'
+      ? 'user typically prefers detailed, comprehensive responses'
+      : 'user typically prefers concise, brief responses';
+    parts.push(`Response style hint: ${lengthHint}`);
+  }
+
+  // Brief engagement rates
+  if (profile.engagementRates && Object.keys(profile.engagementRates).length > 0) {
+    const engagementStr = Object.entries(profile.engagementRates)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([section, rate]) => `${section} (${(rate * 100).toFixed(0)}%)`)
+      .join(', ');
+    parts.push(`Brief section engagement: ${engagementStr}`);
+  }
+
+  // Brazil exposure
+  if (profile.brazilExposure) {
+    parts.push('Brazil market interest detected');
+  }
 
   if (parts.length === 0) return '';
   return `[User interest profile — personalize responses accordingly]\n${parts.join('\n')}`;

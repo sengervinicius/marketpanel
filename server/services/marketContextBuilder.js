@@ -350,7 +350,7 @@ function buildContext({ query, userId, intent: forceIntent } = {}) {
       // Prediction markets are non-critical — fail silently
     }
 
-    // ── 10. User interest profile (Wave 10 — personalization) ──────────
+    // ── 10. User interest profile (Wave 10 — personalization + timezone/activeHours) ──────────
     try {
       if (userId && _getUserById) {
         const behaviorTracker = require('./behaviorTracker');
@@ -359,6 +359,35 @@ function buildContext({ query, userId, intent: forceIntent } = {}) {
         const profileStr = behaviorTracker.formatForAI(profile);
         if (profileStr) {
           sections.push(profileStr);
+        }
+        // Additional behavioral metadata for improved personalization
+        if (profile) {
+          const metadata = [];
+          if (profile.timezone && profile.timezone !== 'UTC') {
+            metadata.push(`User timezone: ${profile.timezone}`);
+          }
+          if (profile.activeHours) {
+            const hours = [profile.activeHours.primary];
+            if (profile.activeHours.secondary) hours.push(profile.activeHours.secondary);
+            metadata.push(`Typical activity hours: ${hours.join(', ')}`);
+          }
+          if (profile.preferredAnswerLength) {
+            metadata.push(`Answer length preference: ${profile.preferredAnswerLength}`);
+          }
+          if (profile.engagementRates && Object.keys(profile.engagementRates).length > 0) {
+            const topEngagement = Object.entries(profile.engagementRates)
+              .sort((a, b) => b[1] - a[1])
+              .slice(0, 2)
+              .map(([section, rate]) => `${section} (${(rate * 100).toFixed(0)}%)`)
+              .join(', ');
+            metadata.push(`Morning brief engagement: ${topEngagement}`);
+          }
+          if (profile.brazilExposure) {
+            metadata.push('User has interest in Brazilian markets');
+          }
+          if (metadata.length > 0) {
+            sections.push(`[User behavioral metadata]\n${metadata.join('\n')}`);
+          }
         }
       }
     } catch (profileErr) {
