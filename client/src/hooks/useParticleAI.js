@@ -11,6 +11,11 @@
 import { useState, useCallback, useRef } from 'react';
 import { API_BASE } from '../utils/api';
 
+function getAuthHeaders() {
+  const token = localStorage.getItem('token');
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 const SYSTEM_CONTEXT = [
   'You are Particle, an AI market intelligence assistant.',
   'Be concise (under 200 words unless the user asks for detail).',
@@ -52,7 +57,7 @@ export default function useParticleAI() {
     try {
       const res = await fetch(`${API_BASE}/api/search/chat`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         credentials: 'include',
         signal: controller.signal,
         body: JSON.stringify({

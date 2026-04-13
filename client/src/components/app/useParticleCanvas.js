@@ -24,7 +24,7 @@ const BG_COLOR       = 0x080808;
 const GLOW_OPACITY   = 0.35;
 const BREATHE_SPEED  = 0.0008;
 const DRIFT_SPEED    = 0.00015;
-const MAX_RADIUS     = 1.8;
+const FRUSTUM        = 4;    // camera frustum half-height
 const PULSE_DURATION = 2000; // ms for volume-spike pulse
 
 // Index mapping for hero particles
@@ -164,7 +164,7 @@ export default function useParticleCanvas({
       const changePct = data.changePct ?? data.changePercent ?? 0;
 
       const angle  = (i / 5) * Math.PI * 2 + Math.random() * 0.3;
-      const radius = 0.4 + Math.random() * 0.6;
+      const radius = FRUSTUM * (0.2 + Math.random() * 0.6);
       const x = Math.cos(angle) * radius * aspect;
       const y = Math.sin(angle) * radius;
 
@@ -207,7 +207,7 @@ export default function useParticleCanvas({
       const changePct = data.changePct ?? data.changePercent ?? 0;
 
       const angle  = Math.random() * Math.PI * 2;
-      const radius = Math.random() * MAX_RADIUS * 0.8;
+      const radius = Math.random() * FRUSTUM * 0.9;
       const x = Math.cos(angle) * radius * aspect;
       const y = Math.sin(angle) * radius;
 
@@ -245,7 +245,7 @@ export default function useParticleCanvas({
       const prob = pred.probability || 0.5;
 
       const angle  = Math.random() * Math.PI * 2;
-      const radius = 0.5 + Math.random() * MAX_RADIUS * 0.5;
+      const radius = FRUSTUM * (0.2 + Math.random() * 0.7);
       const x = Math.cos(angle) * radius * aspect;
       const y = Math.sin(angle) * radius;
 
@@ -296,7 +296,7 @@ export default function useParticleCanvas({
     const ambientCount = Math.max(particleCount - particles.length, 5);
     for (let i = 0; i < ambientCount; i++) {
       const angle  = Math.random() * Math.PI * 2;
-      const radius = Math.random() * MAX_RADIUS * (0.3 + Math.random() * 0.7);
+      const radius = Math.random() * FRUSTUM * (0.3 + Math.random() * 0.7);
       const x = Math.cos(angle) * radius * aspect;
       const y = Math.sin(angle) * radius;
       const baseScale = 0.02 + Math.random() * 0.04;
@@ -399,9 +399,9 @@ export default function useParticleCanvas({
           p.ringMesh.position.y = p.mesh.position.y;
         }
 
-        // Wrap edges
-        const mx = (MAX_RADIUS + 0.5) * aspect;
-        const my = MAX_RADIUS + 0.5;
+        // Wrap edges (use full camera frustum so particles fill the screen)
+        const mx = (FRUSTUM + 0.5) * aspect;
+        const my = FRUSTUM + 0.5;
         if (p.mesh.position.x > mx) p.mesh.position.x = -mx;
         if (p.mesh.position.x < -mx) p.mesh.position.x = mx;
         if (p.mesh.position.y > my) p.mesh.position.y = -my;
