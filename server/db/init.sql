@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS users (
   is_paid                 BOOLEAN NOT NULL DEFAULT FALSE,
   subscription_active     BOOLEAN NOT NULL DEFAULT TRUE,
   trial_ends_at           BIGINT,
+  plan_tier               TEXT NOT NULL DEFAULT 'trial',
   stripe_customer_id      TEXT,
   stripe_subscription_id  TEXT,
   persona                 JSONB NOT NULL DEFAULT '{}',

@@ -126,8 +126,8 @@ async function persistUser(user) {
       await pg.query(`
         INSERT INTO users (id, username, email, email_verified, hash, apple_user_id, settings, is_paid,
           subscription_active, trial_ends_at, stripe_customer_id, stripe_subscription_id,
-          persona, gamification, referral_code, referred_by, referral_rewards, created_at)
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
+          persona, gamification, referral_code, referred_by, referral_rewards, plan_tier, created_at)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
         ON CONFLICT (id) DO UPDATE SET
           username=EXCLUDED.username, email=EXCLUDED.email, email_verified=EXCLUDED.email_verified,
           hash=EXCLUDED.hash, apple_user_id=EXCLUDED.apple_user_id, settings=EXCLUDED.settings,
@@ -135,7 +135,8 @@ async function persistUser(user) {
           trial_ends_at=EXCLUDED.trial_ends_at, stripe_customer_id=EXCLUDED.stripe_customer_id,
           stripe_subscription_id=EXCLUDED.stripe_subscription_id, persona=EXCLUDED.persona,
           gamification=EXCLUDED.gamification, referral_code=EXCLUDED.referral_code,
-          referred_by=EXCLUDED.referred_by, referral_rewards=EXCLUDED.referral_rewards
+          referred_by=EXCLUDED.referred_by, referral_rewards=EXCLUDED.referral_rewards,
+          plan_tier=EXCLUDED.plan_tier
       `, [
         user.id, user.username, user.email || null, user.emailVerified || false, user.hash,
         user.appleUserId || null,
@@ -147,6 +148,7 @@ async function persistUser(user) {
         JSON.stringify(user.gamification || {}),
         user.referralCode || null, user.referredBy || null,
         JSON.stringify(user.referralRewards || {}),
+        user.planTier || 'trial',
         user.createdAt || Date.now(),
       ]);
     } catch (e) {
@@ -183,6 +185,7 @@ async function hydrateFromPostgres() {
         referralCode: row.referral_code || null,
         referredBy: row.referred_by || null,
         referralRewards: row.referral_rewards || { invited: 0, xpEarned: 0 },
+        planTier: row.plan_tier || 'trial',
         createdAt: row.created_at ? Number(row.created_at) : Date.now(),
       };
       const key = user.username.toLowerCase();
@@ -206,6 +209,13 @@ async function hydrateFromPostgres() {
  * Must be awaited before the server starts accepting requests.
  */
 async function initDB() {
+  // Idempotent migration: add plan_tier column if missing
+  if (pg.isConnected()) {
+    try {
+      await pg.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS plan_tier TEXT NOT NULL DEFAULT 'trial'`);
+    } catch (e) { /* column may already exist — safe to ignore */ }
+  }
+
   // Try Postgres hydration first (if available)
   const pgHydrated = await hydrateFromPostgres();
 

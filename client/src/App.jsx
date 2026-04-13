@@ -526,10 +526,26 @@ export default function App() {
   // Wave 2: Old onboarding removed — WelcomeModal is shown via showWelcome state
 
   // ── Terms of Service acceptance ──────────────────────────────────────────
-  const showTermsModal = settingsLoaded && user && !settings?.termsAccepted;
+  // Only show terms if settings are loaded FROM THE SERVER (not defaults) and
+  // the user explicitly has termsAccepted === false. This prevents a flash of
+  // the terms modal on page refresh while settings are still loading.
+  const showTermsModal = settingsLoaded && user && settings?.termsAccepted === false
+    && !localStorage.getItem('particle_terms_accepted');
 
   // ── Particle first-launch arrival ──────────────────────────────────────
-  const showParticleArrival = settingsLoaded && user && !showTermsModal && !settings?.particleOnboarded;
+  const showParticleArrival = settingsLoaded && user && !showTermsModal && !settings?.particleOnboarded
+    && !localStorage.getItem('particle_onboarded');
+
+  // Wrapped handlers that also set localStorage for instant re-render protection on refresh
+  const handleAcceptTerms = useCallback(() => {
+    localStorage.setItem('particle_terms_accepted', '1');
+    acceptTerms();
+  }, [acceptTerms]);
+
+  const handleCompleteParticleOnboarding = useCallback(() => {
+    localStorage.setItem('particle_onboarded', '1');
+    completeParticleOnboarding();
+  }, [completeParticleOnboarding]);
 
   // ── Subscription gating ──────────────────────────────────────────────────
   // Show paywall if subscription has expired
@@ -595,7 +611,7 @@ export default function App() {
       }}>
 
         {/* Terms of Service acceptance (first login) */}
-        {showTermsModal && <TermsAcceptanceModal onAccept={acceptTerms} />}
+        {showTermsModal && <TermsAcceptanceModal onAccept={handleAcceptTerms} />}
 
         {/* Welcome modal (replaces old onboarding) */}
         {showWelcome && !showTermsModal && <WelcomeModal onClose={() => setShowWelcome(false)} />}
@@ -606,7 +622,7 @@ export default function App() {
         {/* Particle first-launch arrival (desktop) */}
         {showParticleArrival && (
           <ParticleArrival onComplete={() => {
-            completeParticleOnboarding();
+            handleCompleteParticleOnboarding();
             setMobileModePersist('particle');
           }} />
         )}
@@ -970,7 +986,7 @@ export default function App() {
     <div className="m-app-shell">
 
       {/* Terms of Service acceptance (first login, mobile) */}
-      {showTermsModal && <TermsAcceptanceModal onAccept={acceptTerms} />}
+      {showTermsModal && <TermsAcceptanceModal onAccept={handleAcceptTerms} />}
 
       {/* Welcome modal (mobile) */}
       {showWelcome && !showTermsModal && <WelcomeModal onClose={() => setShowWelcome(false)} />}

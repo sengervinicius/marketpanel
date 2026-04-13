@@ -7,6 +7,7 @@ const router  = express.Router();
 const logger  = require('../utils/logger');
 const { sendApiError } = require('../utils/apiError');
 const { createCheckoutSession, createPortalSession, handleBillingWebhook, getSubscriptionStatus } = require('../billing');
+const { TIERS } = require('../config/tiers');
 
 // POST /api/billing/create-session
 // Phase 0: Wrapped in try/catch, all error paths use return
@@ -24,10 +25,11 @@ router.post('/create-session', async (req, res) => {
     }
 
     const plan = req.body?.plan === 'annual' ? 'annual' : 'monthly';
+    const tier = req.body?.tier || 'new_particle';
     const result = await createCheckoutSession(req.user.id, plan, {
       username: req.user.username,
       email: req.user.email,
-    });
+    }, tier);
     if (result.error) {
       logger.warn('POST /api/billing/create-session', `Checkout creation failed for user ${req.user.id}`, { error: result.error });
       return res.status(503).json(result);
@@ -103,6 +105,26 @@ router.post('/portal', async (req, res) => {
     logger.error('POST /api/billing/portal', e.message, { error: e, userId: req.user?.id });
     return sendApiError(res, e, 'POST /api/billing/portal');
   }
+});
+
+// GET /api/billing/tiers — public tier information for pricing page
+router.get('/tiers', (req, res) => {
+  const tiers = Object.entries(TIERS)
+    .filter(([key]) => key !== 'trial')
+    .map(([key, tier]) => ({
+      id: key,
+      label: tier.label,
+      price: tier.price,
+      features: {
+        vaultDocuments: tier.vaultDocuments === -1 ? 'Unlimited' : tier.vaultDocuments,
+        aiQueriesPerDay: tier.aiQueriesPerDay === -1 ? 'Unlimited' : tier.aiQueriesPerDay,
+        deepAnalysisPerDay: tier.deepAnalysisPerDay === -1 ? 'Unlimited' : tier.deepAnalysisPerDay,
+        morningBrief: tier.morningBrief,
+        predictionMarkets: tier.predictionMarkets,
+        centralVaultAccess: tier.centralVaultAccess,
+      },
+    }));
+  res.json({ tiers });
 });
 
 module.exports = router;

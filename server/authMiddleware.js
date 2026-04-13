@@ -45,7 +45,7 @@ async function requireActiveSubscription(req, res, next) {
   if (!user) {
     try {
       const result = await pg.query(
-        'SELECT is_paid, subscription_active, trial_ends_at FROM users WHERE id = $1',
+        'SELECT is_paid, subscription_active, trial_ends_at, plan_tier FROM users WHERE id = $1',
         [userId]
       );
 
@@ -63,6 +63,7 @@ async function requireActiveSubscription(req, res, next) {
         isPaid: row.is_paid,
         subscriptionActive: row.subscription_active,
         trialEndsAt: row.trial_ends_at ? new Date(row.trial_ends_at).getTime() : null,
+        planTier: row.plan_tier || 'trial',
       };
     } catch (dbError) {
       console.error(`[authMiddleware] requireActiveSubscription: Postgres query failed for user ${userId}:`, dbError.message);
@@ -73,6 +74,9 @@ async function requireActiveSubscription(req, res, next) {
       });
     }
   }
+
+  // Attach plan tier to req.user for downstream route handlers
+  req.user.planTier = user.planTier || 'trial';
 
   const now = Date.now();
 

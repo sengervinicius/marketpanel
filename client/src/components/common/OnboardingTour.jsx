@@ -1,176 +1,172 @@
 /**
- * OnboardingTour.jsx
- * Custom 5-step spotlight tour for new Particle Market Terminal users.
+ * OnboardingTour.jsx — "Mission Control" AI-narrated onboarding.
+ *
+ * Instead of boring tooltip bubbles, Particle herself narrates the tour
+ * through a cinematic chat-style interface. Each step highlights a UI
+ * element with a breathing glow animation while Particle "types" a
+ * message explaining the feature.
  *
  * Features:
- * - Full opaque overlay with spotlight cutout on the target element
- * - Floating tooltip positioned intelligently near the spotlight
- * - Bloomberg-dark aesthetic with orange accents
- * - Smooth transitions between steps
- * - Keyboard navigation (Escape to skip, Enter/→ for next, ← for back)
+ * - Typewriter effect for each message (feels like Particle is talking)
+ * - Subtle spotlight glow on target elements (no harsh overlay)
+ * - Progress orbs at bottom (fills as you advance)
+ * - User can click "Show me" to advance or "Skip" to exit
+ * - Interactive sandbox step: pre-loads a sample ticker
+ * - Keyboard: Enter/→ next, ← back, Escape skip
+ * - Persists completion to both localStorage and server settings
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useSettings } from '../../context/SettingsContext';
 
-// ── Tour Steps ──────────────────────────────────────────────────────────────
+// ── Tour Steps — Particle narrates ────────────────────────────────────────
 const STEPS = [
   {
-    target: null, // centered modal, no spotlight
-    title: 'Welcome to Particle',
-    body: 'Your Bloomberg-style market terminal. Real-time data, AI insights, and deep sector analysis — all in one place.',
-    icon: '◆',
+    target: null,
+    title: 'PARTICLE ONLINE',
+    message: "I'm Particle — your AI-powered market terminal. I track real-time prices, run deep analysis on any stock, and learn your trading style over time. Let me show you around.",
+    cta: 'Show me',
+    glow: false,
   },
   {
     target: '[data-tour="search"]',
-    title: 'Smart Search',
-    body: 'Type any ticker, company name, or ask AI a market question. Prefix with @ai or end with ? to activate AI mode.',
-    icon: '⌕',
+    title: 'COMMAND CENTER',
+    message: "This is your command center. Type any ticker like AAPL or NVDA to pull up live data. Ask me anything — end with a ? and I'll run AI analysis. Try: \"Is NVDA overvalued?\"",
+    cta: 'Next',
     placement: 'bottom',
+    glow: true,
   },
   {
     target: '[data-tour="sector-screens"]',
-    title: 'Sector Screens',
-    body: '10 deep-dive sector screens — Defence, Tech, Crypto, Commodities, Fixed Income, and more. Each with its own data tables, charts, and analytics.',
-    icon: '◈',
+    title: 'SECTOR INTELLIGENCE',
+    message: "10 deep-dive sector screens — Defence, Tech, Crypto, Commodities, Fixed Income, and more. Each one is a dedicated research terminal with its own data tables, charts, and analytics.",
+    cta: 'Next',
     placement: 'bottom',
+    glow: true,
   },
   {
     target: '[data-tour="workspace"]',
-    title: 'Your Workspace',
-    body: 'Drag, resize, and rearrange every panel. Click any ticker to open a full instrument detail with charts, fundamentals, and AI analysis.',
-    icon: '⊞',
+    title: 'YOUR WORKSPACE',
+    message: "Every panel here is yours to command. Drag them, resize them, click any ticker to drill down into fundamentals, charts, and AI analysis. Make this terminal truly yours.",
+    cta: 'Next',
     placement: 'top',
+    glow: true,
   },
   {
-    target: '[data-tour="layout"]',
-    title: 'Customize Layout',
-    body: 'Use the Layout button to rearrange panels, toggle visibility, and make the terminal truly yours.',
-    icon: '⇄',
-    placement: 'bottom',
+    target: null,
+    title: 'KNOWLEDGE VAULT',
+    message: "Upload research PDFs to your Knowledge Vault and I'll read them. When you ask me about a stock, I'll cross-reference your research automatically. Your vault, your edge.",
+    cta: 'Next',
+    glow: false,
+  },
+  {
+    target: null,
+    title: 'READY FOR LAUNCH',
+    message: "That's the essentials. I'll send you morning intelligence briefs, track your portfolio mood, and get smarter the more you use me. Welcome aboard.",
+    cta: 'Launch Terminal',
+    glow: false,
+    final: true,
   },
 ];
 
-// ── Tooltip placement logic ─────────────────────────────────────────────────
-function computeTooltipPosition(targetRect, placement, tooltipW, tooltipH) {
-  const PAD = 16;
-  const vw = window.innerWidth;
-  const vh = window.innerHeight;
-  let top, left;
+// ── Typewriter hook ────────────────────────────────────────────────────────
+function useTypewriter(text, speed = 18) {
+  const [displayed, setDisplayed] = useState('');
+  const [done, setDone] = useState(false);
 
-  if (!targetRect) {
-    // Center of screen
-    return { top: (vh - tooltipH) / 2, left: (vw - tooltipW) / 2 };
-  }
+  useEffect(() => {
+    setDisplayed('');
+    setDone(false);
+    if (!text) return;
+    let i = 0;
+    const timer = setInterval(() => {
+      i++;
+      setDisplayed(text.slice(0, i));
+      if (i >= text.length) {
+        clearInterval(timer);
+        setDone(true);
+      }
+    }, speed);
+    return () => clearInterval(timer);
+  }, [text, speed]);
 
-  switch (placement) {
-    case 'bottom':
-      top = targetRect.bottom + PAD;
-      left = targetRect.left + targetRect.width / 2 - tooltipW / 2;
-      break;
-    case 'top':
-      top = targetRect.top - tooltipH - PAD;
-      left = targetRect.left + targetRect.width / 2 - tooltipW / 2;
-      break;
-    case 'right':
-      top = targetRect.top + targetRect.height / 2 - tooltipH / 2;
-      left = targetRect.right + PAD;
-      break;
-    case 'left':
-      top = targetRect.top + targetRect.height / 2 - tooltipH / 2;
-      left = targetRect.left - tooltipW - PAD;
-      break;
-    default:
-      top = targetRect.bottom + PAD;
-      left = targetRect.left + targetRect.width / 2 - tooltipW / 2;
-  }
+  const skip = useCallback(() => {
+    setDisplayed(text);
+    setDone(true);
+  }, [text]);
 
-  // Clamp to viewport
-  if (left < PAD) left = PAD;
-  if (left + tooltipW > vw - PAD) left = vw - tooltipW - PAD;
-  if (top < PAD) top = PAD;
-  if (top + tooltipH > vh - PAD) top = vh - tooltipH - PAD;
-
-  return { top, left };
+  return { displayed, done, skip };
 }
 
-// ── SVG overlay with spotlight cutout ───────────────────────────────────────
-function SpotlightOverlay({ rect, onClick }) {
-  const vw = window.innerWidth;
-  const vh = window.innerHeight;
+// ── Glow highlight on target element ──────────────────────────────────────
+function GlowHighlight({ targetRect }) {
+  if (!targetRect) return null;
   const PAD = 8;
-  const R = 8;
-
-  if (!rect) {
-    // No spotlight — full overlay
-    return (
-      <div
-        onClick={onClick}
-        style={{
-          position: 'fixed', inset: 0, zIndex: 10000,
-          background: 'rgba(0, 0, 0, 0.85)',
-          transition: 'opacity 300ms ease',
-        }}
-      />
-    );
-  }
-
-  const x = rect.left - PAD;
-  const y = rect.top - PAD;
-  const w = rect.width + PAD * 2;
-  const h = rect.height + PAD * 2;
-
   return (
-    <svg
-      onClick={onClick}
+    <div
       style={{
-        position: 'fixed', inset: 0, zIndex: 10000,
-        width: '100%', height: '100%',
-        transition: 'opacity 300ms ease',
+        position: 'fixed',
+        top: targetRect.top - PAD,
+        left: targetRect.left - PAD,
+        width: targetRect.width + PAD * 2,
+        height: targetRect.height + PAD * 2,
+        borderRadius: 10,
+        border: '1px solid rgba(249, 115, 22, 0.4)',
+        boxShadow: '0 0 20px rgba(249, 115, 22, 0.15), 0 0 60px rgba(249, 115, 22, 0.08), inset 0 0 20px rgba(249, 115, 22, 0.05)',
+        animation: 'tour-glow-pulse 2s ease-in-out infinite',
+        pointerEvents: 'none',
+        zIndex: 10000,
+        transition: 'all 400ms cubic-bezier(0.4, 0, 0.2, 1)',
       }}
-    >
-      <defs>
-        <mask id="tour-spotlight-mask">
-          <rect x="0" y="0" width={vw} height={vh} fill="white" />
-          <rect x={x} y={y} width={w} height={h} rx={R} ry={R} fill="black" />
-        </mask>
-      </defs>
-      <rect
-        x="0" y="0" width={vw} height={vh}
-        fill="rgba(0, 0, 0, 0.82)"
-        mask="url(#tour-spotlight-mask)"
-      />
-      {/* Spotlight border glow */}
-      <rect
-        x={x} y={y} width={w} height={h}
-        rx={R} ry={R}
-        fill="none"
-        stroke="rgba(255, 102, 0, 0.35)"
-        strokeWidth="2"
-      />
-    </svg>
+    />
   );
 }
 
-// ── Main Tour Component ─────────────────────────────────────────────────────
+// ── Progress Orbs ─────────────────────────────────────────────────────────
+function ProgressOrbs({ current, total }) {
+  return (
+    <div style={{ display: 'flex', gap: 6, justifyContent: 'center' }}>
+      {Array.from({ length: total }, (_, i) => (
+        <div
+          key={i}
+          style={{
+            width: i === current ? 20 : 6,
+            height: 6,
+            borderRadius: 3,
+            background: i <= current
+              ? 'linear-gradient(90deg, #F97316, #ff8833)'
+              : 'rgba(255,255,255,0.1)',
+            transition: 'all 300ms ease',
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+// ── Main Tour Component ─────────────────────────────────────────────────
 export default function OnboardingTour() {
   const { settings, markTourCompleted } = useSettings();
   const [active, setActive] = useState(false);
   const [stepIdx, setStepIdx] = useState(0);
   const [targetRect, setTargetRect] = useState(null);
-  const [tooltipSize, setTooltipSize] = useState({ w: 380, h: 200 });
-  const tooltipRef = useRef(null);
   const animFrame = useRef(null);
 
-  // Start tour if not completed — check both server settings AND localStorage fallback
+  const step = STEPS[stepIdx];
+  const { displayed, done, skip: skipTypewriter } = useTypewriter(
+    active ? step.message : '', 18
+  );
+
+  // Start tour if not completed — check server settings FIRST, then localStorage as fast cache
   useEffect(() => {
     // Migrate legacy key
     try { const v = localStorage.getItem('senger_tour_completed'); if (v !== null) { localStorage.setItem('particle_tour_completed', v); localStorage.removeItem('senger_tour_completed'); } } catch {}
     if (!settings) return;
-    // localStorage fallback: if server settings lost the flag, don't re-show tour
+    // Either server OR localStorage says done → skip the tour
+    const serverDone = settings.onboardingCompleted === true;
     const localDone = localStorage.getItem('particle_tour_completed') === '1';
-    if (localDone || settings.onboardingCompleted) return;
+    if (serverDone || localDone) return;
     const t = setTimeout(() => setActive(true), 800);
     return () => clearTimeout(t);
   }, [settings]);
@@ -178,13 +174,7 @@ export default function OnboardingTour() {
   // Track target element position
   useEffect(() => {
     if (!active) return;
-
-    const step = STEPS[stepIdx];
-    if (!step?.target) {
-      setTargetRect(null);
-      return;
-    }
-
+    if (!step?.target) { setTargetRect(null); return; }
     const measure = () => {
       const el = document.querySelector(step.target);
       if (el) {
@@ -197,27 +187,22 @@ export default function OnboardingTour() {
     };
     measure();
     return () => cancelAnimationFrame(animFrame.current);
-  }, [active, stepIdx]);
-
-  // Measure tooltip size for positioning
-  useEffect(() => {
-    if (tooltipRef.current) {
-      const r = tooltipRef.current.getBoundingClientRect();
-      setTooltipSize({ w: r.width, h: r.height });
-    }
-  }, [stepIdx, active]);
+  }, [active, stepIdx, step?.target]);
 
   // Keyboard navigation
   useEffect(() => {
     if (!active) return;
     const handler = (e) => {
       if (e.key === 'Escape') handleSkip();
-      else if (e.key === 'ArrowRight' || e.key === 'Enter') handleNext();
+      else if (e.key === 'ArrowRight' || e.key === 'Enter') {
+        if (!done) skipTypewriter();
+        else handleNext();
+      }
       else if (e.key === 'ArrowLeft') handleBack();
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [active, stepIdx]);
+  });
 
   const handleNext = useCallback(() => {
     if (stepIdx < STEPS.length - 1) {
@@ -245,162 +230,198 @@ export default function OnboardingTour() {
 
   if (!active) return null;
 
-  const step = STEPS[stepIdx];
   const isFirst = stepIdx === 0;
   const isLast = stepIdx === STEPS.length - 1;
-  const isCentered = !step.target;
-  const placement = step.placement || 'bottom';
-  const pos = computeTooltipPosition(targetRect, placement, tooltipSize.w, tooltipSize.h);
 
   return createPortal(
     <div style={{ position: 'fixed', inset: 0, zIndex: 10000 }}>
-      {/* Opaque overlay with spotlight cutout */}
-      <SpotlightOverlay rect={targetRect} onClick={handleSkip} />
-
-      {/* Tooltip card */}
+      {/* Semi-transparent backdrop — lighter than before */}
       <div
-        ref={tooltipRef}
+        onClick={() => { if (!done) skipTypewriter(); }}
+        style={{
+          position: 'fixed', inset: 0,
+          background: 'rgba(0, 0, 0, 0.7)',
+          backdropFilter: 'blur(4px)',
+          transition: 'opacity 400ms ease',
+        }}
+      />
+
+      {/* Glow highlight on target element */}
+      {step.glow && <GlowHighlight targetRect={targetRect} />}
+
+      {/* Chat-style message card */}
+      <div
         onClick={(e) => e.stopPropagation()}
         style={{
           position: 'fixed',
-          top: pos.top,
-          left: pos.left,
-          width: isCentered ? 420 : 380,
+          bottom: 40,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          width: 'min(520px, calc(100vw - 32px))',
           zIndex: 10001,
-          background: 'linear-gradient(180deg, #1a1a1a 0%, #141414 100%)',
-          border: '1px solid #2a2a2a',
-          borderRadius: 12,
-          padding: 0,
-          boxShadow: '0 20px 60px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 102, 0, 0.08)',
-          fontFamily: 'var(--font-ui, -apple-system, BlinkMacSystemFont, sans-serif)',
-          transition: 'top 300ms ease, left 300ms ease, opacity 200ms ease',
-          animation: 'tour-fadein 300ms ease',
+          animation: 'tour-slide-up 400ms cubic-bezier(0.16, 1, 0.3, 1)',
         }}
       >
-        {/* Progress bar at top */}
+        {/* Particle identity header */}
         <div style={{
-          height: 3, borderRadius: '12px 12px 0 0', overflow: 'hidden',
-          background: '#1e1e1e',
+          display: 'flex', alignItems: 'center', gap: 10,
+          marginBottom: 12,
         }}>
+          {/* Particle orb */}
           <div style={{
-            height: '100%',
-            width: `${((stepIdx + 1) / STEPS.length) * 100}%`,
-            background: 'linear-gradient(90deg, #F97316 0%, #ff8833 100%)',
-            transition: 'width 400ms ease',
-            borderRadius: '12px 12px 0 0',
+            width: 32, height: 32, borderRadius: '50%',
+            background: 'radial-gradient(circle at 40% 40%, #F97316, #c2410c)',
+            boxShadow: '0 0 16px rgba(249, 115, 22, 0.4)',
+            animation: 'tour-orb-pulse 2s ease-in-out infinite',
           }} />
+          <div style={{
+            fontSize: 10, fontWeight: 700, letterSpacing: '2px',
+            color: 'rgba(249, 115, 22, 0.8)',
+            fontFamily: 'var(--font-mono, monospace)',
+          }}>
+            {step.title}
+          </div>
+          <div style={{ flex: 1 }} />
+          <div style={{
+            fontSize: 10, color: 'rgba(255,255,255,0.25)',
+            fontFamily: 'var(--font-mono, monospace)',
+          }}>
+            {stepIdx + 1}/{STEPS.length}
+          </div>
         </div>
 
-        {/* Content */}
-        <div style={{ padding: '20px 24px 16px' }}>
-          {/* Step icon + title */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-            <div style={{
-              width: 32, height: 32,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              borderRadius: 8,
-              background: 'rgba(249, 115, 22, 0.12)',
-              color: 'var(--color-particle, #F97316)',
-              fontSize: 16,
-              fontWeight: 700,
-              flexShrink: 0,
-            }}>
-              {step.icon}
-            </div>
-            <div>
-              <div style={{
-                fontSize: 15, fontWeight: 700, color: '#ffffff',
-                letterSpacing: '0.3px', lineHeight: 1.2,
-              }}>
-                {step.title}
-              </div>
-              <div style={{
-                fontSize: 10, color: '#555', fontWeight: 500,
-                letterSpacing: '1px', marginTop: 2,
-                fontFamily: 'var(--font-mono, monospace)',
-              }}>
-                STEP {stepIdx + 1} OF {STEPS.length}
-              </div>
-            </div>
-          </div>
-
-          {/* Body text */}
+        {/* Message card */}
+        <div style={{
+          background: 'linear-gradient(180deg, rgba(26, 26, 26, 0.95) 0%, rgba(18, 18, 18, 0.95) 100%)',
+          border: '1px solid rgba(255, 255, 255, 0.06)',
+          borderRadius: 16,
+          padding: '24px 28px 20px',
+          boxShadow: '0 24px 80px rgba(0, 0, 0, 0.6), 0 0 1px rgba(249, 115, 22, 0.1)',
+        }}>
+          {/* Typewriter message */}
           <div style={{
-            fontSize: 13, lineHeight: 1.65, color: '#999',
-            marginBottom: 18,
+            fontSize: 15, lineHeight: 1.7,
+            color: 'rgba(255, 255, 255, 0.85)',
+            minHeight: 60,
+            fontFamily: 'var(--font-ui, -apple-system, BlinkMacSystemFont, sans-serif)',
           }}>
-            {step.body}
+            {displayed}
+            {!done && (
+              <span style={{
+                display: 'inline-block',
+                width: 2, height: 16,
+                background: '#F97316',
+                marginLeft: 2,
+                verticalAlign: 'text-bottom',
+                animation: 'tour-cursor-blink 0.8s ease-in-out infinite',
+              }} />
+            )}
           </div>
 
-          {/* Actions */}
+          {/* Actions + Progress */}
           <div style={{
-            display: 'flex', alignItems: 'center', gap: 8,
-            borderTop: '1px solid #1e1e1e',
-            paddingTop: 14,
+            display: 'flex', alignItems: 'center', gap: 12,
+            marginTop: 20,
+            paddingTop: 16,
+            borderTop: '1px solid rgba(255, 255, 255, 0.04)',
           }}>
             <button
               onClick={handleSkip}
               style={{
-                background: 'none', border: 'none', color: '#444',
-                fontSize: 12, cursor: 'pointer', padding: '6px 0',
-                fontFamily: 'inherit', letterSpacing: '0.3px',
+                background: 'none', border: 'none',
+                color: 'rgba(255, 255, 255, 0.25)',
+                fontSize: 11, cursor: 'pointer',
+                fontFamily: 'var(--font-mono, monospace)',
+                letterSpacing: '0.5px',
+                padding: '6px 0',
+                transition: 'color 150ms',
               }}
-              onMouseEnter={e => e.target.style.color = '#888'}
-              onMouseLeave={e => e.target.style.color = '#444'}
+              onMouseEnter={e => e.target.style.color = 'rgba(255,255,255,0.5)'}
+              onMouseLeave={e => e.target.style.color = 'rgba(255,255,255,0.25)'}
             >
-              Skip tour
+              {isFirst ? 'SKIP' : 'EXIT'}
             </button>
-            <div style={{ flex: 1 }} />
-            {!isFirst && (
+
+            <div style={{ flex: 1 }}>
+              <ProgressOrbs current={stepIdx} total={STEPS.length} />
+            </div>
+
+            <div style={{ display: 'flex', gap: 8 }}>
+              {!isFirst && (
+                <button
+                  onClick={handleBack}
+                  style={{
+                    background: 'none',
+                    border: '1px solid rgba(255, 255, 255, 0.08)',
+                    color: 'rgba(255, 255, 255, 0.5)',
+                    fontSize: 12, fontWeight: 600,
+                    padding: '8px 16px',
+                    borderRadius: 8,
+                    cursor: 'pointer',
+                    fontFamily: 'inherit',
+                    transition: 'all 150ms ease',
+                  }}
+                  onMouseEnter={e => { e.target.style.borderColor = 'rgba(255,255,255,0.15)'; e.target.style.color = 'rgba(255,255,255,0.7)'; }}
+                  onMouseLeave={e => { e.target.style.borderColor = 'rgba(255,255,255,0.08)'; e.target.style.color = 'rgba(255,255,255,0.5)'; }}
+                >
+                  Back
+                </button>
+              )}
               <button
-                onClick={handleBack}
+                onClick={() => { if (!done) skipTypewriter(); else handleNext(); }}
                 style={{
-                  background: 'none',
-                  border: '1px solid #2a2a2a',
-                  color: '#888',
-                  fontSize: 12, fontWeight: 600,
-                  padding: '7px 16px',
-                  borderRadius: 6,
+                  background: done
+                    ? 'linear-gradient(135deg, #F97316 0%, #ea580c 100%)'
+                    : 'rgba(249, 115, 22, 0.15)',
+                  border: done ? 'none' : '1px solid rgba(249, 115, 22, 0.3)',
+                  color: done ? '#000' : '#F97316',
+                  fontSize: 12, fontWeight: 700,
+                  padding: '8px 20px',
+                  borderRadius: 8,
                   cursor: 'pointer',
                   fontFamily: 'inherit',
                   letterSpacing: '0.3px',
-                  transition: 'all 150ms ease',
+                  transition: 'all 200ms ease',
+                  boxShadow: done ? '0 4px 16px rgba(249, 115, 22, 0.3)' : 'none',
                 }}
-                onMouseEnter={e => { e.target.style.borderColor = '#444'; e.target.style.color = '#ccc'; }}
-                onMouseLeave={e => { e.target.style.borderColor = '#2a2a2a'; e.target.style.color = '#888'; }}
+                onMouseEnter={e => {
+                  if (done) { e.target.style.transform = 'translateY(-1px)'; e.target.style.boxShadow = '0 6px 20px rgba(249, 115, 22, 0.4)'; }
+                }}
+                onMouseLeave={e => {
+                  e.target.style.transform = 'none';
+                  e.target.style.boxShadow = done ? '0 4px 16px rgba(249, 115, 22, 0.3)' : 'none';
+                }}
               >
-                Back
+                {!done ? 'Skip typing' : step.cta}
               </button>
-            )}
-            <button
-              onClick={isLast ? handleFinish : handleNext}
-              style={{
-                background: 'linear-gradient(180deg, #F97316 0%, #e55a00 100%)',
-                border: 'none',
-                color: '#000',
-                fontSize: 12, fontWeight: 700,
-                padding: '7px 20px',
-                borderRadius: 6,
-                cursor: 'pointer',
-                fontFamily: 'inherit',
-                letterSpacing: '0.5px',
-                transition: 'all 150ms ease',
-                boxShadow: '0 2px 8px rgba(249, 115, 22, 0.25)',
-              }}
-              onMouseEnter={e => { e.target.style.transform = 'translateY(-1px)'; e.target.style.boxShadow = '0 4px 12px rgba(249, 115, 22, 0.35)'; }}
-              onMouseLeave={e => { e.target.style.transform = 'none'; e.target.style.boxShadow = '0 2px 8px rgba(249, 115, 22, 0.25)'; }}
-            >
-              {isLast ? 'Get Started' : 'Next'}
-            </button>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* CSS animation */}
+      {/* CSS animations */}
       <style>{`
-        @keyframes tour-fadein {
-          from { opacity: 0; transform: translateY(8px); }
-          to   { opacity: 1; transform: translateY(0); }
+        @keyframes tour-slide-up {
+          from { opacity: 0; transform: translateX(-50%) translateY(30px); }
+          to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+        }
+        @keyframes tour-cursor-blink {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0; }
+        }
+        @keyframes tour-orb-pulse {
+          0%, 100% { box-shadow: 0 0 16px rgba(249, 115, 22, 0.4); }
+          50% { box-shadow: 0 0 24px rgba(249, 115, 22, 0.6), 0 0 48px rgba(249, 115, 22, 0.2); }
+        }
+        @keyframes tour-glow-pulse {
+          0%, 100% {
+            box-shadow: 0 0 20px rgba(249, 115, 22, 0.15), 0 0 60px rgba(249, 115, 22, 0.08), inset 0 0 20px rgba(249, 115, 22, 0.05);
+            border-color: rgba(249, 115, 22, 0.4);
+          }
+          50% {
+            box-shadow: 0 0 30px rgba(249, 115, 22, 0.25), 0 0 80px rgba(249, 115, 22, 0.12), inset 0 0 30px rgba(249, 115, 22, 0.08);
+            border-color: rgba(249, 115, 22, 0.6);
+          }
         }
       `}</style>
     </div>,

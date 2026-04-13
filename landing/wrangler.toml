@@ -1,0 +1,27 @@
+# Cloudflare Pages configuration for the-particle.com
+# Deploy with: npx wrangler pages deploy . --project-name=the-particle
+#
+# Setup (one-time):
+#   1. npm install -g wrangler
+#   2. wrangler login
+#   3. wrangler pages project create the-particle
+#   4. wrangler pages deploy . --project-name=the-particle
+#
+# OR connect via Cloudflare Dashboard:
+#   1. Go to dash.cloudflare.com → Pages → Create a project
+#   2. Connect your GitHub repo (sengervinicius/marketpanel)
+#   3. Set build output directory: landing/
+#   4. Set root directory: landing/
+#   5. Leave build command empty (static site, no build step)
+#   6. Deploy
+#
+# DNS (since domain is already on Cloudflare):
+#   Cloudflare Pages auto-detects your domain. After first deploy:
+#   1. Go to Pages → the-particle → Custom domains
+#   2. Add: the-particle.com
+#   3. Cloudflare auto-creates the DNS record — no manual CNAME needed
+#
+# That's it. SSL is automatic.
+
+name = "the-particle"
+compatibility_date = "2024-01-01"

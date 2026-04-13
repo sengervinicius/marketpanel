@@ -21,6 +21,7 @@ const multer = require('multer');
 const vault = require('../services/vault');
 const logger = require('../utils/logger');
 const { requireAdmin } = require('../authMiddleware');
+const { getTier, isUnlimited } = require('../config/tiers');
 
 const router = express.Router();
 
@@ -39,11 +40,29 @@ const upload = multer({
 
 /**
  * POST /upload — Upload and ingest a PDF into the vault.
+ * Enforces per-tier document limits before allowing the upload.
  */
 router.post('/upload', upload.single('file'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No file provided' });
+    }
+
+    // ── Vault quota enforcement ──────────────────────────────────
+    const userTier = req.user.planTier || 'trial';
+    const tier = getTier(userTier);
+    if (!isUnlimited(tier.vaultDocuments)) {
+      const docs = await vault.getUserDocuments(req.user.id);
+      if (docs.length >= tier.vaultDocuments) {
+        return res.status(403).json({
+          error: 'Vault limit reached',
+          code: 'vault_limit',
+          message: `Your ${tier.label} plan allows up to ${tier.vaultDocuments} documents. Upgrade to upload more.`,
+          currentCount: docs.length,
+          limit: tier.vaultDocuments,
+          tier: userTier,
+        });
+      }
     }
 
     const result = await vault.ingestPDF(req.user.id, req.file.buffer, req.file.originalname);
@@ -94,6 +113,32 @@ router.delete('/documents/:id', async (req, res) => {
   } catch (err) {
     logger.error('vault-route', 'Delete error', { error: err.message });
     res.status(500).json({ error: 'Failed to delete document' });
+  }
+});
+
+/**
+ * GET /quota — Return the user's vault usage vs tier limits.
+ */
+router.get('/quota', async (req, res) => {
+  try {
+    const userTier = req.user.planTier || 'trial';
+    const tier = getTier(userTier);
+    const docs = await vault.getUserDocuments(req.user.id);
+    res.json({
+      tier: userTier,
+      tierLabel: tier.label,
+      documents: {
+        used: docs.length,
+        limit: tier.vaultDocuments,
+        unlimited: isUnlimited(tier.vaultDocuments),
+      },
+      aiQueriesPerDay: tier.aiQueriesPerDay,
+      deepAnalysisPerDay: tier.deepAnalysisPerDay,
+      morningBrief: tier.morningBrief,
+    });
+  } catch (err) {
+    logger.error('vault-route', 'Quota error', { error: err.message });
+    res.status(500).json({ error: 'Failed to fetch quota' });
   }
 });
 

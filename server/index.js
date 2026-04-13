@@ -179,12 +179,9 @@ app.get('/health', (req, res) => res.json({
   uptime: process.uptime(),
   providers: {
     polygon: process.env.POLYGON_API_KEY ? 'configured' : 'unconfigured',
-    yahoo: 'unknown',
-    finnhub: process.env.FINNHUB_API_KEY ? 'configured' : 'unconfigured',
-    alphavantage: process.env.ALPHA_VANTAGE_KEY ? 'configured' : 'unconfigured',
+    twelvedata: process.env.TWELVEDATA_API_KEY ? 'configured' : 'unconfigured',
     eulerpool: process.env.EULERPOOL_API_KEY ? 'configured' : 'unconfigured',
     fred: process.env.FRED_API_KEY ? 'configured' : 'public_csv',
-    mongodb: process.env.MONGODB_URI ? 'configured' : 'in_memory',
     postgres: pgConnected() ? 'connected' : (process.env.POSTGRES_URL ? 'configured' : 'disabled'),
     redis: redisConnected() ? 'connected' : (process.env.REDIS_URL ? 'configured' : 'disabled'),
     stripe: process.env.STRIPE_SECRET_KEY ? 'configured' : 'unconfigured',
