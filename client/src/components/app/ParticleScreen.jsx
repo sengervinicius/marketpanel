@@ -11,11 +11,9 @@ import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import ParticleLogo from '../ui/ParticleLogo';
 import useParticleCanvas from './useParticleCanvas';
 import useParticleAI from '../../hooks/useParticleAI';
-import { useWireLatest } from '../../hooks/useWire';
 import { useStocksData, useIndicesData } from '../../context/MarketContext';
 import { useBehaviorTracker, useSmartChips } from '../../hooks/useBehavior';
 import { useIsMobile } from '../../hooks/useIsMobile';
-import { useWireFeed } from '../../hooks/useWire';
 import { usePortfolio } from '../../context/PortfolioContext';
 import { API_BASE } from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
@@ -38,11 +36,7 @@ export default function ParticleScreen() {
   const { trackSearch, trackChipClick } = useBehaviorTracker();
   const { chips: smartChips } = useSmartChips();
 
-  // Wire & Brief hooks
-  const wireLatest = useWireLatest();
-  // Morning brief moved to BriefNotification at App.jsx level
-  // Desktop Wire overlay feed (Wave 13B)
-  const { entries: wireOverlayEntries } = useWireFeed(isMobile ? 0 : 4);
+  // Brief moved to BriefNotification at App.jsx level
 
   // Portfolio context — drives watchlist-aware canvas particles
   let portfolioWatchlist = [];
@@ -343,7 +337,7 @@ export default function ParticleScreen() {
           {/* Wire teaser removed — user requested clean welcome screen */}
 
           {/* Market closed empty state (Wave 12A) */}
-          {marketState.closed && !wireLatest && (
+          {marketState.closed && (
             <div className="particle-closed-state">
               <span className="particle-closed-icon">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -447,26 +441,7 @@ export default function ParticleScreen() {
         </div>
       )}
 
-      {/* Wire overlay removed — user requested clean Particle screen */}
-      {false && (
-        <div className="particle-wire-overlay">
-          <div className="particle-wire-overlay-header">
-            <span className="particle-wire-overlay-badge">THE WIRE</span>
-          </div>
-          {wireOverlayEntries.map((entry, i) => (
-            <div
-              key={i}
-              className="particle-wire-overlay-entry"
-              onClick={() => send(`Tell me more about: ${entry.content.slice(0, 80)}`)}
-            >
-              <span className="particle-wire-overlay-text">{entry.content}</span>
-              <span className="particle-wire-overlay-time">
-                {entry.created_at || entry.timestamp ? formatWireTime(entry.created_at || entry.timestamp) : ''}
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
+      {/* Wire overlay removed */}
     </div>
   );
 }
@@ -696,11 +671,3 @@ function SentimentStrip({ indices }) {
 }
 
 // MorningBriefCard moved to BriefNotification.jsx (rendered at App.jsx level)
-
-function formatWireTime(ts) {
-  const d = new Date(ts);
-  const diff = Date.now() - d;
-  if (diff < 60000) return 'now';
-  if (diff < 3600000) return `${Math.floor(diff / 60000)}m`;
-  return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-}

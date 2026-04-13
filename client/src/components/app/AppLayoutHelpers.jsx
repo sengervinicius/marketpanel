@@ -29,7 +29,7 @@ import MissionsPanel from '../panels/MissionsPanel';
 import RatesPanel from '../panels/RatesPanel';
 import HeatmapPanel from '../panels/HeatmapPanel';
 import PredictionPanel from '../panels/PredictionPanel';
-import WirePanel from '../panels/WirePanel';
+// WirePanel removed
 
 // ── Code-split sector screens using React.lazy ──────────────────────────────
 const DefenceScreen = lazy(() => import('../screens/DefenceScreen'));
@@ -184,7 +184,6 @@ const PANEL_REGISTRY = {
   calendar:       { component: CalendarPanel },
   heatmap:        { component: HeatmapPanel },
   predictions:    { component: PredictionPanel },
-  wire:           { component: WirePanel },
 
   // ── Phase D1 sector screens ──────────────────────────────────────────────
   defenceScreen:      { component: DefenceScreen,      getProps: (c) => ({ onTickerClick: c.setChartTicker }) },

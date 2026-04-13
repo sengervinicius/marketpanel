@@ -10,7 +10,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import ParticleLogo from '../ui/ParticleLogo';
 import useParticleAI from '../../hooks/useParticleAI';
-import { useWireFeed } from '../../hooks/useWire';
 import './ParticleSidebar.css';
 
 export default function ParticleSidebar({ collapsed, onToggle }) {
@@ -19,7 +18,6 @@ export default function ParticleSidebar({ collapsed, onToggle }) {
   const scrollRef = useRef(null);
 
   const { messages, isStreaming, error, send, stop, clear } = useParticleAI();
-  const { entries: wireEntries } = useWireFeed(5);
 
   const handleSubmit = useCallback((e) => {
     e.preventDefault();
