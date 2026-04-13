@@ -10,11 +10,7 @@
  */
 import { useState, useCallback, useRef } from 'react';
 import { API_BASE } from '../utils/api';
-
-function getAuthHeaders() {
-  const token = localStorage.getItem('token');
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
+import { useAuth } from '../context/AuthContext';
 
 const SYSTEM_CONTEXT = [
   'You are Particle, an AI market intelligence assistant.',
@@ -26,6 +22,7 @@ const SYSTEM_CONTEXT = [
 ].join(' ');
 
 export default function useParticleAI() {
+  const { token } = useAuth();
   // messages: [{ role: 'user'|'assistant', content: string, streaming?: boolean }]
   const [messages, setMessages] = useState([]);
   const [isStreaming, setIsStreaming] = useState(false);
@@ -57,7 +54,10 @@ export default function useParticleAI() {
     try {
       const res = await fetch(`${API_BASE}/api/search/chat`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         credentials: 'include',
         signal: controller.signal,
         body: JSON.stringify({
