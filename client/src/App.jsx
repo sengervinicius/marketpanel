@@ -92,6 +92,7 @@ import {
 } from './components/app/AppMobile';
 import ParticleScreen from './components/app/ParticleScreen';
 import ParticleArrival from './components/app/ParticleArrival';
+import PricingModal from './components/app/PricingModal';
 import './App.css';
 import './components/panels/Chat.css';
 // react-joyride v2+ uses inline styles — no separate CSS import needed
@@ -280,6 +281,7 @@ export default function App() {
 
   // ── Billing state ────────────────────────────────────────────────────────────
   const [billingState, setBillingState] = useState({ isLoading: false, error: null, showSuccess: false });
+  const [showPricingModal, setShowPricingModal] = useState(false);
 
   // ── Live WebSocket overlay (throttled at 250 ms) ─────────────────────────
   const { feedStatus, batchTicks, mergedData, handleWsMessage } = useWebSocketTicks(data);
@@ -552,14 +554,20 @@ export default function App() {
   // Show paywall if subscription has expired
   const subscriptionExpired = subscription && subscription.status === 'expired';
 
-  // ── Checkout handler with loading state ───────────────────────────────────
-  const handleCheckout = useCallback(async () => {
+  // ── Checkout handler — opens pricing modal for tier selection ─────────────
+  const handleCheckout = useCallback(() => {
+    setShowPricingModal(true);
+  }, []);
+
+  // ── Tier-specific checkout — called by PricingModal ─────────────────────
+  const handleTierCheckout = useCallback(async (tier, plan) => {
     setBillingState({ isLoading: true, error: null, showSuccess: false });
     try {
-      await startCheckout();
+      await startCheckout(tier, plan);
     } catch (err) {
       const msg = err?.message || 'Failed to start checkout';
       setBillingState({ isLoading: false, error: msg, showSuccess: false });
+      throw err; // Let PricingModal display the error too
     }
   }, [startCheckout]);
 
@@ -632,6 +640,14 @@ export default function App() {
         <WelcomeSubscriptionModal
           subscription={subscription}
           onUpgrade={handleCheckout}
+        />
+
+        {/* Tier pricing modal */}
+        <PricingModal
+          visible={showPricingModal}
+          onDismiss={() => setShowPricingModal(false)}
+          onSelectTier={handleTierCheckout}
+          currentTier={subscription?.tier || (subscription?.status === 'active' ? 'new_particle' : 'trial')}
         />
 
         {/* Keyboard shortcuts modal */}

@@ -45,7 +45,7 @@ function normalizeSubscription(raw) {
     status = 'expired';
   }
 
-  return { ...raw, status, trialDaysRemaining };
+  return { ...raw, status, trialDaysRemaining, tier: raw.tier || null, tierLabel: raw.tierLabel || null, limits: raw.limits || null };
 }
 
 export function AuthProvider({ children }) {
@@ -233,10 +233,13 @@ export function AuthProvider({ children }) {
   }, []);
 
   // ── Platform-aware checkout ────────────────────────────────────────────────
-  const startCheckout = useCallback(async (productId) => {
+  // startCheckout(tier?, plan?) — tier: 'new_particle'|'dark_particle'|'nuclear_particle'
+  //                                plan: 'monthly'|'annual'
+  const startCheckout = useCallback(async (tier, plan) => {
     // iOS native → Apple IAP
     if (isIOS()) {
-      const result = await purchase(productId || IAP_PRODUCTS.MONTHLY);
+      const productId = plan === 'annual' ? IAP_PRODUCTS.YEARLY : IAP_PRODUCTS.MONTHLY;
+      const result = await purchase(productId);
       if (result.ok) {
         await refreshSubscription();
       } else {
@@ -249,6 +252,10 @@ export function AuthProvider({ children }) {
     const res  = await fetch(`${API_BASE}/api/billing/create-session`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        tier: tier || 'new_particle',
+        plan: plan || 'monthly',
+      }),
       credentials: 'include',
     });
     const data = await res.json();
