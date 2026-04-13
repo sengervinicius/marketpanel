@@ -1,0 +1,102 @@
+/* particle-tokens.css — THE SINGLE SOURCE OF TRUTH
+ * Every colour, size, spacing, and motion value in the entire application
+ * must reference a variable from this file. No exceptions.
+ *
+ * To find violations: grep -rn --include="*.css" --include="*.jsx" --include="*.tsx"
+ *   --exclude="particle-tokens.css" '#[0-9a-fA-F]\{3,8\}' src/
+ */
+
+:root {
+  /* ── Brand ── */
+  --color-particle:        #F97316;
+  --color-particle-glow:   rgba(249, 115, 22, 0.20);
+  --color-particle-dim:    rgba(249, 115, 22, 0.10);
+
+  /* ── Backgrounds — from deepest to lightest ── */
+  --color-bg:              #080808;
+  --color-surface:         #0f0f0f;
+  --color-surface-2:       #141414;
+  --color-surface-3:       #1a1a1a;
+  --color-surface-raised:  #1f1f1f;
+
+  /* ── Borders ── */
+  --color-border:          rgba(255, 255, 255, 0.07);
+  --color-border-strong:   rgba(255, 255, 255, 0.12);
+
+  /* ── Text ── */
+  --color-text-primary:    #ffffff;
+  --color-text-secondary:  #a0a0a0;
+  --color-text-muted:      #555555;
+  --color-text-faint:      #333333;
+
+  /* ── Market data — immutable, never use for brand ── */
+  --color-up:              #22c55e;
+  --color-down:            #ef4444;
+  --color-flat:            #f59e0b;
+  --color-closed:          #475569;
+
+  /* ── Functional ── */
+  --color-focus:           rgba(249, 115, 22, 0.40);
+
+  /* ── Type ── */
+  --font-body:             'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono:             'JetBrains Mono', 'SF Mono', 'IBM Plex Mono', 'Fira Code', monospace;
+
+  /* ── Type scale ── */
+  --text-xs:    11px;  /* labels, badges */
+  --text-sm:    13px;  /* secondary body, captions */
+  --text-base:  15px;  /* primary body */
+  --text-lg:    18px;  /* section headers */
+  --text-xl:    22px;  /* screen titles */
+  --text-2xl:   28px;  /* greeting, hero text */
+
+  /* ── Spacing (4px grid) ── */
+  --space-1:   4px;
+  --space-2:   8px;
+  --space-3:  12px;
+  --space-4:  16px;
+  --space-5:  20px;
+  --space-6:  24px;
+  --space-8:  32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* ── Radius ── */
+  --radius-sm:   6px;
+  --radius-md:  10px;
+  --radius-lg:  16px;
+  --radius-pill: 9999px;
+
+  /* ── Motion ── */
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring:   cubic-bezier(0.34, 1.56, 0.64, 1);
+  --duration-fast: 150ms;
+  --duration-base: 250ms;
+  --duration-slow: 400ms;
+
+  /* ── Z-index ── */
+  --z-canvas:     0;
+  --z-content:   10;
+  --z-overlay:   20;
+  --z-nav:       30;
+  --z-sheet:     40;
+  --z-modal:     50;
+  --z-toast:     60;
+
+  /* ── Legacy compatibility aliases ──
+   * These map old variable names used throughout the existing codebase
+   * to the new token system. This prevents breaking existing components
+   * while the migration happens incrementally.
+   */
+  --bg-app:           var(--color-bg);
+  --bg-secondary:     var(--color-surface-2);
+  --text-primary:     var(--color-text-primary);
+  --text-secondary:   var(--color-text-secondary);
+  --text-faint:       var(--color-text-muted);
+  --accent:           var(--color-particle);
+  --border-subtle:    var(--color-border);
+  --price-up:         var(--color-up);
+  --price-down:       var(--color-down);
+  --font-ui:          var(--font-body);
+}

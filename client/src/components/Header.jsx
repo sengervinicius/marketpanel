@@ -89,7 +89,7 @@ export function Header({ connected, stocks, forex, marketStatus, onChatOpen, cha
       <div className="flex-row hdr-top-bar">
         {/* Branding */}
         <div className="flex-col hdr-branding-col">
-          <div className="hdr-title">SENGER MARKET SCREEN</div>
+          <div className="hdr-title">PARTICLE TERMINAL</div>
           <div className="flex-row hdr-status-row">
             <span className="flex-row hdr-feed-status">
               <span className="hdr-feed-dot" style={{ background: statusDotColor }} title={`Feed: ${feedStatus}`} />

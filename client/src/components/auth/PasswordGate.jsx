@@ -48,7 +48,7 @@ export default function PasswordGate({ children }) {
             ARC CAPITAL
           </div>
           <div className="pg-logo-title">
-            SENGER MARKET SCREEN
+            PARTICLE TERMINAL
           </div>
           <div className="pg-logo-subtitle">
             Professional Market Data Terminal

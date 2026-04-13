@@ -165,7 +165,7 @@ const MobileMoreScreen = memo(({
 
       {/* Version footer */}
       <div className="mm-footer">
-        <span className="mm-footer-brand">SENGER MARKET v2.1</span>
+        <span className="mm-footer-brand">PARTICLE v3.0</span>
         <span className="mm-footer-sub">Terminal</span>
       </div>
 

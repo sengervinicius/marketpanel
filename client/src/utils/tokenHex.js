@@ -32,7 +32,7 @@ export const TOKEN_HEX = {
   semanticWarn:   '#ff9800',
 
   // Accent
-  accent:         '#ff6600',
+  accent:         '#F97316',
 
   // Charts
   chartGrid:      'rgba(255,255,255,0.04)',

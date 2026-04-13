@@ -15,11 +15,11 @@ const TOKEN_HEX = {
   textSecondary:'#999999',
   textMuted:    '#555570',
   textFaint:    '#3a3a4a',
-  accent:       '#ff6600',
+  accent:       '#F97316',
 };
 
 /* ── Dot colors by relative position ────────────────────────────────────── */
-const DOT_COLORS = ['#00bcd4', '#ff6600', '#4caf50', '#e91e63', '#ffc107', '#9c27b0', '#03a9f4', '#ff5722', '#8bc34a', '#cddc39'];
+const DOT_COLORS = ['#00bcd4', '#F97316', '#4caf50', '#e91e63', '#ffc107', '#9c27b0', '#03a9f4', '#ff5722', '#8bc34a', '#cddc39'];
 
 function EnhancedTooltip({ active, payload, xLabel, yLabel }) {
   if (active && payload && payload[0]) {

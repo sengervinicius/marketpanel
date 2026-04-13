@@ -51,7 +51,7 @@ export default function PersonaSelector({ onSelect, onBack }) {
             ← Back
           </button>
         )}
-        <div className="ps-header-label">SENGER MARKET TERMINAL</div>
+        <div className="ps-header-label">PARTICLE</div>
         <div className="ps-header-title">Who are you on the Street?</div>
         <div className="ps-header-subtitle">Pick your investor persona. This sets your avatar and vibe.</div>
       </div>

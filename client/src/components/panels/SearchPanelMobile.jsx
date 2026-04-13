@@ -41,7 +41,7 @@ function SearchResultRow({
       {/* Sparkline */}
       {sparklineData && (
         <div className="search-mobile-row-sparkline">
-          <Sparkline data={sparklineData} height={24} color="#ff6600" />
+          <Sparkline data={sparklineData} height={24} color="#F97316" />
         </div>
       )}
 

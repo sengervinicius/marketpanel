@@ -35,7 +35,7 @@ function AuthLoadingScreen() {
       display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
       gap: 16,
     }}>
-      <div style={{ color: '#ff6600', fontWeight: 700, fontSize: 13, letterSpacing: '3px' }}>SENGER</div>
+      <div style={{ color: '#F97316', fontWeight: 700, fontSize: 13, letterSpacing: '3px' }}>PARTICLE</div>
       <div style={{ color: '#2a2a2a', fontSize: 9, letterSpacing: '2px' }}>AUTHENTICATING…</div>
     </div>
   );
@@ -63,11 +63,11 @@ class RootErrorBoundary extends Component {
     if (this.state.hasError) {
       return (
         <div style={{ position:'fixed', inset:0, background:'#0a0a0a', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', color:'#e0e0e0', fontFamily:'monospace', padding:24, gap:16 }}>
-          <div style={{ color:'#ff6600', fontWeight:700, fontSize:13, letterSpacing:'3px' }}>SENGER</div>
+          <div style={{ color:'#F97316', fontWeight:700, fontSize:13, letterSpacing:'3px' }}>PARTICLE</div>
           <div style={{ color:'#f44336', fontSize:14, fontWeight:600 }}>Something went wrong</div>
           <div style={{ color:'#ff9900', fontSize:11, maxWidth:600, wordBreak:'break-word', textAlign:'center' }}>{this.state.error?.message || 'Unknown error'}</div>
           <pre style={{ color:'#888', fontSize:9, maxWidth:'90vw', maxHeight:'40vh', overflow:'auto', whiteSpace:'pre-wrap' }}>{this.state.error?.stack || ''}</pre>
-          <button onClick={() => window.location.reload()} style={{ background:'#ff6600', color:'#fff', border:'none', padding:'8px 24px', borderRadius:4, cursor:'pointer', fontSize:12, letterSpacing:'1px' }}>RELOAD</button>
+          <button onClick={() => window.location.reload()} style={{ background:'var(--color-particle, #F97316)', color:'#fff', border:'none', padding:'8px 24px', borderRadius:4, cursor:'pointer', fontSize:12, letterSpacing:'1px' }}>RELOAD</button>
         </div>
       );
     }

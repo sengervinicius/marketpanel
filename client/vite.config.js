@@ -24,6 +24,7 @@ export default defineConfig({
       output: {
         manualChunks: {
           recharts: ['recharts'],
+          three: ['three'],
           vendor: ['react', 'react-dom'],
         },
       },

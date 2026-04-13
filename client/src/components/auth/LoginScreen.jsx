@@ -200,7 +200,7 @@ export default function LoginScreen({ children }) {
       <div className="ls-content">
         {/* Logo */}
         <div className="ls-logo">
-          <div className="ls-logo-title">SENGER</div>
+          <div className="ls-logo-title">PARTICLE</div>
         </div>
 
         {/* Catchphrase */}

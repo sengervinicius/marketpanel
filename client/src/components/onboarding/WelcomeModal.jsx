@@ -197,11 +197,11 @@ const styles = {
   tipItemBullet: {
     position: 'absolute',
     left: '0',
-    color: '#ff6600',
+    color: 'var(--color-particle, #F97316)',
     fontWeight: 700,
   },
   button: {
-    background: '#ff6600',
+    background: 'var(--color-particle, #F97316)',
     color: '#000000',
     border: 'none',
     padding: '12px 40px',

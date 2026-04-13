@@ -18,7 +18,7 @@ import { useSettings } from '../../context/SettingsContext';
 const STEPS = [
   {
     target: null, // centered modal, no spotlight
-    title: 'Welcome to Senger',
+    title: 'Welcome to Particle',
     body: 'Your Bloomberg-style market terminal. Real-time data, AI insights, and deep sector analysis — all in one place.',
     icon: '◆',
   },
@@ -283,7 +283,7 @@ export default function OnboardingTour() {
           <div style={{
             height: '100%',
             width: `${((stepIdx + 1) / STEPS.length) * 100}%`,
-            background: 'linear-gradient(90deg, #ff6600 0%, #ff8833 100%)',
+            background: 'linear-gradient(90deg, #F97316 0%, #ff8833 100%)',
             transition: 'width 400ms ease',
             borderRadius: '12px 12px 0 0',
           }} />
@@ -297,8 +297,8 @@ export default function OnboardingTour() {
               width: 32, height: 32,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               borderRadius: 8,
-              background: 'rgba(255, 102, 0, 0.12)',
-              color: '#ff6600',
+              background: 'rgba(249, 115, 22, 0.12)',
+              color: 'var(--color-particle, #F97316)',
               fontSize: 16,
               fontWeight: 700,
               flexShrink: 0,
@@ -373,7 +373,7 @@ export default function OnboardingTour() {
             <button
               onClick={isLast ? handleFinish : handleNext}
               style={{
-                background: 'linear-gradient(180deg, #ff6600 0%, #e55a00 100%)',
+                background: 'linear-gradient(180deg, #F97316 0%, #e55a00 100%)',
                 border: 'none',
                 color: '#000',
                 fontSize: 12, fontWeight: 700,
@@ -383,10 +383,10 @@ export default function OnboardingTour() {
                 fontFamily: 'inherit',
                 letterSpacing: '0.5px',
                 transition: 'all 150ms ease',
-                boxShadow: '0 2px 8px rgba(255, 102, 0, 0.25)',
+                boxShadow: '0 2px 8px rgba(249, 115, 22, 0.25)',
               }}
-              onMouseEnter={e => { e.target.style.transform = 'translateY(-1px)'; e.target.style.boxShadow = '0 4px 12px rgba(255, 102, 0, 0.35)'; }}
-              onMouseLeave={e => { e.target.style.transform = 'none'; e.target.style.boxShadow = '0 2px 8px rgba(255, 102, 0, 0.25)'; }}
+              onMouseEnter={e => { e.target.style.transform = 'translateY(-1px)'; e.target.style.boxShadow = '0 4px 12px rgba(249, 115, 22, 0.35)'; }}
+              onMouseLeave={e => { e.target.style.transform = 'none'; e.target.style.boxShadow = '0 2px 8px rgba(249, 115, 22, 0.25)'; }}
             >
               {isLast ? 'Get Started' : 'Next'}
             </button>

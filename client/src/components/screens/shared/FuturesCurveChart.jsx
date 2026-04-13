@@ -15,7 +15,7 @@ const TOKEN_HEX = {
   textSecondary: '#999999',
   textMuted:     '#555570',
   textFaint:     '#3a3a4a',
-  accent:        '#ff6600',
+  accent:        '#F97316',
   up:            '#22c55e',
   down:          '#ef4444',
 };

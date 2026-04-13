@@ -30,7 +30,7 @@ export default function ChatPage() {
     }}>
       {/* Minimal header */}
       <div className="chat-page-header">
-        <span className="chat-page-brand">SENGER</span>
+        <span className="chat-page-brand">PARTICLE</span>
         <span className="chat-page-subtitle">MESSAGES</span>
         <div style={{ flex: 1 }} />
         {user && <span className="chat-page-user">{user.username?.toUpperCase()}</span>}

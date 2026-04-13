@@ -172,7 +172,7 @@ export function TrialBanner({ subscription, onUpgrade, onManageBilling, billingS
                 <button className="btn"
                   onClick={onUpgrade}
                   style={{
-                    background: '#ff6600', border: 'none', color: '#000',
+                    background: 'var(--color-particle, #F97316)', border: 'none', color: '#000',
                     fontWeight: 700 }}
                 >UPGRADE →</button>
               )}
@@ -219,7 +219,7 @@ export function SubscriptionExpiredScreen({ onUpgrade, onLogout, onManageBilling
         SUBSCRIPTION REQUIRED
       </div>
       <div className="app-error-message">
-        Your free trial has ended. Subscribe to Senger Market Terminal to continue accessing real-time data.
+        Your free trial has ended. Subscribe to Particle to continue accessing real-time data.
       </div>
       {checkoutError && (
         <div className="app-error-detail">
@@ -231,7 +231,7 @@ export function SubscriptionExpiredScreen({ onUpgrade, onLogout, onManageBilling
           onClick={handleUpgrade}
           disabled={isLoadingCheckout}
           style={{
-            background: isLoadingCheckout ? '#aa4400' : '#ff6600',
+            background: isLoadingCheckout ? '#aa4400' : 'var(--color-particle, #F97316)',
             border: 'none', color: '#000',
             fontWeight: 700, padding: '8px 20px', cursor: isLoadingCheckout ? 'not-allowed' : 'pointer', opacity: isLoadingCheckout ? 0.7 : 1,
           }}
@@ -319,8 +319,8 @@ export function WelcomeSubscriptionModal({ subscription, onUpgrade, onDismiss })
         fontFamily: 'var(--font-ui, -apple-system, sans-serif)',
         boxShadow: '0 24px 80px rgba(0, 0, 0, 0.6)',
       }}>
-        <div style={{ fontSize: 32, color: '#ff6600', fontWeight: 800, letterSpacing: '0.06em', marginBottom: 8 }}>
-          SENGER
+        <div style={{ fontSize: 32, color: '#F97316', fontWeight: 800, letterSpacing: '0.06em', marginBottom: 8 }}>
+          PARTICLE
         </div>
         <div style={{ fontSize: 13, color: '#888', marginBottom: 28, lineHeight: 1.6 }}>
           Real-time market data, AI insights, and deep sector analysis — all in one terminal.
@@ -339,7 +339,7 @@ export function WelcomeSubscriptionModal({ subscription, onUpgrade, onDismiss })
           disabled={loading}
           style={{
             width: '100%', padding: '13px 20px', marginBottom: 10,
-            background: loading ? '#aa4400' : 'linear-gradient(180deg, #ff6600 0%, #e55a00 100%)',
+            background: loading ? '#aa4400' : 'linear-gradient(180deg, #F97316 0%, #e55a00 100%)',
             color: '#000', border: 'none', borderRadius: 8,
             fontWeight: 700, fontSize: 12, letterSpacing: '0.1em',
             cursor: loading ? 'not-allowed' : 'pointer',

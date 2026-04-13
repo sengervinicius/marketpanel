@@ -10,7 +10,7 @@ const STEPS = [
   {
     id: 'welcome',
     title: 'WELCOME',
-    body: 'Welcome to Senger. A Bloomberg-grade terminal built for real investors.',
+    body: 'Welcome to Particle. A Bloomberg-grade terminal built for real investors.',
   },
   {
     id: 'charts',

@@ -67,7 +67,7 @@
 }
 
 .kb-shortcuts-close:hover {
-  color: #ff6600;
+  color: var(--color-particle, #F97316);
 }
 
 .kb-shortcuts-list {
@@ -87,7 +87,7 @@
 
 .kb-shortcut-item:hover {
   background-color: #1a1a20;
-  border-left-color: #ff6600;
+  border-left-color: var(--color-particle, #F97316);
 }
 
 .kb-shortcut-key {
@@ -97,7 +97,7 @@
   background: #1a1a20;
   border: 1px solid #2a2a30;
   border-radius: 4px;
-  color: #ff6600;
+  color: var(--color-particle, #F97316);
   font-family: 'IBM Plex Mono', monospace;
   font-size: 11px;
   font-weight: 600;
@@ -134,7 +134,7 @@
   background: #1a1a20;
   border: 1px solid #2a2a30;
   border-radius: 3px;
-  color: #ff6600;
+  color: var(--color-particle, #F97316);
   font-family: 'IBM Plex Mono', monospace;
   font-size: 10px;
   font-weight: 600;

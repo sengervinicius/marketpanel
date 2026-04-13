@@ -9,7 +9,7 @@
 import { useState, useEffect, useRef } from 'react';
 import './SubsectionContextMenu.css';
 
-const SECTION_COLORS = ['#ff6600', '#00bcd4', '#ce93d8', '#ffd54f', '#81c784', '#f48fb1', '#90caf9', '#ffb74d', '#ef5350', '#26a69a'];
+const SECTION_COLORS = ['#F97316', '#00bcd4', '#ce93d8', '#ffd54f', '#81c784', '#f48fb1', '#90caf9', '#ffb74d', '#ef5350', '#26a69a'];
 
 export default function SubsectionContextMenu({
   x,
@@ -171,7 +171,7 @@ export default function SubsectionContextMenu({
               {/* Visibility toggle */}
               <div
                 className="scm-checkbox"
-                style={{ background: isVisible ? (sub.color || '#ff6600') : 'transparent', borderColor: sub.color || '#444' }}
+                style={{ background: isVisible ? (sub.color || 'var(--color-particle, #F97316)') : 'transparent', borderColor: sub.color || '#444' }}
                 onClick={() => onToggleSubsection?.(sub.key)}
                 title={isVisible ? 'Hide section' : 'Show section'}
               >
@@ -195,7 +195,7 @@ export default function SubsectionContextMenu({
               ) : (
                 <span
                   className="scm-label"
-                  style={{ color: sub.color || '#ff6600' }}
+                  style={{ color: sub.color || 'var(--color-particle, #F97316)' }}
                   onDoubleClick={() => startRename(sub.key, sub.label)}
                   title="Double-click to rename"
                 >

@@ -234,9 +234,9 @@ function CalendarPanel() {
                 fontSize: 8, fontWeight: 700, letterSpacing: 0.5,
                 padding: '2px 8px', border: '1px solid',
                 borderRadius: 3, cursor: 'pointer',
-                background: tab === t ? 'rgba(255,102,0,0.15)' : 'transparent',
-                color: tab === t ? '#ff6600' : '#888',
-                borderColor: tab === t ? 'rgba(255,102,0,0.3)' : '#333',
+                background: tab === t ? 'rgba(249,115,22,0.15)' : 'transparent',
+                color: tab === t ? 'var(--color-particle, #F97316)' : '#888',
+                borderColor: tab === t ? 'rgba(249,115,22,0.3)' : '#333',
               }}
             >{t}</button>
           ))}

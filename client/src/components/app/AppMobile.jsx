@@ -1,9 +1,20 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useAlerts } from '../../context/AlertsContext';
 import { getMarketState as _getMarketState } from '../common/MarketStatus';
+import ParticleLogo from '../ui/ParticleLogo';
+import './ParticleNav.css';
 
-// ── Mobile tab definitions (5 primary tabs) ──────────────────────────────────
+// ── Mobile tab definitions (5 primary tabs inside Terminal mode) ─────────────
 export const MOBILE_TABS = [
+  { id: 'home',      label: 'Home' },
+  { id: 'charts',    label: 'Charts' },
+  { id: 'watchlist', label: 'Portfolio' },
+  { id: 'search',    label: 'Search' },
+  { id: 'more',      label: 'More' },
+];
+
+// Terminal sub-nav tabs (compact pills inside Terminal mode)
+export const TERMINAL_TABS = [
   { id: 'home',      label: 'Home' },
   { id: 'charts',    label: 'Charts' },
   { id: 'watchlist', label: 'Portfolio' },
@@ -50,6 +61,39 @@ export function TabIcon({ id, active }) {
   }
 }
 
+// Small 16×16 icons for the compact sub-nav
+function SubNavIcon({ id }) {
+  const s = { width: 16, height: 16, display: 'block' };
+  switch (id) {
+    case 'home': return (
+      <svg style={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5z" /><polyline points="9 21 9 14 15 14 15 21" />
+      </svg>
+    );
+    case 'charts': return (
+      <svg style={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+      </svg>
+    );
+    case 'watchlist': return (
+      <svg style={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="2" y="3" width="20" height="18" rx="2" /><line x1="2" y1="9" x2="22" y2="9" /><line x1="12" y1="9" x2="12" y2="21" />
+      </svg>
+    );
+    case 'search': return (
+      <svg style={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="11" cy="11" r="7" /><line x1="16.5" y1="16.5" x2="21" y2="21" />
+      </svg>
+    );
+    case 'more': return (
+      <svg style={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+        <circle cx="12" cy="5" r="1.5" fill="currentColor" stroke="none" /><circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none" /><circle cx="12" cy="19" r="1.5" fill="currentColor" stroke="none" />
+      </svg>
+    );
+    default: return null;
+  }
+}
+
 // Badge component for tab bar alert count
 export function TabBadge({ count }) {
   if (!count || count <= 0) return null;
@@ -58,7 +102,7 @@ export function TabBadge({ count }) {
   );
 }
 
-// Mobile tab bar with alert badges
+// ── Legacy Mobile tab bar (kept for backward compat, still used in old flow) ──
 export function MobileTabBar({ activeTab, onTabChange }) {
   const { alerts } = useAlerts();
   const triggeredCount = useMemo(
@@ -81,6 +125,62 @@ export function MobileTabBar({ activeTab, onTabChange }) {
               {tab.id === 'alerts' && <TabBadge count={triggeredCount} />}
             </span>
             <span>{tab.label}</span>
+          </button>
+        );
+      })}
+    </nav>
+  );
+}
+
+// ── NEW: 2-state Particle/Terminal bottom bar ────────────────────────────────
+export function ParticleModeBar({ mode, onModeChange }) {
+  return (
+    <nav className="p-mode-bar">
+      <button
+        className="p-mode-btn"
+        data-mode="particle"
+        data-active={mode === 'particle'}
+        onClick={() => onModeChange('particle')}
+      >
+        <span className="p-mode-btn-icon">
+          <ParticleLogo size={20} />
+        </span>
+        Particle
+      </button>
+      <button
+        className="p-mode-btn"
+        data-mode="terminal"
+        data-active={mode === 'terminal'}
+        onClick={() => onModeChange('terminal')}
+      >
+        <span className="p-mode-btn-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="4 17 10 11 4 5" /><line x1="12" y1="19" x2="20" y2="19" />
+          </svg>
+        </span>
+        Terminal
+      </button>
+    </nav>
+  );
+}
+
+// ── NEW: Compact sub-nav inside Terminal mode ────────────────────────────────
+export function TerminalSubNav({ activeTab, onTabChange }) {
+  return (
+    <nav className="t-sub-nav">
+      {TERMINAL_TABS.map(tab => {
+        const isActive = activeTab === tab.id;
+        return (
+          <button
+            className={`t-sub-btn${tab.id === 'more' ? ' t-sub-btn--more' : ''}`}
+            key={tab.id}
+            data-active={isActive}
+            onClick={() => onTabChange(tab.id)}
+          >
+            <span className="t-sub-btn-icon">
+              <SubNavIcon id={tab.id} />
+            </span>
+            {tab.label}
           </button>
         );
       })}

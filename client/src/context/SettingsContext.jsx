@@ -16,6 +16,7 @@ function defaultSettings() {
   return {
     theme: 'dark',
     onboardingCompleted: false,
+    particleOnboarded: false,
     termsAccepted: false,
     defaultStartTab: 'home',
     watchlist: [],
@@ -215,6 +216,10 @@ export function SettingsProvider({ children, isAuthenticated }) {
     await updateSettings({ termsAccepted: true });
   }, [updateSettings]);
 
+  const completeParticleOnboarding = useCallback(async () => {
+    await updateSettings({ particleOnboarded: true });
+  }, [updateSettings]);
+
   const resetTour = useCallback(async () => {
     await updateSettings({ onboardingCompleted: false });
   }, [updateSettings]);
@@ -237,7 +242,7 @@ export function SettingsProvider({ children, isAuthenticated }) {
       settings, subscription, loaded, settingsDirty,
       updateSettings, updatePanelConfig, applyPreset, applyTemplate, completeOnboarding,
       updateLayout, updateHomeSection, addToHomeSection, updateChartsConfig,
-      markTourCompleted, resetTour, acceptTerms,
+      markTourCompleted, resetTour, acceptTerms, completeParticleOnboarding,
     }}>
       {children}
     </SettingsContext.Provider>

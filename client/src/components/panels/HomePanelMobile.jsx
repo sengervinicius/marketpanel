@@ -173,7 +173,7 @@ const MarketScreensGallery = memo(function MarketScreensGallery({ onApplyScreen 
           <div
             key={s.id}
             className={`hpm-screen-card ${applying === s.id ? 'hpm-screen-card--applying' : ''}`}
-            style={{ borderLeftColor: s.mobileCardStyle || '#ff6600' }}
+            style={{ borderLeftColor: s.mobileCardStyle || 'var(--color-particle, #F97316)' }}
             onClick={() => handleTap(s)}
           >
             <div className="hpm-screen-card-label">{s.visualLabel}</div>

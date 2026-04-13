@@ -1,0 +1,122 @@
+/* ParticleArrival.css — First-launch cinematic intro */
+
+.pa-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal, 50);
+  background: rgba(8, 8, 8, 0.96);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity var(--duration-slow, 400ms) ease;
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+
+.pa-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 40px 32px;
+  max-width: 360px;
+  width: 100%;
+}
+
+.pa-logo-wrap {
+  margin-bottom: 32px;
+}
+
+/* Step content with fade transition */
+.pa-step {
+  animation: pa-fade-in 0.35s ease both;
+}
+
+@keyframes pa-fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.pa-title {
+  font-family: var(--font-body, inherit);
+  font-size: var(--text-2xl, 28px);
+  font-weight: 600;
+  color: var(--color-text-primary, #fff);
+  margin: 0 0 12px;
+  letter-spacing: -0.01em;
+}
+
+.pa-body {
+  font-family: var(--font-body, inherit);
+  font-size: var(--text-base, 15px);
+  color: var(--color-text-secondary, #a0a0a0);
+  margin: 0 0 32px;
+  line-height: 1.6;
+}
+
+/* Step indicator dots */
+.pa-dots {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 28px;
+}
+
+.pa-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-surface-3, #1a1a1a);
+  transition: background 0.25s ease, transform 0.25s ease;
+}
+
+.pa-dot--active {
+  background: var(--color-particle, #F97316);
+  transform: scale(1.25);
+}
+
+/* Actions */
+.pa-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+
+.pa-btn-primary {
+  width: 100%;
+  max-width: 260px;
+  padding: 14px 24px;
+  background: var(--color-particle, #F97316);
+  color: var(--color-text-primary, #fff);
+  border: none;
+  border-radius: var(--radius-md, 10px);
+  font-family: var(--font-body, inherit);
+  font-size: var(--text-base, 15px);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--duration-fast, 150ms) ease, transform 0.1s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.pa-btn-primary:active {
+  transform: scale(0.97);
+  filter: brightness(0.85);
+}
+
+.pa-btn-skip {
+  background: none;
+  border: none;
+  color: var(--color-text-muted, #555);
+  font-family: var(--font-body, inherit);
+  font-size: var(--text-sm, 13px);
+  font-weight: 500;
+  cursor: pointer;
+  padding: 8px 16px;
+  transition: color 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.pa-btn-skip:active {
+  color: var(--color-text-secondary, #a0a0a0);
+}

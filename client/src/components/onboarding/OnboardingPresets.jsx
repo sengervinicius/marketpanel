@@ -64,7 +64,7 @@ export default function OnboardingPresets() {
   return (
     <div className="obp-container">
       <div className="obp-header">
-        <div className="obp-header-label">SENGER MARKET TERMINAL</div>
+        <div className="obp-header-label">PARTICLE</div>
         <div className="obp-header-title">Choose your starting workspace</div>
         <div className="obp-header-subtitle">You can customize everything later.</div>
       </div>

@@ -15,7 +15,7 @@ import {
   ReferenceLine, ResponsiveContainer, Tooltip,
 } from 'recharts';
 
-const ORANGE = '#ff6600';
+const ORANGE = '#F97316';
 const GREEN  = '#4caf50';
 const RED    = '#f44336';
 const GRID   = 'rgba(255,255,255,0.06)';

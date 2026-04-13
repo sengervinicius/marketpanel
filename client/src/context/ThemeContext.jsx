@@ -26,7 +26,7 @@ const THEMES = {
     '--text-secondary':'#999999',
     '--text-muted':    '#555555',
     '--text-faint':    '#333333',
-    '--accent':        '#ff6600',
+    '--accent':        '#F97316',
     '--accent-muted':  '#ff990033',
     '--accent-text':   '#ff9900',
     '--price-up':      '#4caf50',

@@ -1,6 +1,6 @@
 // InstrumentDetailHelpers.js – Pure utility functions and constants for InstrumentDetail
 
-export const ORANGE = '#ff6600';
+export const ORANGE = '#F97316';
 export const GREEN  = '#4caf50';
 export const RED    = '#f44336';
 

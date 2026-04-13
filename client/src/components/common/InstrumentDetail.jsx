@@ -2099,7 +2099,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
   // ── navigator.share() + clipboard fallback ────────────────────────────
   const handleShare = async () => {
     const changeSign = changeValue >= 0 ? '+' : '';
-    const shareText = [disp + ' \u2014 ' + formattedPrice, changeSign + formattedChange + ' (' + changeSign + formattedChangePct + ')', name, '', 'via Senger Market Terminal'].join('\n');
+    const shareText = [disp + ' \u2014 ' + formattedPrice, changeSign + formattedChange + ' (' + changeSign + formattedChangePct + ')', name, '', 'via Particle'].join('\n');
     if (navigator.share) {
       try { await navigator.share({ title: disp + ' \u2014 ' + formattedPrice, text: shareText }); }
       catch (err) { if (err.name !== 'AbortError') fallbackCopyToClipboard(shareText); }

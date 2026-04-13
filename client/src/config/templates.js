@@ -32,7 +32,7 @@ import { DEFAULT_LAYOUT, DEFAULT_HOME_SECTIONS, DEFAULT_CHARTS_CONFIG } from './
 
 const defaultHome = {
   id:          'default',
-  label:       'Senger Terminal',
+  label:       'Particle Terminal',
   description: 'Global market terminal with curated panels, charts, and live data.',
   focus:       'SPY, QQQ, EUR/USD, BTC, GLD — globally representative',
   category:    'onboarding',

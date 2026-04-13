@@ -38,7 +38,7 @@ export function AllocationDonut({ positions }) {
   const top5 = sorted.slice(0, 5);
   const otherValue = sorted.slice(5).reduce((s, p) => s + Math.abs(p.value || p.quantity * (p.currentPrice || 0)), 0);
 
-  const colors = ['#ff6600', '#4fc3f7', '#4caf50', '#e91e63', '#ffd54f', '#888'];
+  const colors = ['#F97316', '#4fc3f7', '#4caf50', '#e91e63', '#ffd54f', '#888'];
   const segments = top5.map((p, i) => ({
     label: p.symbol,
     value: Math.abs(p.value || p.quantity * (p.currentPrice || 0)),
