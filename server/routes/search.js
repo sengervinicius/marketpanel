@@ -1336,6 +1336,7 @@ const behaviorTracker = require('../services/behaviorTracker');
 const deepAnalysis = require('../services/deepAnalysis');
 const modelRouter = require('../services/modelRouter');
 const edgar = require('../services/edgar');
+const earnings = require('../services/earnings');
 const computeEngine = require('../services/computeEngine');
 const portfolioStore = require('../portfolioStore');
 
@@ -1491,12 +1492,27 @@ IMPORTANT: NEVER do math in your head. Use the PRE-COMPUTED values above.`;
     console.warn('[Particle/EDGAR] Enrichment error:', err.message);
   }
 
+  // ── Earnings Calendar integration: append upcoming earnings for mentioned tickers ──
+  let earningsContext = '';
+  try {
+    // Extract all ticker symbols from user query
+    const tickerMatches = userQuery.match(/\$?([A-Z]{1,5}(?:\.[A-Z]{1,2})?)/g);
+    if (tickerMatches && tickerMatches.length > 0) {
+      const tickers = [...new Set(tickerMatches.map(t => t.replace(/^\$/, '').toUpperCase()))];
+      // Non-blocking: earnings data is optional enrichment
+      earningsContext = await earnings.formatForContext(tickers).catch(() => '');
+    }
+  } catch (err) {
+    // Earnings enrichment failure never crashes the chat flow
+    console.warn('[Particle/Earnings] Enrichment error:', err.message);
+  }
+
   let systemPrompt;
   if (deepAnalysisResult?.prompt) {
     // Deep analysis mode: use the specialized prompt with market and vault context appended
     systemPrompt = `${deepAnalysisResult.prompt}
 
-${behaviorContext ? `\n${behaviorContext}\n` : ''}${portfolioMetricsContext ? `\n${portfolioMetricsContext}\n` : ''}${vaultContext || ''}${marketContext ? `\n--- LIVE MARKET DATA ---\n${marketContext}\n--- END MARKET DATA ---\n` : ''}${edgarContext ? `\n--- SEC FILINGS ---\n${edgarContext}\n--- END SEC FILINGS ---\n` : ''}${context ? `\nAdditional context: ${context}` : ''}`;
+${behaviorContext ? `\n${behaviorContext}\n` : ''}${portfolioMetricsContext ? `\n${portfolioMetricsContext}\n` : ''}${vaultContext || ''}${marketContext ? `\n--- LIVE MARKET DATA ---\n${marketContext}\n--- END MARKET DATA ---\n` : ''}${earningsContext ? `\n--- EARNINGS CALENDAR ---\n${earningsContext}\n--- END EARNINGS CALENDAR ---\n` : ''}${edgarContext ? `\n--- SEC FILINGS ---\n${edgarContext}\n--- END SEC FILINGS ---\n` : ''}${context ? `\nAdditional context: ${context}` : ''}`;
   } else {
     // Standard Particle prompt — v2 with voice contract + persona card
     systemPrompt = `IDENTITY: You are Particle — the AI engine inside a professional financial terminal. You are a senior macro strategist who has managed risk through the 2008 crisis, COVID crash, and 2022 rate shock. You form strong, data-grounded views and defend them. You speak in terminal shorthand — terse, numeric, opinionated. When you're uncertain, you say so directly, but you never hide behind vague qualifiers.
@@ -1531,7 +1547,8 @@ RULES:
 - Prediction market data: weave naturally when it adds edge
 - When you lack data, say "No live data on that" — don't speculate
 - Suggest terminal actions: [action:watchlist_add:BTC], [action:alert_set:BTC:65000], [action:chart_open:AAPL], [action:detail_open:MSFT]
-- If Perplexity provides citations, use [1], [2] naturally — the terminal renders these as badges
+- If Perplexity provides web citations, use [1], [2] naturally — the terminal renders these as orange badges
+- When referencing information from the VAULT sections below, cite with [V1], [V2] etc. matching the order of vault passages — the terminal renders these as gold badges
 - NEVER do math in your head. If you need to calculate returns, P&L, or ratios, say "calculating..." and use the pre-computed numbers from context
 
 FEW-SHOT EXAMPLE — BAD vs GOOD:
@@ -1539,7 +1556,7 @@ User: "What's happening with Tesla?"
 BAD: "Tesla is an interesting stock to watch right now. Based on the data, there are several factors to consider. The stock has been volatile recently, and many analysts have different views on its trajectory. It's important to note that Tesla's fundamentals..."
 GOOD: "[sentiment:bear] **$TSLA** breaking below its 200-DMA at **$165** — down **-4.2%** on the session as delivery numbers disappointed. Q1 deliveries came in at 387K vs 415K consensus, a 7% miss. China competition from BYD is the structural overhang. Watch **$155** support — a break opens **$140**. BOTTOM LINE: Bearish below **$165**, and the delivery trajectory suggests this isn't a one-quarter problem."
 ${behaviorContext ? `\n${behaviorContext}\n` : ''}
-${portfolioMetricsContext ? `\n${portfolioMetricsContext}\n` : ''}${vaultContext || ''}${marketContext ? `\n--- LIVE MARKET DATA ---\n${marketContext}\n--- END MARKET DATA ---\n` : ''}${edgarContext ? `\n--- SEC FILINGS ---\n${edgarContext}\n--- END SEC FILINGS ---\n` : ''}${context ? `\nAdditional context: ${context}` : ''}`;
+${portfolioMetricsContext ? `\n${portfolioMetricsContext}\n` : ''}${vaultContext || ''}${marketContext ? `\n--- LIVE MARKET DATA ---\n${marketContext}\n--- END MARKET DATA ---\n` : ''}${earningsContext ? `\n--- EARNINGS CALENDAR ---\n${earningsContext}\n--- END EARNINGS CALENDAR ---\n` : ''}${edgarContext ? `\n--- SEC FILINGS ---\n${edgarContext}\n--- END SEC FILINGS ---\n` : ''}${context ? `\nAdditional context: ${context}` : ''}`;
   }
 
   // ── Route to optimal model via modelRouter ──────────────────────────────
@@ -1570,24 +1587,88 @@ ${portfolioMetricsContext ? `\n${portfolioMetricsContext}\n` : ''}${vaultContext
     res.write(`data: ${JSON.stringify({ vaultSources })}\n\n`);
   }
 
-  // Stream via model router (handles SSE normalization for Perplexity + Anthropic)
-  try {
-    await modelRouter.streamResponse(provider, routerMessages, systemPrompt, res, {
-      onAbort: (abortFn) => { req.on('close', abortFn); },
-    });
-  } catch (err) {
-    console.error('[Particle/Chat] Stream error:', err.message);
-    if (!res.headersSent) {
-      res.writeHead(200, {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        Connection: 'keep-alive',
-      });
-    }
-    if (!res.writableEnded) {
-      res.write(`data: ${JSON.stringify({ error: err.message || 'AI chat failed' })}\n\n`);
+  // ── Deep analysis wrapper: collect full response to extract JSON ──────────
+  if (deepAnalysisResult) {
+    try {
+      const apiResponse = await modelRouter.callProvider(provider, routerMessages, systemPrompt);
+
+      // Extract full text from provider response
+      let responseText = '';
+      const isPerplexity = provider.url.includes('perplexity');
+      const isAnthropic = provider.url.includes('anthropic');
+
+      if (!res.headersSent) {
+        res.writeHead(200, {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          Connection: 'keep-alive',
+        });
+      }
+
+      // Parse provider response to get full text
+      if (isPerplexity) {
+        const data = await apiResponse.json();
+        responseText = data.choices?.[0]?.message?.content || '';
+      } else if (isAnthropic) {
+        const data = await apiResponse.json();
+        responseText = data.content?.[0]?.text || '';
+      }
+
+      // Stream the full response as chunks (matching modelRouter.streamResponse behavior)
+      const chunkSize = 50;
+      for (let i = 0; i < responseText.length; i += chunkSize) {
+        const chunk = responseText.slice(i, i + chunkSize);
+        res.write(`data: ${JSON.stringify({ chunk })}\n\n`);
+      }
+
+      // Extract structured JSON from markdown code fences
+      const jsonMatch = responseText.match(/```json\s*([\s\S]*?)```/);
+      if (jsonMatch && jsonMatch[1]) {
+        try {
+          const structuredAnalysis = JSON.parse(jsonMatch[1].trim());
+          res.write(`data: ${JSON.stringify({ structuredAnalysis })}\n\n`);
+        } catch (parseErr) {
+          console.warn('[Particle/Chat] Failed to parse structured JSON from deep analysis:', parseErr.message);
+        }
+      }
+
       res.write('data: [DONE]\n\n');
       res.end();
+    } catch (err) {
+      console.error('[Particle/Chat] Deep analysis stream error:', err.message);
+      if (!res.headersSent) {
+        res.writeHead(200, {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          Connection: 'keep-alive',
+        });
+      }
+      if (!res.writableEnded) {
+        res.write(`data: ${JSON.stringify({ error: err.message || 'AI chat failed' })}\n\n`);
+        res.write('data: [DONE]\n\n');
+        res.end();
+      }
+    }
+  } else {
+    // Standard streaming response (non-deep-analysis)
+    try {
+      await modelRouter.streamResponse(provider, routerMessages, systemPrompt, res, {
+        onAbort: (abortFn) => { req.on('close', abortFn); },
+      });
+    } catch (err) {
+      console.error('[Particle/Chat] Stream error:', err.message);
+      if (!res.headersSent) {
+        res.writeHead(200, {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          Connection: 'keep-alive',
+        });
+      }
+      if (!res.writableEnded) {
+        res.write(`data: ${JSON.stringify({ error: err.message || 'AI chat failed' })}\n\n`);
+        res.write('data: [DONE]\n\n');
+        res.end();
+      }
     }
   }
 });

@@ -153,7 +153,7 @@ function guessSector(ticker) {
 }
 
 /**
- * Build the portfolio autopsy system prompt.
+ * Build the portfolio autopsy system prompt with JSON output instructions.
  */
 function buildPortfolioAutopsyPrompt(metrics) {
   const holdingsList = metrics.holdings
@@ -210,7 +210,28 @@ Key risks given current market conditions and prediction market data. What scena
 ### Actionable Ideas
 2-3 specific, practical suggestions (hedging, rebalancing, or positions to watch). Not investment advice — framed as considerations.
 
-Keep total response under 400 words. Be specific with numbers. Sound like a portfolio strategist, not a textbook.`;
+Keep total response under 400 words. Be specific with numbers. Sound like a portfolio strategist, not a textbook.
+
+CRITICAL: After your narrative analysis, wrap a JSON structured summary in triple backticks like this:
+
+\`\`\`json
+{
+  "type": "portfolio_autopsy",
+  "sentiment": "bull|bear|neutral",
+  "headline": "one-line verdict",
+  "metrics": {
+    "totalValue": "$${metrics.totalValue.toLocaleString('en-US', { maximumFractionDigits: 0 })}",
+    "top3Concentration": "${metrics.concentration.top3Weight}%",
+    "positionCount": "${metrics.positionCount}"
+  },
+  "strengths": ["strength 1", "strength 2"],
+  "weaknesses": ["weakness 1", "weakness 2"],
+  "recommendations": [
+    { "action": "reduce|add|monitor", "ticker": "SYMBOL", "reason": "brief reason" }
+  ],
+  "bottomLine": "one sentence verdict"
+}
+\`\`\``;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -294,7 +315,23 @@ Rules:
 - Use specific numbers, dates, and data when available
 - Don't hedge or equivocate — argue the opposing case forcefully
 - Keep under 350 words
-- End with acknowledgment that this is the opposing view, not investment advice`;
+- End with acknowledgment that this is the opposing view, not investment advice
+
+CRITICAL: After your narrative analysis, wrap a JSON structured summary in triple backticks like this:
+
+\`\`\`json
+{
+  "type": "counter_thesis",
+  "sentiment": "bear|bull",
+  "originalThesis": "summary of user's position",
+  "counterArguments": [
+    { "point": "argument point", "evidence": "supporting data", "severity": "high|medium|low" }
+  ],
+  "riskFactors": ["risk 1", "risk 2"],
+  "probabilityAssessment": "estimated % chance counter-thesis plays out",
+  "bottomLine": "one sentence summary"
+}
+\`\`\``;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -345,7 +382,39 @@ Has something similar happened before? What was the market impact?
 ### Positioning Ideas
 How might an investor position for this scenario? What hedges make sense?
 
-Keep under 350 words. Use specific tickers and numbers. Frame as analysis, not advice.`;
+Keep under 350 words. Use specific tickers and numbers. Frame as analysis, not advice.
+
+CRITICAL: After your narrative analysis, wrap a JSON structured summary in triple backticks like this:
+
+\`\`\`json
+{
+  "type": "scenario_analysis",
+  "scenarios": [
+    {
+      "name": "Bull Case",
+      "probability": "30%",
+      "outcome": "description of market outcome",
+      "keyDrivers": ["driver 1", "driver 2"],
+      "targetLevel": "price target or index level"
+    },
+    {
+      "name": "Base Case",
+      "probability": "50%",
+      "outcome": "description of market outcome",
+      "keyDrivers": ["driver 1", "driver 2"],
+      "targetLevel": "price target or index level"
+    },
+    {
+      "name": "Bear Case",
+      "probability": "20%",
+      "outcome": "description of market outcome",
+      "keyDrivers": ["driver 1", "driver 2"],
+      "targetLevel": "price target or index level"
+    }
+  ],
+  "bottomLine": "one sentence summary"
+}
+\`\`\``;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

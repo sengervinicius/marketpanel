@@ -1,0 +1,596 @@
+/**
+ * AnalysisCard.css — Terminal-style cards for structured analysis output
+ * Matches Particle's dark aesthetic with accent colors for sentiment
+ */
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Base card styling */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+.analysis-card {
+  background: rgba(15, 15, 20, 0.8);
+  border: 1px solid rgba(120, 200, 120, 0.2);
+  border-radius: 6px;
+  padding: 20px;
+  margin: 12px 0;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #e0e0e0;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+}
+
+/* Sentiment-based border colors */
+.analysis-card--bull {
+  border-color: rgba(76, 175, 80, 0.3);
+}
+
+.analysis-card--bear {
+  border-color: rgba(244, 67, 54, 0.3);
+}
+
+.analysis-card--neutral {
+  border-color: rgba(255, 193, 7, 0.3);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Card header and title */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+.analysis-card-header {
+  margin-bottom: 16px;
+  border-bottom: 1px solid rgba(120, 200, 120, 0.15);
+  padding-bottom: 12px;
+}
+
+.analysis-card-title-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.analysis-card-sentiment {
+  display: inline-block;
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: 1px;
+  padding: 4px 8px;
+  border-radius: 3px;
+  text-transform: uppercase;
+}
+
+.analysis-card-sentiment--bull {
+  background: rgba(76, 175, 80, 0.2);
+  color: #4db854;
+  border: 1px solid rgba(76, 175, 80, 0.4);
+}
+
+.analysis-card-sentiment--bear {
+  background: rgba(244, 67, 54, 0.2);
+  color: #f44336;
+  border: 1px solid rgba(244, 67, 54, 0.4);
+}
+
+.analysis-card-sentiment--neutral {
+  background: rgba(255, 193, 7, 0.2);
+  color: #ffc107;
+  border: 1px solid rgba(255, 193, 7, 0.4);
+}
+
+.analysis-card-headline {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #fff;
+  letter-spacing: 0.5px;
+}
+
+.analysis-card-original-thesis {
+  margin: 8px 0 0 0;
+  font-size: 12px;
+  color: #a0a0a0;
+  font-style: italic;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Sections */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+.analysis-card-section {
+  margin: 14px 0;
+}
+
+.analysis-card-section-title {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #78c878;
+  margin: 0 0 10px 0;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(120, 200, 120, 0.1);
+}
+
+.analysis-card-section-title--positive {
+  color: #4db854;
+  border-bottom-color: rgba(76, 175, 80, 0.2);
+}
+
+.analysis-card-section-title--negative {
+  color: #f44336;
+  border-bottom-color: rgba(244, 67, 54, 0.2);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Metrics Grid */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+.analysis-card-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.analysis-card-metric-item {
+  background: rgba(120, 200, 120, 0.05);
+  border: 1px solid rgba(120, 200, 120, 0.1);
+  border-radius: 4px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.analysis-card-metric-label {
+  font-size: 11px;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.analysis-card-metric-value {
+  font-size: 14px;
+  color: #78c878;
+  font-weight: 500;
+  font-family: 'Monaco', monospace;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Two-column layout */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+.analysis-card-two-column {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin: 14px 0;
+}
+
+@media (max-width: 768px) {
+  .analysis-card-two-column {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Lists (Strengths, Weaknesses, Risks) */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+.analysis-card-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.analysis-card-list-item {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  font-size: 13px;
+  color: #c0c0c0;
+  line-height: 1.4;
+}
+
+.analysis-card-list-bullet {
+  flex-shrink: 0;
+  color: #78c878;
+  font-weight: 600;
+  min-width: 12px;
+  text-align: center;
+}
+
+.analysis-card-list-item:has(.analysis-card-section-title--negative) ~ .analysis-card-list-item .analysis-card-list-bullet {
+  color: #f44336;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Recommendations */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+.analysis-card-recommendations {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.analysis-card-rec-item {
+  background: rgba(120, 200, 120, 0.05);
+  border: 1px solid rgba(120, 200, 120, 0.1);
+  border-left: 3px solid rgba(120, 200, 120, 0.3);
+  border-radius: 3px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+}
+
+.analysis-card-rec-item--reduce {
+  background: rgba(244, 67, 54, 0.05);
+  border-color: rgba(244, 67, 54, 0.1);
+  border-left-color: rgba(244, 67, 54, 0.3);
+}
+
+.analysis-card-rec-item--add {
+  background: rgba(76, 175, 80, 0.05);
+  border-color: rgba(76, 175, 80, 0.1);
+  border-left-color: rgba(76, 175, 80, 0.3);
+}
+
+.analysis-card-rec-item--monitor {
+  background: rgba(255, 193, 7, 0.05);
+  border-color: rgba(255, 193, 7, 0.1);
+  border-left-color: rgba(255, 193, 7, 0.3);
+}
+
+.analysis-card-rec-action {
+  font-weight: 600;
+  font-size: 11px;
+  text-transform: uppercase;
+  color: #78c878;
+  letter-spacing: 0.5px;
+}
+
+.analysis-card-rec-ticker {
+  font-family: 'Monaco', monospace;
+  font-weight: 600;
+  color: #fff;
+  font-size: 13px;
+}
+
+.analysis-card-rec-reason {
+  font-size: 12px;
+  color: #a0a0a0;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Arguments (Counter-Thesis) */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+.analysis-card-arguments {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.analysis-card-argument {
+  background: rgba(120, 200, 120, 0.05);
+  border: 1px solid rgba(120, 200, 120, 0.1);
+  border-left: 3px solid rgba(120, 200, 120, 0.3);
+  border-radius: 3px;
+  padding: 10px 12px;
+  font-size: 12px;
+  position: relative;
+}
+
+.analysis-card-argument--high {
+  background: rgba(244, 67, 54, 0.08);
+  border-color: rgba(244, 67, 54, 0.15);
+  border-left-color: rgba(244, 67, 54, 0.4);
+}
+
+.analysis-card-argument--medium {
+  background: rgba(255, 193, 7, 0.08);
+  border-color: rgba(255, 193, 7, 0.15);
+  border-left-color: rgba(255, 193, 7, 0.4);
+}
+
+.analysis-card-argument--low {
+  background: rgba(120, 200, 120, 0.08);
+  border-color: rgba(120, 200, 120, 0.15);
+  border-left-color: rgba(120, 200, 120, 0.4);
+}
+
+.analysis-card-argument-point {
+  color: #fff;
+  margin-bottom: 6px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.analysis-card-argument-evidence {
+  color: #a0a0a0;
+  font-size: 11px;
+  margin-bottom: 6px;
+  font-style: italic;
+}
+
+.analysis-card-argument-severity {
+  display: inline-block;
+  font-size: 10px;
+  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  padding: 2px 6px;
+  border-radius: 2px;
+  background: rgba(120, 200, 120, 0.1);
+  color: #78c878;
+}
+
+.analysis-card-argument--high .analysis-card-argument-severity {
+  background: rgba(244, 67, 54, 0.15);
+  color: #f44336;
+}
+
+.analysis-card-argument--medium .analysis-card-argument-severity {
+  background: rgba(255, 193, 7, 0.15);
+  color: #ffc107;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Probability and Assessment */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+.analysis-card-assessment {
+  background: rgba(120, 200, 120, 0.08);
+  border: 1px solid rgba(120, 200, 120, 0.15);
+  border-radius: 4px;
+  padding: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 14px 0;
+}
+
+.analysis-card-assessment-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #78c878;
+  font-weight: 600;
+}
+
+.analysis-card-assessment-value {
+  font-family: 'Monaco', monospace;
+  font-size: 14px;
+  color: #78c878;
+  font-weight: 600;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Scenarios (Scenario Analysis) */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+.analysis-card-scenarios {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin: 16px 0;
+}
+
+@media (max-width: 900px) {
+  .analysis-card-scenarios {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+  .analysis-card-scenarios {
+    grid-template-columns: 1fr;
+  }
+}
+
+.analysis-card-scenario {
+  background: rgba(120, 200, 120, 0.08);
+  border: 1px solid rgba(120, 200, 120, 0.15);
+  border-radius: 4px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.analysis-card-scenario--bull {
+  background: rgba(76, 175, 80, 0.08);
+  border-color: rgba(76, 175, 80, 0.15);
+}
+
+.analysis-card-scenario--bear {
+  background: rgba(244, 67, 54, 0.08);
+  border-color: rgba(244, 67, 54, 0.15);
+}
+
+.analysis-card-scenario-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.analysis-card-scenario-name {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  flex: 1;
+}
+
+.analysis-card-scenario-prob {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: 'Monaco', monospace;
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: rgba(120, 200, 120, 0.2);
+  color: #4db854;
+  white-space: nowrap;
+}
+
+.analysis-card-scenario-prob--bull {
+  background: rgba(76, 175, 80, 0.2);
+  color: #4db854;
+}
+
+.analysis-card-scenario-prob--bear {
+  background: rgba(244, 67, 54, 0.2);
+  color: #f44336;
+}
+
+.analysis-card-scenario-prob--neutral {
+  background: rgba(120, 200, 120, 0.2);
+  color: #78c878;
+}
+
+.analysis-card-scenario-outcome {
+  margin: 0;
+  font-size: 12px;
+  color: #c0c0c0;
+  line-height: 1.4;
+}
+
+.analysis-card-scenario-drivers {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.analysis-card-scenario-drivers-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #888;
+  font-weight: 600;
+}
+
+.analysis-card-scenario-drivers-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.analysis-card-scenario-drivers-list li {
+  font-size: 11px;
+  color: #a0a0a0;
+  padding-left: 8px;
+  border-left: 2px solid rgba(120, 200, 120, 0.2);
+}
+
+.analysis-card-scenario--bull .analysis-card-scenario-drivers-list li {
+  border-left-color: rgba(76, 175, 80, 0.3);
+}
+
+.analysis-card-scenario--bear .analysis-card-scenario-drivers-list li {
+  border-left-color: rgba(244, 67, 54, 0.3);
+}
+
+.analysis-card-scenario-target {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 3px;
+  padding: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.analysis-card-scenario-target-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #888;
+  font-weight: 600;
+}
+
+.analysis-card-scenario-target-value {
+  font-family: 'Monaco', monospace;
+  font-size: 12px;
+  font-weight: 600;
+  color: #78c878;
+}
+
+.analysis-card-scenario--bull .analysis-card-scenario-target-value {
+  color: #4db854;
+}
+
+.analysis-card-scenario--bear .analysis-card-scenario-target-value {
+  color: #f44336;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Bottom Line */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+.analysis-card-bottom-line {
+  background: rgba(120, 200, 120, 0.08);
+  border: 1px solid rgba(120, 200, 120, 0.2);
+  border-left: 3px solid rgba(120, 200, 120, 0.4);
+  border-radius: 3px;
+  padding: 12px;
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.analysis-card-bottom-line-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #78c878;
+  font-weight: 600;
+}
+
+.analysis-card-bottom-line-text {
+  font-size: 13px;
+  color: #fff;
+  line-height: 1.5;
+  font-weight: 500;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Mobile responsive */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+@media (max-width: 640px) {
+  .analysis-card {
+    padding: 14px;
+    font-size: 12px;
+    margin: 8px 0;
+  }
+
+  .analysis-card-headline {
+    font-size: 14px;
+  }
+
+  .analysis-card-metrics-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .analysis-card-two-column {
+    grid-template-columns: 1fr;
+  }
+
+  .analysis-card-scenarios {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,0 +1,213 @@
+.earnings-widget {
+  background: var(--surface-secondary, #f8f9fa);
+  border: 1px solid var(--border-color, #e0e0e0);
+  border-radius: 8px;
+  padding: 16px;
+  margin: 16px 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+}
+
+.earnings-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.earnings-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary, #1a1a1a);
+}
+
+.earnings-refresh {
+  background: none;
+  border: 1px solid var(--border-color, #e0e0e0);
+  border-radius: 4px;
+  width: 32px;
+  height: 32px;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--text-secondary, #666);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.earnings-refresh:hover {
+  background: var(--surface-active, #f0f0f0);
+  color: var(--text-primary, #1a1a1a);
+}
+
+.earnings-refresh:active {
+  transform: scale(0.95);
+}
+
+.earnings-loading,
+.earnings-empty {
+  padding: 16px;
+  text-align: center;
+  color: var(--text-secondary, #666);
+  font-size: 14px;
+}
+
+.earnings-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.earnings-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  background: white;
+  border: 1px solid var(--border-color, #e0e0e0);
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.earnings-item:hover {
+  background: var(--surface-active, #f9f9f9);
+  border-color: var(--primary-color, #007bff);
+}
+
+.earnings-item.is-today {
+  background: var(--highlight-bg, #fff8e1);
+  border-color: var(--highlight-border, #ffd700);
+  font-weight: 500;
+}
+
+.earnings-item.is-past {
+  opacity: 0.6;
+  background: var(--disabled-bg, #f5f5f5);
+}
+
+.earnings-ticker {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.ticker-symbol {
+  font-weight: 600;
+  color: var(--text-primary, #1a1a1a);
+  font-size: 14px;
+}
+
+.earnings-date {
+  font-size: 12px;
+  color: var(--text-secondary, #999);
+}
+
+.earnings-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  text-align: right;
+}
+
+.earnings-time {
+  font-size: 12px;
+  color: var(--text-secondary, #666);
+}
+
+.earnings-days {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--primary-color, #007bff);
+  background: var(--badge-bg, #e7f3ff);
+  padding: 2px 8px;
+  border-radius: 12px;
+  white-space: nowrap;
+}
+
+.earnings-item.is-today .earnings-days {
+  color: var(--highlight-text, #ff9800);
+  background: var(--highlight-badge, #fff3cd);
+}
+
+.earnings-footer {
+  margin-top: 12px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-color, #e0e0e0);
+  font-size: 12px;
+  color: var(--text-secondary, #999);
+  text-align: center;
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .earnings-widget {
+    background: var(--surface-secondary, #2a2a2a);
+    border-color: var(--border-color, #444);
+  }
+
+  .earnings-header h3 {
+    color: var(--text-primary, #ffffff);
+  }
+
+  .earnings-refresh {
+    border-color: var(--border-color, #444);
+    color: var(--text-secondary, #aaa);
+  }
+
+  .earnings-refresh:hover {
+    background: var(--surface-active, #3a3a3a);
+    color: var(--text-primary, #ffffff);
+  }
+
+  .earnings-item {
+    background: var(--surface-primary, #1a1a1a);
+    border-color: var(--border-color, #444);
+  }
+
+  .earnings-item:hover {
+    background: var(--surface-active, #333);
+  }
+
+  .earnings-item.is-today {
+    background: var(--highlight-bg, #3a2800);
+    border-color: var(--highlight-border, #665500);
+  }
+
+  .earnings-item.is-past {
+    background: var(--disabled-bg, #2a2a2a);
+  }
+
+  .earnings-ticker,
+  .earnings-meta {
+    color: var(--text-primary, #ffffff);
+  }
+
+  .earnings-date,
+  .earnings-time {
+    color: var(--text-secondary, #aaa);
+  }
+
+  .ticker-symbol {
+    color: var(--text-primary, #ffffff);
+  }
+
+  .earnings-days {
+    color: var(--primary-color, #66b3ff);
+    background: var(--badge-bg, #1a3a5c);
+  }
+
+  .earnings-item.is-today .earnings-days {
+    color: var(--highlight-text, #ffb347);
+    background: var(--highlight-badge, #3a2800);
+  }
+
+  .earnings-footer {
+    border-color: var(--border-color, #444);
+    color: var(--text-secondary, #aaa);
+  }
+}

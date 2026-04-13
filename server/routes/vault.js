@@ -45,21 +45,36 @@ router.get('/health', async (req, res) => {
   res.status(healthy ? 200 : 503).json({ ok: healthy, ...status });
 });
 
-// Multer for PDF upload (10MB limit)
+// Multer for document upload (10MB limit)
+// Supports: PDF, DOCX, CSV, TSV, TXT, MD
+const ACCEPTED_MIMETYPES = [
+  'application/pdf',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
+  'text/csv',
+  'text/tab-separated-values',
+  'text/plain',
+  'text/markdown',
+];
+
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
-    if (file.mimetype === 'application/pdf') {
+    const ext = (file.originalname || '').toLowerCase().split('.').pop() || '';
+    const isAcceptedExt = ['pdf', 'docx', 'csv', 'tsv', 'txt', 'md', 'markdown'].includes(ext);
+    const isAcceptedMime = ACCEPTED_MIMETYPES.includes(file.mimetype);
+
+    if (isAcceptedExt || isAcceptedMime) {
       cb(null, true);
     } else {
-      cb(new Error('Only PDF files are accepted'), false);
+      cb(new Error('Unsupported file type. Accepted: PDF, DOCX, CSV, TSV, TXT, MD'), false);
     }
   },
 });
 
 /**
- * POST /upload — Upload and ingest a PDF into the vault.
+ * POST /upload — Upload and ingest a document into the vault.
+ * Supports: PDF, DOCX, CSV, TSV, TXT, MD
  * Enforces per-tier document limits before allowing the upload.
  * Rate limited to 10 uploads per minute per user.
  */
@@ -86,11 +101,13 @@ router.post('/upload', rateLimitByUser({ key: 'vault-upload', windowSec: 60, max
       }
     }
 
-    const result = await vault.ingestPDF(req.user.id, req.file.buffer, req.file.originalname);
+    const result = await vault.ingestFile(req.user.id, req.file.buffer, req.file.originalname);
 
-    logger.info('vault-route', 'PDF uploaded', {
+    logger.info('vault-route', 'Document uploaded', {
       userId: req.user.id,
       filename: req.file.originalname,
+      fileType: result.fileType,
+      detectedType: result.detectedType,
     });
 
     res.json(result);
@@ -101,13 +118,16 @@ router.post('/upload', rateLimitByUser({ key: 'vault-upload', windowSec: 60, max
     if (msg.includes('not connected') || msg.includes('ECONNREFUSED') || msg.includes('Connection terminated') || msg.includes('timeout')) {
       return res.status(503).json({ error: 'Database unavailable', code: 'db_unavailable', message: 'Vault database is reconnecting. Please wait a moment and try again.' });
     }
-    if (msg.includes('no extractable text')) {
-      return res.status(400).json({ error: 'Unreadable PDF', message: 'This PDF contains no extractable text. Scanned/image-only PDFs are not supported yet.' });
+    if (msg.includes('no extractable text') || msg.includes('no text')) {
+      return res.status(400).json({ error: 'Unreadable file', message: 'This file contains no extractable text. Please try a different file.' });
+    }
+    if (msg.includes('Unsupported file type')) {
+      return res.status(400).json({ error: 'File type not supported', message: msg });
     }
     if (msg.includes('too large') || msg.includes('exceeds')) {
-      return res.status(400).json({ error: 'PDF too large', message: msg });
+      return res.status(400).json({ error: 'File too large', message: msg });
     }
-    res.status(500).json({ error: 'Failed to process document', message: 'An error occurred while processing the PDF. Please try a different file or try again later.' });
+    res.status(500).json({ error: 'Failed to process document', message: 'An error occurred while processing the file. Please try a different file or try again later.' });
   }
 });
 
@@ -273,7 +293,8 @@ router.get('/sector-insights', requireAuth, async (req, res) => {
 // ── Central Vault (Admin-only) ────────────────────────────────────────────
 
 /**
- * POST /admin/upload — Upload a PDF to the central vault (all users benefit).
+ * POST /admin/upload — Upload a document to the central vault (all users benefit).
+ * Supports: PDF, DOCX, CSV, TSV, TXT, MD
  * Requires admin role.
  * Rate limited to 10 uploads per minute per admin user.
  */
@@ -283,11 +304,13 @@ router.post('/admin/upload', requireAdmin, rateLimitByUser({ key: 'vault-upload-
       return res.status(400).json({ error: 'No file provided' });
     }
 
-    const result = await vault.ingestPDF(req.user.id, req.file.buffer, req.file.originalname, { isGlobal: true });
+    const result = await vault.ingestFile(req.user.id, req.file.buffer, req.file.originalname, {}, true);
 
-    logger.info('vault-route', 'Central vault PDF uploaded', {
+    logger.info('vault-route', 'Central vault document uploaded', {
       userId: req.user.id,
       filename: req.file.originalname,
+      fileType: result.fileType,
+      detectedType: result.detectedType,
       global: true,
     });
 

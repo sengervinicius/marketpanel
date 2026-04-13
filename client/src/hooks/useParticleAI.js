@@ -83,6 +83,7 @@ export default function useParticleAI() {
       let fullText = '';
       let vaultSources = null;
       let webCitations = null; // Perplexity web citations (URLs)
+      let structuredAnalysis = null; // Deep analysis JSON structure
 
       while (true) {
         const { done, value } = await reader.read();
@@ -109,6 +110,19 @@ export default function useParticleAI() {
                 const last = updated[updated.length - 1];
                 if (last?.role === 'assistant') {
                   updated[updated.length - 1] = { ...last, vaultSources };
+                }
+                return updated;
+              });
+              continue;
+            }
+            // Capture structured analysis JSON (sent at end of deep analysis stream)
+            if (parsed.structuredAnalysis) {
+              structuredAnalysis = parsed.structuredAnalysis;
+              setMessages(prev => {
+                const updated = [...prev];
+                const last = updated[updated.length - 1];
+                if (last?.role === 'assistant') {
+                  updated[updated.length - 1] = { ...last, structuredAnalysis };
                 }
                 return updated;
               });
@@ -148,6 +162,7 @@ export default function useParticleAI() {
             streaming: false,
             vaultSources: vaultSources || last.vaultSources,
             webCitations: webCitations || null,
+            structuredAnalysis: structuredAnalysis || last.structuredAnalysis,
           };
         }
         return updated;

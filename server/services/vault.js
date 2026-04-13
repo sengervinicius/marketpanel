@@ -14,6 +14,8 @@
 const crypto = require('crypto');
 const pg = require('../db/postgres');
 const logger = require('../utils/logger');
+const mammoth = require('mammoth');
+const Papa = require('papaparse');
 
 // ── Constants ──
 const CHUNK_SIZE = 1000; // chars per chunk — larger for financial context retention
@@ -201,7 +203,166 @@ async function ensureTable() {
 }
 
 /**
- * Chunk text into overlapping segments.
+ * Detect document type based on content and filename.
+ * Returns one of: 'earnings_transcript', 'research_report', 'financial_table', or 'default'
+ */
+function detectDocumentType(text, filename = '') {
+  const lower = text.toLowerCase();
+  const filenameExt = (filename || '').toLowerCase();
+
+  // Earnings transcript: typical phrases and speaker patterns
+  if (
+    lower.includes('operator') ||
+    lower.includes('q&a') ||
+    lower.includes('question and answer') ||
+    /^[A-Z\s]+-[A-Z]:/m.test(text) ||
+    /\b(Q:|A:|Unidentified:|Analyst:|Operator:)/m.test(text)
+  ) {
+    return 'earnings_transcript';
+  }
+
+  // Research report: analyst insights, price targets, ratings
+  if (
+    lower.includes('price target') ||
+    lower.includes('rating') ||
+    lower.includes('analyst') ||
+    lower.includes('recommendation') ||
+    lower.includes('valuation') ||
+    lower.includes('initiated coverage') ||
+    filenameExt.includes('report') ||
+    filenameExt.includes('research')
+  ) {
+    return 'research_report';
+  }
+
+  // Financial table: high density of numbers and tabular structure
+  const numberDensity = (text.match(/\d+[.,]\d+|[\d,]+(?:\.\d{1,2})?/g) || []).length / (text.split('\n').length + 1);
+  if (numberDensity > 2 || filenameExt.includes('table') || filenameExt.includes('data')) {
+    // Additional heuristic: check for aligned columns (multiple spaces or tabs)
+    const hasColumns = /\t|\s{4,}/.test(text);
+    if (hasColumns || numberDensity > 3) {
+      return 'financial_table';
+    }
+  }
+
+  return 'default';
+}
+
+/**
+ * Chunk earnings transcript by speaker turns.
+ * Preserves speaker labels and conversation structure.
+ */
+function chunkEarningsTranscript(text, chunkSize = CHUNK_SIZE) {
+  const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+  const chunks = [];
+  let currentChunk = '';
+  let currentSpeaker = '';
+
+  for (const line of lines) {
+    // Detect speaker changes: "Name - Title:" or "Q:" / "A:"
+    const speakerMatch = line.match(/^(.+?)\s*[-:]\s*(.*)$/);
+    const isSpeakerLine = speakerMatch && (speakerMatch[1].match(/^[A-Z][a-z]+ [A-Z]/));
+
+    if (isSpeakerLine && currentChunk.length > 200) {
+      // Flush current chunk when speaker changes and we have enough content
+      chunks.push(currentChunk.trim());
+      currentChunk = speakerMatch[1] + ' ' + line;
+      currentSpeaker = speakerMatch[1];
+    } else {
+      if ((currentChunk + '\n' + line).length > chunkSize && currentChunk.length > 100) {
+        chunks.push(currentChunk.trim());
+        // Add speaker context to next chunk
+        currentChunk = (currentSpeaker ? `[${currentSpeaker}] ` : '') + line;
+      } else {
+        currentChunk += (currentChunk ? '\n' : '') + line;
+      }
+    }
+  }
+
+  if (currentChunk.trim().length > 50) {
+    chunks.push(currentChunk.trim());
+  }
+
+  return chunks.length > 0 ? chunks : [text];
+}
+
+/**
+ * Chunk research report using parent-child hierarchy.
+ * Large sections (context) paired with smaller chunks (retrieval).
+ * Stores parent_chunk_id in metadata for reference.
+ */
+function chunkResearchReport(text, contextSize = 2000, chunkSize = 800) {
+  // Split by section headers (# or ##)
+  const sections = text.split(/^#{1,2}\s+/m).filter(s => s.trim().length > 0);
+  const chunks = [];
+  let globalChunkId = 0;
+
+  for (const section of sections) {
+    const parentChunk = section.slice(0, contextSize).trim();
+    globalChunkId++;
+    const parentId = globalChunkId;
+
+    // Split section into smaller chunks
+    const sectionLines = section.split('\n').filter(l => l.trim().length > 0);
+    let subChunk = '';
+
+    for (const line of sectionLines) {
+      if ((subChunk + '\n' + line).length > chunkSize && subChunk.length > 200) {
+        chunks.push({
+          content: subChunk.trim(),
+          parentChunkId: parentId,
+          parentContext: parentChunk,
+        });
+        globalChunkId++;
+        subChunk = line;
+      } else {
+        subChunk += (subChunk ? '\n' : '') + line;
+      }
+    }
+
+    if (subChunk.trim().length > 50) {
+      chunks.push({
+        content: subChunk.trim(),
+        parentChunkId: parentId,
+        parentContext: parentChunk,
+      });
+      globalChunkId++;
+    }
+  }
+
+  return chunks.length > 0 ? chunks : [{ content: text, parentChunkId: null }];
+}
+
+/**
+ * Chunk financial table: convert to row-per-chunk format with headers.
+ * Preserves tabular structure by prepending headers to each row.
+ */
+function chunkFinancialTable(text) {
+  const lines = text.split('\n').filter(l => l.trim().length > 0);
+  if (lines.length < 2) {
+    return [text];
+  }
+
+  const chunks = [];
+  const headerLine = lines[0];
+  const dataStart = 1;
+
+  // Group rows into chunks (e.g., 5-10 rows per chunk)
+  const rowsPerChunk = Math.max(5, Math.floor(1000 / Math.max(1, headerLine.length)));
+
+  for (let i = dataStart; i < lines.length; i += rowsPerChunk) {
+    const rowsSlice = lines.slice(i, Math.min(i + rowsPerChunk, lines.length));
+    const chunk = [headerLine, ...rowsSlice].join('\n');
+    if (chunk.trim().length > 0) {
+      chunks.push(chunk);
+    }
+  }
+
+  return chunks.length > 0 ? chunks : [text];
+}
+
+/**
+ * Chunk text into overlapping segments (default chunking strategy).
  * Splits by sentences and accumulates until reaching chunkSize chars.
  */
 function chunkText(text, chunkSize = CHUNK_SIZE, overlap = CHUNK_OVERLAP) {
@@ -252,6 +413,56 @@ function chunkText(text, chunkSize = CHUNK_SIZE, overlap = CHUNK_OVERLAP) {
 
   if (currentChunk.trim().length > 0) {
     chunks.push(currentChunk.trim());
+  }
+
+  return chunks;
+}
+
+/**
+ * Route chunking based on detected document type.
+ * Returns array of chunks, where each chunk is either a string or { content, metadata } object.
+ * For research reports, extracts metadata objects; for others, returns plain strings.
+ */
+function chunkTextWithType(text, filename, docType = null) {
+  if (!text || text.trim().length === 0) {
+    return [];
+  }
+
+  const type = docType || detectDocumentType(text, filename);
+  let chunks = [];
+
+  switch (type) {
+    case 'earnings_transcript':
+      chunks = chunkEarningsTranscript(text);
+      break;
+    case 'research_report':
+      chunks = chunkResearchReport(text);
+      // Flatten research report chunks: extract content and preserve metadata
+      chunks = chunks.map(c => {
+        if (typeof c === 'string') {
+          return { content: c, metadata: { documentType: 'research_report' } };
+        }
+        return {
+          content: c.content,
+          metadata: {
+            documentType: 'research_report',
+            parentChunkId: c.parentChunkId,
+            parentContext: c.parentContext,
+          },
+        };
+      });
+      break;
+    case 'financial_table':
+      chunks = chunkFinancialTable(text).map(c => ({
+        content: c,
+        metadata: { documentType: 'financial_table' },
+      }));
+      break;
+    default:
+      chunks = chunkText(text).map(c => ({
+        content: c,
+        metadata: { documentType: 'default' },
+      }));
   }
 
   return chunks;
@@ -414,12 +625,235 @@ function extractMetadata(text) {
 }
 
 /**
- * Ingest a PDF, parse text, chunk, embed, and store.
+ * Extract metadata using an LLM (Claude Haiku or Perplexity Sonar).
+ * Non-blocking — if the LLM call fails, we return empty metadata and proceed.
+ *
+ * @param {string} text - The document text (first 2000 chars will be used)
+ * @param {string} filename - The document filename
+ * @returns {Promise<object>} Metadata object with bank, date, tickers, sector, docType, summary
  */
-async function ingestPDF(userId, buffer, filename, { isGlobal = false } = {}) {
-  // Attempt lazy reconnect if pool is dead — the new postgres.js handles this
+async function extractMetadataWithLLM(text, filename) {
+  const metadata = {};
+
+  try {
+    const anthropicKey = process.env.ANTHROPIC_API_KEY;
+    const perplexityKey = process.env.PERPLEXITY_API_KEY;
+
+    // Choose API based on availability (Anthropic preferred)
+    let provider;
+    let apiKey;
+    let url;
+    let headers;
+    let body;
+
+    const truncatedText = text.substring(0, 2000);
+    const prompt = `You are a financial document analyzer. Extract metadata from the given document.
+
+Document filename: "${filename}"
+Document text (first 2000 chars):
+${truncatedText}
+
+Return a JSON object (ONLY, no markdown or explanation) with these fields:
+{
+  "bank": "Institution name or null if not identifiable",
+  "date": "YYYY-MM-DD format or null",
+  "tickers": ["AAPL", "MSFT"] or empty array,
+  "sector": "Technology/Healthcare/Finance/etc or null",
+  "docType": "research_report|earnings_transcript|macro_commentary|filing|other",
+  "summary": "One-sentence summary of what this document is about"
+}
+
+Be conservative — only extract what you're confident about. Use null for uncertain fields.`;
+
+    if (anthropicKey) {
+      // Use Claude Haiku
+      provider = 'anthropic';
+      apiKey = anthropicKey;
+      url = 'https://api.anthropic.com/v1/messages';
+      headers = {
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'Content-Type': 'application/json',
+      };
+      body = {
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 500,
+        messages: [
+          { role: 'user', content: prompt }
+        ],
+      };
+    } else if (perplexityKey) {
+      // Use Perplexity Sonar
+      provider = 'perplexity';
+      apiKey = perplexityKey;
+      url = 'https://api.perplexity.ai/chat/completions';
+      headers = {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      };
+      body = {
+        model: 'sonar',
+        messages: [
+          { role: 'user', content: prompt }
+        ],
+        max_tokens: 500,
+      };
+    } else {
+      // No API key available — skip metadata extraction
+      logger.debug('vault', 'No API key for metadata extraction (ANTHROPIC_API_KEY or PERPLEXITY_API_KEY)');
+      return metadata;
+    }
+
+    // Make the API call with a 10-second timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+
+      if (!response.ok) {
+        const errText = await response.text().catch(() => '');
+        logger.warn('vault', 'LLM metadata extraction API error', {
+          status: response.status,
+          error: errText.substring(0, 200),
+        });
+        return metadata;
+      }
+
+      const data = await response.json();
+
+      // Extract the response content based on provider
+      let responseText = '';
+      if (provider === 'anthropic') {
+        responseText = data.content?.[0]?.text || '';
+      } else if (provider === 'perplexity') {
+        responseText = data.choices?.[0]?.message?.content || '';
+      }
+
+      if (!responseText) {
+        logger.warn('vault', 'Empty LLM metadata response');
+        return metadata;
+      }
+
+      // Parse the JSON response
+      // Handle potential markdown code blocks
+      const jsonStr = responseText
+        .replace(/^```json\s*/i, '')
+        .replace(/```\s*$/i, '')
+        .trim();
+
+      const parsed = JSON.parse(jsonStr);
+
+      // Merge extracted metadata with parsed results
+      if (parsed.bank) metadata.bank = parsed.bank;
+      if (parsed.date) metadata.date = parsed.date;
+      if (Array.isArray(parsed.tickers) && parsed.tickers.length > 0) {
+        metadata.tickers = parsed.tickers;
+      }
+      if (parsed.sector) metadata.sector = parsed.sector;
+      if (parsed.docType) metadata.docType = parsed.docType;
+      if (parsed.summary) metadata.summary = parsed.summary;
+
+      logger.info('vault', 'LLM metadata extracted', { bank: parsed.bank, docType: parsed.docType });
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  } catch (err) {
+    // Non-blocking error — log and continue
+    if (err.name === 'AbortError') {
+      logger.warn('vault', 'LLM metadata extraction timed out');
+    } else {
+      logger.warn('vault', 'LLM metadata extraction error', { error: err.message });
+    }
+  }
+
+  return metadata;
+}
+
+/**
+ * Parse DOCX file and extract text.
+ * Returns extracted text or throws on error.
+ */
+async function parseDOCX(buffer) {
+  try {
+    const result = await mammoth.extractRawText({ buffer });
+    return result.value || '';
+  } catch (err) {
+    logger.warn('vault', 'DOCX parse error', { error: err.message });
+    throw new Error(`Unable to read DOCX: ${err.message}`);
+  }
+}
+
+/**
+ * Parse CSV/TSV file and convert to readable text.
+ * Preserves headers and converts rows to readable format.
+ */
+function parseCSV(buffer, filename = '') {
+  try {
+    const csvText = buffer.toString('utf-8');
+    const delimiter = filename.toLowerCase().includes('.tsv') ? '\t' : ',';
+
+    const result = Papa.parse(csvText, {
+      delimiter,
+      header: false,
+      skipEmptyLines: true,
+      dynamicTyping: false,
+    });
+
+    if (!result.data || result.data.length === 0) {
+      throw new Error('CSV is empty or malformed');
+    }
+
+    // Convert rows to readable text with headers preserved
+    const headers = result.data[0];
+    const rows = result.data.slice(1);
+
+    let text = 'Data Table:\n\n';
+    text += headers.join(' | ') + '\n';
+    text += '─'.repeat(Math.min(100, headers.join(' | ').length)) + '\n';
+
+    for (const row of rows) {
+      if (row.some(cell => cell && cell.toString().trim().length > 0)) {
+        text += row.join(' | ') + '\n';
+      }
+    }
+
+    return text;
+  } catch (err) {
+    logger.warn('vault', 'CSV parse error', { error: err.message });
+    throw new Error(`Unable to read CSV/TSV: ${err.message}`);
+  }
+}
+
+/**
+ * Parse plain text or Markdown file.
+ * Returns text as-is after basic cleanup.
+ */
+function parsePlainText(buffer) {
+  const text = buffer.toString('utf-8');
+
+  if (!text || text.trim().length === 0) {
+    throw new Error('File is empty or unreadable');
+  }
+
+  // Basic cleanup: normalize line endings, trim excess whitespace
+  return text
+    .replace(/\r\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+/**
+ * Generic file ingest function that routes by file extension.
+ * Handles: PDF, DOCX, CSV, TSV, TXT, MD
+ */
+async function ingestFile(userId, buffer, filename, metadata = {}, isGlobal = false) {
   if (!pg.isConnected()) {
-    // Trigger a lazy reconnect via a lightweight query
     try { await pg.query('SELECT 1'); } catch {}
     if (!pg.isConnected()) {
       throw new Error('Postgres not connected — database may be starting up. Please try again in a minute.');
@@ -427,16 +861,78 @@ async function ingestPDF(userId, buffer, filename, { isGlobal = false } = {}) {
   }
 
   try {
-    // Sanitize filename before storing
-    filename = (filename || 'untitled.pdf')
-      .replace(/[<>:"/\\|?*\x00-\x1f]/g, '_')  // Remove dangerous chars
-      .replace(/\.{2,}/g, '.')                     // Remove path traversal
-      .slice(0, 255);                              // Limit length
+    // Determine file type from extension
+    const ext = (filename || '').toLowerCase().split('.').pop() || '';
+    let text = '';
+    let fileType = 'unknown';
 
-    // Compute SHA-256 hash of raw buffer for duplicate detection
+    logger.info('vault', 'Ingesting file', { userId, filename, ext });
+
+    // Parse file based on extension
+    if (ext === 'pdf') {
+      fileType = 'pdf';
+      try {
+        const pdfParse = require('pdf-parse');
+        const pdfData = await pdfParse(buffer, { max: 500 });
+        text = pdfData.text || '';
+        metadata.pageCount = pdfData.numpages || 0;
+      } catch (parseErr) {
+        logger.warn('vault', 'Primary PDF parse failed, trying fallback', { error: parseErr.message });
+        try {
+          const pdfParse = require('pdf-parse');
+          const pdfData = await pdfParse(buffer, {
+            max: 500,
+            pagerender: function(pageData) {
+              return pageData.getTextContent().then(function(textContent) {
+                return textContent.items.map(item => item.str).join(' ');
+              });
+            },
+          });
+          text = pdfData.text || '';
+          metadata.pageCount = pdfData.numpages || 0;
+        } catch (fallbackErr) {
+          logger.error('vault', 'PDF parse fallback failed', { error: fallbackErr.message });
+          throw new Error(`Unable to read this PDF: ${parseErr.message}`);
+        }
+      }
+    } else if (ext === 'docx') {
+      fileType = 'docx';
+      text = await parseDOCX(buffer);
+    } else if (ext === 'csv' || ext === 'tsv') {
+      fileType = 'table';
+      text = parseCSV(buffer, filename);
+    } else if (ext === 'txt' || ext === 'md' || ext === 'markdown') {
+      fileType = 'text';
+      text = parsePlainText(buffer);
+    } else {
+      throw new Error(`Unsupported file type: .${ext}. Supported: PDF, DOCX, CSV, TSV, TXT, MD`);
+    }
+
+    // Validate extracted text
+    if (!text.trim()) {
+      throw new Error('This file contains no extractable text.');
+    }
+
+    if (text.length > 2_000_000) {
+      throw new Error('File text content exceeds 2MB limit');
+    }
+
+    // Sanitize filename
+    filename = (filename || `untitled.${ext}`)
+      .replace(/[<>:"/\\|?*\x00-\x1f]/g, '_')
+      .replace(/\.{2,}/g, '.')
+      .slice(0, 255);
+
+    // Extract metadata
+    const docMetadata = extractMetadata(text);
+    docMetadata.fileType = fileType;
+    docMetadata.detectedType = detectDocumentType(text, filename);
+    Object.assign(docMetadata, metadata);
+
+    // Compute content hash for duplicate detection
     const contentHash = crypto.createHash('sha256').update(buffer).digest('hex');
 
-    // Check for existing document with same hash for this user
+    // Check for existing document with same hash
     const existingResult = await pg.query(
       `SELECT id, filename FROM vault_documents WHERE user_id = $1 AND content_hash = $2 LIMIT 1`,
       [userId, contentHash]
@@ -444,11 +940,10 @@ async function ingestPDF(userId, buffer, filename, { isGlobal = false } = {}) {
 
     if (existingResult.rows && existingResult.rows.length > 0) {
       const existingDoc = existingResult.rows[0];
-      logger.info('vault', 'Duplicate PDF detected', {
+      logger.info('vault', 'Duplicate file detected', {
         userId,
         filename,
         existingDocId: existingDoc.id,
-        existingFilename: existingDoc.filename,
       });
       return {
         duplicate: true,
@@ -457,79 +952,45 @@ async function ingestPDF(userId, buffer, filename, { isGlobal = false } = {}) {
       };
     }
 
-    // Parse PDF — robust handling for all PDF types
-    let text = '';
-    let pageCount = 0;
-    try {
-      const pdfParse = require('pdf-parse');
-      // pdf-parse options: max pages, disable rendering for speed
-      const pdfData = await pdfParse(buffer, {
-        max: 500, // stop after 500 pages
-      });
-      text = pdfData.text || '';
-      pageCount = pdfData.numpages || 0;
-    } catch (parseErr) {
-      // pdf-parse can fail on encrypted, malformed, or complex PDFs
-      // Try a more lenient extraction as fallback
-      logger.warn('vault', 'Primary PDF parse failed, trying fallback', { error: parseErr.message });
-      try {
-        const pdfParse = require('pdf-parse');
-        // Retry with render callback that's more forgiving
-        const pdfData = await pdfParse(buffer, {
-          max: 500,
-          pagerender: function(pageData) {
-            return pageData.getTextContent().then(function(textContent) {
-              return textContent.items.map(item => item.str).join(' ');
-            });
-          },
-        });
-        text = pdfData.text || '';
-        pageCount = pdfData.numpages || 0;
-      } catch (fallbackErr) {
-        logger.error('vault', 'PDF parse fallback also failed', { error: fallbackErr.message });
-        throw new Error(`Unable to read this PDF: ${parseErr.message}. The file may be encrypted, image-only, or in an unsupported format.`);
-      }
-    }
-
-    // Validate PDF size constraints
-    if (text && text.length > 2_000_000) {
-      throw new Error('PDF text content exceeds 2MB limit');
-    }
-
-    if (!text.trim()) {
-      throw new Error('This PDF contains no extractable text. It may be a scanned document or image-only PDF.');
-    }
-
-    // Extract metadata
-    const metadata = extractMetadata(text);
-    metadata.pageCount = pageCount;
-
-    // Create document record with content hash
+    // Create document record
     const docResult = await pg.query(
       `INSERT INTO vault_documents (user_id, filename, source, is_global, metadata, content_hash)
        VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
-      [userId, filename, 'upload', isGlobal, JSON.stringify(metadata), contentHash]
+      [userId, filename, 'upload', isGlobal, JSON.stringify(docMetadata), contentHash]
     );
 
     const documentId = docResult.rows[0].id;
 
-    // Chunk text
-    const chunks = chunkText(text, CHUNK_SIZE, CHUNK_OVERLAP);
+    // Chunk text with type-specific chunking
+    const chunkedData = chunkTextWithType(text, filename, docMetadata.detectedType);
+
+    // Extract chunk content and metadata
+    const chunks = chunkedData.map(c => {
+      if (typeof c === 'string') {
+        return { content: c, metadata: {} };
+      }
+      return { content: c.content, metadata: c.metadata || {} };
+    });
 
     if (chunks.length === 0) {
-      throw new Error('No chunks produced from text');
+      throw new Error('No chunks produced from content');
     }
 
     // Embed chunks
-    const embeddings = await embed(chunks);
+    const chunkTexts = chunks.map(c => c.content);
+    const embeddings = await embed(chunkTexts);
 
-    // Store chunks — batch insert for performance on large PDFs
+    // Store chunks in database
     const DB_BATCH = 10;
     for (let i = 0; i < chunks.length; i += DB_BATCH) {
       const batch = chunks.slice(i, i + DB_BATCH);
       const promises = batch.map((chunk, j) => {
         const idx = i + j;
-        const chunkMetadata = { chunkIndex: idx, totalChunks: chunks.length };
+        const chunkMetadata = {
+          ...chunk.metadata,
+          chunkIndex: idx,
+          totalChunks: chunks.length,
+        };
         return pg.query(
           `INSERT INTO vault_chunks (document_id, user_id, chunk_index, content, embedding, metadata)
            VALUES ($1, $2, $3, $4, $5, $6)`,
@@ -537,7 +998,7 @@ async function ingestPDF(userId, buffer, filename, { isGlobal = false } = {}) {
             documentId,
             userId,
             idx,
-            chunk,
+            chunk.content,
             embeddings[idx] ? `[${embeddings[idx].join(',')}]` : null,
             JSON.stringify(chunkMetadata),
           ]
@@ -546,9 +1007,11 @@ async function ingestPDF(userId, buffer, filename, { isGlobal = false } = {}) {
       await Promise.all(promises);
     }
 
-    logger.info('vault', 'PDF ingested', {
+    logger.info('vault', 'File ingested', {
       userId,
       filename,
+      fileType,
+      detectedType: docMetadata.detectedType,
       documentId,
       chunks: chunks.length,
     });
@@ -557,11 +1020,21 @@ async function ingestPDF(userId, buffer, filename, { isGlobal = false } = {}) {
       documentId,
       chunks: chunks.length,
       filename,
+      fileType,
+      detectedType: docMetadata.detectedType,
     };
   } catch (err) {
-    logger.error('vault', 'PDF ingestion error', { error: err.message });
+    logger.error('vault', 'File ingestion error', { error: err.message });
     throw err;
   }
+}
+
+/**
+ * Ingest a PDF, parse text, chunk, embed, and store.
+ * (Backward compatible wrapper around ingestFile)
+ */
+async function ingestPDF(userId, buffer, filename, { isGlobal = false } = {}) {
+  return ingestFile(userId, buffer, filename, {}, isGlobal);
 }
 
 /**
@@ -808,7 +1281,7 @@ function formatForPrompt(passages) {
     ctx += '--- END USER VAULT ---\n';
   }
 
-  ctx += 'When answering, cite specific sources from the vault if relevant.\n';
+  ctx += 'When answering, cite specific vault sources using [V1], [V2], [V3] etc. markers matching the order they appear above.\n';
 
   return ctx;
 }
@@ -900,7 +1373,13 @@ module.exports = {
   init,
   ensureTable,
   ingestPDF,
+  ingestFile,
   chunkText,
+  chunkTextWithType,
+  detectDocumentType,
+  chunkEarningsTranscript,
+  chunkResearchReport,
+  chunkFinancialTable,
   embed,
   retrieve,
   formatForPrompt,

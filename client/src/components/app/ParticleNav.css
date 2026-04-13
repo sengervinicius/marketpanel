@@ -493,7 +493,7 @@
   border-bottom: 1px dotted var(--color-particle-dim, rgba(249,115,22,0.10));
 }
 
-/* ── Citation superscripts ── */
+/* ── Citation superscripts (web sources [1], [2], etc.) ── */
 .particle-md-cite {
   display: inline-flex;
   align-items: center;
@@ -513,6 +513,34 @@
   line-height: 1;
   letter-spacing: 0;
   cursor: default;
+}
+
+/* ── Vault citation badges [V1], [V2], etc. ── */
+.particle-md-vault-cite {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  margin: 0 2px;
+  font-size: 10px;
+  font-weight: 700;
+  font-family: var(--font-mono, monospace);
+  color: #1a1a1a;
+  background: #DAA520;
+  border: 1px solid rgba(218, 165, 32, 0.3);
+  border-radius: 5px;
+  vertical-align: baseline;
+  line-height: 1;
+  letter-spacing: 0;
+  cursor: default;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.particle-md-vault-cite:hover {
+  background: #c9951a;
+  box-shadow: 0 0 8px rgba(218, 165, 32, 0.4);
 }
 
 /* ── Sentiment badges ── */

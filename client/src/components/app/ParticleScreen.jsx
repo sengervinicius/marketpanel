@@ -9,6 +9,7 @@
  */
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import ParticleLogo from '../ui/ParticleLogo';
+import AnalysisCard from './AnalysisCard';
 import useParticleCanvas from './useParticleCanvas';
 import useParticleAI from '../../hooks/useParticleAI';
 import { useStocksData, useIndicesData } from '../../context/MarketContext';
@@ -386,7 +387,14 @@ export default function ParticleScreen() {
                       <span /><span /><span />
                     </span>
                   ) : (
-                    <ParticleMarkdown text={msg.content} />
+                    <>
+                      {/* Render structured analysis card if available */}
+                      {msg.structuredAnalysis ? (
+                        <AnalysisCard data={msg.structuredAnalysis} />
+                      ) : (
+                        <ParticleMarkdown text={msg.content} />
+                      )}
+                    </>
                   )}
                   {/* Vault citation badges */}
                   {msg.role === 'assistant' && msg.vaultSources && msg.vaultSources.length > 0 && !msg.streaming && (
