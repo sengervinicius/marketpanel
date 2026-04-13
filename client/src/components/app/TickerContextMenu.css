@@ -1,0 +1,51 @@
+/* TickerContextMenu.css — Wave 13A: Right-click contextual AI */
+
+.tcm-menu {
+  position: fixed;
+  z-index: 10000;
+  min-width: 200px;
+  background: var(--bg-panel, #111);
+  border: 1px solid var(--border-default, rgba(255,255,255,0.10));
+  border-radius: 10px;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+  padding: 4px;
+  animation: tcm-pop 0.12s ease-out;
+}
+
+@keyframes tcm-pop {
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+.tcm-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  color: var(--text-primary, #e8e8e8);
+  font-size: 12px;
+  font-family: var(--font-body, inherit);
+  cursor: pointer;
+  border-radius: 6px;
+  text-align: left;
+  transition: background 0.1s;
+}
+.tcm-item:hover {
+  background: rgba(255,255,255,0.06);
+}
+.tcm-item--particle:hover {
+  background: rgba(249,115,22,0.10);
+}
+.tcm-item strong {
+  color: var(--accent, #F97316);
+  font-weight: 600;
+}
+
+.tcm-divider {
+  height: 1px;
+  background: rgba(255,255,255,0.06);
+  margin: 2px 8px;
+}

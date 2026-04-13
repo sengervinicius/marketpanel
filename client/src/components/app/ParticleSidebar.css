@@ -1,0 +1,223 @@
+/* ParticleSidebar.css — Wave 13A: Desktop Particle sidebar */
+
+/* ── Collapsed state — thin rail ─────────────────────────── */
+.psb-collapsed {
+  width: 40px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 12px;
+  gap: 6px;
+  background: var(--bg-panel, #0f0f0f);
+  border-left: 1px solid var(--border-default, rgba(255,255,255,0.07));
+  cursor: pointer;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+.psb-collapsed:hover {
+  background: var(--bg-surface, #1a1a1a);
+}
+.psb-collapsed-label {
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--text-faint, #555);
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+}
+
+/* ── Expanded container ──────────────────────────────────── */
+.psb-container {
+  width: 320px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-panel, #0f0f0f);
+  border-left: 1px solid var(--border-default, rgba(255,255,255,0.07));
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+/* ── Header ──────────────────────────────────────────────── */
+.psb-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-default, rgba(255,255,255,0.07));
+  flex-shrink: 0;
+}
+.psb-header-title {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--text-primary, #e8e8e8);
+}
+.psb-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--text-faint, #555);
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+}
+.psb-btn:hover {
+  color: var(--text-primary, #e8e8e8);
+  background: rgba(255,255,255,0.06);
+}
+
+/* ── Search ──────────────────────────────────────────────── */
+.psb-search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-default, rgba(255,255,255,0.05));
+  flex-shrink: 0;
+}
+.psb-search-input {
+  flex: 1;
+  background: var(--bg-surface, #1a1a1a);
+  border: 1px solid var(--border-default, rgba(255,255,255,0.08));
+  border-radius: 8px;
+  padding: 7px 10px;
+  font-size: 12px;
+  color: var(--text-primary, #e8e8e8);
+  outline: none;
+  font-family: var(--font-body, inherit);
+}
+.psb-search-input:focus {
+  border-color: var(--accent, #F97316);
+}
+.psb-search-input::placeholder {
+  color: var(--text-faint, #555);
+}
+.psb-search-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--accent, #F97316);
+  cursor: pointer;
+}
+.psb-search-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+/* ── Messages ────────────────────────────────────────────── */
+.psb-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.psb-msg {
+  display: flex;
+  gap: 6px;
+  max-width: 100%;
+}
+.psb-msg--user {
+  justify-content: flex-end;
+}
+.psb-msg--user .psb-msg-text {
+  background: var(--accent, #F97316);
+  color: #000;
+  border-radius: 12px 12px 4px 12px;
+  padding: 6px 10px;
+  font-size: 12px;
+  line-height: 1.4;
+  max-width: 85%;
+}
+.psb-msg--assistant {
+  align-items: flex-start;
+}
+.psb-msg-avatar {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.psb-msg--assistant .psb-msg-text {
+  background: var(--bg-surface, #1a1a1a);
+  color: var(--text-primary, #e8e8e8);
+  border-radius: 12px 12px 12px 4px;
+  padding: 6px 10px;
+  font-size: 12px;
+  line-height: 1.5;
+  max-width: 90%;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.psb-error {
+  font-size: 11px;
+  color: #f87171;
+  padding: 4px 8px;
+}
+
+/* ── Wire section (shown when no conversation) ───────────── */
+.psb-wire-section {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 12px;
+}
+.psb-wire-header {
+  margin-bottom: 8px;
+}
+.psb-wire-badge {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--accent, #F97316);
+  text-transform: uppercase;
+}
+.psb-wire-empty {
+  font-size: 11px;
+  color: var(--text-faint, #555);
+  padding: 8px 0;
+}
+.psb-wire-entry {
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  cursor: pointer;
+  transition: background 0.15s;
+  border-radius: 4px;
+}
+.psb-wire-entry:hover {
+  background: rgba(255,255,255,0.03);
+}
+.psb-wire-content {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-primary, #e8e8e8);
+  margin-bottom: 4px;
+}
+.psb-wire-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.psb-wire-ticker {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--accent, #F97316);
+  background: rgba(249,115,22,0.10);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+.psb-wire-time {
+  font-size: 10px;
+  color: var(--text-faint, #555);
+  margin-left: auto;
+}

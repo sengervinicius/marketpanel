@@ -14,12 +14,15 @@ import useParticleAI from '../../hooks/useParticleAI';
 import { useWireLatest, useMorningBrief } from '../../hooks/useWire';
 import { useStocksData, useIndicesData } from '../../context/MarketContext';
 import { useBehaviorTracker, useSmartChips } from '../../hooks/useBehavior';
+import { useIsMobile } from '../../hooks/useIsMobile';
+import { useWireFeed } from '../../hooks/useWire';
 
 export default function ParticleScreen() {
   const [query, setQuery] = useState('');
   const [focused, setFocused] = useState(false);
   const inputRef = useRef(null);
   const scrollRef = useRef(null);
+  const isMobile = useIsMobile();
 
   const { messages, isStreaming, error, send, stop, clear } = useParticleAI();
 
@@ -30,6 +33,8 @@ export default function ParticleScreen() {
   // Wire & Brief hooks
   const wireLatest = useWireLatest();
   const { brief, dismissed: briefDismissed, dismiss: dismissBrief } = useMorningBrief();
+  // Desktop Wire overlay feed (Wave 13B)
+  const { entries: wireOverlayEntries } = useWireFeed(isMobile ? 0 : 4);
 
   // Live market data for data-driven canvas (Wave 9)
   let stocksData = null;
@@ -62,10 +67,12 @@ export default function ParticleScreen() {
     }
   }, [send]);
 
-  // Three.js particle canvas (now data-driven)
+  // Three.js particle canvas — Wave 13B: higher count on desktop
+  const desktopCount = marketState.closed ? 50 : 80;
+  const mobileCount  = marketState.closed ? 25 : 40;
   const canvasRef = useParticleCanvas({
     mood,
-    particleCount: marketState.closed ? 25 : 40, // fewer particles when market closed
+    particleCount: isMobile ? mobileCount : desktopCount,
     marketData,
     onParticleTap: handleParticleTap,
   });
@@ -316,6 +323,27 @@ export default function ParticleScreen() {
               </button>
             )}
           </form>
+        </div>
+      )}
+
+      {/* Wave 13B: Desktop Wire overlay — translucent feed on the canvas */}
+      {!isMobile && !inConversation && wireOverlayEntries.length > 0 && (
+        <div className="particle-wire-overlay">
+          <div className="particle-wire-overlay-header">
+            <span className="particle-wire-overlay-badge">THE WIRE</span>
+          </div>
+          {wireOverlayEntries.map((entry, i) => (
+            <div
+              key={i}
+              className="particle-wire-overlay-entry"
+              onClick={() => send(`Tell me more about: ${entry.content.slice(0, 80)}`)}
+            >
+              <span className="particle-wire-overlay-text">{entry.content}</span>
+              <span className="particle-wire-overlay-time">
+                {entry.created_at || entry.timestamp ? formatWireTime(entry.created_at || entry.timestamp) : ''}
+              </span>
+            </div>
+          ))}
         </div>
       )}
     </div>

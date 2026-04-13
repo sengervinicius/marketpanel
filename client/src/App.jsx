@@ -58,6 +58,9 @@ const CryptoScreen = lazy(() => import('./components/screens/CryptoScreen'));
 const InstrumentDetail = lazy(() => import('./components/common/InstrumentDetail'));
 import PanelErrorBoundary from './components/common/PanelErrorBoundary';
 import ParticleLogo from './components/ui/ParticleLogo';
+import ParticleSidebar from './components/app/ParticleSidebar';
+import ParticleSpotlight from './components/app/ParticleSpotlight';
+import TickerContextMenu from './components/app/TickerContextMenu';
 import {
   MarketTickBridge,
   WorldClock,
@@ -320,6 +323,18 @@ export default function App() {
   // Secondary view inside "more" tab (charts, news, etf, chat)
   const [moreView, setMoreView] = useState(null);
   const [chatOpen, setChatOpen] = useState(false);
+  // Wave 13: Desktop Particle sidebar + Spotlight
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    try { return localStorage.getItem('particleSidebarCollapsed') === 'true'; } catch { return false; }
+  });
+  const toggleSidebar = useCallback(() => {
+    setSidebarCollapsed(c => {
+      const next = !c;
+      try { localStorage.setItem('particleSidebarCollapsed', String(next)); } catch {}
+      return next;
+    });
+  }, []);
+  const [spotlightOpen, setSpotlightOpen] = useState(false);
   const setActiveTabPersist = (t) => { setActiveTab(t); localStorage.setItem(LS_TAB, t); };
 
   const [chartTicker, setChartTickerState] = useState(
@@ -422,13 +437,18 @@ export default function App() {
   // Global keyboard shortcuts (placed after state/callback declarations it depends on)
   useEffect(() => {
     const handler = (e) => {
-      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-
-      // Ctrl/Cmd + K = toggle AI chat
+      // Ctrl/Cmd + K = Particle Spotlight (works even from inputs)
       if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
         e.preventDefault();
-        setChatOpen(prev => !prev);
+        if (!isMobile) {
+          setSpotlightOpen(prev => !prev);
+        } else {
+          setChatOpen(prev => !prev);
+        }
+        return;
       }
+
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
       // / = focus search (when not in input)
       if (e.key === '/' && !e.ctrlKey && !e.metaKey) {
         e.preventDefault();
@@ -707,6 +727,22 @@ export default function App() {
           </div>
         </div>
 
+        {/* Wave 13: Particle Spotlight overlay (Cmd+K) */}
+        <ParticleSpotlight open={spotlightOpen} onClose={() => setSpotlightOpen(false)} />
+
+        {/* Wave 13: Right-click contextual AI for tickers */}
+        <TickerContextMenu onAskParticle={(tickerOrQuery) => {
+          const q = tickerOrQuery.startsWith('What') || tickerOrQuery.length > 10
+            ? tickerOrQuery
+            : `Tell me about $${tickerOrQuery} — latest price action, news, and outlook.`;
+          setSpotlightOpen(true);
+          // Small delay to let spotlight open, then send the query
+          setTimeout(() => {
+            // Spotlight manages its own AI instance, so we dispatch via a custom event
+            window.dispatchEvent(new CustomEvent('particle-spotlight-query', { detail: q }));
+          }, 100);
+        }} />
+
         {/* ── Desktop Particle Mode ── */}
         {mobileMode === 'particle' && !subscriptionExpired && (
           <div className="desktop-particle-container" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
@@ -751,6 +787,10 @@ export default function App() {
             {settingsOpen && <SettingsDrawer panelVisible={panelVisible} togglePanel={togglePanel} onClose={() => setSettingsOpen(false)} />}
 
             <MarketTickBridge batchTicks={batchTicks} />
+
+            {/* Wave 13: Flex row wrapping main content + Particle sidebar */}
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'row', minHeight: 0, overflow: 'hidden' }}>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
 
             {/* Sector screen — ALWAYS mounted when active, hidden when not */}
             {activeSectorScreen && (
@@ -867,6 +907,11 @@ export default function App() {
             </div>
 
             <FeedStatusBar feedStatus={feedStatus} />
+            </div>{/* end inner content column */}
+
+            {/* Wave 13A: Particle sidebar */}
+            <ParticleSidebar collapsed={sidebarCollapsed} onToggle={toggleSidebar} />
+            </div>{/* end flex row (content + sidebar) */}
           </>
         )}
         </>)}

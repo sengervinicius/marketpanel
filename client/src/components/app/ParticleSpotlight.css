@@ -1,0 +1,148 @@
+/* ParticleSpotlight.css — Wave 13A: Cmd+K floating search overlay */
+
+.pspot-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 15vh;
+  animation: pspot-fade-in 0.15s ease-out;
+}
+
+@keyframes pspot-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.pspot-panel {
+  width: 580px;
+  max-width: 90vw;
+  max-height: 60vh;
+  background: var(--bg-panel, #0f0f0f);
+  border: 1px solid var(--border-default, rgba(255,255,255,0.10));
+  border-radius: 16px;
+  box-shadow: 0 24px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(249,115,22,0.08);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: pspot-slide-in 0.2s ease-out;
+}
+
+@keyframes pspot-slide-in {
+  from { transform: translateY(-12px) scale(0.98); opacity: 0; }
+  to   { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+/* ── Search bar ──────────────────────────────────────────── */
+.pspot-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border-default, rgba(255,255,255,0.07));
+}
+
+.pspot-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: 16px;
+  color: var(--text-primary, #e8e8e8);
+  font-family: var(--font-body, inherit);
+  caret-color: var(--accent, #F97316);
+}
+.pspot-input::placeholder {
+  color: var(--text-faint, #555);
+}
+
+.pspot-stop {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: none;
+  background: rgba(249,115,22,0.15);
+  color: var(--accent, #F97316);
+  cursor: pointer;
+}
+
+.pspot-kbd {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-faint, #555);
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-family: var(--font-mono, monospace);
+}
+
+/* ── Results ─────────────────────────────────────────────── */
+.pspot-results {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pspot-msg {
+  display: flex;
+  gap: 8px;
+}
+.pspot-msg--user {
+  justify-content: flex-end;
+}
+.pspot-msg--user .pspot-msg-text {
+  background: var(--accent, #F97316);
+  color: #000;
+  border-radius: 14px 14px 4px 14px;
+  padding: 8px 14px;
+  font-size: 13px;
+  max-width: 80%;
+}
+.pspot-msg--assistant {
+  align-items: flex-start;
+}
+.pspot-msg-avatar {
+  flex-shrink: 0;
+  margin-top: 3px;
+}
+.pspot-msg--assistant .pspot-msg-text {
+  background: var(--bg-surface, #1a1a1a);
+  color: var(--text-primary, #e8e8e8);
+  border-radius: 14px 14px 14px 4px;
+  padding: 8px 14px;
+  font-size: 13px;
+  line-height: 1.55;
+  max-width: 90%;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.pspot-error {
+  font-size: 12px;
+  color: #f87171;
+  padding: 4px 0;
+}
+
+/* ── Hints ────────────────────────────────────────────────── */
+.pspot-hints {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 18px 16px;
+}
+.pspot-hint {
+  font-size: 12px;
+  color: var(--text-faint, #444);
+  font-style: italic;
+}
