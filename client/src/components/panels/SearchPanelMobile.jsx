@@ -94,8 +94,29 @@ export function SearchPanelMobile({
     if (onResultSelect) onResultSelect(item);
   };
 
+  // Handle escape key to close modal
+  const handleKeyDown = (e) => {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      if (onClose) onClose();
+    }
+  };
+
+  // Handle backdrop click to close (click on the panel itself, not content)
+  const handleBackdropClick = (e) => {
+    if (e.target === e.currentTarget) {
+      if (onClose) onClose();
+    }
+  };
+
   return (
-    <div className="search-panel-mobile">
+    <div
+      className="search-panel-mobile"
+      onClick={handleBackdropClick}
+      onKeyDown={handleKeyDown}
+      role="dialog"
+      aria-modal="true"
+    >
       {/* Header */}
       <div className="search-panel-mobile-header">
         <button

@@ -7,10 +7,20 @@
  */
 
 :root {
-  /* ── Brand ── */
+  /* ── Brand — Particle (orange) ── */
   --color-particle:        #F97316;
   --color-particle-glow:   rgba(249, 115, 22, 0.20);
   --color-particle-dim:    rgba(249, 115, 22, 0.10);
+
+  /* ── Brand — Terminal (silver/white) ── */
+  --color-terminal:        #E0E0E0;
+  --color-terminal-glow:   rgba(224, 224, 224, 0.15);
+  --color-terminal-dim:    rgba(224, 224, 224, 0.06);
+
+  /* ── Brand — Vault (gold) ── */
+  --color-vault:           #DAA520;
+  --color-vault-glow:      rgba(218, 165, 32, 0.20);
+  --color-vault-dim:       rgba(218, 165, 32, 0.10);
 
   /* ── Backgrounds — from deepest to lightest ── */
   --color-bg:              #080808;

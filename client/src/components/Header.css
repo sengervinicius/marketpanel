@@ -189,3 +189,18 @@
     transform: translateX(-100%);
   }
 }
+
+/* ── Responsive clock visibility ── */
+@media (max-width: 1024px) {
+  /* Hide 4 of 6 clocks on tablet */
+  .hdr-clock:nth-child(n+3) {
+    display: none;
+  }
+}
+
+@media (max-width: 768px) {
+  /* Hide all clocks on mobile; mobile has separate layout */
+  .hdr-clocks-container {
+    display: none;
+  }
+}

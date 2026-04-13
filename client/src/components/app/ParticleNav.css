@@ -34,11 +34,11 @@
   transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), background 0.3s ease, border-color 0.3s ease;
 }
 .p-mode-slider--3[data-mode="vault"] {
-  background: rgba(147, 51, 234, 0.10);
-  border-color: #a855f7;
+  background: rgba(218, 165, 32, 0.10);
+  border-color: #DAA520;
 }
 .p-mode-btn[data-active="true"][data-mode="vault"] {
-  color: #a855f7;
+  color: #DAA520;
 }
 
 .p-mode-btn {

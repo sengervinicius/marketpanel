@@ -2,6 +2,8 @@ import { useState, useEffect, useMemo } from 'react';
 import { useAlerts } from '../../context/AlertsContext';
 import { getMarketState as _getMarketState } from '../common/MarketStatus';
 import ParticleLogo from '../ui/ParticleLogo';
+import TerminalLogo from '../ui/TerminalLogo';
+import VaultLogo from '../ui/VaultLogo';
 import './ParticleNav.css';
 
 // ── Mobile tab definitions (5 primary tabs inside Terminal mode) ─────────────
@@ -161,9 +163,7 @@ export function ParticleModeBar({ mode, onModeChange }) {
         onClick={() => onModeChange('terminal')}
       >
         <span className="p-mode-btn-icon">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="4 17 10 11 4 5" /><line x1="12" y1="19" x2="20" y2="19" />
-          </svg>
+          <TerminalLogo size={18} />
         </span>
         Terminal
       </button>
@@ -174,9 +174,7 @@ export function ParticleModeBar({ mode, onModeChange }) {
         onClick={() => onModeChange('vault')}
       >
         <span className="p-mode-btn-icon">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 2L2 7l10 5 10-5-10-5z" /><path d="M2 17l10 5 10-5" /><path d="M2 12l10 5 10-5" />
-          </svg>
+          <VaultLogo size={18} />
         </span>
         Vault
       </button>

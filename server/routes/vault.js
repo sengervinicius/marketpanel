@@ -10,6 +10,7 @@
  *  GET    /documents           — List user's private vault documents
  *  DELETE /documents/:id       — Delete a document and its chunks
  *  POST   /search              — Search vault (for testing / UI)
+ *  GET    /sector-insights     — Get vault insights for a sector (for UI cards)
  *
  * Admin endpoints (Central Vault):
  *  POST   /admin/upload        — Upload to central vault (admin only)
@@ -20,7 +21,7 @@ const express = require('express');
 const multer = require('multer');
 const vault = require('../services/vault');
 const logger = require('../utils/logger');
-const { requireAdmin } = require('../authMiddleware');
+const { requireAuth, requireAdmin } = require('../authMiddleware');
 const { getTier, isUnlimited } = require('../config/tiers');
 
 const router = express.Router();
@@ -166,6 +167,69 @@ router.post('/search', async (req, res) => {
   } catch (err) {
     logger.error('vault-route', 'Search error', { error: err.message });
     res.status(500).json({ error: 'Search failed' });
+  }
+});
+
+/**
+ * GET /sector-insights — Get vault insights for a specific sector.
+ * Query params:
+ *   sector (required): energy, crypto, brazil, macro, defense, tech, healthcare, finance
+ *   limit (optional): number of passages to return (default: 3)
+ *
+ * Searches the vault (both private and global) with a sector-specific query string.
+ * Returns formatted passages with source metadata.
+ */
+router.get('/sector-insights', requireAuth, async (req, res) => {
+  try {
+    const { sector, limit = 3 } = req.query;
+
+    if (!sector || typeof sector !== 'string') {
+      return res.status(400).json({ error: 'sector query param is required' });
+    }
+
+    const sectorQueries = {
+      energy: 'energy oil gas renewable solar wind coal nuclear',
+      crypto: 'cryptocurrency bitcoin ethereum blockchain digital assets crypto',
+      brazil: 'brazil emerging markets latin america PETR VALE',
+      macro: 'macroeconomic inflation interest rates GDP currency',
+      defense: 'defense aerospace military contracts security',
+      tech: 'technology software artificial intelligence AI cloud computing',
+      healthcare: 'healthcare pharma biotech medicine health',
+      finance: 'financial services banking investment capital markets',
+    };
+
+    const query = sectorQueries[sector.toLowerCase()];
+    if (!query) {
+      return res.status(400).json({
+        error: 'Invalid sector',
+        validSectors: Object.keys(sectorQueries),
+      });
+    }
+
+    const limitNum = Math.min(parseInt(limit, 10) || 3, 10); // Cap at 10
+    const passages = await vault.retrieve(req.user.id, query, limitNum);
+
+    logger.info('vault-route', 'Sector insights retrieved', {
+      userId: req.user.id,
+      sector,
+      resultsCount: passages.length,
+    });
+
+    // Format passages with metadata for frontend
+    const formatted = passages.map(p => ({
+      content: p.content,
+      filename: p.filename,
+      bank: p.doc_metadata?.bank || null,
+      date: p.doc_metadata?.date || null,
+      tickers: p.doc_metadata?.tickers || [],
+      isGlobal: p.is_global,
+      similarity: p.similarity || null,
+    }));
+
+    res.json({ sector, passages: formatted });
+  } catch (err) {
+    logger.error('vault-route', 'Sector insights error', { error: err.message });
+    res.status(500).json({ error: 'Failed to retrieve sector insights' });
   }
 });
 

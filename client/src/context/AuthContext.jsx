@@ -82,33 +82,51 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
+  // ── Helper: restore session from /me response ─────────────────────────────
+  const restoreFromMe = useCallback((data) => {
+    const restoredUser = { id: data.user.id, username: data.user.username, persona: data.user.persona || null };
+    setUser(restoredUser);
+    setToken(data.token || null);
+    setSubscription(normalizeSubscription(data.subscription));
+    localStorage.setItem(LS_USER, JSON.stringify(restoredUser));
+  }, []);
+
   // ── On mount: validate session via httpOnly cookie ─────────────────────────
+  // If the 15-min access token expired while the tab was closed, we attempt a
+  // refresh (30-day cookie) before giving up. This prevents the annoying
+  // "login again on every refresh" behaviour.
   useEffect(() => {
-    // Validate session via httpOnly cookie (sent automatically)
-    fetch(`${API_BASE}/api/auth/me`, { credentials: 'include' })
-      .then(async (res) => {
-        if (!res.ok) throw new Error('session invalid');
-        const data = await res.json();
-        // Session is valid — restore user + subscription
-        const restoredUser = { id: data.user.id, username: data.user.username, persona: data.user.persona || null };
-        setUser(restoredUser);
-        // Token comes from server response for WebSocket use
-        setToken(data.token || null);
-        setSubscription(normalizeSubscription(data.subscription));
-        // Keep localStorage in sync with server-fresh user object
-        localStorage.setItem(LS_USER, JSON.stringify(restoredUser));
-      })
-      .catch(() => {
-        // Session invalid or expired — clear everything
+    (async () => {
+      try {
+        // 1. Try the access-token cookie first
+        const meRes = await fetch(`${API_BASE}/api/auth/me`, { credentials: 'include' });
+        if (meRes.ok) {
+          restoreFromMe(await meRes.json());
+          return;
+        }
+
+        // 2. Access token expired — attempt refresh (30-day cookie)
+        const refreshRes = await fetch(`${API_BASE}/api/auth/refresh`, {
+          method: 'POST',
+          credentials: 'include',
+        });
+        if (!refreshRes.ok) throw new Error('refresh failed');
+
+        // 3. Refresh succeeded → new access-token cookie set, retry /me
+        const retryRes = await fetch(`${API_BASE}/api/auth/me`, { credentials: 'include' });
+        if (!retryRes.ok) throw new Error('retry failed');
+        restoreFromMe(await retryRes.json());
+      } catch {
+        // All attempts failed — clear everything, show login
         localStorage.removeItem(LS_USER);
         setUser(null);
         setToken(null);
         setSubscription(null);
-      })
-      .finally(() => {
+      } finally {
         setAuthReady(true);
-      });
-  }, []); // runs once on mount
+      }
+    })();
+  }, [restoreFromMe]); // runs once on mount
 
   // ── Refresh access token every 13 minutes (token expires at 15m) ────────────
   useEffect(() => {

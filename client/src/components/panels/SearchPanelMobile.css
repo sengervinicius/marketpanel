@@ -8,6 +8,11 @@
   display: flex;
   flex-direction: column;
   -webkit-overflow-scrolling: touch;
+  /* Ensure backdrop covers entire screen for touch/click dismissal */
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: 0;
 }
 
 /* Header */

@@ -183,7 +183,7 @@ button:hover, .btn:hover, [role="button"]:hover,
 
 /* ── Mobile header ──────────────────────────────────── */
 .m-header {
-  height: 40px;
+  height: 44px;
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -1881,6 +1881,25 @@ textarea:focus-visible { outline: 1px solid var(--accent); outline-offset: 0; bo
 }
 .btn:hover { color: var(--text-primary); border-color: var(--text-faint); }
 .btn:active { opacity: 0.8; }
+
+/* Responsive sector screens button */
+[data-tour="sector-screens"] {
+  white-space: nowrap;
+}
+
+@media (max-width: 900px) {
+  [data-tour="sector-screens"] {
+    font-size: 9px !important;
+    padding: 3px 6px !important;
+  }
+}
+
+@media (max-width: 768px) {
+  [data-tour="sector-screens"] {
+    font-size: 8px !important;
+    padding: 2px 4px !important;
+  }
+}
 .flex-row  { display: flex; align-items: center; }
 .flex-col  { display: flex; flex-direction: column; }
 .gap-2 { gap: 2px; }

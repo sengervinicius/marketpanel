@@ -1,0 +1,151 @@
+/* ══════════════════════════════════════════════════════
+   VaultInsights — Research insights card for sector screens
+   ══════════════════════════════════════════════════════ */
+
+.vi-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-left: 3px solid #d4af37;  /* Gold accent for vault */
+  border-radius: 6px;
+  padding: 12px 14px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.vi-card:hover {
+  border-color: var(--border-strong);
+  box-shadow: 0 2px 8px rgba(212, 175, 55, 0.08);
+}
+
+/* ─── Header ─────────────────────────────────────────── */
+
+.vi-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.vi-badge {
+  font: 600 8px var(--font-mono);
+  letter-spacing: 1px;
+  color: #d4af37;
+  background: rgba(212, 175, 55, 0.08);
+  padding: 2px 6px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.vi-sector-label {
+  font: 500 9px var(--font-mono);
+  letter-spacing: 0.6px;
+  color: var(--text-muted);
+  flex: 1;
+}
+
+/* ─── Passages ───────────────────────────────────────── */
+
+.vi-passages {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.vi-passage {
+  padding: 8px 10px;
+  background: rgba(212, 175, 55, 0.02);
+  border-left: 2px solid rgba(212, 175, 55, 0.15);
+  border-radius: 4px;
+  transition: background 0.15s;
+}
+
+.vi-passage:hover {
+  background: rgba(212, 175, 55, 0.06);
+}
+
+/* ─── Passage metadata ───────────────────────────────── */
+
+.vi-passage-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+}
+
+.vi-bank,
+.vi-filename {
+  font: 600 9px var(--font-mono);
+  color: #d4af37;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+
+.vi-filename {
+  color: var(--text-muted);
+  font-weight: 500;
+  text-transform: none;
+}
+
+.vi-date {
+  font: 9px var(--font-mono);
+  color: var(--text-faint);
+  letter-spacing: 0.3px;
+}
+
+/* ─── Passage content ────────────────────────────────── */
+
+.vi-content {
+  font: 11px var(--font-ui);
+  line-height: 1.4;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+  letter-spacing: 0.05px;
+}
+
+/* ─── Tickers ────────────────────────────────────────── */
+
+.vi-tickers {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.vi-ticker {
+  font: 600 8px var(--font-mono);
+  color: var(--accent);
+  background: rgba(255, 102, 0, 0.1);
+  padding: 2px 5px;
+  border-radius: 2px;
+  letter-spacing: 0.3px;
+}
+
+/* ─── Source note ────────────────────────────────────── */
+
+.vi-source-note {
+  font: 9px var(--font-ui);
+  color: var(--text-faint);
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(212, 175, 55, 0.1);
+  font-style: italic;
+}
+
+/* ─── Responsive ─────────────────────────────────────── */
+
+@media (max-width: 640px) {
+  .vi-card {
+    padding: 10px 12px;
+  }
+
+  .vi-passages {
+    gap: 6px;
+  }
+
+  .vi-passage {
+    padding: 6px 8px;
+  }
+
+  .vi-content {
+    font-size: 10px;
+  }
+}
