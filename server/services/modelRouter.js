@@ -159,6 +159,8 @@ async function callProviderImpl(provider, messages, systemPrompt, options = {}) 
       model: provider.model,
       messages: [{ role: 'system', content: systemPrompt }, ...messages],
       stream: options.stream || false,
+      return_citations: true,
+      search_recency_filter: 'week',
     };
     headers = {
       'Authorization': `Bearer ${apiKey}`,
@@ -246,11 +248,16 @@ async function streamResponse(provider, messages, systemPrompt, res, { onAbort }
     const reader = response.body;
     let sseBuffer = '';
     let finished = false;
+    let perplexityCitations = null; // Capture citations from Perplexity response
 
     const finish = () => {
       if (finished) return;
       finished = true;
       if (!res.writableEnded) {
+        // Send captured Perplexity citations before DONE
+        if (perplexityCitations && perplexityCitations.length > 0) {
+          res.write(`data: ${JSON.stringify({ citations: perplexityCitations })}\n\n`);
+        }
         res.write('data: [DONE]\n\n');
         res.end();
       }
@@ -270,6 +277,10 @@ async function streamResponse(provider, messages, systemPrompt, res, { onAbort }
           const content = parsed.choices?.[0]?.delta?.content;
           if (content) {
             res.write(`data: ${JSON.stringify({ chunk: content })}\n\n`);
+          }
+          // Capture citations from Perplexity (usually in the final chunk)
+          if (parsed.citations && Array.isArray(parsed.citations)) {
+            perplexityCitations = parsed.citations;
           }
         } else if (isAnthropic) {
           if (parsed.type === 'content_block_delta') {

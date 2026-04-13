@@ -148,7 +148,13 @@ export default function ParticleArrival({ onComplete }) {
               </div>
             </form>
 
-            {/* Breathing space below search */}
+            {/* Skip / Enter Terminal link */}
+            <button
+              className="pa-skip-btn"
+              onClick={(e) => { e.stopPropagation(); onComplete?.(); }}
+            >
+              Skip — Enter Terminal →
+            </button>
           </div>
         </div>
       )}

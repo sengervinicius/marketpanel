@@ -1,6 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useAlerts } from '../../context/AlertsContext';
-import { getMarketState as _getMarketState } from '../common/MarketStatus';
 import ParticleLogo from '../ui/ParticleLogo';
 import TerminalLogo from '../ui/TerminalLogo';
 import VaultLogo from '../ui/VaultLogo';
@@ -206,45 +205,74 @@ export function TerminalSubNav({ activeTab, onTabChange }) {
   );
 }
 
-// ── Mobile local clock + city + market status ──
-export const CITY_OVERRIDES = {
-  'Sao Paulo': 'SP', 'New York': 'NY',
-  'Los Angeles': 'LA', 'Ho Chi Minh': 'HCM',
-  'Buenos Aires': 'BA', 'Mexico City': 'MX',
-  'Hong Kong': 'HK', 'Kuala Lumpur': 'KL',
-};
+// ── Mobile local clock + multi-exchange market status ──
+// Detects the user's timezone and shows which major exchange is currently open.
+// If none are open, shows the next exchange to open with countdown.
+
+const MOBILE_EXCHANGES = [
+  { code: 'NYSE',  label: 'US',  tz: 'America/New_York',    open: 570,  close: 960  }, // 9:30-16:00
+  { code: 'B3',    label: 'B3',  tz: 'America/Sao_Paulo',   open: 600,  close: 1075 }, // 10:00-17:55
+  { code: 'LSE',   label: 'LDN', tz: 'Europe/London',       open: 480,  close: 990  }, // 8:00-16:30
+  { code: 'XETR',  label: 'EU',  tz: 'Europe/Berlin',       open: 540,  close: 1050 }, // 9:00-17:30
+  { code: 'HKEX',  label: 'HK',  tz: 'Asia/Hong_Kong',      open: 570,  close: 960  }, // 9:30-16:00
+  { code: 'TSE',   label: 'TKY', tz: 'Asia/Tokyo',          open: 540,  close: 930  }, // 9:00-15:30
+];
+
+function _isExchangeOpenNow(tz, openMin, closeMin) {
+  try {
+    const now = new Date();
+    const dayStr = now.toLocaleDateString('en-US', { timeZone: tz, weekday: 'short' });
+    if (dayStr === 'Sat' || dayStr === 'Sun') return false;
+    const h = parseInt(now.toLocaleString('en-US', { timeZone: tz, hour: 'numeric', hour12: false }), 10);
+    const m = parseInt(now.toLocaleString('en-US', { timeZone: tz, minute: 'numeric' }), 10);
+    if (isNaN(h) || isNaN(m)) return false;
+    const mins = h * 60 + m;
+    return mins >= openMin && mins < closeMin;
+  } catch { return false; }
+}
+
+/** Returns { label, isOpen } for the most relevant exchange based on user timezone */
+function _getLocalMarketStatus() {
+  // Find all currently open exchanges
+  const openExchanges = MOBILE_EXCHANGES.filter(ex => _isExchangeOpenNow(ex.tz, ex.open, ex.close));
+  if (openExchanges.length > 0) {
+    // Pick the one closest to the user's timezone, or the first open one
+    const userTz = _getUserTimezone();
+    const match = openExchanges.find(ex => ex.tz === userTz) || openExchanges[0];
+    return { label: match.label, isOpen: true, count: openExchanges.length };
+  }
+  return { label: '', isOpen: false, count: 0 };
+}
+
+function _getUserTimezone() {
+  try { return Intl.DateTimeFormat().resolvedOptions().timeZone; } catch { return ''; }
+}
 
 export function MobileClockCompact() {
   const [time, setTime] = useState('');
-  const [city, setCity] = useState('');
-  const [mkt, setMkt] = useState(() => _getMarketState());
+  const [mkt, setMkt] = useState(() => _getLocalMarketStatus());
 
   useEffect(() => {
-    let tz;
-    try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone; } catch (_) {}
-    if (!tz) { setCity('UTC'); }
-    else {
-      const raw = tz.split('/').pop().replace(/_/g, ' ');
-      setCity(CITY_OVERRIDES[raw] || raw);
-    }
+    const tz = _getUserTimezone();
     const update = () => {
-      const opts = { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
+      const opts = { hour: '2-digit', minute: '2-digit', hour12: false };
       if (tz) opts.timeZone = tz;
       try { setTime(new Date().toLocaleTimeString('en-GB', opts)); }
-      catch (_) { setTime(new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })); }
-      setMkt(_getMarketState());
+      catch (_) { setTime(new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })); }
+      setMkt(_getLocalMarketStatus());
     };
     update();
-    const id = setInterval(update, 1_000);
+    const id = setInterval(update, 30_000); // 30s refresh is enough for market status
     return () => clearInterval(id);
   }, []);
 
-  const mktOpen = mkt.status === 'open';
   return (
     <div className="m-clock-strip">
-      <span className="m-clock-time">{city} {time}</span>
-      <span className={`m-mkt-pill${mktOpen ? ' m-mkt-pill--open' : ''}`}>
-        {mktOpen ? 'MKT OPEN' : 'MKT CLOSED'}
+      <span className="m-clock-time">{time}</span>
+      <span className={`m-mkt-pill${mkt.isOpen ? ' m-mkt-pill--open' : ''}`}>
+        {mkt.isOpen
+          ? `${mkt.label}${mkt.count > 1 ? ` +${mkt.count - 1}` : ''} OPEN`
+          : 'MKTS CLOSED'}
       </span>
     </div>
   );

@@ -123,3 +123,22 @@
   padding: 0 16px;
   line-height: 1.4;
 }
+
+/* Skip button — subtle link to bypass arrival */
+.pa-skip-btn {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.25);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  padding: 10px 16px;
+  margin-top: 8px;
+  font-family: inherit;
+  transition: color 200ms ease;
+}
+
+.pa-skip-btn:hover {
+  color: rgba(255, 255, 255, 0.5);
+}

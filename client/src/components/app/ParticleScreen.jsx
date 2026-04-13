@@ -402,6 +402,24 @@ export default function ParticleScreen() {
                       ))}
                     </div>
                   )}
+                  {/* Web citations from Perplexity */}
+                  {msg.role === 'assistant' && msg.webCitations && msg.webCitations.length > 0 && !msg.streaming && (
+                    <div className="particle-web-citations">
+                      <span className="particle-web-citations-label">Sources</span>
+                      <div className="particle-web-citations-list">
+                        {msg.webCitations.slice(0, 6).map((url, ci) => {
+                          let domain = '';
+                          try { domain = new URL(url).hostname.replace('www.', ''); } catch { domain = url; }
+                          return (
+                            <a key={ci} className="particle-web-cite-link" href={url} target="_blank" rel="noopener noreferrer" title={url}>
+                              <span className="particle-web-cite-num">{ci + 1}</span>
+                              <span className="particle-web-cite-domain">{domain}</span>
+                            </a>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
@@ -508,8 +526,9 @@ function ParticleMarkdown({ text }) {
 }
 
 function renderInline(text) {
-  // Split on: **bold**, `code`, $TICKER, [action:TYPE:PARAMS] patterns
-  const parts = text.split(/(\*\*[^*]+\*\*|`[^`]+`|\$[A-Z]{1,5}(?:\.[A-Z]{1,2})?|\[action:[a-z_]+(?::[^\]]+)?\])/g);
+  // Split on: **bold**, `code`, $TICKER, [action:TYPE:PARAMS], [N] citations,
+  //           [sentiment:BULL/BEAR/NEUTRAL], [url:LINK](LABEL) patterns
+  const parts = text.split(/(\*\*[^*]+\*\*|`[^`]+`|\$[A-Z]{1,5}(?:\.[A-Z]{1,2})?|\[action:[a-z_]+(?::[^\]]+)?\]|\[\d{1,2}\]|\[sentiment:(?:bull|bear|neutral)\])/gi);
   return parts.map((part, i) => {
     // Bold: **text**
     if (part.startsWith('**') && part.endsWith('**')) {
@@ -522,6 +541,22 @@ function renderInline(text) {
     // Ticker link: $AAPL (rendered as a styled tag)
     if (/^\$[A-Z]{1,5}(\.[A-Z]{1,2})?$/.test(part)) {
       return <span key={i} className="particle-md-ticker">{part}</span>;
+    }
+    // Citation marker: [1], [2], etc → styled superscript
+    if (/^\[\d{1,2}\]$/.test(part)) {
+      return <sup key={i} className="particle-md-cite">{part.slice(1, -1)}</sup>;
+    }
+    // Sentiment indicator: [sentiment:bull], [sentiment:bear], [sentiment:neutral]
+    const sentMatch = part.match(/^\[sentiment:(bull|bear|neutral)\]$/i);
+    if (sentMatch) {
+      const mood = sentMatch[1].toLowerCase();
+      const MOODS = {
+        bull:    { emoji: '\u25B2', label: 'Bullish', cls: 'particle-md-sentiment--bull' },
+        bear:    { emoji: '\u25BC', label: 'Bearish', cls: 'particle-md-sentiment--bear' },
+        neutral: { emoji: '\u25CF', label: 'Neutral', cls: 'particle-md-sentiment--neutral' },
+      };
+      const m = MOODS[mood] || MOODS.neutral;
+      return <span key={i} className={`particle-md-sentiment ${m.cls}`}>{m.emoji} {m.label}</span>;
     }
     // AI-to-Terminal action: [action:TYPE:PARAM]
     const actionMatch = part.match(/^\[action:([a-z_]+)(?::([^\]]+))?\]$/);

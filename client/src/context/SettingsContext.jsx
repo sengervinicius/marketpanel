@@ -208,17 +208,23 @@ export function SettingsProvider({ children, isAuthenticated }) {
   }, [updateSettings]);
 
   // ── Onboarding tour ──────────────────────────────────────────────────────
+  // These use persistSettings (immediate) instead of debouncedPersist so the
+  // critical one-time flags are saved to the server without a 500ms delay that
+  // could be lost if the component unmounts or the user navigates away.
   const markTourCompleted = useCallback(async () => {
-    await updateSettings({ onboardingCompleted: true });
-  }, [updateSettings]);
+    setSettingsState(prev => ({ ...prev, onboardingCompleted: true }));
+    await persistSettings({ onboardingCompleted: true });
+  }, [persistSettings]);
 
   const acceptTerms = useCallback(async () => {
-    await updateSettings({ termsAccepted: true });
-  }, [updateSettings]);
+    setSettingsState(prev => ({ ...prev, termsAccepted: true }));
+    await persistSettings({ termsAccepted: true });
+  }, [persistSettings]);
 
   const completeParticleOnboarding = useCallback(async () => {
-    await updateSettings({ particleOnboarded: true });
-  }, [updateSettings]);
+    setSettingsState(prev => ({ ...prev, particleOnboarded: true }));
+    await persistSettings({ particleOnboarded: true });
+  }, [persistSettings]);
 
   const resetTour = useCallback(async () => {
     await updateSettings({ onboardingCompleted: false });

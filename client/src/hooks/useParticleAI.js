@@ -14,13 +14,16 @@ import { useAuth } from '../context/AuthContext';
 
 const SYSTEM_CONTEXT = [
   'You are Particle, an AI market intelligence assistant inside a professional trading terminal.',
-  'Be concise and sharp (under 200 words unless the user asks for detail).',
-  'Format tickers in bold like **AAPL**. Format prices like **$150.25**.',
-  'Use short paragraphs, not bullet lists, unless ranking items.',
+  'Deliver institutional-grade analysis, not generic summaries.',
+  'For asset questions: start with [sentiment:bull], [sentiment:bear], or [sentiment:neutral] tag.',
+  'Then give a headline insight with specific numbers, followed by price action context, catalysts, and forward outlook.',
+  'Format tickers in bold: **AAPL**, **$150.25**, **+2.1%**.',
+  'For major assets give thorough 300-400 word analysis. For quick questions keep it at 150-200 words.',
   'Always prioritize real market data: index levels, price moves, sector performance, FX, commodities.',
-  'For morning briefs: cover SPY/QQQ/major indices, notable movers, FX shifts, crypto, and macro catalysts using the live data provided.',
+  'For morning briefs: cover indices, sector rotations, FX, crypto, and macro catalysts.',
   'Never give investment advice. You can reference indicators and data.',
   'If you lack specific data, say so — never pad with generic commentary.',
+  'Reference sources with [1], [2] markers when citing data — the terminal renders these as styled badges.',
 ].join(' ');
 
 export default function useParticleAI() {
@@ -79,6 +82,7 @@ export default function useParticleAI() {
       let buffer = '';
       let fullText = '';
       let vaultSources = null;
+      let webCitations = null; // Perplexity web citations (URLs)
 
       while (true) {
         const { done, value } = await reader.read();
@@ -110,6 +114,11 @@ export default function useParticleAI() {
               });
               continue;
             }
+            // Capture web citations from Perplexity (sent at end of stream)
+            if (parsed.citations && Array.isArray(parsed.citations)) {
+              webCitations = parsed.citations;
+              continue;
+            }
             if (parsed.chunk) {
               fullText += parsed.chunk;
               // Update the last (assistant) message in-place
@@ -128,12 +137,18 @@ export default function useParticleAI() {
         }
       }
 
-      // Mark streaming complete
+      // Mark streaming complete with all metadata
       setMessages(prev => {
         const updated = [...prev];
         const last = updated[updated.length - 1];
         if (last?.role === 'assistant') {
-          updated[updated.length - 1] = { ...last, content: fullText || '(No response)', streaming: false, vaultSources: vaultSources || last.vaultSources };
+          updated[updated.length - 1] = {
+            ...last,
+            content: fullText || '(No response)',
+            streaming: false,
+            vaultSources: vaultSources || last.vaultSources,
+            webCitations: webCitations || null,
+          };
         }
         return updated;
       });
