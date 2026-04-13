@@ -352,9 +352,10 @@ function buildContext({ query, userId, intent: forceIntent } = {}) {
 
     // ── 10. User interest profile (Wave 10 — personalization) ──────────
     try {
-      if (userId) {
+      if (userId && _getUserById) {
         const behaviorTracker = require('./behaviorTracker');
-        const profile = await behaviorTracker.getCachedProfile(userId);
+        const user = _getUserById(userId);
+        const profile = user?.settings?.interests || null;
         const profileStr = behaviorTracker.formatForAI(profile);
         if (profileStr) {
           sections.push(profileStr);

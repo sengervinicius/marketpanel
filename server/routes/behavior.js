@@ -148,6 +148,16 @@ async function generateSmartChips(userId) {
     }
   } catch (e) { /* non-critical */ }
 
+  // Deep analysis chips (Wave 11) — rotate one based on profile
+  if (chips.length < 6) {
+    const hasPortfolioInterest = profile?.topics?.portfolio > 0.3 || profile?.tickers && Object.keys(profile.tickers).length >= 3;
+    if (hasPortfolioInterest) {
+      chips.push({ label: 'Portfolio autopsy', query: 'Analyze my portfolio — concentration risk, sector exposure, and what needs attention.' });
+    } else {
+      chips.push({ label: 'Scenario analysis', query: 'What if the Fed holds rates higher for longer? How would that affect major sectors and asset classes?' });
+    }
+  }
+
   // Cap at 4-6 chips
   return chips.slice(0, 6);
 }

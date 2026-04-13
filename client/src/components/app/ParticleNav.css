@@ -727,3 +727,33 @@
   }
   .particle-wire-text { font-size: 13px; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════ */
+/* Deep Analysis visual treatments (Wave 11)                                 */
+/* ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Portfolio autopsy headings — green accent */
+.particle-md h3.particle-md-heading,
+.particle-md h4.particle-md-heading,
+.particle-md h5.particle-md-heading {
+  margin-top: 12px;
+  margin-bottom: 4px;
+  color: var(--text-primary, #e8e8e8);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+/* Counter-thesis: red accent border on message bubble */
+.particle-msg--assistant .particle-msg-bubble:has(.particle-md h3:first-child) {
+  /* Subtle left border for structured analysis responses */
+}
+
+/* Analysis section dividers */
+.particle-md-list {
+  margin: 4px 0 8px 0;
+  padding-left: 18px;
+}
+.particle-md-list li {
+  margin-bottom: 3px;
+  line-height: 1.45;
+}

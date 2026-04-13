@@ -74,6 +74,7 @@ const { init: initMorningBrief } = require('./services/morningBrief');
 const wireRoutes = require('./routes/wire');
 const { init: initBehavior } = require('./services/behaviorTracker');
 const behaviorRoutes = require('./routes/behavior');
+const { init: initDeepAnalysis } = require('./services/deepAnalysis');
 
 const app = express();
 
@@ -545,6 +546,9 @@ initMorningBrief({ marketState, getUserById, getPortfolio });
 
 // Start behavioral intelligence tracker
 initBehavior({ mergeSettings: require('./authStore').mergeSettings, getUserById });
+
+// Initialize deep analysis tools (portfolio autopsy, counter-thesis, scenario)
+initDeepAnalysis({ marketState, getPortfolio, getUserById });
 
 // Boot sequence: Postgres → Redis → MongoDB → seed → jobs → HTTP server
 async function boot() {

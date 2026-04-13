@@ -1333,6 +1333,7 @@ Rules:
 
 const { buildContext } = require('../services/marketContextBuilder');
 const behaviorTracker = require('../services/behaviorTracker');
+const deepAnalysis = require('../services/deepAnalysis');
 
 // ── Chat response cache (first-turn only, 5 min TTL) ──────────────────────
 const _chatCache = new Map();
@@ -1391,7 +1392,23 @@ router.post('/chat', async (req, res) => {
     behaviorTracker.trackSearch(userId, userQuery).catch(() => {});
   }
 
-  const systemPrompt = `You are Particle, an AI market intelligence assistant built into a professional-grade financial terminal. You help investors and traders understand markets with clarity, speed, and depth.
+  // ── Wave 11: Deep analysis detection ────────────────────────────────────
+  let deepAnalysisResult = null;
+  try {
+    deepAnalysisResult = deepAnalysis.getAnalysisPrompt(userQuery, userId);
+  } catch (err) {
+    // Non-critical — fall through to standard prompt
+  }
+
+  let systemPrompt;
+  if (deepAnalysisResult?.prompt) {
+    // Deep analysis mode: use the specialized prompt with market context appended
+    systemPrompt = `${deepAnalysisResult.prompt}
+
+${marketContext ? `\n--- LIVE MARKET DATA ---\n${marketContext}\n--- END MARKET DATA ---\n` : ''}${context ? `\nAdditional context: ${context}` : ''}`;
+  } else {
+    // Standard Particle prompt
+    systemPrompt = `You are Particle, an AI market intelligence assistant built into a professional-grade financial terminal. You help investors and traders understand markets with clarity, speed, and depth.
 
 Your voice: concise, sharp, data-driven. You sound like a senior analyst who respects the reader's time. Never generic, never padded, never obvious. Every sentence should earn its place.
 
@@ -1407,10 +1424,11 @@ Rules:
 - If you reference prediction market probabilities, cite the source naturally: "Kalshi implies 73% odds of a June cut" not "According to prediction market data."
 
 ${marketContext ? `\n--- LIVE MARKET DATA ---\n${marketContext}\n--- END MARKET DATA ---\n` : ''}${context ? `\nAdditional context: ${context}` : ''}`;
+  }
 
   // ── Cache check (first-turn non-personal queries only) ─────────────────
   const isFirstTurn = history.length === 1;
-  const isCacheable = isFirstTurn && !['portfolio'].includes(queryIntent);
+  const isCacheable = isFirstTurn && !['portfolio'].includes(queryIntent) && !deepAnalysisResult;
   const cacheKey = isCacheable ? `chat:${queryIntent}:${userQuery.toLowerCase().trim()}` : null;
 
   if (cacheKey) {
