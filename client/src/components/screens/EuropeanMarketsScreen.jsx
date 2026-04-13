@@ -9,7 +9,6 @@ import { memo, useMemo, useState } from 'react';
 import FullPageScreenLayout from './shared/FullPageScreenLayout';
 import { FundamentalsTable, EarningsCalendarStrip, AnalystActionsCard, OwnershipBreakdown, TechnicalSignalsCard, MacroCalendarStrip } from './shared';
 import { SectorChartPanel } from './shared/SectorChartPanel';
-import { InsiderActivity } from './shared/InsiderActivity';
 import { useOpenDetail } from '../../context/OpenDetailContext';
 import { useTickerPrice } from '../../context/PriceContext';
 import { useDeepScreenData } from '../../hooks/useDeepScreenData';
@@ -83,8 +82,6 @@ const STATIC_ALL_EQUITIES = [
   ...NORDIC.map(e => e.symbol),
   ...SOUTHERN_EUROPE.map(e => e.symbol),
 ];
-
-const INSIDER_TICKERS = ['SAP', 'AZN', 'NVO', 'SHEL', 'LVMUY', 'HSBC'];
 
 // Exchange configs for dynamic ticker resolution
 const EXCHANGE_CONFIGS = [
@@ -542,18 +539,6 @@ function EuropeanMarketsScreenImpl() {
       title: 'Macro Calendar',
       span: 'full',
       component: MacroCalendarSection,
-    },
-    {
-      id: 'insider',
-      title: 'Insider Activity',
-      span: 'full',
-      component: () => (
-        <InsiderActivity
-          tickers={INSIDER_TICKERS}
-          limit={10}
-          onTickerClick={openDetail}
-        />
-      ),
     },
   ], [statsMap, statsLoading, statsError, statsRefresh, macroData, macroLoading, macroError, spreadData, spreadLoading, spreadError, openDetail, tickersLoading, germanyTickers, ukTickers, euronextTickers, allEquities]);
 

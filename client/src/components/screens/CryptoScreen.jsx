@@ -8,7 +8,6 @@ import { memo, useMemo, useState } from 'react';
 import FullPageScreenLayout from './shared/FullPageScreenLayout';
 import { FundamentalsTable } from './shared/FundamentalsTable';
 import { SectorChartPanel } from './shared/SectorChartPanel';
-import { InsiderActivity } from './shared/InsiderActivity';
 import { MiniFinancials } from './shared/MiniFinancials';
 import { useOpenDetail } from '../../context/OpenDetailContext';
 import { useTickerPrice } from '../../context/PriceContext';
@@ -664,18 +663,6 @@ function CryptoScreenImpl() {
           title="All Crypto Equities - Key Metrics"
           onTickerClick={(symbol) => openDetail(symbol, 'Crypto & Digital Assets')}
           statsMap={statsMap}
-        />
-      ),
-    },
-    {
-      id: 'insider',
-      title: 'Insider Activity (Crypto Equities)',
-      span: 'full',
-      component: () => (
-        <InsiderActivity
-          tickers={CRYPTO_EQUITIES}
-          limit={10}
-          onTickerClick={(symbol) => openDetail(symbol, 'Crypto & Digital Assets')}
         />
       ),
     },

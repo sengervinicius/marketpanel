@@ -18,7 +18,6 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } f
 import FullPageScreenLayout from './shared/FullPageScreenLayout';
 import { FundamentalsTable } from './shared/FundamentalsTable';
 import { SectorChartPanel } from './shared/SectorChartPanel';
-import { InsiderActivity } from './shared/InsiderActivity';
 import { useOpenDetail } from '../../context/OpenDetailContext';
 import { useTickerPrice } from '../../context/PriceContext';
 import { useDeepScreenData } from '../../hooks/useDeepScreenData';
@@ -83,7 +82,6 @@ const PRODUCER_LABELS = {
   BHP: 'BHP Group', RIO: 'Rio Tinto', FCX: 'Freeport-McMoRan', NEM: 'Newmont', VALE: 'Vale', GOLD: 'Barrick Gold', AA: 'Alcoa',
 };
 
-const INSIDER_TICKERS = ['XOM', 'CVX', 'BHP', 'RIO', 'FCX', 'NEM'];
 const ETF_SYMBOLS = ['DBC', 'USO', 'GLD', 'SLV', 'PDBC', 'CPER', 'UNG', 'CORN', 'WEAT', 'SOYB'];
 
 // Data-depth component tickers
@@ -499,10 +497,6 @@ function CommoditiesScreenImpl() {
         />
       </div>
 
-      <div style={{ padding: '16px 6px' }}>
-        <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: 0.5 }}>Insider Activity</div>
-        <InsiderActivity tickers={INSIDER_TICKERS} limit={5} />
-      </div>
 
       <div style={{ padding: '16px 6px' }}>
         <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: 0.5 }}>Commodity ETFs</div>

@@ -7,7 +7,6 @@ import { memo, useEffect, useMemo, useState } from 'react';
 import FullPageScreenLayout from './shared/FullPageScreenLayout';
 import { FundamentalsTable, EarningsCalendarStrip, AnalystActionsCard, OwnershipBreakdown, TechnicalSignalsCard, MacroCalendarStrip } from './shared';
 import { SectorChartPanel } from './shared/SectorChartPanel';
-import { InsiderActivity } from './shared/InsiderActivity';
 import { KPIRibbon, heatColor, TickerRibbon } from './shared/SectorUI';
 import { useOpenDetail } from '../../context/OpenDetailContext';
 import { useTickerPrice } from '../../context/PriceContext';
@@ -522,18 +521,6 @@ function AsianMarketsScreenImpl() {
       title: 'Macro Calendar',
       span: 'full',
       component: MacroCalendarSection,
-    },
-    {
-      id: 'insider',
-      title: 'Insider Activity',
-      span: 'full',
-      component: () => (
-        <InsiderActivity
-          tickers={['BABA', 'TM', 'SONY', 'HDB', 'TCEHY', 'INFY']}
-          limit={10}
-          onTickerClick={openDetail}
-        />
-      ),
     },
   ], [statsMap, statsLoading, statsError, statsRefresh, openDetail, tickersLoading, tickersByExchange, japanTickers, hkTickers, koreaTickers, taiwanTickers, allEquities, nameMap]);
 

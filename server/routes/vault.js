@@ -77,8 +77,19 @@ router.post('/upload', rateLimitByUser({ key: 'vault-upload', windowSec: 60, max
 
     res.json(result);
   } catch (err) {
-    logger.error('vault-route', 'Upload error', { error: err.message });
-    res.status(500).json({ error: 'Failed to process document' });
+    logger.error('vault-route', 'Upload error', { error: err.message, stack: err.stack?.slice(0, 300) });
+    // Return a more descriptive error so the client can show what went wrong
+    const msg = err.message || 'Unknown error';
+    if (msg.includes('not connected') || msg.includes('ECONNREFUSED')) {
+      return res.status(503).json({ error: 'Database unavailable', message: 'Vault storage is temporarily unavailable. Please try again in a few minutes.' });
+    }
+    if (msg.includes('no extractable text')) {
+      return res.status(400).json({ error: 'Unreadable PDF', message: 'This PDF contains no extractable text. Scanned/image-only PDFs are not supported yet.' });
+    }
+    if (msg.includes('too large') || msg.includes('exceeds')) {
+      return res.status(400).json({ error: 'PDF too large', message: msg });
+    }
+    res.status(500).json({ error: 'Failed to process document', message: 'An error occurred while processing the PDF. Please try a different file or try again later.' });
   }
 });
 

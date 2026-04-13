@@ -7,7 +7,7 @@
 import { memo, useMemo, useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import FullPageScreenLayout from './shared/FullPageScreenLayout';
-import { SectorChartPanel, FundamentalsTable, SectorScatterPlot, InsiderActivity, MiniFinancials, KPIRibbon, heatColor, TickerRibbon, CorrelationMatrix, ComparisonBarChart, ImpliedVolatilityCard, EarningsCalendarStrip, AnalystActionsCard, OwnershipBreakdown, TechnicalSignalsCard, SentimentCard } from './shared';
+import { SectorChartPanel, FundamentalsTable, SectorScatterPlot, MiniFinancials, KPIRibbon, heatColor, TickerRibbon, CorrelationMatrix, ComparisonBarChart, ImpliedVolatilityCard, EarningsCalendarStrip, AnalystActionsCard, OwnershipBreakdown, TechnicalSignalsCard, SentimentCard } from './shared';
 import { useOpenDetail } from '../../context/OpenDetailContext';
 import { useTickerPrice } from '../../context/PriceContext';
 import { useDeepScreenData } from '../../hooks/useDeepScreenData';
@@ -44,7 +44,6 @@ const BANNER_TICKERS = [
   { ticker: 'TSM', label: 'TSM' },
 ];
 const CHART_TICKERS = ['NVDA', 'MSFT', 'AAPL', 'GOOGL', 'TSM', 'META'];
-const INSIDER_TICKERS = ['AAPL', 'MSFT', 'GOOGL', 'META', 'NVDA', 'AMZN'];
 const REVENUE_GROWTH_TICKERS = ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA', 'META'];
 const MINI_FIN_TICKERS = ['AAPL', 'MSFT', 'NVDA'];
 
@@ -487,12 +486,6 @@ function TechAIScreenImpl() {
       component: SentimentSection,
     },
     /* IV Monitor removed — no options data feed available */
-    {
-      id: 'insider',
-      title: 'INSIDER ACTIVITY',
-      span: 'full',
-      component: () => <InsiderActivity tickers={INSIDER_TICKERS} limit={5} onTickerClick={(symbol) => openDetail(symbol, 'Technology & AI')} />,
-    },
     {
       id: 'etfs',
       title: 'TECH & AI ETFs',

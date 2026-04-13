@@ -173,7 +173,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
   const [comparisonTickers, setComparisonTickers] = useState([]);
   const [showComparisonSearch, setShowComparisonSearch] = useState(false);
   const [comparisonData, setComparisonData] = useState({}); // symbol → bars
-  const comparisonSearchHook = useInstrumentSearch({ enablePolygon: true });
+  const comparisonSearchHook = useInstrumentSearch({ enablePolygon: false });
 
   // ── Phase 4.9: Custom Date Range Picker ──
   const [showCustomRange, setShowCustomRange] = useState(false);

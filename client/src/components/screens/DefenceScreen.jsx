@@ -10,7 +10,6 @@ import { FundamentalsTable } from './shared/FundamentalsTable';
 import { SectorChartPanel } from './shared/SectorChartPanel';
 import { SectorScatterPlot } from './shared/SectorScatterPlot';
 import { MiniFinancials } from './shared/MiniFinancials';
-import { InsiderActivity } from './shared/InsiderActivity';
 import { TableExportBar } from './shared/TableExportBar';
 import { KPIRibbon, TickerRibbon } from './shared/SectorUI';
 import { CorrelationMatrix } from './shared/CorrelationMatrix';
@@ -377,18 +376,6 @@ function DefenceScreenImpl() {
         <StatsLoadGate statsMap={statsMap} loading={statsLoading} error={statsError} refresh={statsRefresh}>
           <SectionTable tickers={SPACE_CYBER} statsMap={statsMap} sectionName="Defence & Aerospace" />
         </StatsLoadGate>
-      ),
-    },
-    {
-      id: 'insider',
-      title: 'Insider Activity',
-      span: 'full',
-      component: () => (
-        <InsiderActivity
-          tickers={US_PRIMES}
-          limit={10}
-          onTickerClick={openDetail}
-        />
       ),
     },
     {

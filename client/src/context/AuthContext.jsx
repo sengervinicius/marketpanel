@@ -65,20 +65,28 @@ export function AuthProvider({ children }) {
         credentials: 'include',
       });
       if (!res.ok) {
-        // Refresh failed — session expired
-        setUser(null);
-        setToken(null);
-        setSubscription(null);
-        localStorage.removeItem(LS_USER);
+        // Only logout on 401 (session truly expired). 5xx, 429, etc. are transient — retry next cycle.
+        if (res.status === 401) {
+          setUser(null);
+          setToken(null);
+          setSubscription(null);
+          localStorage.removeItem(LS_USER);
+        } else {
+          console.warn(`[AuthContext] Token refresh returned ${res.status}, will retry next cycle`);
+        }
         return;
       }
       const data = await res.json();
-      setToken(data.token); // Update in-memory token for WS
+      setToken(data.token);
       if (data.user) {
         setUser({ id: data.user.id, username: data.user.username, persona: data.user.persona || null });
       }
+      if (data.subscription) {
+        setSubscription(normalizeSubscription(data.subscription));
+      }
     } catch (e) {
-      console.error('[AuthContext] Token refresh failed:', e);
+      // Network error — don't logout, just log and retry next cycle
+      console.warn('[AuthContext] Token refresh network error, will retry:', e.message);
     }
   }, []);
 
@@ -126,7 +134,8 @@ export function AuthProvider({ children }) {
         setAuthReady(true);
       }
     })();
-  }, [restoreFromMe]); // runs once on mount
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // runs strictly once on mount — restoreFromMe is stable (useCallback with no deps)
 
   // ── Refresh access token every 13 minutes (token expires at 15m) ────────────
   useEffect(() => {

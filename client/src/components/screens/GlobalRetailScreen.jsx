@@ -9,7 +9,6 @@ import FullPageScreenLayout from './shared/FullPageScreenLayout';
 import { FundamentalsTable } from './shared/FundamentalsTable';
 import { SectorChartPanel } from './shared/SectorChartPanel';
 import { SectorScatterPlot } from './shared/SectorScatterPlot';
-import { InsiderActivity } from './shared/InsiderActivity';
 import { MiniFinancials } from './shared/MiniFinancials';
 import { KPIRibbon, heatColor, TickerRibbon } from './shared/SectorUI';
 import { CorrelationMatrix } from './shared/CorrelationMatrix';
@@ -336,18 +335,6 @@ function GlobalRetailScreenImpl() {
           yLabel="Market Cap ($ Billions)"
           height={280}
           onDotClick={(symbol) => openDetail(symbol, 'Global Retail & Consumer')}
-        />
-      ),
-    },
-    {
-      id: 'insider',
-      title: 'Insider Activity',
-      span: 'full',
-      component: () => (
-        <InsiderActivity
-          tickers={['AMZN', 'WMT', 'COST', 'NKE', 'PG', 'KO']}
-          limit={10}
-          onTickerClick={(symbol) => openDetail(symbol, 'Global Retail & Consumer')}
         />
       ),
     },

@@ -7,7 +7,6 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'rec
 import FullPageScreenLayout from './shared/FullPageScreenLayout';
 import { FundamentalsTable, SectorChartPanel } from './shared';
 import { KPIRibbon, heatColor, TickerRibbon } from './shared/SectorUI';
-import { InsiderActivity } from './shared/InsiderActivity';
 import { MiniFinancials } from './shared/MiniFinancials';
 import { DeepSkeleton, DeepError } from './DeepScreenBase';
 import EarningsCalendarStrip from './shared/EarningsCalendarStrip';
@@ -588,12 +587,6 @@ function BrazilScreenImpl() {
       title: 'TOP 3 FINANCIALS',
       span: 'full',
       component: BrazilMiniFinStrip,
-    },
-    {
-      id: 'insider',
-      title: 'INSIDER ACTIVITY',
-      span: 'full',
-      component: () => <InsiderActivity tickers={['PBR', 'VALE', 'ITUB', 'BBD', 'EWZ', 'BSBR']} limit={5} />,
     },
     {
       id: 'earnings',
