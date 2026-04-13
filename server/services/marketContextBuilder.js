@@ -176,6 +176,10 @@ function getWatchlistContext(userId) {
 
 /**
  * Get a compact summary of the user's portfolio positions.
+ * Enhanced with:
+ *   - Total portfolio value
+ *   - Top 5 holdings with allocation percentages
+ *   - Sector concentration analysis
  */
 function getPortfolioContext(userId) {
   if (!_getPortfolio) return null;
@@ -185,16 +189,75 @@ function getPortfolioContext(userId) {
 
   const positions = doc.positions.slice(0, 15).map(p => {
     const d = _marketState?.stocks?.[p.symbol] || _marketState?.forex?.[p.symbol] || _marketState?.crypto?.[p.symbol];
+    // Calculate current value: investedAmount (preferred) or quantity * currentPrice
+    const currentValue = p.investedAmount || (p.quantity * (d?.price || p.entryPrice || 0));
     return {
       symbol: p.symbol,
       shares: p.shares || p.quantity || 0,
-      avgCost: p.avgCost || p.averageCost || 0,
+      avgCost: p.avgCost || p.averageCost || p.entryPrice || 0,
       currentPrice: d?.price || null,
       change: d?.changePercent ?? null,
+      currentValue: currentValue,
     };
   });
 
-  return positions.length > 0 ? positions : null;
+  // Calculate total portfolio value
+  const totalValue = positions.reduce((sum, p) => sum + (p.currentValue || 0), 0);
+
+  // Top 5 holdings with allocation percentages
+  const topHoldings = positions
+    .filter(p => p.currentValue > 0)
+    .sort((a, b) => (b.currentValue || 0) - (a.currentValue || 0))
+    .slice(0, 5)
+    .map(p => {
+      const pct = totalValue > 0 ? ((p.currentValue / totalValue) * 100).toFixed(1) : '0';
+      return `${p.symbol}: ${pct}%`;
+    })
+    .join(', ');
+
+  // Sector concentration using TICKER_SECTORS mapping from behaviorTracker
+  const TICKER_SECTORS = {
+    AAPL: 'tech', MSFT: 'tech', NVDA: 'tech', GOOGL: 'tech', META: 'tech', AMZN: 'tech', TSLA: 'tech',
+    AMD: 'tech', INTC: 'tech', CRM: 'tech', ORCL: 'tech', AVGO: 'tech', ADBE: 'tech',
+    JPM: 'finance', GS: 'finance', MS: 'finance', BAC: 'finance', WFC: 'finance', C: 'finance',
+    XOM: 'energy', CVX: 'energy', COP: 'energy', SLB: 'energy', USO: 'energy',
+    LLY: 'health', UNH: 'health', JNJ: 'health', PFE: 'health', ABBV: 'health', MRK: 'health',
+    WMT: 'consumer', COST: 'consumer', NKE: 'consumer', MCD: 'consumer', SBUX: 'consumer',
+    CAT: 'industrial', BA: 'industrial', HON: 'industrial', UPS: 'industrial', LMT: 'industrial',
+    'X:BTCUSD': 'crypto', 'X:ETHUSD': 'crypto', 'X:SOLUSD': 'crypto',
+    'VALE3.SA': 'brazil', 'PETR4.SA': 'brazil', 'ITUB4.SA': 'brazil', 'BBDC4.SA': 'brazil',
+    EWZ: 'brazil', VALE: 'brazil', PBR: 'brazil', ITUB: 'brazil',
+    SPY: 'indices', QQQ: 'indices', DIA: 'indices', IWM: 'indices', VIX: 'indices',
+  };
+
+  const sectorWeights = {};
+  positions.forEach(p => {
+    const sector = TICKER_SECTORS[p.symbol] || 'other';
+    sectorWeights[sector] = (sectorWeights[sector] || 0) + (p.currentValue || 0);
+  });
+
+  const sectorConcentration = Object.entries(sectorWeights)
+    .filter(([, value]) => value > 0)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([sector, value]) => {
+      const pct = totalValue > 0 ? ((value / totalValue) * 100).toFixed(1) : '0';
+      const sectorLabel = sector.charAt(0).toUpperCase() + sector.slice(1);
+      return `${sectorLabel}: ${pct}%`;
+    })
+    .join(', ');
+
+  // Return enriched positions with summary metadata
+  const result = positions.length > 0 ? positions : null;
+  if (result) {
+    result._allocation = {
+      totalValue,
+      topHoldings,
+      sectorConcentration,
+    };
+  }
+
+  return result;
 }
 
 // ── Temporal context ────────────────────────────────────────────────────────
@@ -325,6 +388,7 @@ function buildContext({ query, userId, intent: forceIntent } = {}) {
     if (userId && ['portfolio', 'thesis', 'general'].includes(intent)) {
       const positions = getPortfolioContext(userId);
       if (positions && positions.length > 0) {
+        const alloc = positions._allocation;
         const posStr = positions.slice(0, 8).map(p => {
           let s = p.symbol;
           if (p.shares) s += ` ${p.shares}sh`;
@@ -333,7 +397,21 @@ function buildContext({ query, userId, intent: forceIntent } = {}) {
           if (p.change != null) s += ` (${fmtChange(p.change)})`;
           return s;
         }).join('; ');
-        sections.push(`[User portfolio] ${posStr}`);
+
+        // Build allocation context
+        const allocStr = [];
+        if (alloc?.totalValue) {
+          allocStr.push(`Total value: $${alloc.totalValue.toFixed(2)}`);
+        }
+        if (alloc?.topHoldings) {
+          allocStr.push(`Top holdings: ${alloc.topHoldings}`);
+        }
+        if (alloc?.sectorConcentration) {
+          allocStr.push(`Sector exposure: ${alloc.sectorConcentration}`);
+        }
+
+        const allocSection = allocStr.length > 0 ? `\n  [Allocation] ${allocStr.join(' | ')}` : '';
+        sections.push(`[User portfolio] ${posStr}${allocSection}`);
       }
     }
 

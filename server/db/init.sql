@@ -32,18 +32,18 @@ CREATE INDEX IF NOT EXISTS idx_users_referral_code  ON users (referral_code) WHE
 
 -- ── Portfolios (one document per user, JSONB) ────────────────────────────
 CREATE TABLE IF NOT EXISTS portfolios (
-  user_id     INTEGER PRIMARY KEY,
+  user_id     INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
   version     INTEGER NOT NULL DEFAULT 1,
   portfolios  JSONB NOT NULL DEFAULT '[]',
   positions   JSONB NOT NULL DEFAULT '[]',
-  updated_at  TEXT,
-  created_at  TEXT
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- ── Alerts (one row per alert) ────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS alerts (
   id                      TEXT NOT NULL,
-  user_id                 INTEGER NOT NULL,
+  user_id                 INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   type                    TEXT NOT NULL,
   symbol                  TEXT NOT NULL DEFAULT '',
   portfolio_position_id   TEXT,
@@ -58,6 +58,7 @@ CREATE TABLE IF NOT EXISTS alerts (
 );
 
 CREATE INDEX IF NOT EXISTS idx_alerts_active ON alerts (user_id, active) WHERE active = TRUE;
+CREATE INDEX IF NOT EXISTS idx_alerts_user ON alerts(user_id);
 
 -- ── Trial abuse prevention ────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS used_trials (
@@ -75,6 +76,7 @@ CREATE TABLE IF NOT EXISTS password_resets (
   created_at BIGINT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_password_resets_user ON password_resets(user_id);
+CREATE INDEX IF NOT EXISTS idx_password_resets_expires ON password_resets(expires_at);
 
 -- ── Email verification tokens ────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS email_verifications (
@@ -85,6 +87,8 @@ CREATE TABLE IF NOT EXISTS email_verifications (
   verified    BOOLEAN DEFAULT FALSE,
   created_at  BIGINT NOT NULL
 );
+CREATE INDEX IF NOT EXISTS idx_email_verifications_user ON email_verifications(user_id);
+CREATE INDEX IF NOT EXISTS idx_email_verifications_expires ON email_verifications(expires_at);
 
 -- ── User behavior tracking (silent personalization) ─────────────────────────
 CREATE TABLE IF NOT EXISTS user_behavior (
@@ -107,6 +111,28 @@ CREATE TABLE IF NOT EXISTS wire_entries (
   created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_wire_created ON wire_entries (created_at DESC);
+
+-- ── Vault documents (JSONB-heavy storage) ──────────────────────────────────
+CREATE TABLE IF NOT EXISTS vault_documents (
+  id          SERIAL PRIMARY KEY,
+  user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  title       TEXT NOT NULL,
+  content     JSONB NOT NULL DEFAULT '{}',
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_vault_documents_user ON vault_documents(user_id);
+
+-- ── Vault chunks (document segments for retrieval) ──────────────────────────
+CREATE TABLE IF NOT EXISTS vault_chunks (
+  id          SERIAL PRIMARY KEY,
+  document_id INTEGER NOT NULL REFERENCES vault_documents(id) ON DELETE CASCADE,
+  chunk_index INTEGER NOT NULL,
+  content     TEXT NOT NULL,
+  embedding   VECTOR(1536),
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_vault_chunks_document ON vault_chunks(document_id);
 
 -- ── Refresh tokens (rotation-safe) ──────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS refresh_tokens (

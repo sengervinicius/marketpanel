@@ -24,6 +24,15 @@ const authLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+// ── Password complexity validation ────────────────────────────────────────────
+function validatePassword(password) {
+  if (!password || password.length < 8) return 'Password must be at least 8 characters';
+  if (!/[A-Z]/.test(password)) return 'Password must contain an uppercase letter';
+  if (!/[a-z]/.test(password)) return 'Password must contain a lowercase letter';
+  if (!/[0-9]/.test(password)) return 'Password must contain a number';
+  return null;
+}
+
 // POST /api/auth/register
 router.post('/register', authLimiter, async (req, res) => {
   try {
@@ -67,8 +76,7 @@ router.post('/register', authLimiter, async (req, res) => {
       }
     }
   } catch (e) {
-    const status = e.message === 'Username taken' || e.message === 'Email already registered' ? 409 : 400;
-    res.status(status).json({ error: e.message, code: 'register_failed' });
+    res.status(400).json({ error: 'Registration failed. Please try different credentials.', code: 'registration_failed' });
   }
 });
 
@@ -164,8 +172,10 @@ router.post('/reset-password', authLimiter, async (req, res) => {
     if (!token || !password) {
       return res.status(400).json({ error: 'Token and new password are required', code: 'missing_fields' });
     }
-    if (password.length < 8) {
-      return res.status(400).json({ error: 'Password must be at least 8 characters', code: 'weak_password' });
+
+    const pwdError = validatePassword(password);
+    if (pwdError) {
+      return res.status(400).json({ error: pwdError, code: 'weak_password' });
     }
 
     const pg = require('../db/postgres');

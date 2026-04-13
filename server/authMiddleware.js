@@ -85,17 +85,21 @@ async function requireActiveSubscription(req, res, next) {
     return next();
   }
 
-  // Trial still active
-  if (user.trialEndsAt && now < user.trialEndsAt) {
-    return next();
+  // Check if trial is still active (explicit logic)
+  const hasTrial = user.trialEndsAt && now < user.trialEndsAt;
+  const isPaidActive = user.isPaid && user.subscriptionActive;
+
+  if (!hasTrial && !isPaidActive) {
+    // Neither trial nor paid subscription is active
+    return res.status(402).json({
+      error: 'Trial expired. Subscribe to continue.',
+      code: 'subscription_required',
+      trialEndsAt: user.trialEndsAt,
+    });
   }
 
-  // Trial expired, not paid
-  return res.status(402).json({
-    error: 'Trial expired. Subscribe to continue.',
-    code: 'subscription_required',
-    trialEndsAt: user.trialEndsAt,
-  });
+  // User has an active trial or paid subscription
+  return next();
 }
 
 /**

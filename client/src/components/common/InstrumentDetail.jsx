@@ -1,5 +1,5 @@
 // InstrumentDetail.jsx – Bloomberg GP-style full-screen instrument overlay
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo, memo } from 'react';
 import { createPortal } from 'react-dom';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { useOpenDetail, useSectorContext } from '../../context/OpenDetailContext';
@@ -59,7 +59,7 @@ const RELATED_NAMES = {
 };
 
 // ── Related Ticker Chip (mini component for "Also In" section) ──
-function RelatedTickerChip({ ticker, onOpen, sectorContext }) {
+const RelatedTickerChip = memo(function RelatedTickerChip({ ticker, onOpen, sectorContext }) {
   const priceData = useTickerPrice(ticker);
   const displayTk = (ticker || '').replace(/^C:/, '').replace(/^X:/, '').replace('.SA', '').replace('=F', '');
   const name = RELATED_NAMES[ticker] || RELATED_NAMES[displayTk] || displayTk;
@@ -87,7 +87,7 @@ function RelatedTickerChip({ ticker, onOpen, sectorContext }) {
       )}
     </div>
   );
-}
+});
 
 // ── Main Component ──────────────────────────────────────────────────────────
 // asPage=true: renders as a scrollable page (DETAIL tab on mobile), no fixed overlay

@@ -53,14 +53,6 @@
   --font-display:          'Playfair Display', 'Georgia', 'Times New Roman', serif;
   --font-mono:             'JetBrains Mono', 'SF Mono', 'IBM Plex Mono', 'Fira Code', monospace;
 
-  /* ── Type scale ── */
-  --text-xs:    11px;  /* labels, badges */
-  --text-sm:    13px;  /* secondary body, captions */
-  --text-base:  15px;  /* primary body */
-  --text-lg:    18px;  /* section headers */
-  --text-xl:    22px;  /* screen titles */
-  --text-2xl:   28px;  /* greeting, hero text */
-
   /* ── Spacing (4px grid) ── */
   --space-1:   4px;
   --space-2:   8px;
@@ -85,15 +77,6 @@
   --duration-fast: 150ms;
   --duration-base: 250ms;
   --duration-slow: 400ms;
-
-  /* ── Z-index ── */
-  --z-canvas:     0;
-  --z-content:   10;
-  --z-overlay:   20;
-  --z-nav:       30;
-  --z-sheet:     40;
-  --z-modal:     50;
-  --z-toast:     60;
 
   /* ── Legacy compatibility aliases ──
    * These map old variable names used throughout the existing codebase

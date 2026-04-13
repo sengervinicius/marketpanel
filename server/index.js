@@ -51,7 +51,7 @@ const referralRoutes    = require('./routes/referrals');
 const notificationRoutes = require('./routes/notifications');
 const gameRoutes        = require('./routes/game');
 const screenTickerRoutes = require('./routes/screenTickers');
-const { requireAuth, requireActiveSubscription } = require('./authMiddleware');
+const { requireAuth, requireActiveSubscription, requireAdmin } = require('./authMiddleware');
 const logger = require('./utils/logger');
 const { requestLogger } = require('./utils/logger');
 const { errorHandler } = require('./utils/apiError');
@@ -130,7 +130,7 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "https://appleid.cdn-apple.com", "https://js.stripe.com"],
+      scriptSrc: ["'self'", "https://appleid.cdn-apple.com", "https://js.stripe.com"],
       styleSrc: ["'self'", "'unsafe-inline'"],
       fontSrc: ["'self'"],
       imgSrc: ["'self'", "data:", "blob:", "https:"],
@@ -147,7 +147,7 @@ app.use(helmet({
 // NOTE: express.json() is applied globally EXCEPT for billing/webhook (needs raw body)
 app.use((req, res, next) => {
   if (req.originalUrl === '/api/billing/webhook') return next();
-  express.json()(req, res, next);
+  express.json({ limit: '1mb' })(req, res, next);
 });
 
 app.use(cookieParser());
@@ -174,7 +174,17 @@ app.get('/.well-known/apple-developer-merchantid-domain-association', async (req
 });
 
 // ── Public routes ──────────────────────────────────────────────────────────────
+// Minimal public health check (no detailed API key or provider info)
 app.get('/health', (req, res) => res.json({
+  status: 'ok',
+  uptime: process.uptime(),
+}));
+app.use('/api/auth', authRoutes);
+
+// ── Admin endpoint removed for production (Phase 7 security hardening) ──────
+
+// ── Admin health endpoint (detailed provider/API key info — requires admin auth) ──
+app.get('/api/admin/health', requireAdmin, (req, res) => res.json({
   status: 'ok',
   version: process.env.npm_package_version || '1.0.0',
   time: new Date().toISOString(),
@@ -196,9 +206,6 @@ app.get('/health', (req, res) => res.json({
     routeMap: Object.keys(modelRouter.ROUTE_MAP),
   },
 }));
-app.use('/api/auth', authRoutes);
-
-// ── Admin endpoint removed for production (Phase 7 security hardening) ──────
 
 // ── Protected routes ───────────────────────────────────────────────────────────
 // Stripe webhook: MUST be before requireAuth — Stripe cannot authenticate as a user.
@@ -619,10 +626,17 @@ async function boot() {
 
   // Production-specific security checks
   if (process.env.NODE_ENV === 'production') {
-    // Warn if JWT_SECRET is default or weak
+    // FAIL if JWT_SECRET is not set or is too short
     const jwtSecret = process.env.JWT_SECRET || '';
-    if (!jwtSecret || jwtSecret.length < 16 || jwtSecret === 'dev-secret-key') {
-      logger.warn('boot', '[SECURITY] JWT_SECRET is weak or default. Use a strong, random 32+ character secret in production.');
+    if (!jwtSecret) {
+      logger.error('boot', '[FATAL] PRODUCTION MODE: JWT_SECRET is required but not set.');
+      logger.error('boot', '[FATAL] Go to Render Dashboard → senger-market-server → Environment and add JWT_SECRET (minimum 16 characters).');
+      process.exit(1);
+    }
+    if (jwtSecret.length < 16) {
+      logger.error('boot', '[FATAL] PRODUCTION MODE: JWT_SECRET must be at least 16 characters. Current length: ' + jwtSecret.length);
+      logger.error('boot', '[FATAL] Use a strong, random 32+ character secret. Go to Render Dashboard and update JWT_SECRET.');
+      process.exit(1);
     }
     // Warn if POLYGON_API_KEY is not configured
     if (!process.env.POLYGON_API_KEY) {

@@ -23,11 +23,11 @@ import NotificationPrefs from './components/common/NotificationPrefs';
 import HeaderSearchBar from './components/common/HeaderSearchBar';
 import KeyboardShortcutsModal from './components/common/KeyboardShortcutsModal';
 import { SearchPanel } from './components/panels/SearchPanel';
-import AlertCenterPanel from './components/panels/AlertCenterPanel';
-import { NewsPanel } from './components/panels/NewsPanel';
 import ETFPanel from './components/panels/ETFPanel';
-import ScreenerPanel from './components/panels/ScreenerPanel';
-import MacroPanel from './components/panels/MacroPanel';
+const AlertCenterPanel = lazy(() => import('./components/panels/AlertCenterPanel'));
+const NewsPanel = lazy(() => import('./components/panels/NewsPanel'));
+const ScreenerPanel = lazy(() => import('./components/panels/ScreenerPanel'));
+const MacroPanel = lazy(() => import('./components/panels/MacroPanel'));
 import LeaderboardPanel from './components/panels/LeaderboardPanel';
 import GamePortfolioPanel from './components/panels/GamePortfolioPanel';
 import ReferralPanel from './components/common/ReferralPanel';
@@ -1214,7 +1214,9 @@ export default function App() {
 
             <div style={{ flex: 1, display: mobileMode !== 'terminal' || activeSectorScreen || activeTab !== 'alerts' ? 'none' : 'flex', flexDirection: 'column', minWidth: 0, width: '100%' }}>
               <PanelErrorBoundary name="Alerts">
-                <AlertCenterPanel />
+                <Suspense fallback={null}>
+                  <AlertCenterPanel />
+                </Suspense>
               </PanelErrorBoundary>
             </div>
 
@@ -1233,7 +1235,9 @@ export default function App() {
 
             <div style={{ flex: 1, display: mobileMode !== 'terminal' || activeSectorScreen || activeTab !== 'more' || moreView !== 'news' ? 'none' : 'flex' }}>
               <PanelErrorBoundary name="News">
-                <NewsPanel />
+                <Suspense fallback={null}>
+                  <NewsPanel />
+                </Suspense>
               </PanelErrorBoundary>
             </div>
 
@@ -1245,13 +1249,17 @@ export default function App() {
 
             <div style={{ flex: 1, display: mobileMode !== 'terminal' || activeSectorScreen || activeTab !== 'more' || moreView !== 'screener' ? 'none' : 'flex' }}>
               <PanelErrorBoundary name="Screener">
-                <ScreenerPanel />
+                <Suspense fallback={null}>
+                  <ScreenerPanel />
+                </Suspense>
               </PanelErrorBoundary>
             </div>
 
             <div style={{ flex: 1, display: mobileMode !== 'terminal' || activeSectorScreen || activeTab !== 'more' || moreView !== 'macro' ? 'none' : 'flex' }}>
               <PanelErrorBoundary name="Macro">
-                <MacroPanel />
+                <Suspense fallback={null}>
+                  <MacroPanel />
+                </Suspense>
               </PanelErrorBoundary>
             </div>
 

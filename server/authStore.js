@@ -42,9 +42,15 @@ const bcrypt = require('bcryptjs');
 const jwt    = require('jsonwebtoken');
 const pg     = require('./db/postgres');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'INSECURE_PLACEHOLDER_SET_JWT_SECRET_IN_ENV';
-if (!process.env.JWT_SECRET) {
-  console.error('[ERROR] JWT_SECRET not set — using insecure placeholder. Go to Render Dashboard → senger-market-server → Environment and add JWT_SECRET.');
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  if (process.env.NODE_ENV === 'production') {
+    console.error('[FATAL] PRODUCTION MODE: JWT_SECRET is required but not set.');
+    console.error('[FATAL] Go to Render Dashboard → senger-market-server → Environment and add JWT_SECRET (minimum 16 characters).');
+    process.exit(1);
+  } else {
+    console.warn('[WARN] JWT_SECRET not set — using development mode. Set JWT_SECRET in .env for proper security.');
+  }
 }
 
 // ── In-memory store (primary read source) ────────────────────────────────────
@@ -346,13 +352,26 @@ function defaultGamification() {
   return { xp: 0, level: 1, lastXpEventAt: null };
 }
 
+// ── Password validation ──────────────────────────────────────────────────────────
+
+function validatePassword(password) {
+  if (!password || password.length < 8) return 'Password must be at least 8 characters';
+  if (!/[A-Z]/.test(password)) return 'Password must contain an uppercase letter';
+  if (!/[a-z]/.test(password)) return 'Password must contain a lowercase letter';
+  if (!/[0-9]/.test(password)) return 'Password must contain a number';
+  return null;
+}
+
 // ── User CRUD ─────────────────────────────────────────────────────────────────
 
 async function createUser(username, passwordPlain, email) {
   const key = username.toLowerCase();
   if (!username || !passwordPlain)   throw new Error('Username and password required');
   if (username.length < 3)           throw new Error('Username must be at least 3 characters');
-  if (passwordPlain.length < 8)      throw new Error('Password must be at least 8 characters');
+
+  const pwdError = validatePassword(passwordPlain);
+  if (pwdError) throw new Error(pwdError);
+
   if (usersByUsername.has(key))      throw new Error('Username taken');
 
   // Validate and check email uniqueness if provided
@@ -374,6 +393,23 @@ async function createUser(username, passwordPlain, email) {
   const hash = await bcrypt.hash(passwordPlain, 12);
   const now  = Date.now();
   const id   = nextId++;
+
+  // Check if this email has already used a trial (trial abuse prevention)
+  // This check happens BEFORE granting a trial to prevent bypass
+  let grantTrial = true;
+  if (email) {
+    try {
+      const pgResult = await pg.query('SELECT email FROM used_trials WHERE LOWER(email) = LOWER($1)', [email]);
+      if (pgResult && pgResult.rows && pgResult.rows.length > 0) {
+        // Email already had a trial — don't grant another one
+        grantTrial = false;
+      }
+    } catch (e) {
+      // Don't block registration if trial-check fails, but log it
+      console.warn('[authStore] Trial abuse check failed:', e.message);
+    }
+  }
+
   const user = {
     id,
     username,
@@ -383,7 +419,7 @@ async function createUser(username, passwordPlain, email) {
     settings:             defaultSettings(),
     isPaid:               false,
     subscriptionActive:   true,
-    trialEndsAt:          now + (parseInt(process.env.TRIAL_DAYS, 10) || 14) * 24 * 60 * 60 * 1000, // 14-day trial (configurable via TRIAL_DAYS env)
+    trialEndsAt:          grantTrial ? now + (parseInt(process.env.TRIAL_DAYS, 10) || 14) * 24 * 60 * 60 * 1000 : now, // Only grant trial if email hasn't been used before
     stripeCustomerId:     null,
     stripeSubscriptionId: null,
     persona:              defaultPersona(),
@@ -399,21 +435,12 @@ async function createUser(username, passwordPlain, email) {
   await persistUser(user); // write-through to MongoDB
 
   // Record trial usage to prevent re-registration abuse
-  if (email) {
+  if (email && grantTrial) {
     try {
-      const pgResult = await pg.query('SELECT email FROM used_trials WHERE LOWER(email) = LOWER($1)', [email]);
-      if (pgResult && pgResult.rows && pgResult.rows.length > 0) {
-        // Email already had a trial — revoke the trial period
-        user.trialEndsAt = now;
-        usersByUsername.set(key, user);
-        usersById.set(id, user);
-        await persistUser(user);
-      } else {
-        await pg.query('INSERT INTO used_trials (email, first_trial_at) VALUES ($1, $2) ON CONFLICT DO NOTHING', [email, now]);
-      }
+      await pg.query('INSERT INTO used_trials (email, first_trial_at) VALUES ($1, $2) ON CONFLICT DO NOTHING', [email, now]);
     } catch (e) {
-      // Don't block registration if trial-check fails
-      console.warn('[authStore] Trial abuse check failed:', e.message);
+      // Don't block registration if recording trial fails
+      console.warn('[authStore] Failed to record trial usage:', e.message);
     }
   }
 
@@ -483,11 +510,11 @@ function recordFailedLogin(key) {
 // ── Token helpers ─────────────────────────────────────────────────────────────
 
 function signToken(user) {
-  return jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: '15m' });
+  return jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: '15m', algorithm: 'HS256' });
 }
 
 function verifyToken(token) {
-  return jwt.verify(token, JWT_SECRET);
+  return jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] });
 }
 
 /**

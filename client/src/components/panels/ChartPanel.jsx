@@ -114,7 +114,7 @@ function AiInsightPopover({ insight, loading, error, onClose }) {
   );
 }
 
-function MiniChart({ ticker, index, onRemove, onReplace, onSwap }) {
+const MiniChart = memo(function MiniChart({ ticker, index, onRemove, onReplace, onSwap }) {
   const openDetail = useOpenDetail();
   const shared = useTickerPrice(ticker);
   const [rawBars, setRawBars] = useState([]);
@@ -466,7 +466,7 @@ function MiniChart({ ticker, index, onRemove, onReplace, onSwap }) {
       )}
     </div>
   );
-}
+});
 
 function EmptySlot({ index, onAdd, onSwap }) {
   const [isDragOver, setIsDragOver] = useState(false);

@@ -4,7 +4,7 @@
 .id-overlay {
   position: fixed;
   inset: 0;
-  z-index: 9999;
+  z-index: var(--z-detail);
   background: rgba(0, 0, 0, 0.97);
   display: flex;
   flex-direction: column;
@@ -1419,7 +1419,7 @@
 .id-overlay--mobile-sheet {
   position: fixed;
   inset: 0;
-  z-index: 9999;
+  z-index: var(--z-detail);
   background: rgba(0, 0, 0, 0.97);
   display: flex;
   flex-direction: column;
@@ -1475,7 +1475,7 @@
 .search-results-mobile {
   position: fixed;
   inset: 0;
-  z-index: 1500;
+  z-index: var(--z-detail);
   background: var(--bg-panel);
   display: flex;
   flex-direction: column;

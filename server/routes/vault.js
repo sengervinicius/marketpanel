@@ -23,6 +23,7 @@ const vault = require('../services/vault');
 const logger = require('../utils/logger');
 const { requireAuth, requireAdmin } = require('../authMiddleware');
 const { getTier, isUnlimited } = require('../config/tiers');
+const { rateLimitByUser } = require('../middleware/rateLimitByUser');
 
 const router = express.Router();
 
@@ -42,8 +43,9 @@ const upload = multer({
 /**
  * POST /upload — Upload and ingest a PDF into the vault.
  * Enforces per-tier document limits before allowing the upload.
+ * Rate limited to 10 uploads per minute per user.
  */
-router.post('/upload', upload.single('file'), async (req, res) => {
+router.post('/upload', rateLimitByUser({ key: 'vault-upload', windowSec: 60, max: 10 }), upload.single('file'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No file provided' });
@@ -244,8 +246,9 @@ router.get('/sector-insights', requireAuth, async (req, res) => {
 /**
  * POST /admin/upload — Upload a PDF to the central vault (all users benefit).
  * Requires admin role.
+ * Rate limited to 10 uploads per minute per admin user.
  */
-router.post('/admin/upload', requireAdmin, upload.single('file'), async (req, res) => {
+router.post('/admin/upload', requireAdmin, rateLimitByUser({ key: 'vault-upload-admin', windowSec: 60, max: 10 }), upload.single('file'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No file provided' });

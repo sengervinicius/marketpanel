@@ -10,7 +10,7 @@
 
 .tt-context-menu {
   position: fixed;
-  z-index: 100000;
+  z-index: var(--z-tooltip);
   min-width: 170px;
 }
 
@@ -47,7 +47,7 @@
 
 .tt-hover-tooltip {
   position: fixed;
-  z-index: 99999;
+  z-index: var(--z-tooltip);
   padding: 8px 12px;
   max-width: 270px;
   user-select: text;

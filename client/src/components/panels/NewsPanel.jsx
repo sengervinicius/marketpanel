@@ -14,7 +14,7 @@ function timeAgo(dateStr) {
   return `${Math.floor(diff / 86400)}d ago`;
 }
 
-function NewsItem({ item, isNew, sentimentMap }) {
+const NewsItem = memo(function NewsItem({ item, isNew, sentimentMap }) {
   const isBreaking = item.importance === 'high' ||
     (item.title || '').toUpperCase().includes('BREAKING') ||
     (item.title || '').toUpperCase().includes('ALERT');
@@ -52,7 +52,7 @@ function NewsItem({ item, isNew, sentimentMap }) {
       )}
     </div>
   );
-}
+});
 
 function NewsPanel() {
   const [news, setNews] = useState([]);

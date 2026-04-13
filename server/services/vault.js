@@ -263,6 +263,12 @@ async function ingestPDF(userId, buffer, filename, { isGlobal = false } = {}) {
   }
 
   try {
+    // Sanitize filename before storing
+    filename = (filename || 'untitled.pdf')
+      .replace(/[<>:"/\\|?*\x00-\x1f]/g, '_')  // Remove dangerous chars
+      .replace(/\.{2,}/g, '.')                     // Remove path traversal
+      .slice(0, 255);                              // Limit length
+
     // Parse PDF
     const pdfParse = require('pdf-parse');
     const pdfData = await pdfParse(buffer);

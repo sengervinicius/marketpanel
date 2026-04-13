@@ -38,7 +38,7 @@ function normalizePolygonQuote(t) {
  * tickers display prices even though the batch /api/snapshot/stocks endpoint
  * only handles US equities.
  */
-function WatchlistRow({ sym, quote, onTickerClick, openDetail, removeTicker, handleWhyClick }) {
+const WatchlistRow = memo(function WatchlistRow({ sym, quote, onTickerClick, openDetail, removeTicker, handleWhyClick }) {
   const priceCtx = useTickerPrice(sym);
   const q = quote || {};
   // Prefer batch quote, fall back to PriceContext
@@ -80,7 +80,7 @@ function WatchlistRow({ sym, quote, onTickerClick, openDetail, removeTicker, han
       </div>
     </div>
   );
-}
+});
 
 function WatchlistPanel({ onTickerClick }) {
   const openDetail = useOpenDetail();
