@@ -353,3 +353,49 @@
   font-weight: 600;
   letter-spacing: 0.3px;
 }
+
+/* ── Wave 12C: "Right Now" Wire-powered card ───────────────────────────── */
+.hpm-rightnow-card {
+  margin: 8px 16px;
+  padding: 12px 14px;
+  background: linear-gradient(135deg, rgba(249,115,22,0.08) 0%, rgba(249,115,22,0.02) 100%);
+  border: 1px solid rgba(249,115,22,0.15);
+  border-radius: 12px;
+}
+.hpm-rightnow-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+.hpm-rightnow-badge {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: #F97316;
+  text-transform: uppercase;
+}
+.hpm-rightnow-time {
+  font-size: 10px;
+  color: var(--text-faint, #666);
+}
+.hpm-rightnow-content {
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text-primary, #e8e8e8);
+}
+.hpm-rightnow-tickers {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+.hpm-rightnow-ticker {
+  font-size: 10px;
+  font-weight: 600;
+  color: #F97316;
+  background: rgba(249,115,22,0.12);
+  padding: 2px 6px;
+  border-radius: 4px;
+  letter-spacing: 0.02em;
+}

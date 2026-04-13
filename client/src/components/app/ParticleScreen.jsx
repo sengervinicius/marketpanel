@@ -4,13 +4,15 @@
  * Three.js particle field behind a centered greeting + search bar.
  * Submits queries to /api/search/chat via SSE streaming.
  * Shows conversation history with typing indicator.
+ *
+ * Wave 12: Dynamic greeting, live sentiment strip, empty state, pull-to-refresh
  */
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import ParticleLogo from '../ui/ParticleLogo';
 import useParticleCanvas from './useParticleCanvas';
 import useParticleAI from '../../hooks/useParticleAI';
 import { useWireLatest, useMorningBrief } from '../../hooks/useWire';
-import { useStocksData } from '../../context/MarketContext';
+import { useStocksData, useIndicesData } from '../../context/MarketContext';
 import { useBehaviorTracker, useSmartChips } from '../../hooks/useBehavior';
 
 export default function ParticleScreen() {
@@ -34,12 +36,20 @@ export default function ParticleScreen() {
   try { stocksData = useStocksData(); } catch (e) { /* MarketContext may not be available */ }
   const marketData = useMemo(() => stocksData ? { stocks: stocksData } : null, [stocksData]);
 
-  // Determine canvas mood from conversation state
+  // Live indices for sentiment strip (Wave 12)
+  let indicesData = null;
+  try { indicesData = useIndicesData(); } catch (e) { /* ok */ }
+
+  // Compute market state for dynamic greeting (Wave 12)
+  const marketState = useMemo(() => computeMarketState(indicesData), [indicesData]);
+
+  // Determine canvas mood from conversation state + market data
   const mood = useMemo(() => {
     if (isStreaming) return 'volatile';
     if (messages.length > 0) return 'bullish';
-    return 'neutral';
-  }, [isStreaming, messages.length]);
+    if (marketState.closed) return 'neutral'; // calm when market closed
+    return marketState.mood || 'neutral';
+  }, [isStreaming, messages.length, marketState]);
 
   // Tap-to-ask: when user taps a data particle, pre-fill search
   const handleParticleTap = useCallback((particle) => {
@@ -55,7 +65,7 @@ export default function ParticleScreen() {
   // Three.js particle canvas (now data-driven)
   const canvasRef = useParticleCanvas({
     mood,
-    particleCount: 40,
+    particleCount: marketState.closed ? 25 : 40, // fewer particles when market closed
     marketData,
     onParticleTap: handleParticleTap,
   });
@@ -92,10 +102,37 @@ export default function ParticleScreen() {
     inputRef.current?.focus();
   }, [clear]);
 
-  // Focus search bar on '/' key
+  // Pull-to-refresh (Wave 12B) — in welcome state only
+  const pullRef = useRef(null);
+  const touchStartY = useRef(0);
+  const [pullProgress, setPullProgress] = useState(0);
+
+  const handleTouchStart = useCallback((e) => {
+    if (inConversation) return;
+    touchStartY.current = e.touches[0].clientY;
+  }, [inConversation]);
+
+  const handleTouchMove = useCallback((e) => {
+    if (inConversation) return;
+    const diff = e.touches[0].clientY - touchStartY.current;
+    if (diff > 0 && diff < 120) {
+      setPullProgress(Math.min(diff / 80, 1));
+    }
+  }, [inConversation]);
+
+  const handleTouchEnd = useCallback(() => {
+    if (pullProgress >= 1) {
+      // Trigger refresh — clear conversation and let data re-fetch
+      clear();
+      setQuery('');
+    }
+    setPullProgress(0);
+  }, [pullProgress, clear]);
+
+  // Focus search bar on '/' key — only in welcome state (Wave 12B)
   useEffect(() => {
     const onKey = (e) => {
-      if (e.key === '/' && document.activeElement !== inputRef.current) {
+      if (e.key === '/' && !inConversation && document.activeElement !== inputRef.current) {
         e.preventDefault();
         inputRef.current?.focus();
       }
@@ -106,19 +143,38 @@ export default function ParticleScreen() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [isStreaming, stop]);
+  }, [isStreaming, stop, inConversation]);
 
   return (
-    <div className="particle-screen">
+    <div
+      className="particle-screen"
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
+      {/* Pull-to-refresh indicator */}
+      {pullProgress > 0 && (
+        <div className="particle-pull-indicator" style={{ opacity: pullProgress, transform: `translateY(${pullProgress * 30}px)` }}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ transform: `rotate(${pullProgress * 180}deg)` }}>
+            <polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+          </svg>
+        </div>
+      )}
+
       {/* Three.js canvas */}
       <canvas ref={canvasRef} className="particle-canvas" aria-hidden="true" />
 
       {/* ── Welcome state (no messages) ── */}
       {!inConversation && (
-        <div className="particle-screen-content">
+        <div className="particle-screen-content" ref={pullRef}>
           <ParticleLogo size={56} glow className="particle-screen-logo" />
-          <h1 className="particle-screen-greeting">Good {getTimeGreeting()}</h1>
-          <p className="particle-screen-subtitle">Ask anything about markets</p>
+
+          {/* Dynamic greeting (Wave 12A) */}
+          <h1 className="particle-screen-greeting">{getDynamicGreeting(marketState)}</h1>
+          <p className="particle-screen-subtitle">{getSubtitle(marketState)}</p>
+
+          {/* Live sentiment strip (Wave 12A) */}
+          <SentimentStrip indices={indicesData} />
 
           {/* Morning Brief card */}
           {brief && !briefDismissed && (
@@ -169,6 +225,20 @@ export default function ParticleScreen() {
               <span className="particle-wire-label">Wire</span>
               <span className="particle-wire-text">{wireLatest.content}</span>
               <span className="particle-wire-time">{wireLatest.timestamp ? formatWireTime(wireLatest.timestamp) : ''}</span>
+            </div>
+          )}
+
+          {/* Market closed empty state (Wave 12A) */}
+          {marketState.closed && !wireLatest && (
+            <div className="particle-closed-state">
+              <span className="particle-closed-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
+                </svg>
+              </span>
+              <span className="particle-closed-text">
+                {marketState.nextOpen ? `Markets open ${marketState.nextOpen}` : 'Markets are closed'}
+              </span>
             </div>
           )}
 
@@ -333,11 +403,109 @@ function renderInline(text) {
   });
 }
 
-function getTimeGreeting() {
+// ── Wave 12A: Dynamic greeting — time + market-state aware ─────────────────
+function getDynamicGreeting(ms) {
   const h = new Date().getHours();
-  if (h < 12) return 'morning';
-  if (h < 17) return 'afternoon';
-  return 'evening';
+  const time = h < 12 ? 'morning' : h < 17 ? 'afternoon' : 'evening';
+
+  if (ms.closed) return `Good ${time}`;
+  if (ms.bigMove) return `Good ${time} — big moves`;
+  if (ms.mood === 'volatile') return `Good ${time} — volatile session`;
+  if (ms.mood === 'bullish') return `Good ${time} — markets up`;
+  if (ms.mood === 'bearish') return `Good ${time} — markets under pressure`;
+  return `Good ${time}`;
+}
+
+function getSubtitle(ms) {
+  if (ms.closed) {
+    return ms.overnightSummary || 'Markets are closed — ask about anything';
+  }
+  if (ms.bigMove) return 'Something\'s happening — ask Particle';
+  return 'Ask anything about markets';
+}
+
+function computeMarketState(indices) {
+  const now = new Date();
+  const h = now.getUTCHours() - 4; // approximate ET
+  const day = now.getDay();
+  const isWeekend = day === 0 || day === 6;
+  const isAfterHours = h < 4 || h >= 20; // extended hours window
+  const closed = isWeekend || (h < 4 || h >= 20);
+  const premarket = !isWeekend && h >= 4 && h < 9.5;
+
+  let mood = 'neutral';
+  let bigMove = false;
+  let overnightSummary = '';
+  let nextOpen = '';
+
+  if (closed) {
+    if (isWeekend) {
+      nextOpen = day === 6 ? 'Monday 9:30 AM' : 'tomorrow 9:30 AM';
+    } else if (h >= 20) {
+      nextOpen = 'tomorrow 9:30 AM';
+    } else {
+      nextOpen = 'today at 9:30 AM';
+    }
+  }
+
+  // Determine mood from indices
+  if (indices) {
+    const spyData = indices['SPY'] || indices['spy'];
+    const vixData = indices['VIX'] || indices['vix'] || indices['^VIX'];
+
+    if (spyData?.changePct != null) {
+      const pct = spyData.changePct;
+      if (Math.abs(pct) > 1.5) bigMove = true;
+      if (pct > 0.3) mood = 'bullish';
+      else if (pct < -0.3) mood = 'bearish';
+    }
+    if (vixData?.price != null) {
+      if (vixData.price > 25) mood = 'volatile';
+      if (vixData.price > 30) { mood = 'volatile'; bigMove = true; }
+    }
+
+    // Build overnight summary for closed state
+    if (closed && spyData?.changePct != null) {
+      const dir = spyData.changePct > 0 ? 'up' : 'down';
+      overnightSummary = `S&P closed ${dir} ${Math.abs(spyData.changePct).toFixed(1)}% in the last session`;
+    }
+  }
+
+  return { closed, premarket, mood, bigMove, overnightSummary, nextOpen };
+}
+
+// ── Wave 12A: Live sentiment strip — scrolling index + prediction bar ──────
+function SentimentStrip({ indices }) {
+  const items = useMemo(() => {
+    if (!indices) return [];
+    const TICKERS = ['SPY', 'QQQ', 'DIA', 'IWM', 'VIX'];
+    const LABELS  = { SPY: 'S&P 500', QQQ: 'Nasdaq', DIA: 'Dow', IWM: 'Russell', VIX: 'VIX' };
+    return TICKERS
+      .map(t => {
+        const d = indices[t] || indices[t.toLowerCase()];
+        if (!d || d.price == null) return null;
+        return {
+          label: LABELS[t] || t,
+          price: d.price,
+          pct: d.changePct ?? 0,
+          ticker: t,
+        };
+      })
+      .filter(Boolean);
+  }, [indices]);
+
+  if (items.length === 0) return null;
+
+  return (
+    <div className="particle-sentiment-strip">
+      {items.map(it => (
+        <span key={it.ticker} className={`particle-sentiment-item ${it.pct >= 0 ? 'up' : 'down'}`}>
+          <span className="particle-sentiment-label">{it.label}</span>
+          <span className="particle-sentiment-pct">{it.pct >= 0 ? '+' : ''}{it.pct.toFixed(1)}%</span>
+        </span>
+      ))}
+    </div>
+  );
 }
 
 // ── Morning Brief Card ──────────────────────────────────────────────────────

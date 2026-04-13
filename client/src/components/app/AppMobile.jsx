@@ -132,10 +132,12 @@ export function MobileTabBar({ activeTab, onTabChange }) {
   );
 }
 
-// ── NEW: 2-state Particle/Terminal bottom bar ────────────────────────────────
+// ── NEW: 2-state Particle/Terminal bottom bar (Wave 12B polish) ──────────────
 export function ParticleModeBar({ mode, onModeChange }) {
   return (
     <nav className="p-mode-bar">
+      {/* Sliding highlight indicator */}
+      <div className="p-mode-slider" data-mode={mode} />
       <button
         className="p-mode-btn"
         data-mode="particle"

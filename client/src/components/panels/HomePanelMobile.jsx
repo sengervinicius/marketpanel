@@ -17,6 +17,7 @@ import {
 } from '../../utils/constants';
 import { getMobileHomeScreens } from '../../config/templates';
 import { checkAIAvailable } from '../../hooks/useAIInsight';
+import { useWireLatest } from '../../hooks/useWire';
 import './HomePanelMobile.css';
 
 // Curated sections aligned to SENGER_HOME_SCREEN_REPORT.md audit
@@ -199,6 +200,9 @@ function HomePanelMobile({ onSearchClick }) {
   const [aiPulseLoading, setAiPulseLoading] = useState(false);
   const [aiPulseError, setAiPulseError] = useState(null);
 
+  // Wire data for "Right Now" card (Wave 12C)
+  const wireLatest = useWireLatest();
+
   // ── Pull-to-refresh ──────────────────────────────────────────
   const [refreshing, setRefreshing] = useState(false);
   const [pullY, setPullY] = useState(0);
@@ -352,6 +356,31 @@ function HomePanelMobile({ onSearchClick }) {
         )}
         {aiPulse && <div className="hpm-ai-result">{aiPulse}</div>}
       </div>
+
+      {/* "Right Now" card — Wire-powered headline (Wave 12C) */}
+      {wireLatest?.content && (
+        <div className="hpm-rightnow-card">
+          <div className="hpm-rightnow-header">
+            <span className="hpm-rightnow-badge">RIGHT NOW</span>
+            <span className="hpm-rightnow-time">
+              {wireLatest.timestamp ? (() => {
+                const d = Date.now() - new Date(wireLatest.timestamp).getTime();
+                if (d < 60000) return 'now';
+                if (d < 3600000) return Math.floor(d / 60000) + 'm ago';
+                return new Date(wireLatest.timestamp).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+              })() : ''}
+            </span>
+          </div>
+          <div className="hpm-rightnow-content">{wireLatest.content}</div>
+          {wireLatest.tickers?.length > 0 && (
+            <div className="hpm-rightnow-tickers">
+              {wireLatest.tickers.map(t => (
+                <span key={t} className="hpm-rightnow-ticker">${t}</span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Market Screens Gallery — horizontal scroll */}
       <MarketScreensGallery onApplyScreen={applyTemplate} />

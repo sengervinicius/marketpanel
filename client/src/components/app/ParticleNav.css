@@ -2,6 +2,7 @@
 
 /* ── Primary 2-state toggle (bottom bar) ─────────────── */
 .p-mode-bar {
+  position: relative;
   display: flex;
   background: var(--color-bg, #080808);
   border-top: 1px solid var(--color-border, rgba(255,255,255,0.07));
@@ -10,7 +11,29 @@
   gap: 8px;
 }
 
+/* Sliding highlight pill behind the active button */
+.p-mode-slider {
+  position: absolute;
+  top: 6px;
+  height: 40px;
+  width: calc(50% - 20px);
+  border-radius: var(--radius-md, 10px);
+  background: var(--color-particle-dim, rgba(249,115,22,0.10));
+  border: 1px solid var(--color-particle, #F97316);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), background 0.3s ease, border-color 0.3s ease;
+  pointer-events: none;
+  z-index: 0;
+  left: 16px;
+}
+.p-mode-slider[data-mode="terminal"] {
+  transform: translateX(calc(100% + 8px));
+  background: var(--color-surface, #0f0f0f);
+  border-color: var(--color-text-primary, #fff);
+}
+
 .p-mode-btn {
+  position: relative;
+  z-index: 1;
   flex: 1;
   min-height: 40px;
   display: flex;
@@ -18,7 +41,7 @@
   justify-content: center;
   gap: 8px;
   background: transparent;
-  border: 1px solid var(--color-border, rgba(255,255,255,0.07));
+  border: 1px solid transparent;
   border-radius: var(--radius-md, 10px);
   color: var(--color-text-muted, #555);
   font-family: var(--font-body, inherit);
@@ -26,23 +49,17 @@
   font-weight: 600;
   letter-spacing: 0.04em;
   cursor: pointer;
-  transition: all var(--duration-fast, 150ms) var(--ease-out-expo, ease);
+  transition: color 0.25s ease;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
 }
 
-.p-mode-btn[data-active="true"] {
-  border-color: var(--color-particle, #F97316);
-}
-
 .p-mode-btn[data-active="true"][data-mode="particle"] {
   color: var(--color-particle, #F97316);
-  background: var(--color-particle-dim, rgba(249,115,22,0.10));
 }
 
 .p-mode-btn[data-active="true"][data-mode="terminal"] {
   color: var(--color-text-primary, #fff);
-  background: var(--color-surface, #0f0f0f);
 }
 
 .p-mode-btn-icon {
@@ -726,6 +743,110 @@
     padding: 12px 16px;
   }
   .particle-wire-text { font-size: 13px; }
+  .particle-sentiment-strip {
+    gap: 18px;
+    font-size: 12px;
+  }
+  .particle-sentiment-item { font-size: 12px; }
+  .particle-closed-state {
+    max-width: 400px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════ */
+/* Wave 12 — Mobile Experience Polish                                        */
+/* ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── 12A: Live Sentiment Strip ─────────────────────────────────────────── */
+.particle-sentiment-strip {
+  display: flex;
+  gap: 12px;
+  padding: 6px 0 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  justify-content: center;
+  flex-wrap: nowrap;
+  margin-bottom: 4px;
+}
+.particle-sentiment-strip::-webkit-scrollbar { display: none; }
+
+.particle-sentiment-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.particle-sentiment-label {
+  color: var(--text-secondary, #999);
+  font-weight: 500;
+}
+.particle-sentiment-pct {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.particle-sentiment-item.up .particle-sentiment-pct { color: #34d399; }
+.particle-sentiment-item.down .particle-sentiment-pct { color: #f87171; }
+
+/* ── 12A: Market Closed Empty State ────────────────────────────────────── */
+.particle-closed-state {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  margin-top: 8px;
+  color: var(--text-secondary, #999);
+  font-size: 12px;
+  background: rgba(255,255,255,0.03);
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.06);
+}
+.particle-closed-icon {
+  display: flex;
+  align-items: center;
+  opacity: 0.6;
+}
+.particle-closed-text {
+  font-weight: 500;
+}
+
+/* ── 12A: Pull-to-refresh indicator ────────────────────────────────────── */
+.particle-pull-indicator {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  color: var(--text-secondary, #999);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  transition: opacity 0.15s;
+}
+
+/* ── 12B: Mode bar transition polish ───────────────────────────────────── */
+.p-mode-bar {
+  transition: background-color 0.3s ease;
+}
+.p-mode-btn {
+  transition: color 0.25s ease, background-color 0.25s ease, transform 0.15s ease;
+}
+.p-mode-btn:active {
+  transform: scale(0.96);
+}
+.p-mode-btn[data-active="true"] {
+  transition: color 0.15s ease, background-color 0.25s ease;
+}
+
+/* ── 12B: Conversation mode header — minimal in Particle ───────────────── */
+.particle-conv-header {
+  transition: opacity 0.25s ease;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════ */
