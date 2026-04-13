@@ -200,9 +200,10 @@ export function useInstrumentSearch({ debounceMs = 220, registryLimit = 20, enab
     abortRef.current = controller;
 
     try {
-      // Registry search (always)
+      // Registry search (always) — pass noPolygon when Polygon is disabled (e.g. comparison search)
+      const registryUrl = `/api/instruments/search?q=${encodeURIComponent(q)}&limit=${registryLimit}${!enablePolygon ? '&noPolygon=1' : ''}`;
       const registryPromise = apiFetch(
-        `/api/instruments/search?q=${encodeURIComponent(q)}&limit=${registryLimit}`,
+        registryUrl,
         { signal: controller.signal }
       ).then(r => r.json()).catch(() => ({ results: [] }));
 

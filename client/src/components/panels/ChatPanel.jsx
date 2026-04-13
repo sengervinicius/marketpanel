@@ -264,13 +264,11 @@ function ChatPanel({ mobile, initialUserId }) {
     setAiLoading(true);
 
     try {
-      const authToken = localStorage.getItem('token');
-      const response = await fetch('/api/search/chat', {
+      const { API_BASE } = await import('../../utils/api');
+      const response = await fetch(`${API_BASE}/api/search/chat`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authToken}`,
-        },
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           messages: [
             ...aiMessages.map(m => ({

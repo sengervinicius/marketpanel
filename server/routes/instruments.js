@@ -796,12 +796,13 @@ router.get('/search', async (req, res) => {
     }));
 
     // ── 2. PARALLEL: Twelve Data + Polygon + Yahoo + B3/KRX name maps ──
+    const skipPolygon = req.query.noPolygon === '1' || req.query.noPolygon === 'true';
     const [tdResult, polyResult, yahooResult] = await Promise.allSettled([
       twelvedata.symbolSearch(q, limit).catch(e => {
         logger.warn('[instruments/search] Twelve Data failed:', e.message);
         return [];
       }),
-      polygonSearch(q, limit),
+      skipPolygon ? Promise.resolve([]) : polygonSearch(q, limit),
       yahooSearch(q, 10),
     ]);
 
