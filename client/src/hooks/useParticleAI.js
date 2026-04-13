@@ -76,6 +76,7 @@ export default function useParticleAI() {
       const decoder = new TextDecoder();
       let buffer = '';
       let fullText = '';
+      let vaultSources = null;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -94,6 +95,19 @@ export default function useParticleAI() {
 
           try {
             const parsed = JSON.parse(payload);
+            // Capture vault citation metadata (sent before the AI stream)
+            if (parsed.vaultSources) {
+              vaultSources = parsed.vaultSources;
+              setMessages(prev => {
+                const updated = [...prev];
+                const last = updated[updated.length - 1];
+                if (last?.role === 'assistant') {
+                  updated[updated.length - 1] = { ...last, vaultSources };
+                }
+                return updated;
+              });
+              continue;
+            }
             if (parsed.chunk) {
               fullText += parsed.chunk;
               // Update the last (assistant) message in-place
@@ -117,7 +131,7 @@ export default function useParticleAI() {
         const updated = [...prev];
         const last = updated[updated.length - 1];
         if (last?.role === 'assistant') {
-          updated[updated.length - 1] = { ...last, content: fullText || '(No response)', streaming: false };
+          updated[updated.length - 1] = { ...last, content: fullText || '(No response)', streaming: false, vaultSources: vaultSources || last.vaultSources };
         }
         return updated;
       });

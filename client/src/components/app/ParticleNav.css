@@ -943,3 +943,42 @@
   margin-bottom: 3px;
   line-height: 1.45;
 }
+
+/* ─── Vault Citation Badges ──────────────────────── */
+
+.particle-vault-citations {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  align-items: center;
+}
+
+.particle-vault-citations-label {
+  font-size: 10px;
+  color: var(--text-faint, rgba(255, 255, 255, 0.4));
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  margin-right: 2px;
+}
+
+.particle-vault-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--accent, #ff6600);
+  background: rgba(255, 102, 0, 0.08);
+  border: 1px solid rgba(255, 102, 0, 0.15);
+  border-radius: 4px;
+  cursor: default;
+}
+
+.particle-vault-badge-tickers {
+  color: var(--text-secondary, rgba(255, 255, 255, 0.6));
+  font-weight: 400;
+}

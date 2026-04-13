@@ -316,6 +316,20 @@ export default function ParticleScreen() {
                   ) : (
                     <ParticleMarkdown text={msg.content} />
                   )}
+                  {/* Vault citation badges */}
+                  {msg.role === 'assistant' && msg.vaultSources && msg.vaultSources.length > 0 && !msg.streaming && (
+                    <div className="particle-vault-citations">
+                      <span className="particle-vault-citations-label">Sources from your vault:</span>
+                      {msg.vaultSources.map((src, si) => (
+                        <span key={si} className="particle-vault-badge" title={`${src.filename}${src.similarity ? ` (${(src.similarity * 100).toFixed(0)}% match)` : ''}`}>
+                          {src.source || src.filename}
+                          {src.tickers && src.tickers.length > 0 && (
+                            <span className="particle-vault-badge-tickers"> {Array.isArray(src.tickers) ? src.tickers.join(', ') : src.tickers}</span>
+                          )}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             ))}

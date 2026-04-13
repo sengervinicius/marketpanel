@@ -3,6 +3,7 @@ import { useSettings } from '../../context/SettingsContext';
 import { useAlerts } from '../../context/AlertsContext';
 import { PANEL_DEFINITIONS, DEFAULT_LAYOUT } from '../../config/panels';
 import UserAvatar from '../common/UserAvatar';
+import VaultPanel from './VaultPanel';
 
 // ── Settings Drawer Constants ────────────────────────────────────────────────
 // Convert PANEL_DEFINITIONS to array of { id, label }
@@ -164,6 +165,10 @@ export function SettingsDrawer({ panelVisible, togglePanel, onClose }) {
           </div>
         );
       })}
+
+      {/* ── Knowledge Vault ── */}
+      <SettingsSection label="KNOWLEDGE VAULT" />
+      <VaultPanel />
 
       {/* ── Help ── */}
       <SettingsSection label="HELP" />

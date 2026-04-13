@@ -1404,10 +1404,21 @@ router.post('/chat', async (req, res) => {
 
   // ── Vault RAG: retrieve relevant passages from user's private vault ──────
   let vaultContext = '';
+  let vaultSources = []; // For citation metadata sent to client
   try {
     const vault = require('../services/vault');
     const passages = await vault.retrieve(userId, userQuery);
     vaultContext = vault.formatForPrompt(passages);
+    // Extract source metadata for citations
+    if (passages && passages.length > 0) {
+      vaultSources = passages.map(p => ({
+        filename: p.filename || 'Unknown',
+        source: p.doc_metadata?.bank || p.source || '',
+        tickers: p.doc_metadata?.tickers || [],
+        date: p.doc_metadata?.date || '',
+        similarity: p.similarity != null ? parseFloat(p.similarity).toFixed(2) : null,
+      }));
+    }
   } catch (e) {
     // Vault not available — continue without it
     console.error('[Particle/Vault] Retrieval error:', e.message);
@@ -1466,6 +1477,14 @@ ${vaultContext || ''}${marketContext ? `\n--- LIVE MARKET DATA ---\n${marketCont
 
   // Prepare messages for router
   const routerMessages = history.map(m => ({ role: m.role, content: m.content }));
+
+  // Send vault citation metadata before the AI stream (client uses this for source badges)
+  if (vaultSources.length > 0) {
+    if (!res.headersSent) {
+      res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' });
+    }
+    res.write(`data: ${JSON.stringify({ vaultSources })}\n\n`);
+  }
 
   // Stream via model router (handles SSE normalization for Perplexity + Anthropic)
   try {

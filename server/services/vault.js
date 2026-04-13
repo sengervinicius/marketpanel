@@ -91,18 +91,34 @@ async function ensureTable() {
       CREATE INDEX IF NOT EXISTS idx_vault_chunks_document ON vault_chunks(document_id)
     `);
 
-    // Try to create vector index (may fail if extension not installed)
+    // Try to create HNSW vector index (better scale than IVFFLAT: no training needed,
+    // better recall, handles growing datasets without re-indexing)
     try {
+      // Drop old IVFFLAT index if it exists, replace with HNSW
+      await pg.query(`DROP INDEX IF EXISTS idx_vault_chunks_embedding`);
       await pg.query(`
-        CREATE INDEX IF NOT EXISTS idx_vault_chunks_embedding
-        ON vault_chunks USING ivfflat (embedding vector_cosine_ops)
-        WITH (lists = 100)
+        CREATE INDEX IF NOT EXISTS idx_vault_chunks_embedding_hnsw
+        ON vault_chunks USING hnsw (embedding vector_cosine_ops)
+        WITH (m = 16, ef_construction = 64)
       `);
-      logger.info('vault', 'Vector index created for semantic search');
+      logger.info('vault', 'HNSW vector index created for semantic search');
     } catch (e) {
-      logger.warn('vault', 'Could not create vector index — semantic search disabled', {
+      logger.warn('vault', 'Could not create HNSW index — trying IVFFLAT fallback', {
         error: e.message,
       });
+      // Fallback to IVFFLAT for older pgvector versions
+      try {
+        await pg.query(`
+          CREATE INDEX IF NOT EXISTS idx_vault_chunks_embedding
+          ON vault_chunks USING ivfflat (embedding vector_cosine_ops)
+          WITH (lists = 100)
+        `);
+        logger.info('vault', 'IVFFLAT vector index created (HNSW not available)');
+      } catch (e2) {
+        logger.warn('vault', 'Could not create any vector index — semantic search degraded', {
+          error: e2.message,
+        });
+      }
     }
 
     logger.info('vault', 'Tables ensured successfully');
