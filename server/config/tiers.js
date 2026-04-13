@@ -17,12 +17,12 @@ const TIERS = {
   // ── Trial / Free (before subscribing) ────────────────────────────────────
   trial: {
     label: 'Trial',
-    vaultDocuments: 3,          // max PDFs in private vault
-    vaultPagesTotal: 50,        // approximate page cap
-    aiQueriesPerDay: 10,
-    deepAnalysisPerDay: 2,
-    morningBrief: 'basic',      // market-only (no vault enrichment)
-    predictionMarkets: 'view',  // view only, no alerts
+    vaultDocuments: 5,           // max PDFs in private vault
+    vaultPagesTotal: 100,        // approximate page cap
+    aiQueriesPerDay: 15,
+    deepAnalysisPerDay: 3,
+    morningBrief: 'basic',       // market-only (no vault enrichment)
+    predictionMarkets: 'view',   // view only, no alerts
     centralVaultAccess: 'read',
     price: { monthly: 0, annual: 0 },
   },
@@ -30,10 +30,10 @@ const TIERS = {
   // ── New Particle — $29/mo ────────────────────────────────────────────────
   new_particle: {
     label: 'New Particle',
-    vaultDocuments: 10,
-    vaultPagesTotal: 500,
-    aiQueriesPerDay: 25,
-    deepAnalysisPerDay: 5,
+    vaultDocuments: 50,          // 50 PDFs stored
+    vaultPagesTotal: 2000,
+    aiQueriesPerDay: 50,
+    deepAnalysisPerDay: 10,
     morningBrief: 'basic',
     predictionMarkets: 'view',
     centralVaultAccess: 'read',
@@ -47,10 +47,10 @@ const TIERS = {
   // ── Dark Particle — $79/mo ──────────────────────────────────────────────
   dark_particle: {
     label: 'Dark Particle',
-    vaultDocuments: 50,
-    vaultPagesTotal: 2500,
-    aiQueriesPerDay: 100,
-    deepAnalysisPerDay: 25,
+    vaultDocuments: 250,         // 250 PDFs stored
+    vaultPagesTotal: 10000,
+    aiQueriesPerDay: 200,
+    deepAnalysisPerDay: 50,
     morningBrief: 'full',       // vault-enriched + behavioral profile
     predictionMarkets: 'alerts',
     centralVaultAccess: 'read',

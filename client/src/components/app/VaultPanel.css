@@ -362,3 +362,112 @@
   padding: 0 4px;
   margin-right: 4px;
 }
+
+/* ─── Fullscreen Mode ───────────────────────────── */
+
+.vault-panel--fullscreen {
+  max-height: none;
+  height: 100%;
+  padding: 24px 32px;
+  overflow-y: auto;
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+@media (max-width: 768px) {
+  .vault-panel--fullscreen {
+    padding: 16px;
+    max-width: 100%;
+  }
+}
+
+/* ─── Drag-and-Drop States ──────────────────────── */
+
+.vault-panel--dragover {
+  position: relative;
+}
+
+.vault-panel--dragover .vault-upload-area {
+  border-color: #a855f7;
+  background: rgba(168, 85, 247, 0.06);
+}
+
+.vault-drop-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(8px);
+  border-radius: 8px;
+  border: 2px dashed #a855f7;
+  pointer-events: none;
+}
+
+.vault-drop-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  color: #a855f7;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  animation: vault-drop-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes vault-drop-pulse {
+  0%, 100% { opacity: 0.7; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.04); }
+}
+
+/* ─── Quota Bar ─────────────────────────────────── */
+
+.vault-quota {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.vault-quota-bar {
+  height: 3px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.vault-quota-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #a855f7, #c084fc);
+  border-radius: 2px;
+  transition: width 0.4s ease;
+}
+
+.vault-quota-label {
+  font-size: 10px;
+  color: var(--text-faint, rgba(255, 255, 255, 0.4));
+  letter-spacing: 0.3px;
+}
+
+/* ─── Upload Insight Notification ───────────────── */
+
+.vault-insight {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 12px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: #a855f7;
+  background: rgba(168, 85, 247, 0.08);
+  border: 1px solid rgba(168, 85, 247, 0.15);
+  border-radius: 6px;
+  animation: vault-insight-in 0.3s ease-out;
+}
+
+@keyframes vault-insight-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}

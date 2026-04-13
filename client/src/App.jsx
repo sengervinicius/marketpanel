@@ -39,6 +39,7 @@ import MobileMoreScreen from './components/panels/MobileMoreScreen';
 import ToastContainer from './components/common/ToastContainer';
 import WelcomeModal from './components/onboarding/WelcomeModal';
 import OnboardingTour from './components/common/OnboardingTour';
+import VaultPanel from './components/app/VaultPanel';
 import SectorScreenSelector from './components/common/SectorScreenSelector';
 import MarketStatus from './components/common/MarketStatus';
 import { TickerTooltip } from './components/common/TickerTooltip';
@@ -648,7 +649,7 @@ export default function App() {
         <div className="flex-row app-header-bar" data-tour="header">
           <ParticleLogo size={22} style={{ marginRight: 6 }} /><span className="app-header-title">PARTICLE</span>
 
-          {/* ── Desktop mode toggle: Particle / Terminal ── */}
+          {/* ── Desktop mode toggle: Particle / Terminal / Vault ── */}
           <div className="desktop-mode-toggle" style={{ display: 'inline-flex', marginLeft: 12, gap: 2, background: 'var(--bg-panel, #111)', borderRadius: 6, padding: 2, border: '1px solid var(--border-default, rgba(255,255,255,0.07))' }}>
             <button
               className="btn desktop-mode-btn"
@@ -672,6 +673,17 @@ export default function App() {
                 transition: 'all 150ms ease',
               }}
             >TERMINAL</button>
+            <button
+              className="btn desktop-mode-btn"
+              onClick={() => { setMobileModePersist('vault'); }}
+              style={{
+                padding: '3px 12px', fontSize: 10, fontWeight: 700, letterSpacing: '0.08em',
+                borderRadius: 4, border: 'none', cursor: 'pointer',
+                color: mobileMode === 'vault' ? '#000' : 'var(--text-faint)',
+                background: mobileMode === 'vault' ? '#a855f7' : 'transparent',
+                transition: 'all 150ms ease',
+              }}
+            >VAULT</button>
           </div>
 
           {/* Navigation buttons (terminal mode only) */}
@@ -782,8 +794,15 @@ export default function App() {
           </div>
         )}
 
+        {/* ── Desktop Vault Mode ── */}
+        {mobileMode === 'vault' && !subscriptionExpired && (
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'auto', padding: '0 24px' }}>
+            <VaultPanel fullScreen />
+          </div>
+        )}
+
         {/* ── Desktop Terminal Mode ── */}
-        {mobileMode !== 'particle' && (<>
+        {mobileMode === 'terminal' && (<>
         {/* Search command strip — full width */}
         <div className="app-search-strip" data-tour="search">
           <HeaderSearchBar />
@@ -1118,6 +1137,11 @@ export default function App() {
             {/* ── Particle AI screen (shown when mobileMode === 'particle') ── */}
             <div style={{ flex: 1, display: mobileMode !== 'particle' ? 'none' : 'flex' }}>
               <ParticleScreen />
+            </div>
+
+            {/* ── Vault screen (shown when mobileMode === 'vault') ── */}
+            <div style={{ flex: 1, display: mobileMode !== 'vault' ? 'none' : 'flex', flexDirection: 'column', overflow: 'auto', padding: '0 16px' }}>
+              <VaultPanel fullScreen />
             </div>
 
             {/* Full-page sector screen on mobile — ALWAYS mounted when active, hidden when not */}

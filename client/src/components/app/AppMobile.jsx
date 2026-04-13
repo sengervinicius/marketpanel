@@ -132,12 +132,17 @@ export function MobileTabBar({ activeTab, onTabChange }) {
   );
 }
 
-// ── NEW: 2-state Particle/Terminal bottom bar (Wave 12B polish) ──────────────
+// ── 3-state Particle/Terminal/Vault bottom bar ──────────────────────────────
 export function ParticleModeBar({ mode, onModeChange }) {
+  const modes = ['particle', 'terminal', 'vault'];
+  const activeIdx = modes.indexOf(mode);
   return (
-    <nav className="p-mode-bar">
+    <nav className="p-mode-bar p-mode-bar--3">
       {/* Sliding highlight indicator */}
-      <div className="p-mode-slider" data-mode={mode} />
+      <div className="p-mode-slider p-mode-slider--3" data-mode={mode} style={{
+        width: 'calc(33.333% - 12px)',
+        transform: `translateX(calc(${activeIdx} * (100% + 6px)))`,
+      }} />
       <button
         className="p-mode-btn"
         data-mode="particle"
@@ -145,7 +150,7 @@ export function ParticleModeBar({ mode, onModeChange }) {
         onClick={() => onModeChange('particle')}
       >
         <span className="p-mode-btn-icon">
-          <ParticleLogo size={20} />
+          <ParticleLogo size={18} />
         </span>
         Particle
       </button>
@@ -156,11 +161,24 @@ export function ParticleModeBar({ mode, onModeChange }) {
         onClick={() => onModeChange('terminal')}
       >
         <span className="p-mode-btn-icon">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="4 17 10 11 4 5" /><line x1="12" y1="19" x2="20" y2="19" />
           </svg>
         </span>
         Terminal
+      </button>
+      <button
+        className="p-mode-btn"
+        data-mode="vault"
+        data-active={mode === 'vault'}
+        onClick={() => onModeChange('vault')}
+      >
+        <span className="p-mode-btn-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 2L2 7l10 5 10-5-10-5z" /><path d="M2 17l10 5 10-5" /><path d="M2 12l10 5 10-5" />
+          </svg>
+        </span>
+        Vault
       </button>
     </nav>
   );

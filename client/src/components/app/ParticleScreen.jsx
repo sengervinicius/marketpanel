@@ -148,9 +148,9 @@ export default function ParticleScreen() {
     }
   }, [send]);
 
-  // Three.js particle canvas — Wave 13B: higher count on desktop
-  const desktopCount = marketState.closed ? 50 : 80;
-  const mobileCount  = marketState.closed ? 25 : 40;
+  // Three.js particle canvas — Wave 14: larger, denser field
+  const desktopCount = marketState.closed ? 80 : 120;
+  const mobileCount  = marketState.closed ? 40 : 65;
   const canvasRef = useParticleCanvas({
     mood,
     particleCount: isMobile ? mobileCount : desktopCount,

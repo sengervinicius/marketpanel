@@ -21,9 +21,9 @@ import * as THREE from 'three';
 
 // ── Constants ───────────────────────────────────────────────────────────────
 const BG_COLOR       = 0x050508;
-const GLOW_OPACITY   = 0.45;
+const GLOW_OPACITY   = 0.50;
 const BREATHE_SPEED  = 0.0008;
-const DRIFT_SPEED    = 0.00015;
+const DRIFT_SPEED    = 0.00018;
 const FRUSTUM        = 4;    // camera frustum half-height
 const PULSE_DURATION = 2000; // ms for volume-spike pulse
 const ANOMALY_COLOR  = new THREE.Color(0xef4444); // pre-allocated for animation loop
@@ -245,7 +245,7 @@ export default function useParticleCanvas({
       uniforms: {
         uTime: { value: 0 },
         uColor: { value: new THREE.Color(0xF97316) },
-        uOpacity: { value: 0.08 },
+        uOpacity: { value: 0.10 },
       },
       vertexShader: NEBULA_VERTEX,
       fragmentShader: NEBULA_FRAGMENT,
@@ -270,14 +270,14 @@ export default function useParticleCanvas({
       const x = Math.cos(angle) * radius * aspect;
       const y = Math.sin(angle) * radius;
 
-      const baseScale = 0.14 + Math.random() * 0.06;
+      const baseScale = 0.22 + Math.random() * 0.10;
       const col = changeToColor(changePct, true);
 
       const material = new THREE.MeshBasicMaterial({
         color: col,
         map: glowTex,
         transparent: true,
-        opacity: GLOW_OPACITY * 1.1,
+        opacity: GLOW_OPACITY * 1.15,
         depthTest: false,
         blending: THREE.AdditiveBlending,
       });
@@ -321,14 +321,14 @@ export default function useParticleCanvas({
       const x = Math.cos(angle) * radius * aspect;
       const y = Math.sin(angle) * radius;
 
-      const baseScale = 0.05 + Math.min(Math.abs(changePct) / 10, 0.06);
+      const baseScale = 0.08 + Math.min(Math.abs(changePct) / 8, 0.10);
       const col = changeToColor(changePct, false);
 
       const material = new THREE.MeshBasicMaterial({
         color: col,
         map: glowTex,
         transparent: true,
-        opacity: GLOW_OPACITY * (0.4 + Math.min(Math.abs(changePct) / 5, 0.4)),
+        opacity: GLOW_OPACITY * (0.45 + Math.min(Math.abs(changePct) / 4, 0.45)),
         depthTest: false,
         blending: THREE.AdditiveBlending,
       });
@@ -408,13 +408,13 @@ export default function useParticleCanvas({
     }
 
     // 4) AMBIENT particles — filler for atmosphere
-    const ambientCount = Math.max(particleCount - particles.length, 5);
+    const ambientCount = Math.max(particleCount - particles.length, 10);
     for (let i = 0; i < ambientCount; i++) {
       const angle  = Math.random() * Math.PI * 2;
-      const radius = Math.random() * FRUSTUM * (0.3 + Math.random() * 0.7);
+      const radius = Math.random() * FRUSTUM * (0.2 + Math.random() * 0.8);
       const x = Math.cos(angle) * radius * aspect;
       const y = Math.sin(angle) * radius;
-      const baseScale = 0.02 + Math.random() * 0.04;
+      const baseScale = 0.03 + Math.random() * 0.06;
 
       const col = new THREE.Color(0xF97316).multiplyScalar(0.3 + Math.random() * 0.3);
       const material = new THREE.MeshBasicMaterial({
@@ -442,12 +442,12 @@ export default function useParticleCanvas({
     }
 
     // Centre glow (larger, softer with glow texture)
-    const glowGeo  = new THREE.PlaneGeometry(8 * aspect, 8);
+    const glowGeo  = new THREE.PlaneGeometry(10 * aspect, 10);
     const glowMat  = new THREE.MeshBasicMaterial({
       color: 0xF97316,
       map: glowTex,
       transparent: true,
-      opacity: 0.06,
+      opacity: 0.07,
       depthTest: false,
       blending: THREE.AdditiveBlending,
     });
@@ -459,8 +459,8 @@ export default function useParticleCanvas({
     const raycaster = new THREE.Raycaster();
 
     // ── FEATURE 1: Connection lines between nearby particles ────────────────
-    // Pre-allocate buffer for 50 lines (100 vertices, 300 floats)
-    const linePositions = new Float32Array(300);
+    // Pre-allocate buffer for 80 lines (160 vertices, 480 floats)
+    const linePositions = new Float32Array(480);
     const lineGeometry = new THREE.BufferGeometry();
     lineGeometry.setAttribute('position', new THREE.BufferAttribute(linePositions, 3));
     lineGeometry.setDrawRange(0, 0); // Start with 0 lines visible
