@@ -126,7 +126,7 @@ export default function LoginScreen({ children }) {
           const mod = await import(/* @vite-ignore */ pluginId);
           const SignInWithApple = mod.SignInWithApple || mod.default;
           const result = await SignInWithApple.authorize({
-            clientId: import.meta.env.VITE_APPLE_CLIENT_ID || 'com.senger.market',
+            clientId: import.meta.env.VITE_APPLE_CLIENT_ID || 'com.particle.market',
             redirectURI: import.meta.env.VITE_APPLE_REDIRECT_URI || window.location.origin,
             scopes: 'email name',
           });

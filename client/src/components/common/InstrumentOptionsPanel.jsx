@@ -1,7 +1,7 @@
 /**
  * InstrumentOptionsPanel.jsx — Options chain, strategy builder, payoff chart.
  *
- * Phase 20: First-pass options feature for the Senger Market Terminal.
+ * Phase 20: First-pass options feature for the Particle Market Terminal.
  *
  * Props:
  *   symbol:  string (underlying ticker)

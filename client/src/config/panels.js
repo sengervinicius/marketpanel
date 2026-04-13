@@ -1,6 +1,6 @@
 /**
  * panels.js
- * Canonical panel definitions for the Senger Market Terminal.
+ * Canonical panel definitions for the Particle Market Terminal.
  * Each entry defines the panel's default title, symbols, allowed instrument groups
  * for the PanelConfigModal, and a display label.
  *

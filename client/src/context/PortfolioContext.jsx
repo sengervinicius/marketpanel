@@ -24,10 +24,14 @@ import { useAuth } from './AuthContext';
 import { apiFetch } from '../utils/api';
 
 const PortfolioContext = createContext(null);
-const LS_KEY = 'senger_portfolio_v1';
-const LEGACY_WL_KEY = 'senger_watchlist_v1';
+const LS_KEY = 'particle_portfolio_v1';
+const LEGACY_WL_KEY = 'particle_watchlist_v1';
 const MAX_POSITIONS = 200;
 const SYNC_DEBOUNCE_MS = 1000;
+
+// Migrate legacy keys (at top level)
+try { const v = localStorage.getItem('senger_portfolio_v1'); if (v !== null) { localStorage.setItem('particle_portfolio_v1', v); localStorage.removeItem('senger_portfolio_v1'); } } catch {}
+try { const v = localStorage.getItem('senger_watchlist_v1'); if (v !== null) { localStorage.setItem('particle_watchlist_v1', v); localStorage.removeItem('senger_watchlist_v1'); } } catch {}
 
 // ── ID generation ──
 let _idCounter = Date.now();

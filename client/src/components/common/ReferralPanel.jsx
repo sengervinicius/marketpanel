@@ -54,7 +54,7 @@ export default function ReferralPanel() {
     } catch { /* silent */ }
   }, [referralCode]);
 
-  const inviteText = `Join me on Particle — the AI-powered market terminal. Use my code ${referralCode}! https://senger.market`;
+  const inviteText = `Join me on Particle — the AI-powered market terminal. Use my code ${referralCode}! https://particle.market`;
 
   const handleCopyInvite = useCallback(async () => {
     try {

@@ -18,6 +18,7 @@ import { useAIChatWithContext } from '../../hooks/useAIChatWithContext';
 import { apiFetch } from '../../utils/api';
 import { WS_URL } from '../../utils/constants';
 import UserAvatar from '../common/UserAvatar';
+import ParticleLogo from '../ui/ParticleLogo';
 import './Chat.css';
 
 function timeAgo(ts) {
@@ -429,7 +430,7 @@ function ChatPanel({ mobile, initialUserId }) {
         {!searchQuery && (
           <div className={`chat-ai-entry${activeChatUser?.id === 'ai-assistant' ? ' chat-ai-entry--active' : ''}`}
             onClick={() => openConversation({ id: 'ai-assistant', username: 'AI Assistant' })}>
-            <div className="chat-ai-avatar">🤖</div>
+            <div className="chat-ai-avatar"><ParticleLogo size={18} /></div>
             <div className="chat-ai-entry-body">
               <div className="chat-ai-entry-name">AI Assistant</div>
               <div className="chat-ai-entry-hint">Chat with AI</div>
@@ -489,7 +490,7 @@ function ChatPanel({ mobile, initialUserId }) {
             </button>
           )}
           <div className="chat-header-title">
-            <span style={{ fontSize: '18px', marginRight: '8px' }}>🤖</span>
+            <div style={{ marginRight: '8px' }}><ParticleLogo size={18} /></div>
             <div>
               <span className="chat-header-name">AI Assistant</span>
               <div className="chat-header-status chat-header-status--online">
@@ -503,7 +504,7 @@ function ChatPanel({ mobile, initialUserId }) {
         <div className="chat-messages">
           {aiMessages.length === 0 && (
             <div className="chat-empty">
-              <div className="chat-empty-icon">🤖</div>
+              <div className="chat-empty-icon"><ParticleLogo size={32} /></div>
               <div className="chat-empty-title">Start a conversation</div>
               <div>Ask AI Assistant anything below.</div>
             </div>

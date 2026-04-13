@@ -1,6 +1,6 @@
 /**
  * Header — top bar with:
- *  - Senger Market Terminal branding
+ *  - Particle Market Terminal branding
  *  - Multi-timezone clocks
  *  - Market status indicator
  *  - Theme toggle (dark / light)

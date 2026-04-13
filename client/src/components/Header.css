@@ -25,7 +25,7 @@
   font-size: 13px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  animation: senger-pulse 3s ease-in-out infinite;
+  animation: particle-pulse 3s ease-in-out infinite;
 }
 
 .hdr-status-row {
@@ -172,7 +172,7 @@
   font-size: 9px;
 }
 
-@keyframes senger-pulse {
+@keyframes particle-pulse {
   0%, 100% {
     opacity: 1;
   }

@@ -44,11 +44,14 @@ const TOUR_STEPS = [
   },
 ];
 
-const STORAGE_KEY = 'senger_onboarding_complete';
+const STORAGE_KEY = 'particle_onboarding_complete';
 
 function OnboardingTour({ onComplete }) {
   const [step, setStep] = useState(0);
   const [visible, setVisible] = useState(false);
+
+  // Migrate legacy key
+  try { const v = localStorage.getItem('senger_onboarding_complete'); if (v !== null) { localStorage.setItem('particle_onboarding_complete', v); localStorage.removeItem('senger_onboarding_complete'); } } catch {}
   const [targetRect, setTargetRect] = useState(null);
 
   useEffect(() => {

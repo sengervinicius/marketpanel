@@ -2285,7 +2285,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
             <button
               className="id-breadcrumb-link"
               onClick={() => {
-                window.dispatchEvent(new CustomEvent('senger:navigate-screen', {
+                window.dispatchEvent(new CustomEvent('particle:navigate-screen', {
                   detail: { screenId: sectorContext.toLowerCase().replace(/\s+/g, '-') }
                 }));
                 handleClose();

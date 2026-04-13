@@ -7,9 +7,12 @@
 import { createContext, useContext, useState, useCallback } from 'react';
 
 const WatchlistContext = createContext(null);
-const LS_KEY = 'senger_watchlist_v1';
+const LS_KEY = 'particle_watchlist_v1';
 // Maximum watchlist size and duplicate protection (case-insensitive)
 const MAX_WATCHLIST_SIZE = 50;
+
+// Migrate legacy key (at top level)
+try { const v = localStorage.getItem('senger_watchlist_v1'); if (v !== null) { localStorage.setItem('particle_watchlist_v1', v); localStorage.removeItem('senger_watchlist_v1'); } } catch {}
 
 const SEED_WATCHLIST = ['SPY', 'QQQ', 'AAPL', 'NVDA', 'GLD', 'BTCUSD', 'EWZ'];
 

@@ -321,7 +321,7 @@ function AlertEditor({
           {!isEditing && symbol.trim() && (
             <div className="pf-ai-suggestions">
               <div className="pf-ai-suggestion-header">
-                <span>🤖 AI SUGGESTIONS</span>
+                <span>AI SUGGESTIONS</span>
               </div>
 
               {aiLoading && (

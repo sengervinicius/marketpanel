@@ -7,8 +7,11 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { apiFetch } from '../utils/api';
 
-const LS_THEME   = 'senger_theme';
+const LS_THEME   = 'particle_theme';
 const ThemeContext = createContext(null);
+
+// Migrate legacy key (at top level so it runs before component mounts)
+try { const v = localStorage.getItem('senger_theme'); if (v !== null) { localStorage.setItem('particle_theme', v); localStorage.removeItem('senger_theme'); } } catch {}
 
 // Variable names must match the :root tokens in App.css
 const THEMES = {

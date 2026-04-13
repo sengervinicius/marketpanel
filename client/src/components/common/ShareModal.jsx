@@ -80,11 +80,11 @@ export default function ShareModal({ isOpen, onClose, cardType, cardData }) {
     if (!fullImageUrl) return;
     const a = document.createElement('a');
     a.href = fullImageUrl;
-    a.download = `senger-${cardType}-card.png`;
+    a.download = `particle-${cardType}-card.png`;
     a.click();
   };
 
-  const shareUrl = 'https://senger.market';
+  const shareUrl = 'https://particle.market';
 
   const handleWhatsApp = () => {
     const text = encodeURIComponent(`${shareText}\n${shareUrl}`);

@@ -105,6 +105,7 @@ export default function useParticleCanvas({
   const mouseRef     = useRef({ x: 0, y: 0, active: false }); // desktop parallax
   const tooltipRef   = useRef(null);  // tooltip DOM element
   const dataRef      = useRef({ marketData, predictions, mood, onParticleTap });
+  const holdTimerRef = useRef(null);  // for 500ms hold gesture
 
   // Keep dataRef current without re-initing
   useEffect(() => {
@@ -339,9 +340,26 @@ export default function useParticleCanvas({
     // Raycaster for interaction
     const raycaster = new THREE.Raycaster();
 
+    // ── FEATURE 1: Connection lines between nearby particles ────────────────
+    // Pre-allocate buffer for 50 lines (100 vertices, 300 floats)
+    const linePositions = new Float32Array(300);
+    const lineGeometry = new THREE.BufferGeometry();
+    lineGeometry.setAttribute('position', new THREE.BufferAttribute(linePositions, 3));
+    lineGeometry.setDrawRange(0, 0); // Start with 0 lines visible
+
+    const lineMaterial = new THREE.LineBasicMaterial({
+      color: 0xF97316,
+      transparent: true,
+      opacity: 0.15,
+      depthTest: false,
+    });
+    const lineMesh = new THREE.LineSegments(lineGeometry, lineMaterial);
+    scene.add(lineMesh);
+
     stateRef.current = {
       renderer, camera, scene, particles, glowMesh,
       width, height, aspect, raycaster, geometry, ringGeo,
+      lineGeometry, lineMesh, linePositions,
     };
   }, [particleCount]);
 
@@ -429,6 +447,45 @@ export default function useParticleCanvas({
 
       // Centre glow
       glowMesh.material.opacity = 0.02 + Math.sin(breatheT * 0.7) * 0.01 * moodCfg.glowMul;
+
+      // ── FEATURE 1: Update connection lines ────────────────────────────
+      const nonAmbientParticles = particles.filter(p => p.type !== 'ambient');
+      const MAX_LINES = 50;
+      const DISTANCE_THRESHOLD = 2.5;
+      let lineCount = 0;
+      const posArray = state.linePositions;
+
+      for (let i = 0; i < nonAmbientParticles.length && lineCount < MAX_LINES; i++) {
+        const p1 = nonAmbientParticles[i];
+        for (let j = i + 1; j < nonAmbientParticles.length && lineCount < MAX_LINES; j++) {
+          const p2 = nonAmbientParticles[j];
+
+          const dx = p2.mesh.position.x - p1.mesh.position.x;
+          const dy = p2.mesh.position.y - p1.mesh.position.y;
+          const distSq = dx * dx + dy * dy;
+          const dist = Math.sqrt(distSq);
+
+          if (dist < DISTANCE_THRESHOLD) {
+            // Fade opacity as distance approaches threshold
+            const opacity = 0.15 * (1 - dist / DISTANCE_THRESHOLD);
+
+            // Write line start and end positions to buffer
+            const idx = lineCount * 6; // Each line = 2 vertices, each vertex = 3 floats
+            posArray[idx]     = p1.mesh.position.x;
+            posArray[idx + 1] = p1.mesh.position.y;
+            posArray[idx + 2] = p1.mesh.position.z;
+            posArray[idx + 3] = p2.mesh.position.x;
+            posArray[idx + 4] = p2.mesh.position.y;
+            posArray[idx + 5] = p2.mesh.position.z;
+
+            lineCount++;
+          }
+        }
+      }
+
+      state.lineGeometry.attributes.position.needsUpdate = true;
+      state.lineGeometry.setDrawRange(0, lineCount * 2); // lineCount * 2 vertices
+      state.lineMesh.material.opacity = 0.15;
 
       renderer.render(scene, camera);
     };
@@ -523,8 +580,75 @@ export default function useParticleCanvas({
       }
     }
 
-    // Touch support for mobile
+    // ── FEATURE 2: Hold gesture (500ms) ──────────────────────────────────
+    let holdTouchX = 0;
+    let holdTouchY = 0;
+
+    function onTouchStart(e) {
+      if (e.touches.length === 0) return;
+      const touch = e.touches[0];
+      holdTouchX = touch.clientX;
+      holdTouchY = touch.clientY;
+
+      // Start 500ms hold timer
+      holdTimerRef.current = setTimeout(() => {
+        const state = stateRef.current;
+        if (!state) return;
+
+        const rect = canvas.getBoundingClientRect();
+        const pointer = new THREE.Vector2(
+          ((holdTouchX - rect.left) / rect.width) * 2 - 1,
+          -((holdTouchY - rect.top) / rect.height) * 2 + 1,
+        );
+
+        state.raycaster.setFromCamera(pointer, state.camera);
+        const intersects = state.raycaster.intersectObjects(
+          state.particles.filter(p => p.type !== 'ambient').map(p => p.mesh),
+        );
+
+        if (intersects.length > 0) {
+          const hitMesh = intersects[0].object;
+          const hitP = state.particles.find(p => p.mesh === hitMesh);
+          if (hitP && hitP.ticker) {
+            // Dispatch custom event with particle data
+            const event = new CustomEvent('particle-hold', {
+              detail: {
+                ticker: hitP.ticker,
+                type: hitP.type,
+                changePct: hitP.changePct,
+                price: hitP.price,
+              },
+            });
+            canvas.dispatchEvent(event);
+          }
+        }
+      }, 500);
+    }
+
+    function onTouchMove(e) {
+      if (e.touches.length === 0) return;
+      const touch = e.touches[0];
+      const dx = touch.clientX - holdTouchX;
+      const dy = touch.clientY - holdTouchY;
+      const moveDistance = Math.sqrt(dx * dx + dy * dy);
+
+      // Cancel hold if moved >10px (it's a scroll)
+      if (moveDistance > 10) {
+        if (holdTimerRef.current) {
+          clearTimeout(holdTimerRef.current);
+          holdTimerRef.current = null;
+        }
+      }
+    }
+
     function onTouchEnd(e) {
+      // Cancel hold timer on touch end
+      if (holdTimerRef.current) {
+        clearTimeout(holdTimerRef.current);
+        holdTimerRef.current = null;
+      }
+
+      // Also handle tap (quick release)
       if (e.changedTouches.length === 0) return;
       const touch = e.changedTouches[0];
       onClick({ clientX: touch.clientX, clientY: touch.clientY });
@@ -533,12 +657,20 @@ export default function useParticleCanvas({
     canvas.addEventListener('mousemove', onMouseMove);
     canvas.addEventListener('mouseleave', onMouseLeave);
     canvas.addEventListener('click', onClick);
+    canvas.addEventListener('touchstart', onTouchStart);
+    canvas.addEventListener('touchmove', onTouchMove);
     canvas.addEventListener('touchend', onTouchEnd);
 
     return () => {
+      if (holdTimerRef.current) {
+        clearTimeout(holdTimerRef.current);
+        holdTimerRef.current = null;
+      }
       canvas.removeEventListener('mousemove', onMouseMove);
       canvas.removeEventListener('mouseleave', onMouseLeave);
       canvas.removeEventListener('click', onClick);
+      canvas.removeEventListener('touchstart', onTouchStart);
+      canvas.removeEventListener('touchmove', onTouchMove);
       canvas.removeEventListener('touchend', onTouchEnd);
     };
   }, []);
@@ -598,6 +730,8 @@ export default function useParticleCanvas({
         state.glowMesh.material.dispose();
         state.geometry.dispose();
         state.ringGeo.dispose();
+        state.lineGeometry.dispose();
+        state.lineMesh.material.dispose();
         state.renderer.dispose();
         stateRef.current = null;
       }

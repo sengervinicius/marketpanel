@@ -1,6 +1,6 @@
 /**
  * DefenceScreen.jsx — Full-page Sector Screen
- * Comprehensive Defence & Aerospace coverage for the Senger Market Terminal.
+ * Comprehensive Defence & Aerospace coverage for the Particle Market Terminal.
  * Integrates FullPageScreenLayout, FundamentalsTable, SectorChartPanel, SectorScatterPlot,
  * MiniFinancials, and InsiderActivity for multi-dimensional sector analysis.
  */

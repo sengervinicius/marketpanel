@@ -1,7 +1,7 @@
 /**
  * LandingPage.jsx
  *
- * Minimal, aesthetic landing page for Senger Market Terminal.
+ * Minimal, aesthetic landing page for Particle Market Terminal.
  * Inspired by Flow and Nine to Five design principles:
  * - Extreme whitespace (dark space in our case)
  * - Bold, oversized typography as hero

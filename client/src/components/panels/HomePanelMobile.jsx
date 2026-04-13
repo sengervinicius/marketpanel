@@ -20,7 +20,7 @@ import { checkAIAvailable } from '../../hooks/useAIInsight';
 import { useWireLatest } from '../../hooks/useWire';
 import './HomePanelMobile.css';
 
-// Curated sections aligned to SENGER_HOME_SCREEN_REPORT.md audit
+// Curated sections aligned to PARTICLE_HOME_SCREEN_REPORT.md audit
 // Order: US leadership → global overview → FX → crypto → commodities → Brazil
 const MOBILE_HOME_SECTIONS = [
   { id: 'us-equities',    label: 'US Equities' },

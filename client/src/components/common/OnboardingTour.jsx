@@ -1,6 +1,6 @@
 /**
  * OnboardingTour.jsx
- * Custom 5-step spotlight tour for new Senger Market Terminal users.
+ * Custom 5-step spotlight tour for new Particle Market Terminal users.
  *
  * Features:
  * - Full opaque overlay with spotlight cutout on the target element
@@ -165,9 +165,11 @@ export default function OnboardingTour() {
 
   // Start tour if not completed — check both server settings AND localStorage fallback
   useEffect(() => {
+    // Migrate legacy key
+    try { const v = localStorage.getItem('senger_tour_completed'); if (v !== null) { localStorage.setItem('particle_tour_completed', v); localStorage.removeItem('senger_tour_completed'); } } catch {}
     if (!settings) return;
     // localStorage fallback: if server settings lost the flag, don't re-show tour
-    const localDone = localStorage.getItem('senger_tour_completed') === '1';
+    const localDone = localStorage.getItem('particle_tour_completed') === '1';
     if (localDone || settings.onboardingCompleted) return;
     const t = setTimeout(() => setActive(true), 800);
     return () => clearTimeout(t);
@@ -231,13 +233,13 @@ export default function OnboardingTour() {
 
   const handleSkip = useCallback(async () => {
     setActive(false);
-    localStorage.setItem('senger_tour_completed', '1');
+    localStorage.setItem('particle_tour_completed', '1');
     await markTourCompleted();
   }, [markTourCompleted]);
 
   const handleFinish = useCallback(async () => {
     setActive(false);
-    localStorage.setItem('senger_tour_completed', '1');
+    localStorage.setItem('particle_tour_completed', '1');
     await markTourCompleted();
   }, [markTourCompleted]);
 

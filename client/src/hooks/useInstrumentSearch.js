@@ -4,8 +4,11 @@ import { FOREX_PAIRS, CRYPTO_PAIRS } from '../utils/constants';
 import { resolveAlias, resolveIndexProxy, resolveScreenAlias, SCREEN_LABELS } from '../config/instrumentAliases';
 
 // ── Persistent recent searches (S4.4.D) ──
-const RECENTS_KEY = 'senger_recent_searches';
+const RECENTS_KEY = 'particle_recent_searches';
 const MAX_RECENTS = 20;
+
+// Migrate legacy key (at top level)
+try { const v = localStorage.getItem('senger_recent_searches'); if (v !== null) { localStorage.setItem('particle_recent_searches', v); localStorage.removeItem('senger_recent_searches'); } } catch {}
 
 function _loadRecents() {
   try {

@@ -374,7 +374,7 @@ function SearchPanel({ onTickerSelect }) {
     }
     // Screen navigation — dispatch a custom event for the layout to handle
     if (normalized.isScreen && normalized.screenId) {
-      window.dispatchEvent(new CustomEvent('senger:navigate-screen', { detail: { screenId: normalized.screenId } }));
+      window.dispatchEvent(new CustomEvent('particle:navigate-screen', { detail: { screenId: normalized.screenId } }));
       setSearchError(null);
       return;
     }

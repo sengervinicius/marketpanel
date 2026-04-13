@@ -267,7 +267,7 @@ export function SubscriptionExpiredScreen({ onUpgrade, onLogout, onManageBilling
 
 // ── Welcome Subscription Modal (shown on first login) ────────────────────────
 // Offers "Subscribe" or "Start Free Trial" after a user's first login.
-const LS_WELCOME_SHOWN = 'senger_welcome_sub_shown';
+const LS_WELCOME_SHOWN = 'particle_welcome_sub_shown';
 
 export function WelcomeSubscriptionModal({ subscription, onUpgrade, onDismiss }) {
   const [visible, setVisible] = useState(false);
@@ -275,6 +275,8 @@ export function WelcomeSubscriptionModal({ subscription, onUpgrade, onDismiss })
   const [error, setError] = useState(null);
 
   useEffect(() => {
+    // Migrate legacy key
+    try { const v = localStorage.getItem('senger_welcome_sub_shown'); if (v !== null) { localStorage.setItem('particle_welcome_sub_shown', v); localStorage.removeItem('senger_welcome_sub_shown'); } } catch {}
     // Only show once, only for trial users who haven't seen it
     if (!subscription) return;
     if (subscription.status === 'active') return; // already subscribed

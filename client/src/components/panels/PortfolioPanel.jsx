@@ -266,7 +266,7 @@ function PortfolioPanel({ onTickerClick }) {
           disabled={filtered.length === 0 || aiLoading}
           title="Run AI health check on portfolio"
         >
-          🤖 AI HEALTH CHECK
+          AI HEALTH CHECK
         </button>
         <button className="pp-add-btn pp-add-btn--compact" onClick={() => setShareOpen(true)} title="Share portfolio">
           SHARE

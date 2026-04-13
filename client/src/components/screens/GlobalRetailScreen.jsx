@@ -1,6 +1,6 @@
 /**
  * GlobalRetailScreen.jsx — Full-page Sector Screen
- * Comprehensive Global Retail coverage for the Senger Market Terminal.
+ * Comprehensive Global Retail coverage for the Particle Market Terminal.
  * Integrates FullPageScreenLayout, FundamentalsTable, SectorChartPanel, SectorScatterPlot,
  * and InsiderActivity for multi-dimensional retail sector analysis.
  */
