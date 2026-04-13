@@ -1299,8 +1299,6 @@ textarea:focus-visible { outline: 1px solid var(--accent); outline-offset: 0; bo
   z-index: 9999;
 }
 .boot-logo-img {
-  width: 64px; height: 64px;
-  border-radius: 12px;
   margin-bottom: 12px;
 }
 .boot-logo {

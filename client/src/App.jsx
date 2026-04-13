@@ -527,7 +527,7 @@ export default function App() {
   if (!bootReady) {
     return (
       <div className="boot-screen">
-        <img src="/icon-192.png" alt="Particle" className="boot-logo-img" /><div className="boot-logo">PARTICLE</div>
+        <ParticleLogo size={64} glow className="boot-logo-img" /><div className="boot-logo">PARTICLE</div>
         <div className="boot-bar"><div className="boot-bar-fill" /></div>
       </div>
     );
@@ -592,7 +592,7 @@ export default function App() {
 
         {/* Header */}
         <div className="flex-row app-header-bar" data-tour="header">
-          <img src="/icon-192.png" alt="Particle" style={{ width: 22, height: 22, borderRadius: 4, marginRight: 6 }} /><span className="app-header-title">PARTICLE</span>
+          <ParticleLogo size={22} style={{ marginRight: 6 }} /><span className="app-header-title">PARTICLE</span>
 
           {/* ── Desktop mode toggle: Particle / Terminal ── */}
           <div className="desktop-mode-toggle" style={{ display: 'inline-flex', marginLeft: 12, gap: 2, background: 'var(--bg-panel, #111)', borderRadius: 6, padding: 2, border: '1px solid var(--border-default, rgba(255,255,255,0.07))' }}>
@@ -948,7 +948,7 @@ export default function App() {
         {mobileMode === 'terminal' && mobileScreenTitle ? (
           <span className="m-header-title">{mobileScreenTitle}</span>
         ) : (
-          <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><img src="/icon-192.png" alt="Particle" style={{ width: 22, height: 22, borderRadius: 4 }} /><span style={{ color: 'var(--accent)', fontWeight: 700, fontSize: 13, letterSpacing: '2.5px' }}>PARTICLE</span></span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><ParticleLogo size={22} /><span style={{ color: 'var(--accent)', fontWeight: 700, fontSize: 13, letterSpacing: '2.5px' }}>PARTICLE</span></span>
         )}
         {/* Sector Screens button (terminal mode only) */}
         {mobileMode === 'terminal' && (

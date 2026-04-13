@@ -1,4 +1,35 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <rect width="32" height="32" rx="6" fill="#0a0a0f"/>
-  <text x="16" y="22" text-anchor="middle" font-family="system-ui,-apple-system,sans-serif" font-weight="800" font-size="18" fill="#e55a00">S</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <radialGradient id="orb" cx="38%" cy="38%" r="52%" fx="36%" fy="36%">
+      <stop offset="0%" stop-color="#FFB347"/>
+      <stop offset="30%" stop-color="#F97316"/>
+      <stop offset="65%" stop-color="#EA580C"/>
+      <stop offset="100%" stop-color="#C2410C"/>
+    </radialGradient>
+    <radialGradient id="prot" cx="40%" cy="35%" r="55%">
+      <stop offset="0%" stop-color="#FFB347"/>
+      <stop offset="40%" stop-color="#F97316"/>
+      <stop offset="100%" stop-color="#EA580C"/>
+    </radialGradient>
+    <radialGradient id="hl" cx="35%" cy="28%" r="35%">
+      <stop offset="0%" stop-color="#FFF" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#FFF" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#F97316" stop-opacity="0.25"/>
+      <stop offset="60%" stop-color="#F97316" stop-opacity="0.05"/>
+      <stop offset="100%" stop-color="#F97316" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="#0A0A0F"/>
+  <circle cx="32" cy="32" r="28" fill="url(#glow)"/>
+  <!-- Main sphere -->
+  <circle cx="32" cy="32" r="14" fill="url(#orb)"/>
+  <!-- Protrusion at 1-2 o'clock -->
+  <circle cx="42" cy="22" r="6" fill="url(#prot)"/>
+  <!-- Bridge -->
+  <ellipse cx="38" cy="26" rx="7" ry="5.5" fill="url(#orb)" transform="rotate(-30 38 26)"/>
+  <!-- Specular highlights -->
+  <circle cx="28" cy="28" r="8" fill="url(#hl)"/>
+  <circle cx="40" cy="20" r="3" fill="url(#hl)"/>
 </svg>
