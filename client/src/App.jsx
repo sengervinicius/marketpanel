@@ -57,6 +57,7 @@ const CryptoScreen = lazy(() => import('./components/screens/CryptoScreen'));
 
 const InstrumentDetail = lazy(() => import('./components/common/InstrumentDetail'));
 import PanelErrorBoundary from './components/common/PanelErrorBoundary';
+import ParticleLogo from './components/ui/ParticleLogo';
 import {
   MarketTickBridge,
   WorldClock,
