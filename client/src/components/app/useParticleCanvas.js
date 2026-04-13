@@ -26,6 +26,7 @@ const BREATHE_SPEED  = 0.0008;
 const DRIFT_SPEED    = 0.00015;
 const FRUSTUM        = 4;    // camera frustum half-height
 const PULSE_DURATION = 2000; // ms for volume-spike pulse
+const ANOMALY_COLOR  = new THREE.Color(0xef4444); // pre-allocated for animation loop
 
 // Index mapping for hero particles
 const HERO_TICKERS = ['SPY', 'QQQ', 'DIA', 'IWM', 'VIX'];
@@ -94,9 +95,12 @@ const MOODS = {
 export default function useParticleCanvas({
   mood = 'neutral',
   particleCount = 40,
-  marketData = null,     // { stocks: { SPY: { price, changePct, ... }, ... } }
-  predictions = null,    // [{ title, probability, category }]
-  onParticleTap = null,  // (particle) => void — for tap-to-ask
+  marketData = null,      // { stocks: { SPY: { price, changePct, ... }, ... } }
+  predictions = null,     // [{ title, probability, category }]
+  onParticleTap = null,   // (particle) => void — for tap-to-ask
+  watchlistTickers = [],  // string[] — user's portfolio tickers (prioritized as entities)
+  highlightTickers = [],  // string[] — tickers to glow (from search query / AI response)
+  anomalyTickers = [],    // string[] — tickers with active anomalies (red ring pulse)
 } = {}) {
   const canvasRef    = useRef(null);
   const stateRef     = useRef(null);
@@ -104,13 +108,13 @@ export default function useParticleCanvas({
   const reducedMotion = useRef(false);
   const mouseRef     = useRef({ x: 0, y: 0, active: false }); // desktop parallax
   const tooltipRef   = useRef(null);  // tooltip DOM element
-  const dataRef      = useRef({ marketData, predictions, mood, onParticleTap });
+  const dataRef      = useRef({ marketData, predictions, mood, onParticleTap, watchlistTickers, highlightTickers, anomalyTickers });
   const holdTimerRef = useRef(null);  // for 500ms hold gesture
 
   // Keep dataRef current without re-initing
   useEffect(() => {
-    dataRef.current = { marketData, predictions, mood, onParticleTap };
-  }, [marketData, predictions, mood, onParticleTap]);
+    dataRef.current = { marketData, predictions, mood, onParticleTap, watchlistTickers, highlightTickers, anomalyTickers };
+  }, [marketData, predictions, mood, onParticleTap, watchlistTickers, highlightTickers, anomalyTickers]);
 
   // Effective mood from VIX data
   const effectiveMood = useMemo(
@@ -197,11 +201,17 @@ export default function useParticleCanvas({
       });
     }
 
-    // 2) ENTITY particles — top movers / watchlist (up to 20)
-    const entityTickers = Object.entries(stocks)
-      .filter(([sym, d]) => d && d.changePct != null && !HERO_TICKERS.includes(sym))
-      .sort((a, b) => Math.abs(b[1].changePct ?? 0) - Math.abs(a[1].changePct ?? 0))
-      .slice(0, 20);
+    // 2) ENTITY particles — watchlist-first, then top movers (up to 20)
+    const wlSet = new Set((dataRef.current.watchlistTickers || []).map(s => s.toUpperCase()));
+    const allEntities = Object.entries(stocks)
+      .filter(([sym, d]) => d && d.changePct != null && !HERO_TICKERS.includes(sym));
+
+    // Watchlist tickers first (sorted by |changePct|), then top movers for remaining slots
+    const watchlistEntities = allEntities.filter(([sym]) => wlSet.has(sym.toUpperCase()))
+      .sort((a, b) => Math.abs(b[1].changePct ?? 0) - Math.abs(a[1].changePct ?? 0));
+    const otherEntities = allEntities.filter(([sym]) => !wlSet.has(sym.toUpperCase()))
+      .sort((a, b) => Math.abs(b[1].changePct ?? 0) - Math.abs(a[1].changePct ?? 0));
+    const entityTickers = [...watchlistEntities, ...otherEntities].slice(0, 20);
 
     for (let i = 0; i < entityTickers.length; i++) {
       const [ticker, data] = entityTickers[i];
@@ -387,6 +397,10 @@ export default function useParticleCanvas({
       const driftScale = DRIFT_SPEED * dt * moodCfg.speedMul;
       const breatheT   = now * BREATHE_SPEED;
 
+      // Build sets for highlight and anomaly tickers (from dataRef)
+      const highlightSet = new Set((dataRef.current.highlightTickers || []).map(s => s.toUpperCase()));
+      const anomalySet = new Set((dataRef.current.anomalyTickers || []).map(s => s.toUpperCase()));
+
       // Desktop parallax offset
       const px = mouseRef.current.active ? mouseRef.current.x * 0.15 : 0;
       const py = mouseRef.current.active ? mouseRef.current.y * 0.15 : 0;
@@ -435,8 +449,26 @@ export default function useParticleCanvas({
           scaleFactor *= 1 + pulseProgress * 0.4;
         }
 
+        // Search highlight: matched tickers glow brighter + pulse faster
+        const isHighlighted = p.ticker && highlightSet.has(p.ticker.toUpperCase());
+        if (isHighlighted) {
+          scaleFactor *= 1.3 + Math.sin(now * 0.004) * 0.15; // faster pulse
+        }
+
+        // Anomaly disturbance: particles with active anomalies get red-shifted + jitter
+        const hasAnomaly = p.ticker && anomalySet.has(p.ticker.toUpperCase());
+        if (hasAnomaly) {
+          // Red-shift the color (use pre-allocated color to avoid GC)
+          p.mesh.material.color.lerp(ANOMALY_COLOR, 0.3);
+          // Jitter position
+          p.mesh.position.x += (Math.random() - 0.5) * 0.003 * dt;
+          p.mesh.position.y += (Math.random() - 0.5) * 0.003 * dt;
+          scaleFactor *= 1.15;
+        }
+
         p.mesh.scale.setScalar(p.baseScale * scaleFactor);
-        p.mesh.material.opacity = p.baseOpacity * (0.7 + breathe * 0.3) * moodCfg.glowMul;
+        const opacityBoost = isHighlighted ? 1.5 : (hasAnomaly ? 1.3 : 1.0);
+        p.mesh.material.opacity = p.baseOpacity * (0.7 + breathe * 0.3) * moodCfg.glowMul * opacityBoost;
 
         // Ring opacity breathes too
         if (p.ringMesh) {

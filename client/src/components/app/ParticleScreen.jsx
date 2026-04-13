@@ -16,6 +16,9 @@ import { useStocksData, useIndicesData } from '../../context/MarketContext';
 import { useBehaviorTracker, useSmartChips } from '../../hooks/useBehavior';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { useWireFeed } from '../../hooks/useWire';
+import { usePortfolio } from '../../context/PortfolioContext';
+import { API_BASE } from '../../utils/api';
+import { useAuth } from '../../context/AuthContext';
 
 const PLACEHOLDERS = [
   'What is moving in markets today?',
@@ -45,6 +48,51 @@ export default function ParticleScreen() {
   // Morning brief moved to BriefNotification at App.jsx level
   // Desktop Wire overlay feed (Wave 13B)
   const { entries: wireOverlayEntries } = useWireFeed(isMobile ? 0 : 4);
+
+  // Portfolio context — drives watchlist-aware canvas particles
+  let portfolioWatchlist = [];
+  try {
+    const { watchlist } = usePortfolio();
+    portfolioWatchlist = watchlist || [];
+  } catch (e) { /* PortfolioContext may not be ready */ }
+
+  // Extract ticker mentions from conversation for canvas highlight
+  const highlightTickers = useMemo(() => {
+    const tickers = new Set();
+    // From current query
+    const qMatches = query.match(/\$([A-Z]{1,5})/g);
+    if (qMatches) qMatches.forEach(m => tickers.add(m.slice(1)));
+    // From last assistant message
+    const lastMsg = messages.filter(m => m.role === 'assistant').pop();
+    if (lastMsg?.content) {
+      const mMatches = lastMsg.content.match(/\*\*([A-Z]{1,5})\*\*/g);
+      if (mMatches) mMatches.forEach(m => tickers.add(m.replace(/\*/g, '')));
+    }
+    return [...tickers];
+  }, [query, messages]);
+
+  // Anomaly tickers — fetch periodically
+  const { token } = useAuth();
+  const [anomalyTickers, setAnomalyTickers] = useState([]);
+  useEffect(() => {
+    let cancelled = false;
+    async function fetchAnomalies() {
+      try {
+        const res = await fetch(`${API_BASE}/api/anomalies`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          credentials: 'include',
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!cancelled && data.anomalies) {
+          setAnomalyTickers(data.anomalies.map(a => a.symbol).filter(Boolean));
+        }
+      } catch { /* silent */ }
+    }
+    fetchAnomalies();
+    const interval = setInterval(fetchAnomalies, 60000); // Refresh every 60s
+    return () => { cancelled = true; clearInterval(interval); };
+  }, [token]);
 
   // Live market data for data-driven canvas (Wave 9)
   let stocksData = null;
@@ -85,6 +133,9 @@ export default function ParticleScreen() {
     particleCount: isMobile ? mobileCount : desktopCount,
     marketData,
     onParticleTap: handleParticleTap,
+    watchlistTickers: portfolioWatchlist,
+    highlightTickers,
+    anomalyTickers,
   });
 
   // Whether we're in conversation mode (has messages)
