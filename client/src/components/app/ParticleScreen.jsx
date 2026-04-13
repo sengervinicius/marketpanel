@@ -14,7 +14,8 @@ import useParticleAI from '../../hooks/useParticleAI';
 const QUICK_CHIPS = [
   { label: 'Market overview', query: 'Give me a quick market overview of major indices, sectors, and any notable moves today.' },
   { label: 'Top movers', query: 'What are the top movers in the US stock market right now? Include gainers and losers.' },
-  { label: 'My portfolio', query: 'What should I be watching in the market today that might affect a typical diversified portfolio?' },
+  { label: 'Rate cut odds', query: 'What are the current prediction market odds for the next Fed rate cut? Include Kalshi and Polymarket data.' },
+  { label: 'Market predictions', query: 'What are the most interesting prediction markets right now? Show me the top markets with their probabilities from Kalshi and Polymarket.' },
 ];
 
 export default function ParticleScreen() {

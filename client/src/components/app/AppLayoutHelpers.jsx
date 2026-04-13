@@ -28,6 +28,7 @@ import ETFPanel from '../panels/ETFPanel';
 import MissionsPanel from '../panels/MissionsPanel';
 import RatesPanel from '../panels/RatesPanel';
 import HeatmapPanel from '../panels/HeatmapPanel';
+import PredictionPanel from '../panels/PredictionPanel';
 
 // ── Code-split sector screens using React.lazy ──────────────────────────────
 const DefenceScreen = lazy(() => import('../screens/DefenceScreen'));
@@ -181,6 +182,7 @@ const PANEL_REGISTRY = {
   referrals:      { component: ReferralPanel },
   calendar:       { component: CalendarPanel },
   heatmap:        { component: HeatmapPanel },
+  predictions:    { component: PredictionPanel },
 
   // ── Phase D1 sector screens ──────────────────────────────────────────────
   defenceScreen:      { component: DefenceScreen,      getProps: (c) => ({ onTickerClick: c.setChartTicker }) },

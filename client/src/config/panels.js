@@ -311,6 +311,18 @@ export const PANEL_DEFINITIONS = {
     maxSymbols:     0,
   },
 
+  predictions: {
+    id:             'predictions',
+    label:          'Predictions',
+    defaultTitle:   'Prediction Markets',
+    defaultSymbols: [],
+    allowedGroups:  null,
+    editable:       false,
+    icon:           'PM',
+    minSymbols:     0,
+    maxSymbols:     0,
+  },
+
   // ── Phase D1 sector screens ──────────────────────────
   defenceScreen: {
     id:             'defenceScreen',

@@ -17,6 +17,7 @@
  */
 
 const logger = require('../utils/logger');
+const predictionAggregator = require('./predictionAggregator');
 
 // ── Reference: late-bound by init() ─────────────────────────────────────────
 let _marketState = null;   // { stocks: {}, forex: {}, crypto: {} }
@@ -334,6 +335,19 @@ function buildContext({ query, userId, intent: forceIntent } = {}) {
         }).join('; ');
         sections.push(`[User portfolio] ${posStr}`);
       }
+    }
+
+    // ── 9. Prediction markets (Kalshi + Polymarket) ─────────────────────
+    try {
+      const predictionMarkets = predictionAggregator.getForQuery(query || '');
+      if (predictionMarkets.length > 0) {
+        const predStr = predictionAggregator.formatForAI(predictionMarkets.slice(0, 6));
+        if (predStr) {
+          sections.push(`[Prediction markets — live consensus from Kalshi & Polymarket]\n${predStr}`);
+        }
+      }
+    } catch (predErr) {
+      // Prediction markets are non-critical — fail silently
     }
 
   } catch (err) {

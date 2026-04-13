@@ -67,6 +67,8 @@ const { initAlertDB } = require('./alertStore');
 const { initGameDB } = require('./gameStore');
 require('./jobs/markToMarket'); // batch mark-to-market (self-scheduling)
 const { init: initMarketContext } = require('./services/marketContextBuilder');
+const { init: initPredictions } = require('./services/predictionAggregator');
+const predictionsRoutes = require('./routes/predictions');
 
 const app = express();
 
@@ -271,6 +273,12 @@ app.use('/api/search', requireAuth, requireActiveSubscription,
   rateLimitByUser({ key: 'search', windowSec: 60, max: 15 }),
   requestTimeout(25000),
   searchRoutes);
+
+// Prediction markets: auth + subscription required
+app.use('/api/predictions', requireAuth, requireActiveSubscription,
+  rateLimitByUser({ key: 'predictions', windowSec: 60, max: 30 }),
+  requestTimeout(15000),
+  predictionsRoutes);
 
 // Feed health: no auth required (public endpoint for monitoring)
 app.use('/api/feed', feedRouter);
@@ -508,6 +516,9 @@ initFeedRouter(marketState, computeFeedHealth);
 // Late-bind marketState + user stores into the AI context builder
 const { getPortfolio } = require('./portfolioStore');
 initMarketContext({ marketState, getUserById, getPortfolio });
+
+// Start prediction market aggregator (polls Kalshi + Polymarket every 2 min)
+initPredictions();
 
 // Boot sequence: Postgres → Redis → MongoDB → seed → jobs → HTTP server
 async function boot() {
