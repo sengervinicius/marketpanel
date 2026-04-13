@@ -492,10 +492,15 @@ export default function App() {
   }, [setActiveSectorScreen, handleGoHome, sectorSelectorOpen, activeSectorScreen, setSectorSelectorOpen]);
 
   // Listen for particle-prefill events from HeaderSearchBar / TickerContextMenu
-  // Navigates to ParticleScreen so the query can be handled there
+  // Navigates to ParticleScreen and persists query for mount-time pickup
   useEffect(() => {
-    const handler = () => {
+    const handler = (e) => {
       setMobileModePersist('particle');
+      // Store query so ParticleScreen can pick it up on mount (race condition fix:
+      // if ParticleScreen isn't mounted yet, the event listener wouldn't exist)
+      if (e.detail) {
+        try { sessionStorage.setItem('particle-prefill', e.detail); } catch {}
+      }
     };
     window.addEventListener('particle-prefill', handler);
     return () => window.removeEventListener('particle-prefill', handler);

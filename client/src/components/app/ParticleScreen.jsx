@@ -110,6 +110,8 @@ export default function ParticleScreen() {
     const handler = (e) => {
       const prefillQuery = e.detail;
       if (prefillQuery && typeof prefillQuery === 'string') {
+        // Clear sessionStorage since we're handling it live
+        try { sessionStorage.removeItem('particle-prefill'); } catch {}
         trackSearch(prefillQuery);
         send(prefillQuery);
         setQuery('');
@@ -118,6 +120,20 @@ export default function ParticleScreen() {
     window.addEventListener('particle-prefill', handler);
     return () => window.removeEventListener('particle-prefill', handler);
   }, [send, trackSearch]);
+
+  // On mount: check for pending prefill query from sessionStorage
+  // (handles race condition when ParticleScreen wasn't mounted when event fired)
+  useEffect(() => {
+    try {
+      const pending = sessionStorage.getItem('particle-prefill');
+      if (pending) {
+        sessionStorage.removeItem('particle-prefill');
+        trackSearch(pending);
+        send(pending);
+        setQuery('');
+      }
+    } catch {}
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSubmit = useCallback((e) => {
     e.preventDefault();
