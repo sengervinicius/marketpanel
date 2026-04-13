@@ -23,6 +23,12 @@ const SECTOR_LABELS = {
   tech: 'Technology & AI',
   healthcare: 'Healthcare & Pharma',
   finance: 'Financial Services',
+  commodities: 'Commodities & Resources',
+  retail: 'Global Retail & Consumer',
+  'fixed-income': 'Fixed Income & Rates',
+  asia: 'Asian Markets',
+  europe: 'European Markets',
+  fx: 'FX & Currency',
 };
 
 function VaultInsights({ sector }) {

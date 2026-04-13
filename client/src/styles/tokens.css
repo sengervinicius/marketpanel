@@ -166,6 +166,23 @@
   --shadow-overlay:  0 6px 24px rgba(0,0,0,0.8);
   --shadow-dropdown: 0 4px 20px rgba(0,0,0,0.9);
   --shadow-tooltip:  0 2px 12px rgba(0,0,0,0.6);
+
+  /* ── Glass Surfaces ─────────────────────────────── */
+  --glass-bg:        rgba(10, 10, 15, 0.70);
+  --glass-border:    rgba(255, 255, 255, 0.06);
+  --glass-blur:      12px;
+  --glass-bg-hover:  rgba(20, 20, 30, 0.80);
+
+  /* ── Pillar Brand Colors ────────────────────────── */
+  --color-particle:      #F97316;
+  --color-particle-glow: rgba(249, 115, 22, 0.20);
+  --color-particle-dim:  rgba(249, 115, 22, 0.10);
+  --color-terminal:      #E0E0E0;
+  --color-terminal-glow: rgba(224, 224, 224, 0.15);
+  --color-terminal-dim:  rgba(224, 224, 224, 0.06);
+  --color-vault:         #DAA520;
+  --color-vault-glow:    rgba(218, 165, 32, 0.20);
+  --color-vault-dim:     rgba(218, 165, 32, 0.10);
 }
 
 /* ── Global Numeric Formatting ────────────────────── */

@@ -211,6 +211,7 @@ function FxCryptoScreen() {
     <DeepScreenBase
       title="FX & Crypto"
       accentColor="#ce93d8"
+      vaultSector="fx"
       sections={sections}
       aiType="cross-asset"
       aiContext={{ assets: ['FX', 'Crypto'], theme: 'FX & Digital Assets' }}

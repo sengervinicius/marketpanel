@@ -958,6 +958,7 @@ function FixedIncomeScreenImpl({ onBack }) {
       title="FIXED INCOME"
       subtitle="Treasury curves, credit spreads, corporate bonds, and duration analysis"
       accentColor="#2196f3"
+      vaultSector="fixed-income"
       onBack={onBack}
       sections={sections}
       tickerBanner={BANNER_TICKERS}

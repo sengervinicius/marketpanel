@@ -196,6 +196,12 @@ router.get('/sector-insights', requireAuth, async (req, res) => {
       tech: 'technology software artificial intelligence AI cloud computing',
       healthcare: 'healthcare pharma biotech medicine health',
       finance: 'financial services banking investment capital markets',
+      commodities: 'commodities metals agriculture copper gold wheat oil',
+      retail: 'retail consumer discretionary e-commerce luxury shopping',
+      'fixed-income': 'bonds fixed income treasury yields credit spreads',
+      asia: 'asia japan china india korea ASEAN emerging markets',
+      europe: 'europe germany france UK italy spain DAX CAC FTSE',
+      fx: 'currency forex FX foreign exchange rates forex trading',
     };
 
     const query = sectorQueries[sector.toLowerCase()];

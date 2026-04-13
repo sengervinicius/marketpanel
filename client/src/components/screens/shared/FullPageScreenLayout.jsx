@@ -7,6 +7,7 @@ import { useIsMobile } from '../../../hooks/useIsMobile';
 import { useScreenContext } from '../../../context/ScreenContext';
 import { useTickerPrice } from '../../../context/PriceContext';
 import AIInsightCard from '../../ai/AIInsightCard';
+import VaultInsights from '../../common/VaultInsights';
 import './ScreenShared.css';
 
 /* ═══════════════════════════════════════════════════════════════════════
@@ -284,6 +285,7 @@ function FullPageScreenLayout({
   aiContext,
   aiCacheKey,
   tickerBanner,  // Array of { ticker, label } for Bloomberg-style scrolling banner
+  vaultSector,   // Sector name for vault insights
 }) {
   const isMobile = useIsMobile();
   const { updateScreen } = useScreenContext();
@@ -346,6 +348,13 @@ function FullPageScreenLayout({
             compact={isMobile}
             autoFetch={true}
           />
+        </div>
+      )}
+
+      {/* Vault Research Insights */}
+      {vaultSector && (
+        <div style={{ padding: '0 1px', marginBottom: 1 }}>
+          <VaultInsights sector={vaultSector} />
         </div>
       )}
 

@@ -7,6 +7,7 @@ import { memo, Component, useState, useEffect } from 'react';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { useScreenContext } from '../../context/ScreenContext';
 import AIInsightCard from '../ai/AIInsightCard';
+import VaultInsights from '../common/VaultInsights';
 import './DeepScreen.css';
 
 /* ── Section-level error boundary ───────────────────────────────────────── */
@@ -125,7 +126,7 @@ export function TickerCell({ symbol, label, price, changePct, onClick }) {
 }
 
 /* ── Main DeepScreenBase ─────────────────────────────────────────────────── */
-function DeepScreenBase({ title, accentColor, sections, aiType, aiContext, aiCacheKey, children, screenKey, visibleTickers = [] }) {
+function DeepScreenBase({ title, accentColor, sections, aiType, aiContext, aiCacheKey, children, screenKey, visibleTickers = [], vaultSector }) {
   const isMobile = useIsMobile();
   const { updateScreen } = useScreenContext();
 
@@ -152,6 +153,13 @@ function DeepScreenBase({ title, accentColor, sections, aiType, aiContext, aiCac
             compact={isMobile}
             autoFetch={true}
           />
+        </div>
+      )}
+
+      {/* Vault Research Insights (cross-pillar integration) */}
+      {vaultSector && (
+        <div className="ds-vault-slot" style={{ padding: '0 12px 8px' }}>
+          <VaultInsights sector={vaultSector} />
         </div>
       )}
 

@@ -379,6 +379,7 @@ function GlobalRetailScreenImpl() {
       title="GLOBAL RETAIL"
       subtitle="Consumer discretionary, staples, luxury, e-commerce, and specialty retail"
       accentColor="#e91e63"
+      vaultSector="retail"
       sections={sections}
       tickerBanner={BANNER_TICKERS}
       lastUpdated={new Date()}

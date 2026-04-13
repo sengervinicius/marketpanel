@@ -480,6 +480,7 @@ function CommoditiesScreenImpl() {
       title="COMMODITIES"
       subtitle="Energy, metals, agriculture — futures, producers, and supply chain"
       accentColor="#ff9800"
+      vaultSector="commodities"
       sections={sections}
       tickerBanner={BANNER_TICKERS}
       aiType="commodity"

@@ -262,6 +262,7 @@ function EnergyScreenImpl() {
     <DeepScreenBase
       title="Energy & Transition"
       accentColor="#66bb6a"
+      vaultSector="energy"
       sections={sections}
       aiType="sector"
       aiContext={{ sector: 'Energy & Transition', tickers: ['XOM', 'CVX', 'SLB', 'CL=F', 'ENPH', 'CCJ'] }}

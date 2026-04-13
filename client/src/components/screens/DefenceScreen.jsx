@@ -452,6 +452,7 @@ function DefenceScreenImpl() {
       title="DEFENCE & AEROSPACE"
       subtitle="Global defense primes, aerospace supply chain, and geopolitical risk"
       accentColor="#ef5350"
+      vaultSector="defense"
       sections={sections}
       tickerBanner={BANNER_TICKERS}
       lastUpdated={new Date()}

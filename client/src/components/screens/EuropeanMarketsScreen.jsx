@@ -562,6 +562,7 @@ function EuropeanMarketsScreenImpl() {
       title="EUROPEAN MARKETS"
       subtitle="DAX, CAC, FTSE, Nordic & Southern Europe — equities, FX, and sovereign spreads"
       accentColor="#3f51b5"
+      vaultSector="europe"
       sections={sections}
       tickerBanner={BANNER_TICKERS}
       lastUpdated={new Date()}

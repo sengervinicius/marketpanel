@@ -686,6 +686,7 @@ function CryptoScreenImpl() {
       title="CRYPTO"
       subtitle="Digital assets, on-chain analytics, crypto equities, and ETF flows"
       accentColor="#f7931a"
+      vaultSector="crypto"
       sections={sections}
       tickerBanner={BANNER_TICKERS}
       lastUpdated={new Date()}

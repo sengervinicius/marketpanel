@@ -658,6 +658,7 @@ function GlobalMacroScreenImpl() {
       title="GLOBAL MACRO"
       accentColor="#9c27b0"
       subtitle="Central banks, rates, FX, volatility, and cross-asset risk monitor"
+      vaultSector="macro"
       sections={sections}
       tickerBanner={BANNER_TICKERS}
       aiType="macro"

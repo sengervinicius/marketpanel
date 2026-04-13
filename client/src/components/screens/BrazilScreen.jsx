@@ -634,6 +634,7 @@ function BrazilScreenImpl() {
       subtitle="B3 equities, ADR arbitrage, DI curve, LatAm macro, and EM risk"
       lastUpdated={lastUpdated}
       onBack={() => window.history.back()}
+      vaultSector="brazil"
       sections={sections}
       tickerBanner={BANNER_TICKERS}
       aiType="em-country"

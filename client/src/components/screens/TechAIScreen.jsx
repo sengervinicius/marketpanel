@@ -512,6 +512,7 @@ function TechAIScreenImpl() {
       title="TECHNOLOGY"
       accentColor="#00bcd4"
       subtitle="Mega-cap tech, semiconductors, AI & cloud — valuation and growth analysis"
+      vaultSector="tech"
       sections={sections}
       tickerBanner={BANNER_TICKERS}
       screenKey="technology"

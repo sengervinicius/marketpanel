@@ -13,10 +13,12 @@
   align-items: center;
   gap: 8px;
   padding: 8px 12px;
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--glass-border, var(--border-subtle));
   position: sticky;
   top: 0;
-  background: var(--bg-panel);
+  background: var(--glass-bg, var(--bg-panel));
+  backdrop-filter: blur(var(--glass-blur, 12px));
+  -webkit-backdrop-filter: blur(var(--glass-blur, 12px));
   z-index: 2;
 }
 .ds-header-accent {
@@ -63,8 +65,10 @@
   align-items: center;
   gap: 8px;
   padding: 8px 10px;
-  border-bottom: 1px solid var(--bg-hover);
-  background: var(--bg-surface);
+  border-bottom: 1px solid var(--glass-border, var(--bg-hover));
+  background: var(--glass-bg, var(--bg-surface));
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   position: sticky;
   top: 0;
   z-index: 1;
@@ -124,16 +128,17 @@
   align-items: center;
   gap: 6px;
   padding: 4px 8px;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border-subtle);
-  border-radius: 3px;
+  background: var(--glass-bg, var(--bg-elevated));
+  border: 1px solid var(--glass-border, var(--border-subtle));
+  border-radius: var(--radius-md, 4px);
   cursor: pointer;
   font-size: 10px;
   white-space: nowrap;
-  transition: background 0.15s;
+  transition: background var(--duration-fast, 0.15s), border-color var(--duration-fast, 0.15s);
 }
 .ds-ticker-cell:hover {
-  background: var(--bg-active);
+  background: var(--glass-bg-hover, var(--bg-active));
+  border-color: var(--border-default);
 }
 .ds-ticker-sym {
   font-weight: 600;

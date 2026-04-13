@@ -542,6 +542,7 @@ function AsianMarketsScreenImpl() {
       title="ASIAN MARKETS"
       subtitle="Japan, China, India, Korea & ASEAN — ADRs, FX, and regional macro"
       accentColor="#ff5722"
+      vaultSector="asia"
       sections={sections}
       tickerBanner={BANNER_TICKERS}
       lastUpdated={new Date()}
