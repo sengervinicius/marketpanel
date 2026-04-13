@@ -194,31 +194,41 @@ async function embed(texts) {
     texts = [texts];
   }
 
-  try {
-    const response = await fetch('https://api.openai.com/v1/embeddings', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${_openaiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: EMBEDDING_MODEL,
-        input: texts,
-      }),
-    });
+  // Batch in groups of 20 to avoid OpenAI token limits
+  const BATCH_SIZE = 20;
+  const allEmbeddings = [];
 
-    if (!response.ok) {
-      const err = await response.text();
-      logger.error('vault', 'OpenAI API error', { status: response.status, error: err });
-      return texts.map(() => null);
+  for (let i = 0; i < texts.length; i += BATCH_SIZE) {
+    const batch = texts.slice(i, i + BATCH_SIZE);
+    try {
+      const response = await fetch('https://api.openai.com/v1/embeddings', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${_openaiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: EMBEDDING_MODEL,
+          input: batch,
+        }),
+      });
+
+      if (!response.ok) {
+        const err = await response.text();
+        logger.error('vault', 'OpenAI API error', { status: response.status, error: err.slice(0, 200), batch: `${i}-${i + batch.length}` });
+        allEmbeddings.push(...batch.map(() => null));
+        continue;
+      }
+
+      const data = await response.json();
+      allEmbeddings.push(...data.data.map(d => d.embedding));
+    } catch (err) {
+      logger.error('vault', 'Embedding batch error', { error: err.message, batch: `${i}-${i + batch.length}` });
+      allEmbeddings.push(...batch.map(() => null));
     }
-
-    const data = await response.json();
-    return data.data.map(d => d.embedding);
-  } catch (err) {
-    logger.error('vault', 'Embedding error', { error: err.message });
-    return texts.map(() => null);
   }
+
+  return allEmbeddings;
 }
 
 /**
@@ -269,26 +279,52 @@ async function ingestPDF(userId, buffer, filename, { isGlobal = false } = {}) {
       .replace(/\.{2,}/g, '.')                     // Remove path traversal
       .slice(0, 255);                              // Limit length
 
-    // Parse PDF
-    const pdfParse = require('pdf-parse');
-    const pdfData = await pdfParse(buffer);
-    const text = pdfData.text || '';
+    // Parse PDF — robust handling for all PDF types
+    let text = '';
+    let pageCount = 0;
+    try {
+      const pdfParse = require('pdf-parse');
+      // pdf-parse options: max pages, disable rendering for speed
+      const pdfData = await pdfParse(buffer, {
+        max: 500, // stop after 500 pages
+      });
+      text = pdfData.text || '';
+      pageCount = pdfData.numpages || 0;
+    } catch (parseErr) {
+      // pdf-parse can fail on encrypted, malformed, or complex PDFs
+      // Try a more lenient extraction as fallback
+      logger.warn('vault', 'Primary PDF parse failed, trying fallback', { error: parseErr.message });
+      try {
+        const pdfParse = require('pdf-parse');
+        // Retry with render callback that's more forgiving
+        const pdfData = await pdfParse(buffer, {
+          max: 500,
+          pagerender: function(pageData) {
+            return pageData.getTextContent().then(function(textContent) {
+              return textContent.items.map(item => item.str).join(' ');
+            });
+          },
+        });
+        text = pdfData.text || '';
+        pageCount = pdfData.numpages || 0;
+      } catch (fallbackErr) {
+        logger.error('vault', 'PDF parse fallback also failed', { error: fallbackErr.message });
+        throw new Error(`Unable to read this PDF: ${parseErr.message}. The file may be encrypted, image-only, or in an unsupported format.`);
+      }
+    }
 
     // Validate PDF size constraints
-    if (pdfData.numpages > 500) {
-      throw new Error('PDF too large: max 500 pages');
-    }
     if (text && text.length > 2_000_000) {
       throw new Error('PDF text content exceeds 2MB limit');
     }
 
     if (!text.trim()) {
-      throw new Error('PDF contains no extractable text');
+      throw new Error('This PDF contains no extractable text. It may be a scanned document or image-only PDF.');
     }
 
     // Extract metadata
     const metadata = extractMetadata(text);
-    metadata.pageCount = pdfData.numpages || 0;
+    metadata.pageCount = pageCount;
 
     // Create document record
     const docResult = await pg.query(
@@ -309,25 +345,27 @@ async function ingestPDF(userId, buffer, filename, { isGlobal = false } = {}) {
     // Embed chunks
     const embeddings = await embed(chunks);
 
-    // Store chunks
-    for (let i = 0; i < chunks.length; i++) {
-      const chunkMetadata = {
-        chunkIndex: i,
-        totalChunks: chunks.length,
-      };
-
-      await pg.query(
-        `INSERT INTO vault_chunks (document_id, user_id, chunk_index, content, embedding, metadata)
-         VALUES ($1, $2, $3, $4, $5, $6)`,
-        [
-          documentId,
-          userId,
-          i,
-          chunks[i],
-          embeddings[i] ? `[${embeddings[i].join(',')}]` : null,
-          JSON.stringify(chunkMetadata),
-        ]
-      );
+    // Store chunks — batch insert for performance on large PDFs
+    const DB_BATCH = 10;
+    for (let i = 0; i < chunks.length; i += DB_BATCH) {
+      const batch = chunks.slice(i, i + DB_BATCH);
+      const promises = batch.map((chunk, j) => {
+        const idx = i + j;
+        const chunkMetadata = { chunkIndex: idx, totalChunks: chunks.length };
+        return pg.query(
+          `INSERT INTO vault_chunks (document_id, user_id, chunk_index, content, embedding, metadata)
+           VALUES ($1, $2, $3, $4, $5, $6)`,
+          [
+            documentId,
+            userId,
+            idx,
+            chunk,
+            embeddings[idx] ? `[${embeddings[idx].join(',')}]` : null,
+            JSON.stringify(chunkMetadata),
+          ]
+        );
+      });
+      await Promise.all(promises);
     }
 
     logger.info('vault', 'PDF ingested', {

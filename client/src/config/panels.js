@@ -27,12 +27,12 @@ export const PANEL_DEFINITIONS = {
     id:             'charts',
     label:          'Charts',
     defaultTitle:   'Charts',
-    defaultSymbols: ['SPY', 'QQQ', 'C:EURUSD', 'C:USDJPY', 'GLD', 'USO', 'EEM', 'EWZ', 'X:BTCUSD', 'VGK'],
+    defaultSymbols: ['SPY', 'QQQ', 'C:EURUSD', 'C:USDJPY', 'GLD', 'USO', 'EEM', 'EWZ', 'X:BTCUSD', 'VGK', 'MSFT', 'BZ=F'],
     allowedGroups:  null, // any instrument
     editable:       false, // special panel
     icon:           'CH',
     minSymbols:     1,
-    maxSymbols:     16,
+    maxSymbols:     12,
   },
   usEquities: {
     id:             'usEquities',
@@ -457,6 +457,6 @@ export const DEFAULT_HOME_SECTIONS = [
  * @type {Object}
  */
 export const DEFAULT_CHARTS_CONFIG = {
-  symbols: ['SPY', 'QQQ', 'C:EURUSD', 'C:USDJPY', 'GLD', 'USO', 'EEM', 'EWZ', 'X:BTCUSD', 'VGK'],
+  symbols: ['SPY', 'QQQ', 'C:EURUSD', 'C:USDJPY', 'GLD', 'USO', 'EEM', 'EWZ', 'X:BTCUSD', 'VGK', 'MSFT', 'BZ=F'],
   primary: 'SPY',
 };
