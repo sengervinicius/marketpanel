@@ -45,6 +45,7 @@ const screenerRoutes        = require('./routes/screener');
 const screenerPresetRoutes  = require('./routes/screenerPresets');
 const optionsRoutes         = require('./routes/options');
 const leaderboardRoutes = require('./routes/leaderboard');
+const earningsRoutes        = require('./routes/earnings');
 const shareRoutes       = require('./routes/share');
 const referralRoutes    = require('./routes/referrals');
 const notificationRoutes = require('./routes/notifications');
@@ -77,6 +78,10 @@ const { init: initBehavior } = require('./services/behaviorTracker');
 const behaviorRoutes = require('./routes/behavior');
 const { init: initDeepAnalysis } = require('./services/deepAnalysis');
 const anomalyScanner = require('./services/anomalyScanner');
+const { init: initVault } = require('./services/vault');
+const vaultRoutes = require('./routes/vault');
+const modelRouter = require('./services/modelRouter');
+const earningsAnalyzer = require('./services/earningsAnalyzer');
 
 const app = express();
 
@@ -302,6 +307,18 @@ app.use('/api/behavior', requireAuth,
   rateLimitByUser({ key: 'behavior', windowSec: 60, max: 60 }),
   requestTimeout(10000),
   behaviorRoutes);
+
+// Private Knowledge Vault: auth + subscription required
+app.use('/api/vault', requireAuth, requireActiveSubscription,
+  rateLimitByUser({ key: 'vault', windowSec: 60, max: 10 }),
+  requestTimeout(30000),
+  vaultRoutes);
+
+// Earnings analysis: auth + subscription required
+app.use('/api/earnings', requireAuth, requireActiveSubscription,
+  rateLimitByUser({ key: 'earnings', windowSec: 60, max: 10 }),
+  requestTimeout(15000),
+  earningsRoutes);
 
 // Feed health: no auth required (public endpoint for monitoring)
 app.use('/api/feed', feedRouter);
@@ -555,6 +572,9 @@ initBehavior({ mergeSettings: require('./authStore').mergeSettings, getUserById 
 // Initialize deep analysis tools (portfolio autopsy, counter-thesis, scenario)
 initDeepAnalysis({ marketState, getPortfolio, getUserById });
 
+// Initialize earnings analyzer (auto-triggered after earnings calls)
+earningsAnalyzer.init({ marketState, getPortfolio, getUserById });
+
 // Helper to collect all user watchlists for anomaly scanner
 function getAllWatchlists() {
   const { getAllUsersWithPersona } = require('./authStore');
@@ -571,6 +591,9 @@ function getAllWatchlists() {
 
 // Start anomaly detection scanner (every 10 minutes)
 anomalyScanner.init({ marketState, getWatchlists: getAllWatchlists });
+
+// Initialize vault service (private knowledge management)
+initVault({ openaiKey: process.env.OPENAI_API_KEY });
 
 // Boot sequence: Postgres → Redis → MongoDB → seed → jobs → HTTP server
 async function boot() {
@@ -604,6 +627,15 @@ async function boot() {
   // 1. Platform services (optional — app works without them)
   await initPostgres();
   await initRedis();
+
+  // Initialize vault tables (private knowledge management)
+  try {
+    const vault = require('./services/vault');
+    await vault.ensureTable();
+  } catch (e) {
+    logger.warn('boot', 'Vault table initialization failed (vault disabled)', { error: e.message });
+  }
+
   const { initEmail } = require('./services/emailService');
   initEmail();
 

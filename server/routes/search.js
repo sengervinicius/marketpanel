@@ -1392,6 +1392,17 @@ router.post('/chat', async (req, res) => {
     behaviorTracker.trackSearch(userId, userQuery).catch(() => {});
   }
 
+  // ── Vault RAG: retrieve relevant passages from user's private vault ──────
+  let vaultContext = '';
+  try {
+    const vault = require('../services/vault');
+    const passages = await vault.retrieve(userId, userQuery);
+    vaultContext = vault.formatForPrompt(passages);
+  } catch (e) {
+    // Vault not available — continue without it
+    console.error('[Particle/Vault] Retrieval error:', e.message);
+  }
+
   // ── Wave 11: Deep analysis detection ────────────────────────────────────
   let deepAnalysisResult = null;
   try {
@@ -1402,10 +1413,10 @@ router.post('/chat', async (req, res) => {
 
   let systemPrompt;
   if (deepAnalysisResult?.prompt) {
-    // Deep analysis mode: use the specialized prompt with market context appended
+    // Deep analysis mode: use the specialized prompt with market and vault context appended
     systemPrompt = `${deepAnalysisResult.prompt}
 
-${marketContext ? `\n--- LIVE MARKET DATA ---\n${marketContext}\n--- END MARKET DATA ---\n` : ''}${context ? `\nAdditional context: ${context}` : ''}`;
+${vaultContext || ''}${marketContext ? `\n--- LIVE MARKET DATA ---\n${marketContext}\n--- END MARKET DATA ---\n` : ''}${context ? `\nAdditional context: ${context}` : ''}`;
   } else {
     // Standard Particle prompt
     systemPrompt = `You are Particle, an AI market intelligence assistant built into a professional-grade financial terminal. You help investors and traders understand markets with clarity, speed, and depth.
@@ -1423,7 +1434,7 @@ Rules:
 - Financial disclaimers go at the very end in a brief parenthetical, never at the top.
 - If you reference prediction market probabilities, cite the source naturally: "Kalshi implies 73% odds of a June cut" not "According to prediction market data."
 
-${marketContext ? `\n--- LIVE MARKET DATA ---\n${marketContext}\n--- END MARKET DATA ---\n` : ''}${context ? `\nAdditional context: ${context}` : ''}`;
+${vaultContext || ''}${marketContext ? `\n--- LIVE MARKET DATA ---\n${marketContext}\n--- END MARKET DATA ---\n` : ''}${context ? `\nAdditional context: ${context}` : ''}`;
   }
 
   // ── Cache check (first-turn non-personal queries only) ─────────────────
