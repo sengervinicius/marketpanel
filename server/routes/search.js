@@ -1335,6 +1335,9 @@ const { buildContext } = require('../services/marketContextBuilder');
 const behaviorTracker = require('../services/behaviorTracker');
 const deepAnalysis = require('../services/deepAnalysis');
 const modelRouter = require('../services/modelRouter');
+const edgar = require('../services/edgar');
+const computeEngine = require('../services/computeEngine');
+const portfolioStore = require('../portfolioStore');
 
 // ── Chat response cache (first-turn only, 5 min TTL) ──────────────────────
 const _chatCache = new Map();
@@ -1425,6 +1428,46 @@ router.post('/chat', async (req, res) => {
     console.error('[Particle/Vault] Retrieval error:', e.message);
   }
 
+  // ── Portfolio metrics injection ────────────────────────────────────────────
+  let portfolioMetricsContext = '';
+  try {
+    if (userId) {
+      const portfolio = portfolioStore.getPortfolio(userId);
+      const userQuery_lower = userQuery.toLowerCase();
+
+      // Detect portfolio-related queries
+      const isPortfolioQuery = /portfolio|position|p&l|pnl|gain|loss|exposure|allocation|holding|weight|return|performance|net worth|total value/i.test(userQuery_lower);
+
+      if (portfolio && portfolio.positions && portfolio.positions.length > 0 && isPortfolioQuery) {
+        // Transform portfolio positions to computeEngine format
+        const positions = portfolio.positions.map(p => ({
+          symbol: p.symbol || 'UNKNOWN',
+          shares: p.quantity || 0,
+          avgCost: p.entryPrice || 0,
+          currentPrice: p.currentPrice || 0,
+          dayPriceChange: p.dayPriceChange || 0,
+        }));
+
+        // Compute deterministic metrics
+        const metrics = computeEngine.computePortfolioMetrics(positions);
+
+        // Format for LLM consumption
+        portfolioMetricsContext = `PRE-COMPUTED PORTFOLIO METRICS:
+- Total Value: $${metrics.totalValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+- Total Cost Basis: $${metrics.totalCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+- Total P&L: $${metrics.totalPnL.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (${metrics.totalPnLPct > 0 ? '+' : ''}${metrics.totalPnLPct.toFixed(2)}%)
+- Today's P&L: $${metrics.dayPnL.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (${metrics.dayPnLPct > 0 ? '+' : ''}${metrics.dayPnLPct.toFixed(2)}%)
+- Positions (${metrics.positions.length}):
+${metrics.positions.map(pos => `  ${pos.symbol}: ${pos.shares} shares @ $${pos.currentPrice} = $${pos.value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (${pos.pnlPct > 0 ? '+' : ''}${pos.pnlPct.toFixed(2)}%, weight ${pos.weight.toFixed(2)}%)`).join('\n')}
+
+IMPORTANT: NEVER do math in your head. Use the PRE-COMPUTED values above.`;
+      }
+    }
+  } catch (err) {
+    // Portfolio metrics not critical — continue without them
+    console.error('[Particle/Portfolio] Metrics computation error:', err.message);
+  }
+
   // ── Wave 11: Deep analysis detection ────────────────────────────────────
   let deepAnalysisResult = null;
   try {
@@ -1433,12 +1476,27 @@ router.post('/chat', async (req, res) => {
     // Non-critical — fall through to standard prompt
   }
 
+  // ── SEC EDGAR integration: append regulatory filings + insider data ──────────
+  let edgarContext = '';
+  try {
+    // Extract primary ticker from user query (if any)
+    const tickerMatch = userQuery.match(/\$?([A-Z]{1,5}(?:\.[A-Z]{1,2})?)\b/);
+    if (tickerMatch) {
+      const ticker = tickerMatch[1];
+      // Non-blocking: EDGAR data is optional enrichment
+      edgarContext = await edgar.formatForContext(ticker).catch(() => '');
+    }
+  } catch (err) {
+    // EDGAR failure never crashes the chat flow
+    console.warn('[Particle/EDGAR] Enrichment error:', err.message);
+  }
+
   let systemPrompt;
   if (deepAnalysisResult?.prompt) {
     // Deep analysis mode: use the specialized prompt with market and vault context appended
     systemPrompt = `${deepAnalysisResult.prompt}
 
-${behaviorContext ? `\n${behaviorContext}\n` : ''}${vaultContext || ''}${marketContext ? `\n--- LIVE MARKET DATA ---\n${marketContext}\n--- END MARKET DATA ---\n` : ''}${context ? `\nAdditional context: ${context}` : ''}`;
+${behaviorContext ? `\n${behaviorContext}\n` : ''}${portfolioMetricsContext ? `\n${portfolioMetricsContext}\n` : ''}${vaultContext || ''}${marketContext ? `\n--- LIVE MARKET DATA ---\n${marketContext}\n--- END MARKET DATA ---\n` : ''}${edgarContext ? `\n--- SEC FILINGS ---\n${edgarContext}\n--- END SEC FILINGS ---\n` : ''}${context ? `\nAdditional context: ${context}` : ''}`;
   } else {
     // Standard Particle prompt — v2 with voice contract + persona card
     systemPrompt = `IDENTITY: You are Particle — the AI engine inside a professional financial terminal. You are a senior macro strategist who has managed risk through the 2008 crisis, COVID crash, and 2022 rate shock. You form strong, data-grounded views and defend them. You speak in terminal shorthand — terse, numeric, opinionated. When you're uncertain, you say so directly, but you never hide behind vague qualifiers.
@@ -1481,7 +1539,7 @@ User: "What's happening with Tesla?"
 BAD: "Tesla is an interesting stock to watch right now. Based on the data, there are several factors to consider. The stock has been volatile recently, and many analysts have different views on its trajectory. It's important to note that Tesla's fundamentals..."
 GOOD: "[sentiment:bear] **$TSLA** breaking below its 200-DMA at **$165** — down **-4.2%** on the session as delivery numbers disappointed. Q1 deliveries came in at 387K vs 415K consensus, a 7% miss. China competition from BYD is the structural overhang. Watch **$155** support — a break opens **$140**. BOTTOM LINE: Bearish below **$165**, and the delivery trajectory suggests this isn't a one-quarter problem."
 ${behaviorContext ? `\n${behaviorContext}\n` : ''}
-${vaultContext || ''}${marketContext ? `\n--- LIVE MARKET DATA ---\n${marketContext}\n--- END MARKET DATA ---\n` : ''}${context ? `\nAdditional context: ${context}` : ''}`;
+${portfolioMetricsContext ? `\n${portfolioMetricsContext}\n` : ''}${vaultContext || ''}${marketContext ? `\n--- LIVE MARKET DATA ---\n${marketContext}\n--- END MARKET DATA ---\n` : ''}${edgarContext ? `\n--- SEC FILINGS ---\n${edgarContext}\n--- END SEC FILINGS ---\n` : ''}${context ? `\nAdditional context: ${context}` : ''}`;
   }
 
   // ── Route to optimal model via modelRouter ──────────────────────────────

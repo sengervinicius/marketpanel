@@ -11,6 +11,7 @@
  * both their private vault AND the central vault are retrieved and injected
  * into the AI prompt as grounded context.
  */
+const crypto = require('crypto');
 const pg = require('../db/postgres');
 const logger = require('../utils/logger');
 
@@ -20,19 +21,42 @@ const CHUNK_OVERLAP = 150; // overlap between chunks — preserves cross-boundar
 const MAX_RETRIEVAL = 8; // top candidates before similarity filtering
 const MIN_SIMILARITY = 0.65; // discard passages below this threshold — irrelevant noise is worse than nothing
 const EMBEDDING_MODEL = 'text-embedding-3-small';
-const EMBEDDING_DIM = 1536;
+const VOYAGE_EMBEDDING_DIM = 1024;
+const OPENAI_EMBEDDING_DIM = 1536;
+const STORED_EMBEDDING_DIM = 1536; // vault_chunks.embedding column is vector(1536)
 
 let _openaiKey = null;
+let _voyageKey = null;
+let _cohereKey = null;
+let _embeddingDim = OPENAI_EMBEDDING_DIM;
+let _activeEmbeddingProvider = 'openai';
 
 /**
- * Initialize the vault service with OpenAI key.
+ * Initialize the vault service with API keys.
+ * Priority: Voyage AI (finance-optimized) > OpenAI (fallback)
+ * Cohere reranking is optional and used post-retrieval if available.
  */
-function init({ openaiKey }) {
+function init({ openaiKey, voyageKey, cohereKey } = {}) {
+  _voyageKey = voyageKey || process.env.VOYAGE_API_KEY;
   _openaiKey = openaiKey || process.env.OPENAI_API_KEY;
-  if (_openaiKey) {
-    logger.info('vault', 'Initialized with OpenAI embeddings');
+  _cohereKey = cohereKey || process.env.COHERE_API_KEY;
+
+  if (_voyageKey) {
+    _activeEmbeddingProvider = 'voyage';
+    _embeddingDim = VOYAGE_EMBEDDING_DIM;
+    logger.info('vault', 'Initialized with Voyage AI embeddings (finance-optimized, 1024d)');
+  } else if (_openaiKey) {
+    _activeEmbeddingProvider = 'openai';
+    _embeddingDim = OPENAI_EMBEDDING_DIM;
+    logger.info('vault', 'Initialized with OpenAI embeddings (1536d)');
   } else {
-    logger.warn('vault', 'OPENAI_API_KEY not set — embeddings will be disabled');
+    logger.warn('vault', 'No embedding API keys set — embeddings will be disabled');
+  }
+
+  if (_cohereKey) {
+    logger.info('vault', 'Cohere reranking enabled');
+  } else {
+    logger.info('vault', 'Cohere API key not set — reranking will be skipped');
   }
 }
 
@@ -83,6 +107,7 @@ async function ensureTable() {
     await alterSafe(`ALTER TABLE vault_documents ADD COLUMN IF NOT EXISTS source TEXT DEFAULT 'upload'`);
     await alterSafe(`ALTER TABLE vault_documents ADD COLUMN IF NOT EXISTS is_global BOOLEAN NOT NULL DEFAULT FALSE`);
     await alterSafe(`ALTER TABLE vault_documents ADD COLUMN IF NOT EXISTS metadata JSONB DEFAULT '{}'`);
+    await alterSafe(`ALTER TABLE vault_documents ADD COLUMN IF NOT EXISTS content_hash VARCHAR(64) DEFAULT NULL`);
     // vault_chunks columns that may be missing
     await alterSafe(`ALTER TABLE vault_chunks ADD COLUMN IF NOT EXISTS user_id INTEGER NOT NULL DEFAULT 0`);
     await alterSafe(`ALTER TABLE vault_chunks ADD COLUMN IF NOT EXISTS metadata JSONB DEFAULT '{}'`);
@@ -97,6 +122,16 @@ async function ensureTable() {
     await pg.query(`
       CREATE INDEX IF NOT EXISTS idx_vault_documents_global ON vault_documents(is_global) WHERE is_global = TRUE
     `);
+    // Unique index on (user_id, content_hash) to prevent duplicate ingestion
+    try {
+      await pg.query(`
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_vault_documents_user_hash ON vault_documents(user_id, content_hash)
+        WHERE content_hash IS NOT NULL
+      `);
+      logger.info('vault', 'Unique (user_id, content_hash) index created for duplicate detection');
+    } catch (e) {
+      logger.warn('vault', 'Could not create unique hash index', { error: e.message });
+    }
 
     // Create vault_chunks table (with optional vector column)
     await pg.query(`
@@ -223,10 +258,70 @@ function chunkText(text, chunkSize = CHUNK_SIZE, overlap = CHUNK_OVERLAP) {
 }
 
 /**
+ * Call Voyage AI embeddings API (finance-optimized).
+ * Returns array of embeddings padded to STORED_EMBEDDING_DIM (1536).
+ */
+async function embedVoyage(texts) {
+  if (!_voyageKey) {
+    logger.warn('vault', 'Voyage API key not set — falling back to OpenAI');
+    return embedOpenAI(texts);
+  }
+
+  if (!Array.isArray(texts)) {
+    texts = [texts];
+  }
+
+  // Batch in groups of 10 for Voyage (conservative limit)
+  const BATCH_SIZE = 10;
+  const allEmbeddings = [];
+
+  for (let i = 0; i < texts.length; i += BATCH_SIZE) {
+    const batch = texts.slice(i, i + BATCH_SIZE);
+    try {
+      const response = await fetch('https://api.voyageai.com/v1/embeddings', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${_voyageKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'voyage-finance-2',
+          input: batch,
+        }),
+      });
+
+      if (!response.ok) {
+        const err = await response.text();
+        logger.error('vault', 'Voyage API error', { status: response.status, error: err.slice(0, 200), batch: `${i}-${i + batch.length}` });
+        allEmbeddings.push(...batch.map(() => null));
+        continue;
+      }
+
+      const data = await response.json();
+      // Voyage returns 1024d vectors; pad to 1536 to fit the column
+      const paddedEmbeddings = data.data.map(d => {
+        const vec = d.embedding;
+        // Zero-pad to 1536 dimensions
+        while (vec.length < STORED_EMBEDDING_DIM) {
+          vec.push(0);
+        }
+        return vec.slice(0, STORED_EMBEDDING_DIM);
+      });
+      allEmbeddings.push(...paddedEmbeddings);
+    } catch (err) {
+      logger.error('vault', 'Voyage embedding batch error', { error: err.message, batch: `${i}-${i + batch.length}` });
+      allEmbeddings.push(...batch.map(() => null));
+    }
+  }
+
+  return allEmbeddings;
+}
+
+/**
  * Call OpenAI embeddings API.
  * Returns array of embeddings (or nulls if API unavailable).
  */
-async function embed(texts) {
+async function embedOpenAI(texts) {
   if (!_openaiKey) {
     logger.warn('vault', 'OpenAI key not set — returning null embeddings');
     return texts.map(() => null);
@@ -271,6 +366,18 @@ async function embed(texts) {
   }
 
   return allEmbeddings;
+}
+
+/**
+ * Route embedding calls to the active provider.
+ * Priority: Voyage AI (if key available) > OpenAI (fallback)
+ */
+async function embed(texts) {
+  if (_voyageKey) {
+    return embedVoyage(texts);
+  } else {
+    return embedOpenAI(texts);
+  }
 }
 
 /**
@@ -326,6 +433,30 @@ async function ingestPDF(userId, buffer, filename, { isGlobal = false } = {}) {
       .replace(/\.{2,}/g, '.')                     // Remove path traversal
       .slice(0, 255);                              // Limit length
 
+    // Compute SHA-256 hash of raw buffer for duplicate detection
+    const contentHash = crypto.createHash('sha256').update(buffer).digest('hex');
+
+    // Check for existing document with same hash for this user
+    const existingResult = await pg.query(
+      `SELECT id, filename FROM vault_documents WHERE user_id = $1 AND content_hash = $2 LIMIT 1`,
+      [userId, contentHash]
+    );
+
+    if (existingResult.rows && existingResult.rows.length > 0) {
+      const existingDoc = existingResult.rows[0];
+      logger.info('vault', 'Duplicate PDF detected', {
+        userId,
+        filename,
+        existingDocId: existingDoc.id,
+        existingFilename: existingDoc.filename,
+      });
+      return {
+        duplicate: true,
+        existingDocId: existingDoc.id,
+        filename: existingDoc.filename,
+      };
+    }
+
     // Parse PDF — robust handling for all PDF types
     let text = '';
     let pageCount = 0;
@@ -373,11 +504,11 @@ async function ingestPDF(userId, buffer, filename, { isGlobal = false } = {}) {
     const metadata = extractMetadata(text);
     metadata.pageCount = pageCount;
 
-    // Create document record
+    // Create document record with content hash
     const docResult = await pg.query(
-      `INSERT INTO vault_documents (user_id, filename, source, is_global, metadata)
-       VALUES ($1, $2, $3, $4, $5) RETURNING id`,
-      [userId, filename, 'upload', isGlobal, JSON.stringify(metadata)]
+      `INSERT INTO vault_documents (user_id, filename, source, is_global, metadata, content_hash)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+      [userId, filename, 'upload', isGlobal, JSON.stringify(metadata), contentHash]
     );
 
     const documentId = docResult.rows[0].id;
@@ -458,6 +589,87 @@ function reciprocalRankFusion(rankedLists, k = 60) {
     .map(x => ({ ...x.row, _rrf_score: x.score }));
 }
 
+/**
+ * Rerank passages using Cohere Rerank API.
+ * Takes top candidates after RRF and reranks them for better relevance.
+ * Gracefully skips if Cohere key is unavailable or API times out.
+ *
+ * @param {string} query - The user's original query
+ * @param {Array} passages - Array of passage objects from vault_chunks
+ * @param {number} topN - How many top results to return after reranking
+ * @returns {Array} Reranked passages with Cohere scores, or original passages on error/timeout
+ */
+async function rerankWithCohere(query, passages, topN) {
+  if (!_cohereKey || passages.length === 0) {
+    return passages;
+  }
+
+  if (passages.length <= topN) {
+    // No need to rerank if we have few candidates
+    return passages;
+  }
+
+  try {
+    // Cohere API expects documents as array of { text, ... } objects
+    const documents = passages.map((p, idx) => ({
+      text: p.content,
+      index: idx,
+    }));
+
+    // Set a 3-second timeout for the rerank request
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3000);
+
+    const response = await fetch('https://api.cohere.com/v2/rerank', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${_cohereKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'rerank-v3.5',
+        query: query,
+        documents: documents,
+        top_n: topN,
+      }),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      const err = await response.text();
+      logger.warn('vault', 'Cohere rerank API error', { status: response.status, error: err.slice(0, 200) });
+      return passages; // Fall back to RRF results
+    }
+
+    const data = await response.json();
+    if (!data.results || data.results.length === 0) {
+      logger.warn('vault', 'Cohere rerank returned no results');
+      return passages;
+    }
+
+    // Map Cohere results back to original passage objects, preserving all metadata
+    const reranked = data.results.map(result => {
+      const originalPassage = passages[result.index];
+      return {
+        ...originalPassage,
+        _cohere_rank: result.relevance_score,
+      };
+    });
+
+    logger.info('vault', `Cohere reranking: ${passages.length} candidates -> ${reranked.length} top results`);
+    return reranked;
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      logger.warn('vault', 'Cohere rerank timeout (3s) — using RRF results');
+    } else {
+      logger.warn('vault', 'Cohere rerank error', { error: err.message });
+    }
+    return passages; // Fall back to RRF results on any error
+  }
+}
+
 async function retrieve(userId, query, limit = MAX_RETRIEVAL) {
   if (!pg.isConnected()) {
     return [];
@@ -531,14 +743,24 @@ async function retrieve(userId, query, limit = MAX_RETRIEVAL) {
     return [];
   }
 
+  let fused;
   if (rankedLists.length === 1) {
-    // Single method — just return its results directly
-    return rankedLists[0].slice(0, limit);
+    // Single method — use its results directly
+    fused = rankedLists[0];
+  } else {
+    // Merge with RRF
+    fused = reciprocalRankFusion(rankedLists);
+    logger.info('vault', `Hybrid RRF: ${fused.length} unique passages from ${rankedLists.length} methods`);
   }
 
-  // Merge with RRF and return top results
-  const fused = reciprocalRankFusion(rankedLists);
-  logger.info('vault', `Hybrid RRF: ${fused.length} unique passages from ${rankedLists.length} methods`);
+  // ── Stage 3: Optional Cohere Reranking ──
+  // If we have more candidates than needed and Cohere is available, rerank for better relevance
+  if (_cohereKey && fused.length > limit) {
+    const reranked = await rerankWithCohere(query, fused, limit);
+    logger.info('vault', `Cohere rerank: ${reranked.length} passages returned`);
+    return reranked;
+  }
+
   return fused.slice(0, limit);
 }
 

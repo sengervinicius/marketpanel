@@ -51,6 +51,7 @@ const referralRoutes    = require('./routes/referrals');
 const notificationRoutes = require('./routes/notifications');
 const gameRoutes        = require('./routes/game');
 const screenTickerRoutes = require('./routes/screenTickers');
+const edgarRoutes       = require('./routes/edgar');
 const { requireAuth, requireActiveSubscription, requireAdmin } = require('./authMiddleware');
 const logger = require('./utils/logger');
 const { requestLogger } = require('./utils/logger');
@@ -335,6 +336,12 @@ app.use('/api/earnings', requireAuth, requireActiveSubscription,
   rateLimitByUser({ key: 'earnings', windowSec: 60, max: 10 }),
   requestTimeout(15000),
   earningsRoutes);
+
+// SEC EDGAR: auth + subscription required (free external API, no rate limit pressure)
+app.use('/api/edgar', requireAuth, requireActiveSubscription,
+  rateLimitByUser({ key: 'edgar', windowSec: 60, max: 20 }),
+  requestTimeout(15000),
+  edgarRoutes);
 
 // Feed health: no auth required (public endpoint for monitoring)
 app.use('/api/feed', feedRouter);
