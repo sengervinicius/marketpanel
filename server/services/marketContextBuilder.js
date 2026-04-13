@@ -337,17 +337,17 @@ function buildContext({ query, userId, intent: forceIntent } = {}) {
       }
     }
 
-    // ── 9. Prediction markets — only if query explicitly asks about predictions/odds ──
+    // ── 9. Prediction markets (Kalshi + Polymarket) — included as supplementary context ──
+    // Always available but limited to top 3 so they complement real market data, not dominate it
     try {
-      const qLower = (query || '').toLowerCase();
-      const wantsPredictions = /\b(predict|odds|probability|polymarket|kalshi|bet|wager|election|forecast)\b/i.test(qLower);
-      if (wantsPredictions) {
-        const predictionMarkets = predictionAggregator.getForQuery(query || '');
-        if (predictionMarkets.length > 0) {
-          const predStr = predictionAggregator.formatForAI(predictionMarkets.slice(0, 6));
-          if (predStr) {
-            sections.push(`[Prediction markets — live consensus from Kalshi & Polymarket]\n${predStr}`);
-          }
+      const predictionMarkets = predictionAggregator.getForQuery(query || '');
+      if (predictionMarkets.length > 0) {
+        // If query is specifically about predictions, include more
+        const isPredFocused = /\b(predict|odds|probability|polymarket|kalshi|bet|wager|election|forecast)\b/i.test(query || '');
+        const limit = isPredFocused ? 6 : 3;
+        const predStr = predictionAggregator.formatForAI(predictionMarkets.slice(0, limit));
+        if (predStr) {
+          sections.push(`[Prediction markets — supplementary consensus from Kalshi & Polymarket]\n${predStr}`);
         }
       }
     } catch (predErr) {

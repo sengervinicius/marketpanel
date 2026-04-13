@@ -1455,8 +1455,7 @@ Rules:
 - Never start with "Based on the data" or "According to" — just state what matters.
 - Financial disclaimers go at the very end in a brief parenthetical, never at the top.
 - For morning briefs: cover index performance (SPY/QQQ/DIA), notable sector moves, FX and commodities shifts, crypto if relevant, and any macro catalysts. Use the live data below.
-- For general market questions: prioritize real price data, index levels, sector performance, and fundamental context over prediction markets.
-- Only reference prediction markets if the user specifically asks about odds, probabilities, or prediction markets.
+- For general market questions: lead with real price data, index levels, sector performance, and fundamental context. Prediction market data is supplementary color — weave it in naturally when it adds insight (e.g. "Kalshi implies 73% odds of a June cut") but never make it the main focus unless the user asks specifically about predictions.
 - When you lack specific data, say so briefly rather than speculating or padding with generic commentary.
 - You have access to real-time data including US equities, global indices, forex, crypto, and commodities. Use it.
 ${behaviorContext ? `\n${behaviorContext}\n` : ''}
