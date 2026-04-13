@@ -350,6 +350,20 @@ function buildContext({ query, userId, intent: forceIntent } = {}) {
       // Prediction markets are non-critical — fail silently
     }
 
+    // ── 10. User interest profile (Wave 10 — personalization) ──────────
+    try {
+      if (userId) {
+        const behaviorTracker = require('./behaviorTracker');
+        const profile = await behaviorTracker.getCachedProfile(userId);
+        const profileStr = behaviorTracker.formatForAI(profile);
+        if (profileStr) {
+          sections.push(profileStr);
+        }
+      }
+    } catch (profileErr) {
+      // Personalization is non-critical — fail silently
+    }
+
   } catch (err) {
     logger.error('[MarketContextBuilder] Error building context:', err.message);
     // Graceful degradation: return whatever we have

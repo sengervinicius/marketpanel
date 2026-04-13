@@ -1332,6 +1332,7 @@ Rules:
  */
 
 const { buildContext } = require('../services/marketContextBuilder');
+const behaviorTracker = require('../services/behaviorTracker');
 
 // ── Chat response cache (first-turn only, 5 min TTL) ──────────────────────
 const _chatCache = new Map();
@@ -1383,6 +1384,11 @@ router.post('/chat', async (req, res) => {
   } catch (err) {
     // Graceful degradation: proceed without context
     console.error('[Particle/Chat] Context builder error:', err.message);
+  }
+
+  // Track search behavior (fire-and-forget)
+  if (userId) {
+    behaviorTracker.trackSearch(userId, userQuery).catch(() => {});
   }
 
   const systemPrompt = `You are Particle, an AI market intelligence assistant built into a professional-grade financial terminal. You help investors and traders understand markets with clarity, speed, and depth.

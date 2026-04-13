@@ -72,6 +72,8 @@ const predictionsRoutes = require('./routes/predictions');
 const { init: initWire } = require('./services/wireGenerator');
 const { init: initMorningBrief } = require('./services/morningBrief');
 const wireRoutes = require('./routes/wire');
+const { init: initBehavior } = require('./services/behaviorTracker');
+const behaviorRoutes = require('./routes/behavior');
 
 const app = express();
 
@@ -288,6 +290,12 @@ app.use('/api/wire', requireAuth, requireActiveSubscription,
   rateLimitByUser({ key: 'wire', windowSec: 60, max: 30 }),
   requestTimeout(20000),
   wireRoutes);
+
+// Behavioral tracking: auth required, high rate limit (fire-and-forget)
+app.use('/api/behavior', requireAuth,
+  rateLimitByUser({ key: 'behavior', windowSec: 60, max: 60 }),
+  requestTimeout(10000),
+  behaviorRoutes);
 
 // Feed health: no auth required (public endpoint for monitoring)
 app.use('/api/feed', feedRouter);
@@ -534,6 +542,9 @@ initWire({ marketState });
 
 // Start Morning Brief service (daily brief at 9:15 AM ET)
 initMorningBrief({ marketState, getUserById, getPortfolio });
+
+// Start behavioral intelligence tracker
+initBehavior({ mergeSettings: require('./authStore').mergeSettings, getUserById });
 
 // Boot sequence: Postgres → Redis → MongoDB → seed → jobs → HTTP server
 async function boot() {

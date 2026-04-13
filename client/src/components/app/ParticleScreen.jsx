@@ -11,14 +11,7 @@ import useParticleCanvas from './useParticleCanvas';
 import useParticleAI from '../../hooks/useParticleAI';
 import { useWireLatest, useMorningBrief } from '../../hooks/useWire';
 import { useStocksData } from '../../context/MarketContext';
-
-// ── Quick-action chip definitions ────────────────────────────────────────────
-const QUICK_CHIPS = [
-  { label: 'Market overview', query: 'Give me a quick market overview of major indices, sectors, and any notable moves today.' },
-  { label: 'Top movers', query: 'What are the top movers in the US stock market right now? Include gainers and losers.' },
-  { label: 'Rate cut odds', query: 'What are the current prediction market odds for the next Fed rate cut? Include Kalshi and Polymarket data.' },
-  { label: 'Market predictions', query: 'What are the most interesting prediction markets right now? Show me the top markets with their probabilities from Kalshi and Polymarket.' },
-];
+import { useBehaviorTracker, useSmartChips } from '../../hooks/useBehavior';
 
 export default function ParticleScreen() {
   const [query, setQuery] = useState('');
@@ -27,6 +20,10 @@ export default function ParticleScreen() {
   const scrollRef = useRef(null);
 
   const { messages, isStreaming, error, send, stop, clear } = useParticleAI();
+
+  // Behavior tracking + smart chips (Wave 10)
+  const { trackSearch, trackChipClick } = useBehaviorTracker();
+  const { chips: smartChips } = useSmartChips();
 
   // Wire & Brief hooks
   const wireLatest = useWireLatest();
@@ -76,13 +73,15 @@ export default function ParticleScreen() {
   const handleSubmit = useCallback((e) => {
     e.preventDefault();
     if (!query.trim() || isStreaming) return;
+    trackSearch(query.trim());
     send(query.trim());
     setQuery('');
     inputRef.current?.blur();
-  }, [query, isStreaming, send]);
+  }, [query, isStreaming, send, trackSearch]);
 
   const handleChipClick = useCallback((chipQuery) => {
     if (isStreaming) return;
+    trackChipClick(chipQuery);
     send(chipQuery);
     setQuery('');
   }, [isStreaming, send]);
@@ -155,9 +154,9 @@ export default function ParticleScreen() {
             )}
           </form>
 
-          {/* Quick chips */}
+          {/* Smart chips (personalized via Wave 10) */}
           <div className="particle-chips" style={{ opacity: focused ? 0.4 : 1, transition: 'opacity var(--duration-fast, 150ms)' }}>
-            {QUICK_CHIPS.map(c => (
+            {smartChips.map(c => (
               <button key={c.label} className="particle-chip" type="button" onClick={() => handleChipClick(c.query)}>
                 {c.label}
               </button>

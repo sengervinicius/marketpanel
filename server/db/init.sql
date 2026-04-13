@@ -85,6 +85,17 @@ CREATE TABLE IF NOT EXISTS email_verifications (
   created_at  BIGINT NOT NULL
 );
 
+-- ── User behavior tracking (silent personalization) ─────────────────────────
+CREATE TABLE IF NOT EXISTS user_behavior (
+  id          SERIAL PRIMARY KEY,
+  user_id     INTEGER NOT NULL,
+  event_type  TEXT NOT NULL,
+  payload     JSONB NOT NULL DEFAULT '{}',
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_behavior_user_time ON user_behavior (user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_behavior_type ON user_behavior (event_type);
+
 -- ── Wire entries (proactive AI market commentary) ───────────────────────────
 CREATE TABLE IF NOT EXISTS wire_entries (
   id          SERIAL PRIMARY KEY,
