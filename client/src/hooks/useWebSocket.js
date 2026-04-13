@@ -22,15 +22,16 @@ const RECONNECT_MAX      = 15_000;
 const QUEUE_MAX          = 50;       // max buffered outgoing messages
 
 /**
- * Build the WebSocket URL.
- * Auth token is now passed via httpOnly cookie (senger_token) instead of URL query parameter.
- * The server will read from the cookie (primary) or fall back to query param for backward compatibility.
- * Note: Cookies are sent automatically with same-origin requests and cross-origin requests
- * when the server has set them with appropriate SameSite policy.
+ * Build the WebSocket URL with auth token.
+ * Cross-origin WebSocket connections (client on the-particle.com → server on senger-server.onrender.com)
+ * do NOT send cookies automatically. The token must be passed via URL query parameter.
+ * The server accepts both cookie and query param auth — cookie takes priority when available.
  */
-function buildWsUrl() {
-  // No token appended to URL anymore — cookies handle auth securely
-  return WS_URL;
+function buildWsUrl(token) {
+  if (!WS_URL) return null;
+  if (!token) return WS_URL;
+  const sep = WS_URL.includes('?') ? '&' : '?';
+  return `${WS_URL}${sep}token=${encodeURIComponent(token)}`;
 }
 
 export function useWebSocket(onMessage, token) {
@@ -86,7 +87,7 @@ export function useWebSocket(onMessage, token) {
   const connect = useCallback(() => {
     if (!mounted.current) return;
 
-    const url = buildWsUrl();
+    const url = buildWsUrl(token);
     if (!url) {
       // No URL available — don't attempt WS connection
       console.warn('[WS] Skipping connection — no WS URL available.');
@@ -148,7 +149,7 @@ export function useWebSocket(onMessage, token) {
       console.error('[WS] Connection failed:', e);
       setReadyState(WebSocket.CLOSED);
     }
-  }, [onMessage, startHeartbeat, stopHeartbeat, flushQueue]);
+  }, [onMessage, token, startHeartbeat, stopHeartbeat, flushQueue]);
 
   useEffect(() => {
     mounted.current = true;

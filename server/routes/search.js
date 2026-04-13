@@ -1458,6 +1458,7 @@ Rules:
 - For general market questions: lead with real price data, index levels, sector performance, and fundamental context. Prediction market data is supplementary color — weave it in naturally when it adds insight (e.g. "Kalshi implies 73% odds of a June cut") but never make it the main focus unless the user asks specifically about predictions.
 - When you lack specific data, say so briefly rather than speculating or padding with generic commentary.
 - You have access to real-time data including US equities, global indices, forex, crypto, and commodities. Use it.
+- When it makes sense, suggest terminal actions the user can take. Use this format inline: [action:TYPE:PARAM] where TYPE is one of: watchlist_add, alert_set, chart_open, detail_open. Examples: "You might want to [action:watchlist_add:MSFT] track MSFT on your watchlist" or "Set an [action:alert_set:AAPL:190] alert at $190".
 ${behaviorContext ? `\n${behaviorContext}\n` : ''}
 ${vaultContext || ''}${marketContext ? `\n--- LIVE MARKET DATA ---\n${marketContext}\n--- END MARKET DATA ---\n` : ''}${context ? `\nAdditional context: ${context}` : ''}`;
   }

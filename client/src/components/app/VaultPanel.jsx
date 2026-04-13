@@ -1,12 +1,15 @@
 /**
  * VaultPanel.jsx — Knowledge Vault management UI.
  *
+ * Redesigned to match Particle/Terminal premium aesthetic:
+ *   - Sticky header with Vault gold accent
+ *   - Grid layout with document list + search sections
+ *   - Compact upload zone (not a giant dropbox)
+ *   - Terminal-style document rows
+ *
  * Two tabs:
  *   1. My Vault — user's private documents
  *   2. Central Vault — admin-only global research (visible to admins)
- *
- * Upload PDFs, view documents, delete, search vault contents.
- * Mounted inside the SettingsDrawer as a tab.
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { API_BASE } from '../../utils/api';
@@ -34,7 +37,7 @@ export default function VaultPanel({ fullScreen = false }) {
 
   const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
-  // Check admin status by trying to fetch central docs
+  // Check admin status
   useEffect(() => {
     async function checkAdmin() {
       try {
@@ -48,13 +51,13 @@ export default function VaultPanel({ fullScreen = false }) {
           setCentralDocs(data.documents || []);
         }
       } catch {
-        // Not admin or endpoint unavailable
+        // Not admin
       }
     }
     if (token) checkAdmin();
   }, [token]);
 
-  // Fetch quota info
+  // Fetch quota
   useEffect(() => {
     if (!token) return;
     fetch(`${API_BASE}/api/vault/quota`, { headers, credentials: 'include' })
@@ -63,20 +66,16 @@ export default function VaultPanel({ fullScreen = false }) {
       .catch(() => {});
   }, [token, documents.length]);
 
-  // Drag-and-drop support
+  // Drag-and-drop
   const handleDragOver = useCallback((e) => { e.preventDefault(); e.stopPropagation(); setDragOver(true); }, []);
   const handleDragLeave = useCallback((e) => { e.preventDefault(); e.stopPropagation(); setDragOver(false); }, []);
   const handleDrop = useCallback((e) => {
     e.preventDefault(); e.stopPropagation(); setDragOver(false);
     const files = e.dataTransfer?.files;
-    if (files?.length > 0) {
-      // Simulate file input change
-      const fakeEvent = { target: { files } };
-      handleUploadFile(files[0]);
-    }
+    if (files?.length > 0) handleUploadFile(files[0]);
   }, [token, tab]);
 
-  // Unified upload handler (for both click and drag-drop)
+  // Upload handler
   const handleUploadFile = useCallback(async (file) => {
     if (!file) return;
     if (!file.name.toLowerCase().endsWith('.pdf')) { setError('Only PDF files are supported'); return; }
@@ -104,8 +103,7 @@ export default function VaultPanel({ fullScreen = false }) {
       const tickers = data.metadata?.tickers;
       const bank = data.metadata?.bank;
 
-      // Build insight string
-      let insight = `${file.name} stored — ${chunks} passages indexed.`;
+      let insight = `${file.name} indexed — ${chunks} passages.`;
       if (bank) insight += ` Source: ${bank}.`;
       if (tickers?.length) insight += ` Tickers: ${tickers.join(', ')}.`;
       setUploadInsight(insight);
@@ -126,10 +124,7 @@ export default function VaultPanel({ fullScreen = false }) {
   const fetchDocuments = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await fetch(`${API_BASE}/api/vault/documents`, {
-        headers,
-        credentials: 'include',
-      });
+      const res = await fetch(`${API_BASE}/api/vault/documents`, { headers, credentials: 'include' });
       if (!res.ok) throw new Error('Failed to load documents');
       const data = await res.json();
       setDocuments(data.documents || []);
@@ -144,10 +139,7 @@ export default function VaultPanel({ fullScreen = false }) {
   const fetchCentralDocs = useCallback(async () => {
     if (!isAdmin) return;
     try {
-      const res = await fetch(`${API_BASE}/api/vault/admin/documents`, {
-        headers,
-        credentials: 'include',
-      });
+      const res = await fetch(`${API_BASE}/api/vault/admin/documents`, { headers, credentials: 'include' });
       if (res.ok) {
         const data = await res.json();
         setCentralDocs(data.documents || []);
@@ -159,7 +151,7 @@ export default function VaultPanel({ fullScreen = false }) {
 
   useEffect(() => { fetchDocuments(); }, [fetchDocuments]);
 
-  // Upload handler (click-based, delegates to handleUploadFile)
+  // Upload handler (click-based)
   const handleUpload = useCallback((e) => {
     const file = e.target.files?.[0];
     if (file) handleUploadFile(file);
@@ -174,13 +166,8 @@ export default function VaultPanel({ fullScreen = false }) {
       : `${API_BASE}/api/vault/documents/${docId}`;
 
     try {
-      const res = await fetch(deleteUrl, {
-        method: 'DELETE',
-        headers,
-        credentials: 'include',
-      });
+      const res = await fetch(deleteUrl, { method: 'DELETE', headers, credentials: 'include' });
       if (!res.ok) throw new Error('Delete failed');
-
       if (tab === 'central') {
         setCentralDocs(prev => prev.filter(d => d.id !== docId));
       } else {
@@ -195,10 +182,8 @@ export default function VaultPanel({ fullScreen = false }) {
   const handleSearch = useCallback(async (e) => {
     e.preventDefault();
     if (!searchQuery.trim()) return;
-
     setSearching(true);
     setSearchResults(null);
-
     try {
       const res = await fetch(`${API_BASE}/api/vault/search`, {
         method: 'POST',
@@ -216,14 +201,14 @@ export default function VaultPanel({ fullScreen = false }) {
     }
   }, [searchQuery, token]);
 
-  // Format date
   const fmtDate = (iso) => {
     if (!iso) return '';
     const d = new Date(iso);
-    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
 
   const activeDocs = tab === 'central' ? centralDocs : documents;
+  const totalChunks = activeDocs.reduce((s, d) => s + (d.chunk_count || 0), 0);
 
   return (
     <div
@@ -233,50 +218,63 @@ export default function VaultPanel({ fullScreen = false }) {
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
-      {/* Drag-over visual */}
+      {/* Drag-over overlay */}
       {dragOver && (
         <div className="vault-drop-overlay">
           <div className="vault-drop-content">
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
               <path d="M12 2L2 7l10 5 10-5-10-5z" /><path d="M2 17l10 5 10-5" /><path d="M2 12l10 5 10-5" />
             </svg>
-            <span>Drop PDF to add to vault</span>
+            <span>DROP PDF TO VAULT</span>
           </div>
         </div>
       )}
 
-      <div className="vault-header">
-        <span className="vault-title">Knowledge Vault</span>
-        <span className="vault-subtitle">
-          {tab === 'central'
-            ? 'Professional research that powers all users'
-            : 'Upload research to power your AI answers'}
-        </span>
+      {/* ── Sticky Header ── */}
+      <div className="vault-top-bar">
+        <div className="vault-top-accent" />
+        <span className="vault-top-title">Vault</span>
+        <span className="vault-top-badge">KNOWLEDGE</span>
+        <div className="vault-top-spacer" />
+        <div className="vault-top-stats">
+          <div className="vault-stat">
+            <span className="vault-stat-value">{activeDocs.length}</span>
+            <span className="vault-stat-label">DOCS</span>
+          </div>
+          <div className="vault-stat">
+            <span className="vault-stat-value">{totalChunks}</span>
+            <span className="vault-stat-label">PASSAGES</span>
+          </div>
+          {quota && !quota.documents?.unlimited && (
+            <div className="vault-stat">
+              <span className="vault-stat-value">{quota.documents.used}/{quota.documents.limit}</span>
+              <span className="vault-stat-label">{quota.tierLabel?.toUpperCase() || 'QUOTA'}</span>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Quota bar */}
-      {quota && !quota.documents.unlimited && (
-        <div className="vault-quota">
+      {/* Quota bar (subtle) */}
+      {quota && !quota.documents?.unlimited && (
+        <div className="vault-quota-strip">
           <div className="vault-quota-bar">
             <div className="vault-quota-fill" style={{ width: `${Math.min(100, (quota.documents.used / quota.documents.limit) * 100)}%` }} />
           </div>
-          <span className="vault-quota-label">
-            {quota.documents.used} / {quota.documents.limit} documents · {quota.tierLabel}
-          </span>
+          <span className="vault-quota-label">{quota.documents.used}/{quota.documents.limit} docs</span>
         </div>
       )}
 
-      {/* Tab switcher (only visible to admins) */}
+      {/* Admin tabs */}
       {isAdmin && (
-        <div className="vault-tabs">
+        <div className="vault-tab-strip">
           <button
-            className={`vault-tab${tab === 'private' ? ' vault-tab--active' : ''}`}
+            className={`vault-tab-btn${tab === 'private' ? ' vault-tab-btn--active' : ''}`}
             onClick={() => setTab('private')}
           >
             My Vault
           </button>
           <button
-            className={`vault-tab${tab === 'central' ? ' vault-tab--active' : ''}`}
+            className={`vault-tab-btn${tab === 'central' ? ' vault-tab-btn--active' : ''}`}
             onClick={() => { setTab('central'); fetchCentralDocs(); }}
           >
             Central Vault
@@ -284,45 +282,10 @@ export default function VaultPanel({ fullScreen = false }) {
         </div>
       )}
 
-      {/* Upload area */}
-      <div className="vault-upload-area" onClick={() => !uploading && fileInputRef.current?.click()}>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".pdf"
-          onChange={handleUpload}
-          style={{ display: 'none' }}
-        />
-        {uploading ? (
-          <div className="vault-upload-progress">
-            <span className="vault-upload-spinner" />
-            <span>{uploadProgress}</span>
-          </div>
-        ) : (
-          <>
-            <svg className="vault-upload-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-              <polyline points="17 8 12 3 7 8" />
-              <line x1="12" y1="3" x2="12" y2="15" />
-            </svg>
-            <span className="vault-upload-label">
-              {tab === 'central' ? 'Upload to Central Vault' : 'Drop PDF here or click to upload'}
-            </span>
-            <span className="vault-upload-hint">
-              {tab === 'central' ? 'All users will benefit from this research' : 'PDF up to 10MB · Particle will read and index it'}
-            </span>
-          </>
-        )}
-      </div>
-
-      {uploadProgress && !uploading && (
-        <div className="vault-success">{uploadProgress}</div>
-      )}
-
-      {/* File insight after successful upload */}
+      {/* Status toasts */}
       {uploadInsight && (
-        <div className="vault-insight">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ flexShrink: 0, marginTop: 1 }}>
+        <div className="vault-toast vault-toast--success">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" />
           </svg>
           <span>{uploadInsight}</span>
@@ -330,93 +293,162 @@ export default function VaultPanel({ fullScreen = false }) {
       )}
 
       {error && (
-        <div className="vault-error">
-          {error}
-          <button className="vault-error-dismiss" onClick={() => setError(null)}>&times;</button>
+        <div className="vault-toast vault-toast--error">
+          <span>{error}</span>
+          <button className="vault-toast-dismiss" onClick={() => setError(null)}>&times;</button>
         </div>
       )}
 
-      {/* Search (searches both private + central) */}
-      <form className="vault-search" onSubmit={handleSearch}>
-        <input
-          className="vault-search-input"
-          type="text"
-          placeholder="Search all vaults..."
-          value={searchQuery}
-          onChange={e => setSearchQuery(e.target.value)}
-        />
-        <button className="vault-search-btn" type="submit" disabled={searching || !searchQuery.trim()}>
-          {searching ? '...' : 'Search'}
-        </button>
-      </form>
-
-      {/* Search results */}
-      {searchResults && (
-        <div className="vault-search-results">
-          <div className="vault-section-label">
-            {searchResults.length === 0 ? 'No matches found' : `${searchResults.length} passages found`}
+      {/* ── Main Content Grid ── */}
+      <div className="vault-body">
+        {/* Left: Documents list */}
+        <div className="vault-section">
+          <div className="vault-section-head">
+            <svg className="vault-section-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" />
+            </svg>
+            <span className="vault-section-title">Documents</span>
+            <span className="vault-section-count">{activeDocs.length}</span>
           </div>
-          {searchResults.map((r, i) => (
-            <div key={i} className="vault-search-result">
-              <div className="vault-result-source">
-                {r.is_global && <span className="vault-badge-global">Central</span>}
-                {r.filename || r.doc_metadata?.bank || 'Unknown'}
-                {r.similarity != null && (
-                  <span className="vault-result-score">{(r.similarity * 100).toFixed(0)}% match</span>
-                )}
+
+          {/* Upload zone (compact) */}
+          <input ref={fileInputRef} type="file" accept=".pdf" onChange={handleUpload} style={{ display: 'none' }} />
+
+          {uploading ? (
+            <div className="vault-upload-progress-inline">
+              <span className="vault-upload-spinner" />
+              <span>{uploadProgress}</span>
+            </div>
+          ) : (
+            <div className="vault-upload-zone" onClick={() => fileInputRef.current?.click()}>
+              <div className="vault-upload-zone-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" />
+                </svg>
               </div>
-              <div className="vault-result-content">{r.content?.slice(0, 200)}...</div>
+              <div className="vault-upload-zone-text">
+                <span className="vault-upload-zone-label">
+                  {tab === 'central' ? 'Upload to Central Vault' : 'Upload PDF'}
+                </span>
+                <span className="vault-upload-zone-hint">
+                  {tab === 'central' ? 'Powers all users\' AI answers' : 'Drop or click \u00B7 PDF up to 10MB'}
+                </span>
+              </div>
             </div>
-          ))}
-          <button className="vault-search-clear" onClick={() => setSearchResults(null)}>Clear results</button>
-        </div>
-      )}
+          )}
 
-      {/* Document list */}
-      <div className="vault-section-label">
-        {loading && tab === 'private'
-          ? 'Loading...'
-          : `${activeDocs.length} document${activeDocs.length !== 1 ? 's' : ''}`}
-      </div>
+          {/* Document list */}
+          <div className="vault-section-body">
+            {loading && <div className="vault-empty-state"><span className="vault-empty-text">Loading...</span></div>}
 
-      {!loading && activeDocs.length === 0 && (
-        <div className="vault-empty">
-          {tab === 'central'
-            ? 'No central research yet. Upload professional reports to power all users.'
-            : 'No documents yet. Upload your first PDF to get started.'}
-        </div>
-      )}
+            {!loading && activeDocs.length === 0 && (
+              <div className="vault-empty-state">
+                <svg className="vault-empty-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1">
+                  <path d="M12 2L2 7l10 5 10-5-10-5z" /><path d="M2 17l10 5 10-5" /><path d="M2 12l10 5 10-5" />
+                </svg>
+                <span className="vault-empty-text">
+                  {tab === 'central'
+                    ? 'No central research yet. Upload professional reports.'
+                    : 'No documents yet. Upload your first PDF to power your AI.'}
+                </span>
+              </div>
+            )}
 
-      <div className="vault-doc-list">
-        {activeDocs.map(doc => (
-          <div key={doc.id} className="vault-doc">
-            <div className="vault-doc-info">
-              <span className="vault-doc-name" title={doc.filename}>
-                {doc.is_global && <span className="vault-badge-global vault-badge-global--small">Central</span>}
-                {doc.filename}
-              </span>
-              <span className="vault-doc-meta">
-                {doc.chunk_count ? `${doc.chunk_count} chunks` : ''}
-                {doc.metadata?.tickers && (
-                  <span className="vault-doc-tickers">
-                    {Array.isArray(doc.metadata.tickers) ? doc.metadata.tickers.join(', ') : doc.metadata.tickers}
+            {activeDocs.map(doc => (
+              <div key={doc.id} className="vault-doc-row">
+                <div className="vault-doc-icon">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" />
+                  </svg>
+                </div>
+                <div className="vault-doc-info">
+                  <span className="vault-doc-name" title={doc.filename}>
+                    {doc.is_global && <span className="vault-badge-global">C</span>}
+                    {doc.filename}
                   </span>
-                )}
-                {doc.created_at && <span> &middot; {fmtDate(doc.created_at)}</span>}
-              </span>
-            </div>
-            <button
-              className="vault-doc-delete"
-              onClick={() => handleDelete(doc.id, doc.filename)}
-              title="Delete document"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <polyline points="3 6 5 6 21 6" />
-                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-              </svg>
-            </button>
+                  <span className="vault-doc-meta">
+                    {doc.chunk_count ? <span className="vault-doc-chunks">{doc.chunk_count} chunks</span> : null}
+                    {doc.metadata?.tickers && (
+                      <span className="vault-doc-tickers">
+                        {Array.isArray(doc.metadata.tickers) ? doc.metadata.tickers.join(', ') : doc.metadata.tickers}
+                      </span>
+                    )}
+                    {doc.created_at && <span>{fmtDate(doc.created_at)}</span>}
+                  </span>
+                </div>
+                <button className="vault-doc-delete" onClick={() => handleDelete(doc.id, doc.filename)} title="Delete">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <polyline points="3 6 5 6 21 6" />
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                  </svg>
+                </button>
+              </div>
+            ))}
           </div>
-        ))}
+        </div>
+
+        {/* Right: Search & Results */}
+        <div className="vault-section">
+          <div className="vault-section-head">
+            <svg className="vault-section-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            <span className="vault-section-title">Semantic Search</span>
+            {searchResults && <span className="vault-section-count">{searchResults.length} results</span>}
+          </div>
+
+          {/* Search bar */}
+          <form className="vault-search-bar" onSubmit={handleSearch}>
+            <input
+              className="vault-search-input"
+              type="text"
+              placeholder="Search your vault with natural language..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+            />
+            <button className="vault-search-btn" type="submit" disabled={searching || !searchQuery.trim()}>
+              {searching ? '...' : 'Search'}
+            </button>
+          </form>
+
+          <div className="vault-section-body">
+            {/* Default state: helpful tips */}
+            {!searchResults && !searching && (
+              <div className="vault-empty-state">
+                <svg className="vault-empty-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1">
+                  <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+                </svg>
+                <span className="vault-empty-text">
+                  Search across all your uploaded research. Particle AI also uses these documents to enrich answers.
+                </span>
+              </div>
+            )}
+
+            {/* Results */}
+            {searchResults && searchResults.length === 0 && (
+              <div className="vault-empty-state">
+                <span className="vault-empty-text">No matching passages found. Try different keywords.</span>
+              </div>
+            )}
+
+            {searchResults && searchResults.map((r, i) => (
+              <div key={i} className="vault-result-row">
+                <div className="vault-result-head">
+                  {r.is_global && <span className="vault-badge-global">C</span>}
+                  <span className="vault-result-source">{r.filename || r.doc_metadata?.bank || 'Unknown'}</span>
+                  {r.similarity != null && (
+                    <span className="vault-result-score">{(r.similarity * 100).toFixed(0)}%</span>
+                  )}
+                </div>
+                <div className="vault-result-content">{r.content?.slice(0, 250)}...</div>
+              </div>
+            ))}
+
+            {searchResults && searchResults.length > 0 && (
+              <button className="vault-search-clear" onClick={() => setSearchResults(null)}>Clear Results</button>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );

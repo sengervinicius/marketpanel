@@ -851,7 +851,7 @@ async function findOrCreateAppleUser(appleUserId, email, firstName) {
     settings:             defaultSettings(),
     isPaid:               false,
     subscriptionActive:   true,
-    trialEndsAt:          now + 2 * 24 * 60 * 60 * 1000,
+    trialEndsAt:          now + (parseInt(process.env.TRIAL_DAYS, 10) || 14) * 24 * 60 * 60 * 1000,
     stripeCustomerId:     null,
     stripeSubscriptionId: null,
     createdAt:            now,

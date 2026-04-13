@@ -482,7 +482,32 @@ function buildContext({ query, userId, intent: forceIntent } = {}) {
   }
 
   const contextString = sections.join('\n');
-  return { contextString, intent, mentionedTickers };
+
+  // Build structured JSON context alongside text (for future tooling, logging, & validation)
+  let structuredContext = null;
+  try {
+    const temporal = getTemporalContext();
+    const indices = getIndices();
+    const { gainers, losers } = getTopMovers('stocks', 3);
+    structuredContext = {
+      version: '2.0',
+      timestamp: new Date().toISOString(),
+      intent,
+      mentionedTickers,
+      temporal,
+      market: {
+        indices: indices.map(i => ({ symbol: i.symbol, price: i.price, changePct: i.change })),
+        topGainers: gainers.map(g => ({ symbol: g.symbol, changePct: g.change })),
+        topLosers: losers.map(l => ({ symbol: l.symbol, changePct: l.change })),
+      },
+      sectionCount: sections.length,
+      tokenEstimate: Math.ceil(contextString.length / 4),
+    };
+  } catch {
+    // structuredContext is non-critical — fail silently
+  }
+
+  return { contextString, structuredContext, intent, mentionedTickers };
 }
 
 function getMarketState() { return _marketState; }

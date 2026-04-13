@@ -113,31 +113,7 @@ export default function ParticleSidebar({ collapsed, onToggle }) {
           ))}
           {error && <div className="psb-error">{error}</div>}
         </div>
-      ) : (
-        /* Wire feed when no conversation */
-        <div className="psb-wire-section">
-          <div className="psb-wire-header">
-            <span className="psb-wire-badge">THE WIRE</span>
-          </div>
-          {wireEntries.length === 0 ? (
-            <div className="psb-wire-empty">No Wire entries yet</div>
-          ) : (
-            wireEntries.map((entry, i) => (
-              <div key={i} className="psb-wire-entry" onClick={() => {
-                send(`Tell me more about: ${entry.content.slice(0, 80)}`);
-              }}>
-                <div className="psb-wire-content">{entry.content}</div>
-                <div className="psb-wire-meta">
-                  {entry.tickers?.map(t => (
-                    <span key={t} className="psb-wire-ticker">${t}</span>
-                  ))}
-                  <span className="psb-wire-time">{formatTime(entry.created_at || entry.timestamp)}</span>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      )}
+      ) : null}
     </div>
   );
 }

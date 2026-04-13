@@ -340,14 +340,7 @@ export default function ParticleScreen() {
             ))}
           </div>
 
-          {/* Wire teaser — latest entry */}
-          {wireLatest && (
-            <div className="particle-wire-teaser" onClick={() => handleChipClick(`Tell me more about: ${wireLatest.content.slice(0, 80)}`)}>
-              <span className="particle-wire-label">Wire</span>
-              <span className="particle-wire-text">{wireLatest.content}</span>
-              <span className="particle-wire-time">{wireLatest.timestamp ? formatWireTime(wireLatest.timestamp) : ''}</span>
-            </div>
-          )}
+          {/* Wire teaser removed — user requested clean welcome screen */}
 
           {/* Market closed empty state (Wave 12A) */}
           {marketState.closed && !wireLatest && (
@@ -454,8 +447,8 @@ export default function ParticleScreen() {
         </div>
       )}
 
-      {/* Wave 13B: Desktop Wire overlay — translucent feed on the canvas */}
-      {!isMobile && !inConversation && wireOverlayEntries.length > 0 && (
+      {/* Wire overlay removed — user requested clean Particle screen */}
+      {false && (
         <div className="particle-wire-overlay">
           <div className="particle-wire-overlay-header">
             <span className="particle-wire-overlay-badge">THE WIRE</span>
@@ -540,8 +533,8 @@ function ParticleMarkdown({ text }) {
 }
 
 function renderInline(text) {
-  // Split on: **bold**, `code`, $TICKER patterns
-  const parts = text.split(/(\*\*[^*]+\*\*|`[^`]+`|\$[A-Z]{1,5}(?:\.[A-Z]{1,2})?)/g);
+  // Split on: **bold**, `code`, $TICKER, [action:TYPE:PARAMS] patterns
+  const parts = text.split(/(\*\*[^*]+\*\*|`[^`]+`|\$[A-Z]{1,5}(?:\.[A-Z]{1,2})?|\[action:[a-z_]+(?::[^\]]+)?\])/g);
   return parts.map((part, i) => {
     // Bold: **text**
     if (part.startsWith('**') && part.endsWith('**')) {
@@ -555,8 +548,46 @@ function renderInline(text) {
     if (/^\$[A-Z]{1,5}(\.[A-Z]{1,2})?$/.test(part)) {
       return <span key={i} className="particle-md-ticker">{part}</span>;
     }
+    // AI-to-Terminal action: [action:TYPE:PARAM]
+    const actionMatch = part.match(/^\[action:([a-z_]+)(?::([^\]]+))?\]$/);
+    if (actionMatch) {
+      const type = actionMatch[1];
+      const params = actionMatch[2] || '';
+      return <ActionButton key={i} type={type} params={params} />;
+    }
     return part;
   });
+}
+
+/** AI-suggested terminal action button */
+function ActionButton({ type, params }) {
+  const ACTIONS = {
+    watchlist_add: { label: '+ Watchlist', icon: '\u2605', color: 'var(--color-vault, #DAA520)' },
+    alert_set:     { label: 'Set Alert',   icon: '\u26A0', color: 'var(--semantic-warn, #ff9800)' },
+    chart_open:    { label: 'Open Chart',  icon: '\u25CF', color: 'var(--accent, #F97316)' },
+    detail_open:   { label: 'Details',     icon: '\u2192', color: 'var(--accent, #F97316)' },
+  };
+  const action = ACTIONS[type] || { label: type, icon: '\u2022', color: 'var(--text-secondary)' };
+  const ticker = params.split(':')[0] || '';
+
+  const handleClick = () => {
+    // Dispatch action event — App.jsx or panels can listen and execute
+    window.dispatchEvent(new CustomEvent('particle:action', {
+      detail: { type, ticker, params },
+    }));
+  };
+
+  return (
+    <button
+      className="particle-action-btn"
+      onClick={handleClick}
+      title={`${action.label}${ticker ? `: ${ticker}` : ''}`}
+      style={{ '--action-color': action.color }}
+    >
+      <span className="particle-action-icon">{action.icon}</span>
+      <span className="particle-action-label">{action.label}{ticker ? ` ${ticker}` : ''}</span>
+    </button>
+  );
 }
 
 // ── Wave 12A: Dynamic greeting — time + market-state aware ─────────────────

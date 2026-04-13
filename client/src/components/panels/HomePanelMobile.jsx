@@ -330,17 +330,6 @@ function HomePanelMobile({ onSearchClick }) {
         </div>
       )}
 
-      {/* Search Bar */}
-      <div className="hpm-search-container">
-        <input
-          type="text"
-          className="hpm-search-input"
-          placeholder="Search instruments..."
-          onClick={onSearchClick}
-          readOnly
-        />
-      </div>
-
       {/* AI Market Pulse card */}
       <div className="hpm-ai-card" onClick={fetchAiPulse}>
         <span className="hpm-ai-badge">MARKET PULSE</span>

@@ -58,6 +58,7 @@ const { errorHandler } = require('./utils/apiError');
 const { rateLimitByUser } = require('./middleware/rateLimitByUser');
 const { rateLimitByIP } = require('./middleware/rateLimitByIP');
 const { requestTimeout } = require('./middleware/requestTimeout');
+const { csrfProtect } = require('./middleware/csrfProtect');
 const { initPostgres, isConnected: pgConnected } = require('./db/postgres');
 const { initRedis, isConnected: redisConnected } = require('./cache/redisClient');
 const { initJobs, stopAll: stopJobs } = require('./jobs/index');
@@ -154,6 +155,9 @@ app.use((req, res, next) => {
 app.use(cookieParser());
 
 app.use(requestLogger);
+
+// CSRF protection — blocks plain-form cross-origin state-mutating requests
+app.use(csrfProtect);
 
 // ── Static file serving ───────────────────────────────────────────────────────
 const path = require('path');

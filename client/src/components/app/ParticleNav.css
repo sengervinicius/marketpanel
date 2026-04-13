@@ -493,6 +493,32 @@
   border-bottom: 1px dotted var(--color-particle-dim, rgba(249,115,22,0.10));
 }
 
+/* ── AI-to-Terminal action buttons ── */
+.particle-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  margin: 0 2px;
+  font-size: 10px;
+  font-weight: 600;
+  font-family: var(--font-body, var(--font-ui));
+  letter-spacing: 0.04em;
+  color: var(--action-color, var(--accent));
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 3px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  vertical-align: middle;
+}
+.particle-action-btn:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: var(--action-color, var(--accent));
+}
+.particle-action-icon { font-size: 11px; }
+.particle-action-label { text-transform: uppercase; }
+
 /* Conversation input bar (bottom) */
 .particle-conv-input {
   display: flex;

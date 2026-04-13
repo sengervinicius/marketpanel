@@ -31,7 +31,7 @@ const MacroPanel = lazy(() => import('./components/panels/MacroPanel'));
 import LeaderboardPanel from './components/panels/LeaderboardPanel';
 import GamePortfolioPanel from './components/panels/GamePortfolioPanel';
 import ReferralPanel from './components/common/ReferralPanel';
-import ChatPanel from './components/panels/ChatPanel';
+import ChatPanel, { openChatWindow } from './components/panels/ChatPanel';
 import PortfolioMobile from './components/panels/PortfolioMobile';
 import HomePanelMobile from './components/panels/HomePanelMobile';
 import ChartsPanelMobile from './components/panels/ChartsPanelMobile';
@@ -636,11 +636,7 @@ export default function App() {
           }} />
         )}
 
-        {/* Welcome subscription prompt (first login only) */}
-        <WelcomeSubscriptionModal
-          subscription={subscription}
-          onUpgrade={handleCheckout}
-        />
+        {/* Welcome subscription modal removed — was showing on every login */}
 
         {/* Tier pricing modal */}
         <PricingModal
@@ -750,15 +746,14 @@ export default function App() {
               {isRefreshing ? 'LIVE' : lastUpdated ? lastUpdated.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'}) : ''}
             </span>
             <AlertBadge />
-            {/* Chat icon */}
+            {/* Chat icon — opens in a new window */}
             <button
               className="btn"
-              onClick={() => setChatOpen(prev => !prev)}
+              onClick={() => openChatWindow()}
               title="Direct Messages (Cmd+Shift+M)"
               aria-label="Open conversations"
-              aria-expanded={chatOpen}
               style={{
-                color: chatOpen ? 'var(--accent)' : 'var(--text-faint)',
+                color: 'var(--text-faint)',
                 padding: '2px 6px',
                 display: 'flex', alignItems: 'center', gap: 4,
               }}
@@ -812,7 +807,7 @@ export default function App() {
 
         {/* ── Desktop Vault Mode ── */}
         {mobileMode === 'vault' && !subscriptionExpired && (
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'auto', padding: '0 24px' }}>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
             <VaultPanel fullScreen />
           </div>
         )}
@@ -1058,12 +1053,8 @@ export default function App() {
             </svg>
           </button>
         ) : null}
-        {mobileMode === 'terminal' && mobileScreenTitle ? (
-          <span className="m-header-title">{mobileScreenTitle}</span>
-        ) : (
-          <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><ParticleLogo size={22} /><span style={{ color: 'var(--accent)', fontWeight: 700, fontSize: 13, letterSpacing: '2.5px' }}>PARTICLE</span></span>
-        )}
-        {/* Sector Screens button (terminal mode only) */}
+        <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><ParticleLogo size={22} /><span style={{ color: 'var(--accent)', fontWeight: 700, fontSize: 13, letterSpacing: '2.5px' }}>PARTICLE</span></span>
+        {/* Sector Screens pill (terminal mode only) */}
         {mobileMode === 'terminal' && (
         <button
           className="btn"
@@ -1073,18 +1064,17 @@ export default function App() {
           aria-expanded={sectorSelectorOpen}
           style={{
             marginLeft: 8,
-            padding: '2px 8px',
-            fontSize: 10,
+            padding: '3px 10px',
+            fontSize: 9,
             fontWeight: 600,
-            color: sectorSelectorOpen || activeSectorScreen ? 'var(--accent)' : 'var(--text-faint)',
-            border: `1px solid ${sectorSelectorOpen || activeSectorScreen ? 'var(--accent)' : 'var(--border-strong)'}`,
-            background: sectorSelectorOpen || activeSectorScreen ? 'rgba(249, 115, 22, 0.08)' : 'none',
-            borderRadius: 4,
+            letterSpacing: '0.08em',
+            color: sectorSelectorOpen || activeSectorScreen ? '#000' : 'var(--text-muted)',
+            border: 'none',
+            background: sectorSelectorOpen || activeSectorScreen ? 'var(--accent)' : 'rgba(255,255,255,0.06)',
+            borderRadius: 9999,
             whiteSpace: 'nowrap',
             flexShrink: 0,
-            maxWidth: 90,
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
+            transition: 'all 0.15s ease',
           }}
         >SCREENS</button>
         )}
@@ -1156,7 +1146,7 @@ export default function App() {
             </div>
 
             {/* ── Vault screen (shown when mobileMode === 'vault') ── */}
-            <div style={{ flex: 1, display: mobileMode !== 'vault' ? 'none' : 'flex', flexDirection: 'column', overflow: 'auto', padding: '0 16px' }}>
+            <div style={{ flex: 1, display: mobileMode !== 'vault' ? 'none' : 'flex', flexDirection: 'column', overflow: 'hidden' }}>
               <VaultPanel fullScreen />
             </div>
 
