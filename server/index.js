@@ -69,6 +69,9 @@ require('./jobs/markToMarket'); // batch mark-to-market (self-scheduling)
 const { init: initMarketContext } = require('./services/marketContextBuilder');
 const { init: initPredictions } = require('./services/predictionAggregator');
 const predictionsRoutes = require('./routes/predictions');
+const { init: initWire } = require('./services/wireGenerator');
+const { init: initMorningBrief } = require('./services/morningBrief');
+const wireRoutes = require('./routes/wire');
 
 const app = express();
 
@@ -279,6 +282,12 @@ app.use('/api/predictions', requireAuth, requireActiveSubscription,
   rateLimitByUser({ key: 'predictions', windowSec: 60, max: 30 }),
   requestTimeout(15000),
   predictionsRoutes);
+
+// Wire & Morning Brief: auth + subscription required
+app.use('/api/wire', requireAuth, requireActiveSubscription,
+  rateLimitByUser({ key: 'wire', windowSec: 60, max: 30 }),
+  requestTimeout(20000),
+  wireRoutes);
 
 // Feed health: no auth required (public endpoint for monitoring)
 app.use('/api/feed', feedRouter);
@@ -519,6 +528,12 @@ initMarketContext({ marketState, getUserById, getPortfolio });
 
 // Start prediction market aggregator (polls Kalshi + Polymarket every 2 min)
 initPredictions();
+
+// Start Wire generator (AI market commentary every 7 min during market hours)
+initWire({ marketState });
+
+// Start Morning Brief service (daily brief at 9:15 AM ET)
+initMorningBrief({ marketState, getUserById, getPortfolio });
 
 // Boot sequence: Postgres → Redis → MongoDB → seed → jobs → HTTP server
 async function boot() {

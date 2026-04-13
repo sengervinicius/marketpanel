@@ -9,6 +9,7 @@ import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import ParticleLogo from '../ui/ParticleLogo';
 import useParticleCanvas from './useParticleCanvas';
 import useParticleAI from '../../hooks/useParticleAI';
+import { useWireLatest, useMorningBrief } from '../../hooks/useWire';
 
 // ── Quick-action chip definitions ────────────────────────────────────────────
 const QUICK_CHIPS = [
@@ -25,6 +26,10 @@ export default function ParticleScreen() {
   const scrollRef = useRef(null);
 
   const { messages, isStreaming, error, send, stop, clear } = useParticleAI();
+
+  // Wire & Brief hooks
+  const wireLatest = useWireLatest();
+  const { brief, dismissed: briefDismissed, dismiss: dismissBrief } = useMorningBrief();
 
   // Determine canvas mood from conversation state
   const mood = useMemo(() => {
@@ -94,6 +99,11 @@ export default function ParticleScreen() {
           <h1 className="particle-screen-greeting">Good {getTimeGreeting()}</h1>
           <p className="particle-screen-subtitle">Ask anything about markets</p>
 
+          {/* Morning Brief card */}
+          {brief && !briefDismissed && (
+            <MorningBriefCard brief={brief} onDismiss={dismissBrief} onAsk={send} />
+          )}
+
           {/* Search bar */}
           <form className={`particle-search${focused ? ' particle-search--focused' : ''}`} onSubmit={handleSubmit}>
             <svg className="particle-search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -131,6 +141,15 @@ export default function ParticleScreen() {
               </button>
             ))}
           </div>
+
+          {/* Wire teaser — latest entry */}
+          {wireLatest && (
+            <div className="particle-wire-teaser" onClick={() => handleChipClick(`Tell me more about: ${wireLatest.content.slice(0, 80)}`)}>
+              <span className="particle-wire-label">Wire</span>
+              <span className="particle-wire-text">{wireLatest.content}</span>
+              <span className="particle-wire-time">{wireLatest.timestamp ? formatWireTime(wireLatest.timestamp) : ''}</span>
+            </div>
+          )}
 
           {error && (
             <div className="particle-error">{error}</div>
@@ -298,4 +317,53 @@ function getTimeGreeting() {
   if (h < 12) return 'morning';
   if (h < 17) return 'afternoon';
   return 'evening';
+}
+
+// ── Morning Brief Card ──────────────────────────────────────────────────────
+function MorningBriefCard({ brief, onDismiss, onAsk }) {
+  const [expanded, setExpanded] = useState(false);
+
+  if (!brief || !brief.content) return null;
+
+  // Extract headline (first section or first ~80 chars)
+  const headline = brief.sections?.market_overnight
+    ? brief.sections.market_overnight.split('.')[0] + '.'
+    : brief.content.slice(0, 100).split('.')[0] + '.';
+
+  return (
+    <div className="particle-brief-card">
+      <div className="particle-brief-header">
+        <span className="particle-brief-badge">Morning Brief</span>
+        <button className="particle-brief-dismiss" onClick={onDismiss} aria-label="Dismiss">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      </div>
+      {!expanded ? (
+        <div className="particle-brief-preview" onClick={() => setExpanded(true)}>
+          <p className="particle-brief-headline">{headline}</p>
+          <span className="particle-brief-expand">Tap to expand</span>
+        </div>
+      ) : (
+        <div className="particle-brief-full">
+          <ParticleMarkdown text={brief.content} />
+          <button
+            className="particle-brief-ask"
+            onClick={() => onAsk('Based on today\'s morning brief, what should I watch most closely today?')}
+          >
+            Ask Particle about this
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function formatWireTime(ts) {
+  const d = new Date(ts);
+  const diff = Date.now() - d;
+  if (diff < 60000) return 'now';
+  if (diff < 3600000) return `${Math.floor(diff / 60000)}m`;
+  return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
 }

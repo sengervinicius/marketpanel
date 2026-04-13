@@ -85,6 +85,17 @@ CREATE TABLE IF NOT EXISTS email_verifications (
   created_at  BIGINT NOT NULL
 );
 
+-- ── Wire entries (proactive AI market commentary) ───────────────────────────
+CREATE TABLE IF NOT EXISTS wire_entries (
+  id          SERIAL PRIMARY KEY,
+  content     TEXT NOT NULL,
+  tickers     TEXT[] DEFAULT '{}',
+  category    TEXT DEFAULT 'market',
+  mood        TEXT DEFAULT 'neutral',
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_wire_created ON wire_entries (created_at DESC);
+
 -- ── Refresh tokens (rotation-safe) ──────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS refresh_tokens (
   token       TEXT PRIMARY KEY,

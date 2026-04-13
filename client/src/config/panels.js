@@ -323,6 +323,18 @@ export const PANEL_DEFINITIONS = {
     maxSymbols:     0,
   },
 
+  wire: {
+    id:             'wire',
+    label:          'The Wire',
+    defaultTitle:   'The Wire',
+    defaultSymbols: [],
+    allowedGroups:  null,
+    editable:       false,
+    icon:           'WR',
+    minSymbols:     0,
+    maxSymbols:     0,
+  },
+
   // ── Phase D1 sector screens ──────────────────────────
   defenceScreen: {
     id:             'defenceScreen',
