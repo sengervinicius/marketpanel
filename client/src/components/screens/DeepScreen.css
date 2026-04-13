@@ -27,7 +27,7 @@
   border-radius: 1px;
 }
 .ds-header-title {
-  font-size: 12px;
+  font-size: var(--font-sm);
   font-weight: 700;
   letter-spacing: 2px;
   color: var(--text-primary);
@@ -74,14 +74,14 @@
   z-index: 1;
 }
 .ds-section-title {
-  font-size: 10px;
+  font-size: var(--text-xs);
   font-weight: 600;
   letter-spacing: 1.5px;
   color: var(--text-secondary);
   text-transform: uppercase;
 }
 .ds-section-badge {
-  font-size: 8px;
+  font-size: var(--font-micro);
   letter-spacing: 0.5px;
   color: var(--text-muted);
   background: var(--bg-active);
@@ -116,7 +116,7 @@
 /* Error */
 .ds-error {
   color: var(--semantic-down);
-  font-size: 10px;
+  font-size: var(--text-xs);
   padding: 10px;
   text-align: center;
   opacity: 0.8;
@@ -132,7 +132,7 @@
   border: 1px solid var(--glass-border, var(--border-subtle));
   border-radius: var(--radius-md, 4px);
   cursor: pointer;
-  font-size: 10px;
+  font-size: var(--text-xs);
   white-space: nowrap;
   transition: background var(--duration-fast, 0.15s), border-color var(--duration-fast, 0.15s);
 }
@@ -155,14 +155,14 @@
 .ds-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 12px;
+  font-size: var(--font-sm);
   font-family: var(--font-ui, 'Inter', system-ui, sans-serif);
 }
 .ds-table th {
   text-align: left;
   font-weight: 600;
   color: var(--text-muted);
-  font-size: 10px;
+  font-size: var(--text-xs);
   letter-spacing: 0.8px;
   text-transform: uppercase;
   padding: 8px 10px;
@@ -179,7 +179,7 @@
   padding: 6px 10px;
   color: var(--text-secondary);
   border-bottom: 1px solid var(--bg-elevated);
-  font-size: 12px;
+  font-size: var(--font-sm);
   white-space: nowrap;
 }
 .ds-table td:not(:first-child) {
@@ -196,7 +196,7 @@
   border-top: 1px solid var(--border-subtle);
 }
 .ds-etf-strip-label {
-  font-size: 11px;
+  font-size: var(--text-sm);
   font-weight: 600;
   letter-spacing: 1px;
   color: var(--text-muted);

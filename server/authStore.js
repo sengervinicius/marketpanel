@@ -566,7 +566,47 @@ async function rotateRefreshToken(oldToken) {
 
     // If token was already revoked, this is a replay attack — revoke entire family
     if (old.revoked) {
+      const userId = old.user_id;
+
+      // Log the security breach
+      console.error(`[SECURITY] Refresh token replay detected for user ${userId}. All sessions revoked.`);
+
+      // Revoke all tokens for this family
       await pg.query('UPDATE refresh_tokens SET revoked = TRUE WHERE family_id = $1', [old.family_id]);
+
+      // Send security alert email
+      try {
+        const emailService = require('./services/emailService');
+        const user = getUserById(userId);
+
+        if (emailService.isConfigured() && user && user.email) {
+          await emailService.sendEmail({
+            to: user.email,
+            subject: 'Security Alert: Suspicious Activity on Your Account',
+            html: `
+<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:520px;margin:0 auto;background:#1a1a2e;color:#e0e0e0;padding:24px;border-radius:8px;">
+  <div style="border-bottom:2px solid #ff6600;padding-bottom:12px;margin-bottom:16px;">
+    <span style="color:#ff6600;font-weight:700;font-size:18px;">SENGER</span>
+    <span style="color:#888;font-size:14px;margin-left:8px;">Security Alert</span>
+  </div>
+  <div style="background:#16213e;padding:16px;border-radius:6px;margin-bottom:16px;">
+    <div style="font-size:18px;font-weight:700;color:#fff;">Suspicious Activity Detected</div>
+    <div style="margin-top:12px;font-size:14px;line-height:1.6;color:#e0e0e0;">
+      <p>A potentially compromised session was detected on your account. As a precaution, we have signed you out of all active sessions.</p>
+      <p><strong>What happened?</strong> An attempt was made to reuse an old session token, which may indicate unauthorized access.</p>
+      <p><strong>What to do:</strong> If you didn't authorize this sign-out, please change your password immediately and review your account activity.</p>
+    </div>
+  </div>
+  <a href="${process.env.CLIENT_URL || 'https://senger-client.onrender.com'}" style="display:inline-block;background:#ff6600;color:#fff;padding:8px 20px;border-radius:4px;text-decoration:none;font-weight:600;font-size:14px;">Go to Account</a>
+  <div style="margin-top:16px;font-size:11px;color:#555;">If you have questions, please contact our support team.</div>
+</div>`,
+            text: 'Security Alert: A potentially compromised session was detected on your account. All active sessions have been signed out as a precaution. If this wasn\'t you, please change your password immediately.',
+          });
+        }
+      } catch (emailErr) {
+        console.error('[SECURITY] Failed to send breach notification email:', emailErr.message);
+      }
+
       return null;
     }
 

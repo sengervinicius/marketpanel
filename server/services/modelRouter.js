@@ -16,6 +16,25 @@
 const fetch = require('node-fetch');
 const logger = require('../utils/logger');
 
+/**
+ * Call a function with exponential backoff retry logic.
+ * @param {Function} fn - Async function to retry
+ * @param {number} maxRetries - Maximum number of retries (default 2)
+ * @returns {Promise} Result of fn()
+ */
+async function callWithRetry(fn, maxRetries = 2) {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      if (attempt === maxRetries) throw err;
+      const delay = Math.min(1000 * Math.pow(2, attempt) + Math.random() * 500, 5000);
+      console.warn(`[ModelRouter] Attempt ${attempt + 1} failed, retrying in ${Math.round(delay)}ms:`, err.message);
+      await new Promise(r => setTimeout(r, delay));
+    }
+  }
+}
+
 const PROVIDERS = {
   perplexity_fast: {
     url: 'https://api.perplexity.ai/chat/completions',
@@ -113,7 +132,7 @@ function route(intent) {
 }
 
 /**
- * Make an API call to the appropriate provider.
+ * Make an API call to the appropriate provider (without retry).
  * Handles both Perplexity (OpenAI-compatible) and Anthropic (Messages API) formats.
  *
  * @param {object} provider - provider config from route()
@@ -122,7 +141,7 @@ function route(intent) {
  * @param {object} options - { stream, maxTokens, ...rest }
  * @returns {Promise<object>} API response
  */
-async function callProvider(provider, messages, systemPrompt, options = {}) {
+async function callProviderImpl(provider, messages, systemPrompt, options = {}) {
   const apiKey = process.env[provider.keyEnv];
   if (!apiKey) {
     throw new Error(`API key not configured for provider: ${provider.keyEnv}`);
@@ -179,8 +198,26 @@ async function callProvider(provider, messages, systemPrompt, options = {}) {
 }
 
 /**
+ * Make an API call with exponential backoff retry logic.
+ * Wraps callProviderImpl with callWithRetry.
+ *
+ * @param {object} provider - provider config from route()
+ * @param {array} messages - message array
+ * @param {string} systemPrompt - system prompt
+ * @param {object} options - { stream, maxTokens, ...rest }
+ * @returns {Promise<object>} API response
+ */
+async function callProvider(provider, messages, systemPrompt, options = {}) {
+  return callWithRetry(
+    () => callProviderImpl(provider, messages, systemPrompt, options),
+    2
+  );
+}
+
+/**
  * Stream response from provider to client.
  * Normalizes both Perplexity SSE and Anthropic SSE to consistent format.
+ * Uses callWithRetry for resilience.
  *
  * @param {object} provider - provider config
  * @param {array} messages - message array
@@ -189,9 +226,10 @@ async function callProvider(provider, messages, systemPrompt, options = {}) {
  */
 async function streamResponse(provider, messages, systemPrompt, res, { onAbort } = {}) {
   try {
-    const response = await callProvider(provider, messages, systemPrompt, {
-      stream: true,
-    });
+    const response = await callWithRetry(
+      () => callProviderImpl(provider, messages, systemPrompt, { stream: true }),
+      2
+    );
 
     if (!res.headersSent) {
       res.writeHead(200, {
@@ -296,6 +334,8 @@ module.exports = {
   classifyIntent,
   route,
   callProvider,
+  callProviderImpl,
+  callWithRetry,
   streamResponse,
   PROVIDERS,
   ROUTE_MAP,

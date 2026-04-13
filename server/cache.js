@@ -130,9 +130,19 @@ class YahooFinanceCache {
         ? ((this.hits / (this.hits + this.misses)) * 100).toFixed(1) + '%' : 'N/A',
     };
   }
+
+  destroy() {
+    if (this._cleanupInterval) {
+      clearInterval(this._cleanupInterval);
+      this._cleanupInterval = null;
+    }
+  }
 }
 
-module.exports = new YahooFinanceCache({
+const cacheInstance = new YahooFinanceCache({
   maxEntries: 2000, defaultTtl: 60000, staleTtl: 300000,
   rateLimitWindow: 30000, rateLimitMaxRequests: 1,
 });
+
+module.exports = cacheInstance;
+module.exports.destroy = () => cacheInstance.destroy();

@@ -82,6 +82,7 @@ const { init: initVault } = require('./services/vault');
 const vaultRoutes = require('./routes/vault');
 const modelRouter = require('./services/modelRouter');
 const earningsAnalyzer = require('./services/earningsAnalyzer');
+const cache = require('./cache');
 
 const app = express();
 
@@ -377,9 +378,24 @@ wss.on('connection', (ws, req) => {
     return;
   }
 
-  // ── Authenticate WS via ?token= query param ───────────────────────
-  const url    = new URL(req.url, 'ws://localhost');
-  const token  = url.searchParams.get('token') || '';
+  // ── Authenticate WS via httpOnly cookie (primary) or ?token= query param (fallback) ───────────────────────
+  const url = new URL(req.url, 'ws://localhost');
+
+  // Parse cookies from upgrade request
+  const cookies = {};
+  (req.headers.cookie || '').split(';').forEach(c => {
+    const [k, v] = c.trim().split('=');
+    if (k && v) cookies[k] = decodeURIComponent(v);
+  });
+
+  // Try cookie first (secure), fall back to query param (deprecated)
+  const token = cookies['senger_token'] || url.searchParams.get('token') || '';
+
+  // Log deprecation warning if token came from query param
+  if (url.searchParams.get('token') && !cookies['senger_token']) {
+    console.warn('[WS] Deprecated: token in URL query. Use cookie auth. Client should be updated to send senger_token cookie.');
+  }
+
   let userId   = null;
   let username = null;
 
@@ -687,6 +703,7 @@ async function boot() {
     logger.info('boot', `${signal} received — shutting down`);
     stopJobs();
     anomalyScanner.stop();
+    cache.destroy();
     server.close();
     const { closePostgres } = require('./db/postgres');
     const { closeRedis } = require('./cache/redisClient');

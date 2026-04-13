@@ -28,7 +28,7 @@
 }
 
 .vi-badge {
-  font: 600 8px var(--font-mono);
+  font: 600 var(--font-micro) var(--font-mono);
   letter-spacing: 1px;
   color: var(--color-vault, #d4af37);
   background: rgba(218, 165, 32, 0.08);
@@ -38,7 +38,7 @@
 }
 
 .vi-sector-label {
-  font: 500 9px var(--font-mono);
+  font: 500 var(--text-2xs) var(--font-mono);
   letter-spacing: 0.6px;
   color: var(--text-muted);
   flex: 1;
@@ -76,7 +76,7 @@
 
 .vi-bank,
 .vi-filename {
-  font: 600 9px var(--font-mono);
+  font: 600 var(--text-2xs) var(--font-mono);
   color: var(--color-vault, #d4af37);
   letter-spacing: 0.4px;
   text-transform: uppercase;
@@ -89,7 +89,7 @@
 }
 
 .vi-date {
-  font: 9px var(--font-mono);
+  font: var(--text-2xs) var(--font-mono);
   color: var(--text-faint);
   letter-spacing: 0.3px;
 }
@@ -97,7 +97,7 @@
 /* ─── Passage content ────────────────────────────────── */
 
 .vi-content {
-  font: 11px var(--font-ui);
+  font: var(--text-sm) var(--font-ui);
   line-height: 1.4;
   color: var(--text-secondary);
   margin-bottom: 6px;
@@ -113,7 +113,7 @@
 }
 
 .vi-ticker {
-  font: 600 8px var(--font-mono);
+  font: 600 var(--font-micro) var(--font-mono);
   color: var(--accent);
   background: rgba(255, 102, 0, 0.1);
   padding: 2px 5px;
@@ -124,7 +124,7 @@
 /* ─── Source note ────────────────────────────────────── */
 
 .vi-source-note {
-  font: 9px var(--font-ui);
+  font: var(--text-2xs) var(--font-ui);
   color: var(--text-faint);
   margin-top: 8px;
   padding-top: 8px;
@@ -148,6 +148,6 @@
   }
 
   .vi-content {
-    font-size: 10px;
+    font-size: var(--text-xs);
   }
 }

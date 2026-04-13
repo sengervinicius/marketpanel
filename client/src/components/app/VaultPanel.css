@@ -57,12 +57,12 @@
 }
 
 .vault-upload-area:hover {
-  border-color: rgba(249, 115, 22, 0.25);
-  background: rgba(249, 115, 22, 0.02);
+  border-color: rgba(218, 165, 32, 0.25);
+  background: rgba(218, 165, 32, 0.02);
 }
 
 .vault-upload-icon {
-  color: var(--color-particle);
+  color: var(--color-vault);
   opacity: 0.5;
 }
 
@@ -90,8 +90,8 @@
 .vault-upload-spinner {
   width: 14px;
   height: 14px;
-  border: 2px solid var(--color-particle-dim);
-  border-top-color: var(--color-particle);
+  border: 2px solid var(--color-vault-dim);
+  border-top-color: var(--color-vault);
   border-radius: 50%;
   animation: vault-spin 0.8s linear infinite;
 }
@@ -159,7 +159,7 @@
 }
 
 .vault-search-input:focus {
-  border-color: rgba(249, 115, 22, 0.30);
+  border-color: rgba(218, 165, 32, 0.30);
 }
 
 .vault-search-input::placeholder {
@@ -216,7 +216,7 @@
   justify-content: space-between;
   font-size: 11px;
   font-weight: 600;
-  color: var(--color-particle);
+  color: var(--color-vault);
   margin-bottom: 6px;
   letter-spacing: 0.02em;
 }
@@ -315,7 +315,7 @@
 }
 
 .vault-doc-tickers {
-  color: var(--color-particle);
+  color: var(--color-vault);
   margin-left: 6px;
   font-weight: 600;
 }
@@ -386,8 +386,8 @@
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--color-particle);
-  background: var(--color-particle-dim);
+  color: var(--color-vault);
+  background: var(--color-vault-dim);
   border-radius: var(--radius-pill);
   margin-right: 6px;
 }
@@ -423,8 +423,8 @@
 }
 
 .vault-panel--dragover .vault-upload-area {
-  border-color: var(--color-particle);
-  background: rgba(249, 115, 22, 0.04);
+  border-color: var(--color-vault);
+  background: rgba(218, 165, 32, 0.04);
 }
 
 .vault-drop-overlay {
@@ -438,7 +438,7 @@
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border-radius: var(--radius-md);
-  border: 2px dashed var(--color-particle);
+  border: 2px dashed var(--color-vault);
   pointer-events: none;
 }
 
@@ -447,7 +447,7 @@
   flex-direction: column;
   align-items: center;
   gap: 12px;
-  color: var(--color-particle);
+  color: var(--color-vault);
   font-size: 14px;
   font-weight: 600;
   letter-spacing: 0.04em;
@@ -476,7 +476,7 @@
 
 .vault-quota-fill {
   height: 100%;
-  background: linear-gradient(90deg, var(--color-particle), #fb923c);
+  background: linear-gradient(90deg, var(--color-vault), #ffd700);
   border-radius: 2px;
   transition: width 0.4s var(--ease-out-expo);
 }

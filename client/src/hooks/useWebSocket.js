@@ -22,16 +22,15 @@ const RECONNECT_MAX      = 15_000;
 const QUEUE_MAX          = 50;       // max buffered outgoing messages
 
 /**
- * Build the full WebSocket URL with auth token appended as query parameter.
- * The server requires ?token=<jwt> for authentication (server/index.js line 127).
+ * Build the WebSocket URL.
+ * Auth token is now passed via httpOnly cookie (senger_token) instead of URL query parameter.
+ * The server will read from the cookie (primary) or fall back to query param for backward compatibility.
+ * Note: Cookies are sent automatically with same-origin requests and cross-origin requests
+ * when the server has set them with appropriate SameSite policy.
  */
-function buildWsUrl(token) {
-  if (!token) {
-    console.warn('[WS] No auth token found — connection will be rejected by server');
-    return null;
-  }
-  const separator = WS_URL.includes('?') ? '&' : '?';
-  return `${WS_URL}${separator}token=${encodeURIComponent(token)}`;
+function buildWsUrl() {
+  // No token appended to URL anymore — cookies handle auth securely
+  return WS_URL;
 }
 
 export function useWebSocket(onMessage, token) {
@@ -87,10 +86,10 @@ export function useWebSocket(onMessage, token) {
   const connect = useCallback(() => {
     if (!mounted.current) return;
 
-    const url = buildWsUrl(token);
+    const url = buildWsUrl();
     if (!url) {
-      // No token available — don't attempt WS connection (avoids auth-rejection loop)
-      console.warn('[WS] Skipping connection — no auth token. Will retry when token becomes available.');
+      // No URL available — don't attempt WS connection
+      console.warn('[WS] Skipping connection — no WS URL available.');
       reconnectTimer.current = setTimeout(() => {
         if (mounted.current) connect();
       }, RECONNECT_MAX); // Use max delay to avoid spamming
@@ -149,7 +148,7 @@ export function useWebSocket(onMessage, token) {
       console.error('[WS] Connection failed:', e);
       setReadyState(WebSocket.CLOSED);
     }
-  }, [onMessage, token, startHeartbeat, stopHeartbeat, flushQueue]);
+  }, [onMessage, startHeartbeat, stopHeartbeat, flushQueue]);
 
   useEffect(() => {
     mounted.current = true;

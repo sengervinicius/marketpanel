@@ -274,6 +274,14 @@ async function ingestPDF(userId, buffer, filename, { isGlobal = false } = {}) {
     const pdfData = await pdfParse(buffer);
     const text = pdfData.text || '';
 
+    // Validate PDF size constraints
+    if (pdfData.numpages > 500) {
+      throw new Error('PDF too large: max 500 pages');
+    }
+    if (text && text.length > 2_000_000) {
+      throw new Error('PDF text content exceeds 2MB limit');
+    }
+
     if (!text.trim()) {
       throw new Error('PDF contains no extractable text');
     }

@@ -25,9 +25,23 @@ const {
 // Prototype pollution keys to reject
 const DANGEROUS_KEYS = ['__proto__', 'constructor', 'prototype'];
 
-function hasDangerousKeys(obj) {
-  if (!obj || typeof obj !== 'object') return false;
-  return Object.keys(obj).some(k => DANGEROUS_KEYS.includes(k));
+function hasDangerousKeys(obj, depth = 0) {
+  if (depth > 10 || !obj || typeof obj !== 'object') return false;
+  for (const key of Object.keys(obj)) {
+    if (DANGEROUS_KEYS.includes(key)) return true;
+    if (typeof obj[key] === 'object' && obj[key] !== null) {
+      if (hasDangerousKeys(obj[key], depth + 1)) return true;
+    }
+  }
+  // Check arrays too
+  if (Array.isArray(obj)) {
+    for (const item of obj) {
+      if (typeof item === 'object' && item !== null) {
+        if (hasDangerousKeys(item, depth + 1)) return true;
+      }
+    }
+  }
+  return false;
 }
 
 // Valid alert types
