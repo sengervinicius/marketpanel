@@ -17,9 +17,19 @@ import { useBehaviorTracker, useSmartChips } from '../../hooks/useBehavior';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { useWireFeed } from '../../hooks/useWire';
 
+const PLACEHOLDERS = [
+  'What is moving in markets today?',
+  'Analyze my portfolio risk',
+  'What do analysts say about AAPL?',
+  'Compare tech vs energy this quarter',
+  'What happened in Asia overnight?',
+  'Show me the top movers today',
+];
+
 export default function ParticleScreen() {
   const [query, setQuery] = useState('');
   const [focused, setFocused] = useState(false);
+  const [placeholderIdx, setPlaceholderIdx] = useState(0);
   const inputRef = useRef(null);
   const scrollRef = useRef(null);
   const isMobile = useIsMobile();
@@ -86,6 +96,14 @@ export default function ParticleScreen() {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages]);
+
+  // Placeholder cycling effect — cycles every 3 seconds, pauses on focus
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setPlaceholderIdx(prev => (prev + 1) % PLACEHOLDERS.length);
+    }, 3000);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleSubmit = useCallback((e) => {
     e.preventDefault();
@@ -190,14 +208,14 @@ export default function ParticleScreen() {
 
           {/* Search bar */}
           <form className={`particle-search${focused ? ' particle-search--focused' : ''}`} onSubmit={handleSubmit}>
-            <svg className="particle-search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="11" cy="11" r="7" /><line x1="16.5" y1="16.5" x2="21" y2="21" />
-            </svg>
+            <div className="particle-search-icon">
+              <ParticleLogo size={16} />
+            </div>
             <input
               ref={inputRef}
               className="particle-search-input"
               type="text"
-              placeholder={focused ? 'Ask about any stock, sector, or trend…' : 'What\'s moving today?'}
+              placeholder={PLACEHOLDERS[placeholderIdx]}
               value={query}
               onChange={e => setQuery(e.target.value)}
               onFocus={() => setFocused(true)}
