@@ -17,10 +17,12 @@ const searchRouter      = require('./search');
 const newsRouter        = require('./news');
 const debtRouter        = require('./debt');
 const utilitiesRouter   = require('./utilities');
-const dataRouter        = require('./data');
+const dataRouter         = require('./data');
+const intelligenceRouter = require('./intelligence');
 
 // Mount all sub-routers — order doesn't matter since routes are distinct
 router.use(dataRouter);
+router.use(intelligenceRouter);
 router.use(stocksRouter);
 router.use(forexRouter);
 router.use(cryptoRouter);

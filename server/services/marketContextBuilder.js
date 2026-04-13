@@ -403,4 +403,6 @@ function buildContext({ query, userId, intent: forceIntent } = {}) {
   return { contextString, intent, mentionedTickers };
 }
 
-module.exports = { init, buildContext, classifyIntent, extractTickers };
+function getMarketState() { return _marketState; }
+
+module.exports = { init, buildContext, classifyIntent, extractTickers, getMarketState };

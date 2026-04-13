@@ -68,11 +68,13 @@ async function fredSeries(seriesId) {
 }
 
 async function fredMacroUS() {
-  const [fedFunds, cpi, gdp, unemp] = await Promise.allSettled([
+  const [fedFunds, cpiYoY, gdp, unemp, debtGdp, currentAcct] = await Promise.allSettled([
     fredSeries('FEDFUNDS'),
-    fredSeries('CPIAUCSL'),     // CPI index — need YoY calc
-    fredSeries('A191RL1Q225SBEA'), // Real GDP growth annualized
-    fredSeries('UNRATE'),
+    fredSeries('CPIAUCSL'),              // CPI index
+    fredSeries('A191RL1Q225SBEA'),       // Real GDP growth annualized
+    fredSeries('UNRATE'),                // Unemployment rate
+    fredSeries('GFDEGDQ188S'),           // Federal debt as % of GDP
+    fredSeries('NETFI'),                 // Net lending/borrowing (current account proxy)
   ]);
 
   const result = { country: 'US', currency: 'USD', name: 'United States', source: 'FRED' };
@@ -82,9 +84,32 @@ async function fredMacroUS() {
     result.unemploymentRate = unemp.value.value / 100;
   if (gdp.status === 'fulfilled' && gdp.value)
     result.gdpGrowthYoY = gdp.value.value / 100;
-  // CPI YoY requires 12-month comparison — skip for now, use stub
+  if (debtGdp.status === 'fulfilled' && debtGdp.value)
+    result.debtGDP = debtGdp.value.value / 100;
+
+  // CPI YoY — fetch last 13 months to compute year-over-year change
+  if (cpiYoY.status === 'fulfilled' && cpiYoY.value) {
+    try {
+      const d = new Date();
+      d.setFullYear(d.getFullYear() - 2);
+      const url = `https://fred.stlouisfed.org/graph/fredgraph.csv?id=CPIAUCSL&cosd=${d.toISOString().slice(0, 10)}`;
+      const res = await fetch(url, { timeout: 8000 });
+      if (res.ok) {
+        const text = await res.text();
+        const lines = text.trim().split('\n').filter(l => !l.startsWith('DATE'));
+        if (lines.length >= 13) {
+          const latest = parseFloat(lines[lines.length - 1].split(',')[1]);
+          const yearAgo = parseFloat(lines[lines.length - 13].split(',')[1]);
+          if (latest > 0 && yearAgo > 0) {
+            result.cpiYoY = +((latest - yearAgo) / yearAgo).toFixed(4);
+          }
+        }
+      }
+    } catch (e) { /* silent */ }
+  }
+
   result.asOf = fedFunds.value?.date || new Date().toISOString().slice(0, 10);
-  return Object.keys(result).length > 4 ? result : null; // Only return if we got real data
+  return Object.keys(result).length > 4 ? result : null;
 }
 
 // ── BCB API (Brazil) ─────────────────────────────────────────────────────────

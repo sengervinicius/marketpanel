@@ -460,16 +460,40 @@ async function getSubscriptionStatus(userId) {
   // If user is in memory, use cached subscription fields
   if (user) {
     const now = Date.now();
-    if (user.isPaid && user.subscriptionActive) return { status: 'active', isPaid: true };
+    const tierKey = user.planTier || 'trial';
+    const tierConfig = TIERS[tierKey] || TIERS.trial;
+
+    if (user.isPaid && user.subscriptionActive) {
+      return {
+        status: 'active',
+        isPaid: true,
+        tier: tierKey,
+        tierLabel: tierConfig.label,
+        limits: {
+          vaultDocuments: tierConfig.vaultDocuments,
+          aiQueriesPerDay: tierConfig.aiQueriesPerDay,
+          deepAnalysisPerDay: tierConfig.deepAnalysisPerDay,
+          morningBrief: tierConfig.morningBrief,
+          predictionMarkets: tierConfig.predictionMarkets,
+        },
+      };
+    }
     if (user.trialEndsAt && now < user.trialEndsAt) {
       return {
         status: 'trial',
         isPaid: false,
+        tier: 'trial',
+        tierLabel: 'Trial',
         trialEndsAt: user.trialEndsAt,
         trialDaysRemaining: Math.max(0, Math.ceil((user.trialEndsAt - now) / 86400000)),
+        limits: {
+          vaultDocuments: TIERS.trial.vaultDocuments,
+          aiQueriesPerDay: TIERS.trial.aiQueriesPerDay,
+          deepAnalysisPerDay: TIERS.trial.deepAnalysisPerDay,
+        },
       };
     }
-    return { status: 'expired', isPaid: false };
+    return { status: 'expired', isPaid: false, tier: 'trial' };
   }
 
   // User not in memory — try to check subscription via Stripe API

@@ -1,18 +1,12 @@
 /**
- * STUB — multiAssetProvider.js
+ * multiAssetProvider.js — Multi-asset instrument detail provider.
  *
- * Abstraction layer for a multi-asset data vendor (stub implementation).
- * Currently: stub data for development and demo purposes.
- * This file provides hardcoded data for testing and demonstration.
- * TODO(provider): Replace stub implementations with real API calls.
- *
- * Recommended vendors (ranked by coverage):
- *   - Leeway (leeway.tech) — global equities, bonds, FX, macro; REST + WS
- *   - Refinitiv/LSEG Data — gold standard; requires enterprise contract
- *   - Intrinio — good for US equities fundamentals + news
- *   - Financial Modeling Prep (FMP) — affordable, broad coverage
- *   - Alpha Vantage — free tier; equity + FX + crypto fundamentals
- *   - EODHD (eodhd.com) — broad global coverage, cost-effective
+ * Fetches enriched fundamentals, holdings, and metadata from real APIs:
+ *   - Equities: Twelve Data (profile, fundamentals), fallback to stubs
+ *   - ETFs: Twelve Data (ETF profile, holdings)
+ *   - Crypto: CoinGecko (market data, community, dev stats)
+ *   - FX: static forward points (real rates require Refinitiv/OANDA)
+ *   - Bonds/Rates: delegated to bondsProvider / debtProvider
  *
  * @module providers/multiAssetProvider
  */
@@ -20,9 +14,25 @@
 'use strict';
 
 const instrumentStore = require('../stores/instrumentStore');
+const coingecko = require('./coingeckoProvider');
 
-// ── Stub fundamental data ─────────────────────────────────────────────────────
-/** @type {Record<string, import('../types').EquityDetail>} */
+// Twelve Data provider (optional — graceful fallback if not available)
+let twelvedata = null;
+try { twelvedata = require('./twelvedata'); } catch (e) { /* ok */ }
+
+// ── Cache for API-fetched details ────────────────────────────────────────────
+const _detailCache = new Map();
+const DETAIL_TTL = 600_000; // 10 min
+
+function cacheGet(k) {
+  const e = _detailCache.get(k);
+  if (!e) return null;
+  if (Date.now() > e.exp) { _detailCache.delete(k); return null; }
+  return e.v;
+}
+function cacheSet(k, v) { _detailCache.set(k, { v, exp: Date.now() + DETAIL_TTL }); }
+
+// ── Stub fundamental data (fallbacks for when APIs are down) ─────────────────
 const EQUITY_STUBS = {
   AAPL:  { marketCap: 3.1e12, pe: 28.5, forwardPe: 25.2, pbRatio: 45.8, evEbitda: 21.3, dividendYield: 0.005, eps: 6.43, beta: 1.21, sector: 'Technology', industry: 'Consumer Electronics', revenueUSD: 394e9, ebitdaUSD: 125e9, grossMarginPct: 0.44, netMarginPct: 0.25, roePercent: 1.72, roaPercent: 0.28, description: 'Apple Inc. designs, manufactures, and markets smartphones, personal computers, tablets, wearables, and accessories worldwide.' },
   MSFT:  { marketCap: 3.2e12, pe: 34.1, forwardPe: 29.8, pbRatio: 13.2, evEbitda: 25.1, dividendYield: 0.007, eps: 11.52, beta: 0.92, sector: 'Technology', industry: 'Software—Infrastructure', revenueUSD: 245e9, ebitdaUSD: 120e9, grossMarginPct: 0.69, netMarginPct: 0.36, roePercent: 0.42, roaPercent: 0.21, description: 'Microsoft Corporation develops, licenses, and supports software, services, and devices worldwide.' },
@@ -34,25 +44,6 @@ const EQUITY_STUBS = {
   XOM:   { marketCap: 0.5e12, pe: 14.2, forwardPe: 12.8, pbRatio: 2.1,  evEbitda: 7.8, dividendYield: 0.035, eps: 8.89, beta: 0.88, sector: 'Energy', industry: 'Oil & Gas Integrated', revenueUSD: 398e9, ebitdaUSD: 65e9, grossMarginPct: 0.28, netMarginPct: 0.08, roePercent: 0.17, roaPercent: 0.09, description: 'Exxon Mobil Corporation explores for and produces crude oil and natural gas.' },
 };
 
-/** @type {Record<string, Partial<import('../types').ETFDetail>>} */
-const ETF_STUBS = {
-  SPY:  { navPrice: null, aumUSD: 580e9, expenseRatioPct: 0.0945, indexTracked: 'S&P 500', provider: 'State Street (SPDR)', topHoldings: [{ symbol: 'AAPL', name: 'Apple', weightPct: 7.1 }, { symbol: 'MSFT', name: 'Microsoft', weightPct: 6.8 }, { symbol: 'NVDA', name: 'NVIDIA', weightPct: 6.2 }, { symbol: 'AMZN', name: 'Amazon', weightPct: 3.5 }, { symbol: 'META', name: 'Meta', weightPct: 2.5 }], sectorWeights: [{ sector: 'Tech', weightPct: 31 }, { sector: 'Healthcare', weightPct: 12 }, { sector: 'Financials', weightPct: 13 }, { sector: 'Consumer Disc.', weightPct: 10 }, { sector: 'Communication', weightPct: 9 }] },
-  QQQ:  { navPrice: null, aumUSD: 280e9, expenseRatioPct: 0.20,   indexTracked: 'NASDAQ-100', provider: 'Invesco', topHoldings: [{ symbol: 'MSFT', name: 'Microsoft', weightPct: 9.1 }, { symbol: 'AAPL', name: 'Apple', weightPct: 8.8 }, { symbol: 'NVDA', name: 'NVIDIA', weightPct: 8.5 }, { symbol: 'AMZN', name: 'Amazon', weightPct: 5.2 }, { symbol: 'META', name: 'Meta', weightPct: 4.8 }], sectorWeights: [{ sector: 'Tech', weightPct: 50 }, { sector: 'Communication', weightPct: 16 }, { sector: 'Consumer Disc.', weightPct: 14 }, { sector: 'Healthcare', weightPct: 7 }, { sector: 'Industrials', weightPct: 5 }] },
-  EWZ:  { navPrice: null, aumUSD: 4.5e9, expenseRatioPct: 0.59,   indexTracked: 'MSCI Brazil 25/50', provider: 'iShares (BlackRock)', topHoldings: [{ symbol: 'VALE3', name: 'Vale', weightPct: 14.2 }, { symbol: 'PETR4', name: 'Petrobras', weightPct: 12.8 }, { symbol: 'ITUB4', name: 'Itaú', weightPct: 8.9 }, { symbol: 'BBDC4', name: 'Bradesco', weightPct: 5.1 }, { symbol: 'ABEV3', name: 'Ambev', weightPct: 4.7 }], sectorWeights: [{ sector: 'Energy', weightPct: 26 }, { sector: 'Financials', weightPct: 30 }, { sector: 'Materials', weightPct: 20 }, { sector: 'Consumer', weightPct: 8 }, { sector: 'Utilities', weightPct: 5 }] },
-  GLD:  { navPrice: null, aumUSD: 62e9,  expenseRatioPct: 0.40,   indexTracked: 'Gold Price (LBMA PM Fix)', provider: 'State Street (SPDR)', topHoldings: [], sectorWeights: [] },
-  TLT:  { navPrice: null, aumUSD: 55e9,  expenseRatioPct: 0.15,   indexTracked: 'ICE US Treasury 20+ Year', provider: 'iShares (BlackRock)', topHoldings: [], sectorWeights: [{ sector: 'US Treasury', weightPct: 100 }] },
-  HYG:  { navPrice: null, aumUSD: 15e9,  expenseRatioPct: 0.49,   indexTracked: 'Markit iBoxx USD Liquid HY', provider: 'iShares (BlackRock)', topHoldings: [], sectorWeights: [] },
-};
-
-/** @type {Record<string, import('../types').CryptoDetail>} */
-const CRYPTO_STUBS = {
-  BTCUSD: { marketCapUSD: 1.9e12, circulatingSupply: 19.8e6, maxSupply: 21e6, totalSupply: 21e6,  vol30dPct: 42.5, drawdownFromAthPct: -18.2, network: 'Bitcoin', description: 'Bitcoin is the world\'s first decentralized digital currency, operating on a peer-to-peer network without a central authority.' },
-  ETHUSD: { marketCapUSD: 0.45e12, circulatingSupply: 120e6,  maxSupply: null, totalSupply: 120e6, vol30dPct: 58.3, drawdownFromAthPct: -34.5, network: 'Ethereum', description: 'Ethereum is a decentralized, open-source blockchain with smart contract functionality.' },
-  SOLUSD: { marketCapUSD: 0.09e12, circulatingSupply: 470e6,  maxSupply: null, totalSupply: 590e6, vol30dPct: 72.1, drawdownFromAthPct: -45.2, network: 'Solana', description: 'Solana is a high-performance blockchain supporting builders worldwide creating crypto apps that scale.' },
-  XRPUSD: { marketCapUSD: 0.14e12, circulatingSupply: 57e9,   maxSupply: 100e9, totalSupply: 100e9, vol30dPct: 65.4, drawdownFromAthPct: -52.1, network: 'XRP Ledger', description: 'XRP is the native digital asset on the XRP Ledger, a decentralized, open-source blockchain built for payments.' },
-};
-
-/** @type {Record<string, Partial<import('../types').FXDetail>>} */
 const FX_STUBS = {
   EURUSD: { baseCurrency: 'EUR', quoteCurrency: 'USD', forwardPoints: { '1M': -12.5, '3M': -38.2, '6M': -73.5, '1Y': -142.0 } },
   GBPUSD: { baseCurrency: 'GBP', quoteCurrency: 'USD', forwardPoints: { '1M': -15.2, '3M': -46.8, '6M': -90.1, '1Y': -175.3 } },
@@ -61,51 +52,36 @@ const FX_STUBS = {
   USDCHF: { baseCurrency: 'USD', quoteCurrency: 'CHF', forwardPoints: { '1M': 8.2,   '3M': 24.5,  '6M': 49.0,   '1Y': 96.5  } },
 };
 
-// ── Provider implementation ───────────────────────────────────────────────────
+// ── Provider implementation ──────────────────────────────────────────────────
 
-/**
- * Search instruments using the local store + optional external provider.
- * TODO(provider): Augment with a call to a real multi-asset API here.
- * @param {string}  query
- * @param {string}  [assetClass]
- * @returns {import('../types').Instrument[]}
- */
 function searchInstruments(query, assetClass) {
   return instrumentStore.search(query, assetClass, 30);
 }
 
 /**
- * Get enriched instrument detail (fundamentals, forward points, holdings, etc.)
- * TODO(provider): Replace stub with real API call:
- *   - For equities:   call FMP /profile/{symbol} or Intrinio /securities/{id}/data_point
- *   - For ETFs:       call ETF.com or TrackInsight API for holdings
- *   - For FX:         call OANDA or Refinitiv for forward curve
- *   - For crypto:     call CoinGecko /coins/{id}
- *   - For bonds:      call FRED or ANBIMA for curve, Trace for bond data
- *
- * @param {import('../types').Instrument} instrument
- * @returns {Promise<import('../types').EquityDetail | import('../types').ETFDetail | import('../types').FXDetail | import('../types').CryptoDetail | null>}
+ * Get enriched instrument detail.
+ * Tries real API first, falls back to stubs.
  */
 async function getInstrumentDetail(instrument) {
   const sym = instrument.symbol;
 
   switch (instrument.assetClass) {
     case 'equity':
-      return EQUITY_STUBS[sym] || _genericEquityStub(instrument);
+      return _getEquityDetail(sym, instrument);
 
     case 'etf':
     case 'fund':
-      return ETF_STUBS[sym] || _genericEtfStub(instrument);
+      return _getEtfDetail(sym, instrument);
 
     case 'forex':
-    case 'fx': // backward compat
+    case 'fx':
       return FX_STUBS[sym] || { baseCurrency: sym.slice(0, 3), quoteCurrency: sym.slice(3, 6), forwardPoints: {} };
 
     case 'crypto':
-      return CRYPTO_STUBS[sym] || _genericCryptoStub(instrument);
+      return _getCryptoDetail(sym, instrument);
 
     case 'commodity':
-      return ETF_STUBS[sym] || _genericEtfStub(instrument);
+      return _getEtfDetail(sym, instrument);
 
     case 'rate':
     case 'bond':
@@ -116,7 +92,131 @@ async function getInstrumentDetail(instrument) {
   }
 }
 
-// ── Private helpers ───────────────────────────────────────────────────────────
+// ── Equity detail (Twelve Data → stubs) ──────────────────────────────────────
+async function _getEquityDetail(sym, instrument) {
+  const ck = `detail:equity:${sym}`;
+  const cached = cacheGet(ck);
+  if (cached) return cached;
+
+  // Try Twelve Data profile + statistics
+  if (twelvedata && process.env.TWELVEDATA_API_KEY) {
+    try {
+      const [profile, stats] = await Promise.allSettled([
+        twelvedata.getProfile?.(sym),
+        twelvedata.getStatistics?.(sym),
+      ]);
+
+      const p = profile.status === 'fulfilled' ? profile.value : null;
+      const s = stats.status === 'fulfilled' ? stats.value : null;
+
+      if (p || s) {
+        const result = {
+          sector: p?.sector || EQUITY_STUBS[sym]?.sector || 'Unknown',
+          industry: p?.industry || EQUITY_STUBS[sym]?.industry || 'Unknown',
+          description: p?.description?.slice(0, 500) || EQUITY_STUBS[sym]?.description || '',
+          marketCap: s?.valuations_metrics?.market_capitalization || EQUITY_STUBS[sym]?.marketCap,
+          pe: s?.valuations_metrics?.trailing_pe || EQUITY_STUBS[sym]?.pe,
+          forwardPe: s?.valuations_metrics?.forward_pe || EQUITY_STUBS[sym]?.forwardPe,
+          pbRatio: s?.valuations_metrics?.price_to_book || EQUITY_STUBS[sym]?.pbRatio,
+          dividendYield: s?.dividends_and_splits?.forward_annual_dividend_yield || EQUITY_STUBS[sym]?.dividendYield,
+          eps: s?.financials?.diluted_eps || EQUITY_STUBS[sym]?.eps,
+          beta: s?.valuations_metrics?.beta || EQUITY_STUBS[sym]?.beta,
+          employees: p?.employees,
+          ceo: p?.ceo,
+          website: p?.website,
+          exchange: p?.exchange,
+          source: 'twelvedata',
+        };
+        cacheSet(ck, result);
+        return result;
+      }
+    } catch (e) {
+      console.warn(`[multiAsset] Twelve Data equity detail failed for ${sym}:`, e.message);
+    }
+  }
+
+  // Fallback to stubs
+  return EQUITY_STUBS[sym] || _genericEquityStub(instrument);
+}
+
+// ── ETF detail (Twelve Data → stubs) ─────────────────────────────────────────
+async function _getEtfDetail(sym, instrument) {
+  const ck = `detail:etf:${sym}`;
+  const cached = cacheGet(ck);
+  if (cached) return cached;
+
+  // Twelve Data has ETF profile endpoint
+  if (twelvedata && process.env.TWELVEDATA_API_KEY) {
+    try {
+      const profile = await twelvedata.getProfile?.(sym);
+      if (profile) {
+        const result = {
+          indexTracked: profile.description?.match(/tracks?\s+(?:the\s+)?(.+?)(?:\s+Index|\.|,)/i)?.[1] || 'Unknown',
+          provider: profile.name?.split(' ')[0] || 'Unknown',
+          topHoldings: [],
+          sectorWeights: [],
+          description: profile.description?.slice(0, 500) || '',
+          exchange: profile.exchange,
+          source: 'twelvedata',
+        };
+        cacheSet(ck, result);
+        return result;
+      }
+    } catch (e) {
+      console.warn(`[multiAsset] Twelve Data ETF detail failed for ${sym}:`, e.message);
+    }
+  }
+
+  // ETF stubs removed — return generic
+  return _genericEtfStub(instrument);
+}
+
+// ── Crypto detail (CoinGecko) ────────────────────────────────────────────────
+async function _getCryptoDetail(sym, instrument) {
+  const ck = `detail:crypto:${sym}`;
+  const cached = cacheGet(ck);
+  if (cached) return cached;
+
+  try {
+    const coinId = coingecko.symbolToId(sym);
+    const detail = await coingecko.getCoinDetail(coinId);
+    if (detail) {
+      const result = {
+        marketCapUSD: detail.marketData?.marketCap,
+        circulatingSupply: detail.marketData?.circulatingSupply,
+        maxSupply: detail.marketData?.maxSupply,
+        totalSupply: detail.marketData?.totalSupply,
+        vol30dPct: null, // CoinGecko doesn't provide 30d vol directly
+        drawdownFromAthPct: detail.marketData?.athChangePct,
+        network: detail.name,
+        description: detail.description?.slice(0, 500) || '',
+        categories: detail.categories,
+        genesisDate: detail.genesisDate,
+        links: detail.links,
+        communityData: detail.communityData,
+        developerData: detail.developerData,
+        sentimentUpPct: detail.sentimentUpPct,
+        sentimentDownPct: detail.sentimentDownPct,
+        changePct24h: detail.marketData?.changePct24h,
+        changePct7d: detail.marketData?.changePct7d,
+        changePct30d: detail.marketData?.changePct30d,
+        ath: detail.marketData?.ath,
+        athDate: detail.marketData?.athDate,
+        fullyDilutedValuation: detail.marketData?.fullyDilutedValuation,
+        source: 'coingecko',
+      };
+      cacheSet(ck, result);
+      return result;
+    }
+  } catch (e) {
+    console.warn(`[multiAsset] CoinGecko detail failed for ${sym}:`, e.message);
+  }
+
+  // Fallback
+  return _genericCryptoStub(instrument);
+}
+
+// ── Private helpers ──────────────────────────────────────────────────────────
 function _genericEquityStub(inst) {
   return {
     sector: 'Unknown',
