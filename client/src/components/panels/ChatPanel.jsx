@@ -94,6 +94,37 @@ function ChatPanel({ mobile, initialUserId }) {
 
   useEffect(() => { activeChatRef.current = activeChatUser; }, [activeChatUser]);
 
+  // Load AI messages from localStorage on mount
+  useEffect(() => {
+    if (!user?.id) return;
+    try {
+      const storageKey = `particle_ai_chat_${user.id}`;
+      const stored = localStorage.getItem(storageKey);
+      if (stored) {
+        const messages = JSON.parse(stored);
+        if (Array.isArray(messages)) {
+          // Limit to last 50 messages to avoid bloat
+          setAiMessages(messages.slice(-50));
+        }
+      }
+    } catch (err) {
+      console.warn('Failed to load AI chat history from localStorage:', err);
+    }
+  }, [user?.id]);
+
+  // Save AI messages to localStorage whenever they change
+  useEffect(() => {
+    if (!user?.id || aiMessages.length === 0) return;
+    try {
+      const storageKey = `particle_ai_chat_${user.id}`;
+      // Keep only last 50 messages
+      const toStore = aiMessages.slice(-50);
+      localStorage.setItem(storageKey, JSON.stringify(toStore));
+    } catch (err) {
+      console.warn('Failed to save AI chat history to localStorage:', err);
+    }
+  }, [aiMessages, user?.id]);
+
   // Load conversations on mount
   useEffect(() => {
     apiFetch('/api/chat/conversations')
@@ -476,6 +507,18 @@ function ChatPanel({ mobile, initialUserId }) {
   );
 
   // ── AI Chat view ──
+  const clearAiChatHistory = useCallback(() => {
+    if (!user?.id) return;
+    if (!window.confirm('Clear AI chat history? This cannot be undone.')) return;
+    try {
+      const storageKey = `particle_ai_chat_${user.id}`;
+      localStorage.removeItem(storageKey);
+      setAiMessages([]);
+    } catch (err) {
+      console.error('Failed to clear chat history:', err);
+    }
+  }, [user?.id]);
+
   const renderAiChat = () => {
     const isAiChat = activeChatUser?.id === 'ai-assistant';
     if (!isAiChat) return null;
@@ -497,6 +540,23 @@ function ChatPanel({ mobile, initialUserId }) {
               </div>
             </div>
           </div>
+          {aiMessages.length > 0 && (
+            <button
+              onClick={clearAiChatHistory}
+              className="chat-clear-history-btn"
+              title="Clear chat history"
+              style={{
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                padding: '8px',
+                color: 'var(--text-secondary, #999)',
+                fontSize: '14px',
+              }}
+            >
+              Clear
+            </button>
+          )}
         </div>
 
         {/* Messages */}

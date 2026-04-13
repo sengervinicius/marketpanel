@@ -8,6 +8,7 @@
  */
 
 import { memo } from 'react';
+import { API_BASE } from '../../utils/api';
 
 /** AI-suggested terminal action button */
 function ActionButton({ type, params }) {
@@ -21,6 +22,21 @@ function ActionButton({ type, params }) {
   const ticker = params.split(':')[0] || '';
 
   const handleClick = () => {
+    // Log action feedback asynchronously (fire-and-forget)
+    fetch(`${API_BASE}/api/search/action-feedback`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        actionType: type,
+        ticker: ticker || null,
+        params: params || null,
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {
+      // Silently fail if logging endpoint is unavailable
+    });
+
     window.dispatchEvent(new CustomEvent('particle:action', {
       detail: { type, ticker, params },
     }));

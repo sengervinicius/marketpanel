@@ -52,6 +52,8 @@ const notificationRoutes = require('./routes/notifications');
 const gameRoutes        = require('./routes/game');
 const screenTickerRoutes = require('./routes/screenTickers');
 const edgarRoutes       = require('./routes/edgar');
+const signalRoutes      = require('./routes/signals');
+const briefRoutes       = require('./routes/brief');
 const { requireAuth, requireActiveSubscription, requireAdmin } = require('./authMiddleware');
 const logger = require('./utils/logger');
 const { requestLogger } = require('./utils/logger');
@@ -85,6 +87,7 @@ const vaultRoutes = require('./routes/vault');
 const modelRouter = require('./services/modelRouter');
 const earningsAnalyzer = require('./services/earningsAnalyzer');
 const cache = require('./cache');
+const { init: initSignalMonitor } = require('./services/signalMonitor');
 
 const app = express();
 
@@ -337,6 +340,18 @@ app.use('/api/earnings', requireAuth, requireActiveSubscription,
   requestTimeout(15000),
   earningsRoutes);
 
+// Signal Monitor: auth + subscription required
+app.use('/api/signals', requireAuth, requireActiveSubscription,
+  rateLimitByUser({ key: 'signals', windowSec: 60, max: 30 }),
+  requestTimeout(10000),
+  signalRoutes);
+
+// Morning Brief: auth + subscription required
+app.use('/api/brief', requireAuth, requireActiveSubscription,
+  rateLimitByUser({ key: 'brief', windowSec: 60, max: 10 }),
+  requestTimeout(25000),
+  briefRoutes);
+
 // SEC EDGAR: auth + subscription required (free external API, no rate limit pressure)
 app.use('/api/edgar', requireAuth, requireActiveSubscription,
   rateLimitByUser({ key: 'edgar', windowSec: 60, max: 20 }),
@@ -580,8 +595,11 @@ wss.on('connection', (ws, req) => {
 function broadcast(update) {
   if (clients.size === 0) return;
   const msg = JSON.stringify(update);
-  for (const [ws] of clients) {
-    if (ws.readyState === WebSocket.OPEN) ws.send(msg);
+  for (const [ws, info] of clients) {
+    if (ws.readyState !== WebSocket.OPEN) continue;
+    // If update specifies userId, only send to that user
+    if (update.userId && info.userId !== update.userId) continue;
+    ws.send(msg);
   }
 }
 
@@ -630,8 +648,16 @@ function getAllWatchlists() {
 // Start anomaly detection scanner (every 10 minutes)
 anomalyScanner.init({ marketState, getWatchlists: getAllWatchlists });
 
+// Start Signal Monitor (real-time signal detection with WebSocket push)
+initSignalMonitor({ marketState, getWatchlists: getAllWatchlists, broadcast });
+
 // Initialize vault service (private knowledge management)
 initVault({ openaiKey: process.env.OPENAI_API_KEY });
+
+// Initialize memory manager service (two-tier conversation memory)
+const memoryManager = require('./services/memoryManager');
+memoryManager.startCleanupTimers();
+logger.info('boot', 'Memory manager initialized with cleanup timers');
 
 // Boot sequence: Postgres → Redis → MongoDB → seed → jobs → HTTP server
 async function boot() {

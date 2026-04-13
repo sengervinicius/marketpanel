@@ -10,6 +10,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { API_BASE } from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
+import VaultDocChat from './VaultDocChat';
 import './VaultPanel.css';
 
 export default function VaultPanel({ fullScreen = false }) {
@@ -29,6 +30,8 @@ export default function VaultPanel({ fullScreen = false }) {
   const [dragOver, setDragOver] = useState(false);
   const [quota, setQuota] = useState(null);
   const [vaultHealth, setVaultHealth] = useState(null); // { ok, database, embeddings }
+  const [chatDocId, setChatDocId] = useState(null);
+  const [chatDocFilename, setChatDocFilename] = useState(null);
   const fileInputRef = useRef(null);
   const dropRef = useRef(null);
 
@@ -452,6 +455,15 @@ export default function VaultPanel({ fullScreen = false }) {
                   {doc.created_at && <span>{fmtDate(doc.created_at)}</span>}
                 </span>
               </div>
+              <button
+                className="vault-doc-ask"
+                onClick={() => { setChatDocId(doc.id); setChatDocFilename(doc.filename); }}
+                title="Ask a question about this document"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                </svg>
+              </button>
               <button className="vault-doc-delete" onClick={() => handleDelete(doc.id, doc.filename)} title="Delete">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <polyline points="3 6 5 6 21 6" />
@@ -518,6 +530,15 @@ export default function VaultPanel({ fullScreen = false }) {
           )}
         </div>
       </div>
+
+      {/* Document Q&A Chat */}
+      {chatDocId && (
+        <VaultDocChat
+          documentId={chatDocId}
+          filename={chatDocFilename}
+          onClose={() => { setChatDocId(null); setChatDocFilename(null); }}
+        />
+      )}
     </div>
   );
 }

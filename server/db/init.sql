@@ -143,6 +143,21 @@ CREATE TABLE IF NOT EXISTS vault_chunks (
 CREATE INDEX IF NOT EXISTS idx_vault_chunks_document ON vault_chunks(document_id);
 CREATE INDEX IF NOT EXISTS idx_vault_chunks_user ON vault_chunks(user_id);
 
+-- ── User Memories (Cross-Session Persistent Memory) ─────────────────────────
+CREATE TABLE IF NOT EXISTS user_memories (
+  id                SERIAL PRIMARY KEY,
+  user_id           INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  memory_type       VARCHAR(50) NOT NULL, -- 'fact', 'preference', 'position', 'thesis'
+  content           TEXT NOT NULL,
+  confidence        REAL DEFAULT 1.0,
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  last_referenced   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  reference_count   INTEGER DEFAULT 1
+);
+CREATE INDEX IF NOT EXISTS idx_user_memories_user ON user_memories(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_memories_type ON user_memories(user_id, memory_type);
+CREATE INDEX IF NOT EXISTS idx_user_memories_confidence ON user_memories(user_id, confidence) WHERE confidence > 0.3;
+
 -- ── Refresh tokens (rotation-safe) ──────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS refresh_tokens (
   token       TEXT PRIMARY KEY,
@@ -154,3 +169,17 @@ CREATE TABLE IF NOT EXISTS refresh_tokens (
 );
 CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user ON refresh_tokens(user_id);
 CREATE INDEX IF NOT EXISTS idx_refresh_tokens_family ON refresh_tokens(family_id);
+
+-- ── Action feedback (user engagement tracking for AI signal optimization) ────
+CREATE TABLE IF NOT EXISTS action_feedback (
+  id          SERIAL PRIMARY KEY,
+  user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  action_type VARCHAR(50) NOT NULL,
+  ticker      VARCHAR(20),
+  params      TEXT,
+  context     TEXT,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_action_feedback_user ON action_feedback(user_id);
+CREATE INDEX IF NOT EXISTS idx_action_feedback_user_ticker ON action_feedback(user_id, ticker);
+CREATE INDEX IF NOT EXISTS idx_action_feedback_type ON action_feedback(user_id, action_type);

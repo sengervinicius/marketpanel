@@ -586,6 +586,7 @@
   font-variant-numeric: tabular-nums;
 }
 
+.vault-doc-ask,
 .vault-doc-delete {
   display: flex;
   align-items: center;
@@ -602,8 +603,14 @@
   transition: all var(--duration-fast);
 }
 
+.vault-doc-row:hover .vault-doc-ask,
 .vault-doc-row:hover .vault-doc-delete {
   opacity: 1;
+}
+
+.vault-doc-ask:hover {
+  color: var(--color-vault);
+  background: rgba(218, 165, 32, 0.08);
 }
 
 .vault-doc-delete:hover {

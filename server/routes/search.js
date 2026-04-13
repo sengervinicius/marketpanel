@@ -13,6 +13,8 @@ const express = require('express');
 const fetch   = require('node-fetch');
 const router  = express.Router();
 
+const memoryManager = require('../services/memoryManager');
+
 const PERPLEXITY_URL = 'https://api.perplexity.ai/chat/completions';
 const MODEL          = 'sonar-pro';
 const TIMEOUT_MS     = 15000;
@@ -1507,12 +1509,31 @@ IMPORTANT: NEVER do math in your head. Use the PRE-COMPUTED values above.`;
     console.warn('[Particle/Earnings] Enrichment error:', err.message);
   }
 
+  // ── Tier 1: Session Memory (In-Memory Working Memory) ────────────────────
+  let sessionMemoryContext = '';
+  try {
+    const session = memoryManager.getSessionMemory(userId);
+    if (session) {
+      sessionMemoryContext = memoryManager.formatSessionMemory(session);
+    }
+  } catch (err) {
+    console.warn('[Particle/SessionMemory] Load error:', err.message);
+  }
+
+  // ── Tier 2: Persistent Memory (Cross-Session Database) ──────────────────
+  let persistentMemoryContext = '';
+  try {
+    persistentMemoryContext = await memoryManager.getPersistedMemories(userId);
+  } catch (err) {
+    console.warn('[Particle/PersistentMemory] Load error:', err.message);
+  }
+
   let systemPrompt;
   if (deepAnalysisResult?.prompt) {
     // Deep analysis mode: use the specialized prompt with market and vault context appended
     systemPrompt = `${deepAnalysisResult.prompt}
 
-${behaviorContext ? `\n${behaviorContext}\n` : ''}${portfolioMetricsContext ? `\n${portfolioMetricsContext}\n` : ''}${vaultContext || ''}${marketContext ? `\n--- LIVE MARKET DATA ---\n${marketContext}\n--- END MARKET DATA ---\n` : ''}${earningsContext ? `\n--- EARNINGS CALENDAR ---\n${earningsContext}\n--- END EARNINGS CALENDAR ---\n` : ''}${edgarContext ? `\n--- SEC FILINGS ---\n${edgarContext}\n--- END SEC FILINGS ---\n` : ''}${context ? `\nAdditional context: ${context}` : ''}`;
+${persistentMemoryContext ? `\n${persistentMemoryContext}\n` : ''}${sessionMemoryContext ? `\n${sessionMemoryContext}\n` : ''}${behaviorContext ? `\n${behaviorContext}\n` : ''}${portfolioMetricsContext ? `\n${portfolioMetricsContext}\n` : ''}${vaultContext || ''}${marketContext ? `\n--- LIVE MARKET DATA ---\n${marketContext}\n--- END MARKET DATA ---\n` : ''}${earningsContext ? `\n--- EARNINGS CALENDAR ---\n${earningsContext}\n--- END EARNINGS CALENDAR ---\n` : ''}${edgarContext ? `\n--- SEC FILINGS ---\n${edgarContext}\n--- END SEC FILINGS ---\n` : ''}${context ? `\nAdditional context: ${context}` : ''}`;
   } else {
     // Standard Particle prompt — v2 with voice contract + persona card
     systemPrompt = `IDENTITY: You are Particle — the AI engine inside a professional financial terminal. You are a senior macro strategist who has managed risk through the 2008 crisis, COVID crash, and 2022 rate shock. You form strong, data-grounded views and defend them. You speak in terminal shorthand — terse, numeric, opinionated. When you're uncertain, you say so directly, but you never hide behind vague qualifiers.
@@ -1555,7 +1576,7 @@ FEW-SHOT EXAMPLE — BAD vs GOOD:
 User: "What's happening with Tesla?"
 BAD: "Tesla is an interesting stock to watch right now. Based on the data, there are several factors to consider. The stock has been volatile recently, and many analysts have different views on its trajectory. It's important to note that Tesla's fundamentals..."
 GOOD: "[sentiment:bear] **$TSLA** breaking below its 200-DMA at **$165** — down **-4.2%** on the session as delivery numbers disappointed. Q1 deliveries came in at 387K vs 415K consensus, a 7% miss. China competition from BYD is the structural overhang. Watch **$155** support — a break opens **$140**. BOTTOM LINE: Bearish below **$165**, and the delivery trajectory suggests this isn't a one-quarter problem."
-${behaviorContext ? `\n${behaviorContext}\n` : ''}
+${persistentMemoryContext ? `\n${persistentMemoryContext}\n` : ''}${sessionMemoryContext ? `\n${sessionMemoryContext}\n` : ''}${behaviorContext ? `\n${behaviorContext}\n` : ''}
 ${portfolioMetricsContext ? `\n${portfolioMetricsContext}\n` : ''}${vaultContext || ''}${marketContext ? `\n--- LIVE MARKET DATA ---\n${marketContext}\n--- END MARKET DATA ---\n` : ''}${earningsContext ? `\n--- EARNINGS CALENDAR ---\n${earningsContext}\n--- END EARNINGS CALENDAR ---\n` : ''}${edgarContext ? `\n--- SEC FILINGS ---\n${edgarContext}\n--- END SEC FILINGS ---\n` : ''}${context ? `\nAdditional context: ${context}` : ''}`;
   }
 
@@ -1634,6 +1655,19 @@ ${portfolioMetricsContext ? `\n${portfolioMetricsContext}\n` : ''}${vaultContext
 
       res.write('data: [DONE]\n\n');
       res.end();
+
+      // ── Fire-and-forget: Update session memory and extract persistent memories ──
+      try {
+        if (userId && userQuery && responseText) {
+          // Add to session memory
+          memoryManager.addMessageToSession(userId, 'user', userQuery).catch(() => {});
+          memoryManager.addMessageToSession(userId, 'assistant', responseText).catch(() => {});
+          // Extract new factual memories asynchronously (non-blocking)
+          memoryManager.extractMemoriesAsync(userId, userQuery, responseText);
+        }
+      } catch (err) {
+        console.warn('[Particle/Chat] Memory update error (non-blocking):', err.message);
+      }
     } catch (err) {
       console.error('[Particle/Chat] Deep analysis stream error:', err.message);
       if (!res.headersSent) {
@@ -1655,6 +1689,19 @@ ${portfolioMetricsContext ? `\n${portfolioMetricsContext}\n` : ''}${vaultContext
       await modelRouter.streamResponse(provider, routerMessages, systemPrompt, res, {
         onAbort: (abortFn) => { req.on('close', abortFn); },
       });
+
+      // ── Fire-and-forget: Update session memory (non-blocking) ──
+      // Note: We can't capture the full response here since it's streamed directly.
+      // So we just log the user message to session memory and trigger async extraction
+      // with a placeholder for the AI response (will be captured on next turn).
+      try {
+        if (userId && userQuery) {
+          memoryManager.addMessageToSession(userId, 'user', userQuery).catch(() => {});
+          // Memory extraction deferred to next user message for efficiency
+        }
+      } catch (err) {
+        console.warn('[Particle/Chat] Session memory update error (non-blocking):', err.message);
+      }
     } catch (err) {
       console.error('[Particle/Chat] Stream error:', err.message);
       if (!res.headersSent) {
@@ -1939,6 +1986,112 @@ router.post('/cross-asset-signal', async (req, res) => {
     console.error('[Search/cross-asset-signal]', e.message);
     res.status(e.message.includes('not configured') ? 503 : 502).json({ error: e.message });
   }
+});
+
+// ── T3.5: Action Chip Feedback Loop ───────────────────────────────────────
+
+/**
+ * POST /action-feedback — Log when user clicks an AI-suggested action chip.
+ * Body: { actionType, ticker, params, messageContext, timestamp }
+ * Fire-and-forget endpoint (async logging).
+ */
+router.post('/action-feedback', (req, res) => {
+  // Don't require auth for now — logged via session/cookie if available
+  const { actionType, ticker, params, messageContext, timestamp } = req.body;
+
+  // Queue for async processing (don't block response)
+  setImmediate(async () => {
+    try {
+      const pg = require('../db/postgres');
+      const userId = req.user?.id || null;
+
+      if (!userId || !pg.isConnected()) {
+        // Silently fail if not authenticated or DB unavailable
+        return;
+      }
+
+      await pg.query(
+        `INSERT INTO action_feedback (user_id, action_type, ticker, params, context, created_at)
+         VALUES ($1, $2, $3, $4, $5, NOW())`,
+        [
+          userId,
+          actionType || 'unknown',
+          ticker || null,
+          params || null,
+          messageContext || null,
+        ]
+      );
+
+      logger.info('search-route', 'Action feedback logged', {
+        userId,
+        actionType,
+        ticker,
+      });
+    } catch (err) {
+      logger.warn('search-route', 'Action feedback log error', { error: err.message });
+    }
+  });
+
+  // Return immediately to client
+  res.json({ ok: true });
+});
+
+/**
+ * GET /action-stats — Get user's action engagement stats for personalization.
+ * Returns: { mostClickedActions: [...], topTickers: [...] }
+ * Internal use only (for behavioral profiling).
+ */
+router.get('/action-stats', (req, res) => {
+  const userId = req.user?.id;
+  if (!userId) {
+    return res.json({ mostClickedActions: [], topTickers: [] });
+  }
+
+  setImmediate(async () => {
+    try {
+      const pg = require('../db/postgres');
+      if (!pg.isConnected()) {
+        return res.json({ mostClickedActions: [], topTickers: [] });
+      }
+
+      // Get most-clicked action types (last 90 days)
+      const actionsResult = await pg.query(
+        `SELECT action_type, COUNT(*) as count
+         FROM action_feedback
+         WHERE user_id = $1 AND created_at > NOW() - INTERVAL '90 days'
+         GROUP BY action_type
+         ORDER BY count DESC
+         LIMIT 5`,
+        [userId]
+      );
+
+      // Get most-engaged tickers (last 90 days)
+      const tickersResult = await pg.query(
+        `SELECT ticker, COUNT(*) as count
+         FROM action_feedback
+         WHERE user_id = $1 AND ticker IS NOT NULL AND created_at > NOW() - INTERVAL '90 days'
+         GROUP BY ticker
+         ORDER BY count DESC
+         LIMIT 10`,
+        [userId]
+      );
+
+      const mostClickedActions = (actionsResult.rows || []).map(r => ({
+        type: r.action_type,
+        count: parseInt(r.count, 10),
+      }));
+
+      const topTickers = (tickersResult.rows || []).map(r => ({
+        ticker: r.ticker,
+        count: parseInt(r.count, 10),
+      }));
+
+      res.json({ mostClickedActions, topTickers });
+    } catch (err) {
+      logger.warn('search-route', 'Action stats error', { error: err.message });
+      res.json({ mostClickedActions: [], topTickers: [] });
+    }
+  });
 });
 
 module.exports = router;

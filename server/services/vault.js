@@ -1369,6 +1369,194 @@ async function deleteDocument(userId, documentId) {
   }
 }
 
+/**
+ * Retrieve passages from a specific document only (for document-scoped Q&A).
+ * Similar to retrieve() but filters by document_id.
+ */
+async function retrieveFromDocument(documentId, userId, query, limit = MAX_RETRIEVAL) {
+  if (!pg.isConnected()) {
+    return [];
+  }
+
+  // Verify user owns the document or it's global
+  const docCheck = await pg.query(
+    `SELECT user_id, is_global FROM vault_documents WHERE id = $1`,
+    [documentId]
+  );
+  if (!docCheck.rows || docCheck.rows.length === 0) {
+    throw new Error('Document not found');
+  }
+  const doc = docCheck.rows[0];
+  if (doc.user_id !== userId && !doc.is_global) {
+    throw new Error('Unauthorized');
+  }
+
+  const CANDIDATE_LIMIT = 30;
+  const rankedLists = [];
+
+  // ── Stage 1A: Vector (semantic) search on document ──
+  try {
+    const embeddings = await embed([query]);
+    if (embeddings[0]) {
+      const vecResult = await pg.query(
+        `SELECT vc.id, vc.document_id, vc.chunk_index, vc.content, vc.metadata,
+                vd.filename, vd.source, vd.is_global, vd.metadata as doc_metadata,
+                1 - (vc.embedding <=> $1::vector) AS similarity
+         FROM vault_chunks vc
+         JOIN vault_documents vd ON vc.document_id = vd.id
+         WHERE vc.document_id = $2 AND vc.embedding IS NOT NULL
+         ORDER BY vc.embedding <=> $1::vector
+         LIMIT $3`,
+        [`[${embeddings[0].join(',')}]`, documentId, CANDIDATE_LIMIT]
+      );
+      const vecRows = (vecResult.rows || []).filter(r =>
+        r.similarity != null && parseFloat(r.similarity) >= MIN_SIMILARITY
+      );
+      if (vecRows.length > 0) rankedLists.push(vecRows);
+      logger.info('vault', `Document vector search: ${vecResult.rows?.length || 0} candidates, ${vecRows.length} above threshold`);
+    }
+  } catch (err) {
+    logger.warn('vault', 'Document vector search failed', { error: err.message });
+  }
+
+  // ── Stage 1B: BM25 (keyword) search on document ──
+  try {
+    const cleanQuery = query
+      .replace(/\$/g, '')
+      .replace(/[^\w\s]/g, ' ')
+      .trim()
+      .split(/\s+/)
+      .filter(w => w.length >= 2)
+      .join(' & ');
+
+    if (cleanQuery) {
+      const bm25Result = await pg.query(
+        `SELECT vc.id, vc.document_id, vc.chunk_index, vc.content, vc.metadata,
+                vd.filename, vd.source, vd.is_global, vd.metadata as doc_metadata,
+                ts_rank_cd(vc.search_vector, to_tsquery('english', $1)) AS bm25_rank
+         FROM vault_chunks vc
+         JOIN vault_documents vd ON vc.document_id = vd.id
+         WHERE vc.document_id = $2 AND vc.search_vector @@ to_tsquery('english', $1)
+         ORDER BY bm25_rank DESC
+         LIMIT $3`,
+        [cleanQuery, documentId, CANDIDATE_LIMIT]
+      );
+      const bm25Rows = bm25Result.rows || [];
+      if (bm25Rows.length > 0) rankedLists.push(bm25Rows);
+      logger.info('vault', `Document BM25 search: ${bm25Rows.length} matches`);
+    }
+  } catch (err) {
+    logger.warn('vault', 'Document BM25 search failed', { error: err.message });
+  }
+
+  // ── Stage 2: Merge results ──
+  if (rankedLists.length === 0) {
+    return [];
+  }
+
+  let fused;
+  if (rankedLists.length === 1) {
+    fused = rankedLists[0];
+  } else {
+    fused = reciprocalRankFusion(rankedLists);
+    logger.info('vault', `Document hybrid RRF: ${fused.length} unique passages`);
+  }
+
+  // ── Stage 3: Optional Cohere Reranking ──
+  if (_cohereKey && fused.length > limit) {
+    const reranked = await rerankWithCohere(query, fused, limit);
+    logger.info('vault', `Document Cohere rerank: ${reranked.length} passages`);
+    return reranked;
+  }
+
+  return fused.slice(0, limit);
+}
+
+/**
+ * Get or generate a summary for a document.
+ * If metadata.summary exists, return it. Otherwise, retrieve and summarize.
+ */
+async function getDocumentSummary(documentId, userId) {
+  if (!pg.isConnected()) {
+    return null;
+  }
+
+  // Check document exists and user has access
+  const docResult = await pg.query(
+    `SELECT id, filename, metadata, is_global, user_id FROM vault_documents WHERE id = $1`,
+    [documentId]
+  );
+  if (!docResult.rows || docResult.rows.length === 0) {
+    throw new Error('Document not found');
+  }
+  const doc = docResult.rows[0];
+  if (doc.user_id !== userId && !doc.is_global) {
+    throw new Error('Unauthorized');
+  }
+
+  // Return existing summary if available
+  const metadata = doc.metadata || {};
+  if (metadata.summary) {
+    return metadata.summary;
+  }
+
+  // Generate summary from first 5 chunks
+  try {
+    const chunks = await pg.query(
+      `SELECT content FROM vault_chunks WHERE document_id = $1 ORDER BY chunk_index ASC LIMIT 5`,
+      [documentId]
+    );
+    const content = (chunks.rows || []).map(r => r.content).join('\n\n');
+    if (!content || content.trim().length === 0) {
+      return 'No content available for summary.';
+    }
+
+    // Use Haiku to generate summary
+    if (!process.env.OPENAI_API_KEY) {
+      return 'Summary generation not available.';
+    }
+
+    const fetch = require('node-fetch');
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: [{
+          role: 'user',
+          content: `Summarize this document in 2-3 sentences:\n\n${content.slice(0, 2000)}`,
+        }],
+        max_tokens: 150,
+        temperature: 0.3,
+      }),
+    });
+
+    if (!response.ok) {
+      logger.warn('vault', 'Summary generation failed', { status: response.status });
+      return null;
+    }
+
+    const data = await response.json();
+    const summary = data.choices?.[0]?.message?.content;
+
+    if (summary) {
+      // Cache the summary in metadata
+      await pg.query(
+        `UPDATE vault_documents SET metadata = jsonb_set(metadata, '{summary}', $1) WHERE id = $2`,
+        [JSON.stringify(summary), documentId]
+      );
+    }
+
+    return summary || null;
+  } catch (err) {
+    logger.error('vault', 'Error generating summary', { error: err.message });
+    return null;
+  }
+}
+
 module.exports = {
   init,
   ensureTable,
@@ -1382,6 +1570,8 @@ module.exports = {
   chunkFinancialTable,
   embed,
   retrieve,
+  retrieveFromDocument,
+  getDocumentSummary,
   formatForPrompt,
   getUserDocuments,
   getGlobalDocuments,

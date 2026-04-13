@@ -370,4 +370,212 @@ router.delete('/admin/documents/:id', requireAdmin, async (req, res) => {
   }
 });
 
+// ── T3.3: Document Q&A Mode ────────────────────────────────────────────────
+
+/**
+ * POST /documents/:id/ask — Ask a question scoped to a specific document.
+ * Body: { question: string }
+ * Streams response back as server-sent events.
+ */
+router.post('/documents/:id/ask', requireAuth, async (req, res) => {
+  try {
+    const documentId = parseInt(req.params.id, 10);
+    if (isNaN(documentId)) {
+      return res.status(400).json({ error: 'Invalid document ID' });
+    }
+
+    const { question } = req.body;
+    if (!question || typeof question !== 'string' || !question.trim()) {
+      return res.status(400).json({ error: 'question is required' });
+    }
+
+    // Get document metadata for system prompt
+    const docResult = await pg.query(
+      `SELECT filename, metadata FROM vault_documents WHERE id = $1`,
+      [documentId]
+    );
+    if (!docResult.rows || docResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Document not found' });
+    }
+    const doc = docResult.rows[0];
+
+    // Retrieve passages from this document only
+    const passages = await vault.retrieveFromDocument(documentId, req.user.id, question, 5);
+
+    if (passages.length === 0) {
+      return res.status(400).json({ error: 'No relevant passages found in this document' });
+    }
+
+    // Format passages for prompt
+    const passageText = passages
+      .map((p, i) => `[Passage ${i + 1}]: ${p.content}`)
+      .join('\n\n');
+
+    // Stream response using OpenAI API
+    const fetch = require('node-fetch');
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+      return res.status(503).json({ error: 'AI service not configured' });
+    }
+
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: [{
+          role: 'system',
+          content: `You are answering questions about a specific document: "${doc.filename}". Use ONLY the provided passages to answer. If the answer is not in the passages, say so clearly. Be concise and cite which passages you're referencing.`,
+        }, {
+          role: 'user',
+          content: `${question}\n\nRelevant passages from the document:\n\n${passageText}`,
+        }],
+        max_tokens: 500,
+        temperature: 0.3,
+        stream: true,
+      }),
+    });
+
+    if (!response.ok) {
+      logger.error('vault-route', 'OpenAI API error', { status: response.status });
+      return res.status(502).json({ error: 'AI service error' });
+    }
+
+    // Set up SSE headers
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+
+    // Stream chunks from OpenAI
+    const { Readable } = require('stream');
+    let buffer = '';
+
+    response.body.on('data', (chunk) => {
+      buffer += chunk.toString();
+      const lines = buffer.split('\n');
+      buffer = lines.pop(); // Keep incomplete line in buffer
+
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const data = line.slice(6);
+          if (data === '[DONE]') {
+            res.write('data: [DONE]\n\n');
+          } else {
+            try {
+              const parsed = JSON.parse(data);
+              const content = parsed.choices?.[0]?.delta?.content;
+              if (content) {
+                res.write(`data: ${JSON.stringify({ content })}\n\n`);
+              }
+            } catch (e) {
+              // Ignore parse errors
+            }
+          }
+        }
+      }
+    });
+
+    response.body.on('end', () => {
+      if (buffer.startsWith('data: ')) {
+        res.write(buffer + '\n\n');
+      }
+      res.end();
+    });
+
+    response.body.on('error', (err) => {
+      logger.error('vault-route', 'Stream error', { error: err.message });
+      res.write('data: [ERROR]\n\n');
+      res.end();
+    });
+
+    logger.info('vault-route', 'Document Q&A initiated', {
+      userId: req.user.id,
+      documentId,
+      questionLength: question.length,
+      passagesCount: passages.length,
+    });
+  } catch (err) {
+    logger.error('vault-route', 'Document Q&A error', { error: err.message });
+    res.status(500).json({ error: 'Failed to process question' });
+  }
+});
+
+/**
+ * GET /documents/:id/summary — Get or generate a document summary.
+ */
+router.get('/documents/:id/summary', requireAuth, async (req, res) => {
+  try {
+    const documentId = parseInt(req.params.id, 10);
+    if (isNaN(documentId)) {
+      return res.status(400).json({ error: 'Invalid document ID' });
+    }
+
+    const summary = await vault.getDocumentSummary(documentId, req.user.id);
+
+    if (!summary) {
+      return res.status(503).json({ error: 'Summary generation unavailable' });
+    }
+
+    logger.info('vault-route', 'Document summary retrieved', {
+      userId: req.user.id,
+      documentId,
+    });
+
+    res.json({ summary });
+  } catch (err) {
+    if (err.message === 'Unauthorized') {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+    if (err.message === 'Document not found') {
+      return res.status(404).json({ error: 'Document not found' });
+    }
+    logger.error('vault-route', 'Summary error', { error: err.message });
+    res.status(500).json({ error: 'Failed to get summary' });
+  }
+});
+
+// ── T3.4: Central Vault Research Feed ─────────────────────────────────────
+
+/**
+ * GET /feed — Get recent global vault documents (research feed).
+ */
+router.get('/feed', requireAuth, async (req, res) => {
+  try {
+    const result = await pg.query(
+      `SELECT id, filename, metadata, created_at FROM vault_documents
+       WHERE is_global = TRUE
+       ORDER BY created_at DESC
+       LIMIT 20`
+    );
+
+    const documents = (result.rows || []).map(doc => {
+      const meta = doc.metadata || {};
+      return {
+        id: doc.id,
+        filename: doc.filename,
+        bank: meta.bank || null,
+        date: meta.date || null,
+        tickers: Array.isArray(meta.tickers) ? meta.tickers : (meta.tickers ? [meta.tickers] : []),
+        sector: meta.sector || null,
+        docType: meta.docType || null,
+        summary: meta.summary || null,
+        createdAt: doc.created_at,
+      };
+    });
+
+    logger.info('vault-route', 'Research feed retrieved', {
+      userId: req.user.id,
+      count: documents.length,
+    });
+
+    res.json({ documents });
+  } catch (err) {
+    logger.error('vault-route', 'Feed error', { error: err.message });
+    res.status(500).json({ error: 'Failed to fetch research feed' });
+  }
+});
+
 module.exports = router;
