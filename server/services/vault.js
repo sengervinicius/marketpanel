@@ -41,8 +41,12 @@ function init({ openaiKey }) {
  */
 async function ensureTable() {
   if (!pg.isConnected()) {
-    logger.warn('vault', 'Postgres not connected — skipping table creation');
-    return;
+    // Attempt lazy reconnect before giving up
+    try { await pg.query('SELECT 1'); } catch {}
+    if (!pg.isConnected()) {
+      logger.warn('vault', 'Postgres not connected — skipping table creation (will retry on reconnect)');
+      return;
+    }
   }
 
   try {
@@ -69,12 +73,18 @@ async function ensureTable() {
       )
     `);
 
-    // Add is_global column if table already exists (idempotent migration)
-    try {
-      await pg.query(`ALTER TABLE vault_documents ADD COLUMN IF NOT EXISTS is_global BOOLEAN NOT NULL DEFAULT FALSE`);
-    } catch (e) {
-      // Column already exists or ALTER not supported — safe to ignore
-    }
+    // Idempotent migrations — add any missing columns from older schema versions
+    const alterSafe = async (sql) => {
+      try { await pg.query(sql); } catch (e) { /* column exists or not supported */ }
+    };
+    // vault_documents columns that may be missing from old init.sql
+    await alterSafe(`ALTER TABLE vault_documents ADD COLUMN IF NOT EXISTS filename TEXT NOT NULL DEFAULT 'untitled.pdf'`);
+    await alterSafe(`ALTER TABLE vault_documents ADD COLUMN IF NOT EXISTS source TEXT DEFAULT 'upload'`);
+    await alterSafe(`ALTER TABLE vault_documents ADD COLUMN IF NOT EXISTS is_global BOOLEAN NOT NULL DEFAULT FALSE`);
+    await alterSafe(`ALTER TABLE vault_documents ADD COLUMN IF NOT EXISTS metadata JSONB DEFAULT '{}'`);
+    // vault_chunks columns that may be missing
+    await alterSafe(`ALTER TABLE vault_chunks ADD COLUMN IF NOT EXISTS user_id INTEGER NOT NULL DEFAULT 0`);
+    await alterSafe(`ALTER TABLE vault_chunks ADD COLUMN IF NOT EXISTS metadata JSONB DEFAULT '{}'`);
 
     // Create index on user_id for faster queries
     await pg.query(`
@@ -268,8 +278,13 @@ function extractMetadata(text) {
  * Ingest a PDF, parse text, chunk, embed, and store.
  */
 async function ingestPDF(userId, buffer, filename, { isGlobal = false } = {}) {
+  // Attempt lazy reconnect if pool is dead — the new postgres.js handles this
   if (!pg.isConnected()) {
-    throw new Error('Postgres not connected');
+    // Trigger a lazy reconnect via a lightweight query
+    try { await pg.query('SELECT 1'); } catch {}
+    if (!pg.isConnected()) {
+      throw new Error('Postgres not connected — database may be starting up. Please try again in a minute.');
+    }
   }
 
   try {

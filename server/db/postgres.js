@@ -1,10 +1,13 @@
 /**
- * db/postgres.js — Postgres connection pool & query helpers.
+ * db/postgres.js — Postgres connection pool with auto-reconnect.
  *
  * Strategy:
  *   - If POSTGRES_URL is set, create a pg.Pool and expose query helpers.
  *   - If absent, all helpers no-op gracefully (returns null / empty arrays).
- *   - On first connect, runs init.sql to ensure tables exist.
+ *   - On connect, runs init.sql to ensure tables exist.
+ *   - **Auto-reconnect**: If the pool dies or initial connect fails, retries
+ *     every 30 seconds. This handles Render free-tier cold starts, transient
+ *     database restarts, and connection pool exhaustion.
  *   - Callers should always check `isConnected()` or handle null returns.
  */
 
@@ -15,6 +18,96 @@ const path = require('path');
 const logger = require('../utils/logger');
 
 let pool = null;
+let reconnectTimer = null;
+let connecting = false;          // guard against overlapping reconnect attempts
+let schemaReady = false;         // true once init.sql has run
+const RECONNECT_INTERVAL = 30_000; // retry every 30 seconds
+
+/**
+ * Internal: attempt to create pool + verify connectivity + run schema init.
+ * @returns {boolean} true if connected
+ */
+async function _connect() {
+  const url = process.env.POSTGRES_URL;
+  if (!url) return false;
+  if (connecting) return pool !== null;
+  connecting = true;
+
+  try {
+    const { Pool } = require('pg');
+    const newPool = new Pool({
+      connectionString: url,
+      max: 10,
+      idleTimeoutMillis: 30_000,
+      connectionTimeoutMillis: 10_000,
+      ssl: url.includes('sslmode=require') || url.includes('render.com')
+        ? { rejectUnauthorized: false }
+        : undefined,
+    });
+
+    // Handle pool-level errors (disconnections, idle timeouts)
+    newPool.on('error', (err) => {
+      logger.error('postgres', 'Pool error — scheduling reconnect', { error: err.message });
+      _teardown(newPool);
+      _scheduleReconnect();
+    });
+
+    // Verify connectivity with a real query
+    const client = await newPool.connect();
+    await client.query('SELECT 1');
+    client.release();
+
+    // Run init SQL if not already done
+    if (!schemaReady) {
+      try {
+        const initSQL = fs.readFileSync(path.join(__dirname, 'init.sql'), 'utf8');
+        await newPool.query(initSQL);
+        schemaReady = true;
+      } catch (schemaErr) {
+        logger.warn('postgres', 'Schema init failed (tables may already exist)', { error: schemaErr.message });
+        schemaReady = true; // proceed anyway — tables likely exist
+      }
+    }
+
+    // Success — swap in the new pool
+    if (pool && pool !== newPool) {
+      try { pool.end().catch(() => {}); } catch {}
+    }
+    pool = newPool;
+    _clearReconnect();
+    logger.info('postgres', 'Connected and ready');
+    return true;
+  } catch (e) {
+    logger.error('postgres', 'Connection attempt failed', { error: e.message });
+    pool = null;
+    _scheduleReconnect();
+    return false;
+  } finally {
+    connecting = false;
+  }
+}
+
+function _teardown(p) {
+  if (p === pool) pool = null;
+  try { p.end().catch(() => {}); } catch {}
+}
+
+function _scheduleReconnect() {
+  if (reconnectTimer) return; // already scheduled
+  if (!process.env.POSTGRES_URL) return; // no URL, no point
+  reconnectTimer = setTimeout(async () => {
+    reconnectTimer = null;
+    logger.info('postgres', 'Attempting reconnect…');
+    await _connect();
+  }, RECONNECT_INTERVAL);
+}
+
+function _clearReconnect() {
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  }
+}
 
 /**
  * Initialise the Postgres pool and run schema init.
@@ -27,34 +120,7 @@ async function initPostgres() {
     logger.info('postgres', 'POSTGRES_URL not set — Postgres persistence disabled');
     return false;
   }
-
-  try {
-    const { Pool } = require('pg');
-    pool = new Pool({
-      connectionString: url,
-      max: 10,
-      idleTimeoutMillis: 30000,
-      connectionTimeoutMillis: 8000,
-      ssl: url.includes('sslmode=require') || url.includes('render.com')
-        ? { rejectUnauthorized: false }
-        : undefined,
-    });
-
-    // Verify connectivity
-    const client = await pool.connect();
-    client.release();
-
-    // Run init SQL to create tables if absent
-    const initSQL = fs.readFileSync(path.join(__dirname, 'init.sql'), 'utf8');
-    await pool.query(initSQL);
-
-    logger.info('postgres', 'Connected and schema initialised');
-    return true;
-  } catch (e) {
-    logger.error('postgres', 'Connection failed — falling back to MongoDB/in-memory', { error: e.message });
-    pool = null;
-    return false;
-  }
+  return _connect();
 }
 
 /** @returns {boolean} */
@@ -64,16 +130,32 @@ function isConnected() {
 
 /**
  * Run a parameterised query.
+ * If pool is null, attempt a lazy reconnect (once) before failing.
  * @param {string} text - SQL with $1, $2, … placeholders
  * @param {any[]} params
  * @returns {import('pg').QueryResult | null}
  */
 async function query(text, params = []) {
+  // Lazy reconnect: if pool died, try once before giving up
+  if (!pool && process.env.POSTGRES_URL && !connecting) {
+    logger.info('postgres', 'Pool is null — attempting lazy reconnect before query');
+    await _connect();
+  }
   if (!pool) return null;
+
   try {
     return await pool.query(text, params);
   } catch (e) {
-    logger.error('postgres', 'Query error', { sql: text.slice(0, 120), error: e.message });
+    // If this looks like a connection error, schedule reconnect
+    const msg = e.message || '';
+    if (msg.includes('ECONNREFUSED') || msg.includes('terminating') || msg.includes('Connection terminated')
+        || msg.includes('timeout') || msg.includes('ENOTFOUND') || msg.includes('connection') ) {
+      logger.error('postgres', 'Query failed with connection error — scheduling reconnect', { error: msg });
+      pool = null;
+      _scheduleReconnect();
+    } else {
+      logger.error('postgres', 'Query error', { sql: text.slice(0, 120), error: msg });
+    }
     throw e;
   }
 }
@@ -87,9 +169,27 @@ function getPool() {
 }
 
 /**
+ * Get diagnostic info for health checks.
+ */
+function getDiagnostics() {
+  return {
+    connected: pool !== null,
+    urlSet: !!process.env.POSTGRES_URL,
+    schemaReady,
+    reconnecting: !!reconnectTimer || connecting,
+    poolStats: pool ? {
+      totalCount: pool.totalCount,
+      idleCount: pool.idleCount,
+      waitingCount: pool.waitingCount,
+    } : null,
+  };
+}
+
+/**
  * Graceful shutdown.
  */
 async function closePostgres() {
+  _clearReconnect();
   if (pool) {
     await pool.end();
     pool = null;
@@ -97,4 +197,4 @@ async function closePostgres() {
   }
 }
 
-module.exports = { initPostgres, isConnected, query, getPool, closePostgres };
+module.exports = { initPostgres, isConnected, query, getPool, closePostgres, getDiagnostics };

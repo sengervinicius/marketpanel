@@ -25,7 +25,25 @@ const { requireAuth, requireAdmin } = require('../authMiddleware');
 const { getTier, isUnlimited } = require('../config/tiers');
 const { rateLimitByUser } = require('../middleware/rateLimitByUser');
 
+const pg = require('../db/postgres');
+
 const router = express.Router();
+
+/**
+ * GET /health — Vault health check (no auth required for basic status).
+ * Returns database connection status and capabilities.
+ */
+router.get('/health', async (req, res) => {
+  const diag = pg.getDiagnostics();
+  const status = {
+    database: diag.connected ? 'connected' : diag.urlSet ? 'disconnected' : 'not_configured',
+    embeddings: !!process.env.OPENAI_API_KEY,
+    schemaReady: diag.schemaReady,
+    reconnecting: diag.reconnecting,
+  };
+  const healthy = status.database === 'connected' && status.schemaReady;
+  res.status(healthy ? 200 : 503).json({ ok: healthy, ...status });
+});
 
 // Multer for PDF upload (10MB limit)
 const upload = multer({
@@ -80,8 +98,8 @@ router.post('/upload', rateLimitByUser({ key: 'vault-upload', windowSec: 60, max
     logger.error('vault-route', 'Upload error', { error: err.message, stack: err.stack?.slice(0, 300) });
     // Return a more descriptive error so the client can show what went wrong
     const msg = err.message || 'Unknown error';
-    if (msg.includes('not connected') || msg.includes('ECONNREFUSED')) {
-      return res.status(503).json({ error: 'Database unavailable', message: 'Vault storage is temporarily unavailable. Please try again in a few minutes.' });
+    if (msg.includes('not connected') || msg.includes('ECONNREFUSED') || msg.includes('Connection terminated') || msg.includes('timeout')) {
+      return res.status(503).json({ error: 'Database unavailable', code: 'db_unavailable', message: 'Vault database is reconnecting. Please wait a moment and try again.' });
     }
     if (msg.includes('no extractable text')) {
       return res.status(400).json({ error: 'Unreadable PDF', message: 'This PDF contains no extractable text. Scanned/image-only PDFs are not supported yet.' });

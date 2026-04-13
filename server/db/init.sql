@@ -112,27 +112,36 @@ CREATE TABLE IF NOT EXISTS wire_entries (
 );
 CREATE INDEX IF NOT EXISTS idx_wire_created ON wire_entries (created_at DESC);
 
--- ── Vault documents (JSONB-heavy storage) ──────────────────────────────────
+-- ── Vault documents ────────────────────────────────────────────────────────
+-- NOTE: Full vault schema is managed by vault.js ensureTable(). This is a
+-- minimal stub so init.sql doesn't conflict. ensureTable() will add missing
+-- columns via ALTER TABLE IF NOT EXISTS.
 CREATE TABLE IF NOT EXISTS vault_documents (
   id          SERIAL PRIMARY KEY,
   user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  title       TEXT NOT NULL,
-  content     JSONB NOT NULL DEFAULT '{}',
-  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  filename    TEXT NOT NULL DEFAULT 'untitled.pdf',
+  source      TEXT DEFAULT 'upload',
+  is_global   BOOLEAN NOT NULL DEFAULT FALSE,
+  metadata    JSONB DEFAULT '{}',
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_vault_documents_user ON vault_documents(user_id);
+CREATE INDEX IF NOT EXISTS idx_vault_documents_global ON vault_documents(is_global) WHERE is_global = TRUE;
 
 -- ── Vault chunks (document segments for retrieval) ──────────────────────────
+-- NOTE: embedding column type VECTOR requires pgvector extension. If pgvector
+-- is not installed, vault.js ensureTable() will handle the fallback.
 CREATE TABLE IF NOT EXISTS vault_chunks (
   id          SERIAL PRIMARY KEY,
   document_id INTEGER NOT NULL REFERENCES vault_documents(id) ON DELETE CASCADE,
+  user_id     INTEGER NOT NULL DEFAULT 0,
   chunk_index INTEGER NOT NULL,
   content     TEXT NOT NULL,
-  embedding   VECTOR(1536),
+  metadata    JSONB DEFAULT '{}',
   created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_vault_chunks_document ON vault_chunks(document_id);
+CREATE INDEX IF NOT EXISTS idx_vault_chunks_user ON vault_chunks(user_id);
 
 -- ── Refresh tokens (rotation-safe) ──────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS refresh_tokens (

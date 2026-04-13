@@ -28,10 +28,32 @@ export default function VaultPanel({ fullScreen = false }) {
   const [isAdmin, setIsAdmin] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [quota, setQuota] = useState(null);
+  const [vaultHealth, setVaultHealth] = useState(null); // { ok, database, embeddings }
   const fileInputRef = useRef(null);
   const dropRef = useRef(null);
 
   const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+  // Vault health check — runs on mount and periodically if unhealthy
+  useEffect(() => {
+    let timer;
+    const check = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/vault/health`, { credentials: 'include' });
+        const data = await res.json();
+        setVaultHealth(data);
+        // If unhealthy, recheck every 15 seconds
+        if (!data.ok) {
+          timer = setTimeout(check, 15_000);
+        }
+      } catch {
+        setVaultHealth({ ok: false, database: 'unreachable' });
+        timer = setTimeout(check, 15_000);
+      }
+    };
+    check();
+    return () => clearTimeout(timer);
+  }, []);
 
   // Check admin status
   useEffect(() => {
@@ -305,11 +327,30 @@ export default function VaultPanel({ fullScreen = false }) {
           </div>
         )}
 
+        {/* Database status banner — shows when vault DB is down */}
+        {vaultHealth && !vaultHealth.ok && (
+          <div className="vault-db-banner">
+            <div className="vault-db-banner-icon">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+            </div>
+            <div className="vault-db-banner-text">
+              {vaultHealth.database === 'not_configured'
+                ? 'Vault database is not configured. Set POSTGRES_URL on the server to enable document storage.'
+                : vaultHealth.reconnecting
+                  ? 'Vault database is reconnecting… Upload will be available shortly.'
+                  : 'Vault database is currently offline. The server is attempting to reconnect automatically.'}
+            </div>
+          </div>
+        )}
+
         {/* Upload area (when not uploading) */}
         {!uploading && (
           <>
             <input ref={fileInputRef} type="file" accept=".pdf" onChange={handleUpload} style={{ display: 'none' }} />
-            <div className="vault-upload-area" onClick={() => fileInputRef.current?.click()}>
+            <div className={`vault-upload-area${vaultHealth && !vaultHealth.ok ? ' vault-upload-area--disabled' : ''}`}
+                 onClick={() => vaultHealth?.ok !== false && fileInputRef.current?.click()}>
               <div className="vault-upload-icon-ring">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                   <polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" />

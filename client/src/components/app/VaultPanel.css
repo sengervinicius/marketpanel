@@ -797,6 +797,37 @@
   border: 1px solid rgba(239, 68, 68, 0.1);
 }
 
+/* ── Database status banner ── */
+.vault-db-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 16px;
+  margin: 0 0 12px;
+  background: rgba(218, 165, 32, 0.06);
+  border: 1px solid rgba(218, 165, 32, 0.15);
+  border-radius: 10px;
+}
+
+.vault-db-banner-icon {
+  color: var(--color-vault, #DAA520);
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.vault-db-banner-text {
+  font-size: 12px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* ── Disabled upload area when DB is offline ── */
+.vault-upload-area--disabled {
+  opacity: 0.35;
+  pointer-events: none;
+  cursor: not-allowed;
+}
+
 .vault-toast-dismiss {
   background: none;
   border: none;
