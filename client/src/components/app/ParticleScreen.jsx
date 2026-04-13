@@ -10,6 +10,7 @@ import ParticleLogo from '../ui/ParticleLogo';
 import useParticleCanvas from './useParticleCanvas';
 import useParticleAI from '../../hooks/useParticleAI';
 import { useWireLatest, useMorningBrief } from '../../hooks/useWire';
+import { useStocksData } from '../../context/MarketContext';
 
 // ── Quick-action chip definitions ────────────────────────────────────────────
 const QUICK_CHIPS = [
@@ -31,6 +32,11 @@ export default function ParticleScreen() {
   const wireLatest = useWireLatest();
   const { brief, dismissed: briefDismissed, dismiss: dismissBrief } = useMorningBrief();
 
+  // Live market data for data-driven canvas (Wave 9)
+  let stocksData = null;
+  try { stocksData = useStocksData(); } catch (e) { /* MarketContext may not be available */ }
+  const marketData = useMemo(() => stocksData ? { stocks: stocksData } : null, [stocksData]);
+
   // Determine canvas mood from conversation state
   const mood = useMemo(() => {
     if (isStreaming) return 'volatile';
@@ -38,8 +44,24 @@ export default function ParticleScreen() {
     return 'neutral';
   }, [isStreaming, messages.length]);
 
-  // Three.js particle canvas
-  const canvasRef = useParticleCanvas({ mood, particleCount: 40 });
+  // Tap-to-ask: when user taps a data particle, pre-fill search
+  const handleParticleTap = useCallback((particle) => {
+    if (particle.type === 'hero' || particle.type === 'entity') {
+      const dir = (particle.changePct || 0) > 0 ? 'up' : 'down';
+      const pct = Math.abs(particle.changePct || 0).toFixed(1);
+      send(`Tell me about $${particle.ticker} (${dir} ${pct}% today) — what's driving the move?`);
+    } else if (particle.type === 'prediction') {
+      send(`Tell me about this prediction market: "${particle.title}" — currently at ${((particle.probability || 0.5) * 100).toFixed(0)}% probability.`);
+    }
+  }, [send]);
+
+  // Three.js particle canvas (now data-driven)
+  const canvasRef = useParticleCanvas({
+    mood,
+    particleCount: 40,
+    marketData,
+    onParticleTap: handleParticleTap,
+  });
 
   // Whether we're in conversation mode (has messages)
   const inConversation = messages.length > 0;
