@@ -11,7 +11,7 @@ import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import ParticleLogo from '../ui/ParticleLogo';
 import useParticleCanvas from './useParticleCanvas';
 import useParticleAI from '../../hooks/useParticleAI';
-import { useWireLatest, useMorningBrief } from '../../hooks/useWire';
+import { useWireLatest } from '../../hooks/useWire';
 import { useStocksData, useIndicesData } from '../../context/MarketContext';
 import { useBehaviorTracker, useSmartChips } from '../../hooks/useBehavior';
 import { useIsMobile } from '../../hooks/useIsMobile';
@@ -42,7 +42,7 @@ export default function ParticleScreen() {
 
   // Wire & Brief hooks
   const wireLatest = useWireLatest();
-  const { brief, dismissed: briefDismissed, dismiss: dismissBrief } = useMorningBrief();
+  // Morning brief moved to BriefNotification at App.jsx level
   // Desktop Wire overlay feed (Wave 13B)
   const { entries: wireOverlayEntries } = useWireFeed(isMobile ? 0 : 4);
 
@@ -104,6 +104,20 @@ export default function ParticleScreen() {
     }, 3000);
     return () => clearInterval(interval);
   }, []);
+
+  // Listen for particle-prefill events (from HeaderSearchBar "Ask Particle" or TickerContextMenu)
+  useEffect(() => {
+    const handler = (e) => {
+      const prefillQuery = e.detail;
+      if (prefillQuery && typeof prefillQuery === 'string') {
+        trackSearch(prefillQuery);
+        send(prefillQuery);
+        setQuery('');
+      }
+    };
+    window.addEventListener('particle-prefill', handler);
+    return () => window.removeEventListener('particle-prefill', handler);
+  }, [send, trackSearch]);
 
   const handleSubmit = useCallback((e) => {
     e.preventDefault();
@@ -201,10 +215,7 @@ export default function ParticleScreen() {
           {/* Live sentiment strip (Wave 12A) */}
           <SentimentStrip indices={indicesData} />
 
-          {/* Morning Brief card */}
-          {brief && !briefDismissed && (
-            <MorningBriefCard brief={brief} onDismiss={dismissBrief} onAsk={send} />
-          )}
+          {/* Morning Brief moved to BriefNotification (App.jsx level) */}
 
           {/* Search bar */}
           <form className={`particle-search${focused ? ' particle-search--focused' : ''}`} onSubmit={handleSubmit}>
@@ -554,46 +565,7 @@ function SentimentStrip({ indices }) {
   );
 }
 
-// ── Morning Brief Card ──────────────────────────────────────────────────────
-function MorningBriefCard({ brief, onDismiss, onAsk }) {
-  const [expanded, setExpanded] = useState(false);
-
-  if (!brief || !brief.content) return null;
-
-  // Extract headline (first section or first ~80 chars)
-  const headline = brief.sections?.market_overnight
-    ? brief.sections.market_overnight.split('.')[0] + '.'
-    : brief.content.slice(0, 100).split('.')[0] + '.';
-
-  return (
-    <div className="particle-brief-card">
-      <div className="particle-brief-header">
-        <span className="particle-brief-badge">Morning Brief</span>
-        <button className="particle-brief-dismiss" onClick={onDismiss} aria-label="Dismiss">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
-        </button>
-      </div>
-      {!expanded ? (
-        <div className="particle-brief-preview" onClick={() => setExpanded(true)}>
-          <p className="particle-brief-headline">{headline}</p>
-          <span className="particle-brief-expand">Tap to expand</span>
-        </div>
-      ) : (
-        <div className="particle-brief-full">
-          <ParticleMarkdown text={brief.content} />
-          <button
-            className="particle-brief-ask"
-            onClick={() => onAsk('Based on today\'s morning brief, what should I watch most closely today?')}
-          >
-            Ask Particle about this
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
+// MorningBriefCard moved to BriefNotification.jsx (rendered at App.jsx level)
 
 function formatWireTime(ts) {
   const d = new Date(ts);

@@ -187,87 +187,108 @@ async function callProvider(provider, messages, systemPrompt, options = {}) {
  * @param {string} systemPrompt - system prompt
  * @param {object} res - Express response object
  */
-async function streamResponse(provider, messages, systemPrompt, res) {
+async function streamResponse(provider, messages, systemPrompt, res, { onAbort } = {}) {
   try {
     const response = await callProvider(provider, messages, systemPrompt, {
       stream: true,
     });
 
-    res.writeHead(200, {
-      'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache',
-      Connection: 'keep-alive',
-      'X-Accel-Buffering': 'no',
-    });
+    if (!res.headersSent) {
+      res.writeHead(200, {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        Connection: 'keep-alive',
+        'X-Accel-Buffering': 'no',
+      });
+    }
 
     const isPerplexity = provider.url.includes('perplexity');
     const isAnthropic = provider.url.includes('anthropic');
 
     const reader = response.body;
+    let sseBuffer = '';
+    let finished = false;
 
-    reader.on('data', (chunk) => {
-      const lines = chunk.toString().split('\n');
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      if (!res.writableEnded) {
+        res.write('data: [DONE]\n\n');
+        res.end();
+      }
+    };
 
-      for (const line of lines) {
-        if (!line.trim()) continue;
+    // Parse a single SSE line and write normalized chunk to client
+    const processLine = (line) => {
+      const trimmed = line.trim();
+      if (!trimmed || !trimmed.startsWith('data: ')) return;
+      const payload = trimmed.slice(6);
+      if (payload === '[DONE]') { finish(); return; }
 
-        try {
-          if (isPerplexity) {
-            // Perplexity format: "data: {...json...}"
-            if (line.startsWith('data: ')) {
-              const data = line.slice(6);
-              if (data === '[DONE]') {
-                res.write('data: [DONE]\n\n');
-                return;
-              }
-              const parsed = JSON.parse(data);
-              if (parsed.choices?.[0]?.delta?.content) {
-                const chunk = parsed.choices[0].delta.content;
-                res.write(
-                  `data: ${JSON.stringify({ chunk })}\n\n`
-                );
-              }
-            }
-          } else if (isAnthropic) {
-            // Anthropic format: "data: {...json...}"
-            if (line.startsWith('data: ')) {
-              const data = line.slice(6);
-              const parsed = JSON.parse(data);
+      try {
+        const parsed = JSON.parse(payload);
 
-              if (parsed.type === 'content_block_delta') {
-                const chunk = parsed.delta?.text || '';
-                if (chunk) {
-                  res.write(
-                    `data: ${JSON.stringify({ chunk })}\n\n`
-                  );
-                }
-              } else if (parsed.type === 'message_stop') {
-                res.write('data: [DONE]\n\n');
-              }
-            }
+        if (isPerplexity) {
+          const content = parsed.choices?.[0]?.delta?.content;
+          if (content) {
+            res.write(`data: ${JSON.stringify({ chunk: content })}\n\n`);
           }
-        } catch (err) {
-          // Skip malformed lines
-          if (line.length > 0) {
-            logger.debug(`[ModelRouter] Skipped malformed line: ${line.slice(0, 50)}`);
+        } else if (isAnthropic) {
+          if (parsed.type === 'content_block_delta') {
+            const text = parsed.delta?.text || '';
+            if (text) {
+              res.write(`data: ${JSON.stringify({ chunk: text })}\n\n`);
+            }
+          } else if (parsed.type === 'message_stop') {
+            finish();
           }
+          // Ignore: message_start, content_block_start, content_block_stop, message_delta, ping
         }
+      } catch (err) {
+        logger.debug(`[ModelRouter] Skipped malformed SSE: ${trimmed.slice(0, 60)}`);
+      }
+    };
+
+    reader.on('data', (rawChunk) => {
+      if (finished) return;
+      sseBuffer += rawChunk.toString();
+      const lines = sseBuffer.split('\n');
+      sseBuffer = lines.pop(); // Keep incomplete last line for next chunk
+      for (const line of lines) {
+        processLine(line);
       }
     });
 
     reader.on('end', () => {
-      res.write('data: [DONE]\n\n');
-      res.end();
+      // Process any remaining buffered data
+      if (sseBuffer.trim()) processLine(sseBuffer);
+      finish();
     });
 
     reader.on('error', (err) => {
-      logger.error('[ModelRouter] Stream error:', err);
-      res.write(`data: ${JSON.stringify({ error: 'Stream error' })}\n\n`);
-      res.end();
+      logger.error('[ModelRouter] Stream error:', err.message);
+      if (!res.writableEnded) {
+        res.write(`data: ${JSON.stringify({ error: 'Stream interrupted' })}\n\n`);
+      }
+      finish();
     });
+
+    // If caller provided an abort signal (e.g. client disconnect), destroy the stream
+    if (onAbort) {
+      onAbort(() => {
+        reader.destroy();
+        finish();
+      });
+    }
   } catch (err) {
     logger.error('[ModelRouter] streamResponse error:', err.message);
-    res.status(500).json({ error: 'Stream error', details: err.message });
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Stream error', details: err.message });
+    } else if (!res.writableEnded) {
+      res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`);
+      res.write('data: [DONE]\n\n');
+      res.end();
+    }
   }
 }
 

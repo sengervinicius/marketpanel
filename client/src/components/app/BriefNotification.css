@@ -1,0 +1,154 @@
+/* ══════════════════════════════════════════════════════
+   BriefNotification — Toast notification for Morning Brief
+   ══════════════════════════════════════════════════════ */
+
+.brief-notif {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 9000;
+  width: 340px;
+  max-width: calc(100vw - 32px);
+  background: var(--bg-panel, #141418);
+  border: 1px solid rgba(255, 102, 0, 0.25);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+  animation: brief-notif-slide-in 0.3s ease-out;
+}
+
+.brief-notif--expanded {
+  width: 420px;
+  max-height: 70vh;
+}
+
+@keyframes brief-notif-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(-12px) translateX(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) translateX(0);
+  }
+}
+
+/* ─── Header ─────────────────────────────────────── */
+
+.brief-notif-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.brief-notif-badge {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--accent, #ff6600);
+}
+
+.brief-notif-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.brief-notif-btn {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  color: var(--accent, #ff6600);
+  background: rgba(255, 102, 0, 0.1);
+  border: 1px solid rgba(255, 102, 0, 0.2);
+  border-radius: 4px;
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.brief-notif-btn:hover {
+  background: rgba(255, 102, 0, 0.2);
+}
+
+.brief-notif-dismiss {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  background: none;
+  border: none;
+  color: var(--text-faint, rgba(255, 255, 255, 0.4));
+  cursor: pointer;
+  border-radius: 4px;
+  transition: color 0.15s, background 0.15s;
+}
+
+.brief-notif-dismiss:hover {
+  color: var(--text-secondary, rgba(255, 255, 255, 0.7));
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* ─── Preview (collapsed) ────────────────────────── */
+
+.brief-notif-preview {
+  padding: 12px 14px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.brief-notif-preview:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.brief-notif-headline {
+  margin: 0 0 6px;
+  font-size: 13px;
+  color: var(--text-primary, rgba(255, 255, 255, 0.9));
+  line-height: 1.4;
+}
+
+.brief-notif-expand {
+  font-size: 10px;
+  color: var(--text-faint, rgba(255, 255, 255, 0.4));
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+/* ─── Body (expanded) ────────────────────────────── */
+
+.brief-notif-body {
+  padding: 12px 14px;
+  max-height: 50vh;
+  overflow-y: auto;
+}
+
+.brief-notif-content p {
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: var(--text-secondary, rgba(255, 255, 255, 0.7));
+  line-height: 1.5;
+}
+
+.brief-notif-content p:last-child {
+  margin-bottom: 0;
+}
+
+/* ─── Mobile ─────────────────────────────────────── */
+
+@media (max-width: 768px) {
+  .brief-notif {
+    top: 8px;
+    right: 8px;
+    left: 8px;
+    width: auto;
+  }
+  .brief-notif--expanded {
+    width: auto;
+  }
+}

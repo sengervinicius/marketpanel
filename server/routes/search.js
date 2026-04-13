@@ -1334,6 +1334,7 @@ Rules:
 const { buildContext } = require('../services/marketContextBuilder');
 const behaviorTracker = require('../services/behaviorTracker');
 const deepAnalysis = require('../services/deepAnalysis');
+const modelRouter = require('../services/modelRouter');
 
 // ── Chat response cache (first-turn only, 5 min TTL) ──────────────────────
 const _chatCache = new Map();
@@ -1357,9 +1358,7 @@ function chatCacheSet(key, value) {
 }
 
 router.post('/chat', async (req, res) => {
-  const apiKey = process.env.PERPLEXITY_API_KEY;
-  if (!apiKey) return res.status(503).json({ error: 'AI not configured' });
-
+  // API key check moved to modelRouter fallback logic below
   const { messages, context } = req.body;
   if (!messages || !Array.isArray(messages) || messages.length === 0) {
     return res.status(400).json({ error: 'messages[] is required' });
@@ -1392,6 +1391,17 @@ router.post('/chat', async (req, res) => {
     behaviorTracker.trackSearch(userId, userQuery).catch(() => {});
   }
 
+  // ── Behavioral profile: personalize AI responses ───────────────────────
+  let behaviorContext = '';
+  if (userId) {
+    try {
+      const profile = await behaviorTracker.getCachedProfile(userId);
+      behaviorContext = behaviorTracker.formatForAI(profile);
+    } catch (e) {
+      // Graceful — proceed without personalization
+    }
+  }
+
   // ── Vault RAG: retrieve relevant passages from user's private vault ──────
   let vaultContext = '';
   try {
@@ -1416,7 +1426,7 @@ router.post('/chat', async (req, res) => {
     // Deep analysis mode: use the specialized prompt with market and vault context appended
     systemPrompt = `${deepAnalysisResult.prompt}
 
-${vaultContext || ''}${marketContext ? `\n--- LIVE MARKET DATA ---\n${marketContext}\n--- END MARKET DATA ---\n` : ''}${context ? `\nAdditional context: ${context}` : ''}`;
+${behaviorContext ? `\n${behaviorContext}\n` : ''}${vaultContext || ''}${marketContext ? `\n--- LIVE MARKET DATA ---\n${marketContext}\n--- END MARKET DATA ---\n` : ''}${context ? `\nAdditional context: ${context}` : ''}`;
   } else {
     // Standard Particle prompt
     systemPrompt = `You are Particle, an AI market intelligence assistant built into a professional-grade financial terminal. You help investors and traders understand markets with clarity, speed, and depth.
@@ -1433,146 +1443,50 @@ Rules:
 - Never start with "Based on the data" or "According to" — just state what matters.
 - Financial disclaimers go at the very end in a brief parenthetical, never at the top.
 - If you reference prediction market probabilities, cite the source naturally: "Kalshi implies 73% odds of a June cut" not "According to prediction market data."
-
+${behaviorContext ? `\n${behaviorContext}\n` : ''}
 ${vaultContext || ''}${marketContext ? `\n--- LIVE MARKET DATA ---\n${marketContext}\n--- END MARKET DATA ---\n` : ''}${context ? `\nAdditional context: ${context}` : ''}`;
   }
 
-  // ── Cache check (first-turn non-personal queries only) ─────────────────
-  const isFirstTurn = history.length === 1;
-  const isCacheable = isFirstTurn && !['portfolio'].includes(queryIntent) && !deepAnalysisResult;
-  const cacheKey = isCacheable ? `chat:${queryIntent}:${userQuery.toLowerCase().trim()}` : null;
+  // ── Route to optimal model via modelRouter ──────────────────────────────
+  const hasVault = vaultContext.length > 0;
+  const hasDeep = !!deepAnalysisResult;
+  const intent = modelRouter.classifyIntent(userQuery, hasVault, hasDeep);
+  let provider = modelRouter.route(intent);
 
-  if (cacheKey) {
-    const cached = chatCacheGet(cacheKey);
-    if (cached) {
+  // Fallback: if the chosen provider needs an API key we don't have, fall back
+  if (!process.env[provider.keyEnv]) {
+    console.log(`[Particle/Chat] ${provider.keyEnv} not set, falling back from ${intent}`);
+    provider = modelRouter.route('general'); // perplexity_pro
+    if (!process.env[provider.keyEnv]) {
+      return res.status(503).json({ error: 'No AI provider configured' });
+    }
+  }
+
+  console.log(`[Particle/Chat] Intent: ${intent} → ${provider.model}${behaviorContext ? ' [personalized]' : ''}`);
+
+  // Prepare messages for router
+  const routerMessages = history.map(m => ({ role: m.role, content: m.content }));
+
+  // Stream via model router (handles SSE normalization for Perplexity + Anthropic)
+  try {
+    await modelRouter.streamResponse(provider, routerMessages, systemPrompt, res, {
+      onAbort: (abortFn) => { req.on('close', abortFn); },
+    });
+  } catch (err) {
+    console.error('[Particle/Chat] Stream error:', err.message);
+    if (!res.headersSent) {
       res.writeHead(200, {
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache',
         Connection: 'keep-alive',
-        'X-Accel-Buffering': 'no',
       });
-      // Replay cached response in chunks to maintain SSE contract
-      const chunkSize = 20;
-      for (let idx = 0; idx < cached.length; idx += chunkSize) {
-        res.write(`data: ${JSON.stringify({ chunk: cached.slice(idx, idx + chunkSize) })}\n\n`);
-      }
+    }
+    if (!res.writableEnded) {
+      res.write(`data: ${JSON.stringify({ error: err.message || 'AI chat failed' })}\n\n`);
       res.write('data: [DONE]\n\n');
       res.end();
-      return;
     }
   }
-
-  // Collect response for caching
-  let fullResponse = '';
-
-  // Set up SSE
-  res.writeHead(200, {
-    'Content-Type': 'text/event-stream',
-    'Cache-Control': 'no-cache',
-    Connection: 'keep-alive',
-    'X-Accel-Buffering': 'no',
-  });
-
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 45000); // 45s for richer context
-
-  try {
-    const response = await fetch(PERPLEXITY_URL, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-      signal: ctrl.signal,
-      body: JSON.stringify({
-        model: MODEL,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          ...history.map(m => ({ role: m.role, content: m.content })),
-        ],
-        max_tokens: 1024,
-        temperature: 0.3,
-        stream: true,
-      }),
-    });
-
-    if (!response.ok) {
-      const errText = await response.text().catch(() => '');
-      console.error(`[Search/AI Chat] Perplexity error ${response.status}:`, errText.substring(0, 200));
-      res.write(`data: ${JSON.stringify({ error: `AI provider error (${response.status})` })}\n\n`);
-      res.write('data: [DONE]\n\n');
-      res.end();
-      return;
-    }
-
-    // Stream response chunks
-    const reader = response.body;
-    let buffer = '';
-
-    reader.on('data', (chunk) => {
-      buffer += chunk.toString();
-      const lines = buffer.split('\n');
-      buffer = lines.pop(); // Keep incomplete line in buffer
-
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (!trimmed || !trimmed.startsWith('data: ')) continue;
-        const payload = trimmed.slice(6);
-        if (payload === '[DONE]') {
-          res.write('data: [DONE]\n\n');
-          return;
-        }
-        try {
-          const parsed = JSON.parse(payload);
-          const content = parsed.choices?.[0]?.delta?.content;
-          if (content) {
-            fullResponse += content;
-            res.write(`data: ${JSON.stringify({ chunk: content })}\n\n`);
-          }
-        } catch {}
-      }
-    });
-
-    reader.on('end', () => {
-      // Process any remaining buffer
-      if (buffer.trim()) {
-        const trimmed = buffer.trim();
-        if (trimmed.startsWith('data: ') && trimmed.slice(6) !== '[DONE]') {
-          try {
-            const parsed = JSON.parse(trimmed.slice(6));
-            const content = parsed.choices?.[0]?.delta?.content;
-            if (content) {
-              fullResponse += content;
-              res.write(`data: ${JSON.stringify({ chunk: content })}\n\n`);
-            }
-          } catch {}
-        }
-      }
-      // Write to cache if applicable
-      if (cacheKey && fullResponse) {
-        chatCacheSet(cacheKey, fullResponse);
-      }
-      res.write('data: [DONE]\n\n');
-      res.end();
-    });
-
-    reader.on('error', (err) => {
-      console.error('[Search/AI Chat] Stream error:', err.message);
-      res.write(`data: ${JSON.stringify({ error: 'Stream interrupted' })}\n\n`);
-      res.write('data: [DONE]\n\n');
-      res.end();
-    });
-
-    // Handle client disconnect
-    req.on('close', () => { ctrl.abort(); });
-
-  } catch (err) {
-    if (err.name === 'AbortError') {
-      res.write(`data: ${JSON.stringify({ error: 'Chat timed out (30s)' })}\n\n`);
-    } else {
-      console.error('[Search/AI Chat] Error:', err.message);
-      res.write(`data: ${JSON.stringify({ error: 'AI chat failed' })}\n\n`);
-    }
-    res.write('data: [DONE]\n\n');
-    res.end();
-  } finally { clearTimeout(timer); }
 });
 
 /**

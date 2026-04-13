@@ -59,7 +59,8 @@ const InstrumentDetail = lazy(() => import('./components/common/InstrumentDetail
 import PanelErrorBoundary from './components/common/PanelErrorBoundary';
 import ParticleLogo from './components/ui/ParticleLogo';
 import ParticleSidebar from './components/app/ParticleSidebar';
-import ParticleSpotlight from './components/app/ParticleSpotlight';
+// ParticleSpotlight removed — Cmd+K focuses header search, deep questions go to ParticleScreen
+import BriefNotification from './components/app/BriefNotification';
 import TickerContextMenu from './components/app/TickerContextMenu';
 import {
   MarketTickBridge,
@@ -334,7 +335,7 @@ export default function App() {
       return next;
     });
   }, []);
-  const [spotlightOpen, setSpotlightOpen] = useState(false);
+  // spotlightOpen removed — spotlight replaced by header search focus
   const setActiveTabPersist = (t) => { setActiveTab(t); localStorage.setItem(LS_TAB, t); };
 
   const [chartTicker, setChartTickerState] = useState(
@@ -439,14 +440,13 @@ export default function App() {
   // Global keyboard shortcuts (placed after state/callback declarations it depends on)
   useEffect(() => {
     const handler = (e) => {
-      // Ctrl/Cmd + K = Particle Spotlight (works even from inputs)
+      // Ctrl/Cmd + K = Focus header search bar (works even from inputs)
       if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
         e.preventDefault();
-        if (!isMobile) {
-          setSpotlightOpen(prev => !prev);
-        } else {
+        if (isMobile) {
           setChatOpen(prev => !prev);
         }
+        // On desktop, HeaderSearchBar's own Cmd+K listener handles focus
         return;
       }
 
@@ -490,6 +490,16 @@ export default function App() {
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, [setActiveSectorScreen, handleGoHome, sectorSelectorOpen, activeSectorScreen, setSectorSelectorOpen]);
+
+  // Listen for particle-prefill events from HeaderSearchBar / TickerContextMenu
+  // Navigates to ParticleScreen so the query can be handled there
+  useEffect(() => {
+    const handler = () => {
+      setMobileModePersist('particle');
+    };
+    window.addEventListener('particle-prefill', handler);
+    return () => window.removeEventListener('particle-prefill', handler);
+  }, []);
 
   const goChart = useCallback((t) => {
     const sym = typeof t === 'object' ? (t.symbol || t) : t;
@@ -729,19 +739,18 @@ export default function App() {
           </div>
         </div>
 
-        {/* Wave 13: Particle Spotlight overlay (Cmd+K) */}
-        <ParticleSpotlight open={spotlightOpen} onClose={() => setSpotlightOpen(false)} />
+        {/* Morning Brief notification — renders as toast regardless of active screen */}
+        <BriefNotification />
 
-        {/* Wave 13: Right-click contextual AI for tickers */}
+        {/* Right-click contextual AI for tickers — navigates to ParticleScreen */}
         <TickerContextMenu onAskParticle={(tickerOrQuery) => {
           const q = tickerOrQuery.startsWith('What') || tickerOrQuery.length > 10
             ? tickerOrQuery
             : `Tell me about $${tickerOrQuery} — latest price action, news, and outlook.`;
-          setSpotlightOpen(true);
-          // Small delay to let spotlight open, then send the query
+          // Navigate to ParticleScreen and pre-fill the query
+          setMobileModePersist('particle');
           setTimeout(() => {
-            // Spotlight manages its own AI instance, so we dispatch via a custom event
-            window.dispatchEvent(new CustomEvent('particle-spotlight-query', { detail: q }));
+            window.dispatchEvent(new CustomEvent('particle-prefill', { detail: q }));
           }, 100);
         }} />
 

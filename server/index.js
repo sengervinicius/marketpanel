@@ -189,6 +189,13 @@ app.get('/health', (req, res) => res.json({
     redis: redisConnected() ? 'connected' : (process.env.REDIS_URL ? 'configured' : 'disabled'),
     stripe: process.env.STRIPE_SECRET_KEY ? 'configured' : 'unconfigured',
   },
+  ai: {
+    perplexity: process.env.PERPLEXITY_API_KEY ? 'OK' : 'MISSING KEY',
+    anthropic: process.env.ANTHROPIC_API_KEY ? 'OK' : 'MISSING KEY',
+    openai: process.env.OPENAI_API_KEY ? 'OK (embeddings)' : 'MISSING KEY (vault degraded)',
+    modelRouter: 'active',
+    routeMap: Object.keys(modelRouter.ROUTE_MAP),
+  },
 }));
 app.use('/api/auth', authRoutes);
 
@@ -653,6 +660,10 @@ async function boot() {
     logger.info('boot', `WS    → ws://localhost:${PORT}/ws`);
     logger.info('boot', `ENV   → ${process.env.NODE_ENV || 'development'}`);
     logger.info('boot', `Postgres: ${pgConnected() ? 'connected' : 'disabled'} | Redis: ${redisConnected() ? 'connected' : 'disabled'}`);
+
+    // AI service health check
+    logger.info('boot', `AI Services: Perplexity=${process.env.PERPLEXITY_API_KEY ? 'OK' : 'MISSING'} | Anthropic=${process.env.ANTHROPIC_API_KEY ? 'OK' : 'MISSING'} | OpenAI=${process.env.OPENAI_API_KEY ? 'OK' : 'MISSING'}`);
+    logger.info('boot', `Model Router: active | Routes: ${Object.keys(modelRouter.ROUTE_MAP).join(', ')}`);
 
     // 3. Start all background jobs (leaderboard, card cleanup, alert scheduler)
     initJobs({ port: PORT });

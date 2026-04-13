@@ -66,7 +66,6 @@ function HsbEnrichedRow({ item, idx, selectedIdx, onSelect, onMouseEnter, typeBa
 export default function HeaderSearchBar({ onSelectTicker }) {
 
   const [open, setOpen] = useState(false);
-  const [isAIMode, setIsAIMode] = useState(false);
   const inputRef = useRef(null);
   const containerRef = useRef(null);
 
@@ -126,11 +125,17 @@ export default function HeaderSearchBar({ onSelectTicker }) {
     }
   }, [openDetail, clearSearch]);
 
-  // Detect AI mode from query prefix
-  const detectAIMode = (q) => {
-    const trimmed = q.trim();
-    return trimmed.startsWith('@ai ') || trimmed.startsWith('?');
-  };
+  // Detect if query looks like a natural-language question (not a ticker lookup)
+  const queryLooksLikeQuestion = query.length > 15 ||
+    /^(what|how|why|when|tell|show|compare|analyze|explain)\s/i.test(query.trim()) ||
+    query.includes('?');
+
+  // Navigate to ParticleScreen with query pre-filled
+  const navigateToParticle = useCallback((q) => {
+    clearSearch();
+    setOpen(false);
+    window.dispatchEvent(new CustomEvent('particle-prefill', { detail: q }));
+  }, [clearSearch]);
 
   // Asset class badge
   const typeBadge = (item) => {
@@ -179,20 +184,14 @@ export default function HeaderSearchBar({ onSelectTicker }) {
         <svg className="hsb-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
           <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
         </svg>
-        <span className={`hsb-input-label ${isAIMode ? 'hsb-input-label--ai' : ''}`}>
-          {isAIMode ? 'AI MODE' : 'SEARCH'}
-        </span>
+        <span className="hsb-input-label">SEARCH</span>
         <input
           ref={inputRef}
-          className={`hsb-input ${isAIMode ? 'hsb-input--ai-mode' : ''}`}
+          className="hsb-input"
           value={query}
-          onChange={e => {
-            const newQuery = e.target.value;
-            setQuery(newQuery);
-            setIsAIMode(detectAIMode(newQuery));
-          }}
+          onChange={e => setQuery(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder={isAIMode ? "Ask AI anything..." : "Search stocks, ETFs, FX, crypto, commodities... (⌘K)"}
+          placeholder="Search stocks, ETFs, FX, crypto, commodities... (\u2318K)"
           autoFocus
         />
         {query && <button className="hsb-clear" onClick={() => { setQuery(''); inputRef.current?.focus(); }}>&times;</button>}
@@ -280,6 +279,14 @@ export default function HeaderSearchBar({ onSelectTicker }) {
               </div>
             );
           })()}
+
+          {/* Ask Particle escape hatch — navigates to ParticleScreen */}
+          {queryLooksLikeQuestion && query.trim() && (
+            <div className="hsb-ask-particle" onClick={() => navigateToParticle(query.trim())}>
+              <span className="hsb-ask-particle-icon">&#10022;</span>
+              <span>Ask Particle: &ldquo;{query.trim().length > 60 ? query.trim().slice(0, 57) + '...' : query.trim()}&rdquo;</span>
+            </div>
+          )}
         </div>
       )}
     </div>
