@@ -565,6 +565,14 @@ export default function App() {
         {/* 5-Step Onboarding Tour */}
         <OnboardingTour />
 
+        {/* Particle first-launch arrival (desktop) */}
+        {showParticleArrival && (
+          <ParticleArrival onComplete={() => {
+            completeParticleOnboarding();
+            setMobileModePersist('particle');
+          }} />
+        )}
+
         {/* Welcome subscription prompt (first login only) */}
         <WelcomeSubscriptionModal
           subscription={subscription}
@@ -585,8 +593,35 @@ export default function App() {
         {/* Header */}
         <div className="flex-row app-header-bar" data-tour="header">
           <img src="/icon-192.png" alt="Particle" style={{ width: 22, height: 22, borderRadius: 4, marginRight: 6 }} /><span className="app-header-title">PARTICLE</span>
-          <span className="app-header-subtitle">MARKET TERMINAL</span>
-          {/* Navigation buttons */}
+
+          {/* ── Desktop mode toggle: Particle / Terminal ── */}
+          <div className="desktop-mode-toggle" style={{ display: 'inline-flex', marginLeft: 12, gap: 2, background: 'var(--bg-panel, #111)', borderRadius: 6, padding: 2, border: '1px solid var(--border-default, rgba(255,255,255,0.07))' }}>
+            <button
+              className="btn desktop-mode-btn"
+              onClick={() => { setMobileModePersist('particle'); }}
+              style={{
+                padding: '3px 12px', fontSize: 10, fontWeight: 700, letterSpacing: '0.08em',
+                borderRadius: 4, border: 'none', cursor: 'pointer',
+                color: mobileMode === 'particle' ? 'var(--bg-app, #000)' : 'var(--text-faint)',
+                background: mobileMode === 'particle' ? 'var(--accent, #F97316)' : 'transparent',
+                transition: 'all 150ms ease',
+              }}
+            >● PARTICLE</button>
+            <button
+              className="btn desktop-mode-btn"
+              onClick={() => { setMobileModePersist('terminal'); }}
+              style={{
+                padding: '3px 12px', fontSize: 10, fontWeight: 700, letterSpacing: '0.08em',
+                borderRadius: 4, border: 'none', cursor: 'pointer',
+                color: mobileMode === 'terminal' ? 'var(--text-primary, #fff)' : 'var(--text-faint)',
+                background: mobileMode === 'terminal' ? 'var(--bg-surface, #1a1a1a)' : 'transparent',
+                transition: 'all 150ms ease',
+              }}
+            >▸ TERMINAL</button>
+          </div>
+
+          {/* Navigation buttons (terminal mode only) */}
+          {mobileMode === 'terminal' && (<>
           <button
             className="btn"
             onClick={handleGoHome}
@@ -623,6 +658,7 @@ export default function App() {
               borderRadius: 4,
             }}
           >◈ SECTOR SCREENS</button>
+          </>)}
           <div style={{ flex: 1 }} />
           <WorldClock />
           <MarketStatus />
@@ -670,6 +706,15 @@ export default function App() {
           </div>
         </div>
 
+        {/* ── Desktop Particle Mode ── */}
+        {mobileMode === 'particle' && !subscriptionExpired && (
+          <div className="desktop-particle-container" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
+            <ParticleScreen />
+          </div>
+        )}
+
+        {/* ── Desktop Terminal Mode ── */}
+        {mobileMode !== 'particle' && (<>
         {/* Search command strip — full width */}
         <div className="app-search-strip" data-tour="search">
           <HeaderSearchBar />
@@ -823,6 +868,7 @@ export default function App() {
             <FeedStatusBar feedStatus={feedStatus} />
           </>
         )}
+        </>)}
 
         {detailTicker && !subscriptionExpired && <Suspense fallback={<InstrumentDetailSkeleton />}><PanelErrorBoundary name="InstrumentDetail"><InstrumentDetail ticker={detailTicker} onClose={() => setDetailTicker(null)} onOpenChat={() => setChatOpen(true)} /></PanelErrorBoundary></Suspense>}
 
