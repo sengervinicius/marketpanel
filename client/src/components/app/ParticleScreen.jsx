@@ -106,13 +106,36 @@ export default function ParticleScreen() {
   // Compute market state for dynamic greeting (Wave 12)
   const marketState = useMemo(() => computeMarketState(indicesData), [indicesData]);
 
-  // Determine canvas mood from conversation state + market data
+  // Determine canvas mood from conversation state + market data + portfolio performance
   const mood = useMemo(() => {
     if (isStreaming) return 'volatile';
     if (messages.length > 0) return 'bullish';
-    if (marketState.closed) return 'neutral'; // calm when market closed
+    if (marketState.closed) return 'neutral';
+
+    // Portfolio-aware mood: aggregate portfolio positions' daily changes
+    const stocks = stocksData || {};
+    if (portfolioWatchlist.length > 0 && Object.keys(stocks).length > 0) {
+      let greenCount = 0;
+      let redCount = 0;
+      let matched = 0;
+      for (const sym of portfolioWatchlist) {
+        const data = stocks[sym] || stocks[sym.toUpperCase()];
+        if (data && data.changePct != null) {
+          matched++;
+          if (data.changePct > 0) greenCount++;
+          else if (data.changePct < 0) redCount++;
+        }
+      }
+      if (matched >= 2) {
+        const greenRatio = greenCount / matched;
+        const redRatio = redCount / matched;
+        if (greenRatio >= 0.6) return 'bullish';
+        if (redRatio >= 0.6) return 'bearish';
+      }
+    }
+
     return marketState.mood || 'neutral';
-  }, [isStreaming, messages.length, marketState]);
+  }, [isStreaming, messages.length, marketState, portfolioWatchlist, stocksData]);
 
   // Tap-to-ask: when user taps a data particle, pre-fill search
   const handleParticleTap = useCallback((particle) => {

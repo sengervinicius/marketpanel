@@ -116,7 +116,7 @@
 }
 
 .ep-row-change-positive {
-  color: #00cc66;
+  color: var(--color-up);
 }
 
 .ep-row-change-negative {

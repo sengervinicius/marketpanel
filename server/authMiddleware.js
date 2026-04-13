@@ -94,4 +94,23 @@ async function requireActiveSubscription(req, res, next) {
   });
 }
 
-module.exports = { requireAuth, requireActiveSubscription };
+/**
+ * requireAdmin — lightweight admin gate.
+ * Admin user IDs defined in ADMIN_USER_IDS env var (comma-separated)
+ * or defaults to user ID 1 (the first registered user / founder).
+ * Must be used after requireAuth.
+ */
+function requireAdmin(req, res, next) {
+  const userId = req.user?.id;
+  const adminIds = (process.env.ADMIN_USER_IDS || '1')
+    .split(',')
+    .map(s => parseInt(s.trim(), 10))
+    .filter(n => !isNaN(n));
+
+  if (!adminIds.includes(userId)) {
+    return res.status(403).json({ error: 'Admin access required', code: 'admin_required' });
+  }
+  next();
+}
+
+module.exports = { requireAuth, requireActiveSubscription, requireAdmin };

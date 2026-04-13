@@ -97,7 +97,7 @@
 }
 
 .pred-error {
-  color: var(--color-down, #ef4444);
+  color: var(--color-down);
 }
 
 /* ── Prediction card ── */

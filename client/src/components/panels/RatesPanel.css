@@ -111,7 +111,7 @@
 }
 
 .rp-row-change--live {
-  color: #00cc44;
+  color: var(--color-up);
 }
 
 .rp-row-change--negative {

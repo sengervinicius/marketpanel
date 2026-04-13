@@ -1417,6 +1417,7 @@ router.post('/chat', async (req, res) => {
         tickers: p.doc_metadata?.tickers || [],
         date: p.doc_metadata?.date || '',
         similarity: p.similarity != null ? parseFloat(p.similarity).toFixed(2) : null,
+        isGlobal: p.is_global || false,
       }));
     }
   } catch (e) {

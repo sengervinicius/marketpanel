@@ -210,7 +210,7 @@ function parseSections(content) {
 }
 
 // ── Build context ───────────────────────────────────────────────────────────
-function buildBriefContext() {
+function buildBriefContext(extras = {}) {
   const parts = [];
 
   if (_marketState) {
@@ -226,6 +226,20 @@ function buildBriefContext() {
         })
         .filter(Boolean);
       if (idxLines.length) parts.push(`Indices: ${idxLines.join(' | ')}`);
+
+      // Additional tickers from user's portfolio
+      if (extras.portfolioTickers && extras.portfolioTickers.length > 0) {
+        const posLines = extras.portfolioTickers
+          .map(sym => {
+            const d = stocks[sym] || stocks[sym.toUpperCase()];
+            if (!d || !d.price) return null;
+            const chg = d.changePct ?? d.changePercent;
+            const chgStr = chg != null ? `${chg > 0 ? '+' : ''}${chg.toFixed(2)}%` : '';
+            return `$${sym}: $${d.price} ${chgStr}`;
+          })
+          .filter(Boolean);
+        if (posLines.length) parts.push(`User portfolio prices:\n${posLines.join('\n')}`);
+      }
     } catch (e) { /* non-critical */ }
   }
 
@@ -238,6 +252,16 @@ function buildBriefContext() {
       parts.push(`Prediction Markets:\n${predLines}`);
     }
   } catch (e) { /* non-critical */ }
+
+  // Vault context: central research vault passages relevant to user's sectors
+  if (extras.vaultContext) {
+    parts.push(extras.vaultContext);
+  }
+
+  // Behavioral context: user interests and engagement patterns
+  if (extras.behaviorContext) {
+    parts.push(extras.behaviorContext);
+  }
 
   return parts.join('\n\n') || 'Generate a morning brief based on current market conditions.';
 }
@@ -339,7 +363,8 @@ function orderSections(sections, engagementRates = {}) {
 /**
  * Get per-user brief with personalized sections
  * Takes the shared brief base and adds:
- *  - Your Positions section (portfolio overnight changes)
+ *  - Your Positions section (portfolio overnight changes with live prices)
+ *  - Vault Insights section (relevant central + private vault context)
  *  - Brazil Brief section (if user has brazil exposure)
  *  - Reorders sections based on engagement data (if 14+ days of data)
  */
@@ -362,6 +387,34 @@ async function getUserBrief(userId) {
     const user = _getUserById ? await _getUserById(userId) : null;
     const portfolio = _getPortfolio ? await _getPortfolio(userId) : null;
     const userProfile = user?.settings?.interests || {};
+
+    // ── Vault enrichment: pull relevant passages from central + private vault ──
+    try {
+      const vault = require('./vault');
+      const behaviorTracker = require('./behaviorTracker');
+      const profile = await behaviorTracker.getCachedProfile(userId).catch(() => null);
+
+      // Build a query from user's top interests and portfolio tickers
+      const topTickers = (portfolio?.positions || []).slice(0, 5).map(p => p.ticker || p.symbol).filter(Boolean);
+      const topTopics = profile?.topTopics || [];
+      const vaultQuery = [...topTickers.map(t => `$${t}`), ...topTopics.slice(0, 3)].join(' ') || 'market outlook';
+
+      if (vaultQuery.trim()) {
+        const passages = await vault.retrieve(userId, vaultQuery, 3);
+        if (passages && passages.length > 0) {
+          const vaultInsight = passages
+            .map(p => {
+              const src = p.doc_metadata?.bank || p.filename || 'Research';
+              return `[${src}] ${p.content.slice(0, 200)}`;
+            })
+            .join('\n');
+          sections.research_insights = `Relevant from your research vault:\n${vaultInsight}`;
+          personalized = true;
+        }
+      }
+    } catch (e) {
+      // Vault not available — continue without it
+    }
 
     // Add "Your Positions" section
     if (portfolio) {

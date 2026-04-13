@@ -710,8 +710,8 @@ export default function App() {
             <button
               className="btn"
               onClick={() => setChatOpen(prev => !prev)}
-              title="AI Chat (Cmd+K)"
-              aria-label="Open AI chat"
+              title="Direct Messages (Cmd+Shift+M)"
+              aria-label="Open conversations"
               aria-expanded={chatOpen}
               style={{
                 color: chatOpen ? 'var(--accent)' : 'var(--text-faint)',
@@ -722,7 +722,7 @@ export default function App() {
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
               </svg>
-              <span style={{ fontSize: 9, letterSpacing: '0.5px', opacity: 0.6 }}>AI</span>
+              <span style={{ fontSize: 9, letterSpacing: '0.5px', opacity: 0.6 }}>DM</span>
             </button>
             <button data-tour="layout" className={`btn${showLayoutHint && !layoutEdit ? ' layout-btn-pulse' : ''}`}
               onClick={() => { setLayoutEdit(s => !s); if (showLayoutHint) dismissLayoutHint(); }}
@@ -1165,6 +1165,7 @@ export default function App() {
             <div style={{ flex: 1, display: mobileMode !== 'terminal' || activeSectorScreen || activeTab !== 'more' || moreView ? 'none' : 'flex', flexDirection: 'column', minWidth: 0, width: '100%' }}>
               <MobileMoreScreen
                 onNavigate={handleMoreNavigate}
+                onOpenChat={() => setChatOpen(true)}
                 user={user}
                 onSettings={() => setSettingsOpen(true)}
                 onLogout={logout}

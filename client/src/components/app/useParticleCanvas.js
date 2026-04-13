@@ -20,13 +20,92 @@ import { useRef, useEffect, useCallback, useMemo } from 'react';
 import * as THREE from 'three';
 
 // ── Constants ───────────────────────────────────────────────────────────────
-const BG_COLOR       = 0x080808;
-const GLOW_OPACITY   = 0.35;
+const BG_COLOR       = 0x050508;
+const GLOW_OPACITY   = 0.45;
 const BREATHE_SPEED  = 0.0008;
 const DRIFT_SPEED    = 0.00015;
 const FRUSTUM        = 4;    // camera frustum half-height
 const PULSE_DURATION = 2000; // ms for volume-spike pulse
 const ANOMALY_COLOR  = new THREE.Color(0xef4444); // pre-allocated for animation loop
+
+// ── Glow texture (procedural soft radial gradient) ──────────────────────────
+let _glowTexture = null;
+function getGlowTexture() {
+  if (_glowTexture) return _glowTexture;
+  const size = 64;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  const gradient = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+  gradient.addColorStop(0, 'rgba(255, 255, 255, 1.0)');
+  gradient.addColorStop(0.15, 'rgba(255, 255, 255, 0.8)');
+  gradient.addColorStop(0.4, 'rgba(255, 255, 255, 0.25)');
+  gradient.addColorStop(0.7, 'rgba(255, 255, 255, 0.05)');
+  gradient.addColorStop(1.0, 'rgba(255, 255, 255, 0.0)');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, size, size);
+  _glowTexture = new THREE.CanvasTexture(canvas);
+  return _glowTexture;
+}
+
+// ── Nebula background shader (subtle animated noise) ────────────────────────
+const NEBULA_VERTEX = `
+  varying vec2 vUv;
+  void main() {
+    vUv = uv;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  }
+`;
+
+const NEBULA_FRAGMENT = `
+  uniform float uTime;
+  uniform vec3 uColor;
+  uniform float uOpacity;
+  varying vec2 vUv;
+
+  // Simple noise
+  float hash(vec2 p) {
+    return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+  }
+
+  float noise(vec2 p) {
+    vec2 i = floor(p);
+    vec2 f = fract(p);
+    f = f * f * (3.0 - 2.0 * f);
+    float a = hash(i);
+    float b = hash(i + vec2(1.0, 0.0));
+    float c = hash(i + vec2(0.0, 1.0));
+    float d = hash(i + vec2(1.0, 1.0));
+    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+  }
+
+  float fbm(vec2 p) {
+    float val = 0.0;
+    float amp = 0.5;
+    for (int i = 0; i < 4; i++) {
+      val += amp * noise(p);
+      p *= 2.0;
+      amp *= 0.5;
+    }
+    return val;
+  }
+
+  void main() {
+    vec2 uv = vUv - 0.5;
+    float t = uTime * 0.03;
+
+    float n = fbm(uv * 3.0 + t);
+    float n2 = fbm(uv * 5.0 - t * 0.7 + 10.0);
+
+    float vignette = 1.0 - length(uv) * 1.4;
+    vignette = clamp(vignette, 0.0, 1.0);
+
+    float intensity = (n * 0.5 + n2 * 0.3) * vignette * uOpacity;
+
+    gl_FragColor = vec4(uColor * intensity, intensity * 0.6);
+  }
+`;
 
 // Index mapping for hero particles
 const HERO_TICKERS = ['SPY', 'QQQ', 'DIA', 'IWM', 'VIX'];
@@ -136,12 +215,12 @@ export default function useParticleCanvas({
     const renderer = new THREE.WebGLRenderer({
       canvas,
       alpha: true,
-      antialias: false,
+      antialias: true,
       powerPreference: 'low-power',
     });
     renderer.setPixelRatio(dpr);
     renderer.setSize(width, height, false);
-    renderer.setClearColor(BG_COLOR, 0);
+    renderer.setClearColor(BG_COLOR, 1);
 
     const aspect  = width / height;
     const frustum = 4;
@@ -155,9 +234,27 @@ export default function useParticleCanvas({
 
     // ── Create particles ─────────────────────────────────────────────────
     const particles = [];
-    const geometry  = new THREE.CircleGeometry(1, 24);
+    const geometry  = new THREE.PlaneGeometry(1, 1); // Flat quad for glow sprite
+    const glowTex   = getGlowTexture();
     // Ring geometry for prediction particles
     const ringGeo   = new THREE.RingGeometry(0.85, 1.0, 32);
+
+    // ── Nebula background (animated noise shader) ──
+    const nebulaGeo = new THREE.PlaneGeometry(12 * aspect, 12);
+    const nebulaMat = new THREE.ShaderMaterial({
+      uniforms: {
+        uTime: { value: 0 },
+        uColor: { value: new THREE.Color(0xF97316) },
+        uOpacity: { value: 0.08 },
+      },
+      vertexShader: NEBULA_VERTEX,
+      fragmentShader: NEBULA_FRAGMENT,
+      transparent: true,
+      depthTest: false,
+    });
+    const nebulaMesh = new THREE.Mesh(nebulaGeo, nebulaMat);
+    nebulaMesh.position.z = -2;
+    scene.add(nebulaMesh);
 
     const stocks      = dataRef.current.marketData?.stocks || {};
     const preds       = dataRef.current.predictions || [];
@@ -178,9 +275,11 @@ export default function useParticleCanvas({
 
       const material = new THREE.MeshBasicMaterial({
         color: col,
+        map: glowTex,
         transparent: true,
         opacity: GLOW_OPACITY * 1.1,
         depthTest: false,
+        blending: THREE.AdditiveBlending,
       });
       const mesh = new THREE.Mesh(geometry, material);
       mesh.position.set(x, y, 1);
@@ -227,9 +326,11 @@ export default function useParticleCanvas({
 
       const material = new THREE.MeshBasicMaterial({
         color: col,
+        map: glowTex,
         transparent: true,
         opacity: GLOW_OPACITY * (0.4 + Math.min(Math.abs(changePct) / 5, 0.4)),
         depthTest: false,
+        blending: THREE.AdditiveBlending,
       });
       const mesh = new THREE.Mesh(geometry, material);
       mesh.position.set(x, y, 0.5 + Math.random() * 0.3);
@@ -263,12 +364,14 @@ export default function useParticleCanvas({
       const baseScale = 0.07 + prob * 0.04;
       const col = predictionColor(prob);
 
-      // Core particle
+      // Core particle (glow sprite)
       const material = new THREE.MeshBasicMaterial({
         color: col,
+        map: glowTex,
         transparent: true,
         opacity: GLOW_OPACITY * 0.7,
         depthTest: false,
+        blending: THREE.AdditiveBlending,
       });
       const mesh = new THREE.Mesh(geometry, material);
       mesh.position.set(x, y, 0.7);
@@ -282,6 +385,7 @@ export default function useParticleCanvas({
         opacity: 0.25,
         depthTest: false,
         side: THREE.DoubleSide,
+        blending: THREE.AdditiveBlending,
       });
       const ringMesh = new THREE.Mesh(ringGeo, ringMat);
       ringMesh.position.set(x, y, 0.71);
@@ -315,9 +419,11 @@ export default function useParticleCanvas({
       const col = new THREE.Color(0xF97316).multiplyScalar(0.3 + Math.random() * 0.3);
       const material = new THREE.MeshBasicMaterial({
         color: col,
+        map: glowTex,
         transparent: true,
         opacity: GLOW_OPACITY * (0.15 + Math.random() * 0.2),
         depthTest: false,
+        blending: THREE.AdditiveBlending,
       });
       const mesh = new THREE.Mesh(geometry, material);
       mesh.position.set(x, y, Math.random() * 0.3);
@@ -335,13 +441,15 @@ export default function useParticleCanvas({
       });
     }
 
-    // Centre glow
-    const glowGeo  = new THREE.PlaneGeometry(6 * aspect, 6);
+    // Centre glow (larger, softer with glow texture)
+    const glowGeo  = new THREE.PlaneGeometry(8 * aspect, 8);
     const glowMat  = new THREE.MeshBasicMaterial({
       color: 0xF97316,
+      map: glowTex,
       transparent: true,
-      opacity: 0.03,
+      opacity: 0.06,
       depthTest: false,
+      blending: THREE.AdditiveBlending,
     });
     const glowMesh = new THREE.Mesh(glowGeo, glowMat);
     glowMesh.position.z = -1;
@@ -360,14 +468,15 @@ export default function useParticleCanvas({
     const lineMaterial = new THREE.LineBasicMaterial({
       color: 0xF97316,
       transparent: true,
-      opacity: 0.15,
+      opacity: 0.12,
       depthTest: false,
+      blending: THREE.AdditiveBlending,
     });
     const lineMesh = new THREE.LineSegments(lineGeometry, lineMaterial);
     scene.add(lineMesh);
 
     stateRef.current = {
-      renderer, camera, scene, particles, glowMesh,
+      renderer, camera, scene, particles, glowMesh, nebulaMesh,
       width, height, aspect, raycaster, geometry, ringGeo,
       lineGeometry, lineMesh, linePositions,
     };
@@ -478,7 +587,26 @@ export default function useParticleCanvas({
       }
 
       // Centre glow
-      glowMesh.material.opacity = 0.02 + Math.sin(breatheT * 0.7) * 0.01 * moodCfg.glowMul;
+      glowMesh.material.opacity = 0.04 + Math.sin(breatheT * 0.7) * 0.02 * moodCfg.glowMul;
+
+      // Nebula background animation
+      if (state.nebulaMesh) {
+        state.nebulaMesh.material.uniforms.uTime.value = now * 0.001;
+        // Mood-aware nebula color
+        if (currentMood === 'bullish') {
+          state.nebulaMesh.material.uniforms.uColor.value.setHex(0x22c55e);
+          state.nebulaMesh.material.uniforms.uOpacity.value = 0.06;
+        } else if (currentMood === 'bearish') {
+          state.nebulaMesh.material.uniforms.uColor.value.setHex(0xef4444);
+          state.nebulaMesh.material.uniforms.uOpacity.value = 0.06;
+        } else if (currentMood === 'volatile') {
+          state.nebulaMesh.material.uniforms.uColor.value.setHex(0xF97316);
+          state.nebulaMesh.material.uniforms.uOpacity.value = 0.1;
+        } else {
+          state.nebulaMesh.material.uniforms.uColor.value.setHex(0xF97316);
+          state.nebulaMesh.material.uniforms.uOpacity.value = 0.06;
+        }
+      }
 
       // ── FEATURE 1: Update connection lines ────────────────────────────
       const nonAmbientParticles = particles.filter(p => p.type !== 'ambient');
@@ -760,6 +888,10 @@ export default function useParticleCanvas({
         });
         state.glowMesh.geometry.dispose();
         state.glowMesh.material.dispose();
+        if (state.nebulaMesh) {
+          state.nebulaMesh.geometry.dispose();
+          state.nebulaMesh.material.dispose();
+        }
         state.geometry.dispose();
         state.ringGeo.dispose();
         state.lineGeometry.dispose();

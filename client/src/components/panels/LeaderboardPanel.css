@@ -117,10 +117,10 @@
   transition: background 150ms;
 }
 .lb-row:hover {
-  background: var(--bg-hover, rgba(255,255,255,0.03));
+  background: rgba(255, 255, 255, 0.03);
 }
 .lb-row--me {
-  background: rgba(255, 102, 0, 0.06);
+  background: var(--color-particle-dim);
   border-left: 2px solid var(--accent);
 }
 
@@ -134,7 +134,7 @@
   flex-shrink: 0;
 }
 .lb-rank--gold   { color: #ffd700; }
-.lb-rank--silver { color: #c0c0c0; }
+.lb-rank--silver { color: var(--color-text-secondary); }
 .lb-rank--bronze { color: #cd7f32; }
 
 /* Row info */
@@ -227,7 +227,7 @@
   cursor: pointer;
   transition: all 0.12s;
 }
-.lb-share-btn:hover { background: rgba(255, 102, 0, 0.1); }
+.lb-share-btn:hover { background: var(--color-particle-glow); }
 
 .lb-load-more {
   display: block;

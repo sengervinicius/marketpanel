@@ -81,7 +81,7 @@
   border-color: var(--accent-text);
 }
 .mc-cell--dragover {
-  background: #0d1a2e;
+  background: var(--color-surface);
   border-color: var(--accent);
 }
 
@@ -268,13 +268,13 @@
   cursor: pointer;
 }
 .cp-add-btn--open {
-  background: #1a2a1a;
-  color: #8f8;
+  background: var(--color-surface);
+  color: var(--color-up);
 }
 .cp-add-btn--submit {
-  background: #1a3a2a;
-  border-color: #3a6a4a;
-  color: #8f8;
+  background: var(--color-surface);
+  border-color: var(--color-up);
+  color: var(--color-up);
   padding: 4px 10px;
 }
 

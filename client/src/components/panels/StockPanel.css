@@ -11,7 +11,7 @@
 }
 
 .stp-movers-btn.stp-movers-btn-active {
-  background: #1a1000;
+  background: var(--color-particle-dim);
   border-color: var(--accent-text);
   color: var(--accent-text);
 }
@@ -27,7 +27,7 @@
 }
 
 .stp-heatmap-btn.stp-heatmap-btn-active {
-  background: #0a001a;
+  background: var(--color-surface);
   border-color: var(--semantic-ai);
   color: var(--semantic-ai);
 }

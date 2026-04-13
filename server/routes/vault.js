@@ -1,16 +1,26 @@
 /**
- * routes/vault.js — Private Knowledge Vault API endpoints.
+ * routes/vault.js — Knowledge Vault API endpoints.
+ *
+ * Two tiers:
+ *   Private: per-user vault (all authenticated users)
+ *   Central: admin-only global vault that feeds ALL users' Particle responses
  *
  * Endpoints:
- *  POST   /upload              — Upload and ingest a PDF
- *  GET    /documents           — List user's vault documents
+ *  POST   /upload              — Upload and ingest a PDF (private)
+ *  GET    /documents           — List user's private vault documents
  *  DELETE /documents/:id       — Delete a document and its chunks
  *  POST   /search              — Search vault (for testing / UI)
+ *
+ * Admin endpoints (Central Vault):
+ *  POST   /admin/upload        — Upload to central vault (admin only)
+ *  GET    /admin/documents     — List central vault documents
+ *  DELETE /admin/documents/:id — Delete from central vault
  */
 const express = require('express');
 const multer = require('multer');
 const vault = require('../services/vault');
 const logger = require('../utils/logger');
+const { requireAdmin } = require('../authMiddleware');
 
 const router = express.Router();
 
@@ -111,6 +121,82 @@ router.post('/search', async (req, res) => {
   } catch (err) {
     logger.error('vault-route', 'Search error', { error: err.message });
     res.status(500).json({ error: 'Search failed' });
+  }
+});
+
+// ── Central Vault (Admin-only) ────────────────────────────────────────────
+
+/**
+ * POST /admin/upload — Upload a PDF to the central vault (all users benefit).
+ * Requires admin role.
+ */
+router.post('/admin/upload', requireAdmin, upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file provided' });
+    }
+
+    const result = await vault.ingestPDF(req.user.id, req.file.buffer, req.file.originalname, { isGlobal: true });
+
+    logger.info('vault-route', 'Central vault PDF uploaded', {
+      userId: req.user.id,
+      filename: req.file.originalname,
+      global: true,
+    });
+
+    res.json({ ...result, global: true });
+  } catch (err) {
+    logger.error('vault-route', 'Admin upload error', { error: err.message });
+    res.status(500).json({ error: 'Failed to process document' });
+  }
+});
+
+/**
+ * GET /admin/documents — List central vault documents.
+ */
+router.get('/admin/documents', requireAdmin, async (req, res) => {
+  try {
+    const documents = await vault.getGlobalDocuments();
+    res.json({ documents });
+  } catch (err) {
+    logger.error('vault-route', 'Error fetching global documents', { error: err.message });
+    res.status(500).json({ error: 'Failed to fetch documents' });
+  }
+});
+
+/**
+ * DELETE /admin/documents/:id — Delete a document from the central vault.
+ */
+router.delete('/admin/documents/:id', requireAdmin, async (req, res) => {
+  try {
+    const documentId = parseInt(req.params.id, 10);
+    if (isNaN(documentId)) {
+      return res.status(400).json({ error: 'Invalid document ID' });
+    }
+
+    // For admin delete, we bypass the user ownership check
+    // since admin manages global docs. Use userId from the doc itself.
+    const pg = require('../db/postgres');
+    const doc = await pg.query(
+      `SELECT user_id FROM vault_documents WHERE id = $1 AND is_global = TRUE`,
+      [documentId]
+    );
+
+    if (!doc.rows || doc.rows.length === 0) {
+      return res.status(404).json({ error: 'Global document not found' });
+    }
+
+    await vault.deleteDocument(doc.rows[0].user_id, documentId);
+
+    logger.info('vault-route', 'Central vault document deleted', {
+      adminId: req.user.id,
+      documentId,
+    });
+
+    res.json({ ok: true });
+  } catch (err) {
+    logger.error('vault-route', 'Admin delete error', { error: err.message });
+    res.status(500).json({ error: 'Failed to delete document' });
   }
 });
 

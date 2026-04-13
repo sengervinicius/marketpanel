@@ -18,6 +18,7 @@ function MenuItem({ icon, label, onClick, subtle, danger }) {
 
 const MobileMoreScreen = memo(({
   onNavigate,
+  onOpenChat,
   user,
   onSettings,
   onLogout,
@@ -93,6 +94,13 @@ const MobileMoreScreen = memo(({
       {/* Primary navigation */}
       <div className="mm-section">
         <div className="m-section-label" style={{ padding: '0 16px' }}>TOOLS</div>
+        {onOpenChat && (
+          <MenuItem
+            icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>}
+            label="Conversations"
+            onClick={onOpenChat}
+          />
+        )}
         <MenuItem
           icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" /><line x1="8" y1="21" x2="16" y2="21" /><line x1="12" y1="17" x2="12" y2="21" /></svg>}
           label="News Feed"

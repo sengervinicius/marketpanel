@@ -1,11 +1,15 @@
 /**
- * vault.js — Private Knowledge Vault for Particle.
+ * vault.js — Knowledge Vault for Particle.
  *
- * Each user has a private document store. PDFs are parsed, chunked,
- * embedded, and stored in Postgres with pgvector for semantic search.
+ * Two vault tiers:
+ *   1. Private vault: per-user document store (reports, notes, PDFs)
+ *   2. Central vault: admin-only global store fed by Vinicius with professional
+ *      research that enriches ALL users' Particle responses.
  *
- * When a user asks a question, relevant vault passages are retrieved
- * and injected into the AI prompt as grounded context.
+ * PDFs are parsed, chunked, embedded, and stored in Postgres with pgvector
+ * for semantic search. When a user asks a question, relevant passages from
+ * both their private vault AND the central vault are retrieved and injected
+ * into the AI prompt as grounded context.
  */
 const pg = require('../db/postgres');
 const logger = require('../utils/logger');
@@ -59,14 +63,26 @@ async function ensureTable() {
         user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         filename TEXT NOT NULL,
         source TEXT DEFAULT 'upload',
+        is_global BOOLEAN NOT NULL DEFAULT FALSE,
         metadata JSONB DEFAULT '{}',
         created_at TIMESTAMPTZ DEFAULT NOW()
       )
     `);
 
+    // Add is_global column if table already exists (idempotent migration)
+    try {
+      await pg.query(`ALTER TABLE vault_documents ADD COLUMN IF NOT EXISTS is_global BOOLEAN NOT NULL DEFAULT FALSE`);
+    } catch (e) {
+      // Column already exists or ALTER not supported — safe to ignore
+    }
+
     // Create index on user_id for faster queries
     await pg.query(`
       CREATE INDEX IF NOT EXISTS idx_vault_documents_user ON vault_documents(user_id)
+    `);
+    // Index for global vault queries
+    await pg.query(`
+      CREATE INDEX IF NOT EXISTS idx_vault_documents_global ON vault_documents(is_global) WHERE is_global = TRUE
     `);
 
     // Create vault_chunks table (with optional vector column)
@@ -241,7 +257,7 @@ function extractMetadata(text) {
 /**
  * Ingest a PDF, parse text, chunk, embed, and store.
  */
-async function ingestPDF(userId, buffer, filename) {
+async function ingestPDF(userId, buffer, filename, { isGlobal = false } = {}) {
   if (!pg.isConnected()) {
     throw new Error('Postgres not connected');
   }
@@ -262,9 +278,9 @@ async function ingestPDF(userId, buffer, filename) {
 
     // Create document record
     const docResult = await pg.query(
-      `INSERT INTO vault_documents (user_id, filename, source, metadata)
-       VALUES ($1, $2, $3, $4) RETURNING id`,
-      [userId, filename, 'upload', JSON.stringify(metadata)]
+      `INSERT INTO vault_documents (user_id, filename, source, is_global, metadata)
+       VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+      [userId, filename, 'upload', isGlobal, JSON.stringify(metadata)]
     );
 
     const documentId = docResult.rows[0].id;
@@ -319,7 +335,8 @@ async function ingestPDF(userId, buffer, filename) {
 }
 
 /**
- * Retrieve relevant passages from user's vault via semantic search.
+ * Retrieve relevant passages from user's private vault AND the central vault.
+ * Merges results by similarity score so the best passages surface regardless of source.
  * Falls back to keyword search if embeddings unavailable.
  */
 async function retrieve(userId, query, limit = MAX_RETRIEVAL) {
@@ -328,15 +345,16 @@ async function retrieve(userId, query, limit = MAX_RETRIEVAL) {
   }
 
   try {
-    // Try semantic search first
+    // Try semantic search first — search both private (user_id match) and global (is_global = true)
     const embeddings = await embed([query]);
     if (embeddings[0]) {
       const result = await pg.query(
-        `SELECT vc.content, vc.metadata, vd.filename, vd.source, vd.metadata as doc_metadata,
+        `SELECT vc.content, vc.metadata, vd.filename, vd.source, vd.is_global,
+                vd.metadata as doc_metadata,
                 1 - (vc.embedding <=> $1::vector) AS similarity
          FROM vault_chunks vc
          JOIN vault_documents vd ON vc.document_id = vd.id
-         WHERE vc.user_id = $2 AND vc.embedding IS NOT NULL
+         WHERE (vc.user_id = $2 OR vd.is_global = TRUE) AND vc.embedding IS NOT NULL
          ORDER BY vc.embedding <=> $1::vector
          LIMIT $3`,
         [`[${embeddings[0].join(',')}]`, userId, limit]
@@ -352,14 +370,14 @@ async function retrieve(userId, query, limit = MAX_RETRIEVAL) {
 
   // Fallback: simple keyword search (case-insensitive)
   try {
-    const searchTerms = query.toLowerCase().split(/\s+/).slice(0, 5); // Limit to 5 terms
-    const sqlPattern = searchTerms.map(t => `%${t}%`).join(' & ');
+    const searchTerms = query.toLowerCase().split(/\s+/).slice(0, 5);
 
     const result = await pg.query(
-      `SELECT vc.content, vc.metadata, vd.filename, vd.source, vd.metadata as doc_metadata
+      `SELECT vc.content, vc.metadata, vd.filename, vd.source, vd.is_global,
+              vd.metadata as doc_metadata
        FROM vault_chunks vc
        JOIN vault_documents vd ON vc.document_id = vd.id
-       WHERE vc.user_id = $1 AND (
+       WHERE (vc.user_id = $1 OR vd.is_global = TRUE) AND (
          LOWER(vc.content) LIKE ANY ($2::text[])
          OR LOWER(vd.filename) LIKE ANY ($2::text[])
        )
@@ -382,28 +400,49 @@ function formatForPrompt(passages) {
     return '';
   }
 
-  let ctx = '\n--- USER VAULT (private research documents) ---\n';
+  // Separate central (global) vs private passages for clear labeling
+  const centralPassages = passages.filter(p => p.is_global);
+  const privatePassages = passages.filter(p => !p.is_global);
 
-  for (const p of passages) {
-    const docMeta = p.doc_metadata || {};
-    const source = docMeta.bank || p.filename || 'Unknown source';
-    const date = docMeta.date || '';
-    const tickers = docMeta.tickers
-      ? ` [${Array.isArray(docMeta.tickers) ? docMeta.tickers.join(', ') : docMeta.tickers}]`
-      : '';
+  let ctx = '';
 
-    ctx += `[Source: ${source}${date ? ` (${date})` : ''}${tickers}]\n`;
-    ctx += `${p.content.slice(0, 500)}${p.content.length > 500 ? '...' : ''}\n\n`;
+  if (centralPassages.length > 0) {
+    ctx += '\n--- CENTRAL RESEARCH VAULT (professional reports curated by Particle) ---\n';
+    for (const p of centralPassages) {
+      const docMeta = p.doc_metadata || {};
+      const source = docMeta.bank || p.filename || 'Unknown source';
+      const date = docMeta.date || '';
+      const tickers = docMeta.tickers
+        ? ` [${Array.isArray(docMeta.tickers) ? docMeta.tickers.join(', ') : docMeta.tickers}]`
+        : '';
+      ctx += `[Source: ${source}${date ? ` (${date})` : ''}${tickers}]\n`;
+      ctx += `${p.content.slice(0, 500)}${p.content.length > 500 ? '...' : ''}\n\n`;
+    }
+    ctx += '--- END CENTRAL VAULT ---\n';
   }
 
-  ctx += '--- END VAULT ---\n';
+  if (privatePassages.length > 0) {
+    ctx += '\n--- USER VAULT (private research documents) ---\n';
+    for (const p of privatePassages) {
+      const docMeta = p.doc_metadata || {};
+      const source = docMeta.bank || p.filename || 'Unknown source';
+      const date = docMeta.date || '';
+      const tickers = docMeta.tickers
+        ? ` [${Array.isArray(docMeta.tickers) ? docMeta.tickers.join(', ') : docMeta.tickers}]`
+        : '';
+      ctx += `[Source: ${source}${date ? ` (${date})` : ''}${tickers}]\n`;
+      ctx += `${p.content.slice(0, 500)}${p.content.length > 500 ? '...' : ''}\n\n`;
+    }
+    ctx += '--- END USER VAULT ---\n';
+  }
+
   ctx += 'When answering, cite specific sources from the vault if relevant.\n';
 
   return ctx;
 }
 
 /**
- * Get user's vault documents.
+ * Get user's private vault documents.
  */
 async function getUserDocuments(userId) {
   if (!pg.isConnected()) {
@@ -412,10 +451,10 @@ async function getUserDocuments(userId) {
 
   try {
     const result = await pg.query(
-      `SELECT id, filename, source, metadata, created_at,
+      `SELECT id, filename, source, is_global, metadata, created_at,
               (SELECT COUNT(*) FROM vault_chunks WHERE document_id = vault_documents.id) as chunk_count
        FROM vault_documents
-       WHERE user_id = $1
+       WHERE user_id = $1 AND is_global = FALSE
        ORDER BY created_at DESC`,
       [userId]
     );
@@ -423,6 +462,30 @@ async function getUserDocuments(userId) {
     return result.rows || [];
   } catch (err) {
     logger.error('vault', 'Error fetching documents', { error: err.message });
+    return [];
+  }
+}
+
+/**
+ * Get central vault documents (global, available to all users).
+ */
+async function getGlobalDocuments() {
+  if (!pg.isConnected()) {
+    return [];
+  }
+
+  try {
+    const result = await pg.query(
+      `SELECT id, filename, source, is_global, metadata, created_at,
+              (SELECT COUNT(*) FROM vault_chunks WHERE document_id = vault_documents.id) as chunk_count
+       FROM vault_documents
+       WHERE is_global = TRUE
+       ORDER BY created_at DESC`
+    );
+
+    return result.rows || [];
+  } catch (err) {
+    logger.error('vault', 'Error fetching global documents', { error: err.message });
     return [];
   }
 }
@@ -470,5 +533,6 @@ module.exports = {
   retrieve,
   formatForPrompt,
   getUserDocuments,
+  getGlobalDocuments,
   deleteDocument,
 };
