@@ -74,7 +74,7 @@ function MarketScreenGallery() {
                 <div className="msg-card-top">
                   <span className="msg-card-label">{s.visualLabel}</span>
                   <span className="msg-card-status">
-                    {wasApplied ? '✓' : isApplying ? '...' : isActive ? '●' : ''}
+                    {wasApplied ? <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg> : isApplying ? '...' : isActive ? <span style={{display:'inline-block',width:6,height:6,borderRadius:'50%',background:'currentColor'}}/> : ''}
                   </span>
                 </div>
                 <div className="msg-card-subtitle">{s.subtitle}</div>

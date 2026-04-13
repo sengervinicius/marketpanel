@@ -108,7 +108,7 @@ export default function EditablePanelHeader({
             )}
           </span>
         ))}
-        {onConfigOpen && (<button className="eph-icon-btn" onClick={onConfigOpen} title="Configure panel">✎</button>)}
+        {onConfigOpen && (<button className="eph-icon-btn" onClick={onConfigOpen} title="Configure panel"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg></button>)}
         {feedBadge && (<span className="eph-badge" style={{ background: feedBadge.bg, color: feedBadge.color, border: `1px solid ${feedBadge.color}33` }}>{feedBadge.text}</span>)}
         {lastUpdated && (
           <span className="eph-timestamp" title={new Date(lastUpdated).toLocaleString()}>
@@ -127,7 +127,7 @@ export default function EditablePanelHeader({
       {showSearch && (
         <div className="eph-search-row">
           <input ref={searchRef} className="eph-search-input" value={searchQ} onChange={e => { setSearchQ(e.target.value); onSearchChange?.(e.target.value); }} onKeyDown={e => { if (e.key === 'Escape') { setShowSearch(false); setSearchQ(''); onSearchChange?.(''); } }} placeholder="Filter by ticker or name…" />
-          <button className="eph-search-close" onClick={() => { setShowSearch(false); setSearchQ(''); onSearchChange?.(''); }}>✕</button>
+          <button className="eph-search-close" onClick={() => { setShowSearch(false); setSearchQ(''); onSearchChange?.(''); }}><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
         </div>
       )}
     </div>

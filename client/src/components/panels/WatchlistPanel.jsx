@@ -76,7 +76,7 @@ function WatchlistRow({ sym, quote, onTickerClick, openDetail, removeTicker, han
           title="Remove from watchlist"
           onMouseEnter={e => e.currentTarget.style.color = 'var(--price-down)'}
           onMouseLeave={e => e.currentTarget.style.color = 'var(--text-faint)'}
-        >&#10005;</button>
+        ><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
       </div>
     </div>
   );
@@ -195,7 +195,7 @@ function WatchlistPanel({ onTickerClick }) {
     <PanelShell>
       {/* Header */}
       <div className="flex-row wp-header">
-        <span className="wp-header-title">★ WATCHLIST</span>
+        <span className="wp-header-title">WATCHLIST</span>
         <span className="wp-header-count">{watchlist.length} symbols</span>
         <button className={`btn wp-add-btn ${showAdd ? 'wp-add-btn-active' : ''}`}
           onClick={() => setShowAdd(s => !s)}
@@ -213,7 +213,7 @@ function WatchlistPanel({ onTickerClick }) {
             className="wp-add-input"
           />
           <button className="btn wp-add-submit-btn" type="submit">ADD</button>
-          <button className="btn wp-add-cancel-btn" type="button" onClick={() => { setShowAdd(false); setAddInput(''); }}>✕</button>
+          <button className="btn wp-add-cancel-btn" type="button" onClick={() => { setShowAdd(false); setAddInput(''); }}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
         </form>
       )}
 
@@ -248,7 +248,7 @@ function WatchlistPanel({ onTickerClick }) {
         )}
         {error && (
           <div className="wp-error-msg">
-            ⚠ {error}
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{verticalAlign:'middle',marginRight:2}}><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> {error}
           </div>
         )}
       </div>
@@ -260,7 +260,7 @@ function WatchlistPanel({ onTickerClick }) {
             <span className="wp-why-title">Why is {whySymbol} moving?</span>
             <button className="btn wp-why-close"
               onClick={() => { setWhySymbol(null); setWhySummary(null); setWhyError(null); }}
-            >✕</button>
+            ><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
           </div>
           <div className="wp-why-content">
             {whyLoading && (

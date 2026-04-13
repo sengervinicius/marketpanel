@@ -2277,7 +2277,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
           title="Close (Esc)"
           className={`id-close${isMobile ? ' id-close--mobile' : ''}`}
           aria-label="Close detail view"
-        >✕</button>
+        ><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
 
         {/* Breadcrumb navigation for sector context */}
         {sectorContext && (
@@ -2340,7 +2340,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
 
             {hovered && (
               <span className="id-hover-price">
-                ● {hovered.label}: {fmt(hovered.close)}
+                <span style={{display:'inline-block',width:6,height:6,borderRadius:'50%',background:'currentColor',marginRight:'4px',verticalAlign:'middle'}}/> {hovered.label}: {fmt(hovered.close)}
               </span>
             )}
           </>
@@ -2567,7 +2567,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
             <div className="id-comparison-panel">
               <div className="id-comparison-header">
                 <span>Add Comparison Tickers (Max 4)</span>
-                <button onClick={() => setShowComparisonSearch(false)} style={{ cursor: 'pointer', background: 'none', border: 'none', color: 'inherit', fontSize: 16 }} aria-label="Close comparison search">×</button>
+                <button onClick={() => setShowComparisonSearch(false)} style={{ cursor: 'pointer', background: 'none', border: 'none', color: 'inherit', fontSize: 16 }} aria-label="Close comparison search"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
               </div>
               <input
                 type="text"
@@ -2591,7 +2591,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
                   {comparisonTickers.map((ticker, idx) => (
                     <div key={ticker} className="id-comparison-pill" style={{ borderLeftColor: Object.values(COMPARISON_COLORS)[idx] }}>
                       <span>{ticker}</span>
-                      <button onClick={() => removeComparisonTicker(ticker)} style={{ cursor: 'pointer', background: 'none', border: 'none', color: 'inherit', marginLeft: '4px' }} aria-label={`Remove ${ticker} from comparison`}>×</button>
+                      <button onClick={() => removeComparisonTicker(ticker)} style={{ cursor: 'pointer', background: 'none', border: 'none', color: 'inherit', marginLeft: '4px' }} aria-label={`Remove ${ticker} from comparison`}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
                     </div>
                   ))}
                 </div>

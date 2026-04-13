@@ -163,7 +163,7 @@ function WorkspaceSwitcher() {
                            : isActive   ? 'var(--accent)'
                            : '#333',
                     }}>
-                      {wasApplied ? '✓' : isApplying ? '...' : isActive ? 'ACTIVE' : 'APPLY'}
+                      {wasApplied ? <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg> : isApplying ? '...' : isActive ? 'ACTIVE' : 'APPLY'}
                     </span>
                   </div>
                 );

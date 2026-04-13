@@ -93,7 +93,7 @@ function NotificationPrefs({ onClose }) {
       <div className="np-container">
         <div className="np-header">
           <span className="np-title">Notification Preferences</span>
-          {onClose && <button className="btn np-close" onClick={onClose}>✕</button>}
+          {onClose && <button className="btn np-close" onClick={onClose}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>}
         </div>
         <div className="np-loading">Loading...</div>
       </div>
@@ -104,7 +104,7 @@ function NotificationPrefs({ onClose }) {
     <div className="np-container">
       <div className="np-header">
         <span className="np-title">Notification Preferences</span>
-        {onClose && <button className="btn np-close" onClick={onClose}>✕</button>}
+        {onClose && <button className="btn np-close" onClick={onClose}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>}
       </div>
 
       {error && <div className="np-error">{error}</div>}
@@ -156,7 +156,7 @@ function NotificationPrefs({ onClose }) {
             />
           </label>
           <button className="btn np-test-btn" onClick={testWebhook} disabled={testStatus === 'testing'}>
-            {testStatus === 'testing' ? 'Testing...' : testStatus === 'success' ? '✓ Sent!' : testStatus === 'failed' ? '✕ Failed' : 'Test Webhook'}
+            {testStatus === 'testing' ? 'Testing...' : testStatus === 'success' ? 'Sent!' : testStatus === 'failed' ? 'X Failed' : 'Test Webhook'}
           </button>
         </div>
       )}

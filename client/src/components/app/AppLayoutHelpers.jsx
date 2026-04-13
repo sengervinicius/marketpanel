@@ -126,13 +126,13 @@ export function LayoutMoveOverlay({ panelId, rowIdx, colIdx, rowLen, totalRows, 
   return (
     <div className="app-layout-overlay">
       <div className="flex-col" style={{ alignItems: 'center', gap: 4 }}>
-        {btn('up',    '↑', rowIdx === 0)}
+        {btn('up',    '^', rowIdx === 0)}
         <div className="flex-row gap-2">
-          {btn('left',  '←', colIdx === 0)}
+          {btn('left',  '<', colIdx === 0)}
           <div className="app-layout-overlay-label">{panelLabel}</div>
-          {btn('right', '→', colIdx === rowLen - 1)}
+          {btn('right', '>', colIdx === rowLen - 1)}
         </div>
-        {btn('down',  '↓', rowIdx === totalRows - 1)}
+        {btn('down',  'v', rowIdx === totalRows - 1)}
       </div>
     </div>
   );

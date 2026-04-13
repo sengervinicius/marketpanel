@@ -85,7 +85,7 @@ export function SettingsDrawer({ panelVisible, togglePanel, onClose }) {
           title="Close (Esc)"
           aria-label="Close settings"
         >
-          ✕
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
       </div>
 
@@ -120,7 +120,7 @@ export function SettingsDrawer({ panelVisible, togglePanel, onClose }) {
         aria-label={`Toggle theme. Current: ${theme === 'dark' ? 'Dark mode' : 'Light mode'}`}
         aria-pressed={theme === 'dark'}
       >
-        <span className="app-text-muted-small">{theme === 'dark' ? '◑ DARK MODE' : '☀ LIGHT MODE'}</span>
+        <span className="app-text-muted-small">{theme === 'dark' ? '◑ DARK MODE' : 'LIGHT MODE'}</span>
         <span className="app-text-accent-bold-small">TOGGLE</span>
       </div>
 
@@ -138,7 +138,7 @@ export function SettingsDrawer({ panelVisible, togglePanel, onClose }) {
         <span className="app-text-muted-small">Reset to Default</span>
         {resettingLayout
           ? <span className="app-text-accent-small">RESETTING…</span>
-          : <span className="app-text-faint-small">↻ RESET</span>}
+          : <span className="app-text-faint-small">RESET</span>}
       </div>
 
       {/* ── Panel Visibility ── */}
@@ -269,7 +269,7 @@ export function UserDropdown({ user, onSettings, onLogout, onBilling, isPaid }) 
         aria-expanded={open}
       >
         <UserAvatar user={user} size="small" interactive />
-        <span style={{ color: open ? 'var(--accent)' : 'var(--text-faint)', fontSize: 8 }}>▼</span>
+        <span style={{ color: open ? 'var(--accent)' : 'var(--text-faint)', fontSize: 8 }}>v</span>
         <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', lineHeight: 1.2 }}>
           <span>{user.username?.toUpperCase()}</span>
         </span>
@@ -289,7 +289,7 @@ export function UserDropdown({ user, onSettings, onLogout, onBilling, isPaid }) 
               role="button"
               tabIndex={0}
               aria-label="View billing and subscription details"
-            >💳 BILLING</div>
+            >BILLING</div>
           )}
           <div
             onClick={() => { setOpen(false); onSettings(); }}
@@ -299,7 +299,7 @@ export function UserDropdown({ user, onSettings, onLogout, onBilling, isPaid }) 
             role="button"
             tabIndex={0}
             aria-label="Open settings"
-          >⚙ SETTINGS</div>
+          ><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block', marginRight: 6, verticalAlign: 'middle' }}><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> SETTINGS</div>
           <div
             onClick={() => { setOpen(false); onLogout(); }}
             className="app-dropdown-item-last"

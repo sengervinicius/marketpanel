@@ -629,7 +629,7 @@ export default function App() {
                 background: mobileMode === 'particle' ? 'var(--accent, #F97316)' : 'transparent',
                 transition: 'all 150ms ease',
               }}
-            >● PARTICLE</button>
+            >PARTICLE</button>
             <button
               className="btn desktop-mode-btn"
               onClick={() => { setMobileModePersist('terminal'); }}
@@ -640,7 +640,7 @@ export default function App() {
                 background: mobileMode === 'terminal' ? 'var(--bg-surface, #1a1a1a)' : 'transparent',
                 transition: 'all 150ms ease',
               }}
-            >▸ TERMINAL</button>
+            >TERMINAL</button>
           </div>
 
           {/* Navigation buttons (terminal mode only) */}
@@ -661,7 +661,7 @@ export default function App() {
               background: !activeSectorScreen ? 'rgba(255, 102, 0, 0.08)' : 'none',
               borderRadius: 4,
             }}
-          >⌂ HOME</button>
+          >HOME</button>
           <button
             className="btn"
             data-tour="sector-screens"
@@ -680,7 +680,7 @@ export default function App() {
               background: sectorSelectorOpen || activeSectorScreen ? 'rgba(255, 102, 0, 0.08)' : 'none',
               borderRadius: 4,
             }}
-          >◈ SECTOR SCREENS</button>
+          >SECTOR SCREENS</button>
           </>)}
           <div style={{ flex: 1 }} />
           <WorldClock />
@@ -715,7 +715,7 @@ export default function App() {
               aria-label="Customize workspace layout"
               aria-pressed={layoutEdit}
               style={{ background: layoutEdit ? 'rgba(255, 102, 0, 0.08)' : 'none', border:`1px solid ${layoutEdit ? 'var(--accent)' : showLayoutHint ? 'var(--accent)' : 'var(--border-strong)'}`, color: layoutEdit ? 'var(--accent)' : showLayoutHint ? 'var(--accent)' : 'var(--text-faint)' }}
-            >⇄ LAYOUT</button>
+            >LAYOUT</button>
             {user
               ? <UserDropdown
                   user={user}
@@ -724,7 +724,7 @@ export default function App() {
                   onBilling={openBillingPortal}
                   isPaid={subscription?.status === 'active'}
                 />
-              : <button className="btn" onClick={() => setSettingsOpen(s => !s)} style={{ color: settingsOpen ? 'var(--accent)' : 'var(--text-faint)' }}>⚙ SETTINGS</button>
+              : <button className="btn" onClick={() => setSettingsOpen(s => !s)} style={{ color: settingsOpen ? 'var(--accent)' : 'var(--text-faint)', display: 'inline-flex', alignItems: 'center', gap: 4 }}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> SETTINGS</button>
             }
           </div>
         </div>
@@ -808,7 +808,7 @@ export default function App() {
                   </Suspense>
                 ) : (
                   <>
-                    <div style={{ fontSize: 36 }}>🚧</div>
+                    <div style={{ fontSize: 36, color: 'var(--text-faint)' }}><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="6" width="20" height="8" rx="1"/><path d="M17 14v7"/><path d="M7 14v7"/><path d="M17 3v3"/><path d="M7 3v3"/><path d="M10 14 2.3 6.3"/><path d="m14 6 7.7 7.7"/><path d="M8 6h8"/></svg></div>
                     <div style={{ color: 'var(--text-secondary)', fontSize: 13, fontFamily: 'var(--font-mono)' }}>
                       {activeSectorScreen.replace(/-/g, ' ').toUpperCase()} — Coming in Wave 3/4
                     </div>
@@ -816,7 +816,7 @@ export default function App() {
                       className="btn"
                       onClick={handleGoHome}
                       style={{ marginTop: 8, padding: '6px 16px', border: '1px solid var(--accent)', color: 'var(--accent)', borderRadius: 4, fontSize: 11, letterSpacing: '0.5px' }}
-                    >← BACK TO HOME</button>
+                    >{'<'} BACK TO HOME</button>
                   </>
                 )}
               </div>
@@ -1021,7 +1021,7 @@ export default function App() {
             overflow: 'hidden',
             textOverflow: 'ellipsis',
           }}
-        >◈ SCREENS</button>
+        >SCREENS</button>
         )}
         {/* Feed status dot */}
         <div className="m-feed-dot" data-status={
@@ -1101,13 +1101,13 @@ export default function App() {
                   </Suspense>
                 ) : (
                   <>
-                    <div style={{ fontSize: 36 }}>🚧</div>
+                    <div style={{ fontSize: 36, color: 'var(--text-faint)' }}><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="6" width="20" height="8" rx="1"/><path d="M17 14v7"/><path d="M7 14v7"/><path d="M17 3v3"/><path d="M7 3v3"/><path d="M10 14 2.3 6.3"/><path d="m14 6 7.7 7.7"/><path d="M8 6h8"/></svg></div>
                     <div style={{ color: 'var(--text-secondary)', fontSize: 12, fontFamily: 'var(--font-mono)', textAlign: 'center' }}>
                       {activeSectorScreen.replace(/-/g, ' ').toUpperCase()} — Coming Soon
                     </div>
                     <button className="btn" onClick={handleGoHome}
                       style={{ marginTop: 8, padding: '6px 16px', border: '1px solid var(--accent)', color: 'var(--accent)', borderRadius: 4, fontSize: 11 }}
-                    >← BACK TO HOME</button>
+                    >{'<'} BACK TO HOME</button>
                   </>
                 )}
               </div>

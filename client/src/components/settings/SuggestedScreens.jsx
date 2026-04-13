@@ -65,7 +65,7 @@ const ScreenItem = memo(function ScreenItem({ screen, isApplying, wasApplied, is
           transition: 'all 150ms ease-out',
         }}
       >
-        {wasApplied ? '✓ APPLIED' : isApplying ? 'LOADING…' : isCurrent ? '✓ ACTIVE' : 'APPLY →'}
+        {wasApplied ? <><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ verticalAlign: 'middle', marginRight: 2 }}><polyline points="20 6 9 17 4 12"/></svg>APPLIED</> : isApplying ? 'LOADING…' : isCurrent ? <><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ verticalAlign: 'middle', marginRight: 2 }}><polyline points="20 6 9 17 4 12"/></svg>ACTIVE</> : 'APPLY →'}
       </button>
     </div>
   );

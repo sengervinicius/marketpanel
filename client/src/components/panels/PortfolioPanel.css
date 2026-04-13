@@ -448,7 +448,7 @@
 }
 
 .pp-ai-warning-item::before {
-  content: '⚠';
+  content: '\26A0';
   position: absolute;
   left: 0;
   color: #eab308;

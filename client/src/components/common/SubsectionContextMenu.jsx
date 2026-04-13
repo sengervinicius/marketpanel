@@ -112,7 +112,7 @@ export default function SubsectionContextMenu({
                 onClick={() => onToggleSubsection?.(sub.key)}
                 title={isVisible ? 'Hide section' : 'Show section'}
               >
-                {isVisible ? '✓' : ''}
+                {isVisible ? <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg> : ''}
               </div>
 
               {/* Label or rename input */}
@@ -146,7 +146,7 @@ export default function SubsectionContextMenu({
                   title="Rename section"
                   onMouseEnter={(e) => { e.currentTarget.style.color = '#e0e0e0'; e.currentTarget.style.backgroundColor = '#222'; }}
                   onMouseLeave={(e) => { e.currentTarget.style.color = '#444'; e.currentTarget.style.backgroundColor = 'transparent'; }}
-                >✎</button>
+                ><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg></button>
               )}
             </div>
           );
@@ -175,7 +175,7 @@ export default function SubsectionContextMenu({
                 onClick={() => onToggleSubsection?.(sub.key)}
                 title={isVisible ? 'Hide section' : 'Show section'}
               >
-                {isVisible ? '✓' : ''}
+                {isVisible ? <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg> : ''}
               </div>
 
               {/* Label or rename input */}
@@ -211,7 +211,7 @@ export default function SubsectionContextMenu({
                   title="Rename section"
                   onMouseEnter={(e) => { e.currentTarget.style.color = '#e0e0e0'; e.currentTarget.style.backgroundColor = '#222'; }}
                   onMouseLeave={(e) => { e.currentTarget.style.color = '#444'; e.currentTarget.style.backgroundColor = 'transparent'; }}
-                >✎</button>
+                ><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg></button>
               )}
 
               {/* Delete button */}
@@ -229,7 +229,7 @@ export default function SubsectionContextMenu({
                 title="Delete section"
                 onMouseEnter={(e) => { e.currentTarget.style.color = '#f44336'; e.currentTarget.style.backgroundColor = '#1a0000'; }}
                 onMouseLeave={(e) => { e.currentTarget.style.color = '#555'; e.currentTarget.style.backgroundColor = 'transparent'; }}
-              >×</button>
+              ><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
             </div>
           );
         })}
@@ -257,12 +257,12 @@ export default function SubsectionContextMenu({
               title="Confirm"
               onMouseEnter={(e) => { e.currentTarget.style.color = '#81c784'; }}
               onMouseLeave={(e) => { e.currentTarget.style.color = '#4caf50'; }}
-            >✓</button>
+            ><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg></button>
             <button className="scm-icon-btn"
               style={{ color: '#555', fontSize: 12 }}
               onClick={() => { setAddMode(false); setNewName(''); }}
               title="Cancel"
-            >×</button>
+            ><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
           </div>
         ) : (
           <div
@@ -285,7 +285,8 @@ export default function SubsectionContextMenu({
               onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#1a1a1a'; }}
               onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
             >
-              <span>✎ MANAGE TICKERS</span>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{display:'inline-block',marginRight:'6px',verticalAlign:'middle'}}><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+              <span>MANAGE TICKERS</span>
             </div>
           </>
         )}

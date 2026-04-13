@@ -155,7 +155,7 @@ function WatchlistPanelMobile({ onManage }) {
       {/* List or Empty State */}
       {watchlist.length === 0 ? (
         <div className="m-empty">
-          <div className="m-empty-icon">★</div>
+          <div className="m-empty-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div>
           <div className="m-empty-text">
             Your watchlist is empty.
             <br />
@@ -217,7 +217,7 @@ function WatchlistPanelMobile({ onManage }) {
                     }}
                     title="Remove"
                   >
-                    ✕
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                   </button>
                 </div>
               );
@@ -261,7 +261,7 @@ function WatchlistPanelMobile({ onManage }) {
                   setWhySummary(null);
                   setWhyError(null);
                 }}
-              >✕</button>
+              ><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
             </div>
             <div className="wp-why-sheet-content">
               {whyLoading && (
