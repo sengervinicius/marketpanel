@@ -93,11 +93,10 @@ let ALLOWED_ORIGINS;
 if (process.env.NODE_ENV === 'production') {
   if (!process.env.CLIENT_URL) {
     console.error('[FATAL] PRODUCTION MODE: CLIENT_URL is required but not set.');
-    console.error('[FATAL] Set CLIENT_URL in Render environment to https://app.sengermarket.com');
+    console.error('[FATAL] Set CLIENT_URL in Render environment to https://the-particle.com');
     console.error('[FATAL] Falling back to hardcoded known origins — set CLIENT_URL ASAP.');
     // Never use wildcard '*' — hardcode known production origins as safety net
     ALLOWED_ORIGINS = [
-      'https://app.sengermarket.com',
       'https://the-particle.com',
       'https://senger-client.onrender.com',
     ];
@@ -105,9 +104,8 @@ if (process.env.NODE_ENV === 'production') {
     // Allow both the custom domain and the original Render URL during transition
     ALLOWED_ORIGINS = [
       process.env.CLIENT_URL,
-      'https://senger-client.onrender.com',
-      'https://app.sengermarket.com',
       'https://the-particle.com',
+      'https://senger-client.onrender.com',
     ].filter((v, i, a) => a.indexOf(v) === i); // deduplicate
     console.log('[INFO] PRODUCTION MODE: CORS restricted to', ALLOWED_ORIGINS);
   }
@@ -136,7 +134,7 @@ app.use(helmet({
       styleSrc: ["'self'", "'unsafe-inline'"],
       fontSrc: ["'self'"],
       imgSrc: ["'self'", "data:", "blob:", "https:"],
-      connectSrc: ["'self'", "https://senger-server.onrender.com", "wss://senger-server.onrender.com", "https://app.sengermarket.com", "https://the-particle.com", "https://api.stripe.com", "https://appleid.cdn-apple.com"],
+      connectSrc: ["'self'", "https://senger-server.onrender.com", "wss://senger-server.onrender.com", "https://the-particle.com", "https://api.stripe.com", "https://appleid.cdn-apple.com"],
       frameSrc: ["'self'", "https://js.stripe.com", "https://appleid.apple.com"],
       objectSrc: ["'none'"],
       upgradeInsecureRequests: [],
@@ -374,8 +372,8 @@ wss.on('connection', (ws, req) => {
   // ── Origin validation ──────────────────────────────────────────────
   const origin = req.headers.origin || '';
   const allowedOrigins = process.env.NODE_ENV === 'production'
-    ? [process.env.CLIENT_URL, 'https://senger-client.onrender.com', 'https://app.sengermarket.com', 'https://the-particle.com'].filter(Boolean)
-    : ['https://senger-client.onrender.com', 'https://app.sengermarket.com', 'https://the-particle.com', 'http://localhost:5173', 'http://localhost:3000'];
+    ? [process.env.CLIENT_URL, 'https://the-particle.com', 'https://senger-client.onrender.com'].filter(Boolean)
+    : ['https://the-particle.com', 'https://senger-client.onrender.com', 'http://localhost:5173', 'http://localhost:3000'];
   if (origin && !allowedOrigins.includes(origin)) {
     console.warn(`[WS] Rejected connection from disallowed origin: ${origin}`);
     ws.close(1008, 'Origin not allowed');

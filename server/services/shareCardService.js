@@ -88,7 +88,7 @@ function brandHeader(y = 40) {
 function cardFooter(subtitle = '') {
   return `
     <line x1="48" y1="${H - 60}" x2="${W - 48}" y2="${H - 60}" stroke="${C.border}" stroke-width="1"/>
-    <text x="48" y="${H - 32}" fill="${C.faint}" font-family="${C.fontUI}" font-size="11" letter-spacing="1">senger.market</text>
+    <text x="48" y="${H - 32}" fill="${C.faint}" font-family="${C.fontUI}" font-size="11" letter-spacing="1">the-particle.com</text>
     ${subtitle ? `<text x="${W - 48}" y="${H - 32}" fill="${C.faint}" font-family="${C.fontUI}" font-size="11" text-anchor="end">${esc(subtitle)}</text>` : ''}
   `;
 }
@@ -238,7 +238,7 @@ function weeklyCardSVG(data) {
     ${level != null ? statBlock(750, 175, 'LEVEL', String(level), C.muted, 28) : ''}
     ${xp != null ? statBlock(750, 260, 'XP', String(xp), C.faint, 22) : ''}
 
-    ${cardFooter('senger.market')}
+    ${cardFooter('the-particle.com')}
   </svg>`;
 }
 

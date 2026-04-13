@@ -44,7 +44,7 @@ function initEmail() {
 
 function isConfigured() { return transporter !== null; }
 
-const FROM_ADDR = () => process.env.EMAIL_FROM || 'alerts@senger.market';
+const FROM_ADDR = () => process.env.EMAIL_FROM || 'alerts@the-particle.com';
 const APP_URL = () => process.env.CLIENT_URL || 'https://senger-client.onrender.com';
 
 /**

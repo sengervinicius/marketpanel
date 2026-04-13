@@ -16,7 +16,7 @@
     "backgroundColor": "#0a0a0f"
   },
   "server": {
-    "hostname": "app.sengermarket.com",
+    "hostname": "the-particle.com",
     "androidScheme": "https",
     "iosScheme": "https"
   },

@@ -64,7 +64,7 @@ router.post('/register', authLimiter, async (req, res) => {
           'INSERT INTO email_verifications (token, user_id, email, expires_at, verified, created_at) VALUES ($1, $2, $3, $4, FALSE, $5)',
           [verifyToken, user.id, email, expiresAt, Date.now()]
         );
-        const verifyUrl = `${process.env.CLIENT_URL || 'https://app.sengermarket.com'}/#/verify-email/${verifyToken}`;
+        const verifyUrl = `${process.env.CLIENT_URL || 'https://the-particle.com'}/#/verify-email/${verifyToken}`;
         const { sendEmail } = require('../services/emailService');
         await sendEmail({
           to: email,
@@ -146,7 +146,7 @@ router.post('/reset', authLimiter, async (req, res) => {
       [token, user.id, expiresAt, Date.now()]
     );
 
-    const resetUrl = `${process.env.CLIENT_URL || 'https://app.sengermarket.com'}/#/reset-password/${token}`;
+    const resetUrl = `${process.env.CLIENT_URL || 'https://the-particle.com'}/#/reset-password/${token}`;
 
     // Send email (best-effort)
     try {
@@ -378,7 +378,7 @@ router.post('/resend-verification', requireAuth, async (req, res) => {
       [verifyToken, user.id, user.email, expiresAt, Date.now()]
     );
 
-    const verifyUrl = `${process.env.CLIENT_URL || 'https://app.sengermarket.com'}/#/verify-email/${verifyToken}`;
+    const verifyUrl = `${process.env.CLIENT_URL || 'https://the-particle.com'}/#/verify-email/${verifyToken}`;
     const { sendEmail } = require('../services/emailService');
     await sendEmail({
       to: user.email,

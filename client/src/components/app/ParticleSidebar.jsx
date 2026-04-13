@@ -4,7 +4,6 @@
  * Shows on the right side of the terminal layout:
  * - Search bar (submits to Particle AI)
  * - Recent conversation messages
- * - Wire feed (latest entries)
  * - Collapse/expand toggle
  */
 import { useState, useCallback, useRef, useEffect } from 'react';
