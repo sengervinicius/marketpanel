@@ -15,9 +15,10 @@ const pg = require('../db/postgres');
 const logger = require('../utils/logger');
 
 // ── Constants ──
-const CHUNK_SIZE = 500; // tokens per chunk (approximate via char count)
-const CHUNK_OVERLAP = 50; // overlap between chunks
-const MAX_RETRIEVAL = 5; // top passages to inject
+const CHUNK_SIZE = 1000; // chars per chunk — larger for financial context retention
+const CHUNK_OVERLAP = 150; // overlap between chunks — preserves cross-boundary context
+const MAX_RETRIEVAL = 8; // top candidates before similarity filtering
+const MIN_SIMILARITY = 0.65; // discard passages below this threshold — irrelevant noise is worse than nothing
 const EMBEDDING_MODEL = 'text-embedding-3-small';
 const EMBEDDING_DIM = 1536;
 
@@ -85,6 +86,8 @@ async function ensureTable() {
     // vault_chunks columns that may be missing
     await alterSafe(`ALTER TABLE vault_chunks ADD COLUMN IF NOT EXISTS user_id INTEGER NOT NULL DEFAULT 0`);
     await alterSafe(`ALTER TABLE vault_chunks ADD COLUMN IF NOT EXISTS metadata JSONB DEFAULT '{}'`);
+    // BM25 full-text search column (generated, auto-maintained by Postgres)
+    await alterSafe(`ALTER TABLE vault_chunks ADD COLUMN IF NOT EXISTS search_vector tsvector GENERATED ALWAYS AS (to_tsvector('english', content)) STORED`);
 
     // Create index on user_id for faster queries
     await pg.query(`
@@ -147,6 +150,14 @@ async function ensureTable() {
       }
     }
 
+    // GIN index for BM25 full-text search
+    try {
+      await pg.query(`CREATE INDEX IF NOT EXISTS idx_vault_chunks_fts ON vault_chunks USING gin(search_vector)`);
+      logger.info('vault', 'GIN full-text search index created');
+    } catch (e) {
+      logger.warn('vault', 'Could not create GIN FTS index', { error: e.message });
+    }
+
     logger.info('vault', 'Tables ensured successfully');
   } catch (err) {
     logger.error('vault', 'Table creation error', { error: err.message });
@@ -163,23 +174,44 @@ function chunkText(text, chunkSize = CHUNK_SIZE, overlap = CHUNK_OVERLAP) {
     return [];
   }
 
-  // Split by sentence (rough heuristic)
-  const sentences = text
-    .split(/(?<=[.!?])\s+/)
-    .filter(s => s.trim().length > 0);
+  // Step 1: Split by paragraph boundaries first (double newlines, section headers)
+  const paragraphs = text
+    .split(/\n{2,}|\r\n{2,}/)
+    .map(p => p.trim())
+    .filter(p => p.length > 0);
 
   const chunks = [];
   let currentChunk = '';
 
-  for (let i = 0; i < sentences.length; i++) {
-    const sentence = sentences[i];
-    if ((currentChunk + sentence).length > chunkSize && currentChunk.length > 0) {
+  for (const para of paragraphs) {
+    // If a single paragraph exceeds chunkSize, split it by sentences
+    if (para.length > chunkSize) {
+      // Flush current chunk first
+      if (currentChunk.trim().length > 0) {
+        chunks.push(currentChunk.trim());
+        currentChunk = '';
+      }
+      // Split oversized paragraph by sentences
+      const sentences = para
+        .split(/(?<=[.!?])\s+/)
+        .filter(s => s.trim().length > 0);
+      for (const sentence of sentences) {
+        if ((currentChunk + ' ' + sentence).length > chunkSize && currentChunk.length > 0) {
+          chunks.push(currentChunk.trim());
+          const overlapText = currentChunk.slice(-Math.min(overlap, currentChunk.length));
+          currentChunk = overlapText + ' ' + sentence;
+        } else {
+          currentChunk += (currentChunk ? ' ' : '') + sentence;
+        }
+      }
+    } else if ((currentChunk + '\n\n' + para).length > chunkSize && currentChunk.length > 0) {
+      // Paragraph would push chunk over limit — start a new chunk
       chunks.push(currentChunk.trim());
-      // Add overlap: take last ~overlap chars and prepend to next chunk
       const overlapText = currentChunk.slice(-Math.min(overlap, currentChunk.length));
-      currentChunk = overlapText + ' ' + sentence;
+      currentChunk = overlapText + ' ' + para;
     } else {
-      currentChunk += (currentChunk ? ' ' : '') + sentence;
+      // Add paragraph to current chunk
+      currentChunk += (currentChunk ? '\n\n' : '') + para;
     }
   }
 
@@ -406,57 +438,108 @@ async function ingestPDF(userId, buffer, filename, { isGlobal = false } = {}) {
  * Merges results by similarity score so the best passages surface regardless of source.
  * Falls back to keyword search if embeddings unavailable.
  */
+/**
+ * Reciprocal Rank Fusion — merges ranked lists from different retrieval methods.
+ * RRF score = sum(1 / (k + rank_i)) across methods. k=60 is standard.
+ */
+function reciprocalRankFusion(rankedLists, k = 60) {
+  const scores = new Map(); // chunk_id → { score, row }
+  for (const list of rankedLists) {
+    for (let rank = 0; rank < list.length; rank++) {
+      const row = list[rank];
+      const id = row.id || `${row.document_id}-${row.chunk_index}`;
+      const existing = scores.get(id) || { score: 0, row };
+      existing.score += 1 / (k + rank + 1);
+      scores.set(id, existing);
+    }
+  }
+  return [...scores.values()]
+    .sort((a, b) => b.score - a.score)
+    .map(x => ({ ...x.row, _rrf_score: x.score }));
+}
+
 async function retrieve(userId, query, limit = MAX_RETRIEVAL) {
   if (!pg.isConnected()) {
     return [];
   }
 
+  const rankedLists = [];
+  const CANDIDATE_LIMIT = 30; // pull more candidates for RRF merging
+
+  // ── Stage 1A: Vector (semantic) search ──
   try {
-    // Try semantic search first — search both private (user_id match) and global (is_global = true)
     const embeddings = await embed([query]);
     if (embeddings[0]) {
-      const result = await pg.query(
-        `SELECT vc.content, vc.metadata, vd.filename, vd.source, vd.is_global,
-                vd.metadata as doc_metadata,
+      const vecResult = await pg.query(
+        `SELECT vc.id, vc.document_id, vc.chunk_index, vc.content, vc.metadata,
+                vd.filename, vd.source, vd.is_global, vd.metadata as doc_metadata,
                 1 - (vc.embedding <=> $1::vector) AS similarity
          FROM vault_chunks vc
          JOIN vault_documents vd ON vc.document_id = vd.id
          WHERE (vc.user_id = $2 OR vd.is_global = TRUE) AND vc.embedding IS NOT NULL
          ORDER BY vc.embedding <=> $1::vector
          LIMIT $3`,
-        [`[${embeddings[0].join(',')}]`, userId, limit]
+        [`[${embeddings[0].join(',')}]`, userId, CANDIDATE_LIMIT]
       );
-
-      return result.rows || [];
+      // Pre-filter by similarity threshold
+      const vecRows = (vecResult.rows || []).filter(r =>
+        r.similarity != null && parseFloat(r.similarity) >= MIN_SIMILARITY
+      );
+      if (vecRows.length > 0) rankedLists.push(vecRows);
+      logger.info('vault', `Vector search: ${vecResult.rows?.length || 0} candidates, ${vecRows.length} above threshold`);
     }
   } catch (err) {
-    logger.warn('vault', 'Semantic search failed, trying keyword fallback', {
-      error: err.message,
-    });
+    logger.warn('vault', 'Vector search failed', { error: err.message });
   }
 
-  // Fallback: simple keyword search (case-insensitive)
+  // ── Stage 1B: BM25 (keyword) search via tsvector ──
   try {
-    const searchTerms = query.toLowerCase().split(/\s+/).slice(0, 5);
+    // Build tsquery from user query — handle tickers ($AAPL → AAPL) and multi-word
+    const cleanQuery = query
+      .replace(/\$/g, '')       // strip $ prefix from tickers
+      .replace(/[^\w\s]/g, ' ') // strip special chars
+      .trim()
+      .split(/\s+/)
+      .filter(w => w.length >= 2)
+      .join(' & ');             // AND all terms
 
-    const result = await pg.query(
-      `SELECT vc.content, vc.metadata, vd.filename, vd.source, vd.is_global,
-              vd.metadata as doc_metadata
-       FROM vault_chunks vc
-       JOIN vault_documents vd ON vc.document_id = vd.id
-       WHERE (vc.user_id = $1 OR vd.is_global = TRUE) AND (
-         LOWER(vc.content) LIKE ANY ($2::text[])
-         OR LOWER(vd.filename) LIKE ANY ($2::text[])
-       )
-       LIMIT $3`,
-      [userId, searchTerms.map(t => `%${t}%`), limit]
-    );
-
-    return result.rows || [];
+    if (cleanQuery) {
+      const bm25Result = await pg.query(
+        `SELECT vc.id, vc.document_id, vc.chunk_index, vc.content, vc.metadata,
+                vd.filename, vd.source, vd.is_global, vd.metadata as doc_metadata,
+                ts_rank_cd(vc.search_vector, to_tsquery('english', $1)) AS bm25_rank
+         FROM vault_chunks vc
+         JOIN vault_documents vd ON vc.document_id = vd.id
+         WHERE (vc.user_id = $2 OR vd.is_global = TRUE)
+           AND vc.search_vector @@ to_tsquery('english', $1)
+         ORDER BY bm25_rank DESC
+         LIMIT $3`,
+        [cleanQuery, userId, CANDIDATE_LIMIT]
+      );
+      const bm25Rows = bm25Result.rows || [];
+      if (bm25Rows.length > 0) rankedLists.push(bm25Rows);
+      logger.info('vault', `BM25 search: ${bm25Rows.length} matches for "${cleanQuery}"`);
+    }
   } catch (err) {
-    logger.error('vault', 'Keyword search failed', { error: err.message });
+    // BM25 may fail if search_vector column doesn't exist yet — graceful degradation
+    logger.warn('vault', 'BM25 search failed (column may not exist yet)', { error: err.message });
+  }
+
+  // ── Stage 2: Reciprocal Rank Fusion ──
+  if (rankedLists.length === 0) {
+    logger.info('vault', 'No retrieval results from any method');
     return [];
   }
+
+  if (rankedLists.length === 1) {
+    // Single method — just return its results directly
+    return rankedLists[0].slice(0, limit);
+  }
+
+  // Merge with RRF and return top results
+  const fused = reciprocalRankFusion(rankedLists);
+  logger.info('vault', `Hybrid RRF: ${fused.length} unique passages from ${rankedLists.length} methods`);
+  return fused.slice(0, limit);
 }
 
 /**

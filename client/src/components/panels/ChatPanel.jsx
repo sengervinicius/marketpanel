@@ -19,6 +19,7 @@ import { apiFetch } from '../../utils/api';
 import { WS_URL } from '../../utils/constants';
 import UserAvatar from '../common/UserAvatar';
 import ParticleLogo from '../ui/ParticleLogo';
+import ParticleMarkdown from '../common/ParticleMarkdown';
 import './Chat.css';
 
 function timeAgo(ts) {
@@ -510,7 +511,7 @@ function ChatPanel({ mobile, initialUserId }) {
           {aiMessages.map(m => (
             <div key={m.id} className={`chat-msg-wrap chat-msg-wrap--${m.role === 'user' ? 'mine' : 'theirs'}`}>
               <div className={`chat-bubble${m.role === 'user' ? ' chat-bubble--mine' : ' chat-bubble--ai'}`}>
-                {m.content}
+                {m.role === 'assistant' ? <ParticleMarkdown content={m.content} /> : m.content}
               </div>
             </div>
           ))}
