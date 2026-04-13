@@ -417,6 +417,42 @@
   color: var(--color-particle, #F97316);
   font-weight: 600;
 }
+.particle-md-heading {
+  font-family: var(--font-body, inherit);
+  font-weight: 600;
+  color: var(--color-text-primary, #fff);
+  margin: 12px 0 6px;
+  font-size: var(--text-sm, 13px);
+  letter-spacing: 0.01em;
+}
+.particle-md-heading:first-child {
+  margin-top: 0;
+}
+.particle-md-list {
+  margin: 4px 0 8px;
+  padding-left: 18px;
+}
+.particle-md-list li {
+  margin-bottom: 4px;
+  line-height: 1.5;
+}
+.particle-md-list li::marker {
+  color: var(--color-text-muted, #555);
+}
+.particle-md-code {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.9em;
+  color: var(--color-particle, #F97316);
+  background: var(--color-surface-2, #141414);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+.particle-md-ticker {
+  color: var(--color-particle, #F97316);
+  font-weight: 600;
+  cursor: pointer;
+  border-bottom: 1px dotted var(--color-particle-dim, rgba(249,115,22,0.10));
+}
 
 /* Conversation input bar (bottom) */
 .particle-conv-input {

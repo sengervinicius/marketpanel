@@ -211,18 +211,52 @@ export default function ParticleScreen() {
   );
 }
 
-// ── Simple markdown renderer (bold, tickers, paragraphs) ─────────────────────
+// ── Markdown renderer v2 (headers, bold, bullets, tickers, code) ────────────
 function ParticleMarkdown({ text }) {
   if (!text) return null;
 
-  // Split into paragraphs, render bold markers
-  const paragraphs = text.split(/\n{2,}/).filter(Boolean);
+  // Split into blocks by double newlines, preserving structure
+  const blocks = text.split(/\n{2,}/).filter(Boolean);
 
   return (
     <div className="particle-md">
-      {paragraphs.map((p, i) => {
-        // Handle single newlines as line breaks within paragraphs
-        const lines = p.split('\n');
+      {blocks.map((block, i) => {
+        const trimmed = block.trim();
+
+        // Heading: ### or ## or # (only at block start)
+        const headingMatch = trimmed.match(/^(#{1,3})\s+(.+)$/m);
+        if (headingMatch) {
+          const level = headingMatch[1].length;
+          const Tag = `h${level + 2}`; // h3, h4, h5
+          return <Tag key={i} className="particle-md-heading">{renderInline(headingMatch[2])}</Tag>;
+        }
+
+        // Bullet list: lines starting with - or *
+        const lines = trimmed.split('\n');
+        const isList = lines.every(l => /^\s*[-*]\s/.test(l) || !l.trim());
+        if (isList && lines.filter(l => l.trim()).length > 0) {
+          return (
+            <ul key={i} className="particle-md-list">
+              {lines.filter(l => l.trim()).map((line, j) => (
+                <li key={j}>{renderInline(line.replace(/^\s*[-*]\s+/, ''))}</li>
+              ))}
+            </ul>
+          );
+        }
+
+        // Numbered list: lines starting with 1. 2. etc
+        const isNumbered = lines.every(l => /^\s*\d+[.)]\s/.test(l) || !l.trim());
+        if (isNumbered && lines.filter(l => l.trim()).length > 0) {
+          return (
+            <ol key={i} className="particle-md-list">
+              {lines.filter(l => l.trim()).map((line, j) => (
+                <li key={j}>{renderInline(line.replace(/^\s*\d+[.)]\s+/, ''))}</li>
+              ))}
+            </ol>
+          );
+        }
+
+        // Regular paragraph (with single newlines as line breaks)
         return (
           <p key={i}>
             {lines.map((line, j) => (
@@ -239,11 +273,20 @@ function ParticleMarkdown({ text }) {
 }
 
 function renderInline(text) {
-  // Replace **bold** with <strong>
-  const parts = text.split(/(\*\*[^*]+\*\*)/g);
+  // Split on: **bold**, `code`, $TICKER patterns
+  const parts = text.split(/(\*\*[^*]+\*\*|`[^`]+`|\$[A-Z]{1,5}(?:\.[A-Z]{1,2})?)/g);
   return parts.map((part, i) => {
+    // Bold: **text**
     if (part.startsWith('**') && part.endsWith('**')) {
       return <strong key={i} className="particle-md-bold">{part.slice(2, -2)}</strong>;
+    }
+    // Code/numbers: `text`
+    if (part.startsWith('`') && part.endsWith('`')) {
+      return <code key={i} className="particle-md-code">{part.slice(1, -1)}</code>;
+    }
+    // Ticker link: $AAPL (rendered as a styled tag)
+    if (/^\$[A-Z]{1,5}(\.[A-Z]{1,2})?$/.test(part)) {
+      return <span key={i} className="particle-md-ticker">{part}</span>;
     }
     return part;
   });

@@ -66,6 +66,7 @@ const { initPortfolioDB } = require('./portfolioStore');
 const { initAlertDB } = require('./alertStore');
 const { initGameDB } = require('./gameStore');
 require('./jobs/markToMarket'); // batch mark-to-market (self-scheduling)
+const { init: initMarketContext } = require('./services/marketContextBuilder');
 
 const app = express();
 
@@ -503,6 +504,10 @@ connectTwelveData(marketState, broadcast); // S5.7: International equity streami
 
 // Late-bind marketState + computeFeedHealth into the feed router
 initFeedRouter(marketState, computeFeedHealth);
+
+// Late-bind marketState + user stores into the AI context builder
+const { getPortfolio } = require('./portfolioStore');
+initMarketContext({ marketState, getUserById, getPortfolio });
 
 // Boot sequence: Postgres → Redis → MongoDB → seed → jobs → HTTP server
 async function boot() {

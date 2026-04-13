@@ -1321,11 +1321,38 @@ Rules:
 });
 
 /**
- * POST /chat — AI-powered multi-turn financial chat
+ * POST /chat — Particle AI: contextual, streaming financial intelligence
  *
  * Body: { messages: [{ role: 'user'|'assistant', content: string }], context?: string }
  * Returns SSE stream: data: { chunk: string } ... data: [DONE]
+ *
+ * Wave 6: Now injects live market data, user context, and temporal awareness
+ * via MarketContextBuilder. Query intent classification determines which
+ * context layers to include.
  */
+
+const { buildContext } = require('../services/marketContextBuilder');
+
+// ── Chat response cache (first-turn only, 5 min TTL) ──────────────────────
+const _chatCache = new Map();
+const CHAT_CACHE_TTL = 5 * 60 * 1000;
+const CHAT_CACHE_MAX = 200;
+
+function chatCacheGet(key) {
+  const e = _chatCache.get(key);
+  if (!e) return null;
+  if (Date.now() > e.exp) { _chatCache.delete(key); return null; }
+  return e.value;
+}
+
+function chatCacheSet(key, value) {
+  if (_chatCache.size > CHAT_CACHE_MAX) {
+    // Evict oldest entry
+    const firstKey = _chatCache.keys().next().value;
+    _chatCache.delete(firstKey);
+  }
+  _chatCache.set(key, { value, exp: Date.now() + CHAT_CACHE_TTL });
+}
 
 router.post('/chat', async (req, res) => {
   const apiKey = process.env.PERPLEXITY_API_KEY;
@@ -1343,16 +1370,65 @@ router.post('/chat', async (req, res) => {
     return res.status(400).json({ error: 'Last message must be a user message with content' });
   }
 
-  const systemPrompt = `You are an AI financial assistant embedded in the Senger Market Terminal — a Bloomberg-style market terminal. You help traders and investors with market analysis, portfolio questions, technical analysis, macro economics, and trading ideas.
+  // ── Wave 6: Build rich market context ──────────────────────────────────
+  const userId = req.user?.id || null;
+  const userQuery = lastMsg.content.trim();
+  let marketContext = '';
+  let queryIntent = 'general';
+
+  try {
+    const ctx = buildContext({ query: userQuery, userId });
+    marketContext = ctx.contextString;
+    queryIntent = ctx.intent;
+  } catch (err) {
+    // Graceful degradation: proceed without context
+    console.error('[Particle/Chat] Context builder error:', err.message);
+  }
+
+  const systemPrompt = `You are Particle, an AI market intelligence assistant built into a professional-grade financial terminal. You help investors and traders understand markets with clarity, speed, and depth.
+
+Your voice: concise, sharp, data-driven. You sound like a senior analyst who respects the reader's time. Never generic, never padded, never obvious. Every sentence should earn its place.
 
 Rules:
-- Be concise and data-driven. Use specific numbers when possible.
-- Format key metrics and tickers in bold (**AAPL**, **$150.25**).
-- Keep responses under 300 words unless the question requires more detail.
-- Do NOT give specific investment advice or recommendations to buy/sell.
-- You can reference common financial concepts, indicators, and market dynamics.
-- Be professional but conversational.
-${context ? `\nAdditional context: ${context}` : ''}`;
+- Lead with the most important insight, not background context.
+- Use specific numbers from the live data provided below. Reference tickers in bold: **AAPL**, **$187.23**, **+2.1%**.
+- Keep responses under 250 words unless the question demands more depth.
+- When referencing market moves, include magnitude and context (is it unusual? sector-wide? news-driven?).
+- Structure longer responses with bold section headers but no more than 3 sections.
+- If the user has a watchlist or portfolio, relate your answer to their holdings when relevant.
+- Never start with "Based on the data" or "According to" — just state what matters.
+- Financial disclaimers go at the very end in a brief parenthetical, never at the top.
+- If you reference prediction market probabilities, cite the source naturally: "Kalshi implies 73% odds of a June cut" not "According to prediction market data."
+
+${marketContext ? `\n--- LIVE MARKET DATA ---\n${marketContext}\n--- END MARKET DATA ---\n` : ''}${context ? `\nAdditional context: ${context}` : ''}`;
+
+  // ── Cache check (first-turn non-personal queries only) ─────────────────
+  const isFirstTurn = history.length === 1;
+  const isCacheable = isFirstTurn && !['portfolio'].includes(queryIntent);
+  const cacheKey = isCacheable ? `chat:${queryIntent}:${userQuery.toLowerCase().trim()}` : null;
+
+  if (cacheKey) {
+    const cached = chatCacheGet(cacheKey);
+    if (cached) {
+      res.writeHead(200, {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        Connection: 'keep-alive',
+        'X-Accel-Buffering': 'no',
+      });
+      // Replay cached response in chunks to maintain SSE contract
+      const chunkSize = 20;
+      for (let idx = 0; idx < cached.length; idx += chunkSize) {
+        res.write(`data: ${JSON.stringify({ chunk: cached.slice(idx, idx + chunkSize) })}\n\n`);
+      }
+      res.write('data: [DONE]\n\n');
+      res.end();
+      return;
+    }
+  }
+
+  // Collect response for caching
+  let fullResponse = '';
 
   // Set up SSE
   res.writeHead(200, {
@@ -1363,7 +1439,7 @@ ${context ? `\nAdditional context: ${context}` : ''}`;
   });
 
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 30000);
+  const timer = setTimeout(() => ctrl.abort(), 45000); // 45s for richer context
 
   try {
     const response = await fetch(PERPLEXITY_URL, {
@@ -1376,7 +1452,7 @@ ${context ? `\nAdditional context: ${context}` : ''}`;
           { role: 'system', content: systemPrompt },
           ...history.map(m => ({ role: m.role, content: m.content })),
         ],
-        max_tokens: 600,
+        max_tokens: 1024,
         temperature: 0.3,
         stream: true,
       }),
@@ -1412,6 +1488,7 @@ ${context ? `\nAdditional context: ${context}` : ''}`;
           const parsed = JSON.parse(payload);
           const content = parsed.choices?.[0]?.delta?.content;
           if (content) {
+            fullResponse += content;
             res.write(`data: ${JSON.stringify({ chunk: content })}\n\n`);
           }
         } catch {}
@@ -1426,9 +1503,16 @@ ${context ? `\nAdditional context: ${context}` : ''}`;
           try {
             const parsed = JSON.parse(trimmed.slice(6));
             const content = parsed.choices?.[0]?.delta?.content;
-            if (content) res.write(`data: ${JSON.stringify({ chunk: content })}\n\n`);
+            if (content) {
+              fullResponse += content;
+              res.write(`data: ${JSON.stringify({ chunk: content })}\n\n`);
+            }
           } catch {}
         }
+      }
+      // Write to cache if applicable
+      if (cacheKey && fullResponse) {
+        chatCacheSet(cacheKey, fullResponse);
       }
       res.write('data: [DONE]\n\n');
       res.end();
