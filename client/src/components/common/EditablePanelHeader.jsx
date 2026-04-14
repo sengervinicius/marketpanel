@@ -108,7 +108,15 @@ export default function EditablePanelHeader({
             )}
           </span>
         ))}
-        {onConfigOpen && (<button className="eph-icon-btn" onClick={onConfigOpen} title="Configure panel"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg></button>)}
+        {onConfigOpen && (<button className="eph-icon-btn" onClick={(e) => {
+          // If subsections are available, open the subsection menu; otherwise open config modal
+          if ((availableSubsections && availableSubsections.length > 0) || customSubsections.length > 0 || onAddSubsection) {
+            const rect = e.currentTarget.getBoundingClientRect();
+            setContextMenu({ x: rect.left, y: rect.bottom + 4 });
+          } else {
+            onConfigOpen();
+          }
+        }} title="Configure panel sections"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg></button>)}
         {feedBadge && (<span className="eph-badge" style={{ background: feedBadge.bg, color: feedBadge.color, border: `1px solid ${feedBadge.color}33` }}>{feedBadge.text}</span>)}
         {lastUpdated && (
           <span className="eph-timestamp" title={new Date(lastUpdated).toLocaleString()}>

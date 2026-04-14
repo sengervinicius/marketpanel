@@ -935,7 +935,7 @@ export default function App() {
                       desktopRows: [
                         ['charts',       'usEquities',    'globalIndices'],
                         ['forex',        'commodities',   'crypto',  'brazilB3'],
-                        ['debt',         'news',          'watchlist'],
+                        ['debt',         'news',          'optionsFlow',  'watchlist'],
                       ],
                     });
                     // Reset column sizes

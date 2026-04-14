@@ -1717,7 +1717,12 @@ textarea:focus-visible { outline: 1px solid var(--accent); outline-offset: 0; bo
   gap: 10px;
   position: relative;
   z-index: 50;
+  overflow: visible;
 }
+/* Ensure clocks & market status shrink so the user dropdown stays visible */
+.app-header-bar > div { flex-shrink: 1; min-width: 0; overflow: hidden; }
+/* But keep the right-side controls (DM, LAYOUT, UserDropdown) always visible */
+.app-header-bar > div:last-child { flex-shrink: 0; overflow: visible; }
 
 /* Search command strip — full-width row below header */
 .app-search-strip {
@@ -1824,6 +1829,16 @@ textarea:focus-visible { outline: 1px solid var(--accent); outline-offset: 0; bo
 /* Grid layout utility */
 .display-contents {
   display: contents;
+}
+/* Fallback for browsers that don't support display:contents (e.g. Comet) —
+   flex column so the resize handle + row render vertically as intended */
+@supports not (display: contents) {
+  .display-contents {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+  }
 }
 
 /* Button group with wrap */

@@ -73,7 +73,7 @@ function defaultSettings() {
     panels: {
       usEquities:   { title: 'US Equities',    symbols: ['AAPL','MSFT','NVDA','GOOGL','AMZN','META','TSLA','JPM','XOM','BRKB','GS','WMT','LLY'] },
       globalIndices:{ title: 'Global Indexes',  symbols: ['SPY','QQQ','DIA','EWZ','EEM','VGK','EWJ','FXI'] },
-      forex:        { title: 'FX Markets',      symbols: ['EURUSD','GBPUSD','USDJPY','USDBRL','USDCHF','USDCNY','USDMXN','AUDUSD','USDCAD'] },
+      forex:        { title: 'FX / Rates',      symbols: ['EURUSD','GBPUSD','USDJPY','USDBRL','USDCHF','USDCNY','USDMXN','AUDUSD','USDCAD'], hiddenSubsections: ['crypto'] },
       crypto:       { title: 'Crypto',          symbols: ['BTCUSD','ETHUSD','SOLUSD','XRPUSD','BNBUSD','DOGEUSD'] },
       commodities:  { title: 'Commodities',     symbols: ['BZ=F','GLD','SLV','USO','UNG','CORN','WEAT','SOYB','CPER','BHP'] },
       brazilB3:     { title: 'Brazil B3',       symbols: ['VALE3.SA','PETR4.SA','ITUB4.SA','BBDC4.SA','ABEV3.SA','WEGE3.SA','RENT3.SA','B3SA3.SA','MGLU3.SA','BBAS3.SA','GGBR4.SA','SUZB3.SA'] },
@@ -83,7 +83,7 @@ function defaultSettings() {
       desktopRows: [
         ['charts',       'usEquities',    'globalIndices'],
         ['forex',        'commodities',   'crypto',  'brazilB3'],
-        ['debt',         'news',          'watchlist'],
+        ['debt',         'news',          'optionsFlow',  'watchlist'],
       ],
       mobileTabs: ['home', 'charts', 'watchlist', 'search', 'news'],
     },
