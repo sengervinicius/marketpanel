@@ -106,7 +106,13 @@ export default function LoginScreen({ children }) {
         await register(username, password, email);
       }
     } catch (err) {
-      triggerShake(err.message || (mode === 'login' ? 'Login failed' : 'Registration failed'));
+      const msg = err.message || (mode === 'login' ? 'Login failed' : 'Registration failed');
+      // Improve user-facing message when server is unreachable (e.g. Render cold start)
+      const isNetworkError = msg.includes('Load failed') || msg.includes('Failed to fetch') || msg.includes('NetworkError') || msg.includes('timed out');
+      triggerShake(isNetworkError
+        ? 'Server is waking up, please try again in a few seconds.'
+        : msg
+      );
     } finally {
       setLoading(false);
     }

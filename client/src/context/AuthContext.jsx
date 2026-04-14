@@ -2,6 +2,11 @@
  * AuthContext.jsx
  * Manages user authentication state. Provides login/register/logout + subscription info.
  *
+ * DUAL AUTH STRATEGY:
+ * - Sets httpOnly cookies via `credentials: 'include'` (works when cookies aren't blocked)
+ * - Stores token in memory and sends via Authorization header (works on mobile Safari/ITP)
+ * - Both are sent on every request; server accepts whichever arrives first
+ *
  * Session persistence: On mount, reads the stored token and calls /api/auth/me to
  * validate it. If valid, restores user + subscription without requiring re-login.
  * If invalid/expired, clears storage and shows the login screen.
@@ -11,11 +16,13 @@
  */
 
 import { createContext, useContext, useState, useCallback, useEffect, useMemo, useRef } from 'react';
-import { API_BASE } from '../utils/api';
+import { API_BASE, setAuthToken, clearAuthToken } from '../utils/api';
 import { isIOS } from '../services/platform';
 import { purchase, restorePurchases, IAP_PRODUCTS } from '../services/iap';
 
-const LS_USER  = 'arc_user';
+const LS_USER    = 'arc_user';
+const LS_TOKEN   = 'arc_token';   // Stored for session restore across page reloads
+const LS_REFRESH = 'arc_refresh'; // Refresh token for mobile Safari where cookies are blocked
 
 const AuthContext = createContext(null);
 
@@ -48,20 +55,50 @@ function normalizeSubscription(raw) {
   return { ...raw, status, trialDaysRemaining, tier: raw.tier || null, tierLabel: raw.tierLabel || null, limits: raw.limits || null };
 }
 
+/**
+ * Helper: build headers with Authorization if we have a token.
+ */
+function authHeaders(token, extra = {}) {
+  const h = { 'Content-Type': 'application/json', ...extra };
+  if (token) h['Authorization'] = `Bearer ${token}`;
+  return h;
+}
+
 export function AuthProvider({ children }) {
   const [user,         setUser]         = useState(null);
-  const [token,        setToken]        = useState(null);
+  const [token,        setToken]        = useState(() => {
+    // Restore token from localStorage on mount for immediate header-based auth
+    try { return localStorage.getItem(LS_TOKEN) || null; } catch { return null; }
+  });
   const [subscription, setSubscription] = useState(null);
   // authReady: false until we've completed the initial token validation check
   const [authReady,    setAuthReady]    = useState(false);
 
+  // Keep the api.js module token in sync with React state
+  const tokenRef = useRef(token);
+  useEffect(() => {
+    tokenRef.current = token;
+    setAuthToken(token);
+    // Persist token to localStorage for cross-reload restore
+    try {
+      if (token) localStorage.setItem(LS_TOKEN, token);
+      else localStorage.removeItem(LS_TOKEN);
+    } catch {}
+  }, [token]);
+
   // ── Automatic token refresh ──────────────────────────────────────────────────
   const refreshInterval = useRef(null);
 
-  const refreshToken = useCallback(async () => {
+  const refreshTokenFn = useCallback(async () => {
     try {
+      // Send stored refresh token in body (mobile Safari fallback where cookies are blocked)
+      let storedRefresh = null;
+      try { storedRefresh = localStorage.getItem(LS_REFRESH); } catch {}
+
       const res = await fetch(`${API_BASE}/api/auth/refresh`, {
         method: 'POST',
+        headers: authHeaders(tokenRef.current),
+        body: JSON.stringify({ refreshToken: storedRefresh }),
         credentials: 'include',
       });
       if (!res.ok) {
@@ -71,13 +108,19 @@ export function AuthProvider({ children }) {
           setToken(null);
           setSubscription(null);
           localStorage.removeItem(LS_USER);
+          localStorage.removeItem(LS_TOKEN);
+          localStorage.removeItem(LS_REFRESH);
+          clearAuthToken();
         } else {
           console.warn(`[AuthContext] Token refresh returned ${res.status}, will retry next cycle`);
         }
         return;
       }
       const data = await res.json();
-      setToken(data.token);
+      if (data.token) setToken(data.token);
+      if (data.refreshToken) {
+        try { localStorage.setItem(LS_REFRESH, data.refreshToken); } catch {}
+      }
       if (data.user) {
         setUser({ id: data.user.id, username: data.user.username, persona: data.user.persona || null });
       }
@@ -94,41 +137,66 @@ export function AuthProvider({ children }) {
   const restoreFromMe = useCallback((data) => {
     const restoredUser = { id: data.user.id, username: data.user.username, persona: data.user.persona || null };
     setUser(restoredUser);
-    setToken(data.token || null);
+    if (data.token) setToken(data.token);
     setSubscription(normalizeSubscription(data.subscription));
     localStorage.setItem(LS_USER, JSON.stringify(restoredUser));
   }, []);
 
-  // ── On mount: validate session via httpOnly cookie ─────────────────────────
+  // ── On mount: validate session via httpOnly cookie OR stored token ────────
   // If the 15-min access token expired while the tab was closed, we attempt a
   // refresh (30-day cookie) before giving up. This prevents the annoying
   // "login again on every refresh" behaviour.
   useEffect(() => {
     (async () => {
+      const storedToken = tokenRef.current;
+      let storedRefresh = null;
+      try { storedRefresh = localStorage.getItem(LS_REFRESH); } catch {}
+
       try {
-        // 1. Try the access-token cookie first
-        const meRes = await fetch(`${API_BASE}/api/auth/me`, { credentials: 'include' });
+        // 1. Try the access token (cookie + header)
+        const meRes = await fetch(`${API_BASE}/api/auth/me`, {
+          headers: authHeaders(storedToken),
+          credentials: 'include',
+        });
         if (meRes.ok) {
           restoreFromMe(await meRes.json());
           return;
         }
 
-        // 2. Access token expired — attempt refresh (30-day cookie)
+        // 2. Access token expired — attempt refresh (30-day cookie + body fallback)
         const refreshRes = await fetch(`${API_BASE}/api/auth/refresh`, {
           method: 'POST',
+          headers: authHeaders(storedToken),
+          body: JSON.stringify({ refreshToken: storedRefresh }),
           credentials: 'include',
         });
         if (!refreshRes.ok) throw new Error('refresh failed');
 
-        // 3. Refresh succeeded → new access-token cookie set, retry /me
-        const retryRes = await fetch(`${API_BASE}/api/auth/me`, { credentials: 'include' });
+        const refreshData = await refreshRes.json();
+        // Store the new tokens immediately
+        if (refreshData.token) {
+          setToken(refreshData.token);
+          setAuthToken(refreshData.token);
+        }
+        if (refreshData.refreshToken) {
+          try { localStorage.setItem(LS_REFRESH, refreshData.refreshToken); } catch {}
+        }
+
+        // 3. Refresh succeeded → retry /me with new token
+        const retryRes = await fetch(`${API_BASE}/api/auth/me`, {
+          headers: authHeaders(refreshData.token || storedToken),
+          credentials: 'include',
+        });
         if (!retryRes.ok) throw new Error('retry failed');
         restoreFromMe(await retryRes.json());
       } catch {
         // All attempts failed — clear everything, show login
         localStorage.removeItem(LS_USER);
+        localStorage.removeItem(LS_TOKEN);
+        localStorage.removeItem(LS_REFRESH);
         setUser(null);
         setToken(null);
+        clearAuthToken();
         setSubscription(null);
       } finally {
         setAuthReady(true);
@@ -140,10 +208,10 @@ export function AuthProvider({ children }) {
   // ── Refresh access token every 13 minutes (token expires at 15m) ────────────
   useEffect(() => {
     if (user) {
-      refreshInterval.current = setInterval(refreshToken, 13 * 60 * 1000);
+      refreshInterval.current = setInterval(refreshTokenFn, 13 * 60 * 1000);
       return () => clearInterval(refreshInterval.current);
     }
-  }, [user, refreshToken]);
+  }, [user, refreshTokenFn]);
 
   // ── Check for billing URL params on mount ─────────────────────────────────
   useEffect(() => {
@@ -168,6 +236,7 @@ export function AuthProvider({ children }) {
   const refreshSubscription = useCallback(async () => {
     try {
       const res = await fetch(`${API_BASE}/api/billing/status`, {
+        headers: authHeaders(tokenRef.current),
         credentials: 'include',
       });
       if (!res.ok) throw new Error('Failed to refresh subscription');
@@ -179,13 +248,16 @@ export function AuthProvider({ children }) {
   }, []);
 
   // ── Persist helper ────────────────────────────────────────────────────────
-  const _persist = useCallback((userObj, tok, sub) => {
+  const _persist = useCallback((userObj, tok, sub, refresh) => {
     setUser(userObj);
-    setToken(tok);  // Keep in memory for WebSocket
+    setToken(tok);  // Triggers useEffect → setAuthToken + localStorage
     setSubscription(normalizeSubscription(sub));
     // User info kept in localStorage for quick UI restore (non-sensitive)
     localStorage.setItem(LS_USER, JSON.stringify(userObj));
-    // Token is now in httpOnly cookie — no longer stored in localStorage
+    // Refresh token stored in localStorage for mobile Safari where cookies are blocked
+    if (refresh) {
+      try { localStorage.setItem(LS_REFRESH, refresh); } catch {}
+    }
   }, []);
 
   // ── Auth response helper ─────────────────────────────────────────────────
@@ -215,7 +287,7 @@ export function AuthProvider({ children }) {
     });
     const data = await res.json().catch(() => ({}));
     _extractUser(data, res, 'Login failed');
-    _persist({ id: data.user.id, username: data.user.username, persona: data.user.persona || null }, data.token, data.subscription);
+    _persist({ id: data.user.id, username: data.user.username, persona: data.user.persona || null }, data.token, data.subscription, data.refreshToken);
     return data;
   }, [_persist]);
 
@@ -229,7 +301,7 @@ export function AuthProvider({ children }) {
     });
     const data = await res.json().catch(() => ({}));
     _extractUser(data, res, 'Registration failed');
-    _persist({ id: data.user.id, username: data.user.username, persona: data.user.persona || null }, data.token, data.subscription);
+    _persist({ id: data.user.id, username: data.user.username, persona: data.user.persona || null }, data.token, data.subscription, data.refreshToken);
     return data;
   }, [_persist]);
 
@@ -243,7 +315,7 @@ export function AuthProvider({ children }) {
     });
     const data = await res.json().catch(() => ({}));
     _extractUser(data, res, 'Apple Sign In failed');
-    _persist({ id: data.user.id, username: data.user.username }, data.token, data.subscription);
+    _persist({ id: data.user.id, username: data.user.username }, data.token, data.subscription, data.refreshToken);
     return data;
   }, [_persist]);
 
@@ -251,12 +323,19 @@ export function AuthProvider({ children }) {
   // ── Logout ────────────────────────────────────────────────────────────────
   const logout = useCallback(async () => {
     try {
-      await fetch(`${API_BASE}/api/auth/logout`, { method: 'POST', credentials: 'include' });
+      await fetch(`${API_BASE}/api/auth/logout`, {
+        method: 'POST',
+        headers: authHeaders(tokenRef.current),
+        credentials: 'include',
+      });
     } catch (e) { /* best-effort */ }
     setUser(null);
     setToken(null);
+    clearAuthToken();
     setSubscription(null);
     localStorage.removeItem(LS_USER);
+    localStorage.removeItem(LS_TOKEN);
+    localStorage.removeItem(LS_REFRESH);
   }, []);
 
   // ── Platform-aware checkout ────────────────────────────────────────────────
@@ -278,7 +357,7 @@ export function AuthProvider({ children }) {
     // Web / Android → Stripe
     const res  = await fetch(`${API_BASE}/api/billing/create-session`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authHeaders(tokenRef.current),
       body: JSON.stringify({
         tier: tier || 'new_particle',
         plan: plan || 'monthly',
@@ -302,7 +381,7 @@ export function AuthProvider({ children }) {
   const openBillingPortal = useCallback(async () => {
     const res  = await fetch(`${API_BASE}/api/billing/portal`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authHeaders(tokenRef.current),
       credentials: 'include',
     });
     const data = await res.json();

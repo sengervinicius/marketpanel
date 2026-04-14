@@ -46,6 +46,7 @@ router.post('/register', authLimiter, async (req, res) => {
       ok: true,
       user: { id: user.id, username: user.username, persona: user.persona || null, gamification: null },
       token,
+      refreshToken: refresh.token, // In body for mobile Safari where cookies are blocked
       subscription: {
         isPaid:             user.isPaid,
         subscriptionActive: user.subscriptionActive,
@@ -94,6 +95,7 @@ router.post('/login', authLimiter, async (req, res) => {
       ok: true,
       user: { id: user.id, username: user.username, persona: user.persona || null, gamification: null },
       token,
+      refreshToken: refresh.token, // In body for mobile Safari where cookies are blocked
       subscription: {
         isPaid:             user.isPaid,
         subscriptionActive: user.subscriptionActive,
@@ -257,6 +259,7 @@ router.post('/apple', authLimiter, async (req, res) => {
       ok: true,
       user: { id: u.id, username: u.username },
       token,
+      refreshToken: refresh.token, // In body for mobile Safari where cookies are blocked
       subscription: {
         isPaid: u.isPaid,
         subscriptionActive: u.subscriptionActive,
@@ -394,9 +397,12 @@ router.post('/resend-verification', requireAuth, async (req, res) => {
 });
 
 // POST /api/auth/refresh — rotate refresh token and issue new access token
+// Accepts refresh token from: 1) httpOnly cookie, 2) request body { refreshToken }
+// Returns new tokens in both cookies AND response body (for mobile Safari where cookies are blocked)
 router.post('/refresh', async (req, res) => {
   try {
-    const refreshToken = req.cookies?.[REFRESH_COOKIE_NAME];
+    // Priority: cookie first, then request body (mobile fallback)
+    const refreshToken = req.cookies?.[REFRESH_COOKIE_NAME] || req.body?.refreshToken;
     if (!refreshToken) {
       return res.status(401).json({ error: 'No refresh token', code: 'no_refresh_token' });
     }
@@ -419,8 +425,15 @@ router.post('/refresh', async (req, res) => {
 
     res.json({
       ok: true,
-      token: newAccessToken, // Still in body for WebSocket backward compat
+      token: newAccessToken,
+      refreshToken: result.token, // In body for mobile Safari where cookies are blocked
       user: { id: user.id, username: user.username, persona: user.persona || null },
+      subscription: {
+        isPaid:             user.isPaid,
+        subscriptionActive: user.subscriptionActive,
+        trialEndsAt:        user.trialEndsAt,
+        tier:               user.planTier || 'trial',
+      },
     });
   } catch (e) {
     console.error('[auth/refresh] Error:', e.message);

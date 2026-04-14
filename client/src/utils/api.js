@@ -1,10 +1,39 @@
 /**
  * api.js
- * Auth-aware fetch helper. Uses httpOnly cookies for authentication.
- * Credentials are sent automatically with each request.
+ * Auth-aware fetch helper.
+ *
+ * DUAL AUTH STRATEGY:
+ * - Sends httpOnly cookies (`credentials: 'include'`) for same-origin/CORS compat
+ * - ALSO sends `Authorization: Bearer <token>` header as fallback
+ *
+ * WHY BOTH?  Mobile Safari (iOS) blocks third-party cookies via ITP when the
+ * client (the-particle.com) and server (senger-server.onrender.com) are on
+ * different domains. The cookie silently never arrives → every request gets 401.
+ * By sending the token in the Authorization header, auth works regardless of
+ * cookie policies. The server's requireAuth middleware already prefers cookies
+ * but falls back to the header.
  */
 
 export const API_BASE = import.meta.env.VITE_API_URL || '';
+
+// ── In-memory token store ───────────────────────────────────────────────────
+// Set by AuthContext on login/refresh/restore. Read by apiFetch for every request.
+let _accessToken = null;
+
+/** Called by AuthContext whenever a new access token is obtained. */
+export function setAuthToken(token) {
+  _accessToken = token || null;
+}
+
+/** Returns the current in-memory access token (if any). */
+export function getAuthToken() {
+  return _accessToken;
+}
+
+/** Clears the in-memory token (called on logout). */
+export function clearAuthToken() {
+  _accessToken = null;
+}
 
 // In-flight request deduplication — prevents duplicate concurrent fetches
 const _inflight = new Map();
@@ -15,6 +44,20 @@ function dedupeKey(path, options) {
 
 let _refreshing = false;
 
+/**
+ * Build headers including Authorization if we have a token.
+ */
+function buildHeaders(extra = {}) {
+  const headers = {
+    'Content-Type': 'application/json',
+    ...extra,
+  };
+  if (_accessToken) {
+    headers['Authorization'] = `Bearer ${_accessToken}`;
+  }
+  return headers;
+}
+
 export async function apiFetch(path, options = {}) {
   const key = dedupeKey(path, options);
 
@@ -24,10 +67,7 @@ export async function apiFetch(path, options = {}) {
     return _inflight.get(key).then(r => r.clone());
   }
 
-  const headers = {
-    'Content-Type': 'application/json',
-    ...(options.headers || {}),
-  };
+  const headers = buildHeaders(options.headers);
 
   // Support external AbortSignal (e.g. from component unmount) alongside timeout
   const controller = new AbortController();
@@ -57,17 +97,28 @@ export async function apiFetch(path, options = {}) {
       if (res.status === 401 && !_refreshing && path !== '/api/auth/refresh') {
         _refreshing = true;
         try {
+          const refreshHeaders = { 'Content-Type': 'application/json' };
+          if (_accessToken) refreshHeaders['Authorization'] = `Bearer ${_accessToken}`;
+
           const refreshRes = await fetch(`${API_BASE}/api/auth/refresh`, {
             method: 'POST',
+            headers: refreshHeaders,
             credentials: 'include',
           });
 
           if (refreshRes.ok) {
-            // Refresh succeeded, retry original request
+            const refreshData = await refreshRes.json();
+            // Update in-memory token from refresh response
+            if (refreshData.token) {
+              _accessToken = refreshData.token;
+            }
+
+            // Retry original request with the new token
+            const retryHeaders = buildHeaders(options.headers);
             res = await fetch(`${API_BASE}${path}`, {
               ...options,
               signal: controller.signal,
-              headers,
+              headers: retryHeaders,
               credentials: 'include',
             });
           }
