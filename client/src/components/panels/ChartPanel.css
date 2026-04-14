@@ -53,10 +53,13 @@
   gap: 1px;
   overflow: hidden;
   padding: 1px;
+  min-height: 0; /* allow flex child to shrink below content size */
+  height: 100%; /* fill the flex container completely */
 }
 .cp-grid--desktop {
   grid-template-columns: repeat(4, 1fr);
   grid-template-rows: repeat(3, 1fr);
+  height: 100%; /* ensure grid fills its flex slot */
 }
 .cp-grid--mobile {
   grid-template-columns: repeat(2, 1fr);

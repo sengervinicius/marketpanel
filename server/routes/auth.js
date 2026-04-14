@@ -230,9 +230,20 @@ router.post('/apple', authLimiter, async (req, res) => {
       });
     }
 
+    // Load apple-signin-auth — separate try/catch for module load vs verification
+    let appleSignin;
+    try {
+      appleSignin = require('apple-signin-auth');
+    } catch (loadErr) {
+      console.error('[auth/apple] Failed to load apple-signin-auth module:', loadErr.message);
+      return res.status(501).json({
+        error: 'Apple Sign In is not available on this server. The apple-signin-auth package may not be installed.',
+        code: 'module_missing',
+      });
+    }
+
     let payload;
     try {
-      const appleSignin = require('apple-signin-auth');
       payload = await appleSignin.verifyIdToken(identityToken, {
         audience: APPLE_CLIENT_ID,
         ignoreExpiration: false,

@@ -8,7 +8,7 @@
  *   - Immersive dark design with vault gold accents
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { API_BASE } from '../../utils/api';
+import { apiFetch, apiJSON, API_BASE } from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
 import VaultDocChat from './VaultDocChat';
 import './VaultPanel.css';
@@ -35,14 +35,12 @@ export default function VaultPanel({ fullScreen = false }) {
   const fileInputRef = useRef(null);
   const dropRef = useRef(null);
 
-  const headers = token ? { Authorization: `Bearer ${token}` } : {};
-
   // Vault health check — runs on mount and periodically if unhealthy
   useEffect(() => {
     let timer;
     const check = async () => {
       try {
-        const res = await fetch(`${API_BASE}/api/vault/health`, { credentials: 'include' });
+        const res = await apiFetch('/api/vault/health');
         const data = await res.json();
         setVaultHealth(data);
         // If unhealthy, recheck every 15 seconds
@@ -62,10 +60,7 @@ export default function VaultPanel({ fullScreen = false }) {
   useEffect(() => {
     async function checkAdmin() {
       try {
-        const res = await fetch(`${API_BASE}/api/vault/admin/documents`, {
-          headers,
-          credentials: 'include',
-        });
+        const res = await apiFetch('/api/vault/admin/documents');
         if (res.ok) {
           setIsAdmin(true);
           const data = await res.json();
@@ -81,7 +76,7 @@ export default function VaultPanel({ fullScreen = false }) {
   // Fetch quota
   useEffect(() => {
     if (!token) return;
-    fetch(`${API_BASE}/api/vault/quota`, { headers, credentials: 'include' })
+    apiFetch('/api/vault/quota')
       .then(r => r.ok ? r.json() : null)
       .then(data => { if (data) setQuota(data); })
       .catch(() => {});
@@ -114,7 +109,8 @@ export default function VaultPanel({ fullScreen = false }) {
     try {
       const formData = new FormData();
       formData.append('file', file);
-      const res = await fetch(uploadUrl, { method: 'POST', headers, credentials: 'include', body: formData });
+      const uploadHeaders = token ? { Authorization: `Bearer ${token}` } : {};
+      const res = await fetch(uploadUrl, { method: 'POST', headers: uploadHeaders, credentials: 'include', body: formData });
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
         throw new Error(errData.message || errData.error || 'Upload failed');
@@ -148,9 +144,7 @@ export default function VaultPanel({ fullScreen = false }) {
   const fetchDocuments = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await fetch(`${API_BASE}/api/vault/documents`, { headers, credentials: 'include' });
-      if (!res.ok) throw new Error('Failed to load documents');
-      const data = await res.json();
+      const data = await apiJSON('/api/vault/documents');
       setDocuments(data.documents || []);
     } catch (e) {
       setError(e.message);
@@ -163,11 +157,8 @@ export default function VaultPanel({ fullScreen = false }) {
   const fetchCentralDocs = useCallback(async () => {
     if (!isAdmin) return;
     try {
-      const res = await fetch(`${API_BASE}/api/vault/admin/documents`, { headers, credentials: 'include' });
-      if (res.ok) {
-        const data = await res.json();
-        setCentralDocs(data.documents || []);
-      }
+      const data = await apiJSON('/api/vault/admin/documents');
+      setCentralDocs(data.documents || []);
     } catch {
       // Silent
     }
@@ -190,8 +181,8 @@ export default function VaultPanel({ fullScreen = false }) {
       : `${API_BASE}/api/vault/documents/${docId}`;
 
     try {
-      const res = await fetch(deleteUrl, { method: 'DELETE', headers, credentials: 'include' });
-      if (!res.ok) throw new Error('Delete failed');
+      const deleteRes = await apiFetch(deleteUrl.replace(API_BASE, ''), { method: 'DELETE' });
+      if (!deleteRes.ok) throw new Error('Delete failed');
       if (tab === 'central') {
         setCentralDocs(prev => prev.filter(d => d.id !== docId));
       } else {
@@ -209,14 +200,10 @@ export default function VaultPanel({ fullScreen = false }) {
     setSearching(true);
     setSearchResults(null);
     try {
-      const res = await fetch(`${API_BASE}/api/vault/search`, {
+      const data = await apiJSON('/api/vault/search', {
         method: 'POST',
-        headers: { ...headers, 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({ query: searchQuery.trim() }),
       });
-      if (!res.ok) throw new Error('Search failed');
-      const data = await res.json();
       setSearchResults(data.passages || []);
     } catch (e) {
       setError(e.message);
