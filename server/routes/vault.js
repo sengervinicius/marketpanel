@@ -136,7 +136,9 @@ router.post('/upload', rateLimitByUser({ key: 'vault-upload', windowSec: 60, max
     if (msg.includes('too large') || msg.includes('exceeds')) {
       return res.status(400).json({ error: 'File too large', message: msg });
     }
-    res.status(500).json({ error: 'Failed to process document', message: 'An error occurred while processing the file. Please try a different file or try again later.' });
+    // Include the actual error in the response so we can diagnose — sanitize only credentials/secrets
+    const safeMsg = msg.replace(/Bearer\s+\S+/gi, 'Bearer [REDACTED]').replace(/key[=:]\s*\S+/gi, 'key=[REDACTED]');
+    res.status(500).json({ error: 'Failed to process document', message: safeMsg });
   }
 });
 
