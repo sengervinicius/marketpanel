@@ -90,6 +90,12 @@ const { init: initSignalMonitor } = require('./services/signalMonitor');
 
 const app = express();
 
+// ── DEBUG: Log ALL vault requests before any middleware can block them ──
+app.use('/api/vault', (req, res, next) => {
+  console.log(`[VAULT-DEBUG] ${req.method} ${req.originalUrl} origin=${req.headers.origin || 'none'} content-type=${req.headers['content-type'] || 'none'} auth=${req.headers.authorization ? 'yes' : 'no'}`);
+  next();
+});
+
 // In production, restrict CORS to explicit CLIENT_URL + known deploy origins.
 // Warn loudly if CLIENT_URL is not set, but don't crash the process.
 let ALLOWED_ORIGINS;
@@ -123,7 +129,13 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 app.use(cors({
-  origin: ALLOWED_ORIGINS,
+  origin: (origin, callback) => {
+    // Allow requests with no origin (curl, server-to-server)
+    if (!origin) return callback(null, true);
+    if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
+    console.error(`[CORS] Blocked request from origin: ${origin} | Allowed: ${ALLOWED_ORIGINS.join(', ')}`);
+    callback(new Error(`CORS: origin ${origin} not allowed`));
+  },
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
   credentials: true,
 }));
