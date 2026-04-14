@@ -1,491 +1,233 @@
-/* OptionsFlowPanel.css — Terminal dark theme for Options Flow panel */
+/* OptionsFlowPanel.css — Terminal-native design matching all other panels */
 
-.ofp-container {
+.ofp {
   display: flex;
   flex-direction: column;
   height: 100%;
   overflow: hidden;
-  background: #0a0a0f;
-  color: #d0d0d0;
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-  font-size: 12px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: var(--font-xs);
 }
 
-/* Header */
-.ofp-header {
+/* ── Header ─────────────────────────────────────────────── */
+.ofp-hdr {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 16px;
-  border-bottom: 1px solid #2a2a35;
-  background: #0a0a0f;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border-default);
+  background: var(--bg-surface);
   flex-shrink: 0;
-  gap: 12px;
+  min-height: 26px;
 }
 
-.ofp-title {
-  margin: 0;
-  font-size: 14px;
+.ofp-hdr-title {
   font-weight: 700;
-  color: #00ff88;
-  text-transform: uppercase;
-  letter-spacing: 1.5px;
-  animation: ofp-glow 3s ease-in-out infinite;
+  font-size: var(--font-sm);
+  color: var(--text-primary);
+  letter-spacing: 0.08em;
 }
 
-.ofp-refresh {
-  background: none;
-  border: 1px solid #2a2a35;
-  border-radius: 4px;
-  width: 28px;
-  height: 28px;
-  cursor: pointer;
-  font-size: 12px;
-  color: #888;
+.ofp-hdr-right {
   display: flex;
   align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease;
+  gap: 6px;
+}
+
+.ofp-hdr-ts {
+  color: var(--text-faint);
+  font-size: var(--font-xs);
+}
+
+.ofp-hdr-btn {
+  background: none;
+  border: 1px solid var(--border-strong);
+  color: var(--text-muted);
+  font-size: 9px;
+  padding: 1px 5px;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.ofp-hdr-btn:hover {
+  color: var(--text-primary);
+  border-color: var(--text-muted);
+}
+
+/* ── Tide summary ───────────────────────────────────────── */
+.ofp-tide {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border-default);
+  background: var(--bg-surface);
   flex-shrink: 0;
 }
 
-.ofp-refresh:hover {
-  background: #1a1a20;
-  color: #00ff88;
-  border-color: #00ff88;
-}
-
-.ofp-refresh:active {
-  transform: scale(0.95);
-}
-
-/* Loading / Error States */
-.ofp-loading,
-.ofp-error {
-  padding: 40px 20px;
-  text-align: center;
-  color: #666;
-  flex: 1;
+.ofp-tide-bar-wrap {
   display: flex;
   align-items: center;
-  justify-content: center;
+  gap: 4px;
+  flex: 1;
 }
 
-.ofp-error {
-  color: #ff4444;
+.ofp-tide-lbl {
+  font-size: 9px;
+  font-weight: 700;
+  white-space: nowrap;
+  min-width: 32px;
 }
 
-/* Content Area */
-.ofp-content {
+.ofp-tide-bar {
+  flex: 1;
+  height: 6px;
+  background: var(--price-down);
+  border-radius: 1px;
+  overflow: hidden;
+}
+
+.ofp-tide-calls {
+  height: 100%;
+  background: var(--price-up);
+  transition: width 0.3s ease;
+}
+
+.ofp-tide-sentiment {
+  font-weight: 700;
+  font-size: 9px;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+/* ── Tabs ────────────────────────────────────────────────── */
+.ofp-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border-default);
+  background: var(--bg-surface);
+  flex-shrink: 0;
+}
+
+.ofp-tab {
+  flex: 1;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 3px 4px;
+  cursor: pointer;
+  text-align: center;
+  transition: color 0.15s;
+}
+
+.ofp-tab:hover {
+  color: var(--text-primary);
+}
+
+.ofp-tab--active {
+  color: var(--text-primary);
+  border-bottom-color: var(--text-primary);
+}
+
+/* ── Body / rows ─────────────────────────────────────────── */
+.ofp-body {
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
 }
 
-/* Sections */
-.ofp-section {
-  border-bottom: 1px solid #2a2a35;
-  flex-shrink: 0;
-}
-
-.ofp-section-header {
-  display: flex;
-  justify-content: space-between;
+.ofp-row {
+  display: grid;
+  grid-template-columns: 52px 48px 1fr 40px;
   align-items: center;
-  padding: 10px 16px;
-  background: #1a1a20;
-  border-bottom: 1px solid #2a2a35;
-  font-weight: 600;
-  text-transform: uppercase;
-  color: #00ff88;
-  letter-spacing: 0.5px;
-  user-select: none;
-}
-
-.ofp-section-count {
-  font-size: 11px;
-  font-weight: 700;
-  color: #ffaa00;
   padding: 2px 8px;
-  background: rgba(255, 170, 0, 0.1);
-  border-radius: 3px;
+  border-bottom: 1px solid var(--border-subtle, rgba(255,255,255,0.04));
+  min-height: 22px;
+  font-size: var(--font-xs);
 }
 
-.ofp-section-content {
-  padding: 12px 16px;
-  background: #0a0a0f;
-  border-bottom: 1px solid #2a2a35;
-  max-height: 300px;
-  overflow-y: auto;
+.ofp-row:hover {
+  background: var(--bg-hover);
 }
 
-.ofp-section-collapsed {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px 16px;
-  background: #1a1a20;
-  border-bottom: 1px solid #2a2a35;
-  font-weight: 600;
-  text-transform: uppercase;
-  color: #00ff88;
-  letter-spacing: 0.5px;
-  user-select: none;
+.ofp-row--hdr {
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-default);
+  font-weight: 700;
+  color: var(--text-muted);
+  letter-spacing: 0.06em;
+  position: sticky;
+  top: 0;
+  z-index: 1;
 }
 
-/* Market Tide */
-.ofp-tide-ratio {
-  margin-bottom: 12px;
+.ofp-row--hdr:hover {
+  background: var(--bg-surface);
 }
 
-.ofp-ratio-bar {
-  display: flex;
-  height: 20px;
-  background: #0a0a0f;
-  border: 1px solid #2a2a35;
-  border-radius: 4px;
+.ofp-col-tick {
+  text-align: left;
   overflow: hidden;
-  margin-bottom: 8px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.ofp-ratio-calls {
-  background: linear-gradient(90deg, #00aa00, #00ff88);
-  transition: width 0.3s ease;
-}
-
-.ofp-ratio-puts {
-  background: linear-gradient(90deg, #ff5555, #ff0000);
-  transition: width 0.3s ease;
-}
-
-.ofp-ratio-labels {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 11px;
-  color: #888;
-  text-transform: uppercase;
-}
-
-.ofp-ratio-label-left {
-  color: #00ff88;
+.ofp-ticker {
+  color: var(--text-primary);
   font-weight: 600;
 }
 
-.ofp-ratio-label-right {
-  color: #ff4444;
+.ofp-col-type {
+  text-align: left;
   font-weight: 600;
-}
-
-.ofp-ratio-sentiment {
-  font-weight: 700;
-  font-size: 12px;
-  letter-spacing: 0.5px;
-}
-
-.ofp-tide-meta {
-  display: flex;
-  justify-content: space-between;
-  font-size: 10px;
-  color: #666;
-  margin-top: 8px;
-}
-
-/* Flow Alerts List */
-.ofp-alerts-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.ofp-alert-item {
-  border: 1px solid #2a2a35;
-  border-radius: 4px;
-  padding: 10px 12px;
-  background: #1a1a20;
-  transition: background 0.2s ease;
-}
-
-.ofp-alert-item:hover {
-  background: #25252c;
-}
-
-.ofp-alert-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 6px;
-}
-
-.ofp-alert-ticker {
-  font-weight: 700;
-  color: #00ff88;
-  font-size: 12px;
-}
-
-.ofp-alert-type {
   font-size: 9px;
-  font-weight: 700;
-  padding: 2px 6px;
-  border-radius: 2px;
-  background: rgba(0, 255, 136, 0.1);
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.ofp-alert-details {
-  display: flex;
-  justify-content: space-between;
-  font-size: 11px;
-  color: #aaa;
-  margin-bottom: 4px;
-}
-
-.ofp-alert-value {
-  font-weight: 600;
-  color: #ffaa00;
-}
-
-.ofp-alert-time {
-  color: #666;
-  font-size: 10px;
-}
-
-.ofp-alert-desc {
-  font-size: 10px;
-  color: #666;
-  margin-top: 4px;
-  line-height: 1.3;
-}
-
-/* Congress Trades List */
-.ofp-trades-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.ofp-trade-item {
-  border: 1px solid #2a2a35;
-  border-radius: 4px;
-  padding: 10px 12px;
-  background: #1a1a20;
-  transition: background 0.2s ease;
-}
-
-.ofp-trade-item:hover {
-  background: #25252c;
-}
-
-.ofp-trade-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 6px;
-}
-
-.ofp-trade-ticker {
-  font-weight: 700;
-  color: #00ff88;
-  font-size: 12px;
-}
-
-.ofp-trade-action {
-  font-size: 9px;
-  font-weight: 700;
-  padding: 2px 6px;
-  border-radius: 2px;
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
-}
-
-.ofp-trade-action.buy {
-  background: rgba(0, 255, 136, 0.1);
-  color: #00ff88;
-}
-
-.ofp-trade-action.sell {
-  background: rgba(255, 68, 68, 0.1);
-  color: #ff4444;
-}
-
-.ofp-trade-action.trade {
-  background: rgba(255, 170, 0, 0.1);
-  color: #ffaa00;
-}
-
-.ofp-trade-details {
-  display: flex;
-  justify-content: space-between;
-  font-size: 11px;
-  color: #aaa;
-  margin-bottom: 4px;
-}
-
-.ofp-trade-member {
-  color: #aaa;
-  flex: 1;
-}
-
-.ofp-trade-amount {
-  font-weight: 600;
-  color: #ffaa00;
+.ofp-col-prem {
   text-align: right;
+  color: var(--text-secondary, #ccc);
+  font-weight: 500;
 }
 
-.ofp-trade-date {
-  font-size: 10px;
-  color: #666;
-  margin-top: 4px;
+.ofp-col-sent {
+  text-align: right;
+  font-weight: 600;
+  font-size: 9px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-/* Top Tickers List */
-.ofp-tickers-list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+.ofp-member {
+  font-weight: 400;
+  color: var(--text-muted);
 }
 
-.ofp-ticker-item {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  padding: 8px 0;
-  border-bottom: 1px solid #2a2a35;
-  font-size: 11px;
-}
-
-.ofp-ticker-item:last-child {
-  border-bottom: none;
-}
-
-.ofp-ticker-rank {
-  width: 24px;
+/* ── Empty state ─────────────────────────────────────────── */
+.ofp-empty {
+  padding: 16px 8px;
   text-align: center;
-  color: #666;
-  font-weight: 600;
+  color: var(--text-faint);
+  font-size: var(--font-xs);
 }
 
-.ofp-ticker-symbol {
-  flex: 1;
-  font-weight: 700;
-  color: #00ff88;
+/* ── Scrollbar ───────────────────────────────────────────── */
+.ofp-body::-webkit-scrollbar {
+  width: 4px;
 }
 
-.ofp-ticker-count {
-  color: #ffaa00;
-  font-weight: 600;
-}
-
-/* Tab Switcher */
-.ofp-tab-switcher {
-  display: flex;
-  gap: 4px;
+.ofp-body::-webkit-scrollbar-track {
   background: transparent;
 }
 
-.ofp-tab-btn {
-  background: none;
-  border: 1px solid #2a2a35;
-  color: #888;
-  padding: 2px 8px;
-  font-size: 10px;
-  cursor: pointer;
-  border-radius: 3px;
-  transition: all 0.2s ease;
-  text-transform: uppercase;
-  font-weight: 600;
-  letter-spacing: 0.3px;
-}
-
-.ofp-tab-btn:hover {
-  border-color: #00ff88;
-  color: #00ff88;
-}
-
-.ofp-tab-active {
-  background: rgba(0, 255, 136, 0.1);
-  border-color: #00ff88;
-  color: #00ff88;
-}
-
-/* Empty State */
-.ofp-empty {
-  padding: 20px;
-  text-align: center;
-  color: #666;
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-/* Footer */
-.ofp-footer {
-  padding: 8px 16px;
-  background: #1a1a20;
-  border-top: 1px solid #2a2a35;
-  font-size: 10px;
-  color: #666;
-  text-align: center;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  flex-shrink: 0;
-}
-
-/* Scrollbar */
-.ofp-section-content::-webkit-scrollbar {
-  width: 6px;
-}
-
-.ofp-section-content::-webkit-scrollbar-track {
-  background: #1a1a20;
-}
-
-.ofp-section-content::-webkit-scrollbar-thumb {
-  background: #2a2a35;
-  border-radius: 3px;
-}
-
-.ofp-section-content::-webkit-scrollbar-thumb:hover {
-  background: #3a3a45;
-}
-
-/* Animations */
-@keyframes ofp-glow {
-  0%, 100% {
-    text-shadow: 0 0 5px rgba(0, 255, 136, 0.3);
-  }
-  50% {
-    text-shadow: 0 0 10px rgba(0, 255, 136, 0.6);
-  }
-}
-
-/* Responsive */
-@media (max-width: 768px) {
-  .ofp-container {
-    font-size: 11px;
-  }
-
-  .ofp-header {
-    padding: 10px 12px;
-  }
-
-  .ofp-title {
-    font-size: 13px;
-  }
-
-  .ofp-section-header {
-    font-size: 11px;
-    padding: 8px 12px;
-  }
-
-  .ofp-section-content {
-    padding: 10px 12px;
-    max-height: 250px;
-  }
-
-  .ofp-alert-item,
-  .ofp-trade-item {
-    padding: 8px 10px;
-  }
+.ofp-body::-webkit-scrollbar-thumb {
+  background: var(--border-default);
+  border-radius: 2px;
 }

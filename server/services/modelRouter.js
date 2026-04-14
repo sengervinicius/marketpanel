@@ -420,7 +420,8 @@ async function streamResponse(provider, messages, systemPrompt, res, { onAbort }
     reader.on('error', (err) => {
       logger.error('[ModelRouter] Stream error:', err.message);
       if (!res.writableEnded) {
-        res.write(`data: ${JSON.stringify({ error: 'Stream interrupted' })}\n\n`);
+        // Phase 2: Send [PARTIAL] marker so client can show "Response interrupted — tap to retry"
+        res.write(`data: ${JSON.stringify({ partial: true, error: 'Stream interrupted — tap to retry' })}\n\n`);
       }
       finish();
     });
@@ -437,7 +438,8 @@ async function streamResponse(provider, messages, systemPrompt, res, { onAbort }
     if (!res.headersSent) {
       res.status(500).json({ error: 'Stream error', details: err.message });
     } else if (!res.writableEnded) {
-      res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`);
+      // Phase 2: [PARTIAL] marker for client-side retry UX
+      res.write(`data: ${JSON.stringify({ partial: true, error: 'Response interrupted — tap to retry' })}\n\n`);
       res.write('data: [DONE]\n\n');
       res.end();
     }

@@ -1502,12 +1502,21 @@ INLINE CHARTS — You can embed live charts in your responses using this syntax:
   Example: [chart:bar:Tech=5.2,Healthcare=3.1,Energy=1.8]
 Use sparingly — max one chart per response. Best for: price trend discussions, sector comparisons, before/after analysis, momentum visualizations.
 
-RESPONSE STRUCTURE for asset/market questions:
+RESPONSE STRUCTURE — MANDATORY SECTIONS:
+For any market/asset question, your response MUST follow this structure:
 1. [sentiment:bull] or [sentiment:bear] or [sentiment:neutral] — always lead with this
-2. HEADLINE: One bold sentence — the "so what", not background
-3. PRICE ACTION: Current price, % move, key levels, volume context (2-3 sentences)
-4. CATALYSTS: What's driving the move — be specific with events, dates, data (2-4 sentences)
-5. OUTLOOK + BOTTOM LINE: Forward view with timeframes, key levels to watch, then your one-sentence verdict
+2. **MARKET READ**: What's happening right now. Current price, % move, key levels, volume context, catalysts. Use SPECIFIC numbers from the LIVE MARKET DATA below. (3-5 sentences)
+3. **YOUR EXPOSURE**: How this affects the user. Reference their portfolio holdings, watchlist positions, or related assets they track. If portfolio data is available, cite their P&L and weight. If no portfolio data, relate to common holdings or skip this section. (1-3 sentences)
+4. **BOTTOM LINE**: One bold sentence — your actual call. Bullish/bearish, with a price level and timeframe.
+
+For morning briefs and overview queries, use:
+1. **PORTFOLIO IMPACT**: Their positions, today's P&L, biggest movers in their book
+2. **MARKET READ**: Indices, sectors, FX, crypto — with specific numbers
+3. **CATALYSTS**: What's driving today — data releases, earnings, geopolitical
+4. **BOTTOM LINE**: The one thing they should pay attention to today
+
+WEB SEARCH DIRECTIVE:
+Do NOT search the web or provide generic web-sourced information unless the query is SPECIFICALLY asking for breaking news, recent events, or web articles. Your primary job is to analyze the LIVE TERMINAL DATA injected below. The user is paying for context-aware analysis, not Google results. If you have live market data in the context, USE IT — don't paraphrase news articles about the same topic.
 
 CONTEXT MANDATE — CRITICAL:
 You have access to LIVE MARKET DATA, VAULT documents, EDGAR filings, EARNINGS data, OPTIONS FLOW, and PORTFOLIO METRICS injected below. You MUST reference this data in every response. If you see a "--- LIVE MARKET DATA ---" section, you MUST cite specific numbers from it. If the user asks about an asset and you have live data for it, ALWAYS lead with the real numbers — never give a generic answer when you have specifics.
@@ -1569,12 +1578,27 @@ ${portfolioMetricsContext ? `\n${portfolioMetricsContext}\n` : ''}${vaultContext
   // Prepare messages for router
   const routerMessages = history.map(m => ({ role: m.role, content: m.content }));
 
-  // Send vault citation metadata before the AI stream (client uses this for source badges)
+  // Phase 2: Send context metadata before AI stream — lets client show source badges
+  if (!res.headersSent && (vaultSources.length > 0 || completeness.score > 0)) {
+    res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' });
+  }
+
+  // Send vault citation metadata (client uses this for source badges)
   if (vaultSources.length > 0) {
-    if (!res.headersSent) {
-      res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' });
-    }
     res.write(`data: ${JSON.stringify({ vaultSources })}\n\n`);
+  }
+
+  // Phase 2: Send context completeness metadata — client can show "Sources: ✓/✗" footer
+  if (completeness.score >= 0) {
+    res.write(`data: ${JSON.stringify({
+      contextMeta: {
+        score: completeness.score,
+        available: completeness.available,
+        failed: completeness.failed,
+        intent,
+        model: provider.model,
+      }
+    })}\n\n`);
   }
 
   // ── Deep analysis wrapper: collect full response to extract JSON ──────────

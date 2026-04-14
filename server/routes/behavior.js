@@ -154,6 +154,30 @@ async function generateSmartChips(userId) {
     }
   } catch (e) { /* non-critical */ }
 
+  // Phase 2: Dynamic alert chips — surface tickers with big intraday moves from user's watchlist/portfolio
+  try {
+    const portfolioStore = require('../portfolioStore');
+    const { getMarketState } = require('../services/marketContextBuilder');
+    const marketState = getMarketState();
+    if (userId && marketState?.stocks) {
+      const portfolio = portfolioStore.getPortfolio?.(userId);
+      const positions = portfolio?.positions || [];
+      for (const pos of positions) {
+        if (chips.length >= 6) break;
+        const sym = pos.symbol;
+        const data = marketState.stocks[sym];
+        if (data && Math.abs(data.changePercent || 0) >= 3.0) {
+          const dir = data.changePercent > 0 ? '+' : '';
+          chips.push({
+            label: `$${sym} ${dir}${data.changePercent.toFixed(1)}%`,
+            query: `$${sym} is moving ${dir}${data.changePercent.toFixed(1)}% today — analyze the move. What's driving it and should I act?`,
+            priority: true,
+          });
+        }
+      }
+    }
+  } catch (e) { /* non-critical */ }
+
   // Deep analysis chips (Wave 11) — rotate one based on profile
   if (chips.length < 6) {
     const hasPortfolioInterest = profile?.topics?.portfolio > 0.3 || profile?.tickers && Object.keys(profile.tickers).length >= 3;
@@ -164,7 +188,8 @@ async function generateSmartChips(userId) {
     }
   }
 
-  // Cap at 4-6 chips
+  // Phase 2: Sort priority chips to front, then cap
+  chips.sort((a, b) => (b.priority ? 1 : 0) - (a.priority ? 1 : 0));
   return chips.slice(0, 6);
 }
 

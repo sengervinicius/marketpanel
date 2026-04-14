@@ -1,367 +1,200 @@
 /**
- * OptionsFlowPanel.jsx — Terminal UI panel for Unusual Whales data
+ * OptionsFlowPanel.jsx — Compact options flow for terminal home screen
  *
- * Displays:
- * - Market Tide: call/put ratio bar at top with sentiment label
- * - Flow Alerts: scrollable list of unusual activity alerts (sweeps, blocks)
- * - Congress Trades: recent congressional trading activity
- * - Top Tickers: congress most-traded tickers tab
- *
- * Terminal dark theme (#0a0a0f bg, #00ff88 accent, monospace)
- * Auto-refreshes every 2 minutes
+ * Redesigned to match terminal design system:
+ * - CSS variables instead of hardcoded colors
+ * - Dense row-based layout (no cards, no glow, no rounded corners)
+ * - Meaningful data: tide ratio as single row, flow alerts as ticker grid,
+ *   congress trades as compact list
+ * - Auto-refreshes every 2 minutes
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, memo } from 'react';
 import { apiFetch } from '../../utils/api';
 import './OptionsFlowPanel.css';
+
+const formatCurrency = (value) => {
+  if (!value) return '—';
+  if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(1)}M`;
+  if (value >= 1_000) return `$${(value / 1_000).toFixed(0)}k`;
+  return `$${value}`;
+};
 
 function OptionsFlowPanel() {
   const [marketTide, setMarketTide] = useState(null);
   const [flowAlerts, setFlowAlerts] = useState([]);
   const [congressTrades, setCongressTrades] = useState([]);
-  const [topTickers, setTopTickers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [activeTab, setActiveTab] = useState('alerts'); // 'alerts' or 'tickers'
-  const [expandedSections, setExpandedSections] = useState({
-    marketTide: true,
-    flowAlerts: true,
-    congressTrades: true,
-  });
+  const [lastUpdate, setLastUpdate] = useState(null);
+  const [activeTab, setActiveTab] = useState('flow'); // 'flow' | 'congress'
 
   const fetchData = useCallback(async () => {
     try {
-      setLoading(true);
-      setError(null);
-
-      const [tideRes, alertsRes, tradesRes, tickersRes] = await Promise.all([
-        apiFetch('/api/unusual-whales/market-tide'),
-        apiFetch('/api/unusual-whales/flow-alerts'),
-        apiFetch('/api/unusual-whales/congress-trades'),
-        apiFetch('/api/unusual-whales/top-tickers'),
+      const [tideRes, alertsRes, tradesRes] = await Promise.all([
+        apiFetch('/api/unusual-whales/market-tide').catch(() => null),
+        apiFetch('/api/unusual-whales/flow-alerts').catch(() => null),
+        apiFetch('/api/unusual-whales/congress-trades').catch(() => null),
       ]);
 
-      const tideData = tideRes.ok ? await tideRes.json() : null;
-      const alertsData = alertsRes.ok ? await alertsRes.json() : null;
-      const tradesData = tradesRes.ok ? await tradesRes.json() : null;
-      const tickersData = tickersRes.ok ? await tickersRes.json() : null;
+      const tideData = tideRes?.ok ? await tideRes.json() : null;
+      const alertsData = alertsRes?.ok ? await alertsRes.json() : null;
+      const tradesData = tradesRes?.ok ? await tradesRes.json() : null;
 
-      if (tideData) {
-        setMarketTide(tideData);
-      }
-      if (alertsData && Array.isArray(alertsData)) {
-        setFlowAlerts(alertsData);
-      }
-      if (tradesData && Array.isArray(tradesData)) {
-        setCongressTrades(tradesData);
-      }
-      if (tickersData && Array.isArray(tickersData)) {
-        setTopTickers(tickersData);
-      }
+      if (tideData) setMarketTide(tideData);
+      if (alertsData && Array.isArray(alertsData)) setFlowAlerts(alertsData);
+      if (tradesData && Array.isArray(tradesData)) setCongressTrades(tradesData);
+      setLastUpdate(new Date());
     } catch (err) {
-      console.error('[OptionsFlowPanel] Fetch error:', err.message);
-      setError(err.message);
+      console.warn('[OptionsFlowPanel] Fetch error:', err.message);
     } finally {
       setLoading(false);
     }
   }, []);
 
-  // Initial load and auto-refresh every 2 minutes
   useEffect(() => {
     fetchData();
-    const interval = setInterval(fetchData, 120000);
-    return () => clearInterval(interval);
+    const iv = setInterval(fetchData, 120_000);
+    return () => clearInterval(iv);
   }, [fetchData]);
 
-  const toggleSection = useCallback((section) => {
-    setExpandedSections(prev => ({
-      ...prev,
-      [section]: !prev[section],
-    }));
-  }, []);
+  const callPct = marketTide?.callRatio != null
+    ? (marketTide.callRatio * 100).toFixed(0)
+    : null;
+  const putPct = callPct != null ? (100 - Number(callPct)) : null;
 
-  const getSentimentLabel = (callRatio) => {
-    if (callRatio > 0.65) return 'BULLISH';
-    if (callRatio < 0.35) return 'BEARISH';
-    return 'NEUTRAL';
-  };
+  const tideLabel = callPct == null ? '—'
+    : Number(callPct) > 60 ? 'BULLISH'
+    : Number(callPct) < 40 ? 'BEARISH'
+    : 'NEUTRAL';
 
-  const getSentimentColor = (callRatio) => {
-    if (callRatio > 0.65) return '#00ff88';
-    if (callRatio < 0.35) return '#ff4444';
-    return '#ffaa00';
-  };
+  const tideColor = tideLabel === 'BULLISH' ? 'var(--price-up)'
+    : tideLabel === 'BEARISH' ? 'var(--price-down)'
+    : 'var(--text-muted)';
 
-  const getAlertTypeColor = (type) => {
-    const typeUpper = (type || '').toUpperCase();
-    if (typeUpper.includes('SWEEP')) return '#00ff88';
-    if (typeUpper.includes('BLOCK')) return '#ff9900';
-    if (typeUpper.includes('UNUSUAL')) return '#ff4444';
-    return '#ffaa00';
-  };
-
-  const formatCurrency = (value) => {
-    if (!value) return '$0';
-    if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
-    if (value >= 1000) return `$${(value / 1000).toFixed(0)}k`;
-    return `$${value}`;
-  };
-
-  const formatNumber = (value) => {
-    if (!value) return '0';
-    if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
-    if (value >= 1000) return `${(value / 1000).toFixed(0)}k`;
-    return String(value);
-  };
-
-  if (loading && !marketTide) {
-    return (
-      <div className="ofp-container">
-        <div className="ofp-header">
-          <h2 className="ofp-title">OPTIONS FLOW</h2>
-          <button className="ofp-refresh" onClick={fetchData} title="Refresh">↻</button>
-        </div>
-        <div className="ofp-loading">Loading unusual whales data...</div>
-      </div>
-    );
-  }
-
-  if (error && !marketTide) {
-    return (
-      <div className="ofp-container">
-        <div className="ofp-header">
-          <h2 className="ofp-title">OPTIONS FLOW</h2>
-          <button className="ofp-refresh" onClick={fetchData} title="Refresh">↻</button>
-        </div>
-        <div className="ofp-error">Error: {error}</div>
-      </div>
-    );
-  }
-
-  const callRatio = marketTide?.callRatio ?? 0.5;
-  const sentiment = getSentimentLabel(callRatio);
-  const sentimentColor = getSentimentColor(callRatio);
+  const ts = lastUpdate
+    ? lastUpdate.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' })
+    : '';
 
   return (
-    <div className="ofp-container">
-      {/* Panel Header */}
-      <div className="ofp-header">
-        <h2 className="ofp-title">OPTIONS FLOW</h2>
-        <button className="ofp-refresh" onClick={fetchData} title="Refresh data">↻</button>
+    <div className="ofp">
+      {/* Header */}
+      <div className="ofp-hdr">
+        <span className="ofp-hdr-title">OPTIONS FLOW</span>
+        <div className="ofp-hdr-right">
+          <span className="ofp-hdr-ts">{loading ? 'LOADING...' : ts}</span>
+          <button className="ofp-hdr-btn" onClick={fetchData} title="Refresh">↻</button>
+        </div>
       </div>
 
-      {/* Market Tide Section */}
-      {expandedSections.marketTide && (
-        <div className="ofp-section">
-          <div
-            className="ofp-section-header"
-            onClick={() => toggleSection('marketTide')}
-            style={{ cursor: 'pointer' }}
-          >
-            <span>▼ MARKET TIDE</span>
-            <span className="ofp-section-count">{sentiment}</span>
+      {/* Tide summary row */}
+      <div className="ofp-tide">
+        <div className="ofp-tide-bar-wrap">
+          <span className="ofp-tide-lbl" style={{ color: 'var(--price-up)' }}>
+            C {callPct ?? '—'}%
+          </span>
+          <div className="ofp-tide-bar">
+            <div className="ofp-tide-calls" style={{ width: `${callPct ?? 50}%` }} />
           </div>
-          <div className="ofp-section-content">
-            <div className="ofp-tide-ratio">
-              <div className="ofp-ratio-bar">
-                <div
-                  className="ofp-ratio-calls"
-                  style={{ width: `${callRatio * 100}%` }}
-                />
-                <div
-                  className="ofp-ratio-puts"
-                  style={{ width: `${(1 - callRatio) * 100}%` }}
-                />
-              </div>
-              <div className="ofp-ratio-labels">
-                <span className="ofp-ratio-label-left">CALLS {(callRatio * 100).toFixed(0)}%</span>
-                <span
-                  className="ofp-ratio-sentiment"
-                  style={{ color: sentimentColor }}
-                >
-                  {sentiment}
-                </span>
-                <span className="ofp-ratio-label-right">PUTS {((1 - callRatio) * 100).toFixed(0)}%</span>
-              </div>
-            </div>
-            {marketTide?.sentiment && (
-              <div className="ofp-tide-meta">
-                <span>Sentiment: <span style={{ color: sentimentColor }}>{marketTide.sentiment.toUpperCase()}</span></span>
-                {marketTide.timestamp && (
-                  <span className="ofp-time">{new Date(marketTide.timestamp).toLocaleTimeString()}</span>
-                )}
-              </div>
-            )}
-          </div>
+          <span className="ofp-tide-lbl" style={{ color: 'var(--price-down)' }}>
+            P {putPct ?? '—'}%
+          </span>
         </div>
-      )}
+        <span className="ofp-tide-sentiment" style={{ color: tideColor }}>
+          {tideLabel}
+        </span>
+      </div>
 
-      {/* Collapsed Market Tide */}
-      {!expandedSections.marketTide && (
-        <div
-          className="ofp-section-collapsed"
-          onClick={() => toggleSection('marketTide')}
-          style={{ cursor: 'pointer' }}
+      {/* Tab row */}
+      <div className="ofp-tabs">
+        <button
+          className={`ofp-tab ${activeTab === 'flow' ? 'ofp-tab--active' : ''}`}
+          onClick={() => setActiveTab('flow')}
         >
-          <span>▶ MARKET TIDE</span>
-          <span style={{ color: sentimentColor }}>{sentiment}</span>
-        </div>
-      )}
+          FLOW ALERTS
+        </button>
+        <button
+          className={`ofp-tab ${activeTab === 'congress' ? 'ofp-tab--active' : ''}`}
+          onClick={() => setActiveTab('congress')}
+        >
+          CONGRESS
+        </button>
+      </div>
 
-      {/* Flow Alerts Section */}
-      {expandedSections.flowAlerts && (
-        <div className="ofp-section">
-          <div
-            className="ofp-section-header"
-            onClick={() => toggleSection('flowAlerts')}
-            style={{ cursor: 'pointer' }}
-          >
-            <span>▼ FLOW ALERTS</span>
-            <span className="ofp-section-count">{flowAlerts.length}</span>
-          </div>
-          <div className="ofp-section-content">
-            {flowAlerts.length === 0 ? (
-              <div className="ofp-empty">No unusual flow alerts</div>
-            ) : (
-              <div className="ofp-alerts-list">
-                {flowAlerts.slice(0, 15).map((alert, idx) => (
-                  <div key={idx} className="ofp-alert-item">
-                    <div className="ofp-alert-header">
-                      <span className="ofp-alert-ticker">{alert.ticker || 'N/A'}</span>
-                      <span
-                        className="ofp-alert-type"
-                        style={{ color: getAlertTypeColor(alert.type) }}
-                      >
-                        {(alert.type || 'ALERT').toUpperCase()}
-                      </span>
-                    </div>
-                    <div className="ofp-alert-details">
-                      <span className="ofp-alert-value">
-                        {formatCurrency(alert.premium || alert.value || 0)}
-                      </span>
-                      {alert.timestamp && (
-                        <span className="ofp-alert-time">
-                          {new Date(alert.timestamp).toLocaleTimeString()}
-                        </span>
-                      )}
-                    </div>
-                    {alert.description && (
-                      <div className="ofp-alert-desc">{alert.description}</div>
-                    )}
+      {/* Content area */}
+      <div className="ofp-body">
+        {activeTab === 'flow' ? (
+          flowAlerts.length === 0 ? (
+            <div className="ofp-empty">
+              {loading ? 'Loading flow data...' : 'No unusual flow alerts'}
+            </div>
+          ) : (
+            <>
+              {/* Column header */}
+              <div className="ofp-row ofp-row--hdr">
+                <span className="ofp-col-tick">TICKER</span>
+                <span className="ofp-col-type">TYPE</span>
+                <span className="ofp-col-prem">PREMIUM</span>
+                <span className="ofp-col-sent">SENT</span>
+              </div>
+              {flowAlerts.slice(0, 12).map((a, i) => {
+                const type = (a.type || 'ALERT').toUpperCase();
+                const isSweep = type.includes('SWEEP');
+                const isBlock = type.includes('BLOCK');
+                const sentColor = (a.sentiment || '').toLowerCase() === 'bullish'
+                  ? 'var(--price-up)' : (a.sentiment || '').toLowerCase() === 'bearish'
+                  ? 'var(--price-down)' : 'var(--text-muted)';
+                const typeColor = isSweep ? 'var(--price-up)'
+                  : isBlock ? 'var(--text-secondary)' : 'var(--text-muted)';
+
+                return (
+                  <div key={i} className="ofp-row">
+                    <span className="ofp-col-tick ofp-ticker">{a.ticker || '—'}</span>
+                    <span className="ofp-col-type" style={{ color: typeColor }}>
+                      {type.slice(0, 6)}
+                    </span>
+                    <span className="ofp-col-prem">{formatCurrency(a.premium || a.value)}</span>
+                    <span className="ofp-col-sent" style={{ color: sentColor }}>
+                      {(a.sentiment || '—').toUpperCase().slice(0, 4)}
+                    </span>
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Collapsed Flow Alerts */}
-      {!expandedSections.flowAlerts && (
-        <div
-          className="ofp-section-collapsed"
-          onClick={() => toggleSection('flowAlerts')}
-          style={{ cursor: 'pointer' }}
-        >
-          <span>▶ FLOW ALERTS</span>
-          <span>{flowAlerts.length} alerts</span>
-        </div>
-      )}
-
-      {/* Congress Trades / Top Tickers Tabs */}
-      {expandedSections.congressTrades && (
-        <div className="ofp-section">
-          <div
-            className="ofp-section-header"
-            onClick={() => toggleSection('congressTrades')}
-            style={{ cursor: 'pointer' }}
-          >
-            <span>▼ CONGRESS TRADES</span>
-            <div className="ofp-tab-switcher">
-              <button
-                className={`ofp-tab-btn ${activeTab === 'alerts' ? 'ofp-tab-active' : ''}`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setActiveTab('alerts');
-                }}
-              >
-                Recent
-              </button>
-              <button
-                className={`ofp-tab-btn ${activeTab === 'tickers' ? 'ofp-tab-active' : ''}`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setActiveTab('tickers');
-                }}
-              >
-                Top Tickers
-              </button>
+                );
+              })}
+            </>
+          )
+        ) : (
+          congressTrades.length === 0 ? (
+            <div className="ofp-empty">
+              {loading ? 'Loading congress data...' : 'No recent congress trades'}
             </div>
-          </div>
-          <div className="ofp-section-content">
-            {activeTab === 'alerts' ? (
-              congressTrades.length === 0 ? (
-                <div className="ofp-empty">No congress trades</div>
-              ) : (
-                <div className="ofp-trades-list">
-                  {congressTrades.slice(0, 10).map((trade, idx) => (
-                    <div key={idx} className="ofp-trade-item">
-                      <div className="ofp-trade-header">
-                        <span className="ofp-trade-ticker">{trade.ticker || 'N/A'}</span>
-                        <span className={`ofp-trade-action ${(trade.action || '').toLowerCase()}`}>
-                          {(trade.action || 'TRADE').toUpperCase()}
-                        </span>
-                      </div>
-                      <div className="ofp-trade-details">
-                        <span className="ofp-trade-member">{trade.member || 'Unknown'}</span>
-                        <span className="ofp-trade-amount">{formatCurrency(trade.amount || 0)}</span>
-                      </div>
-                      {trade.date && (
-                        <div className="ofp-trade-date">
-                          {new Date(trade.date).toLocaleDateString()}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )
-            ) : (
-              topTickers.length === 0 ? (
-                <div className="ofp-empty">No top tickers data</div>
-              ) : (
-                <div className="ofp-tickers-list">
-                  {topTickers.slice(0, 10).map((ticker, idx) => (
-                    <div key={idx} className="ofp-ticker-item">
-                      <span className="ofp-ticker-rank">{idx + 1}</span>
-                      <span className="ofp-ticker-symbol">{ticker.ticker || 'N/A'}</span>
-                      <span className="ofp-ticker-count">{formatNumber(ticker.count || 0)} trades</span>
-                    </div>
-                  ))}
-                </div>
-              )
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Collapsed Congress Trades */}
-      {!expandedSections.congressTrades && (
-        <div
-          className="ofp-section-collapsed"
-          onClick={() => toggleSection('congressTrades')}
-          style={{ cursor: 'pointer' }}
-        >
-          <span>▶ CONGRESS TRADES</span>
-          <span>{congressTrades.length} trades</span>
-        </div>
-      )}
-
-      {/* Footer */}
-      <div className="ofp-footer">
-        <span>Powered by Unusual Whales</span>
+          ) : (
+            <>
+              <div className="ofp-row ofp-row--hdr">
+                <span className="ofp-col-tick">TICKER</span>
+                <span className="ofp-col-type">ACTION</span>
+                <span className="ofp-col-prem">AMOUNT</span>
+                <span className="ofp-col-sent">MEMBER</span>
+              </div>
+              {congressTrades.slice(0, 10).map((t, i) => {
+                const action = (t.action || 'TRADE').toUpperCase();
+                const actionColor = action === 'BUY' ? 'var(--price-up)'
+                  : action === 'SELL' ? 'var(--price-down)' : 'var(--text-muted)';
+                return (
+                  <div key={i} className="ofp-row">
+                    <span className="ofp-col-tick ofp-ticker">{t.ticker || '—'}</span>
+                    <span className="ofp-col-type" style={{ color: actionColor }}>{action}</span>
+                    <span className="ofp-col-prem">{formatCurrency(t.amount)}</span>
+                    <span className="ofp-col-sent ofp-member">
+                      {(t.member || '—').split(' ').pop()?.slice(0, 8)}
+                    </span>
+                  </div>
+                );
+              })}
+            </>
+          )
+        )}
       </div>
     </div>
   );
 }
 
-export default OptionsFlowPanel;
+export default memo(OptionsFlowPanel);

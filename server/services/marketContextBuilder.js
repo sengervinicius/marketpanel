@@ -24,6 +24,12 @@ let _marketState = null;   // { stocks: {}, forex: {}, crypto: {} }
 let _getUserById = null;   // (id) => user | null
 let _getPortfolio = null;  // (userId) => portfolioDoc | null
 
+// Phase 2: Last-known market state cache for cold-start fallback.
+// If _marketState is null (cold start / restart), we use the last snapshot
+// so the AI still gets *some* context instead of zero.
+let _lastKnownState = null;
+let _lastKnownTs = null;
+
 /**
  * Late-bind dependencies so this module can be required before Express starts.
  * Called once from index.js after marketState and stores are ready.
@@ -32,6 +38,43 @@ function init({ marketState, getUserById, getPortfolio }) {
   _marketState = marketState;
   _getUserById = getUserById;
   _getPortfolio = getPortfolio;
+}
+
+/**
+ * Phase 2: Snapshot the current market state for cold-start fallback.
+ * Called periodically (e.g. every 60s) from the price feed loop.
+ * If _marketState becomes null after a restart, getEffectiveMarketState()
+ * returns _lastKnownState with a staleness warning.
+ */
+function snapshotForFallback() {
+  if (_marketState && Object.keys(_marketState).length > 0) {
+    try {
+      _lastKnownState = JSON.parse(JSON.stringify(_marketState));
+      _lastKnownTs = Date.now();
+    } catch (e) {
+      // Non-critical — skip snapshot
+    }
+  }
+}
+
+/**
+ * Phase 2: Get the effective market state, falling back to last-known cache.
+ * @returns {{ state: object|null, stale: boolean }}
+ */
+function getEffectiveMarketState() {
+  if (_marketState && (Object.keys(_marketState.stocks || {}).length > 0 ||
+      Object.keys(_marketState.forex || {}).length > 0 ||
+      Object.keys(_marketState.crypto || {}).length > 0)) {
+    // Fresh data — also update fallback cache
+    snapshotForFallback();
+    return { state: _marketState, stale: false };
+  }
+  if (_lastKnownState) {
+    const ageMin = _lastKnownTs ? Math.round((Date.now() - _lastKnownTs) / 60000) : null;
+    logger.warn(`[MarketContext] Using stale fallback (${ageMin}min old)`);
+    return { state: _lastKnownState, stale: true };
+  }
+  return { state: null, stale: false };
 }
 
 // ── Query intent classification ─────────────────────────────────────────────
@@ -324,10 +367,24 @@ function buildContext({ query, userId, intent: forceIntent } = {}) {
   const mentionedTickers = extractTickers(query || '');
   const sections = [];
 
+  // Phase 2: Use effective market state with stale fallback
+  const { state: effectiveState, stale: isStale } = getEffectiveMarketState();
+  // Temporarily point _marketState to the effective state for all helper functions
+  const originalState = _marketState;
+  if (effectiveState && !_marketState) {
+    _marketState = effectiveState;
+  }
+
   try {
     // ── 1. Temporal context (always included) ────────────────────────────
     const temporal = getTemporalContext();
     sections.push(`[Current time] ${temporal.date}, ${temporal.time} ${temporal.timezone}. US market: ${temporal.marketState}.`);
+
+    // Phase 2: Warn if using stale data
+    if (isStale) {
+      const ageMin = _lastKnownTs ? Math.round((Date.now() - _lastKnownTs) / 60000) : '?';
+      sections.push(`[DATA STALENESS WARNING] Market data is ${ageMin} minutes old (using cached snapshot). Prices may not reflect current market.`);
+    }
 
     // ── 2. Market snapshot (for most intents) ────────────────────────────
     if (['general', 'macro', 'sector', 'comparison', 'thesis', 'ticker', 'terminal_overview'].includes(intent)) {
@@ -508,9 +565,22 @@ function buildContext({ query, userId, intent: forceIntent } = {}) {
     // structuredContext is non-critical — fail silently
   }
 
+  // Phase 2: Restore original _marketState reference
+  if (effectiveState && originalState !== _marketState) {
+    _marketState = originalState;
+  }
+
   return { contextString, structuredContext, intent, mentionedTickers };
 }
 
 function getMarketState() { return _marketState; }
 
-module.exports = { init, buildContext, classifyIntent, extractTickers, getMarketState };
+module.exports = {
+  init,
+  buildContext,
+  classifyIntent,
+  extractTickers,
+  getMarketState,
+  snapshotForFallback,
+  getEffectiveMarketState,
+};

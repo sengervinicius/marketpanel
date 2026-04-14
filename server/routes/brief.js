@@ -74,4 +74,16 @@ router.post('/generate', async (req, res) => {
   }
 });
 
+// ── GET /api/brief/greeting — Phase 2: Contextual greeting with live data ──
+router.get('/greeting', async (req, res) => {
+  try {
+    const userId = req.user?.id || null;
+    const result = await morningBrief.getContextualGreeting(userId);
+    res.json({ ok: true, ...result });
+  } catch (e) {
+    logger.error('brief', 'GET /greeting error', { error: e.message });
+    res.json({ ok: true, greeting: 'Good morning. Ask me anything about markets.', hasBrief: false });
+  }
+});
+
 module.exports = router;

@@ -527,6 +527,77 @@ function shouldGenerateBriefForUser(userId, userProfile = {}) {
   return isWeekday() && hasTodayBrief();
 }
 
+/**
+ * Phase 2: Generate a contextual greeting using live market data.
+ * Returns a 2-3 sentence brief: "S&P futures +1.0%, led by tech. Your portfolio is up 1.2%."
+ * Falls back to simple time-based greeting if no market data is available.
+ *
+ * @param {string|null} userId - For portfolio context
+ * @returns {Promise<{greeting: string, hasBrief: boolean}>}
+ */
+async function getContextualGreeting(userId = null) {
+  const et = getETTime();
+  const h = et.getHours();
+  const timeOfDay = h < 12 ? 'morning' : h < 17 ? 'afternoon' : 'evening';
+
+  try {
+    const { getEffectiveMarketState } = require('./marketContextBuilder');
+    const { state: ms } = getEffectiveMarketState();
+
+    const parts = [];
+
+    // Index summary
+    if (ms?.stocks) {
+      const spy = ms.stocks['SPY'];
+      const qqq = ms.stocks['QQQ'];
+      if (spy?.price && spy?.changePercent != null) {
+        const dir = spy.changePercent >= 0 ? '+' : '';
+        parts.push(`**$SPY** ${dir}${spy.changePercent.toFixed(1)}%`);
+      }
+      if (qqq?.price && qqq?.changePercent != null) {
+        const dir = qqq.changePercent >= 0 ? '+' : '';
+        parts.push(`**$QQQ** ${dir}${qqq.changePercent.toFixed(1)}%`);
+      }
+    }
+
+    // Portfolio summary
+    let portfolioPart = '';
+    if (userId) {
+      try {
+        const portfolioStore = require('../portfolioStore');
+        const portfolio = portfolioStore.getPortfolio(userId);
+        if (portfolio?.positions?.length > 0 && ms?.stocks) {
+          let totalVal = 0, totalCost = 0;
+          for (const pos of portfolio.positions) {
+            const d = ms.stocks[pos.symbol];
+            const price = d?.price || pos.currentPrice || 0;
+            totalVal += price * (pos.quantity || 0);
+            totalCost += (pos.entryPrice || 0) * (pos.quantity || 0);
+          }
+          if (totalCost > 0) {
+            const pnlPct = ((totalVal - totalCost) / totalCost * 100);
+            const dir = pnlPct >= 0 ? '+' : '';
+            portfolioPart = `Your portfolio is ${dir}${pnlPct.toFixed(1)}%.`;
+          }
+        }
+      } catch (e) { /* non-critical */ }
+    }
+
+    if (parts.length > 0) {
+      const indexLine = `Good ${timeOfDay}. ${parts.join(', ')}.`;
+      const greeting = portfolioPart ? `${indexLine} ${portfolioPart}` : indexLine;
+      return { greeting, hasBrief: hasTodayBrief() };
+    }
+  } catch (e) {
+    // Fall through to simple greeting
+  }
+
+  return {
+    greeting: `Good ${timeOfDay}. Markets are loading — ask me anything.`,
+    hasBrief: hasTodayBrief(),
+  };
+}
+
 module.exports = {
   init,
   stop,
@@ -538,4 +609,5 @@ module.exports = {
   shouldGenerateBriefForUser,
   shouldGenerateForUser,
   orderSections,
+  getContextualGreeting,
 };
