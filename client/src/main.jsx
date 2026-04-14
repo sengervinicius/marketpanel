@@ -23,8 +23,17 @@ import { ToastProvider } from './context/ToastContext.jsx'
 import { ThemeProvider } from './context/ThemeContext.jsx'
 import { SettingsProvider, useSettings } from './context/SettingsContext.jsx'
 
+// Unregister legacy service worker — it uses stale-while-revalidate caching
+// which serves old JS bundles, preventing bug fixes from reaching users.
+// Vite's content-hashed filenames + standard HTTP caching are sufficient.
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('/service-worker.js').catch(() => {}));
+  navigator.serviceWorker.getRegistrations().then(registrations => {
+    registrations.forEach(r => r.unregister());
+  });
+  // Purge the old service worker cache
+  if ('caches' in window) {
+    caches.keys().then(keys => keys.forEach(k => caches.delete(k)));
+  }
 }
 
 // Minimal loading screen shown while the initial /api/auth/me check runs

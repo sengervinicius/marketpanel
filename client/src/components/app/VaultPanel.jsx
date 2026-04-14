@@ -141,7 +141,9 @@ export default function VaultPanel({ fullScreen = false }) {
   // Upload handler (core logic — used by both click and drag-and-drop)
   const handleUploadFile = useCallback(async (file) => {
     if (!file) return;
-    if (!file.name.toLowerCase().endsWith('.pdf')) { setError('Only PDF files are supported'); return; }
+    const ext = file.name.toLowerCase().split('.').pop();
+    const ACCEPTED = new Set(['pdf', 'docx', 'csv', 'tsv', 'txt', 'md', 'markdown', 'png', 'jpg', 'jpeg', 'tiff', 'tif']);
+    if (!ACCEPTED.has(ext)) { setError(`Unsupported file type (.${ext}). Accepted: PDF, DOCX, CSV, TXT, MD, PNG, JPG, TIFF`); return; }
     if (file.size > 10 * 1024 * 1024) { setError('File size must be under 10MB'); return; }
 
     setUploading(true);
@@ -157,19 +159,23 @@ export default function VaultPanel({ fullScreen = false }) {
       const formData = new FormData();
       formData.append('file', file);
       const uploadHeaders = token ? { Authorization: `Bearer ${token}` } : {};
-      const res = await fetch(uploadUrl, { method: 'POST', headers: uploadHeaders, credentials: 'include', body: formData });
+
+      console.log('[Vault] Uploading to:', uploadUrl, 'auth:', !!token, 'file:', file.name, file.size);
+
+      let res;
+      try {
+        res = await fetch(uploadUrl, { method: 'POST', headers: uploadHeaders, credentials: 'include', body: formData });
+      } catch (networkErr) {
+        // Network-level failure: CORS blocked, DNS failed, server unreachable, etc.
+        console.error('[Vault] Network error:', networkErr);
+        throw new Error(`Network error: ${networkErr.message}. Check if server is reachable at ${uploadUrl}`);
+      }
+
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
-        const rawMsg = errData.message || errData.error || '';
-        // Debug: log the raw error + HTTP status so we can diagnose
+        const rawMsg = errData.message || errData.error || `HTTP ${res.status}`;
         console.error('[Vault Upload]', res.status, rawMsg, errData);
-        // Show HTTP status in error for debugging
-        const statusHint = res.status === 402 ? 'Subscription required — '
-          : res.status === 503 ? 'Service unavailable — '
-          : res.status === 413 ? 'File too large — '
-          : res.status === 403 ? 'Access denied — '
-          : '';
-        throw new Error(statusHint + sanitizeVaultError(rawMsg));
+        throw new Error(`Upload failed (${res.status}): ${rawMsg}`);
       }
       const data = await res.json();
       const chunks = data.chunks || 0;
@@ -394,7 +400,7 @@ export default function VaultPanel({ fullScreen = false }) {
         {/* Upload area (when not uploading) */}
         {!uploading && (
           <>
-            <input ref={fileInputRef} type="file" accept=".pdf" onChange={handleUpload} style={{ display: 'none' }} />
+            <input ref={fileInputRef} type="file" accept=".pdf,.docx,.csv,.tsv,.txt,.md,.png,.jpg,.jpeg,.tiff,.tif" onChange={handleUpload} style={{ display: 'none' }} />
             <div className={`vault-upload-area${vaultHealth && !vaultHealth.ok ? ' vault-upload-area--degraded' : ''}`}
                  onClick={() => fileInputRef.current?.click()}>
               <div className="vault-upload-icon-ring">
@@ -404,11 +410,12 @@ export default function VaultPanel({ fullScreen = false }) {
                 </svg>
               </div>
               <span className="vault-upload-label">
-                {tab === 'central' ? 'Upload to Central Vault' : 'Drop or click to upload PDF'}
+                {tab === 'central' ? 'Upload to Central Vault' : 'Drop or click to upload'}
               </span>
               <span className="vault-upload-hint">
-                {tab === 'central' ? 'Powers all users\' Particle AI answers' : 'PDF up to 10MB \u00B7 Indexed for AI retrieval'}
+                {tab === 'central' ? 'Powers all users\' Particle AI answers' : 'PDF, DOCX, CSV, TXT, images \u00B7 up to 10MB'}
               </span>
+              <span className="vault-upload-hint" style={{ fontSize: '8px', opacity: 0.3 }}>v2</span>
             </div>
           </>
         )}
