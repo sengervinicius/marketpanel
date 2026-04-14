@@ -2772,19 +2772,21 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
           );
         })()}
 
-        {/* BOTTOM: TABS (mobile) */}
+        {/* BOTTOM: TABS (mobile) — Phase 4: scrollable pill strip */}
         {isMobile && (
           <div className="id-mobile-tabs">
-            <div className="id-tab-bar" role="tablist">
-              {mobileTabs.map(t => (
-                <button key={t}
-                  onClick={() => setActiveTab(t)}
-                  className={`id-tab id-tab--mobile${activeTab === t ? ' id-tab--active' : ''}`}
-                  role="tab"
-                  aria-selected={activeTab === t}
-                  aria-label={`${t} tab`}
-                >{t}</button>
-              ))}
+            <div className="id-mobile-tab-scroll-wrap">
+              <div className="id-tab-bar" role="tablist">
+                {mobileTabs.map(t => (
+                  <button key={t}
+                    onClick={() => setActiveTab(t)}
+                    className={`id-tab id-tab--mobile${activeTab === t ? ' id-tab--active' : ''}`}
+                    role="tab"
+                    aria-selected={activeTab === t}
+                    aria-label={`${t} tab`}
+                  >{t}</button>
+                ))}
+              </div>
             </div>
             <div className="id-mobile-tab-content">
               {activeTab === 'STATS'      && (isBond ? renderBondStats() : isFX ? renderStats() : isETF ? renderETFStats() : renderStats())}

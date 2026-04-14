@@ -20,6 +20,56 @@ import { checkAIAvailable } from '../../hooks/useAIInsight';
 import OptionsHomeWidget from '../common/OptionsHomeWidget';
 import './HomePanelMobile.css';
 
+/**
+ * Phase 4: Featured Sector Cards — surfaces sector screens prominently on mobile Home.
+ * Shows live ETF price + change as tappable cards.
+ */
+const FEATURED_SECTORS = [
+  { id: 'technology',       label: 'Tech & AI',   etf: 'XLK',  color: '#00bcd4' },
+  { id: 'defence',          label: 'Defence',      etf: 'ITA',  color: '#ef5350' },
+  { id: 'commodities',      label: 'Commodities',  etf: 'DJP',  color: '#ff9800' },
+  { id: 'crypto',           label: 'Crypto',       etf: 'BITO', color: '#f7931a' },
+  { id: 'global-macro',     label: 'Macro',        etf: 'SPY',  color: '#9c27b0' },
+  { id: 'brazil-em',        label: 'Brazil',       etf: 'EWZ',  color: '#4caf50' },
+  { id: 'asian-markets',    label: 'Asia',         etf: 'EWJ',  color: '#ff5722' },
+  { id: 'european-markets', label: 'Europe',       etf: 'VGK',  color: '#3f51b5' },
+];
+
+const SectorChip = memo(function SectorChip({ sector, onTap }) {
+  const q = useTickerPrice(sector.etf);
+  const pct = q?.changePct;
+  const isUp = pct != null && pct >= 0;
+  return (
+    <button
+      className="hpm-sector-chip"
+      style={{ borderColor: sector.color + '44' }}
+      onClick={() => onTap(sector.id)}
+    >
+      <span className="hpm-sector-chip-label">{sector.label}</span>
+      <span className={`hpm-sector-chip-pct ${isUp ? 'up' : pct != null ? 'down' : ''}`}>
+        {pct != null ? `${isUp ? '+' : ''}${pct.toFixed(1)}%` : '...'}
+      </span>
+    </button>
+  );
+});
+
+const FeaturedSectors = memo(function FeaturedSectors({ onSectorScreen }) {
+  if (!onSectorScreen) return null;
+  return (
+    <div className="hpm-sectors-featured">
+      <div className="hpm-section-header" style={{ padding: '0 16px' }}>
+        <span className="hpm-section-title">Sector Screens</span>
+        <span className="hpm-section-count">{FEATURED_SECTORS.length}</span>
+      </div>
+      <div className="hpm-sectors-scroll">
+        {FEATURED_SECTORS.map(s => (
+          <SectorChip key={s.id} sector={s} onTap={onSectorScreen} />
+        ))}
+      </div>
+    </div>
+  );
+});
+
 // Curated sections aligned to PARTICLE_HOME_SCREEN_REPORT.md audit
 // Order: US leadership → global overview → FX → crypto → commodities → Brazil
 const MOBILE_HOME_SECTIONS = [
@@ -193,7 +243,7 @@ const MarketScreensGallery = memo(function MarketScreensGallery({ onApplyScreen 
 });
 
 /* ── Main component ──────────────────────────────────────────────── */
-function HomePanelMobile({ onSearchClick }) {
+function HomePanelMobile({ onSearchClick, onSectorScreen }) {
   const { settings, applyTemplate } = useSettings();
   const [news, setNews] = useState([]);
   const [aiPulse, setAiPulse] = useState(null);
@@ -341,6 +391,54 @@ function HomePanelMobile({ onSearchClick }) {
           </div>
         )}
         {aiPulse && <div className="hpm-ai-result">{aiPulse}</div>}
+      </div>
+
+      {/* Phase 4: Featured Sector Screen Cards */}
+      <FeaturedSectors onSectorScreen={onSectorScreen} />
+
+      {/* Phase 4: Prediction Markets tile */}
+      <div className="hpm-feature-card" onClick={() => onSectorScreen?.('predictions')}>
+        <div className="hpm-feature-icon" style={{ color: '#9c27b0' }}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>
+          </svg>
+        </div>
+        <div className="hpm-feature-text">
+          <div className="hpm-feature-title">Prediction Markets</div>
+          <div className="hpm-feature-sub">Kalshi + Polymarket — bet on real-world events</div>
+        </div>
+        <svg className="hpm-feature-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 18 15 12 9 6"/></svg>
+      </div>
+
+      {/* Phase 4: Brazil Markets featured card */}
+      <div className="hpm-feature-card" onClick={() => onSectorScreen?.('brazil-em')}>
+        <div className="hpm-feature-icon" style={{ color: '#4caf50' }}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+          </svg>
+        </div>
+        <div className="hpm-feature-text">
+          <div className="hpm-feature-title">Brazil B3 & DI Curve</div>
+          <div className="hpm-feature-sub">USD/BRL, DI futures, B3 stocks — unique coverage</div>
+        </div>
+        <svg className="hpm-feature-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 18 15 12 9 6"/></svg>
+      </div>
+
+      {/* Phase 4: Vault upload CTA card */}
+      <div className="hpm-vault-cta" onClick={() => onSectorScreen?.('vault')}>
+        <div className="hpm-vault-cta-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+            <line x1="12" y1="6" x2="12" y2="14" />
+            <polyline points="9 11 12 14 15 11" />
+          </svg>
+        </div>
+        <div className="hpm-vault-cta-text">
+          <div className="hpm-vault-cta-title">Upload Research</div>
+          <div className="hpm-vault-cta-sub">PDFs and reports make your AI smarter</div>
+        </div>
+        <svg className="hpm-vault-cta-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 18 15 12 9 6" /></svg>
       </div>
 
       {/* Options Flow Widget */}

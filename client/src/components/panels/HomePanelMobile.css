@@ -274,6 +274,120 @@
   letter-spacing: 0.04em;
 }
 
+/* ── Phase 4: Feature Cards (Predictions, Brazil) ── */
+.hpm-feature-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 4px 16px 6px;
+  padding: 12px 14px;
+  background: var(--bg-elevated);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.hpm-feature-card:active { background: var(--bg-active); }
+.hpm-feature-icon { flex-shrink: 0; }
+.hpm-feature-text { flex: 1; }
+.hpm-feature-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.hpm-feature-sub {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+.hpm-feature-chevron {
+  flex-shrink: 0;
+  color: var(--text-faint);
+}
+
+/* ── Phase 4: Vault Upload CTA ─────────────── */
+.hpm-vault-cta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 4px 16px 12px;
+  padding: 12px 14px;
+  background: var(--bg-elevated);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-left: 3px solid var(--accent);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.hpm-vault-cta:active { background: var(--bg-active); }
+.hpm-vault-cta-icon {
+  flex-shrink: 0;
+  color: var(--accent);
+}
+.hpm-vault-cta-text { flex: 1; }
+.hpm-vault-cta-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.hpm-vault-cta-sub {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+.hpm-vault-cta-chevron {
+  flex-shrink: 0;
+  color: var(--text-faint);
+}
+
+/* ── Phase 4: Featured Sector Cards ────────── */
+.hpm-sectors-featured {
+  margin: 12px 0 4px;
+}
+.hpm-sectors-scroll {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 8px 16px 12px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.hpm-sectors-scroll::-webkit-scrollbar { display: none; }
+.hpm-sector-chip {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: var(--bg-elevated);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 20px;
+  cursor: pointer;
+  transition: transform 0.1s, background 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.hpm-sector-chip:active {
+  transform: scale(0.96);
+  background: var(--bg-active);
+}
+.hpm-sector-chip-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+.hpm-sector-chip-pct {
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  font-family: var(--font-mono);
+  white-space: nowrap;
+}
+.hpm-sector-chip-pct.up { color: var(--semantic-up); }
+.hpm-sector-chip-pct.down { color: var(--semantic-down); }
+
 /* ── Market Screens Gallery ─────────────── */
 
 .hpm-screens-section {

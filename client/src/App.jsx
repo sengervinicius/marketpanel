@@ -59,6 +59,7 @@ import SectorScreenSelector from './components/common/SectorScreenSelector';
 import MarketStatus from './components/common/MarketStatus';
 import { TickerTooltip } from './components/common/TickerTooltip';
 const AdminDashboard = lazyRetry(() => import('./components/admin/AdminDashboard'));
+const PredictionPanel = lazyRetry(() => import('./components/panels/PredictionPanel'));
 
 // Lazy-loaded sector screens — split into separate chunks (lazyRetry auto-reloads on stale deploy)
 const DefenceScreen = lazyRetry(() => import('./components/screens/DefenceScreen'));
@@ -416,7 +417,11 @@ export default function App() {
   // ── Sector screen state (Wave 2) ────────────────────────────────────────
   const [activeSectorScreen, setActiveSectorScreen] = useState(null);
   const [sectorSelectorOpen, setSectorSelectorOpen] = useState(false);
-  const [showWelcome, setShowWelcome] = useState(false);
+  // Phase 4: Show onboarding for new users (never completed + not dismissed)
+  const [showWelcome, setShowWelcome] = useState(() => {
+    if (localStorage.getItem('particle_onboarding_done')) return false;
+    return true; // Will be gated by settingsLoaded + user check below
+  });
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
 
@@ -447,6 +452,17 @@ export default function App() {
   }), []);
 
   const handleSelectSectorScreen = useCallback((screenId) => {
+    // Phase 4: special navigation targets
+    if (screenId === 'vault') {
+      setMobileModePersist('vault');
+      return;
+    }
+    if (screenId === 'predictions') {
+      // Navigate to predictions via More tab sub-view
+      setActiveTabPersist('more');
+      setMoreView('predictions');
+      return;
+    }
     setActiveSectorScreen(screenId);
     setSectorSelectorOpen(false);
   }, []);
@@ -577,6 +593,11 @@ export default function App() {
 
   // ── Mobile-specific hooks (must be before any early return) ─────────────
   const handleMoreNavigate = useCallback((view) => {
+    // Phase 4: Vault navigates to vault mode instead of a sub-view
+    if (view === 'vault') {
+      setMobileModePersist('vault');
+      return;
+    }
     setMoreView(view);
   }, []);
   const handleMoreBack = useCallback(() => {
@@ -584,7 +605,7 @@ export default function App() {
   }, []);
   const mobileScreenTitle = useMemo(() => {
     if (activeTab === 'more' && moreView) {
-      const titles = { news: 'News Feed', etf: 'ETF Screener', screener: 'Fundamental Screener', macro: 'Macro Panel', sectors: 'Sector Screens' };
+      const titles = { news: 'News Feed', etf: 'ETF Screener', screener: 'Fundamental Screener', macro: 'Macro Panel', sectors: 'Sector Screens', predictions: 'Prediction Markets' };
       return titles[moreView] || moreView;
     }
     return null;
@@ -626,7 +647,12 @@ export default function App() {
         {showTermsModal && <TermsAcceptanceModal onAccept={handleAcceptTerms} />}
 
         {/* Welcome modal (replaces old onboarding) */}
-        {showWelcome && !showTermsModal && <WelcomeModal onClose={() => setShowWelcome(false)} />}
+        {showWelcome && !showTermsModal && settingsLoaded && user && !localStorage.getItem('particle_onboarding_done') && (
+          <WelcomeModal
+            onClose={() => setShowWelcome(false)}
+            onComplete={() => setShowWelcome(false)}
+          />
+        )}
 
         {/* 5-Step Onboarding Tour */}
         <OnboardingTour />
@@ -1047,7 +1073,12 @@ export default function App() {
       {showTermsModal && <TermsAcceptanceModal onAccept={handleAcceptTerms} />}
 
       {/* Welcome modal (mobile) */}
-      {showWelcome && !showTermsModal && <WelcomeModal onClose={() => setShowWelcome(false)} />}
+      {showWelcome && !showTermsModal && settingsLoaded && user && !localStorage.getItem('particle_onboarding_done') && (
+          <WelcomeModal
+            onClose={() => setShowWelcome(false)}
+            onComplete={() => setShowWelcome(false)}
+          />
+        )}
 
       {/* Particle first-launch arrival sequence (mobile) */}
       {/* Keyboard shortcuts modal (mobile) */}
@@ -1223,6 +1254,7 @@ export default function App() {
               <PanelErrorBoundary name="Home">
                 <HomePanelMobile
                   onSearchClick={() => setActiveTabPersist('search')}
+                  onSectorScreen={handleSelectSectorScreen}
                 />
               </PanelErrorBoundary>
             </div>
@@ -1311,6 +1343,15 @@ export default function App() {
 
             <div style={{ flex: 1, display: mobileMode !== 'terminal' || activeSectorScreen || activeTab !== 'more' || moreView !== 'notification-prefs' ? 'none' : 'flex' }}>
               <NotificationPrefs onClose={() => setMoreView(null)} />
+            </div>
+
+            {/* Phase 4: Prediction Markets mobile view */}
+            <div style={{ flex: 1, display: mobileMode !== 'terminal' || activeSectorScreen || activeTab !== 'more' || moreView !== 'predictions' ? 'none' : 'flex' }}>
+              <PanelErrorBoundary name="Predictions">
+                <Suspense fallback={null}>
+                  <PredictionPanel />
+                </Suspense>
+              </PanelErrorBoundary>
             </div>
 
           </div>

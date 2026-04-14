@@ -16,7 +16,7 @@ import { useStocksData, useIndicesData } from '../../context/MarketContext';
 import { useBehaviorTracker, useSmartChips } from '../../hooks/useBehavior';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { usePortfolio } from '../../context/PortfolioContext';
-import { API_BASE } from '../../utils/api';
+import { API_BASE, apiFetch } from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
 
 const PLACEHOLDERS = [
@@ -64,6 +64,18 @@ export default function ParticleScreen() {
   // Anomaly tickers — fetch periodically
   const { token } = useAuth();
   const [anomalyTickers, setAnomalyTickers] = useState([]);
+
+  // Phase 4: Vault document count for differentiation badge
+  const [vaultDocCount, setVaultDocCount] = useState(0);
+  useEffect(() => {
+    if (!token) return;
+    let cancelled = false;
+    apiFetch('/api/vault/documents')
+      .then(r => r.ok ? r.json() : { documents: [] })
+      .then(data => { if (!cancelled) setVaultDocCount((data.documents || []).length); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [token]);
   useEffect(() => {
     let cancelled = false;
     async function fetchAnomalies() {
@@ -308,6 +320,22 @@ export default function ParticleScreen() {
 
           {/* Live sentiment strip (Wave 12A) */}
           <SentimentStrip indices={indicesData} />
+
+          {/* Phase 4: Vault differentiation badge */}
+          {vaultDocCount > 0 && (
+            <div style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              padding: '4px 12px', borderRadius: 20,
+              background: 'rgba(218,165,32,0.08)', border: '1px solid rgba(218,165,32,0.15)',
+              fontSize: 10, fontWeight: 600, color: '#DAA520',
+              margin: '8px auto 0', letterSpacing: '0.2px',
+            }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+              </svg>
+              {vaultDocCount} research document{vaultDocCount !== 1 ? 's' : ''} indexed — ask me about them
+            </div>
+          )}
 
           {/* Morning Brief moved to BriefNotification (App.jsx level) */}
 
