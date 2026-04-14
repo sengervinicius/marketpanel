@@ -62,6 +62,7 @@ import VaultPanel from './components/app/VaultPanel';
 import SectorScreenSelector from './components/common/SectorScreenSelector';
 import MarketStatus from './components/common/MarketStatus';
 import { TickerTooltip } from './components/common/TickerTooltip';
+const AdminDashboard = lazyRetry(() => import('./components/admin/AdminDashboard'));
 
 // Lazy-loaded sector screens — split into separate chunks (lazyRetry auto-reloads on stale deploy)
 const DefenceScreen = lazyRetry(() => import('./components/screens/DefenceScreen'));
@@ -674,6 +675,7 @@ export default function App() {
             setCommandPaletteOpen(false);
             if (cmd.action === 'navigate') {
               if (cmd.target === 'home') handleGoHome();
+              else if (cmd.target === 'admin') setMobileModePersist('admin');
               else setActiveSectorScreen(cmd.target);
             } else if (cmd.action === 'chat') {
               if (isMobile) setChatOpen(true);
@@ -700,7 +702,7 @@ export default function App() {
         <div className="flex-row app-header-bar" data-tour="header">
           <ParticleLogo size={22} style={{ marginRight: 6 }} /><span className="app-header-title">PARTICLE</span>
 
-          {/* ── Desktop mode toggle: Particle / Terminal / Vault ── */}
+          {/* ── Desktop mode toggle: Particle / Terminal / Vault / Admin ── */}
           <div className="desktop-mode-toggle" style={{ display: 'inline-flex', marginLeft: 12, gap: 2, background: 'var(--bg-panel, #111)', borderRadius: 6, padding: 2, border: '1px solid var(--border-default, rgba(255,255,255,0.07))' }}>
             <button
               className="btn desktop-mode-btn"
@@ -735,6 +737,18 @@ export default function App() {
                 transition: 'all 150ms ease',
               }}
             >VAULT</button>
+            <button
+              className="btn desktop-mode-btn"
+              onClick={() => { setMobileModePersist('admin'); }}
+              style={{
+                padding: '3px 12px', fontSize: 10, fontWeight: 700, letterSpacing: '0.08em',
+                borderRadius: 4, border: 'none', cursor: 'pointer',
+                color: mobileMode === 'admin' ? '#000' : 'var(--text-faint)',
+                background: mobileMode === 'admin' ? '#00ff88' : 'transparent',
+                transition: 'all 150ms ease',
+              }}
+              title="Admin Dashboard (Cmd+Shift+A)"
+            >ADMIN</button>
           </div>
 
           {/* Navigation buttons (terminal mode only) */}
@@ -1202,6 +1216,15 @@ export default function App() {
             {/* ── Vault screen (shown when mobileMode === 'vault') ── */}
             <div style={{ flex: 1, display: mobileMode !== 'vault' ? 'none' : 'flex', flexDirection: 'column', overflow: 'hidden' }}>
               <VaultPanel fullScreen />
+            </div>
+
+            {/* ── Admin Dashboard (shown when mobileMode === 'admin') ── */}
+            <div style={{ flex: 1, display: mobileMode !== 'admin' ? 'none' : 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+              <Suspense fallback={<div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-faint)' }}>Loading admin dashboard...</div>}>
+                <PanelErrorBoundary name="AdminDashboard">
+                  <AdminDashboard />
+                </PanelErrorBoundary>
+              </Suspense>
             </div>
 
             {/* Full-page sector screen on mobile — ALWAYS mounted when active, hidden when not */}

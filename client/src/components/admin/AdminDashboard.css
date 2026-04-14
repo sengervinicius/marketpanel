@@ -1,0 +1,677 @@
+/**
+ * AdminDashboard.css — Terminal-style admin analytics dashboard
+ * Matches Particle's dark aesthetic with accent colors
+ */
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Main Dashboard Container */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+.admin-dashboard {
+  background: #0a0a0f;
+  color: #e0e0e0;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  padding: 24px;
+  min-height: 100vh;
+  overflow-y: auto;
+}
+
+.admin-dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 32px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(0, 255, 136, 0.15);
+}
+
+.admin-dashboard-header h1 {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 600;
+  color: #ffffff;
+  letter-spacing: 1px;
+}
+
+.admin-dashboard-meta {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.admin-dashboard-updated {
+  font-size: 12px;
+  color: #888;
+  font-family: monospace;
+}
+
+.admin-dashboard-refresh {
+  padding: 8px 16px;
+  background: rgba(0, 255, 136, 0.1);
+  border: 1px solid rgba(0, 255, 136, 0.3);
+  border-radius: 4px;
+  color: #00ff88;
+  font-family: monospace;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.admin-dashboard-refresh:hover {
+  background: rgba(0, 255, 136, 0.2);
+  border-color: rgba(0, 255, 136, 0.5);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Loading & Error States */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+.admin-loading,
+.admin-chart-empty {
+  padding: 32px;
+  text-align: center;
+  color: #888;
+  font-size: 14px;
+  background: rgba(15, 15, 20, 0.5);
+  border: 1px solid rgba(0, 255, 136, 0.1);
+  border-radius: 6px;
+}
+
+.admin-error {
+  padding: 24px;
+  background: rgba(244, 67, 54, 0.1);
+  border: 1px solid rgba(244, 67, 54, 0.3);
+  border-radius: 6px;
+  color: #ff6b6b;
+  margin-bottom: 16px;
+  font-size: 14px;
+}
+
+.admin-error-retry {
+  margin-top: 12px;
+  padding: 8px 16px;
+  background: rgba(244, 67, 54, 0.2);
+  border: 1px solid rgba(244, 67, 54, 0.4);
+  border-radius: 4px;
+  color: #ff6b6b;
+  font-family: monospace;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.admin-error-retry:hover {
+  background: rgba(244, 67, 54, 0.3);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Sections */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+.admin-overview-section,
+.admin-charts-section,
+.admin-users-section,
+.admin-health-section {
+  margin-bottom: 40px;
+}
+
+.admin-section-title {
+  margin: 0 0 16px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #00ff88;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Overview Cards Grid */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+.admin-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.admin-overview-card {
+  background: rgba(15, 15, 20, 0.6);
+  border: 1px solid rgba(0, 255, 136, 0.2);
+  border-radius: 6px;
+  padding: 16px;
+  transition: all 0.2s ease;
+}
+
+.admin-overview-card:hover {
+  background: rgba(15, 15, 20, 0.8);
+  border-color: rgba(0, 255, 136, 0.4);
+  box-shadow: 0 4px 12px rgba(0, 255, 136, 0.1);
+}
+
+.admin-overview-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.admin-overview-card-icon {
+  font-size: 16px;
+}
+
+.admin-overview-card-label {
+  font-size: 12px;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+}
+
+.admin-overview-card-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: #00ff88;
+  font-family: monospace;
+}
+
+.admin-overview-card-trend {
+  font-size: 11px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(0, 255, 136, 0.1);
+}
+
+.admin-overview-card-trend.positive {
+  color: #4db854;
+}
+
+.admin-overview-card-trend.negative {
+  color: #f44336;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Charts */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+.admin-chart-container {
+  background: rgba(15, 15, 20, 0.6);
+  border: 1px solid rgba(0, 255, 136, 0.2);
+  border-radius: 6px;
+  padding: 20px;
+  margin-bottom: 24px;
+  overflow-x: auto;
+}
+
+.admin-chart-title {
+  margin: 0 0 12px 0;
+  font-size: 13px;
+  color: #00ff88;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.admin-chart-svg {
+  display: block;
+  margin: 0 auto;
+  max-width: 100%;
+  height: auto;
+}
+
+.admin-chart-grid {
+  stroke: rgba(0, 255, 136, 0.1);
+  stroke-width: 1;
+  stroke-dasharray: 4,4;
+}
+
+.admin-chart-path {
+  fill: none;
+  stroke: #00ff88;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.admin-chart-point {
+  fill: #00ff88;
+  opacity: 0.8;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Heatmap */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+.admin-heatmap-container {
+  background: rgba(15, 15, 20, 0.6);
+  border: 1px solid rgba(0, 255, 136, 0.2);
+  border-radius: 6px;
+  padding: 20px;
+  margin-bottom: 24px;
+}
+
+.admin-heatmap-wrapper {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding-top: 12px;
+}
+
+.admin-heatmap-hours {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  padding-top: 24px;
+  gap: 2px;
+}
+
+.admin-heatmap-hour-label {
+  font-size: 10px;
+  color: #666;
+  width: 30px;
+  text-align: right;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 8px;
+}
+
+.admin-heatmap-grid {
+  display: flex;
+  gap: 12px;
+}
+
+.admin-heatmap-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.admin-heatmap-day-label {
+  font-size: 11px;
+  color: #888;
+  margin-bottom: 8px;
+  font-weight: 600;
+  width: 30px;
+  text-align: center;
+}
+
+.admin-heatmap-cells {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.admin-heatmap-cell {
+  width: 24px;
+  height: 24px;
+  border-radius: 2px;
+  border: 1px solid rgba(0, 255, 136, 0.15);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.admin-heatmap-cell:hover {
+  border-color: rgba(0, 255, 136, 0.4);
+  transform: scale(1.1);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Tickers Table */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+.admin-tickers-container {
+  background: rgba(15, 15, 20, 0.6);
+  border: 1px solid rgba(0, 255, 136, 0.2);
+  border-radius: 6px;
+  padding: 20px;
+  margin-bottom: 24px;
+  overflow-x: auto;
+}
+
+.admin-tickers-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.admin-tickers-table thead {
+  border-bottom: 1px solid rgba(0, 255, 136, 0.2);
+}
+
+.admin-tickers-table th {
+  padding: 12px 8px;
+  text-align: left;
+  color: #00ff88;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-size: 11px;
+}
+
+.admin-tickers-table td {
+  padding: 10px 8px;
+  border-bottom: 1px solid rgba(0, 255, 136, 0.1);
+  color: #d0d0d0;
+}
+
+.admin-tickers-table tbody tr:hover {
+  background: rgba(0, 255, 136, 0.05);
+}
+
+.admin-tickers-ticker {
+  font-weight: 600;
+  color: #00ff88;
+  font-family: monospace;
+}
+
+.admin-tickers-count {
+  text-align: right;
+  color: #888;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Users Table & Search */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+.admin-users-container {
+  background: rgba(15, 15, 20, 0.6);
+  border: 1px solid rgba(0, 255, 136, 0.2);
+  border-radius: 6px;
+  padding: 20px;
+  margin-bottom: 24px;
+}
+
+.admin-users-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  gap: 12px;
+}
+
+.admin-users-search {
+  flex: 1;
+  max-width: 300px;
+  padding: 8px 12px;
+  background: rgba(0, 255, 136, 0.05);
+  border: 1px solid rgba(0, 255, 136, 0.2);
+  border-radius: 4px;
+  color: #e0e0e0;
+  font-family: monospace;
+  font-size: 12px;
+  transition: all 0.2s ease;
+}
+
+.admin-users-search:focus {
+  outline: none;
+  background: rgba(0, 255, 136, 0.1);
+  border-color: rgba(0, 255, 136, 0.4);
+  box-shadow: 0 0 8px rgba(0, 255, 136, 0.1);
+}
+
+.admin-users-table-wrapper {
+  overflow-x: auto;
+  margin-bottom: 16px;
+}
+
+.admin-users-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.admin-users-table thead {
+  border-bottom: 1px solid rgba(0, 255, 136, 0.2);
+}
+
+.admin-users-table th {
+  padding: 12px 8px;
+  text-align: left;
+  color: #00ff88;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-size: 11px;
+}
+
+.admin-users-table td {
+  padding: 10px 8px;
+  border-bottom: 1px solid rgba(0, 255, 136, 0.1);
+  color: #d0d0d0;
+}
+
+.admin-users-table tbody tr:hover {
+  background: rgba(0, 255, 136, 0.05);
+}
+
+.admin-users-id {
+  color: #888;
+  font-family: monospace;
+  font-size: 11px;
+}
+
+.admin-users-username {
+  font-weight: 600;
+  color: #00ff88;
+  font-family: monospace;
+}
+
+.admin-users-email {
+  color: #aaa;
+  font-size: 11px;
+}
+
+.admin-users-plan {
+  font-size: 11px;
+}
+
+.admin-users-plan-badge {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 3px;
+  font-weight: 600;
+  font-size: 10px;
+  letter-spacing: 0.5px;
+}
+
+.admin-users-plan-badge.paid {
+  background: rgba(76, 175, 80, 0.2);
+  color: #4db854;
+  border: 1px solid rgba(76, 175, 80, 0.4);
+}
+
+.admin-users-plan-badge.trial {
+  background: rgba(255, 193, 7, 0.2);
+  color: #ffc107;
+  border: 1px solid rgba(255, 193, 7, 0.4);
+}
+
+.admin-users-count {
+  text-align: center;
+  color: #888;
+  font-family: monospace;
+}
+
+.admin-users-last-active {
+  color: #888;
+  font-size: 11px;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Pagination */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+.admin-pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(0, 255, 136, 0.1);
+}
+
+.admin-pagination-btn {
+  padding: 8px 12px;
+  background: rgba(0, 255, 136, 0.1);
+  border: 1px solid rgba(0, 255, 136, 0.3);
+  border-radius: 4px;
+  color: #00ff88;
+  font-family: monospace;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.admin-pagination-btn:hover:not(:disabled) {
+  background: rgba(0, 255, 136, 0.2);
+  border-color: rgba(0, 255, 136, 0.5);
+}
+
+.admin-pagination-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.admin-pagination-info {
+  font-size: 12px;
+  color: #888;
+  font-family: monospace;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Health Panel */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+.admin-health-container {
+  background: rgba(15, 15, 20, 0.6);
+  border: 1px solid rgba(0, 255, 136, 0.2);
+  border-radius: 6px;
+  padding: 20px;
+  margin-bottom: 24px;
+}
+
+.admin-health-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.admin-health-item {
+  background: rgba(0, 255, 136, 0.05);
+  border: 1px solid rgba(0, 255, 136, 0.15);
+  border-radius: 4px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.admin-health-label {
+  font-size: 11px;
+  color: #888;
+  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.admin-health-value {
+  font-size: 16px;
+  font-weight: 700;
+  color: #00ff88;
+  font-family: monospace;
+}
+
+.admin-health-value.ok {
+  color: #4db854;
+}
+
+.admin-health-value.error {
+  color: #f44336;
+}
+
+.admin-health-detail {
+  font-size: 11px;
+  color: #666;
+  font-family: monospace;
+}
+
+.admin-health-tables {
+  margin-top: 20px;
+  border-top: 1px solid rgba(0, 255, 136, 0.1);
+  padding-top: 20px;
+}
+
+.admin-health-tables-title {
+  margin: 0 0 12px 0;
+  font-size: 12px;
+  color: #00ff88;
+  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.admin-health-tables-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+}
+
+.admin-health-table-item {
+  background: rgba(0, 255, 136, 0.05);
+  border: 1px solid rgba(0, 255, 136, 0.15);
+  border-radius: 4px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.admin-health-table-name {
+  font-size: 11px;
+  color: #888;
+  font-weight: 600;
+  font-family: monospace;
+}
+
+.admin-health-table-count {
+  font-size: 13px;
+  color: #00ff88;
+  font-weight: 700;
+  font-family: monospace;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Responsive */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+@media (max-width: 768px) {
+  .admin-dashboard {
+    padding: 16px;
+  }
+
+  .admin-dashboard-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .admin-overview-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .admin-health-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-heatmap-wrapper {
+    flex-direction: column;
+  }
+
+  .admin-pagination {
+    flex-wrap: wrap;
+  }
+}

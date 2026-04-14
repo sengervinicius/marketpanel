@@ -52,6 +52,13 @@ const COMMAND_GROUPS = [
       { id: 'toggle-theme', label: 'Toggle Theme', action: 'action', target: 'toggle-theme' },
     ],
   },
+  {
+    category: 'Admin',
+    icon: '⚙️',
+    commands: [
+      { id: 'admin-dashboard', label: 'Admin Dashboard', action: 'navigate', target: 'admin', shortcut: 'Cmd+Shift+A' },
+    ],
+  },
 ];
 
 // Flatten commands for searching

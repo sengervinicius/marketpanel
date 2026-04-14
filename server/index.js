@@ -56,6 +56,7 @@ const signalRoutes      = require('./routes/signals');
 const briefRoutes       = require('./routes/brief');
 const riskRoutes        = require('./routes/risk');
 const unusualWhalesRoutes = require('./routes/unusualWhales');
+const adminRoutes = require('./routes/admin');
 const { requireAuth, requireActiveSubscription, requireAdmin } = require('./authMiddleware');
 const logger = require('./utils/logger');
 const { requestLogger } = require('./utils/logger');
@@ -194,8 +195,11 @@ app.use('/api/auth', authRoutes);
 
 // ── Admin endpoint removed for production (Phase 7 security hardening) ──────
 
+// ── Admin Dashboard Routes (requires auth) ──────────────────────────────────
+app.use('/api/admin', requireAuth, adminRoutes);
+
 // ── Admin health endpoint (detailed provider/API key info — requires admin auth) ──
-app.get('/api/admin/health', requireAdmin, (req, res) => res.json({
+app.get('/api/admin/provider-health', requireAdmin, (req, res) => res.json({
   status: 'ok',
   version: process.env.npm_package_version || '1.0.0',
   time: new Date().toISOString(),
