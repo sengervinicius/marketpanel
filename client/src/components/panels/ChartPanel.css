@@ -19,7 +19,7 @@
   flex-shrink: 0;
 }
 .cp-title {
-  color: var(--accent);
+  color: var(--text-primary);
   font-weight: 700;
   font-size: var(--font-sm);
   letter-spacing: 0.2em;
@@ -180,6 +180,16 @@
   justify-content: center;
   color: var(--text-faint);
   font-size: var(--font-sm);
+}
+.mc-skeleton-shimmer {
+  background: linear-gradient(90deg, var(--bg-active) 0%, var(--bg-hover) 50%, var(--bg-active) 100%);
+  background-size: 200% 100%;
+  animation: mc-shimmer 2s ease-in-out infinite;
+  border-radius: 2px;
+}
+@keyframes mc-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }
 
 /* Drag overlay */

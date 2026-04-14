@@ -11,7 +11,7 @@
 }
 
 .ac-header-title {
-  color: var(--accent);
+  color: var(--text-primary);
   font-weight: 700;
   letter-spacing: 1px;
   font-size: var(--font-base);

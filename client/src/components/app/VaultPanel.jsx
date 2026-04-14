@@ -327,10 +327,10 @@ export default function VaultPanel({ fullScreen = false }) {
             </div>
             <div className="vault-db-banner-text">
               {vaultHealth.database === 'not_configured'
-                ? 'Vault database is not configured. Set POSTGRES_URL on the server to enable document storage.'
+                ? 'Knowledge Vault is being configured. Document storage will be available shortly.'
                 : vaultHealth.reconnecting
-                  ? 'Vault database is reconnecting… Upload will be available shortly.'
-                  : 'Vault database is currently offline. The server is attempting to reconnect automatically.'}
+                  ? 'Knowledge Vault is reconnecting… Upload will be available in a moment.'
+                  : 'Knowledge Vault is initializing. This usually takes a few seconds.'}
             </div>
           </div>
         )}

@@ -189,14 +189,13 @@ class SectionErrorBoundary extends Component {
   render() {
     if (this.state.hasError) {
       const sectionTitle = this.props.section || 'Section';
-      const accentColor = this.props.accentColor || '#ef5350';
       return (
         <div style={{
           padding: '20px 16px',
           textAlign: 'center',
           background: 'var(--bg-elevated)',
-          border: `1px solid ${accentColor}33`,
-          borderLeft: `3px solid ${accentColor}`,
+          border: '1px solid var(--border-subtle)',
+          borderLeft: '3px solid var(--border-strong)',
           borderRadius: 4,
           minHeight: 80,
         }}>
@@ -210,18 +209,18 @@ class SectionErrorBoundary extends Component {
           }}>
             {sectionTitle}
           </div>
-          <div style={{ color: accentColor, fontSize: 11, fontWeight: 600, marginBottom: 4 }}>
-            Failed to load
+          <div style={{ color: 'var(--text-muted)', fontSize: 11, fontWeight: 600, marginBottom: 4 }}>
+            Loading issue
           </div>
           <div style={{ color: 'var(--text-secondary)', fontSize: 10, marginBottom: 10, maxWidth: 300, margin: '0 auto 10px' }}>
-            {this.state.error?.message || 'An unexpected error occurred in this section.'}
+            Something went wrong loading this section. Try refreshing.
           </div>
           <button
             onClick={() => this.setState({ hasError: false, error: null })}
             style={{
-              background: `${accentColor}22`,
-              border: `1px solid ${accentColor}66`,
-              color: accentColor,
+              background: 'var(--bg-active)',
+              border: '1px solid var(--border-strong)',
+              color: 'var(--text-secondary)',
               padding: '5px 16px',
               borderRadius: 4,
               cursor: 'pointer',
@@ -231,8 +230,8 @@ class SectionErrorBoundary extends Component {
               letterSpacing: 0.8,
               transition: 'background 0.15s',
             }}
-            onMouseEnter={e => e.target.style.background = `${accentColor}44`}
-            onMouseLeave={e => e.target.style.background = `${accentColor}22`}
+            onMouseEnter={e => e.target.style.background = 'var(--bg-hover)'}
+            onMouseLeave={e => e.target.style.background = 'var(--bg-active)'}
           >
             Retry
           </button>

@@ -135,7 +135,7 @@ const SparkChart = memo(function SparkChart({ ticker, label, rangeIdx, sectorNam
         {loading ? (
           <div className="scs-chart-loading" />
         ) : bars.length < 2 ? (
-          <div className="scs-chart-nodata">NO DATA</div>
+          <div className="scs-chart-loading" />
         ) : (
           <ResponsiveContainer width="100%" height={60}>
             <AreaChart data={bars} margin={{ top: 2, right: 0, left: 0, bottom: 0 }}>

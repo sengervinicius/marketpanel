@@ -2,7 +2,7 @@
 
 .hdr-main {
   background: var(--bg-panel);
-  border-bottom: 1px solid var(--accent);
+  border-bottom: 1px solid var(--border-strong);
   flex-shrink: 0;
   font-family: var(--font-ui);
 }

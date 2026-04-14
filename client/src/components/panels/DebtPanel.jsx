@@ -418,7 +418,7 @@ function DebtPanel() {
               </div>
             ) : chartData.length === 0 ? (
               <div className="dp-state dp-state--empty">
-                <span>NO DATA AVAILABLE FOR {countryMeta?.name?.toUpperCase() || selectedCountry}</span>
+                <span>Loading data for {countryMeta?.name || selectedCountry}...</span>
                 <button className="dp-retry-btn" onClick={handleRetry}>RETRY</button>
               </div>
             ) : (

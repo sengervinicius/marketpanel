@@ -113,9 +113,9 @@
   100% { background-position: -200% 0; }
 }
 
-/* Error */
+/* Error — muted grey, not red */
 .ds-error {
-  color: var(--semantic-down);
+  color: var(--text-muted);
   font-size: var(--text-xs);
   padding: 10px;
   text-align: center;

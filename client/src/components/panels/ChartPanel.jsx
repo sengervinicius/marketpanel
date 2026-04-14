@@ -392,10 +392,8 @@ const MiniChart = memo(function MiniChart({ ticker, index, onRemove, onReplace, 
 
       {/* Chart */}
       <div style={{ flex: 1, minHeight: 0, pointerEvents: isDragOver ? 'none' : 'auto', position: 'relative' }}>
-        {loading ? (
-          <div className="mc-msg">loading...</div>
-        ) : data.length === 0 ? (
-          <div className="mc-msg">NO DATA</div>
+        {loading || data.length === 0 ? (
+          <div className="mc-msg mc-skeleton-shimmer" style={{ opacity: 0.4 }}>&nbsp;</div>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={chartBars} margin={{ top: 4, right: 2, bottom: 2, left: 0 }}>

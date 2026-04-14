@@ -58,7 +58,7 @@
 .msg-card {
   background: rgba(255, 255, 255, 0.015);
   border: 1px solid rgba(255, 255, 255, 0.05);
-  border-left: 3px solid var(--accent);
+  border-left: 3px solid var(--border-strong);
   border-radius: 6px;
   padding: 8px 10px;
   cursor: pointer;

@@ -23,7 +23,7 @@
   font-size: var(--font-xs);
   font-weight: 700;
   letter-spacing: 1.8px;
-  color: var(--accent);
+  color: var(--text-primary);
 }
 .macro-ai-btn {
   padding: 5px 12px;

@@ -19,8 +19,8 @@ class SectionErrorBoundary extends Component {
     if (this.state.hasError) {
       return (
         <div style={{ padding: '12px 8px', color: 'var(--text-secondary)', fontSize: 10, textAlign: 'center' }}>
-          <span style={{ color: 'var(--semantic-down)' }}>Failed to load section</span>
-          <div style={{ color: 'var(--text-muted)', marginTop: 4 }}>{this.state.error?.message || 'Unknown error'}</div>
+          <span style={{ color: 'var(--text-muted)' }}>Section loading issue</span>
+          <div style={{ color: 'var(--text-faint)', marginTop: 4 }}>Something went wrong. Try refreshing.</div>
           <button onClick={() => this.setState({ hasError: false, error: null })}
             style={{ marginTop: 6, background: 'transparent', border: '1px solid var(--border-strong)', color: 'var(--text-secondary)', padding: '3px 10px', borderRadius: 3, cursor: 'pointer', fontSize: 9 }}>
             RETRY
@@ -87,13 +87,13 @@ export function StatsLoadGate({ statsMap, loading, error, refresh, rows = 6, chi
   const hasData = statsMap && statsMap.size > 0;
 
   if (timedOut && !hasData) {
-    return <DeepError message="Statistics timed out — data may be rate-limited" onRetry={() => { setTimedOut(false); refresh?.(); }} />;
+    return <DeepError message="Loading market data... This may take a moment." onRetry={() => { setTimedOut(false); refresh?.(); }} />;
   }
   if (loading && !hasData) {
     return <DeepSkeleton rows={rows} />;
   }
   if (error && !hasData) {
-    return <DeepError message={`Data unavailable — ${error}`} onRetry={refresh} />;
+    return <DeepError message="Loading data..." onRetry={refresh} />;
   }
   return children;
 }

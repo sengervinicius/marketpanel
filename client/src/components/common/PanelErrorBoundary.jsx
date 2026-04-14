@@ -44,11 +44,11 @@ export default class PanelErrorBoundary extends Component {
           fontSize: 11,
           textAlign: 'center',
         }}>
-          <span style={{ color: '#f44336', fontWeight: 600, fontSize: 12 }}>
-            {this.props.name || 'Panel'} crashed
+          <span style={{ color: '#999', fontWeight: 600, fontSize: 12 }}>
+            {this.props.name || 'Panel'} — loading issue
           </span>
           <span style={{ color: '#666', fontSize: 10, maxWidth: 300, wordBreak: 'break-word' }}>
-            {this.state.error?.message || 'Unknown error'}
+            Something went wrong. Try refreshing this panel.
           </span>
           <button
             onClick={this.handleRetry}

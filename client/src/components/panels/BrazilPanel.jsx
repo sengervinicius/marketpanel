@@ -189,7 +189,7 @@ function BrazilPanel({ onTickerClick }) {
             <div style={{ padding: 'var(--sp-5)', color: 'var(--text-muted)', textAlign: 'center' }}>LOADING...</div>
           )}
           {!loading && !error && !displayedStocks.length && (
-            <div style={{ padding: 'var(--sp-5)', color: 'var(--text-muted)', textAlign: 'center' }}>NO DATA</div>
+            <div style={{ padding: 'var(--sp-5)', color: 'var(--text-faint)', textAlign: 'center', fontSize: 11 }}>Loading B3 data...</div>
           )}
           {displayedStocks.map(s => {
             const sym = s.symbol.endsWith('.SA') ? s.symbol : s.symbol + '.SA';
