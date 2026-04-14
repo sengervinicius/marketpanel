@@ -234,7 +234,6 @@ const MobileChart = memo(function MobileChart({ ticker }) {
           aiInsightCacheRef.current[cacheKey] = data;
           setAiInsight(data);
           setAiLoading(false);
-          fireGamificationEvent('chart_insight');
         }
       })
       .catch(err => {

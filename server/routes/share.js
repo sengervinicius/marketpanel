@@ -3,8 +3,6 @@
  *
  * POST /api/share/portfolio-card   → portfolio summary card
  * POST /api/share/ticker-card      → ticker snapshot card
- * POST /api/share/leaderboard-card → leaderboard rank card
- * POST /api/share/weekly-card      → weekly challenge card
  */
 
 const express = require('express');
@@ -13,22 +11,6 @@ const router  = express.Router();
 const { generateCard }      = require('../services/shareCardService');
 const { getUserById }       = require('../authStore');
 const { getPortfolio }      = require('../portfolioStore');
-const {
-  getGlobalLeaderboard,
-  getPersonaLeaderboard,
-  getWeeklyLeaderboard,
-} = require('../jobs/leaderboards');
-
-// ── Helpers ─────────────────────────────────────────────────────────────────
-
-function findUserRank(data, userId) {
-  const idx = data.findIndex(e => e.userId === userId);
-  return idx >= 0 ? idx + 1 : null;
-}
-
-function findUserEntry(data, userId) {
-  return data.find(e => e.userId === userId) || null;
-}
 
 // ── POST /api/share/portfolio-card ──────────────────────────────────────────
 router.post('/portfolio-card', async (req, res) => {
@@ -110,82 +92,6 @@ router.post('/ticker-card', async (req, res) => {
     res.json({ ok: true, ...result });
   } catch (e) {
     console.error('[share] ticker-card error:', e.message);
-    res.status(500).json({ ok: false, error: 'card_generation_failed', message: e.message });
-  }
-});
-
-// ── POST /api/share/leaderboard-card ────────────────────────────────────────
-router.post('/leaderboard-card', async (req, res) => {
-  try {
-    const userId = req.userId;
-    const user   = getUserById(userId);
-    if (!user) return res.status(404).json({ ok: false, error: 'user_not_found' });
-
-    const { board = 'global' } = req.body || {};
-
-    let boardData;
-    if (board === 'weekly') {
-      boardData = getWeeklyLeaderboard();
-    } else if (board === 'persona' && user.persona?.type) {
-      boardData = getPersonaLeaderboard(user.persona.type);
-    } else {
-      boardData = getGlobalLeaderboard();
-    }
-
-    const rank  = findUserRank(boardData.data, userId);
-    const entry = findUserEntry(boardData.data, userId);
-
-    if (!rank) {
-      return res.status(400).json({ ok: false, error: 'not_ranked', message: 'You are not ranked on this leaderboard yet' });
-    }
-
-    const cardData = {
-      username:     user.username,
-      rank,
-      board,
-      score:        entry?.score ?? 0,
-      weeklyReturn: entry?.stats?.weeklyReturn ?? null,
-      level:        null,
-      persona:      user.persona?.type ?? null,
-    };
-
-    const result = await generateCard('leaderboard', cardData);
-    res.json({ ok: true, ...result });
-  } catch (e) {
-    console.error('[share] leaderboard-card error:', e.message);
-    res.status(500).json({ ok: false, error: 'card_generation_failed', message: e.message });
-  }
-});
-
-// ── POST /api/share/weekly-card ─────────────────────────────────────────────
-router.post('/weekly-card', async (req, res) => {
-  try {
-    const userId = req.userId;
-    const user   = getUserById(userId);
-    if (!user) return res.status(404).json({ ok: false, error: 'user_not_found' });
-
-    const weeklyBoard = getWeeklyLeaderboard();
-    const rank  = findUserRank(weeklyBoard.data, userId);
-    const entry = findUserEntry(weeklyBoard.data, userId);
-
-    if (!rank) {
-      return res.status(400).json({ ok: false, error: 'not_ranked', message: 'You are not ranked in the weekly challenge yet' });
-    }
-
-    const cardData = {
-      username:     user.username,
-      weeklyReturn: entry?.stats?.weeklyReturn ?? null,
-      rank,
-      endsAt:       weeklyBoard.endsAt,
-      persona:      user.persona?.type ?? null,
-      level:        null,
-      xp:           null,
-    };
-
-    const result = await generateCard('weekly', cardData);
-    res.json({ ok: true, ...result });
-  } catch (e) {
-    console.error('[share] weekly-card error:', e.message);
     res.status(500).json({ ok: false, error: 'card_generation_failed', message: e.message });
   }
 });

@@ -262,7 +262,7 @@ const MiniChart = memo(function MiniChart({ ticker, index, onRemove, onReplace, 
     setActiveIndicators(prev => {
       const next = new Set(prev);
       if (next.has(key)) next.delete(key);
-      else { next.add(key); fireGamificationEvent('technical_analysis'); }
+      else { next.add(key); }
       return next;
     });
   };
@@ -293,12 +293,6 @@ const MiniChart = memo(function MiniChart({ ticker, index, onRemove, onReplace, 
     }
   }, [showAi, rawBars, fetchAiInsight]);
 
-  // Fire gamification event when insight is received
-  useEffect(() => {
-    if (aiInsight && showAi) {
-      fireGamificationEvent('chart_insight');
-    }
-  }, [aiInsight, showAi]);
 
   const dispPrice  = shared?.price ?? price;
   const dispChg    = rangeIdx === 0 ? (shared?.change    ?? chg) : chg;

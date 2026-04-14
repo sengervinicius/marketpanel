@@ -33,7 +33,6 @@ import { PortfolioProvider } from './context/PortfolioContext';
 import { MarketProvider } from './context/MarketContext';
 import { DragProvider } from './context/DragContext';
 import { AlertsProvider } from './context/AlertsContext';
-import { GameProvider } from './context/GameContext';
 import { WatchlistProvider } from './context/WatchlistContext';
 import { PanelProvider } from './context/PanelContext';
 import { ScreenProvider } from './context/ScreenContext';
@@ -47,9 +46,6 @@ const AlertCenterPanel = lazyRetry(() => import('./components/panels/AlertCenter
 const NewsPanel = lazyRetry(() => import('./components/panels/NewsPanel'));
 const ScreenerPanel = lazyRetry(() => import('./components/panels/ScreenerPanel'));
 const MacroPanel = lazyRetry(() => import('./components/panels/MacroPanel'));
-import LeaderboardPanel from './components/panels/LeaderboardPanel';
-import GamePortfolioPanel from './components/panels/GamePortfolioPanel';
-import ReferralPanel from './components/common/ReferralPanel';
 import ChatPanel, { openChatWindow } from './components/panels/ChatPanel';
 import PortfolioMobile from './components/panels/PortfolioMobile';
 import HomePanelMobile from './components/panels/HomePanelMobile';
@@ -613,7 +609,6 @@ export default function App() {
       <DragProvider>
       <PortfolioProvider>
       <WatchlistProvider>
-      <GameProvider>
       <AlertsProvider>
       <FeedStatusProvider status={feedStatus}>
       <MarketProvider restData={mergedData}>
@@ -1023,7 +1018,6 @@ export default function App() {
       </MarketProvider>
       </FeedStatusProvider>
       </AlertsProvider>
-      </GameProvider>
       </WatchlistProvider>
       </PortfolioProvider>
       </DragProvider>
@@ -1041,7 +1035,6 @@ export default function App() {
     <DragProvider>
     <PortfolioProvider>
     <WatchlistProvider>
-    <GameProvider>
     <AlertsProvider>
     <FeedStatusProvider status={feedStatus}>
     <MarketProvider restData={mergedData}>
@@ -1393,7 +1386,6 @@ export default function App() {
     </MarketProvider>
     </FeedStatusProvider>
     </AlertsProvider>
-    </GameProvider>
     </WatchlistProvider>
     </PortfolioProvider>
     </DragProvider>

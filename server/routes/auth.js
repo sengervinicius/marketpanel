@@ -44,7 +44,7 @@ router.post('/register', authLimiter, async (req, res) => {
     setRefreshCookie(res, refresh.token);
     res.status(201).json({
       ok: true,
-      user: { id: user.id, username: user.username, persona: user.persona || null, gamification: null },
+      user: { id: user.id, username: user.username, persona: user.persona || null },
       token,
       refreshToken: refresh.token, // In body for mobile Safari where cookies are blocked
       subscription: {
@@ -93,7 +93,7 @@ router.post('/login', authLimiter, async (req, res) => {
 
     res.json({
       ok: true,
-      user: { id: user.id, username: user.username, persona: user.persona || null, gamification: null },
+      user: { id: user.id, username: user.username, persona: user.persona || null },
       token,
       refreshToken: refresh.token, // In body for mobile Safari where cookies are blocked
       subscription: {
@@ -114,7 +114,7 @@ router.get('/me', requireAuth, (req, res) => {
   const user = getUserById(req.user.id);
   if (!user) return res.status(401).json({ error: 'User not found' });
   res.json({
-    user:  { id: user.id, username: user.username, persona: user.persona || null, gamification: null },
+    user:  { id: user.id, username: user.username, persona: user.persona || null },
     subscription: {
       isPaid:             user.isPaid,
       subscriptionActive: user.subscriptionActive,

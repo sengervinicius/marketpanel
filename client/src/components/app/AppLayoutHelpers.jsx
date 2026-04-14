@@ -20,12 +20,8 @@ import { IndexPanel } from '../panels/IndexPanel';
 import AlertCenterPanel from '../panels/AlertCenterPanel';
 import ScreenerPanel from '../panels/ScreenerPanel';
 import MacroPanel from '../panels/MacroPanel';
-import LeaderboardPanel from '../panels/LeaderboardPanel';
-import GamePortfolioPanel from '../panels/GamePortfolioPanel';
-import ReferralPanel from '../common/ReferralPanel';
 import { CalendarPanel } from '../panels/CalendarPanel';
 import ETFPanel from '../panels/ETFPanel';
-import MissionsPanel from '../panels/MissionsPanel';
 import RatesPanel from '../panels/RatesPanel';
 import HeatmapPanel from '../panels/HeatmapPanel';
 import PredictionPanel from '../panels/PredictionPanel';
@@ -176,12 +172,8 @@ const PANEL_REGISTRY = {
   alerts:         { component: AlertCenterPanel, hasMobileVariant: true },
   screener:       { component: ScreenerPanel },
   macro:          { component: MacroPanel },
-  leaderboard:    { component: LeaderboardPanel },
-  game:           { component: GamePortfolioPanel },
   etf:            { component: ETFPanel },
-  missions:       { component: MissionsPanel },
   rates:          { component: RatesPanel },
-  referrals:      { component: ReferralPanel },
   calendar:       { component: CalendarPanel },
   heatmap:        { component: HeatmapPanel },
   predictions:    { component: PredictionPanel },

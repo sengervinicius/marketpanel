@@ -7,8 +7,6 @@
  * Card types:
  *   1. Portfolio Summary Card  (1200x630)
  *   2. Ticker Snapshot Card    (1200x630)
- *   3. Leaderboard Rank Card   (1200x630)
- *   4. Weekly Competition Card (1200x630)
  */
 
 'use strict';
@@ -184,63 +182,6 @@ function tickerCardSVG(data) {
   </svg>`;
 }
 
-/**
- * Generate Leaderboard Rank Card.
- */
-function leaderboardCardSVG(data) {
-  const { username, rank, board, score, weeklyReturn, level, persona } = data;
-  const boardLabel = board === 'weekly' ? 'Weekly Challenge' : board === 'persona' ? 'Persona Board' : 'Global Leaderboard';
-
-  const rankStr = `#${rank}`;
-  const rankColor = rank === 1 ? '#ffd700' : rank === 2 ? '#c0c0c0' : rank === 3 ? '#cd7f32' : C.white;
-
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
-    <rect width="${W}" height="${H}" fill="${C.bg}" rx="12"/>
-    <rect x="24" y="24" width="${W - 48}" height="${H - 48}" fill="${C.surface}" rx="8" stroke="${C.border}" stroke-width="1"/>
-    ${brandHeader()}
-    <text x="${W - 48}" y="40" fill="${C.muted}" font-family="${C.fontUI}" font-size="12" text-anchor="end">${esc(boardLabel)}</text>
-
-    <text x="48" y="120" fill="${C.muted}" font-family="${C.fontUI}" font-size="14" font-weight="600" letter-spacing="1">${esc(username)}</text>
-    ${persona ? `<text x="48" y="148" fill="${C.faint}" font-family="${C.fontUI}" font-size="12">${esc(persona)}</text>` : ''}
-
-    <text x="48" y="260" fill="${rankColor}" font-family="${C.fontMono}" font-size="96" font-weight="700">${rankStr}</text>
-    <text x="48" y="300" fill="${C.faint}" font-family="${C.fontUI}" font-size="14" letter-spacing="2">RANK</text>
-
-    ${statBlock(500, 170, 'SCORE', String(score || 0), C.accent, 36)}
-    ${level != null ? statBlock(500, 260, 'LEVEL', String(level), C.muted, 28) : ''}
-    ${weeklyReturn != null ? statBlock(750, 170, 'WEEKLY RETURN', fmtPct(weeklyReturn), pctColor(weeklyReturn), 28) : ''}
-
-    ${cardFooter(new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }))}
-  </svg>`;
-}
-
-/**
- * Generate Weekly Competition Card.
- */
-function weeklyCardSVG(data) {
-  const { username, weeklyReturn, rank, endsAt, persona, level, xp } = data;
-  const rankStr = rank ? `#${rank}` : '--';
-  const endLabel = endsAt ? new Date(endsAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
-
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
-    <rect width="${W}" height="${H}" fill="${C.bg}" rx="12"/>
-    <rect x="24" y="24" width="${W - 48}" height="${H - 48}" fill="${C.surface}" rx="8" stroke="${C.border}" stroke-width="1"/>
-    ${brandHeader()}
-    <text x="${W - 48}" y="40" fill="${C.faint}" font-family="${C.fontUI}" font-size="12" text-anchor="end">Weekly Challenge${endLabel ? ` · ends ${endLabel}` : ''}</text>
-
-    <text x="48" y="110" fill="${C.muted}" font-family="${C.fontUI}" font-size="16" font-weight="600" letter-spacing="1">${esc(username)}</text>
-    ${persona ? `<text x="48" y="138" fill="${C.faint}" font-family="${C.fontUI}" font-size="12">${esc(persona)}</text>` : ''}
-
-    ${statBlock(48, 175, 'WEEKLY RETURN', fmtPct(weeklyReturn), pctColor(weeklyReturn), 56)}
-    <text x="500" y="260" fill="${C.white}" font-family="${C.fontMono}" font-size="64" font-weight="700">${rankStr}</text>
-    <text x="500" y="295" fill="${C.faint}" font-family="${C.fontUI}" font-size="13" letter-spacing="2">RANK</text>
-
-    ${level != null ? statBlock(750, 175, 'LEVEL', String(level), C.muted, 28) : ''}
-    ${xp != null ? statBlock(750, 260, 'XP', String(xp), C.faint, 22) : ''}
-
-    ${cardFooter('the-particle.com')}
-  </svg>`;
-}
 
 // ── Concurrency cap ─────────────────────────────────────────────────────
 let _activeRenders = 0;
@@ -250,7 +191,7 @@ const MAX_CONCURRENT_RENDERS = 5;
 
 /**
  * Generate a share card PNG and return its URL path.
- * @param {'portfolio'|'ticker'|'leaderboard'|'weekly'} type
+ * @param {'portfolio'|'ticker'} type
  * @param {object} data
  * @returns {{ imageUrl: string, shareText: string }}
  */
@@ -276,14 +217,6 @@ async function generateCard(type, data) {
     case 'ticker':
       svg = tickerCardSVG(data);
       shareText = `${data.symbol} at $${Number(data.price || 0).toFixed(2)} (${fmtPct(data.changePct)} today). Via Senger Market Terminal.`;
-      break;
-    case 'leaderboard':
-      svg = leaderboardCardSVG(data);
-      shareText = `Ranked #${data.rank} on the Senger Market Terminal leaderboard!`;
-      break;
-    case 'weekly':
-      svg = weeklyCardSVG(data);
-      shareText = `${fmtPct(data.weeklyReturn)} this week, ranked #${data.rank}. Senger Market Terminal.`;
       break;
     default:
       throw new Error(`Unknown card type: ${type}`);

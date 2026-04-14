@@ -132,15 +132,15 @@ async function persistUser(user) {
       await pg.query(`
         INSERT INTO users (id, username, email, email_verified, hash, apple_user_id, settings, is_paid,
           subscription_active, trial_ends_at, stripe_customer_id, stripe_subscription_id,
-          persona, gamification, referral_code, referred_by, referral_rewards, plan_tier, created_at)
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
+          persona, referral_code, referred_by, referral_rewards, plan_tier, created_at)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
         ON CONFLICT (id) DO UPDATE SET
           username=EXCLUDED.username, email=EXCLUDED.email, email_verified=EXCLUDED.email_verified,
           hash=EXCLUDED.hash, apple_user_id=EXCLUDED.apple_user_id, settings=EXCLUDED.settings,
           is_paid=EXCLUDED.is_paid, subscription_active=EXCLUDED.subscription_active,
           trial_ends_at=EXCLUDED.trial_ends_at, stripe_customer_id=EXCLUDED.stripe_customer_id,
           stripe_subscription_id=EXCLUDED.stripe_subscription_id, persona=EXCLUDED.persona,
-          gamification=EXCLUDED.gamification, referral_code=EXCLUDED.referral_code,
+          referral_code=EXCLUDED.referral_code,
           referred_by=EXCLUDED.referred_by, referral_rewards=EXCLUDED.referral_rewards,
           plan_tier=EXCLUDED.plan_tier
       `, [
@@ -151,7 +151,6 @@ async function persistUser(user) {
         user.trialEndsAt || null, user.stripeCustomerId || null,
         user.stripeSubscriptionId || null,
         JSON.stringify(user.persona || {}),
-        JSON.stringify(user.gamification || {}),
         user.referralCode || null, user.referredBy || null,
         JSON.stringify(user.referralRewards || {}),
         user.planTier || 'trial',
@@ -187,7 +186,6 @@ async function hydrateFromPostgres() {
         stripeCustomerId: row.stripe_customer_id || null,
         stripeSubscriptionId: row.stripe_subscription_id || null,
         persona: row.persona || defaultPersona(),
-        gamification: row.gamification || defaultGamification(),
         referralCode: row.referral_code || null,
         referredBy: row.referred_by || null,
         referralRewards: row.referral_rewards || { invited: 0, xpEarned: 0 },
@@ -324,7 +322,6 @@ async function seedUsersFromEnv() {
         stripeCustomerId:     null,
         stripeSubscriptionId: null,
         persona:              defaultPersona(),
-        gamification:         defaultGamification(),
         createdAt:            now,
       };
       usersByUsername.set(key, user);
@@ -336,7 +333,7 @@ async function seedUsersFromEnv() {
   }
 }
 
-// ── Default persona & gamification ────────────────────────────────────────────
+// ── Default persona ────────────────────────────────────────────
 
 function defaultPersona() {
   return {
@@ -346,10 +343,6 @@ function defaultPersona() {
     stats: { totalReturn: 0, sharpeRatio: 0, bestMonth: 0, worstMonth: 0, winRate: 0, avgHoldingPeriod: 0, weeklyReturn: 0 },
     achievements: [],
   };
-}
-
-function defaultGamification() {
-  return { xp: 0, level: 1, lastXpEventAt: null };
 }
 
 // ── Password validation ──────────────────────────────────────────────────────────
@@ -423,7 +416,6 @@ async function createUser(username, passwordPlain, email) {
     stripeCustomerId:     null,
     stripeSubscriptionId: null,
     persona:              defaultPersona(),
-    gamification:         defaultGamification(),
     referralCode:         generateReferralCode(),
     referredBy:           null,
     referralRewards:      { invited: 0, xpEarned: 0 },
@@ -906,59 +898,7 @@ function findUserByReferralCode(code) {
   return null;
 }
 
-/**
- * Redeem a referral code for a user. Awards referral bonus.
- * @returns {{ referrer, invitee, xpAwarded }} on success
- */
-async function redeemReferral(userId, referralCode) {
-  const user = getUserById(userId);
-  if (!user) throw new Error('User not found');
-  if (user.referredBy) throw new Error('Already redeemed a referral code');
 
-  const upper = referralCode.toUpperCase().trim();
-  if (user.referralCode === upper) throw new Error('Cannot use your own referral code');
-
-  const referrer = findUserByReferralCode(upper);
-  if (!referrer) throw new Error('Invalid referral code');
-
-  // Mark invitee
-  user.referredBy = referrer.id;
-
-  // Reward referrer
-  if (!referrer.referralRewards) referrer.referralRewards = { invited: 0, xpEarned: 0 };
-  referrer.referralRewards.invited += 1;
-
-  await persistUser(user);
-  await persistUser(referrer);
-
-  return { referrer: referrer.username, invitee: user.username, xpAwarded: 0 };
-}
-
-/**
- * Get referral status for a user.
- */
-function getReferralStatus(userId) {
-  const user = getUserById(userId);
-  if (!user) return null;
-
-  // Backfill referral fields for older users
-  if (!user.referralCode) user.referralCode = generateReferralCode();
-  if (!user.referralRewards) user.referralRewards = { invited: 0, xpEarned: 0 };
-
-  return {
-    referralCode: user.referralCode,
-    referredBy:   user.referredBy,
-    invited:      user.referralRewards.invited,
-    xpEarned:     user.referralRewards.xpEarned,
-  };
-}
-
-// ── Gamification update ──────────────────────────────────────────────────────
-
-async function addXp(userId, amount) {
-  // Legacy no-op: gamification has been removed
-  return { xp: 0, level: 1, lastXpEventAt: null };
-}
 
 module.exports = {
   initDB,
@@ -978,7 +918,6 @@ module.exports = {
   mergeSettings,
   updateSubscription,
   updatePersona,
-  addXp,
   safeUser,
   seedUsersFromEnv,
   findOrCreateAppleUser,
@@ -986,8 +925,6 @@ module.exports = {
   updateUser,
   getAllUsersWithPersona,
   findUserByReferralCode,
-  redeemReferral,
-  getReferralStatus,
   defaultSettings,
   persistUser,
 };

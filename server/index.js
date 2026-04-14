@@ -38,18 +38,13 @@ const iapRoutes         = require('./routes/iap');
 const searchRoutes      = require('./routes/search');
 const bondsRoutes       = require('./routes/bonds');
 const derivativesRoutes = require('./routes/derivatives');
-const gamificationRoutes = require('./routes/gamification');
-const missionsRoutes     = require('./routes/missions');
 const discordRoutes     = require('./routes/discord');
 const screenerRoutes        = require('./routes/screener');
 const screenerPresetRoutes  = require('./routes/screenerPresets');
 const optionsRoutes         = require('./routes/options');
-const leaderboardRoutes = require('./routes/leaderboard');
 const earningsRoutes        = require('./routes/earnings');
 const shareRoutes       = require('./routes/share');
-const referralRoutes    = require('./routes/referrals');
 const notificationRoutes = require('./routes/notifications');
-const gameRoutes        = require('./routes/game');
 const screenTickerRoutes = require('./routes/screenTickers');
 const edgarRoutes       = require('./routes/edgar');
 const signalRoutes      = require('./routes/signals');
@@ -73,7 +68,6 @@ const { getUserById, seedUsersFromEnv, initDB } = require('./authStore');
 const { verifyToken } = require('./authStore');
 const { initPortfolioDB } = require('./portfolioStore');
 const { initAlertDB } = require('./alertStore');
-const { initGameDB } = require('./gameStore');
 require('./jobs/markToMarket'); // batch mark-to-market (self-scheduling)
 const { init: initMarketContext } = require('./services/marketContextBuilder');
 const { init: initPredictions } = require('./services/predictionAggregator');
@@ -272,19 +266,16 @@ app.use('/api/alerts', requireAuth, alertRoutes);
 // Anomalies: auth required (no subscription check — anomaly detection is a core feature)
 app.use('/api/anomalies', requireAuth, anomaliesRoutes);
 
-// Game: auth required (no subscription check — game is free tier)
-app.use('/api/game', requireAuth, gameRoutes);
-
-// Legacy stubs (no-op) for removed gamification system
-app.use('/api/gamification', requireAuth, gamificationRoutes);
-app.use('/api/missions', requireAuth, missionsRoutes);
+// Discord routes
 app.use('/api/discord', requireAuth, discordRoutes);
-app.use('/api/leaderboard', requireAuth, leaderboardRoutes);
+
+// Share: auth required + rate limit + timeout
 app.use('/api/share', requireAuth,
   rateLimitByUser({ key: 'share', windowSec: 60, max: 5 }),
   requestTimeout(15000),
   shareRoutes);
-app.use('/api/referrals', requireAuth, referralRoutes);
+
+// Notifications
 app.use('/api/notifications', requireAuth, notificationRoutes);
 
 // Bonds: auth + subscription required + rate limit + timeout
@@ -772,7 +763,6 @@ async function boot() {
   const mongoDB = await initDB();  // connect MongoDB, load users into memory
   await initPortfolioDB(mongoDB);  // load portfolio data
   await initAlertDB(mongoDB);      // load alert data
-  await initGameDB(mongoDB);       // load game profiles + trades
   await seedUsersFromEnv();        // create any SEED_USERS accounts if missing
 
   const PORT = process.env.PORT || 3001;
