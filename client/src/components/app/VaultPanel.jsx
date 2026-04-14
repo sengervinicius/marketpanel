@@ -160,10 +160,16 @@ export default function VaultPanel({ fullScreen = false }) {
       const res = await fetch(uploadUrl, { method: 'POST', headers: uploadHeaders, credentials: 'include', body: formData });
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
-        // Phase 3: Sanitize error messages — never expose raw config errors to users
         const rawMsg = errData.message || errData.error || '';
-        const userMsg = sanitizeVaultError(rawMsg);
-        throw new Error(userMsg);
+        // Debug: log the raw error + HTTP status so we can diagnose
+        console.error('[Vault Upload]', res.status, rawMsg, errData);
+        // Show HTTP status in error for debugging
+        const statusHint = res.status === 402 ? 'Subscription required — '
+          : res.status === 503 ? 'Service unavailable — '
+          : res.status === 413 ? 'File too large — '
+          : res.status === 403 ? 'Access denied — '
+          : '';
+        throw new Error(statusHint + sanitizeVaultError(rawMsg));
       }
       const data = await res.json();
       const chunks = data.chunks || 0;

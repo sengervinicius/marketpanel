@@ -82,6 +82,12 @@ const upload = multer({
  * Rate limited to 10 uploads per minute per user.
  */
 router.post('/upload', rateLimitByUser({ key: 'vault-upload', windowSec: 60, max: 10 }), upload.single('file'), async (req, res) => {
+  logger.info('vault-route', 'Upload request received', {
+    userId: req.user?.id,
+    hasFile: !!req.file,
+    filename: req.file?.originalname,
+    size: req.file?.size,
+  });
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No file provided' });
