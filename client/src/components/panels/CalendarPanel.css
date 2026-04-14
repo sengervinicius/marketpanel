@@ -19,10 +19,11 @@
   flex-shrink: 0;
 }
 .cp-title {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 1.2px;
-  color: var(--accent);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: 0.08em;
+  color: var(--color-text-primary);
 }
 .cp-subtitle {
   font-size: 8px;

@@ -24,10 +24,11 @@
 }
 
 .ofp-hdr-title {
-  font-weight: 700;
-  font-size: var(--font-sm);
-  color: var(--text-primary);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
   letter-spacing: 0.08em;
+  color: var(--color-text-primary);
 }
 
 .ofp-hdr-right {
