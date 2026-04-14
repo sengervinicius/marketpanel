@@ -16,6 +16,17 @@ const pg = require('../db/postgres');
 const logger = require('../utils/logger');
 const mammoth = require('mammoth');
 const Papa = require('papaparse');
+const https = require('https');
+const http = require('http');
+const { URL } = require('url');
+
+// OCR support — lazy load tesseract.js to gracefully degrade if unavailable
+let Tesseract = null;
+try {
+  Tesseract = require('tesseract.js');
+} catch (e) {
+  logger.warn('vault', 'tesseract.js not installed — OCR support will be disabled', { error: e.message });
+}
 
 // ── Constants ──
 const CHUNK_SIZE = 1000; // chars per chunk — larger for financial context retention
@@ -904,8 +915,20 @@ async function ingestFile(userId, buffer, filename, metadata = {}, isGlobal = fa
     } else if (ext === 'txt' || ext === 'md' || ext === 'markdown') {
       fileType = 'text';
       text = parsePlainText(buffer);
+    } else if (['png', 'jpg', 'jpeg', 'tiff', 'tif'].includes(ext)) {
+      // OCR for image files
+      fileType = 'image';
+      const mimetypeMap = {
+        'png': 'image/png',
+        'jpg': 'image/jpeg',
+        'jpeg': 'image/jpeg',
+        'tiff': 'image/tiff',
+        'tif': 'image/tiff',
+      };
+      const mimetype = mimetypeMap[ext] || 'image/png';
+      text = await extractTextFromImage(buffer, mimetype);
     } else {
-      throw new Error(`Unsupported file type: .${ext}. Supported: PDF, DOCX, CSV, TSV, TXT, MD`);
+      throw new Error(`Unsupported file type: .${ext}. Supported: PDF, DOCX, CSV, TSV, TXT, MD, PNG, JPG, JPEG, TIFF`);
     }
 
     // Validate extracted text
@@ -1557,11 +1580,275 @@ async function getDocumentSummary(documentId, userId) {
   }
 }
 
+/**
+ * Extract text from image using OCR (tesseract.js).
+ * Supports: PNG, JPG, JPEG, TIFF
+ *
+ * @param {Buffer} buffer - Image buffer
+ * @param {string} mimetype - Image MIME type
+ * @returns {Promise<string>} Extracted text
+ * @throws {Error} If tesseract.js is not available or OCR fails
+ */
+async function extractTextFromImage(buffer, mimetype) {
+  if (!Tesseract) {
+    throw new Error(
+      'OCR support is not available. Please contact support if you need to upload images. ' +
+      'For now, please convert your image to PDF or another supported format (DOCX, TXT, CSV).'
+    );
+  }
+
+  // Validate mimetype
+  const supportedTypes = ['image/png', 'image/jpeg', 'image/tiff'];
+  if (!supportedTypes.includes(mimetype)) {
+    throw new Error(`Unsupported image type: ${mimetype}. Supported: PNG, JPEG, TIFF`);
+  }
+
+  try {
+    logger.info('vault', 'Starting OCR on image', { mimetype });
+
+    // Convert buffer to base64 data URL for Tesseract
+    const base64 = buffer.toString('base64');
+    const dataUrl = `data:${mimetype};base64,${base64}`;
+
+    // Run OCR with Tesseract.js
+    const result = await Tesseract.recognize(dataUrl, 'eng');
+
+    if (!result || !result.data || !result.data.text) {
+      throw new Error('OCR produced no text output');
+    }
+
+    const extractedText = result.data.text.trim();
+
+    if (!extractedText) {
+      throw new Error('Image contains no recognizable text');
+    }
+
+    logger.info('vault', 'OCR complete', { textLength: extractedText.length });
+
+    return extractedText;
+  } catch (err) {
+    logger.error('vault', 'OCR extraction failed', { error: err.message });
+    throw new Error(`Failed to extract text from image: ${err.message}`);
+  }
+}
+
+/**
+ * Fetch content from a URL.
+ * Supports: HTML, PDF, plain text
+ *
+ * @param {string} url - The URL to fetch
+ * @param {number} maxSize - Maximum content size in bytes (default: 500KB)
+ * @returns {Promise<{content: string, contentType: string}>} Fetched content and MIME type
+ */
+function fetchURL(url, maxSize = 500 * 1024) {
+  return new Promise((resolve, reject) => {
+    try {
+      const parsedUrl = new URL(url);
+      const isHttps = parsedUrl.protocol === 'https:';
+      const client = isHttps ? https : http;
+
+      const options = {
+        method: 'GET',
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36',
+          'Accept': '*/*',
+          'Accept-Encoding': 'gzip, deflate',
+        },
+        timeout: 10000,
+      };
+
+      const req = client.request(url, options, (res) => {
+        // Follow redirects (max 5)
+        if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+          return fetchURL(res.headers.location, maxSize)
+            .then(resolve)
+            .catch(reject);
+        }
+
+        if (res.statusCode !== 200) {
+          return reject(new Error(`HTTP ${res.statusCode}: ${res.statusMessage}`));
+        }
+
+        const contentType = res.headers['content-type'] || 'text/plain';
+        let chunks = [];
+        let totalSize = 0;
+
+        res.on('data', (chunk) => {
+          totalSize += chunk.length;
+          if (totalSize > maxSize) {
+            req.destroy();
+            return reject(new Error(`Content exceeds ${maxSize / 1024 / 1024}MB limit`));
+          }
+          chunks.push(chunk);
+        });
+
+        res.on('end', () => {
+          const content = Buffer.concat(chunks).toString('utf-8');
+          resolve({ content, contentType });
+        });
+
+        res.on('error', reject);
+      });
+
+      req.on('error', reject);
+      req.on('timeout', () => {
+        req.destroy();
+        reject(new Error('URL fetch timeout (10s)'));
+      });
+
+      req.end();
+    } catch (err) {
+      reject(err);
+    }
+  });
+}
+
+/**
+ * Extract main content from HTML (strip nav, footer, ads, scripts, styles).
+ * Uses simple regex-based parsing for lightweight extraction.
+ *
+ * @param {string} html - Raw HTML content
+ * @returns {string} Extracted main text content
+ */
+function extractMainContentFromHTML(html) {
+  // Remove script and style tags
+  let text = html
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+    .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '');
+
+  // Remove nav, footer, header, aside (common structural elements)
+  text = text
+    .replace(/<nav\b[^<]*(?:(?!<\/nav>)<[^<]*)*<\/nav>/gi, '')
+    .replace(/<footer\b[^<]*(?:(?!<\/footer>)<[^<]*)*<\/footer>/gi, '')
+    .replace(/<header\b[^<]*(?:(?!<\/header>)<[^<]*)*<\/header>/gi, '')
+    .replace(/<aside\b[^<]*(?:(?!<\/aside>)<[^<]*)*<\/aside>/gi, '')
+    .replace(/<div\s+class="[^"]*(?:nav|menu|sidebar|ad|advertisement|cookie)[^"]*"[^>]*>[\s\S]*?<\/div>/gi, '');
+
+  // Remove all HTML tags
+  text = text.replace(/<[^>]+>/g, ' ');
+
+  // Decode HTML entities
+  text = text
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&amp;/g, '&');
+
+  // Collapse whitespace
+  text = text
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  return text;
+}
+
+/**
+ * Ingest a document from a URL.
+ * Fetches content, determines type (HTML/PDF/text), extracts text, and ingests normally.
+ *
+ * @param {string} url - The URL to ingest
+ * @param {number} userId - User ID
+ * @param {string} title - Optional document title (defaults to URL)
+ * @returns {Promise<object>} Result object with documentId, chunks, filename
+ */
+async function ingestFromUrl(url, userId, title = null) {
+  if (!pg.isConnected()) {
+    try { await pg.query('SELECT 1'); } catch {}
+    if (!pg.isConnected()) {
+      throw new Error('Postgres not connected — database may be starting up. Please try again in a minute.');
+    }
+  }
+
+  try {
+    // Validate and normalize URL
+    const parsedUrl = new URL(url);
+    const urlString = parsedUrl.toString();
+
+    logger.info('vault', 'Fetching URL', { userId, url: urlString });
+
+    // Fetch content from URL
+    const { content, contentType } = await fetchURL(urlString);
+
+    if (!content || !content.trim()) {
+      throw new Error('URL returned empty content');
+    }
+
+    let text = '';
+    let fileType = 'web';
+    const filename = title || parsedUrl.hostname;
+
+    // Process based on content type
+    if (contentType.includes('application/pdf')) {
+      // Handle PDF URLs
+      logger.info('vault', 'Processing PDF from URL', { url: urlString });
+      const pdfParse = require('pdf-parse');
+      const buffer = Buffer.from(content, 'binary');
+      try {
+        const pdfData = await pdfParse(buffer, { max: 500 });
+        text = pdfData.text || '';
+        fileType = 'pdf';
+      } catch (err) {
+        logger.warn('vault', 'PDF parsing failed for URL', { error: err.message });
+        throw new Error(`Unable to parse PDF from URL: ${err.message}`);
+      }
+    } else if (contentType.includes('text/html')) {
+      // Extract main content from HTML
+      logger.info('vault', 'Processing HTML from URL', { url: urlString });
+      text = extractMainContentFromHTML(content);
+      fileType = 'html';
+    } else {
+      // Treat as plain text
+      text = content;
+      fileType = 'text';
+    }
+
+    // Validate extracted text
+    if (!text.trim()) {
+      throw new Error('URL contains no extractable text');
+    }
+
+    if (text.length > 2_000_000) {
+      throw new Error('URL content exceeds 2MB limit');
+    }
+
+    // Create metadata with source URL
+    const metadata = {
+      fileType,
+      source_url: urlString,
+      url_hostname: parsedUrl.hostname,
+      ingest_type: 'url',
+    };
+
+    // Ingest normally via ingestFile
+    const result = await ingestFile(userId, Buffer.from(text), `${filename}.txt`, metadata, false);
+
+    logger.info('vault', 'URL ingested successfully', {
+      userId,
+      url: urlString,
+      documentId: result.documentId,
+      chunks: result.chunks,
+    });
+
+    return {
+      ...result,
+      source_url: urlString,
+      ingest_type: 'url',
+    };
+  } catch (err) {
+    logger.error('vault', 'URL ingestion error', { error: err.message, url });
+    throw err;
+  }
+}
+
 module.exports = {
   init,
   ensureTable,
   ingestPDF,
   ingestFile,
+  ingestFromUrl,
+  extractTextFromImage,
   chunkText,
   chunkTextWithType,
   detectDocumentType,

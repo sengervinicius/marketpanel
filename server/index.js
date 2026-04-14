@@ -55,6 +55,7 @@ const edgarRoutes       = require('./routes/edgar');
 const signalRoutes      = require('./routes/signals');
 const briefRoutes       = require('./routes/brief');
 const riskRoutes        = require('./routes/risk');
+const unusualWhalesRoutes = require('./routes/unusualWhales');
 const { requireAuth, requireActiveSubscription, requireAdmin } = require('./authMiddleware');
 const logger = require('./utils/logger');
 const { requestLogger } = require('./utils/logger');
@@ -85,6 +86,8 @@ const { init: initDeepAnalysis } = require('./services/deepAnalysis');
 const anomalyScanner = require('./services/anomalyScanner');
 const { init: initVault } = require('./services/vault');
 const vaultRoutes = require('./routes/vault');
+const vaultSignalsRoutes = require('./routes/vaultSignals');
+const { initializeBackgroundJob: initVaultSignalsJob } = require('./services/vaultSignals');
 const modelRouter = require('./services/modelRouter');
 const earningsAnalyzer = require('./services/earningsAnalyzer');
 const cache = require('./cache');
@@ -335,6 +338,12 @@ app.use('/api/vault', requireAuth, requireActiveSubscription,
   requestTimeout(30000),
   vaultRoutes);
 
+// Vault Signals: cross-user document clustering (auth required)
+app.use('/api/vault-signals', requireAuth,
+  rateLimitByUser({ key: 'vault-signals', windowSec: 60, max: 20 }),
+  requestTimeout(10000),
+  vaultSignalsRoutes);
+
 // Earnings analysis: auth + subscription required
 app.use('/api/earnings', requireAuth, requireActiveSubscription,
   rateLimitByUser({ key: 'earnings', windowSec: 60, max: 10 }),
@@ -358,6 +367,12 @@ app.use('/api/edgar', requireAuth, requireActiveSubscription,
   rateLimitByUser({ key: 'edgar', windowSec: 60, max: 20 }),
   requestTimeout(15000),
   edgarRoutes);
+
+// Unusual Whales: auth + subscription required, options flow and dark pool data
+app.use('/api/unusual-whales', requireAuth, requireActiveSubscription,
+  rateLimitByUser({ key: 'unusual-whales', windowSec: 60, max: 30 }),
+  requestTimeout(15000),
+  unusualWhalesRoutes);
 
 // Risk analytics: auth required (no subscription — risk analysis is core feature)
 // Rate limit: 20 req/min per user, timeout: 30s (Polygon API calls)
@@ -713,6 +728,15 @@ async function boot() {
     await vault.ensureTable();
   } catch (e) {
     logger.warn('boot', 'Vault table initialization failed (vault disabled)', { error: e.message });
+  }
+
+  // Initialize vault signals background job (cross-user signal detection)
+  try {
+    const vaultSignalsJob = initVaultSignalsJob();
+    vaultSignalsJob.start();
+    logger.info('boot', 'Vault signals background job started');
+  } catch (e) {
+    logger.warn('boot', 'Vault signals job initialization failed', { error: e.message });
   }
 
   const { initEmail } = require('./services/emailService');

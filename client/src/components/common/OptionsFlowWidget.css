@@ -1,0 +1,346 @@
+.options-flow-widget {
+  background: #0a0a0f;
+  border: 1px solid #2a2a35;
+  border-radius: 8px;
+  padding: 16px;
+  margin: 16px 0;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  color: #d0d0d0;
+}
+
+.widget-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  border-bottom: 1px solid #2a2a35;
+  padding-bottom: 12px;
+}
+
+.widget-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #00ff88;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.widget-refresh {
+  background: none;
+  border: 1px solid #2a2a35;
+  border-radius: 4px;
+  width: 32px;
+  height: 32px;
+  cursor: pointer;
+  font-size: 14px;
+  color: #888;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.widget-refresh:hover {
+  background: #1a1a20;
+  color: #00ff88;
+  border-color: #00ff88;
+}
+
+.widget-refresh:active {
+  transform: scale(0.95);
+}
+
+.widget-loading,
+.widget-empty {
+  padding: 20px;
+  text-align: center;
+  color: #666;
+  font-size: 14px;
+  opacity: 0.7;
+}
+
+/* Call/Put Ratio Visualization */
+.ratio-container {
+  margin-bottom: 20px;
+  padding: 12px;
+  background: #1a1a20;
+  border: 1px solid #2a2a35;
+  border-radius: 6px;
+}
+
+.ratio-label {
+  font-size: 12px;
+  text-transform: uppercase;
+  color: #888;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+
+.ratio-bar {
+  display: flex;
+  height: 24px;
+  background: #0a0a0f;
+  border: 1px solid #2a2a35;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.ratio-calls {
+  background: linear-gradient(90deg, #00aa00, #00ff00);
+  transition: width 0.3s ease;
+  position: relative;
+}
+
+.ratio-calls::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: #005500;
+}
+
+.ratio-puts {
+  background: linear-gradient(90deg, #ff4444, #ff0000);
+  transition: width 0.3s ease;
+  position: relative;
+}
+
+.ratio-puts::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: #550000;
+}
+
+.ratio-text {
+  font-size: 12px;
+  color: #aaa;
+  text-align: center;
+}
+
+/* Section Styling */
+.flow-section,
+.darkpool-section {
+  margin-bottom: 20px;
+  border: 1px solid #2a2a35;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.section-header {
+  background: #1a1a20;
+  border-bottom: 1px solid #2a2a35;
+  padding: 12px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: #00ff88;
+  letter-spacing: 0.5px;
+}
+
+.table-container {
+  overflow-x: auto;
+  background: #0a0a0f;
+}
+
+.flow-table,
+.darkpool-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.flow-table thead,
+.darkpool-table thead {
+  background: #1a1a20;
+  border-bottom: 1px solid #2a2a35;
+}
+
+.flow-table th,
+.darkpool-table th {
+  padding: 10px 12px;
+  text-align: left;
+  font-weight: 600;
+  color: #00ff88;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-size: 11px;
+}
+
+.flow-table tbody tr,
+.darkpool-table tbody tr {
+  border-bottom: 1px solid #1a1a20;
+  transition: background 0.2s ease;
+}
+
+.flow-table tbody tr:hover,
+.darkpool-table tbody tr:hover {
+  background: #15151b;
+}
+
+.flow-table td,
+.darkpool-table td {
+  padding: 10px 12px;
+  color: #d0d0d0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Sentiment-based row coloring */
+.flow-table tbody tr.sentiment-bullish {
+  border-left: 3px solid #00ff00;
+}
+
+.flow-table tbody tr.sentiment-bearish {
+  border-left: 3px solid #ff4444;
+}
+
+.flow-table tbody tr.sentiment-neutral {
+  border-left: 3px solid #ffaa00;
+}
+
+/* Column-specific styling */
+.flow-table .strike,
+.darkpool-table .price {
+  font-weight: 600;
+  color: #00ff88;
+}
+
+.flow-table .expiry,
+.darkpool-table .timestamp {
+  color: #888;
+}
+
+.flow-table .type {
+  text-transform: uppercase;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 3px;
+  display: inline-block;
+}
+
+.flow-table .type.call {
+  color: #00ff00;
+  background: rgba(0, 255, 0, 0.1);
+}
+
+.flow-table .type.put {
+  color: #ff4444;
+  background: rgba(255, 68, 68, 0.1);
+}
+
+.flow-table .premium,
+.flow-table .volume,
+.flow-table .oi,
+.darkpool-table .size {
+  text-align: right;
+  color: #ffaa00;
+  font-weight: 500;
+}
+
+.flow-table .sentiment-badge {
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 10px;
+  padding: 3px 8px;
+  border-radius: 3px;
+  display: inline-block;
+  letter-spacing: 0.5px;
+  background: rgba(255, 170, 0, 0.1);
+}
+
+.darkpool-table .exchange {
+  color: #888;
+  font-weight: 500;
+}
+
+.darkpool-table .percent {
+  text-align: right;
+  color: #ffaa00;
+  font-weight: 500;
+}
+
+/* Table Footer */
+.table-footer {
+  background: #1a1a20;
+  border-top: 1px solid #2a2a35;
+  padding: 8px 16px;
+  font-size: 11px;
+  color: #666;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .options-flow-widget {
+    padding: 12px;
+    margin: 8px 0;
+  }
+
+  .widget-header h3 {
+    font-size: 14px;
+  }
+
+  .flow-table,
+  .darkpool-table {
+    font-size: 11px;
+  }
+
+  .flow-table th,
+  .darkpool-table th {
+    padding: 8px 10px;
+    font-size: 10px;
+  }
+
+  .flow-table td,
+  .darkpool-table td {
+    padding: 8px 10px;
+  }
+
+  .ratio-bar {
+    height: 20px;
+  }
+}
+
+/* Terminal theme animations */
+@keyframes glow {
+  0%, 100% {
+    text-shadow: 0 0 5px rgba(0, 255, 136, 0.3);
+  }
+  50% {
+    text-shadow: 0 0 10px rgba(0, 255, 136, 0.6);
+  }
+}
+
+.widget-header h3 {
+  animation: glow 3s ease-in-out infinite;
+}
+
+/* Scrollbar styling for terminal theme */
+.table-container::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+
+.table-container::-webkit-scrollbar-track {
+  background: #1a1a20;
+}
+
+.table-container::-webkit-scrollbar-thumb {
+  background: #2a2a35;
+  border-radius: 4px;
+}
+
+.table-container::-webkit-scrollbar-thumb:hover {
+  background: #3a3a45;
+}

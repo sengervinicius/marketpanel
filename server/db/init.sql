@@ -183,3 +183,19 @@ CREATE TABLE IF NOT EXISTS action_feedback (
 CREATE INDEX IF NOT EXISTS idx_action_feedback_user ON action_feedback(user_id);
 CREATE INDEX IF NOT EXISTS idx_action_feedback_user_ticker ON action_feedback(user_id, ticker);
 CREATE INDEX IF NOT EXISTS idx_action_feedback_type ON action_feedback(user_id, action_type);
+
+-- ── Vault Signals (Cross-user document clustering) ────────────────────────
+-- Detects when multiple users upload documents about the same ticker/topic
+CREATE TABLE IF NOT EXISTS vault_signals (
+  id              SERIAL PRIMARY KEY,
+  ticker          TEXT NOT NULL UNIQUE,
+  signal_type     TEXT NOT NULL DEFAULT 'cluster',
+  user_count      INTEGER NOT NULL,
+  document_count  INTEGER NOT NULL,
+  first_seen      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  metadata        JSONB DEFAULT '{}',
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_vault_signals_ticker ON vault_signals(ticker);
+CREATE INDEX IF NOT EXISTS idx_vault_signals_created ON vault_signals(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_vault_signals_user_count ON vault_signals(user_count DESC);

@@ -46,7 +46,7 @@ router.get('/health', async (req, res) => {
 });
 
 // Multer for document upload (10MB limit)
-// Supports: PDF, DOCX, CSV, TSV, TXT, MD
+// Supports: PDF, DOCX, CSV, TSV, TXT, MD, PNG, JPG, JPEG, TIFF
 const ACCEPTED_MIMETYPES = [
   'application/pdf',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
@@ -54,6 +54,9 @@ const ACCEPTED_MIMETYPES = [
   'text/tab-separated-values',
   'text/plain',
   'text/markdown',
+  'image/png',
+  'image/jpeg',
+  'image/tiff',
 ];
 
 const upload = multer({
@@ -61,13 +64,13 @@ const upload = multer({
   limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     const ext = (file.originalname || '').toLowerCase().split('.').pop() || '';
-    const isAcceptedExt = ['pdf', 'docx', 'csv', 'tsv', 'txt', 'md', 'markdown'].includes(ext);
+    const isAcceptedExt = ['pdf', 'docx', 'csv', 'tsv', 'txt', 'md', 'markdown', 'png', 'jpg', 'jpeg', 'tiff', 'tif'].includes(ext);
     const isAcceptedMime = ACCEPTED_MIMETYPES.includes(file.mimetype);
 
     if (isAcceptedExt || isAcceptedMime) {
       cb(null, true);
     } else {
-      cb(new Error('Unsupported file type. Accepted: PDF, DOCX, CSV, TSV, TXT, MD'), false);
+      cb(new Error('Unsupported file type. Accepted: PDF, DOCX, CSV, TSV, TXT, MD, PNG, JPG, JPEG, TIFF'), false);
     }
   },
 });
@@ -128,6 +131,73 @@ router.post('/upload', rateLimitByUser({ key: 'vault-upload', windowSec: 60, max
       return res.status(400).json({ error: 'File too large', message: msg });
     }
     res.status(500).json({ error: 'Failed to process document', message: 'An error occurred while processing the file. Please try a different file or try again later.' });
+  }
+});
+
+/**
+ * POST /ingest-url — Ingest a document from a URL.
+ * Body: { url: string, title?: string }
+ * Supports: HTML pages, PDF URLs, plain text URLs
+ * Rate limited: 5 requests per minute per user (URL fetching is expensive)
+ */
+router.post('/ingest-url', rateLimitByUser({ key: 'vault-ingest-url', windowSec: 60, max: 5 }), async (req, res) => {
+  try {
+    const { url, title } = req.body;
+
+    if (!url || typeof url !== 'string') {
+      return res.status(400).json({ error: 'url is required and must be a string' });
+    }
+
+    // Validate URL format
+    try {
+      new URL(url);
+    } catch {
+      return res.status(400).json({ error: 'Invalid URL format' });
+    }
+
+    // ── Vault quota enforcement ──────────────────────────────────
+    const userTier = req.user.planTier || 'trial';
+    const tier = getTier(userTier);
+    if (!isUnlimited(tier.vaultDocuments)) {
+      const docs = await vault.getUserDocuments(req.user.id);
+      if (docs.length >= tier.vaultDocuments) {
+        return res.status(403).json({
+          error: 'Vault limit reached',
+          code: 'vault_limit',
+          message: `Your ${tier.label} plan allows up to ${tier.vaultDocuments} documents. Upgrade to ingest more.`,
+          currentCount: docs.length,
+          limit: tier.vaultDocuments,
+          tier: userTier,
+        });
+      }
+    }
+
+    const result = await vault.ingestFromUrl(url, req.user.id, title);
+
+    logger.info('vault-route', 'URL ingested', {
+      userId: req.user.id,
+      url,
+      title,
+      documentId: result.documentId,
+    });
+
+    res.json(result);
+  } catch (err) {
+    logger.error('vault-route', 'URL ingest error', { error: err.message, url: req.body?.url });
+    const msg = err.message || 'Unknown error';
+    if (msg.includes('Invalid URL') || msg.includes('ERR_INVALID')) {
+      return res.status(400).json({ error: 'Invalid URL', message: 'Please provide a valid HTTP or HTTPS URL' });
+    }
+    if (msg.includes('HTTP') || msg.includes('timeout')) {
+      return res.status(400).json({ error: 'Could not fetch URL', message: msg });
+    }
+    if (msg.includes('exceeds') || msg.includes('too large')) {
+      return res.status(400).json({ error: 'Content too large', message: msg });
+    }
+    if (msg.includes('no extractable text') || msg.includes('no text') || msg.includes('empty content')) {
+      return res.status(400).json({ error: 'No content found', message: 'The URL returned empty or unreadable content' });
+    }
+    res.status(500).json({ error: 'Failed to ingest URL', message: 'An error occurred while processing the URL. Please try a different URL or try again later.' });
   }
 });
 
