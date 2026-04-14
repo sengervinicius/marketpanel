@@ -736,7 +736,7 @@ export default function App() {
                 padding: '3px 12px', fontSize: 10, fontWeight: 700, letterSpacing: '0.08em',
                 borderRadius: 4, border: 'none', cursor: 'pointer',
                 color: mobileMode === 'vault' ? '#000' : 'var(--text-faint)',
-                background: mobileMode === 'vault' ? 'var(--color-vault, #DAA520)' : 'transparent',
+                background: mobileMode === 'vault' ? 'var(--color-vault-accent)' : 'transparent',
                 transition: 'all 150ms ease',
               }}
             >VAULT</button>

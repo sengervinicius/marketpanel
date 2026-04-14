@@ -326,8 +326,8 @@ export default function ParticleScreen() {
             <div style={{
               display: 'inline-flex', alignItems: 'center', gap: 6,
               padding: '4px 12px', borderRadius: 20,
-              background: 'rgba(218,165,32,0.08)', border: '1px solid rgba(218,165,32,0.15)',
-              fontSize: 10, fontWeight: 600, color: '#DAA520',
+              background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.15)',
+              fontSize: 10, fontWeight: 600, color: 'var(--color-vault-accent)',
               margin: '8px auto 0', letterSpacing: '0.2px',
             }}>
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -622,7 +622,7 @@ function renderInline(text) {
 /** AI-suggested terminal action button */
 function ActionButton({ type, params }) {
   const ACTIONS = {
-    watchlist_add: { label: '+ Watchlist', icon: '\u2605', color: 'var(--color-vault, #DAA520)' },
+    watchlist_add: { label: '+ Watchlist', icon: '\u2605', color: 'var(--color-vault-accent)' },
     alert_set:     { label: 'Set Alert',   icon: '\u26A0', color: 'var(--semantic-warn, #ff9800)' },
     chart_open:    { label: 'Open Chart',  icon: '\u25CF', color: 'var(--accent, #F97316)' },
     detail_open:   { label: 'Details',     icon: '\u2192', color: 'var(--accent, #F97316)' },

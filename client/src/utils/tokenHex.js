@@ -8,32 +8,61 @@
  * @see client/src/styles/tokens.css for the single source of truth.
  */
 export const TOKEN_HEX = {
-  // Backgrounds
-  bgPanel:        '#0a0a0f',
-  bgSurface:      '#0d0d14',
-  bgElevated:     '#111118',
-  bgHover:        '#12121a',
-  bgTooltip:      '#111118',
+  // Brand
+  accent:         '#e55a00',
+  accentHover:    '#cc4f00',
+
+  // Surfaces
+  bgApp:          '#0a0a0a',
+  surface1:       '#111111',
+  surface2:       '#161616',
+  surface3:       '#1e1e1e',
 
   // Borders
-  borderSubtle:   '#141420',
-  borderDefault:  '#1a1a2a',
-  borderStrong:   '#2a2a3a',
+  borderSubtle:   'rgba(255,255,255,0.04)',
+  borderDefault:  'rgba(255,255,255,0.08)',
+  borderStrong:   'rgba(255,255,255,0.12)',
 
   // Text
-  textPrimary:    '#e8e8ed',
-  textSecondary:  '#999999',
-  textMuted:      '#555570',
-  textFaint:      '#3a3a4a',
+  textPrimary:    '#f0f0f0',
+  textSecondary:  '#a0a0a0',
+  textMuted:      '#5a5a5a',
+  textFaint:      '#333333',
 
   // Semantic
-  semanticUp:     '#4caf50',
-  semanticDown:   '#ef5350',
-  semanticWarn:   '#ff9800',
+  up:             '#22c55e',
+  down:           '#ef4444',
+  neutral:        '#a0a0a0',
+  warn:           '#f59e0b',
 
-  // Accent
-  accent:         '#F97316',
+  // Vault
+  vaultAccent:    '#c9a84c',
+
+  // Data viz
+  vizHigh:        '#e55a00',
+  vizMid:         '#f59e0b',
+  vizLow:         '#3b82f6',
+  vizNeutral:     '#374151',
 
   // Charts
   chartGrid:      'rgba(255,255,255,0.04)',
+
+  // Sector accents
+  sectorDefence:  '#ef5350',
+  sectorTech:     '#00bcd4',
+  sectorEurope:   '#3f51b5',
+  sectorBrazil:   '#4caf50',
+  sectorCrypto:   '#f7931a',
+  sectorMacro:    '#9c27b0',
+  sectorEnergy:   '#ff5722',
+
+  // Legacy aliases (backward compat)
+  bgPanel:        '#111111',
+  bgSurface:      '#161616',
+  bgElevated:     '#161616',
+  bgHover:        '#161616',
+  bgTooltip:      '#111111',
+  semanticUp:     '#22c55e',
+  semanticDown:   '#ef4444',
+  semanticWarn:   '#f59e0b',
 };

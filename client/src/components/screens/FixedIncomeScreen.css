@@ -70,9 +70,11 @@
 }
 
 .fi-section-title {
-  font: 700 10px var(--font-mono, monospace);
-  letter-spacing: 0.8px;
-  color: var(--text-muted);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.08em;
+  color: var(--color-text-secondary);
   text-transform: uppercase;
 }
 

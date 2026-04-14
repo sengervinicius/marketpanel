@@ -5,6 +5,7 @@
  */
 import { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { apiFetch } from '../../../utils/api';
+import { sanitizeTicker } from '../../../utils/ticker';
 
 export const ImpliedVolatilityCard = memo(function ImpliedVolatilityCard({
   ticker,
@@ -36,7 +37,7 @@ export const ImpliedVolatilityCard = memo(function ImpliedVolatilityCard({
     return () => { mountedRef.current = false; };
   }, [fetchIV]);
 
-  const displayTicker = label || ticker?.replace(/^C:/, '').replace(/^X:/, '');
+  const displayTicker = label || sanitizeTicker(ticker || '');
 
   return (
     <div style={{

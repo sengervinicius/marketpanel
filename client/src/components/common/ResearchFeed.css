@@ -14,14 +14,14 @@
 
 .research-feed-header {
   padding: 2rem 1.5rem;
-  background: linear-gradient(135deg, rgba(218, 165, 32, 0.05) 0%, rgba(218, 165, 32, 0.02) 100%);
+  background: linear-gradient(135deg, rgba(201, 168, 76, 0.05) 0%, rgba(201, 168, 76, 0.02) 100%);
   border-bottom: 1px solid var(--border-color, #1a2e4a);
 }
 
 .research-feed-header-badge {
   font-size: 0.75rem;
   font-weight: 600;
-  color: var(--color-vault, #DAA520);
+  color: var(--color-vault-accent);
   text-transform: uppercase;
   letter-spacing: 0.1em;
   margin-bottom: 0.5rem;
@@ -110,10 +110,10 @@
 }
 
 .research-feed-item:hover {
-  border-color: var(--color-vault, #DAA520);
-  background: rgba(218, 165, 32, 0.02);
+  border-color: var(--color-vault-accent);
+  background: rgba(201, 168, 76, 0.02);
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(218, 165, 32, 0.1);
+  box-shadow: 0 4px 12px rgba(201, 168, 76, 0.1);
 }
 
 .research-feed-item-header {
@@ -155,8 +155,8 @@
   font-size: 0.75rem;
   padding: 0.25rem 0.625rem;
   border-radius: 0.25rem;
-  background: rgba(218, 165, 32, 0.1);
-  color: var(--color-vault, #DAA520);
+  background: rgba(201, 168, 76, 0.1);
+  color: var(--color-vault-accent);
   text-transform: uppercase;
   letter-spacing: 0.05em;
   font-weight: 500;
@@ -182,8 +182,8 @@
   font-size: 0.8rem;
   font-weight: 600;
   padding: 0.25rem 0.5rem;
-  background: rgba(218, 165, 32, 0.15);
-  color: var(--color-vault, #DAA520);
+  background: rgba(201, 168, 76, 0.15);
+  color: var(--color-vault-accent);
   border-radius: 0.25rem;
   font-family: 'Courier New', monospace;
 }
@@ -208,9 +208,10 @@
   align-items: center;
   gap: 0.5rem;
   font-size: 0.8rem;
-  color: var(--color-vault, #DAA520);
+  color: var(--color-vault-accent);
   font-weight: 500;
   transition: color 0.2s;
+}
 }
 
 .research-feed-item:hover .research-feed-item-cta {

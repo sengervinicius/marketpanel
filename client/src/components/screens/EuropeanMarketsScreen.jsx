@@ -121,15 +121,15 @@ const SIGNALS_TICKERS = ['SAP', 'AZN', 'NVO', 'SHEL', 'LVMUY', 'TTE', 'HSBC', 'U
 const ANALYST_TICKERS = ['SAP', 'AZN', 'NVO', 'SHEL', 'TTE', 'HSBC'];
 
 const EarningsSection = memo(function EarningsSection() {
-  return <EarningsCalendarStrip tickers={EARNINGS_TICKERS} accentColor="#3f51b5" />;
+  return <EarningsCalendarStrip tickers={EARNINGS_TICKERS} accentColor="var(--sector-europe)" />;
 });
 
 const AnalystSection = memo(function AnalystSection() {
-  return <AnalystActionsCard tickers={ANALYST_TICKERS} accentColor="#3f51b5" />;
+  return <AnalystActionsCard tickers={ANALYST_TICKERS} accentColor="var(--sector-europe)" />;
 });
 
 const MacroCalendarSection = memo(function MacroCalendarSection() {
-  return <MacroCalendarStrip countries={['EU', 'DE', 'GB', 'FR', 'IT', 'CH']} limit={12} accentColor="#3f51b5" />;
+  return <MacroCalendarStrip countries={['EU', 'DE', 'GB', 'FR', 'IT', 'CH']} limit={12} accentColor="var(--sector-europe)" />;
 });
 
 /* ── Table Row Component ───────────────────────────────────────────────── */
@@ -400,7 +400,7 @@ function EuropeanMarketsScreenImpl() {
       { label: 'GERMANY',  value: ewg?.price != null ? fmt(ewg.price) : '—', change: ewg?.changePct },
       { label: 'UK',       value: ewu?.price != null ? fmt(ewu.price) : '—', change: ewu?.changePct },
     ];
-    return <KPIRibbon items={items} accentColor="#3f51b5" />;
+    return <KPIRibbon items={items} />;
   }
 
   /* ── Build section definitions ─────────────────────────────────────── */
@@ -528,7 +528,7 @@ function EuropeanMarketsScreenImpl() {
     <FullPageScreenLayout
       title="EUROPEAN MARKETS"
       subtitle="DAX, CAC, FTSE, Nordic & Southern Europe — equities, FX, and sovereign spreads"
-      accentColor="#3f51b5"
+      accentColor="var(--sector-europe)"
       vaultSector="europe"
       sections={sections}
       tickerBanner={BANNER_TICKERS}
@@ -540,7 +540,7 @@ function EuropeanMarketsScreenImpl() {
       <SectorPulse
         etfTicker="VGK"
         etfLabel="VGK"
-        accentColor="#3f51b5"
+        accentColor="var(--sector-europe)"
       />
     </FullPageScreenLayout>
   );

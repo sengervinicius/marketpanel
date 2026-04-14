@@ -6,6 +6,7 @@
 import { memo, Component, useState, useEffect } from 'react';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { useScreenContext } from '../../context/ScreenContext';
+import { sanitizeTicker } from '../../utils/ticker';
 import AIInsightCard from '../ai/AIInsightCard';
 import VaultInsights from '../common/VaultInsights';
 import './DeepScreen.css';
@@ -100,9 +101,8 @@ export function StatsLoadGate({ statsMap, loading, error, refresh, rows = 6, chi
 
 /* ── Ticker chip with click ──────────────────────────────────────────────── */
 export function TickerCell({ symbol, label, price, changePct, onClick }) {
-  const displaySym = (symbol || '')
-    .replace(/^C:/, '').replace(/^X:/, '')
-    .replace('.SA', '').replace('=F', 'f');
+  const displaySym = sanitizeTicker(symbol || '')
+    .replace('.SA', '').replace('=F', '');
 
   return (
     <div

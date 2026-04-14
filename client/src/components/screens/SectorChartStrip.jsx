@@ -9,6 +9,7 @@ import { useTickerPrice } from '../../context/PriceContext';
 import { useOpenDetail } from '../../context/OpenDetailContext';
 import { AreaChart, Area, ResponsiveContainer, YAxis, ReferenceLine } from 'recharts';
 import { apiFetch } from '../../utils/api';
+import { sanitizeTicker } from '../../utils/ticker';
 import './SectorChartStrip.css';
 
 const RANGES = [
@@ -103,8 +104,7 @@ const SparkChart = memo(function SparkChart({ ticker, label, rangeIdx, sectorNam
   // Must use hex, not CSS vars — SVG stopColor can't resolve CSS custom properties
   const color = isUp ? 'var(--semantic-up)' : 'var(--semantic-down)';
 
-  const displayTicker = (ticker || '')
-    .replace(/^C:/, '').replace(/^X:/, '')
+  const displayTicker = sanitizeTicker(ticker || '')
     .replace('.SA', '').replace('=F', '');
   const displayName = label || NAME_OVERRIDES[ticker] || displayTicker;
 

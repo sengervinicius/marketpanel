@@ -47,7 +47,7 @@ function MacroKPIRibbon() {
     { label: 'VIX',         value: vix?.price != null ? fmt(vix.price) : '—', change: vix?.changePct },
     { label: 'EM EQUITY',   value: eem?.price != null ? '$' + fmt(eem.price) : '—', change: eem?.changePct },
   ];
-  return <KPIRibbon items={items} accentColor="#9c27b0" />;
+  return <KPIRibbon items={items} accentColor="var(--color-accent)" />;
 }
 
 /* ─────────────────────────────────────────────────────────────────────── */
@@ -292,7 +292,7 @@ function YieldCurveAnalysis() {
               type="monotone"
               dataKey="yield"
               stroke={isInverted ? 'var(--semantic-down)' : 'var(--semantic-up)'}
-              dot={{ fill: '#9c27b0', r: 4 }}  /* SVG fill: matches --sector-macro */
+              dot={{ fill: '#e55a00', r: 4 }}  /* SVG fill: matches --color-accent */
               activeDot={{ r: 6 }}
               strokeWidth={2}
               isAnimationActive={false}
@@ -339,7 +339,7 @@ function CentralBankRates() {
               style={{
                 height: '100%',
                 width: `${(row.policyRate / maxRate) * 100}%`,
-                background: 'linear-gradient(90deg, #9c27b0, #7b1fa2)',
+                background: 'linear-gradient(90deg, var(--color-accent), var(--color-accent-hover))',
                 borderRadius: 3,
                 transition: 'width 0.3s',
               }}
@@ -626,7 +626,7 @@ function GlobalMacroScreenImpl() {
   return (
     <FullPageScreenLayout
       title="GLOBAL MACRO"
-      accentColor="#9c27b0"
+      accentColor="var(--color-accent)"
       subtitle="Central banks, rates, FX, volatility, and cross-asset risk monitor"
       vaultSector="macro"
       sections={sections}
@@ -638,7 +638,7 @@ function GlobalMacroScreenImpl() {
       <SectorPulse
         etfTicker="SPY"
         etfLabel="SPY"
-        accentColor="#9c27b0"
+        accentColor="var(--color-accent)"
       />
     </FullPageScreenLayout>
   );

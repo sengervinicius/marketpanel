@@ -1,118 +1,150 @@
 /* ================================================================
    DESIGN TOKENS — Single Source of Truth
-   MARKETPANEL MEGAZORD DESIGN SYSTEM v2.0
+   THE PARTICLE DESIGN SYSTEM v3.0
    ================================================================
    RULE: Every visual value in the app comes from this file.
    No hardcoded hex colors, font sizes, or spacing values anywhere
-   else in the codebase (except SVG icons).
+   else in the codebase (except SVG icons via tokenHex.js).
    ================================================================ */
 
 :root {
-  /* ── Backgrounds ────────────────────────────────── */
-  --bg-app:         #050508;   /* Deepest background (page) */
-  --bg-panel:       #0a0a0f;   /* Panel/card background */
-  --bg-surface:     #0d0d14;   /* Elevated surface */
-  --bg-hover:       #12121a;   /* Hover state */
-  --bg-active:      #1a1a26;   /* Active/pressed state */
-  --bg-tooltip:     #111118;   /* Tooltip background */
-  --bg-input:       #0a0a0f;   /* Input field background */
-  --bg-elevated:    #111118;   /* Elevated element bg */
-  --bg-overlay:     #0d0d14;   /* Overlay/modal background */
 
-  /* ── Borders ────────────────────────────────────── */
-  --border-subtle:  #141420;   /* Very subtle dividers */
-  --border-default: #1a1a2a;   /* Standard borders */
-  --border-strong:  #2a2a3a;   /* Prominent borders */
-  --border-focus:   #3a3a50;   /* Focus ring */
+  /* ================================================================
+     BRAND
+     ================================================================ */
+  --color-accent:            #e55a00;           /* Particle Orange — primary CTA, active nav, badges */
+  --color-accent-hover:      #cc4f00;           /* Darker orange for hover states */
+  --color-accent-dim:        rgba(229, 90, 0, 0.15); /* Subtle orange bg for highlighted cards */
 
-  /* ── Text ───────────────────────────────────────── */
-  --text-primary:   #e8e8ed;   /* Primary content */
-  --text-secondary: #999999;   /* Labels, headers */
-  --text-muted:     #555570;   /* Disabled, null values */
-  --text-faint:     #3a3a4a;   /* Dashes, placeholders */
+  /* Pillar — Particle (orange) */
+  --color-particle:          #e55a00;
+  --color-particle-glow:     rgba(229, 90, 0, 0.20);
+  --color-particle-dim:      rgba(229, 90, 0, 0.10);
 
-  /* ── Semantic ───────────────────────────────────── */
-  --semantic-up:    #4caf50;   /* Positive/gain */
-  --semantic-down:  #ef5350;   /* Negative/loss */
-  --semantic-warn:  #ff9800;   /* Warning/caution */
-  --semantic-info:  #2196f3;   /* Information */
-  --semantic-ai:    #a855f7;   /* AI-generated content */
+  /* Pillar — Terminal (silver/white) */
+  --color-terminal:          #E0E0E0;
+  --color-terminal-glow:     rgba(224, 224, 224, 0.15);
+  --color-terminal-dim:      rgba(224, 224, 224, 0.06);
 
-  /* Legacy aliases (backward compat — existing code refs these) */
-  --price-up:       var(--semantic-up);
-  --price-down:     var(--semantic-down);
-  --price-neutral:  #888888;
+  /* Pillar — Vault (gold) */
+  --color-vault-accent:      #c9a84c;           /* Vault-specific gold */
+  --color-vault-accent-dim:  rgba(201, 168, 76, 0.12);
+  --color-vault:             #c9a84c;
+  --color-vault-glow:        rgba(201, 168, 76, 0.20);
+  --color-vault-dim:         rgba(201, 168, 76, 0.10);
 
-  /* ── Brand ──────────────────────────────────────── */
-  --accent:         #F97316;   /* Particle orange */
-  --accent-muted:   rgba(255,102,0,0.15);
-  --accent-text:    #ff9900;
 
-  /* ── Sector Accents ─────────────────────────────── */
-  --sector-defence:    #ef5350;
-  --sector-tech:       #00bcd4;
-  --sector-retail:     #e91e63;
-  --sector-asia:       #26c6da;
-  --sector-europe:     #3f51b5;
-  --sector-brazil:     #4caf50;
-  --sector-crypto:     #f7931a;
-  --sector-commodities:#ff9800;
-  --sector-macro:      #9c27b0;
-  --sector-fixed:      #607d8b;
-  --sector-energy:     #ff5722;
-  --sector-fxcrypto:   #ce93d8;
+  /* ================================================================
+     SURFACES — from deepest to lightest
+     ================================================================ */
+  --color-bg:                #0a0a0a;           /* Page background */
+  --color-surface-1:         #111111;           /* Panel background */
+  --color-surface-2:         #161616;           /* Elevated card, table row hover */
+  --color-surface-3:         #1e1e1e;           /* Deeply nested element */
+  --color-surface-raised:    #222222;           /* Raised elements */
 
-  /* Legacy section aliases (backward compat) */
-  --section-equity:    var(--sector-tech);
-  --section-brazil:    #ffa726;
-  --section-fx:        var(--sector-fxcrypto);
-  --section-crypto:    #f48fb1;
-  --section-watchlist:  var(--accent-text);
+  /* Surface alias (particle-tokens compat) */
+  --color-surface:           var(--color-surface-1);
 
-  /* ── Comparison Series Colors (multi-ticker chart) ── */
-  --compare-1: #00bcd4;   /* First added ticker */
-  --compare-2: #4caf50;   /* Second added ticker */
-  --compare-3: #ff9800;   /* Third added ticker */
-  --compare-4: #a855f7;   /* Fourth added ticker */
 
-  /* ── Font Families ──────────────────────────────── */
-  --font-ui:    'Inter', 'SF Pro Display', system-ui, sans-serif;
-  --font-mono:  'JetBrains Mono', 'SF Mono', 'IBM Plex Mono', monospace;
+  /* ================================================================
+     BORDERS
+     ================================================================ */
+  --color-border:            rgba(255, 255, 255, 0.08);   /* All borders */
+  --color-border-subtle:     rgba(255, 255, 255, 0.04);   /* Very subtle dividers */
+  --color-border-strong:     rgba(255, 255, 255, 0.12);   /* Prominent borders */
+  --color-focus:             rgba(229, 90, 0, 0.40);      /* Focus ring */
 
-  /* ── Font Sizes (type scale) ────────────────────── */
-  --text-2xs:   9px;    /* Axis labels, timestamps */
-  --text-xs:    10px;   /* Column headers, captions */
-  --text-sm:    11px;   /* Section headers, badges */
-  --text-base:  13px;   /* Body text, table data */
-  --text-md:    14px;   /* Prices, input text */
-  --text-lg:    16px;   /* Section titles */
-  --text-xl:    20px;   /* Screen titles */
-  --text-2xl:   28px;   /* Hero numbers (InstrumentDetail price) */
 
-  /* Legacy font-size aliases (backward compat) */
-  --font-micro: 7px;
-  --font-2xs:   var(--text-2xs);
-  --font-xs:    var(--text-sm);
-  --font-sm:    12px;
-  --font-base:  var(--text-md);
-  --font-md:    15px;
-  --font-lg:    17px;
-  --font-xl:    22px;
-  --font-2xl:   30px;
-  --font-hero:  40px;
+  /* ================================================================
+     TEXT
+     ================================================================ */
+  --color-text-primary:      #f0f0f0;          /* Main readable text */
+  --color-text-secondary:    #a0a0a0;          /* Labels, metadata */
+  --color-text-muted:        #5a5a5a;          /* Timestamps, captions */
+  --color-text-faint:        #333333;          /* Dashes, placeholders */
+  --color-text-inverse:      #0a0a0a;          /* Text on orange buttons */
 
-  /* ── Font Weights ───────────────────────────────── */
-  --weight-normal:   400;
-  --weight-medium:   500;
-  --weight-semibold: 600;
-  --weight-bold:     700;
 
-  /* ── Line Heights ───────────────────────────────── */
-  --leading-tight:   1.2;
-  --leading-normal:  1.4;
-  --leading-relaxed: 1.6;
+  /* ================================================================
+     SEMANTIC COLORS — market data only
+     ================================================================ */
+  --color-up:                #22c55e;           /* Green for positive change */
+  --color-down:              #ef4444;           /* Red for negative change */
+  --color-neutral:           #a0a0a0;           /* Flat / unchanged */
+  --color-warn:              #f59e0b;           /* Warning states */
+  --color-flat:              var(--color-warn);  /* Alias: flat market */
+  --color-closed:            #475569;           /* Market closed */
+  --color-info:              #2196f3;           /* Information */
+  --color-ai:                #a855f7;           /* AI-generated content */
 
-  /* ── Spacing (4px base unit) ────────────────────── */
+
+  /* ================================================================
+     DATA VIZ — for charts and heatmaps only
+     ================================================================ */
+  --color-viz-high:          #e55a00;           /* High correlation (>0.7) */
+  --color-viz-mid:           #f59e0b;           /* Medium correlation (0.4–0.7) */
+  --color-viz-low:           #3b82f6;           /* Low / negative correlation */
+  --color-viz-neutral:       #374151;           /* Zero correlation / empty */
+
+
+  /* ================================================================
+     SECTOR ACCENTS
+     ================================================================ */
+  --sector-defence:          #ef5350;
+  --sector-tech:             #00bcd4;
+  --sector-retail:           #e91e63;
+  --sector-asia:             #26c6da;
+  --sector-europe:           #3f51b5;
+  --sector-brazil:           #4caf50;
+  --sector-crypto:           #f7931a;
+  --sector-commodities:      #ff9800;
+  --sector-macro:            #9c27b0;
+  --sector-fixed:            #607d8b;
+  --sector-energy:           #ff5722;
+  --sector-fxcrypto:         #ce93d8;
+
+  /* Comparison Series Colors (multi-ticker chart) */
+  --compare-1:               #00bcd4;
+  --compare-2:               #4caf50;
+  --compare-3:               #ff9800;
+  --compare-4:               #a855f7;
+
+
+  /* ================================================================
+     TYPOGRAPHY
+     ================================================================ */
+
+  /* Families */
+  --font-family-sans:        'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-family-mono:        'JetBrains Mono', 'Fira Code', 'SF Mono', 'IBM Plex Mono', monospace;
+  --font-family-display:     'Playfair Display', 'Georgia', 'Times New Roman', serif;
+
+  /* Sizes */
+  --font-size-xs:            10px;   /* Column headers, captions */
+  --font-size-sm:            11px;   /* Section headers, badges */
+  --font-size-base:          12px;   /* Body text, table data */
+  --font-size-md:            13px;   /* Prices, input text */
+  --font-size-lg:            14px;   /* Section titles */
+  --font-size-xl:            16px;   /* Screen titles */
+  --font-size-2xl:           18px;   /* Emphasized headings */
+  --font-size-3xl:           24px;   /* Hero numbers */
+
+  /* Weights */
+  --font-weight-normal:      400;
+  --font-weight-medium:      500;
+  --font-weight-semibold:    600;
+  --font-weight-bold:        700;
+
+  /* Line heights */
+  --line-height-tight:       1.2;
+  --line-height-base:        1.5;
+  --line-height-relaxed:     1.6;
+
+
+  /* ================================================================
+     SPACING — 4px base unit
+     ================================================================ */
   --space-1:   4px;
   --space-2:   8px;
   --space-3:   12px;
@@ -124,69 +156,180 @@
   --space-12:  48px;
   --space-16:  64px;
 
-  /* Legacy spacing aliases */
-  --sp-1: var(--space-1);
-  --sp-2: var(--space-2);
-  --sp-3: var(--space-3);
-  --sp-4: var(--space-4);
-  --sp-5: var(--space-5);
-  --sp-6: var(--space-6);
-  --sp-8: var(--space-8);
 
-  /* ── Border Radius ──────────────────────────────── */
-  --radius-sm:   2px;
-  --radius-md:   4px;
-  --radius-lg:   8px;
-  --radius-full: 9999px;
+  /* ================================================================
+     BORDER RADIUS
+     ================================================================ */
+  --radius-sm:               3px;
+  --radius-md:               6px;
+  --radius-lg:               8px;
+  --radius-xl:               12px;
+  --radius-full:             9999px;
 
-  /* ── Animation Tokens ───────────────────────────── */
-  --duration-instant: 100ms;  /* Hover, active states */
-  --duration-fast:    200ms;  /* Micro-interactions */
-  --duration-normal:  300ms;  /* Screen transitions */
-  --duration-slow:    500ms;  /* Chart animations */
 
-  --ease-default:  cubic-bezier(0.4, 0, 0.2, 1);
-  --ease-in:       cubic-bezier(0.4, 0, 1, 1);
-  --ease-out:      cubic-bezier(0, 0, 0.2, 1);
-  --ease-bounce:   cubic-bezier(0.34, 1.56, 0.64, 1);
+  /* ================================================================
+     TRANSITIONS & ANIMATION
+     ================================================================ */
+  --transition-fast:         120ms ease;
+  --transition-base:         200ms ease;
 
-  /* ── Z-index Layers ─────────────────────────────── */
-  --z-panel:    1;
-  --z-header:   10;
-  --z-overlay:  100;
-  --z-modal:    1000;
-  --z-detail:   1500;
-  --z-tooltip:  2000;
+  --duration-instant:        100ms;
+  --duration-fast:           150ms;
+  --duration-normal:         250ms;
+  --duration-base:           250ms;
+  --duration-slow:           400ms;
 
-  /* ── Row Heights ────────────────────────────────── */
-  --row-height:       26px;
-  --row-height-touch: 44px;
+  --ease-default:            cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-in:                 cubic-bezier(0.4, 0, 1, 1);
+  --ease-out:                cubic-bezier(0, 0, 0.2, 1);
+  --ease-out-expo:           cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-bounce:             cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-spring:             cubic-bezier(0.34, 1.56, 0.64, 1);
 
-  /* ── Shadows ────────────────────────────────────── */
-  --shadow-overlay:  0 6px 24px rgba(0,0,0,0.8);
-  --shadow-dropdown: 0 4px 20px rgba(0,0,0,0.9);
-  --shadow-tooltip:  0 2px 12px rgba(0,0,0,0.6);
 
-  /* ── Glass Surfaces ─────────────────────────────── */
-  --glass-bg:        rgba(10, 10, 15, 0.70);
-  --glass-border:    rgba(255, 255, 255, 0.06);
-  --glass-blur:      12px;
-  --glass-bg-hover:  rgba(20, 20, 30, 0.80);
+  /* ================================================================
+     Z-INDEX LAYERS
+     ================================================================ */
+  --z-panel:                 1;
+  --z-header:                10;
+  --z-overlay:               100;
+  --z-modal:                 1000;
+  --z-detail:                1500;
+  --z-tooltip:               2000;
 
-  /* ── Pillar Brand Colors ────────────────────────── */
-  --color-particle:      #F97316;
-  --color-particle-glow: rgba(249, 115, 22, 0.20);
-  --color-particle-dim:  rgba(249, 115, 22, 0.10);
-  --color-terminal:      #E0E0E0;
-  --color-terminal-glow: rgba(224, 224, 224, 0.15);
-  --color-terminal-dim:  rgba(224, 224, 224, 0.06);
-  --color-vault:         #DAA520;
-  --color-vault-glow:    rgba(218, 165, 32, 0.20);
-  --color-vault-dim:     rgba(218, 165, 32, 0.10);
+
+  /* ================================================================
+     ROW HEIGHTS
+     ================================================================ */
+  --row-height:              26px;
+  --row-height-touch:        44px;
+
+
+  /* ================================================================
+     SHADOWS
+     ================================================================ */
+  --shadow-overlay:          0 6px 24px rgba(0, 0, 0, 0.8);
+  --shadow-dropdown:         0 4px 20px rgba(0, 0, 0, 0.9);
+  --shadow-tooltip:          0 2px 12px rgba(0, 0, 0, 0.6);
+
+
+  /* ================================================================
+     GLASS SURFACES
+     ================================================================ */
+  --glass-bg:                rgba(10, 10, 15, 0.70);
+  --glass-border:            rgba(255, 255, 255, 0.06);
+  --glass-blur:              12px;
+  --glass-bg-hover:          rgba(20, 20, 30, 0.80);
+
+
+  /* ================================================================
+     LEGACY COMPATIBILITY ALIASES
+     ================================================================
+     These map old variable names used throughout the existing codebase
+     to the new canonical token system. This prevents breaking existing
+     components while the migration happens incrementally.
+     DO NOT add new code referencing these — use canonical names above.
+     ================================================================ */
+
+  /* --- Surface / Background aliases --- */
+  --bg-app:                  var(--color-bg);
+  --bg-panel:                var(--color-surface-1);
+  --bg-surface:              var(--color-surface-2);
+  --bg-hover:                var(--color-surface-2);
+  --bg-active:               var(--color-surface-3);
+  --bg-tooltip:              var(--color-surface-1);
+  --bg-input:                var(--color-surface-1);
+  --bg-elevated:             var(--color-surface-2);
+  --bg-overlay:              var(--color-surface-1);
+  --bg-secondary:            var(--color-surface-2);
+
+  /* --- Border aliases --- */
+  --border-subtle:           var(--color-border);
+  --border-default:          var(--color-border-strong);
+  --border-strong:           var(--color-border-strong);
+  --border-focus:            var(--color-focus);
+
+  /* --- Text aliases --- */
+  --text-primary:            var(--color-text-primary);
+  --text-secondary:          var(--color-text-secondary);
+  --text-muted:              var(--color-text-muted);
+  --text-faint:              var(--color-text-faint);
+
+  /* --- Semantic aliases --- */
+  --semantic-up:             var(--color-up);
+  --semantic-down:           var(--color-down);
+  --semantic-warn:           var(--color-warn);
+  --semantic-info:           var(--color-info);
+  --semantic-ai:             var(--color-ai);
+  --price-up:                var(--color-up);
+  --price-down:              var(--color-down);
+  --price-neutral:           var(--color-neutral);
+
+  /* --- Brand aliases --- */
+  --accent:                  var(--color-accent);
+  --accent-muted:            var(--color-accent-dim);
+  --accent-text:             var(--color-accent);
+
+  /* --- Font aliases --- */
+  --font-ui:                 var(--font-family-sans);
+  --font-body:               var(--font-family-sans);
+  --font-mono:               var(--font-family-mono);
+  --font-display:            var(--font-family-display);
+
+  /* --- Font size aliases (old scale) --- */
+  --text-2xs:                9px;
+  --text-xs:                 var(--font-size-xs);
+  --text-sm:                 var(--font-size-sm);
+  --text-base:               var(--font-size-md);
+  --text-md:                 var(--font-size-lg);
+  --text-lg:                 var(--font-size-xl);
+  --text-xl:                 20px;
+  --text-2xl:                28px;
+
+  --font-micro:              7px;
+  --font-2xs:                9px;
+  --font-xs:                 var(--font-size-sm);
+  --font-sm:                 var(--font-size-base);
+  --font-base:               var(--font-size-lg);
+  --font-md:                 15px;
+  --font-lg:                 17px;
+  --font-xl:                 22px;
+  --font-2xl:                30px;
+  --font-hero:               40px;
+
+  /* --- Font weight aliases --- */
+  --weight-normal:           var(--font-weight-normal);
+  --weight-medium:           var(--font-weight-medium);
+  --weight-semibold:         var(--font-weight-semibold);
+  --weight-bold:             var(--font-weight-bold);
+
+  /* --- Line height aliases --- */
+  --leading-tight:           var(--line-height-tight);
+  --leading-normal:          var(--line-height-base);
+  --leading-relaxed:         var(--line-height-relaxed);
+
+  /* --- Spacing aliases --- */
+  --sp-1:                    var(--space-1);
+  --sp-2:                    var(--space-2);
+  --sp-3:                    var(--space-3);
+  --sp-4:                    var(--space-4);
+  --sp-5:                    var(--space-5);
+  --sp-6:                    var(--space-6);
+  --sp-8:                    var(--space-8);
+
+  /* --- Sector legacy aliases --- */
+  --section-equity:          var(--sector-tech);
+  --section-brazil:          var(--sector-brazil);
+  --section-fx:              var(--sector-fxcrypto);
+  --section-crypto:          var(--sector-crypto);
+  --section-watchlist:       var(--color-accent);
 }
 
-/* ── Global Numeric Formatting ────────────────────── */
-/* Apply tabular-nums to all numeric-displaying elements */
+
+/* ================================================================
+   GLOBAL NUMERIC FORMATTING
+   Apply tabular-nums to all numeric-displaying elements
+   ================================================================ */
 .tabular-nums,
 td, th,
 [data-numeric],
@@ -197,4 +340,22 @@ td, th,
 .fund-value {
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum" 1;
+}
+
+
+/* ================================================================
+   SHARED UTILITY CLASSES
+   ================================================================ */
+
+/* Unified section header — use across ALL sector screens */
+.section-header {
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--color-border);
+  margin-bottom: var(--space-4);
 }

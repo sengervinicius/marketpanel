@@ -193,7 +193,7 @@ export function FundamentalsTable({ tickers, metrics = null, title, onTickerClic
 
   return (
     <div style={{ overflow: 'auto' }}>
-      {title && <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 0.8, fontWeight: 600 }}>{title}</div>}
+      {title && <div className="section-header">{title}</div>}
       <table className="ds-table">
         <thead>
           <tr>

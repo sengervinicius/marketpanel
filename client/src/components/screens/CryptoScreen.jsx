@@ -15,6 +15,7 @@ import { useDeepScreenData } from '../../hooks/useDeepScreenData';
 import { useSectionData } from '../../hooks/useSectionData';
 import DeepScreenBase, { DeepSkeleton, DeepError, StatsLoadGate } from './DeepScreenBase';
 import { apiFetch } from '../../utils/api';
+import { sanitizeTicker } from '../../utils/ticker';
 import { KPIRibbon, TickerRibbon } from './shared/SectorUI';
 import { CorrelationMatrix } from './shared/CorrelationMatrix';
 import { EarningsCalendarStrip } from './shared/EarningsCalendarStrip';
@@ -100,7 +101,7 @@ const AnalystSection = memo(function AnalystSection() {
 /* ── Crypto Major Row Component ────────────────────────────────────────────── */
 function CryptoMajorRow({ symbol, label, onClick }) {
   const q = useTickerPrice(symbol);
-  const displaySym = symbol.replace('X:', '');
+  const displaySym = sanitizeTicker(symbol);
   return (
     <tr
       className="ds-row-clickable"

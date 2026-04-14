@@ -6,6 +6,7 @@ import { Component, useRef, useState, useEffect, memo } from 'react';
 import { useIsMobile } from '../../../hooks/useIsMobile';
 import { useScreenContext } from '../../../context/ScreenContext';
 import { useTickerPrice } from '../../../context/PriceContext';
+import { sanitizeTicker } from '../../../utils/ticker';
 import AIInsightCard from '../../ai/AIInsightCard';
 import VaultInsights from '../../common/VaultInsights';
 import './ScreenShared.css';
@@ -18,8 +19,7 @@ import './ScreenShared.css';
 const BannerTick = memo(function BannerTick({ ticker, label, accentColor }) {
   const q = useTickerPrice(ticker);
   const isUp = q?.changePct != null ? q.changePct >= 0 : null;
-  const displayTicker = (ticker || '')
-    .replace(/^C:/, '').replace(/^X:/, '')
+  const displayTicker = sanitizeTicker(ticker || '')
     .replace('.SA', '').replace('=F', '');
 
   return (

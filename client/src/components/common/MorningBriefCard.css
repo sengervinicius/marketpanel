@@ -140,8 +140,8 @@
 /* Personalized badge */
 .morning-brief-card__personalized-badge {
   padding: 8px 12px;
-  background: rgba(218, 165, 32, 0.15);
-  color: #DAA520;
+  background: rgba(201, 168, 76, 0.15);
+  color: var(--color-vault-accent);
   font-size: 11px;
   text-align: center;
   border-top: 1px solid var(--border-color, #374151);

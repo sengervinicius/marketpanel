@@ -10,6 +10,7 @@ import ShareModal from './ShareModal';
 import PositionEditor from './PositionEditor';
 import InstrumentOptionsPanel from './InstrumentOptionsPanel';
 import { useTickerPrice } from '../../context/PriceContext';
+import { sanitizeTicker } from '../../utils/ticker';
 import './InstrumentDetail.css';
 import {
   AreaChart, Area, BarChart, Bar, ComposedChart, Line,
@@ -60,7 +61,7 @@ const RELATED_NAMES = {
 // ── Related Ticker Chip (mini component for "Also In" section) ──
 const RelatedTickerChip = memo(function RelatedTickerChip({ ticker, onOpen, sectorContext }) {
   const priceData = useTickerPrice(ticker);
-  const displayTk = (ticker || '').replace(/^C:/, '').replace(/^X:/, '').replace('.SA', '').replace('=F', '');
+  const displayTk = sanitizeTicker(ticker || '').replace('.SA', '').replace('=F', '');
   const name = RELATED_NAMES[ticker] || RELATED_NAMES[displayTk] || displayTk;
   const price = priceData?.price;
   const changePct = priceData?.changePct;

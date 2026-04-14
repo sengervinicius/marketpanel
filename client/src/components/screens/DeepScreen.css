@@ -27,11 +27,12 @@
   border-radius: 1px;
 }
 .ds-header-title {
-  font-size: var(--font-sm);
-  font-weight: 700;
-  letter-spacing: 2px;
-  color: var(--text-primary);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.08em;
   text-transform: uppercase;
+  color: var(--color-text-secondary);
 }
 
 /* AI slot */
@@ -74,10 +75,11 @@
   z-index: 1;
 }
 .ds-section-title {
-  font-size: var(--text-xs);
-  font-weight: 600;
-  letter-spacing: 1.5px;
-  color: var(--text-secondary);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.08em;
+  color: var(--color-text-secondary);
   text-transform: uppercase;
 }
 .ds-section-badge {

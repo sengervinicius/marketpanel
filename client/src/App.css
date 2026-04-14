@@ -1,8 +1,7 @@
 /* App.css — Particle Market Terminal */
 
-/* ── Design Tokens ──────────────────────────────── */
+/* ── Design Tokens (single source of truth) ─────── */
 @import './styles/tokens.css';
-@import './particle-tokens.css';
 
 /* ── Base reset ─────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }

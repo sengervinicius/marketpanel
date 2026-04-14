@@ -12,6 +12,7 @@
  */
 import { memo, useMemo } from 'react';
 import { useTickerPrice } from '../../../context/PriceContext';
+import { sanitizeTicker } from '../../../utils/ticker';
 
 /* ── Helpers ─────────────────────────────────────────────────────────── */
 const fmtNum = (n, d = 2) =>
@@ -166,8 +167,7 @@ export const LiveTickerRow = memo(function LiveTickerRow({
   const changePct = priceData?.changePct;
   const isUp = changePct != null ? changePct >= 0 : true;
 
-  const displayTicker = (ticker || '')
-    .replace(/^C:/, '').replace(/^X:/, '')
+  const displayTicker = sanitizeTicker(ticker || '')
     .replace('.SA', '').replace('=F', '');
 
   return (
@@ -271,8 +271,7 @@ function TickerChip({ ticker, onClick }) {
   const priceData = useTickerPrice(ticker);
   const changePct = priceData?.changePct;
   const isUp = changePct != null ? changePct >= 0 : true;
-  const displayTicker = (ticker || '')
-    .replace(/^C:/, '').replace(/^X:/, '')
+  const displayTicker = sanitizeTicker(ticker || '')
     .replace('.SA', '').replace('=F', '');
 
   return (

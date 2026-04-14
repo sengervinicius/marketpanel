@@ -14,6 +14,7 @@ import TechnicalSignalsCard from './shared/TechnicalSignalsCard';
 import { useOpenDetail } from '../../context/OpenDetailContext';
 import { useTickerPrice } from '../../context/PriceContext';
 import { useDeepScreenData } from '../../hooks/useDeepScreenData';
+import { sanitizeTicker } from '../../utils/ticker';
 
 const fmt = (n, d = 2) => n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
 const fmtPct = (n) => n == null ? '—' : (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
@@ -84,7 +85,7 @@ function CryptoRow({ symbol, label, onClick }) {
       onClick={() => onClick(symbol, 'FX & Crypto')}
       onTouchEnd={(e) => { e.preventDefault(); onClick(symbol, 'FX & Crypto'); }}
     >
-      <td className="ds-ticker-col">{symbol.replace('X:', '')}</td>
+      <td className="ds-ticker-col">{sanitizeTicker(symbol)}</td>
       <td>{label || <span className="ds-dash">—</span>}</td>
       <td style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
         {q?.price != null ? fmt(q.price, 2) : <span className="ds-dash">—</span>}

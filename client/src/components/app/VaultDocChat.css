@@ -128,8 +128,8 @@
 }
 
 .vault-doc-chat-message-user .vault-doc-chat-message-content {
-  background: var(--color-vault, #DAA520);
-  border-color: var(--color-vault, #DAA520);
+  background: var(--color-vault-accent);
+  border-color: var(--color-vault-accent);
   color: var(--bg-primary, #0a0e27);
 }
 
@@ -168,8 +168,8 @@
 
 .vault-doc-chat-input:focus {
   outline: none;
-  border-color: var(--color-vault, #DAA520);
-  box-shadow: 0 0 0 2px rgba(218, 165, 32, 0.1);
+  border-color: var(--color-vault-accent);
+  box-shadow: 0 0 0 2px rgba(201, 168, 76, 0.1);
 }
 
 .vault-doc-chat-input::placeholder {
@@ -182,7 +182,7 @@
 }
 
 .vault-doc-chat-submit {
-  background: var(--color-vault, #DAA520);
+  background: var(--color-vault-accent);
   border: none;
   border-radius: 0.375rem;
   color: var(--bg-primary, #0a0e27);
@@ -194,7 +194,7 @@
 }
 
 .vault-doc-chat-submit:hover:not(:disabled) {
-  background: #c9941a;
+  background: #b0912f;
 }
 
 .vault-doc-chat-submit:active:not(:disabled) {

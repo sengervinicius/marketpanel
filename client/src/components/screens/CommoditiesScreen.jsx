@@ -429,7 +429,7 @@ function CommoditiesScreenImpl() {
         accentColor="#ff9800"
       />
       <div style={{ padding: '16px 6px' }}>
-        <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: 0.5 }}>Fundamentals Comparison</div>
+        <div className="section-header">Fundamentals Comparison</div>
         <FundamentalsTable
           tickers={ALL_PRODUCERS}
           metrics={['pe', 'marketCap', 'ebitda', 'profitMargins', 'returnOnEquity', 'beta']}

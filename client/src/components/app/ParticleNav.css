@@ -34,11 +34,11 @@
   transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), background 0.3s ease, border-color 0.3s ease;
 }
 .p-mode-slider--3[data-mode="vault"] {
-  background: rgba(218, 165, 32, 0.10);
-  border-color: #DAA520;
+  background: var(--color-vault-accent-dim);
+  border-color: var(--color-vault-accent);
 }
 .p-mode-btn[data-active="true"][data-mode="vault"] {
-  color: #DAA520;
+  color: var(--color-vault-accent);
 }
 
 .p-mode-btn {
@@ -528,8 +528,8 @@
   font-weight: 700;
   font-family: var(--font-mono, monospace);
   color: #1a1a1a;
-  background: #DAA520;
-  border: 1px solid rgba(218, 165, 32, 0.3);
+  background: var(--color-vault-accent);
+  border: 1px solid rgba(201, 168, 76, 0.3);
   border-radius: 5px;
   vertical-align: baseline;
   line-height: 1;
@@ -539,8 +539,8 @@
   white-space: nowrap;
 }
 .particle-md-vault-cite:hover {
-  background: #c9951a;
-  box-shadow: 0 0 8px rgba(218, 165, 32, 0.4);
+  background: #b8962f;
+  box-shadow: 0 0 8px rgba(201, 168, 76, 0.4);
 }
 
 /* ── Sentiment badges ── */

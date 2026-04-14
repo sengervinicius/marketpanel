@@ -20,7 +20,7 @@ import InlineChart from './InlineChart';
 /** AI-suggested terminal action button */
 function ActionButton({ type, params }) {
   const ACTIONS = {
-    watchlist_add: { label: '+ Watchlist', icon: '\u2605', color: 'var(--color-vault, #DAA520)' },
+    watchlist_add: { label: '+ Watchlist', icon: '\u2605', color: 'var(--color-vault-accent)' },
     alert_set:     { label: 'Set Alert',   icon: '\u26A0', color: 'var(--semantic-warn, #ff9800)' },
     chart_open:    { label: 'Open Chart',  icon: '\u25CF', color: 'var(--accent, #F97316)' },
     detail_open:   { label: 'Details',     icon: '\u2192', color: 'var(--accent, #F97316)' },

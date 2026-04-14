@@ -129,7 +129,7 @@ export default function WelcomeModal({ onClose, onComplete }) {
                 <div style={styles.pillarDesc}>Ask anything — powered by your portfolio, live data, and research docs</div>
               </div>
               <div style={styles.pillar}>
-                <div style={{ ...styles.pillarIcon, color: '#DAA520' }}>
+                <div style={{ ...styles.pillarIcon, color: 'var(--color-vault-accent)' }}>
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
                 </div>
                 <div style={styles.pillarLabel}>Vault</div>
@@ -237,7 +237,7 @@ export default function WelcomeModal({ onClose, onComplete }) {
                 <span style={{ fontSize: 11, color: '#888' }}>Ask "What's happening in markets today?"</span>
               </div>
               <div style={styles.nextStep}>
-                <span style={{ color: '#DAA520', fontWeight: 700 }}>Upload a PDF →</span>
+                <span style={{ color: 'var(--color-vault-accent)', fontWeight: 700 }}>Upload a PDF →</span>
                 <span style={{ fontSize: 11, color: '#888' }}>Your AI answers become grounded in your research</span>
               </div>
             </div>

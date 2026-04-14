@@ -6,6 +6,7 @@
  */
 import { useState, useEffect, useMemo, memo, useRef, useCallback } from 'react';
 import { apiFetch } from '../../../utils/api';
+import { sanitizeTicker } from '../../../utils/ticker';
 
 /**
  * Convert -1…+1 correlation to color-coded background.
@@ -139,7 +140,7 @@ export const CorrelationMatrix = memo(function CorrelationMatrix({
 
   const displayTicker = (t) => {
     if (labels[t]) return labels[t];
-    return (t || '').replace(/^C:/, '').replace(/^X:/, '').replace('.SA', '').replace('=F', '');
+    return sanitizeTicker(t || '').replace('.SA', '').replace('=F', '');
   };
 
   if (tickerList.length < 2) return null;
