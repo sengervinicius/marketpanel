@@ -400,21 +400,20 @@ export function SectorChartContainer({
   const mountedRef = useRef(true);
   const chartIdRef = useRef(Math.random().toString(36).slice(2, 8));
 
-  // 20s timeout with exponential backoff retry support
+  // 40s timeout with retry support (Render cold-start can take 30s+)
   useEffect(() => {
     if (!loading) return;
     const timer = setTimeout(() => {
       if (mountedRef.current) {
-        // Check if we can retry (max 2 retries)
-        if (retryCount < 1) {
+        if (retryCount < 2) {
           setLoading(false);
           setFetchError('Chart timed out. Retrying...');
         } else {
           setLoading(false);
-          setFetchError('Chart timed out after 20 seconds. Max retries reached.');
+          setFetchError('Chart timed out. Try refreshing the page.');
         }
       }
-    }, 20000);
+    }, 40000);
     return () => clearTimeout(timer);
   }, [loading, retryCount]);
 
@@ -438,8 +437,8 @@ export function SectorChartContainer({
         setLoading(true);
         setFetchError(null);
 
-        // Calculate exponential backoff delay: 0ms for initial, 2000ms for retry 1, 5000ms for retry 2
-        const backoffDelays = [0, 2000, 5000];
+        // Short backoff between retries: 0ms initial, 500ms retry 1, 1000ms retry 2
+        const backoffDelays = [0, 500, 1000];
         const delay = backoffDelays[Math.min(retryCount, 2)];
 
         if (delay > 0) {

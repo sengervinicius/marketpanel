@@ -24,25 +24,7 @@ const LS_CHART_GRID = 'chartGrid_v3';
 export function useLayoutManager() {
   const { settings, updateLayout } = useSettings();
 
-  let desktopRows = settings?.layout?.desktopRows || DEFAULT_LAYOUT.desktopRows;
-
-  // Auto-migrate: inject optionsFlow into row 2 if missing from saved layout
-  const allPanels = desktopRows.flat();
-  if (!allPanels.includes('optionsFlow') && desktopRows.length >= 3) {
-    desktopRows = desktopRows.map((row, i) => {
-      if (i === 2) {
-        // Insert before 'watchlist' if present, otherwise append
-        const wlIdx = row.indexOf('watchlist');
-        if (wlIdx >= 0) {
-          const newRow = [...row];
-          newRow.splice(wlIdx, 0, 'optionsFlow');
-          return newRow;
-        }
-        return [...row, 'optionsFlow'];
-      }
-      return row;
-    });
-  }
+  const desktopRows = settings?.layout?.desktopRows || DEFAULT_LAYOUT.desktopRows;
 
   const row0 = desktopRows[0] || [];
   const row1 = desktopRows[1] || [];

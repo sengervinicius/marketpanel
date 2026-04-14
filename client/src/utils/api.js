@@ -70,8 +70,9 @@ export async function apiFetch(path, options = {}) {
   const headers = buildHeaders(options.headers);
 
   // Support external AbortSignal (e.g. from component unmount) alongside timeout
+  // 35s timeout — Render free-tier cold-starts take ~30s
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 15000);
+  const timeout = setTimeout(() => controller.abort(), 35000);
 
   // If caller provides a signal, abort our controller when it fires
   const externalSignal = options.signal;

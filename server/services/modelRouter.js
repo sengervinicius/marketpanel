@@ -69,6 +69,7 @@ const ROUTE_MAP = {
   morning_brief: 'perplexity_pro',
   anomaly_classify: 'claude_haiku',
   earnings_analysis: 'claude_sonnet',
+  terminal_overview: 'claude_sonnet', // User asking about their screen/data — must use injected context, not web search
   general: 'perplexity_pro',
 };
 
@@ -115,6 +116,12 @@ function classifyIntent(query, hasVaultContext = false, hasDeepAnalysis = false)
   // Earnings analysis intent
   if (/earnings|eps|beat|miss|guidance|outlook/i.test(q)) {
     return 'earnings_analysis';
+  }
+
+  // Terminal-awareness: user asking about their screen, dashboard, watchlist, portfolio, positions
+  // Route to Claude so the injected market context is actually used (Perplexity ignores it for web search)
+  if (/\b(my\s+(screen|terminal|dashboard|home|data|watchlist|portfolio|positions?|holdings?|alerts?)|analyze\s+(my|the)\s+(screen|terminal|home|dashboard)|what('s| is)\s+(on\s+)?my\s+(screen|dashboard|terminal)|brief|morning|summary|overview|what.*happening|market\s+(update|recap|summary))\b/i.test(q)) {
+    return 'terminal_overview';
   }
 
   // Default to general

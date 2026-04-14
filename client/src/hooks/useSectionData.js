@@ -10,10 +10,10 @@ const _sectionCache = new Map();
  * @param {string} options.cacheKey - Unique cache key
  * @param {Function} options.fetcher - Async function that returns data
  * @param {number} [options.refreshMs=120000] - Auto-refresh interval (default 2 min)
- * @param {number} [options.timeoutMs=15000] - Data fetch timeout (default 15 sec)
+ * @param {number} [options.timeoutMs=35000] - Data fetch timeout (default 35 sec)
  * @param {boolean} [options.enabled=true] - Whether to fetch
  */
-export function useSectionData({ cacheKey, fetcher, refreshMs = 120000, timeoutMs = 15000, enabled = true }) {
+export function useSectionData({ cacheKey, fetcher, refreshMs = 120000, timeoutMs = 35000, enabled = true }) {
   const [data, setData] = useState(() => {
     if (cacheKey && _sectionCache.has(cacheKey)) {
       return _sectionCache.get(cacheKey).data;
@@ -38,7 +38,9 @@ export function useSectionData({ cacheKey, fetcher, refreshMs = 120000, timeoutM
 
   const fetchData = useCallback(async () => {
     if (!enabled) return;
-    setLoading(true);
+    // Only show loading spinner if we don't already have cached data
+    // (prevents UI flicker on background refreshes)
+    if (!_sectionCache.has(cacheKey)) setLoading(true);
     setError(null);
 
     // Clear any previous timeout

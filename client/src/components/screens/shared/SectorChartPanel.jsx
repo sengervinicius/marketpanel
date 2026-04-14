@@ -80,7 +80,7 @@ export function SectorChartPanel({
           accentColor={accentColor}
           isHighlighted={selectedTicker === ticker}
           onChartClick={onChartClick}
-          loadDelay={idx * 1200}
+          loadDelay={idx * 300}
         />
       ))}
     </div>

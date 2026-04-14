@@ -64,7 +64,7 @@ const SparkChart = memo(function SparkChart({ ticker, label, rangeIdx, sectorNam
   const fetchData = useCallback(async () => {
     if (!ticker) return;
     const range = RANGES[rangeIdx];
-    if (mountedRef.current) setLoading(true);
+    if (mountedRef.current && bars.length === 0) setLoading(true);
     try {
       const toStr = new Date().toISOString().split('T')[0];
       const fromStr = getFromDate(range);

@@ -44,9 +44,10 @@ const INTENT_PATTERNS = [
   { intent: 'comparison', pattern: /vs\.?|versus|compare|comparison|better|which.*should/i },
   { intent: 'thesis',     pattern: /bullish|bearish|bull case|bear case|thesis|conviction|counter.?thesis|stress.?test/i },
   { intent: 'crypto',     pattern: /bitcoin|btc|eth|ethereum|crypto|solana|sol|defi|nft|altcoin/i },
-  { intent: 'forex',      pattern: /dollar|usd|eur|gbp|jpy|brl|fx|forex|currency|exchange rate/i },
-  { intent: 'brazil',     pattern: /brazil|selic|b3|ibovespa|petrobras|vale|brl|bovespa|copom/i },
-  { intent: 'general',    pattern: /.*/ },  // fallback
+  { intent: 'forex',              pattern: /dollar|usd|eur|gbp|jpy|brl|fx|forex|currency|exchange rate/i },
+  { intent: 'brazil',             pattern: /brazil|selic|b3|ibovespa|petrobras|vale|brl|bovespa|copom/i },
+  { intent: 'terminal_overview',  pattern: /\b(my\s+(screen|terminal|dashboard|home|data|watchlist)|analyze\s+(my|the)\s+(screen|terminal|home|dashboard)|what('s| is)\s+(on\s+)?my|brief|morning|summary|overview|what.*happening|market\s+(update|recap|summary))\b/i },
+  { intent: 'general',            pattern: /.*/ },  // fallback
 ];
 
 /**
@@ -329,7 +330,7 @@ function buildContext({ query, userId, intent: forceIntent } = {}) {
     sections.push(`[Current time] ${temporal.date}, ${temporal.time} ${temporal.timezone}. US market: ${temporal.marketState}.`);
 
     // ── 2. Market snapshot (for most intents) ────────────────────────────
-    if (['general', 'macro', 'sector', 'comparison', 'thesis', 'ticker'].includes(intent)) {
+    if (['general', 'macro', 'sector', 'comparison', 'thesis', 'ticker', 'terminal_overview'].includes(intent)) {
       const indices = getIndices();
       if (indices.length > 0) {
         sections.push(`[Major indices] ${fmtList(indices, i => `${i.symbol} ${fmtPrice(i.price)} (${fmtChange(i.change)})`)}`);
@@ -337,7 +338,7 @@ function buildContext({ query, userId, intent: forceIntent } = {}) {
     }
 
     // ── 3. Top movers (for general/sector queries) ───────────────────────
-    if (['general', 'sector'].includes(intent)) {
+    if (['general', 'sector', 'terminal_overview'].includes(intent)) {
       const { gainers, losers } = getTopMovers('stocks', 3);
       if (gainers.length > 0) {
         sections.push(`[Top gainers] ${fmtList(gainers, g => `${g.symbol} ${fmtChange(g.change)}`)}`);
@@ -358,7 +359,7 @@ function buildContext({ query, userId, intent: forceIntent } = {}) {
     }
 
     // ── 5. Forex context (for forex/macro/brazil) ────────────────────────
-    if (['forex', 'macro', 'brazil', 'general'].includes(intent)) {
+    if (['forex', 'macro', 'brazil', 'general', 'terminal_overview'].includes(intent)) {
       const fx = getForexSnapshot();
       if (fx.length > 0) {
         sections.push(`[FX rates] ${fmtList(fx, f => `${f.symbol} ${fmtPrice(f.price)} (${fmtChange(f.change)})`)}`);
@@ -366,7 +367,7 @@ function buildContext({ query, userId, intent: forceIntent } = {}) {
     }
 
     // ── 6. Crypto context ────────────────────────────────────────────────
-    if (['crypto', 'general'].includes(intent)) {
+    if (['crypto', 'general', 'terminal_overview'].includes(intent)) {
       const crypto = getCryptoSnapshot();
       if (crypto.length > 0) {
         sections.push(`[Crypto] ${fmtList(crypto, c => `${c.symbol} ${fmtPrice(c.price)} (${fmtChange(c.change)})`)}`);
@@ -385,7 +386,7 @@ function buildContext({ query, userId, intent: forceIntent } = {}) {
     }
 
     // ── 8. User portfolio (for portfolio intent or if available) ─────────
-    if (userId && ['portfolio', 'thesis', 'general'].includes(intent)) {
+    if (userId && ['portfolio', 'thesis', 'general', 'terminal_overview'].includes(intent)) {
       const positions = getPortfolioContext(userId);
       if (positions && positions.length > 0) {
         const alloc = positions._allocation;

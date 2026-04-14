@@ -8,8 +8,14 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { API_BASE } from '../../utils/api';
 import { isIOS, isNative } from '../../services/platform';
 import './LoginScreen.css';
+
+// ── Helpers ─────────────────────────────────────────────────────────────────
+function isNetworkError(msg) {
+  return /load failed|failed to fetch|networkerror|timed out|network request failed/i.test(msg);
+}
 
 // ── Apple Sign In SDK loader ─────────────────────────────────────────────────
 function loadAppleSDK() {
@@ -84,7 +90,26 @@ export default function LoginScreen({ children }) {
   const [error,    setError]    = useState('');
   const [shake,    setShake]    = useState(false);
 
-  useEffect(() => { loadAppleSDK(); }, []);
+  const [serverReady, setServerReady] = useState(false);
+  const [warmingUp,   setWarmingUp]  = useState(false);
+
+  // ── On mount: ping server to wake it (Render cold-start) + load Apple SDK ──
+  useEffect(() => {
+    loadAppleSDK();
+
+    // Fire-and-forget warmup: hit /health to wake Render.
+    // If it responds, great. If not, login will retry automatically.
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`${API_BASE}/health`, { signal: AbortSignal.timeout(40000) });
+        if (!cancelled && res.ok) setServerReady(true);
+      } catch {
+        // Server still cold — login retry loop will handle it
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   if (user) return children;
 
@@ -94,28 +119,48 @@ export default function LoginScreen({ children }) {
     setTimeout(() => setShake(false), 600);
   };
 
-  // ── Username / password submit ─────────────────────────────────────────────
+  // ── Username / password submit — with automatic retry on cold-start ────────
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
-    try {
-      if (mode === 'login') {
-        await login(username, password);
-      } else {
-        await register(username, password, email);
+
+    const MAX_RETRIES = 3;
+    const BACKOFF = [0, 3000, 5000]; // delays between retries
+
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        if (attempt > 0) {
+          setWarmingUp(true);
+          setError(`Server is waking up... attempt ${attempt + 1}/${MAX_RETRIES + 1}`);
+          await new Promise(r => setTimeout(r, BACKOFF[Math.min(attempt - 1, BACKOFF.length - 1)]));
+        }
+
+        if (mode === 'login') {
+          await login(username, password);
+        } else {
+          await register(username, password, email);
+        }
+
+        // Success — break out of retry loop
+        setWarmingUp(false);
+        return;
+      } catch (err) {
+        const msg = err.message || (mode === 'login' ? 'Login failed' : 'Registration failed');
+
+        // Only retry on network errors (cold-start). Auth errors, bad creds, etc. → stop immediately.
+        if (!isNetworkError(msg) || attempt === MAX_RETRIES) {
+          setWarmingUp(false);
+          triggerShake(
+            isNetworkError(msg) ? 'Server is unreachable. Please check your connection and try again.' : msg
+          );
+          break;
+        }
+        // Otherwise, loop continues with next attempt
       }
-    } catch (err) {
-      const msg = err.message || (mode === 'login' ? 'Login failed' : 'Registration failed');
-      // Improve user-facing message when server is unreachable (e.g. Render cold start)
-      const isNetworkError = msg.includes('Load failed') || msg.includes('Failed to fetch') || msg.includes('NetworkError') || msg.includes('timed out');
-      triggerShake(isNetworkError
-        ? 'Server is waking up, please try again in a few seconds.'
-        : msg
-      );
-    } finally {
-      setLoading(false);
     }
+
+    setLoading(false);
   };
 
   // ── Apple Sign In ──────────────────────────────────────────────────────────
@@ -281,7 +326,7 @@ export default function LoginScreen({ children }) {
             />
             <button type="submit" className="ls-primary-btn" disabled={loading}>
               {loading
-                ? (isLogin ? 'SIGNING IN...' : 'CREATING ACCOUNT...')
+                ? (warmingUp ? 'CONNECTING TO SERVER...' : (isLogin ? 'SIGNING IN...' : 'CREATING ACCOUNT...'))
                 : (isLogin ? 'LOG IN' : 'CREATE ACCOUNT')
               }
             </button>
