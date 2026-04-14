@@ -189,7 +189,9 @@ export default function VaultPanel({ fullScreen = false }) {
 
       if (tab === 'central') await fetchCentralDocs(); else await fetchDocuments();
     } catch (e) {
-      setError(sanitizeVaultError(e.message));
+      console.error('[Vault Upload Error]', e);
+      // Show raw error for debugging — remove sanitization temporarily
+      setError(e.message || 'Unknown upload error');
     } finally {
       setUploading(false);
       setUploadFileName('');
