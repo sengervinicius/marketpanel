@@ -126,6 +126,8 @@ async function ensureTable() {
     await alterSafe(`ALTER TABLE vault_chunks ADD COLUMN IF NOT EXISTS metadata JSONB DEFAULT '{}'`);
     // BM25 full-text search column (generated, auto-maintained by Postgres)
     await alterSafe(`ALTER TABLE vault_chunks ADD COLUMN IF NOT EXISTS search_vector tsvector GENERATED ALWAYS AS (to_tsvector('english', content)) STORED`);
+    // Embedding provider tracking — which model generated each chunk's embedding
+    await alterSafe(`ALTER TABLE vault_chunks ADD COLUMN IF NOT EXISTS embedding_provider VARCHAR(20) DEFAULT 'unknown'`);
 
     // Create index on user_id for faster queries
     await pg.query(`
@@ -207,6 +209,20 @@ async function ensureTable() {
     }
 
     logger.info('vault', 'Tables ensured successfully');
+
+    // Diagnostic: check for mixed-provider documents after migration
+    try {
+      const mixed = await getMixedProviderDocuments();
+      if (mixed.length > 0) {
+        logger.warn('vault', `Found ${mixed.length} documents with mixed embedding providers`, {
+          documents: mixed.map(d => ({ id: d.document_id, filename: d.filename, providers: d.providers })),
+        });
+      } else {
+        logger.info('vault', 'No mixed-provider documents found');
+      }
+    } catch (diagErr) {
+      logger.debug('vault', 'Mixed provider diagnostic skipped', { error: diagErr.message });
+    }
   } catch (err) {
     logger.error('vault', 'Table creation error', { error: err.message });
     throw err;
@@ -1149,8 +1165,8 @@ async function ingestFile(userId, buffer, filename, metadata = {}, isGlobal = fa
             embeddingProvider,
           };
           return client.query(
-            `INSERT INTO vault_chunks (document_id, user_id, chunk_index, content, embedding, metadata)
-             VALUES ($1, $2, $3, $4, $5, $6)`,
+            `INSERT INTO vault_chunks (document_id, user_id, chunk_index, content, embedding, metadata, embedding_provider)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
             [
               documentId,
               userId,
@@ -1158,6 +1174,7 @@ async function ingestFile(userId, buffer, filename, metadata = {}, isGlobal = fa
               chunk.content,
               embeddings[idx] ? `[${embeddings[idx].join(',')}]` : null,
               JSON.stringify(chunkMetadata),
+              embeddingProvider || 'unknown',
             ]
           );
         });
@@ -1326,17 +1343,37 @@ async function retrieve(userId, query, limit = MAX_RETRIEVAL) {
   try {
     const embeddings = await embed([query]);
     if (embeddings[0]) {
-      const vecResult = await pg.query(
-        `SELECT vc.id, vc.document_id, vc.chunk_index, vc.content, vc.metadata,
-                vd.filename, vd.source, vd.is_global, vd.metadata as doc_metadata,
-                1 - (vc.embedding <=> $1::vector) AS similarity
-         FROM vault_chunks vc
-         JOIN vault_documents vd ON vc.document_id = vd.id
-         WHERE (vc.user_id = $2 OR vd.is_global = TRUE) AND vc.embedding IS NOT NULL
-         ORDER BY vc.embedding <=> $1::vector
-         LIMIT $3`,
-        [`[${embeddings[0].join(',')}]`, userId, CANDIDATE_LIMIT]
-      );
+      const activeProvider = getEmbeddingProvider();
+      let vecResult;
+      try {
+        // Filter by active embedding provider to prevent cross-provider cosine corruption
+        vecResult = await pg.query(
+          `SELECT vc.id, vc.document_id, vc.chunk_index, vc.content, vc.metadata,
+                  vd.filename, vd.source, vd.is_global, vd.metadata as doc_metadata,
+                  1 - (vc.embedding <=> $1::vector) AS similarity
+           FROM vault_chunks vc
+           JOIN vault_documents vd ON vc.document_id = vd.id
+           WHERE (vc.user_id = $2 OR vd.is_global = TRUE) AND vc.embedding IS NOT NULL
+             AND vc.embedding_provider = $4
+           ORDER BY vc.embedding <=> $1::vector
+           LIMIT $3`,
+          [`[${embeddings[0].join(',')}]`, userId, CANDIDATE_LIMIT, activeProvider]
+        );
+      } catch (filterErr) {
+        // Fallback: column may not exist yet — query without provider filter
+        logger.warn('vault', 'Provider-filtered vector search failed, falling back', { error: filterErr.message });
+        vecResult = await pg.query(
+          `SELECT vc.id, vc.document_id, vc.chunk_index, vc.content, vc.metadata,
+                  vd.filename, vd.source, vd.is_global, vd.metadata as doc_metadata,
+                  1 - (vc.embedding <=> $1::vector) AS similarity
+           FROM vault_chunks vc
+           JOIN vault_documents vd ON vc.document_id = vd.id
+           WHERE (vc.user_id = $2 OR vd.is_global = TRUE) AND vc.embedding IS NOT NULL
+           ORDER BY vc.embedding <=> $1::vector
+           LIMIT $3`,
+          [`[${embeddings[0].join(',')}]`, userId, CANDIDATE_LIMIT]
+        );
+      }
       // Pre-filter by similarity threshold
       const vecRows = (vecResult.rows || []).filter(r =>
         r.similarity != null && parseFloat(r.similarity) >= MIN_SIMILARITY
@@ -1990,6 +2027,31 @@ async function ingestFromUrl(url, userId, title = null) {
   }
 }
 
+/**
+ * Diagnostic: find documents with chunks from multiple embedding providers.
+ * These documents will have degraded retrieval because cosine similarity
+ * is meaningless across different embedding spaces.
+ */
+async function getMixedProviderDocuments() {
+  if (!pg.isConnected()) return [];
+  try {
+    const result = await pg.query(`
+      SELECT vc.document_id, vd.filename, vd.user_id,
+             array_agg(DISTINCT vc.embedding_provider) AS providers,
+             COUNT(*) AS chunk_count
+      FROM vault_chunks vc
+      JOIN vault_documents vd ON vc.document_id = vd.id
+      WHERE vc.embedding IS NOT NULL
+      GROUP BY vc.document_id, vd.filename, vd.user_id
+      HAVING COUNT(DISTINCT vc.embedding_provider) > 1
+    `);
+    return result.rows || [];
+  } catch (err) {
+    logger.warn('vault', 'Mixed provider diagnostic failed', { error: err.message });
+    return [];
+  }
+}
+
 module.exports = {
   init,
   ensureTable,
@@ -2012,4 +2074,5 @@ module.exports = {
   getUserDocuments,
   getGlobalDocuments,
   deleteDocument,
+  getMixedProviderDocuments,
 };
