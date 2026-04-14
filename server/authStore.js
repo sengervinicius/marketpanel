@@ -988,4 +988,6 @@ module.exports = {
   findUserByReferralCode,
   redeemReferral,
   getReferralStatus,
+  defaultSettings,
+  persistUser,
 };

@@ -16,7 +16,7 @@ function defaultSettings() {
   return {
     theme: 'dark',
     onboardingCompleted: false,
-    particleOnboarded: false,
+    particleOnboarded: true, // Arrival screen removed — always mark as onboarded
     termsAccepted: false,
     defaultStartTab: 'home',
     watchlist: [],

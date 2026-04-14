@@ -111,7 +111,6 @@ import {
   TerminalSubNav,
 } from './components/app/AppMobile';
 import ParticleScreen from './components/app/ParticleScreen';
-import ParticleArrival from './components/app/ParticleArrival';
 import PricingModal from './components/app/PricingModal';
 import './App.css';
 import './components/panels/Chat.css';
@@ -294,7 +293,7 @@ const LS_CHART_TICKER = 'chartTicker';
 export default function App() {
   const { data, loading, isRefreshing, lastUpdated, error: feedError, endpointErrors } = useMarketData();
   const { user, token, subscription, startCheckout, logout, authReady, openBillingPortal, refreshSubscription, restorePurchases, billingPlatform } = useAuth();
-  const { settings, loaded: settingsLoaded, updateLayout, acceptTerms, completeParticleOnboarding } = useSettings();
+  const { settings, loaded: settingsLoaded, updateLayout, acceptTerms } = useSettings();
 
   // ── Boot sequence ────────────────────────────────────────────────────────
   const { isReady: bootReady } = useBootSequence({ authReady, user, settingsLoaded });
@@ -553,20 +552,11 @@ export default function App() {
   const showTermsModal = settingsLoaded && user && settings?.termsAccepted === false
     && !localStorage.getItem('particle_terms_accepted');
 
-  // ── Particle first-launch arrival ──────────────────────────────────────
-  const showParticleArrival = settingsLoaded && user && !showTermsModal && !settings?.particleOnboarded
-    && !localStorage.getItem('particle_onboarded');
-
   // Wrapped handlers that also set localStorage for instant re-render protection on refresh
   const handleAcceptTerms = useCallback(() => {
     localStorage.setItem('particle_terms_accepted', '1');
     acceptTerms();
   }, [acceptTerms]);
-
-  const handleCompleteParticleOnboarding = useCallback(() => {
-    localStorage.setItem('particle_onboarded', '1');
-    completeParticleOnboarding();
-  }, [completeParticleOnboarding]);
 
   // ── Subscription gating ──────────────────────────────────────────────────
   // Show paywall if subscription has expired
@@ -645,14 +635,6 @@ export default function App() {
 
         {/* 5-Step Onboarding Tour */}
         <OnboardingTour />
-
-        {/* Particle first-launch arrival (desktop) */}
-        {showParticleArrival && (
-          <ParticleArrival onComplete={() => {
-            handleCompleteParticleOnboarding();
-            setMobileModePersist('particle');
-          }} />
-        )}
 
         {/* Welcome subscription modal removed — was showing on every login */}
 
@@ -1075,13 +1057,6 @@ export default function App() {
       {showWelcome && !showTermsModal && <WelcomeModal onClose={() => setShowWelcome(false)} />}
 
       {/* Particle first-launch arrival sequence (mobile) */}
-      {showParticleArrival && (
-        <ParticleArrival onComplete={() => {
-          completeParticleOnboarding();
-          setMobileModePersist('particle');
-        }} />
-      )}
-
       {/* Keyboard shortcuts modal (mobile) */}
       {showShortcuts && <KeyboardShortcutsModal onClose={() => setShowShortcuts(false)} />}
 

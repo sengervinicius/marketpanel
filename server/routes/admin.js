@@ -7,6 +7,7 @@
 const express = require('express');
 const { requireAdmin } = require('../authMiddleware');
 const pg = require('../db/postgres');
+const authStore = require('../authStore');
 
 const router = express.Router();
 
@@ -328,6 +329,33 @@ router.get('/heatmap', async (req, res) => {
     res.json({ heatmap });
   } catch (err) {
     console.error('[admin] /heatmap error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * POST /api/admin/reset-user-settings
+ * Reset a user's settings to defaults (preserves account, auth, subscription).
+ * Body: { username: string }
+ */
+router.post('/reset-user-settings', async (req, res) => {
+  try {
+    const { username } = req.body;
+    if (!username) return res.status(400).json({ error: 'username is required' });
+
+    const user = authStore.findUserByUsername(username);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    // Reset settings to defaults using mergeSettings with a full overwrite
+    const defaults = authStore.defaultSettings();
+    // Overwrite the entire settings object
+    user.settings = defaults;
+    // Persist to MongoDB + Postgres
+    await authStore.persistUser(user);
+
+    res.json({ ok: true, message: `Settings reset for ${username}`, settings: defaults });
+  } catch (err) {
+    console.error('[admin] /reset-user-settings error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
