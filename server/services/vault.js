@@ -124,6 +124,25 @@ async function ensureTable() {
     // vault_chunks columns that may be missing
     await alterSafe(`ALTER TABLE vault_chunks ADD COLUMN IF NOT EXISTS user_id INTEGER NOT NULL DEFAULT 0`);
     await alterSafe(`ALTER TABLE vault_chunks ADD COLUMN IF NOT EXISTS metadata JSONB DEFAULT '{}'`);
+
+    // Embedding column — init.sql creates the table without it (no pgvector dep).
+    // Try vector(1536) first (pgvector); fall back to TEXT (store JSON array).
+    const hasEmbedding = await pg.query(`
+      SELECT column_name FROM information_schema.columns
+      WHERE table_name = 'vault_chunks' AND column_name = 'embedding'
+    `);
+    if (hasEmbedding.rows.length === 0) {
+      // Column doesn't exist — add it
+      try {
+        await pg.query(`ALTER TABLE vault_chunks ADD COLUMN embedding vector(1536)`);
+        logger.info('vault', 'Added embedding column as vector(1536)');
+      } catch (vecErr) {
+        // pgvector not available — use TEXT to store JSON array
+        await pg.query(`ALTER TABLE vault_chunks ADD COLUMN embedding TEXT`);
+        logger.warn('vault', 'Added embedding column as TEXT (pgvector not available)', { error: vecErr.message });
+      }
+    }
+
     // BM25 full-text search column (generated, auto-maintained by Postgres)
     await alterSafe(`ALTER TABLE vault_chunks ADD COLUMN IF NOT EXISTS search_vector tsvector GENERATED ALWAYS AS (to_tsvector('english', content)) STORED`);
     // Embedding provider tracking — which model generated each chunk's embedding
