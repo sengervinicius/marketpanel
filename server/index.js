@@ -54,6 +54,7 @@ const screenTickerRoutes = require('./routes/screenTickers');
 const edgarRoutes       = require('./routes/edgar');
 const signalRoutes      = require('./routes/signals');
 const briefRoutes       = require('./routes/brief');
+const riskRoutes        = require('./routes/risk');
 const { requireAuth, requireActiveSubscription, requireAdmin } = require('./authMiddleware');
 const logger = require('./utils/logger');
 const { requestLogger } = require('./utils/logger');
@@ -357,6 +358,13 @@ app.use('/api/edgar', requireAuth, requireActiveSubscription,
   rateLimitByUser({ key: 'edgar', windowSec: 60, max: 20 }),
   requestTimeout(15000),
   edgarRoutes);
+
+// Risk analytics: auth required (no subscription — risk analysis is core feature)
+// Rate limit: 20 req/min per user, timeout: 30s (Polygon API calls)
+app.use('/api/risk', requireAuth,
+  rateLimitByUser({ key: 'risk', windowSec: 60, max: 20 }),
+  requestTimeout(30000),
+  riskRoutes);
 
 // Feed health: no auth required (public endpoint for monitoring)
 app.use('/api/feed', feedRouter);

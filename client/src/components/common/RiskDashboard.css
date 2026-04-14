@@ -1,0 +1,543 @@
+/**
+ * RiskDashboard.css — Portfolio Risk Analytics Styling
+ *
+ * Terminal-style dark theme matching Particle's aesthetic:
+ * - Background: #0a0a0f (deep black)
+ * - Accent: #00ff88 (neon green)
+ * - Font: Monospace
+ * - Glow effects for interactive elements
+ */
+
+.risk-dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 20px;
+  background: rgba(10, 10, 15, 0.6);
+  border: 1px solid rgba(0, 255, 136, 0.1);
+  border-radius: 8px;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 13px;
+  color: #e0e0e0;
+  line-height: 1.6;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Loading & Error States */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+.risk-dashboard-loader,
+.risk-dashboard-error,
+.risk-dashboard-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.risk-dashboard-spinner {
+  width: 32px;
+  height: 32px;
+  border: 2px solid rgba(0, 255, 136, 0.2);
+  border-top-color: #00ff88;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.risk-dashboard-loader p,
+.risk-dashboard-empty p {
+  color: #888;
+  font-size: 12px;
+}
+
+.risk-dashboard-error {
+  background: rgba(255, 68, 68, 0.1);
+  border: 1px solid rgba(255, 68, 68, 0.3);
+  border-radius: 6px;
+  padding: 20px;
+}
+
+.risk-dashboard-error-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255, 68, 68, 0.2);
+  color: #ff4444;
+  font-weight: bold;
+  font-size: 20px;
+}
+
+.risk-dashboard-error p {
+  color: #ff4444;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Cards Grid */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+.risk-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.metric-card {
+  background: rgba(20, 20, 30, 0.8);
+  border: 1px solid rgba(0, 255, 136, 0.15);
+  border-radius: 6px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: all 0.2s ease;
+}
+
+.metric-card:hover {
+  border-color: rgba(0, 255, 136, 0.3);
+  box-shadow: 0 0 16px rgba(0, 255, 136, 0.1);
+}
+
+.metric-card-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #888;
+}
+
+.metric-card-value {
+  font-size: 24px;
+  font-weight: bold;
+  color: #00ff88;
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.metric-card-unit {
+  font-size: 16px;
+  color: #00cc6a;
+}
+
+.metric-card-hint {
+  font-size: 11px;
+  color: #666;
+  font-style: italic;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Sections */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+.risk-section {
+  background: rgba(20, 20, 30, 0.5);
+  border: 1px solid rgba(0, 255, 136, 0.1);
+  border-radius: 6px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.risk-section-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #00ff88;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin: 0;
+  border-bottom: 1px solid rgba(0, 255, 136, 0.1);
+  padding-bottom: 12px;
+}
+
+.risk-empty {
+  color: #666;
+  font-size: 12px;
+  text-align: center;
+  padding: 20px;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* VaR Gauges */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+.var-gauges {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 20px;
+}
+
+.var-gauge {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.var-gauge-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #00ff88;
+}
+
+.var-gauge-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.var-gauge-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.var-gauge-bar-label {
+  font-size: 12px;
+  color: #888;
+}
+
+.var-gauge-bar-container {
+  height: 20px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(0, 255, 136, 0.2);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.var-gauge-bar-fill {
+  height: 100%;
+  width: 45%;
+  background: linear-gradient(90deg, rgba(0, 255, 136, 0.6), rgba(0, 255, 136, 1));
+  box-shadow: 0 0 8px rgba(0, 255, 136, 0.4);
+}
+
+.var-gauge-bar-value {
+  font-size: 12px;
+  font-weight: 600;
+  color: #00ff88;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Correlation Heatmap */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+.correlation-heatmap {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow-x: auto;
+}
+
+.correlation-heatmap-grid {
+  display: grid;
+  gap: 0;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  min-width: fit-content;
+  align-items: center;
+}
+
+.correlation-heatmap-corner {
+  width: 40px;
+  height: 40px;
+  background: rgba(20, 20, 30, 0.8);
+  border: 1px solid rgba(0, 255, 136, 0.1);
+}
+
+.correlation-heatmap-header {
+  width: 60px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(0, 255, 136, 0.1);
+  background: rgba(20, 20, 30, 0.8);
+  font-size: 11px;
+  font-weight: bold;
+  color: #00ff88;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  padding: 0 4px;
+}
+
+.correlation-heatmap-row-label {
+  width: 40px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(0, 255, 136, 0.1);
+  background: rgba(20, 20, 30, 0.8);
+  font-size: 11px;
+  font-weight: bold;
+  color: #00ff88;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+}
+
+.correlation-heatmap-cell {
+  width: 60px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(0, 0, 0, 0.5);
+  font-size: 10px;
+  font-weight: bold;
+  color: rgba(0, 0, 0, 0.6);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.correlation-heatmap-cell:hover {
+  box-shadow: inset 0 0 4px rgba(255, 255, 255, 0.2);
+}
+
+.correlation-heatmap-cell-value {
+  display: block;
+}
+
+/* Correlation legend */
+.correlation-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  justify-content: center;
+  padding: 12px;
+  border-top: 1px solid rgba(0, 255, 136, 0.1);
+}
+
+.correlation-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.correlation-legend-color {
+  width: 16px;
+  height: 16px;
+  border-radius: 2px;
+  border: 1px solid rgba(0, 0, 0, 0.3);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Risk Contribution Pie Chart */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+.risk-contribution-chart {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.risk-contribution-pie {
+  max-width: 300px;
+  margin: 0 auto;
+}
+
+.risk-contribution-svg {
+  width: 100%;
+  height: auto;
+  filter: drop-shadow(0 0 8px rgba(0, 255, 136, 0.2));
+}
+
+.risk-contribution-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.risk-contribution-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+  padding: 6px;
+  border-radius: 3px;
+  transition: background 0.2s ease;
+}
+
+.risk-contribution-legend-item:hover {
+  background: rgba(0, 255, 136, 0.1);
+}
+
+.risk-contribution-legend-color {
+  width: 16px;
+  height: 16px;
+  border-radius: 2px;
+  border: 1px solid rgba(0, 0, 0, 0.3);
+  flex-shrink: 0;
+}
+
+.risk-contribution-legend-label {
+  font-weight: 600;
+  min-width: 60px;
+  color: #e0e0e0;
+}
+
+.risk-contribution-legend-value {
+  margin-left: auto;
+  color: #00ff88;
+  font-weight: bold;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Sector Concentration */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+.sector-concentration {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 24px;
+}
+
+.sector-concentration-hhi {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 6px;
+}
+
+.sector-concentration-hhi-label {
+  font-size: 12px;
+  color: #888;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.sector-concentration-hhi-value {
+  font-size: 32px;
+  font-weight: bold;
+  color: #00ff88;
+}
+
+.sector-concentration-hhi-status {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.sector-concentration-hhi-scale {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: #666;
+  margin-top: 8px;
+}
+
+.sector-concentration-hhi-scale-low,
+.sector-concentration-hhi-scale-high {
+  display: block;
+}
+
+/* Sector breakdown */
+.sector-concentration-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sector-concentration-breakdown-title {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: #00ff88;
+  margin: 0;
+}
+
+.sector-concentration-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sector-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 3px;
+  border-left: 3px solid #00ff88;
+  font-size: 12px;
+}
+
+.sector-name {
+  font-weight: 600;
+  color: #e0e0e0;
+}
+
+.sector-weight {
+  color: #00ff88;
+  font-weight: bold;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Responsive Design */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+@media (max-width: 768px) {
+  .risk-dashboard {
+    padding: 16px;
+    gap: 16px;
+  }
+
+  .risk-cards-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
+  .var-gauges {
+    grid-template-columns: 1fr;
+  }
+
+  .sector-concentration {
+    grid-template-columns: 1fr;
+  }
+
+  .correlation-heatmap-grid {
+    font-size: 10px;
+  }
+
+  .correlation-heatmap-cell,
+  .correlation-heatmap-header,
+  .correlation-heatmap-row-label {
+    width: 40px;
+    height: 40px;
+  }
+}
+
+@media (max-width: 480px) {
+  .risk-cards-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .metric-card-value {
+    font-size: 20px;
+  }
+
+  .risk-contribution-legend {
+    max-height: 150px;
+  }
+}

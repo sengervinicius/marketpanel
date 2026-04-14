@@ -40,6 +40,7 @@ import { ScreenProvider } from './context/ScreenContext';
 import NotificationPrefs from './components/common/NotificationPrefs';
 import HeaderSearchBar from './components/common/HeaderSearchBar';
 import KeyboardShortcutsModal from './components/common/KeyboardShortcutsModal';
+import CommandPalette from './components/common/CommandPalette';
 import { SearchPanel } from './components/panels/SearchPanel';
 import ETFPanel from './components/panels/ETFPanel';
 const AlertCenterPanel = lazyRetry(() => import('./components/panels/AlertCenterPanel'));
@@ -421,6 +422,7 @@ export default function App() {
   const [sectorSelectorOpen, setSectorSelectorOpen] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
 
   // ── First-visit onboarding hint ─────────────────────────────────────────
   const [showLayoutHint, setShowLayoutHint] = useState(() => {
@@ -461,13 +463,10 @@ export default function App() {
   // Global keyboard shortcuts (placed after state/callback declarations it depends on)
   useEffect(() => {
     const handler = (e) => {
-      // Ctrl/Cmd + K = Focus header search bar (works even from inputs)
+      // Ctrl/Cmd + K = Open command palette
       if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
         e.preventDefault();
-        if (isMobile) {
-          setChatOpen(prev => !prev);
-        }
-        // On desktop, HeaderSearchBar's own Cmd+K listener handles focus
+        setCommandPaletteOpen(prev => !prev);
         return;
       }
 
@@ -666,6 +665,28 @@ export default function App() {
 
         {/* Keyboard shortcuts modal */}
         {showShortcuts && <KeyboardShortcutsModal onClose={() => setShowShortcuts(false)} />}
+
+        {/* Command Palette (Cmd+K) */}
+        <CommandPalette
+          isOpen={commandPaletteOpen}
+          onClose={() => setCommandPaletteOpen(false)}
+          onCommand={(cmd) => {
+            setCommandPaletteOpen(false);
+            if (cmd.action === 'navigate') {
+              if (cmd.target === 'home') handleGoHome();
+              else setActiveSectorScreen(cmd.target);
+            } else if (cmd.action === 'chat') {
+              if (isMobile) setChatOpen(true);
+              else { const el = document.querySelector('[data-tour="header"] input, .search-panel input'); if (el) el.focus(); }
+            } else if (cmd.action === 'ai-action') {
+              if (cmd.target === 'morning-brief') setMobileModePersist('particle');
+              else if (cmd.target === 'deep-analysis') setMobileModePersist('particle');
+            } else if (cmd.action === 'action') {
+              if (cmd.target === 'toggle-theme') document.body.classList.toggle('light-theme');
+              else if (cmd.target === 'clear-chat') window.dispatchEvent(new CustomEvent('particle-clear-chat'));
+            }
+          }}
+        />
 
         {/* Sector Screen Selector overlay */}
         <SectorScreenSelector
@@ -1049,6 +1070,21 @@ export default function App() {
 
       {/* Keyboard shortcuts modal (mobile) */}
       {showShortcuts && <KeyboardShortcutsModal onClose={() => setShowShortcuts(false)} />}
+
+      {/* Command Palette (mobile) */}
+      <CommandPalette
+        isOpen={commandPaletteOpen}
+        onClose={() => setCommandPaletteOpen(false)}
+        onCommand={(cmd) => {
+          setCommandPaletteOpen(false);
+          if (cmd.action === 'navigate') {
+            if (cmd.target === 'home') handleGoHome();
+            else setActiveSectorScreen(cmd.target);
+          } else if (cmd.action === 'chat') {
+            setChatOpen(true);
+          }
+        }}
+      />
 
       {/* Sector Screen Selector overlay (mobile) */}
       <SectorScreenSelector

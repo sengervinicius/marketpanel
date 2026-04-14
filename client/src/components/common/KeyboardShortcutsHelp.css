@@ -1,0 +1,316 @@
+/**
+ * KeyboardShortcutsHelp.css — Terminal-style keyboard shortcuts help
+ */
+
+.shortcuts-help-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  padding: 16px;
+  backdrop-filter: blur(8px);
+  animation: shortcutsBackdropFadeIn 0.2s ease-out;
+}
+
+@keyframes shortcutsBackdropFadeIn {
+  from {
+    opacity: 0;
+    backdrop-filter: blur(0px);
+  }
+  to {
+    opacity: 1;
+    backdrop-filter: blur(8px);
+  }
+}
+
+.shortcuts-help-modal {
+  background: #111116;
+  border: 1px solid #2a2a33;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 700px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7), 0 0 1px rgba(0, 255, 136, 0.1);
+  animation: shortcutsSlideUp 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  overflow: hidden;
+}
+
+@keyframes shortcutsSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ── Header ──────────────────────────────────────────────────────────── */
+.shortcuts-help-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid #2a2a33;
+  background: #0f0f15;
+}
+
+.shortcuts-help-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #ffffff;
+  letter-spacing: 1px;
+  font-family: 'IBM Plex Mono', 'Courier New', monospace;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.shortcuts-help-close {
+  background: none;
+  border: none;
+  color: #6a6a74;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 4px 8px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  line-height: 1;
+}
+
+.shortcuts-help-close:hover {
+  color: #00ff88;
+  background: rgba(0, 255, 136, 0.1);
+  border-radius: 4px;
+}
+
+/* ── Content ─────────────────────────────────────────────────────────── */
+.shortcuts-help-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.shortcuts-help-group {
+  border-bottom: 1px solid #2a2a33;
+  padding: 0;
+}
+
+.shortcuts-help-group:last-child {
+  border-bottom: none;
+}
+
+.shortcuts-help-group-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 24px 12px;
+  background: rgba(0, 255, 136, 0.05);
+  border-bottom: 1px solid #2a2a33;
+}
+
+.shortcuts-help-group-icon {
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #00ff88;
+}
+
+.shortcuts-help-group-title {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  color: #00ff88;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  font-family: 'IBM Plex Mono', 'Courier New', monospace;
+}
+
+.shortcuts-help-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 8px 0;
+}
+
+.shortcuts-help-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 24px;
+  gap: 20px;
+  transition: background-color 0.2s ease;
+  border-left: 3px solid transparent;
+}
+
+.shortcuts-help-item:hover {
+  background-color: rgba(0, 255, 136, 0.08);
+  border-left-color: #00ff88;
+}
+
+.shortcuts-help-keys {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  min-width: 140px;
+  flex-wrap: wrap;
+  row-gap: 6px;
+}
+
+.shortcuts-help-key {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 24px;
+  padding: 2px 6px;
+  background: #1a1a20;
+  border: 1px solid #2a2a33;
+  border-radius: 4px;
+  color: #00ff88;
+  font-family: 'IBM Plex Mono', 'Courier New', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  text-align: center;
+  transition: all 0.2s ease;
+}
+
+.shortcuts-help-item:hover .shortcuts-help-key {
+  background: rgba(0, 255, 136, 0.15);
+  border-color: #00ff88;
+}
+
+.shortcuts-help-separator {
+  margin: 0 4px;
+  color: #6a6a74;
+  font-size: 10px;
+  font-weight: 600;
+  display: inline-block;
+}
+
+.shortcuts-help-desc {
+  color: #aaaaaa;
+  font-family: 'IBM Plex Mono', 'Courier New', monospace;
+  font-size: 12px;
+  flex: 1;
+  text-align: right;
+  letter-spacing: 0.2px;
+}
+
+.shortcuts-help-item:hover .shortcuts-help-desc {
+  color: #ffffff;
+}
+
+/* ── Footer ──────────────────────────────────────────────────────────── */
+.shortcuts-help-footer {
+  padding: 12px 24px;
+  border-top: 1px solid #2a2a33;
+  background: #0f0f15;
+  text-align: center;
+}
+
+.shortcuts-help-footer-text {
+  margin: 0;
+  font-family: 'IBM Plex Mono', 'Courier New', monospace;
+  font-size: 11px;
+  color: #6a6a74;
+  letter-spacing: 0.3px;
+}
+
+.shortcuts-help-footer kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 6px;
+  background: rgba(0, 255, 136, 0.1);
+  border: 1px solid rgba(0, 255, 136, 0.2);
+  border-radius: 3px;
+  color: #00ff88;
+  font-family: 'IBM Plex Mono', 'Courier New', monospace;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  margin: 0 4px;
+  min-width: 24px;
+  text-align: center;
+}
+
+/* ── Scrollbar ────────────────────────────────────────────────────────── */
+.shortcuts-help-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.shortcuts-help-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.shortcuts-help-content::-webkit-scrollbar-thumb {
+  background: rgba(0, 255, 136, 0.2);
+  border-radius: 4px;
+  transition: background 0.2s ease;
+}
+
+.shortcuts-help-content::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 255, 136, 0.3);
+}
+
+/* ── Responsive ──────────────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .shortcuts-help-modal {
+    max-width: calc(100% - 32px);
+    max-height: 90vh;
+  }
+
+  .shortcuts-help-title {
+    font-size: 16px;
+  }
+
+  .shortcuts-help-item {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 12px 16px;
+  }
+
+  .shortcuts-help-desc {
+    text-align: left;
+    width: 100%;
+  }
+
+  .shortcuts-help-keys {
+    min-width: auto;
+    width: 100%;
+  }
+
+  .shortcuts-help-key {
+    flex: 1;
+    min-width: auto;
+  }
+
+  .shortcuts-help-group-header {
+    padding: 14px 16px 10px;
+  }
+
+  .shortcuts-help-list {
+    padding: 6px 0;
+  }
+
+  .shortcuts-help-footer-text {
+    font-size: 10px;
+  }
+}
