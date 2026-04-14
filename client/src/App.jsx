@@ -52,8 +52,7 @@ import HomePanelMobile from './components/panels/HomePanelMobile';
 import ChartsPanelMobile from './components/panels/ChartsPanelMobile';
 import MobileMoreScreen from './components/panels/MobileMoreScreen';
 import ToastContainer from './components/common/ToastContainer';
-import WelcomeModal from './components/onboarding/WelcomeModal';
-import OnboardingTour from './components/common/OnboardingTour';
+import WelcomeTour from './components/onboarding/WelcomeTour';
 import VaultPanel from './components/app/VaultPanel';
 import SectorScreenSelector from './components/common/SectorScreenSelector';
 import MarketStatus from './components/common/MarketStatus';
@@ -418,10 +417,7 @@ export default function App() {
   const [activeSectorScreen, setActiveSectorScreen] = useState(null);
   const [sectorSelectorOpen, setSectorSelectorOpen] = useState(false);
   // Phase 4: Show onboarding for new users (never completed + not dismissed)
-  const [showWelcome, setShowWelcome] = useState(() => {
-    if (localStorage.getItem('particle_onboarding_done')) return false;
-    return true; // Will be gated by settingsLoaded + user check below
-  });
+  // showWelcome removed — WelcomeTour component manages its own visibility
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
 
@@ -646,16 +642,8 @@ export default function App() {
         {/* Terms of Service acceptance (first login) */}
         {showTermsModal && <TermsAcceptanceModal onAccept={handleAcceptTerms} />}
 
-        {/* Welcome modal (replaces old onboarding) */}
-        {showWelcome && !showTermsModal && settingsLoaded && user && !localStorage.getItem('particle_onboarding_done') && (
-          <WelcomeModal
-            onClose={() => setShowWelcome(false)}
-            onComplete={() => setShowWelcome(false)}
-          />
-        )}
-
-        {/* 5-Step Onboarding Tour */}
-        <OnboardingTour />
+        {/* Unified welcome tour (first login only — handles desktop + mobile via portal) */}
+        <WelcomeTour />
 
         {/* Welcome subscription modal removed — was showing on every login */}
 
@@ -1072,13 +1060,7 @@ export default function App() {
       {/* Terms of Service acceptance (first login, mobile) */}
       {showTermsModal && <TermsAcceptanceModal onAccept={handleAcceptTerms} />}
 
-      {/* Welcome modal (mobile) */}
-      {showWelcome && !showTermsModal && settingsLoaded && user && !localStorage.getItem('particle_onboarding_done') && (
-          <WelcomeModal
-            onClose={() => setShowWelcome(false)}
-            onComplete={() => setShowWelcome(false)}
-          />
-        )}
+      {/* Welcome tour rendered via portal from desktop branch — no duplicate needed */}
 
       {/* Particle first-launch arrival sequence (mobile) */}
       {/* Keyboard shortcuts modal (mobile) */}
