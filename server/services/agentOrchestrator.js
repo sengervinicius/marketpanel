@@ -11,6 +11,7 @@
  * - mergeResults() combines all successful results into a single context object
  */
 
+const fetch = require('node-fetch');
 const vault = require('./vault');
 const edgar = require('./edgar');
 const earnings = require('./earnings');
@@ -186,16 +187,64 @@ async function unusualWhalesAgent(query) {
 }
 
 /**
- * newsAgent: Fetch real-time news via Perplexity Sonar (optional)
- * Currently a placeholder — can be implemented if Perplexity integration is added
+ * newsAgent: Fetch real-time news via Perplexity Sonar.
+ * Extracts tickers from query and fetches a concise news digest.
+ * 3-second hard timeout via AbortController. Returns empty on any failure.
  */
 async function newsAgent(query, tickers) {
-  // Placeholder: Would call Perplexity Sonar for real-time web search
-  // For now, returns empty context (graceful degrade)
-  return {
-    context: '',
-    sources: [],
-  };
+  const apiKey = process.env.PERPLEXITY_API_KEY;
+  if (!apiKey) return { context: '', sources: [] };
+
+  // Extract tickers from query if not provided
+  const tickerList = tickers && tickers.length > 0
+    ? tickers
+    : [...new Set((query.match(/\$?([A-Z]{1,5}(?:\.[A-Z]{1,2})?)/g) || []).map(t => t.replace(/^\$/, '')))];
+
+  const tickerClause = tickerList.length > 0 ? `Focus on: ${tickerList.join(', ')}.` : '';
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 3000);
+
+  try {
+    const response = await fetch('https://api.perplexity.ai/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      signal: controller.signal,
+      body: JSON.stringify({
+        model: 'sonar',
+        messages: [
+          {
+            role: 'system',
+            content: `You are a financial news wire. Return a concise digest of the most important market news from the last 24 hours relevant to the user query. ${tickerClause} Max 200 words. No preamble. Lead with the most market-moving headline.`,
+          },
+          { role: 'user', content: query },
+        ],
+        max_tokens: 400,
+        temperature: 0.1,
+        return_citations: true,
+        search_recency_filter: 'day',
+      }),
+    });
+
+    if (!response.ok) return { context: '', sources: [] };
+
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content || '';
+    const citations = (data.citations || []).map((url, i) => ({ title: `News ${i + 1}`, url }));
+
+    return {
+      context: content ? `RECENT NEWS:\n${content}` : '',
+      sources: citations,
+    };
+  } catch {
+    // Timeout or network error — degrade gracefully
+    return { context: '', sources: [] };
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 // ── Main orchestration function ──────────────────────────────────────

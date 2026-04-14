@@ -45,8 +45,8 @@ function formatSessionMemory(session) {
   }
   if (session.messages && session.messages.length > 0) {
     const recentContext = session.messages
-      .slice(-5) // Last 5 messages for immediate context
-      .map(m => `${m.role === 'user' ? 'User' : 'Particle'}: ${m.content.slice(0, 100)}...`)
+      .slice(-10) // Last 10 messages for immediate context
+      .map(m => `${m.role === 'user' ? 'User' : 'Particle'}: ${m.content.slice(0, 600)}${m.content.length > 600 ? '...' : ''}`)
       .join('\n');
     if (recentContext) {
       parts.push(`[Recent messages:\n${recentContext}]`);

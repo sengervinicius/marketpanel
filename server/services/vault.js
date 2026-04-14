@@ -1099,16 +1099,7 @@ async function ingestFile(userId, buffer, filename, metadata = {}, isGlobal = fa
       };
     }
 
-    // Create document record
-    const docResult = await pg.query(
-      `INSERT INTO vault_documents (user_id, filename, source, is_global, metadata, content_hash)
-       VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
-      [userId, filename, 'upload', isGlobal, JSON.stringify(docMetadata), contentHash]
-    );
-
-    const documentId = docResult.rows[0].id;
-
-    // Chunk text with type-specific chunking
+    // Chunk text with type-specific chunking (before transaction — no DB work)
     if (onProgress) onProgress('chunk', `Chunking ${text.length} characters of text...`);
     const chunkedData = chunkTextWithType(text, filename, docMetadata.detectedType);
 
@@ -1124,39 +1115,64 @@ async function ingestFile(userId, buffer, filename, metadata = {}, isGlobal = fa
       throw new Error('No chunks produced from content');
     }
 
-    // Embed chunks
+    // Embed chunks (before transaction — external API call)
     if (onProgress) onProgress('embed', `Generating embeddings for ${chunks.length} passages...`);
     const chunkTexts = chunks.map(c => c.content);
     const embeddings = await embed(chunkTexts);
     const embeddingProvider = getEmbeddingProvider();
 
-    // Store chunks in database
+    // Store document + chunks in a single transaction
     if (onProgress) onProgress('store', `Storing ${chunks.length} passages...`);
-    const DB_BATCH = 10;
-    for (let i = 0; i < chunks.length; i += DB_BATCH) {
-      const batch = chunks.slice(i, i + DB_BATCH);
-      const promises = batch.map((chunk, j) => {
-        const idx = i + j;
-        const chunkMetadata = {
-          ...chunk.metadata,
-          chunkIndex: idx,
-          totalChunks: chunks.length,
-          embeddingProvider,
-        };
-        return pg.query(
-          `INSERT INTO vault_chunks (document_id, user_id, chunk_index, content, embedding, metadata)
-           VALUES ($1, $2, $3, $4, $5, $6)`,
-          [
-            documentId,
-            userId,
-            idx,
-            chunk.content,
-            embeddings[idx] ? `[${embeddings[idx].join(',')}]` : null,
-            JSON.stringify(chunkMetadata),
-          ]
-        );
+    const client = await pg.getPool().connect();
+    let documentId;
+    try {
+      await client.query('BEGIN');
+
+      // Create document record
+      const docResult = await client.query(
+        `INSERT INTO vault_documents (user_id, filename, source, is_global, metadata, content_hash)
+         VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+        [userId, filename, 'upload', isGlobal, JSON.stringify(docMetadata), contentHash]
+      );
+      documentId = docResult.rows[0].id;
+
+      // Insert chunks in batches
+      const DB_BATCH = 10;
+      for (let i = 0; i < chunks.length; i += DB_BATCH) {
+        const batch = chunks.slice(i, i + DB_BATCH);
+        const promises = batch.map((chunk, j) => {
+          const idx = i + j;
+          const chunkMetadata = {
+            ...chunk.metadata,
+            chunkIndex: idx,
+            totalChunks: chunks.length,
+            embeddingProvider,
+          };
+          return client.query(
+            `INSERT INTO vault_chunks (document_id, user_id, chunk_index, content, embedding, metadata)
+             VALUES ($1, $2, $3, $4, $5, $6)`,
+            [
+              documentId,
+              userId,
+              idx,
+              chunk.content,
+              embeddings[idx] ? `[${embeddings[idx].join(',')}]` : null,
+              JSON.stringify(chunkMetadata),
+            ]
+          );
+        });
+        await Promise.all(promises);
+      }
+
+      await client.query('COMMIT');
+    } catch (txErr) {
+      await client.query('ROLLBACK');
+      logger.error('vault', `Ingestion rolled back: chunk insert failed`, {
+        userId, filename, documentId, error: txErr.message,
       });
-      await Promise.all(promises);
+      throw new Error(`Ingestion rolled back: chunk insert failed — ${txErr.message}`);
+    } finally {
+      client.release();
     }
 
     logger.info('vault', 'File ingested', {

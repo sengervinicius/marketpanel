@@ -12,6 +12,7 @@ import ParticleLogo from '../ui/ParticleLogo';
 import AnalysisCard from './AnalysisCard';
 import useParticleCanvas from './useParticleCanvas';
 import useParticleAI from '../../hooks/useParticleAI';
+import { useAIChatWithContext } from '../../hooks/useAIChatWithContext';
 import { useStocksData, useIndicesData } from '../../context/MarketContext';
 import { useBehaviorTracker, useSmartChips } from '../../hooks/useBehavior';
 import { useIsMobile } from '../../hooks/useIsMobile';
@@ -32,6 +33,13 @@ export default function ParticleScreen() {
   const isMobile = useIsMobile();
 
   const { messages, isStreaming, error, send, stop, clear } = useParticleAI();
+  const { buildContextualMessage } = useAIChatWithContext();
+
+  // Wrap send to enrich messages with screen context
+  const sendWithContext = useCallback((msg) => {
+    if (!msg?.trim()) return;
+    send(buildContextualMessage(msg.trim()));
+  }, [send, buildContextualMessage]);
 
   // Behavior tracking + smart chips (Wave 10)
   const { trackSearch, trackChipClick } = useBehaviorTracker();
@@ -162,11 +170,11 @@ export default function ParticleScreen() {
     if (particle.type === 'hero' || particle.type === 'entity') {
       const dir = (particle.changePct || 0) > 0 ? 'up' : 'down';
       const pct = Math.abs(particle.changePct || 0).toFixed(1);
-      send(`Tell me about $${particle.ticker} (${dir} ${pct}% today) — what's driving the move?`);
+      sendWithContext(`Tell me about $${particle.ticker} (${dir} ${pct}% today) — what's driving the move?`);
     } else if (particle.type === 'prediction') {
-      send(`Tell me about this prediction market: "${particle.title}" — currently at ${((particle.probability || 0.5) * 100).toFixed(0)}% probability.`);
+      sendWithContext(`Tell me about this prediction market: "${particle.title}" — currently at ${((particle.probability || 0.5) * 100).toFixed(0)}% probability.`);
     }
-  }, [send]);
+  }, [sendWithContext]);
 
   // Three.js particle canvas — Wave 14: larger, denser field
   const desktopCount = marketState.closed ? 80 : 120;
@@ -207,13 +215,13 @@ export default function ParticleScreen() {
         // Clear sessionStorage since we're handling it live
         try { sessionStorage.removeItem('particle-prefill'); } catch {}
         trackSearch(prefillQuery);
-        send(prefillQuery);
+        sendWithContext(prefillQuery);
         setQuery('');
       }
     };
     window.addEventListener('particle-prefill', handler);
     return () => window.removeEventListener('particle-prefill', handler);
-  }, [send, trackSearch]);
+  }, [sendWithContext, trackSearch]);
 
   // On mount: check for pending prefill query from sessionStorage
   // (handles race condition when ParticleScreen wasn't mounted when event fired)
@@ -223,7 +231,7 @@ export default function ParticleScreen() {
       if (pending) {
         sessionStorage.removeItem('particle-prefill');
         trackSearch(pending);
-        send(pending);
+        sendWithContext(pending);
         setQuery('');
       }
     } catch {}
@@ -233,17 +241,17 @@ export default function ParticleScreen() {
     e.preventDefault();
     if (!query.trim() || isStreaming) return;
     trackSearch(query.trim());
-    send(query.trim());
+    sendWithContext(query.trim());
     setQuery('');
     inputRef.current?.blur();
-  }, [query, isStreaming, send, trackSearch]);
+  }, [query, isStreaming, sendWithContext, trackSearch]);
 
   const handleChipClick = useCallback((chipQuery) => {
     if (isStreaming) return;
     trackChipClick(chipQuery);
-    send(chipQuery);
+    sendWithContext(chipQuery);
     setQuery('');
-  }, [isStreaming, send]);
+  }, [isStreaming, sendWithContext]);
 
   const handleNewChat = useCallback(() => {
     clear();
@@ -472,6 +480,12 @@ export default function ParticleScreen() {
                           );
                         })}
                       </div>
+                    </div>
+                  )}
+                  {/* Context completeness indicator */}
+                  {msg.role === 'assistant' && msg.contextMeta && msg.contextMeta.score < 70 && !msg.streaming && (
+                    <div style={{ fontSize: 10, color: '#666', marginTop: 6, fontStyle: 'italic' }}>
+                      Partial context ({msg.contextMeta.score}/100)
                     </div>
                   )}
                 </div>

@@ -528,15 +528,18 @@ router.post('/documents/:id/ask', requireAuth, async (req, res) => {
       return res.status(400).json({ error: 'question is required' });
     }
 
-    // Get document metadata for system prompt
+    // Get document metadata and verify ownership
     const docResult = await pg.query(
-      `SELECT filename, metadata FROM vault_documents WHERE id = $1`,
+      `SELECT user_id, is_global, filename, metadata FROM vault_documents WHERE id = $1`,
       [documentId]
     );
     if (!docResult.rows || docResult.rows.length === 0) {
       return res.status(404).json({ error: 'Document not found' });
     }
     const doc = docResult.rows[0];
+    if (doc.user_id !== req.user.id && !doc.is_global) {
+      return res.status(403).json({ error: 'You do not have access to this document' });
+    }
 
     // Retrieve passages from this document only
     const passages = await vault.retrieveFromDocument(documentId, req.user.id, question, 5);

@@ -1460,6 +1460,7 @@ router.post('/chat', async (req, res) => {
   const persistentMemoryContext = orchestratedContext.memory?.persistentContext || '';
   const portfolioMetricsContext = orchestratedContext.compute?.context || '';
   const unusualWhalesContext = orchestratedContext.unusualWhales?.context || '';
+  const newsContext = orchestratedContext.news?.context || '';
   const completeness = orchestratedContext.completeness || { score: 0, available: [], failed: [] };
 
   // ── Wave 11: Deep analysis detection ────────────────────────────────────
@@ -1475,7 +1476,7 @@ router.post('/chat', async (req, res) => {
     // Deep analysis mode: use the specialized prompt with market and vault context appended
     systemPrompt = `${deepAnalysisResult.prompt}
 
-${persistentMemoryContext ? `\n${persistentMemoryContext}\n` : ''}${sessionMemoryContext ? `\n${sessionMemoryContext}\n` : ''}${behaviorContext ? `\n${behaviorContext}\n` : ''}${portfolioMetricsContext ? `\n${portfolioMetricsContext}\n` : ''}${vaultContext || ''}${marketContext ? `\n--- LIVE MARKET DATA ---\n${marketContext}\n--- END MARKET DATA ---\n` : ''}${earningsContext ? `\n--- EARNINGS CALENDAR ---\n${earningsContext}\n--- END EARNINGS CALENDAR ---\n` : ''}${edgarContext ? `\n--- SEC FILINGS ---\n${edgarContext}\n--- END SEC FILINGS ---\n` : ''}${unusualWhalesContext ? `\n--- OPTIONS FLOW & MARKET INTELLIGENCE (Unusual Whales) ---\n${unusualWhalesContext}\n--- END OPTIONS FLOW ---\n` : ''}${context ? `\nAdditional context: ${context}` : ''}`;
+${persistentMemoryContext ? `\n${persistentMemoryContext}\n` : ''}${sessionMemoryContext ? `\n${sessionMemoryContext}\n` : ''}${behaviorContext ? `\n${behaviorContext}\n` : ''}${portfolioMetricsContext ? `\n${portfolioMetricsContext}\n` : ''}${vaultContext || ''}${marketContext ? `\n--- LIVE MARKET DATA ---\n${marketContext}\n--- END MARKET DATA ---\n` : ''}${earningsContext ? `\n--- EARNINGS CALENDAR ---\n${earningsContext}\n--- END EARNINGS CALENDAR ---\n` : ''}${edgarContext ? `\n--- SEC FILINGS ---\n${edgarContext}\n--- END SEC FILINGS ---\n` : ''}${unusualWhalesContext ? `\n--- OPTIONS FLOW & MARKET INTELLIGENCE (Unusual Whales) ---\n${unusualWhalesContext}\n--- END OPTIONS FLOW ---\n` : ''}${newsContext ? `\n--- RECENT NEWS ---\n${newsContext}\n--- END NEWS ---\n` : ''}${context ? `\n--- SCREEN CONTEXT (from client) ---\n${context}\n--- END SCREEN CONTEXT ---\n` : ''}`;
   } else {
     // Standard Particle prompt — v2 with voice contract + persona card
     systemPrompt = `IDENTITY: You are Particle — the AI engine inside a professional financial terminal. You are a senior macro strategist who has managed risk through the 2008 crisis, COVID crash, and 2022 rate shock. You form strong, data-grounded views and defend them. You speak in terminal shorthand — terse, numeric, opinionated. When you're uncertain, you say so directly, but you never hide behind vague qualifiers.
@@ -1546,7 +1547,7 @@ GOOD: "[sentiment:bear] **$TSLA** breaking below its 200-DMA at **$165** — dow
 --- CONTEXT COMPLETENESS: ${completeness.score}/100 (sources: ${completeness.available.join(', ') || 'none'}${completeness.failed.length > 0 ? ` | unavailable: ${completeness.failed.join(', ')}` : ''}) ---
 ${completeness.score < 30 ? 'WARNING: Limited context available. Caveat your response accordingly and suggest the user check specific data sources.\n' : ''}
 ${persistentMemoryContext ? `\n${persistentMemoryContext}\n` : ''}${sessionMemoryContext ? `\n${sessionMemoryContext}\n` : ''}${behaviorContext ? `\n${behaviorContext}\n` : ''}
-${portfolioMetricsContext ? `\n${portfolioMetricsContext}\n` : ''}${vaultContext || ''}${marketContext ? `\n--- LIVE MARKET DATA ---\n${marketContext}\n--- END MARKET DATA ---\n` : ''}${earningsContext ? `\n--- EARNINGS CALENDAR ---\n${earningsContext}\n--- END EARNINGS CALENDAR ---\n` : ''}${edgarContext ? `\n--- SEC FILINGS ---\n${edgarContext}\n--- END SEC FILINGS ---\n` : ''}${unusualWhalesContext ? `\n--- OPTIONS FLOW & MARKET INTELLIGENCE (Unusual Whales) ---\n${unusualWhalesContext}\n--- END OPTIONS FLOW ---\n` : ''}${context ? `\nAdditional context: ${context}` : ''}`;
+${portfolioMetricsContext ? `\n${portfolioMetricsContext}\n` : ''}${vaultContext || ''}${marketContext ? `\n--- LIVE MARKET DATA ---\n${marketContext}\n--- END MARKET DATA ---\n` : ''}${earningsContext ? `\n--- EARNINGS CALENDAR ---\n${earningsContext}\n--- END EARNINGS CALENDAR ---\n` : ''}${edgarContext ? `\n--- SEC FILINGS ---\n${edgarContext}\n--- END SEC FILINGS ---\n` : ''}${unusualWhalesContext ? `\n--- OPTIONS FLOW & MARKET INTELLIGENCE (Unusual Whales) ---\n${unusualWhalesContext}\n--- END OPTIONS FLOW ---\n` : ''}${newsContext ? `\n--- RECENT NEWS ---\n${newsContext}\n--- END NEWS ---\n` : ''}${context ? `\n--- SCREEN CONTEXT (from client) ---\n${context}\n--- END SCREEN CONTEXT ---\n` : ''}`;
   }
 
   // ── Route to optimal model via modelRouter (Phase 2: Haiku classifier) ──
