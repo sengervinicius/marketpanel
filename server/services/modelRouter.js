@@ -59,6 +59,9 @@ const PROVIDERS = {
 };
 
 // Intent → provider mapping
+// Phase 2: 'general' now routes to claude_sonnet so ambiguous queries use
+// injected market context instead of Perplexity web search (which ignores it).
+// Perplexity is reserved for explicitly web-grounded intents (quick_factual, morning_brief, web_search).
 const ROUTE_MAP = {
   quick_factual: 'perplexity_fast',
   deep_analysis: 'claude_sonnet',
@@ -69,8 +72,9 @@ const ROUTE_MAP = {
   morning_brief: 'perplexity_pro',
   anomaly_classify: 'claude_haiku',
   earnings_analysis: 'claude_sonnet',
-  terminal_overview: 'claude_sonnet', // User asking about their screen/data — must use injected context, not web search
-  general: 'perplexity_pro',
+  terminal_overview: 'claude_sonnet',
+  web_search: 'perplexity_pro',       // Explicit web-search intent (Phase 2)
+  general: 'claude_sonnet',            // Phase 2: default to Claude for context-aware responses
 };
 
 /**
@@ -124,8 +128,100 @@ function classifyIntent(query, hasVaultContext = false, hasDeepAnalysis = false)
     return 'terminal_overview';
   }
 
-  // Default to general
+  // Default to general (now routed to Claude, not Perplexity)
   return 'general';
+}
+
+/**
+ * Phase 2: Haiku-based intent classifier.
+ * Calls Claude Haiku (~$0.001/query, <100ms) for structured intent classification.
+ * Falls back to regex classifyIntent() if Haiku is unavailable or times out.
+ *
+ * @param {string} query - User's natural language query
+ * @param {boolean} hasVaultContext - true if vault passages were found
+ * @param {boolean} hasDeepAnalysis - true if deep analysis was triggered
+ * @returns {Promise<{intent: string, contextRequired: boolean}>}
+ */
+async function classifyIntentWithHaiku(query, hasVaultContext = false, hasDeepAnalysis = false) {
+  // Fast-path overrides (no need to call Haiku for these)
+  if (hasVaultContext) return { intent: 'vault_rag', contextRequired: true };
+  if (hasDeepAnalysis) return { intent: 'deep_analysis', contextRequired: true };
+  if (!query || query.trim().length < 3) return { intent: 'general', contextRequired: false };
+
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) {
+    // No Anthropic key — fall back to regex
+    return { intent: classifyIntent(query, hasVaultContext, hasDeepAnalysis), contextRequired: false };
+  }
+
+  try {
+    const classifierPrompt = `Classify this financial terminal query into exactly ONE intent. Respond with ONLY a JSON object, no other text.
+
+Intents:
+- quick_factual: Simple price/quote lookup ("what's AAPL at?", "price of BTC")
+- earnings_analysis: About earnings, EPS, guidance, revenue beats/misses
+- terminal_overview: User references their screen, dashboard, watchlist, portfolio, positions, or asks for a morning brief/summary/overview of markets
+- portfolio: About user's holdings, P&L, allocation, exposure, performance
+- web_search: Requires real-time web data NOT available in a terminal (breaking news, specific articles, recent events, "search for", "find me", "latest news about")
+- deep_analysis: Multi-factor analysis, scenario modeling, counter-thesis, compare frameworks
+- general: Standard market/macro question answerable with terminal context data
+
+Also set "contextRequired" to true if the query references the user's personal data (my, screen, portfolio, positions, watchlist) or needs live market data from the terminal.
+
+Query: "${query.replace(/"/g, '\\"').slice(0, 300)}"
+
+Respond: {"intent":"<intent>","contextRequired":<bool>}`;
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 1500); // 1.5s max
+
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 60,
+        messages: [{ role: 'user', content: classifierPrompt }],
+      }),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeout);
+
+    if (!response.ok) {
+      throw new Error(`Haiku classifier HTTP ${response.status}`);
+    }
+
+    const data = await response.json();
+    const text = data.content?.[0]?.text?.trim() || '';
+
+    // Parse JSON from Haiku response
+    const jsonMatch = text.match(/\{[^}]+\}/);
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0]);
+      const intent = parsed.intent || 'general';
+      const contextRequired = !!parsed.contextRequired;
+
+      // Validate intent is in our ROUTE_MAP
+      if (ROUTE_MAP[intent]) {
+        logger.info(`[ModelRouter] Haiku classified: "${query.slice(0, 50)}" → ${intent} (ctx=${contextRequired})`);
+        return { intent, contextRequired };
+      }
+    }
+
+    // Haiku returned something unexpected — fall back
+    logger.warn(`[ModelRouter] Haiku classifier returned unparseable: ${text.slice(0, 100)}`);
+    return { intent: classifyIntent(query, hasVaultContext, hasDeepAnalysis), contextRequired: false };
+
+  } catch (err) {
+    // Timeout, network error, or parse error — fall back to regex
+    logger.warn(`[ModelRouter] Haiku classifier failed (${err.message}), falling back to regex`);
+    return { intent: classifyIntent(query, hasVaultContext, hasDeepAnalysis), contextRequired: false };
+  }
 }
 
 /**
@@ -350,6 +446,7 @@ async function streamResponse(provider, messages, systemPrompt, res, { onAbort }
 
 module.exports = {
   classifyIntent,
+  classifyIntentWithHaiku,
   route,
   callProvider,
   callProviderImpl,

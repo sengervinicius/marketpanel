@@ -1460,6 +1460,7 @@ router.post('/chat', async (req, res) => {
   const persistentMemoryContext = orchestratedContext.memory?.persistentContext || '';
   const portfolioMetricsContext = orchestratedContext.compute?.context || '';
   const unusualWhalesContext = orchestratedContext.unusualWhales?.context || '';
+  const completeness = orchestratedContext.completeness || { score: 0, available: [], failed: [] };
 
   // ── Wave 11: Deep analysis detection ────────────────────────────────────
   let deepAnalysisResult = null;
@@ -1508,32 +1509,50 @@ RESPONSE STRUCTURE for asset/market questions:
 4. CATALYSTS: What's driving the move — be specific with events, dates, data (2-4 sentences)
 5. OUTLOOK + BOTTOM LINE: Forward view with timeframes, key levels to watch, then your one-sentence verdict
 
+CONTEXT MANDATE — CRITICAL:
+You have access to LIVE MARKET DATA, VAULT documents, EDGAR filings, EARNINGS data, OPTIONS FLOW, and PORTFOLIO METRICS injected below. You MUST reference this data in every response. If you see a "--- LIVE MARKET DATA ---" section, you MUST cite specific numbers from it. If the user asks about an asset and you have live data for it, ALWAYS lead with the real numbers — never give a generic answer when you have specifics.
+
+If context sections are present but you ignore them, you are failing at your job. The user is sitting in front of a terminal with live data — your job is to synthesize what they're seeing, not repeat what Google would say.
+
 RULES:
-- ALWAYS use specific numbers from the LIVE MARKET DATA section
+- ALWAYS use specific numbers from the LIVE MARKET DATA section — this is non-negotiable
 - Major assets (**$BTC**, **$SPY**, indices): 250-350 words. Narrow questions: 100-150 words
 - Never start with "Based on" or "According to" — lead with the insight
-- If the user has a watchlist or portfolio, relate to their holdings
+- If the user has a watchlist or portfolio, relate to their holdings FIRST before broader market context
 - Disclaimers: one brief parenthetical at the very end, if at all. Never at the top
 - For morning briefs: portfolio impact first, then indices, sectors, FX, crypto, macro catalysts
 - Prediction market data: weave naturally when it adds edge
-- When you lack data, say "No live data on that" — don't speculate
+- When you lack data for a specific asset, say "No live data on that" — don't speculate
 - Suggest terminal actions: [action:watchlist_add:BTC], [action:alert_set:BTC:65000], [action:chart_open:AAPL], [action:detail_open:MSFT]
 - If Perplexity provides web citations, use [1], [2] naturally — the terminal renders these as orange badges
 - When referencing information from the VAULT sections below, cite with [V1], [V2] etc. matching the order of vault passages — the terminal renders these as gold badges
-- NEVER do math in your head. If you need to calculate returns, P&L, or ratios, say "calculating..." and use the pre-computed numbers from context
+- NEVER do math in your head. If you need to calculate returns, P&L, or ratios, use the pre-computed numbers from context
+- When multiple context sources are available (market data + vault + EDGAR + options flow), SYNTHESIZE them into a cohesive view — don't just list data from each source separately
 
 FEW-SHOT EXAMPLE — BAD vs GOOD:
 User: "What's happening with Tesla?"
 BAD: "Tesla is an interesting stock to watch right now. Based on the data, there are several factors to consider. The stock has been volatile recently, and many analysts have different views on its trajectory. It's important to note that Tesla's fundamentals..."
 GOOD: "[sentiment:bear] **$TSLA** breaking below its 200-DMA at **$165** — down **-4.2%** on the session as delivery numbers disappointed. Q1 deliveries came in at 387K vs 415K consensus, a 7% miss. China competition from BYD is the structural overhang. Watch **$155** support — a break opens **$140**. BOTTOM LINE: Bearish below **$165**, and the delivery trajectory suggests this isn't a one-quarter problem."
+
+--- CONTEXT COMPLETENESS: ${completeness.score}/100 (sources: ${completeness.available.join(', ') || 'none'}${completeness.failed.length > 0 ? ` | unavailable: ${completeness.failed.join(', ')}` : ''}) ---
+${completeness.score < 30 ? 'WARNING: Limited context available. Caveat your response accordingly and suggest the user check specific data sources.\n' : ''}
 ${persistentMemoryContext ? `\n${persistentMemoryContext}\n` : ''}${sessionMemoryContext ? `\n${sessionMemoryContext}\n` : ''}${behaviorContext ? `\n${behaviorContext}\n` : ''}
 ${portfolioMetricsContext ? `\n${portfolioMetricsContext}\n` : ''}${vaultContext || ''}${marketContext ? `\n--- LIVE MARKET DATA ---\n${marketContext}\n--- END MARKET DATA ---\n` : ''}${earningsContext ? `\n--- EARNINGS CALENDAR ---\n${earningsContext}\n--- END EARNINGS CALENDAR ---\n` : ''}${edgarContext ? `\n--- SEC FILINGS ---\n${edgarContext}\n--- END SEC FILINGS ---\n` : ''}${unusualWhalesContext ? `\n--- OPTIONS FLOW & MARKET INTELLIGENCE (Unusual Whales) ---\n${unusualWhalesContext}\n--- END OPTIONS FLOW ---\n` : ''}${context ? `\nAdditional context: ${context}` : ''}`;
   }
 
-  // ── Route to optimal model via modelRouter ──────────────────────────────
+  // ── Route to optimal model via modelRouter (Phase 2: Haiku classifier) ──
   const hasVault = vaultContext.length > 0;
   const hasDeep = !!deepAnalysisResult;
-  const intent = modelRouter.classifyIntent(userQuery, hasVault, hasDeep);
+  let intent, contextRequired;
+  try {
+    const classification = await modelRouter.classifyIntentWithHaiku(userQuery, hasVault, hasDeep);
+    intent = classification.intent;
+    contextRequired = classification.contextRequired;
+  } catch (err) {
+    // Ultimate fallback
+    intent = modelRouter.classifyIntent(userQuery, hasVault, hasDeep);
+    contextRequired = false;
+  }
   let provider = modelRouter.route(intent);
 
   // Fallback: if the chosen provider needs an API key we don't have, fall back
@@ -1545,7 +1564,7 @@ ${portfolioMetricsContext ? `\n${portfolioMetricsContext}\n` : ''}${vaultContext
     }
   }
 
-  console.log(`[Particle/Chat] Intent: ${intent} → ${provider.model}${behaviorContext ? ' [personalized]' : ''}`);
+  console.log(`[Particle/Chat] Intent: ${intent} → ${provider.model}${contextRequired ? ' [ctx-required]' : ''}${behaviorContext ? ' [personalized]' : ''}`);
 
   // Prepare messages for router
   const routerMessages = history.map(m => ({ role: m.role, content: m.content }));

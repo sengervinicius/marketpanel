@@ -21,7 +21,7 @@ const unusualWhales = require('./unusualWhales');
 // ── Configuration ──────────────────────────────────────────────────────
 const DEFAULT_TIMEOUT_MS = 5000; // 5 seconds per agent
 const AGENT_TIMEOUTS = {
-  vault: 4000,      // Vault RAG retrieval
+  vault: 8000,      // Vault RAG retrieval (Phase 2: extended from 4s for better recall)
   edgar: 3000,      // SEC filings + insider data
   earnings: 3000,   // Earnings calendar
   memory: 2000,     // Session + persistent memory (fast, in-memory/DB)
@@ -459,7 +459,58 @@ function mergeResults(results) {
       hasNews: !!(results.news?.context),
       hasUnusualWhales: !!(results.unusualWhales?.context),
     },
+
+    // Phase 2: Context completeness score (0-100)
+    // Helps the system prompt decide how confident to be and whether to caveat
+    completeness: computeCompletenessScore(results),
   };
+}
+
+/**
+ * Phase 2: Compute a context completeness score (0-100).
+ * Weights reflect importance for typical financial terminal queries.
+ * Used downstream to modulate AI confidence and surface data gaps.
+ *
+ * @param {object} results - Raw results from all agents
+ * @returns {object} { score: number, available: string[], failed: string[] }
+ */
+function computeCompletenessScore(results) {
+  const weights = {
+    vault: 15,
+    edgar: 15,
+    earnings: 10,
+    memory: 10,
+    compute: 20,
+    news: 10,
+    unusualWhales: 20,
+  };
+
+  let score = 0;
+  const available = [];
+  const failed = [];
+
+  if (results.vault?.context) { score += weights.vault; available.push('vault'); }
+  else { failed.push('vault'); }
+
+  if (results.edgar?.context) { score += weights.edgar; available.push('edgar'); }
+  else { failed.push('edgar'); }
+
+  if (results.earnings?.context) { score += weights.earnings; available.push('earnings'); }
+  else { failed.push('earnings'); }
+
+  if (results.memory?.sessionMemory || results.memory?.persistentMemory) { score += weights.memory; available.push('memory'); }
+  else { failed.push('memory'); }
+
+  if (results.compute?.context) { score += weights.compute; available.push('compute'); }
+  else { failed.push('compute'); }
+
+  if (results.news?.context) { score += weights.news; available.push('news'); }
+  else { failed.push('news'); }
+
+  if (results.unusualWhales?.context) { score += weights.unusualWhales; available.push('unusualWhales'); }
+  else { failed.push('unusualWhales'); }
+
+  return { score, available, failed };
 }
 
 // ── Exports ──────────────────────────────────────────────────────────
@@ -467,6 +518,7 @@ function mergeResults(results) {
 module.exports = {
   gatherContext,
   mergeResults,
+  computeCompletenessScore,
   // For testing/diagnostics: expose agent functions
   vaultAgent,
   edgarAgent,
