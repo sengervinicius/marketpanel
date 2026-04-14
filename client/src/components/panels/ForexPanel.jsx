@@ -247,7 +247,7 @@ function ForexPanel({ data = {}, cryptoData = {}, loading, onTickerClick }) {
         ) : (
           <>
             {/* ── FX PAIRS ── */}
-            <SectionHeader label={subsectionLabels['fxPairs'] || 'FX PAIRS'} color="var(--section-fx)" />
+            <SectionHeader label={subsectionLabels['fxPairs'] || 'FX PAIRS'} sectionKey="fxPairs" color="var(--section-fx)" onRename={handleRenameSubsection} onToggleVisibility={handleToggleSubsection} isHideable={true} />
             {filteredForex.map(pair => {
               const d = data?.[pair.symbol] || {};
               const price = d.mid || d.ask || d.price;
@@ -287,7 +287,7 @@ function ForexPanel({ data = {}, cryptoData = {}, loading, onTickerClick }) {
             {!hiddenSubsections.includes('crypto') && (
               <>
                 {/* ── CRYPTO ── */}
-                <SectionHeader label={subsectionLabels['crypto'] || 'CRYPTO'} color="var(--section-crypto)" />
+                <SectionHeader label={subsectionLabels['crypto'] || 'CRYPTO'} sectionKey="crypto" color="var(--section-crypto)" onRename={handleRenameSubsection} onToggleVisibility={handleToggleSubsection} isHideable={true} />
                 {filteredCrypto.map(c => {
               const d   = cryptoData?.[c.symbol] || {};
               const chartSym = 'X:' + c.symbol;

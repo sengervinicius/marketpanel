@@ -320,7 +320,7 @@ function StockPanel({ data = {}, loading, onTickerClick }) {
               </div>
             ) : (
               <>
-                {!isCustomized && <SectionHeader label={subsectionLabels['usEquities'] || 'US EQUITIES'} color="var(--section-equity)" />}
+                {!isCustomized && <SectionHeader label={subsectionLabels['usEquities'] || 'US EQUITIES'} sectionKey="usEquities" color="var(--section-equity)" onRename={handleRenameSubsection} onToggleVisibility={handleToggleSubsection} isHideable={true} />}
                 {filteredUS.map(s => (
                   <PriceRow
                     key={s.symbol}
@@ -352,7 +352,7 @@ function StockPanel({ data = {}, loading, onTickerClick }) {
 
                 {!hiddenSubsections.includes('brazilAdrs') && (
                   <>
-                    {!isCustomized && <SectionHeader label={subsectionLabels['brazilAdrs'] || 'BRAZIL ADRs'} color="var(--section-brazil)" />}
+                    {!isCustomized && <SectionHeader label={subsectionLabels['brazilAdrs'] || 'BRAZIL ADRs'} sectionKey="brazilAdrs" color="var(--section-brazil)" onRename={handleRenameSubsection} onToggleVisibility={handleToggleSubsection} isHideable={true} />}
                     {filteredBrazil.map(s => (
                       <PriceRow
                         key={s.symbol}

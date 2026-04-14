@@ -357,10 +357,7 @@ async function streamResponse(provider, messages, systemPrompt, res, { onAbort }
       if (finished) return;
       finished = true;
       if (!res.writableEnded) {
-        // Send captured Perplexity citations before DONE
-        if (perplexityCitations && perplexityCitations.length > 0) {
-          res.write(`data: ${JSON.stringify({ citations: perplexityCitations })}\n\n`);
-        }
+        // Citations are now sent immediately when captured (not deferred to finish)
         res.write('data: [DONE]\n\n');
         res.end();
       }
@@ -381,9 +378,12 @@ async function streamResponse(provider, messages, systemPrompt, res, { onAbort }
           if (content) {
             res.write(`data: ${JSON.stringify({ chunk: content })}\n\n`);
           }
-          // Capture citations from Perplexity (usually in the final chunk)
+          // Send citations immediately as they arrive (don't wait for stream end)
           if (parsed.citations && Array.isArray(parsed.citations)) {
             perplexityCitations = parsed.citations;
+            if (!res.writableEnded) {
+              res.write(`data: ${JSON.stringify({ citations: perplexityCitations })}\n\n`);
+            }
           }
         } else if (isAnthropic) {
           if (parsed.type === 'content_block_delta') {

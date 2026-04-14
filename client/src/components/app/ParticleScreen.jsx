@@ -96,6 +96,20 @@ export default function ParticleScreen() {
   // Compute market state for dynamic greeting (Wave 12)
   const marketState = useMemo(() => computeMarketState(indicesData), [indicesData]);
 
+  // Phase 2: Contextual greeting from API (live market data + portfolio)
+  const [apiGreeting, setApiGreeting] = useState(null);
+  useEffect(() => {
+    if (!token) return;
+    let cancelled = false;
+    fetch(`${API_BASE}/api/brief/greeting`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(r => r.json())
+      .then(data => { if (!cancelled && data.ok && data.greeting) setApiGreeting(data.greeting); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [token]);
+
   // Determine canvas mood from conversation state + market data + portfolio performance
   const mood = useMemo(() => {
     if (isStreaming) return 'volatile';
@@ -288,8 +302,8 @@ export default function ParticleScreen() {
         <div className="particle-screen-content" ref={pullRef}>
           <ParticleLogo size={56} glow className="particle-screen-logo" />
 
-          {/* Dynamic greeting (Wave 12A) */}
-          <h1 className="particle-screen-greeting">{getDynamicGreeting(marketState)}</h1>
+          {/* Dynamic greeting (Phase 2: API-driven with local fallback) */}
+          <h1 className="particle-screen-greeting">{apiGreeting || getDynamicGreeting(marketState)}</h1>
           <p className="particle-screen-subtitle">{getSubtitle(marketState)}</p>
 
           {/* Live sentiment strip (Wave 12A) */}

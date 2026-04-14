@@ -241,7 +241,7 @@ function CommoditiesPanel({ data = {}, loading, onTickerClick }) {
               if (!items.length || hiddenSubsections.includes(g.key)) return null;
               return (
                 <div key={g.key}>
-                  <SectionHeader label={subsectionLabels[g.key] || g.label} color={g.color} />
+                  <SectionHeader label={subsectionLabels[g.key] || g.label} sectionKey={g.key} color={g.color} onRename={handleRenameSubsection} onToggleVisibility={handleToggleSubsection} isHideable={true} />
                   {items.map(c => {
                     const d = data[c.symbol] || {};
                     return (

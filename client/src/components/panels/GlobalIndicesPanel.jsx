@@ -57,10 +57,12 @@ function GlobalIndicesPanel({ data = {}, loading, onTickerClick }) {
     title: 'Global Indexes',
     symbols: ['SPY','QQQ','DIA','EWZ','EWW','EWC','EZU','EWU','EWG','EWQ','EWP','EWI','EWL','EWD','EWJ','EWH','EWY','EWA','MCHI','EWT','EWS','INDA'],
     hiddenSubsections: [],
+    subsectionLabels: {},
   };
   const panelTitle           = panelCfg.title                || 'Global Indexes';
   const panelSymbols         = panelCfg.symbols              || [];
   const hiddenSubsections    = panelCfg.hiddenSubsections    || [];
+  const subsectionLabels     = panelCfg.subsectionLabels     || {};
   const availableSubsections = [
     { key: 'AMERICAS', label: 'AMERICAS' },
     { key: 'EMEA', label: 'EMEA' },
@@ -71,6 +73,17 @@ function GlobalIndicesPanel({ data = {}, loading, onTickerClick }) {
   const [searchFilter, setSearchFilter] = useState('');
   const [sortKey, setSortKey] = useState(null);
   const [sortDir, setSortDir] = useState('desc');
+
+  const handleToggleSubsection = (key) => {
+    const cur = panelCfg.hiddenSubsections || [];
+    const next = cur.includes(key) ? cur.filter(k => k !== key) : [...cur, key];
+    updatePanelConfig('globalIndices', { ...panelCfg, hiddenSubsections: next });
+  };
+
+  const handleRenameSubsection = (key, newLabel) => {
+    const labels = { ...(panelCfg.subsectionLabels || {}), [key]: newLabel };
+    updatePanelConfig('globalIndices', { ...panelCfg, subsectionLabels: labels });
+  };
 
   const handleDropTicker = (ticker) => {
     const sym = ticker.toUpperCase();
@@ -168,7 +181,7 @@ function GlobalIndicesPanel({ data = {}, loading, onTickerClick }) {
           <div key={key}>
             {region.tickers.length > 0 && !hiddenSubsections.includes(key) && (
               <>
-                <SectionHeader label={region.label} color="var(--accent)" />
+                <SectionHeader label={subsectionLabels[key] || region.label} sectionKey={key} color="var(--accent)" onRename={handleRenameSubsection} onToggleVisibility={handleToggleSubsection} isHideable={true} />
                 {region.tickers.map((ticker) => {
                   const d = data[ticker] || {};
                   return (

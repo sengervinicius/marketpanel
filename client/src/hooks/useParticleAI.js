@@ -128,9 +128,48 @@ export default function useParticleAI() {
               });
               continue;
             }
-            // Capture web citations from Perplexity (sent at end of stream)
+            // Phase 2: Capture context completeness metadata (sources, intent, model)
+            if (parsed.contextMeta) {
+              setMessages(prev => {
+                const updated = [...prev];
+                const last = updated[updated.length - 1];
+                if (last?.role === 'assistant') {
+                  updated[updated.length - 1] = { ...last, contextMeta: parsed.contextMeta };
+                }
+                return updated;
+              });
+              continue;
+            }
+            // Phase 2: Handle partial/interrupted stream — show retry prompt
+            if (parsed.partial) {
+              setMessages(prev => {
+                const updated = [...prev];
+                const last = updated[updated.length - 1];
+                if (last?.role === 'assistant') {
+                  updated[updated.length - 1] = {
+                    ...last,
+                    content: last.content || '',
+                    streaming: false,
+                    partial: true,
+                    partialError: parsed.error || 'Response interrupted — tap to retry',
+                  };
+                }
+                return updated;
+              });
+              continue;
+            }
+            // Capture web citations from Perplexity (sent as they arrive)
             if (parsed.citations && Array.isArray(parsed.citations)) {
               webCitations = parsed.citations;
+              // Update message immediately so citations appear before stream ends
+              setMessages(prev => {
+                const updated = [...prev];
+                const last = updated[updated.length - 1];
+                if (last?.role === 'assistant') {
+                  updated[updated.length - 1] = { ...last, webCitations };
+                }
+                return updated;
+              });
               continue;
             }
             if (parsed.chunk) {
