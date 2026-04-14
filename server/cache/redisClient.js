@@ -1,8 +1,28 @@
 /**
  * cache/redisClient.js — Redis connection + cache/rate-limit helpers.
  *
- * If REDIS_URL is set, connects via ioredis. Otherwise all helpers
- * fall back to in-memory Maps so the app runs identically without Redis.
+ * FALLBACK BEHAVIOR:
+ * - If REDIS_URL is set: uses Redis (ioredis) for distributed caching and rate limiting
+ * - If REDIS_URL is not set: gracefully falls back to in-memory Maps
+ *
+ * KEY DIFFERENCES IN FALLBACK MODE:
+ * - In-memory cache: stored in process memory (process restarts clear cache)
+ * - In-memory rate limiting: resets per process (no distributed tracking across instances)
+ * - TTL cleanup: automatic periodic cleanup runs every 60 seconds
+ * - Performance: faster than Redis (no network latency) but single-instance only
+ *
+ * WHEN TO USE FALLBACK:
+ * - Development environments without Redis
+ * - Single-instance deployments (no horizontal scaling)
+ * - Low-traffic scenarios where distributed state isn't critical
+ *
+ * WHEN YOU NEED REDIS:
+ * - Multi-instance deployments (multiple servers)
+ * - Distributed rate limiting across load-balanced instances
+ * - Persistent cache across process restarts
+ * - High-traffic scenarios needing external memory storage
+ *
+ * The app continues to function identically in both modes — no code changes needed.
  */
 
 'use strict';

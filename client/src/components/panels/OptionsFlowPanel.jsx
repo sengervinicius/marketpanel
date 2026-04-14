@@ -12,7 +12,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { API_BASE } from '../../utils/api';
+import { apiFetch } from '../../utils/api';
 import './OptionsFlowPanel.css';
 
 function OptionsFlowPanel() {
@@ -35,18 +35,10 @@ function OptionsFlowPanel() {
       setError(null);
 
       const [tideRes, alertsRes, tradesRes, tickersRes] = await Promise.all([
-        fetch(`${API_BASE}/api/unusual-whales/market-tide`, {
-          headers: { 'Content-Type': 'application/json' },
-        }),
-        fetch(`${API_BASE}/api/unusual-whales/flow-alerts`, {
-          headers: { 'Content-Type': 'application/json' },
-        }),
-        fetch(`${API_BASE}/api/unusual-whales/congress-trades`, {
-          headers: { 'Content-Type': 'application/json' },
-        }),
-        fetch(`${API_BASE}/api/unusual-whales/top-tickers`, {
-          headers: { 'Content-Type': 'application/json' },
-        }),
+        apiFetch('/api/unusual-whales/market-tide'),
+        apiFetch('/api/unusual-whales/flow-alerts'),
+        apiFetch('/api/unusual-whales/congress-trades'),
+        apiFetch('/api/unusual-whales/top-tickers'),
       ]);
 
       const tideData = tideRes.ok ? await tideRes.json() : null;

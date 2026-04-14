@@ -8,7 +8,7 @@ import { useState, useEffect, useCallback } from 'react';
  * This prevents false mobile detection when DevTools is docked
  * or CSS hasn't fully applied yet.
  *
- * Threshold: 1024px (matches existing app behavior).
+ * Threshold: 768px (matches existing app behavior).
  */
 const DESKTOP_MQ = '(min-width: 768px)';
 

@@ -50,6 +50,11 @@ let _lastMarketOpenFired = false;
 let _lastMarketCloseFired = false;
 let _lastMarketDate = null;
 
+// Background job concurrency guards: prevent slow API responses from piling up
+let _momentumRunning = false;
+let _earningsRunning = false;
+let _marketStatusRunning = false;
+
 // ── Init ────────────────────────────────────────────────────────────────────
 function init({ marketState, getWatchlists, broadcast } = {}) {
   _marketState = marketState;
@@ -195,6 +200,10 @@ async function generateSignalInsight(context) {
 
 // ── Detector 1: Momentum Break ──────────────────────────────────────────────
 async function detectMomentumBreaks() {
+  // Skip if already running: prevents slow API responses from piling up
+  if (_momentumRunning) return;
+  _momentumRunning = true;
+
   try {
     if (!isWeekday() || !_marketState) return;
 
@@ -234,11 +243,17 @@ async function detectMomentumBreaks() {
     }
   } catch (e) {
     logger.error('signals', 'Momentum detection error', { error: e.message });
+  } finally {
+    _momentumRunning = false;
   }
 }
 
 // ── Detector 2: Earnings Alert ──────────────────────────────────────────────
 async function detectEarningsAlerts() {
+  // Skip if already running: prevents slow API responses from piling up
+  if (_earningsRunning) return;
+  _earningsRunning = true;
+
   try {
     if (!isWeekday() || !earningsService.isConfigured()) return;
 
@@ -274,11 +289,17 @@ async function detectEarningsAlerts() {
     }
   } catch (e) {
     logger.error('signals', 'Earnings detection error', { error: e.message });
+  } finally {
+    _earningsRunning = false;
   }
 }
 
 // ── Detector 3: Market Status Change ────────────────────────────────────────
 async function detectMarketStatusChange() {
+  // Skip if already running: prevents slow operations from piling up
+  if (_marketStatusRunning) return;
+  _marketStatusRunning = true;
+
   try {
     if (!isWeekday()) return;
 
@@ -305,6 +326,8 @@ async function detectMarketStatusChange() {
     }
   } catch (e) {
     logger.error('signals', 'Market status detection error', { error: e.message });
+  } finally {
+    _marketStatusRunning = false;
   }
 }
 

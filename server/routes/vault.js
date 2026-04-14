@@ -488,6 +488,15 @@ router.post('/documents/:id/ask', requireAuth, async (req, res) => {
       return res.status(503).json({ error: 'AI service not configured' });
     }
 
+    // Set up AbortController and attach cleanup BEFORE fetch
+    const controller = new AbortController();
+    req.on('close', () => {
+      if (!controller.signal.aborted) {
+        controller.abort();
+      }
+      res.end();
+    });
+
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -507,6 +516,7 @@ router.post('/documents/:id/ask', requireAuth, async (req, res) => {
         temperature: 0.3,
         stream: true,
       }),
+      signal: controller.signal,
     });
 
     if (!response.ok) {
@@ -557,8 +567,12 @@ router.post('/documents/:id/ask', requireAuth, async (req, res) => {
 
     response.body.on('error', (err) => {
       logger.error('vault-route', 'Stream error', { error: err.message });
-      res.write('data: [ERROR]\n\n');
-      res.end();
+      if (!res.headersSent) {
+        res.status(502).json({ error: 'Stream error from AI service' });
+      } else {
+        res.write(`data: ${JSON.stringify({ error: 'Stream error: ' + err.message })}\n\n`);
+        res.end();
+      }
     });
 
     logger.info('vault-route', 'Document Q&A initiated', {
@@ -569,7 +583,12 @@ router.post('/documents/:id/ask', requireAuth, async (req, res) => {
     });
   } catch (err) {
     logger.error('vault-route', 'Document Q&A error', { error: err.message });
-    res.status(500).json({ error: 'Failed to process question' });
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Failed to process question' });
+    } else {
+      res.write(`data: ${JSON.stringify({ error: 'Failed to process question: ' + err.message })}\n\n`);
+      res.end();
+    }
   }
 });
 

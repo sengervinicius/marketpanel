@@ -13,7 +13,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { API_BASE } from '../../utils/api';
+import { apiFetch } from '../../utils/api';
 import './OptionsHomeWidget.css';
 
 export default function OptionsHomeWidget({ onNavigate }) {
@@ -25,12 +25,8 @@ export default function OptionsHomeWidget({ onNavigate }) {
   const fetchData = useCallback(async () => {
     try {
       const [tideRes, alertsRes] = await Promise.all([
-        fetch(`${API_BASE}/api/unusual-whales/market-tide`, {
-          headers: { 'Content-Type': 'application/json' },
-        }),
-        fetch(`${API_BASE}/api/unusual-whales/flow-alerts`, {
-          headers: { 'Content-Type': 'application/json' },
-        }),
+        apiFetch('/api/unusual-whales/market-tide'),
+        apiFetch('/api/unusual-whales/flow-alerts'),
       ]);
 
       const tideData = tideRes.ok ? await tideRes.json() : null;

@@ -1561,7 +1561,16 @@ ${portfolioMetricsContext ? `\n${portfolioMetricsContext}\n` : ''}${vaultContext
   // ── Deep analysis wrapper: collect full response to extract JSON ──────────
   if (deepAnalysisResult) {
     try {
-      const apiResponse = await modelRouter.callProvider(provider, routerMessages, systemPrompt);
+      // Set up AbortController and attach cleanup BEFORE fetch
+      const controller = new AbortController();
+      req.on('close', () => {
+        if (!controller.signal.aborted) {
+          controller.abort();
+        }
+        res.end();
+      });
+
+      const apiResponse = await modelRouter.callProvider(provider, routerMessages, systemPrompt, { signal: controller.signal });
 
       // Extract full text from provider response
       let responseText = '';
@@ -1621,11 +1630,7 @@ ${portfolioMetricsContext ? `\n${portfolioMetricsContext}\n` : ''}${vaultContext
     } catch (err) {
       console.error('[Particle/Chat] Deep analysis stream error:', err.message);
       if (!res.headersSent) {
-        res.writeHead(200, {
-          'Content-Type': 'text/event-stream',
-          'Cache-Control': 'no-cache',
-          Connection: 'keep-alive',
-        });
+        return res.status(500).json({ error: err.message || 'AI chat failed' });
       }
       if (!res.writableEnded) {
         res.write(`data: ${JSON.stringify({ error: err.message || 'AI chat failed' })}\n\n`);
@@ -1655,11 +1660,7 @@ ${portfolioMetricsContext ? `\n${portfolioMetricsContext}\n` : ''}${vaultContext
     } catch (err) {
       console.error('[Particle/Chat] Stream error:', err.message);
       if (!res.headersSent) {
-        res.writeHead(200, {
-          'Content-Type': 'text/event-stream',
-          'Cache-Control': 'no-cache',
-          Connection: 'keep-alive',
-        });
+        return res.status(500).json({ error: err.message || 'AI chat failed' });
       }
       if (!res.writableEnded) {
         res.write(`data: ${JSON.stringify({ error: err.message || 'AI chat failed' })}\n\n`);

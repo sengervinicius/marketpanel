@@ -198,28 +198,16 @@ app.use('/api/auth', authRoutes);
 // ── Admin Dashboard Routes (requires auth) ──────────────────────────────────
 app.use('/api/admin', requireAuth, adminRoutes);
 
-// ── Admin health endpoint (detailed provider/API key info — requires admin auth) ──
+// ── Admin health endpoint (provider status only — requires admin auth) ──
+// Note: Does not expose API key names or values, only availability status
 app.get('/api/admin/provider-health', requireAdmin, (req, res) => res.json({
   status: 'ok',
   version: process.env.npm_package_version || '1.0.0',
   time: new Date().toISOString(),
   uptime: process.uptime(),
-  providers: {
-    polygon: process.env.POLYGON_API_KEY ? 'configured' : 'unconfigured',
-    twelvedata: process.env.TWELVEDATA_API_KEY ? 'configured' : 'unconfigured',
-    eulerpool: process.env.EULERPOOL_API_KEY ? 'configured' : 'unconfigured',
-    fred: process.env.FRED_API_KEY ? 'configured' : 'public_csv',
-    postgres: pgConnected() ? 'connected' : (process.env.POSTGRES_URL ? 'configured' : 'disabled'),
-    redis: redisConnected() ? 'connected' : (process.env.REDIS_URL ? 'configured' : 'disabled'),
-    stripe: process.env.STRIPE_SECRET_KEY ? 'configured' : 'unconfigured',
-  },
-  ai: {
-    perplexity: process.env.PERPLEXITY_API_KEY ? 'OK' : 'MISSING KEY',
-    anthropic: process.env.ANTHROPIC_API_KEY ? 'OK' : 'MISSING KEY',
-    openai: process.env.OPENAI_API_KEY ? 'OK (embeddings)' : 'MISSING KEY (vault degraded)',
-    modelRouter: 'active',
-    routeMap: Object.keys(modelRouter.ROUTE_MAP),
-  },
+  database: pgConnected() ? 'ok' : 'not_configured',
+  cache: redisConnected() ? 'ok' : 'not_configured',
+  payments: process.env.STRIPE_SECRET_KEY ? 'ok' : 'not_configured',
 }));
 
 // ── Protected routes ───────────────────────────────────────────────────────────
@@ -417,7 +405,37 @@ const marketState = {
 // WS client registry: ws → { userId }
 const clients = new Map();
 
+// WebSocket connection rate limiting: IP → { count, resetTime }
+const wsRateLimitMap = new Map();
+const WS_RATE_LIMIT_MAX = 5; // max connections per IP per minute
+const WS_RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
+
+function checkWSRateLimit(ip) {
+  const now = Date.now();
+  let entry = wsRateLimitMap.get(ip);
+
+  if (!entry || now > entry.resetTime) {
+    // Reset window
+    entry = { count: 0, resetTime: now + WS_RATE_LIMIT_WINDOW };
+    wsRateLimitMap.set(ip, entry);
+  }
+
+  entry.count++;
+  if (entry.count > WS_RATE_LIMIT_MAX) {
+    return false; // Rate limit exceeded
+  }
+  return true; // OK
+}
+
 wss.on('connection', (ws, req) => {
+  // ── Rate limit by IP (max 5 connections per minute) ────────────────
+  const clientIp = req.headers['x-forwarded-for']?.split(',')[0].trim() || req.socket.remoteAddress || 'unknown';
+  if (!checkWSRateLimit(clientIp)) {
+    console.warn(`[WS] Rate limit exceeded for IP: ${clientIp}`);
+    ws.close(1008, 'Rate limit exceeded');
+    return;
+  }
+
   // ── Origin validation ──────────────────────────────────────────────
   const origin = req.headers.origin || '';
   const allowedOrigins = process.env.NODE_ENV === 'production'
@@ -767,7 +785,7 @@ async function boot() {
 
     // AI service health check
     logger.info('boot', `AI Services: Perplexity=${process.env.PERPLEXITY_API_KEY ? 'OK' : 'MISSING'} | Anthropic=${process.env.ANTHROPIC_API_KEY ? 'OK' : 'MISSING'} | OpenAI=${process.env.OPENAI_API_KEY ? 'OK' : 'MISSING'}`);
-    logger.info('boot', `Model Router: active | Routes: ${Object.keys(modelRouter.ROUTE_MAP).join(', ')}`);
+    logger.info('boot', `Model Router: active | Routes: ${Object.keys(modelRouter?.ROUTE_MAP || {}).join(', ')}`);
 
     // 3. Start all background jobs (leaderboard, card cleanup, alert scheduler)
     initJobs({ port: PORT });

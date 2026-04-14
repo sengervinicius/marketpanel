@@ -17,6 +17,7 @@ import {
 } from '../../utils/constants';
 import { getMobileHomeScreens } from '../../config/templates';
 import { checkAIAvailable } from '../../hooks/useAIInsight';
+import OptionsHomeWidget from '../common/OptionsHomeWidget';
 import './HomePanelMobile.css';
 
 // Curated sections aligned to PARTICLE_HOME_SCREEN_REPORT.md audit
@@ -341,6 +342,12 @@ function HomePanelMobile({ onSearchClick }) {
         )}
         {aiPulse && <div className="hpm-ai-result">{aiPulse}</div>}
       </div>
+
+      {/* Options Flow Widget */}
+      <OptionsHomeWidget onNavigate={(view) => {
+        // Navigate to options flow tab in 'more' section
+        if (onSearchClick) onSearchClick();
+      }} />
 
       {/* Market Screens Gallery — horizontal scroll */}
       <MarketScreensGallery onApplyScreen={applyTemplate} />

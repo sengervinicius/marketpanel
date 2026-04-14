@@ -98,6 +98,12 @@ export function useMarketData() {
       );
       if (!isMountedRef.current) return;
 
+      // Debug: log rejected endpoints so mobile issues can be diagnosed
+      const rejected = results.filter(r => r.status === 'rejected');
+      if (rejected.length > 0) {
+        console.warn('[useMarketData] Failed endpoints:', rejected.map(r => r.reason?.message).join(', '));
+      }
+
       const newData = {};
       const newEndpointErrors = {};
       for (const r of results) {
@@ -152,8 +158,8 @@ export function useMarketData() {
       // HTTP 402/403/401, so users saw blank panels with no explanation.
       const primaryKeys = ['stocks', 'forex', 'crypto'];
       const allPrimaryFailed = primaryKeys.every(k => newEndpointErrors[k]);
-      const hasNewData = Object.keys(newData).length > 0;
-      if (allPrimaryFailed && !hasNewData) {
+      const hasNewPrimaryData = primaryKeys.some(k => newData[k] && Object.keys(newData[k]).length > 0);
+      if (allPrimaryFailed && !hasNewPrimaryData) {
         const msgs = primaryKeys.map(k => newEndpointErrors[k]).filter(Boolean);
         const httpCode = msgs.map(m => m.match(/HTTP (\d+)/)?.[1]).find(Boolean);
         if      (httpCode === '402') setError('subscription_required');
@@ -182,7 +188,7 @@ export function useMarketData() {
 
   useEffect(() => {
     isMountedRef.current = true;
-    const isMobile = window.innerWidth < 1024;
+    const isMobile = window.innerWidth < 768;
     const interval = isMobile ? MOBILE_REFRESH_MS : REFRESH_MS;
 
     fetchAll();
