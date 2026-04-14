@@ -307,7 +307,7 @@ async function handleWebhookEvent(stripe, event) {
     }
 
     case 'invoice.payment_failed': {
-      // Payment failed — flag user with grace period before deactivation
+      // Payment failed — deactivate after 3 attempts AND send dunning email
       const invoice = sub;
       const customerId = invoice.customer;
       const userId = await findUserIdByCustomer(customerId);
@@ -323,6 +323,37 @@ async function handleWebhookEvent(stripe, event) {
           subscriptionActive: false,
         });
         console.warn(`[billing] user ${userId} deactivated after ${attemptCount} failed payment attempts`);
+      }
+
+      // Send dunning email with link to update payment method
+      const user = getUserById(userId);
+      if (user) {
+        const appUrl = process.env.CLIENT_URL || 'https://senger-client.onrender.com';
+
+        const subject = 'Payment Failed — Update Your Payment Method';
+        const html = `
+<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:520px;margin:0 auto;background:#1a1a2e;color:#e0e0e0;padding:24px;border-radius:8px;">
+  <div style="border-bottom:2px solid #ff6600;padding-bottom:12px;margin-bottom:16px;">
+    <span style="color:#ff6600;font-weight:700;font-size:18px;">PARTICLE</span>
+    <span style="color:#ff6600;font-size:14px;margin-left:8px;">Payment Failed</span>
+  </div>
+  <div style="background:#16213e;padding:16px;border-radius:6px;margin-bottom:16px;">
+    <div style="font-size:18px;font-weight:700;color:#fff;">Payment Attempt #${attemptCount} Failed</div>
+    <div style="margin-top:12px;font-size:15px;color:#e0e0e0;">
+      We were unable to process your subscription payment. Please update your payment method to continue your subscription.
+    </div>
+    <div style="margin-top:12px;font-size:14px;color:#aaa;">
+      If not updated, your subscription will be canceled after multiple failed attempts.
+    </div>
+  </div>
+  <a href="${appUrl}/?billing=manage" style="display:inline-block;background:#ff6600;color:#fff;padding:10px 24px;border-radius:4px;text-decoration:none;font-weight:600;font-size:14px;">Update Payment Method</a>
+  <div style="margin-top:16px;font-size:11px;color:#555;">Particle Market Terminal — Payment disputes are processed securely.</div>
+</div>`;
+
+        const text = `Payment Failed\n\nPayment attempt #${attemptCount} could not be processed.\n\nPlease update your payment method to continue your subscription:\n${appUrl}/?billing=manage\n\nIf you do not update your payment, your subscription will be canceled after multiple failed attempts.`;
+
+        await sendEmail(user, { subject, html, text });
+        console.log(`[billing] payment_failed dunning email sent to user ${userId} (attempt #${attemptCount})`);
       }
       // Stripe handles retry scheduling via Smart Retries
       break;
@@ -381,46 +412,6 @@ async function handleWebhookEvent(stripe, event) {
 
       await sendEmail(user, { subject, html, text });
       console.log(`[billing] trial_will_end reminder sent to user ${userId}`);
-      break;
-    }
-
-    case 'invoice.payment_failed': {
-      // Payment failed — send dunning email with link to update payment method
-      const invoice = sub;
-      const customerId = invoice.customer;
-      const userId = await findUserIdByCustomer(customerId);
-      if (!userId) { console.warn('[billing] payment_failed: no userId for customer', customerId); break; }
-
-      const user = getUserById(userId);
-      if (!user) { console.warn('[billing] payment_failed: user not found', userId); break; }
-
-      const attemptCount = invoice.attempt_count || 1;
-      const appUrl = process.env.CLIENT_URL || 'https://senger-client.onrender.com';
-
-      const subject = 'Payment Failed — Update Your Payment Method';
-      const html = `
-<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:520px;margin:0 auto;background:#1a1a2e;color:#e0e0e0;padding:24px;border-radius:8px;">
-  <div style="border-bottom:2px solid #ff6600;padding-bottom:12px;margin-bottom:16px;">
-    <span style="color:#ff6600;font-weight:700;font-size:18px;">PARTICLE</span>
-    <span style="color:#ff6600;font-size:14px;margin-left:8px;">Payment Failed</span>
-  </div>
-  <div style="background:#16213e;padding:16px;border-radius:6px;margin-bottom:16px;">
-    <div style="font-size:18px;font-weight:700;color:#fff;">Payment Attempt #${attemptCount} Failed</div>
-    <div style="margin-top:12px;font-size:15px;color:#e0e0e0;">
-      We were unable to process your subscription payment. Please update your payment method to continue your subscription.
-    </div>
-    <div style="margin-top:12px;font-size:14px;color:#aaa;">
-      If not updated, your subscription will be canceled after multiple failed attempts.
-    </div>
-  </div>
-  <a href="${appUrl}/?billing=manage" style="display:inline-block;background:#ff6600;color:#fff;padding:10px 24px;border-radius:4px;text-decoration:none;font-weight:600;font-size:14px;">Update Payment Method</a>
-  <div style="margin-top:16px;font-size:11px;color:#555;">Particle Market Terminal — Payment disputes are processed securely.</div>
-</div>`;
-
-      const text = `Payment Failed\n\nPayment attempt #${attemptCount} could not be processed.\n\nPlease update your payment method to continue your subscription:\n${appUrl}/?billing=manage\n\nIf you do not update your payment, your subscription will be canceled after multiple failed attempts.`;
-
-      await sendEmail(user, { subject, html, text });
-      console.log(`[billing] payment_failed dunning email sent to user ${userId} (attempt #${attemptCount})`);
       break;
     }
 

@@ -720,6 +720,10 @@ async function boot() {
     if (!process.env.POLYGON_API_KEY) {
       logger.warn('boot', '[SECURITY] POLYGON_API_KEY is not set. Market data features will be unavailable or degraded.');
     }
+    // Warn if STRIPE_WEBHOOK_SECRET is not configured
+    if (!process.env.STRIPE_WEBHOOK_SECRET) {
+      logger.warn('boot', '[SECURITY] STRIPE_WEBHOOK_SECRET is not set. Billing webhooks will not be processed. Set it in Render environment.');
+    }
   }
 
   // 1. Platform services (optional — app works without them)

@@ -21,6 +21,7 @@ const COMMAND_GROUPS = [
     icon: '→',
     commands: [
       { id: 'home', label: 'Go to Home', action: 'navigate', target: 'home', shortcut: 'Cmd+H' },
+      { id: 'options-flow', label: 'Go to Options Flow', action: 'navigate', target: 'options-flow' },
       { id: 'defence', label: 'Go to Defence Screen', action: 'navigate', target: 'defence', shortcut: 'Cmd+1' },
       { id: 'commodities', label: 'Go to Commodities Screen', action: 'navigate', target: 'commodities', shortcut: 'Cmd+2' },
       { id: 'brazil-em', label: 'Go to Brazil EM Screen', action: 'navigate', target: 'brazil-em', shortcut: 'Cmd+3' },

@@ -195,9 +195,9 @@ async function generateSignalInsight(context) {
 
 // ── Detector 1: Momentum Break ──────────────────────────────────────────────
 async function detectMomentumBreaks() {
-  if (!isWeekday() || !_marketState) return;
-
   try {
+    if (!isWeekday() || !_marketState) return;
+
     const stocks = _marketState.stocks || {};
     const watchlistMap = await getAllUserWatchlists();
 
@@ -239,9 +239,9 @@ async function detectMomentumBreaks() {
 
 // ── Detector 2: Earnings Alert ──────────────────────────────────────────────
 async function detectEarningsAlerts() {
-  if (!isWeekday() || !earningsService.isConfigured()) return;
-
   try {
+    if (!isWeekday() || !earningsService.isConfigured()) return;
+
     const watchlistMap = await getAllUserWatchlists();
 
     for (const [userId, watchlist] of watchlistMap) {
@@ -279,9 +279,9 @@ async function detectEarningsAlerts() {
 
 // ── Detector 3: Market Status Change ────────────────────────────────────────
 async function detectMarketStatusChange() {
-  if (!isWeekday()) return;
-
   try {
+    if (!isWeekday()) return;
+
     const etHours = getETHours();
     const today = getTodayDateStr();
 

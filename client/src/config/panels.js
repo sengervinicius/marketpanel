@@ -402,6 +402,17 @@ export const PANEL_DEFINITIONS = {
     minSymbols:     0,
     maxSymbols:     0,
   },
+  optionsFlow: {
+    id:             'optionsFlow',
+    label:          'Options Flow',
+    defaultTitle:   'Options Flow',
+    defaultSymbols: [],
+    allowedGroups:  null,
+    editable:       false,
+    icon:           'OF',
+    minSymbols:     0,
+    maxSymbols:     0,
+  },
 };
 
 /**

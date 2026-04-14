@@ -1,5 +1,5 @@
-// ChartPanel.jsx — Bloomberg-style multi-chart grid (fixed 4×4 = 16 slots)
-// Desktop: always-full 4×4 symmetric grid — no empty rows ever
+// ChartPanel.jsx — Bloomberg-style multi-chart grid (fixed 4×3 = 12 slots)
+// Desktop: always-full 4×3 symmetric grid — no empty rows ever
 // Mobile: 2-col scrollable layout sharing same localStorage as desktop
 // Phase 15: indicator overlays + AI chart insight per MiniChart
 import { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
