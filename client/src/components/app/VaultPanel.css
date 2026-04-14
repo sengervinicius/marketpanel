@@ -823,11 +823,9 @@
   color: rgba(255, 255, 255, 0.6);
 }
 
-/* ── Disabled upload area when DB is offline ── */
-.vault-upload-area--disabled {
-  opacity: 0.35;
-  pointer-events: none;
-  cursor: not-allowed;
+/* ── Degraded upload area when DB is offline — still clickable, server returns error ── */
+.vault-upload-area--degraded {
+  opacity: 0.6;
 }
 
 .vault-toast-dismiss {

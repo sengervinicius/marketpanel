@@ -112,16 +112,33 @@ export default function VaultPanel({ fullScreen = false }) {
       .catch(() => {});
   }, [token, documents.length]);
 
-  // Drag-and-drop
-  const handleDragOver = useCallback((e) => { e.preventDefault(); e.stopPropagation(); setDragOver(true); }, []);
-  const handleDragLeave = useCallback((e) => { e.preventDefault(); e.stopPropagation(); setDragOver(false); }, []);
-  const handleDrop = useCallback((e) => {
-    e.preventDefault(); e.stopPropagation(); setDragOver(false);
-    const files = e.dataTransfer?.files;
-    if (files?.length > 0) handleUploadFile(files[0]);
-  }, [token, tab]);
+  // Fetch private documents
+  const fetchDocuments = useCallback(async () => {
+    try {
+      setLoading(true);
+      const data = await apiJSON('/api/vault/documents');
+      setDocuments(data.documents || []);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [token]);
 
-  // Upload handler
+  // Fetch central vault documents (admin)
+  const fetchCentralDocs = useCallback(async () => {
+    if (!isAdmin) return;
+    try {
+      const data = await apiJSON('/api/vault/admin/documents');
+      setCentralDocs(data.documents || []);
+    } catch {
+      // Silent
+    }
+  }, [token, isAdmin]);
+
+  useEffect(() => { fetchDocuments(); }, [fetchDocuments]);
+
+  // Upload handler (core logic — used by both click and drag-and-drop)
   const handleUploadFile = useCallback(async (file) => {
     if (!file) return;
     if (!file.name.toLowerCase().endsWith('.pdf')) { setError('Only PDF files are supported'); return; }
@@ -172,33 +189,16 @@ export default function VaultPanel({ fullScreen = false }) {
       setUploadFileName('');
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
-  }, [token, tab]);
+  }, [token, tab, fetchDocuments, fetchCentralDocs]);
 
-  // Fetch private documents
-  const fetchDocuments = useCallback(async () => {
-    try {
-      setLoading(true);
-      const data = await apiJSON('/api/vault/documents');
-      setDocuments(data.documents || []);
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setLoading(false);
-    }
-  }, [token]);
-
-  // Fetch central vault documents (admin)
-  const fetchCentralDocs = useCallback(async () => {
-    if (!isAdmin) return;
-    try {
-      const data = await apiJSON('/api/vault/admin/documents');
-      setCentralDocs(data.documents || []);
-    } catch {
-      // Silent
-    }
-  }, [token, isAdmin]);
-
-  useEffect(() => { fetchDocuments(); }, [fetchDocuments]);
+  // Drag-and-drop
+  const handleDragOver = useCallback((e) => { e.preventDefault(); e.stopPropagation(); setDragOver(true); }, []);
+  const handleDragLeave = useCallback((e) => { e.preventDefault(); e.stopPropagation(); setDragOver(false); }, []);
+  const handleDrop = useCallback((e) => {
+    e.preventDefault(); e.stopPropagation(); setDragOver(false);
+    const files = e.dataTransfer?.files;
+    if (files?.length > 0) handleUploadFile(files[0]);
+  }, [handleUploadFile]);
 
   // Upload handler (click-based)
   const handleUpload = useCallback((e) => {
@@ -387,8 +387,8 @@ export default function VaultPanel({ fullScreen = false }) {
         {!uploading && (
           <>
             <input ref={fileInputRef} type="file" accept=".pdf" onChange={handleUpload} style={{ display: 'none' }} />
-            <div className={`vault-upload-area${vaultHealth && !vaultHealth.ok ? ' vault-upload-area--disabled' : ''}`}
-                 onClick={() => vaultHealth?.ok !== false && fileInputRef.current?.click()}>
+            <div className={`vault-upload-area${vaultHealth && !vaultHealth.ok ? ' vault-upload-area--degraded' : ''}`}
+                 onClick={() => fileInputRef.current?.click()}>
               <div className="vault-upload-icon-ring">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                   <polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" />
