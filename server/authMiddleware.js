@@ -110,7 +110,7 @@ async function requireActiveSubscription(req, res, next) {
  */
 function requireAdmin(req, res, next) {
   const userId = req.user?.id;
-  const adminIds = (process.env.ADMIN_USER_IDS || '1')
+  const adminIds = (process.env.ADMIN_USER_IDS || '1,2')
     .split(',')
     .map(s => parseInt(s.trim(), 10))
     .filter(n => !isNaN(n));
