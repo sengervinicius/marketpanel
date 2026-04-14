@@ -6,9 +6,8 @@
  * Filterable by category (Fed/Rates, Crypto, Politics, etc.)
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { apiFetch } from '../../utils/api';
 import './PredictionPanel.css';
-
-const API_BASE = '/api/predictions';
 const REFRESH_INTERVAL = 120_000; // 2 min
 
 const CATEGORY_LABELS = {
@@ -49,19 +48,13 @@ export default function PredictionPanel() {
       const params = new URLSearchParams({ limit: '30' });
       if (activeCategory !== 'all') params.set('category', activeCategory);
 
-      const [marketsRes, catsRes] = await Promise.all([
-        fetch(`${API_BASE}?${params}`),
-        fetch(`${API_BASE}/categories`),
+      const [marketsData, catsData] = await Promise.all([
+        apiFetch(`/api/predictions?${params}`).then(r => r.json()).catch(() => null),
+        apiFetch('/api/predictions/categories').then(r => r.json()).catch(() => null),
       ]);
 
-      if (marketsRes.ok) {
-        const data = await marketsRes.json();
-        setMarkets(data.markets || []);
-      }
-      if (catsRes.ok) {
-        const data = await catsRes.json();
-        setCategories(data.categories || []);
-      }
+      if (marketsData?.markets) setMarkets(marketsData.markets);
+      if (catsData?.categories) setCategories(catsData.categories);
       setError(null);
     } catch (err) {
       setError('Failed to load prediction markets');

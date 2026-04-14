@@ -185,6 +185,7 @@
   margin: 0 0 8px;
   letter-spacing: -0.02em;
   line-height: 1.15;
+  text-align: center;
 }
 
 .particle-screen-subtitle {
@@ -195,6 +196,7 @@
   margin: 0 0 24px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+  text-align: center;
 }
 
 /* ── Search bar ──── */

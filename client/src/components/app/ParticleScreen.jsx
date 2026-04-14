@@ -117,7 +117,11 @@ export default function ParticleScreen() {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(r => r.json())
-      .then(data => { if (!cancelled && data.ok && data.greeting) setApiGreeting(data.greeting); })
+      .then(data => {
+        if (!cancelled && data.ok && data.greeting && !data.greeting.toLowerCase().includes('loading')) {
+          setApiGreeting(data.greeting);
+        }
+      })
       .catch(() => {});
     return () => { cancelled = true; };
   }, [token]);

@@ -424,22 +424,7 @@ function HomePanelMobile({ onSearchClick, onSectorScreen }) {
         <svg className="hpm-feature-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 18 15 12 9 6"/></svg>
       </div>
 
-      {/* Phase 4: Vault upload CTA card */}
-      <div className="hpm-vault-cta" onClick={() => onSectorScreen?.('vault')}>
-        <div className="hpm-vault-cta-icon">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
-            <line x1="12" y1="6" x2="12" y2="14" />
-            <polyline points="9 11 12 14 15 11" />
-          </svg>
-        </div>
-        <div className="hpm-vault-cta-text">
-          <div className="hpm-vault-cta-title">Upload Research</div>
-          <div className="hpm-vault-cta-sub">PDFs and reports make your AI smarter</div>
-        </div>
-        <svg className="hpm-vault-cta-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 18 15 12 9 6" /></svg>
-      </div>
+      {/* Upload Research CTA removed — not suitable for mobile */}
 
       {/* Options Flow Widget */}
       <OptionsHomeWidget onNavigate={(view) => {
