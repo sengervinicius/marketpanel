@@ -2,13 +2,20 @@
  * ParticleMarkdown.jsx — Shared markdown rendering for Particle AI responses.
  *
  * Handles: **bold**, `code`, $TICKER, [action:TYPE:PARAMS], [N] citations,
- *          [sentiment:BULL/BEAR/NEUTRAL], block-level markdown (headers, bullets, BOTTOM LINE)
+ *          [sentiment:BULL/BEAR/NEUTRAL], [chart:TYPE:DATA:PERIOD],
+ *          block-level markdown (headers, bullets, BOTTOM LINE)
+ *
+ * INLINE CHARTS SYNTAX (block-level only):
+ *   [chart:sparkline:AAPL:1M] — price sparkline for single ticker
+ *   [chart:comparison:AAPL,MSFT,GOOGL:3M] — overlay comparison of multiple tickers
+ *   [chart:bar:LABEL1=VALUE1,LABEL2=VALUE2] — horizontal bar chart with custom data
  *
  * Used by: ParticleScreen.jsx (main chat), ChatPanel.jsx (sidebar chat)
  */
 
 import { memo } from 'react';
 import { API_BASE } from '../../utils/api';
+import InlineChart from './InlineChart';
 
 /** AI-suggested terminal action button */
 function ActionButton({ type, params }) {
@@ -99,10 +106,28 @@ export function renderInline(text) {
 }
 
 /**
+ * Parse chart block: [chart:TYPE:DATA:PERIOD]
+ * Returns: { type, data, period, title } or null
+ */
+function parseChartBlock(line) {
+  const match = line.trim().match(/^\[chart:([a-z]+):([^:]+)(?::([^:\]]+))?\](?:\s+(.+))?$/i);
+  if (!match) return null;
+
+  const [, type, data, period, title] = match;
+  return {
+    type: type.toLowerCase(),
+    data: data.trim(),
+    period: period?.trim() || '1M',
+    title: title?.trim() || null,
+  };
+}
+
+/**
  * Render a full AI response with block-level markdown:
  * - Headers (## / ###)
  * - Bullet lists (- / *)
  * - BOTTOM LINE: highlighted
+ * - Inline charts [chart:...]
  * - Inline markdown within each block
  */
 function ParticleMarkdown({ content, className = '' }) {
@@ -132,6 +157,36 @@ function ParticleMarkdown({ content, className = '' }) {
     // Skip empty lines (but flush lists)
     if (!trimmed) {
       flushList();
+      continue;
+    }
+
+    // Inline chart: [chart:TYPE:DATA:PERIOD]
+    const chartMatch = parseChartBlock(trimmed);
+    if (chartMatch) {
+      flushList();
+
+      // Parse chart data based on type
+      let chartType = chartMatch.type;
+      let chartProps = {
+        type: chartType,
+        period: chartMatch.period,
+        title: chartMatch.title,
+      };
+
+      if (chartType === 'sparkline') {
+        // Single ticker: [chart:sparkline:AAPL:1M]
+        chartProps.tickers = chartMatch.data;
+      } else if (chartType === 'comparison') {
+        // Multiple tickers: [chart:comparison:AAPL,MSFT,GOOGL:3M]
+        chartProps.tickers = chartMatch.data.split(',').map(t => t.trim());
+      } else if (chartType === 'bar') {
+        // Bar data: [chart:bar:LABEL1=VAL1,LABEL2=VAL2]
+        chartProps.tickers = chartMatch.data;
+      }
+
+      elements.push(
+        <InlineChart key={`chart-${i}`} {...chartProps} />
+      );
       continue;
     }
 

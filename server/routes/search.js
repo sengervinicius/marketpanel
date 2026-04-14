@@ -1337,6 +1337,7 @@ const { buildContext } = require('../services/marketContextBuilder');
 const behaviorTracker = require('../services/behaviorTracker');
 const deepAnalysis = require('../services/deepAnalysis');
 const modelRouter = require('../services/modelRouter');
+const agentOrchestrator = require('../services/agentOrchestrator');
 const edgar = require('../services/edgar');
 const earnings = require('../services/earnings');
 const computeEngine = require('../services/computeEngine');
@@ -1408,68 +1409,56 @@ router.post('/chat', async (req, res) => {
     }
   }
 
-  // ── Vault RAG: retrieve relevant passages from user's private vault ──────
-  let vaultContext = '';
-  let vaultSources = []; // For citation metadata sent to client
-  try {
-    const vault = require('../services/vault');
-    const passages = await vault.retrieve(userId, userQuery);
-    vaultContext = vault.formatForPrompt(passages);
-    // Extract source metadata for citations
-    if (passages && passages.length > 0) {
-      vaultSources = passages.map(p => ({
-        filename: p.filename || 'Unknown',
-        source: p.doc_metadata?.bank || p.source || '',
-        tickers: p.doc_metadata?.tickers || [],
-        date: p.doc_metadata?.date || '',
-        similarity: p.similarity != null ? parseFloat(p.similarity).toFixed(2) : null,
-        isGlobal: p.is_global || false,
-      }));
-    }
-  } catch (e) {
-    // Vault not available — continue without it
-    console.error('[Particle/Vault] Retrieval error:', e.message);
-  }
+  // ── Wave 5A: Parallel agent orchestration for faster context gathering ──────
+  // Run all data sources concurrently: vault, EDGAR, earnings, memory, portfolio metrics
+  let orchestratedContext = {
+    vault: { context: '', sources: [] },
+    edgar: { context: '' },
+    earnings: { context: '' },
+    memory: { sessionContext: '', persistentContext: '' },
+    compute: { context: '' },
+    summary: { hasVault: false, hasEDGAR: false, hasEarnings: false, hasMemory: false, hasCompute: false },
+  };
 
-  // ── Portfolio metrics injection ────────────────────────────────────────────
-  let portfolioMetricsContext = '';
   try {
+    // Prepare portfolio data if query mentions portfolio-related keywords
+    let portfolioData = null;
     if (userId) {
       const portfolio = portfolioStore.getPortfolio(userId);
       const userQuery_lower = userQuery.toLowerCase();
-
-      // Detect portfolio-related queries
       const isPortfolioQuery = /portfolio|position|p&l|pnl|gain|loss|exposure|allocation|holding|weight|return|performance|net worth|total value/i.test(userQuery_lower);
 
       if (portfolio && portfolio.positions && portfolio.positions.length > 0 && isPortfolioQuery) {
-        // Transform portfolio positions to computeEngine format
-        const positions = portfolio.positions.map(p => ({
+        portfolioData = portfolio.positions.map(p => ({
           symbol: p.symbol || 'UNKNOWN',
           shares: p.quantity || 0,
           avgCost: p.entryPrice || 0,
           currentPrice: p.currentPrice || 0,
           dayPriceChange: p.dayPriceChange || 0,
         }));
-
-        // Compute deterministic metrics
-        const metrics = computeEngine.computePortfolioMetrics(positions);
-
-        // Format for LLM consumption
-        portfolioMetricsContext = `PRE-COMPUTED PORTFOLIO METRICS:
-- Total Value: $${metrics.totalValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-- Total Cost Basis: $${metrics.totalCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-- Total P&L: $${metrics.totalPnL.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (${metrics.totalPnLPct > 0 ? '+' : ''}${metrics.totalPnLPct.toFixed(2)}%)
-- Today's P&L: $${metrics.dayPnL.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (${metrics.dayPnLPct > 0 ? '+' : ''}${metrics.dayPnLPct.toFixed(2)}%)
-- Positions (${metrics.positions.length}):
-${metrics.positions.map(pos => `  ${pos.symbol}: ${pos.shares} shares @ $${pos.currentPrice} = $${pos.value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (${pos.pnlPct > 0 ? '+' : ''}${pos.pnlPct.toFixed(2)}%, weight ${pos.weight.toFixed(2)}%)`).join('\n')}
-
-IMPORTANT: NEVER do math in your head. Use the PRE-COMPUTED values above.`;
       }
     }
+
+    // Call orchestrator to gather all context sources in parallel
+    orchestratedContext = await agentOrchestrator.gatherContext({
+      query: userQuery,
+      userId,
+      portfolioData,
+      sessionId: req.sessionID || null,
+    });
   } catch (err) {
-    // Portfolio metrics not critical — continue without them
-    console.error('[Particle/Portfolio] Metrics computation error:', err.message);
+    // Graceful degradation: log error and continue with empty context
+    console.warn('[Particle/Orchestrator] Context gathering failed, falling back to empty:', err.message);
   }
+
+  // ── Extract context variables from orchestrated result ────────────────────
+  const vaultContext = orchestratedContext.vault?.context || '';
+  const vaultSources = orchestratedContext.vault?.sources || [];
+  const edgarContext = orchestratedContext.edgar?.context || '';
+  const earningsContext = orchestratedContext.earnings?.context || '';
+  const sessionMemoryContext = orchestratedContext.memory?.sessionContext || '';
+  const persistentMemoryContext = orchestratedContext.memory?.persistentContext || '';
+  const portfolioMetricsContext = orchestratedContext.compute?.context || '';
 
   // ── Wave 11: Deep analysis detection ────────────────────────────────────
   let deepAnalysisResult = null;
@@ -1477,55 +1466,6 @@ IMPORTANT: NEVER do math in your head. Use the PRE-COMPUTED values above.`;
     deepAnalysisResult = deepAnalysis.getAnalysisPrompt(userQuery, userId);
   } catch (err) {
     // Non-critical — fall through to standard prompt
-  }
-
-  // ── SEC EDGAR integration: append regulatory filings + insider data ──────────
-  let edgarContext = '';
-  try {
-    // Extract primary ticker from user query (if any)
-    const tickerMatch = userQuery.match(/\$?([A-Z]{1,5}(?:\.[A-Z]{1,2})?)\b/);
-    if (tickerMatch) {
-      const ticker = tickerMatch[1];
-      // Non-blocking: EDGAR data is optional enrichment
-      edgarContext = await edgar.formatForContext(ticker).catch(() => '');
-    }
-  } catch (err) {
-    // EDGAR failure never crashes the chat flow
-    console.warn('[Particle/EDGAR] Enrichment error:', err.message);
-  }
-
-  // ── Earnings Calendar integration: append upcoming earnings for mentioned tickers ──
-  let earningsContext = '';
-  try {
-    // Extract all ticker symbols from user query
-    const tickerMatches = userQuery.match(/\$?([A-Z]{1,5}(?:\.[A-Z]{1,2})?)/g);
-    if (tickerMatches && tickerMatches.length > 0) {
-      const tickers = [...new Set(tickerMatches.map(t => t.replace(/^\$/, '').toUpperCase()))];
-      // Non-blocking: earnings data is optional enrichment
-      earningsContext = await earnings.formatForContext(tickers).catch(() => '');
-    }
-  } catch (err) {
-    // Earnings enrichment failure never crashes the chat flow
-    console.warn('[Particle/Earnings] Enrichment error:', err.message);
-  }
-
-  // ── Tier 1: Session Memory (In-Memory Working Memory) ────────────────────
-  let sessionMemoryContext = '';
-  try {
-    const session = memoryManager.getSessionMemory(userId);
-    if (session) {
-      sessionMemoryContext = memoryManager.formatSessionMemory(session);
-    }
-  } catch (err) {
-    console.warn('[Particle/SessionMemory] Load error:', err.message);
-  }
-
-  // ── Tier 2: Persistent Memory (Cross-Session Database) ──────────────────
-  let persistentMemoryContext = '';
-  try {
-    persistentMemoryContext = await memoryManager.getPersistedMemories(userId);
-  } catch (err) {
-    console.warn('[Particle/PersistentMemory] Load error:', err.message);
   }
 
   let systemPrompt;
@@ -1550,6 +1490,15 @@ VOICE CONTRACT — MANDATORY:
 
 PROHIBITED PHRASES — NEVER USE THESE:
 "It's important to note", "Based on the data provided", "As an AI", "I'd recommend considering", "It's worth noting", "Let me explain", "In conclusion", "It should be noted", "As always, do your own research", "There are several factors to consider", "The market is complex", "Many analysts believe", "Time will tell"
+
+INLINE CHARTS — You can embed live charts in your responses using this syntax:
+- [chart:sparkline:TICKER:PERIOD] — price sparkline for single ticker. PERIOD: 1M, 3M, 6M, 1Y (default 1M)
+  Example: [chart:sparkline:AAPL:1M]
+- [chart:comparison:TICKER1,TICKER2,TICKER3:PERIOD] — overlay comparison of multiple tickers
+  Example: [chart:comparison:AAPL,MSFT,NVDA:3M]
+- [chart:bar:LABEL1=VALUE1,LABEL2=VALUE2] — horizontal bar chart for sector/metric comparisons
+  Example: [chart:bar:Tech=5.2,Healthcare=3.1,Energy=1.8]
+Use sparingly — max one chart per response. Best for: price trend discussions, sector comparisons, before/after analysis, momentum visualizations.
 
 RESPONSE STRUCTURE for asset/market questions:
 1. [sentiment:bull] or [sentiment:bear] or [sentiment:neutral] — always lead with this

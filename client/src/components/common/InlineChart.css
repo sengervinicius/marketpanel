@@ -1,0 +1,212 @@
+/**
+ * InlineChart.css — Styling for inline chart components
+ *
+ * Terminal-themed dark background with neon-colored accents.
+ * Responsive and compact to fit naturally in AI response text.
+ */
+
+.inline-chart-wrapper {
+  margin: 12px 0;
+  border-radius: 4px;
+  background-color: #0f0f12;
+  padding: 8px;
+  border: 1px solid #222228;
+  overflow: hidden;
+}
+
+.inline-chart-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #aaaaaa;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Container styles by type */
+.inline-chart-container {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: 100%;
+}
+
+.inline-chart-container.sparkline {
+  gap: 4px;
+}
+
+.inline-chart-container.comparison {
+  gap: 8px;
+}
+
+.inline-chart-container.bar {
+  gap: 0;
+}
+
+/* SVG base */
+.inline-chart-svg {
+  background-color: transparent;
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* Sparkline footer with ticker and change */
+.inline-chart-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  padding: 0 4px;
+}
+
+.inline-chart-ticker {
+  color: #aaaaaa;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.inline-chart-change {
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 2px;
+}
+
+.inline-chart-change.up {
+  color: #00ff88;
+  background-color: rgba(0, 255, 136, 0.1);
+}
+
+.inline-chart-change.down {
+  color: #ff4444;
+  background-color: rgba(255, 68, 68, 0.1);
+}
+
+/* Text labels in charts */
+.inline-chart-label {
+  font-family: 'Monaco', 'Courier New', monospace;
+  font-weight: bold;
+}
+
+.inline-chart-bar-label {
+  font-family: 'Monaco', 'Courier New', monospace;
+}
+
+.inline-chart-bar-value {
+  font-family: 'Monaco', 'Courier New', monospace;
+}
+
+/* Legend for comparison charts */
+.inline-chart-legend {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  padding: 4px;
+  font-size: 11px;
+}
+
+.inline-chart-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: #999999;
+}
+
+.legend-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.legend-label {
+  font-weight: 500;
+}
+
+/* Loading skeleton */
+.inline-chart-skeleton {
+  width: 100%;
+  height: 80px;
+  background: linear-gradient(90deg, #1a1a20 25%, #222228 50%, #1a1a20 75%);
+  background-size: 200% 100%;
+  animation: skeleton-loading 1.5s infinite;
+  border-radius: 4px;
+}
+
+.inline-chart-skeleton-line {
+  height: 40px;
+  margin-top: 20px;
+  background: linear-gradient(90deg, #222228 25%, #333338 50%, #222228 75%);
+  background-size: 200% 100%;
+  animation: skeleton-loading 1.5s infinite;
+  border-radius: 2px;
+}
+
+@keyframes skeleton-loading {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* Error state */
+.inline-chart-error {
+  padding: 12px;
+  color: #ff8844;
+  font-size: 12px;
+  text-align: center;
+  background-color: rgba(255, 136, 68, 0.05);
+  border-radius: 4px;
+  border: 1px solid rgba(255, 136, 68, 0.2);
+  font-family: 'Monaco', 'Courier New', monospace;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .inline-chart-wrapper {
+    margin: 8px 0;
+    padding: 6px;
+  }
+
+  .inline-chart-title {
+    font-size: 11px;
+  }
+
+  .inline-chart-footer {
+    font-size: 10px;
+  }
+
+  .inline-chart-legend {
+    font-size: 10px;
+    gap: 8px;
+  }
+}
+
+/* Focus/hover states for accessibility */
+.inline-chart-svg:focus {
+  outline: 2px solid #4488ff;
+  outline-offset: 2px;
+}
+
+/* Print styles */
+@media print {
+  .inline-chart-skeleton {
+    display: none;
+  }
+
+  .inline-chart-wrapper {
+    border-color: #666666;
+    background-color: #ffffff;
+    color: #000000;
+  }
+
+  .inline-chart-label,
+  .inline-chart-bar-label,
+  .inline-chart-bar-value {
+    color: #000000;
+  }
+}

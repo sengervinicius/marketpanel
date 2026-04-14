@@ -1,0 +1,417 @@
+/**
+ * agentOrchestrator.js — Parallel agent orchestration for Wave 5A
+ *
+ * Runs all data-gathering tasks concurrently using Promise.allSettled
+ * to speed up AI response synthesis. Each "agent" wraps an existing service call.
+ *
+ * Key features:
+ * - Uses Promise.allSettled so one failure doesn't block others
+ * - Configurable timeouts per agent (default 5s)
+ * - Logs timing for each agent for performance monitoring
+ * - mergeResults() combines all successful results into a single context object
+ */
+
+const vault = require('./vault');
+const edgar = require('./edgar');
+const earnings = require('./earnings');
+const memoryManager = require('./memoryManager');
+const computeEngine = require('./computeEngine');
+
+// ── Configuration ──────────────────────────────────────────────────────
+const DEFAULT_TIMEOUT_MS = 5000; // 5 seconds per agent
+const AGENT_TIMEOUTS = {
+  vault: 4000,      // Vault RAG retrieval
+  edgar: 3000,      // SEC filings + insider data
+  earnings: 3000,   // Earnings calendar
+  memory: 2000,     // Session + persistent memory (fast, in-memory/DB)
+  compute: 1000,    // Portfolio metrics (purely computational)
+  news: 5000,       // Web search news (slower external call)
+};
+
+// ── Helper: promisify with timeout ───────────────────────────────────
+function withTimeout(promise, timeoutMs, agentName) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) =>
+      setTimeout(
+        () => reject(new Error(`${agentName} timeout after ${timeoutMs}ms`)),
+        timeoutMs
+      )
+    ),
+  ]);
+}
+
+// ── Agent functions ─────────────────────────────────────────────────────
+
+/**
+ * vaultAgent: Retrieve relevant passages from user's private vault
+ * and the central vault via semantic search
+ */
+async function vaultAgent(query, userId) {
+  const passages = await vault.retrieve(userId, query);
+  return {
+    context: vault.formatForPrompt(passages),
+    sources: passages && passages.length > 0
+      ? passages.map(p => ({
+          filename: p.filename || 'Unknown',
+          source: p.doc_metadata?.bank || p.source || '',
+          tickers: p.doc_metadata?.tickers || [],
+          date: p.doc_metadata?.date || '',
+          similarity: p.similarity != null ? parseFloat(p.similarity).toFixed(2) : null,
+          isGlobal: p.is_global || false,
+        }))
+      : [],
+  };
+}
+
+/**
+ * edgarAgent: Fetch SEC EDGAR filings and insider transactions for a ticker
+ * Extracts ticker from query and fetches recent filings + insider data
+ */
+async function edgarAgent(query) {
+  const tickerMatch = query.match(/\$?([A-Z]{1,5}(?:\.[A-Z]{1,2})?)\b/);
+  if (!tickerMatch) {
+    return { context: '', ticker: null };
+  }
+
+  const ticker = tickerMatch[1];
+  const context = await edgar.formatForContext(ticker).catch(() => '');
+  return { context, ticker };
+}
+
+/**
+ * earningsAgent: Fetch earnings calendar for mentioned tickers
+ * Extracts all ticker symbols from query and fetches earnings data
+ */
+async function earningsAgent(query) {
+  const tickerMatches = query.match(/\$?([A-Z]{1,5}(?:\.[A-Z]{1,2})?)/g);
+  if (!tickerMatches || tickerMatches.length === 0) {
+    return { context: '', tickers: [] };
+  }
+
+  const tickers = [...new Set(tickerMatches.map(t => t.replace(/^\$/, '').toUpperCase()))];
+  const context = await earnings.formatForContext(tickers).catch(() => '');
+  return { context, tickers };
+}
+
+/**
+ * memoryAgent: Load session memory and persistent memories
+ * Combines both in-memory working memory and cross-session persistent memories
+ */
+async function memoryAgent(userId, sessionId) {
+  // Session memory is synchronous, persistent is async
+  let sessionMemoryContext = '';
+  let persistentMemoryContext = '';
+
+  try {
+    const session = memoryManager.getSessionMemory(userId);
+    if (session) {
+      sessionMemoryContext = memoryManager.formatSessionMemory(session);
+    }
+  } catch (err) {
+    // Non-critical — proceed without session memory
+    console.warn('[agentOrchestrator] Session memory load error:', err.message);
+  }
+
+  try {
+    persistentMemoryContext = await memoryManager.getPersistedMemories(userId);
+  } catch (err) {
+    // Non-critical — proceed without persistent memory
+    console.warn('[agentOrchestrator] Persistent memory load error:', err.message);
+  }
+
+  return {
+    sessionMemory: sessionMemoryContext,
+    persistentMemory: persistentMemoryContext,
+  };
+}
+
+/**
+ * computeAgent: Compute deterministic portfolio metrics
+ * Takes portfolio data and returns formatted metrics context
+ */
+async function computeAgent(portfolioData) {
+  if (!portfolioData || !Array.isArray(portfolioData) || portfolioData.length === 0) {
+    return { context: '' };
+  }
+
+  try {
+    const metrics = computeEngine.computePortfolioMetrics(portfolioData);
+    const context = `PRE-COMPUTED PORTFOLIO METRICS:
+- Total Value: $${metrics.totalValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+- Total Cost Basis: $${metrics.totalCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+- Total P&L: $${metrics.totalPnL.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (${metrics.totalPnLPct > 0 ? '+' : ''}${metrics.totalPnLPct.toFixed(2)}%)
+- Today's P&L: $${metrics.dayPnL.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (${metrics.dayPnLPct > 0 ? '+' : ''}${metrics.dayPnLPct.toFixed(2)}%)
+- Positions (${metrics.positions.length}):
+${metrics.positions.map(pos => `  ${pos.symbol}: ${pos.shares} shares @ $${pos.currentPrice} = $${pos.value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (${pos.pnlPct > 0 ? '+' : ''}${pos.pnlPct.toFixed(2)}%, weight ${pos.weight.toFixed(2)}%)`).join('\n')}
+
+IMPORTANT: NEVER do math in your head. Use the PRE-COMPUTED values above.`;
+    return { context, metrics };
+  } catch (err) {
+    console.warn('[agentOrchestrator] Portfolio compute error:', err.message);
+    return { context: '' };
+  }
+}
+
+/**
+ * newsAgent: Fetch real-time news via Perplexity Sonar (optional)
+ * Currently a placeholder — can be implemented if Perplexity integration is added
+ */
+async function newsAgent(query, tickers) {
+  // Placeholder: Would call Perplexity Sonar for real-time web search
+  // For now, returns empty context (graceful degrade)
+  return {
+    context: '',
+    sources: [],
+  };
+}
+
+// ── Main orchestration function ──────────────────────────────────────
+
+/**
+ * gatherContext: Run all data sources in parallel
+ *
+ * @param {object} params
+ * @param {string} params.query - User's natural language query
+ * @param {string} params.userId - User ID for vault and memory retrieval
+ * @param {array} params.portfolioData - Optional portfolio positions for metrics
+ * @param {string} params.sessionId - Optional session ID
+ * @returns {object} Merged context object with all successful data sources
+ */
+async function gatherContext({
+  query = '',
+  userId = null,
+  portfolioData = null,
+  sessionId = null,
+} = {}) {
+  const startTime = Date.now();
+  const timings = {};
+
+  // Prepare portfolio data if needed
+  let positionsForCompute = [];
+  if (portfolioData && Array.isArray(portfolioData)) {
+    positionsForCompute = portfolioData;
+  }
+
+  // ── Run all agents in parallel with individual timeouts ──────────────────
+  const [vaultResult, edgarResult, earningsResult, memoryResult, computeResult, newsResult] =
+    await Promise.allSettled([
+      // Vault RAG retrieval
+      withTimeout(
+        vaultAgent(query, userId),
+        AGENT_TIMEOUTS.vault,
+        'vault'
+      ).catch(err => {
+        console.warn('[agentOrchestrator] Vault agent failed:', err.message);
+        return { context: '', sources: [] };
+      }),
+
+      // SEC EDGAR data
+      withTimeout(
+        edgarAgent(query),
+        AGENT_TIMEOUTS.edgar,
+        'edgar'
+      ).catch(err => {
+        console.warn('[agentOrchestrator] EDGAR agent failed:', err.message);
+        return { context: '', ticker: null };
+      }),
+
+      // Earnings calendar
+      withTimeout(
+        earningsAgent(query),
+        AGENT_TIMEOUTS.earnings,
+        'earnings'
+      ).catch(err => {
+        console.warn('[agentOrchestrator] Earnings agent failed:', err.message);
+        return { context: '', tickers: [] };
+      }),
+
+      // Memory (session + persistent)
+      withTimeout(
+        memoryAgent(userId, sessionId),
+        AGENT_TIMEOUTS.memory,
+        'memory'
+      ).catch(err => {
+        console.warn('[agentOrchestrator] Memory agent failed:', err.message);
+        return { sessionMemory: '', persistentMemory: '' };
+      }),
+
+      // Portfolio metrics
+      withTimeout(
+        computeAgent(positionsForCompute),
+        AGENT_TIMEOUTS.compute,
+        'compute'
+      ).catch(err => {
+        console.warn('[agentOrchestrator] Compute agent failed:', err.message);
+        return { context: '' };
+      }),
+
+      // News search
+      withTimeout(
+        newsAgent(query, null),
+        AGENT_TIMEOUTS.news,
+        'news'
+      ).catch(err => {
+        console.warn('[agentOrchestrator] News agent failed:', err.message);
+        return { context: '', sources: [] };
+      }),
+    ]);
+
+  // ── Extract results and record timings ────────────────────────────────────
+  const results = {
+    vault: { context: '', sources: [] },
+    edgar: { context: '', ticker: null },
+    earnings: { context: '', tickers: [] },
+    memory: { sessionMemory: '', persistentMemory: '' },
+    compute: { context: '' },
+    news: { context: '', sources: [] },
+  };
+
+  // Process vault result
+  if (vaultResult.status === 'fulfilled') {
+    results.vault = vaultResult.value;
+    timings.vault = Date.now() - startTime;
+  } else {
+    timings.vault = Date.now() - startTime;
+    console.warn('[agentOrchestrator] Vault rejected:', vaultResult.reason?.message);
+  }
+
+  // Process EDGAR result
+  if (edgarResult.status === 'fulfilled') {
+    results.edgar = edgarResult.value;
+    timings.edgar = Date.now() - startTime;
+  } else {
+    timings.edgar = Date.now() - startTime;
+    console.warn('[agentOrchestrator] EDGAR rejected:', edgarResult.reason?.message);
+  }
+
+  // Process earnings result
+  if (earningsResult.status === 'fulfilled') {
+    results.earnings = earningsResult.value;
+    timings.earnings = Date.now() - startTime;
+  } else {
+    timings.earnings = Date.now() - startTime;
+    console.warn('[agentOrchestrator] Earnings rejected:', earningsResult.reason?.message);
+  }
+
+  // Process memory result
+  if (memoryResult.status === 'fulfilled') {
+    results.memory = memoryResult.value;
+    timings.memory = Date.now() - startTime;
+  } else {
+    timings.memory = Date.now() - startTime;
+    console.warn('[agentOrchestrator] Memory rejected:', memoryResult.reason?.message);
+  }
+
+  // Process compute result
+  if (computeResult.status === 'fulfilled') {
+    results.compute = computeResult.value;
+    timings.compute = Date.now() - startTime;
+  } else {
+    timings.compute = Date.now() - startTime;
+    console.warn('[agentOrchestrator] Compute rejected:', computeResult.reason?.message);
+  }
+
+  // Process news result
+  if (newsResult.status === 'fulfilled') {
+    results.news = newsResult.value;
+    timings.news = Date.now() - startTime;
+  } else {
+    timings.news = Date.now() - startTime;
+    console.warn('[agentOrchestrator] News rejected:', newsResult.reason?.message);
+  }
+
+  const totalTime = Date.now() - startTime;
+
+  // ── Log timing summary ───────────────────────────────────────────────────
+  console.log(
+    `[orchestrator] context gathered in ${totalTime}ms: vault=${timings.vault}ms, edgar=${timings.edgar}ms, earnings=${timings.earnings}ms, memory=${timings.memory}ms, compute=${timings.compute}ms, news=${timings.news}ms`
+  );
+
+  return mergeResults(results);
+}
+
+// ── Merge results into a single context object ───────────────────────
+
+/**
+ * mergeResults: Combines all successful data sources into a cohesive context
+ * object with organized sections for the LLM prompt
+ *
+ * @param {object} results - Raw results from all agents
+ * @returns {object} Merged context object with:
+ *   - vaultContext + vaultSources
+ *   - edgarContext
+ *   - earningsContext
+ *   - sessionMemoryContext + persistentMemoryContext
+ *   - portfolioMetricsContext
+ *   - Additional metadata for caller
+ */
+function mergeResults(results) {
+  return {
+    // Vault RAG retrieval
+    vault: {
+      context: results.vault?.context || '',
+      sources: results.vault?.sources || [],
+      available: !!(results.vault?.context),
+    },
+
+    // SEC EDGAR data
+    edgar: {
+      context: results.edgar?.context || '',
+      ticker: results.edgar?.ticker || null,
+      available: !!(results.edgar?.context),
+    },
+
+    // Earnings calendar
+    earnings: {
+      context: results.earnings?.context || '',
+      tickers: results.earnings?.tickers || [],
+      available: !!(results.earnings?.context),
+    },
+
+    // Session memory (in-memory working memory)
+    memory: {
+      sessionContext: results.memory?.sessionMemory || '',
+      persistentContext: results.memory?.persistentMemory || '',
+      available: !!(results.memory?.sessionMemory || results.memory?.persistentMemory),
+    },
+
+    // Portfolio metrics
+    compute: {
+      context: results.compute?.context || '',
+      metrics: results.compute?.metrics || null,
+      available: !!(results.compute?.context),
+    },
+
+    // News/web search (optional enhancement)
+    news: {
+      context: results.news?.context || '',
+      sources: results.news?.sources || [],
+      available: !!(results.news?.context),
+    },
+
+    // Summary flags for conditional rendering in prompt
+    summary: {
+      hasVault: !!(results.vault?.context),
+      hasEDGAR: !!(results.edgar?.context),
+      hasEarnings: !!(results.earnings?.context),
+      hasMemory: !!(results.memory?.sessionMemory || results.memory?.persistentMemory),
+      hasCompute: !!(results.compute?.context),
+      hasNews: !!(results.news?.context),
+    },
+  };
+}
+
+// ── Exports ──────────────────────────────────────────────────────────
+
+module.exports = {
+  gatherContext,
+  mergeResults,
+  // For testing/diagnostics: expose agent functions
+  vaultAgent,
+  edgarAgent,
+  earningsAgent,
+  memoryAgent,
+  computeAgent,
+  newsAgent,
+};
