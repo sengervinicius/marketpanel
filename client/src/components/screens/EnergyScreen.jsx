@@ -10,14 +10,12 @@
  */
 import { memo, useMemo, useState } from 'react';
 import DeepScreenBase, { DeepSection, TickerCell, StatsLoadGate } from './DeepScreenBase';
+import SectorPulse from './shared/SectorPulse';
 import SectorChartStrip from './SectorChartStrip';
 import { FuturesCurveChart } from './shared/FuturesCurveChart';
 import { CorrelationMatrix } from './shared/CorrelationMatrix';
 import { EarningsCalendarStrip } from './shared/EarningsCalendarStrip';
 import { AnalystActionsCard } from './shared/AnalystActionsCard';
-import { OwnershipBreakdown } from './shared/OwnershipBreakdown';
-import { TechnicalSignalsCard } from './shared/TechnicalSignalsCard';
-import MacroCalendarStrip from './shared/MacroCalendarStrip';
 import { KPIRibbon } from './shared/SectorUI';
 import { useOpenDetail } from '../../context/OpenDetailContext';
 import { useTickerPrice } from '../../context/PriceContext';
@@ -80,18 +78,6 @@ const EarningsSection = memo(function EarningsSection() {
 
 const AnalystSection = memo(function AnalystSection() {
   return <AnalystActionsCard tickers={ANALYST_TICKERS} accentColor="#66bb6a" />;
-});
-
-const OwnershipSection = memo(function OwnershipSection() {
-  return <OwnershipBreakdown tickers={OWNERSHIP_TICKERS} accentColor="#66bb6a" />;
-});
-
-const SignalsSection = memo(function SignalsSection() {
-  return <TechnicalSignalsCard tickers={SIGNALS_TICKERS} accentColor="#66bb6a" />;
-});
-
-const MacroCalendarSection = memo(function MacroCalendarSection() {
-  return <MacroCalendarStrip countries={['US']} limit={12} accentColor="#66bb6a" />;
 });
 
 // Sector-specific chart tickers — energy benchmarks + majors
@@ -251,9 +237,6 @@ function EnergyScreenImpl() {
     { id: 'ofs',    title: 'OFS & Midstream',            component: () => <StatsLoadGate statsMap={statsMap} loading={statsLoading} error={statsError} refresh={statsRefresh}><EquitySection tickers={OFS_MIDSTREAM} statsMap={statsMap} selectedTicker={selectedTicker} onSelectTicker={setSelectedTicker} /></StatsLoadGate> },
     { id: 'clean',  title: 'Clean Energy & Transition',  component: () => <StatsLoadGate statsMap={statsMap} loading={statsLoading} error={statsError} refresh={statsRefresh}><EquitySection tickers={CLEAN_ENERGY} statsMap={statsMap} selectedTicker={selectedTicker} onSelectTicker={setSelectedTicker} /></StatsLoadGate> },
     { id: 'futures', title: 'Energy Futures & Spreads',  component: FuturesSection },
-    { id: 'ownership', title: 'Ownership Structure', component: OwnershipSection },
-    { id: 'macro-calendar', title: 'Macro Calendar', component: MacroCalendarSection },
-    { id: 'tech-signals', title: 'Technical Signals', component: SignalsSection },
     { id: 'earnings-calendar', title: 'Upcoming Earnings', component: EarningsSection },
     { id: 'analyst-actions', title: 'Analyst Actions', component: AnalystSection },
   ], [statsMap, statsLoading, statsError, statsRefresh, selectedTicker]);
@@ -268,6 +251,11 @@ function EnergyScreenImpl() {
       aiContext={{ sector: 'Energy & Transition', tickers: ['XOM', 'CVX', 'SLB', 'CL=F', 'ENPH', 'CCJ'] }}
       aiCacheKey="sector:energy"
     >
+      <SectorPulse
+        etfTicker="XLE"
+        etfLabel="XLE"
+        accentColor="#66bb6a"
+      />
       <SectorChartStrip tickers={CHART_TICKERS} title="ENERGY CHARTS" sectorName="Energy & Oil" />
       <DeepSection title="WTI Futures Curve">
         <FuturesCurveChart symbol="CL" accentColor="#66bb6a" height={200} />

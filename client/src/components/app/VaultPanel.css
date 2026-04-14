@@ -195,82 +195,56 @@
   50% { opacity: 1; }
 }
 
-/* Reactor core */
-.vault-reactor {
+/* Phase 3: Particle convergence animation — particles condense into document shape */
+.vault-particle-field {
   position: relative;
   width: 80px;
   height: 80px;
   z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.vault-reactor-core {
+.vault-particle {
   position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 16px;
-  height: 16px;
+  width: 4px;
+  height: 4px;
   background: var(--color-vault);
   border-radius: 50%;
-  box-shadow:
-    0 0 20px rgba(218, 165, 32, 0.6),
-    0 0 40px rgba(218, 165, 32, 0.3),
-    0 0 60px rgba(218, 165, 32, 0.15);
-  animation: vault-core-glow 1.5s ease-in-out infinite;
+  opacity: 0;
+  animation: vault-particle-converge 2s ease-in-out infinite;
+  animation-delay: var(--delay);
+  box-shadow: 0 0 6px rgba(218, 165, 32, 0.4);
 }
 
-@keyframes vault-core-glow {
-  0%, 100% {
-    box-shadow:
-      0 0 20px rgba(218, 165, 32, 0.6),
-      0 0 40px rgba(218, 165, 32, 0.3),
-      0 0 60px rgba(218, 165, 32, 0.15);
+@keyframes vault-particle-converge {
+  0% {
+    opacity: 0;
+    transform: rotate(var(--angle)) translateX(var(--distance)) scale(0.5);
   }
-  50% {
-    box-shadow:
-      0 0 30px rgba(218, 165, 32, 0.8),
-      0 0 60px rgba(218, 165, 32, 0.4),
-      0 0 90px rgba(218, 165, 32, 0.2);
+  30% {
+    opacity: 1;
+  }
+  80% {
+    opacity: 0.8;
+    transform: rotate(var(--angle)) translateX(4px) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(var(--angle)) translateX(0) scale(0);
   }
 }
 
-.vault-reactor-ring {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  border: 1px solid rgba(218, 165, 32, 0.3);
-  border-radius: 50%;
+.vault-doc-target {
+  color: var(--color-vault);
+  opacity: 0.7;
+  animation: vault-doc-pulse 2s ease-in-out infinite;
 }
 
-.vault-reactor-ring:nth-child(2) {
-  width: 40px;
-  height: 40px;
-  margin-top: -20px;
-  margin-left: -20px;
-  animation: vault-ring-spin 3s linear infinite;
-  border-top-color: var(--color-vault);
-}
-
-.vault-reactor-ring:nth-child(3) {
-  width: 60px;
-  height: 60px;
-  margin-top: -30px;
-  margin-left: -30px;
-  animation: vault-ring-spin 5s linear infinite reverse;
-  border-right-color: var(--color-vault);
-}
-
-.vault-reactor-ring:nth-child(4) {
-  width: 80px;
-  height: 80px;
-  margin-top: -40px;
-  margin-left: -40px;
-  animation: vault-ring-spin 7s linear infinite;
-  border-bottom-color: var(--color-vault);
-}
-
-@keyframes vault-ring-spin {
-  to { transform: rotate(360deg); }
+@keyframes vault-doc-pulse {
+  0%, 100% { opacity: 0.5; transform: scale(0.95); }
+  50% { opacity: 1; transform: scale(1.05); }
 }
 
 .vault-processing-label {
@@ -405,6 +379,27 @@
   background: var(--color-vault-dim);
   padding: 3px 8px;
   border-radius: var(--radius-pill);
+}
+
+/* Phase 3: "Ready to chat" button after upload */
+.vault-chat-ready-btn {
+  margin: 8px 16px 12px;
+  padding: 8px 16px;
+  background: var(--color-vault-dim);
+  border: 1px solid rgba(218, 165, 32, 0.3);
+  color: var(--color-vault);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.15s;
+  width: calc(100% - 32px);
+  text-align: center;
+}
+.vault-chat-ready-btn:hover {
+  background: rgba(218, 165, 32, 0.15);
+  border-color: var(--color-vault);
 }
 
 /* ─── Content area (scrollable) ────────────────── */

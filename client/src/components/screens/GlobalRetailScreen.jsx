@@ -6,16 +6,14 @@
  */
 import { memo, useMemo, useState } from 'react';
 import FullPageScreenLayout from './shared/FullPageScreenLayout';
+import SectorPulse from './shared/SectorPulse';
 import { FundamentalsTable } from './shared/FundamentalsTable';
 import { SectorChartPanel } from './shared/SectorChartPanel';
 import { SectorScatterPlot } from './shared/SectorScatterPlot';
-import { MiniFinancials } from './shared/MiniFinancials';
-import { KPIRibbon, heatColor, TickerRibbon } from './shared/SectorUI';
+import { KPIRibbon, TickerRibbon } from './shared/SectorUI';
 import { CorrelationMatrix } from './shared/CorrelationMatrix';
 import { EarningsCalendarStrip } from './shared/EarningsCalendarStrip';
 import { AnalystActionsCard } from './shared/AnalystActionsCard';
-import { OwnershipBreakdown } from './shared/OwnershipBreakdown';
-import { TechnicalSignalsCard } from './shared/TechnicalSignalsCard';
 import { useOpenDetail } from '../../context/OpenDetailContext';
 import { useTickerPrice } from '../../context/PriceContext';
 import { useDeepScreenData } from '../../hooks/useDeepScreenData';
@@ -153,14 +151,6 @@ const AnalystSection = memo(function AnalystSection() {
   return <AnalystActionsCard tickers={ANALYST_TICKERS} accentColor="#e91e63" />;
 });
 
-const OwnershipSection = memo(function OwnershipSection() {
-  return <OwnershipBreakdown tickers={OWNERSHIP_TICKERS} accentColor="#e91e63" />;
-});
-
-const SignalsSection = memo(function SignalsSection() {
-  return <TechnicalSignalsCard tickers={SIGNALS_TICKERS} accentColor="#e91e63" />;
-});
-
 /* ── Section Table Component ───────────────────────────────────────────── */
 const SectionTable = memo(function SectionTable({ tickers, statsMap }) {
   const openDetail = useOpenDetail();
@@ -195,23 +185,6 @@ const EtfStrip = memo(function EtfStrip() {
   return <TickerRibbon tickers={RETAIL_ETFS} sectorName="Global Retail & Consumer" />;
 });
 
-/* ── MiniFinancials Strip Component ────────────────────────────────────── */
-function RetailMiniFinStrip({ statsMap }) {
-  return (
-    <div style={{ display: 'flex', gap: 12, padding: '4px 12px', overflowX: 'auto' }}>
-      {['AMZN', 'WMT', 'COST'].map(t => (
-        <div key={t} style={{ flex: '0 0 auto', width: 220, minWidth: 200, border: '1px solid var(--border-default)', borderRadius: 6, padding: '10px 12px', background: 'var(--bg-panel)', boxSizing: 'border-box' }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 8 }}>{t}</div>
-          <MiniFinancials
-            ticker={t}
-            accentColor="#e91e63"
-            statsData={statsMap.get(t)}
-          />
-        </div>
-      ))}
-    </div>
-  );
-}
 
 /* ── Main Screen Implementation ────────────────────────────────────────── */
 function GlobalRetailScreenImpl() {
@@ -305,12 +278,6 @@ function GlobalRetailScreenImpl() {
       ),
     },
     {
-      id: 'minifinancials',
-      title: 'TOP 3 FINANCIALS',
-      span: 'full',
-      component: () => <RetailMiniFinStrip statsMap={statsMap} />,
-    },
-    {
       id: 'fundamentals',
       title: 'Fundamentals Comparison',
       span: 'full',
@@ -327,7 +294,6 @@ function GlobalRetailScreenImpl() {
     {
       id: 'valuation',
       title: 'Valuation Scatter (P/E vs Mkt Cap)',
-      span: 'full',
       component: () => (
         <SectorScatterPlot
           data={scatterData}
@@ -339,11 +305,6 @@ function GlobalRetailScreenImpl() {
       ),
     },
     {
-      id: 'tech-signals',
-      title: 'Technical Signals',
-      component: SignalsSection,
-    },
-    {
       id: 'earnings-calendar',
       title: 'Upcoming Earnings',
       span: 'full',
@@ -353,11 +314,6 @@ function GlobalRetailScreenImpl() {
       id: 'analyst-actions',
       title: 'Analyst Actions',
       component: AnalystSection,
-    },
-    {
-      id: 'ownership',
-      title: 'Ownership Structure',
-      component: OwnershipSection,
     },
   ], [statsMap, statsLoading, statsError, statsRefresh, scatterData, openDetail]);
 
@@ -374,12 +330,11 @@ function GlobalRetailScreenImpl() {
       aiContext={{ sector: 'Global Retail & Consumer', tickers: ['WMT', 'COST', 'TGT', 'NKE'] }}
       aiCacheKey="sector:retail"
     >
-      <div style={{ padding: '12px', borderTop: '1px solid var(--border-default)' }}>
-        <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-          RETAIL ETFs
-        </div>
-        <EtfStrip />
-      </div>
+      <SectorPulse
+        etfTicker="XRT"
+        etfLabel="XRT"
+        accentColor="#e91e63"
+      />
     </FullPageScreenLayout>
   );
 }

@@ -5,14 +5,12 @@
 import { memo, useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import FullPageScreenLayout from './shared/FullPageScreenLayout';
+import SectorPulse from './shared/SectorPulse';
 import { FundamentalsTable, SectorChartPanel } from './shared';
 import { KPIRibbon, heatColor, TickerRibbon } from './shared/SectorUI';
-import { MiniFinancials } from './shared/MiniFinancials';
 import { DeepSkeleton, DeepError } from './DeepScreenBase';
 import EarningsCalendarStrip from './shared/EarningsCalendarStrip';
 import AnalystActionsCard from './shared/AnalystActionsCard';
-import OwnershipBreakdown from './shared/OwnershipBreakdown';
-import TechnicalSignalsCard from './shared/TechnicalSignalsCard';
 import MacroCalendarStrip from './shared/MacroCalendarStrip';
 import useSectionData from '../../hooks/useSectionData';
 import { useOpenDetail } from '../../context/OpenDetailContext';
@@ -446,20 +444,6 @@ const FundamentalsComponent = memo(function FundamentalsComponent() {
   return <FundamentalsTable tickers={BLUE_CHIPS} onTickerClick={(symbol) => openDetail(symbol, 'Brazil & EM')} />;
 });
 
-/* ── MiniFinancials Strip Component ────────────────────────────────────── */
-function BrazilMiniFinStrip() {
-  return (
-    <div style={{ display: 'flex', gap: 12, padding: '4px 12px', overflowX: 'auto' }}>
-      {['PBR', 'VALE', 'ITUB'].map(t => (
-        <div key={t} style={{ flex: '0 0 auto', width: 220, minWidth: 200, border: '1px solid var(--border-default)', borderRadius: 6, padding: '10px 12px', background: 'var(--bg-panel)', boxSizing: 'border-box' }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 8 }}>{t}</div>
-          <MiniFinancials ticker={t} accentColor="#4caf50" />
-        </div>
-      ))}
-    </div>
-  );
-}
-
 /* ── Deep-Data Component Wrappers ──────────────────────────────────────── */
 const EarningsSection = memo(function EarningsSection() {
   return <EarningsCalendarStrip tickers={EARNINGS_TICKERS} accentColor="#4caf50" />;
@@ -467,14 +451,6 @@ const EarningsSection = memo(function EarningsSection() {
 
 const AnalystSection = memo(function AnalystSection() {
   return <AnalystActionsCard tickers={ANALYST_TICKERS} accentColor="#4caf50" />;
-});
-
-const OwnershipSection = memo(function OwnershipSection() {
-  return <OwnershipBreakdown tickers={OWNERSHIP_TICKERS} accentColor="#4caf50" />;
-});
-
-const SignalsSection = memo(function SignalsSection() {
-  return <TechnicalSignalsCard tickers={SIGNALS_TICKERS} accentColor="#4caf50" />;
 });
 
 const MacroCalendarSection = memo(function MacroCalendarSection() {
@@ -529,21 +505,14 @@ function BrazilScreenImpl() {
 
   const sections = [
     {
-      id: 'kpi',
-      title: 'Key Metrics',
-      span: 'full',
-      component: () => <BrazilKPIRibbon />,
-    },
-    {
-      id: 'sector-charts',
-      title: 'SECTOR CHARTS',
-      component: () => <SectorChartsComponent selectedTicker={selectedTicker} onChartClick={setSelectedTicker} />,
-      span: 'full',
-    },
-    {
       id: 'bluechips',
       title: 'B3 BLUE CHIPS',
       component: BlueChipsComponent,
+    },
+    {
+      id: 'fundamentals',
+      title: 'FUNDAMENTALS COMPARISON',
+      component: FundamentalsComponent,
     },
     {
       id: 'adr-cross',
@@ -556,67 +525,16 @@ function BrazilScreenImpl() {
       component: DiCurveComponent,
     },
     {
-      id: 'fx-rates',
-      title: 'FX & RATES',
-      component: FxRatesComponent,
-    },
-    {
       id: 'latam-macro',
       title: 'LATAM MACRO',
       component: LatAmMacroComponent,
       span: 'full',
     },
     {
-      id: 'em-fx',
-      title: 'EM FX MONITOR',
-      component: EmFxMonitorComponent,
-    },
-    {
-      id: 'em-equity',
-      title: 'EM EQUITY BENCHMARKS',
-      component: EmEquityBenchmarksComponent,
-    },
-    {
-      id: 'fundamentals',
-      title: 'FUNDAMENTALS COMPARISON',
-      component: FundamentalsComponent,
-      span: 'full',
-    },
-    {
-      id: 'minifinancials',
-      title: 'TOP 3 FINANCIALS',
-      span: 'full',
-      component: BrazilMiniFinStrip,
-    },
-    {
       id: 'earnings',
       title: 'EARNINGS CALENDAR',
       span: 'full',
       component: EarningsSection,
-    },
-    {
-      id: 'analyst',
-      title: 'ANALYST ACTIONS',
-      span: 'full',
-      component: AnalystSection,
-    },
-    {
-      id: 'ownership',
-      title: 'OWNERSHIP BREAKDOWN',
-      span: 'full',
-      component: OwnershipSection,
-    },
-    {
-      id: 'signals',
-      title: 'TECHNICAL SIGNALS',
-      span: 'full',
-      component: SignalsSection,
-    },
-    {
-      id: 'macro-calendar',
-      title: 'MACRO CALENDAR',
-      span: 'full',
-      component: MacroCalendarSection,
     },
   ];
 
@@ -634,9 +552,10 @@ function BrazilScreenImpl() {
       aiContext={{ country: 'Brazil', tickers: ['EWZ', 'VALE3.SA', 'PETR4.SA', 'ITUB4.SA'] }}
       aiCacheKey="em-country:brazil"
     >
-      <TickerRibbon
-        tickers={BRAZIL_ETFS}
-        onTickerClick={(sym) => openDetail(sym, 'Brazil & EM')}
+      <SectorPulse
+        etfTicker="EWZ"
+        etfLabel="EWZ"
+        accentColor="#4caf50"
       />
     </FullPageScreenLayout>
   );

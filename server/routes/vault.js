@@ -135,6 +135,75 @@ router.post('/upload', rateLimitByUser({ key: 'vault-upload', windowSec: 60, max
 });
 
 /**
+ * POST /upload-stream — SSE-based upload with progress events.
+ * Phase 3: Sends progress updates during ingestion:
+ *   "Extracting text..." → "Chunking (34 passages)..." → "Generating embeddings..." → "Ready to chat"
+ */
+router.post('/upload-stream', rateLimitByUser({ key: 'vault-upload', windowSec: 60, max: 10 }), upload.single('file'), async (req, res) => {
+  // Set SSE headers
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    'Connection': 'keep-alive',
+  });
+
+  const sendEvent = (stage, message) => {
+    if (!res.writableEnded) {
+      res.write(`data: ${JSON.stringify({ stage, message })}\n\n`);
+    }
+  };
+
+  try {
+    if (!req.file) {
+      sendEvent('error', 'No file provided');
+      res.write('data: [DONE]\n\n');
+      return res.end();
+    }
+
+    // Quota enforcement
+    const userTier = req.user.planTier || 'trial';
+    const tier = getTier(userTier);
+    if (!isUnlimited(tier.vaultDocuments)) {
+      const docs = await vault.getUserDocuments(req.user.id);
+      if (docs.length >= tier.vaultDocuments) {
+        sendEvent('error', `Your ${tier.label} plan allows up to ${tier.vaultDocuments} documents. Upgrade to upload more.`);
+        res.write('data: [DONE]\n\n');
+        return res.end();
+      }
+    }
+
+    sendEvent('extract', `Extracting text from ${req.file.originalname}...`);
+
+    const result = await vault.ingestFile(
+      req.user.id,
+      req.file.buffer,
+      req.file.originalname,
+      {},
+      false,
+      (stage, message) => sendEvent(stage, message) // onProgress callback
+    );
+
+    sendEvent('complete', JSON.stringify(result));
+    res.write('data: [DONE]\n\n');
+    res.end();
+  } catch (err) {
+    logger.error('vault-route', 'Stream upload error', { error: err.message });
+    const msg = err.message || 'Unknown error';
+    if (msg.includes('not connected') || msg.includes('ECONNREFUSED')) {
+      sendEvent('error', 'Knowledge Vault is initializing. Please try again in a moment.');
+    } else if (msg.includes('no extractable text') || msg.includes('Unable to read')) {
+      sendEvent('error', msg);
+    } else {
+      sendEvent('error', 'An error occurred while processing the file. Please try again.');
+    }
+    if (!res.writableEnded) {
+      res.write('data: [DONE]\n\n');
+      res.end();
+    }
+  }
+});
+
+/**
  * POST /ingest-url — Ingest a document from a URL.
  * Body: { url: string, title?: string }
  * Supports: HTML pages, PDF URLs, plain text URLs

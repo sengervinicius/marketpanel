@@ -7,6 +7,7 @@
 import { memo, useMemo, useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import FullPageScreenLayout from './shared/FullPageScreenLayout';
+import SectorPulse from './shared/SectorPulse';
 import { SectorChartPanel, FundamentalsTable, SectorScatterPlot, MiniFinancials, KPIRibbon, heatColor, TickerRibbon, CorrelationMatrix, ComparisonBarChart, ImpliedVolatilityCard, EarningsCalendarStrip, AnalystActionsCard, OwnershipBreakdown, TechnicalSignalsCard, SentimentCard } from './shared';
 import { useOpenDetail } from '../../context/OpenDetailContext';
 import { useTickerPrice } from '../../context/PriceContext';
@@ -387,23 +388,25 @@ function TechAIScreenImpl() {
   const openDetail = useOpenDetail();
   const [selectedTicker, setSelectedTicker] = useState(null);
 
+  /**
+   * Phase 3: Reduced from 15 sections to 5 core decision-relevant ones.
+   * Removed: ownership, standalone sentiment, minifinancials, revenue-growth,
+   * tech-signals, etfs. Those are now accessible via InstrumentDetail overlay.
+   *
+   * Layout: Left column (60-65%) = holdings + charts, Right column (35-40%) = analytical.
+   */
   const sections = useMemo(() => [
-    {
-      id: 'kpi',
-      title: 'KEY METRICS',
-      span: 'full',
-      component: TechKPIRibbon,
-    },
-    {
-      id: 'charts',
-      title: 'SECTOR CHARTS',
-      span: 'full',
-      component: () => <SectorChartPanel tickers={CHART_TICKERS} cols={3} height={180} selectedTicker={selectedTicker} onChartClick={setSelectedTicker} />,
-    },
+    // ── (1) Holdings tables + charts — left column narrative ──
     {
       id: 'megacap',
       title: 'MEGA-CAP TECH',
       component: () => <StatsLoadGate statsMap={statsMap} loading={statsLoading} error={statsError} refresh={statsRefresh}><SectionTable tickers={MEGA_CAP} statsMap={statsMap} /></StatsLoadGate>,
+    },
+    // ── (2) Valuation scatter + correlation — right column analytical ──
+    {
+      id: 'valuation',
+      title: 'VALUATION SCATTER',
+      component: () => <ValuationScatterComponent />,
     },
     {
       id: 'semis',
@@ -411,16 +414,18 @@ function TechAIScreenImpl() {
       component: () => <StatsLoadGate statsMap={statsMap} loading={statsLoading} error={statsError} refresh={statsRefresh}><SectionTable tickers={SEMIS} statsMap={statsMap} /></StatsLoadGate>,
     },
     {
-      id: 'aicloud',
-      title: 'AI & CLOUD SOFTWARE',
-      component: () => <StatsLoadGate statsMap={statsMap} loading={statsLoading} error={statsError} refresh={statsRefresh}><SectionTable tickers={AI_CLOUD} statsMap={statsMap} /></StatsLoadGate>,
+      id: 'correlation',
+      title: 'CORRELATION MATRIX (90D)',
+      component: () => (
+        <CorrelationMatrix
+          tickers={['NVDA', 'AAPL', 'MSFT', 'GOOGL', 'META', 'AMZN', 'TSM', 'AMD', 'AVGO']}
+          title="Tech & AI 90-Day Return Correlations"
+          accentColor="#00bcd4"
+          days={90}
+        />
+      ),
     },
-    {
-      id: 'minifinancials',
-      title: 'TOP 3 FINANCIALS',
-      span: 'full',
-      component: () => <MiniFinancialsStrip statsMap={statsMap} />,
-    },
+    // ── (3) Fundamentals comparison — full-width analytical ──
     {
       id: 'fundamentals',
       title: 'FUNDAMENTALS COMPARISON',
@@ -434,63 +439,12 @@ function TechAIScreenImpl() {
         />
       ),
     },
-    {
-      id: 'revenue-growth',
-      title: 'REVENUE GROWTH (YoY %)',
-      span: 'full',
-      component: () => <RevenueGrowthChart />,
-    },
-    {
-      id: 'valuation',
-      title: 'VALUATION SCATTER',
-      span: 'full',
-      component: () => <ValuationScatterComponent />,
-    },
-    {
-      id: 'correlation',
-      title: 'CORRELATION MATRIX (90D)',
-      span: 'full',
-      component: () => (
-        <CorrelationMatrix
-          tickers={['NVDA', 'AAPL', 'MSFT', 'GOOGL', 'META', 'AMZN', 'TSM', 'AMD', 'AVGO']}
-          title="Tech & AI 90-Day Return Correlations"
-          accentColor="#00bcd4"
-          days={90}
-        />
-      ),
-    },
-    {
-      id: 'tech-signals',
-      title: 'Technical Signals',
-      component: TechSignalsSection,
-    },
+    // ── (4) AI insight + events — full-width ──
     {
       id: 'earnings-calendar',
       title: 'Upcoming Earnings',
       span: 'full',
       component: TechEarningsSection,
-    },
-    {
-      id: 'analyst-actions',
-      title: 'Analyst Actions',
-      component: TechAnalystSection,
-    },
-    {
-      id: 'ownership',
-      title: 'Ownership Structure',
-      component: TechOwnershipSection,
-    },
-    {
-      id: 'sentiment',
-      title: 'News Sentiment',
-      component: SentimentSection,
-    },
-    /* IV Monitor removed — no options data feed available */
-    {
-      id: 'etfs',
-      title: 'TECH & AI ETFs',
-      span: 'full',
-      component: () => <EtfStripSection />,
     },
   ], [statsMap, statsLoading, statsError, statsRefresh]);
 
@@ -513,7 +467,13 @@ function TechAIScreenImpl() {
       aiType="sector"
       aiContext={{ sector: 'Technology & AI', tickers: ['NVDA', 'MSFT', 'AAPL', 'GOOGL', 'META'] }}
       aiCacheKey="sector:tech"
-    />
+    >
+      <SectorPulse
+        etfTicker="XLK"
+        etfLabel="XLK"
+        accentColor="#00bcd4"
+      />
+    </FullPageScreenLayout>
   );
 }
 

@@ -6,22 +6,19 @@
  */
 import { memo, useMemo, useState } from 'react';
 import FullPageScreenLayout from './shared/FullPageScreenLayout';
+import SectorPulse from './shared/SectorPulse';
 import { FundamentalsTable } from './shared/FundamentalsTable';
 import { SectorChartPanel } from './shared/SectorChartPanel';
-import { MiniFinancials } from './shared/MiniFinancials';
 import { useOpenDetail } from '../../context/OpenDetailContext';
 import { useTickerPrice } from '../../context/PriceContext';
 import { useDeepScreenData } from '../../hooks/useDeepScreenData';
 import { useSectionData } from '../../hooks/useSectionData';
-import DeepScreenBase, { TickerCell, DeepSkeleton, DeepError, StatsLoadGate } from './DeepScreenBase';
+import DeepScreenBase, { DeepSkeleton, DeepError, StatsLoadGate } from './DeepScreenBase';
 import { apiFetch } from '../../utils/api';
-import { KPIRibbon, heatColor, TickerRibbon } from './shared/SectorUI';
+import { KPIRibbon, TickerRibbon } from './shared/SectorUI';
 import { CorrelationMatrix } from './shared/CorrelationMatrix';
-import { ComparisonBarChart } from './shared/ComparisonBarChart';
 import { EarningsCalendarStrip } from './shared/EarningsCalendarStrip';
 import { AnalystActionsCard } from './shared/AnalystActionsCard';
-import { OwnershipBreakdown } from './shared/OwnershipBreakdown';
-import { TechnicalSignalsCard } from './shared/TechnicalSignalsCard';
 
 /* ── Formatting utilities ──────────────────────────────────────────────────── */
 const fmt = (n, d = 2) =>
@@ -98,14 +95,6 @@ const EarningsSection = memo(function EarningsSection() {
 
 const AnalystSection = memo(function AnalystSection() {
   return <AnalystActionsCard tickers={ANALYST_TICKERS} accentColor="#f7931a" />;
-});
-
-const OwnershipSection = memo(function OwnershipSection() {
-  return <OwnershipBreakdown tickers={OWNERSHIP_TICKERS} accentColor="#f7931a" />;
-});
-
-const SignalsSection = memo(function SignalsSection() {
-  return <TechnicalSignalsCard tickers={SIGNALS_TICKERS} accentColor="#f7931a" />;
 });
 
 /* ── Crypto Major Row Component ────────────────────────────────────────────── */
@@ -515,23 +504,6 @@ const TickerRibbonComponent = memo(function TickerRibbonComponent() {
   );
 });
 
-/* ── MiniFinancials Strip Component ────────────────────────────────────── */
-function CryptoMiniFinStrip({ statsMap }) {
-  return (
-    <div style={{ display: 'flex', gap: 12, padding: '4px 12px', overflowX: 'auto' }}>
-      {['MSTR', 'COIN', 'MARA'].map(t => (
-        <div key={t} style={{ flex: '0 0 auto', width: 220, minWidth: 200, border: '1px solid var(--border-default)', borderRadius: 6, padding: '10px 12px', background: 'var(--bg-panel)', boxSizing: 'border-box' }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 8 }}>{t}</div>
-          <MiniFinancials
-            ticker={t}
-            accentColor="#f7931a"
-            statsData={statsMap.get(t)}
-          />
-        </div>
-      ))}
-    </div>
-  );
-}
 
 /* ── KPI Ribbon ────────────────────────────────────────────────────────── */
 function CryptoKPIRibbon() {
@@ -594,33 +566,23 @@ function CryptoScreenImpl() {
       component: CryptoEtfsSection,
     },
     {
-      id: 'minifinancials',
-      title: 'TOP 3 FINANCIALS',
-      span: 'full',
-      component: () => <CryptoMiniFinStrip statsMap={statsMap} />,
-    },
-    {
       id: 'btc-onchain',
       title: 'Bitcoin On-Chain Analytics',
-      span: 'full',
       component: BitcoinOnChainSection,
     },
     {
       id: 'eth-onchain',
       title: 'Ethereum On-Chain Analytics',
-      span: 'full',
       component: EthereumOnChainSection,
     },
     {
       id: 'dominance',
       title: 'Market Dominance & Ratios',
-      span: 'full',
       component: CryptoDominanceSection,
     },
     {
       id: 'correlation',
       title: 'Crypto Correlation Matrix (60D)',
-      span: 'full',
       component: () => (
         <CorrelationMatrix
           tickers={['X:BTCUSD', 'X:ETHUSD', 'X:SOLUSD', 'MSTR', 'COIN', 'IBIT']}
@@ -630,27 +592,6 @@ function CryptoScreenImpl() {
           days={60}
         />
       ),
-    },
-    {
-      id: 'tech-signals',
-      title: 'Technical Signals',
-      component: SignalsSection,
-    },
-    {
-      id: 'earnings-calendar',
-      title: 'Upcoming Earnings',
-      span: 'full',
-      component: EarningsSection,
-    },
-    {
-      id: 'analyst-actions',
-      title: 'Analyst Actions',
-      component: AnalystSection,
-    },
-    {
-      id: 'ownership',
-      title: 'Ownership Structure',
-      component: OwnershipSection,
     },
     {
       id: 'fundamentals',
@@ -665,6 +606,16 @@ function CryptoScreenImpl() {
           statsMap={statsMap}
         />
       ),
+    },
+    {
+      id: 'earnings-calendar',
+      title: 'Upcoming Earnings',
+      component: EarningsSection,
+    },
+    {
+      id: 'analyst-actions',
+      title: 'Analyst Actions',
+      component: AnalystSection,
     },
   ], [statsMap, statsLoading, statsError, statsRefresh, openDetail]);
 
@@ -681,12 +632,11 @@ function CryptoScreenImpl() {
       aiContext={{ sector: 'Crypto & Digital Assets', tickers: ['BTC', 'ETH', 'SOL', 'XRP'] }}
       aiCacheKey="sector:crypto"
     >
-      <div style={{ padding: '12px', borderTop: '1px solid var(--border-default)' }}>
-        <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-          CRYPTO ETFs
-        </div>
-        <TickerRibbonComponent />
-      </div>
+      <SectorPulse
+        etfTicker="BITO"
+        etfLabel="BITO"
+        accentColor="#f7931a"
+      />
     </FullPageScreenLayout>
   );
 }

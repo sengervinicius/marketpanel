@@ -4,7 +4,8 @@
  * G10 FX, EM FX, Crypto Majors (with BTC dominance), Crypto Infra (with Mkt Cap/P/E)
  */
 import { memo, useMemo } from 'react';
-import DeepScreenBase, { DeepSection, TickerCell, StatsLoadGate } from './DeepScreenBase';
+import DeepScreenBase, { DeepSection, StatsLoadGate } from './DeepScreenBase';
+import SectorPulse from './shared/SectorPulse';
 import SectorChartStrip from './SectorChartStrip';
 import EarningsCalendarStrip from './shared/EarningsCalendarStrip';
 import AnalystActionsCard from './shared/AnalystActionsCard';
@@ -217,6 +218,11 @@ function FxCryptoScreen() {
       aiContext={{ assets: ['FX', 'Crypto'], theme: 'FX & Digital Assets' }}
       aiCacheKey="cross:fxcrypto"
     >
+      <SectorPulse
+        etfTicker="UUP"
+        etfLabel="UUP"
+        accentColor="#ce93d8"
+      />
       <SectorChartStrip tickers={CHART_TICKERS} title="FX & CRYPTO CHARTS" sectorName="FX & Crypto" />
     </DeepScreenBase>
   );

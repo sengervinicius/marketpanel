@@ -10,29 +10,21 @@
  * - Mining Majors (BHP, RIO, FCX, NEM, VALE, GOLD, AA)
  * - Fundamentals Comparison (all producers)
  * - Spread Analysis (WTI-Brent, Gold/Silver ratio)
- * - Insider Activity (top 6 producers)
  * - Commodity ETFs
  */
 import { memo, useMemo, useState } from 'react';
-import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import FullPageScreenLayout from './shared/FullPageScreenLayout';
+import SectorPulse from './shared/SectorPulse';
 import { FundamentalsTable } from './shared/FundamentalsTable';
 import { SectorChartPanel } from './shared/SectorChartPanel';
 import { useOpenDetail } from '../../context/OpenDetailContext';
 import { useTickerPrice } from '../../context/PriceContext';
 import { useDeepScreenData } from '../../hooks/useDeepScreenData';
-import { useSectionData } from '../../hooks/useSectionData';
-import { apiFetch } from '../../utils/api';
-import { DeepSkeleton, DeepError, StatsLoadGate, TickerCell } from './DeepScreenBase';
-import { KPIRibbon, heatColor, TickerRibbon } from './shared/SectorUI';
+import { DeepSkeleton, DeepError, StatsLoadGate } from './DeepScreenBase';
+import { KPIRibbon, TickerRibbon } from './shared/SectorUI';
 import { CorrelationMatrix } from './shared/CorrelationMatrix';
-import { FuturesCurveChart } from './shared/FuturesCurveChart';
-import { ComparisonBarChart } from './shared/ComparisonBarChart';
 import { EarningsCalendarStrip } from './shared/EarningsCalendarStrip';
 import { AnalystActionsCard } from './shared/AnalystActionsCard';
-import { OwnershipBreakdown } from './shared/OwnershipBreakdown';
-import { TechnicalSignalsCard } from './shared/TechnicalSignalsCard';
-import { SentimentCard } from './shared/SentimentCard';
 
 const fmt = (n, d = 2) =>
   n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -280,18 +272,6 @@ function CommodityAnalystSection() {
   return <AnalystActionsCard tickers={COMMODITY_ANALYST_TICKERS} limit={10} accentColor="#ff9800" />;
 }
 
-function CommodityOwnershipSection() {
-  return <OwnershipBreakdown tickers={COMMODITY_OWNERSHIP_TICKERS} accentColor="#ff9800" />;
-}
-
-function CommoditySignalsSection() {
-  return <TechnicalSignalsCard tickers={COMMODITY_SIGNALS_TICKERS} accentColor="#ff9800" />;
-}
-
-const SentimentSection = memo(function SentimentSection() {
-  return <SentimentCard tickers={SENTIMENT_TICKERS} accentColor="#ff9800" />;
-});
-
 const EnergyMajorsSection = memo(function EnergyMajorsSection({ statsMap, loading, error, refresh }) {
   return (
     <StatsLoadGate statsMap={statsMap} loading={loading} error={error} refresh={refresh} rows={6}>
@@ -387,18 +367,6 @@ function CommoditiesScreenImpl() {
 
   const sections = useMemo(() => [
     {
-      id: 'kpi',
-      title: 'KEY METRICS',
-      span: 'full',
-      component: CommodityKPIRibbon,
-    },
-    {
-      id: 'sector-charts',
-      title: 'Sector Charts',
-      component: () => <SectorChartsSection selectedTicker={selectedTicker} onChartClick={setSelectedTicker} />,
-      span: 'full',
-    },
-    {
       id: 'energy-futures',
       title: 'Energy Futures',
       component: EnergyFuturesSection,
@@ -415,16 +383,6 @@ function CommoditiesScreenImpl() {
       span: 'full',
     },
     {
-      id: 'futures-term-structure',
-      title: 'Brent Futures Curve',
-      component: FuturesTermStructureSection,
-    },
-    {
-      id: 'gold-futures-curve',
-      title: 'Gold Futures Curve',
-      component: GoldFuturesCurveSection,
-    },
-    {
       id: 'energy-majors',
       title: 'Energy Majors',
       component: () => <EnergyMajorsSection statsMap={statsMap} loading={statsLoading} error={statsError} refresh={statsRefresh} />,
@@ -435,20 +393,10 @@ function CommoditiesScreenImpl() {
       component: () => <MiningMajorsSection statsMap={statsMap} loading={statsLoading} error={statsError} refresh={statsRefresh} />,
     },
     {
-      id: 'spread-analysis',
-      title: 'Spread Analysis',
-      component: SpreadAnalysisSection,
-    },
-    {
       id: 'correlation',
       title: 'Commodity Correlations',
       span: 'full',
       component: CommodityCorrelationSection,
-    },
-    {
-      id: 'tech-signals',
-      title: 'Technical Signals (Producers)',
-      component: CommoditySignalsSection,
     },
     {
       id: 'earnings-calendar',
@@ -460,16 +408,6 @@ function CommoditiesScreenImpl() {
       id: 'analyst-actions',
       title: 'Analyst Actions',
       component: CommodityAnalystSection,
-    },
-    {
-      id: 'ownership',
-      title: 'Ownership Structure',
-      component: CommodityOwnershipSection,
-    },
-    {
-      id: 'sentiment',
-      title: 'News Sentiment',
-      component: SentimentSection,
     },
   ], [statsMap, statsLoading, statsError, statsRefresh]);
 
@@ -485,6 +423,11 @@ function CommoditiesScreenImpl() {
       aiContext={{ sector: 'Commodities', tickers: ['GLD', 'SLV', 'USO', 'CPER'] }}
       aiCacheKey="commodity:overview"
     >
+      <SectorPulse
+        etfTicker="DJP"
+        etfLabel="DJP"
+        accentColor="#ff9800"
+      />
       <div style={{ padding: '16px 6px' }}>
         <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: 0.5 }}>Fundamentals Comparison</div>
         <FundamentalsTable
@@ -495,12 +438,6 @@ function CommoditiesScreenImpl() {
           }}
           statsMap={statsMap}
         />
-      </div>
-
-
-      <div style={{ padding: '16px 6px' }}>
-        <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: 0.5 }}>Commodity ETFs</div>
-        <EtfStripSection />
       </div>
     </FullPageScreenLayout>
   );

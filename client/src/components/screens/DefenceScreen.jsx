@@ -2,23 +2,19 @@
  * DefenceScreen.jsx — Full-page Sector Screen
  * Comprehensive Defence & Aerospace coverage for the Particle Market Terminal.
  * Integrates FullPageScreenLayout, FundamentalsTable, SectorChartPanel, SectorScatterPlot,
- * MiniFinancials, and InsiderActivity for multi-dimensional sector analysis.
+ * and InsiderActivity for multi-dimensional sector analysis.
  */
 import { memo, useMemo, useCallback, useState } from 'react';
 import FullPageScreenLayout from './shared/FullPageScreenLayout';
+import SectorPulse from './shared/SectorPulse';
 import { FundamentalsTable } from './shared/FundamentalsTable';
 import { SectorChartPanel } from './shared/SectorChartPanel';
 import { SectorScatterPlot } from './shared/SectorScatterPlot';
-import { MiniFinancials } from './shared/MiniFinancials';
 import { TableExportBar } from './shared/TableExportBar';
-import { KPIRibbon, TickerRibbon } from './shared/SectorUI';
+import { KPIRibbon } from './shared/SectorUI';
 import { CorrelationMatrix } from './shared/CorrelationMatrix';
-import { ImpliedVolatilityCard } from './shared/ImpliedVolatilityCard';
 import { EarningsCalendarStrip } from './shared/EarningsCalendarStrip';
 import { AnalystActionsCard } from './shared/AnalystActionsCard';
-import { OwnershipBreakdown } from './shared/OwnershipBreakdown';
-import { TechnicalSignalsCard } from './shared/TechnicalSignalsCard';
-import { SentimentCard } from './shared/SentimentCard';
 import { useOpenDetail } from '../../context/OpenDetailContext';
 import { useTickerPrice } from '../../context/PriceContext';
 import { useDeepScreenData } from '../../hooks/useDeepScreenData';
@@ -80,18 +76,6 @@ const EarningsSection = memo(function EarningsSection() {
 
 const AnalystSection = memo(function AnalystSection() {
   return <AnalystActionsCard tickers={ANALYST_TICKERS} accentColor="#ef5350" />;
-});
-
-const OwnershipSection = memo(function OwnershipSection() {
-  return <OwnershipBreakdown tickers={OWNERSHIP_TICKERS} accentColor="#ef5350" />;
-});
-
-const SignalsSection = memo(function SignalsSection() {
-  return <TechnicalSignalsCard tickers={SIGNALS_TICKERS} accentColor="#ef5350" />;
-});
-
-const SentimentSection = memo(function SentimentSection() {
-  return <SentimentCard tickers={SENTIMENT_TICKERS} accentColor="#ef5350" />;
 });
 
 const BANNER_TICKERS = [
@@ -395,7 +379,6 @@ function DefenceScreenImpl() {
     {
       id: 'correlation',
       title: 'Defence Correlation Matrix (90D)',
-      span: 'full',
       component: () => (
         <CorrelationMatrix
           tickers={['LMT', 'RTX', 'NOC', 'BA', 'GD', 'HII', 'PLTR', 'RKLB']}
@@ -404,11 +387,6 @@ function DefenceScreenImpl() {
           days={90}
         />
       ),
-    },
-    {
-      id: 'tech-signals',
-      title: 'Technical Signals',
-      component: SignalsSection,
     },
     {
       id: 'earnings-calendar',
@@ -421,17 +399,6 @@ function DefenceScreenImpl() {
       title: 'Analyst Actions',
       component: AnalystSection,
     },
-    {
-      id: 'ownership',
-      title: 'Ownership Structure',
-      component: OwnershipSection,
-    },
-    {
-      id: 'sentiment',
-      title: 'News Sentiment',
-      component: SentimentSection,
-    },
-    /* IV Monitor removed — no options data feed available */
   ], [statsMap, statsLoading, statsError, statsRefresh, scatterData, openDetail]);
 
   return (
@@ -449,12 +416,11 @@ function DefenceScreenImpl() {
       aiContext={{ sector: 'Defence & Aerospace', tickers: ['LMT', 'RTX', 'BA', 'NOC', 'GD'] }}
       aiCacheKey="sector:defence"
     >
-      <div style={{ padding: '12px', borderTop: '1px solid var(--border-default)' }}>
-        <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--text-faint)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.8px' }}>
-          SECTOR ETFs
-        </div>
-        <TickerRibbon tickers={ETFS} onClick={openDetailWithContext} />
-      </div>
+      <SectorPulse
+        etfTicker="ITA"
+        etfLabel="ITA"
+        accentColor="#ef5350"
+      />
     </FullPageScreenLayout>
   );
 }

@@ -5,7 +5,8 @@
  */
 import { memo, useEffect, useMemo, useState } from 'react';
 import FullPageScreenLayout from './shared/FullPageScreenLayout';
-import { FundamentalsTable, EarningsCalendarStrip, AnalystActionsCard, OwnershipBreakdown, TechnicalSignalsCard, MacroCalendarStrip } from './shared';
+import SectorPulse from './shared/SectorPulse';
+import { FundamentalsTable, EarningsCalendarStrip, AnalystActionsCard, MacroCalendarStrip } from './shared';
 import { SectorChartPanel } from './shared/SectorChartPanel';
 import { KPIRibbon, heatColor, TickerRibbon } from './shared/SectorUI';
 import { useOpenDetail } from '../../context/OpenDetailContext';
@@ -129,20 +130,12 @@ const OWNERSHIP_TICKERS = ['BABA', 'TM', 'SONY', 'HDB', 'TSM', 'TCEHY'];
 const SIGNALS_TICKERS = ['BABA', 'TM', 'SONY', 'HDB', 'INFY', 'TSM', 'TCEHY', 'NIO'];
 const ANALYST_TICKERS = ['BABA', 'TM', 'SONY', 'HDB', 'TSM', 'INFY'];
 
-const TechnicalSignalsSection = memo(function TechnicalSignalsSection() {
-  return <TechnicalSignalsCard tickers={SIGNALS_TICKERS} accentColor="#ff5722" />;
-});
-
 const EarningsSection = memo(function EarningsSection() {
   return <EarningsCalendarStrip tickers={EARNINGS_TICKERS} accentColor="#ff5722" />;
 });
 
 const AnalystSection = memo(function AnalystSection() {
   return <AnalystActionsCard tickers={ANALYST_TICKERS} accentColor="#ff5722" />;
-});
-
-const OwnershipSection = memo(function OwnershipSection() {
-  return <OwnershipBreakdown tickers={OWNERSHIP_TICKERS} accentColor="#ff5722" />;
 });
 
 const MacroCalendarSection = memo(function MacroCalendarSection() {
@@ -492,29 +485,17 @@ function AsianMarketsScreenImpl() {
     {
       id: 'macro',
       title: 'Asian Macro Dashboard',
-      span: 'full',
       component: MacroDashboard,
-    },
-    {
-      id: 'tech-signals',
-      title: 'Technical Signals',
-      component: TechnicalSignalsSection,
     },
     {
       id: 'earnings-calendar',
       title: 'Upcoming Earnings',
-      span: 'full',
       component: EarningsSection,
     },
     {
       id: 'analyst-actions',
       title: 'Analyst Actions',
       component: AnalystSection,
-    },
-    {
-      id: 'ownership',
-      title: 'Ownership Structure',
-      component: OwnershipSection,
     },
     {
       id: 'macro-calendar',
@@ -537,12 +518,11 @@ function AsianMarketsScreenImpl() {
       aiContext={{ region: 'Asia-Pacific', tickers: ['EWJ', 'FXI', '2800.HK'] }}
       aiCacheKey="macro:asian"
     >
-      <div style={{ padding: '12px', borderTop: '1px solid var(--border-default)' }}>
-        <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-          REGIONAL INDEX ETFs
-        </div>
-        <EtfStrip />
-      </div>
+      <SectorPulse
+        etfTicker="EWJ"
+        etfLabel="EWJ"
+        accentColor="#ff5722"
+      />
     </FullPageScreenLayout>
   );
 }

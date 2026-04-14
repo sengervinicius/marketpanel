@@ -337,6 +337,13 @@ function FullPageScreenLayout({
         <LiveTickerBanner tickers={tickerBanner} accentColor={accentColor} />
       )}
 
+      {/* Phase 3: Sector Pulse — hero strip at top of every sector screen */}
+      {children && (
+        <div className="fsl-pulse">
+          {children}
+        </div>
+      )}
+
       {/* AI Insight — auto-fetch on mount */}
       {aiType && (
         <div style={{ padding: '0 1px', marginBottom: 1 }}>
@@ -374,12 +381,7 @@ function FullPageScreenLayout({
         ))}
       </div>
 
-      {/* Children (ETF strips, additional content) */}
-      {children && (
-        <div className="fsl-children">
-          {children}
-        </div>
-      )}
+      {/* (Children now rendered as Pulse hero strip above sections) */}
     </div>
   );
 }

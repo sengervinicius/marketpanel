@@ -7,18 +7,37 @@
 import { useState, useEffect, useMemo, memo, useRef, useCallback } from 'react';
 import { apiFetch } from '../../../utils/api';
 
-/** Convert -1…+1 correlation to very subtle background tint */
+/**
+ * Convert -1…+1 correlation to color-coded background.
+ * Phase 3: Strong positive (>0.7) = orange, moderate (0.4–0.7) = muted yellow,
+ * weak (<0.4) = grey, negative = blue. Much higher analytical value.
+ */
 function corrColor(val) {
   if (val == null || isNaN(val)) return 'transparent';
-  // Positive correlation: very faint green
-  // Negative correlation: very faint red
-  // Text values are the primary information, not the background
-  if (val > 0) {
-    return `rgba(76, 175, 80, ${Math.abs(val) * 0.08})`; // Green tint max 0.08
-  } else if (val < 0) {
-    return `rgba(239, 83, 80, ${Math.abs(val) * 0.08})`; // Red tint max 0.08
+  const abs = Math.abs(val);
+  if (val < 0) {
+    // Negative: blue tint, scales with magnitude
+    return `rgba(59, 130, 246, ${abs * 0.35})`;
   }
-  return 'transparent';
+  if (abs >= 0.7) {
+    // Strong positive: orange
+    return `rgba(249, 115, 22, ${0.15 + (abs - 0.7) * 0.5})`;
+  }
+  if (abs >= 0.4) {
+    // Moderate positive: muted yellow
+    return `rgba(234, 179, 8, ${0.08 + (abs - 0.4) * 0.2})`;
+  }
+  // Weak positive: grey
+  return `rgba(150, 150, 160, ${abs * 0.12})`;
+}
+
+/** Text color for correlation value — ensures readability on colored bg */
+function corrTextColor(val) {
+  if (val == null || isNaN(val)) return 'var(--text-faint)';
+  const abs = Math.abs(val);
+  if (abs >= 0.7) return 'var(--text-primary)';
+  if (abs >= 0.4) return 'var(--text-secondary)';
+  return 'var(--text-muted)';
 }
 
 /** Fetch daily close prices for a ticker */
@@ -207,7 +226,7 @@ export const CorrelationMatrix = memo(function CorrelationMatrix({
                           height: cellSize,
                           textAlign: 'center',
                           background: corrColor(val),
-                          color: val != null ? 'var(--text-primary)' : 'var(--text-faint)',
+                          color: i === j ? 'var(--text-primary)' : corrTextColor(val),
                           fontWeight: i === j ? 700 : 400,
                           fontSize: 9,
                           cursor: 'default',
@@ -241,7 +260,7 @@ export const CorrelationMatrix = memo(function CorrelationMatrix({
               flex: 1,
               height: 6,
               borderRadius: 3,
-              background: 'linear-gradient(90deg, rgba(239,83,80,0.08), rgba(120,120,40,0.02), rgba(76,175,80,0.08))',
+              background: 'linear-gradient(90deg, rgba(59,130,246,0.35), rgba(150,150,160,0.08), rgba(234,179,8,0.15), rgba(249,115,22,0.35))',
             }} />
             <span>+1</span>
           </div>

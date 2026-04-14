@@ -13,6 +13,36 @@ import { useAuth } from '../../context/AuthContext';
 import VaultDocChat from './VaultDocChat';
 import './VaultPanel.css';
 
+/**
+ * Phase 3: Sanitize backend error messages — never show raw config errors to users.
+ * Maps developer-facing errors to friendly user messages.
+ */
+function sanitizeVaultError(msg) {
+  if (!msg) return 'Upload failed. Please try again.';
+  const lower = msg.toLowerCase();
+  if (lower.includes('postgres') || lower.includes('econnrefused') || lower.includes('connection terminated')
+      || lower.includes('database') || lower.includes('set ') || lower.includes('not configured')) {
+    return 'Knowledge Vault is initializing. Please try again in a moment.';
+  }
+  if (lower.includes('timeout') || lower.includes('not connected')) {
+    return 'Connection timed out. Please try again.';
+  }
+  if (lower.includes('no extractable text') || lower.includes('unable to read')) {
+    return 'Could not extract text from this file. Try a different format or file.';
+  }
+  if (lower.includes('unsupported file type')) {
+    return msg; // This one is already user-friendly
+  }
+  if (lower.includes('vault limit') || lower.includes('plan allows')) {
+    return msg; // Quota messages are already user-friendly
+  }
+  if (lower.includes('too large') || lower.includes('exceeds')) {
+    return 'File is too large. Maximum file size is 10MB.';
+  }
+  // Catch-all: don't expose raw error strings
+  return 'An error occurred processing the file. Please try a different file or try again.';
+}
+
 export default function VaultPanel({ fullScreen = false }) {
   const { token, user } = useAuth();
   const [tab, setTab] = useState('private');
@@ -113,7 +143,10 @@ export default function VaultPanel({ fullScreen = false }) {
       const res = await fetch(uploadUrl, { method: 'POST', headers: uploadHeaders, credentials: 'include', body: formData });
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.message || errData.error || 'Upload failed');
+        // Phase 3: Sanitize error messages — never expose raw config errors to users
+        const rawMsg = errData.message || errData.error || '';
+        const userMsg = sanitizeVaultError(rawMsg);
+        throw new Error(userMsg);
       }
       const data = await res.json();
       const chunks = data.chunks || 0;
@@ -123,6 +156,7 @@ export default function VaultPanel({ fullScreen = false }) {
       // Build rich assimilation summary
       const insight = {
         filename: file.name,
+        documentId: data.documentId,
         chunks,
         tickers: tickers || [],
         bank: bank || null,
@@ -132,7 +166,7 @@ export default function VaultPanel({ fullScreen = false }) {
 
       if (tab === 'central') await fetchCentralDocs(); else await fetchDocuments();
     } catch (e) {
-      setError(e.message);
+      setError(sanitizeVaultError(e.message));
     } finally {
       setUploading(false);
       setUploadFileName('');
@@ -273,21 +307,28 @@ export default function VaultPanel({ fullScreen = false }) {
       {/* Scrollable content */}
       <div className="vault-content">
 
-        {/* Nuclear processing animation */}
+        {/* Phase 3: Particle-themed processing animation — particles converge into document */}
         {uploading && (
           <div className="vault-processing">
-            <div className="vault-scan-lines">
-              <div className="vault-scan-line" />
-              <div className="vault-scan-line" />
-              <div className="vault-scan-line" />
+            <div className="vault-particle-field">
+              {Array.from({ length: 12 }).map((_, i) => (
+                <div key={i} className="vault-particle" style={{
+                  '--delay': `${i * 0.15}s`,
+                  '--angle': `${i * 30}deg`,
+                  '--distance': `${35 + (i % 3) * 12}px`,
+                }} />
+              ))}
+              <div className="vault-doc-target">
+                <svg width="24" height="28" viewBox="0 0 24 28" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <path d="M4 1h12l6 6v20H4V1z" />
+                  <path d="M16 1v6h6" />
+                  <line x1="8" y1="12" x2="18" y2="12" opacity="0.4" />
+                  <line x1="8" y1="16" x2="16" y2="16" opacity="0.4" />
+                  <line x1="8" y1="20" x2="14" y2="20" opacity="0.4" />
+                </svg>
+              </div>
             </div>
-            <div className="vault-reactor">
-              <div className="vault-reactor-core" />
-              <div className="vault-reactor-ring" />
-              <div className="vault-reactor-ring" />
-              <div className="vault-reactor-ring" />
-            </div>
-            <div className="vault-processing-label">Assimilating</div>
+            <div className="vault-processing-label">Extracting intelligence</div>
             <div className="vault-processing-file">{uploadFileName}</div>
           </div>
         )}
@@ -305,14 +346,21 @@ export default function VaultPanel({ fullScreen = false }) {
               <button className="vault-assimilated-dismiss" onClick={() => setUploadInsight(null)}>&times;</button>
             </div>
             <div className="vault-assimilated-body">{uploadInsight.summary}</div>
-            {(uploadInsight.tickers.length > 0 || uploadInsight.bank) && (
-              <div className="vault-assimilated-meta">
-                {uploadInsight.bank && <span className="vault-assimilated-tag">{uploadInsight.bank}</span>}
-                {uploadInsight.tickers.map(t => (
-                  <span key={t} className="vault-assimilated-tag">{t}</span>
-                ))}
-                <span className="vault-assimilated-tag">{uploadInsight.chunks} passages</span>
-              </div>
+            <div className="vault-assimilated-meta">
+              {uploadInsight.bank && <span className="vault-assimilated-tag">{uploadInsight.bank}</span>}
+              {uploadInsight.tickers.map(t => (
+                <span key={t} className="vault-assimilated-tag">{t}</span>
+              ))}
+              <span className="vault-assimilated-tag">{uploadInsight.chunks} passages</span>
+            </div>
+            {/* Phase 3: "Ready to chat" button — opens VaultDocChat pre-focused */}
+            {uploadInsight.documentId && (
+              <button
+                className="vault-chat-ready-btn"
+                onClick={() => { setChatDocId(uploadInsight.documentId); setUploadInsight(null); }}
+              >
+                Ready to chat about this document
+              </button>
             )}
           </div>
         )}

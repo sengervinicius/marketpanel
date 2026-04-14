@@ -137,7 +137,7 @@ const SparkChart = memo(function SparkChart({ ticker, label, rangeIdx, sectorNam
         ) : bars.length < 2 ? (
           <div className="scs-chart-loading" />
         ) : (
-          <ResponsiveContainer width="100%" height={60}>
+          <ResponsiveContainer width="100%" height={120}>
             <AreaChart data={bars} margin={{ top: 2, right: 0, left: 0, bottom: 0 }}>
               <defs>
                 <linearGradient id={`grad-${ticker}`} x1="0" y1="0" x2="0" y2="1">

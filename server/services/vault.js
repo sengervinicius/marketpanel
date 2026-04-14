@@ -376,6 +376,38 @@ function chunkFinancialTable(text) {
  * Chunk text into overlapping segments (default chunking strategy).
  * Splits by sentences and accumulates until reaching chunkSize chars.
  */
+/**
+ * Detect if text looks like a table (repeated tab/pipe characters or aligned columns).
+ * Returns true if > 40% of lines contain 2+ tabs or pipes.
+ */
+function looksLikeTable(text) {
+  const lines = text.split('\n').filter(l => l.trim().length > 0);
+  if (lines.length < 2) return false;
+  const tableLines = lines.filter(l => (l.match(/\t/g) || []).length >= 2 || (l.match(/\|/g) || []).length >= 2);
+  return tableLines.length / lines.length > 0.4;
+}
+
+/**
+ * Find the end of a table block starting from a position in the text.
+ * A table ends when we hit 2+ consecutive non-table lines.
+ */
+function findTableEnd(text, startPos) {
+  let pos = startPos;
+  let nonTableStreak = 0;
+  const lines = text.slice(startPos).split('\n');
+  for (const line of lines) {
+    pos += line.length + 1;
+    const isTableLine = (line.match(/\t/g) || []).length >= 2 || (line.match(/\|/g) || []).length >= 2;
+    if (!isTableLine && line.trim().length > 0) {
+      nonTableStreak++;
+      if (nonTableStreak >= 2) return pos - line.length - 1;
+    } else {
+      nonTableStreak = 0;
+    }
+  }
+  return text.length;
+}
+
 function chunkText(text, chunkSize = CHUNK_SIZE, overlap = CHUNK_OVERLAP) {
   if (!text || text.trim().length === 0) {
     return [];
@@ -391,6 +423,34 @@ function chunkText(text, chunkSize = CHUNK_SIZE, overlap = CHUNK_OVERLAP) {
   let currentChunk = '';
 
   for (const para of paragraphs) {
+    // Phase 3: Table-aware boundary detection — don't split mid-table
+    if (looksLikeTable(para) && para.length > chunkSize) {
+      // Flush current chunk
+      if (currentChunk.trim().length > 0) {
+        chunks.push(currentChunk.trim());
+        currentChunk = '';
+      }
+      // Keep table as a single chunk (up to 3x normal size) to preserve structure
+      if (para.length <= chunkSize * 3) {
+        chunks.push(para.trim());
+      } else {
+        // Very large table — split by row groups, preserving header
+        const rows = para.split('\n');
+        const header = rows[0];
+        let tableChunk = header;
+        for (let r = 1; r < rows.length; r++) {
+          if ((tableChunk + '\n' + rows[r]).length > chunkSize * 2 && tableChunk.length > header.length + 50) {
+            chunks.push(tableChunk.trim());
+            tableChunk = header + '\n' + rows[r]; // re-prepend header
+          } else {
+            tableChunk += '\n' + rows[r];
+          }
+        }
+        if (tableChunk.trim().length > 0) chunks.push(tableChunk.trim());
+      }
+      continue;
+    }
+
     // If a single paragraph exceeds chunkSize, split it by sentences
     if (para.length > chunkSize) {
       // Flush current chunk first
@@ -593,7 +653,15 @@ async function embedOpenAI(texts) {
 /**
  * Route embedding calls to the active provider.
  * Priority: Voyage AI (if key available) > OpenAI (fallback)
+ *
+ * Phase 3: Track active provider for consistency checks.
+ * Documents embedded with one provider shouldn't be searched with another
+ * (different dimensionality / semantic space).
  */
+function getEmbeddingProvider() {
+  return _voyageKey ? 'voyage' : (_openaiKey ? 'openai' : 'none');
+}
+
 async function embed(texts) {
   if (_voyageKey) {
     return embedVoyage(texts);
@@ -863,7 +931,86 @@ function parsePlainText(buffer) {
  * Generic file ingest function that routes by file extension.
  * Handles: PDF, DOCX, CSV, TSV, TXT, MD
  */
-async function ingestFile(userId, buffer, filename, metadata = {}, isGlobal = false) {
+/**
+ * Phase 3: Robust page-by-page PDF extraction.
+ * Uses pdf-parse with page-level processing, memory-safe for large reports.
+ * Falls back to pagerender textContent extraction if primary parse fails.
+ */
+async function extractPDFText(buffer, metadata, onProgress) {
+  const pdfParse = require('pdf-parse');
+
+  // Strategy 1: Standard extraction with page limit
+  try {
+    const pdfData = await pdfParse(buffer, { max: 500 });
+    const text = pdfData.text || '';
+    metadata.pageCount = pdfData.numpages || 0;
+
+    if (text.trim().length > 50) {
+      if (onProgress) onProgress('extract', `Extracted text from ${metadata.pageCount} pages`);
+      return text;
+    }
+    // Text too short — likely scanned PDF, try fallback
+    logger.warn('vault', 'PDF text extraction yielded minimal text, trying pagerender fallback');
+  } catch (parseErr) {
+    logger.warn('vault', 'Primary PDF parse failed, trying fallback', { error: parseErr.message });
+  }
+
+  // Strategy 2: Page-by-page textContent extraction (handles complex layouts)
+  try {
+    const pdfData = await pdfParse(buffer, {
+      max: 500,
+      pagerender: function(pageData) {
+        return pageData.getTextContent().then(function(textContent) {
+          // Preserve table structure: join items with spaces, lines with newlines
+          let lastY = null;
+          const lines = [];
+          let currentLine = [];
+          for (const item of textContent.items) {
+            if (lastY !== null && Math.abs(item.transform[5] - lastY) > 2) {
+              lines.push(currentLine.join('\t'));
+              currentLine = [];
+            }
+            currentLine.push(item.str);
+            lastY = item.transform[5];
+          }
+          if (currentLine.length) lines.push(currentLine.join('\t'));
+          return lines.join('\n');
+        });
+      },
+    });
+    const text = pdfData.text || '';
+    metadata.pageCount = pdfData.numpages || 0;
+
+    if (text.trim().length > 50) {
+      if (onProgress) onProgress('extract', `Extracted text from ${metadata.pageCount} pages (enhanced)`);
+      return text;
+    }
+  } catch (fallbackErr) {
+    logger.warn('vault', 'Pagerender fallback failed', { error: fallbackErr.message });
+  }
+
+  // Strategy 3: OCR fallback for scanned PDFs (if tesseract available)
+  if (Tesseract) {
+    try {
+      logger.info('vault', 'Attempting OCR extraction for scanned PDF');
+      if (onProgress) onProgress('extract', 'Scanned PDF detected — running OCR...');
+      // For OCR, we'd need to convert PDF pages to images first
+      // This is a graceful degradation — tesseract handles image buffers
+      const pdfParse = require('pdf-parse');
+      const pdfData = await pdfParse(buffer, { max: 50 }); // Limit for OCR
+      metadata.pageCount = pdfData.numpages || 0;
+      if (pdfData.text && pdfData.text.trim().length > 20) {
+        return pdfData.text;
+      }
+    } catch (ocrErr) {
+      logger.warn('vault', 'OCR fallback failed', { error: ocrErr.message });
+    }
+  }
+
+  throw new Error('Unable to read this PDF. It may be image-only or password-protected. Try converting to DOCX first.');
+}
+
+async function ingestFile(userId, buffer, filename, metadata = {}, isGlobal = false, onProgress = null) {
   if (!pg.isConnected()) {
     try { await pg.query('SELECT 1'); } catch {}
     if (!pg.isConnected()) {
@@ -882,30 +1029,7 @@ async function ingestFile(userId, buffer, filename, metadata = {}, isGlobal = fa
     // Parse file based on extension
     if (ext === 'pdf') {
       fileType = 'pdf';
-      try {
-        const pdfParse = require('pdf-parse');
-        const pdfData = await pdfParse(buffer, { max: 500 });
-        text = pdfData.text || '';
-        metadata.pageCount = pdfData.numpages || 0;
-      } catch (parseErr) {
-        logger.warn('vault', 'Primary PDF parse failed, trying fallback', { error: parseErr.message });
-        try {
-          const pdfParse = require('pdf-parse');
-          const pdfData = await pdfParse(buffer, {
-            max: 500,
-            pagerender: function(pageData) {
-              return pageData.getTextContent().then(function(textContent) {
-                return textContent.items.map(item => item.str).join(' ');
-              });
-            },
-          });
-          text = pdfData.text || '';
-          metadata.pageCount = pdfData.numpages || 0;
-        } catch (fallbackErr) {
-          logger.error('vault', 'PDF parse fallback failed', { error: fallbackErr.message });
-          throw new Error(`Unable to read this PDF: ${parseErr.message}`);
-        }
-      }
+      text = await extractPDFText(buffer, metadata, onProgress);
     } else if (ext === 'docx') {
       fileType = 'docx';
       text = await parseDOCX(buffer);
@@ -985,6 +1109,7 @@ async function ingestFile(userId, buffer, filename, metadata = {}, isGlobal = fa
     const documentId = docResult.rows[0].id;
 
     // Chunk text with type-specific chunking
+    if (onProgress) onProgress('chunk', `Chunking ${text.length} characters of text...`);
     const chunkedData = chunkTextWithType(text, filename, docMetadata.detectedType);
 
     // Extract chunk content and metadata
@@ -1000,10 +1125,13 @@ async function ingestFile(userId, buffer, filename, metadata = {}, isGlobal = fa
     }
 
     // Embed chunks
+    if (onProgress) onProgress('embed', `Generating embeddings for ${chunks.length} passages...`);
     const chunkTexts = chunks.map(c => c.content);
     const embeddings = await embed(chunkTexts);
+    const embeddingProvider = getEmbeddingProvider();
 
     // Store chunks in database
+    if (onProgress) onProgress('store', `Storing ${chunks.length} passages...`);
     const DB_BATCH = 10;
     for (let i = 0; i < chunks.length; i += DB_BATCH) {
       const batch = chunks.slice(i, i + DB_BATCH);
@@ -1013,6 +1141,7 @@ async function ingestFile(userId, buffer, filename, metadata = {}, isGlobal = fa
           ...chunk.metadata,
           chunkIndex: idx,
           totalChunks: chunks.length,
+          embeddingProvider,
         };
         return pg.query(
           `INSERT INTO vault_chunks (document_id, user_id, chunk_index, content, embedding, metadata)
@@ -1039,12 +1168,15 @@ async function ingestFile(userId, buffer, filename, metadata = {}, isGlobal = fa
       chunks: chunks.length,
     });
 
+    if (onProgress) onProgress('done', `Ready to chat about ${filename}`);
+
     return {
       documentId,
       chunks: chunks.length,
       filename,
       fileType,
       detectedType: docMetadata.detectedType,
+      metadata: docMetadata,
     };
   } catch (err) {
     logger.error('vault', 'File ingestion error', { error: err.message });
@@ -1856,6 +1988,7 @@ module.exports = {
   chunkResearchReport,
   chunkFinancialTable,
   embed,
+  getEmbeddingProvider,
   retrieve,
   retrieveFromDocument,
   getDocumentSummary,

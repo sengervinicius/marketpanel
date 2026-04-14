@@ -7,7 +7,8 @@
  */
 import { memo, useMemo, useState } from 'react';
 import FullPageScreenLayout from './shared/FullPageScreenLayout';
-import { FundamentalsTable, EarningsCalendarStrip, AnalystActionsCard, OwnershipBreakdown, TechnicalSignalsCard, MacroCalendarStrip } from './shared';
+import SectorPulse from './shared/SectorPulse';
+import { FundamentalsTable, EarningsCalendarStrip, AnalystActionsCard, MacroCalendarStrip } from './shared';
 import { SectorChartPanel } from './shared/SectorChartPanel';
 import { useOpenDetail } from '../../context/OpenDetailContext';
 import { useTickerPrice } from '../../context/PriceContext';
@@ -119,20 +120,12 @@ const OWNERSHIP_TICKERS = ['SAP', 'AZN', 'NVO', 'SHEL', 'HSBC', 'UL'];
 const SIGNALS_TICKERS = ['SAP', 'AZN', 'NVO', 'SHEL', 'LVMUY', 'TTE', 'HSBC', 'UL'];
 const ANALYST_TICKERS = ['SAP', 'AZN', 'NVO', 'SHEL', 'TTE', 'HSBC'];
 
-const TechnicalSignalsSection = memo(function TechnicalSignalsSection() {
-  return <TechnicalSignalsCard tickers={SIGNALS_TICKERS} accentColor="#3f51b5" />;
-});
-
 const EarningsSection = memo(function EarningsSection() {
   return <EarningsCalendarStrip tickers={EARNINGS_TICKERS} accentColor="#3f51b5" />;
 });
 
 const AnalystSection = memo(function AnalystSection() {
   return <AnalystActionsCard tickers={ANALYST_TICKERS} accentColor="#3f51b5" />;
-});
-
-const OwnershipSection = memo(function OwnershipSection() {
-  return <OwnershipBreakdown tickers={OWNERSHIP_TICKERS} accentColor="#3f51b5" />;
 });
 
 const MacroCalendarSection = memo(function MacroCalendarSection() {
@@ -514,25 +507,14 @@ function EuropeanMarketsScreenImpl() {
       ),
     },
     {
-      id: 'tech-signals',
-      title: 'Technical Signals',
-      component: TechnicalSignalsSection,
-    },
-    {
       id: 'earnings-calendar',
       title: 'Upcoming Earnings',
-      span: 'full',
       component: EarningsSection,
     },
     {
       id: 'analyst-actions',
       title: 'Analyst Actions',
       component: AnalystSection,
-    },
-    {
-      id: 'ownership',
-      title: 'Ownership Structure',
-      component: OwnershipSection,
     },
     {
       id: 'macro-calendar',
@@ -555,12 +537,11 @@ function EuropeanMarketsScreenImpl() {
       aiContext={{ region: 'Europe', tickers: ['VGK', 'EWG', 'EWQ'] }}
       aiCacheKey="macro:european"
     >
-      <div style={{ padding: '12px', borderTop: '1px solid var(--border-default)' }}>
-        <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-          European ETFs
-        </div>
-        <EtfStrip />
-      </div>
+      <SectorPulse
+        etfTicker="VGK"
+        etfLabel="VGK"
+        accentColor="#3f51b5"
+      />
     </FullPageScreenLayout>
   );
 }

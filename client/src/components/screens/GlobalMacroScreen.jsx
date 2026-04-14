@@ -5,8 +5,9 @@
  *           Central Bank Rates, Risk Appetite, European Markets, Equity Indexes, Macro Calendar
  */
 import { memo, useMemo } from 'react';
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import FullPageScreenLayout from './shared/FullPageScreenLayout';
+import SectorPulse from './shared/SectorPulse';
 import { SectorChartPanel } from './shared/SectorChartPanel';
 import DataUnavailable from '../common/DataUnavailable';
 import useSectionData from '../../hooks/useSectionData';
@@ -583,21 +584,8 @@ function MacroCalendar() {
 function GlobalMacroScreenImpl() {
   const sections = useMemo(() => [
     {
-      id: 'kpi',
-      title: 'KEY METRICS',
-      span: 'full',
-      component: MacroKPIRibbon,
-    },
-    {
-      id: 'charts',
-      title: 'Sector & Asset Charts',
-      span: 'full',
-      component: () => <SectorChartPanel tickers={['SPY', 'EEM', 'TLT', 'GC=F', 'DXY', 'C:EURUSD']} height={200} cols={3} />,
-    },
-    {
       id: 'snapshot',
       title: 'Global Macro Snapshot',
-      span: 'full',
       component: GlobalSnapshot,
     },
     {
@@ -610,12 +598,6 @@ function GlobalMacroScreenImpl() {
       title: 'FX Heatmap',
       span: 'full',
       component: FxHeatmap,
-    },
-    {
-      id: 'market-movers',
-      title: 'Market Movers',
-      span: 'full',
-      component: MarketMovers,
     },
     {
       id: 'yields',
@@ -632,18 +614,6 @@ function GlobalMacroScreenImpl() {
       title: 'Risk Appetite Indicators',
       span: 'full',
       component: RiskAppetiteIndicators,
-    },
-    {
-      id: 'european',
-      title: 'European Markets',
-      span: 'full',
-      component: EuropeanMarkets,
-    },
-    {
-      id: 'equity',
-      title: 'Global Equity Indexes',
-      span: 'full',
-      component: GlobalEquityIndexes,
     },
     {
       id: 'calendar',
@@ -664,7 +634,13 @@ function GlobalMacroScreenImpl() {
       aiType="macro"
       aiContext={{ scope: 'Global Macro' }}
       aiCacheKey="macro:global"
-    />
+    >
+      <SectorPulse
+        etfTicker="SPY"
+        etfLabel="SPY"
+        accentColor="#9c27b0"
+      />
+    </FullPageScreenLayout>
   );
 }
 
