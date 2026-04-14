@@ -16,6 +16,7 @@ const edgar = require('./edgar');
 const earnings = require('./earnings');
 const memoryManager = require('./memoryManager');
 const computeEngine = require('./computeEngine');
+const unusualWhales = require('./unusualWhales');
 
 // ── Configuration ──────────────────────────────────────────────────────
 const DEFAULT_TIMEOUT_MS = 5000; // 5 seconds per agent
@@ -26,6 +27,7 @@ const AGENT_TIMEOUTS = {
   memory: 2000,     // Session + persistent memory (fast, in-memory/DB)
   compute: 1000,    // Portfolio metrics (purely computational)
   news: 5000,       // Web search news (slower external call)
+  unusualWhales: 4000, // Options flow, dark pool, Greeks, shorts, congress
 };
 
 // ── Helper: promisify with timeout ───────────────────────────────────
@@ -154,6 +156,36 @@ IMPORTANT: NEVER do math in your head. Use the PRE-COMPUTED values above.`;
 }
 
 /**
+ * unusualWhalesAgent: Fetch options flow, dark pool, Greeks, shorts, congress data
+ * Extracts tickers from query and fetches comprehensive UW data
+ */
+async function unusualWhalesAgent(query) {
+  const tickerMatch = query.match(/\$?([A-Z]{1,5}(?:\.[A-Z]{1,2})?)\b/);
+  let tickerContext = '';
+  let marketContext = '';
+
+  // Ticker-specific data (options flow, dark pool, Greeks, shorts, institutional)
+  if (tickerMatch) {
+    const ticker = tickerMatch[1];
+    try {
+      tickerContext = await unusualWhales.formatForContext(ticker);
+    } catch (err) {
+      console.warn('[agentOrchestrator] UW ticker context error:', err.message);
+    }
+  }
+
+  // Market-wide data (congress trades, institutional filings, news)
+  try {
+    marketContext = await unusualWhales.formatMarketContext();
+  } catch (err) {
+    console.warn('[agentOrchestrator] UW market context error:', err.message);
+  }
+
+  const combined = [tickerContext, marketContext].filter(Boolean).join('\n\n');
+  return { context: combined, ticker: tickerMatch ? tickerMatch[1] : null };
+}
+
+/**
  * newsAgent: Fetch real-time news via Perplexity Sonar (optional)
  * Currently a placeholder — can be implemented if Perplexity integration is added
  */
@@ -194,7 +226,7 @@ async function gatherContext({
   }
 
   // ── Run all agents in parallel with individual timeouts ──────────────────
-  const [vaultResult, edgarResult, earningsResult, memoryResult, computeResult, newsResult] =
+  const [vaultResult, edgarResult, earningsResult, memoryResult, computeResult, newsResult, uwResult] =
     await Promise.allSettled([
       // Vault RAG retrieval
       withTimeout(
@@ -255,6 +287,16 @@ async function gatherContext({
         console.warn('[agentOrchestrator] News agent failed:', err.message);
         return { context: '', sources: [] };
       }),
+
+      // Unusual Whales: options flow, dark pool, Greeks, shorts, congress
+      withTimeout(
+        unusualWhalesAgent(query),
+        AGENT_TIMEOUTS.unusualWhales,
+        'unusualWhales'
+      ).catch(err => {
+        console.warn('[agentOrchestrator] Unusual Whales agent failed:', err.message);
+        return { context: '', ticker: null };
+      }),
     ]);
 
   // ── Extract results and record timings ────────────────────────────────────
@@ -265,6 +307,7 @@ async function gatherContext({
     memory: { sessionMemory: '', persistentMemory: '' },
     compute: { context: '' },
     news: { context: '', sources: [] },
+    unusualWhales: { context: '', ticker: null },
   };
 
   // Process vault result
@@ -321,11 +364,20 @@ async function gatherContext({
     console.warn('[agentOrchestrator] News rejected:', newsResult.reason?.message);
   }
 
+  // Process Unusual Whales result
+  if (uwResult.status === 'fulfilled') {
+    results.unusualWhales = uwResult.value;
+    timings.unusualWhales = Date.now() - startTime;
+  } else {
+    timings.unusualWhales = Date.now() - startTime;
+    console.warn('[agentOrchestrator] UW rejected:', uwResult.reason?.message);
+  }
+
   const totalTime = Date.now() - startTime;
 
   // ── Log timing summary ───────────────────────────────────────────────────
   console.log(
-    `[orchestrator] context gathered in ${totalTime}ms: vault=${timings.vault}ms, edgar=${timings.edgar}ms, earnings=${timings.earnings}ms, memory=${timings.memory}ms, compute=${timings.compute}ms, news=${timings.news}ms`
+    `[orchestrator] context gathered in ${totalTime}ms: vault=${timings.vault}ms, edgar=${timings.edgar}ms, earnings=${timings.earnings}ms, memory=${timings.memory}ms, compute=${timings.compute}ms, news=${timings.news}ms, uw=${timings.unusualWhales}ms`
   );
 
   return mergeResults(results);
@@ -390,6 +442,13 @@ function mergeResults(results) {
       available: !!(results.news?.context),
     },
 
+    // Unusual Whales: options flow, dark pool, Greeks, shorts, congress
+    unusualWhales: {
+      context: results.unusualWhales?.context || '',
+      ticker: results.unusualWhales?.ticker || null,
+      available: !!(results.unusualWhales?.context),
+    },
+
     // Summary flags for conditional rendering in prompt
     summary: {
       hasVault: !!(results.vault?.context),
@@ -398,6 +457,7 @@ function mergeResults(results) {
       hasMemory: !!(results.memory?.sessionMemory || results.memory?.persistentMemory),
       hasCompute: !!(results.compute?.context),
       hasNews: !!(results.news?.context),
+      hasUnusualWhales: !!(results.unusualWhales?.context),
     },
   };
 }
@@ -414,4 +474,5 @@ module.exports = {
   memoryAgent,
   computeAgent,
   newsAgent,
+  unusualWhalesAgent,
 };

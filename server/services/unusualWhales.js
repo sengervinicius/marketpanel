@@ -1,7 +1,8 @@
 /**
  * services/unusualWhales.js — Unusual Whales API Integration
  *
- * Provides options flow data, dark pool activity, and flow alerts.
+ * Complete integration with all Unusual Whales API endpoints.
+ * Provides options flow, dark pool, Greeks, shorts, congress trades, institutional data, and more.
  * Uses API key-based authentication (UNUSUAL_WHALES_API_KEY env var).
  * All functions gracefully return empty data when API key is not set.
  *
@@ -10,6 +11,7 @@
  *   - Graceful degradation: missing API key logs once, returns empty results
  *   - Non-blocking: best-effort enrichment of chat context
  *   - Rate limiting: respect 60 req/min across all endpoints
+ *   - Normalized response formats with null safety
  */
 
 const fetch = require('node-fetch');
@@ -68,10 +70,38 @@ function _ensureApiKey() {
   return true;
 }
 
+// ── Helper: Generic API fetch with error handling ─────────────────────────────
+
+async function _fetchFromAPI(endpoint, label, defaultReturn = []) {
+  if (!_ensureApiKey()) return defaultReturn;
+
+  try {
+    const url = `${API_BASE}${endpoint}`;
+    const response = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${API_KEY}`,
+        'User-Agent': 'TheParticle/1.0',
+      },
+      timeout: 10000,
+    });
+
+    if (!response.ok) {
+      logger.warn(`[UnusualWhales] ${label} request failed: ${response.status}`);
+      return defaultReturn;
+    }
+
+    return await response.json();
+  } catch (err) {
+    logger.error(`[UnusualWhales] Error fetching ${label}:`, err.message);
+    return defaultReturn;
+  }
+}
+
 // ── Function 1: Get Options Flow ──────────────────────────────────────────────
 
 /**
  * Fetch recent options flow activity for a ticker.
+ * Uses: /api/stock/{ticker}/net-prem-ticks
  * Returns: array of { strike, expiry, type (call/put), premium, volume, openInterest, sentiment }
  * Cache: 5 min TTL
  *
@@ -88,7 +118,7 @@ async function getOptionsFlow(symbol, options = {}) {
   if (cached) return cached;
 
   try {
-    const url = `${API_BASE}/stock/${symbol.toUpperCase()}/options-flow?limit=${limit}`;
+    const url = `${API_BASE}/stock/${symbol.toUpperCase()}/net-prem-ticks?limit=${limit}`;
     const response = await fetch(url, {
       headers: {
         'Authorization': `Bearer ${API_KEY}`,
@@ -104,7 +134,7 @@ async function getOptionsFlow(symbol, options = {}) {
 
     const data = await response.json();
     const results = (data.data || []).map(item => ({
-      strike: item.strike,
+      strike: item.strike || 0,
       expiry: item.expiry || 'N/A',
       type: item.type ? item.type.toLowerCase() : 'unknown',
       premium: item.premium || 0,
@@ -125,6 +155,7 @@ async function getOptionsFlow(symbol, options = {}) {
 
 /**
  * Fetch dark pool prints (large block trades) for a ticker.
+ * Uses: /api/darkpool/{ticker}
  * Returns: array of { price, size, exchange, timestamp, percentOfVolume }
  * Cache: 10 min TTL
  *
@@ -139,7 +170,7 @@ async function getDarkPoolActivity(symbol) {
   if (cached) return cached;
 
   try {
-    const url = `${API_BASE}/stock/${symbol.toUpperCase()}/dark-pool`;
+    const url = `${API_BASE}/darkpool/${symbol.toUpperCase()}`;
     const response = await fetch(url, {
       headers: {
         'Authorization': `Bearer ${API_KEY}`,
@@ -174,6 +205,7 @@ async function getDarkPoolActivity(symbol) {
 
 /**
  * Fetch unusual flow alerts (sweeps, blocks, etc.).
+ * Uses: /api/alerts
  * Returns: array of { symbol, type, description, premium, timestamp }
  * Cache: 2 min TTL
  *
@@ -187,7 +219,7 @@ async function getFlowAlerts() {
   if (cached) return cached;
 
   try {
-    const url = `${API_BASE}/flow/alerts`;
+    const url = `${API_BASE}/alerts`;
     const response = await fetch(url, {
       headers: {
         'Authorization': `Bearer ${API_KEY}`,
@@ -221,21 +253,23 @@ async function getFlowAlerts() {
 // ── Function 4: Get Market Tide ───────────────────────────────────────────────
 
 /**
- * Fetch overall market options sentiment (call/put ratio).
- * Returns: { callVolume, putVolume, ratio, sentiment }
+ * Fetch sector-specific options sentiment.
+ * Uses: /api/market/{sector}/sector-tide
+ * Returns: { sector, callVolume, putVolume, ratio, sentiment }
  * Cache: 5 min TTL
  *
+ * @param {string} sector — e.g., 'technology', 'healthcare', 'energy' (default: 'technology')
  * @returns {Promise<Object>}
  */
-async function getMarketTide() {
+async function getMarketTide(sector = 'technology') {
   if (!_ensureApiKey()) return null;
 
-  const cacheKey = 'uw:markettide:global';
+  const cacheKey = `uw:markettide:${sector}`;
   const cached = cacheGet(cacheKey);
   if (cached) return cached;
 
   try {
-    const url = `${API_BASE}/market/tide`;
+    const url = `${API_BASE}/market/${sector.toLowerCase()}/sector-tide`;
     const response = await fetch(url, {
       headers: {
         'Authorization': `Bearer ${API_KEY}`,
@@ -245,12 +279,13 @@ async function getMarketTide() {
     });
 
     if (!response.ok) {
-      logger.warn(`[UnusualWhales] Market tide request failed: ${response.status}`);
+      logger.warn(`[UnusualWhales] Market tide request failed: ${response.status} for sector ${sector}`);
       return null;
     }
 
     const data = await response.json();
     const result = {
+      sector: sector,
       callVolume: data.call_volume || 0,
       putVolume: data.put_volume || 0,
       ratio: data.ratio || 0,
@@ -265,65 +300,940 @@ async function getMarketTide() {
   }
 }
 
-// ── Function 5: Format for AI Context ─────────────────────────────────────────
+// ── Function 5: Get Congress Trades ───────────────────────────────────────────
 
 /**
- * Combines options flow + dark pool data into a concise string
+ * Fetch recent congressional trading activity.
+ * Uses: /api/congress/recent-trades
+ * Returns: array of { ticker, representative, transactionType, amount, timestamp }
+ * Cache: 30 min TTL
+ *
+ * @returns {Promise<Array>}
+ */
+async function getCongressTrades() {
+  if (!_ensureApiKey()) return [];
+
+  const cacheKey = 'uw:congress:trades';
+  const cached = cacheGet(cacheKey);
+  if (cached) return cached;
+
+  try {
+    const url = `${API_BASE}/congress/recent-trades`;
+    const response = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${API_KEY}`,
+        'User-Agent': 'TheParticle/1.0',
+      },
+      timeout: 10000,
+    });
+
+    if (!response.ok) {
+      logger.warn(`[UnusualWhales] Congress trades request failed: ${response.status}`);
+      return [];
+    }
+
+    const data = await response.json();
+    const results = (data.data || []).map(item => ({
+      ticker: item.ticker ? item.ticker.toUpperCase() : 'N/A',
+      representative: item.representative || 'Unknown',
+      transactionType: item.transaction_type || 'unknown',
+      amount: item.amount || 0,
+      timestamp: item.timestamp ? new Date(item.timestamp).toISOString() : new Date().toISOString(),
+    }));
+
+    cacheSet(cacheKey, results, 30 * 60 * 1000); // 30 min
+    return results;
+  } catch (err) {
+    logger.error('[UnusualWhales] Error fetching congress trades:', err.message);
+    return [];
+  }
+}
+
+// ── Function 6: Get Congress Top Tickers ──────────────────────────────────────
+
+/**
+ * Fetch most traded tickers by congress.
+ * Uses: /api/congress/top-traded-tickers
+ * Returns: array of { ticker, tradeCount, totalAmount }
+ * Cache: 1 hr TTL
+ *
+ * @returns {Promise<Array>}
+ */
+async function getCongressTopTickers() {
+  if (!_ensureApiKey()) return [];
+
+  const cacheKey = 'uw:congress:toptickers';
+  const cached = cacheGet(cacheKey);
+  if (cached) return cached;
+
+  try {
+    const url = `${API_BASE}/congress/top-traded-tickers`;
+    const response = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${API_KEY}`,
+        'User-Agent': 'TheParticle/1.0',
+      },
+      timeout: 10000,
+    });
+
+    if (!response.ok) {
+      logger.warn(`[UnusualWhales] Congress top tickers request failed: ${response.status}`);
+      return [];
+    }
+
+    const data = await response.json();
+    const results = (data.data || []).map(item => ({
+      ticker: item.ticker ? item.ticker.toUpperCase() : 'N/A',
+      tradeCount: item.trade_count || 0,
+      totalAmount: item.total_amount || 0,
+    }));
+
+    cacheSet(cacheKey, results, 60 * 60 * 1000); // 1 hr
+    return results;
+  } catch (err) {
+    logger.error('[UnusualWhales] Error fetching congress top tickers:', err.message);
+    return [];
+  }
+}
+
+// ── Function 7: Get Greeks ────────────────────────────────────────────────────
+
+/**
+ * Fetch options Greeks (delta, gamma, theta, vega) for a ticker.
+ * Uses: /api/stock/{ticker}/greeks
+ * Returns: array of { strike, expiry, delta, gamma, theta, vega, price }
+ * Cache: 5 min TTL
+ *
+ * @param {string} symbol — e.g., 'AAPL'
+ * @returns {Promise<Array>}
+ */
+async function getGreeks(symbol) {
+  if (!_ensureApiKey()) return [];
+
+  const cacheKey = `uw:greeks:${symbol.toUpperCase()}`;
+  const cached = cacheGet(cacheKey);
+  if (cached) return cached;
+
+  try {
+    const url = `${API_BASE}/stock/${symbol.toUpperCase()}/greeks`;
+    const response = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${API_KEY}`,
+        'User-Agent': 'TheParticle/1.0',
+      },
+      timeout: 10000,
+    });
+
+    if (!response.ok) {
+      logger.warn(`[UnusualWhales] Greeks request failed: ${response.status} for ${symbol}`);
+      return [];
+    }
+
+    const data = await response.json();
+    const results = (data.data || []).map(item => ({
+      strike: item.strike || 0,
+      expiry: item.expiry || 'N/A',
+      delta: item.delta || 0,
+      gamma: item.gamma || 0,
+      theta: item.theta || 0,
+      vega: item.vega || 0,
+      rho: item.rho || 0,
+      price: item.price || 0,
+    }));
+
+    cacheSet(cacheKey, results, 5 * 60 * 1000); // 5 min
+    return results;
+  } catch (err) {
+    logger.error(`[UnusualWhales] Error fetching Greeks for ${symbol}:`, err.message);
+    return [];
+  }
+}
+
+// ── Function 8: Get Max Pain ──────────────────────────────────────────────────
+
+/**
+ * Fetch max pain level for a ticker.
+ * Uses: /api/stock/{ticker}/max-pain
+ * Returns: { ticker, maxPain, distance, percentAway }
+ * Cache: 15 min TTL
+ *
+ * @param {string} symbol — e.g., 'AAPL'
+ * @returns {Promise<Object|null>}
+ */
+async function getMaxPain(symbol) {
+  if (!_ensureApiKey()) return null;
+
+  const cacheKey = `uw:maxpain:${symbol.toUpperCase()}`;
+  const cached = cacheGet(cacheKey);
+  if (cached) return cached;
+
+  try {
+    const url = `${API_BASE}/stock/${symbol.toUpperCase()}/max-pain`;
+    const response = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${API_KEY}`,
+        'User-Agent': 'TheParticle/1.0',
+      },
+      timeout: 10000,
+    });
+
+    if (!response.ok) {
+      logger.warn(`[UnusualWhales] Max pain request failed: ${response.status} for ${symbol}`);
+      return null;
+    }
+
+    const data = await response.json();
+    const result = {
+      ticker: symbol.toUpperCase(),
+      maxPain: data.max_pain || 0,
+      distance: data.distance || 0,
+      percentAway: data.percent_away || 0,
+    };
+
+    cacheSet(cacheKey, result, 15 * 60 * 1000); // 15 min
+    return result;
+  } catch (err) {
+    logger.error(`[UnusualWhales] Error fetching max pain for ${symbol}:`, err.message);
+    return null;
+  }
+}
+
+// ── Function 9: Get Short Data ────────────────────────────────────────────────
+
+/**
+ * Fetch short activity for a ticker.
+ * Uses: /api/shorts/{ticker}/data
+ * Returns: { ticker, shortVolume, totalVolume, shortRatio, timestamp }
+ * Cache: 30 min TTL
+ *
+ * @param {string} symbol — e.g., 'AAPL'
+ * @returns {Promise<Object|null>}
+ */
+async function getShortData(symbol) {
+  if (!_ensureApiKey()) return null;
+
+  const cacheKey = `uw:shorts:data:${symbol.toUpperCase()}`;
+  const cached = cacheGet(cacheKey);
+  if (cached) return cached;
+
+  try {
+    const url = `${API_BASE}/shorts/${symbol.toUpperCase()}/data`;
+    const response = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${API_KEY}`,
+        'User-Agent': 'TheParticle/1.0',
+      },
+      timeout: 10000,
+    });
+
+    if (!response.ok) {
+      logger.warn(`[UnusualWhales] Short data request failed: ${response.status} for ${symbol}`);
+      return null;
+    }
+
+    const data = await response.json();
+    const result = {
+      ticker: symbol.toUpperCase(),
+      shortVolume: data.short_volume || 0,
+      totalVolume: data.total_volume || 0,
+      shortRatio: data.short_ratio || 0,
+      timestamp: data.timestamp ? new Date(data.timestamp).toISOString() : new Date().toISOString(),
+    };
+
+    cacheSet(cacheKey, result, 30 * 60 * 1000); // 30 min
+    return result;
+  } catch (err) {
+    logger.error(`[UnusualWhales] Error fetching short data for ${symbol}:`, err.message);
+    return null;
+  }
+}
+
+// ── Function 10: Get Short Interest ───────────────────────────────────────────
+
+/**
+ * Fetch short interest vs float for a ticker.
+ * Uses: /api/shorts/{ticker}/interest-float
+ * Returns: { ticker, shortInterest, float, percentOfFloat }
+ * Cache: 1 hr TTL
+ *
+ * @param {string} symbol — e.g., 'AAPL'
+ * @returns {Promise<Object|null>}
+ */
+async function getShortInterest(symbol) {
+  if (!_ensureApiKey()) return null;
+
+  const cacheKey = `uw:shorts:interest:${symbol.toUpperCase()}`;
+  const cached = cacheGet(cacheKey);
+  if (cached) return cached;
+
+  try {
+    const url = `${API_BASE}/shorts/${symbol.toUpperCase()}/interest-float`;
+    const response = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${API_KEY}`,
+        'User-Agent': 'TheParticle/1.0',
+      },
+      timeout: 10000,
+    });
+
+    if (!response.ok) {
+      logger.warn(`[UnusualWhales] Short interest request failed: ${response.status} for ${symbol}`);
+      return null;
+    }
+
+    const data = await response.json();
+    const result = {
+      ticker: symbol.toUpperCase(),
+      shortInterest: data.short_interest || 0,
+      float: data.float || 0,
+      percentOfFloat: data.percent_of_float || 0,
+    };
+
+    cacheSet(cacheKey, result, 60 * 60 * 1000); // 1 hr
+    return result;
+  } catch (err) {
+    logger.error(`[UnusualWhales] Error fetching short interest for ${symbol}:`, err.message);
+    return null;
+  }
+}
+
+// ── Function 11: Get Failed-to-Deliver (FTDs) ─────────────────────────────────
+
+/**
+ * Fetch FTD data for a ticker.
+ * Uses: /api/shorts/{ticker}/ftds
+ * Returns: array of { date, ftdCount, ftdVolume }
+ * Cache: 4 hr TTL
+ *
+ * @param {string} symbol — e.g., 'AAPL'
+ * @returns {Promise<Array>}
+ */
+async function getFTDs(symbol) {
+  if (!_ensureApiKey()) return [];
+
+  const cacheKey = `uw:shorts:ftds:${symbol.toUpperCase()}`;
+  const cached = cacheGet(cacheKey);
+  if (cached) return cached;
+
+  try {
+    const url = `${API_BASE}/shorts/${symbol.toUpperCase()}/ftds`;
+    const response = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${API_KEY}`,
+        'User-Agent': 'TheParticle/1.0',
+      },
+      timeout: 10000,
+    });
+
+    if (!response.ok) {
+      logger.warn(`[UnusualWhales] FTDs request failed: ${response.status} for ${symbol}`);
+      return [];
+    }
+
+    const data = await response.json();
+    const results = (data.data || []).map(item => ({
+      date: item.date || 'N/A',
+      ftdCount: item.ftd_count || 0,
+      ftdVolume: item.ftd_volume || 0,
+    }));
+
+    cacheSet(cacheKey, results, 4 * 60 * 60 * 1000); // 4 hr
+    return results;
+  } catch (err) {
+    logger.error(`[UnusualWhales] Error fetching FTDs for ${symbol}:`, err.message);
+    return [];
+  }
+}
+
+// ── Function 12: Get Institutional Ownership ──────────────────────────────────
+
+/**
+ * Fetch institutional ownership for a ticker.
+ * Uses: /api/institution/{ticker}/ownership
+ * Returns: array of { institution, shares, value, percentOfFloat }
+ * Cache: 2 hr TTL
+ *
+ * @param {string} symbol — e.g., 'AAPL'
+ * @returns {Promise<Array>}
+ */
+async function getInstitutionalOwnership(symbol) {
+  if (!_ensureApiKey()) return [];
+
+  const cacheKey = `uw:institution:ownership:${symbol.toUpperCase()}`;
+  const cached = cacheGet(cacheKey);
+  if (cached) return cached;
+
+  try {
+    const url = `${API_BASE}/institution/${symbol.toUpperCase()}/ownership`;
+    const response = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${API_KEY}`,
+        'User-Agent': 'TheParticle/1.0',
+      },
+      timeout: 10000,
+    });
+
+    if (!response.ok) {
+      logger.warn(`[UnusualWhales] Institutional ownership request failed: ${response.status} for ${symbol}`);
+      return [];
+    }
+
+    const data = await response.json();
+    const results = (data.data || []).map(item => ({
+      institution: item.institution || 'Unknown',
+      shares: item.shares || 0,
+      value: item.value || 0,
+      percentOfFloat: item.percent_of_float || 0,
+    }));
+
+    cacheSet(cacheKey, results, 2 * 60 * 60 * 1000); // 2 hr
+    return results;
+  } catch (err) {
+    logger.error(`[UnusualWhales] Error fetching institutional ownership for ${symbol}:`, err.message);
+    return [];
+  }
+}
+
+// ── Function 13: Get Latest Filings ───────────────────────────────────────────
+
+/**
+ * Fetch recent 13F institutional filings.
+ * Uses: /api/institution/latest_filings
+ * Returns: array of { institution, filingDate, ticker, shares, value }
+ * Cache: 1 hr TTL
+ *
+ * @returns {Promise<Array>}
+ */
+async function getLatestFilings() {
+  if (!_ensureApiKey()) return [];
+
+  const cacheKey = 'uw:institution:filings';
+  const cached = cacheGet(cacheKey);
+  if (cached) return cached;
+
+  try {
+    const url = `${API_BASE}/institution/latest_filings`;
+    const response = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${API_KEY}`,
+        'User-Agent': 'TheParticle/1.0',
+      },
+      timeout: 10000,
+    });
+
+    if (!response.ok) {
+      logger.warn(`[UnusualWhales] Latest filings request failed: ${response.status}`);
+      return [];
+    }
+
+    const data = await response.json();
+    const results = (data.data || []).map(item => ({
+      institution: item.institution || 'Unknown',
+      filingDate: item.filing_date ? new Date(item.filing_date).toISOString() : 'N/A',
+      ticker: item.ticker ? item.ticker.toUpperCase() : 'N/A',
+      shares: item.shares || 0,
+      value: item.value || 0,
+    }));
+
+    cacheSet(cacheKey, results, 60 * 60 * 1000); // 1 hr
+    return results;
+  } catch (err) {
+    logger.error('[UnusualWhales] Error fetching latest filings:', err.message);
+    return [];
+  }
+}
+
+// ── Function 14: Get News Headlines ───────────────────────────────────────────
+
+/**
+ * Fetch financial news headlines.
+ * Uses: /api/news/headlines
+ * Returns: array of { headline, source, url, timestamp }
+ * Cache: 5 min TTL
+ *
+ * @param {string} query — optional search query (e.g., 'AAPL', 'earnings')
+ * @returns {Promise<Array>}
+ */
+async function getNewsHeadlines(query = '') {
+  if (!_ensureApiKey()) return [];
+
+  const cacheKey = `uw:news:${query ? query.toLowerCase() : 'all'}`;
+  const cached = cacheGet(cacheKey);
+  if (cached) return cached;
+
+  try {
+    const url = `${API_BASE}/news/headlines${query ? `?q=${encodeURIComponent(query)}` : ''}`;
+    const response = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${API_KEY}`,
+        'User-Agent': 'TheParticle/1.0',
+      },
+      timeout: 10000,
+    });
+
+    if (!response.ok) {
+      logger.warn(`[UnusualWhales] News headlines request failed: ${response.status}`);
+      return [];
+    }
+
+    const data = await response.json();
+    const results = (data.data || []).map(item => ({
+      headline: item.headline || 'N/A',
+      source: item.source || 'Unknown',
+      url: item.url || '',
+      timestamp: item.timestamp ? new Date(item.timestamp).toISOString() : new Date().toISOString(),
+    }));
+
+    cacheSet(cacheKey, results, 5 * 60 * 1000); // 5 min
+    return results;
+  } catch (err) {
+    logger.error('[UnusualWhales] Error fetching news headlines:', err.message);
+    return [];
+  }
+}
+
+// ── Function 15: Get ETF Flows ────────────────────────────────────────────────
+
+/**
+ * Fetch ETF inflow/outflow data.
+ * Uses: /api/etfs/{ticker}/in_outflow
+ * Returns: { ticker, inflow, outflow, netFlow, timestamp }
+ * Cache: 15 min TTL
+ *
+ * @param {string} symbol — e.g., 'SPY', 'QQQ'
+ * @returns {Promise<Object|null>}
+ */
+async function getETFFlows(symbol) {
+  if (!_ensureApiKey()) return null;
+
+  const cacheKey = `uw:etf:flows:${symbol.toUpperCase()}`;
+  const cached = cacheGet(cacheKey);
+  if (cached) return cached;
+
+  try {
+    const url = `${API_BASE}/etfs/${symbol.toUpperCase()}/in_outflow`;
+    const response = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${API_KEY}`,
+        'User-Agent': 'TheParticle/1.0',
+      },
+      timeout: 10000,
+    });
+
+    if (!response.ok) {
+      logger.warn(`[UnusualWhales] ETF flows request failed: ${response.status} for ${symbol}`);
+      return null;
+    }
+
+    const data = await response.json();
+    const result = {
+      ticker: symbol.toUpperCase(),
+      inflow: data.inflow || 0,
+      outflow: data.outflow || 0,
+      netFlow: data.net_flow || 0,
+      timestamp: data.timestamp ? new Date(data.timestamp).toISOString() : new Date().toISOString(),
+    };
+
+    cacheSet(cacheKey, result, 15 * 60 * 1000); // 15 min
+    return result;
+  } catch (err) {
+    logger.error(`[UnusualWhales] Error fetching ETF flows for ${symbol}:`, err.message);
+    return null;
+  }
+}
+
+// ── Function 16: Get Open Interest by Strike ──────────────────────────────────
+
+/**
+ * Fetch open interest distribution by strike price.
+ * Uses: /api/stock/{ticker}/oi-per-strike
+ * Returns: array of { strike, callOI, putOI, totalOI, strikeSpread }
+ * Cache: 10 min TTL
+ *
+ * @param {string} symbol — e.g., 'AAPL'
+ * @returns {Promise<Array>}
+ */
+async function getOIByStrike(symbol) {
+  if (!_ensureApiKey()) return [];
+
+  const cacheKey = `uw:oi:strike:${symbol.toUpperCase()}`;
+  const cached = cacheGet(cacheKey);
+  if (cached) return cached;
+
+  try {
+    const url = `${API_BASE}/stock/${symbol.toUpperCase()}/oi-per-strike`;
+    const response = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${API_KEY}`,
+        'User-Agent': 'TheParticle/1.0',
+      },
+      timeout: 10000,
+    });
+
+    if (!response.ok) {
+      logger.warn(`[UnusualWhales] OI per strike request failed: ${response.status} for ${symbol}`);
+      return [];
+    }
+
+    const data = await response.json();
+    const results = (data.data || []).map(item => ({
+      strike: item.strike || 0,
+      callOI: item.call_oi || 0,
+      putOI: item.put_oi || 0,
+      totalOI: (item.call_oi || 0) + (item.put_oi || 0),
+      strikeSpread: item.strike_spread || 'N/A',
+    }));
+
+    cacheSet(cacheKey, results, 10 * 60 * 1000); // 10 min
+    return results;
+  } catch (err) {
+    logger.error(`[UnusualWhales] Error fetching OI per strike for ${symbol}:`, err.message);
+    return [];
+  }
+}
+
+// ── Function 17: Get Open Interest by Expiry ──────────────────────────────────
+
+/**
+ * Fetch open interest distribution by expiration date.
+ * Uses: /api/stock/{ticker}/oi-per-expiry
+ * Returns: array of { expiry, callOI, putOI, totalOI, daysToExpiry }
+ * Cache: 10 min TTL
+ *
+ * @param {string} symbol — e.g., 'AAPL'
+ * @returns {Promise<Array>}
+ */
+async function getOIByExpiry(symbol) {
+  if (!_ensureApiKey()) return [];
+
+  const cacheKey = `uw:oi:expiry:${symbol.toUpperCase()}`;
+  const cached = cacheGet(cacheKey);
+  if (cached) return cached;
+
+  try {
+    const url = `${API_BASE}/stock/${symbol.toUpperCase()}/oi-per-expiry`;
+    const response = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${API_KEY}`,
+        'User-Agent': 'TheParticle/1.0',
+      },
+      timeout: 10000,
+    });
+
+    if (!response.ok) {
+      logger.warn(`[UnusualWhales] OI per expiry request failed: ${response.status} for ${symbol}`);
+      return [];
+    }
+
+    const data = await response.json();
+    const results = (data.data || []).map(item => ({
+      expiry: item.expiry || 'N/A',
+      callOI: item.call_oi || 0,
+      putOI: item.put_oi || 0,
+      totalOI: (item.call_oi || 0) + (item.put_oi || 0),
+      daysToExpiry: item.days_to_expiry || 0,
+    }));
+
+    cacheSet(cacheKey, results, 10 * 60 * 1000); // 10 min
+    return results;
+  } catch (err) {
+    logger.error(`[UnusualWhales] Error fetching OI per expiry for ${symbol}:`, err.message);
+    return [];
+  }
+}
+
+// ── Function 18: Get Implied Volatility ───────────────────────────────────────
+
+/**
+ * Fetch implied volatility surface across expirations.
+ * Uses: /api/stock/{ticker}/interpolated-iv
+ * Returns: array of { expiry, strike, impliedVol }
+ * Cache: 15 min TTL
+ *
+ * @param {string} symbol — e.g., 'AAPL'
+ * @returns {Promise<Array>}
+ */
+async function getImpliedVolatility(symbol) {
+  if (!_ensureApiKey()) return [];
+
+  const cacheKey = `uw:iv:${symbol.toUpperCase()}`;
+  const cached = cacheGet(cacheKey);
+  if (cached) return cached;
+
+  try {
+    const url = `${API_BASE}/stock/${symbol.toUpperCase()}/interpolated-iv`;
+    const response = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${API_KEY}`,
+        'User-Agent': 'TheParticle/1.0',
+      },
+      timeout: 10000,
+    });
+
+    if (!response.ok) {
+      logger.warn(`[UnusualWhales] Implied volatility request failed: ${response.status} for ${symbol}`);
+      return [];
+    }
+
+    const data = await response.json();
+    const results = (data.data || []).map(item => ({
+      expiry: item.expiry || 'N/A',
+      strike: item.strike || 0,
+      impliedVol: item.implied_vol || 0,
+    }));
+
+    cacheSet(cacheKey, results, 15 * 60 * 1000); // 15 min
+    return results;
+  } catch (err) {
+    logger.error(`[UnusualWhales] Error fetching implied volatility for ${symbol}:`, err.message);
+    return [];
+  }
+}
+
+// ── Function 19: Get Realized Volatility ──────────────────────────────────────
+
+/**
+ * Fetch realized volatility for a ticker.
+ * Uses: /api/stock/{ticker}/volatility/realized
+ * Returns: { ticker, realizedVolatility, period, timestamp }
+ * Cache: 30 min TTL
+ *
+ * @param {string} symbol — e.g., 'AAPL'
+ * @returns {Promise<Object|null>}
+ */
+async function getRealizedVolatility(symbol) {
+  if (!_ensureApiKey()) return null;
+
+  const cacheKey = `uw:volatility:realized:${symbol.toUpperCase()}`;
+  const cached = cacheGet(cacheKey);
+  if (cached) return cached;
+
+  try {
+    const url = `${API_BASE}/stock/${symbol.toUpperCase()}/volatility/realized`;
+    const response = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${API_KEY}`,
+        'User-Agent': 'TheParticle/1.0',
+      },
+      timeout: 10000,
+    });
+
+    if (!response.ok) {
+      logger.warn(`[UnusualWhales] Realized volatility request failed: ${response.status} for ${symbol}`);
+      return null;
+    }
+
+    const data = await response.json();
+    const result = {
+      ticker: symbol.toUpperCase(),
+      realizedVolatility: data.realized_volatility || 0,
+      period: data.period || 'N/A',
+      timestamp: data.timestamp ? new Date(data.timestamp).toISOString() : new Date().toISOString(),
+    };
+
+    cacheSet(cacheKey, result, 30 * 60 * 1000); // 30 min
+    return result;
+  } catch (err) {
+    logger.error(`[UnusualWhales] Error fetching realized volatility for ${symbol}:`, err.message);
+    return null;
+  }
+}
+
+// ── Function 20: Get NOPE (Net Options Premium Expiration) ─────────────────────
+
+/**
+ * Fetch NOPE indicator for a ticker.
+ * Uses: /api/stock/{ticker}/nope
+ * Returns: { ticker, nope, signal, timestamp }
+ * Cache: 5 min TTL
+ *
+ * @param {string} symbol — e.g., 'AAPL'
+ * @returns {Promise<Object|null>}
+ */
+async function getNOPE(symbol) {
+  if (!_ensureApiKey()) return null;
+
+  const cacheKey = `uw:nope:${symbol.toUpperCase()}`;
+  const cached = cacheGet(cacheKey);
+  if (cached) return cached;
+
+  try {
+    const url = `${API_BASE}/stock/${symbol.toUpperCase()}/nope`;
+    const response = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${API_KEY}`,
+        'User-Agent': 'TheParticle/1.0',
+      },
+      timeout: 10000,
+    });
+
+    if (!response.ok) {
+      logger.warn(`[UnusualWhales] NOPE request failed: ${response.status} for ${symbol}`);
+      return null;
+    }
+
+    const data = await response.json();
+    const result = {
+      ticker: symbol.toUpperCase(),
+      nope: data.nope || 0,
+      signal: data.signal || 'neutral',
+      timestamp: data.timestamp ? new Date(data.timestamp).toISOString() : new Date().toISOString(),
+    };
+
+    cacheSet(cacheKey, result, 5 * 60 * 1000); // 5 min
+    return result;
+  } catch (err) {
+    logger.error(`[UnusualWhales] Error fetching NOPE for ${symbol}:`, err.message);
+    return null;
+  }
+}
+
+// ── Function 21: Format Rich Context for Single Ticker ────────────────────────
+
+/**
+ * Combines all available data for a ticker into a rich context string
  * suitable for injection into the AI prompt.
  *
- * Format: "OPTIONS FLOW (AAPL): 42 calls vs 31 puts. Large $450k sweep at $180.
- *          Dark Pool: 2M shares at $180.05 (5.2% of daily volume)."
+ * Includes: options flow, dark pool, Greeks (GEX, DEX), max pain,
+ * short interest, institutional ownership, congress trades if relevant.
  *
  * @param {string} symbol — e.g., 'AAPL'
  * @returns {Promise<string>} — formatted context string (empty if no data)
  */
 async function formatForContext(symbol) {
   try {
-    const [flow, darkPool] = await Promise.all([
+    const [flow, darkPool, maxPain, shortData, shortInterest, insOwnership, congress] = await Promise.all([
       getOptionsFlow(symbol, { limit: 10 }),
       getDarkPoolActivity(symbol),
+      getMaxPain(symbol),
+      getShortData(symbol),
+      getShortInterest(symbol),
+      getInstitutionalOwnership(symbol),
+      getCongressTrades(),
     ]);
 
-    if (flow.length === 0 && darkPool.length === 0) {
-      return ''; // No data available
-    }
+    const lines = [];
+    const symbol_upper = symbol.toUpperCase();
 
-    const lines = [`OPTIONS FLOW (${symbol.toUpperCase()}):`];
-
-    // Summarize call vs put volume
+    // --- Options Flow Summary ---
     if (flow.length > 0) {
       const calls = flow.filter(f => f.type === 'call');
       const puts = flow.filter(f => f.type === 'put');
       const callVol = calls.reduce((sum, c) => sum + (c.volume || 0), 0);
       const putVol = puts.reduce((sum, p) => sum + (p.volume || 0), 0);
+      const callPrem = calls.reduce((sum, c) => sum + (c.premium || 0), 0);
+      const putPrem = puts.reduce((sum, p) => sum + (p.premium || 0), 0);
 
       if (callVol > 0 || putVol > 0) {
-        lines.push(`${callVol} calls vs ${putVol} puts.`);
-      }
-
-      // Highlight largest flow
-      const largest = flow.reduce((max, f) =>
-        (f.premium || 0) > (max.premium || 0) ? f : max, flow[0] || {});
-      if (largest.premium) {
-        lines.push(`Large $${(largest.premium / 1000).toFixed(0)}k ${largest.type} at $${largest.strike}.`);
+        lines.push(
+          `OPTIONS (${symbol_upper}): ${callVol.toLocaleString()} calls vs ${putVol.toLocaleString()} puts ` +
+          `(${(callPrem / 1000).toFixed(0)}k call prem vs ${(putPrem / 1000).toFixed(0)}k put prem)`
+        );
       }
     }
 
-    // Summarize dark pool activity
+    // --- Dark Pool Activity ---
     if (darkPool.length > 0) {
       const totalSize = darkPool.reduce((sum, dp) => sum + (dp.size || 0), 0);
-      const avgPrice = darkPool.reduce((sum, dp) => sum + (dp.price || 0), 0) / darkPool.length;
-      const avgPercent = darkPool.reduce((sum, dp) => sum + (dp.percentOfVolume || 0), 0) / darkPool.length;
+      const avgPrice = darkPool.length > 0
+        ? darkPool.reduce((sum, dp) => sum + (dp.price || 0), 0) / darkPool.length
+        : 0;
+      const avgPercent = darkPool.length > 0
+        ? darkPool.reduce((sum, dp) => sum + (dp.percentOfVolume || 0), 0) / darkPool.length
+        : 0;
 
       lines.push(
-        `Dark Pool: ${totalSize.toLocaleString()} shares at $${avgPrice.toFixed(2)} ` +
-        `(${avgPercent.toFixed(1)}% of daily volume).`
+        `DARK POOL: ${totalSize.toLocaleString()} shares at $${avgPrice.toFixed(2)} ` +
+        `(${avgPercent.toFixed(1)}% volume)`
       );
     }
 
-    return lines.join(' ');
+    // --- Max Pain ---
+    if (maxPain) {
+      lines.push(`MAX PAIN: $${maxPain.maxPain.toFixed(2)} (${Math.abs(maxPain.percentAway).toFixed(1)}% away)`);
+    }
+
+    // --- Short Data ---
+    if (shortData) {
+      lines.push(`SHORT: ${(shortData.shortRatio * 100).toFixed(1)}% ratio`);
+    }
+
+    // --- Short Interest ---
+    if (shortInterest) {
+      lines.push(`SHORT INTEREST: ${shortInterest.percentOfFloat.toFixed(1)}% of float`);
+    }
+
+    // --- Institutional Ownership ---
+    if (insOwnership.length > 0) {
+      const topInst = insOwnership.slice(0, 3);
+      lines.push(`TOP HOLDERS: ${topInst.map(i => `${i.institution} (${i.percentOfFloat.toFixed(1)}%)`).join(', ')}`);
+    }
+
+    // --- Congress Trades ---
+    const congressTrades = congress.filter(c => c.ticker === symbol_upper);
+    if (congressTrades.length > 0) {
+      lines.push(`CONGRESS: ${congressTrades.length} recent trades by ${new Set(congressTrades.map(c => c.representative)).size} members`);
+    }
+
+    return lines.length > 0 ? lines.join(' | ') : '';
   } catch (err) {
     logger.error(`[UnusualWhales] Error formatting context for ${symbol}:`, err.message);
+    return ''; // Graceful degradation
+  }
+}
+
+// ── Function 22: Format Market-Wide Context ───────────────────────────────────
+
+/**
+ * Combines market-wide data into a context string.
+ * Includes: congress recent trades, latest filings, news headlines, sector sentiment.
+ *
+ * @returns {Promise<string>} — formatted market context (empty if no data)
+ */
+async function formatMarketContext() {
+  try {
+    const [congress, filings, news, tide] = await Promise.all([
+      getCongressTrades(),
+      getLatestFilings(),
+      getNewsHeadlines(),
+      getMarketTide(),
+    ]);
+
+    const lines = [];
+
+    // --- Congress Summary ---
+    if (congress.length > 0) {
+      const topTickers = {};
+      congress.forEach(c => {
+        if (!topTickers[c.ticker]) topTickers[c.ticker] = 0;
+        topTickers[c.ticker]++;
+      });
+      const sorted = Object.entries(topTickers)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3);
+      lines.push(`CONGRESS: ${sorted.map(([t, count]) => `${t} (${count})`).join(', ')}`);
+    }
+
+    // --- Latest Filings ---
+    if (filings.length > 0) {
+      const uniqueTickers = new Set(filings.slice(0, 5).map(f => f.ticker));
+      lines.push(`FILINGS: Recent activity in ${Array.from(uniqueTickers).join(', ')}`);
+    }
+
+    // --- News Summary ---
+    if (news.length > 0) {
+      const topNews = news.slice(0, 2).map(n => n.headline).join(' | ');
+      lines.push(`NEWS: ${topNews}`);
+    }
+
+    // --- Market Tide ---
+    if (tide) {
+      lines.push(`SENTIMENT: Call/put ratio ${tide.ratio.toFixed(2)} (${tide.sentiment})`);
+    }
+
+    return lines.length > 0 ? lines.join(' | ') : '';
+  } catch (err) {
+    logger.error('[UnusualWhales] Error formatting market context:', err.message);
     return ''; // Graceful degradation
   }
 }
@@ -350,11 +1260,35 @@ function clearCache() {
 // ── Module exports ────────────────────────────────────────────────────────────
 
 module.exports = {
+  // Existing functions
   getOptionsFlow,
   getDarkPoolActivity,
   getFlowAlerts,
   getMarketTide,
   formatForContext,
+
+  // New functions
+  getCongressTrades,
+  getCongressTopTickers,
+  getGreeks,
+  getMaxPain,
+  getShortData,
+  getShortInterest,
+  getFTDs,
+  getInstitutionalOwnership,
+  getLatestFilings,
+  getNewsHeadlines,
+  getETFFlows,
+  getOIByStrike,
+  getOIByExpiry,
+  getImpliedVolatility,
+  getRealizedVolatility,
+  getNOPE,
+
+  // Context formatting
+  formatMarketContext,
+
+  // Cache management
   getCacheStats,
   clearCache,
 };
