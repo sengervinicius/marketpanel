@@ -448,7 +448,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
       showToast('Max 4 comparison tickers', 'warning');
       return;
     }
-    const sym = result?.symbol || result;
+    const sym = result?.symbolKey || result?.symbol || result;
     if (!sym || comparisonTickers.includes(sym) || sym === norm) {
       if (sym === norm) showToast('Cannot compare with itself', 'warning');
       return;
@@ -460,6 +460,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
       if (!res.ok) throw new Error('Failed to fetch comparison data');
       const data = await res.json();
       const newBars = data.bars || data.candles || [];
+      if (newBars.length === 0) throw new Error('No chart data available');
 
       setComparisonTickers(prev => [...prev, sym]);
       setComparisonData(prev => ({ ...prev, [sym]: newBars }));
@@ -467,7 +468,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
       comparisonSearchHook.clearSearch();
       showToast(`${sym} added to comparison`, 'success');
     } catch (err) {
-      showToast('Failed to load comparison data', 'error');
+      showToast(`No chart data for ${sym}`, 'error');
     }
   }, [comparisonTickers, norm, range.label, showToast, comparisonSearchHook]);
 
@@ -2576,12 +2577,29 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
               />
               {comparisonSearchHook.results.length > 0 && (
                 <div className="id-comparison-results">
-                  {comparisonSearchHook.results.slice(0, 8).map(result => (
-                    <div key={result.symbol} className="id-comparison-result-item"
-                      onClick={() => addComparisonTicker(result)}>
-                      <strong>{result.symbol}</strong> {result.name}
-                    </div>
-                  ))}
+                  {comparisonSearchHook.results
+                    .filter(r => r.symbolKey || r.symbol)
+                    .slice(0, 8)
+                    .map(result => {
+                      const sym = result.symbolKey || result.symbol;
+                      const badge = result.assetClass === 'etf' ? 'ETF'
+                        : result.assetClass === 'forex' ? 'FX'
+                        : result.assetClass === 'crypto' ? 'CRYPTO'
+                        : result.assetClass === 'commodity' ? 'CMDTY'
+                        : result.assetClass === 'fixed_income' ? 'BOND'
+                        : result.isFutures ? 'FUTURES'
+                        : '';
+                      const exchange = result.exchange || result._exchangeGroup || '';
+                      return (
+                        <div key={sym} className="id-comparison-result-item"
+                          onClick={() => addComparisonTicker(result)}>
+                          <span className="id-comparison-result-symbol">{sym}</span>
+                          {badge && <span className="id-comparison-result-badge">{badge}</span>}
+                          <span className="id-comparison-result-name">{result.name}</span>
+                          {exchange && <span className="id-comparison-result-exchange">{exchange}</span>}
+                        </div>
+                      );
+                    })}
                 </div>
               )}
               {comparisonTickers.length > 0 && (
