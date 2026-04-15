@@ -76,16 +76,18 @@ function buildFeedItems(alerts, darkPool, congress) {
     const ticker = a.symbol || a.ticker;
     if (!ticker || ticker === 'N/A') continue;
 
-    const rawSent = (a.sentiment || a.type || a.description || '').toLowerCase();
+    // API returns option_type/sentiment as "call" or "put", plus boolean flags
+    const rawSent = (a.sentiment || a.type || '').toLowerCase();
     const isCall = rawSent.includes('call') || rawSent.includes('bull');
     const isPut = rawSent.includes('put') || rawSent.includes('bear');
     const signal = isCall ? 'bullish' : isPut ? 'bearish' : 'neutral';
 
-    const typeRaw = (a.type || '').toLowerCase();
-    const isSweep = typeRaw.includes('sweep');
-    const isBlock = typeRaw.includes('block');
-    const isGolden = typeRaw.includes('golden');
-    const typeLabel = isGolden ? 'GOLDEN SWEEP' : isSweep ? 'SWEEP' : isBlock ? 'BLOCK' : 'FLOW';
+    // Use boolean flags from API (isSweep, isFloor, isMultiLeg) or fallback to type string
+    const isSweep = a.isSweep || (a.type || '').toLowerCase().includes('sweep');
+    const isFloor = a.isFloor || (a.type || '').toLowerCase().includes('floor');
+    const isMultiLeg = a.isMultiLeg || (a.type || '').toLowerCase().includes('multi');
+    const isGolden = isSweep && isFloor; // golden sweep = sweep from the floor
+    const typeLabel = isGolden ? 'GOLDEN SWEEP' : isSweep ? 'SWEEP' : isFloor ? 'FLOOR' : isMultiLeg ? 'MULTI-LEG' : 'BLOCK';
 
     // Build narrative
     const parts = [];
@@ -94,6 +96,7 @@ function buildFeedItems(alerts, darkPool, congress) {
     parts.push(typeLabel.toLowerCase());
     if (a.strike) parts.push(`at ${fmtStrike(a.strike)} strike`);
     if (a.expiry || a.expiration) parts.push(`exp ${fmtExpiry(a.expiry || a.expiration)}`);
+    if (a.side) parts.push(`(${a.side} side)`);
     const narrative = parts.join(' ');
 
     items.push({

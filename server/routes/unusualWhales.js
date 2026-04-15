@@ -180,13 +180,16 @@ router.get('/congress/top', async (req, res) => {
  */
 router.get('/panel-data', async (req, res) => {
   try {
+    // Use overall market tide (not sector-specific)
     const [tide, alerts, congress] = await Promise.all([
-      uw.getMarketTide('technology').catch(() => null),
+      uw.getMarketTide().catch(() => null),
       uw.getFlowAlerts().catch(() => []),
       uw.getCongressTrades().catch(() => []),
     ]);
 
-    // Fetch dark pool prints for top flow tickers (most premium first)
+    // Fetch dark pool: if we have flow tickers, get their dark pool;
+    // otherwise fetch recent dark pool across the market
+    let darkPool = [];
     const topFlowTickers = [...new Set(
       alerts
         .filter(a => a.symbol && a.symbol !== 'N/A')
@@ -195,20 +198,22 @@ router.get('/panel-data', async (req, res) => {
         .map(a => a.symbol)
     )];
 
-    let darkPool = [];
     if (topFlowTickers.length > 0) {
       const dpResults = await Promise.all(
         topFlowTickers.slice(0, 3).map(sym =>
           uw.getDarkPoolActivity(sym)
-            .then(prints => prints.slice(0, 3).map(p => ({ ...p, symbol: sym })))
+            .then(prints => prints.slice(0, 5).map(p => ({ ...p, symbol: sym })))
             .catch(() => [])
         )
       );
-      darkPool = dpResults.flat().sort((a, b) => (b.size || 0) - (a.size || 0)).slice(0, 10);
+      darkPool = dpResults.flat().sort((a, b) => (b.size || 0) - (a.size || 0)).slice(0, 15);
     }
 
+    // Log data counts for diagnostics
+    logger.info(`[panel-data] tide=${!!tide}, alerts=${alerts.length}, darkPool=${darkPool.length}, congress=${congress.length}`);
+
     res.json({
-      tide: tide || { sector: 'technology', callVolume: 0, putVolume: 0, ratio: 0, sentiment: 'neutral' },
+      tide: tide || { sector: 'market', callVolume: 0, putVolume: 0, ratio: 0.5, sentiment: 'neutral' },
       alerts: { data: alerts, count: alerts.length },
       darkPool: { data: darkPool, count: darkPool.length },
       congress: { data: congress, count: congress.length },

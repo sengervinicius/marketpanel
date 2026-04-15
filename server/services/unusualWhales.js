@@ -219,7 +219,8 @@ async function getFlowAlerts() {
   if (cached) return cached;
 
   try {
-    const url = `${API_BASE}/alerts`;
+    // Correct endpoint: /api/option-trades/flow-alerts (NOT /api/alerts which is user notifications)
+    const url = `${API_BASE}/option-trades/flow-alerts?limit=50&min_premium=50000`;
     const response = await fetch(url, {
       headers: {
         'Authorization': `Bearer ${API_KEY}`,
@@ -234,24 +235,29 @@ async function getFlowAlerts() {
     }
 
     const data = await response.json();
-    // Log first raw item for field mapping diagnostics
-    const rawItems = data.data || data.alerts || data.results || (Array.isArray(data) ? data : []);
+    const rawItems = data.data || (Array.isArray(data) ? data : []);
     if (rawItems.length > 0) {
       logger.info(`[UnusualWhales] Flow alerts raw fields: ${JSON.stringify(Object.keys(rawItems[0]))}`);
-      logger.info(`[UnusualWhales] Flow alerts sample: ${JSON.stringify(rawItems[0])}`);
     } else {
       logger.warn('[UnusualWhales] Flow alerts: empty response');
     }
+    // Official API fields: ticker, option_type, premium, size, strike, expiry,
+    // is_sweep, is_floor, is_multi_leg, volume, open_interest, side, timestamp
     const results = rawItems.map(item => ({
-      symbol: (item.symbol || item.ticker || item.underlying_symbol || '').toUpperCase() || 'N/A',
-      type: item.type || item.alert_type || item.option_activity_type || 'unknown',
-      description: item.description || item.headline || item.title || '',
-      premium: parseFloat(item.premium) || parseFloat(item.total_premium) || parseFloat(item.ask_price) || 0,
-      volume: parseInt(item.volume) || parseInt(item.total_size) || 0,
-      sentiment: item.sentiment || item.put_call || item.option_type || 'neutral',
-      strike: parseFloat(item.strike) || parseFloat(item.strike_price) || 0,
-      expiry: item.expiry || item.expires_at || item.expiration_date || '',
-      timestamp: item.timestamp || item.created_at || item.date || new Date().toISOString(),
+      symbol: (item.ticker || item.symbol || '').toUpperCase() || 'N/A',
+      type: (item.is_sweep ? 'sweep' : item.is_floor ? 'floor' : item.is_multi_leg ? 'multi_leg' : 'block'),
+      description: '',
+      premium: parseFloat(item.premium) || 0,
+      volume: parseInt(item.volume) || parseInt(item.size) || 0,
+      sentiment: item.option_type || item.put_call || 'neutral', // "call" or "put"
+      strike: parseFloat(item.strike) || 0,
+      expiry: item.expiry || '',
+      timestamp: item.timestamp || item.created_at || new Date().toISOString(),
+      isSweep: !!item.is_sweep,
+      isFloor: !!item.is_floor,
+      isMultiLeg: !!item.is_multi_leg,
+      side: item.side || '',
+      openInterest: parseInt(item.open_interest) || 0,
     }));
 
     cacheSet(cacheKey, results, 2 * 60 * 1000); // 2 min
@@ -273,15 +279,18 @@ async function getFlowAlerts() {
  * @param {string} sector — e.g., 'technology', 'healthcare', 'energy' (default: 'technology')
  * @returns {Promise<Object>}
  */
-async function getMarketTide(sector = 'technology') {
+async function getMarketTide(sector = null) {
   if (!_ensureApiKey()) return null;
 
-  const cacheKey = `uw:markettide:${sector}`;
+  const cacheKey = sector ? `uw:markettide:${sector}` : 'uw:markettide:overall';
   const cached = cacheGet(cacheKey);
   if (cached) return cached;
 
   try {
-    const url = `${API_BASE}/market/${sector.toLowerCase()}/sector-tide`;
+    // Use overall market-tide by default, sector-tide only if sector specified
+    const url = sector
+      ? `${API_BASE}/market/${sector.toLowerCase()}/sector-tide`
+      : `${API_BASE}/market/market-tide`;
     const response = await fetch(url, {
       headers: {
         'Authorization': `Bearer ${API_KEY}`,
@@ -291,24 +300,34 @@ async function getMarketTide(sector = 'technology') {
     });
 
     if (!response.ok) {
-      logger.warn(`[UnusualWhales] Market tide request failed: ${response.status} for sector ${sector}`);
+      logger.warn(`[UnusualWhales] Market tide request failed: ${response.status}`);
       return null;
     }
 
     const data = await response.json();
-    // Log raw response for diagnostics
-    logger.info(`[UnusualWhales] Tide raw: ${JSON.stringify(data).slice(0, 500)}`);
-    // Try multiple field name patterns
+    logger.info(`[UnusualWhales] Tide raw keys: ${JSON.stringify(Object.keys(data)).slice(0, 300)}`);
+    // Market tide may return an array of ticks or an object with aggregated data
     const rawData = data.data || data;
-    const callVol = parseFloat(rawData.call_volume || rawData.callVolume || rawData.calls || 0);
-    const putVol = parseFloat(rawData.put_volume || rawData.putVolume || rawData.puts || 0);
-    const ratio = parseFloat(rawData.ratio || rawData.call_put_ratio || 0) || (callVol + putVol > 0 ? callVol / (callVol + putVol) : 0);
+    // If array of ticks, aggregate call vs put premium
+    let callVol = 0, putVol = 0;
+    if (Array.isArray(rawData) && rawData.length > 0) {
+      logger.info(`[UnusualWhales] Tide sample item: ${JSON.stringify(rawData[0])}`);
+      for (const tick of rawData) {
+        callVol += parseFloat(tick.call_premium || tick.net_call_premium || tick.call_volume || 0);
+        putVol += parseFloat(tick.put_premium || tick.net_put_premium || tick.put_volume || 0);
+      }
+    } else if (typeof rawData === 'object') {
+      callVol = parseFloat(rawData.call_volume || rawData.callVolume || rawData.call_premium || 0);
+      putVol = parseFloat(rawData.put_volume || rawData.putVolume || rawData.put_premium || 0);
+    }
+    const total = callVol + putVol;
+    const ratio = total > 0 ? callVol / total : 0.5;
     const result = {
-      sector: sector,
+      sector: sector || 'market',
       callVolume: callVol,
       putVolume: putVol,
       ratio: ratio,
-      sentiment: rawData.sentiment || (ratio > 0.55 ? 'bullish' : ratio < 0.45 ? 'bearish' : 'neutral'),
+      sentiment: ratio > 0.55 ? 'bullish' : ratio < 0.45 ? 'bearish' : 'neutral',
     };
 
     cacheSet(cacheKey, result, 5 * 60 * 1000); // 5 min
