@@ -662,22 +662,30 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
 
     // ── Phase 4.8: Merge comparison data if in comparison mode ──
     if (isComparisonMode) {
-      // Rebase main ticker to % return
-      const mainBars = rebaseData(chartBars);
+      try {
+        // Rebase main ticker to base-100
+        const mainBars = rebaseData(chartBars);
 
-      // Merge all comparison data (aligned by label/date)
-      let mergedBars = [...mainBars];
-      for (const compTicker of comparisonTickers) {
-        const compBars = comparisonData[compTicker] || [];
-        const rebasedCompBars = rebaseData(compBars);
+        // Merge all comparison data (aligned by label/date)
+        let mergedBars = mainBars.map(b => ({ ...b }));
+        for (const compTicker of comparisonTickers) {
+          const compBars = comparisonData[compTicker];
+          if (!compBars || !compBars.length) continue;
+          const rebasedCompBars = rebaseData(compBars);
 
-        // Map comparison bars to main bars by index
-        const colorKey = Object.keys(COMPARISON_COLORS)[comparisonTickers.indexOf(compTicker)];
-        for (let i = 0; i < Math.min(mergedBars.length, rebasedCompBars.length); i++) {
-          mergedBars[i][`comp_${compTicker}`] = rebasedCompBars[i].close;
+          for (let i = 0; i < Math.min(mergedBars.length, rebasedCompBars.length); i++) {
+            const val = rebasedCompBars[i]?.close;
+            if (val != null && !isNaN(val)) {
+              mergedBars[i][`comp_${compTicker}`] = val;
+            }
+          }
         }
+        chartBars = mergedBars;
+      } catch (err) {
+        console.error('[InstrumentDetail] Comparison merge error:', err);
+        // Fall back to non-comparison view
+        chartBars = indicatorData.bars;
       }
-      chartBars = mergedBars;
     } else {
       chartBars = indicatorData.bars;
     }
@@ -764,13 +772,14 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
                 domain={[yMin, yMax]}
                 tick={{ fill: 'var(--text-faint)', fontSize: 9 }}
                 width={64}
-                tickFormatter={isComparisonMode ? (v => v.toFixed(1)) : (v => fmt(v, v > 999 ? 0 : 2))}
+                tickFormatter={isComparisonMode ? (v => v != null && !isNaN(v) ? v.toFixed(1) : '') : (v => fmt(v, v > 999 ? 0 : 2))}
                 axisLine={{ stroke: 'var(--border-default)' }}
               />
               <Tooltip
                 contentStyle={commonTooltipStyle}
                 formatter={isComparisonMode
                   ? ((v, name) => {
+                      if (v == null || isNaN(v)) return ['—', name];
                       const pctFromBase = v - 100;
                       return [`${v.toFixed(2)} (${pctFromBase >= 0 ? '+' : ''}${pctFromBase.toFixed(2)}%)`, name];
                     })
@@ -908,7 +917,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
         </div>
 
         {/* Comparison stats table (Bloomberg COMP style) */}
-        {isComparisonMode && (() => {
+        {isComparisonMode && (() => { try {
           const mainFirst = indicatorData.bars[0]?.close;
           const mainLast  = indicatorData.bars[indicatorData.bars.length - 1]?.close;
           const dayCount  = indicatorData.bars.length > 1 && indicatorData.bars[0]?.t && indicatorData.bars[indicatorData.bars.length - 1]?.t
@@ -970,7 +979,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
               </table>
             </div>
           );
-        })()}
+        } catch (err) { console.error('[CompStats]', err); return null; } })()}
 
         {/* Volume chart */}
         <div className={`id-chart-flex-volume${(hasRSI || hasMACD) ? ' id-chart-flex-volume--compressed' : ''}`}>
