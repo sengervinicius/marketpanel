@@ -84,19 +84,22 @@ async function ensureStripeCustomer(stripe, user) {
 async function createCheckoutSession(userId, plan = 'monthly', userContext = {}, tier = 'new_particle') {
   const stripe = getStripe();
 
-  // Try tier-specific price first, fall back to legacy env vars
-  let priceId = getStripePriceId(tier, plan);
-  if (!priceId) {
-    // Legacy fallback: single-price setup
-    const monthlyPriceId = process.env.STRIPE_PRICE_ID;
-    const annualPriceId  = process.env.STRIPE_ANNUAL_PRICE_ID;
-    priceId = plan === 'annual' && annualPriceId ? annualPriceId : monthlyPriceId;
-  }
+  // Resolve Stripe price ID (tier-specific → legacy fallback chain)
+  const priceId = getStripePriceId(tier, plan);
 
-  if (!stripe || !priceId) {
+  if (!stripe) {
+    console.error('[billing] STRIPE_SECRET_KEY not set — cannot create checkout');
     return {
       error: 'Billing not configured',
-      message: 'Billing not configured — set STRIPE_SECRET_KEY and STRIPE_PRICE_ID',
+      message: 'Billing not configured — set STRIPE_SECRET_KEY',
+      configured: false,
+    };
+  }
+  if (!priceId) {
+    console.error(`[billing] No Stripe price ID found for tier=${tier}, plan=${plan}. Check env vars: STRIPE_${tier.toUpperCase()}_${plan.toUpperCase()} or STRIPE_PRICE_ID`);
+    return {
+      error: 'Billing not configured',
+      message: `No Stripe price configured for ${tier} (${plan}). Run stripe-setup.js and set the env vars.`,
       configured: false,
     };
   }

@@ -235,7 +235,27 @@ app.post('/api/billing/webhook', express.raw({ type: 'application/json' }), (req
   const { handleBillingWebhook } = require('./billing');
   handleBillingWebhook(req, res);
 });
-// Billing: auth required for all other endpoints (create-session, status, portal)
+// Billing: /tiers is public (PricingModal fetches without auth token)
+app.get('/api/billing/tiers', (req, res) => {
+  const { TIERS } = require('./config/tiers');
+  const tiers = Object.entries(TIERS)
+    .filter(([key]) => key !== 'trial')
+    .map(([key, tier]) => ({
+      id: key,
+      label: tier.label,
+      price: tier.price,
+      features: {
+        vaultDocuments: tier.vaultDocuments === -1 ? 'Unlimited' : tier.vaultDocuments,
+        aiQueriesPerDay: tier.aiQueriesPerDay === -1 ? 'Unlimited' : tier.aiQueriesPerDay,
+        deepAnalysisPerDay: tier.deepAnalysisPerDay === -1 ? 'Unlimited' : tier.deepAnalysisPerDay,
+        morningBrief: tier.morningBrief,
+        predictionMarkets: tier.predictionMarkets,
+        centralVaultAccess: tier.centralVaultAccess,
+      },
+    }));
+  res.json({ tiers });
+});
+// Billing: auth required for create-session, status, portal
 app.use('/api/billing', requireAuth, billingRoutes);
 // Apple IAP: mounted under /api/billing/iap (auth handled per-route inside)
 app.use('/api/billing/iap', iapRoutes);

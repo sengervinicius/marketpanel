@@ -360,4 +360,47 @@ router.post('/reset-user-settings', async (req, res) => {
   }
 });
 
+/**
+ * DELETE /api/admin/delete-user/:email
+ * Permanently delete a user account and all associated data.
+ * Admin only. Use with caution.
+ */
+router.delete('/delete-user/:email', async (req, res) => {
+  try {
+    const email = decodeURIComponent(req.params.email);
+    if (!email || !email.includes('@')) {
+      return res.status(400).json({ error: 'Invalid email' });
+    }
+
+    // Find user
+    const userResult = await pg.query('SELECT id, username, email, plan_tier FROM users WHERE email = $1', [email]);
+    if (!userResult.rows || userResult.rows.length === 0) {
+      return res.status(404).json({ error: `No user found with email: ${email}` });
+    }
+
+    const user = userResult.rows[0];
+    const userId = user.id;
+    console.log(`[admin] Deleting user: id=${userId}, username=${user.username}, email=${user.email}`);
+
+    // Delete non-cascading tables
+    const tables = ['refresh_tokens', 'password_resets', 'email_verifications', 'user_behavior'];
+    for (const table of tables) {
+      try { await pg.query(`DELETE FROM ${table} WHERE user_id = $1`, [userId]); } catch {}
+    }
+
+    // Delete user — try in-memory first (also does Postgres + Mongo), fall back to direct SQL
+    const deleted = await authStore.deleteUser(userId);
+    if (!deleted) {
+      // User not in memory — delete directly from Postgres (cascades handle related tables)
+      await pg.query('DELETE FROM users WHERE id = $1', [userId]);
+    }
+
+    console.log(`[admin] User deleted: ${user.username} (${user.email})`);
+    res.json({ ok: true, message: `User ${user.username} (${email}) permanently deleted`, userId });
+  } catch (err) {
+    console.error('[admin] delete-user error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

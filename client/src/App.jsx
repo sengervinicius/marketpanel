@@ -1105,6 +1105,14 @@ export default function App() {
       {/* Welcome tour rendered via portal from desktop branch — no duplicate needed */}
 
       {/* Particle first-launch arrival sequence (mobile) */}
+      {/* Tier pricing modal (mobile) */}
+      <PricingModal
+        visible={showPricingModal}
+        onDismiss={() => setShowPricingModal(false)}
+        onSelectTier={handleTierCheckout}
+        currentTier={subscription?.tier || (subscription?.status === 'active' ? 'new_particle' : 'trial')}
+      />
+
       {/* Keyboard shortcuts modal (mobile) */}
       {showShortcuts && <KeyboardShortcutsModal onClose={() => setShowShortcuts(false)} />}
 

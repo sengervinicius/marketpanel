@@ -104,9 +104,14 @@ function isUnlimited(limit) {
  */
 function getStripePriceId(tierKey, cycle = 'monthly') {
   const tier = TIERS[tierKey];
-  if (!tier || !tier.stripePriceEnv) return process.env.STRIPE_PRICE_ID || null;
-  const envVar = tier.stripePriceEnv[cycle];
-  return envVar ? (process.env[envVar] || null) : null;
+  // Try tier-specific env var first
+  if (tier && tier.stripePriceEnv) {
+    const envVar = tier.stripePriceEnv[cycle];
+    if (envVar && process.env[envVar]) return process.env[envVar];
+  }
+  // Fallback: legacy single-price env vars (STRIPE_PRICE_ID / STRIPE_ANNUAL_PRICE_ID)
+  if (cycle === 'annual' && process.env.STRIPE_ANNUAL_PRICE_ID) return process.env.STRIPE_ANNUAL_PRICE_ID;
+  return process.env.STRIPE_PRICE_ID || null;
 }
 
 /**

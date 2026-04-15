@@ -355,22 +355,28 @@ export function AuthProvider({ children }) {
     }
 
     // Web / Android → Stripe
-    const res  = await fetch(`${API_BASE}/api/billing/create-session`, {
-      method: 'POST',
-      headers: authHeaders(tokenRef.current),
-      body: JSON.stringify({
-        tier: tier || 'new_particle',
-        plan: plan || 'monthly',
-      }),
-      credentials: 'include',
-    });
-    const data = await res.json();
+    let res, data;
+    try {
+      res = await fetch(`${API_BASE}/api/billing/create-session`, {
+        method: 'POST',
+        headers: authHeaders(tokenRef.current),
+        body: JSON.stringify({
+          tier: tier || 'new_particle',
+          plan: plan || 'monthly',
+        }),
+        credentials: 'include',
+      });
+      data = await res.json();
+    } catch (networkErr) {
+      console.error('[startCheckout] Network error:', networkErr);
+      throw new Error('Network error — please check your connection and try again.');
+    }
 
     if (!res.ok || !data.checkoutUrl) {
-      // Surface error via throw — UI components handle it via billingState
       const msg = data?.configured === false
         ? 'Subscription setup is not yet available. We will notify you when it is ready.'
-        : data?.error || 'Could not start checkout. Please try again later.';
+        : data?.error || `Checkout failed (HTTP ${res.status}). Please try again.`;
+      console.error('[startCheckout] Server error:', res.status, data);
       throw new Error(msg);
     }
 
