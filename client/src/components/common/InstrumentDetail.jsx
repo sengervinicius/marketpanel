@@ -769,7 +769,12 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
               />
               <Tooltip
                 contentStyle={commonTooltipStyle}
-                formatter={isComparisonMode ? ((v, n) => [v.toFixed(2), n]) : ((v, n) => [fmt(v), n])}
+                formatter={isComparisonMode
+                  ? ((v, name) => {
+                      const pctFromBase = v - 100;
+                      return [`${v.toFixed(2)} (${pctFromBase >= 0 ? '+' : ''}${pctFromBase.toFixed(2)}%)`, name];
+                    })
+                  : ((v, n) => [fmt(v), n])}
                 labelStyle={{ color: 'var(--text-muted)', marginBottom: 4 }}
               />
 
@@ -842,15 +847,21 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
                 </>
               )}
 
-              {/* Price: Area or Candlestick */}
+              {/* Price: Area, Line (comparison mode), or Candlestick */}
               {showCandle ? (
                 <>
-                  {/* Invisible area to keep Y-axis domain correct */}
                   <Area dataKey="close" yAxisId="right" stroke="none" fill="none" dot={false} activeDot={false} />
                   <Customized component={(props) => (
                     <CandlestickOverlay {...props} data={chartBars} />
                   )} />
                 </>
+              ) : isComparisonMode ? (
+                <Line
+                  type="monotone" dataKey="close" yAxisId="right" name={displayTicker(norm)}
+                  stroke="#fff" strokeWidth={2}
+                  dot={false}
+                  activeDot={{ r: 3, fill: '#fff', strokeWidth: 0 }}
+                />
               ) : (
                 <Area
                   type="monotone" dataKey="close" yAxisId="right" name="Close"
@@ -912,7 +923,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
             return { label, color, pctChange, annEq };
           };
 
-          const mainRow = buildRow(displayTicker(norm), isPos ? GREEN : '#fff', mainFirst, mainLast);
+          const mainRow = buildRow(displayTicker(norm), '#fff', mainFirst, mainLast);
           const compRows = comparisonTickers.map((ct, idx) => {
             const cb = comparisonData[ct] || [];
             const f = cb[0]?.close, l = cb[cb.length - 1]?.close;

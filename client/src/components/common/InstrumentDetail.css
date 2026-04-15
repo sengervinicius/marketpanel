@@ -1422,8 +1422,11 @@
 
 /* 4.8b: Comparison Stats Table (Bloomberg COMP style) */
 .id-comp-stats {
-  padding: 4px 8px 6px;
+  flex: none;
+  padding: 6px 8px 8px;
+  border-top: 1px solid var(--border-subtle);
   border-bottom: 1px solid var(--border-subtle);
+  background: rgba(255,255,255,0.02);
 }
 .id-comp-stats-table {
   width: 100%;
