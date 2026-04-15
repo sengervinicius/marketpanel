@@ -492,14 +492,14 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
     });
   }, []);
 
-  // Rebase data to % return from start
+  // Rebase data to base-100 index (Bloomberg-style: start = 100)
   const rebaseData = useCallback((inputBars) => {
     if (!inputBars || inputBars.length === 0) return [];
     const firstPrice = inputBars[0]?.close;
     if (!firstPrice) return inputBars;
     return inputBars.map(bar => ({
       ...bar,
-      close: ((bar.close / firstPrice) - 1) * 100,
+      close: (bar.close / firstPrice) * 100,
     }));
   }, []);
 
@@ -687,7 +687,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
     const hasMACD = activeIndicators.has('MACD');
 
     // Compute Y domain that includes BB bands if active
-    let yMin = isComparisonMode ? -20 : chartMin, yMax = isComparisonMode ? 20 : chartMax;
+    let yMin = isComparisonMode ? 80 : chartMin, yMax = isComparisonMode ? 120 : chartMax;
     if (isComparisonMode) {
       // Include all comparison series in domain
       const allValues = [];
@@ -701,8 +701,9 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
       if (allValues.length) {
         const min = Math.min(...allValues);
         const max = Math.max(...allValues);
-        yMin = min * 1.1;
-        yMax = max * 1.1;
+        const pad = (max - min) * 0.08 || 5;
+        yMin = min - pad;
+        yMax = max + pad;
       }
     }
     if (activeIndicators.has('BB') && !isComparisonMode) {
@@ -763,12 +764,12 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
                 domain={[yMin, yMax]}
                 tick={{ fill: 'var(--text-faint)', fontSize: 9 }}
                 width={64}
-                tickFormatter={v => fmt(v, v > 999 ? 0 : 2)}
+                tickFormatter={isComparisonMode ? (v => v.toFixed(1)) : (v => fmt(v, v > 999 ? 0 : 2))}
                 axisLine={{ stroke: 'var(--border-default)' }}
               />
               <Tooltip
                 contentStyle={commonTooltipStyle}
-                formatter={(v, n) => [fmt(v), n]}
+                formatter={isComparisonMode ? ((v, n) => [v.toFixed(2), n]) : ((v, n) => [fmt(v), n])}
                 labelStyle={{ color: 'var(--text-muted)', marginBottom: 4 }}
               />
 
@@ -872,6 +873,9 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
               )}
 
               {/* Phase 4.8: Comparison Tickers */}
+              {isComparisonMode && (
+                <ReferenceLine y={100} yAxisId="right" stroke="#555" strokeDasharray="6 3" strokeWidth={1} />
+              )}
               {isComparisonMode && comparisonTickers.map((compTicker, idx) => (
                 <Line key={compTicker}
                   type="monotone" dataKey={`comp_${compTicker}`}
@@ -891,6 +895,71 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
             </ComposedChart>
           </ResponsiveContainer>
         </div>
+
+        {/* Comparison stats table (Bloomberg COMP style) */}
+        {isComparisonMode && (() => {
+          const mainFirst = indicatorData.bars[0]?.close;
+          const mainLast  = indicatorData.bars[indicatorData.bars.length - 1]?.close;
+          const dayCount  = indicatorData.bars.length > 1 && indicatorData.bars[0]?.t && indicatorData.bars[indicatorData.bars.length - 1]?.t
+            ? Math.max(1, Math.round((indicatorData.bars[indicatorData.bars.length - 1].t - indicatorData.bars[0].t) / 86400000))
+            : range.days;
+          const years = dayCount / 365.25;
+
+          const buildRow = (label, color, firstP, lastP) => {
+            if (!firstP || !lastP) return null;
+            const pctChange = ((lastP - firstP) / firstP) * 100;
+            const annEq = years > 0 ? (Math.pow(lastP / firstP, 1 / years) - 1) * 100 : pctChange;
+            return { label, color, pctChange, annEq };
+          };
+
+          const mainRow = buildRow(displayTicker(norm), isPos ? GREEN : '#fff', mainFirst, mainLast);
+          const compRows = comparisonTickers.map((ct, idx) => {
+            const cb = comparisonData[ct] || [];
+            const f = cb[0]?.close, l = cb[cb.length - 1]?.close;
+            return buildRow(ct.startsWith('C:') ? ct.slice(2,5)+'/'+ct.slice(5) : ct.replace('.SA',''), Object.values(COMPARISON_COLORS)[idx], f, l);
+          }).filter(Boolean);
+
+          const allRows = [mainRow, ...compRows].filter(Boolean);
+          if (!allRows.length) return null;
+
+          // Difference = main pctChange - each comp pctChange
+          return (
+            <div className="id-comp-stats">
+              <table className="id-comp-stats-table">
+                <thead>
+                  <tr>
+                    <th style={{ textAlign: 'left' }}>Security</th>
+                    <th>Price Change</th>
+                    <th>Difference</th>
+                    <th>Annual Eq</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {allRows.map((row, i) => {
+                    const diff = i === 0 ? null : row.pctChange - allRows[0].pctChange;
+                    return (
+                      <tr key={row.label}>
+                        <td style={{ textAlign: 'left' }}>
+                          <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 2, backgroundColor: row.color, marginRight: 6, verticalAlign: 'middle' }} />
+                          {row.label}
+                        </td>
+                        <td style={{ color: row.pctChange >= 0 ? GREEN : RED }}>
+                          {row.pctChange >= 0 ? '+' : ''}{row.pctChange.toFixed(2)}%
+                        </td>
+                        <td style={{ color: diff == null ? '#666' : diff >= 0 ? GREEN : RED }}>
+                          {diff == null ? '—' : `${diff >= 0 ? '+' : ''}${diff.toFixed(2)}%`}
+                        </td>
+                        <td style={{ color: row.annEq >= 0 ? GREEN : RED }}>
+                          {row.annEq >= 0 ? '+' : ''}{row.annEq.toFixed(2)}%
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          );
+        })()}
 
         {/* Volume chart */}
         <div className={`id-chart-flex-volume${(hasRSI || hasMACD) ? ' id-chart-flex-volume--compressed' : ''}`}>

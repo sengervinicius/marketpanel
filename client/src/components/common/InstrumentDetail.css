@@ -1420,6 +1420,37 @@
   cursor: pointer;
 }
 
+/* 4.8b: Comparison Stats Table (Bloomberg COMP style) */
+.id-comp-stats {
+  padding: 4px 8px 6px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.id-comp-stats-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.3px;
+}
+.id-comp-stats-table th {
+  color: #777;
+  font-weight: 500;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 3px 8px;
+  text-align: right;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.id-comp-stats-table td {
+  padding: 4px 8px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.id-comp-stats-table tbody tr:hover {
+  background: rgba(255,255,255,0.03);
+}
+
 /* 4.9: Custom Date Range */
 .id-custom-range-panel {
   background: var(--bg-surface);
