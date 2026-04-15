@@ -14,7 +14,7 @@ import './SectionHeader.css';
 export default function SectionHeader({
   title = '',
   subtitle = '',
-  accentColor = 'var(--accent)',
+  accentColor = 'var(--color-section-header)',
   children = null,
   className = '',
 }) {

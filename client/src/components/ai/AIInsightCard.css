@@ -175,8 +175,8 @@
 
 .ai-card__trigger:hover {
   background: var(--bg-app);
-  border-color: var(--accent);
-  color: var(--accent);
+  border-color: var(--color-ai);
+  color: var(--color-ai);
 }
 
 .ai-card__trigger-icon {
@@ -244,7 +244,7 @@
   content: '•';
   position: absolute;
   left: 4px;
-  color: var(--accent);
+  color: var(--color-ai);
   font-weight: 700;
 }
 

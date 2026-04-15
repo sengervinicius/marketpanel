@@ -17,7 +17,7 @@
 }
 
 .ep-header-title {
-  color: var(--accent);
+  color: var(--color-section-header);
   font-size: 11px;
   letter-spacing: 0.2em;
   font-weight: bold;
@@ -78,7 +78,7 @@
 .ep-row-symbol {
   font-size: 11px;
   font-weight: bold;
-  color: var(--accent);
+  color: var(--color-text-secondary);
   min-width: 50px;
   flex-shrink: 0;
 }

@@ -18,7 +18,7 @@
 }
 
 .ip-header-title {
-  color: var(--accent);
+  color: var(--color-section-header);
   font-weight: 700;
   letter-spacing: 1px;
 }
@@ -91,7 +91,7 @@
 }
 
 .ip-row-symbol {
-  color: var(--accent);
+  color: var(--color-text-secondary);
   font-weight: 700;
 }
 

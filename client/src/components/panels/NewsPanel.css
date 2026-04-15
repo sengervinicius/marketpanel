@@ -171,7 +171,7 @@
 }
 
 .np-ai-close-btn:hover {
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 .np-content {
@@ -213,7 +213,7 @@
 }
 
 .np-news-publisher--normal {
-  color: var(--accent);
+  color: var(--color-section-header);
 }
 
 .np-news-time {
@@ -245,7 +245,7 @@
 }
 
 .np-news-ticker {
-  color: var(--accent);
+  color: var(--color-text-secondary);
   font-size: 9px;
   background: rgba(239, 68, 68, 0.04);
   padding: 1px 4px;

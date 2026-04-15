@@ -52,7 +52,7 @@ function renderMarkdown(text) {
           fontSize: '11px',
           lineHeight: '1.5',
         }}>
-          <span style={{ color: 'var(--accent)', flexShrink: 0 }}>•</span>
+          <span style={{ color: 'var(--color-ai)', flexShrink: 0 }}>•</span>
           <span style={{ color: 'var(--text-secondary)' }}>{content}</span>
         </div>
       );
@@ -71,7 +71,7 @@ function renderMarkdown(text) {
           fontSize: '11px',
           lineHeight: '1.5',
         }}>
-          <span style={{ color: 'var(--accent)', flexShrink: 0, fontWeight: 600 }}>{num}.</span>
+          <span style={{ color: 'var(--color-ai)', flexShrink: 0, fontWeight: 600 }}>{num}.</span>
           <span style={{ color: 'var(--text-secondary)' }}>{content}</span>
         </div>
       );

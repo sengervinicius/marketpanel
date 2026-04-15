@@ -83,7 +83,7 @@
   border: none;
   padding: 0;
   margin: 0;
-  color: var(--accent);
+  color: var(--color-text-primary);
   font-size: var(--text-base);
   font-weight: var(--weight-semibold);
   cursor: pointer;
@@ -97,7 +97,7 @@
 }
 
 .mobile-ticker-btn:active {
-  color: var(--accent-text);
+  color: var(--accent);
 }
 
 /* Expandable section */

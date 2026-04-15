@@ -112,7 +112,7 @@
 }
 
 .ap-header-title {
-  color: var(--accent);
+  color: var(--color-section-header);
   font-weight: 700;
   letter-spacing: 1px;
 }
@@ -129,7 +129,7 @@
 .ap-new-btn {
   background: none;
   border: 1px solid var(--border-strong);
-  color: var(--accent);
+  color: var(--color-text-secondary);
   padding: 1px 6px;
 }
 

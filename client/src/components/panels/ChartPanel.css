@@ -98,7 +98,7 @@
   flex-shrink: 0;
 }
 .mc-ticker {
-  color: var(--accent-text);
+  color: var(--color-text-secondary);
   font-weight: 700;
   font-size: var(--font-sm);
   letter-spacing: 0.1em;
@@ -168,8 +168,8 @@
   transition: color 0.1s, border-color 0.1s;
 }
 .mc-range-btn--active {
-  border-bottom-color: var(--accent-text);
-  color: var(--accent-text);
+  border-bottom-color: var(--accent);
+  color: var(--accent);
   font-weight: 700;
 }
 
@@ -313,7 +313,7 @@
   gap: 10px;
 }
 .cp-qr-title {
-  color: var(--accent-text);
+  color: var(--color-section-header);
   font-size: var(--font-md);
   font-weight: 700;
   letter-spacing: 0.15em;

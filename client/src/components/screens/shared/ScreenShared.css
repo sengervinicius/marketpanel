@@ -15,7 +15,7 @@
 
 /* Header */
 .fsl-header {
-  border-left: 4px solid var(--accent);
+  border-left: 4px solid var(--color-section-header);
   padding: var(--sp-3, 12px) var(--sp-4, 16px);
   background: var(--bg-surface);
   border-bottom: 1px solid var(--border-default);
@@ -118,7 +118,7 @@
   align-items: center;
   gap: var(--sp-2, 8px);
   padding: 10px 12px;
-  border-bottom: 1px solid color-mix(in srgb, var(--accent, #ff6600) 15%, transparent);
+  border-bottom: 1px solid var(--color-border-strong);
   background: var(--bg-surface);
   position: sticky;
   top: 0;

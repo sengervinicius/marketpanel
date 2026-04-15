@@ -126,7 +126,7 @@
   text-align: center;
 }
 .sp-mover-symbol {
-  color: var(--accent);
+  color: var(--color-text-secondary);
   font-weight: 700;
   font-size: var(--font-base);
 }
@@ -189,7 +189,7 @@
 }
 
 .sp-ai-theme {
-  color: var(--accent);
+  color: var(--color-section-header);
   font-size: var(--font-base);
   font-weight: 600;
   letter-spacing: 0.5px;

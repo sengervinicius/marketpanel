@@ -80,7 +80,7 @@
   font-weight: 700;
   letter-spacing: 0.5px;
   margin-bottom: var(--space-1);
-  color: var(--accent);
+  color: var(--color-text-primary);
 }
 
 .scc-price-row {
@@ -121,7 +121,7 @@
 }
 
 .scc-chart-section--highlighted {
-  border: 2px solid var(--accent);
+  border: 2px solid var(--color-border-strong);
   box-shadow: 0 0 12px rgba(255, 102, 0, 0.2);
 }
 

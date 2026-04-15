@@ -164,7 +164,7 @@
   text-align: right;
   padding-right: 0;
   padding-left: 10px;
-  color: var(--accent);
+  color: var(--color-table-header);
 }
 .macro-tr { }
 .macro-tr:hover { background: rgba(255, 255, 255, 0.02); }

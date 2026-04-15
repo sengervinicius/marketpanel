@@ -82,7 +82,14 @@
   /* ================================================================
      DATA VIZ — for charts and heatmaps only
      ================================================================ */
-  --color-viz-high:          #e55a00;           /* High correlation (>0.7) */
+  --color-viz-high:          #e55a00;           /* High correlation (>0.7)  */
+
+  /* ================================================================
+     DESIGN HIERARCHY — Phase 1 tokens
+     ================================================================ */
+  --color-section-header:    rgba(255,255,255,0.45);   /* Panel section labels */
+  --color-table-header:      rgba(255,255,255,0.35);   /* Column headers in data tables */
+  --color-insight-unavailable: rgba(255,255,255,0.30); /* Quiet unavailability state */
   --color-viz-mid:           #f59e0b;           /* Medium correlation (0.4–0.7) */
   --color-viz-low:           #3b82f6;           /* Low / negative correlation */
   --color-viz-neutral:       #374151;           /* Zero correlation / empty */
@@ -323,6 +330,15 @@
   --section-fx:              var(--sector-fxcrypto);
   --section-crypto:          var(--sector-crypto);
   --section-watchlist:       var(--color-accent);
+
+  /* --- Phase 1: Hierarchy aliases --- */
+  --section-header:          var(--color-section-header);
+  --table-header:            var(--color-table-header);
+  --insight-unavailable:     var(--color-insight-unavailable);
+
+  /* --- Phase 1: Panel spacing --- */
+  --space-panel-inner:       12px;
+  --space-section-gap:       16px;
 }
 
 
@@ -350,11 +366,11 @@ td, th,
 /* Unified section header — use across ALL sector screens */
 .section-header {
   font-family: var(--font-family-mono);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-semibold);
-  letter-spacing: 0.08em;
+  font-size: 0.7rem;
+  font-weight: var(--font-weight-medium);
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--color-text-secondary);
+  color: var(--color-section-header);
   padding-bottom: var(--space-2);
   border-bottom: 1px solid var(--color-border);
   margin-bottom: var(--space-4);

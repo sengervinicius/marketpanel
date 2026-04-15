@@ -104,7 +104,7 @@
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--accent, #F97316);
+  color: var(--color-text-secondary);
   background: rgba(249, 115, 22, 0.1);
   padding: 1px 5px;
   border-radius: 2px;
@@ -121,7 +121,7 @@
 }
 
 .wire-ticker-inline {
-  color: var(--accent, #F97316);
+  color: var(--color-text-secondary);
   font-weight: 600;
   cursor: default;
 }
@@ -135,7 +135,7 @@
 .wire-ticker {
   font-size: 11px;
   font-weight: 600;
-  color: var(--accent, #F97316);
+  color: var(--color-text-secondary);
   background: rgba(249, 115, 22, 0.1);
   padding: 2px 6px;
   border-radius: 3px;

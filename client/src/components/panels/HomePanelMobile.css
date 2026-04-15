@@ -219,7 +219,7 @@
 .hpm-ai-card {
   background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
-  border-left: 3px solid var(--accent);
+  border-left: 3px solid var(--color-ai);
   border-radius: 10px;
   padding: 10px 12px;
   margin: 0 var(--sp-3) 10px;
@@ -227,7 +227,7 @@
   -webkit-tap-highlight-color: transparent;
 }
 .hpm-ai-card:active {
-  border-color: var(--accent);
+  border-color: var(--color-ai);
 }
 .hpm-ai-badge {
   font-size: var(--font-micro);
@@ -235,9 +235,9 @@
   letter-spacing: 0.06em;
   padding: 2px 6px;
   border-radius: 999px;
-  background: var(--color-particle-dim);
-  color: var(--accent);
-  border: 1px solid rgba(255, 102, 0, 0.15);
+  background: rgba(168, 85, 247, 0.10);
+  color: var(--color-ai);
+  border: 1px solid rgba(168, 85, 247, 0.15);
   display: inline-block;
   margin-bottom: 4px;
 }
@@ -264,12 +264,12 @@
   gap: 4px;
   margin-top: 4px;
   font-size: var(--font-sm);
-  color: var(--color-down);
+  color: var(--color-insight-unavailable);
   line-height: 1.4;
 }
 .hpm-ai-retry {
   font-size: var(--text-sm);
-  color: var(--accent);
+  color: var(--color-text-secondary);
   font-weight: 600;
   letter-spacing: 0.04em;
 }
@@ -315,7 +315,7 @@
   padding: 12px 14px;
   background: var(--bg-elevated);
   border: 1px solid rgba(255,255,255,0.06);
-  border-left: 3px solid var(--accent);
+  border-left: 3px solid var(--color-vault);
   border-radius: 8px;
   cursor: pointer;
   transition: background 0.15s;
@@ -324,7 +324,7 @@
 .hpm-vault-cta:active { background: var(--bg-active); }
 .hpm-vault-cta-icon {
   flex-shrink: 0;
-  color: var(--accent);
+  color: var(--color-vault);
 }
 .hpm-vault-cta-text { flex: 1; }
 .hpm-vault-cta-title {
@@ -410,7 +410,7 @@
   width: 140px;
   background: var(--bg-panel, var(--bg-elevated));
   border: 1px solid rgba(255, 255, 255, 0.06);
-  border-left: 3px solid var(--accent);
+  border-left: 3px solid var(--color-border-strong);
   border-radius: 8px;
   padding: 10px 12px;
   cursor: pointer;
@@ -463,7 +463,7 @@
   background: rgba(0, 0, 0, 0.5);
   border-radius: 8px;
   font-size: var(--text-xs);
-  color: var(--accent);
+  color: var(--color-text-secondary);
   font-weight: 600;
   letter-spacing: 0.3px;
 }

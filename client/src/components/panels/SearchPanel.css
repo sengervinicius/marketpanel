@@ -19,7 +19,7 @@
 .search-panel-title {
   font: 600 10px var(--font-mono);
   letter-spacing: 0.12em;
-  color: var(--accent);
+  color: var(--color-section-header);
   text-transform: uppercase;
 }
 
@@ -39,7 +39,7 @@
 }
 
 .sp-header-label {
-  color: var(--accent, var(--accent));
+  color: var(--color-section-header);
   font-weight: 700;
   font-size: var(--font-xs);
   letter-spacing: 0.2em;
@@ -484,7 +484,7 @@
 }
 
 .sp-ticker {
-  color: var(--accent, var(--accent));
+  color: var(--accent);
   font-weight: 700;
   font-size: 13px;
 }
