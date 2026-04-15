@@ -776,6 +776,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
                 <ReferenceArea
                   x1={chartBars[aMin].label}
                   x2={chartBars[aMax].label}
+                  yAxisId="right"
                   fill={deltaInfo?.pct >= 0 ? GREEN : RED}
                   fillOpacity={0.06}
                   strokeOpacity={0}
@@ -783,11 +784,11 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
               )}
 
               {deltaA !== null && chartBars[deltaA] && (
-                <ReferenceLine x={chartBars[deltaA].label} stroke={ORANGE} strokeDasharray="4 2" strokeWidth={1.5}
+                <ReferenceLine x={chartBars[deltaA].label} yAxisId="right" stroke={ORANGE} strokeDasharray="4 2" strokeWidth={1.5}
                   label={{ value: 'A', fill: ORANGE, fontSize: 10, position: 'top' }} />
               )}
               {deltaB !== null && chartBars[deltaB] && (
-                <ReferenceLine x={chartBars[deltaB].label} stroke={ORANGE} strokeDasharray="4 2" strokeWidth={1.5}
+                <ReferenceLine x={chartBars[deltaB].label} yAxisId="right" stroke={ORANGE} strokeDasharray="4 2" strokeWidth={1.5}
                   label={{ value: 'B', fill: ORANGE, fontSize: 10, position: 'top' }} />
               )}
 
@@ -816,6 +817,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
                   <ReferenceLine
                     key={`earnings-${idx}`}
                     x={marker.label}
+                    yAxisId="right"
                     stroke="none"
                     label={{
                       value: 'E',
