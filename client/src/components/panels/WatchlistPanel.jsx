@@ -91,6 +91,11 @@ function WatchlistPanel({ onTickerClick }) {
   const [addInput, setAddInput]     = useState('');
   const [showAdd, setShowAdd]       = useState(false);
   const { addTicker }               = useWatchlist();
+
+  // ── Drop handler: accept tickers dragged from search bar ───────────
+  const handleDropTicker = useCallback((ticker) => {
+    if (ticker) addTicker(ticker);
+  }, [addTicker]);
   const ptRef                       = useRef(null);
   const inputRef                    = useRef(null);
   const [whySymbol, setWhySymbol]   = useState(null);
@@ -192,7 +197,7 @@ function WatchlistPanel({ onTickerClick }) {
   };
 
   return (
-    <PanelShell>
+    <PanelShell onDropTicker={handleDropTicker}>
       {/* Header */}
       <div className="flex-row wp-header">
         <span className="wp-header-title">WATCHLIST</span>
