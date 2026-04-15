@@ -983,8 +983,8 @@ export default function App() {
                         {row.map((panelId, colIdx) => {
                           if (!isPanelVisible(panelId)) return null;
                           const isLast = colIdx === row.filter(id => isPanelVisible(id)).length - 1;
-                          // Charts row (row 0) is not draggable for panel swapping
-                          const canDragPanel = rowIdx > 0 || !row.includes('charts');
+                          // Charts panel itself is not draggable, but neighbors in row 0 are
+                          const canDragPanel = panelId !== 'charts';
                           const isDropTarget = dropTargetPanelId === panelId && draggedPanelId !== panelId;
                           return (
                             <div

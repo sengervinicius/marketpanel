@@ -308,7 +308,7 @@ function OptionsFlowPanel() {
     <div className="sm-panel">
       {/* Header — matches EditablePanelHeader standard */}
       <div className="sm-hdr">
-        <span className="sm-hdr-title">SMART MONEY</span>
+        <span className="sm-hdr-title">OPTIONS / FLOW</span>
         <span className="sm-hdr-sub">Flow · Dark Pool · Congress</span>
         <div className="sm-hdr-right">
           <span className="sm-hdr-ts">{loading ? 'SYNCING' : ts}</span>

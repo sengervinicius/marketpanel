@@ -367,8 +367,8 @@ export const PANEL_DEFINITIONS = {
   },
   optionsFlow: {
     id:             'optionsFlow',
-    label:          'Smart Money',
-    defaultTitle:   'Smart Money',
+    label:          'Options / Flow',
+    defaultTitle:   'Options / Flow',
     defaultSymbols: [],
     allowedGroups:  null,
     editable:       false,

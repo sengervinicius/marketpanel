@@ -2,13 +2,13 @@ import { useState, useEffect, memo } from 'react';
 
 const EXCHANGES = [
   { code: 'NYSE',  label: 'US',  tz: 'America/New_York',  open: 570,  close: 960  }, // 9:30-16:00
-  { code: 'B3',    label: 'B3',  tz: 'America/Sao_Paulo', open: 600,  close: 1075 }, // 10:00-17:55
   { code: 'LSE',   label: 'LDN', tz: 'Europe/London',     open: 480,  close: 990  }, // 8:00-16:30
   { code: 'XETR',  label: 'FRA', tz: 'Europe/Berlin',     open: 540,  close: 1050 }, // 9:00-17:30
+  { code: 'TSE',   label: 'TKY', tz: 'Asia/Tokyo',        open: 540,  close: 930  }, // 9:00-15:30
+  { code: 'HKEX',  label: 'HKG', tz: 'Asia/Hong_Kong',    open: 570,  close: 960  }, // 9:30-16:00
   { code: 'KRX',   label: 'KRX', tz: 'Asia/Seoul',        open: 540,  close: 930  }, // 9:00-15:30
   { code: 'TWSE',  label: 'TWN', tz: 'Asia/Taipei',       open: 540,  close: 810  }, // 9:00-13:30
-  { code: 'HKEX',  label: 'HKG', tz: 'Asia/Hong_Kong',    open: 570,  close: 960  }, // 9:30-16:00
-  { code: 'TSE',   label: 'TKY', tz: 'Asia/Tokyo',        open: 540,  close: 930  }, // 9:00-15:30
+  { code: 'B3',    label: 'B3',  tz: 'America/Sao_Paulo', open: 600,  close: 1075 }, // 10:00-17:55
 ];
 
 // US pre-market / after-hours boundaries (in minutes from midnight, NY time)
@@ -61,12 +61,25 @@ function getSmartMarketState() {
     return { ...ex, isOpen, minsToOpen, minsToClose, tzDiff, mins: t.mins, isWeekday: t.isWeekday };
   });
 
-  // 1. Find open exchanges, sorted by proximity to user timezone
-  const openExchanges = states.filter(s => s.isOpen).sort((a, b) => a.tzDiff - b.tzDiff);
+  // 1. Find open exchanges
+  const openExchanges = states.filter(s => s.isOpen);
 
-  // 2. If any exchange is open, show the closest one to user
+  // 2. Smart priority: local exchange → US → other major → rest
+  //    "Local" = within 2h of user's timezone; US always gets priority over smaller markets
   if (openExchanges.length > 0) {
-    const best = openExchanges[0];
+    // Global importance ranking (lower = more important)
+    const importance = { NYSE: 0, LSE: 1, XETR: 2, TSE: 3, HKEX: 4, KRX: 5, TWSE: 6, B3: 7 };
+
+    // User's local exchange (closest timezone)
+    const local = openExchanges.filter(e => e.tzDiff <= 120).sort((a, b) =>
+      a.tzDiff - b.tzDiff || (importance[a.code] ?? 99) - (importance[b.code] ?? 99)
+    );
+
+    // Pick: local if available, else US if open, else most important open exchange
+    const best = local[0]
+      || openExchanges.find(e => e.code === 'NYSE')
+      || openExchanges.sort((a, b) => (importance[a.code] ?? 99) - (importance[b.code] ?? 99))[0];
+
     const ch = Math.floor(best.minsToClose / 60);
     const cm = best.minsToClose % 60;
     return {
@@ -92,10 +105,11 @@ function getSmartMarketState() {
     }
   }
 
-  // 4. Find the next exchange to open (closest by time), preferring user's timezone
+  // 4. Find the next exchange to open (closest by time), preferring importance
+  const importance2 = { NYSE: 0, LSE: 1, XETR: 2, TSE: 3, HKEX: 4, KRX: 5, TWSE: 6, B3: 7 };
   const upcoming = states
     .filter(s => s.minsToOpen < Infinity)
-    .sort((a, b) => a.minsToOpen - b.minsToOpen || a.tzDiff - b.tzDiff);
+    .sort((a, b) => a.minsToOpen - b.minsToOpen || (importance2[a.code] ?? 99) - (importance2[b.code] ?? 99));
 
   if (upcoming.length > 0) {
     const next = upcoming[0];
