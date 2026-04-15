@@ -11,61 +11,139 @@ const EXCHANGES = [
   { code: 'TSE',   label: 'TKY', tz: 'Asia/Tokyo',        open: 540,  close: 930  }, // 9:00-15:30
 ];
 
-function isExchangeOpen(tz, openMin, closeMin) {
+// US pre-market / after-hours boundaries (in minutes from midnight, NY time)
+const US_PREMARKET_START = 240;  // 4:00 AM
+const US_OPEN = 570;             // 9:30 AM
+const US_CLOSE = 960;            // 4:00 PM
+const US_AFTERHOURS_END = 1200;  // 8:00 PM
+
+function getExchangeMinutes(tz) {
   try {
     const now = new Date();
-    // Get day of week in the exchange timezone
-    const dayStr = now.toLocaleDateString('en-US', { timeZone: tz, weekday: 'short' });
-    if (dayStr === 'Sat' || dayStr === 'Sun') return false;
-    // Get hour and minute separately to avoid locale parsing issues
     const h = parseInt(now.toLocaleString('en-US', { timeZone: tz, hour: 'numeric', hour12: false }), 10);
     const m = parseInt(now.toLocaleString('en-US', { timeZone: tz, minute: 'numeric' }), 10);
-    if (isNaN(h) || isNaN(m)) return false;
-    const mins = h * 60 + m;
-    return mins >= openMin && mins < closeMin;
+    const dayStr = now.toLocaleDateString('en-US', { timeZone: tz, weekday: 'short' });
+    if (isNaN(h) || isNaN(m)) return null;
+    return { mins: h * 60 + m, isWeekday: dayStr !== 'Sat' && dayStr !== 'Sun' };
   } catch {
-    return false;
+    return null;
   }
 }
 
-function getMarketState() {
+function isExchangeOpen(tz, openMin, closeMin) {
+  const t = getExchangeMinutes(tz);
+  if (!t || !t.isWeekday) return false;
+  return t.mins >= openMin && t.mins < closeMin;
+}
+
+/**
+ * Get the exchange status closest/most relevant to the user's local timezone.
+ * Priority: show an OPEN exchange near the user, or the next one to open.
+ */
+function getSmartMarketState() {
   const now = new Date();
-  const ny = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
-  const day = ny.getDay();
-  const h = ny.getHours();
-  const m = ny.getMinutes();
-  const mins = h * 60 + m;
+  const userTzOffset = -now.getTimezoneOffset(); // user offset in minutes from UTC (e.g., London BST = +60)
 
-  const isWeekday = day >= 1 && day <= 5;
-  const preMarket = mins >= 240 && mins < 570;
-  const regular   = mins >= 570 && mins < 960;
-  const afterHours = mins >= 960 && mins < 1200;
+  // Compute state for each exchange
+  const states = EXCHANGES.map(ex => {
+    const t = getExchangeMinutes(ex.tz);
+    if (!t) return { ...ex, isOpen: false, minsToOpen: Infinity, minsToClose: 0, tzDiff: Infinity };
 
-  if (!isWeekday) return { status: 'closed', label: 'Market Closed', countdown: null };
+    const isOpen = t.isWeekday && t.mins >= ex.open && t.mins < ex.close;
+    const minsToClose = isOpen ? ex.close - t.mins : 0;
+    const minsToOpen = (!isOpen && t.isWeekday && t.mins < ex.open) ? ex.open - t.mins : Infinity;
 
-  if (regular) {
-    const closeMin = 960 - mins;
-    const ch = Math.floor(closeMin / 60);
-    const cm = closeMin % 60;
-    return { status: 'open', label: 'Market Open', countdown: `Closes in ${ch}h ${cm}m` };
+    // Compute how close this exchange's timezone is to user's timezone
+    // Get exchange UTC offset
+    const exOffset = getTimezoneOffset(ex.tz);
+    const tzDiff = Math.abs(userTzOffset - exOffset);
+
+    return { ...ex, isOpen, minsToOpen, minsToClose, tzDiff, mins: t.mins, isWeekday: t.isWeekday };
+  });
+
+  // 1. Find open exchanges, sorted by proximity to user timezone
+  const openExchanges = states.filter(s => s.isOpen).sort((a, b) => a.tzDiff - b.tzDiff);
+
+  // 2. If any exchange is open, show the closest one to user
+  if (openExchanges.length > 0) {
+    const best = openExchanges[0];
+    const ch = Math.floor(best.minsToClose / 60);
+    const cm = best.minsToClose % 60;
+    return {
+      status: 'open',
+      label: `${best.label} Open`,
+      countdown: `Closes in ${ch}h ${cm}m`,
+      exchange: best.code,
+    };
   }
-  if (preMarket) {
-    const openMin = 570 - mins;
-    const oh = Math.floor(openMin / 60);
-    const om = openMin % 60;
-    return { status: 'pre', label: 'Pre-Market', countdown: `Opens in ${oh}h ${om}m` };
+
+  // 3. Check US pre-market / after-hours (special case since US is the dominant market)
+  const usState = states.find(s => s.code === 'NYSE');
+  if (usState && usState.isWeekday) {
+    const nyMins = usState.mins;
+    if (nyMins >= US_PREMARKET_START && nyMins < US_OPEN) {
+      const openIn = US_OPEN - nyMins;
+      const oh = Math.floor(openIn / 60);
+      const om = openIn % 60;
+      return { status: 'pre', label: 'US Pre-Market', countdown: `Opens in ${oh}h ${om}m`, exchange: 'NYSE' };
+    }
+    if (nyMins >= US_CLOSE && nyMins < US_AFTERHOURS_END) {
+      return { status: 'after', label: 'US After Hours', countdown: null, exchange: 'NYSE' };
+    }
   }
-  if (afterHours) return { status: 'pre', label: 'After Hours', countdown: null };
-  return { status: 'closed', label: 'Market Closed', countdown: null };
+
+  // 4. Find the next exchange to open (closest by time), preferring user's timezone
+  const upcoming = states
+    .filter(s => s.minsToOpen < Infinity)
+    .sort((a, b) => a.minsToOpen - b.minsToOpen || a.tzDiff - b.tzDiff);
+
+  if (upcoming.length > 0) {
+    const next = upcoming[0];
+    const oh = Math.floor(next.minsToOpen / 60);
+    const om = next.minsToOpen % 60;
+    return {
+      status: 'closed',
+      label: `${next.label} Next`,
+      countdown: `Opens in ${oh}h ${om}m`,
+      exchange: next.code,
+    };
+  }
+
+  // 5. Weekend / all closed
+  return { status: 'closed', label: 'Markets Closed', countdown: null, exchange: null };
+}
+
+/**
+ * Get UTC offset in minutes for a timezone (positive = east of UTC)
+ */
+function getTimezoneOffset(tz) {
+  try {
+    const now = new Date();
+    // Create a formatted date string in the target timezone and parse it
+    const parts = now.toLocaleString('en-US', {
+      timeZone: tz,
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
+    });
+    const tzDate = new Date(parts);
+    const utcDate = new Date(now.toLocaleString('en-US', {
+      timeZone: 'UTC',
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
+    }));
+    return Math.round((tzDate - utcDate) / 60000);
+  } catch {
+    return 0;
+  }
 }
 
 function MarketStatus() {
-  const [state, setState] = useState(getMarketState);
+  const [state, setState] = useState(() => getSmartMarketState());
   const [exchanges, setExchanges] = useState([]);
 
   useEffect(() => {
     const update = () => {
-      setState(getMarketState());
+      setState(getSmartMarketState());
       setExchanges(EXCHANGES.map(ex => ({
         ...ex,
         isOpen: isExchangeOpen(ex.tz, ex.open, ex.close),
@@ -76,10 +154,14 @@ function MarketStatus() {
     return () => clearInterval(id);
   }, []);
 
+  const dotClass = state.status === 'open' ? 'open'
+    : state.status === 'pre' || state.status === 'after' ? 'pre'
+    : 'closed';
+
   return (
     <div className="market-status" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-      {/* US primary status */}
-      <span className={`dot ${state.status}`} />
+      {/* Primary status — smart: shows nearest open exchange */}
+      <span className={`dot ${dotClass}`} />
       <span>{state.label}</span>
       {state.countdown && <span style={{ opacity: 0.7 }}>{state.countdown}</span>}
 
@@ -104,6 +186,22 @@ function MarketStatus() {
       </div>
     </div>
   );
+}
+
+// Export for server-side AI context — still returns US market state
+function getMarketState() {
+  const now = new Date();
+  const ny = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+  const day = ny.getDay();
+  const h = ny.getHours();
+  const m = ny.getMinutes();
+  const mins = h * 60 + m;
+  const isWeekday = day >= 1 && day <= 5;
+  if (!isWeekday) return { status: 'closed', label: 'Market Closed', countdown: null };
+  if (mins >= 570 && mins < 960) return { status: 'open', label: 'Market Open', countdown: null };
+  if (mins >= 240 && mins < 570) return { status: 'pre', label: 'Pre-Market', countdown: null };
+  if (mins >= 960 && mins < 1200) return { status: 'pre', label: 'After Hours', countdown: null };
+  return { status: 'closed', label: 'Market Closed', countdown: null };
 }
 
 export { getMarketState };
