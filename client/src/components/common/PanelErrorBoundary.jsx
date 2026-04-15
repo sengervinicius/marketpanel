@@ -48,8 +48,16 @@ export default class PanelErrorBoundary extends Component {
             {this.props.name || 'Panel'} — loading issue
           </span>
           <span style={{ color: '#666', fontSize: 10, maxWidth: 300, wordBreak: 'break-word' }}>
-            Something went wrong. Try refreshing this panel.
+            {this.state.error?.message || 'Something went wrong. Try refreshing this panel.'}
           </span>
+          {this.state.error?.stack && (
+            <details style={{ marginTop: 4, maxWidth: 400, textAlign: 'left' }}>
+              <summary style={{ cursor: 'pointer', color: '#555', fontSize: 9 }}>Stack trace</summary>
+              <pre style={{ color: '#555', fontSize: 8, whiteSpace: 'pre-wrap', wordBreak: 'break-all', maxHeight: 120, overflow: 'auto', marginTop: 4 }}>
+                {this.state.error.stack.split('\n').slice(0, 8).join('\n')}
+              </pre>
+            </details>
+          )}
           <button
             onClick={this.handleRetry}
             style={{
