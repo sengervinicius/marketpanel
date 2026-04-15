@@ -178,6 +178,19 @@ function rankResults(results, query) {
     const exch = (r.exchange || '').toUpperCase();
     if (exch.includes('OTC') || exch.includes('PINK') || r.market === 'otc') score -= 20;
 
+    // 7. Major exchange boost — prefer primary US/UK listings over foreign ADRs/derivatives
+    const majorUS = ['XNYS','XNAS','NYSE','NASDAQ','XASE','ARCX','BATS','XNMS','XNGS','XNCM'];
+    const majorGlobal = ['XLSE','LSE','XLON','XHKG','XTSE','XASX'];
+    if (majorUS.some(ex => exch.includes(ex))) score += 50;
+    else if (majorGlobal.some(ex => exch.includes(ex))) score += 25;
+    // Also detect US group by symbol pattern (no suffix = likely US)
+    else if (group === 'US') score += 45;
+
+    // 8. Clean ticker boost — shorter, simpler symbols are usually the primary listing
+    // "AAPL" should rank over "4AAPL.MI", "0R2V.L", "APC.DE" etc.
+    if (/^[A-Z]{1,5}$/.test(sym)) score += 30;
+    else if (/^[A-Z]{1,5}\.[A-Z]{1,2}$/.test(sym)) score += 5;
+
     return { ...r, _rankScore: score };
   })
   .sort((a, b) => b._rankScore - a._rankScore)

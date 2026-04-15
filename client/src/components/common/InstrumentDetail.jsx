@@ -2636,8 +2636,9 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
           {/* Phase 4.9: Custom Date Range Panel */}
           {showCustomRange && (
             <div className="id-custom-range-panel">
-              <div style={{ marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid #444' }}>
-                <h4 style={{ margin: '0 0 8px 0', fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#fff' }}>CUSTOM DATE RANGE</h4>
+              <div style={{ marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid #444', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h4 style={{ margin: 0, fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#fff' }}>CUSTOM DATE RANGE</h4>
+                <button onClick={() => setShowCustomRange(false)} style={{ background: 'none', border: 'none', color: '#888', fontSize: 16, cursor: 'pointer', padding: '0 4px', lineHeight: 1 }} title="Close">&times;</button>
               </div>
 
               {/* Preset buttons */}

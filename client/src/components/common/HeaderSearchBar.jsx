@@ -79,7 +79,7 @@ function HsbEnrichedRow({ item, idx, selectedIdx, onSelect, onMouseEnter, typeBa
       {fmtMktCap(mktCap) && (
         <span className="hsb-mktcap">{fmtMktCap(mktCap)}</span>
       )}
-      {!price && item.exchange && <span className="hsb-exchange">{item.exchange}</span>}
+      {item.exchange && <span className="hsb-exchange">{item.exchange}</span>}
     </div>
   );
 }
