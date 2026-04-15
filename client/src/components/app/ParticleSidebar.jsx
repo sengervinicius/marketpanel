@@ -44,7 +44,7 @@ export default function ParticleSidebar({ collapsed, onToggle }) {
 
   if (collapsed) {
     return (
-      <div className="psb-collapsed" onClick={onToggle} title="Open Particle sidebar">
+      <div className="psb-collapsed" data-tour="particle-sidebar" onClick={onToggle} title="Open Particle sidebar">
         <ParticleLogo size={20} />
         <span className="psb-collapsed-label">AI</span>
       </div>

@@ -1,13 +1,20 @@
 /**
- * WelcomeTour.jsx — Unified first-login onboarding experience.
+ * WelcomeTour.jsx — Cinematic first-login onboarding experience.
  *
- * Replaces the old WelcomeModal (persona picker) + OnboardingTour (spotlight).
- * Single flow: cinematic welcome → spotlight tour → ticker setup → launch.
+ * Shows ONCE on first login. Never again.
+ * Persisted via localStorage + server settings.
  *
- * Desktop: spotlight-based tour highlighting actual UI elements.
- * Mobile: full-screen card slideshow (no spotlights — elements are at bottom).
+ * 8 steps (desktop):
+ *  1. Cinematic splash — The Particle identity + 3 pillars
+ *  2. Spotlight: Terminal mode — the 3 operating modes
+ *  3. Spotlight: Search bar — command center
+ *  4. Spotlight: Workspace — customizable panels
+ *  5. Spotlight: Layout button — drag/resize/rearrange
+ *  6. Spotlight: Sector screens — deep-dive research
+ *  7. Spotlight: Particle sidebar — AI assistant
+ *  8. Ticker selection — build your watchlist
  *
- * Shows ONCE on first login. Persisted via localStorage + server settings.
+ * Mobile: adapted card-based flow (no spotlights).
  */
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
@@ -16,7 +23,7 @@ import { useWatchlist } from '../../context/WatchlistContext';
 import { useAuth } from '../../context/AuthContext';
 import './WelcomeTour.css';
 
-// ── Suggested tickers for the final step ─────────────────────────────────
+// ── Suggested tickers ──────────────────────────────────────────────────────
 const SUGGESTED_TICKERS = [
   { symbol: 'AAPL',  label: 'Apple' },
   { symbol: 'MSFT',  label: 'Microsoft' },
@@ -28,166 +35,213 @@ const SUGGESTED_TICKERS = [
   { symbol: 'SPY',   label: 'S&P 500' },
   { symbol: 'QQQ',   label: 'Nasdaq 100' },
   { symbol: 'BTC',   label: 'Bitcoin',  full: 'X:BTCUSD' },
+  { symbol: 'ETH',   label: 'Ethereum', full: 'X:ETHUSD' },
   { symbol: 'GLD',   label: 'Gold ETF' },
   { symbol: 'XLE',   label: 'Energy' },
+  { symbol: 'USDBRL', label: 'USD/BRL', full: 'C:USDBRL' },
+  { symbol: 'EURUSD', label: 'EUR/USD', full: 'C:EURUSD' },
+  { symbol: 'DIA',   label: 'Dow Jones' },
 ];
 
-// ── Tour steps ───────────────────────────────────────────────────────────
-// Desktop steps with spotlight targets; mobile steps use icons instead.
-const DESKTOP_STEPS = [
-  {
-    id: 'welcome',
-    type: 'splash',
-    title: 'WELCOME',
-    heading: 'Welcome to The Particle',
-    sub: 'Your cross-asset market terminal with AI intelligence',
-    cta: 'Show me around',
-  },
-  {
-    id: 'search',
-    type: 'spotlight',
-    target: '[data-tour="search"]',
-    title: 'COMMAND CENTER',
-    message: 'Type any ticker to pull up live data — equities, FX, crypto, commodities, options. End any query with a question mark and Particle AI will analyze it for you.',
-    cta: 'Next',
-    placement: 'bottom',
-  },
-  {
-    id: 'workspace',
-    type: 'spotlight',
-    target: '[data-tour="workspace"]',
-    title: 'YOUR WORKSPACE',
-    message: 'Drag, resize, and rearrange every panel. Click any ticker across the terminal to drill into fundamentals, charts, and AI analysis. Make it yours.',
-    cta: 'Next',
-    placement: 'top',
-  },
-  {
-    id: 'sectors',
-    type: 'spotlight',
-    target: '[data-tour="sector-screens"]',
-    title: 'SECTOR INTELLIGENCE',
-    message: '10+ deep-dive sector screens — Tech, Defence, Crypto, Commodities, Fixed Income, Brazil, and more. Each is a dedicated research terminal with its own data, charts, and analytics.',
-    cta: 'Next',
-    placement: 'bottom',
-  },
-  {
-    id: 'ai',
-    type: 'card',
-    title: 'PARTICLE AI',
-    icon: 'ai',
-    message: 'Particle AI is everywhere. Ask questions in any search bar, get morning intelligence briefs, and upload research PDFs to your Knowledge Vault — the AI cross-references them automatically.',
-    cta: 'Next',
-  },
-  {
-    id: 'tickers',
-    type: 'tickers',
-    title: 'YOUR WATCHLIST',
-    message: 'Pick a few tickers to get started. They\'ll appear across all your panels.',
-    cta: 'Launch Terminal',
-  },
-];
-
-const MOBILE_STEPS = [
-  {
-    id: 'welcome',
-    type: 'splash',
-    title: 'WELCOME',
-    heading: 'Welcome to The Particle',
-    sub: 'Your cross-asset market terminal with AI intelligence',
-    cta: 'Show me around',
-  },
-  {
-    id: 'home',
-    type: 'card',
-    title: 'HOME',
-    icon: 'home',
-    message: 'Your home feed shows market sentiment, sector screens, and quick access to everything. Swipe through the tabs at the top to explore charts, watchlists, and more.',
-    cta: 'Next',
-  },
-  {
-    id: 'ai',
-    type: 'card',
-    title: 'PARTICLE AI',
-    icon: 'ai',
-    message: 'Use the search bar to ask Particle AI anything about markets. Upload research PDFs to your Knowledge Vault and the AI will cross-reference them in every answer.',
-    cta: 'Next',
-  },
-  {
-    id: 'sectors',
-    type: 'card',
-    title: 'SECTOR SCREENS',
-    icon: 'sectors',
-    message: '10+ dedicated screens — Tech, Defence, Crypto, Commodities, Fixed Income, Brazil, and more. Find them in the home feed or the More tab. Each one is a full research terminal.',
-    cta: 'Next',
-  },
-  {
-    id: 'tickers',
-    type: 'tickers',
-    title: 'YOUR WATCHLIST',
-    message: 'Pick a few tickers to get started. They\'ll light up across the terminal.',
-    cta: 'Launch Terminal',
-  },
-];
-
-// ── SVG Icons for card steps ─────────────────────────────────────────────
-const STEP_ICONS = {
-  home: (
-    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-      <polyline points="9 22 9 12 15 12 15 22" />
-    </svg>
-  ),
-  ai: (
-    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="10" />
-      <path d="M12 16v-4M12 8h.01" />
-    </svg>
-  ),
-  sectors: (
-    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" />
-      <rect x="14" y="14" width="7" height="7" /><rect x="3" y="14" width="7" height="7" />
-    </svg>
-  ),
-};
-
-// ── Pillar data for splash step ──────────────────────────────────────────
+// ── 3 Pillars ──────────────────────────────────────────────────────────────
 const PILLARS = [
   {
     icon: (
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
         <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
       </svg>
     ),
     color: '#00bcd4',
-    label: 'Terminal',
-    desc: 'Equities, FX, crypto, commodities, options, rates — all in one workspace',
+    label: 'TERMINAL',
+    desc: 'Live cross-asset data — equities, FX, crypto, commodities, rates, options — all customizable panels in one workspace.',
+    tag: 'REAL-TIME',
   },
   {
     icon: (
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-        <circle cx="12" cy="12" r="10" /><path d="M12 16v-4M12 8h.01" />
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+        <circle cx="12" cy="12" r="3" />
+        <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
       </svg>
     ),
-    color: 'var(--color-accent, #e55a00)',
-    label: 'Particle AI',
-    desc: 'Ask anything — powered by your portfolio, live data, and research docs',
+    color: 'var(--color-accent, #F97316)',
+    label: 'PARTICLE AI',
+    desc: 'Your personal market analyst. Ask anything, get morning briefs, deep analyses, and portfolio-aware intelligence.',
+    tag: 'AI-POWERED',
   },
   {
     icon: (
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
         <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
         <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
       </svg>
     ),
     color: 'var(--color-vault-accent, #c9a84c)',
-    label: 'Vault',
-    desc: 'Upload research PDFs — your AI gets smarter with every document',
+    label: 'VAULT',
+    desc: 'Upload research PDFs and documents. The AI cross-references your library in every answer and analysis.',
+    tag: 'KNOWLEDGE',
   },
 ];
 
-// ── Typewriter hook ──────────────────────────────────────────────────────
-function useTypewriter(text, speed = 18) {
+// ── Desktop steps ──────────────────────────────────────────────────────────
+const DESKTOP_STEPS = [
+  {
+    id: 'splash',
+    type: 'splash',
+  },
+  {
+    id: 'modes',
+    type: 'spotlight',
+    target: '[data-tour="header"]',
+    label: 'OPERATING MODES',
+    title: '3 Modes, 1 Terminal',
+    message: 'Switch between Particle AI for conversational intelligence, Terminal for your full market workspace, and Vault for your research library. Each mode is designed for a different workflow.',
+    cta: 'Next',
+    placement: 'bottom',
+    hint: 'Click any mode tab to switch instantly',
+  },
+  {
+    id: 'search',
+    type: 'spotlight',
+    target: '[data-tour="search"]',
+    label: 'COMMAND CENTER',
+    title: 'Universal Search',
+    message: 'Type any ticker — stocks, FX pairs, crypto, ETFs, commodities — for instant quotes and charts. End any query with ? and Particle AI will analyze it. Drag results directly into panels or chart spaces.',
+    cta: 'Next',
+    placement: 'bottom',
+    hint: 'Try: "AAPL?" for AI analysis',
+  },
+  {
+    id: 'workspace',
+    type: 'spotlight',
+    target: '[data-tour="workspace"]',
+    label: 'YOUR WORKSPACE',
+    title: 'Fully Customizable Panels',
+    message: 'Every panel is yours to customize. Right-click headers to add subsections, drag tickers between panels, and click any ticker to open a full instrument detail view with charts, fundamentals, and AI analysis.',
+    cta: 'Next',
+    placement: 'top',
+    hint: 'Right-click any panel header for options',
+  },
+  {
+    id: 'layout',
+    type: 'spotlight',
+    target: '[data-tour="layout"]',
+    label: 'LAYOUT EDITOR',
+    title: 'Drag, Resize, Rearrange',
+    message: 'Click LAYOUT to enter edit mode. Drag panel borders to resize, use arrow keys to reposition, or drag entire panels to swap their places. Reset to default any time. Your layout persists across sessions.',
+    cta: 'Next',
+    placement: 'bottom',
+    hint: 'Drag panels to swap their positions',
+  },
+  {
+    id: 'sectors',
+    type: 'spotlight',
+    target: '[data-tour="sector-screens"]',
+    label: 'SECTOR INTELLIGENCE',
+    title: 'Deep-Dive Research Screens',
+    message: '10+ dedicated sector screens — Tech, Defence, Crypto, Commodities, Fixed Income, European Markets, Asian Markets, Brazil, and more. Each is a full research terminal with curated data, charts, analytics, and sector-specific intelligence.',
+    cta: 'Next',
+    placement: 'bottom',
+    hint: 'Each screen is a specialized terminal',
+  },
+  {
+    id: 'sidebar',
+    type: 'spotlight',
+    target: '[data-tour="particle-sidebar"]',
+    label: 'PARTICLE SIDEBAR',
+    title: 'AI Always Within Reach',
+    message: 'The orange orb is your Particle AI sidebar. Click to expand and ask anything about your current screen, portfolio, or any market question. It reads your home screen context to give you relevant insights.',
+    cta: 'Next',
+    placement: 'left',
+    hint: 'Click the orb any time for AI help',
+  },
+  {
+    id: 'tickers',
+    type: 'tickers',
+    label: 'BUILD YOUR WATCHLIST',
+    title: 'Pick Your Instruments',
+    message: 'Select tickers you want to track. They will populate your panels, charts, and AI context. You can always add more later from the search bar.',
+    cta: 'Launch The Particle',
+  },
+];
+
+// ── Mobile steps (card-based, no spotlights) ───────────────────────────────
+const MOBILE_STEPS = [
+  { id: 'splash', type: 'splash' },
+  {
+    id: 'modes',
+    type: 'card',
+    icon: 'modes',
+    label: 'OPERATING MODES',
+    title: '3 Modes, 1 Terminal',
+    message: 'Swipe through the bottom tabs to switch between Particle AI, your market workspace, charts, watchlist, and more. Each mode is built for a different workflow.',
+    cta: 'Next',
+  },
+  {
+    id: 'ai',
+    type: 'card',
+    icon: 'ai',
+    label: 'PARTICLE AI',
+    title: 'Your Market Analyst',
+    message: 'Ask Particle AI anything about markets. It reads your portfolio, live data, and uploaded research documents to give you context-aware intelligence. Try ending any search with ? for instant analysis.',
+    cta: 'Next',
+  },
+  {
+    id: 'sectors',
+    type: 'card',
+    icon: 'sectors',
+    label: 'SECTOR SCREENS',
+    title: 'Deep-Dive Research',
+    message: '10+ dedicated sector screens with curated data, charts, and analytics. Find them in the home feed or More tab. Tech, Crypto, Fixed Income, Brazil, European Markets, and beyond.',
+    cta: 'Next',
+  },
+  {
+    id: 'vault',
+    type: 'card',
+    icon: 'vault',
+    label: 'KNOWLEDGE VAULT',
+    title: 'Your Research Library',
+    message: 'Upload PDFs and research documents to the Vault. Particle AI cross-references your entire library in every answer, making it smarter with every document you add.',
+    cta: 'Next',
+  },
+  {
+    id: 'tickers',
+    type: 'tickers',
+    label: 'BUILD YOUR WATCHLIST',
+    title: 'Pick Your Instruments',
+    message: 'Select tickers to track. They will appear across all your panels and charts.',
+    cta: 'Launch The Particle',
+  },
+];
+
+// ── SVG Icons for card steps ───────────────────────────────────────────────
+const STEP_ICONS = {
+  modes: (
+    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="3" width="20" height="14" rx="2" /><line x1="8" y1="21" x2="16" y2="21" /><line x1="12" y1="17" x2="12" y2="21" />
+    </svg>
+  ),
+  ai: (
+    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="3" />
+      <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
+    </svg>
+  ),
+  sectors: (
+    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" />
+      <rect x="14" y="14" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" />
+    </svg>
+  ),
+  vault: (
+    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+      <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+    </svg>
+  ),
+};
+
+// ── Typewriter hook ────────────────────────────────────────────────────────
+function useTypewriter(text, speed = 14) {
   const [displayed, setDisplayed] = useState('');
   const [done, setDone] = useState(false);
 
@@ -208,7 +262,7 @@ function useTypewriter(text, speed = 18) {
   return { displayed, done, skip };
 }
 
-// ── Glow Highlight ───────────────────────────────────────────────────────
+// ── Glow Highlight ─────────────────────────────────────────────────────────
 function GlowHighlight({ targetRect }) {
   if (!targetRect) return null;
   const PAD = 8;
@@ -225,7 +279,7 @@ function GlowHighlight({ targetRect }) {
   );
 }
 
-// ── Cutout Backdrop (spotlight effect) ───────────────────────────────────
+// ── Cutout Backdrop ────────────────────────────────────────────────────────
 function SpotlightBackdrop({ targetRect, onClick }) {
   if (!targetRect) {
     return <div className="wt-backdrop" onClick={onClick} />;
@@ -245,12 +299,12 @@ function SpotlightBackdrop({ targetRect, onClick }) {
           <rect x={l} y={t} width={w} height={h} rx={r} ry={r} fill="black" />
         </mask>
       </defs>
-      <rect width="100%" height="100%" fill="rgba(0,0,0,0.75)" mask="url(#wt-spotlight-mask)" />
+      <rect width="100%" height="100%" fill="rgba(0,0,0,0.82)" mask="url(#wt-spotlight-mask)" />
     </svg>
   );
 }
 
-// ── Progress Bar ─────────────────────────────────────────────────────────
+// ── Progress Bar ───────────────────────────────────────────────────────────
 function ProgressBar({ current, total }) {
   return (
     <div className="wt-progress">
@@ -264,7 +318,7 @@ function ProgressBar({ current, total }) {
   );
 }
 
-// ── Main Tour Component ──────────────────────────────────────────────────
+// ── Main Tour Component ────────────────────────────────────────────────────
 export default function WelcomeTour() {
   const { settings, markTourCompleted } = useSettings();
   const { user } = useAuth();
@@ -284,12 +338,11 @@ export default function WelcomeTour() {
   const displayName = user?.username || user?.name || '';
 
   const typewriterText = active && step?.message ? step.message : '';
-  const { displayed, done: typeDone, skip: skipType } = useTypewriter(typewriterText, 16);
+  const { displayed, done: typeDone, skip: skipType } = useTypewriter(typewriterText, 14);
 
-  // ── Should we show the tour? ──────────────────────────────────────────
+  // ── Should we show the tour? ────────────────────────────────────────────
   useEffect(() => {
     if (!settings) return;
-    // Check all possible completion flags
     const serverDone = settings.onboardingCompleted === true;
     const localDone = localStorage.getItem('particle_tour_completed') === '1';
     const legacyDone = localStorage.getItem('particle_onboarding_done') === '1';
@@ -298,11 +351,11 @@ export default function WelcomeTour() {
     const t = setTimeout(() => {
       setActive(true);
       setEntering(true);
-    }, 600);
+    }, 800);
     return () => clearTimeout(t);
   }, [settings]);
 
-  // ── Track target element position ─────────────────────────────────────
+  // ── Track target element position ───────────────────────────────────────
   useEffect(() => {
     if (!active) return;
     if (step?.type !== 'spotlight' || !step?.target) { setTargetRect(null); return; }
@@ -320,7 +373,7 @@ export default function WelcomeTour() {
     return () => cancelAnimationFrame(animFrame.current);
   }, [active, stepIdx, step?.target, step?.type]);
 
-  // ── Keyboard navigation ───────────────────────────────────────────────
+  // ── Keyboard navigation ─────────────────────────────────────────────────
   useEffect(() => {
     if (!active) return;
     const handler = (e) => {
@@ -344,7 +397,7 @@ export default function WelcomeTour() {
     return () => clearTimeout(t);
   }, [stepIdx, active]);
 
-  // ── Actions ───────────────────────────────────────────────────────────
+  // ── Actions ─────────────────────────────────────────────────────────────
   const handleNext = useCallback(() => {
     if (stepIdx < steps.length - 1) setStepIdx(s => s + 1);
     else handleFinish();
@@ -362,7 +415,6 @@ export default function WelcomeTour() {
   }, [markTourCompleted]);
 
   const handleFinish = useCallback(async () => {
-    // Add selected tickers before closing
     if (selectedTickers.length > 0) {
       setAddingTickers(true);
       for (const sym of selectedTickers) {
@@ -388,10 +440,10 @@ export default function WelcomeTour() {
   const isFirst = stepIdx === 0;
   const isLast = stepIdx === steps.length - 1;
 
-  // ── RENDER ────────────────────────────────────────────────────────────
+  // ── RENDER ──────────────────────────────────────────────────────────────
   return createPortal(
     <div className="wt-root">
-      {/* Backdrop — spotlight cutout for spotlight steps, plain for others */}
+      {/* Backdrop */}
       {step.type === 'spotlight' && targetRect ? (
         <SpotlightBackdrop
           targetRect={targetRect}
@@ -401,25 +453,36 @@ export default function WelcomeTour() {
         <div className="wt-backdrop" onClick={() => { if (!typeDone && step.type !== 'splash') skipType(); }} />
       )}
 
-      {/* Glow highlight for spotlight steps */}
+      {/* Glow highlight */}
       {step.type === 'spotlight' && <GlowHighlight targetRect={targetRect} />}
 
-      {/* ── SPLASH STEP (step 0) ── */}
+      {/* ── SPLASH STEP ── */}
       {step.type === 'splash' && (
         <div className={`wt-splash ${entering ? 'wt-entering' : ''}`}>
-          {/* Particle orb */}
-          <div className="wt-orb" />
+          {/* Animated particle orb */}
+          <div className="wt-orb-container">
+            <div className="wt-orb" />
+            <div className="wt-orb-ring wt-orb-ring--1" />
+            <div className="wt-orb-ring wt-orb-ring--2" />
+          </div>
 
+          <div className="wt-splash-eyebrow">WELCOME TO</div>
           <h1 className="wt-splash-heading">
-            {step.heading}{displayName ? `, ${displayName}` : ''}
+            The Particle{displayName ? <span className="wt-splash-name">, {displayName}</span> : ''}
           </h1>
-          <p className="wt-splash-sub">{step.sub}</p>
+          <p className="wt-splash-sub">
+            Professional-grade market intelligence terminal
+          </p>
+
+          {/* Version badge */}
+          <div className="wt-version-badge">v2.0 — Cross-Asset Terminal + AI</div>
 
           {/* 3 Pillars */}
           <div className="wt-pillars">
             {PILLARS.map((p, i) => (
-              <div key={i} className="wt-pillar">
-                <div className="wt-pillar-icon" style={{ color: p.color }}>{p.icon}</div>
+              <div key={i} className="wt-pillar" style={{ '--pillar-color': p.color }}>
+                <div className="wt-pillar-tag">{p.tag}</div>
+                <div className="wt-pillar-icon">{p.icon}</div>
                 <div className="wt-pillar-label">{p.label}</div>
                 <div className="wt-pillar-desc">{p.desc}</div>
               </div>
@@ -427,10 +490,11 @@ export default function WelcomeTour() {
           </div>
 
           <button className="wt-primary-btn" onClick={handleNext}>
-            {step.cta}
+            <span>Begin Tour</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
           </button>
           <button className="wt-skip-btn" onClick={handleSkip}>
-            Skip tour
+            Skip tour — I know my way around
           </button>
 
           <ProgressBar current={stepIdx} total={steps.length} />
@@ -443,11 +507,15 @@ export default function WelcomeTour() {
           className={`wt-card-container ${entering ? 'wt-entering' : ''}`}
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Particle identity header */}
+          {/* Identity header */}
           <div className="wt-card-identity">
             <div className="wt-orb-sm" />
-            <div className="wt-card-step-title">{step.title}</div>
-            <div className="wt-card-counter">{stepIdx + 1}/{steps.length}</div>
+            <div className="wt-card-label">{step.label}</div>
+            <div className="wt-card-counter">
+              <span className="wt-card-counter-current">{stepIdx + 1}</span>
+              <span className="wt-card-counter-sep">/</span>
+              <span>{steps.length}</span>
+            </div>
           </div>
 
           {/* Content card */}
@@ -459,11 +527,24 @@ export default function WelcomeTour() {
               </div>
             )}
 
+            {/* Title */}
+            {step.title && (
+              <div className="wt-card-title">{step.title}</div>
+            )}
+
             {/* Typewriter message */}
             {(step.type === 'spotlight' || step.type === 'card') && (
               <div className="wt-card-message">
                 {displayed}
                 {!typeDone && <span className="wt-cursor" />}
+              </div>
+            )}
+
+            {/* Hint badge for spotlight steps */}
+            {step.hint && typeDone && (
+              <div className="wt-card-hint">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+                {step.hint}
               </div>
             )}
 
@@ -484,17 +565,23 @@ export default function WelcomeTour() {
                       >
                         <span className="wt-ticker-sym">{t.symbol}</span>
                         <span className="wt-ticker-label">{t.label}</span>
+                        {sel && <span className="wt-ticker-check">&#10003;</span>}
                       </button>
                     );
                   })}
                 </div>
+                {selectedTickers.length > 0 && (
+                  <div className="wt-ticker-count">
+                    {selectedTickers.length} instrument{selectedTickers.length > 1 ? 's' : ''} selected
+                  </div>
+                )}
               </>
             )}
 
             {/* Actions row */}
             <div className="wt-card-actions">
               <button className="wt-exit-btn" onClick={handleSkip}>
-                {isFirst ? 'SKIP' : 'EXIT'}
+                {isFirst ? 'SKIP' : 'EXIT TOUR'}
               </button>
 
               <div className="wt-card-actions-center">
@@ -504,24 +591,23 @@ export default function WelcomeTour() {
               <div className="wt-card-actions-right">
                 {!isFirst && (
                   <button className="wt-back-btn" onClick={handleBack}>
-                    Back
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
                   </button>
                 )}
                 <button
                   className={`wt-next-btn ${(typeDone || step.type === 'tickers') ? 'wt-next-btn--ready' : ''}`}
                   onClick={() => {
-                    if (step.type === 'tickers') {
-                      handleFinish();
-                    } else if (!typeDone) {
-                      skipType();
-                    } else {
-                      handleNext();
-                    }
+                    if (step.type === 'tickers') handleFinish();
+                    else if (!typeDone) skipType();
+                    else handleNext();
                   }}
                   disabled={addingTickers}
                 >
-                  {addingTickers ? 'Adding...' : (
-                    (!typeDone && step.type !== 'tickers') ? 'Skip typing' : step.cta
+                  {addingTickers ? 'Setting up...' : (
+                    (!typeDone && step.type !== 'tickers') ? 'Skip' : step.cta
+                  )}
+                  {(typeDone || step.type === 'tickers') && !addingTickers && (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
                   )}
                 </button>
               </div>
