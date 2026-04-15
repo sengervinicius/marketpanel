@@ -35,11 +35,45 @@ const router = express.Router();
  */
 router.get('/health', async (req, res) => {
   const diag = pg.getDiagnostics();
+
+  // Check pgvector availability + embedding column type
+  let pgvectorAvailable = false;
+  let embeddingColumnType = 'unknown';
+  let chunkCount = 0;
+  let embeddingCount = 0;
+  if (diag.connected) {
+    try {
+      const extResult = await pg.query(`SELECT extname FROM pg_extension WHERE extname = 'vector'`);
+      pgvectorAvailable = extResult.rows.length > 0;
+    } catch {}
+    try {
+      const colResult = await pg.query(`
+        SELECT data_type, udt_name FROM information_schema.columns
+        WHERE table_name = 'vault_chunks' AND column_name = 'embedding'
+      `);
+      if (colResult.rows.length > 0) {
+        embeddingColumnType = colResult.rows[0].udt_name || colResult.rows[0].data_type;
+      } else {
+        embeddingColumnType = 'missing';
+      }
+    } catch {}
+    try {
+      const countResult = await pg.query(`SELECT COUNT(*) as total, COUNT(embedding) as with_embedding FROM vault_chunks`);
+      chunkCount = parseInt(countResult.rows[0]?.total || 0);
+      embeddingCount = parseInt(countResult.rows[0]?.with_embedding || 0);
+    } catch {}
+  }
+
   const status = {
     database: diag.connected ? 'connected' : diag.urlSet ? 'disconnected' : 'not_configured',
-    embeddings: !!process.env.OPENAI_API_KEY,
+    embeddings: !!process.env.VOYAGE_API_KEY || !!process.env.OPENAI_API_KEY,
+    embeddingProvider: process.env.VOYAGE_API_KEY ? 'voyage' : process.env.OPENAI_API_KEY ? 'openai' : 'none',
     schemaReady: diag.schemaReady,
     reconnecting: diag.reconnecting,
+    pgvector: pgvectorAvailable,
+    embeddingColumnType,
+    chunkCount,
+    embeddingCount,
   };
   const healthy = status.database === 'connected' && status.schemaReady;
   res.status(healthy ? 200 : 503).json({ ok: healthy, ...status });
