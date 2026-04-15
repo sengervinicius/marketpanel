@@ -450,20 +450,47 @@ export default function ParticleScreen() {
                       )}
                     </>
                   )}
-                  {/* Vault citation badges */}
-                  {msg.role === 'assistant' && msg.vaultSources && msg.vaultSources.length > 0 && !msg.streaming && (
-                    <div className="particle-vault-citations">
-                      <span className="particle-vault-citations-label">Sources from your vault:</span>
-                      {msg.vaultSources.map((src, si) => (
-                        <span key={si} className="particle-vault-badge" title={`${src.filename}${src.similarity ? ` (${(src.similarity * 100).toFixed(0)}% match)` : ''}`}>
-                          {src.source || src.filename}
-                          {src.tickers && src.tickers.length > 0 && (
-                            <span className="particle-vault-badge-tickers"> {Array.isArray(src.tickers) ? src.tickers.join(', ') : src.tickers}</span>
-                          )}
-                        </span>
-                      ))}
-                    </div>
-                  )}
+                  {/* Vault citation badges — deduplicated by source name */}
+                  {msg.role === 'assistant' && msg.vaultSources && msg.vaultSources.length > 0 && !msg.streaming && (() => {
+                    // Deduplicate: group by display name, merge tickers, keep best similarity
+                    const seen = new Map();
+                    for (const src of msg.vaultSources) {
+                      const name = (src.source || src.filename || 'Unknown').trim();
+                      if (seen.has(name)) {
+                        const existing = seen.get(name);
+                        // Merge tickers
+                        const newTickers = Array.isArray(src.tickers) ? src.tickers : src.tickers ? [src.tickers] : [];
+                        for (const t of newTickers) {
+                          if (t && !existing.tickers.includes(t)) existing.tickers.push(t);
+                        }
+                        // Keep highest similarity
+                        if (src.similarity && (!existing.similarity || src.similarity > existing.similarity)) {
+                          existing.similarity = src.similarity;
+                        }
+                      } else {
+                        seen.set(name, {
+                          name,
+                          tickers: Array.isArray(src.tickers) ? [...src.tickers] : src.tickers ? [src.tickers] : [],
+                          similarity: src.similarity || null,
+                          filename: src.filename || '',
+                        });
+                      }
+                    }
+                    const unique = [...seen.values()];
+                    return (
+                      <div className="particle-vault-citations">
+                        <span className="particle-vault-citations-label">Vault</span>
+                        {unique.map((src, si) => (
+                          <span key={si} className="particle-vault-badge" title={`${src.filename || src.name}${src.similarity ? ` (${(src.similarity * 100).toFixed(0)}% match)` : ''}`}>
+                            {src.name}
+                            {src.tickers.length > 0 && (
+                              <span className="particle-vault-badge-tickers"> {src.tickers.join(', ')}</span>
+                            )}
+                          </span>
+                        ))}
+                      </div>
+                    );
+                  })()}
                   {/* Web citations from Perplexity */}
                   {msg.role === 'assistant' && msg.webCitations && msg.webCitations.length > 0 && !msg.streaming && (
                     <div className="particle-web-citations">

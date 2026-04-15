@@ -440,7 +440,15 @@ async function gatherContext({
     `[orchestrator] context gathered in ${totalTime}ms: vault=${timings.vault}ms, edgar=${timings.edgar}ms, earnings=${timings.earnings}ms, memory=${timings.memory}ms, compute=${timings.compute}ms, news=${timings.news}ms, uw=${timings.unusualWhales}ms`
   );
 
-  return mergeResults(results);
+  const merged = mergeResults(results, { query, hasPortfolio: positionsForCompute.length > 0 });
+
+  // ── Log completeness breakdown for diagnostics ───────────────────────────
+  const c = merged.completeness;
+  console.log(
+    `[orchestrator] completeness=${c.score}/100 | active: [${c.available.join(', ')}] | failed: [${c.failed.join(', ')}] | skipped (not relevant): [${c.skipped.join(', ')}]`
+  );
+
+  return merged;
 }
 
 // ── Merge results into a single context object ───────────────────────
@@ -450,6 +458,7 @@ async function gatherContext({
  * object with organized sections for the LLM prompt
  *
  * @param {object} results - Raw results from all agents
+ * @param {object} meta - Query metadata for completeness scoring
  * @returns {object} Merged context object with:
  *   - vaultContext + vaultSources
  *   - edgarContext
@@ -458,7 +467,7 @@ async function gatherContext({
  *   - portfolioMetricsContext
  *   - Additional metadata for caller
  */
-function mergeResults(results) {
+function mergeResults(results, meta = {}) {
   return {
     // Vault RAG retrieval
     vault: {
@@ -520,21 +529,35 @@ function mergeResults(results) {
       hasUnusualWhales: !!(results.unusualWhales?.context),
     },
 
-    // Phase 2: Context completeness score (0-100)
-    // Helps the system prompt decide how confident to be and whether to caveat
-    completeness: computeCompletenessScore(results),
+    // Phase 2: Context completeness score (0-100) — query-aware
+    // Only penalizes agents that are relevant to the current query
+    completeness: computeCompletenessScore(results, meta),
   };
 }
 
 /**
  * Phase 2: Compute a context completeness score (0-100).
- * Weights reflect importance for typical financial terminal queries.
- * Used downstream to modulate AI confidence and surface data gaps.
+ * Query-aware: only counts agents that are RELEVANT to the query.
+ * An agent that correctly returns nothing (e.g., EDGAR when no ticker)
+ * doesn't penalize the score.
  *
  * @param {object} results - Raw results from all agents
- * @returns {object} { score: number, available: string[], failed: string[] }
+ * @param {object} meta - Optional query metadata
+ * @param {string} meta.query - The user's query (for relevance detection)
+ * @param {boolean} meta.hasPortfolio - Whether portfolio data was passed
+ * @returns {object} { score: number, available: string[], failed: string[], skipped: string[] }
  */
-function computeCompletenessScore(results) {
+function computeCompletenessScore(results, meta = {}) {
+  const query = (meta.query || '').toUpperCase();
+  const hasPortfolio = !!meta.hasPortfolio;
+
+  // Detect if query contains a ticker symbol
+  const hasTicker = /\$?[A-Z]{1,5}(?:\.[A-Z]{1,2})?\b/.test(query);
+
+  // Detect if query is about portfolio/positions
+  const isPortfolioQuery = /\b(portfolio|positions?|holdings?|p&l|pnl|allocation|my stock)/i.test(meta.query || '');
+
+  // Base weights — these are the maximum each agent CAN contribute
   const weights = {
     vault: 15,
     edgar: 10,
@@ -545,32 +568,55 @@ function computeCompletenessScore(results) {
     unusualWhales: 20,
   };
 
-  let score = 0;
+  // Determine which agents are relevant to this query
+  const relevant = {
+    vault: true,              // Always relevant — user's private research
+    news: true,               // Always relevant — real-time news
+    unusualWhales: true,      // Always relevant — market-wide data + ticker-specific
+    memory: true,             // Always relevant — session context
+    edgar: hasTicker,         // Only relevant if query mentions a ticker
+    earnings: hasTicker,      // Only relevant if query mentions a ticker
+    compute: hasPortfolio && isPortfolioQuery, // Only relevant if portfolio exists AND query is about it
+  };
+
+  let totalRelevantWeight = 0;
+  let earnedWeight = 0;
   const available = [];
   const failed = [];
+  const skipped = [];
 
-  if (results.vault?.context) { score += weights.vault; available.push('vault'); }
-  else { failed.push('vault'); }
+  // Vault
+  if (!relevant.vault) { skipped.push('vault'); }
+  else { totalRelevantWeight += weights.vault; if (results.vault?.context) { earnedWeight += weights.vault; available.push('vault'); } else { failed.push('vault'); } }
 
-  if (results.edgar?.context) { score += weights.edgar; available.push('edgar'); }
-  else { failed.push('edgar'); }
+  // EDGAR
+  if (!relevant.edgar) { skipped.push('edgar'); }
+  else { totalRelevantWeight += weights.edgar; if (results.edgar?.context) { earnedWeight += weights.edgar; available.push('edgar'); } else { failed.push('edgar'); } }
 
-  if (results.earnings?.context) { score += weights.earnings; available.push('earnings'); }
-  else { failed.push('earnings'); }
+  // Earnings
+  if (!relevant.earnings) { skipped.push('earnings'); }
+  else { totalRelevantWeight += weights.earnings; if (results.earnings?.context) { earnedWeight += weights.earnings; available.push('earnings'); } else { failed.push('earnings'); } }
 
-  if (results.memory?.sessionMemory || results.memory?.persistentMemory) { score += weights.memory; available.push('memory'); }
-  else { failed.push('memory'); }
+  // Memory
+  if (!relevant.memory) { skipped.push('memory'); }
+  else { totalRelevantWeight += weights.memory; if (results.memory?.sessionMemory || results.memory?.persistentMemory) { earnedWeight += weights.memory; available.push('memory'); } else { failed.push('memory'); } }
 
-  if (results.compute?.context) { score += weights.compute; available.push('compute'); }
-  else { failed.push('compute'); }
+  // Compute
+  if (!relevant.compute) { skipped.push('compute'); }
+  else { totalRelevantWeight += weights.compute; if (results.compute?.context) { earnedWeight += weights.compute; available.push('compute'); } else { failed.push('compute'); } }
 
-  if (results.news?.context) { score += weights.news; available.push('news'); }
-  else { failed.push('news'); }
+  // News
+  if (!relevant.news) { skipped.push('news'); }
+  else { totalRelevantWeight += weights.news; if (results.news?.context) { earnedWeight += weights.news; available.push('news'); } else { failed.push('news'); } }
 
-  if (results.unusualWhales?.context) { score += weights.unusualWhales; available.push('unusualWhales'); }
-  else { failed.push('unusualWhales'); }
+  // Unusual Whales
+  if (!relevant.unusualWhales) { skipped.push('unusualWhales'); }
+  else { totalRelevantWeight += weights.unusualWhales; if (results.unusualWhales?.context) { earnedWeight += weights.unusualWhales; available.push('unusualWhales'); } else { failed.push('unusualWhales'); } }
 
-  return { score, available, failed };
+  // Normalize to 0-100 based on relevant agents only
+  const score = totalRelevantWeight > 0 ? Math.round((earnedWeight / totalRelevantWeight) * 100) : 0;
+
+  return { score, available, failed, skipped };
 }
 
 // ── Exports ──────────────────────────────────────────────────────────

@@ -31,7 +31,7 @@ import { useToast } from '../../context/ToastContext';
 import { apiFetch } from '../../utils/api';
 import {
   ORANGE, GREEN, RED, RANGES,
-  fmt, fmtLabel, timeAgo, pct, exportToCSV,
+  fmt, fmtLabel, timeAgo, pct, exportToCSV, getFromDate,
 } from './InstrumentDetailHelpers';
 import { DeltaLineOverlay, CandlestickOverlay } from './InstrumentDetailCharts';
 import { Section, StatRow } from './InstrumentDetailSections';
@@ -455,12 +455,23 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
     }
 
     try {
-      // Fetch OHLCV data for the comparison ticker using same range
-      const res = await apiFetch(`/api/market/history/${encodeURIComponent(sym)}?range=${range.label}`);
+      // Fetch OHLCV data for the comparison ticker using same range via /api/chart/:ticker
+      const from = getFromDate(range);
+      const to = new Date().toISOString().split('T')[0];
+      const res = await apiFetch(
+        `/api/chart/${encodeURIComponent(sym)}?multiplier=${range.multiplier}&timespan=${range.timespan}&from=${from}&to=${to}`
+      );
       if (!res.ok) throw new Error('Failed to fetch comparison data');
       const data = await res.json();
-      const newBars = data.bars || data.candles || [];
-      if (newBars.length === 0) throw new Error('No chart data available');
+      const rawBars = Array.isArray(data.results) ? data.results : [];
+      if (rawBars.length === 0) throw new Error('No chart data available');
+
+      // Normalize bar format to match main chart bars
+      const newBars = rawBars.map(b => ({
+        t: b.t, label: fmtLabel(b.t, range.timespan),
+        open: b.o ?? b.open, high: b.h ?? b.high, low: b.l ?? b.low,
+        close: b.c ?? b.close, volume: b.v ?? b.volume ?? 0,
+      }));
 
       setComparisonTickers(prev => [...prev, sym]);
       setComparisonData(prev => ({ ...prev, [sym]: newBars }));
@@ -470,7 +481,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
     } catch (err) {
       showToast(`No chart data for ${sym}`, 'error');
     }
-  }, [comparisonTickers, norm, range.label, showToast, comparisonSearchHook]);
+  }, [comparisonTickers, norm, range, showToast, comparisonSearchHook]);
 
   const removeComparisonTicker = useCallback((sym) => {
     setComparisonTickers(prev => prev.filter(t => t !== sym));
@@ -507,18 +518,24 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
 
     try {
       setCustomRangeLoading(true);
-      const fromMs = fromDate.getTime();
-      const toMs = toDate.getTime();
-      const res = await apiFetch(`/api/market/history/${encodeURIComponent(norm)}?from=${fromMs}&to=${toMs}`);
+      // Use the same /api/chart/:ticker endpoint with date strings
+      const fromStr = customRangeFrom; // already YYYY-MM-DD
+      const toStr = customRangeTo;
+      const res = await apiFetch(
+        `/api/chart/${encodeURIComponent(norm)}?multiplier=1&timespan=day&from=${fromStr}&to=${toStr}`
+      );
       if (!res.ok) throw new Error('Failed to fetch custom range');
       const data = await res.json();
-      const fetchedBars = (data.bars || data.candles || data.results || []).map(bar => ({
-        date: bar.date || (bar.t ? new Date(bar.t).toISOString().slice(0, 10) : ''),
-        open: parseFloat(bar.open ?? bar.o ?? 0),
-        high: parseFloat(bar.high ?? bar.h ?? 0),
-        low: parseFloat(bar.low ?? bar.l ?? 0),
-        close: parseFloat(bar.close ?? bar.c ?? 0),
-        volume: parseFloat(bar.volume ?? bar.v ?? 0),
+      const rawBars = Array.isArray(data.results) ? data.results : [];
+      const fetchedBars = rawBars.map(bar => ({
+        t: bar.t,
+        label: fmtLabel(bar.t, 'day'),
+        date: bar.t ? new Date(bar.t).toISOString().slice(0, 10) : '',
+        open: parseFloat(bar.o ?? bar.open ?? 0),
+        high: parseFloat(bar.h ?? bar.high ?? 0),
+        low: parseFloat(bar.l ?? bar.low ?? 0),
+        close: parseFloat(bar.c ?? bar.close ?? 0),
+        volume: parseFloat(bar.v ?? bar.volume ?? 0),
       })).filter(b => b.close > 0);
 
       if (fetchedBars.length > 0) {
@@ -856,6 +873,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
               {isComparisonMode && comparisonTickers.map((compTicker, idx) => (
                 <Line key={compTicker}
                   type="monotone" dataKey={`comp_${compTicker}`}
+                  yAxisId="right"
                   stroke={Object.values(COMPARISON_COLORS)[idx]}
                   strokeWidth={1.5}
                   dot={false} name={compTicker}

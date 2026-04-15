@@ -9,8 +9,9 @@ export function DeltaLineOverlay({ xAxisMap, yAxisMap, bars, deltaA, deltaB, del
   const barA = bars[i1], barB = bars[i2];
   if (!barA || !barB) return null;
 
-  const xAxis = xAxisMap && xAxisMap[0];
-  const yAxis = yAxisMap && yAxisMap[0];
+  // Use Object.values to access axes regardless of axis ID naming (e.g., "0", "right")
+  const xAxis = xAxisMap && (xAxisMap[0] || Object.values(xAxisMap)[0]);
+  const yAxis = yAxisMap && (yAxisMap[0] || Object.values(yAxisMap)[0]);
   if (!xAxis?.scale || !yAxis?.scale) return null;
 
   const bw = xAxis.scale.bandwidth ? xAxis.scale.bandwidth() / 2 : 0;
