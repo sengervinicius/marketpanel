@@ -209,14 +209,13 @@ export function makePanelRenderer(panelId, ctx) {
   const { component: Comp, getProps } = entry;
   const panelProps = getProps ? getProps(ctx) : {};
 
-  if (SCREEN_PANEL_IDS.has(panelId)) {
-    return (
-      <Suspense fallback={<div className="screen-loading">Loading...</div>}>
-        <Comp {...panelProps} />
-      </Suspense>
-    );
-  }
-  return <Comp {...panelProps} />;
+  // All panels wrapped in Suspense — many are lazy-loaded (ETFPanel, NewsPanel, ChatPanel, etc.)
+  // Without Suspense, lazy components trigger React error #426 on first render
+  return (
+    <Suspense fallback={<div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-faint, #333)', fontSize: 10, letterSpacing: '0.5px' }}>LOADING...</div>}>
+      <Comp {...panelProps} />
+    </Suspense>
+  );
 }
 
 // ── Resizable row-flex hook ──────────────────────────────────────────────────
