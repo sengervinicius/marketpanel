@@ -170,6 +170,45 @@ router.get('/congress/top', async (req, res) => {
   }
 });
 
+// ── COMBINED PANEL ENDPOINT ──────────────────────────────────────────────────
+
+/**
+ * GET /api/unusual-whales/panel-data
+ * Combined endpoint for the Options - Market Intel panel.
+ * Returns tide, flow alerts, and congress data in a single call.
+ * Also returns raw field diagnostics so we can debug field mapping issues.
+ */
+router.get('/panel-data', async (req, res) => {
+  try {
+    const [tide, alerts, congress] = await Promise.all([
+      uw.getMarketTide('technology').catch(() => null),
+      uw.getFlowAlerts().catch(() => []),
+      uw.getCongressTrades().catch(() => []),
+    ]);
+
+    res.json({
+      tide: tide || { sector: 'technology', callVolume: 0, putVolume: 0, ratio: 0, sentiment: 'neutral' },
+      alerts: {
+        data: alerts,
+        count: alerts.length,
+      },
+      congress: {
+        data: congress,
+        count: congress.length,
+      },
+      // Diagnostics: show first item's actual fields so we can debug
+      _debug: {
+        alertSample: alerts.length > 0 ? alerts[0] : null,
+        congressSample: congress.length > 0 ? congress[0] : null,
+        tideSample: tide,
+      },
+    });
+  } catch (err) {
+    logger.error('[UnusualWhales/panel-data] Error:', err);
+    res.status(500).json({ error: 'Failed to fetch panel data' });
+  }
+});
+
 // ── NEW ENDPOINTS: GREEKS & OPTIONS ───────────────────────────────────────────
 
 /**

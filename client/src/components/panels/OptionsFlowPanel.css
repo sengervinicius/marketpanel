@@ -1,4 +1,4 @@
-/* OptionsFlowPanel.css — Terminal-native market intelligence panel */
+/* OptionsFlowPanel.css — Options - Market Intel terminal panel */
 
 .ofp {
   display: flex;
@@ -25,7 +25,7 @@
 
 .ofp-hdr-left {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: 6px;
 }
 
@@ -37,15 +37,11 @@
   color: var(--color-text-primary);
 }
 
-.ofp-hdr-badge {
-  background: var(--accent, #e8590c);
-  color: #fff;
-  font-size: 8px;
-  font-weight: 700;
-  padding: 1px 4px;
-  border-radius: 2px;
-  line-height: 1.2;
+.ofp-hdr-subtitle {
+  font-size: 9px;
+  font-weight: 500;
   letter-spacing: 0.04em;
+  color: var(--text-muted);
 }
 
 .ofp-hdr-right {
@@ -93,11 +89,15 @@
 }
 
 .ofp-tide-lbl {
-  font-size: 9px;
+  font-size: 8px;
   font-weight: 700;
   white-space: nowrap;
-  min-width: 36px;
+  min-width: 50px;
+  letter-spacing: 0.03em;
 }
+
+.ofp-tide-lbl--call { color: var(--price-up); text-align: left; }
+.ofp-tide-lbl--put  { color: var(--price-down); text-align: right; }
 
 .ofp-tide-bar {
   flex: 1;
@@ -118,6 +118,8 @@
   font-size: 9px;
   letter-spacing: 0.05em;
   white-space: nowrap;
+  min-width: 52px;
+  text-align: right;
 }
 
 /* ── Tabs ────────────────────────────────────────────────── */
@@ -137,7 +139,7 @@
   font-family: var(--font-mono);
   font-size: 9px;
   font-weight: 700;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.05em;
   padding: 4px 4px;
   cursor: pointer;
   text-align: center;
@@ -160,9 +162,10 @@
   overflow-x: hidden;
 }
 
-.ofp-row {
+/* Flow tab grid: TICKER  C/P  STRIKE  PREMIUM  AGO */
+.ofp-row--flow {
   display: grid;
-  grid-template-columns: 52px 48px 1fr 48px;
+  grid-template-columns: 56px 24px 48px 1fr 28px;
   align-items: center;
   padding: 2px 8px;
   border-bottom: 1px solid var(--border-subtle, rgba(255,255,255,0.04));
@@ -170,8 +173,15 @@
   font-size: var(--font-xs);
 }
 
+/* Congress tab grid: TICKER  B/S  AMOUNT  MEMBER */
 .ofp-row--congress {
-  grid-template-columns: 52px 40px 1fr 68px;
+  display: grid;
+  grid-template-columns: 52px 36px 1fr 72px;
+  align-items: center;
+  padding: 2px 8px;
+  border-bottom: 1px solid var(--border-subtle, rgba(255,255,255,0.04));
+  min-height: 22px;
+  font-size: var(--font-xs);
 }
 
 .ofp-row:hover {
@@ -194,6 +204,9 @@
 }
 
 .ofp-col-tick {
+  display: flex;
+  align-items: center;
+  gap: 3px;
   text-align: left;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -205,13 +218,45 @@
   font-weight: 600;
 }
 
-.ofp-col-type,
-.ofp-col-action {
-  text-align: left;
-  font-weight: 600;
+.ofp-type-badge {
+  font-size: 7px;
+  font-weight: 700;
+  padding: 0 2px;
+  border-radius: 1px;
+  line-height: 1.3;
+}
+
+.ofp-type-badge[data-type="sweep"] {
+  color: var(--price-up);
+  background: rgba(34, 197, 94, 0.1);
+}
+
+.ofp-type-badge[data-type="block"] {
+  color: #f0a040;
+  background: rgba(240, 160, 64, 0.1);
+}
+
+.ofp-type-badge[data-type="golden"] {
+  color: #ffd700;
+  background: rgba(255, 215, 0, 0.12);
+}
+
+.ofp-col-cptype {
+  text-align: center;
+  font-size: 10px;
+}
+
+.ofp-col-strike {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary, #aaa);
   font-size: 9px;
-  overflow: hidden;
-  text-overflow: ellipsis;
+}
+
+.ofp-col-action {
+  text-align: center;
+  font-weight: 700;
+  font-size: 9px;
 }
 
 .ofp-col-prem {
@@ -223,20 +268,17 @@
 
 .ofp-col-time {
   text-align: right;
-  font-weight: 400;
-  font-size: 9px;
+  font-size: 8px;
   color: var(--text-faint);
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .ofp-col-member {
   text-align: right;
-  font-weight: 400;
   font-size: 9px;
   color: var(--text-muted);
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* ── Empty state ─────────────────────────────────────────── */

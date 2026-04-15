@@ -234,12 +234,24 @@ async function getFlowAlerts() {
     }
 
     const data = await response.json();
-    const results = (data.data || []).map(item => ({
-      symbol: item.symbol ? item.symbol.toUpperCase() : 'N/A',
-      type: item.type || 'unknown',
-      description: item.description || '',
-      premium: item.premium || 0,
-      timestamp: item.timestamp ? new Date(item.timestamp).toISOString() : new Date().toISOString(),
+    // Log first raw item for field mapping diagnostics
+    const rawItems = data.data || data.alerts || data.results || (Array.isArray(data) ? data : []);
+    if (rawItems.length > 0) {
+      logger.info(`[UnusualWhales] Flow alerts raw fields: ${JSON.stringify(Object.keys(rawItems[0]))}`);
+      logger.info(`[UnusualWhales] Flow alerts sample: ${JSON.stringify(rawItems[0])}`);
+    } else {
+      logger.warn('[UnusualWhales] Flow alerts: empty response');
+    }
+    const results = rawItems.map(item => ({
+      symbol: (item.symbol || item.ticker || item.underlying_symbol || '').toUpperCase() || 'N/A',
+      type: item.type || item.alert_type || item.option_activity_type || 'unknown',
+      description: item.description || item.headline || item.title || '',
+      premium: parseFloat(item.premium) || parseFloat(item.total_premium) || parseFloat(item.ask_price) || 0,
+      volume: parseInt(item.volume) || parseInt(item.total_size) || 0,
+      sentiment: item.sentiment || item.put_call || item.option_type || 'neutral',
+      strike: parseFloat(item.strike) || parseFloat(item.strike_price) || 0,
+      expiry: item.expiry || item.expires_at || item.expiration_date || '',
+      timestamp: item.timestamp || item.created_at || item.date || new Date().toISOString(),
     }));
 
     cacheSet(cacheKey, results, 2 * 60 * 1000); // 2 min
@@ -284,12 +296,19 @@ async function getMarketTide(sector = 'technology') {
     }
 
     const data = await response.json();
+    // Log raw response for diagnostics
+    logger.info(`[UnusualWhales] Tide raw: ${JSON.stringify(data).slice(0, 500)}`);
+    // Try multiple field name patterns
+    const rawData = data.data || data;
+    const callVol = parseFloat(rawData.call_volume || rawData.callVolume || rawData.calls || 0);
+    const putVol = parseFloat(rawData.put_volume || rawData.putVolume || rawData.puts || 0);
+    const ratio = parseFloat(rawData.ratio || rawData.call_put_ratio || 0) || (callVol + putVol > 0 ? callVol / (callVol + putVol) : 0);
     const result = {
       sector: sector,
-      callVolume: data.call_volume || 0,
-      putVolume: data.put_volume || 0,
-      ratio: data.ratio || 0,
-      sentiment: data.sentiment || 'neutral',
+      callVolume: callVol,
+      putVolume: putVol,
+      ratio: ratio,
+      sentiment: rawData.sentiment || (ratio > 0.55 ? 'bullish' : ratio < 0.45 ? 'bearish' : 'neutral'),
     };
 
     cacheSet(cacheKey, result, 5 * 60 * 1000); // 5 min
@@ -333,12 +352,23 @@ async function getCongressTrades() {
     }
 
     const data = await response.json();
-    const results = (data.data || []).map(item => ({
-      ticker: item.ticker ? item.ticker.toUpperCase() : 'N/A',
-      representative: item.representative || 'Unknown',
-      transactionType: item.transaction_type || 'unknown',
-      amount: item.amount || 0,
-      timestamp: item.timestamp ? new Date(item.timestamp).toISOString() : new Date().toISOString(),
+    const rawItems = data.data || data.trades || data.results || (Array.isArray(data) ? data : []);
+    // Log first raw item for field mapping diagnostics
+    if (rawItems.length > 0) {
+      logger.info(`[UnusualWhales] Congress raw fields: ${JSON.stringify(Object.keys(rawItems[0]))}`);
+      logger.info(`[UnusualWhales] Congress sample: ${JSON.stringify(rawItems[0])}`);
+    } else {
+      logger.warn('[UnusualWhales] Congress trades: empty response');
+    }
+    const results = rawItems.map(item => ({
+      ticker: (item.ticker || item.symbol || item.asset_description || '').toUpperCase() || 'N/A',
+      representative: item.representative || item.politician || item.name || item.filed_by || 'Unknown',
+      transactionType: item.transaction_type || item.type || item.trade_type || 'unknown',
+      amount: parseFloat(item.amount) || parseFloat(item.trade_value) || 0,
+      amountRange: item.amount_range || item.range || '',
+      party: item.party || '',
+      chamber: item.chamber || '',
+      timestamp: item.timestamp || item.traded_at || item.transaction_date || item.filed_date || new Date().toISOString(),
     }));
 
     cacheSet(cacheKey, results, 30 * 60 * 1000); // 30 min
