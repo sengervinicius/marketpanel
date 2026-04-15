@@ -32,7 +32,7 @@ try {
 const CHUNK_SIZE = 1000; // chars per chunk — larger for financial context retention
 const CHUNK_OVERLAP = 150; // overlap between chunks — preserves cross-boundary context
 const MAX_RETRIEVAL = 8; // top candidates before similarity filtering
-const MIN_SIMILARITY = 0.65; // discard passages below this threshold — irrelevant noise is worse than nothing
+const MIN_SIMILARITY = 0.45; // lowered from 0.65 — was too strict, filtering out relevant passages especially cross-provider
 const EMBEDDING_MODEL = 'text-embedding-3-small';
 const VOYAGE_EMBEDDING_DIM = 1024;
 const OPENAI_EMBEDDING_DIM = 1536;
@@ -1352,7 +1352,27 @@ async function rerankWithCohere(query, passages, topN) {
 
 async function retrieve(userId, query, limit = MAX_RETRIEVAL) {
   if (!pg.isConnected()) {
+    logger.warn('vault', 'retrieve() skipped — Postgres not connected');
     return [];
+  }
+
+  // Diagnostic: check if user has any documents at all
+  try {
+    const docCount = await pg.query(
+      'SELECT COUNT(*) as count FROM vault_documents WHERE user_id = $1 OR is_global = TRUE',
+      [userId]
+    );
+    const chunkCount = await pg.query(
+      'SELECT COUNT(*) as count FROM vault_chunks WHERE user_id = $1 OR document_id IN (SELECT id FROM vault_documents WHERE is_global = TRUE)',
+      [userId]
+    );
+    const embeddedCount = await pg.query(
+      'SELECT COUNT(*) as count FROM vault_chunks WHERE (user_id = $1 OR document_id IN (SELECT id FROM vault_documents WHERE is_global = TRUE)) AND embedding IS NOT NULL',
+      [userId]
+    );
+    logger.info('vault', `retrieve() for user=${userId}: ${docCount.rows[0]?.count || 0} docs, ${chunkCount.rows[0]?.count || 0} chunks, ${embeddedCount.rows[0]?.count || 0} embedded, query="${query.substring(0, 80)}"`);
+  } catch (diagErr) {
+    logger.warn('vault', 'Diagnostic count query failed', { error: diagErr.message });
   }
 
   const rankedLists = [];
@@ -1363,9 +1383,10 @@ async function retrieve(userId, query, limit = MAX_RETRIEVAL) {
     const embeddings = await embed([query]);
     if (embeddings[0]) {
       const activeProvider = getEmbeddingProvider();
+      logger.info('vault', `Vector search using provider=${activeProvider}, embedding dim=${embeddings[0].length}`);
       let vecResult;
       try {
-        // Filter by active embedding provider to prevent cross-provider cosine corruption
+        // Try provider-filtered search first, then fallback to unfiltered if empty
         vecResult = await pg.query(
           `SELECT vc.id, vc.document_id, vc.chunk_index, vc.content, vc.metadata,
                   vd.filename, vd.source, vd.is_global, vd.metadata as doc_metadata,
@@ -1378,6 +1399,24 @@ async function retrieve(userId, query, limit = MAX_RETRIEVAL) {
            LIMIT $3`,
           [`[${embeddings[0].join(',')}]`, userId, CANDIDATE_LIMIT, activeProvider]
         );
+
+        // If provider-filtered search returns nothing, retry WITHOUT the filter
+        // This handles: docs embedded with a different provider, or embedding_provider column not populated
+        if (!vecResult.rows || vecResult.rows.length === 0) {
+          logger.warn('vault', `Provider-filtered search (${activeProvider}) returned 0 results — retrying without provider filter`);
+          vecResult = await pg.query(
+            `SELECT vc.id, vc.document_id, vc.chunk_index, vc.content, vc.metadata,
+                    vd.filename, vd.source, vd.is_global, vd.metadata as doc_metadata,
+                    1 - (vc.embedding <=> $1::vector) AS similarity
+             FROM vault_chunks vc
+             JOIN vault_documents vd ON vc.document_id = vd.id
+             WHERE (vc.user_id = $2 OR vd.is_global = TRUE) AND vc.embedding IS NOT NULL
+             ORDER BY vc.embedding <=> $1::vector
+             LIMIT $3`,
+            [`[${embeddings[0].join(',')}]`, userId, CANDIDATE_LIMIT]
+          );
+          logger.info('vault', `Unfiltered vector search returned ${vecResult.rows?.length || 0} results`);
+        }
       } catch (filterErr) {
         // Fallback: column may not exist yet — query without provider filter
         logger.warn('vault', 'Provider-filtered vector search failed, falling back', { error: filterErr.message });
@@ -1437,11 +1476,34 @@ async function retrieve(userId, query, limit = MAX_RETRIEVAL) {
     logger.warn('vault', 'BM25 search failed (column may not exist yet)', { error: err.message });
   }
 
-  // ── Stage 2: Reciprocal Rank Fusion ──
+  // ── Stage 1C: Fallback broad search if both vector and BM25 returned nothing ──
   if (rankedLists.length === 0) {
-    logger.info('vault', 'No retrieval results from any method');
+    logger.warn('vault', 'Both vector and BM25 search returned empty — trying broad fallback');
+    try {
+      // Fallback: get most recent chunks for this user (even without matching)
+      const fallbackResult = await pg.query(
+        `SELECT vc.id, vc.document_id, vc.chunk_index, vc.content, vc.metadata,
+                vd.filename, vd.source, vd.is_global, vd.metadata as doc_metadata,
+                0.5 AS similarity
+         FROM vault_chunks vc
+         JOIN vault_documents vd ON vc.document_id = vd.id
+         WHERE (vc.user_id = $1 OR vd.is_global = TRUE)
+         ORDER BY vd.created_at DESC, vc.chunk_index ASC
+         LIMIT $2`,
+        [userId, limit]
+      );
+      if (fallbackResult.rows?.length > 0) {
+        logger.info('vault', `Broad fallback found ${fallbackResult.rows.length} chunks (most recent docs)`);
+        return fallbackResult.rows;
+      }
+    } catch (fbErr) {
+      logger.warn('vault', 'Broad fallback search failed', { error: fbErr.message });
+    }
+    logger.info('vault', 'No retrieval results from any method (including fallback)');
     return [];
   }
+
+  // ── Stage 2: Reciprocal Rank Fusion ──
 
   let fused;
   if (rankedLists.length === 1) {

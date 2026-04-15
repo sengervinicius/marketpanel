@@ -371,9 +371,12 @@ async function gatherContext({
   if (vaultResult.status === 'fulfilled') {
     results.vault = vaultResult.value;
     timings.vault = Date.now() - startTime;
+    const vCtx = results.vault?.context || '';
+    const vSrc = results.vault?.sources?.length || 0;
+    console.log(`[agentOrchestrator] Vault: ${vSrc} sources, context ${vCtx.length} chars, ${timings.vault}ms`);
   } else {
     timings.vault = Date.now() - startTime;
-    console.warn('[agentOrchestrator] Vault rejected:', vaultResult.reason?.message);
+    console.warn('[agentOrchestrator] Vault REJECTED:', vaultResult.reason?.message);
   }
 
   // Process EDGAR result
