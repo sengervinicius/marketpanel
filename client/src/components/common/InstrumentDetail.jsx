@@ -31,7 +31,7 @@ import { useToast } from '../../context/ToastContext';
 import { apiFetch } from '../../utils/api';
 import {
   ORANGE, GREEN, RED, RANGES,
-  fmt, fmtLabel, timeAgo, pct, exportToCSV, getFromDate,
+  fmt, fmtLabel, timeAgo, pct, exportToCSV, getFromDate, displayTicker,
 } from './InstrumentDetailHelpers';
 import { DeltaLineOverlay, CandlestickOverlay } from './InstrumentDetailCharts';
 import { Section, StatRow } from './InstrumentDetailSections';
