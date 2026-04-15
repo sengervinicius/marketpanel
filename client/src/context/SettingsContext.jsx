@@ -65,6 +65,23 @@ export function SettingsProvider({ children, isAuthenticated }) {
             home:    { ...defaults.home,    ...(s.home    || {}) },
             charts:  { ...defaults.charts,  ...(s.charts  || {}) },
           });
+
+          // ── Hydrate localStorage from server for UI state continuity ──
+          try {
+            if (s.panelVisible)      localStorage.setItem('panelVisible_v1', JSON.stringify(s.panelVisible));
+            if (s.sidebarCollapsed != null) localStorage.setItem('particleSidebarCollapsed', String(s.sidebarCollapsed));
+            if (s.mobileMode)        localStorage.setItem('mobileMode', s.mobileMode);
+            if (s.activeTab)         localStorage.setItem('activeTab_m3', s.activeTab);
+            if (s.rowFlexSizes)      localStorage.setItem('rowFlexSizes_v2', JSON.stringify(s.rowFlexSizes));
+            if (s.colSizes && typeof s.colSizes === 'object') {
+              for (const [k, v] of Object.entries(s.colSizes)) {
+                localStorage.setItem(k, JSON.stringify(v));
+              }
+            }
+            if (Array.isArray(s.chartGrid) && s.chartGrid.length) {
+              localStorage.setItem('chartGrid_v3', JSON.stringify(s.chartGrid));
+            }
+          } catch {}
         }
         if (data.subscription) setSubscription(data.subscription);
         setLoaded(true);

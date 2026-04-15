@@ -24,6 +24,7 @@ import { useIsMobile } from './hooks/useIsMobile';
 import { useBootSequence } from './hooks/useBootSequence';
 import { useWebSocketTicks } from './hooks/useWebSocketTicks';
 import { useLayoutManager } from './hooks/useLayoutManager';
+import { syncSettingToServer } from './hooks/useSettingsSync';
 import { useAuth } from './context/AuthContext';
 import { useSettings } from './context/SettingsContext';
 import { OpenDetailProvider } from './context/OpenDetailContext';
@@ -339,7 +340,7 @@ export default function App() {
   const [mobileMode, setMobileMode] = useState(() => {
     try { return localStorage.getItem('mobileMode') || 'terminal'; } catch { return 'terminal'; }
   });
-  const setMobileModePersist = (m) => { setMobileMode(m); try { localStorage.setItem('mobileMode', m); } catch {} };
+  const setMobileModePersist = (m) => { setMobileMode(m); try { localStorage.setItem('mobileMode', m); } catch {} syncSettingToServer('mobileMode', m); };
 
   // Secondary view inside "more" tab (charts, news, etf, chat)
   const [moreView, setMoreView] = useState(null);
@@ -352,11 +353,12 @@ export default function App() {
     setSidebarCollapsed(c => {
       const next = !c;
       try { localStorage.setItem('particleSidebarCollapsed', String(next)); } catch {}
+      syncSettingToServer('sidebarCollapsed', next);
       return next;
     });
   }, []);
   // spotlightOpen removed — spotlight replaced by header search focus
-  const setActiveTabPersist = (t) => { setActiveTab(t); localStorage.setItem(LS_TAB, t); };
+  const setActiveTabPersist = (t) => { setActiveTab(t); localStorage.setItem(LS_TAB, t); syncSettingToServer('activeTab', t); };
 
   const [chartTicker, setChartTickerState] = useState(
     () => { try { return localStorage.getItem(LS_CHART_TICKER) || 'SPY'; } catch { return 'SPY'; } }

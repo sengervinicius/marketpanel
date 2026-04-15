@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
+import { syncSettingToServer } from '../../hooks/useSettingsSync';
 import { useMarketDispatch } from '../../context/MarketContext';
 import { PANEL_DEFINITIONS } from '../../config/panels';
 import { ChartPanel } from '../panels/ChartPanel';
@@ -271,6 +272,7 @@ export function useResizableFlex(storageKey, defaults) {
   useEffect(() => {
     const timer = setTimeout(() => {
       localStorage.setItem(storageKey, JSON.stringify(sizes));
+      syncSettingToServer('rowFlexSizes', sizes);
     }, 500);
     return () => clearTimeout(timer);
   }, [sizes, storageKey]);
@@ -336,6 +338,17 @@ export function useResizableColumns(storageKey, defaults) {
   useEffect(() => {
     const timer = setTimeout(() => {
       localStorage.setItem(storageKey, JSON.stringify(sizes));
+      // Batch all colSizes into a single server key
+      try {
+        const all = {};
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && k.startsWith('colSizes_')) {
+            try { all[k] = JSON.parse(localStorage.getItem(k)); } catch {}
+          }
+        }
+        syncSettingToServer('colSizes', all);
+      } catch {}
     }, 500);
     return () => clearTimeout(timer);
   }, [sizes, storageKey]);

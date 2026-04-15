@@ -19,6 +19,18 @@ const VALID_SETTING_KEYS = {
   watchlist: 'array',
   notifications: 'boolean',
   language: 'string',
+  // Home screen & UI state (persisted for cross-session continuity)
+  panelVisible: 'object',       // { panelId: boolean } — which panels are shown
+  chartGrid: 'array',           // [ticker1, ticker2, ...] — 4×3 chart grid
+  chartTicker: 'string',        // last viewed ticker
+  recentSearches: 'array',      // last 20 instrument searches
+  sidebarCollapsed: 'boolean',  // desktop sidebar state
+  activeTab: 'string',          // mobile active tab
+  mobileMode: 'string',         // 'particle' | 'terminal' | 'vault' | 'admin'
+  rowFlexSizes: 'array',        // row flex proportions [n, n, n]
+  colSizes: 'object',           // { 'r0_3': [...], ... } — column sizes per row
+  tourCompleted: 'boolean',     // onboarding tour finished
+  termsAccepted: 'boolean',     // ToS acceptance
 };
 
 /**
@@ -35,6 +47,7 @@ function isValidSetting(key, value) {
   if (expectedType === 'string') return typeof value === 'string';
   if (expectedType === 'array') return Array.isArray(value);
   if (expectedType === 'boolean') return typeof value === 'boolean';
+  if (expectedType === 'object') return value !== null && typeof value === 'object' && !Array.isArray(value);
   return false;
 }
 

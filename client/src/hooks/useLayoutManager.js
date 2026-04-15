@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { useSettings } from '../context/SettingsContext';
 import { DEFAULT_LAYOUT } from '../config/panels';
 import { useResizableFlex, useResizableColumns } from '../components/app/AppLayoutHelpers';
+import { syncSettingToServer } from './useSettingsSync';
 
 // ── Safe localStorage wrapper ──────────────────────────────────────────────
 const safeGet = (key, fallback = null) => {
@@ -87,7 +88,7 @@ export function useLayoutManager() {
     } catch { return 2; }
   });
 
-  // Panel visibility
+  // Panel visibility — dual persist: localStorage + server
   const [panelVisible, setPanelVisible] = useState(() => {
     try { return JSON.parse(localStorage.getItem('panelVisible_v1')) || {}; } catch { return {}; }
   });
@@ -95,6 +96,7 @@ export function useLayoutManager() {
     setPanelVisible(prev => {
       const next = { ...prev, [id]: !(prev[id] ?? true) };
       localStorage.setItem('panelVisible_v1', JSON.stringify(next));
+      syncSettingToServer('panelVisible', next);
       return next;
     });
   }, []);
