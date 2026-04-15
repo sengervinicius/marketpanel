@@ -18,9 +18,11 @@
 }
 
 .ip-header-title {
-  color: var(--color-section-header);
-  font-weight: 700;
-  letter-spacing: 1px;
+  color: rgba(255,255,255,0.90);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 1rem;
 }
 
 .ip-header-subtitle {
@@ -57,10 +59,11 @@
 }
 
 .ip-col-header-cell {
-  color: var(--text-faint);
-  font-size: 8px;
-  font-weight: 700;
-  letter-spacing: 1px;
+  color: var(--color-table-header);
+  font-size: 0.65rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   text-align: left;
   padding-right: 0;
 }

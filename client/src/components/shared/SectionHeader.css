@@ -20,12 +20,12 @@
 
 .sh-title {
   font-family: var(--font-family-mono);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-semibold);
+  font-size: 0.7rem;
+  font-weight: 500;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.1em;
   line-height: var(--line-height-tight);
-  color: var(--color-text-secondary);
+  color: var(--color-section-header);
   margin: 0;
   padding: 0;
 }
