@@ -347,7 +347,7 @@
   border: 1px solid var(--border-strong);
   border-radius: 6px;
   margin: 8px 8px;
-  padding: 12px;
+  padding: var(--space-panel-inner);
   flex-shrink: 0;
   animation: slideDown 0.2s ease-out;
 }
@@ -527,7 +527,7 @@
 /* AI Health Error State */
 /* ─────────────────────────────────────────────────────────────── */
 .pp-ai-error {
-  padding: 12px;
+  padding: var(--space-panel-inner);
   background: rgba(239, 68, 68, 0.1);
   border: 1px solid rgba(239, 68, 68, 0.3);
   border-radius: 4px;
