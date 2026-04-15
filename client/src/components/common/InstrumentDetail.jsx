@@ -1829,8 +1829,8 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
           <div className="id-ai-header">
             <span className="id-ai-label">AI FUNDAMENTALS</span>
           </div>
-          <div className="id-ai-error">
-            AI summary is temporarily unavailable. Fundamentals and valuation tables above are still live.
+          <div style={{ fontSize: '0.75rem', color: 'var(--color-insight-unavailable)', padding: '8px 0' }}>
+            AI insight unavailable
           </div>
         </div>
       );

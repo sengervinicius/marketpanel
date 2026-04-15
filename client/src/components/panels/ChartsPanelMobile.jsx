@@ -335,7 +335,7 @@ const MobileChart = memo(function MobileChart({ ticker }) {
         <div className="mcm-ai-box">
           <span className="mcm-ai-badge">AI CHART INSIGHT</span>
           {aiLoading && <span className="mcm-ai-text mcm-ai-text--loading">Analyzing...</span>}
-          {aiError && <span className="mcm-ai-text mcm-ai-text--error">AI insight unavailable right now</span>}
+          {aiError && <span className="mcm-ai-text mcm-ai-text--error" style={{ fontSize: '0.75rem', color: 'var(--color-insight-unavailable)' }}>AI insight unavailable</span>}
           {aiInsight && <span className="mcm-ai-text">{aiInsight.insight || aiInsight}</span>}
         </div>
       )}
