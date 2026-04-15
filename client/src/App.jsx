@@ -395,7 +395,7 @@ export default function App() {
   const {
     desktopRows, row0, row1, row2,
     layoutEdit, setLayoutEdit,
-    handleLayoutMove,
+    handleLayoutMove, handlePanelSwap,
     rowSizes, startRowResize,
     colSizesPerRow, startResizePerRow,
     chartGridCount, setChartGridCount,
@@ -403,6 +403,10 @@ export default function App() {
   } = useLayoutManager();
 
   const border = '1px solid var(--border-subtle)';
+
+  // Panel drag & drop swap state
+  const [draggedPanelId, setDraggedPanelId] = useState(null);
+  const [dropTargetPanelId, setDropTargetPanelId] = useState(null);
 
   // ── Shared panel context value ──────────────────────────────────────────
   const panelCtx = useMemo(() => ({
@@ -977,9 +981,40 @@ export default function App() {
                         {row.map((panelId, colIdx) => {
                           if (!isPanelVisible(panelId)) return null;
                           const isLast = colIdx === row.filter(id => isPanelVisible(id)).length - 1;
+                          // Charts row (row 0) is not draggable for panel swapping
+                          const canDragPanel = rowIdx > 0 || !row.includes('charts');
+                          const isDropTarget = dropTargetPanelId === panelId && draggedPanelId !== panelId;
                           return (
                             <div
                               key={panelId}
+                              draggable={canDragPanel}
+                              onDragStart={canDragPanel ? (e) => {
+                                // Only start panel drag if not dragging a ticker
+                                if (e.dataTransfer.types.includes('application/x-ticker')) return;
+                                e.dataTransfer.setData('application/x-panel-id', panelId);
+                                e.dataTransfer.effectAllowed = 'move';
+                                setDraggedPanelId(panelId);
+                              } : undefined}
+                              onDragOver={canDragPanel ? (e) => {
+                                // Accept panel drops (not ticker drops)
+                                if (!e.dataTransfer.types.includes('application/x-panel-id')) return;
+                                e.preventDefault();
+                                e.dataTransfer.dropEffect = 'move';
+                                if (dropTargetPanelId !== panelId) setDropTargetPanelId(panelId);
+                              } : undefined}
+                              onDragLeave={canDragPanel ? () => {
+                                if (dropTargetPanelId === panelId) setDropTargetPanelId(null);
+                              } : undefined}
+                              onDrop={canDragPanel ? (e) => {
+                                const sourcePanelId = e.dataTransfer.getData('application/x-panel-id');
+                                if (sourcePanelId && sourcePanelId !== panelId) {
+                                  e.preventDefault();
+                                  handlePanelSwap(sourcePanelId, panelId);
+                                }
+                                setDraggedPanelId(null);
+                                setDropTargetPanelId(null);
+                              } : undefined}
+                              onDragEnd={() => { setDraggedPanelId(null); setDropTargetPanelId(null); }}
                               style={{
                                 flex: colSizes[colIdx] || 1,
                                 minWidth: 0,
@@ -989,6 +1024,11 @@ export default function App() {
                                 position: 'relative',
                                 display: 'flex',
                                 flexDirection: 'column',
+                                opacity: draggedPanelId === panelId ? 0.4 : 1,
+                                outline: isDropTarget ? '2px solid var(--accent)' : 'none',
+                                outlineOffset: '-2px',
+                                transition: 'opacity 0.15s, outline 0.15s',
+                                cursor: canDragPanel ? 'grab' : undefined,
                               }}
                             >
                               {colIdx > 0 && <ColResizeHandle onStart={e => startResize(colIdx - 1, e)} />}

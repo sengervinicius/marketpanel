@@ -174,9 +174,9 @@ router.get('/congress/top', async (req, res) => {
 
 /**
  * GET /api/unusual-whales/panel-data
- * Combined endpoint for the Options - Market Intel panel.
- * Returns tide, flow alerts, and congress data in a single call.
- * Also returns raw field diagnostics so we can debug field mapping issues.
+ * Combined endpoint for the Smart Money panel.
+ * Returns: tide (market sentiment), flow alerts, dark pool prints, congress trades.
+ * Also fetches dark pool for the top 3 flow tickers to show institutional activity.
  */
 router.get('/panel-data', async (req, res) => {
   try {
@@ -186,22 +186,32 @@ router.get('/panel-data', async (req, res) => {
       uw.getCongressTrades().catch(() => []),
     ]);
 
+    // Fetch dark pool prints for top flow tickers (most premium first)
+    const topFlowTickers = [...new Set(
+      alerts
+        .filter(a => a.symbol && a.symbol !== 'N/A')
+        .sort((a, b) => (b.premium || 0) - (a.premium || 0))
+        .slice(0, 5)
+        .map(a => a.symbol)
+    )];
+
+    let darkPool = [];
+    if (topFlowTickers.length > 0) {
+      const dpResults = await Promise.all(
+        topFlowTickers.slice(0, 3).map(sym =>
+          uw.getDarkPoolActivity(sym)
+            .then(prints => prints.slice(0, 3).map(p => ({ ...p, symbol: sym })))
+            .catch(() => [])
+        )
+      );
+      darkPool = dpResults.flat().sort((a, b) => (b.size || 0) - (a.size || 0)).slice(0, 10);
+    }
+
     res.json({
       tide: tide || { sector: 'technology', callVolume: 0, putVolume: 0, ratio: 0, sentiment: 'neutral' },
-      alerts: {
-        data: alerts,
-        count: alerts.length,
-      },
-      congress: {
-        data: congress,
-        count: congress.length,
-      },
-      // Diagnostics: show first item's actual fields so we can debug
-      _debug: {
-        alertSample: alerts.length > 0 ? alerts[0] : null,
-        congressSample: congress.length > 0 ? congress[0] : null,
-        tideSample: tide,
-      },
+      alerts: { data: alerts, count: alerts.length },
+      darkPool: { data: darkPool, count: darkPool.length },
+      congress: { data: congress, count: congress.length },
     });
   } catch (err) {
     logger.error('[UnusualWhales/panel-data] Error:', err);

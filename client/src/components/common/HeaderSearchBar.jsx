@@ -33,9 +33,30 @@ function HsbEnrichedRow({ item, idx, selectedIdx, onSelect, onMouseEnter, typeBa
     return priceData.bars.map(b => b.c || b.close).slice(-20);
   }, [priceData?.bars]);
 
+  const handleDragStart = (e) => {
+    const sym = item.symbolKey || item.symbol;
+    const assetType = item.assetClass === 'crypto' ? 'CRYPTO'
+      : item.assetClass === 'forex' ? 'CURRENCY'
+      : item.assetClass === 'commodity' ? 'COMMODITY'
+      : 'EQUITY';
+    // Prefix for chart compatibility
+    const chartSym = assetType === 'CRYPTO' ? 'X:' + sym
+      : assetType === 'CURRENCY' ? 'C:' + sym
+      : sym;
+    e.dataTransfer.effectAllowed = 'copy';
+    e.dataTransfer.setData('application/x-ticker', JSON.stringify({
+      symbol: chartSym,
+      name: item.name || sym,
+      type: assetType,
+    }));
+    e.dataTransfer.setData('text/plain', chartSym);
+  };
+
   return (
     <div
       className={`hsb-result ${idx === selectedIdx ? 'hsb-result--active' : ''}`}
+      draggable
+      onDragStart={handleDragStart}
       onClick={() => onSelect(item)}
       onMouseEnter={() => onMouseEnter(idx)}
     >

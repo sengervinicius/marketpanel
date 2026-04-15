@@ -1,5 +1,7 @@
 import { useCallback } from 'react';
 import { useScreenContext } from '../context/ScreenContext';
+import { useSettings } from '../context/SettingsContext';
+import { PANEL_DEFINITIONS } from '../config/panels';
 
 /**
  * useAIChatWithContext — Hook to build AI chat context from the current screen.
@@ -25,8 +27,35 @@ const SCREEN_DESCRIPTIONS = {
   europe: 'European markets screen.',
 };
 
+/**
+ * Build a summary of all panels on the user's home screen with their tickers.
+ */
+function buildHomeScreenSummary(settings) {
+  const panelsCfg = settings?.panels || {};
+  const layout = settings?.layout?.desktopRows;
+  const panelIds = layout
+    ? layout.flat()
+    : Object.keys(PANEL_DEFINITIONS);
+
+  const lines = [];
+  for (const id of panelIds) {
+    const def = PANEL_DEFINITIONS[id];
+    if (!def) continue;
+    const userCfg = panelsCfg[id] || {};
+    const title = userCfg.title || def.defaultTitle || def.label;
+    const symbols = userCfg.symbols || def.defaultSymbols || [];
+    if (symbols.length > 0) {
+      lines.push(`• ${title}: ${symbols.slice(0, 20).join(', ')}`);
+    } else {
+      lines.push(`• ${title}`);
+    }
+  }
+  return lines.join('\n');
+}
+
 export function useAIChatWithContext() {
   const { currentScreen, currentTicker, visibleTickers, sectorName } = useScreenContext();
+  const { settings } = useSettings();
 
   const buildContextualMessage = useCallback((userMessage) => {
     const parts = [];
@@ -44,13 +73,27 @@ export function useAIChatWithContext() {
       parts.push(`The user has ${currentTicker} selected/open in detail view.`);
     }
 
+    // When on home screen, include panel layout with tickers so AI knows what's on screen
+    if (currentScreen === 'home' || !currentScreen) {
+      const homeSummary = buildHomeScreenSummary(settings);
+      if (homeSummary) {
+        parts.push(`\nHome screen panels and tickers:\n${homeSummary}`);
+      }
+    }
+
+    // Include watchlist if available
+    const watchlist = settings?.watchlist;
+    if (watchlist && watchlist.length > 0) {
+      parts.push(`Watchlist: ${watchlist.slice(0, 20).join(', ')}`);
+    }
+
     // Combine with user message
     if (parts.length > 0) {
       return `${parts.join(' ')}\n\nUser question: ${userMessage}`;
     }
 
     return userMessage;
-  }, [currentScreen, currentTicker, visibleTickers, sectorName]);
+  }, [currentScreen, currentTicker, visibleTickers, sectorName, settings]);
 
   return { buildContextualMessage };
 }

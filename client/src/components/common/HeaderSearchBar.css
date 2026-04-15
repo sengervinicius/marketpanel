@@ -180,11 +180,15 @@
   align-items: center;
   gap: 10px;
   padding: 8px 16px;
-  cursor: pointer;
+  cursor: grab;
   font-size: 12px;
   transition: background-color 0.1s;
   border-radius: 4px;
   margin: 0 4px;
+}
+
+.hsb-result:active {
+  cursor: grabbing;
 }
 
 .hsb-result:hover,

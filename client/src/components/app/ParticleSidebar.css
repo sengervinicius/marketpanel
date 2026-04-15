@@ -15,6 +15,14 @@
   transition: background 0.2s;
   flex-shrink: 0;
 }
+
+/* Orb glow in collapsed sidebar */
+.psb-collapsed svg {
+  filter: drop-shadow(0 0 4px rgba(249, 115, 22, 0.5)) drop-shadow(0 0 10px rgba(249, 115, 22, 0.25));
+}
+.psb-collapsed:hover svg {
+  filter: drop-shadow(0 0 6px rgba(249, 115, 22, 0.7)) drop-shadow(0 0 14px rgba(249, 115, 22, 0.35));
+}
 .psb-collapsed:hover {
   background: var(--bg-surface, #1a1a1a);
 }
@@ -53,6 +61,11 @@
   font-weight: 700;
   letter-spacing: 0.06em;
   color: var(--text-primary, #e8e8e8);
+}
+
+/* Orb glow in expanded header */
+.psb-header svg {
+  filter: drop-shadow(0 0 3px rgba(249, 115, 22, 0.45)) drop-shadow(0 0 8px rgba(249, 115, 22, 0.2));
 }
 .psb-btn {
   display: flex;

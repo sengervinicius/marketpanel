@@ -9,6 +9,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import ParticleLogo from '../ui/ParticleLogo';
 import useParticleAI from '../../hooks/useParticleAI';
+import { useAIChatWithContext } from '../../hooks/useAIChatWithContext';
 import './ParticleSidebar.css';
 
 export default function ParticleSidebar({ collapsed, onToggle }) {
@@ -17,13 +18,16 @@ export default function ParticleSidebar({ collapsed, onToggle }) {
   const scrollRef = useRef(null);
 
   const { messages, isStreaming, error, send, stop, clear } = useParticleAI();
+  const { buildContextualMessage } = useAIChatWithContext();
 
   const handleSubmit = useCallback((e) => {
     e.preventDefault();
     if (!query.trim() || isStreaming) return;
-    send(query.trim());
+    // Enrich query with screen + panel context so AI knows what user is looking at
+    const enriched = buildContextualMessage(query.trim());
+    send(enriched);
     setQuery('');
-  }, [query, isStreaming, send]);
+  }, [query, isStreaming, send, buildContextualMessage]);
 
   const handleNewChat = useCallback(() => {
     clear();

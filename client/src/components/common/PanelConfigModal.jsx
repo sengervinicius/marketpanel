@@ -28,10 +28,16 @@ export default function PanelConfigModal({
       if (assetClasses && !assetClasses.includes(ins.assetClass)) return false;
       const q = search.toLowerCase();
       if (!q) return true;
-      return (
-        ins.symbolKey.toLowerCase().includes(q) ||
-        (ins.name || '').toLowerCase().includes(q)
-      );
+      // Standard match on symbolKey and name
+      if (ins.symbolKey.toLowerCase().includes(q) || (ins.name || '').toLowerCase().includes(q)) return true;
+      // FX reverse pair match: "brlgbp" → finds GBPBRL, "brlusd" → finds USDBRL
+      if (ins.assetClass === 'forex' && ins.baseCurrency && ins.quoteCurrency) {
+        const reversed = (ins.quoteCurrency + ins.baseCurrency).toLowerCase();
+        if (reversed.includes(q)) return true;
+        // Also match partial currency names (e.g., "brl" finds all BRL pairs)
+        if (ins.baseCurrency.toLowerCase().includes(q) || ins.quoteCurrency.toLowerCase().includes(q)) return true;
+      }
+      return false;
     });
 
     const groups = {};

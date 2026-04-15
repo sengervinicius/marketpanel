@@ -56,6 +56,23 @@ export function useLayoutManager() {
     updateLayout({ desktopRows: nonEmptyRows });
   }, [desktopRows, updateLayout]);
 
+  // Swap two panels anywhere in the grid
+  const handlePanelSwap = useCallback((sourcePanelId, targetPanelId) => {
+    if (sourcePanelId === targetPanelId) return;
+    const newRows = desktopRows.map(r => [...r]);
+    let srcRow = -1, srcCol = -1, tgtRow = -1, tgtCol = -1;
+    for (let r = 0; r < newRows.length; r++) {
+      for (let c = 0; c < newRows[r].length; c++) {
+        if (newRows[r][c] === sourcePanelId) { srcRow = r; srcCol = c; }
+        if (newRows[r][c] === targetPanelId) { tgtRow = r; tgtCol = c; }
+      }
+    }
+    if (srcRow < 0 || tgtRow < 0) return;
+    newRows[srcRow][srcCol] = targetPanelId;
+    newRows[tgtRow][tgtCol] = sourcePanelId;
+    updateLayout({ desktopRows: newRows });
+  }, [desktopRows, updateLayout]);
+
   const [rowSizes, startRowResize] = useResizableFlex('rowFlexSizes_v2', [2, 1.5, 1.5]);
   const [colSizes0, startColResize0] = useResizableColumns('colSizes_r0_' + row0.length, Array(Math.max(1, row0.length)).fill(1));
   const [colSizes1, startColResize1] = useResizableColumns('colSizes_r1_' + row1.length, Array(Math.max(1, row1.length)).fill(1));
@@ -87,7 +104,7 @@ export function useLayoutManager() {
     desktopRows,
     row0, row1, row2,
     layoutEdit, setLayoutEdit,
-    handleLayoutMove,
+    handleLayoutMove, handlePanelSwap,
     rowSizes, startRowResize,
     colSizesPerRow, startResizePerRow,
     chartGridCount, setChartGridCount,

@@ -52,7 +52,12 @@ function ForexPanel({ data = {}, cryptoData = {}, loading, onTickerClick }) {
   // Panel config from settings (with fallback defaults)
   const panelCfg = settings?.panels?.forex || {
     title: 'FX RATES / CRYPTO',
-    symbols: [...FOREX_PAIRS.map(p => p.symbol), ...CRYPTO_PAIRS.map(c => c.symbol)],
+    symbols: [
+      'EURUSD','GBPUSD','USDJPY','USDCHF','AUDUSD','USDCAD',
+      'USDBRL','EURBRL','GBPBRL',
+      'USDCNY','USDMXN',
+      'BTCUSD','ETHUSD','SOLUSD','XRPUSD','BNBUSD','DOGEUSD',
+    ],
     hiddenSubsections: [],
     customSubsections: [],
     subsectionLabels: {},
