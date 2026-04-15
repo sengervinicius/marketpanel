@@ -11,6 +11,7 @@
     "@sentry/node": "^10.48.0",
     "apple-signin-auth": "^2.0.0",
     "bcryptjs": "^2.4.3",
+    "compression": "^1.8.1",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "csv-parse": "^6.2.1",

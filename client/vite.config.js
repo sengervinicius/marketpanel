@@ -29,6 +29,10 @@ export default defineConfig({
         },
       },
     },
+    // Target modern browsers for smaller output (no legacy polyfills)
+    target: 'es2020',
+    // Reduce CSS output size
+    cssMinify: true,
   },
   test: {
     environment: 'jsdom',

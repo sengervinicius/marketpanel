@@ -11,8 +11,8 @@ const ENDPOINTS = {
   brazil: '/api/snapshot/brazil',
 };
 
-const REFRESH_MS = 6_000; // 6 seconds — keeps prices feeling live
-const MOBILE_REFRESH_MS = 15_000; // 15 seconds on mobile — saves bandwidth/battery
+const REFRESH_MS = 15_000; // 15 seconds — WebSocket ticks handle real-time updates between polls
+const MOBILE_REFRESH_MS = 30_000; // 30 seconds on mobile — saves bandwidth/battery
 
 // Normalize Brazil (Yahoo Finance) snapshot → same shape as normalizePolygon
 function normalizeBrazil(data) {
@@ -189,10 +189,35 @@ export function useMarketData() {
   useEffect(() => {
     isMountedRef.current = true;
     const isMobile = window.innerWidth < 768;
-    const interval = isMobile ? MOBILE_REFRESH_MS : REFRESH_MS;
+
+    // Adaptive interval: shorter during US market hours, longer when closed
+    function getInterval() {
+      const base = isMobile ? MOBILE_REFRESH_MS : REFRESH_MS;
+      // Check if US markets are open (Mon-Fri 9:30-16:00 ET)
+      try {
+        const now = new Date();
+        const et = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+        const day = et.getDay();
+        const mins = et.getHours() * 60 + et.getMinutes();
+        const isOpen = day >= 1 && day <= 5 && mins >= 570 && mins < 960;
+        // When markets are closed, poll 3x slower (WebSocket still provides crypto/FX ticks)
+        return isOpen ? base : base * 3;
+      } catch { return base; }
+    }
 
     fetchAll();
+    let interval = getInterval();
     intervalRef.current = setInterval(() => fetchAll(true), interval);
+
+    // Re-evaluate interval every 5 minutes (catches market open/close transitions)
+    const adaptiveTimer = setInterval(() => {
+      const newInterval = getInterval();
+      if (newInterval !== interval) {
+        interval = newInterval;
+        clearInterval(intervalRef.current);
+        intervalRef.current = setInterval(() => fetchAll(true), interval);
+      }
+    }, 300_000);
 
     // Pause polling when tab/app is hidden, resume on visibility
     const handleVisibility = () => {
@@ -201,6 +226,7 @@ export function useMarketData() {
         intervalRef.current = null;
       } else {
         // Refresh immediately on return, then restart interval
+        interval = getInterval();
         fetchAll(true);
         intervalRef.current = setInterval(() => fetchAll(true), interval);
       }
@@ -210,6 +236,7 @@ export function useMarketData() {
     return () => {
       isMountedRef.current = false;
       clearInterval(intervalRef.current);
+      clearInterval(adaptiveTimer);
       document.removeEventListener('visibilitychange', handleVisibility);
     };
   }, [fetchAll]);

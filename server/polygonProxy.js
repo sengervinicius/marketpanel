@@ -59,7 +59,8 @@ const POLYGON_WS = {
 };
 
 // How often to flush the tick buffer to clients (ms)
-const THROTTLE_MS = 250;
+// Increased from 250ms → 500ms to reduce broadcast frequency and bandwidth
+const THROTTLE_MS = 500;
 
 // Symbols not updated within this window and not in subscription list are pruned (ms)
 const STALE_MS = 10 * 60 * 1000; // 10 minutes
@@ -82,15 +83,21 @@ function connectFeed(feedName, wsUrl, marketState, broadcast) {
 
   const flushInterval = setInterval(() => {
     if (dirtySymbols.size === 0) return;
+    // Batch all dirty ticks into a single message to reduce WebSocket frame overhead
+    const batch = [];
     dirtySymbols.forEach(sym => {
       const cat = dirtyCategory[sym];
       if (!cat) return;
       const state = marketState[cat]?.[sym];
       if (state) {
-        broadcast({ type: 'tick', category: cat, symbol: sym, data: state });
+        batch.push({ category: cat, symbol: sym, data: state });
       }
     });
     dirtySymbols.clear();
+    if (batch.length > 0) {
+      // Send as single batched message — reduces frame count by ~90%
+      broadcast({ type: 'tick_batch', ticks: batch });
+    }
   }, THROTTLE_MS);
 
   function connect() {

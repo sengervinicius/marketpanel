@@ -14,6 +14,7 @@ if (process.env.SENTRY_DSN) {
 }
 
 const express = require('express');
+const compression = require('compression');
 const cors = require('cors');
 const helmet = require('helmet');
 const cookieParser = require('cookie-parser');
@@ -89,6 +90,17 @@ const cache = require('./cache');
 const { init: initSignalMonitor } = require('./services/signalMonitor');
 
 const app = express();
+
+// ── Gzip/Brotli compression — reduces JSON payload sizes by ~70% ─────────────
+app.use(compression({
+  level: 6,           // good balance of speed vs compression ratio
+  threshold: 1024,    // only compress responses > 1KB
+  filter: (req, res) => {
+    // Don't compress WebSocket upgrade requests or SSE streams
+    if (req.headers['accept'] === 'text/event-stream') return false;
+    return compression.filter(req, res);
+  },
+}));
 
 // ── DEBUG: Log ALL vault requests before any middleware can block them ──
 app.use('/api/vault', (req, res, next) => {

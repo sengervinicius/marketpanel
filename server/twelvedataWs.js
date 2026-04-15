@@ -98,13 +98,17 @@ function connectTwelveData(marketState, broadcast) {
     if (throttleTimer) return;
     throttleTimer = setInterval(() => {
       if (dirtySymbols.size === 0) return;
+      const batch = [];
       for (const sym of dirtySymbols) {
         const state = marketState.stocks?.[sym];
         if (state) {
-          broadcast({ type: 'tick', category: 'stocks', symbol: sym, data: state });
+          batch.push({ category: 'stocks', symbol: sym, data: state });
         }
       }
       dirtySymbols.clear();
+      if (batch.length > 0) {
+        broadcast({ type: 'tick_batch', ticks: batch });
+      }
     }, THROTTLE_MS);
   }
 

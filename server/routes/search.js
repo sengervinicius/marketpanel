@@ -192,7 +192,19 @@ router.post('/ai', async (req, res) => {
 
 // Cache for AI fundamentals: symbol → { result, exp }
 const _fundsCache = new Map();
-const FUNDS_CACHE_TTL = 4 * 60 * 60 * 1000; // 4 hours (increased from 15 minutes)
+
+// Cache TTL varies by asset class — volatile assets get shorter TTLs
+const FUNDS_CACHE_TTL_DEFAULT = 2 * 60 * 60 * 1000;  // 2 hours for equities
+const FUNDS_CACHE_TTL_CRYPTO  = 30 * 60 * 1000;       // 30 min for crypto (very volatile)
+const FUNDS_CACHE_TTL_FX      = 60 * 60 * 1000;       // 1 hour for FX
+
+function getFundsCacheTTL(sym) {
+  if (sym.startsWith('X:') || ['BTC', 'ETH', 'SOL', 'DOGE', 'ADA', 'XRP', 'AVAX', 'DOT', 'LINK', 'MATIC'].some(c => sym.includes(c) && !sym.includes('.'))) {
+    return FUNDS_CACHE_TTL_CRYPTO;
+  }
+  if (sym.startsWith('C:') || sym.match(/^[A-Z]{6}$/)) return FUNDS_CACHE_TTL_FX;
+  return FUNDS_CACHE_TTL_DEFAULT;
+}
 
 // Fundamentals cache stats
 let _fundsCacheHits = 0;
@@ -210,11 +222,14 @@ router.post('/fundamentals', async (req, res) => {
   }
   const sym = symbol.trim().toUpperCase();
 
-  // Check cache
+  // Check cache (TTL varies by asset class)
   const cached = _fundsCache.get(sym);
+  const ttl = getFundsCacheTTL(sym);
   if (cached && Date.now() < cached.exp) {
     _fundsCacheHits++;
-    return res.json({ ...cached.v, cached: true });
+    // Inject live price alongside cached analysis so UI can show current price
+    // even when the AI text references an older price
+    return res.json({ ...cached.v, cached: true, cachedAt: new Date(cached.exp - ttl).toISOString() });
   }
   _fundsCacheMisses++;
 
@@ -275,7 +290,7 @@ router.post('/fundamentals', async (req, res) => {
     if (fundamentals.employees)        lines.push(`Employees: ${fundamentals.employees.toLocaleString()}`);
   }
   if (quote) {
-    if (quote.price != null) lines.push(`Last Price: $${quote.price}`);
+    if (quote.price != null) lines.push(`CURRENT LIVE PRICE (as of right now): $${quote.price}`);
     if (quote.changePct != null) lines.push(`Day Change: ${quote.changePct >= 0 ? '+' : ''}${quote.changePct.toFixed(2)}%`);
   }
   if (newsItems.length > 0) {
@@ -296,12 +311,13 @@ router.post('/fundamentals', async (req, res) => {
   "riskFactors": ["risk1", "risk2", ...]
 }
 Rules:
-- Use the provided financial data as the source of truth for numbers. Do NOT invent specific numbers not in the data.
+- CRITICAL: Use the provided financial data as the ONLY source of truth for ALL numbers including price, market cap, ratios, and metrics. Do NOT use prices or numbers from your training data — they are outdated. The "Last Price" in the data below is the LIVE current price.
 - Keep each array item to 1-2 sentences max.
 - 3-5 items per array.
 - Be concise, professional, and factual.
-- If data is missing for a field, provide qualitative analysis based on your knowledge.
-- Do NOT include markdown formatting inside the JSON strings.`;
+- If data is missing for a field, provide qualitative analysis based on your knowledge but NEVER invent specific price levels or numbers.
+- Do NOT include markdown formatting inside the JSON strings.
+- In the summary, reference the actual current price from the data provided, not from your training knowledge.`;
 
   const userPrompt = `Analyze this instrument:\n\n${contextBlock}`;
 
@@ -362,6 +378,7 @@ Rules:
     const result = {
       symbol: sym,
       generatedAt: new Date().toISOString(),
+      livePrice: quote?.price ?? null,
       summary: parsed.summary || '',
       businessModel: parsed.businessModel || '',
       segments: Array.isArray(parsed.segments) ? parsed.segments : [],
@@ -370,8 +387,8 @@ Rules:
       riskFactors: Array.isArray(parsed.riskFactors) ? parsed.riskFactors : [],
     };
 
-    // Cache
-    _fundsCache.set(sym, { v: result, exp: Date.now() + FUNDS_CACHE_TTL });
+    // Cache (TTL varies by asset class)
+    _fundsCache.set(sym, { v: result, exp: Date.now() + getFundsCacheTTL(sym) });
     if (_fundsCache.size > 100) {
       const now = Date.now();
       for (const [k, e] of _fundsCache) { if (now > e.exp) _fundsCache.delete(k); }

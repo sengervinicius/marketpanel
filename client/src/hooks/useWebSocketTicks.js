@@ -120,8 +120,48 @@ export function useWebSocketTicks(restData) {
       setLiveTick(n => n + 1);
       return;
     }
+    // Handle batched ticks (new format: single message with array of ticks)
+    if (msg.type === 'tick_batch' && Array.isArray(msg.ticks)) {
+      msg.ticks.forEach(t => {
+        if (t.category) feedDataReceivedRef.current[t.category] = true;
+        tickBufferRef.current.push({ type: 'tick', ...t });
+      });
+      // Fall through to the throttle flush logic below
+      if (!throttleTimerRef.current) {
+        throttleTimerRef.current = setTimeout(() => {
+          throttleTimerRef.current = null;
+          const ticks = tickBufferRef.current.splice(0);
+          if (ticks.length === 0) return;
+          const normalizedTicks = [];
+          ticks.forEach(t => {
+            if (t.symbol && t.data) {
+              let sym = t.symbol;
+              if (t.category === 'forex' && sym.startsWith('C:')) sym = sym.slice(2);
+              if (t.category === 'crypto' && sym.startsWith('X:')) sym = sym.slice(2);
+              liveOverlayRef.current[sym] = { ...liveOverlayRef.current[sym], ...t.data, symbol: sym, _cat: t.category };
+              normalizedTicks.push({ category: t.category, symbol: sym, data: t.data });
+            }
+          });
+          setFeedStatus(prev => {
+            const next = { ...prev };
+            ['stocks', 'forex', 'crypto'].forEach(cat => {
+              if (!feedDataReceivedRef.current[cat]) return;
+              const current = next[cat];
+              const currentLevel = typeof current === 'string' ? current : current?.level || 'connecting';
+              if (currentLevel === 'connecting') {
+                next[cat] = determineFeedStatus(cat, 'live');
+              }
+            });
+            return next;
+          });
+          setLiveTick(n => n + 1);
+          if (normalizedTicks.length > 0) setBatchTicks(normalizedTicks);
+        }, 250);
+      }
+      return;
+    }
     if (msg.type === 'tick' || msg.type === 'quote') {
-      // Mark feed as live when we receive tick/quote data
+      // Mark feed as live when we receive tick/quote data (legacy per-tick format)
       if (msg.category) {
         feedDataReceivedRef.current[msg.category] = true;
       }
