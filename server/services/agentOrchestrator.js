@@ -27,7 +27,7 @@ const AGENT_TIMEOUTS = {
   earnings: 3000,   // Earnings calendar
   memory: 2000,     // Session + persistent memory (fast, in-memory/DB)
   compute: 1000,    // Portfolio metrics (purely computational)
-  news: 5000,       // Web search news (slower external call)
+  news: 8000,       // Web search news (sonar-pro, needs time for international queries)
   unusualWhales: 4000, // Options flow, dark pool, Greeks, shorts, congress
 };
 
@@ -187,23 +187,27 @@ async function unusualWhalesAgent(query) {
 }
 
 /**
- * newsAgent: Fetch real-time news via Perplexity Sonar.
- * Extracts tickers from query and fetches a concise news digest.
- * 3-second hard timeout via AbortController. Returns empty on any failure.
+ * newsAgent: Fetch real-time news via Perplexity Sonar Pro.
+ * Extracts tickers AND company names from query for better international coverage.
+ * 6-second hard timeout via AbortController. Returns empty on any failure.
  */
 async function newsAgent(query, tickers) {
   const apiKey = process.env.PERPLEXITY_API_KEY;
   if (!apiKey) return { context: '', sources: [] };
 
-  // Extract tickers from query if not provided
+  // Extract tickers from query if not provided (supports US + international formats)
   const tickerList = tickers && tickers.length > 0
     ? tickers
-    : [...new Set((query.match(/\$?([A-Z]{1,5}(?:\.[A-Z]{1,2})?)/g) || []).map(t => t.replace(/^\$/, '')))];
+    : [...new Set((query.match(/\$?([A-Z]{1,5}(?:\d)?(?:\.[A-Z]{1,4})?)/g) || []).map(t => t.replace(/^\$/, '')))];
 
-  const tickerClause = tickerList.length > 0 ? `Focus on: ${tickerList.join(', ')}.` : '';
+  const tickerClause = tickerList.length > 0 ? `Focus on these tickers/companies: ${tickerList.join(', ')}.` : '';
+
+  // Build an enriched search query that includes the original question
+  // This helps Perplexity find news about companies by name, not just ticker
+  const searchQuery = query.length > 200 ? query.slice(0, 200) : query;
 
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 3000);
+  const timer = setTimeout(() => controller.abort(), 6000);
 
   try {
     const response = await fetch('https://api.perplexity.ai/chat/completions', {
@@ -214,22 +218,25 @@ async function newsAgent(query, tickers) {
       },
       signal: controller.signal,
       body: JSON.stringify({
-        model: 'sonar',
+        model: 'sonar-pro',
         messages: [
           {
             role: 'system',
-            content: `You are a financial news wire. Return a concise digest of the most important market news from the last 24 hours relevant to the user query. ${tickerClause} Max 200 words. No preamble. Lead with the most market-moving headline.`,
+            content: `You are a global financial news wire covering ALL markets worldwide — US, Europe, Asia, Latin America (B3/Bovespa), Middle East, Africa. Return a concise digest of the most important market news from the last 24-48 hours relevant to the user query. ${tickerClause} Cover M&A activity, deal announcements, deal collapses, regulatory actions, earnings surprises, and material corporate events. For Brazilian/LatAm stocks, search in both English AND Portuguese sources. Max 300 words. No preamble. Lead with the most market-moving headline.`,
           },
-          { role: 'user', content: query },
+          { role: 'user', content: searchQuery },
         ],
-        max_tokens: 400,
+        max_tokens: 600,
         temperature: 0.1,
         return_citations: true,
-        search_recency_filter: 'day',
+        search_recency_filter: 'week',
       }),
     });
 
-    if (!response.ok) return { context: '', sources: [] };
+    if (!response.ok) {
+      console.warn(`[newsAgent] Perplexity returned ${response.status}`);
+      return { context: '', sources: [] };
+    }
 
     const data = await response.json();
     const content = data.choices?.[0]?.message?.content || '';
@@ -239,8 +246,9 @@ async function newsAgent(query, tickers) {
       context: content ? `RECENT NEWS:\n${content}` : '',
       sources: citations,
     };
-  } catch {
+  } catch (err) {
     // Timeout or network error — degrade gracefully
+    console.warn(`[newsAgent] Failed: ${err.message}`);
     return { context: '', sources: [] };
   } finally {
     clearTimeout(timer);
@@ -526,11 +534,11 @@ function mergeResults(results) {
 function computeCompletenessScore(results) {
   const weights = {
     vault: 15,
-    edgar: 15,
+    edgar: 10,
     earnings: 10,
     memory: 10,
-    compute: 20,
-    news: 10,
+    compute: 15,
+    news: 20,
     unusualWhales: 20,
   };
 
