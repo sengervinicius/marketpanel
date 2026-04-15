@@ -1,4 +1,4 @@
-/* OptionsFlowPanel.css — Terminal-native design matching all other panels */
+/* OptionsFlowPanel.css — Terminal-native market intelligence panel */
 
 .ofp {
   display: flex;
@@ -23,12 +23,29 @@
   min-height: 26px;
 }
 
+.ofp-hdr-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .ofp-hdr-title {
   font-family: var(--font-family-mono);
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-bold);
   letter-spacing: 0.08em;
   color: var(--color-text-primary);
+}
+
+.ofp-hdr-badge {
+  background: var(--accent, #e8590c);
+  color: #fff;
+  font-size: 8px;
+  font-weight: 700;
+  padding: 1px 4px;
+  border-radius: 2px;
+  line-height: 1.2;
+  letter-spacing: 0.04em;
 }
 
 .ofp-hdr-right {
@@ -62,7 +79,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 4px 8px;
+  padding: 5px 8px;
   border-bottom: 1px solid var(--border-default);
   background: var(--bg-surface);
   flex-shrink: 0;
@@ -79,7 +96,7 @@
   font-size: 9px;
   font-weight: 700;
   white-space: nowrap;
-  min-width: 32px;
+  min-width: 36px;
 }
 
 .ofp-tide-bar {
@@ -120,8 +137,8 @@
   font-family: var(--font-mono);
   font-size: 9px;
   font-weight: 700;
-  letter-spacing: 0.08em;
-  padding: 3px 4px;
+  letter-spacing: 0.06em;
+  padding: 4px 4px;
   cursor: pointer;
   text-align: center;
   transition: color 0.15s;
@@ -133,7 +150,7 @@
 
 .ofp-tab--active {
   color: var(--text-primary);
-  border-bottom-color: var(--text-primary);
+  border-bottom-color: var(--accent, #e8590c);
 }
 
 /* ── Body / rows ─────────────────────────────────────────── */
@@ -145,12 +162,16 @@
 
 .ofp-row {
   display: grid;
-  grid-template-columns: 52px 48px 1fr 40px;
+  grid-template-columns: 52px 48px 1fr 48px;
   align-items: center;
   padding: 2px 8px;
   border-bottom: 1px solid var(--border-subtle, rgba(255,255,255,0.04));
   min-height: 22px;
   font-size: var(--font-xs);
+}
+
+.ofp-row--congress {
+  grid-template-columns: 52px 40px 1fr 68px;
 }
 
 .ofp-row:hover {
@@ -184,7 +205,8 @@
   font-weight: 600;
 }
 
-.ofp-col-type {
+.ofp-col-type,
+.ofp-col-action {
   text-align: left;
   font-weight: 600;
   font-size: 9px;
@@ -196,27 +218,52 @@
   text-align: right;
   color: var(--text-secondary, #ccc);
   font-weight: 500;
+  font-variant-numeric: tabular-nums;
 }
 
-.ofp-col-sent {
+.ofp-col-time {
   text-align: right;
-  font-weight: 600;
+  font-weight: 400;
   font-size: 9px;
+  color: var(--text-faint);
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.ofp-member {
+.ofp-col-member {
+  text-align: right;
   font-weight: 400;
+  font-size: 9px;
   color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* ── Empty state ─────────────────────────────────────────── */
 .ofp-empty {
-  padding: 16px 8px;
+  padding: 24px 8px;
   text-align: center;
   color: var(--text-faint);
   font-size: var(--font-xs);
+}
+
+/* ── Footer ──────────────────────────────────────────────── */
+.ofp-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 2px 8px;
+  border-top: 1px solid var(--border-default);
+  background: var(--bg-surface);
+  flex-shrink: 0;
+  min-height: 18px;
+}
+
+.ofp-footer-src {
+  font-size: 8px;
+  color: var(--text-faint);
+  letter-spacing: 0.04em;
+  opacity: 0.6;
 }
 
 /* ── Scrollbar ───────────────────────────────────────────── */
