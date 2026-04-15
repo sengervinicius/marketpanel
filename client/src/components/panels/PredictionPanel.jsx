@@ -2,8 +2,8 @@
  * PredictionPanel.jsx — Prediction Markets panel for the terminal grid.
  *
  * Shows live prediction market data from Kalshi and Polymarket.
- * Displays probability bars, volume, and source for each market.
- * Filterable by category (Fed/Rates, Crypto, Politics, etc.)
+ * Default view: AI-personalized picks based on user's portfolio/watchlist/interests.
+ * User can switch to category-based browsing.
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { apiFetch } from '../../utils/api';
@@ -11,6 +11,7 @@ import './PredictionPanel.css';
 const REFRESH_INTERVAL = 120_000; // 2 min
 
 const CATEGORY_LABELS = {
+  'for-you':     '⚡ For You',
   'all':         'All',
   'fed-rates':   'Fed',
   'inflation':   'CPI',
@@ -38,23 +39,44 @@ function formatVolume(v) {
 export default function PredictionPanel() {
   const [markets, setMarkets] = useState([]);
   const [categories, setCategories] = useState([]);
-  const [activeCategory, setActiveCategory] = useState('all');
+  const [activeCategory, setActiveCategory] = useState('for-you');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [interests, setInterests] = useState([]);
+  const [isPersonalized, setIsPersonalized] = useState(false);
   const timerRef = useRef(null);
 
   const fetchData = useCallback(async () => {
     try {
-      const params = new URLSearchParams({ limit: '30' });
-      if (activeCategory !== 'all') params.set('category', activeCategory);
+      if (activeCategory === 'for-you') {
+        // Personalized endpoint
+        const [forYouData, catsData] = await Promise.all([
+          apiFetch('/api/predictions/for-you?limit=12').then(r => r.json()).catch(() => null),
+          apiFetch('/api/predictions/categories').then(r => r.json()).catch(() => null),
+        ]);
 
-      const [marketsData, catsData] = await Promise.all([
-        apiFetch(`/api/predictions?${params}`).then(r => r.json()).catch(() => null),
-        apiFetch('/api/predictions/categories').then(r => r.json()).catch(() => null),
-      ]);
+        if (forYouData?.markets) {
+          setMarkets(forYouData.markets);
+          setIsPersonalized(forYouData.personalized || false);
+          setInterests(forYouData.interests || []);
+        }
+        if (catsData?.categories) setCategories(catsData.categories);
+      } else {
+        // Category-based browsing
+        const params = new URLSearchParams({ limit: '30' });
+        if (activeCategory !== 'all') params.set('category', activeCategory);
 
-      if (marketsData?.markets) setMarkets(marketsData.markets);
-      if (catsData?.categories) setCategories(catsData.categories);
+        const [marketsData, catsData] = await Promise.all([
+          apiFetch(`/api/predictions?${params}`).then(r => r.json()).catch(() => null),
+          apiFetch('/api/predictions/categories').then(r => r.json()).catch(() => null),
+        ]);
+
+        if (marketsData?.markets) setMarkets(marketsData.markets);
+        if (catsData?.categories) setCategories(catsData.categories);
+        setIsPersonalized(false);
+        setInterests([]);
+      }
+
       setError(null);
     } catch (err) {
       setError('Failed to load prediction markets');
@@ -76,15 +98,25 @@ export default function PredictionPanel() {
       {/* Header */}
       <div className="pred-header">
         <span className="pred-title">PREDICTIONS</span>
+        {isPersonalized && interests.length > 0 && (
+          <span className="pred-interests">{interests.join(' · ')}</span>
+        )}
         <span className="pred-sources">Kalshi + Polymarket</span>
       </div>
 
       {/* Category filter pills */}
       <div className="pred-categories">
+        {/* For You pill — always first */}
+        <button
+          className={`pred-cat-pill${activeCategory === 'for-you' ? ' pred-cat-pill--active pred-cat-pill--foryou' : ''}`}
+          onClick={() => setActiveCategory('for-you')}
+        >⚡ For You</button>
+
         <button
           className={`pred-cat-pill${activeCategory === 'all' ? ' pred-cat-pill--active' : ''}`}
           onClick={() => setActiveCategory('all')}
         >All</button>
+
         {categories.map(cat => (
           <button
             key={cat.id}
@@ -122,14 +154,20 @@ export default function PredictionPanel() {
 function PredictionCard({ market }) {
   const pct = market.probability != null ? Math.round(market.probability * 100) : null;
   const barColor = pct != null ? probabilityColor(market.probability) : 'var(--color-text-muted)';
+  const reason = market._reason;
 
   return (
     <div className="pred-card">
       <div className="pred-card-top">
         <span className="pred-card-question">{market.title || market.question}</span>
-        <span className="pred-card-source" data-source={market.source}>
-          {market.source === 'kalshi' ? 'K' : 'P'}
-        </span>
+        <div className="pred-card-badges">
+          {reason && reason !== 'trending' && (
+            <span className="pred-card-reason">{reason}</span>
+          )}
+          <span className="pred-card-source" data-source={market.source}>
+            {market.source === 'kalshi' ? 'K' : 'P'}
+          </span>
+        </div>
       </div>
 
       {/* Probability bar */}

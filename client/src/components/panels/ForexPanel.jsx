@@ -51,13 +51,13 @@ function ForexPanel({ data = {}, cryptoData = {}, loading, onTickerClick }) {
 
   // Panel config from settings (with fallback defaults)
   const panelCfg = settings?.panels?.forex || {
-    title: 'FX',
+    title: 'FX RATES / CRYPTO',
     symbols: [...FOREX_PAIRS.map(p => p.symbol), ...CRYPTO_PAIRS.map(c => c.symbol)],
     hiddenSubsections: [],
     customSubsections: [],
     subsectionLabels: {},
   };
-  const panelTitle           = panelCfg.title                || 'FX';
+  const panelTitle           = panelCfg.title                || 'FX RATES / CRYPTO';
   const panelSymbols         = panelCfg.symbols              || [];
   const hiddenSubsections    = panelCfg.hiddenSubsections    || [];
   const customSubsections    = panelCfg.customSubsections    || [];

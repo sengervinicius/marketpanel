@@ -27,11 +27,23 @@
   color: var(--accent, #F97316);
 }
 
+.pred-interests {
+  font-size: 9px;
+  color: var(--text-muted, #666);
+  letter-spacing: 0.03em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
 .pred-sources {
   font-size: 9px;
   color: var(--text-faint, #444);
   letter-spacing: 0.04em;
   margin-left: auto;
+  flex-shrink: 0;
 }
 
 /* ── Category pills ── */
@@ -72,6 +84,12 @@
   color: var(--accent, #F97316);
   border-color: var(--accent, #F97316);
   background: rgba(249, 115, 22, 0.08);
+}
+
+.pred-cat-pill--foryou {
+  color: #f0c040;
+  border-color: #f0c040;
+  background: rgba(240, 192, 64, 0.1);
 }
 
 .pred-cat-count {
@@ -128,6 +146,26 @@
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
+}
+
+.pred-card-badges {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+.pred-card-reason {
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--text-faint, #555);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 2px;
+  padding: 1px 4px;
+  text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .pred-card-source {

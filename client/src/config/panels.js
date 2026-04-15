@@ -69,14 +69,14 @@ export const PANEL_DEFINITIONS = {
   },
   forex: {
     id:             'forex',
-    label:          'FX Markets',
-    defaultTitle:   'FX Markets',
-    defaultSymbols: ['EURUSD','GBPUSD','USDJPY','USDBRL','USDCHF','USDCNY','USDMXN','AUDUSD','USDCAD'],
-    allowedGroups:  ['Majors','BRL Crosses','LatAm','EM'],
+    label:          'FX / Crypto',
+    defaultTitle:   'FX Rates / Crypto',
+    defaultSymbols: ['EURUSD','GBPUSD','USDJPY','USDBRL','USDCHF','USDCNY','USDMXN','AUDUSD','USDCAD','BTCUSD','ETHUSD','SOLUSD','XRPUSD'],
+    allowedGroups:  ['Majors','BRL Crosses','LatAm','EM','Crypto'],
     editable:       true,
     icon:           'FX',
     minSymbols:     1,
-    maxSymbols:     15,
+    maxSymbols:     20,
   },
   crypto: {
     id:             'crypto',
@@ -400,7 +400,7 @@ export function getEditablePanels() {
 export const DEFAULT_LAYOUT = {
   desktopRows: [
     ['charts',       'usEquities',    'globalIndices'],
-    ['forex',        'commodities',   'crypto',  'brazilB3'],
+    ['forex',        'commodities',   'predictions',  'brazilB3'],
     ['debt',         'news',          'optionsFlow',  'watchlist'],
   ],
   mobileTabs: ['home', 'charts', 'watchlist', 'search', 'detail', 'news'],
@@ -413,8 +413,7 @@ export const DEFAULT_LAYOUT = {
 export const DEFAULT_HOME_SECTIONS = [
   { id: 'indexes',    title: 'US Equities',     symbols: ['SPY','QQQ','DIA','AAPL','MSFT','NVDA','TSLA','AMZN'] },
   { id: 'global',     title: 'Global Indexes',   symbols: ['EWZ','EEM','VGK','EWJ','FXI','EFA','IWM'] },
-  { id: 'forex',      title: 'FX Markets',       symbols: ['EURUSD','USDJPY','GBPUSD','USDBRL','USDCNY','USDCHF'] },
-  { id: 'crypto',     title: 'Crypto',           symbols: ['BTCUSD','ETHUSD','SOLUSD','XRPUSD','BNBUSD','DOGEUSD'] },
+  { id: 'forex',      title: 'FX Rates / Crypto', symbols: ['EURUSD','USDJPY','GBPUSD','USDBRL','USDCNY','USDCHF','BTCUSD','ETHUSD','SOLUSD','XRPUSD'] },
   { id: 'commodities',title: 'Commodities',      symbols: ['BZ=F','GLD','SLV','USO','UNG','CORN'] },
   { id: 'brazilB3',   title: 'Brazil B3',        symbols: ['VALE3.SA','PETR4.SA','ITUB4.SA','BBDC4.SA','WEGE3.SA','B3SA3.SA','ABEV3.SA','BBAS3.SA'] },
 ];
