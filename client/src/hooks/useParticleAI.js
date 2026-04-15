@@ -40,14 +40,19 @@ export default function useParticleAI() {
     setError(null);
 
     // Add user message + empty assistant placeholder
-    const userMsg = { role: 'user', content: userMessage.trim() };
+    // Strip [SCREEN CONTEXT] prefix for display — the full message is still sent to the API
+    const trimmed = userMessage.trim();
+    const displayContent = trimmed.replace(/^\[SCREEN CONTEXT\].*?\n\nUser question:\s*/s, '');
+    const userMsg = { role: 'user', content: displayContent };
+    const userMsgForApi = { role: 'user', content: trimmed };
     const assistantMsg = { role: 'assistant', content: '', streaming: true };
 
     setMessages(prev => [...prev, userMsg, assistantMsg]);
     setIsStreaming(true);
 
     // Build conversation history for the API (last 10 messages max)
-    const historyForApi = [...messages, userMsg]
+    // Use userMsgForApi (with screen context) for the current message
+    const historyForApi = [...messages, userMsgForApi]
       .filter(m => m.role === 'user' || m.role === 'assistant')
       .slice(-10)
       .map(m => ({ role: m.role, content: m.content }));

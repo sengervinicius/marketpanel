@@ -234,6 +234,11 @@ function route(intent) {
   return PROVIDERS[providerKey];
 }
 
+/** Get a provider config by its key name (e.g. 'claude_sonnet', 'perplexity_pro'). */
+function getProvider(key) {
+  return PROVIDERS[key] || null;
+}
+
 /**
  * Make an API call to the appropriate provider (without retry).
  * Handles both Perplexity (OpenAI-compatible) and Anthropic (Messages API) formats.
@@ -450,6 +455,7 @@ module.exports = {
   classifyIntent,
   classifyIntentWithHaiku,
   route,
+  getProvider,
   callProvider,
   callProviderImpl,
   callWithRetry,

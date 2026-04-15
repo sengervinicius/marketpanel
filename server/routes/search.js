@@ -1565,12 +1565,23 @@ ${portfolioMetricsContext ? `\n${portfolioMetricsContext}\n` : ''}${vaultContext
   }
   let provider = modelRouter.route(intent);
 
-  // Fallback: if the chosen provider needs an API key we don't have, fall back
+  // Fallback chain: if the chosen provider needs an API key we don't have, try alternatives
   if (!process.env[provider.keyEnv]) {
     console.log(`[Particle/Chat] ${provider.keyEnv} not set, falling back from ${intent}`);
-    provider = modelRouter.route('general'); // perplexity_pro
-    if (!process.env[provider.keyEnv]) {
-      return res.status(503).json({ error: 'No AI provider configured' });
+    // Try each provider in priority order: Claude Sonnet → Perplexity Pro → Perplexity Fast
+    const fallbackOrder = ['claude_sonnet', 'perplexity_pro', 'perplexity_fast', 'claude_haiku'];
+    let found = false;
+    for (const fb of fallbackOrder) {
+      const fbProvider = modelRouter.getProvider(fb);
+      if (fbProvider && process.env[fbProvider.keyEnv]) {
+        provider = fbProvider;
+        found = true;
+        console.log(`[Particle/Chat] Fell back to ${fb} (${fbProvider.model})`);
+        break;
+      }
+    }
+    if (!found) {
+      return res.status(503).json({ error: 'No AI provider configured. Set ANTHROPIC_API_KEY or PERPLEXITY_API_KEY in Render environment.' });
     }
   }
 
