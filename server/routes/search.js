@@ -41,6 +41,60 @@ function sanitizeQuery(q) {
     .trim();
 }
 
+/**
+ * Estimate token count for a string (rough: ~4 chars per token).
+ */
+function estimateTokens(text) {
+  if (!text) return 0;
+  return Math.ceil(text.length / 4);
+}
+
+/**
+ * Apply token budget to context sections.
+ * Truncates lowest-priority sections first until total fits within budget.
+ * Returns an object with the (possibly truncated) sections and truncation log.
+ */
+const TOKEN_BUDGET = 6000;
+function applyTokenBudget(sections) {
+  // Priority order: lowest priority first (removed first when over budget)
+  const priorityOrder = [
+    'behaviorContext',
+    'sessionMemoryContext',
+    'persistentMemoryContext',
+    'unusualWhalesContext',
+    'earningsContext',
+    'edgarContext',
+    'portfolioMetricsContext',
+    'conversationMemoryContext',
+    'newsContext',
+    'vaultContext',
+    'marketContext', // NEVER truncate
+  ];
+
+  const result = { ...sections };
+  const truncated = [];
+  let total = 0;
+  for (const key of Object.keys(result)) {
+    total += estimateTokens(result[key]);
+  }
+
+  if (total <= TOKEN_BUDGET) return { sections: result, truncated, totalTokens: total };
+
+  // Truncate from lowest priority
+  for (const key of priorityOrder) {
+    if (total <= TOKEN_BUDGET) break;
+    if (key === 'marketContext') break; // NEVER truncate market data
+    const tokens = estimateTokens(result[key]);
+    if (tokens > 0) {
+      total -= tokens;
+      result[key] = '';
+      truncated.push({ section: key, tokensSaved: tokens });
+    }
+  }
+
+  return { sections: result, truncated, totalTokens: total };
+}
+
 // Simple in-memory cache: query → { result, exp }
 const _cache = new Map();
 const CACHE_TTL = 60 * 60 * 1000; // 1 hour (increased from 5 minutes)
@@ -1410,8 +1464,16 @@ router.post('/chat', perMinuteLimit, async (req, res) => {
     return res.status(400).json({ error: 'messages[] is required' });
   }
 
-  // Limit conversation history
-  const history = messages.slice(-20);
+  // Limit conversation history and validate
+  const MAX_MSG_CHARS = 3000;
+  const history = messages.slice(-20)
+    // Filter out null/undefined/empty content
+    .filter(m => m && m.role && typeof m.content === 'string' && m.content.trim().length > 0)
+    // Truncate individual messages that are excessively long
+    .map(m => ({
+      ...m,
+      content: m.content.length > MAX_MSG_CHARS ? m.content.slice(0, MAX_MSG_CHARS) + '... [truncated]' : m.content,
+    }));
   const lastMsg = history[history.length - 1];
   if (!lastMsg || lastMsg.role !== 'user' || !lastMsg.content?.trim()) {
     return res.status(400).json({ error: 'Last message must be a user message with content' });
@@ -1506,6 +1568,20 @@ router.post('/chat', perMinuteLimit, async (req, res) => {
   const conversationMemoryContext = orchestratedContext.memory?.conversationMemory || '';
   const completeness = orchestratedContext.completeness || { score: 0, available: [], failed: [] };
 
+  // ── Phase 2: Token budget — truncate lowest-priority sections to fit ────
+  const budgetInput = {
+    marketContext, vaultContext, edgarContext, earningsContext,
+    newsContext, unusualWhalesContext, portfolioMetricsContext,
+    behaviorContext, conversationMemoryContext, persistentMemoryContext,
+    sessionMemoryContext,
+  };
+  const budget = applyTokenBudget(budgetInput);
+  if (budget.truncated.length > 0) {
+    logger.info('chat', 'Token budget truncation', { truncated: budget.truncated, totalTokens: budget.totalTokens });
+  }
+  // Reassign context variables from budget result (some may have been emptied)
+  const ctx_ = budget.sections;
+
   // ── Wave 11: Deep analysis detection ────────────────────────────────────
   let deepAnalysisResult = null;
   try {
@@ -1519,7 +1595,7 @@ router.post('/chat', perMinuteLimit, async (req, res) => {
     // Deep analysis mode: use the specialized prompt with market and vault context appended
     systemPrompt = `${deepAnalysisResult.prompt}
 
-${conversationMemoryContext ? `\n${conversationMemoryContext}\n` : ''}${persistentMemoryContext ? `\n${persistentMemoryContext}\n` : ''}${sessionMemoryContext ? `\n${sessionMemoryContext}\n` : ''}${behaviorContext ? `\n${behaviorContext}\n` : ''}${portfolioMetricsContext ? `\n${portfolioMetricsContext}\n` : ''}${vaultContext || ''}${marketContext ? `\n--- LIVE MARKET DATA ---\n${marketContext}\n--- END MARKET DATA ---\n` : ''}${earningsContext ? `\n--- EARNINGS CALENDAR ---\n${earningsContext}\n--- END EARNINGS CALENDAR ---\n` : ''}${edgarContext ? `\n--- SEC FILINGS ---\n${edgarContext}\n--- END SEC FILINGS ---\n` : ''}${unusualWhalesContext ? `\n--- OPTIONS FLOW & MARKET INTELLIGENCE (Unusual Whales) ---\n${unusualWhalesContext}\n--- END OPTIONS FLOW ---\n` : ''}${newsContext ? `\n--- RECENT NEWS (from real-time web search — PRIORITIZE this for current events) ---\n${newsContext}\n--- END NEWS ---\n` : ''}${context ? `\n--- SCREEN CONTEXT (from client) ---\n${context}\n--- END SCREEN CONTEXT ---\n` : ''}`;
+${ctx_.conversationMemoryContext ? `\n${ctx_.conversationMemoryContext}\n` : ''}${ctx_.persistentMemoryContext ? `\n${ctx_.persistentMemoryContext}\n` : ''}${ctx_.sessionMemoryContext ? `\n${ctx_.sessionMemoryContext}\n` : ''}${ctx_.behaviorContext ? `\n${ctx_.behaviorContext}\n` : ''}${ctx_.portfolioMetricsContext ? `\n${ctx_.portfolioMetricsContext}\n` : ''}${ctx_.vaultContext || ''}${ctx_.marketContext ? `\n--- LIVE MARKET DATA ---\n${ctx_.marketContext}\n--- END MARKET DATA ---\n` : ''}${ctx_.earningsContext ? `\n--- EARNINGS CALENDAR ---\n${ctx_.earningsContext}\n--- END EARNINGS CALENDAR ---\n` : ''}${ctx_.edgarContext ? `\n--- SEC FILINGS ---\n${ctx_.edgarContext}\n--- END SEC FILINGS ---\n` : ''}${ctx_.unusualWhalesContext ? `\n--- OPTIONS FLOW & MARKET INTELLIGENCE (Unusual Whales) ---\n${ctx_.unusualWhalesContext}\n--- END OPTIONS FLOW ---\n` : ''}${ctx_.newsContext ? `\n--- RECENT NEWS (from real-time web search — PRIORITIZE this for current events) ---\n${ctx_.newsContext}\n--- END NEWS ---\n` : ''}${context ? `\n--- SCREEN CONTEXT (from client) ---\n${context}\n--- END SCREEN CONTEXT ---\n` : ''}`;
   } else {
     // Standard Particle prompt — v2 with voice contract + persona card
     systemPrompt = `IDENTITY: You are Particle — the AI engine inside a professional financial terminal. You are a senior macro strategist who has managed risk through the 2008 crisis, COVID crash, and 2022 rate shock. You form strong, data-grounded views and defend them. You speak in terminal shorthand — terse, numeric, opinionated. When you're uncertain, you say so directly, but you never hide behind vague qualifiers. Never say "I" — you are the terminal's voice, not a person.
@@ -1621,9 +1697,9 @@ GOOD: "[sentiment:bear]
 **BOTTOM LINE:** Bearish below **$165** — the delivery miss trend suggests this isn't a one-quarter problem."
 
 --- CONTEXT COMPLETENESS: ${completeness.score}/100 (active: ${completeness.available.join(', ') || 'none'}${completeness.failed.length > 0 ? ` | failed: ${completeness.failed.join(', ')}` : ''}${completeness.skipped?.length > 0 ? ` | skipped: ${completeness.skipped.join(', ')}` : ''}) ---
-${completeness.score < 30 ? 'WARNING: Limited context available. Caveat your response accordingly and suggest the user check specific data sources.\n' : ''}${newsContext ? '\nIMPORTANT: A RECENT NEWS section is available below with real-time web search results. ALWAYS reference and incorporate this news data in your response — it contains the latest market events, M&A activity, and corporate news that you would not otherwise know about.\n' : ''}
-${conversationMemoryContext ? `\n${conversationMemoryContext}\n` : ''}${persistentMemoryContext ? `\n${persistentMemoryContext}\n` : ''}${sessionMemoryContext ? `\n${sessionMemoryContext}\n` : ''}${behaviorContext ? `\n${behaviorContext}\n` : ''}
-${portfolioMetricsContext ? `\n${portfolioMetricsContext}\n` : ''}${vaultContext || ''}${marketContext ? `\n--- LIVE MARKET DATA ---\nThe following data is from the user's LIVE terminal session pulled seconds ago. Treat every number here as ground truth. If a price or % move appears below, cite it verbatim — do not round, do not paraphrase, do not substitute with memorised data. If the user asks about an asset listed here, you MUST lead with these numbers.\n${marketContext}\n--- END MARKET DATA ---\n` : ''}${earningsContext ? `\n--- EARNINGS CALENDAR ---\n${earningsContext}\n--- END EARNINGS CALENDAR ---\n` : ''}${edgarContext ? `\n--- SEC FILINGS ---\n${edgarContext}\n--- END SEC FILINGS ---\n` : ''}${unusualWhalesContext ? `\n--- OPTIONS FLOW & MARKET INTELLIGENCE (Unusual Whales) ---\n${unusualWhalesContext}\n--- END OPTIONS FLOW ---\n` : ''}${newsContext ? `\n--- RECENT NEWS (from real-time web search — PRIORITIZE this for current events) ---\n${newsContext}\n--- END NEWS ---\n` : ''}${context ? `\n--- SCREEN CONTEXT (from client) ---\n${context}\n--- END SCREEN CONTEXT ---\n` : ''}`;
+${completeness.score < 30 ? 'WARNING: Limited context available. Caveat your response accordingly and suggest the user check specific data sources.\n' : ''}${ctx_.newsContext ? '\nIMPORTANT: A RECENT NEWS section is available below with real-time web search results. ALWAYS reference and incorporate this news data in your response — it contains the latest market events, M&A activity, and corporate news that you would not otherwise know about.\n' : ''}
+${ctx_.conversationMemoryContext ? `\n${ctx_.conversationMemoryContext}\n` : ''}${ctx_.persistentMemoryContext ? `\n${ctx_.persistentMemoryContext}\n` : ''}${ctx_.sessionMemoryContext ? `\n${ctx_.sessionMemoryContext}\n` : ''}${ctx_.behaviorContext ? `\n${ctx_.behaviorContext}\n` : ''}
+${ctx_.portfolioMetricsContext ? `\n${ctx_.portfolioMetricsContext}\n` : ''}${ctx_.vaultContext || ''}${ctx_.marketContext ? `\n--- LIVE MARKET DATA ---\nThe following data is from the user's LIVE terminal session pulled seconds ago. Treat every number here as ground truth. If a price or % move appears below, cite it verbatim — do not round, do not paraphrase, do not substitute with memorised data. If the user asks about an asset listed here, you MUST lead with these numbers.\n${ctx_.marketContext}\n--- END MARKET DATA ---\n` : ''}${ctx_.earningsContext ? `\n--- EARNINGS CALENDAR ---\n${ctx_.earningsContext}\n--- END EARNINGS CALENDAR ---\n` : ''}${ctx_.edgarContext ? `\n--- SEC FILINGS ---\n${ctx_.edgarContext}\n--- END SEC FILINGS ---\n` : ''}${ctx_.unusualWhalesContext ? `\n--- OPTIONS FLOW & MARKET INTELLIGENCE (Unusual Whales) ---\n${ctx_.unusualWhalesContext}\n--- END OPTIONS FLOW ---\n` : ''}${ctx_.newsContext ? `\n--- RECENT NEWS (from real-time web search — PRIORITIZE this for current events) ---\n${ctx_.newsContext}\n--- END NEWS ---\n` : ''}${context ? `\n--- SCREEN CONTEXT (from client) ---\n${context}\n--- END SCREEN CONTEXT ---\n` : ''}`;
   }
 
   // ── Route to optimal model via modelRouter (Phase 2: Haiku classifier) ──

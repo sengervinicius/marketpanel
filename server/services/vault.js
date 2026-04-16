@@ -32,7 +32,7 @@ try {
 const CHUNK_SIZE = 1000; // chars per chunk — larger for financial context retention
 const CHUNK_OVERLAP = 150; // overlap between chunks — preserves cross-boundary context
 const MAX_RETRIEVAL = 8; // top candidates before similarity filtering
-const MIN_SIMILARITY = 0.3; // Phase 6: lowered from 0.45 — better to have more candidates for reranking
+const MIN_SIMILARITY = 0.55; // Phase 2 AI: raised from 0.3 — only genuinely relevant passages should surface
 const MIN_PASSAGES_THRESHOLD = 2; // Phase 6: if fewer than this meet threshold, return 0 (avoid confusing context)
 const EMBEDDING_MODEL = 'text-embedding-3-small';
 const VOYAGE_EMBEDDING_DIM = 1024;
@@ -1847,30 +1847,12 @@ async function retrieve(userId, query, limit = MAX_RETRIEVAL) {
     logger.warn('vault', 'BM25 search failed (column may not exist yet)', { error: err.message });
   }
 
-  // ── Stage 1C: Fallback broad search if both vector and BM25 returned nothing ──
+  // ── Stage 1C: No results from vector or BM25 — return empty ──
+  // Phase 2 AI: Removed broad fallback that returned recent docs with fake similarity 0.5.
+  // Returning random unrelated docs caused the AI to hallucinate vault citations.
+  // Better to let the AI work without vault context than to confuse it with irrelevant passages.
   if (rankedLists.length === 0) {
-    logger.warn('vault', 'Both vector and BM25 search returned empty — trying broad fallback');
-    try {
-      // Fallback: get most recent chunks for this user (even without matching)
-      const fallbackResult = await pg.query(
-        `SELECT vc.id, vc.document_id, vc.chunk_index, vc.content, vc.metadata,
-                vd.filename, vd.source, vd.is_global, vd.metadata as doc_metadata,
-                0.5 AS similarity
-         FROM vault_chunks vc
-         JOIN vault_documents vd ON vc.document_id = vd.id
-         WHERE (vc.user_id = $1 OR vd.is_global = TRUE)
-         ORDER BY vd.created_at DESC, vc.chunk_index ASC
-         LIMIT $2`,
-        [userId, limit]
-      );
-      if (fallbackResult.rows?.length > 0) {
-        logger.info('vault', `Broad fallback found ${fallbackResult.rows.length} chunks (most recent docs)`);
-        return fallbackResult.rows;
-      }
-    } catch (fbErr) {
-      logger.warn('vault', 'Broad fallback search failed', { error: fbErr.message });
-    }
-    logger.info('vault', 'No retrieval results from any method (including fallback)');
+    logger.info('vault', 'Both vector and BM25 search returned empty — returning no vault context');
     return [];
   }
 

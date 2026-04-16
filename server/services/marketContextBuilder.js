@@ -412,6 +412,7 @@ async function fetchOnDemandQuotes(tickers) {
       }
     } catch (e) {
       logger.warn(`[MarketContext] On-demand quote failed for ${sym}: ${e.message}`);
+      results[sym] = { price: null, error: true, source: 'on-demand-failed' };
     }
   });
   await Promise.all(promises);
@@ -594,14 +595,21 @@ async function buildContext({ query, userId, intent: forceIntent } = {}) {
       }
     }
 
-    // ── 4. Mentioned ticker details (with on-demand fallback) ─────────────
+    // ── 4. Mentioned ticker details (with on-demand fallback + confidence tags) ──
     if (mentionedTickers.length > 0) {
       const details = mentionedTickers.map(sym => {
-        // Try in-memory state first, then on-demand data
-        const d = _marketState?.stocks?.[sym] || _marketState?.forex?.[sym] || _marketState?.crypto?.[sym] || onDemandData[sym];
+        // Try in-memory state first (WebSocket = live), then on-demand data
+        const wsData = _marketState?.stocks?.[sym] || _marketState?.forex?.[sym] || _marketState?.crypto?.[sym];
+        const odData = onDemandData[sym];
+        const d = wsData || odData;
+        if (d?.error && d.source === 'on-demand-failed') {
+          return `${sym}: ON-DEMAND QUOTE FETCH FAILED — do NOT cite any price or make directional calls for this asset`;
+        }
         if (!d || !d.price) return `${sym}: no live data available`;
+        // Phase 2: Confidence indicator so the AI knows data freshness
+        const confidence = wsData ? '[LIVE – real-time WebSocket]' : (d.source === 'on-demand' ? '[ON-DEMAND – fetched just now]' : '[CACHED]');
         const nameStr = d.name ? ` (${d.name})` : '';
-        let line = `${sym}${nameStr}: ${fmtPrice(d.price)} (${fmtChange(d.changePercent)})`;
+        let line = `${sym}${nameStr} ${confidence}: ${fmtPrice(d.price)} (${fmtChange(d.changePercent)})`;
         if (d.volume) line += ` vol:${(d.volume / 1e6).toFixed(1)}M`;
         if (d.high52w) line += ` 52wH:${fmtPrice(d.high52w)}`;
         if (d.low52w) line += ` 52wL:${fmtPrice(d.low52w)}`;

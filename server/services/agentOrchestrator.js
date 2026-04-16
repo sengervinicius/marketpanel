@@ -22,6 +22,7 @@ const unusualWhales = require('./unusualWhales');
 
 // ── Configuration ──────────────────────────────────────────────────────
 const DEFAULT_TIMEOUT_MS = 5000; // 5 seconds per agent
+const GLOBAL_TIMEOUT_MS = 10000; // Phase 2: hard cap for entire gatherContext() call
 const AGENT_TIMEOUTS = {
   vault: 8000,      // Vault RAG retrieval (Phase 2: extended from 4s for better recall)
   edgar: 3000,      // SEC filings + insider data
@@ -292,9 +293,9 @@ async function gatherContext({
     positionsForCompute = portfolioData;
   }
 
-  // ── Run all agents in parallel with individual timeouts ──────────────────
-  const [vaultResult, edgarResult, earningsResult, memoryResult, computeResult, newsResult, uwResult] =
-    await Promise.allSettled([
+  // ── Run all agents in parallel with individual + global timeout ──────────
+  // Phase 2: Global 10s hard cap prevents stacked agent delays from destroying UX
+  const allAgents = Promise.allSettled([
       // Vault RAG retrieval
       withTimeout(
         vaultAgent(query, userId),
@@ -365,6 +366,17 @@ async function gatherContext({
         return { context: '', ticker: null };
       }),
     ]);
+
+  // Global timeout: if agents collectively take >10s, proceed with what we have
+  const globalTimeoutPromise = new Promise(resolve =>
+    setTimeout(() => {
+      console.warn(`[agentOrchestrator] Global timeout (${GLOBAL_TIMEOUT_MS}ms) — proceeding with partial results`);
+      resolve(Array(7).fill({ status: 'rejected', reason: new Error('Global timeout exceeded') }));
+    }, GLOBAL_TIMEOUT_MS)
+  );
+
+  const [vaultResult, edgarResult, earningsResult, memoryResult, computeResult, newsResult, uwResult] =
+    await Promise.race([allAgents, globalTimeoutPromise]);
 
   // ── Extract results and record timings ────────────────────────────────────
   const results = {
