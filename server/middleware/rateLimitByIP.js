@@ -32,4 +32,32 @@ function rateLimitByIP({ max = 120, windowMs = 60000 } = {}) {
   });
 }
 
-module.exports = { rateLimitByIP };
+/**
+ * Per-minute rate limiter for expensive endpoints (AI chat, vault upload).
+ * Phase 1 Security: 20 requests per 60-second window per IP.
+ * Stacks with any existing daily/per-user limits.
+ */
+const perMinuteLimit = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 20,
+  message: {
+    ok: false,
+    error: 'ratelimit',
+    message: 'Rate limit exceeded. Maximum 20 requests per minute.',
+    retryAfter: 60,
+  },
+  standardHeaders: true,    // Return RateLimit-* headers
+  legacyHeaders: false,
+  handler: (req, res) => {
+    const retryAfter = Math.ceil((req.rateLimit.resetTime - Date.now()) / 1000);
+    res.setHeader('Retry-After', retryAfter);
+    res.status(429).json({
+      ok: false,
+      error: 'ratelimit',
+      message: 'Rate limit exceeded. Maximum 20 requests per minute.',
+      retryAfter,
+    });
+  },
+});
+
+module.exports = { rateLimitByIP, perMinuteLimit };

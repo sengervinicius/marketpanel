@@ -104,11 +104,8 @@ app.use(compression({
   },
 }));
 
-// ── DEBUG: Log ALL vault requests before any middleware can block them ──
-app.use('/api/vault', (req, res, next) => {
-  console.log(`[VAULT-DEBUG] ${req.method} ${req.originalUrl} origin=${req.headers.origin || 'none'} content-type=${req.headers['content-type'] || 'none'} auth=${req.headers.authorization ? 'yes' : 'no'}`);
-  next();
-});
+// Phase 1 Security: Removed VAULT-DEBUG logger that exposed auth header info.
+// Request logging is handled by the structured logger middleware.
 
 // In production, restrict CORS to explicit CLIENT_URL + known deploy origins.
 // Warn loudly if CLIENT_URL is not set, but don't crash the process.
@@ -452,13 +449,23 @@ const clients = new Map();
 const wsRateLimitMap = new Map();
 const WS_RATE_LIMIT_MAX = 5; // max connections per IP per minute
 const WS_RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
+const WS_RATE_LIMIT_MAP_CAP = 10000; // hard cap to prevent memory exhaustion
 
 function checkWSRateLimit(ip) {
   const now = Date.now();
   let entry = wsRateLimitMap.get(ip);
 
   if (!entry || now > entry.resetTime) {
-    // Reset window
+    // Evict expired entries when map grows large (every 100th new entry)
+    if (wsRateLimitMap.size > 500 && wsRateLimitMap.size % 100 === 0) {
+      for (const [key, val] of wsRateLimitMap) {
+        if (now > val.resetTime) wsRateLimitMap.delete(key);
+      }
+    }
+    // Hard cap: if still too large after eviction, reject to prevent DoS
+    if (wsRateLimitMap.size >= WS_RATE_LIMIT_MAP_CAP) {
+      return false;
+    }
     entry = { count: 0, resetTime: now + WS_RATE_LIMIT_WINDOW };
     wsRateLimitMap.set(ip, entry);
   }
@@ -470,11 +477,19 @@ function checkWSRateLimit(ip) {
   return true; // OK
 }
 
+// Periodic cleanup: evict all expired entries every 5 minutes
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, val] of wsRateLimitMap) {
+    if (now > val.resetTime) wsRateLimitMap.delete(key);
+  }
+}, 5 * 60 * 1000).unref();
+
 wss.on('connection', (ws, req) => {
   // ── Rate limit by IP (max 5 connections per minute) ────────────────
   const clientIp = req.headers['x-forwarded-for']?.split(',')[0].trim() || req.socket.remoteAddress || 'unknown';
   if (!checkWSRateLimit(clientIp)) {
-    console.warn(`[WS] Rate limit exceeded for IP: ${clientIp}`);
+    logger.warn('ws', 'Rate limit exceeded', { ip: clientIp });
     ws.close(1008, 'Rate limit exceeded');
     return;
   }
@@ -485,7 +500,7 @@ wss.on('connection', (ws, req) => {
     ? [process.env.CLIENT_URL, 'https://the-particle.com', 'https://senger-client.onrender.com'].filter(Boolean)
     : ['https://the-particle.com', 'https://senger-client.onrender.com', 'http://localhost:5173', 'http://localhost:3000'];
   if (origin && !allowedOrigins.includes(origin)) {
-    console.warn(`[WS] Rejected connection from disallowed origin: ${origin}`);
+    logger.warn('ws', 'Rejected connection from disallowed origin', { origin });
     ws.close(1008, 'Origin not allowed');
     return;
   }
@@ -505,7 +520,7 @@ wss.on('connection', (ws, req) => {
 
   // Log deprecation warning if token came from query param
   if (url.searchParams.get('token') && !cookies['senger_token']) {
-    console.warn('[WS] Deprecated: token in URL query. Use cookie auth. Client should be updated to send senger_token cookie.');
+    logger.warn('ws', 'Deprecated: token in URL query. Client should use cookie auth.');
   }
 
   let userId   = null;
@@ -519,19 +534,19 @@ wss.on('connection', (ws, req) => {
     }
   } catch (err) {
     // Invalid token — close connection
-    console.warn(`[WS] Invalid token rejected: ${err.message}`);
+    logger.warn('ws', 'Invalid token rejected', { reason: err.message });
     ws.close(4001, 'Invalid token');
     return;
   }
 
   if (!userId) {
-    console.warn('[WS] Connection rejected: no token provided');
+    logger.warn('ws', 'Connection rejected: no token provided');
     ws.close(4001, 'Authentication required');
     return;
   }
 
   clients.set(ws, { userId, username });
-  console.log(`[WS] Client connected (user: ${username}). Total: ${clients.size}`);
+  logger.info('ws', 'Client connected', { userId, total: clients.size });
 
   // Track online presence
   chatStore.setOnline(userId);
@@ -661,12 +676,12 @@ wss.on('connection', (ws, req) => {
       }
     }
     clients.delete(ws);
-    console.log(`[WS] Client disconnected. Total: ${clients.size}`);
+    logger.info('ws', 'Client disconnected', { userId, total: clients.size });
   });
 
   ws.on('error', (err) => {
     clearInterval(msgResetInterval);
-    console.error('[WS] Client error:', err.message);
+    logger.error('ws', 'Client error', { error: err.message });
     chatStore.setOffline(userId);
     // Check if user has no more connections before broadcasting offline
     if (!chatStore.isOnline(userId)) {

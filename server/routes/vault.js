@@ -19,11 +19,14 @@
  */
 const express = require('express');
 const multer = require('multer');
+const fs = require('fs');
+const path = require('path');
 const vault = require('../services/vault');
 const logger = require('../utils/logger');
 const { requireAuth, requireAdmin } = require('../authMiddleware');
 const { getTier, isUnlimited } = require('../config/tiers');
 const { rateLimitByUser } = require('../middleware/rateLimitByUser');
+const { perMinuteLimit } = require('../middleware/rateLimitByIP');
 
 const pg = require('../db/postgres');
 
@@ -33,7 +36,7 @@ const router = express.Router();
  * GET /health — Vault health check (no auth required for basic status).
  * Returns database connection status and capabilities.
  */
-router.get('/health', async (req, res) => {
+router.get('/health', requireAuth, async (req, res) => {
   const diag = pg.getDiagnostics();
 
   // Check pgvector availability + embedding column type
@@ -79,8 +82,12 @@ router.get('/health', async (req, res) => {
   res.status(healthy ? 200 : 503).json({ ok: healthy, ...status });
 });
 
-// Multer for document upload (10MB limit)
-// Supports: PDF, DOCX, CSV, TSV, TXT, MD, PNG, JPG, JPEG, TIFF
+// ── Multer configuration: diskStorage + 10MB limit ──────────────────
+// Phase 1 Security: Replaced memoryStorage with diskStorage to prevent
+// DoS via large file uploads consuming server RAM.
+const UPLOAD_DIR = path.join(require('os').tmpdir(), 'particle-uploads');
+try { fs.mkdirSync(UPLOAD_DIR, { recursive: true }); } catch {}
+
 const ACCEPTED_MIMETYPES = [
   'application/pdf',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
@@ -92,13 +99,22 @@ const ACCEPTED_MIMETYPES = [
   'image/jpeg',
   'image/tiff',
 ];
+const ACCEPTED_EXTENSIONS = ['pdf', 'docx', 'csv', 'tsv', 'txt', 'md', 'markdown', 'png', 'jpg', 'jpeg', 'tiff', 'tif'];
 
 const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 },
+  storage: multer.diskStorage({
+    destination: UPLOAD_DIR,
+    filename: (req, file, cb) => {
+      // Unique filename to prevent collisions: timestamp-random-originalname
+      const unique = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const safeName = (file.originalname || 'upload').replace(/[^a-zA-Z0-9._-]/g, '_');
+      cb(null, `${unique}-${safeName}`);
+    },
+  }),
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB hard cap
   fileFilter: (req, file, cb) => {
     const ext = (file.originalname || '').toLowerCase().split('.').pop() || '';
-    const isAcceptedExt = ['pdf', 'docx', 'csv', 'tsv', 'txt', 'md', 'markdown', 'png', 'jpg', 'jpeg', 'tiff', 'tif'].includes(ext);
+    const isAcceptedExt = ACCEPTED_EXTENSIONS.includes(ext);
     const isAcceptedMime = ACCEPTED_MIMETYPES.includes(file.mimetype);
 
     if (isAcceptedExt || isAcceptedMime) {
@@ -109,13 +125,108 @@ const upload = multer({
   },
 });
 
+// ── MIME magic-byte validation ──────────────────────────────────────
+// Phase 1 Security: After multer writes to disk, validate magic bytes
+// match the claimed file type. Rejects disguised executables.
+const FileType = require('file-type');
+
+// Map detected MIME types to our accepted set
+const MAGIC_BYTE_ALLOWED = new Set([
+  'application/pdf',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'image/png',
+  'image/jpeg',
+  'image/tiff',
+  // Note: text files (csv, txt, md, tsv) have no magic bytes — they pass through
+]);
+
+/**
+ * Middleware: validate uploaded file's magic bytes match its claimed type.
+ * Reads from disk (diskStorage), validates, then loads buffer onto req.file.buffer
+ * for downstream compatibility. Deletes temp file on rejection.
+ */
+async function validateAndLoadFile(req, res, next) {
+  if (!req.file || !req.file.path) return next();
+
+  const filePath = req.file.path;
+  try {
+    // Read file from disk into buffer
+    const buffer = fs.readFileSync(filePath);
+
+    // Magic-byte detection
+    const detected = await FileType.fromBuffer(buffer);
+    const ext = (req.file.originalname || '').toLowerCase().split('.').pop() || '';
+    const isTextType = ['csv', 'tsv', 'txt', 'md', 'markdown'].includes(ext);
+
+    if (detected) {
+      // Binary file detected — check if it's in our allowed set
+      if (!MAGIC_BYTE_ALLOWED.has(detected.mime)) {
+        // Reject: magic bytes don't match any allowed binary type
+        fs.unlink(filePath, () => {}); // clean up temp file
+        return res.status(415).json({
+          error: 'File type rejected',
+          message: `File magic bytes indicate ${detected.mime}, which is not allowed. Accepted binary types: PDF, DOCX, PNG, JPG, TIFF.`,
+        });
+      }
+      // Verify consistency: if user claims PDF but magic says PNG, reject
+      const claimedMime = req.file.mimetype;
+      if (claimedMime && MAGIC_BYTE_ALLOWED.has(claimedMime) && claimedMime !== detected.mime) {
+        // Special case: application/octet-stream is generic — allow it
+        if (claimedMime !== 'application/octet-stream') {
+          fs.unlink(filePath, () => {});
+          return res.status(415).json({
+            error: 'File type mismatch',
+            message: `Claimed type ${claimedMime} but file content is ${detected.mime}.`,
+          });
+        }
+      }
+    } else if (!isTextType) {
+      // No magic bytes detected and not a text extension — suspicious
+      // Allow it but log a warning (could be an empty file or unknown text format)
+      logger.warn('vault-route', 'No magic bytes detected for non-text upload', {
+        filename: req.file.originalname,
+        ext,
+        size: buffer.length,
+      });
+    }
+
+    // Attach buffer for downstream compatibility (vault.ingestFile expects buffer)
+    req.file.buffer = buffer;
+    next();
+  } catch (err) {
+    // Clean up temp file on any error
+    fs.unlink(filePath, () => {});
+    logger.error('vault-route', 'File validation error', { error: err.message });
+    return res.status(500).json({ error: 'File validation failed', message: err.message });
+  }
+}
+
+/**
+ * Cleanup middleware: delete temp file after request completes.
+ * Runs as a response finish hook so the file is cleaned up
+ * regardless of success or error.
+ */
+function cleanupTempFile(req, res, next) {
+  if (req.file && req.file.path) {
+    const filePath = req.file.path;
+    res.on('finish', () => {
+      fs.unlink(filePath, (err) => {
+        if (err && err.code !== 'ENOENT') {
+          logger.warn('vault-route', 'Failed to clean up temp file', { path: filePath, error: err.message });
+        }
+      });
+    });
+  }
+  next();
+}
+
 /**
  * POST /upload — Upload and ingest a document into the vault.
  * Supports: PDF, DOCX, CSV, TSV, TXT, MD
  * Enforces per-tier document limits before allowing the upload.
  * Rate limited to 10 uploads per minute per user.
  */
-router.post('/upload', rateLimitByUser({ key: 'vault-upload', windowSec: 60, max: 10 }), upload.single('file'), async (req, res) => {
+router.post('/upload', perMinuteLimit, rateLimitByUser({ key: 'vault-upload', windowSec: 60, max: 10 }), upload.single('file'), validateAndLoadFile, cleanupTempFile, async (req, res) => {
   logger.info('vault-route', 'Upload request received', {
     userId: req.user?.id,
     hasFile: !!req.file,
@@ -186,7 +297,7 @@ router.post('/upload', rateLimitByUser({ key: 'vault-upload', windowSec: 60, max
  * Phase 3: Sends progress updates during ingestion:
  *   "Extracting text..." → "Chunking (34 passages)..." → "Generating embeddings..." → "Ready to chat"
  */
-router.post('/upload-stream', rateLimitByUser({ key: 'vault-upload', windowSec: 60, max: 10 }), upload.single('file'), async (req, res) => {
+router.post('/upload-stream', perMinuteLimit, rateLimitByUser({ key: 'vault-upload', windowSec: 60, max: 10 }), upload.single('file'), validateAndLoadFile, cleanupTempFile, async (req, res) => {
   // Set SSE headers
   res.writeHead(200, {
     'Content-Type': 'text/event-stream',
@@ -256,7 +367,7 @@ router.post('/upload-stream', rateLimitByUser({ key: 'vault-upload', windowSec: 
  * Accepts optional 'docType' field to override auto-detection.
  * Rate limited: 10 uploads per minute per user.
  */
-router.post('/upload-async', rateLimitByUser({ key: 'vault-upload', windowSec: 60, max: 10 }), upload.single('file'), async (req, res) => {
+router.post('/upload-async', perMinuteLimit, rateLimitByUser({ key: 'vault-upload', windowSec: 60, max: 10 }), upload.single('file'), validateAndLoadFile, cleanupTempFile, async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No file provided' });
@@ -570,7 +681,7 @@ router.get('/sector-insights', requireAuth, async (req, res) => {
  * Requires admin role.
  * Rate limited to 10 uploads per minute per admin user.
  */
-router.post('/admin/upload', requireAdmin, rateLimitByUser({ key: 'vault-upload-admin', windowSec: 60, max: 10 }), upload.single('file'), async (req, res) => {
+router.post('/admin/upload', requireAdmin, perMinuteLimit, rateLimitByUser({ key: 'vault-upload-admin', windowSec: 60, max: 10 }), upload.single('file'), validateAndLoadFile, cleanupTempFile, async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No file provided' });

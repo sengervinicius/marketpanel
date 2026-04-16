@@ -13,12 +13,33 @@ const express = require('express');
 const fetch   = require('node-fetch');
 const router  = express.Router();
 
+const { perMinuteLimit } = require('../middleware/rateLimitByIP');
+const logger = require('../utils/logger');
 const memoryManager = require('../services/memoryManager');
 const conversationMemory = require('../services/conversationMemory');
 
 const PERPLEXITY_URL = 'https://api.perplexity.ai/chat/completions';
 const MODEL          = 'sonar-pro';
 const TIMEOUT_MS     = 15000;
+
+/**
+ * Sanitize user queries to strip prompt-injection delimiters.
+ * Removes common LLM instruction markers that could trick the model
+ * into treating user input as system/assistant instructions.
+ */
+function sanitizeQuery(q) {
+  if (!q || typeof q !== 'string') return q;
+  return q
+    // Strip XML-style instruction tags
+    .replace(/<\|?(system|assistant|user|instruction|endoftext|im_start|im_end)\|?>/gi, '')
+    // Strip markdown-style section delimiters used in prompts
+    .replace(/^###\s*(System|Assistant|Instruction|User)\s*:?\s*/gim, '')
+    // Strip [INST] [/INST] <<SYS>> <</SYS>> markers
+    .replace(/\[\/?(INST|SYS)\]|<<\/?SYS>>/gi, '')
+    // Collapse excess whitespace left behind
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
 
 // Simple in-memory cache: query → { result, exp }
 const _cache = new Map();
@@ -1382,7 +1403,7 @@ function chatCacheSet(key, value) {
   _chatCache.set(key, { value, exp: Date.now() + CHAT_CACHE_TTL });
 }
 
-router.post('/chat', async (req, res) => {
+router.post('/chat', perMinuteLimit, async (req, res) => {
   // API key check moved to modelRouter fallback logic below
   const { messages, context } = req.body;
   if (!messages || !Array.isArray(messages) || messages.length === 0) {
@@ -1398,7 +1419,7 @@ router.post('/chat', async (req, res) => {
 
   // ── Wave 6: Build rich market context ──────────────────────────────────
   const userId = req.user?.id || null;
-  const userQuery = lastMsg.content.trim();
+  const userQuery = sanitizeQuery(lastMsg.content.trim());
   let marketContext = '';
   let queryIntent = 'general';
 
@@ -1623,7 +1644,7 @@ ${portfolioMetricsContext ? `\n${portfolioMetricsContext}\n` : ''}${vaultContext
 
   // Fallback chain: if the chosen provider needs an API key we don't have, try alternatives
   if (!process.env[provider.keyEnv]) {
-    console.log(`[Particle/Chat] ${provider.keyEnv} not set, falling back from ${intent}`);
+    logger.warn('chat', 'Primary provider unavailable, attempting fallback', { intent });
     // Try each provider in priority order: Claude Sonnet → Perplexity Pro → Perplexity Fast
     const fallbackOrder = ['claude_sonnet', 'perplexity_pro', 'perplexity_fast', 'claude_haiku'];
     let found = false;
@@ -1632,7 +1653,7 @@ ${portfolioMetricsContext ? `\n${portfolioMetricsContext}\n` : ''}${vaultContext
       if (fbProvider && process.env[fbProvider.keyEnv]) {
         provider = fbProvider;
         found = true;
-        console.log(`[Particle/Chat] Fell back to ${fb} (${fbProvider.model})`);
+        logger.info('chat', 'Fell back to alternative provider', { provider: fb });
         break;
       }
     }
@@ -1641,9 +1662,9 @@ ${portfolioMetricsContext ? `\n${portfolioMetricsContext}\n` : ''}${vaultContext
     }
   }
 
-  console.log(`[Particle/Chat] Intent: ${intent} → ${provider.model}${contextRequired ? ' [ctx-required]' : ''}${behaviorContext ? ' [personalized]' : ''}`);
+  logger.info('chat', 'Routing intent', { intent, model: provider.model, contextRequired, personalized: !!behaviorContext });
   if (process.env.NODE_ENV !== 'production') {
-    console.log(`[Particle/Debug] Model: ${provider.model} | Market ctx: ${marketContext.length} chars | Vault passages: ${vaultSources.length} | EDGAR: ${edgarContext.length > 0 ? 'yes' : 'no'} | Earnings: ${earningsContext.length > 0 ? 'yes' : 'no'} | Options: ${unusualWhalesContext.length > 0 ? 'yes' : 'no'} | News: ${newsContext.length > 0 ? 'yes' : 'no'} | Completeness: ${completeness.score}/100`);
+    logger.info('chat', 'Context summary', { model: provider.model, marketCtxLen: marketContext.length, vaultPassages: vaultSources.length, hasEdgar: edgarContext.length > 0, hasEarnings: earningsContext.length > 0, hasOptions: unusualWhalesContext.length > 0, hasNews: newsContext.length > 0, completeness: completeness.score });
   }
 
   // Prepare messages for router

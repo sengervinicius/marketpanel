@@ -12,6 +12,7 @@
 const express = require('express');
 const router = express.Router();
 const { getUserById, updateUser } = require('../authStore');
+const logger = require('../utils/logger');
 
 const CLIENT_ID     = process.env.DISCORD_CLIENT_ID;
 const CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET;
@@ -83,7 +84,7 @@ router.get('/callback', async (req, res) => {
 
     if (!tokenRes.ok) {
       const err = await tokenRes.text();
-      console.error('[Discord] Token exchange failed:', err);
+      logger.error('discord', 'Token exchange failed', { status: tokenRes.status });
       return res.status(400).json({ error: 'Discord token exchange failed' });
     }
 
@@ -111,7 +112,7 @@ router.get('/callback', async (req, res) => {
           body: JSON.stringify({ access_token: accessToken }),
         });
       } catch (e) {
-        console.error('[Discord] Guild join failed:', e.message);
+        logger.warn('discord', 'Guild join failed', { error: e.message });
         // Non-fatal — user is still linked
       }
     }
@@ -134,7 +135,7 @@ router.get('/callback', async (req, res) => {
     const clientBase = process.env.CLIENT_URL || '/';
     res.redirect(`${clientBase}?discord=linked`);
   } catch (e) {
-    console.error('[Discord] Callback error:', e);
+    logger.error('discord', 'Callback error', { error: e.message });
     res.status(500).json({ error: 'Internal error during Discord linking' });
   }
 });
