@@ -217,7 +217,9 @@ function connectTwelveData(marketState, broadcast) {
       marketState.feedMeta.twelvedata.reconnects++;
       try { broadcast({ type: 'status', feed: 'twelvedata', level: 'degraded', message: 'Twelve Data WS reconnecting...' }); } catch (e) { logger.warn('[TwelveData WS] Broadcast error:', e.message); }
 
-      setTimeout(connect, reconnectDelay);
+      // Phase 5: Jittered backoff to avoid thundering herd
+      const jitter = Math.random() * reconnectDelay * 0.3;
+      setTimeout(connect, Math.round(reconnectDelay + jitter));
       reconnectDelay = Math.min(reconnectDelay * 1.5, MAX_RECONNECT_DELAY_MS);
     });
 

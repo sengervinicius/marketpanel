@@ -243,6 +243,22 @@ app.get('/health', async (req, res) => {
   let wsClients = 0;
   try { wsClients = wss?.clients?.size || 0; } catch {}
 
+  // Phase 5: Per-feed health summary
+  let feeds = {};
+  try {
+    const feedNames = ['stocks', 'forex', 'crypto', 'twelvedata'];
+    for (const f of feedNames) {
+      const meta = marketState?.feedMeta?.[f];
+      if (meta) {
+        feeds[f] = {
+          lastTickAgeMs: meta.lastTickAt ? Date.now() - meta.lastTickAt : null,
+          reconnects: meta.reconnects || 0,
+          lastError: meta.lastError || null,
+        };
+      }
+    }
+  } catch {}
+
   const overall = dbConnected ? 'ok' : 'degraded';
   res.json({
     status: overall,
@@ -250,6 +266,7 @@ app.get('/health', async (req, res) => {
     dbConnected,
     marketDataAgeMs: marketDataAge,
     wsClients,
+    feeds,
     timestamp: new Date().toISOString(),
   });
 });

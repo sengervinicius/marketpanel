@@ -356,6 +356,29 @@ function fmtList(items, transform) {
   return items.map(transform).join(', ');
 }
 
+// ── Phase 5: On-demand quote cache (60s TTL) ───────────────────────────────
+const _quoteCache = new Map(); // key: symbol, value: { data, fetchedAt }
+const QUOTE_CACHE_TTL_MS = 60 * 1000; // 60 seconds
+
+function getCachedQuote(sym) {
+  const entry = _quoteCache.get(sym);
+  if (!entry) return null;
+  if (Date.now() - entry.fetchedAt > QUOTE_CACHE_TTL_MS) {
+    _quoteCache.delete(sym);
+    return null;
+  }
+  return entry.data;
+}
+
+function setCachedQuote(sym, data) {
+  _quoteCache.set(sym, { data, fetchedAt: Date.now() });
+  // Prevent unbounded growth — evict oldest if over 200 entries
+  if (_quoteCache.size > 200) {
+    const firstKey = _quoteCache.keys().next().value;
+    _quoteCache.delete(firstKey);
+  }
+}
+
 // ── On-demand ticker lookup (for tickers not in _marketState) ───────────────
 
 /**
@@ -390,13 +413,22 @@ async function resolveCompanyToTicker(companyName) {
 async function fetchOnDemandQuotes(tickers) {
   if (!_twelveData?.getQuote || !tickers.length) return {};
   const results = {};
-  // Fetch in parallel, max 5 tickers to avoid rate limits
-  const toFetch = tickers.slice(0, 5);
-  const promises = toFetch.map(async (sym) => {
+  // Phase 5: Check cache first, only fetch uncached tickers
+  const uncached = [];
+  for (const sym of tickers.slice(0, 5)) {
+    const cached = getCachedQuote(sym);
+    if (cached) {
+      results[sym] = cached;
+    } else {
+      uncached.push(sym);
+    }
+  }
+  // Fetch uncached in parallel
+  const promises = uncached.map(async (sym) => {
     try {
       const quote = await _twelveData.getQuote(sym);
       if (quote && quote.price) {
-        results[sym] = {
+        const data = {
           price: quote.price,
           changePercent: quote.changePct || 0,
           volume: quote.volume || 0,
@@ -409,6 +441,8 @@ async function fetchOnDemandQuotes(tickers) {
           prevClose: quote.prevClose,
           source: 'on-demand',
         };
+        results[sym] = data;
+        setCachedQuote(sym, data);
       }
     } catch (e) {
       logger.warn(`[MarketContext] On-demand quote failed for ${sym}: ${e.message}`);
@@ -543,16 +577,20 @@ async function buildContext({ query, userId, intent: forceIntent } = {}) {
     } catch { /* non-critical */ }
   }
 
-  // ── On-demand: fetch quotes for tickers not in _marketState ─────────────
+  // ── On-demand: fetch quotes for tickers missing OR stale in _marketState ──
+  const ON_DEMAND_STALE_MS = 5 * 60 * 1000; // 5 minutes
   let onDemandData = {};
   if (mentionedTickers.length > 0) {
-    const missing = mentionedTickers.filter(sym => {
+    const needsFetch = mentionedTickers.filter(sym => {
       const d = _marketState?.stocks?.[sym] || _marketState?.forex?.[sym] || _marketState?.crypto?.[sym];
-      return !d || !d.price;
+      if (!d || !d.price) return true; // missing entirely
+      // Phase 5: Also refetch if data is stale (>5 min since last update)
+      const age = d.updatedAt ? Date.now() - d.updatedAt : null;
+      return age != null && age > ON_DEMAND_STALE_MS;
     });
-    if (missing.length > 0) {
+    if (needsFetch.length > 0) {
       try {
-        onDemandData = await fetchOnDemandQuotes(missing);
+        onDemandData = await fetchOnDemandQuotes(needsFetch);
       } catch { /* non-critical */ }
     }
   }
@@ -595,7 +633,8 @@ async function buildContext({ query, userId, intent: forceIntent } = {}) {
       }
     }
 
-    // ── 4. Mentioned ticker details (with on-demand fallback + confidence tags) ──
+    // ── 4. Mentioned ticker details (with on-demand fallback + confidence tags + staleness) ──
+    const STALE_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
     if (mentionedTickers.length > 0) {
       const details = mentionedTickers.map(sym => {
         // Try in-memory state first (WebSocket = live), then on-demand data
@@ -606,8 +645,21 @@ async function buildContext({ query, userId, intent: forceIntent } = {}) {
           return `${sym}: ON-DEMAND QUOTE FETCH FAILED — do NOT cite any price or make directional calls for this asset`;
         }
         if (!d || !d.price) return `${sym}: no live data available`;
-        // Phase 2: Confidence indicator so the AI knows data freshness
-        const confidence = wsData ? '[LIVE – real-time WebSocket]' : (d.source === 'on-demand' ? '[ON-DEMAND – fetched just now]' : '[CACHED]');
+        // Phase 5: Per-ticker staleness detection based on updatedAt timestamp
+        const updatedAt = d.updatedAt || d.timestamp;
+        const ageMs = updatedAt ? Date.now() - updatedAt : null;
+        const isTickerStale = ageMs != null && ageMs > STALE_THRESHOLD_MS;
+        let confidence;
+        if (isTickerStale) {
+          const ageMins = Math.round(ageMs / 60000);
+          confidence = `[STALE – ${ageMins}min old, may not reflect current price]`;
+        } else if (wsData) {
+          confidence = '[LIVE – real-time WebSocket]';
+        } else if (d.source === 'on-demand') {
+          confidence = '[ON-DEMAND – fetched just now]';
+        } else {
+          confidence = '[CACHED]';
+        }
         const nameStr = d.name ? ` (${d.name})` : '';
         let line = `${sym}${nameStr} ${confidence}: ${fmtPrice(d.price)} (${fmtChange(d.changePercent)})`;
         if (d.volume) line += ` vol:${(d.volume / 1e6).toFixed(1)}M`;

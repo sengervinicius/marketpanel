@@ -231,7 +231,10 @@ function connectFeed(feedName, wsUrl, marketState, broadcast) {
         marketState.feedMeta[feedName].lastStatusAt = Date.now();
         marketState.feedMeta[feedName].lastError = `Closed with code ${code}`;
       }
-      setTimeout(connect, reconnectDelay);
+      // Phase 5: Jittered backoff to avoid thundering herd on reconnect
+      const jitter = Math.random() * reconnectDelay * 0.3; // up to 30% jitter
+      const delayWithJitter = Math.round(reconnectDelay + jitter);
+      setTimeout(connect, delayWithJitter);
       reconnectDelay = Math.min(reconnectDelay * 2, 30000);
     });
 
