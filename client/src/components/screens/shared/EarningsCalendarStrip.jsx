@@ -13,71 +13,41 @@ function formatDate(dateStr) {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-function EarningsRow({ event, accentColor }) {
-  // Handle field name variations from TwelveData API
+/** Compact earnings chip — "LMT · Earnings · Apr 22" */
+function EarningsChip({ event, accentColor }) {
   const ticker = event.ticker || event.symbol || '?';
   const date = event.date || event.earnings_date || event.reportDate || null;
-  const estimate = event.estimate ?? event.estimated_eps ?? event.eps_estimate ?? null;
-  const actual = event.actual ?? event.actual_eps ?? event.eps_actual ?? null;
-
-  const beatMiss = actual != null && estimate != null
-    ? actual > estimate ? 'BEAT' : actual < estimate ? 'MISS' : '—'
-    : '—';
-
-  const beatMissColor = beatMiss === 'BEAT' ? 'var(--up)' : beatMiss === 'MISS' ? 'var(--down)' : 'var(--text-muted)';
+  const eventType = event.event_type || 'Earnings';
 
   return (
-    <tr>
-      <td className="ds-ticker-col" style={{
-        padding: '4px 8px',
-        fontSize: 11,
+    <span style={{
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 0,
+      padding: '5px 10px',
+      background: 'rgba(255,255,255,0.05)',
+      border: '1px solid rgba(255,255,255,0.08)',
+      borderRadius: 4,
+      fontSize: 10,
+      whiteSpace: 'nowrap',
+      lineHeight: 1,
+      flexShrink: 0,
+    }}>
+      <span style={{
         fontWeight: 700,
-        color: accentColor || 'var(--accent)',
+        color: accentColor || 'var(--text-primary)',
         fontFamily: 'var(--font-mono, monospace)',
-        whiteSpace: 'nowrap',
+        letterSpacing: '0.3px',
       }}>
         {ticker}
-      </td>
-      <td style={{
-        padding: '4px 8px',
-        fontSize: 10,
-        color: 'var(--text-muted)',
-        whiteSpace: 'nowrap',
-      }}>
+      </span>
+      <span style={{ color: 'var(--text-faint)', margin: '0 5px' }}>&middot;</span>
+      <span style={{ color: 'var(--text-muted)' }}>{eventType}</span>
+      <span style={{ color: 'var(--text-faint)', margin: '0 5px' }}>&middot;</span>
+      <span style={{ color: 'var(--text-secondary)', fontFamily: 'var(--font-mono, monospace)' }}>
         {formatDate(date)}
-      </td>
-      <td style={{
-        padding: '4px 8px',
-        fontSize: 10,
-        color: 'var(--text-secondary)',
-        fontFamily: 'var(--font-mono, monospace)',
-        textAlign: 'right',
-        whiteSpace: 'nowrap',
-      }}>
-        {estimate != null ? `${parseFloat(estimate).toFixed(2)}` : '—'}
-      </td>
-      <td style={{
-        padding: '4px 8px',
-        fontSize: 10,
-        color: actual != null ? 'var(--text-primary)' : 'var(--text-muted)',
-        fontFamily: 'var(--font-mono, monospace)',
-        textAlign: 'right',
-        whiteSpace: 'nowrap',
-      }}>
-        {actual != null ? `${parseFloat(actual).toFixed(2)}` : '—'}
-      </td>
-      <td style={{
-        padding: '4px 8px',
-        fontSize: 9,
-        color: beatMissColor,
-        fontWeight: 600,
-        textAlign: 'center',
-        whiteSpace: 'nowrap',
-        letterSpacing: 0.3,
-      }}>
-        {beatMiss}
-      </td>
-    </tr>
+      </span>
+    </span>
   );
 }
 
@@ -142,21 +112,20 @@ export const EarningsCalendarStrip = memo(function EarningsCalendarStrip({
     <div style={{ padding: '4px' }}>
       <div style={{
         fontSize: 9,
-        color: accentColor || 'var(--text-muted)',
+        color: 'var(--color-table-header, var(--text-muted))',
         marginBottom: 8,
         textTransform: 'uppercase',
         letterSpacing: 1,
-        fontWeight: 700,
+        fontWeight: 500,
       }}>
-        EARNINGS CALENDAR
+        UPCOMING EARNINGS
       </div>
 
       {loading ? (
         <div style={{
-          height: 100,
+          height: 32,
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'center',
           color: 'var(--text-faint)',
           fontSize: 10,
         }}>
@@ -164,94 +133,29 @@ export const EarningsCalendarStrip = memo(function EarningsCalendarStrip({
         </div>
       ) : events.length === 0 ? (
         <div style={{
-          height: 60,
+          height: 32,
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'center',
           color: 'var(--text-muted)',
           fontSize: 10,
         }}>
           No upcoming earnings found
         </div>
       ) : (
-        <div style={{ overflowX: 'auto' }}>
-          <table className="ds-table" style={{
-            borderCollapse: 'collapse',
-            fontSize: 11,
-            width: '100%',
-          }}>
-            <thead>
-              <tr>
-                <th style={{
-                  padding: '4px 8px',
-                  color: 'var(--text-faint)',
-                  fontSize: 8,
-                  fontWeight: 700,
-                  textAlign: 'left',
-                  textTransform: 'uppercase',
-                  letterSpacing: 0.3,
-                  borderBottom: `1px solid var(--border-default)`,
-                }}>
-                  Ticker
-                </th>
-                <th style={{
-                  padding: '4px 8px',
-                  color: 'var(--text-faint)',
-                  fontSize: 8,
-                  fontWeight: 700,
-                  textAlign: 'left',
-                  textTransform: 'uppercase',
-                  letterSpacing: 0.3,
-                  borderBottom: `1px solid var(--border-default)`,
-                }}>
-                  Date
-                </th>
-                <th style={{
-                  padding: '4px 8px',
-                  color: 'var(--text-faint)',
-                  fontSize: 8,
-                  fontWeight: 700,
-                  textAlign: 'right',
-                  textTransform: 'uppercase',
-                  letterSpacing: 0.3,
-                  borderBottom: `1px solid var(--border-default)`,
-                }}>
-                  Est. EPS
-                </th>
-                <th style={{
-                  padding: '4px 8px',
-                  color: 'var(--text-faint)',
-                  fontSize: 8,
-                  fontWeight: 700,
-                  textAlign: 'right',
-                  textTransform: 'uppercase',
-                  letterSpacing: 0.3,
-                  borderBottom: `1px solid var(--border-default)`,
-                }}>
-                  Actual EPS
-                </th>
-                <th style={{
-                  padding: '4px 8px',
-                  color: 'var(--text-faint)',
-                  fontSize: 8,
-                  fontWeight: 700,
-                  textAlign: 'center',
-                  textTransform: 'uppercase',
-                  letterSpacing: 0.3,
-                  borderBottom: `1px solid var(--border-default)`,
-                }}>
-                  Result
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {events.map(event => (
-                <tr key={`${event.ticker}-${event.date}`}>
-                  <EarningsRow event={event} accentColor={accentColor} />
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div style={{
+          display: 'flex',
+          gap: 6,
+          overflowX: 'auto',
+          paddingBottom: 4,
+          scrollbarWidth: 'thin',
+        }}>
+          {events.map(event => (
+            <EarningsChip
+              key={`${event.ticker || event.symbol}-${event.date}`}
+              event={event}
+              accentColor={accentColor}
+            />
+          ))}
         </div>
       )}
     </div>
