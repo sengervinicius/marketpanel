@@ -361,6 +361,26 @@ function CommoditiesScreenImpl() {
 
   const sections = useMemo(() => [
     {
+      id: 'kpi',
+      title: 'KEY METRICS',
+      span: 'full',
+      component: CommodityKPIRibbon,
+    },
+    {
+      id: 'fundamentals',
+      title: 'Constituents',
+      span: 'full',
+      component: () => (
+        <FundamentalsTable
+          tickers={ALL_PRODUCERS}
+          metrics={['pe', 'marketCap', 'ebitda', 'profitMargins', 'returnOnEquity', 'beta']}
+          title="Constituents"
+          onTickerClick={() => {}}
+          statsMap={statsMap}
+        />
+      ),
+    },
+    {
       id: 'energy-futures',
       title: 'Energy Futures',
       component: EnergyFuturesSection,
@@ -417,17 +437,6 @@ function CommoditiesScreenImpl() {
         etfLabel="DJP"
         accentColor="#ff9800"
       />
-      <div style={{ padding: '16px 6px' }}>
-        <div className="section-header">Fundamentals Comparison</div>
-        <FundamentalsTable
-          tickers={ALL_PRODUCERS}
-          metrics={['pe', 'marketCap', 'ebitda', 'profitMargins', 'returnOnEquity', 'beta']}
-          onTickerClick={(ticker) => {
-            // Navigation happens via OpenDetailContext in the component
-          }}
-          statsMap={statsMap}
-        />
-      </div>
     </FullPageScreenLayout>
   );
 }

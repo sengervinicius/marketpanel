@@ -499,14 +499,21 @@ function BrazilScreenImpl() {
 
   const sections = [
     {
-      id: 'bluechips',
-      title: 'B3 BLUE CHIPS',
-      component: BlueChipsComponent,
+      id: 'kpi',
+      title: 'KEY METRICS',
+      span: 'full',
+      component: BrazilKPIRibbon,
     },
     {
       id: 'fundamentals',
-      title: 'FUNDAMENTALS COMPARISON',
+      title: 'CONSTITUENTS',
+      span: 'full',
       component: FundamentalsComponent,
+    },
+    {
+      id: 'bluechips',
+      title: 'B3 BLUE CHIPS',
+      component: BlueChipsComponent,
     },
     {
       id: 'adr-cross',

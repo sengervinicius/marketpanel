@@ -376,17 +376,32 @@ function TechAIScreenImpl() {
    * Layout: Left column (60-65%) = holdings + charts, Right column (35-40%) = analytical.
    */
   const sections = useMemo(() => [
-    // ── (1) Holdings tables + charts — left column narrative ──
+    {
+      id: 'kpi',
+      title: 'Key Metrics',
+      span: 'full',
+      component: TechKPIRibbon,
+    },
+    // ── (1) Fundamentals comparison — full-width analytical ──
+    {
+      id: 'fundamentals',
+      title: 'CONSTITUENTS',
+      span: 'full',
+      component: () => (
+        <FundamentalsTable
+          tickers={ALL_TICKERS}
+          metrics={['pe', 'marketCap', 'revenue', 'grossMargins', 'operatingMargins', 'profitMargins', 'returnOnEquity']}
+          title="CONSTITUENTS"
+          onTickerClick={(symbol) => openDetail(symbol, 'Technology & AI')}
+          statsMap={statsMap}
+        />
+      ),
+    },
+    // ── (2) Holdings tables + charts — left column narrative ──
     {
       id: 'megacap',
       title: 'MEGA-CAP TECH',
       component: () => <StatsLoadGate statsMap={statsMap} loading={statsLoading} error={statsError} refresh={statsRefresh}><SectionTable tickers={MEGA_CAP} statsMap={statsMap} /></StatsLoadGate>,
-    },
-    // ── (2) Valuation scatter + correlation — right column analytical ──
-    {
-      id: 'valuation',
-      title: 'VALUATION SCATTER',
-      component: () => <ValuationScatterComponent />,
     },
     {
       id: 'semis',
@@ -405,19 +420,11 @@ function TechAIScreenImpl() {
         />
       ),
     },
-    // ── (3) Fundamentals comparison — full-width analytical ──
+    // ── (3) Valuation scatter + correlation — right column analytical ──
     {
-      id: 'fundamentals',
-      title: 'FUNDAMENTALS COMPARISON',
-      span: 'full',
-      component: () => (
-        <FundamentalsTable
-          tickers={ALL_TICKERS}
-          metrics={['pe', 'marketCap', 'revenue', 'grossMargins', 'operatingMargins', 'profitMargins', 'returnOnEquity']}
-          onTickerClick={(symbol) => openDetail(symbol, 'Technology & AI')}
-          statsMap={statsMap}
-        />
-      ),
+      id: 'valuation',
+      title: 'VALUATION SCATTER',
+      component: () => <ValuationScatterComponent />,
     },
     // ── (4) AI insight + events — full-width ──
     {

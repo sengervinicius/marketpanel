@@ -407,16 +407,16 @@ function EuropeanMarketsScreenImpl() {
       component: EuropeKPIRibbon,
     },
     {
-      id: 'charts',
-      title: 'Sector Charts',
+      id: 'fundamentals',
+      title: 'Constituents',
       span: 'full',
       component: () => (
-        <SectorChartPanel
-          tickers={CHART_TICKERS}
-          height={200}
-          cols={3}
-          selectedTicker={selectedTicker}
-          onChartClick={setSelectedTicker}
+        <FundamentalsTable
+          tickers={allEquities}
+          metrics={['pe', 'marketCap', 'revenue', 'grossMargins', 'operatingMargins', 'returnOnEquity']}
+          title="Constituents"
+          onTickerClick={openDetail}
+          statsMap={statsMap}
         />
       ),
     },
@@ -464,16 +464,16 @@ function EuropeanMarketsScreenImpl() {
       ),
     },
     {
-      id: 'fundamentals',
-      title: 'Fundamentals Comparison',
+      id: 'charts',
+      title: 'Sector Charts',
       span: 'full',
       component: () => (
-        <FundamentalsTable
-          tickers={allEquities}
-          metrics={['pe', 'marketCap', 'revenue', 'grossMargins', 'operatingMargins', 'returnOnEquity']}
-          title="All Equities - Key Metrics"
-          onTickerClick={openDetail}
-          statsMap={statsMap}
+        <SectorChartPanel
+          tickers={CHART_TICKERS}
+          height={200}
+          cols={3}
+          selectedTicker={selectedTicker}
+          onChartClick={setSelectedTicker}
         />
       ),
     },

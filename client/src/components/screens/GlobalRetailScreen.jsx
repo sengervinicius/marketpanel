@@ -213,16 +213,16 @@ function GlobalRetailScreenImpl() {
       component: RetailKPIRibbon,
     },
     {
-      id: 'charts',
-      title: 'Sector Charts',
+      id: 'fundamentals',
+      title: 'Constituents',
       span: 'full',
       component: () => (
-        <SectorChartPanel
-          tickers={CHART_TICKERS}
-          height={200}
-          cols={3}
-          selectedTicker={selectedTicker}
-          onChartClick={setSelectedTicker}
+        <FundamentalsTable
+          tickers={ALL_EQUITIES}
+          metrics={['pe', 'marketCap', 'revenue', 'grossMargins', 'profitMargins', 'returnOnEquity']}
+          title="Constituents"
+          onTickerClick={(symbol) => openDetail(symbol, 'Global Retail & Consumer')}
+          statsMap={statsMap}
         />
       ),
     },
@@ -272,22 +272,23 @@ function GlobalRetailScreenImpl() {
       ),
     },
     {
-      id: 'fundamentals',
-      title: 'Fundamentals Comparison',
+      id: 'charts',
+      title: 'Sector Charts',
       span: 'full',
       component: () => (
-        <FundamentalsTable
-          tickers={ALL_EQUITIES}
-          metrics={['pe', 'marketCap', 'revenue', 'grossMargins', 'profitMargins', 'returnOnEquity']}
-          title="All Retail Equities - Key Metrics"
-          onTickerClick={(symbol) => openDetail(symbol, 'Global Retail & Consumer')}
-          statsMap={statsMap}
+        <SectorChartPanel
+          tickers={CHART_TICKERS}
+          height={200}
+          cols={3}
+          selectedTicker={selectedTicker}
+          onChartClick={setSelectedTicker}
         />
       ),
     },
     {
       id: 'valuation',
       title: 'Valuation Scatter (P/E vs Mkt Cap)',
+      span: 'full',
       component: () => (
         <SectorScatterPlot
           data={scatterData}

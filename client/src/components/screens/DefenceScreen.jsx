@@ -263,16 +263,16 @@ function DefenceScreenImpl() {
       component: () => <DefenceKPIRibbon />,
     },
     {
-      id: 'charts',
-      title: 'Sector Charts',
+      id: 'fundamentals',
+      title: 'Constituents',
       span: 'full',
       component: () => (
-        <SectorChartPanel
-          tickers={CHART_TICKERS}
-          height={200}
-          cols={2}
-          selectedTicker={selectedTicker}
-          onChartClick={setSelectedTicker}
+        <FundamentalsTable
+          tickers={ALL_EQUITIES}
+          metrics={['pe', 'marketCap', 'revenue', 'grossMargins', 'operatingMargins', 'returnOnEquity']}
+          title="Constituents"
+          onTickerClick={openDetailWithContext}
+          statsMap={statsMap}
         />
       ),
     },
@@ -325,20 +325,6 @@ function DefenceScreenImpl() {
       ),
     },
     {
-      id: 'fundamentals',
-      title: 'Fundamentals Comparison',
-      span: 'full',
-      component: () => (
-        <FundamentalsTable
-          tickers={ALL_EQUITIES}
-          metrics={['pe', 'marketCap', 'revenue', 'grossMargins', 'operatingMargins', 'returnOnEquity']}
-          title="All Equities - Key Metrics"
-          onTickerClick={openDetailWithContext}
-          statsMap={statsMap}
-        />
-      ),
-    },
-    {
       id: 'supply-chain',
       title: 'Supply Chain & Tech',
       component: () => (
@@ -357,16 +343,16 @@ function DefenceScreenImpl() {
       ),
     },
     {
-      id: 'valuation',
-      title: 'Valuation Scatter (P/E vs Mkt Cap)',
+      id: 'charts',
+      title: 'Sector Charts',
       span: 'full',
       component: () => (
-        <SectorScatterPlot
-          data={scatterData}
-          xLabel="P/E Ratio"
-          yLabel="Market Cap ($ Billions)"
-          height={280}
-          onDotClick={openDetail}
+        <SectorChartPanel
+          tickers={CHART_TICKERS}
+          height={200}
+          cols={2}
+          selectedTicker={selectedTicker}
+          onChartClick={setSelectedTicker}
         />
       ),
     },
@@ -379,6 +365,20 @@ function DefenceScreenImpl() {
           title="Defence & Aerospace 90-Day Return Correlations"
           accentColor="#ef5350"
           days={90}
+        />
+      ),
+    },
+    {
+      id: 'valuation',
+      title: 'Valuation Scatter (P/E vs Mkt Cap)',
+      span: 'full',
+      component: () => (
+        <SectorScatterPlot
+          data={scatterData}
+          xLabel="P/E Ratio"
+          yLabel="Market Cap ($ Billions)"
+          height={280}
+          onDotClick={openDetail}
         />
       ),
     },

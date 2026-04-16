@@ -536,10 +536,18 @@ function CryptoScreenImpl() {
       component: CryptoKPIRibbon,
     },
     {
-      id: 'charts',
-      title: 'Sector Charts',
+      id: 'fundamentals',
+      title: 'Constituents',
       span: 'full',
-      component: () => <ChartsSection selectedTicker={selectedTicker} onChartClick={setSelectedTicker} />,
+      component: () => (
+        <FundamentalsTable
+          tickers={CRYPTO_EQUITIES}
+          metrics={['pe', 'marketCap', 'revenue', 'grossMargins', 'operatingMargins', 'profitMargins']}
+          title="Constituents"
+          onTickerClick={(symbol) => openDetail(symbol, 'Crypto & Digital Assets')}
+          statsMap={statsMap}
+        />
+      ),
     },
     {
       id: 'crypto-majors',
@@ -561,19 +569,10 @@ function CryptoScreenImpl() {
       component: CryptoEtfsSection,
     },
     {
-      id: 'btc-onchain',
-      title: 'Bitcoin On-Chain Analytics',
-      component: BitcoinOnChainSection,
-    },
-    {
-      id: 'eth-onchain',
-      title: 'Ethereum On-Chain Analytics',
-      component: EthereumOnChainSection,
-    },
-    {
-      id: 'dominance',
-      title: 'Market Dominance & Ratios',
-      component: CryptoDominanceSection,
+      id: 'charts',
+      title: 'Sector Charts',
+      span: 'full',
+      component: () => <ChartsSection selectedTicker={selectedTicker} onChartClick={setSelectedTicker} />,
     },
     {
       id: 'correlation',
@@ -589,18 +588,19 @@ function CryptoScreenImpl() {
       ),
     },
     {
-      id: 'fundamentals',
-      title: 'Crypto Equities - Fundamentals Comparison',
-      span: 'full',
-      component: () => (
-        <FundamentalsTable
-          tickers={CRYPTO_EQUITIES}
-          metrics={['pe', 'marketCap', 'revenue', 'grossMargins', 'operatingMargins', 'profitMargins']}
-          title="All Crypto Equities - Key Metrics"
-          onTickerClick={(symbol) => openDetail(symbol, 'Crypto & Digital Assets')}
-          statsMap={statsMap}
-        />
-      ),
+      id: 'btc-onchain',
+      title: 'Bitcoin On-Chain Analytics',
+      component: BitcoinOnChainSection,
+    },
+    {
+      id: 'eth-onchain',
+      title: 'Ethereum On-Chain Analytics',
+      component: EthereumOnChainSection,
+    },
+    {
+      id: 'dominance',
+      title: 'Market Dominance & Ratios',
+      component: CryptoDominanceSection,
     },
     {
       id: 'earnings-calendar',
