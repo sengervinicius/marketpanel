@@ -66,7 +66,7 @@ function ActionButton({ type, params }) {
  * Render inline markdown tokens: bold, code, tickers, citations, sentiment, actions.
  */
 export function renderInline(text) {
-  const parts = text.split(/(\*\*[^*]+\*\*|`[^`]+`|\$[A-Z]{1,5}(?:\.[A-Z]{1,2})?|\[action:[a-z_]+(?::[^\]]+)?\]|\[V\d{1,2}\]|\[\d{1,2}\]|\[sentiment:(?:bull|bear|neutral)\])/gi);
+  const parts = text.split(/(\*\*[^*]+\*\*|`[^`]+`|\$[A-Z]{1,5}(?:\.[A-Z]{1,2})?|\[action:[a-z_]+(?::[^\]]+)?\]|\[V\d{1,2}(?:,\s*[^\]]+)?\]|\[\d{1,2}\]|\[sentiment:(?:bull|bear|neutral)\])/gi);
   return parts.map((part, i) => {
     if (part.startsWith('**') && part.endsWith('**')) {
       return <strong key={i} className="particle-md-bold">{part.slice(2, -2)}</strong>;
@@ -77,10 +77,24 @@ export function renderInline(text) {
     if (/^\$[A-Z]{1,5}(\.[A-Z]{1,2})?$/.test(part)) {
       return <span key={i} className="particle-md-ticker">{part}</span>;
     }
-    // Vault citation: [V1], [V2], etc. (gold color, styled as badge)
-    if (/^\[V\d{1,2}\]$/.test(part)) {
-      const vaultNum = part.slice(2, -1);
-      return <span key={i} className="particle-md-vault-cite" title={`Vault source ${vaultNum}`}>{part}</span>;
+    // Vault citation: [V1], [V2], or [V1, Document.pdf, p.5] (gold color, styled as badge)
+    if (/^\[V\d{1,2}/.test(part) && part.endsWith(']')) {
+      const vaultNum = part.match(/V(\d{1,2})/)?.[1] || '';
+      const pageMatch = part.match(/p\.(\d+)/);
+      const pageNum = pageMatch ? pageMatch[1] : null;
+      const displayText = pageNum ? `V${vaultNum} p.${pageNum}` : `V${vaultNum}`;
+      const titleText = pageNum ? `Vault source ${vaultNum}, page ${pageNum}` : `Vault source ${vaultNum}`;
+      return (
+        <span
+          key={i}
+          className="particle-md-vault-cite"
+          title={titleText}
+          onClick={() => window.dispatchEvent(new CustomEvent('particle:vault-cite', { detail: { vaultNum, pageNum, raw: part } }))}
+          style={{ cursor: 'pointer' }}
+        >
+          [{displayText}]
+        </span>
+      );
     }
     // Web citation: [1], [2], etc. (orange/blue color, styled as superscript)
     if (/^\[\d{1,2}\]$/.test(part)) {

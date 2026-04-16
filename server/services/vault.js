@@ -88,13 +88,26 @@ function getUserJobs(userId) {
  * The HTTP handler returns immediately with the jobId; the client polls for status.
  */
 function enqueueIngestionJob(job, buffer, metadata, isGlobal) {
-  const processJob = async () => {
-    _activeJobCount++;
-    job.status = 'processing';
-    job.progress = { stage: 'extract', message: `Extracting text from ${job.filename}...` };
+  // Phase 3: Store buffer/metadata on job so drainJobQueue can process deferred jobs
+  job._buffer = buffer;
+  job._metadata = metadata;
+  job._isGlobal = isGlobal;
+
+  if (_activeJobCount < MAX_CONCURRENT_JOBS) {
+    _startJob(job);
+  }
+  // else: drainJobQueue() will pick it up when a slot opens
+}
+
+function _startJob(job) {
+  _activeJobCount++;
+  job.status = 'processing';
+  job.progress = { stage: 'extract', message: `Extracting text from ${job.filename}...` };
+
+  setImmediate(async () => {
     try {
       const result = await ingestFile(
-        job.userId, buffer, job.filename, metadata, isGlobal,
+        job.userId, job._buffer, job.filename, job._metadata, job._isGlobal,
         (stage, message) => { job.progress = { stage, message }; }
       );
       job.status = 'complete';
@@ -104,27 +117,27 @@ function enqueueIngestionJob(job, buffer, metadata, isGlobal) {
       job.result = { error: err.message };
       logger.error('vault', 'Background ingestion failed', { jobId: job.jobId, error: err.message });
     } finally {
+      // Free buffer memory after processing
+      job._buffer = null;
       _activeJobCount--;
       // Process next queued job if any
       drainJobQueue();
     }
-  };
-
-  if (_activeJobCount < MAX_CONCURRENT_JOBS) {
-    setImmediate(processJob);
-  }
-  // else: will be picked up by drainJobQueue when a slot opens
+  });
 }
 
 function drainJobQueue() {
-  if (_activeJobCount >= MAX_CONCURRENT_JOBS) return;
-  for (const job of _ingestionJobs.values()) {
-    if (job.status === 'queued') {
-      // Re-enqueue — but we need the buffer. Since we can't store buffers long-term
-      // in memory, queued jobs that weren't immediately started will stay queued
-      // until the next attempt. In practice MAX_CONCURRENT_JOBS=2 handles this.
-      break;
+  // Phase 3: Actually process queued jobs now that buffers are stored on the job
+  while (_activeJobCount < MAX_CONCURRENT_JOBS) {
+    let nextJob = null;
+    for (const j of _ingestionJobs.values()) {
+      if (j.status === 'queued' && j._buffer) {
+        nextJob = j;
+        break;
+      }
     }
+    if (!nextJob) break;
+    _startJob(nextJob);
   }
 }
 
@@ -236,6 +249,13 @@ async function ensureTable() {
     await alterSafe(`ALTER TABLE vault_chunks ADD COLUMN IF NOT EXISTS search_vector tsvector GENERATED ALWAYS AS (to_tsvector('english', content)) STORED`);
     // Embedding provider tracking — which model generated each chunk's embedding
     await alterSafe(`ALTER TABLE vault_chunks ADD COLUMN IF NOT EXISTS embedding_provider VARCHAR(20) DEFAULT 'unknown'`);
+    // Phase 3: Page number for PDF page-level citations
+    await alterSafe(`ALTER TABLE vault_chunks ADD COLUMN IF NOT EXISTS page_number INTEGER`);
+
+    // Phase 3: Index for page-level citation queries
+    await pg.query(`
+      CREATE INDEX IF NOT EXISTS idx_vault_chunks_page ON vault_chunks(document_id, page_number)
+    `);
 
     // Create index on user_id for faster queries
     await pg.query(`
@@ -685,7 +705,13 @@ function chunkFiling(text, chunkSize = CHUNK_SIZE) {
 function looksLikeTable(text) {
   const lines = text.split('\n').filter(l => l.trim().length > 0);
   if (lines.length < 2) return false;
-  const tableLines = lines.filter(l => (l.match(/\t/g) || []).length >= 2 || (l.match(/\|/g) || []).length >= 2);
+  // Detect tab-delimited, pipe-delimited, or number-column-heavy lines (financial statements)
+  const tableLines = lines.filter(l =>
+    (l.match(/\t/g) || []).length >= 2 ||
+    (l.match(/\|/g) || []).length >= 2 ||
+    // Financial table: 3+ columns of numbers/currency separated by spaces
+    (l.match(/[\d$%,.()\-]{2,}/g) || []).length >= 3
+  );
   return tableLines.length / lines.length > 0.4;
 }
 
@@ -726,7 +752,7 @@ function chunkText(text, chunkSize = CHUNK_SIZE, overlap = CHUNK_OVERLAP) {
 
   for (const para of paragraphs) {
     // Phase 3: Table-aware boundary detection — don't split mid-table
-    if (looksLikeTable(para) && para.length > chunkSize) {
+    if (looksLikeTable(para)) {
       // Flush current chunk
       if (currentChunk.trim().length > 0) {
         chunks.push(currentChunk.trim());
@@ -1263,27 +1289,17 @@ function parsePlainText(buffer) {
 async function extractPDFText(buffer, metadata, onProgress) {
   const pdfParse = require('pdf-parse');
 
-  // Strategy 1: Standard extraction with page limit
-  try {
-    const pdfData = await pdfParse(buffer, { max: 500 });
-    const text = pdfData.text || '';
-    metadata.pageCount = pdfData.numpages || 0;
+  // Phase 3: Track per-page text for page-level citations
+  const pageTexts = []; // { pageNumber, text }
+  let currentPageNum = 0;
 
-    if (text.trim().length > 50) {
-      if (onProgress) onProgress('extract', `Extracted text from ${metadata.pageCount} pages`);
-      return text;
-    }
-    // Text too short — likely scanned PDF, try fallback
-    logger.warn('vault', 'PDF text extraction yielded minimal text, trying pagerender fallback');
-  } catch (parseErr) {
-    logger.warn('vault', 'Primary PDF parse failed, trying fallback', { error: parseErr.message });
-  }
-
-  // Strategy 2: Page-by-page textContent extraction (handles complex layouts)
+  // Strategy 1: Page-by-page extraction with page boundary tracking
   try {
     const pdfData = await pdfParse(buffer, {
       max: 500,
       pagerender: function(pageData) {
+        currentPageNum++;
+        const myPageNum = currentPageNum;
         return pageData.getTextContent().then(function(textContent) {
           // Preserve table structure: join items with spaces, lines with newlines
           let lastY = null;
@@ -1298,19 +1314,40 @@ async function extractPDFText(buffer, metadata, onProgress) {
             lastY = item.transform[5];
           }
           if (currentLine.length) lines.push(currentLine.join('\t'));
-          return lines.join('\n');
+          const pageText = lines.join('\n');
+          pageTexts.push({ pageNumber: myPageNum, text: pageText });
+          return pageText;
         });
       },
     });
     const text = pdfData.text || '';
     metadata.pageCount = pdfData.numpages || 0;
+    // Store page boundaries for chunk-level page assignment
+    metadata._pageTexts = pageTexts.length > 0 ? pageTexts : null;
 
     if (text.trim().length > 50) {
-      if (onProgress) onProgress('extract', `Extracted text from ${metadata.pageCount} pages (enhanced)`);
+      if (onProgress) onProgress('extract', `Extracted text from ${metadata.pageCount} pages`);
+      return text;
+    }
+    // Text too short — likely scanned PDF, try standard fallback
+    logger.warn('vault', 'PDF text extraction yielded minimal text, trying standard fallback');
+  } catch (parseErr) {
+    logger.warn('vault', 'Enhanced PDF parse failed, trying standard', { error: parseErr.message });
+  }
+
+  // Strategy 2: Standard extraction (no page tracking, fallback)
+  try {
+    const pdfData = await pdfParse(buffer, { max: 500 });
+    const text = pdfData.text || '';
+    metadata.pageCount = pdfData.numpages || 0;
+    metadata._pageTexts = null; // No page tracking in fallback
+
+    if (text.trim().length > 50) {
+      if (onProgress) onProgress('extract', `Extracted text from ${metadata.pageCount} pages (standard)`);
       return text;
     }
   } catch (fallbackErr) {
-    logger.warn('vault', 'Pagerender fallback failed', { error: fallbackErr.message });
+    logger.warn('vault', 'Standard PDF parse failed', { error: fallbackErr.message });
   }
 
   // Strategy 3: OCR fallback for scanned PDFs (if tesseract available)
@@ -1442,6 +1479,34 @@ async function ingestFile(userId, buffer, filename, metadata = {}, isGlobal = fa
       throw new Error('No chunks produced from content');
     }
 
+    // Phase 3: Assign page numbers to chunks using page boundary data from PDF extraction
+    const pageTexts = metadata?._pageTexts;
+    if (pageTexts && pageTexts.length > 0) {
+      // Build a cumulative char offset map: page start positions in the full text
+      let offset = 0;
+      const pageStarts = pageTexts.map(pt => {
+        const start = offset;
+        offset += pt.text.length + 1; // +1 for page separator
+        return { pageNumber: pt.pageNumber, start, end: offset };
+      });
+
+      // For each chunk, find its approximate position in the full text and assign a page
+      let searchFrom = 0;
+      for (const chunk of chunks) {
+        const chunkSnippet = chunk.content.slice(0, 100);
+        const pos = text.indexOf(chunkSnippet, searchFrom);
+        if (pos >= 0) {
+          searchFrom = pos;
+          const page = pageStarts.find(p => pos >= p.start && pos < p.end);
+          chunk.metadata.pageNumber = page ? page.pageNumber : null;
+        } else {
+          chunk.metadata.pageNumber = null;
+        }
+      }
+    }
+    // Clean up internal page data
+    delete metadata._pageTexts;
+
     // Embed chunks (before transaction — external API call)
     if (onProgress) onProgress('embed', `Generating embeddings for ${chunks.length} passages...`);
     const chunkTexts = chunks.map(c => c.content);
@@ -1475,17 +1540,33 @@ async function ingestFile(userId, buffer, filename, metadata = {}, isGlobal = fa
             totalChunks: chunks.length,
             embeddingProvider,
           };
+          // Phase 3: Validate embedding dimension before INSERT
+          let embeddingStr = null;
+          if (embeddings[idx]) {
+            if (embeddings[idx].length !== STORED_EMBEDDING_DIM) {
+              logger.error('vault', 'Embedding dimension mismatch', {
+                expected: STORED_EMBEDDING_DIM,
+                got: embeddings[idx].length,
+                provider: embeddingProvider,
+                chunkIndex: idx,
+              });
+              // Skip this chunk's embedding rather than crash the INSERT
+            } else {
+              embeddingStr = `[${embeddings[idx].join(',')}]`;
+            }
+          }
           return client.query(
-            `INSERT INTO vault_chunks (document_id, user_id, chunk_index, content, embedding, metadata, embedding_provider)
-             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+            `INSERT INTO vault_chunks (document_id, user_id, chunk_index, content, embedding, metadata, embedding_provider, page_number)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
             [
               documentId,
               userId,
               idx,
               chunk.content,
-              embeddings[idx] ? `[${embeddings[idx].join(',')}]` : null,
+              embeddingStr,
               JSON.stringify(chunkMetadata),
               embeddingProvider || 'unknown',
+              chunk.metadata?.pageNumber || null,
             ]
           );
         });
@@ -1759,7 +1840,7 @@ async function retrieve(userId, query, limit = MAX_RETRIEVAL) {
       try {
         // Try provider-filtered search first, then fallback to unfiltered if empty
         vecResult = await pg.query(
-          `SELECT vc.id, vc.document_id, vc.chunk_index, vc.content, vc.metadata,
+          `SELECT vc.id, vc.document_id, vc.chunk_index, vc.content, vc.metadata, vc.page_number,
                   vd.filename, vd.source, vd.is_global, vd.metadata as doc_metadata,
                   1 - (vc.embedding <=> $1::vector) AS similarity
            FROM vault_chunks vc
@@ -1792,7 +1873,7 @@ async function retrieve(userId, query, limit = MAX_RETRIEVAL) {
         // Fallback: column may not exist yet — query without provider filter
         logger.warn('vault', 'Provider-filtered vector search failed, falling back', { error: filterErr.message });
         vecResult = await pg.query(
-          `SELECT vc.id, vc.document_id, vc.chunk_index, vc.content, vc.metadata,
+          `SELECT vc.id, vc.document_id, vc.chunk_index, vc.content, vc.metadata, vc.page_number,
                   vd.filename, vd.source, vd.is_global, vd.metadata as doc_metadata,
                   1 - (vc.embedding <=> $1::vector) AS similarity
            FROM vault_chunks vc
@@ -1920,8 +2001,10 @@ function formatForPrompt(passages) {
       ? ` [${Array.isArray(docMeta.tickers) ? docMeta.tickers.join(', ') : docMeta.tickers}]`
       : '';
     const docType = chunkMeta.documentType ? ` (${chunkMeta.documentType})` : '';
+    // Phase 3: Include page number in citation source
+    const pageRef = p.page_number ? `, p.${p.page_number}` : '';
 
-    let passageCtx = `[V${index + 1}] [Source: ${source}${date ? ` (${date})` : ''}${tickers}${docType}]\n`;
+    let passageCtx = `[V${index + 1}] [Source: ${source}${pageRef}${date ? ` (${date})` : ''}${tickers}${docType}]\n`;
 
     // Phase 6: Inject parent context (section heading, document header) for better grounding
     if (chunkMeta.parentContext) {

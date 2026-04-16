@@ -62,6 +62,7 @@ async function vaultAgent(query, userId) {
           source: p.doc_metadata?.bank || p.source || '',
           tickers: p.doc_metadata?.tickers || [],
           date: p.doc_metadata?.date || '',
+          pageNumber: p.page_number || null,
           similarity: p.similarity != null ? parseFloat(p.similarity).toFixed(2) : null,
           isGlobal: p.is_global || false,
         }))
