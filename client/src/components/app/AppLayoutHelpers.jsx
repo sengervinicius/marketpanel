@@ -12,22 +12,24 @@ import { CryptoPanel } from '../panels/CryptoPanel';
 import DebtPanel from '../panels/DebtPanel';
 // SearchPanel removed from desktop layout — header searchbar is the single search entry-point
 import { NewsPanel } from '../panels/NewsPanel';
-import PortfolioPanel from '../panels/PortfolioPanel';
 import WatchlistPanel from '../panels/WatchlistPanel';
 import { SentimentPanel } from '../panels/SentimentPanel';
 import { ChatPanel } from '../panels/ChatPanel';
 import { DICurvePanel } from '../panels/DICurvePanel';
 import { IndexPanel } from '../panels/IndexPanel';
 import AlertCenterPanel from '../panels/AlertCenterPanel';
-import ScreenerPanel from '../panels/ScreenerPanel';
 import MacroPanel from '../panels/MacroPanel';
 import { CalendarPanel } from '../panels/CalendarPanel';
 import ETFPanel from '../panels/ETFPanel';
 import RatesPanel from '../panels/RatesPanel';
 import HeatmapPanel from '../panels/HeatmapPanel';
 import PredictionPanel from '../panels/PredictionPanel';
-import OptionsFlowPanel from '../panels/OptionsFlowPanel';
 // WirePanel removed
+
+// Phase 6: Lazy-load heavy panels to reduce initial bundle
+const PortfolioPanel = lazy(() => import('../panels/PortfolioPanel'));
+const ScreenerPanel = lazy(() => import('../panels/ScreenerPanel'));
+const OptionsFlowPanel = lazy(() => import('../panels/OptionsFlowPanel'));
 
 // ── Code-split sector screens using React.lazy ──────────────────────────────
 const DefenceScreen = lazy(() => import('../screens/DefenceScreen'));
