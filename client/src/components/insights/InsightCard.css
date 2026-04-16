@@ -1,0 +1,219 @@
+/* InsightCard.css — Phase 7: Proactive Insight Cards */
+
+.insight-card {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-surface, rgba(255, 255, 255, 0.03));
+  border-radius: 4px;
+  padding: 6px 8px;
+  margin-bottom: 4px;
+  border-left: 2px solid rgba(255, 255, 255, 0.15);
+  transition: opacity 0.15s ease-out, transform 0.2s ease-out;
+  transform: translateX(0);
+  opacity: 1;
+}
+
+/* Severity borders */
+.insight-card--high {
+  border-left-color: rgba(239, 68, 68, 0.6);
+}
+
+.insight-card--medium {
+  border-left-color: rgba(234, 179, 8, 0.4);
+}
+
+.insight-card--low {
+  border-left-color: rgba(255, 255, 255, 0.15);
+}
+
+/* Slide-in from right */
+.insight-card--entering {
+  transform: translateX(20px);
+  opacity: 0;
+}
+
+/* Fade out on dismiss */
+.insight-card--dismissing {
+  opacity: 0;
+  transform: translateX(10px);
+}
+
+/* Main row: icon | narrative | time + dismiss */
+.insight-card-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.insight-card-left {
+  flex-shrink: 0;
+  width: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.insight-card-icon {
+  font-size: 10px;
+  color: var(--text-faint, rgba(255, 255, 255, 0.35));
+  line-height: 1;
+}
+
+.insight-card--high .insight-card-icon {
+  color: rgba(239, 68, 68, 0.7);
+}
+
+.insight-card--medium .insight-card-icon {
+  color: rgba(234, 179, 8, 0.5);
+}
+
+.insight-card-center {
+  flex: 1;
+  min-width: 0;
+}
+
+.insight-card-narrative {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.8);
+  line-height: 1.35;
+  display: block;
+}
+
+.insight-card-right {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.insight-card-time {
+  font-size: 0.7rem;
+  color: var(--text-faint, rgba(255, 255, 255, 0.3));
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.insight-card-dismiss {
+  background: none;
+  border: none;
+  color: var(--text-faint, rgba(255, 255, 255, 0.25));
+  font-size: 11px;
+  cursor: pointer;
+  padding: 0 2px;
+  line-height: 1;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.insight-card:hover .insight-card-dismiss {
+  opacity: 1;
+}
+
+.insight-card-dismiss:hover {
+  color: var(--text-muted, rgba(255, 255, 255, 0.5));
+}
+
+/* Latent question chips */
+.insight-card-questions {
+  display: flex;
+  gap: 4px;
+  padding-top: 4px;
+  padding-left: 22px; /* align with narrative text */
+  flex-wrap: wrap;
+}
+
+.insight-question-chip {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.7rem;
+  padding: 2px 8px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-family: var(--font-ui, -apple-system, sans-serif);
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+
+.insight-question-chip:hover {
+  background: rgba(229, 90, 0, 0.1);
+  border-color: rgba(229, 90, 0, 0.3);
+  color: rgba(255, 255, 255, 0.75);
+}
+
+/* ── Insight Feed Container ──────────────────────────────────────────────────── */
+
+.insight-feed {
+  display: flex;
+  flex-direction: column;
+  padding: 0 8px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.insight-feed:empty {
+  display: none;
+}
+
+.insight-feed-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 0;
+}
+
+.insight-feed-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-faint, rgba(255, 255, 255, 0.3));
+}
+
+.insight-feed-seeall {
+  background: none;
+  border: none;
+  color: var(--accent, #e55a00);
+  font-size: 0.65rem;
+  cursor: pointer;
+  padding: 0;
+  font-family: var(--font-ui, -apple-system, sans-serif);
+}
+
+.insight-feed-seeall:hover {
+  text-decoration: underline;
+}
+
+/* ── Mobile Responsive ───────────────────────────────────────────────────────── */
+
+@media (max-width: 768px) {
+  .insight-card {
+    padding: 8px 10px;
+    margin-bottom: 6px;
+  }
+
+  .insight-card-narrative {
+    font-size: 0.85rem;
+  }
+
+  .insight-card-dismiss {
+    opacity: 1; /* Always visible on mobile (no hover) */
+    padding: 4px 6px;
+    font-size: 14px;
+  }
+
+  .insight-card-questions {
+    padding-left: 0;
+    padding-top: 6px;
+  }
+
+  .insight-question-chip {
+    font-size: 0.75rem;
+    padding: 4px 10px;
+  }
+
+  .insight-feed {
+    padding: 0 12px;
+    max-height: 240px;
+  }
+}

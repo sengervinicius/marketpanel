@@ -85,6 +85,8 @@ const vaultRoutes = require('./routes/vault');
 const vaultSignalsRoutes = require('./routes/vaultSignals');
 const { initializeBackgroundJob: initVaultSignalsJob } = require('./services/vaultSignals');
 const modelRouter = require('./services/modelRouter');
+const insightEngine = require('./services/insightEngine');
+const insightsRoutes = require('./routes/insights');
 const earningsAnalyzer = require('./services/earningsAnalyzer');
 const cache = require('./cache');
 const { init: initSignalMonitor } = require('./services/signalMonitor');
@@ -352,6 +354,12 @@ app.use('/api/wire', requireAuth, requireActiveSubscription,
   rateLimitByUser({ key: 'wire', windowSec: 60, max: 30 }),
   requestTimeout(20000),
   wireRoutes);
+
+// Proactive Insights: auth + subscription required (Phase 7)
+app.use('/api/insights', requireAuth, requireActiveSubscription,
+  rateLimitByUser({ key: 'insights', windowSec: 60, max: 30 }),
+  requestTimeout(15000),
+  insightsRoutes);
 
 // Behavioral tracking: auth required, high rate limit (fire-and-forget)
 app.use('/api/behavior', requireAuth,
@@ -750,6 +758,11 @@ const conversationMemory = require('./services/conversationMemory');
 conversationMemory.ensureTable().catch(() => {});
 conversationMemory.startCleanupTimer();
 logger.info('boot', 'Conversation memory service initialized');
+
+// Phase 7: Initialize proactive insight engine
+insightEngine.init({ anthropicKey: process.env.ANTHROPIC_API_KEY });
+insightEngine.start();
+logger.info('boot', 'Insight engine initialized and scanner started');
 
 // Boot sequence: Postgres → Redis → MongoDB → seed → jobs → HTTP server
 async function boot() {

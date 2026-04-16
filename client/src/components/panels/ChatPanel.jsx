@@ -20,6 +20,7 @@ import { WS_URL } from '../../utils/constants';
 import UserAvatar from '../common/UserAvatar';
 import ParticleLogo from '../ui/ParticleLogo';
 import ParticleMarkdown from '../common/ParticleMarkdown';
+import InsightFeed from '../insights/InsightFeed';
 import './Chat.css';
 
 function timeAgo(ts) {
@@ -584,6 +585,14 @@ function ChatPanel({ mobile, initialUserId }) {
           )}
           <div ref={messagesEndRef} />
         </div>
+
+        {/* Phase 7: Proactive Insight Feed — between messages and composer */}
+        <InsightFeed
+          onAskAI={(question) => {
+            setInput(question);
+          }}
+          maxCards={3}
+        />
 
         {/* Composer */}
         <div className="chat-composer">
