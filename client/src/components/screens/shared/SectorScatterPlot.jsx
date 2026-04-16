@@ -68,14 +68,26 @@ function EnhancedTooltip({ active, payload, xLabel, yLabel }) {
   return null;
 }
 
-function TickerLabel({ cx, cy, payload }) {
+/**
+ * TickerLabel — per-dot label with alternating positions to reduce overlap.
+ * Position cycles: top → right → bottom → left based on dot index.
+ */
+function TickerLabel({ cx, cy, payload, index }) {
   if (!payload?.ticker) return null;
+  // Alternate label position by index to avoid crowding
+  const positions = [
+    { dx: 0, dy: -14, anchor: 'middle' },   // top
+    { dx: 14, dy: 3, anchor: 'start' },      // right
+    { dx: 0, dy: 18, anchor: 'middle' },     // bottom
+    { dx: -14, dy: 3, anchor: 'end' },       // left
+  ];
+  const pos = positions[(index || 0) % 4];
   return (
     <text
-      x={cx}
-      y={cy - 14}
-      textAnchor="middle"
-      fill={TOKEN_HEX.textPrimary}
+      x={cx + pos.dx}
+      y={cy + pos.dy}
+      textAnchor={pos.anchor}
+      fill="rgba(255,255,255,0.7)"
       fontSize={10}
       fontWeight={600}
       fontFamily="var(--font-mono)"
@@ -207,6 +219,12 @@ export function SectorScatterPlot({
               fontWeight: 600,
             }}
           />
+          {/* Quadrant labels — subtle, muted text */}
+          <text x="15%" y="12%" fill="rgba(255,255,255,0.08)" fontSize={10} fontWeight={500}>Cheap &amp; Large</text>
+          <text x="75%" y="12%" fill="rgba(255,255,255,0.08)" fontSize={10} fontWeight={500} textAnchor="end">Expensive &amp; Large</text>
+          <text x="15%" y="92%" fill="rgba(255,255,255,0.08)" fontSize={10} fontWeight={500}>Cheap &amp; Small</text>
+          <text x="75%" y="92%" fill="rgba(255,255,255,0.08)" fontSize={10} fontWeight={500} textAnchor="end">Expensive &amp; Small</text>
+
           <Tooltip
             content={<EnhancedTooltip xLabel={xLabel} yLabel={yLabel} />}
             cursor={{ strokeDasharray: '3 3', stroke: 'rgba(255,255,255,0.1)' }}

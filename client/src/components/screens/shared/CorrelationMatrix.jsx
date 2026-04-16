@@ -10,34 +10,23 @@ import { sanitizeTicker } from '../../../utils/ticker';
 
 /**
  * Convert -1…+1 correlation to color-coded background.
- * Phase 3: Strong positive (>0.7) = orange, moderate (0.4–0.7) = muted yellow,
- * weak (<0.4) = grey, negative = blue. Much higher analytical value.
+ * Phase 3 redesign: clean 3-tier heatmap for quick visual scanning.
+ *   High positive (>=0.7)  → subtle green tint
+ *   Moderate (0.4–0.69)    → neutral (transparent)
+ *   Low/negative (<0.4)    → subtle amber tint
  */
 function corrColor(val) {
   if (val == null || isNaN(val)) return 'transparent';
-  const abs = Math.abs(val);
-  if (val < 0) {
-    // Negative: blue tint, scales with magnitude
-    return `rgba(59, 130, 246, ${abs * 0.35})`;
-  }
-  if (abs >= 0.7) {
-    // Strong positive: orange
-    return `rgba(249, 115, 22, ${0.15 + (abs - 0.7) * 0.5})`;
-  }
-  if (abs >= 0.4) {
-    // Moderate positive: muted yellow
-    return `rgba(234, 179, 8, ${0.08 + (abs - 0.4) * 0.2})`;
-  }
-  // Weak positive: grey
-  return `rgba(150, 150, 160, ${abs * 0.12})`;
+  if (val >= 0.7)  return 'rgba(74, 222, 128, 0.15)';
+  if (val >= 0.4)  return 'transparent';
+  return 'rgba(251, 191, 36, 0.12)';
 }
 
 /** Text color for correlation value — ensures readability on colored bg */
 function corrTextColor(val) {
   if (val == null || isNaN(val)) return 'var(--text-faint)';
-  const abs = Math.abs(val);
-  if (abs >= 0.7) return 'var(--text-primary)';
-  if (abs >= 0.4) return 'var(--text-secondary)';
+  if (val >= 0.7) return 'var(--text-primary)';
+  if (val >= 0.4) return 'var(--text-secondary)';
   return 'var(--text-muted)';
 }
 
@@ -247,23 +236,28 @@ export const CorrelationMatrix = memo(function CorrelationMatrix({
             </tbody>
           </table>
 
-          {/* Legend */}
+          {/* Color legend */}
           <div style={{
             display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            marginTop: 8,
+            flexDirection: 'column',
+            gap: 4,
+            marginTop: 10,
             fontSize: 8,
-            color: 'var(--text-faint)',
+            color: 'var(--text-muted)',
+            letterSpacing: '0.02em',
           }}>
-            <span>−1</span>
-            <div style={{
-              flex: 1,
-              height: 6,
-              borderRadius: 3,
-              background: 'linear-gradient(90deg, rgba(59,130,246,0.35), rgba(150,150,160,0.08), rgba(234,179,8,0.15), rgba(249,115,22,0.35))',
-            }} />
-            <span>+1</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ width: 10, height: 10, borderRadius: 2, background: 'rgba(74, 222, 128, 0.15)', border: '1px solid rgba(74, 222, 128, 0.25)', flexShrink: 0 }} />
+              <span>High correlation (&gt;0.7) — tickers move together</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ width: 10, height: 10, borderRadius: 2, background: 'transparent', border: '1px solid var(--border-default)', flexShrink: 0 }} />
+              <span>Moderate (0.4 - 0.7) — partial relationship</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ width: 10, height: 10, borderRadius: 2, background: 'rgba(251, 191, 36, 0.12)', border: '1px solid rgba(251, 191, 36, 0.2)', flexShrink: 0 }} />
+              <span>Low / negative (&lt;0.4) — diversification opportunity</span>
+            </div>
           </div>
         </div>
       )}

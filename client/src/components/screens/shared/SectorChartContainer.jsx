@@ -103,17 +103,19 @@ function RichTooltip({ active, payload, label }) {
 }
 
 /**
- * ChartSkeleton — animated loading state
+ * ChartSkeleton — quiet animated shimmer placeholder
+ * Phase 3: No red, no error text. Just a gentle loading state.
  */
 function ChartSkeleton({ height = 200 }) {
   return (
     <div
       style={{
         height,
-        background: 'linear-gradient(90deg, var(--bg-elevated) 25%, var(--bg-active) 50%, var(--bg-elevated) 75%)',
+        background: 'linear-gradient(90deg, rgba(255,255,255,0.03) 25%, rgba(255,255,255,0.07) 50%, rgba(255,255,255,0.03) 75%)',
         backgroundSize: '200% 100%',
         animation: 'scc-shimmer 1.5s infinite',
         borderRadius: 'var(--radius-md)',
+        border: '1px solid rgba(255,255,255,0.04)',
       }}
     />
   );
@@ -547,71 +549,36 @@ export function SectorChartContainer({
   }
 
   if (fetchError) {
-    const isMaxRetriesReached = retryCount >= 1;
     return (
       <div style={containerStyle}>
         <TimeframeSelector rangeIdx={rangeIdx} onChange={setRangeIdx} accentColor={accentColor} />
-        <div
-          style={{
-            padding: 'var(--space-5) var(--space-4)',
-            textAlign: 'center',
+        {/* Quiet skeleton placeholder — no red, no error text */}
+        <div style={{ position: 'relative' }}>
+          <ChartSkeleton height={280} />
+          <div style={{
+            position: 'absolute',
+            bottom: 8,
+            right: 10,
+            fontSize: 9,
             color: 'var(--text-muted)',
-            fontSize: 'var(--text-sm)',
-            border: `1px solid ${isMaxRetriesReached ? 'var(--semantic-down)' : 'var(--border-default)'}`,
-            borderRadius: 'var(--radius-md)',
-            background: isMaxRetriesReached ? 'rgba(239, 83, 80, 0.05)' : 'var(--bg-panel)',
-            transition: 'all 200ms ease',
-          }}
-        >
-          <div
-            style={{
-              color: 'var(--semantic-down)',
-              fontWeight: 600,
-              marginBottom: 'var(--space-2)',
-              fontSize: 'var(--text-sm)',
-            }}
-          >
-            Chart unavailable
-          </div>
-          <div
-            style={{
-              color: 'var(--text-faint)',
-              fontSize: 'var(--text-2xs)',
-              marginBottom: 'var(--space-3)',
-              lineHeight: '1.4',
-            }}
-          >
-            {fetchError}
-          </div>
-          {!isMaxRetriesReached && (
-            <button
-              onClick={() => setRetryCount(c => c + 1)}
+            letterSpacing: '0.02em',
+          }}>
+            <span
+              onClick={() => { setRetryCount(c => c + 1); setFetchError(null); }}
               style={{
-                background: 'var(--accent)',
-                border: 'none',
-                color: '#000',
-                padding: 'var(--space-2) var(--space-3)',
-                borderRadius: 'var(--radius-sm)',
                 cursor: 'pointer',
-                fontSize: 'var(--text-2xs)',
-                fontWeight: 700,
-                textTransform: 'uppercase',
-                letterSpacing: '0.5px',
-                transition: 'all var(--duration-instant) ease',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+                textDecoration: 'underline',
+                textUnderlineOffset: '2px',
+                color: 'var(--text-secondary)',
+                transition: 'color 200ms ease',
               }}
-              onMouseEnter={(e) => {
-                e.target.style.opacity = '0.9';
-                e.target.style.boxShadow = '0 4px 12px rgba(0,0,0,0.3)';
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.opacity = '1';
-                e.target.style.boxShadow = '0 2px 8px rgba(0,0,0,0.2)';
-              }}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => { if (e.key === 'Enter') { setRetryCount(c => c + 1); setFetchError(null); } }}
             >
-              Retry
-            </button>
-          )}
+              retry
+            </span>
+          </div>
         </div>
       </div>
     );
