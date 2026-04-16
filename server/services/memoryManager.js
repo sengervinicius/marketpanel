@@ -18,10 +18,11 @@ const fetch = require('node-fetch');
 const db = require('../db/postgres');
 const logger = require('../utils/logger');
 
-// In-memory session store: userId → { messages, summary, lastActive, totalTokens }
+// In-memory session store: userId → { messages, summary, lastActive, totalTokens, sessionId }
 const SESSION_STORE = new Map();
 const MAX_SESSION_TOKENS = 12000; // Rolling window size
 const SESSION_TIMEOUT = 2 * 60 * 60 * 1000; // 2 hours
+const SESSION_GAP_THRESHOLD = 30 * 60 * 1000; // 30 minutes = new session
 const CLEANUP_INTERVAL = 30 * 60 * 1000; // Check every 30 minutes
 
 /**
@@ -57,7 +58,8 @@ function formatSessionMemory(session) {
 }
 
 /**
- * Get or initialize session memory for a user
+ * Get or initialize session memory for a user.
+ * Phase 5: Detects >30 min gaps and triggers session boundary handling.
  */
 function getSessionMemory(userId) {
   if (!userId) return null;
@@ -69,12 +71,110 @@ function getSessionMemory(userId) {
       summary: '',
       lastActive: Date.now(),
       totalTokens: 0,
+      sessionId: `s_${userId}_${Date.now()}`,
     };
     SESSION_STORE.set(userId, session);
+  } else {
+    // Phase 5: Detect session boundary (>30 min gap)
+    const gap = Date.now() - session.lastActive;
+    if (gap > SESSION_GAP_THRESHOLD && session.messages.length > 0) {
+      // Fire-and-forget: summarize old session into typed memory records
+      _handleSessionBoundary(userId, session).catch(err => {
+        logger.warn('[MemoryManager] Session boundary handling failed:', err.message);
+      });
+
+      // Reset session for new conversation
+      const oldSummary = session.summary;
+      session.messages = [];
+      session.summary = oldSummary; // Keep summary for continuity
+      session.totalTokens = estimateTokens(oldSummary);
+      session.sessionId = `s_${userId}_${Date.now()}`;
+      logger.info(`[MemoryManager] New session detected for userId ${userId} (gap: ${Math.round(gap / 60000)}m)`);
+    }
   }
 
   session.lastActive = Date.now();
   return session;
+}
+
+/**
+ * Phase 5: Handle session boundary — summarize old session into typed memory records,
+ * expire entity_focus and followup records, retain preference and constraint.
+ */
+async function _handleSessionBoundary(userId, session) {
+  let conversationMemory;
+  try {
+    conversationMemory = require('./conversationMemory');
+  } catch {
+    return; // Module not available
+  }
+
+  // 1. Summarize the old session into topic + thesis records
+  if (session.messages.length >= 3) {
+    try {
+      const recentText = session.messages
+        .slice(-10)
+        .map(m => `${m.role}: ${m.content.slice(0, 300)}`)
+        .join('\n');
+
+      const apiKey = process.env.ANTHROPIC_API_KEY;
+      if (apiKey) {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 3000);
+
+        const response = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'x-api-key': apiKey,
+            'anthropic-version': '2023-06-01',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'claude-haiku-4-5-20251001',
+            max_tokens: 300,
+            messages: [{
+              role: 'user',
+              content: `Summarize this financial terminal conversation into 2-3 concise memory records. Return JSON array with objects having "type" (either "topic" or "thesis") and "content" (max 40 words each).
+
+${recentText}
+
+Return: [{"type":"topic","content":"..."},{"type":"thesis","content":"..."}]`,
+            }],
+          }),
+          signal: controller.signal,
+        });
+        clearTimeout(timeout);
+
+        if (response.ok) {
+          const data = await response.json();
+          const text = data.content?.[0]?.text?.trim() || '[]';
+          try {
+            const records = JSON.parse(text.replace(/^```json?\s*/i, '').replace(/\s*```$/i, ''));
+            if (Array.isArray(records)) {
+              const sessionId = session.sessionId || `s_${userId}_summary`;
+              for (const rec of records) {
+                if (rec.type && rec.content) {
+                  await conversationMemory.store(userId, sessionId, rec.type, rec.content);
+                }
+              }
+            }
+          } catch { /* parse failure, non-critical */ }
+        }
+      }
+    } catch (e) {
+      if (e.name !== 'AbortError') {
+        logger.debug('[MemoryManager] Session summarization error:', e.message);
+      }
+    }
+  }
+
+  // 2. Expire entity_focus and followup records from the old session
+  try {
+    await conversationMemory.expireByType(userId, ['entity_focus', 'followup']);
+  } catch (e) {
+    logger.debug('[MemoryManager] Failed to expire old session records:', e.message);
+  }
+  // preference and constraint records are retained (longer TTL handles natural expiry)
 }
 
 /**

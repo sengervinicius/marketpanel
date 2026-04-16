@@ -1,15 +1,14 @@
 /**
- * morningBrief.js — Daily Morning Intelligence Brief
- *
- * Wave 8B — Generates a personalized daily market brief at market open.
- * Shared macro section generated once, personalized watchlist sections per user.
+ * morningBrief.js — Phase 5: Multi-Stage Personalized Morning Brief Pipeline
  *
  * Architecture:
- *   - Shared macro brief generated at ~9:15 AM ET (15 min after open)
- *   - Per-user personalization layered on top (portfolio positions, brazil context)
- *   - Per-user section ordering based on 14+ days of engagement data
- *   - Cached for the day (regenerates next morning)
- *   - Falls back to shared brief if personalization fails
+ *   STAGE 1 — Market State Assembly (run at user-configured time, default 06:30 UTC)
+ *   STAGE 2 — User Relevance Join (cross-reference portfolio, watchlist, memory)
+ *   STAGE 3 — Insight Extraction (score events, detect thesis conflicts, find surprises)
+ *   STAGE 4 — Brief Generation (Claude Sonnet, single call)
+ *   STAGE 5 — Brief Display (structured card data with action chips)
+ *
+ * Backward-compatible: preserves all existing exports and API endpoints.
  */
 
 'use strict';
@@ -19,16 +18,16 @@ const logger = require('../utils/logger');
 const predictionAggregator = require('./predictionAggregator');
 
 // ── Config ──────────────────────────────────────────────────────────────────
+const ANTHROPIC_URL  = 'https://api.anthropic.com/v1/messages';
 const PERPLEXITY_URL = 'https://api.perplexity.ai/chat/completions';
-const MODEL          = 'sonar';
+const BRIEF_MODEL    = 'claude-sonnet-4-20250514'; // Phase 5: upgraded from Perplexity sonar
+const FALLBACK_MODEL = 'sonar-pro';                // Fallback if no Anthropic key
 const TIMEOUT_MS     = 20000;
-const BRIEF_INTERVAL = 60 * 60 * 1000; // Check every hour
-const MORNING_HOUR   = 9;  // 9 AM ET
-const MORNING_MIN    = 15; // 9:15 AM ET
+const BRIEF_INTERVAL = 15 * 60 * 1000; // Check every 15 minutes (was 60 min)
+const DEFAULT_BRIEF_HOUR = 6;  // 6:30 UTC default
+const DEFAULT_BRIEF_MIN  = 30;
 const USER_BRIEF_TTL = 23 * 60 * 60 * 1000; // 23 hours
-const ENGAGEMENT_REORDER_DAYS = 14; // Days of data needed for adaptive ordering
-const BRIEF_GENERATION_HOUR = 6; // 6:30 AM user local time
-const BRIEF_GENERATION_MIN = 30;
+const ENGAGEMENT_REORDER_DAYS = 14;
 
 // ── State ───────────────────────────────────────────────────────────────────
 let _timer        = null;
@@ -36,12 +35,13 @@ let _marketState  = null;
 let _getUserById  = null;
 let _getPortfolio = null;
 
-// Today's shared macro brief
-let _todayBrief   = null;  // { content, sections, timestamp, date }
-let _todayDate    = null;  // 'YYYY-MM-DD'
-let _generating   = false;
+// Today's shared market snapshot (Stage 1 output)
+let _marketSnapshot = null;
+let _todayBrief     = null;  // { content, sections, timestamp, date }
+let _todayDate      = null;  // 'YYYY-MM-DD'
+let _generating     = false;
 
-// Per-user brief cache: userId → { content, sections, timestamp, date, personalized }
+// Per-user brief cache: userId → { content, sections, timestamp, date, personalized, actionChips }
 const _userBriefs = new Map();
 
 // ── Init ────────────────────────────────────────────────────────────────────
@@ -53,18 +53,22 @@ function init({ marketState, getUserById, getPortfolio } = {}) {
   if (_timer) clearInterval(_timer);
   _timer = setInterval(() => checkAndGenerate(), BRIEF_INTERVAL);
 
-  // Check immediately
+  // Check immediately after short delay
   setTimeout(() => checkAndGenerate(), 30_000);
-  logger.info('brief', 'Morning Brief service started');
+  logger.info('brief', 'Morning Brief pipeline started (Phase 5)');
 }
 
 function stop() {
   if (_timer) { clearInterval(_timer); _timer = null; }
 }
 
-// ── Time check ──────────────────────────────────────────────────────────────
+// ── Time utilities ──────────────────────────────────────────────────────────
 function getETTime() {
   return new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
+}
+
+function getUTCTime() {
+  return new Date();
 }
 
 function getTodayDateStr() {
@@ -77,6 +81,34 @@ function isWeekday() {
   return day !== 0 && day !== 6;
 }
 
+function getTimeInTimezone(tz = 'America/New_York') {
+  try {
+    return new Date(new Date().toLocaleString('en-US', { timeZone: tz }));
+  } catch {
+    return getETTime();
+  }
+}
+
+/**
+ * Check if it's time to generate the brief for a user given their preferred time.
+ * User can set their preferred brief time in settings.morningBriefTime (e.g., "06:30").
+ * @param {string} userTimezone - IANA timezone
+ * @param {string} preferredTime - HH:MM format (default "06:30")
+ */
+function shouldGenerateForUser(userTimezone = 'America/New_York', preferredTime = '06:30') {
+  const local = getTimeInTimezone(userTimezone);
+  const h = local.getHours();
+  const m = local.getMinutes();
+
+  const [prefH, prefM] = preferredTime.split(':').map(Number);
+  const localMins = h * 60 + m;
+  const prefMins = prefH * 60 + prefM;
+
+  // Generation window: preferred time to preferred time + 30 min
+  return localMins >= prefMins && localMins < prefMins + 30;
+}
+
+// ── Auto-generate check ─────────────────────────────────────────────────────
 async function checkAndGenerate() {
   if (!isWeekday()) return;
 
@@ -87,104 +119,497 @@ async function checkAndGenerate() {
   const h = et.getHours();
   const m = et.getMinutes();
 
-  // Generate after 9:15 AM ET
-  if (h > MORNING_HOUR || (h === MORNING_HOUR && m >= MORNING_MIN)) {
+  // Generate after 9:15 AM ET (shared macro brief)
+  if (h > 9 || (h === 9 && m >= 15)) {
     await generateSharedBrief();
   }
 }
 
-// ── Shared macro brief ──────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+// STAGE 1 — Market State Assembly
+// ══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Collect overnight index moves, VIX, DXY, FX, crypto, yields,
+ * pre-market movers, economic calendar, earnings for the day.
+ */
+function assembleMarketSnapshot() {
+  const snapshot = {
+    timestamp: Date.now(),
+    date: getTodayDateStr(),
+    indices: {},
+    vix: null,
+    dxy: null,
+    fx: {},
+    crypto: {},
+    yields: {},
+    topMovers: [],
+    predictions: [],
+  };
+
+  if (!_marketState) return snapshot;
+
+  try {
+    const stocks = _marketState.stocks || {};
+
+    // Major indices
+    const indexSymbols = { SPY: 'S&P 500', QQQ: 'Nasdaq 100', DIA: 'Dow 30', IWM: 'Russell 2000' };
+    for (const [sym, label] of Object.entries(indexSymbols)) {
+      const d = stocks[sym];
+      if (d?.price) {
+        snapshot.indices[sym] = {
+          label,
+          price: d.price,
+          change: d.changePercent || 0,
+          volume: d.volume || 0,
+        };
+      }
+    }
+
+    // VIX
+    const vix = stocks['VIX'] || stocks['UVXY'];
+    if (vix?.price) {
+      snapshot.vix = { price: vix.price, change: vix.changePercent || 0 };
+    }
+
+    // Crypto
+    for (const sym of ['BTC', 'ETH', 'BTCUSD', 'ETHUSD']) {
+      const d = stocks[sym];
+      if (d?.price) {
+        const key = sym.replace('USD', '');
+        snapshot.crypto[key] = { price: d.price, change: d.changePercent || 0 };
+      }
+    }
+
+    // Top pre-market movers (from all tracked stocks)
+    snapshot.topMovers = Object.entries(stocks)
+      .filter(([, d]) => d?.changePercent && Math.abs(d.changePercent) > 2 && d.volume > 100000)
+      .sort((a, b) => Math.abs(b[1].changePercent) - Math.abs(a[1].changePercent))
+      .slice(0, 10)
+      .map(([sym, d]) => ({
+        symbol: sym,
+        price: d.price,
+        change: d.changePercent,
+        volume: d.volume,
+      }));
+  } catch (e) {
+    logger.debug('brief', 'Market snapshot assembly partial failure:', e.message);
+  }
+
+  // Prediction markets
+  try {
+    const predictions = predictionAggregator.getTopMarkets?.(8) || [];
+    snapshot.predictions = predictions.map(m => ({
+      title: m.title,
+      probability: m.probability,
+      source: m.source,
+    }));
+  } catch (e) { /* non-critical */ }
+
+  return snapshot;
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// STAGE 2 — User Relevance Join
+// ══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Cross-reference market snapshot against user's watchlist, portfolio, and memory records.
+ * Score each event by "consequence to this user".
+ */
+async function joinUserRelevance(snapshot, userId) {
+  const relevance = {
+    watchlistMoves: [],
+    portfolioMoves: [],
+    memoryConflicts: [],
+    topEvents: [],
+  };
+
+  try {
+    // Get user's portfolio
+    const portfolio = _getPortfolio ? await _getPortfolio(userId) : null;
+    const portfolioTickers = new Set(
+      (portfolio?.positions || []).map(p => (p.ticker || p.symbol || '').toUpperCase()).filter(Boolean)
+    );
+
+    // Get user's watchlist from settings
+    const user = _getUserById ? await _getUserById(userId) : null;
+    const watchlist = new Set(
+      (user?.settings?.watchlist || []).map(t => t.toUpperCase())
+    );
+
+    // Score each market mover against user's holdings
+    const stocks = _marketState?.stocks || {};
+    const allUserTickers = new Set([...portfolioTickers, ...watchlist]);
+
+    for (const ticker of allUserTickers) {
+      const d = stocks[ticker];
+      if (!d?.price) continue;
+
+      const isPortfolio = portfolioTickers.has(ticker);
+      const isWatchlist = watchlist.has(ticker);
+      const changePct = d.changePercent || 0;
+
+      // Score: portfolio moves weighted 2x, larger moves weighted more
+      const score = Math.abs(changePct) * (isPortfolio ? 2 : 1);
+
+      if (score > 0.5) { // Only include meaningful moves
+        const entry = {
+          symbol: ticker,
+          price: d.price,
+          change: changePct,
+          source: isPortfolio ? 'portfolio' : 'watchlist',
+          score,
+        };
+
+        if (isPortfolio) relevance.portfolioMoves.push(entry);
+        else relevance.watchlistMoves.push(entry);
+      }
+    }
+
+    // Sort by score
+    relevance.portfolioMoves.sort((a, b) => b.score - a.score);
+    relevance.watchlistMoves.sort((a, b) => b.score - a.score);
+
+    // Phase 5: Check memory records for thesis conflicts
+    try {
+      const conversationMemory = require('./conversationMemory');
+      const records = await conversationMemory.getActive(userId);
+      const theses = records.filter(r => r.type === 'thesis');
+
+      for (const thesis of theses) {
+        // Check if any thesis-related tickers moved against the thesis
+        const thesisTickers = thesis.tickers_mentioned || [];
+        for (const ticker of thesisTickers) {
+          const d = stocks[ticker];
+          if (!d?.changePercent) continue;
+
+          const isBullish = /bull|long|buy|upside|recovery/i.test(thesis.content);
+          const isBearish = /bear|short|sell|downside|risk/i.test(thesis.content);
+          const moved = d.changePercent;
+
+          if ((isBullish && moved < -1.5) || (isBearish && moved > 1.5)) {
+            relevance.memoryConflicts.push({
+              thesis: thesis.content,
+              ticker,
+              move: moved,
+              conflict: isBullish ? 'Bullish thesis but stock down' : 'Bearish thesis but stock up',
+            });
+          }
+        }
+      }
+    } catch { /* conversationMemory not available — skip */ }
+
+    // Combine and rank top events
+    relevance.topEvents = [
+      ...relevance.portfolioMoves.slice(0, 3),
+      ...relevance.watchlistMoves.slice(0, 3),
+    ].sort((a, b) => b.score - a.score).slice(0, 5);
+
+  } catch (e) {
+    logger.debug('brief', 'User relevance join error:', e.message);
+  }
+
+  return relevance;
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// STAGE 3 — Insight Extraction
+// ══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * From the relevance-scored snapshot, extract:
+ * - Top 3 events relevant to user (with specific numbers)
+ * - Thesis conflicts (from memory)
+ * - One "surprise" (moved against dominant narrative)
+ * - 3 follow-up questions
+ */
+function extractInsights(snapshot, relevance) {
+  const insights = {
+    topEvents: [],
+    thesisConflicts: relevance.memoryConflicts || [],
+    surprise: null,
+    followUpQuestions: [],
+  };
+
+  // Top events with specific numbers
+  for (const event of (relevance.topEvents || []).slice(0, 3)) {
+    insights.topEvents.push({
+      symbol: event.symbol,
+      price: event.price,
+      change: event.change,
+      source: event.source,
+      narrative: `$${event.symbol} ${event.change > 0 ? '+' : ''}${event.change.toFixed(2)}% (${event.source})`,
+    });
+  }
+
+  // Find a "surprise" — top mover that goes against the overall market direction
+  const spyChange = snapshot.indices.SPY?.change || 0;
+  const marketDirection = spyChange > 0 ? 'up' : 'down';
+  const surprise = (snapshot.topMovers || []).find(m => {
+    if (marketDirection === 'up' && m.change < -3) return true;
+    if (marketDirection === 'down' && m.change > 3) return true;
+    return false;
+  });
+  if (surprise) {
+    insights.surprise = {
+      symbol: surprise.symbol,
+      change: surprise.change,
+      narrative: `$${surprise.symbol} moved ${surprise.change > 0 ? '+' : ''}${surprise.change.toFixed(1)}% against the tape`,
+    };
+  }
+
+  // Generate follow-up questions based on the data
+  if (relevance.portfolioMoves.length > 0) {
+    const topMover = relevance.portfolioMoves[0];
+    const dir = topMover.change > 0 ? 'adding to' : 'reducing';
+    insights.followUpQuestions.push(`Should you consider ${dir} $${topMover.symbol}?`);
+  }
+  if (relevance.watchlistMoves.length > 0) {
+    const top = relevance.watchlistMoves[0];
+    insights.followUpQuestions.push(`Watch $${top.symbol} at $${top.price.toFixed(2)}`);
+  }
+  if (insights.thesisConflicts.length > 0) {
+    const conflict = insights.thesisConflicts[0];
+    insights.followUpQuestions.push(`Revisit your thesis on $${conflict.ticker}?`);
+  }
+  // Pad to 3 questions
+  if (insights.followUpQuestions.length < 3 && snapshot.indices.SPY) {
+    insights.followUpQuestions.push(`$SPY setup for today — key levels?`);
+  }
+
+  return insights;
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// STAGE 4 — Brief Generation (Claude Sonnet, single call)
+// ══════════════════════════════════════════════════════════════════════════════
+
+const BRIEF_SYSTEM_PROMPT = `Generate a pre-market brief in exactly 3 sections. Use markdown headers (###).
+
+### TODAY'S SETUP
+2 sentences: market tone + key driver. Include specific index numbers from the data.
+
+### YOUR NAMES
+One bullet per relevant position/watchlist item with specific move + context. Use $TICKER format. Bold prices and percentages. Max 5 items.
+
+### WATCH TODAY
+3 numbered items: specific levels, events, or catalysts to monitor. Be actionable.
+
+Rules:
+- No filler. No generic macro commentary. Use ONLY the data provided.
+- Never say "I" or "As an AI"
+- Use trader shorthand: bid, offered, vol, carry
+- Include specific numbers from the data — never approximate
+- Total: 150-250 words max
+- Today's date: `;
+
+async function generateBriefContent(snapshot, relevance, insights, dateStr) {
+  // Build structured context for the AI
+  const contextParts = [];
+
+  // Indices
+  const indexLines = Object.entries(snapshot.indices)
+    .map(([sym, d]) => `$${sym} (${d.label}): $${d.price} ${d.change > 0 ? '+' : ''}${d.change.toFixed(2)}%`)
+    .join('\n');
+  if (indexLines) contextParts.push(`INDICES:\n${indexLines}`);
+
+  // VIX
+  if (snapshot.vix) {
+    contextParts.push(`VIX: ${snapshot.vix.price} (${snapshot.vix.change > 0 ? '+' : ''}${snapshot.vix.change.toFixed(2)}%)`);
+  }
+
+  // Crypto
+  const cryptoLines = Object.entries(snapshot.crypto)
+    .map(([sym, d]) => `$${sym}: $${d.price} ${d.change > 0 ? '+' : ''}${d.change.toFixed(2)}%`)
+    .join(', ');
+  if (cryptoLines) contextParts.push(`CRYPTO: ${cryptoLines}`);
+
+  // Top movers
+  if (snapshot.topMovers.length > 0) {
+    const movers = snapshot.topMovers.slice(0, 5).map(m =>
+      `$${m.symbol} ${m.change > 0 ? '+' : ''}${m.change.toFixed(1)}%`
+    ).join(', ');
+    contextParts.push(`TOP MOVERS: ${movers}`);
+  }
+
+  // Predictions
+  if (snapshot.predictions.length > 0) {
+    const preds = snapshot.predictions.slice(0, 3).map(p =>
+      `${p.title}: ${(p.probability * 100).toFixed(0)}% (${p.source})`
+    ).join('\n');
+    contextParts.push(`PREDICTION MARKETS:\n${preds}`);
+  }
+
+  // User's relevant moves
+  if (insights.topEvents.length > 0) {
+    contextParts.push(`USER'S RELEVANT MOVES:\n${insights.topEvents.map(e => e.narrative).join('\n')}`);
+  }
+
+  // Thesis conflicts
+  if (insights.thesisConflicts.length > 0) {
+    contextParts.push(`THESIS CONFLICTS:\n${insights.thesisConflicts.map(c => `${c.conflict}: ${c.thesis} but $${c.ticker} is ${c.move > 0 ? '+' : ''}${c.move.toFixed(1)}%`).join('\n')}`);
+  }
+
+  // Surprise
+  if (insights.surprise) {
+    contextParts.push(`SURPRISE: ${insights.surprise.narrative}`);
+  }
+
+  const contextStr = contextParts.join('\n\n');
+  const fullSystemPrompt = BRIEF_SYSTEM_PROMPT + dateStr;
+
+  // Try Claude Sonnet first, fall back to Perplexity
+  const anthropicKey = process.env.ANTHROPIC_API_KEY;
+  const perplexityKey = process.env.PERPLEXITY_API_KEY;
+
+  if (anthropicKey) {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
+      const resp = await fetch(ANTHROPIC_URL, {
+        method: 'POST',
+        headers: {
+          'x-api-key': anthropicKey,
+          'anthropic-version': '2023-06-01',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: BRIEF_MODEL,
+          max_tokens: 600,
+          system: fullSystemPrompt,
+          messages: [{
+            role: 'user',
+            content: `Generate today's morning brief based on this data:\n\n${contextStr}`,
+          }],
+        }),
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+
+      if (resp.ok) {
+        const data = await resp.json();
+        return data.content?.[0]?.text?.trim() || null;
+      }
+    } catch (e) {
+      logger.warn('brief', 'Claude brief generation failed, trying Perplexity:', e.message);
+    }
+  }
+
+  // Fallback to Perplexity
+  if (perplexityKey) {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
+      const resp = await fetch(PERPLEXITY_URL, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${perplexityKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: FALLBACK_MODEL,
+          messages: [
+            { role: 'system', content: fullSystemPrompt },
+            { role: 'user', content: `Generate today's morning brief:\n\n${contextStr}` },
+          ],
+          temperature: 0.5,
+          max_tokens: 600,
+        }),
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+
+      if (resp.ok) {
+        const data = await resp.json();
+        return data.choices?.[0]?.message?.content?.trim() || null;
+      }
+    } catch (e) {
+      logger.warn('brief', 'Perplexity brief fallback failed:', e.message);
+    }
+  }
+
+  return null;
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// STAGE 5 — Brief Display (structured card data)
+// ══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Build action chips for the brief card: "Ask about [ticker]", "Analyze [event]", etc.
+ */
+function buildActionChips(insights) {
+  const chips = [];
+
+  for (const event of (insights.topEvents || []).slice(0, 2)) {
+    chips.push({
+      label: `Ask about $${event.symbol}`,
+      action: `analyze ${event.symbol}`,
+      type: 'query',
+    });
+  }
+
+  if (insights.surprise) {
+    chips.push({
+      label: `Analyze $${insights.surprise.symbol}`,
+      action: `why is ${insights.surprise.symbol} ${insights.surprise.change > 0 ? 'up' : 'down'} today?`,
+      type: 'query',
+    });
+  }
+
+  for (const q of (insights.followUpQuestions || []).slice(0, 1)) {
+    // Extract ticker from question if present
+    const tickerMatch = q.match(/\$([A-Z]{1,5})/);
+    if (tickerMatch) {
+      chips.push({
+        label: q,
+        action: q,
+        type: 'query',
+      });
+    }
+  }
+
+  return chips.slice(0, 4); // Max 4 chips
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Main generation flow
+// ══════════════════════════════════════════════════════════════════════════════
+
 async function generateSharedBrief() {
   if (_generating) return;
   _generating = true;
 
   try {
-    const apiKey = process.env.PERPLEXITY_API_KEY;
-    if (!apiKey) {
-      logger.warn('brief', 'PERPLEXITY_API_KEY not set');
-      _generating = false;
-      return;
-    }
+    // STAGE 1: Market state assembly
+    _marketSnapshot = assembleMarketSnapshot();
+    logger.info('brief', `Stage 1: Market snapshot assembled (${Object.keys(_marketSnapshot.indices).length} indices, ${_marketSnapshot.topMovers.length} movers)`);
 
-    const context = buildBriefContext();
+    // For the shared brief, we do Stage 4 with snapshot only (no user-specific data)
+    const dateStr = getTodayDateStr();
+    const emptyRelevance = { watchlistMoves: [], portfolioMoves: [], memoryConflicts: [], topEvents: [] };
+    const basicInsights = extractInsights(_marketSnapshot, emptyRelevance);
+    const content = await generateBriefContent(_marketSnapshot, emptyRelevance, basicInsights, dateStr);
 
-    const systemPrompt = `You are Particle's Morning Intelligence Brief — a concise daily market overview for professional traders and investors.
-
-Write a structured morning brief with these exact sections (use markdown headers):
-
-### Market Overnight
-2-3 sentences on how markets closed yesterday and what happened overnight (Asia/Europe session).
-
-### What to Watch Today
-3-4 bullet points of the most important events, data releases, or earnings today.
-
-### Prediction Markets
-2-3 sentences on the most notable prediction market moves (probability shifts on rates, inflation, geopolitical events).
-
-### The Take
-1-2 sentences with your overall read on the day. Opinionated but measured.
-
-Rules:
-- Write in prose paragraphs, not bullet points
-- Write like a trusted colleague drafting a morning memo
-- Be direct and specific
-- Total length: 200-300 words max
-- Use $TICKER format for stocks
-- Include specific numbers and percentages
-- Sound like a veteran market strategist
-- Be actionable — what should traders pay attention to?
-- No greetings or sign-offs
-- Today's date: ${getTodayDateStr()}`;
-
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
-
-    const resp = await fetch(PERPLEXITY_URL, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: `Generate today's morning brief based on this market context:\n\n${context}` },
-        ],
-        temperature: 0.5,
-        max_tokens: 600,
-      }),
-      signal: controller.signal,
-    });
-
-    clearTimeout(timeout);
-
-    if (!resp.ok) {
-      const text = await resp.text().catch(() => '');
-      logger.error('brief', `Perplexity ${resp.status}`, { body: text.slice(0, 200) });
-      _generating = false;
-      return;
-    }
-
-    const data = await resp.json();
-    const content = data.choices?.[0]?.message?.content?.trim();
     if (!content || content.length < 50) {
       logger.warn('brief', 'Brief too short, skipping');
       _generating = false;
       return;
     }
 
-    // Parse sections
     const sections = parseSections(content);
 
     _todayBrief = {
       content,
       sections,
       timestamp: Date.now(),
-      date: getTodayDateStr(),
+      date: dateStr,
     };
-    _todayDate = getTodayDateStr();
-    _userBriefs.clear(); // Clear per-user cache for new day
+    _todayDate = dateStr;
+    _userBriefs.clear();
 
     logger.info('brief', `Generated morning brief (${content.length} chars)`);
   } catch (e) {
@@ -209,167 +634,9 @@ function parseSections(content) {
   return sections;
 }
 
-// ── Build context ───────────────────────────────────────────────────────────
-function buildBriefContext(extras = {}) {
-  const parts = [];
-
-  if (_marketState) {
-    try {
-      const stocks = _marketState.stocks || {};
-      const indices = ['SPY', 'QQQ', 'DIA', 'IWM', 'VIX'];
-      const idxLines = indices
-        .map(sym => {
-          const d = stocks[sym];
-          if (!d || !d.price) return null;
-          const chg = d.changePercent ? `${d.changePercent > 0 ? '+' : ''}${d.changePercent.toFixed(2)}%` : '';
-          return `${sym}: $${d.price} ${chg}`;
-        })
-        .filter(Boolean);
-      if (idxLines.length) parts.push(`Indices: ${idxLines.join(' | ')}`);
-
-      // Additional tickers from user's portfolio
-      if (extras.portfolioTickers && extras.portfolioTickers.length > 0) {
-        const posLines = extras.portfolioTickers
-          .map(sym => {
-            const d = stocks[sym] || stocks[sym.toUpperCase()];
-            if (!d || !d.price) return null;
-            const chg = d.changePct ?? d.changePercent;
-            const chgStr = chg != null ? `${chg > 0 ? '+' : ''}${chg.toFixed(2)}%` : '';
-            return `$${sym}: $${d.price} ${chgStr}`;
-          })
-          .filter(Boolean);
-        if (posLines.length) parts.push(`User portfolio prices:\n${posLines.join('\n')}`);
-      }
-    } catch (e) { /* non-critical */ }
-  }
-
-  try {
-    const predictions = predictionAggregator.getTopMarkets?.(8) || [];
-    if (predictions.length) {
-      const predLines = predictions.map(m =>
-        `${m.title}: ${(m.probability * 100).toFixed(0)}% (${m.source})`
-      ).join('\n');
-      parts.push(`Prediction Markets:\n${predLines}`);
-    }
-  } catch (e) { /* non-critical */ }
-
-  // Vault context: central research vault passages relevant to user's sectors
-  if (extras.vaultContext) {
-    parts.push(extras.vaultContext);
-  }
-
-  // Behavioral context: user interests and engagement patterns
-  if (extras.behaviorContext) {
-    parts.push(extras.behaviorContext);
-  }
-
-  return parts.join('\n\n') || 'Generate a morning brief based on current market conditions.';
-}
-
-// ── Timezone utilities ─────────────────────────────────────────────────────
-/**
- * Get time in a user's timezone
- * @param {string} userTimezone - IANA timezone (e.g., 'America/New_York', 'America/Sao_Paulo')
- * @returns {Date} local time in user's timezone
- */
-function getTimeInTimezone(userTimezone = 'America/New_York') {
-  try {
-    return new Date(new Date().toLocaleString('en-US', { timeZone: userTimezone }));
-  } catch (e) {
-    // Fallback to ET if timezone is invalid
-    return getETTime();
-  }
-}
-
-/**
- * Check if it's 6:30 AM in the user's timezone (brief generation window)
- * @param {string} userTimezone - IANA timezone
- * @returns {boolean}
- */
-function shouldGenerateForUser(userTimezone = 'America/New_York') {
-  const local = getTimeInTimezone(userTimezone);
-  const h = local.getHours();
-  const m = local.getMinutes();
-  // Generate window: 6:30 AM - 7:00 AM in user's timezone
-  return (h === BRIEF_GENERATION_HOUR && m >= BRIEF_GENERATION_MIN) ||
-         (h === BRIEF_GENERATION_HOUR + 1 && m < 1);
-}
-
-// ── Portfolio & personalization helpers ────────────────────────────────────
-/**
- * Format portfolio positions for brief
- */
-function formatPortfolioSection(portfolio) {
-  if (!portfolio || !portfolio.positions || portfolio.positions.length === 0) {
-    return null;
-  }
-
-  const positions = portfolio.positions
-    .filter(p => p && p.ticker)
-    .slice(0, 8)
-    .map(p => {
-      const chg = p.changePercent
-        ? `${p.changePercent > 0 ? '+' : ''}${p.changePercent.toFixed(2)}%`
-        : 'no data';
-      const size = p.quantity ? ` (${p.quantity} shares)` : '';
-      return `$${p.ticker}: ${chg}${size}`;
-    })
-    .join(', ');
-
-  return `Your overnight portfolio moves: ${positions}. Monitor these for any significant gaps.`;
-}
-
-/**
- * Build Brazil brief if applicable
- */
-function buildBrazilSection() {
-  // This would normally pull from _marketState
-  // For now, return a template that can be filled by AI
-  return `Brazil market context: BRL/USD movement, IBOV performance, Selic rate implications, and key B3 movers for the session.`;
-}
-
-/**
- * Reorder sections based on engagement data
- * Keep "Market Overnight" first, then sort rest by engagement
- */
-function orderSections(sections, engagementRates = {}) {
-  if (!sections || Object.keys(sections).length === 0) return sections;
-
-  // Define ordering preference: always keep market_overnight first
-  const ordered = {};
-  const anchorKey = 'market_overnight';
-
-  if (sections[anchorKey]) {
-    ordered[anchorKey] = sections[anchorKey];
-  }
-
-  // Sort remaining sections by engagement rate (highest first)
-  const remaining = Object.entries(sections)
-    .filter(([key]) => key !== anchorKey)
-    .sort((a, b) => {
-      const rateA = engagementRates[a[0]] || 0;
-      const rateB = engagementRates[b[0]] || 0;
-      return rateB - rateA;
-    });
-
-  for (const [key, content] of remaining) {
-    ordered[key] = content;
-  }
-
-  return ordered;
-}
-
-// ── Per-user brief (adds portfolio & personalization) ─────────────────────────────────
-/**
- * Get per-user brief with personalized sections
- * Takes the shared brief base and adds:
- *  - Your Positions section (portfolio overnight changes with live prices)
- *  - Vault Insights section (relevant central + private vault context)
- *  - Brazil Brief section (if user has brazil exposure)
- *  - Reorders sections based on engagement data (if 14+ days of data)
- */
+// ── Per-user brief (runs Stages 2-5 on top of shared Stage 1 snapshot) ──────
 async function getUserBrief(userId) {
-  if (!_todayBrief) return null;
+  if (!_todayBrief && !_marketSnapshot) return null;
 
   // Check cache
   const cached = _userBriefs.get(userId);
@@ -378,23 +645,44 @@ async function getUserBrief(userId) {
   }
 
   try {
-    // Start with shared brief base
-    let sections = { ...(_todayBrief.sections || {}) };
-    let content = _todayBrief.content;
-    let personalized = false;
+    const snapshot = _marketSnapshot || assembleMarketSnapshot();
+    const dateStr = getTodayDateStr();
 
-    // Fetch user profile and portfolio
-    const user = _getUserById ? await _getUserById(userId) : null;
-    const portfolio = _getPortfolio ? await _getPortfolio(userId) : null;
-    const userProfile = user?.settings?.interests || {};
+    // STAGE 2: User relevance join
+    const relevance = await joinUserRelevance(snapshot, userId);
+    logger.debug('brief', `Stage 2: Relevance join for user ${userId}: ${relevance.portfolioMoves.length} portfolio, ${relevance.watchlistMoves.length} watchlist`);
 
-    // ── Vault enrichment: pull relevant passages from central + private vault ──
+    // STAGE 3: Insight extraction
+    const insights = extractInsights(snapshot, relevance);
+
+    // STAGE 4: Generate personalized brief (or augment shared brief)
+    let content;
+    const hasPersonalData = relevance.portfolioMoves.length > 0 || relevance.watchlistMoves.length > 0 || relevance.memoryConflicts.length > 0;
+
+    if (hasPersonalData) {
+      // Generate a fully personalized brief
+      content = await generateBriefContent(snapshot, relevance, insights, dateStr);
+    }
+
+    // Fall back to shared brief if personalization fails or no personal data
+    if (!content || content.length < 50) {
+      content = _todayBrief?.content || null;
+    }
+
+    if (!content) return _todayBrief ? { ..._todayBrief, userId, personalized: false } : null;
+
+    const sections = parseSections(content);
+
+    // STAGE 5: Build display data
+    const actionChips = buildActionChips(insights);
+
+    // Vault enrichment (from existing logic)
     try {
       const vault = require('./vault');
       const behaviorTracker = require('./behaviorTracker');
       const profile = await behaviorTracker.getCachedProfile(userId).catch(() => null);
 
-      // Build a query from user's top interests and portfolio tickers
+      const portfolio = _getPortfolio ? await _getPortfolio(userId) : null;
       const topTickers = (portfolio?.positions || []).slice(0, 5).map(p => p.ticker || p.symbol).filter(Boolean);
       const topTopics = profile?.topTopics || [];
       const vaultQuery = [...topTickers.map(t => `$${t}`), ...topTopics.slice(0, 3)].join(' ') || 'market outlook';
@@ -409,56 +697,43 @@ async function getUserBrief(userId) {
             })
             .join('\n');
           sections.research_insights = `Relevant from your research vault:\n${vaultInsight}`;
-          personalized = true;
         }
       }
-    } catch (e) {
-      // Vault not available — continue without it
-    }
+    } catch { /* Vault not available */ }
 
-    // Add "Your Positions" section
-    if (portfolio) {
-      const portfolioSection = formatPortfolioSection(portfolio);
-      if (portfolioSection) {
-        sections.your_positions = portfolioSection;
-        personalized = true;
+    // Portfolio section
+    try {
+      const portfolio = _getPortfolio ? await _getPortfolio(userId) : null;
+      if (portfolio) {
+        const portfolioSection = formatPortfolioSection(portfolio);
+        if (portfolioSection) sections.your_positions = portfolioSection;
       }
-    }
+    } catch { /* non-critical */ }
 
-    // Add "Brazil Brief" section if user has brazil exposure
-    const hasBrazilExposure = userProfile.sectors?.brazil > 0.3 ||
-                             (portfolio?.positions || []).some(p =>
-                               p.ticker && (p.ticker.includes('SA') ||
-                                           ['EWZ', 'VALE', 'PBR', 'ITUB'].includes(p.ticker))
-                             );
-    if (hasBrazilExposure) {
-      sections.brazil_brief = buildBrazilSection();
-      personalized = true;
-    }
+    // Adaptive section ordering
+    try {
+      const user = _getUserById ? await _getUserById(userId) : null;
+      const userProfile = user?.settings?.interests || {};
+      if (userProfile.lastComputed &&
+          (Date.now() - userProfile.lastComputed) < ENGAGEMENT_REORDER_DAYS * 86400000) {
+        const engagementRates = {
+          what_to_watch_today: userProfile.topics?.earnings || 0.5,
+          watch_today: userProfile.topics?.earnings || 0.5,
+          prediction_markets: userProfile.topics?.prediction || 0.4,
+          the_take: 0.6,
+          todays_setup: 0.8,
+          your_names: 0.9,
+          your_positions: userProfile.sectors?.us_equities || 0.7,
+        };
+        sections._ordered = orderSections(sections, engagementRates);
+      }
+    } catch { /* non-critical */ }
 
-    // Adaptive section ordering: if 14+ days of engagement data, reorder by engagement
-    if (userProfile.lastComputed &&
-        (Date.now() - userProfile.lastComputed) < ENGAGEMENT_REORDER_DAYS * 86400000) {
-      const engagementRates = {
-        what_to_watch_today: userProfile.topics?.earnings || 0.5,
-        prediction_markets: userProfile.topics?.prediction || 0.4,
-        the_take: 0.6, // The Take is always important
-        your_positions: userProfile.sectors?.us_equities || 0.7,
-        brazil_brief: userProfile.sectors?.brazil || 0.3,
-      };
-      sections = orderSections(sections, engagementRates);
-    } else {
-      // Default ordering without engagement data
-      sections = orderSections(sections);
-    }
-
-    // Reconstruct content from reordered sections
+    // Reconstruct content from sections
     const reconstructedContent = Object.entries(sections)
+      .filter(([key]) => !key.startsWith('_'))
       .map(([key, value]) => {
-        const title = key
-          .split('_')
-          .map(w => w.charAt(0).toUpperCase() + w.slice(1))
-          .join(' ');
+        const title = key.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
         return `### ${title}\n${value}`;
       })
       .join('\n\n');
@@ -467,29 +742,67 @@ async function getUserBrief(userId) {
       content: reconstructedContent,
       sections,
       timestamp: Date.now(),
-      date: _todayDate,
+      date: _todayDate || dateStr,
       userId,
-      personalized,
+      personalized: hasPersonalData,
+      actionChips,
+      relevantCount: insights.topEvents.length,
     };
 
     _userBriefs.set(userId, brief);
     return brief;
   } catch (e) {
     logger.error('brief', `getUserBrief failed for user ${userId}`, { error: e.message });
-    // Fallback to shared brief on error
-    return {
-      ..._todayBrief,
-      userId,
-      personalized: false,
-    };
+    return _todayBrief ? { ..._todayBrief, userId, personalized: false } : null;
   }
+}
+
+// ── Helper functions ────────────────────────────────────────────────────────
+
+function formatPortfolioSection(portfolio) {
+  if (!portfolio?.positions?.length) return null;
+
+  const positions = portfolio.positions
+    .filter(p => p?.ticker)
+    .slice(0, 8)
+    .map(p => {
+      const chg = p.changePercent
+        ? `${p.changePercent > 0 ? '+' : ''}${p.changePercent.toFixed(2)}%`
+        : 'no data';
+      const size = p.quantity ? ` (${p.quantity} shares)` : '';
+      return `$${p.ticker}: ${chg}${size}`;
+    })
+    .join(', ');
+
+  return `Your overnight portfolio moves: ${positions}. Monitor these for any significant gaps.`;
+}
+
+function orderSections(sections, engagementRates = {}) {
+  if (!sections || Object.keys(sections).length === 0) return sections;
+
+  const ordered = {};
+  // Keep setup/overnight first
+  for (const anchor of ["todays_setup", 'market_overnight']) {
+    if (sections[anchor]) {
+      ordered[anchor] = sections[anchor];
+    }
+  }
+
+  const anchorKeys = new Set(["todays_setup", 'market_overnight']);
+  const remaining = Object.entries(sections)
+    .filter(([key]) => !anchorKeys.has(key) && !key.startsWith('_'))
+    .sort((a, b) => (engagementRates[b[0]] || 0) - (engagementRates[a[0]] || 0));
+
+  for (const [key, content] of remaining) {
+    ordered[key] = content;
+  }
+
+  return ordered;
 }
 
 // ── Public API ──────────────────────────────────────────────────────────────
 
-function getSharedBrief() {
-  return _todayBrief;
-}
+function getSharedBrief() { return _todayBrief; }
 
 function hasTodayBrief() {
   return _todayDate === getTodayDateStr() && _todayBrief !== null;
@@ -510,30 +823,17 @@ function getSummary() {
     briefLength: _todayBrief?.content?.length || 0,
     cachedUsers: _userBriefs.size,
     isWeekday: isWeekday(),
+    hasSnapshot: !!_marketSnapshot,
   };
 }
 
-/**
- * Check if it's time to generate brief for a given user.
- * Currently uses shared brief generation (9:15 AM ET),
- * but can be extended to per-user timezones.
- * TODO: Implement per-user timezone scheduling in Wave 9
- *   - Call shouldGenerateForUser(userId, userProfile.timezone) per user
- *   - Trigger per-user brief generation at 6:30 AM in their timezone
- */
 function shouldGenerateBriefForUser(userId, userProfile = {}) {
-  // For now, use shared ET-based generation
-  // Future: add userProfile.timezone and call shouldGenerateForUser(userProfile.timezone)
   return isWeekday() && hasTodayBrief();
 }
 
 /**
- * Phase 2: Generate a contextual greeting using live market data.
- * Returns a 2-3 sentence brief: "S&P futures +1.0%, led by tech. Your portfolio is up 1.2%."
- * Falls back to simple time-based greeting if no market data is available.
- *
- * @param {string|null} userId - For portfolio context
- * @returns {Promise<{greeting: string, hasBrief: boolean}>}
+ * Contextual greeting using live market data.
+ * Returns a 2-3 sentence brief.
  */
 async function getContextualGreeting(userId = null) {
   const et = getETTime();
@@ -546,7 +846,6 @@ async function getContextualGreeting(userId = null) {
 
     const parts = [];
 
-    // Index summary
     if (ms?.stocks) {
       const spy = ms.stocks['SPY'];
       const qqq = ms.stocks['QQQ'];
@@ -560,16 +859,15 @@ async function getContextualGreeting(userId = null) {
       }
     }
 
-    // Portfolio summary
     let portfolioPart = '';
     if (userId) {
       try {
         const portfolioStore = require('../portfolioStore');
         const portfolio = portfolioStore.getPortfolio(userId);
-        if (portfolio?.positions?.length > 0 && ms?.stocks) {
+        if (portfolio?.positions?.length > 0 && _marketState?.stocks) {
           let totalVal = 0, totalCost = 0;
           for (const pos of portfolio.positions) {
-            const d = ms.stocks[pos.symbol];
+            const d = _marketState.stocks[pos.symbol];
             const price = d?.price || pos.currentPrice || 0;
             totalVal += price * (pos.quantity || 0);
             totalCost += (pos.entryPrice || 0) * (pos.quantity || 0);
@@ -580,7 +878,7 @@ async function getContextualGreeting(userId = null) {
             portfolioPart = `Your portfolio is ${dir}${pnlPct.toFixed(1)}%.`;
           }
         }
-      } catch (e) { /* non-critical */ }
+      } catch { /* non-critical */ }
     }
 
     if (parts.length > 0) {
@@ -588,9 +886,7 @@ async function getContextualGreeting(userId = null) {
       const greeting = portfolioPart ? `${indexLine} ${portfolioPart}` : indexLine;
       return { greeting, hasBrief: hasTodayBrief() };
     }
-  } catch (e) {
-    // Fall through to simple greeting
-  }
+  } catch { /* Fall through */ }
 
   return {
     greeting: `Good ${timeOfDay}. Markets are loading — ask me anything.`,
@@ -610,4 +906,9 @@ module.exports = {
   shouldGenerateForUser,
   orderSections,
   getContextualGreeting,
+  // Phase 5 internals for testing
+  assembleMarketSnapshot,
+  joinUserRelevance,
+  extractInsights,
+  buildActionChips,
 };

@@ -86,4 +86,35 @@ router.get('/greeting', async (req, res) => {
   }
 });
 
+// ── PATCH /api/brief/settings — Update user's brief preferences ──────────
+router.patch('/settings', async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { morningBriefTime, morningBriefTimezone } = req.body;
+
+    // Validate time format HH:MM
+    if (morningBriefTime && !/^\d{2}:\d{2}$/.test(morningBriefTime)) {
+      return res.status(400).json({ ok: false, message: 'Invalid time format. Use HH:MM.' });
+    }
+
+    // Update user settings in database
+    const db = require('../db/postgres');
+    if (db.isConnected()) {
+      const updates = {};
+      if (morningBriefTime) updates.morningBriefTime = morningBriefTime;
+      if (morningBriefTimezone) updates.morningBriefTimezone = morningBriefTimezone;
+
+      await db.query(
+        `UPDATE users SET settings = settings || $1::jsonb WHERE id = $2`,
+        [JSON.stringify(updates), userId]
+      );
+    }
+
+    res.json({ ok: true, message: 'Brief settings updated' });
+  } catch (e) {
+    logger.error('brief', 'PATCH /settings error', { error: e.message, userId: req.user.id });
+    sendApiError(res, 500, 'Failed to update brief settings');
+  }
+});
+
 module.exports = router;

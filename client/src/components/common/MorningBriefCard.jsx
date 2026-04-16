@@ -1,14 +1,12 @@
 /**
- * MorningBriefCard.jsx
- * Card component displaying the personalized morning brief.
+ * MorningBriefCard.jsx — Phase 5: Multi-Stage Morning Brief Display
  *
  * Features:
- *   - Displays brief sections with headers
- *   - Renders with ParticleMarkdown for rich formatting
- *   - Shows timestamp of when brief was generated
- *   - Refresh button to force-generate new brief
- *   - Loading state
- *   - Error handling with fallback
+ *   - Collapsed default: "Morning Brief [date] - N items relevant to you"
+ *   - Expanded: the 3-section brief text rendered with ParticleMarkdown
+ *   - Action chips below: "Ask about [ticker]", "Analyze [event]"
+ *   - Personalized badge
+ *   - Refresh / retry UI
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -27,11 +25,12 @@ function formatTimeAgo(timestamp) {
   return `${hours}h ago`;
 }
 
-export default function MorningBriefCard({ className = '' }) {
+export default function MorningBriefCard({ className = '', onActionChip }) {
   const [brief, setBrief] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [expanded, setExpanded] = useState(false);
 
   // Fetch today's brief
   const fetchBrief = useCallback(async () => {
@@ -62,6 +61,13 @@ export default function MorningBriefCard({ className = '' }) {
       setIsGenerating(false);
     }
   }, []);
+
+  // Handle action chip click
+  const handleChipClick = useCallback((chip) => {
+    if (onActionChip) {
+      onActionChip(chip.action);
+    }
+  }, [onActionChip]);
 
   // Initial load
   useEffect(() => {
@@ -115,41 +121,89 @@ export default function MorningBriefCard({ className = '' }) {
     );
   }
 
+  const relevantCount = brief.relevantCount || 0;
+  const actionChips = brief.actionChips || [];
+
   return (
-    <div className={`morning-brief-card ${className}`}>
-      <div className="morning-brief-card__header">
-        <div className="morning-brief-card__title">
-          Morning Brief
-          {brief.timestamp && (
-            <span className="morning-brief-card__meta">
-              {formatTimeAgo(brief.timestamp)}
-            </span>
-          )}
-        </div>
-        <button
-          className="morning-brief-card__btn-refresh"
-          onClick={handleRegenerateBrief}
-          disabled={isGenerating}
-          title="Refresh brief"
-        >
-          {isGenerating ? '⟳ Generating...' : '↻ Refresh'}
-        </button>
-      </div>
-
-      <div className="morning-brief-card__content">
-        {brief.content ? (
-          <ParticleMarkdown content={brief.content} />
-        ) : (
-          <div className="morning-brief-card__no-content">
-            Brief content unavailable
+    <div className={`morning-brief-card ${expanded ? 'morning-brief-card--expanded' : ''} ${className}`}>
+      {/* Collapsed / expandable header */}
+      <div
+        className="morning-brief-card__header"
+        onClick={() => setExpanded(!expanded)}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => e.key === 'Enter' && setExpanded(!expanded)}
+      >
+        <div className="morning-brief-card__title-row">
+          <div className="morning-brief-card__title">
+            Morning Brief
+            {brief.date && (
+              <span className="morning-brief-card__date">{brief.date}</span>
+            )}
+            {relevantCount > 0 && (
+              <span className="morning-brief-card__relevance">
+                {relevantCount} item{relevantCount !== 1 ? 's' : ''} relevant to you
+              </span>
+            )}
           </div>
-        )}
+          <div className="morning-brief-card__header-actions">
+            {brief.timestamp && (
+              <span className="morning-brief-card__meta">
+                {formatTimeAgo(brief.timestamp)}
+              </span>
+            )}
+            <span className="morning-brief-card__chevron">
+              {expanded ? '\u25B4' : '\u25BE'}
+            </span>
+          </div>
+        </div>
       </div>
 
-      {brief.personalized && (
-        <div className="morning-brief-card__personalized-badge">
-          Personalized for you
-        </div>
+      {/* Expanded content */}
+      {expanded && (
+        <>
+          <div className="morning-brief-card__content">
+            {brief.content ? (
+              <ParticleMarkdown content={brief.content} />
+            ) : (
+              <div className="morning-brief-card__no-content">
+                Brief content unavailable
+              </div>
+            )}
+          </div>
+
+          {/* Action chips */}
+          {actionChips.length > 0 && (
+            <div className="morning-brief-card__chips">
+              {actionChips.map((chip, i) => (
+                <button
+                  key={i}
+                  className="morning-brief-card__chip"
+                  onClick={(e) => { e.stopPropagation(); handleChipClick(chip); }}
+                >
+                  {chip.label}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Footer: personalization badge + refresh */}
+          <div className="morning-brief-card__footer">
+            {brief.personalized && (
+              <div className="morning-brief-card__personalized-badge">
+                Personalized for you
+              </div>
+            )}
+            <button
+              className="morning-brief-card__btn-refresh"
+              onClick={(e) => { e.stopPropagation(); handleRegenerateBrief(); }}
+              disabled={isGenerating}
+              title="Refresh brief"
+            >
+              {isGenerating ? 'Generating...' : 'Refresh'}
+            </button>
+          </div>
+        </>
       )}
     </div>
   );

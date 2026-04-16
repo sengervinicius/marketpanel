@@ -744,6 +744,12 @@ const memoryManager = require('./services/memoryManager');
 memoryManager.startCleanupTimers();
 logger.info('boot', 'Memory manager initialized with cleanup timers');
 
+// Phase 5: Initialize typed conversation memory service
+const conversationMemory = require('./services/conversationMemory');
+conversationMemory.ensureTable().catch(() => {});
+conversationMemory.startCleanupTimer();
+logger.info('boot', 'Conversation memory service initialized');
+
 // Boot sequence: Postgres → Redis → MongoDB → seed → jobs → HTTP server
 async function boot() {
   // Validate required environment variables

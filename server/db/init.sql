@@ -199,3 +199,22 @@ CREATE TABLE IF NOT EXISTS vault_signals (
 CREATE INDEX IF NOT EXISTS idx_vault_signals_ticker ON vault_signals(ticker);
 CREATE INDEX IF NOT EXISTS idx_vault_signals_created ON vault_signals(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_vault_signals_user_count ON vault_signals(user_count DESC);
+
+-- ── Conversation Memory (Phase 5: Typed memory records) ───────────────────
+-- Replaces flat message rolling window with structured, typed records
+-- that survive context switches and provide Claude with focused context.
+CREATE TABLE IF NOT EXISTS conversation_memory (
+  id                SERIAL PRIMARY KEY,
+  user_id           INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  session_id        TEXT NOT NULL,
+  type              VARCHAR(20) NOT NULL CHECK (type IN ('topic','entity_focus','thesis','constraint','preference','followup')),
+  content           TEXT NOT NULL,
+  tickers_mentioned TEXT[] DEFAULT '{}',
+  ttl_hours         INTEGER NOT NULL DEFAULT 2,
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  expires_at        TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '2 hours')
+);
+CREATE INDEX IF NOT EXISTS idx_conv_memory_user ON conversation_memory(user_id);
+CREATE INDEX IF NOT EXISTS idx_conv_memory_user_active ON conversation_memory(user_id, expires_at) WHERE expires_at > NOW();
+CREATE INDEX IF NOT EXISTS idx_conv_memory_session ON conversation_memory(user_id, session_id);
+CREATE INDEX IF NOT EXISTS idx_conv_memory_type ON conversation_memory(user_id, type);

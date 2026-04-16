@@ -16,6 +16,7 @@ const vault = require('./vault');
 const edgar = require('./edgar');
 const earnings = require('./earnings');
 const memoryManager = require('./memoryManager');
+const conversationMemory = require('./conversationMemory');
 const computeEngine = require('./computeEngine');
 const unusualWhales = require('./unusualWhales');
 
@@ -105,6 +106,7 @@ async function memoryAgent(userId, sessionId) {
   // Session memory is synchronous, persistent is async
   let sessionMemoryContext = '';
   let persistentMemoryContext = '';
+  let conversationMemoryContext = '';
 
   try {
     const session = memoryManager.getSessionMemory(userId);
@@ -123,9 +125,17 @@ async function memoryAgent(userId, sessionId) {
     console.warn('[agentOrchestrator] Persistent memory load error:', err.message);
   }
 
+  // Phase 5: Typed conversation memory records
+  try {
+    conversationMemoryContext = await conversationMemory.formatContext(userId);
+  } catch (err) {
+    console.warn('[agentOrchestrator] Conversation memory load error:', err.message);
+  }
+
   return {
     sessionMemory: sessionMemoryContext,
     persistentMemory: persistentMemoryContext,
+    conversationMemory: conversationMemoryContext,
   };
 }
 
