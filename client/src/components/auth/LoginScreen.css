@@ -1,51 +1,48 @@
-/* LoginScreen.css — Premium futuristic landing + auth screen */
+/* ================================================================
+   LoginScreen.css — Phase 2: Cinematic Landing Page
+   Minimal, mysterious, dark. One screen, maximum impact.
+   ================================================================ */
 
-/* ── Full-screen container ────────────────────────────────────────────────── */
-.ls-overlay {
+/* ── Root container ──────────────────────────────────────────────────────── */
+.lp-root {
   position: fixed;
   inset: 0;
-  background-color: var(--color-bg, #050508);
-  color: var(--color-text-primary, #e8e8ec);
-  font-family: var(--font-body, 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  z-index: 9999;
-  padding: 24px 16px;
+  background: #050507;
+  color: #f0f0f0;
+  font-family: var(--font-family-sans, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
   overflow: hidden;
+  z-index: 9999;
 }
 
-/* ── Video background — prominently visible ──────────────────────────────── */
-.ls-video-bg {
+/* ── Video background ────────────────────────────────────────────────────── */
+.lp-video-bg {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
-  opacity: 0.8;
-  filter: saturate(1.5) brightness(1.2) contrast(1.15);
+  opacity: 0.65;
+  filter: saturate(1.3) brightness(0.9) contrast(1.1);
   pointer-events: none;
   z-index: 0;
 }
 
-/* Smooth overlay — soft vignette, doesn't kill the video */
-.ls-video-overlay {
+.lp-video-overlay {
   position: absolute;
   inset: 0;
   z-index: 1;
   pointer-events: none;
   background:
-    radial-gradient(ellipse 80% 70% at 50% 50%, transparent 0%, rgba(5, 5, 8, 0.15) 50%, rgba(5, 5, 8, 0.6) 100%),
-    linear-gradient(180deg, rgba(5, 5, 8, 0.3) 0%, transparent 20%, transparent 80%, rgba(5, 5, 8, 0.4) 100%);
+    radial-gradient(ellipse 80% 70% at 50% 45%, transparent 0%, rgba(5, 5, 7, 0.25) 50%, rgba(5, 5, 7, 0.75) 100%),
+    linear-gradient(180deg, rgba(5, 5, 7, 0.4) 0%, transparent 25%, transparent 70%, rgba(5, 5, 7, 0.6) 100%);
 }
 
-/* Noise grain texture */
-.ls-overlay::before {
+/* Subtle noise grain */
+.lp-root::before {
   content: '';
   position: absolute;
   inset: 0;
-  opacity: 0.025;
+  opacity: 0.02;
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   background-size: 128px 128px;
   pointer-events: none;
@@ -53,129 +50,337 @@
   mix-blend-mode: overlay;
 }
 
-/* Soft radial glow behind card */
-.ls-overlay::after {
-  content: '';
-  position: absolute;
-  width: 700px;
-  height: 700px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(255, 120, 20, 0.06) 0%, rgba(255, 80, 0, 0.02) 40%, transparent 70%);
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  pointer-events: none;
-  animation: ls-glow-breathe 10s ease-in-out infinite;
-  z-index: 2;
+
+/* ── Top bar — fixed, transparent blur ───────────────────────────────────── */
+.lp-topbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24px 40px;
+  background: rgba(5, 5, 7, 0.15);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
 }
 
-@keyframes ls-glow-breathe {
-  0%, 100% { opacity: 0.6; transform: translate(-50%, -50%) scale(1); }
-  50% { opacity: 1; transform: translate(-50%, -50%) scale(1.12); }
+.lp-topbar-logo {
+  font-family: var(--font-family-mono, 'JetBrains Mono', 'SF Mono', monospace);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.25em;
+  color: rgba(255, 255, 255, 0.7);
+  user-select: none;
 }
 
-/* ── Floating particles ──────────────────────────────────────────────────── */
-.ls-particle {
-  position: absolute;
-  border-radius: 50%;
-  background: rgba(255, 130, 40, 0.3);
-  pointer-events: none;
-  animation: ls-float linear infinite;
-  will-change: transform;
+.lp-topbar-signin {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.4);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  padding: 6px 0;
+  transition: color 300ms ease;
 }
 
-@keyframes ls-float {
-  0%   { transform: translateY(0) scale(1); opacity: 0; }
-  8%   { opacity: 1; }
-  92%  { opacity: 1; }
-  100% { transform: translateY(-100vh) scale(0.4); opacity: 0; }
+.lp-topbar-signin:hover {
+  color: rgba(255, 255, 255, 0.8);
 }
 
-/* ── Content wrapper ─────────────────────────────────────────────────────── */
-.ls-content {
+
+/* ── Hero — centered, 100vh ──────────────────────────────────────────────── */
+.lp-hero {
   position: relative;
   z-index: 10;
   display: flex;
   flex-direction: column;
   align-items: center;
-  width: 100%;
-  max-width: 400px;
-  animation: ls-entrance 1s cubic-bezier(0.16, 1, 0.3, 1);
+  justify-content: center;
+  height: 100vh;
+  text-align: center;
+  padding: 0 24px;
+  /* Entrance animation */
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity 1.2s cubic-bezier(0.16, 1, 0.3, 1) 0.2s,
+              transform 1.2s cubic-bezier(0.16, 1, 0.3, 1) 0.2s;
 }
 
-@keyframes ls-entrance {
-  from { opacity: 0; transform: translateY(20px) scale(0.98); }
+.lp-hero--visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.lp-headline {
+  font-size: clamp(36px, 7vw, 64px);
+  font-weight: 200;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  margin: 0 0 20px 0;
+  color: #ffffff;
+  max-width: 700px;
+}
+
+.lp-subline {
+  font-size: clamp(13px, 1.4vw, 16px);
+  font-weight: 300;
+  color: rgba(255, 255, 255, 0.35);
+  margin: 0 0 48px 0;
+  letter-spacing: 0.04em;
+}
+
+.lp-hero-actions {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+}
+
+/* ── "Enter" button — outlined, no fill ──────────────────────────────────── */
+.lp-enter-btn {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.85);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 14px 48px;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: border-color 300ms ease, color 300ms ease, background 300ms ease,
+              box-shadow 300ms ease, transform 200ms ease;
+}
+
+.lp-enter-btn:hover {
+  border-color: rgba(255, 255, 255, 0.45);
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.03);
+  box-shadow: 0 0 30px rgba(255, 255, 255, 0.04);
+  transform: translateY(-1px);
+}
+
+.lp-enter-btn:active {
+  transform: translateY(0);
+}
+
+/* ── "Watch" link ────────────────────────────────────────────────────────── */
+.lp-watch-btn {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.3);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  padding: 8px 0;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  transition: color 300ms ease;
+}
+
+.lp-watch-btn:hover {
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.lp-watch-btn svg {
+  transition: transform 200ms ease;
+}
+
+.lp-watch-btn:hover svg {
+  transform: translateX(2px);
+}
+
+
+/* ── Auth overlay ────────────────────────────────────────────────────────── */
+.lp-auth-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(5, 5, 7, 0.85);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  animation: lp-fade-in 350ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes lp-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.lp-auth-card {
+  position: relative;
+  width: 100%;
+  max-width: 360px;
+  background: rgba(12, 12, 18, 0.65);
+  backdrop-filter: blur(40px) saturate(1.3);
+  -webkit-backdrop-filter: blur(40px) saturate(1.3);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 16px;
+  padding: 40px 28px 28px;
+  box-shadow:
+    0 0 0 0.5px rgba(255, 255, 255, 0.03),
+    0 8px 48px rgba(0, 0, 0, 0.5),
+    0 2px 12px rgba(0, 0, 0, 0.3);
+  animation: lp-card-enter 400ms cubic-bezier(0.16, 1, 0.3, 1) 50ms both;
+}
+
+@keyframes lp-card-enter {
+  from { opacity: 0; transform: translateY(12px) scale(0.97); }
   to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-/* ── Logo ─────────────────────────────────────────────────────────────────── */
-.ls-logo {
-  text-align: center;
-  margin-bottom: 16px;
+.lp-auth-back {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.25);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: color 200ms ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.ls-logo-title {
-  font-size: 56px;
-  font-family: var(--font-mono, 'IBM Plex Mono', 'SF Mono', 'Fira Code', monospace);
-  background: linear-gradient(
-    135deg,
-    rgba(255, 255, 255, 0.95) 0%,
-    rgba(255, 200, 150, 0.9) 40%,
-    rgba(255, 130, 50, 0.85) 70%,
-    rgba(255, 90, 20, 0.8) 100%
-  );
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  font-weight: 700;
+.lp-auth-back:hover {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.lp-auth-logo {
+  font-family: var(--font-family-mono, 'JetBrains Mono', 'SF Mono', monospace);
+  font-size: 12px;
+  font-weight: 600;
   letter-spacing: 0.22em;
-  line-height: 1;
-  text-shadow: none;
-  filter: drop-shadow(0 0 40px rgba(255, 120, 40, 0.15));
-}
-
-/* ── Catchphrase ─────────────────────────────────────────────────────────── */
-.ls-catchphrase {
+  color: rgba(255, 255, 255, 0.5);
   text-align: center;
-  margin-bottom: 36px;
-  max-width: 380px;
+  margin-bottom: 28px;
 }
 
-.ls-catchphrase-main {
-  font-size: 14px;
-  font-family: var(--font-body, 'Inter', -apple-system, BlinkMacSystemFont, sans-serif);
-  color: rgba(255, 255, 255, 0.55);
-  letter-spacing: 0.04em;
-  line-height: 1.9;
-  font-weight: 300;
-  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.5);
+
+/* ── Video Modal ─────────────────────────────────────────────────────────── */
+.lp-video-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.90);
+  animation: lp-fade-in 300ms ease;
+  cursor: pointer;
 }
 
-.ls-catchphrase-accent {
-  color: rgba(255, 255, 255, 0.78);
-  font-weight: 500;
-  letter-spacing: 0.02em;
-}
-
-/* ── Card — glass morphism ───────────────────────────────────────────────── */
-.ls-card {
-  width: 100%;
-  max-width: 340px;
-  background: rgba(12, 12, 18, 0.6);
-  backdrop-filter: blur(44px) saturate(1.3);
-  -webkit-backdrop-filter: blur(44px) saturate(1.3);
+.lp-video-modal-inner {
+  position: relative;
+  width: 90vw;
+  max-width: 900px;
+  aspect-ratio: 16 / 9;
+  background: #0a0a0c;
   border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 16px;
-  padding: 32px 28px 28px;
-  box-shadow:
-    0 0 0 0.5px rgba(255, 255, 255, 0.03),
-    0 8px 48px rgba(0, 0, 0, 0.45),
-    0 2px 12px rgba(0, 0, 0, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.04);
-  transition: transform 300ms cubic-bezier(0.16, 1, 0.3, 1);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: default;
+  overflow: hidden;
 }
 
-.ls-card.ls-shake {
+.lp-video-modal-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.25);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 4px;
+  transition: color 200ms ease;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lp-video-modal-close:hover {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.lp-video-modal-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+.lp-video-modal-text {
+  font-size: 13px;
+  font-weight: 300;
+  color: rgba(255, 255, 255, 0.2);
+  letter-spacing: 0.06em;
+}
+
+
+/* ── Footer — barely visible ─────────────────────────────────────────────── */
+.lp-footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 40px;
+  pointer-events: none;
+}
+
+.lp-footer-copy {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.12);
+  letter-spacing: 0.06em;
+  font-weight: 300;
+}
+
+.lp-footer-links {
+  display: flex;
+  gap: 20px;
+  pointer-events: auto;
+}
+
+.lp-footer-links a {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.12);
+  text-decoration: none;
+  letter-spacing: 0.04em;
+  font-weight: 300;
+  transition: color 300ms ease;
+}
+
+.lp-footer-links a:hover {
+  color: rgba(255, 255, 255, 0.35);
+}
+
+
+/* ── Reused auth form styles (kept from Phase 1) ─────────────────────────── */
+
+/* Shake animation */
+.ls-shake {
   animation: ls-shake 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97);
 }
 
@@ -187,7 +392,7 @@
   80% { transform: translateX(5px); }
 }
 
-/* ── Apple button ─────────────────────────────────────────────────────────── */
+/* Apple button */
 .ls-apple-btn {
   width: 100%;
   display: flex;
@@ -222,7 +427,7 @@
   opacity: 0.7;
 }
 
-/* ── Divider ──────────────────────────────────────────────────────────────── */
+/* Divider */
 .ls-divider {
   display: flex;
   align-items: center;
@@ -243,7 +448,7 @@
   font-weight: 500;
 }
 
-/* ── Mode label ───────────────────────────────────────────────────────────── */
+/* Mode label */
 .ls-mode-label {
   color: rgba(255, 255, 255, 0.2);
   font-size: 9px;
@@ -254,7 +459,7 @@
   font-weight: 500;
 }
 
-/* ── Error ─────────────────────────────────────────────────────────────────── */
+/* Error */
 .ls-error {
   color: #ff5252;
   margin-bottom: 10px;
@@ -265,7 +470,7 @@
   letter-spacing: 0.01em;
 }
 
-/* ── Inputs ────────────────────────────────────────────────────────────────── */
+/* Inputs */
 .ls-input {
   width: 100%;
   background: rgba(255, 255, 255, 0.03);
@@ -302,7 +507,7 @@
   cursor: not-allowed;
 }
 
-/* ── Primary button ───────────────────────────────────────────────────────── */
+/* Primary button */
 .ls-primary-btn {
   width: 100%;
   background: linear-gradient(135deg, #ff7a1a 0%, #ff5500 50%, #e04a00 100%);
@@ -336,7 +541,7 @@
   cursor: not-allowed;
 }
 
-/* ── Secondary button ─────────────────────────────────────────────────────── */
+/* Secondary button */
 .ls-secondary-btn {
   width: 100%;
   background: transparent;
@@ -364,35 +569,55 @@
   cursor: not-allowed;
 }
 
-/* ── Footer ───────────────────────────────────────────────────────────────── */
-.ls-footer {
-  position: absolute;
-  bottom: 24px;
-  left: 0;
-  right: 0;
-  text-align: center;
-  font-size: 9px;
-  color: rgba(255, 255, 255, 0.08);
-  letter-spacing: 0.12em;
-  z-index: 2;
-}
 
-/* ── Mobile adjustments ───────────────────────────────────────────────────── */
+/* ── Mobile adaptation ───────────────────────────────────────────────────── */
 @media (max-width: 480px) {
-  .ls-logo-title { font-size: 42px; letter-spacing: 0.18em; }
-  .ls-catchphrase-main { font-size: 12.5px; }
-  .ls-card { max-width: 300px; padding: 28px 22px 22px; }
-}
+  .lp-topbar {
+    padding: 16px 20px;
+  }
 
-@media (max-height: 700px) {
-  .ls-catchphrase { margin-bottom: 24px; }
-  .ls-logo { margin-bottom: 10px; }
-  .ls-logo-title { font-size: 42px; }
+  .lp-headline {
+    font-size: clamp(28px, 9vw, 42px);
+  }
+
+  .lp-subline {
+    font-size: 12px;
+    margin-bottom: 36px;
+  }
+
+  .lp-hero-actions {
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .lp-enter-btn {
+    padding: 14px 40px;
+    width: auto;
+  }
+
+  .lp-auth-card {
+    max-width: 320px;
+    padding: 36px 22px 22px;
+    margin: 0 16px;
+  }
+
+  .lp-footer {
+    padding: 12px 20px;
+  }
+
+  .lp-video-modal-inner {
+    width: 95vw;
+    border-radius: 4px;
+  }
 }
 
 @media (max-height: 600px) {
-  .ls-catchphrase { margin-bottom: 16px; }
-  .ls-logo { margin-bottom: 6px; }
-  .ls-logo-title { font-size: 36px; }
-  .ls-card { padding: 24px 20px 20px; }
+  .lp-headline {
+    font-size: clamp(24px, 5vw, 36px);
+    margin-bottom: 12px;
+  }
+
+  .lp-subline {
+    margin-bottom: 28px;
+  }
 }

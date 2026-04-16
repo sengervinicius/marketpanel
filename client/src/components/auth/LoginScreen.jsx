@@ -1,12 +1,13 @@
 /**
  * LoginScreen.jsx
  *
- * Premium futuristic landing + auth screen.
- * Centered login with Apple ID, animated video background
- * with orange volumetric blobs, glassmorphism card, floating particles.
+ * Phase 2: Cinematic landing page + authentication.
+ * Minimal, mysterious, dark. Video background with hero copy,
+ * outlined CTA, video modal shell, barely-visible footer.
+ * Auth form appears as overlay when user clicks "Enter" or "Sign in".
  */
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { API_BASE } from '../../utils/api';
 import { isIOS, isNative } from '../../services/platform';
@@ -39,48 +40,45 @@ function AppleLogo() {
   );
 }
 
-// ── Floating particles — soft glowing dots ───────────────────────────────────
-function Particles() {
-  const containerRef = useRef(null);
-
+// ── Video Modal ──────────────────────────────────────────────────────────────
+function VideoModal({ onClose }) {
   useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
+    const handleKey = (e) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', handleKey);
+    return () => document.removeEventListener('keydown', handleKey);
+  }, [onClose]);
 
-    const particles = [];
-    const COUNT = 28;
-
-    for (let i = 0; i < COUNT; i++) {
-      const p = document.createElement('div');
-      p.className = 'ls-particle';
-      const size = 1 + Math.random() * 2.5;
-      const x = Math.random() * 100;
-      const duration = 14 + Math.random() * 22;
-      const delay = Math.random() * duration;
-      p.style.cssText = `
-        left: ${x}%;
-        bottom: -4px;
-        width: ${size}px;
-        height: ${size}px;
-        animation-duration: ${duration}s;
-        animation-delay: -${delay}s;
-        opacity: ${0.15 + Math.random() * 0.35};
-        box-shadow: 0 0 ${3 + size * 2}px rgba(255, 120, 40, ${0.15 + Math.random() * 0.2});
-      `;
-      el.appendChild(p);
-      particles.push(p);
-    }
-
-    return () => particles.forEach(p => p.remove());
-  }, []);
-
-  return <div ref={containerRef} style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none', zIndex: 3 }} />;
+  return (
+    <div className="lp-video-modal" onClick={onClose}>
+      <div className="lp-video-modal-inner" onClick={(e) => e.stopPropagation()}>
+        <button className="lp-video-modal-close" onClick={onClose} aria-label="Close">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <path d="M4 4l8 8M12 4l-8 8" />
+          </svg>
+        </button>
+        <div className="lp-video-modal-placeholder">
+          <svg width="48" height="48" viewBox="0 0 48 48" fill="none" style={{ opacity: 0.2 }}>
+            <circle cx="24" cy="24" r="23" stroke="white" strokeWidth="1" />
+            <path d="M20 16l14 8-14 8V16z" fill="white" />
+          </svg>
+          <span className="lp-video-modal-text">Demo reel — coming soon</span>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
 export default function LoginScreen({ children }) {
   const { user, login, register, loginWithApple } = useAuth?.() || {};
 
+  // Landing vs auth form state
+  const [showAuth, setShowAuth] = useState(false);
+  const [showVideoModal, setShowVideoModal] = useState(false);
+
+  // Auth form state
   const [mode,     setMode]     = useState('login');
   const [username, setUsername] = useState('');
   const [email,    setEmail]    = useState('');
@@ -93,12 +91,16 @@ export default function LoginScreen({ children }) {
   const [serverReady, setServerReady] = useState(false);
   const [warmingUp,   setWarmingUp]  = useState(false);
 
+  // Hero entrance animation
+  const [heroReady, setHeroReady] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setHeroReady(true), 100);
+    return () => clearTimeout(t);
+  }, []);
+
   // ── On mount: ping server to wake it (Render cold-start) + load Apple SDK ──
   useEffect(() => {
     loadAppleSDK();
-
-    // Fire-and-forget warmup: hit /health to wake Render.
-    // If it responds, great. If not, login will retry automatically.
     let cancelled = false;
     (async () => {
       try {
@@ -119,6 +121,20 @@ export default function LoginScreen({ children }) {
     setTimeout(() => setShake(false), 600);
   };
 
+  const openAuth = () => {
+    setShowAuth(true);
+    setError('');
+  };
+
+  const closeAuth = () => {
+    setShowAuth(false);
+    setError('');
+    setUsername('');
+    setPassword('');
+    setEmail('');
+    setMode('login');
+  };
+
   // ── Username / password submit — with automatic retry on cold-start ────────
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -126,7 +142,7 @@ export default function LoginScreen({ children }) {
     setLoading(true);
 
     const MAX_RETRIES = 3;
-    const BACKOFF = [0, 3000, 5000]; // delays between retries
+    const BACKOFF = [0, 3000, 5000];
 
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
       try {
@@ -142,13 +158,11 @@ export default function LoginScreen({ children }) {
           await register(username, password, email);
         }
 
-        // Success — break out of retry loop
         setWarmingUp(false);
         return;
       } catch (err) {
         const msg = err.message || (mode === 'login' ? 'Login failed' : 'Registration failed');
 
-        // Only retry on network errors (cold-start). Auth errors, bad creds, etc. → stop immediately.
         if (!isNetworkError(msg) || attempt === MAX_RETRIES) {
           setWarmingUp(false);
           triggerShake(
@@ -156,7 +170,6 @@ export default function LoginScreen({ children }) {
           );
           break;
         }
-        // Otherwise, loop continues with next attempt
       }
     }
 
@@ -231,10 +244,10 @@ export default function LoginScreen({ children }) {
   const isLogin = mode === 'login';
 
   return (
-    <div className="ls-overlay">
-      {/* Background video — orange volumetric blobs, visible and ambient */}
+    <div className="lp-root">
+      {/* ── Video background ─────────────────────────────────────────────── */}
       <video
-        className="ls-video-bg"
+        className="lp-video-bg"
         autoPlay
         muted
         loop
@@ -244,100 +257,138 @@ export default function LoginScreen({ children }) {
       >
         <source src="/video.mp4" type="video/mp4" />
       </video>
-      <div className="ls-video-overlay" />
+      <div className="lp-video-overlay" />
 
-      <Particles />
+      {/* ── Top bar ──────────────────────────────────────────────────────── */}
+      <nav className="lp-topbar">
+        <div className="lp-topbar-logo">PARTICLE</div>
+        <button
+          className="lp-topbar-signin"
+          onClick={openAuth}
+          type="button"
+        >
+          Sign in
+        </button>
+      </nav>
 
-      <div className="ls-content">
-        {/* Logo */}
-        <div className="ls-logo">
-          <div className="ls-logo-title">PARTICLE</div>
-        </div>
-
-        {/* Catchphrase */}
-        <div className="ls-catchphrase">
-          <div className="ls-catchphrase-main">
-            <span className="ls-catchphrase-accent">Powerful tools, honest pricing.</span>
-            <br />
-            We're here to debunk the status quo.
-          </div>
-        </div>
-
-        {/* Login card */}
-        <div className={`ls-card ${shake ? 'ls-shake' : ''}`}>
-
-          {/* Continue with Apple */}
-          <button
-            type="button"
-            className="ls-apple-btn"
-            onClick={handleApple}
-            disabled={appleLoading || loading}
-          >
-            <AppleLogo />
-            {appleLoading ? 'Connecting...' : 'Continue with Apple'}
+      {/* ── Hero ─────────────────────────────────────────────────────────── */}
+      <main className={`lp-hero ${heroReady ? 'lp-hero--visible' : ''}`}>
+        <h1 className="lp-headline">
+          See everything.<br />Miss nothing.
+        </h1>
+        <p className="lp-subline">
+          Real-time terminal. AI-powered insight.
+        </p>
+        <div className="lp-hero-actions">
+          <button className="lp-enter-btn" onClick={openAuth} type="button">
+            Enter
           </button>
+          <button className="lp-watch-btn" onClick={() => setShowVideoModal(true)} type="button">
+            Watch
+            <svg width="10" height="12" viewBox="0 0 10 12" fill="currentColor" style={{ marginLeft: 6 }}>
+              <path d="M0 0l10 6-10 6V0z" />
+            </svg>
+          </button>
+        </div>
+      </main>
 
-          {/* OR divider */}
-          <div className="ls-divider">
-            <div className="ls-divider-line" />
-            <span className="ls-divider-text">OR</span>
-            <div className="ls-divider-line" />
-          </div>
+      {/* ── Auth overlay ─────────────────────────────────────────────────── */}
+      {showAuth && (
+        <div className="lp-auth-backdrop" onClick={closeAuth}>
+          <div className={`lp-auth-card ${shake ? 'ls-shake' : ''}`} onClick={(e) => e.stopPropagation()}>
+            <button className="lp-auth-back" onClick={closeAuth} type="button" aria-label="Back to landing">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <path d="M9 2L4 7l5 5" />
+              </svg>
+            </button>
 
-          {/* Mode label */}
-          <div className="ls-mode-label">
-            {isLogin ? 'SIGN IN WITH USERNAME' : 'CREATE YOUR ACCOUNT'}
-          </div>
+            <div className="lp-auth-logo">PARTICLE</div>
 
-          {/* Error */}
-          {error && <div className="ls-error">{error}</div>}
+            {/* Continue with Apple */}
+            <button
+              type="button"
+              className="ls-apple-btn"
+              onClick={handleApple}
+              disabled={appleLoading || loading}
+            >
+              <AppleLogo />
+              {appleLoading ? 'Connecting...' : 'Continue with Apple'}
+            </button>
 
-          {/* Form */}
-          <form onSubmit={handleSubmit} autoComplete="on">
-            <input
-              type="text"
-              placeholder="USERNAME"
-              value={username}
-              onChange={e => setUsername(e.target.value)}
-              className="ls-input"
-              disabled={loading}
-              autoComplete="username"
-              autoFocus
-            />
-            {!isLogin && (
+            {/* OR divider */}
+            <div className="ls-divider">
+              <div className="ls-divider-line" />
+              <span className="ls-divider-text">OR</span>
+              <div className="ls-divider-line" />
+            </div>
+
+            {/* Mode label */}
+            <div className="ls-mode-label">
+              {isLogin ? 'SIGN IN WITH USERNAME' : 'CREATE YOUR ACCOUNT'}
+            </div>
+
+            {/* Error */}
+            {error && <div className="ls-error">{error}</div>}
+
+            {/* Form */}
+            <form onSubmit={handleSubmit} autoComplete="on">
               <input
-                type="email"
-                placeholder="EMAIL"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
+                type="text"
+                placeholder="USERNAME"
+                value={username}
+                onChange={e => setUsername(e.target.value)}
                 className="ls-input"
                 disabled={loading}
-                autoComplete="email"
+                autoComplete="username"
+                autoFocus
               />
-            )}
-            <input
-              type="password"
-              placeholder="PASSWORD"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              className="ls-input"
-              disabled={loading}
-              autoComplete={isLogin ? 'current-password' : 'new-password'}
-            />
-            <button type="submit" className="ls-primary-btn" disabled={loading}>
-              {loading
-                ? (warmingUp ? 'CONNECTING TO SERVER...' : (isLogin ? 'SIGNING IN...' : 'CREATING ACCOUNT...'))
-                : (isLogin ? 'LOG IN' : 'CREATE ACCOUNT')
-              }
-            </button>
-          </form>
+              {!isLogin && (
+                <input
+                  type="email"
+                  placeholder="EMAIL"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  className="ls-input"
+                  disabled={loading}
+                  autoComplete="email"
+                />
+              )}
+              <input
+                type="password"
+                placeholder="PASSWORD"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                className="ls-input"
+                disabled={loading}
+                autoComplete={isLogin ? 'current-password' : 'new-password'}
+              />
+              <button type="submit" className="ls-primary-btn" disabled={loading}>
+                {loading
+                  ? (warmingUp ? 'CONNECTING TO SERVER...' : (isLogin ? 'SIGNING IN...' : 'CREATING ACCOUNT...'))
+                  : (isLogin ? 'LOG IN' : 'CREATE ACCOUNT')
+                }
+              </button>
+            </form>
 
-          {/* Switch mode */}
-          <button type="button" className="ls-secondary-btn" onClick={switchMode} disabled={loading}>
-            {isLogin ? 'CREATE NEW ACCOUNT' : 'BACK TO SIGN IN'}
-          </button>
+            {/* Switch mode */}
+            <button type="button" className="ls-secondary-btn" onClick={switchMode} disabled={loading}>
+              {isLogin ? 'CREATE NEW ACCOUNT' : 'BACK TO SIGN IN'}
+            </button>
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* ── Video modal ──────────────────────────────────────────────────── */}
+      {showVideoModal && <VideoModal onClose={() => setShowVideoModal(false)} />}
+
+      {/* ── Footer ───────────────────────────────────────────────────────── */}
+      <footer className="lp-footer">
+        <span className="lp-footer-copy">&copy; 2026 Particle</span>
+        <div className="lp-footer-links">
+          <a href="/privacy">Privacy</a>
+          <a href="/terms">Terms</a>
+        </div>
+      </footer>
     </div>
   );
 }
