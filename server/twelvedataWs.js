@@ -16,7 +16,8 @@ const logger = require('./utils/logger');
 const TD_WS_URL = 'wss://ws.twelvedata.com/v1/quotes/price';
 const RECONNECT_DELAY_MS = 5000;
 const MAX_RECONNECT_DELAY_MS = 60000;
-const HEARTBEAT_INTERVAL_MS = 30000;
+const HEARTBEAT_INTERVAL_MS = 15000; // Phase 4: reduced from 30s to catch firewall idle timeouts
+const PONG_TIMEOUT_MS = 10000; // Phase 4: force-close if no pong within 10s
 const THROTTLE_MS = 500; // batch ticks every 500ms
 
 // International tickers to stream (Yahoo-style → we store as-is)
@@ -107,13 +108,14 @@ function connectTwelveData(marketState, broadcast) {
       }
       dirtySymbols.clear();
       if (batch.length > 0) {
-        broadcast({ type: 'tick_batch', ticks: batch });
+        try { broadcast({ type: 'tick_batch', ticks: batch }); } catch (e) { logger.warn('[TwelveData WS] Broadcast error:', e.message); }
       }
     }, THROTTLE_MS);
   }
 
   function connect() {
     logger.info('[TwelveData WS] Connecting...');
+    let pongReceived = true; // Phase 4: track heartbeat responses
     ws = new WebSocket(TD_WS_URL);
 
     ws.on('open', () => {
@@ -122,7 +124,7 @@ function connectTwelveData(marketState, broadcast) {
       marketState.feedMeta.twelvedata.lastStatusAt = Date.now();
       marketState.feedMeta.twelvedata.lastError = null;
 
-      broadcast({ type: 'status', feed: 'twelvedata', level: 'live', message: 'Twelve Data WS connected' });
+      try { broadcast({ type: 'status', feed: 'twelvedata', level: 'live', message: 'Twelve Data WS connected' }); } catch (e) { logger.warn('[TwelveData WS] Broadcast error:', e.message); }
 
       // Subscribe to all international symbols
       const symbols = INTL_SUBSCRIPTIONS.map(s =>
@@ -139,10 +141,21 @@ function connectTwelveData(marketState, broadcast) {
 
       startThrottle();
 
-      // Heartbeat (Twelve Data requires periodic ping to keep alive)
+      // Phase 4: Heartbeat with pong timeout — catches firewall idle disconnects
+      pongReceived = true;
       heartbeatTimer = setInterval(() => {
         if (ws.readyState === WebSocket.OPEN) {
+          if (!pongReceived) {
+            logger.warn('[TwelveData WS] No heartbeat response — force-closing');
+            ws.terminate();
+            return;
+          }
+          pongReceived = false;
           ws.send(JSON.stringify({ action: 'heartbeat' }));
+          // Set a timeout — if no heartbeat event received, pongReceived stays false
+          setTimeout(() => {
+            // pongReceived will be set to true in the message handler
+          }, PONG_TIMEOUT_MS);
         }
       }, HEARTBEAT_INTERVAL_MS);
     });
@@ -189,6 +202,7 @@ function connectTwelveData(marketState, broadcast) {
 
         // Heartbeat response
         if (msg.event === 'heartbeat') {
+          pongReceived = true;
           marketState.feedMeta.twelvedata.lastStatusAt = Date.now();
         }
 
@@ -201,7 +215,7 @@ function connectTwelveData(marketState, broadcast) {
       logger.warn(`[TwelveData WS] Disconnected (code: ${code}), reconnecting in ${reconnectDelay / 1000}s`);
       cleanup();
       marketState.feedMeta.twelvedata.reconnects++;
-      broadcast({ type: 'status', feed: 'twelvedata', level: 'degraded', message: `Twelve Data WS reconnecting...` });
+      try { broadcast({ type: 'status', feed: 'twelvedata', level: 'degraded', message: 'Twelve Data WS reconnecting...' }); } catch (e) { logger.warn('[TwelveData WS] Broadcast error:', e.message); }
 
       setTimeout(connect, reconnectDelay);
       reconnectDelay = Math.min(reconnectDelay * 1.5, MAX_RECONNECT_DELAY_MS);

@@ -1,5 +1,16 @@
 require('dotenv').config();
 
+// ── Phase 4: Global crash handlers (must be first) ────────────────────────────
+process.on('uncaughtException', (err) => {
+  console.error('[FATAL] Uncaught exception:', err.stack || err.message || err);
+  // Attempt graceful shutdown
+  try { require('./db/postgres').getPool()?.end(); } catch {}
+  process.exit(1);
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('[FATAL] Unhandled rejection:', reason?.stack || reason?.message || reason);
+});
+
 // ── Sentry error monitoring ───────────────────────────────────────────────────
 const Sentry = require('@sentry/node');
 if (process.env.SENTRY_DSN) {
@@ -204,10 +215,44 @@ app.get('/.well-known/apple-developer-merchantid-domain-association', async (req
 
 // ── Public routes ──────────────────────────────────────────────────────────────
 // Minimal public health check (no detailed API key or provider info)
-app.get('/health', (req, res) => res.json({
-  status: 'ok',
-  uptime: process.uptime(),
-}));
+app.get('/health', async (req, res) => {
+  // DB connectivity check
+  let dbConnected = false;
+  try {
+    const pool = require('./db/postgres').getPool();
+    if (pool) {
+      const result = await pool.query('SELECT 1');
+      dbConnected = result?.rows?.length > 0;
+    }
+  } catch { dbConnected = false; }
+
+  // Market data age (most recent tick across all feeds)
+  let marketDataAge = null;
+  try {
+    const feeds = ['polygon', 'twelvedata'];
+    for (const feed of feeds) {
+      const lastTick = marketState?.feedMeta?.[feed]?.lastTickAt;
+      if (lastTick && (!marketDataAge || lastTick > marketDataAge)) {
+        marketDataAge = lastTick;
+      }
+    }
+    if (marketDataAge) marketDataAge = Date.now() - marketDataAge; // ms since last tick
+  } catch {}
+
+  // WS client count
+  let wsClients = 0;
+  try { wsClients = wss?.clients?.size || 0; } catch {}
+
+  const overall = dbConnected ? 'ok' : 'degraded';
+  res.json({
+    status: overall,
+    uptime: process.uptime(),
+    dbConnected,
+    marketDataAgeMs: marketDataAge,
+    wsClients,
+    timestamp: new Date().toISOString(),
+  });
+});
 app.use('/api/auth', authRoutes);
 
 // ── Admin endpoint removed for production (Phase 7 security hardening) ──────
@@ -548,13 +593,16 @@ wss.on('connection', (ws, req) => {
   clients.set(ws, { userId, username });
   logger.info('ws', 'Client connected', { userId, total: clients.size });
 
-  // Track online presence
-  chatStore.setOnline(userId);
-  // Notify other users this user is online
-  for (const [client, info] of clients) {
-    if (client.readyState === WebSocket.OPEN && info.userId !== userId) {
-      client.send(JSON.stringify({ type: 'presence', userId, online: true }));
+  // Track online presence (Phase 4: wrapped in try-catch to prevent orphaned sockets)
+  try {
+    chatStore.setOnline(userId);
+    for (const [client, info] of clients) {
+      if (client.readyState === WebSocket.OPEN && info.userId !== userId) {
+        client.send(JSON.stringify({ type: 'presence', userId, online: true }));
+      }
     }
+  } catch (e) {
+    logger.error('ws', 'chatStore.setOnline error', { error: e.message, userId });
   }
 
   // Send full snapshot on connect
@@ -666,14 +714,17 @@ wss.on('connection', (ws, req) => {
 
   ws.on('close', () => {
     clearInterval(msgResetInterval);
-    chatStore.setOffline(userId);
-    // Check if user has no more connections before broadcasting offline
-    if (!chatStore.isOnline(userId)) {
-      for (const [client, info] of clients) {
-        if (client.readyState === WebSocket.OPEN && info.userId !== userId) {
-          client.send(JSON.stringify({ type: 'presence', userId, online: false }));
+    try {
+      chatStore.setOffline(userId);
+      if (!chatStore.isOnline(userId)) {
+        for (const [client, info] of clients) {
+          if (client.readyState === WebSocket.OPEN && info.userId !== userId) {
+            client.send(JSON.stringify({ type: 'presence', userId, online: false }));
+          }
         }
       }
+    } catch (e) {
+      logger.error('ws', 'chatStore.setOffline error on close', { error: e.message, userId });
     }
     clients.delete(ws);
     logger.info('ws', 'Client disconnected', { userId, total: clients.size });
@@ -682,14 +733,17 @@ wss.on('connection', (ws, req) => {
   ws.on('error', (err) => {
     clearInterval(msgResetInterval);
     logger.error('ws', 'Client error', { error: err.message });
-    chatStore.setOffline(userId);
-    // Check if user has no more connections before broadcasting offline
-    if (!chatStore.isOnline(userId)) {
-      for (const [client, info] of clients) {
-        if (client.readyState === WebSocket.OPEN && info.userId !== userId) {
-          client.send(JSON.stringify({ type: 'presence', userId, online: false }));
+    try {
+      chatStore.setOffline(userId);
+      if (!chatStore.isOnline(userId)) {
+        for (const [client, info] of clients) {
+          if (client.readyState === WebSocket.OPEN && info.userId !== userId) {
+            client.send(JSON.stringify({ type: 'presence', userId, online: false }));
+          }
         }
       }
+    } catch (e) {
+      logger.error('ws', 'chatStore.setOffline error on ws error', { error: e.message, userId });
     }
     clients.delete(ws);
   });
@@ -706,8 +760,24 @@ function broadcast(update) {
   }
 }
 
-connectPolygon(marketState, broadcast);
-connectTwelveData(marketState, broadcast); // S5.7: International equity streaming
+// Phase 4: Circuit breaker with exponential backoff for market data connections
+function connectWithRetry(name, connectFn, ...args) {
+  let delay = 1000;
+  const maxDelay = 60000;
+  const attempt = () => {
+    try {
+      connectFn(...args);
+      logger.info('startup', `${name} connected`);
+    } catch (err) {
+      logger.error('startup', `${name} failed, retrying in ${delay / 1000}s`, { error: err.message });
+      setTimeout(attempt, delay);
+      delay = Math.min(delay * 2, maxDelay);
+    }
+  };
+  attempt();
+}
+connectWithRetry('Polygon', connectPolygon, marketState, broadcast);
+connectWithRetry('TwelveData', connectTwelveData, marketState, broadcast);
 
 // Late-bind marketState + computeFeedHealth into the feed router
 initFeedRouter(marketState, computeFeedHealth);

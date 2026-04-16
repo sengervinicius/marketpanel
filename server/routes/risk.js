@@ -40,6 +40,8 @@ const POLYGON_BASE_URL = 'https://api.polygon.io/v2/aggs/ticker';
  * @param {string} to - End date (YYYY-MM-DD)
  * @returns {Promise<Array<{date, close}>>} Prices in chronological order
  */
+const PER_FETCH_TIMEOUT_MS = 5000; // 5s per-ticker timeout to prevent hung requests
+
 async function fetchHistoricalPrices(ticker, from, to) {
   if (!POLYGON_API_KEY) {
     throw new Error('POLYGON_API_KEY not configured');
@@ -47,8 +49,12 @@ async function fetchHistoricalPrices(ticker, from, to) {
 
   const url = `${POLYGON_BASE_URL}/${ticker}/range/1/day/${from}/${to}?apiKey=${POLYGON_API_KEY}`;
 
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), PER_FETCH_TIMEOUT_MS);
+
   try {
-    const res = await fetch(url);
+    const res = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeout);
     if (!res.ok) {
       logger.warn(`Polygon API error for ${ticker}: ${res.status}`);
       return [];
@@ -67,7 +73,12 @@ async function fetchHistoricalPrices(ticker, from, to) {
         close: r.c,
       }));
   } catch (err) {
-    logger.error(`Failed to fetch prices for ${ticker}:`, err.message);
+    clearTimeout(timeout);
+    if (err.name === 'AbortError') {
+      logger.warn(`Fetch timeout for ${ticker} after ${PER_FETCH_TIMEOUT_MS}ms`);
+    } else {
+      logger.error(`Failed to fetch prices for ${ticker}:`, err.message);
+    }
     return [];
   }
 }
@@ -145,7 +156,7 @@ router.get('/portfolio/:portfolioId', async (req, res) => {
       });
     }
 
-    // Fetch historical prices for all positions (90-day window)
+    // Fetch historical prices for all positions + SPY benchmark in parallel (90-day window)
     const { from, to } = get90DaysAgo();
 
     const priceMap = new Map();
@@ -157,6 +168,14 @@ router.get('/portfolio/:portfolioId', async (req, res) => {
         logger.warn(`Risk analysis: Failed to fetch ${pos.symbol}:`, err.message);
       }
     });
+
+    // Include SPY in the parallel batch (used later for beta calculation)
+    let benchmarkPrices = [];
+    requests.push(
+      fetchBenchmarkPrices(from, to)
+        .then(prices => { benchmarkPrices = prices; })
+        .catch(err => { logger.warn('Risk analysis: Failed to fetch SPY for beta:', err.message); })
+    );
 
     await Promise.all(requests);
 
@@ -245,17 +264,12 @@ router.get('/portfolio/:portfolioId', async (req, res) => {
     const sharpeRatio = computeSharpeRatio(portfolioReturns);
     const sortinoRatio = computeSortinoRatio(portfolioReturns);
 
-    // Compute beta vs SPY
+    // Compute beta vs SPY (benchmarkPrices fetched in parallel above)
     let beta = 0;
-    try {
-      const benchmarkPrices = await fetchBenchmarkPrices(from, to);
-      if (benchmarkPrices.length > 10) {
-        const benchmarkCloses = benchmarkPrices.map(p => p.close);
-        const benchmarkReturns = priceToReturns(benchmarkCloses);
-        beta = computeBeta(portfolioReturns, benchmarkReturns);
-      }
-    } catch (err) {
-      logger.warn('Risk analysis: Failed to fetch SPY for beta:', err.message);
+    if (benchmarkPrices.length > 10) {
+      const benchmarkCloses = benchmarkPrices.map(p => p.close);
+      const benchmarkReturns = priceToReturns(benchmarkCloses);
+      beta = computeBeta(portfolioReturns, benchmarkReturns);
     }
 
     // Compute sector concentration
