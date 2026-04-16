@@ -262,29 +262,22 @@ export default function LoginScreen({ children }) {
       {/* ── Top bar ──────────────────────────────────────────────────────── */}
       <nav className="lp-topbar">
         <div className="lp-topbar-logo">PARTICLE</div>
-        <button
-          className="lp-topbar-signin"
-          onClick={openAuth}
-          type="button"
-        >
-          Sign in
-        </button>
       </nav>
 
       {/* ── Hero ─────────────────────────────────────────────────────────── */}
       <main className={`lp-hero ${heroReady ? 'lp-hero--visible' : ''}`}>
         <h1 className="lp-headline">
-          See everything.<br />Miss nothing.
+          cutting through market chaos.
         </h1>
         <p className="lp-subline">
-          Real-time terminal. AI-powered insight.
+          AI-Powered Market Terminal - built to disturb consensus
         </p>
         <div className="lp-hero-actions">
           <button className="lp-enter-btn" onClick={openAuth} type="button">
             Enter
           </button>
           <button className="lp-watch-btn" onClick={() => setShowVideoModal(true)} type="button">
-            Watch
+            Understand Particle
             <svg width="10" height="12" viewBox="0 0 10 12" fill="currentColor" style={{ marginLeft: 6 }}>
               <path d="M0 0l10 6-10 6V0z" />
             </svg>
