@@ -14,7 +14,6 @@ import { TableExportBar } from './shared/TableExportBar';
 import { KPIRibbon } from './shared/SectorUI';
 import { CorrelationMatrix } from './shared/CorrelationMatrix';
 import { EarningsCalendarStrip } from './shared/EarningsCalendarStrip';
-import { AnalystActionsCard } from './shared/AnalystActionsCard';
 import { useOpenDetail } from '../../context/OpenDetailContext';
 import { useTickerPrice } from '../../context/PriceContext';
 import { useDeepScreenData } from '../../hooks/useDeepScreenData';
@@ -66,16 +65,11 @@ const ALL_EQUITIES = [
 const EARNINGS_TICKERS = ['LMT', 'RTX', 'NOC', 'BA', 'GD', 'HII', 'PLTR', 'RKLB'];
 const OWNERSHIP_TICKERS = ['LMT', 'RTX', 'NOC', 'BA', 'GD', 'PLTR'];
 const SIGNALS_TICKERS = ['LMT', 'RTX', 'NOC', 'BA', 'GD', 'HII', 'PLTR', 'RKLB'];
-const ANALYST_TICKERS = ['LMT', 'RTX', 'NOC', 'BA', 'GD', 'PLTR'];
 const SENTIMENT_TICKERS = ['LMT', 'RTX', 'NOC', 'BA', 'GD', 'PLTR'];
 
 /* ── Wrapper Components for Data-Depth Sections ──────────────────────── */
 const EarningsSection = memo(function EarningsSection() {
   return <EarningsCalendarStrip tickers={EARNINGS_TICKERS} accentColor="#ef5350" />;
-});
-
-const AnalystSection = memo(function AnalystSection() {
-  return <AnalystActionsCard tickers={ANALYST_TICKERS} accentColor="#ef5350" />;
 });
 
 const BANNER_TICKERS = [
@@ -393,11 +387,6 @@ function DefenceScreenImpl() {
       title: 'Upcoming Earnings',
       span: 'full',
       component: EarningsSection,
-    },
-    {
-      id: 'analyst-actions',
-      title: 'Analyst Actions',
-      component: AnalystSection,
     },
   ], [statsMap, statsLoading, statsError, statsRefresh, scatterData, openDetail]);
 

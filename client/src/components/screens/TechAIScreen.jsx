@@ -8,7 +8,7 @@ import { memo, useMemo, useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import FullPageScreenLayout from './shared/FullPageScreenLayout';
 import SectorPulse from './shared/SectorPulse';
-import { SectorChartPanel, FundamentalsTable, SectorScatterPlot, MiniFinancials, KPIRibbon, heatColor, TickerRibbon, CorrelationMatrix, ComparisonBarChart, ImpliedVolatilityCard, EarningsCalendarStrip, AnalystActionsCard, OwnershipBreakdown, TechnicalSignalsCard, SentimentCard } from './shared';
+import { SectorChartPanel, FundamentalsTable, SectorScatterPlot, MiniFinancials, KPIRibbon, heatColor, TickerRibbon, CorrelationMatrix, ComparisonBarChart, EarningsCalendarStrip } from './shared';
 import { useOpenDetail } from '../../context/OpenDetailContext';
 import { useTickerPrice } from '../../context/PriceContext';
 import { useDeepScreenData } from '../../hooks/useDeepScreenData';
@@ -52,30 +52,10 @@ const ALL_TICKERS = [...MEGA_CAP, ...SEMIS, ...AI_CLOUD];
 
 // Module-level constants for stable props
 const TECH_EARNINGS_TICKERS = ['AAPL', 'MSFT', 'GOOGL', 'NVDA', 'META', 'AMZN', 'TSM', 'AMD'];
-const TECH_OWNERSHIP_TICKERS = ['AAPL', 'MSFT', 'NVDA', 'GOOGL', 'META', 'AMZN'];
-const TECH_SIGNALS_TICKERS = ['NVDA', 'AAPL', 'MSFT', 'GOOGL', 'META', 'TSM', 'AMD', 'AVGO'];
-const TECH_ANALYST_TICKERS = ['NVDA', 'AAPL', 'MSFT', 'GOOGL', 'META', 'AMZN'];
-const SENTIMENT_TICKERS = ['NVDA', 'AAPL', 'MSFT', 'GOOGL', 'META', 'AMZN', 'TSM', 'AMD'];
 
 function TechEarningsSection() {
   return <EarningsCalendarStrip tickers={TECH_EARNINGS_TICKERS} accentColor="#00bcd4" />;
 }
-
-function TechAnalystSection() {
-  return <AnalystActionsCard tickers={TECH_ANALYST_TICKERS} limit={12} accentColor="#00bcd4" />;
-}
-
-function TechOwnershipSection() {
-  return <OwnershipBreakdown tickers={TECH_OWNERSHIP_TICKERS} accentColor="#00bcd4" />;
-}
-
-function TechSignalsSection() {
-  return <TechnicalSignalsCard tickers={TECH_SIGNALS_TICKERS} accentColor="#00bcd4" />;
-}
-
-const SentimentSection = memo(function SentimentSection() {
-  return <SentimentCard tickers={SENTIMENT_TICKERS} accentColor="#00bcd4" />;
-});
 
 /* ── KPI Ribbon ────────────────────────────────────────────────────────── */
 function TechKPIRibbon() {

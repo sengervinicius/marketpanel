@@ -15,7 +15,6 @@ import SectorChartStrip from './SectorChartStrip';
 import { FuturesCurveChart } from './shared/FuturesCurveChart';
 import { CorrelationMatrix } from './shared/CorrelationMatrix';
 import { EarningsCalendarStrip } from './shared/EarningsCalendarStrip';
-import { AnalystActionsCard } from './shared/AnalystActionsCard';
 import { KPIRibbon } from './shared/SectorUI';
 import { useOpenDetail } from '../../context/OpenDetailContext';
 import { useTickerPrice } from '../../context/PriceContext';
@@ -49,7 +48,6 @@ const ETF_SYMBOLS = ['XLE', 'XOP', 'ICLN', 'TAN', 'URA', 'LIT', 'OIH'];
 const EARNINGS_TICKERS = ['XOM', 'CVX', 'SHEL', 'BP', 'COP', 'TTE', 'NEE', 'ENPH'];
 const OWNERSHIP_TICKERS = ['XOM', 'CVX', 'SHEL', 'COP', 'NEE', 'ENPH'];
 const SIGNALS_TICKERS = ['XOM', 'CVX', 'SHEL', 'BP', 'COP', 'TTE', 'NEE', 'ENPH'];
-const ANALYST_TICKERS = ['XOM', 'CVX', 'SHEL', 'COP', 'NEE', 'ENPH'];
 
 /* ── KPI Ribbon ────────────────────────────────────────────────────────── */
 const EnergyKPIRibbon = memo(function EnergyKPIRibbon() {
@@ -74,10 +72,6 @@ const EnergyKPIRibbon = memo(function EnergyKPIRibbon() {
 /* ── Wrapper Components for Data-Depth Sections ──────────────────────── */
 const EarningsSection = memo(function EarningsSection() {
   return <EarningsCalendarStrip tickers={EARNINGS_TICKERS} accentColor="#66bb6a" />;
-});
-
-const AnalystSection = memo(function AnalystSection() {
-  return <AnalystActionsCard tickers={ANALYST_TICKERS} accentColor="#66bb6a" />;
 });
 
 // Sector-specific chart tickers — energy benchmarks + majors
@@ -238,7 +232,6 @@ function EnergyScreenImpl() {
     { id: 'clean',  title: 'Clean Energy & Transition',  component: () => <StatsLoadGate statsMap={statsMap} loading={statsLoading} error={statsError} refresh={statsRefresh}><EquitySection tickers={CLEAN_ENERGY} statsMap={statsMap} selectedTicker={selectedTicker} onSelectTicker={setSelectedTicker} /></StatsLoadGate> },
     { id: 'futures', title: 'Energy Futures & Spreads',  component: FuturesSection },
     { id: 'earnings-calendar', title: 'Upcoming Earnings', component: EarningsSection },
-    { id: 'analyst-actions', title: 'Analyst Actions', component: AnalystSection },
   ], [statsMap, statsLoading, statsError, statsRefresh, selectedTicker]);
 
   return (

@@ -24,7 +24,6 @@ import { DeepSkeleton, DeepError, StatsLoadGate } from './DeepScreenBase';
 import { KPIRibbon, TickerRibbon } from './shared/SectorUI';
 import { CorrelationMatrix } from './shared/CorrelationMatrix';
 import { EarningsCalendarStrip } from './shared/EarningsCalendarStrip';
-import { AnalystActionsCard } from './shared/AnalystActionsCard';
 
 const fmt = (n, d = 2) =>
   n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -80,7 +79,6 @@ const ETF_SYMBOLS = ['DBC', 'USO', 'GLD', 'SLV', 'PDBC', 'CPER', 'UNG', 'CORN', 
 const COMMODITY_EARNINGS_TICKERS = ['XOM', 'CVX', 'SHEL', 'BP', 'COP', 'BHP', 'RIO', 'NEM'];
 const COMMODITY_OWNERSHIP_TICKERS = ['XOM', 'CVX', 'SHEL', 'BHP', 'RIO', 'FCX'];
 const COMMODITY_SIGNALS_TICKERS = ['XOM', 'CVX', 'SHEL', 'BHP', 'RIO', 'FCX', 'NEM', 'VALE'];
-const COMMODITY_ANALYST_TICKERS = ['XOM', 'CVX', 'SHEL', 'BHP', 'RIO', 'NEM'];
 const SENTIMENT_TICKERS = ['XOM', 'CVX', 'BHP', 'RIO', 'NEM', 'FCX'];
 
 const BANNER_TICKERS = [
@@ -268,10 +266,6 @@ function CommodityEarningsSection() {
   return <EarningsCalendarStrip tickers={COMMODITY_EARNINGS_TICKERS} accentColor="#ff9800" />;
 }
 
-function CommodityAnalystSection() {
-  return <AnalystActionsCard tickers={COMMODITY_ANALYST_TICKERS} limit={10} accentColor="#ff9800" />;
-}
-
 const EnergyMajorsSection = memo(function EnergyMajorsSection({ statsMap, loading, error, refresh }) {
   return (
     <StatsLoadGate statsMap={statsMap} loading={loading} error={error} refresh={refresh} rows={6}>
@@ -403,11 +397,6 @@ function CommoditiesScreenImpl() {
       title: 'Upcoming Earnings',
       span: 'full',
       component: CommodityEarningsSection,
-    },
-    {
-      id: 'analyst-actions',
-      title: 'Analyst Actions',
-      component: CommodityAnalystSection,
     },
   ], [statsMap, statsLoading, statsError, statsRefresh]);
 

@@ -10,7 +10,6 @@ import { FundamentalsTable, SectorChartPanel } from './shared';
 import { KPIRibbon, heatColor, TickerRibbon } from './shared/SectorUI';
 import { DeepSkeleton, DeepError } from './DeepScreenBase';
 import EarningsCalendarStrip from './shared/EarningsCalendarStrip';
-import AnalystActionsCard from './shared/AnalystActionsCard';
 import MacroCalendarStrip from './shared/MacroCalendarStrip';
 import useSectionData from '../../hooks/useSectionData';
 import { useOpenDetail } from '../../context/OpenDetailContext';
@@ -64,7 +63,6 @@ const BRAZIL_ETFS = ['EWZ', 'FLBR', 'EWW', 'ARGT', 'INDA', 'FXI', 'EEM'];
 const EARNINGS_TICKERS = ['PBR', 'VALE', 'ITUB', 'BBD', 'ERJ', 'ABEV', 'SBS'];
 const OWNERSHIP_TICKERS = ['PBR', 'VALE', 'ITUB', 'BBD', 'ERJ'];
 const SIGNALS_TICKERS = ['PBR', 'VALE', 'ITUB', 'BBD', 'ERJ', 'ABEV', 'SBS'];
-const ANALYST_TICKERS = ['PBR', 'VALE', 'ITUB', 'BBD', 'ERJ', 'ABEV'];
 
 const BANNER_TICKERS = [
   { ticker: 'EWZ', label: 'BRAZIL ETF' },
@@ -447,10 +445,6 @@ const FundamentalsComponent = memo(function FundamentalsComponent() {
 /* ── Deep-Data Component Wrappers ──────────────────────────────────────── */
 const EarningsSection = memo(function EarningsSection() {
   return <EarningsCalendarStrip tickers={EARNINGS_TICKERS} accentColor="#4caf50" />;
-});
-
-const AnalystSection = memo(function AnalystSection() {
-  return <AnalystActionsCard tickers={ANALYST_TICKERS} accentColor="#4caf50" />;
 });
 
 const MacroCalendarSection = memo(function MacroCalendarSection() {

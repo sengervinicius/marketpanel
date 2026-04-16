@@ -13,7 +13,6 @@ import { SectorScatterPlot } from './shared/SectorScatterPlot';
 import { KPIRibbon, TickerRibbon } from './shared/SectorUI';
 import { CorrelationMatrix } from './shared/CorrelationMatrix';
 import { EarningsCalendarStrip } from './shared/EarningsCalendarStrip';
-import { AnalystActionsCard } from './shared/AnalystActionsCard';
 import { useOpenDetail } from '../../context/OpenDetailContext';
 import { useTickerPrice } from '../../context/PriceContext';
 import { useDeepScreenData } from '../../hooks/useDeepScreenData';
@@ -140,15 +139,10 @@ const ALL_EQUITIES = [
 const EARNINGS_TICKERS = ['AMZN', 'WMT', 'COST', 'NKE', 'LULU', 'MELI', 'SHOP', 'TGT'];
 const OWNERSHIP_TICKERS = ['AMZN', 'WMT', 'COST', 'NKE', 'LULU', 'TGT'];
 const SIGNALS_TICKERS = ['AMZN', 'WMT', 'COST', 'NKE', 'LULU', 'MELI', 'SHOP', 'TGT'];
-const ANALYST_TICKERS = ['AMZN', 'WMT', 'COST', 'NKE', 'MELI', 'SHOP'];
 
 /* ── Wrapper Components for Data-Depth Sections ──────────────────────── */
 const EarningsSection = memo(function EarningsSection() {
   return <EarningsCalendarStrip tickers={EARNINGS_TICKERS} accentColor="#e91e63" />;
-});
-
-const AnalystSection = memo(function AnalystSection() {
-  return <AnalystActionsCard tickers={ANALYST_TICKERS} accentColor="#e91e63" />;
 });
 
 /* ── Section Table Component ───────────────────────────────────────────── */
@@ -309,11 +303,6 @@ function GlobalRetailScreenImpl() {
       title: 'Upcoming Earnings',
       span: 'full',
       component: EarningsSection,
-    },
-    {
-      id: 'analyst-actions',
-      title: 'Analyst Actions',
-      component: AnalystSection,
     },
   ], [statsMap, statsLoading, statsError, statsRefresh, scatterData, openDetail]);
 

@@ -19,7 +19,6 @@ import { sanitizeTicker } from '../../utils/ticker';
 import { KPIRibbon, TickerRibbon } from './shared/SectorUI';
 import { CorrelationMatrix } from './shared/CorrelationMatrix';
 import { EarningsCalendarStrip } from './shared/EarningsCalendarStrip';
-import { AnalystActionsCard } from './shared/AnalystActionsCard';
 
 /* ── Formatting utilities ──────────────────────────────────────────────────── */
 const fmt = (n, d = 2) =>
@@ -87,15 +86,10 @@ const ETF_LABELS = {
 const EARNINGS_TICKERS = ['MSTR', 'COIN', 'MARA', 'RIOT', 'HUT', 'BITF', 'CLSK'];
 const OWNERSHIP_TICKERS = ['MSTR', 'COIN', 'MARA', 'RIOT', 'CLSK'];
 const SIGNALS_TICKERS = ['MSTR', 'COIN', 'MARA', 'RIOT', 'HUT', 'BITF', 'CLSK'];
-const ANALYST_TICKERS = ['MSTR', 'COIN', 'MARA', 'RIOT'];
 
 /* ── Wrapper Components for Data-Depth Sections ──────────────────────── */
 const EarningsSection = memo(function EarningsSection() {
   return <EarningsCalendarStrip tickers={EARNINGS_TICKERS} accentColor="#f7931a" />;
-});
-
-const AnalystSection = memo(function AnalystSection() {
-  return <AnalystActionsCard tickers={ANALYST_TICKERS} accentColor="#f7931a" />;
 });
 
 /* ── Crypto Major Row Component ────────────────────────────────────────────── */
@@ -612,11 +606,6 @@ function CryptoScreenImpl() {
       id: 'earnings-calendar',
       title: 'Upcoming Earnings',
       component: EarningsSection,
-    },
-    {
-      id: 'analyst-actions',
-      title: 'Analyst Actions',
-      component: AnalystSection,
     },
   ], [statsMap, statsLoading, statsError, statsRefresh, openDetail]);
 

@@ -6,7 +6,7 @@
 import { memo, useEffect, useMemo, useState } from 'react';
 import FullPageScreenLayout from './shared/FullPageScreenLayout';
 import SectorPulse from './shared/SectorPulse';
-import { FundamentalsTable, EarningsCalendarStrip, AnalystActionsCard, MacroCalendarStrip } from './shared';
+import { FundamentalsTable, EarningsCalendarStrip, MacroCalendarStrip } from './shared';
 import { SectorChartPanel } from './shared/SectorChartPanel';
 import { KPIRibbon, heatColor, TickerRibbon } from './shared/SectorUI';
 import { useOpenDetail } from '../../context/OpenDetailContext';
@@ -128,14 +128,9 @@ const LABELS = {
 const EARNINGS_TICKERS = ['BABA', 'TM', 'SONY', 'HDB', 'INFY', 'TSM', 'TCEHY', 'NIO'];
 const OWNERSHIP_TICKERS = ['BABA', 'TM', 'SONY', 'HDB', 'TSM', 'TCEHY'];
 const SIGNALS_TICKERS = ['BABA', 'TM', 'SONY', 'HDB', 'INFY', 'TSM', 'TCEHY', 'NIO'];
-const ANALYST_TICKERS = ['BABA', 'TM', 'SONY', 'HDB', 'TSM', 'INFY'];
 
 const EarningsSection = memo(function EarningsSection() {
   return <EarningsCalendarStrip tickers={EARNINGS_TICKERS} accentColor="#ff5722" />;
-});
-
-const AnalystSection = memo(function AnalystSection() {
-  return <AnalystActionsCard tickers={ANALYST_TICKERS} accentColor="#ff5722" />;
 });
 
 const MacroCalendarSection = memo(function MacroCalendarSection() {
@@ -491,11 +486,6 @@ function AsianMarketsScreenImpl() {
       id: 'earnings-calendar',
       title: 'Upcoming Earnings',
       component: EarningsSection,
-    },
-    {
-      id: 'analyst-actions',
-      title: 'Analyst Actions',
-      component: AnalystSection,
     },
     {
       id: 'macro-calendar',
