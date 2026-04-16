@@ -554,6 +554,49 @@ export default function App() {
     setDetailTicker(sym);
   }, []);
 
+  // Listen for particle:action events from AI chat action buttons
+  // Routes button clicks to appropriate terminal actions
+  useEffect(() => {
+    const handler = (e) => {
+      const { type, ticker } = e.detail || {};
+      if (!ticker) return;
+      switch (type) {
+        case 'detail_open':
+          setDetailTicker(ticker);
+          break;
+        case 'chart_open':
+          setChartTicker(ticker);
+          setActiveTabPersist('charts');
+          break;
+        case 'watchlist_add':
+          // Dispatch a secondary event that the WatchlistProvider child can pick up,
+          // or update via API + localStorage directly (since WatchlistContext persists to both)
+          try {
+            const LS_KEY = 'particle_watchlist_v1';
+            const raw = localStorage.getItem(LS_KEY);
+            const list = JSON.parse(raw) || [];
+            const upper = ticker.toUpperCase();
+            if (!list.some(s => s.toUpperCase() === upper)) {
+              const next = [...list, upper];
+              localStorage.setItem(LS_KEY, JSON.stringify(next));
+              // Also sync to server
+              apiFetch('/api/settings', {
+                method: 'POST',
+                body: JSON.stringify({ watchlist: next }),
+              }).catch(() => {});
+              // Force WatchlistContext to pick up the change
+              window.dispatchEvent(new CustomEvent('particle:watchlist-changed', { detail: { watchlist: next } }));
+            }
+          } catch { /* non-critical */ }
+          break;
+        default:
+          break;
+      }
+    };
+    window.addEventListener('particle:action', handler);
+    return () => window.removeEventListener('particle:action', handler);
+  }, [setChartTicker, setActiveTabPersist]);
+
   // ── Onboarding check ─────────────────────────────────────────────────────
   // Only show onboarding AFTER settings are fully loaded from the server (not the
   // default settings), and only if the user has not yet completed onboarding.

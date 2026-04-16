@@ -23,6 +23,7 @@ const predictionAggregator = require('./predictionAggregator');
 let _marketState = null;   // { stocks: {}, forex: {}, crypto: {} }
 let _getUserById = null;   // (id) => user | null
 let _getPortfolio = null;  // (userId) => portfolioDoc | null
+let _twelveData = null;    // TwelveData provider for on-demand lookups
 
 // Phase 2: Last-known market state cache for cold-start fallback.
 // If _marketState is null (cold start / restart), we use the last snapshot
@@ -38,6 +39,10 @@ function init({ marketState, getUserById, getPortfolio }) {
   _marketState = marketState;
   _getUserById = getUserById;
   _getPortfolio = getPortfolio;
+  // Late-bind TwelveData provider for on-demand ticker lookups
+  try { _twelveData = require('../providers/twelvedata'); } catch (e) {
+    logger.warn('[MarketContext] TwelveData provider not available for on-demand lookups');
+  }
 }
 
 /**
@@ -351,6 +356,164 @@ function fmtList(items, transform) {
   return items.map(transform).join(', ');
 }
 
+// ── On-demand ticker lookup (for tickers not in _marketState) ───────────────
+
+/**
+ * Resolve a company name or partial name to a ticker symbol.
+ * Uses TwelveData symbol_search. Returns best-match ticker or null.
+ * @param {string} companyName — e.g. "Unity Software", "Tesla", "Nvidia"
+ * @returns {Promise<string|null>} ticker symbol or null
+ */
+async function resolveCompanyToTicker(companyName) {
+  if (!_twelveData?.symbolSearch) return null;
+  try {
+    const results = await _twelveData.symbolSearch(companyName, 5);
+    if (!results || results.length === 0) return null;
+    // Prefer US-listed equity matches
+    const usMatch = results.find(r =>
+      (r.exchange === 'NASDAQ' || r.exchange === 'NYSE' || r.exchange === 'AMEX') &&
+      r.instrument_type === 'Common Stock'
+    );
+    return (usMatch || results[0])?.symbol || null;
+  } catch (e) {
+    logger.warn(`[MarketContext] Company resolution failed for "${companyName}": ${e.message}`);
+    return null;
+  }
+}
+
+/**
+ * Fetch live quote data for tickers not already in _marketState.
+ * Returns a map of { TICKER: { price, changePercent, volume, name, ... } }.
+ * @param {string[]} tickers — ticker symbols to look up
+ * @returns {Promise<Object>}
+ */
+async function fetchOnDemandQuotes(tickers) {
+  if (!_twelveData?.getQuote || !tickers.length) return {};
+  const results = {};
+  // Fetch in parallel, max 5 tickers to avoid rate limits
+  const toFetch = tickers.slice(0, 5);
+  const promises = toFetch.map(async (sym) => {
+    try {
+      const quote = await _twelveData.getQuote(sym);
+      if (quote && quote.price) {
+        results[sym] = {
+          price: quote.price,
+          changePercent: quote.changePct || 0,
+          volume: quote.volume || 0,
+          name: quote.name || sym,
+          high52w: quote.high52w,
+          low52w: quote.low52w,
+          open: quote.open,
+          high: quote.high,
+          low: quote.low,
+          prevClose: quote.prevClose,
+          source: 'on-demand',
+        };
+      }
+    } catch (e) {
+      logger.warn(`[MarketContext] On-demand quote failed for ${sym}: ${e.message}`);
+    }
+  });
+  await Promise.all(promises);
+  return results;
+}
+
+/**
+ * Extract potential company names from a query for name-to-ticker resolution.
+ * Uses two strategies:
+ *   1. Pattern-based: catches "tell me about X", "view on X", "opinion on X", etc.
+ *   2. Proper-noun fallback: catches any Capitalized Word(s) that aren't common English.
+ * This ensures queries like "what is your view on Unity Software?" always resolve.
+ */
+function extractPotentialCompanyNames(query) {
+  const names = [];
+
+  const skipWords = new Set([
+    'The', 'This', 'That', 'What', 'How', 'Why', 'When', 'Where', 'Which',
+    'My', 'Your', 'Its', 'Our', 'Their', 'It', 'Is', 'Are', 'Was', 'Were',
+    'Will', 'Can', 'Do', 'Does', 'Did', 'Has', 'Have', 'Had', 'Should',
+    'Could', 'Would', 'May', 'Might', 'Must', 'Been', 'Being', 'Get',
+    'Market', 'Markets', 'Today', 'Tomorrow', 'Yesterday', 'Stock', 'Stocks',
+    'Price', 'Prices', 'Portfolio', 'Holdings', 'Position', 'Positions',
+    'Morning', 'Evening', 'Night', 'Good', 'Bad', 'Great', 'Big', 'Small',
+    'Buy', 'Sell', 'Hold', 'Long', 'Short', 'Bull', 'Bear', 'Bullish', 'Bearish',
+    'High', 'Low', 'Top', 'Bottom', 'New', 'Old', 'Last', 'Next', 'First',
+    'Second', 'Third', 'Still', 'Just', 'Now', 'Here', 'There', 'Very',
+    'Not', 'But', 'And', 'For', 'From', 'With', 'About', 'Into', 'Over',
+    'After', 'Before', 'Between', 'Through', 'During', 'Since', 'Until',
+    'Some', 'Any', 'All', 'Each', 'Every', 'Both', 'Few', 'More', 'Most',
+    'Other', 'Another', 'Same', 'Such', 'Than', 'Too', 'Also', 'Only',
+    'Well', 'Way', 'Much', 'Many', 'Like', 'Think', 'Know', 'See', 'Look',
+    'Want', 'Need', 'Tell', 'Give', 'Take', 'Make', 'Come', 'Go', 'Keep',
+    'Let', 'Say', 'Put', 'Run', 'Show', 'Try', 'Ask', 'Use', 'Find',
+    'Call', 'Back', 'Up', 'Down', 'Out', 'Off', 'Right', 'Left',
+    'Dear', 'Please', 'Thanks', 'Thank', 'Yes', 'No', 'Okay', 'Sure',
+    'January', 'February', 'March', 'April', 'May', 'June', 'July',
+    'August', 'September', 'October', 'November', 'December',
+    'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday',
+    'Week', 'Month', 'Year', 'Quarter', 'Annual', 'Daily', 'Weekly', 'Monthly',
+    'Watch', 'Chart', 'Alert', 'Compare', 'Analyze', 'Analysis', 'Review',
+    'Update', 'Report', 'Summary', 'Overview', 'Brief', 'Deep', 'Quick',
+    'North', 'South', 'East', 'West', 'South',
+  ]);
+
+  // Strategy 1: Pattern-based extraction with broad prefix coverage
+  // Catches: "about X", "view on X", "opinion on X", "thoughts on X", "take on X",
+  // "analysis of X", "look at X", "check X", "research X", etc.
+  // NOTE: We do NOT use the `i` flag here because we need capitalization to identify proper nouns.
+  const prefixPatterns = [
+    /(?:about|on|into|at|of|regarding)\s+([A-Z][a-zA-Z]*(?:\s+[A-Z][a-zA-Z]*)*)/g,
+    /(?:[Aa]nalyze|[Rr]esearch|[Rr]eview|[Cc]heck|[Ee]valuate|[Aa]ssess|[Ee]xamine|[Ss]tudy|[Ii]nvestigate|[Cc]over|[Tt]rack)\s+([A-Z][a-zA-Z]*(?:\s+[A-Z][a-zA-Z]*)*)/g,
+  ];
+  for (const pat of prefixPatterns) {
+    let m;
+    while ((m = pat.exec(query)) !== null) {
+      // Trim trailing lowercase-starting words ("Tesla for me" → "Tesla")
+      let name = m[1].trim();
+      const words = name.split(/\s+/);
+      const trimmed = [];
+      for (const w of words) {
+        if (/^[A-Z]/.test(w)) trimmed.push(w);
+        else break; // stop at first lowercase-starting word
+      }
+      name = trimmed.join(' ');
+      if (!name) continue;
+      const firstWord = name.split(/\s+/)[0];
+      if (!skipWords.has(firstWord) && name.length >= 3) {
+        names.push(name);
+      }
+    }
+  }
+
+  // Strategy 2: Proper-noun fallback — find any Capitalized sequence that could be a company
+  // Matches "Unity Software", "Palantir", "CrowdStrike", "Arm Holdings", etc.
+  // Also handles camelCase company names like CrowdStrike, ServiceNow, SalesForce
+  const properNounRe = /\b([A-Z][a-zA-Z]{2,}(?:\s+[A-Z][a-zA-Z]+)*)\b/g;
+  let m;
+  while ((m = properNounRe.exec(query)) !== null) {
+    const name = m[1].trim();
+    // Trim trailing lowercase-starting words
+    const words = name.split(/\s+/);
+    const trimmed = [];
+    for (const w of words) {
+      if (/^[A-Z]/.test(w)) trimmed.push(w);
+      else break;
+    }
+    const cleanName = trimmed.join(' ');
+    if (!cleanName || cleanName.length < 3) continue;
+    const cleanWords = cleanName.split(/\s+/);
+    // Skip if ALL words are in skipWords
+    const nonSkipWords = cleanWords.filter(w => !skipWords.has(w));
+    if (nonSkipWords.length === 0) continue;
+    // Must have at least one meaningful word of 3+ chars
+    if (nonSkipWords.some(w => w.length >= 3)) {
+      names.push(cleanName);
+    }
+  }
+
+  return [...new Set(names)];
+}
+
 // ── Main context builder ────────────────────────────────────────────────────
 
 /**
@@ -362,10 +525,36 @@ function fmtList(items, transform) {
  * @param {string} [opts.intent]     - Pre-classified intent (auto-detected if omitted)
  * @returns {{ contextString: string, intent: string, mentionedTickers: string[] }}
  */
-function buildContext({ query, userId, intent: forceIntent } = {}) {
+async function buildContext({ query, userId, intent: forceIntent } = {}) {
   const intent = forceIntent || classifyIntent(query || '');
   const mentionedTickers = extractTickers(query || '');
   const sections = [];
+
+  // ── On-demand: resolve company names to tickers ─────────────────────────
+  // If user asks about "Unity Software" or "Palantir", resolve to ticker first
+  const companyNames = extractPotentialCompanyNames(query || '');
+  for (const name of companyNames) {
+    try {
+      const resolved = await resolveCompanyToTicker(name);
+      if (resolved && !mentionedTickers.includes(resolved)) {
+        mentionedTickers.push(resolved);
+      }
+    } catch { /* non-critical */ }
+  }
+
+  // ── On-demand: fetch quotes for tickers not in _marketState ─────────────
+  let onDemandData = {};
+  if (mentionedTickers.length > 0) {
+    const missing = mentionedTickers.filter(sym => {
+      const d = _marketState?.stocks?.[sym] || _marketState?.forex?.[sym] || _marketState?.crypto?.[sym];
+      return !d || !d.price;
+    });
+    if (missing.length > 0) {
+      try {
+        onDemandData = await fetchOnDemandQuotes(missing);
+      } catch { /* non-critical */ }
+    }
+  }
 
   // Phase 2: Use effective market state with stale fallback
   const { state: effectiveState, stale: isStale } = getEffectiveMarketState();
@@ -405,12 +594,22 @@ function buildContext({ query, userId, intent: forceIntent } = {}) {
       }
     }
 
-    // ── 4. Mentioned ticker details ──────────────────────────────────────
+    // ── 4. Mentioned ticker details (with on-demand fallback) ─────────────
     if (mentionedTickers.length > 0) {
       const details = mentionedTickers.map(sym => {
-        const d = _marketState?.stocks?.[sym] || _marketState?.forex?.[sym] || _marketState?.crypto?.[sym];
-        if (!d || !d.price) return `${sym}: no live data`;
-        return `${sym}: ${fmtPrice(d.price)} (${fmtChange(d.changePercent)})${d.volume ? ` vol:${(d.volume / 1e6).toFixed(1)}M` : ''}`;
+        // Try in-memory state first, then on-demand data
+        const d = _marketState?.stocks?.[sym] || _marketState?.forex?.[sym] || _marketState?.crypto?.[sym] || onDemandData[sym];
+        if (!d || !d.price) return `${sym}: no live data available`;
+        const nameStr = d.name ? ` (${d.name})` : '';
+        let line = `${sym}${nameStr}: ${fmtPrice(d.price)} (${fmtChange(d.changePercent)})`;
+        if (d.volume) line += ` vol:${(d.volume / 1e6).toFixed(1)}M`;
+        if (d.high52w) line += ` 52wH:${fmtPrice(d.high52w)}`;
+        if (d.low52w) line += ` 52wL:${fmtPrice(d.low52w)}`;
+        if (d.open) line += ` O:${fmtPrice(d.open)}`;
+        if (d.high) line += ` H:${fmtPrice(d.high)}`;
+        if (d.low) line += ` L:${fmtPrice(d.low)}`;
+        if (d.prevClose) line += ` prevC:${fmtPrice(d.prevClose)}`;
+        return line;
       });
       sections.push(`[Mentioned tickers] ${details.join('; ')}`);
     }
@@ -580,6 +779,9 @@ module.exports = {
   buildContext,
   classifyIntent,
   extractTickers,
+  extractPotentialCompanyNames,
+  resolveCompanyToTicker,
+  fetchOnDemandQuotes,
   getMarketState,
   snapshotForFallback,
   getEffectiveMarketState,

@@ -122,6 +122,18 @@ export function WatchlistProvider({ children }) {
     persistServer(validated);
   }, [persistLocal, persistServer]);
 
+  // Listen for external watchlist changes (e.g. from particle:action button in AI chat)
+  useEffect(() => {
+    const handler = (e) => {
+      const { watchlist: newList } = e.detail || {};
+      if (Array.isArray(newList)) {
+        setWatchlist(newList.slice(0, MAX_WATCHLIST_SIZE));
+      }
+    };
+    window.addEventListener('particle:watchlist-changed', handler);
+    return () => window.removeEventListener('particle:watchlist-changed', handler);
+  }, []);
+
   const isWatching = useCallback((symbol) => watchlist.includes(symbol?.toUpperCase()), [watchlist]);
 
   const toggle = useCallback((symbol) => {
