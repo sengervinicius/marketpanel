@@ -30,14 +30,14 @@ function EnhancedTooltip({ active, payload, xLabel, yLabel }) {
         border: '1px solid #2a2a3a',
         padding: '10px 14px',
         borderRadius: 6,
-        fontSize: 11,
+        fontSize: 12,
         color: TOKEN_HEX.textPrimary,
         boxShadow: '0 4px 20px rgba(0,0,0,0.7)',
         minWidth: 140,
       }}>
         <div style={{
           fontWeight: 700,
-          fontSize: 13,
+          fontSize: 14,
           marginBottom: 6,
           color: d.color || TOKEN_HEX.accent,
           letterSpacing: '0.5px',
@@ -45,20 +45,20 @@ function EnhancedTooltip({ active, payload, xLabel, yLabel }) {
           {d.ticker}
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, marginBottom: 3 }}>
-          <span style={{ color: TOKEN_HEX.textMuted, fontSize: 10 }}>{xLabel}:</span>
+          <span style={{ color: TOKEN_HEX.textMuted, fontSize: 11 }}>{xLabel}:</span>
           <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
             {d.x >= 1000 ? d.x.toLocaleString('en-US', { maximumFractionDigits: 0 }) : d.x.toFixed(1)}
           </span>
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
-          <span style={{ color: TOKEN_HEX.textMuted, fontSize: 10 }}>{yLabel}:</span>
+          <span style={{ color: TOKEN_HEX.textMuted, fontSize: 11 }}>{yLabel}:</span>
           <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
             {d.y >= 1000 ? '$' + (d.y / 1).toLocaleString('en-US', { maximumFractionDigits: 0 }) + 'B' : d.y.toFixed(1)}
           </span>
         </div>
         {d.z != null && (
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, marginTop: 3 }}>
-            <span style={{ color: TOKEN_HEX.textMuted, fontSize: 10 }}>Size:</span>
+            <span style={{ color: TOKEN_HEX.textMuted, fontSize: 11 }}>Size:</span>
             <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600 }}>{d.z.toFixed(1)}</span>
           </div>
         )}
@@ -88,7 +88,7 @@ function TickerLabel({ cx, cy, payload, index }) {
       y={cy + pos.dy}
       textAnchor={pos.anchor}
       fill="rgba(255,255,255,0.7)"
-      fontSize={10}
+      fontSize={12}
       fontWeight={600}
       fontFamily="var(--font-mono)"
       style={{ pointerEvents: 'none' }}
@@ -158,7 +158,7 @@ export function SectorScatterPlot({
     }}>
       {title && (
         <div style={{
-          fontSize: 11,
+          fontSize: 13,
           color: accentColor || 'var(--text-secondary)',
           marginBottom: 12,
           textTransform: 'uppercase',
@@ -185,14 +185,14 @@ export function SectorScatterPlot({
             type="number"
             dataKey="x"
             stroke={TOKEN_HEX.borderDefault}
-            tick={{ fontSize: 10, fill: TOKEN_HEX.textMuted }}
+            tick={{ fontSize: 12, fill: TOKEN_HEX.textMuted }}
             tickLine={{ stroke: TOKEN_HEX.borderSubtle }}
             axisLine={{ stroke: TOKEN_HEX.borderDefault }}
             label={{
               value: xLabel,
               position: 'insideBottom',
               offset: -10,
-              fontSize: 11,
+              fontSize: 13,
               fill: TOKEN_HEX.textSecondary,
               fontWeight: 600,
             }}
@@ -201,7 +201,7 @@ export function SectorScatterPlot({
             type="number"
             dataKey="y"
             stroke={TOKEN_HEX.borderDefault}
-            tick={{ fontSize: 10, fill: TOKEN_HEX.textMuted }}
+            tick={{ fontSize: 12, fill: TOKEN_HEX.textMuted }}
             tickLine={{ stroke: TOKEN_HEX.borderSubtle }}
             axisLine={{ stroke: TOKEN_HEX.borderDefault }}
             tickFormatter={(v) => {
@@ -214,16 +214,16 @@ export function SectorScatterPlot({
               angle: -90,
               position: 'insideLeft',
               offset: 10,
-              fontSize: 11,
+              fontSize: 13,
               fill: TOKEN_HEX.textSecondary,
               fontWeight: 600,
             }}
           />
           {/* Quadrant labels — subtle, muted text */}
-          <text x="15%" y="12%" fill="rgba(255,255,255,0.08)" fontSize={10} fontWeight={500}>Cheap &amp; Large</text>
-          <text x="75%" y="12%" fill="rgba(255,255,255,0.08)" fontSize={10} fontWeight={500} textAnchor="end">Expensive &amp; Large</text>
-          <text x="15%" y="92%" fill="rgba(255,255,255,0.08)" fontSize={10} fontWeight={500}>Cheap &amp; Small</text>
-          <text x="75%" y="92%" fill="rgba(255,255,255,0.08)" fontSize={10} fontWeight={500} textAnchor="end">Expensive &amp; Small</text>
+          <text x="15%" y="12%" fill="rgba(255,255,255,0.08)" fontSize={11} fontWeight={500}>Cheap &amp; Large</text>
+          <text x="75%" y="12%" fill="rgba(255,255,255,0.08)" fontSize={11} fontWeight={500} textAnchor="end">Expensive &amp; Large</text>
+          <text x="15%" y="92%" fill="rgba(255,255,255,0.08)" fontSize={11} fontWeight={500}>Cheap &amp; Small</text>
+          <text x="75%" y="92%" fill="rgba(255,255,255,0.08)" fontSize={11} fontWeight={500} textAnchor="end">Expensive &amp; Small</text>
 
           <Tooltip
             content={<EnhancedTooltip xLabel={xLabel} yLabel={yLabel} />}
@@ -271,7 +271,7 @@ export function SectorScatterPlot({
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 4,
-                fontSize: 9,
+                fontSize: 11,
                 color: TOKEN_HEX.textSecondary,
                 cursor: onDotClick ? 'pointer' : 'default',
               }}

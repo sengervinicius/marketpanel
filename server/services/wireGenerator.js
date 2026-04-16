@@ -24,7 +24,7 @@ const predictionAggregator = require('./predictionAggregator');
 const WIRE_INTERVAL_MS  = 7 * 60 * 1000; // 7 minutes
 const MAX_MEMORY_ENTRIES = 100;           // in-memory fallback ring buffer
 const PERPLEXITY_URL     = 'https://api.perplexity.ai/chat/completions';
-const MODEL              = 'sonar';       // cheaper model for Wire (not sonar-pro)
+const MODEL              = 'sonar-pro';   // Phase 4: upgraded for higher-quality Wire output
 const TIMEOUT_MS         = 12000;
 
 // ── State ───────────────────────────────────────────────────────────────────
@@ -33,6 +33,11 @@ let _running      = false;
 let _memoryBuffer = [];         // fallback when no Postgres
 let _marketState  = null;       // late-bound via init()
 let _lastGenAt    = 0;
+
+// Phase 5: Deduplication — track last 5 entries + market state snapshots
+const _recentSnapshots = [];    // [{indexSnapshot, dominantTopic, timestamp}]
+const DEDUP_THRESHOLD  = 0.3;   // % index move required to consider "different"
+const DEDUP_WINDOW     = 5;     // number of recent entries to check
 
 // ── Market hours check (US Eastern) ─────────────────────────────────────────
 function isMarketHours() {
@@ -104,6 +109,84 @@ async function storeEntry(entry) {
   }
 }
 
+// ── Phase 5: Deduplication check ────────────────────────────────────────────
+/**
+ * Check if current market conditions are significantly different from recent Wire entries.
+ * Returns true if we should generate (conditions are different), false to skip.
+ */
+function shouldGenerate() {
+  if (_recentSnapshots.length === 0) return true; // No history, always generate
+
+  // Get current index levels
+  const currentSnapshot = _getIndexSnapshot();
+  if (!currentSnapshot) return true; // No data, generate anyway
+
+  // Check if any major index moved > DEDUP_THRESHOLD % since last entry
+  const lastSnapshot = _recentSnapshots[0];
+  if (!lastSnapshot.indexSnapshot) return true;
+
+  let significantMove = false;
+  for (const [sym, current] of Object.entries(currentSnapshot)) {
+    const prev = lastSnapshot.indexSnapshot[sym];
+    if (prev && current) {
+      const pctDiff = Math.abs(current - prev);
+      if (pctDiff > DEDUP_THRESHOLD) {
+        significantMove = true;
+        break;
+      }
+    }
+  }
+
+  // Also check: has the dominant topic changed?
+  const currentTopics = _getDominantTopics();
+  const lastTopics = lastSnapshot.dominantTopics || [];
+  const topicChanged = currentTopics.length > 0 && lastTopics.length > 0 &&
+                       currentTopics[0] !== lastTopics[0];
+
+  if (significantMove || topicChanged) return true;
+
+  logger.debug('wire', 'Dedup: skipping generation — market conditions unchanged');
+  return false;
+}
+
+function _getIndexSnapshot() {
+  if (!_marketState?.stocks) return null;
+  const stocks = _marketState.stocks;
+  const snapshot = {};
+  for (const sym of ['SPY', 'QQQ', 'DIA', 'IWM', 'VIX']) {
+    const d = stocks[sym];
+    if (d?.changePercent != null) {
+      snapshot[sym] = d.changePercent;
+    }
+  }
+  return Object.keys(snapshot).length > 0 ? snapshot : null;
+}
+
+function _getDominantTopics() {
+  // Determine dominant topic from top movers
+  if (!_marketState?.stocks) return [];
+  const stocks = _marketState.stocks;
+  const movers = Object.entries(stocks)
+    .filter(([, d]) => d?.changePercent && Math.abs(d.changePercent) > 2)
+    .sort((a, b) => Math.abs(b[1].changePercent) - Math.abs(a[1].changePercent))
+    .slice(0, 3)
+    .map(([sym]) => sym);
+  return movers;
+}
+
+function _recordSnapshot(entry) {
+  _recentSnapshots.unshift({
+    indexSnapshot: _getIndexSnapshot(),
+    dominantTopics: _getDominantTopics(),
+    category: entry?.category || 'market',
+    timestamp: Date.now(),
+  });
+  // Keep only last DEDUP_WINDOW snapshots
+  if (_recentSnapshots.length > DEDUP_WINDOW) {
+    _recentSnapshots.length = DEDUP_WINDOW;
+  }
+}
+
 // ── Core tick: generate a Wire entry ────────────────────────────────────────
 async function tick() {
   // Only generate during market hours (or if forced)
@@ -115,6 +198,12 @@ async function tick() {
   _running = true;
 
   try {
+    // Phase 5: Deduplication check
+    if (!shouldGenerate()) {
+      _running = false;
+      return;
+    }
+
     const apiKey = process.env.PERPLEXITY_API_KEY;
     if (!apiKey) {
       logger.warn('wire', 'PERPLEXITY_API_KEY not set — Wire disabled');
@@ -125,28 +214,9 @@ async function tick() {
     // Build context from live data
     const context = buildWireContext();
 
-    const systemPrompt = `You are The Wire — a real-time market commentary feed for a professional market terminal called "Particle".
+    const systemPrompt = `Generate a 2-sentence market update in the style of a Reuters or Bloomberg wire headline. Max 40 words. Use $TICKER format. Include one specific number (price, %, bps). No filler, no "currently", no greetings. Lead with the most notable move. End with what to watch next.
 
-Your job: write a single, punchy market commentary entry (2-3 sentences max, ~40-60 words).
-
-Style rules:
-- Sound like a senior market analyst's running desk commentary
-- Lead with the most notable move or shift RIGHT NOW
-- Include specific numbers (%, $, bps) when available
-- Mention 1-2 tickers when relevant (use $TICKER format)
-- End with a forward-looking observation or what to watch
-- Vary your sentence structure — don't start every entry the same way
-- No greetings, no "currently", no "as of now"
-- Be opinionated but factual
-
-Categories (pick the most fitting):
-- macro: Fed, rates, inflation, economic data
-- sector: sector rotation, industry moves
-- earnings: earnings surprises, guidance
-- crypto: Bitcoin, ETH, major crypto moves
-- geopolitics: trade war, sanctions, global events
-- momentum: unusual volume, breakouts, technical moves
-- prediction: prediction market shifts
+Categories (pick most fitting): macro, sector, earnings, crypto, geopolitics, momentum, prediction
 
 Also extract:
 - tickers: array of 0-3 ticker symbols mentioned (e.g. ["AAPL", "NVDA"])
@@ -218,6 +288,9 @@ Remember: respond ONLY with valid JSON.`;
     entry.timestamp = Date.now();
     await storeEntry(entry);
     _lastGenAt = Date.now();
+
+    // Phase 5: Record market snapshot for dedup comparison
+    _recordSnapshot(entry);
 
     logger.info('wire', `Generated: ${entry.content.slice(0, 80)}…`);
   } catch (e) {

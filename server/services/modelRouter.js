@@ -1,14 +1,16 @@
 /**
  * modelRouter.js — Intelligent model routing for Particle.
  *
- * Routes queries to the optimal AI model based on intent:
- *   quick_factual    → Perplexity sonar (fast, web-grounded)
- *   deep_analysis    → Anthropic Claude Sonnet (best reasoning)
- *   morning_brief    → Perplexity sonar-pro (narrative + web data)
- *   vault_rag        → Anthropic Claude Sonnet (document synthesis)
- *   anomaly_classify → Anthropic Claude Haiku (fast, cheap)
- *   earnings_analysis → Anthropic Claude Sonnet (structured reasoning)
- *   general          → Perplexity sonar-pro (default, web-grounded)
+ * Phase 4 routing overhaul. Core principle: if market context exists, use Claude.
+ * Perplexity is ONLY for purely web-grounded queries where terminal data is irrelevant.
+ *
+ * Route hierarchy:
+ *   CLAUDE SONNET + context:  terminal_overview, portfolio, deep_analysis, counter_thesis,
+ *                             scenario, vault_rag, earnings_analysis, ticker_action,
+ *                             sector_analysis, morning_brief, general
+ *   CLAUDE HAIKU + context:   quick_factual (single ticker lookups with terminal data)
+ *   PERPLEXITY SONAR:         web_lookup (pure definitional, historical events)
+ *   PERPLEXITY SONAR PRO:     web_narrative (broad explainers, macro narratives)
  */
 
 'use strict';
@@ -58,77 +60,140 @@ const PROVIDERS = {
   },
 };
 
-// Intent → provider mapping
-// Phase 2: 'general' now routes to claude_sonnet so ambiguous queries use
-// injected market context instead of Perplexity web search (which ignores it).
-// Perplexity is reserved for explicitly web-grounded intents (quick_factual, morning_brief, web_search).
+// Phase 4: Intent → provider mapping.
+// Core rule: ANY query with injected market context → Claude (Perplexity ignores it).
+// Perplexity reserved for pure web lookups where terminal data is irrelevant.
 const ROUTE_MAP = {
-  quick_factual: 'perplexity_fast',
-  deep_analysis: 'claude_sonnet',
-  portfolio: 'claude_sonnet',
-  counter_thesis: 'claude_sonnet',
-  scenario: 'claude_sonnet',
-  vault_rag: 'claude_sonnet',
-  morning_brief: 'perplexity_pro',
+  // ── Claude Sonnet: terminal-aware, full context ──
+  deep_analysis:    'claude_sonnet',
+  portfolio:        'claude_sonnet',
+  counter_thesis:   'claude_sonnet',
+  scenario:         'claude_sonnet',
+  vault_rag:        'claude_sonnet',
+  earnings_analysis:'claude_sonnet',
+  terminal_overview:'claude_sonnet',
+  ticker_action:    'claude_sonnet',   // Phase 4: ticker + action verb (analyze, compare, explain)
+  sector_analysis:  'claude_sonnet',   // Phase 4: sector screen queries
+  morning_brief:    'claude_sonnet',   // Phase 4: moved from Perplexity — needs portfolio context
+  general:          'claude_sonnet',   // Default: context-aware
+
+  // ── Claude Haiku: lightweight terminal-aware ──
+  quick_factual:    'claude_haiku',    // Phase 4: moved from Perplexity — we have live prices
   anomaly_classify: 'claude_haiku',
-  earnings_analysis: 'claude_sonnet',
-  terminal_overview: 'claude_sonnet',
-  web_search: 'perplexity_pro',       // Explicit web-search intent (Phase 2)
-  general: 'claude_sonnet',            // Phase 2: default to Claude for context-aware responses
+
+  // ── Perplexity: web-grounded, NO market context ──
+  web_lookup:       'perplexity_fast', // Phase 4: pure definitional ("What is Lockheed Martin?")
+  web_narrative:    'perplexity_pro',  // Phase 4: broad explainers ("Explain quantitative easing")
+  web_search:       'perplexity_pro',  // Explicit "search the web" requests
 };
 
 /**
- * Classify the query into an intent.
+ * Phase 4: Classify the query into an intent using regex patterns.
+ * This is the fast fallback when Haiku classifier is unavailable.
+ *
+ * Core principle: if the query references the user's data, a ticker with an
+ * action verb, or arrives with market context, route to Claude. Only pure
+ * definitional/web queries go to Perplexity.
+ *
  * @param {string} query
  * @param {boolean} hasVaultContext - true if vault passages were found
  * @param {boolean} hasDeepAnalysis - true if deep analysis was triggered
+ * @param {boolean} hasMarketContext - true if market context will be injected
  * @returns {string} intent name
  */
-function classifyIntent(query, hasVaultContext = false, hasDeepAnalysis = false) {
+function classifyIntent(query, hasVaultContext = false, hasDeepAnalysis = false, hasMarketContext = false) {
   if (!query) return 'general';
 
   const q = query.trim().toLowerCase();
+  const raw = query.trim();
+  const tickerCount = (raw.match(/\b[A-Z]{1,5}\b/g) || []).length;
+  const hasTicker = tickerCount > 0 || /\$[A-Z]{1,5}/i.test(raw);
+  const hasMyRef = /\bmy\b/i.test(q);
+  const hasScreenRef = /\b(screen|terminal|dashboard|watchlist|portfolio|positions?|holdings?)\b/i.test(q);
 
-  // If vault context is present, route to vault_rag
-  if (hasVaultContext) {
-    return 'vault_rag';
+  // ── Priority 1: Forced overrides ──────────────────────────────────────
+  if (hasVaultContext) return 'vault_rag';
+  if (hasDeepAnalysis) return 'deep_analysis';
+
+  // ── Priority 1b: Counter-thesis & scenario (explicit deep analysis) ──
+  if (/\b(counter[- ]?thesis|bear\s+case|bull\s+case|devil'?s\s+advocate|what\s+could\s+go\s+wrong|what\s+are\s+the\s+risks)\b/i.test(q)) {
+    return 'counter_thesis';
+  }
+  if (/\b(what\s+if|scenario|hypothetical|model\s+out|stress\s+test|simulate)\b/i.test(q)) {
+    return 'scenario';
   }
 
-  // If deep analysis intent was detected, use it
-  if (hasDeepAnalysis) {
-    return 'deep_analysis';
+  // ── Priority 2: Terminal-awareness (MUST route to Claude + context) ───
+  // "My portfolio" + P&L keywords → portfolio intent (more specific than terminal_overview)
+  if (hasMyRef && /\b(portfolio|positions?|holdings?|book|exposure)\b/i.test(q) && /\b(p&l|pnl|gain|loss|return|performance|allocation|weight)\b/i.test(q)) {
+    return 'portfolio';
+  }
+  // Any query referencing user's personal data + screen/terminal
+  if (hasMyRef && hasScreenRef) return 'terminal_overview';
+  if (/\b(my\s+(screen|terminal|dashboard|home|data|watchlist|alerts?))\b/i.test(q)) {
+    return 'terminal_overview';
+  }
+  // "what should I watch/buy/sell" queries
+  if (/what\s+should\s+i\s+(watch|buy|sell|trade|monitor|look\s+at)/i.test(q)) return 'terminal_overview';
+  // Morning brief / market overview
+  if (/\b(morning\s*brief|daily\s*brief|market\s*summary|market\s*update|market\s*recap|give\s*me\s*a\s*summary)\b/i.test(q)) return 'morning_brief';
+
+  // ── Priority 3: Ticker + action verb → Claude Sonnet ──────────────────
+  // "analyze NVDA", "why is TSLA down", "compare AAPL and MSFT", "what's happening with BTC"
+  if (hasTicker && /\b(analy[sz]e|explain|compare|why\s+is|what('s| is)\s+happening|break\s*down|outlook|thesis|risk|upside|downside|valuation|target|setup|technical)\b/i.test(q)) {
+    return 'ticker_action';
   }
 
-  // Quick factual queries: "what is the price of", "how much is", "what's TICKER at"
-  const quickFactualPatterns = [
-    /^(?:what\s+is\s+)?(?:the\s+)?price\s+of\s+/i,
-    /^how\s+much\s+is\s+/i,
-    /what['s]{1,2}\s+\w{1,5}\s+at/i,
-    /^[a-z]{1,5}\s+price/i,
-    /^price\s+of\s+/i,
-  ];
-
-  for (const pattern of quickFactualPatterns) {
-    if (pattern.test(q)) {
-      // Verify it's a short, single-ticker query (not multi-sentence)
-      if (query.length < 100 && (query.match(/\b[A-Z]{1,5}\b/g) || []).length <= 2) {
-        return 'quick_factual';
-      }
-    }
+  // ── Priority 4: Sector analysis ───────────────────────────────────────
+  if (/\b(analy[sz]e\s+(the\s+)?(sector|defence|defense|energy|tech|crypto|brazil|asia|europ|commodit|retail|fx))\b/i.test(q)) {
+    return 'sector_analysis';
   }
 
-  // Earnings analysis intent
-  if (/earnings|eps|beat|miss|guidance|outlook/i.test(q)) {
+  // ── Priority 5: Earnings intent ───────────────────────────────────────
+  if (/\b(earnings|eps|beat|miss|guidance|outlook|revenue\s+(beat|miss)|quarter\s+results)\b/i.test(q)) {
     return 'earnings_analysis';
   }
 
-  // Terminal-awareness: user asking about their screen, dashboard, watchlist, portfolio, positions
-  // Route to Claude so the injected market context is actually used (Perplexity ignores it for web search)
-  if (/\b(my\s+(screen|terminal|dashboard|home|data|watchlist|portfolio|positions?|holdings?|alerts?)|analyze\s+(my|the)\s+(screen|terminal|home|dashboard)|what('s| is)\s+(on\s+)?my\s+(screen|dashboard|terminal)|brief|morning|summary|overview|what.*happening|market\s+(update|recap|summary))\b/i.test(q)) {
+  // ── Priority 6: Portfolio-specific ────────────────────────────────────
+  if (/\b(portfolio|position|p&l|pnl|gain|loss|exposure|allocation|holding|weight|return|performance)\b/i.test(q)) {
+    return 'portfolio';
+  }
+
+  // ── Priority 7: Quick factual with ticker (use Haiku, not Perplexity) ─
+  // "what's AAPL at?", "NVDA price", "BTC current price"
+  if (hasTicker && q.length < 80 && tickerCount <= 2) {
+    if (/\b(price|quote|at\??|current|last|close|level)\b/i.test(q)) {
+      return 'quick_factual';
+    }
+  }
+
+  // ── Priority 8: "What's happening" (broad market) → Claude ────────────
+  if (/\b(what('s| is)\s+happening|what('s| is)\s+going\s+on|market\s+(today|now|open)|overview)\b/i.test(q)) {
     return 'terminal_overview';
   }
 
-  // Default to general (now routed to Claude, not Perplexity)
+  // ── Priority 9: Pure web lookups → Perplexity (no terminal data needed) ─
+  // Explicit web search requests
+  if (/\b(search\s+(the\s+)?web|google|find\s+me|look\s+up|latest\s+news\s+about|recent\s+article)\b/i.test(q)) {
+    return 'web_search';
+  }
+  // Pure definitional: "What is [concept]?" with no ticker, no "my", no screen ref
+  if (/^what\s+(is|are)\s+/i.test(q) && !hasTicker && !hasMyRef && !hasScreenRef && q.length < 120) {
+    return 'web_lookup';
+  }
+  // Historical event lookup: "What happened to X on [date]?"
+  if (/what\s+happened\s+to\b/i.test(q) && /\b(in\s+\d{4}|last\s+(year|month|week)|yesterday|on\s+\w+\s+\d)/i.test(q)) {
+    return 'web_lookup';
+  }
+  // Broad narrative explainers with no ticker and no personal reference
+  if (!hasTicker && !hasMyRef && /\b(explain|describe|tell\s+me\s+about|how\s+does|history\s+of)\b/i.test(q) && q.length > 30) {
+    return 'web_narrative';
+  }
+
+  // ── Priority 10: If market context is present, default to Claude ──────
+  if (hasMarketContext) return 'general';
+
+  // ── Fallback ──────────────────────────────────────────────────────────
   return 'general';
 }
 
@@ -142,7 +207,7 @@ function classifyIntent(query, hasVaultContext = false, hasDeepAnalysis = false)
  * @param {boolean} hasDeepAnalysis - true if deep analysis was triggered
  * @returns {Promise<{intent: string, contextRequired: boolean}>}
  */
-async function classifyIntentWithHaiku(query, hasVaultContext = false, hasDeepAnalysis = false) {
+async function classifyIntentWithHaiku(query, hasVaultContext = false, hasDeepAnalysis = false, hasMarketContext = false) {
   // Fast-path overrides (no need to call Haiku for these)
   if (hasVaultContext) return { intent: 'vault_rag', contextRequired: true };
   if (hasDeepAnalysis) return { intent: 'deep_analysis', contextRequired: true };
@@ -151,19 +216,27 @@ async function classifyIntentWithHaiku(query, hasVaultContext = false, hasDeepAn
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     // No Anthropic key — fall back to regex
-    return { intent: classifyIntent(query, hasVaultContext, hasDeepAnalysis), contextRequired: false };
+    return { intent: classifyIntent(query, hasVaultContext, hasDeepAnalysis, hasMarketContext), contextRequired: false };
   }
 
   try {
     const classifierPrompt = `Classify this financial terminal query into exactly ONE intent. Respond with ONLY a JSON object, no other text.
 
-Intents:
-- quick_factual: Simple price/quote lookup ("what's AAPL at?", "price of BTC")
-- earnings_analysis: About earnings, EPS, guidance, revenue beats/misses
-- terminal_overview: User references their screen, dashboard, watchlist, portfolio, positions, or asks for a morning brief/summary/overview of markets
-- portfolio: About user's holdings, P&L, allocation, exposure, performance
-- web_search: Requires real-time web data NOT available in a terminal (breaking news, specific articles, recent events, "search for", "find me", "latest news about")
+Intents (in priority order):
 - deep_analysis: Multi-factor analysis, scenario modeling, counter-thesis, compare frameworks
+- counter_thesis: Asks for bear case, counter-argument, risks, "what could go wrong"
+- scenario: "What if" hypotheticals, conditional modeling
+- vault_rag: References saved documents, research, uploaded files, vault
+- ticker_action: Mentions a $TICKER + action verb (analyze, explain, compare, outlook, thesis, valuation, risk, technical, setup)
+- sector_analysis: References a sector screen or asks about a sector with terminal data
+- earnings_analysis: About earnings, EPS, guidance, revenue beats/misses
+- portfolio: About user's holdings, P&L, allocation, exposure, performance
+- quick_factual: Simple price/quote lookup ("what's AAPL at?", "price of BTC")
+- terminal_overview: Asks "what's happening", market overview, morning brief, or references their screen/dashboard
+- morning_brief: Morning summary, daily brief, market open overview
+- web_search: Explicitly asks to "search the web", "find me", "latest news about"
+- web_lookup: Pure definitional "What is X?" with no ticker or personal reference
+- web_narrative: Broad explainer ("explain how X works", "history of Y") with no ticker
 - general: Standard market/macro question answerable with terminal context data
 
 Also set "contextRequired" to true if the query references the user's personal data (my, screen, portfolio, positions, watchlist) or needs live market data from the terminal.
@@ -215,12 +288,12 @@ Respond: {"intent":"<intent>","contextRequired":<bool>}`;
 
     // Haiku returned something unexpected — fall back
     logger.warn(`[ModelRouter] Haiku classifier returned unparseable: ${text.slice(0, 100)}`);
-    return { intent: classifyIntent(query, hasVaultContext, hasDeepAnalysis), contextRequired: false };
+    return { intent: classifyIntent(query, hasVaultContext, hasDeepAnalysis, hasMarketContext), contextRequired: false };
 
   } catch (err) {
     // Timeout, network error, or parse error — fall back to regex
     logger.warn(`[ModelRouter] Haiku classifier failed (${err.message}), falling back to regex`);
-    return { intent: classifyIntent(query, hasVaultContext, hasDeepAnalysis), contextRequired: false };
+    return { intent: classifyIntent(query, hasVaultContext, hasDeepAnalysis, hasMarketContext), contextRequired: false };
   }
 }
 

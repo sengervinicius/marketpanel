@@ -140,7 +140,7 @@ export const CorrelationMatrix = memo(function CorrelationMatrix({
     <div style={{ padding: '8px' }}>
       {title && (
         <div style={{
-          fontSize: 9,
+          fontSize: 12,
           color: accentColor || 'var(--text-muted)',
           marginBottom: 10,
           textTransform: 'uppercase',
@@ -157,29 +157,29 @@ export const CorrelationMatrix = memo(function CorrelationMatrix({
           alignItems: 'center',
           justifyContent: 'center',
           color: 'var(--text-faint)',
-          fontSize: 10,
+          fontSize: 11,
         }}>
           Computing correlations…
         </div>
       ) : !matrix ? (
-        <div style={{ height: height || 200, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: 10 }}>
+        <div style={{ height: height || 200, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: 11 }}>
           No data available
         </div>
       ) : (
         <div style={{ overflowX: 'auto', position: 'relative' }}>
           <table style={{
             borderCollapse: 'collapse',
-            fontSize: 9,
+            fontSize: 11,
             fontFamily: 'var(--font-mono, monospace)',
           }}>
             <thead>
               <tr>
-                <th style={{ padding: '4px 6px', color: 'var(--text-faint)', fontSize: 8 }}></th>
+                <th style={{ padding: '4px 6px', color: 'var(--text-faint)', fontSize: 10 }}></th>
                 {tickerList.map(t => (
                   <th key={t} style={{
                     padding: '4px 4px',
                     color: 'var(--text-muted)',
-                    fontSize: 8,
+                    fontSize: 10,
                     textAlign: 'center',
                     fontWeight: 700,
                     letterSpacing: 0.3,
@@ -201,7 +201,7 @@ export const CorrelationMatrix = memo(function CorrelationMatrix({
                     padding: '4px 6px',
                     color: 'var(--text-secondary)',
                     fontWeight: 700,
-                    fontSize: 8,
+                    fontSize: 10,
                     whiteSpace: 'nowrap',
                   }}>
                     {displayTicker(rowT)}
@@ -218,7 +218,7 @@ export const CorrelationMatrix = memo(function CorrelationMatrix({
                           background: corrColor(val),
                           color: i === j ? 'var(--text-primary)' : corrTextColor(val),
                           fontWeight: i === j ? 700 : 400,
-                          fontSize: 9,
+                          fontSize: 11,
                           cursor: 'default',
                           border: `1px solid var(--border-default)`,
                           transition: 'background 0.15s',
@@ -242,7 +242,7 @@ export const CorrelationMatrix = memo(function CorrelationMatrix({
             flexDirection: 'column',
             gap: 4,
             marginTop: 10,
-            fontSize: 8,
+            fontSize: 10,
             color: 'var(--text-muted)',
             letterSpacing: '0.02em',
           }}>

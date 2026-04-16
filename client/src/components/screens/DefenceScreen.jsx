@@ -14,6 +14,7 @@ import { TableExportBar } from './shared/TableExportBar';
 import { KPIRibbon } from './shared/SectorUI';
 import { CorrelationMatrix } from './shared/CorrelationMatrix';
 import { EarningsCalendarStrip } from './shared/EarningsCalendarStrip';
+import MiniFinancials from './shared/MiniFinancials';
 import { useOpenDetail } from '../../context/OpenDetailContext';
 import { useTickerPrice } from '../../context/PriceContext';
 import { useDeepScreenData } from '../../hooks/useDeepScreenData';

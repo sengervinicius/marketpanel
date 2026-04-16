@@ -25,7 +25,7 @@
 }
 
 .aic-badge {
-  font: 700 8px var(--font-mono, monospace);
+  font: 700 10px var(--font-mono, monospace);
   letter-spacing: 1.2px;
   color: var(--text-primary);
   background: rgba(255, 255, 255, 0.06);
@@ -35,7 +35,7 @@
 }
 
 .aic-screen-label {
-  font: 600 8px var(--font-mono, monospace);
+  font: 600 10px var(--font-mono, monospace);
   letter-spacing: 0.8px;
   color: var(--text-faint);
   flex: 1;
@@ -59,7 +59,7 @@
   align-items: center;
   gap: 6px;
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: 12px;
   font-style: italic;
 }
 
@@ -74,7 +74,7 @@
   align-items: center;
   gap: 8px;
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: 12px;
   font-style: italic;
   opacity: 0.8;
 }
@@ -111,14 +111,14 @@
 
 .aic-idea {
   color: var(--text-primary);
-  font-size: 11.5px;
+  font-size: 13px;
   line-height: 1.5;
   letter-spacing: 0.1px;
 }
 
 .aic-thesis {
   color: var(--text-faint);
-  font-size: 10px;
+  font-size: 12px;
   font-style: italic;
   line-height: 1.4;
   margin-top: 2px;

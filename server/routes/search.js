@@ -14,6 +14,7 @@ const fetch   = require('node-fetch');
 const router  = express.Router();
 
 const memoryManager = require('../services/memoryManager');
+const conversationMemory = require('../services/conversationMemory');
 
 const PERPLEXITY_URL = 'https://api.perplexity.ai/chat/completions';
 const MODEL          = 'sonar-pro';
@@ -1434,6 +1435,9 @@ router.post('/chat', async (req, res) => {
     earnings: { context: '' },
     memory: { sessionContext: '', persistentContext: '' },
     compute: { context: '' },
+    news: { context: '', sources: [] },
+    unusualWhales: { context: '', ticker: null },
+    completeness: { score: 0, available: [], failed: [], skipped: [] },
     summary: { hasVault: false, hasEDGAR: false, hasEarnings: false, hasMemory: false, hasCompute: false },
   };
 
@@ -1478,6 +1482,7 @@ router.post('/chat', async (req, res) => {
   const portfolioMetricsContext = orchestratedContext.compute?.context || '';
   const unusualWhalesContext = orchestratedContext.unusualWhales?.context || '';
   const newsContext = orchestratedContext.news?.context || '';
+  const conversationMemoryContext = orchestratedContext.memory?.conversationMemory || '';
   const completeness = orchestratedContext.completeness || { score: 0, available: [], failed: [] };
 
   // ── Wave 11: Deep analysis detection ────────────────────────────────────
@@ -1493,23 +1498,25 @@ router.post('/chat', async (req, res) => {
     // Deep analysis mode: use the specialized prompt with market and vault context appended
     systemPrompt = `${deepAnalysisResult.prompt}
 
-${persistentMemoryContext ? `\n${persistentMemoryContext}\n` : ''}${sessionMemoryContext ? `\n${sessionMemoryContext}\n` : ''}${behaviorContext ? `\n${behaviorContext}\n` : ''}${portfolioMetricsContext ? `\n${portfolioMetricsContext}\n` : ''}${vaultContext || ''}${marketContext ? `\n--- LIVE MARKET DATA ---\n${marketContext}\n--- END MARKET DATA ---\n` : ''}${earningsContext ? `\n--- EARNINGS CALENDAR ---\n${earningsContext}\n--- END EARNINGS CALENDAR ---\n` : ''}${edgarContext ? `\n--- SEC FILINGS ---\n${edgarContext}\n--- END SEC FILINGS ---\n` : ''}${unusualWhalesContext ? `\n--- OPTIONS FLOW & MARKET INTELLIGENCE (Unusual Whales) ---\n${unusualWhalesContext}\n--- END OPTIONS FLOW ---\n` : ''}${newsContext ? `\n--- RECENT NEWS (from real-time web search — PRIORITIZE this for current events) ---\n${newsContext}\n--- END NEWS ---\n` : ''}${context ? `\n--- SCREEN CONTEXT (from client) ---\n${context}\n--- END SCREEN CONTEXT ---\n` : ''}`;
+${conversationMemoryContext ? `\n${conversationMemoryContext}\n` : ''}${persistentMemoryContext ? `\n${persistentMemoryContext}\n` : ''}${sessionMemoryContext ? `\n${sessionMemoryContext}\n` : ''}${behaviorContext ? `\n${behaviorContext}\n` : ''}${portfolioMetricsContext ? `\n${portfolioMetricsContext}\n` : ''}${vaultContext || ''}${marketContext ? `\n--- LIVE MARKET DATA ---\n${marketContext}\n--- END MARKET DATA ---\n` : ''}${earningsContext ? `\n--- EARNINGS CALENDAR ---\n${earningsContext}\n--- END EARNINGS CALENDAR ---\n` : ''}${edgarContext ? `\n--- SEC FILINGS ---\n${edgarContext}\n--- END SEC FILINGS ---\n` : ''}${unusualWhalesContext ? `\n--- OPTIONS FLOW & MARKET INTELLIGENCE (Unusual Whales) ---\n${unusualWhalesContext}\n--- END OPTIONS FLOW ---\n` : ''}${newsContext ? `\n--- RECENT NEWS (from real-time web search — PRIORITIZE this for current events) ---\n${newsContext}\n--- END NEWS ---\n` : ''}${context ? `\n--- SCREEN CONTEXT (from client) ---\n${context}\n--- END SCREEN CONTEXT ---\n` : ''}`;
   } else {
     // Standard Particle prompt — v2 with voice contract + persona card
-    systemPrompt = `IDENTITY: You are Particle — the AI engine inside a professional financial terminal. You are a senior macro strategist who has managed risk through the 2008 crisis, COVID crash, and 2022 rate shock. You form strong, data-grounded views and defend them. You speak in terminal shorthand — terse, numeric, opinionated. When you're uncertain, you say so directly, but you never hide behind vague qualifiers.
+    systemPrompt = `IDENTITY: You are Particle — the AI engine inside a professional financial terminal. You are a senior macro strategist who has managed risk through the 2008 crisis, COVID crash, and 2022 rate shock. You form strong, data-grounded views and defend them. You speak in terminal shorthand — terse, numeric, opinionated. When you're uncertain, you say so directly, but you never hide behind vague qualifiers. Never say "I" — you are the terminal's voice, not a person.
 
 COVERAGE: Equities, fixed income, forex, crypto, commodities, derivatives, prediction markets (Kalshi, Polymarket), macro, central bank policy, geopolitics-as-markets, fintech, financial regulation, market structure, alternative data, investment strategy. If it touches money or markets, cover it. Only redirect clearly non-financial questions (cooking, sports, health) with a single sentence: "Outside my coverage — I focus on markets and macro."
 
 VOICE CONTRACT — MANDATORY:
+- Never say "I" or "As an AI" — write as if the terminal is speaking
 - Use **$TICKER** format for all securities: **$AAPL**, **$BTC**, **$SPY**, **$EURUSD**
 - Use basis points for rate moves: "Fed hiked 25bp" not "0.25%"
 - Bold all prices and percentages: **$182.50** (**+2.3%**)
-- End every substantive analysis with BOTTOM LINE: in bold — one sentence, your actual view
-- Be opinionated. State "I'm bullish/bearish on X because Y" — never "one could argue"
 - Use trader shorthand: "bid", "offered", "screens cheap/rich", "risk-on/risk-off", "carry", "vol"
+- Be opinionated. State direct views — "bullish above X", "short below Y" — never "one could argue"
+- Every number must come from the LIVE MARKET DATA section below — no hallucinated prices
+- Standard responses: 250 words max. Deep analysis: 500 words max
 
 PROHIBITED PHRASES — NEVER USE THESE:
-"It's important to note", "Based on the data provided", "As an AI", "I'd recommend considering", "It's worth noting", "Let me explain", "In conclusion", "It should be noted", "As always, do your own research", "There are several factors to consider", "The market is complex", "Many analysts believe", "Time will tell"
+"It's important to note", "Based on the data provided", "As an AI", "I'd recommend considering", "It's worth noting", "Let me explain", "In conclusion", "It should be noted", "As always, do your own research", "There are several factors to consider", "The market is complex", "Many analysts believe", "Time will tell", "I think", "I believe", "In my opinion"
 
 INLINE CHARTS — You can embed live charts in your responses using this syntax:
 - [chart:sparkline:TICKER:PERIOD] — price sparkline for single ticker. PERIOD: 1M, 3M, 6M, 1Y (default 1M)
@@ -1521,15 +1528,23 @@ INLINE CHARTS — You can embed live charts in your responses using this syntax:
 Use sparingly — max one chart per response. Best for: price trend discussions, sector comparisons, before/after analysis, momentum visualizations.
 
 RESPONSE STRUCTURE — MANDATORY SECTIONS:
-For any market/asset question, your response MUST follow this structure:
-1. [sentiment:bull] or [sentiment:bear] or [sentiment:neutral] — always lead with this
-2. **MARKET READ**: What's happening right now. Current price, % move, key levels, volume context, catalysts. Use SPECIFIC numbers from the LIVE MARKET DATA below. (3-5 sentences)
-3. **YOUR EXPOSURE**: How this affects the user. Reference their portfolio holdings, watchlist positions, or related assets they track. If portfolio data is available, cite their P&L and weight. If no portfolio data, relate to common holdings or skip this section. (1-3 sentences)
-4. **BOTTOM LINE**: One bold sentence — your actual call. Bullish/bearish, with a price level and timeframe.
+For any market/asset question, your response MUST follow this 4-section structure:
+
+[sentiment:bull] or [sentiment:bear] or [sentiment:neutral] — always lead with this tag
+
+**WHAT'S HAPPENING** — 1-3 sentences. State the key move with specific numbers from LIVE MARKET DATA. Current price, % change, volume context, catalyst. Lead with the number, not the narrative.
+
+**WHY IT MATTERS** — 1-3 sentences. Cross-asset linkage and second-order effects. How does this move connect to rates, FX, sector rotation, or the user's portfolio? If portfolio data is available, cite their P&L and weight here.
+
+**WATCH** — 1-3 bullet points. Specific levels, dates, catalysts. Example: "**$4,200** SPX support — a break opens **$4,050**", "FOMC June 12 — dot plot repricing risk", "**$NVDA** earnings May 28 — sector bellwether"
+
+**RISKS** — 1-2 sentences. What invalidates the view. Be specific: name the level, the event, the data point.
+
+End with: **BOTTOM LINE:** — one bold sentence, your actual call with a price level and timeframe.
 
 For morning briefs and overview queries, use:
 1. **PORTFOLIO IMPACT**: Their positions, today's P&L, biggest movers in their book
-2. **MARKET READ**: Indices, sectors, FX, crypto — with specific numbers
+2. **WHAT'S HAPPENING**: Indices, sectors, FX, crypto — with specific numbers
 3. **CATALYSTS**: What's driving today — data releases, earnings, geopolitical
 4. **BOTTOM LINE**: The one thing they should pay attention to today
 
@@ -1543,11 +1558,9 @@ If context sections are present but you ignore them, you are failing at your job
 
 RULES:
 - ALWAYS use specific numbers from the LIVE MARKET DATA section — this is non-negotiable
-- Major assets (**$BTC**, **$SPY**, indices): 250-350 words. Narrow questions: 100-150 words
 - Never start with "Based on" or "According to" — lead with the insight
 - If the user has a watchlist or portfolio, relate to their holdings FIRST before broader market context
 - Disclaimers: one brief parenthetical at the very end, if at all. Never at the top
-- For morning briefs: portfolio impact first, then indices, sectors, FX, crypto, macro catalysts
 - Prediction market data: weave naturally when it adds edge
 - When you lack data for a specific asset, say "No live data on that" — don't speculate
 - Suggest terminal actions: [action:watchlist_add:BTC], [action:alert_set:BTC:65000], [action:chart_open:AAPL], [action:detail_open:MSFT]
@@ -1559,25 +1572,38 @@ RULES:
 FEW-SHOT EXAMPLE — BAD vs GOOD:
 User: "What's happening with Tesla?"
 BAD: "Tesla is an interesting stock to watch right now. Based on the data, there are several factors to consider. The stock has been volatile recently, and many analysts have different views on its trajectory. It's important to note that Tesla's fundamentals..."
-GOOD: "[sentiment:bear] **$TSLA** breaking below its 200-DMA at **$165** — down **-4.2%** on the session as delivery numbers disappointed. Q1 deliveries came in at 387K vs 415K consensus, a 7% miss. China competition from BYD is the structural overhang. Watch **$155** support — a break opens **$140**. BOTTOM LINE: Bearish below **$165**, and the delivery trajectory suggests this isn't a one-quarter problem."
+GOOD: "[sentiment:bear]
+**WHAT'S HAPPENING** — **$TSLA** breaking below its 200-DMA at **$165**, down **-4.2%** on the session. Q1 deliveries came in at 387K vs 415K consensus — a 7% miss. Volume running 2x 20d avg.
+
+**WHY IT MATTERS** — BYD outsold Tesla globally for the second straight quarter. China competition is structural, not cyclical. If you hold **$TSLA**, book is down **-$2,340** today on your 50-share position.
+
+**WATCH**
+- **$155** support — a break opens **$140** gap fill from October
+- Q2 delivery guidance on the earnings call April 23
+- FSD v12.4 rollout timeline — the bull case hinge
+
+**RISKS** — A surprise China stimulus package or FSD licensing deal could squeeze shorts hard. Invalidated above **$175**.
+
+**BOTTOM LINE:** Bearish below **$165** — the delivery miss trend suggests this isn't a one-quarter problem."
 
 --- CONTEXT COMPLETENESS: ${completeness.score}/100 (active: ${completeness.available.join(', ') || 'none'}${completeness.failed.length > 0 ? ` | failed: ${completeness.failed.join(', ')}` : ''}${completeness.skipped?.length > 0 ? ` | skipped: ${completeness.skipped.join(', ')}` : ''}) ---
 ${completeness.score < 30 ? 'WARNING: Limited context available. Caveat your response accordingly and suggest the user check specific data sources.\n' : ''}${newsContext ? '\nIMPORTANT: A RECENT NEWS section is available below with real-time web search results. ALWAYS reference and incorporate this news data in your response — it contains the latest market events, M&A activity, and corporate news that you would not otherwise know about.\n' : ''}
-${persistentMemoryContext ? `\n${persistentMemoryContext}\n` : ''}${sessionMemoryContext ? `\n${sessionMemoryContext}\n` : ''}${behaviorContext ? `\n${behaviorContext}\n` : ''}
-${portfolioMetricsContext ? `\n${portfolioMetricsContext}\n` : ''}${vaultContext || ''}${marketContext ? `\n--- LIVE MARKET DATA ---\n${marketContext}\n--- END MARKET DATA ---\n` : ''}${earningsContext ? `\n--- EARNINGS CALENDAR ---\n${earningsContext}\n--- END EARNINGS CALENDAR ---\n` : ''}${edgarContext ? `\n--- SEC FILINGS ---\n${edgarContext}\n--- END SEC FILINGS ---\n` : ''}${unusualWhalesContext ? `\n--- OPTIONS FLOW & MARKET INTELLIGENCE (Unusual Whales) ---\n${unusualWhalesContext}\n--- END OPTIONS FLOW ---\n` : ''}${newsContext ? `\n--- RECENT NEWS (from real-time web search — PRIORITIZE this for current events) ---\n${newsContext}\n--- END NEWS ---\n` : ''}${context ? `\n--- SCREEN CONTEXT (from client) ---\n${context}\n--- END SCREEN CONTEXT ---\n` : ''}`;
+${conversationMemoryContext ? `\n${conversationMemoryContext}\n` : ''}${persistentMemoryContext ? `\n${persistentMemoryContext}\n` : ''}${sessionMemoryContext ? `\n${sessionMemoryContext}\n` : ''}${behaviorContext ? `\n${behaviorContext}\n` : ''}
+${portfolioMetricsContext ? `\n${portfolioMetricsContext}\n` : ''}${vaultContext || ''}${marketContext ? `\n--- LIVE MARKET DATA ---\nThe following data is from the user's LIVE terminal session pulled seconds ago. Treat every number here as ground truth. If a price or % move appears below, cite it verbatim — do not round, do not paraphrase, do not substitute with memorised data. If the user asks about an asset listed here, you MUST lead with these numbers.\n${marketContext}\n--- END MARKET DATA ---\n` : ''}${earningsContext ? `\n--- EARNINGS CALENDAR ---\n${earningsContext}\n--- END EARNINGS CALENDAR ---\n` : ''}${edgarContext ? `\n--- SEC FILINGS ---\n${edgarContext}\n--- END SEC FILINGS ---\n` : ''}${unusualWhalesContext ? `\n--- OPTIONS FLOW & MARKET INTELLIGENCE (Unusual Whales) ---\n${unusualWhalesContext}\n--- END OPTIONS FLOW ---\n` : ''}${newsContext ? `\n--- RECENT NEWS (from real-time web search — PRIORITIZE this for current events) ---\n${newsContext}\n--- END NEWS ---\n` : ''}${context ? `\n--- SCREEN CONTEXT (from client) ---\n${context}\n--- END SCREEN CONTEXT ---\n` : ''}`;
   }
 
   // ── Route to optimal model via modelRouter (Phase 2: Haiku classifier) ──
   const hasVault = vaultContext.length > 0;
   const hasDeep = !!deepAnalysisResult;
+  const hasMarketCtx = marketContext.length > 0;
   let intent, contextRequired;
   try {
-    const classification = await modelRouter.classifyIntentWithHaiku(userQuery, hasVault, hasDeep);
+    const classification = await modelRouter.classifyIntentWithHaiku(userQuery, hasVault, hasDeep, hasMarketCtx);
     intent = classification.intent;
     contextRequired = classification.contextRequired;
   } catch (err) {
     // Ultimate fallback
-    intent = modelRouter.classifyIntent(userQuery, hasVault, hasDeep);
+    intent = modelRouter.classifyIntent(userQuery, hasVault, hasDeep, hasMarketCtx);
     contextRequired = false;
   }
   let provider = modelRouter.route(intent);
@@ -1603,6 +1629,9 @@ ${portfolioMetricsContext ? `\n${portfolioMetricsContext}\n` : ''}${vaultContext
   }
 
   console.log(`[Particle/Chat] Intent: ${intent} → ${provider.model}${contextRequired ? ' [ctx-required]' : ''}${behaviorContext ? ' [personalized]' : ''}`);
+  if (process.env.NODE_ENV !== 'production') {
+    console.log(`[Particle/Debug] Model: ${provider.model} | Market ctx: ${marketContext.length} chars | Vault passages: ${vaultSources.length} | EDGAR: ${edgarContext.length > 0 ? 'yes' : 'no'} | Earnings: ${earningsContext.length > 0 ? 'yes' : 'no'} | Options: ${unusualWhalesContext.length > 0 ? 'yes' : 'no'} | News: ${newsContext.length > 0 ? 'yes' : 'no'} | Completeness: ${completeness.score}/100`);
+  }
 
   // Prepare messages for router
   const routerMessages = history.map(m => ({ role: m.role, content: m.content }));
@@ -1690,11 +1719,14 @@ ${portfolioMetricsContext ? `\n${portfolioMetricsContext}\n` : ''}${vaultContext
       // ── Fire-and-forget: Update session memory and extract persistent memories ──
       try {
         if (userId && userQuery && responseText) {
+          const sessionId = req.sessionID || `s_${userId}_${Date.now()}`;
           // Add to session memory
           memoryManager.addMessageToSession(userId, 'user', userQuery).catch(() => {});
           memoryManager.addMessageToSession(userId, 'assistant', responseText).catch(() => {});
           // Extract new factual memories asynchronously (non-blocking)
           memoryManager.extractMemoriesAsync(userId, userQuery, responseText);
+          // Phase 5: Extract typed conversation memory records
+          conversationMemory.extractFromTurn(userId, sessionId, userQuery, responseText).catch(() => {});
         }
       } catch (err) {
         console.warn('[Particle/Chat] Memory update error (non-blocking):', err.message);
@@ -1723,8 +1755,10 @@ ${portfolioMetricsContext ? `\n${portfolioMetricsContext}\n` : ''}${vaultContext
       // with a placeholder for the AI response (will be captured on next turn).
       try {
         if (userId && userQuery) {
+          const sessionId = req.sessionID || `s_${userId}_${Date.now()}`;
           memoryManager.addMessageToSession(userId, 'user', userQuery).catch(() => {});
-          // Memory extraction deferred to next user message for efficiency
+          // Phase 5: Extract typed memories from user query alone (response not available in stream mode)
+          conversationMemory.extractFromTurn(userId, sessionId, userQuery, null).catch(() => {});
         }
       } catch (err) {
         console.warn('[Particle/Chat] Session memory update error (non-blocking):', err.message);
