@@ -860,7 +860,9 @@ export default function App() {
         {/* ── Desktop Vault Mode ── */}
         {mobileMode === 'vault' && !subscriptionExpired && (
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
-            <VaultPanel fullScreen />
+            <Suspense fallback={<div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-faint)' }}>Loading Vault...</div>}>
+              <VaultPanel fullScreen />
+            </Suspense>
           </div>
         )}
 
@@ -1248,7 +1250,9 @@ export default function App() {
 
             {/* ── Vault screen (shown when mobileMode === 'vault') ── */}
             <div style={{ flex: 1, display: mobileMode !== 'vault' ? 'none' : 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-              <VaultPanel fullScreen />
+              <Suspense fallback={<div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-faint)' }}>Loading Vault...</div>}>
+                <VaultPanel fullScreen />
+              </Suspense>
             </div>
 
             {/* ── Admin Dashboard (shown when mobileMode === 'admin') ── */}
