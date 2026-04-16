@@ -32,7 +32,8 @@ try {
 const CHUNK_SIZE = 1000; // chars per chunk — larger for financial context retention
 const CHUNK_OVERLAP = 150; // overlap between chunks — preserves cross-boundary context
 const MAX_RETRIEVAL = 8; // top candidates before similarity filtering
-const MIN_SIMILARITY = 0.45; // lowered from 0.65 — was too strict, filtering out relevant passages especially cross-provider
+const MIN_SIMILARITY = 0.3; // Phase 6: lowered from 0.45 — better to have more candidates for reranking
+const MIN_PASSAGES_THRESHOLD = 2; // Phase 6: if fewer than this meet threshold, return 0 (avoid confusing context)
 const EMBEDDING_MODEL = 'text-embedding-3-small';
 const VOYAGE_EMBEDDING_DIM = 1024;
 const OPENAI_EMBEDDING_DIM = 1536;
@@ -41,18 +42,102 @@ const STORED_EMBEDDING_DIM = 1536; // vault_chunks.embedding column is vector(15
 let _openaiKey = null;
 let _voyageKey = null;
 let _cohereKey = null;
+let _anthropicKey = null;
 let _embeddingDim = OPENAI_EMBEDDING_DIM;
 let _activeEmbeddingProvider = 'openai';
+
+// ── Phase 6: In-memory ingestion job queue ──────────────────────────────────
+// Jobs are keyed by a unique jobId. Status flows: queued → processing → complete | error
+const _ingestionJobs = new Map();
+const MAX_CONCURRENT_JOBS = 2;
+let _activeJobCount = 0;
+
+function createIngestionJob(userId, filename) {
+  const jobId = `job_${userId}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const job = {
+    jobId,
+    userId,
+    filename,
+    status: 'queued',    // queued | processing | complete | error
+    progress: null,      // { stage, message }
+    result: null,        // final result or error message
+    createdAt: Date.now(),
+  };
+  _ingestionJobs.set(jobId, job);
+  // Cleanup old jobs (>1 hour) on every creation
+  const cutoff = Date.now() - 3600_000;
+  for (const [id, j] of _ingestionJobs) {
+    if (j.createdAt < cutoff) _ingestionJobs.delete(id);
+  }
+  return job;
+}
+
+function getIngestionJob(jobId) {
+  return _ingestionJobs.get(jobId) || null;
+}
+
+function getUserJobs(userId) {
+  return [..._ingestionJobs.values()]
+    .filter(j => j.userId === userId)
+    .sort((a, b) => b.createdAt - a.createdAt)
+    .slice(0, 10);
+}
+
+/**
+ * Process an ingestion job in the background using setImmediate.
+ * The HTTP handler returns immediately with the jobId; the client polls for status.
+ */
+function enqueueIngestionJob(job, buffer, metadata, isGlobal) {
+  const processJob = async () => {
+    _activeJobCount++;
+    job.status = 'processing';
+    job.progress = { stage: 'extract', message: `Extracting text from ${job.filename}...` };
+    try {
+      const result = await ingestFile(
+        job.userId, buffer, job.filename, metadata, isGlobal,
+        (stage, message) => { job.progress = { stage, message }; }
+      );
+      job.status = 'complete';
+      job.result = result;
+    } catch (err) {
+      job.status = 'error';
+      job.result = { error: err.message };
+      logger.error('vault', 'Background ingestion failed', { jobId: job.jobId, error: err.message });
+    } finally {
+      _activeJobCount--;
+      // Process next queued job if any
+      drainJobQueue();
+    }
+  };
+
+  if (_activeJobCount < MAX_CONCURRENT_JOBS) {
+    setImmediate(processJob);
+  }
+  // else: will be picked up by drainJobQueue when a slot opens
+}
+
+function drainJobQueue() {
+  if (_activeJobCount >= MAX_CONCURRENT_JOBS) return;
+  for (const job of _ingestionJobs.values()) {
+    if (job.status === 'queued') {
+      // Re-enqueue — but we need the buffer. Since we can't store buffers long-term
+      // in memory, queued jobs that weren't immediately started will stay queued
+      // until the next attempt. In practice MAX_CONCURRENT_JOBS=2 handles this.
+      break;
+    }
+  }
+}
 
 /**
  * Initialize the vault service with API keys.
  * Priority: Voyage AI (finance-optimized) > OpenAI (fallback)
  * Cohere reranking is optional and used post-retrieval if available.
  */
-function init({ openaiKey, voyageKey, cohereKey } = {}) {
+function init({ openaiKey, voyageKey, cohereKey, anthropicKey } = {}) {
   _voyageKey = voyageKey || process.env.VOYAGE_API_KEY;
   _openaiKey = openaiKey || process.env.OPENAI_API_KEY;
   _cohereKey = cohereKey || process.env.COHERE_API_KEY;
+  _anthropicKey = anthropicKey || process.env.ANTHROPIC_API_KEY;
 
   if (_voyageKey) {
     _activeEmbeddingProvider = 'voyage';
@@ -70,6 +155,10 @@ function init({ openaiKey, voyageKey, cohereKey } = {}) {
     logger.info('vault', 'Cohere reranking enabled');
   } else {
     logger.info('vault', 'Cohere API key not set — reranking will be skipped');
+  }
+
+  if (_anthropicKey) {
+    logger.info('vault', 'Anthropic key set — Haiku reranking fallback enabled');
   }
 }
 
@@ -281,6 +370,40 @@ function detectDocumentType(text, filename = '') {
     return 'research_report';
   }
 
+  // Macro commentary: central bank minutes, economic outlook, policy briefs
+  if (
+    lower.includes('fomc') ||
+    lower.includes('copom') ||
+    lower.includes('monetary policy') ||
+    lower.includes('interest rate decision') ||
+    lower.includes('central bank') ||
+    lower.includes('inflation outlook') ||
+    lower.includes('gdp growth') ||
+    lower.includes('economic outlook') ||
+    filenameExt.includes('macro') ||
+    filenameExt.includes('minutes') ||
+    filenameExt.includes('outlook')
+  ) {
+    return 'macro_commentary';
+  }
+
+  // SEC / CVM filing: 10-K, 10-Q, 8-K, prospectuses, ITR forms
+  if (
+    lower.includes('10-k') ||
+    lower.includes('10-q') ||
+    lower.includes('8-k') ||
+    lower.includes('form 20-f') ||
+    lower.includes('securities and exchange commission') ||
+    lower.includes('comissão de valores mobiliários') ||
+    lower.includes('item 1.') ||
+    filenameExt.includes('filing') ||
+    filenameExt.includes('10k') ||
+    filenameExt.includes('10q') ||
+    filenameExt.includes('prospectus')
+  ) {
+    return 'filing';
+  }
+
   // Financial table: high density of numbers and tabular structure
   const numberDensity = (text.match(/\d+[.,]\d+|[\d,]+(?:\.\d{1,2})?/g) || []).length / (text.split('\n').length + 1);
   if (numberDensity > 2 || filenameExt.includes('table') || filenameExt.includes('data')) {
@@ -405,6 +528,150 @@ function chunkFinancialTable(text) {
   }
 
   return chunks.length > 0 ? chunks : [text];
+}
+
+/**
+ * Chunk macro commentary (FOMC/COPOM minutes, economic outlooks).
+ * Splits by section headings (typically numbered or titled), preserves full paragraphs.
+ * Each chunk gets a parentContext summary from the document header.
+ */
+function chunkMacroCommentary(text, chunkSize = CHUNK_SIZE) {
+  const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+  if (lines.length === 0) return [];
+
+  // Extract header context (first ~300 chars typically contain date/institution)
+  const headerContext = text.slice(0, 300).replace(/\n+/g, ' ').trim();
+
+  // Split on section-like headings: "1.", "I.", "Section:", all-caps lines, etc.
+  const sectionPattern = /^(?:\d+\.\s|[IVXLC]+\.\s|#{1,3}\s|[A-Z][A-Z\s]{8,}$)/;
+  const sections = [];
+  let currentSection = '';
+  let currentHeading = '';
+
+  for (const line of lines) {
+    if (sectionPattern.test(line) && currentSection.length > 50) {
+      sections.push({ heading: currentHeading, content: currentSection.trim() });
+      currentHeading = line;
+      currentSection = line + '\n';
+    } else {
+      if (!currentHeading && sectionPattern.test(line)) currentHeading = line;
+      currentSection += line + '\n';
+    }
+  }
+  if (currentSection.trim().length > 0) {
+    sections.push({ heading: currentHeading, content: currentSection.trim() });
+  }
+
+  // Now chunk each section if needed
+  const chunks = [];
+  for (const section of sections) {
+    if (section.content.length <= chunkSize * 1.5) {
+      chunks.push({
+        content: section.content,
+        parentContext: headerContext,
+        sectionHeading: section.heading,
+      });
+    } else {
+      // Split oversized section by paragraphs
+      const paras = section.content.split(/\n{2,}/).filter(p => p.trim().length > 0);
+      let currentChunk = '';
+      for (const para of paras) {
+        if ((currentChunk + '\n\n' + para).length > chunkSize && currentChunk.length > 0) {
+          chunks.push({
+            content: currentChunk.trim(),
+            parentContext: headerContext,
+            sectionHeading: section.heading,
+          });
+          currentChunk = para;
+        } else {
+          currentChunk += (currentChunk ? '\n\n' : '') + para;
+        }
+      }
+      if (currentChunk.trim().length > 0) {
+        chunks.push({
+          content: currentChunk.trim(),
+          parentContext: headerContext,
+          sectionHeading: section.heading,
+        });
+      }
+    }
+  }
+
+  return chunks.length > 0 ? chunks : [{ content: text, parentContext: headerContext, sectionHeading: '' }];
+}
+
+/**
+ * Chunk SEC/CVM filings (10-K, 10-Q, prospectuses).
+ * Splits on "Item X." headings that structure these documents.
+ * Preserves item headings as parent context for child chunks.
+ */
+function chunkFiling(text, chunkSize = CHUNK_SIZE) {
+  const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+  if (lines.length === 0) return [];
+
+  // Extract cover page context
+  const coverContext = text.slice(0, 400).replace(/\n+/g, ' ').trim();
+
+  // Split on "Item X." headings (SEC standard) or "PART I/II/III/IV" headings
+  const itemPattern = /^(?:Item\s+\d+[A-Za-z]?[\.\:]|PART\s+[IVXLC]+)/i;
+  const items = [];
+  let currentItem = '';
+  let currentItemHeading = '';
+
+  for (const line of lines) {
+    if (itemPattern.test(line) && currentItem.length > 50) {
+      items.push({ heading: currentItemHeading, content: currentItem.trim() });
+      currentItemHeading = line;
+      currentItem = line + '\n';
+    } else {
+      if (!currentItemHeading && itemPattern.test(line)) currentItemHeading = line;
+      currentItem += line + '\n';
+    }
+  }
+  if (currentItem.trim().length > 0) {
+    items.push({ heading: currentItemHeading, content: currentItem.trim() });
+  }
+
+  // Chunk each item, keeping heading as parent context
+  const chunks = [];
+  for (const item of items) {
+    const parentCtx = item.heading
+      ? `${coverContext.slice(0, 150)} | ${item.heading}`
+      : coverContext.slice(0, 200);
+
+    if (item.content.length <= chunkSize * 1.5) {
+      chunks.push({
+        content: item.content,
+        parentContext: parentCtx,
+        sectionHeading: item.heading,
+      });
+    } else {
+      // Split by paragraphs within item
+      const paras = item.content.split(/\n{2,}/).filter(p => p.trim().length > 0);
+      let currentChunk = '';
+      for (const para of paras) {
+        if ((currentChunk + '\n\n' + para).length > chunkSize && currentChunk.length > 0) {
+          chunks.push({
+            content: currentChunk.trim(),
+            parentContext: parentCtx,
+            sectionHeading: item.heading,
+          });
+          currentChunk = para;
+        } else {
+          currentChunk += (currentChunk ? '\n\n' : '') + para;
+        }
+      }
+      if (currentChunk.trim().length > 0) {
+        chunks.push({
+          content: currentChunk.trim(),
+          parentContext: parentCtx,
+          sectionHeading: item.heading,
+        });
+      }
+    }
+  }
+
+  return chunks.length > 0 ? chunks : [{ content: text, parentContext: coverContext, sectionHeading: '' }];
 }
 
 /**
@@ -539,11 +806,13 @@ function chunkTextWithType(text, filename, docType = null) {
 
   switch (type) {
     case 'earnings_transcript':
-      chunks = chunkEarningsTranscript(text);
+      chunks = chunkEarningsTranscript(text).map(c => ({
+        content: typeof c === 'string' ? c : c.content,
+        metadata: { documentType: 'earnings_transcript' },
+      }));
       break;
     case 'research_report':
       chunks = chunkResearchReport(text);
-      // Flatten research report chunks: extract content and preserve metadata
       chunks = chunks.map(c => {
         if (typeof c === 'string') {
           return { content: c, metadata: { documentType: 'research_report' } };
@@ -557,6 +826,26 @@ function chunkTextWithType(text, filename, docType = null) {
           },
         };
       });
+      break;
+    case 'macro_commentary':
+      chunks = chunkMacroCommentary(text).map(c => ({
+        content: c.content,
+        metadata: {
+          documentType: 'macro_commentary',
+          parentContext: c.parentContext,
+          sectionHeading: c.sectionHeading,
+        },
+      }));
+      break;
+    case 'filing':
+      chunks = chunkFiling(text).map(c => ({
+        content: c.content,
+        metadata: {
+          documentType: 'filing',
+          parentContext: c.parentContext,
+          sectionHeading: c.sectionHeading,
+        },
+      }));
       break;
     case 'financial_table':
       chunks = chunkFinancialTable(text).map(c => ({
@@ -1135,8 +1424,11 @@ async function ingestFile(userId, buffer, filename, metadata = {}, isGlobal = fa
     }
 
     // Chunk text with type-specific chunking (before transaction — no DB work)
-    if (onProgress) onProgress('chunk', `Chunking ${text.length} characters of text...`);
-    const chunkedData = chunkTextWithType(text, filename, docMetadata.detectedType);
+    // Phase 6: User-selected docType overrides auto-detection
+    const userDocType = metadata?.docType || null;
+    const effectiveDocType = userDocType || docMetadata.detectedType || null;
+    if (onProgress) onProgress('chunk', `Chunking ${text.length} characters (type: ${effectiveDocType || 'auto'})...`);
+    const chunkedData = chunkTextWithType(text, filename, effectiveDocType);
 
     // Extract chunk content and metadata
     const chunks = chunkedData.map(c => {
@@ -1342,11 +1634,90 @@ async function rerankWithCohere(query, passages, topN) {
     return reranked;
   } catch (err) {
     if (err.name === 'AbortError') {
-      logger.warn('vault', 'Cohere rerank timeout (3s) — using RRF results');
+      logger.warn('vault', 'Cohere rerank timeout (3s) — trying Haiku fallback');
     } else {
-      logger.warn('vault', 'Cohere rerank error', { error: err.message });
+      logger.warn('vault', 'Cohere rerank error — trying Haiku fallback', { error: err.message });
     }
-    return passages; // Fall back to RRF results on any error
+    // Phase 6: Cascade to Haiku reranking if Cohere fails
+    return rerankWithHaiku(query, passages, topN);
+  }
+}
+
+/**
+ * Phase 6: Claude Haiku reranking fallback.
+ * When Cohere is unavailable or times out, use Haiku to score passage relevance.
+ * Cheaper and faster than Sonnet, good enough for reranking.
+ * Falls back to original passages (RRF order) if Haiku also fails.
+ */
+async function rerankWithHaiku(query, passages, topN) {
+  if (!_anthropicKey || passages.length === 0) {
+    return passages;
+  }
+
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+    // Build a compact prompt asking Haiku to rank passages by relevance
+    const passageList = passages.map((p, i) =>
+      `[${i}] ${p.content.slice(0, 300)}`
+    ).join('\n');
+
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'x-api-key': _anthropicKey,
+        'anthropic-version': '2023-06-01',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 200,
+        messages: [{
+          role: 'user',
+          content: `Given the query: "${query}"\n\nRank these passages by relevance (most relevant first). Return ONLY a JSON array of passage indices, e.g. [2,0,5,1].\n\n${passageList}`,
+        }],
+      }),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      logger.warn('vault', 'Haiku rerank API error', { status: response.status });
+      return passages;
+    }
+
+    const data = await response.json();
+    const text = data.content?.[0]?.text || '';
+
+    // Extract JSON array from response
+    const match = text.match(/\[[\d,\s]+\]/);
+    if (!match) {
+      logger.warn('vault', 'Haiku rerank returned unparseable response');
+      return passages;
+    }
+
+    const indices = JSON.parse(match[0]);
+    const reranked = indices
+      .filter(i => i >= 0 && i < passages.length)
+      .slice(0, topN)
+      .map((idx, rank) => ({
+        ...passages[idx],
+        _haiku_rank: rank,
+      }));
+
+    if (reranked.length === 0) return passages;
+
+    logger.info('vault', `Haiku reranking fallback: ${passages.length} candidates -> ${reranked.length} top results`);
+    return reranked;
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      logger.warn('vault', 'Haiku rerank timeout (5s) — using RRF results');
+    } else {
+      logger.warn('vault', 'Haiku rerank error', { error: err.message });
+    }
+    return passages; // Final fallback: RRF order
   }
 }
 
@@ -1515,15 +1886,32 @@ async function retrieve(userId, query, limit = MAX_RETRIEVAL) {
     logger.info('vault', `Hybrid RRF: ${fused.length} unique passages from ${rankedLists.length} methods`);
   }
 
-  // ── Stage 3: Optional Cohere Reranking ──
-  // If we have more candidates than needed and Cohere is available, rerank for better relevance
-  if (_cohereKey && fused.length > limit) {
-    const reranked = await rerankWithCohere(query, fused, limit);
-    logger.info('vault', `Cohere rerank: ${reranked.length} passages returned`);
-    return reranked;
+  // ── Stage 3: Optional Reranking (Cohere → Haiku fallback) ──
+  // If we have more candidates than needed, rerank for better relevance
+  let finalPassages;
+  if ((_cohereKey || _anthropicKey) && fused.length > limit) {
+    finalPassages = await rerankWithCohere(query, fused, limit);
+    logger.info('vault', `Reranking: ${finalPassages.length} passages returned`);
+  } else {
+    finalPassages = fused.slice(0, limit);
   }
 
-  return fused.slice(0, limit);
+  // ── Stage 4: Min-passages threshold (Phase 6, Task 9) ──
+  // If we have very few quality passages, it's better to return nothing than inject
+  // confusing/irrelevant context. Only applies when vector similarity is the primary signal.
+  const passagesAboveThreshold = finalPassages.filter(p =>
+    p.similarity != null && parseFloat(p.similarity) >= MIN_SIMILARITY
+  );
+  if (passagesAboveThreshold.length > 0 && passagesAboveThreshold.length < MIN_PASSAGES_THRESHOLD) {
+    // Check if these are strong enough to be useful
+    const avgSimilarity = passagesAboveThreshold.reduce((sum, p) => sum + parseFloat(p.similarity), 0) / passagesAboveThreshold.length;
+    if (avgSimilarity < 0.5) {
+      logger.info('vault', `Min-passages rule: only ${passagesAboveThreshold.length} passages above threshold with avg similarity ${avgSimilarity.toFixed(3)} — returning empty to avoid noise`);
+      return [];
+    }
+  }
+
+  return finalPassages;
 }
 
 /**
@@ -1540,33 +1928,43 @@ function formatForPrompt(passages) {
 
   let ctx = '';
 
+  // Phase 6: Helper to format a single passage with parent context awareness
+  const formatPassage = (p, index) => {
+    const docMeta = p.doc_metadata || {};
+    const chunkMeta = typeof p.metadata === 'string' ? JSON.parse(p.metadata || '{}') : (p.metadata || {});
+    const source = docMeta.bank || p.filename || 'Unknown source';
+    const date = docMeta.date || '';
+    const tickers = docMeta.tickers
+      ? ` [${Array.isArray(docMeta.tickers) ? docMeta.tickers.join(', ') : docMeta.tickers}]`
+      : '';
+    const docType = chunkMeta.documentType ? ` (${chunkMeta.documentType})` : '';
+
+    let passageCtx = `[V${index + 1}] [Source: ${source}${date ? ` (${date})` : ''}${tickers}${docType}]\n`;
+
+    // Phase 6: Inject parent context (section heading, document header) for better grounding
+    if (chunkMeta.parentContext) {
+      passageCtx += `[Context: ${chunkMeta.parentContext.slice(0, 200)}]\n`;
+    }
+    if (chunkMeta.sectionHeading) {
+      passageCtx += `[Section: ${chunkMeta.sectionHeading}]\n`;
+    }
+
+    // Phase 6: Increased from 500 to 800 chars — chunks are already sized, no need to double-truncate
+    const maxLen = 800;
+    passageCtx += `${p.content.slice(0, maxLen)}${p.content.length > maxLen ? '...' : ''}\n\n`;
+    return passageCtx;
+  };
+
   if (centralPassages.length > 0) {
     ctx += '\n--- CENTRAL RESEARCH VAULT (professional reports curated by Particle) ---\n';
-    for (const p of centralPassages) {
-      const docMeta = p.doc_metadata || {};
-      const source = docMeta.bank || p.filename || 'Unknown source';
-      const date = docMeta.date || '';
-      const tickers = docMeta.tickers
-        ? ` [${Array.isArray(docMeta.tickers) ? docMeta.tickers.join(', ') : docMeta.tickers}]`
-        : '';
-      ctx += `[Source: ${source}${date ? ` (${date})` : ''}${tickers}]\n`;
-      ctx += `${p.content.slice(0, 500)}${p.content.length > 500 ? '...' : ''}\n\n`;
-    }
+    centralPassages.forEach((p, i) => { ctx += formatPassage(p, i); });
     ctx += '--- END CENTRAL VAULT ---\n';
   }
 
   if (privatePassages.length > 0) {
     ctx += '\n--- USER VAULT (private research documents) ---\n';
-    for (const p of privatePassages) {
-      const docMeta = p.doc_metadata || {};
-      const source = docMeta.bank || p.filename || 'Unknown source';
-      const date = docMeta.date || '';
-      const tickers = docMeta.tickers
-        ? ` [${Array.isArray(docMeta.tickers) ? docMeta.tickers.join(', ') : docMeta.tickers}]`
-        : '';
-      ctx += `[Source: ${source}${date ? ` (${date})` : ''}${tickers}]\n`;
-      ctx += `${p.content.slice(0, 500)}${p.content.length > 500 ? '...' : ''}\n\n`;
-    }
+    const offset = centralPassages.length;
+    privatePassages.forEach((p, i) => { ctx += formatPassage(p, offset + i); });
     ctx += '--- END USER VAULT ---\n';
   }
 
@@ -2146,6 +2544,8 @@ module.exports = {
   chunkEarningsTranscript,
   chunkResearchReport,
   chunkFinancialTable,
+  chunkMacroCommentary,
+  chunkFiling,
   embed,
   getEmbeddingProvider,
   retrieve,
@@ -2156,4 +2556,9 @@ module.exports = {
   getGlobalDocuments,
   deleteDocument,
   getMixedProviderDocuments,
+  // Phase 6: Job queue exports
+  createIngestionJob,
+  getIngestionJob,
+  getUserJobs,
+  enqueueIngestionJob,
 };

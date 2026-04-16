@@ -736,8 +736,9 @@ initVault({
   openaiKey: process.env.OPENAI_API_KEY,
   voyageKey: process.env.VOYAGE_API_KEY,
   cohereKey: process.env.COHERE_API_KEY,
+  anthropicKey: process.env.ANTHROPIC_API_KEY,
 });
-logger.info('boot', `Vault init: openai=${!!process.env.OPENAI_API_KEY}, voyage=${!!process.env.VOYAGE_API_KEY}, cohere=${!!process.env.COHERE_API_KEY}`);
+logger.info('boot', `Vault init: openai=${!!process.env.OPENAI_API_KEY}, voyage=${!!process.env.VOYAGE_API_KEY}, cohere=${!!process.env.COHERE_API_KEY}, anthropic=${!!process.env.ANTHROPIC_API_KEY}`);
 
 // Initialize memory manager service (two-tier conversation memory)
 const memoryManager = require('./services/memoryManager');

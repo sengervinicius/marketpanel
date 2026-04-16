@@ -144,13 +144,18 @@ router.post('/upload', rateLimitByUser({ key: 'vault-upload', windowSec: 60, max
       }
     }
 
-    const result = await vault.ingestFile(req.user.id, req.file.buffer, req.file.originalname);
+    // Phase 6: Accept optional docType from request body (multipart form field)
+    const docType = req.body?.docType || null;
+    const metadata = docType ? { docType } : {};
+
+    const result = await vault.ingestFile(req.user.id, req.file.buffer, req.file.originalname, metadata);
 
     logger.info('vault-route', 'Document uploaded', {
       userId: req.user.id,
       filename: req.file.originalname,
       fileType: result.fileType,
       detectedType: result.detectedType,
+      requestedDocType: docType,
     });
 
     res.json(result);
@@ -243,6 +248,92 @@ router.post('/upload-stream', rateLimitByUser({ key: 'vault-upload', windowSec: 
       res.end();
     }
   }
+});
+
+/**
+ * POST /upload-async — Phase 6: Background upload with job queue.
+ * Returns immediately with a jobId. Client polls GET /jobs/:jobId for status.
+ * Accepts optional 'docType' field to override auto-detection.
+ * Rate limited: 10 uploads per minute per user.
+ */
+router.post('/upload-async', rateLimitByUser({ key: 'vault-upload', windowSec: 60, max: 10 }), upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file provided' });
+    }
+
+    // Quota enforcement
+    const userTier = req.user.planTier || 'trial';
+    const tier = getTier(userTier);
+    if (!isUnlimited(tier.vaultDocuments)) {
+      const docs = await vault.getUserDocuments(req.user.id);
+      if (docs.length >= tier.vaultDocuments) {
+        return res.status(403).json({
+          error: 'Vault limit reached',
+          code: 'vault_limit',
+          message: `Your ${tier.label} plan allows up to ${tier.vaultDocuments} documents. Upgrade to upload more.`,
+          currentCount: docs.length,
+          limit: tier.vaultDocuments,
+          tier: userTier,
+        });
+      }
+    }
+
+    const docType = req.body?.docType || null; // Phase 6: user-selected document type
+    const metadata = docType ? { docType } : {};
+    const isGlobal = false;
+
+    // Create job and enqueue for background processing
+    const job = vault.createIngestionJob(req.user.id, req.file.originalname);
+    vault.enqueueIngestionJob(job, req.file.buffer, metadata, isGlobal);
+
+    logger.info('vault-route', 'Async upload enqueued', {
+      userId: req.user.id,
+      jobId: job.jobId,
+      filename: req.file.originalname,
+      docType,
+    });
+
+    res.json({ jobId: job.jobId, status: 'queued', filename: req.file.originalname });
+  } catch (err) {
+    logger.error('vault-route', 'Async upload error', { error: err.message });
+    res.status(500).json({ error: 'Failed to enqueue upload', message: err.message });
+  }
+});
+
+/**
+ * GET /jobs/:jobId — Phase 6: Poll ingestion job status.
+ * Returns: { jobId, status, progress, result }
+ */
+router.get('/jobs/:jobId', async (req, res) => {
+  const job = vault.getIngestionJob(req.params.jobId);
+  if (!job) {
+    return res.status(404).json({ error: 'Job not found' });
+  }
+  // Security: only allow the job owner to check status
+  if (job.userId !== req.user.id) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+  res.json({
+    jobId: job.jobId,
+    status: job.status,
+    progress: job.progress,
+    result: job.status === 'complete' || job.status === 'error' ? job.result : null,
+  });
+});
+
+/**
+ * GET /jobs — Phase 6: List user's recent ingestion jobs.
+ */
+router.get('/jobs', async (req, res) => {
+  const jobs = vault.getUserJobs(req.user.id);
+  res.json(jobs.map(j => ({
+    jobId: j.jobId,
+    filename: j.filename,
+    status: j.status,
+    progress: j.progress,
+    createdAt: j.createdAt,
+  })));
 });
 
 /**

@@ -57,7 +57,9 @@ export default function VaultPanel({ fullScreen = false }) {
   const [searchResults, setSearchResults] = useState(null);
   const [searching, setSearching] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [centralLoading, setCentralLoading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+  const [selectedDocType, setSelectedDocType] = useState('auto');
   const [quota, setQuota] = useState(null);
   const [vaultHealth, setVaultHealth] = useState(null); // { ok, database, embeddings }
   const [chatDocId, setChatDocId] = useState(null);
@@ -125,14 +127,18 @@ export default function VaultPanel({ fullScreen = false }) {
     }
   }, [token]);
 
-  // Fetch central vault documents (admin)
+  // Fetch central vault documents (admin) — Phase 6: added loading state + error handling
   const fetchCentralDocs = useCallback(async () => {
     if (!isAdmin) return;
+    setCentralLoading(true);
     try {
       const data = await apiJSON('/api/vault/admin/documents');
       setCentralDocs(data.documents || []);
-    } catch {
-      // Silent
+    } catch (e) {
+      console.error('[Vault] Central docs fetch failed:', e.message);
+      setCentralDocs([]);
+    } finally {
+      setCentralLoading(false);
     }
   }, [token, isAdmin]);
 
@@ -158,6 +164,10 @@ export default function VaultPanel({ fullScreen = false }) {
     try {
       const formData = new FormData();
       formData.append('file', file);
+      // Phase 6: Pass user-selected document type (if not auto)
+      if (selectedDocType && selectedDocType !== 'auto') {
+        formData.append('docType', selectedDocType);
+      }
       const uploadHeaders = token ? { Authorization: `Bearer ${token}` } : {};
 
       console.log('[Vault] Uploading to:', uploadUrl, 'auth:', !!token, 'file:', file.name, file.size);
@@ -417,6 +427,29 @@ export default function VaultPanel({ fullScreen = false }) {
               </span>
               <span className="vault-upload-hint" style={{ fontSize: '8px', opacity: 0.3 }}>v2</span>
             </div>
+            {/* Phase 6: Document type selector */}
+            <div className="vault-doctype-row" style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '2px 8px' }}>
+              <span style={{ color: 'var(--text-faint)', fontSize: '8px', letterSpacing: '0.05em' }}>Type:</span>
+              <select
+                className="vault-doctype-select"
+                value={selectedDocType}
+                onChange={(e) => { e.stopPropagation(); setSelectedDocType(e.target.value); }}
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                  background: 'var(--bg-app)', border: '1px solid var(--border-subtle)',
+                  color: 'var(--text-muted)', fontSize: '8px', padding: '1px 4px',
+                  fontFamily: 'var(--font-ui)', outline: 'none', cursor: 'pointer',
+                }}
+              >
+                <option value="auto">Auto-detect</option>
+                <option value="earnings_transcript">Earnings Transcript</option>
+                <option value="research_report">Research Report</option>
+                <option value="macro_commentary">Macro Commentary</option>
+                <option value="filing">Filing (10-K/10-Q)</option>
+                <option value="financial_table">Financial Table</option>
+                <option value="default">Generic Document</option>
+              </select>
+            </div>
           </>
         )}
 
@@ -464,13 +497,13 @@ export default function VaultPanel({ fullScreen = false }) {
         </div>
 
         <div className="vault-docs-list">
-          {loading && (
+          {(tab === 'central' ? centralLoading : loading) && (
             <div className="vault-empty-state">
               <span className="vault-empty-text">Loading documents...</span>
             </div>
           )}
 
-          {!loading && activeDocs.length === 0 && (
+          {!(tab === 'central' ? centralLoading : loading) && activeDocs.length === 0 && (
             <div className="vault-empty-state">
               <svg className="vault-empty-icon" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1">
                 <path d="M12 2L2 7l10 5 10-5-10-5z" /><path d="M2 17l10 5 10-5" /><path d="M2 12l10 5 10-5" />
