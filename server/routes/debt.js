@@ -282,7 +282,8 @@ router.get('/sovereign/:countryCode', async (req, res) => {
       let source = 'stub';
       try {
         const [selicRes, tdRes] = await Promise.allSettled([
-          fetch('https://api.bcb.gov.br/dados/serie/bcdata.sgs.432/dados/ultimos/1?formato=json', {
+          // BCB series 4189 = Selic meta (annual target rate, e.g. 14.25)
+          fetch('https://api.bcb.gov.br/dados/serie/bcdata.sgs.4189/dados/ultimos/1?formato=json', {
             headers: { 'Accept': 'application/json' },
           }).then(r => r.json()),
           fetch('https://www.tesourodireto.com.br/json/br/com/b3/tesourodireto/service/api/treasurybondsfile.json', {
@@ -291,7 +292,13 @@ router.get('/sovereign/:countryCode', async (req, res) => {
         ]);
         let diRate = 14.75;
         if (selicRes.status === 'fulfilled' && Array.isArray(selicRes.value) && selicRes.value[0]?.valor) {
-          diRate = parseFloat(selicRes.value[0].valor);
+          const parsed = parseFloat(selicRes.value[0].valor);
+          // Sanity: Brazil Selic is 2–30% range. Reject monthly/daily rates or garbage.
+          if (parsed >= 2 && parsed <= 30) {
+            diRate = parsed;
+          } else {
+            logger.warn(`[debt] BCB Selic value ${parsed} out of sanity range [2,30]; using default ${diRate}`);
+          }
         }
         points.push({ tenor: 'DI', yield: parseFloat(diRate.toFixed(2)) });
         if (tdRes.status === 'fulfilled') {

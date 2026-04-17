@@ -665,7 +665,9 @@ router.get('/yield-curves', async (req, res) => {
         headers: { 'User-Agent': YF_UA, 'Accept': 'application/json', 'Accept-Language': 'pt-BR,pt;q=0.9', 'Referer': 'https://www.tesourodireto.com.br/' },
       }).then(r => { if (!r.ok) throw new Error(`TD ${r.status}`); return r.json(); }),
 
-      fetchWithTimeout('https://api.bcb.gov.br/dados/serie/bcdata.sgs.432/dados/ultimos/1?formato=json', {
+      // BCB series 4189 = Selic meta (annual target rate, e.g. 14.25)
+      // Fallback: series 432 is monthly accumulated — NOT annual; must be avoided
+      fetchWithTimeout('https://api.bcb.gov.br/dados/serie/bcdata.sgs.4189/dados/ultimos/1?formato=json', {
         headers: { 'Accept': 'application/json' },
       }).then(r => r.json()),
 
@@ -683,9 +685,17 @@ router.get('/yield-curves', async (req, res) => {
     ]);
 
     // —— BR curve ——
+    // Default = current Selic target; updated manually as a safety net
     let diRate = 14.75;
     if (selicRes.status === 'fulfilled' && Array.isArray(selicRes.value) && selicRes.value[0]?.valor) {
-      diRate = parseFloat(selicRes.value[0].valor);
+      const parsed = parseFloat(selicRes.value[0].valor);
+      // Sanity: Brazil Selic has been 2–14.75% historically. If BCB returns
+      // a monthly/daily rate (<2) or garbage (>30), fall back to hardcoded default.
+      if (parsed >= 2 && parsed <= 30) {
+        diRate = parsed;
+      } else {
+        console.warn(`[Yield] BCB Selic value ${parsed} out of sanity range [2,30]; using default ${diRate}`);
+      }
     }
     const brCurve = [{ tenor: 'DI', months: 0.5, rate: parseFloat(diRate.toFixed(2)) }];
     if (tdRes.status === 'fulfilled') {
@@ -772,8 +782,12 @@ router.get('/yield-curves', async (req, res) => {
       euSource = 'ECB+synthetic';
     }
 
+    // Log BR curve for debugging data integrity
+    const brSource = tdRes.status === 'fulfilled' ? 'Tesouro Direto' : 'BCB+synthetic';
+    console.log(`[Yield] BR curve: ${brCurve.length} points, source=${brSource}, DI=${diRate}, range=${brCurve.length > 0 ? brCurve[0].rate + '-' + brCurve[brCurve.length - 1].rate : 'empty'}`);
+
     const payload = {
-      BR: { curve: brCurve, source: tdRes.status === 'fulfilled' ? 'Tesouro Direto' : 'BCB+synthetic', updatedAt: now.toISOString() },
+      BR: { curve: brCurve, source: brSource, updatedAt: now.toISOString() },
       US: { curve: usCurve, source: usSource, updatedAt: now.toISOString() },
       UK: { curve: ukCurve, source: ukSource, updatedAt: now.toISOString() },
       EU: { curve: euCurve, source: euSource, updatedAt: now.toISOString() },

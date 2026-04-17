@@ -192,6 +192,11 @@ function DebtPanel() {
     if (!liveReady) return; // wait for init to complete
     setLoading(true);
     setError(null);
+    // Clear previous country's data immediately to prevent stale display
+    setCurve(null);
+    setCurveSource(null);
+    setCurveLive(false);
+    setCurveStub(false);
 
     try {
       // Step 1: Try live data from /api/yield-curves
@@ -326,9 +331,23 @@ function DebtPanel() {
   }, [view, loadCurve, loadRegional]);
 
   // ---- Source label for badge ----
-  const sourceBadge = curveSource
+  // Sanity: if source doesn't match selected country, suppress it
+  const rawSource = curveSource
     ? curveSource.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
     : null;
+  const COUNTRY_SOURCES = {
+    BR: ['Tesouro Direto', 'Tesouro', 'Bcb Partial', 'Bcb Synthetic', 'Bcb+Synthetic'],
+    US: ['Us Treasury', 'Fred', 'FRED', 'Yahoo Fallback'],
+    UK: ['Bank Of England', 'Boe+Synthetic'],
+    EU: ['Ecb', 'Ecb+Synthetic'],
+  };
+  const validSources = COUNTRY_SOURCES[selectedCountry];
+  const sourceBadge = rawSource && (!validSources || validSources.some(s => rawSource.toLowerCase().includes(s.toLowerCase())))
+    ? rawSource
+    : rawSource; // still show it but fix curveLive for mismatches
+  // If source is clearly wrong for this country (e.g., FRED for BR), mark as not live
+  const isMismatch = rawSource && validSources && !validSources.some(s => rawSource.toLowerCase().includes(s.toLowerCase()));
+  const effectiveCurveLive = isMismatch ? false : curveLive;
 
   return (
     <div className="dp-panel">
@@ -386,8 +405,8 @@ function DebtPanel() {
               {countryMeta?.name?.toUpperCase() || selectedCountry} YIELD CURVE
             </span>
             {!loading && sourceBadge && (
-              <span className={`dp-source-badge ${curveLive ? 'dp-badge--live' : 'dp-badge--est'}`}>
-                {curveLive ? 'LIVE' : 'EST.'} {sourceBadge}
+              <span className={`dp-source-badge ${effectiveCurveLive ? 'dp-badge--live' : 'dp-badge--est'}`}>
+                {effectiveCurveLive ? 'LIVE' : 'EST.'} {sourceBadge}
               </span>
             )}
           </div>
