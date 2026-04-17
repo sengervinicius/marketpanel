@@ -10,6 +10,7 @@ const {
   yahooQuote, finnhubQuote, fetchWithFallback, polyFetch,
   getYahooCrumb, resetYahooCrumb, sendError, eulerpool, twelvedata, fetch, YF_UA,
 } = require('./lib/providers');
+const { validateEquities } = require('../../services/dataIntegrityValidator');
 
 // ── Default stock tickers ───────────────────────────────────────────
 const DEFAULT_STOCK_TICKERS = [
@@ -161,6 +162,7 @@ router.get('/snapshot/stocks', async (req, res) => {
     const data = { tickers: allQuotes.map(toSnapshot), status: 'OK' };
     cacheSet('snapshot:stocks', data, TTL.stocksSnapshot);
     res.json(data);
+    validateEquities(data);
   } catch (e) {
     sendError(res, e, '/snapshot/stocks');
   }

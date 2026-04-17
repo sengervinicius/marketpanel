@@ -9,7 +9,7 @@ const express = require('express');
 const router  = express.Router();
 const { cacheGet, cacheSet, TTL } = require('./lib/cache');
 const { yahooQuote, sendError, fetch, YF_UA } = require('./lib/providers');
-const { validateYieldCurves, getIntegrityStatus } = require('../../services/dataIntegrityValidator');
+const { validateYieldCurves, validateRates, getIntegrityStatus, getAllIntegrityStatus } = require('../../services/dataIntegrityValidator');
 
 // ── Timeout helper for external API calls ────────────────────────────
 function fetchWithTimeout(url, options = {}, timeoutMs = 8000) {
@@ -249,7 +249,8 @@ router.get('/snapshot/rates', async (req, res) => {
   try {
     const [usResult, selicResult] = await Promise.allSettled([
       yahooQuote('^IRX,^FVX,^TNX,^TYX'),
-      fetch('https://api.bcb.gov.br/dados/serie/bcdata.sgs.432/dados/ultimos/1?formato=json', {
+      // BCB series 4189 = Selic meta (annual target rate)
+      fetch('https://api.bcb.gov.br/dados/serie/bcdata.sgs.4189/dados/ultimos/1?formato=json', {
         headers: { 'Accept': 'application/json' }
       }).then(r => r.json()),
     ]);
@@ -320,6 +321,7 @@ router.get('/snapshot/rates', async (req, res) => {
     const payload = { results };
     cacheSet(cacheKey, payload, 60_000); // Cache for 60 seconds
     res.json(payload);
+    validateRates(payload);
   } catch (err) {
     console.error('[API] /snapshot/rates error:', err.message);
     sendError(res, err);
@@ -341,8 +343,9 @@ router.get('/di-curve', async (req, res) => {
           }
         }
       ).then(r => { if (!r.ok) throw new Error(`TD HTTP ${r.status}`); return r.json(); }),
+      // BCB series 4189 = Selic meta (annual target rate)
       fetch(
-        'https://api.bcb.gov.br/dados/serie/bcdata.sgs.432/dados/ultimos/1?formato=json',
+        'https://api.bcb.gov.br/dados/serie/bcdata.sgs.4189/dados/ultimos/1?formato=json',
         { headers: { 'Accept': 'application/json' } }
       ).then(r => r.json()),
     ]);
@@ -820,11 +823,10 @@ router.get('/yield-curves', async (req, res) => {
 });
 
 // ── Data integrity status endpoint ────────────────────────────────────
-// GET /data-integrity — returns latest validation verdicts
+// GET /data-integrity — returns latest validation verdicts for ALL domains
 router.get('/data-integrity', (req, res) => {
-  const yieldIntegrity = getIntegrityStatus('yield-curves');
   res.json({
-    yieldCurves: yieldIntegrity || { valid: true, source: 'none', summary: 'No validation run yet' },
+    ...getAllIntegrityStatus(),
     timestamp: new Date().toISOString(),
   });
 });

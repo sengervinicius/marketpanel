@@ -225,7 +225,8 @@ router.get('/sovereign/region', async (req, res) => {
     // Brazil fallback for regional: no Yahoo ticker for BR, so use BCB SELIC estimate
     if (codes.includes('BR') && !snapshot.find(s => s.country === 'BR')) {
       try {
-        const selicRes = await fetch('https://api.bcb.gov.br/dados/serie/bcdata.sgs.432/dados/ultimos/1?formato=json', {
+        // BCB series 4189 = Selic meta (annual target rate)
+        const selicRes = await fetch('https://api.bcb.gov.br/dados/serie/bcdata.sgs.4189/dados/ultimos/1?formato=json', {
           headers: { 'Accept': 'application/json' },
         }).then(r => r.json());
         const selic = Array.isArray(selicRes) && selicRes[0]?.valor ? parseFloat(selicRes[0].valor) : 14.75;

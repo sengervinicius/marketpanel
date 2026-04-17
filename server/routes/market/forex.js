@@ -6,6 +6,7 @@ const express = require('express');
 const router  = express.Router();
 const { cacheGet, cacheSet, TTL } = require('./lib/cache');
 const { yahooQuote, sendError } = require('./lib/providers');
+const { validateForex } = require('../../services/dataIntegrityValidator');
 
 // ── /snapshot/forex ─────────────────────────────────────────────────
 router.get('/snapshot/forex', async (req, res) => {
@@ -46,6 +47,7 @@ router.get('/snapshot/forex', async (req, res) => {
     const data = { tickers: transformedTickers, status: 'OK' };
     cacheSet('snapshot:forex', data, TTL.forexSnapshot);
     res.json(data);
+    validateForex(data);
   } catch (e) {
     sendError(res, e, '/snapshot/forex');
   }

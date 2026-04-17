@@ -6,6 +6,7 @@ const express = require('express');
 const router  = express.Router();
 const { cacheGet, cacheSet, TTL } = require('./lib/cache');
 const { yahooQuote, sendError } = require('./lib/providers');
+const { validateCrypto } = require('../../services/dataIntegrityValidator');
 
 // ── /snapshot/crypto ────────────────────────────────────────────────
 router.get('/snapshot/crypto', async (req, res) => {
@@ -43,6 +44,7 @@ router.get('/snapshot/crypto', async (req, res) => {
     const data = { tickers: transformedTickers, status: 'OK' };
     cacheSet('snapshot:crypto', data, TTL.cryptoSnapshot);
     res.json(data);
+    validateCrypto(data);
   } catch (e) {
     sendError(res, e, '/snapshot/crypto');
   }

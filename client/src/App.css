@@ -2015,3 +2015,9 @@ textarea:focus-visible { outline: 1px solid var(--accent); outline-offset: 0; bo
 }
 
 /* (disclaimer footer styles removed — orphaned from Terms modal migration) */
+
+/* ── Data integrity pulse animation (used by IntegrityBadge) ── */
+@keyframes integrity-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}

@@ -116,7 +116,8 @@ async function fredMacroUS() {
 async function bcbMacroBR() {
   try {
     const [selic, ipca] = await Promise.allSettled([
-      fetch('https://api.bcb.gov.br/dados/serie/bcdata.sgs.432/dados/ultimos/1?formato=json', { timeout: 8000 }).then(r => r.json()),
+      // BCB series 4189 = Selic meta (annual target rate, e.g. 14.25)
+      fetch('https://api.bcb.gov.br/dados/serie/bcdata.sgs.4189/dados/ultimos/1?formato=json', { timeout: 8000 }).then(r => r.json()),
       fetch('https://api.bcb.gov.br/dados/serie/bcdata.sgs.433/dados/ultimos/12?formato=json', { timeout: 8000 }).then(r => r.json()),
     ]);
 
