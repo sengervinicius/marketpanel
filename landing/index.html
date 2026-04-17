@@ -181,6 +181,113 @@
       transform: translateX(3px);
     }
 
+    /* ── Understand Particle button ─────────────────── */
+    .cta-understand {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 14px;
+      padding: 12px 28px;
+      background: transparent;
+      color: var(--accent);
+      border: 1px solid rgba(249, 115, 22, 0.35);
+      border-radius: 12px;
+      font-family: 'Inter', sans-serif;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.10em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .cta-understand:hover {
+      background: rgba(249, 115, 22, 0.08);
+      border-color: rgba(249, 115, 22, 0.6);
+      transform: translateY(-1px);
+    }
+
+    .cta-understand .play-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: rgba(249, 115, 22, 0.15);
+    }
+
+    .cta-understand .play-icon svg {
+      width: 10px;
+      height: 10px;
+      fill: var(--accent);
+      margin-left: 1px;
+    }
+
+    /* ── Video modal overlay ─────────────────────────── */
+    .video-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.92);
+      backdrop-filter: blur(12px);
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.3s ease, visibility 0.3s ease;
+    }
+
+    .video-modal.active {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .video-modal-inner {
+      position: relative;
+      width: 90vw;
+      max-width: 960px;
+      aspect-ratio: 16 / 9;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 0 80px rgba(249, 115, 22, 0.15);
+      transform: scale(0.92);
+      transition: transform 0.3s ease;
+    }
+
+    .video-modal.active .video-modal-inner {
+      transform: scale(1);
+    }
+
+    .video-modal video {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      background: #000;
+    }
+
+    .video-modal-close {
+      position: absolute;
+      top: -40px;
+      right: 0;
+      background: none;
+      border: none;
+      color: var(--text-secondary);
+      font-size: 14px;
+      font-family: 'Inter', sans-serif;
+      letter-spacing: 0.08em;
+      cursor: pointer;
+      transition: color 0.15s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .video-modal-close:hover {
+      color: var(--text-primary);
+    }
+
     /* ── Secondary link ───────────────────────────────── */
     .secondary-link {
       margin-top: 16px;
@@ -268,8 +375,23 @@
       Enter Terminal <span class="cta-arrow">&rarr;</span>
     </a>
 
+    <button class="cta-understand" onclick="openExplainer()">
+      <span class="play-icon"><svg viewBox="0 0 10 12"><polygon points="1,0 10,6 1,12"/></svg></span>
+      Understand Particle
+    </button>
+
     <div class="secondary-link">
       New here? <a href="https://the-particle.com">Create your account</a>
+    </div>
+  </div>
+
+  <!-- Explainer video modal -->
+  <div class="video-modal" id="videoModal">
+    <div class="video-modal-inner">
+      <button class="video-modal-close" onclick="closeExplainer()">ESC &times;</button>
+      <video id="explainerVideo" controls preload="metadata" playsinline>
+        <source src="particle-explainer.mp4" type="video/mp4" />
+      </video>
     </div>
   </div>
 
@@ -349,6 +471,34 @@
       requestAnimationFrame(draw);
     }
     requestAnimationFrame(draw);
+
+    /* ── Explainer video modal ─────────────────────── */
+    function openExplainer() {
+      const modal = document.getElementById('videoModal');
+      const video = document.getElementById('explainerVideo');
+      modal.classList.add('active');
+      video.currentTime = 0;
+      video.play();
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeExplainer() {
+      const modal = document.getElementById('videoModal');
+      const video = document.getElementById('explainerVideo');
+      modal.classList.remove('active');
+      video.pause();
+      document.body.style.overflow = '';
+    }
+
+    // Close on backdrop click
+    document.getElementById('videoModal').addEventListener('click', function(e) {
+      if (e.target === this) closeExplainer();
+    });
+
+    // Close on ESC key
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') closeExplainer();
+    });
   </script>
 </body>
 </html>
