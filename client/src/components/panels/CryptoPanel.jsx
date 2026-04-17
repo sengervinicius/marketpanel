@@ -11,6 +11,7 @@ import { CRYPTO_PAIRS } from '../../utils/constants';
 import { useFeedStatus } from '../../context/FeedStatusContext';
 import { useSparklineData } from '../../hooks/useSparklineData';
 import SkeletonLoader from '../shared/SkeletonLoader';
+import IntegrityBadge from '../shared/IntegrityBadge';
 
 const COLS = '56px 1fr 80px 64px';
 
@@ -121,6 +122,7 @@ export function CryptoPanel({ data = {}, loading, onTickerClick }) {
         onSearchChange={setSearchFilter}
         feedBadge={{ bg: badge.bg, color: badge.color, text: badge.text }}
       >
+        <IntegrityBadge domain="crypto" />
         <button className="btn"
           onClick={() => setCollapsed(v => !v)}
           title={collapsed ? 'Expand' : 'Collapse'}

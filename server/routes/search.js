@@ -14,6 +14,7 @@ const fetch   = require('node-fetch');
 const router  = express.Router();
 
 const { perMinuteLimit } = require('../middleware/rateLimitByIP');
+const { dailyAILimit } = require('../middleware/dailyAILimit');
 const logger = require('../utils/logger');
 const memoryManager = require('../services/memoryManager');
 const conversationMemory = require('../services/conversationMemory');
@@ -168,7 +169,7 @@ router.get('/cache-stats', (req, res) => {
 /**
  * POST /ai — AI-powered financial research summary
  */
-router.post('/ai', async (req, res) => {
+router.post('/ai', dailyAILimit, async (req, res) => {
   const apiKey = process.env.PERPLEXITY_API_KEY;
   if (!apiKey) {
     return res.status(503).json({ error: 'AI search not configured — PERPLEXITY_API_KEY missing' });
@@ -1457,7 +1458,7 @@ function chatCacheSet(key, value) {
   _chatCache.set(key, { value, exp: Date.now() + CHAT_CACHE_TTL });
 }
 
-router.post('/chat', perMinuteLimit, async (req, res) => {
+router.post('/chat', perMinuteLimit, dailyAILimit, async (req, res) => {
   // API key check moved to modelRouter fallback logic below
   const { messages, context } = req.body;
   if (!messages || !Array.isArray(messages) || messages.length === 0) {

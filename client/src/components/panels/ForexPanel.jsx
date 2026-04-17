@@ -14,6 +14,7 @@ import { FOREX_PAIRS, CRYPTO_PAIRS } from '../../utils/constants';
 import { useFeedStatus } from '../../context/FeedStatusContext';
 import { useSparklineData } from '../../hooks/useSparklineData';
 import SkeletonLoader from '../shared/SkeletonLoader';
+import IntegrityBadge from '../shared/IntegrityBadge';
 
 const COLS = '72px 1fr 76px 64px';
 
@@ -221,6 +222,7 @@ function ForexPanel({ data = {}, cryptoData = {}, loading, onTickerClick }) {
         feedBadge={badge}
         lastUpdated={lastUpdated}
       >
+        <IntegrityBadge domain="forex" />
         {/* Movers filter */}
         <button className="btn"
           onClick={() => setMoversOnly(v => !v)}

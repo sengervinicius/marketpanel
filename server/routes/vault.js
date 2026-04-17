@@ -581,7 +581,7 @@ router.get('/quota', async (req, res) => {
  * POST /search — Search the vault (for testing / frontend search UI).
  * Body: { query: string }
  */
-router.post('/search', async (req, res) => {
+router.post('/search', rateLimitByUser({ key: 'vault-search', windowSec: 60, max: 15 }), async (req, res) => {
   try {
     const { query } = req.body;
 

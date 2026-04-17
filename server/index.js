@@ -322,7 +322,9 @@ app.use('/api/billing', requireAuth, billingRoutes);
 app.use('/api/billing/iap', iapRoutes);
 
 // Settings: auth required (no subscription check — need settings even on expired trial)
-app.use('/api/settings', requireAuth, settingsRoutes);
+app.use('/api/settings', requireAuth,
+  rateLimitByUser({ key: 'settings', windowSec: 60, max: 20 }),
+  settingsRoutes);
 
 // Users (chat search): auth required
 app.use('/api/users', requireAuth, usersRoutes);
@@ -362,11 +364,15 @@ app.use('/api/options', requireAuth, requireActiveSubscription,
   requestTimeout(15000),
   optionsRoutes);
 
-// Portfolio: auth required (no subscription check — need portfolio even on expired trial)
-app.use('/api/portfolio', requireAuth, portfolioRoutes);
+// Portfolio: auth required + rate limit (no subscription check — need portfolio even on expired trial)
+app.use('/api/portfolio', requireAuth,
+  rateLimitByUser({ key: 'portfolio', windowSec: 60, max: 30 }),
+  portfolioRoutes);
 
-// Alerts: auth required (no subscription check — alerts are a core feature)
-app.use('/api/alerts', requireAuth, alertRoutes);
+// Alerts: auth required + rate limit (no subscription check — alerts are a core feature)
+app.use('/api/alerts', requireAuth,
+  rateLimitByUser({ key: 'alerts', windowSec: 60, max: 30 }),
+  alertRoutes);
 
 // Anomalies: auth required (no subscription check — anomaly detection is a core feature)
 app.use('/api/anomalies', requireAuth, anomaliesRoutes);

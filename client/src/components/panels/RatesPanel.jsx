@@ -5,6 +5,7 @@
  */
 import { useState, useEffect, memo } from 'react';
 import { apiFetch } from '../../utils/api';
+import IntegrityBadge from '../shared/IntegrityBadge';
 import './RatesPanel.css';
 
 // Static central bank rates not available from free APIs.
@@ -87,6 +88,7 @@ function RatesPanel() {
         <span className="rp-header-title">
           RATES
         </span>
+        <IntegrityBadge domain="rates" />
         <span className="rp-header-time">
           {loading ? 'LOADING...' : ts}
         </span>

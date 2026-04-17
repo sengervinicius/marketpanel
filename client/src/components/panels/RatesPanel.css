@@ -8,30 +8,29 @@
 }
 
 .rp-header {
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border-strong);
+  padding: 4px 8px;
+  flex-shrink: 0;
+  background: var(--bg-elevated);
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 4px 8px;
-  background: var(--bg-elevated);
-  border-bottom: 1px solid var(--border-strong);
-  flex-shrink: 0;
-  gap: 6px;
 }
 
 .rp-header-title {
-  font-family: var(--font-family-mono);
+  color: var(--color-text-primary);
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-bold);
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--color-text-primary);
+  font-family: var(--font-family-mono);
   line-height: 1;
 }
 
 .rp-header-time {
-  color: var(--text-faint, #444);
-  font-size: 9px;
-  font-family: var(--font-family-mono);
+  color: var(--border-subtle);
+  font-size: 7.5px;
+  font-family: var(--font-mono);
 }
 
 .rp-col-header {

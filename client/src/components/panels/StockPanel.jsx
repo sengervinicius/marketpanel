@@ -17,6 +17,7 @@ import ColumnHeaders from '../common/ColumnHeaders';
 import SkeletonLoader from '../shared/SkeletonLoader';
 import { US_STOCKS, BRAZIL_ADRS } from '../../utils/constants';
 import { useFeedStatus } from '../../context/FeedStatusContext';
+import IntegrityBadge from '../shared/IntegrityBadge';
 import '../common/Shimmer.css';
 import './StockPanel.css';
 
@@ -275,6 +276,7 @@ function StockPanel({ data = {}, loading, onTickerClick }) {
         feedBadge={badge}
         lastUpdated={lastUpdated}
       >
+        <IntegrityBadge domain="equities" />
         {/* Movers filter toggle */}
         <button className={`stp-movers-btn ${moversOnly ? 'stp-movers-btn-active' : ''}`}
           onClick={() => setMoversOnly(v => !v)}
