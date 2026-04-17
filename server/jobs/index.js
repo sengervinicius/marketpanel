@@ -84,6 +84,12 @@ function initJobs(ctx = {}) {
   const { runOnce: reconcileSubs } = require('./subscriptionReconciler');
   registerJob('subscription-reconciler', '7 * * * *', reconcileSubs);
 
+  // ── Staleness sweep: every minute (W3.3) ─────────────────────────────
+  // Emits severity transitions per feed; updates the age gauge consumed
+  // by /metrics and /admin/debug.
+  const { sweep: stalenessSweep } = require('../services/stalenessMonitor');
+  registerJob('staleness-sweep', '* * * * *', stalenessSweep);
+
   // ── Alert evaluation: every 45 seconds ──────────────────────────────
   // Alert scheduler uses internal heartbeat loop because it needs sub-minute
   // cadence. We just start it here for central management.
