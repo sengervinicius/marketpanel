@@ -367,3 +367,45 @@ BEGIN
     ALTER TABLE users ADD COLUMN analytics_opt_out BOOLEAN NOT NULL DEFAULT FALSE;
   END IF;
 END$$;
+
+-- ── Subscription audit (W2.1) ─────────────────────────────────────────────
+-- Append-only ledger of every plan/tier/paid transition. Populated by
+-- Stripe webhook, IAP validator, admin overrides, and the reconciler.
+-- Retention: 5 years (fiscal law); partition candidate on created_at.
+CREATE TABLE IF NOT EXISTS subscription_audit (
+  id            BIGSERIAL   PRIMARY KEY,
+  user_id       INTEGER     NOT NULL,
+  source        TEXT        NOT NULL
+                            CHECK (source IN ('stripe_webhook','iap_receipt',
+                                              'admin_override','reconciler','self_serve')),
+  action        TEXT        NOT NULL,
+  before_state  JSONB       NOT NULL DEFAULT '{}'::jsonb,
+  after_state   JSONB       NOT NULL DEFAULT '{}'::jsonb,
+  meta          JSONB       NOT NULL DEFAULT '{}'::jsonb,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_subaudit_user     ON subscription_audit (user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_subaudit_source   ON subscription_audit (source, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_subaudit_action   ON subscription_audit (action, created_at DESC);
+
+-- ── IAP receipt ledger (W2.3) ─────────────────────────────────────────────
+-- Authoritative copy of every validated App Store / Play Store receipt.
+-- One row per original_transaction_id. The reconciler consults this daily
+-- to re-check expiry against Apple/Google and downgrade on lapse.
+CREATE TABLE IF NOT EXISTS iap_receipts (
+  original_transaction_id  TEXT        PRIMARY KEY,
+  user_id                  INTEGER     NOT NULL,
+  store                    TEXT        NOT NULL CHECK (store IN ('apple','google')),
+  product_id               TEXT        NOT NULL,
+  expires_at               TIMESTAMPTZ,
+  auto_renew               BOOLEAN     NOT NULL DEFAULT FALSE,
+  last_validated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  latest_receipt           TEXT,
+  tier                     TEXT,
+  status                   TEXT        NOT NULL DEFAULT 'active'
+                                       CHECK (status IN ('active','expired','revoked','grace')),
+  created_at               TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_iap_user     ON iap_receipts (user_id);
+CREATE INDEX IF NOT EXISTS idx_iap_expires  ON iap_receipts (expires_at);
+CREATE INDEX IF NOT EXISTS idx_iap_status   ON iap_receipts (status, expires_at);

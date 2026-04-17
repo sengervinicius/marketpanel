@@ -18,6 +18,18 @@ const { sendEmail } = require('./services/emailService');
 const { tierFromStripePriceId, getStripePriceId, TIERS } = require('./config/tiers');
 const pg = require('./db/postgres');
 const logger = require('./utils/logger');
+// W2.1 audit: every webhook transition is recorded for finance + LGPD.
+const { recordSubscriptionChange, classifyTransition } = require('./services/subscriptionAudit');
+
+function _snapshot(u) {
+  if (!u) return {};
+  return {
+    isPaid: !!u.isPaid,
+    subscriptionActive: !!u.subscriptionActive,
+    planTier: u.planTier || null,
+    stripeSubscriptionId: u.stripeSubscriptionId || null,
+  };
+}
 
 // ── Stripe client (lazy — only initialised when env vars are present) ─────────
 function getStripe() {
@@ -342,14 +354,26 @@ async function handleWebhookEvent(stripe, event) {
       const subTier = sub.metadata?.tier
         || tierFromStripePriceId(sub.items?.data?.[0]?.price?.id)
         || 'new_particle';
-      await updateSubscription(userId, {
+      const before = _snapshot(getUserById(userId));
+      const after = {
         isPaid:               active,
         subscriptionActive:   active,
         stripeSubscriptionId: sub.id,
         trialEndsAt:          sub.trial_end ? sub.trial_end * 1000 : null,
         planTier:             active ? subTier : 'trial',
+      };
+      await updateSubscription(userId, after);
+      await recordSubscriptionChange({
+        userId, source: 'stripe_webhook',
+        action: classifyTransition(before, after),
+        before,
+        after: { ...before, ...after },
+        meta: { eventId: event.id, eventType: event.type, subStatus: sub.status,
+                priceId: sub.items?.data?.[0]?.price?.id || null },
       });
-      console.log(`[billing] subscription ${sub.status} (${subTier}) → user ${userId}`);
+      logger.info('billing', `subscription ${sub.status} (${subTier}) → user ${userId}`, {
+        userId, tier: subTier, billing_event: sub.status,
+      });
       break;
     }
 
@@ -359,13 +383,22 @@ async function handleWebhookEvent(stripe, event) {
         : await findUserIdByCustomer(sub.customer);
       if (!userId) break;
 
-      await updateSubscription(userId, {
+      const before = _snapshot(getUserById(userId));
+      const after = {
         isPaid:               false,
         subscriptionActive:   false,
         stripeSubscriptionId: null,
         planTier:             'trial',
+      };
+      await updateSubscription(userId, after);
+      await recordSubscriptionChange({
+        userId, source: 'stripe_webhook', action: 'cancel',
+        before, after: { ...before, ...after },
+        meta: { eventId: event.id, eventType: event.type },
       });
-      console.log(`[billing] subscription deleted → user ${userId}`);
+      logger.info('billing', `subscription deleted → user ${userId}`, {
+        userId, billing_event: 'cancel',
+      });
       break;
     }
 

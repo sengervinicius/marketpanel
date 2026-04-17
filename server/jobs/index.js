@@ -79,6 +79,11 @@ function initJobs(ctx = {}) {
   const { runRetentionOnce } = require('./lgpdRetention');
   registerJob('lgpd-retention', '15 6 * * *', runRetentionOnce);  // 03:15 BRT = 06:15 UTC
 
+  // ── Subscription reconciler: hourly (W2.2) ───────────────────────────
+  // Compares local users row to Stripe; records drift + auto-corrects.
+  const { runOnce: reconcileSubs } = require('./subscriptionReconciler');
+  registerJob('subscription-reconciler', '7 * * * *', reconcileSubs);
+
   // ── Alert evaluation: every 45 seconds ──────────────────────────────
   // Alert scheduler uses internal heartbeat loop because it needs sub-minute
   // cadence. We just start it here for central management.
