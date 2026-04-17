@@ -2041,6 +2041,10 @@ function formatForPrompt(passages) {
 /**
  * Get user's private vault documents.
  */
+// Safety cap on document list responses. Tier limits cap normal users below this,
+// but the cap protects against runaway queries + oversized JSON responses.
+const DOC_LIST_MAX = 500;
+
 async function getUserDocuments(userId) {
   if (!pg.isConnected()) {
     return [];
@@ -2052,8 +2056,9 @@ async function getUserDocuments(userId) {
               (SELECT COUNT(*) FROM vault_chunks WHERE document_id = vault_documents.id) as chunk_count
        FROM vault_documents
        WHERE user_id = $1 AND is_global = FALSE
-       ORDER BY created_at DESC`,
-      [userId]
+       ORDER BY created_at DESC
+       LIMIT $2`,
+      [userId, DOC_LIST_MAX]
     );
 
     return result.rows || [];
@@ -2077,7 +2082,9 @@ async function getGlobalDocuments() {
               (SELECT COUNT(*) FROM vault_chunks WHERE document_id = vault_documents.id) as chunk_count
        FROM vault_documents
        WHERE is_global = TRUE
-       ORDER BY created_at DESC`
+       ORDER BY created_at DESC
+       LIMIT $1`,
+      [DOC_LIST_MAX]
     );
 
     return result.rows || [];

@@ -105,9 +105,9 @@ const upload = multer({
   storage: multer.diskStorage({
     destination: UPLOAD_DIR,
     filename: (req, file, cb) => {
-      // Unique filename to prevent collisions: timestamp-random-originalname
-      const unique = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-      const safeName = (file.originalname || 'upload').replace(/[^a-zA-Z0-9._-]/g, '_');
+      // Cryptographic uniqueness so concurrent uploads at high RPS can't collide.
+      const unique = `${Date.now()}-${require('crypto').randomBytes(8).toString('hex')}`;
+      const safeName = (file.originalname || 'upload').replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 128);
       cb(null, `${unique}-${safeName}`);
     },
   }),

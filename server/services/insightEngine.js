@@ -780,8 +780,16 @@ async function getInsightsForUser(userId, { limit = 5 } = {}) {
     })
   );
 
-  // Cache for user
-  _userInsights.set(String(userId), insights);
+  // Cache for user with TTL marker so stale entries can be evicted later.
+  _userInsights.set(String(userId), { insights, cachedAt: Date.now() });
+
+  // Opportunistic eviction: drop entries older than 24h each time we write.
+  if (_userInsights.size > 1000) {
+    const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+    for (const [k, v] of _userInsights) {
+      if ((v?.cachedAt || 0) < cutoff) _userInsights.delete(k);
+    }
+  }
 
   return insights;
 }
