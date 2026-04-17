@@ -99,6 +99,7 @@ const riskRoutes        = require('./routes/risk');
 const unusualWhalesRoutes = require('./routes/unusualWhales');
 const adminRoutes = require('./routes/admin');
 const privacyRoutes = require('./routes/privacy');       // W1.1 LGPD DSAR
+const adminDebugRoutes = require('./routes/adminDebug'); // W4.1 on-call debug
 const { requireAuth, requireActiveSubscription, requireAdmin } = require('./authMiddleware');
 const logger = require('./utils/logger');
 const { requestLogger, correlationSync } = require('./utils/logger');
@@ -356,6 +357,7 @@ app.use('/api/auth', authRoutes);
 
 // ── Admin Dashboard Routes (requires auth) ──────────────────────────────────
 app.use('/api/admin', requireAuth, adminRoutes);
+app.use('/api/admin/debug', requireAuth, adminDebugRoutes);  // W4.1 on-call surface
 
 // ── Admin health endpoint (provider status only — requires admin auth) ──
 // Note: Does not expose API key names or values, only availability status

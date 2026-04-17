@@ -1,0 +1,97 @@
+# ops/alerts.yml — W4.2 Prometheus alert rules.
+#
+# Loaded into Alertmanager (or Render alerting once wired). Every alert
+# routes to PagerDuty with a link to docs/INCIDENT_RESPONSE.md#<anchor>.
+#
+# Burn-rate strategy follows Google SRE — two windows per SLO:
+#   - 1-hour fast burn  (alert if budget exhaustion rate > 14.4x)
+#   - 6-hour slow burn  (alert if budget exhaustion rate > 6x)
+#
+# Adjust once we have four weeks of production traffic baseline.
+
+groups:
+  - name: particle-availability
+    rules:
+      - alert: HighErrorRateFastBurn
+        expr: |
+          (
+            sum(rate(particle_http_requests_total{status=~"5.."}[1h]))
+              /
+            sum(rate(particle_http_requests_total[1h]))
+          ) > 14.4 * (1 - 0.995)
+        for: 5m
+        labels:
+          severity: s1
+          team: particle
+        annotations:
+          summary: "Fast-burn 5xx error rate"
+          runbook_url: "https://github.com/sengervinicius/marketpanel/blob/main/docs/INCIDENT_RESPONSE.md"
+
+      - alert: HighErrorRateSlowBurn
+        expr: |
+          (
+            sum(rate(particle_http_requests_total{status=~"5.."}[6h]))
+              /
+            sum(rate(particle_http_requests_total[6h]))
+          ) > 6 * (1 - 0.995)
+        for: 30m
+        labels:
+          severity: s2
+        annotations:
+          summary: "Slow-burn 5xx error rate"
+
+  - name: particle-ai
+    rules:
+      - alert: AIMonthlySpendApproachingBudget
+        expr: particle_ai_monthly_spend_cents > 0.8 * 100000
+        for: 15m
+        labels:
+          severity: s2
+        annotations:
+          summary: "AI spend has crossed 80% of monthly budget"
+
+      - alert: AIKillSwitchBlockAllEngaged
+        expr: particle_ai_kill_switch_state{state="block_all_ai"} == 1
+        for: 1m
+        labels:
+          severity: s1
+        annotations:
+          summary: "AI block_all_ai kill switch engaged"
+
+  - name: particle-data
+    rules:
+      - alert: FeedCritical
+        expr: particle_feed_age_seconds > on(feed) particle_feed_stale_threshold_seconds * 4
+        for: 5m
+        labels:
+          severity: s1
+        annotations:
+          summary: "{{ $labels.feed }} feed age has crossed critical threshold"
+
+      - alert: ProviderBreakerStuckOpen
+        expr: particle_provider_breaker_open == 1
+        for: 15m
+        labels:
+          severity: s2
+        annotations:
+          summary: "{{ $labels.provider }} breaker stuck open > 15m"
+
+  - name: particle-db
+    rules:
+      - alert: DBPoolSaturated
+        expr: (particle_db_pool_in_use / particle_db_pool_size) > 0.9
+        for: 5m
+        labels:
+          severity: s2
+        annotations:
+          summary: "DB pool utilisation > 90%"
+
+  - name: particle-ws
+    rules:
+      - alert: WebSocketDropsSpiking
+        expr: rate(particle_ws_messages_dropped_total[5m]) > 50
+        for: 5m
+        labels:
+          severity: s2
+        annotations:
+          summary: "WS messages dropped > 50/s — clients struggling to keep up"
