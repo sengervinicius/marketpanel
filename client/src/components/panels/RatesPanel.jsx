@@ -31,16 +31,20 @@ function RatesPanel() {
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(true);
   const [ts, setTs] = useState('');
+  const [error, setError] = useState(null);
 
   async function load() {
     try {
       setLoading(true);
       const res  = await apiFetch('/api/snapshot/rates');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
       setResults(json.results || []);
       setTs(new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }));
+      setError(null);
     } catch (e) {
       console.warn('Rates load error:', e.message);
+      setError(e.message || 'Failed to load rates');
     } finally {
       setLoading(false);
     }
@@ -90,9 +94,14 @@ function RatesPanel() {
         </span>
         <IntegrityBadge domain="rates" />
         <span className="rp-header-time">
-          {loading ? 'LOADING...' : ts}
+          {loading ? 'LOADING...' : (error ? 'OFFLINE' : ts)}
         </span>
       </div>
+      {error && !loading && results.length === 0 && (
+        <div style={{ padding: '6px 8px', color: '#ff7b7b', fontSize: 9, fontFamily: 'var(--font-mono)' }}>
+          Data unavailable — retrying every 60s
+        </div>
+      )}
 
       {/* Column headers */}
       <div className="rp-col-header">

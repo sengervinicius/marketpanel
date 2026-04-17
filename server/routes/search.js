@@ -311,7 +311,11 @@ router.post('/fundamentals', async (req, res) => {
   _fundsCacheMisses++;
 
   // ── Gather internal data in parallel (with tight individual timeouts) ──
-  const baseUrl = `http://localhost:${process.env.PORT || 3001}`;
+  // Default: call our own HTTP listener via loopback (works on Render/any PaaS
+  // where the server binds to process.env.PORT on the same instance).
+  // Override: set INTERNAL_API_URL to proxy through a shared ingress if this
+  // service is ever split across multiple processes.
+  const baseUrl = process.env.INTERNAL_API_URL || `http://127.0.0.1:${process.env.PORT || 3001}`;
   const authHeader = req.headers.authorization || '';
   const headers = { Authorization: authHeader, Accept: 'application/json' };
   const DATA_TIMEOUT = 8000; // 8s max for internal API calls — leaves 12s for LLM
@@ -341,7 +345,7 @@ router.post('/fundamentals', async (req, res) => {
     const newsData = newsRes.status === 'fulfilled' ? newsRes.value : null;
     newsItems = (newsData?.results || []).slice(0, 5).map(n => n.title).filter(Boolean);
   } catch (err) {
-    console.error('[Search/AI Fundamentals] Data gathering error:', err.message);
+    try { require('../utils/logger').error('search', 'AI fundamentals data gathering error', { msg: err.message }); } catch { /* logger optional */ }
   }
 
   // ── Build context block for the LLM ───────────────────────────────────

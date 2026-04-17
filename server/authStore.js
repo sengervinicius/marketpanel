@@ -485,10 +485,30 @@ async function verifyUser(username, passwordPlain) {
   return user;
 }
 
+// Hard cap + TTL eviction to prevent memory exhaustion from brute-force attempts
+// against random usernames (each unique username creates an entry).
+const LOGIN_ATTEMPTS_MAX = 100000;
+const LOGIN_ATTEMPTS_TTL_MS = 2 * 60 * 60 * 1000; // 2h (covers longest 1h lockout)
+
 function recordFailedLogin(key) {
   const now = Date.now();
-  const attempts = loginAttempts.get(key) || { count: 0, lockedUntil: null };
+
+  // Emergency eviction if we're approaching the cap: drop entries whose lockout
+  // has expired. If still full, reject silently (caller won't lock account but
+  // bcrypt.compare timing is already constant so brute force is still hard).
+  if (loginAttempts.size >= LOGIN_ATTEMPTS_MAX) {
+    for (const [k, v] of loginAttempts) {
+      if (!v.lockedUntil || now > v.lockedUntil + LOGIN_ATTEMPTS_TTL_MS) {
+        loginAttempts.delete(k);
+        if (loginAttempts.size < LOGIN_ATTEMPTS_MAX * 0.9) break;
+      }
+    }
+    if (loginAttempts.size >= LOGIN_ATTEMPTS_MAX) return;
+  }
+
+  const attempts = loginAttempts.get(key) || { count: 0, lockedUntil: null, lastAttemptAt: now };
   attempts.count += 1;
+  attempts.lastAttemptAt = now;
 
   if (attempts.count >= 10) {
     attempts.lockedUntil = now + 60 * 60 * 1000; // 1 hour lockout
@@ -498,6 +518,25 @@ function recordFailedLogin(key) {
 
   loginAttempts.set(key, attempts);
 }
+
+// Periodic cleanup of stale entries (runs every 15 min).
+// .unref() so it doesn't keep the process alive in tests.
+const _loginAttemptsCleanup = setInterval(() => {
+  const now = Date.now();
+  let evicted = 0;
+  for (const [k, v] of loginAttempts) {
+    const ageMs = now - (v.lastAttemptAt || 0);
+    const unlocked = !v.lockedUntil || now > v.lockedUntil;
+    if (unlocked && ageMs > LOGIN_ATTEMPTS_TTL_MS) {
+      loginAttempts.delete(k);
+      evicted++;
+    }
+  }
+  if (evicted > 0) {
+    try { require('./utils/logger').info('authStore', 'loginAttempts cleanup', { evicted, remaining: loginAttempts.size }); } catch {}
+  }
+}, 15 * 60 * 1000);
+if (_loginAttemptsCleanup.unref) _loginAttemptsCleanup.unref();
 
 // ── Token helpers ─────────────────────────────────────────────────────────────
 

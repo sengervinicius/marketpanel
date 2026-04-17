@@ -141,22 +141,20 @@ function connectTwelveData(marketState, broadcast) {
 
       startThrottle();
 
-      // Phase 4: Heartbeat with pong timeout — catches firewall idle disconnects
+      // Phase 4: Heartbeat with pong timeout — catches firewall idle disconnects.
+      // Logic: flip `pongReceived` to false when we send a heartbeat; the message
+      // handler flips it back to true on any response. If still false on the next
+      // tick (HEARTBEAT_INTERVAL_MS later), terminate so the reconnect path runs.
       pongReceived = true;
       heartbeatTimer = setInterval(() => {
-        if (ws.readyState === WebSocket.OPEN) {
-          if (!pongReceived) {
-            logger.warn('[TwelveData WS] No heartbeat response — force-closing');
-            ws.terminate();
-            return;
-          }
-          pongReceived = false;
-          ws.send(JSON.stringify({ action: 'heartbeat' }));
-          // Set a timeout — if no heartbeat event received, pongReceived stays false
-          setTimeout(() => {
-            // pongReceived will be set to true in the message handler
-          }, PONG_TIMEOUT_MS);
+        if (ws.readyState !== WebSocket.OPEN) return;
+        if (!pongReceived) {
+          logger.warn('[TwelveData WS] No heartbeat response — force-closing');
+          ws.terminate();
+          return;
         }
+        pongReceived = false;
+        try { ws.send(JSON.stringify({ action: 'heartbeat' })); } catch {}
       }, HEARTBEAT_INTERVAL_MS);
     });
 

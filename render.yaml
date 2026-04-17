@@ -12,44 +12,121 @@ services:
     startCommand: node index.js
     healthCheckPath: /health
     envVars:
+      # ── Runtime ─────────────────────────────────────────────────────────────
       - key: NODE_ENV
         value: production
-      - key: POLYGON_API_KEY
-        sync: false          # Set this manually in Render dashboard
-      - key: CLIENT_URL
-        sync: false          # Set to your frontend URL after first deploy (e.g. https://senger-market-client.onrender.com)
+
+      # ── Required (server will FAIL to boot in production without JWT_SECRET) ─
       - key: JWT_SECRET
-        sync: false          # Generate a strong random secret for JWT signing
-      - key: APPLE_CLIENT_ID
-        sync: false
-      - key: STRIPE_SECRET_KEY
-        sync: false          # Set this to your Stripe secret key (sk_live_... or sk_test_...)
-      - key: STRIPE_PRICE_ID
-        sync: false          # Set this to your Stripe recurring price ID (price_...)
-      - key: STRIPE_WEBHOOK_SECRET
-        sync: false          # Set this to your Stripe webhook secret (whsec_...)
-      - key: MONGODB_URI
-        sync: false          # MongoDB connection string for persistent user data
-      - key: SEED_USERS
-        sync: false          # Pre-create admin accounts: username1:password1,username2:password2
+        sync: false          # Generate a strong random secret (32+ chars) for JWT signing
+      - key: CLIENT_URL
+        sync: false          # e.g. https://the-particle.com
+
+      # ── Persistence ─────────────────────────────────────────────────────────
       - key: POSTGRES_URL
-        sync: false
+        sync: false          # Required for vault, analytics, conversation memory
+      - key: MONGODB_URI
+        sync: false          # Persistent user/portfolio/alert store
+      - key: MONGODB_DB
+        sync: false          # Optional DB name override (defaults vary by driver)
       - key: REDIS_URL
-        sync: false
+        sync: false          # Cache — falls back to in-memory when unset
+
+      # ── Observability ───────────────────────────────────────────────────────
       - key: SENTRY_DSN
-        sync: false
+        sync: false          # Error monitoring (optional)
+
+      # ── AI providers ────────────────────────────────────────────────────────
       - key: ANTHROPIC_API_KEY
         sync: false
       - key: OPENAI_API_KEY
-        sync: false
+        sync: false          # Used for vault embeddings
       - key: PERPLEXITY_API_KEY
+        sync: false
+      - key: VOYAGE_API_KEY
+        sync: false          # Optional — alt embedding provider for vault
+      - key: COHERE_API_KEY
+        sync: false          # Optional — vault reranker
+
+      # ── Market data providers ───────────────────────────────────────────────
+      - key: POLYGON_API_KEY
         sync: false
       - key: TWELVEDATA_API_KEY
         sync: false
+      - key: EULERPOOL_API_KEY
+        sync: false
+      - key: FRED_API_KEY
+        sync: false          # Optional — falls back to public CSV
+      - key: FINNHUB_API_KEY
+        sync: false          # Optional — earnings calendar
+      - key: ALPHA_VANTAGE_KEY
+        sync: false          # Optional — fundamentals fallback
+      - key: EODHD_API_KEY
+        sync: false          # Optional — EOD fundamentals
+      - key: UNUSUAL_WHALES_API_KEY
+        sync: false          # Optional — options flow / dark pool
+
+      # ── Billing (Stripe) ────────────────────────────────────────────────────
+      - key: STRIPE_SECRET_KEY
+        sync: false          # sk_live_... or sk_test_...
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false          # whsec_...
+      - key: STRIPE_PRICE_ID
+        sync: false          # Legacy single-price (backward compat)
+      - key: STRIPE_ANNUAL_PRICE_ID
+        sync: false          # Legacy annual price
+      - key: STRIPE_NEW_PARTICLE_MONTHLY
+        sync: false
+      - key: STRIPE_NEW_PARTICLE_ANNUAL
+        sync: false
+      - key: STRIPE_DARK_PARTICLE_MONTHLY
+        sync: false
+      - key: STRIPE_DARK_PARTICLE_ANNUAL
+        sync: false
+      - key: STRIPE_NUCLEAR_PARTICLE_MONTHLY
+        sync: false
+      - key: STRIPE_NUCLEAR_PARTICLE_ANNUAL
+        sync: false
+
+      # ── Apple Sign In / IAP ─────────────────────────────────────────────────
+      - key: APPLE_CLIENT_ID
+        sync: false
+      - key: APPLE_IAP_SHARED_SECRET
+        sync: false
+
+      # ── Comms: Email (SMTP) ─────────────────────────────────────────────────
+      - key: EMAIL_SMTP_HOST
+        sync: false
+      - key: EMAIL_SMTP_PORT
+        sync: false
+      - key: EMAIL_SMTP_USER
+        sync: false
+      - key: EMAIL_SMTP_PASS
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
+
+      # ── Comms: Discord ──────────────────────────────────────────────────────
+      - key: DISCORD_BOT_TOKEN
+        sync: false
+      - key: DISCORD_CLIENT_ID
+        sync: false
+      - key: DISCORD_CLIENT_SECRET
+        sync: false
+      - key: DISCORD_GUILD_ID
+        sync: false
+      - key: DISCORD_REDIRECT_URI
+        sync: false
+
+      # ── Admin / ops ─────────────────────────────────────────────────────────
       - key: ADMIN_USER_IDS
-        sync: false
+        sync: false          # Comma-separated user IDs granted admin access
+      - key: SEED_USERS
+        sync: false          # Pre-create accounts: username1:password1,username2:password2
       - key: TRIAL_DAYS
-        sync: false
+        sync: false          # Override default trial length (days)
+      - key: INTERNAL_API_URL
+        sync: false          # Optional — override loopback URL for server-to-server calls
 
   # ── Frontend static site ────────────────────────────────────────────────────
   - type: web
