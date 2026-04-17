@@ -1,0 +1,67 @@
+# W1.7: nightly k6 smoke against staging.
+#
+# Runs the SMOKE variant of the baseline scenario every night; also runs on
+# demand via workflow_dispatch. The full 28-minute staged scenario is run by
+# a separate manually-triggered job to avoid burning CI minutes on every PR.
+#
+# Requires the following repo secrets:
+#   STAGING_BASE        — https://particle-staging.onrender.com
+#   LOADTEST_USERS      — "email1:pw1,email2:pw2"  (pre-provisioned test accounts)
+#
+# Thresholds (fail the build):
+#   http_req_failed.rate    < 0.02
+#   http_req_duration.p(95) < 800 ms
+#   checks.rate             > 0.99
+
+name: loadtest-smoke
+
+on:
+  schedule:
+    - cron: "0 5 * * *"      # 02:00 BRT (05:00 UTC)
+  workflow_dispatch:
+    inputs:
+      full_run:
+        description: "Run the full staged scenario instead of the smoke"
+        type: boolean
+        required: false
+        default: false
+
+jobs:
+  k6-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install k6
+        run: |
+          sudo gpg -k
+          sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg \
+            --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" \
+            | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update
+          sudo apt-get install -y k6
+
+      - name: Run k6 smoke
+        if: ${{ !inputs.full_run }}
+        env:
+          BASE:        ${{ secrets.STAGING_BASE }}
+          TEST_USERS:  ${{ secrets.LOADTEST_USERS }}
+          SMOKE:       "1"
+        run: |
+          k6 run --summary-export=k6-summary.json load-tests/particle-baseline.js
+
+      - name: Run k6 full staged
+        if: ${{ inputs.full_run }}
+        env:
+          BASE:        ${{ secrets.STAGING_BASE }}
+          TEST_USERS:  ${{ secrets.LOADTEST_USERS }}
+        run: |
+          k6 run --summary-export=k6-summary.json load-tests/particle-baseline.js
+
+      - name: Upload summary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: k6-summary
+          path: k6-summary.json
+          retention-days: 30

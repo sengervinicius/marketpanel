@@ -1,0 +1,51 @@
+# .github/dependabot.yml
+# W0.1 — Automated dependency security updates for all three npm roots.
+# Dependabot opens PRs for patch/minor security updates weekly; major
+# upgrades are grouped separately for manual review.
+
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "America/Sao_Paulo"
+    open-pull-requests-limit: 5
+    groups:
+      patch-and-minor:
+        update-types: ["patch", "minor"]
+    labels: ["dependencies", "root"]
+
+  - package-ecosystem: "npm"
+    directory: "/server"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "America/Sao_Paulo"
+    open-pull-requests-limit: 10
+    groups:
+      patch-and-minor:
+        update-types: ["patch", "minor"]
+    labels: ["dependencies", "server"]
+
+  - package-ecosystem: "npm"
+    directory: "/client"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "America/Sao_Paulo"
+    open-pull-requests-limit: 10
+    groups:
+      patch-and-minor:
+        update-types: ["patch", "minor"]
+    labels: ["dependencies", "client"]
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels: ["dependencies", "ci"]

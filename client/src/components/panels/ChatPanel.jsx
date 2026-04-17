@@ -21,6 +21,7 @@ import UserAvatar from '../common/UserAvatar';
 import ParticleLogo from '../ui/ParticleLogo';
 import ParticleMarkdown from '../common/ParticleMarkdown';
 import InsightFeed from '../insights/InsightFeed';
+import AIDisclaimer from '../common/AIDisclaimer';
 import './Chat.css';
 
 function timeAgo(ts) {
@@ -610,6 +611,8 @@ function ChatPanel({ mobile, initialUserId }) {
 
           >{'\u2191'}</button>
         </div>
+        {/* W0.4 — AI disclaimer, persistent on every AI chat surface */}
+        <AIDisclaimer variant="foot" />
       </div>
     );
   };

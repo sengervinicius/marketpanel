@@ -2,12 +2,20 @@
   "name": "senger-market-terminal",
   "version": "1.0.0",
   "private": true,
+  "engines": {
+    "node": ">=20 <21"
+  },
   "scripts": {
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
     "dev:server": "cd server && npm run dev",
     "dev:client": "cd client && npm run dev",
     "install:all": "npm install && cd server && npm install && cd ../client && npm install",
-    "build": "cd client && npm run build"
+    "build": "cd client && npm run build",
+    "audit:all": "npm audit --omit=dev --audit-level=high && (cd server && npm audit --omit=dev --audit-level=high) && (cd client && npm audit --omit=dev --audit-level=high)",
+    "sbom": "npx -y @cyclonedx/cyclonedx-npm --output-format json --output-file sbom-root.json && (cd server && npx -y @cyclonedx/cyclonedx-npm --output-format json --output-file ../sbom-server.json) && (cd client && npx -y @cyclonedx/cyclonedx-npm --output-format json --output-file ../sbom-client.json)",
+    "license:check": "npx -y license-checker-rseidelsohn --production --failOn 'AGPL-1.0;AGPL-3.0;SSPL-1.0;CC-BY-NC-1.0;CC-BY-NC-2.0;CC-BY-NC-3.0;CC-BY-NC-4.0'",
+    "sourcemap:strip": "node scripts/strip-sourcemaps.js",
+    "sourcemap:check": "node scripts/check-no-sourcemaps.js"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"

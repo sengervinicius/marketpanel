@@ -11,6 +11,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { apiFetch, apiJSON, API_BASE } from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
 import VaultDocChat from './VaultDocChat';
+import AIDisclaimer from '../common/AIDisclaimer';
 import './VaultPanel.css';
 
 /**
@@ -612,6 +613,8 @@ export default function VaultPanel({ fullScreen = false }) {
             <button className="vault-search-clear" onClick={() => setSearchResults(null)}>Clear Results</button>
           )}
         </div>
+
+        <AIDisclaimer variant="foot" />
       </div>
 
       {/* Document Q&A Chat */}

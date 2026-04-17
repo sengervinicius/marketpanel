@@ -9,6 +9,7 @@ import { useState, useEffect } from 'react';
 import { API_BASE } from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
 import VaultDocChat from '../app/VaultDocChat';
+import AIDisclaimer from './AIDisclaimer';
 import './ResearchFeed.css';
 
 export default function ResearchFeed() {
@@ -186,6 +187,7 @@ export default function ResearchFeed() {
           />
         </div>
       )}
+      <AIDisclaimer variant="foot" />
     </div>
   );
 }

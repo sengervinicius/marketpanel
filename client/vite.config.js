@@ -19,7 +19,11 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
-    sourcemap: false,
+    // W0.2 — "hidden" generates source maps for Sentry symbolication but
+    // does NOT emit //# sourceMappingURL=... references in the shipped
+    // bundle. The .map files are uploaded to Sentry at deploy time and
+    // scrubbed from dist/ by CI before the bundle is served.
+    sourcemap: 'hidden',
     rollupOptions: {
       output: {
         manualChunks: {

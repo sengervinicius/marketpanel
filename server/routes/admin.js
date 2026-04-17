@@ -6,13 +6,20 @@
 
 const express = require('express');
 const { requireAdmin } = require('../authMiddleware');
+const { adminAuditLog } = require('../middleware/adminAuditLog');
 const pg = require('../db/postgres');
 const authStore = require('../authStore');
+// W1.5: route all admin log output through the structured logger so reqId+
+// userId correlate with the ongoing request.
+const logger = require('../utils/logger');
 
 const router = express.Router();
 
 // Middleware: Admin check applied to all routes in this file
 router.use(requireAdmin);
+
+// W0.8: Every privileged admin call is audited (append-only log).
+router.use(adminAuditLog);
 
 /**
  * GET /api/admin/stats
@@ -80,7 +87,7 @@ router.get('/stats', async (req, res) => {
       userGrowth,
     });
   } catch (err) {
-    console.error('[admin] /stats error:', err.message);
+    logger.error('admin', 'stats handler failed', { error: err.message });
     res.status(500).json({ error: err.message });
   }
 });
@@ -154,7 +161,7 @@ router.get('/usage', async (req, res) => {
       avgResponseTime: null, // Not logged currently
     });
   } catch (err) {
-    console.error('[admin] /usage error:', err.message);
+    logger.error('admin', 'usage handler failed', { error: err.message });
     res.status(500).json({ error: err.message });
   }
 });
@@ -222,7 +229,7 @@ router.get('/users', async (req, res) => {
       offset,
     });
   } catch (err) {
-    console.error('[admin] /users error:', err.message);
+    logger.error('admin', 'users handler failed', { error: err.message });
     res.status(500).json({ error: err.message });
   }
 });
@@ -263,7 +270,7 @@ router.get('/health', async (req, res) => {
         }
       }
     } catch (e) {
-      console.error('[admin/health] DB query failed:', e.message);
+      logger.warn('admin/health', 'DB query failed', { error: e.message });
     }
 
     // Memory usage
@@ -292,7 +299,7 @@ router.get('/health', async (req, res) => {
       },
     });
   } catch (err) {
-    console.error('[admin] /health error:', err.message);
+    logger.error('admin', 'health handler failed', { error: err.message });
     res.status(500).json({ error: err.message });
   }
 });
@@ -328,7 +335,7 @@ router.get('/heatmap', async (req, res) => {
 
     res.json({ heatmap });
   } catch (err) {
-    console.error('[admin] /heatmap error:', err.message);
+    logger.error('admin', 'heatmap handler failed', { error: err.message });
     res.status(500).json({ error: err.message });
   }
 });
@@ -355,7 +362,7 @@ router.post('/reset-user-settings', async (req, res) => {
 
     res.json({ ok: true, message: `Settings reset for ${username}`, settings: defaults });
   } catch (err) {
-    console.error('[admin] /reset-user-settings error:', err.message);
+    logger.error('admin', 'reset-user-settings handler failed', { error: err.message });
     res.status(500).json({ error: err.message });
   }
 });
@@ -380,7 +387,7 @@ router.delete('/delete-user/:email', async (req, res) => {
 
     const user = userResult.rows[0];
     const userId = user.id;
-    console.log(`[admin] Deleting user: id=${userId}, username=${user.username}, email=${user.email}`);
+    logger.info('admin', 'Deleting user', { targetUserId: userId, username: user.username });
 
     // Delete non-cascading tables
     const tables = ['refresh_tokens', 'password_resets', 'email_verifications', 'user_behavior'];
@@ -395,10 +402,110 @@ router.delete('/delete-user/:email', async (req, res) => {
       await pg.query('DELETE FROM users WHERE id = $1', [userId]);
     }
 
-    console.log(`[admin] User deleted: ${user.username} (${user.email})`);
+    logger.info('admin', 'User deleted', { username: user.username });
     res.json({ ok: true, message: `User ${user.username} (${email}) permanently deleted`, userId });
   } catch (err) {
-    console.error('[admin] delete-user error:', err.message);
+    logger.error('admin', 'delete-user handler failed', { error: err.message });
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── W1.2 AI cost dashboard endpoints ─────────────────────────────────────
+// GET /api/admin/ai-usage/summary
+//   Org-wide month-to-date spend, budget, kill-switch state.
+// GET /api/admin/ai-usage/top?limit=20&days=30
+//   Top N users by spend over N-day window.
+// GET /api/admin/ai-usage/anomalies
+//   Users whose peak daily spend exceeded mean + 3*stddev (14-day window).
+// POST /api/admin/ai-usage/kill-switch
+//   Body: { forceHaiku?: boolean, blockAllAI?: boolean, reason?: string }
+//   Manually trip or clear the kill-switch. Audited via adminAuditLog.
+const aiCostLedger = require('../services/aiCostLedger');
+
+router.get('/ai-usage/summary', async (req, res) => {
+  try {
+    const [cents, ks] = await Promise.all([
+      aiCostLedger.getMonthlyCents(),
+      aiCostLedger.readKillSwitch(),
+    ]);
+    res.json({
+      ok: true,
+      monthToDate: {
+        cents,
+        usd: cents / 100,
+      },
+      budget: {
+        cents: ks.monthlyBudgetCents,
+        usd: ks.monthlyBudgetCents / 100,
+        utilization: ks.monthlyBudgetCents > 0 ? cents / ks.monthlyBudgetCents : 0,
+      },
+      killSwitch: {
+        forceHaiku: ks.forceHaiku,
+        blockAllAI: ks.blockAllAI,
+        reason: ks.reason,
+      },
+      pricing: aiCostLedger.MODEL_PRICING,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/ai-usage/top', async (req, res) => {
+  try {
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 20));
+    const days  = Math.min(365, Math.max(1, parseInt(req.query.days, 10) || 30));
+    const rows = await aiCostLedger.topSpenders(limit, days);
+    res.json({ ok: true, windowDays: days, rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/ai-usage/anomalies', async (req, res) => {
+  try {
+    const days = Math.min(90, Math.max(3, parseInt(req.query.days, 10) || 14));
+    const rows = await aiCostLedger.anomalyReport(days);
+    res.json({
+      ok: true,
+      windowDays: days,
+      outliers: rows.filter(r => r.isOutlier),
+      all: rows,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/ai-usage/kill-switch', async (req, res) => {
+  try {
+    const { forceHaiku = false, blockAllAI = false, reason = null } = req.body || {};
+    req.auditDetails = { forceHaiku: !!forceHaiku, blockAllAI: !!blockAllAI, reason };
+    await aiCostLedger.tripKillSwitch({
+      forceHaiku, blockAllAI, reason,
+      trippedBy: `admin:${req.user?.username || req.user?.id}`,
+    });
+    const ks = await aiCostLedger.readKillSwitch();
+    res.json({ ok: true, killSwitch: ks });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── W1.8 WebSocket backpressure visibility ────────────────────────────────
+// GET /api/admin/ws/metrics
+//   Aggregate counters + slow-client watchlist. Wave 1.4 will export the
+//   same counters via Prometheus.
+const wsBackpressure = require('../utils/wsBackpressure');
+
+router.get('/ws/metrics', (req, res) => {
+  try {
+    res.json({
+      ok: true,
+      metrics: wsBackpressure.getWSMetrics(),
+      slowClients: wsBackpressure.slowClients(),
+    });
+  } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });

@@ -9,6 +9,7 @@ import { useState, useRef, useEffect } from 'react';
 import { API_BASE } from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
 import ParticleMarkdown from '../common/ParticleMarkdown';
+import AIDisclaimer from '../common/AIDisclaimer';
 import './VaultDocChat.css';
 
 export default function VaultDocChat({ documentId, filename, onClose }) {
@@ -195,6 +196,8 @@ export default function VaultDocChat({ documentId, filename, onClose }) {
           {error}
         </div>
       )}
+
+      <AIDisclaimer variant="foot" />
     </div>
   );
 }

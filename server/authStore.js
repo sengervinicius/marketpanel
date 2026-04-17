@@ -41,17 +41,60 @@
 const bcrypt = require('bcryptjs');
 const jwt    = require('jsonwebtoken');
 const pg     = require('./db/postgres');
+// W1.5: route all authStore log output through the structured logger.
+const logger = require('./utils/logger');
 
-const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET) {
-  if (process.env.NODE_ENV === 'production') {
-    console.error('[FATAL] PRODUCTION MODE: JWT_SECRET is required but not set.');
-    console.error('[FATAL] Go to Render Dashboard → senger-market-server → Environment and add JWT_SECRET (minimum 16 characters).');
-    process.exit(1);
-  } else {
-    console.warn('[WARN] JWT_SECRET not set — using development mode. Set JWT_SECRET in .env for proper security.');
+// ── W0.7: Dual-key JWT rotation ─────────────────────────────────────────────
+// We support two HS256 signing keys concurrently: CURRENT (used to sign new
+// tokens) and PREVIOUS (only accepted during verification). Each key has a
+// short "kid" that is written to the JWT header. On rotation, promote
+// CURRENT → PREVIOUS and install a fresh CURRENT. Clients continue to work
+// until their existing tokens expire (15 min), after which they mint new
+// tokens signed under the new CURRENT. See docs/RUNBOOK_JWT_ROTATION.md.
+//
+// Backwards-compatibility: if only JWT_SECRET is set (legacy single-key),
+// we treat it as CURRENT with kid "legacy" and verification falls back to
+// that key for tokens without a kid header.
+
+const JWT_KEYS = {};  // kid → secret
+let JWT_CURRENT_KID = null;
+let JWT_PREVIOUS_KID = null;
+
+(function loadKeys() {
+  const currentKid = process.env.JWT_SIGNING_KID_CURRENT;
+  const currentSecret = process.env.JWT_SIGNING_KEY_CURRENT;
+  const previousKid = process.env.JWT_SIGNING_KID_PREVIOUS;
+  const previousSecret = process.env.JWT_SIGNING_KEY_PREVIOUS;
+  const legacy = process.env.JWT_SECRET;
+
+  if (currentKid && currentSecret) {
+    JWT_KEYS[currentKid] = currentSecret;
+    JWT_CURRENT_KID = currentKid;
   }
-}
+  if (previousKid && previousSecret) {
+    JWT_KEYS[previousKid] = previousSecret;
+    JWT_PREVIOUS_KID = previousKid;
+  }
+  // Legacy single-secret fallback
+  if (legacy) {
+    JWT_KEYS['legacy'] = legacy;
+    if (!JWT_CURRENT_KID) JWT_CURRENT_KID = 'legacy';
+  }
+
+  if (!JWT_CURRENT_KID) {
+    if (process.env.NODE_ENV === 'production') {
+      logger.error('authStore', 'FATAL: JWT signing key required in production but not set');
+      logger.error('authStore', 'Set JWT_SIGNING_KID_CURRENT+JWT_SIGNING_KEY_CURRENT (preferred) or JWT_SECRET (legacy)');
+      process.exit(1);
+    } else {
+      logger.warn('authStore', 'No JWT signing key — dev mode. Configure JWT_SIGNING_KID_CURRENT+JWT_SIGNING_KEY_CURRENT or JWT_SECRET.');
+    }
+  }
+})();
+
+// Legacy reference — some code paths still import this; kept as the CURRENT
+// secret for drop-in compatibility. New code should use signToken/verifyToken.
+const JWT_SECRET = JWT_CURRENT_KID ? JWT_KEYS[JWT_CURRENT_KID] : undefined;
 
 // ── In-memory store (primary read source) ────────────────────────────────────
 const usersByUsername = new Map();   // username_lower → user object
@@ -197,10 +240,10 @@ async function hydrateFromPostgres() {
       usersById.set(Number(user.id), user);
       if (Number(user.id) >= nextId) nextId = Number(user.id) + 1;
     }
-    console.log(`[authStore] Hydrated ${res.rows.length} user(s) from Postgres`);
+    logger.info('authStore', 'Hydrated users from Postgres', { count: res.rows.length });
     return true;
   } catch (e) {
-    console.error('[authStore] Postgres hydration failed:', e.message);
+    logger.error('authStore', 'Postgres hydration failed', { error: e.message });
     return false;
   }
 }
@@ -226,14 +269,14 @@ async function initDB() {
   const uri = process.env.MONGODB_URI;
   if (!uri) {
     if (!pgHydrated) {
-      console.log('[authStore] No MONGODB_URI or POSTGRES_URL — using in-memory store (data will not persist across restarts)');
+      logger.warn('authStore', 'No MONGODB_URI or POSTGRES_URL — using in-memory store (data will not persist across restarts)');
     }
     return null;
   }
 
   // If Postgres already hydrated, still connect MongoDB for backward compat writes
   if (pgHydrated) {
-    console.log('[authStore] Postgres is primary store; MongoDB connected as secondary');
+    logger.info('authStore', 'Postgres is primary store; MongoDB connected as secondary');
   }
 
   try {
@@ -266,10 +309,10 @@ async function initDB() {
       if (Number(user.id) >= nextId) nextId = Number(user.id) + 1;
     }
 
-    console.log(`[authStore] MongoDB connected (${dbName}) — loaded ${saved.length} user(s)`);
+    logger.info('authStore', 'MongoDB connected', { dbName, loadedUsers: saved.length });
     return mongoDB; // Return db instance so other stores can use it
   } catch (e) {
-    console.error('[authStore] MongoDB connection failed — running in-memory only:', e.message);
+    logger.error('authStore', 'MongoDB connection failed — running in-memory only', { error: e.message });
     usersCollection = null;
     return null;
   }
@@ -399,7 +442,7 @@ async function createUser(username, passwordPlain, email) {
       }
     } catch (e) {
       // Don't block registration if trial-check fails, but log it
-      console.warn('[authStore] Trial abuse check failed:', e.message);
+      logger.warn('authStore', 'Trial abuse check failed', { error: e.message });
     }
   }
 
@@ -432,7 +475,7 @@ async function createUser(username, passwordPlain, email) {
       await pg.query('INSERT INTO used_trials (email, first_trial_at) VALUES ($1, $2) ON CONFLICT DO NOTHING', [email, now]);
     } catch (e) {
       // Don't block registration if recording trial fails
-      console.warn('[authStore] Failed to record trial usage:', e.message);
+      logger.warn('authStore', 'Failed to record trial usage', { error: e.message });
     }
   }
 
@@ -541,11 +584,61 @@ if (_loginAttemptsCleanup.unref) _loginAttemptsCleanup.unref();
 // ── Token helpers ─────────────────────────────────────────────────────────────
 
 function signToken(user) {
-  return jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: '15m', algorithm: 'HS256' });
+  if (!JWT_CURRENT_KID || !JWT_KEYS[JWT_CURRENT_KID]) {
+    throw new Error('JWT signing key not configured');
+  }
+  return jwt.sign(
+    { id: user.id, username: user.username },
+    JWT_KEYS[JWT_CURRENT_KID],
+    {
+      expiresIn: '15m',
+      algorithm: 'HS256',
+      // Include kid in the JWT header so verifyToken can pick the right key
+      keyid: JWT_CURRENT_KID,
+    }
+  );
 }
 
+/**
+ * Verify a JWT, honoring both CURRENT and PREVIOUS signing keys.
+ * - If the token header carries a known kid, we verify against that exact key.
+ * - If the token has no kid (legacy), we try CURRENT then PREVIOUS.
+ * Throws on failure, mirroring jsonwebtoken.verify semantics.
+ */
 function verifyToken(token) {
-  return jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] });
+  if (!token || typeof token !== 'string') {
+    throw new Error('No token provided');
+  }
+
+  // Decode header (without verifying) to look at kid
+  let kid = null;
+  try {
+    const decoded = jwt.decode(token, { complete: true });
+    kid = decoded?.header?.kid || null;
+  } catch {
+    // fall through — we'll try fallback keys below
+  }
+
+  // Preferred path: kid → exact key
+  if (kid && JWT_KEYS[kid]) {
+    return jwt.verify(token, JWT_KEYS[kid], { algorithms: ['HS256'] });
+  }
+
+  // Fallback: try CURRENT, then PREVIOUS, then 'legacy' if present.
+  const tryKids = [];
+  if (JWT_CURRENT_KID) tryKids.push(JWT_CURRENT_KID);
+  if (JWT_PREVIOUS_KID) tryKids.push(JWT_PREVIOUS_KID);
+  if (JWT_KEYS['legacy'] && !tryKids.includes('legacy')) tryKids.push('legacy');
+
+  let lastErr = null;
+  for (const tryKid of tryKids) {
+    try {
+      return jwt.verify(token, JWT_KEYS[tryKid], { algorithms: ['HS256'] });
+    } catch (e) {
+      lastErr = e;
+    }
+  }
+  throw lastErr || new Error('Invalid token');
 }
 
 /**
@@ -566,7 +659,7 @@ async function createRefreshToken(userId) {
         [token, userId, familyId, expiresAt, now]
       );
     } catch (e) {
-      console.error('[authStore] createRefreshToken failed:', e.message);
+      logger.error('authStore', 'createRefreshToken failed', { error: e.message });
       throw e;
     }
   }
@@ -600,7 +693,7 @@ async function rotateRefreshToken(oldToken) {
       const userId = old.user_id;
 
       // Log the security breach
-      console.error(`[SECURITY] Refresh token replay detected for user ${userId}. All sessions revoked.`);
+      logger.error('authStore', 'Refresh token replay detected — all sessions revoked', { affectedUserId: userId, securityEvent: 'refresh_token_replay' });
 
       // Revoke all tokens for this family
       await pg.query('UPDATE refresh_tokens SET revoked = TRUE WHERE family_id = $1', [old.family_id]);
@@ -635,7 +728,7 @@ async function rotateRefreshToken(oldToken) {
           });
         }
       } catch (emailErr) {
-        console.error('[SECURITY] Failed to send breach notification email:', emailErr.message);
+        logger.error('authStore', 'Failed to send breach notification email', { error: emailErr.message, securityEvent: 'breach_notification_failed' });
       }
 
       return null;
@@ -661,7 +754,7 @@ async function rotateRefreshToken(oldToken) {
 
     return { token: newToken, userId: old.user_id, familyId: old.family_id, expiresAt };
   } catch (e) {
-    console.error('[authStore] rotateRefreshToken failed:', e.message);
+    logger.error('authStore', 'rotateRefreshToken failed', { error: e.message });
     return null;
   }
 }
@@ -677,7 +770,7 @@ async function revokeUserRefreshTokens(userId) {
   try {
     await pg.query('UPDATE refresh_tokens SET revoked = TRUE WHERE user_id = $1', [userId]);
   } catch (e) {
-    console.error('[authStore] revokeUserRefreshTokens failed:', e.message);
+    logger.error('authStore', 'revokeUserRefreshTokens failed', { error: e.message });
   }
 }
 
@@ -694,7 +787,7 @@ async function updateUserPassword(userId, newPassword) {
     try {
       await pg.query('UPDATE users SET hash = $1 WHERE id = $2', [hash, user.id]);
     } catch (e) {
-      console.error('[authStore] updateUserPassword Postgres update failed:', e.message);
+      logger.error('authStore', 'updateUserPassword Postgres update failed', { error: e.message });
     }
   }
 }
@@ -791,7 +884,7 @@ async function updateSubscription(userId, fields) {
 
   // User not in memory (e.g. MongoDB hydration failed or user not yet cached).
   // Write directly to MongoDB so subscription state is persisted for next hydration.
-  console.warn(`[authStore] updateSubscription: user ${userId} not in memory — writing directly to MongoDB`);
+  logger.warn('authStore', 'updateSubscription: user not in memory — writing directly to MongoDB', { affectedUserId: userId });
   if (usersCollection) {
     try {
       await usersCollection.updateOne(
@@ -800,7 +893,7 @@ async function updateSubscription(userId, fields) {
         { upsert: false },
       );
     } catch (e) {
-      console.error(`[authStore] updateSubscription MongoDB direct write failed:`, e.message);
+      logger.error('authStore', 'updateSubscription MongoDB direct write failed', { error: e.message });
     }
   }
 
@@ -827,15 +920,15 @@ async function deleteUser(userId) {
     try {
       await usersCollection.deleteOne({ username_lower: key });
     } catch (e) {
-      console.error('[authStore] MongoDB delete error:', e.message);
+      logger.error('authStore', 'MongoDB delete error', { error: e.message });
     }
   }
   if (pg.isConnected()) {
     try { await pg.query('DELETE FROM users WHERE id = $1', [id]); }
-    catch (e) { console.error('[authStore] Postgres delete error:', e.message); }
+    catch (e) { logger.error('authStore', 'Postgres delete error', { error: e.message }); }
   }
 
-  console.log(`[authStore] Deleted user id=${id} username=${user.username}`);
+  logger.info('authStore', 'Deleted user', { affectedUserId: id, username: user.username });
   return true;
 }
 

@@ -9,6 +9,7 @@
 
 import { useState, useEffect, memo } from 'react';
 import { apiFetch } from '../../utils/api';
+import AIDisclaimer from './AIDisclaimer';
 import './VaultInsights.css';
 
 /**
@@ -117,6 +118,7 @@ function VaultInsights({ sector }) {
           )}
         </div>
       )}
+      <AIDisclaimer variant="foot" />
     </div>
   );
 }

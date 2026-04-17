@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useAIInsight } from '../../hooks/useAIInsight';
 import AIError from './AIError';
+import AIDisclaimer from '../common/AIDisclaimer';
 import './AIInsightCard.css';
 
 /**
@@ -270,9 +271,7 @@ export default function AIInsightCard({ type, context, cacheKey, ttlMs, autoFetc
             ))}
           </ul>
         )}
-        <div className="ai-card__disclaimer">
-          AI-generated analysis. Not investment advice.
-        </div>
+        <AIDisclaimer variant="foot" />
       </div>
     </div>
   );

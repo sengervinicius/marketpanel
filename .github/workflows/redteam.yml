@@ -1,0 +1,48 @@
+# W1.3: prompt-injection red-team smoke.
+#
+# Runs the 50+ adversarial cases in red-team/corpus.json against staging
+# nightly and on-demand. Fails the build if any case scores FAIL (hard
+# leakage) and warns on WARN (partial compliance / missing disclaimer).
+#
+# Requires:
+#   STAGING_BASE        — https://particle-staging.onrender.com
+#   RED_TEAM_TOKEN      — JWT for a pre-provisioned test account
+#   VAULT_ENDPOINT      — (optional) e.g. /api/vault/ask to include
+#                          document-injection tests in the run.
+
+name: redteam
+
+on:
+  schedule:
+    - cron: "30 5 * * *"     # 02:30 BRT
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "server/services/modelRouter.js"
+      - "server/routes/search.js"
+      - "server/routes/vault*.js"
+      - "red-team/**"
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Execute red-team harness
+        env:
+          BASE:           ${{ secrets.STAGING_BASE }}
+          TEST_TOKEN:     ${{ secrets.RED_TEAM_TOKEN }}
+          VAULT_ENDPOINT: ${{ secrets.VAULT_ENDPOINT }}
+          FAIL_ON_WARN:   "1"
+        run: |
+          node red-team/run.mjs
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: redteam-results
+          path: red-team/results.json
+          retention-days: 30

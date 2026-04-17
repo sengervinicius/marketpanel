@@ -10,6 +10,7 @@ import { apiFetch } from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
 import { usePortfolio } from '../../context/PortfolioContext';
 import { useOpenDetail } from '../../context/OpenDetailContext';
+import AIDisclaimer from '../common/AIDisclaimer';
 import './ScreenerPanel.css';
 
 const COUNTRIES     = ['US','BR','GB','EU','JP','AU','CA'];
@@ -418,6 +419,7 @@ export default function ScreenerPanel() {
       </div>
       {aiExplanation && <div className="scr-ai-explanation">{aiExplanation}</div>}
       {aiError && <div className="scr-ai-error">{aiError}</div>}
+      {(aiExplanation || aiError) && <AIDisclaimer variant="foot" />}
 
       {/* ── Filters ─────────────────────────────────────────── */}
       <div className="scr-filters">

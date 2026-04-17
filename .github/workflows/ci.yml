@@ -1,0 +1,121 @@
+# .github/workflows/ci.yml
+# W0.1, W0.2, W0.9 — Continuous integration gates:
+#   • Lockfile integrity (npm ci)
+#   • npm audit on production deps (server + client + root)
+#   • SBOM generation (CycloneDX) — archived for 180 days
+#   • License scan — AGPL/SSPL/CC-BY-NC rejected
+#   • Client build + source-map leak check
+#
+# Runs on every PR to main and on pushes to main.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  lockfile:
+    name: Lockfile integrity
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: npm ci (root)
+        run: npm ci --prefer-offline --audit=false
+      - name: npm ci (server)
+        run: npm ci --prefer-offline --audit=false
+        working-directory: server
+      - name: npm ci (client)
+        run: npm ci --prefer-offline --audit=false
+        working-directory: client
+
+  audit:
+    name: npm audit (prod, high+)
+    runs-on: ubuntu-latest
+    needs: lockfile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm audit --omit=dev --audit-level=high
+      - run: npm audit --omit=dev --audit-level=high
+        working-directory: server
+      - run: npm audit --omit=dev --audit-level=high
+        working-directory: client
+
+  sbom:
+    name: SBOM (CycloneDX)
+    runs-on: ubuntu-latest
+    needs: lockfile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - name: Install root + workspaces
+        run: |
+          npm ci --prefer-offline --audit=false
+          (cd server && npm ci --prefer-offline --audit=false)
+          (cd client && npm ci --prefer-offline --audit=false)
+      - name: Generate SBOMs
+        run: |
+          npx -y @cyclonedx/cyclonedx-npm --output-format json --output-file sbom-root.json
+          (cd server && npx -y @cyclonedx/cyclonedx-npm --output-format json --output-file ../sbom-server.json)
+          (cd client && npx -y @cyclonedx/cyclonedx-npm --output-format json --output-file ../sbom-client.json)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sbom-${{ github.sha }}
+          path: sbom-*.json
+          retention-days: 180
+
+  license-scan:
+    name: License scan
+    runs-on: ubuntu-latest
+    needs: lockfile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - name: Install server + client
+        run: |
+          (cd server && npm ci --prefer-offline --audit=false)
+          (cd client && npm ci --prefer-offline --audit=false)
+      - name: Scan server licenses
+        run: npx -y license-checker-rseidelsohn --production --failOn 'AGPL-1.0;AGPL-3.0;SSPL-1.0;CC-BY-NC-1.0;CC-BY-NC-2.0;CC-BY-NC-3.0;CC-BY-NC-4.0'
+        working-directory: server
+      - name: Scan client licenses
+        run: npx -y license-checker-rseidelsohn --production --failOn 'AGPL-1.0;AGPL-3.0;SSPL-1.0;CC-BY-NC-1.0;CC-BY-NC-2.0;CC-BY-NC-3.0;CC-BY-NC-4.0'
+        working-directory: client
+
+  build-and-map-leak:
+    name: Client build + source-map leak check
+    runs-on: ubuntu-latest
+    needs: lockfile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: (cd client && npm ci --prefer-offline --audit=false)
+      - name: Build client
+        run: (cd client && npm run build)
+      # In CI we strip maps unconditionally. In the deploy pipeline the
+      # sentry-cli upload step runs BEFORE the strip so symbolication is
+      # preserved.
+      - name: Strip source maps
+        run: node scripts/strip-sourcemaps.js
+      - name: Verify no .map files shipped
+        run: node scripts/check-no-sourcemaps.js

@@ -12,6 +12,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { apiJSON } from '../../utils/api';
 import ParticleMarkdown from './ParticleMarkdown';
+import AIDisclaimer from './AIDisclaimer';
 import './MorningBriefCard.css';
 
 function formatTimeAgo(timestamp) {
@@ -203,6 +204,7 @@ export default function MorningBriefCard({ className = '', onActionChip }) {
               {isGenerating ? 'Generating...' : 'Refresh'}
             </button>
           </div>
+          <AIDisclaimer variant="foot" />
         </>
       )}
     </div>

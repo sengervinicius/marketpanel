@@ -16,6 +16,8 @@
 const { updateSubscription, getUserById, findUserByStripeCustomerId } = require('./authStore');
 const { sendEmail } = require('./services/emailService');
 const { tierFromStripePriceId, getStripePriceId, TIERS } = require('./config/tiers');
+const pg = require('./db/postgres');
+const logger = require('./utils/logger');
 
 // ── Stripe client (lazy — only initialised when env vars are present) ─────────
 function getStripe() {
@@ -228,6 +230,60 @@ async function createPortalSession(userId, userContext = {}) {
 
 // ── Webhook ───────────────────────────────────────────────────────────────────
 
+/**
+ * Atomically claim a Stripe event for processing using INSERT … ON CONFLICT
+ * DO NOTHING. The first request wins; duplicates return 200 without side
+ * effects so Stripe stops retrying.
+ *
+ * Returns:
+ *   - { alreadyProcessed: false } if this request should process the event
+ *   - { alreadyProcessed: true }  if another request already handled it
+ *   - { alreadyProcessed: false, bestEffort: true } if Postgres is unavailable
+ *     (fall back to processing; Stripe's at-least-once semantics are preserved).
+ */
+async function claimStripeEvent(event) {
+  if (!pg.isConnected || typeof pg.isConnected !== 'function' || !pg.isConnected()) {
+    // No Postgres — cannot enforce idempotency at DB layer. Log and proceed.
+    logger.warn('billing', 'Postgres unavailable — processing webhook without idempotency guard', {
+      eventId: event.id, eventType: event.type,
+    });
+    return { alreadyProcessed: false, bestEffort: true };
+  }
+  try {
+    const r = await pg.query(
+      `INSERT INTO stripe_events_processed (event_id, event_type, received_at, status)
+       VALUES ($1, $2, NOW(), 'received')
+       ON CONFLICT (event_id) DO NOTHING
+       RETURNING event_id`,
+      [event.id, event.type]
+    );
+    // If no row was returned, another request already claimed this event.
+    const claimed = r && r.rowCount > 0;
+    return { alreadyProcessed: !claimed };
+  } catch (e) {
+    logger.error('billing', 'Failed to record Stripe event — proceeding best-effort', {
+      eventId: event.id, error: e.message,
+    });
+    return { alreadyProcessed: false, bestEffort: true };
+  }
+}
+
+async function markStripeEventProcessed(eventId, status, errorMessage) {
+  if (!pg.isConnected || !pg.isConnected()) return;
+  try {
+    await pg.query(
+      `UPDATE stripe_events_processed
+         SET processed_at = NOW(), status = $2, error_message = $3
+       WHERE event_id = $1`,
+      [eventId, status, errorMessage || null]
+    );
+  } catch (e) {
+    logger.warn('billing', 'Failed to update Stripe event status', {
+      eventId, status, error: e.message,
+    });
+  }
+}
+
 async function handleBillingWebhook(req, res) {
   const stripe = getStripe();
   if (!stripe) {
@@ -242,14 +298,28 @@ async function handleBillingWebhook(req, res) {
   try {
     event = stripe.webhooks.constructEvent(req.body, sig, secret);
   } catch (e) {
-    console.error('[billing] webhook signature error:', e.message);
+    logger.error('billing', 'webhook signature error', { error: e.message });
     return res.status(400).json({ error: 'Invalid signature' });
+  }
+
+  // W0.6: Idempotency — Stripe may redeliver the same event on retry or network
+  // flaps. Claim it atomically; if another request already processed it, 200.
+  const claim = await claimStripeEvent(event);
+  if (claim.alreadyProcessed) {
+    logger.info('billing', 'Stripe event already processed — skipping', {
+      eventId: event.id, eventType: event.type,
+    });
+    return res.json({ received: true, duplicate: true });
   }
 
   try {
     await handleWebhookEvent(stripe, event);
+    await markStripeEventProcessed(event.id, 'processed');
   } catch (e) {
-    console.error('[billing] webhook handler error:', e.message);
+    logger.error('billing', 'webhook handler error', {
+      eventId: event.id, eventType: event.type, error: e.message,
+    });
+    await markStripeEventProcessed(event.id, 'failed', e.message);
     return res.status(500).json({ error: 'Webhook handler failed' });
   }
 

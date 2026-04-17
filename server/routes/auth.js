@@ -13,6 +13,9 @@ const { deleteUserPortfolios } = require('../portfolioStore');
 const { deleteUserAlerts }     = require('../alertStore');
 const { requireAuth } = require('../authMiddleware');
 const { setTokenCookie, clearTokenCookie, REFRESH_COOKIE_NAME, setRefreshCookie, clearRefreshCookie } = require('../utils/cookieHelper');
+// W1.5: route all log output through the structured logger so reqId/userId
+// propagate into the log stream instead of going straight to stderr.
+const logger = require('../utils/logger');
 
 const rateLimit = require('express-rate-limit');
 
@@ -73,7 +76,7 @@ router.post('/register', authLimiter, async (req, res) => {
           html: `<p>Welcome to Senger Market! Please verify your email address by clicking the link below:</p><p><a href="${verifyUrl}">${verifyUrl}</a></p><p>This link expires in 24 hours.</p>`,
         });
       } catch (emailErr) {
-        console.error('[auth/register] Failed to send verification email:', emailErr.message);
+        logger.error('auth/register', 'Failed to send verification email', { error: emailErr.message });
       }
     }
   } catch (e) {
@@ -159,10 +162,10 @@ router.post('/reset', authLimiter, async (req, res) => {
         html: `<p>You requested a password reset. Click the link below to set a new password:</p><p><a href="${resetUrl}">${resetUrl}</a></p><p>This link expires in 1 hour. If you did not request this, ignore this email.</p>`,
       });
     } catch (emailErr) {
-      console.error('[auth/reset] Failed to send reset email:', emailErr.message);
+      logger.error('auth/reset', 'Failed to send reset email', { error: emailErr.message });
     }
   } catch (e) {
-    console.error('[auth/reset] Error:', e.message);
+    logger.error('auth/reset', 'request handler failed', { error: e.message });
     res.status(500).json({ error: 'Failed to process reset request', code: 'reset_failed' });
   }
 });
@@ -206,7 +209,7 @@ router.post('/reset-password', authLimiter, async (req, res) => {
 
     res.json({ ok: true, message: 'Password has been reset successfully. You can now log in with your new password.' });
   } catch (e) {
-    console.error('[auth/reset-password] Error:', e.message);
+    logger.error('auth/reset-password', 'handler failed', { error: e.message });
     res.status(500).json({ error: 'Failed to reset password', code: 'reset_failed' });
   }
 });
@@ -235,7 +238,7 @@ router.post('/apple', authLimiter, async (req, res) => {
     try {
       appleSignin = require('apple-signin-auth');
     } catch (loadErr) {
-      console.error('[auth/apple] Failed to load apple-signin-auth module:', loadErr.message);
+      logger.error('auth/apple', 'Failed to load apple-signin-auth module', { error: loadErr.message });
       return res.status(501).json({
         error: 'Apple Sign In is not available on this server. The apple-signin-auth package may not be installed.',
         code: 'module_missing',
@@ -249,7 +252,7 @@ router.post('/apple', authLimiter, async (req, res) => {
         ignoreExpiration: false,
       });
     } catch (verifyErr) {
-      console.error('[auth/apple] Token verification failed:', verifyErr.message);
+      logger.warn('auth/apple', 'Token verification failed', { error: verifyErr.message });
       return res.status(401).json({
         error: 'Apple identity token is invalid or expired. Please try signing in again.',
         code: 'token_invalid',
@@ -278,7 +281,7 @@ router.post('/apple', authLimiter, async (req, res) => {
       },
     });
   } catch (e) {
-    console.error('[auth/apple] Unexpected error:', e.message);
+    logger.error('auth/apple', 'Unexpected error', { error: e.message });
     res.status(500).json({
       error: 'An unexpected error occurred during Apple Sign In. Please try again.',
       code: 'server_error',
@@ -305,7 +308,7 @@ router.delete('/account', requireAuth, async (req, res) => {
 
     res.json({ ok: true, message: 'Account and all associated data have been permanently deleted.' });
   } catch (e) {
-    console.error('[auth] Account deletion error:', e.message);
+    logger.error('auth', 'Account deletion error', { error: e.message });
     res.status(500).json({ error: 'Failed to delete account. Please try again.', code: 'delete_failed' });
   }
 });
@@ -317,7 +320,7 @@ router.post('/logout', requireAuth, async (req, res) => {
   try {
     await revokeUserRefreshTokens(req.user.id);
   } catch (e) {
-    console.error('[auth/logout] Failed to revoke refresh tokens:', e.message);
+    logger.warn('auth/logout', 'Failed to revoke refresh tokens', { error: e.message });
   }
   res.json({ ok: true });
 });
@@ -361,12 +364,12 @@ router.post('/verify-email', async (req, res) => {
     try {
       await pg.query('UPDATE users SET email_verified = TRUE WHERE id = $1', [verification.user_id]);
     } catch (e) {
-      console.error('[auth/verify-email] Postgres update failed:', e.message);
+      logger.warn('auth/verify-email', 'Postgres update failed', { error: e.message });
     }
 
     res.json({ ok: true, message: 'Email verified successfully!' });
   } catch (e) {
-    console.error('[auth/verify-email] Error:', e.message);
+    logger.error('auth/verify-email', 'handler failed', { error: e.message });
     res.status(500).json({ error: 'Failed to verify email', code: 'verify_failed' });
   }
 });
@@ -402,7 +405,7 @@ router.post('/resend-verification', requireAuth, async (req, res) => {
 
     res.json({ ok: true, message: 'Verification email sent.' });
   } catch (e) {
-    console.error('[auth/resend-verification] Error:', e.message);
+    logger.error('auth/resend-verification', 'handler failed', { error: e.message });
     res.status(500).json({ error: 'Failed to send verification email', code: 'resend_failed' });
   }
 });
@@ -447,7 +450,7 @@ router.post('/refresh', async (req, res) => {
       },
     });
   } catch (e) {
-    console.error('[auth/refresh] Error:', e.message);
+    logger.error('auth/refresh', 'handler failed', { error: e.message });
     res.status(500).json({ error: 'Failed to refresh token', code: 'refresh_failed' });
   }
 });

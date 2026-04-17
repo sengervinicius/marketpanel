@@ -16,9 +16,24 @@
  */
 
 import { createContext, useContext, useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import * as Sentry from '@sentry/react';
 import { API_BASE, setAuthToken, clearAuthToken } from '../utils/api';
 import { isIOS } from '../services/platform';
 import { purchase, restorePurchases, IAP_PRODUCTS } from '../services/iap';
+
+// W0.3 — Tag Sentry scope with (non-PII) user id + tier whenever the
+// auth state changes. Never sets username or email.
+function syncSentryUser(user, subscription) {
+  try {
+    if (user?.id) {
+      Sentry.setUser({ id: String(user.id) });
+      Sentry.setTag('user.tier', String(subscription?.tier || 'unknown'));
+    } else {
+      Sentry.setUser(null);
+      Sentry.setTag('user.tier', 'anon');
+    }
+  } catch { /* no-op — Sentry is best-effort */ }
+}
 
 const LS_USER    = 'arc_user';
 const LS_TOKEN   = 'arc_token';   // Stored for session restore across page reloads
@@ -212,6 +227,11 @@ export function AuthProvider({ children }) {
       return () => clearInterval(refreshInterval.current);
     }
   }, [user, refreshTokenFn]);
+
+  // W0.3 — Keep Sentry scope in sync with auth state (id + tier only, no PII)
+  useEffect(() => {
+    syncSentryUser(user, subscription);
+  }, [user, subscription]);
 
   // ── Check for billing URL params on mount ─────────────────────────────────
   useEffect(() => {

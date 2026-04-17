@@ -19,6 +19,7 @@ import { useIsMobile } from '../../hooks/useIsMobile';
 import { usePortfolio } from '../../context/PortfolioContext';
 import { API_BASE, apiFetch } from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
+import AIDisclaimer from '../common/AIDisclaimer';
 
 const PLACEHOLDERS = [
   'Ask Particle anything...',
@@ -551,6 +552,7 @@ export default function ParticleScreen() {
               </button>
             )}
           </form>
+          <AIDisclaimer variant="foot" />
         </div>
       )}
 

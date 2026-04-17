@@ -14,6 +14,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { apiJSON } from '../../utils/api';
 import InsightCard from './InsightCard';
+import AIDisclaimer from '../common/AIDisclaimer';
 import './InsightCard.css';
 
 const POLL_INTERVAL_MS = 60_000; // 60 seconds
@@ -94,6 +95,7 @@ export default function InsightFeed({ onAskAI, maxCards = 3 }) {
           onAskAI={onAskAI}
         />
       ))}
+      <AIDisclaimer variant="foot" />
     </div>
   );
 }

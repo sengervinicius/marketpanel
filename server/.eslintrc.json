@@ -1,0 +1,24 @@
+{
+  "root": true,
+  "env": {
+    "node": true,
+    "commonjs": true,
+    "es2022": true
+  },
+  "parserOptions": {
+    "ecmaVersion": 2022,
+    "sourceType": "script"
+  },
+  "rules": {
+    "no-console": ["warn", { "allow": ["warn", "error"] }],
+    "no-unused-vars": ["warn", { "args": "none", "varsIgnorePattern": "^_" }]
+  },
+  "overrides": [
+    {
+      "files": ["utils/logger.js", "scripts/**/*.js"],
+      "rules": {
+        "no-console": "off"
+      }
+    }
+  ]
+}

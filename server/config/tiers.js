@@ -21,6 +21,7 @@ const TIERS = {
     vaultPagesTotal: 100,        // approximate page cap
     aiQueriesPerDay: 15,
     deepAnalysisPerDay: 3,
+    aiTokensPerDay: 50000,       // W1.2: daily token budget (in + out combined)
     morningBrief: 'basic',       // market-only (no vault enrichment)
     predictionMarkets: 'view',   // view only, no alerts
     centralVaultAccess: 'read',
@@ -34,6 +35,7 @@ const TIERS = {
     vaultPagesTotal: 2000,
     aiQueriesPerDay: 50,
     deepAnalysisPerDay: 10,
+    aiTokensPerDay: 300000,      // W1.2: daily token budget
     morningBrief: 'basic',
     predictionMarkets: 'view',
     centralVaultAccess: 'read',
@@ -51,6 +53,7 @@ const TIERS = {
     vaultPagesTotal: 10000,
     aiQueriesPerDay: 200,
     deepAnalysisPerDay: 50,
+    aiTokensPerDay: 1000000,     // W1.2: daily token budget (1M)
     morningBrief: 'full',       // vault-enriched + behavioral profile
     predictionMarkets: 'alerts',
     centralVaultAccess: 'read',
@@ -68,6 +71,7 @@ const TIERS = {
     vaultPagesTotal: -1,
     aiQueriesPerDay: -1,
     deepAnalysisPerDay: -1,
+    aiTokensPerDay: 5000000,    // W1.2: daily token budget (5M — high but not unlimited)
     morningBrief: 'full',
     predictionMarkets: 'full',  // + custom tracking
     centralVaultAccess: 'suggest', // can suggest additions
