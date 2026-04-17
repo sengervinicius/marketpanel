@@ -21,6 +21,7 @@ function DICurvePanel({ compact = false }) {
   const [loading, setLoading]     = useState(true);
   const [error, setError]         = useState(null);
   const [updatedAt, setUpdatedAt] = useState('');
+  const [integrityWarning, setIntegrityWarning] = useState(null);
 
   async function load() {
     try {
@@ -29,6 +30,12 @@ function DICurvePanel({ compact = false }) {
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const json = await res.json();
       if (json.error) throw new Error(json.error);
+      // Extract integrity status
+      if (json._integrity && !json._integrity.valid) {
+        setIntegrityWarning(json._integrity);
+      } else {
+        setIntegrityWarning(null);
+      }
       setAll(json);
       setUpdatedAt(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
     } catch (e) {
@@ -54,6 +61,7 @@ function DICurvePanel({ compact = false }) {
           YIELD CURVES
         </span>
         <span className="dic-header-status">
+          {integrityWarning && <span className="dic-integrity-warn" title={integrityWarning.summary}>DATA CHECK FAILED</span>}
           {loading ? 'LOADING...' : error ? 'ERR' : updatedAt}
         </span>
       </div>

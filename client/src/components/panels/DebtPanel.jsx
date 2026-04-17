@@ -120,6 +120,7 @@ function DebtPanel() {
   const [error, setError]                           = useState(null);
   const [countryGroup, setCountryGroup]             = useState('G10');
   const [liveReady, setLiveReady]                   = useState(false);
+  const [integrityWarning, setIntegrityWarning]     = useState(null);
 
   // Persistent ref for live data (no re-render race)
   const liveDataRef   = useRef(null);
@@ -137,6 +138,10 @@ function DebtPanel() {
 
       if (liveRes.status === 'fulfilled' && liveRes.value) {
         liveDataRef.current = liveRes.value;
+        // Extract data integrity status if present
+        if (liveRes.value._integrity && !liveRes.value._integrity.valid) {
+          setIntegrityWarning(liveRes.value._integrity);
+        }
       }
 
       if (countriesRes.status === 'fulfilled') {
@@ -407,6 +412,11 @@ function DebtPanel() {
             {!loading && sourceBadge && (
               <span className={`dp-source-badge ${effectiveCurveLive ? 'dp-badge--live' : 'dp-badge--est'}`}>
                 {effectiveCurveLive ? 'LIVE' : 'EST.'} {sourceBadge}
+              </span>
+            )}
+            {integrityWarning && integrityWarning.issues > 0 && (
+              <span className="dp-source-badge dp-badge--warn" title={integrityWarning.summary}>
+                DATA CHECK FAILED
               </span>
             )}
           </div>

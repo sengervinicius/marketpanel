@@ -293,11 +293,10 @@ router.get('/sovereign/:countryCode', async (req, res) => {
         let diRate = 14.75;
         if (selicRes.status === 'fulfilled' && Array.isArray(selicRes.value) && selicRes.value[0]?.valor) {
           const parsed = parseFloat(selicRes.value[0].valor);
-          // Sanity: Brazil Selic is 2–30% range. Reject monthly/daily rates or garbage.
-          if (parsed >= 2 && parsed <= 30) {
+          if (!isNaN(parsed) && parsed > 0) {
             diRate = parsed;
           } else {
-            logger.warn(`[debt] BCB Selic value ${parsed} out of sanity range [2,30]; using default ${diRate}`);
+            logger.warn(`[debt] BCB Selic returned non-numeric/negative: ${selicRes.value[0].valor}; using default ${diRate}`);
           }
         }
         points.push({ tenor: 'DI', yield: parseFloat(diRate.toFixed(2)) });

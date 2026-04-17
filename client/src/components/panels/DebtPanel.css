@@ -26,11 +26,10 @@
 
 .dp-title {
   font-family: var(--font-family-mono);
-  font-size: 1rem;
-  font-weight: 600;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
   letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: rgba(255,255,255,0.90);
+  color: var(--color-text-primary);
 }
 
 /* ── View toggle buttons ────────────────────────────── */
@@ -101,7 +100,7 @@
   font-family: var(--font-ui);
   letter-spacing: 0.06em;
   text-align: center;
-  padding: var(--space-panel-inner);
+  padding: 12px;
 }
 .dp-state--loading {
   color: var(--text-faint);
@@ -178,6 +177,15 @@
 .dp-badge--est {
   color: var(--text-faint);
 }
+.dp-badge--warn {
+  color: #ff4444;
+  font-weight: 700;
+  animation: dp-warn-pulse 2s ease-in-out infinite;
+}
+@keyframes dp-warn-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
 
 /* ── Chart container ────────────────────────────────── */
 .dp-chart-container {
@@ -239,11 +247,10 @@
 }
 
 .dp-spreads-title {
-  color: var(--color-section-header);
-  font-size: 0.7rem;
-  font-weight: 500;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  color: var(--text-muted);
+  font-size: var(--font-xs);
+  font-weight: 700;
+  letter-spacing: 0.06em;
 }
 
 .dp-spreads-tag {
@@ -325,11 +332,10 @@
   justify-content: space-between;
   align-items: center;
   padding: 3px 8px 2px;
-  color: var(--color-section-header);
-  font-size: 0.7rem;
-  font-weight: 500;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  color: var(--text-muted);
+  font-size: var(--font-xs);
+  font-weight: 700;
+  letter-spacing: 0.06em;
   flex-shrink: 0;
 }
 

@@ -9,6 +9,7 @@ const express = require('express');
 const router  = express.Router();
 const { cacheGet, cacheSet, TTL } = require('./lib/cache');
 const { yahooQuote, sendError, fetch, YF_UA } = require('./lib/providers');
+const { validateYieldCurves, getIntegrityStatus } = require('../../services/dataIntegrityValidator');
 
 // ── Timeout helper for external API calls ────────────────────────────
 function fetchWithTimeout(url, options = {}, timeoutMs = 8000) {
@@ -685,16 +686,15 @@ router.get('/yield-curves', async (req, res) => {
     ]);
 
     // —— BR curve ——
-    // Default = current Selic target; updated manually as a safety net
+    // Default = current Selic target; used ONLY when BCB API is unreachable.
+    // No hardcoded bounds — we trust the authoritative source (BCB series 4189).
     let diRate = 14.75;
     if (selicRes.status === 'fulfilled' && Array.isArray(selicRes.value) && selicRes.value[0]?.valor) {
       const parsed = parseFloat(selicRes.value[0].valor);
-      // Sanity: Brazil Selic has been 2–14.75% historically. If BCB returns
-      // a monthly/daily rate (<2) or garbage (>30), fall back to hardcoded default.
-      if (parsed >= 2 && parsed <= 30) {
+      if (!isNaN(parsed) && parsed > 0) {
         diRate = parsed;
       } else {
-        console.warn(`[Yield] BCB Selic value ${parsed} out of sanity range [2,30]; using default ${diRate}`);
+        console.warn(`[Yield] BCB Selic returned non-numeric/negative value: ${selicRes.value[0].valor}; using default ${diRate}`);
       }
     }
     const brCurve = [{ tenor: 'DI', months: 0.5, rate: parseFloat(diRate.toFixed(2)) }];
@@ -793,14 +793,40 @@ router.get('/yield-curves', async (req, res) => {
       EU: { curve: euCurve, source: euSource, updatedAt: now.toISOString() },
     };
 
+    // Attach integrity status from previous validation (if available)
+    const integrity = getIntegrityStatus('yield-curves');
+    if (integrity) {
+      payload._integrity = {
+        valid: integrity.valid,
+        source: integrity.source,
+        issues: (integrity.issues || []).filter(i => i.severity === 'critical').length,
+        summary: integrity.summary,
+        checkedAt: integrity.checkedAt,
+      };
+    }
+
     // Cache yield curve data for bond-detail fallback
     cacheSet('yield-curves-data', payload, TTL.yields);
 
+    // Serve response immediately — NEVER block for validation
     res.json(payload);
+
+    // Fire-and-forget: validate data integrity async
+    validateYieldCurves(payload);
   } catch (err) {
     console.error('[API] /yield-curves error:', err.message);
     sendError(res, err);
   }
+});
+
+// ── Data integrity status endpoint ────────────────────────────────────
+// GET /data-integrity — returns latest validation verdicts
+router.get('/data-integrity', (req, res) => {
+  const yieldIntegrity = getIntegrityStatus('yield-curves');
+  res.json({
+    yieldCurves: yieldIntegrity || { valid: true, source: 'none', summary: 'No validation run yet' },
+    timestamp: new Date().toISOString(),
+  });
 });
 
 module.exports = router;

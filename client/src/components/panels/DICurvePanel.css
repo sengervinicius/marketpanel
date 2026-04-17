@@ -12,26 +12,37 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 4px 8px;
-  background: var(--bg-elevated);
-  border-bottom: 1px solid var(--border-strong);
+  padding: 2px var(--sp-2);
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
   flex-shrink: 0;
-  gap: 6px;
+  height: 20px;
 }
 
 .dic-header-title {
-  font-family: var(--font-family-mono);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-bold);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--color-text-primary);
-  line-height: 1;
+  color: var(--text-muted);
+  font-weight: 700;
+  font-size: var(--font-sm);
+  letter-spacing: 0.15em;
 }
 
 .dic-header-status {
   color: var(--text-faint);
   font-size: var(--font-xs);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.dic-integrity-warn {
+  color: #ff4444;
+  font-weight: 700;
+  font-size: 6px;
+  letter-spacing: 0.05em;
+  animation: dic-warn-pulse 2s ease-in-out infinite;
+}
+@keyframes dic-warn-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
 }
 
 .dic-block {
