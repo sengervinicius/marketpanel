@@ -16,6 +16,20 @@
 const fs   = require('fs');
 const path = require('path');
 const logger = require('../utils/logger');
+// W1.4: prom-client metrics — NOOP shim if prom-client isn't installed.
+const { metrics: promMetrics } = require('../utils/metrics');
+
+// Heuristic: label the query by its first SQL keyword so the histogram stays
+// readable (we don't want every parameterized query to be a separate series).
+function _queryKind(text) {
+  if (!text) return 'unknown';
+  const m = String(text).trim().match(/^([A-Za-z]+)/);
+  if (!m) return 'unknown';
+  const k = m[1].toLowerCase();
+  // Group DDL under one bucket.
+  if (['select','insert','update','delete','with','begin','commit','rollback'].includes(k)) return k;
+  return 'other';
+}
 
 let pool = null;
 let reconnectTimer = null;
@@ -143,11 +157,23 @@ async function query(text, params = []) {
   }
   if (!pool) return null;
 
+  // W1.4: histogram timing + error counter. Pool-gauge update is cheap here.
+  const kind = _queryKind(text);
+  const endTimer = (() => {
+    try { return promMetrics.db_query_duration.labels(kind).startTimer(); } catch (_) { return () => 0; }
+  })();
   try {
-    return await pool.query(text, params);
+    // Pool-gauge snapshot on enter; useful for spotting pool starvation.
+    try { promMetrics.db_pool_in_use.set(pool.totalCount - pool.idleCount); } catch (_) {}
+    const result = await pool.query(text, params);
+    try { endTimer(); } catch (_) {}
+    return result;
   } catch (e) {
+    try { endTimer(); } catch (_) {}
     // If this looks like a connection error, schedule reconnect
     const msg = e.message || '';
+    const code = e.code || 'UNKNOWN';
+    try { promMetrics.db_query_errors.labels(kind, code).inc(); } catch (_) {}
     if (msg.includes('ECONNREFUSED') || msg.includes('terminating') || msg.includes('Connection terminated')
         || msg.includes('timeout') || msg.includes('ENOTFOUND') || msg.includes('connection') ) {
       logger.error('postgres', 'Query failed with connection error — scheduling reconnect', { error: msg });

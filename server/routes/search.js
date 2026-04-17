@@ -15,6 +15,11 @@ const router  = express.Router();
 
 const { perMinuteLimit } = require('../middleware/rateLimitByIP');
 const { dailyAILimit } = require('../middleware/dailyAILimit');
+const { aiQuotaGate } = require('../middleware/aiQuotaGate');
+const aiCostLedger = require('../services/aiCostLedger');
+// W1.3: scrub credential/URL patterns and auto-append disclaimers on any
+// AI answer that mentions a ticker + direction.
+const { guardAndLog } = require('../services/aiOutputGuard');
 const logger = require('../utils/logger');
 const memoryManager = require('../services/memoryManager');
 const conversationMemory = require('../services/conversationMemory');
@@ -169,7 +174,7 @@ router.get('/cache-stats', (req, res) => {
 /**
  * POST /ai — AI-powered financial research summary
  */
-router.post('/ai', dailyAILimit, async (req, res) => {
+router.post('/ai', dailyAILimit, aiQuotaGate, async (req, res) => {
   const apiKey = process.env.PERPLEXITY_API_KEY;
   if (!apiKey) {
     return res.status(503).json({ error: 'AI search not configured — PERPLEXITY_API_KEY missing' });
@@ -1462,7 +1467,7 @@ function chatCacheSet(key, value) {
   _chatCache.set(key, { value, exp: Date.now() + CHAT_CACHE_TTL });
 }
 
-router.post('/chat', perMinuteLimit, dailyAILimit, async (req, res) => {
+router.post('/chat', perMinuteLimit, dailyAILimit, aiQuotaGate, async (req, res) => {
   // API key check moved to modelRouter fallback logic below
   const { messages, context } = req.body;
   if (!messages || !Array.isArray(messages) || messages.length === 0) {
@@ -1722,7 +1727,11 @@ ${ctx_.portfolioMetricsContext ? `\n${ctx_.portfolioMetricsContext}\n` : ''}${ct
     intent = modelRouter.classifyIntent(userQuery, hasVault, hasDeep, hasMarketCtx);
     contextRequired = false;
   }
-  let provider = modelRouter.route(intent);
+  // W1.2: honor the org-wide kill-switch (force_haiku / block_all_ai). Read
+  // is cached for 15s so this is not a hot-path hit.
+  let killSwitch = null;
+  try { killSwitch = await aiCostLedger.readKillSwitch(); } catch (_) {}
+  let provider = modelRouter.route(intent, { killSwitch });
 
   // Fallback chain: if the chosen provider needs an API key we don't have, try alternatives
   if (!process.env[provider.keyEnv]) {
@@ -1787,7 +1796,7 @@ ${ctx_.portfolioMetricsContext ? `\n${ctx_.portfolioMetricsContext}\n` : ''}${ct
         res.end();
       });
 
-      const apiResponse = await modelRouter.callProvider(provider, routerMessages, systemPrompt, { signal: controller.signal });
+      const apiResponse = await modelRouter.callProvider(provider, routerMessages, systemPrompt, { signal: controller.signal, userId });
 
       // Extract full text from provider response
       let responseText = '';
@@ -1810,6 +1819,10 @@ ${ctx_.portfolioMetricsContext ? `\n${ctx_.portfolioMetricsContext}\n` : ''}${ct
         const data = await apiResponse.json();
         responseText = data.content?.[0]?.text || '';
       }
+
+      // W1.3: scrub credentials + external URLs; auto-disclaim ticker+direction
+      // pairs. Logs violations under ai_safety_violation for Sentry alerting.
+      responseText = guardAndLog(responseText, { userId, model: provider.model });
 
       // Stream the full response as chunks (matching modelRouter.streamResponse behavior)
       const chunkSize = 50;
@@ -1863,6 +1876,7 @@ ${ctx_.portfolioMetricsContext ? `\n${ctx_.portfolioMetricsContext}\n` : ''}${ct
     try {
       await modelRouter.streamResponse(provider, routerMessages, systemPrompt, res, {
         onAbort: (abortFn) => { req.on('close', abortFn); },
+        userId,
       });
 
       // ── Fire-and-forget: Update session memory (non-blocking) ──

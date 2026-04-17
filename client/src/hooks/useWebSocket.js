@@ -19,6 +19,12 @@ const HEARTBEAT_INTERVAL = 30_000;  // 30s between pings
 const HEARTBEAT_TIMEOUT  = 10_000;  // 10s to receive pong before considering connection dead
 const RECONNECT_INITIAL  = 1_500;
 const RECONNECT_MAX      = 15_000;
+// W1.8: when the server kicks us for backpressure (1008) or over-capacity
+// (1008 with "too many"), back off an order of magnitude so we do not
+// immediately retry into the same condition.
+const RECONNECT_BACKPRESSURE_INITIAL = 15_000;
+const RECONNECT_BACKPRESSURE_MAX     = 120_000;
+const JITTER_FRAC                    = 0.25; // ±25% randomization per attempt
 const QUEUE_MAX          = 50;       // max buffered outgoing messages
 
 /**
@@ -133,12 +139,33 @@ export function useWebSocket(onMessage, token) {
         stopHeartbeat();
         setReadyState(WebSocket.CLOSED);
         if (!mounted.current) return;
-        const reason = evt.code === 4000 ? 'heartbeat timeout' : `code ${evt.code}`;
-        console.log(`[WS] Disconnected (${reason}). Reconnecting in ${delay.current}ms...`);
+
+        // W1.8: policy-close from server. 1008 is used by the backpressure
+        // kicker and the per-user connection cap. In both cases the right
+        // thing to do is back off far harder than the default so we don't
+        // stampede the server.
+        const isPolicyClose = evt.code === 1008;
+        const max = isPolicyClose ? RECONNECT_BACKPRESSURE_MAX : RECONNECT_MAX;
+        if (isPolicyClose) {
+          delay.current = Math.max(delay.current, RECONNECT_BACKPRESSURE_INITIAL);
+        }
+
+        // Apply jitter ±25% so N simultaneously-dropped clients don't
+        // synchronize their reconnect storm.
+        const jitter = 1 + (Math.random() * 2 - 1) * JITTER_FRAC;
+        const waitMs = Math.max(250, Math.round(delay.current * jitter));
+
+        const reasonText = evt.code === 4000
+          ? 'heartbeat timeout'
+          : evt.code === 1008
+            ? `policy-close: ${evt.reason || 'server-enforced'}`
+            : `code ${evt.code}`;
+        console.log(`[WS] Disconnected (${reasonText}). Reconnecting in ${waitMs}ms...`);
+
         reconnectTimer.current = setTimeout(() => {
-          delay.current = Math.min(delay.current * 1.5, RECONNECT_MAX);
+          delay.current = Math.min(delay.current * 1.5, max);
           connect();
-        }, delay.current);
+        }, waitMs);
       };
 
       ws.current.onerror = () => {

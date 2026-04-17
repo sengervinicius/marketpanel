@@ -17,6 +17,16 @@
 
 const fetch = require('node-fetch');
 const logger = require('../utils/logger');
+const aiCostLedger = require('./aiCostLedger');
+
+// Rough char→token heuristic used only when the provider does not return
+// usage counters (e.g. early termination, some Perplexity SSE paths).
+// We deliberately overestimate a little (3.5 chars/token vs the usual 4)
+// so the quota meter errs on the safe side.
+function estimateTokens(str) {
+  if (!str) return 0;
+  return Math.ceil(String(str).length / 3.5);
+}
 
 /**
  * Call a function with exponential backoff retry logic.
@@ -299,11 +309,25 @@ Respond: {"intent":"<intent>","contextRequired":<bool>}`;
 
 /**
  * Get the provider config for the given intent.
+ *
+ * Honors the org-wide kill-switch from aiCostLedger:
+ *   - `force_haiku = true`  → Claude Sonnet intents are downgraded to Haiku
+ *   - `block_all_ai = true` → handled upstream (aiQuotaGate returns 503)
+ *
  * @param {string} intent
+ * @param {{killSwitch?: {forceHaiku?: boolean}}} [opts]
  * @returns {object} provider config
  */
-function route(intent) {
-  const providerKey = ROUTE_MAP[intent] || ROUTE_MAP.general;
+function route(intent, opts = {}) {
+  let providerKey = ROUTE_MAP[intent] || ROUTE_MAP.general;
+  const ks = opts.killSwitch;
+  if (ks && ks.forceHaiku) {
+    // Downgrade Sonnet/Perplexity-Pro → Haiku. Cheap Perplexity stays as-is
+    // so web-lookup intents don't lose their grounding.
+    if (providerKey === 'claude_sonnet' || providerKey === 'perplexity_pro') {
+      providerKey = 'claude_haiku';
+    }
+  }
   return PROVIDERS[providerKey];
 }
 
@@ -319,7 +343,10 @@ function getProvider(key) {
  * @param {object} provider - provider config from route()
  * @param {array} messages - message array
  * @param {string} systemPrompt - system prompt
- * @param {object} options - { stream, maxTokens, ...rest }
+ * @param {object} options - { stream, maxTokens, userId, ...rest }
+ *                          W1.2: pass `userId` so non-stream calls are billed
+ *                          to the ledger automatically. Stream callers must
+ *                          use streamResponse (which records on its own).
  * @returns {Promise<object>} API response
  */
 async function callProviderImpl(provider, messages, systemPrompt, options = {}) {
@@ -391,10 +418,40 @@ async function callProviderImpl(provider, messages, systemPrompt, options = {}) 
  * @returns {Promise<object>} API response
  */
 async function callProvider(provider, messages, systemPrompt, options = {}) {
-  return callWithRetry(
+  const response = await callWithRetry(
     () => callProviderImpl(provider, messages, systemPrompt, options),
     2
   );
+
+  // W1.2 non-stream ledger recording. We clone the response body so the
+  // caller still gets its .json()/.text() path untouched.
+  const userId = options && options.userId;
+  if (userId && response && typeof response.clone === 'function') {
+    (async () => {
+      try {
+        const snapshot = response.clone();
+        const data = await snapshot.json();
+        let tokensIn = 0, tokensOut = 0;
+        // Anthropic
+        if (data?.usage?.input_tokens != null)  tokensIn  = data.usage.input_tokens;
+        if (data?.usage?.output_tokens != null) tokensOut = data.usage.output_tokens;
+        // Perplexity (OpenAI shape)
+        if (data?.usage?.prompt_tokens != null)     tokensIn  = data.usage.prompt_tokens;
+        if (data?.usage?.completion_tokens != null) tokensOut = data.usage.completion_tokens;
+        // Fallback if provider doesn't include usage
+        if (tokensIn === 0) {
+          tokensIn = estimateTokens(systemPrompt) + (messages || []).reduce((a, m) => a + estimateTokens(m.content || ''), 0);
+        }
+        if (tokensOut === 0) {
+          const txt = data?.content?.[0]?.text || data?.choices?.[0]?.message?.content || '';
+          tokensOut = estimateTokens(txt);
+        }
+        aiCostLedger.recordUsage(userId, provider.model, tokensIn, tokensOut);
+      } catch (_) { /* fire-and-forget */ }
+    })();
+  }
+
+  return response;
 }
 
 /**
@@ -407,7 +464,26 @@ async function callProvider(provider, messages, systemPrompt, options = {}) {
  * @param {string} systemPrompt - system prompt
  * @param {object} res - Express response object
  */
-async function streamResponse(provider, messages, systemPrompt, res, { onAbort } = {}) {
+async function streamResponse(provider, messages, systemPrompt, res, { onAbort, userId } = {}) {
+  // Input token estimate for ledger accounting (exact counts come from
+  // Anthropic's message_start/message_delta events when available; we
+  // over-write with the provider number if we receive it).
+  let tokensIn = estimateTokens(systemPrompt) + messages.reduce((a, m) => a + estimateTokens(m.content || ''), 0);
+  let tokensOut = 0;
+  let streamedChars = 0;
+  let recorded = false;
+  const recordOnce = () => {
+    if (recorded || !userId) return;
+    recorded = true;
+    if (tokensOut === 0 && streamedChars > 0) {
+      // Fall back to estimating from total characters written.
+      tokensOut = Math.ceil(streamedChars / 3.5);
+    }
+    try {
+      aiCostLedger.recordUsage(userId, provider.model, tokensIn, tokensOut);
+    } catch (_) { /* fire-and-forget */ }
+  };
+
   try {
     const response = await callWithRetry(
       () => callProviderImpl(provider, messages, systemPrompt, { stream: true }),
@@ -434,6 +510,8 @@ async function streamResponse(provider, messages, systemPrompt, res, { onAbort }
     const finish = () => {
       if (finished) return;
       finished = true;
+      // W1.2: record usage to ledger. Fire-and-forget — never blocks finish.
+      recordOnce();
       if (!res.writableEnded) {
         // Citations are now sent immediately when captured (not deferred to finish)
         res.write('data: [DONE]\n\n');
@@ -454,7 +532,13 @@ async function streamResponse(provider, messages, systemPrompt, res, { onAbort }
         if (isPerplexity) {
           const content = parsed.choices?.[0]?.delta?.content;
           if (content) {
+            streamedChars += content.length;
             res.write(`data: ${JSON.stringify({ chunk: content })}\n\n`);
+          }
+          // Perplexity sometimes reports usage in the final chunk.
+          if (parsed.usage) {
+            if (typeof parsed.usage.prompt_tokens === 'number')      tokensIn  = parsed.usage.prompt_tokens;
+            if (typeof parsed.usage.completion_tokens === 'number')  tokensOut = parsed.usage.completion_tokens;
           }
           // Send citations immediately as they arrive (don't wait for stream end)
           if (parsed.citations && Array.isArray(parsed.citations)) {
@@ -467,12 +551,21 @@ async function streamResponse(provider, messages, systemPrompt, res, { onAbort }
           if (parsed.type === 'content_block_delta') {
             const text = parsed.delta?.text || '';
             if (text) {
+              streamedChars += text.length;
               res.write(`data: ${JSON.stringify({ chunk: text })}\n\n`);
             }
+          } else if (parsed.type === 'message_start') {
+            // Anthropic reports input tokens in message_start.usage
+            const u = parsed.message?.usage;
+            if (u && typeof u.input_tokens === 'number') tokensIn = u.input_tokens;
+          } else if (parsed.type === 'message_delta') {
+            // Final usage arrives in message_delta.usage.output_tokens
+            const u = parsed.usage;
+            if (u && typeof u.output_tokens === 'number') tokensOut = u.output_tokens;
           } else if (parsed.type === 'message_stop') {
             finish();
           }
-          // Ignore: message_start, content_block_start, content_block_stop, message_delta, ping
+          // Ignore: content_block_start, content_block_stop, ping
         }
       } catch (err) {
         logger.debug(`[ModelRouter] Skipped malformed SSE: ${trimmed.slice(0, 60)}`);
@@ -513,6 +606,7 @@ async function streamResponse(provider, messages, systemPrompt, res, { onAbort }
     }
   } catch (err) {
     logger.error('[ModelRouter] streamResponse error:', err.message);
+    recordOnce(); // bill what we streamed before the failure
     if (!res.headersSent) {
       res.status(500).json({ error: 'Stream error', details: err.message });
     } else if (!res.writableEnded) {

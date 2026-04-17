@@ -73,6 +73,12 @@ function initJobs(ctx = {}) {
   const { cleanupCards } = require('./cardCleanup');
   registerJob('share-card-cleanup', '*/5 * * * *', cleanupCards);
 
+  // ── LGPD retention: daily at 03:15 BRT ───────────────────────────────
+  // Hard-deletes any user in dsar_erasure_queue whose 30-day grace
+  // window has elapsed, and redacts DPO-ticket PII older than 90 days.
+  const { runRetentionOnce } = require('./lgpdRetention');
+  registerJob('lgpd-retention', '15 6 * * *', runRetentionOnce);  // 03:15 BRT = 06:15 UTC
+
   // ── Alert evaluation: every 45 seconds ──────────────────────────────
   // Alert scheduler uses internal heartbeat loop because it needs sub-minute
   // cadence. We just start it here for central management.

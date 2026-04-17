@@ -4,13 +4,29 @@ import { createRoot } from 'react-dom/client'
 import { HashRouter, Routes, Route } from 'react-router-dom'
 import App from './App.jsx'
 
+// W0.3 — Sentry release tag via VITE_SENTRY_RELEASE (injected by CI from the
+// git SHA). Do NOT enable sendDefaultPii; we tag user.id only, never username
+// or email. PII redaction on the server is the other half of this guarantee.
 if (import.meta.env.VITE_SENTRY_DSN) {
   Sentry.init({
     dsn: import.meta.env.VITE_SENTRY_DSN,
     environment: import.meta.env.MODE,
-    tracesSampleRate: 0.1,
+    release: import.meta.env.VITE_SENTRY_RELEASE || undefined,
+    tracesSampleRate: Number(import.meta.env.VITE_SENTRY_TRACES_SAMPLE_RATE || 0.1),
     replaysSessionSampleRate: 0,
     replaysOnErrorSampleRate: 0.5,
+    sendDefaultPii: false,
+    beforeSend(event) {
+      try {
+        if (event?.request?.headers) {
+          for (const k of Object.keys(event.request.headers)) {
+            const lk = k.toLowerCase();
+            if (lk === 'authorization' || lk === 'cookie') event.request.headers[k] = '[REDACTED]';
+          }
+        }
+      } catch { /* never throw from beforeSend */ }
+      return event;
+    },
   });
 }
 // LandingPage removed — LoginScreen IS the landing page
@@ -20,6 +36,7 @@ import NotFoundPage from './components/common/NotFoundPage.jsx'
 import LoginScreen from './components/auth/LoginScreen.jsx'
 import { AuthProvider, useAuth } from './context/AuthContext.jsx'
 import { ToastProvider } from './context/ToastContext.jsx'
+import CookieConsentBanner from './components/common/CookieConsentBanner.jsx'
 import { ThemeProvider } from './context/ThemeContext.jsx'
 import { SettingsProvider, useSettings } from './context/SettingsContext.jsx'
 
@@ -123,6 +140,7 @@ createRoot(document.getElementById('root')).render(
       <AuthProvider>
         <ToastProvider>
           <AppShell />
+          <CookieConsentBanner locale="pt" />
         </ToastProvider>
       </AuthProvider>
     </HashRouter>

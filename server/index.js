@@ -11,15 +11,49 @@ process.on('unhandledRejection', (reason) => {
   console.error('[FATAL] Unhandled rejection:', reason?.stack || reason?.message || reason);
 });
 
-// ── Sentry error monitoring ───────────────────────────────────────────────────
+// ── Sentry error monitoring (W0.3) ────────────────────────────────────────────
+// Init as early as possible so uncaught-exception and unhandled-rejection
+// handlers (registered above) can still report to Sentry via captureException.
+// Release tag uses RENDER_GIT_COMMIT (Render sets this automatically) or falls
+// back to SENTRY_RELEASE / GIT_COMMIT when present.
 const Sentry = require('@sentry/node');
 if (process.env.SENTRY_DSN) {
+  const release =
+    process.env.SENTRY_RELEASE ||
+    process.env.RENDER_GIT_COMMIT ||
+    process.env.GIT_COMMIT ||
+    undefined;
   Sentry.init({
-    dsn: process.env.SENTRY_DSN,
-    environment: process.env.NODE_ENV || 'development',
-    tracesSampleRate: 0.1, // 10% of transactions for performance monitoring
+    dsn:               process.env.SENTRY_DSN,
+    environment:       process.env.NODE_ENV || 'development',
+    release,
+    tracesSampleRate:  Number(process.env.SENTRY_TRACES_SAMPLE_RATE || 0.1),
+    // Do not attach request bodies automatically — we redact PII via the
+    // logger and do not want payloads leaking to Sentry either.
+    sendDefaultPii: false,
+    beforeSend(event) {
+      // Defence in depth: scrub any authorization/cookie headers that might
+      // have been picked up by the integrations.
+      try {
+        if (event?.request?.headers) {
+          for (const k of Object.keys(event.request.headers)) {
+            const lk = k.toLowerCase();
+            if (lk === 'authorization' || lk === 'cookie' || lk === 'set-cookie' || lk === 'x-api-key') {
+              event.request.headers[k] = '[REDACTED]';
+            }
+          }
+        }
+      } catch { /* never throw from beforeSend */ }
+      return event;
+    },
   });
-  console.log('[INFO] Sentry error monitoring initialized');
+  console.log(`[INFO] Sentry error monitoring initialized (release=${release || 'unset'})`);
+
+  // Forward previously-registered process handlers into Sentry too.
+  process.on('uncaughtException', (err) => { try { Sentry.captureException(err); } catch {} });
+  process.on('unhandledRejection', (reason) => {
+    try { Sentry.captureException(reason instanceof Error ? reason : new Error(String(reason))); } catch {}
+  });
 } else {
   console.warn('[WARN] SENTRY_DSN not set — error monitoring disabled. Set it in Render environment.');
 }
@@ -64,9 +98,12 @@ const briefRoutes       = require('./routes/brief');
 const riskRoutes        = require('./routes/risk');
 const unusualWhalesRoutes = require('./routes/unusualWhales');
 const adminRoutes = require('./routes/admin');
+const privacyRoutes = require('./routes/privacy');       // W1.1 LGPD DSAR
 const { requireAuth, requireActiveSubscription, requireAdmin } = require('./authMiddleware');
 const logger = require('./utils/logger');
-const { requestLogger } = require('./utils/logger');
+const { requestLogger, correlationSync } = require('./utils/logger');
+const wsBackpressure = require('./utils/wsBackpressure');
+const { metricsMiddleware, metricsHandler, metrics: promMetrics } = require('./utils/metrics');
 const { errorHandler } = require('./utils/apiError');
 const { rateLimitByUser } = require('./middleware/rateLimitByUser');
 const { rateLimitByIP } = require('./middleware/rateLimitByIP');
@@ -191,6 +228,22 @@ app.use(cookieParser());
 
 app.use(requestLogger);
 
+// W1.4 — prom-client RED metrics per route. Runs after requestLogger so
+// reqId is available for correlation in logs.
+app.use(metricsMiddleware);
+
+// W1.5 — After auth middleware runs (which populates req.userId) and a route
+// matches (populates req.route.path), sync userId/route back into the ALS
+// store so downstream service-layer logs are tagged with them. Safe to mount
+// here because auth middleware is applied per-route below.
+app.use(correlationSync);
+
+// W0.3 — Tag Sentry scope with (non-PII) user/tier/route for every request
+// that already has authentication populated. On unauthenticated routes this
+// middleware is a no-op.
+const { sentryTagUser } = require('./middleware/sentryContext');
+app.use(sentryTagUser);
+
 // CSRF protection — blocks plain-form cross-origin state-mutating requests
 app.use(csrfProtect);
 
@@ -214,6 +267,33 @@ app.get('/.well-known/apple-developer-merchantid-domain-association', async (req
 });
 
 // ── Public routes ──────────────────────────────────────────────────────────────
+
+// W1.4: /metrics endpoint for Prometheus. Guarded by an IP allow-list so it
+// isn't exposed to the public internet. Defaults to loopback + RFC1918 ranges;
+// production should additionally require a bearer token via METRICS_TOKEN.
+const METRICS_ALLOW_RAW = process.env.METRICS_IP_ALLOWLIST ||
+  '127.0.0.1,::1,10.,172.16.,172.17.,172.18.,172.19.,172.20.,172.21.,172.22.,172.23.,172.24.,172.25.,172.26.,172.27.,172.28.,172.29.,172.30.,172.31.,192.168.';
+const METRICS_ALLOWED = METRICS_ALLOW_RAW.split(',').map(s => s.trim()).filter(Boolean);
+const METRICS_TOKEN = process.env.METRICS_TOKEN || '';
+
+function metricsGate(req, res, next) {
+  // Bearer-token path: if a token is configured, a matching Authorization
+  // header lets the caller in regardless of source IP (for Render's scraper).
+  if (METRICS_TOKEN) {
+    const h = req.headers.authorization || '';
+    if (h === `Bearer ${METRICS_TOKEN}`) return next();
+  }
+  // IP allow-list. Trust proxy is already configured so req.ip is correct.
+  const ip = (req.ip || '').replace(/^::ffff:/, '');
+  const ok = METRICS_ALLOWED.some(prefix => ip === prefix || ip.startsWith(prefix));
+  if (!ok) {
+    res.setHeader('Content-Type', 'text/plain');
+    return res.status(403).send('# forbidden\n');
+  }
+  next();
+}
+app.get('/metrics', metricsGate, metricsHandler);
+
 // Minimal public health check (no detailed API key or provider info)
 app.get('/health', async (req, res) => {
   // DB connectivity check
@@ -484,6 +564,11 @@ app.use('/api/risk', requireAuth,
 // Feed health: no auth required (public endpoint for monitoring)
 app.use('/api/feed', feedRouter);
 
+// W1.1 LGPD — data-subject endpoints. The privacy router implements its own
+// auth split (public data-map + DPO contact form, authenticated /me, etc.)
+// so we do not mount requireAuth at the prefix.
+app.use('/api/privacy', privacyRoutes);
+
 // Market data: auth + subscription required + rate limit + timeout
 app.use('/api', requireAuth, requireActiveSubscription,
   rateLimitByIP({ max: 120, windowMs: 60000 }),
@@ -610,6 +695,13 @@ wss.on('connection', (ws, req) => {
   if (!userId) {
     logger.warn('ws', 'Connection rejected: no token provided');
     ws.close(4001, 'Authentication required');
+    return;
+  }
+
+  // W1.8: per-user connection cap. Reject excess with 1008; the existing
+  // client will exponentially back off and this one gets closed cleanly.
+  if (!wsBackpressure.registerConnection(ws, userId)) {
+    ws.close(1008, 'Too many concurrent connections');
     return;
   }
 
@@ -742,7 +834,7 @@ wss.on('connection', (ws, req) => {
       if (!chatStore.isOnline(userId)) {
         for (const [client, info] of clients) {
           if (client.readyState === WebSocket.OPEN && info.userId !== userId) {
-            client.send(JSON.stringify({ type: 'presence', userId, online: false }));
+            wsBackpressure.safeSend(client, JSON.stringify({ type: 'presence', userId, online: false }));
           }
         }
       }
@@ -750,6 +842,7 @@ wss.on('connection', (ws, req) => {
       logger.error('ws', 'chatStore.setOffline error on close', { error: e.message, userId });
     }
     clients.delete(ws);
+    wsBackpressure.unregisterConnection(ws, userId);
     logger.info('ws', 'Client disconnected', { userId, total: clients.size });
   });
 
@@ -761,7 +854,7 @@ wss.on('connection', (ws, req) => {
       if (!chatStore.isOnline(userId)) {
         for (const [client, info] of clients) {
           if (client.readyState === WebSocket.OPEN && info.userId !== userId) {
-            client.send(JSON.stringify({ type: 'presence', userId, online: false }));
+            wsBackpressure.safeSend(client, JSON.stringify({ type: 'presence', userId, online: false }));
           }
         }
       }
@@ -769,6 +862,7 @@ wss.on('connection', (ws, req) => {
       logger.error('ws', 'chatStore.setOffline error on ws error', { error: e.message, userId });
     }
     clients.delete(ws);
+    wsBackpressure.unregisterConnection(ws, userId);
   });
 });
 
@@ -779,7 +873,9 @@ function broadcast(update) {
     if (ws.readyState !== WebSocket.OPEN) continue;
     // If update specifies userId, only send to that user
     if (update.userId && info.userId !== update.userId) continue;
-    ws.send(msg);
+    // W1.8: safeSend enforces per-connection outbound buffer cap and will
+    // kick a slow client rather than let it drag every other client down.
+    wsBackpressure.safeSend(ws, msg);
   }
 }
 
@@ -931,6 +1027,16 @@ async function boot() {
     logger.info('boot', 'Vault signals background job started');
   } catch (e) {
     logger.warn('boot', 'Vault signals job initialization failed', { error: e.message });
+  }
+
+  // W1.2: AI cost watchdog. Trips force_haiku at 80% of monthly budget,
+  // block_all_ai at 100%. Reads AI_MONTHLY_BUDGET_CENTS (default 100000 = $1k).
+  try {
+    const { startBudgetWatchdog } = require('./services/aiCostLedger');
+    startBudgetWatchdog();
+    logger.info('boot', 'AI budget watchdog started');
+  } catch (e) {
+    logger.warn('boot', 'AI budget watchdog failed to start', { error: e.message });
   }
 
   const { initEmail } = require('./services/emailService');
