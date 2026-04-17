@@ -22,7 +22,9 @@
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-bold);
   letter-spacing: 0.08em;
+  text-transform: uppercase;
   color: var(--color-text-primary);
+  line-height: 1;
 }
 
 .np-header-count {

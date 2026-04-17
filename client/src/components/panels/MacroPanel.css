@@ -17,14 +17,19 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  padding: 4px 8px;
+  background: var(--bg-elevated);
+  border-bottom: 1px solid var(--border-strong);
   margin-bottom: var(--sp-2);
 }
 .macro-title {
-  font-size: 1rem;
-  font-weight: 600;
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: rgba(255,255,255,0.90);
+  color: var(--color-text-primary);
+  line-height: 1;
 }
 .macro-ai-btn {
   padding: 5px 12px;

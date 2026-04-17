@@ -11,11 +11,12 @@
 }
 
 .cp-header {
-  padding: 6px 10px;
-  border-bottom: 1px solid var(--border-subtle, var(--bg-elevated));
+  padding: 4px 8px;
+  background: var(--bg-elevated);
+  border-bottom: 1px solid var(--border-strong);
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   flex-shrink: 0;
 }
 .cp-title {
@@ -23,7 +24,9 @@
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-bold);
   letter-spacing: 0.08em;
+  text-transform: uppercase;
   color: var(--color-text-primary);
+  line-height: 1;
 }
 .cp-subtitle {
   font-size: 8px;

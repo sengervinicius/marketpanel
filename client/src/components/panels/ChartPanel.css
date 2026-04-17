@@ -14,8 +14,9 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 3px var(--sp-2);
-  border-bottom: 1px solid var(--border-subtle);
+  padding: 4px 8px;
+  background: var(--bg-elevated);
+  border-bottom: 1px solid var(--border-strong);
   flex-shrink: 0;
 }
 .cp-title {
@@ -25,6 +26,7 @@
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--color-text-primary);
+  line-height: 1;
 }
 .cp-subtitle {
   color: var(--text-faint);

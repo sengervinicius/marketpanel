@@ -11,16 +11,23 @@
 }
 
 .ep-header {
-  padding: 10px 14px;
-  border-bottom: 1px solid var(--border-subtle);
+  padding: 4px 8px;
+  background: var(--bg-elevated);
+  border-bottom: 1px solid var(--border-strong);
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .ep-header-title {
-  color: var(--color-section-header);
-  font-size: 11px;
-  letter-spacing: 0.2em;
-  font-weight: bold;
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-primary);
+  line-height: 1;
 }
 
 .ep-content {

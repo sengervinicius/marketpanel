@@ -11,10 +11,13 @@
 }
 
 .ac-header-title {
-  color: var(--text-primary);
-  font-weight: 700;
-  letter-spacing: 1px;
-  font-size: var(--font-base);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-primary);
+  line-height: 1;
 }
 
 .ac-header-spacer { flex: 1; }
