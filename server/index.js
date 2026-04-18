@@ -77,7 +77,8 @@ const billingRoutes     = require('./routes/billing');
 const debtRoutes        = require('./routes/debt');
 const instrumentsRoutes = require('./routes/instruments');
 const macroRoutes       = require('./routes/macro');
-const portfolioRoutes   = require('./routes/portfolio');
+const portfolioRoutes       = require('./routes/portfolio');
+const portfolioImportRoutes = require('./routes/portfolioImport');
 const alertRoutes       = require('./routes/alerts');
 const anomaliesRoutes   = require('./routes/anomalies');
 const iapRoutes         = require('./routes/iap');
@@ -465,6 +466,8 @@ app.use('/api/options', requireAuth, requireActiveSubscription,
   optionsRoutes);
 
 // Portfolio: auth required + rate limit (no subscription check — need portfolio even on expired trial)
+// NOTE: Mount /import BEFORE the catch-all so its own rate-limits apply.
+app.use('/api/portfolio/import', requireAuth, portfolioImportRoutes);    // W6.4 CSV import
 app.use('/api/portfolio', requireAuth,
   rateLimitByUser({ key: 'portfolio', windowSec: 60, max: 30 }),
   portfolioRoutes);
