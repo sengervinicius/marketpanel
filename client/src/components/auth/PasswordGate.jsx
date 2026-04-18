@@ -45,10 +45,10 @@ export default function PasswordGate({ children }) {
         {/* Logo / branding */}
         <div className="pg-branding">
           <div className="pg-logo-label">
-            ARC CAPITAL
+            THE PARTICLE
           </div>
           <div className="pg-logo-title">
-            PARTICLE TERMINAL
+            MARKET TERMINAL
           </div>
           <div className="pg-logo-subtitle">
             Professional Market Data Terminal

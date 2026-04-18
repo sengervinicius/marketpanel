@@ -428,7 +428,7 @@ export default function LandingPage() {
               letterSpacing: '0.5px',
             }}
           >
-            Arc Capital • Independent Traders • Hedge Funds
+            Independent Traders • Hedge Funds • Family Offices
           </p>
         </div>
       </section>
