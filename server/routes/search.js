@@ -16,6 +16,7 @@ const router  = express.Router();
 const { perMinuteLimit } = require('../middleware/rateLimitByIP');
 const { dailyAILimit } = require('../middleware/dailyAILimit');
 const { aiQuotaGate } = require('../middleware/aiQuotaGate');
+const featureFlags = require('../services/featureFlags'); // W6.1 kill switch
 const aiCostLedger = require('../services/aiCostLedger');
 // W1.3: scrub credential/URL patterns and auto-append disclaimers on any
 // AI answer that mentions a ticker + direction.
@@ -1467,7 +1468,28 @@ function chatCacheSet(key, value) {
   _chatCache.set(key, { value, exp: Date.now() + CHAT_CACHE_TTL });
 }
 
-router.post('/chat', perMinuteLimit, dailyAILimit, aiQuotaGate, async (req, res) => {
+// W6.1 — kill switch middleware. If `ai_chat_enabled` flag is OFF for this
+// user (or globally), return 503 and let the client fall back to the
+// degraded-experience CTA. Checked BEFORE rate limits so a disabled feature
+// doesn't burn a user's quota.
+async function aiChatKillSwitch(req, res, next) {
+  try {
+    const ctx = req.user ? { userId: req.user.id, tier: req.user.tier, email: req.user.email } : {};
+    const on = await featureFlags.isOn('ai_chat_enabled', ctx);
+    if (!on) {
+      return res.status(503).json({
+        error: 'ai_chat_disabled',
+        message: 'AI chat is temporarily unavailable. Please check status.particle.xyz or try again later.',
+      });
+    }
+    return next();
+  } catch (e) {
+    // Fail closed on evaluation errors — 503 beats accidental outage.
+    return res.status(503).json({ error: 'ai_chat_disabled', message: 'feature gate unavailable' });
+  }
+}
+
+router.post('/chat', aiChatKillSwitch, perMinuteLimit, dailyAILimit, aiQuotaGate, async (req, res) => {
   // API key check moved to modelRouter fallback logic below
   const { messages, context } = req.body;
   if (!messages || !Array.isArray(messages) || messages.length === 0) {

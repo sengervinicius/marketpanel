@@ -409,3 +409,49 @@ CREATE TABLE IF NOT EXISTS iap_receipts (
 CREATE INDEX IF NOT EXISTS idx_iap_user     ON iap_receipts (user_id);
 CREATE INDEX IF NOT EXISTS idx_iap_expires  ON iap_receipts (expires_at);
 CREATE INDEX IF NOT EXISTS idx_iap_status   ON iap_receipts (status, expires_at);
+
+-- W6.1 — DIY feature flags.
+--
+-- Each flag is one row. Evaluation order in featureFlags.js:
+--   1. enabled=false → OFF for everyone (kill switch)
+--   2. cohort_rule matches (tiers/userIds/emailDomains) → ON
+--   3. rollout_pct > 0 and deterministic hash(userId||name) % 100 < pct → ON
+--   4. otherwise OFF
+--
+-- cohort_rule is JSONB so we can evolve without schema churn:
+--   {"tiers": ["particle_pro","particle_elite"]}
+--   {"userIds": [1, 2, 42]}
+--   {"emailDomains": ["arccapital.com.br"]}
+CREATE TABLE IF NOT EXISTS feature_flags (
+  name         TEXT        PRIMARY KEY,
+  enabled      BOOLEAN     NOT NULL DEFAULT FALSE,
+  rollout_pct  INTEGER     NOT NULL DEFAULT 0 CHECK (rollout_pct BETWEEN 0 AND 100),
+  cohort_rule  JSONB,
+  description  TEXT,
+  updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_by   TEXT
+);
+
+-- Audit trail — immutable log of every flag mutation.
+CREATE TABLE IF NOT EXISTS feature_flag_audit (
+  id          BIGSERIAL   PRIMARY KEY,
+  name        TEXT        NOT NULL,
+  before      JSONB,
+  after       JSONB,
+  actor       TEXT,
+  reason      TEXT,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_flag_audit_name    ON feature_flag_audit (name, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_flag_audit_created ON feature_flag_audit (created_at DESC);
+
+-- Seed the two flags we actually use on day 1 — default OFF so operations
+-- owns the first explicit turn-on. ON CONFLICT DO NOTHING keeps production
+-- state intact on re-run.
+INSERT INTO feature_flags (name, enabled, rollout_pct, description)
+VALUES
+  ('ai_chat_enabled', FALSE, 0,
+   'Global kill switch for /api/search/chat. When OFF the chat tab is hidden and the endpoint 503s.'),
+  ('vault_enabled',   FALSE, 0,
+   'Global kill switch for vault upload + RAG surfaces.')
+ON CONFLICT (name) DO NOTHING;

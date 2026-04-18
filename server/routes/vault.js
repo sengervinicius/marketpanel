@@ -27,10 +27,30 @@ const { requireAuth, requireAdmin } = require('../authMiddleware');
 const { getTier, isUnlimited } = require('../config/tiers');
 const { rateLimitByUser } = require('../middleware/rateLimitByUser');
 const { perMinuteLimit } = require('../middleware/rateLimitByIP');
+const featureFlags = require('../services/featureFlags'); // W6.1 kill switch
 
 const pg = require('../db/postgres');
 
 const router = express.Router();
+
+// W6.1 — vault kill switch. Admin endpoints + /health are exempt so on-call
+// can always introspect while the feature is disabled for end users.
+router.use(async (req, res, next) => {
+  if (req.path === '/health' || req.path.startsWith('/admin/')) return next();
+  try {
+    const ctx = req.user ? { userId: req.user.id, tier: req.user.tier, email: req.user.email } : {};
+    const on = await featureFlags.isOn('vault_enabled', ctx);
+    if (!on) {
+      return res.status(503).json({
+        error: 'vault_disabled',
+        message: 'Vault is temporarily unavailable. Please check status.particle.xyz.',
+      });
+    }
+    return next();
+  } catch {
+    return res.status(503).json({ error: 'vault_disabled' });
+  }
+});
 
 /**
  * GET /health — Vault health check (no auth required for basic status).

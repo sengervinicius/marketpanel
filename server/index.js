@@ -100,6 +100,8 @@ const unusualWhalesRoutes = require('./routes/unusualWhales');
 const adminRoutes = require('./routes/admin');
 const privacyRoutes = require('./routes/privacy');       // W1.1 LGPD DSAR
 const adminDebugRoutes = require('./routes/adminDebug'); // W4.1 on-call debug
+const adminFlagsRoutes = require('./routes/adminFlags'); // W6.1 feature flags admin
+const featureFlags     = require('./services/featureFlags'); // W6.1
 const { requireAuth, requireActiveSubscription, requireAdmin } = require('./authMiddleware');
 const logger = require('./utils/logger');
 const { requestLogger, correlationSync } = require('./utils/logger');
@@ -358,6 +360,22 @@ app.use('/api/auth', authRoutes);
 // ── Admin Dashboard Routes (requires auth) ──────────────────────────────────
 app.use('/api/admin', requireAuth, adminRoutes);
 app.use('/api/admin/debug', requireAuth, adminDebugRoutes);  // W4.1 on-call surface
+app.use('/api/admin/flags', requireAuth, adminFlagsRoutes);  // W6.1 feature flags admin
+
+// W6.1 — per-user flag evaluation for the client. Returns a {name: bool} map.
+// Anonymous callers get only flags that don't require a userId (effectively
+// just fully on / fully off flags with no rollout_pct).
+app.get('/api/flags', async (req, res) => {
+  try {
+    const ctx = req.user
+      ? { userId: req.user.id, tier: req.user.tier, email: req.user.email }
+      : {};
+    const map = await featureFlags.evaluateAll(ctx);
+    res.json({ flags: map });
+  } catch (e) {
+    res.status(500).json({ error: 'flags_failed', message: e.message });
+  }
+});
 
 // ── Admin health endpoint (provider status only — requires admin auth) ──
 // Note: Does not expose API key names or values, only availability status
