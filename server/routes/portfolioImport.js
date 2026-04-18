@@ -37,7 +37,9 @@ const multer  = require('multer');
 const logger  = require('../utils/logger');
 const { rateLimitByUser } = require('../middleware/rateLimitByUser');
 const { getPortfolio, syncPortfolio } = require('../portfolioStore');
-const csvImporter = require('../services/csvImporter');
+const csvImporter       = require('../services/csvImporter');
+const ofxImporter       = require('../services/ofxImporter');
+const brokerPdfImporter = require('../services/brokerPdfImporter');
 
 const router = express.Router();
 
@@ -45,32 +47,43 @@ function _sendErr(res, status, code, message, extra) {
   return res.status(status).json({ ok: false, error: code, message, ...(extra || {}) });
 }
 
-// 5MB cap. A 5MB broker CSV is ~50k rows — well past our 500-row position cap.
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 5 * 1024 * 1024, files: 1 },
-  fileFilter: (req, file, cb) => {
-    const name = (file.originalname || '').toLowerCase();
-    const ok =
-      file.mimetype === 'text/csv' ||
-      file.mimetype === 'text/plain' ||
-      file.mimetype === 'application/vnd.ms-excel' ||   // Excel sometimes tags CSV this way
-      file.mimetype === 'application/octet-stream' ||   // Some browsers send this
-      name.endsWith('.csv') || name.endsWith('.tsv') || name.endsWith('.txt');
-    if (ok) cb(null, true);
-    else cb(new Error('Only CSV/TSV files are accepted for portfolio import'));
-  },
-});
-
-// Express catch-all for multer errors so the client sees 400 (not a 500 crash).
-function handleUpload(req, res, next) {
-  upload.single('file')(req, res, (err) => {
-    if (!err) return next();
-    const status = err.code === 'LIMIT_FILE_SIZE' ? 413 : 400;
-    const code   = err.code === 'LIMIT_FILE_SIZE' ? 'file_too_large' : 'bad_upload';
-    return _sendErr(res, status, code, err.message || 'Upload failed');
+// 5MB cap for CSV/TSV/OFX, 10MB for PDF (broker statements can be image-heavy).
+// We use memoryStorage because these files are small and the parser needs the
+// full buffer. A 5MB broker CSV is ~50k rows — well past our 500-row cap.
+function makeUploader({ maxBytes, allowedExts }) {
+  return multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: maxBytes, files: 1 },
+    fileFilter: (req, file, cb) => {
+      const name = (file.originalname || '').toLowerCase();
+      const ext  = name.split('.').pop();
+      const ok = allowedExts.includes(ext) ||
+        ['text/csv','text/plain','application/vnd.ms-excel','application/x-ofx','application/pdf','application/octet-stream']
+          .includes(file.mimetype);
+      if (ok) cb(null, true);
+      else cb(new Error(`Unsupported file type. Accepted: ${allowedExts.join(', ')}`));
+    },
   });
 }
+
+const csvUpload = makeUploader({ maxBytes: 5 * 1024 * 1024,  allowedExts: ['csv','tsv','txt'] });
+const ofxUpload = makeUploader({ maxBytes: 5 * 1024 * 1024,  allowedExts: ['ofx','qfx','txt'] });
+const pdfUpload = makeUploader({ maxBytes: 10 * 1024 * 1024, allowedExts: ['pdf'] });
+
+// Express catch-all for multer errors so the client sees 400 (not a 500 crash).
+function handleUploadFactory(uploader) {
+  return function handleUpload(req, res, next) {
+    uploader.single('file')(req, res, (err) => {
+      if (!err) return next();
+      const status = err.code === 'LIMIT_FILE_SIZE' ? 413 : 400;
+      const code   = err.code === 'LIMIT_FILE_SIZE' ? 'file_too_large' : 'bad_upload';
+      return _sendErr(res, status, code, err.message || 'Upload failed');
+    });
+  };
+}
+const handleUpload    = handleUploadFactory(csvUpload);
+const handleOfxUpload = handleUploadFactory(ofxUpload);
+const handlePdfUpload = handleUploadFactory(pdfUpload);
 
 // Rate limit: import isn't a hot path, and commit loops should be blocked.
 const importRateLimit = rateLimitByUser({ key: 'portfolio-import', windowSec: 5 * 60, max: 10 });
@@ -222,6 +235,148 @@ router.post('/commit', importRateLimit, handleUpload, async (req, res) => {
   } catch (e) {
     logger.error('csv-import', 'Commit failed', { userId: req.user.id, error: e.message });
     _sendErr(res, 500, 'server_error', 'Failed to commit CSV import');
+  }
+});
+
+// ── OFX + PDF parsers (W6.6) ────────────────────────────────────────────────
+// These endpoints share the commit pipeline indirectly: they produce the same
+// `positions[]` shape as csvImporter.normalise(), so the client flow is:
+//   1. POST /ofx/parse  or  /pdf/parse  → { positions, warnings, ... }
+//   2. Client renders a confirm dialog showing the parsed positions.
+//   3. Client calls POST /api/portfolio/sync  with the user-approved set.
+//
+// We deliberately do NOT add a /commit endpoint that auto-merges OFX/PDF
+// output — parser output is less trustworthy than CSV with an explicit
+// mapping, so we force the user through a separate confirm-and-sync UI.
+//
+// If the broker PDF template isn't recognised, the endpoint returns
+// { unknownTemplate: true } so the UI can direct the user back to CSV.
+
+function _commitIntoPortfolio(userId, positions, { mode = 'merge', portfolioName = 'Imported' } = {}) {
+  const existing = getPortfolio(userId);
+  const targetId = (() => {
+    if (mode === 'replace' || !existing) return 'imported';
+    const found = (existing.portfolios || []).find(p => p.name === portfolioName);
+    return found ? found.id : 'imported';
+  })();
+
+  const stamped = positions.map(p => ({ ...p, portfolioId: targetId }));
+
+  if (mode === 'replace' || !existing) {
+    return syncPortfolio(userId, {
+      version: 1,
+      portfolios: [{ id: targetId, name: portfolioName, subportfolios: [] }],
+      positions: stamped,
+    });
+  }
+  const keyOf = p => `${p.symbol}|${Number(p.investedAmount).toFixed(2)}`;
+  const existingKeys = new Set(
+    (existing.positions || []).filter(p => p.portfolioId === targetId).map(keyOf)
+  );
+  const deduped = stamped.filter(p => !existingKeys.has(keyOf(p)));
+  const portfolios = [...(existing.portfolios || [])];
+  if (!portfolios.some(p => p.id === targetId)) {
+    portfolios.push({ id: targetId, name: portfolioName, subportfolios: [] });
+  }
+  return syncPortfolio(userId, {
+    version: existing.version || 1,
+    portfolios,
+    positions: [...(existing.positions || []), ...deduped],
+  });
+}
+
+router.post('/ofx/parse', importRateLimit, handleOfxUpload, (req, res) => {
+  try {
+    if (!req.file || !req.file.buffer) {
+      return _sendErr(res, 400, 'bad_request', 'OFX file required (multipart field: file)');
+    }
+    const result = ofxImporter.parse(req.file.buffer, { portfolioId: 'imported' });
+    logger.info('ofx-import', 'Parsed', {
+      userId: req.user.id,
+      positions: result.positions.length,
+      rejected: result.rejected.length,
+    });
+    res.json({ ok: true, ...result });
+  } catch (e) {
+    logger.warn('ofx-import', 'Parse failed', { userId: req.user.id, error: e.message });
+    const msg = String(e.message || '').startsWith('ofx_parse_failed') ? 'Not a valid OFX file' : 'OFX parse failed';
+    _sendErr(res, 400, 'ofx_parse_failed', msg);
+  }
+});
+
+router.post('/ofx/commit', importRateLimit, handleOfxUpload, async (req, res) => {
+  try {
+    if (!req.file?.buffer) return _sendErr(res, 400, 'bad_request', 'OFX file required');
+    const mode = req.body.mode === 'replace' ? 'replace' : 'merge';
+    const portfolioName = (req.body.portfolioName || 'Imported').toString().slice(0, 64);
+    const parsed = ofxImporter.parse(req.file.buffer, { portfolioId: 'imported' });
+    if (parsed.positions.length === 0) {
+      return _sendErr(res, 400, 'no_valid_positions',
+        'OFX file parsed but contained no supported positions.',
+        { rejected: parsed.rejected, warnings: parsed.warnings });
+    }
+    const doc = await _commitIntoPortfolio(req.user.id, parsed.positions, { mode, portfolioName });
+    res.json({
+      ok: true,
+      added: parsed.positions.length,
+      rejected: parsed.rejected,
+      warnings: parsed.warnings,
+      totalPositions: doc.positions.length,
+    });
+  } catch (e) {
+    logger.error('ofx-import', 'Commit failed', { userId: req.user.id, error: e.message });
+    _sendErr(res, 500, 'server_error', 'Failed to commit OFX import');
+  }
+});
+
+router.post('/pdf/parse', importRateLimit, handlePdfUpload, async (req, res) => {
+  try {
+    if (!req.file?.buffer) return _sendErr(res, 400, 'bad_request', 'PDF file required');
+    const result = await brokerPdfImporter.parse(req.file.buffer, { portfolioId: 'imported' });
+    logger.info('pdf-import', 'Parsed', {
+      userId: req.user.id,
+      template: result.template || 'unknown',
+      positions: result.positions.length,
+    });
+    res.json({ ok: true, ...result });
+  } catch (e) {
+    logger.warn('pdf-import', 'Parse failed', { userId: req.user.id, error: e.message });
+    if (e.message === 'pdf_parse_not_installed') {
+      return _sendErr(res, 501, 'pdf_parse_unavailable',
+        'PDF parsing is not available on this deployment.');
+    }
+    _sendErr(res, 400, 'pdf_parse_failed', 'Could not parse PDF');
+  }
+});
+
+router.post('/pdf/commit', importRateLimit, handlePdfUpload, async (req, res) => {
+  try {
+    if (!req.file?.buffer) return _sendErr(res, 400, 'bad_request', 'PDF file required');
+    const mode = req.body.mode === 'replace' ? 'replace' : 'merge';
+    const portfolioName = (req.body.portfolioName || 'Imported').toString().slice(0, 64);
+    const parsed = await brokerPdfImporter.parse(req.file.buffer, { portfolioId: 'imported' });
+    if (parsed.unknownTemplate) {
+      return _sendErr(res, 400, 'unknown_template',
+        'We don\'t recognise this broker\'s PDF format yet. Please use CSV import or contact support.',
+        { supportedTemplates: parsed.supportedTemplates });
+    }
+    if (parsed.positions.length === 0) {
+      return _sendErr(res, 400, 'no_valid_positions',
+        'PDF matched a broker template but we couldn\'t extract any positions.',
+        { rejected: parsed.rejected, warnings: parsed.warnings });
+    }
+    const doc = await _commitIntoPortfolio(req.user.id, parsed.positions, { mode, portfolioName });
+    res.json({
+      ok: true,
+      added: parsed.positions.length,
+      rejected: parsed.rejected,
+      warnings: parsed.warnings,
+      template: parsed.template,
+      totalPositions: doc.positions.length,
+    });
+  } catch (e) {
+    logger.error('pdf-import', 'Commit failed', { userId: req.user.id, error: e.message });
+    _sendErr(res, 500, 'server_error', 'Failed to commit PDF import');
   }
 });
 
