@@ -3,6 +3,7 @@ import { StrictMode, useEffect, Component } from 'react'
 import { createRoot } from 'react-dom/client'
 import { HashRouter, Routes, Route } from 'react-router-dom'
 import App from './App.jsx'
+import { initAnalytics } from './utils/analytics.js'
 
 // W0.3 — Sentry release tag via VITE_SENTRY_RELEASE (injected by CI from the
 // git SHA). Do NOT enable sendDefaultPii; we tag user.id only, never username
@@ -29,6 +30,11 @@ if (import.meta.env.VITE_SENTRY_DSN) {
     },
   });
 }
+
+// W6.5 — Product analytics (PostHog). No-op unless VITE_POSTHOG_KEY is set
+// AND the user has granted the 'analytics' consent bucket.
+initAnalytics();
+
 // LandingPage removed — LoginScreen IS the landing page
 import InstrumentDetailPage from './pages/InstrumentDetailPage.jsx'
 import ChatPage from './pages/ChatPage.jsx'

@@ -1,0 +1,302 @@
+{
+  "__inputs": [
+    {
+      "name": "DS_PROMETHEUS",
+      "label": "Prometheus",
+      "description": "",
+      "type": "datasource",
+      "pluginId": "prometheus",
+      "pluginName": "Prometheus"
+    }
+  ],
+  "title": "Particle — Platform Health",
+  "uid": "particle-health",
+  "tags": ["particle", "slo", "w6.5"],
+  "timezone": "",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-6h", "to": "now" },
+  "templating": {
+    "list": [
+      {
+        "name": "datasource",
+        "type": "datasource",
+        "label": "Prometheus",
+        "query": "prometheus",
+        "current": { "text": "Prometheus", "value": "${DS_PROMETHEUS}" }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "row",
+      "title": "SLOs",
+      "gridPos": { "x": 0, "y": 0, "w": 24, "h": 1 }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Availability (1h)",
+      "gridPos": { "x": 0, "y": 1, "w": 6, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        {
+          "expr": "1 - (sum(rate(particle_http_requests_total{status=~\"5..\"}[1h])) / sum(rate(particle_http_requests_total[1h])))",
+          "legendFormat": "1h availability",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red",    "value": null },
+              { "color": "orange", "value": 0.99 },
+              { "color": "green",  "value": 0.995 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "p95 latency (5m)",
+      "gridPos": { "x": 6, "y": 1, "w": 6, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(particle_http_request_duration_seconds_bucket[5m])))",
+          "legendFormat": "p95",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green",  "value": null },
+              { "color": "orange", "value": 0.5 },
+              { "color": "red",    "value": 1 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "In-flight HTTP",
+      "gridPos": { "x": 12, "y": 1, "w": 6, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        { "expr": "particle_http_in_flight", "legendFormat": "in-flight", "refId": "A" }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "Open WS connections",
+      "gridPos": { "x": 18, "y": 1, "w": 6, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        { "expr": "particle_ws_connections_open", "legendFormat": "ws open", "refId": "A" }
+      ]
+    },
+
+    {
+      "id": 6,
+      "type": "row",
+      "title": "HTTP",
+      "gridPos": { "x": 0, "y": 5, "w": 24, "h": 1 }
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Request rate by status class",
+      "gridPos": { "x": 0, "y": 6, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        { "expr": "sum by (status) (rate(particle_http_requests_total[1m]))",
+          "legendFormat": "{{status}}", "refId": "A" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "reqps" } }
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "Latency p50 / p95 / p99",
+      "gridPos": { "x": 12, "y": 6, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        { "expr": "histogram_quantile(0.50, sum by (le) (rate(particle_http_request_duration_seconds_bucket[5m])))", "legendFormat": "p50", "refId": "A" },
+        { "expr": "histogram_quantile(0.95, sum by (le) (rate(particle_http_request_duration_seconds_bucket[5m])))", "legendFormat": "p95", "refId": "B" },
+        { "expr": "histogram_quantile(0.99, sum by (le) (rate(particle_http_request_duration_seconds_bucket[5m])))", "legendFormat": "p99", "refId": "C" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s" } }
+    },
+    {
+      "id": 9,
+      "type": "timeseries",
+      "title": "Top 5 slowest routes (p95)",
+      "gridPos": { "x": 0, "y": 14, "w": 24, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        {
+          "expr": "topk(5, histogram_quantile(0.95, sum by (route, le) (rate(particle_http_request_duration_seconds_bucket[5m]))))",
+          "legendFormat": "{{route}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s" } }
+    },
+
+    {
+      "id": 10,
+      "type": "row",
+      "title": "AI / Cost",
+      "gridPos": { "x": 0, "y": 22, "w": 24, "h": 1 }
+    },
+    {
+      "id": 11,
+      "type": "stat",
+      "title": "MTD AI spend (USD)",
+      "gridPos": { "x": 0, "y": 23, "w": 6, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        { "expr": "particle_ai_monthly_spend_cents / 100", "legendFormat": "spend", "refId": "A" }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green",  "value": null },
+              { "color": "orange", "value": 800 },
+              { "color": "red",    "value": 1000 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 12,
+      "type": "stat",
+      "title": "Kill switch active",
+      "gridPos": { "x": 6, "y": 23, "w": 6, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        { "expr": "max(particle_ai_kill_switch_state)", "legendFormat": "engaged", "refId": "A" }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "options": { "0": { "text": "off", "color": "green" } }, "type": "value" },
+            { "options": { "1": { "text": "ENGAGED", "color": "red" } }, "type": "value" }
+          ]
+        }
+      }
+    },
+    {
+      "id": 13,
+      "type": "timeseries",
+      "title": "AI calls by outcome",
+      "gridPos": { "x": 12, "y": 23, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        { "expr": "sum by (outcome) (rate(particle_ai_calls_total[5m]))", "legendFormat": "{{outcome}}", "refId": "A" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "reqps" } }
+    },
+    {
+      "id": 14,
+      "type": "timeseries",
+      "title": "AI tokens/min (in / out)",
+      "gridPos": { "x": 0, "y": 27, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        { "expr": "sum by (direction) (rate(particle_ai_tokens_total[1m])) * 60", "legendFormat": "{{direction}}", "refId": "A" }
+      ]
+    },
+
+    {
+      "id": 15,
+      "type": "row",
+      "title": "Database",
+      "gridPos": { "x": 0, "y": 35, "w": 24, "h": 1 }
+    },
+    {
+      "id": 16,
+      "type": "timeseries",
+      "title": "Query duration p95 by kind",
+      "gridPos": { "x": 0, "y": 36, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (kind, le) (rate(particle_db_query_duration_seconds_bucket[5m])))",
+          "legendFormat": "{{kind}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s" } }
+    },
+    {
+      "id": 17,
+      "type": "timeseries",
+      "title": "Query errors by code",
+      "gridPos": { "x": 12, "y": 36, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        { "expr": "sum by (code) (rate(particle_db_query_errors_total[5m]))", "legendFormat": "{{code}}", "refId": "A" }
+      ]
+    },
+    {
+      "id": 18,
+      "type": "timeseries",
+      "title": "Pool in use",
+      "gridPos": { "x": 0, "y": 44, "w": 12, "h": 6 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        { "expr": "particle_db_pool_in_use", "legendFormat": "in use", "refId": "A" }
+      ]
+    },
+
+    {
+      "id": 19,
+      "type": "row",
+      "title": "WebSocket",
+      "gridPos": { "x": 0, "y": 50, "w": 24, "h": 1 }
+    },
+    {
+      "id": 20,
+      "type": "timeseries",
+      "title": "Messages sent vs dropped",
+      "gridPos": { "x": 0, "y": 51, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        { "expr": "rate(particle_ws_messages_sent_total[1m])",    "legendFormat": "sent/s",    "refId": "A" },
+        { "expr": "rate(particle_ws_messages_dropped_total[1m])", "legendFormat": "dropped/s", "refId": "B" }
+      ]
+    },
+    {
+      "id": 21,
+      "type": "timeseries",
+      "title": "Peak per-socket buffered amount",
+      "gridPos": { "x": 12, "y": 51, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        { "expr": "particle_ws_buffered_amount_peak_bytes", "legendFormat": "peak", "refId": "A" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "bytes" } }
+    }
+  ]
+}
