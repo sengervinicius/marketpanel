@@ -7,9 +7,6 @@
  *   - Message queue: buffers outgoing messages while disconnected, replays on reconnect
  *   - Connection state tracking (readyState exposed)
  *   - Custom event bridge: forwards ws:send events and emits ws:chat_message
- *
- * TODO(ws): Add binary message support for high-frequency tick data
- * TODO(ws): Add per-message acknowledgment for chat reliability
  */
 
 import { useEffect, useRef, useCallback, useState } from 'react';

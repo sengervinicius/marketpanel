@@ -36,9 +36,21 @@
  *   expenseRatio, // annual expense ratio (e.g. 0.0009 for 0.09%)
  *   category,     // e.g. 'Large Cap Growth', 'Fixed Income', 'Commodity'
  *   inceptionDate,
- *   holdings: [{ name, symbol, weight }], // top 10
+ *   index,        // benchmark index the fund tracks
+ *   provider,     // data source tag (e.g. 'reference-2025Q4' for stub data)
+ *   topHoldings:  [{ name, symbol, weight }], // top 10
  * }
+ *
+ * NOTE: Field names must match what instruments.js:1086-1092 reads:
+ *   aum, expenseRatio, topHoldings, index, provider.
+ * Prior stubs used `holdings` instead of `topHoldings`, and were missing
+ * `index` and `provider`, causing the ETF detail envelope to render only
+ * AUM + expense ratio and silently drop holdings/index/provider.
  */
+
+// Provider tag — stamps data as stub-sourced so the client can show a
+// "reference data" badge once real providers are wired in.
+const REFERENCE_PROVIDER = 'reference-2025Q4';
 
 // Stub data — shaped like real provider responses
 const ETF_STUBS = {
@@ -47,7 +59,8 @@ const ETF_STUBS = {
     exchange: 'NYSE Arca', currency: 'USD',
     nav: 502.14, aum: 5_100_000_000_000, expenseRatio: 0.0009,
     category: 'Large Cap Blend', inceptionDate: '1993-01-22',
-    holdings: [
+    index: 'S&P 500', provider: REFERENCE_PROVIDER,
+    topHoldings: [
       { name: 'Apple Inc', symbol: 'AAPL', weight: 0.0714 },
       { name: 'Microsoft Corp', symbol: 'MSFT', weight: 0.0640 },
       { name: 'Nvidia Corp', symbol: 'NVDA', weight: 0.0582 },
@@ -60,7 +73,8 @@ const ETF_STUBS = {
     exchange: 'NASDAQ', currency: 'USD',
     nav: 435.82, aum: 2_800_000_000_000, expenseRatio: 0.002,
     category: 'Large Cap Growth', inceptionDate: '1999-03-10',
-    holdings: [
+    index: 'Nasdaq-100', provider: REFERENCE_PROVIDER,
+    topHoldings: [
       { name: 'Apple Inc', symbol: 'AAPL', weight: 0.089 },
       { name: 'Microsoft Corp', symbol: 'MSFT', weight: 0.083 },
       { name: 'Nvidia Corp', symbol: 'NVDA', weight: 0.074 },
@@ -73,21 +87,24 @@ const ETF_STUBS = {
     exchange: 'NYSE Arca', currency: 'USD',
     nav: 214.50, aum: 56_000_000_000, expenseRatio: 0.004,
     category: 'Commodity — Gold', inceptionDate: '2004-11-18',
-    holdings: [{ name: 'Physical Gold', symbol: 'GOLD', weight: 1.0 }],
+    index: 'LBMA Gold Price PM', provider: REFERENCE_PROVIDER,
+    topHoldings: [{ name: 'Physical Gold', symbol: 'GOLD', weight: 1.0 }],
   },
   TLT: {
     symbol: 'TLT', name: 'iShares 20+ Year Treasury Bond ETF', assetClass: 'etf',
     exchange: 'NASDAQ', currency: 'USD',
     nav: 91.24, aum: 36_000_000_000, expenseRatio: 0.0015,
     category: 'Long-Term Government Bond', inceptionDate: '2002-07-22',
-    holdings: [{ name: 'US Treasury 30Y', symbol: 'US30Y', weight: 1.0 }],
+    index: 'ICE U.S. Treasury 20+ Year Bond Index', provider: REFERENCE_PROVIDER,
+    topHoldings: [{ name: 'US Treasury 30Y', symbol: 'US30Y', weight: 1.0 }],
   },
   EWZ: {
     symbol: 'EWZ', name: 'iShares MSCI Brazil ETF', assetClass: 'etf',
     exchange: 'NYSE Arca', currency: 'USD',
     nav: 31.18, aum: 5_200_000_000, expenseRatio: 0.0059,
     category: 'Brazil Equity', inceptionDate: '2000-07-10',
-    holdings: [
+    index: 'MSCI Brazil 25/50', provider: REFERENCE_PROVIDER,
+    topHoldings: [
       { name: 'Petrobras', symbol: 'PBR', weight: 0.098 },
       { name: 'Vale', symbol: 'VALE', weight: 0.097 },
       { name: 'Itau Unibanco', symbol: 'ITUB', weight: 0.092 },

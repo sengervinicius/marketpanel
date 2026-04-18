@@ -1528,7 +1528,9 @@ router.post('/chat', aiChatKillSwitch, perMinuteLimit, dailyAILimit, aiQuotaGate
 
   // Track search behavior (fire-and-forget)
   if (userId) {
-    behaviorTracker.trackSearch(userId, userQuery).catch(() => {});
+    behaviorTracker.trackSearch(userId, userQuery).catch((e) => {
+      logger.warn('search', 'behaviorTracker.trackSearch failed', { error: e.message });
+    });
   }
 
   // ── Behavioral profile: personalize AI responses ───────────────────────
@@ -1879,12 +1881,18 @@ ${ctx_.portfolioMetricsContext ? `\n${ctx_.portfolioMetricsContext}\n` : ''}${ct
         if (userId && userQuery && responseText) {
           const sessionId = req.sessionID || `s_${userId}_${Date.now()}`;
           // Add to session memory
-          memoryManager.addMessageToSession(userId, 'user', userQuery).catch(() => {});
-          memoryManager.addMessageToSession(userId, 'assistant', responseText).catch(() => {});
+          memoryManager.addMessageToSession(userId, 'user', userQuery).catch((e) => {
+            logger.warn('search', 'memoryManager.addMessageToSession(user) failed', { error: e.message });
+          });
+          memoryManager.addMessageToSession(userId, 'assistant', responseText).catch((e) => {
+            logger.warn('search', 'memoryManager.addMessageToSession(assistant) failed', { error: e.message });
+          });
           // Extract new factual memories asynchronously (non-blocking)
           memoryManager.extractMemoriesAsync(userId, userQuery, responseText);
           // Phase 5: Extract typed conversation memory records
-          conversationMemory.extractFromTurn(userId, sessionId, userQuery, responseText).catch(() => {});
+          conversationMemory.extractFromTurn(userId, sessionId, userQuery, responseText).catch((e) => {
+            logger.warn('search', 'conversationMemory.extractFromTurn failed', { error: e.message });
+          });
         }
       } catch (err) {
         console.warn('[Particle/Chat] Memory update error (non-blocking):', err.message);
@@ -1915,9 +1923,13 @@ ${ctx_.portfolioMetricsContext ? `\n${ctx_.portfolioMetricsContext}\n` : ''}${ct
       try {
         if (userId && userQuery) {
           const sessionId = req.sessionID || `s_${userId}_${Date.now()}`;
-          memoryManager.addMessageToSession(userId, 'user', userQuery).catch(() => {});
+          memoryManager.addMessageToSession(userId, 'user', userQuery).catch((e) => {
+            logger.warn('search', 'memoryManager.addMessageToSession(user) failed', { error: e.message });
+          });
           // Phase 5: Extract typed memories from user query alone (response not available in stream mode)
-          conversationMemory.extractFromTurn(userId, sessionId, userQuery, null).catch(() => {});
+          conversationMemory.extractFromTurn(userId, sessionId, userQuery, null).catch((e) => {
+            logger.warn('search', 'conversationMemory.extractFromTurn failed', { error: e.message });
+          });
         }
       } catch (err) {
         console.warn('[Particle/Chat] Session memory update error (non-blocking):', err.message);
