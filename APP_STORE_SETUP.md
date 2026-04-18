@@ -22,7 +22,7 @@ npx cap open ios
 ### 3. Configure Signing in Xcode
 - Select the "App" target
 - Go to "Signing & Capabilities"
-- Team: Select your Apple Developer team (Arc Capital)
+- Team: Select your Apple Developer team (Algotex Ltd)
 - Bundle Identifier: `com.senger.market`
 - Enable: Push Notifications capability
 - Enable: In-App Purchase capability
@@ -67,8 +67,8 @@ Then in Xcode:
 - **Subtitle**: Professional Market Intelligence
 - **Category**: Finance
 - **Keywords**: stocks, market, terminal, trading, finance, bloomberg, portfolio, investing, forex, crypto
-- **Privacy Policy URL**: https://arccapital.com.br/privacy
-- **Support URL**: https://arccapital.com.br/support
+- **Privacy Policy URL**: https://the-particle.com/privacy
+- **Support URL**: https://the-particle.com/support
 
 ### 9. Screenshots Needed
 - 6.7" (iPhone 15 Pro Max): 1290 x 2796 px — minimum 3

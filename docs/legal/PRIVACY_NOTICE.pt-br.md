@@ -5,10 +5,10 @@
 
 ## 1. Quem é o controlador?
 
-A Arc Capital Ltd (Inglaterra e País de Gales) é o **controlador** dos
+A Algotex Ltd (Inglaterra e País de Gales) é o **controlador** dos
 dados pessoais tratados via Particle. Contato: privacy@particle.xyz.
 
-Nos termos da LGPD, a Arc Capital Ltd atua como *controlador* e designou
+Nos termos da LGPD, a Algotex Ltd atua como *controlador* e designou
 Encarregado (DPO). Contato do Encarregado: privacy@particle.xyz (assunto
 "Encarregado").
 

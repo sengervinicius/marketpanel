@@ -116,8 +116,8 @@ Test account credentials will be provided in the review notes field during submi
 ---
 
 ## Copyright
-Arc Capital 2026
+Algotex Ltd 2026
 
 ## Developer
-Arc Capital
+Algotex Ltd
 vinicius@arccapital.com.br

@@ -1,6 +1,6 @@
 # Global Regulatory Posture — Particle Terminal
 
-**Owner:** Vinicius Senger (CIO, Arc Capital)
+**Owner:** Vinicius Senger (CIO, Algotex Ltd)
 **Last updated:** 2026-04-18
 **Status:** baseline — requires UK solicitor review before public launch.
 

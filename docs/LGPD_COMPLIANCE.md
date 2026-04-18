@@ -11,7 +11,7 @@
 
 | Role | Person | Email |
 |---|---|---|
-| Controller (Controlador) | Arc Capital | privacy@arccapital.com.br |
+| Controller (Controlador) | Algotex Ltd | privacy@arccapital.com.br |
 | Processor (Operador) | Particle Terminal (internal) | — |
 | DPO (Encarregado) | Vinicius Senger | vinicius@arccapital.com.br |
 

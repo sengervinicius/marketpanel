@@ -10,7 +10,7 @@
  *
  * Also exposes:
  *   - GET  /api/privacy/data-map           — public; describes what we collect and why
- *   - POST /api/privacy/dpo-contact        — public; emails the DPO (Vinicius / Arc Capital)
+ *   - POST /api/privacy/dpo-contact        — public; emails the DPO (Vinicius / Algotex Ltd)
  *
  * All authenticated endpoints are rate-limited to 5/hour to discourage
  * automated scraping or accidental mass-deletion.  Every call is recorded
@@ -51,7 +51,7 @@ const dsarLimiter = rateLimit({
 router.get('/data-map', (_req, res) => {
   res.json({
     controller: {
-      name: 'Arc Capital Ltda.',
+      name: 'Algotex Ltd',
       jurisdiction: 'BR',
       dpoEmail: process.env.DPO_EMAIL || 'dpo@arccapital.com.br',
     },

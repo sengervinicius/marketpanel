@@ -98,7 +98,7 @@ If you suspect a key is leaked (e.g. GitHub-secret-scan hit, infra breach):
    `DELETE FROM refresh_tokens;` in the server Postgres console. Every user
    will be forced back to the login screen; acceptable tradeoff vs. a live
    compromise.
-3. Post a status update to `#security` and the Arc Capital ops channel.
+3. Post a status update to `#security` and the Algotex ops channel.
 4. File an incident ticket; see `docs/INCIDENT_RESPONSE.md` once it exists
    (tracked in the Wave 1 backlog).
 

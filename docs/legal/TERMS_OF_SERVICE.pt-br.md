@@ -119,7 +119,7 @@ UE).
 ## 11. Propriedade intelectual
 
 A Particle, seu código, sua marca e todo conteúdo original pertencem à
-Arc Capital Ltd. Você mantém a propriedade do conteúdo que envia e
+Algotex Ltd. Você mantém a propriedade do conteúdo que envia e
 concede à Particle uma licença limitada para processá-lo apenas para
 prestar o serviço.
 

@@ -4,18 +4,18 @@
 **Status:** baseline — **DRAFT, NOT YET LEGALLY REVIEWED**.
 
 This notice covers personal data processing by Particle Terminal, operated
-by Arc Capital Ltd (England and Wales).
+by Algotex Ltd (England and Wales).
 
 ## 1. Who is the controller?
 
-Arc Capital Ltd is the **data controller** for personal data processed via
+Algotex Ltd is the **data controller** for personal data processed via
 Particle. Contact: privacy@particle.xyz.
 
 Under UK GDPR Article 27 and EU GDPR Article 27 respectively, we have
 (or will have, before EU launch) appointed representatives for the UK and
 EU. Their contact details will appear here when instructed.
 
-Under the Brazilian LGPD, Arc Capital Ltd acts as `controlador` and has
+Under the Brazilian LGPD, Algotex Ltd acts as `controlador` and has
 designated an Encarregado (DPO). Contact the DPO at privacy@particle.xyz.
 
 ## 2. What we collect and why
