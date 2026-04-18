@@ -69,10 +69,19 @@ jobs:
           (cd server && npm ci --prefer-offline --audit=false)
           (cd client && npm ci --prefer-offline --audit=false)
       - name: Generate SBOMs
+        # --omit dev         — the SBOM describes the production-ship inventory.
+        #                      Dev-only tooling (vite, vitest, testing-library,
+        #                      sharp, etc.) never reaches the server/client
+        #                      bundle and should not appear in supply-chain
+        #                      artifacts.
+        # --ignore-npm-errors — tolerate npm-ls strictness around peer-dep
+        #                      warnings that don't break the actual build
+        #                      (e.g. @testing-library/react peer, esbuild
+        #                      version pinned by vite).
         run: |
-          npx -y @cyclonedx/cyclonedx-npm --output-format json --output-file sbom-root.json
-          (cd server && npx -y @cyclonedx/cyclonedx-npm --output-format json --output-file ../sbom-server.json)
-          (cd client && npx -y @cyclonedx/cyclonedx-npm --output-format json --output-file ../sbom-client.json)
+          npx -y @cyclonedx/cyclonedx-npm --omit dev --ignore-npm-errors --output-format json --output-file sbom-root.json
+          (cd server && npx -y @cyclonedx/cyclonedx-npm --omit dev --ignore-npm-errors --output-format json --output-file ../sbom-server.json)
+          (cd client && npx -y @cyclonedx/cyclonedx-npm --omit dev --ignore-npm-errors --output-format json --output-file ../sbom-client.json)
       - uses: actions/upload-artifact@v4
         with:
           name: sbom-${{ github.sha }}
