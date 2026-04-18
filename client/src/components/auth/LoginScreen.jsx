@@ -41,6 +41,12 @@ function AppleLogo() {
 }
 
 // ── Video Modal ──────────────────────────────────────────────────────────────
+// The intro reel lives as a static asset at /intro.mp4 (served from
+// client/public/). We deliberately don't bundle it through Vite — a 12 MB
+// mp4 in the main chunk would wreck LCP for everyone, including users who
+// never click "Understand Particle". Loading it only when the modal opens
+// also means mobile-data users aren't billed for a video they didn't ask
+// for.
 function VideoModal({ onClose }) {
   useEffect(() => {
     const handleKey = (e) => {
@@ -58,13 +64,16 @@ function VideoModal({ onClose }) {
             <path d="M4 4l8 8M12 4l-8 8" />
           </svg>
         </button>
-        <div className="lp-video-modal-placeholder">
-          <svg width="48" height="48" viewBox="0 0 48 48" fill="none" style={{ opacity: 0.2 }}>
-            <circle cx="24" cy="24" r="23" stroke="white" strokeWidth="1" />
-            <path d="M20 16l14 8-14 8V16z" fill="white" />
-          </svg>
-          <span className="lp-video-modal-text">Demo reel — coming soon</span>
-        </div>
+        <video
+          className="lp-video-modal-video"
+          src="/intro.mp4"
+          autoPlay
+          controls
+          playsInline
+          preload="auto"
+        >
+          Your browser does not support the video tag.
+        </video>
       </div>
     </div>
   );
