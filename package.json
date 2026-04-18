@@ -21,7 +21,7 @@
     "test:e2e:install": "playwright install chromium"
   },
   "devDependencies": {
-    "concurrently": "^8.2.2",
+    "concurrently": "^9.2.1",
     "@playwright/test": "^1.45.0"
   }
 }
