@@ -37,7 +37,7 @@
     "posthog-js": "^1.369.3",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-router-dom": "^6.30.3",
+    "react-router-dom": "^7.14.1",
     "recharts": "^2.12.7",
     "technicalindicators": "^3.1.0",
     "three": "^0.183.2"
