@@ -202,24 +202,85 @@ async function unusualWhalesAgent(query) {
  * newsAgent: Fetch real-time news via Perplexity Sonar Pro.
  * Extracts tickers AND company names from query for better international coverage.
  * 6-second hard timeout via AbortController. Returns empty on any failure.
+ *
+ * Wave 6 fix (Aegea): when the query mentions a specific name or ticker,
+ * enrich the search with rating-action / credit / M&A / regulatory hints
+ * and bias toward PT-BR sources for Brazilian issuers. Previous version
+ * missed the S&P + Fitch Aegea downgrade because "Focus on these
+ * tickers/companies: AEGEA" was too thin a search hint.
  */
+
+// Stop-words the ticker regex occasionally matches (single letters, common
+// uppercase acronyms that are never equity tickers). Filter before sending
+// to Perplexity so we don't pollute the search with noise.
+const TICKER_STOPWORDS = new Set([
+  'A', 'I', 'THE', 'AND', 'OR', 'BUT', 'FOR', 'NOT', 'YES', 'NO',
+  'OK', 'USD', 'EUR', 'GBP', 'BRL', 'JPY', 'CNY', 'WHAT', 'WHO',
+  'WHY', 'HOW', 'WHEN', 'SHOULD', 'WOULD', 'COULD', 'MAY', 'CAN',
+  'AI', 'ML', 'IPO', 'CEO', 'CFO', 'COO', 'CTO', 'IR', 'SEC',
+  'ESG', 'FY', 'YTD', 'QTD', 'MTD', 'EPS', 'P', 'E',
+]);
+
+// Heuristic: is this query likely about a Brazilian / LatAm issuer?
+// Triggers: Portuguese function-words, B3 ticker suffix patterns (XXXX3/4/11),
+// or explicit mention of a Brazilian name we see a lot.
+function isBrazilianishQuery(query, tickers) {
+  const q = (query || '').toLowerCase();
+  // NB: JS `\b` is ASCII-only; phrases ending in accented chars (`está`,
+  // `itaú`, `eletrobrás`, `econômico`, `línea`) break the trailing `\b`.
+  // Use a negative-lookahead `(?![a-z])` instead so we still reject
+  // substring matches like `sobremesa` but accept accented endings.
+  if (/\b(sobre|o que|como est[aá]|petrobras|vale|ita[uú]|bradesco|bovespa|b3|saneamento|aegea|copel|eletrobr[aá]s|cemig|sabesp|embraer|magalu|nubank|stone|pagbank|mercado\s+livre|valor\s+econ[oô]mico|bloomberg\s+l[ií]nea)(?![a-z])/.test(q)) {
+    return true;
+  }
+  // B3 ticker pattern: 4 letters + 3 / 4 / 11
+  if ((tickers || []).some(t => /^[A-Z]{4}(3|4|11)$/.test(t))) return true;
+  return false;
+}
+
 async function newsAgent(query, tickers) {
   const apiKey = process.env.PERPLEXITY_API_KEY;
   if (!apiKey) return { context: '', sources: [] };
 
   // Extract tickers from query if not provided (supports US + international formats)
-  const tickerList = tickers && tickers.length > 0
+  const rawMatches = tickers && tickers.length > 0
     ? tickers
     : [...new Set((query.match(/\$?([A-Z]{1,5}(?:\d)?(?:\.[A-Z]{1,4})?)/g) || []).map(t => t.replace(/^\$/, '')))];
 
-  const tickerClause = tickerList.length > 0 ? `Focus on these tickers/companies: ${tickerList.join(', ')}.` : '';
+  const tickerList = rawMatches.filter(t => !TICKER_STOPWORDS.has(t));
+
+  const tickerClause = tickerList.length > 0
+    ? `Focus on these tickers / companies: ${tickerList.join(', ')}. Do an exhaustive search for EACH one — rating actions, credit downgrades, M&A, regulatory moves, earnings surprises, management changes, and major guidance revisions from the last 72 hours.`
+    : '';
 
   // Build an enriched search query that includes the original question
   // This helps Perplexity find news about companies by name, not just ticker
-  const searchQuery = query.length > 200 ? query.slice(0, 200) : query;
+  const truncatedQuery = query.length > 200 ? query.slice(0, 200) : query;
+  const isBR = isBrazilianishQuery(query, tickerList);
+
+  // For name/ticker-specific queries, append domain + keyword hints. These
+  // go to Perplexity's underlying search, not to the LLM synthesis step.
+  const domainHints = isBR
+    ? 'Prefer primary PT-BR sources: valor.globo.com, bloomberglinea.com.br, infomoney.com.br, brazilian.report, reuters.com/world/americas, b3.com.br. Also include English sources if they broke the story first.'
+    : 'Prefer primary sources: Bloomberg, Reuters, FT, WSJ, company IR pages, regulatory filings.';
+
+  const contextHints = tickerList.length > 0
+    ? 'If you find a rating downgrade, credit event, bond sell-off, regulatory fine, merger / deal break, accounting investigation, or earnings miss, lead with THAT — not with a company overview.'
+    : '';
+
+  const systemContent = [
+    `You are a global financial news wire covering ALL markets worldwide — US, Europe, Asia, Latin America (B3/Bovespa), Middle East, Africa.`,
+    `Return a concise digest of the most important market news from the last 24-72 hours relevant to the user query.`,
+    tickerClause,
+    contextHints,
+    domainHints,
+    `Cover M&A activity, deal announcements, deal collapses, regulatory actions, credit rating changes (S&P / Moody's / Fitch), earnings surprises, and material corporate events — including for DEBT-only issuers (not all names have equity listings).`,
+    `For Brazilian / LatAm names, search PT-BR sources as a primary language, not a fallback.`,
+    `Max 320 words. No preamble. Lead with the most market-moving headline. If you genuinely find NO material news for the named entity in the last week, respond exactly: "NO MATERIAL NEWS FOUND FOR [entity] IN THE LAST 7 DAYS." — do NOT pad with background context.`,
+  ].filter(Boolean).join(' ');
 
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 6000);
+  const timer = setTimeout(() => controller.abort(), 7000);
 
   try {
     const response = await fetch('https://api.perplexity.ai/chat/completions', {
@@ -232,15 +293,15 @@ async function newsAgent(query, tickers) {
       body: JSON.stringify({
         model: 'sonar-pro',
         messages: [
-          {
-            role: 'system',
-            content: `You are a global financial news wire covering ALL markets worldwide — US, Europe, Asia, Latin America (B3/Bovespa), Middle East, Africa. Return a concise digest of the most important market news from the last 24-48 hours relevant to the user query. ${tickerClause} Cover M&A activity, deal announcements, deal collapses, regulatory actions, earnings surprises, and material corporate events. For Brazilian/LatAm stocks, search in both English AND Portuguese sources. Max 300 words. No preamble. Lead with the most market-moving headline.`,
-          },
-          { role: 'user', content: searchQuery },
+          { role: 'system', content: systemContent },
+          { role: 'user', content: truncatedQuery },
         ],
-        max_tokens: 600,
+        max_tokens: 700,
         temperature: 0.1,
         return_citations: true,
+        // 'day' is too tight — S&P/Fitch actions that land Thursday get missed
+        // on Friday morning queries. 'week' gives us a 7-day window which
+        // is right for rating actions, deal announcements, guidance changes.
         search_recency_filter: 'week',
       }),
     });
@@ -254,9 +315,15 @@ async function newsAgent(query, tickers) {
     const content = data.choices?.[0]?.message?.content || '';
     const citations = (data.citations || []).map((url, i) => ({ title: `News ${i + 1}`, url }));
 
+    // If Perplexity returned the explicit "no material news" sentinel,
+    // pass that through so the synthesis-side prompt can handle it as
+    // a grounded refusal rather than a context blob to paraphrase.
+    const isNoMaterialNews = /^\s*NO MATERIAL NEWS FOUND/i.test(content);
+
     return {
       context: content ? `RECENT NEWS:\n${content}` : '',
       sources: citations,
+      noMaterialNews: isNoMaterialNews,
     };
   } catch (err) {
     // Timeout or network error — degrade gracefully

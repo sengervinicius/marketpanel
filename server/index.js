@@ -1081,6 +1081,14 @@ async function boot() {
 
     // AI service health check
     logger.info('boot', `AI Services: Perplexity=${process.env.PERPLEXITY_API_KEY ? 'OK' : 'MISSING'} | Anthropic=${process.env.ANTHROPIC_API_KEY ? 'OK' : 'MISSING'} | OpenAI=${process.env.OPENAI_API_KEY ? 'OK' : 'MISSING'}`);
+
+    // W6 Aegea fix: escalate missing Perplexity key from INFO to WARN.
+    // When it's missing, the news agent silently returns empty context,
+    // which makes the AI fall back to training-data thesis — exactly the
+    // failure mode that masked the Aegea S&P+Fitch downgrade story.
+    if (!process.env.PERPLEXITY_API_KEY) {
+      logger.warn('boot', 'PERPLEXITY_API_KEY missing — newsAgent will silently no-op; AI answers will have no real-time news coverage. Set this in Render env or the AI will produce stale training-data commentary on live events.');
+    }
     logger.info('boot', `Model Router: active | Routes: ${Object.keys(modelRouter?.ROUTE_MAP || {}).join(', ')}`);
 
     // 3. Start all background jobs (leaderboard, card cleanup, alert scheduler)
