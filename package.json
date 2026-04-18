@@ -15,9 +15,13 @@
     "sbom": "npx -y @cyclonedx/cyclonedx-npm --output-format json --output-file sbom-root.json && (cd server && npx -y @cyclonedx/cyclonedx-npm --output-format json --output-file ../sbom-server.json) && (cd client && npx -y @cyclonedx/cyclonedx-npm --output-format json --output-file ../sbom-client.json)",
     "license:check": "npx -y license-checker-rseidelsohn --production --failOn 'AGPL-1.0;AGPL-3.0;SSPL-1.0;CC-BY-NC-1.0;CC-BY-NC-2.0;CC-BY-NC-3.0;CC-BY-NC-4.0'",
     "sourcemap:strip": "node scripts/strip-sourcemaps.js",
-    "sourcemap:check": "node scripts/check-no-sourcemaps.js"
+    "sourcemap:check": "node scripts/check-no-sourcemaps.js",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:install": "playwright install chromium"
   },
   "devDependencies": {
-    "concurrently": "^8.2.2"
+    "concurrently": "^8.2.2",
+    "@playwright/test": "^1.45.0"
   }
 }

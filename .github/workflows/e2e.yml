@@ -1,0 +1,75 @@
+# W6.3 — Playwright e2e smoke run on PR + nightly.
+name: e2e
+
+on:
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '17 5 * * *'    # 05:17 UTC nightly
+  workflow_dispatch:
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NODE_ENV: test
+      E2E_BASE_URL: http://localhost:5173
+      E2E_API_URL:  http://localhost:3001
+      JWT_SECRET:  "e2e-only-not-a-real-secret-abcdefghijklmnop"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          (cd server && npm ci)
+          (cd client && npm ci)
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Build client
+        run: npm run build
+
+      - name: Start server (background)
+        run: |
+          (cd server && node index.js &) >> server.log 2>&1
+          sleep 3
+
+      - name: Start client preview (background)
+        run: |
+          (cd client && npx vite preview --port 5173 --host &) >> client.log 2>&1
+          sleep 2
+
+      - name: Wait for server
+        run: |
+          for i in $(seq 1 30); do
+            curl -fs http://localhost:3001/healthz && break || sleep 1
+          done
+
+      - name: Wait for client
+        run: |
+          for i in $(seq 1 30); do
+            curl -fs http://localhost:5173/ && break || sleep 1
+          done
+
+      - name: Run Playwright tests
+        run: npx playwright test
+
+      - name: Upload traces and HTML report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report
+            test-results
+            server.log
+            client.log
+          retention-days: 7
