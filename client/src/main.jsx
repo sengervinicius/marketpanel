@@ -43,6 +43,7 @@ import LoginScreen from './components/auth/LoginScreen.jsx'
 import { AuthProvider, useAuth } from './context/AuthContext.jsx'
 import { ToastProvider } from './context/ToastContext.jsx'
 import CookieConsentBanner from './components/common/CookieConsentBanner.jsx'
+import SupportWidget from './components/common/SupportWidget.jsx'
 import { ThemeProvider } from './context/ThemeContext.jsx'
 import { SettingsProvider, useSettings } from './context/SettingsContext.jsx'
 
@@ -147,6 +148,7 @@ createRoot(document.getElementById('root')).render(
         <ToastProvider>
           <AppShell />
           <CookieConsentBanner locale="pt" />
+          <SupportWidget />
         </ToastProvider>
       </AuthProvider>
     </HashRouter>

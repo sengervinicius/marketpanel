@@ -536,6 +536,34 @@ export default function LandingPage() {
             >
               Terms
             </a>
+            <a
+              href="https://status.particle.investments"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                color: COLORS.textTertiary,
+                textDecoration: 'none',
+                transition: 'color 0.3s ease',
+              }}
+              onMouseEnter={(e) => (e.target.style.color = COLORS.textSecondary)}
+              onMouseLeave={(e) => (e.target.style.color = COLORS.textTertiary)}
+            >
+              Status
+            </a>
+            <a
+              href="https://roadmap.particle.investments"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                color: COLORS.textTertiary,
+                textDecoration: 'none',
+                transition: 'color 0.3s ease',
+              }}
+              onMouseEnter={(e) => (e.target.style.color = COLORS.textSecondary)}
+              onMouseLeave={(e) => (e.target.style.color = COLORS.textTertiary)}
+            >
+              Roadmap
+            </a>
           </div>
         </footer>
       </section>

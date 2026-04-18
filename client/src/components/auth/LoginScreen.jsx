@@ -380,6 +380,8 @@ export default function LoginScreen({ children }) {
         <div className="lp-footer-links">
           <a href="/privacy">Privacy</a>
           <a href="/terms">Terms</a>
+          <a href="https://status.particle.investments" target="_blank" rel="noopener noreferrer">Status</a>
+          <a href="https://roadmap.particle.investments" target="_blank" rel="noopener noreferrer">Roadmap</a>
         </div>
       </footer>
     </div>

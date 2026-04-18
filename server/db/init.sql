@@ -453,5 +453,7 @@ VALUES
   ('ai_chat_enabled', FALSE, 0,
    'Global kill switch for /api/search/chat. When OFF the chat tab is hidden and the endpoint 503s.'),
   ('vault_enabled',   FALSE, 0,
-   'Global kill switch for vault upload + RAG surfaces.')
+   'Global kill switch for vault upload + RAG surfaces.'),
+  ('support_chat_enabled', FALSE, 0,
+   'W6.7 — show the Crisp in-app support widget. Default OFF so the SDK never loads pre-consent.')
 ON CONFLICT (name) DO NOTHING;
