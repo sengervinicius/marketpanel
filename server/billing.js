@@ -18,6 +18,25 @@ const { sendEmail } = require('./services/emailService');
 const { tierFromStripePriceId, getStripePriceId, TIERS } = require('./config/tiers');
 const pg = require('./db/postgres');
 const logger = require('./utils/logger');
+
+// ── Price-ID hygiene ─────────────────────────────────────────────────────────
+// Stripe test/live modes are isolated — a price created against sk_test_ will
+// never resolve against sk_live_. Env var drift (stale ID, wrong account,
+// mode mismatch) silently breaks checkout until a real user tries to pay.
+// We validate at boot AND pre-flight per checkout call.
+//
+// Keep this list in lock-step with server/config/tiers.js → stripePriceEnv.
+const TIER_PRICE_ENVS = [
+  'STRIPE_NEW_PARTICLE_MONTHLY',
+  'STRIPE_NEW_PARTICLE_ANNUAL',
+  'STRIPE_DARK_PARTICLE_MONTHLY',
+  'STRIPE_DARK_PARTICLE_ANNUAL',
+  'STRIPE_NUCLEAR_PARTICLE_MONTHLY',
+  'STRIPE_NUCLEAR_PARTICLE_ANNUAL',
+  // Legacy fallbacks — still validated if set, so no surprises.
+  'STRIPE_PRICE_ID',
+  'STRIPE_ANNUAL_PRICE_ID',
+];
 // W2.1 audit: every webhook transition is recorded for finance + LGPD.
 const { recordSubscriptionChange, classifyTransition } = require('./services/subscriptionAudit');
 
@@ -84,6 +103,66 @@ async function ensureStripeCustomer(stripe, user) {
   return customer.id;
 }
 
+/**
+ * Validate every configured Stripe price ID against the connected Stripe
+ * account. Called at boot so ops sees broken config BEFORE a user does.
+ *
+ * Failure modes this catches:
+ *   - Mode mismatch (price_... was made in test mode, key is live, or v.v.)
+ *   - Stale ID (price was archived/deleted)
+ *   - Wrong account (ID copy-pasted from a different Stripe org)
+ *
+ * Non-blocking: logs ERROR per bad env var but does not refuse to boot,
+ * because webhook + portal endpoints and non-billing features still work.
+ * Returns a summary object for tests and /health payloads.
+ */
+async function validateStripePriceIds() {
+  const stripe = getStripe();
+  if (!stripe) {
+    logger.warn('billing', 'STRIPE_SECRET_KEY not set — skipping price ID validation');
+    return { validated: 0, errors: [], mode: null };
+  }
+
+  const keyMode = (process.env.STRIPE_SECRET_KEY || '').startsWith('sk_live_')
+    ? 'live'
+    : (process.env.STRIPE_SECRET_KEY || '').startsWith('sk_test_')
+      ? 'test'
+      : 'unknown';
+  logger.info('billing', `Stripe price validator running in ${keyMode} mode`);
+
+  const errors = [];
+  let validated = 0;
+
+  for (const envVar of TIER_PRICE_ENVS) {
+    const priceId = process.env[envVar];
+    if (!priceId) continue; // unset is a separate concern, caught at checkout
+    try {
+      const price = await stripe.prices.retrieve(priceId);
+      if (!price.active) {
+        logger.error('billing', `Stripe price for ${envVar} is ARCHIVED (id=${priceId}). Checkout for this tier/plan will fail. Reactivate in Stripe dashboard or create a new price — see docs/RUNBOOK_BILLING.md.`);
+        errors.push({ envVar, priceId, reason: 'archived' });
+      } else {
+        validated++;
+      }
+    } catch (err) {
+      // Stripe throws "No such price" here when ID is invalid in this mode.
+      const reason = err.code === 'resource_missing' ? 'not_found' : err.code || 'error';
+      logger.error('billing', `Stripe price for ${envVar} is INVALID (id=${priceId}): ${err.message}. Checkout for this tier/plan will fail. Likely causes: mode mismatch (key is ${keyMode}-mode), archived price, or wrong account.`, {
+        envVar, priceId, reason, stripeCode: err.code, keyMode,
+      });
+      errors.push({ envVar, priceId, reason, message: err.message });
+    }
+  }
+
+  if (errors.length === 0) {
+    logger.info('billing', `All ${validated} configured Stripe price IDs validated against ${keyMode}-mode account`);
+  } else {
+    logger.error('billing', `${errors.length} broken Stripe price ID(s) detected — paying users will hit checkout errors until fixed. See previous log lines for the offending env vars.`);
+  }
+
+  return { validated, errors, mode: keyMode };
+}
+
 // ── Checkout session ──────────────────────────────────────────────────────────
 
 /**
@@ -113,7 +192,7 @@ async function createCheckoutSession(userId, plan = 'monthly', userContext = {},
     console.error(`[billing] No Stripe price ID found for tier=${tier}, plan=${plan}. Check env vars: STRIPE_${tier.toUpperCase()}_${plan.toUpperCase()} or STRIPE_PRICE_ID`);
     return {
       error: 'Billing not configured',
-      message: `No Stripe price configured for ${tier} (${plan}). Run stripe-setup.js and set the env vars.`,
+      message: `No Stripe price configured for ${tier} (${plan}). Set STRIPE_${tier.toUpperCase()}_${plan.toUpperCase()} in Render — see docs/RUNBOOK_BILLING.md.`,
       configured: false,
     };
   }
@@ -129,6 +208,37 @@ async function createCheckoutSession(userId, plan = 'monthly', userContext = {},
       username: userContext.username || null,
       email: userContext.email || null,
       stripeCustomerId: null,
+    };
+  }
+
+  // Pre-flight: verify the price ID resolves in the connected Stripe account
+  // before we spin up a checkout session. If the env var points at a stale /
+  // mode-mismatched / deleted price, we'd otherwise only find out *after*
+  // creating the session — surfacing Stripe's raw error to the user.
+  // Catching it here lets us:
+  //   1. Log the specific env var that's broken so ops can fix it.
+  //   2. Return a user-friendly "temporarily unavailable" message.
+  //   3. Avoid creating orphan Stripe customer sessions for invalid prices.
+  try {
+    const p = await stripe.prices.retrieve(priceId);
+    if (!p.active) {
+      const envVar = `STRIPE_${tier.toUpperCase()}_${plan.toUpperCase()}`;
+      logger.error('billing', `Price ID for ${envVar} is archived — cannot create checkout. See docs/RUNBOOK_BILLING.md.`, {
+        userId, tier, plan, priceId, envVar,
+      });
+      return {
+        error: 'Checkout is temporarily unavailable. Our team has been notified. Please try again later.',
+        configured: true,
+      };
+    }
+  } catch (priceErr) {
+    const envVar = `STRIPE_${tier.toUpperCase()}_${plan.toUpperCase()}`;
+    logger.error('billing', `Price ID for ${envVar} failed validation — checkout blocked: ${priceErr.message}`, {
+      userId, tier, plan, priceId, envVar, stripeCode: priceErr.code,
+    });
+    return {
+      error: 'Checkout is temporarily unavailable. Our team has been notified. Please try again later.',
+      configured: true,
     };
   }
 
@@ -625,4 +735,5 @@ module.exports = {
   createPortalSession,
   handleBillingWebhook,
   getSubscriptionStatus,
+  validateStripePriceIds,
 };

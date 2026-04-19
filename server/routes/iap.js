@@ -17,6 +17,13 @@ const express = require('express');
 const router  = express.Router();
 const { requireAuth } = require('../authMiddleware');
 const { getUserById, updateSubscription } = require('../authStore');
+const logger = require('../utils/logger');
+
+// Fail-closed toggle: in production, IAP MUST have a shared secret or we
+// refuse to grant subscriptions. Previously, a missing env var silently
+// bypassed receipt validation and handed out 30/365-day subscriptions to
+// anyone who hit /purchase with a valid product ID — a critical auth gap.
+const IS_PROD = process.env.NODE_ENV === 'production';
 
 // Product catalog — must match App Store Connect
 const PRODUCTS = [
@@ -76,6 +83,31 @@ router.post('/purchase', requireAuth, async (req, res) => {
     const APPLE_SHARED_SECRET = process.env.APPLE_IAP_SHARED_SECRET;
     let verifiedExpiry = null;
 
+    // Fail-closed: in production, missing secret OR missing receipt means the
+    // request cannot be trusted. Without this gate, a malicious client can
+    // POST {productId} and receive a free subscription because the
+    // verification branch silently no-ops on missing inputs.
+    if (IS_PROD) {
+      if (!APPLE_SHARED_SECRET) {
+        logger.error('iap', 'APPLE_IAP_SHARED_SECRET not configured in production — refusing to grant subscription without receipt verification', {
+          userId, productId,
+        });
+        return res.status(503).json({
+          error: 'IAP is not configured on the server. Please contact support.',
+          code: 'iap_not_configured',
+        });
+      }
+      if (!receiptData) {
+        logger.warn('iap', 'Purchase attempted without receiptData in production', {
+          userId, productId,
+        });
+        return res.status(400).json({
+          error: 'Receipt data is required.',
+          code: 'missing_receipt',
+        });
+      }
+    }
+
     if (receiptData && APPLE_SHARED_SECRET) {
       // Try production first, fall back to sandbox (status 21007)
       let verifyUrl = 'https://buy.itunes.apple.com/verifyReceipt';
@@ -125,6 +157,15 @@ router.post('/purchase', requireAuth, async (req, res) => {
       ? 365 * 24 * 60 * 60 * 1000
       : 30 * 24 * 60 * 60 * 1000;
     const expiresAt = verifiedExpiry || (now + duration);
+
+    // Dev-only safety net: log when we're granting a subscription without
+    // Apple-verified expiry (should only happen when APPLE_IAP_SHARED_SECRET
+    // is unset in local development — blocked in prod by the gate above).
+    if (!verifiedExpiry) {
+      logger.warn('iap', 'Granting subscription without verified Apple expiry (dev-only path)', {
+        userId, productId, fallbackExpiresAt: expiresAt,
+      });
+    }
 
     await updateSubscription(userId, {
       isPaid: true,

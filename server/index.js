@@ -1031,6 +1031,27 @@ async function boot() {
     }
   }
 
+  // Stripe price-ID health check — catches env-var drift BEFORE a user hits
+  // checkout. Non-blocking; the server boots either way (non-billing routes
+  // should stay up) but this surfaces broken tier/plan combinations as
+  // ERROR-level log lines that page the on-call via the observability stack.
+  if (process.env.STRIPE_SECRET_KEY) {
+    try {
+      const { validateStripePriceIds } = require('./billing');
+      await validateStripePriceIds();
+    } catch (e) {
+      logger.warn('boot', 'Stripe price validator crashed (non-blocking)', { error: e.message });
+    }
+  }
+
+  // Apple IAP receipt-validation guard: in production, the route fail-closes
+  // if APPLE_IAP_SHARED_SECRET is missing (won't grant subscriptions without
+  // verified receipts). Log loudly at boot so ops sees the gap before iOS
+  // users hit it.
+  if (process.env.NODE_ENV === 'production' && !process.env.APPLE_IAP_SHARED_SECRET) {
+    logger.error('boot', '[SECURITY] APPLE_IAP_SHARED_SECRET is not set in production. iOS in-app purchases are BLOCKED until this is configured — set it in Render environment.');
+  }
+
   // 1. Platform services (optional — app works without them)
   await initPostgres();
   await initRedis();
