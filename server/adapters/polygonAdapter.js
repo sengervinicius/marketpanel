@@ -221,15 +221,10 @@ async function news(query, opts = {}) {
   if (query) params['search'] = query;
   const res = await polygonFetch('/v2/reference/news', params);
   if (!res.ok) return err(res.error, makeProvenance({ source: NAME, confidence: 'unverified', adapterChain: [NAME], latencyMs: Date.now() - t0 }));
-  const items = ((res.body && res.body.results) || []).map(n => ({
-    id: n.id,
-    title: n.title,
-    publisher: n.publisher && n.publisher.name,
-    url: n.article_url,
-    publishedAt: n.published_utc,
-    tickers: n.tickers || [],
-    sentiment: n.insights || null,
-  }));
+  // WS5.2: project raw Polygon items through the canonical parser so
+  // every news consumer sees the same typed NewsEvent shape.
+  const { parsePolygonResponse } = require('../parsers/newsParser');
+  const items = parsePolygonResponse(res.body);
   return ok(items, makeProvenance({
     source: NAME,
     freshnessMs: 0,

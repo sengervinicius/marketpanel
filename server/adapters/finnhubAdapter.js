@@ -441,20 +441,13 @@ async function news(query, opts = {}) {
     );
   }
 
-  const rows = Array.isArray(res.body) ? res.body : [];
-  const items = rows
-    .slice(0, opts.limit || 20)
-    .map(n => ({
-      id: n.id != null ? String(n.id) : null,
-      title: n.headline,
-      publisher: n.source,
-      url: n.url,
-      publishedAt: n.datetime ? new Date(n.datetime * 1000).toISOString() : null,
-      tickers: n.related ? String(n.related).split(',').filter(Boolean) : (ticker ? [ticker] : []),
-      summary: n.summary || null,
-      imageUrl: n.image || null,
-      category: n.category || null,
-    }));
+  // WS5.2: project raw Finnhub items through the canonical parser so
+  // every news consumer sees the same typed NewsEvent shape (and the
+  // "NO MATERIAL NEWS FOUND" sentinel discipline stays exactly one
+  // place, over in the Perplexity parser).
+  const { parseFinnhubResponse } = require('../parsers/newsParser');
+  const rows = Array.isArray(res.body) ? res.body.slice(0, opts.limit || 20) : [];
+  const items = parseFinnhubResponse(rows, ticker);
 
   return ok(items, makeProvenance({
     source: NAME,

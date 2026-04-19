@@ -266,7 +266,7 @@ test('fundamentals() returns SCHEMA_MISMATCH when metric object missing', async 
 
 // ── news() ───────────────────────────────────────────────────────────
 
-test('news() uses /company-news when ticker provided', async () => {
+test('news() uses /company-news when ticker provided (typed NewsEvent shape)', async () => {
   let calledUrl = '';
   globalThis.__testFetch = async (url) => {
     calledUrl = String(url);
@@ -277,11 +277,16 @@ test('news() uses /company-news when ticker provided', async () => {
   const r = await news('', { ticker: 'AAPL' });
   assert.equal(r.ok, true);
   assert.ok(calledUrl.includes('/company-news'));
-  assert.equal(r.data[0].title, 'Apple earnings');
+  // WS5.2: canonical NewsEvent shape — `headline`, not `title`.
+  assert.equal(r.data[0].headline, 'Apple earnings');
+  assert.equal(r.data[0].source, 'Bloomberg');
+  assert.equal(r.data[0].url, 'https://bb.example');
+  assert.ok(r.data[0].tickers.includes('AAPL'));
+  assert.equal(r.data[0].confidence, 'high'); // ticker-scoped items are high confidence
   assert.equal(r.provenance.confidence, 'high');
 });
 
-test('news() uses /news?category=general when no ticker', async () => {
+test('news() uses /news?category=general when no ticker (typed NewsEvent shape)', async () => {
   let calledUrl = '';
   globalThis.__testFetch = async (url) => {
     calledUrl = String(url);
@@ -293,7 +298,24 @@ test('news() uses /news?category=general when no ticker', async () => {
   assert.equal(r.ok, true);
   assert.ok(calledUrl.includes('/news'));
   assert.ok(calledUrl.includes('category=general'));
+  assert.equal(r.data[0].headline, 'Markets flat');
+  assert.equal(r.data[0].confidence, 'medium');
   assert.equal(r.provenance.confidence, 'medium');
+});
+
+test('news() drops rows missing required fields (WS5.2 parser invariant)', async () => {
+  globalThis.__testFetch = async () =>
+    mockResponse({
+      body: [
+        { id: 1, headline: 'Real item', source: 'Bloomberg', url: 'https://a/1', datetime: 1713500000 },
+        { id: 2, headline: '',           source: 'Bloomberg', url: 'https://a/2', datetime: 1713500000 },  // no headline
+        { id: 3, headline: 'No URL',     source: 'Bloomberg', url: '',             datetime: 1713500000 },  // no URL
+      ],
+    });
+  const r = await news('', {});
+  assert.equal(r.ok, true);
+  assert.equal(r.data.length, 1);
+  assert.equal(r.data[0].id, 'finnhub-1');
 });
 
 // ── calendar() ───────────────────────────────────────────────────────
