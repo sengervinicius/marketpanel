@@ -92,6 +92,42 @@ async function _connect() {
       logger.warn('postgres', 'Migration run failed', { error: migrateErr.message });
     }
 
+    // ── Core kill-switch assertion ────────────────────────────────────
+    // After migrations finish, log the resolved state of the core
+    // kill-switch flags. This is the single source of truth operators
+    // can grep in Render logs to answer "is AI chat actually on in
+    // prod?" without opening a psql shell. If either core flag
+    // resolves to something that would keep the feature OFF for
+    // anonymous traffic (enabled=false OR rollout_pct<100 with no
+    // cohort), we log a loud warning.
+    try {
+      const { rows: flagRows } = await newPool.query(
+        `SELECT name, enabled, rollout_pct, cohort_rule, updated_by
+           FROM feature_flags
+          WHERE name IN ('ai_chat_enabled', 'vault_enabled', 'support_chat_enabled')`
+      );
+      for (const r of flagRows) {
+        const anonOn = r.enabled === true && Number(r.rollout_pct) >= 100;
+        logger.info('postgres', 'core flag state', {
+          name: r.name,
+          enabled: r.enabled,
+          rolloutPct: r.rollout_pct,
+          updatedBy: r.updated_by || '(seed)',
+          anonymousTrafficOn: anonOn,
+        });
+        if (!anonOn && r.name !== 'support_chat_enabled') {
+          logger.warn('postgres', 'core kill-switch NOT fully on after migrations', {
+            name: r.name,
+            enabled: r.enabled,
+            rolloutPct: r.rollout_pct,
+            hint: 'anonymous /api/search/chat will 503 until this is (enabled=true, rollout_pct=100)',
+          });
+        }
+      }
+    } catch (assertErr) {
+      logger.warn('postgres', 'core flag assertion failed', { error: assertErr.message });
+    }
+
     // Success — swap in the new pool
     if (pool && pool !== newPool) {
       try { pool.end().catch(() => {}); } catch {}
