@@ -683,11 +683,36 @@ async function _tryEulerpool(symbol) {
 }
 
 // ── fetchWithFallback: Smart routing by symbol type ────────────────
-// US stocks:           Yahoo → Finnhub → AV → TwelveData
-// International:       TwelveData → Eulerpool → Yahoo → Finnhub
-// FX (C:EURUSD):       TwelveData → Yahoo
-// Crypto (X:BTCUSD):   Yahoo → TwelveData
+// Wave 2 (WS1.6): first-choice path is now the typed AdapterRegistry
+// (registry.route → executeChain), which gives us typed errors and
+// provenance (adapterChain, latencyMs, confidence). For symbols/
+// markets the registry doesn't yet cover, we fall through to the
+// legacy hand-rolled chain below.
+//
+// Legacy chain (still used as fallback):
+//   US stocks:           Yahoo → Finnhub → AV → TwelveData
+//   International:       TwelveData → Eulerpool → Yahoo → Finnhub
+//   FX (C:EURUSD):       TwelveData → Yahoo
+//   Crypto (X:BTCUSD):   Yahoo → TwelveData
 async function fetchWithFallback(symbol) {
+  // ── Registry-first dispatch ───────────────────────────────────
+  // Try the typed registry before falling through to the legacy
+  // chain. Any failure mode (no coverage OR chain exhausted) drops
+  // us into the legacy fallback so we preserve today's availability
+  // envelope while new adapters earn their traffic.
+  try {
+    const { fetchQuoteRouted } = require('./quoteRouter');
+    const routed = await fetchQuoteRouted(symbol);
+    if (routed && routed.ok) {
+      return { data: routed.data, source: routed.source, provenance: routed.provenance };
+    }
+    if (routed && routed.reason === 'chain_failed') {
+      logger.warn('provider', `registry chain exhausted for ${symbol} (${routed.error?.code}) — falling back to legacy chain`);
+    }
+  } catch (e) {
+    logger.warn('provider', `registry dispatch threw for ${symbol}: ${e.message} — falling back to legacy chain`);
+  }
+
   const kind = _classifySymbol(symbol);
 
   // Build ordered provider chain based on symbol type
