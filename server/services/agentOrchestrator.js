@@ -315,15 +315,18 @@ async function newsAgent(query, tickers) {
     const content = data.choices?.[0]?.message?.content || '';
     const citations = (data.citations || []).map((url, i) => ({ title: `News ${i + 1}`, url }));
 
-    // If Perplexity returned the explicit "no material news" sentinel,
-    // pass that through so the synthesis-side prompt can handle it as
-    // a grounded refusal rather than a context blob to paraphrase.
-    const isNoMaterialNews = /^\s*NO MATERIAL NEWS FOUND/i.test(content);
+    // WS5.4: route the Sonar response through the canonical parser so
+    // (a) the NO MATERIAL NEWS sentinel detection lives in exactly one
+    // place (server/parsers/newsParser.js), and (b) synthesis receives
+    // typed NewsEvent[] alongside the freeform context blob.
+    const { parsePerplexityResponse } = require('../parsers/newsParser');
+    const parsed = parsePerplexityResponse(content, citations);
 
     return {
       context: content ? `RECENT NEWS:\n${content}` : '',
       sources: citations,
-      noMaterialNews: isNoMaterialNews,
+      events: parsed.events,
+      noMaterialNews: parsed.noMaterialNews,
     };
   } catch (err) {
     // Timeout or network error — degrade gracefully
@@ -595,9 +598,17 @@ function mergeResults(results, meta = {}) {
     },
 
     // News/web search (optional enhancement)
+    // WS5.4: forward the full W6.10 sentinel + typed events from the
+    // news agent. Before this, `noMaterialNews` and the typed event
+    // list were silently stripped here — downstream search.js captured
+    // `orchestratedContext.news?.noMaterialNews` at line 1605 but the
+    // aggregator never passed it through, so the prompt's sentinel
+    // branch was dead code. That was exactly the W6.11 grounding gap.
     news: {
       context: results.news?.context || '',
       sources: results.news?.sources || [],
+      events: results.news?.events || [],
+      noMaterialNews: !!results.news?.noMaterialNews,
       available: !!(results.news?.context),
     },
 
