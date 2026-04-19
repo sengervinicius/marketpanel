@@ -1,0 +1,20 @@
+{
+  "description": "Tri-source fundamentals reconciliation probes. Polygon (US), Eulerpool (EU), Twelvedata (global) each serve the same filing for the symbols below. The harness compares key line items across the three sources and flags any divergence above the declared tolerance. Divergences are not failures per se — they're the feature — but an unexplained spike in divergence count across the universe IS a regression.",
+  "version": "1.0.0",
+  "toleranceDefault": { "absolutePctMax": 2.0, "absoluteAmountMax": 1000000 },
+  "fields": ["revenue_ttm","ebitda_ttm","net_income_ttm","total_assets","total_debt","shares_outstanding","eps_ttm"],
+  "probes": [
+    { "symbol": "AAPL",      "sources": ["polygon","twelvedata"],               "period": "quarterly", "notes": "US golden path" },
+    { "symbol": "MSFT",      "sources": ["polygon","twelvedata"],               "period": "quarterly" },
+    { "symbol": "GOOGL",     "sources": ["polygon","twelvedata"],               "period": "quarterly" },
+    { "symbol": "AMZN",      "sources": ["polygon","twelvedata"],               "period": "quarterly" },
+    { "symbol": "NVDA",      "sources": ["polygon","twelvedata"],               "period": "quarterly" },
+    { "symbol": "SAP.DE",    "sources": ["eulerpool","twelvedata"],             "period": "annual" },
+    { "symbol": "ASML.AS",   "sources": ["eulerpool","twelvedata"],             "period": "annual" },
+    { "symbol": "LVMH.PA",   "sources": ["eulerpool","twelvedata"],             "period": "annual" },
+    { "symbol": "SHEL.L",    "sources": ["eulerpool","twelvedata"],             "period": "annual" },
+    { "symbol": "SIE.DE",    "sources": ["eulerpool","twelvedata"],             "period": "annual" },
+    { "symbol": "PETR4.SA",  "sources": ["twelvedata"],                         "period": "quarterly", "notes": "Single-source for now" },
+    { "symbol": "VALE3.SA",  "sources": ["twelvedata"],                         "period": "quarterly" }
+  ]
+}

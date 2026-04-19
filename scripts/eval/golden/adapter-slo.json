@@ -1,0 +1,52 @@
+{
+  "description": "Canonical symbols probed nightly per adapter cell. Every row is a (adapter, market, asset_class, capability, symbol) tuple with an expected non-null quote, a latency target, and a freshness bound. The harness fails the cell if >5% of its probes error, >5% miss the latency SLO, or any probe returns a null/undefined field that should be present. Do not remove probes without a commit message explaining why — they are the public coverage contract.",
+  "version": "1.0.0",
+  "probes": [
+    { "cell": "polygon/US/equity/quote",        "symbol": "AAPL",      "latencyP95MaxMs": 900,  "freshnessMaxSec": 60,    "expectFields": ["bid","ask","last","timestamp","currency","exchange"] },
+    { "cell": "polygon/US/equity/quote",        "symbol": "MSFT",      "latencyP95MaxMs": 900,  "freshnessMaxSec": 60 },
+    { "cell": "polygon/US/equity/quote",        "symbol": "TSLA",      "latencyP95MaxMs": 900,  "freshnessMaxSec": 60 },
+    { "cell": "polygon/US/equity/quote",        "symbol": "SPY",       "latencyP95MaxMs": 900,  "freshnessMaxSec": 60 },
+    { "cell": "polygon/US/equity/candles",      "symbol": "AAPL",      "latencyP95MaxMs": 1500, "freshnessMaxSec": 86400 },
+    { "cell": "polygon/US/options/chain",       "symbol": "AAPL",      "latencyP95MaxMs": 1800, "freshnessMaxSec": 60 },
+    { "cell": "polygon/FX/fx/quote",            "symbol": "C:EURUSD",  "latencyP95MaxMs": 800,  "freshnessMaxSec": 30 },
+    { "cell": "polygon/FX/fx/quote",            "symbol": "C:USDJPY",  "latencyP95MaxMs": 800,  "freshnessMaxSec": 30 },
+    { "cell": "polygon/CRYPTO/crypto/quote",    "symbol": "X:BTCUSD",  "latencyP95MaxMs": 800,  "freshnessMaxSec": 30 },
+
+    { "cell": "finnhub/US/equity/quote",        "symbol": "AAPL",      "latencyP95MaxMs": 1200, "freshnessMaxSec": 60 },
+    { "cell": "finnhub/KRX/equity/quote",       "symbol": "005930.KS", "latencyP95MaxMs": 1500, "freshnessMaxSec": 900,   "notes": "Samsung Electronics — KRX primary listing" },
+    { "cell": "finnhub/KRX/equity/quote",       "symbol": "000660.KS", "latencyP95MaxMs": 1500, "freshnessMaxSec": 900,   "notes": "SK Hynix" },
+    { "cell": "finnhub/TSE/equity/quote",       "symbol": "7203.T",    "latencyP95MaxMs": 1500, "freshnessMaxSec": 900,   "notes": "Toyota" },
+    { "cell": "finnhub/TSE/equity/quote",       "symbol": "6758.T",    "latencyP95MaxMs": 1500, "freshnessMaxSec": 900,   "notes": "Sony" },
+    { "cell": "finnhub/HKEX/equity/quote",      "symbol": "0700.HK",   "latencyP95MaxMs": 1500, "freshnessMaxSec": 900,   "notes": "Tencent" },
+    { "cell": "finnhub/HKEX/equity/quote",      "symbol": "0005.HK",   "latencyP95MaxMs": 1500, "freshnessMaxSec": 900,   "notes": "HSBC" },
+    { "cell": "finnhub/B3/equity/quote",        "symbol": "PETR4.SA",  "latencyP95MaxMs": 1500, "freshnessMaxSec": 900 },
+    { "cell": "finnhub/B3/equity/quote",        "symbol": "VALE3.SA",  "latencyP95MaxMs": 1500, "freshnessMaxSec": 900 },
+    { "cell": "finnhub/B3/equity/quote",        "symbol": "ITUB4.SA",  "latencyP95MaxMs": 1500, "freshnessMaxSec": 900 },
+    { "cell": "finnhub/EU/equity/quote",        "symbol": "SAP.DE",    "latencyP95MaxMs": 1500, "freshnessMaxSec": 900 },
+    { "cell": "finnhub/EU/equity/quote",        "symbol": "ASML.AS",   "latencyP95MaxMs": 1500, "freshnessMaxSec": 900 },
+    { "cell": "finnhub/EU/equity/quote",        "symbol": "LVMH.PA",   "latencyP95MaxMs": 1500, "freshnessMaxSec": 900 },
+    { "cell": "finnhub/EU/equity/quote",        "symbol": "SHEL.L",    "latencyP95MaxMs": 1500, "freshnessMaxSec": 900 },
+
+    { "cell": "twelvedata/KRX/equity/quote",    "symbol": "005930.KS", "latencyP95MaxMs": 1500, "freshnessMaxSec": 900,   "crossSourceAgreementWith": "finnhub/KRX/equity/quote", "toleranceBps": 25 },
+    { "cell": "twelvedata/TSE/equity/quote",    "symbol": "7203.T",    "latencyP95MaxMs": 1500, "freshnessMaxSec": 900,   "crossSourceAgreementWith": "finnhub/TSE/equity/quote", "toleranceBps": 25 },
+    { "cell": "twelvedata/HKEX/equity/quote",   "symbol": "0700.HK",   "latencyP95MaxMs": 1500, "freshnessMaxSec": 900,   "crossSourceAgreementWith": "finnhub/HKEX/equity/quote", "toleranceBps": 25 },
+    { "cell": "twelvedata/B3/equity/quote",     "symbol": "PETR4.SA",  "latencyP95MaxMs": 1500, "freshnessMaxSec": 900,   "crossSourceAgreementWith": "finnhub/B3/equity/quote", "toleranceBps": 25 },
+    { "cell": "twelvedata/EU/equity/quote",     "symbol": "SAP.DE",    "latencyP95MaxMs": 1500, "freshnessMaxSec": 900,   "crossSourceAgreementWith": "finnhub/EU/equity/quote", "toleranceBps": 25 },
+
+    { "cell": "ecb_sdmx/EU/curve/curve",        "symbol": "DE",        "latencyP95MaxMs": 3000, "freshnessMaxSec": 86400, "expectTenors": ["2Y","5Y","10Y","30Y"] },
+    { "cell": "ecb_sdmx/EU/curve/curve",        "symbol": "FR",        "latencyP95MaxMs": 3000, "freshnessMaxSec": 86400 },
+    { "cell": "ecb_sdmx/EU/curve/curve",        "symbol": "IT",        "latencyP95MaxMs": 3000, "freshnessMaxSec": 86400 },
+    { "cell": "ecb_sdmx/EU/curve/curve",        "symbol": "ES",        "latencyP95MaxMs": 3000, "freshnessMaxSec": 86400 },
+
+    { "cell": "fred/US/curve/curve",            "symbol": "US",        "latencyP95MaxMs": 1500, "freshnessMaxSec": 86400 },
+    { "cell": "fred/US/macro/series",           "symbol": "CPIAUCSL",  "latencyP95MaxMs": 1500, "freshnessMaxSec": 86400 },
+    { "cell": "fred/US/macro/series",           "symbol": "UNRATE",    "latencyP95MaxMs": 1500, "freshnessMaxSec": 86400 },
+    { "cell": "fred/US/macro/series",           "symbol": "DFF",       "latencyP95MaxMs": 1500, "freshnessMaxSec": 86400 },
+    { "cell": "fred/GLOBAL/macro/series",       "symbol": "ECBDFR",    "latencyP95MaxMs": 1500, "freshnessMaxSec": 86400, "notes": "ECB deposit facility rate via FRED" },
+
+    { "cell": "unusual_whales/US/political/trades", "symbol": "CONGRESS", "latencyP95MaxMs": 2000, "freshnessMaxSec": 3600 },
+    { "cell": "unusual_whales/US/dark_pool/prints",  "symbol": "AAPL",    "latencyP95MaxMs": 2000, "freshnessMaxSec": 300 },
+
+    { "cell": "sonar/GLOBAL/research/cited_answer", "symbol": "what is the current ECB deposit facility rate", "latencyP95MaxMs": 6000, "freshnessMaxSec": 300, "minCitations": 1 }
+  ]
+}

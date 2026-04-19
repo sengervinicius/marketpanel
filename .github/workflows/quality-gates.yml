@@ -1,0 +1,89 @@
+name: Quality Gates (Wave 1 / WS1)
+
+on:
+  pull_request:
+    paths:
+      - 'server/adapters/**'
+      - 'server/providers/**'
+      - 'server/config/providerMatrix.js'
+      - 'server/db/migrations/*coverage*'
+      - 'scripts/eval/**'
+  schedule:
+    # Nightly run at 03:15 UTC. Writes to coverage_probes on main.
+    - cron: '15 3 * * *'
+  workflow_dispatch:
+
+# Wave 1 status: dry-run only. Once adapters are wired to real keys,
+# remove --dry-run from the 'live' job and gate it on secrets presence.
+jobs:
+  harness-dry-run:
+    name: Harness (dry-run wiring check)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install repo root deps (if any)
+        run: |
+          if [ -f package-lock.json ]; then npm ci --prefer-offline --no-audit; fi
+
+      - name: Run harness (dry-run, JSON)
+        run: node scripts/eval/harness.js all --dry-run --json > harness-report.json
+
+      - name: Upload report
+        uses: actions/upload-artifact@v4
+        with:
+          name: harness-report-dry-run
+          path: harness-report.json
+
+      - name: Fail job if any non-skeleton probe failed
+        run: |
+          node -e '
+            const r = require("./harness-report.json");
+            if (r.totalFailed > 0) {
+              console.error("Harness reported", r.totalFailed, "failures");
+              process.exit(1);
+            }
+            console.log("All probes passed");
+          '
+
+  harness-live:
+    name: Harness (live adapters)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    env:
+      POLYGON_API_KEY:     ${{ secrets.POLYGON_API_KEY }}
+      FINNHUB_API_KEY:     ${{ secrets.FINNHUB_API_KEY }}
+      TWELVEDATA_API_KEY:  ${{ secrets.TWELVEDATA_API_KEY }}
+      FRED_API_KEY:        ${{ secrets.FRED_API_KEY }}
+      EULERPOOL_API_KEY:   ${{ secrets.EULERPOOL_API_KEY }}
+      UW_API_KEY:          ${{ secrets.UW_API_KEY }}
+      PERPLEXITY_API_KEY:  ${{ secrets.PERPLEXITY_API_KEY }}
+      DATABASE_URL:        ${{ secrets.DATABASE_URL }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install deps
+        run: |
+          if [ -f server/package-lock.json ]; then (cd server && npm ci --prefer-offline --no-audit); fi
+
+      - name: Run harness (live)
+        run: node scripts/eval/harness.js all --json > harness-report.json
+        continue-on-error: true
+
+      - name: Upload report
+        uses: actions/upload-artifact@v4
+        with:
+          name: harness-report-live
+          path: harness-report.json

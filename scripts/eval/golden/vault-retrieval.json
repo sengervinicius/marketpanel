@@ -1,0 +1,13 @@
+{
+  "description": "Vault retrieval quality probes. Each probe is a (query, expectedChunkIds) pair. After Wave 1 scaffolding lands, the WS5 parser overhaul populates these with hand-labeled top-1 chunks from a canonical set of 5 document types: sell-side research note, earnings call transcript, SEC filing, macro outlook piece, and internal investment memo. The MRR and precision@5 metrics are published in CI on every PR touching server/services/vault.js or server/services/agentOrchestrator.js.",
+  "version": "0.1.0-skeleton",
+  "targetMRR": 0.85,
+  "targetPrecisionAt5": 0.90,
+  "probes": [
+    { "query": "what did Goldman say about TSMC capex guidance last quarter", "expectedChunkIds": [], "notes": "TODO: hand-label once golden docs are ingested" },
+    { "query": "summarize consensus view on European banks Q4 earnings",     "expectedChunkIds": [], "notes": "TODO" },
+    { "query": "what is the bull case for Korean semiconductors in 2026",    "expectedChunkIds": [], "notes": "TODO" },
+    { "query": "FOMC statement language change from previous meeting",       "expectedChunkIds": [], "notes": "TODO" },
+    { "query": "Petrobras dividend policy under the new government",         "expectedChunkIds": [], "notes": "TODO" }
+  ]
+}

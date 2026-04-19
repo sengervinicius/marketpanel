@@ -1,0 +1,21 @@
+{
+  "description": "Canonical macro events that MUST appear in the calendar adapter output within freshnessMaxSec of their release. This is how we prove the macro-calendar integration is actually live and not serving a stale cache. Update this list quarterly as new events become the benchmark.",
+  "version": "1.0.0",
+  "events": [
+    { "title": "FOMC rate decision",                   "category": "central_bank", "country": "US", "expectedFields": ["actual","consensus","prior","timestamp"], "freshnessMaxSec": 60,   "historicalMatch": true },
+    { "title": "US CPI (YoY)",                         "category": "inflation",    "country": "US", "expectedFields": ["actual","consensus","prior","timestamp"], "freshnessMaxSec": 60 },
+    { "title": "US Nonfarm Payrolls",                  "category": "employment",   "country": "US", "expectedFields": ["actual","consensus","prior","timestamp"], "freshnessMaxSec": 60 },
+    { "title": "US ISM Manufacturing PMI",             "category": "survey",       "country": "US", "expectedFields": ["actual","consensus","prior","timestamp"], "freshnessMaxSec": 60 },
+    { "title": "ECB Main Refinancing Rate decision",   "category": "central_bank", "country": "EU", "expectedFields": ["actual","consensus","prior","timestamp"], "freshnessMaxSec": 60,   "crossSourceReconcileWith": "ecb_sdmx" },
+    { "title": "ECB Deposit Facility Rate",            "category": "central_bank", "country": "EU", "expectedFields": ["actual","consensus","prior","timestamp"], "freshnessMaxSec": 60,   "crossSourceReconcileWith": "ecb_sdmx" },
+    { "title": "Euro Area CPI (YoY, Flash)",           "category": "inflation",    "country": "EU", "expectedFields": ["actual","consensus","prior","timestamp"], "freshnessMaxSec": 60 },
+    { "title": "BoE Bank Rate decision",               "category": "central_bank", "country": "UK", "expectedFields": ["actual","consensus","prior","timestamp"], "freshnessMaxSec": 60 },
+    { "title": "BoJ Policy Rate decision",             "category": "central_bank", "country": "JP", "expectedFields": ["actual","consensus","prior","timestamp"], "freshnessMaxSec": 60 },
+    { "title": "Japan CPI (YoY)",                      "category": "inflation",    "country": "JP", "expectedFields": ["actual","consensus","prior","timestamp"], "freshnessMaxSec": 60 },
+    { "title": "BCB Selic Rate decision",              "category": "central_bank", "country": "BR", "expectedFields": ["actual","consensus","prior","timestamp"], "freshnessMaxSec": 60 },
+    { "title": "Brazil IPCA (YoY)",                    "category": "inflation",    "country": "BR", "expectedFields": ["actual","consensus","prior","timestamp"], "freshnessMaxSec": 60 },
+    { "title": "China CPI (YoY)",                      "category": "inflation",    "country": "CN", "expectedFields": ["actual","consensus","prior","timestamp"], "freshnessMaxSec": 60 },
+    { "title": "China Caixin Manufacturing PMI",       "category": "survey",       "country": "CN", "expectedFields": ["actual","consensus","prior","timestamp"], "freshnessMaxSec": 60 },
+    { "title": "Korea BOK Base Rate decision",         "category": "central_bank", "country": "KR", "expectedFields": ["actual","consensus","prior","timestamp"], "freshnessMaxSec": 60 }
+  ]
+}
