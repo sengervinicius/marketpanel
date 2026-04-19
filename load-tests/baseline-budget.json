@@ -1,0 +1,22 @@
+{
+  "_note": "W5.4 — committed baseline targets for k6 regression gating. These are the numbers the nightly loadtest CI compares k6-summary.json against. If a PR causes any metric to regress beyond `toleratePct`, the check-baseline.js gate fails and the PR is blocked. Numbers are sourced from the last clean full-scenario run on staging and are intentionally conservative so cold-dyno noise on Render doesn't false-alarm.",
+  "_schema": {
+    "metric": "k6 metric path, e.g. http_req_duration.p(95)",
+    "max": "hard ceiling — if the observed value > max, fail",
+    "toleratePct": "% regression tolerance over the stored baseline; used to catch gradual drift"
+  },
+  "baseline": {
+    "http_req_failed.rate":                   { "max": 0.01,  "toleratePct": 50 },
+    "http_req_duration.p(95)":                { "max": 800,   "toleratePct": 20 },
+    "http_req_duration.p(99)":                { "max": 2500,  "toleratePct": 20 },
+    "http_req_duration{type:panel}.p(95)":    { "max": 400,   "toleratePct": 20 },
+    "http_req_duration{type:market}.p(95)":   { "max": 500,   "toleratePct": 25 },
+    "http_req_duration{type:vault}.p(95)":    { "max": 900,   "toleratePct": 30 },
+    "ai_answer_time_to_first_ms.p(95)":       { "max": 3500,  "toleratePct": 25 },
+    "vault_retrieve_ms.p(95)":                { "max": 900,   "toleratePct": 30 },
+    "ws_unexpected_close.count":              { "max": 5,     "toleratePct": 0  },
+    "panel_failure_rate.rate":                { "max": 0.01,  "toleratePct": 50 },
+    "vault_failure_rate.rate":                { "max": 0.02,  "toleratePct": 50 },
+    "checks.rate":                            { "min": 0.99,  "toleratePct": 5  }
+  }
+}

@@ -24,22 +24,20 @@
 
 'use strict';
 
-const pg = require('../db/postgres');
-const logger = require('../utils/logger');
-const { getUserById, updateSubscription } = require('../authStore');
-const { tierFromStripePriceId, TIERS } = require('../config/tiers');
-const { recordSubscriptionChange, classifyTransition } = require('../services/subscriptionAudit');
+const _pg = require('../db/postgres');
+const _logger = require('../utils/logger');
 
 // Track per-user misses across runs to avoid false-positive downgrades.
+// Keyed by user id; reset on any successful fetch.
 const missCounter = new Map();
 
-function getStripe() {
+function _defaultStripe() {
   if (!process.env.STRIPE_SECRET_KEY) return null;
-  if (!getStripe._c) getStripe._c = require('stripe')(process.env.STRIPE_SECRET_KEY);
-  return getStripe._c;
+  if (!_defaultStripe._c) _defaultStripe._c = require('stripe')(process.env.STRIPE_SECRET_KEY);
+  return _defaultStripe._c;
 }
 
-async function selectActiveStripeUsers(limit = 500) {
+async function selectActiveStripeUsers(pg, limit = 500) {
   if (!pg.isConnected || !pg.isConnected()) return [];
   const r = await pg.query(
     `SELECT id, stripe_subscription_id, stripe_customer_id, plan_tier,
@@ -53,7 +51,14 @@ async function selectActiveStripeUsers(limit = 500) {
   return r.rows || [];
 }
 
-async function reconcileOneStripe(stripe, row) {
+/**
+ * Reconcile one row against Stripe. Pure: no module-scoped side effects
+ * beyond missCounter. All heavy deps (stripe, updateSubscription,
+ * recordChange, tierFromStripePriceId, logger) are injected.
+ */
+async function reconcileOneStripe(stripe, row, deps) {
+  const { logger, updateSubscription, recordChange, classifyTransition, tierFromStripePriceId } = deps;
+
   let remote;
   try {
     remote = await stripe.subscriptions.retrieve(row.stripe_subscription_id);
@@ -101,7 +106,7 @@ async function reconcileOneStripe(stripe, row) {
   if (!drifted) return { changed: false };
 
   await updateSubscription(row.id, after);
-  await recordSubscriptionChange({
+  await recordChange({
     userId: row.id,
     source: 'reconciler',
     action: classifyTransition(before, after),
@@ -111,8 +116,23 @@ async function reconcileOneStripe(stripe, row) {
   return { changed: true, before, after };
 }
 
-async function runOnce() {
-  const stripe = getStripe();
+/**
+ * One reconciler pass. DI-friendly for tests.
+ *
+ * @param {object} [opts]
+ * @param {object} [opts.deps]  Injected collaborators (see defaults below).
+ */
+async function runOnce(opts = {}) {
+  const {
+    pg = _pg,
+    logger = _logger,
+    stripe = _defaultStripe(),
+    updateSubscription = require('../authStore').updateSubscription,
+    recordChange = require('../services/subscriptionAudit').recordSubscriptionChange,
+    classifyTransition = require('../services/subscriptionAudit').classifyTransition,
+    tierFromStripePriceId = require('../config/tiers').tierFromStripePriceId,
+  } = opts.deps || {};
+
   if (!stripe) {
     logger.info('reconciler', 'skipped: STRIPE_SECRET_KEY unset');
     return { scanned: 0, drifted: 0, deferred: 0, errors: 0 };
@@ -122,11 +142,12 @@ async function runOnce() {
     return { scanned: 0, drifted: 0, deferred: 0, errors: 0 };
   }
 
-  const rows = await selectActiveStripeUsers();
+  const rows = await selectActiveStripeUsers(pg, opts.limit || 500);
+  const deps = { logger, updateSubscription, recordChange, classifyTransition, tierFromStripePriceId };
   let drifted = 0, deferred = 0, errors = 0;
   for (const row of rows) {
     try {
-      const r = await reconcileOneStripe(stripe, row);
+      const r = await reconcileOneStripe(stripe, row, deps);
       if (r.changed) drifted += 1;
       if (r.deferred) deferred += 1;
       if (r.error) errors += 1;
@@ -142,4 +163,8 @@ async function runOnce() {
   return { scanned: rows.length, drifted, deferred, errors };
 }
 
-module.exports = { runOnce };
+module.exports = {
+  runOnce,
+  // Exposed for tests.
+  _internal: { reconcileOneStripe, selectActiveStripeUsers, missCounter },
+};

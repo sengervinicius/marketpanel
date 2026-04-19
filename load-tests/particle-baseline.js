@@ -55,6 +55,10 @@ const wsSessionDuration = new Trend('ws_session_duration_s', true);
 const wsUnexpectedClose = new Counter('ws_unexpected_close');
 const wsSubscribes      = new Counter('ws_subscribe_sent');
 const panelFailures     = new Rate('panel_failure_rate');
+// W5.4 — vault retrieve latency (W4 hardening added a cache; we want to
+// watch the cache-warm tail separately from the AI full-answer trend).
+const vaultRetrieveMs   = new Trend('vault_retrieve_ms', true);
+const vaultFailures     = new Rate('vault_failure_rate');
 
 // ── Scenarios / thresholds ────────────────────────────────────────────────
 export const options = IS_SMOKE
@@ -84,9 +88,13 @@ export const options = IS_SMOKE
         http_req_failed:                    ['rate<0.01'],
         'http_req_duration{type:panel}':    ['p(95)<400', 'p(99)<1500'],
         'http_req_duration{type:auth}':     ['p(95)<600'],
+        'http_req_duration{type:market}':   ['p(95)<500', 'p(99)<2000'],
+        'http_req_duration{type:vault}':    ['p(95)<900', 'p(99)<2500'],
         ai_answer_time_to_first_ms:         ['p(95)<3500'],
+        vault_retrieve_ms:                  ['p(95)<900'],
         ws_unexpected_close:                ['count<5'],     // absolute, over the full run
         panel_failure_rate:                 ['rate<0.01'],
+        vault_failure_rate:                 ['rate<0.02'],
         checks:                             ['rate>0.99'],
       },
     };
@@ -130,6 +138,71 @@ function panelBatch(session) {
       if (good) ok += 1;
     }
     panelFailures.add(ok < responses.length);
+  });
+}
+
+// W5.4 — exercise the unified /api/market/* surface (news + macro + crypto
+// are the three sub-modules that took the biggest refactor in W2). We hit
+// one representative endpoint per sub-module so a regression anywhere in
+// the registry lookup / adapter fan-out shows up as a market-tag p95 drift.
+function marketBatch() {
+  group('market-batch', () => {
+    const paths = [
+      '/api/market/search/news?ticker=AAPL&window=1d',
+      '/api/market/macro/calendar?country=BR',
+      '/api/market/crypto/quote?symbol=BTC',
+      '/api/market/commodities/quote?symbol=CL',
+      '/api/market/forex/quote?pair=USDBRL',
+    ];
+    const requests = paths.map(p => ({
+      method: 'GET',
+      url:    BASE + p,
+      params: { tags: { type: 'market', route: p.split('?')[0] } },
+    }));
+    const responses = http.batch(requests);
+    for (const r of responses) {
+      check(r, { 'market 2xx': x => x.status >= 200 && x.status < 300 });
+    }
+  });
+}
+
+// W5.4 — vault retrieve exercises the embedding cache (W4.6), the provider
+// filter (W4.3), and the BM25+vector fusion — the most expensive path in
+// the backend. Queries are picked from a small pool so the LRU gets
+// realistic repeat-rate behaviour, which is the exact workload the W4.6
+// cache is tuned for.
+const VAULT_QUERIES = [
+  'What is the current Selic rate and the BCB forward guidance?',
+  'Petrobras dividend policy change 2024',
+  'Apple Q3 2024 earnings iPhone revenue growth',
+  'Nvidia datacenter guidance for fiscal 2025',
+  'Fed dot plot September 2024 how many cuts priced in',
+  'Hyperscaler AI capex trajectory 2024-2026',
+];
+function pickVaultQuery() {
+  return VAULT_QUERIES[Math.floor(Math.random() * VAULT_QUERIES.length)];
+}
+
+function vaultRetrieve() {
+  group('vault-retrieve', () => {
+    const start = Date.now();
+    const res = http.post(
+      `${BASE}/api/vault/search`,
+      JSON.stringify({ query: pickVaultQuery() }),
+      {
+        headers: { 'Content-Type': 'application/json' },
+        tags: { type: 'vault', endpoint: 'retrieve' },
+        timeout: '20s',
+      }
+    );
+    vaultRetrieveMs.add(Date.now() - start);
+    const ok = check(res, {
+      'vault 2xx':          r => r.status >= 200 && r.status < 300,
+      'vault has passages': r => {
+        try { return Array.isArray(r.json('passages')); } catch (_) { return false; }
+      },
+    });
+    vaultFailures.add(!ok);
   });
 }
 
@@ -203,14 +276,20 @@ export default function () {
   // 1. Five parallel panel reads.
   panelBatch(session);
 
-  // 2. WebSocket: 20 subscribes + 2-minute idle with heartbeats.
+  // 2. Five parallel /api/market/* reads (W5.4).
+  marketBatch();
+
+  // 3. One vault retrieve (exercises W4.3 + W4.6 cache + W4.5 harness) (W5.4).
+  vaultRetrieve();
+
+  // 4. WebSocket: 20 subscribes + 2-minute idle with heartbeats.
   const idleSeconds = IS_SMOKE ? 10 : 120;
   wsSession(session, idleSeconds);
 
-  // 3. Ask one AI question.
+  // 5. Ask one AI question.
   askAI(session);
 
-  // 4. Simulate think time.
+  // 6. Simulate think time.
   sleep(Math.random() * 10 + 5);
 }
 
@@ -223,6 +302,7 @@ export function handleSummary(data) {
     `http_req_duration.p99:         ${Math.round(data.metrics.http_req_duration?.values['p(99)'])} ms`,
     `http_req_failed.rate:          ${(data.metrics.http_req_failed?.values?.rate * 100).toFixed(2)} %`,
     `ai_answer_time_to_first.p95:   ${Math.round(data.metrics.ai_answer_time_to_first_ms?.values['p(95)'] || 0)} ms`,
+    `vault_retrieve.p95:            ${Math.round(data.metrics.vault_retrieve_ms?.values?.['p(95)'] || 0)} ms`,
     `ws_unexpected_close:           ${data.metrics.ws_unexpected_close?.values?.count ?? 0}`,
     `checks.rate:                   ${(data.metrics.checks?.values?.rate * 100).toFixed(2)} %`,
   ].join('\n');

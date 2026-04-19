@@ -84,6 +84,30 @@ function initJobs(ctx = {}) {
   const { runOnce: reconcileSubs } = require('./subscriptionReconciler');
   registerJob('subscription-reconciler', '7 * * * *', reconcileSubs);
 
+  // ── IAP reconciler: daily at 03:45 BRT = 06:45 UTC (W5.1) ────────────
+  // Re-verifies every active/grace Apple iap_receipts row against Apple's
+  // verifyReceipt endpoint and corrects drift (refunds, family-share
+  // removals, cancellations Apple's S2S webhook never delivered).
+  // Staggered 30min after LGPD retention to avoid compound DB load.
+  const { runOnce: reconcileIap } = require('./iapReconciler');
+  registerJob('iap-reconciler', '45 6 * * *', reconcileIap);
+
+  // ── Adapter quality probe: daily at 04:30 BRT = 07:30 UTC (W5.5/5.6) ─
+  // Runs adapterQualityHarness against every registered adapter's declared
+  // capabilities and writes results into coverage_matrix + coverage_probes.
+  // This is what populates the /admin/coverage dashboard and unblocks the
+  // router's confidence-based adapter selection (W5.7 router hookup).
+  // Scheduled 45min after IAP reconciler to spread load.
+  const { runProbes } = require('../services/adapterQualityHarness');
+  const coverageMatrix = require('../services/coverageMatrix');
+  const pg = require('../db/postgres');
+  const { getRegistry } = require('../adapters/registry');
+  registerJob('adapter-quality-probe', '30 7 * * *', async () => {
+    const registry = getRegistry();
+    const report = await runProbes({ registry });
+    await coverageMatrix.recordProbeRun({ report, pg });
+  });
+
   // ── Staleness sweep: every minute (W3.3) ─────────────────────────────
   // Emits severity transitions per feed; updates the age gauge consumed
   // by /metrics and /admin/debug.

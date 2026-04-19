@@ -58,6 +58,20 @@ jobs:
         run: |
           k6 run --summary-export=k6-summary.json load-tests/particle-baseline.js
 
+      - name: Check against baseline budget (W5.4)
+        if: always()
+        run: |
+          if [ ! -f k6-summary.json ]; then
+            echo "k6-summary.json not produced; skipping baseline gate"
+            exit 0
+          fi
+          # Full-scenario runs require every metric; smoke variant is lenient.
+          if [ "${{ inputs.full_run }}" = "true" ]; then
+            node load-tests/check-baseline.js k6-summary.json load-tests/baseline-budget.json --require-all
+          else
+            node load-tests/check-baseline.js k6-summary.json load-tests/baseline-budget.json
+          fi
+
       - name: Upload summary
         if: always()
         uses: actions/upload-artifact@v4

@@ -148,6 +148,37 @@ router.post('/purchase', requireAuth, async (req, res) => {
       if (latestReceipt?.expires_date_ms) {
         verifiedExpiry = parseInt(latestReceipt.expires_date_ms);
       }
+
+      // W5.1 — write-through to iap_receipts so the daily reconciler can
+      // re-verify this subscription tomorrow. Safe-ignore any DB errors so
+      // the purchase flow never blocks on audit-ledger hiccups.
+      try {
+        const pg = require('../db/postgres');
+        if (pg.isConnected && pg.isConnected()) {
+          const otx = latestReceipt?.original_transaction_id
+            || transactionId
+            || `user-${userId}-${productId}`;
+          const expiresAtIso = verifiedExpiry ? new Date(verifiedExpiry) : null;
+          const storedReceipt = appleData.latest_receipt || receiptData;
+          await pg.query(
+            `INSERT INTO iap_receipts
+               (original_transaction_id, user_id, store, product_id,
+                expires_at, auto_renew, last_validated_at, latest_receipt, tier, status)
+             VALUES ($1, $2, 'apple', $3, $4, TRUE, NOW(), $5, $6, 'active')
+             ON CONFLICT (original_transaction_id) DO UPDATE
+               SET expires_at        = EXCLUDED.expires_at,
+                   auto_renew        = EXCLUDED.auto_renew,
+                   last_validated_at = EXCLUDED.last_validated_at,
+                   latest_receipt    = EXCLUDED.latest_receipt,
+                   status            = EXCLUDED.status`,
+            [otx, userId, productId, expiresAtIso, storedReceipt, 'particle_pro'],
+          );
+        }
+      } catch (ledgerErr) {
+        logger.error('iap', 'iap_receipts write-through failed (purchase still honoured)', {
+          userId, productId, error: ledgerErr.message,
+        });
+      }
     }
     // ─────────────────────────────────────────────────────────────────────────
 

@@ -122,4 +122,69 @@ function adminAuditLog(req, res, next) {
   next();
 }
 
-module.exports = { adminAuditLog };
+// ── Diff helper (W5.3) ──────────────────────────────────────────────────
+//
+// Admin handlers that mutate a row often want to log "tier was particle_pro,
+// is now particle_elite" rather than the whole user object. `diffObjects`
+// returns a minimal before/after/changedKeys bundle suitable for pinning
+// to req.auditDetails.diff.
+//
+// Design choices:
+//   - Scalars only. We intentionally do NOT recurse into arrays or nested
+//     objects: audit details are supposed to be grep-friendly, not a full
+//     replay log. Reach for subscription_audit or a purpose-built table
+//     for deeper diffs.
+//   - Never emits secrets: any key matching SECRET_KEY_RE is redacted to
+//     '[redacted]' regardless of actual value.
+//   - Bounded size: long strings are truncated to 240 chars each so a
+//     single admin action can't balloon details past JSONB sanity.
+
+const SECRET_KEY_RE = /(password|secret|token|api[_-]?key|private[_-]?key|auth|cookie)/i;
+const MAX_SCALAR_LEN = 240;
+
+function _scalarOnly(v) {
+  if (v === null || v === undefined) return v;
+  const t = typeof v;
+  if (t === 'string') return v.length > MAX_SCALAR_LEN ? v.slice(0, MAX_SCALAR_LEN) + '…' : v;
+  if (t === 'number' || t === 'boolean') return v;
+  // Objects / arrays get reduced to a shape hint — we don't want deep
+  // structures in audit rows.
+  if (Array.isArray(v)) return `[array len=${v.length}]`;
+  return '[object]';
+}
+
+function diffObjects(before, after) {
+  const b = before || {};
+  const a = after  || {};
+  const changed = {};
+  const keys = new Set([...Object.keys(b), ...Object.keys(a)]);
+  for (const k of keys) {
+    if (b[k] === a[k]) continue;
+    const bv = SECRET_KEY_RE.test(k) ? '[redacted]' : _scalarOnly(b[k]);
+    const av = SECRET_KEY_RE.test(k) ? '[redacted]' : _scalarOnly(a[k]);
+    changed[k] = { before: bv, after: av };
+  }
+  return {
+    changedKeys: Object.keys(changed).sort(),
+    fields: changed,
+  };
+}
+
+/**
+ * Convenience: admin handlers call this after they've loaded the "before"
+ * state and are about to write. Sets req.auditDetails.diff so the
+ * middleware's finish handler picks it up.
+ */
+function captureAdminDiff(req, before, after) {
+  if (!req) return;
+  if (!req.auditDetails || typeof req.auditDetails !== 'object') req.auditDetails = {};
+  req.auditDetails.diff = diffObjects(before, after);
+}
+
+module.exports = {
+  adminAuditLog,
+  // Exposed for handlers + tests.
+  diffObjects,
+  captureAdminDiff,
+  _internal: { deriveAction, deriveTarget, clientIp },
+};

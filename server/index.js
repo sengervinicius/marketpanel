@@ -102,6 +102,7 @@ const adminRoutes = require('./routes/admin');
 const privacyRoutes = require('./routes/privacy');       // W1.1 LGPD DSAR
 const adminDebugRoutes = require('./routes/adminDebug'); // W4.1 on-call debug
 const adminFlagsRoutes = require('./routes/adminFlags'); // W6.1 feature flags admin
+const adminCoverageRoutes = require('./routes/adminCoverage'); // W5.6 coverage matrix admin
 const featureFlags     = require('./services/featureFlags'); // W6.1
 const { requireAuth, requireActiveSubscription, requireAdmin } = require('./authMiddleware');
 const logger = require('./utils/logger');
@@ -362,6 +363,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/admin', requireAuth, adminRoutes);
 app.use('/api/admin/debug', requireAuth, adminDebugRoutes);  // W4.1 on-call surface
 app.use('/api/admin/flags', requireAuth, adminFlagsRoutes);  // W6.1 feature flags admin
+app.use('/api/admin/coverage', requireAuth, adminCoverageRoutes); // W5.6 coverage matrix admin
 
 // W6.1 — per-user flag evaluation for the client. Returns a {name: bool} map.
 // Anonymous callers get only flags that don't require a userId (effectively
@@ -1148,6 +1150,21 @@ async function boot() {
 
     // 3. Start all background jobs (leaderboard, card cleanup, alert scheduler)
     initJobs({ port: PORT });
+
+    // 4. Sync adapter CoverageDeclaration rows → coverage_matrix DB table
+    //    (W5.6). Non-fatal if it fails — the harness will still run and
+    //    fresh rows will appear the next time the migration reseeds.
+    try {
+      const coverageMatrix = require('./services/coverageMatrix');
+      const { getRegistry } = require('./adapters/registry');
+      const pgDb = require('./db/postgres');
+      if (pgDb && pgDb.isConnected && pgDb.isConnected()) {
+        coverageMatrix.syncDeclarations({ registry: getRegistry(), pg: pgDb })
+          .catch(e => logger.warn('boot', 'coverage_matrix sync failed', { error: e.message }));
+      }
+    } catch (e) {
+      logger.warn('boot', 'coverage_matrix sync skipped', { error: e.message });
+    }
   });
 
   // Graceful shutdown
