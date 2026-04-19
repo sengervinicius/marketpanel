@@ -536,6 +536,30 @@ async function handleWebhookEvent(stripe, event) {
       break;
     }
 
+    case 'invoice.payment_succeeded': {
+      // W3.3 — send a branded receipt from receipts@the-particle.com.
+      // We do NOT rely on this to flip subscription flags — that's done
+      // by customer.subscription.{created,updated}. This handler is
+      // purely informational + the welcome receipt for the user.
+      const invoice = sub;
+      const customerId = invoice.customer;
+      const userId = invoice.subscription_details?.metadata?.userId
+        ? Number(invoice.subscription_details.metadata.userId)
+        : await findUserIdByCustomer(customerId);
+      if (!userId) break;
+      const user = getUserById(userId);
+      if (!user || !user.email) break;
+      try {
+        const { sendPaymentReceiptEmail } = require('./services/emailService');
+        await sendPaymentReceiptEmail(user, invoice);
+      } catch (e) {
+        logger.warn('billing', 'payment receipt email failed', {
+          userId, error: e.message,
+        });
+      }
+      break;
+    }
+
     case 'invoice.payment_failed': {
       // Payment failed — deactivate after 3 attempts AND send dunning email
       const invoice = sub;

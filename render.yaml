@@ -94,9 +94,21 @@ services:
       - key: APPLE_IAP_SHARED_SECRET
         sync: false
 
-      # ── Comms: Email (SMTP) ─────────────────────────────────────────────────
+      # ── Comms: Email (Resend, primary) ──────────────────────────────────────
+      # W3.3 — Resend is the primary transactional email provider.
+      # DNS (SPF, DKIM, DMARC, MX) lives on Cloudflare for the-particle.com.
+      - key: RESEND_API_KEY
+        sync: false          # Primary provider; SMTP below is the fallback
+      - key: EMAIL_FROM_HELLO
+        sync: false          # e.g. hello@the-particle.com — welcome/onboarding
+      - key: EMAIL_FROM_RECEIPTS
+        sync: false          # e.g. receipts@the-particle.com — Stripe/IAP receipts
+      - key: EMAIL_FROM_NOTIFICATIONS
+        sync: false          # e.g. notifications@the-particle.com — alerts/dunning
+
+      # ── Comms: Email (SMTP fallback) ────────────────────────────────────────
       - key: EMAIL_SMTP_HOST
-        sync: false
+        sync: false          # Fallback provider when RESEND_API_KEY is unset
       - key: EMAIL_SMTP_PORT
         sync: false
       - key: EMAIL_SMTP_USER
@@ -104,7 +116,7 @@ services:
       - key: EMAIL_SMTP_PASS
         sync: false
       - key: EMAIL_FROM
-        sync: false
+        sync: false          # Legacy fallback FROM — kept for backward compat
 
       # ── Comms: Discord ──────────────────────────────────────────────────────
       - key: DISCORD_BOT_TOKEN

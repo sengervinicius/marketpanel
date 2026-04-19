@@ -57,7 +57,12 @@ router.post('/register', authLimiter, async (req, res) => {
       },
     });
 
-    // Send verification email asynchronously (don't block registration)
+    // ── Post-registration emails ───────────────────────────────────────
+    // Fired async so a mail-provider hiccup never blocks a successful
+    // registration. Two messages go out:
+    //   1. Welcome / onboarding (from hello@the-particle.com)
+    //   2. Verify-email link (inline, links to /verify-email/:token)
+    // Both are best-effort — we log and swallow errors.
     if (email) {
       try {
         const crypto = require('crypto');
@@ -69,14 +74,20 @@ router.post('/register', authLimiter, async (req, res) => {
           [verifyToken, user.id, email, expiresAt, Date.now()]
         );
         const verifyUrl = `${process.env.CLIENT_URL || 'https://the-particle.com'}/#/verify-email/${verifyToken}`;
-        const { sendEmail } = require('../services/emailService');
+        const { sendEmail, sendWelcomeEmail } = require('../services/emailService');
+        // W3.3 — welcome email from hello@the-particle.com (Resend, reason=hello).
+        await sendWelcomeEmail({ ...user, email });
+        // Verification email — separate message so users can click to verify
+        // without the welcome content being treated as a transactional footer.
         await sendEmail({
           to: email,
-          subject: 'Senger Market — Verify Your Email',
-          html: `<p>Welcome to Senger Market! Please verify your email address by clicking the link below:</p><p><a href="${verifyUrl}">${verifyUrl}</a></p><p>This link expires in 24 hours.</p>`,
+          subject: 'Verify your email — Particle',
+          reason: 'hello',
+          fromName: 'Particle',
+          html: `<p>Welcome to Particle. Please verify your email by clicking the link below:</p><p><a href="${verifyUrl}">${verifyUrl}</a></p><p>This link expires in 24 hours.</p>`,
         });
       } catch (emailErr) {
-        logger.error('auth/register', 'Failed to send verification email', { error: emailErr.message });
+        logger.error('auth/register', 'Failed to send welcome/verification email', { error: emailErr.message });
       }
     }
   } catch (e) {
