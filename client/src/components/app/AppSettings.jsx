@@ -6,11 +6,42 @@ import UserAvatar from '../common/UserAvatar';
 import VaultPanel from './VaultPanel';
 
 // ── Settings Drawer Constants ────────────────────────────────────────────────
-// Convert PANEL_DEFINITIONS to array of { id, label }
-export const PANEL_DEFS = Object.values(PANEL_DEFINITIONS).map(def => ({
-  id: def.id,
-  label: def.label,
-}));
+// Settings surfaces toggleable grid panels only — NOT sector screens.
+// Sector screens (defenceScreen, brazilScreen, energyScreen, etc.) are
+// navigated to from the screens menu, not shown/hidden from the grid.
+// Surfacing them in Panel Visibility is what produced the duplicate
+// "Commodities / Commodities+", "Brazil / Brazil B3", "Macro / Macro"
+// rows users were seeing.
+//
+// Legacy panel IDs still exist in PANEL_DEFINITIONS so saved layouts
+// keep working; we just don't expose them as new toggles.
+const SETTINGS_PANEL_IDS = [
+  'charts',
+  'usEquities',
+  'brazilB3',
+  'globalIndices',
+  'forex',
+  'crypto',
+  'commodities',
+  'debt',         // canonical rates/yields panel — deprecates `curves` and `rates`
+  'watchlist',
+  'alerts',
+  'news',
+  'sentiment',
+  'chat',
+  'etf',
+  'screener',
+  'macro',
+  'calendar',
+  'heatmap',
+  'predictions',
+  'optionsFlow',
+];
+
+export const PANEL_DEFS = SETTINGS_PANEL_IDS
+  .map(id => PANEL_DEFINITIONS[id])
+  .filter(Boolean)
+  .map(def => ({ id: def.id, label: def.label }));
 
 export const START_TAB_OPTIONS = [
   { value: 'home',      label: 'HOME' },
@@ -29,9 +60,32 @@ export function SettingsSection({ label }) {
 }
 
 // ── Settings Drawer ─────────────────────────────────────────────────────────
-export function SettingsDrawer({ panelVisible, togglePanel, onClose }) {
+export function SettingsDrawer({ panelVisible, togglePanel, onClose, mobile }) {
   const { settings, updateSettings, resetTour } = useSettings();
   const [resettingLayout, setResettingLayout] = useState(false);
+
+  // Default Start Tab only makes sense when tab navigation is actually used.
+  // On desktop the app uses a panel grid, not bottom tabs, so those buttons
+  // were dead-ends. Detect mobile either from the explicit prop or via a
+  // narrow-viewport heuristic so the setting appears in every mobile
+  // context without us threading the prop through every call site.
+  const [isNarrow, setIsNarrow] = useState(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return false;
+    return window.matchMedia('(max-width: 768px)').matches;
+  });
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return;
+    const mql = window.matchMedia('(max-width: 768px)');
+    const h = (e) => setIsNarrow(e.matches);
+    // addEventListener is the modern API; fall back to addListener for older browsers.
+    if (mql.addEventListener) mql.addEventListener('change', h);
+    else if (mql.addListener) mql.addListener(h);
+    return () => {
+      if (mql.removeEventListener) mql.removeEventListener('change', h);
+      else if (mql.removeListener) mql.removeListener(h);
+    };
+  }, []);
+  const showStartTab = mobile === true || isNarrow;
 
   const defaultStartTab = settings?.defaultStartTab || 'home';
   const theme = settings?.theme || 'dark';
@@ -90,24 +144,28 @@ export function SettingsDrawer({ panelVisible, togglePanel, onClose }) {
         </button>
       </div>
 
-      {/* ── Default Start Tab ── */}
-      <SettingsSection label="DEFAULT START TAB" />
-      {START_TAB_OPTIONS.map(({ value, label }) => (
-        <div
-          key={value}
-          role="button"
-          tabIndex={0}
-          style={rowStyle}
-          {...makeRowClickable(() => handleStartTab(value))}
-          onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
-          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-          aria-label={`Set default start tab to ${label}`}
-          aria-pressed={defaultStartTab === value}
-        >
-          <span style={{ color: defaultStartTab === value ? 'var(--accent)' : 'var(--text-muted)', fontSize: 9, letterSpacing: '0.5px' }}>{label}</span>
-          <span style={{ color: defaultStartTab === value ? 'var(--accent)' : 'var(--border-strong)' }}>{defaultStartTab === value ? '●' : '○'}</span>
-        </div>
-      ))}
+      {/* ── Default Start Tab (mobile-only — desktop uses grid layout) ── */}
+      {showStartTab && (
+        <>
+          <SettingsSection label="DEFAULT START TAB" />
+          {START_TAB_OPTIONS.map(({ value, label }) => (
+            <div
+              key={value}
+              role="button"
+              tabIndex={0}
+              style={rowStyle}
+              {...makeRowClickable(() => handleStartTab(value))}
+              onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+              aria-label={`Set default start tab to ${label}`}
+              aria-pressed={defaultStartTab === value}
+            >
+              <span style={{ color: defaultStartTab === value ? 'var(--accent)' : 'var(--text-muted)', fontSize: 9, letterSpacing: '0.5px' }}>{label}</span>
+              <span style={{ color: defaultStartTab === value ? 'var(--accent)' : 'var(--border-strong)' }}>{defaultStartTab === value ? '●' : '○'}</span>
+            </div>
+          ))}
+        </>
+      )}
 
       {/* ── Theme ── */}
       <SettingsSection label="APPEARANCE" />

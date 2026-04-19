@@ -784,7 +784,9 @@ function CentralBankRatesSection() {
         </tbody>
       </table>
       <div style={{ fontSize: 8, color: 'var(--text-muted)', marginTop: 6, textAlign: 'right' }}>
-        Rates fetched from /api/snapshot/rates. {error && <span style={{ color: 'var(--semantic-down)' }}>Error: {error}</span>}
+        {error
+          ? <span style={{ color: 'var(--semantic-down)' }}>Live policy rates unavailable — retrying shortly.</span>
+          : 'Policy rates fetched from central bank feeds.'}
       </div>
     </div>
   );

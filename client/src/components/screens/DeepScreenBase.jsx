@@ -60,10 +60,35 @@ export function DeepSkeleton({ rows = 6 }) {
 }
 
 /* ── Error banner ────────────────────────────────────────────────────────── */
+/**
+ * Sanitise technical error strings so users never see raw HTTP/JSON/
+ * stack-trace text. Legacy callers pass `Error: ${err.message}` which can
+ * surface things like "Error: HTTP 500" or "Error: NetworkError". We collapse
+ * those into a single human line while keeping dev visibility via the DOM
+ * data attribute (inspectable but not rendered).
+ */
+function humanizeDeepError(raw) {
+  if (!raw) return 'Data temporarily unavailable.';
+  const text = String(raw);
+  const technicalMarkers = [
+    /^Error:\s*/i,
+    /^HTTP\s*\d+/i,
+    /NetworkError/i,
+    /TypeError/i,
+    /Failed to fetch/i,
+    /\{.*\}/, // raw JSON leaked through
+  ];
+  if (technicalMarkers.some(rx => rx.test(text))) {
+    return 'Data temporarily unavailable — retrying shortly.';
+  }
+  return text;
+}
+
 export function DeepError({ message, onRetry }) {
+  const friendly = humanizeDeepError(message);
   return (
-    <div className="ds-error">
-      {message || 'Failed to load data'}
+    <div className="ds-error" data-raw-error={message || ''}>
+      {friendly}
       {onRetry && (
         <button onClick={onRetry}
           style={{ marginLeft: 10, background: 'transparent', border: '1px solid var(--border-strong)', color: 'var(--text-secondary)', padding: '2px 8px', borderRadius: 3, cursor: 'pointer', fontSize: 9 }}>

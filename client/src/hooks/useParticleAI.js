@@ -77,8 +77,28 @@ export default function useParticleAI() {
       });
 
       if (!res.ok) {
-        const errText = await res.text().catch(() => 'Unknown error');
-        throw new Error(res.status === 402 ? 'Subscription required' : errText);
+        // Parse the response as JSON when possible so we can translate
+        // server error codes into human-readable copy. Falling back to
+        // raw text was how users saw `{"error":"ai_chat_disabled",...}`
+        // bleed into the chat as an "answer" — never again.
+        const errText = await res.text().catch(() => '');
+        let serverError = null;
+        try { serverError = errText ? JSON.parse(errText) : null; } catch { /* not JSON */ }
+        const code = serverError && (serverError.error || serverError.code);
+        const friendly = (() => {
+          if (res.status === 402) return 'Particle AI needs an active subscription. Upgrade to keep the conversation going.';
+          if (res.status === 401) return 'Please sign in again to ask Particle.';
+          if (res.status === 429) return 'You have reached your AI quota for now. Give it a minute and try again.';
+          if (code === 'ai_chat_disabled') return 'Particle AI is temporarily offline. The team has been notified — try again in a few minutes.';
+          if (code === 'vault_disabled')   return 'Vault search is temporarily offline. Try again in a few minutes.';
+          if (res.status >= 500)           return 'Particle AI hit a temporary glitch. Please try again in a moment.';
+          // Last resort — a human-readable message from the server if it shipped one, otherwise a generic line.
+          if (serverError && typeof serverError.message === 'string' && serverError.message.trim() && !serverError.message.startsWith('{')) {
+            return serverError.message;
+          }
+          return 'Particle AI couldn’t reach its brain just now. Please try again.';
+        })();
+        throw new Error(friendly);
       }
 
       // Stream the response

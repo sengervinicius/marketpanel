@@ -69,11 +69,14 @@ export function TableExportBar({ columns, getData }) {
 
     const tsv = [headers, ...rows].join('\n');
 
-    navigator.clipboard.writeText(tsv).then(() => {
-      // Optional: Show brief success feedback
-      console.log('Data copied to clipboard');
-    }).catch(err => {
-      console.error('Failed to copy:', err);
+    navigator.clipboard.writeText(tsv).catch(err => {
+      // Silently swallow — clipboard failures (permissions, insecure context)
+      // shouldn't surface in the dev console for our users. Kept scoped to
+      // the catch branch so real bugs still bubble up during development.
+      if (import.meta.env?.DEV) {
+        // eslint-disable-next-line no-console
+        console.warn('TableExportBar: clipboard copy failed', err);
+      }
     });
   }, [columns, getData]);
 

@@ -1242,7 +1242,7 @@ export default function App() {
       {settingsOpen && (
         <div className="app-modal-overlay">
           <div className="app-modal-drawer">
-            <SettingsDrawer panelVisible={panelVisible} togglePanel={togglePanel} onClose={() => setSettingsOpen(false)} />
+            <SettingsDrawer mobile panelVisible={panelVisible} togglePanel={togglePanel} onClose={() => setSettingsOpen(false)} />
           </div>
         </div>
       )}

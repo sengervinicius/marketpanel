@@ -83,6 +83,15 @@ async function _connect() {
       }
     }
 
+    // Apply pending migrations from server/db/migrations/. Safe on every
+    // boot — only un-applied files run, tracked in schema_migrations.
+    try {
+      const { runMigrations } = require('./runMigrations');
+      await runMigrations(newPool);
+    } catch (migrateErr) {
+      logger.warn('postgres', 'Migration run failed', { error: migrateErr.message });
+    }
+
     // Success — swap in the new pool
     if (pool && pool !== newPool) {
       try { pool.end().catch(() => {}); } catch {}

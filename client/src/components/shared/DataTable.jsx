@@ -161,9 +161,13 @@ export default function DataTable({
 
     const text = [headers, ...rows].join('\n');
 
-    navigator.clipboard.writeText(text).then(() => {
-      // Optional: show toast notification
-      console.log('Copied to clipboard');
+    navigator.clipboard.writeText(text).catch(err => {
+      // Silently swallow — clipboard failures shouldn't surface in the console
+      // for production users. Kept visible to devs only.
+      if (import.meta.env?.DEV) {
+        // eslint-disable-next-line no-console
+        console.warn('DataTable: clipboard copy failed', err);
+      }
     });
   };
 

@@ -445,15 +445,20 @@ CREATE TABLE IF NOT EXISTS feature_flag_audit (
 CREATE INDEX IF NOT EXISTS idx_flag_audit_name    ON feature_flag_audit (name, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_flag_audit_created ON feature_flag_audit (created_at DESC);
 
--- Seed the two flags we actually use on day 1 — default OFF so operations
--- owns the first explicit turn-on. ON CONFLICT DO NOTHING keeps production
--- state intact on re-run.
+-- Seed the flags we use on day 1. Kill-switches default to their
+-- "everything-works" state (ON) — the switch exists for an emergency
+-- operator flip, NOT as a gate that silently breaks the product in
+-- fresh installs. A flag seeded OFF that nobody remembers to flip is
+-- exactly how we got "ai_chat_disabled" bleeding to users in prod.
+-- ON CONFLICT DO NOTHING keeps production state intact on re-run;
+-- to migrate an existing prod DB that was seeded OFF under the old
+-- policy, see server/db/migrations/20260419_enable_core_features.sql.
 INSERT INTO feature_flags (name, enabled, rollout_pct, description)
 VALUES
-  ('ai_chat_enabled', FALSE, 0,
-   'Global kill switch for /api/search/chat. When OFF the chat tab is hidden and the endpoint 503s.'),
-  ('vault_enabled',   FALSE, 0,
-   'Global kill switch for vault upload + RAG surfaces.'),
+  ('ai_chat_enabled', TRUE, 100,
+   'Kill switch for /api/search/chat. Default ON — flip OFF only to take Particle AI offline.'),
+  ('vault_enabled',   TRUE, 100,
+   'Kill switch for vault upload + RAG surfaces. Default ON.'),
   ('support_chat_enabled', FALSE, 0,
    'W6.7 — show the Crisp in-app support widget. Default OFF so the SDK never loads pre-consent.')
 ON CONFLICT (name) DO NOTHING;

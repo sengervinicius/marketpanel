@@ -107,7 +107,17 @@ function mergeWithStats(batchRow, tdStats) {
   return merged;
 }
 
-export function FundamentalsTable({ tickers, metrics = null, title, onTickerClick, statsMap }) {
+/**
+ * Note: `title` is a LEGACY prop. Every sector screen wraps this
+ * component inside a `ScreenSection`, which already renders a section
+ * header. When both rendered we got the "CONSTITUENTS / CONSTITUENTS"
+ * double header users reported. We now render the internal header
+ * only when `renderOwnHeader` is explicitly opted into — sector
+ * screens never should. The `title` prop is still accepted for
+ * backwards compatibility with saved callers and shows up nowhere
+ * unless `renderOwnHeader` is set.
+ */
+export function FundamentalsTable({ tickers, metrics = null, title, onTickerClick, statsMap, renderOwnHeader = false }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -193,7 +203,7 @@ export function FundamentalsTable({ tickers, metrics = null, title, onTickerClic
 
   return (
     <div style={{ overflow: 'auto' }}>
-      {title && <div className="section-header">{title}</div>}
+      {title && renderOwnHeader && <div className="section-header">{title}</div>}
       <table className="ds-table">
         <thead>
           <tr>

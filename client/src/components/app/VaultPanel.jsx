@@ -171,7 +171,10 @@ export default function VaultPanel({ fullScreen = false }) {
       }
       const uploadHeaders = token ? { Authorization: `Bearer ${token}` } : {};
 
-      console.log('[Vault] Uploading to:', uploadUrl, 'auth:', !!token, 'file:', file.name, file.size);
+      if (import.meta.env?.DEV) {
+        // eslint-disable-next-line no-console
+        console.log('[Vault] Uploading to:', uploadUrl, 'auth:', !!token, 'file:', file.name, file.size);
+      }
 
       let res;
       try {
