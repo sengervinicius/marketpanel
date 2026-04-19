@@ -200,6 +200,34 @@ CREATE INDEX IF NOT EXISTS idx_vault_signals_ticker ON vault_signals(ticker);
 CREATE INDEX IF NOT EXISTS idx_vault_signals_created ON vault_signals(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_vault_signals_user_count ON vault_signals(user_count DESC);
 
+-- ── Vault Query Log (W4.2: retrieval audit trail) ─────────────────────────
+-- Every call to vault.retrieve() writes one row here. Used for:
+--   (a) LGPD DSAR — "what does Particle know I've asked about?"
+--   (b) Citation-accuracy eval harness (W4.5) — regression testing
+--   (c) Retrieval regression detection — latency + passage-count drift
+--   (d) Abuse / quota monitoring — users hammering the AI at free tier
+-- Retention policy (enforced by a separate cron, NOT in this schema):
+--   30 days for free-tier users, 12 months for paid. Hash stays forever
+--   because it contains no PII by itself.
+-- All fields on one row per query to keep write amplification minimal.
+CREATE TABLE IF NOT EXISTS vault_query_log (
+  id                  BIGSERIAL PRIMARY KEY,
+  user_id             INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  query_text          TEXT NOT NULL,          -- truncated to 1000 chars upstream
+  query_hash          TEXT NOT NULL,          -- SHA-256 of the raw query for dedup / analytics
+  query_scrubbed_hits INTEGER NOT NULL DEFAULT 0, -- W4.1 scrubber hits against THIS query
+  passage_count       INTEGER NOT NULL DEFAULT 0,
+  passages            JSONB NOT NULL DEFAULT '[]'::jsonb,
+  -- Each element: { chunk_id, document_id, filename, similarity, rrf_rank }
+  embedding_provider  TEXT,                   -- 'openai' | 'voyage' | null
+  reranker_used       TEXT,                   -- 'cohere' | 'haiku' | 'none'
+  latency_ms          INTEGER NOT NULL DEFAULT 0,
+  created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_vault_query_log_user      ON vault_query_log(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_vault_query_log_created   ON vault_query_log(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_vault_query_log_hash      ON vault_query_log(query_hash);
+
 -- ── Conversation Memory (Phase 5: Typed memory records) ───────────────────
 -- Replaces flat message rolling window with structured, typed records
 -- that survive context switches and provide Claude with focused context.

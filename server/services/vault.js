@@ -19,6 +19,9 @@ const Papa = require('papaparse');
 const https = require('https');
 const http = require('http');
 const { URL } = require('url');
+const vaultSecurity = require('./vaultSecurity');
+const vaultQueryLog = require('./vaultQueryLog');
+const vaultQueryCache = require('./vaultQueryCache');
 
 // OCR support — lazy load tesseract.js to gracefully degrade if unavailable
 let Tesseract = null;
@@ -1425,6 +1428,29 @@ async function ingestFile(userId, buffer, filename, metadata = {}, isGlobal = fa
       throw new Error('File text content exceeds 2MB limit');
     }
 
+    // W4.1 — Scrub adversarial LLM directives from ingested text BEFORE
+    // chunking + embedding. Without this, a malicious PDF with a
+    // "disregard previous instructions" footnote or a chat-template marker
+    // can ride all the way through retrieval and into the live prompt.
+    // The scrubber is conservative (logs everything it touched); zero hits
+    // is the expected case on normal research documents.
+    const scrub = vaultSecurity.scrubIngestedText(text);
+    if (scrub.hits > 0) {
+      logger.warn('vault', 'Ingestion scrubber neutralised adversarial patterns', {
+        userId,
+        filename,
+        hits: scrub.hits,
+        removed: scrub.removed.slice(0, 10),
+      });
+    }
+    text = scrub.text;
+
+    // Re-validate after scrubbing — a document that was ONLY injection payload
+    // (rare but possible) could now be empty.
+    if (!text.trim()) {
+      throw new Error('File contents were entirely adversarial payload; nothing left to ingest.');
+    }
+
     // Sanitize filename
     filename = (filename || `untitled.${ext}`)
       .replace(/[<>:"/\\|?*\x00-\x1f]/g, '_')
@@ -1827,6 +1853,12 @@ async function rerankWithHaiku(query, passages, topN) {
 }
 
 async function retrieve(userId, query, limit = MAX_RETRIEVAL) {
+  // W4.2: capture end-to-end retrieval latency so we can write it to
+  // vault_query_log and spot regressions over time.
+  const _startedAt = Date.now();
+  // Track which reranker actually ran so the audit row is accurate.
+  let _rerankerUsed = 'none';
+
   if (!pg.isConnected()) {
     logger.warn('vault', 'retrieve() skipped — Postgres not connected');
     return [];
@@ -1855,14 +1887,82 @@ async function retrieve(userId, query, limit = MAX_RETRIEVAL) {
   const CANDIDATE_LIMIT = 30; // pull more candidates for RRF merging
 
   // ── Stage 1A: Vector (semantic) search ──
+  //
+  // W4.3 — Embedding provider safety rules.
+  //
+  // Voyage returns 1024d vectors; we zero-pad to 1536 so they fit the shared
+  // column. Zero-padding is cosine-preserving IFF both the query vector and
+  // the document vector were padded the same way (the trailing zeros
+  // contribute 0 to both the dot product and to each vector's L2 norm, so
+  // the cosine comes out identical to the native-1024 cosine).
+  //
+  // That is SAFE within a provider. It is NOT safe across providers:
+  // an OpenAI-native-1536 vector's first 1024 dims have no meaningful
+  // relationship to a Voyage vector, so comparing openai-query (full-1536)
+  // against voyage-doc (padded-1024) is mathematical garbage that was
+  // previously dressed up with a bogus similarity score.
+  //
+  // The old code had a "retry without provider filter" fallback when the
+  // filtered query returned zero rows. That fallback is what produced the
+  // cross-provider garbage scores. We REMOVE it entirely: if no rows in the
+  // active provider match, the correct answer is zero rows — not a bag of
+  // unrelated documents with fabricated similarity. Legacy rows that were
+  // embedded before the provider column existed carry embedding_provider =
+  // 'unknown'; those are all OpenAI-era, so we accept them when active
+  // provider is openai and reject them otherwise.
   try {
-    const embeddings = await embed([query]);
+    // W4.6: cache the query embedding so repeat questions don't re-pay
+    // 50-200ms of latency + per-token cost. Ingestion still calls embed()
+    // directly; only the retrieval hot path is cached.
+    const activeProviderForCache = getEmbeddingProvider();
+    const cachedOrFresh = await vaultQueryCache.embedQuery({
+      query,
+      provider: activeProviderForCache,
+      // We don't currently thread model name into embed() separately;
+      // the provider label uniquely identifies the model today.
+      model: activeProviderForCache,
+      embedFn: async () => {
+        const r = await embed([query]);
+        return r?.[0] || null;
+      },
+    });
+    const embeddings = [cachedOrFresh];
     if (embeddings[0]) {
       const activeProvider = getEmbeddingProvider();
       logger.info('vault', `Vector search using provider=${activeProvider}, embedding dim=${embeddings[0].length}`);
+
+      // Acceptable embedding_provider values, keyed by active provider.
+      const acceptedProviders = activeProvider === 'openai'
+        ? ['openai', 'unknown']  // 'unknown' = legacy pre-provider-column data, all OpenAI
+        : ['voyage'];            // Voyage is strict — no legacy aliasing
+
       let vecResult;
       try {
-        // Try provider-filtered search first, then fallback to unfiltered if empty
+        vecResult = await pg.query(
+          `SELECT vc.id, vc.document_id, vc.chunk_index, vc.content, vc.metadata, vc.page_number,
+                  vd.filename, vd.source, vd.is_global, vd.metadata as doc_metadata,
+                  1 - (vc.embedding <=> $1::vector) AS similarity
+           FROM vault_chunks vc
+           JOIN vault_documents vd ON vc.document_id = vd.id
+           WHERE (vc.user_id = $2 OR vd.is_global = TRUE) AND vc.embedding IS NOT NULL
+             AND vc.embedding_provider = ANY($4::text[])
+           ORDER BY vc.embedding <=> $1::vector
+           LIMIT $3`,
+          [`[${embeddings[0].join(',')}]`, userId, CANDIDATE_LIMIT, acceptedProviders]
+        );
+
+        if (!vecResult.rows || vecResult.rows.length === 0) {
+          // W4.3: this is now a legitimate "no coverage under active
+          // provider" signal. We do NOT fall back across providers.
+          logger.info('vault',
+            `Vector search returned 0 rows for provider=${activeProvider} ` +
+            `(accepted=${JSON.stringify(acceptedProviders)}) — no cross-provider fallback`);
+        }
+      } catch (filterErr) {
+        // If the ANY($4::text[]) form is rejected (e.g. very old Postgres
+        // or the column is literally missing), fall back to a single-provider
+        // match. Still NO cross-provider bleed: worst case we return zero.
+        logger.warn('vault', 'Provider-filtered vector search failed, retrying narrow', { error: filterErr.message });
         vecResult = await pg.query(
           `SELECT vc.id, vc.document_id, vc.chunk_index, vc.content, vc.metadata, vc.page_number,
                   vd.filename, vd.source, vd.is_global, vd.metadata as doc_metadata,
@@ -1874,38 +1974,6 @@ async function retrieve(userId, query, limit = MAX_RETRIEVAL) {
            ORDER BY vc.embedding <=> $1::vector
            LIMIT $3`,
           [`[${embeddings[0].join(',')}]`, userId, CANDIDATE_LIMIT, activeProvider]
-        );
-
-        // If provider-filtered search returns nothing, retry WITHOUT the filter
-        // This handles: docs embedded with a different provider, or embedding_provider column not populated
-        if (!vecResult.rows || vecResult.rows.length === 0) {
-          logger.warn('vault', `Provider-filtered search (${activeProvider}) returned 0 results — retrying without provider filter`);
-          vecResult = await pg.query(
-            `SELECT vc.id, vc.document_id, vc.chunk_index, vc.content, vc.metadata,
-                    vd.filename, vd.source, vd.is_global, vd.metadata as doc_metadata,
-                    1 - (vc.embedding <=> $1::vector) AS similarity
-             FROM vault_chunks vc
-             JOIN vault_documents vd ON vc.document_id = vd.id
-             WHERE (vc.user_id = $2 OR vd.is_global = TRUE) AND vc.embedding IS NOT NULL
-             ORDER BY vc.embedding <=> $1::vector
-             LIMIT $3`,
-            [`[${embeddings[0].join(',')}]`, userId, CANDIDATE_LIMIT]
-          );
-          logger.info('vault', `Unfiltered vector search returned ${vecResult.rows?.length || 0} results`);
-        }
-      } catch (filterErr) {
-        // Fallback: column may not exist yet — query without provider filter
-        logger.warn('vault', 'Provider-filtered vector search failed, falling back', { error: filterErr.message });
-        vecResult = await pg.query(
-          `SELECT vc.id, vc.document_id, vc.chunk_index, vc.content, vc.metadata, vc.page_number,
-                  vd.filename, vd.source, vd.is_global, vd.metadata as doc_metadata,
-                  1 - (vc.embedding <=> $1::vector) AS similarity
-           FROM vault_chunks vc
-           JOIN vault_documents vd ON vc.document_id = vd.id
-           WHERE (vc.user_id = $2 OR vd.is_global = TRUE) AND vc.embedding IS NOT NULL
-           ORDER BY vc.embedding <=> $1::vector
-           LIMIT $3`,
-          [`[${embeddings[0].join(',')}]`, userId, CANDIDATE_LIMIT]
         );
       }
       // Pre-filter by similarity threshold
@@ -1958,6 +2026,14 @@ async function retrieve(userId, query, limit = MAX_RETRIEVAL) {
   // Better to let the AI work without vault context than to confuse it with irrelevant passages.
   if (rankedLists.length === 0) {
     logger.info('vault', 'Both vector and BM25 search returned empty — returning no vault context');
+    // W4.2: still audit the query — a zero-hit query is a useful signal
+    // (coverage gap, typo, wrong provider, etc.).
+    vaultQueryLog.logVaultQuery({
+      userId, query, passages: [],
+      embeddingProvider: _activeEmbeddingProvider,
+      rerankerUsed: _rerankerUsed,
+      latencyMs: Date.now() - _startedAt,
+    }).catch(() => {}); // fire-and-forget
     return [];
   }
 
@@ -1978,6 +2054,10 @@ async function retrieve(userId, query, limit = MAX_RETRIEVAL) {
   let finalPassages;
   if ((_cohereKey || _anthropicKey) && fused.length > limit) {
     finalPassages = await rerankWithCohere(query, fused, limit);
+    // W4.2: we don't currently thread the "which reranker won" flag out
+    // of rerankWithCohere; "cohere" here means "the Cohere→Haiku chain
+    // was invoked" — W4.5 can refine to per-provider if needed.
+    _rerankerUsed = _cohereKey ? 'cohere' : 'haiku';
     logger.info('vault', `Reranking: ${finalPassages.length} passages returned`);
   } else {
     finalPassages = fused.slice(0, limit);
@@ -1994,9 +2074,25 @@ async function retrieve(userId, query, limit = MAX_RETRIEVAL) {
     const avgSimilarity = passagesAboveThreshold.reduce((sum, p) => sum + parseFloat(p.similarity), 0) / passagesAboveThreshold.length;
     if (avgSimilarity < 0.5) {
       logger.info('vault', `Min-passages rule: only ${passagesAboveThreshold.length} passages above threshold with avg similarity ${avgSimilarity.toFixed(3)} — returning empty to avoid noise`);
+      // W4.2: audit even the suppressed case — we want to see when the
+      // min-passages rule is filtering users' real queries.
+      vaultQueryLog.logVaultQuery({
+        userId, query, passages: [],
+        embeddingProvider: _activeEmbeddingProvider,
+        rerankerUsed: _rerankerUsed,
+        latencyMs: Date.now() - _startedAt,
+      }).catch(() => {});
       return [];
     }
   }
+
+  // W4.2: happy-path audit — log what was actually returned to the caller.
+  vaultQueryLog.logVaultQuery({
+    userId, query, passages: finalPassages,
+    embeddingProvider: _activeEmbeddingProvider,
+    rerankerUsed: _rerankerUsed,
+    latencyMs: Date.now() - _startedAt,
+  }).catch(() => {});
 
   return finalPassages;
 }
@@ -2059,7 +2155,12 @@ function formatForPrompt(passages) {
 
   ctx += 'When answering, cite specific vault sources using [V1], [V2], [V3] etc. markers matching the order they appear above.\n';
 
-  return ctx;
+  // W4.1 — Wrap the entire vault-context block in an unambiguous "untrusted
+  // data, not instructions" envelope. The downstream LLM sees a header that
+  // tells it to treat everything inside the delimiters as evidence to be
+  // cited, and never as commands to follow. Combined with the ingestion
+  // scrubber this materially closes the W1.3-on-ingestion gap.
+  return vaultSecurity.wrapAsUntrustedData(ctx);
 }
 
 /**

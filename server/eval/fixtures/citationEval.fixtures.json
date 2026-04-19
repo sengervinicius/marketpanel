@@ -1,0 +1,83 @@
+{
+  "_note": "W4.5 seed fixture set. Each entry pairs a representative user query with the document_ids we expect the retriever to surface from a populated vault. expectedDocumentIds are PLACEHOLDERS that must be updated to match the actual vault in the target environment before the harness is wired into CI. The schema is stable; the ids are not.",
+  "_schema": {
+    "id": "stable identifier for diff tracking",
+    "query": "verbatim user question",
+    "expectedDocumentIds": "at least one must appear in top-k for the query to count as a hit",
+    "note": "human-readable explanation for reviewers"
+  },
+  "queries": [
+    {
+      "id": "br-selic-01",
+      "query": "What is the current Selic rate and the BCB's forward guidance?",
+      "expectedDocumentIds": [],
+      "note": "BCB macro commentary or latest Copom minutes"
+    },
+    {
+      "id": "br-petrobras-dividend-01",
+      "query": "Petrobras dividend policy change 2024",
+      "expectedDocumentIds": [],
+      "note": "PETR4 equity research or Petrobras 6-K"
+    },
+    {
+      "id": "br-small-cap-01",
+      "query": "Which Brazilian small caps have strong operating leverage to BRL appreciation?",
+      "expectedDocumentIds": [],
+      "note": "Sell-side thematic report on BR small caps"
+    },
+    {
+      "id": "us-aapl-earnings-01",
+      "query": "Apple Q3 2024 earnings — iPhone revenue growth?",
+      "expectedDocumentIds": [],
+      "note": "AAPL 10-Q or earnings call transcript"
+    },
+    {
+      "id": "us-nvda-guidance-01",
+      "query": "Nvidia datacenter guidance for fiscal 2025",
+      "expectedDocumentIds": [],
+      "note": "NVDA earnings transcript or research"
+    },
+    {
+      "id": "us-banks-reg-01",
+      "query": "Basel III endgame impact on US bank capital",
+      "expectedDocumentIds": [],
+      "note": "Banking regulatory research"
+    },
+    {
+      "id": "macro-fed-01",
+      "query": "Fed dot plot September 2024 — how many cuts priced in?",
+      "expectedDocumentIds": [],
+      "note": "FOMC projections summary"
+    },
+    {
+      "id": "macro-china-01",
+      "query": "China PBOC reserve requirement cut September 2024",
+      "expectedDocumentIds": [],
+      "note": "China monetary policy commentary"
+    },
+    {
+      "id": "ai-capex-01",
+      "query": "Hyperscaler AI capex trajectory 2024-2026",
+      "expectedDocumentIds": [],
+      "note": "AI infrastructure / semis research report"
+    },
+    {
+      "id": "crypto-etf-01",
+      "query": "Bitcoin spot ETF flows since launch",
+      "expectedDocumentIds": [],
+      "note": "Crypto ETF flow tracker or research"
+    },
+    {
+      "id": "br-credit-01",
+      "query": "Brazilian bank NPL trends Q2 2024 — Itau vs Bradesco",
+      "expectedDocumentIds": [],
+      "note": "BR banks sector research"
+    },
+    {
+      "id": "global-energy-01",
+      "query": "OPEC+ compliance and Brent balance 2025",
+      "expectedDocumentIds": [],
+      "note": "Oil sector or macro energy report"
+    }
+  ]
+}
