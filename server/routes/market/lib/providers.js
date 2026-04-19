@@ -503,27 +503,39 @@ async function yahooQuoteSummary(symbol) {
 }
 
 // ── Finnhub fallback provider ───────────────────────────────────────
+// Wave 2 (WS1.5): this is now a thin compat shim over the typed
+// finnhubAdapter. Route handlers that still consume the raw Finnhub
+// `{c,d,dp,h,l,o,pc,t}` shape continue to work unchanged. New code
+// should dispatch through `registry.getRegistry()` instead and consume
+// the typed Result<Quote>. See server/adapters/finnhubAdapter.js.
 async function finnhubQuote(symbol) {
   const key = finnhubKey();
   if (!key) throw new Error('Finnhub API key not configured');
 
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 8000);
-  try {
-    const url = `https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(symbol)}&token=${key}`;
-    const res = await fetch(url, {
-      headers: { 'Accept': 'application/json' },
-      signal: controller.signal,
-    });
-    if (!res.ok) throw new Error(`Finnhub HTTP ${res.status}`);
-    const data = await res.json();
-    return data;
-  } catch (e) {
+  const finnhub = require('../../../adapters/finnhubAdapter');
+  const res = await finnhub.quote(symbol);
+  if (!res.ok) {
+    // Preserve legacy throw-based contract for callers, but attach the
+    // typed error code so logs carry the real cause instead of the
+    // historic "Finnhub error: ..." prefix blob.
+    const e = new Error(res.error.message || `Finnhub ${res.error.code}`);
     e.provider = 'finnhub';
-    throw new Error(`Finnhub error: ${e.message}`);
-  } finally {
-    clearTimeout(timeout);
+    e.code = res.error.code;
+    throw e;
   }
+  const q = res.data;
+  // Reconstruct the raw-Finnhub shape the legacy callers expect.
+  const nowSec = Math.floor(new Date(q.timestamp).getTime() / 1000) || Math.floor(Date.now() / 1000);
+  return {
+    c:  q.last,
+    d:  q.change,
+    dp: q.changePercent,
+    h:  q.high,
+    l:  q.low,
+    o:  q.open,
+    pc: q.previousClose,
+    t:  nowSec,
+  };
 }
 
 // ── Alpha Vantage fallback ──────────────────────────────────────────

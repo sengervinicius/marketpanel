@@ -23,7 +23,12 @@ function cacheSet(key, data, ttlMs) {
 }
 
 // ── Cache cleanup — remove expired entries every 5 minutes ─────────
-setInterval(() => {
+// `.unref()` so the interval never keeps the process alive on its own:
+// without it, test runners that require this module hang for 5 minutes
+// after the last test finishes. Production boot has many other
+// long-lived handles (HTTP server, DB pool, Redis client), so the
+// cleanup still runs on schedule.
+const _cleanupInterval = setInterval(() => {
   const now = Date.now();
   let cleaned = 0;
   for (const key of Object.keys(_ttlCache)) {
@@ -34,6 +39,7 @@ setInterval(() => {
   }
   if (cleaned > 0) logger.info('cache', `Cleaned ${cleaned} expired entries`);
 }, 5 * 60 * 1000);
+if (typeof _cleanupInterval.unref === 'function') _cleanupInterval.unref();
 
 /**
  * Cache TTL configuration (milliseconds).
