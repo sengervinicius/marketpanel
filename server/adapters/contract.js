@@ -128,6 +128,127 @@ function makeProvenance({
   });
 }
 
+// ── NewsEvent ────────────────────────────────────────────────────────
+// Canonical news record — every news source (Finnhub, Polygon, RSS
+// feeds like Bloomberg/FT, Perplexity Sonar) normalizes into this
+// typed shape via server/parsers/newsParser.js before it hits the
+// synthesis layer. Rationale: W6.10/W6.11 exposed the fact that the
+// chat prompt was consuming raw strings with no provenance, which
+// hid the "news exists but we can't parse it" vs. "no news found"
+// distinction (Aegea case). A typed event with headline/url/source/
+// publishedAt/tickers/confidence gives the synthesis prompt enough
+// structured information to cite honestly — and gives the UI a stable
+// contract for rendering source links.
+//
+// Fields are deliberately narrow:
+//   - `id`          stable identifier derived from upstream (url-hash
+//                   for RSS, item.id for Finnhub/Polygon); used for
+//                   dedupe across providers.
+//   - `headline`    cleaned title string (no HTML entities, no CDATA
+//                   wrappers, no trailing whitespace).
+//   - `source`      human-readable publisher/feed name ("Bloomberg",
+//                   "Reuters", "Finnhub", "Perplexity").
+//   - `url`         canonical article URL (http/https only; parsers
+//                   drop rows where url is missing because they are
+//                   un-citable).
+//   - `publishedAt` ISO 8601 UTC timestamp. Parsers best-effort; if
+//                   upstream omits, set to fetchedAt with a warning.
+//   - `tickers`     explicit tickers mentioned by the upstream record
+//                   (e.g. Finnhub `related`, Polygon `tickers`). Empty
+//                   array is valid — parsers don't try to guess from
+//                   the headline text (that's the extractTickers
+//                   helper, applied by the caller at synthesis time).
+//   - `summary`     optional short abstract (<= 500 chars). Parsers
+//                   truncate longer bodies.
+//   - `imageUrl`    optional hero image (Polygon/Finnhub provide).
+//   - `confidence`  per-item confidence ('high' for ticker-scoped
+//                   Finnhub/Polygon hits, 'medium' for feed-wide news,
+//                   'low' for Perplexity citations without publisher
+//                   metadata). This is orthogonal to the chain-level
+//                   Provenance.confidence.
+//   - `raw`         optional upstream body for auditability; stripped
+//                   before transport to the UI.
+
+/**
+ * @typedef {Object} NewsEvent
+ * @property {string}   id
+ * @property {string}   headline
+ * @property {string}   source
+ * @property {string}   url
+ * @property {string}   publishedAt   — ISO 8601
+ * @property {string[]} tickers       — upstream-asserted symbols, may be []
+ * @property {string}   [summary]     — <= 500 chars
+ * @property {string}   [imageUrl]
+ * @property {'high'|'medium'|'low'|'unverified'} confidence
+ * @property {Object}   [raw]         — audit only; never sent to UI
+ */
+
+const NEWS_SUMMARY_MAX = 500;
+
+/**
+ * Build a canonical NewsEvent. Normalizes/validates fields so the
+ * synthesis layer never has to second-guess the shape. Returns null
+ * if required fields (headline, url) are missing — callers filter
+ * those out. Never throws.
+ *
+ * @param {Partial<NewsEvent>} input
+ * @returns {NewsEvent|null}
+ */
+function makeNewsEvent(input) {
+  if (!input || typeof input !== 'object') return null;
+  const headline = typeof input.headline === 'string' ? input.headline.trim() : '';
+  const url      = typeof input.url === 'string' ? input.url.trim() : '';
+  if (!headline || !url) return null;
+  if (!/^https?:\/\//i.test(url)) return null;
+
+  const source = typeof input.source === 'string' && input.source.trim()
+    ? input.source.trim()
+    : 'unknown';
+
+  let publishedAt;
+  if (typeof input.publishedAt === 'string' && input.publishedAt) {
+    const d = new Date(input.publishedAt);
+    publishedAt = Number.isFinite(d.getTime()) ? d.toISOString() : new Date().toISOString();
+  } else {
+    publishedAt = new Date().toISOString();
+  }
+
+  const tickers = Array.isArray(input.tickers)
+    ? input.tickers.filter(t => typeof t === 'string' && t.length > 0).map(t => t.toUpperCase())
+    : [];
+
+  let summary;
+  if (typeof input.summary === 'string' && input.summary.trim()) {
+    const s = input.summary.trim();
+    summary = s.length > NEWS_SUMMARY_MAX ? s.slice(0, NEWS_SUMMARY_MAX - 1) + '…' : s;
+  }
+
+  const imageUrl = typeof input.imageUrl === 'string' && /^https?:\/\//i.test(input.imageUrl)
+    ? input.imageUrl
+    : undefined;
+
+  const confidence = ['high', 'medium', 'low', 'unverified'].includes(input.confidence)
+    ? input.confidence
+    : 'medium';
+
+  const id = typeof input.id === 'string' && input.id
+    ? input.id
+    : `url-${Buffer.from(url).toString('base64').slice(0, 20)}`;
+
+  return Object.freeze({
+    id,
+    headline,
+    source,
+    url,
+    publishedAt,
+    tickers: Object.freeze([...tickers]),
+    summary,
+    imageUrl,
+    confidence,
+    raw: input.raw,
+  });
+}
+
 // ── CoverageDeclaration ──────────────────────────────────────────────
 // What an adapter claims to cover. Returned by describe(). Also written
 // to the coverage_matrix DB table during registration.
@@ -317,8 +438,11 @@ module.exports = {
   ProviderErrorCode,
   makeProviderError,
   makeProvenance,
+  makeNewsEvent,
   ok,
   err,
   AdapterRegistry,
   executeChain,
+  // Constants exposed for parsers/tests.
+  _NEWS_SUMMARY_MAX: NEWS_SUMMARY_MAX,
 };
