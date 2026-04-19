@@ -1440,23 +1440,47 @@ async function ingestFile(userId, buffer, filename, metadata = {}, isGlobal = fa
     // Compute content hash for duplicate detection
     const contentHash = crypto.createHash('sha256').update(buffer).digest('hex');
 
-    // Check for existing document with same hash
-    const existingResult = await pg.query(
-      `SELECT id, filename FROM vault_documents WHERE user_id = $1 AND content_hash = $2 LIMIT 1`,
-      [userId, contentHash]
-    );
+    // W3.5 fix: duplicate scope depends on target shelf.
+    //
+    //  - Private upload (isGlobal=false): match only the user's own private
+    //    docs (is_global = FALSE). Previously matched across both shelves,
+    //    which surfaced someone else's global doc as a "duplicate" when a
+    //    user re-uploaded the same file privately.
+    //
+    //  - Central upload (isGlobal=true): match only existing GLOBAL docs.
+    //    Previously the check was `user_id = $1 AND content_hash = $2`,
+    //    which blocked the founder from promoting a file they had first
+    //    ingested into their own private vault — the dedupe matched the
+    //    private row and returned `{duplicate:true}` without ever
+    //    creating the global copy. That manifests as the reported
+    //    "UI does the shiny thing but nothing uploads".
+    const existingResult = isGlobal
+      ? await pg.query(
+          `SELECT id, filename FROM vault_documents
+            WHERE is_global = TRUE AND content_hash = $1
+            LIMIT 1`,
+          [contentHash]
+        )
+      : await pg.query(
+          `SELECT id, filename FROM vault_documents
+            WHERE user_id = $1 AND is_global = FALSE AND content_hash = $2
+            LIMIT 1`,
+          [userId, contentHash]
+        );
 
     if (existingResult.rows && existingResult.rows.length > 0) {
       const existingDoc = existingResult.rows[0];
       logger.info('vault', 'Duplicate file detected', {
         userId,
         filename,
+        isGlobal,
         existingDocId: existingDoc.id,
       });
       return {
         duplicate: true,
         existingDocId: existingDoc.id,
         filename: existingDoc.filename,
+        isGlobal,
       };
     }
 

@@ -58,6 +58,10 @@ export default function VaultPanel({ fullScreen = false }) {
   const [searchResults, setSearchResults] = useState(null);
   const [searching, setSearching] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  // W3.5: admin-status diagnostic — populated from /api/auth/me/admin-status
+  // so a founder who is locked out (wrong user ID in ADMIN_USER_IDS) sees a
+  // precise hint in the Central Vault tab instead of silent absence.
+  const [adminDiag, setAdminDiag] = useState(null); // { userId, email, isAdmin, reason, envConfigured }
   const [centralLoading, setCentralLoading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [selectedDocType, setSelectedDocType] = useState('auto');
@@ -89,18 +93,43 @@ export default function VaultPanel({ fullScreen = false }) {
     return () => clearTimeout(timer);
   }, []);
 
-  // Check admin status
+  // Check admin status via the diagnostic endpoint instead of piggy-backing on
+  // /api/vault/admin/documents (which silently 403s without a reason). The
+  // diagnostic never 403s — it always returns { isAdmin, reason, userId, email }
+  // so the founder can self-diagnose if they're locked out.
   useEffect(() => {
     async function checkAdmin() {
       try {
-        const res = await apiFetch('/api/vault/admin/documents');
-        if (res.ok) {
-          setIsAdmin(true);
-          const data = await res.json();
-          setCentralDocs(data.documents || []);
+        const res = await apiFetch('/api/auth/me/admin-status');
+        if (!res.ok) {
+          // /me/admin-status should always 200 when requireAuth passes. If it
+          // doesn't, surface the raw state so production issues aren't invisible.
+          console.warn('[Vault] admin-status fetch non-OK:', res.status);
+          setAdminDiag({ isAdmin: false, reason: `http_${res.status}` });
+          return;
         }
-      } catch {
-        // Not admin
+        const diag = await res.json();
+        setAdminDiag(diag);
+        if (diag.isAdmin) {
+          setIsAdmin(true);
+          // Fetch central docs now that we know we have access
+          try {
+            const docsRes = await apiFetch('/api/vault/admin/documents');
+            if (docsRes.ok) {
+              const data = await docsRes.json();
+              setCentralDocs(data.documents || []);
+            }
+          } catch (e) {
+            console.warn('[Vault] central docs initial fetch failed:', e?.message || e);
+          }
+        } else {
+          // Log the precise reason so the founder sees "not_in_allowlist" with
+          // their own user ID + email in devtools and can update Render env.
+          console.warn('[Vault] admin check → not admin:', diag);
+        }
+      } catch (e) {
+        console.error('[Vault] admin-status fetch threw:', e?.message || e);
+        setAdminDiag({ isAdmin: false, reason: 'network_error' });
       }
     }
     if (token) checkAdmin();
@@ -128,7 +157,10 @@ export default function VaultPanel({ fullScreen = false }) {
     }
   }, [token]);
 
-  // Fetch central vault documents (admin) — Phase 6: added loading state + error handling
+  // Fetch central vault documents (admin) — Phase 6: loading state + error handling.
+  // W3.5: do NOT clobber the existing list on error. A failed refetch after a
+  // successful upload used to blank the UI, making a real upload look like
+  // "nothing happened". Instead surface a non-blocking error and keep the list.
   const fetchCentralDocs = useCallback(async () => {
     if (!isAdmin) return;
     setCentralLoading(true);
@@ -136,8 +168,8 @@ export default function VaultPanel({ fullScreen = false }) {
       const data = await apiJSON('/api/vault/admin/documents');
       setCentralDocs(data.documents || []);
     } catch (e) {
-      console.error('[Vault] Central docs fetch failed:', e.message);
-      setCentralDocs([]);
+      console.error('[Vault] Central docs refetch failed (keeping previous list):', e.message);
+      setError(`Could not refresh Central Vault list: ${e.message}. Your upload may still have succeeded — reload to verify.`);
     } finally {
       setCentralLoading(false);
     }
@@ -490,6 +522,25 @@ export default function VaultPanel({ fullScreen = false }) {
             >
               Central Vault
             </button>
+          </div>
+        )}
+
+        {/* W3.5: Admin self-diag banner.
+            Shows only for the founder (ADMIN_EMAILS convention) when they
+            expected central access but didn't get it — so they can see
+            their own user ID and fix Render env vars. */}
+        {adminDiag && !adminDiag.isAdmin && adminDiag.reason === 'not_in_allowlist' && (
+          <div className="vault-toast vault-toast--error" style={{ fontSize: '11px', lineHeight: 1.4 }}>
+            <span>
+              <strong>Central Vault locked.</strong> You are user #{adminDiag.userId}
+              {adminDiag.email ? ` (${adminDiag.email})` : ''}. To enable
+              Central Vault uploads, set <code>ADMIN_EMAILS</code> on the server
+              to include your email, or add your user ID to
+              <code> ADMIN_USER_IDS</code>. (Current config:
+              ADMIN_USER_IDS={adminDiag.envConfigured?.adminUserIds ? 'set' : 'unset'},
+              ADMIN_EMAILS={adminDiag.envConfigured?.adminEmails ? 'set' : 'unset'})
+            </span>
+            <button className="vault-toast-dismiss" onClick={() => setAdminDiag({ ...adminDiag, reason: 'dismissed' })}>&times;</button>
           </div>
         )}
 

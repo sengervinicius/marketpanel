@@ -11,7 +11,7 @@ const {
 } = require('../authStore');
 const { deleteUserPortfolios } = require('../portfolioStore');
 const { deleteUserAlerts }     = require('../alertStore');
-const { requireAuth } = require('../authMiddleware');
+const { requireAuth, isAdminUser } = require('../authMiddleware');
 const { setTokenCookie, clearTokenCookie, REFRESH_COOKIE_NAME, setRefreshCookie, clearRefreshCookie } = require('../utils/cookieHelper');
 // W1.5: route all log output through the structured logger so reqId/userId
 // propagate into the log stream instead of going straight to stderr.
@@ -122,6 +122,32 @@ router.get('/me', requireAuth, (req, res) => {
       isPaid:             user.isPaid,
       subscriptionActive: user.subscriptionActive,
       trialEndsAt:        user.trialEndsAt,
+    },
+  });
+});
+
+// GET /api/auth/me/admin-status — diagnostic for the Central Vault and other
+// admin-gated features. Returns a structured boolean + reason so the client
+// can render a precise hint ("you are user #5, email vinicius@…, not in
+// ADMIN_USER_IDS or ADMIN_EMAILS") instead of silently hiding the UI.
+//
+// Never leaks other admins' identities — only whether THIS user is admin
+// and why (or why not).
+router.get('/me/admin-status', requireAuth, (req, res) => {
+  const user = getUserById(req.user.id);
+  if (!user) return res.status(401).json({ error: 'User not found' });
+  const check = isAdminUser({ id: user.id, email: user.email, username: user.username });
+  res.json({
+    userId: user.id,
+    username: user.username,
+    email: user.email || null,
+    isAdmin: !!check.ok,
+    reason: check.reason || null,
+    // These tell the founder what env vars to set if they're locked out.
+    // Only exposes presence, not values.
+    envConfigured: {
+      adminUserIds: !!(process.env.ADMIN_USER_IDS && process.env.ADMIN_USER_IDS.trim()),
+      adminEmails:  !!(process.env.ADMIN_EMAILS   && process.env.ADMIN_EMAILS.trim()),
     },
   });
 });

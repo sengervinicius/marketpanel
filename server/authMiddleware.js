@@ -103,22 +103,78 @@ async function requireActiveSubscription(req, res, next) {
 }
 
 /**
- * requireAdmin — lightweight admin gate.
- * Admin user IDs defined in ADMIN_USER_IDS env var (comma-separated)
- * or defaults to user ID 1 (the first registered user / founder).
- * Must be used after requireAuth.
+ * isAdminUser(user) — pure predicate, shared by requireAdmin and the
+ * `/api/auth/me/admin-status` diagnostic endpoint.
+ *
+ * Two env vars, either is sufficient:
+ *   ADMIN_USER_IDS="1,2"                          — legacy, brittle
+ *     across environments (user IDs depend on registration order).
+ *   ADMIN_EMAILS="founder@the-particle.com,…"     — preferred, durable.
+ *
+ * Falls back to `'1,2'` when both are unset so a fresh dev install has
+ * a working founder out of the box.
+ *
+ * @param {{id?: number, email?: string|null, username?: string|null}} user
+ * @returns {{ok: boolean, reason?: string}}
  */
-function requireAdmin(req, res, next) {
-  const userId = req.user?.id;
-  const adminIds = (process.env.ADMIN_USER_IDS || '1,2')
+function isAdminUser(user) {
+  if (!user) return { ok: false, reason: 'no_user' };
+
+  const idsRaw = (process.env.ADMIN_USER_IDS ?? '').trim();
+  const emailsRaw = (process.env.ADMIN_EMAILS ?? '').trim();
+
+  // Fall back to '1,2' only when BOTH env vars are unset — otherwise a
+  // deployment that explicitly sets ADMIN_EMAILS would silently grant
+  // admin to whoever happens to be user 1/2 on that shard.
+  const noneSet = idsRaw === '' && emailsRaw === '';
+  const adminIds = (noneSet ? '1,2' : idsRaw)
     .split(',')
     .map(s => parseInt(s.trim(), 10))
     .filter(n => !isNaN(n));
 
-  if (!adminIds.includes(userId)) {
-    return res.status(403).json({ error: 'Admin access required', code: 'admin_required' });
+  if (user.id != null && adminIds.includes(Number(user.id))) {
+    return { ok: true, reason: 'by_id' };
+  }
+
+  if (user.email && emailsRaw) {
+    const userEmail = String(user.email).toLowerCase().trim();
+    const adminEmails = emailsRaw
+      .split(',')
+      .map(s => s.toLowerCase().trim())
+      .filter(Boolean);
+    if (adminEmails.includes(userEmail)) {
+      return { ok: true, reason: 'by_email' };
+    }
+  }
+
+  return { ok: false, reason: 'not_in_allowlist' };
+}
+
+/**
+ * requireAdmin — lightweight admin gate.
+ * Accepts either a user ID in ADMIN_USER_IDS or an email in ADMIN_EMAILS.
+ * Must be used after requireAuth.
+ */
+function requireAdmin(req, res, next) {
+  // Hydrate email off the in-memory user record; req.user from JWT only
+  // carries {id, username} so we need the store to check by email.
+  const userRec = getUserById(req.user?.id) || null;
+  const check = isAdminUser({
+    id: req.user?.id,
+    email: userRec?.email || null,
+    username: req.user?.username,
+  });
+  if (!check.ok) {
+    return res.status(403).json({
+      error: 'Admin access required',
+      code: 'admin_required',
+      // Surface just enough for the founder to self-diagnose in browser
+      // devtools — never leak other admins' emails.
+      userId: req.user?.id,
+      reason: check.reason,
+    });
   }
   next();
 }
 
-module.exports = { requireAuth, requireActiveSubscription, requireAdmin };
+module.exports = { requireAuth, requireActiveSubscription, requireAdmin, isAdminUser };

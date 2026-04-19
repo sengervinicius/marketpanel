@@ -121,6 +121,8 @@ services:
       # ── Admin / ops ─────────────────────────────────────────────────────────
       - key: ADMIN_USER_IDS
         sync: false          # Comma-separated user IDs granted admin access
+      - key: ADMIN_EMAILS
+        sync: false          # Comma-separated admin emails (durable across envs; preferred over IDs)
       - key: SEED_USERS
         sync: false          # Pre-create accounts: username1:password1,username2:password2
       - key: TRIAL_DAYS
