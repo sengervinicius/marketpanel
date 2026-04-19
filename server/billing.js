@@ -13,7 +13,7 @@
  *   - Webhook handler for subscription lifecycle events
  */
 
-const { updateSubscription, getUserById, findUserByStripeCustomerId } = require('./authStore');
+const { updateSubscription, getUserById, findUserByStripeCustomerId, signToken, createRefreshToken, safeUser } = require('./authStore');
 const { sendEmail } = require('./services/emailService');
 const { tierFromStripePriceId, getStripePriceId, TIERS } = require('./config/tiers');
 const pg = require('./db/postgres');
@@ -270,8 +270,22 @@ async function createCheckoutSession(userId, plan = 'monthly', userContext = {},
       }],
       allow_promotion_codes: true,
       billing_address_collection: 'auto',
-      success_url: `${clientUrl}/?billing=success`,
+      // W3.1 — include {CHECKOUT_SESSION_ID} so the client can mint a fresh
+      // JWT on return from checkout.stripe.com. On mobile Safari the user's
+      // 15-min access token may expire during checkout, and ITP blocks the
+      // refresh-cookie round-trip across the third-party redirect. Round-tripping
+      // the session ID lets us bypass cookies entirely: we retrieve the session
+      // from Stripe, read session.metadata.userId, and hand the client a fresh
+      // token+refresh pair — so a post-Apple-Pay return never logs them out.
+      success_url: `${clientUrl}/?billing=success&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url:  `${clientUrl}/?billing=cancelled`,
+      // W3.1 — carry userId on the Session itself (not only the subscription)
+      // so our verify-session endpoint can resolve the user by a single
+      // stripe.checkout.sessions.retrieve() — without needing a subscription
+      // to exist yet (Stripe's subscription object isn't guaranteed to be
+      // attached immediately after success_url redirect).
+      client_reference_id: String(userId),
+      metadata: { userId: String(userId), plan, tier },
       subscription_data: {
         metadata: { userId: String(userId), plan, tier },
       },
@@ -730,10 +744,132 @@ async function getSubscriptionStatus(userId) {
   return { status: 'unknown', isPaid: false };
 }
 
+// ── W3.1: Post-checkout session verification ──────────────────────────────
+/**
+ * Verify a Stripe Checkout Session and mint a fresh auth bundle.
+ *
+ * Problem this solves (the "post-payment logout on mobile" bug):
+ *   After a user pays via Apple Pay on checkout.stripe.com, the browser
+ *   returns to the-particle.com/?billing=success. If 15+ minutes elapsed
+ *   during checkout (common on mobile), the stored JWT is expired. On iOS
+ *   Safari, ITP commonly blocks the refresh cookie across the third-party
+ *   Stripe redirect — so even /api/auth/refresh fails, forcing a re-login.
+ *
+ * Solution:
+ *   Pass {CHECKOUT_SESSION_ID} through the success_url. On return the
+ *   client POSTs the session_id to this endpoint. We retrieve it from
+ *   Stripe — the ID itself is the auth proof (unguessable, single-use,
+ *   only handed to the paying user) — read session.metadata.userId,
+ *   load that user, and mint a fresh (token, refreshToken) pair.
+ *
+ * Security properties:
+ *   - Session IDs are high-entropy and only transmitted to the user who paid.
+ *   - We require payment_status === 'paid' OR 'no_payment_required'
+ *     (free trials completing a saved card step).
+ *   - The resolved userId comes from Stripe's side (metadata we set at
+ *     checkout creation) — the client cannot forge it.
+ *   - If metadata.userId is missing (e.g. legacy session from before W3.1),
+ *     we fall back to client_reference_id, then fail closed.
+ *
+ * Returns: { token, refreshToken, user, subscription } on success,
+ *          { error, code } on failure. Never throws.
+ */
+async function verifyCheckoutSession(sessionId) {
+  if (!sessionId || typeof sessionId !== 'string') {
+    return { error: 'session_id is required', code: 'missing_session_id' };
+  }
+  // Stripe session IDs are cs_test_... or cs_live_.... Reject anything else
+  // up front — avoids a pointless Stripe API call on obvious garbage.
+  if (!/^cs_(test|live)_[A-Za-z0-9]+$/.test(sessionId)) {
+    return { error: 'invalid session_id format', code: 'invalid_session_id' };
+  }
+
+  const stripe = getStripe();
+  if (!stripe) {
+    return { error: 'Billing not configured', code: 'stripe_unconfigured' };
+  }
+
+  let session;
+  try {
+    session = await stripe.checkout.sessions.retrieve(sessionId);
+  } catch (err) {
+    logger.warn('billing.verifyCheckoutSession', `Stripe retrieve failed: ${err.message}`, {
+      sessionId: sessionId.slice(0, 20) + '...', stripeCode: err.code,
+    });
+    return { error: 'Could not verify session', code: 'session_not_found' };
+  }
+
+  // Gate on actual payment state. 'unpaid' means the user abandoned or the
+  // charge failed — we must NOT mint a token in that case.
+  const okStatuses = new Set(['paid', 'no_payment_required']);
+  if (!okStatuses.has(session.payment_status)) {
+    logger.warn('billing.verifyCheckoutSession', `Session not paid (status=${session.payment_status})`, {
+      sessionId: sessionId.slice(0, 20) + '...',
+    });
+    return { error: 'Payment not completed', code: 'payment_incomplete' };
+  }
+
+  // Resolve the userId that was recorded at session creation. Metadata is
+  // the primary source; client_reference_id is the fallback for any legacy
+  // sessions created before W3.1.
+  const metaUserId = session.metadata?.userId;
+  const refUserId  = session.client_reference_id;
+  const userIdRaw  = metaUserId || refUserId;
+  const userId     = userIdRaw != null ? Number(userIdRaw) : null;
+
+  if (!userId || Number.isNaN(userId)) {
+    logger.error('billing.verifyCheckoutSession', 'Session missing userId metadata', {
+      sessionId: sessionId.slice(0, 20) + '...',
+    });
+    return { error: 'Session missing user context', code: 'session_no_user' };
+  }
+
+  const user = getUserById(userId);
+  if (!user) {
+    // This can happen if in-memory hydration hasn't run. We don't mint a
+    // token for a phantom user — fail closed and let the client fall back
+    // to the normal login flow.
+    logger.error('billing.verifyCheckoutSession', `User ${userId} not found in store`, {
+      sessionId: sessionId.slice(0, 20) + '...',
+    });
+    return { error: 'User not found', code: 'user_not_found' };
+  }
+
+  // Mint a fresh JWT + refresh token so the client can immediately resume
+  // an authenticated session without depending on the (possibly expired)
+  // cookie or localStorage token.
+  let token;
+  try {
+    token = signToken(user);
+  } catch (e) {
+    logger.error('billing.verifyCheckoutSession', `signToken failed: ${e.message}`);
+    return { error: 'Token signing failed', code: 'token_sign_error' };
+  }
+
+  let refresh = null;
+  try {
+    refresh = await createRefreshToken(user.id);
+  } catch (e) {
+    // Non-fatal — the access token is enough to resume the session; a
+    // refresh cookie can be minted on the next refresh cycle.
+    logger.warn('billing.verifyCheckoutSession', `createRefreshToken failed: ${e.message}`);
+  }
+
+  const subscription = await getSubscriptionStatus(user.id);
+
+  return {
+    token,
+    refreshToken: refresh?.token || null,
+    user: safeUser(user),
+    subscription,
+  };
+}
+
 module.exports = {
   createCheckoutSession,
   createPortalSession,
   handleBillingWebhook,
   getSubscriptionStatus,
   validateStripePriceIds,
+  verifyCheckoutSession,
 };

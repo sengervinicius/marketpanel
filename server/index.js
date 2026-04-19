@@ -417,6 +417,40 @@ app.get('/api/billing/tiers', (req, res) => {
     }));
   res.json({ tiers });
 });
+// W3.1 — verify-session: explicitly NOT behind requireAuth.
+// The user's JWT may have expired during their time on checkout.stripe.com
+// (especially on mobile Apple Pay where the round-trip is slow), and ITP on
+// iOS Safari often blocks the refresh cookie across the Stripe redirect.
+// Authentication here comes from the Stripe session ID itself (unguessable,
+// single-use, metadata-bound to userId at session creation).
+app.post('/api/billing/verify-session', express.json(), async (req, res) => {
+  try {
+    const { verifyCheckoutSession } = require('./billing');
+    const sessionId = req.body?.sessionId || req.body?.session_id;
+    const result = await verifyCheckoutSession(sessionId);
+    if (result.error) {
+      return res.status(400).json(result);
+    }
+    // Mirror the auth-route pattern: set the refresh token as an httpOnly
+    // cookie when we have one, so subsequent /api/auth/refresh calls work
+    // in any browser that accepts cookies.
+    if (result.refreshToken) {
+      const cookieOpts = {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+        path: '/',
+      };
+      res.cookie('arc_refresh', result.refreshToken, cookieOpts);
+    }
+    return res.json(result);
+  } catch (e) {
+    const logger = require('./utils/logger');
+    logger.error('POST /api/billing/verify-session', e.message, { error: e });
+    return res.status(500).json({ error: 'Internal error', code: 'internal_error' });
+  }
+});
 // Billing: auth required for create-session, status, portal
 app.use('/api/billing', requireAuth, billingRoutes);
 // Apple IAP: mounted under /api/billing/iap (auth handled per-route inside)

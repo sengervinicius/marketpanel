@@ -234,18 +234,64 @@ export function AuthProvider({ children }) {
   }, [user, subscription]);
 
   // ── Check for billing URL params on mount ─────────────────────────────────
+  // W3.1 — when the user returns from checkout.stripe.com with session_id in
+  // the URL, we POST it to /api/billing/verify-session BEFORE doing anything
+  // else. That endpoint resolves userId from Stripe's session metadata and
+  // hands us a fresh (token, refreshToken) pair. Without this step, a long
+  // Apple Pay round-trip would leave the 15-min JWT expired and, since iOS
+  // Safari ITP often blocks the refresh cookie across the third-party Stripe
+  // redirect, the user would be forced back to the login screen immediately
+  // after paying.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const billingStatus = params.get('billing');
+    const sessionId = params.get('session_id');
 
     if (billingStatus === 'success') {
-      // User successfully completed checkout
-      // Delay the refresh slightly to allow server-side updates to settle
-      setTimeout(() => {
-        refreshSubscription();
-      }, 1000);
-      // Clean up URL without reloading
-      window.history.replaceState({}, document.title, window.location.pathname);
+      (async () => {
+        // 1. If we have a session_id, use it to refresh auth state.
+        if (sessionId) {
+          try {
+            const res = await fetch(`${API_BASE}/api/billing/verify-session`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ sessionId }),
+              credentials: 'include',
+            });
+            if (res.ok) {
+              const data = await res.json();
+              // Install fresh tokens + user/subscription atomically.
+              if (data.token) {
+                setToken(data.token);
+                setAuthToken(data.token);
+              }
+              if (data.refreshToken) {
+                try { localStorage.setItem(LS_REFRESH, data.refreshToken); } catch {}
+              }
+              if (data.user) {
+                const restored = { id: data.user.id, username: data.user.username, persona: data.user.persona || null };
+                setUser(restored);
+                try { localStorage.setItem(LS_USER, JSON.stringify(restored)); } catch {}
+              }
+              if (data.subscription) {
+                setSubscription(normalizeSubscription(data.subscription));
+              }
+              // We just resynced — no need for the delayed refresh below.
+              window.history.replaceState({}, document.title, window.location.pathname);
+              return;
+            }
+            // Non-2xx falls through to the legacy refresh path; at worst the
+            // user sees a short "logged out" flash instead of being stuck.
+            console.warn('[AuthContext] verify-session returned non-2xx, falling back to refresh');
+          } catch (err) {
+            console.warn('[AuthContext] verify-session failed:', err?.message || err);
+          }
+        }
+
+        // 2. Legacy path (no session_id, or verify failed) — just refresh.
+        setTimeout(() => { refreshSubscription(); }, 1000);
+        window.history.replaceState({}, document.title, window.location.pathname);
+      })();
     } else if (billingStatus === 'cancelled') {
       // User cancelled checkout
       window.history.replaceState({}, document.title, window.location.pathname);

@@ -942,12 +942,73 @@ function safeUser(user) {
 // ── Apple Sign In ─────────────────────────────────────────────────────────
 
 async function findOrCreateAppleUser(appleUserId, email, firstName) {
-  // Search existing users for matching appleUserId
+  // 1. Search the in-memory cache first — fast path for the common case.
   for (const user of usersById.values()) {
     if (user.appleUserId === appleUserId) return user;
   }
 
-  // Build a username from email or appleUserId
+  // 2. W3.2 — fall back to a Postgres lookup keyed on apple_user_id. The
+  //    in-memory map is populated by hydrateFromPostgres() on boot, but a
+  //    user who signed in via Apple AFTER a restart can miss that pass if
+  //    their row was written but not yet hydrated into memory (or if the
+  //    hydrate step failed silently). Without this fallback, a returning
+  //    user gets treated as brand-new — we'd create a second account with
+  //    a stale trial flag, and their existing paid subscription (linked
+  //    to their real user row via stripe_customer_id) would appear lost.
+  //
+  //    The fix: before creating a new user, query users by apple_user_id
+  //    and hydrate the matching row into the in-memory maps. This is the
+  //    "Sign in with Apple broken after Stripe payment" regression — the
+  //    Apple user existed, the Stripe payment succeeded against their row,
+  //    but the post-payment /auth/apple handshake spun up a duplicate and
+  //    the user saw themselves as unpaid.
+  if (pg.isConnected()) {
+    try {
+      const res = await pg.query(
+        'SELECT * FROM users WHERE apple_user_id = $1 LIMIT 1',
+        [appleUserId],
+      );
+      if (res && res.rows && res.rows.length > 0) {
+        const row = res.rows[0];
+        const user = {
+          id: row.id,
+          username: row.username,
+          email: row.email || null,
+          emailVerified: row.email_verified || false,
+          hash: row.hash,
+          appleUserId: row.apple_user_id || null,
+          settings: row.settings || defaultSettings(),
+          isPaid: row.is_paid || false,
+          subscriptionActive: row.subscription_active ?? true,
+          trialEndsAt: row.trial_ends_at ? Number(row.trial_ends_at) : null,
+          stripeCustomerId: row.stripe_customer_id || null,
+          stripeSubscriptionId: row.stripe_subscription_id || null,
+          persona: row.persona || defaultPersona(),
+          referralCode: row.referral_code || null,
+          referredBy: row.referred_by || null,
+          referralRewards: row.referral_rewards || { invited: 0, xpEarned: 0 },
+          planTier: row.plan_tier || 'trial',
+          createdAt: row.created_at ? Number(row.created_at) : Date.now(),
+        };
+        // Hydrate into the in-memory caches so subsequent lookups are
+        // fast and don't hit Postgres.
+        usersById.set(user.id, user);
+        if (user.username) usersByUsername.set(user.username.toLowerCase(), user);
+        if (user.id >= nextId) nextId = user.id + 1;
+        logger.info('authStore', 'Hydrated Apple user from Postgres (was not in memory)', {
+          affectedUserId: user.id, hadStripeCustomer: !!user.stripeCustomerId,
+        });
+        return user;
+      }
+    } catch (e) {
+      logger.error('authStore', 'findOrCreateAppleUser: Postgres lookup by apple_user_id failed', {
+        error: e.message,
+      });
+      // Fall through — we still attempt to create a new user so sign-in works.
+    }
+  }
+
+  // 3. Build a username from email or appleUserId for a brand-new account.
   let baseUsername = firstName
     ? firstName.toLowerCase().replace(/[^a-z0-9]/g, '')
     : email
