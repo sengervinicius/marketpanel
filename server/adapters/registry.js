@@ -23,8 +23,10 @@ function buildRegistry() {
   // Wave 1 adapters
   registry.register(require('./polygonAdapter'));
 
+  // Wave 2 adapters
+  registry.register(require('./finnhubAdapter'));
+
   // Future (stubbed imports — uncomment as each adapter lands):
-  // registry.register(require('./finnhubAdapter'));
   // registry.register(require('./twelvedataAdapter'));
   // registry.register(require('./eulerpoolAdapter'));
   // registry.register(require('./unusualWhalesAdapter'));
