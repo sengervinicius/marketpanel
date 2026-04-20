@@ -15,8 +15,10 @@ import { useFeedStatus } from '../../context/FeedStatusContext';
 import { useSparklineData } from '../../hooks/useSparklineData';
 import SkeletonLoader from '../shared/SkeletonLoader';
 import IntegrityBadge from '../shared/IntegrityBadge';
+import { COLS_FOREX } from '../../utils/panelColumns';
 
-const COLS = '72px 1fr 76px 64px';
+// Was '72px 1fr 76px 64px' — chg% too narrow for 2-digit moves (USDARS can spike).
+const COLS = COLS_FOREX;
 
 const showInfo = (e, symbol, label, type) => {
   e.preventDefault();
@@ -96,20 +98,18 @@ function ForexPanel({ data = {}, cryptoData = {}, loading, onTickerClick }) {
   };
 
   // Handle drop ticker into panel
+  // CIO-note (2026-04-20): previous behavior created an "ADDED"
+  // custom subsection bucket, which polluted the UI and confused the
+  // user ("wtf is ADDED subsection?"). New behavior appends the
+  // dropped ticker directly to the main FX symbols list so it shows
+  // up in the FX PAIRS or CRYPTO block like a normal default.
+  // The C:/X: polygon prefix (if present from a chart drop) is stripped.
   const handleDropTicker = (ticker) => {
-    const sym = ticker.trim().toUpperCase();
+    let sym = String(ticker || '').trim().toUpperCase();
     if (!sym) return;
-    const subs = [...customSubsections];
-    let target = subs.find(s => s.key === 'custom-dropped');
-    if (!target) {
-      target = { key: 'custom-dropped', label: 'ADDED', color: '#00bcd4', symbols: [] };
-      subs.push(target);
-    }
-    if (target.symbols.includes(sym)) return;
-    const updated = subs.map(s =>
-      s.key === target.key ? { ...s, symbols: [...s.symbols, sym] } : s
-    );
-    saveCfg({ customSubsections: updated });
+    sym = sym.replace(/^(C:|X:)/, '');
+    if (panelSymbols.includes(sym)) return;
+    saveCfg({ symbols: [...panelSymbols, sym] });
     setFlashSym(sym);
     setTimeout(() => setFlashSym(null), 1500);
   };

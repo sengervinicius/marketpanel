@@ -11,7 +11,35 @@ import { DEFAULT_LAYOUT, DEFAULT_HOME_SECTIONS, DEFAULT_CHARTS_CONFIG } from '..
 
 const SettingsContext = createContext(null);
 
-// Default settings (mirrors server defaultSettings())
+// ── Canonical CIO-spec default symbol lists ────────────────────────
+// These MUST match PANEL_DEFINITIONS in config/panels.js. They are the
+// single source of truth for default symbols. The settings migration
+// below compares saved user settings against these lists and back-fills
+// any CIO-mandated symbol that has silently disappeared (typical cause:
+// an older deploy's defaults were persisted, then we added GBPBRL or
+// SOYB/CPER/BHP to the canon, but the user's row never got them).
+//
+// NOTE: a user who explicitly removed a symbol via PanelConfigModal
+// sees it come back once after the migration flag flips — this is a
+// known tradeoff. Post-migration, their removals are respected.
+const CIO_FOREX_DEFAULTS = [
+  'EURUSD','GBPUSD','USDJPY','USDCHF','AUDUSD','USDCAD',
+  'USDBRL','EURBRL','GBPBRL',
+  'USDCNY','USDMXN',
+  'BTCUSD','ETHUSD','SOLUSD','XRPUSD','BNBUSD','DOGEUSD',
+];
+const CIO_COMMODITIES_DEFAULTS = [
+  'BZ=F','GLD','SLV','USO','UNG',
+  'CORN','WEAT','SOYB','CPER','BHP',
+];
+const CIO_BRAZIL_DEFAULTS = [
+  'VALE3.SA','PETR4.SA','ITUB4.SA','BBDC4.SA','ABEV3.SA','WEGE3.SA','RENT3.SA',
+  'B3SA3.SA','MGLU3.SA','BBAS3.SA','GGBR4.SA','SUZB3.SA',
+];
+
+// Default settings (mirrors server defaultSettings()).
+// Keep in sync with server/authStore.js defaultSettings() and with
+// config/panels.js PANEL_DEFINITIONS.
 function defaultSettings() {
   return {
     theme: 'dark',
@@ -20,19 +48,121 @@ function defaultSettings() {
     termsAccepted: false,
     defaultStartTab: 'home',
     watchlist: [],
+    // Bumped when we add a new CIO-mandated ticker to defaults; the
+    // migration below uses this version to decide whether to back-fill.
+    settingsVersion: 2,
     panels: {
-      brazilB3:     { title: 'Brazil B3',      symbols: ['VALE3.SA','PETR4.SA','ITUB4.SA','BBDC4.SA','ABEV3.SA','WEGE3.SA','RENT3.SA'] },
-      usEquities:   { title: 'US Equities',    symbols: ['AAPL','MSFT','NVDA','GOOGL','AMZN','META','TSLA','JPM','XOM','BRK-B','VALE','PBR','ITUB','BBD','ABEV','ERJ','BRFS','SUZ'] },
-      globalIndices:{ title: 'Global Indexes', symbols: ['SPY','QQQ','DIA','IWM','EWZ','EEM','FXI'] },
-      forex:        { title: 'FX / Rates',     symbols: ['EURUSD','GBPUSD','USDJPY','USDBRL','USDCHF','USDCNY','USDMXN','AUDUSD','USDCAD'], hiddenSubsections: ['crypto'] },
-      crypto:       { title: 'Crypto',         symbols: ['BTCUSD','ETHUSD','SOLUSD','XRPUSD'] },
-      commodities:  { title: 'Commodities',    symbols: ['BZ=F','GLD','SLV','USO','UNG'] },
-      debt:         { title: 'Debt Markets',   symbols: ['US10Y','US2Y','BR10Y','DE10Y'] },
+      brazilB3:     { title: 'Brazil B3',      symbols: [...CIO_BRAZIL_DEFAULTS] },
+      usEquities:   { title: 'US Equities',    symbols: ['AAPL','MSFT','NVDA','GOOGL','AMZN','META','TSLA','JPM','XOM','BRK-B','GS','WMT','LLY'] },
+      globalIndices:{ title: 'Global Indexes', symbols: ['SPY','QQQ','DIA','EWZ','EEM','VGK','EWJ','FXI'] },
+      forex:        { title: 'FX Rates / Crypto', symbols: [...CIO_FOREX_DEFAULTS] },
+      crypto:       { title: 'Crypto',         symbols: ['BTCUSD','ETHUSD','SOLUSD','XRPUSD','BNBUSD','DOGEUSD'] },
+      commodities:  { title: 'Commodities',    symbols: [...CIO_COMMODITIES_DEFAULTS] },
+      debt:         { title: 'Yields & Rates', symbols: [] },
     },
     layout: DEFAULT_LAYOUT,
     home: { sections: DEFAULT_HOME_SECTIONS },
     charts: DEFAULT_CHARTS_CONFIG,
   };
+}
+
+/**
+ * One-shot back-fill: if a user's saved settings are missing any
+ * CIO-mandated symbol (e.g. GBPBRL was added to the forex default
+ * after the user's last save), insert the missing symbols into the
+ * user's saved list at a sensible position. Also drops the legacy
+ * "ADDED" custom subsection that was created by drop-to-panel — those
+ * tickers are merged into the main symbols list instead.
+ *
+ * Safe because we bump `settingsVersion` afterwards, so repeated opens
+ * don't keep re-adding things the user explicitly removes.
+ *
+ * @param {object} saved — the settings returned from /api/settings
+ * @returns {{ settings: object, migrated: boolean }}
+ */
+function migrateLegacySettings(saved) {
+  if (!saved || typeof saved !== 'object') return { settings: saved, migrated: false };
+  if (saved.settingsVersion >= 2) return { settings: saved, migrated: false };
+
+  const next = { ...saved, panels: { ...(saved.panels || {}) } };
+  let changed = false;
+
+  // ── Forex back-fill + drop ADDED bucket ────────────────────────
+  const fx = next.panels.forex;
+  if (fx && typeof fx === 'object') {
+    const cur = Array.isArray(fx.symbols) ? [...fx.symbols] : [];
+    let fxSymbols = cur;
+    const missing = CIO_FOREX_DEFAULTS.filter(s => !cur.includes(s));
+    if (missing.length) {
+      // Preserve user ordering; append missing CIO defaults at the end
+      // of the FX block (before any crypto). For simplicity: append.
+      fxSymbols = [...cur, ...missing];
+      changed = true;
+    }
+
+    // Merge legacy "ADDED" custom subsection symbols into main list.
+    let customSubs = Array.isArray(fx.customSubsections) ? fx.customSubsections : [];
+    const legacyDropped = customSubs.find(s => s && s.key === 'custom-dropped');
+    if (legacyDropped && Array.isArray(legacyDropped.symbols) && legacyDropped.symbols.length > 0) {
+      for (const sym of legacyDropped.symbols) {
+        // Strip any "C:" / "X:" polygon prefixes for the FX symbols list.
+        const clean = String(sym).replace(/^(C:|X:)/, '');
+        if (!fxSymbols.includes(clean)) fxSymbols.push(clean);
+      }
+      customSubs = customSubs.filter(s => s && s.key !== 'custom-dropped');
+      next.panels.forex = { ...fx, symbols: fxSymbols, customSubsections: customSubs };
+      changed = true;
+    } else if (changed) {
+      next.panels.forex = { ...fx, symbols: fxSymbols };
+    }
+  }
+
+  // ── Commodities back-fill + drop ADDED bucket ──────────────────
+  const cmd = next.panels.commodities;
+  if (cmd && typeof cmd === 'object') {
+    const cur = Array.isArray(cmd.symbols) ? [...cmd.symbols] : [];
+    let cmdSymbols = cur;
+    const missing = CIO_COMMODITIES_DEFAULTS.filter(s => !cur.includes(s));
+    if (missing.length) {
+      cmdSymbols = [...cur, ...missing];
+      changed = true;
+    }
+
+    let customSubs = Array.isArray(cmd.customSubsections) ? cmd.customSubsections : [];
+    const legacyDropped = customSubs.find(s => s && s.key === 'custom-dropped');
+    if (legacyDropped && Array.isArray(legacyDropped.symbols) && legacyDropped.symbols.length > 0) {
+      for (const sym of legacyDropped.symbols) {
+        if (!cmdSymbols.includes(sym)) cmdSymbols.push(sym);
+      }
+      customSubs = customSubs.filter(s => s && s.key !== 'custom-dropped');
+      next.panels.commodities = { ...cmd, symbols: cmdSymbols, customSubsections: customSubs };
+      changed = true;
+    } else if (changed) {
+      next.panels.commodities = { ...cmd, symbols: cmdSymbols };
+    }
+  }
+
+  // ── Same for US equities / Brazil B3 custom-dropped bucket ─────
+  for (const pid of ['usEquities', 'brazilB3']) {
+    const p = next.panels[pid];
+    if (!p || typeof p !== 'object') continue;
+    const customSubs = Array.isArray(p.customSubsections) ? p.customSubsections : [];
+    const legacy = customSubs.find(s => s && s.key === 'custom-dropped');
+    if (!legacy || !Array.isArray(legacy.symbols) || legacy.symbols.length === 0) continue;
+    const cur = Array.isArray(p.symbols) ? [...p.symbols] : [];
+    for (const sym of legacy.symbols) {
+      if (!cur.includes(sym)) cur.push(sym);
+    }
+    next.panels[pid] = {
+      ...p,
+      symbols: cur,
+      customSubsections: customSubs.filter(s => s && s.key !== 'custom-dropped'),
+    };
+    changed = true;
+  }
+
+  next.settingsVersion = 2;
+  return { settings: next, migrated: changed };
 }
 
 export function SettingsProvider({ children, isAuthenticated }) {
@@ -56,15 +186,35 @@ export function SettingsProvider({ children, isAuthenticated }) {
         if (!mounted) return;
         if (data.settings) {
           const defaults = defaultSettings();
-          const s = data.settings || {};
-          setSettingsState({
+          // One-shot back-fill: back-fills missing CIO-mandated symbols
+          // (e.g. GBPBRL, SOYB, CPER, BHP) and drops the legacy
+          // "ADDED" custom subsection that drop-to-panel used to
+          // create. See migrateLegacySettings() above.
+          const { settings: migrated, migrated: didMigrate } = migrateLegacySettings(data.settings || {});
+          const s = migrated;
+          const merged = {
             ...defaults,
             ...s,
             panels:  { ...defaults.panels,  ...(s.panels  || {}) },
             layout:  { ...defaults.layout,  ...(s.layout  || {}) },
             home:    { ...defaults.home,    ...(s.home    || {}) },
             charts:  { ...defaults.charts,  ...(s.charts  || {}) },
-          });
+          };
+          setSettingsState(merged);
+
+          // Persist the migrated settings back to the server so the
+          // user doesn't re-run the migration on every page load.
+          // Fire-and-forget: we already rendered with the migrated
+          // state, and the server is non-critical here.
+          if (didMigrate) {
+            apiFetch('/api/settings', {
+              method: 'POST',
+              body: JSON.stringify({
+                panels: merged.panels,
+                settingsVersion: merged.settingsVersion,
+              }),
+            }).catch(() => {});
+          }
 
           // ── Hydrate localStorage from server for UI state continuity ──
           try {

@@ -13,12 +13,14 @@ import { apiFetch } from '../../utils/api';
 import EmptyState from '../common/EmptyState';
 import PanelShell from '../common/PanelShell';
 import { PriceRow } from '../common/PriceRow';
+import { COLS_WATCHLIST } from '../../utils/panelColumns';
 import '../common/Shimmer.css';
 import './WatchlistPanel.css';
 
 const fmt    = (n) => n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmtPct = (n) => n == null ? '—' : (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
-const COLS   = '72px 1fr 72px 64px 24px';
+// Was '72px 1fr 72px 64px 24px' — chg% 64px too tight for 2-digit moves.
+const COLS   = COLS_WATCHLIST;
 
 const showInfo = (e, symbol, label, type) => {
   e.preventDefault();

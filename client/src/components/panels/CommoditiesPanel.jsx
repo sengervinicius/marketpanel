@@ -14,8 +14,10 @@ import { COMMODITIES } from '../../utils/constants';
 import { useFeedStatus } from '../../context/FeedStatusContext';
 import { useSparklineData } from '../../hooks/useSparklineData';
 import SkeletonLoader from '../shared/SkeletonLoader';
+import { COLS_TIGHT } from '../../utils/panelColumns';
 
-const COLS = '44px 1fr 68px 60px';
+// Was '44px 1fr 68px 60px' — chg% too narrow for 2-digit moves.
+const COLS = COLS_TIGHT;
 
 const SORT_COLS = [
   { key: 'symbol', label: 'SYM',  align: 'left' },
@@ -82,20 +84,14 @@ function CommoditiesPanel({ data = {}, loading, onTickerClick }) {
     updatePanelConfig('commodities', { ...panelCfg, ...updates });
   }, [panelCfg, updatePanelConfig]);
 
+  // CIO-note (2026-04-20): direct append to main symbols list (not
+  // an "ADDED" custom subsection). See ForexPanel.jsx for context.
   const handleDropTicker = (ticker) => {
-    const sym = ticker.trim().toUpperCase();
+    let sym = String(ticker || '').trim().toUpperCase();
     if (!sym) return;
-    const subs = [...customSubsections];
-    let target = subs.find(s => s.key === 'custom-dropped');
-    if (!target) {
-      target = { key: 'custom-dropped', label: 'ADDED', color: '#00bcd4', symbols: [] };
-      subs.push(target);
-    }
-    if (target.symbols.includes(sym)) return;
-    const updated = subs.map(s =>
-      s.key === target.key ? { ...s, symbols: [...s.symbols, sym] } : s
-    );
-    saveCfg({ customSubsections: updated });
+    sym = sym.replace(/^(C:|X:)/, '');
+    if (panelSymbols.includes(sym)) return;
+    saveCfg({ symbols: [...panelSymbols, sym] });
     setFlashSym(sym);
     setTimeout(() => setFlashSym(null), 1500);
   };

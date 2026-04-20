@@ -4,11 +4,13 @@ import { useFeedStatus } from '../../context/FeedStatusContext';
 import { useOpenDetail } from '../../context/OpenDetailContext';
 import SkeletonLoader from '../shared/SkeletonLoader';
 import { WORLD_INDEXES } from '../../utils/constants';
+import { COLS_STANDARD } from '../../utils/panelColumns';
 import './IndexPanel.css';
 
 const fmt    = (n) => n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmtPct = (n) => n == null ? '—' : (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
-const COLS   = '56px 1fr 68px 64px';
+// Was '56px 1fr 68px 64px' — chg% 64px too tight on 2-digit days.
+const COLS   = COLS_STANDARD;
 
 const showInfo = (e, symbol, label, type) => {
   e.preventDefault();

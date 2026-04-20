@@ -1,4 +1,11 @@
-/* DICurvePanel.css */
+/* DICurvePanel.css
+ *
+ * Bloomberg-style yield-curve panel. Composition:
+ *   .dic-header    → title strip
+ *   .dic-matrix    → tabular yield matrix (one row per country)
+ *   .dic-grid      → 2×2 compact curve charts
+ *   .dic-source    → provenance footnote
+ */
 
 .dic-container {
   display: flex;
@@ -6,6 +13,7 @@
   background: var(--bg-panel);
   height: 100%;
   overflow: hidden;
+  min-height: 0;
 }
 
 .dic-header {
@@ -33,117 +41,134 @@
   align-items: center;
   gap: 6px;
 }
-.dic-integrity-warn {
-  color: #ff4444;
-  font-weight: 700;
-  font-size: 9px;
-  letter-spacing: 0.05em;
-  animation: dic-warn-pulse 2s ease-in-out infinite;
-}
-@keyframes dic-warn-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+
+/* ── Matrix (dense tabular yield data) ─────────────────────────────── */
+.dic-matrix {
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border-subtle);
+  font-family: var(--font-mono);
 }
 
-.dic-block {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  min-height: 0;
-}
-
-.dic-block-bordered {
-  border-top: 1px solid var(--border-subtle);
-}
-
-.dic-block-header {
-  display: flex;
+.dic-matrix-head,
+.dic-matrix-row {
+  display: grid;
+  grid-template-columns: 64px repeat(5, 1fr) 62px 62px 72px;
   align-items: center;
-  justify-content: space-between;
-  padding: 3px 8px 2px;
-  flex-shrink: 0;
-  min-height: 22px;
-  gap: 8px;
+  padding: 2px 8px;
+  gap: 2px;
 }
 
-.dic-block-label {
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.1em;
-  flex-shrink: 0;
-}
-
-.dic-key-points {
-  display: flex;
-  gap: 10px;
-  overflow: hidden;
-  flex-wrap: nowrap;
-}
-
-.dic-key-point {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 4px;
-  white-space: nowrap;
-  line-height: 1.1;
-}
-
-.dic-key-point-tenor {
+.dic-matrix-head {
   color: var(--text-faint);
   font-size: 9px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
 }
 
-.dic-key-point-rate {
-  color: var(--text-primary);
+.dic-matrix-row {
+  border-bottom: 1px solid var(--border-subtle);
+  transition: background-color 100ms ease;
   font-size: 11px;
+}
+.dic-matrix-row:hover {
+  background: var(--bg-hover);
+}
+.dic-matrix-row:last-of-type {
+  border-bottom: none;
+}
+
+.dic-col-country {
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  font-size: 10px;
+}
+
+.dic-matrix-head .dic-col-country {
+  color: var(--text-faint);
+  font-size: 9px;
+}
+
+.dic-col-rate,
+.dic-col-metric {
+  text-align: right;
   font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--text-primary);
+  padding-right: 2px;
+}
+
+.dic-matrix-head .dic-col-rate,
+.dic-matrix-head .dic-col-metric {
+  color: var(--text-faint);
   font-weight: 700;
 }
 
-/* ── Curve analytics strip (slope + credit spreads) ── */
-.dic-metrics {
+.dic-col-rate-val {
+  color: var(--text-primary);
+}
+
+.dic-col-metric.pos { color: var(--price-up, #16c784); }
+.dic-col-metric.neg { color: var(--price-down, #ea3943); }
+
+.dic-matrix-note {
+  padding: 2px 8px 3px;
+  color: var(--text-faint);
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  background: var(--bg-surface);
+}
+
+/* ── 2×2 compact curve grid ───────────────────────────────────────── */
+.dic-grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  min-height: 120px;
+  overflow: hidden;
+}
+
+.dic-grid-cell {
   display: flex;
-  gap: 12px;
-  padding: 0 8px 3px;
+  flex-direction: column;
+  border-right: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border-subtle);
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+.dic-grid-cell:nth-child(even) { border-right: none; }
+.dic-grid-cell:nth-child(n+3)  { border-bottom: none; }
+
+.dic-grid-cell-hdr {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 2px 6px;
   flex-shrink: 0;
-  flex-wrap: wrap;
   border-bottom: 1px dashed var(--border-subtle);
 }
 
-.dic-metric {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 5px;
-  white-space: nowrap;
-  line-height: 1.1;
+.dic-grid-cell-label {
+  font-weight: 800;
+  font-size: 10px;
+  letter-spacing: 0.08em;
 }
 
-.dic-metric-lbl {
+.dic-grid-cell-note {
+  font-size: 8px;
   color: var(--text-faint);
-  font-size: 9px;
-  font-weight: 600;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 
-.dic-metric-val {
-  color: var(--text-secondary);
-  font-size: 10.5px;
-  font-variant-numeric: tabular-nums;
-  font-weight: 700;
-}
-
-.dic-metric-val.pos { color: var(--price-up, #16c784); }
-.dic-metric-val.neg { color: var(--price-down, #ea3943); }
-
-.dic-chart-area {
+.dic-grid-cell-chart {
   flex: 1;
+  min-height: 0;
   overflow: hidden;
-  min-height: 80px;
-  padding-top: 2px;
 }
 
 .dic-chart-loading,
@@ -153,31 +178,20 @@
   align-items: center;
   justify-content: center;
   color: var(--text-faint);
-  font-size: 11px;
-}
-
-.dic-chart-error {
+  font-size: 10px;
   flex-direction: column;
-  gap: 6px;
-}
-
-.dic-chart-error-detail {
-  font-size: 9px;
-  color: var(--text-faint);
-  max-width: 200px;
-  text-align: center;
-  line-height: 1.3;
+  gap: 4px;
 }
 
 .dic-retry-btn {
   background: none;
   border: 1px solid var(--border-default);
   color: var(--text-secondary);
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 600;
   letter-spacing: 0.08em;
-  padding: 4px 10px;
-  border-radius: 4px;
+  padding: 2px 6px;
+  border-radius: 3px;
   cursor: pointer;
   font-family: var(--font-ui);
   transition: border-color 120ms ease, color 120ms ease;
@@ -190,6 +204,7 @@
 .dic-source {
   padding: 2px 8px 3px;
   flex-shrink: 0;
+  border-top: 1px solid var(--border-subtle);
 }
 
 .dic-source-text {

@@ -32,7 +32,11 @@ import {
 } from './PortfolioPanelWidgets';
 import './PortfolioPanel.css';
 
-const COLS = '72px 56px 72px 72px 64px 20px 24px';
+// ticker | qty | entry | live | pnl% | toggle | remove
+// Was '72px 56px 72px 72px 64px 20px 24px' — pnl% 64px crushed by
+// 2-digit returns once positions move ≥10%. Widened to 76px to match
+// the shared panel column standard (utils/panelColumns.js COL_CHG_PCT).
+const COLS = '72px 56px 76px 80px 76px 20px 24px';
 
 // ── Individual position row with live price ──
 const PositionRow = memo(function PositionRow({ position, onTickerClick, onEdit, onRemove }) {

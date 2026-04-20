@@ -12,8 +12,10 @@ import { useFeedStatus } from '../../context/FeedStatusContext';
 import { useSparklineData } from '../../hooks/useSparklineData';
 import SkeletonLoader from '../shared/SkeletonLoader';
 import IntegrityBadge from '../shared/IntegrityBadge';
+import { COLS_STANDARD } from '../../utils/panelColumns';
 
-const COLS = '56px 1fr 80px 64px';
+// Was '56px 1fr 80px 64px' — chg% 64px tight for crypto volatility (+50% days happen).
+const COLS = COLS_STANDARD;
 
 const SORT_COLS = [
   { key: 'symbol', label: 'COIN', align: 'left' },

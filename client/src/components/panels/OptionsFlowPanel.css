@@ -1,4 +1,9 @@
-/* OptionsFlowPanel.css — SMART MONEY unified feed */
+/* OptionsFlowPanel.css — SMART MONEY tabular feed
+ *
+ * CIO-note (2026-04-20): grid rows, not cards. Six columns:
+ *   TKR | TYPE | DETAIL | SIZE | SIG | TIME
+ * Same information density as StockPanel / WatchlistPanel.
+ */
 
 .sm-panel {
   display: flex;
@@ -6,34 +11,35 @@
   height: 100%;
   overflow: hidden;
   font-family: var(--font-mono);
+  background: var(--bg-panel);
 }
 
-/* ── Header — matches EditablePanelHeader standard ────────── */
+/* ── Header ────────────────────────────────────────────────── */
 .sm-hdr {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 8px;
-  border-bottom: 1px solid var(--border-strong);
-  background: var(--bg-elevated);
+  padding: 2px 8px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
   flex-shrink: 0;
-  min-height: 26px;
+  height: 20px;
 }
 
 .sm-hdr-title {
-  font-family: var(--font-family-mono);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-bold);
-  letter-spacing: 0.08em;
+  font-family: var(--font-mono);
+  font-size: var(--font-sm);
+  font-weight: 700;
+  letter-spacing: 0.15em;
   text-transform: uppercase;
-  color: var(--color-text-primary);
+  color: var(--text-muted);
   line-height: 1;
 }
 
 .sm-hdr-sub {
   font-size: 9px;
-  color: var(--text-muted, #666);
-  letter-spacing: 0.03em;
+  color: var(--text-faint);
+  letter-spacing: 0.04em;
 }
 
 .sm-hdr-right {
@@ -46,7 +52,7 @@
 
 .sm-hdr-ts {
   font-size: 9px;
-  color: var(--text-faint, #444);
+  color: var(--text-faint);
   font-family: var(--font-mono);
 }
 
@@ -66,14 +72,15 @@
   border-color: var(--text-muted);
 }
 
-/* ── Pulse bar — compact call/put sentiment ───────────────── */
+/* ── Pulse bar ────────────────────────────────────────────── */
 .sm-pulse {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 8px;
-  border-bottom: 1px solid var(--border-default, rgba(255,255,255,0.07));
+  padding: 3px 8px;
+  border-bottom: 1px solid var(--border-subtle);
   flex-shrink: 0;
+  background: var(--bg-panel);
 }
 
 .sm-pulse-label {
@@ -112,26 +119,16 @@
   text-align: center;
 }
 
-.sm-pulse--bull {
-  color: var(--price-up);
-  background: rgba(34, 197, 94, 0.08);
-}
+.sm-pulse--bull { color: var(--price-up);   background: rgba(34, 197, 94, 0.08); }
+.sm-pulse--bear { color: var(--price-down); background: rgba(239, 68, 68, 0.08); }
+.sm-pulse--neut { color: var(--text-muted); background: rgba(255, 255, 255, 0.04); }
 
-.sm-pulse--bear {
-  color: var(--price-down);
-  background: rgba(239, 68, 68, 0.08);
-}
-
-.sm-pulse--neut {
-  color: var(--text-muted);
-  background: rgba(255, 255, 255, 0.04);
-}
-
-/* ── Filter tabs ──────────────────────────────────────────── */
+/* ── Filter tabs ───────────────────────────────────────────── */
 .sm-tabs {
   display: flex;
-  border-bottom: 1px solid var(--border-default, rgba(255,255,255,0.07));
+  border-bottom: 1px solid var(--border-subtle);
   flex-shrink: 0;
+  background: var(--bg-surface);
 }
 
 .sm-tab {
@@ -143,19 +140,17 @@
   background: none;
   border: none;
   border-bottom: 2px solid transparent;
-  color: var(--text-faint, #555);
+  color: var(--text-faint);
   font-family: var(--font-mono);
   font-size: 9px;
   font-weight: 600;
   letter-spacing: 0.05em;
-  padding: 4px 2px;
+  padding: 3px 2px;
   cursor: pointer;
   transition: color 0.15s;
 }
 
-.sm-tab:hover {
-  color: var(--text-primary);
-}
+.sm-tab:hover { color: var(--text-primary); }
 
 .sm-tab--active {
   color: var(--text-primary);
@@ -164,8 +159,116 @@
 
 .sm-tab-count {
   font-size: 8px;
-  color: var(--text-faint, #555);
+  color: var(--text-faint);
   opacity: 0.7;
+}
+
+/* ── Tabular rows ─────────────────────────────────────────── */
+/* Column template — TKR | TYPE | DETAIL | SIZE | SIG | TIME */
+.sm-row {
+  display: grid;
+  grid-template-columns: 52px 60px 1fr 56px 22px 38px;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-bottom: 1px solid var(--border-subtle);
+  border-left: 2px solid transparent;
+  transition: background 100ms ease;
+  font-size: 10.5px;
+}
+
+.sm-row:hover   { background: var(--bg-hover); }
+.sm-row--bull   { border-left-color: var(--price-up); }
+.sm-row--bear   { border-left-color: var(--price-down); }
+
+.sm-row-hdr {
+  background: var(--bg-surface);
+  color: var(--text-faint);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--border-subtle);
+  padding: 2px 8px;
+  border-left: 2px solid transparent;
+}
+
+.sm-row-hdr:hover { background: var(--bg-surface); }
+
+.sm-col-ticker {
+  color: var(--text-primary);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  font-family: var(--font-mono);
+  white-space: nowrap;
+}
+
+.sm-col-type, .sm-type {
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 1px 3px;
+  border-radius: 2px;
+  text-transform: uppercase;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.sm-type--options {
+  color: #60a5fa;
+  background: rgba(96, 165, 250, 0.10);
+  border: 1px solid rgba(96, 165, 250, 0.18);
+}
+.sm-type--golden {
+  color: #fbbf24 !important;
+  background: rgba(251, 191, 36, 0.12) !important;
+  border-color: rgba(251, 191, 36, 0.28) !important;
+}
+.sm-type--darkpool {
+  color: #a78bfa;
+  background: rgba(167, 139, 250, 0.10);
+  border: 1px solid rgba(167, 139, 250, 0.18);
+}
+.sm-type--congress {
+  color: #f0c040;
+  background: rgba(240, 192, 64, 0.10);
+  border: 1px solid rgba(240, 192, 64, 0.18);
+}
+
+.sm-col-detail {
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10.5px;
+}
+
+.sm-col-size {
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.sm-col-signal {
+  text-align: center;
+  font-weight: 700;
+  font-size: 11px;
+}
+
+.sm-sig--bull { color: var(--price-up); }
+.sm-sig--bear { color: var(--price-down); }
+.sm-sig--neut { color: var(--text-faint); }
+
+.sm-col-time {
+  color: var(--text-faint);
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  text-align: right;
+  white-space: nowrap;
 }
 
 /* ── Feed ─────────────────────────────────────────────────── */
@@ -173,7 +276,7 @@
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 2px 0;
+  min-height: 0;
 }
 
 .sm-feed::-webkit-scrollbar { width: 4px; }
@@ -183,104 +286,12 @@
   border-radius: 2px;
 }
 
-/* ── Feed item card ───────────────────────────────────────── */
-.sm-item {
-  padding: 6px 8px;
-  border-bottom: 1px solid var(--border-subtle, rgba(255,255,255,0.04));
-  border-left: 2px solid transparent;
-  transition: background 120ms ease;
-}
-
-.sm-item:hover {
-  background: rgba(255, 255, 255, 0.02);
-}
-
-.sm-item--bull {
-  border-left-color: var(--price-up);
-}
-
-.sm-item--bear {
-  border-left-color: var(--price-down);
-}
-
-.sm-item-top {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 2px;
-}
-
-.sm-item-ticker {
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--text-primary, #fff);
-  letter-spacing: 0.04em;
-  font-family: var(--font-mono);
-}
-
-.sm-type-badge {
-  font-size: 8px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  padding: 1px 4px;
-  border-radius: 2px;
-  text-transform: uppercase;
-}
-
-.sm-type--options {
-  color: #60a5fa;
-  background: rgba(96, 165, 250, 0.10);
-  border: 1px solid rgba(96, 165, 250, 0.15);
-}
-
-.sm-type--golden {
-  color: #fbbf24 !important;
-  background: rgba(251, 191, 36, 0.12) !important;
-  border-color: rgba(251, 191, 36, 0.20) !important;
-}
-
-.sm-type--darkpool {
-  color: #a78bfa;
-  background: rgba(167, 139, 250, 0.10);
-  border: 1px solid rgba(167, 139, 250, 0.15);
-}
-
-.sm-type--congress {
-  color: #f0c040;
-  background: rgba(240, 192, 64, 0.10);
-  border: 1px solid rgba(240, 192, 64, 0.15);
-}
-
-.sm-item-time {
-  font-size: 9px;
-  color: var(--text-faint, #555);
-  margin-left: auto;
-  font-family: var(--font-mono);
-}
-
-.sm-item-narrative {
-  font-size: 11px;
-  line-height: 1.4;
-  color: var(--text-secondary, #aaa);
-  font-family: var(--font-body, inherit);
-}
-
-.sm-item-signal {
-  font-size: 8px;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  margin-top: 2px;
-}
-
-.sm-signal--bullish { color: var(--price-up); }
-.sm-signal--bearish { color: var(--price-down); }
-
 /* ── Empty state ──────────────────────────────────────────── */
 .sm-empty {
-  padding: 24px 12px;
+  padding: 18px 12px;
   text-align: center;
-  color: var(--text-faint, #555);
-  font-size: 11px;
+  color: var(--text-faint);
+  font-size: 10.5px;
 }
 
 /* ── Footer ───────────────────────────────────────────────── */
@@ -289,22 +300,17 @@
   align-items: center;
   justify-content: space-between;
   padding: 2px 8px;
-  border-top: 1px solid var(--border-default);
+  border-top: 1px solid var(--border-subtle);
   background: var(--bg-surface);
   flex-shrink: 0;
-  min-height: 18px;
+  min-height: 16px;
 }
 
-.sm-footer-src {
-  font-size: 8px;
-  color: var(--text-faint, #444);
-  letter-spacing: 0.04em;
-  opacity: 0.6;
-}
-
+.sm-footer-src,
 .sm-footer-count {
-  font-size: 8px;
-  color: var(--text-faint, #444);
+  font-size: 8.5px;
+  color: var(--text-faint);
+  letter-spacing: 0.04em;
+  opacity: 0.7;
   font-family: var(--font-mono);
-  opacity: 0.6;
 }

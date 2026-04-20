@@ -12,8 +12,13 @@ import PanelShell from '../common/PanelShell';
 import { PriceRow } from '../common/PriceRow';
 import ColumnHeaders from '../common/ColumnHeaders';
 import { apiFetch } from '../../utils/api';
+import { COLS_STANDARD } from '../../utils/panelColumns';
 
-const COLS = '52px 1fr 64px 52px';
+// CIO-note (2026-04-20): was '52px 1fr 64px 52px' — CHG% of 52px crushed
+// 2-digit % values into the price column (ONCO3 +15.33% case). The
+// shared template reserves 76px for CHG% and 80px for price across the
+// board so this bug cannot recur panel-by-panel.
+const COLS = COLS_STANDARD;
 
 const SORT_COLS = [
   { key: 'symbol', label: 'TICKER', align: 'left' },

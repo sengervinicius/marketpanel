@@ -1,5 +1,8 @@
 /* ══════════════════════════════════════════════════════
    PredictionPanel — Prediction Markets terminal panel
+   CIO-note (2026-04-20): redesigned from stacked cards to
+   Bloomberg-style tabular rows. Columns:
+     QUESTION | SRC | BAR | % | VOL | CLOSE
    ══════════════════════════════════════════════════════ */
 
 .pred-panel {
@@ -7,7 +10,8 @@
   flex-direction: column;
   height: 100%;
   overflow: hidden;
-  font-family: var(--font-ui, inherit);
+  font-family: var(--font-mono);
+  background: var(--bg-panel);
 }
 
 /* ── Header ── */
@@ -15,25 +19,26 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 8px;
-  border-bottom: 1px solid var(--border-strong);
-  background: var(--bg-elevated);
+  padding: 2px 8px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
   flex-shrink: 0;
+  height: 20px;
 }
 
 .pred-title {
-  font-family: var(--font-family-mono);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-bold);
-  letter-spacing: 0.08em;
+  font-family: var(--font-mono);
+  font-size: var(--font-sm);
+  font-weight: 700;
+  letter-spacing: 0.15em;
   text-transform: uppercase;
-  color: var(--color-text-primary);
+  color: var(--text-muted);
   line-height: 1;
 }
 
 .pred-interests {
   font-size: 9px;
-  color: var(--text-muted, #666);
+  color: var(--text-faint);
   letter-spacing: 0.03em;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -44,7 +49,7 @@
 
 .pred-sources {
   font-size: 9px;
-  color: var(--text-faint, #444);
+  color: var(--text-faint);
   letter-spacing: 0.04em;
   margin-left: auto;
   flex-shrink: 0;
@@ -54,10 +59,10 @@
 .pred-categories {
   display: flex;
   gap: 4px;
-  padding: 6px 12px;
+  padding: 3px 8px;
   overflow-x: auto;
   flex-shrink: 0;
-  border-bottom: 1px solid var(--border-default, rgba(255,255,255,0.07));
+  border-bottom: 1px solid var(--border-subtle);
   scrollbar-width: none;
 }
 .pred-categories::-webkit-scrollbar { display: none; }
@@ -66,22 +71,23 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  padding: 3px 8px;
-  font-size: 10px;
+  padding: 2px 6px;
+  font-size: 9.5px;
   font-weight: 600;
   letter-spacing: 0.04em;
-  color: var(--text-faint, #444);
+  color: var(--text-faint);
   background: transparent;
-  border: 1px solid var(--border-default, rgba(255,255,255,0.07));
-  border-radius: 4px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 3px;
   cursor: pointer;
   white-space: nowrap;
   transition: all 120ms ease;
+  font-family: var(--font-mono);
 }
 
 .pred-cat-pill:hover {
-  color: var(--text-secondary, #999);
-  border-color: var(--border-strong, rgba(255,255,255,0.12));
+  color: var(--text-secondary);
+  border-color: var(--border-strong);
 }
 
 .pred-cat-pill--active {
@@ -98,121 +104,90 @@
 
 .pred-cat-count {
   font-size: 9px;
-  color: var(--text-faint, #444);
+  color: var(--text-faint);
   opacity: 0.6;
 }
 
-/* ── Markets list ── */
-.pred-list {
-  flex: 1;
-  overflow-y: auto;
-  padding: 4px 0;
-}
-
-.pred-loading,
-.pred-empty,
-.pred-error {
-  padding: 16px 12px;
-  text-align: center;
-  font-size: 11px;
-  color: var(--text-faint, #444);
-}
-
-.pred-error {
-  color: var(--color-down);
-}
-
-/* ── Prediction card ──
-   Layout (2026-04-20 CIO redesign):
-     L1 question       — full width, 2-line clamp, not competing with badges
-     L2 badges         — source label + reason chip, own line
-     L3 probability    — 6px bar with 25/50/75 tick marks + % label
-     L4 split footer   — volume left, close date right (justify-between)
+/* ── Tabular rows ──
+   Columns: QUESTION | SRC | BAR | PCT | VOL | CLOSE
 */
-.pred-card {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  padding: 10px 14px;
-  border-bottom: 1px solid var(--border-subtle, rgba(255,255,255,0.04));
-  transition: background 120ms ease;
-}
-
-.pred-card:hover {
-  background: rgba(255, 255, 255, 0.02);
-}
-
-.pred-card-question {
-  font-size: 12.5px;
-  font-weight: 600;
-  color: var(--text-primary, #fff);
-  line-height: 1.35;
-  overflow: hidden;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-}
-
-.pred-card-badges {
-  display: flex;
+.pred-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 42px 100px 40px 60px 56px;
   align-items: center;
   gap: 6px;
-  flex-wrap: wrap;
+  padding: 3px 8px;
+  border-bottom: 1px solid var(--border-subtle);
+  transition: background 100ms ease;
+  font-size: 11px;
 }
+.pred-row:hover { background: var(--bg-hover); }
 
-.pred-card-reason {
+.pred-row-hdr {
+  background: var(--bg-surface);
+  color: var(--text-faint);
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.06em;
-  color: var(--text-secondary, #aab);
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 3px;
-  padding: 2px 6px;
   text-transform: uppercase;
-  white-space: nowrap;
-}
-
-.pred-card-source {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  border-bottom: 1px solid var(--border-subtle);
   padding: 2px 8px;
-  border-radius: 3px;
-  font-size: 9.5px;
+}
+.pred-row-hdr:hover { background: var(--bg-surface); }
+
+.pred-col-q {
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+  line-height: 1.3;
+}
+.pred-row-hdr .pred-col-q { color: var(--text-faint); font-weight: 700; }
+
+.pred-col-src {
+  font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.05em;
+  padding: 1px 3px;
+  border-radius: 2px;
+  text-align: center;
   text-transform: uppercase;
-  white-space: nowrap;
+}
+.pred-row-hdr .pred-col-src {
+  color: var(--text-faint);
+  padding: 0;
+  background: none;
+  border: none;
 }
 
-.pred-card-source[data-source="kalshi"] {
-  background: rgba(59, 130, 246, 0.15);
+.pred-src--kalshi {
   color: #60a5fa;
+  background: rgba(59, 130, 246, 0.12);
+  border: 1px solid rgba(96, 165, 250, 0.2);
 }
 
-.pred-card-source[data-source="polymarket"] {
-  background: rgba(168, 85, 247, 0.15);
+.pred-src--polymarket {
   color: #c084fc;
+  background: rgba(168, 85, 247, 0.12);
+  border: 1px solid rgba(192, 132, 252, 0.2);
 }
 
-/* ── Probability bar ── */
-.pred-card-bar-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+/* ── Inline probability bar ── */
+.pred-col-bar {
+  min-width: 0;
 }
 
-.pred-card-bar {
-  flex: 1;
+.pred-bar {
   position: relative;
   height: 6px;
-  background: var(--bg-panel, rgba(255,255,255,0.06));
+  width: 100%;
+  background: rgba(255, 255, 255, 0.06);
   border-radius: 3px;
   overflow: hidden;
 }
 
-.pred-card-bar-fill {
+.pred-bar-fill {
   position: absolute;
   top: 0;
   left: 0;
@@ -222,41 +197,68 @@
   z-index: 1;
 }
 
-.pred-card-bar-tick {
+.pred-bar-tick {
   position: absolute;
   top: 1px;
   bottom: 1px;
   width: 1px;
-  background: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.2);
   z-index: 2;
   pointer-events: none;
 }
 
-.pred-card-pct {
-  font-size: 13px;
+.pred-col-pct {
+  font-family: var(--font-mono);
   font-weight: 700;
-  font-family: var(--font-mono, monospace);
-  min-width: 42px;
+  font-size: 11px;
   text-align: right;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
-
-/* ── Split footer (vol left, close right) ── */
-.pred-card-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  font-size: 10.5px;
-  color: var(--text-faint, #666);
-  font-family: var(--font-mono, monospace);
-}
-
-.pred-card-vol strong {
-  color: var(--text-secondary, #999);
+.pred-row-hdr .pred-col-pct {
+  color: var(--text-faint);
   font-weight: 700;
 }
 
-.pred-card-close {
-  color: var(--text-faint, #666);
+.pred-col-vol,
+.pred-col-close {
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
+
+.pred-col-close {
+  color: var(--text-faint);
+}
+
+.pred-row-hdr .pred-col-vol,
+.pred-row-hdr .pred-col-close {
+  color: var(--text-faint);
+}
+
+/* ── List + states ── */
+.pred-list {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+.pred-list::-webkit-scrollbar { width: 4px; }
+.pred-list::-webkit-scrollbar-track { background: transparent; }
+.pred-list::-webkit-scrollbar-thumb {
+  background: var(--border-default);
+  border-radius: 2px;
+}
+
+.pred-loading,
+.pred-empty,
+.pred-error {
+  padding: 16px 12px;
+  text-align: center;
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+.pred-error { color: var(--color-down); }

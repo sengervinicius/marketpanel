@@ -1,13 +1,22 @@
 /**
- * PredictionPanel.jsx — Prediction Markets panel for the terminal grid.
+ * PredictionPanel.jsx — Prediction Markets panel.
  *
- * Shows live prediction market data from Kalshi and Polymarket.
- * Default view: AI-personalized picks based on user's portfolio/watchlist/interests.
- * User can switch to category-based browsing.
+ * CIO-note (2026-04-20): redesigned from stacked PredictionCard
+ * components (4-row-per-item cards) to Bloomberg-style tabular rows.
+ * One row per market. Columns:
+ *   QUESTION | SOURCE | PROBABILITY BAR | PCT | VOL | CLOSE
+ *
+ * Category pills above remain (same interaction model) but the list
+ * body is now a dense grid that matches StockPanel / WatchlistPanel
+ * density. The bar is inline so probability shape is still visible.
+ *
+ * Data: /api/predictions (category browse) + /api/predictions/for-you
+ * (personalized). 2-minute auto-refresh.
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { apiFetch } from '../../utils/api';
 import './PredictionPanel.css';
+
 const REFRESH_INTERVAL = 120_000; // 2 min
 
 const CATEGORY_LABELS = {
@@ -30,26 +39,32 @@ function probabilityColor(p) {
 }
 
 function formatVolume(v) {
-  if (!v) return '--';
+  if (!v) return '—';
   if (v >= 1_000_000) return `$${(v / 1_000_000).toFixed(1)}M`;
-  if (v >= 1_000) return `$${(v / 1_000).toFixed(0)}K`;
+  if (v >= 1_000)     return `$${(v / 1_000).toFixed(0)}K`;
   return `$${Math.round(v)}`;
 }
 
+function formatClose(ts) {
+  if (!ts) return '—';
+  try {
+    return new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  } catch { return '—'; }
+}
+
 export default function PredictionPanel() {
-  const [markets, setMarkets] = useState([]);
-  const [categories, setCategories] = useState([]);
+  const [markets, setMarkets]               = useState([]);
+  const [categories, setCategories]         = useState([]);
   const [activeCategory, setActiveCategory] = useState('for-you');
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [interests, setInterests] = useState([]);
+  const [loading, setLoading]               = useState(true);
+  const [error, setError]                   = useState(null);
+  const [interests, setInterests]           = useState([]);
   const [isPersonalized, setIsPersonalized] = useState(false);
   const timerRef = useRef(null);
 
   const fetchData = useCallback(async () => {
     try {
       if (activeCategory === 'for-you') {
-        // Personalized endpoint
         const [forYouData, catsData] = await Promise.all([
           apiFetch('/api/predictions/for-you?limit=12').then(r => r.json()).catch(() => null),
           apiFetch('/api/predictions/categories').then(r => r.json()).catch(() => null),
@@ -62,7 +77,6 @@ export default function PredictionPanel() {
         }
         if (catsData?.categories) setCategories(catsData.categories);
       } else {
-        // Category-based browsing
         const params = new URLSearchParams({ limit: '30' });
         if (activeCategory !== 'all') params.set('category', activeCategory);
 
@@ -106,7 +120,6 @@ export default function PredictionPanel() {
 
       {/* Category filter pills */}
       <div className="pred-categories">
-        {/* For You pill — always first */}
         <button
           className={`pred-cat-pill${activeCategory === 'for-you' ? ' pred-cat-pill--active pred-cat-pill--foryou' : ''}`}
           onClick={() => setActiveCategory('for-you')}
@@ -129,10 +142,20 @@ export default function PredictionPanel() {
         ))}
       </div>
 
-      {/* Markets list */}
+      {/* Column headers */}
+      <div className="pred-row pred-row-hdr">
+        <span className="pred-col-q">QUESTION</span>
+        <span className="pred-col-src">SRC</span>
+        <span className="pred-col-bar">PROBABILITY</span>
+        <span className="pred-col-pct">%</span>
+        <span className="pred-col-vol">VOL 24H</span>
+        <span className="pred-col-close">CLOSE</span>
+      </div>
+
+      {/* Tabular rows */}
       <div className="pred-list">
         {loading && markets.length === 0 && (
-          <div className="pred-loading">Loading prediction markets...</div>
+          <div className="pred-loading">Loading prediction markets…</div>
         )}
 
         {error && (
@@ -144,63 +167,45 @@ export default function PredictionPanel() {
         )}
 
         {markets.map((m, i) => (
-          <PredictionCard key={`${m.source}-${m.id}-${i}`} market={m} />
+          <PredictionRow key={`${m.source}-${m.id}-${i}`} market={m} />
         ))}
       </div>
     </div>
   );
 }
 
-function PredictionCard({ market }) {
+function PredictionRow({ market }) {
   const pct = market.probability != null ? Math.round(market.probability * 100) : null;
-  const barColor = pct != null ? probabilityColor(market.probability) : 'var(--color-text-muted)';
+  const barColor = pct != null ? probabilityColor(market.probability) : 'var(--text-faint)';
+  const sourceShort = market.source === 'kalshi' ? 'KAL'
+    : market.source === 'polymarket' ? 'POLY'
+    : (market.source || '').toUpperCase().slice(0, 4);
+  const question = market.title || market.question || '—';
   const reason = market._reason;
-  const sourceLabel = market.source === 'kalshi' ? 'Kalshi' : market.source === 'polymarket' ? 'Polymarket' : market.source;
 
   return (
-    <div className="pred-card">
-      {/* L1: Question — full width, no badges crowding it */}
-      <div className="pred-card-question">{market.title || market.question}</div>
-
-      {/* L2: Badges on their own line */}
-      <div className="pred-card-badges">
-        <span className="pred-card-source" data-source={market.source}>
-          {sourceLabel}
-        </span>
-        {reason && reason !== 'trending' && (
-          <span className="pred-card-reason">{reason}</span>
-        )}
-      </div>
-
-      {/* L3: Probability bar with tick marks (25/50/75) */}
-      <div className="pred-card-bar-row">
-        <div className="pred-card-bar" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct || 0}>
-          {/* Tick marks at 25%, 50%, 75% — help read the bar at a glance */}
-          <span className="pred-card-bar-tick" style={{ left: '25%' }} />
-          <span className="pred-card-bar-tick" style={{ left: '50%' }} />
-          <span className="pred-card-bar-tick" style={{ left: '75%' }} />
+    <div className="pred-row" title={question + (reason && reason !== 'trending' ? ` · ${reason}` : '')}>
+      <span className="pred-col-q" title={question}>{question}</span>
+      <span className={`pred-col-src pred-src--${market.source}`}>{sourceShort}</span>
+      <div className="pred-col-bar">
+        <div className="pred-bar" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct || 0}>
+          <span className="pred-bar-tick" style={{ left: '25%' }} />
+          <span className="pred-bar-tick" style={{ left: '50%' }} />
+          <span className="pred-bar-tick" style={{ left: '75%' }} />
           <div
-            className="pred-card-bar-fill"
+            className="pred-bar-fill"
             style={{
               width: pct != null ? `${pct}%` : '0%',
               background: barColor,
             }}
           />
         </div>
-        <span className="pred-card-pct" style={{ color: barColor }}>
-          {pct != null ? `${pct}%` : '--'}
-        </span>
       </div>
-
-      {/* L4: Split footer — volume left, close date right */}
-      <div className="pred-card-footer">
-        <span className="pred-card-vol">Vol&nbsp;<strong>{formatVolume(market.volume24h)}</strong></span>
-        <span className="pred-card-close">
-          {market.closeTime
-            ? `Closes ${new Date(market.closeTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
-            : ''}
-        </span>
-      </div>
+      <span className="pred-col-pct" style={{ color: barColor }}>
+        {pct != null ? `${pct}%` : '—'}
+      </span>
+      <span className="pred-col-vol">{formatVolume(market.volume24h)}</span>
+      <span className="pred-col-close">{formatClose(market.closeTime)}</span>
     </div>
   );
 }

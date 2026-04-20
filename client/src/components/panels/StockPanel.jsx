@@ -18,12 +18,14 @@ import SkeletonLoader from '../shared/SkeletonLoader';
 import { US_STOCKS, BRAZIL_ADRS } from '../../utils/constants';
 import { useFeedStatus } from '../../context/FeedStatusContext';
 import IntegrityBadge from '../shared/IntegrityBadge';
+import { COLS_STANDARD } from '../../utils/panelColumns';
 import '../common/Shimmer.css';
 import './StockPanel.css';
 
 const fmt    = (n) => n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmtPct = (n) => n == null ? '—' : (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
-const COLS   = '60px 1fr 68px 60px';
+// Shared template — CHG% is 76px so 2-digit moves don't collide with price.
+const COLS   = COLS_STANDARD;
 
 const showInfo = (e, symbol, label, type) => {
   e.preventDefault();
@@ -156,22 +158,17 @@ function StockPanel({ data = {}, loading, onTickerClick }) {
     updatePanelConfig('usEquities', { ...panelCfg, ...updates });
   }, [panelCfg, updatePanelConfig]);
 
-  // Handle drop ticker into panel — add to a custom subsection so it's visible
+  // Handle drop ticker into panel.
+  // CIO-note (2026-04-20): append directly to main symbols list
+  // instead of creating the "ADDED" custom subsection. For US
+  // equities, the new symbol will render under either US EQUITIES
+  // or BRAZIL ADRs depending on whether it lives in BRAZIL_ADRS.
   const handleDropTicker = (ticker) => {
-    const sym = ticker.trim().toUpperCase();
+    let sym = String(ticker || '').trim().toUpperCase();
     if (!sym) return;
-    const subs = [...customSubsections];
-    let target = subs.find(s => s.key === 'custom-dropped');
-    if (!target) {
-      target = { key: 'custom-dropped', label: 'ADDED', color: '#00bcd4', symbols: [] };
-      subs.push(target);
-    }
-    if (target.symbols.includes(sym)) return;
-    const updated = subs.map(s =>
-      s.key === target.key ? { ...s, symbols: [...s.symbols, sym] } : s
-    );
-    saveCfg({ customSubsections: updated });
-    // Phase 8: flash the newly dropped row
+    sym = sym.replace(/^(C:|X:)/, '');
+    if (panelSymbols.includes(sym)) return;
+    saveCfg({ symbols: [...panelSymbols, sym] });
     setFlashSym(sym);
     setTimeout(() => setFlashSym(null), 1500);
   };

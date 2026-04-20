@@ -33,7 +33,11 @@ function PriceRow({
   // Phase 2: optional sparkline data (array of numbers)
   sparklineData = null,
   symbolColor = 'var(--text-primary)',
-  columns = '60px 1fr 68px 60px',
+  // CIO-note (2026-04-20): default grid matches utils/panelColumns.js
+  // COLS_STANDARD. A 2-digit CHG% (e.g. +15.33%) no longer collides
+  // with the price column at the default. Individual panels still pass
+  // their own `columns` via the shared constants in panelColumns.js.
+  columns = '60px 1fr 80px 76px',
   decimals = 2,
   // Interaction handlers
   onClick,
