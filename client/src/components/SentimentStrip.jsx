@@ -29,6 +29,17 @@ import './SentimentStrip.css';
 
 const REFRESH_MS = 120_000;
 
+// Yahoo Finance uses prefixed symbols for indices / DXY; we ask Yahoo directly
+// using its native symbols, then map back to friendly keys the UI expects.
+const YAHOO_TO_FRIENDLY = {
+  'SPY':      'SPY',
+  'QQQ':      'QQQ',
+  '^VIX':     'VIX',
+  'DX-Y.NYB': 'DXY',
+  '^TNX':     'TNX',
+};
+const REQ_SYMBOLS = Object.keys(YAHOO_TO_FRIENDLY);
+
 function moodColor(v) {
   if (v == null) return 'var(--text-faint)';
   if (v <= 20) return 'var(--sent-bear, #e05c8a)';
@@ -93,25 +104,31 @@ export default function SentimentStrip() {
 
   async function load() {
     try {
+      const tickersQuery = encodeURIComponent(REQ_SYMBOLS.join(','));
       const [fgRes, snapRes] = await Promise.all([
         apiFetch('/api/fear-greed').then(r => r.ok ? r.json() : null).catch(() => null),
-        apiFetch('/api/snapshot/stocks?tickers=SPY,QQQ,VIX,DXY,TNX').then(r => r.ok ? r.json() : null).catch(() => null),
+        apiFetch(`/api/snapshot/stocks?tickers=${tickersQuery}`).then(r => r.ok ? r.json() : null).catch(() => null),
       ]);
 
       if (fgRes) setFg(fgRes);
 
-      // Normalize snap into ticker-keyed map
+      // Normalize snap into FRIENDLY-keyed map (SPY, VIX, DXY, TNX)
       if (snapRes) {
         const map = {};
         const tickers = snapRes.tickers || snapRes.results || snapRes.data || [];
         const arr = Array.isArray(tickers) ? tickers : Object.values(tickers);
         arr.forEach(t => {
-          const sym = t.ticker || t.symbol || t.T;
-          if (!sym) return;
-          const price = t.lastTrade?.p ?? t.price ?? t.last ?? t.c;
+          const rawSym = t.ticker || t.symbol || t.T;
+          if (!rawSym) return;
+          const key = YAHOO_TO_FRIENDLY[rawSym] || rawSym;
+          const price = t.lastTrade?.p ?? t.price ?? t.last ?? t.day?.c ?? t.c;
           const pct = t.todaysChangePerc ?? t.changePercent ?? t.percent_change ?? t.cp;
-          map[sym] = { price, pct };
+          map[key] = { price, pct };
         });
+        // Yahoo returns ^TNX in tenths of a percent (e.g. 42.5 → 4.25%).
+        if (map.TNX && Number.isFinite(map.TNX.price) && map.TNX.price > 20) {
+          map.TNX = { ...map.TNX, price: map.TNX.price / 10 };
+        }
         setSnap(map);
       }
 
