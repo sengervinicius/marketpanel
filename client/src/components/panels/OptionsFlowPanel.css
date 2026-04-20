@@ -206,18 +206,245 @@
   text-transform: none;
 }
 
-/* ── Feed / cluster container ─────────────────────────────── */
-.sm-feed {
+/* ── Tile grid — the main visual surface ──────────────────── */
+/* v4 (2026-04-20): investors don't want strike/expiry trade rows in
+ * the main view. Each ticker gets a compact sentiment tile; clicking
+ * opens a drawer with the granular trade detail. */
+.sm-tiles {
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
   min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 4px;
+  padding: 6px;
+  align-content: start;
 }
-.sm-feed::-webkit-scrollbar { width: 4px; }
-.sm-feed::-webkit-scrollbar-track { background: transparent; }
-.sm-feed::-webkit-scrollbar-thumb {
+.sm-tiles::-webkit-scrollbar { width: 4px; }
+.sm-tiles::-webkit-scrollbar-track { background: transparent; }
+.sm-tiles::-webkit-scrollbar-thumb {
   background: var(--border-default);
   border-radius: 2px;
+}
+
+/* ── Ticker tile ───────────────────────────────────────────── */
+.sm-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 6px 8px 7px;
+  border-radius: 4px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-elevated);
+  font-family: var(--font-family-mono);
+  cursor: pointer;
+  text-align: left;
+  transition: transform 80ms ease, border-color 120ms ease, background 120ms ease;
+  position: relative;
+  overflow: hidden;
+  min-height: 56px;
+}
+.sm-tile:hover {
+  transform: translateY(-1px);
+  border-color: var(--text-muted);
+}
+.sm-tile:focus-visible {
+  outline: 2px solid var(--accent, #F97316);
+  outline-offset: 1px;
+}
+
+.sm-tile--bull {
+  background: linear-gradient(180deg, rgba(34,197,94,0.10) 0%, rgba(34,197,94,0.03) 60%, var(--bg-elevated) 100%);
+  border-color: rgba(34,197,94,0.25);
+}
+.sm-tile--bear {
+  background: linear-gradient(180deg, rgba(239,68,68,0.10) 0%, rgba(239,68,68,0.03) 60%, var(--bg-elevated) 100%);
+  border-color: rgba(239,68,68,0.25);
+}
+.sm-tile--mix {
+  background: var(--bg-elevated);
+  border-color: var(--border-subtle);
+}
+
+.sm-tile--selected {
+  border-color: var(--accent, #F97316) !important;
+  box-shadow: 0 0 0 1px var(--accent, #F97316) inset;
+}
+
+/* Tile top row: ticker + net $ pill */
+.sm-tile-top {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.sm-tile-ticker {
+  font-weight: 800;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  color: var(--text-primary);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sm-tile-star {
+  color: #fbbf24;
+  font-size: 11px;
+  line-height: 1;
+  text-shadow: 0 0 4px rgba(251, 191, 36, 0.6);
+  flex-shrink: 0;
+}
+
+.sm-tile-net {
+  font-family: var(--font-family-mono);
+  font-size: 10.5px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  padding: 1px 5px;
+  border-radius: 2px;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.sm-tile-net--bullish {
+  color: var(--price-up);
+  background: rgba(34, 197, 94, 0.12);
+}
+.sm-tile-net--bearish {
+  color: var(--price-down);
+  background: rgba(239, 68, 68, 0.12);
+}
+.sm-tile-net--mixed {
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+/* Bull vs bear sentiment bar — two segments sharing a 100% track */
+.sm-tile-bar {
+  display: flex;
+  align-items: stretch;
+  height: 5px;
+  border-radius: 2px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.05);
+}
+.sm-tile-bar-bull {
+  background: var(--price-up, #22c55e);
+  transition: width 400ms ease;
+  min-width: 0;
+}
+.sm-tile-bar-bear {
+  background: var(--price-down, #ef4444);
+  transition: width 400ms ease;
+  min-width: 0;
+}
+
+/* Tile bottom: meta */
+.sm-tile-meta {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 9px;
+  color: var(--text-muted);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  min-height: 11px;
+}
+.sm-tile-sig {
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+.sm-tile-sep { opacity: 0.5; }
+.sm-tile-types { letter-spacing: 0.02em; }
+
+/* ── Detail drawer ────────────────────────────────────────── */
+.sm-drawer {
+  flex-shrink: 0;
+  max-height: 40%;
+  overflow-y: auto;
+  border-top: 1px solid var(--border-strong);
+  background: var(--bg-panel);
+  animation: sm-drawer-in 140ms ease-out;
+}
+@keyframes sm-drawer-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.sm-drawer::-webkit-scrollbar { width: 4px; }
+.sm-drawer::-webkit-scrollbar-thumb {
+  background: var(--border-default);
+  border-radius: 2px;
+}
+
+.sm-drawer-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
+  font-family: var(--font-family-mono);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.sm-drawer-ticker {
+  font-weight: 800;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: var(--text-primary);
+}
+
+.sm-drawer-net {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+  color: var(--text-primary);
+}
+
+.sm-drawer-meta {
+  flex: 1;
+  font-size: 9.5px;
+  color: var(--text-muted);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sm-drawer-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 16px;
+  line-height: 1;
+  padding: 0 4px;
+  cursor: pointer;
+  border-radius: 2px;
+}
+.sm-drawer-close:hover { color: var(--text-primary); background: var(--bg-hover); }
+
+.sm-drawer-body {
+  padding: 4px 8px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+/* ── Responsive ──────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .sm-tiles { grid-template-columns: repeat(2, 1fr); padding: 4px; }
+  .sm-tile { min-height: 52px; padding: 5px 6px 6px; }
+  .sm-tile-ticker { font-size: 12px; }
 }
 
 /* ── Cluster ─────────────────────────────────────────────── */

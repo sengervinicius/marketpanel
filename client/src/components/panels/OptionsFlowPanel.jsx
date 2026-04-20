@@ -441,28 +441,80 @@ const ThesisLane = memo(function ThesisLane({ items, clusters }) {
 
 const TYPE_SHORT = { options: 'OPT', darkpool: 'DP', congress: 'CON' };
 
-const ClusterCard = memo(function ClusterCard({ cluster }) {
-  const postureCls = cluster.posture === 'bullish' ? 'sm-clust--bull'
-    : cluster.posture === 'bearish' ? 'sm-clust--bear' : 'sm-clust--mix';
-  const postureGlyph = cluster.posture === 'bullish' ? '▲'
+/**
+ * Compute bull-share and bear-share from a cluster's item list.
+ * Returns two normalized percentages ∈ [0, 100] that sum to 100 when gross > 0.
+ */
+function directionShares(cluster) {
+  let bull = 0, bear = 0;
+  for (const it of cluster.items) {
+    const v = it.sortValue || 0;
+    if (it.signal === 'bullish') bull += v;
+    else if (it.signal === 'bearish') bear += v;
+  }
+  const total = bull + bear;
+  if (total <= 0) return { bullPct: 50, bearPct: 50 };
+  return { bullPct: (bull / total) * 100, bearPct: (bear / total) * 100 };
+}
+
+/* ── Ticker sentiment tile — the main visual primitive ──────── */
+const TickerTile = memo(function TickerTile({ cluster, selected, onSelect }) {
+  const postureCls = cluster.posture === 'bullish' ? 'sm-tile--bull'
+    : cluster.posture === 'bearish' ? 'sm-tile--bear' : 'sm-tile--mix';
+  const glyph = cluster.posture === 'bullish' ? '▲'
     : cluster.posture === 'bearish' ? '▼' : '◆';
-  const postureLabel = cluster.posture === 'bullish' ? 'BULLISH'
-    : cluster.posture === 'bearish' ? 'BEARISH' : 'MIXED';
-  const typeStr = Array.from(cluster.types).map(t => TYPE_SHORT[t] || t).join('·');
+  const { bullPct, bearPct } = directionShares(cluster);
+  const hasGolden = cluster.goldenCount > 0;
+
+  const typeStr = Array.from(cluster.types).map(t => TYPE_SHORT[t] || t).join(' · ');
 
   return (
-    <div className={`sm-clust ${postureCls}`}>
-      <div className="sm-clust-head">
-        <span className="sm-clust-ticker">{cluster.ticker}</span>
-        <span className={`sm-clust-posture sm-clust-posture--${cluster.posture}`}>
-          {postureGlyph} {postureLabel}
-        </span>
-        <span className="sm-clust-net">{fmtMoneySigned(cluster.netDollars)}</span>
-        <span className="sm-clust-meta">
-          {cluster.signalCount} sig · {typeStr}
+    <button
+      type="button"
+      className={`sm-tile ${postureCls} ${selected ? 'sm-tile--selected' : ''}`}
+      onClick={() => onSelect(cluster.ticker)}
+      title={`${cluster.ticker} — ${cluster.posture.toUpperCase()} · ${cluster.signalCount} signals · ${fmtMoneySigned(cluster.netDollars)}${hasGolden ? ` · ${cluster.goldenCount} golden sweep${cluster.goldenCount>1?'s':''}` : ''}`}
+    >
+      {/* Top row: ticker + net $ pill */}
+      <div className="sm-tile-top">
+        <span className="sm-tile-ticker">{cluster.ticker}</span>
+        {hasGolden && <span className="sm-tile-star" aria-label="Golden sweep">★</span>}
+        <span className={`sm-tile-net sm-tile-net--${cluster.posture}`}>
+          {glyph} {fmtMoneySigned(cluster.netDollars)}
         </span>
       </div>
-      <div className="sm-clust-body">
+
+      {/* Sentiment bar — two-sided from center: bull left, bear right */}
+      <div className="sm-tile-bar" aria-hidden="true">
+        <span className="sm-tile-bar-bull" style={{ width: `${bullPct}%` }} />
+        <span className="sm-tile-bar-bear" style={{ width: `${bearPct}%` }} />
+      </div>
+
+      {/* Bottom row: signal count + type confluence */}
+      <div className="sm-tile-meta">
+        <span className="sm-tile-sig">{cluster.signalCount} sig</span>
+        <span className="sm-tile-sep">·</span>
+        <span className="sm-tile-types">{typeStr}</span>
+      </div>
+    </button>
+  );
+});
+
+/* ── Detail drawer — shown when a ticker tile is selected ───── */
+const DetailDrawer = memo(function DetailDrawer({ cluster, onClose }) {
+  if (!cluster) return null;
+  const postureLabel = cluster.posture === 'bullish' ? 'BULLISH'
+    : cluster.posture === 'bearish' ? 'BEARISH' : 'MIXED';
+  return (
+    <div className="sm-drawer">
+      <div className="sm-drawer-head">
+        <span className="sm-drawer-ticker">{cluster.ticker}</span>
+        <span className={`sm-clust-posture sm-clust-posture--${cluster.posture}`}>{postureLabel}</span>
+        <span className="sm-drawer-net">{fmtMoneySigned(cluster.netDollars)}</span>
+        <span className="sm-drawer-meta">{cluster.signalCount} signals · {Array.from(cluster.types).map(t => TYPE_SHORT[t] || t).join(' · ')}</span>
+        <button className="sm-drawer-close" onClick={onClose} aria-label="Close detail">×</button>
+      </div>
+      <div className="sm-drawer-body">
         {cluster.items.map((item, i) => (
           <ClusterDetail key={`${item.type}-${i}`} item={item} />
         ))}
@@ -498,6 +550,7 @@ function OptionsFlowPanel() {
   const [loading, setLoading]   = useState(true);
   const [lastUpdate, setLastUpdate] = useState(null);
   const [activeTab, setActiveTab]   = useState('all');
+  const [selectedTicker, setSelectedTicker] = useState(null);
 
   const fetchData = useCallback(async () => {
     try {
@@ -546,7 +599,25 @@ function OptionsFlowPanel() {
     ? lastUpdate.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' })
     : '';
 
-  const topClusters = clusters.slice(0, 10);
+  // Top 18 clusters fit a 3-column tile grid nicely; most panels show ~12-18.
+  const topClusters = clusters.slice(0, 18);
+
+  // Clear selected ticker whenever the underlying tab/items change so
+  // stale tickers don't persist.
+  const selectedCluster = useMemo(
+    () => (selectedTicker ? clusters.find(c => c.ticker === selectedTicker) : null),
+    [selectedTicker, clusters]
+  );
+  // If the selected ticker no longer exists after filter change, clear it.
+  useEffect(() => {
+    if (selectedTicker && !clusters.some(c => c.ticker === selectedTicker)) {
+      setSelectedTicker(null);
+    }
+  }, [selectedTicker, clusters]);
+
+  function handleSelect(ticker) {
+    setSelectedTicker(prev => prev === ticker ? null : ticker);
+  }
 
   return (
     <div className="sm-panel">
@@ -576,24 +647,37 @@ function OptionsFlowPanel() {
         }))}
       />
 
-      {/* Cluster column legend */}
+      {/* Tile grid legend */}
       <div className="sm-clust-legend">
-        <span className="sm-clust-legend-l">CONVICTION CLUSTERS</span>
-        <span className="sm-clust-legend-r">sorted by signal confluence × $ size</span>
+        <span className="sm-clust-legend-l">SENTIMENT BY TICKER</span>
+        <span className="sm-clust-legend-r">click a tile for trade-level detail</span>
       </div>
 
-      {/* Clusters */}
-      <div className="sm-feed">
+      {/* Ticker tile grid — visual sentiment per ticker */}
+      <div className="sm-tiles">
         {loading && topClusters.length === 0 ? (
           <div className="sm-empty">Loading smart-money signals…</div>
         ) : topClusters.length === 0 ? (
           <div className="sm-empty">No {activeTab === 'all' ? '' : activeTab + ' '}signals detected</div>
         ) : (
           topClusters.map(c => (
-            <ClusterCard key={c.ticker} cluster={c} />
+            <TickerTile
+              key={c.ticker}
+              cluster={c}
+              selected={selectedTicker === c.ticker}
+              onSelect={handleSelect}
+            />
           ))
         )}
       </div>
+
+      {/* Drawer — detail rows for selected ticker */}
+      {selectedCluster && (
+        <DetailDrawer
+          cluster={selectedCluster}
+          onClose={() => setSelectedTicker(null)}
+        />
+      )}
 
       {/* Footer */}
       <div className="sm-footer">
