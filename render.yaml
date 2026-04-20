@@ -118,6 +118,15 @@ services:
       - key: EMAIL_FROM
         sync: false          # Legacy fallback FROM — kept for backward compat
 
+      # ── Comms: Inbound email → Central Vault (P3.1) ─────────────────────────
+      # Postmark posts inbound JSON to /api/inbound/email/<INBOUND_EMAIL_WEBHOOK_SECRET>.
+      # Cloudflare DNS holds the MX record for vault@the-particle.com.
+      # See docs/OPS_INBOUND_EMAIL.md for full setup.
+      - key: INBOUND_EMAIL_WEBHOOK_SECRET
+        sync: false          # 32+ char urlsafe random token — embedded in webhook URL
+      - key: VAULT_INBOUND_ALLOWED_SENDERS
+        sync: false          # Comma-sep email addresses allowed to ingest into central vault
+
       # ── Comms: Discord ──────────────────────────────────────────────────────
       - key: DISCORD_BOT_TOKEN
         sync: false

@@ -136,6 +136,7 @@ const anomalyScanner = require('./services/anomalyScanner');
 const { init: initVault } = require('./services/vault');
 const vaultRoutes = require('./routes/vault');
 const vaultSignalsRoutes = require('./routes/vaultSignals');
+const inboundEmailRoutes = require('./routes/inboundEmail'); // P3.1
 const { initializeBackgroundJob: initVaultSignalsJob } = require('./services/vaultSignals');
 const modelRouter = require('./services/modelRouter');
 const insightEngine = require('./services/insightEngine');
@@ -224,8 +225,15 @@ app.use(helmet({
 }));
 
 // NOTE: express.json() is applied globally EXCEPT for billing/webhook (needs raw body)
+// and inbound-email (Postmark inbound JSON with base64 attachments — ~1mb won't fit).
 app.use((req, res, next) => {
   if (req.originalUrl === '/api/billing/webhook') return next();
+  // P3.1 — Postmark inbound POSTs base64-encoded attachments inline; PDFs
+  // commonly ~5-10MB which grows ~33% under base64. Allow 30MB only on
+  // this path; default 1MB stays enforced everywhere else.
+  if (req.originalUrl && req.originalUrl.startsWith('/api/inbound/email/')) {
+    return express.json({ limit: '30mb' })(req, res, next);
+  }
   express.json({ limit: '1mb' })(req, res, next);
 });
 
@@ -582,6 +590,17 @@ app.use('/api/vault-signals', requireAuth,
   rateLimitByUser({ key: 'vault-signals', windowSec: 60, max: 20 }),
   requestTimeout(10000),
   vaultSignalsRoutes);
+
+// P3.1 — Inbound email (Postmark) → Central Vault ingestion.
+// Mounted WITHOUT requireAuth/requireActiveSubscription: authentication is
+// the URL-embedded webhook secret (INBOUND_EMAIL_WEBHOOK_SECRET) + a sender
+// allowlist (VAULT_INBOUND_ALLOWED_SENDERS). IP-level rate limiting only —
+// we cannot rate-limit by user because the caller is Postmark, not a user.
+// Longer timeout: ingestion runs embeddings over PDFs synchronously today.
+app.use('/api/inbound/email',
+  rateLimitByIP({ max: 30, windowMs: 60000 }),
+  requestTimeout(60000),
+  inboundEmailRoutes);
 
 // Earnings analysis: auth + subscription required
 app.use('/api/earnings', requireAuth, requireActiveSubscription,
