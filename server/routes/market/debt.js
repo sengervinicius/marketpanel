@@ -671,6 +671,7 @@ router.get('/curve/:issuer', async (req, res) => {
     const issuer = String(req.params.issuer || '').toUpperCase();
     const { getRegistry } = require('../../adapters/registry');
     const { executeChain } = require('../../adapters/contract');
+    const { annotate: annotateCurve } = require('../../services/curveAnalytics');
 
     const registry = getRegistry();
     // Normalize aliases: EA → EU for the euro area.
@@ -694,11 +695,33 @@ router.get('/curve/:issuer', async (req, res) => {
       });
     }
 
+    // W7.1: annotate with per-point duration/DV01/convexity + slope metrics.
+    // Optional ?benchmark=EU appends per-tenor spread in bps — self-spread
+    // is a no-op so we only invoke it for distinct benchmark issuers.
+    const benchmarkIssuer = typeof req.query.benchmark === 'string'
+      ? req.query.benchmark.toUpperCase().trim()
+      : null;
+    let benchmarkPoints = null;
+    if (benchmarkIssuer && benchmarkIssuer !== result.data.issuer) {
+      const benchMarket = benchmarkIssuer === 'EA' ? 'EU' : benchmarkIssuer;
+      const benchChain = registry.route(benchMarket, 'curve', 'curve');
+      if (benchChain && benchChain.length > 0) {
+        const benchRes = await executeChain(benchChain, 'curve', [benchMarket]);
+        if (benchRes.ok && Array.isArray(benchRes.data.points)) {
+          benchmarkPoints = benchRes.data.points;
+        }
+      }
+    }
+    const { analytics } = annotateCurve(result.data, benchmarkPoints
+      ? { benchmarkPoints }
+      : undefined);
+
     return res.json({
       issuer: result.data.issuer,
       currency: result.data.currency,
       asOf: result.data.asOf,
       points: result.data.points,
+      analytics,
       provenance: {
         source: result.provenance.source,
         fetchedAt: result.provenance.fetchedAt,

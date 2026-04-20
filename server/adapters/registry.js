@@ -30,6 +30,13 @@ function buildRegistry() {
   //   - ecbSdmxAdapter: EU AAA sovereign curve, no API key required
   registry.register(require('./ecbSdmxAdapter'));
 
+  // Wave 7 corrective adapters
+  //   - asianRssAdapter: Nikkei Asia / SCMP / KED Global news feeds
+  //     for TSE / HKEX / KRX equities. Closes v2-audit line
+  //     "canonical NewsEvent parsers for Nikkei, Korea Economic
+  //     Daily, SCMP".
+  registry.register(require('./asianRssAdapter'));
+
   // Future (stubbed imports — uncomment as each adapter lands):
   // registry.register(require('./twelvedataAdapter'));
   // registry.register(require('./eulerpoolAdapter'));
