@@ -472,3 +472,186 @@
   .chat-msg-action { font-size: 12px; padding: 6px 10px; }
   .chat-ttl-notice { font-size: 13px; }
 }
+
+/* ─────────────────────────────────────────────────────────────────────
+   Phase 9.4 — AI conversation history rail
+   Sidebar that shows the CIO's last-24h AI chats alongside the active
+   conversation. Uses terminal-grade design tokens instead of the
+   ad-hoc greys that were in place before.
+   ───────────────────────────────────────────────────────────────────── */
+.chat-ai-rail {
+  width: 220px;
+  min-width: 220px;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--border-strong);
+  background: var(--bg-app);
+}
+
+.chat-ai-rail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border-strong);
+  background: var(--bg-elevated);
+  flex-shrink: 0;
+  gap: 6px;
+}
+
+.chat-ai-rail-title {
+  font-family: var(--font-family-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--text-primary);
+  text-transform: uppercase;
+}
+
+.chat-ai-rail-new-btn {
+  background: none;
+  border: 1px solid var(--border-strong);
+  color: var(--text-muted);
+  font-family: var(--font-family-mono);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  padding: 2px 7px;
+  cursor: pointer;
+  transition: color 0.12s, border-color 0.12s, background-color 0.12s;
+}
+
+.chat-ai-rail-new-btn:hover {
+  color: var(--text-primary);
+  border-color: var(--accent);
+  background: rgba(255, 102, 0, 0.06);
+}
+
+.chat-ai-rail-list {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.chat-ai-rail-empty,
+.chat-ai-rail-loading {
+  padding: 14px 12px;
+  color: var(--text-faint);
+  font-size: 11px;
+  font-family: var(--font-family-mono);
+  line-height: 1.4;
+}
+
+.chat-ai-rail-loading::after {
+  content: '';
+  display: inline-block;
+  width: 4px;
+  height: 4px;
+  background: var(--text-muted);
+  border-radius: 50%;
+  margin-left: 6px;
+  animation: chat-ai-rail-pulse 1.1s infinite;
+}
+
+@keyframes chat-ai-rail-pulse {
+  0%, 100% { opacity: 0.4; }
+  50%      { opacity: 1; }
+}
+
+.chat-ai-rail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 7px 10px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border-subtle);
+  transition: background-color 0.12s;
+}
+
+.chat-ai-rail-item:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.chat-ai-rail-item--active {
+  background: rgba(255, 102, 0, 0.07);
+  border-left: 2px solid var(--accent);
+  padding-left: 8px;
+}
+
+.chat-ai-rail-item-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.chat-ai-rail-item-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chat-ai-rail-item-title--placeholder {
+  color: var(--text-muted);
+  font-weight: 500;
+  font-style: italic;
+}
+
+.chat-ai-rail-title-input {
+  flex: 1;
+  min-width: 0;
+  background: var(--bg-elevated);
+  border: 1px solid var(--accent);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 5px;
+  outline: none;
+}
+
+.chat-ai-rail-actions {
+  display: inline-flex;
+  gap: 2px;
+  align-items: center;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+
+.chat-ai-rail-item:hover .chat-ai-rail-actions,
+.chat-ai-rail-item--active .chat-ai-rail-actions {
+  opacity: 1;
+}
+
+.chat-ai-rail-icon-btn {
+  background: none;
+  border: none;
+  color: var(--text-faint);
+  font-size: 12px;
+  line-height: 1;
+  padding: 0 4px;
+  cursor: pointer;
+  transition: color 0.12s;
+}
+
+.chat-ai-rail-icon-btn:hover {
+  color: var(--text-primary);
+}
+
+.chat-ai-rail-icon-btn--danger:hover {
+  color: var(--price-down);
+}
+
+.chat-ai-rail-meta {
+  font-family: var(--font-family-mono);
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  color: var(--text-faint);
+}
+
+@media (max-width: 768px) {
+  .chat-ai-rail { display: none; }
+}

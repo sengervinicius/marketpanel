@@ -96,6 +96,10 @@ function ChatPanel({ mobile, initialUserId }) {
   const [aiConversations,  setAiConversations]  = useState([]);
   const [activeAiConvoId,  setActiveAiConvoId]  = useState(null);
   const [aiHistoryLoading, setAiHistoryLoading] = useState(false);
+  // Inline rename state for the AI conversation rail. `renamingConvoId` is
+  // the id of the row currently being renamed (null = nothing open).
+  const [renamingConvoId,  setRenamingConvoId]  = useState(null);
+  const [renameDraft,      setRenameDraft]      = useState('');
   const [input,            setInput]            = useState('');
   const [loading,          setLoading]          = useState(false);
   const [aiLoading,        setAiLoading]        = useState(false);
@@ -237,6 +241,56 @@ function ChatPanel({ mobile, initialUserId }) {
     setActiveAiConvoId(null);
     setAiMessages([]);
   }, []);
+
+  // Rename a conversation (owner-only on server). Optimistically apply the
+  // new title locally so the rail updates without waiting for the round
+  // trip, then rollback if the PATCH fails.
+  const beginRenameAiConversation = useCallback((convo) => {
+    if (!convo) return;
+    setRenamingConvoId(String(convo.id));
+    setRenameDraft(convo.title || '');
+  }, []);
+
+  const cancelRenameAiConversation = useCallback(() => {
+    setRenamingConvoId(null);
+    setRenameDraft('');
+  }, []);
+
+  const commitRenameAiConversation = useCallback(async () => {
+    const convoId = renamingConvoId;
+    const next = renameDraft.trim().slice(0, 80);
+    // Always close the input first — the UI shouldn't linger on network.
+    setRenamingConvoId(null);
+    setRenameDraft('');
+    if (!convoId || !user?.id) return;
+    // Server requires a non-empty title; an empty/whitespace draft means
+    // "don't change it". Just exit without touching anything.
+    if (!next) return;
+    const prev = aiConversations;
+    const current = prev.find(c => String(c.id) === String(convoId));
+    if (!current) return;
+    if ((current.title || '') === next) return; // no-op
+    // Optimistic update.
+    setAiConversations(list => list.map(c =>
+      String(c.id) === String(convoId) ? { ...c, title: next } : c
+    ));
+    try {
+      const { API_BASE } = await import('../../utils/api');
+      const res = await fetch(`${API_BASE}/api/ai-chat/${convoId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ title: next }),
+      });
+      if (!res.ok) {
+        // Roll back on failure.
+        setAiConversations(prev);
+      }
+    } catch (err) {
+      console.warn('Failed to rename AI conversation:', err);
+      setAiConversations(prev);
+    }
+  }, [renamingConvoId, renameDraft, user?.id, aiConversations]);
 
   // Delete a conversation (owner-only on server). Optimistically remove
   // from the list; if the currently-open conversation is deleted, reset
@@ -749,92 +803,100 @@ function ChatPanel({ mobile, initialUserId }) {
     return Math.round(diff / 86400) + 'd ago';
   };
 
-  // P5: AI conversation history rail. Renders the user's last-24h
-  // conversations from the server (DB-backed, cross-device). Hidden on
-  // mobile to keep the chat surface uncluttered — mobile users can still
-  // start a new chat, just without the rail.
+  // P5 / Phase 9.4: AI conversation history rail. Renders the user's
+  // last-24h conversations from the server (DB-backed, cross-device).
+  // Hidden on mobile to keep the chat surface uncluttered — mobile users
+  // can still start a new chat, just without the rail.
+  //
+  // Interactions: click a row to load it; pencil icon to rename inline
+  // (Enter commits, Esc cancels); × icon to delete. The active row is
+  // marked with an orange accent bar to match the terminal's selection
+  // visual vocabulary.
   const renderAiHistoryRail = () => (
-    <div className="chat-sidebar chat-sidebar--ai-history" style={{
-      width: 220,
-      minWidth: 220,
-      borderRight: '1px solid var(--border, #2a2a2a)',
-      display: 'flex',
-      flexDirection: 'column',
-    }}>
-      <div className="chat-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <span className="chat-header-label" style={{ fontSize: 11, letterSpacing: '0.08em' }}>
-          AI · LAST 24H
-        </span>
+    <div className="chat-ai-rail">
+      <div className="chat-ai-rail-header">
+        <span className="chat-ai-rail-title">AI &middot; LAST 24H</span>
         <button
           type="button"
+          className="chat-ai-rail-new-btn"
           onClick={startNewAiConversation}
           title="Start a new conversation"
-          style={{
-            background: 'none',
-            border: '1px solid var(--border, #2a2a2a)',
-            color: 'var(--text-secondary, #aaa)',
-            padding: '2px 8px',
-            borderRadius: 4,
-            cursor: 'pointer',
-            fontSize: 11,
-          }}
-        >+ New</button>
+        >+ NEW</button>
       </div>
-      <div className="chat-list" style={{ flex: 1, overflowY: 'auto' }}>
+      <div className="chat-ai-rail-list">
         {aiHistoryLoading && aiConversations.length === 0 && (
-          <div className="chat-empty" style={{ padding: 12, fontSize: 12 }}>Loading{'\u2026'}</div>
+          <div className="chat-ai-rail-loading">Loading</div>
         )}
         {!aiHistoryLoading && aiConversations.length === 0 && (
-          <div className="chat-empty" style={{ padding: 12, fontSize: 12, color: 'var(--text-secondary, #888)' }}>
+          <div className="chat-ai-rail-empty">
             No recent chats. Ask something to start one.
           </div>
         )}
         {aiConversations.map(c => {
           const isActive = String(c.id) === String(activeAiConvoId);
+          const isRenaming = String(c.id) === String(renamingConvoId);
+          const hasTitle = Boolean(c.title);
+          const itemClass = [
+            'chat-ai-rail-item',
+            isActive ? 'chat-ai-rail-item--active' : '',
+          ].filter(Boolean).join(' ');
+          const titleClass = [
+            'chat-ai-rail-item-title',
+            hasTitle ? '' : 'chat-ai-rail-item-title--placeholder',
+          ].filter(Boolean).join(' ');
           return (
             <div
               key={c.id}
-              className="chat-list-item"
+              className={itemClass}
               data-active={isActive}
-              onClick={() => openAiConversation(c.id)}
-              style={{
-                padding: '8px 10px',
-                cursor: 'pointer',
-                borderBottom: '1px solid var(--border-subtle, #1c1c1c)',
-                background: isActive ? 'var(--bg-hover, rgba(255,255,255,0.04))' : 'transparent',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 2,
-              }}
+              onClick={() => { if (!isRenaming) openAiConversation(c.id); }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
-                <span style={{
-                  fontSize: 12,
-                  color: 'var(--text-primary, #ddd)',
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  flex: 1,
-                }} title={c.title || 'New chat'}>
-                  {c.title || 'New chat'}
-                </span>
-                <button
-                  type="button"
-                  onClick={(e) => { e.stopPropagation(); deleteAiConversation(c.id); }}
-                  title="Delete conversation"
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    color: 'var(--text-secondary, #888)',
-                    cursor: 'pointer',
-                    fontSize: 12,
-                    padding: '0 4px',
-                  }}
-                >{'\u00D7'}</button>
+              <div className="chat-ai-rail-item-row">
+                {isRenaming ? (
+                  <input
+                    autoFocus
+                    type="text"
+                    className="chat-ai-rail-title-input"
+                    value={renameDraft}
+                    maxLength={80}
+                    onChange={(e) => setRenameDraft(e.target.value)}
+                    onClick={(e) => e.stopPropagation()}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        commitRenameAiConversation();
+                      } else if (e.key === 'Escape') {
+                        e.preventDefault();
+                        cancelRenameAiConversation();
+                      }
+                    }}
+                    onBlur={() => commitRenameAiConversation()}
+                  />
+                ) : (
+                  <span className={titleClass} title={c.title || 'New chat'}>
+                    {c.title || 'New chat'}
+                  </span>
+                )}
+                {!isRenaming && (
+                  <span className="chat-ai-rail-actions">
+                    <button
+                      type="button"
+                      className="chat-ai-rail-icon-btn"
+                      title="Rename"
+                      onClick={(e) => { e.stopPropagation(); beginRenameAiConversation(c); }}
+                    >{'\u270E'}</button>
+                    <button
+                      type="button"
+                      className="chat-ai-rail-icon-btn chat-ai-rail-icon-btn--danger"
+                      title="Delete conversation"
+                      onClick={(e) => { e.stopPropagation(); deleteAiConversation(c.id); }}
+                    >{'\u00D7'}</button>
+                  </span>
+                )}
               </div>
-              <span style={{ fontSize: 10, color: 'var(--text-secondary, #888)' }}>
+              <span className="chat-ai-rail-meta">
                 {aiConvoTimeAgo(c.lastMessageAt)}
-                {c.messageCount ? ` · ${c.messageCount} msg` : ''}
+                {c.messageCount ? ` \u00B7 ${c.messageCount} msg` : ''}
               </span>
             </div>
           );
