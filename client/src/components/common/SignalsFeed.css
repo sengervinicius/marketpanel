@@ -130,6 +130,24 @@
   word-break: break-word;
 }
 
+/* Composite signal tag chip (vol_flip, correlation_break, news_spike) */
+.signals-feed__tag {
+  display: inline-block;
+  padding: 1px 6px;
+  margin-right: 6px;
+  font-family: var(--font-family-mono, ui-monospace, 'SF Mono', Menlo, monospace);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--accent, #ff6600);
+  background: rgba(255, 102, 0, 0.10);
+  border: 1px solid rgba(255, 102, 0, 0.30);
+  border-radius: 2px;
+  flex-shrink: 0;
+  text-transform: uppercase;
+  vertical-align: baseline;
+}
+
 .signals-feed__time {
   color: var(--text-tertiary, #6b7280);
   font-size: 11px;

@@ -19,6 +19,17 @@ const SIGNAL_ICONS = {
   momentum_break: '📈',
   earnings_alert: '📊',
   market_status: '🔔',
+  // Phase 9.6 composite signals
+  vol_flip: '⚡',
+  correlation_break: '🔀',
+  news_spike: '📰',
+};
+
+// Phase 9.6: friendly label chips for composite signals (shown next to title)
+const COMPOSITE_SIGNAL_LABELS = {
+  vol_flip: 'VOL FLIP',
+  correlation_break: 'DECOUPLE',
+  news_spike: 'NEWS',
 };
 
 const SEVERITY_COLORS = {
@@ -158,6 +169,11 @@ export default function SignalsFeed({ className = '', compact = false, wsConnect
               </div>
               <div className="signals-feed__content">
                 <div className="signals-feed__title-row">
+                  {COMPOSITE_SIGNAL_LABELS[signal.type] && (
+                    <span className="signals-feed__tag">
+                      {COMPOSITE_SIGNAL_LABELS[signal.type]}
+                    </span>
+                  )}
                   <span className="signals-feed__title-text">{signal.title}</span>
                   <span className="signals-feed__time">
                     {formatTimeAgo(signal.timestamp)}
