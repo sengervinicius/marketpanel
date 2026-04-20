@@ -122,9 +122,18 @@
   color: var(--color-down);
 }
 
-/* ── Prediction card ── */
+/* ── Prediction card ──
+   Layout (2026-04-20 CIO redesign):
+     L1 question       — full width, 2-line clamp, not competing with badges
+     L2 badges         — source label + reason chip, own line
+     L3 probability    — 6px bar with 25/50/75 tick marks + % label
+     L4 split footer   — volume left, close date right (justify-between)
+*/
 .pred-card {
-  padding: 6px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 10px 14px;
   border-bottom: 1px solid var(--border-subtle, rgba(255,255,255,0.04));
   transition: background 120ms ease;
 }
@@ -133,19 +142,11 @@
   background: rgba(255, 255, 255, 0.02);
 }
 
-.pred-card-top {
-  display: flex;
-  align-items: flex-start;
-  gap: 6px;
-  margin-bottom: 4px;
-}
-
 .pred-card-question {
-  flex: 1;
-  font-size: 11px;
-  font-weight: 500;
+  font-size: 12.5px;
+  font-weight: 600;
   color: var(--text-primary, #fff);
-  line-height: 1.4;
+  line-height: 1.35;
   overflow: hidden;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -155,34 +156,34 @@
 .pred-card-badges {
   display: flex;
   align-items: center;
-  gap: 3px;
-  flex-shrink: 0;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 
 .pred-card-reason {
-  font-size: 8px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  color: var(--text-faint, #555);
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 2px;
-  padding: 1px 4px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary, #aab);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 3px;
+  padding: 2px 6px;
   text-transform: uppercase;
   white-space: nowrap;
 }
 
 .pred-card-source {
-  flex-shrink: 0;
-  width: 16px;
-  height: 16px;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
+  padding: 2px 8px;
   border-radius: 3px;
-  font-size: 9px;
+  font-size: 9.5px;
   font-weight: 700;
-  letter-spacing: 0;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .pred-card-source[data-source="kalshi"] {
@@ -199,41 +200,63 @@
 .pred-card-bar-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 3px;
+  gap: 10px;
 }
 
 .pred-card-bar {
   flex: 1;
-  height: 4px;
-  background: var(--bg-panel, rgba(255,255,255,0.04));
-  border-radius: 2px;
+  position: relative;
+  height: 6px;
+  background: var(--bg-panel, rgba(255,255,255,0.06));
+  border-radius: 3px;
   overflow: hidden;
 }
 
 .pred-card-bar-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
   height: 100%;
-  border-radius: 2px;
-  transition: width 400ms ease;
+  border-radius: 3px 0 0 3px;
+  transition: width 400ms ease, background 200ms ease;
+  z-index: 1;
+}
+
+.pred-card-bar-tick {
+  position: absolute;
+  top: 1px;
+  bottom: 1px;
+  width: 1px;
+  background: rgba(255, 255, 255, 0.18);
+  z-index: 2;
+  pointer-events: none;
 }
 
 .pred-card-pct {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
   font-family: var(--font-mono, monospace);
-  min-width: 36px;
+  min-width: 42px;
   text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
-/* ── Meta row ── */
-.pred-card-meta {
+/* ── Split footer (vol left, close right) ── */
+.pred-card-footer {
   display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 12px;
-  font-size: 9px;
-  color: var(--text-faint, #444);
+  font-size: 10.5px;
+  color: var(--text-faint, #666);
+  font-family: var(--font-mono, monospace);
 }
 
-.pred-card-vol,
+.pred-card-vol strong {
+  color: var(--text-secondary, #999);
+  font-weight: 700;
+}
+
 .pred-card-close {
-  font-family: var(--font-mono, monospace);
+  color: var(--text-faint, #666);
 }

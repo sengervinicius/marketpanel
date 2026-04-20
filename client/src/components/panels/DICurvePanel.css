@@ -36,7 +36,7 @@
 .dic-integrity-warn {
   color: #ff4444;
   font-weight: 700;
-  font-size: 6px;
+  font-size: 9px;
   letter-spacing: 0.05em;
   animation: dic-warn-pulse 2s ease-in-out infinite;
 }
@@ -61,47 +61,89 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 1px 6px 0;
+  padding: 3px 8px 2px;
   flex-shrink: 0;
-  height: 16px;
-  gap: 4px;
+  min-height: 22px;
+  gap: 8px;
 }
 
 .dic-block-label {
-  font-size: var(--font-xs);
+  font-size: 11px;
   font-weight: 800;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.1em;
   flex-shrink: 0;
 }
 
 .dic-key-points {
   display: flex;
-  gap: 5px;
+  gap: 10px;
   overflow: hidden;
+  flex-wrap: nowrap;
 }
 
 .dic-key-point {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
   white-space: nowrap;
-  line-height: 1;
+  line-height: 1.1;
 }
 
 .dic-key-point-tenor {
   color: var(--text-faint);
-  font-size: 6px;
-  letter-spacing: 0.03em;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
 }
 
 .dic-key-point-rate {
-  color: var(--text-secondary);
-  font-size: 7.5px;
+  color: var(--text-primary);
+  font-size: 11px;
   font-variant-numeric: tabular-nums;
-  font-weight: 600;
+  font-weight: 700;
 }
+
+/* ── Curve analytics strip (slope + credit spreads) ── */
+.dic-metrics {
+  display: flex;
+  gap: 12px;
+  padding: 0 8px 3px;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  border-bottom: 1px dashed var(--border-subtle);
+}
+
+.dic-metric {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  white-space: nowrap;
+  line-height: 1.1;
+}
+
+.dic-metric-lbl {
+  color: var(--text-faint);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.dic-metric-val {
+  color: var(--text-secondary);
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.dic-metric-val.pos { color: var(--price-up, #16c784); }
+.dic-metric-val.neg { color: var(--price-down, #ea3943); }
 
 .dic-chart-area {
   flex: 1;
   overflow: hidden;
-  min-height: 0;
+  min-height: 80px;
+  padding-top: 2px;
 }
 
 .dic-chart-loading,
@@ -111,31 +153,47 @@
   align-items: center;
   justify-content: center;
   color: var(--text-faint);
-  font-size: var(--font-xs);
+  font-size: 11px;
 }
 
 .dic-chart-error {
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
+}
+
+.dic-chart-error-detail {
+  font-size: 9px;
+  color: var(--text-faint);
+  max-width: 200px;
+  text-align: center;
+  line-height: 1.3;
 }
 
 .dic-retry-btn {
   background: none;
   border: 1px solid var(--border-default);
-  color: var(--text-faint);
-  font-size: 6.5px;
-  padding: 2px 5px;
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  padding: 4px 10px;
+  border-radius: 4px;
   cursor: pointer;
   font-family: var(--font-ui);
+  transition: border-color 120ms ease, color 120ms ease;
+}
+.dic-retry-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 .dic-source {
-  padding: 0 6px 1px;
+  padding: 2px 8px 3px;
   flex-shrink: 0;
 }
 
 .dic-source-text {
   color: var(--text-faint);
-  font-size: 5.5px;
+  font-size: 9px;
   letter-spacing: 0.04em;
 }

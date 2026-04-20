@@ -69,6 +69,13 @@ export function ChatInstrumentCard({ ticker, name, price, change, changePct, onC
   );
 }
 
+// AI chat history lives entirely on the user's device (localStorage) and
+// expires 24h after the last save. The rolling 24h window keeps the UX of
+// "my chat is still here if I flip to another screen and come back" while
+// bounding how long sensitive research text sits on disk — there is no
+// server-side retention for AI chat. Users can also hit Clear at any time.
+const AI_CHAT_TTL_MS = 24 * 60 * 60 * 1000;
+
 function ChatPanel({ mobile, initialUserId }) {
   const { user, token } = useAuth();
   const screenContext = useScreenContext();
@@ -88,6 +95,8 @@ function ChatPanel({ mobile, initialUserId }) {
   const [onlineMap,        setOnlineMap]        = useState({});
   const [typingMap,        setTypingMap]        = useState({});
   const [totalUnread,      setTotalUnread]      = useState(0);
+  const [copiedMsgId,      setCopiedMsgId]      = useState(null);
+  const [showTtlNotice,    setShowTtlNotice]    = useState(false);
   const messagesEndRef = useRef(null);
   const wsRef          = useRef(null);
   const typingTimer    = useRef(null);
@@ -96,36 +105,120 @@ function ChatPanel({ mobile, initialUserId }) {
 
   useEffect(() => { activeChatRef.current = activeChatUser; }, [activeChatUser]);
 
-  // Load AI messages from localStorage on mount
+  // Load AI messages from localStorage on mount, honouring the 24h TTL.
+  // Stored shape is { messages, savedAt }. Legacy plain-array entries from
+  // before TTL was introduced are upgraded in place on the next save.
   useEffect(() => {
     if (!user?.id) return;
     try {
       const storageKey = `particle_ai_chat_${user.id}`;
       const stored = localStorage.getItem(storageKey);
       if (stored) {
-        const messages = JSON.parse(stored);
-        if (Array.isArray(messages)) {
-          // Limit to last 50 messages to avoid bloat
-          setAiMessages(messages.slice(-50));
+        const parsed = JSON.parse(stored);
+        let list = null;
+        let savedAt = null;
+        if (Array.isArray(parsed)) {
+          // Legacy format — no savedAt, treat as a fresh start to avoid
+          // silently keeping potentially-very-old history around.
+          list = parsed;
+          savedAt = null;
+        } else if (parsed && Array.isArray(parsed.messages)) {
+          list = parsed.messages;
+          savedAt = Number(parsed.savedAt) || null;
         }
+        if (list) {
+          if (savedAt && Date.now() - savedAt > AI_CHAT_TTL_MS) {
+            // Expired — drop it and clear the key.
+            localStorage.removeItem(storageKey);
+            setAiMessages([]);
+          } else {
+            setAiMessages(list.slice(-50));
+          }
+        }
+      }
+      // First-use banner: show once per user so they know chats live locally
+      // for 24h. Dismissal persists in a separate key.
+      const noticeKey = `particle_ai_chat_ttl_notice_${user.id}`;
+      if (!localStorage.getItem(noticeKey)) {
+        setShowTtlNotice(true);
       }
     } catch (err) {
       console.warn('Failed to load AI chat history from localStorage:', err);
     }
   }, [user?.id]);
 
-  // Save AI messages to localStorage whenever they change
+  // Save AI messages to localStorage whenever they change, stamping savedAt
+  // so the TTL window rolls forward with activity. Quiet sessions still
+  // expire 24h after the last save.
   useEffect(() => {
     if (!user?.id || aiMessages.length === 0) return;
     try {
       const storageKey = `particle_ai_chat_${user.id}`;
-      // Keep only last 50 messages
       const toStore = aiMessages.slice(-50);
-      localStorage.setItem(storageKey, JSON.stringify(toStore));
+      localStorage.setItem(storageKey, JSON.stringify({
+        messages: toStore,
+        savedAt:  Date.now(),
+      }));
     } catch (err) {
       console.warn('Failed to save AI chat history to localStorage:', err);
     }
   }, [aiMessages, user?.id]);
+
+  const dismissTtlNotice = useCallback(() => {
+    setShowTtlNotice(false);
+    if (user?.id) {
+      try {
+        localStorage.setItem(`particle_ai_chat_ttl_notice_${user.id}`, String(Date.now()));
+      } catch (_) {}
+    }
+  }, [user?.id]);
+
+  // ── Per-message share helpers ──────────────────────────────────────
+  const shareSubject = 'Particle AI answer';
+  const copyAiMessage = useCallback(async (m) => {
+    const text = (m?.content || '').trim();
+    if (!text) return;
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        // Legacy fallback for older Safari / non-secure contexts.
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.setAttribute('readonly', '');
+        ta.style.position = 'absolute';
+        ta.style.left = '-9999px';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+      }
+      setCopiedMsgId(m.id);
+      setTimeout(() => setCopiedMsgId(prev => (prev === m.id ? null : prev)), 1600);
+    } catch (err) {
+      console.warn('Copy failed:', err);
+    }
+  }, []);
+
+  const emailAiMessage = useCallback((m) => {
+    const text = (m?.content || '').trim();
+    if (!text) return;
+    // mailto: payloads must be URL-encoded; most clients accept ~8KB in the
+    // body before truncating. Particle replies are usually well within.
+    const body = encodeURIComponent(text + '\n\n— Shared from Particle');
+    const subject = encodeURIComponent(shareSubject);
+    window.open(`mailto:?subject=${subject}&body=${body}`, '_self');
+  }, []);
+
+  const whatsappAiMessage = useCallback((m) => {
+    const text = (m?.content || '').trim();
+    if (!text) return;
+    // https://wa.me/?text=... opens WhatsApp (web/desktop/mobile) with the
+    // text pre-filled and lets the user pick the recipient. No phone number
+    // means no recipient is preselected, which is what we want for share.
+    const url = `https://wa.me/?text=${encodeURIComponent(text + '\n\n— Shared from Particle')}`;
+    window.open(url, '_blank', 'noopener,noreferrer');
+  }, []);
 
   // Load conversations on mount
   useEffect(() => {
@@ -561,6 +654,21 @@ function ChatPanel({ mobile, initialUserId }) {
           )}
         </div>
 
+        {showTtlNotice && (
+          <div className="chat-ttl-notice" role="status">
+            <span className="chat-ttl-notice-body">
+              Chats with AI are kept on this device for 24 hours, then cleared automatically.
+              They're never stored on our servers.
+            </span>
+            <button
+              type="button"
+              className="chat-ttl-notice-dismiss"
+              onClick={dismissTtlNotice}
+              aria-label="Dismiss notice"
+            >OK</button>
+          </div>
+        )}
+
         {/* Messages */}
         <div className="chat-messages">
           {aiMessages.length === 0 && (
@@ -570,13 +678,41 @@ function ChatPanel({ mobile, initialUserId }) {
               <div>Ask AI Assistant anything below.</div>
             </div>
           )}
-          {aiMessages.map(m => (
-            <div key={m.id} className={`chat-msg-wrap chat-msg-wrap--${m.role === 'user' ? 'mine' : 'theirs'}`}>
-              <div className={`chat-bubble${m.role === 'user' ? ' chat-bubble--mine' : ' chat-bubble--ai'}`}>
-                {m.role === 'assistant' ? <ParticleMarkdown content={m.content} /> : m.content}
+          {aiMessages.map(m => {
+            const isAssistant = m.role === 'assistant';
+            // Hide share actions on the streaming placeholder (empty content)
+            // until the first chunk lands — otherwise Copy/Email fire on ''.
+            const canShare = isAssistant && !!(m.content || '').trim();
+            return (
+              <div key={m.id} className={`chat-msg-wrap chat-msg-wrap--${m.role === 'user' ? 'mine' : 'theirs'}`}>
+                <div className={`chat-bubble${m.role === 'user' ? ' chat-bubble--mine' : ' chat-bubble--ai'}`}>
+                  {isAssistant ? <ParticleMarkdown content={m.content} /> : m.content}
+                </div>
+                {canShare && (
+                  <div className="chat-msg-actions" role="group" aria-label="Share this answer">
+                    <button
+                      type="button"
+                      className="chat-msg-action"
+                      onClick={() => copyAiMessage(m)}
+                      title="Copy to clipboard"
+                    >{copiedMsgId === m.id ? 'Copied' : 'Copy'}</button>
+                    <button
+                      type="button"
+                      className="chat-msg-action"
+                      onClick={() => emailAiMessage(m)}
+                      title="Share via email"
+                    >Email</button>
+                    <button
+                      type="button"
+                      className="chat-msg-action"
+                      onClick={() => whatsappAiMessage(m)}
+                      title="Share via WhatsApp"
+                    >WhatsApp</button>
+                  </div>
+                )}
               </div>
-            </div>
-          ))}
+            );
+          })}
           {aiLoading && (
             <div className="chat-typing-bubble">
               <span className="chat-typing-dot" />

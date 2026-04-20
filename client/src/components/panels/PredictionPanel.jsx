@@ -155,24 +155,30 @@ function PredictionCard({ market }) {
   const pct = market.probability != null ? Math.round(market.probability * 100) : null;
   const barColor = pct != null ? probabilityColor(market.probability) : 'var(--color-text-muted)';
   const reason = market._reason;
+  const sourceLabel = market.source === 'kalshi' ? 'Kalshi' : market.source === 'polymarket' ? 'Polymarket' : market.source;
 
   return (
     <div className="pred-card">
-      <div className="pred-card-top">
-        <span className="pred-card-question">{market.title || market.question}</span>
-        <div className="pred-card-badges">
-          {reason && reason !== 'trending' && (
-            <span className="pred-card-reason">{reason}</span>
-          )}
-          <span className="pred-card-source" data-source={market.source}>
-            {market.source === 'kalshi' ? 'K' : 'P'}
-          </span>
-        </div>
+      {/* L1: Question — full width, no badges crowding it */}
+      <div className="pred-card-question">{market.title || market.question}</div>
+
+      {/* L2: Badges on their own line */}
+      <div className="pred-card-badges">
+        <span className="pred-card-source" data-source={market.source}>
+          {sourceLabel}
+        </span>
+        {reason && reason !== 'trending' && (
+          <span className="pred-card-reason">{reason}</span>
+        )}
       </div>
 
-      {/* Probability bar */}
+      {/* L3: Probability bar with tick marks (25/50/75) */}
       <div className="pred-card-bar-row">
-        <div className="pred-card-bar">
+        <div className="pred-card-bar" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct || 0}>
+          {/* Tick marks at 25%, 50%, 75% — help read the bar at a glance */}
+          <span className="pred-card-bar-tick" style={{ left: '25%' }} />
+          <span className="pred-card-bar-tick" style={{ left: '50%' }} />
+          <span className="pred-card-bar-tick" style={{ left: '75%' }} />
           <div
             className="pred-card-bar-fill"
             style={{
@@ -186,14 +192,14 @@ function PredictionCard({ market }) {
         </span>
       </div>
 
-      {/* Meta row */}
-      <div className="pred-card-meta">
-        <span className="pred-card-vol">Vol: {formatVolume(market.volume24h)}</span>
-        {market.closeTime && (
-          <span className="pred-card-close">
-            Closes: {new Date(market.closeTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-          </span>
-        )}
+      {/* L4: Split footer — volume left, close date right */}
+      <div className="pred-card-footer">
+        <span className="pred-card-vol">Vol&nbsp;<strong>{formatVolume(market.volume24h)}</strong></span>
+        <span className="pred-card-close">
+          {market.closeTime
+            ? `Closes ${new Date(market.closeTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
+            : ''}
+        </span>
       </div>
     </div>
   );
