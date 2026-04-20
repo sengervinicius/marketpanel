@@ -14,11 +14,13 @@ import { useAlerts } from '../../context/AlertsContext';
 import { useOpenDetail } from '../../context/OpenDetailContext';
 import { apiFetch } from '../../utils/api';
 import Badge from '../ui/Badge';
+import SignalsFeed from '../common/SignalsFeed';
 import './AlertCenterPanel.css';
 
 const TABS = [
   { key: 'active', label: 'Active' },
   { key: 'triggered', label: 'Triggered' },
+  { key: 'signals', label: 'Signals' },
   { key: 'muted', label: 'Muted / Snoozed' },
 ];
 
@@ -241,7 +243,9 @@ function AlertCenterPanel() {
       </div>
 
       <div className="ac-rows">
-        {filtered.length === 0 ? (
+        {tab === 'signals' ? (
+          <SignalsFeed className="ac-signals-feed" />
+        ) : filtered.length === 0 ? (
           <EmptyState
             icon=""
             title={tab === 'active' ? 'No active alerts' : tab === 'triggered' ? 'No triggered alerts' : 'No muted alerts'}
