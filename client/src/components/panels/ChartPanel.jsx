@@ -484,46 +484,83 @@ function EmptySlot({ index, onAdd, onSwap }) {
   );
 }
 
+// Hardcoded fallback for brand-new users who have NEVER saved a chart grid
+// (no URL param, no localStorage, no server settings). If the fallback is ever
+// used for an existing user it means their settings row was wiped and we want
+// to know about it — every fallback activation logs a warning so we can see it
+// in Sentry / the browser console instead of silently overwriting server
+// settings with the default list. This was the VGK-keeps-reappearing mystery
+// from 2026-04-20 — fresh DB wiped settings, client loaded this list and
+// auto-POSTed it back as if it were the user's choice.
+const HARDCODED_FALLBACK_GRID = ['SPY', 'QQQ', 'C:EURUSD', 'C:USDJPY', 'GLD', 'USO', 'EEM', 'EWZ', 'X:BTCUSD', 'VGK', 'MSFT', 'BZ=F'];
+
 function ChartPanel({ ticker: externalTicker, onGridChange, mobile = false }) {
+  // Track where the initial tickers came from so we can decide whether to
+  // persist them back to the server. 'url' / 'localStorage' / 'fallback'.
+  const initialSourceRef = useRef('fallback');
   const [tickers, setTickers] = useState(() => {
     try {
       const urlParam = mobile ? null : new URLSearchParams(window.location.search).get('c');
       if (urlParam) {
         const fromUrl = urlParam.split(',').map(s => s.trim()).filter(Boolean).slice(0, MAX);
-        if (fromUrl.length) return fromUrl;
+        if (fromUrl.length) { initialSourceRef.current = 'url'; return fromUrl; }
       }
       const _urlC = new URLSearchParams(window.location.search).get('c');
       const _urlGrid = _urlC ? _urlC.split(',').filter(Boolean) : null;
       if (_urlGrid && _urlGrid.length) localStorage.setItem(LS_KEY, JSON.stringify(_urlGrid));
       const v3 = (_urlGrid && _urlGrid.length) ? _urlGrid : JSON.parse(localStorage.getItem(LS_KEY));
-      if (Array.isArray(v3) && v3.length) return v3.slice(0, MAX);
+      if (Array.isArray(v3) && v3.length) { initialSourceRef.current = 'localStorage'; return v3.slice(0, MAX); }
       const v2 = JSON.parse(localStorage.getItem('chartGrid_v2'));
-      if (Array.isArray(v2) && v2.length) return v2.slice(0, MAX);
+      if (Array.isArray(v2) && v2.length) { initialSourceRef.current = 'localStorage'; return v2.slice(0, MAX); }
     } catch (_) {}
-    return ['SPY', 'QQQ', 'C:EURUSD', 'C:USDJPY', 'GLD', 'USO', 'EEM', 'EWZ', 'X:BTCUSD', 'VGK', 'MSFT', 'BZ=F'];
+    initialSourceRef.current = 'fallback';
+    return HARDCODED_FALLBACK_GRID;
   });
 
   const [copied,  setCopied]  = useState(false);
   const [showQR,  setShowQR]  = useState(false);
   const [qrUrl,   setQrUrl]   = useState('');
   const gridSyncTimer = useRef(null);
+  // Don't auto-POST to the server until we've heard back from the initial
+  // /api/settings GET. Otherwise, on a user whose server settings were wiped
+  // (as happened 2026-04-20) the debounced save effect fires with the
+  // hardcoded fallback before the GET resolves, and persists the fallback as
+  // if it were the user's choice.
+  const [serverLoaded, setServerLoaded] = useState(false);
+  const serverHadGridRef = useRef(false);
 
   useEffect(() => {
     if (!mobile) {
       const urlParam = new URLSearchParams(window.location.search).get('c');
-      if (urlParam) return;
+      if (urlParam) {
+        // URL param takes precedence and shouldn't be persisted automatically;
+        // treat as 'loaded' so manual edits after this point do persist.
+        setServerLoaded(true);
+        return;
+      }
     }
     apiFetch('/api/settings')
       .then(r => r.ok ? r.json() : null)
       .then(s => {
-        if (Array.isArray(s?.settings?.chartGrid) && s.settings.chartGrid.length) {
-          const serverGrid = s.settings.chartGrid.slice(0, MAX);
+        const grid = s?.settings?.chartGrid;
+        if (Array.isArray(grid) && grid.length) {
+          serverHadGridRef.current = true;
+          const serverGrid = grid.slice(0, MAX);
           setTickers(prev =>
             JSON.stringify(prev) === JSON.stringify(serverGrid) ? prev : serverGrid
           );
+        } else if (initialSourceRef.current === 'fallback') {
+          // Brand new user (or wiped-settings user with no localStorage):
+          // they're about to see the hardcoded default. Log it so production
+          // sees the signal when it's firing unexpectedly.
+          // eslint-disable-next-line no-console
+          console.warn('[ChartPanel] no saved grid on server or locally — using hardcoded default (VGK/SPY/QQQ/…). If you did not expect this, your server settings row may be missing.');
         }
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => {
+        setServerLoaded(true);
+      });
   }, [mobile]);
 
   useEffect(() => {
@@ -543,6 +580,20 @@ function ChartPanel({ ticker: externalTicker, onGridChange, mobile = false }) {
       window.history.replaceState(null, '', url.toString());
     } catch (_) {}
     onGridChange?.(tickers.length);
+    // Gate the auto-POST on two conditions:
+    //   1. Server GET has resolved (serverLoaded).
+    //   2. Either the server already had a grid (so we're editing it), OR the
+    //      initial source was real user intent (url param or localStorage) —
+    //      i.e. NOT the hardcoded fallback. This prevents the "fresh DB wipes
+    //      settings → client silently persists fallback as user's preference"
+    //      failure mode that produced the mysterious VGK on 2026-04-20.
+    if (!serverLoaded) return;
+    if (!serverHadGridRef.current && initialSourceRef.current === 'fallback') {
+      // User hasn't touched anything yet and server has nothing. Don't persist
+      // the fallback — wait for an actual user edit before creating a grid on
+      // the server. Any manual add/remove/replace will flip the ref below.
+      return;
+    }
     clearTimeout(gridSyncTimer.current);
     gridSyncTimer.current = setTimeout(() => {
       apiFetch('/api/settings', {
@@ -551,12 +602,18 @@ function ChartPanel({ ticker: externalTicker, onGridChange, mobile = false }) {
         body: JSON.stringify({ chartGrid: tickers }),
       }).catch(() => {});
     }, 1500);
-  }, [tickers, onGridChange, mobile]);
+  }, [tickers, onGridChange, mobile, serverLoaded]);
 
-  const addTicker     = useCallback((raw)       => { const norm = normalizeTicker(raw);  setTickers(prev => prev.includes(norm) || prev.length >= MAX ? prev : [...prev, norm]); }, []);
-  const removeTicker  = useCallback((t)          => setTickers(prev => prev.filter(x => x !== t)), []);
-  const replaceTicker = useCallback((old, nw)    => setTickers(prev => prev.map(x => x === old ? nw : x)), []);
+  // Any user edit promotes the grid from "fallback shown on screen" to
+  // "real user state worth persisting" — flip the ref so the save effect
+  // stops skipping the POST.
+  const markUserEdit = useCallback(() => { serverHadGridRef.current = true; }, []);
+
+  const addTicker     = useCallback((raw)       => { const norm = normalizeTicker(raw);  markUserEdit(); setTickers(prev => prev.includes(norm) || prev.length >= MAX ? prev : [...prev, norm]); }, [markUserEdit]);
+  const removeTicker  = useCallback((t)          => { markUserEdit(); setTickers(prev => prev.filter(x => x !== t)); }, [markUserEdit]);
+  const replaceTicker = useCallback((old, nw)    => { markUserEdit(); setTickers(prev => prev.map(x => x === old ? nw : x)); }, [markUserEdit]);
   const swapTickers   = useCallback((fromIdx, toIdx) => {
+    markUserEdit();
     setTickers(prev => {
       if (fromIdx === toIdx) return prev;
       const arr = [...prev];
@@ -564,7 +621,7 @@ function ChartPanel({ ticker: externalTicker, onGridChange, mobile = false }) {
       else { const item = arr.splice(fromIdx, 1)[0]; arr.push(item); }
       return arr;
     });
-  }, []);
+  }, [markUserEdit]);
 
   const qrCodeUrl = useMemo(() => {
     try {

@@ -404,11 +404,17 @@ export function getEditablePanels() {
  * @property {Array<Array<string>>} desktopRows - 3 rows of panel IDs
  * @property {Array<string>} mobileTabs - Mobile tab order
  */
+// Layout spec (2026-04-20, CIO request):
+//   Row 1: charts, watchlist, globalIndices
+//   Row 2: forex (FX/Crypto, GBPBRL already in defaultSymbols), commodities, usEquities, brazilB3
+//   Row 3: debt (yields), news, optionsFlow, predictions
+// This is the new-user default; existing users keep whatever they've saved in
+// settings.rowFlexSizes / settings.panelVisible.
 export const DEFAULT_LAYOUT = {
   desktopRows: [
-    ['charts',       'usEquities',    'globalIndices'],
-    ['forex',        'commodities',   'predictions',  'brazilB3'],
-    ['debt',         'news',          'optionsFlow',  'watchlist'],
+    ['charts',       'watchlist',     'globalIndices'],
+    ['forex',        'commodities',   'usEquities',   'brazilB3'],
+    ['debt',         'news',          'optionsFlow',  'predictions'],
   ],
   mobileTabs: ['home', 'charts', 'watchlist', 'search', 'detail', 'news'],
 };
