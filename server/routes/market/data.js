@@ -87,6 +87,85 @@ router.get('/market/macro-calendar', async (req, res) => {
 });
 
 /**
+ * GET /market/calendar?kind=economic|earnings|ipo&from=YYYY-MM-DD&to=YYYY-MM-DD&country=US&impact=high
+ * W6.3: Typed calendar dispatch through the AdapterRegistry.
+ *
+ * Unlike /market/macro-calendar (Eulerpool-only, loose shape) this route
+ * consults coverage_matrix via registry.route(), walks the adapter chain
+ * for GLOBAL/calendar/calendar, and normalizes every vendor row through
+ * calendarParser.js into typed CalendarEvent records. The envelope
+ * includes a provenance block so the UI can render "source: finnhub,
+ * fetched 2m ago" instead of guessing.
+ *
+ * Filters:
+ *   kind      — 'economic' (default) | 'earnings' | 'ipo'
+ *   from/to   — YYYY-MM-DD; defaults to today..today+7d
+ *   country   — optional ISO country filter applied after parsing
+ *   impact    — optional 'high'|'medium'|'low' filter (post-parse)
+ *   limit     — cap result count (default 200, max 500)
+ */
+router.get('/market/calendar', async (req, res) => {
+  try {
+    const { getRegistry } = require('../../adapters/registry');
+    const { executeChain } = require('../../adapters/contract');
+    const { parseCalendarRows } = require('../../parsers/calendarParser');
+
+    const kind = String(req.query.kind || 'economic').toLowerCase();
+    if (!['economic', 'earnings', 'ipo'].includes(kind)) {
+      return res.status(400).json({ error: 'invalid_kind', message: `kind must be economic|earnings|ipo, got '${kind}'` });
+    }
+    const from = req.query.from || undefined;
+    const to   = req.query.to   || undefined;
+    const country = req.query.country ? String(req.query.country).toUpperCase() : null;
+    const impactFilter = req.query.impact ? String(req.query.impact).toLowerCase() : null;
+    const limit = Math.max(1, Math.min(500, parseInt(req.query.limit, 10) || 200));
+
+    const registry = getRegistry();
+    const chain = registry.route('GLOBAL', 'calendar', 'calendar');
+    if (!chain || chain.length === 0) {
+      return res.status(404).json({
+        error: 'calendar_not_in_coverage',
+        message: 'No adapter declares GLOBAL/calendar coverage.',
+      });
+    }
+
+    const result = await executeChain(chain, 'calendar', [{ from, to, kind }, { kind }]);
+    if (!result.ok) {
+      return res.status(502).json({
+        error: result.error.code || 'chain_failed',
+        message: result.error.message || 'Calendar adapters exhausted',
+        adapterChain: result.provenance?.adapterChain || [],
+      });
+    }
+
+    let events = parseCalendarRows(result.data);
+    if (country)       events = events.filter(e => e.country === country);
+    if (impactFilter)  events = events.filter(e => e.impact === impactFilter);
+    if (events.length > limit) events = events.slice(0, limit);
+
+    return res.json({
+      kind,
+      from: from || null,
+      to: to || null,
+      count: events.length,
+      events,
+      provenance: {
+        source: result.provenance.source,
+        fetchedAt: result.provenance.fetchedAt,
+        freshnessMs: result.provenance.freshnessMs,
+        confidence: result.provenance.confidence,
+        adapterChain: result.provenance.adapterChain,
+        warnings: result.provenance.warnings,
+        latencyMs: result.provenance.latencyMs,
+      },
+    });
+  } catch (e) {
+    logger.error('GET /market/calendar error:', e);
+    res.status(500).json({ error: 'internal_error', message: e.message });
+  }
+});
+
+/**
  * GET /market/macro-snapshot/:country
  * Returns GDP, CPI, unemployment, rates, trade balance for a country.
  */

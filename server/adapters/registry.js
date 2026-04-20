@@ -26,12 +26,15 @@ function buildRegistry() {
   // Wave 2 adapters
   registry.register(require('./finnhubAdapter'));
 
+  // Wave 6 adapters
+  //   - ecbSdmxAdapter: EU AAA sovereign curve, no API key required
+  registry.register(require('./ecbSdmxAdapter'));
+
   // Future (stubbed imports — uncomment as each adapter lands):
   // registry.register(require('./twelvedataAdapter'));
   // registry.register(require('./eulerpoolAdapter'));
   // registry.register(require('./unusualWhalesAdapter'));
   // registry.register(require('./sonarAdapter'));
-  // registry.register(require('./ecbSdmxAdapter'));
   // registry.register(require('./fredAdapter'));
 
   return registry;

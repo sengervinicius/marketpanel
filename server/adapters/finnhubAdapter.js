@@ -58,6 +58,9 @@ const DECLARATION = Object.freeze({
     { market: 'TSE',  assetClass: 'equity',   capability: 'candles',  confidence: 'high'   },
     { market: 'HKEX', assetClass: 'equity',   capability: 'quote',    confidence: 'high'   },
     { market: 'HKEX', assetClass: 'equity',   capability: 'candles',  confidence: 'high'   },
+    // Singapore — added W6.1 (e.g. D05.SI)
+    { market: 'SGX',  assetClass: 'equity',   capability: 'quote',    confidence: 'medium' },
+    { market: 'SGX',  assetClass: 'equity',   capability: 'candles',  confidence: 'medium' },
     // Brazil — Finnhub is primary until a native B3 adapter lands
     { market: 'B3',   assetClass: 'equity',   capability: 'quote',    confidence: 'high'   },
     { market: 'B3',   assetClass: 'equity',   capability: 'candles',  confidence: 'medium' },

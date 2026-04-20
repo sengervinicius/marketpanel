@@ -108,6 +108,21 @@ function initJobs(ctx = {}) {
     await coverageMatrix.recordProbeRun({ report, pg });
   });
 
+  // ── Regional probe runner: daily at 05:00 BRT = 08:00 UTC (W6.1) ─────
+  // The generic adapter-quality-probe above runs ONE probe per capability
+  // against a US ticker (quote(AAPL)). That tells us finnhub's quote path
+  // works but NOTHING about whether its KRX branch resolves 005930.KS.
+  // This runner iterates coverage_matrix rows and calls each adapter with
+  // a ticker canonical to THAT exchange (Samsung on KRX, Toyota on TSE,
+  // Tencent on HKEX, DBS on SGX, Petrobras on B3, SAP on EU). Only this
+  // can earn green streaks on non-US cells and eventually promote them.
+  // Staggered 30min after the generic probe to spread load.
+  const { runRegionalProbes } = require('../services/regionalProbeRunner');
+  registerJob('regional-probe-runner', '0 8 * * *', async () => {
+    const registry = getRegistry();
+    await runRegionalProbes({ pg, registry });
+  });
+
   // ── Staleness sweep: every minute (W3.3) ─────────────────────────────
   // Emits severity transitions per feed; updates the age gauge consumed
   // by /metrics and /admin/debug.

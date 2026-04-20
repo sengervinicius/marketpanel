@@ -44,13 +44,15 @@ const SUFFIX_TO_MARKET = Object.freeze({
   T: 'TSE',
   // Hong Kong
   HK: 'HKEX',
+  // Singapore — W6.1 added via Finnhub (D05.SI etc.)
+  SI: 'SGX',
   // European venues — rolled up under 'EU' (finnhubAdapter).
   DE: 'EU', F: 'EU', PA: 'EU', AS: 'EU', MC: 'EU', MI: 'EU',
   SW: 'EU', ST: 'EU', CO: 'EU', OL: 'EU', HE: 'EU', L: 'EU',
   LS: 'EU', WA: 'EU',
   // Other exchanges we don't yet have adapter coverage for: AX
-  // (ASX), SI (SGX), NS/BO (NSE/BSE), SS/SZ (Shanghai/Shenzhen),
-  // TW (TPEx). These fall through to the legacy chain.
+  // (ASX), NS/BO (NSE/BSE), SS/SZ (Shanghai/Shenzhen), TW (TPEx).
+  // These fall through to the legacy chain.
 });
 
 // Polygon-style FX and crypto prefixes.

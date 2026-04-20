@@ -249,6 +249,138 @@ function makeNewsEvent(input) {
   });
 }
 
+// ── CalendarEvent ────────────────────────────────────────────────────
+// W6.3: canonical macro / earnings / IPO calendar event. Every upstream
+// (Finnhub /calendar/economic, Eulerpool, Trading Economics) normalizes
+// into this shape via server/parsers/calendarParser.js before hitting
+// the UI or the chat synthesis layer. Same motivation as NewsEvent —
+// the existing /market/macro-calendar was returning raw vendor objects
+// with heterogeneous date/time fields and no impact grading, so the
+// dashboard couldn't tell "tier-1 event (NFP)" from "tier-3 (German
+// retail PMI revision)".
+//
+// Fields:
+//   - id            stable dedupe key (vendor id OR hash of kind+country+event+time)
+//   - kind          'economic' | 'earnings' | 'ipo'
+//   - country       ISO 3166-1 alpha-2 (US, DE, BR) for economic;
+//                   ISO exchange hint for earnings/ipo ('US' when unclear).
+//   - event         the headline label ('Non-Farm Payrolls', 'ECB Rate Decision').
+//                   For earnings: 'AAPL Q3 2026 earnings'.
+//   - timeUtc       ISO 8601 UTC. Parser combines vendor date + time-of-day
+//                   + timezone into a single UTC instant. Never a bare date —
+//                   the dashboard always renders in local tz so a date-only
+//                   value would be ambiguous across longitude boundaries.
+//                   Parser falls back to 00:00:00 UTC only when vendor
+//                   explicitly gives a date-only event (e.g. BR holidays).
+//   - impact        'low' | 'medium' | 'high' | 'unknown'. Normalized from
+//                   vendor strings (Finnhub emits lowercase strings; some
+//                   vendors use 1/2/3). Never null.
+//   - actual        number|string|null — reported value if available
+//   - previous      number|string|null
+//   - estimate      number|string|null
+//   - unit          human-readable ('%', 'K', 'B USD')
+//   - symbol        earnings-only; undefined for economic/ipo
+//   - confidence    per-item: 'high' for tier-1 events flagged by vendor,
+//                   'medium' for unlabelled events, 'low' for schema-unsure
+//                   rows (unit missing, time of day missing).
+
+const IMPACT_LEVELS = Object.freeze(['low', 'medium', 'high', 'unknown']);
+const CALENDAR_KINDS = Object.freeze(['economic', 'earnings', 'ipo']);
+
+/**
+ * @typedef {Object} CalendarEvent
+ * @property {string}   id
+ * @property {'economic'|'earnings'|'ipo'} kind
+ * @property {string}   country
+ * @property {string}   event
+ * @property {string}   timeUtc   — ISO 8601 UTC
+ * @property {'low'|'medium'|'high'|'unknown'} impact
+ * @property {number|string|null} [actual]
+ * @property {number|string|null} [previous]
+ * @property {number|string|null} [estimate]
+ * @property {string}   [unit]
+ * @property {string}   [symbol]
+ * @property {'high'|'medium'|'low'|'unverified'} confidence
+ * @property {Object}   [raw]
+ */
+
+/**
+ * Normalize a vendor impact string to our 4-level enum.
+ * Accepts: 'low'|'medium'|'high' (Finnhub), 1|2|3 (Trading Economics),
+ * '*'|'**'|'***' (FXStreet-style). Everything else → 'unknown'.
+ */
+function normalizeImpact(raw) {
+  if (raw == null) return 'unknown';
+  if (typeof raw === 'number') {
+    if (raw >= 3) return 'high';
+    if (raw === 2) return 'medium';
+    if (raw === 1) return 'low';
+    return 'unknown';
+  }
+  const s = String(raw).trim().toLowerCase();
+  if (s === 'high' || s === 'h' || s === '***' || s === '3') return 'high';
+  if (s === 'medium' || s === 'med' || s === 'm' || s === '**' || s === '2') return 'medium';
+  if (s === 'low' || s === 'l' || s === '*' || s === '1') return 'low';
+  return 'unknown';
+}
+
+/**
+ * Build a canonical CalendarEvent from a partial input. Returns null if
+ * required fields (kind, event, timeUtc) are missing or malformed.
+ * Never throws.
+ *
+ * @param {Partial<CalendarEvent>} input
+ * @returns {CalendarEvent|null}
+ */
+function makeCalendarEvent(input) {
+  if (!input || typeof input !== 'object') return null;
+  const kind = CALENDAR_KINDS.includes(input.kind) ? input.kind : null;
+  if (!kind) return null;
+  const event = typeof input.event === 'string' ? input.event.trim() : '';
+  if (!event) return null;
+
+  let timeUtc;
+  if (typeof input.timeUtc === 'string' && input.timeUtc) {
+    const d = new Date(input.timeUtc);
+    if (!Number.isFinite(d.getTime())) return null;
+    timeUtc = d.toISOString();
+  } else {
+    return null;
+  }
+
+  const country = typeof input.country === 'string' && input.country.trim()
+    ? input.country.trim().toUpperCase().slice(0, 3)
+    : '';
+
+  const impact = IMPACT_LEVELS.includes(input.impact) ? input.impact : 'unknown';
+
+  const id = typeof input.id === 'string' && input.id
+    ? input.id
+    : `cal-${kind}-${country}-${event.slice(0, 32).replace(/\s+/g, '-')}-${timeUtc.slice(0, 16)}`;
+
+  const confidence = ['high', 'medium', 'low', 'unverified'].includes(input.confidence)
+    ? input.confidence
+    : 'medium';
+
+  const out = {
+    id,
+    kind,
+    country,
+    event,
+    timeUtc,
+    impact,
+    confidence,
+  };
+  if (input.actual   !== undefined) out.actual   = input.actual;
+  if (input.previous !== undefined) out.previous = input.previous;
+  if (input.estimate !== undefined) out.estimate = input.estimate;
+  if (input.unit)    out.unit = String(input.unit);
+  if (input.symbol)  out.symbol = String(input.symbol).toUpperCase();
+  if (input.raw)     out.raw = input.raw;
+
+  return Object.freeze(out);
+}
+
 // ── CoverageDeclaration ──────────────────────────────────────────────
 // What an adapter claims to cover. Returned by describe(). Also written
 // to the coverage_matrix DB table during registration.
@@ -439,10 +571,14 @@ module.exports = {
   makeProviderError,
   makeProvenance,
   makeNewsEvent,
+  makeCalendarEvent,
+  normalizeImpact,
   ok,
   err,
   AdapterRegistry,
   executeChain,
   // Constants exposed for parsers/tests.
   _NEWS_SUMMARY_MAX: NEWS_SUMMARY_MAX,
+  _IMPACT_LEVELS: IMPACT_LEVELS,
+  _CALENDAR_KINDS: CALENDAR_KINDS,
 };

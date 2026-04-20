@@ -655,6 +655,66 @@ async function fetchFredYieldCurve() {
   return curve;
 }
 
+// ── /curve/:issuer — Typed single-issuer curve (W6.2) ──────────────
+// Registry-backed: consults coverage_matrix via AdapterRegistry.route()
+// and returns the first adapter that can serve the issuer. Provenance
+// envelope is surfaced to the client so the UI can show the actual
+// source + freshness (vs /yield-curves which aggregates heterogeneous
+// sources and flattens the provenance).
+//
+// Current coverage:
+//   - EU (or EA): AAA euro-area zero-coupon curve via ecbSdmxAdapter
+// Callers asking for an uncovered issuer get 404 with the list of
+// known issuers, not a silent pass-through to Yahoo.
+router.get('/curve/:issuer', async (req, res) => {
+  try {
+    const issuer = String(req.params.issuer || '').toUpperCase();
+    const { getRegistry } = require('../../adapters/registry');
+    const { executeChain } = require('../../adapters/contract');
+
+    const registry = getRegistry();
+    // Normalize aliases: EA → EU for the euro area.
+    const market = issuer === 'EA' ? 'EU' : issuer;
+    const chain = registry.route(market, 'curve', 'curve');
+    if (!chain || chain.length === 0) {
+      return res.status(404).json({
+        error: 'curve_not_in_coverage',
+        issuer,
+        message: `No adapter declares a curve for issuer '${issuer}'. Known issuers: EU, EA.`,
+      });
+    }
+
+    const result = await executeChain(chain, 'curve', [market]);
+    if (!result.ok) {
+      return res.status(502).json({
+        error: result.error.code || 'chain_failed',
+        issuer,
+        message: result.error.message || 'All adapters in chain failed',
+        adapterChain: result.provenance?.adapterChain || [],
+      });
+    }
+
+    return res.json({
+      issuer: result.data.issuer,
+      currency: result.data.currency,
+      asOf: result.data.asOf,
+      points: result.data.points,
+      provenance: {
+        source: result.provenance.source,
+        fetchedAt: result.provenance.fetchedAt,
+        freshnessMs: result.provenance.freshnessMs,
+        confidence: result.provenance.confidence,
+        adapterChain: result.provenance.adapterChain,
+        warnings: result.provenance.warnings,
+        latencyMs: result.provenance.latencyMs,
+      },
+    });
+  } catch (e) {
+    console.error('[curve] unhandled error:', e.message);
+    return res.status(500).json({ error: 'internal_error', message: e.message });
+  }
+});
+
 // ── /yield-curves — Multi-country yield curves (BR, US, UK, EU) ─────
 router.get('/yield-curves', async (req, res) => {
   try {

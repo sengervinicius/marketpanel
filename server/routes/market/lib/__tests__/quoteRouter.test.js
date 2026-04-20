@@ -56,10 +56,16 @@ test('classifier: European venues → (EU, equity)', () => {
   }
 });
 
+test('classifier: Singapore .SI → (SGX, equity) — W6.1 added', () => {
+  assert.deepEqual(classifyForRegistry('D05.SI'),  { market: 'SGX', assetClass: 'equity' });
+  assert.deepEqual(classifyForRegistry('U11.SI'),  { market: 'SGX', assetClass: 'equity' });
+  assert.deepEqual(classifyForRegistry('O39.SI'),  { market: 'SGX', assetClass: 'equity' });
+});
+
 test('classifier: unknown suffix returns null (falls back to legacy)', () => {
-  // ASX, SGX, NSE, Shanghai/Shenzhen — not in coverage yet
+  // ASX, NSE, Shanghai/Shenzhen — not in coverage yet.
+  // SGX (.SI) was added in W6.1.
   assert.equal(classifyForRegistry('CBA.AX'), null);
-  assert.equal(classifyForRegistry('D05.SI'), null);
   assert.equal(classifyForRegistry('RELIANCE.NS'), null);
   assert.equal(classifyForRegistry('600519.SS'), null);
 });
