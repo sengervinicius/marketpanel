@@ -512,3 +512,33 @@ VALUES
   ('support_chat_enabled', FALSE, 0,
    'W6.7 — show the Crisp in-app support widget. Default OFF so the SDK never loads pre-consent.')
 ON CONFLICT (name) DO NOTHING;
+
+-- ── AI chat conversations (P5: DB-backed sidebar, cross-device) ─────────────
+-- One row per AI conversation; messages live in ai_messages. Retention is
+-- 24h enforced both by the listing API's WHERE clause and (eventually) by
+-- a daily cron that DELETEs expired rows.
+CREATE TABLE IF NOT EXISTS ai_conversations (
+  id               BIGSERIAL   PRIMARY KEY,
+  user_id          INTEGER     NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  title            TEXT        NOT NULL DEFAULT 'New chat',
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  last_message_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  message_count    INTEGER     NOT NULL DEFAULT 0,
+  metadata         JSONB       NOT NULL DEFAULT '{}'::jsonb
+);
+CREATE INDEX IF NOT EXISTS idx_ai_conv_user_recent
+  ON ai_conversations (user_id, last_message_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ai_conv_retention
+  ON ai_conversations (last_message_at)
+  WHERE last_message_at IS NOT NULL;
+
+CREATE TABLE IF NOT EXISTS ai_messages (
+  id               BIGSERIAL   PRIMARY KEY,
+  conversation_id  BIGINT      NOT NULL REFERENCES ai_conversations(id) ON DELETE CASCADE,
+  role             TEXT        NOT NULL CHECK (role IN ('user','assistant','system')),
+  content          TEXT        NOT NULL DEFAULT '',
+  metadata         JSONB       NOT NULL DEFAULT '{}'::jsonb,
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_ai_msg_conv_ordered
+  ON ai_messages (conversation_id, created_at ASC);

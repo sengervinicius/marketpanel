@@ -88,6 +88,14 @@ function ChatPanel({ mobile, initialUserId }) {
   );
   const [messages,         setMessages]         = useState({});
   const [aiMessages,       setAiMessages]       = useState([]);
+  // P5: DB-backed AI chat history.
+  // - aiConversations: sidebar list of recent (last 24h) conversations.
+  // - activeAiConvoId: id of the conversation currently open (null = unsaved /
+  //   brand-new chat that hasn't been persisted yet).
+  // - aiHistoryLoading: gates spinner/empty-state in the rail.
+  const [aiConversations,  setAiConversations]  = useState([]);
+  const [activeAiConvoId,  setActiveAiConvoId]  = useState(null);
+  const [aiHistoryLoading, setAiHistoryLoading] = useState(false);
   const [input,            setInput]            = useState('');
   const [loading,          setLoading]          = useState(false);
   const [aiLoading,        setAiLoading]        = useState(false);
@@ -172,6 +180,100 @@ function ChatPanel({ mobile, initialUserId }) {
       } catch (_) {}
     }
   }, [user?.id]);
+
+  // ── P5: DB-backed AI chat history loaders ──────────────────────────────
+  // Pull the sidebar list (last 24h). Credentials are required because the
+  // endpoint is auth-gated. Swallows errors into an empty list so the UI
+  // degrades to the localStorage-only experience on API failure.
+  const loadAiConversations = useCallback(async () => {
+    if (!user?.id) return;
+    try {
+      const { API_BASE } = await import('../../utils/api');
+      const res = await fetch(`${API_BASE}/api/ai-chat`, { credentials: 'include' });
+      if (!res.ok) return;
+      const data = await res.json().catch(() => null);
+      if (data?.ok && Array.isArray(data.conversations)) {
+        setAiConversations(data.conversations);
+      }
+    } catch (err) {
+      console.warn('Failed to load AI conversations:', err);
+    }
+  }, [user?.id]);
+
+  // Load one conversation's full message history and make it the active one.
+  // Replaces whatever is currently in aiMessages.
+  const openAiConversation = useCallback(async (convoId) => {
+    if (!user?.id || !convoId) return;
+    setAiHistoryLoading(true);
+    try {
+      const { API_BASE } = await import('../../utils/api');
+      const res = await fetch(`${API_BASE}/api/ai-chat/${convoId}`, { credentials: 'include' });
+      if (!res.ok) {
+        setAiHistoryLoading(false);
+        return;
+      }
+      const data = await res.json().catch(() => null);
+      if (data?.ok && Array.isArray(data.messages)) {
+        // Normalise to the shape the renderer expects (role, content, id).
+        const msgs = data.messages.map((m, i) => ({
+          id: 'hist-' + (m.id || i),
+          role: m.role,
+          content: m.content,
+        }));
+        setAiMessages(msgs);
+        setActiveAiConvoId(String(convoId));
+      }
+    } catch (err) {
+      console.warn('Failed to load AI conversation:', err);
+    } finally {
+      setAiHistoryLoading(false);
+      setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+    }
+  }, [user?.id]);
+
+  // "New chat" — clear the active conversation so the next turn triggers
+  // server-side lazy creation and the sidebar gets a fresh entry.
+  const startNewAiConversation = useCallback(() => {
+    setActiveAiConvoId(null);
+    setAiMessages([]);
+  }, []);
+
+  // Delete a conversation (owner-only on server). Optimistically remove
+  // from the list; if the currently-open conversation is deleted, reset
+  // to the empty "new chat" state.
+  const deleteAiConversation = useCallback(async (convoId) => {
+    if (!user?.id || !convoId) return;
+    if (!window.confirm('Delete this conversation? This cannot be undone.')) return;
+    try {
+      const { API_BASE } = await import('../../utils/api');
+      const res = await fetch(`${API_BASE}/api/ai-chat/${convoId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (res.ok) {
+        setAiConversations(prev => prev.filter(c => String(c.id) !== String(convoId)));
+        if (String(activeAiConvoId) === String(convoId)) {
+          startNewAiConversation();
+        }
+      }
+    } catch (err) {
+      console.warn('Failed to delete AI conversation:', err);
+    }
+  }, [user?.id, activeAiConvoId, startNewAiConversation]);
+
+  // Load the list once on mount (and whenever user changes), plus again
+  // when the user switches into the AI chat surface so a conversation
+  // started in another tab shows up on return.
+  useEffect(() => {
+    if (!user?.id) return;
+    loadAiConversations();
+  }, [user?.id, loadAiConversations]);
+
+  useEffect(() => {
+    if (activeChatUser?.id === 'ai-assistant' && user?.id) {
+      loadAiConversations();
+    }
+  }, [activeChatUser?.id, user?.id, loadAiConversations]);
 
   // ── Per-message share helpers ──────────────────────────────────────
   const shareSubject = 'Particle AI answer';
@@ -404,6 +506,9 @@ function ChatPanel({ mobile, initialUserId }) {
             })),
             userMsgForApi,
           ],
+          // P5: thread the active conversation through so the server appends
+          // to the same row instead of creating a new one each turn.
+          conversationId: activeAiConvoId || undefined,
         }),
       });
 
@@ -412,6 +517,10 @@ function ChatPanel({ mobile, initialUserId }) {
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let buffer = '';
+      // Tracks whether this turn produced a brand-new conversation row so
+      // we can refresh the sidebar after the stream finishes (rather than
+      // on every chunk).
+      let newConvoCreated = false;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -427,6 +536,13 @@ function ChatPanel({ mobile, initialUserId }) {
             if (data === '[DONE]') break;
             try {
               const parsed = JSON.parse(data);
+              // P5: server emits conversationId once at stream start. Bind it
+              // to the active conversation so subsequent turns land on the
+              // same row.
+              if (parsed.conversationId) {
+                if (!activeAiConvoId) newConvoCreated = true;
+                setActiveAiConvoId(String(parsed.conversationId));
+              }
               if (parsed.chunk) {
                 setAiMessages(prev => {
                   const updated = [...prev];
@@ -440,6 +556,12 @@ function ChatPanel({ mobile, initialUserId }) {
             } catch {}
           }
         }
+      }
+      // Refresh sidebar after the assistant turn lands so the title (which
+      // is derived from the first user message) and last_message_at appear
+      // immediately. Done after the stream so we don't thrash on every chunk.
+      if (newConvoCreated || activeAiConvoId) {
+        loadAiConversations();
       }
     } catch (err) {
       console.error('AI chat error:', err);
@@ -455,7 +577,7 @@ function ChatPanel({ mobile, initialUserId }) {
       setAiLoading(false);
       setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
     }
-  }, [input, activeChatUser, aiMessages, buildContextualMessage]);
+  }, [input, activeChatUser, aiMessages, buildContextualMessage, activeAiConvoId, loadAiConversations]);
 
   // ── Send message ──
   const sendMessage = useCallback(async () => {
@@ -614,11 +736,122 @@ function ChatPanel({ mobile, initialUserId }) {
     }
   }, [user?.id]);
 
+  // P5: short relative-time formatter for the conversation rail.
+  // Mirrors timeAgo() but uses lastMessageAt and stays compact for the rail.
+  const aiConvoTimeAgo = (iso) => {
+    if (!iso) return '';
+    const t = new Date(iso).getTime();
+    if (!Number.isFinite(t)) return '';
+    const diff = (Date.now() - t) / 1000;
+    if (diff < 60)    return 'just now';
+    if (diff < 3600)  return Math.round(diff / 60) + 'm ago';
+    if (diff < 86400) return Math.round(diff / 3600) + 'h ago';
+    return Math.round(diff / 86400) + 'd ago';
+  };
+
+  // P5: AI conversation history rail. Renders the user's last-24h
+  // conversations from the server (DB-backed, cross-device). Hidden on
+  // mobile to keep the chat surface uncluttered — mobile users can still
+  // start a new chat, just without the rail.
+  const renderAiHistoryRail = () => (
+    <div className="chat-sidebar chat-sidebar--ai-history" style={{
+      width: 220,
+      minWidth: 220,
+      borderRight: '1px solid var(--border, #2a2a2a)',
+      display: 'flex',
+      flexDirection: 'column',
+    }}>
+      <div className="chat-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <span className="chat-header-label" style={{ fontSize: 11, letterSpacing: '0.08em' }}>
+          AI · LAST 24H
+        </span>
+        <button
+          type="button"
+          onClick={startNewAiConversation}
+          title="Start a new conversation"
+          style={{
+            background: 'none',
+            border: '1px solid var(--border, #2a2a2a)',
+            color: 'var(--text-secondary, #aaa)',
+            padding: '2px 8px',
+            borderRadius: 4,
+            cursor: 'pointer',
+            fontSize: 11,
+          }}
+        >+ New</button>
+      </div>
+      <div className="chat-list" style={{ flex: 1, overflowY: 'auto' }}>
+        {aiHistoryLoading && aiConversations.length === 0 && (
+          <div className="chat-empty" style={{ padding: 12, fontSize: 12 }}>Loading{'\u2026'}</div>
+        )}
+        {!aiHistoryLoading && aiConversations.length === 0 && (
+          <div className="chat-empty" style={{ padding: 12, fontSize: 12, color: 'var(--text-secondary, #888)' }}>
+            No recent chats. Ask something to start one.
+          </div>
+        )}
+        {aiConversations.map(c => {
+          const isActive = String(c.id) === String(activeAiConvoId);
+          return (
+            <div
+              key={c.id}
+              className="chat-list-item"
+              data-active={isActive}
+              onClick={() => openAiConversation(c.id)}
+              style={{
+                padding: '8px 10px',
+                cursor: 'pointer',
+                borderBottom: '1px solid var(--border-subtle, #1c1c1c)',
+                background: isActive ? 'var(--bg-hover, rgba(255,255,255,0.04))' : 'transparent',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 2,
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+                <span style={{
+                  fontSize: 12,
+                  color: 'var(--text-primary, #ddd)',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  flex: 1,
+                }} title={c.title || 'New chat'}>
+                  {c.title || 'New chat'}
+                </span>
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); deleteAiConversation(c.id); }}
+                  title="Delete conversation"
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--text-secondary, #888)',
+                    cursor: 'pointer',
+                    fontSize: 12,
+                    padding: '0 4px',
+                  }}
+                >{'\u00D7'}</button>
+              </div>
+              <span style={{ fontSize: 10, color: 'var(--text-secondary, #888)' }}>
+                {aiConvoTimeAgo(c.lastMessageAt)}
+                {c.messageCount ? ` · ${c.messageCount} msg` : ''}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+
   const renderAiChat = () => {
     const isAiChat = activeChatUser?.id === 'ai-assistant';
     if (!isAiChat) return null;
 
+    // Wrap the rail + chat surface in a horizontal flex so the rail sits
+    // to the left of the existing chat-main column. Hidden on mobile.
     return (
+      <div style={{ display: 'flex', flex: 1, minWidth: 0, height: '100%' }}>
+        {!mobile && renderAiHistoryRail()}
       <div className="chat-main">
         <div className="chat-header">
           {mobile && (
@@ -636,29 +869,48 @@ function ChatPanel({ mobile, initialUserId }) {
             </div>
           </div>
           {aiMessages.length > 0 && (
-            <button
-              onClick={clearAiChatHistory}
-              className="chat-clear-history-btn"
-              title="Clear chat history"
-              style={{
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                padding: '8px',
-                color: 'var(--text-secondary, #999)',
-                fontSize: '14px',
-              }}
-            >
-              Clear
-            </button>
+            <>
+              <button
+                onClick={startNewAiConversation}
+                className="chat-clear-history-btn"
+                title="Start a new conversation"
+                style={{
+                  background: 'none',
+                  border: '1px solid var(--border, #2a2a2a)',
+                  cursor: 'pointer',
+                  padding: '4px 10px',
+                  marginRight: 6,
+                  borderRadius: 4,
+                  color: 'var(--text-secondary, #999)',
+                  fontSize: 12,
+                }}
+              >
+                + New
+              </button>
+              <button
+                onClick={clearAiChatHistory}
+                className="chat-clear-history-btn"
+                title="Clear local cache"
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: '8px',
+                  color: 'var(--text-secondary, #999)',
+                  fontSize: '14px',
+                }}
+              >
+                Clear
+              </button>
+            </>
           )}
         </div>
 
         {showTtlNotice && (
           <div className="chat-ttl-notice" role="status">
             <span className="chat-ttl-notice-body">
-              Chats with AI are kept on this device for 24 hours, then cleared automatically.
-              They're never stored on our servers.
+              Chats are kept for 24 hours so you can pick them back up across devices,
+              then cleared automatically.
             </span>
             <button
               type="button"
@@ -749,6 +1001,7 @@ function ChatPanel({ mobile, initialUserId }) {
         </div>
         {/* W0.4 — AI disclaimer, persistent on every AI chat surface */}
         <AIDisclaimer variant="foot" />
+      </div>
       </div>
     );
   };

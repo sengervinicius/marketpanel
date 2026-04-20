@@ -464,7 +464,7 @@ async function callProvider(provider, messages, systemPrompt, options = {}) {
  * @param {string} systemPrompt - system prompt
  * @param {object} res - Express response object
  */
-async function streamResponse(provider, messages, systemPrompt, res, { onAbort, userId } = {}) {
+async function streamResponse(provider, messages, systemPrompt, res, { onAbort, userId, onChunk, onComplete } = {}) {
   // Input token estimate for ledger accounting (exact counts come from
   // Anthropic's message_start/message_delta events when available; we
   // over-write with the provider number if we receive it).
@@ -512,12 +512,22 @@ async function streamResponse(provider, messages, systemPrompt, res, { onAbort, 
       finished = true;
       // W1.2: record usage to ledger. Fire-and-forget — never blocks finish.
       recordOnce();
+      // P5: notify caller of full assistant text so it can be persisted
+      // to ai_messages. Fire-and-forget so a slow store never blocks finish.
+      if (typeof onComplete === 'function') {
+        try { Promise.resolve(onComplete(accumulatedText)).catch(() => {}); }
+        catch (_) { /* never throw from finish */ }
+      }
       if (!res.writableEnded) {
         // Citations are now sent immediately when captured (not deferred to finish)
         res.write('data: [DONE]\n\n');
         res.end();
       }
     };
+
+    // P5: accumulate streamed text so onComplete can persist the full
+    // assistant turn. Kept local so multiple concurrent streams don't share.
+    let accumulatedText = '';
 
     // Parse a single SSE line and write normalized chunk to client
     const processLine = (line) => {
@@ -533,6 +543,10 @@ async function streamResponse(provider, messages, systemPrompt, res, { onAbort, 
           const content = parsed.choices?.[0]?.delta?.content;
           if (content) {
             streamedChars += content.length;
+            accumulatedText += content;
+            if (typeof onChunk === 'function') {
+              try { onChunk(content); } catch (_) { /* never throw from pipe */ }
+            }
             res.write(`data: ${JSON.stringify({ chunk: content })}\n\n`);
           }
           // Perplexity sometimes reports usage in the final chunk.
@@ -552,6 +566,10 @@ async function streamResponse(provider, messages, systemPrompt, res, { onAbort, 
             const text = parsed.delta?.text || '';
             if (text) {
               streamedChars += text.length;
+              accumulatedText += text;
+              if (typeof onChunk === 'function') {
+                try { onChunk(text); } catch (_) { /* never throw from pipe */ }
+              }
               res.write(`data: ${JSON.stringify({ chunk: text })}\n\n`);
             }
           } else if (parsed.type === 'message_start') {

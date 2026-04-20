@@ -489,6 +489,15 @@ app.use('/api/chat', requireAuth, requireActiveSubscription,
   rateLimitByIP({ max: 120, windowMs: 60000 }),
   chatRoutes);
 
+// P5 — DB-backed AI chat conversations + sidebar.
+// Auth required (subscription not enforced here so users can still browse
+// past chats even after a trial expiry; new turns go through /api/search/chat
+// which already enforces aiQuotaGate).
+const aiChatRoutes = require('./routes/aiChat');
+app.use('/api/ai-chat', requireAuth,
+  rateLimitByUser({ key: 'ai-chat-history', windowSec: 60, max: 60 }),
+  aiChatRoutes);
+
 // Debt data: auth + subscription required + rate limit
 app.use('/api/debt', requireAuth, requireActiveSubscription,
   rateLimitByIP({ max: 30, windowMs: 60000 }),

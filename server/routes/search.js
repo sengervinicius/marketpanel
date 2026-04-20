@@ -24,6 +24,7 @@ const { guardAndLog } = require('../services/aiOutputGuard');
 const logger = require('../utils/logger');
 const memoryManager = require('../services/memoryManager');
 const conversationMemory = require('../services/conversationMemory');
+const aiChatStore = require('../services/aiChatStore'); // P5: DB-backed chat history
 
 const PERPLEXITY_URL = 'https://api.perplexity.ai/chat/completions';
 const MODEL          = 'sonar-pro';
@@ -1491,7 +1492,7 @@ async function aiChatKillSwitch(req, res, next) {
 
 router.post('/chat', aiChatKillSwitch, perMinuteLimit, dailyAILimit, aiQuotaGate, async (req, res) => {
   // API key check moved to modelRouter fallback logic below
-  const { messages, context } = req.body;
+  const { messages, context, conversationId } = req.body;
   if (!messages || !Array.isArray(messages) || messages.length === 0) {
     return res.status(400).json({ error: 'messages[] is required' });
   }
@@ -1531,6 +1532,32 @@ router.post('/chat', aiChatKillSwitch, perMinuteLimit, dailyAILimit, aiQuotaGate
     behaviorTracker.trackSearch(userId, userQuery).catch((e) => {
       logger.warn('search', 'behaviorTracker.trackSearch failed', { error: e.message });
     });
+  }
+
+  // ── P5: DB-backed chat history ─────────────────────────────────────────
+  // Lazy-create a conversation on first turn, then persist the user message
+  // before we kick off the stream. Failures here never block the response —
+  // the sidebar just won't populate for this turn. Conversations created
+  // here will surface in the /api/ai-chat list endpoint used by the sidebar.
+  let convoId = conversationId ? String(conversationId) : null;
+  if (userId) {
+    try {
+      if (!convoId) {
+        const created = await aiChatStore.createConversation(userId, { firstMessage: userQuery });
+        if (created) convoId = created.id;
+      } else {
+        // Verify ownership; if the id doesn't belong to this user, drop it
+        // silently rather than letting a client-forged id poison writes.
+        const existing = await aiChatStore.getConversation(userId, convoId);
+        if (!existing) convoId = null;
+      }
+      if (convoId) {
+        await aiChatStore.appendMessage(userId, convoId, 'user', userQuery);
+      }
+    } catch (e) {
+      logger.warn('search', 'aiChatStore user turn failed', { error: e.message });
+      convoId = null;
+    }
   }
 
   // ── Behavioral profile: personalize AI responses ───────────────────────
@@ -1813,8 +1840,14 @@ ${ctx_.portfolioMetricsContext ? `\n${ctx_.portfolioMetricsContext}\n` : ''}${ct
   const routerMessages = history.map(m => ({ role: m.role, content: m.content }));
 
   // Phase 2: Send context metadata before AI stream — lets client show source badges
-  if (!res.headersSent && (vaultSources.length > 0 || completeness.score > 0)) {
+  if (!res.headersSent && (convoId || vaultSources.length > 0 || completeness.score > 0)) {
     res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' });
+  }
+
+  // P5: send conversationId first so the client can immediately bind the
+  // active turn to a conversation row (used by the sidebar / refresh).
+  if (convoId) {
+    res.write(`data: ${JSON.stringify({ conversationId: convoId })}\n\n`);
   }
 
   // Send vault citation metadata (client uses this for source badges)
@@ -1896,6 +1929,14 @@ ${ctx_.portfolioMetricsContext ? `\n${ctx_.portfolioMetricsContext}\n` : ''}${ct
       res.write('data: [DONE]\n\n');
       res.end();
 
+      // P5: persist assistant turn for the sidebar (deep-analysis branch).
+      // Fire-and-forget — never blocks the client response.
+      if (userId && convoId && responseText) {
+        aiChatStore.appendMessage(userId, convoId, 'assistant', responseText).catch((e) => {
+          logger.warn('search', 'aiChatStore assistant turn failed (deep)', { error: e.message });
+        });
+      }
+
       // ── Fire-and-forget: Update session memory and extract persistent memories ──
       try {
         if (userId && userQuery && responseText) {
@@ -1934,6 +1975,17 @@ ${ctx_.portfolioMetricsContext ? `\n${ctx_.portfolioMetricsContext}\n` : ''}${ct
       await modelRouter.streamResponse(provider, routerMessages, systemPrompt, res, {
         onAbort: (abortFn) => { req.on('close', abortFn); },
         userId,
+        // P5: persist full assistant reply once streaming finishes so the
+        // sidebar shows the complete turn. W1.3 guardAndLog is applied
+        // here for consistency with the deep-analysis branch.
+        onComplete: (fullText) => {
+          if (!userId || !convoId || !fullText) return;
+          let safe = fullText;
+          try { safe = guardAndLog(fullText, { userId, model: provider.model }); } catch (_) {}
+          aiChatStore.appendMessage(userId, convoId, 'assistant', safe).catch((e) => {
+            logger.warn('search', 'aiChatStore assistant turn failed (stream)', { error: e.message });
+          });
+        },
       });
 
       // ── Fire-and-forget: Update session memory (non-blocking) ──
