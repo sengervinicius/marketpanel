@@ -1,23 +1,34 @@
 /**
- * OptionsFlowPanel.jsx — SMART MONEY unified feed
+ * OptionsFlowPanel.jsx — SMART MONEY, clustered by conviction
  *
- * CIO-note (2026-04-20): redesigned from card-based FeedItem stack
- * (one chunky card per signal) to Bloomberg-style tabular rows. One
- * row per signal. Columns: ticker, type badge, strike/detail, size,
- * signal arrow, time. Sticky pulse bar + filter tabs on top. This
- * matches the density of StockPanel/WatchlistPanel and lets a CIO
- * scan more signals per unit of screen real-estate.
+ * CIO-note (2026-04-20, v3): the v2 tabular feed showed a scroll of
+ * 60 disconnected trades — "a bunch of isolated random trades".
+ * It didn't answer the question a CIO actually asks when they look at
+ * options flow: "What is smart money doing right now, and where is the
+ * conviction?"
  *
- * Answers: "What is smart money doing RIGHT NOW that I should know about?"
+ * v3 reframes the panel around two questions and answers them top-down:
  *
- * Unified feed combining:
- * - Unusual options flow (sweeps, blocks, golden sweeps)
- * - Dark pool institutional block trades
- * - Congressional stock trades
- * - Market sentiment pulse (compact call/put ratio)
+ *   1. WHAT IS THE TAPE DOING? — a single thesis line: posture
+ *      (BULLISH / BEARISH / MIXED), the net-premium dollar skew, and
+ *      a signal count. This is computed across all bullish vs bearish
+ *      signals weighted by dollar size (premium / notional).
  *
- * Uses combined /api/unusual-whales/panel-data endpoint.
- * Auto-refreshes every 2 minutes.
+ *   2. WHERE IS THE CONVICTION? — signals are grouped by ticker into
+ *      clusters. Each cluster shows its ticker, directional posture,
+ *      net $ skew, signal count, and type confluence (OPT · DP · CON).
+ *      Under each cluster header, the individual signals are rendered
+ *      as compact detail rows. Clusters are sorted by a conviction
+ *      score that rewards confluence (multiple signals, multiple types)
+ *      and dollar size.
+ *
+ * The filter tabs (ALL / OPTIONS / DARK POOL / CONGRESS) still exist —
+ * they filter the underlying item set before clustering, so you can ask
+ * "which tickers are seeing coordinated DARK POOL accumulation" in one
+ * click.
+ *
+ * Data source unchanged: /api/unusual-whales/panel-data, 2-minute
+ * refresh.
  */
 
 import { useState, useEffect, useCallback, useMemo, memo } from 'react';
@@ -34,6 +45,12 @@ const fmtMoney = (value) => {
   if (num >= 1_000_000)    return `$${(num / 1_000_000).toFixed(1)}M`;
   if (num >= 1_000)        return `$${(num / 1_000).toFixed(0)}K`;
   return `$${num.toFixed(0)}`;
+};
+
+const fmtMoneySigned = (num) => {
+  if (num == null || isNaN(num) || num === 0) return '$0';
+  const sign = num > 0 ? '+' : '−';
+  return sign + fmtMoney(Math.abs(num)).replace(/^\$/, '$');
 };
 
 const fmtStrike = (strike) => {
@@ -93,7 +110,6 @@ function buildFeedItems(alerts, darkPool, congress) {
     const isGolden   = isSweep && isFloor;
     const typeLabel = isGolden ? 'GOLDEN' : isSweep ? 'SWEEP' : isFloor ? 'FLOOR' : isMultiLeg ? 'MULTI' : 'BLOCK';
 
-    // Tabular detail: "C $190 3/15" or "P $45 4/21"
     const side = isCall ? 'C' : isPut ? 'P' : '';
     const strike = a.strike ? fmtStrike(a.strike) : '';
     const exp = fmtExpiry(a.expiry || a.expiration);
@@ -158,25 +174,102 @@ function buildFeedItems(alerts, darkPool, congress) {
       type: 'congress',
       ticker,
       signal,
-      typeLabel: `${action}`,
+      typeLabel: action,
       detail: party ? `${memberShort} (${party})` : memberShort,
       size: t.amountRange || fmtMoney(t.amount),
-      sortValue: 0,
+      // Congress transactions lack dollar granularity — use a floor value
+      // just large enough to keep the item in the cluster-conviction math.
+      sortValue: (t.amount && !isNaN(t.amount)) ? t.amount : 25_000,
       time: t.transactionDate || t.date || t.filedDate,
       sortWeight: 1,
     });
   }
 
-  // Sort: golden sweeps first, then by premium/notional, then recency
-  items.sort((a, b) => {
-    if (a.sortWeight !== b.sortWeight) return b.sortWeight - a.sortWeight;
-    if (a.sortValue  !== b.sortValue)  return b.sortValue  - a.sortValue;
-    const ta = a.time ? new Date(a.time).getTime() : 0;
-    const tb = b.time ? new Date(b.time).getTime() : 0;
-    return tb - ta;
+  return items;
+}
+
+/* ── Cluster aggregation (THE thesis layer) ────────────────── */
+
+/**
+ * Groups items by ticker and scores each cluster.
+ *
+ *   netDollars: Σ(bullish $) − Σ(bearish $)   — directional skew
+ *   conviction: |netDollars|
+ *                 × (1 + 0.25 × (signalCount − 1))      [more signals = more conviction]
+ *                 × (1 + 0.35 × (typeCount − 1))         [cross-type confluence is golden]
+ *
+ * Clusters are returned sorted by conviction descending.
+ */
+function buildClusters(items) {
+  const byTicker = new Map();
+  for (const it of items) {
+    if (!byTicker.has(it.ticker)) {
+      byTicker.set(it.ticker, {
+        ticker: it.ticker,
+        items: [],
+        netDollars: 0,
+        grossDollars: 0,
+        signalCount: 0,
+        types: new Set(),
+        goldenCount: 0,
+      });
+    }
+    const c = byTicker.get(it.ticker);
+    c.items.push(it);
+    c.signalCount += 1;
+    c.types.add(it.type);
+    if (it.isGolden) c.goldenCount += 1;
+    const v = it.sortValue || 0;
+    c.grossDollars += v;
+    if (it.signal === 'bullish') c.netDollars += v;
+    else if (it.signal === 'bearish') c.netDollars -= v;
+  }
+
+  const clusters = Array.from(byTicker.values()).map(c => {
+    const absNet = Math.abs(c.netDollars);
+    // Directional posture: require at least 70% net-to-gross skew, otherwise MIXED.
+    const tilt = c.grossDollars > 0 ? absNet / c.grossDollars : 0;
+    const posture = tilt < 0.35 || c.netDollars === 0
+      ? 'mixed'
+      : c.netDollars > 0 ? 'bullish' : 'bearish';
+    const conviction = absNet
+      * (1 + 0.25 * Math.max(0, c.signalCount - 1))
+      * (1 + 0.35 * Math.max(0, c.types.size - 1))
+      + (c.goldenCount * 100_000); // golden sweeps bias clusters up
+
+    // Sort inner items by conviction: golden first, then $ size, then recency
+    c.items.sort((a, b) => {
+      if (a.sortWeight !== b.sortWeight) return b.sortWeight - a.sortWeight;
+      if (a.sortValue  !== b.sortValue)  return b.sortValue  - a.sortValue;
+      const ta = a.time ? new Date(a.time).getTime() : 0;
+      const tb = b.time ? new Date(b.time).getTime() : 0;
+      return tb - ta;
+    });
+
+    return { ...c, absNet, posture, conviction };
   });
 
-  return items;
+  clusters.sort((a, b) => b.conviction - a.conviction);
+  return clusters;
+}
+
+/* ── Tape posture (the top thesis line) ────────────────────── */
+
+function computeTapePosture(items) {
+  let bullDollars = 0, bearDollars = 0;
+  for (const it of items) {
+    const v = it.sortValue || 0;
+    if (it.signal === 'bullish') bullDollars += v;
+    else if (it.signal === 'bearish') bearDollars += v;
+  }
+  const net = bullDollars - bearDollars;
+  const gross = bullDollars + bearDollars;
+  const tilt = gross > 0 ? Math.abs(net) / gross : 0;
+  let posture = 'MIXED';
+  if (gross > 0 && tilt >= 0.20) {
+    posture = net > 0 ? 'BULLISH' : 'BEARISH';
+  }
+  return { posture, net, bullDollars, bearDollars, total: gross, signals: items.length };
 }
 
 /* ── Filter tabs ───────────────────────────────────────────── */
@@ -188,53 +281,78 @@ const TABS = [
   { key: 'congress', label: 'CONGRESS' },
 ];
 
-/* ── Pulse bar (compact sentiment) ─────────────────────────── */
+/* ── Sub-components ────────────────────────────────────────── */
 
-const PulseBar = memo(function PulseBar({ tide }) {
-  const callVol = tide?.callVolume || 0;
-  const putVol  = tide?.putVolume  || 0;
-  const total   = callVol + putVol;
-  const callPct = tide?.ratio
-    ? Math.round(tide.ratio * 100)
-    : total > 0 ? Math.round((callVol / total) * 100) : 50;
-
-  const sentiment = tide?.sentiment?.toUpperCase() ||
-    (callPct > 55 ? 'BULLISH' : callPct < 45 ? 'BEARISH' : 'NEUTRAL');
-  const sentCls = sentiment === 'BULLISH' ? 'sm-pulse--bull'
-    : sentiment === 'BEARISH' ? 'sm-pulse--bear' : 'sm-pulse--neut';
+const TapePostureBar = memo(function TapePostureBar({ posture }) {
+  const cls = posture.posture === 'BULLISH' ? 'sm-thesis--bull'
+    : posture.posture === 'BEARISH' ? 'sm-thesis--bear' : 'sm-thesis--mix';
+  const glyph = posture.posture === 'BULLISH' ? '▲'
+    : posture.posture === 'BEARISH' ? '▼' : '◆';
 
   return (
-    <div className="sm-pulse">
-      <span className="sm-pulse-label sm-pulse-label--call">C {callPct}%</span>
-      <div className="sm-pulse-bar">
-        <div className="sm-pulse-fill" style={{ width: `${callPct}%` }} />
-      </div>
-      <span className="sm-pulse-label sm-pulse-label--put">P {100 - callPct}%</span>
-      <span className={`sm-pulse-tag ${sentCls}`}>{sentiment}</span>
+    <div className={`sm-thesis ${cls}`}>
+      <span className="sm-thesis-glyph">{glyph}</span>
+      <span className="sm-thesis-label">{posture.posture} TAPE</span>
+      <span className="sm-thesis-sep">·</span>
+      <span className="sm-thesis-metric">
+        <span className="sm-thesis-metric-label">NET</span>
+        <span className="sm-thesis-metric-val">{fmtMoneySigned(posture.net)}</span>
+      </span>
+      <span className="sm-thesis-sep">·</span>
+      <span className="sm-thesis-metric">
+        <span className="sm-thesis-metric-val">{posture.signals}</span>
+        <span className="sm-thesis-metric-label">signals</span>
+      </span>
     </div>
   );
 });
 
-/* ── Tabular row ───────────────────────────────────────────── */
+const TYPE_SHORT = { options: 'OPT', darkpool: 'DP', congress: 'CON' };
 
-const FlowRow = memo(function FlowRow({ item }) {
-  const signalCls = item.signal === 'bullish' ? 'sm-row--bull'
-    : item.signal === 'bearish' ? 'sm-row--bear' : '';
-
-  const typeCls = `sm-type sm-type--${item.type}${item.isGolden ? ' sm-type--golden' : ''}`;
-  const sigGlyph = item.signal === 'bullish' ? '▲'
-    : item.signal === 'bearish' ? '▼' : '·';
-  const sigCls = item.signal === 'bullish' ? 'sm-sig--bull'
-    : item.signal === 'bearish' ? 'sm-sig--bear' : 'sm-sig--neut';
+const ClusterCard = memo(function ClusterCard({ cluster }) {
+  const postureCls = cluster.posture === 'bullish' ? 'sm-clust--bull'
+    : cluster.posture === 'bearish' ? 'sm-clust--bear' : 'sm-clust--mix';
+  const postureGlyph = cluster.posture === 'bullish' ? '▲'
+    : cluster.posture === 'bearish' ? '▼' : '◆';
+  const postureLabel = cluster.posture === 'bullish' ? 'BULLISH'
+    : cluster.posture === 'bearish' ? 'BEARISH' : 'MIXED';
+  const typeStr = Array.from(cluster.types).map(t => TYPE_SHORT[t] || t).join('·');
 
   return (
-    <div className={`sm-row ${signalCls}`}>
-      <span className="sm-col-ticker">{item.ticker}</span>
+    <div className={`sm-clust ${postureCls}`}>
+      <div className="sm-clust-head">
+        <span className="sm-clust-ticker">{cluster.ticker}</span>
+        <span className={`sm-clust-posture sm-clust-posture--${cluster.posture}`}>
+          {postureGlyph} {postureLabel}
+        </span>
+        <span className="sm-clust-net">{fmtMoneySigned(cluster.netDollars)}</span>
+        <span className="sm-clust-meta">
+          {cluster.signalCount} sig · {typeStr}
+        </span>
+      </div>
+      <div className="sm-clust-body">
+        {cluster.items.map((item, i) => (
+          <ClusterDetail key={`${item.type}-${i}`} item={item} />
+        ))}
+      </div>
+    </div>
+  );
+});
+
+const ClusterDetail = memo(function ClusterDetail({ item }) {
+  const typeCls = `sm-type sm-type--${item.type}${item.isGolden ? ' sm-type--golden' : ''}`;
+  const sigCls = item.signal === 'bullish' ? 'sm-sig--bull'
+    : item.signal === 'bearish' ? 'sm-sig--bear' : 'sm-sig--neut';
+  const sigGlyph = item.signal === 'bullish' ? '▲'
+    : item.signal === 'bearish' ? '▼' : '·';
+
+  return (
+    <div className="sm-detail">
       <span className={typeCls}>{item.typeLabel}</span>
-      <span className="sm-col-detail" title={item.detail}>{item.detail || '—'}</span>
-      <span className="sm-col-size">{item.size}</span>
-      <span className={`sm-col-signal ${sigCls}`}>{sigGlyph}</span>
-      <span className="sm-col-time">{timeAgo(item.time)}</span>
+      <span className="sm-detail-body" title={item.detail}>{item.detail || '—'}</span>
+      <span className="sm-detail-size">{item.size}</span>
+      <span className={`sm-detail-sig ${sigCls}`}>{sigGlyph}</span>
+      <span className="sm-detail-time">{timeAgo(item.time)}</span>
     </div>
   );
 });
@@ -242,7 +360,6 @@ const FlowRow = memo(function FlowRow({ item }) {
 /* ── Main panel ────────────────────────────────────────────── */
 
 function OptionsFlowPanel() {
-  const [tide, setTide]         = useState(null);
   const [alerts, setAlerts]     = useState([]);
   const [darkPool, setDarkPool] = useState([]);
   const [congress, setCongress] = useState([]);
@@ -256,7 +373,6 @@ function OptionsFlowPanel() {
       if (!res?.ok) throw new Error('fetch failed');
       const data = await res.json();
 
-      if (data.tide) setTide(data.tide);
       if (data.alerts?.data)   setAlerts(data.alerts.data);
       if (data.darkPool?.data) setDarkPool(data.darkPool.data);
       if (data.congress?.data) setCongress(data.congress.data);
@@ -284,6 +400,9 @@ function OptionsFlowPanel() {
     return allItems.filter(i => i.type === activeTab);
   }, [allItems, activeTab]);
 
+  const clusters = useMemo(() => buildClusters(filtered), [filtered]);
+  const tape = useMemo(() => computeTapePosture(filtered), [filtered]);
+
   const counts = useMemo(() => ({
     all: allItems.length,
     options: allItems.filter(i => i.type === 'options').length,
@@ -295,20 +414,21 @@ function OptionsFlowPanel() {
     ? lastUpdate.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' })
     : '';
 
+  const topClusters = clusters.slice(0, 10);
+
   return (
     <div className="sm-panel">
       {/* Header */}
       <div className="sm-hdr">
         <span className="sm-hdr-title">OPTIONS / FLOW</span>
-        <span className="sm-hdr-sub">FLOW · DARK POOL · CONGRESS</span>
         <div className="sm-hdr-right">
           <span className="sm-hdr-ts">{loading ? 'SYNCING' : ts}</span>
           <button className="sm-hdr-btn" onClick={fetchData} title="Refresh">↻</button>
         </div>
       </div>
 
-      {/* Pulse bar */}
-      <PulseBar tide={tide} />
+      {/* Thesis — the one-line answer to "what is smart money doing?" */}
+      <TapePostureBar posture={tape} />
 
       {/* Filter tabs */}
       <div className="sm-tabs">
@@ -324,25 +444,21 @@ function OptionsFlowPanel() {
         ))}
       </div>
 
-      {/* Column headers — Bloomberg-style */}
-      <div className="sm-row sm-row-hdr">
-        <span className="sm-col-ticker">TKR</span>
-        <span className="sm-col-type">TYPE</span>
-        <span className="sm-col-detail">DETAIL</span>
-        <span className="sm-col-size">SIZE</span>
-        <span className="sm-col-signal">SIG</span>
-        <span className="sm-col-time">TIME</span>
+      {/* Cluster column legend */}
+      <div className="sm-clust-legend">
+        <span className="sm-clust-legend-l">CONVICTION CLUSTERS</span>
+        <span className="sm-clust-legend-r">sorted by signal confluence × $ size</span>
       </div>
 
-      {/* Tabular feed */}
+      {/* Clusters */}
       <div className="sm-feed">
-        {loading && filtered.length === 0 ? (
-          <div className="sm-empty">Loading smart money data…</div>
-        ) : filtered.length === 0 ? (
+        {loading && topClusters.length === 0 ? (
+          <div className="sm-empty">Loading smart-money signals…</div>
+        ) : topClusters.length === 0 ? (
           <div className="sm-empty">No {activeTab === 'all' ? '' : activeTab + ' '}signals detected</div>
         ) : (
-          filtered.slice(0, 60).map((item, i) => (
-            <FlowRow key={`${item.type}-${item.ticker}-${i}`} item={item} />
+          topClusters.map(c => (
+            <ClusterCard key={c.ticker} cluster={c} />
           ))
         )}
       </div>
@@ -350,7 +466,9 @@ function OptionsFlowPanel() {
       {/* Footer */}
       <div className="sm-footer">
         <span className="sm-footer-src">via Unusual Whales</span>
-        <span className="sm-footer-count">{counts.all} signals</span>
+        <span className="sm-footer-count">
+          {clusters.length} tickers · {counts.all} signals
+        </span>
       </div>
     </div>
   );

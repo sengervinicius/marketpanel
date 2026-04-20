@@ -1,8 +1,19 @@
-/* OptionsFlowPanel.css — SMART MONEY tabular feed
+/* OptionsFlowPanel.css — Conviction-clustered smart-money panel (v3)
  *
- * CIO-note (2026-04-20): grid rows, not cards. Six columns:
- *   TKR | TYPE | DETAIL | SIZE | SIG | TIME
- * Same information density as StockPanel / WatchlistPanel.
+ * CIO-note (2026-04-20, v3): the v2 tabular flow-row layout presented
+ * 60 disconnected trades. v3 groups signals into conviction clusters
+ * by ticker, led by a single THESIS line stating tape posture + net $.
+ *
+ * Composition:
+ *   .sm-hdr            canonical panel header (see convention)
+ *   .sm-thesis         top thesis line (BULLISH/BEARISH/MIXED tape)
+ *   .sm-tabs           filter tabs (ALL | OPTIONS | DARK POOL | CONGRESS)
+ *   .sm-clust-legend   column legend strip
+ *   .sm-feed           scrolling cluster list
+ *     .sm-clust          a single ticker's cluster
+ *       .sm-clust-head   ticker + posture + net$ + confluence
+ *       .sm-clust-body   individual signal detail rows (.sm-detail)
+ *   .sm-footer         attribution + counts
  */
 
 .sm-panel {
@@ -10,36 +21,35 @@
   flex-direction: column;
   height: 100%;
   overflow: hidden;
-  font-family: var(--font-mono);
+  font-family: var(--font-family-mono);
   background: var(--bg-panel);
 }
 
 /* ── Header ────────────────────────────────────────────────── */
+/* Canonical panel-header convention (matches NewsPanel / WatchlistPanel):
+ * padding 4px 8px, border-bottom 1px solid var(--border-strong),
+ * background var(--bg-elevated), title color var(--color-text-primary),
+ * letter-spacing 0.08em. Do NOT diverge without app-wide review.
+ */
 .sm-hdr {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 2px 8px;
-  border-bottom: 1px solid var(--border-subtle);
-  background: var(--bg-surface);
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border-strong);
+  background: var(--bg-elevated);
   flex-shrink: 0;
   height: 20px;
 }
 
 .sm-hdr-title {
-  font-family: var(--font-mono);
-  font-size: var(--font-sm);
-  font-weight: 700;
-  letter-spacing: 0.15em;
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--text-muted);
+  color: var(--color-text-primary);
   line-height: 1;
-}
-
-.sm-hdr-sub {
-  font-size: 9px;
-  color: var(--text-faint);
-  letter-spacing: 0.04em;
 }
 
 .sm-hdr-right {
@@ -53,7 +63,7 @@
 .sm-hdr-ts {
   font-size: 9px;
   color: var(--text-faint);
-  font-family: var(--font-mono);
+  font-family: var(--font-family-mono);
 }
 
 .sm-hdr-btn {
@@ -66,62 +76,74 @@
   line-height: 1;
   border-radius: 2px;
 }
-
 .sm-hdr-btn:hover {
   color: var(--text-primary);
   border-color: var(--text-muted);
 }
 
-/* ── Pulse bar ────────────────────────────────────────────── */
-.sm-pulse {
+/* ── Thesis line ───────────────────────────────────────────── */
+/* One-line answer to "what is smart money doing?".
+ * BULLISH / BEARISH / MIXED, net $ skew, signal count.
+ */
+.sm-thesis {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 3px 8px;
+  padding: 5px 8px;
   border-bottom: 1px solid var(--border-subtle);
-  flex-shrink: 0;
-  background: var(--bg-panel);
-}
-
-.sm-pulse-label {
-  font-size: 8px;
-  font-weight: 700;
-  font-family: var(--font-mono);
-  min-width: 32px;
+  font-family: var(--font-family-mono);
+  font-size: 11px;
   letter-spacing: 0.03em;
+  flex-shrink: 0;
 }
 
-.sm-pulse-label--call { color: var(--price-up); text-align: left; }
-.sm-pulse-label--put  { color: var(--price-down); text-align: right; }
+.sm-thesis--bull { background: rgba(34, 197, 94, 0.06); }
+.sm-thesis--bear { background: rgba(239, 68, 68, 0.06); }
+.sm-thesis--mix  { background: rgba(255, 255, 255, 0.02); }
 
-.sm-pulse-bar {
-  flex: 1;
-  height: 4px;
-  background: var(--price-down);
-  border-radius: 2px;
-  overflow: hidden;
-}
-
-.sm-pulse-fill {
-  height: 100%;
-  background: var(--price-up);
-  transition: width 0.4s ease;
-  border-radius: 2px;
-}
-
-.sm-pulse-tag {
-  font-size: 8px;
+.sm-thesis-glyph {
+  font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.06em;
-  padding: 1px 4px;
-  border-radius: 2px;
-  min-width: 48px;
-  text-align: center;
+  line-height: 1;
+}
+.sm-thesis--bull .sm-thesis-glyph { color: var(--price-up); }
+.sm-thesis--bear .sm-thesis-glyph { color: var(--price-down); }
+.sm-thesis--mix  .sm-thesis-glyph { color: var(--text-muted); }
+
+.sm-thesis-label {
+  font-weight: 700;
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+}
+.sm-thesis--bull .sm-thesis-label { color: var(--price-up); }
+.sm-thesis--bear .sm-thesis-label { color: var(--price-down); }
+.sm-thesis--mix  .sm-thesis-label { color: var(--text-primary); }
+
+.sm-thesis-sep {
+  color: var(--text-faint);
+  margin: 0 2px;
 }
 
-.sm-pulse--bull { color: var(--price-up);   background: rgba(34, 197, 94, 0.08); }
-.sm-pulse--bear { color: var(--price-down); background: rgba(239, 68, 68, 0.08); }
-.sm-pulse--neut { color: var(--text-muted); background: rgba(255, 255, 255, 0.04); }
+.sm-thesis-metric {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.sm-thesis-metric-label {
+  font-size: 9px;
+  color: var(--text-muted);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.sm-thesis-metric-val {
+  font-family: var(--font-family-mono);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+  font-size: 11px;
+}
 
 /* ── Filter tabs ───────────────────────────────────────────── */
 .sm-tabs {
@@ -141,7 +163,7 @@
   border: none;
   border-bottom: 2px solid transparent;
   color: var(--text-faint);
-  font-family: var(--font-mono);
+  font-family: var(--font-family-mono);
   font-size: 9px;
   font-weight: 600;
   letter-spacing: 0.05em;
@@ -149,7 +171,6 @@
   cursor: pointer;
   transition: color 0.15s;
 }
-
 .sm-tab:hover { color: var(--text-primary); }
 
 .sm-tab--active {
@@ -163,47 +184,137 @@
   opacity: 0.7;
 }
 
-/* ── Tabular rows ─────────────────────────────────────────── */
-/* Column template — TKR | TYPE | DETAIL | SIZE | SIG | TIME */
-.sm-row {
-  display: grid;
-  grid-template-columns: 52px 60px 1fr 56px 22px 38px;
+/* ── Cluster legend strip ─────────────────────────────────── */
+.sm-clust-legend {
+  display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: 4px;
-  padding: 2px 8px;
+  padding: 2px 8px 3px;
+  font-size: 9px;
+  color: var(--text-muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 700;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
+  flex-shrink: 0;
+}
+.sm-clust-legend-r {
+  color: var(--text-faint);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: none;
+}
+
+/* ── Feed / cluster container ─────────────────────────────── */
+.sm-feed {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
+}
+.sm-feed::-webkit-scrollbar { width: 4px; }
+.sm-feed::-webkit-scrollbar-track { background: transparent; }
+.sm-feed::-webkit-scrollbar-thumb {
+  background: var(--border-default);
+  border-radius: 2px;
+}
+
+/* ── Cluster ─────────────────────────────────────────────── */
+.sm-clust {
   border-bottom: 1px solid var(--border-subtle);
   border-left: 2px solid transparent;
   transition: background 100ms ease;
+}
+.sm-clust:hover { background: var(--bg-hover); }
+.sm-clust--bull { border-left-color: var(--price-up); }
+.sm-clust--bear { border-left-color: var(--price-down); }
+.sm-clust--mix  { border-left-color: var(--text-faint); }
+
+.sm-clust-head {
+  display: grid;
+  grid-template-columns: 58px 1fr 72px 110px;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px 2px;
   font-size: 10.5px;
 }
 
-.sm-row:hover   { background: var(--bg-hover); }
-.sm-row--bull   { border-left-color: var(--price-up); }
-.sm-row--bear   { border-left-color: var(--price-down); }
-
-.sm-row-hdr {
-  background: var(--bg-surface);
-  color: var(--text-faint);
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  border-bottom: 1px solid var(--border-subtle);
-  padding: 2px 8px;
-  border-left: 2px solid transparent;
-}
-
-.sm-row-hdr:hover { background: var(--bg-surface); }
-
-.sm-col-ticker {
-  color: var(--text-primary);
-  font-weight: 700;
+.sm-clust-ticker {
+  font-family: var(--font-family-mono);
+  font-weight: 800;
   letter-spacing: 0.04em;
-  font-family: var(--font-mono);
+  color: var(--text-primary);
+  font-size: 11.5px;
   white-space: nowrap;
 }
 
-.sm-col-type, .sm-type {
+.sm-clust-posture {
+  font-family: var(--font-family-mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 1px 4px;
+  border-radius: 2px;
+  white-space: nowrap;
+  justify-self: start;
+}
+.sm-clust-posture--bullish {
+  color: var(--price-up);
+  background: rgba(34, 197, 94, 0.10);
+}
+.sm-clust-posture--bearish {
+  color: var(--price-down);
+  background: rgba(239, 68, 68, 0.10);
+}
+.sm-clust-posture--mixed {
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.sm-clust-net {
+  font-family: var(--font-family-mono);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  color: var(--text-primary);
+  font-size: 11px;
+  white-space: nowrap;
+}
+.sm-clust--bull .sm-clust-net { color: var(--price-up); }
+.sm-clust--bear .sm-clust-net { color: var(--price-down); }
+
+.sm-clust-meta {
+  font-family: var(--font-family-mono);
+  font-size: 9px;
+  color: var(--text-muted);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.sm-clust-body {
+  padding: 0 8px 3px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+/* ── Cluster-detail row (individual signal) ───────────────── */
+.sm-detail {
+  display: grid;
+  grid-template-columns: 52px 1fr 58px 16px 34px;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 0 1px 12px;
+  font-size: 10px;
+  color: var(--text-secondary);
+}
+
+.sm-type {
+  font-family: var(--font-family-mono);
   font-size: 8.5px;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -213,7 +324,6 @@
   text-align: center;
   white-space: nowrap;
 }
-
 .sm-type--options {
   color: #60a5fa;
   background: rgba(96, 165, 250, 0.10);
@@ -235,55 +345,38 @@
   border: 1px solid rgba(240, 192, 64, 0.18);
 }
 
-.sm-col-detail {
+.sm-detail-body {
   color: var(--text-secondary);
-  font-family: var(--font-mono);
+  font-family: var(--font-family-mono);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 10.5px;
 }
 
-.sm-col-size {
+.sm-detail-size {
   color: var(--text-primary);
-  font-family: var(--font-mono);
+  font-family: var(--font-family-mono);
   text-align: right;
   font-variant-numeric: tabular-nums;
   font-weight: 600;
   white-space: nowrap;
 }
 
-.sm-col-signal {
+.sm-detail-sig {
   text-align: center;
   font-weight: 700;
-  font-size: 11px;
+  font-size: 10px;
 }
-
 .sm-sig--bull { color: var(--price-up); }
 .sm-sig--bear { color: var(--price-down); }
 .sm-sig--neut { color: var(--text-faint); }
 
-.sm-col-time {
+.sm-detail-time {
   color: var(--text-faint);
-  font-family: var(--font-mono);
+  font-family: var(--font-family-mono);
   font-size: 9.5px;
   text-align: right;
   white-space: nowrap;
-}
-
-/* ── Feed ─────────────────────────────────────────────────── */
-.sm-feed {
-  flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
-  min-height: 0;
-}
-
-.sm-feed::-webkit-scrollbar { width: 4px; }
-.sm-feed::-webkit-scrollbar-track { background: transparent; }
-.sm-feed::-webkit-scrollbar-thumb {
-  background: var(--border-default);
-  border-radius: 2px;
 }
 
 /* ── Empty state ──────────────────────────────────────────── */
@@ -312,5 +405,5 @@
   color: var(--text-faint);
   letter-spacing: 0.04em;
   opacity: 0.7;
-  font-family: var(--font-mono);
+  font-family: var(--font-family-mono);
 }

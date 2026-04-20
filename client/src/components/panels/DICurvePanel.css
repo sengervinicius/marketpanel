@@ -16,22 +16,27 @@
   min-height: 0;
 }
 
+/* Canonical panel-header convention (matches NewsPanel / WatchlistPanel).
+ * Do NOT diverge without app-wide review. */
 .dic-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 2px var(--sp-2);
-  border-bottom: 1px solid var(--border-subtle);
-  background: var(--bg-surface);
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border-strong);
+  background: var(--bg-elevated);
   flex-shrink: 0;
   height: 20px;
 }
 
 .dic-header-title {
-  color: var(--text-muted);
-  font-weight: 700;
-  font-size: var(--font-sm);
-  letter-spacing: 0.15em;
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-primary);
+  line-height: 1;
 }
 
 .dic-header-status {
@@ -59,10 +64,10 @@
 }
 
 .dic-matrix-head {
-  color: var(--text-faint);
-  font-size: 9px;
+  color: var(--text-muted);
+  font-size: 10px;
   font-weight: 700;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   border-bottom: 1px solid var(--border-subtle);
   background: var(--bg-surface);
@@ -87,8 +92,8 @@
 }
 
 .dic-matrix-head .dic-col-country {
-  color: var(--text-faint);
-  font-size: 9px;
+  color: var(--text-muted);
+  font-size: 10px;
 }
 
 .dic-col-rate,
@@ -102,7 +107,7 @@
 
 .dic-matrix-head .dic-col-rate,
 .dic-matrix-head .dic-col-metric {
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-weight: 700;
 }
 

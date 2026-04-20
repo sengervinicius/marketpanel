@@ -180,32 +180,34 @@ function DICurvePanel() {
                   </div>
                 ) : (
                   <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={curve} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
+                    <LineChart data={curve} margin={{ top: 6, right: 6, bottom: 2, left: 0 }}>
                       <XAxis
                         dataKey="tenor"
-                        tick={{ fill: 'var(--text-faint)', fontSize: 8 }}
+                        tick={{ fill: 'var(--text-secondary)', fontSize: 10, fontFamily: 'var(--font-family-mono)' }}
                         tickLine={false}
-                        axisLine={{ stroke: 'var(--border-subtle)' }}
+                        axisLine={{ stroke: 'var(--border-strong)' }}
                         interval="preserveStartEnd"
                         padding={{ left: 2, right: 2 }}
                       />
                       <YAxis
                         domain={[minR, maxR]}
-                        tick={{ fill: 'var(--text-faint)', fontSize: 8 }}
+                        tick={{ fill: 'var(--text-secondary)', fontSize: 10, fontFamily: 'var(--font-family-mono)' }}
                         tickLine={false}
                         axisLine={false}
-                        width={24}
+                        width={28}
                         tickFormatter={v => v.toFixed(1)}
                       />
                       <Tooltip
                         contentStyle={{
-                          background: 'var(--bg-surface)',
-                          border: '1px solid ' + c.color + '44',
-                          fontSize: 10, padding: '4px 8px',
+                          background: 'var(--bg-elevated)',
+                          border: '1px solid var(--border-strong)',
+                          fontSize: 10,
+                          fontFamily: 'var(--font-family-mono)',
+                          padding: '4px 8px',
                           borderRadius: 3,
                         }}
-                        itemStyle={{ color: c.color }}
-                        labelStyle={{ color: 'var(--text-muted)', marginBottom: 1, fontSize: 9 }}
+                        itemStyle={{ color: c.color, fontFamily: 'var(--font-family-mono)' }}
+                        labelStyle={{ color: 'var(--color-text-secondary)', marginBottom: 2, fontSize: 10, fontFamily: 'var(--font-family-mono)' }}
                         formatter={v => [v != null ? v.toFixed(2) + '%' : '—', 'yield']}
                       />
                       <Line
@@ -213,8 +215,8 @@ function DICurvePanel() {
                         dataKey="rate"
                         stroke={c.color}
                         strokeWidth={1.5}
-                        dot={{ fill: c.color, r: 1.8, strokeWidth: 0 }}
-                        activeDot={{ r: 3.5, fill: c.color, strokeWidth: 0 }}
+                        dot={{ fill: c.color, r: 2.2, strokeWidth: 0 }}
+                        activeDot={{ r: 4, fill: c.color, strokeWidth: 0 }}
                         isAnimationActive={false}
                       />
                     </LineChart>

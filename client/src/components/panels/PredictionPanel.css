@@ -15,24 +15,26 @@
 }
 
 /* ── Header ── */
+/* Canonical panel-header convention (matches NewsPanel / WatchlistPanel).
+ * Do NOT diverge without app-wide review. */
 .pred-header {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 2px 8px;
-  border-bottom: 1px solid var(--border-subtle);
-  background: var(--bg-surface);
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border-strong);
+  background: var(--bg-elevated);
   flex-shrink: 0;
   height: 20px;
 }
 
 .pred-title {
-  font-family: var(--font-mono);
-  font-size: var(--font-sm);
-  font-weight: 700;
-  letter-spacing: 0.15em;
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--text-muted);
+  color: var(--color-text-primary);
   line-height: 1;
 }
 
