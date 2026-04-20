@@ -111,6 +111,7 @@ export function CryptoPanel({ data = {}, loading, onTickerClick }) {
         availableSubsections={availableSubsections}
         hiddenSubsections={hiddenSubsections}
         lastUpdated={lastUpdated}
+        source="CoinGecko"
         onToggleSubsection={(key) => {
           const current = hiddenSubsections || [];
           const updated = current.includes(key)

@@ -155,6 +155,7 @@ function GlobalIndicesPanel({ data = {}, loading, onTickerClick }) {
         availableSubsections={availableSubsections}
         hiddenSubsections={hiddenSubsections}
         lastUpdated={lastUpdated}
+        source="Yahoo"
         onToggleSubsection={(key) => {
           const current = hiddenSubsections || [];
           const updated = current.includes(key)

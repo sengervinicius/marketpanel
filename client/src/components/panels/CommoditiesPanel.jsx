@@ -195,6 +195,7 @@ function CommoditiesPanel({ data = {}, loading, onTickerClick }) {
         customSubsections={customSubsections}
         subsectionLabels={subsectionLabels}
         lastUpdated={lastUpdated}
+        source="Yahoo"
         onToggleSubsection={handleToggleSubsection}
         onTitleChange={(v) => saveCfg({ title: v })}
         onAddSubsection={handleAddSubsection}

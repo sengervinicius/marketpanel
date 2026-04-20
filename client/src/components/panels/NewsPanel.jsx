@@ -66,6 +66,7 @@ function NewsPanel() {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState(null);
   const [sentimentMap, setSentimentMap] = useState({});
+  const [lastUpdated, setLastUpdated] = useState(null);
   const prevNews = useRef([]);
   const { getBadge } = useFeedStatus();
   const badge = getBadge('stocks');
@@ -84,6 +85,7 @@ function NewsPanel() {
       }
       prevNews.current = items;
       setNews(items);
+      setLastUpdated(new Date());
     } catch (e) {
       console.warn('NewsPanel load error:', e.message);
       setError(e.message);
@@ -140,6 +142,8 @@ function NewsPanel() {
       <PanelHeader
         title="NEWS FEED"
         subtitle={news.length > 0 ? `${news.length} STORIES · ${badge.text}` : badge.text}
+        updatedAt={lastUpdated}
+        source="Multi-source"
         actions={(
           <>
             {news.length > 0 && (

@@ -61,6 +61,7 @@ export default function PredictionPanel() {
   const [error, setError]                   = useState(null);
   const [interests, setInterests]           = useState([]);
   const [isPersonalized, setIsPersonalized] = useState(false);
+  const [lastUpdated, setLastUpdated]       = useState(null);
   const timerRef = useRef(null);
 
   const fetchData = useCallback(async () => {
@@ -93,6 +94,7 @@ export default function PredictionPanel() {
       }
 
       setError(null);
+      setLastUpdated(new Date());
     } catch (err) {
       setError('Failed to load prediction markets');
       console.error('[PredictionPanel]', err.message);
@@ -123,6 +125,8 @@ export default function PredictionPanel() {
       <PanelHeader
         title="PREDICTIONS"
         subtitle={isPersonalized && interests.length > 0 ? interests.join(' · ') : 'KALSHI · POLYMARKET'}
+        updatedAt={lastUpdated}
+        source="Kalshi/Polymarket"
       />
 
       {/* Category filter pills — canonical PanelTabRow */}

@@ -7,6 +7,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useDrag } from '../../context/DragContext';
 import SubsectionContextMenu from './SubsectionContextMenu';
+import FreshnessDot from '../panels/_shared/FreshnessDot';
 import './EditablePanelHeader.css';
 
 export default function EditablePanelHeader({
@@ -28,6 +29,8 @@ export default function EditablePanelHeader({
   feedBadge,
   // Phase 2: Last updated timestamp (ISO string or Date)
   lastUpdated = null,
+  // Phase 9.1: upstream data source label (e.g., "Yahoo", "BCB", "Binance")
+  source = null,
   children,
 }) {
   const [editingTitle, setEditingTitle] = useState(false);
@@ -119,12 +122,7 @@ export default function EditablePanelHeader({
         }} title="Configure panel sections"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg></button>)}
         {feedBadge && (<span className="eph-badge" style={{ background: feedBadge.bg, color: feedBadge.color, border: `1px solid ${feedBadge.color}33` }}>{feedBadge.text}</span>)}
         {lastUpdated && (
-          <span className="eph-timestamp" title={new Date(lastUpdated).toLocaleString()}>
-            {(() => {
-              const date = new Date(lastUpdated);
-              return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
-            })()}
-          </span>
+          <FreshnessDot updatedAt={lastUpdated} source={source} />
         )}
         <div className="eph-spacer" />
         {children}

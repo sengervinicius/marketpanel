@@ -272,6 +272,7 @@ function StockPanel({ data = {}, loading, onTickerClick }) {
         onSearchChange={setSearchFilter}
         feedBadge={badge}
         lastUpdated={lastUpdated}
+        source="Yahoo"
       >
         <IntegrityBadge domain="equities" />
         {/* Movers filter toggle */}

@@ -221,6 +221,7 @@ function ForexPanel({ data = {}, cryptoData = {}, loading, onTickerClick }) {
         onSearchChange={setSearchFilter}
         feedBadge={badge}
         lastUpdated={lastUpdated}
+        source="Yahoo"
       >
         <IntegrityBadge domain="forex" />
         {/* Movers filter */}

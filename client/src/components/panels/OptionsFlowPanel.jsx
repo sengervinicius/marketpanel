@@ -623,7 +623,8 @@ function OptionsFlowPanel() {
     <div className="sm-panel">
       <PanelHeader
         title="OPTIONS / FLOW"
-        timestamp={loading ? 'SYNCING' : ts}
+        updatedAt={lastUpdate}
+        source="Unusual Whales"
         actions={(
           <button className="pp-header-btn" onClick={fetchData} title="Refresh">↻</button>
         )}

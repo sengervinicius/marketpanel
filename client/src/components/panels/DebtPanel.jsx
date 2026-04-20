@@ -214,6 +214,7 @@ function DebtPanel() {
   const [error, setError]                           = useState(null);
   const [countryGroup, setCountryGroup]             = useState('G10');
   const [liveReady, setLiveReady]                   = useState(false);
+  const [lastUpdated, setLastUpdated]               = useState(null);
 
   // Persistent ref for live data (no re-render race)
   const liveDataRef   = useRef(null);
@@ -327,6 +328,7 @@ function DebtPanel() {
       } catch (_) {
         // Non-fatal: credit indexes are secondary
       }
+      setLastUpdated(new Date());
     } catch (e) {
       setError(e.message || 'Failed to load yield curve');
       setCurve(null);
@@ -393,6 +395,7 @@ function DebtPanel() {
 
       snapshot.sort((a, b) => b.yield - a.yield);
       setRegional(snapshot);
+      setLastUpdated(new Date());
 
       // Credit indexes
       try {
@@ -488,6 +491,8 @@ function DebtPanel() {
     <div className="dp-panel">
       <PanelHeader
         title="YIELDS"
+        updatedAt={lastUpdated}
+        source={curveSource || 'Multi-source'}
         actions={(
           <>
             {/* View toggle */}

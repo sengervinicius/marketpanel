@@ -170,6 +170,7 @@ function BrazilPanel({ onTickerClick }) {
         onSearchChange={setSearchFilter}
         feedBadge={badge}
         lastUpdated={lastUpdated}
+        source="Yahoo/BCB"
       >
         <button className="btn"
           onClick={() => setCollapsed(v => !v)}
