@@ -6,10 +6,11 @@ import VaultLogo from '../ui/VaultLogo';
 import './ParticleNav.css';
 
 // ── Mobile tab definitions (5 primary tabs inside Terminal mode) ─────────────
+// Phase 9.7: "Portfolio" → "Watchlist" per Phase 9.2 unification
 export const MOBILE_TABS = [
   { id: 'home',      label: 'Home' },
   { id: 'charts',    label: 'Charts' },
-  { id: 'watchlist', label: 'Portfolio' },
+  { id: 'watchlist', label: 'Watchlist' },
   { id: 'search',    label: 'Search' },
   { id: 'more',      label: 'More' },
 ];
@@ -18,7 +19,7 @@ export const MOBILE_TABS = [
 export const TERMINAL_TABS = [
   { id: 'home',      label: 'Home' },
   { id: 'charts',    label: 'Charts' },
-  { id: 'watchlist', label: 'Portfolio' },
+  { id: 'watchlist', label: 'Watchlist' },
   { id: 'search',    label: 'Search' },
   { id: 'more',      label: 'More' },
 ];

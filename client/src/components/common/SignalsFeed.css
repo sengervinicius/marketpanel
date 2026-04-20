@@ -242,3 +242,37 @@
 .signals-feed__list::-webkit-scrollbar-thumb:hover {
   background: var(--text-tertiary, #6b7280);
 }
+
+/* ── Phase 9.7: Mobile reflow for signals ──────────────────────────────── */
+@media (max-width: 640px) {
+  /* Keep header + tags readable, shrink a touch */
+  .signals-feed__item {
+    padding: 10px 12px;
+    gap: 10px;
+  }
+  .signals-feed__title-row {
+    flex-wrap: wrap;
+    row-gap: 2px;
+  }
+  .signals-feed__title-text {
+    font-size: 12px;
+    min-width: 0;
+  }
+  .signals-feed__tag {
+    font-size: 8px;
+    padding: 1px 5px;
+    margin-right: 4px;
+  }
+  .signals-feed__time {
+    font-size: 10px;
+  }
+  .signals-feed__insight {
+    font-size: 11px;
+    -webkit-line-clamp: 2;
+  }
+  .signals-feed__icon {
+    font-size: 16px;
+    width: 22px;
+    height: 22px;
+  }
+}

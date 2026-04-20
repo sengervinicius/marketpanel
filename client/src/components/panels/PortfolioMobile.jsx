@@ -262,7 +262,7 @@ function PortfolioMobile({ onManage }) {
       {/* Header */}
       <div className="flex-row pm-header">
         <span className="pm-header-title">
-          Portfolio
+          Watchlist
         </span>
         <div className="flex-row pm-header-controls">
           {positions.length > 0 && (
@@ -335,17 +335,17 @@ function PortfolioMobile({ onManage }) {
       {/* List or Empty State */}
       {positions.length === 0 ? (
         <div className="pp-empty">
-          <div className="pp-empty-title">No positions yet</div>
-          <div className="pp-empty-sub">Track your investments and monitor P&L in real time</div>
+          <div className="pp-empty-title">Your watchlist is empty</div>
+          <div className="pp-empty-sub">Add tickers to track prices — add an entry price if you want live P&L</div>
           <button className="pp-add-btn" onClick={onManage}>
-            + Add Position
+            + Add Ticker
           </button>
         </div>
       ) : (
         <div className="pm-list-container">
           {sorted.length === 0 ? (
             <div className="pm-no-results">
-              {searchQuery.trim() ? `No results for "${searchQuery}"` : 'No positions match selected filters'}
+              {searchQuery.trim() ? `No results for "${searchQuery}"` : 'No tickers match selected filters'}
             </div>
           ) : (
             sorted.map((pos) => {
