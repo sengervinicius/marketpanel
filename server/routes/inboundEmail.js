@@ -7,6 +7,15 @@
  * is parsed, chunked, embedded, and surfaced to ALL Particle users via
  * the central (global) vault.
  *
+ * P4 — vault-<token>@the-particle.com ingests into the sender's PERSONAL
+ * vault. Each user gets their own token (see services/inboundTokens.js);
+ * their personal address has no From-allowlist because the token IS the
+ * credential. The route dispatches by the recipient local part:
+ *
+ *   To: vault@the-particle.com               → global/admin flow
+ *   To: vault-<token>@the-particle.com       → personal flow for <token>
+ *   anything else                            → unknown_recipient (200 drop)
+ *
  * ──────────────────────────────────────────────────────────────────────
  * Provider: Postmark inbound.
  *
@@ -69,6 +78,7 @@ const crypto = require('crypto');
 const vault = require('../services/vault');
 const logger = require('../utils/logger');
 const { findUserByEmail } = require('../authStore');
+const inboundTokens = require('../services/inboundTokens');
 
 const router = express.Router();
 
@@ -141,6 +151,110 @@ function timingSafeEqualStrings(a, b) {
   const bb = Buffer.from(b, 'utf8');
   if (ab.length !== bb.length) return false;
   return crypto.timingSafeEqual(ab, bb);
+}
+
+// ── Recipient parsing ─────────────────────────────────────────────────
+//
+// Postmark's inbound payload exposes the envelope recipient in three
+// places, in descending order of fidelity:
+//
+//   • OriginalRecipient  — the address the SMTP server actually RCPT TO'd.
+//                          This is the most reliable when the message has
+//                          been forwarded by an upstream server.
+//   • ToFull[]           — structured list of header-level recipients.
+//   • To                 — raw "Name <addr>, Name <addr>" header.
+//
+// We walk all three looking for the FIRST address whose local part starts
+// with `vault` (either `vault` exactly or `vault-<token>`). Any other
+// recipients (cc/bcc to the same message) are ignored — we only ingest
+// what was actually addressed to us.
+// The `vault` prefix is matched case-insensitively (email local parts are
+// RFC-case-insensitive in practice), but the <token> capture group
+// preserves its original case — our base64url tokens are case-sensitive,
+// and lowercasing "AbCdEf…" would silently break every lookup.
+const VAULT_LOCAL_RE = /^vault(?:-([A-Za-z0-9_-]{8,64}))?$/i;
+
+function splitLocalAndDomain(addr) {
+  if (typeof addr !== 'string') return null;
+  const s = addr.trim();
+  const at = s.lastIndexOf('@');
+  if (at < 1 || at === s.length - 1) return null;
+  // Domain is always compared case-insensitively; local part keeps its
+  // case so the token survives verbatim for lookupActiveToken().
+  return { local: s.slice(0, at), domain: s.slice(at + 1).toLowerCase() };
+}
+
+function candidateRecipients(payload) {
+  const out = [];
+  const pushOne = (raw) => {
+    if (typeof raw !== 'string' || !raw) return;
+    // Split a header into individual addresses.
+    for (const part of raw.split(',')) {
+      const m = part.match(/<([^>]+)>/);
+      const e = (m ? m[1] : part).trim();
+      if (e) out.push(e);
+    }
+  };
+  if (payload) {
+    pushOne(payload.OriginalRecipient);
+    if (Array.isArray(payload.ToFull)) {
+      for (const t of payload.ToFull) {
+        if (t && typeof t.Email === 'string') out.push(t.Email);
+      }
+    }
+    pushOne(payload.To);
+  }
+  return out;
+}
+
+/**
+ * Resolve which vault should ingest this email. Returns one of:
+ *   { kind: 'global' }
+ *   { kind: 'personal', token }
+ *   { kind: 'unknown' }
+ *
+ * We take the FIRST candidate whose local part matches VAULT_LOCAL_RE —
+ * if a user BCCs multiple recipients we still do the right thing.
+ */
+function classifyRecipient(payload) {
+  for (const addr of candidateRecipients(payload)) {
+    const parts = splitLocalAndDomain(addr);
+    if (!parts) continue;
+    const m = parts.local.match(VAULT_LOCAL_RE);
+    if (!m) continue;
+    const token = m[1];
+    return token ? { kind: 'personal', token, address: addr } : { kind: 'global', address: addr };
+  }
+  return { kind: 'unknown' };
+}
+
+// ── Per-token rate limiter ────────────────────────────────────────────
+//
+// Personal tokens have no allowlist gate, so a leaked token could be
+// weaponised by an attacker to burn through our Voyage embedding budget.
+// Cap each token at PERSONAL_RATE_MAX deliveries per PERSONAL_RATE_WIN_MS.
+// In-memory is fine — the attack vector is sustained abuse, not a
+// coordinated spike across pods.
+const PERSONAL_RATE_MAX = 30;
+const PERSONAL_RATE_WIN_MS = 60 * 60 * 1000; // 1h
+const _personalRateWin = new Map(); // token → { windowStart, count }
+
+function checkPersonalRate(token) {
+  const now = Date.now();
+  const row = _personalRateWin.get(token);
+  if (!row || now - row.windowStart >= PERSONAL_RATE_WIN_MS) {
+    _personalRateWin.set(token, { windowStart: now, count: 1 });
+    return { ok: true };
+  }
+  if (row.count >= PERSONAL_RATE_MAX) {
+    return { ok: false, retryInSec: Math.ceil((PERSONAL_RATE_WIN_MS - (now - row.windowStart)) / 1000) };
+  }
+  row.count++;
+  return { ok: true };
+}
+
+function __resetRateLimitForTests() {
+  _personalRateWin.clear();
 }
 
 function extractSenderEmail(payload) {
@@ -393,6 +507,71 @@ router.post('/:token', async (req, res) => {
     return res.status(200).json({ ok: true, reason: 'duplicate', messageId });
   }
 
+  // Classify by recipient (To/ToFull/OriginalRecipient). Decides which
+  // vault this message belongs to before we spend any work parsing.
+  const classification = classifyRecipient(payload);
+  if (classification.kind === 'unknown') {
+    logger.warn('inbound-email', 'Dropped — recipient is not a vault address', {
+      messageId,
+      sender,
+    });
+    return res.status(200).json({ ok: false, reason: 'unknown_recipient', messageId });
+  }
+
+  // ── Personal flow (vault-<token>@…) ─────────────────────────────────
+  if (classification.kind === 'personal') {
+    const tokenStr = classification.token;
+    const rate = checkPersonalRate(tokenStr);
+    if (!rate.ok) {
+      logger.warn('inbound-email', 'Dropped — personal token rate-limited', {
+        messageId,
+        retryInSec: rate.retryInSec,
+      });
+      return res.status(200).json({
+        ok: false,
+        reason: 'rate_limited',
+        retryInSec: rate.retryInSec,
+        messageId,
+      });
+    }
+    const tokRow = await inboundTokens.lookupActiveToken(tokenStr);
+    if (!tokRow) {
+      logger.warn('inbound-email', 'Dropped — unknown or revoked personal token', {
+        messageId,
+        sender,
+      });
+      return res.status(200).json({ ok: false, reason: 'unknown_token', messageId });
+    }
+    const result = await ingestEmail({
+      payload,
+      parsed,
+      ownerId: tokRow.userId,
+      isGlobal: false,
+      sourceTag: 'inbound_email_personal',
+      bodySourceTag: 'inbound_email_personal_body',
+    });
+    logger.info('inbound-email', 'Processed personal inbound email', {
+      messageId,
+      sender,
+      subject,
+      userId: tokRow.userId,
+      acceptedCount: accepted.length,
+      ingestedCount: result.outcomes.filter((o) => o.ok).length,
+      bodyIngested: !!(result.bodyIngest && result.bodyIngest.ok),
+    });
+    return res.status(200).json({
+      ok: true,
+      kind: 'personal',
+      messageId,
+      sender,
+      subject,
+      accepted: result.outcomes,
+      skipped: result.skipped,
+      body: result.bodyIngest,
+    });
+  }
+
+  // ── Global / admin flow (vault@…) ───────────────────────────────────
   // Sender allowlist.
   const allowed = getAllowedSenders();
   if (allowed.length === 0) {
@@ -426,22 +605,60 @@ router.post('/:token', async (req, res) => {
     return res.status(200).json({ ok: false, reason: 'owner_not_found', messageId });
   }
 
-  // Ingest each accepted attachment into the central (global) vault.
+  const result = await ingestEmail({
+    payload,
+    parsed,
+    ownerId: ownerUser.id,
+    isGlobal: true,
+    sourceTag: 'inbound_email',
+    bodySourceTag: 'inbound_email_body',
+  });
+
+  logger.info('inbound-email', 'Processed inbound email', {
+    messageId,
+    sender,
+    subject,
+    acceptedCount: accepted.length,
+    skippedCount: result.skipped.length,
+    ingestedCount: result.outcomes.filter((o) => o.ok).length,
+    bodyIngested: !!(result.bodyIngest && result.bodyIngest.ok),
+  });
+
+  return res.status(200).json({
+    ok: true,
+    kind: 'global',
+    messageId,
+    sender,
+    subject,
+    accepted: result.outcomes,
+    skipped: result.skipped,
+    body: result.bodyIngest,
+  });
+});
+
+// ── Shared ingestion helper ───────────────────────────────────────────
+//
+// Both the global (admin) flow and the personal flow do the same work:
+//   1. Loop accepted attachments into vault.ingestFile, tolerant of
+//      per-file failures.
+//   2. If no attachments were accepted, fall back to ingesting the
+//      email body as a synthetic .md.
+// The only differences are:
+//   • ownerId  — admin's user_id vs the token-resolved user_id
+//   • isGlobal — true for the central vault, false for the personal one
+//   • sourceTag / bodySourceTag — for downstream provenance filtering
+//
+async function ingestEmail({ payload, parsed, ownerId, isGlobal, sourceTag, bodySourceTag }) {
+  const { messageId, subject, sender, receivedAt, accepted, skipped } = parsed;
   const outcomes = [];
   for (const att of accepted) {
     try {
       const result = await vault.ingestFile(
-        ownerUser.id,
+        ownerId,
         att.buffer,
         att.filename,
-        {
-          source: 'inbound_email',
-          sender,
-          subject,
-          messageId,
-          receivedAt,
-        },
-        /* isGlobal */ true,
+        { source: sourceTag, sender, subject, messageId, receivedAt },
+        isGlobal,
       );
       outcomes.push({
         filename: att.filename,
@@ -450,11 +667,8 @@ router.post('/:token', async (req, res) => {
         fileType: result && result.fileType,
         documentId: result && result.documentId,
       });
-      logger.info('inbound-email', 'Ingested attachment into central vault', {
-        messageId,
-        sender,
-        filename: att.filename,
-        bytes: att.bytes,
+      logger.info('inbound-email', 'Ingested attachment', {
+        messageId, sender, filename: att.filename, bytes: att.bytes, isGlobal,
       });
     } catch (err) {
       outcomes.push({
@@ -464,105 +678,57 @@ router.post('/:token', async (req, res) => {
         error: err && err.message,
       });
       logger.error('inbound-email', 'Attachment ingest failed', {
-        messageId,
-        sender,
-        filename: att.filename,
-        error: err && err.message,
+        messageId, sender, filename: att.filename, error: err && err.message, isGlobal,
       });
-      // Keep going — we still want the rest of the batch to ingest.
     }
   }
 
-  // Body-fallback: if nothing accepted as an attachment, try the body.
-  // This catches morning-strategy blasts pasted into the email body.
+  // Body-fallback: only when nothing landed as an attachment.
   let bodyIngest = null;
-  const noAttachmentIngest = accepted.length === 0;
-  if (noAttachmentIngest) {
-    const parsed = parseEmailBody(payload);
-    if (parsed.text && parsed.text.length >= MIN_BODY_CHARS) {
+  if (accepted.length === 0) {
+    const body = parseEmailBody(payload);
+    if (body.text && body.text.length >= MIN_BODY_CHARS) {
       const filename = sanitiseFilenameStub(subject, receivedAt);
       const buffer = buildBodyDocument({
-        text: parsed.text,
-        subject,
-        sender,
-        receivedAt,
-        source: parsed.source,
+        text: body.text, subject, sender, receivedAt, source: body.source,
       });
       try {
         const result = await vault.ingestFile(
-          ownerUser.id,
+          ownerId,
           buffer,
           filename,
           {
-            source: 'inbound_email_body',
-            sender,
-            subject,
-            messageId,
-            receivedAt,
-            bodyContentType: parsed.source,
+            source: bodySourceTag,
+            sender, subject, messageId, receivedAt,
+            bodyContentType: body.source,
           },
-          /* isGlobal */ true,
+          isGlobal,
         );
         bodyIngest = {
-          filename,
-          bytes: buffer.length,
-          ok: true,
-          source: parsed.source,
+          filename, bytes: buffer.length, ok: true, source: body.source,
           fileType: result && result.fileType,
           documentId: result && result.documentId,
         };
-        logger.info('inbound-email', 'Ingested email body into central vault', {
-          messageId,
-          sender,
-          filename,
-          bytes: buffer.length,
-          bodyContentType: parsed.source,
+        logger.info('inbound-email', 'Ingested email body', {
+          messageId, sender, filename, bytes: buffer.length,
+          bodyContentType: body.source, isGlobal,
         });
       } catch (err) {
         bodyIngest = {
-          filename,
-          bytes: buffer.length,
-          ok: false,
-          source: parsed.source,
+          filename, bytes: buffer.length, ok: false, source: body.source,
           error: err && err.message,
         };
         logger.error('inbound-email', 'Email body ingest failed', {
-          messageId,
-          sender,
-          filename,
-          error: err && err.message,
+          messageId, sender, filename, error: err && err.message, isGlobal,
         });
       }
-    } else if (parsed.text) {
-      // Had a body but it fell under the minimum — record for audit.
-      skipped.push({
-        filename: '(email-body)',
-        reason: 'body_too_short',
-        bytes: parsed.text.length,
-      });
+    } else if (body.text) {
+      skipped.push({ filename: '(email-body)', reason: 'body_too_short', bytes: body.text.length });
     }
   }
 
-  logger.info('inbound-email', 'Processed inbound email', {
-    messageId,
-    sender,
-    subject,
-    acceptedCount: accepted.length,
-    skippedCount: skipped.length,
-    ingestedCount: outcomes.filter((o) => o.ok).length,
-    bodyIngested: !!(bodyIngest && bodyIngest.ok),
-  });
-
-  return res.status(200).json({
-    ok: true,
-    messageId,
-    sender,
-    subject,
-    accepted: outcomes,
-    skipped,
-    body: bodyIngest,
-  });
-});
+  return { outcomes, skipped, bodyIngest };
+}
 
 module.exports = router;
 // Exposed for tests.
@@ -576,5 +742,13 @@ module.exports.__test = {
   timingSafeEqualStrings,
   extractSenderEmail,
   __resetDedupeForTests,
+  // P4 — personal inbound dispatch helpers
+  classifyRecipient,
+  splitLocalAndDomain,
+  candidateRecipients,
+  checkPersonalRate,
+  __resetRateLimitForTests,
+  PERSONAL_RATE_MAX,
+  PERSONAL_RATE_WIN_MS,
   MIN_BODY_CHARS,
 };

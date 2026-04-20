@@ -131,6 +131,88 @@ Failure modes (all ACKed with 200 so Postmark doesn't retry-storm):
 | `sender_not_allowed`       | From address not in allowlist                 | Expected — log only |
 | `duplicate`                | MessageID already ingested                    | Expected on retry — log only |
 
+## Per-user personal vault addresses (P4)
+
+Each Particle user gets a personal inbound address of the form:
+
+```
+vault-<token>@the-particle.com
+```
+
+Mail sent to that address has its attachments (and body, when no
+attachments are present) ingested into the sender's PRIVATE vault
+(`vault_documents.is_global = FALSE`), visible only to them in their
+own retrieval results. This is the end-user equivalent of the admin
+`vault@the-particle.com` address above.
+
+### How a user gets their address
+
+1. Open Settings in the Particle app.
+2. Scroll to **EMAIL → PERSONAL VAULT**.
+3. The address is shown automatically (lazy-minted on first view).
+4. Use **COPY ADDRESS** to grab it; use **ROTATE** to issue a new one
+   (the old one immediately stops accepting mail); use **DISABLE** to
+   stop accepting entirely.
+
+### Infrastructure reuse
+
+The P4 feature needs NO additional Postmark configuration. Both
+`vault@` and every `vault-<token>@` address arrive at the same MX
+record and hit the same webhook. The route handler
+(`routes/inboundEmail.js`) inspects `OriginalRecipient` / `ToFull` /
+`To` and dispatches to the global or personal flow based on the local
+part.
+
+### Security model for personal addresses
+
+Unlike the admin `vault@` address, personal addresses do NOT enforce
+a sender allowlist — the token IS the credential. Three mitigations
+cap blast radius if a token leaks:
+
+- **Per-token rate limit.** 30 deliveries/hour per token, enforced in
+  memory on the handler. Excess returns `rate_limited` with a
+  `retryInSec` hint in the JSON body.
+- **One-click rotation.** Users can rotate from Settings; the old
+  token is revoked in the same DB transaction the new one is minted
+  in, so there's no window where two tokens are both live.
+- **Bounded attachment caps.** Same caps as the admin flow (10
+  attachments/email, 25 MB/attachment, 200 000 chars/body).
+
+Per-user tokens are stored in `vault_inbound_tokens` (see migration
+`20260420_vault_inbound_tokens.sql`). Revoked rows are kept
+indefinitely for audit: if a leaked token is ever used to attempt
+ingestion after rotation, the attempt shows up as
+`unknown_token` in the log with the original owner still resolvable
+in the historical row.
+
+### Auditing a leaked token
+
+If you suspect a user's token has been abused, in `psql`:
+
+```sql
+-- Who owns what, and when was it last used?
+SELECT user_id, token, created_at, last_used_at, revoked_at
+  FROM vault_inbound_tokens
+ WHERE user_id = <id>
+ ORDER BY created_at DESC;
+
+-- Force-revoke from the DB (equivalent to the user clicking DISABLE):
+UPDATE vault_inbound_tokens
+   SET revoked_at = (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT
+ WHERE user_id = <id> AND revoked_at IS NULL;
+```
+
+### Failure modes (personal flow)
+
+| Reason             | Meaning                                            |
+|--------------------|----------------------------------------------------|
+| `unknown_recipient`| `To:` didn't match `vault` or `vault-<token>`      |
+| `unknown_token`    | Token is not in `vault_inbound_tokens` or revoked  |
+| `rate_limited`     | Exceeded PERSONAL_RATE_MAX deliveries in the window|
+
+All three return HTTP 200 with `ok: false`; no retry-storm from
+Postmark.
+
 ## Rollback
 
 Any of these disables inbound ingestion:

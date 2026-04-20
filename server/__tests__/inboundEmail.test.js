@@ -132,6 +132,9 @@ function samplePayload(overrides = {}) {
     Subject: 'Q4 earnings deep dive',
     From: 'Vinicius <founder@the-particle.com>',
     FromFull: { Email: 'founder@the-particle.com', Name: 'Vinicius' },
+    // Global (admin) recipient by default. P4 tests override with
+    // vault-<token>@… via OriginalRecipient.
+    To: 'vault@the-particle.com',
     Date: '2026-04-20T12:00:00Z',
     Attachments: [
       { Name: 'earnings.pdf', Content: b64('%PDF-1.4 stub'), ContentType: 'application/pdf' },
@@ -147,6 +150,7 @@ function resetEnvAndState() {
   _ingestCalls = [];
   _ingestError = null;
   __test.__resetDedupeForTests();
+  __test.__resetRateLimitForTests();
 }
 
 // ── parsePostmarkPayload ──────────────────────────────────────────────
@@ -463,6 +467,236 @@ test('StrippedTextReply is preferred over TextBody for body ingestion', async ()
     const res = await postJson(`${srv.url}/api/inbound/email/hunter2`, payload);
     assert.equal(res.body.body.source, 'stripped');
     assert.equal(_ingestCalls[0].metadata.bodyContentType, 'stripped');
+  } finally {
+    await srv.close();
+  }
+});
+
+// ── P4 recipient classification ───────────────────────────────────────
+
+test('classifyRecipient: vault@ → global', () => {
+  const c = __test.classifyRecipient({ To: 'vault@the-particle.com' });
+  assert.equal(c.kind, 'global');
+});
+
+test('classifyRecipient: vault-<token>@ → personal, preserves token case', () => {
+  const c = __test.classifyRecipient({
+    To: 'vault-AbCdEfGhIjKlMn0p9Q8R7S@the-particle.com',
+  });
+  assert.equal(c.kind, 'personal');
+  // Token case is preserved — base64url tokens are case-sensitive.
+  assert.equal(c.token, 'AbCdEfGhIjKlMn0p9Q8R7S');
+});
+
+test('classifyRecipient: OriginalRecipient wins over To', () => {
+  const c = __test.classifyRecipient({
+    OriginalRecipient: 'vault-TOKENABCDEFGH12@the-particle.com',
+    To: 'someone-else@example.com',
+  });
+  assert.equal(c.kind, 'personal');
+  assert.equal(c.token, 'TOKENABCDEFGH12');
+});
+
+test('classifyRecipient: unknown local → unknown', () => {
+  const c = __test.classifyRecipient({ To: 'hello@the-particle.com' });
+  assert.equal(c.kind, 'unknown');
+});
+
+test('classifyRecipient: ToFull array traversal', () => {
+  const c = __test.classifyRecipient({
+    ToFull: [{ Email: 'notmine@x.com' }, { Email: 'vault-ABCDEFGH12345678@the-particle.com' }],
+  });
+  assert.equal(c.kind, 'personal');
+  assert.equal(c.token, 'ABCDEFGH12345678');
+});
+
+test('classifyRecipient: VAULT@ prefix matched case-insensitively (global)', () => {
+  const c = __test.classifyRecipient({ To: 'VAULT@The-Particle.com' });
+  assert.equal(c.kind, 'global');
+});
+
+// ── P4 personal flow ──────────────────────────────────────────────────
+
+const inboundTokens = require('../services/inboundTokens');
+
+async function mintAndGetToken(userId) {
+  const row = await inboundTokens.mintForUser(userId);
+  return row.token;
+}
+
+function resetP4() {
+  resetEnvAndState();
+  inboundTokens.__test.__resetForTests();
+  __test.__resetRateLimitForTests();
+}
+
+test('P4: personal address routes to isGlobal=false with the token owner as userId', async () => {
+  resetP4();
+  // Seed a token for user 77.
+  const tok = await mintAndGetToken(77);
+  const srv = makeServer();
+  try {
+    const payload = samplePayload({
+      MessageID: 'msg-p4-001',
+      // Deliberately use a sender NOT in the allowlist — personal flow
+      // must NOT enforce the allowlist.
+      FromFull: { Email: 'some-user@example.com' },
+      From: 'some-user@example.com',
+      OriginalRecipient: `vault-${tok}@the-particle.com`,
+    });
+    const res = await postJson(`${srv.url}/api/inbound/email/hunter2`, payload);
+    assert.equal(res.status, 200);
+    assert.equal(res.body.ok, true);
+    assert.equal(res.body.kind, 'personal');
+    assert.equal(_ingestCalls.length, 1);
+    assert.equal(_ingestCalls[0].userId, 77);
+    assert.equal(_ingestCalls[0].isGlobal, false);
+    assert.equal(_ingestCalls[0].metadata.source, 'inbound_email_personal');
+  } finally {
+    await srv.close();
+  }
+});
+
+test('P4: unknown/revoked token → 200 unknown_token and no ingest', async () => {
+  resetP4();
+  const srv = makeServer();
+  try {
+    const payload = samplePayload({
+      MessageID: 'msg-p4-002',
+      OriginalRecipient: 'vault-notarealtokenatall@the-particle.com',
+    });
+    const res = await postJson(`${srv.url}/api/inbound/email/hunter2`, payload);
+    assert.equal(res.status, 200);
+    assert.equal(res.body.ok, false);
+    assert.equal(res.body.reason, 'unknown_token');
+    assert.equal(_ingestCalls.length, 0);
+  } finally {
+    await srv.close();
+  }
+});
+
+test('P4: unknown recipient (not a vault address) → unknown_recipient', async () => {
+  resetP4();
+  const srv = makeServer();
+  try {
+    const payload = samplePayload({
+      MessageID: 'msg-p4-003',
+      OriginalRecipient: 'billing@the-particle.com',
+      To: 'billing@the-particle.com',
+      ToFull: [],
+    });
+    const res = await postJson(`${srv.url}/api/inbound/email/hunter2`, payload);
+    assert.equal(res.status, 200);
+    assert.equal(res.body.ok, false);
+    assert.equal(res.body.reason, 'unknown_recipient');
+    assert.equal(_ingestCalls.length, 0);
+  } finally {
+    await srv.close();
+  }
+});
+
+test('P4: per-token rate limit kicks in after PERSONAL_RATE_MAX requests', async () => {
+  resetP4();
+  const tok = await mintAndGetToken(88);
+  const srv = makeServer();
+  try {
+    // Burn through the limit.
+    for (let i = 0; i < __test.PERSONAL_RATE_MAX; i++) {
+      const payload = samplePayload({
+        MessageID: `msg-rate-${i}`,
+        OriginalRecipient: `vault-${tok}@the-particle.com`,
+      });
+      const r = await postJson(`${srv.url}/api/inbound/email/hunter2`, payload);
+      assert.equal(r.status, 200);
+      assert.equal(r.body.ok, true, `call ${i} should succeed`);
+    }
+    // One more → rate_limited.
+    const payload = samplePayload({
+      MessageID: 'msg-rate-over',
+      OriginalRecipient: `vault-${tok}@the-particle.com`,
+    });
+    const r = await postJson(`${srv.url}/api/inbound/email/hunter2`, payload);
+    assert.equal(r.status, 200);
+    assert.equal(r.body.ok, false);
+    assert.equal(r.body.reason, 'rate_limited');
+    assert.ok(typeof r.body.retryInSec === 'number');
+    // Ingest count = the successful deliveries only.
+    assert.equal(_ingestCalls.length, __test.PERSONAL_RATE_MAX);
+  } finally {
+    await srv.close();
+  }
+});
+
+test('P4: revoked token returns unknown_token even if once valid', async () => {
+  resetP4();
+  const tok = await mintAndGetToken(99);
+  await inboundTokens.revokeForUser(99);
+  const srv = makeServer();
+  try {
+    const payload = samplePayload({
+      MessageID: 'msg-p4-revoked',
+      OriginalRecipient: `vault-${tok}@the-particle.com`,
+    });
+    const res = await postJson(`${srv.url}/api/inbound/email/hunter2`, payload);
+    assert.equal(res.body.reason, 'unknown_token');
+    assert.equal(_ingestCalls.length, 0);
+  } finally {
+    await srv.close();
+  }
+});
+
+test('P4: rotate (mint-again) invalidates the old token', async () => {
+  resetP4();
+  const oldTok = await mintAndGetToken(55);
+  const newRow = await inboundTokens.mintForUser(55);
+  assert.notEqual(newRow.token, oldTok);
+  const srv = makeServer();
+  try {
+    // Old token → rejected
+    const oldRes = await postJson(
+      `${srv.url}/api/inbound/email/hunter2`,
+      samplePayload({
+        MessageID: 'msg-rotate-old',
+        OriginalRecipient: `vault-${oldTok}@the-particle.com`,
+      }),
+    );
+    assert.equal(oldRes.body.reason, 'unknown_token');
+    // New token → accepted
+    const newRes = await postJson(
+      `${srv.url}/api/inbound/email/hunter2`,
+      samplePayload({
+        MessageID: 'msg-rotate-new',
+        OriginalRecipient: `vault-${newRow.token}@the-particle.com`,
+      }),
+    );
+    assert.equal(newRes.body.ok, true);
+    assert.equal(_ingestCalls[0].userId, 55);
+    assert.equal(_ingestCalls[0].isGlobal, false);
+  } finally {
+    await srv.close();
+  }
+});
+
+test('P4: personal body-only email lands in the user vault as .md', async () => {
+  resetP4();
+  const tok = await mintAndGetToken(61);
+  const srv = makeServer();
+  try {
+    const payload = samplePayload({
+      MessageID: 'msg-p4-body',
+      OriginalRecipient: `vault-${tok}@the-particle.com`,
+      Attachments: [],
+      TextBody: LONG_BODY,
+    });
+    const res = await postJson(`${srv.url}/api/inbound/email/hunter2`, payload);
+    assert.equal(res.body.ok, true);
+    assert.equal(res.body.kind, 'personal');
+    assert.equal(res.body.body.ok, true);
+    assert.equal(res.body.body.source, 'textbody');
+    assert.equal(_ingestCalls.length, 1);
+    assert.equal(_ingestCalls[0].userId, 61);
+    assert.equal(_ingestCalls[0].isGlobal, false);
+    assert.equal(_ingestCalls[0].metadata.source, 'inbound_email_personal_body');
   } finally {
     await srv.close();
   }

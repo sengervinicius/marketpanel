@@ -228,6 +228,10 @@ export function SettingsDrawer({ panelVisible, togglePanel, onClose, mobile }) {
       <SettingsSection label="KNOWLEDGE VAULT" />
       <VaultPanel />
 
+      {/* ── Inbound Email → Personal Vault (P4) ── */}
+      <SettingsSection label="EMAIL → PERSONAL VAULT" />
+      <InboundEmailRow />
+
       {/* ── Help ── */}
       <SettingsSection label="HELP" />
       <div
@@ -307,6 +311,184 @@ export function DiscordLinkRow() {
     >
       <span className="app-text-muted-small">Join our Discord</span>
       <span style={{ fontSize: 9, fontWeight: 700, color: '#5865F2', letterSpacing: '0.3px' }}>CONNECT</span>
+    </div>
+  );
+}
+
+// ── Inbound Email Row (P4 per-user vault address) ───────────────────────────
+//
+// Shows the user their personal `vault-<token>@the-particle.com` address so
+// they can forward research into their own vault the same way the CIO pipes
+// things into the central one. UX decisions:
+//   • Token IS the credential → treat it like a password (monospace, copy
+//     button, warning banner on first display).
+//   • Lazy-mint on load so the feature is discoverable without an explicit
+//     "create address" button.
+//   • Rotate + Disable are separate actions: rotate invalidates the old
+//     token AND issues a new one in the same DB transaction; disable just
+//     kills the current one.
+//   • We do NOT try to hide the token — the user has to be able to copy it
+//     out to their mail client. Masking it and revealing on click added a
+//     step without meaningfully reducing shoulder-surf risk in the
+//     scenarios we care about (their own laptop).
+export function InboundEmailRow() {
+  const [state, setState] = useState({ loading: true, error: null, data: null });
+  const [busy, setBusy] = useState(null); // 'rotate' | 'disable' | 'enable' | null
+  const [copied, setCopied] = useState(false);
+
+  const load = async () => {
+    setState(s => ({ ...s, loading: true, error: null }));
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('/api/settings/vault-inbound', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to load');
+      setState({ loading: false, error: null, data });
+    } catch (e) {
+      setState({ loading: false, error: e.message, data: null });
+    }
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const post = async (path) => {
+    const token = localStorage.getItem('token');
+    const res = await fetch(`/api/settings/vault-inbound${path}`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Request failed');
+    return data;
+  };
+
+  const handleRotate = async () => {
+    // Confirm — rotation invalidates the existing address. Anything sent
+    // to the old one after this click lands in the dead-letter log.
+    if (!window.confirm('Rotate your inbound address?\n\nAny forwards still using the old address will stop working immediately.')) return;
+    setBusy('rotate');
+    try {
+      const d = await post('/rotate');
+      setState({ loading: false, error: null, data: d });
+    } catch (e) {
+      setState(s => ({ ...s, error: e.message }));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const handleDisable = async () => {
+    if (!window.confirm('Disable inbound email?\n\nYour current address will stop accepting mail. You can re-enable later.')) return;
+    setBusy('disable');
+    try {
+      await post('/disable');
+      setState({ loading: false, error: null, data: { enabled: false } });
+    } catch (e) {
+      setState(s => ({ ...s, error: e.message }));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  // Re-enable simply hits GET — the server lazy-mints.
+  const handleEnable = async () => {
+    setBusy('enable');
+    try {
+      await load();
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const handleCopy = async () => {
+    if (!state.data || !state.data.address) return;
+    try {
+      await navigator.clipboard.writeText(state.data.address);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch (_) { /* clipboard permission denied — user can still select manually */ }
+  };
+
+  const rowStyle = {
+    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+    padding: '8px 12px', transition: 'background 150ms',
+  };
+
+  if (state.loading) {
+    return (
+      <div style={rowStyle}>
+        <span className="app-text-muted-small">Loading…</span>
+      </div>
+    );
+  }
+
+  if (state.error) {
+    return (
+      <div style={{ ...rowStyle, flexDirection: 'column', alignItems: 'stretch', gap: 4 }}>
+        <span style={{ color: 'var(--price-down)', fontSize: 9 }}>Error: {state.error}</span>
+        <span
+          role="button" tabIndex={0}
+          style={{ color: 'var(--accent)', fontSize: 9, cursor: 'pointer' }}
+          onClick={load}
+        >RETRY</span>
+      </div>
+    );
+  }
+
+  if (!state.data || !state.data.enabled) {
+    return (
+      <div style={{ ...rowStyle, flexDirection: 'column', alignItems: 'stretch', gap: 6 }}>
+        <span className="app-text-muted-small">Inbound email is disabled.</span>
+        <span
+          role="button" tabIndex={0}
+          style={{ color: 'var(--accent)', fontSize: 9, cursor: 'pointer', letterSpacing: '0.3px' }}
+          onClick={handleEnable}
+          aria-label="Enable inbound email"
+        >{busy === 'enable' ? 'ENABLING…' : 'ENABLE'}</span>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <div style={{ fontSize: 9, color: 'var(--text-faint)', lineHeight: 1.4 }}>
+        Forward emails (with PDF/DOCX attachments, or research notes in the body) to your personal address below. Anything you send lands in your private vault — nobody else on Particle sees it.
+      </div>
+      <div style={{
+        fontFamily: 'Menlo, Monaco, "SF Mono", monospace',
+        fontSize: 11, color: 'var(--text-primary)',
+        padding: '6px 8px', border: '1px solid var(--border)', borderRadius: 4,
+        wordBreak: 'break-all', userSelect: 'all',
+      }}>
+        {state.data.address}
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+        <span
+          role="button" tabIndex={0}
+          onClick={handleCopy}
+          style={{ color: copied ? 'var(--price-up)' : 'var(--accent)', fontSize: 9, cursor: 'pointer', letterSpacing: '0.3px' }}
+          aria-label="Copy inbound email address to clipboard"
+        >{copied ? '✓ COPIED' : 'COPY ADDRESS'}</span>
+        <span style={{ display: 'flex', gap: 12 }}>
+          <span
+            role="button" tabIndex={0}
+            onClick={handleRotate}
+            style={{ color: 'var(--text-muted)', fontSize: 9, cursor: 'pointer', letterSpacing: '0.3px' }}
+            aria-label="Rotate inbound token"
+          >{busy === 'rotate' ? 'ROTATING…' : 'ROTATE'}</span>
+          <span
+            role="button" tabIndex={0}
+            onClick={handleDisable}
+            style={{ color: 'var(--price-down)', fontSize: 9, cursor: 'pointer', letterSpacing: '0.3px' }}
+            aria-label="Disable inbound email"
+          >{busy === 'disable' ? 'DISABLING…' : 'DISABLE'}</span>
+        </span>
+      </div>
+      <div style={{ fontSize: 9, color: 'var(--text-faint)', lineHeight: 1.3 }}>
+        ⚠ Treat this address like a password. Anyone who knows it can drop files into your vault — rotate immediately if it leaks.
+      </div>
     </div>
   );
 }

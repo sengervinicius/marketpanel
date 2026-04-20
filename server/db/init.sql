@@ -128,6 +128,22 @@ CREATE TABLE IF NOT EXISTS vault_documents (
 CREATE INDEX IF NOT EXISTS idx_vault_documents_user ON vault_documents(user_id);
 CREATE INDEX IF NOT EXISTS idx_vault_documents_global ON vault_documents(is_global) WHERE is_global = TRUE;
 
+-- ── Vault inbound tokens (P4: per-user inbound email address) ───────────────
+-- Each user gets ONE active token at a time. Their personal address is
+-- `vault-<token>@the-particle.com`. See server/services/inboundTokens.js.
+CREATE TABLE IF NOT EXISTS vault_inbound_tokens (
+  token         TEXT PRIMARY KEY,
+  user_id       INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at    BIGINT NOT NULL DEFAULT (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT,
+  last_used_at  BIGINT,
+  revoked_at    BIGINT
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_vault_inbound_tokens_user_active
+  ON vault_inbound_tokens(user_id)
+  WHERE revoked_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_vault_inbound_tokens_user_history
+  ON vault_inbound_tokens(user_id, created_at DESC);
+
 -- ── Vault chunks (document segments for retrieval) ──────────────────────────
 -- NOTE: embedding column type VECTOR requires pgvector extension. If pgvector
 -- is not installed, vault.js ensureTable() will handle the fallback.

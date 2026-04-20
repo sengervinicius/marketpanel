@@ -71,6 +71,7 @@ const { feedRouter, initFeedRouter } = require('./routes/feed');
 const marketRoutes      = require('./routes/market/index');
 const authRoutes        = require('./routes/auth');
 const settingsRoutes    = require('./routes/settings');
+const settingsInboundRoutes = require('./routes/settingsInbound'); // P4
 const usersRoutes       = require('./routes/users');
 const chatRoutes        = require('./routes/chat');
 const billingRoutes     = require('./routes/billing');
@@ -465,6 +466,15 @@ app.post('/api/billing/verify-session', express.json(), async (req, res) => {
 app.use('/api/billing', requireAuth, billingRoutes);
 // Apple IAP: mounted under /api/billing/iap (auth handled per-route inside)
 app.use('/api/billing/iap', iapRoutes);
+
+// P4 — Per-user inbound email vault address. Mounted BEFORE the generic
+// /api/settings route so the sub-path isn't shadowed by its 404. Rate limit
+// is tighter than the parent /api/settings window because rotate mints a
+// fresh DB row (and invalidates the old one) — not something we want anyone
+// spamming.
+app.use('/api/settings/vault-inbound', requireAuth,
+  rateLimitByUser({ key: 'settings-inbound', windowSec: 60, max: 10 }),
+  settingsInboundRoutes);
 
 // Settings: auth required (no subscription check — need settings even on expired trial)
 app.use('/api/settings', requireAuth,
