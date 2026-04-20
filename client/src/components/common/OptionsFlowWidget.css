@@ -1,11 +1,29 @@
+/* ══════════════════════════════════════════════════════════════════
+   OptionsFlowWidget.css — options flow + dark pool (2026-04-20 CIO redesign)
+
+   Design rules:
+   - NO raw hex for semantic direction colors. Bullish = var(--price-up),
+     bearish = var(--price-down), neutral = var(--color-warning).
+     Previously hardcoded #00ff00 / #ff4444 which clashed with the rest
+     of the terminal's Bloomberg-style palette and ignored future theme
+     changes.
+   - Surface/background hex tokens fall back to sensible dark defaults
+     where a CSS custom property isn't defined — they are NOT semantic
+     colors, so leaving them as-is is fine.
+   - Flow rows are now grouped by expiry. Each group is visually
+     delimited with a header band and its own table body, so a PM can
+     scan "what's happening on May 17?" without reading the expiry
+     column on every row.
+   ══════════════════════════════════════════════════════════════════ */
+
 .options-flow-widget {
-  background: #0a0a0f;
-  border: 1px solid #2a2a35;
+  background: var(--bg-panel, #0a0a0f);
+  border: 1px solid var(--border-default, #2a2a35);
   border-radius: 8px;
   padding: 16px;
   margin: 16px 0;
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-  color: #d0d0d0;
+  font-family: var(--font-mono, 'Monaco', 'Menlo', 'Ubuntu Mono', monospace);
+  color: var(--text-primary, #d0d0d0);
 }
 
 .widget-header {
@@ -13,7 +31,7 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 16px;
-  border-bottom: 1px solid #2a2a35;
+  border-bottom: 1px solid var(--border-default, #2a2a35);
   padding-bottom: 12px;
 }
 
@@ -21,20 +39,20 @@
   margin: 0;
   font-size: 16px;
   font-weight: 600;
-  color: #00ff88;
+  color: var(--accent, #00ff88);
   text-transform: uppercase;
   letter-spacing: 1px;
 }
 
 .widget-refresh {
   background: none;
-  border: 1px solid #2a2a35;
+  border: 1px solid var(--border-default, #2a2a35);
   border-radius: 4px;
   width: 32px;
   height: 32px;
   cursor: pointer;
   font-size: 14px;
-  color: #888;
+  color: var(--text-muted, #888);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -42,9 +60,9 @@
 }
 
 .widget-refresh:hover {
-  background: #1a1a20;
-  color: #00ff88;
-  border-color: #00ff88;
+  background: var(--bg-surface, #1a1a20);
+  color: var(--accent, #00ff88);
+  border-color: var(--accent, #00ff88);
 }
 
 .widget-refresh:active {
@@ -55,24 +73,24 @@
 .widget-empty {
   padding: 20px;
   text-align: center;
-  color: #666;
+  color: var(--text-faint, #666);
   font-size: 14px;
   opacity: 0.7;
 }
 
-/* Call/Put Ratio Visualization */
+/* ── Call/Put Ratio Visualization ─────────────────────────── */
 .ratio-container {
   margin-bottom: 20px;
   padding: 12px;
-  background: #1a1a20;
-  border: 1px solid #2a2a35;
+  background: var(--bg-surface, #1a1a20);
+  border: 1px solid var(--border-default, #2a2a35);
   border-radius: 6px;
 }
 
 .ratio-label {
   font-size: 12px;
   text-transform: uppercase;
-  color: #888;
+  color: var(--text-muted, #888);
   letter-spacing: 0.5px;
   margin-bottom: 8px;
 }
@@ -80,15 +98,15 @@
 .ratio-bar {
   display: flex;
   height: 24px;
-  background: #0a0a0f;
-  border: 1px solid #2a2a35;
+  background: var(--bg-panel, #0a0a0f);
+  border: 1px solid var(--border-default, #2a2a35);
   border-radius: 4px;
   overflow: hidden;
   margin-bottom: 8px;
 }
 
 .ratio-calls {
-  background: linear-gradient(90deg, #00aa00, #00ff00);
+  background: var(--price-up, #16c784);
   transition: width 0.3s ease;
   position: relative;
 }
@@ -100,11 +118,11 @@
   top: 0;
   bottom: 0;
   width: 1px;
-  background: #005500;
+  background: rgba(0, 0, 0, 0.35);
 }
 
 .ratio-puts {
-  background: linear-gradient(90deg, #ff4444, #ff0000);
+  background: var(--price-down, #ea3943);
   transition: width 0.3s ease;
   position: relative;
 }
@@ -116,38 +134,88 @@
   top: 0;
   bottom: 0;
   width: 1px;
-  background: #550000;
+  background: rgba(0, 0, 0, 0.35);
 }
 
 .ratio-text {
   font-size: 12px;
-  color: #aaa;
+  color: var(--text-secondary, #aaa);
   text-align: center;
 }
 
-/* Section Styling */
+/* ── Section framing ─────────────────────────────────────── */
 .flow-section,
 .darkpool-section {
   margin-bottom: 20px;
-  border: 1px solid #2a2a35;
+  border: 1px solid var(--border-default, #2a2a35);
   border-radius: 6px;
   overflow: hidden;
 }
 
 .section-header {
-  background: #1a1a20;
-  border-bottom: 1px solid #2a2a35;
+  background: var(--bg-surface, #1a1a20);
+  border-bottom: 1px solid var(--border-default, #2a2a35);
   padding: 12px 16px;
   font-size: 13px;
   font-weight: 600;
   text-transform: uppercase;
-  color: #00ff88;
+  color: var(--accent, #00ff88);
   letter-spacing: 0.5px;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
 }
 
+.section-header-sub {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-muted, #888);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  opacity: 0.75;
+}
+
+/* ── Expiry groups (new) ─────────────────────────────────── */
+.flow-groups {
+  display: flex;
+  flex-direction: column;
+}
+
+.flow-group + .flow-group {
+  border-top: 1px solid var(--border-default, #2a2a35);
+}
+
+.flow-group-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 16px;
+  background: rgba(255, 255, 255, 0.025);
+  border-bottom: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.05));
+}
+
+.flow-group-expiry {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-primary, #e5e5e5);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.flow-group-count {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-muted, #888);
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Tables ──────────────────────────────────────────────── */
 .table-container {
   overflow-x: auto;
-  background: #0a0a0f;
+  background: var(--bg-panel, #0a0a0f);
 }
 
 .flow-table,
@@ -159,8 +227,8 @@
 
 .flow-table thead,
 .darkpool-table thead {
-  background: #1a1a20;
-  border-bottom: 1px solid #2a2a35;
+  background: var(--bg-surface, #1a1a20);
+  border-bottom: 1px solid var(--border-default, #2a2a35);
 }
 
 .flow-table th,
@@ -168,7 +236,7 @@
   padding: 10px 12px;
   text-align: left;
   font-weight: 600;
-  color: #00ff88;
+  color: var(--accent, #00ff88);
   text-transform: uppercase;
   letter-spacing: 0.5px;
   font-size: 11px;
@@ -176,47 +244,53 @@
 
 .flow-table tbody tr,
 .darkpool-table tbody tr {
-  border-bottom: 1px solid #1a1a20;
-  transition: background 0.2s ease;
+  border-bottom: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.04));
+  transition: background 0.15s ease, box-shadow 0.15s ease;
 }
 
 .flow-table tbody tr:hover,
 .darkpool-table tbody tr:hover {
-  background: #15151b;
+  background: rgba(255, 255, 255, 0.03);
+  box-shadow: inset 3px 0 0 rgba(255, 255, 255, 0.06);
 }
 
 .flow-table td,
 .darkpool-table td {
   padding: 10px 12px;
-  color: #d0d0d0;
+  color: var(--text-primary, #d0d0d0);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-/* Sentiment-based row coloring */
+/* ── Sentiment-based row coloring (tokenized) ──────────── */
 .flow-table tbody tr.sentiment-bullish {
-  border-left: 3px solid #00ff00;
+  border-left: 3px solid var(--price-up, #16c784);
 }
 
 .flow-table tbody tr.sentiment-bearish {
-  border-left: 3px solid #ff4444;
+  border-left: 3px solid var(--price-down, #ea3943);
 }
 
 .flow-table tbody tr.sentiment-neutral {
-  border-left: 3px solid #ffaa00;
+  border-left: 3px solid var(--color-warning, #ffaa00);
 }
 
-/* Column-specific styling */
+/* Stronger hover reinforcement — the left border glows slightly. */
+.flow-table tbody tr.sentiment-bullish:hover { box-shadow: inset 3px 0 0 var(--price-up, #16c784); }
+.flow-table tbody tr.sentiment-bearish:hover { box-shadow: inset 3px 0 0 var(--price-down, #ea3943); }
+.flow-table tbody tr.sentiment-neutral:hover { box-shadow: inset 3px 0 0 var(--color-warning, #ffaa00); }
+
+/* ── Column-specific styling ──────────────────────────── */
 .flow-table .strike,
 .darkpool-table .price {
   font-weight: 600;
-  color: #00ff88;
+  color: var(--accent, #00ff88);
 }
 
 .flow-table .expiry,
 .darkpool-table .timestamp {
-  color: #888;
+  color: var(--text-muted, #888);
 }
 
 .flow-table .type {
@@ -228,13 +302,13 @@
 }
 
 .flow-table .type.call {
-  color: #00ff00;
-  background: rgba(0, 255, 0, 0.1);
+  color: var(--price-up, #16c784);
+  background: rgba(22, 199, 132, 0.12);
 }
 
 .flow-table .type.put {
-  color: #ff4444;
-  background: rgba(255, 68, 68, 0.1);
+  color: var(--price-down, #ea3943);
+  background: rgba(234, 57, 67, 0.12);
 }
 
 .flow-table .premium,
@@ -242,10 +316,11 @@
 .flow-table .oi,
 .darkpool-table .size {
   text-align: right;
-  color: #ffaa00;
+  color: var(--color-warning, #ffaa00);
   font-weight: 500;
 }
 
+/* ── Sentiment badge (tokenized via modifier classes) ── */
 .flow-table .sentiment-badge {
   font-weight: 600;
   text-transform: uppercase;
@@ -254,33 +329,47 @@
   border-radius: 3px;
   display: inline-block;
   letter-spacing: 0.5px;
-  background: rgba(255, 170, 0, 0.1);
+}
+
+.flow-table .sentiment-badge.sentiment-bullish {
+  color: var(--price-up, #16c784);
+  background: rgba(22, 199, 132, 0.10);
+}
+
+.flow-table .sentiment-badge.sentiment-bearish {
+  color: var(--price-down, #ea3943);
+  background: rgba(234, 57, 67, 0.10);
+}
+
+.flow-table .sentiment-badge.sentiment-neutral {
+  color: var(--color-warning, #ffaa00);
+  background: rgba(255, 170, 0, 0.10);
 }
 
 .darkpool-table .exchange {
-  color: #888;
+  color: var(--text-muted, #888);
   font-weight: 500;
 }
 
 .darkpool-table .percent {
   text-align: right;
-  color: #ffaa00;
+  color: var(--color-warning, #ffaa00);
   font-weight: 500;
 }
 
-/* Table Footer */
+/* ── Table Footer ────────────────────────────────────── */
 .table-footer {
-  background: #1a1a20;
-  border-top: 1px solid #2a2a35;
+  background: var(--bg-surface, #1a1a20);
+  border-top: 1px solid var(--border-default, #2a2a35);
   padding: 8px 16px;
   font-size: 11px;
-  color: #666;
+  color: var(--text-faint, #666);
   text-align: center;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
-/* Responsive */
+/* ── Responsive ──────────────────────────────────────── */
 @media (max-width: 768px) {
   .options-flow-widget {
     padding: 12px;
@@ -307,12 +396,16 @@
     padding: 8px 10px;
   }
 
+  .flow-group-header {
+    padding: 6px 12px;
+  }
+
   .ratio-bar {
     height: 20px;
   }
 }
 
-/* Terminal theme animations */
+/* ── Terminal theme animations ────────────────────────── */
 @keyframes glow {
   0%, 100% {
     text-shadow: 0 0 5px rgba(0, 255, 136, 0.3);
@@ -326,21 +419,21 @@
   animation: glow 3s ease-in-out infinite;
 }
 
-/* Scrollbar styling for terminal theme */
+/* ── Scrollbar styling for terminal theme ────────────── */
 .table-container::-webkit-scrollbar {
   height: 8px;
   width: 8px;
 }
 
 .table-container::-webkit-scrollbar-track {
-  background: #1a1a20;
+  background: var(--bg-surface, #1a1a20);
 }
 
 .table-container::-webkit-scrollbar-thumb {
-  background: #2a2a35;
+  background: var(--border-default, #2a2a35);
   border-radius: 4px;
 }
 
 .table-container::-webkit-scrollbar-thumb:hover {
-  background: #3a3a45;
+  background: var(--border-strong, #3a3a45);
 }

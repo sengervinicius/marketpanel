@@ -3,9 +3,61 @@
  */
 
 const express = require('express');
+const crypto  = require('crypto');
 const router  = express.Router();
 const { isTicker, parseTickerList, clampInt, sanitizeText } = require('../../utils/validate');
 const { cacheGet, cacheSet, TTL, getChartTTL, yahooCache } = require('./lib/cache');
+
+// ── HTTP cache helpers for /chart/:ticker (2026-04-20) ──────────────
+// Server-side in-memory cache was already in place, but every repeat
+// visit still ate a full request. With ETag + Cache-Control the browser
+// short-circuits entirely on a hit, and we can also return 304 Not
+// Modified when a client has the same payload hash.
+//
+// max-age values are conservative — we want the browser cache to be
+// shorter than the server cache so stale data can't linger if the
+// market moves fast, but long enough to absorb typical panel re-mount
+// patterns (tab switching, back/forward navigation).
+const CHART_BROWSER_MAX_AGE = {
+  minute: 30,   // 30 s — near real-time
+  hour:   60,   // 60 s
+  day:    300,  // 5 min
+  week:   600,  // 10 min
+  month:  600,  // 10 min
+};
+
+/**
+ * Compute a short ETag from a JSON payload. Weak ETag is fine —
+ * chart payloads are not byte-stable across gzip layers, and a weak
+ * tag is enough for If-None-Match semantics.
+ */
+function chartEtag(payload) {
+  const h = crypto.createHash('sha1');
+  h.update(JSON.stringify(payload));
+  return 'W/"' + h.digest('hex').slice(0, 20) + '"';
+}
+
+/**
+ * Emit the standard cache headers for a chart payload and, if the
+ * client already has this ETag, send 304 and return true (caller
+ * should NOT write a body). Otherwise returns false and leaves the
+ * response open for res.json(payload).
+ */
+function sendChartWithCache(req, res, payload, timespan) {
+  const etag    = chartEtag(payload);
+  const maxAge  = CHART_BROWSER_MAX_AGE[timespan] ?? 60;
+  const ifNone  = req.headers['if-none-match'];
+
+  res.set('Cache-Control', `private, max-age=${maxAge}`);
+  res.set('ETag', etag);
+  res.set('Vary', 'Accept-Encoding');
+
+  if (ifNone && ifNone === etag) {
+    res.status(304).end();
+    return true;
+  }
+  return false;
+}
 const {
   yahooQuote, finnhubQuote, fetchWithFallback, polyFetch,
   getYahooCrumb, resetYahooCrumb, sendError, eulerpool, twelvedata, fetch, YF_UA,
@@ -475,7 +527,10 @@ router.get('/chart/:ticker', async (req, res) => {
   const timespan = ['minute', 'hour', 'day', 'week', 'month'].includes(req.query.timespan) ? req.query.timespan : 'minute';
   const chartCacheKey = `chart:${ticker}:${from || ''}:${to || ''}:${multiplier}:${timespan}`;
   const chartCached = cacheGet(chartCacheKey);
-  if (chartCached) return res.json(chartCached);
+  if (chartCached) {
+    if (sendChartWithCache(req, res, chartCached, timespan)) return;
+    return res.json(chartCached);
+  }
   try {
     const now = new Date();
     const toDate = to || now.toISOString().split('T')[0];
@@ -508,6 +563,7 @@ router.get('/chart/:ticker', async (req, res) => {
         if (chartResults.length > 0) {
           const chartPayload = { results: chartResults, ticker, status: 'OK', source: 'yahoo' };
           cacheSet(chartCacheKey, chartPayload, getChartTTL(timespan));
+          if (sendChartWithCache(req, res, chartPayload, timespan)) return;
           return res.json(chartPayload);
         }
       }
@@ -531,6 +587,7 @@ router.get('/chart/:ticker', async (req, res) => {
         if (tdData?.bars?.length > 0) {
           const chartPayload = { results: tdData.bars, ticker, status: 'OK', source: 'twelvedata' };
           cacheSet(chartCacheKey, chartPayload, getChartTTL(timespan));
+          if (sendChartWithCache(req, res, chartPayload, timespan)) return;
           return res.json(chartPayload);
         }
       } catch (e) {
@@ -546,6 +603,7 @@ router.get('/chart/:ticker', async (req, res) => {
           { priority: 15, label: 'chart' }
         );
         cacheSet(chartCacheKey, data, getChartTTL(timespan));
+        if (sendChartWithCache(req, res, data, timespan)) return;
         return res.json(data);
       } catch (e) {
         console.warn(`[Chart] Polygon failed: ${e.message}`);

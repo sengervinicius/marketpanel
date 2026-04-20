@@ -7,26 +7,11 @@
  *   window.open(window.location.origin + '/#/detail/AAPL', '_blank', 'width=1100,height=700')
  */
 
-import { lazy, Suspense } from 'react';
+import { Suspense } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { lazyWithRetry } from '../utils/lazyWithRetry';
 
-// Auto-reload once on stale chunk failure after deploy
-function lazyRetry(importFn) {
-  return lazy(() =>
-    importFn().catch((err) => {
-      const hasReloaded = sessionStorage.getItem('chunk_reload');
-      if (!hasReloaded) {
-        sessionStorage.setItem('chunk_reload', '1');
-        window.location.reload();
-        return new Promise(() => {});
-      }
-      sessionStorage.removeItem('chunk_reload');
-      throw err;
-    })
-  );
-}
-
-const InstrumentDetail = lazyRetry(() => import('../components/common/InstrumentDetail'));
+const InstrumentDetail = lazyWithRetry(() => import('../components/common/InstrumentDetail'));
 import { useAuth } from '../context/AuthContext';
 
 export default function InstrumentDetailPage() {

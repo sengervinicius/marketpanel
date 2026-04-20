@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
+import { useState, useEffect, useCallback, useRef, Suspense } from 'react';
+import { lazyWithRetry } from '../../utils/lazyWithRetry';
 import { syncSettingToServer } from '../../hooks/useSettingsSync';
 import { useMarketDispatch } from '../../context/MarketContext';
 import { PANEL_DEFINITIONS } from '../../config/panels';
@@ -26,20 +27,22 @@ import HeatmapPanel from '../panels/HeatmapPanel';
 import PredictionPanel from '../panels/PredictionPanel';
 // WirePanel removed
 
-// Phase 6: Lazy-load heavy panels to reduce initial bundle
-const PortfolioPanel = lazy(() => import('../panels/PortfolioPanel'));
-const ScreenerPanel = lazy(() => import('../panels/ScreenerPanel'));
-const OptionsFlowPanel = lazy(() => import('../panels/OptionsFlowPanel'));
+// Phase 6: Lazy-load heavy panels to reduce initial bundle.
+// lazyWithRetry handles stale-chunk failures after deploys — bare lazy()
+// would surface a render crash if the chunk hash rotated mid-session.
+const PortfolioPanel = lazyWithRetry(() => import('../panels/PortfolioPanel'));
+const ScreenerPanel = lazyWithRetry(() => import('../panels/ScreenerPanel'));
+const OptionsFlowPanel = lazyWithRetry(() => import('../panels/OptionsFlowPanel'));
 
-// ── Code-split sector screens using React.lazy ──────────────────────────────
-const DefenceScreen = lazy(() => import('../screens/DefenceScreen'));
-const CommoditiesScreen = lazy(() => import('../screens/CommoditiesScreen'));
-const GlobalMacroScreen = lazy(() => import('../screens/GlobalMacroScreen'));
-const FixedIncomeScreen = lazy(() => import('../screens/FixedIncomeScreen'));
-const BrazilScreen = lazy(() => import('../screens/BrazilScreen'));
-const FxCryptoScreen = lazy(() => import('../screens/FxCryptoScreen'));
-const EnergyScreen = lazy(() => import('../screens/EnergyScreen'));
-const TechAIScreen = lazy(() => import('../screens/TechAIScreen'));
+// ── Code-split sector screens using lazyWithRetry ───────────────────────────
+const DefenceScreen = lazyWithRetry(() => import('../screens/DefenceScreen'));
+const CommoditiesScreen = lazyWithRetry(() => import('../screens/CommoditiesScreen'));
+const GlobalMacroScreen = lazyWithRetry(() => import('../screens/GlobalMacroScreen'));
+const FixedIncomeScreen = lazyWithRetry(() => import('../screens/FixedIncomeScreen'));
+const BrazilScreen = lazyWithRetry(() => import('../screens/BrazilScreen'));
+const FxCryptoScreen = lazyWithRetry(() => import('../screens/FxCryptoScreen'));
+const EnergyScreen = lazyWithRetry(() => import('../screens/EnergyScreen'));
+const TechAIScreen = lazyWithRetry(() => import('../screens/TechAIScreen'));
 
 // ── MarketTickBridge — dispatches live WS ticks into MarketContext reducer ────
 export function MarketTickBridge({ batchTicks }) {

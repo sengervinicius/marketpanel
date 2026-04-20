@@ -3,16 +3,76 @@
  *
  * Displays:
  * - Call/put ratio visualization at the top
- * - Options flow table: strike | expiry | C/P | premium | vol | OI | sentiment badge
+ * - Options flow GROUPED BY EXPIRY (2026-04-20 CIO redesign):
+ *     - Each expiry is its own section with a header band
+ *     - Within a group, rows sorted by premium desc
+ *     - Expiries ordered chronologically (earliest first)
  * - Dark pool section: large prints table
- * - Terminal dark theme (#0a0a0f background)
- * - Real-time sentiment indicators
+ * - All colors tokenized via CSS vars (--price-up / --price-down /
+ *   --color-warning). Previously hardcoded #00ff00 / #ff4444 which
+ *   ignored the theme and clashed with the Bloomberg-style palette
+ *   used elsewhere.
  *
  * Props: { symbol }
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import './OptionsFlowWidget.css';
+
+/* ── Formatting helpers ───────────────────────────────────── */
+
+function fmtExpiry(exp) {
+  if (!exp) return '—';
+  try {
+    const d = new Date(exp);
+    if (Number.isNaN(d.getTime())) return String(exp);
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  } catch { return String(exp); }
+}
+
+/**
+ * Group flow rows by expiry date, preserving an order that's useful
+ * to a PM: nearest expiry first. Within each group, rows are ranked
+ * by premium desc (biggest dollar print surfaces first).
+ *
+ * Returns: [{ expiry, expiryLabel, rows: [...] }, ...]
+ */
+function groupByExpiry(flow) {
+  if (!Array.isArray(flow) || flow.length === 0) return [];
+  const buckets = new Map();
+  for (const row of flow) {
+    const key = row.expiry || '—';
+    if (!buckets.has(key)) buckets.set(key, []);
+    buckets.get(key).push(row);
+  }
+  const groups = [];
+  for (const [expiry, rows] of buckets.entries()) {
+    rows.sort((a, b) => (b.premium || 0) - (a.premium || 0));
+    groups.push({
+      expiry,
+      expiryLabel: fmtExpiry(expiry),
+      rows,
+      // Sort key: earliest date first; unknowns go last.
+      sortTs: (() => {
+        const t = new Date(expiry).getTime();
+        return Number.isFinite(t) ? t : Number.POSITIVE_INFINITY;
+      })(),
+    });
+  }
+  groups.sort((a, b) => a.sortTs - b.sortTs);
+  return groups;
+}
+
+/**
+ * Normalize a sentiment string into one of our three CSS-class
+ * variants. Keeps the switch logic out of the render path.
+ */
+function sentimentClass(sentiment) {
+  const s = (sentiment || '').toLowerCase();
+  if (s === 'bullish') return 'sentiment-bullish';
+  if (s === 'bearish') return 'sentiment-bearish';
+  return 'sentiment-neutral';
+}
 
 export default function OptionsFlowWidget({ symbol }) {
   const [flow, setFlow] = useState([]);
@@ -66,17 +126,7 @@ export default function OptionsFlowWidget({ symbol }) {
     }
   }
 
-  const getSentimentColor = (sentiment) => {
-    switch (sentiment?.toLowerCase()) {
-      case 'bullish':
-        return '#00ff00';
-      case 'bearish':
-        return '#ff4444';
-      case 'neutral':
-      default:
-        return '#ffaa00';
-    }
-  };
+  const flowGroups = useMemo(() => groupByExpiry(flow), [flow]);
 
   if (loading) {
     return (
@@ -136,50 +186,58 @@ export default function OptionsFlowWidget({ symbol }) {
         </div>
       )}
 
-      {/* Options Flow Table */}
-      {flow.length > 0 && (
+      {/* Options Flow — grouped by expiry */}
+      {flowGroups.length > 0 && (
         <div className="flow-section">
-          <div className="section-header">Recent Options Flow</div>
-          <div className="table-container">
-            <table className="flow-table">
-              <thead>
-                <tr>
-                  <th>Strike</th>
-                  <th>Expiry</th>
-                  <th>Type</th>
-                  <th>Premium</th>
-                  <th>Volume</th>
-                  <th>OI</th>
-                  <th>Sentiment</th>
-                </tr>
-              </thead>
-              <tbody>
-                {flow.slice(0, 10).map((item, idx) => (
-                  <tr key={idx} className={`sentiment-${item.sentiment?.toLowerCase() || 'neutral'}`}>
-                    <td className="strike">${item.strike?.toFixed(2)}</td>
-                    <td className="expiry">{item.expiry}</td>
-                    <td className={`type ${item.type?.toLowerCase()}`}>
-                      {item.type?.toUpperCase()}
-                    </td>
-                    <td className="premium">
-                      ${(item.premium / 1000 || 0).toFixed(0)}k
-                    </td>
-                    <td className="volume">{(item.volume || 0).toLocaleString()}</td>
-                    <td className="oi">{(item.openInterest || 0).toLocaleString()}</td>
-                    <td className="sentiment">
-                      <span
-                        className="sentiment-badge"
-                        style={{
-                          color: getSentimentColor(item.sentiment),
-                        }}
-                      >
-                        {item.sentiment?.toUpperCase() || 'NEUTRAL'}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="section-header">
+            <span>Recent Options Flow</span>
+            <span className="section-header-sub">by expiry</span>
+          </div>
+          <div className="flow-groups">
+            {flowGroups.map((group) => (
+              <div key={group.expiry} className="flow-group">
+                <div className="flow-group-header">
+                  <span className="flow-group-expiry">{group.expiryLabel}</span>
+                  <span className="flow-group-count">
+                    {group.rows.length} contract{group.rows.length === 1 ? '' : 's'}
+                  </span>
+                </div>
+                <div className="table-container">
+                  <table className="flow-table">
+                    <thead>
+                      <tr>
+                        <th>Strike</th>
+                        <th>Type</th>
+                        <th>Premium</th>
+                        <th>Volume</th>
+                        <th>OI</th>
+                        <th>Sentiment</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {group.rows.slice(0, 10).map((item, idx) => (
+                        <tr key={idx} className={sentimentClass(item.sentiment)}>
+                          <td className="strike">${item.strike?.toFixed(2)}</td>
+                          <td className={`type ${item.type?.toLowerCase()}`}>
+                            {item.type?.toUpperCase()}
+                          </td>
+                          <td className="premium">
+                            ${(item.premium / 1000 || 0).toFixed(0)}k
+                          </td>
+                          <td className="volume">{(item.volume || 0).toLocaleString()}</td>
+                          <td className="oi">{(item.openInterest || 0).toLocaleString()}</td>
+                          <td className="sentiment">
+                            <span className={`sentiment-badge ${sentimentClass(item.sentiment)}`}>
+                              {item.sentiment?.toUpperCase() || 'NEUTRAL'}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ))}
           </div>
           <div className="table-footer">{flow.length} total records</div>
         </div>

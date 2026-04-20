@@ -1,22 +1,6 @@
-import { useState, useEffect, useCallback, useRef, useMemo, Component, lazy, Suspense } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo, Component, Suspense } from 'react';
 
-// Lazy import with auto-retry on chunk load failure (stale deploy cache)
-function lazyRetry(importFn) {
-  return lazy(() =>
-    importFn().catch((err) => {
-      // If a dynamic import fails (chunk hash changed after deploy), reload once
-      const hasReloaded = sessionStorage.getItem('chunk_reload');
-      if (!hasReloaded) {
-        sessionStorage.setItem('chunk_reload', '1');
-        window.location.reload();
-        return new Promise(() => {}); // never resolves — page is reloading
-      }
-      sessionStorage.removeItem('chunk_reload');
-      throw err; // second time — let the error boundary catch it
-    })
-  );
-}
-
+import { lazyWithRetry } from './utils/lazyWithRetry';
 import { apiFetch } from './utils/api';
 import { useMarketData } from './hooks/useMarketData';
 import { useWebSocket } from './hooks/useWebSocket';
@@ -42,40 +26,40 @@ import HeaderSearchBar from './components/common/HeaderSearchBar';
 import KeyboardShortcutsModal from './components/common/KeyboardShortcutsModal';
 import CommandPalette from './components/common/CommandPalette';
 import { SearchPanel } from './components/panels/SearchPanel';
-const ETFPanel = lazyRetry(() => import('./components/panels/ETFPanel'));
-const AlertCenterPanel = lazyRetry(() => import('./components/panels/AlertCenterPanel'));
-const NewsPanel = lazyRetry(() => import('./components/panels/NewsPanel'));
-const ScreenerPanel = lazyRetry(() => import('./components/panels/ScreenerPanel'));
-const MacroPanel = lazyRetry(() => import('./components/panels/MacroPanel'));
-const ChatPanel = lazyRetry(() => import('./components/panels/ChatPanel'));
+const ETFPanel = lazyWithRetry(() => import('./components/panels/ETFPanel'));
+const AlertCenterPanel = lazyWithRetry(() => import('./components/panels/AlertCenterPanel'));
+const NewsPanel = lazyWithRetry(() => import('./components/panels/NewsPanel'));
+const ScreenerPanel = lazyWithRetry(() => import('./components/panels/ScreenerPanel'));
+const MacroPanel = lazyWithRetry(() => import('./components/panels/MacroPanel'));
+const ChatPanel = lazyWithRetry(() => import('./components/panels/ChatPanel'));
 // openChatWindow is a standalone utility, import directly
 import { openChatWindow } from './components/panels/ChatPanel';
-const PortfolioMobile = lazyRetry(() => import('./components/panels/PortfolioMobile'));
-const HomePanelMobile = lazyRetry(() => import('./components/panels/HomePanelMobile'));
-const ChartsPanelMobile = lazyRetry(() => import('./components/panels/ChartsPanelMobile'));
-const MobileMoreScreen = lazyRetry(() => import('./components/panels/MobileMoreScreen'));
+const PortfolioMobile = lazyWithRetry(() => import('./components/panels/PortfolioMobile'));
+const HomePanelMobile = lazyWithRetry(() => import('./components/panels/HomePanelMobile'));
+const ChartsPanelMobile = lazyWithRetry(() => import('./components/panels/ChartsPanelMobile'));
+const MobileMoreScreen = lazyWithRetry(() => import('./components/panels/MobileMoreScreen'));
 import ToastContainer from './components/common/ToastContainer';
-const WelcomeTour = lazyRetry(() => import('./components/onboarding/WelcomeTour'));
-const VaultPanel = lazyRetry(() => import('./components/app/VaultPanel'));
+const WelcomeTour = lazyWithRetry(() => import('./components/onboarding/WelcomeTour'));
+const VaultPanel = lazyWithRetry(() => import('./components/app/VaultPanel'));
 import SectorScreenSelector from './components/common/SectorScreenSelector';
 import MarketStatus from './components/common/MarketStatus';
 import { TickerTooltip } from './components/common/TickerTooltip';
-const AdminDashboard = lazyRetry(() => import('./components/admin/AdminDashboard'));
-const PredictionPanel = lazyRetry(() => import('./components/panels/PredictionPanel'));
+const AdminDashboard = lazyWithRetry(() => import('./components/admin/AdminDashboard'));
+const PredictionPanel = lazyWithRetry(() => import('./components/panels/PredictionPanel'));
 
-// Lazy-loaded sector screens — split into separate chunks (lazyRetry auto-reloads on stale deploy)
-const DefenceScreen = lazyRetry(() => import('./components/screens/DefenceScreen'));
-const CommoditiesScreen = lazyRetry(() => import('./components/screens/CommoditiesScreen'));
-const GlobalMacroScreen = lazyRetry(() => import('./components/screens/GlobalMacroScreen'));
-const FixedIncomeScreen = lazyRetry(() => import('./components/screens/FixedIncomeScreen'));
-const BrazilScreen = lazyRetry(() => import('./components/screens/BrazilScreen'));
-const TechAIScreen = lazyRetry(() => import('./components/screens/TechAIScreen'));
-const GlobalRetailScreen = lazyRetry(() => import('./components/screens/GlobalRetailScreen'));
-const AsianMarketsScreen = lazyRetry(() => import('./components/screens/AsianMarketsScreen'));
-const EuropeanMarketsScreen = lazyRetry(() => import('./components/screens/EuropeanMarketsScreen'));
-const CryptoScreen = lazyRetry(() => import('./components/screens/CryptoScreen'));
+// Lazy-loaded sector screens — split into separate chunks (lazyWithRetry auto-reloads on stale deploy)
+const DefenceScreen = lazyWithRetry(() => import('./components/screens/DefenceScreen'));
+const CommoditiesScreen = lazyWithRetry(() => import('./components/screens/CommoditiesScreen'));
+const GlobalMacroScreen = lazyWithRetry(() => import('./components/screens/GlobalMacroScreen'));
+const FixedIncomeScreen = lazyWithRetry(() => import('./components/screens/FixedIncomeScreen'));
+const BrazilScreen = lazyWithRetry(() => import('./components/screens/BrazilScreen'));
+const TechAIScreen = lazyWithRetry(() => import('./components/screens/TechAIScreen'));
+const GlobalRetailScreen = lazyWithRetry(() => import('./components/screens/GlobalRetailScreen'));
+const AsianMarketsScreen = lazyWithRetry(() => import('./components/screens/AsianMarketsScreen'));
+const EuropeanMarketsScreen = lazyWithRetry(() => import('./components/screens/EuropeanMarketsScreen'));
+const CryptoScreen = lazyWithRetry(() => import('./components/screens/CryptoScreen'));
 
-const InstrumentDetail = lazyRetry(() => import('./components/common/InstrumentDetail'));
+const InstrumentDetail = lazyWithRetry(() => import('./components/common/InstrumentDetail'));
 import PanelErrorBoundary from './components/common/PanelErrorBoundary';
 import ParticleLogo from './components/ui/ParticleLogo';
 import ParticleSidebar from './components/app/ParticleSidebar';
