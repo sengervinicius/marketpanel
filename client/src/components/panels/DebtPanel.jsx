@@ -14,7 +14,7 @@
  * Credit spread indexes remain estimated (Bloomberg/ICE BofA data is paid).
  */
 
-import { useState, useEffect, useCallback, useRef, memo } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo, memo } from 'react';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer,
@@ -46,6 +46,98 @@ function fmtYield(v, bps = false) {
   if (v == null) return '--';
   if (bps) return (v >= 0 ? '+' : '') + v + ' bps';
   return v.toFixed(2) + '%';
+}
+
+/* ---- Curve regime analytics (Phase 8.4) ----
+ *
+ * Classifies a yield curve into one of:
+ *   INVERTED           — long end < short end (2s10s < 0)
+ *   BEAR STEEPENING    — long end rising faster than short (spread widening, levels up)
+ *   BULL STEEPENING    — short end falling faster (spread widening, levels down)
+ *   BEAR FLATTENING    — short end rising faster than long (spread narrowing, levels up)
+ *   BULL FLATTENING    — long end falling faster than short (spread narrowing, levels down)
+ *   NORMAL             — insufficient info to classify; positive slope, stable
+ */
+function findTenor(points, tenor) {
+  if (!points) return null;
+  return points.find(p => p.tenor === tenor);
+}
+
+function spreadBps(a, b) {
+  if (a?.yield == null || b?.yield == null) return null;
+  return Math.round((a.yield - b.yield) * 100);
+}
+
+function classifyRegime(current, previous) {
+  if (!current || current.length < 2) return { label: 'NO DATA', posture: 'neutral' };
+
+  const t2 = findTenor(current, '2Y');
+  const t10 = findTenor(current, '10Y');
+  const t30 = findTenor(current, '30Y');
+
+  const s210 = spreadBps(t10, t2);
+
+  // Inversion overrides everything
+  if (s210 != null && s210 < 0) {
+    return {
+      label: 'INVERTED',
+      posture: 'bear',
+      detail: `2s10s ${s210}bp`,
+    };
+  }
+
+  // Need previous for change classification
+  if (previous && previous.length >= 2) {
+    const p2 = findTenor(previous, '2Y');
+    const p10 = findTenor(previous, '10Y');
+    const prevS210 = spreadBps(p10, p2);
+
+    if (s210 != null && prevS210 != null && t2 && p2) {
+      const spreadChg = s210 - prevS210;                   // bp
+      const shortChg = (t2.yield - p2.yield) * 100;         // bp
+      const steepening = spreadChg > 3;
+      const flattening = spreadChg < -3;
+      const levelsUp = shortChg > 1;
+      const levelsDown = shortChg < -1;
+
+      if (steepening && levelsUp)   return { label: 'BEAR STEEPENING', posture: 'bear',    detail: `2s10s +${Math.round(spreadChg)}bp` };
+      if (steepening && levelsDown) return { label: 'BULL STEEPENING', posture: 'bull',    detail: `2s10s +${Math.round(spreadChg)}bp` };
+      if (flattening && levelsUp)   return { label: 'BEAR FLATTENING', posture: 'bear',    detail: `2s10s ${Math.round(spreadChg)}bp` };
+      if (flattening && levelsDown) return { label: 'BULL FLATTENING', posture: 'bull',    detail: `2s10s ${Math.round(spreadChg)}bp` };
+    }
+  }
+
+  // No classification possible — return level read
+  if (s210 != null) {
+    return {
+      label: s210 > 50 ? 'STEEP' : s210 > 10 ? 'NORMAL' : 'FLAT',
+      posture: 'neutral',
+      detail: `2s10s ${s210 > 0 ? '+' : ''}${s210}bp`,
+    };
+  }
+
+  return { label: 'NORMAL', posture: 'neutral' };
+}
+
+/* ---- RegimeRibbon component (Phase 8.4) ---- */
+function RegimeRibbon({ regime, spreads }) {
+  const postureCls = `dp-regime--${regime.posture || 'neutral'}`;
+  return (
+    <div className={`dp-regime ${postureCls}`}>
+      <span className="dp-regime-label">REGIME</span>
+      <span className="dp-regime-verdict">{regime.label}</span>
+      {regime.detail && <span className="dp-regime-detail">{regime.detail}</span>}
+      <span className="dp-regime-flex" />
+      {spreads?.map(s => (
+        <span key={s.name} className="dp-regime-spread" title={`${s.name}: ${s.bps}bp`}>
+          <span className="dp-regime-spread-name">{s.name}</span>
+          <span className={`dp-regime-spread-val ${s.bps < 0 ? 'dp-regime-spread-val--neg' : s.bps < 25 ? 'dp-regime-spread-val--tight' : ''}`}>
+            {s.bps > 0 ? '+' : ''}{s.bps}
+          </span>
+        </span>
+      ))}
+    </div>
+  );
 }
 
 /* ---- SpreadRow ---- */
@@ -326,6 +418,47 @@ function DebtPanel() {
   const lineColor   = countryMeta?.color || COUNTRY_COLORS[selectedCountry] || '#4488ff';
   const TENORS      = ['2Y', '5Y', '10Y', '30Y'];
 
+  // ---- Regime & key spreads (Phase 8.4) ----
+  // Compare to previous session snapshot to classify regime movement.
+  // sessionStorage key: dp_prev_curve:<country>
+  const [prevCurve, setPrevCurve] = useState(null);
+  useEffect(() => {
+    if (!chartData || chartData.length === 0) return;
+    try {
+      const key = `dp_prev_curve:${selectedCountry}`;
+      const stored = sessionStorage.getItem(key);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed?.points && Array.isArray(parsed.points)) {
+          setPrevCurve(parsed.points);
+        }
+      }
+      // Cache current for next load
+      sessionStorage.setItem(key, JSON.stringify({ points: chartData, ts: Date.now() }));
+    } catch (_) {
+      // sessionStorage unavailable — skip
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedCountry, loading]); // recompute when curve changes
+
+  const regime = useMemo(
+    () => classifyRegime(chartData, prevCurve),
+    [chartData, prevCurve]
+  );
+
+  const keySpreads = useMemo(() => {
+    if (!chartData || chartData.length < 2) return [];
+    const t2 = findTenor(chartData, '2Y');
+    const t5 = findTenor(chartData, '5Y');
+    const t10 = findTenor(chartData, '10Y');
+    const t30 = findTenor(chartData, '30Y');
+    const out = [];
+    const s210 = spreadBps(t10, t2); if (s210 != null) out.push({ name: '2s10s', bps: s210 });
+    const s510 = spreadBps(t10, t5); if (s510 != null) out.push({ name: '5s10s', bps: s510 });
+    const s230 = spreadBps(t30, t2); if (s230 != null) out.push({ name: '2s30s', bps: s230 });
+    return out;
+  }, [chartData]);
+
   // ---- Retry handler ----
   const handleRetry = useCallback(() => {
     if (view === 'curve') loadCurve();
@@ -415,6 +548,11 @@ function DebtPanel() {
             )}
             <IntegrityBadge domain="yield-curves" />
           </div>
+
+          {/* Regime ribbon — Phase 8.4 */}
+          {!loading && !error && chartData.length >= 2 && (
+            <RegimeRibbon regime={regime} spreads={keySpreads} />
+          )}
 
           {/* Chart area with explicit states */}
           <div className="dp-chart-container">

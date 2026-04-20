@@ -409,3 +409,93 @@
   font-weight: 600;
   letter-spacing: 0.04em;
 }
+
+/* ── Regime Ribbon (Phase 8.4) ───────────────────────────── */
+.dp-regime {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 8px;
+  margin: 2px 0;
+  background: var(--bg-surface-2, #0e1117);
+  border-top: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border-subtle);
+  font-family: var(--font-family-mono, var(--font-mono));
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+}
+
+.dp-regime-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: var(--text-muted, #8b93a7);
+  text-transform: uppercase;
+}
+
+.dp-regime-verdict {
+  font-weight: 700;
+  font-size: 11.5px;
+  letter-spacing: 0.08em;
+  padding: 2px 6px;
+  border-radius: 2px;
+  text-transform: uppercase;
+}
+
+.dp-regime--bull .dp-regime-verdict {
+  color: var(--sent-bull, #3dd68c);
+  background: var(--sent-bull-bg, rgba(61,214,140,0.12));
+}
+.dp-regime--bear .dp-regime-verdict {
+  color: var(--sent-bear, #e05c8a);
+  background: var(--sent-bear-bg, rgba(224,92,138,0.12));
+}
+.dp-regime--neutral .dp-regime-verdict {
+  color: var(--sent-neutral, #8b93a7);
+  background: var(--sent-neutral-bg, rgba(139,147,167,0.10));
+}
+
+.dp-regime-detail {
+  color: var(--text-secondary);
+  font-size: 10px;
+  letter-spacing: 0.03em;
+}
+
+.dp-regime-flex { flex: 1; }
+
+.dp-regime-spread {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0;
+  line-height: 1.1;
+  min-width: 42px;
+}
+
+.dp-regime-spread-name {
+  font-size: 8.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--text-muted, #8b93a7);
+  text-transform: uppercase;
+}
+
+.dp-regime-spread-val {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+.dp-regime-spread-val--neg {
+  color: var(--sent-bear, #e05c8a);
+}
+.dp-regime-spread-val--tight {
+  color: var(--sent-warn, #e8a020);
+}
+
+@media (max-width: 640px) {
+  .dp-regime { gap: 6px; padding: 3px 6px; }
+  .dp-regime-spread:nth-child(n+4) { display: none; }
+  .dp-regime-detail { display: none; }
+}
