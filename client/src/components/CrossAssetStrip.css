@@ -1,0 +1,134 @@
+/* ================================================================
+ * CrossAssetStrip.css — Phase 8.5 cross-asset correlation band.
+ * Sits directly below SentimentStrip. Denser, slightly taller (~44px).
+ * ================================================================ */
+
+.ca-strip {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 5px 12px;
+  height: 44px;
+  min-height: 44px;
+  flex-shrink: 0;
+  background: var(--color-surface-2, #0e1117);
+  border-bottom: 1px solid var(--color-border, #1a1f2e);
+  font-family: var(--font-family-mono, var(--font-mono, monospace));
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  color: var(--text-primary, #d1d5db);
+  overflow: hidden;
+}
+
+.ca-group-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--text-muted, #8b93a7);
+  text-transform: uppercase;
+  white-space: nowrap;
+  padding-right: 2px;
+}
+
+.ca-flex { flex: 1; }
+
+/* ── Pair cell ───────────────────────────────────────────── */
+.ca-cell {
+  display: grid;
+  grid-template-rows: auto auto;
+  grid-template-columns: 1fr auto;
+  column-gap: 6px;
+  row-gap: 1px;
+  min-width: 110px;
+  max-width: 140px;
+  flex-shrink: 0;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.015);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  line-height: 1.2;
+}
+
+.ca-cell-label {
+  grid-row: 1;
+  grid-column: 1;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-secondary, #a1a8b8);
+  white-space: nowrap;
+}
+
+.ca-cell-sep {
+  color: var(--text-faint, #6b7280);
+  font-size: 9px;
+}
+
+.ca-cell-corr {
+  grid-row: 1;
+  grid-column: 2;
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  min-width: 42px;
+  text-align: right;
+}
+
+.ca-cell-bar-track {
+  grid-row: 2;
+  grid-column: 1 / span 2;
+  position: relative;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.ca-cell-bar-fill {
+  display: block;
+  height: 100%;
+  min-width: 2px;
+  border-radius: 2px;
+  transition: width 0.4s ease, background 0.4s ease;
+}
+
+.ca-cell-returns {
+  display: none; /* space is tight; returns live elsewhere */
+}
+
+/* ── Legend ──────────────────────────────────────────────── */
+.ca-legend {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 9.5px;
+  color: var(--text-faint, #6b7280);
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+  opacity: 0.8;
+}
+
+.ca-legend-swatch {
+  display: inline-block;
+  width: 10px;
+  height: 6px;
+  border-radius: 2px;
+}
+
+/* ── Responsive ──────────────────────────────────────────── */
+@media (max-width: 1200px) {
+  .ca-cell { min-width: 96px; max-width: 120px; }
+  .ca-cell-corr { font-size: 11px; min-width: 38px; }
+}
+
+@media (max-width: 900px) {
+  .ca-strip { gap: 10px; height: 40px; min-height: 40px; padding: 4px 10px; }
+  .ca-legend { display: none; }
+  .ca-cell:nth-last-of-type(-n+2) { display: none; } /* hide last 2 pairs */
+}
+
+@media (max-width: 640px) {
+  .ca-strip { display: none; } /* too tight on phones */
+}

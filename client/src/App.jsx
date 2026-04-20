@@ -96,6 +96,7 @@ import {
 import ParticleScreen from './components/app/ParticleScreen';
 import PricingModal from './components/app/PricingModal';
 import SentimentStrip from './components/SentimentStrip';
+import CrossAssetStrip from './components/CrossAssetStrip';
 import './App.css';
 import './components/panels/Chat.css';
 // react-joyride v2+ uses inline styles — no separate CSS import needed
@@ -968,6 +969,8 @@ export default function App() {
             <div data-tour="workspace" style={{ flex: 1, display: activeSectorScreen ? 'none' : 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
               {/* Market sentiment strip — Phase 8.2 liveness layer */}
               <SentimentStrip />
+              {/* Cross-asset correlation strip — Phase 8.5 regime layer */}
+              <CrossAssetStrip />
               {/* Layout edit toolbar */}
               {layoutEdit && (
                 <div style={{
