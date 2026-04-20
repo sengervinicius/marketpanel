@@ -37,6 +37,59 @@ let connecting = false;          // guard against overlapping reconnect attempts
 let schemaReady = false;         // true once init.sql has run
 const RECONNECT_INTERVAL = 30_000; // retry every 30 seconds
 
+// Tables the app is completely non-functional without. If any of these are
+// missing after init.sql + migrations, the schema is broken and we crash
+// the boot so Render marks the deploy failed and keeps the previous working
+// deploy live. Added after the 2026-04-20 incident where a broken CREATE
+// INDEX aborted init.sql mid-run on a fresh DB, `feature_flags` was never
+// created, and /api/search/chat 503'd silently.
+const REQUIRED_TABLES = [
+  'users', 'portfolios', 'alerts',
+  'feature_flags', 'feature_flag_audit',
+  'vault_documents', 'vault_chunks',
+  'refresh_tokens', 'ai_kill_switch',
+];
+
+// Split a multi-statement SQL string on `;` boundaries, but respect `$$`
+// dollar-quoted blocks (so DO $$ ... $$ statements don't get sliced in half)
+// and `--` line comments. Returns trimmed, non-empty statements.
+function splitSqlStatements(sql) {
+  const out = [];
+  let buf = '';
+  let dollarQuoted = false; // inside $$ ... $$
+  let lineComment = false;
+  for (let i = 0; i < sql.length; i++) {
+    const ch = sql[i];
+    if (lineComment) {
+      buf += ch;
+      if (ch === '\n') lineComment = false;
+      continue;
+    }
+    if (!dollarQuoted && ch === '-' && sql[i + 1] === '-') {
+      lineComment = true;
+      buf += '--';
+      i += 1;
+      continue;
+    }
+    if (ch === '$' && sql[i + 1] === '$') {
+      dollarQuoted = !dollarQuoted;
+      buf += '$$';
+      i += 1;
+      continue;
+    }
+    if (ch === ';' && !dollarQuoted) {
+      const s = buf.trim();
+      if (s) out.push(s);
+      buf = '';
+      continue;
+    }
+    buf += ch;
+  }
+  const tail = buf.trim();
+  if (tail) out.push(tail);
+  return out;
+}
+
 /**
  * Internal: attempt to create pool + verify connectivity + run schema init.
  * @returns {boolean} true if connected
@@ -71,16 +124,33 @@ async function _connect() {
     await client.query('SELECT 1');
     client.release();
 
-    // Run init SQL if not already done
+    // Run init SQL if not already done. IMPORTANT: execute per-statement
+    // so one broken statement doesn't abort the rest of the schema (the
+    // 2026-04-20 incident failure mode). We log every failure loudly; the
+    // required-table assertion below decides whether any of them matter
+    // enough to crash the boot.
     if (!schemaReady) {
-      try {
-        const initSQL = fs.readFileSync(path.join(__dirname, 'init.sql'), 'utf8');
-        await newPool.query(initSQL);
-        schemaReady = true;
-      } catch (schemaErr) {
-        logger.warn('postgres', 'Schema init failed (tables may already exist)', { error: schemaErr.message });
-        schemaReady = true; // proceed anyway — tables likely exist
+      const initSQL = fs.readFileSync(path.join(__dirname, 'init.sql'), 'utf8');
+      const stmts = splitSqlStatements(initSQL);
+      let failed = 0;
+      for (const stmt of stmts) {
+        try {
+          // eslint-disable-next-line no-await-in-loop
+          await newPool.query(stmt);
+        } catch (e) {
+          failed++;
+          const preview = stmt.replace(/\s+/g, ' ').slice(0, 160);
+          logger.error('postgres', 'init.sql statement failed', {
+            preview, error: e.message,
+          });
+        }
       }
+      if (failed > 0) {
+        logger.warn('postgres', `init.sql: ${failed} of ${stmts.length} statement(s) failed — continuing to required-table check`);
+      } else {
+        logger.info('postgres', `init.sql applied cleanly (${stmts.length} statements)`);
+      }
+      schemaReady = true;
     }
 
     // Apply pending migrations from server/db/migrations/. Safe on every
@@ -90,6 +160,37 @@ async function _connect() {
       await runMigrations(newPool);
     } catch (migrateErr) {
       logger.warn('postgres', 'Migration run failed', { error: migrateErr.message });
+    }
+
+    // ── Required-table assertion ───────────────────────────────────────
+    // If init.sql + migrations did not produce every table the app needs
+    // to function, crash the boot. Render will mark the deploy as failed
+    // and keep the last-known-good deploy serving traffic instead of
+    // silently 503'ing every feature that reads a missing table (the
+    // exact way the 2026-04-20 incident bled to users).
+    try {
+      const { rows: tableRows } = await newPool.query(
+        `SELECT table_name
+           FROM information_schema.tables
+          WHERE table_schema = 'public' AND table_name = ANY($1)`,
+        [REQUIRED_TABLES]
+      );
+      const present = new Set(tableRows.map(r => r.table_name));
+      const missing = REQUIRED_TABLES.filter(t => !present.has(t));
+      if (missing.length > 0) {
+        logger.error('postgres', 'FATAL: required tables missing after schema init', {
+          missing,
+          hint: 'inspect earlier "init.sql statement failed" lines for the root cause; do NOT suppress this — a fix belongs in init.sql, not here',
+        });
+        // Small delay so the fatal log line actually ships to the log
+        // aggregator before the process dies.
+        setTimeout(() => process.exit(1), 500);
+        return false;
+      }
+    } catch (assertErr) {
+      logger.error('postgres', 'FATAL: required-table check threw', { error: assertErr.message });
+      setTimeout(() => process.exit(1), 500);
+      return false;
     }
 
     // ── Core kill-switch assertion ────────────────────────────────────
@@ -268,4 +369,8 @@ async function closePostgres() {
   }
 }
 
-module.exports = { initPostgres, isConnected, query, getPool, closePostgres, getDiagnostics };
+module.exports = {
+  initPostgres, isConnected, query, getPool, closePostgres, getDiagnostics,
+  // exposed for the schema smoke test (server/db/__tests__/initSchema.smoke.js)
+  splitSqlStatements, REQUIRED_TABLES,
+};

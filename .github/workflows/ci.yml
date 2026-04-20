@@ -128,3 +128,47 @@ jobs:
         run: node scripts/strip-sourcemaps.js
       - name: Verify no .map files shipped
         run: node scripts/check-no-sourcemaps.js
+
+  schema-smoke:
+    # Regression net for the 2026-04-20 incident. Spins up a real Postgres
+    # service container, wipes the schema, runs server/db/init.sql
+    # statement-by-statement, and asserts every required table exists and
+    # the feature_flags seed has ai_chat_enabled=(TRUE,100). Catches the
+    # "init.sql silently aborts on a fresh DB" failure mode before the
+    # bad schema ever reaches prod.
+    name: Schema smoke — init.sql on fresh Postgres
+    runs-on: ubuntu-latest
+    needs: lockfile
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install server deps
+        run: (cd server && npm ci --prefer-offline --audit=false)
+      - name: Wait for Postgres
+        run: |
+          for i in 1 2 3 4 5 6 7 8 9 10; do
+            pg_isready -h localhost -p 5432 -U postgres && break
+            echo "postgres not ready, retry $i"
+            sleep 2
+          done
+      - name: Run schema smoke test
+        env:
+          TEST_POSTGRES_URL: postgres://postgres:postgres@localhost:5432/postgres
+        run: node server/db/__tests__/initSchema.smoke.js
