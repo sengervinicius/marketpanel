@@ -407,3 +407,98 @@
   opacity: 0.7;
   font-family: var(--font-family-mono);
 }
+
+/* ── Thesis lane (Phase 8.3) ───────────────────────────────── */
+.sm-lane {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 1px;
+  background: var(--border-subtle, #1a1f2e);
+  border-bottom: 1px solid var(--border-subtle, #1a1f2e);
+  flex-shrink: 0;
+}
+
+.sm-lane-card {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 5px 8px;
+  background: var(--bg-surface, #0e1117);
+  min-height: 32px;
+  overflow: hidden;
+}
+
+.sm-lane-label {
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: var(--text-muted, #8b93a7);
+  text-transform: uppercase;
+}
+
+.sm-lane-body {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-family-mono);
+  font-size: 10.5px;
+  line-height: 1.2;
+  min-height: 14px;
+  flex-wrap: wrap;
+}
+
+.sm-lane-empty {
+  color: var(--text-faint);
+  opacity: 0.6;
+}
+
+.sm-lane-ticker {
+  font-weight: 700;
+  font-size: 11.5px;
+  letter-spacing: 0.03em;
+}
+.sm-lane-ticker--bullish { color: var(--color-up, #22c55e); }
+.sm-lane-ticker--bearish { color: var(--color-down, #ef4444); }
+.sm-lane-ticker--mixed   { color: var(--sent-neutral, #8b93a7); }
+
+.sm-lane-meta {
+  color: var(--text-secondary);
+  font-size: 9.5px;
+  letter-spacing: 0.02em;
+}
+
+.sm-lane-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 5px;
+  border-radius: 2px;
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+.sm-lane-pill--bull {
+  color: var(--sent-bull, #3dd68c);
+  background: var(--sent-bull-bg, rgba(61,214,140,0.12));
+}
+.sm-lane-pill--bear {
+  color: var(--sent-bear, #e05c8a);
+  background: var(--sent-bear-bg, rgba(224,92,138,0.12));
+}
+
+.sm-lane-count {
+  font-weight: 700;
+  font-size: 14px;
+  line-height: 1;
+  color: var(--text-primary);
+}
+.sm-lane-count--hot {
+  color: var(--sent-warn, #e8a020);
+  text-shadow: 0 0 4px rgba(232, 160, 32, 0.4);
+}
+
+@media (max-width: 640px) {
+  .sm-lane { grid-template-columns: 1fr 1fr; }
+  .sm-lane-card:nth-child(3) { display: none; }
+}

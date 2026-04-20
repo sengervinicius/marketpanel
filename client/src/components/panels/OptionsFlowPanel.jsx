@@ -254,6 +254,75 @@ function buildClusters(items) {
   return clusters;
 }
 
+/* ── Sector mapping (compact, CIO-focused) ─────────────────── */
+
+/**
+ * Static ticker → sector map for the top ~120 tickers that drive
+ * options flow signal. Anything not mapped falls into OTHER.
+ * CIO-note (Phase 8.3): deliberately coarse — we want 8 buckets to
+ * read at a glance, not a 25-sector GICS breakdown.
+ */
+const SECTOR_MAP = {
+  // Tech
+  AAPL: 'TECH', MSFT: 'TECH', GOOGL: 'TECH', GOOG: 'TECH', META: 'TECH', AMZN: 'TECH',
+  NVDA: 'TECH', AMD: 'TECH', AVGO: 'TECH', ORCL: 'TECH', CRM: 'TECH', ADBE: 'TECH',
+  INTC: 'TECH', QCOM: 'TECH', TXN: 'TECH', MU: 'TECH', AMAT: 'TECH', ASML: 'TECH',
+  PANW: 'TECH', NOW: 'TECH', SNOW: 'TECH', PLTR: 'TECH', SMCI: 'TECH', ARM: 'TECH',
+  NFLX: 'TECH', CRWD: 'TECH', UBER: 'TECH', SHOP: 'TECH', SQ: 'TECH', SPOT: 'TECH',
+  // Financials
+  JPM: 'FIN', BAC: 'FIN', WFC: 'FIN', C: 'FIN', GS: 'FIN', MS: 'FIN',
+  BLK: 'FIN', SCHW: 'FIN', V: 'FIN', MA: 'FIN', AXP: 'FIN', PYPL: 'FIN',
+  COF: 'FIN', USB: 'FIN', TFC: 'FIN', BRK: 'FIN',
+  // Energy
+  XOM: 'ENERGY', CVX: 'ENERGY', COP: 'ENERGY', EOG: 'ENERGY', SLB: 'ENERGY',
+  OXY: 'ENERGY', MPC: 'ENERGY', PSX: 'ENERGY', VLO: 'ENERGY', PXD: 'ENERGY',
+  USO: 'ENERGY', XLE: 'ENERGY', HAL: 'ENERGY',
+  // Healthcare
+  UNH: 'HLTH', JNJ: 'HLTH', PFE: 'HLTH', MRK: 'HLTH', ABBV: 'HLTH', LLY: 'HLTH',
+  TMO: 'HLTH', ABT: 'HLTH', CVS: 'HLTH', AMGN: 'HLTH', GILD: 'HLTH', BMY: 'HLTH',
+  ISRG: 'HLTH', MDT: 'HLTH', SYK: 'HLTH',
+  // Consumer
+  WMT: 'CONS', HD: 'CONS', LOW: 'CONS', TGT: 'CONS', COST: 'CONS', NKE: 'CONS',
+  MCD: 'CONS', SBUX: 'CONS', TSLA: 'CONS', F: 'CONS', GM: 'CONS', DIS: 'CONS',
+  PEP: 'CONS', KO: 'CONS', PG: 'CONS',
+  // Industrials
+  BA: 'IND', CAT: 'IND', GE: 'IND', HON: 'IND', LMT: 'IND', RTX: 'IND',
+  NOC: 'IND', UPS: 'IND', FDX: 'IND', DE: 'IND', MMM: 'IND',
+  // Crypto / speculative
+  COIN: 'CRYPTO', MSTR: 'CRYPTO', MARA: 'CRYPTO', RIOT: 'CRYPTO',
+  // Indices & broad ETFs
+  SPY: 'INDEX', QQQ: 'INDEX', IWM: 'INDEX', DIA: 'INDEX', VIX: 'INDEX', UVXY: 'INDEX',
+  SPX: 'INDEX', NDX: 'INDEX', VXX: 'INDEX',
+};
+
+function sectorOf(ticker) {
+  if (!ticker) return 'OTHER';
+  const t = ticker.toUpperCase();
+  return SECTOR_MAP[t] || 'OTHER';
+}
+
+/**
+ * Aggregate items by sector into { sector, netDollars, signalCount }.
+ * Sorted by absolute netDollars descending.
+ */
+function buildSectorTilt(items) {
+  const m = new Map();
+  for (const it of items) {
+    if (it.type === 'darkpool' || it.signal === 'neutral') continue; // directional only
+    const sec = sectorOf(it.ticker);
+    if (!m.has(sec)) m.set(sec, { sector: sec, netDollars: 0, grossDollars: 0, signalCount: 0 });
+    const s = m.get(sec);
+    const v = it.sortValue || 0;
+    s.grossDollars += v;
+    s.signalCount += 1;
+    if (it.signal === 'bullish') s.netDollars += v;
+    else if (it.signal === 'bearish') s.netDollars -= v;
+  }
+  return Array.from(m.values())
+    .filter(s => s.sector !== 'OTHER' || s.signalCount >= 3) // hide OTHER unless loud
+    .sort((a, b) => Math.abs(b.netDollars) - Math.abs(a.netDollars));
+}
+
 /* ── Tape posture (the top thesis line) ────────────────────── */
 
 function computeTapePosture(items) {
@@ -304,6 +373,68 @@ const TapePostureBar = memo(function TapePostureBar({ posture }) {
         <span className="sm-thesis-metric-val">{posture.signals}</span>
         <span className="sm-thesis-metric-label">signals</span>
       </span>
+    </div>
+  );
+});
+
+/* ── Thesis Lane: 3 derived signals from current tape (Phase 8.3) ── */
+
+const ThesisLane = memo(function ThesisLane({ items, clusters }) {
+  const sectorTilt = useMemo(() => buildSectorTilt(items), [items]);
+  const goldenCount = useMemo(
+    () => items.filter(i => i.isGolden).length,
+    [items]
+  );
+  const hotspot = clusters[0];
+
+  const bullSec = sectorTilt.find(s => s.netDollars > 0);
+  const bearSec = sectorTilt.find(s => s.netDollars < 0);
+
+  return (
+    <div className="sm-lane">
+      {/* Hotspot — single ticker with highest conviction */}
+      <div className="sm-lane-card">
+        <span className="sm-lane-label">HOTSPOT</span>
+        {hotspot ? (
+          <span className="sm-lane-body">
+            <span className={`sm-lane-ticker sm-lane-ticker--${hotspot.posture}`}>{hotspot.ticker}</span>
+            <span className="sm-lane-meta">
+              {hotspot.signalCount} sig · {fmtMoneySigned(hotspot.netDollars)}
+            </span>
+          </span>
+        ) : (
+          <span className="sm-lane-body sm-lane-empty">—</span>
+        )}
+      </div>
+
+      {/* Sector tilt — top bullish + top bearish */}
+      <div className="sm-lane-card">
+        <span className="sm-lane-label">SECTOR</span>
+        <span className="sm-lane-body">
+          {bullSec && (
+            <span className="sm-lane-pill sm-lane-pill--bull">
+              ▲ {bullSec.sector} {fmtMoneySigned(bullSec.netDollars)}
+            </span>
+          )}
+          {bearSec && (
+            <span className="sm-lane-pill sm-lane-pill--bear">
+              ▼ {bearSec.sector} {fmtMoneySigned(bearSec.netDollars)}
+            </span>
+          )}
+          {!bullSec && !bearSec && <span className="sm-lane-empty">no tilt</span>}
+        </span>
+      </div>
+
+      {/* Golden sweeps — confluence of sweep+floor */}
+      <div className="sm-lane-card">
+        <span className="sm-lane-label">GOLDEN</span>
+        <span className="sm-lane-body">
+          <span className={`sm-lane-count ${goldenCount > 0 ? 'sm-lane-count--hot' : ''}`}>
+            {goldenCount}
+          </span>
+          <span className="sm-lane-meta">sweeps today</span>
+        </span>
+      </div>
     </div>
   );
 });
@@ -429,6 +560,9 @@ function OptionsFlowPanel() {
 
       {/* Thesis — the one-line answer to "what is smart money doing?" */}
       <TapePostureBar posture={tape} />
+
+      {/* Thesis lane — 3 derived signals (Phase 8.3) */}
+      <ThesisLane items={filtered} clusters={clusters} />
 
       {/* Filter tabs */}
       <PanelTabRow
