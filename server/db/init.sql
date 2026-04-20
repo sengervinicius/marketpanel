@@ -243,7 +243,13 @@ CREATE TABLE IF NOT EXISTS conversation_memory (
   expires_at        TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '2 hours')
 );
 CREATE INDEX IF NOT EXISTS idx_conv_memory_user ON conversation_memory(user_id);
-CREATE INDEX IF NOT EXISTS idx_conv_memory_user_active ON conversation_memory(user_id, expires_at) WHERE expires_at > NOW();
+-- NOTE: no WHERE predicate — NOW() is STABLE, not IMMUTABLE, so Postgres
+-- rejects it in an index predicate (which must be pure). The full index
+-- still serves the "WHERE expires_at > NOW()" query correctly; the planner
+-- applies the predicate at scan time. This was the bug that aborted
+-- init.sql mid-run on fresh DBs and prevented feature_flags from ever
+-- being created (incident 2026-04-20).
+CREATE INDEX IF NOT EXISTS idx_conv_memory_user_active ON conversation_memory(user_id, expires_at);
 CREATE INDEX IF NOT EXISTS idx_conv_memory_session ON conversation_memory(user_id, session_id);
 CREATE INDEX IF NOT EXISTS idx_conv_memory_type ON conversation_memory(user_id, type);
 
