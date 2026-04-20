@@ -1,11 +1,14 @@
-/* WatchlistPanel.css — prefix: wp- */
+/* WatchlistPanel.css — prefix: wp-
+   Phase 9.2: unified Watchlist+Portfolio. Grid is now 6 columns:
+   TICKER | LAST | CHG% | P&L% | spark | actions */
 
 .wp-header {
   padding: 4px 8px;
   border-bottom: 1px solid var(--border-strong);
   background: var(--bg-elevated);
   flex-shrink: 0;
-  gap: 8px;
+  gap: 6px;
+  align-items: center;
 }
 
 .wp-header-title {
@@ -16,7 +19,6 @@
   text-transform: uppercase;
   color: var(--color-text-primary);
   line-height: 1;
-  flex: 1;
 }
 
 .wp-header-count {
@@ -24,6 +26,79 @@
   font-size: var(--font-sm);
 }
 
+.wp-header-tracked {
+  color: var(--text-faint);
+  font-size: 9px;
+  font-family: var(--font-family-mono);
+  letter-spacing: 0.04em;
+  margin-left: 2px;
+}
+
+.wp-spacer {
+  flex: 1;
+}
+
+/* ── Sort toggle group ────────────────────────────────────────────── */
+.wp-sort-group {
+  display: inline-flex;
+  gap: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.wp-sort-btn {
+  background: none;
+  border: none;
+  border-right: 1px solid var(--border-strong);
+  color: var(--text-muted);
+  padding: 2px 6px;
+  font-family: var(--font-family-mono);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  transition: background-color 0.12s, color 0.12s;
+}
+
+.wp-sort-btn:last-child {
+  border-right: none;
+}
+
+.wp-sort-btn:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.wp-sort-btn-active {
+  background: rgba(255, 0, 0, 0.06);
+  color: var(--section-watchlist);
+}
+
+/* ── AI Health button ─────────────────────────────────────────────── */
+.wp-ai-btn {
+  background: linear-gradient(90deg, rgba(120, 80, 220, 0.15), rgba(80, 120, 220, 0.15));
+  border: 1px solid rgba(120, 80, 220, 0.55);
+  color: var(--text-primary);
+  font-family: var(--font-family-mono);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+  padding: 2px 8px;
+  cursor: pointer;
+  transition: background-color 0.12s, border-color 0.12s;
+}
+
+.wp-ai-btn:hover:not(:disabled) {
+  background: linear-gradient(90deg, rgba(120, 80, 220, 0.25), rgba(80, 120, 220, 0.25));
+  border-color: rgba(120, 80, 220, 0.85);
+}
+
+.wp-ai-btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+/* ── Add form ─────────────────────────────────────────────────────── */
 .wp-add-btn {
   background: none;
   border: 1px solid var(--border-strong);
@@ -66,12 +141,14 @@
   padding: 2px 6px;
 }
 
+/* ── Column headers / grid rows ───────────────────────────────────── */
 .wp-col-header {
   display: grid;
-  grid-template-columns: 72px 1fr 72px 64px 48px;
+  grid-template-columns: 72px 1fr 68px 68px 64px 72px;
   padding: 2px 8px;
   border-bottom: 1px solid var(--border-default);
   flex-shrink: 0;
+  gap: 4px;
 }
 
 .wp-col-header-cell {
@@ -95,17 +172,24 @@
 
 .wp-row {
   display: grid;
-  grid-template-columns: 72px 1fr 72px 64px 48px;
+  grid-template-columns: 72px 1fr 68px 68px 64px 72px;
+  gap: 4px;
   padding: 3px 8px;
   border-bottom: 1px solid var(--border-subtle);
   align-items: center;
   transition: background-color 0.1s;
   position: relative;
+  cursor: pointer;
+}
+
+.wp-row:hover {
+  background: rgba(255, 255, 255, 0.02);
 }
 
 .wp-row-symbol {
   color: var(--section-watchlist);
   font-weight: 700;
+  font-family: var(--font-family-mono);
 }
 
 .wp-row-source {
@@ -134,11 +218,56 @@
   color: var(--price-down);
 }
 
+/* P&L column — only pops when tracked */
+.wp-row-pnl {
+  text-align: right;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  padding-right: 4px;
+}
+
+.wp-row-pnl-positive {
+  color: var(--price-up);
+}
+
+.wp-row-pnl-negative {
+  color: var(--price-down);
+}
+
+.wp-row-pnl-neutral {
+  color: var(--text-faint);
+}
+
+/* Sparkline cell */
+.wp-row-spark {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 16px;
+}
+
+/* ── Actions ──────────────────────────────────────────────────────── */
 .wp-row-actions {
   display: flex;
-  gap: 4px;
+  gap: 2px;
   justify-content: flex-end;
   align-items: center;
+}
+
+.wp-icon-btn {
+  background: none;
+  border: none;
+  color: var(--text-faint);
+  padding: 1px 4px;
+  text-align: center;
+  transition: color 0.15s;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.wp-icon-btn:hover {
+  color: var(--text-primary);
 }
 
 .wp-why-btn {
@@ -174,6 +303,17 @@
   color: var(--price-down);
 }
 
+/* Loading placeholder */
+.wp-loading {
+  padding: 18px 8px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-family: var(--font-family-mono);
+  letter-spacing: 0.06em;
+  text-align: center;
+}
+
+/* ── Why popover (unchanged) ──────────────────────────────────────── */
 .wp-why-popover {
   position: fixed;
   bottom: 20px;
