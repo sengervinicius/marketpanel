@@ -78,22 +78,47 @@ function PairCell({ pair }) {
   );
 }
 
+function EconSurpriseCard({ data }) {
+  if (!data || data.index == null || !data.count) return null;
+  const v = data.index;
+  const color =
+    v >=  25 ? 'var(--sent-bull, #3dd68c)' :
+    v <= -25 ? 'var(--sent-bear, #e05c8a)' :
+    v >=  10 ? 'var(--sent-neutral, #a1a8b8)' :
+    v <= -10 ? 'var(--sent-warn, #e8a020)' :
+               'var(--text-muted, #8b93a7)';
+  const label = v >= 25 ? 'BEATS' : v <= -25 ? 'MISSES' : 'MIXED';
+  const tip = `Econ Surprise (US, 14d): ${v > 0 ? '+' : ''}${v} • ${data.count} releases`;
+  return (
+    <div className="ca-surprise" title={tip}>
+      <span className="ca-surprise-label">US SURPRISE 14D</span>
+      <span className="ca-surprise-val" style={{ color }}>
+        {v > 0 ? '+' : ''}{v}
+      </span>
+      <span className="ca-surprise-pill" style={{ color, borderColor: color }}>{label}</span>
+    </div>
+  );
+}
+
 export default function CrossAssetStrip() {
   const [data, setData] = useState(null);
+  const [surprise, setSurprise] = useState(null);
   const [err,  setErr]  = useState(false);
   const timer = useRef(null);
 
   async function load() {
     try {
-      const r = await apiFetch('/api/cross-asset-corr');
-      if (!r.ok) { setErr(true); return; }
-      const j = await r.json();
-      if (j && Array.isArray(j.pairs) && j.pairs.length) {
-        setData(j);
+      const [corrR, surpR] = await Promise.all([
+        apiFetch('/api/cross-asset-corr').then(r => r.ok ? r.json() : null).catch(() => null),
+        apiFetch('/api/econ-surprise').then(r => r.ok ? r.json() : null).catch(() => null),
+      ]);
+      if (corrR && Array.isArray(corrR.pairs) && corrR.pairs.length) {
+        setData(corrR);
         setErr(false);
       } else {
         setErr(true);
       }
+      if (surpR) setSurprise(surpR);
     } catch (e) {
       console.warn('[CrossAssetStrip] load', e.message);
       setErr(true);
@@ -116,6 +141,7 @@ export default function CrossAssetStrip() {
         <PairCell key={`${p.a}-${p.b}`} pair={p} />
       ))}
       <span className="ca-flex" />
+      <EconSurpriseCard data={surprise} />
       <span className="ca-legend" title="20-day rolling Pearson correlation of daily log-returns">
         <span className="ca-legend-swatch" style={{ background: 'var(--sent-bull, #3dd68c)' }} />
         <span>+0.6</span>

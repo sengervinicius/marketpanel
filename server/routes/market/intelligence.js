@@ -274,6 +274,89 @@ router.get('/cross-asset-corr', async (req, res) => {
   }
 });
 
+/** GET /market/econ-surprise — Rolling macro surprise index (US).
+ *
+ * Aggregates US high-impact economic releases from last 14 days where both
+ * actual and estimate are present. Surprise per event = (actual - estimate)
+ * normalized by a standard-deviation proxy (abs(estimate) + 1), clipped to
+ * [-3, +3]. The index is the mean times 100, clipped to [-100, +100].
+ *
+ * Also returns recent event list (last 8) and count of releases with usable
+ * actual/estimate pairs — so the UI can hide the widget when data is thin.
+ *
+ * Cached 15 min.
+ */
+router.get('/econ-surprise', async (req, res) => {
+  const CACHE_KEY = 'econ-surprise:us:v1';
+  const cached = cacheGet(CACHE_KEY);
+  if (cached) return res.json(cached);
+
+  try {
+    const { getRegistry } = require('../../adapters/registry');
+    const { executeChain } = require('../../adapters/contract');
+    const { parseCalendarRows } = require('../../parsers/calendarParser');
+
+    const now = new Date();
+    const from = new Date(now.getTime() - 14 * 86_400_000).toISOString().slice(0, 10);
+    const to   = now.toISOString().slice(0, 10);
+
+    const registry = getRegistry();
+    const chain = registry.route('GLOBAL', 'calendar', 'calendar');
+    if (!chain || chain.length === 0) {
+      return res.json({ ok: true, index: null, count: 0, recent: [], reason: 'no_coverage' });
+    }
+
+    const result = await executeChain(chain, 'calendar', [{ from, to, kind: 'economic' }, { kind: 'economic' }]);
+    if (!result.ok) {
+      return res.json({ ok: true, index: null, count: 0, recent: [], reason: 'chain_failed' });
+    }
+
+    const events = parseCalendarRows(result.data)
+      .filter(e => e.country === 'US' && e.impact === 'high')
+      .filter(e => e.actual != null && e.estimate != null && Number.isFinite(Number(e.actual)) && Number.isFinite(Number(e.estimate)));
+
+    if (events.length === 0) {
+      const payload = { ok: true, index: null, count: 0, recent: [], reason: 'no_data', updated_at: now.toISOString() };
+      cacheSet(CACHE_KEY, payload, 15 * 60 * 1000);
+      return res.json(payload);
+    }
+
+    const surprises = events.map(e => {
+      const a = Number(e.actual), est = Number(e.estimate);
+      const denom = Math.abs(est) + 1; // simple stabilizer to avoid tiny-denom blowups
+      const s = Math.max(-3, Math.min(3, (a - est) / denom));
+      return {
+        event: e.event || 'event',
+        timeUtc: e.timeUtc,
+        actual: a,
+        estimate: est,
+        surprise: s,
+      };
+    });
+
+    const avg = surprises.reduce((s, x) => s + x.surprise, 0) / surprises.length;
+    const index = Math.max(-100, Math.min(100, Math.round(avg * 100 / 3))); // rescale to [-100, 100]
+
+    const recent = surprises
+      .slice()
+      .sort((a, b) => new Date(b.timeUtc) - new Date(a.timeUtc))
+      .slice(0, 8);
+
+    const payload = {
+      ok: true,
+      index,
+      count: surprises.length,
+      recent,
+      updated_at: now.toISOString(),
+    };
+    cacheSet(CACHE_KEY, payload, 15 * 60 * 1000);
+    res.json(payload);
+  } catch (e) {
+    console.error('[intelligence] /econ-surprise error:', e.message);
+    res.status(500).json({ error: 'Failed to compute econ surprise' });
+  }
+});
+
 /** GET /market/fear-greed — Composite fear & greed indices */
 router.get('/fear-greed', async (req, res) => {
   try {
