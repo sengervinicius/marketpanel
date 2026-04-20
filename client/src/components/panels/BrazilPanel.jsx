@@ -2,6 +2,9 @@
 // Phase 10: Removed bespoke polling loop; prices flow through PriceContext via PriceRow's
 // ticker prop. The initial /api/snapshot/brazil fetch seeds the batch map, and PriceRow's
 // useMergedTickerQuote handles fallback for any symbol not in the snapshot.
+// Phase 9.5: Adds a revenue-mix pill (USD / BRL / MIX) per row so the CIO can
+// see at a glance whether a ticker earns in USD (commodity/export) or BRL
+// (domestic) — the single most important macro lens on the B3 board.
 import { useState, useEffect, useCallback, useRef, useMemo, memo } from 'react';
 import { useSettings } from '../../context/SettingsContext';
 import { useOpenDetail } from '../../context/OpenDetailContext';
@@ -26,6 +29,40 @@ const SORT_COLS = [
   { key: 'price',  label: 'PRICE',  align: 'right' },
   { key: 'chg',    label: 'CHG%',   align: 'right' },
 ];
+
+// Revenue-mix pill — compact 3-char tag color-coded by where the ticker
+// earns its money. Colors are deliberately subtle so the pill doesn't
+// compete with price/change%.
+const MIX_COLORS = {
+  USD:   { bg: 'rgba(255, 160, 70, 0.12)',  fg: '#ffb15c' },
+  BRL:   { bg: 'rgba(100, 180, 120, 0.12)', fg: '#84d698' },
+  MIXED: { bg: 'rgba(140, 140, 160, 0.14)', fg: '#bdbdd2' },
+};
+function RevenueMixPill({ mix }) {
+  const spec = MIX_COLORS[mix];
+  if (!spec) return null;
+  const label = mix === 'MIXED' ? 'MIX' : mix;
+  return (
+    <span style={{
+      display: 'inline-block',
+      minWidth: 26,
+      textAlign: 'center',
+      fontFamily: 'var(--font-family-mono)',
+      fontSize: 8,
+      fontWeight: 700,
+      letterSpacing: '0.06em',
+      padding: '0 3px',
+      marginRight: 5,
+      borderRadius: 2,
+      background: spec.bg,
+      color: spec.fg,
+      flexShrink: 0,
+      verticalAlign: 'middle',
+    }} title={`Revenue is predominantly ${mix === 'MIXED' ? 'a mix of BRL and USD' : mix}`}>
+      {label}
+    </span>
+  );
+}
 
 function BrazilPanel({ onTickerClick }) {
   const openDetail = useOpenDetail();
@@ -85,12 +122,17 @@ function BrazilPanel({ onTickerClick }) {
       const json = await res.json();
       if (!json.results?.length) throw new Error('no results');
       setSnapshot(json.results.map(s => ({
-        symbol:    s.symbol,
-        name:      s.name || s.symbol,
-        price:     s.price,
-        change:    s.change,
-        changePct: s.changePct,
-        volume:    s.volume,
+        symbol:     s.symbol,
+        name:       s.name || s.symbol,
+        price:      s.price,
+        change:     s.change,
+        changePct:  s.changePct,
+        volume:     s.volume,
+        // Phase 9.5 metadata — carried through so the revenue-mix pill
+        // can render without a second fetch.
+        sector:     s.sector     || null,
+        capTier:    s.capTier    || null,
+        revenueMix: s.revenueMix || null,
       })));
       setLastUpdate(new Date());
       setError(null);
@@ -201,19 +243,26 @@ function BrazilPanel({ onTickerClick }) {
             const sym = s.symbol.endsWith('.SA') ? s.symbol : s.symbol + '.SA';
             const displaySym = s.symbol.replace('.SA', '');
             const d = batchMap[s.symbol] || {};
+            // Compose name with a leading revenue-mix pill so every row
+            // carries the BRL/USD/MIX tag inline. Pill is skipped for
+            // tickers we don't have metadata for (keeps layout stable).
+            const mix = d.revenueMix || s.revenueMix || null;
+            const nameNode = mix ? (
+              <><RevenueMixPill mix={mix} />{s.name}</>
+            ) : s.name;
             return (
               <PriceRow
                 key={sym}
                 symbol={sym}
                 ticker={sym}
                 displaySymbol={displaySym}
-                name={s.name}
+                name={nameNode}
                 price={d.price}
                 changePct={d.changePct}
                 symbolColor="var(--section-brazil)"
                 columns={COLS}
                 draggable
-                dragData={{ symbol: sym, name: s.name || s.symbol, type: 'BR' }}
+                dragData={{ symbol: sym, name: s.name || s.symbol, type: 'BR', revenueMix: mix }}
                 onClick={() => onTickerClick?.(sym)}
                 onDoubleClick={() => openDetail(sym)}
                 onTouchHold={() => openDetail(sym)}
@@ -223,6 +272,7 @@ function BrazilPanel({ onTickerClick }) {
                   'data-ticker': sym,
                   'data-ticker-label': s.name || s.symbol,
                   'data-ticker-type': 'BR',
+                  'data-revenue-mix': mix || '',
                 }}
               />
             );

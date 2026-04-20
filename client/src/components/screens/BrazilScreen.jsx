@@ -113,6 +113,224 @@ const BlueChipsComponent = memo(function BlueChipsComponent() {
   return <FundamentalsTable tickers={dynamicTickers} title="B3 Blue Chips" onTickerClick={openDetail} />;
 });
 
+/* ── Phase 9.5 helpers ───────────────────────────────────────────────────
+   Fetch /snapshot/brazil once and filter by capTier. Used by the new
+   SMALL CAPS section below. Keeping the fetch in-screen (rather than a
+   shared context) is fine because the server caches for 60 s — parallel
+   fetches by other sections collapse onto the same cache. */
+function useBrazilSnapshot() {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  useEffect(() => {
+    let cancelled = false;
+    apiFetch('/api/snapshot/brazil')
+      .then(r => r.ok ? r.json() : Promise.reject(new Error('snapshot-brazil ' + r.status)))
+      .then(j => { if (!cancelled) { setData(j); setError(null); } })
+      .catch(e => { if (!cancelled) setError(e.message); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, []);
+  return { data, loading, error };
+}
+
+function useBrazilFiiSnapshot() {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  useEffect(() => {
+    let cancelled = false;
+    apiFetch('/api/snapshot/brazil-fiis')
+      .then(r => r.ok ? r.json() : Promise.reject(new Error('snapshot-fiis ' + r.status)))
+      .then(j => { if (!cancelled) { setData(j); setError(null); } })
+      .catch(e => { if (!cancelled) setError(e.message); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, []);
+  return { data, loading, error };
+}
+
+/* ── B3 SMALL CAPS (Phase 9.5) ────────────────────────────────────────
+   Surfaces the mid + small cap slice of the B3 universe using metadata
+   tagging on the server. This is the layer that was previously invisible
+   to a BR-based CIO — large caps dominate the blue-chip table so any
+   real idiosyncratic idea (TUPY3, GRND3, MYPK3, SMFT3, etc.) never had a
+   home. Shown as a compact FundamentalsTable so comparison with the
+   blue-chip section above is one-click. */
+const SmallCapsComponent = memo(function SmallCapsComponent() {
+  const openDetail = useOpenDetail();
+  const { data, loading, error } = useBrazilSnapshot();
+  if (loading && !data) return <DeepSkeleton rows={6} />;
+  if (error && !data)   return <DeepError message={error} />;
+  const rows = Array.isArray(data?.results) ? data.results : [];
+  // Prefer true small-caps; if thin coverage, fall back to mid+small.
+  const smalls = rows.filter(r => r.capTier === 'small');
+  const pool   = smalls.length >= 12 ? smalls : rows.filter(r => r.capTier === 'small' || r.capTier === 'mid');
+  const tickers = pool
+    .slice(0, 30)
+    .map(r => `${r.symbol}.SA`);
+  if (!tickers.length) return <DeepError message="No small-cap metadata available." />;
+  return <FundamentalsTable tickers={tickers} title="B3 Small & Mid Caps" onTickerClick={openDetail} />;
+});
+
+/* ── B3 FIIs (Phase 9.5) ──────────────────────────────────────────────
+   Brazilian real-estate funds. Rendered as a dense segmented list with
+   type tags (logistics / office / shopping / paper / hybrid / FOF).
+   This is the first FII surface in the product — no screen has ever
+   surfaced real-estate as its own asset class before, which was a major
+   blind spot for a BR CIO. */
+const FIIS_TYPE_COLORS = {
+  logistics: '#5fb58a',
+  office:    '#6b9ac4',
+  shopping:  '#c88a5f',
+  paper:     '#a07cc1',
+  hybrid:    '#bdbdbd',
+  fof:       '#e0b45a',
+  urban:     '#c47fb8',
+  agro:      '#9fc06a',
+  index:     '#888',
+};
+function FiiRow({ r, onClick }) {
+  const color = FIIS_TYPE_COLORS[r.fiiType] || '#888';
+  const pos = (r.changePct ?? 0) >= 0;
+  return (
+    <div
+      onClick={onClick}
+      style={{
+        display: 'grid',
+        gridTemplateColumns: '82px 1fr 70px 70px 78px',
+        gap: 6,
+        padding: '4px 10px',
+        borderBottom: '1px solid var(--border-subtle)',
+        alignItems: 'center',
+        cursor: 'pointer',
+        fontSize: 11,
+      }}
+      onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.03)')}
+      onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+    >
+      <span style={{ fontFamily: 'var(--font-family-mono)', fontWeight: 700, color: 'var(--section-brazil, #4caf50)' }}>
+        {r.symbol}
+      </span>
+      <span style={{
+        color: 'var(--text-secondary)',
+        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+        display: 'flex', alignItems: 'center', gap: 6,
+      }}>
+        <span style={{
+          display: 'inline-block',
+          width: 6, height: 6, borderRadius: '50%',
+          background: color,
+          flexShrink: 0,
+        }} title={r.fiiType} />
+        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.name || r.symbol}</span>
+      </span>
+      <span style={{
+        fontFamily: 'var(--font-family-mono)',
+        fontSize: 9,
+        color,
+        letterSpacing: '0.06em',
+        textTransform: 'uppercase',
+        whiteSpace: 'nowrap',
+      }}>
+        {r.fiiType || '—'}
+      </span>
+      <span style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: 'var(--text-primary)' }}>
+        {r.price != null ? `R$${fmt(r.price)}` : '—'}
+      </span>
+      <span style={{
+        textAlign: 'right',
+        fontVariantNumeric: 'tabular-nums',
+        fontWeight: 600,
+        color: r.changePct == null ? 'var(--text-faint)' : (pos ? 'var(--price-up)' : 'var(--price-down)'),
+      }}>
+        {r.changePct != null ? fmtPct(r.changePct) : '—'}
+      </span>
+    </div>
+  );
+}
+
+const FiisComponent = memo(function FiisComponent() {
+  const openDetail = useOpenDetail();
+  const { data, loading, error } = useBrazilFiiSnapshot();
+  if (loading && !data) return <DeepSkeleton rows={8} />;
+  if (error && !data)   return <DeepError message={error} />;
+  const rows = Array.isArray(data?.results) ? [...data.results] : [];
+  // Group by type for scanability; within each group, sort by |chg%| desc
+  // so the ones that moved land on top.
+  const typeOrder = ['logistics', 'office', 'shopping', 'urban', 'hybrid', 'paper', 'fof'];
+  rows.sort((a, b) => {
+    const ai = typeOrder.indexOf(a.fiiType); const bi = typeOrder.indexOf(b.fiiType);
+    if (ai !== bi) return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+    return Math.abs(b.changePct ?? 0) - Math.abs(a.changePct ?? 0);
+  });
+
+  // Quick header summary: how many FIIs in each bucket.
+  const counts = rows.reduce((m, r) => { const k = r.fiiType || 'other'; m[k] = (m[k] || 0) + 1; return m; }, {});
+  const legend = typeOrder
+    .filter(t => counts[t])
+    .map(t => ({ t, c: counts[t], color: FIIS_TYPE_COLORS[t] }));
+
+  return (
+    <div style={{
+      background: 'var(--bg-app)',
+      border: '1px solid var(--border-subtle)',
+      borderRadius: 0,
+      overflow: 'hidden',
+    }}>
+      <div style={{
+        padding: '6px 10px',
+        borderBottom: '1px solid var(--border-strong)',
+        background: 'var(--bg-elevated)',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
+        fontFamily: 'var(--font-family-mono)',
+        fontSize: 10,
+        letterSpacing: '0.08em',
+      }}>
+        <span style={{ color: 'var(--text-primary)', fontWeight: 700, textTransform: 'uppercase' }}>
+          Brazilian REITs (FIIs)
+        </span>
+        <span style={{ color: 'var(--text-faint)' }}>&middot;</span>
+        {legend.map(({ t, c, color }) => (
+          <span key={t} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: 'var(--text-muted)' }}>
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: color, display: 'inline-block' }} />
+            <span style={{ textTransform: 'uppercase' }}>{t}</span>
+            <span style={{ color: 'var(--text-faint)' }}>{c}</span>
+          </span>
+        ))}
+      </div>
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: '82px 1fr 70px 70px 78px',
+        gap: 6,
+        padding: '4px 10px',
+        borderBottom: '1px solid var(--border-default)',
+        fontFamily: 'var(--font-family-mono)',
+        fontSize: 9,
+        color: 'var(--text-muted)',
+        letterSpacing: '0.06em',
+      }}>
+        <span>TICKER</span>
+        <span>NAME</span>
+        <span>TYPE</span>
+        <span style={{ textAlign: 'right' }}>PRICE</span>
+        <span style={{ textAlign: 'right' }}>CHG%</span>
+      </div>
+      <div style={{ maxHeight: 360, overflowY: 'auto' }}>
+        {rows.map(r => (
+          <FiiRow
+            key={r.symbol}
+            r={r}
+            onClick={() => openDetail(`${r.symbol}.SA`)}
+          />
+        ))}
+      </div>
+    </div>
+  );
+});
+
 /* ── ADR Cross-Reference ───────────────────────────────────────────────── */
 const AdrCrossRefComponent = memo(function AdrCrossRefComponent() {
   const openDetail = useOpenDetail();
@@ -514,6 +732,17 @@ function BrazilScreenImpl() {
       id: 'bluechips',
       title: 'B3 BLUE CHIPS',
       component: BlueChipsComponent,
+    },
+    {
+      id: 'smallcaps',
+      title: 'B3 SMALL & MID CAPS',
+      component: SmallCapsComponent,
+    },
+    {
+      id: 'fiis',
+      title: 'FIIs (BRAZILIAN REITs)',
+      span: 'full',
+      component: FiisComponent,
     },
     {
       id: 'adr-cross',

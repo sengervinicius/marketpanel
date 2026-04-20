@@ -142,6 +142,59 @@ const EUROPEAN_NAMES = {
 let _brazilCache = null;
 let _brazilCacheExpiry = 0;
 
+// ── B3 FII cache (60 s) ─────────────────────────────────────────────
+let _fiiCache = null;
+let _fiiCacheExpiry = 0;
+
+// ── B3 metadata (sector / cap tier / revenueMix) ────────────────────
+// Loaded once at module-import. Shape:
+//   { VALE3: { sector, capTier, revenueMix, name }, ... }
+// Used to decorate /snapshot/brazil and /snapshot/brazil-fiis so the
+// client can display the revenue-mix pill and filter by cap tier
+// without a second round trip.
+let B3_METADATA = {};
+let B3_FIIS = {};
+try {
+  const raw = require('../../data/b3Metadata.json');
+  const { _schema, ...rest } = raw || {};
+  void _schema;
+  B3_METADATA = rest || {};
+} catch (e) {
+  console.warn('[Brazil] b3Metadata.json failed to load:', e.message);
+}
+try {
+  const raw = require('../../data/b3Fiis.json');
+  const { _schema, ...rest } = raw || {};
+  void _schema;
+  B3_FIIS = rest || {};
+} catch (e) {
+  console.warn('[Brazil] b3Fiis.json failed to load:', e.message);
+}
+
+// Attach sector/capTier/revenueMix fields to a quote result shape if
+// we have metadata for the ticker. Safe to call with or without a match.
+function decorateWithB3Meta(result) {
+  const meta = B3_METADATA[result.symbol];
+  if (!meta) return result;
+  return {
+    ...result,
+    sector:      meta.sector     || result.sector     || null,
+    capTier:     meta.capTier    || result.capTier    || null,
+    revenueMix:  meta.revenueMix || result.revenueMix || null,
+    name:        meta.name       || result.name,
+  };
+}
+function decorateWithFiiMeta(result) {
+  const meta = B3_FIIS[result.symbol];
+  if (!meta) return result;
+  return {
+    ...result,
+    fiiType: meta.type    || null,
+    segment: meta.segment || null,
+    name:    meta.name    || result.name,
+  };
+}
+
 // ── Helper: transform Yahoo quote to snapshot shape ─────────────────
 function toSnapshot(q) {
   return {
@@ -322,26 +375,58 @@ router.get('/snapshot/european', async (req, res) => {
   }
 });
 
+// Universe of B3 equities to include in /snapshot/brazil. Starts from
+// the curated blue-chip set the panel has always shown, and is extended
+// with the small/mid-cap names from b3Metadata.json so the CIO sees a
+// single deep board covering large + mid + small caps in one call.
+// FIIs are intentionally kept separate (see /snapshot/brazil-fiis) so
+// the two asset classes don't thrash the same Yahoo batch window and
+// the client can render them as distinct sections.
+//
+// The "always-in" list guarantees the core names appear even if the
+// JSON metadata file is ever missing or partially loaded.
+const BRAZIL_CORE_TICKERS = [
+  'VALE3','PETR4','PETR3','ITUB4','BBDC4','BBAS3',
+  'ABEV3','WEGE3','RENT3','RDOR3','B3SA3','EQTL3',
+  'CSAN3','PRIO3','BPAC11','HAPV3','CMIG4','VIVT3','BOVA11',
+];
+
+function buildBrazilUniverse() {
+  const set = new Set(BRAZIL_CORE_TICKERS);
+  for (const key of Object.keys(B3_METADATA)) {
+    // Skip ETFs that aren't equities-equivalent — we keep BOVA11,
+    // SMAL11, DIVO11, IVVB11 because they're useful as cross-refs, and
+    // the metadata file already flags sector:"ETF". Everything else
+    // (non-FII, non-schema) goes in.
+    set.add(key);
+  }
+  return Array.from(set);
+}
+
 router.get('/snapshot/brazil', async (req, res) => {
   try {
     const now = Date.now();
     if (_brazilCache && now < _brazilCacheExpiry) {
       return res.json(_brazilCache);
     }
-    const tickers = [
-      'VALE3.SA','PETR4.SA','PETR3.SA','ITUB4.SA','BBDC4.SA','BBAS3.SA',
-      'ABEV3.SA','WEGE3.SA','RENT3.SA','RDOR3.SA','B3SA3.SA','EQTL3.SA',
-      'CSAN3.SA','PRIO3.SA','BPAC11.SA','HAPV3.SA','CMIG4.SA','VIVT3.SA','BOVA11.SA',
-    ];
-    const requestedSymbols = tickers.map(t => t.replace(/\.SA$/i, ''));
+    const universe = buildBrazilUniverse();
+    const tickers = universe.map(t => `${t}.SA`);
+    const requestedSymbols = universe;
 
+    // Yahoo accepts comma-separated lists but caps them; batch to be safe.
+    const BATCH = 50;
     let quotes = [];
     try {
-      quotes = await yahooQuote(tickers.join(','));
+      const batches = [];
+      for (let i = 0; i < tickers.length; i += BATCH) {
+        batches.push(tickers.slice(i, i + BATCH));
+      }
+      const out = await Promise.all(batches.map(b => yahooQuote(b.join(','))));
+      quotes = out.flat();
     } catch (e) {
       console.warn('[Brazil] Yahoo Finance failed:', e.message);
       if (require('./lib/providers').finnhubKey()) {
-        for (const ticker of tickers.slice(0, 5)) {
+        for (const ticker of tickers.slice(0, 10)) {
           try {
             const data = await finnhubQuote(ticker);
             if (data.c) quotes.push({ symbol: ticker, regularMarketPrice: data.c, regularMarketChange: data.d, regularMarketChangePercent: data.dp });
@@ -355,7 +440,7 @@ router.get('/snapshot/brazil', async (req, res) => {
       .map(q => {
         const cleanSymbol = (q.symbol || '').replace(/\.SA$/i, '').trim();
         if (!cleanSymbol) return null;
-        return {
+        const base = {
           symbol:    cleanSymbol,
           name:      (q.shortName || q.longName || q.symbol).substring(0, 18),
           price:     q.regularMarketPrice,
@@ -364,6 +449,7 @@ router.get('/snapshot/brazil', async (req, res) => {
           volume:    q.regularMarketVolume        ?? 0,
           currency:  'BRL',
         };
+        return decorateWithB3Meta(base);
       })
       .filter(Boolean);
 
@@ -371,13 +457,90 @@ router.get('/snapshot/brazil', async (req, res) => {
     const missingSymbols = requestedSymbols.filter(s => !returnedSymbols.has(s));
 
     if (!results.length) throw new Error('All providers returned no B3 results');
-    const payload = { results, source: 'yahoo', missing: missingSymbols };
+    // Expose the metadata dictionary so the client doesn't need a second
+    // fetch to enrich rows that didn't come back from Yahoo (e.g. if an
+    // individual ticker was delisted but still in our list).
+    const payload = {
+      results,
+      source: 'yahoo',
+      missing: missingSymbols,
+      metadata: B3_METADATA,
+    };
     _brazilCache = payload;
     _brazilCacheExpiry = now + 60_000;
     res.json(payload);
   } catch (err) {
     console.error('[API] /snapshot/brazil error:', err.message);
     if (_brazilCache) return res.json({ ..._brazilCache, stale: true, staleSinceMs: Date.now() - _brazilCacheExpiry + 60_000 });
+    sendError(res, err);
+  }
+});
+
+// ── /snapshot/brazil-fiis (Phase 9.5) ─────────────────────────────────
+// Dedicated snapshot for Brazilian real-estate funds (FIIs). Separate
+// from /snapshot/brazil because FIIs have their own metadata
+// (logistics / office / shopping / paper / hybrid / fof) and the CIO
+// wants to scan them as an asset class on their own — they trade more
+// like credit + duration than equities. Piggy-backs on the same
+// Yahoo/Finnhub plumbing.
+router.get('/snapshot/brazil-fiis', async (req, res) => {
+  try {
+    const now = Date.now();
+    if (_fiiCache && now < _fiiCacheExpiry) {
+      return res.json(_fiiCache);
+    }
+    const universe = Object.keys(B3_FIIS).filter(k => k !== 'IFIX');
+    if (!universe.length) throw new Error('FII universe is empty');
+    const tickers = universe.map(t => `${t}.SA`);
+    const requestedSymbols = universe;
+
+    const BATCH = 50;
+    let quotes = [];
+    try {
+      const batches = [];
+      for (let i = 0; i < tickers.length; i += BATCH) {
+        batches.push(tickers.slice(i, i + BATCH));
+      }
+      const out = await Promise.all(batches.map(b => yahooQuote(b.join(','))));
+      quotes = out.flat();
+    } catch (e) {
+      console.warn('[Brazil/FIIs] Yahoo Finance failed:', e.message);
+    }
+
+    const results = quotes
+      .filter(q => q.regularMarketPrice != null)
+      .map(q => {
+        const cleanSymbol = (q.symbol || '').replace(/\.SA$/i, '').trim();
+        if (!cleanSymbol) return null;
+        const base = {
+          symbol:    cleanSymbol,
+          name:      (q.shortName || q.longName || q.symbol).substring(0, 18),
+          price:     q.regularMarketPrice,
+          change:    q.regularMarketChange        ?? 0,
+          changePct: q.regularMarketChangePercent ?? 0,
+          volume:    q.regularMarketVolume        ?? 0,
+          currency:  'BRL',
+        };
+        return decorateWithFiiMeta(base);
+      })
+      .filter(Boolean);
+
+    const returnedSymbols = new Set(results.map(r => r.symbol));
+    const missingSymbols = requestedSymbols.filter(s => !returnedSymbols.has(s));
+
+    if (!results.length) throw new Error('All providers returned no FII results');
+    const payload = {
+      results,
+      source: 'yahoo',
+      missing: missingSymbols,
+      metadata: B3_FIIS,
+    };
+    _fiiCache = payload;
+    _fiiCacheExpiry = now + 60_000;
+    res.json(payload);
+  } catch (err) {
+    console.error('[API] /snapshot/brazil-fiis error:', err.message);
+    if (_fiiCache) return res.json({ ..._fiiCache, stale: true, staleSinceMs: Date.now() - _fiiCacheExpiry + 60_000 });
     sendError(res, err);
   }
 });
