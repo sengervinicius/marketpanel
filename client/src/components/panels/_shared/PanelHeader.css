@@ -1,0 +1,95 @@
+/* ==================================================================
+ * PanelHeader — canonical lower-row panel header.
+ * CIO-note (Phase 8.1): Every lower-row terminal panel MUST use this
+ * component. Do not redefine padding/height/border/title styling per
+ * panel — the shared tokens below are the single source of truth.
+ * ================================================================== */
+
+.pp-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface-2);
+  flex-shrink: 0;
+  height: 22px;
+  font-family: var(--font-family-sans);
+}
+
+.pp-header-title {
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-primary);
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.pp-header-subtitle {
+  font-family: var(--font-family-mono);
+  font-size: 9px;
+  color: var(--color-text-faint);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.pp-header-spacer {
+  flex: 1;
+  min-width: 0;
+}
+
+.pp-header-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.pp-header-count {
+  font-family: var(--font-family-mono);
+  font-size: 9px;
+  color: var(--color-text-faint);
+  letter-spacing: 0.04em;
+}
+
+.pp-header-ts {
+  font-family: var(--font-family-mono);
+  font-size: 9px;
+  color: var(--color-text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.pp-header-btn {
+  background: none;
+  border: 1px solid var(--color-border-strong);
+  color: var(--color-text-muted);
+  padding: 1px 5px;
+  font-size: 9px;
+  font-family: var(--font-family-mono);
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  border-radius: 2px;
+  transition: color var(--transition-fast), border-color var(--transition-fast);
+}
+.pp-header-btn:hover:not(:disabled) {
+  color: var(--color-text-primary);
+  border-color: var(--color-text-muted);
+}
+.pp-header-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.pp-header-btn--accent {
+  color: var(--color-accent);
+  border-color: var(--color-accent);
+}
+.pp-header-btn--accent:hover:not(:disabled) {
+  background: var(--color-accent-dim);
+}

@@ -33,6 +33,7 @@
 
 import { useState, useEffect, useCallback, useMemo, memo } from 'react';
 import { apiFetch } from '../../utils/api';
+import { PanelHeader, PanelTabRow } from './_shared';
 import './OptionsFlowPanel.css';
 
 /* ── Formatting helpers ────────────────────────────────────── */
@@ -418,31 +419,28 @@ function OptionsFlowPanel() {
 
   return (
     <div className="sm-panel">
-      {/* Header */}
-      <div className="sm-hdr">
-        <span className="sm-hdr-title">OPTIONS / FLOW</span>
-        <div className="sm-hdr-right">
-          <span className="sm-hdr-ts">{loading ? 'SYNCING' : ts}</span>
-          <button className="sm-hdr-btn" onClick={fetchData} title="Refresh">↻</button>
-        </div>
-      </div>
+      <PanelHeader
+        title="OPTIONS / FLOW"
+        timestamp={loading ? 'SYNCING' : ts}
+        actions={(
+          <button className="pp-header-btn" onClick={fetchData} title="Refresh">↻</button>
+        )}
+      />
 
       {/* Thesis — the one-line answer to "what is smart money doing?" */}
       <TapePostureBar posture={tape} />
 
       {/* Filter tabs */}
-      <div className="sm-tabs">
-        {TABS.map(t => (
-          <button
-            key={t.key}
-            className={`sm-tab ${activeTab === t.key ? 'sm-tab--active' : ''}`}
-            onClick={() => setActiveTab(t.key)}
-          >
-            {t.label}
-            {counts[t.key] > 0 && <span className="sm-tab-count">{counts[t.key]}</span>}
-          </button>
-        ))}
-      </div>
+      <PanelTabRow
+        equal
+        value={activeTab}
+        onChange={setActiveTab}
+        items={TABS.map(t => ({
+          id: t.key,
+          label: t.label,
+          count: counts[t.key] > 0 ? counts[t.key] : undefined,
+        }))}
+      />
 
       {/* Cluster column legend */}
       <div className="sm-clust-legend">

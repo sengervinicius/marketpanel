@@ -21,6 +21,7 @@ import {
 } from 'recharts';
 import { apiFetch } from '../../utils/api';
 import IntegrityBadge from '../shared/IntegrityBadge';
+import { PanelHeader } from './_shared';
 import './DebtPanel.css';
 
 // Which countryCode -> live curve key in /api/yield-curves response
@@ -352,50 +353,52 @@ function DebtPanel() {
 
   return (
     <div className="dp-panel">
-      {/* Header */}
-      <div className="dp-header">
-        <span className="dp-title">YIELDS</span>
+      <PanelHeader
+        title="YIELDS"
+        actions={(
+          <>
+            {/* View toggle */}
+            <div className="dp-view-group">
+              {[['curve','CURVE'],['regional','REGION']].map(([v, lbl]) => (
+                <button
+                  className={`dp-view-btn${view === v ? ' dp-view-btn--active' : ''}`}
+                  key={v}
+                  onClick={() => setView(v)}
+                >
+                  {lbl}
+                </button>
+              ))}
+            </div>
 
-        {/* View toggle */}
-        <div className="dp-view-group">
-          {[['curve','CURVE'],['regional','REGION']].map(([v, lbl]) => (
-            <button
-              className={`dp-view-btn${view === v ? ' dp-view-btn--active' : ''}`}
-              key={v}
-              onClick={() => setView(v)}
-            >
-              {lbl}
-            </button>
-          ))}
-        </div>
+            {/* Country selector (curve view) */}
+            {view === 'curve' && (
+              <select
+                value={selectedCountry}
+                onChange={e => setSelectedCountry(e.target.value)}
+                className="dp-select"
+              >
+                {availableCountries.map(c => (
+                  <option key={c.code} value={c.code}>
+                    {c.code} -- {c.name}
+                  </option>
+                ))}
+              </select>
+            )}
 
-        {/* Country selector (curve view) */}
-        {view === 'curve' && (
-          <select
-            value={selectedCountry}
-            onChange={e => setSelectedCountry(e.target.value)}
-            className="dp-select dp-select--flex"
-          >
-            {availableCountries.map(c => (
-              <option key={c.code} value={c.code}>
-                {c.code} -- {c.name}
-              </option>
-            ))}
-          </select>
+            {/* Group + tenor selectors (regional view) */}
+            {view === 'regional' && (
+              <div className="dp-header-selectors">
+                <select value={countryGroup} onChange={e => setCountryGroup(e.target.value)} className="dp-select">
+                  {COUNTRY_GROUPS.map(g => <option key={g.label} value={g.label}>{g.label}</option>)}
+                </select>
+                <select value={regionalTenor} onChange={e => setRegionalTenor(e.target.value)} className="dp-select">
+                  {TENORS.map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
+            )}
+          </>
         )}
-
-        {/* Group + tenor selectors (regional view) */}
-        {view === 'regional' && (
-          <div className="dp-header-selectors">
-            <select value={countryGroup} onChange={e => setCountryGroup(e.target.value)} className="dp-select">
-              {COUNTRY_GROUPS.map(g => <option key={g.label} value={g.label}>{g.label}</option>)}
-            </select>
-            <select value={regionalTenor} onChange={e => setRegionalTenor(e.target.value)} className="dp-select">
-              {TENORS.map(t => <option key={t} value={t}>{t}</option>)}
-            </select>
-          </div>
-        )}
-      </div>
+      />
 
       {/* ---- Curve view ---- */}
       {view === 'curve' && (

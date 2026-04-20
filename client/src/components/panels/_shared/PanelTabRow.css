@@ -1,0 +1,55 @@
+/* ==================================================================
+ * PanelTabRow — canonical filter tabs/pills for lower-row panels.
+ * CIO-note (Phase 8.1): Replaces ad-hoc .sm-tabs / .pred-categories /
+ * .np-tabs implementations. Underline-on-active, no background fills,
+ * 8px gap, 11px label.
+ * ================================================================== */
+
+.pp-tabs {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  padding: 0 6px;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface-1);
+  flex-shrink: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.pp-tabs::-webkit-scrollbar { display: none; }
+
+.pp-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--color-text-muted);
+  font-family: var(--font-family-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 4px 8px;
+  cursor: pointer;
+  white-space: nowrap;
+  line-height: 1;
+  transition: color var(--transition-fast), border-color var(--transition-fast);
+}
+.pp-tab:hover { color: var(--color-text-primary); }
+
+.pp-tab--active {
+  color: var(--color-accent);
+  border-bottom-color: var(--color-accent);
+}
+
+.pp-tab-count {
+  font-size: 8.5px;
+  color: var(--color-text-faint);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+}
+.pp-tab--active .pp-tab-count { color: var(--color-accent); opacity: 0.8; }
+
+.pp-tabs--equal .pp-tab { flex: 1; justify-content: center; }

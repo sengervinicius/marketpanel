@@ -15,6 +15,7 @@
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { apiFetch } from '../../utils/api';
+import { PanelHeader, PanelTabRow } from './_shared';
 import './PredictionPanel.css';
 
 const REFRESH_INTERVAL = 120_000; // 2 min
@@ -107,40 +108,29 @@ export default function PredictionPanel() {
     return () => clearInterval(timerRef.current);
   }, [fetchData]);
 
+  const tabItems = [
+    { id: 'for-you', label: '⚡ FOR YOU' },
+    { id: 'all',     label: 'ALL' },
+    ...categories.map(cat => ({
+      id: cat.id,
+      label: (CATEGORY_LABELS[cat.id] || cat.label || '').toUpperCase(),
+      count: cat.count,
+    })),
+  ];
+
   return (
     <div className="pred-panel">
-      {/* Header */}
-      <div className="pred-header">
-        <span className="pred-title">PREDICTIONS</span>
-        {isPersonalized && interests.length > 0 && (
-          <span className="pred-interests">{interests.join(' · ')}</span>
-        )}
-        <span className="pred-sources">Kalshi + Polymarket</span>
-      </div>
+      <PanelHeader
+        title="PREDICTIONS"
+        subtitle={isPersonalized && interests.length > 0 ? interests.join(' · ') : 'KALSHI · POLYMARKET'}
+      />
 
-      {/* Category filter pills */}
-      <div className="pred-categories">
-        <button
-          className={`pred-cat-pill${activeCategory === 'for-you' ? ' pred-cat-pill--active pred-cat-pill--foryou' : ''}`}
-          onClick={() => setActiveCategory('for-you')}
-        >⚡ For You</button>
-
-        <button
-          className={`pred-cat-pill${activeCategory === 'all' ? ' pred-cat-pill--active' : ''}`}
-          onClick={() => setActiveCategory('all')}
-        >All</button>
-
-        {categories.map(cat => (
-          <button
-            key={cat.id}
-            className={`pred-cat-pill${activeCategory === cat.id ? ' pred-cat-pill--active' : ''}`}
-            onClick={() => setActiveCategory(cat.id)}
-          >
-            {CATEGORY_LABELS[cat.id] || cat.label}
-            <span className="pred-cat-count">{cat.count}</span>
-          </button>
-        ))}
-      </div>
+      {/* Category filter pills — canonical PanelTabRow */}
+      <PanelTabRow
+        value={activeCategory}
+        onChange={setActiveCategory}
+        items={tabItems}
+      />
 
       {/* Column headers */}
       <div className="pred-row pred-row-hdr">

@@ -1,0 +1,49 @@
+/* ==================================================================
+ * LiveCell — flash-on-change wrapper for any numeric/value cell.
+ * CIO-note (Phase 8.2): The single visual primitive that gives the
+ * terminal its "alive" feel. Wrap anything that updates with this.
+ *
+ * Usage:
+ *   <LiveCell value={price}>{fmtUSD(price)}</LiveCell>
+ *
+ * Direction is auto-detected: increase => bull pulse, decrease => bear.
+ * ================================================================== */
+
+.pp-livecell {
+  display: inline-block;
+  position: relative;
+  transition: background-color 600ms ease-out, color 600ms ease-out;
+  border-radius: 2px;
+  padding: 0 2px;
+  margin: 0 -2px;
+}
+
+.pp-livecell--up {
+  background-color: var(--sent-bull-bg, rgba(34, 197, 94, 0.22));
+  color: var(--sent-bull, #22c55e);
+}
+
+.pp-livecell--down {
+  background-color: var(--sent-bear-bg, rgba(239, 68, 68, 0.22));
+  color: var(--sent-bear, #ef4444);
+}
+
+@keyframes pp-livecell-pulse {
+  0%   { box-shadow: 0 0 0 0 currentColor; opacity: 0.95; }
+  60%  { box-shadow: 0 0 0 2px transparent; opacity: 1; }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+
+.pp-livecell--pulse {
+  animation: pp-livecell-pulse 320ms ease-out 1;
+}
+
+/* Reduced motion — no flash, just a subtle dot */
+@media (prefers-reduced-motion: reduce) {
+  .pp-livecell--up,
+  .pp-livecell--down {
+    background-color: transparent;
+    box-shadow: none;
+    animation: none;
+  }
+}

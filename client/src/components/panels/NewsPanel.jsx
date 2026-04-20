@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, memo, useCallback } from 'react';
 import { useFeedStatus } from '../../context/FeedStatusContext';
 import { apiFetch } from '../../utils/api';
 import EmptyState from '../common/EmptyState';
+import { PanelHeader } from './_shared';
 import './NewsPanel.css';
 
 function timeAgo(dateStr) {
@@ -136,26 +137,27 @@ function NewsPanel() {
 
   return (
     <div className="flex-col np-container">
-      <div className="flex-row np-header">
-        <span className="np-header-title">NEWS FEED</span>
-        <span className="np-header-count">{news.length > 0 ? news.length + ' STORIES' : ''}</span>
-        <span className="np-header-badge" style={{ background: badge.bg, color: badge.color, borderColor: badge.color + '33' }}>
-          {badge.text}
-        </span>
-        <div className="np-header-spacer" />
-        {news.length > 0 && (
-          <button
-            className="btn np-ai-btn"
-            onClick={handleAiSummary}
-            disabled={aiLoading}
-            title="Generate AI summary and sentiment"
-          >
-            {aiLoading ? '⟳' : '◆'} AI
-          </button>
+      <PanelHeader
+        title="NEWS FEED"
+        subtitle={news.length > 0 ? `${news.length} STORIES · ${badge.text}` : badge.text}
+        actions={(
+          <>
+            {news.length > 0 && (
+              <button
+                className="pp-header-btn pp-header-btn--accent"
+                onClick={handleAiSummary}
+                disabled={aiLoading}
+                title="Generate AI summary and sentiment"
+              >{aiLoading ? '⟳' : '◆'} AI</button>
+            )}
+            <button
+              className="pp-header-btn"
+              onClick={() => setCollapsed(v => !v)}
+              title={collapsed ? 'Expand' : 'Collapse'}
+            >{collapsed ? '+' : '−'}</button>
+          </>
         )}
-        <button className="btn np-collapse-btn" onClick={() => setCollapsed(v => !v)} title={collapsed ? 'Expand' : 'Collapse'}
-        >{collapsed ? '+' : '−'}</button>
-      </div>
+      />
       {aiSummaryOpen && (
         <div className="np-ai-summary">
           {aiError && (
