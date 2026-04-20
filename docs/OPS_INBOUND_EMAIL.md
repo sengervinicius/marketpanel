@@ -83,7 +83,7 @@ Save and deploy. Render restarts the service automatically.
 From one of the allowlisted sender addresses:
 
 1. Compose an email to `vault@the-particle.com` with a small PDF attached.
-2. Subject doesn't matter; body is ignored.
+2. Subject becomes the document title when the body is ingested; with an attachment it is stored as metadata only.
 3. In Postmark → Inbound activity, confirm the email was received and the webhook returned `200` with `{ok: true, accepted: [{filename: "...", ok: true}]}`.
 4. In the Particle terminal admin panel (`/api/vault/admin/documents`) or a `psql`:
    ```sql
@@ -94,7 +94,8 @@ From one of the allowlisted sender addresses:
    LIMIT 5;
    ```
    The new document should be the top row.
-5. Test the allowlist by sending from an outside address (e.g. a personal gmail). Postmark should show `200 {ok: false, reason: "sender_not_allowed"}` and no row should land in `vault_documents`.
+5. Repeat with an attachment-less email whose body is the whole note — confirm the response payload now includes a `body: {ok: true, source: "textbody"|"stripped"|"html"}` block, and the new `.md` document shows in the same `vault_documents` query.
+6. Test the allowlist by sending from an outside address (e.g. a personal gmail). Postmark should show `200 {ok: false, reason: "sender_not_allowed"}` and no row should land in `vault_documents`.
 
 ## What gets ingested (and what doesn't)
 
@@ -106,9 +107,9 @@ From one of the allowlisted sender addresses:
 | TXT / MD / MARKDOWN      | yes       | Raw text, chunked |
 | PNG / JPG / TIFF         | no        | Dropped with `unsupported_extension` — open an issue if you need OCR-on-image for inbound |
 | ZIP / DOC (legacy Word)  | no        | Dropped |
-| Email body text          | no        | Deliberately — too noisy, would pollute retrieval |
+| Email body text          | yes*      | *Only when no parsable attachment is present and the cleaned body is ≥ 200 chars. Ingested as a synthetic `.md` named after the subject + date. Prefer `StrippedTextReply`, falling back to `TextBody`, then HTML→text of `HtmlBody`. |
 
-Hard caps: 10 attachments per email, 25 MB per attachment. Exceeding either logs to `skipped` in the response body so on-call can replay by hand.
+Hard caps: 10 attachments per email, 25 MB per attachment, 200 000 chars per body. Exceeding any of these logs to `skipped` in the response body so on-call can replay by hand.
 
 ## Observability
 

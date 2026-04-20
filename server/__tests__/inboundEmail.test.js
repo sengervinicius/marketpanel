@@ -331,3 +331,139 @@ test('Allowlist unconfigured → 200 but rejected', async () => {
     await srv.close();
   }
 });
+
+// ── Body-ingestion fallback ───────────────────────────────────────────
+
+const LONG_BODY = (
+  'Morning thoughts on the tape:\n\n' +
+  'US equities opened firmer on the back of the PCE miss. Bonds bid, ' +
+  'dollar offered. Front-end is unwinding the Jackson-Hole hawkishness. ' +
+  'Brazil CDS marked 6bp tighter overnight. DI Jan-27 richened 8bp on the ' +
+  'back of lower US yields. Copom minutes on Wednesday. '.repeat(4)
+).trim();
+
+test('Body-only email (TextBody): ingests as synthetic .md when no attachments', async () => {
+  resetEnvAndState();
+  const srv = makeServer();
+  try {
+    const payload = samplePayload({
+      MessageID: 'msg-body-001',
+      Subject: 'GS Morning Notes — 20 Apr 2026',
+      Attachments: [],
+      TextBody: LONG_BODY,
+    });
+    const res = await postJson(`${srv.url}/api/inbound/email/hunter2`, payload);
+    assert.equal(res.status, 200);
+    assert.equal(res.body.ok, true);
+    assert.equal(res.body.accepted.length, 0);
+    assert.ok(res.body.body, 'expected body ingest block in response');
+    assert.equal(res.body.body.ok, true);
+    assert.equal(res.body.body.source, 'textbody');
+    assert.ok(res.body.body.filename.endsWith('.md'), 'filename must be .md');
+    assert.equal(_ingestCalls.length, 1);
+    const call = _ingestCalls[0];
+    assert.equal(call.isGlobal, true);
+    assert.equal(call.metadata.source, 'inbound_email_body');
+    assert.equal(call.metadata.bodyContentType, 'textbody');
+    // Header block should prefix the content.
+    const body = call.buffer
+      ? call.buffer.toString('utf8')
+      : ''; // buffer not captured in stub; verify via bytes instead
+    // Stub only captures bytes; prove it's > header+min body length instead.
+    assert.ok(call.bytes >= LONG_BODY.length, 'payload includes body text');
+  } finally {
+    await srv.close();
+  }
+});
+
+test('Body-only email (HtmlBody fallback): strips tags and ingests', async () => {
+  resetEnvAndState();
+  const srv = makeServer();
+  try {
+    const htmlBody =
+      '<html><body>' +
+      '<p>US equities opened firmer on the back of the PCE miss.</p>' +
+      '<p>Bonds bid, dollar offered. ' +
+        'Front-end is unwinding the Jackson-Hole hawkishness. ' +
+      '</p>' +
+      '<p>' + ('Copom minutes on Wednesday. '.repeat(20)) + '</p>' +
+      '<script>alert(1)</script>' +
+      '</body></html>';
+    const payload = samplePayload({
+      MessageID: 'msg-body-002',
+      Subject: 'Outlook-only HTML note',
+      Attachments: [],
+      TextBody: '',
+      HtmlBody: htmlBody,
+    });
+    const res = await postJson(`${srv.url}/api/inbound/email/hunter2`, payload);
+    assert.equal(res.status, 200);
+    assert.equal(res.body.body.ok, true);
+    assert.equal(res.body.body.source, 'html');
+    assert.equal(_ingestCalls.length, 1);
+    assert.equal(_ingestCalls[0].metadata.source, 'inbound_email_body');
+    assert.equal(_ingestCalls[0].metadata.bodyContentType, 'html');
+  } finally {
+    await srv.close();
+  }
+});
+
+test('Body is ignored when the email has a parsable attachment', async () => {
+  resetEnvAndState();
+  const srv = makeServer();
+  try {
+    const payload = samplePayload({
+      MessageID: 'msg-body-003',
+      TextBody: LONG_BODY,
+      // Default attachment (earnings.pdf) is kept.
+    });
+    const res = await postJson(`${srv.url}/api/inbound/email/hunter2`, payload);
+    assert.equal(res.status, 200);
+    assert.equal(res.body.accepted.length, 1);
+    // No body block should be emitted when attachments already ingested.
+    assert.equal(res.body.body ?? null, null);
+    assert.equal(_ingestCalls.length, 1);
+    assert.equal(_ingestCalls[0].metadata.source, 'inbound_email');
+  } finally {
+    await srv.close();
+  }
+});
+
+test('Body shorter than MIN_BODY_CHARS is not ingested', async () => {
+  resetEnvAndState();
+  const srv = makeServer();
+  try {
+    const payload = samplePayload({
+      MessageID: 'msg-body-004',
+      Attachments: [],
+      TextBody: 'thanks!',
+    });
+    const res = await postJson(`${srv.url}/api/inbound/email/hunter2`, payload);
+    assert.equal(res.status, 200);
+    assert.equal(res.body.body ?? null, null);
+    assert.equal(_ingestCalls.length, 0);
+    // Expect a skipped entry noting the short body.
+    const short = (res.body.skipped || []).find((s) => s.reason === 'body_too_short');
+    assert.ok(short, 'expected body_too_short in skipped');
+  } finally {
+    await srv.close();
+  }
+});
+
+test('StrippedTextReply is preferred over TextBody for body ingestion', async () => {
+  resetEnvAndState();
+  const srv = makeServer();
+  try {
+    const payload = samplePayload({
+      MessageID: 'msg-body-005',
+      Attachments: [],
+      StrippedTextReply: LONG_BODY,
+      TextBody: LONG_BODY + '\n\nOn Mon, Apr 20 2026 at 7:12, Analyst wrote:\n> old thread',
+    });
+    const res = await postJson(`${srv.url}/api/inbound/email/hunter2`, payload);
+    assert.equal(res.body.body.source, 'stripped');
+    assert.equal(_ingestCalls[0].metadata.bodyContentType, 'stripped');
+  } finally {
+    await srv.close();
+  }
+});

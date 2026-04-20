@@ -81,6 +81,13 @@ const ALLOWED_EXT = new Set(['pdf', 'docx', 'csv', 'tsv', 'txt', 'md', 'markdown
 const MAX_ATTACHMENTS_PER_EMAIL = 10;
 const MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024; // 25 MB per attachment
 
+// Body-ingestion thresholds. When an email has no parsable attachments we
+// fall back to ingesting the email body itself as a synthetic .md. The
+// min guards against "thanks"-style one-liners that would only pollute
+// retrieval; the max is a sanity bound well above any realistic broker note.
+const MIN_BODY_CHARS = 200;
+const MAX_BODY_CHARS = 200_000;
+
 // MessageID LRU for dedupe. Bounded at 500 entries, oldest first.
 const DEDUPE_CAPACITY = 500;
 const _seenMessageIds = new Map(); // messageId → receivedAt ms
@@ -213,6 +220,139 @@ function parsePostmarkPayload(payload) {
   return { messageId, subject, sender, receivedAt, accepted, skipped };
 }
 
+// ── Email-body fallback ───────────────────────────────────────────────
+//
+// Some senders paste the research note straight into the body with no
+// PDF attached (e.g. morning strategy blasts, sell-side trade ideas).
+// When the email has no parsable attachments AND the body clears a
+// minimum-length bar, we synthesise a `.md` document and route it
+// through the same vault.ingestFile path attachments use — so the W4.1
+// scrubber, chunker, and pgvector indexing all apply uniformly.
+
+// Minimal HTML → text fallback. Good enough for the Apple-Mail /
+// Outlook / Gmail shapes we actually see; not a general-purpose HTML
+// parser. We do NOT try to render tables, CSS, or images — if a
+// research desk sends richly-formatted HTML-only mail, the recall
+// improvement from doing it perfectly is marginal vs. the risk of
+// pulling in a heavy DOM library on the critical ingestion path.
+function htmlToText(html) {
+  if (typeof html !== 'string' || !html) return '';
+  let s = html;
+  // Strip scripts / styles wholesale (content is never human-readable).
+  s = s.replace(/<script[\s\S]*?<\/script>/gi, '');
+  s = s.replace(/<style[\s\S]*?<\/style>/gi, '');
+  // Strip HTML comments (often contain tracking pixels, list markers).
+  s = s.replace(/<!--[\s\S]*?-->/g, '');
+  // Block-level elements → newlines so paragraphs don't collapse.
+  s = s.replace(/<\s*br\s*\/?\s*>/gi, '\n');
+  s = s.replace(/<\/\s*(p|div|li|tr|h[1-6]|br)\s*>/gi, '\n');
+  // Everything else → nothing.
+  s = s.replace(/<[^>]+>/g, '');
+  // Decode the handful of entities Gmail / Outlook actually emit.
+  s = s
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&#x27;/g, "'")
+    .replace(/&#x2F;/g, '/')
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)));
+  return s;
+}
+
+// Collapse runaway whitespace a la Mail.app's soft-wrapped bodies while
+// preserving paragraph breaks.
+function normaliseBodyText(s) {
+  if (!s) return '';
+  return String(s)
+    .replace(/\r\n?/g, '\n')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+/**
+ * Best-effort extraction of the "new" content from a reply-chain email.
+ *
+ * Postmark's `StrippedTextReply` already does this when it recognises the
+ * reply boundary; we honour that first. Otherwise we cut at the common
+ * quote markers — this is deliberately conservative and only trims
+ * obvious boundaries so we don't accidentally delete the actual content.
+ */
+function parseEmailBody(payload) {
+  if (!payload || typeof payload !== 'object') return { text: '', source: null };
+
+  // 1. Postmark pre-strips reply history when it can — highest quality signal.
+  const stripped = typeof payload.StrippedTextReply === 'string' ? payload.StrippedTextReply.trim() : '';
+  if (stripped) {
+    return { text: normaliseBodyText(stripped), source: 'stripped' };
+  }
+
+  // 2. Plain-text body is next-best. Cut at obvious reply markers.
+  const textBody = typeof payload.TextBody === 'string' ? payload.TextBody : '';
+  if (textBody.trim()) {
+    let t = textBody;
+    // Common reply/forward separators, in order of reliability.
+    const markers = [
+      /\nOn .+ wrote:\n/,
+      /\n-----\s*Original Message\s*-----\n/i,
+      /\nFrom:\s.+\nSent:/i,
+      /\n________________________________\n/,
+      /\n-- \n/, // signature delimiter (RFC-ish)
+    ];
+    for (const rx of markers) {
+      const idx = t.search(rx);
+      if (idx > 0) {
+        t = t.slice(0, idx);
+      }
+    }
+    const out = normaliseBodyText(t);
+    if (out) return { text: out, source: 'textbody' };
+  }
+
+  // 3. HTML-only last resort (Outlook often sends HTML with empty TextBody).
+  const htmlBody = typeof payload.HtmlBody === 'string' ? payload.HtmlBody : '';
+  if (htmlBody.trim()) {
+    const out = normaliseBodyText(htmlToText(htmlBody));
+    if (out) return { text: out, source: 'html' };
+  }
+
+  return { text: '', source: null };
+}
+
+function sanitiseFilenameStub(subject, receivedAt) {
+  const base = String(subject || 'email').slice(0, 80);
+  const cleaned = base
+    .replace(/[\\/:*?"<>|\x00-\x1f]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim() || 'email';
+  // Pull date-only prefix for filesystem stability / at-a-glance ordering.
+  let datePart = '';
+  try {
+    const d = new Date(receivedAt);
+    if (!isNaN(d.getTime())) datePart = d.toISOString().slice(0, 10);
+  } catch (_) { /* fall through */ }
+  return datePart ? `${datePart} - ${cleaned}.md` : `${cleaned}.md`;
+}
+
+/**
+ * Wrap the extracted body in a small frontmatter header so the retrieval
+ * layer sees `Subject/From/Date` alongside the content — helpful for
+ * later citations like "per the 2026-04-20 Goldman morning note".
+ */
+function buildBodyDocument({ text, subject, sender, receivedAt, source }) {
+  const header =
+    `# ${subject || '(no subject)'}\n\n` +
+    `**From:** ${sender}\n` +
+    `**Date:** ${receivedAt}\n` +
+    `**Source:** email-body (${source})\n\n` +
+    `---\n\n`;
+  const body = text.length > MAX_BODY_CHARS ? text.slice(0, MAX_BODY_CHARS) : text;
+  return Buffer.from(header + body, 'utf8');
+}
+
 // ── Route ─────────────────────────────────────────────────────────────
 
 /**
@@ -333,6 +473,76 @@ router.post('/:token', async (req, res) => {
     }
   }
 
+  // Body-fallback: if nothing accepted as an attachment, try the body.
+  // This catches morning-strategy blasts pasted into the email body.
+  let bodyIngest = null;
+  const noAttachmentIngest = accepted.length === 0;
+  if (noAttachmentIngest) {
+    const parsed = parseEmailBody(payload);
+    if (parsed.text && parsed.text.length >= MIN_BODY_CHARS) {
+      const filename = sanitiseFilenameStub(subject, receivedAt);
+      const buffer = buildBodyDocument({
+        text: parsed.text,
+        subject,
+        sender,
+        receivedAt,
+        source: parsed.source,
+      });
+      try {
+        const result = await vault.ingestFile(
+          ownerUser.id,
+          buffer,
+          filename,
+          {
+            source: 'inbound_email_body',
+            sender,
+            subject,
+            messageId,
+            receivedAt,
+            bodyContentType: parsed.source,
+          },
+          /* isGlobal */ true,
+        );
+        bodyIngest = {
+          filename,
+          bytes: buffer.length,
+          ok: true,
+          source: parsed.source,
+          fileType: result && result.fileType,
+          documentId: result && result.documentId,
+        };
+        logger.info('inbound-email', 'Ingested email body into central vault', {
+          messageId,
+          sender,
+          filename,
+          bytes: buffer.length,
+          bodyContentType: parsed.source,
+        });
+      } catch (err) {
+        bodyIngest = {
+          filename,
+          bytes: buffer.length,
+          ok: false,
+          source: parsed.source,
+          error: err && err.message,
+        };
+        logger.error('inbound-email', 'Email body ingest failed', {
+          messageId,
+          sender,
+          filename,
+          error: err && err.message,
+        });
+      }
+    } else if (parsed.text) {
+      // Had a body but it fell under the minimum — record for audit.
+      skipped.push({
+        filename: '(email-body)',
+        reason: 'body_too_short',
+        bytes: parsed.text.length,
+      });
+    }
+  }
+
   logger.info('inbound-email', 'Processed inbound email', {
     messageId,
     sender,
@@ -340,6 +550,7 @@ router.post('/:token', async (req, res) => {
     acceptedCount: accepted.length,
     skippedCount: skipped.length,
     ingestedCount: outcomes.filter((o) => o.ok).length,
+    bodyIngested: !!(bodyIngest && bodyIngest.ok),
   });
 
   return res.status(200).json({
@@ -349,6 +560,7 @@ router.post('/:token', async (req, res) => {
     subject,
     accepted: outcomes,
     skipped,
+    body: bodyIngest,
   });
 });
 
@@ -356,7 +568,13 @@ module.exports = router;
 // Exposed for tests.
 module.exports.__test = {
   parsePostmarkPayload,
+  parseEmailBody,
+  htmlToText,
+  normaliseBodyText,
+  sanitiseFilenameStub,
+  buildBodyDocument,
   timingSafeEqualStrings,
   extractSenderEmail,
   __resetDedupeForTests,
+  MIN_BODY_CHARS,
 };
