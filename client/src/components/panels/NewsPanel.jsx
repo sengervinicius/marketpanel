@@ -1,11 +1,101 @@
 // NewsPanel — scrolling news feed (self-fetching)
-// Fetches from server /api/news every 60s
+// Fetches from server /api/news every 60s.
+// Phase 9.3: Adds a "Today's Briefing" card at the top — a CIO-voice top-3
+// synthesis of the incoming feed, served by POST /api/search/news-briefing
+// (cached server-side for 10 minutes).
 import { useState, useEffect, useRef, memo, useCallback } from 'react';
 import { useFeedStatus } from '../../context/FeedStatusContext';
 import { apiFetch } from '../../utils/api';
 import EmptyState from '../common/EmptyState';
 import { PanelHeader } from './_shared';
 import './NewsPanel.css';
+
+// ── Morning Briefing card ─────────────────────────────────────────
+const REGIME_LABELS = { macro: 'MACRO', earnings: 'EARNINGS', policy: 'POLICY', geo: 'GEO', idio: 'IDIO' };
+const SENT_GLYPH    = { bullish: '▲', bearish: '▼', neutral: '◆' };
+
+const BriefingCard = memo(function BriefingCard({ briefing, loading, error, onRefresh, generatedAt, onTickerClick }) {
+  const [open, setOpen] = useState(true);
+
+  if (!briefing && !loading && !error) return null;
+
+  const minsAgo = generatedAt
+    ? Math.max(0, Math.round((Date.now() - new Date(generatedAt).getTime()) / 60000))
+    : null;
+
+  return (
+    <div className="np-briefing">
+      <div className="np-briefing-header">
+        <span className="np-briefing-title">
+          <span className="np-briefing-title-glyph">◆</span>
+          Today&apos;s Briefing
+        </span>
+        <div className="np-briefing-meta">
+          {minsAgo != null && !loading && <span>{minsAgo}m ago</span>}
+          <button
+            className="np-briefing-refresh"
+            onClick={onRefresh}
+            disabled={loading}
+            title="Regenerate briefing from latest feed"
+          >{loading ? '⟳ SYNCING' : 'REFRESH'}</button>
+          <button
+            className="np-briefing-refresh"
+            onClick={() => setOpen(o => !o)}
+            title={open ? 'Collapse' : 'Expand'}
+          >{open ? '−' : '+'}</button>
+        </div>
+      </div>
+
+      {!open ? (
+        <div className="np-briefing-collapsed">
+          {briefing?.length
+            ? `${briefing.length} pick${briefing.length === 1 ? '' : 's'} ready — click + to expand`
+            : 'Click + to expand'}
+        </div>
+      ) : loading && !briefing ? (
+        <div className="np-briefing-loading">Synthesizing top-3 from the feed…</div>
+      ) : error ? (
+        <div className="np-briefing-error">⚠ {error}</div>
+      ) : !briefing || briefing.length === 0 ? (
+        <div className="np-briefing-empty">No high-impact stories in the current feed.</div>
+      ) : (
+        <div className="np-briefing-list">
+          {briefing.map(item => (
+            <div key={item.rank} className="np-briefing-item">
+              <span className="np-briefing-rank">{item.rank}.</span>
+              <div className="np-briefing-body">
+                <div className="np-briefing-headline">
+                  <span className={`np-briefing-sent np-briefing-sent--${item.sentiment}`}>
+                    {SENT_GLYPH[item.sentiment] || '◆'}
+                  </span>{' '}
+                  {item.headline}
+                </div>
+                <div className="np-briefing-why">{item.whyItMatters}</div>
+                {(item.tickers?.length > 0 || item.regime) && (
+                  <div className="np-briefing-tags">
+                    {(item.tickers || []).map(t => (
+                      <span
+                        key={t}
+                        className="np-briefing-ticker"
+                        onClick={() => onTickerClick?.(t)}
+                        title={`Chart ${t}`}
+                      >{t}</span>
+                    ))}
+                    {item.regime && (
+                      <span className={`np-briefing-regime np-briefing-regime--${item.regime}`}>
+                        {REGIME_LABELS[item.regime] || item.regime}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+});
 
 function timeAgo(dateStr) {
   const diff = (Date.now() - new Date(dateStr).getTime()) / 1000;
@@ -71,6 +161,60 @@ function NewsPanel() {
   const { getBadge } = useFeedStatus();
   const badge = getBadge('stocks');
 
+  // Phase 9.3 — Today's Briefing state
+  const [briefing, setBriefing]               = useState(null);  // array of { rank, headline, ... }
+  const [briefingLoading, setBriefingLoading] = useState(false);
+  const [briefingError, setBriefingError]     = useState(null);
+  const [briefingAt, setBriefingAt]           = useState(null);
+  const briefingFetchedFor                    = useRef(null); // hash of story ids we last sent
+
+  const loadBriefing = useCallback(async (stories, { force = false } = {}) => {
+    if (!stories || stories.length === 0) return;
+    // Hash first-10 ids — same heuristic the server uses to cache.
+    const hash = stories.slice(0, 10).map(s => s.id).join('|');
+    if (!force && briefingFetchedFor.current === hash) return;
+    briefingFetchedFor.current = hash;
+
+    setBriefingLoading(true);
+    setBriefingError(null);
+    try {
+      const payload = stories.slice(0, 30).map(s => ({
+        id: s.id,
+        title: s.title,
+        publisher: s.publisher?.name || s.publisher || '',
+        tickers: s.tickers || [],
+        publishedAt: s.published_utc || s.publishedAt || null,
+      }));
+      const res  = await apiFetch('/api/search/news-briefing', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ stories: payload }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setBriefingError(json.error || `Briefing unavailable (${res.status})`);
+        return;
+      }
+      setBriefing(json.briefing || []);
+      setBriefingAt(json.generatedAt || new Date().toISOString());
+    } catch (e) {
+      setBriefingError(e.message || 'Briefing failed');
+    } finally {
+      setBriefingLoading(false);
+    }
+  }, []);
+
+  const handleBriefingRefresh = useCallback(() => {
+    loadBriefing(news, { force: true });
+  }, [loadBriefing, news]);
+
+  const handleBriefingTickerClick = useCallback((ticker) => {
+    if (!ticker) return;
+    // Soft-navigate: dispatch the app's chart-change event so the main
+    // chart picks it up, without making NewsPanel own a ticker prop.
+    window.dispatchEvent(new CustomEvent('chart:set-ticker', { detail: { ticker } }));
+  }, []);
+
   async function load() {
     try {
       const res = await apiFetch('/api/news');
@@ -86,6 +230,8 @@ function NewsPanel() {
       prevNews.current = items;
       setNews(items);
       setLastUpdated(new Date());
+      // Fire-and-forget briefing on the latest feed; server caches for 10 min.
+      if (items.length > 0) loadBriefing(items);
     } catch (e) {
       console.warn('NewsPanel load error:', e.message);
       setError(e.message);
@@ -190,6 +336,15 @@ function NewsPanel() {
         </div>
       )}
       {!collapsed && (<>
+      {/* Phase 9.3: CIO-voice morning briefing atop the feed */}
+      <BriefingCard
+        briefing={briefing}
+        loading={briefingLoading}
+        error={briefingError}
+        generatedAt={briefingAt}
+        onRefresh={handleBriefingRefresh}
+        onTickerClick={handleBriefingTickerClick}
+      />
       {error && news.length === 0 && (
         <div className="flex-row np-error-banner">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{verticalAlign:'middle',marginRight:2}} className="np-error-icon"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>

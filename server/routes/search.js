@@ -955,6 +955,147 @@ Rules:
 });
 
 /**
+ * POST /news-briefing — CIO-style top-3 briefing from a news feed (Phase 9.3)
+ *
+ * Body: { stories: [{ id, title, publisher, tickers, publishedAt }] }
+ * Returns: {
+ *   briefing: [
+ *     { rank, headline, whyItMatters, tickers: [], sourceIds: [],
+ *       sentiment: 'bullish'|'bearish'|'neutral', regime: 'macro'|'earnings'|'policy'|'geo'|'idio' }
+ *   ],
+ *   generatedAt, cached
+ * }
+ * Cache: 10 min, keyed by the first 10 story ids.
+ *
+ * The goal is signal-density, not coverage. We give the model up to ~30
+ * headlines and ask it to pick the 3 things a multi-asset CIO should
+ * actually act on in the next 6 hours — with a one-line "why it matters"
+ * that has a real, decision-relevant point (not a restatement of the
+ * headline).
+ */
+
+const _newsBriefingCache = new Map();
+const NEWS_BRIEFING_TTL = 10 * 60 * 1000;
+
+router.post('/news-briefing', async (req, res) => {
+  const apiKey = process.env.PERPLEXITY_API_KEY;
+  if (!apiKey) return res.status(503).json({ error: 'AI not configured' });
+
+  const { stories } = req.body || {};
+  if (!Array.isArray(stories) || stories.length === 0) {
+    return res.status(400).json({ error: 'stories[] is required' });
+  }
+
+  const clean = stories
+    .filter(s => s && (s.title || s.headline))
+    .slice(0, 30)
+    .map(s => ({
+      id:         String(s.id || s.title || '').slice(0, 64),
+      title:      String(s.title || s.headline || '').slice(0, 240),
+      publisher:  String(s.publisher?.name || s.publisher || s.source || '').slice(0, 40),
+      tickers:    Array.isArray(s.tickers) ? s.tickers.slice(0, 6) : [],
+      publishedAt: s.publishedAt || s.published_utc || null,
+    }))
+    .filter(s => s.title);
+
+  if (clean.length === 0) return res.status(400).json({ error: 'No valid stories' });
+
+  // Cache key: first 10 ids joined — stable for the same feed slice.
+  const cacheKey = clean.slice(0, 10).map(s => s.id).join('|').toLowerCase();
+  const cached = _newsBriefingCache.get(cacheKey);
+  if (cached && Date.now() < cached.exp) return res.json({ ...cached.v, cached: true });
+
+  const systemPrompt = `You are the head of research at a multi-asset fund writing a 3-bullet morning briefing for the CIO.
+
+Pick the TOP 3 stories from the list that matter most to a multi-asset portfolio over the next 6 trading hours. Rank in order of decision-relevance (1 = most important).
+
+For each pick, output:
+  - headline: a crisp re-headline in CIO voice (≤ 12 words)
+  - whyItMatters: ONE sentence (≤ 24 words) explaining the portfolio implication — what to watch, what it changes, or what's at risk. NOT a restatement of the headline.
+  - tickers: up to 4 directly-affected tickers (use the ones provided if relevant, add 1-2 obvious ones if missing)
+  - sourceIds: array of source story ids this pick is based on (may merge near-duplicates)
+  - sentiment: bullish | bearish | neutral (for the broader market, not just the named tickers)
+  - regime: one of macro | earnings | policy | geo | idio
+
+Rules:
+  - NO emojis. NO hedging language ("may", "could"). Be direct.
+  - Do NOT duplicate stories across picks.
+  - If fewer than 3 distinct high-impact stories exist, return fewer.
+  - Respond ONLY with valid JSON: { "briefing": [ ... ] }`;
+
+  const userPrompt = `Today's feed (${clean.length} stories):\n\n` +
+    clean.map((s, i) => {
+      const t = s.tickers.length ? ` [${s.tickers.join(',')}]` : '';
+      return `${i + 1}. id=${s.id} ${s.publisher ? '(' + s.publisher + ')' : ''} ${s.title}${t}`;
+    }).join('\n');
+
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 25000);
+
+  try {
+    const response = await fetch(PERPLEXITY_URL, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      signal: ctrl.signal,
+      body: JSON.stringify({
+        model: MODEL,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user',   content: userPrompt },
+        ],
+        max_tokens: 900,
+        temperature: 0.15,
+      }),
+    });
+    if (!response.ok) return res.status(502).json({ error: `AI provider error (${response.status})` });
+
+    const data = await response.json();
+    const raw  = data.choices?.[0]?.message?.content;
+    if (!raw) return res.status(502).json({ error: 'Empty response from AI' });
+
+    let parsed;
+    try {
+      parsed = JSON.parse(raw.replace(/^```json?\s*/i, '').replace(/```\s*$/i, '').trim());
+    } catch {
+      return res.status(502).json({ error: 'Failed to parse AI response' });
+    }
+
+    const validRegimes = new Set(['macro', 'earnings', 'policy', 'geo', 'idio']);
+    const validSents   = new Set(['bullish', 'bearish', 'neutral']);
+    const briefing = (Array.isArray(parsed.briefing) ? parsed.briefing : [])
+      .slice(0, 3)
+      .map((b, i) => ({
+        rank:         i + 1,
+        headline:     String(b.headline || '').slice(0, 140),
+        whyItMatters: String(b.whyItMatters || b.why_it_matters || '').slice(0, 260),
+        tickers:      Array.isArray(b.tickers) ? b.tickers.slice(0, 4).map(t => String(t).toUpperCase()) : [],
+        sourceIds:    Array.isArray(b.sourceIds || b.source_ids) ? (b.sourceIds || b.source_ids).slice(0, 4) : [],
+        sentiment:    validSents.has(b.sentiment) ? b.sentiment : 'neutral',
+        regime:       validRegimes.has(b.regime) ? b.regime : 'macro',
+      }))
+      .filter(b => b.headline && b.whyItMatters);
+
+    const result = {
+      briefing,
+      generatedAt: new Date().toISOString(),
+      coverage:    clean.length,
+    };
+
+    _newsBriefingCache.set(cacheKey, { v: result, exp: Date.now() + NEWS_BRIEFING_TTL });
+    if (_newsBriefingCache.size > 30) {
+      const now = Date.now();
+      for (const [k, e] of _newsBriefingCache) { if (now > e.exp) _newsBriefingCache.delete(k); }
+    }
+
+    res.json(result);
+  } catch (err) {
+    if (err.name === 'AbortError') return res.status(504).json({ error: 'News briefing timed out' });
+    console.error('[Search/AI News Briefing] Error:', err.message);
+    res.status(500).json({ error: 'News briefing failed' });
+  } finally { clearTimeout(timer); }
+});
+
+/**
  * POST /portfolio-insight — AI-powered portfolio risk assessment
  *
  * Body: { positions: [{ symbol, weight, returnPct, sector }], totalValue: number }
