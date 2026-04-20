@@ -95,6 +95,7 @@ import {
 } from './components/app/AppMobile';
 import ParticleScreen from './components/app/ParticleScreen';
 import PricingModal from './components/app/PricingModal';
+import SentimentStrip from './components/SentimentStrip';
 import './App.css';
 import './components/panels/Chat.css';
 // react-joyride v2+ uses inline styles — no separate CSS import needed
@@ -965,6 +966,8 @@ export default function App() {
 
             {/* Home grid — ALWAYS mounted, hidden via display:none when sector screen is active */}
             <div data-tour="workspace" style={{ flex: 1, display: activeSectorScreen ? 'none' : 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
+              {/* Market sentiment strip — Phase 8.2 liveness layer */}
+              <SentimentStrip />
               {/* Layout edit toolbar */}
               {layoutEdit && (
                 <div style={{
