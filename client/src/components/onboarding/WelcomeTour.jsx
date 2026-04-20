@@ -343,10 +343,19 @@ export default function WelcomeTour() {
   // ── Should we show the tour? ────────────────────────────────────────────
   useEffect(() => {
     if (!settings) return;
+    // Server-side admin reset stamps settings.tourResetAt. If the user's
+    // last completion was before that timestamp (or there's no recorded
+    // local completion time), we treat the tour as NOT done and re-run it.
+    // This is how `POST /api/admin/reset-user/:email` re-triggers the
+    // onboarding for a user whose localStorage still has the legacy '1' flag.
+    const resetAt = Number(settings.tourResetAt || 0);
+    const localAt = Number(localStorage.getItem('particle_tour_completed_at') || 0);
+    const localeClearedByReset = resetAt > 0 && resetAt > localAt;
+
     const serverDone = settings.onboardingCompleted === true;
     const localDone = localStorage.getItem('particle_tour_completed') === '1';
     const legacyDone = localStorage.getItem('particle_onboarding_done') === '1';
-    if (serverDone || localDone || legacyDone) return;
+    if (!localeClearedByReset && (serverDone || localDone || legacyDone)) return;
 
     const t = setTimeout(() => {
       setActive(true);
@@ -411,6 +420,9 @@ export default function WelcomeTour() {
     setActive(false);
     localStorage.setItem('particle_tour_completed', '1');
     localStorage.setItem('particle_onboarding_done', '1');
+    // Stamp completion time so a future admin reset (which writes
+    // settings.tourResetAt) can deterministically re-trigger the tour.
+    localStorage.setItem('particle_tour_completed_at', String(Date.now()));
     try { await markTourCompleted(); } catch {}
   }, [markTourCompleted]);
 
@@ -426,6 +438,7 @@ export default function WelcomeTour() {
     setActive(false);
     localStorage.setItem('particle_tour_completed', '1');
     localStorage.setItem('particle_onboarding_done', '1');
+    localStorage.setItem('particle_tour_completed_at', String(Date.now()));
     try { await markTourCompleted(); } catch {}
   }, [selectedTickers, addToWatchlist, markTourCompleted]);
 

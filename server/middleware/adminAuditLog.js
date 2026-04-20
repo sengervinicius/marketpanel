@@ -24,6 +24,7 @@ const logger = require('../utils/logger');
 // falls back to `admin.<verb>.<path-tail>`.
 const ACTION_ALIASES = {
   'reset-user-settings': 'admin.user.reset_settings',
+  'reset-user':          'admin.user.reset',
   'delete-user':         'admin.user.delete',
   'stats':               'admin.dashboard.read',
   'usage':               'admin.usage.read',

@@ -368,6 +368,148 @@ router.post('/reset-user-settings', async (req, res) => {
 });
 
 /**
+ * POST /api/admin/reset-user/:email
+ *
+ * "Factory reset" a user — preserves login credentials and active
+ * subscription, but wipes every per-user artifact that accumulates over a
+ * session: settings, layout overrides, watchlist, tour progress, personal
+ * vault documents + embeddings, inbound email tokens, chat conversation
+ * memory, long-term memories, behavior events, action feedback, portfolios,
+ * alerts, and the vault query log. After this runs, the next login will
+ * look identical to a brand-new sign-up (onboarding tour, default panels,
+ * empty vault, empty chat) while retaining the same user_id, email,
+ * password hash, stripe_customer_id, apple_user_id, is_paid, plan_tier.
+ *
+ * The endpoint intentionally does NOT touch:
+ *   - users.hash           (password)
+ *   - users.email / apple_user_id
+ *   - users.is_paid / subscription_active / plan_tier / stripe_* / trial_ends_at
+ *   - iap_receipts         (App Store / Play Store record of purchase)
+ *   - subscription_audit   (fiscal audit trail, legally retained)
+ *   - stripe_events_processed (webhook idempotency)
+ *
+ * To fully clear localStorage-side tour-completion flags, the user should
+ * log in from a private window OR we rely on settings.tourResetAt — the
+ * WelcomeTour checks that timestamp against localStorage.particle_tour_completed_at
+ * and re-triggers when the server-side reset is newer.
+ */
+router.post('/reset-user/:email', async (req, res) => {
+  try {
+    const email = decodeURIComponent(req.params.email);
+    if (!email || !email.includes('@')) {
+      return res.status(400).json({ error: 'Invalid email' });
+    }
+
+    const userResult = await pg.query(
+      'SELECT id, username, email, plan_tier FROM users WHERE LOWER(email) = LOWER($1)',
+      [email],
+    );
+    if (!userResult.rows || userResult.rows.length === 0) {
+      return res.status(404).json({ error: `No user found with email: ${email}` });
+    }
+    const target = userResult.rows[0];
+    const userId = target.id;
+
+    logger.info('admin', 'Resetting user to new-user state', {
+      targetUserId: userId,
+      username: target.username,
+    });
+
+    // Per-user tables to wipe. Order matters only where FKs would complain;
+    // vault_chunks depends on vault_documents but we include the explicit
+    // vault_chunks delete first so orphan rows from legacy imports also go.
+    // Personal-only: vault_documents WHERE is_global = FALSE.
+    const wiped = {};
+    const wipeSql = [
+      // vault_chunks must come before vault_documents delete below because
+      // vault_documents's FK cascade will handle chunks belonging to docs we
+      // delete, but we also want to nuke any chunks whose user_id matches the
+      // target even if the parent doc is global (corrupt history).
+      ['vault_chunks',           'DELETE FROM vault_chunks WHERE user_id = $1'],
+      // Personal vault only — never touch is_global=TRUE (that's Particle-wide
+      // research and belongs to no single user).
+      ['vault_documents',        'DELETE FROM vault_documents WHERE user_id = $1 AND is_global = FALSE'],
+      ['vault_inbound_tokens',   'DELETE FROM vault_inbound_tokens WHERE user_id = $1'],
+      ['vault_query_log',        'DELETE FROM vault_query_log WHERE user_id = $1'],
+      ['user_memories',          'DELETE FROM user_memories WHERE user_id = $1'],
+      ['conversation_memory',    'DELETE FROM conversation_memory WHERE user_id = $1'],
+      ['user_behavior',          'DELETE FROM user_behavior WHERE user_id = $1'],
+      ['action_feedback',        'DELETE FROM action_feedback WHERE user_id = $1'],
+      ['portfolios',             'DELETE FROM portfolios WHERE user_id = $1'],
+      ['alerts',                 'DELETE FROM alerts WHERE user_id = $1'],
+      ['ai_usage_ledger',        'DELETE FROM ai_usage_ledger WHERE user_id = $1'],
+      ['refresh_tokens',         'DELETE FROM refresh_tokens WHERE user_id = $1'],
+      ['password_resets',        'DELETE FROM password_resets WHERE user_id = $1'],
+      ['email_verifications',    'DELETE FROM email_verifications WHERE user_id = $1'],
+      // P5 AI chat sidebar — wipe when tables exist.
+      ['ai_messages',            'DELETE FROM ai_messages WHERE conversation_id IN (SELECT id FROM ai_conversations WHERE user_id = $1)'],
+      ['ai_conversations',       'DELETE FROM ai_conversations WHERE user_id = $1'],
+    ];
+    for (const [table, sql] of wipeSql) {
+      try {
+        const r = await pg.query(sql, [userId]);
+        wiped[table] = r.rowCount ?? 0;
+      } catch (e) {
+        // Table may not exist on older DBs — log and continue.
+        wiped[table] = `error:${e.code || e.message}`;
+      }
+    }
+
+    // Reset settings in memory + persist.
+    const user = authStore.getUserById(userId);
+    if (user) {
+      user.settings = {
+        ...authStore.defaultSettings(),
+        // Stamp the reset moment so WelcomeTour re-triggers even when the
+        // client's localStorage still has the legacy "done" flag set.
+        tourResetAt: Date.now(),
+      };
+      // Clear any accumulated persona coloring so the fresh onboarding
+      // PersonaSelector runs again.
+      user.persona = {};
+      await authStore.persistUser(user);
+    } else {
+      // User not in memory — write directly to Postgres.
+      const freshSettings = { ...authStore.defaultSettings(), tourResetAt: Date.now() };
+      await pg.query(
+        `UPDATE users SET settings = $1::jsonb, persona = '{}'::jsonb WHERE id = $2`,
+        [JSON.stringify(freshSettings), userId],
+      );
+    }
+
+    // Attach details for adminAuditLog.
+    req.auditDetails = { targetUserId: userId, wiped };
+
+    logger.info('admin', 'User reset complete', {
+      targetUserId: userId,
+      username: target.username,
+      wipedTables: Object.keys(wiped).length,
+    });
+
+    res.json({
+      ok: true,
+      message: `Reset ${target.username} (${email}) to new-user state`,
+      userId,
+      wiped,
+      preserved: {
+        email: true,
+        passwordHash: true,
+        subscription: true,
+        planTier: target.plan_tier,
+      },
+      note:
+        'Login credentials and subscription preserved. Browser localStorage ' +
+        'is NOT touched — if tour still does not appear, log in from a fresh ' +
+        'private window OR run `localStorage.clear()` in DevTools. ' +
+        'settings.tourResetAt is set so WelcomeTour re-triggers on next load.',
+    });
+  } catch (err) {
+    logger.error('admin', 'reset-user handler failed', { error: err.message, stack: err.stack });
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
  * DELETE /api/admin/delete-user/:email
  * Permanently delete a user account and all associated data.
  * Admin only. Use with caution.
