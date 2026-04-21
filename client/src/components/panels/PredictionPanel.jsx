@@ -168,6 +168,20 @@ export default function PredictionPanel() {
   );
 }
 
+// Phase 10.3 — only open deep-links we've explicitly whitelisted. Prevents
+// a compromised upstream feed from injecting hostile URLs into `market.url`.
+const SAFE_MARKET_HOSTS = new Set(['polymarket.com', 'www.polymarket.com', 'kalshi.com', 'www.kalshi.com']);
+
+function safeMarketUrl(raw) {
+  if (typeof raw !== 'string' || !raw) return null;
+  try {
+    const u = new URL(raw);
+    if (u.protocol !== 'https:') return null;
+    if (!SAFE_MARKET_HOSTS.has(u.hostname.toLowerCase())) return null;
+    return u.toString();
+  } catch { return null; }
+}
+
 function PredictionRow({ market }) {
   const pct = market.probability != null ? Math.round(market.probability * 100) : null;
   const barColor = pct != null ? probabilityColor(market.probability) : 'var(--text-faint)';
@@ -176,9 +190,33 @@ function PredictionRow({ market }) {
     : (market.source || '').toUpperCase().slice(0, 4);
   const question = market.title || market.question || '—';
   const reason = market._reason;
+  const deepLink = safeMarketUrl(market.url);
+
+  // Double-click → open the source market page. Single-click stays as a
+  // no-op (selection / hover is the primary affordance). `noopener,noreferrer`
+  // is set so the market venue can't reach back into our window via
+  // window.opener, and so Referer isn't leaked.
+  const handleDoubleClick = () => {
+    if (!deepLink) return;
+    window.open(deepLink, '_blank', 'noopener,noreferrer');
+  };
+
+  const titleText =
+    question +
+    (reason && reason !== 'trending' ? ` · ${reason}` : '') +
+    (deepLink ? ` · Double-click to open on ${market.source === 'kalshi' ? 'Kalshi' : 'Polymarket'}` : '');
 
   return (
-    <div className="pred-row" title={question + (reason && reason !== 'trending' ? ` · ${reason}` : '')}>
+    <div
+      className={`pred-row${deepLink ? ' pred-row--clickable' : ''}`}
+      title={titleText}
+      onDoubleClick={handleDoubleClick}
+      role={deepLink ? 'link' : undefined}
+      tabIndex={deepLink ? 0 : undefined}
+      onKeyDown={deepLink ? (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); handleDoubleClick(); }
+      } : undefined}
+    >
       <span className="pred-col-q" title={question}>{question}</span>
       <span className={`pred-col-src pred-src--${market.source}`}>{sourceShort}</span>
       <div className="pred-col-bar">

@@ -11,6 +11,7 @@
  *   GET  /api/admin/debug/kill-switch    — current ai_kill_switch state
  *   POST /api/admin/debug/kill-switch    — flip force_haiku / block_all_ai
  *   GET  /api/admin/debug/sub-audit/:id  — recent subscription_audit rows
+ *   GET  /api/admin/debug/inbound-email  — last N inbound-email delivery outcomes
  *
  * Everything is JSON so it plugs directly into the admin UI + is easy
  * to curl from a laptop during an incident.
@@ -25,6 +26,7 @@ const pg = require('../db/postgres');
 const logger = require('../utils/logger');
 const providerFallback = require('../services/providerFallback');
 const stalenessMonitor = require('../services/stalenessMonitor');
+const inboundEmail = require('./inboundEmail');
 const { adminAuditLog } = require('../middleware/adminAuditLog');
 
 function requireAdmin(req, res, next) {
@@ -119,6 +121,30 @@ router.get('/sub-audit/:id', async (req, res) => {
     [id],
   );
   res.json({ userId: id, rows: r.rows });
+});
+
+/**
+ * Phase 10.2 — recent inbound-email delivery outcomes.
+ *
+ * Postmark marks an email "Processed" as soon as our webhook 200s, but
+ * we 200 on drops too (duplicate / allowlist miss / bad recipient) to
+ * prevent retries. That means the CIO can't tell from the Postmark UI
+ * why a forwarded research note never landed in the vault. This surface
+ * returns the last ~50 outcomes we've seen so on-call can answer "why
+ * didn't my email arrive?" in one HTTP call.
+ *
+ * In-memory only — cleared on every deploy / restart. This is a
+ * debugging aid, not a system of record.
+ */
+router.get('/inbound-email', (_req, res) => {
+  const rows = typeof inboundEmail.getRecentOutcomes === 'function'
+    ? inboundEmail.getRecentOutcomes()
+    : [];
+  res.json({
+    generatedAt: new Date().toISOString(),
+    count: rows.length,
+    outcomes: rows,
+  });
 });
 
 module.exports = router;

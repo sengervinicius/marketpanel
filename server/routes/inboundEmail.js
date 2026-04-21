@@ -102,6 +102,22 @@ const MAX_BODY_CHARS = 200_000;
 const DEDUPE_CAPACITY = 500;
 const _seenMessageIds = new Map(); // messageId → receivedAt ms
 
+// Phase 10.2: in-memory ring buffer of the last N delivery outcomes so
+// admins can diagnose "why didn't my email arrive" without leaving Render
+// logs. Capped small — this is a debugging aid, not a database.
+const RECENT_CAPACITY = 50;
+const _recentOutcomes = []; // newest last
+function recordOutcome(entry) {
+  try {
+    _recentOutcomes.push({ at: new Date().toISOString(), ...entry });
+    while (_recentOutcomes.length > RECENT_CAPACITY) _recentOutcomes.shift();
+  } catch { /* non-critical */ }
+}
+function getRecentOutcomes() {
+  // Most recent first — admins want to see their last attempt at the top.
+  return [..._recentOutcomes].reverse();
+}
+
 function rememberMessageId(id) {
   if (!id) return false;
   if (_seenMessageIds.has(id)) return true;
@@ -268,6 +284,66 @@ function extractSenderEmail(payload) {
   const m = raw.match(/<([^>]+)>/);
   if (m) return m[1].toLowerCase().trim();
   return raw.toLowerCase().trim();
+}
+
+// Phase 10.2: CIO reported 3 emails marked "Processed" in Postmark that
+// never landed in the vault. "Processed" just means our webhook returned
+// 200 — but we ACK 200 even when we *drop* a message (allowlist miss, bad
+// recipient, etc.). The most common failure in practice is the From header
+// not matching the allowlist verbatim, either because:
+//
+//   (a) the sender uses a different address in this client (iOS Mail vs
+//       webmail sign different From identities),
+//   (b) the message was forwarded — the envelope sender differs from the
+//       header From, or
+//   (c) ADMIN_EMAILS was updated but VAULT_INBOUND_ALLOWED_SENDERS wasn't.
+//
+// Fix: widen the "who is this really from" check. An admin (ADMIN_EMAILS)
+// should never be blocked by the allowlist — their identity is already
+// authoritative elsewhere in the system. And if the header From isn't on
+// the list, check Reply-To / Sender / Return-Path before rejecting —
+// these survive forwarding more consistently than the display From.
+function getAdminEmails() {
+  const raw = (process.env.ADMIN_EMAILS ?? '').trim();
+  if (!raw) return [];
+  return raw.split(',').map(s => s.toLowerCase().trim()).filter(Boolean);
+}
+
+function extractAlternateSenders(payload) {
+  const out = new Set();
+  if (!payload) return out;
+
+  // Postmark's ReplyToFull / Reply-To is often the "real" identity when
+  // forwarding through an auto-responder or mailing list.
+  const rtFull = payload.ReplyToFull;
+  if (Array.isArray(rtFull)) {
+    for (const r of rtFull) {
+      if (r && typeof r.Email === 'string' && r.Email) out.add(r.Email.toLowerCase().trim());
+    }
+  }
+  if (typeof payload.ReplyTo === 'string') {
+    for (const part of payload.ReplyTo.split(',')) {
+      const m = part.match(/<([^>]+)>/);
+      const e = (m ? m[1] : part).trim().toLowerCase();
+      if (e) out.add(e);
+    }
+  }
+
+  // Walk the raw Headers[] block for Return-Path / Sender / X-Original-From.
+  // Postmark delivers custom headers here exactly as the MTA saw them.
+  const headers = Array.isArray(payload.Headers) ? payload.Headers : [];
+  const WANTED = new Set(['return-path', 'sender', 'x-original-from', 'x-forwarded-for']);
+  for (const h of headers) {
+    if (!h || typeof h.Name !== 'string' || typeof h.Value !== 'string') continue;
+    if (!WANTED.has(h.Name.toLowerCase())) continue;
+    // Strip angle brackets, pick the first address if multiple.
+    const v = h.Value.trim();
+    const m = v.match(/<([^>]+)>/);
+    const e = (m ? m[1] : v.split(',')[0] || '').trim().toLowerCase();
+    if (e && e.includes('@')) out.add(e);
+  }
+
+  return out;
 }
 
 function getExtension(filename) {
@@ -504,6 +580,7 @@ router.post('/:token', async (req, res) => {
   // Dedupe.
   if (rememberMessageId(messageId)) {
     logger.info('inbound-email', 'Dropped — duplicate MessageID', { messageId, sender, subject });
+    recordOutcome({ outcome: 'duplicate', messageId, sender, subject });
     return res.status(200).json({ ok: true, reason: 'duplicate', messageId });
   }
 
@@ -515,6 +592,14 @@ router.post('/:token', async (req, res) => {
       messageId,
       sender,
     });
+    recordOutcome({
+      outcome: 'dropped',
+      reason: 'unknown_recipient',
+      messageId,
+      sender,
+      subject,
+      recipients: candidateRecipients(payload),
+    });
     return res.status(200).json({ ok: false, reason: 'unknown_recipient', messageId });
   }
 
@@ -525,6 +610,15 @@ router.post('/:token', async (req, res) => {
     if (!rate.ok) {
       logger.warn('inbound-email', 'Dropped — personal token rate-limited', {
         messageId,
+        retryInSec: rate.retryInSec,
+      });
+      recordOutcome({
+        outcome: 'dropped',
+        reason: 'rate_limited',
+        kind: 'personal',
+        messageId,
+        sender,
+        subject,
         retryInSec: rate.retryInSec,
       });
       return res.status(200).json({
@@ -539,6 +633,14 @@ router.post('/:token', async (req, res) => {
       logger.warn('inbound-email', 'Dropped — unknown or revoked personal token', {
         messageId,
         sender,
+      });
+      recordOutcome({
+        outcome: 'dropped',
+        reason: 'unknown_token',
+        kind: 'personal',
+        messageId,
+        sender,
+        subject,
       });
       return res.status(200).json({ ok: false, reason: 'unknown_token', messageId });
     }
@@ -559,6 +661,18 @@ router.post('/:token', async (req, res) => {
       ingestedCount: result.outcomes.filter((o) => o.ok).length,
       bodyIngested: !!(result.bodyIngest && result.bodyIngest.ok),
     });
+    recordOutcome({
+      outcome: 'processed',
+      kind: 'personal',
+      messageId,
+      sender,
+      subject,
+      userId: tokRow.userId,
+      acceptedCount: accepted.length,
+      ingestedCount: result.outcomes.filter((o) => o.ok).length,
+      skippedCount: result.skipped.length,
+      bodyIngested: !!(result.bodyIngest && result.bodyIngest.ok),
+    });
     return res.status(200).json({
       ok: true,
       kind: 'personal',
@@ -572,34 +686,96 @@ router.post('/:token', async (req, res) => {
   }
 
   // ── Global / admin flow (vault@…) ───────────────────────────────────
-  // Sender allowlist.
+  // Sender allowlist. Phase 10.2: admins are implicitly allowed, and we
+  // check Reply-To / Sender / Return-Path headers as fallbacks before
+  // rejecting on From alone.
   const allowed = getAllowedSenders();
-  if (allowed.length === 0) {
-    logger.error('inbound-email', 'Rejected — VAULT_INBOUND_ALLOWED_SENDERS not configured', {
+  const adminEmails = getAdminEmails();
+  const effectiveAllowed = new Set([...allowed, ...adminEmails]);
+
+  if (effectiveAllowed.size === 0) {
+    logger.error('inbound-email', 'Rejected — no allowlist configured (VAULT_INBOUND_ALLOWED_SENDERS / ADMIN_EMAILS)', {
       messageId,
       sender,
     });
-    return res.status(200).json({ ok: false, reason: 'allowlist_unconfigured', messageId });
-  }
-  if (!allowed.includes(sender)) {
-    logger.warn('inbound-email', 'Rejected — sender not in allowlist', {
+    recordOutcome({
+      outcome: 'dropped',
+      reason: 'allowlist_unconfigured',
+      kind: 'global',
       messageId,
       sender,
       subject,
     });
-    return res.status(200).json({ ok: false, reason: 'sender_not_allowed', messageId, sender });
+    return res.status(200).json({ ok: false, reason: 'allowlist_unconfigured', messageId });
+  }
+
+  const alternateSenders = extractAlternateSenders(payload);
+  const allCandidateSenders = [sender, ...alternateSenders].filter(Boolean);
+  const matchedSender = allCandidateSenders.find(s => effectiveAllowed.has(s));
+
+  if (!matchedSender) {
+    logger.warn('inbound-email', 'Rejected — no sender identity in allowlist', {
+      messageId,
+      sender,
+      subject,
+      alternateSenders: [...alternateSenders],
+      allowlistSize: effectiveAllowed.size,
+    });
+    recordOutcome({
+      outcome: 'dropped',
+      reason: 'sender_not_allowed',
+      kind: 'global',
+      messageId,
+      sender,
+      subject,
+      checked: allCandidateSenders,
+    });
+    return res.status(200).json({
+      ok: false,
+      reason: 'sender_not_allowed',
+      messageId,
+      sender,
+      // Surface the alternate identities we checked so on-call can see
+      // which header to add to the allowlist env var to unblock a user.
+      checked: allCandidateSenders,
+    });
+  }
+
+  if (matchedSender !== sender) {
+    logger.info('inbound-email', 'Accepted via alternate sender header', {
+      messageId,
+      originalFrom: sender,
+      matchedSender,
+    });
   }
 
   // Resolve the "owner" user_id for central-vault rows.
   const ownerEmail = getOwnerEmail();
   if (!ownerEmail) {
     logger.error('inbound-email', 'Rejected — ADMIN_EMAILS not configured', { messageId });
+    recordOutcome({
+      outcome: 'dropped',
+      reason: 'owner_unconfigured',
+      kind: 'global',
+      messageId,
+      sender,
+      subject,
+    });
     return res.status(200).json({ ok: false, reason: 'owner_unconfigured', messageId });
   }
   const ownerUser = findUserByEmail(ownerEmail);
   if (!ownerUser || !ownerUser.id) {
     logger.error('inbound-email', 'Rejected — owner user not found', {
       messageId,
+      ownerEmail,
+    });
+    recordOutcome({
+      outcome: 'dropped',
+      reason: 'owner_not_found',
+      kind: 'global',
+      messageId,
+      sender,
+      subject,
       ownerEmail,
     });
     return res.status(200).json({ ok: false, reason: 'owner_not_found', messageId });
@@ -621,6 +797,19 @@ router.post('/:token', async (req, res) => {
     acceptedCount: accepted.length,
     skippedCount: result.skipped.length,
     ingestedCount: result.outcomes.filter((o) => o.ok).length,
+    bodyIngested: !!(result.bodyIngest && result.bodyIngest.ok),
+  });
+  recordOutcome({
+    outcome: 'processed',
+    kind: 'global',
+    messageId,
+    sender,
+    matchedSender: matchedSender !== sender ? matchedSender : undefined,
+    subject,
+    ownerEmail,
+    acceptedCount: accepted.length,
+    ingestedCount: result.outcomes.filter((o) => o.ok).length,
+    skippedCount: result.skipped.length,
     bodyIngested: !!(result.bodyIngest && result.bodyIngest.ok),
   });
 
@@ -731,6 +920,9 @@ async function ingestEmail({ payload, parsed, ownerId, isGlobal, sourceTag, body
 }
 
 module.exports = router;
+// Phase 10.2 — exposed to the admin debug surface so the CIO/on-call can
+// see why recent deliveries were dropped without tailing Render logs.
+module.exports.getRecentOutcomes = getRecentOutcomes;
 // Exposed for tests.
 module.exports.__test = {
   parsePostmarkPayload,

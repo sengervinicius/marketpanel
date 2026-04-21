@@ -54,6 +54,17 @@ const QUERY_CATEGORY_MAP = [
 
 /**
  * Refresh all markets from both providers.
+ *
+ * Phase 10.3 — CIO reported "predictions is all Polymarket, where's
+ * Kalshi?". Root cause: Polymarket volume24h is reported in USD
+ * ($M typical), Kalshi volume_24h is reported in contract *count*
+ * (thousands typical). A naive volume-desc sort therefore pushes every
+ * Kalshi row below every Polymarket row, and the Predictions panel
+ * showing top 30 displays all POLY.
+ *
+ * Fix: sort within each source by volume, then INTERLEAVE by source
+ * before taking the top N. That way a top-20 query gets ~10 of each,
+ * ranked by each source's own liquidity.
  */
 async function refresh() {
   if (_refreshing) return;
@@ -66,23 +77,28 @@ async function refresh() {
       polymarket.fetchMarkets({ limit: 100 }),
     ]);
 
-    const allMarkets = [];
+    const kalshiList = kalshiMarkets.status === 'fulfilled' ? kalshiMarkets.value : [];
+    const polyList   = polymarketMarkets.status === 'fulfilled' ? polymarketMarkets.value : [];
 
-    if (kalshiMarkets.status === 'fulfilled') {
-      allMarkets.push(...kalshiMarkets.value);
-    } else {
+    if (kalshiMarkets.status !== 'fulfilled') {
       console.warn('[PredictionAggregator] Kalshi fetch failed:', kalshiMarkets.reason?.message);
     }
-
-    if (polymarketMarkets.status === 'fulfilled') {
-      allMarkets.push(...polymarketMarkets.value);
-    } else {
+    if (polymarketMarkets.status !== 'fulfilled') {
       console.warn('[PredictionAggregator] Polymarket fetch failed:', polymarketMarkets.reason?.message);
     }
 
-    // Sort by 24h volume descending, take top N
-    allMarkets.sort((a, b) => (b.volume24h || 0) - (a.volume24h || 0));
-    _markets = allMarkets.slice(0, MAX_MARKETS);
+    // Rank within each source by that source's own volume first.
+    kalshiList.sort((a, b) => (b.volume24h || 0) - (a.volume24h || 0));
+    polyList.sort((a, b) => (b.volume24h || 0) - (a.volume24h || 0));
+
+    // Round-robin interleave so top-N slices contain both sources.
+    const interleaved = [];
+    const maxLen = Math.max(kalshiList.length, polyList.length);
+    for (let i = 0; i < maxLen; i++) {
+      if (i < polyList.length) interleaved.push(polyList[i]);
+      if (i < kalshiList.length) interleaved.push(kalshiList[i]);
+    }
+    _markets = interleaved.slice(0, MAX_MARKETS);
 
     // Index by category
     _byCategory = {};
@@ -93,7 +109,10 @@ async function refresh() {
     }
 
     _lastRefresh = Date.now();
-    console.log(`[PredictionAggregator] Refreshed: ${_markets.length} markets (K:${kalshiMarkets.status === 'fulfilled' ? kalshiMarkets.value.length : 0} P:${polymarketMarkets.status === 'fulfilled' ? polymarketMarkets.value.length : 0})`);
+    console.log(
+      `[PredictionAggregator] Refreshed: ${_markets.length} markets ` +
+      `(K:${kalshiList.length} P:${polyList.length}, interleaved)`,
+    );
   } catch (err) {
     console.error('[PredictionAggregator] Refresh error:', err.message);
   } finally {

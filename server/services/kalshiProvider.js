@@ -66,6 +66,21 @@ function classifyMarket(ticker, eventTicker, title) {
 }
 
 /**
+ * Build a Kalshi deep-link URL. Kalshi URLs are case-sensitive and
+ * canonical URLs are lowercased. The event page groups all markets
+ * within an event; a `#<market_ticker>` anchor scrolls to the specific
+ * leg so a user double-clicking a row lands on the right question.
+ */
+function buildKalshiUrl(eventTicker, marketTicker) {
+  const event = (eventTicker || marketTicker || '').toString().toLowerCase();
+  if (!event) return 'https://kalshi.com/markets';
+  if (marketTicker && eventTicker && marketTicker !== eventTicker) {
+    return `https://kalshi.com/markets/${event}#${marketTicker}`;
+  }
+  return `https://kalshi.com/markets/${event}`;
+}
+
+/**
  * Convert Kalshi price in cents (0-100) to probability (0-1).
  * Kalshi prices are in cents where 65¢ = 65% probability.
  */
@@ -127,7 +142,11 @@ async function fetchMarkets({ limit = 50, status = 'open' } = {}) {
           category: classifyMarket(m.ticker, m.event_ticker || '', m.title || ''),
           status: m.status,
           closeTime: m.close_time || m.expiration_time,
-          url: `https://kalshi.com/markets/${m.event_ticker || m.ticker}`,
+          // Kalshi's public URLs are lowercased. Event page groups all markets
+          // within an event; the #<market_ticker> anchor scrolls to the
+          // specific leg when present. Falls back to the market ticker alone
+          // if no event ticker exists (rare).
+          url: buildKalshiUrl(m.event_ticker, m.ticker),
           lastUpdated: new Date().toISOString(),
         };
       })
@@ -165,7 +184,7 @@ async function fetchMarket(ticker) {
       category: classifyMarket(m.ticker, m.event_ticker || '', m.title || ''),
       status: m.status,
       closeTime: m.close_time,
-      url: `https://kalshi.com/markets/${m.event_ticker || m.ticker}`,
+      url: buildKalshiUrl(m.event_ticker, m.ticker),
       lastUpdated: new Date().toISOString(),
     };
   } catch (err) {
@@ -174,4 +193,4 @@ async function fetchMarket(ticker) {
   }
 }
 
-module.exports = { fetchMarkets, fetchMarket, classifyMarket };
+module.exports = { fetchMarkets, fetchMarket, classifyMarket, buildKalshiUrl };

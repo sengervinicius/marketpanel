@@ -125,6 +125,19 @@
 }
 .pred-row:hover { background: var(--bg-hover); }
 
+/* Phase 10.3 — rows with a valid deep-link become double-click targets.
+   Cursor hints at the affordance; the actual action is double-click so
+   single-click stays free for future inline-detail expansion. */
+.pred-row--clickable { cursor: pointer; }
+.pred-row--clickable:hover .pred-col-q {
+  color: var(--accent, #F97316);
+}
+.pred-row--clickable:focus-visible {
+  outline: 1px solid var(--accent, #F97316);
+  outline-offset: -1px;
+  background: var(--bg-hover);
+}
+
 .pred-row-hdr {
   background: var(--bg-surface);
   color: var(--text-faint);

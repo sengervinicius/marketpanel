@@ -1712,8 +1712,12 @@ router.post('/chat', aiChatKillSwitch, perMinuteLimit, dailyAILimit, aiQuotaGate
     }
   }
 
-  // ── Wave 5A: Parallel agent orchestration for faster context gathering ──────
-  // Run all data sources concurrently: vault, EDGAR, earnings, memory, portfolio metrics
+  // ── Wave 5A + Phase 10.1: Parallel orchestration + intent classification ──────
+  // Run all data sources AND the Haiku intent classifier concurrently. These
+  // don't depend on each other, so running them sequentially (as before) was
+  // just wasted wall-clock time on the hot path. We still await both before
+  // picking the provider, but the effective latency is now max(context, intent)
+  // rather than the prior sum.
   let orchestratedContext = {
     vault: { context: '', sources: [] },
     edgar: { context: '' },
@@ -1726,36 +1730,71 @@ router.post('/chat', aiChatKillSwitch, perMinuteLimit, dailyAILimit, aiQuotaGate
     summary: { hasVault: false, hasEDGAR: false, hasEarnings: false, hasMemory: false, hasCompute: false },
   };
 
-  try {
-    // Prepare portfolio data if query mentions portfolio-related keywords
-    let portfolioData = null;
-    if (userId) {
-      const portfolio = portfolioStore.getPortfolio(userId);
-      const userQuery_lower = userQuery.toLowerCase();
-      const isPortfolioQuery = /portfolio|position|p&l|pnl|gain|loss|exposure|allocation|holding|weight|return|performance|net worth|total value/i.test(userQuery_lower);
+  // Prepare portfolio data if query mentions portfolio-related keywords
+  let portfolioData = null;
+  if (userId) {
+    const portfolio = portfolioStore.getPortfolio(userId);
+    const userQuery_lower = userQuery.toLowerCase();
+    const isPortfolioQuery = /portfolio|position|p&l|pnl|gain|loss|exposure|allocation|holding|weight|return|performance|net worth|total value/i.test(userQuery_lower);
 
-      if (portfolio && portfolio.positions && portfolio.positions.length > 0 && isPortfolioQuery) {
-        portfolioData = portfolio.positions.map(p => ({
-          symbol: p.symbol || 'UNKNOWN',
-          shares: p.quantity || 0,
-          avgCost: p.entryPrice || 0,
-          currentPrice: p.currentPrice || 0,
-          dayPriceChange: p.dayPriceChange || 0,
-        }));
-      }
+    if (portfolio && portfolio.positions && portfolio.positions.length > 0 && isPortfolioQuery) {
+      portfolioData = portfolio.positions.map(p => ({
+        symbol: p.symbol || 'UNKNOWN',
+        shares: p.quantity || 0,
+        avgCost: p.entryPrice || 0,
+        currentPrice: p.currentPrice || 0,
+        dayPriceChange: p.dayPriceChange || 0,
+      }));
     }
-
-    // Call orchestrator to gather all context sources in parallel
-    orchestratedContext = await agentOrchestrator.gatherContext({
-      query: userQuery,
-      userId,
-      portfolioData,
-      sessionId: req.sessionID || null,
-    });
-  } catch (err) {
-    // Graceful degradation: log error and continue with empty context
-    console.warn('[Particle/Orchestrator] Context gathering failed, falling back to empty:', err.message);
   }
+
+  // Phase 10.1: Kick off context gathering immediately — we'll await it below.
+  // We pass `hasDeep` optimistically off the sync detector so the classifier
+  // fast-paths don't even hit Haiku for vault/deep queries.
+  const contextPromise = agentOrchestrator.gatherContext({
+    query: userQuery,
+    userId,
+    portfolioData,
+    sessionId: req.sessionID || null,
+  }).catch(err => {
+    console.warn('[Particle/Orchestrator] Context gathering failed, falling back to empty:', err.message);
+    return orchestratedContext;
+  });
+
+  // Phase 10.1: Run intent classification in parallel with context gathering.
+  // The classifier only needs to know hasVault/hasMarketCtx for fast-paths,
+  // which we can estimate from cheap signals (marketContext is already built).
+  let deepAnalysisEarly = null;
+  try { deepAnalysisEarly = deepAnalysis.getAnalysisPrompt(userQuery, userId); } catch {}
+  const hasMarketCtxEarly = (marketContext?.length || 0) > 0;
+  const intentPromise = modelRouter.classifyIntentWithHaiku(
+    userQuery,
+    false /* hasVault resolved after context */,
+    !!deepAnalysisEarly,
+    hasMarketCtxEarly,
+  ).catch(() => ({
+    intent: modelRouter.classifyIntent(userQuery, false, !!deepAnalysisEarly, hasMarketCtxEarly),
+    contextRequired: false,
+  }));
+
+  // Phase 10.1: Open the SSE connection immediately so the browser shows the
+  // "thinking…" animation without waiting for context/classification to
+  // finish. The streaming headers are a no-op cost on the server but shave
+  // meaningful perceived latency — the user sees "typing" dots within ~50ms.
+  if (!res.headersSent) {
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      Connection: 'keep-alive',
+      'X-Accel-Buffering': 'no', // Disable nginx/CDN buffering on SSE
+    });
+    // Fire a keep-alive so the browser flushes the headers immediately.
+    res.write(': ping\n\n');
+    if (typeof res.flush === 'function') res.flush();
+  }
+
+  // Await both in parallel — effective latency is max(context, intent).
+  orchestratedContext = await contextPromise;
 
   // ── Extract context variables from orchestrated result ────────────────────
   const vaultContext = orchestratedContext.vault?.context || '';
@@ -1808,13 +1847,8 @@ router.post('/chat', aiChatKillSwitch, perMinuteLimit, dailyAILimit, aiQuotaGate
   // Reassign context variables from budget result (some may have been emptied)
   const ctx_ = budget.sections;
 
-  // ── Wave 11: Deep analysis detection ────────────────────────────────────
-  let deepAnalysisResult = null;
-  try {
-    deepAnalysisResult = deepAnalysis.getAnalysisPrompt(userQuery, userId);
-  } catch (err) {
-    // Non-critical — fall through to standard prompt
-  }
+  // ── Wave 11: Deep analysis detection (re-use Phase 10.1 early eval) ────
+  const deepAnalysisResult = deepAnalysisEarly;
 
   let systemPrompt;
   if (deepAnalysisResult?.prompt) {
@@ -1932,15 +1966,23 @@ ${ctx_.conversationMemoryContext ? `\n${ctx_.conversationMemoryContext}\n` : ''}
 ${ctx_.portfolioMetricsContext ? `\n${ctx_.portfolioMetricsContext}\n` : ''}${ctx_.vaultContext || ''}${ctx_.marketContext ? `\n--- LIVE MARKET DATA ---\nThe following data is from the user's LIVE terminal session pulled seconds ago. Treat every number here as ground truth. If a price or % move appears below, cite it verbatim — do not round, do not paraphrase, do not substitute with memorised data. If the user asks about an asset listed here, you MUST lead with these numbers.\n${ctx_.marketContext}\n--- END MARKET DATA ---\n` : ''}${ctx_.earningsContext ? `\n--- EARNINGS CALENDAR ---\n${ctx_.earningsContext}\n--- END EARNINGS CALENDAR ---\n` : ''}${ctx_.edgarContext ? `\n--- SEC FILINGS ---\n${ctx_.edgarContext}\n--- END SEC FILINGS ---\n` : ''}${ctx_.unusualWhalesContext ? `\n--- OPTIONS FLOW & MARKET INTELLIGENCE (Unusual Whales) ---\n${ctx_.unusualWhalesContext}\n--- END OPTIONS FLOW ---\n` : ''}${ctx_.newsContext ? `\n--- RECENT NEWS (from real-time web search — PRIORITIZE this for current events) ---\n${ctx_.newsContext}\n--- END NEWS ---\n` : ''}${newsSourcesBlock}${context ? `\n--- SCREEN CONTEXT (from client) ---\n${context}\n--- END SCREEN CONTEXT ---\n` : ''}`;
   }
 
-  // ── Route to optimal model via modelRouter (Phase 2: Haiku classifier) ──
+  // ── Phase 10.1: Resolve the intent classifier that's been running in parallel
+  // with context gathering. The vault fast-path upgrade happens here in case
+  // vault hits came back — we upgrade vault_rag without another round-trip.
   const hasVault = vaultContext.length > 0;
   const hasDeep = !!deepAnalysisResult;
   const hasMarketCtx = marketContext.length > 0;
   let intent, contextRequired;
   try {
-    const classification = await modelRouter.classifyIntentWithHaiku(userQuery, hasVault, hasDeep, hasMarketCtx);
+    const classification = await intentPromise;
     intent = classification.intent;
     contextRequired = classification.contextRequired;
+    // If the classifier didn't know about vault hits but we actually have
+    // vault sources, upgrade to vault_rag so Sonnet gets picked.
+    if (hasVault && intent !== 'vault_rag' && intent !== 'deep_analysis') {
+      intent = 'vault_rag';
+      contextRequired = true;
+    }
   } catch (err) {
     // Ultimate fallback
     intent = modelRouter.classifyIntent(userQuery, hasVault, hasDeep, hasMarketCtx);
@@ -1968,6 +2010,14 @@ ${ctx_.portfolioMetricsContext ? `\n${ctx_.portfolioMetricsContext}\n` : ''}${ct
       }
     }
     if (!found) {
+      // Phase 10.1: headers are already sent (early SSE open), so surface the
+      // error via the stream instead of a 503 body. The client handles a
+      // `partial` payload as a soft failure.
+      if (res.headersSent) {
+        res.write(`data: ${JSON.stringify({ partial: true, error: 'No AI provider configured. The team has been notified.' })}\n\n`);
+        res.write('data: [DONE]\n\n');
+        return res.end();
+      }
       return res.status(503).json({ error: 'No AI provider configured. Set ANTHROPIC_API_KEY or PERPLEXITY_API_KEY in Render environment.' });
     }
   }

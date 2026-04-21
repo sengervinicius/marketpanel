@@ -21,16 +21,23 @@ const computeEngine = require('./computeEngine');
 const unusualWhales = require('./unusualWhales');
 
 // ── Configuration ──────────────────────────────────────────────────────
-const DEFAULT_TIMEOUT_MS = 5000; // 5 seconds per agent
-const GLOBAL_TIMEOUT_MS = 10000; // Phase 2: hard cap for entire gatherContext() call
+// Phase 10.1: Latency pass. Users reported AI replies feeling slow. The old
+// budget was sized for "correctness above all" (10 s global, 8 s per
+// external agent) which in practice meant every vault / news miss tacked
+// on multiple seconds before the stream even started. The new budget
+// trades a small amount of recall headroom for meaningfully faster
+// time-to-first-token — the agent path only has to clear the P50 case.
+// Agents still log their own timings so we can tune this in prod.
+const DEFAULT_TIMEOUT_MS = 4000; // 4 seconds per agent
+const GLOBAL_TIMEOUT_MS = 6000;  // Phase 10.1: 10s → 6s global cap
 const AGENT_TIMEOUTS = {
-  vault: 8000,      // Vault RAG retrieval (Phase 2: extended from 4s for better recall)
-  edgar: 3000,      // SEC filings + insider data
-  earnings: 3000,   // Earnings calendar
-  memory: 2000,     // Session + persistent memory (fast, in-memory/DB)
-  compute: 1000,    // Portfolio metrics (purely computational)
-  news: 8000,       // Web search news (sonar-pro, needs time for international queries)
-  unusualWhales: 4000, // Options flow, dark pool, Greeks, shorts, congress
+  vault: 5000,      // Phase 10.1: 8s → 5s; pgvector P99 is ~1.5s
+  edgar: 2500,      // Phase 10.1: 3s → 2.5s
+  earnings: 2500,   // Phase 10.1: 3s → 2.5s
+  memory: 1500,     // Phase 10.1: 2s → 1.5s (DB hits are sub-100ms)
+  compute: 800,     // Phase 10.1: 1s → 800ms (purely computational)
+  news: 5000,       // Phase 10.1: 8s → 5s; Perplexity P50 is ~2s
+  unusualWhales: 3000, // Phase 10.1: 4s → 3s
 };
 
 // ── Helper: promisify with timeout ───────────────────────────────────
