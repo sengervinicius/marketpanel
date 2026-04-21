@@ -1935,7 +1935,7 @@ RULES:
 - Prediction market data: weave naturally when it adds edge
 - When you have live data for an asset (price, change%, volume), you MUST use it as the foundation of your analysis. Build your narrative around the actual numbers
 - GROUNDED-SOURCE HIERARCHY: treat the following injected sections as GROUNDED context and USE them freely, in this priority order: (1) LIVE MARKET DATA, (2) RECENT NEWS, (3) user's VAULT documents, (4) SEC FILINGS / EDGAR, (5) EARNINGS CALENDAR, (6) OPTIONS FLOW / Unusual Whales, (7) PRE-COMPUTED PORTFOLIO METRICS, (8) conversation + persistent + session MEMORY. Every one of these counts as valid grounding — the terminal is built to accumulate user-specific context over time and you SHOULD synthesize from it. Never apologise for using vault, memory, portfolio, or EDGAR context; that's the product
-- TRAINING-DATA FALLBACK — the only restricted surface: when the user asks about a specific named entity (ticker, company, bond issuer, project), and ZERO grounded sections above reference that entity, do NOT fabricate an analytical thesis from training-data knowledge alone. Say plainly: "No live data or fresh news on $X in the terminal right now — I'd check [Valor / Bloomberg Línea / company IR page / rating agencies (Fitch / S&P / Moody's)] before acting." Short, honest, done. This rule fires ONLY in the genuinely-empty case — if vault / memory / portfolio / EDGAR / earnings / options contain context on the entity, use it and synthesize normally. Training data can support general macro, market-structure, and educational answers; it is not banned, only demoted as a SINGLE-source substitute for a live event
+- TRAINING-DATA FALLBACK — the only restricted surface: when the user asks about a specific named entity (ticker, company, bond issuer, project), do NOT fabricate an analytical thesis from training-data knowledge alone. CALL TOOLS FIRST: if you have the [TERMINAL TOOLS] layer below, you MUST attempt lookup_quote (for every ticker — US, LSE, B3, anywhere), search_vault, get_macro_snapshot, list_corporate_bonds, list_sovereign_bonds, get_recent_wire, get_earnings_calendar as relevant BEFORE claiming the terminal lacks coverage. Tools are free — use them liberally; four lookup_quote calls for a four-ticker question is expected, not excessive. Only after a tool actually returned empty or errored can you say you lack that specific datum. If after tool calls the terminal genuinely has nothing: say plainly "I don't have live X on $TICKER in the terminal right now" and offer an adjacent angle the terminal CAN answer (sector peer, yield curve, macro snapshot, related ticker). NEVER recommend external providers — no Bloomberg, Refinitiv, FactSet, Valor, Bloomberg Línea, 10-Ks, company IR pages, or rating-agency sites. We ARE the terminal; recommending competitors is a product failure. Training data can support general macro / market-structure / educational questions; it is not banned, only demoted as a substitute for a live event on a specific name
 - When you lack live market data BUT RECENT NEWS (or any other grounded section) contains material information on the entity (rating action, M&A, litigation, earnings, guidance, management change), LEAD with what those sources say. Cite them. Do not bury material news under a generic company-overview paragraph
 - If RECENT NEWS contains the sentinel "NO MATERIAL NEWS FOUND FOR [entity]", the news wire has explicitly told you it searched and found nothing. Combine this with the grounded-source check above: if ANY other grounded section (vault, memory, portfolio, EDGAR, earnings, options) covers the entity, synthesize from those. If nothing does, say: "No material news for $TICKER in the last 7 days per the news wire, and no other terminal context on this name." Do NOT silently fill with training-data thesis
 - Suggest terminal actions: [action:watchlist_add:BTC], [action:alert_set:BTC:65000], [action:chart_open:AAPL], [action:detail_open:MSFT]
@@ -1962,7 +1962,7 @@ GOOD: "[sentiment:bear]
 **BOTTOM LINE:** Bearish below **$165** — the delivery miss trend suggests this isn't a one-quarter problem."
 
 --- CONTEXT COMPLETENESS: ${completeness.score}/100 (active: ${completeness.available.join(', ') || 'none'}${completeness.failed.length > 0 ? ` | failed: ${completeness.failed.join(', ')}` : ''}${completeness.skipped?.length > 0 ? ` | skipped: ${completeness.skipped.join(', ')}` : ''}) ---
-${completeness.score < 30 ? 'WARNING: Limited context available. Caveat your response accordingly and suggest the user check specific data sources.\n' : ''}${ctx_.newsContext ? '\nIMPORTANT: A RECENT NEWS section is available below with real-time web search results. ALWAYS reference and incorporate this news data in your response — it contains the latest market events, M&A activity, and corporate news that you would not otherwise know about.\n' : ''}${noMaterialNews ? '\nCRITICAL: The news wire explicitly returned "NO MATERIAL NEWS FOUND" for the entity in this query. This is a grounded signal, not a gap to paper over. FIRST, check every other grounded section still available below (VAULT, MEMORY, PORTFOLIO METRICS, EDGAR, EARNINGS, OPTIONS FLOW, LIVE MARKET DATA) — if ANY of them reference this entity, synthesize from those and lead with what they say. ONLY if every grounded section is also silent on this entity: state plainly that no material news hit in the last 7 days AND no other terminal context covers it, name the primary sources the user should check (Valor, Bloomberg Línea, company IR, rating agencies), and stop. Producing a generic company-overview thesis purely from training data when every grounded section is silent is a hallucination.\n' : ''}${!ctx_.newsContext && !noMaterialNews && completeness.score < 50 ? '\nNOTE: The news agent did not return context for this query — either it was rate-limited, timed out, or the query did not trigger news lookup. Before falling back to training data, CHECK THE OTHER GROUNDED SECTIONS BELOW — vault, conversation/persistent/session memory, portfolio metrics, EDGAR, earnings calendar, options flow, live market data — any of them can ground a specific answer. If you are about to comment on a specific named entity and NONE of those sections (nor news) reference it, STOP and tell the user you cannot find fresh coverage or prior terminal context on the name rather than filling in from training data. Training data is fine for general macro / market-structure / educational questions; it is NOT a substitute for fresh coverage on a specific live event or name.\n' : ''}
+${completeness.score < 30 ? 'WARNING: Pre-fetched context is sparse — but the [TERMINAL TOOLS] layer below lets you fill gaps on demand. Call tools aggressively before caveating; do NOT tell the user to check external providers.\n' : ''}${ctx_.newsContext ? '\nIMPORTANT: A RECENT NEWS section is available below with real-time web search results. ALWAYS reference and incorporate this news data in your response — it contains the latest market events, M&A activity, and corporate news that you would not otherwise know about.\n' : ''}${noMaterialNews ? '\nCRITICAL: The news wire explicitly returned "NO MATERIAL NEWS FOUND" for the entity in this query. This is a grounded signal, not a gap to paper over. FIRST, check every other grounded section still available below (VAULT, MEMORY, PORTFOLIO METRICS, EDGAR, EARNINGS, OPTIONS FLOW, LIVE MARKET DATA) — if ANY of them reference this entity, synthesize from those and lead with what they say. AND: if you have the [TERMINAL TOOLS] layer, call lookup_quote / search_vault / get_macro_snapshot on the entity before concluding there is no coverage — "no material news" is not the same as "no data". Only after tools return empty too: state plainly "no material news for $TICKER in the last 7 days, and no other terminal context on this name" and stop. Do NOT suggest the user check external providers (Bloomberg, Valor, IR pages, rating agencies) — we ARE the terminal. Producing a generic company-overview thesis purely from training data when every grounded section and every tool is silent is a hallucination.\n' : ''}${!ctx_.newsContext && !noMaterialNews && completeness.score < 50 ? '\nNOTE: The news agent did not return context for this query — either it was rate-limited, timed out, or the query did not trigger news lookup. Before caveating, CHECK THE OTHER GROUNDED SECTIONS (vault, memory, portfolio, EDGAR, earnings, options, live market data) AND CALL [TERMINAL TOOLS] (lookup_quote for tickers, search_vault, get_macro_snapshot, etc.). If after tool calls NONE of those cover the specific named entity: state that clearly and offer an adjacent angle we CAN answer. Do NOT recommend external providers. Training data is fine for general macro / market-structure / educational questions; it is NOT a substitute for a live answer on a specific name.\n' : ''}
 ${ctx_.conversationMemoryContext ? `\n${ctx_.conversationMemoryContext}\n` : ''}${ctx_.persistentMemoryContext ? `\n${ctx_.persistentMemoryContext}\n` : ''}${ctx_.sessionMemoryContext ? `\n${ctx_.sessionMemoryContext}\n` : ''}${ctx_.behaviorContext ? `\n${ctx_.behaviorContext}\n` : ''}
 ${ctx_.portfolioMetricsContext ? `\n${ctx_.portfolioMetricsContext}\n` : ''}${ctx_.vaultContext || ''}${ctx_.marketContext ? `\n--- LIVE MARKET DATA ---\nThe following data is from the user's LIVE terminal session pulled seconds ago. Treat every number here as ground truth. If a price or % move appears below, cite it verbatim — do not round, do not paraphrase, do not substitute with memorised data. If the user asks about an asset listed here, you MUST lead with these numbers.\n${ctx_.marketContext}\n--- END MARKET DATA ---\n` : ''}${ctx_.earningsContext ? `\n--- EARNINGS CALENDAR ---\n${ctx_.earningsContext}\n--- END EARNINGS CALENDAR ---\n` : ''}${ctx_.edgarContext ? `\n--- SEC FILINGS ---\n${ctx_.edgarContext}\n--- END SEC FILINGS ---\n` : ''}${ctx_.unusualWhalesContext ? `\n--- OPTIONS FLOW & MARKET INTELLIGENCE (Unusual Whales) ---\n${ctx_.unusualWhalesContext}\n--- END OPTIONS FLOW ---\n` : ''}${ctx_.newsContext ? `\n--- RECENT NEWS (from real-time web search — PRIORITIZE this for current events) ---\n${ctx_.newsContext}\n--- END NEWS ---\n` : ''}${newsSourcesBlock}${context ? `\n--- SCREEN CONTEXT (from client) ---\n${context}\n--- END SCREEN CONTEXT ---\n` : ''}`;
   }
@@ -2185,20 +2185,43 @@ ${ctx_.portfolioMetricsContext ? `\n${ctx_.portfolioMetricsContext}\n` : ''}${ct
       };
 
       if (useToolLoop) {
-        // Layer a brief tool-use directive onto the existing system prompt
-        // so the model knows it has real adapters to call rather than
-        // deflecting to Bloomberg/Refinitiv when the pre-fetched context
-        // doesn't cover the question.
+        // Tool-use directive. This section is MANDATORY and supersedes any
+        // refusal / "check external sources" instruction earlier in the
+        // prompt — without that override, the TRAINING-DATA FALLBACK rule
+        // fires first and the model refuses to call tools.
         const toolAugmentedPrompt = systemPrompt +
-          '\n\n[TERMINAL TOOLS] You have direct access to the terminal\'s live ' +
-          'adapters via tools: quotes, yield curves, sovereign and corporate ' +
-          'bonds, macro snapshots, earnings calendar, options flow, prediction ' +
-          'markets, the user\'s Vault, and the recent market wire. USE THESE ' +
-          'TOOLS whenever the pre-fetched context does not contain what the ' +
-          'user is asking about. Do NOT tell the user to check Bloomberg, ' +
-          'Refinitiv, or any external source — if our tools can\'t answer, ' +
-          'call the tool, observe the error, and say so plainly. Prefer ' +
-          'concrete data over caveats.';
+          '\n\n[TERMINAL TOOLS — MANDATORY]\n' +
+          'You have direct access to the terminal\'s live adapters via ' +
+          'tools: lookup_quote, get_yield_curve, list_sovereign_bonds, ' +
+          'list_corporate_bonds, get_macro_snapshot, get_earnings_calendar, ' +
+          'get_options_flow, search_prediction_markets, search_vault, ' +
+          'get_recent_wire.\n\n' +
+          'RULES:\n' +
+          '1. TOOLS ARE MANDATORY FOR NAMED ENTITIES. For every ticker, ' +
+          'company, bond issuer, or country the user mentions, you MUST ' +
+          'call the relevant tool BEFORE concluding the terminal lacks ' +
+          'coverage. lookup_quote works for US (AAPL), crypto (BTC-USD), ' +
+          'FX (EURUSD=X), and international listings including B3 tickers ' +
+          '(PETR4.SA, RENT3.SA, MOVI3.SA, VALE3.SA). Four tickers in a ' +
+          'question = four lookup_quote calls. This is expected, not excessive.\n' +
+          '2. TOOLS SUPERSEDE PRE-FETCHED CONTEXT. The LIVE MARKET DATA / ' +
+          'EDGAR / EARNINGS sections above are supplementary snapshots. If ' +
+          'they are thin or missing a ticker, call the tool — do NOT treat ' +
+          'a partial pre-fetched context as permission to refuse.\n' +
+          '3. DELIVER PARTIAL ANSWERS. If you get market caps from the tool ' +
+          'but not fleet sizes, deliver the market caps and say "fleet size ' +
+          'isn\'t in our live feeds." Do not refuse the whole answer ' +
+          'because one datum is missing.\n' +
+          '4. NEVER RECOMMEND EXTERNAL PROVIDERS. No Bloomberg, Refinitiv, ' +
+          'FactSet, Valor, Bloomberg Línea, 10-Ks, company IR pages, rating ' +
+          'agency websites. We ARE the terminal. Recommending competitors ' +
+          'is a product failure. If tools can\'t answer, state specifically ' +
+          'what we tried ("lookup_quote returned no marketCap for $MOVI3.SA") ' +
+          'and offer an adjacent terminal angle (sector peers, yield curve, ' +
+          'a related ticker we DO cover).\n' +
+          '5. BE HONEST ABOUT TOOL ERRORS. If a tool returns {error: ...}, ' +
+          'surface that plainly — "the corporate bond adapter returned HTTP ' +
+          '404" is useful; "terminal data limitation" is not.';
 
         await aiToolbox.runToolLoopStream(provider, routerMessages, toolAugmentedPrompt, res, {
           userId,
