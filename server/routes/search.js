@@ -2192,10 +2192,10 @@ ${ctx_.portfolioMetricsContext ? `\n${ctx_.portfolioMetricsContext}\n` : ''}${ct
         const toolAugmentedPrompt = systemPrompt +
           '\n\n[TERMINAL TOOLS — MANDATORY]\n' +
           'You have direct access to the terminal\'s live adapters via ' +
-          'tools: lookup_quote, get_yield_curve, list_sovereign_bonds, ' +
-          'list_corporate_bonds, get_macro_snapshot, get_earnings_calendar, ' +
-          'get_options_flow, search_prediction_markets, search_vault, ' +
-          'get_recent_wire.\n\n' +
+          'tools: lookup_quote, lookup_fx, get_yield_curve, ' +
+          'list_sovereign_bonds, list_corporate_bonds, get_macro_snapshot, ' +
+          'get_earnings_calendar, get_options_flow, ' +
+          'search_prediction_markets, search_vault, get_recent_wire.\n\n' +
           'RULES:\n' +
           '1. TOOLS ARE MANDATORY FOR NAMED ENTITIES. For every ticker, ' +
           'company, bond issuer, or country the user mentions, you MUST ' +
@@ -2221,7 +2221,16 @@ ${ctx_.portfolioMetricsContext ? `\n${ctx_.portfolioMetricsContext}\n` : ''}${ct
           'a related ticker we DO cover).\n' +
           '5. BE HONEST ABOUT TOOL ERRORS. If a tool returns {error: ...}, ' +
           'surface that plainly — "the corporate bond adapter returned HTTP ' +
-          '404" is useful; "terminal data limitation" is not.';
+          '404" is useful; "terminal data limitation" is not.\n' +
+          '6. FX — PTAX vs LIVE. For any question about câmbio, dólar, euro, ' +
+          'USDBRL, EURBRL, or any currency rate, call lookup_fx. For BRL ' +
+          'pairs the response contains BOTH a live market rate AND the ' +
+          'official BCB PTAX — these are different numbers and you MUST ' +
+          'explain the distinction to the user: PTAX is the official BCB ' +
+          'reference rate (end-of-day closing print, what contracts and ' +
+          'tax filings use); live is the current market mid from Twelve ' +
+          'Data or Yahoo. Show both when asked about BRL pairs. For ' +
+          'non-BRL pairs only the live rate is returned, and that\'s fine.';
 
         await aiToolbox.runToolLoopStream(provider, routerMessages, toolAugmentedPrompt, res, {
           userId,

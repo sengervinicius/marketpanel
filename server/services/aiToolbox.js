@@ -207,6 +207,32 @@ const TOOLS = [
       },
     },
   },
+  {
+    name: 'lookup_fx',
+    description:
+      'Fetch an FX spot rate. For ANY pair including BRL (USDBRL, EURBRL, ' +
+      'GBPBRL, BRLUSD, etc.) this returns BOTH the official BCB PTAX rate ' +
+      'AND the live market rate — they are different numbers and you must ' +
+      'explain the distinction: PTAX is the end-of-day official reference ' +
+      'rate published by the Brazilian central bank (updated a few times ' +
+      'per day with a final closing print) used for contracts and tax; ' +
+      'live is the current market mid from Twelve Data or Yahoo. For ' +
+      'non-BRL pairs (EURUSD, USDJPY, GBPUSD, USDMXN, etc.) only the live ' +
+      'rate applies. Use this whenever the user asks about a currency, FX ' +
+      'pair, câmbio, dólar, euro, or exchange rate.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        pair: {
+          type: 'string',
+          description:
+            'FX pair in any common format: "USDBRL", "USD/BRL", "EURUSD", ' +
+            '"GBP/BRL". ISO-4217 codes only.',
+        },
+      },
+      required: ['pair'],
+    },
+  },
 ];
 
 // ── Tool handlers ─────────────────────────────────────────────────────
@@ -231,6 +257,7 @@ const providers = {
   multiAsset:         lazy('../providers/multiAssetProvider'),
   bonds:              lazy('../providers/bondsProvider'),
   macro:              lazy('../providers/macroProvider'),
+  fx:                 lazy('../providers/fxProvider'),
 };
 const services = {
   earnings:           lazy('./earnings'),
@@ -441,6 +468,19 @@ async function handleSearchVault({ query, limit }, ctx) {
   }
 }
 
+async function handleLookupFx({ pair }) {
+  const mod = providers.fx();
+  if (!mod || typeof mod.getFxQuote !== 'function') {
+    return { error: 'FX adapter unavailable' };
+  }
+  try {
+    const res = await mod.getFxQuote(pair);
+    return res || { error: 'no FX data' };
+  } catch (e) {
+    return { error: e.message };
+  }
+}
+
 async function handleGetRecentWire({ limit }) {
   const mod = services.wireGenerator();
   if (!mod || typeof mod.getFromDB !== 'function') {
@@ -466,6 +506,7 @@ const HANDLERS = {
   search_prediction_markets: handleSearchPredictionMarkets,
   search_vault:              handleSearchVault,
   get_recent_wire:           handleGetRecentWire,
+  lookup_fx:                 handleLookupFx,
 };
 
 /**
