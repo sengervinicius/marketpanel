@@ -43,6 +43,13 @@ const MAX_TOOL_ROUNDS = 5;        // how many model→tools round trips
 const MAX_TOOLS_PER_ROUND = 6;    // parallel tool calls per round
 const MAX_TOOL_PAYLOAD_BYTES = 12 * 1024; // 12 KB per tool result
 
+// Hard per-request token ceiling. The middleware/aiQuotaGate runs once
+// pre-flight, but a single tool-loop can burn 5× the tokens of a single-shot
+// call. This cap prevents a user at 45k/50k daily from overdrafting by 25k
+// in one session. Once this is tripped mid-loop we stop calling tools and
+// force the model to synthesise from what it has.
+const MAX_TOKENS_PER_REQUEST = 40000;
+
 // ── Tool catalog ──────────────────────────────────────────────────────
 //
 // Each tool has:
@@ -530,6 +537,11 @@ async function runToolLoop(provider, initialMessages, systemPrompt, ctx = {}) {
   let totalIn = 0;
   let totalOut = 0;
   let finalText = '';
+  // tokenCapHit is set when the per-request ceiling is reached between
+  // rounds. It switches the closing synthesis into "budget exhausted" mode
+  // so the model stops trying to call tools and just answers from what it
+  // has gathered so far.
+  let tokenCapHit = false;
 
   while (rounds < MAX_TOOL_ROUNDS) {
     rounds += 1;
@@ -556,6 +568,23 @@ async function runToolLoop(provider, initialMessages, systemPrompt, ctx = {}) {
       break;
     }
 
+    // Per-request token cap. A single tool-loop can 5× the spend of a
+    // single-shot call; without this, a trial user at 45k/50k daily could
+    // overdraft by another 25k in one session. Fire the check BEFORE
+    // dispatching more tool calls — tool-results are cheap to gather but
+    // the next round's model call is where the real tokens go.
+    if (totalIn + totalOut >= MAX_TOKENS_PER_REQUEST) {
+      tokenCapHit = true;
+      logger.warn('aiToolbox', 'per-request token cap hit', {
+        userId: ctx.userId || null,
+        rounds,
+        totalIn,
+        totalOut,
+        cap: MAX_TOKENS_PER_REQUEST,
+      });
+      break;
+    }
+
     // Execute all tool_uses in parallel, then reply as a single user turn
     // with the tool_result blocks. Cap per-round to protect the budget.
     const limited = toolUses.slice(0, MAX_TOOLS_PER_ROUND);
@@ -577,9 +606,12 @@ async function runToolLoop(provider, initialMessages, systemPrompt, ctx = {}) {
   // If we exhausted the loop without a final text, ask the model to
   // synthesise from what it has. Don't re-run tools on this closing turn.
   if (!finalText) {
+    const exhaustionNote = tokenCapHit
+      ? '\n\nYou have used most of the token budget for this turn. Synthesise your answer NOW from the tool results you already have. Do not call additional tools. If the data is incomplete, state that plainly in one sentence.'
+      : '\n\nYou have exhausted your tool budget. Synthesise your answer now from the tool results you have. Do not call additional tools.';
     const closeBody = {
       model: provider.model,
-      system: systemPrompt + '\n\nYou have exhausted your tool budget. Synthesise your answer now from the tool results you have. Do not call additional tools.',
+      system: systemPrompt + exhaustionNote,
       messages,
       max_tokens: 2048,
     };
@@ -597,7 +629,7 @@ async function runToolLoop(provider, initialMessages, systemPrompt, ctx = {}) {
     }
   }
 
-  return { finalText, rounds, usage: { input: totalIn, output: totalOut } };
+  return { finalText, rounds, tokenCapHit, usage: { input: totalIn, output: totalOut } };
 }
 
 /**
@@ -667,6 +699,7 @@ module.exports = {
   MAX_TOOL_ROUNDS,
   MAX_TOOLS_PER_ROUND,
   MAX_TOOL_PAYLOAD_BYTES,
+  MAX_TOKENS_PER_REQUEST,
   dispatchTool,
   runToolLoop,
   runToolLoopStream,

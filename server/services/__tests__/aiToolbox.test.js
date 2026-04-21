@@ -219,6 +219,37 @@ process.env.ANTHROPIC_API_KEY = 'test-key';
     `runaway loop must terminate at MAX_TOOL_ROUNDS (${toolbox.MAX_TOOL_ROUNDS})`);
   assert.match(runaway.finalText, /best-effort answer/);
 
+  // 9. runToolLoop: per-request token ceiling trips before MAX_TOOL_ROUNDS
+  //    — one fat round burns the entire budget and we stop calling tools.
+  fetchScript = [
+    {
+      status: 200,
+      body: {
+        stop_reason: 'tool_use',
+        content: [{ type: 'tool_use', id: 'toolu_fat', name: 'lookup_quote', input: { symbol: 'FAT' } }],
+        usage: {
+          input_tokens:  Math.floor(toolbox.MAX_TOKENS_PER_REQUEST * 0.6),
+          output_tokens: Math.floor(toolbox.MAX_TOKENS_PER_REQUEST * 0.5),
+        },
+      },
+    },
+    // Closing synthesis after cap hit
+    {
+      status: 200,
+      body: {
+        stop_reason: 'end_turn',
+        content: [{ type: 'text', text: 'partial data: FAT quote retrieved' }],
+        usage: { input_tokens: 10, output_tokens: 10 },
+      },
+    },
+  ];
+  fetchCalls = [];
+  const capped = await toolbox.runToolLoop(provider, [{ role: 'user', content: 'big query' }], 'you are Particle', { userId: 7 });
+  assert.strictEqual(capped.tokenCapHit, true, 'tokenCapHit flag must be set when the request exceeds MAX_TOKENS_PER_REQUEST');
+  assert.ok(capped.rounds < toolbox.MAX_TOOL_ROUNDS, 'token cap should trip before MAX_TOOL_ROUNDS');
+  assert.match(capped.finalText, /partial data/);
+  assert.strictEqual(fetchCalls.length, 2, 'expected 1 loop call + 1 closing synthesis');
+
   console.log('aiToolbox.test.js OK');
 })().catch((err) => {
   console.error('aiToolbox.test.js FAILED:', err);

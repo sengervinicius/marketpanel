@@ -484,6 +484,12 @@ app.use('/api/settings', requireAuth,
 // Users (chat search): auth required
 app.use('/api/users', requireAuth, usersRoutes);
 
+// Support / in-app feedback — no auth required (anonymous users on the
+// landing page should also be able to file an issue), but we IP rate-limit
+// tightly to keep this from becoming a spam vector.
+const supportRoutes = require('./routes/support');
+app.use('/api/support', rateLimitByIP({ max: 10, windowMs: 60000 }), supportRoutes);
+
 // Chat REST: auth + subscription required + rate limit
 app.use('/api/chat', requireAuth, requireActiveSubscription,
   rateLimitByIP({ max: 120, windowMs: 60000 }),

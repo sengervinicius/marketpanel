@@ -26,6 +26,7 @@ import NotificationPrefs from './components/common/NotificationPrefs';
 import HeaderSearchBar from './components/common/HeaderSearchBar';
 import KeyboardShortcutsModal from './components/common/KeyboardShortcutsModal';
 import CommandPalette from './components/common/CommandPalette';
+import FeedbackButton from './components/common/FeedbackButton';
 import { SearchPanel } from './components/panels/SearchPanel';
 const ETFPanel = lazyWithRetry(() => import('./components/panels/ETFPanel'));
 const AlertCenterPanel = lazyWithRetry(() => import('./components/panels/AlertCenterPanel'));
@@ -745,6 +746,9 @@ export default function App() {
           activeScreen={activeSectorScreen}
         />
 
+        {/* Global feedback pill — bottom-right, always available */}
+        <FeedbackButton />
+
         {/* Header */}
         <div className="flex-row app-header-bar" data-tour="header">
           <ParticleLogo size={22} style={{ marginRight: 6 }} /><span className="app-header-title">PARTICLE</span>
@@ -1244,6 +1248,9 @@ export default function App() {
         onSelect={handleSelectSectorScreen}
         activeScreen={activeSectorScreen}
       />
+
+      {/* Global feedback pill (mobile) */}
+      <FeedbackButton />
 
       {/* ── Mobile header ── */}
       <div className="m-header" style={mobileMode === 'particle' ? { borderBottom: 'none' } : undefined}>
