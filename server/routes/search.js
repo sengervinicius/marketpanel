@@ -2194,9 +2194,9 @@ ${ctx_.portfolioMetricsContext ? `\n${ctx_.portfolioMetricsContext}\n` : ''}${ct
           'You have direct access to the terminal\'s live adapters via ' +
           'tools: lookup_quote, lookup_fx, lookup_commodity, ' +
           'list_market_movers, get_yield_curve, list_sovereign_bonds, ' +
-          'list_corporate_bonds, get_macro_snapshot, get_earnings_calendar, ' +
-          'get_options_flow, search_prediction_markets, search_vault, ' +
-          'get_recent_wire.\n\n' +
+          'list_corporate_bonds, get_macro_snapshot, get_brazil_macro, ' +
+          'get_earnings_calendar, get_options_flow, ' +
+          'search_prediction_markets, search_vault, get_recent_wire.\n\n' +
           'RULES:\n' +
           '1. TOOLS ARE MANDATORY FOR NAMED ENTITIES. For every ticker, ' +
           'company, bond issuer, or country the user mentions, you MUST ' +
@@ -2281,7 +2281,28 @@ ${ctx_.portfolioMetricsContext ? `\n${ctx_.portfolioMetricsContext}\n` : ''}${ct
           '— then relay that gap honestly to the user rather than making ' +
           'up a list. Never fabricate movers, never quote yesterday\'s ' +
           'list from training data: either the tool answers or you say ' +
-          'we don\'t cover that market.';
+          'we don\'t cover that market.\n' +
+          '11. BRAZILIAN MACRO — call get_brazil_macro for any question ' +
+          'about Brazilian policy rates, inflation, activity, exchange ' +
+          'rate, or unemployment when the user wants the actual number, ' +
+          'the latest print, or a trend. Supported series: selic, ' +
+          'selic_meta, ipca, ipca_12m, igpm, ibc_br, ptax_venda, ' +
+          'desemprego (alias: "Selic diária", "meta Selic", "Copom", ' +
+          '"IPCA 12m", "IPCA acumulado", "IGP-M", "IBC-Br", "PTAX", ' +
+          '"câmbio" — pass what the user said, the tool resolves it). ' +
+          'Set history=true and months=N when the user asks for a ' +
+          '"histórico", "trend", "últimos N meses", chart, or trajectory. ' +
+          'Prefer get_brazil_macro over get_macro_snapshot for Brazil ' +
+          'specifically — get_macro_snapshot is one-row-per-country; ' +
+          'get_brazil_macro returns BCB SGS time series. Important ' +
+          'caveat on the exchange rate: ptax_venda via this tool is the ' +
+          'official BCB PTAX series (end-of-day reference rate used for ' +
+          'contracts and tax). If the user wants a live USD/BRL mid, ' +
+          'call lookup_fx instead — lookup_fx returns BOTH PTAX and live ' +
+          'side-by-side for BRL pairs and lets you explain the ' +
+          'difference. Never guess BR macro values from training data; ' +
+          'if the tool fails, say so plainly and offer an adjacent angle ' +
+          '(e.g. get_yield_curve BR).';
 
         await aiToolbox.runToolLoopStream(provider, routerMessages, toolAugmentedPrompt, res, {
           userId,

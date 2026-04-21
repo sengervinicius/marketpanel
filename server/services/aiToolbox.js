@@ -271,6 +271,50 @@ const TOOLS = [
     },
   },
   {
+    name: 'get_brazil_macro',
+    description:
+      'Fetch a Brazilian macro time-series from the BCB SGS (Banco Central ' +
+      'do Brasil — Sistema Gerenciador de Séries Temporais). Covers Selic ' +
+      '(daily and Copom target), IPCA (monthly and 12-month accumulated), ' +
+      'IGP-M, IBC-Br (GDP proxy), PTAX USD/BRL sell rate, and PNAD ' +
+      'unemployment. Use this for ANY Brazilian macro question — "onde ' +
+      'está a Selic", "IPCA do mês", "IGP-M trend", "IBC-Br último", ' +
+      '"trajetória do desemprego", "Selic history chart". Prefer this over ' +
+      'get_macro_snapshot when the user asks about Brazil specifically or ' +
+      'wants a series / history / trajectory rather than a one-row ' +
+      'snapshot. Set history=true when the user wants a trend, chart, ' +
+      'histórico, or "últimos N meses". Note: ptax_venda here returns the ' +
+      'BCB PTAX series — if the user asks for a live USD/BRL quote, use ' +
+      'lookup_fx instead (which surfaces both PTAX and live side-by-side).',
+    input_schema: {
+      type: 'object',
+      properties: {
+        series: {
+          type: 'string',
+          description:
+            'Series name or canonical key. Accepts: selic, selic_meta, ' +
+            'ipca, ipca_12m, igpm, ibc_br, ptax_venda, desemprego. Also ' +
+            'tolerates aliases: "Selic diária", "meta Selic", "Copom", ' +
+            '"IPCA 12m", "IPCA acumulado", "IGP-M", "IBC-Br", "PTAX", ' +
+            '"câmbio", "dólar", "unemployment_br".',
+        },
+        history: {
+          type: 'boolean',
+          description:
+            'If true, include the history window (up to 300 most recent ' +
+            'observations). Default false — only the latest value.',
+        },
+        months: {
+          type: 'number',
+          description:
+            'How many months of history to fetch (1-240). Default 24. ' +
+            'Only meaningful when history=true.',
+        },
+      },
+      required: ['series'],
+    },
+  },
+  {
     name: 'lookup_commodity',
     description:
       'Fetch the latest futures price for a commodity — energy (WTI, ' +
@@ -327,6 +371,7 @@ const providers = {
   fx:                 lazy('../providers/fxProvider'),
   commodities:        lazy('../providers/commoditiesProvider'),
   movers:             lazy('../providers/marketMoversProvider'),
+  macroBr:            lazy('../providers/macroBrProvider'),
 };
 const services = {
   earnings:           lazy('./earnings'),
@@ -567,6 +612,23 @@ async function handleListMarketMovers({ direction, limit, market }) {
   }
 }
 
+async function handleGetBrazilMacro({ series, history, months }) {
+  const mod = providers.macroBr();
+  if (!mod || typeof mod.getBrazilMacro !== 'function') {
+    return { error: 'Brazilian macro adapter unavailable' };
+  }
+  try {
+    const res = await mod.getBrazilMacro({
+      series,
+      history: !!history,
+      months: Number(months) || 24,
+    });
+    return res || { series, error: 'no data' };
+  } catch (e) {
+    return { error: e.message };
+  }
+}
+
 async function handleLookupCommodity({ commodity }) {
   const mod = providers.commodities();
   if (!mod || typeof mod.getCommodityQuote !== 'function') {
@@ -608,6 +670,7 @@ const HANDLERS = {
   lookup_fx:                 handleLookupFx,
   lookup_commodity:          handleLookupCommodity,
   list_market_movers:        handleListMarketMovers,
+  get_brazil_macro:          handleGetBrazilMacro,
 };
 
 /**
