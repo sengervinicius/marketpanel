@@ -858,6 +858,16 @@ function findUserByStripeCustomerId(customerId) {
   return null;
 }
 
+/**
+ * Phase 10.7 — snapshot of every in-memory user row, for background
+ * dispatchers (Morning Brief, retention sweeps, etc.). Returns a fresh
+ * array so the caller can iterate without worrying about concurrent
+ * mutation. Callers should still treat each entry as read-only.
+ */
+function listAllUsers() {
+  return Array.from(usersById.values());
+}
+
 // ── Settings ──────────────────────────────────────────────────────────────────
 
 /**
@@ -1139,6 +1149,7 @@ module.exports = {
   revokeUserRefreshTokens,
   updateUserPassword,
   listUsers,
+  listAllUsers,
   mergeSettings,
   updateSubscription,
   updatePersona,

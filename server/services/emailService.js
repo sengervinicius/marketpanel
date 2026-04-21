@@ -462,6 +462,143 @@ Purchased: ${purchasedAt}`;
   });
 }
 
+// ── Public: daily Morning Brief email (Phase 10.7) ────────────────────────
+/**
+ * Deliver the user's personalized Morning Brief as an HTML email.
+ *
+ * Input shape matches what morningBrief.getUserBrief() returns:
+ *   { content, sections, date, timestamp, actionChips, relevantCount, personalized }
+ *
+ * The template renders the markdown-ish `content` (which morningBrief
+ * already emits as a short prose paragraph per section) as HTML, plus
+ * a compact list of "What to watch today" action chips. Keeps the same
+ * Particle header + footer as sendAlertEmail so the brand reads the
+ * same across the transactional email surface.
+ *
+ * Returns true/false; never throws. From: notifications@the-particle.com.
+ */
+async function sendMorningBriefEmail(user, brief) {
+  if (!user || !user.email) {
+    logger.warn('email', 'sendMorningBriefEmail: user has no email', { userId: user?.id });
+    return false;
+  }
+  if (!brief || !brief.content) {
+    logger.warn('email', 'sendMorningBriefEmail: empty brief', { userId: user?.id });
+    return false;
+  }
+
+  const appUrl = APP_URL();
+  const storedName = user.settings?.profile?.displayName;
+  const firstName =
+    (typeof storedName === 'string' && storedName.trim())
+      || (user.email || '').split('@')[0].split(/[\s._-]+/)[0]
+      || 'there';
+
+  // Prefer ISO date from the brief, fall back to today's date in UTC.
+  const dateStr = brief.date
+    || new Date().toLocaleDateString('en-US', {
+      weekday: 'long', month: 'short', day: 'numeric',
+    });
+
+  const subject = `Your Morning Brief — ${dateStr}`;
+
+  // Render the prose body. morningBrief emits markdown with "## Heading"
+  // section breaks; we translate those into styled H2s. Anything else
+  // stays as paragraphs (double-newline split). We intentionally avoid
+  // a markdown library here — the output shape is stable and small, and
+  // keeping the email surface dependency-free matters on cold starts.
+  const body = String(brief.content || '').trim();
+  const htmlBody = body
+    .split(/\n{2,}/)
+    .map(chunk => {
+      const m = chunk.match(/^##\s+(.+)$/);
+      if (m) {
+        return `<h2 style="color:#ff6600;font-size:13px;letter-spacing:2px;text-transform:uppercase;margin:20px 0 8px;font-family:'SF Mono',Menlo,monospace;">${escapeHtml(m[1])}</h2>`;
+      }
+      return `<p style="margin:0 0 10px;line-height:1.55;font-size:14px;color:#e0e0e0;">${escapeHtml(chunk).replace(/\n/g, '<br/>')}</p>`;
+    })
+    .join('');
+
+  // Action chips → compact link list below the brief. Each chip deep-links
+  // back into the app and prefills Particle chat with that prompt.
+  const chips = Array.isArray(brief.actionChips) ? brief.actionChips.slice(0, 6) : [];
+  const chipsHtml = chips.length
+    ? `
+<div style="margin-top:20px;padding-top:16px;border-top:1px solid #2a2a3e;">
+  <div style="color:#888;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:10px;font-family:'SF Mono',Menlo,monospace;">What to watch today</div>
+  ${chips.map(c => {
+    const label = typeof c === 'string' ? c : (c?.label || c?.prompt || '');
+    if (!label) return '';
+    const href = `${appUrl}?briefChip=${encodeURIComponent(label)}`;
+    return `<a href="${href}" style="display:inline-block;margin:0 6px 6px 0;padding:6px 12px;background:#16213e;border:1px solid #2a3a5e;border-radius:14px;color:#aecbff;font-size:12px;text-decoration:none;">${escapeHtml(label)}</a>`;
+  }).join('')}
+</div>`
+    : '';
+
+  const html = `
+<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:560px;margin:0 auto;background:#0f0f1a;color:#e0e0e0;padding:28px 24px;">
+  <div style="border-bottom:2px solid #ff6600;padding-bottom:12px;margin-bottom:20px;display:flex;align-items:baseline;justify-content:space-between;">
+    <div>
+      <span style="color:#ff6600;font-weight:700;font-size:18px;letter-spacing:2px;">PARTICLE</span>
+      <span style="color:#888;font-size:12px;margin-left:10px;letter-spacing:1px;text-transform:uppercase;">Morning Brief</span>
+    </div>
+    <span style="color:#666;font-size:11px;font-family:'SF Mono',Menlo,monospace;">${escapeHtml(dateStr)}</span>
+  </div>
+
+  <p style="margin:0 0 18px;font-size:15px;color:#aaa;line-height:1.5;">
+    Good morning, ${escapeHtml(firstName)}. Here's what's moving your book today.
+  </p>
+
+  <div style="background:#16213e;padding:18px 18px 14px;border-radius:6px;border-left:3px solid #ff6600;">
+    ${htmlBody}
+  </div>
+
+  ${chipsHtml}
+
+  <div style="margin-top:24px;">
+    <a href="${appUrl}" style="display:inline-block;background:#ff6600;color:#fff;padding:9px 22px;border-radius:4px;text-decoration:none;font-weight:600;font-size:13px;letter-spacing:0.3px;">Open Terminal</a>
+  </div>
+
+  <div style="margin-top:22px;padding-top:14px;border-top:1px solid #222;font-size:11px;color:#555;line-height:1.5;">
+    You're receiving this because your Morning Brief email is on. Turn it off in
+    <a href="${appUrl}/settings" style="color:#888;text-decoration:underline;">Settings → Morning Brief</a>.
+    <br/>
+    Particle Market Terminal · ${escapeHtml(dateStr)}
+  </div>
+</div>`;
+
+  // Plain-text fallback. Strip the "## " headings into uppercase labels
+  // so the text version reads cleanly in clients that block HTML.
+  const text = body
+    .replace(/^##\s+(.+)$/gm, (_, h) => `\n${h.toUpperCase()}\n`)
+    .trim()
+    + (chips.length ? '\n\nWatch today:\n- ' + chips.map(c => typeof c === 'string' ? c : (c?.label || c?.prompt || '')).filter(Boolean).join('\n- ') : '')
+    + `\n\nOpen: ${appUrl}`;
+
+  return _sendRaw({
+    to: user.email,
+    subject,
+    html,
+    text,
+    reason: 'notifications',
+    fromName: 'Particle Morning Brief',
+  });
+}
+
+/**
+ * Tiny HTML-escape for user-supplied fragments we interpolate into the
+ * Morning Brief template. Kept local to avoid pulling in a helper
+ * library for a surface this small.
+ */
+function escapeHtml(s) {
+  return String(s ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 module.exports = {
   initEmail,
   isConfigured,
@@ -472,4 +609,5 @@ module.exports = {
   sendPaidWelcomeEmail,
   sendPaymentReceiptEmail,
   sendAppleReceiptEmail,
+  sendMorningBriefEmail,
 };

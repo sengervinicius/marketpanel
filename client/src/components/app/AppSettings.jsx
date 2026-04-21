@@ -167,6 +167,70 @@ export function SettingsDrawer({ panelVisible, togglePanel, onClose, mobile }) {
         </>
       )}
 
+      {/* ── Morning Brief delivery (Phase 10.7) ───────────────────────── */}
+      <SettingsSection label="MORNING BRIEF" />
+      {(() => {
+        // Default both channels ON unless explicitly set false. Matches the
+        // server-side dispatcher's `settings.morningBriefEmail !== false`.
+        const emailOn = settings?.morningBriefEmail !== false;
+        const inboxOn = settings?.morningBriefInbox !== false;
+        const briefTime = settings?.morningBriefTime || '06:30';
+        return (
+          <>
+            <div
+              role="button"
+              tabIndex={0}
+              style={rowStyle}
+              {...makeRowClickable(() => updateSettings({ morningBriefEmail: !emailOn }))}
+              onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+              aria-pressed={emailOn}
+              aria-label={`Email delivery: ${emailOn ? 'on' : 'off'}. Click to toggle`}
+            >
+              <span style={{ color: emailOn ? 'var(--text-primary)' : 'var(--text-faint)', fontSize: 9, letterSpacing: '0.5px' }}>EMAIL DELIVERY</span>
+              <span style={{ color: emailOn ? 'var(--price-up)' : 'var(--text-faint)', fontSize: 9, fontWeight: 700 }}>
+                {emailOn ? '● ON' : '○ OFF'}
+              </span>
+            </div>
+            <div
+              role="button"
+              tabIndex={0}
+              style={rowStyle}
+              {...makeRowClickable(() => updateSettings({ morningBriefInbox: !inboxOn }))}
+              onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+              aria-pressed={inboxOn}
+              aria-label={`In-app inbox: ${inboxOn ? 'on' : 'off'}. Click to toggle`}
+            >
+              <span style={{ color: inboxOn ? 'var(--text-primary)' : 'var(--text-faint)', fontSize: 9, letterSpacing: '0.5px' }}>IN-APP INBOX</span>
+              <span style={{ color: inboxOn ? 'var(--price-up)' : 'var(--text-faint)', fontSize: 9, fontWeight: 700 }}>
+                {inboxOn ? '● ON' : '○ OFF'}
+              </span>
+            </div>
+            <div style={rowStyle}>
+              <span style={{ color: 'var(--text-muted)', fontSize: 9, letterSpacing: '0.5px' }}>SEND TIME (LOCAL)</span>
+              <input
+                type="time"
+                value={briefTime}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (/^\d{2}:\d{2}$/.test(v)) updateSettings({ morningBriefTime: v });
+                }}
+                style={{
+                  background: 'var(--bg-surface, #181818)',
+                  color: 'var(--text-primary, #fff)',
+                  border: '1px solid var(--border-strong)',
+                  borderRadius: 3,
+                  padding: '2px 6px',
+                  fontSize: 10,
+                  fontFamily: 'var(--font-mono, monospace)',
+                }}
+              />
+            </div>
+          </>
+        );
+      })()}
+
       {/* ── Theme ── */}
       <SettingsSection label="APPEARANCE" />
       <div

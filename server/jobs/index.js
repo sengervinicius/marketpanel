@@ -123,6 +123,15 @@ function initJobs(ctx = {}) {
     await runRegionalProbes({ pg, registry });
   });
 
+  // ── Morning Brief dispatcher: every 5 minutes (Phase 10.7) ───────────
+  // Walks all users and dispatches their personalized Morning Brief when
+  // their local time hits the preferred send window (default 06:30 in
+  // their timezone). Idempotent via brief_inbox UNIQUE(user_id, brief_date)
+  // so re-ticks the same day are a no-op. Email + inbox channels both
+  // respect per-user settings.morningBriefEmail / morningBriefInbox.
+  const { runOnce: dispatchMorningBriefs } = require('./morningBriefDispatcher');
+  registerJob('morning-brief-dispatcher', '*/5 * * * *', dispatchMorningBriefs);
+
   // ── Staleness sweep: every minute (W3.3) ─────────────────────────────
   // Emits severity transitions per feed; updates the age gauge consumed
   // by /metrics and /admin/debug.

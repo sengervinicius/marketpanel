@@ -67,6 +67,8 @@ import ParticleLogo from './components/ui/ParticleLogo';
 import ParticleSidebar from './components/app/ParticleSidebar';
 // ParticleSpotlight removed — Cmd+K focuses header search, deep questions go to ParticleScreen
 import BriefNotification from './components/app/BriefNotification';
+import BriefInbox from './components/app/BriefInbox';
+import { useBriefInbox } from './hooks/useWire';
 import TickerContextMenu from './components/app/TickerContextMenu';
 import {
   MarketTickBridge,
@@ -414,6 +416,11 @@ export default function App() {
   // ── Sector screen state (Wave 2) ────────────────────────────────────────
   const [activeSectorScreen, setActiveSectorScreen] = useState(null);
   const [sectorSelectorOpen, setSectorSelectorOpen] = useState(false);
+  // Phase 10.7: Morning Brief inbox drawer
+  const [briefInboxOpen, setBriefInboxOpen] = useState(false);
+  const { inbox: briefInbox, unread: briefUnread, loading: briefInboxLoading,
+          markRead: markBriefRead, dismissItem: dismissBriefItem,
+          refresh: refreshBriefInbox } = useBriefInbox();
   // Phase 4: Show onboarding for new users (never completed + not dismissed)
   // showWelcome removed — WelcomeTour component manages its own visibility
   const [showShortcuts, setShowShortcuts] = useState(false);
@@ -839,6 +846,31 @@ export default function App() {
               {isRefreshing ? 'LIVE' : lastUpdated ? lastUpdated.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'}) : ''}
             </span>
             <AlertBadge />
+            {/* Morning Brief inbox (Phase 10.7) */}
+            <button
+              type="button"
+              className="brief-inbox-btn"
+              data-open={briefInboxOpen || undefined}
+              onClick={() => {
+                setBriefInboxOpen(o => {
+                  const next = !o;
+                  if (next) refreshBriefInbox();
+                  return next;
+                });
+              }}
+              title="Morning Brief inbox"
+              aria-label="Open Morning Brief inbox"
+              aria-expanded={briefInboxOpen}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                <polyline points="22,6 12,13 2,6"/>
+              </svg>
+              <span className="brief-inbox-btn-label">BRIEF</span>
+              {briefUnread > 0 && (
+                <span className="brief-inbox-badge">{briefUnread > 9 ? '9+' : briefUnread}</span>
+              )}
+            </button>
             {/* Chat icon — opens in a new window */}
             <button
               className="btn"
@@ -878,6 +910,18 @@ export default function App() {
 
         {/* Morning Brief notification — renders as toast regardless of active screen */}
         <BriefNotification />
+
+        {/* Morning Brief inbox drawer (Phase 10.7) */}
+        {briefInboxOpen && (
+          <BriefInbox
+            inbox={briefInbox}
+            unread={briefUnread}
+            loading={briefInboxLoading}
+            onClose={() => setBriefInboxOpen(false)}
+            markRead={markBriefRead}
+            dismissItem={dismissBriefItem}
+          />
+        )}
 
         {/* Right-click contextual AI for tickers — navigates to ParticleScreen */}
         <TickerContextMenu onAskParticle={(tickerOrQuery) => {

@@ -119,3 +119,82 @@ export function useMorningBrief() {
 
   return { brief, loading, dismissed, dismiss };
 }
+
+/**
+ * Morning Brief inbox (Phase 10.7)
+ *
+ * Polls /api/brief/inbox every 5 minutes and returns the user's 30 most
+ * recent briefs plus an unread count (used by the header badge).
+ *
+ * Exposes:
+ *   inbox       — array of { id, briefDate, content, readAt, dismissedAt, ... }
+ *   unread      — count of rows with neither readAt nor dismissedAt
+ *   loading     — initial-fetch flag
+ *   refresh()   — force a refetch (e.g. after user opens the drawer)
+ *   markRead(id)    — optimistic + PATCH /inbox/:id/read
+ *   dismissItem(id) — optimistic + PATCH /inbox/:id/dismiss
+ */
+export function useBriefInbox({ pollMs = 5 * 60 * 1000 } = {}) {
+  const [inbox, setInbox] = useState([]);
+  const [unread, setUnread] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const timerRef = useRef(null);
+
+  const fetchInbox = useCallback(async () => {
+    try {
+      const resp = await fetch(`${API_BASE}/api/brief/inbox`, {
+        headers: getAuthHeaders(),
+      });
+      if (!resp.ok) return;
+      const data = await resp.json();
+      if (Array.isArray(data.inbox)) setInbox(data.inbox);
+      if (typeof data.unread === 'number') setUnread(data.unread);
+    } catch (_) {
+      // Silent — network hiccups shouldn't spam the console.
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    // Don't fetch if there's no auth token — avoids spamming 401s for
+    // anonymous visitors on the landing page.
+    const token = localStorage.getItem('token');
+    if (!token) { setLoading(false); return; }
+
+    fetchInbox();
+    timerRef.current = setInterval(fetchInbox, pollMs);
+    return () => clearInterval(timerRef.current);
+  }, [fetchInbox, pollMs]);
+
+  const markRead = useCallback(async (id) => {
+    // Optimistic update first — badge should drop instantly.
+    setInbox(prev => prev.map(b => b.id === id && !b.readAt
+      ? { ...b, readAt: new Date().toISOString() }
+      : b));
+    setUnread(u => Math.max(0, u - 1));
+    try {
+      await fetch(`${API_BASE}/api/brief/inbox/${id}/read`, {
+        method: 'PATCH',
+        headers: getAuthHeaders(),
+      });
+    } catch (_) {
+      // If the server call fails we'll re-sync on the next poll.
+    }
+  }, []);
+
+  const dismissItem = useCallback(async (id) => {
+    setInbox(prev => prev.map(b => b.id === id
+      ? { ...b, dismissedAt: new Date().toISOString(), readAt: b.readAt || new Date().toISOString() }
+      : b));
+    setUnread(u => Math.max(0, u - 1));
+    try {
+      await fetch(`${API_BASE}/api/brief/inbox/${id}/dismiss`, {
+        method: 'PATCH',
+        headers: getAuthHeaders(),
+      });
+    } catch (_) {}
+  }, []);
+
+  return { inbox, unread, loading, refresh: fetchInbox, markRead, dismissItem };
+}
