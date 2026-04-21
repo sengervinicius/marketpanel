@@ -2192,9 +2192,9 @@ ${ctx_.portfolioMetricsContext ? `\n${ctx_.portfolioMetricsContext}\n` : ''}${ct
         const toolAugmentedPrompt = systemPrompt +
           '\n\n[TERMINAL TOOLS — MANDATORY]\n' +
           'You have direct access to the terminal\'s live adapters via ' +
-          'tools: lookup_quote, lookup_fx, get_yield_curve, ' +
-          'list_sovereign_bonds, list_corporate_bonds, get_macro_snapshot, ' +
-          'get_earnings_calendar, get_options_flow, ' +
+          'tools: lookup_quote, lookup_fx, lookup_commodity, ' +
+          'get_yield_curve, list_sovereign_bonds, list_corporate_bonds, ' +
+          'get_macro_snapshot, get_earnings_calendar, get_options_flow, ' +
           'search_prediction_markets, search_vault, get_recent_wire.\n\n' +
           'RULES:\n' +
           '1. TOOLS ARE MANDATORY FOR NAMED ENTITIES. For every ticker, ' +
@@ -2230,7 +2230,17 @@ ${ctx_.portfolioMetricsContext ? `\n${ctx_.portfolioMetricsContext}\n` : ''}${ct
           'reference rate (end-of-day closing print, what contracts and ' +
           'tax filings use); live is the current market mid from Twelve ' +
           'Data or Yahoo. Show both when asked about BRL pairs. For ' +
-          'non-BRL pairs only the live rate is returned, and that\'s fine.';
+          'non-BRL pairs only the live rate is returned, and that\'s fine.\n' +
+          '7. COMMODITIES — call lookup_commodity for any question about ' +
+          'oil (WTI or Brent), natural gas, gold, silver, copper, iron ore ' +
+          '(minério de ferro), grains (corn, soy, wheat), softs (coffee, ' +
+          'sugar, cocoa, cotton), or livestock (boi gordo / live cattle). ' +
+          'Accepts plain names in Portuguese or English, or futures symbols ' +
+          '(CL=F for WTI, BZ=F for Brent, GC=F for gold, ZC=F for corn). ' +
+          'Always report the unit returned (per barrel, per troy oz, per ' +
+          'bushel in USD cents, etc.) — a commodity price is meaningless ' +
+          'without its unit. If the result carries a coverage_note field, ' +
+          'quote that caveat to the user rather than hiding it.';
 
         await aiToolbox.runToolLoopStream(provider, routerMessages, toolAugmentedPrompt, res, {
           userId,

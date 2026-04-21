@@ -233,6 +233,36 @@ const TOOLS = [
       required: ['pair'],
     },
   },
+  {
+    name: 'lookup_commodity',
+    description:
+      'Fetch the latest futures price for a commodity — energy (WTI, ' +
+      'Brent, natgas), precious metals (gold, silver, platinum, ' +
+      'palladium), base metals (copper, iron ore), grains (corn, ' +
+      'soybeans, wheat), softs (coffee, sugar, cocoa, cotton), or ' +
+      'livestock (live cattle, lean hogs). Accepts plain names in ' +
+      'English or Portuguese (petróleo, ouro, minério de ferro, café, ' +
+      'soja, milho, boi gordo) OR canonical Yahoo futures symbols ' +
+      '(CL=F, GC=F, ZC=F, KC=F). Returns price, change, change %, unit ' +
+      '(per barrel, per troy oz, etc.), exchange, and a coverage_note ' +
+      'field if the specific commodity has a known data gap (e.g. SGX ' +
+      'iron ore can be delayed). Use this for any question about a ' +
+      'commodity price, "how is oil doing", "what\'s gold at", ' +
+      'inflation hedge discussions, or resource-sector context.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        commodity: {
+          type: 'string',
+          description:
+            'Commodity name or futures symbol. Examples: "oil", "brent", ' +
+            '"gold", "iron ore", "corn", "coffee", "CL=F", "GC=F", ' +
+            '"minério de ferro", "boi gordo".',
+        },
+      },
+      required: ['commodity'],
+    },
+  },
 ];
 
 // ── Tool handlers ─────────────────────────────────────────────────────
@@ -258,6 +288,7 @@ const providers = {
   bonds:              lazy('../providers/bondsProvider'),
   macro:              lazy('../providers/macroProvider'),
   fx:                 lazy('../providers/fxProvider'),
+  commodities:        lazy('../providers/commoditiesProvider'),
 };
 const services = {
   earnings:           lazy('./earnings'),
@@ -481,6 +512,19 @@ async function handleLookupFx({ pair }) {
   }
 }
 
+async function handleLookupCommodity({ commodity }) {
+  const mod = providers.commodities();
+  if (!mod || typeof mod.getCommodityQuote !== 'function') {
+    return { error: 'commodities adapter unavailable' };
+  }
+  try {
+    const res = await mod.getCommodityQuote(commodity);
+    return res || { error: 'no commodity data' };
+  } catch (e) {
+    return { error: e.message };
+  }
+}
+
 async function handleGetRecentWire({ limit }) {
   const mod = services.wireGenerator();
   if (!mod || typeof mod.getFromDB !== 'function') {
@@ -507,6 +551,7 @@ const HANDLERS = {
   search_vault:              handleSearchVault,
   get_recent_wire:           handleGetRecentWire,
   lookup_fx:                 handleLookupFx,
+  lookup_commodity:          handleLookupCommodity,
 };
 
 /**
