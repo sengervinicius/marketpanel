@@ -288,6 +288,16 @@ export function SettingsDrawer({ panelVisible, togglePanel, onClose, mobile }) {
         );
       })}
 
+      {/* ── Particle Memory (P2.2) ── */}
+      {/*
+        Particle AI extracts persistent facts from your conversations (your
+        positions, theses, preferences) and injects them back into the system
+        prompt on future turns. Until this panel existed the user had no way
+        to see, edit, or forget what the model remembered — a trust hole.
+      */}
+      <SettingsSection label="PARTICLE MEMORY" />
+      <ParticleMemoryPanel />
+
       {/* ── Knowledge Vault ── */}
       <SettingsSection label="KNOWLEDGE VAULT" />
       <VaultPanel />
@@ -554,6 +564,280 @@ export function InboundEmailRow() {
         ⚠ Treat this address like a password. Anyone who knows it can drop files into your vault — rotate immediately if it leaks.
       </div>
     </div>
+  );
+}
+
+// ── Particle Memory Panel (P2.2) ────────────────────────────────────────────
+//
+// Lists every persistent fact Particle AI currently retains for the signed-in
+// user and lets them edit the content, correct it, or forget it outright.
+// memoryManager.js writes into user_memories whenever it spots a durable
+// fact in chat (a position, a thesis, a preference); those rows get
+// re-injected into the system prompt on future turns. This panel is the
+// user-facing correction surface — you see it, you own it, you can burn it.
+//
+// UX decisions:
+//   • Inline edit on click — mirrors how the chat message action buttons
+//     feel. No modal to pop and dismiss.
+//   • Type badge + reference count give quick signal on which facts the
+//     model leans on most. Rows are already ordered reference-DESC
+//     server-side.
+//   • Forget-all is a distinct, styled-red row separated from the list
+//     and double-gated by window.confirm. Destructive, irreversible,
+//     not one-click.
+//   • If Postgres is disconnected (dev mode / DB down) the GET returns
+//     { connected:false } and we render a benign "nothing retained yet"
+//     state rather than an error banner — same graceful-degrade pattern
+//     as memoryManager itself.
+export function ParticleMemoryPanel() {
+  const [state, setState] = useState({ loading: true, error: null, memories: [], connected: true });
+  const [editingId, setEditingId] = useState(null);
+  const [draft, setDraft] = useState('');
+  const [busy, setBusy] = useState(null); // id being saved/deleted, or 'forget-all'
+
+  const load = async () => {
+    setState(s => ({ ...s, loading: true, error: null }));
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('/api/memory', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to load memories');
+      setState({
+        loading: false,
+        error: null,
+        memories: Array.isArray(data.data) ? data.data : [],
+        connected: data.connected !== false,
+      });
+    } catch (e) {
+      setState({ loading: false, error: e.message, memories: [], connected: false });
+    }
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const startEdit = (m) => {
+    setEditingId(m.id);
+    setDraft(m.content);
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setDraft('');
+  };
+
+  const saveEdit = async (id) => {
+    const trimmed = (draft || '').trim();
+    if (!trimmed) { cancelEdit(); return; }
+    setBusy(id);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/memory/${id}`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: trimmed }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Save failed');
+      setState(s => ({
+        ...s,
+        memories: s.memories.map(m => m.id === id ? { ...m, ...data.data } : m),
+      }));
+      cancelEdit();
+    } catch (e) {
+      setState(s => ({ ...s, error: e.message }));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const deleteOne = async (id) => {
+    if (!window.confirm('Forget this memory?\n\nParticle will no longer reference this fact in future replies.')) return;
+    setBusy(id);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/memory/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Delete failed');
+      }
+      setState(s => ({ ...s, memories: s.memories.filter(m => m.id !== id) }));
+    } catch (e) {
+      setState(s => ({ ...s, error: e.message }));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const forgetAll = async () => {
+    if (!window.confirm('Forget EVERYTHING Particle remembers about you?\n\nThis cannot be undone. The model will start fresh on your next turn.')) return;
+    setBusy('forget-all');
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('/api/memory', {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Forget-all failed');
+      }
+      setState(s => ({ ...s, memories: [] }));
+    } catch (e) {
+      setState(s => ({ ...s, error: e.message }));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const rowStyle = {
+    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+    gap: 8, padding: '6px 12px',
+    borderBottom: '1px solid var(--border-subtle)',
+    transition: 'background-color 100ms ease-out',
+  };
+
+  if (state.loading) {
+    return (
+      <div style={rowStyle}>
+        <span className="app-text-muted-small">Loading…</span>
+      </div>
+    );
+  }
+
+  if (state.memories.length === 0) {
+    return (
+      <>
+        <div style={{ ...rowStyle, flexDirection: 'column', alignItems: 'stretch', gap: 4 }}>
+          <span style={{ color: 'var(--text-faint)', fontSize: 9, lineHeight: 1.3 }}>
+            Nothing retained yet. As you talk with Particle, it will note the positions, theses, and preferences that recur — they will appear here so you can correct or delete them.
+          </span>
+          {state.error && (
+            <span style={{ color: 'var(--price-down)', fontSize: 9 }}>Error: {state.error}</span>
+          )}
+        </div>
+      </>
+    );
+  }
+
+  return (
+    <>
+      {state.error && (
+        <div style={{ ...rowStyle, flexDirection: 'column', alignItems: 'stretch', gap: 4 }}>
+          <span style={{ color: 'var(--price-down)', fontSize: 9 }}>Error: {state.error}</span>
+        </div>
+      )}
+      {state.memories.map(m => {
+        const isEditing = editingId === m.id;
+        const lowConf = Number(m.confidence) <= 0.3;
+        return (
+          <div
+            key={m.id}
+            style={{ ...rowStyle, flexDirection: 'column', alignItems: 'stretch', gap: 4 }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+              <span style={{
+                fontSize: 8, letterSpacing: '0.4px', fontWeight: 700,
+                color: lowConf ? 'var(--text-faint)' : 'var(--accent)',
+                border: '1px solid var(--border-subtle)', borderRadius: 2,
+                padding: '1px 4px', textTransform: 'uppercase',
+              }}>{m.type || 'fact'}</span>
+              {m.referenceCount > 0 && (
+                <span style={{ fontSize: 8, color: 'var(--text-faint)', letterSpacing: '0.3px' }}>
+                  ×{m.referenceCount}
+                </span>
+              )}
+              {lowConf && (
+                <span
+                  title="Low-confidence; the model suppresses this at inference time but keeps the row so you can still see and delete it"
+                  style={{ fontSize: 8, color: 'var(--text-faint)', letterSpacing: '0.3px' }}
+                >LOW CONF</span>
+              )}
+              <span style={{ flex: 1 }} />
+              {!isEditing && (
+                <>
+                  <span
+                    role="button" tabIndex={0}
+                    onClick={() => startEdit(m)}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); startEdit(m); } }}
+                    style={{ color: 'var(--text-muted)', fontSize: 9, cursor: 'pointer', letterSpacing: '0.3px' }}
+                    aria-label={`Edit memory ${m.id}`}
+                  >EDIT</span>
+                  <span
+                    role="button" tabIndex={0}
+                    onClick={() => deleteOne(m.id)}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); deleteOne(m.id); } }}
+                    style={{ color: 'var(--price-down)', fontSize: 9, cursor: 'pointer', letterSpacing: '0.3px' }}
+                    aria-label={`Forget memory ${m.id}`}
+                  >{busy === m.id ? '…' : 'FORGET'}</span>
+                </>
+              )}
+            </div>
+            {isEditing ? (
+              <>
+                <textarea
+                  value={draft}
+                  onChange={(e) => setDraft(e.target.value)}
+                  rows={2}
+                  maxLength={500}
+                  style={{
+                    width: '100%',
+                    background: 'var(--bg-surface, #181818)',
+                    color: 'var(--text-primary, #fff)',
+                    border: '1px solid var(--border-strong)',
+                    borderRadius: 3,
+                    padding: '4px 6px',
+                    fontSize: 10,
+                    fontFamily: 'var(--font-mono, monospace)',
+                    resize: 'vertical',
+                  }}
+                />
+                <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                  <span
+                    role="button" tabIndex={0}
+                    onClick={cancelEdit}
+                    style={{ color: 'var(--text-faint)', fontSize: 9, cursor: 'pointer', letterSpacing: '0.3px' }}
+                  >CANCEL</span>
+                  <span
+                    role="button" tabIndex={0}
+                    onClick={() => saveEdit(m.id)}
+                    style={{ color: 'var(--accent)', fontSize: 9, cursor: 'pointer', letterSpacing: '0.3px', fontWeight: 700 }}
+                  >{busy === m.id ? 'SAVING…' : 'SAVE'}</span>
+                </div>
+              </>
+            ) : (
+              <span style={{
+                color: lowConf ? 'var(--text-faint)' : 'var(--text-primary)',
+                fontSize: 10, lineHeight: 1.4, fontFamily: 'var(--font-mono, monospace)',
+              }}>{m.content}</span>
+            )}
+          </div>
+        );
+      })}
+      <div
+        role="button" tabIndex={0}
+        style={{
+          ...rowStyle, cursor: 'pointer',
+          borderTop: '1px solid var(--border-subtle)', marginTop: 4,
+        }}
+        onClick={forgetAll}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); forgetAll(); } }}
+        onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
+        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+        aria-label="Forget everything Particle remembers"
+      >
+        <span style={{ color: 'var(--price-down)', fontSize: 9, letterSpacing: '0.3px', fontWeight: 700 }}>
+          ✕ FORGET EVERYTHING
+        </span>
+        <span style={{ color: 'var(--text-faint)', fontSize: 8 }}>
+          {busy === 'forget-all' ? 'FORGETTING…' : 'irreversible'}
+        </span>
+      </div>
+    </>
   );
 }
 

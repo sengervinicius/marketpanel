@@ -81,6 +81,7 @@ const macroRoutes       = require('./routes/macro');
 const portfolioRoutes       = require('./routes/portfolio');
 const portfolioImportRoutes = require('./routes/portfolioImport');
 const alertRoutes       = require('./routes/alerts');
+const memoryRoutes      = require('./routes/memory');       // P2.2 memory dashboard
 const anomaliesRoutes   = require('./routes/anomalies');
 const iapRoutes         = require('./routes/iap');
 const searchRoutes      = require('./routes/search');
@@ -545,6 +546,12 @@ app.use('/api/portfolio', requireAuth,
 app.use('/api/alerts', requireAuth,
   rateLimitByUser({ key: 'alerts', windowSec: 60, max: 30 }),
   alertRoutes);
+
+// Memory: auth required + rate limit. P2.2 — user visibility + control
+// over the persistent facts Particle AI remembers between sessions.
+app.use('/api/memory', requireAuth,
+  rateLimitByUser({ key: 'memory', windowSec: 60, max: 60 }),
+  memoryRoutes);
 
 // Anomalies: auth required (no subscription check — anomaly detection is a core feature)
 app.use('/api/anomalies', requireAuth, anomaliesRoutes);
