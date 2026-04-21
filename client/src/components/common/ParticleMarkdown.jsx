@@ -29,9 +29,12 @@ function ActionButton({ type, params }) {
     email_response:     { label: 'Email Me',     icon: '\u2709', color: 'var(--accent, #F97316)' },
   };
   const action = ACTIONS[type] || { label: type, icon: '\u2022', color: 'var(--text-secondary)' };
-  // For most actions the first ":" segment is a ticker. For update_brief_prefs
-  // it's a "key=value;key=value" payload, so don't try to split it as a ticker.
-  const ticker = (type === 'update_brief_prefs') ? '' : (params.split(':')[0] || '');
+  // For most actions the first ":" segment is a ticker. For the
+  // conversation-level actions (brief prefs, PDF/email export) the
+  // params aren't a ticker — treat them as opaque so the label doesn't
+  // end up displayed as "Email Me FULL".
+  const NON_TICKER_ACTIONS = new Set(['update_brief_prefs', 'export_pdf', 'email_response']);
+  const ticker = NON_TICKER_ACTIONS.has(type) ? '' : (params.split(':')[0] || '');
 
   const handleClick = () => {
     // Log action feedback asynchronously (fire-and-forget)

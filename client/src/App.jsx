@@ -557,6 +557,82 @@ export default function App() {
   useEffect(() => {
     const handler = (e) => {
       const { type, ticker, params } = e.detail || {};
+      // export_pdf — download the current conversation as a markdown file.
+      // Kept client-side: we fetch the raw conversation via
+      // GET /api/ai-chat/:id/export, stitch it to markdown, and trigger a
+      // browser download. No PDF lib bundled; users who want PDF can print
+      // to PDF from the rendered .md. Keeps the payload tight.
+      if (type === 'export_pdf') {
+        const convoId = (typeof window !== 'undefined' && window.__particleActiveConvoId) || null;
+        if (!convoId) {
+          window.dispatchEvent(new CustomEvent('particle:toast', {
+            detail: { message: 'No active conversation to export', variant: 'warn' },
+          }));
+          return;
+        }
+        const mode = /last/i.test(params || '') ? 'last' : 'full';
+        apiFetch(`/api/ai-chat/${encodeURIComponent(convoId)}/export?mode=${mode}`)
+          .then(r => r.ok ? r.json() : r.json().then(j => { throw new Error(j.message || 'Export failed'); }))
+          .then(data => {
+            const title = data.title || 'Particle AI conversation';
+            const lines = [`# ${title}`, '', `_Exported ${new Date().toUTCString()}_`, ''];
+            for (const m of (data.messages || [])) {
+              const role = m.role === 'assistant' ? 'Particle' : (m.role === 'user' ? 'You' : m.role);
+              const when = m.created_at ? new Date(m.created_at).toISOString() : '';
+              lines.push(`## ${role}${when ? ` — ${when}` : ''}`, '', String(m.content || ''), '');
+            }
+            const blob = new Blob([lines.join('\n')], { type: 'text/markdown;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${title.replace(/[^\w.-]+/g, '_')}.md`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            window.dispatchEvent(new CustomEvent('particle:toast', {
+              detail: { message: 'Conversation exported', variant: 'success' },
+            }));
+          })
+          .catch(err => {
+            window.dispatchEvent(new CustomEvent('particle:toast', {
+              detail: { message: err.message || 'Could not export', variant: 'error' },
+            }));
+          });
+        return;
+      }
+
+      // email_response — email the current conversation (or just the last
+      // assistant turn) to the user's own account email. Never accepts a
+      // free-form recipient; the server looks up the signed-in user's
+      // email. Params can be "last" to narrow to the most recent answer.
+      if (type === 'email_response') {
+        const convoId = (typeof window !== 'undefined' && window.__particleActiveConvoId) || null;
+        if (!convoId) {
+          window.dispatchEvent(new CustomEvent('particle:toast', {
+            detail: { message: 'No active conversation to email', variant: 'warn' },
+          }));
+          return;
+        }
+        const mode = /last/i.test(params || '') ? 'last' : 'full';
+        apiFetch(`/api/ai-chat/${encodeURIComponent(convoId)}/email`, {
+          method: 'POST',
+          body: JSON.stringify({ mode }),
+        })
+          .then(r => r.ok ? r.json() : r.json().then(j => { throw new Error(j.message || 'Email failed'); }))
+          .then(data => {
+            window.dispatchEvent(new CustomEvent('particle:toast', {
+              detail: { message: `Emailed to ${data.to || 'your inbox'}`, variant: 'success' },
+            }));
+          })
+          .catch(err => {
+            window.dispatchEvent(new CustomEvent('particle:toast', {
+              detail: { message: err.message || 'Could not send email', variant: 'error' },
+            }));
+          });
+        return;
+      }
+
       // update_brief_prefs carries key=value;... in params, no ticker. Handle
       // it first so the !ticker guard below doesn't short-circuit the path.
       if (type === 'update_brief_prefs') {

@@ -2257,7 +2257,20 @@ ${ctx_.portfolioMetricsContext ? `\n${ctx_.portfolioMetricsContext}\n` : ''}${ct
           'reject them. Example: user says "make my brief terser and in ' +
           'Portuguese, focus on Brazil and the US" → end with ' +
           '[action:update_brief_prefs:tone=concise;language=pt-BR;' +
-          'focusRegions=BR,US].';
+          'focusRegions=BR,US].\n' +
+          '9. EXPORT & EMAIL — when the user asks to "save this", ' +
+          '"download", "export", "send me this", "email me this", or any ' +
+          'variant, suggest the corresponding action at the end of your ' +
+          'reply. [action:export_pdf:full] downloads the whole ' +
+          'conversation as a markdown file; [action:export_pdf:last] ' +
+          'downloads just your most recent answer. [action:email_response:' +
+          'full] emails the whole conversation to the user\'s account ' +
+          'email; [action:email_response:last] emails only the most recent ' +
+          'answer. The email endpoint always sends to the signed-in user\'s ' +
+          'own email — you cannot specify a different recipient, so don\'t ' +
+          'pretend you can. Prefer "last" when the user asked about a ' +
+          'single specific thing; prefer "full" when they\'ve been working ' +
+          'through a multi-turn analysis they want to keep.';
 
         await aiToolbox.runToolLoopStream(provider, routerMessages, toolAugmentedPrompt, res, {
           userId,

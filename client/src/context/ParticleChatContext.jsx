@@ -45,6 +45,15 @@ export function ParticleChatProvider({ children }) {
   const [conversations, setConversations] = useState([]); // [{id, title, lastMessageAt, messageCount}]
   const [convoLoading, setConvoLoading] = useState(false);
 
+  // Mirror the active conversation id onto window so the global
+  // `particle:action` handler in App.jsx can target export/email endpoints
+  // without having to consume this context. Cheap, explicitly namespaced,
+  // and easy to stub in tests.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.__particleActiveConvoId = activeConversationId || null;
+  }, [activeConversationId]);
+
   const loadConversationList = useCallback(async () => {
     if (!user?.id) return;
     setConvoLoading(true);
