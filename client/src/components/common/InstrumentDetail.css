@@ -232,9 +232,15 @@
 }
 .id-chart-area--mobile {
   flex: none;
-  height: min(42vh, 340px);
+  /* Use min-height so the chart flex children (which have explicit heights
+     derived from the same 340px cap) render at their target size, while
+     the AI Analysis panel rendered below them on mobile can expand the
+     container downward instead of being clipped. Previously this was a
+     hard `height` + `overflow: hidden` combo which ate analysis text on
+     both the right edge and the bottom. */
+  min-height: min(42vh, 340px);
   padding: var(--sp-2) 8px;
-  overflow: hidden;
+  overflow: visible;
 }
 /* On mobile, give chart flex children explicit heights instead of flex ratios */
 .id-chart-area--mobile .id-chart-flex-main   { flex: none; height: calc(min(42vh, 340px) * 0.58); }
@@ -1265,6 +1271,55 @@
 .id-chart-insight-error {
   color: var(--text-muted);
   font-style: italic;
+}
+
+/* Each labelled subsection (FUNDAMENTALS, WHY IT MAY BE MOVING,
+   CHART ANALYSIS). On desktop these flow horizontally inside the
+   parent row-flex; on mobile the wrapper switches to column, so the
+   section itself also stacks its badge above its text to give the
+   text a full-width column to breathe in. */
+.id-analysis-section {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  flex: 1 1 0;
+  min-width: 0;          /* critical: allow the text span to shrink and wrap */
+}
+.id-analysis-section .id-chart-insight-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+/* ── Mobile: stack the three AI Analysis cards vertically ──────────── */
+/* Before this fix the three sections sat on one row-flex line inside
+   the fixed-height chart insight bar, so on narrow screens the text
+   clipped mid-word on the right AND got eaten below by the capped
+   parent height. Stacking to column restores the full answer. */
+@media (max-width: 768px) {
+  .id-chart-insight {
+    flex-direction: column;
+    gap: 10px;
+    padding: 10px;
+    max-height: none;
+    overflow: visible;
+  }
+  .id-analysis-section {
+    flex-direction: column;
+    gap: 4px;
+    width: 100%;
+  }
+  .id-analysis-section .id-chart-insight-badge {
+    align-self: flex-start; /* badge hugs left, full text below */
+  }
+  .id-chart-insight-text {
+    display: block;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    line-height: 1.55;
+  }
 }
 
 /* ── Phase 6: Sub-chart containers (RSI, MACD) ──── */
