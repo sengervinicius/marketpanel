@@ -13,7 +13,7 @@
  *   - Webhook handler for subscription lifecycle events
  */
 
-const { updateSubscription, getUserById, findUserByStripeCustomerId, signToken, createRefreshToken, safeUser } = require('./authStore');
+const { updateSubscription, getUserById, findUserByStripeCustomerId, signToken, createRefreshToken, safeUser, persistUser } = require('./authStore');
 const { sendEmail } = require('./services/emailService');
 const { tierFromStripePriceId, getStripePriceId, TIERS } = require('./config/tiers');
 const pg = require('./db/postgres');
@@ -474,6 +474,11 @@ async function handleWebhookEvent(stripe, event) {
       if (!userId) { console.warn('[billing] no userId for customer', sub.customer); break; }
 
       const active = sub.status === 'active' || sub.status === 'trialing';
+      // sub.status === 'trialing' counts as "paid" (active card on file) but
+      // we do NOT send the paid-welcome email to trialing users — that note
+      // belongs to the moment they actually start paying. `active` is the
+      // only status that triggers the welcome.
+      const isPaidNow = sub.status === 'active';
       // Determine tier from subscription metadata or price ID
       const subTier = sub.metadata?.tier
         || tierFromStripePriceId(sub.items?.data?.[0]?.price?.id)
@@ -498,6 +503,49 @@ async function handleWebhookEvent(stripe, event) {
       logger.info('billing', `subscription ${sub.status} (${subTier}) → user ${userId}`, {
         userId, tier: subTier, billing_event: sub.status,
       });
+
+      // Phase 10.4 — paid-welcome email. Fire once per user, the first
+      // time they land in a truly active state. We gate on a persisted
+      // `settings.billing.welcomePaidSentAt` timestamp because Stripe
+      // will replay `customer.subscription.updated` for any unrelated
+      // field flip (card_on_file change, plan swap, proration, etc.)
+      // and we don't want a subscriber's inbox hit twice.
+      //
+      // Idempotency layers here:
+      //   1. Stripe event claim (outer `claimStripeEvent`) — dedupes retries.
+      //   2. welcomePaidSentAt (this block) — dedupes across distinct events.
+      //   3. `isPaidNow` requires sub.status === 'active' — skips `trialing`.
+      if (isPaidNow) {
+        const user = getUserById(userId);
+        const alreadySent = !!user?.settings?.billing?.welcomePaidSentAt;
+        if (user && user.email && !alreadySent) {
+          try {
+            const tierMeta = TIERS?.[subTier] || null;
+            const tierLabel = tierMeta?.label || 'Particle';
+            const { sendPaidWelcomeEmail } = require('./services/emailService');
+            const sent = await sendPaidWelcomeEmail(user, { tierLabel });
+            if (sent) {
+              // Persist the dedupe marker so the next webhook skips this.
+              user.settings = user.settings || {};
+              user.settings.billing = {
+                ...(user.settings.billing || {}),
+                welcomePaidSentAt: Date.now(),
+                welcomePaidTier: subTier,
+              };
+              await persistUser(user);
+              logger.info('billing', 'paid-welcome email delivered', {
+                userId, tier: subTier,
+              });
+            }
+          } catch (e) {
+            // Never let an email error 500 the webhook. Stripe will
+            // retry the whole event otherwise and we'd still re-fire.
+            logger.warn('billing', 'paid-welcome email failed', {
+              userId, error: e.message,
+            });
+          }
+        }
+      }
       break;
     }
 
@@ -881,10 +929,16 @@ async function verifyCheckoutSession(sessionId) {
 
   const subscription = await getSubscriptionStatus(user.id);
 
+  // Surface displayName at the top level of user so the client doesn't
+  // have to dig through settings.profile — the login/register/refresh
+  // responses already return it flat; keep this endpoint consistent.
+  const safe = safeUser(user);
+  safe.displayName = user.settings?.profile?.displayName || null;
+
   return {
     token,
     refreshToken: refresh?.token || null,
-    user: safeUser(user),
+    user: safe,
     subscription,
   };
 }

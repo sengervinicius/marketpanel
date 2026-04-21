@@ -27,6 +27,7 @@ const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function LoginForm() {
   const [username, setUsername] = useState('');
+  const [displayName, setDisplayName] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState(null);
@@ -68,7 +69,10 @@ export function LoginForm() {
     setLoading(true);
     try {
       if (isRegister) {
-        await register(username, password);
+        // Pass displayName (optional) — server stores it in settings.profile.
+        // We send email = username because right now username *is* the email.
+        const trimmedName = displayName.trim();
+        await register(username, password, username, trimmedName || undefined);
         setFailCount(0);
         setLockoutUntil(null);
       } else {
@@ -182,6 +186,19 @@ export function LoginForm() {
         {isRegister ? 'REGISTER' : 'LOGIN'}
       </h2>
 
+      {isRegister && (
+        <input
+          type="text"
+          value={displayName}
+          onChange={(e) => setDisplayName(e.target.value)}
+          placeholder="Your name (optional)"
+          disabled={loading}
+          maxLength={80}
+          className="lf-input"
+          autoComplete="name"
+        />
+      )}
+
       <input
         type="email"
         value={username}
@@ -189,6 +206,7 @@ export function LoginForm() {
         placeholder="Email"
         disabled={loading}
         className="lf-input"
+        autoComplete={isRegister ? 'email' : 'username'}
       />
 
       <input
@@ -250,6 +268,7 @@ export function LoginForm() {
           setIsRegister(!isRegister);
           setError(null);
           setConfirmPassword('');
+          setDisplayName('');
         }}
         disabled={loading}
         className="lf-toggle-btn"

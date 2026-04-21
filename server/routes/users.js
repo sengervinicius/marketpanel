@@ -9,7 +9,7 @@ const router  = express.Router();
 const logger = require('../utils/logger');
 const { sendApiError } = require('../utils/apiError');
 const { sanitizeText, clampInt } = require('../utils/validate');
-const { listUsers, getUserById, updatePersona } = require('../authStore');
+const { listUsers, getUserById } = require('../authStore');
 
 // Max results to return
 const MAX_RESULTS = 50;
@@ -54,18 +54,27 @@ router.get('/search', (req, res) => {
 });
 
 // ── Persona endpoints ──────────────────────────────────────────────────────────
+//
+// CIO-note (2026-04-21): Persona picker was removed from the onboarding
+// flow — the "what kind of investor are you" classification felt off-brand
+// for a professional terminal and was producing no downstream value.
+//
+// The `persona` JSONB column is still present on the users table for
+// backward compatibility (existing rows in production have values). The
+// write endpoint is kept as a 410 Gone stub so any stale client that POSTs
+// to it gets a clean, debuggable response rather than a 500.
+//
+// Intent in Phase 10.4: stop treating persona as an identity attribute.
+// If we want investor segmentation later, we'll infer it from behavior
+// (watchlist composition, vault uploads, query patterns) instead of
+// asking the user to pick from a list.
 
-const VALID_PERSONA_TYPES = [
-  'value_investor','growth_investor','income_investor','crypto_degen',
-  'day_trader','swing_trader','macro_investor','esg_investor',
-  'arbitrage_hunter','index_hugger','bulge_bracket',
-];
-
-// GET /api/users/persona
 router.get('/persona', (req, res) => {
   try {
     const user = getUserById(req.user.id);
     if (!user) return sendApiError(res, 404, 'User not found');
+    // Still returns the stored persona for any legacy consumer, but
+    // realistically the vast majority of accounts will have type=null.
     res.json({ persona: user.persona || null });
   } catch (e) {
     logger.error('GET /users/persona error:', e);
@@ -73,22 +82,11 @@ router.get('/persona', (req, res) => {
   }
 });
 
-// PATCH /api/users/persona
-router.patch('/persona', async (req, res) => {
-  try {
-    const { type, avatarStyle, customization } = req.body;
-    if (type && !VALID_PERSONA_TYPES.includes(type)) {
-      return sendApiError(res, 400, 'Invalid persona type');
-    }
-    if (avatarStyle && !['minimal','abstract','illustrated'].includes(avatarStyle)) {
-      return sendApiError(res, 400, 'Invalid avatar style');
-    }
-    const persona = await updatePersona(req.user.id, { type, avatarStyle, customization });
-    res.json({ persona });
-  } catch (e) {
-    logger.error('PATCH /users/persona error:', e);
-    sendApiError(res, 500, 'Failed to update persona');
-  }
+router.patch('/persona', (_req, res) => {
+  // Endpoint deprecated — persona picker removed from the UI. Return 410
+  // Gone so any stale build that tries to save a persona sees a clean
+  // error rather than a 500 from `updatePersona` being undefined.
+  sendApiError(res, 410, 'Persona picker has been removed. No action taken.');
 });
 
 module.exports = router;

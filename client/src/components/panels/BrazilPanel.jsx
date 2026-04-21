@@ -2,9 +2,11 @@
 // Phase 10: Removed bespoke polling loop; prices flow through PriceContext via PriceRow's
 // ticker prop. The initial /api/snapshot/brazil fetch seeds the batch map, and PriceRow's
 // useMergedTickerQuote handles fallback for any symbol not in the snapshot.
-// Phase 9.5: Adds a revenue-mix pill (USD / BRL / MIX) per row so the CIO can
-// see at a glance whether a ticker earns in USD (commodity/export) or BRL
-// (domestic) — the single most important macro lens on the B3 board.
+// CIO-note (2026-04-21): removed the inline USD/BRL/MIX revenue-mix pill.
+// It was misread as a price-currency label (users thought VALE3 was quoted
+// in USD). The underlying revenueMix field is still carried on the row
+// object so AI context / drag metadata / detail pages can surface it with
+// clearer wording, but we do NOT render a 3-char badge next to the name.
 import { useState, useEffect, useCallback, useRef, useMemo, memo } from 'react';
 import { useSettings } from '../../context/SettingsContext';
 import { useOpenDetail } from '../../context/OpenDetailContext';
@@ -29,40 +31,6 @@ const SORT_COLS = [
   { key: 'price',  label: 'PRICE',  align: 'right' },
   { key: 'chg',    label: 'CHG%',   align: 'right' },
 ];
-
-// Revenue-mix pill — compact 3-char tag color-coded by where the ticker
-// earns its money. Colors are deliberately subtle so the pill doesn't
-// compete with price/change%.
-const MIX_COLORS = {
-  USD:   { bg: 'rgba(255, 160, 70, 0.12)',  fg: '#ffb15c' },
-  BRL:   { bg: 'rgba(100, 180, 120, 0.12)', fg: '#84d698' },
-  MIXED: { bg: 'rgba(140, 140, 160, 0.14)', fg: '#bdbdd2' },
-};
-function RevenueMixPill({ mix }) {
-  const spec = MIX_COLORS[mix];
-  if (!spec) return null;
-  const label = mix === 'MIXED' ? 'MIX' : mix;
-  return (
-    <span style={{
-      display: 'inline-block',
-      minWidth: 26,
-      textAlign: 'center',
-      fontFamily: 'var(--font-family-mono)',
-      fontSize: 8,
-      fontWeight: 700,
-      letterSpacing: '0.06em',
-      padding: '0 3px',
-      marginRight: 5,
-      borderRadius: 2,
-      background: spec.bg,
-      color: spec.fg,
-      flexShrink: 0,
-      verticalAlign: 'middle',
-    }} title={`Revenue is predominantly ${mix === 'MIXED' ? 'a mix of BRL and USD' : mix}`}>
-      {label}
-    </span>
-  );
-}
 
 function BrazilPanel({ onTickerClick }) {
   const openDetail = useOpenDetail();
@@ -243,20 +211,17 @@ function BrazilPanel({ onTickerClick }) {
             const sym = s.symbol.endsWith('.SA') ? s.symbol : s.symbol + '.SA';
             const displaySym = s.symbol.replace('.SA', '');
             const d = batchMap[s.symbol] || {};
-            // Compose name with a leading revenue-mix pill so every row
-            // carries the BRL/USD/MIX tag inline. Pill is skipped for
-            // tickers we don't have metadata for (keeps layout stable).
+            // revenueMix is still carried on row objects + drag metadata
+            // so AI context and the instrument-detail pane can use it;
+            // we just don't render the inline 3-char pill anymore.
             const mix = d.revenueMix || s.revenueMix || null;
-            const nameNode = mix ? (
-              <><RevenueMixPill mix={mix} />{s.name}</>
-            ) : s.name;
             return (
               <PriceRow
                 key={sym}
                 symbol={sym}
                 ticker={sym}
                 displaySymbol={displaySym}
-                name={nameNode}
+                name={s.name}
                 price={d.price}
                 changePct={d.changePct}
                 symbolColor="var(--section-brazil)"

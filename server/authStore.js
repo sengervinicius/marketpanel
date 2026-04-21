@@ -406,10 +406,26 @@ function validatePassword(password) {
 
 // ── User CRUD ─────────────────────────────────────────────────────────────────
 
-async function createUser(username, passwordPlain, email) {
+/**
+ * createUser(username, passwordPlain, email, extras?)
+ *
+ * `extras` is an optional object; the only recognized field today is
+ * `displayName` — a human-friendly name ("Vinicius", "Ana", "Team Arc")
+ * captured during registration for use in welcome emails and the user
+ * menu. Length-capped and trimmed here so the DB and email templates
+ * never see a 500-char blob.
+ */
+async function createUser(username, passwordPlain, email, extras = {}) {
   const key = username.toLowerCase();
   if (!username || !passwordPlain)   throw new Error('Username and password required');
   if (username.length < 3)           throw new Error('Username must be at least 3 characters');
+
+  // Normalize optional profile fields.
+  let displayName = null;
+  if (typeof extras.displayName === 'string') {
+    const t = extras.displayName.trim();
+    if (t.length > 0) displayName = t.slice(0, 80);
+  }
 
   const pwdError = validatePassword(passwordPlain);
   if (pwdError) throw new Error(pwdError);
@@ -452,19 +468,28 @@ async function createUser(username, passwordPlain, email) {
     }
   }
 
+  // Stash the new profile fields inside `settings` (JSONB in Postgres,
+  // embedded in the Mongo doc) so we don't need a schema migration for
+  // Phase 10.4. `settings.profile.displayName` and
+  // `settings.billing.welcomePaidSentAt` are the canonical paths.
+  const seededSettings = defaultSettings();
+  if (displayName) {
+    seededSettings.profile = { ...(seededSettings.profile || {}), displayName };
+  }
+
   const user = {
     id,
     username,
     email:                email || null,
     emailVerified:        false,
     hash,
-    settings:             defaultSettings(),
+    settings:             seededSettings,
     isPaid:               false,
     subscriptionActive:   true,
     trialEndsAt:          grantTrial ? now + (parseInt(process.env.TRIAL_DAYS, 10) || 14) * 24 * 60 * 60 * 1000 : now, // Only grant trial if email hasn't been used before
     stripeCustomerId:     null,
     stripeSubscriptionId: null,
-    persona:              defaultPersona(),
+    persona:              defaultPersona(),  // kept for back-compat; type always null after removal
     referralCode:         generateReferralCode(),
     referredBy:           null,
     referralRewards:      { invited: 0, xpEarned: 0 },

@@ -137,7 +137,7 @@ export function AuthProvider({ children }) {
         try { localStorage.setItem(LS_REFRESH, data.refreshToken); } catch {}
       }
       if (data.user) {
-        setUser({ id: data.user.id, username: data.user.username, persona: data.user.persona || null });
+        setUser({ id: data.user.id, username: data.user.username, displayName: data.user.displayName || null });
       }
       if (data.subscription) {
         setSubscription(normalizeSubscription(data.subscription));
@@ -150,7 +150,7 @@ export function AuthProvider({ children }) {
 
   // ── Helper: restore session from /me response ─────────────────────────────
   const restoreFromMe = useCallback((data) => {
-    const restoredUser = { id: data.user.id, username: data.user.username, persona: data.user.persona || null };
+    const restoredUser = { id: data.user.id, username: data.user.username, displayName: data.user.displayName || null };
     setUser(restoredUser);
     if (data.token) setToken(data.token);
     setSubscription(normalizeSubscription(data.subscription));
@@ -269,7 +269,7 @@ export function AuthProvider({ children }) {
                 try { localStorage.setItem(LS_REFRESH, data.refreshToken); } catch {}
               }
               if (data.user) {
-                const restored = { id: data.user.id, username: data.user.username, persona: data.user.persona || null };
+                const restored = { id: data.user.id, username: data.user.username, displayName: data.user.displayName || null };
                 setUser(restored);
                 try { localStorage.setItem(LS_USER, JSON.stringify(restored)); } catch {}
               }
@@ -353,21 +353,25 @@ export function AuthProvider({ children }) {
     });
     const data = await res.json().catch(() => ({}));
     _extractUser(data, res, 'Login failed');
-    _persist({ id: data.user.id, username: data.user.username, persona: data.user.persona || null }, data.token, data.subscription, data.refreshToken);
+    _persist({ id: data.user.id, username: data.user.username, displayName: data.user.displayName || null }, data.token, data.subscription, data.refreshToken);
     return data;
   }, [_persist]);
 
   // ── Register ──────────────────────────────────────────────────────────────
-  const register = useCallback(async (username, password, email) => {
+  // displayName is optional — we capture it during signup so the welcome
+  // email and in-app greeting can use a real name instead of the email
+  // local-part. If omitted, the server stores null and UI falls back to
+  // the username (email) as before.
+  const register = useCallback(async (username, password, email, displayName) => {
     const res  = await fetch(`${API_BASE}/api/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password, email }),
+      body: JSON.stringify({ username, password, email, displayName }),
       credentials: 'include',
     });
     const data = await res.json().catch(() => ({}));
     _extractUser(data, res, 'Registration failed');
-    _persist({ id: data.user.id, username: data.user.username, persona: data.user.persona || null }, data.token, data.subscription, data.refreshToken);
+    _persist({ id: data.user.id, username: data.user.username, displayName: data.user.displayName || null }, data.token, data.subscription, data.refreshToken);
     return data;
   }, [_persist]);
 

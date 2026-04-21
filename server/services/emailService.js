@@ -241,9 +241,15 @@ async function sendAlertEmail(user, payload) {
 async function sendWelcomeEmail(user) {
   if (!user || !user.email) return false;
   const appUrl = APP_URL();
+  // Phase 10.4: persona is gone — pull displayName from the profile
+  // JSONB slot we now collect at registration. If the user skipped the
+  // optional name field, fall back to the email local-part so greetings
+  // never read "Welcome, there".
+  const storedName = user.settings?.profile?.displayName;
   const firstName =
-    (user.persona && user.persona.firstName) ||
-    (user.username || 'there').split('@')[0];
+    (typeof storedName === 'string' && storedName.trim())
+      ? storedName.trim().split(/\s+/)[0]
+      : (user.username || 'there').split('@')[0];
 
   const subject = 'Welcome to Particle';
   const html = `
@@ -333,6 +339,88 @@ ${hostedUrl ? `\nView invoice: ${hostedUrl}` : ''}`;
   });
 }
 
+// ── Public: paid-activation welcome ───────────────────────────────────────
+/**
+ * Sent once when a user flips from trial → paid. This is separate from
+ * the receipt (which is the legal/transactional record) and separate
+ * from the initial welcome (which greets the signup, not the purchase).
+ *
+ * Distinguishes Particle subscribers from trialists — different tone,
+ * includes the specific tier they bought so the terminal greeting can
+ * match what they paid for.
+ *
+ * The caller (billing webhook) is responsible for deduping via
+ * settings.billing.welcomePaidSentAt — we don't re-check here.
+ *
+ * @param {object} user  full user record (needs email, settings.profile)
+ * @param {object} opts  { tierLabel?: string } — pulled from billing snapshot
+ */
+async function sendPaidWelcomeEmail(user, opts = {}) {
+  if (!user || !user.email) return false;
+  const appUrl = APP_URL();
+  const tierLabel = typeof opts.tierLabel === 'string' && opts.tierLabel.trim()
+    ? opts.tierLabel.trim()
+    : 'Particle';
+
+  const storedName = user.settings?.profile?.displayName;
+  const firstName =
+    (typeof storedName === 'string' && storedName.trim())
+      ? storedName.trim().split(/\s+/)[0]
+      : (user.username || 'there').split('@')[0];
+
+  const subject = `You're on ${tierLabel}. Welcome in.`;
+  const html = `
+<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:560px;margin:0 auto;background:#0f0f1e;color:#e8e8ef;padding:28px;border-radius:10px;">
+  <div style="border-bottom:2px solid #ff6600;padding-bottom:12px;margin-bottom:18px;">
+    <span style="color:#ff6600;font-weight:700;font-size:20px;letter-spacing:0.5px;">PARTICLE</span>
+    <span style="color:#8a8a9a;font-size:13px;margin-left:10px;">${tierLabel}</span>
+  </div>
+  <div style="font-size:18px;color:#ffffff;margin-bottom:10px;">Welcome to ${tierLabel}, ${firstName}.</div>
+  <div style="font-size:15px;line-height:1.6;color:#d0d0d8;">
+    Thank you for subscribing. Your tier is active — every panel, every
+    data feed, the AI analyst, and the Vault are yours without
+    interruption.
+  </div>
+  <div style="margin-top:18px;font-size:15px;line-height:1.55;color:#d0d0d8;">
+    A few ways subscribers tend to get the most out of the terminal:
+  </div>
+  <ul style="font-size:14px;line-height:1.6;color:#c0c0c8;padding-left:18px;margin-top:6px;">
+    <li>Upload your internal research PDFs into the Vault — the AI will cite them alongside market data.</li>
+    <li>Build composite alerts (correlation / vol / news-spike) on the trades you actually care about.</li>
+    <li>The Morning Briefing panel is the fastest way to catch up if you've been offline.</li>
+  </ul>
+  <a href="${appUrl}" style="display:inline-block;margin-top:18px;background:#ff6600;color:#fff;padding:10px 22px;border-radius:5px;text-decoration:none;font-weight:600;font-size:14px;">Open the Terminal</a>
+  <div style="margin-top:22px;font-size:13px;color:#a0a0a8;line-height:1.55;">
+    If you need anything — missing data, bugs, feature requests — just
+    reply to this email. It goes straight to the team and we answer fast.
+  </div>
+  <div style="margin-top:22px;font-size:11px;color:#4a4a58;line-height:1.5;">
+    Particle Market Terminal. Manage your subscription any time from
+    Settings → Billing.
+  </div>
+</div>`;
+  const text =
+`Welcome to ${tierLabel}, ${firstName}.
+
+Thank you for subscribing. Your tier is active and every panel is
+yours without interruption.
+
+A few ways subscribers get the most out of the terminal:
+- Upload internal research PDFs into the Vault; the AI will cite them.
+- Build composite alerts on the trades you actually care about.
+- The Morning Briefing panel is the fastest catch-up after time away.
+
+Open the terminal: ${appUrl}
+
+Reply to this email for anything — missing data, bugs, requests. It
+goes straight to the team.`;
+
+  return _sendRaw({
+    to: user.email, subject, html, text,
+    reason: 'hello', fromName: 'Particle',
+  });
+}
+
 // ── Public: Apple IAP receipt ─────────────────────────────────────────────
 /**
  * Receipt for an Apple In-App Purchase (App Store Connect doesn't send
@@ -381,6 +469,7 @@ module.exports = {
   sendAlertEmail,
   sendEmail,
   sendWelcomeEmail,
+  sendPaidWelcomeEmail,
   sendPaymentReceiptEmail,
   sendAppleReceiptEmail,
 };

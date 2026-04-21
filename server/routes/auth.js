@@ -37,17 +37,27 @@ function validatePassword(password) {
 }
 
 // POST /api/auth/register
+//
+// Phase 10.4: accept an optional `displayName` alongside the usual
+// username/password/email. We store it inside user.settings.profile so
+// no Postgres migration is required; the welcome-email template uses it
+// to greet the person by their real name rather than by the local-part
+// of their email address.
 router.post('/register', authLimiter, async (req, res) => {
   try {
-    const { username, password, email } = req.body;
-    const user  = await createUser(username, password, email);
+    const { username, password, email, displayName } = req.body;
+    const user  = await createUser(username, password, email, { displayName });
     const token = signToken(user);
     setTokenCookie(res, token);
     const refresh = await createRefreshToken(user.id);
     setRefreshCookie(res, refresh.token);
     res.status(201).json({
       ok: true,
-      user: { id: user.id, username: user.username, persona: user.persona || null },
+      user: {
+        id: user.id,
+        username: user.username,
+        displayName: user.settings?.profile?.displayName || null,
+      },
       token,
       refreshToken: refresh.token, // In body for mobile Safari where cookies are blocked
       subscription: {
@@ -107,7 +117,11 @@ router.post('/login', authLimiter, async (req, res) => {
 
     res.json({
       ok: true,
-      user: { id: user.id, username: user.username, persona: user.persona || null },
+      user: {
+        id: user.id,
+        username: user.username,
+        displayName: user.settings?.profile?.displayName || null,
+      },
       token,
       refreshToken: refresh.token, // In body for mobile Safari where cookies are blocked
       subscription: {
@@ -128,7 +142,11 @@ router.get('/me', requireAuth, (req, res) => {
   const user = getUserById(req.user.id);
   if (!user) return res.status(401).json({ error: 'User not found' });
   res.json({
-    user:  { id: user.id, username: user.username, persona: user.persona || null },
+    user: {
+      id: user.id,
+      username: user.username,
+      displayName: user.settings?.profile?.displayName || null,
+    },
     subscription: {
       isPaid:             user.isPaid,
       subscriptionActive: user.subscriptionActive,
@@ -478,7 +496,11 @@ router.post('/refresh', async (req, res) => {
       ok: true,
       token: newAccessToken,
       refreshToken: result.token, // In body for mobile Safari where cookies are blocked
-      user: { id: user.id, username: user.username, persona: user.persona || null },
+      user: {
+        id: user.id,
+        username: user.username,
+        displayName: user.settings?.profile?.displayName || null,
+      },
       subscription: {
         isPaid:             user.isPaid,
         subscriptionActive: user.subscriptionActive,

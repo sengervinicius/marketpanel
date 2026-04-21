@@ -2,7 +2,6 @@ import React, { memo, useState, useCallback, useMemo, useEffect } from 'react';
 import { useSettings } from '../../context/SettingsContext';
 import { getTemplatesGrouped, getTemplate } from '../../config/templates';
 import UserAvatar from '../common/UserAvatar';
-import { getPersona } from '../../config/avatars';
 
 function MenuItem({ icon, label, onClick, subtle, danger }) {
   return (
@@ -78,9 +77,8 @@ const MobileMoreScreen = memo(({
         </div>
         <div className="mm-user-info">
           <div className="mm-user-name">{user?.username || user?.name || 'User'}</div>
-          {user?.persona?.type && (
-            <div className="mm-persona-label">{getPersona(user.persona.type)?.label}</div>
-          )}
+          {/* Phase 10.4: persona label removed — the "what kind of investor
+              are you" classification was dropped from onboarding. */}
           <div className="mm-user-meta">
             <span className="mm-badge">{subscriptionStatus}</span>
             {daysRemaining !== null && subscriptionStatus === 'TRIAL' && (
