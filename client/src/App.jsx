@@ -21,6 +21,7 @@ import { AlertsProvider } from './context/AlertsContext';
 import { WatchlistProvider } from './context/WatchlistContext';
 import { PanelProvider } from './context/PanelContext';
 import { ScreenProvider } from './context/ScreenContext';
+import { ParticleChatProvider } from './context/ParticleChatContext';
 import NotificationPrefs from './components/common/NotificationPrefs';
 import HeaderSearchBar from './components/common/HeaderSearchBar';
 import KeyboardShortcutsModal from './components/common/KeyboardShortcutsModal';
@@ -60,6 +61,7 @@ const EuropeanMarketsScreen = lazyWithRetry(() => import('./components/screens/E
 const CryptoScreen = lazyWithRetry(() => import('./components/screens/CryptoScreen'));
 
 const InstrumentDetail = lazyWithRetry(() => import('./components/common/InstrumentDetail'));
+const AlertEditor = lazyWithRetry(() => import('./components/common/AlertEditor'));
 import PanelErrorBoundary from './components/common/PanelErrorBoundary';
 import ParticleLogo from './components/ui/ParticleLogo';
 import ParticleSidebar from './components/app/ParticleSidebar';
@@ -406,6 +408,8 @@ export default function App() {
   // ── Detail ticker state ──────────────────────────────────────────────────
   const [detailTicker, setDetailTicker] = useState(null);
   const [settingsOpen, setSettingsOpen]  = useState(false);
+  // ── Global alert composer (opened from Particle AI action button) ────────
+  const [alertComposerTicker, setAlertComposerTicker] = useState(null);
 
   // ── Sector screen state (Wave 2) ────────────────────────────────────────
   const [activeSectorScreen, setActiveSectorScreen] = useState(null);
@@ -572,8 +576,15 @@ export default function App() {
               }).catch(() => {});
               // Force WatchlistContext to pick up the change
               window.dispatchEvent(new CustomEvent('particle:watchlist-changed', { detail: { watchlist: next } }));
+              window.dispatchEvent(new CustomEvent('particle:toast', { detail: { message: `${upper} added to watchlist`, variant: 'success' } }));
+            } else {
+              window.dispatchEvent(new CustomEvent('particle:toast', { detail: { message: `${upper} is already in your watchlist`, variant: 'info' } }));
             }
           } catch { /* non-critical */ }
+          break;
+        case 'alert_set':
+          // Open the global AlertEditor pre-filled with this ticker
+          setAlertComposerTicker(ticker.toUpperCase());
           break;
         default:
           break;
@@ -668,6 +679,7 @@ export default function App() {
       <MarketProvider restData={mergedData}>
       <PriceProvider marketData={data}>
       <PanelProvider value={panelCtx}>
+      <ParticleChatProvider>
       <div className="flex-col" style={{
         height: '100vh',
         background: 'var(--bg-app)',
@@ -1103,9 +1115,21 @@ export default function App() {
 
         {detailTicker && !subscriptionExpired && <Suspense fallback={<InstrumentDetailSkeleton />}><PanelErrorBoundary name="InstrumentDetail"><InstrumentDetail ticker={detailTicker} onClose={() => setDetailTicker(null)} onOpenChat={() => setChatOpen(true)} /></PanelErrorBoundary></Suspense>}
 
+        {/* Global alert composer (invoked via particle:action → alert_set) */}
+        {alertComposerTicker && (
+          <Suspense fallback={null}>
+            <AlertEditor
+              alert={null}
+              defaultSymbol={alertComposerTicker}
+              onClose={() => setAlertComposerTicker(null)}
+            />
+          </Suspense>
+        )}
+
         <TickerTooltip />
         <ToastContainer />
       </div>
+      </ParticleChatProvider>
       </PanelProvider>
       </PriceProvider>
       </MarketProvider>
@@ -1134,6 +1158,7 @@ export default function App() {
     <MarketTickBridge batchTicks={batchTicks} />
     <PriceProvider marketData={data}>
     <PanelProvider value={panelCtx}>
+    <ParticleChatProvider>
     <div className="m-app-shell">
 
       {/* Terms of Service acceptance (first login, mobile) */}
@@ -1490,9 +1515,22 @@ export default function App() {
         </div>
       )}
 
+      {/* Global alert composer (invoked via particle:action → alert_set) */}
+      {alertComposerTicker && (
+        <Suspense fallback={null}>
+          <AlertEditor
+            alert={null}
+            defaultSymbol={alertComposerTicker}
+            onClose={() => setAlertComposerTicker(null)}
+            mobile
+          />
+        </Suspense>
+      )}
+
       <TickerTooltip />
       <ToastContainer />
     </div>
+    </ParticleChatProvider>
     </PanelProvider>
     </PriceProvider>
     </MarketProvider>

@@ -11,7 +11,7 @@ import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import ParticleLogo from '../ui/ParticleLogo';
 import AnalysisCard from './AnalysisCard';
 import useParticleCanvas from './useParticleCanvas';
-import useParticleAI from '../../hooks/useParticleAI';
+import { useParticleChat } from '../../context/ParticleChatContext';
 import { useAIChatWithContext } from '../../hooks/useAIChatWithContext';
 import { useStocksData, useIndicesData } from '../../context/MarketContext';
 import { useBehaviorTracker, useSmartChips } from '../../hooks/useBehavior';
@@ -33,7 +33,14 @@ export default function ParticleScreen() {
   const scrollRef = useRef(null);
   const isMobile = useIsMobile();
 
-  const { messages, isStreaming, error, send, stop, clear } = useParticleAI();
+  const {
+    messages, isStreaming, error, send, stop, clear,
+    conversations, activeConversationId, convoLoading,
+    loadConversation, loadConversationList, newConversation, deleteConversation, renameConversation,
+  } = useParticleChat();
+
+  // Load sidebar thread list on mount so users always see their recent chats.
+  useEffect(() => { loadConversationList(); }, [loadConversationList]);
   const { buildContextualMessage } = useAIChatWithContext();
 
   // Wrap send to enrich messages with screen context
@@ -303,13 +310,136 @@ export default function ParticleScreen() {
     return () => window.removeEventListener('keydown', onKey);
   }, [isStreaming, stop, inConversation]);
 
+  // Thread sidebar collapsed state (persisted)
+  const [threadsCollapsed, setThreadsCollapsed] = useState(() => {
+    try { return localStorage.getItem('particle-threads-collapsed') === '1'; } catch { return false; }
+  });
+  const toggleThreads = useCallback(() => {
+    setThreadsCollapsed(prev => {
+      const next = !prev;
+      try { localStorage.setItem('particle-threads-collapsed', next ? '1' : '0'); } catch {}
+      return next;
+    });
+  }, []);
+
+  const handleLoadConversation = useCallback((id) => {
+    if (id === activeConversationId) return;
+    loadConversation(id);
+  }, [activeConversationId, loadConversation]);
+
+  const handleNewConversation = useCallback(() => {
+    newConversation();
+    setQuery('');
+    setTimeout(() => inputRef.current?.focus(), 50);
+  }, [newConversation]);
+
+  const handleDeleteConversation = useCallback((id, e) => {
+    e?.stopPropagation();
+    if (!confirm('Delete this conversation?')) return;
+    deleteConversation(id);
+  }, [deleteConversation]);
+
+  const handleRenameConversation = useCallback((id, currentTitle, e) => {
+    e?.stopPropagation();
+    const next = prompt('Rename conversation:', currentTitle || '');
+    if (next && next.trim() && next !== currentTitle) {
+      renameConversation(id, next.trim());
+    }
+  }, [renameConversation]);
+
   return (
     <div
-      className="particle-screen"
+      className={`particle-screen-wrap${threadsCollapsed ? ' threads-collapsed' : ''}`}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
     >
+      {/* ── Thread sidebar (desktop only, hidden on mobile via CSS) ── */}
+      {!isMobile && (
+        <aside className={`particle-threads${threadsCollapsed ? ' particle-threads--collapsed' : ''}`}>
+          {threadsCollapsed ? (
+            <button className="particle-threads-rail" onClick={toggleThreads} title="Open conversations">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="9 18 15 12 9 6" />
+              </svg>
+              <span className="particle-threads-rail-label">CHATS</span>
+            </button>
+          ) : (
+            <>
+              <div className="particle-threads-header">
+                <span className="particle-threads-title">Conversations</span>
+                <div style={{ flex: 1 }} />
+                <button className="particle-threads-btn" onClick={handleNewConversation} title="New conversation">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+                  </svg>
+                </button>
+                <button className="particle-threads-btn" onClick={toggleThreads} title="Collapse">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="15 18 9 12 15 6" />
+                  </svg>
+                </button>
+              </div>
+
+              <div className="particle-threads-list">
+                {convoLoading && conversations.length === 0 && (
+                  <div className="particle-threads-empty">Loading…</div>
+                )}
+                {!convoLoading && conversations.length === 0 && (
+                  <div className="particle-threads-empty">
+                    No conversations yet.<br />
+                    Ask Particle anything to get started.
+                  </div>
+                )}
+                {conversations.map(c => (
+                  <div
+                    key={c.id}
+                    className={`particle-thread-item${c.id === activeConversationId ? ' active' : ''}`}
+                    onClick={() => handleLoadConversation(c.id)}
+                    role="button"
+                    tabIndex={0}
+                  >
+                    <div className="particle-thread-item-row">
+                      <div className="particle-thread-item-title">
+                        {c.title || 'Untitled'}
+                      </div>
+                      <div className="particle-thread-item-actions">
+                        <button
+                          className="particle-thread-action"
+                          onClick={(e) => handleRenameConversation(c.id, c.title, e)}
+                          title="Rename"
+                        >
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                          </svg>
+                        </button>
+                        <button
+                          className="particle-thread-action particle-thread-action--danger"
+                          onClick={(e) => handleDeleteConversation(c.id, e)}
+                          title="Delete"
+                        >
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="3 6 5 6 21 6" /><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6M14 11v6" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                    <div className="particle-thread-item-meta">
+                      <span className="particle-thread-item-count">
+                        {c.messageCount || 0} msg{(c.messageCount || 0) === 1 ? '' : 's'}
+                      </span>
+                      <span className="particle-thread-item-time">{formatRelativeTime(c.lastMessageAt || c.createdAt)}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </aside>
+      )}
+
+      {/* ── Main Particle screen column ── */}
+      <div className="particle-screen">
       {/* Pull-to-refresh indicator */}
       {pullProgress > 0 && (
         <div className="particle-pull-indicator" style={{ opacity: pullProgress, transform: `translateY(${pullProgress * 30}px)` }}>
@@ -557,8 +687,22 @@ export default function ParticleScreen() {
       )}
 
       {/* Wire overlay removed */}
+      </div>
     </div>
   );
+}
+
+// ── Relative time helper for thread list ──────────────────────────────────
+function formatRelativeTime(ts) {
+  if (!ts) return '';
+  const d = typeof ts === 'string' ? new Date(ts) : ts;
+  if (isNaN(d.getTime())) return '';
+  const diff = Date.now() - d.getTime();
+  if (diff < 60000) return 'just now';
+  if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
+  if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
+  if (diff < 604800000) return `${Math.floor(diff / 86400000)}d ago`;
+  return d.toLocaleDateString();
 }
 
 // ── Markdown renderer v2 (headers, bold, bullets, tickers, code) ────────────

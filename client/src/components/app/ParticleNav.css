@@ -1224,3 +1224,208 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* ─────────────────────────────────────────────────────────────────
+ * Phase 10.0: Persistent Particle chat — thread sidebar
+ * ───────────────────────────────────────────────────────────────── */
+.particle-screen-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: row;
+  position: relative;
+  overflow: hidden;
+  min-height: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.particle-screen-wrap .particle-screen {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Thread sidebar (expanded) */
+.particle-threads {
+  display: flex;
+  flex-direction: column;
+  width: 240px;
+  flex-shrink: 0;
+  background: var(--bg-panel, #0f0f0f);
+  border-right: 1px solid var(--border-default, rgba(255,255,255,0.07));
+  overflow: hidden;
+  z-index: 5;
+}
+
+.particle-threads--collapsed {
+  width: 28px;
+}
+
+.particle-threads-rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 0;
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  border: none;
+  color: var(--text-faint, #555);
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+}
+.particle-threads-rail:hover {
+  color: var(--text-primary, #e8e8e8);
+  background: rgba(255,255,255,0.03);
+}
+.particle-threads-rail-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+}
+
+.particle-threads-header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 10px 10px 12px;
+  border-bottom: 1px solid var(--border-default, rgba(255,255,255,0.07));
+  flex-shrink: 0;
+}
+.particle-threads-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-faint, #666);
+}
+.particle-threads-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 5px;
+  border: none;
+  background: transparent;
+  color: var(--text-faint, #666);
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+}
+.particle-threads-btn:hover {
+  color: var(--text-primary, #e8e8e8);
+  background: rgba(255,255,255,0.06);
+}
+
+.particle-threads-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 6px 6px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.particle-threads-empty {
+  padding: 16px 12px;
+  font-size: 11px;
+  color: var(--text-faint, #555);
+  line-height: 1.5;
+  text-align: center;
+}
+
+.particle-thread-item {
+  position: relative;
+  padding: 8px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.12s;
+  border: 1px solid transparent;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.particle-thread-item:hover {
+  background: rgba(255,255,255,0.035);
+}
+.particle-thread-item.active {
+  background: rgba(249,115,22,0.09);
+  border-color: rgba(249,115,22,0.25);
+}
+.particle-thread-item.active .particle-thread-item-title {
+  color: var(--accent, #F97316);
+}
+
+.particle-thread-item-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 4px;
+}
+.particle-thread-item-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary, #e8e8e8);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.3;
+}
+.particle-thread-item-actions {
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 0.12s;
+  flex-shrink: 0;
+}
+.particle-thread-item:hover .particle-thread-item-actions,
+.particle-thread-item.active .particle-thread-item-actions {
+  opacity: 1;
+}
+.particle-thread-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  border: none;
+  background: transparent;
+  color: var(--text-faint, #666);
+  cursor: pointer;
+  transition: color 0.12s, background 0.12s;
+}
+.particle-thread-action:hover {
+  color: var(--text-primary, #e8e8e8);
+  background: rgba(255,255,255,0.08);
+}
+.particle-thread-action--danger:hover {
+  color: #f87171;
+  background: rgba(248,113,113,0.12);
+}
+.particle-thread-item-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: 9px;
+  color: var(--text-faint, #555);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.particle-thread-item-count {
+  color: var(--text-faint, #555);
+}
+.particle-thread-item-time {
+  color: var(--text-faint, #444);
+}
+
+/* Mobile: hide thread sidebar (would be in a drawer) */
+@media (max-width: 768px) {
+  .particle-threads { display: none; }
+  .particle-screen-wrap { flex-direction: column; }
+}

@@ -8,7 +8,7 @@
  */
 import { useState, useCallback, useRef, useEffect } from 'react';
 import ParticleLogo from '../ui/ParticleLogo';
-import useParticleAI from '../../hooks/useParticleAI';
+import { useParticleChat } from '../../context/ParticleChatContext';
 import { useAIChatWithContext } from '../../hooks/useAIChatWithContext';
 import './ParticleSidebar.css';
 
@@ -17,7 +17,7 @@ export default function ParticleSidebar({ collapsed, onToggle }) {
   const inputRef = useRef(null);
   const scrollRef = useRef(null);
 
-  const { messages, isStreaming, error, send, stop, clear } = useParticleAI();
+  const { messages, isStreaming, error, send, stop, clear } = useParticleChat();
   const { buildContextualMessage } = useAIChatWithContext();
 
   const handleSubmit = useCallback((e) => {
