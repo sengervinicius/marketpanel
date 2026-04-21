@@ -682,6 +682,61 @@ export default function App() {
         return;
       }
 
+      // P2.1 — bulk alert actions (no ticker, always hit /api/alerts/bulk/*).
+      // delete_all_alerts is irreversible so we gate it behind a confirm;
+      // pause / enable are reversible so they run on click.
+      if (type === 'delete_all_alerts') {
+        try {
+          const ok = (typeof window !== 'undefined' && window.confirm)
+            ? window.confirm('Delete ALL your alerts? This cannot be undone.')
+            : true;
+          if (!ok) return;
+          apiFetch('/api/alerts/bulk/delete-all', { method: 'POST' })
+            .then(r => r.ok ? r.json() : r.json().then(j => { throw new Error(j.message || 'Delete failed'); }))
+            .then(data => {
+              window.dispatchEvent(new CustomEvent('particle:toast', {
+                detail: { message: `Deleted ${data.deleted ?? 0} alert${(data.deleted ?? 0) === 1 ? '' : 's'}`, variant: 'success' },
+              }));
+              // Let alert-listening panels re-fetch.
+              window.dispatchEvent(new CustomEvent('particle:alerts-changed'));
+            })
+            .catch(err => {
+              window.dispatchEvent(new CustomEvent('particle:toast', {
+                detail: { message: err.message || 'Could not delete alerts', variant: 'error' },
+              }));
+            });
+        } catch (err) {
+          window.dispatchEvent(new CustomEvent('particle:toast', {
+            detail: { message: 'Could not delete alerts', variant: 'error' },
+          }));
+        }
+        return;
+      }
+      if (type === 'pause_alerts' || type === 'enable_alerts') {
+        const paused = type === 'pause_alerts';
+        const endpoint = paused ? '/api/alerts/bulk/pause' : '/api/alerts/bulk/enable';
+        apiFetch(endpoint, { method: 'POST' })
+          .then(r => r.ok ? r.json() : r.json().then(j => { throw new Error(j.message || 'Update failed'); }))
+          .then(data => {
+            const n = data.updated ?? 0;
+            const total = data.total ?? 0;
+            const verb = paused ? 'paused' : 'resumed';
+            const msg = n === 0
+              ? (total === 0 ? 'No alerts to update' : `Alerts already ${verb}`)
+              : `${n} alert${n === 1 ? '' : 's'} ${verb}`;
+            window.dispatchEvent(new CustomEvent('particle:toast', {
+              detail: { message: msg, variant: 'success' },
+            }));
+            window.dispatchEvent(new CustomEvent('particle:alerts-changed'));
+          })
+          .catch(err => {
+            window.dispatchEvent(new CustomEvent('particle:toast', {
+              detail: { message: err.message || `Could not ${paused ? 'pause' : 'resume'} alerts`, variant: 'error' },
+            }));
+          });
+        return;
+      }
+
       if (!ticker) return;
       switch (type) {
         case 'detail_open':

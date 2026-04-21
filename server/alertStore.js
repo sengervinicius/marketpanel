@@ -357,6 +357,80 @@ async function deleteUserAlerts(userId) {
   }
 }
 
+// ── Bulk actions (P2.1) ─────────────────────────────────────────────────────
+//
+// Used by the conversational [action:delete_all_alerts], [action:pause_alerts]
+// and [action:enable_alerts] bulk-action flow from Particle AI. Account
+// deletion uses deleteUserAlerts() instead — it's the same destructive
+// operation but we keep the names distinct so audit logs can tell them apart.
+
+/**
+ * Delete every alert owned by a user. Returns the count of alerts that
+ * existed before the delete (i.e. how many were removed). Callers should
+ * treat this as irreversible — the action tag that emits it is gated
+ * behind a client-side confirmation.
+ *
+ * @param {number} userId
+ * @returns {Promise<number>} number of alerts removed
+ */
+async function bulkDeleteAllAlerts(userId) {
+  const uid = Number(userId);
+  const map = alertsByUserId.get(uid);
+  const count = map ? map.size : 0;
+  alertsByUserId.delete(uid);
+  if (alertsCollection) {
+    try { await alertsCollection.deleteMany({ userId: uid }); }
+    catch (e) { /* Delete failed — in-memory state still wiped */ }
+  }
+  if (pg.isConnected()) {
+    try { await pg.query('DELETE FROM alerts WHERE user_id = $1', [uid]); }
+    catch (e) { /* Delete failed */ }
+  }
+  return count;
+}
+
+/**
+ * Flip active/status on every alert owned by a user. Used by both
+ * pause_alerts (active=false, status='muted') and enable_alerts
+ * (active=true, status='active'). Does not touch triggerContext /
+ * triggeredAt / snoozedUntil — a triggered alert that is resumed stays
+ * triggered until the user rearms it individually.
+ *
+ * Returns the number of alerts whose active flag actually changed.
+ *
+ * @param {number} userId
+ * @param {boolean} active — target active state
+ * @returns {Promise<{updated: number, total: number}>}
+ */
+async function bulkSetAlertsActive(userId, active) {
+  const uid = Number(userId);
+  const map = alertsByUserId.get(uid);
+  if (!map || map.size === 0) return { updated: 0, total: 0 };
+
+  const wantActive = !!active;
+  const now = new Date().toISOString();
+  let updated = 0;
+  const toPersist = [];
+
+  for (const alert of map.values()) {
+    // Only touch active/status — preserve snooze / trigger state.
+    const prevActive = !!alert.active;
+    if (prevActive === wantActive && alert.status === (wantActive ? 'active' : 'muted')) continue;
+    alert.active = wantActive;
+    alert.status = wantActive ? 'active' : 'muted';
+    alert.updatedAt = now;
+    updated += 1;
+    toPersist.push(alert);
+  }
+
+  // Best-effort persistence of the delta.
+  for (const alert of toPersist) {
+    await persistAlert(alert);
+  }
+
+  return { updated, total: map.size };
+}
+
 module.exports = {
   initAlertDB,
   listAlerts,
@@ -367,4 +441,7 @@ module.exports = {
   deleteAlert,
   deleteUserAlerts,
   markTriggered,
+  // P2.1 bulk actions
+  bulkDeleteAllAlerts,
+  bulkSetAlertsActive,
 };

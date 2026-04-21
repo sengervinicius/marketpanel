@@ -813,10 +813,14 @@ function renderInline(text) {
 /** AI-suggested terminal action button */
 function ActionButton({ type, params }) {
   const ACTIONS = {
-    watchlist_add: { label: '+ Watchlist', icon: '\u2605', color: 'var(--color-vault-accent)' },
-    alert_set:     { label: 'Set Alert',   icon: '\u26A0', color: 'var(--semantic-warn, #ff9800)' },
-    chart_open:    { label: 'Open Chart',  icon: '\u25CF', color: 'var(--accent, #F97316)' },
-    detail_open:   { label: 'Details',     icon: '\u2192', color: 'var(--accent, #F97316)' },
+    watchlist_add:     { label: '+ Watchlist',     icon: '\u2605', color: 'var(--color-vault-accent)' },
+    alert_set:         { label: 'Set Alert',       icon: '\u26A0', color: 'var(--semantic-warn, #ff9800)' },
+    chart_open:        { label: 'Open Chart',      icon: '\u25CF', color: 'var(--accent, #F97316)' },
+    detail_open:       { label: 'Details',         icon: '\u2192', color: 'var(--accent, #F97316)' },
+    // P2.1 — bulk alert actions the AI can suggest conversationally.
+    delete_all_alerts: { label: 'Delete All',      icon: '\u2716', color: 'var(--semantic-err, #e53935)' },
+    pause_alerts:      { label: 'Pause All',       icon: '\u23F8', color: 'var(--semantic-warn, #ff9800)' },
+    enable_alerts:     { label: 'Resume All',      icon: '\u25B6', color: 'var(--semantic-ok, #4caf50)' },
   };
   const action = ACTIONS[type] || { label: type, icon: '\u2022', color: 'var(--text-secondary)' };
   const ticker = params.split(':')[0] || '';

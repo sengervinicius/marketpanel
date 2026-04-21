@@ -2392,7 +2392,24 @@ ${ctx_.portfolioMetricsContext ? `\n${ctx_.portfolioMetricsContext}\n` : ''}${ct
           'impact and suggest the closest proxy rather than inventing a ' +
           'beta. Combine with get_yield_curve / get_brazil_macro / ' +
           'lookup_fx to paint the fuller picture — regime + scenario + ' +
-          'live readings together is the strongest answer.';
+          'live readings together is the strongest answer.\n' +
+          '16. ALERTS BULK — when the user asks to wipe / pause / resume ' +
+          'all their alerts at once ("delete all my alerts", "clear all ' +
+          'alerts", "apaga todos os meus alertas", "pause alerts for the ' +
+          'weekend", "mute my alerts", "silence everything", "re-enable my ' +
+          'alerts", "turn alerts back on"), end your reply with exactly ONE ' +
+          'of: [action:delete_all_alerts], [action:pause_alerts], ' +
+          '[action:enable_alerts]. The client renders a button and hits the ' +
+          'right /api/alerts/bulk/* endpoint on click — delete is ' +
+          'irreversible so the client will confirm first, pause/enable are ' +
+          'reversible so they run immediately. These are BULK actions: ' +
+          'never use them for "delete the AAPL alert" or "pause my gold ' +
+          'alert" — those are single-alert operations the user should do ' +
+          'from the alert itself. Never guess a user-specific alert count ' +
+          'when emitting the tag — just emit the tag and let the endpoint ' +
+          'report the real number back. If the user\'s intent is ambiguous ' +
+          '(e.g. "deal with my alerts"), ask before emitting delete — the ' +
+          'pause path is always the safer default.';
 
         await aiToolbox.runToolLoopStream(provider, routerMessages, toolAugmentedPrompt, res, {
           userId,

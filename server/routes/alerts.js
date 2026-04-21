@@ -20,6 +20,8 @@ const {
   createAlert,
   updateAlert,
   deleteAlert,
+  bulkDeleteAllAlerts,
+  bulkSetAlertsActive,
 } = require('../alertStore');
 
 // Prototype pollution keys to reject
@@ -411,6 +413,56 @@ router.post('/bulk-from-screener', async (req, res) => {
   } catch (e) {
     logger.error('POST /alerts/bulk-from-screener error:', e);
     sendApiError(res, 500, 'Failed to create bulk alerts');
+  }
+});
+
+// ── POST /api/alerts/bulk/delete-all ──────────────────────────────────────
+// P2.1 — One-shot bulk delete for every alert owned by the user. Paired
+// with the [action:delete_all_alerts] tag the AI emits when the user asks
+// "delete all my alerts" / "clear my alerts". The client confirms before
+// firing; this endpoint does not second-guess the user.
+router.post('/bulk/delete-all', async (req, res) => {
+  try {
+    const deleted = await bulkDeleteAllAlerts(req.user.id);
+    logger.info('Alerts bulk-deleted', { userId: req.user.id, count: deleted });
+    res.json({ ok: true, deleted });
+  } catch (e) {
+    logger.error('POST /alerts/bulk/delete-all error:', e);
+    sendApiError(res, 500, 'Failed to delete alerts');
+  }
+});
+
+// ── POST /api/alerts/bulk/pause ───────────────────────────────────────────
+// P2.1 — Pause every alert: active=false, status='muted'. Reversible via
+// /bulk/enable. Does not clear snooze or trigger context — an alert that
+// was already triggered stays triggered; resume only flips active+status.
+router.post('/bulk/pause', async (req, res) => {
+  try {
+    const r = await bulkSetAlertsActive(req.user.id, false);
+    logger.info('Alerts bulk-paused', {
+      userId: req.user.id, updated: r.updated, total: r.total,
+    });
+    res.json({ ok: true, updated: r.updated, total: r.total });
+  } catch (e) {
+    logger.error('POST /alerts/bulk/pause error:', e);
+    sendApiError(res, 500, 'Failed to pause alerts');
+  }
+});
+
+// ── POST /api/alerts/bulk/enable ──────────────────────────────────────────
+// P2.1 — Re-enable every alert: active=true, status='active'. Converse of
+// /bulk/pause. Triggered alerts stay triggered; the user must rearm those
+// individually (POST /api/alerts/:id/rearm).
+router.post('/bulk/enable', async (req, res) => {
+  try {
+    const r = await bulkSetAlertsActive(req.user.id, true);
+    logger.info('Alerts bulk-enabled', {
+      userId: req.user.id, updated: r.updated, total: r.total,
+    });
+    res.json({ ok: true, updated: r.updated, total: r.total });
+  } catch (e) {
+    logger.error('POST /alerts/bulk/enable error:', e);
+    sendApiError(res, 500, 'Failed to enable alerts');
   }
 });
 
