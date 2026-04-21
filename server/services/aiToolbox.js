@@ -271,6 +271,71 @@ const TOOLS = [
     },
   },
   {
+    name: 'list_cvm_filings',
+    description:
+      'List regulatory filings from CVM (Comissão de Valores Mobiliários, ' +
+      'the Brazilian SEC) for a B3-listed company. Covers all IPE ' +
+      '(Informações Periódicas e Eventuais) documents: Fatos Relevantes ' +
+      '(material facts), Comunicados ao Mercado (market notices), DFP ' +
+      '(annual financials), ITR (quarterly), atas de assembleia, avisos ' +
+      'aos acionistas. Use this for "did PETR4 file anything recently", ' +
+      '"últimos fatos relevantes da Vale", "Itaú CVM filings this month", ' +
+      '"what\'s the latest material event from Eletrobras", "show me VALE3 ' +
+      'DFPs". This is the Brazilian equivalent of EDGAR 8-K/10-K; do NOT ' +
+      'use EDGAR for B3-listed names (EDGAR only covers SEC filers / ADRs).',
+    input_schema: {
+      type: 'object',
+      properties: {
+        ticker: {
+          type: 'string',
+          description:
+            'B3 ticker (PETR4, VALE3, ITUB4, MGLU3). Accepts .SA suffix. ' +
+            'Top ~40 blue chips resolve instantly via a hard-coded CNPJ ' +
+            'map; for others pass `company` instead.',
+        },
+        company: {
+          type: 'string',
+          description:
+            'Company name substring as it appears on CVM (e.g. ' +
+            '"Petrobras", "Vale", "Itaúsa", "Oi S.A."). Use when the ' +
+            'ticker isn\'t in the alias table.',
+        },
+        cnpj: {
+          type: 'string',
+          description: 'CNPJ (digits only or formatted). Wins over ticker / company if provided.',
+        },
+        category: {
+          type: 'string',
+          description:
+            'CVM Categoria substring filter (e.g. "Fato Relevante", ' +
+            '"Comunicado", "DFP", "ITR"). Optional.',
+        },
+        type: {
+          type: 'string',
+          description: 'CVM Tipo substring filter (e.g. "Aviso aos Acionistas"). Optional.',
+        },
+        from: {
+          type: 'string',
+          description: 'ISO date (YYYY-MM-DD). Inclusive lower bound on Data_Entrega.',
+        },
+        to: {
+          type: 'string',
+          description: 'ISO date (YYYY-MM-DD). Inclusive upper bound on Data_Entrega.',
+        },
+        limit: {
+          type: 'number',
+          description: 'Max rows (1-100). Default 20.',
+        },
+        year: {
+          type: 'number',
+          description:
+            'IPE year to load. Defaults to the current year; the tool ' +
+            'auto-falls-back to previous year if the current-year CSV is empty.',
+        },
+      },
+    },
+  },
+  {
     name: 'get_brazil_macro',
     description:
       'Fetch a Brazilian macro time-series from the BCB SGS (Banco Central ' +
@@ -372,6 +437,7 @@ const providers = {
   commodities:        lazy('../providers/commoditiesProvider'),
   movers:             lazy('../providers/marketMoversProvider'),
   macroBr:            lazy('../providers/macroBrProvider'),
+  cvmFilings:         lazy('../providers/cvmFilingsProvider'),
 };
 const services = {
   earnings:           lazy('./earnings'),
@@ -612,6 +678,29 @@ async function handleListMarketMovers({ direction, limit, market }) {
   }
 }
 
+async function handleListCvmFilings(args) {
+  const mod = providers.cvmFilings();
+  if (!mod || typeof mod.getCvmFilings !== 'function') {
+    return { error: 'CVM filings adapter unavailable' };
+  }
+  try {
+    const res = await mod.getCvmFilings({
+      ticker:   args.ticker,
+      company:  args.company,
+      cnpj:     args.cnpj,
+      category: args.category,
+      type:     args.type,
+      from:     args.from,
+      to:       args.to,
+      limit:    Number(args.limit) || 20,
+      year:     args.year ? Number(args.year) : undefined,
+    });
+    return res || { error: 'no data' };
+  } catch (e) {
+    return { error: e.message };
+  }
+}
+
 async function handleGetBrazilMacro({ series, history, months }) {
   const mod = providers.macroBr();
   if (!mod || typeof mod.getBrazilMacro !== 'function') {
@@ -671,6 +760,7 @@ const HANDLERS = {
   lookup_commodity:          handleLookupCommodity,
   list_market_movers:        handleListMarketMovers,
   get_brazil_macro:          handleGetBrazilMacro,
+  list_cvm_filings:          handleListCvmFilings,
 };
 
 /**

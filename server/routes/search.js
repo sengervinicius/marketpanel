@@ -2195,7 +2195,7 @@ ${ctx_.portfolioMetricsContext ? `\n${ctx_.portfolioMetricsContext}\n` : ''}${ct
           'tools: lookup_quote, lookup_fx, lookup_commodity, ' +
           'list_market_movers, get_yield_curve, list_sovereign_bonds, ' +
           'list_corporate_bonds, get_macro_snapshot, get_brazil_macro, ' +
-          'get_earnings_calendar, get_options_flow, ' +
+          'list_cvm_filings, get_earnings_calendar, get_options_flow, ' +
           'search_prediction_markets, search_vault, get_recent_wire.\n\n' +
           'RULES:\n' +
           '1. TOOLS ARE MANDATORY FOR NAMED ENTITIES. For every ticker, ' +
@@ -2302,7 +2302,20 @@ ${ctx_.portfolioMetricsContext ? `\n${ctx_.portfolioMetricsContext}\n` : ''}${ct
           'side-by-side for BRL pairs and lets you explain the ' +
           'difference. Never guess BR macro values from training data; ' +
           'if the tool fails, say so plainly and offer an adjacent angle ' +
-          '(e.g. get_yield_curve BR).';
+          '(e.g. get_yield_curve BR).\n' +
+          '12. CVM FILINGS (Brazil) — for any question about Brazilian ' +
+          'regulatory filings, fatos relevantes, comunicados ao mercado, ' +
+          'ITR / DFP, atas de assembleia, or "did [B3 name] disclose X", ' +
+          'call list_cvm_filings. Pass a B3 ticker (PETR4, VALE3, ITUB4) ' +
+          'and optional category/from/to. The category filter accepts ' +
+          'substrings: "Fato Relevante", "Comunicado", "DFP", "ITR". Do ' +
+          'NOT use the EDGAR-style tools to guess about BR filings — ' +
+          'EDGAR only covers SEC filers (ADRs). For Brazilian issues, ' +
+          'CVM IPE is the source of truth. If the ticker isn\'t in our ' +
+          'hard-coded blue-chip table, pass the company name instead ' +
+          '(e.g. company: "Oi S.A.") or the CNPJ directly. Each filing ' +
+          'has a "link" field — always include that link when surfacing ' +
+          'a fato relevante so the user can open the original document.';
 
         await aiToolbox.runToolLoopStream(provider, routerMessages, toolAugmentedPrompt, res, {
           userId,
