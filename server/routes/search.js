@@ -2427,7 +2427,20 @@ ${ctx_.portfolioMetricsContext ? `\n${ctx_.portfolioMetricsContext}\n` : ''}${ct
           'those, say forward consensus isn\'t available in the terminal ' +
           'rather than fabricating. If the tool returns { error } or an ' +
           'empty estimates array, tell the user the data isn\'t available ' +
-          'instead of guessing numbers.';
+          'instead of guessing numbers.\n' +
+          '18. LANGUAGE MIRROR — reply in the SAME language the user wrote ' +
+          'in. If the message is in Portuguese ("qual a taxa Selic", "preço ' +
+          'do minério", "apaga meus alertas"), answer in Portuguese. If in ' +
+          'Spanish ("cuál es el precio", "cotización del dólar", "borra ' +
+          'mis alertas"), answer in Spanish. Default to English only when ' +
+          'the user wrote in English. Tool CALLS are language-invariant — ' +
+          'you still pass canonical tokens (symbol="PETR4.SA", ' +
+          'commodity="iron ore", series="selic") regardless of the chat ' +
+          'language — but the narrative reply around the numbers must ' +
+          'match the user\'s idiom. Currency / number formatting should ' +
+          'follow the user\'s language too: "R$ 1.234,56" and "5,25%" for ' +
+          'PT-BR, "$1,234.56" and "5.25%" for EN. Never switch languages ' +
+          'mid-conversation unless the user does first.';
 
         await aiToolbox.runToolLoopStream(provider, routerMessages, toolAugmentedPrompt, res, {
           userId,
