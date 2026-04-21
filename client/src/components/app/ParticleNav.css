@@ -1165,6 +1165,65 @@
   font-weight: 400;
 }
 
+/* ─── Tool-use pills (P2.6 error transparency) ──────── */
+/* One pill per internal tool the AI invoked during the turn. The pill
+   communicates both "the AI did reach for real data" AND "this one
+   failed" so the user isn't left guessing why a sector answer feels
+   thin — they can see `forward_estimates · failed: no FMP key` and
+   understand the degradation. Success pills are low-contrast; failure
+   pills are amber to pull the eye without being alarming. */
+.particle-tool-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.particle-tool-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  font-size: 10.5px;
+  font-weight: 500;
+  border-radius: 4px;
+  cursor: default;
+  line-height: 1.5;
+  max-width: 100%;
+}
+
+.particle-tool-pill--ok {
+  color: rgba(130, 195, 140, 0.9);
+  background: rgba(80, 170, 100, 0.08);
+  border: 1px solid rgba(80, 170, 100, 0.22);
+}
+
+.particle-tool-pill--err {
+  color: rgba(232, 160, 80, 0.95);
+  background: rgba(232, 140, 60, 0.10);
+  border: 1px solid rgba(232, 140, 60, 0.30);
+}
+
+.particle-tool-pill-icon {
+  font-size: 10px;
+  opacity: 0.9;
+}
+
+.particle-tool-pill-name {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-weight: 500;
+}
+
+.particle-tool-pill-error,
+.particle-tool-pill-note {
+  font-weight: 400;
+  opacity: 0.85;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 240px;
+}
+
 /* ─── Web Citation Links (Perplexity sources) ──────── */
 
 .particle-web-citations {

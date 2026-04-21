@@ -1060,6 +1060,13 @@ async function runToolLoop(provider, initialMessages, systemPrompt, ctx = {}) {
   let totalIn = 0;
   let totalOut = 0;
   let finalText = '';
+  // P2.6 — optional per-tool status callback. When the caller wires one
+  // (runToolLoopStream does), we emit an event for every tool dispatch so
+  // the client tool-pill can render "✓ name · 120ms" for successes and
+  // "⚠ name · failed: <reason>" for failures. The callback is invoked
+  // defensively — any throw inside it is swallowed so a UI hiccup never
+  // blows up the model loop.
+  const onToolEvent = typeof ctx.onToolEvent === 'function' ? ctx.onToolEvent : null;
   // tokenCapHit is set when the per-request ceiling is reached between
   // rounds. It switches the closing synthesis into "budget exhausted" mode
   // so the model stops trying to call tools and just answers from what it
@@ -1110,9 +1117,33 @@ async function runToolLoop(provider, initialMessages, systemPrompt, ctx = {}) {
 
     // Execute all tool_uses in parallel, then reply as a single user turn
     // with the tool_result blocks. Cap per-round to protect the budget.
+    //
+    // P2.6 — as each dispatch resolves we fire onToolEvent so the tool pill
+    // can paint a "✓ name" or "⚠ name · failed: <reason>" badge BEFORE the
+    // model finishes synthesising. dispatchTool never throws — it wraps
+    // handler errors in `{ error }` — so we just read `.error` to classify
+    // success vs. failure. We also surface `{ truncated: true }` as a
+    // successful-but-noteworthy event so the UI can hint that the payload
+    // was capped.
     const limited = toolUses.slice(0, MAX_TOOLS_PER_ROUND);
     const results = await Promise.all(limited.map(async (tu) => {
+      const t0 = Date.now();
       const out = await dispatchTool(tu.name, tu.input || {}, ctx);
+      const durationMs = Date.now() - t0;
+      const errorMsg = (out && typeof out === 'object' && typeof out.error === 'string')
+        ? out.error
+        : null;
+      if (onToolEvent) {
+        try {
+          onToolEvent({
+            name: tu.name,
+            ok: !errorMsg,
+            error: errorMsg,
+            durationMs,
+            truncated: !!(out && out.truncated),
+          });
+        } catch (_) { /* never let the UI wiring break the loop */ }
+      }
       let serialised;
       try { serialised = JSON.stringify(out); }
       catch (_) { serialised = '{"error":"non-serialisable tool result"}'; }
@@ -1193,8 +1224,18 @@ async function runToolLoopStream(provider, initialMessages, systemPrompt, res, {
 
   let fullText = '';
   let rounds = 0;
+  // P2.6 — forward per-tool status events as SSE frames so the client can
+  // update its tool-pill component in real time. Emitting inline means a
+  // failing FMP call shows up as "⚠ forward_estimates · failed: no key"
+  // the moment dispatchTool resolves, not after the final synthesis.
+  const onToolEvent = (evt) => {
+    if (res.writableEnded) return;
+    try {
+      res.write(`data: ${JSON.stringify({ toolEvent: evt })}\n\n`);
+    } catch (_) { /* fire-and-forget — never break the stream on a pill write */ }
+  };
   try {
-    const out = await runToolLoop(provider, initialMessages, systemPrompt, { userId });
+    const out = await runToolLoop(provider, initialMessages, systemPrompt, { userId, onToolEvent });
     fullText = out.finalText || '';
     rounds = out.rounds;
 

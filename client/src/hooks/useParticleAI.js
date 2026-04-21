@@ -109,6 +109,12 @@ export default function useParticleAI() {
       let vaultSources = null;
       let webCitations = null; // Perplexity web citations (URLs)
       let structuredAnalysis = null; // Deep analysis JSON structure
+      // P2.6 — per-tool status badges streamed from the tool-use loop.
+      // Each entry is `{ name, ok, error, durationMs, truncated }` — the
+      // UI renders a pill per entry so the user sees "forward_estimates
+      // failed: FMP unavailable" instead of silently getting a degraded
+      // answer with no hint why.
+      let toolEvents = [];
 
       while (true) {
         const { done, value } = await reader.read();
@@ -183,6 +189,21 @@ export default function useParticleAI() {
               });
               continue;
             }
+            // P2.6 — per-tool status pill update. Append to the running
+            // list and re-attach to the current assistant message so the
+            // pill paints the instant the dispatch resolves on the server.
+            if (parsed.toolEvent && typeof parsed.toolEvent === 'object' && parsed.toolEvent.name) {
+              toolEvents = [...toolEvents, parsed.toolEvent];
+              setMessages(prev => {
+                const updated = [...prev];
+                const last = updated[updated.length - 1];
+                if (last?.role === 'assistant') {
+                  updated[updated.length - 1] = { ...last, toolEvents };
+                }
+                return updated;
+              });
+              continue;
+            }
             // Capture web citations from Perplexity (sent as they arrive)
             if (parsed.citations && Array.isArray(parsed.citations)) {
               webCitations = parsed.citations;
@@ -227,6 +248,9 @@ export default function useParticleAI() {
             vaultSources: vaultSources || last.vaultSources,
             webCitations: webCitations || null,
             structuredAnalysis: structuredAnalysis || last.structuredAnalysis,
+            // P2.6 — keep the collected tool status pills on the finalised
+            // message so they persist in the conversation log.
+            toolEvents: toolEvents.length ? toolEvents : (last.toolEvents || []),
           };
         }
         return updated;

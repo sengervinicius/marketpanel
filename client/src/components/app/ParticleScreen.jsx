@@ -581,6 +581,37 @@ export default function ParticleScreen() {
                       )}
                     </>
                   )}
+                  {/* P2.6 — tool-pill strip. Shows which internal tools
+                       the AI called, with green check for successes and a
+                       caution badge when a tool returned `{ error }`.
+                       Rendered while streaming too so the user can see
+                       progress (e.g. "lookup_quote ok, forward_estimates
+                       failed") before the final text lands. */}
+                  {msg.role === 'assistant' && Array.isArray(msg.toolEvents) && msg.toolEvents.length > 0 && (
+                    <div className="particle-tool-pills" role="list" aria-label="Tools used">
+                      {msg.toolEvents.map((ev, ti) => {
+                        const ok = ev && ev.ok !== false;
+                        const className = `particle-tool-pill particle-tool-pill--${ok ? 'ok' : 'err'}`;
+                        const title = ok
+                          ? `${ev.name}${typeof ev.durationMs === 'number' ? ` · ${ev.durationMs}ms` : ''}${ev.truncated ? ' · payload truncated' : ''}`
+                          : `${ev.name}${ev.error ? ` failed: ${ev.error}` : ' failed'}`;
+                        return (
+                          <span key={ti} className={className} role="listitem" title={title}>
+                            <span className="particle-tool-pill-icon" aria-hidden="true">
+                              {ok ? '✓' : '⚠'}
+                            </span>
+                            <span className="particle-tool-pill-name">{ev.name}</span>
+                            {!ok && ev.error && (
+                              <span className="particle-tool-pill-error"> · {ev.error}</span>
+                            )}
+                            {ok && ev.truncated && (
+                              <span className="particle-tool-pill-note"> · truncated</span>
+                            )}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  )}
                   {/* Vault citation badges — deduplicated by source name */}
                   {msg.role === 'assistant' && msg.vaultSources && msg.vaultSources.length > 0 && !msg.streaming && (() => {
                     // Deduplicate: group by display name, merge tickers, keep best similarity
