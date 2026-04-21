@@ -293,32 +293,49 @@ async function getYieldCurve(country = 'US') {
 }
 
 /**
- * Get corporate bonds list, optionally filtered by rating/sector.
- * @param {object} opts  { rating, sector, currency, limit }
+ * Get corporate bonds list, optionally filtered.
+ *
+ * Forwards every filter Eulerpool may accept. Previously only
+ * {rating, sector, currency, limit} were forwarded, so callers that passed
+ * `region`, `ratingMax`, or maturity windows got silently-unfiltered
+ * results — which for most queries reads the same as no coverage.
+ *
+ * Throws on HTTP errors (rather than swallowing them to an empty array)
+ * so callers can distinguish "adapter failed — tell user" from
+ * "empty result for this filter".
+ *
+ * @param {object} opts  { rating, ratingMax, sector, currency, region,
+ *                         maturityBefore, maturityAfter, limit }
  */
 async function getCorpBonds(opts = {}) {
-  const { rating, sector, currency, limit = 50 } = opts;
+  const {
+    rating, ratingMax, sector, currency, region,
+    maturityBefore, maturityAfter, limit = 50,
+  } = opts;
   const params = { limit };
-  if (rating) params.rating = rating;
-  if (sector) params.sector = sector;
-  if (currency) params.currency = currency;
+  if (rating)         params.rating = rating;
+  if (ratingMax)      params.ratingMax = ratingMax;
+  if (sector)         params.sector = sector;
+  if (currency)       params.currency = currency;
+  if (region)         params.region = region;
+  if (maturityBefore) params.maturityBefore = maturityBefore;
+  if (maturityAfter)  params.maturityAfter = maturityAfter;
   const ck = `corpBonds:${JSON.stringify(params)}`;
   const cached = cacheGet(ck);
   if (cached) return cached;
 
-  try {
-    const raw = await eulerFetch('/bonds/corporate', params);
-    const result = raw?.data ?? raw?.bonds ?? (Array.isArray(raw) ? raw : []);
-    cacheSet(ck, result, TTL.bonds);
-    return result;
-  } catch (e) {
-    console.warn('[Eulerpool] getCorpBonds failed:', e.message);
-    return [];
-  }
+  // Intentionally re-throw — upstream bond handlers return a structured
+  // error to the AI so the model can tell the user "Eulerpool returned
+  // 404 for this endpoint" rather than silently saying "no data".
+  const raw = await eulerFetch('/bonds/corporate', params);
+  const result = raw?.data ?? raw?.bonds ?? (Array.isArray(raw) ? raw : []);
+  cacheSet(ck, result, TTL.bonds);
+  return result;
 }
 
 /**
  * Get sovereign bonds for a country.
+ * Throws on HTTP errors for the same reason as getCorpBonds.
  * @param {string} country  ISO 2-letter code
  */
 async function getSovereignBonds(country = 'US') {
@@ -326,15 +343,10 @@ async function getSovereignBonds(country = 'US') {
   const cached = cacheGet(ck);
   if (cached) return cached;
 
-  try {
-    const raw = await eulerFetch(`/bonds/sovereign`, { country });
-    const result = raw?.data ?? raw?.bonds ?? (Array.isArray(raw) ? raw : []);
-    cacheSet(ck, result, TTL.bonds);
-    return result;
-  } catch (e) {
-    console.warn(`[Eulerpool] getSovereignBonds(${country}) failed:`, e.message);
-    return [];
-  }
+  const raw = await eulerFetch(`/bonds/sovereign`, { country });
+  const result = raw?.data ?? raw?.bonds ?? (Array.isArray(raw) ? raw : []);
+  cacheSet(ck, result, TTL.bonds);
+  return result;
 }
 
 /**

@@ -235,44 +235,35 @@ async function getYieldCurve(countryCode) {
 
 /**
  * Get corporate bonds, optionally filtered.
+ *
+ * No fallback provider for individual corporate issues — if Eulerpool isn't
+ * configured we return [] (the adapter tells callers "no coverage"), but if
+ * Eulerpool *is* configured and throws an HTTP error we propagate so the
+ * caller can distinguish "no rows for these filters" from "feed broken".
+ * Silent-catching here was actively harmful: the AI saw count=0 and confidently
+ * told the user "there are no European corporate bonds" while the real story
+ * was an HTTP 4xx upstream.
  */
 async function getCorpBonds(opts = {}) {
-  if (euler.isConfigured()) {
-    try {
-      return await euler.getCorpBonds(opts);
-    } catch (e) {
-      console.warn('[bondsProvider] Eulerpool corp bonds failed:', e.message);
-    }
-  }
-  return [];
+  if (!euler.isConfigured()) return [];
+  return euler.getCorpBonds(opts);
 }
 
 /**
- * Get detailed bond info by ISIN.
+ * Get detailed bond info by ISIN. Same reasoning as getCorpBonds —
+ * propagate upstream errors, no silent swallow.
  */
 async function getBondDetail(isin) {
-  if (euler.isConfigured()) {
-    try {
-      return await euler.getBondDetail(isin);
-    } catch (e) {
-      console.warn(`[bondsProvider] Eulerpool bond detail failed for ${isin}:`, e.message);
-    }
-  }
-  return null;
+  if (!euler.isConfigured()) return null;
+  return euler.getBondDetail(isin);
 }
 
 /**
- * Get sovereign bonds for a country.
+ * Get sovereign bonds for a country. Same reasoning — propagate errors.
  */
 async function getSovereignBonds(countryCode) {
-  if (euler.isConfigured()) {
-    try {
-      return await euler.getSovereignBonds(countryCode);
-    } catch (e) {
-      console.warn(`[bondsProvider] Eulerpool sovereign failed for ${countryCode}:`, e.message);
-    }
-  }
-  return [];
+  if (!euler.isConfigured()) return [];
+  return euler.getSovereignBonds(countryCode);
 }
 
 module.exports = { getYield, getYieldCurve, getCorpBonds, getBondDetail, getSovereignBonds };

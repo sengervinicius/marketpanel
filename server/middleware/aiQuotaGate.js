@@ -18,6 +18,8 @@
 
 const { getTier, isUnlimited } = require('../config/tiers');
 const { getDailyTokens, readKillSwitch } = require('../services/aiCostLedger');
+const { isAdminUser } = require('../authMiddleware');
+const { getUserById } = require('../authStore');
 
 async function aiQuotaGate(req, res, next) {
   const userId = req.user?.id;
@@ -26,10 +28,25 @@ async function aiQuotaGate(req, res, next) {
     return next();
   }
 
+  // Admin bypass — founders/operators should never be capped by the product
+  // quota. The old `req.user.roles.includes('admin')` check below was dead
+  // code because our JWT doesn't carry roles; we use ADMIN_USER_IDS /
+  // ADMIN_EMAILS instead. Use the canonical predicate.
+  const storeUser = getUserById(userId) || null;
+  const adminCheck = isAdminUser({
+    id: userId,
+    email: storeUser?.email || null,
+    username: req.user?.username || null,
+  });
+  const isAdmin = adminCheck.ok;
+  if (isAdmin) {
+    res.setHeader('X-AI-Token-Limit', 'admin-bypass');
+    return next();
+  }
+
   // Org-wide block? Admins bypass for incident response.
   try {
     const ks = await readKillSwitch();
-    const isAdmin = Array.isArray(req.user?.roles) && req.user.roles.includes('admin');
     if (ks.blockAllAI && !isAdmin) {
       return res.status(503).json({
         ok: false,

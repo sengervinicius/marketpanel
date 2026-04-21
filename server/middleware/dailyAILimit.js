@@ -13,6 +13,8 @@
 'use strict';
 
 const { getTier, isUnlimited } = require('../config/tiers');
+const { isAdminUser } = require('../authMiddleware');
+const { getUserById } = require('../authStore');
 
 // Map<userId, { count: number, resetAt: number }>
 const _usage = new Map();
@@ -79,6 +81,19 @@ function dailyAILimit(req, res, next) {
   const userId = req.user?.id;
   if (!userId) {
     // If auth middleware hasn't run, skip (shouldn't happen in practice)
+    return next();
+  }
+
+  // Admin bypass — same reasoning as aiQuotaGate. Founders/operators must
+  // not hit the product-facing query counter while dog-fooding.
+  const storeUser = getUserById(userId) || null;
+  const adminCheck = isAdminUser({
+    id: userId,
+    email: storeUser?.email || null,
+    username: req.user?.username || null,
+  });
+  if (adminCheck.ok) {
+    res.setHeader('X-AI-Queries-Limit', 'admin-bypass');
     return next();
   }
 
