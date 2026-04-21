@@ -25,6 +25,7 @@ const logger = require('../utils/logger');
 const memoryManager = require('../services/memoryManager');
 const conversationMemory = require('../services/conversationMemory');
 const aiChatStore = require('../services/aiChatStore'); // P5: DB-backed chat history
+const aiToolbox = require('../services/aiToolbox'); // s3: LLM tool-use over internal adapters
 
 const PERPLEXITY_URL = 'https://api.perplexity.ai/chat/completions';
 const MODEL          = 'sonar-pro';
@@ -2163,21 +2164,56 @@ ${ctx_.portfolioMetricsContext ? `\n${ctx_.portfolioMetricsContext}\n` : ''}${ct
   } else {
     // Standard streaming response (non-deep-analysis)
     try {
-      await modelRouter.streamResponse(provider, routerMessages, systemPrompt, res, {
-        onAbort: (abortFn) => { req.on('close', abortFn); },
-        userId,
-        // P5: persist full assistant reply once streaming finishes so the
-        // sidebar shows the complete turn. W1.3 guardAndLog is applied
-        // here for consistency with the deep-analysis branch.
-        onComplete: (fullText) => {
-          if (!userId || !convoId || !fullText) return;
-          let safe = fullText;
-          try { safe = guardAndLog(fullText, { userId, model: provider.model }); } catch (_) {}
-          aiChatStore.appendMessage(userId, convoId, 'assistant', safe).catch((e) => {
-            logger.warn('search', 'aiChatStore assistant turn failed (stream)', { error: e.message });
-          });
-        },
-      });
+      // s3: When the selected provider is Claude we route through the
+      // tool-use agent loop. This lets the model reach every internal
+      // adapter we have (quotes, curves, bonds, macro, earnings, options,
+      // predictions, vault, wire) instead of being limited to the fixed
+      // context bundle pre-fetched above. Perplexity does not support our
+      // tool schema, so web-lookup intents still run through the plain
+      // streamResponse path.
+      const useToolLoop = aiToolbox.providerSupportsTools(provider);
+
+      // The same onComplete hook persists the assistant turn to the
+      // sidebar for both paths. W1.3 guardAndLog is applied in both.
+      const persistAssistantTurn = (fullText) => {
+        if (!userId || !convoId || !fullText) return;
+        let safe = fullText;
+        try { safe = guardAndLog(fullText, { userId, model: provider.model }); } catch (_) {}
+        aiChatStore.appendMessage(userId, convoId, 'assistant', safe).catch((e) => {
+          logger.warn('search', 'aiChatStore assistant turn failed (stream)', { error: e.message });
+        });
+      };
+
+      if (useToolLoop) {
+        // Layer a brief tool-use directive onto the existing system prompt
+        // so the model knows it has real adapters to call rather than
+        // deflecting to Bloomberg/Refinitiv when the pre-fetched context
+        // doesn't cover the question.
+        const toolAugmentedPrompt = systemPrompt +
+          '\n\n[TERMINAL TOOLS] You have direct access to the terminal\'s live ' +
+          'adapters via tools: quotes, yield curves, sovereign and corporate ' +
+          'bonds, macro snapshots, earnings calendar, options flow, prediction ' +
+          'markets, the user\'s Vault, and the recent market wire. USE THESE ' +
+          'TOOLS whenever the pre-fetched context does not contain what the ' +
+          'user is asking about. Do NOT tell the user to check Bloomberg, ' +
+          'Refinitiv, or any external source — if our tools can\'t answer, ' +
+          'call the tool, observe the error, and say so plainly. Prefer ' +
+          'concrete data over caveats.';
+
+        await aiToolbox.runToolLoopStream(provider, routerMessages, toolAugmentedPrompt, res, {
+          userId,
+          onComplete: persistAssistantTurn,
+        });
+      } else {
+        await modelRouter.streamResponse(provider, routerMessages, systemPrompt, res, {
+          onAbort: (abortFn) => { req.on('close', abortFn); },
+          userId,
+          // P5: persist full assistant reply once streaming finishes so the
+          // sidebar shows the complete turn. W1.3 guardAndLog is applied
+          // here for consistency with the deep-analysis branch.
+          onComplete: persistAssistantTurn,
+        });
+      }
 
       // ── Fire-and-forget: Update session memory (non-blocking) ──
       // Note: We can't capture the full response here since it's streamed directly.
