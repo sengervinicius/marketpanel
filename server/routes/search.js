@@ -26,6 +26,7 @@ const memoryManager = require('../services/memoryManager');
 const conversationMemory = require('../services/conversationMemory');
 const aiChatStore = require('../services/aiChatStore'); // P5: DB-backed chat history
 const aiToolbox = require('../services/aiToolbox'); // s3: LLM tool-use over internal adapters
+const sessionSummarizer = require('../services/sessionSummarizer'); // P2.5: deeper session memory
 
 const PERPLEXITY_URL = 'https://api.perplexity.ai/chat/completions';
 const MODEL          = 'sonar-pro';
@@ -1639,9 +1640,16 @@ router.post('/chat', aiChatKillSwitch, perMinuteLimit, dailyAILimit, aiQuotaGate
     return res.status(400).json({ error: 'messages[] is required' });
   }
 
-  // Limit conversation history and validate
-  const MAX_MSG_CHARS = 3000;
-  const history = messages.slice(-20)
+  // Limit conversation history and validate.
+  //
+  // P2.5 — the old ceiling was 20 turns × 3000 chars ≈ 12K tokens, which
+  // fell off a cliff on long thematic threads ("as I said earlier about
+  // the Brazil thesis…" — model had forgotten the thesis). We now carry
+  // up to 40 turns × 4500 chars (~20K tokens) and rely on the
+  // sessionSummarizer below to keep the prompt inside a sane budget by
+  // compressing the older portion into a synopsis when needed.
+  const MAX_MSG_CHARS = 4500;
+  const history = messages.slice(-40)
     // Filter out null/undefined/empty content
     .filter(m => m && m.role && typeof m.content === 'string' && m.content.trim().length > 0)
     // Truncate individual messages that are excessively long
@@ -2028,8 +2036,36 @@ ${ctx_.portfolioMetricsContext ? `\n${ctx_.portfolioMetricsContext}\n` : ''}${ct
     logger.info('chat', 'Context summary', { model: provider.model, marketCtxLen: marketContext.length, vaultPassages: vaultSources.length, hasEdgar: edgarContext.length > 0, hasEarnings: earningsContext.length > 0, hasOptions: unusualWhalesContext.length > 0, hasNews: newsContext.length > 0, completeness: completeness.score });
   }
 
-  // Prepare messages for router
-  const routerMessages = history.map(m => ({ role: m.role, content: m.content }));
+  // Prepare messages for router.
+  //
+  // P2.5: before we ship the history upstream, run the session
+  // summariser. If the conversation is short enough, this passes through
+  // untouched. If it's long, older turns are compressed into a synopsis
+  // chunk prepended with an [EARLIER IN THIS THREAD] marker so the
+  // model can still reason about the full arc of the conversation
+  // without blowing the context budget. Haiku is the summariser; if
+  // it's unavailable or times out the summariser falls back silently
+  // to deterministic truncation.
+  let routerMessages = history.map(m => ({ role: m.role, content: m.content }));
+  try {
+    const summariseFn = sessionSummarizer.buildHaikuSummariser({ fetch });
+    const prepared = await sessionSummarizer.prepareConversationHistory(
+      routerMessages,
+      { summariseFn },
+    );
+    if (prepared.summarised) {
+      logger.info('chat', 'History summarised for long session', {
+        compressedTurns: prepared.olderTurnsCompressed,
+        tailTurns: prepared.messages.length - 1,
+      });
+    }
+    routerMessages = prepared.messages;
+  } catch (e) {
+    // Defensive: any failure in the summariser falls back to the raw
+    // (but already length-bounded) history — we never block a chat
+    // because summarisation blew up.
+    logger.warn('chat', 'sessionSummarizer failed, using raw history', { error: e.message });
+  }
 
   // Phase 2: Send context metadata before AI stream — lets client show source badges
   if (!res.headersSent && (convoId || vaultSources.length > 0 || completeness.score > 0)) {
