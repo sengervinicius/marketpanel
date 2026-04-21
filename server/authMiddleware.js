@@ -106,12 +106,14 @@ async function requireActiveSubscription(req, res, next) {
  * isAdminUser(user) — pure predicate, shared by requireAdmin and the
  * `/api/auth/me/admin-status` diagnostic endpoint.
  *
- * Two env vars, either is sufficient:
+ * Three env vars, any is sufficient:
  *   ADMIN_USER_IDS="1,2"                          — legacy, brittle
  *     across environments (user IDs depend on registration order).
- *   ADMIN_EMAILS="founder@the-particle.com,…"     — preferred, durable.
+ *   ADMIN_EMAILS="founder@the-particle.com,…"     — preferred for new accounts.
+ *   ADMIN_USERNAMES="vsenger,…"                   — durable for legacy
+ *     accounts that pre-date email capture on signup.
  *
- * Falls back to `'1,2'` when both are unset so a fresh dev install has
+ * Falls back to `'1,2'` when ALL THREE are unset so a fresh dev install has
  * a working founder out of the box.
  *
  * @param {{id?: number, email?: string|null, username?: string|null}} user
@@ -122,11 +124,12 @@ function isAdminUser(user) {
 
   const idsRaw = (process.env.ADMIN_USER_IDS ?? '').trim();
   const emailsRaw = (process.env.ADMIN_EMAILS ?? '').trim();
+  const usernamesRaw = (process.env.ADMIN_USERNAMES ?? '').trim();
 
-  // Fall back to '1,2' only when BOTH env vars are unset — otherwise a
-  // deployment that explicitly sets ADMIN_EMAILS would silently grant
-  // admin to whoever happens to be user 1/2 on that shard.
-  const noneSet = idsRaw === '' && emailsRaw === '';
+  // Fall back to '1,2' only when ALL env vars are unset — otherwise a
+  // deployment that explicitly sets ADMIN_EMAILS/ADMIN_USERNAMES would
+  // silently grant admin to whoever happens to be user 1/2 on that shard.
+  const noneSet = idsRaw === '' && emailsRaw === '' && usernamesRaw === '';
   const adminIds = (noneSet ? '1,2' : idsRaw)
     .split(',')
     .map(s => parseInt(s.trim(), 10))
@@ -144,6 +147,17 @@ function isAdminUser(user) {
       .filter(Boolean);
     if (adminEmails.includes(userEmail)) {
       return { ok: true, reason: 'by_email' };
+    }
+  }
+
+  if (user.username && usernamesRaw) {
+    const userUsername = String(user.username).toLowerCase().trim();
+    const adminUsernames = usernamesRaw
+      .split(',')
+      .map(s => s.toLowerCase().trim())
+      .filter(Boolean);
+    if (adminUsernames.includes(userUsername)) {
+      return { ok: true, reason: 'by_username' };
     }
   }
 
