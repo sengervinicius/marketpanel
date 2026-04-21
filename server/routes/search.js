@@ -2197,7 +2197,7 @@ ${ctx_.portfolioMetricsContext ? `\n${ctx_.portfolioMetricsContext}\n` : ''}${ct
           'list_corporate_bonds, get_macro_snapshot, get_brazil_macro, ' +
           'list_cvm_filings, get_earnings_calendar, get_options_flow, ' +
           'search_prediction_markets, search_vault, get_recent_wire, ' +
-          'describe_portfolio_import.\n\n' +
+          'describe_portfolio_import, get_market_regime, run_scenario.\n\n' +
           'RULES:\n' +
           '1. TOOLS ARE MANDATORY FOR NAMED ENTITIES. For every ticker, ' +
           'company, bond issuer, or country the user mentions, you MUST ' +
@@ -2371,7 +2371,28 @@ ${ctx_.portfolioMetricsContext ? `\n${ctx_.portfolioMetricsContext}\n` : ''}${ct
           'and the CSV / XLSX path is the supported route. If the user ' +
           'names their broker ("XP", "Itaú", "Clear", "Interactive ' +
           'Brokers"), acknowledge the broker but still direct them to ' +
-          'the CSV export from the broker\'s own interface.';
+          'the CSV export from the broker\'s own interface.\n' +
+          '15. REGIME & SCENARIOS — for "what regime are we in", "risk-on ' +
+          'or risk-off", "late-cycle or not", "stagflation / soft-landing" ' +
+          'questions, call get_market_regime. For "what happens if the ' +
+          'Fed hikes 100 bps", "how does PETR4 react to +20% oil", "if ' +
+          'the dollar strengthens 10% what breaks", "scenario-test a ' +
+          '-10% SPX move" questions, call run_scenario with the right ' +
+          'shock + magnitude (and optionally symbol). Valid shocks: ' +
+          'rates_up, rates_down, usd_up, usd_down, oil_up, oil_down, ' +
+          'equity_down, credit_widen. Magnitude is bps for rates/credit, ' +
+          '% for usd/oil/equity, always positive. Both tools return a ' +
+          'methodology_note — you MUST relay it: the regime classifier ' +
+          'is rules-based (not a prediction) and scenario sensitivities ' +
+          'are hand-calibrated from historical factor regressions (not a ' +
+          'live regression, no convexity). Frame outputs as "rough ' +
+          'first-order estimates" and caveat that real betas are ' +
+          'time-varying. When a scenario question references a specific ' +
+          'ticker not in our sector map, relay the factor-portfolio ' +
+          'impact and suggest the closest proxy rather than inventing a ' +
+          'beta. Combine with get_yield_curve / get_brazil_macro / ' +
+          'lookup_fx to paint the fuller picture — regime + scenario + ' +
+          'live readings together is the strongest answer.';
 
         await aiToolbox.runToolLoopStream(provider, routerMessages, toolAugmentedPrompt, res, {
           userId,

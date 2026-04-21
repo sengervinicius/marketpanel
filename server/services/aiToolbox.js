@@ -380,6 +380,76 @@ const TOOLS = [
     },
   },
   {
+    name: 'get_market_regime',
+    description:
+      'Classify the current market regime based on live cross-asset ' +
+      'signals: VIX level, 2s10s US Treasury slope, US HY credit spread, ' +
+      'SPY 20-day trend, and DXY 20-day trend. Returns one of: risk-on ' +
+      'expansion, late-cycle euphoria, transition / crosscurrents, ' +
+      'risk-off correction, stress / flight-to-quality, stagflationary, ' +
+      'or disinflationary soft-landing — with a confidence score, the ' +
+      'underlying readings, and a runner-up label. Use this for any ' +
+      '"what regime are we in", "risk-on or risk-off", "is this a ' +
+      'late-cycle setup", "are we in stagflation" question, or before ' +
+      'answering scenario questions so your framing matches the ' +
+      'backdrop. This is a rules-based classifier, not a prediction — ' +
+      'always relay the methodology_note so the user knows the model is ' +
+      'interpreting current readings, not forecasting.',
+    input_schema: {
+      type: 'object',
+      properties: {},
+    },
+  },
+  {
+    name: 'run_scenario',
+    description:
+      'Run a first-order macro scenario and get estimated impact on ' +
+      'sector factors (and optionally on a specific ticker). Shocks ' +
+      'supported: rates_up / rates_down (bps magnitude, e.g. 100 for ' +
+      '+100 bps 10Y UST), usd_up / usd_down (% magnitude, e.g. 10 for ' +
+      '+10% DXY), oil_up / oil_down (% magnitude, e.g. 20 for +20% WTI), ' +
+      'equity_down (% magnitude, e.g. 10 for a -10% SPX shock), and ' +
+      'credit_widen (bps magnitude, e.g. 100 for +100 bps HY OAS). ' +
+      'Returns factorImpacts keyed by asset bucket (SPX, QQQ, XLF, XLK, ' +
+      'XLE, XLU, XLRE, XLP, XLY, XLV, XLI, XLB, EM, IBOV, GOLD, OIL, ' +
+      'HY, etc.). If `symbol` is provided, also returns a ticker-level ' +
+      'estimate via the ticker\'s sector bucket. Use this for "what ' +
+      'happens to my portfolio if the Fed hikes 100 bps", "how does ' +
+      'PETR4 react to +20% oil", "if the dollar strengthens 10%, what ' +
+      'breaks", scenario-testing questions. ALWAYS relay the ' +
+      'methodology_note — sensitivities are hand-calibrated, not a live ' +
+      'regression, and real betas are regime-dependent.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        shock: {
+          type: 'string',
+          enum: [
+            'rates_up', 'rates_down',
+            'usd_up', 'usd_down',
+            'oil_up', 'oil_down',
+            'equity_down', 'credit_widen',
+          ],
+          description: 'Which macro shock to apply.',
+        },
+        magnitude: {
+          type: 'number',
+          description:
+            'Magnitude in the natural unit: bps for rates/credit, % for ' +
+            'usd/oil/equity. Must be positive — the direction is in ' +
+            'the shock name.',
+        },
+        symbol: {
+          type: 'string',
+          description:
+            'Optional ticker for a symbol-specific impact. Uses sector ' +
+            'mapping (AAPL→XLK, JPM→XLF, PETR4→oil bucket, etc.).',
+        },
+      },
+      required: ['shock', 'magnitude'],
+    },
+  },
+  {
     name: 'describe_portfolio_import',
     description:
       'Describe how the user can import their existing portfolio / ' +
@@ -468,6 +538,7 @@ const services = {
   vault:              lazy('./vault'),
   wireGenerator:      lazy('./wireGenerator'),
   csvImporter:        lazy('./csvImporter'),
+  scenarioEngine:     lazy('./scenarioEngine'),
 };
 
 async function handleLookupQuote({ symbol }) {
@@ -741,6 +812,36 @@ async function handleGetBrazilMacro({ series, history, months }) {
   }
 }
 
+async function handleGetMarketRegime() {
+  const mod = services.scenarioEngine();
+  if (!mod || typeof mod.detectMarketRegime !== 'function') {
+    return { error: 'scenario engine unavailable' };
+  }
+  try {
+    const res = await mod.detectMarketRegime();
+    return res || { error: 'no regime detected' };
+  } catch (e) {
+    return { error: e.message };
+  }
+}
+
+async function handleRunScenario(args) {
+  const mod = services.scenarioEngine();
+  if (!mod || typeof mod.runScenario !== 'function') {
+    return { error: 'scenario engine unavailable' };
+  }
+  try {
+    const res = mod.runScenario({
+      shock: args.shock,
+      magnitude: Number(args.magnitude),
+      symbol: args.symbol,
+    });
+    return res || { error: 'no scenario result' };
+  } catch (e) {
+    return { error: e.message };
+  }
+}
+
 async function handleDescribePortfolioImport() {
   const mod = services.csvImporter();
   if (!mod || typeof mod.getImportSchema !== 'function') {
@@ -798,6 +899,8 @@ const HANDLERS = {
   get_brazil_macro:          handleGetBrazilMacro,
   list_cvm_filings:          handleListCvmFilings,
   describe_portfolio_import: handleDescribePortfolioImport,
+  get_market_regime:         handleGetMarketRegime,
+  run_scenario:              handleRunScenario,
 };
 
 /**
