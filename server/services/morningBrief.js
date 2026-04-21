@@ -238,9 +238,19 @@ async function joinUserRelevance(snapshot, userId) {
       (user?.settings?.watchlist || []).map(t => t.toUpperCase())
     );
 
+    // briefPrefs.tickersOfInterest — names the user has flagged for the
+    // brief specifically (e.g. "I'd like the brief to keep an eye on
+    // $VALE3 and $PBR"). Treated as between watchlist (1x) and
+    // portfolio (2x) — they aren't holdings, but they're stronger
+    // signal than "happen to be on my watchlist".
+    const briefPrefs = user?.settings?.briefPrefs || {};
+    const tickersOfInterest = new Set(
+      (briefPrefs.tickersOfInterest || []).map(t => String(t).toUpperCase())
+    );
+
     // Score each market mover against user's holdings
     const stocks = _marketState?.stocks || {};
-    const allUserTickers = new Set([...portfolioTickers, ...watchlist]);
+    const allUserTickers = new Set([...portfolioTickers, ...watchlist, ...tickersOfInterest]);
 
     for (const ticker of allUserTickers) {
       const d = stocks[ticker];
@@ -248,17 +258,20 @@ async function joinUserRelevance(snapshot, userId) {
 
       const isPortfolio = portfolioTickers.has(ticker);
       const isWatchlist = watchlist.has(ticker);
+      const isInterest = tickersOfInterest.has(ticker);
       const changePct = d.changePercent || 0;
 
-      // Score: portfolio moves weighted 2x, larger moves weighted more
-      const score = Math.abs(changePct) * (isPortfolio ? 2 : 1);
+      // Score: portfolio 2x, explicit brief interest 1.5x, watchlist 1x
+      const weight = isPortfolio ? 2 : (isInterest ? 1.5 : 1);
+      const score = Math.abs(changePct) * weight;
 
       if (score > 0.5) { // Only include meaningful moves
+        const source = isPortfolio ? 'portfolio' : (isInterest && !isWatchlist ? 'interest' : 'watchlist');
         const entry = {
           symbol: ticker,
           price: d.price,
           change: changePct,
-          source: isPortfolio ? 'portfolio' : 'watchlist',
+          source,
           score,
         };
 
@@ -385,7 +398,7 @@ function extractInsights(snapshot, relevance) {
 // STAGE 4 — Brief Generation (Claude Sonnet, single call)
 // ══════════════════════════════════════════════════════════════════════════════
 
-const BRIEF_SYSTEM_PROMPT = `Generate a pre-market brief in exactly 3 sections. Use markdown headers (###).
+const BRIEF_SYSTEM_PROMPT_EN = `Generate a pre-market brief in exactly 3 sections. Use markdown headers (###).
 
 ### TODAY'S SETUP
 2 sentences: market tone + key driver. Include specific index numbers from the data.
@@ -404,7 +417,79 @@ Rules:
 - Total: 150-250 words max
 - Today's date: `;
 
-async function generateBriefContent(snapshot, relevance, insights, dateStr) {
+// Portuguese (pt-BR) variant for users who set briefPrefs.language = 'pt-BR'.
+// Kept structurally identical so parseSections() still finds the same headers.
+const BRIEF_SYSTEM_PROMPT_PT = `Gere um briefing pré-mercado em exatamente 3 seções. Use cabeçalhos markdown (###).
+
+### TODAY'S SETUP
+2 frases: tom de mercado + driver principal. Inclua números específicos de índices dos dados fornecidos.
+
+### YOUR NAMES
+Um bullet por posição/watchlist relevante com movimento específico + contexto. Use formato $TICKER. Coloque preços e percentuais em negrito. Máx 5 itens.
+
+### WATCH TODAY
+3 itens numerados: níveis, eventos ou catalisadores específicos para acompanhar. Seja acionável.
+
+Regras:
+- Sem enrolação. Sem comentário macro genérico. Use APENAS os dados fornecidos.
+- Nunca diga "eu" ou "como IA"
+- Use jargão de trader: bid, offered, vol, carry
+- Inclua números específicos dos dados — nunca aproxime
+- Total: 150-250 palavras no máximo
+- Mantenha cabeçalhos de seção EM INGLÊS exatamente como acima (o corpo em português)
+- Data de hoje: `;
+
+// Back-compat alias — older call sites may still import BRIEF_SYSTEM_PROMPT.
+const BRIEF_SYSTEM_PROMPT = BRIEF_SYSTEM_PROMPT_EN;
+
+/**
+ * Fold user brief preferences into the system prompt as a PREFERENCES block
+ * plus tone / language directives. Returns the system prompt to use for this
+ * generation call. Falls back to the English default when no prefs are set.
+ */
+function applyBriefPrefs(basePromptEn, basePromptPt, briefPrefs, dateStr) {
+  const prefs = briefPrefs || {};
+  const useSpanish = false; // reserved
+  const usePortuguese = prefs.language === 'pt-BR';
+  const base = usePortuguese ? basePromptPt : basePromptEn;
+  let prompt = base + dateStr;
+
+  const prefLines = [];
+  if (Array.isArray(prefs.focusRegions) && prefs.focusRegions.length) {
+    prefLines.push(`FOCUS REGIONS: ${prefs.focusRegions.join(', ')} — prioritise names and events from these markets when multiple candidates are equally relevant.`);
+  }
+  if (Array.isArray(prefs.focusSectors) && prefs.focusSectors.length) {
+    prefLines.push(`FOCUS SECTORS: ${prefs.focusSectors.join(', ')}.`);
+  }
+  if (Array.isArray(prefs.focusThemes) && prefs.focusThemes.length) {
+    prefLines.push(`FOCUS THEMES: ${prefs.focusThemes.join(', ')}.`);
+  }
+  if (Array.isArray(prefs.avoidTopics) && prefs.avoidTopics.length) {
+    prefLines.push(`AVOID: do not dedicate bullets or commentary to ${prefs.avoidTopics.join(', ')} unless they are directly moving the user's holdings today.`);
+  }
+
+  const toneMap = {
+    concise: 'Tone: terse, no hedging, every sentence carries a number or an instruction.',
+    detailed: 'Tone: fuller context, 250-350 words, may expand WATCH TODAY to 4-5 items.',
+    contrarian: 'Tone: contrarian — surface the consensus view first in one sentence, then argue against it with specific data.',
+    institutional: 'Tone: institutional research voice — passive constructions OK, cite levels and basis points, no retail flair.',
+  };
+  if (prefs.tone && toneMap[prefs.tone]) {
+    prefLines.push(toneMap[prefs.tone]);
+  }
+
+  if (prefLines.length) {
+    prompt += '\n\nUSER PREFERENCES (honour these when they don\'t conflict with the rules above):\n' + prefLines.map(l => `- ${l}`).join('\n');
+  }
+
+  if (usePortuguese) {
+    prompt += '\n\nIDIOMA: escreva o corpo em português brasileiro. Mantenha os cabeçalhos de seção em inglês.';
+  }
+
+  return prompt;
+}
+
+async function generateBriefContent(snapshot, relevance, insights, dateStr, briefPrefs) {
   // Build structured context for the AI
   const contextParts = [];
 
@@ -457,7 +542,7 @@ async function generateBriefContent(snapshot, relevance, insights, dateStr) {
   }
 
   const contextStr = contextParts.join('\n\n');
-  const fullSystemPrompt = BRIEF_SYSTEM_PROMPT + dateStr;
+  const fullSystemPrompt = applyBriefPrefs(BRIEF_SYSTEM_PROMPT_EN, BRIEF_SYSTEM_PROMPT_PT, briefPrefs, dateStr);
 
   // Try Claude Sonnet first, fall back to Perplexity
   const anthropicKey = process.env.ANTHROPIC_API_KEY;
@@ -655,13 +740,21 @@ async function getUserBrief(userId) {
     // STAGE 3: Insight extraction
     const insights = extractInsights(snapshot, relevance);
 
+    // Pull user's brief preferences so Stage 4 can apply tone/language/focus.
+    const user = _getUserById ? await _getUserById(userId) : null;
+    const briefPrefs = user?.settings?.briefPrefs || null;
+
     // STAGE 4: Generate personalized brief (or augment shared brief)
     let content;
-    const hasPersonalData = relevance.portfolioMoves.length > 0 || relevance.watchlistMoves.length > 0 || relevance.memoryConflicts.length > 0;
+    const hasPersonalData =
+      relevance.portfolioMoves.length > 0 ||
+      relevance.watchlistMoves.length > 0 ||
+      relevance.memoryConflicts.length > 0 ||
+      !!(briefPrefs && Object.keys(briefPrefs).length);
 
     if (hasPersonalData) {
       // Generate a fully personalized brief
-      content = await generateBriefContent(snapshot, relevance, insights, dateStr);
+      content = await generateBriefContent(snapshot, relevance, insights, dateStr, briefPrefs);
     }
 
     // Fall back to shared brief if personalization fails or no personal data
@@ -911,4 +1004,5 @@ module.exports = {
   joinUserRelevance,
   extractInsights,
   buildActionChips,
+  applyBriefPrefs,
 };

@@ -86,9 +86,93 @@ router.get('/greeting', async (req, res) => {
   }
 });
 
+// ── Brief preferences whitelist ───────────────────────────────────────
+// `briefPrefs` lives under `user.settings.briefPrefs` and shapes both
+// what data the morning brief pulls (Stage 2 relevance join) and how
+// the AI writes it (Stage 4 prompt). Every field is optional; the brief
+// pipeline has sane fallbacks when a field is absent. Validation here
+// is a whitelist — unknown keys are dropped, values outside the
+// allowed set are rejected with a 400 so the AI (or a misconfigured
+// client) can't silently poison the stored prefs.
+const VALID_TONES = ['concise', 'detailed', 'contrarian', 'institutional'];
+const VALID_LANGS = ['en', 'pt-BR', 'auto'];
+const VALID_REGIONS = ['US', 'EU', 'UK', 'BR', 'LATAM', 'ASIA', 'JP', 'CN', 'GLOBAL'];
+// Sectors, themes, and tickers are free-form strings — we only length-cap
+// and reject anything that isn't a short alphanumeric-ish token, since
+// these get pasted verbatim into the AI prompt and we don't want a user
+// (or the AI) slipping directives in via a "sector" field.
+const SAFE_TOKEN = /^[\w\s\-&./]{1,60}$/;
+const MAX_LIST = 20;
+
+function sanitiseStringList(arr, opts = {}) {
+  if (!Array.isArray(arr)) return null;
+  const { upperCase = false, allow = null, maxLen = MAX_LIST } = opts;
+  const seen = new Set();
+  const out = [];
+  for (const raw of arr) {
+    if (typeof raw !== 'string') return null;
+    const trimmed = raw.trim();
+    if (!trimmed) continue;
+    if (!SAFE_TOKEN.test(trimmed)) return null;
+    const canonical = upperCase ? trimmed.toUpperCase() : trimmed;
+    if (allow && !allow.includes(canonical)) return null;
+    if (seen.has(canonical)) continue;
+    seen.add(canonical);
+    out.push(canonical);
+    if (out.length >= maxLen) break;
+  }
+  return out;
+}
+
+function validateBriefPrefs(input) {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) {
+    return { error: 'briefPrefs must be an object' };
+  }
+  const out = {};
+
+  if (input.tone !== undefined) {
+    if (!VALID_TONES.includes(input.tone)) {
+      return { error: `Invalid tone. One of: ${VALID_TONES.join(', ')}` };
+    }
+    out.tone = input.tone;
+  }
+  if (input.language !== undefined) {
+    if (!VALID_LANGS.includes(input.language)) {
+      return { error: `Invalid language. One of: ${VALID_LANGS.join(', ')}` };
+    }
+    out.language = input.language;
+  }
+  if (input.focusRegions !== undefined) {
+    const v = sanitiseStringList(input.focusRegions, { upperCase: true, allow: VALID_REGIONS });
+    if (v === null) return { error: 'focusRegions must be an array of region codes (US, EU, BR, ASIA, ...)' };
+    out.focusRegions = v;
+  }
+  if (input.focusSectors !== undefined) {
+    const v = sanitiseStringList(input.focusSectors);
+    if (v === null) return { error: 'focusSectors must be an array of short strings' };
+    out.focusSectors = v;
+  }
+  if (input.focusThemes !== undefined) {
+    const v = sanitiseStringList(input.focusThemes);
+    if (v === null) return { error: 'focusThemes must be an array of short strings' };
+    out.focusThemes = v;
+  }
+  if (input.avoidTopics !== undefined) {
+    const v = sanitiseStringList(input.avoidTopics);
+    if (v === null) return { error: 'avoidTopics must be an array of short strings' };
+    out.avoidTopics = v;
+  }
+  if (input.tickersOfInterest !== undefined) {
+    const v = sanitiseStringList(input.tickersOfInterest, { upperCase: true });
+    if (v === null) return { error: 'tickersOfInterest must be an array of ticker strings' };
+    out.tickersOfInterest = v;
+  }
+  return { prefs: out };
+}
+
 // ── PATCH /api/brief/settings — Update user's brief preferences ──────────
 // Accepts any subset of: morningBriefTime, morningBriefTimezone,
-// morningBriefEmail, morningBriefInbox. Unknown keys are ignored.
+// morningBriefEmail, morningBriefInbox, briefPrefs. Unknown keys ignored.
 router.patch('/settings', async (req, res) => {
   try {
     const userId = req.user.id;
@@ -97,6 +181,7 @@ router.patch('/settings', async (req, res) => {
       morningBriefTimezone,
       morningBriefEmail,
       morningBriefInbox,
+      briefPrefs,
     } = req.body || {};
 
     // Validate time format HH:MM
@@ -110,6 +195,23 @@ router.patch('/settings', async (req, res) => {
     if (typeof morningBriefTimezone === 'string') updates.morningBriefTimezone = morningBriefTimezone;
     if (typeof morningBriefEmail === 'boolean')   updates.morningBriefEmail = morningBriefEmail;
     if (typeof morningBriefInbox === 'boolean')   updates.morningBriefInbox = morningBriefInbox;
+
+    // Brief prefs — the whole sub-object is validated as a unit. A PATCH
+    // replaces only the fields the caller provided; the rest stays put.
+    // To merge-into-existing we read the current value, apply the
+    // validated delta, and store the union. This matches how the AI
+    // action tag typically arrives ("set focusRegions to BR,US" without
+    // touching tone).
+    if (briefPrefs !== undefined) {
+      const { prefs, error } = validateBriefPrefs(briefPrefs);
+      if (error) {
+        return res.status(400).json({ ok: false, message: error });
+      }
+      // Merge with existing so a partial update doesn't nuke other keys.
+      const authStore = require('../authStore');
+      const existing = (authStore.getUserById && authStore.getUserById(userId)?.settings?.briefPrefs) || {};
+      updates.briefPrefs = { ...existing, ...prefs };
+    }
 
     if (Object.keys(updates).length === 0) {
       return res.status(400).json({ ok: false, message: 'No valid settings provided' });
@@ -138,6 +240,10 @@ router.patch('/settings', async (req, res) => {
     sendApiError(res, 500, 'Failed to update brief settings');
   }
 });
+
+// Expose the validator for tests and for the AI action-tag handler to
+// share the same whitelist.
+router._validateBriefPrefs = validateBriefPrefs;
 
 // ══════════════════════════════════════════════════════════════════════════
 // Morning Brief inbox (Phase 10.7)

@@ -2240,7 +2240,24 @@ ${ctx_.portfolioMetricsContext ? `\n${ctx_.portfolioMetricsContext}\n` : ''}${ct
           'Always report the unit returned (per barrel, per troy oz, per ' +
           'bushel in USD cents, etc.) — a commodity price is meaningless ' +
           'without its unit. If the result carries a coverage_note field, ' +
-          'quote that caveat to the user rather than hiding it.';
+          'quote that caveat to the user rather than hiding it.\n' +
+          '8. BRIEF PERSONALIZATION — the user can ask you to tune their ' +
+          'morning brief (tone, language, regions, sectors, themes, topics ' +
+          'to avoid, tickers of interest). When they do, end your reply with ' +
+          'ONE action tag: [action:update_brief_prefs:key=value;key=value]. ' +
+          'Valid keys and values: tone=concise|detailed|contrarian|' +
+          'institutional; language=en|pt-BR|auto; focusRegions=US,EU,UK,BR,' +
+          'LATAM,ASIA,JP,CN,GLOBAL (comma-separated, uppercase); ' +
+          'focusSectors=energy,tech,... (short free-form tokens, ' +
+          'comma-separated); focusThemes=AI,disinflation,... (same); ' +
+          'avoidTopics=crypto,celebrity,... (same); tickersOfInterest=' +
+          'VALE3,PBR,AAPL (uppercase tickers, comma-separated). Only emit ' +
+          'keys the user explicitly changed. Never emit tone values, ' +
+          'regions, or languages not on the whitelist — the server will ' +
+          'reject them. Example: user says "make my brief terser and in ' +
+          'Portuguese, focus on Brazil and the US" → end with ' +
+          '[action:update_brief_prefs:tone=concise;language=pt-BR;' +
+          'focusRegions=BR,US].';
 
         await aiToolbox.runToolLoopStream(provider, routerMessages, toolAugmentedPrompt, res, {
           userId,

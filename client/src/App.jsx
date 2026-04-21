@@ -556,7 +556,56 @@ export default function App() {
   // Routes button clicks to appropriate terminal actions
   useEffect(() => {
     const handler = (e) => {
-      const { type, ticker } = e.detail || {};
+      const { type, ticker, params } = e.detail || {};
+      // update_brief_prefs carries key=value;... in params, no ticker. Handle
+      // it first so the !ticker guard below doesn't short-circuit the path.
+      if (type === 'update_brief_prefs') {
+        try {
+          // Parse "focusRegions=BR,US;tone=concise;language=pt-BR" into a
+          // briefPrefs object the PATCH /api/brief/settings route accepts.
+          const body = { briefPrefs: {} };
+          const LIST_KEYS = new Set(['focusRegions', 'focusSectors', 'focusThemes', 'avoidTopics', 'tickersOfInterest']);
+          const SCALAR_KEYS = new Set(['tone', 'language']);
+          String(params || '').split(';').forEach(pair => {
+            const [rawKey, rawVal] = pair.split('=');
+            const k = (rawKey || '').trim();
+            const v = (rawVal || '').trim();
+            if (!k || !v) return;
+            if (LIST_KEYS.has(k)) {
+              body.briefPrefs[k] = v.split(',').map(s => s.trim()).filter(Boolean);
+            } else if (SCALAR_KEYS.has(k)) {
+              body.briefPrefs[k] = v;
+            }
+          });
+          if (Object.keys(body.briefPrefs).length === 0) {
+            window.dispatchEvent(new CustomEvent('particle:toast', {
+              detail: { message: 'No valid brief preferences in action', variant: 'warn' },
+            }));
+            return;
+          }
+          apiFetch('/api/brief/settings', {
+            method: 'PATCH',
+            body: JSON.stringify(body),
+          })
+            .then(r => r.ok ? r.json() : r.json().then(j => { throw new Error(j.message || 'Update failed'); }))
+            .then(() => {
+              window.dispatchEvent(new CustomEvent('particle:toast', {
+                detail: { message: 'Brief preferences updated', variant: 'success' },
+              }));
+            })
+            .catch(err => {
+              window.dispatchEvent(new CustomEvent('particle:toast', {
+                detail: { message: err.message || 'Could not update preferences', variant: 'error' },
+              }));
+            });
+        } catch (err) {
+          window.dispatchEvent(new CustomEvent('particle:toast', {
+            detail: { message: 'Could not parse preferences', variant: 'error' },
+          }));
+        }
+        return;
+      }
+
       if (!ticker) return;
       switch (type) {
         case 'detail_open':

@@ -20,13 +20,18 @@ import InlineChart from './InlineChart';
 /** AI-suggested terminal action button */
 function ActionButton({ type, params }) {
   const ACTIONS = {
-    watchlist_add: { label: '+ Watchlist', icon: '\u2605', color: 'var(--color-vault-accent)' },
-    alert_set:     { label: 'Set Alert',   icon: '\u26A0', color: 'var(--semantic-warn, #ff9800)' },
-    chart_open:    { label: 'Open Chart',  icon: '\u25CF', color: 'var(--accent, #F97316)' },
-    detail_open:   { label: 'Details',     icon: '\u2192', color: 'var(--accent, #F97316)' },
+    watchlist_add:      { label: '+ Watchlist',  icon: '\u2605', color: 'var(--color-vault-accent)' },
+    alert_set:          { label: 'Set Alert',    icon: '\u26A0', color: 'var(--semantic-warn, #ff9800)' },
+    chart_open:         { label: 'Open Chart',   icon: '\u25CF', color: 'var(--accent, #F97316)' },
+    detail_open:        { label: 'Details',      icon: '\u2192', color: 'var(--accent, #F97316)' },
+    update_brief_prefs: { label: 'Update Brief', icon: '\u2692', color: 'var(--accent, #F97316)' },
+    export_pdf:         { label: 'Export PDF',   icon: '\u2913', color: 'var(--accent, #F97316)' },
+    email_response:     { label: 'Email Me',     icon: '\u2709', color: 'var(--accent, #F97316)' },
   };
   const action = ACTIONS[type] || { label: type, icon: '\u2022', color: 'var(--text-secondary)' };
-  const ticker = params.split(':')[0] || '';
+  // For most actions the first ":" segment is a ticker. For update_brief_prefs
+  // it's a "key=value;key=value" payload, so don't try to split it as a ticker.
+  const ticker = (type === 'update_brief_prefs') ? '' : (params.split(':')[0] || '');
 
   const handleClick = () => {
     // Log action feedback asynchronously (fire-and-forget)
