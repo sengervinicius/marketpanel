@@ -2315,7 +2315,45 @@ ${ctx_.portfolioMetricsContext ? `\n${ctx_.portfolioMetricsContext}\n` : ''}${ct
           'hard-coded blue-chip table, pass the company name instead ' +
           '(e.g. company: "Oi S.A.") or the CNPJ directly. Each filing ' +
           'has a "link" field — always include that link when surfacing ' +
-          'a fato relevante so the user can open the original document.';
+          'a fato relevante so the user can open the original document.\n' +
+          '13. DECLARED COVERAGE GAPS — the terminal has three specific ' +
+          'integrations that are NOT wired today and MUST be stated ' +
+          'plainly when asked, never fabricated from training data:\n' +
+          '   (a) B3 OPTIONS FLOW / GREEKS / IV SURFACE — the Brazilian ' +
+          'options book lives on B3\'s UP2DATA feed, which is a paid ' +
+          'commercial subscription we do not currently license. ' +
+          'get_options_flow covers US equities via Unusual Whales only. ' +
+          'If the user asks about PETR4 options, VALE3 calls, Brazilian ' +
+          'IV surface, volatility skew on IBOV names, or any BR ' +
+          'derivatives flow, say: "B3 options data is not in the ' +
+          'terminal today — we don\'t license the UP2DATA feed. I can ' +
+          'show you spot prices via lookup_quote or fatos relevantes ' +
+          'via list_cvm_filings instead." Do NOT make up strikes, OI, ' +
+          'premiums, or IV levels.\n' +
+          '   (b) CHINESE A-SHARES (Shanghai / Shenzhen) — prices for ' +
+          'mainland China listings (SHSE tickers like 600519.SS for ' +
+          'Kweichow Moutai, SZSE tickers like 000002.SZ for Vanke) ' +
+          'require a Tushare or Wind terminal, neither of which is ' +
+          'wired. lookup_quote will sometimes return a late/partial ' +
+          'Yahoo price for A-share ADRs or dual-listed names, but ' +
+          'authoritative A-share fundamentals, order book, or ' +
+          'margin-lending data are NOT available. Hong Kong H-shares ' +
+          '(0700.HK etc.) are partially covered via Yahoo/Finnhub — ' +
+          'try lookup_quote first; if it returns no data, say ' +
+          '"H-share coverage is partial; A-share mainland data is not ' +
+          'wired." Never fabricate Chinese market internals.\n' +
+          '   (c) DIRECT BROKERAGE / BANK ACCOUNT SYNC (Plaid) — the ' +
+          'terminal does NOT connect directly to user brokerage or bank ' +
+          'accounts. We have no Plaid, no Yodlee, no Open Finance ' +
+          'integration. If the user asks to "import my portfolio", ' +
+          '"sync my Interactive Brokers account", "pull from Fidelity", ' +
+          'or any live account link, state: "We don\'t connect to ' +
+          'brokerage accounts directly — that\'s on our roadmap but ' +
+          'blocked by Plaid\'s commercial terms. You can upload a CSV ' +
+          'export of your holdings on the Watchlist / Portfolio page ' +
+          'and we\'ll import it with full position detail." Do NOT ' +
+          'pretend an integration exists, and do NOT ask them for ' +
+          'credentials or account numbers.';
 
         await aiToolbox.runToolLoopStream(provider, routerMessages, toolAugmentedPrompt, res, {
           userId,
