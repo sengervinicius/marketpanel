@@ -34,6 +34,8 @@
 import { useState, useEffect, useCallback, useMemo, memo } from 'react';
 import { apiFetch } from '../../utils/api';
 import { PanelHeader, PanelTabRow } from './_shared';
+import { useIsMobile } from '../../hooks/useIsMobile';
+import DesktopOnlyPlaceholder from '../common/DesktopOnlyPlaceholder';
 import './OptionsFlowPanel.css';
 
 /* ── Formatting helpers ────────────────────────────────────── */
@@ -543,7 +545,7 @@ const ClusterDetail = memo(function ClusterDetail({ item }) {
 
 /* ── Main panel ────────────────────────────────────────────── */
 
-function OptionsFlowPanel() {
+function OptionsFlowPanelInner() {
   const [alerts, setAlerts]     = useState([]);
   const [darkPool, setDarkPool] = useState([]);
   const [congress, setCongress] = useState([]);
@@ -689,6 +691,28 @@ function OptionsFlowPanel() {
       </div>
     </div>
   );
+}
+
+/* ── Mobile wrapper ────────────────────────────────────────── */
+// Phase 10.6 — Options Flow packs wide tables + clustered posture
+// meters that don't work on a phone viewport. Swap in a branded
+// "open on desktop" card instead of shipping a broken layout.
+function OptionsFlowPanel() {
+  const isMobile = useIsMobile();
+  if (isMobile) {
+    return (
+      <DesktopOnlyPlaceholder
+        title="Options Flow"
+        subtitle="Smart-money positioning, clustered by conviction"
+        features={[
+          'Tape posture (bullish / bearish / mixed) with net $ skew',
+          'Ticker clusters ranked by confluence across OPT · DP · CON',
+          'Unusual options, dark-pool prints, and Congress trades in one feed',
+        ]}
+      />
+    );
+  }
+  return <OptionsFlowPanelInner />;
 }
 
 export default memo(OptionsFlowPanel);

@@ -12,6 +12,8 @@ import { apiFetch, apiJSON, API_BASE } from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
 import VaultDocChat from './VaultDocChat';
 import AIDisclaimer from '../common/AIDisclaimer';
+import { useIsMobile } from '../../hooks/useIsMobile';
+import DesktopOnlyPlaceholder from '../common/DesktopOnlyPlaceholder';
 import './VaultPanel.css';
 
 /**
@@ -44,7 +46,7 @@ function sanitizeVaultError(msg) {
   return 'An error occurred processing the file. Please try a different file or try again.';
 }
 
-export default function VaultPanel({ fullScreen = false }) {
+function VaultPanelInner({ fullScreen = false }) {
   const { token, user } = useAuth();
   const [tab, setTab] = useState('private');
   const [documents, setDocuments] = useState([]);
@@ -681,4 +683,26 @@ export default function VaultPanel({ fullScreen = false }) {
       )}
     </div>
   );
+}
+
+/* ── Mobile wrapper ───────────────────────────────────────────
+ * Phase 10.6 — the Vault combines drag-drop upload, a multi-column
+ * document grid, and a side-by-side chat drawer. None of that fits
+ * comfortably on a phone. Swap in the branded desktop placeholder. */
+export default function VaultPanel(props) {
+  const isMobile = useIsMobile();
+  if (isMobile) {
+    return (
+      <DesktopOnlyPlaceholder
+        title="Knowledge Vault"
+        subtitle="Upload research. Chat with your documents. Cite answers."
+        features={[
+          'Drag-and-drop PDFs, decks, and memos into your private vault',
+          'Ask questions and get AI answers grounded in your documents',
+          'Inline citations back to the exact chunk and page',
+        ]}
+      />
+    );
+  }
+  return <VaultPanelInner {...props} />;
 }

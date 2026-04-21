@@ -1,0 +1,210 @@
+/* ══════════════════════════════════════════════════════════════════
+   DesktopOnlyPlaceholder — polished "open on desktop" state.
+   Phase 10.6.
+   ══════════════════════════════════════════════════════════════════ */
+
+.dop-wrap {
+  width: 100%;
+  min-height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 18px;
+  box-sizing: border-box;
+}
+
+.dop-card {
+  width: 100%;
+  max-width: 360px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0.01));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 28px 24px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  box-shadow:
+    0 20px 60px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  position: relative;
+  overflow: hidden;
+}
+
+.dop-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--color-accent, #e55a00), transparent);
+  opacity: 0.5;
+}
+
+/* ── Orb ── */
+.dop-icon-col {
+  margin-bottom: 18px;
+}
+
+.dop-orb-wrap {
+  position: relative;
+  width: 64px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dop-orb {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 38% 38%, #ff8833, var(--color-accent, #e55a00), #b34500);
+  box-shadow:
+    0 0 20px rgba(229, 90, 0, 0.55),
+    0 0 44px rgba(229, 90, 0, 0.2),
+    inset 0 -3px 9px rgba(0, 0, 0, 0.3);
+  animation: dop-pulse 2.5s ease-in-out infinite;
+  position: relative;
+  z-index: 2;
+}
+
+.dop-orb-ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  border-radius: 50%;
+  border: 1px solid rgba(229, 90, 0, 0.25);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+.dop-orb-ring--1 { width: 50px;  height: 50px; animation: dop-ring 3s ease-in-out infinite; }
+.dop-orb-ring--2 { width: 64px;  height: 64px; animation: dop-ring 3s ease-in-out infinite 1.5s; }
+
+/* ── Text ── */
+.dop-eyebrow {
+  font-family: var(--font-family-mono, monospace);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  color: var(--color-accent, #e55a00);
+  opacity: 0.8;
+  margin-bottom: 10px;
+}
+
+.dop-title {
+  font-family: var(--font-display, 'Playfair Display', Georgia, serif);
+  font-size: 22px;
+  font-weight: 500;
+  color: var(--color-text-primary, #f0f0f0);
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  margin-bottom: 6px;
+}
+
+.dop-subtitle {
+  font-size: 12.5px;
+  color: rgba(255, 255, 255, 0.58);
+  line-height: 1.5;
+  margin-bottom: 18px;
+}
+
+.dop-note {
+  font-size: 12.5px;
+  color: rgba(255, 255, 255, 0.72);
+  line-height: 1.6;
+  padding: 14px 16px;
+  background: rgba(229, 90, 0, 0.05);
+  border: 1px solid rgba(229, 90, 0, 0.15);
+  border-radius: 10px;
+  margin-bottom: 18px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.dop-note strong {
+  color: var(--color-accent, #e55a00);
+  font-family: var(--font-family-mono, monospace);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+/* ── Features list ── */
+.dop-features {
+  width: 100%;
+  text-align: left;
+  margin-bottom: 20px;
+}
+
+.dop-features-head {
+  font-family: var(--font-family-mono, monospace);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  color: rgba(255, 255, 255, 0.4);
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.dop-features ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.dop-features li {
+  display: flex;
+  gap: 10px;
+  font-size: 12.5px;
+  color: rgba(255, 255, 255, 0.78);
+  line-height: 1.4;
+  align-items: flex-start;
+}
+
+.dop-bullet {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--color-accent, #e55a00);
+  box-shadow: 0 0 5px rgba(229, 90, 0, 0.5);
+  margin-top: 7px;
+  flex-shrink: 0;
+}
+
+/* ── Back button ── */
+.dop-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 18px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.7);
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: inherit;
+}
+.dop-back:hover {
+  border-color: rgba(229, 90, 0, 0.35);
+  color: rgba(255, 255, 255, 0.95);
+  background: rgba(229, 90, 0, 0.05);
+}
+
+/* ── Animations ── */
+@keyframes dop-pulse {
+  0%, 100% { box-shadow: 0 0 20px rgba(229, 90, 0, 0.5), 0 0 44px rgba(229, 90, 0, 0.18); }
+  50%      { box-shadow: 0 0 32px rgba(229, 90, 0, 0.7), 0 0 60px rgba(229, 90, 0, 0.28); }
+}
+@keyframes dop-ring {
+  0%   { opacity: 0.5; transform: translate(-50%, -50%) scale(0.85); }
+  50%  { opacity: 0.2; transform: translate(-50%, -50%) scale(1.1); }
+  100% { opacity: 0.5; transform: translate(-50%, -50%) scale(0.85); }
+}

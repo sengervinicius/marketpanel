@@ -19,6 +19,8 @@ import { useState, useEffect, memo } from 'react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { apiFetch } from '../../utils/api';
 import IntegrityBadge from '../shared/IntegrityBadge';
+import { useIsMobile } from '../../hooks/useIsMobile';
+import DesktopOnlyPlaceholder from '../common/DesktopOnlyPlaceholder';
 import './DICurvePanel.css';
 
 const CURVES = [
@@ -61,7 +63,7 @@ function fmtBps(v) {
   return `${sign}${v}`;
 }
 
-function DICurvePanel() {
+function DICurvePanelInner() {
   const [all, setAll]             = useState({});
   const [loading, setLoading]     = useState(true);
   const [error, setError]         = useState(null);
@@ -233,6 +235,28 @@ function DICurvePanel() {
       </div>
     </div>
   );
+}
+
+/* ── Mobile wrapper ───────────────────────────────────────────
+ * Phase 10.6 — the yield-curve matrix + 2×2 chart grid is designed
+ * for a wide desktop viewport. Swap in a branded "open on desktop"
+ * placeholder on small screens instead of cramming it. */
+function DICurvePanel() {
+  const isMobile = useIsMobile();
+  if (isMobile) {
+    return (
+      <DesktopOnlyPlaceholder
+        title="Yield Curves"
+        subtitle="BR · US · UK · EU sovereign curves side-by-side"
+        features={[
+          'Full tenor matrix (1Y · 2Y · 5Y · 10Y · 30Y) per country',
+          'Slope and credit-spread analytics vs USTs',
+          '2×2 curve grid to read shape at a glance',
+        ]}
+      />
+    );
+  }
+  return <DICurvePanelInner />;
 }
 
 export { DICurvePanel };

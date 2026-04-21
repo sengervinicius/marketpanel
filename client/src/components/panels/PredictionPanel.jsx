@@ -16,6 +16,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { apiFetch } from '../../utils/api';
 import { PanelHeader, PanelTabRow } from './_shared';
+import { useIsMobile } from '../../hooks/useIsMobile';
+import DesktopOnlyPlaceholder from '../common/DesktopOnlyPlaceholder';
 import './PredictionPanel.css';
 
 const REFRESH_INTERVAL = 120_000; // 2 min
@@ -53,7 +55,7 @@ function formatClose(ts) {
   } catch { return '—'; }
 }
 
-export default function PredictionPanel() {
+function PredictionPanelInner() {
   const [markets, setMarkets]               = useState([]);
   const [categories, setCategories]         = useState([]);
   const [activeCategory, setActiveCategory] = useState('for-you');
@@ -240,4 +242,26 @@ function PredictionRow({ market }) {
       <span className="pred-col-close">{formatClose(market.closeTime)}</span>
     </div>
   );
+}
+
+/* ── Mobile wrapper ───────────────────────────────────────────
+ * Phase 10.6 — the Bloomberg-style market table doesn't fit a
+ * phone. Swap in a branded "open on desktop" placeholder instead
+ * of forcing a broken wrap. */
+export default function PredictionPanel() {
+  const isMobile = useIsMobile();
+  if (isMobile) {
+    return (
+      <DesktopOnlyPlaceholder
+        title="Prediction Markets"
+        subtitle="Kalshi + Polymarket probabilities on what moves markets"
+        features={[
+          'Event probabilities with inline likelihood bars',
+          'Fed path, CPI, politics, crypto, geopolitics — one table',
+          'Volume and close-time context next to every market',
+        ]}
+      />
+    );
+  }
+  return <PredictionPanelInner />;
 }
