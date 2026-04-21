@@ -28,12 +28,40 @@ function isPg() {
 }
 
 /**
+ * Strip the terminal's context prefix from a raw user message so the
+ * remaining text is the actual thing the user asked. The client wraps
+ * each query with:
+ *
+ *     [SCREEN CONTEXT] ...\n\nUser question: <actual question>
+ *
+ * …so the AI sees what the user is looking at. Without this strip the
+ * sidebar renders every single conversation as "[SCREEN CONTEXT] User...".
+ *
+ * Returns the original text unchanged if no prefix is found.
+ */
+function stripContextPrefix(text) {
+  if (!text || typeof text !== 'string') return text;
+  // Case 1: explicit [SCREEN CONTEXT] ... User question: <actual>
+  const m = text.match(/^\[SCREEN CONTEXT\][\s\S]*?User question:\s*([\s\S]*)$/i);
+  if (m && m[1]) return m[1].trim();
+  // Case 2: bare "[SCREEN CONTEXT]" prefix with no explicit User question
+  // marker — strip up to the first double newline or the whole thing.
+  if (/^\[SCREEN CONTEXT\]/i.test(text)) {
+    const afterDouble = text.split(/\n\s*\n/).slice(1).join('\n\n').trim();
+    if (afterDouble) return afterDouble;
+  }
+  return text;
+}
+
+/**
  * Derive a short title from the first user message.
- * Trims to 80 chars, normalises whitespace, falls back to "New chat".
+ * Strips any [SCREEN CONTEXT] wrapper, trims to 80 chars, normalises
+ * whitespace, falls back to "New chat".
  */
 function titleFromText(text) {
   if (!text || typeof text !== 'string') return 'New chat';
-  const cleaned = text.replace(/\s+/g, ' ').trim();
+  const stripped = stripContextPrefix(text);
+  const cleaned = (stripped || '').replace(/\s+/g, ' ').trim();
   if (!cleaned) return 'New chat';
   return cleaned.length > 80 ? cleaned.slice(0, 77).trimEnd() + '…' : cleaned;
 }
@@ -236,6 +264,58 @@ async function deleteConversation(userId, conversationId) {
 }
 
 /**
+ * Re-derive titles for conversations whose title still looks like the
+ * raw [SCREEN CONTEXT] wrapper. Runs once on server boot so live users
+ * see meaningful titles without manual intervention.
+ *
+ * Returns the number of conversations fixed. Safe to call repeatedly —
+ * conversations that already have a clean title are skipped by the
+ * WHERE clause.
+ */
+async function backfillScreenContextTitles({ limit = 1000 } = {}) {
+  if (!isPg()) return 0;
+  try {
+    // Pull ids + titles of conversations whose title still starts with
+    // the bracketed prefix (case-insensitive). Cap to `limit` per call so
+    // an unexpectedly large table can't spin for minutes.
+    const stale = await pg.query(
+      `SELECT c.id, c.title,
+              (SELECT m.content
+                 FROM ai_messages m
+                WHERE m.conversation_id = c.id AND m.role = 'user'
+                ORDER BY m.created_at ASC, m.id ASC
+                LIMIT 1) AS first_user_msg
+         FROM ai_conversations c
+        WHERE c.title ILIKE '[SCREEN CONTEXT]%'
+        ORDER BY c.id DESC
+        LIMIT $1`,
+      [Math.max(1, Math.min(5000, limit))],
+    );
+    if (!stale.rows.length) return 0;
+    let fixed = 0;
+    for (const row of stale.rows) {
+      // Prefer the real first message; fall back to the stale title so
+      // we still strip the prefix even if messages are missing.
+      const source = row.first_user_msg || row.title;
+      const newTitle = titleFromText(source);
+      if (!newTitle || newTitle === row.title || newTitle === 'New chat') continue;
+      try {
+        await pg.query(
+          `UPDATE ai_conversations SET title = $1 WHERE id = $2`,
+          [newTitle, Number(row.id)],
+        );
+        fixed += 1;
+      } catch { /* keep going */ }
+    }
+    if (fixed) logger.info('aiChatStore', 'backfilled screen-context titles', { fixed });
+    return fixed;
+  } catch (e) {
+    logger.warn('aiChatStore', 'backfillScreenContextTitles failed', { error: e.message });
+    return 0;
+  }
+}
+
+/**
  * Physically delete conversations whose last_message_at is older than
  * RETENTION_HOURS. Safe to call repeatedly. Returns number of rows removed.
  */
@@ -256,6 +336,7 @@ async function purgeOldConversations() {
 module.exports = {
   RETENTION_HOURS,
   titleFromText,
+  stripContextPrefix,
   createConversation,
   getConversation,
   listRecentConversations,
@@ -263,5 +344,6 @@ module.exports = {
   appendMessage,
   renameConversation,
   deleteConversation,
+  backfillScreenContextTitles,
   purgeOldConversations,
 };

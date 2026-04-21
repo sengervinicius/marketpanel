@@ -132,6 +132,17 @@ function initJobs(ctx = {}) {
   const { runOnce: dispatchMorningBriefs } = require('./morningBriefDispatcher');
   registerJob('morning-brief-dispatcher', '*/5 * * * *', dispatchMorningBriefs);
 
+  // ── One-time backfill: strip [SCREEN CONTEXT] from existing titles ──
+  // Older conversations were titled with the raw context wrapper because
+  // titleFromText() used to slice the first 80 chars unchanged. titleFromText
+  // now strips the prefix, so new rows are fine — but existing rows still
+  // show up in the sidebar as "[SCREEN CONTEXT] User...". Run the backfill
+  // once on boot (delayed so DB is definitely up) to fix them.
+  const aiChatStore = require('../services/aiChatStore');
+  setTimeout(() => {
+    aiChatStore.backfillScreenContextTitles({ limit: 1000 }).catch(() => { /* logged inside */ });
+  }, 10_000);
+
   // ── Staleness sweep: every minute (W3.3) ─────────────────────────────
   // Emits severity transitions per feed; updates the age gauge consumed
   // by /metrics and /admin/debug.
