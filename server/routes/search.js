@@ -2193,11 +2193,12 @@ ${ctx_.portfolioMetricsContext ? `\n${ctx_.portfolioMetricsContext}\n` : ''}${ct
           '\n\n[TERMINAL TOOLS — MANDATORY]\n' +
           'You have direct access to the terminal\'s live adapters via ' +
           'tools: lookup_quote, lookup_fx, lookup_commodity, ' +
-          'list_market_movers, get_yield_curve, list_sovereign_bonds, ' +
-          'list_corporate_bonds, get_macro_snapshot, get_brazil_macro, ' +
-          'list_cvm_filings, get_earnings_calendar, get_options_flow, ' +
-          'search_prediction_markets, search_vault, get_recent_wire, ' +
-          'describe_portfolio_import, get_market_regime, run_scenario.\n\n' +
+          'forward_estimates, list_market_movers, get_yield_curve, ' +
+          'list_sovereign_bonds, list_corporate_bonds, get_macro_snapshot, ' +
+          'get_brazil_macro, list_cvm_filings, get_earnings_calendar, ' +
+          'get_options_flow, search_prediction_markets, search_vault, ' +
+          'get_recent_wire, describe_portfolio_import, get_market_regime, ' +
+          'run_scenario.\n\n' +
           'RULES:\n' +
           '1. TOOLS ARE MANDATORY FOR NAMED ENTITIES. For every ticker, ' +
           'company, bond issuer, or country the user mentions, you MUST ' +
@@ -2409,7 +2410,24 @@ ${ctx_.portfolioMetricsContext ? `\n${ctx_.portfolioMetricsContext}\n` : ''}${ct
           'when emitting the tag — just emit the tag and let the endpoint ' +
           'report the real number back. If the user\'s intent is ambiguous ' +
           '(e.g. "deal with my alerts"), ask before emitting delete — the ' +
-          'pause path is always the safer default.';
+          'pause path is always the safer default.\n' +
+          '17. FORWARD ESTIMATES — call forward_estimates whenever the user ' +
+          'asks what the street / consensus / analysts are modelling for a ' +
+          'US equity\'s upcoming fiscal periods: "what\'s the street on NVDA ' +
+          'next year", "consensus EPS for AAPL FY+2", "forward revenue for ' +
+          'MSFT", "analyst range on TSLA EBITDA 2027", "where\'s the Street ' +
+          'on GOOGL 2026 earnings", or any valuation / allocation discussion ' +
+          'that hinges on forward fundamentals. Default to period=annual; ' +
+          'switch to period=quarter only when the user explicitly asks ' +
+          'about next-quarter guidance. The tool returns EPS, revenue, ' +
+          'EBITDA and net income with the full analyst range (low / high / ' +
+          'avg) plus analyst count — phrase answers in that grammar: ' +
+          '"consensus X, bull case Y, bear case Z, off N analysts". US-only ' +
+          'coverage — never call this for Brazilian .SA / B3 tickers; for ' +
+          'those, say forward consensus isn\'t available in the terminal ' +
+          'rather than fabricating. If the tool returns { error } or an ' +
+          'empty estimates array, tell the user the data isn\'t available ' +
+          'instead of guessing numbers.';
 
         await aiToolbox.runToolLoopStream(provider, routerMessages, toolAugmentedPrompt, res, {
           userId,

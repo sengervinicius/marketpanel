@@ -501,6 +501,54 @@ const TOOLS = [
       required: ['commodity'],
     },
   },
+  {
+    name: 'forward_estimates',
+    description:
+      'Fetch the street (sell-side analyst consensus) forward estimates ' +
+      'for a US equity ticker — EPS, revenue, EBITDA, and net income, ' +
+      'with high / low / average across the full analyst set plus the ' +
+      'number of analysts contributing. Covers the next ~5 fiscal ' +
+      'periods (annual by default, quarterly available). Use this ' +
+      'whenever the user asks "what\'s the street modelling", "consensus ' +
+      'EPS for FY+1", "forward revenue", "analyst range", "what are ' +
+      'estimates for NVDA next year", "how is the Street positioned on ' +
+      'X", or any multi-year allocation / valuation question that hinges ' +
+      'on forward fundamentals. Historical (reported) periods are ' +
+      'filtered out — the tool returns strictly forward-looking rows. ' +
+      'Numbers are in raw USD (revenue/ebitda/net income) or USD per ' +
+      'share (EPS). Coverage is strong on US large- and mid-cap; thin ' +
+      'on ex-US names (ADRs only) and nonexistent on Brazilian .SA / B3 ' +
+      'tickers — for those, say the data isn\'t available rather than ' +
+      'guessing. If the tool returns { error }, surface that to the ' +
+      'user; don\'t fabricate numbers.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        symbol: {
+          type: 'string',
+          description:
+            'US equity ticker. Examples: "NVDA", "AAPL", "$MSFT", "GOOGL". ' +
+            'Leading $ is tolerated. Do not use .SA / B3 tickers — coverage ' +
+            'is US-centric.',
+        },
+        period: {
+          type: 'string',
+          description:
+            '"annual" (default, FY+1 / FY+2 / ...) or "quarter" for ' +
+            'quarterly-granularity estimates. Most allocation questions ' +
+            'want annual; only use quarter when the user explicitly asks ' +
+            'about next-quarter guidance.',
+        },
+        limit: {
+          type: 'integer',
+          description:
+            'How many forward periods to return, default 5, cap 15. Keep ' +
+            'it tight — 3 is usually enough for a chat answer.',
+        },
+      },
+      required: ['symbol'],
+    },
+  },
 ];
 
 // ── Tool handlers ─────────────────────────────────────────────────────
@@ -530,6 +578,7 @@ const providers = {
   movers:             lazy('../providers/marketMoversProvider'),
   macroBr:            lazy('../providers/macroBrProvider'),
   cvmFilings:         lazy('../providers/cvmFilingsProvider'),
+  analystEstimates:   lazy('../providers/analystEstimatesProvider'),
 };
 const services = {
   earnings:           lazy('./earnings'),
@@ -868,6 +917,19 @@ async function handleLookupCommodity({ commodity }) {
   }
 }
 
+async function handleForwardEstimates({ symbol, period, limit }) {
+  const mod = providers.analystEstimates();
+  if (!mod || typeof mod.getForwardEstimates !== 'function') {
+    return { error: 'forward estimates adapter unavailable' };
+  }
+  try {
+    const res = await mod.getForwardEstimates({ symbol, period, limit });
+    return res || { error: 'no forward estimates' };
+  } catch (e) {
+    return { error: e.message };
+  }
+}
+
 async function handleGetRecentWire({ limit }) {
   const mod = services.wireGenerator();
   if (!mod || typeof mod.getFromDB !== 'function') {
@@ -895,6 +957,7 @@ const HANDLERS = {
   get_recent_wire:           handleGetRecentWire,
   lookup_fx:                 handleLookupFx,
   lookup_commodity:          handleLookupCommodity,
+  forward_estimates:         handleForwardEstimates,
   list_market_movers:        handleListMarketMovers,
   get_brazil_macro:          handleGetBrazilMacro,
   list_cvm_filings:          handleListCvmFilings,
