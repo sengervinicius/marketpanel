@@ -89,6 +89,31 @@ const handlePdfUpload = handleUploadFactory(pdfUpload);
 const importRateLimit = rateLimitByUser({ key: 'portfolio-import', windowSec: 5 * 60, max: 10 });
 
 /**
+ * GET /api/portfolio/import/schema
+ * Public schema descriptor — users (and the Particle AI) can read this
+ * to know what columns we accept, which are required, and which aliases
+ * we auto-detect. No auth needed; this is metadata, not user data.
+ */
+router.get('/schema', (_req, res) => {
+  res.json({ ok: true, schema: csvImporter.getImportSchema() });
+});
+
+/**
+ * GET /api/portfolio/import/template
+ * Downloadable CSV template pre-populated with the canonical column
+ * headers and one example row. This is the P1.5 half-measure that sits
+ * in for a direct brokerage (Plaid) integration — users export from
+ * their broker, match it to our template, upload.
+ */
+router.get('/template', (_req, res) => {
+  const body = csvImporter.buildTemplateCsv();
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition',
+    'attachment; filename="particle-portfolio-template.csv"');
+  res.send(body);
+});
+
+/**
  * POST /api/portfolio/import/preview
  * multipart: file=<csv>
  * Returns the first 10 data rows + a header→field mapping guess so the

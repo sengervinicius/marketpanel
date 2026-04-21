@@ -2196,7 +2196,8 @@ ${ctx_.portfolioMetricsContext ? `\n${ctx_.portfolioMetricsContext}\n` : ''}${ct
           'list_market_movers, get_yield_curve, list_sovereign_bonds, ' +
           'list_corporate_bonds, get_macro_snapshot, get_brazil_macro, ' +
           'list_cvm_filings, get_earnings_calendar, get_options_flow, ' +
-          'search_prediction_markets, search_vault, get_recent_wire.\n\n' +
+          'search_prediction_markets, search_vault, get_recent_wire, ' +
+          'describe_portfolio_import.\n\n' +
           'RULES:\n' +
           '1. TOOLS ARE MANDATORY FOR NAMED ENTITIES. For every ticker, ' +
           'company, bond issuer, or country the user mentions, you MUST ' +
@@ -2353,7 +2354,24 @@ ${ctx_.portfolioMetricsContext ? `\n${ctx_.portfolioMetricsContext}\n` : ''}${ct
           'export of your holdings on the Watchlist / Portfolio page ' +
           'and we\'ll import it with full position detail." Do NOT ' +
           'pretend an integration exists, and do NOT ask them for ' +
-          'credentials or account numbers.';
+          'credentials or account numbers.\n' +
+          '14. PORTFOLIO IMPORT — for any question about bringing holdings ' +
+          'into the terminal ("how do I import my portfolio", "what ' +
+          'columns do you need", "can I upload a CSV", "importar minha ' +
+          'carteira", "sync my broker account", "conectar corretora"), ' +
+          'call describe_portfolio_import. The tool returns the canonical ' +
+          'CSV schema, the template download URL, and the two-step ' +
+          'preview/commit endpoints. Paraphrase the schema (required vs ' +
+          'optional fields with a concrete example), point the user at ' +
+          'the template URL, and explain the upload flow: first POST to ' +
+          'the preview endpoint with the CSV to see parsed rows, then ' +
+          'POST to the commit endpoint to persist. Never ask the user ' +
+          'for credentials, account numbers, broker passwords, or 2FA ' +
+          'codes — we have no direct brokerage connection (see rule 13c) ' +
+          'and the CSV / XLSX path is the supported route. If the user ' +
+          'names their broker ("XP", "Itaú", "Clear", "Interactive ' +
+          'Brokers"), acknowledge the broker but still direct them to ' +
+          'the CSV export from the broker\'s own interface.';
 
         await aiToolbox.runToolLoopStream(provider, routerMessages, toolAugmentedPrompt, res, {
           userId,

@@ -380,6 +380,28 @@ const TOOLS = [
     },
   },
   {
+    name: 'describe_portfolio_import',
+    description:
+      'Describe how the user can import their existing portfolio / ' +
+      'holdings into the terminal. Returns the canonical CSV schema ' +
+      '(column names, required vs optional fields, example values), the ' +
+      'upload/commit endpoint URLs, the template download URL, and the ' +
+      'supported file formats. Use this for ANY question about bringing a ' +
+      'portfolio in: "how do I import my positions", "what columns do you ' +
+      'need", "can I upload a CSV from my broker", "sync my Itaú / XP / ' +
+      'Interactive Brokers account", "importar minha carteira", "posso ' +
+      'conectar minha corretora". Critical: the terminal does NOT have ' +
+      'direct brokerage sync (no Plaid integration) — never ask the user ' +
+      'for credentials or account numbers. Always relay the CSV/XLSX path ' +
+      'and the template URL so the user can self-serve. This tool has no ' +
+      'required arguments; just call it and paraphrase the returned ' +
+      'schema + URLs in the response.',
+    input_schema: {
+      type: 'object',
+      properties: {},
+    },
+  },
+  {
     name: 'lookup_commodity',
     description:
       'Fetch the latest futures price for a commodity — energy (WTI, ' +
@@ -445,6 +467,7 @@ const services = {
   predictionAgg:      lazy('./predictionAggregator'),
   vault:              lazy('./vault'),
   wireGenerator:      lazy('./wireGenerator'),
+  csvImporter:        lazy('./csvImporter'),
 };
 
 async function handleLookupQuote({ symbol }) {
@@ -718,6 +741,19 @@ async function handleGetBrazilMacro({ series, history, months }) {
   }
 }
 
+async function handleDescribePortfolioImport() {
+  const mod = services.csvImporter();
+  if (!mod || typeof mod.getImportSchema !== 'function') {
+    return { error: 'portfolio import adapter unavailable' };
+  }
+  try {
+    const schema = mod.getImportSchema();
+    return schema || { error: 'no schema' };
+  } catch (e) {
+    return { error: e.message };
+  }
+}
+
 async function handleLookupCommodity({ commodity }) {
   const mod = providers.commodities();
   if (!mod || typeof mod.getCommodityQuote !== 'function') {
@@ -761,6 +797,7 @@ const HANDLERS = {
   list_market_movers:        handleListMarketMovers,
   get_brazil_macro:          handleGetBrazilMacro,
   list_cvm_filings:          handleListCvmFilings,
+  describe_portfolio_import: handleDescribePortfolioImport,
 };
 
 /**
