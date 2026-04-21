@@ -234,6 +234,43 @@ const TOOLS = [
     },
   },
   {
+    name: 'list_market_movers',
+    description:
+      'Return the top US-equity movers for today: biggest gainers, ' +
+      'biggest losers, or most actively traded (by session volume). ' +
+      'Use this for any "top 5 S&P gainers", "who\'s down the most ' +
+      'today", "most active names", "unusual volume" question. Returns ' +
+      'symbol, price, change, change %, and session volume per row. ' +
+      'US equities ONLY — the response will include a coverage_note if ' +
+      'the user asked about a non-US market (B3, HK, A-shares, Nifty); ' +
+      'in that case relay the gap honestly instead of inventing a list.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        direction: {
+          type: 'string',
+          enum: ['gainers', 'losers', 'actives'],
+          description:
+            'gainers = top % up, losers = top % down, actives = most ' +
+            'traded by session volume.',
+        },
+        limit: {
+          type: 'number',
+          description:
+            'How many rows to return (1-50). Default 10. Prefer 5-10 for ' +
+            'conversational answers.',
+        },
+        market: {
+          type: 'string',
+          description:
+            'Market code. Only "US" is wired today; any other value ' +
+            'returns an empty list with a coverage_note.',
+        },
+      },
+      required: ['direction'],
+    },
+  },
+  {
     name: 'lookup_commodity',
     description:
       'Fetch the latest futures price for a commodity — energy (WTI, ' +
@@ -289,6 +326,7 @@ const providers = {
   macro:              lazy('../providers/macroProvider'),
   fx:                 lazy('../providers/fxProvider'),
   commodities:        lazy('../providers/commoditiesProvider'),
+  movers:             lazy('../providers/marketMoversProvider'),
 };
 const services = {
   earnings:           lazy('./earnings'),
@@ -512,6 +550,23 @@ async function handleLookupFx({ pair }) {
   }
 }
 
+async function handleListMarketMovers({ direction, limit, market }) {
+  const mod = providers.movers();
+  if (!mod || typeof mod.getMarketMovers !== 'function') {
+    return { error: 'market movers adapter unavailable' };
+  }
+  try {
+    const res = await mod.getMarketMovers({
+      direction: String(direction || 'gainers').toLowerCase(),
+      limit,
+      market,
+    });
+    return res || { direction, movers: [], count: 0 };
+  } catch (e) {
+    return { error: e.message };
+  }
+}
+
 async function handleLookupCommodity({ commodity }) {
   const mod = providers.commodities();
   if (!mod || typeof mod.getCommodityQuote !== 'function') {
@@ -552,6 +607,7 @@ const HANDLERS = {
   get_recent_wire:           handleGetRecentWire,
   lookup_fx:                 handleLookupFx,
   lookup_commodity:          handleLookupCommodity,
+  list_market_movers:        handleListMarketMovers,
 };
 
 /**

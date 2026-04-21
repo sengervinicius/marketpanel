@@ -2193,9 +2193,10 @@ ${ctx_.portfolioMetricsContext ? `\n${ctx_.portfolioMetricsContext}\n` : ''}${ct
           '\n\n[TERMINAL TOOLS — MANDATORY]\n' +
           'You have direct access to the terminal\'s live adapters via ' +
           'tools: lookup_quote, lookup_fx, lookup_commodity, ' +
-          'get_yield_curve, list_sovereign_bonds, list_corporate_bonds, ' +
-          'get_macro_snapshot, get_earnings_calendar, get_options_flow, ' +
-          'search_prediction_markets, search_vault, get_recent_wire.\n\n' +
+          'list_market_movers, get_yield_curve, list_sovereign_bonds, ' +
+          'list_corporate_bonds, get_macro_snapshot, get_earnings_calendar, ' +
+          'get_options_flow, search_prediction_markets, search_vault, ' +
+          'get_recent_wire.\n\n' +
           'RULES:\n' +
           '1. TOOLS ARE MANDATORY FOR NAMED ENTITIES. For every ticker, ' +
           'company, bond issuer, or country the user mentions, you MUST ' +
@@ -2270,7 +2271,17 @@ ${ctx_.portfolioMetricsContext ? `\n${ctx_.portfolioMetricsContext}\n` : ''}${ct
           'own email — you cannot specify a different recipient, so don\'t ' +
           'pretend you can. Prefer "last" when the user asked about a ' +
           'single specific thing; prefer "full" when they\'ve been working ' +
-          'through a multi-turn analysis they want to keep.';
+          'through a multi-turn analysis they want to keep.\n' +
+          '10. MARKET MOVERS — for any "top gainers / losers / most active" ' +
+          'question, call list_market_movers with direction=gainers|losers|' +
+          'actives and a limit (default 10, drop to 5 for conversational ' +
+          'answers). US equities only. If the user asks about IBOV, B3, ' +
+          'Hang Seng, Shanghai A-shares, or any non-US market, pass ' +
+          'market=BR (or HK, CN, IN) so the tool returns a coverage_note ' +
+          '— then relay that gap honestly to the user rather than making ' +
+          'up a list. Never fabricate movers, never quote yesterday\'s ' +
+          'list from training data: either the tool answers or you say ' +
+          'we don\'t cover that market.';
 
         await aiToolbox.runToolLoopStream(provider, routerMessages, toolAugmentedPrompt, res, {
           userId,
