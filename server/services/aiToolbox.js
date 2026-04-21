@@ -287,7 +287,21 @@ async function handleListSovereignBonds({ country }) {
   }
   try {
     const rows = await mod.getSovereignBonds(String(country).toUpperCase());
-    return { country, count: Array.isArray(rows) ? rows.length : 0, bonds: (rows || []).slice(0, 40) };
+    const count = Array.isArray(rows) ? rows.length : 0;
+    // An empty array from bondsProvider means "Eulerpool returned nothing or
+    // isn't configured". Without this distinction the model sees count=0 and
+    // happily asserts "there are no bonds", which is misleading. Signal the
+    // coverage gap explicitly so the synthesis can say "I don't have that
+    // data source live".
+    if (count === 0) {
+      return {
+        country,
+        count: 0,
+        bonds: [],
+        coverage_gap: 'No individual sovereign bond rows available for this country. Terminal coverage is partial — recommend using get_yield_curve for tenor-level yields instead.',
+      };
+    }
+    return { country, count, bonds: (rows || []).slice(0, 40) };
   } catch (e) {
     return { error: e.message };
   }
@@ -307,7 +321,18 @@ async function handleListCorporateBonds(args) {
       maturityAfter:  args.maturityAfter,
       limit:          Math.min(100, Math.max(1, Number(args.limit) || 30)),
     });
-    return { count: Array.isArray(rows) ? rows.length : 0, bonds: (rows || []).slice(0, 40) };
+    const count = Array.isArray(rows) ? rows.length : 0;
+    // Same signal as sovereign bonds — empty here almost always means the
+    // Eulerpool data feed isn't configured in this environment, not that
+    // the universe is empty. The model must not pretend otherwise.
+    if (count === 0) {
+      return {
+        count: 0,
+        bonds: [],
+        coverage_gap: 'Corporate bond rows are not available in this environment. Tell the user plainly that the terminal does not currently cover individual corporate issues for these filters; suggest get_yield_curve, sovereign bonds, or an equity-level view as alternatives.',
+      };
+    }
+    return { count, bonds: (rows || []).slice(0, 40) };
   } catch (e) {
     return { error: e.message };
   }
@@ -608,7 +633,7 @@ async function runToolLoop(provider, initialMessages, systemPrompt, ctx = {}) {
   if (!finalText) {
     const exhaustionNote = tokenCapHit
       ? '\n\nYou have used most of the token budget for this turn. Synthesise your answer NOW from the tool results you already have. Do not call additional tools. If the data is incomplete, state that plainly in one sentence.'
-      : '\n\nYou have exhausted your tool budget. Synthesise your answer now from the tool results you have. Do not call additional tools.';
+      : '\n\nYou have exhausted your tool budget. Synthesise your answer now from the tool results you have. Do not call additional tools. Always produce a user-facing text answer.';
     const closeBody = {
       model: provider.model,
       system: systemPrompt + exhaustionNote,
@@ -625,8 +650,25 @@ async function runToolLoop(provider, initialMessages, systemPrompt, ctx = {}) {
       finalText = content.filter(b => b.type === 'text').map(b => b.text || '').join('');
     } catch (e) {
       logger.warn('aiToolbox', 'closing synthesis failed', { error: e.message });
-      finalText = finalText || 'Apologies — I ran out of tool calls gathering the data for that question.';
     }
+  }
+
+  // Hard safety net — we must never return an empty answer to the user.
+  // An empty finalText shows up in the UI as "(No response)", which is
+  // worse than a plain-English admission that something went sideways.
+  // This catches both the "closing-synthesis returned zero text blocks"
+  // case and any other path that produced no text.
+  if (!finalText || !finalText.trim()) {
+    logger.warn('aiToolbox', 'runToolLoop produced empty finalText', {
+      userId: ctx.userId || null,
+      rounds,
+      tokenCapHit,
+      totalIn,
+      totalOut,
+    });
+    finalText = tokenCapHit
+      ? "I hit this turn's token budget before I could finish. Try narrowing the question — for example, a specific country, sector, or maturity window — and I'll answer from what I can gather."
+      : "I couldn't assemble a useful answer from the terminal data available for that question. Try rephrasing, or ask me for an adjacent angle (e.g. a yield curve or sovereign bonds) that I can source directly.";
   }
 
   return { finalText, rounds, tokenCapHit, usage: { input: totalIn, output: totalOut } };
@@ -662,6 +704,12 @@ async function runToolLoopStream(provider, initialMessages, systemPrompt, res, {
     // without hammering SSE framing.
     if (typeof onRoundsMeta === 'function') {
       try { onRoundsMeta({ rounds }); } catch {}
+    }
+    // Safety floor — runToolLoop now always produces non-empty finalText,
+    // but if that contract is ever broken we still want the user to see
+    // something instead of the client rendering "(No response)".
+    if (!fullText || !fullText.trim()) {
+      fullText = "I wasn't able to assemble a useful answer this turn. Try rephrasing or ask a more specific question.";
     }
     const CHUNK = 120;
     for (let i = 0; i < fullText.length; i += CHUNK) {

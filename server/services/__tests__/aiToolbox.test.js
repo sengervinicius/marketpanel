@@ -250,6 +250,46 @@ process.env.ANTHROPIC_API_KEY = 'test-key';
   assert.match(capped.finalText, /partial data/);
   assert.strictEqual(fetchCalls.length, 2, 'expected 1 loop call + 1 closing synthesis');
 
+  // 10. runToolLoop: model + closing synthesis BOTH return empty text.
+  //     The hard safety net must produce a user-facing fallback so the
+  //     client never shows "(No response)". This is the incident we just
+  //     shipped a fix for.
+  fetchScript = [
+    // Round 1 — tool_use so we enter the closing synthesis path
+    {
+      status: 200,
+      body: {
+        stop_reason: 'tool_use',
+        content: [{ type: 'tool_use', id: 'toolu_empty', name: 'lookup_quote', input: { symbol: 'EMPTY' } }],
+        usage: { input_tokens: 30, output_tokens: 10 },
+      },
+    },
+    // Round 2 — model returns end_turn with zero text blocks (pathological)
+    {
+      status: 200,
+      body: {
+        stop_reason: 'end_turn',
+        content: [],
+        usage: { input_tokens: 20, output_tokens: 0 },
+      },
+    },
+    // Closing synthesis — also empty
+    {
+      status: 200,
+      body: {
+        stop_reason: 'end_turn',
+        content: [],
+        usage: { input_tokens: 15, output_tokens: 0 },
+      },
+    },
+  ];
+  fetchCalls = [];
+  const empty = await toolbox.runToolLoop(provider, [{ role: 'user', content: 'ask something that yields no answer' }], 'you are Particle', { userId: 9 });
+  assert.ok(empty.finalText && empty.finalText.trim().length > 0,
+    'safety net must populate finalText when model and synthesis both return empty');
+  assert.ok(/couldn.t|rephras|specific/i.test(empty.finalText),
+    'fallback should acknowledge the gap in plain language');
+
   console.log('aiToolbox.test.js OK');
 })().catch((err) => {
   console.error('aiToolbox.test.js FAILED:', err);
