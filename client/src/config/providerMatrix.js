@@ -71,6 +71,19 @@ const SUFFIX_MAP = {
   '.AS':  'EUROPE', '.MI':  'EUROPE', '.MC':  'EUROPE',
   '.SW':  'EUROPE', '.ST':  'EUROPE', '.HE':  'EUROPE',
   '.OL':  'EUROPE', '.CO':  'EUROPE',
+  // #215 — previously-missing EU suffixes. Without these, tickers like
+  // JUMBO.AT (Athens) fell through to the US default and the coverage
+  // header rendered "Historical chart data unavailable — US (NYSE /
+  // NASDAQ)" for a Greek stock. Yahoo supports all of these as-is, so
+  // routing them to EUROPE gets chart + delayed quote + AI working.
+  '.AT':  'EUROPE',  // Athens Exchange (ATHEX)
+  '.LS':  'EUROPE',  // Euronext Lisbon
+  '.BR':  'EUROPE',  // Euronext Brussels (does NOT collide with .SA Brazil)
+  '.VI':  'EUROPE',  // Wiener Börse (Vienna)
+  '.WA':  'EUROPE',  // Warsaw Stock Exchange
+  '.IR':  'EUROPE',  // Euronext Dublin
+  '.PR':  'EUROPE',  // Prague Stock Exchange
+  '.IC':  'EUROPE',  // Nasdaq Iceland
   '.TO':  'CANADA', '.V':   'CANADA', '.CN':  'CANADA',
   '.AX':  'AUSTRALIA',
 };

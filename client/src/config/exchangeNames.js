@@ -39,6 +39,22 @@ const EXCHANGE_NAMES = {
   HEL: 'Nasdaq Helsinki', HE: 'Nasdaq Helsinki',
   // Poland
   WSE: 'Warsaw Stock Exchange', WAR: 'Warsaw Stock Exchange',
+  WA: 'Warsaw Stock Exchange',
+  // #215 — previously-missing EU exchanges that users actually hold.
+  // Greece
+  ATH: 'Athens Stock Exchange', AT: 'Athens Stock Exchange', ATHEX: 'Athens Stock Exchange',
+  // Portugal
+  LIS: 'Euronext Lisbon', LS: 'Euronext Lisbon',
+  // Belgium
+  BRU: 'Euronext Brussels', BR: 'Euronext Brussels',
+  // Austria
+  WBO: 'Wiener Börse', VIE: 'Wiener Börse', VI: 'Wiener Börse',
+  // Ireland
+  DUB: 'Euronext Dublin', IR: 'Euronext Dublin', ISE: 'Euronext Dublin',
+  // Czechia
+  PRA: 'Prague Stock Exchange', PR: 'Prague Stock Exchange',
+  // Iceland
+  REY: 'Nasdaq Iceland', IC: 'Nasdaq Iceland',
   // Singapore
   SGX: 'Singapore Exchange', SI: 'Singapore Exchange',
   // Korea
