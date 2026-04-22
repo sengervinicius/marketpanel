@@ -750,9 +750,31 @@ router.post('/:token', async (req, res) => {
   }
 
   // Resolve the "owner" user_id for central-vault rows.
-  const ownerEmail = getOwnerEmail();
-  if (!ownerEmail) {
-    logger.error('inbound-email', 'Rejected — ADMIN_EMAILS not configured', { messageId });
+  //
+  // Phase 10.4 (#216): `owner_not_found` was silently dropping real mail
+  // because the ops doc tells the admin to put `founder@the-particle.com`
+  // as the first ADMIN_EMAILS entry — but most deployments register under
+  // the CIO's personal address (e.g. vinicius@arccapital.com.br). The
+  // previous code only looked up `ADMIN_EMAILS[0]`, so if the canonical
+  // "founder" mailbox never got a user row, every inbound email died here.
+  //
+  // New resolution order:
+  //   1. Try each ADMIN_EMAILS entry in order — the first one that maps
+  //      to a real user row becomes the owner. Preserves intent when the
+  //      canonical owner IS registered.
+  //   2. Fall back to the matched sender — we know they're allowlisted
+  //      (and usually an admin), so using their user_id is safe and lets
+  //      mail flow even when the ops doc's default "founder" row is absent.
+  //
+  // We still report `owner_unconfigured` when ADMIN_EMAILS is empty AND
+  // the matched sender doesn't resolve — that's a real misconfiguration.
+  const ownerCandidates = [...adminEmails];
+  if (matchedSender && !ownerCandidates.includes(matchedSender)) {
+    ownerCandidates.push(matchedSender);
+  }
+
+  if (ownerCandidates.length === 0) {
+    logger.error('inbound-email', 'Rejected — ADMIN_EMAILS not configured and no sender fallback', { messageId });
     recordOutcome({
       outcome: 'dropped',
       reason: 'owner_unconfigured',
@@ -763,11 +785,22 @@ router.post('/:token', async (req, res) => {
     });
     return res.status(200).json({ ok: false, reason: 'owner_unconfigured', messageId });
   }
-  const ownerUser = findUserByEmail(ownerEmail);
+
+  let ownerUser = null;
+  let ownerEmail = null;
+  for (const candidate of ownerCandidates) {
+    const u = findUserByEmail(candidate);
+    if (u && u.id) {
+      ownerUser = u;
+      ownerEmail = candidate;
+      break;
+    }
+  }
+
   if (!ownerUser || !ownerUser.id) {
-    logger.error('inbound-email', 'Rejected — owner user not found', {
+    logger.error('inbound-email', 'Rejected — no owner user found among admin/sender candidates', {
       messageId,
-      ownerEmail,
+      candidates: ownerCandidates,
     });
     recordOutcome({
       outcome: 'dropped',
@@ -776,9 +809,26 @@ router.post('/:token', async (req, res) => {
       messageId,
       sender,
       subject,
-      ownerEmail,
+      candidates: ownerCandidates,
     });
-    return res.status(200).json({ ok: false, reason: 'owner_not_found', messageId });
+    return res.status(200).json({
+      ok: false,
+      reason: 'owner_not_found',
+      messageId,
+      // Surface which addresses we tried so on-call can register the right
+      // account or add the missing row to ADMIN_EMAILS.
+      candidates: ownerCandidates,
+    });
+  }
+
+  // Log when we fell back away from the canonical ADMIN_EMAILS[0] so ops
+  // can see that the "founder" row isn't actually serving as owner.
+  if (adminEmails.length > 0 && ownerEmail !== adminEmails[0]) {
+    logger.info('inbound-email', 'Using fallback owner — primary admin email has no user row', {
+      messageId,
+      primaryAdmin: adminEmails[0],
+      resolvedOwner: ownerEmail,
+    });
   }
 
   const result = await ingestEmail({

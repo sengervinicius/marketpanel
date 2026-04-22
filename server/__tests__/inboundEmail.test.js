@@ -43,15 +43,16 @@ require.cache[vaultPath] = {
   paths: [],
 };
 
+// Test-mutable lookup table so specific tests can simulate missing admin
+// rows (#216 regression). Default: founder is registered, nobody else.
+let _userLookup = { 'founder@the-particle.com': { id: 42, email: 'founder@the-particle.com' } };
+
 require.cache[authStorePath] = {
   id: authStorePath,
   filename: authStorePath,
   loaded: true,
   exports: {
-    findUserByEmail: (email) => {
-      if (email === 'founder@the-particle.com') return { id: 42, email };
-      return null;
-    },
+    findUserByEmail: (email) => _userLookup[email] || null,
   },
   children: [],
   paths: [],
@@ -149,6 +150,9 @@ function resetEnvAndState() {
   process.env.ADMIN_EMAILS = 'founder@the-particle.com';
   _ingestCalls = [];
   _ingestError = null;
+  // Restore the default userLookup (founder registered) — tests that need
+  // different shape can reassign _userLookup after calling this helper.
+  _userLookup = { 'founder@the-particle.com': { id: 42, email: 'founder@the-particle.com' } };
   __test.__resetDedupeForTests();
   __test.__resetRateLimitForTests();
 }
@@ -324,12 +328,64 @@ test('ingestFile failure on one attachment does not stop the rest', async () => 
 
 test('Allowlist unconfigured → 200 but rejected', async () => {
   resetEnvAndState();
+  // Phase 10.2 folded ADMIN_EMAILS into the effective allowlist so admins
+  // are implicitly allowed to forward mail. That means clearing only
+  // VAULT_INBOUND_ALLOWED_SENDERS is no longer enough to trip this branch
+  // — we must also clear ADMIN_EMAILS to actually leave the allowlist empty.
   delete process.env.VAULT_INBOUND_ALLOWED_SENDERS;
+  delete process.env.ADMIN_EMAILS;
   const srv = makeServer();
   try {
     const res = await postJson(`${srv.url}/api/inbound/email/hunter2`, samplePayload());
     assert.equal(res.status, 200);
     assert.equal(res.body.reason, 'allowlist_unconfigured');
+    assert.equal(_ingestCalls.length, 0);
+  } finally {
+    await srv.close();
+  }
+});
+
+// #216 regression — owner_not_found silently dropped every inbound email
+// when ADMIN_EMAILS[0] ("founder@") wasn't a registered user, even though
+// the sender (e.g. CIO's personal address) WAS registered. Fix: iterate
+// ADMIN_EMAILS candidates, fall back to matched sender.
+test('#216 ownerCandidates fallback — ADMIN_EMAILS[0] not registered, sender is', async () => {
+  resetEnvAndState();
+  // Simulate the real-world misconfiguration: ops doc tells the admin to
+  // set ADMIN_EMAILS=founder@the-particle.com but that user row was never
+  // created — the CIO registered under their personal address instead.
+  _userLookup = {
+    'vinicius@arccapital.com.br': { id: 77, email: 'vinicius@arccapital.com.br' },
+  };
+  const srv = makeServer();
+  try {
+    const payload = samplePayload({
+      FromFull: { Email: 'vinicius@arccapital.com.br' },
+      From: 'Vinicius <vinicius@arccapital.com.br>',
+    });
+    const res = await postJson(`${srv.url}/api/inbound/email/hunter2`, payload);
+    assert.equal(res.status, 200);
+    assert.equal(res.body.ok, true, 'must ingest, not drop on owner_not_found');
+    assert.equal(_ingestCalls.length, 1);
+    assert.equal(_ingestCalls[0].userId, 77, 'owner must fall back to the allowlisted sender');
+    assert.equal(_ingestCalls[0].isGlobal, true);
+  } finally {
+    await srv.close();
+  }
+});
+
+test('#216 owner_not_found surfaces candidates array when no user matches', async () => {
+  resetEnvAndState();
+  // No user registered anywhere — both admin and sender addresses fail.
+  _userLookup = {};
+  const srv = makeServer();
+  try {
+    const res = await postJson(`${srv.url}/api/inbound/email/hunter2`, samplePayload());
+    assert.equal(res.status, 200);
+    assert.equal(res.body.ok, false);
+    assert.equal(res.body.reason, 'owner_not_found');
+    assert.ok(Array.isArray(res.body.candidates), 'response must include which emails were tried');
+    assert.ok(res.body.candidates.includes('founder@the-particle.com'));
     assert.equal(_ingestCalls.length, 0);
   } finally {
     await srv.close();
