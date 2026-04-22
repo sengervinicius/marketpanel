@@ -549,6 +549,89 @@ const TOOLS = [
       required: ['symbol'],
     },
   },
+  {
+    name: 'web_research',
+    description:
+      'Run a web search for non-financial or operational data that the ' +
+      'other tools can\'t reach: fleet size, store count, subscriber ' +
+      'count, ARR, headcount, bed count, assets under management, ' +
+      'pipeline milestones, regulatory rulings, M&A news, and any other ' +
+      'primary-source fact that lives on a company IR page, 10-K, 20-F, ' +
+      'earnings release, CVM filing, regulator bulletin, reputable press ' +
+      'outlet (Reuters/Bloomberg/FT/Valor), or the company website. ' +
+      'Returns a short list of ranked URLs with snippets and a one-line ' +
+      'synthesised answer — treat the answer as a hint, not a source; ' +
+      'for any number you\'re going to quote, call fetch_url on the ' +
+      'most authoritative result to confirm. Use this whenever a ' +
+      'comparative or ratio question needs a non-market data point ' +
+      '(e.g. "price / fleet for HTZ vs RENT3", "store count for AMER3 ' +
+      'vs MGLU3", "ARR trajectory for CrowdStrike vs Palo Alto"). If ' +
+      'the tool is unavailable or returns { error }, surface that ' +
+      'plainly — do not guess the number.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        query: {
+          type: 'string',
+          description:
+            'Natural-language search query. Be specific — include the ' +
+            'company and the KPI. Good: "Localiza RENT3 fleet size ' +
+            '2025 annual report". Bad: "Localiza info".',
+        },
+        depth: {
+          type: 'string',
+          description:
+            '"basic" (default, fast, ~$0.008/search) or "advanced" ' +
+            '(slower, ~2× cost, better for ambiguous or sparse queries). ' +
+            'Stick to basic unless basic came back thin.',
+        },
+        maxResults: {
+          type: 'integer',
+          description: 'How many ranked results to return, default 6, cap 10.',
+        },
+        includeDomains: {
+          type: 'array',
+          items: { type: 'string' },
+          description:
+            'Optional: restrict results to these domains. Use this when ' +
+            'the user points at an authoritative source (e.g. ' +
+            '["sec.gov", "cvm.gov.br"], ["ri.localiza.com"]).',
+        },
+      },
+      required: ['query'],
+    },
+  },
+  {
+    name: 'fetch_url',
+    description:
+      'Fetch one URL and return cleaned text content. Use this as the ' +
+      'second step after web_research: pick the most authoritative URL ' +
+      '(prefer IR / SEC / CVM / regulator / company website over press ' +
+      'aggregators) and read it end-to-end to extract the exact number ' +
+      'the user asked about. Handles HTML and PDF (returns parsed text ' +
+      'for both). Returns truncated text if the document is long — if ' +
+      'you need a specific section, mention what you\'re looking for so ' +
+      'the context budget isn\'t wasted. Only http(s) URLs are allowed; ' +
+      'private/local addresses are blocked.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        url: {
+          type: 'string',
+          description:
+            'Fully-qualified http or https URL. Typically pulled from a ' +
+            'prior web_research result.',
+        },
+        maxChars: {
+          type: 'integer',
+          description:
+            'Cap returned text length (default 12000). Reduce for large ' +
+            'filings when you only need the summary section.',
+        },
+      },
+      required: ['url'],
+    },
+  },
 ];
 
 // ── Tool handlers ─────────────────────────────────────────────────────
@@ -579,6 +662,7 @@ const providers = {
   macroBr:            lazy('../providers/macroBrProvider'),
   cvmFilings:         lazy('../providers/cvmFilingsProvider'),
   analystEstimates:   lazy('../providers/analystEstimatesProvider'),
+  tavily:             lazy('../providers/tavily'),
 };
 const services = {
   earnings:           lazy('./earnings'),
@@ -588,6 +672,7 @@ const services = {
   wireGenerator:      lazy('./wireGenerator'),
   csvImporter:        lazy('./csvImporter'),
   scenarioEngine:     lazy('./scenarioEngine'),
+  webFetch:           lazy('./webFetch'),
 };
 
 async function handleLookupQuote({ symbol }) {
@@ -986,6 +1071,96 @@ async function handleGetRecentWire({ limit }) {
   }
 }
 
+// ── Per-user daily caps for web_research + fetch_url ─────────────────────
+//
+// These tools hit paid APIs (Tavily) and the open web. We don't want a
+// single chatty user — or a prompt-injected agent loop — burning through
+// a month of spend or scraping a remote site into an IP block. So each
+// user gets a fixed daily quota; over-limit calls return { error } so the
+// model sees the exhaustion and can tell the user.
+//
+// In-process counters are acceptable for v1 (single Render instance). If
+// we horizontally scale, promote these to Redis keyed on `YYYY-MM-DD:userId`.
+const WEB_RESEARCH_DAILY_CAP = 50;      // searches per user per day
+const FETCH_URL_DAILY_CAP    = 100;     // URL reads per user per day
+const _webQuota = new Map();            // userId → { day, research, fetch }
+
+function _utcDayKey() {
+  return new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+}
+
+function _bumpWebQuota(userId, bucket) {
+  const uid = userId || '_anon';
+  const day = _utcDayKey();
+  let q = _webQuota.get(uid);
+  if (!q || q.day !== day) { q = { day, research: 0, fetch: 0 }; _webQuota.set(uid, q); }
+  const cap = bucket === 'research' ? WEB_RESEARCH_DAILY_CAP : FETCH_URL_DAILY_CAP;
+  if (q[bucket] >= cap) return { over: true, used: q[bucket], cap };
+  q[bucket] += 1;
+  return { over: false, used: q[bucket], cap };
+}
+
+async function handleWebResearch({ query, depth, maxResults, includeDomains }, ctx = {}) {
+  const tavily = providers.tavily();
+  if (!tavily || typeof tavily.search !== 'function') {
+    return { error: 'web research adapter unavailable (TAVILY_API_KEY not set)' };
+  }
+  const q = String(query || '').trim();
+  if (!q) return { error: 'query required' };
+
+  const quota = _bumpWebQuota(ctx.userId, 'research');
+  if (quota.over) {
+    return { error: `daily web_research cap reached (${quota.cap}/day). Reset at 00:00 UTC.` };
+  }
+
+  try {
+    const out = await tavily.search(q, {
+      depth: depth === 'advanced' ? 'advanced' : 'basic',
+      maxResults: Math.min(10, Math.max(1, Number(maxResults) || 6)),
+      includeDomains: Array.isArray(includeDomains) ? includeDomains : undefined,
+    });
+    if (!out) {
+      return { error: 'web research unavailable — TAVILY_API_KEY not configured', query: q };
+    }
+    if (out.error) return { error: out.error, query: q };
+    return {
+      query: out.query,
+      answer: out.answer,
+      results: out.results,
+      source: out.source,
+      quota: { used: quota.used, cap: quota.cap },
+      asOf: out.asOf,
+    };
+  } catch (e) {
+    return { error: e.message || 'web research failed', query: q };
+  }
+}
+
+async function handleFetchUrl({ url, maxChars }, ctx = {}) {
+  const svc = services.webFetch();
+  if (!svc || typeof svc.fetchUrl !== 'function') {
+    return { error: 'url fetcher unavailable' };
+  }
+  if (!url) return { error: 'url required' };
+
+  const quota = _bumpWebQuota(ctx.userId, 'fetch');
+  if (quota.over) {
+    return { error: `daily fetch_url cap reached (${quota.cap}/day). Reset at 00:00 UTC.` };
+  }
+
+  try {
+    const out = await svc.fetchUrl(url, {
+      maxChars: Number(maxChars) || undefined,
+    });
+    if (out && !out.error) {
+      return { ...out, quota: { used: quota.used, cap: quota.cap } };
+    }
+    return out;
+  } catch (e) {
+    return { error: e.message || 'fetch failed', url };
+  }
+}
+
 const HANDLERS = {
   lookup_quote:              handleLookupQuote,
   get_yield_curve:           handleGetYieldCurve,
@@ -1006,6 +1181,8 @@ const HANDLERS = {
   describe_portfolio_import: handleDescribePortfolioImport,
   get_market_regime:         handleGetMarketRegime,
   run_scenario:              handleRunScenario,
+  web_research:              handleWebResearch,
+  fetch_url:                 handleFetchUrl,
 };
 
 /**
