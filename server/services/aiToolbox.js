@@ -48,7 +48,17 @@ const MAX_TOOL_PAYLOAD_BYTES = 12 * 1024; // 12 KB per tool result
 // call. This cap prevents a user at 45k/50k daily from overdrafting by 25k
 // in one session. Once this is tripped mid-loop we stop calling tools and
 // force the model to synthesise from what it has.
-const MAX_TOKENS_PER_REQUEST = 40000;
+//
+// Phase 10.4 (#217): raised 40k → 80k. A multi-ticker comparables flow
+// (HTZ + CAR + RENT3 + MOVI3 with fleet research) routinely needs
+// ~4 lookup_quote + ~4 web_research tool calls, each returning up to
+// 12KB of text. After 2-3 synthesis rounds, input tokens alone were
+// clearing 35k, tripping the cap mid-thought and leaving the user with
+// the "I hit this turn's token budget" canned reply. 80k gives genuine
+// agentic workflows room to breathe while still protecting against a
+// runaway loop — the Pro tier's daily budget is 1M, so a single turn at
+// 80k is 8% of the day.
+const MAX_TOKENS_PER_REQUEST = 80000;
 
 // ── Tool catalog ──────────────────────────────────────────────────────
 //
@@ -1353,6 +1363,13 @@ async function runToolLoop(provider, initialMessages, systemPrompt, ctx = {}) {
   // so the model stops trying to call tools and just answers from what it
   // has gathered so far.
   let tokenCapHit = false;
+  // Phase 10.4 (#217): accumulate ALL text blocks the model emits across
+  // rounds. Previously we only kept the last round's text, so if the model
+  // wrote "HTZ: $38B market cap" in round 2 and then called more tools in
+  // round 3, that partial synthesis was lost if tokenCapHit or loop-exhaust
+  // triggered before a clean end_turn. Now we preserve each round's text
+  // as a fallback when the closing synthesis can't run or returns empty.
+  const accumulatedText = [];
 
   while (rounds < MAX_TOOL_ROUNDS) {
     rounds += 1;
@@ -1367,6 +1384,13 @@ async function runToolLoop(provider, initialMessages, systemPrompt, ctx = {}) {
     const content = Array.isArray(resp.content) ? resp.content : [];
     const textBlocks = content.filter(b => b.type === 'text').map(b => b.text || '').join('');
     const toolUses = content.filter(b => b.type === 'tool_use');
+
+    // Stash this round's text for the fallback path. Only non-empty blocks —
+    // empty text noise from a pure tool-call round is useless and would just
+    // make the fallback feel choppy.
+    if (textBlocks && textBlocks.trim()) {
+      accumulatedText.push(textBlocks.trim());
+    }
 
     // Always append the assistant message, even if it's partial — the
     // follow-up tool_result must be sent as a user turn AFTER the
@@ -1468,17 +1492,39 @@ async function runToolLoop(provider, initialMessages, systemPrompt, ctx = {}) {
   // worse than a plain-English admission that something went sideways.
   // This catches both the "closing-synthesis returned zero text blocks"
   // case and any other path that produced no text.
+  //
+  // Phase 10.4 (#217): before falling back to a canned apology, use ANY
+  // text the model managed to emit across the rounds we ran. For a
+  // comparables question that ran 3 rounds and hit the cap mid-synthesis,
+  // the user usually has a partial table in round 2's output that is
+  // genuinely useful — far more so than the generic "try narrowing".
   if (!finalText || !finalText.trim()) {
-    logger.warn('aiToolbox', 'runToolLoop produced empty finalText', {
-      userId: ctx.userId || null,
-      rounds,
-      tokenCapHit,
-      totalIn,
-      totalOut,
-    });
-    finalText = tokenCapHit
-      ? "I hit this turn's token budget before I could finish. Try narrowing the question — for example, a specific country, sector, or maturity window — and I'll answer from what I can gather."
-      : "I couldn't assemble a useful answer from the terminal data available for that question. Try rephrasing, or ask me for an adjacent angle (e.g. a yield curve or sovereign bonds) that I can source directly.";
+    if (accumulatedText.length > 0) {
+      const partial = accumulatedText.join('\n\n').trim();
+      const prefix = tokenCapHit
+        ? '_(Partial answer — hit this turn\'s token budget before I could finish polishing it.)_\n\n'
+        : '';
+      finalText = prefix + partial;
+      logger.warn('aiToolbox', 'runToolLoop closing synthesis empty — using accumulated text', {
+        userId: ctx.userId || null,
+        rounds,
+        tokenCapHit,
+        accumulatedChars: partial.length,
+        totalIn,
+        totalOut,
+      });
+    } else {
+      logger.warn('aiToolbox', 'runToolLoop produced empty finalText', {
+        userId: ctx.userId || null,
+        rounds,
+        tokenCapHit,
+        totalIn,
+        totalOut,
+      });
+      finalText = tokenCapHit
+        ? "I hit this turn's token budget before I could finish. Try narrowing the question — for example, a specific country, sector, or maturity window — and I'll answer from what I can gather."
+        : "I couldn't assemble a useful answer from the terminal data available for that question. Try rephrasing, or ask me for an adjacent angle (e.g. a yield curve or sovereign bonds) that I can source directly.";
+    }
   }
 
   return { finalText, rounds, tokenCapHit, usage: { input: totalIn, output: totalOut } };

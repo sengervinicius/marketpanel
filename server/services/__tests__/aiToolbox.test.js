@@ -290,6 +290,57 @@ process.env.ANTHROPIC_API_KEY = 'test-key';
   assert.ok(/couldn.t|rephras|specific/i.test(empty.finalText),
     'fallback should acknowledge the gap in plain language');
 
+  // 11. #217 regression — when the token cap trips mid-thought and the
+  //     closing synthesis returns empty, earlier-round text must NOT be
+  //     silently discarded. Real world: multi-ticker comparables question
+  //     where the model emits narrative in round 1, calls tools in
+  //     rounds 2-3, then closing synthesis comes back empty because input
+  //     tokens blew past the cap. Before the fix, the user saw a canned
+  //     "narrow your question" message despite the model having already
+  //     drafted most of the answer.
+  fetchScript = [
+    // Round 1 — model emits real narrative text AND a tool call
+    {
+      status: 200,
+      body: {
+        stop_reason: 'tool_use',
+        content: [
+          { type: 'text', text: 'Comparing Hertz, Avis, Localiza, and Movida on market cap and fleet size:' },
+          { type: 'tool_use', id: 'toolu_htz', name: 'lookup_quote', input: { symbol: 'HTZ' } },
+        ],
+        // Burn past the cap in one shot so the loop exits
+        usage: {
+          input_tokens:  Math.floor(toolbox.MAX_TOKENS_PER_REQUEST * 0.6),
+          output_tokens: Math.floor(toolbox.MAX_TOKENS_PER_REQUEST * 0.5),
+        },
+      },
+    },
+    // Closing synthesis — comes back empty (cap already tripped, model context
+    // got crowded by tool_results, so nothing is emitted)
+    {
+      status: 200,
+      body: {
+        stop_reason: 'end_turn',
+        content: [],
+        usage: { input_tokens: 15, output_tokens: 0 },
+      },
+    },
+  ];
+  fetchCalls = [];
+  const partial = await toolbox.runToolLoop(
+    provider,
+    [{ role: 'user', content: 'Hertz Avis Localiza Movida market cap vs fleet' }],
+    'you are Particle',
+    { userId: 11 },
+  );
+  assert.strictEqual(partial.tokenCapHit, true, 'setup: tokenCapHit expected');
+  assert.ok(partial.finalText && partial.finalText.trim().length > 0,
+    '#217: accumulated round-1 text must be surfaced when closing synthesis is empty');
+  assert.match(partial.finalText, /Hertz.*Avis.*Localiza.*Movida/i,
+    '#217: finalText should contain the model\'s round-1 narrative');
+  assert.match(partial.finalText, /Partial answer|token budget/i,
+    '#217: partial-answer prefix should be present so user knows it was cut off');
+
   console.log('aiToolbox.test.js OK');
 })().catch((err) => {
   console.error('aiToolbox.test.js FAILED:', err);
