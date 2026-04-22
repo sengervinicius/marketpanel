@@ -63,6 +63,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
+          # Without cache: npm, a cold `npm ci --prefer-offline` still has to
+          # fetch every tarball from the registry, and a single transient 5xx
+          # bricks the job. Reuse the cache the lockfile job just populated.
+          cache: npm
       - name: Install root + workspaces
         run: |
           npm ci --prefer-offline --audit=false
@@ -97,6 +101,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
+          # Root-cause of CI red on 19858a7 (run #123): cold npm install with
+          # no cache hit a transient registry 5xx and exited 1 at the
+          # "Install server + client" step. Reuse the npm cache the lockfile
+          # job populates so --prefer-offline actually stays offline.
+          cache: npm
       - name: Install server + client
         run: |
           (cd server && npm ci --prefer-offline --audit=false)
