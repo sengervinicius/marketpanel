@@ -303,7 +303,21 @@
 
 .particle-chip {
   padding: 8px 18px;
-  background: rgba(255, 255, 255, 0.03);
+  /*
+    Mobile incident v4 (2026-04-22) — the chip cluster at the bottom of
+    the Particle home screen was rendering as an opaque blurred rectangle
+    on iOS Safari. Same pathology as the search-input (v2/v3) and the
+    conversation input bar: `backdrop-filter: blur(...)` draws a visibly
+    frosted pane over the particle canvas regardless of background alpha,
+    and on narrow viewports the three/four chips packed together read as
+    a single solid rectangle.
+    Fix (mobile-first): no backdrop-filter, transparent fill, just a
+    hairline border so each chip is still a tap target. Desktop gets the
+    subtle raised surface + blur back in its own @media block below,
+    where the rendering pathology doesn't show and the chips benefit
+    from the extra polish.
+  */
+  background: transparent;
   border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: var(--radius-pill, 9999px);
   color: var(--color-text-secondary, #a0a0a0);
@@ -314,8 +328,6 @@
   cursor: pointer;
   transition: all var(--duration-fast, 150ms) ease;
   -webkit-tap-highlight-color: transparent;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
 }
 
 .particle-chip:active {
@@ -658,16 +670,26 @@
 .particle-action-icon { font-size: 11px; }
 .particle-action-label { text-transform: uppercase; }
 
-/* Conversation input bar (bottom) */
+/* Conversation input bar (bottom)
+   Mobile incident v4 (2026-04-22) — the previous rule combined
+   `background: rgba(12,12,12,0.85)` + `backdrop-filter: blur(20px)`,
+   which on iOS Safari rendered as a visibly opaque dark rectangle
+   stuck to the bottom of the particle screen (same pathology as the
+   search input / chips: backdrop-filter draws a frosted pane over the
+   particle canvas regardless of alpha). CIO: "there is still an
+   opaque rectangle in the bottom of the particle screen on mobile."
+   Fix: mobile-first uses a fully opaque bg that matches the screen
+   base (so scrolled messages behind don't bleed through) with NO
+   backdrop-filter, and desktop re-adds the translucent + blur combo
+   inside its own @media block — iOS rendering pathologies are
+   phone-only, and desktop benefits from the subtle glass effect. */
 .particle-conv-input {
   display: flex;
   align-items: center;
   gap: 10px;
   padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
   border-top: 1px solid rgba(249, 115, 22, 0.12);
-  background: rgba(12, 12, 12, 0.85);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  background: var(--color-bg, #080808);
   flex-shrink: 0;
 }
 
@@ -753,6 +775,13 @@
   .particle-chip {
     font-size: var(--font-sm);
     padding: 9px 22px;
+    /* Desktop gets the translucent-light surface fill + blur back, same
+       rationale as .particle-search-input's desktop rule — iOS Safari
+       rendering pathologies are phone-only, and a subtle raised
+       surface helps the chips read as tappable on a quiet canvas. */
+    background: rgba(255, 255, 255, 0.03);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
   }
   .particle-chip:hover {
     background: rgba(249, 115, 22, 0.06);
@@ -775,6 +804,12 @@
   }
   .particle-conv-input {
     padding: 12px 24px;
+    /* Desktop gets the translucent glass back — iOS Safari backdrop
+       pathology is phone-only, and desktop benefits from the subtle
+       elevation over the messages that scroll beneath the input. */
+    background: rgba(12, 12, 12, 0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
   }
   .particle-conv-input .particle-search-input {
     height: 46px;

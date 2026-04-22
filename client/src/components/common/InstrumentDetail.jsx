@@ -768,10 +768,24 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
               />
               <YAxis
                 yAxisId="right"
-                position="right"
+                /*
+                  orientation (NOT `position` — that's not a valid Recharts
+                  prop and was silently ignored, which is why the axis
+                  rendered on the left by default despite the yAxisId).
+                  Bloomberg-standard is right-side price axis, and that's
+                  what every other chart surface in this app uses.
+
+                  Mobile width must be smaller than desktop: 64px on a
+                  360px-wide mobile viewport ate ~18% of the chart width
+                  just for tick labels, which after the 2026-04-22 mobile
+                  incident hotfix (which forced the chart area to true
+                  100%) made the bars look compressed and the axis look
+                  "too much to the right" per CIO.
+                */
+                orientation="right"
                 domain={[yMin, yMax]}
                 tick={{ fill: 'var(--text-faint)', fontSize: 9 }}
-                width={64}
+                width={isMobile ? 44 : 64}
                 tickFormatter={isComparisonMode ? (v => v != null && !isNaN(v) ? v.toFixed(1) : '') : (v => fmt(v, v > 999 ? 0 : 2))}
                 axisLine={{ stroke: 'var(--border-default)' }}
               />
@@ -987,7 +1001,14 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
             <BarChart data={chartBars} margin={{ top: 2, right: 6, bottom: 0, left: 6 }}>
               <XAxis dataKey="label" hide axisLine={false} />
               <YAxis
-                tick={{ fill: 'var(--text-faint)', fontSize: 8 }} width={64}
+                /* Mirror the price axis onto the right so both axes
+                   share the same vertical line and the bars span the
+                   full chart width. Before this, price axis was on the
+                   right (via yAxisId only — see above) while volume
+                   was on the left by default, producing two phantom
+                   gutters on mobile and compressing the bars. */
+                orientation="right"
+                tick={{ fill: 'var(--text-faint)', fontSize: 8 }} width={isMobile ? 44 : 64}
                 tickFormatter={v =>
                   v >= 1e9 ? (v/1e9).toFixed(1)+'B' :
                   v >= 1e6 ? (v/1e6).toFixed(0)+'M' :
@@ -1012,7 +1033,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
               <ComposedChart data={chartBars} margin={{ top: 2, right: 6, bottom: 0, left: 6 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" />
                 <XAxis dataKey="label" hide axisLine={false} />
-                <YAxis domain={[0, 100]} ticks={[30, 50, 70]} tick={{ fill: 'var(--text-faint)', fontSize: 8 }} width={64} axisLine={false} />
+                <YAxis orientation="right" domain={[0, 100]} ticks={[30, 50, 70]} tick={{ fill: 'var(--text-faint)', fontSize: 8 }} width={isMobile ? 44 : 64} axisLine={false} />
                 <ReferenceLine y={70} stroke="var(--price-down)" strokeDasharray="3 3" strokeOpacity={0.5} />
                 <ReferenceLine y={30} stroke="var(--price-up)" strokeDasharray="3 3" strokeOpacity={0.5} />
                 <Tooltip contentStyle={commonTooltipStyle} formatter={v => [v != null ? v.toFixed(1) : '--', 'RSI']} labelStyle={{ color: 'var(--text-muted)' }} />
@@ -1029,7 +1050,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
               <ComposedChart data={chartBars} margin={{ top: 2, right: 6, bottom: 0, left: 6 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" />
                 <XAxis dataKey="label" hide axisLine={false} />
-                <YAxis tick={{ fill: 'var(--text-faint)', fontSize: 8 }} width={64} axisLine={false} />
+                <YAxis orientation="right" tick={{ fill: 'var(--text-faint)', fontSize: 8 }} width={isMobile ? 44 : 64} axisLine={false} />
                 <ReferenceLine y={0} stroke="var(--border-default)" />
                 <Tooltip contentStyle={commonTooltipStyle} formatter={(v, n) => [v != null ? v.toFixed(3) : '--', n]} labelStyle={{ color: 'var(--text-muted)' }} />
                 <Bar dataKey="macdHist" name="Histogram" fill={IND_COLORS.MACD} opacity={0.35} radius={[1, 1, 0, 0]} />

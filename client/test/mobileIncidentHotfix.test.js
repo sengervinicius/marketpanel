@@ -147,6 +147,97 @@ describe('mobile hotfix — FeedbackButton exports', () => {
   });
 });
 
+describe('mobile hotfix v4 — Particle bottom opaque rectangle + chart axes', () => {
+  /**
+   * CIO (2026-04-22, second wave):
+   *   1. "there is still an opaque rectangle in the bottom of the
+   *      particle screen on mobile.. also don't understand why this
+   *      still hasen't been fixed"
+   *   2. "chart still out of format on mobile.. axis y too much to
+   *      the right.. then the volume bars completely messed up"
+   *
+   * Fixes pinned here:
+   *   - .particle-conv-input loses backdrop-filter on mobile (same
+   *     iOS rendering pathology as the search-input v2/v3) and
+   *     becomes a solid bg that matches --color-bg; desktop re-adds
+   *     the blur inside @media (min-width: 768px).
+   *   - .particle-chip similarly ditches backdrop-filter on mobile;
+   *     desktop keeps the subtle raised surface + blur.
+   *   - InstrumentDetail.jsx price YAxis uses `orientation="right"`
+   *     (the previous `position="right"` was silently ignored —
+   *     `position` is not a valid Recharts prop — so the axis
+   *     rendered on the LEFT by default, with width={64} eating
+   *     ~18% of a 360px-wide mobile chart).
+   *   - Volume + RSI + MACD Y-axes also pinned to right-orientation
+   *     so the bars span the full chart width.
+   *   - All four Y-axes use width={isMobile ? 44 : 64}.
+   */
+  // Use dynamic ESM imports inside each test to match the pattern the
+  // rest of this file uses (the v3 FeedbackButton tests).
+  async function readAsync(rel) {
+    const fs = await import('node:fs');
+    const path = await import('node:path');
+    const url = await import('node:url');
+    const here = path.dirname(url.fileURLToPath(import.meta.url));
+    return fs.readFileSync(path.join(here, '..', rel), 'utf8');
+  }
+
+  // Strip /* ... */ comments so we can scan actual CSS declarations
+  // without false positives from explanatory text.
+  function stripCssComments(s) {
+    return s.replace(/\/\*[\s\S]*?\*\//g, '');
+  }
+
+  it('.particle-conv-input base rule has NO backdrop-filter (iOS opaque-rectangle fix)', async () => {
+    const css = await readAsync('src/components/app/ParticleNav.css');
+    // Slice from the rule header up to the next selector so we test the
+    // base rule, not the @media desktop override.
+    const idx = css.indexOf('.particle-conv-input {');
+    expect(idx).toBeGreaterThan(0);
+    const end = css.indexOf('}', idx);
+    const rule = stripCssComments(css.slice(idx, end));
+    expect(rule).not.toMatch(/backdrop-filter/);
+    // Must still have a solid bg so scrolled messages don't bleed through.
+    expect(rule).toMatch(/background:\s*var\(--color-bg/);
+  });
+
+  it('.particle-conv-input under @media (min-width: 768px) re-adds the blur (desktop polish preserved)', async () => {
+    const css = await readAsync('src/components/app/ParticleNav.css');
+    // Find the desktop @media block that contains .particle-conv-input
+    // and assert backdrop-filter is re-applied there.
+    const media = css.indexOf('@media (min-width: 768px)');
+    expect(media).toBeGreaterThan(0);
+    const slice = css.slice(media);
+    // The desktop override for conv-input must exist AND must have blur.
+    expect(slice).toMatch(/\.particle-conv-input\s*\{[\s\S]*?backdrop-filter:\s*blur/);
+  });
+
+  it('.particle-chip base rule has NO backdrop-filter (chip cluster no longer reads as a frosted rectangle on iOS)', async () => {
+    const css = await readAsync('src/components/app/ParticleNav.css');
+    const idx = css.indexOf('.particle-chip {');
+    expect(idx).toBeGreaterThan(0);
+    const end = css.indexOf('}', idx);
+    const rule = stripCssComments(css.slice(idx, end));
+    expect(rule).not.toMatch(/backdrop-filter/);
+    // Mobile-first chip is transparent — canvas shows through.
+    expect(rule).toMatch(/background:\s*transparent/);
+  });
+
+  it('InstrumentDetail price YAxis uses orientation="right" (Bloomberg-standard) — NOT the old invalid `position` prop', async () => {
+    const jsx = await readAsync('src/components/common/InstrumentDetail.jsx');
+    // The old bug: `position="right"` which Recharts ignored.
+    expect(jsx).not.toMatch(/position=["']right["']/);
+    // The fix: `orientation="right"` on at least the main price axis.
+    expect(jsx).toMatch(/orientation=["']right["']/);
+  });
+
+  it('InstrumentDetail YAxis width is responsive to isMobile (44 vs 64)', async () => {
+    const jsx = await readAsync('src/components/common/InstrumentDetail.jsx');
+    // At least one axis uses the mobile-responsive width ternary.
+    expect(jsx).toMatch(/width=\{isMobile\s*\?\s*44\s*:\s*64\}/);
+  });
+});
+
 describe('mobile hotfix — VaultPanel has no DesktopOnlyPlaceholder gate', () => {
   it('VaultPanel module source does not import DesktopOnlyPlaceholder', async () => {
     // Load the raw source to assert the gate has truly been removed.
