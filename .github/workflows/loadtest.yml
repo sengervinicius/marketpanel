@@ -30,7 +30,7 @@ jobs:
   k6-smoke:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       # Gate: skip cleanly if staging isn't configured. We had this job
       # going red every night because STAGING_BASE wasn't set. Better to
