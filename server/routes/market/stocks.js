@@ -682,6 +682,79 @@ router.get('/quotes/:symbol', async (req, res) => {
   }
 });
 
+// ── #219 — Symbol resolver ────────────────────────────────────────────
+// User lands on /instrument/JUMBO.AT (brand name) but Jumbo S.A. trades
+// on Athens under the code BELA, so Yahoo 404s on JUMBO.AT and the whole
+// detail page stays empty even though #215 routed .AT → EUROPE correctly.
+// This endpoint takes a symbol and returns Yahoo's canonical ticker for
+// the same company so the client can transparently re-navigate.
+//
+// Design notes:
+//   • Only resolves to a symbol that carries the SAME suffix as the
+//     input (JUMBO.AT → *.AT). Prevents "AAPL" from being silently
+//     redirected to some noisy OTC listing or a different market.
+//   • Returns { resolved: null } when no better match is found — the
+//     client falls back to showing the original ticker untouched.
+//   • Cached because brand-name searches are deterministic.
+const SYMBOL_RESOLVE_TTL = 60 * 60 * 1000; // 1 h
+router.get('/symbol/resolve', async (req, res) => {
+  const q = sanitizeText(String(req.query.q || '')).trim().toUpperCase();
+  if (!q || !isTicker(q)) {
+    return res.status(400).json({ ok: false, error: 'bad_request', message: 'q required' });
+  }
+  const cacheKey = `symbol-resolve:${q}`;
+  const cached = cacheGet(cacheKey);
+  if (cached) return res.json(cached);
+
+  // Only resolve symbols that have an exchange suffix (.AT, .L, .DE, …)
+  // and only if that suffix is known foreign. Bare US tickers never hit
+  // this path — they either work as-is or are genuinely invalid.
+  const dotIdx = q.lastIndexOf('.');
+  if (dotIdx <= 0 || q.startsWith('C:') || q.startsWith('X:')) {
+    const payload = { original: q, resolved: null, reason: 'no_foreign_suffix' };
+    cacheSet(cacheKey, payload, SYMBOL_RESOLVE_TTL);
+    return res.json(payload);
+  }
+  const suffix = q.slice(dotIdx);       // ".AT"
+  const stem   = q.slice(0, dotIdx);    // "JUMBO"
+
+  try {
+    const { _yahooSymbolSearch } = require('./lib/providers');
+    // Yahoo's /v1/finance/search already treats the brand name as a
+    // company query (e.g. "JUMBO" matches "Jumbo S.A."), so we search
+    // on the stem rather than the full ticker.
+    const hits = await _yahooSymbolSearch(stem, { quotesCount: 8 });
+
+    // Prefer a quote that (a) carries the same suffix, (b) is an equity,
+    // (c) is not the literal input. Fall back to just matching-suffix.
+    const sameSuffix = hits.filter(h => typeof h.symbol === 'string' && h.symbol.toUpperCase().endsWith(suffix));
+    const best = sameSuffix.find(h => h.quoteType === 'EQUITY' && h.symbol.toUpperCase() !== q)
+              || sameSuffix.find(h => h.symbol.toUpperCase() !== q)
+              || null;
+
+    if (!best) {
+      const payload = { original: q, resolved: null, reason: 'no_same_suffix_match', candidates: sameSuffix.slice(0, 3).map(h => h.symbol) };
+      cacheSet(cacheKey, payload, SYMBOL_RESOLVE_TTL);
+      return res.json(payload);
+    }
+
+    const payload = {
+      original: q,
+      resolved: best.symbol.toUpperCase(),
+      name:     best.longname || best.shortname || null,
+      exchange: best.exchDisp || best.exchange || null,
+      quoteType: best.quoteType || null,
+    };
+    cacheSet(cacheKey, payload, SYMBOL_RESOLVE_TTL);
+    return res.json(payload);
+  } catch (e) {
+    console.warn(`[API] /symbol/resolve ${q} failed:`, e.message);
+    // Don't treat resolver failure as a 500 — the client will just
+    // render the original ticker with whatever coverage it has.
+    return res.json({ original: q, resolved: null, reason: 'resolver_error' });
+  }
+});
+
 router.get('/chart/:ticker', async (req, res) => {
   const ticker = req.params.ticker;
   if (!isTicker(ticker)) return res.status(400).json({ ok: false, error: 'bad_request', message: 'Invalid ticker format' });

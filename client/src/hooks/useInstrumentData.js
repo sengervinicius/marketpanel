@@ -16,7 +16,27 @@ const FX_CCY_MAP = { USD:'US', EUR:'EU', GBP:'GB', JPY:'JP', BRL:'BR', CNY:'CN',
  * Handles race conditions via stale-closure checks.
  */
 export function useInstrumentData(ticker) {
-  const norm = normalizeTicker(ticker);
+  const rawNorm = normalizeTicker(ticker);
+
+  // #219 — user types a brand-name ticker (JUMBO.AT) that isn't what
+  // Yahoo actually lists the company under (Jumbo S.A. trades as BELA.AT
+  // on Athens). The chart endpoint 404s and the whole page reads as
+  // "UNAVAILABLE" despite #215 routing .AT → EUROPE correctly. Under
+  // the hood we ask the server's /symbol/resolve once, and if it comes
+  // back with a better match we swap `norm` over to the resolved
+  // ticker so every downstream fetch runs against the tradeable symbol.
+  const [resolvedNorm, setResolvedNorm] = useState(null);
+  const [resolution, setResolution]     = useState(null);
+
+  // Any time the caller swaps to a different raw ticker, throw away the
+  // previous resolution so we don't accidentally pin BELA.AT onto a
+  // brand-new unrelated symbol.
+  useEffect(() => {
+    setResolvedNorm(null);
+    setResolution(null);
+  }, [rawNorm]);
+
+  const norm = resolvedNorm || rawNorm;
   const disp = displayTicker(norm);
 
   // Asset class flags
@@ -109,10 +129,35 @@ export function useInstrumentData(ticker) {
           open: b.o, high: b.h, low: b.l, close: b.c, volume: b.v ?? 0,
         })));
         setLoading(false);
+
+        // #219 — empty bars on a foreign-suffix ticker strongly suggests
+        // we're trying to fetch a brand name (e.g. JUMBO.AT) instead of
+        // the actual exchange code (BELA.AT). Ask the server resolver
+        // once; if it returns a better match, swap `norm` over and let
+        // the effect chain re-fire against the tradeable ticker.
+        if (results.length === 0 && !resolvedNorm) {
+          const hasForeignSuffix = /\.[A-Z]{1,5}$/.test(rawNorm)
+            && !rawNorm.startsWith('C:') && !rawNorm.startsWith('X:');
+          if (hasForeignSuffix) {
+            apiFetch(`/api/symbol/resolve?q=${encodeURIComponent(rawNorm)}`)
+              .then(rr => rr.ok ? rr.json() : null)
+              .then(rd => {
+                if (stale || !rd || !rd.resolved || rd.resolved === rawNorm) return;
+                setResolvedNorm(rd.resolved);
+                setResolution({
+                  from: rawNorm,
+                  to:   rd.resolved,
+                  name: rd.name || null,
+                  exchange: rd.exchange || null,
+                });
+              })
+              .catch(() => {});
+          }
+        }
       })
       .catch(() => { if (!stale) setLoading(false); });
     return () => { stale = true; };
-  }, [norm, rangeIdx]);
+  }, [norm, rangeIdx, rawNorm, resolvedNorm]);
 
   // ── Fetch snapshot ────────────────────────────────────────────────────
   useEffect(() => {
@@ -361,6 +406,10 @@ export function useInstrumentData(ticker) {
     // Ticker info
     norm,
     disp,
+    // #219 — non-null when we swapped to a Yahoo-tradeable ticker
+    // (e.g. user typed JUMBO.AT, this resolves to BELA.AT). The detail
+    // component renders a small banner explaining the remap.
+    resolution,
     isFX,
     isCrypto,
     isBrazil,

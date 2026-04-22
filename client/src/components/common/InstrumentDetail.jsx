@@ -105,7 +105,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
   // Use the instrument data hook
   const instrumentData = useInstrumentData(ticker);
   const {
-    norm, disp, isFX, isCrypto, isBrazil, isBondTicker, isStock, isBond, isETF,
+    norm, disp, resolution, isFX, isCrypto, isBrazil, isBondTicker, isStock, isBond, isETF,
     rangeIdx, setRangeIdx, bars, loading, range,
     snap, info,
     fundsData, fundsLoading, fundsError, refetchFundamentals,
@@ -2372,6 +2372,18 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
           </span>
         ))}
       </div>
+      {/* ── #219 — Resolved-symbol banner (JUMBO.AT → BELA.AT etc.) ── */}
+      {resolution && resolution.to && resolution.to !== resolution.from && (
+        <div className="id-adr-banner" style={{ borderColor: '#90caf933', background: '#001a33', color: '#90caf9' }}>
+          <strong>RESOLVED</strong>
+          <span>
+            Showing <b>{resolution.to}</b>
+            {resolution.name ? ` (${resolution.name})` : ''}
+            {resolution.exchange ? ` · ${resolution.exchange}` : ''}
+            {' '}— {resolution.from} isn't Yahoo's tradeable symbol for this company.
+          </span>
+        </div>
+      )}
       {/* ── ADR indicator banner ── */}
       {(() => {
         const nameLC = (name || '').toLowerCase();
