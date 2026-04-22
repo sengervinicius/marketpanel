@@ -721,7 +721,13 @@ function parseSections(content) {
 
 // ── Per-user brief (runs Stages 2-5 on top of shared Stage 1 snapshot) ──────
 async function getUserBrief(userId) {
-  if (!_todayBrief && !_marketSnapshot) return null;
+  // #213 FIX — previously this early-returned null whenever _todayBrief and
+  // _marketSnapshot were both empty. That made the 06:30-local dispatcher
+  // path fail for every US/BR/EU/UK user, because the shared brief is gated
+  // behind 09:15 ET and pre-9:15 ET the two in-memory caches are empty.
+  // We now proceed and assemble a snapshot on-demand further down; the
+  // shared brief is separately ensured via ensureTodayBrief() by the
+  // dispatcher before this function is called.
 
   // Check cache
   const cached = _userBriefs.get(userId);
@@ -757,9 +763,22 @@ async function getUserBrief(userId) {
       content = await generateBriefContent(snapshot, relevance, insights, dateStr, briefPrefs);
     }
 
-    // Fall back to shared brief if personalization fails or no personal data
+    // Fall back to shared brief if personalization fails or no personal data.
     if (!content || content.length < 50) {
       content = _todayBrief?.content || null;
+    }
+
+    // #213 FIX — if we STILL have no content (new user with no prefs, before
+    // the 9:15 ET shared brief was generated), synthesize one now from the
+    // on-demand market snapshot. Without this, default-settings users whose
+    // preferred 06:30 window fires pre-9:15 ET get nothing in their inbox,
+    // which is the incident that kicked #213.
+    if (!content || content.length < 50) {
+      try {
+        content = await generateBriefContent(snapshot, relevance, insights, dateStr, briefPrefs);
+      } catch (e) {
+        logger.warn('brief', 'on-demand fallback generation failed', { userId, error: e.message });
+      }
     }
 
     if (!content) return _todayBrief ? { ..._todayBrief, userId, personalized: false } : null;
@@ -909,6 +928,28 @@ async function forceGenerate() {
   return _todayBrief;
 }
 
+/**
+ * #213 — ensureTodayBrief()
+ *
+ * If today's shared brief hasn't been generated yet, generate it now —
+ * UNCONDITIONALLY of the 09:15 ET gate that `checkAndGenerate()` enforces.
+ *
+ * The morningBriefDispatcher fires inside each user's local send window
+ * (default 06:30 in their timezone). For US/BR/EU/UK timezones that window
+ * is strictly BEFORE 09:15 ET, so the auto-generator won't have produced
+ * the shared brief yet. Before the fix, the dispatcher called getUserBrief,
+ * which short-circuited and returned null, and the user saw "No morning
+ * briefs yet" indefinitely.
+ *
+ * Safe to call concurrently or repeatedly — `generateSharedBrief` respects
+ * an in-flight flag. No-ops when today's brief already exists.
+ */
+async function ensureTodayBrief() {
+  if (hasTodayBrief()) return _todayBrief;
+  await generateSharedBrief();
+  return _todayBrief;
+}
+
 function getSummary() {
   return {
     hasBrief: !!_todayBrief,
@@ -994,6 +1035,7 @@ module.exports = {
   getUserBrief,
   hasTodayBrief,
   forceGenerate,
+  ensureTodayBrief,
   getSummary,
   shouldGenerateBriefForUser,
   shouldGenerateForUser,

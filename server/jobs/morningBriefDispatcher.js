@@ -154,6 +154,23 @@ async function dispatchForUser(user) {
     return { skipped: 'already-sent' };
   }
 
+  // #213 — Ensure today's shared brief exists BEFORE we ask for the per-user
+  // version. The shared-brief auto-generator is gated behind 09:15 ET, but
+  // this dispatcher fires at each user's local 06:30 which for US/BR/EU/UK
+  // users is strictly earlier than 09:15 ET. Without this explicit ensure
+  // call, getUserBrief would return null, the dispatcher would skip with
+  // 'empty-brief', and the user's brief_inbox would stay permanently empty
+  // ("No morning briefs yet. Your first brief arrives tomorrow…").
+  try {
+    await morningBrief.ensureTodayBrief();
+  } catch (e) {
+    logger.warn('brief-dispatcher', 'ensureTodayBrief failed', {
+      userId: user.id, error: e.message,
+    });
+    // Fall through — per-user generation can still succeed from an
+    // on-demand market snapshot inside getUserBrief.
+  }
+
   // Actually generate. This call is cached per-user for 23h, so if a
   // retry picks a user we just dispatched in a previous tick it won't
   // re-charge the LLM.
