@@ -107,4 +107,31 @@ assert.ok(
   'rule 20 must state when the workflow does NOT apply (single-ticker, simple price comparisons)',
 );
 
+// ── Rule 21: ARITHMETIC via `compute` ────────────────────────────────
+// The #212 fix — make the model stop doing mental math for billion-
+// scale ratios.
+assert.ok(
+  /21\.\s*ARITHMETIC/i.test(searchSrc),
+  'rule 21 must exist and be titled ARITHMETIC',
+);
+assert.ok(
+  /`compute`|compute\(/i.test(searchSrc),
+  'rule 21 must reference the compute tool by name',
+);
+assert.ok(
+  /variables|\bexpression\b/i.test(searchSrc),
+  'rule 21 must explain the expression/variables shape',
+);
+assert.ok(
+  /not a calculator|mental\s+arithmetic|not.*head/i.test(searchSrc),
+  'rule 21 must forbid the model from doing arithmetic in its head',
+);
+// STEP D must have been rewritten to reference compute as well —
+// before #212 it just said "show the arithmetic". Now it should tell
+// the model to call compute.
+assert.ok(
+  /STEP\s*D[\s\S]{0,300}compute/i.test(searchSrc),
+  'STEP D of rule 20 must now call compute for the ratio arithmetic',
+);
+
 console.log('search.comparablesWorkflow.test.js OK');

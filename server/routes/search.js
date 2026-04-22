@@ -2525,12 +2525,15 @@ ${ctx_.portfolioMetricsContext ? `\n${ctx_.portfolioMetricsContext}\n` : ''}${ct
           'an operator hasn\'t disclosed the KPI for the latest period, say ' +
           'so explicitly ("MOVI3 last-disclosed fleet 220k as of Q3 2025, no ' +
           'Q4 update yet") — do not interpolate.\n' +
-          '   STEP D — COMPUTE THE RATIO. Use the numbers you actually have. ' +
-          'Show the arithmetic transparently (numerator / denominator = ' +
-          'ratio). Match units (USD to USD, BRL to BRL — if mixing, convert ' +
-          'via lookup_fx and say what rate you used). If the ratio is ' +
-          'incomputable for one ticker, render "n/a" in that cell and carry ' +
-          'on.\n' +
+          '   STEP D — COMPUTE THE RATIO. Call `compute` for the arithmetic — ' +
+          'do NOT do the division in your head. Pass the big numbers via the ' +
+          '`variables` map (e.g. `expression="mc / fleet"`, ' +
+          '`variables={ mc: 5.5e9, fleet: 500000 }`). Show the numerator / ' +
+          'denominator = ratio transparently in the answer. Match units ' +
+          '(USD to USD, BRL to BRL — if mixing, call `lookup_fx` first and ' +
+          'say what rate you used, then include the converted value as a ' +
+          'variable in the compute call). If the ratio is incomputable for ' +
+          'one ticker, render "n/a" in that cell and carry on.\n' +
           '   STEP E — PRESENT AS A COMPACT TABLE. One row per ticker. ' +
           'Columns: $TICKER | numerator (bolded, with unit) | denominator ' +
           '(bolded, with unit, cite web source [N] if off-adapter) | ratio ' +
@@ -2554,7 +2557,25 @@ ${ctx_.portfolioMetricsContext ? `\n${ctx_.portfolioMetricsContext}\n` : ''}${ct
           'returns everything (YTD performance, 52-week position, P/E ' +
           'spread), or questions that only need a sector tool ' +
           '(list_market_movers already gives you top gainers without ' +
-          'individual lookup_quote calls).';
+          'individual lookup_quote calls).\n\n' +
+          '21. ARITHMETIC via `compute`. You are a language model, not a ' +
+          'calculator — you routinely miscalculate ratios involving ' +
+          'billion-scale numbers, percentages, or multi-step chains. Call ' +
+          '`compute` for EVERY numeric answer you will surface to the user, ' +
+          'including when the arithmetic "looks easy". Pattern: ' +
+          '`compute({ expression: "mc / fleet", variables: { mc: 5.5e9, ' +
+          'fleet: 500000 } })` returns `{ result: 11000 }`. Supported ops: ' +
+          '+ - * / % ^ (power), parentheses, scientific notation. ' +
+          'Supported functions: abs, sqrt, log (natural), log10, log2, ' +
+          'exp, round(x, digits), floor, ceil, min, max, pow. Constants: ' +
+          'pi, e. Always put large numbers in `variables` rather than ' +
+          'inlining them — cleaner to read, no transcription errors. ' +
+          'USE CASES: ratio in a comparables table, percentage change ' +
+          '(e.g. `(new - old) / old * 100`), CAGR, weighted average, ' +
+          'unit conversion, spread in bps. DO NOT report a computed number ' +
+          'you did not pass through `compute`. If `compute` returns ' +
+          '{ error }, check your expression and retry with corrected ' +
+          'inputs — do not fall back to mental arithmetic.';
 
         await aiToolbox.runToolLoopStream(provider, routerMessages, toolAugmentedPrompt, res, {
           userId,

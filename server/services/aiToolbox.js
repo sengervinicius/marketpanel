@@ -632,6 +632,50 @@ const TOOLS = [
       required: ['url'],
     },
   },
+  {
+    name: 'compute',
+    description:
+      'Safely evaluate an arithmetic expression. Use this for every ' +
+      'numeric answer in a comparatives or ratio workflow — price / ' +
+      'fleet, market-cap / subscribers, EV / EBITDA, % change, ' +
+      'duration-weighted averages, anything involving multiplication, ' +
+      'division, or exponents. LLMs are unreliable at arithmetic with ' +
+      'billion-scale numbers; this tool is deterministic and gives the ' +
+      'exact result. Supports +, -, *, /, %, ^ (power), parentheses, ' +
+      'scientific notation, and these functions: abs, sqrt, log (natural), ' +
+      'log10, log2, exp, round(x, digits), floor, ceil, min, max, pow. ' +
+      'Constants pi and e are available. Pass large or repeated numbers ' +
+      'via the `variables` map (e.g. `expression="mc / fleet"`, ' +
+      '`variables={ mc: 5.5e9, fleet: 500000 }`) — the model does not ' +
+      'need to inline long numbers into the expression. Returns ' +
+      '{ result, expression, variables }. Returns { error } on bad ' +
+      'input; never throws. Call this once per computed value in your ' +
+      'answer, even if the arithmetic looks trivial.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        expression: {
+          type: 'string',
+          description:
+            'Math expression to evaluate. Examples: "1.5e9 / 500000", ' +
+            '"(price / fleet) * 1e6", "round(mc / sub, 2)". Identifiers ' +
+            'must be either whitelisted functions/constants or keys of ' +
+            'the `variables` map.',
+        },
+        variables: {
+          type: 'object',
+          description:
+            'Named numeric inputs referenced by `expression`. Keys must ' +
+            'be valid identifiers (letters/digits/underscore, starting ' +
+            'with a letter). Values must be finite numbers. Prefer this ' +
+            'over inlining big numbers — keeps the expression readable ' +
+            'and avoids transcription errors.',
+          additionalProperties: { type: 'number' },
+        },
+      },
+      required: ['expression'],
+    },
+  },
 ];
 
 // ── Tool handlers ─────────────────────────────────────────────────────
@@ -1136,6 +1180,23 @@ async function handleWebResearch({ query, depth, maxResults, includeDomains }, c
   }
 }
 
+async function handleCompute({ expression, variables }) {
+  const safeMath = require('./safeMath');
+  const out = safeMath.evaluate(expression, variables);
+  if (out.error) {
+    return {
+      error: out.error,
+      expression: typeof expression === 'string' ? expression : null,
+      variables: variables || null,
+    };
+  }
+  return {
+    expression,
+    variables: variables || null,
+    result: out.result,
+  };
+}
+
 async function handleFetchUrl({ url, maxChars }, ctx = {}) {
   const svc = services.webFetch();
   if (!svc || typeof svc.fetchUrl !== 'function') {
@@ -1183,6 +1244,7 @@ const HANDLERS = {
   run_scenario:              handleRunScenario,
   web_research:              handleWebResearch,
   fetch_url:                 handleFetchUrl,
+  compute:                   handleCompute,
 };
 
 /**
