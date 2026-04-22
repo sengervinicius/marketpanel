@@ -159,7 +159,11 @@ export function getDataTypeCoverage(symbol, exchange, liveState = {}) {
     if (liveState.hasBars) return { label: 'AVAILABLE', color: '#4caf50', bg: '#002a0a' };
     if (liveState.chartLoading) return { label: 'LOADING', color: '#888', bg: '#1a1a1a' };
     if (providers.chart.length === 0) return { label: 'N/A', color: '#666', bg: '#111' };
-    return { label: 'UNAVAILABLE', color: '#f44336', bg: '#1a0000' };
+    // Mobile incident — a transient fetch miss used to render a scary
+    // red "UNAVAILABLE" pill. The chart auto-retries under the hood,
+    // so tone this down to a neutral N/A so the coverage row reads as
+    // informational, not as an alarm.
+    return { label: 'N/A', color: '#888', bg: '#1a1a1a' };
   })();
 
   const fundsLabel = (() => {
@@ -175,7 +179,11 @@ export function getDataTypeCoverage(symbol, exchange, liveState = {}) {
   const aiLabel = (() => {
     if (liveState.hasAI)      return { label: 'AVAILABLE', color: '#4caf50', bg: '#002a0a' };
     if (liveState.aiLoading)  return { label: 'LOADING',   color: '#888',    bg: '#1a1a1a' };
-    if (liveState.aiError)    return { label: 'ERROR',     color: '#f44336', bg: '#1a0000' };
+    // Mobile incident — a failed fundamentals-AI call (HTZ case) used
+    // to render a red "ERROR" pill in the coverage row, which read as
+    // a global "AI is down" alert when it's actually just one ticker's
+    // write-up that didn't resolve. Soften to grey "N/A".
+    if (liveState.aiError)    return { label: 'N/A',       color: '#888',    bg: '#1a1a1a' };
     return { label: 'AVAILABLE', color: '#90caf9', bg: '#001a33' };
   })();
 

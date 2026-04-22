@@ -241,10 +241,22 @@
   min-height: min(42vh, 340px);
   padding: var(--sp-2) 8px;
   overflow: visible;
+  /* Mobile incident (2026-04-22) — charts were rendering "squeezed to
+     the right" with malformed axes. Root cause: flex: none was
+     collapsing width to content inside the column-flex parent, so
+     Recharts' ResponsiveContainer captured a too-small width on
+     first layout and never recovered. Force the chart column to
+     stretch across its parent, and make its box-sizing include
+     padding so the child flex rows compute against the right width. */
+  width: 100%;
+  align-self: stretch;
+  box-sizing: border-box;
 }
-/* On mobile, give chart flex children explicit heights instead of flex ratios */
-.id-chart-area--mobile .id-chart-flex-main   { flex: none; height: calc(min(42vh, 340px) * 0.58); }
-.id-chart-area--mobile .id-chart-flex-volume { flex: none; height: calc(min(42vh, 340px) * 0.18); }
+/* On mobile, give chart flex children explicit heights instead of flex ratios.
+   Width stays at 100% (same rationale as above) so Recharts reads the
+   full viewport width. */
+.id-chart-area--mobile .id-chart-flex-main   { flex: none; height: calc(min(42vh, 340px) * 0.58); width: 100%; min-width: 0; }
+.id-chart-area--mobile .id-chart-flex-volume { flex: none; height: calc(min(42vh, 340px) * 0.18); width: 100%; min-width: 0; }
 
 /* Range selector row */
 .id-range-row {
@@ -1332,10 +1344,12 @@
 .id-chart-flex-main--compressed { flex: 5; }
 .id-chart-flex-volume--compressed { flex: 1.5; }
 
-/* Mobile overrides for sub-charts */
-.id-chart-area--mobile .id-chart-flex-sub { flex: none; height: calc(min(42vh, 340px) * 0.18); }
-.id-chart-area--mobile .id-chart-flex-main--compressed { flex: none; height: calc(min(42vh, 340px) * 0.40); }
-.id-chart-area--mobile .id-chart-flex-volume--compressed { flex: none; height: calc(min(42vh, 340px) * 0.12); }
+/* Mobile overrides for sub-charts. width:100% + min-width:0 is carried
+   over from the main/volume rows — same rationale, same Recharts
+   width-resolution bug. */
+.id-chart-area--mobile .id-chart-flex-sub { flex: none; height: calc(min(42vh, 340px) * 0.18); width: 100%; min-width: 0; }
+.id-chart-area--mobile .id-chart-flex-main--compressed { flex: none; height: calc(min(42vh, 340px) * 0.40); width: 100%; min-width: 0; }
+.id-chart-area--mobile .id-chart-flex-volume--compressed { flex: none; height: calc(min(42vh, 340px) * 0.12); width: 100%; min-width: 0; }
 
 /* ── Phase 4: Power Features ──────────────────────── */
 
@@ -1773,6 +1787,28 @@
   gap: 6px;
 }
 .id-degraded-banner .icon { font-size: var(--text-sm); }
+
+/* Mobile incident — on narrow viewports the coverage row used to
+   consume a full line of screen real estate and the orange "Partial
+   coverage" banner shouted louder than the instrument hero. Compress
+   both so they read as meta-information, not as alarms. */
+@media (max-width: 768px) {
+  .id-coverage-bar {
+    padding: 3px 10px;
+    gap: 3px;
+    font-size: 9px;
+    letter-spacing: 0.3px;
+  }
+  .id-coverage-badge {
+    padding: 1px 4px;
+    font-size: 9px;
+  }
+  .id-degraded-banner {
+    padding: 4px 10px;
+    font-size: 10px;
+    color: var(--text-muted, #888);
+  }
+}
 
 /* Section title with semantic colors */
 .id-section-title--info { color: var(--semantic-info, #4fc3f7); }

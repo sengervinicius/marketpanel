@@ -12,8 +12,6 @@ import { apiFetch, apiJSON, API_BASE } from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
 import VaultDocChat from './VaultDocChat';
 import AIDisclaimer from '../common/AIDisclaimer';
-import { useIsMobile } from '../../hooks/useIsMobile';
-import DesktopOnlyPlaceholder from '../common/DesktopOnlyPlaceholder';
 import './VaultPanel.css';
 
 /**
@@ -686,23 +684,21 @@ function VaultPanelInner({ fullScreen = false }) {
 }
 
 /* ── Mobile wrapper ───────────────────────────────────────────
- * Phase 10.6 — the Vault combines drag-drop upload, a multi-column
- * document grid, and a side-by-side chat drawer. None of that fits
- * comfortably on a phone. Swap in the branded desktop placeholder. */
+ * History:
+ *   Phase 10.6 wrapped the Vault in DesktopOnlyPlaceholder on mobile
+ *   because the upload grid + side-by-side chat drawer don't fit on a
+ *   phone. CIO feedback during the mobile incident sweep: "why is the
+ *   vault not available on mobile??? really!". Browsing and searching
+ *   the vault works fine on a phone — only the multi-column grid and
+ *   the side-drawer chat are desktop-first. The placeholder blocked
+ *   useful paths (finding a document, checking what's indexed) just
+ *   to protect the uncomfortable ones.
+ *
+ *   Decision: always render VaultPanelInner. The panel's own CSS
+ *   (VaultPanel.css) already wraps the grid to a single column under
+ *   768px. The doc-chat drawer opens full-screen on mobile. No
+ *   placeholder. Desktop is unchanged.
+ */
 export default function VaultPanel(props) {
-  const isMobile = useIsMobile();
-  if (isMobile) {
-    return (
-      <DesktopOnlyPlaceholder
-        title="Knowledge Vault"
-        subtitle="Upload research. Chat with your documents. Cite answers."
-        features={[
-          'Drag-and-drop PDFs, decks, and memos into your private vault',
-          'Ask questions and get AI answers grounded in your documents',
-          'Inline citations back to the exact chunk and page',
-        ]}
-      />
-    );
-  }
   return <VaultPanelInner {...props} />;
 }

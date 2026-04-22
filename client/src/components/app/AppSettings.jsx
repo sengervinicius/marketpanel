@@ -4,6 +4,7 @@ import { useAlerts } from '../../context/AlertsContext';
 import { PANEL_DEFINITIONS, DEFAULT_LAYOUT } from '../../config/panels';
 import UserAvatar from '../common/UserAvatar';
 import VaultPanel from './VaultPanel';
+import { FeedbackLink } from '../common/FeedbackButton';
 
 // ── Settings Drawer Constants ────────────────────────────────────────────────
 // Settings surfaces toggleable grid panels only — NOT sector screens.
@@ -320,6 +321,12 @@ export function SettingsDrawer({ panelVisible, togglePanel, onClose, mobile }) {
         <span className="app-text-muted-small">Restart Onboarding Tour</span>
         <span className="app-text-faint-small">&#8635; RESTART</span>
       </div>
+      {/*
+        Mobile feedback entry point. On phones the floating pill is
+        hidden because it overlapped the primary nav — this row is the
+        only way to report an issue, so keep the label and icon clear.
+      */}
+      <FeedbackLink />
 
       {/* ── Community & Discord ── */}
       <SettingsSection label="COMMUNITY" />

@@ -1,18 +1,27 @@
 /**
- * FeedbackButton.jsx — Small floating "Report issue" pill.
+ * FeedbackButton.jsx — Feedback surface split into two entry points.
  *
- * Mounted globally so any screen has a one-tap path to send us feedback.
- * Before this existed the only feedback surface was thumbs-up/down on AI
- * answers, which meant any non-AI bug silently churned the user.
+ * History:
+ *   - v1 (f24b7f5): Launched as a single orange floating pill visible on
+ *     every screen, desktop and mobile. On phones the pill sat at
+ *     bottom-right above the tab bar and — between its orange dot, bright
+ *     ink, and the fact it was mounted globally — ended up visually
+ *     shouting louder than the primary nav. CIO flagged it as "ridiculous,
+ *     super highlighted and on top of one of the most important sections"
+ *     during the mobile incident sweep.
  *
- * Behaviour:
- *   - Pill sits bottom-right, just above the mobile bottom nav on phones
- *     and above the status strip on desktop so it never overlaps panel
- *     chrome.
- *   - Tapping opens a compact modal with a textarea + optional reply-to
- *     email (prefilled if logged in) + category dropdown.
- *   - Posts to /api/support/feedback. On success shows a small inline
- *     confirmation then auto-closes.
+ *   - v2 (this file): Two entry points, same modal.
+ *       • <FeedbackButton/>   — floating pill, DESKTOP ONLY. On viewports
+ *         <=768px the pill is not rendered at all (display:none). Palette
+ *         toned down from orange "signal" ink to muted surface + neutral
+ *         grey so it stops competing with the Particle brand orange.
+ *       • <FeedbackLink label={…} onOpened={…}/> — a plain anchor that
+ *         opens the same modal. Mounted inside AppSettings → HELP so
+ *         phone users still have a one-tap path to report issues.
+ *
+ *   The modal itself is unchanged from v1 — same POST, same categories,
+ *   same validation — so the server contract (/api/support/feedback) is
+ *   untouched. Only the entry points and styling change.
  */
 
 import React, { useEffect, useRef, useState } from 'react';
@@ -27,11 +36,11 @@ const CATEGORIES = [
   { value: 'other',      label: 'Something else' },
 ];
 
-export default function FeedbackButton() {
+/* ── Shared modal (used by both entry points) ────────────────────────── */
+function FeedbackModal({ open, onClose }) {
   const auth = useAuth() || {};
   const user = auth.user || null;
 
-  const [open, setOpen] = useState(false);
   const [message, setMessage] = useState('');
   const [email, setEmail] = useState('');
   const [category, setCategory] = useState('bug');
@@ -40,26 +49,22 @@ export default function FeedbackButton() {
   const [error, setError] = useState(null);
   const textareaRef = useRef(null);
 
-  // Prefill reply-to from signed-in user. Keep editable — user might want
-  // a teammate's address on the thread.
   useEffect(() => {
     if (open && user?.email && !email) setEmail(user.email);
   }, [open, user, email]);
 
-  // Focus the textarea when the modal opens.
   useEffect(() => {
     if (open && textareaRef.current) {
       requestAnimationFrame(() => textareaRef.current?.focus());
     }
   }, [open]);
 
-  // Close with Escape.
   useEffect(() => {
     if (!open) return undefined;
-    const onKey = (e) => { if (e.key === 'Escape') setOpen(false); };
+    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [open]);
+  }, [open, onClose]);
 
   const reset = () => {
     setMessage('');
@@ -68,8 +73,7 @@ export default function FeedbackButton() {
   };
 
   const close = () => {
-    setOpen(false);
-    // Small delay so the user sees the confirmation before the modal unmounts.
+    onClose();
     setTimeout(reset, 200);
   };
 
@@ -97,13 +101,10 @@ export default function FeedbackButton() {
           category,
         }),
       });
-      // apiFetch returns the parsed body for JSON responses; 202 still
-      // serialises fine.
       if (!resp || resp.ok === false) {
         throw new Error(resp?.message || 'Something went wrong. Please try again.');
       }
       setSubmitted(true);
-      // Auto-close after a beat so the user sees the confirmation.
       setTimeout(close, 1400);
     } catch (err) {
       setError(err?.message || 'Could not send. Please try again.');
@@ -112,149 +113,140 @@ export default function FeedbackButton() {
     }
   };
 
-  return (
-    <>
-      <button
-        type="button"
-        className="particle-feedback-btn"
-        onClick={() => setOpen(true)}
-        aria-label="Report an issue or send feedback"
-        title="Report an issue"
-      >
-        <span className="particle-feedback-btn__dot" aria-hidden="true" />
-        Feedback
-      </button>
+  if (!open) return null;
 
-      {open && (
-        <div
-          className="particle-feedback-backdrop"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Send feedback"
-          onClick={(e) => { if (e.target === e.currentTarget) close(); }}
-        >
-          <form className="particle-feedback-modal" onSubmit={submit}>
-            <div className="particle-feedback-modal__header">
-              <h2 className="particle-feedback-modal__title">Tell us what's up</h2>
+  return (
+    <div
+      className="particle-feedback-backdrop"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Send feedback"
+      onClick={(e) => { if (e.target === e.currentTarget) close(); }}
+    >
+      <form className="particle-feedback-modal" onSubmit={submit}>
+        <div className="particle-feedback-modal__header">
+          <h2 className="particle-feedback-modal__title">Tell us what's up</h2>
+          <button
+            type="button"
+            className="particle-feedback-modal__close"
+            onClick={close}
+            aria-label="Close feedback form"
+          >
+            ×
+          </button>
+        </div>
+
+        {submitted ? (
+          <div className="particle-feedback-modal__done">
+            Thanks — we got it. We'll follow up if we need more context.
+          </div>
+        ) : (
+          <>
+            <label className="particle-feedback-modal__label">
+              What are you reporting?
+              <select
+                className="particle-feedback-modal__select"
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                disabled={submitting}
+              >
+                {CATEGORIES.map((c) => (
+                  <option key={c.value} value={c.value}>{c.label}</option>
+                ))}
+              </select>
+            </label>
+
+            <label className="particle-feedback-modal__label">
+              Details
+              <textarea
+                ref={textareaRef}
+                className="particle-feedback-modal__textarea"
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                placeholder="What happened, and what did you expect to happen?"
+                rows={5}
+                maxLength={4000}
+                disabled={submitting}
+              />
+            </label>
+
+            <label className="particle-feedback-modal__label">
+              Reply-to email (optional)
+              <input
+                type="email"
+                className="particle-feedback-modal__input"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@example.com"
+                disabled={submitting}
+              />
+            </label>
+
+            {error && (
+              <div className="particle-feedback-modal__error" role="alert">{error}</div>
+            )}
+
+            <div className="particle-feedback-modal__actions">
               <button
                 type="button"
-                className="particle-feedback-modal__close"
+                className="particle-feedback-modal__btn particle-feedback-modal__btn--ghost"
                 onClick={close}
-                aria-label="Close feedback form"
+                disabled={submitting}
               >
-                ×
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="particle-feedback-modal__btn particle-feedback-modal__btn--primary"
+                disabled={submitting || message.trim().length < 3}
+              >
+                {submitting ? 'Sending…' : 'Send'}
               </button>
             </div>
+          </>
+        )}
+      </form>
 
-            {submitted ? (
-              <div className="particle-feedback-modal__done">
-                Thanks — we got it. We'll follow up if we need more context.
-              </div>
-            ) : (
-              <>
-                <label className="particle-feedback-modal__label">
-                  What are you reporting?
-                  <select
-                    className="particle-feedback-modal__select"
-                    value={category}
-                    onChange={(e) => setCategory(e.target.value)}
-                    disabled={submitting}
-                  >
-                    {CATEGORIES.map((c) => (
-                      <option key={c.value} value={c.value}>{c.label}</option>
-                    ))}
-                  </select>
-                </label>
-
-                <label className="particle-feedback-modal__label">
-                  Details
-                  <textarea
-                    ref={textareaRef}
-                    className="particle-feedback-modal__textarea"
-                    value={message}
-                    onChange={(e) => setMessage(e.target.value)}
-                    placeholder="What happened, and what did you expect to happen?"
-                    rows={5}
-                    maxLength={4000}
-                    disabled={submitting}
-                  />
-                </label>
-
-                <label className="particle-feedback-modal__label">
-                  Reply-to email (optional)
-                  <input
-                    type="email"
-                    className="particle-feedback-modal__input"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="you@example.com"
-                    disabled={submitting}
-                  />
-                </label>
-
-                {error && (
-                  <div className="particle-feedback-modal__error" role="alert">{error}</div>
-                )}
-
-                <div className="particle-feedback-modal__actions">
-                  <button
-                    type="button"
-                    className="particle-feedback-modal__btn particle-feedback-modal__btn--ghost"
-                    onClick={close}
-                    disabled={submitting}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="particle-feedback-modal__btn particle-feedback-modal__btn--primary"
-                    disabled={submitting || message.trim().length < 3}
-                  >
-                    {submitting ? 'Sending…' : 'Send'}
-                  </button>
-                </div>
-              </>
-            )}
-          </form>
-        </div>
-      )}
-
+      {/* Shared style block — covers the modal AND the floating pill.
+          The pill is hidden below 768px so it never competes with the
+          bottom tab bar on phones. */}
       <style>{`
         .particle-feedback-btn {
           position: fixed;
           right: 16px;
           bottom: 16px;
           z-index: 9998;
-          padding: 8px 14px;
+          padding: 6px 12px;
           border-radius: 999px;
-          border: 1px solid rgba(255, 120, 50, 0.45);
-          background: rgba(20, 22, 28, 0.92);
-          color: #f0a87a;
-          font: 500 12px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          background: rgba(20, 22, 28, 0.82);
+          color: #8a8f99;
+          font: 500 11px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
           letter-spacing: 0.02em;
           display: inline-flex;
           align-items: center;
-          gap: 8px;
+          gap: 6px;
           cursor: pointer;
           backdrop-filter: blur(6px);
-          box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
           transition: transform 120ms ease, border-color 120ms ease, color 120ms ease;
         }
         .particle-feedback-btn:hover {
-          border-color: rgba(255, 150, 80, 0.85);
-          color: #ffbb87;
+          border-color: rgba(255, 255, 255, 0.18);
+          color: #d0d4db;
           transform: translateY(-1px);
         }
         .particle-feedback-btn__dot {
-          width: 6px;
-          height: 6px;
+          width: 5px;
+          height: 5px;
           border-radius: 50%;
-          background: #ff8a3d;
-          box-shadow: 0 0 8px rgba(255, 120, 50, 0.6);
+          background: #5b6070;
         }
         @media (max-width: 768px) {
-          /* Sit above the mobile bottom nav (~56px) with breathing room. */
-          .particle-feedback-btn { bottom: 72px; right: 12px; }
+          /* CIO feedback — the floating pill is too loud on phones and
+             sits above the bottom nav. Use the Settings → HELP entry
+             point instead. */
+          .particle-feedback-btn { display: none !important; }
         }
 
         .particle-feedback-backdrop {
@@ -272,7 +264,7 @@ export default function FeedbackButton() {
           width: 100%;
           max-width: 440px;
           background: #16181e;
-          border: 1px solid rgba(255, 120, 50, 0.25);
+          border: 1px solid rgba(255, 255, 255, 0.08);
           border-radius: 12px;
           padding: 20px;
           color: #e6e6e6;
@@ -289,7 +281,7 @@ export default function FeedbackButton() {
           margin: 0;
           font-size: 16px;
           font-weight: 600;
-          color: #f0a87a;
+          color: #e6e6e6;
         }
         .particle-feedback-modal__close {
           background: none;
@@ -334,7 +326,7 @@ export default function FeedbackButton() {
         .particle-feedback-modal__input:focus,
         .particle-feedback-modal__textarea:focus {
           outline: none;
-          border-color: rgba(255, 150, 80, 0.65);
+          border-color: rgba(255, 150, 80, 0.45);
         }
 
         .particle-feedback-modal__error {
@@ -348,7 +340,7 @@ export default function FeedbackButton() {
         }
         .particle-feedback-modal__done {
           padding: 20px 8px;
-          color: #f0a87a;
+          color: #cfd4dc;
           font-size: 14px;
           text-align: center;
         }
@@ -373,19 +365,72 @@ export default function FeedbackButton() {
         }
         .particle-feedback-modal__btn--ghost:hover { color: #fff; border-color: #555; }
         .particle-feedback-modal__btn--primary {
-          background: #ff8a3d;
-          border: 1px solid #ff8a3d;
-          color: #16181e;
+          background: rgba(255, 255, 255, 0.06);
+          border: 1px solid rgba(255, 255, 255, 0.15);
+          color: #e6e6e6;
         }
         .particle-feedback-modal__btn--primary:disabled {
           opacity: 0.5;
           cursor: not-allowed;
         }
         .particle-feedback-modal__btn--primary:not(:disabled):hover {
-          background: #ffa05a;
-          border-color: #ffa05a;
+          background: rgba(255, 255, 255, 0.1);
+          border-color: rgba(255, 255, 255, 0.25);
         }
       `}</style>
+    </div>
+  );
+}
+
+/* ── Entry point 1: floating pill (desktop only) ─────────────────────── */
+export default function FeedbackButton() {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button
+        type="button"
+        className="particle-feedback-btn"
+        onClick={() => setOpen(true)}
+        aria-label="Report an issue or send feedback"
+        title="Report an issue"
+      >
+        <span className="particle-feedback-btn__dot" aria-hidden="true" />
+        Feedback
+      </button>
+      <FeedbackModal open={open} onClose={() => setOpen(false)} />
+    </>
+  );
+}
+
+/* ── Entry point 2: inline link (Settings → HELP) ────────────────────── */
+export function FeedbackLink({ className, children = 'Send feedback to the team' }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button
+        type="button"
+        className={className}
+        onClick={() => setOpen(true)}
+        aria-label="Send feedback to the team"
+        style={{
+          display: 'flex',
+          width: '100%',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '10px 12px',
+          background: 'transparent',
+          border: 'none',
+          borderRadius: 6,
+          color: 'inherit',
+          font: 'inherit',
+          cursor: 'pointer',
+          textAlign: 'left',
+        }}
+      >
+        <span className="app-text-muted-small">{children}</span>
+        <span className="app-text-faint-small">&#9998; REPORT</span>
+      </button>
+      <FeedbackModal open={open} onClose={() => setOpen(false)} />
     </>
   );
 }
