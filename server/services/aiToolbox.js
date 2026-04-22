@@ -595,25 +595,67 @@ async function handleLookupQuote({ symbol }) {
   if (!mod || typeof mod.getInstrumentDetail !== 'function') {
     return { error: 'quote adapter unavailable' };
   }
+
+  // 2026-04-22 incident fix: previously we called
+  //   mod.getInstrumentDetail({ symbol })
+  // which hit multiAssetProvider's switch with assetClass=undefined and fell
+  // through to `default: return null`. lookup_quote then returned
+  // { symbol, error: 'no data' } for EVERY ticker that wasn't already in
+  // instrumentStore's seed list (HTZ, CAR, RENT3, MOVI3, most of global
+  // equity, all FX pairs not in the 5-pair seed, etc.), which drove the
+  // AI to its "BOTTOM LINE: the terminal's feeds don't have market caps"
+  // refusal behaviour.
+  //
+  // Now we resolve assetClass from the symbol (instrumentStore seed first,
+  // then heuristic) and pass a fully-formed instrument descriptor so the
+  // provider always picks the right detail fetcher.
+  const sym = String(symbol || '').trim().toUpperCase();
+  if (!sym) return { error: 'symbol required' };
+
+  const assetClass = typeof mod.resolveAssetClass === 'function'
+    ? mod.resolveAssetClass(sym)
+    : 'equity';
+
   try {
-    const detail = await mod.getInstrumentDetail({ symbol });
-    if (!detail) return { symbol, error: 'no data' };
+    const detail = await mod.getInstrumentDetail({ symbol: sym, assetClass, name: sym });
+    // Even if the adapter comes back empty, never return a bare error —
+    // give the AI a structured coverage_gap signal so it says "I don't
+    // have a live figure for X" instead of refusing the whole question.
+    if (!detail) {
+      return {
+        symbol: sym,
+        assetClass,
+        price: null,
+        marketCap: null,
+        coverage_gap: true,
+        note: `No adapter returned data for ${sym} (resolved as ${assetClass}). This is a terminal coverage gap — suggest the user try a ticker variant (e.g. add .SA for Brazilian names) or search_instruments.`,
+      };
+    }
     return {
-      symbol: detail.symbol || symbol,
-      name: detail.name,
-      price: detail.price,
-      change: detail.change,
-      chgPct: detail.chgPct,
-      marketCap: detail.marketCap,
-      sector: detail.sector,
-      industry: detail.industry,
-      pe: detail.pe,
-      dividendYield: detail.dividendYield,
-      source: detail.source,
-      asOf: detail.asOf,
+      symbol: detail.symbol || sym,
+      assetClass,
+      name: detail.name || null,
+      price: detail.price ?? null,
+      change: detail.change ?? null,
+      chgPct: detail.chgPct ?? null,
+      currency: detail.currency || null,
+      marketCap: detail.marketCap ?? null,
+      sector: detail.sector || null,
+      industry: detail.industry || null,
+      pe: detail.pe ?? null,
+      forwardPe: detail.forwardPe ?? null,
+      dividendYield: detail.dividendYield ?? null,
+      beta: detail.beta ?? null,
+      high52w: detail.high52w ?? null,
+      low52w: detail.low52w ?? null,
+      description: detail.description || null,
+      coverage_gap: detail.coverage_gap === true || undefined,
+      note: detail.note || undefined,
+      source: detail.source || null,
+      asOf: detail.asOf || null,
     };
   } catch (e) {
-    return { error: e.message };
+    return { error: e.message, symbol: sym };
   }
 }
 

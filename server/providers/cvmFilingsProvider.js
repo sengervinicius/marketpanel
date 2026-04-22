@@ -375,6 +375,7 @@ async function getCvmFilings(opts = {}) {
   }
 
   let rows;
+  let fallbackNote = null;
   try {
     rows = await fetchIpeYear(year);
     // If the current year is too early in January and no filings are in
@@ -384,12 +385,39 @@ async function getCvmFilings(opts = {}) {
       rows = await fetchIpeYear(year - 1);
     }
   } catch (e) {
-    logger.warn('cvmFilingsProvider', 'fetchIpeYear failed', { year, error: e.message });
-    return {
-      company,
-      error: `CVM IPE CSV unreachable for ${year}: ${e.message}`,
-      source: 'CVM IPE',
-    };
+    // 2026-04-22 incident fix: CVM's dataset URL returns 404 for the
+    // current year during the first few weeks of January (and sometimes
+    // longer, whenever CVM rebuilds the year file). Before this fix the
+    // whole tool returned `{ error: 'CVM IPE CSV unreachable...' }`,
+    // which the AI surfaced as "CVM filings adapter is also returning
+    // 404 errors" in the user's screenshot.
+    //
+    // Instead: when the current year's CSV isn't available and the
+    // caller didn't explicitly ask for `year`, fall back silently to
+    // year-1 and annotate the response so the AI can caveat the date
+    // range rather than claim the adapter is broken.
+    if (!opts.year) {
+      logger.warn('cvmFilingsProvider', 'fetchIpeYear current-year failed, retrying prior year', { year, error: e.message });
+      try {
+        rows = await fetchIpeYear(year - 1);
+        fallbackNote = `CVM hasn\'t published the ${year} IPE CSV yet — showing ${year - 1} filings instead.`;
+        year = year - 1;
+      } catch (e2) {
+        logger.warn('cvmFilingsProvider', 'fetchIpeYear fallback failed', { year: year - 1, error: e2.message });
+        return {
+          company,
+          error: `CVM IPE CSV unreachable for both ${year} and ${year - 1}: ${e2.message}`,
+          source: 'CVM IPE',
+        };
+      }
+    } else {
+      logger.warn('cvmFilingsProvider', 'fetchIpeYear failed', { year, error: e.message });
+      return {
+        company,
+        error: `CVM IPE CSV unreachable for ${year}: ${e.message}`,
+        source: 'CVM IPE',
+      };
+    }
   }
 
   const from = opts.from ? toIsoDate(opts.from) : null;
@@ -424,6 +452,7 @@ async function getCvmFilings(opts = {}) {
     filings: matches.slice(0, cap),
     source: 'CVM IPE',
     asOf: new Date().toISOString(),
+    ...(fallbackNote ? { note: fallbackNote } : {}),
   };
 }
 
