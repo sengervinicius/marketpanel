@@ -16,9 +16,29 @@
 const instrumentStore = require('../stores/instrumentStore');
 const coingecko = require('./coingeckoProvider');
 
-// Twelve Data provider (optional — graceful fallback if not available)
+// Equity-detail provider chain — each is optional, each is loaded lazily
+// with try/catch so a missing module or missing key can't crash the whole
+// provider at load time. Order inside _getEquityDetail: Twelve Data
+// (authoritative on US) → BRAPI (B3) → Yahoo (global fallback) → metadata-
+// only stub (coverage_gap=true). We NEVER hand back a hardcoded numeric
+// market cap / P/E — those drift and end up in front of clients.
 let twelvedata = null;
 try { twelvedata = require('./twelvedata'); } catch (e) { /* ok */ }
+let brapi = null;
+try { brapi = require('./brapi'); } catch (e) { /* ok */ }
+let yahoo = null;
+try { yahoo = require('./yahooFinance'); } catch (e) { /* ok */ }
+
+/** True if the symbol looks like a B3 ticker (e.g. RENT3, PETR4, MOVI3.SA). */
+function isB3Ticker(sym) {
+  const s = String(sym || '').trim().toUpperCase();
+  if (!s) return false;
+  if (s.endsWith('.SA')) return true;
+  // Bare B3 form: LETTERS + digit suffix (3/4/5/6/11). E.g. RENT3, PETR4,
+  // ITUB4, BBAS3, SANB11. Avoid false positives on 3-letter US names
+  // like HTZ or CAR — those have no trailing digit.
+  return /^[A-Z]{4}(3|4|5|6|11)$/.test(s);
+}
 
 // ── Cache for API-fetched details ────────────────────────────────────────────
 const _detailCache = new Map();
@@ -32,40 +52,48 @@ function cacheGet(k) {
 }
 function cacheSet(k, v) { _detailCache.set(k, { v, exp: Date.now() + DETAIL_TTL }); }
 
-// ── Stub fundamental data (fallbacks for when APIs are down) ─────────────────
-// These are static floors. Real fundamentals come from Twelve Data (if the
-// key is set) or leave the field null so the caller/AI can say "unavailable"
-// instead of refusing the whole question. Order within each block: alphabetic
-// by ticker.
+// ── Equity metadata stubs (NO numeric values) ──────────────────────────────
+//
+// This used to be a pile of hardcoded marketCap / P/E / dividendYield floors
+// for ~20 tickers. The CIO (rightly) pushed back: any hardcoded numeric that
+// drifts is a number that will eventually surface to a client as stale and
+// make the terminal look incompetent. So this table now carries ONLY the
+// things that don't drift — sector, industry, exchange currency, the
+// one-liner description. The live number fields (price, marketCap, PE,
+// dividendYield, etc.) come exclusively from the provider chain in
+// _getEquityDetail: Twelve Data → BRAPI (B3) → Yahoo. If all three are down
+// for a given symbol the tool returns `coverage_gap: true, marketCap: null`
+// and the model is forced to caveat — no fabricated figures.
+//
+// Order: alphabetic by ticker. Descriptions are capped at ~200 chars.
 const EQUITY_STUBS = {
-  AAPL:  { marketCap: 3.1e12, pe: 28.5, forwardPe: 25.2, pbRatio: 45.8, evEbitda: 21.3, dividendYield: 0.005, eps: 6.43, beta: 1.21, sector: 'Technology', industry: 'Consumer Electronics', revenueUSD: 394e9, ebitdaUSD: 125e9, grossMarginPct: 0.44, netMarginPct: 0.25, roePercent: 1.72, roaPercent: 0.28, description: 'Apple Inc. designs, manufactures, and markets smartphones, personal computers, tablets, wearables, and accessories worldwide.' },
-  MSFT:  { marketCap: 3.2e12, pe: 34.1, forwardPe: 29.8, pbRatio: 13.2, evEbitda: 25.1, dividendYield: 0.007, eps: 11.52, beta: 0.92, sector: 'Technology', industry: 'Software—Infrastructure', revenueUSD: 245e9, ebitdaUSD: 120e9, grossMarginPct: 0.69, netMarginPct: 0.36, roePercent: 0.42, roaPercent: 0.21, description: 'Microsoft Corporation develops, licenses, and supports software, services, and devices worldwide.' },
-  NVDA:  { marketCap: 2.8e12, pe: 55.2, forwardPe: 42.1, pbRatio: 38.9, evEbitda: 48.3, dividendYield: 0.001, eps: 1.30, beta: 1.65, sector: 'Technology', industry: 'Semiconductors', revenueUSD: 60e9, ebitdaUSD: 35e9, grossMarginPct: 0.74, netMarginPct: 0.55, roePercent: 0.90, roaPercent: 0.48, description: 'NVIDIA Corporation provides graphics, and compute and networking solutions in the US and internationally.' },
-  GOOGL: { marketCap: 2.1e12, pe: 22.4, forwardPe: 20.1, pbRatio: 7.2,  evEbitda: 16.8, dividendYield: 0.0,   eps: 7.09, beta: 1.05, sector: 'Technology', industry: 'Internet Content', revenueUSD: 305e9, ebitdaUSD: 100e9, grossMarginPct: 0.56, netMarginPct: 0.26, roePercent: 0.30, roaPercent: 0.19, description: 'Alphabet Inc. offers various products and platforms in the United States, Europe, and internationally.' },
-  AMZN:  { marketCap: 2.2e12, pe: 42.8, forwardPe: 35.5, pbRatio: 9.8,  evEbitda: 22.4, dividendYield: 0.0,   eps: 4.82, beta: 1.18, sector: 'Consumer Cyclical', industry: 'Internet Retail', revenueUSD: 590e9, ebitdaUSD: 85e9, grossMarginPct: 0.47, netMarginPct: 0.06, roePercent: 0.22, roaPercent: 0.08, description: 'Amazon.com, Inc. engages in the retail sale of consumer products and subscriptions worldwide.' },
-  TSLA:  { marketCap: 0.85e12, pe: 65.0, forwardPe: 55.2, pbRatio: 11.8, evEbitda: 42.1, dividendYield: 0.0, eps: 2.02, beta: 2.35, sector: 'Consumer Cyclical', industry: 'Auto Manufacturers', revenueUSD: 97e9, ebitdaUSD: 10e9, grossMarginPct: 0.18, netMarginPct: 0.05, roePercent: 0.12, roaPercent: 0.06, description: 'Tesla, Inc. designs, develops, manufactures, leases, and sells electric vehicles, and energy generation and storage systems.' },
-  JPM:   { marketCap: 0.68e12, pe: 12.8, forwardPe: 11.5, pbRatio: 1.95, evEbitda: null, dividendYield: 0.022, eps: 18.22, beta: 1.12, sector: 'Financial Services', industry: 'Banks—Diversified', revenueUSD: 158e9, ebitdaUSD: null, grossMarginPct: null, netMarginPct: 0.28, roePercent: 0.17, roaPercent: 0.014, description: 'JPMorgan Chase & Co. operates as a financial services company worldwide.' },
-  XOM:   { marketCap: 0.5e12, pe: 14.2, forwardPe: 12.8, pbRatio: 2.1,  evEbitda: 7.8, dividendYield: 0.035, eps: 8.89, beta: 0.88, sector: 'Energy', industry: 'Oil & Gas Integrated', revenueUSD: 398e9, ebitdaUSD: 65e9, grossMarginPct: 0.28, netMarginPct: 0.08, roePercent: 0.17, roaPercent: 0.09, description: 'Exxon Mobil Corporation explores for and produces crude oil and natural gas.' },
+  AAPL:  { sector: 'Technology',       industry: 'Consumer Electronics',         description: 'Apple Inc. designs, manufactures, and markets smartphones, personal computers, tablets, wearables, and accessories worldwide.' },
+  MSFT:  { sector: 'Technology',       industry: 'Software—Infrastructure',      description: 'Microsoft Corporation develops, licenses, and supports software, services, and devices worldwide.' },
+  NVDA:  { sector: 'Technology',       industry: 'Semiconductors',               description: 'NVIDIA Corporation provides graphics, and compute and networking solutions in the US and internationally.' },
+  GOOGL: { sector: 'Technology',       industry: 'Internet Content',             description: 'Alphabet Inc. offers various products and platforms in the United States, Europe, and internationally.' },
+  AMZN:  { sector: 'Consumer Cyclical',industry: 'Internet Retail',              description: 'Amazon.com, Inc. engages in the retail sale of consumer products and subscriptions worldwide.' },
+  TSLA:  { sector: 'Consumer Cyclical',industry: 'Auto Manufacturers',           description: 'Tesla, Inc. designs, develops, manufactures, leases, and sells electric vehicles, and energy generation and storage systems.' },
+  JPM:   { sector: 'Financial Services',industry: 'Banks—Diversified',           description: 'JPMorgan Chase & Co. operates as a financial services company worldwide.' },
+  XOM:   { sector: 'Energy',           industry: 'Oil & Gas Integrated',         description: 'Exxon Mobil Corporation explores for and produces crude oil and natural gas.' },
 
-  // ── US rental-fleet names (2026-04 incident: AI refused HTZ/CAR comparables) ──
-  // Approximate floors; real numbers come from Twelve Data when the key is set.
-  HTZ:   { marketCap: 1.9e9,  pe: null, dividendYield: 0.0,   sector: 'Consumer Cyclical', industry: 'Rental & Leasing Services', description: 'Hertz Global Holdings operates a worldwide vehicle rental business under the Hertz, Dollar, and Thrifty brands.' },
-  CAR:   { marketCap: 5.4e9,  pe: null, dividendYield: 0.0,   sector: 'Consumer Cyclical', industry: 'Rental & Leasing Services', description: 'Avis Budget Group provides car and truck rentals, car sharing, and ancillary services worldwide.' },
+  // US rental-fleet names (2026-04 incident: AI refused HTZ/CAR comparables).
+  HTZ:   { sector: 'Consumer Cyclical',industry: 'Rental & Leasing Services',    description: 'Hertz Global Holdings operates a worldwide vehicle rental business under the Hertz, Dollar, and Thrifty brands.' },
+  CAR:   { sector: 'Consumer Cyclical',industry: 'Rental & Leasing Services',    description: 'Avis Budget Group provides car and truck rentals, car sharing, and ancillary services worldwide.' },
 
-  // ── Brazil B3 blue chips (2026-04 incident: AI refused RENT3/MOVI3) ──
-  // Stored under BOTH the bare ticker ("RENT3") and the Yahoo-suffixed form
-  // ("RENT3.SA") so lookup_quote hits regardless of how the caller spells it.
-  // Market caps in BRL. AI converts to USD via lookup_fx when needed.
-  'RENT3':    { marketCap: 58e9, pe: 14.5, dividendYield: 0.022, sector: 'Consumer Cyclical', industry: 'Rental & Leasing Services', description: 'Localiza Rent a Car S.A. is Latin America\'s largest vehicle-rental and fleet-management company, operating across Brazil and 10 other countries.', currency: 'BRL' },
-  'RENT3.SA': { marketCap: 58e9, pe: 14.5, dividendYield: 0.022, sector: 'Consumer Cyclical', industry: 'Rental & Leasing Services', description: 'Localiza Rent a Car S.A. is Latin America\'s largest vehicle-rental and fleet-management company, operating across Brazil and 10 other countries.', currency: 'BRL' },
-  'MOVI3':    { marketCap: 3.2e9, pe: null, dividendYield: 0.015, sector: 'Consumer Cyclical', industry: 'Rental & Leasing Services', description: 'Movida Participações S.A. operates in vehicle rental (daily, monthly, and fleet outsourcing) and used-car sales across Brazil.', currency: 'BRL' },
-  'MOVI3.SA': { marketCap: 3.2e9, pe: null, dividendYield: 0.015, sector: 'Consumer Cyclical', industry: 'Rental & Leasing Services', description: 'Movida Participações S.A. operates in vehicle rental (daily, monthly, and fleet outsourcing) and used-car sales across Brazil.', currency: 'BRL' },
-  'PETR4':    { marketCap: 500e9, pe: 7.2, dividendYield: 0.14, sector: 'Energy', industry: 'Oil & Gas Integrated', description: 'Petróleo Brasileiro S.A. — Petrobras — is Brazil\'s state-controlled integrated oil and gas company.', currency: 'BRL' },
-  'PETR4.SA': { marketCap: 500e9, pe: 7.2, dividendYield: 0.14, sector: 'Energy', industry: 'Oil & Gas Integrated', description: 'Petróleo Brasileiro S.A. — Petrobras — is Brazil\'s state-controlled integrated oil and gas company.', currency: 'BRL' },
-  'VALE3':    { marketCap: 280e9, pe: 5.5, dividendYield: 0.10, sector: 'Basic Materials', industry: 'Other Industrial Metals & Mining', description: 'Vale S.A. is a Brazilian multinational producer of iron ore, nickel, and copper.', currency: 'BRL' },
-  'VALE3.SA': { marketCap: 280e9, pe: 5.5, dividendYield: 0.10, sector: 'Basic Materials', industry: 'Other Industrial Metals & Mining', description: 'Vale S.A. is a Brazilian multinational producer of iron ore, nickel, and copper.', currency: 'BRL' },
-  'ITUB4':    { marketCap: 330e9, pe: 8.4, dividendYield: 0.065, sector: 'Financial Services', industry: 'Banks—Regional', description: 'Itaú Unibanco is Brazil\'s largest private bank by assets, with operations across retail, corporate, and investment banking.', currency: 'BRL' },
-  'ITUB4.SA': { marketCap: 330e9, pe: 8.4, dividendYield: 0.065, sector: 'Financial Services', industry: 'Banks—Regional', description: 'Itaú Unibanco is Brazil\'s largest private bank by assets, with operations across retail, corporate, and investment banking.', currency: 'BRL' },
+  // B3 blue chips. Stored under both bare ticker and Yahoo-suffixed form so
+  // lookup hits regardless of how the caller spells it. `currency` is
+  // metadata (doesn't drift for listed names) — it just tells the model
+  // which currency the live marketCap (when we have it) will be quoted in.
+  'RENT3':    { sector: 'Consumer Cyclical',industry: 'Rental & Leasing Services',description: 'Localiza Rent a Car S.A. is Latin America\'s largest vehicle-rental and fleet-management company, operating across Brazil and 10 other countries.', currency: 'BRL' },
+  'RENT3.SA': { sector: 'Consumer Cyclical',industry: 'Rental & Leasing Services',description: 'Localiza Rent a Car S.A. is Latin America\'s largest vehicle-rental and fleet-management company, operating across Brazil and 10 other countries.', currency: 'BRL' },
+  'MOVI3':    { sector: 'Consumer Cyclical',industry: 'Rental & Leasing Services',description: 'Movida Participações S.A. operates in vehicle rental (daily, monthly, and fleet outsourcing) and used-car sales across Brazil.', currency: 'BRL' },
+  'MOVI3.SA': { sector: 'Consumer Cyclical',industry: 'Rental & Leasing Services',description: 'Movida Participações S.A. operates in vehicle rental (daily, monthly, and fleet outsourcing) and used-car sales across Brazil.', currency: 'BRL' },
+  'PETR4':    { sector: 'Energy',            industry: 'Oil & Gas Integrated',    description: 'Petróleo Brasileiro S.A. — Petrobras — is Brazil\'s state-controlled integrated oil and gas company.', currency: 'BRL' },
+  'PETR4.SA': { sector: 'Energy',            industry: 'Oil & Gas Integrated',    description: 'Petróleo Brasileiro S.A. — Petrobras — is Brazil\'s state-controlled integrated oil and gas company.', currency: 'BRL' },
+  'VALE3':    { sector: 'Basic Materials',   industry: 'Other Industrial Metals & Mining', description: 'Vale S.A. is a Brazilian multinational producer of iron ore, nickel, and copper.', currency: 'BRL' },
+  'VALE3.SA': { sector: 'Basic Materials',   industry: 'Other Industrial Metals & Mining', description: 'Vale S.A. is a Brazilian multinational producer of iron ore, nickel, and copper.', currency: 'BRL' },
+  'ITUB4':    { sector: 'Financial Services',industry: 'Banks—Regional',          description: 'Itaú Unibanco is Brazil\'s largest private bank by assets, with operations across retail, corporate, and investment banking.', currency: 'BRL' },
+  'ITUB4.SA': { sector: 'Financial Services',industry: 'Banks—Regional',          description: 'Itaú Unibanco is Brazil\'s largest private bank by assets, with operations across retail, corporate, and investment banking.', currency: 'BRL' },
 };
 
 const FX_STUBS = {
@@ -185,23 +213,75 @@ async function getInstrumentDetail(instrument) {
   }
 }
 
-// ── Equity detail (Twelve Data → stubs) ──────────────────────────────────────
+// ── Equity detail (Twelve Data → BRAPI → Yahoo → metadata stub) ──────────────
+//
+// The chain:
+//   1. Twelve Data — authoritative for US names, rate-limited but consistent
+//      shape. Covers ~5k global tickers but has gaps on B3 mid-caps and some
+//      recent ADRs.
+//   2. BRAPI.dev — free B3 mirror. Only called when isB3Ticker(sym) is true,
+//      so we don't waste a hop on AAPL/MSFT.
+//   3. Yahoo query2 — unofficial but covers essentially every global ticker.
+//      Last resort for price/marketCap.
+//   4. Metadata-only stub (sector/industry/description) with coverage_gap:
+//      true. The numeric fields stay null — the model is expected to read
+//      that flag and either skip the ratio or go to web_research.
+//
+// Field-merge rule: first non-null wins. So Twelve Data beats BRAPI which
+// beats Yahoo. Metadata (sector/industry/description/currency) falls back to
+// EQUITY_STUBS as the final floor because those strings don't drift.
 async function _getEquityDetail(sym, instrument) {
   const ck = `detail:equity:${sym}`;
   const cached = cacheGet(ck);
   if (cached) return cached;
 
   // Lookup stubs by both the bare symbol AND the no-suffix form so e.g.
-  // "RENT3" and "RENT3.SA" both hit the same row.
+  // "RENT3" and "RENT3.SA" both hit the same metadata row.
   const stubKey = sym;
   const stubKeyBare = sym.replace(/\.[A-Z]{1,3}$/, '');
   const stub = EQUITY_STUBS[stubKey] || EQUITY_STUBS[stubKeyBare] || null;
 
-  // Try Twelve Data — profile, statistics AND quote, in parallel. We
-  // previously skipped the quote call here, which meant international
-  // equities without a Twelve Data profile (e.g. Localiza RENT3.SA) came
-  // back with nothing — even when TD would happily return a live price
-  // and market cap.
+  // Accumulator + provenance. Each field is set on first non-null value
+  // seen, so later providers can't overwrite an authoritative Twelve Data
+  // number. `sources` records every provider we called (success or empty)
+  // so the model can narrate coverage confidence if it wants to.
+  const acc = {
+    symbol: sym,
+    name: instrument?.name || null,
+    price: null,
+    change: null,
+    chgPct: null,
+    currency: null,
+    exchange: null,
+    sector: null,
+    industry: null,
+    description: null,
+    marketCap: null,
+    pe: null,
+    forwardPe: null,
+    pbRatio: null,
+    dividendYield: null,
+    eps: null,
+    beta: null,
+    high52w: null,
+    low52w: null,
+    volume: null,
+    employees: null,
+    ceo: null,
+    website: null,
+  };
+  const sources = [];
+
+  function fillFrom(obj, providerName) {
+    if (!obj || typeof obj !== 'object' || obj.error) return;
+    sources.push(providerName);
+    for (const [k, v] of Object.entries(obj)) {
+      if (v === null || v === undefined || v === '') continue;
+      if (acc[k] === null || acc[k] === undefined) acc[k] = v;
+    }
+  }
+
+  // ── Step 1: Twelve Data (profile + statistics + quote in parallel) ──
   if (twelvedata && process.env.TWELVEDATA_API_KEY) {
     try {
       const [profile, stats, quote] = await Promise.allSettled([
@@ -215,57 +295,102 @@ async function _getEquityDetail(sym, instrument) {
       const q = quote.status   === 'fulfilled' ? quote.value   : null;
 
       if (p || s || q) {
-        const result = {
-          symbol: q?.symbol || sym,
-          name: p?.name || q?.name || instrument?.name || null,
-          price: q?.price ?? null,
-          change: q?.change ?? null,
-          chgPct: q?.changePct ?? null,
-          currency: q?.currency || stub?.currency || null,
-          exchange: p?.exchange || q?.exchange || null,
-          sector: p?.sector || stub?.sector || 'Unknown',
-          industry: p?.industry || stub?.industry || 'Unknown',
-          description: (p?.description || stub?.description || '').slice(0, 500),
-          marketCap: s?.valuations_metrics?.market_capitalization ?? stub?.marketCap ?? null,
-          pe: s?.valuations_metrics?.trailing_pe ?? stub?.pe ?? null,
-          forwardPe: s?.valuations_metrics?.forward_pe ?? stub?.forwardPe ?? null,
-          pbRatio: s?.valuations_metrics?.price_to_book ?? stub?.pbRatio ?? null,
-          dividendYield: s?.dividends_and_splits?.forward_annual_dividend_yield ?? stub?.dividendYield ?? null,
-          eps: s?.financials?.diluted_eps ?? stub?.eps ?? null,
-          beta: s?.valuations_metrics?.beta ?? stub?.beta ?? null,
-          high52w: q?.high52w ?? null,
-          low52w: q?.low52w ?? null,
-          volume: q?.volume ?? null,
-          employees: p?.employees ?? null,
-          ceo: p?.ceo ?? null,
-          website: p?.website ?? null,
-          source: 'twelvedata',
-          asOf: new Date().toISOString(),
+        // Map TD's nested shape → our flat keys. Only non-null fields get
+        // passed to fillFrom so the accumulator logic works.
+        const flat = {
+          symbol: q?.symbol,
+          name: p?.name || q?.name,
+          price: q?.price,
+          change: q?.change,
+          chgPct: q?.changePct,
+          currency: q?.currency,
+          exchange: p?.exchange || q?.exchange,
+          sector: p?.sector,
+          industry: p?.industry,
+          description: p?.description ? String(p.description).slice(0, 500) : null,
+          marketCap: s?.valuations_metrics?.market_capitalization,
+          pe: s?.valuations_metrics?.trailing_pe,
+          forwardPe: s?.valuations_metrics?.forward_pe,
+          pbRatio: s?.valuations_metrics?.price_to_book,
+          dividendYield: s?.dividends_and_splits?.forward_annual_dividend_yield,
+          eps: s?.financials?.diluted_eps,
+          beta: s?.valuations_metrics?.beta,
+          high52w: q?.high52w,
+          low52w: q?.low52w,
+          volume: q?.volume,
+          employees: p?.employees,
+          ceo: p?.ceo,
+          website: p?.website,
         };
-        cacheSet(ck, result);
-        return result;
+        fillFrom(flat, 'twelvedata');
       }
     } catch (e) {
       console.warn(`[multiAsset] Twelve Data equity detail failed for ${sym}:`, e.message);
     }
   }
 
-  // Fallback: hardcoded stub for the top names, otherwise generic-but-
-  // structured stub. Either way we always hand back a non-null object
-  // with a stable key set — lookup_quote never sees null from here.
-  if (stub) {
-    return {
-      symbol: sym,
-      name: instrument?.name || null,
-      price: null,
-      change: null,
-      chgPct: null,
-      ...stub,
-      source: 'stub',
-      note: 'Live fundamentals adapter (Twelve Data) not configured or returned no data — figures are approximate floors, refresh when adapter comes online.',
-    };
+  // ── Step 2: BRAPI (only if B3 ticker and still missing price/marketCap) ──
+  // We don't burn a hop on AAPL just because Twelve Data was slow. And if
+  // Twelve Data already gave us a price + marketCap, BRAPI adds nothing.
+  if (brapi && isB3Ticker(sym) && (acc.price == null || acc.marketCap == null)) {
+    try {
+      const b = await brapi.getQuote(sym);
+      if (b && !b.error) fillFrom(b, 'brapi');
+    } catch (e) {
+      console.warn(`[multiAsset] BRAPI detail failed for ${sym}:`, e.message);
+    }
   }
-  return _genericEquityStub(instrument);
+
+  // ── Step 3: Yahoo (global last-resort for price/marketCap/profile) ──
+  // Skip only if we already have both price AND marketCap — Yahoo is still
+  // useful for sector/industry/beta/pe when TD returned a partial row.
+  const needYahoo = acc.price == null || acc.marketCap == null
+                   || acc.sector == null || acc.industry == null;
+  if (yahoo && needYahoo) {
+    try {
+      const y = await yahoo.getQuote(sym);
+      if (y && !y.error) fillFrom(y, 'yahoo');
+    } catch (e) {
+      console.warn(`[multiAsset] Yahoo detail failed for ${sym}:`, e.message);
+    }
+  }
+
+  // ── Step 4: Metadata stub floor ──
+  // Only for strings — NEVER fill numeric fields from the stub. This is the
+  // rule the CIO set: hardcoded numbers drift and end up in front of clients.
+  if (stub) {
+    if (acc.sector == null)      acc.sector      = stub.sector || null;
+    if (acc.industry == null)    acc.industry    = stub.industry || null;
+    if (acc.description == null) acc.description = stub.description || null;
+    if (acc.currency == null)    acc.currency    = stub.currency || null;
+  }
+
+  // Truncate description defensively (Yahoo sometimes returns 1500+ chars).
+  if (acc.description) acc.description = String(acc.description).slice(0, 500);
+
+  // Defaults for fields we don't want to expose as null to the model.
+  if (acc.sector == null)   acc.sector   = 'Unknown';
+  if (acc.industry == null) acc.industry = 'Unknown';
+
+  // Coverage flag: if EVERY live-data provider came back empty, surface
+  // coverage_gap so the model knows to skip the ratio or route to
+  // web_research. Having the metadata stub populated doesn't count as
+  // coverage — the model needs numbers to compute price/fleet etc.
+  const hasLiveNumbers = acc.price != null || acc.marketCap != null;
+  const result = {
+    ...acc,
+    source: sources[0] || 'stub',
+    sources,
+    coverage_gap: !hasLiveNumbers,
+    asOf: new Date().toISOString(),
+  };
+  if (!hasLiveNumbers) {
+    result.note = 'No live-data provider returned price or marketCap for this symbol (Twelve Data' +
+      (isB3Ticker(sym) ? ' / BRAPI' : '') +
+      ' / Yahoo all empty). Metadata below is stable reference info; do NOT fabricate numbers — use web_research or caveat.';
+  }
+  cacheSet(ck, result);
+  return result;
 }
 
 // ── ETF detail (Twelve Data → stubs) ─────────────────────────────────────────

@@ -48,6 +48,13 @@ stubModule('providers/twelvedata', {
   getStatistics: async () => null,
 });
 
+// Stub the fallback providers too so this test is fully offline. The
+// dedicated fallback-chain test (multiAssetProvider.fallback.test.js)
+// asserts the chain ordering — here we just need the lookup_quote regression
+// net without touching the network.
+stubModule('providers/brapi', { getQuote: async () => null });
+stubModule('providers/yahooFinance', { getQuote: async () => null });
+
 // Quiet logger so test output is clean.
 stubModule('utils/logger', { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} });
 
@@ -90,8 +97,14 @@ const toolbox = require('../aiToolbox');
   assert.strictEqual(multiAsset.resolveAssetClass(''), 'equity', 'empty → equity default');
   assert.strictEqual(multiAsset.resolveAssetClass(null), 'equity', 'null → equity default');
 
-  // ── 2. The incident tickers: all four must come back with a marketCap
-  //     and must NOT return { error: 'no data' } ──────────────────────
+  // ── 2. The incident tickers: must NOT return { error: 'no data' } ───
+  //     With all three live providers stubbed to null (the pessimistic
+  //     "every provider is down" scenario), the result must still be a
+  //     structured equity object with the marketCap key present (null),
+  //     coverage_gap=true, and the metadata fields (sector/industry/
+  //     description) populated from the EQUITY_STUBS floor. This is the
+  //     scenario where the AI must caveat and reach for web_research —
+  //     never refuse.
   for (const sym of ['HTZ', 'CAR', 'RENT3', 'RENT3.SA', 'MOVI3', 'MOVI3.SA', 'PETR4.SA', 'PETR4']) {
     const out = await toolbox.dispatchTool('lookup_quote', { symbol: sym });
     assert.ok(out, `lookup_quote(${sym}) must return something`);
@@ -99,18 +112,27 @@ const toolbox = require('../aiToolbox');
     assert.strictEqual(out.symbol, sym.toUpperCase(), `lookup_quote(${sym}) echoes symbol`);
     assert.strictEqual(out.assetClass, 'equity', `lookup_quote(${sym}) routes to equity`);
     assert.ok(
-      out.marketCap !== undefined,
+      'marketCap' in out,
       `lookup_quote(${sym}) must include marketCap key (even if null) — got: ${JSON.stringify(out)}`
     );
-    assert.ok(
-      typeof out.marketCap === 'number' && out.marketCap > 0,
-      `lookup_quote(${sym}) should have a non-zero marketCap from the stub floor — got: ${out.marketCap}`
+    assert.strictEqual(
+      out.marketCap, null,
+      `lookup_quote(${sym}) marketCap should be null when all live providers empty — got: ${out.marketCap}`
     );
+    assert.strictEqual(
+      out.coverage_gap, true,
+      `lookup_quote(${sym}) should flag coverage_gap when all live providers empty`
+    );
+    // Metadata floor is still enforced — sector/industry/description
+    // survive because they're stable reference info, not drifting numbers.
+    assert.ok(out.sector && out.sector !== 'Unknown', `${sym} keeps sector from stub metadata`);
+    assert.ok(out.industry && out.industry !== 'Unknown', `${sym} keeps industry from stub metadata`);
+    assert.ok(out.description, `${sym} keeps description from stub metadata`);
   }
 
   // ── 3. Unknown ticker that isn't in any stub: must still not refuse ──
-  //    It should come back with structured coverage_gap=true, not
-  //    { error: 'no data' }.
+  //    No stub metadata, no live data — result is a structured coverage_gap
+  //    stub with null numerics, NOT { error: 'no data' }.
   const unknown = await toolbox.dispatchTool('lookup_quote', { symbol: 'XYZNOTREAL' });
   assert.ok(!unknown.error, `unknown ticker must not error — got: ${unknown.error}`);
   assert.strictEqual(unknown.symbol, 'XYZNOTREAL');
