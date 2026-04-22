@@ -31,7 +31,28 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+
+      # Gate: skip cleanly (green, not red) if staging secrets aren't
+      # populated in the repo yet. Previously this workflow went red every
+      # night because STAGING_BASE / RED_TEAM_TOKEN / VAULT_ENDPOINT were
+      # never set after the Render staging service spun down. We'd rather
+      # suppress a nightly false-positive than have the CIO mentally
+      # discount every red dot on main.
+      - name: Check staging secrets are configured
+        id: gate
+        env:
+          BASE:           ${{ secrets.STAGING_BASE }}
+          TEST_TOKEN:     ${{ secrets.RED_TEAM_TOKEN }}
+        run: |
+          if [ -z "$BASE" ] || [ -z "$TEST_TOKEN" ]; then
+            echo "::warning::redteam skipped — STAGING_BASE and/or RED_TEAM_TOKEN not configured. Set them in repo → Settings → Secrets to re-enable."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Execute red-team harness
+        if: steps.gate.outputs.skip != 'true'
         env:
           BASE:           ${{ secrets.STAGING_BASE }}
           TEST_TOKEN:     ${{ secrets.RED_TEAM_TOKEN }}
@@ -40,7 +61,7 @@ jobs:
         run: |
           node red-team/run.mjs
       - name: Upload results
-        if: always()
+        if: always() && steps.gate.outputs.skip != 'true'
         uses: actions/upload-artifact@v4
         with:
           name: redteam-results
