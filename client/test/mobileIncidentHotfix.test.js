@@ -105,6 +105,46 @@ describe('mobile hotfix — FeedbackButton exports', () => {
     expect(typeof mod.default).toBe('function');
     expect(typeof mod.FeedbackLink).toBe('function');
   });
+
+  it('default FeedbackButton source renders NULL on mobile (DOM-level guard)', async () => {
+    // v2 relied on a CSS media query inside a modal-only <style> block,
+    // which unmounted when the modal was closed and left iOS to render a
+    // native white pill full-width at the top of the screen. v3 gates at
+    // the component level: if useIsMobile() is true we return null BEFORE
+    // emitting any DOM. Pin this at the source-text level so a future
+    // refactor that re-introduces the bug fails loudly.
+    const fs = await import('node:fs');
+    const path = await import('node:path');
+    const url = await import('node:url');
+    const here = path.dirname(url.fileURLToPath(import.meta.url));
+    const src = fs.readFileSync(
+      path.join(here, '..', 'src', 'components', 'common', 'FeedbackButton.jsx'),
+      'utf8',
+    );
+    // Default export must import and call useIsMobile and must early-return.
+    expect(src).toMatch(/import\s*{\s*useIsMobile\s*}\s*from\s*['"][^'"]+useIsMobile['"]/);
+    expect(src).toMatch(/export default function FeedbackButton[\s\S]{0,400}useIsMobile\(\)[\s\S]{0,200}if\s*\(\s*isMobile\s*\)\s*return\s*null/);
+  });
+
+  it('pill CSS lives in the default FeedbackButton component, not only in the modal', async () => {
+    // The v2 regression root cause was that .particle-feedback-btn CSS
+    // lived inside FeedbackModal, which returns null when closed. Pin
+    // that the pill styles ship with the button itself now.
+    const fs = await import('node:fs');
+    const path = await import('node:path');
+    const url = await import('node:url');
+    const here = path.dirname(url.fileURLToPath(import.meta.url));
+    const src = fs.readFileSync(
+      path.join(here, '..', 'src', 'components', 'common', 'FeedbackButton.jsx'),
+      'utf8',
+    );
+    // Find the slice starting at "export default function FeedbackButton"
+    // and assert the pill class styling appears inside it.
+    const defaultIdx = src.indexOf('export default function FeedbackButton');
+    expect(defaultIdx).toBeGreaterThan(0);
+    const defaultSlice = src.slice(defaultIdx);
+    expect(defaultSlice).toMatch(/\.particle-feedback-btn\s*\{/);
+  });
 });
 
 describe('mobile hotfix — VaultPanel has no DesktopOnlyPlaceholder gate', () => {

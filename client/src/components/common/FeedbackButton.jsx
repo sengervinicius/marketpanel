@@ -27,6 +27,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { apiFetch } from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
+import { useIsMobile } from '../../hooks/useIsMobile';
 
 const CATEGORIES = [
   { value: 'bug',        label: 'Something broken' },
@@ -207,48 +208,10 @@ function FeedbackModal({ open, onClose }) {
         )}
       </form>
 
-      {/* Shared style block — covers the modal AND the floating pill.
-          The pill is hidden below 768px so it never competes with the
-          bottom tab bar on phones. */}
+      {/* Modal-only styles. Pill-specific CSS lives with the default
+          FeedbackButton component so it is present in the DOM whenever
+          the pill is rendered (not only while the modal is open). */}
       <style>{`
-        .particle-feedback-btn {
-          position: fixed;
-          right: 16px;
-          bottom: 16px;
-          z-index: 9998;
-          padding: 6px 12px;
-          border-radius: 999px;
-          border: 1px solid rgba(255, 255, 255, 0.08);
-          background: rgba(20, 22, 28, 0.82);
-          color: #8a8f99;
-          font: 500 11px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-          letter-spacing: 0.02em;
-          display: inline-flex;
-          align-items: center;
-          gap: 6px;
-          cursor: pointer;
-          backdrop-filter: blur(6px);
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
-          transition: transform 120ms ease, border-color 120ms ease, color 120ms ease;
-        }
-        .particle-feedback-btn:hover {
-          border-color: rgba(255, 255, 255, 0.18);
-          color: #d0d4db;
-          transform: translateY(-1px);
-        }
-        .particle-feedback-btn__dot {
-          width: 5px;
-          height: 5px;
-          border-radius: 50%;
-          background: #5b6070;
-        }
-        @media (max-width: 768px) {
-          /* CIO feedback — the floating pill is too loud on phones and
-             sits above the bottom nav. Use the Settings → HELP entry
-             point instead. */
-          .particle-feedback-btn { display: none !important; }
-        }
-
         .particle-feedback-backdrop {
           position: fixed;
           inset: 0;
@@ -383,8 +346,32 @@ function FeedbackModal({ open, onClose }) {
 }
 
 /* ── Entry point 1: floating pill (desktop only) ─────────────────────── */
+/*
+ * v3 — two fixes vs. v2:
+ *
+ *   1. DOM-level mobile guard. v2 relied on an @media(max-width:768px)
+ *      { display:none } rule that lived inside the modal's <style> block,
+ *      but because <FeedbackModal> returns null when the modal is closed,
+ *      its <style> tag was unmounted 99% of the time. On mobile that left
+ *      the <button class="particle-feedback-btn"> element with ZERO CSS,
+ *      so iOS Safari rendered a full-width native white pill at the top
+ *      of the screen. Belt-and-suspenders fix: call useIsMobile() and
+ *      return null on mobile so the DOM element is never emitted at all.
+ *
+ *   2. Pill CSS lives here, not in the modal. Even on desktop the pill
+ *      needs styling regardless of whether the modal is open, so the
+ *      <style> block for .particle-feedback-btn and its dot ships with
+ *      the button component itself. The modal still owns its own
+ *      backdrop/form styling.
+ */
 export default function FeedbackButton() {
   const [open, setOpen] = useState(false);
+  const isMobile = useIsMobile();
+
+  // Do not emit any DOM on mobile. Mobile users reach feedback via
+  // Settings → HELP → "Send feedback to the team" (see FeedbackLink).
+  if (isMobile) return null;
+
   return (
     <>
       <button
@@ -398,6 +385,44 @@ export default function FeedbackButton() {
         Feedback
       </button>
       <FeedbackModal open={open} onClose={() => setOpen(false)} />
+      <style>{`
+        .particle-feedback-btn {
+          position: fixed;
+          right: 16px;
+          bottom: 16px;
+          z-index: 9998;
+          padding: 6px 12px;
+          border-radius: 999px;
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          background: rgba(20, 22, 28, 0.82);
+          color: #8a8f99;
+          font: 500 11px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+          letter-spacing: 0.02em;
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          cursor: pointer;
+          backdrop-filter: blur(6px);
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+          transition: transform 120ms ease, border-color 120ms ease, color 120ms ease;
+        }
+        .particle-feedback-btn:hover {
+          border-color: rgba(255, 255, 255, 0.18);
+          color: #d0d4db;
+          transform: translateY(-1px);
+        }
+        .particle-feedback-btn__dot {
+          width: 5px;
+          height: 5px;
+          border-radius: 50%;
+          background: #5b6070;
+        }
+        /* Secondary defence: even if useIsMobile() ever gets stubbed out
+           in tests or ssr, narrow viewports still kill the pill. */
+        @media (max-width: 768px) {
+          .particle-feedback-btn { display: none !important; }
+        }
+      `}</style>
     </>
   );
 }

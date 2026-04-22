@@ -226,19 +226,17 @@
   height: 48px;
   padding: 0 44px 0 44px;
   /*
-    Mobile incident — the previous background (rgba(12,12,12,0.65) with
-    a 24px backdrop-blur) rendered as a visibly darker rectangle on
-    iOS Safari, where backdrop-filter against the dark particle canvas
-    (#080808) tonally separated the pill from its surround. CIO called
-    it a "weird black rectangle in a different colour tone".
-    Fix: use a translucent light overlay that matches the Particle
-    chips (rgba(255,255,255,0.04)) so the input reads as a subtle
-    raised surface instead of a hole punched into the canvas.
+    Mobile incident v2 — the previous fix (rgba(255,255,255,0.04) +
+    backdrop-filter: blur(12px)) STILL read as a rectangle on iOS,
+    because backdrop-filter itself draws a visibly frosted pane over
+    the particle canvas regardless of bg opacity. CIO: "there is still
+    an opaque black rectangle killing the UI."
+    Fix (mobile-first): no background fill, no backdrop-filter at all.
+    Just a hairline border so the input remains a tap target. Desktop
+    re-adds the subtle surface fill in its own media query below.
   */
-  background: rgba(255, 255, 255, 0.04);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: var(--radius-lg, 16px);
   color: var(--color-text-primary, #fff);
   font-family: var(--font-body, inherit);
@@ -743,6 +741,14 @@
   .particle-search-input {
     height: 52px;
     font-size: var(--font-md);
+    /* Desktop gets the translucent-light surface fill back. iOS Safari
+       rendering pathologies are phone-only, and the desktop layout has
+       the input sitting over a darker, quieter zone where a subtle
+       raised surface actually helps legibility. */
+    background: rgba(255, 255, 255, 0.04);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-color: rgba(255, 255, 255, 0.08);
   }
   .particle-chip {
     font-size: var(--font-sm);
