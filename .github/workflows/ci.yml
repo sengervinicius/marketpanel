@@ -86,7 +86,7 @@ jobs:
           npx -y @cyclonedx/cyclonedx-npm --omit dev --ignore-npm-errors --output-format json --output-file sbom-root.json
           (cd server && npx -y @cyclonedx/cyclonedx-npm --omit dev --ignore-npm-errors --output-format json --output-file ../sbom-server.json)
           (cd client && npx -y @cyclonedx/cyclonedx-npm --omit dev --ignore-npm-errors --output-format json --output-file ../sbom-client.json)
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: sbom-${{ github.sha }}
           path: sbom-*.json
