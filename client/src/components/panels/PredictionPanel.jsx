@@ -13,7 +13,7 @@
  * Data: /api/predictions (category browse) + /api/predictions/for-you
  * (personalized). 2-minute auto-refresh.
  */
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, memo } from 'react';
 import { apiFetch } from '../../utils/api';
 import { PanelHeader, PanelTabRow } from './_shared';
 import { useIsMobile } from '../../hooks/useIsMobile';
@@ -248,7 +248,7 @@ function PredictionRow({ market }) {
  * Phase 10.6 — the Bloomberg-style market table doesn't fit a
  * phone. Swap in a branded "open on desktop" placeholder instead
  * of forcing a broken wrap. */
-export default function PredictionPanel() {
+function PredictionPanel() {
   const isMobile = useIsMobile();
   if (isMobile) {
     return (
@@ -265,3 +265,7 @@ export default function PredictionPanel() {
   }
   return <PredictionPanelInner />;
 }
+
+// #246 / P2.4 — shallow-prop memo; panel takes no props so this is a
+// pure identity guard against parent-tick re-renders.
+export default memo(PredictionPanel);

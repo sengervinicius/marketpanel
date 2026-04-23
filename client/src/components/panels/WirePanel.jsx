@@ -4,6 +4,7 @@
  * Terminal-mode panel showing timestamped market commentary entries.
  * Auto-refreshes every 2 minutes. Shows mood indicator + tickers.
  */
+import { memo } from 'react';
 import { useWireFeed } from '../../hooks/useWire';
 import './WirePanel.css';
 
@@ -23,7 +24,7 @@ const MOOD_ICONS = {
   neutral:  '●',
 };
 
-export default function WirePanel() {
+function WirePanel() {
   const { entries, loading, error, refresh } = useWireFeed(30);
 
   if (loading && entries.length === 0) {
@@ -143,3 +144,8 @@ function formatTime(ts) {
   }
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
+
+// #246 / P2.4 — shallow-prop memo; entries/loading/error all come
+// from useWireFeed, so re-renders should only happen when that
+// hook reports a genuine change.
+export default memo(WirePanel);

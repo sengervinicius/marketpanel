@@ -3,7 +3,7 @@
  *
  * Phase 7: Select countries, view macro indicators, get AI analysis.
  */
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo, memo } from 'react';
 import { useAIInsight } from '../../hooks/useAIInsight';
 import './MacroPanel.css';
 
@@ -24,7 +24,7 @@ const INDICATORS = [
   { key: 'currentAcctGDP',  label: 'Curr Acct/GDP',    fmt: v => v != null ? (v * 100).toFixed(1) + '%' : '--' },
 ];
 
-export default function MacroPanel() {
+function MacroPanel() {
   const [availableCountries, setAvailableCountries] = useState([]);
   const [selected, setSelected] = useState(['US', 'BR', 'EU']);
   const [data, setData]         = useState(null);
@@ -258,3 +258,6 @@ export default function MacroPanel() {
     </div>
   );
 }
+
+// #246 / P2.4 — skip re-renders when upstream parent ticks with unchanged props.
+export default memo(MacroPanel);

@@ -5,7 +5,7 @@
  * Phase 19: Saved presets, screener alerts, bulk price alerts, watchlist add,
  *           gamification hooks.
  */
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, memo } from 'react';
 import { apiFetch } from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
 import { usePortfolio } from '../../context/PortfolioContext';
@@ -48,7 +48,7 @@ function Modal({ open, onClose, title, children }) {
   );
 }
 
-export default function ScreenerPanel() {
+function ScreenerPanel() {
   const openDetail = useOpenDetail();
   const portfolio = usePortfolio() || {};
 
@@ -649,3 +649,7 @@ export default function ScreenerPanel() {
     </div>
   );
 }
+
+// #246 / P2.4 — shallow-prop memo; the panel owns all filter state
+// internally so only a true parent-unmount should force a re-render.
+export default memo(ScreenerPanel);
