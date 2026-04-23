@@ -2,8 +2,10 @@ import * as Sentry from '@sentry/react';
 import { StrictMode, useEffect, Component } from 'react'
 import { createRoot } from 'react-dom/client'
 import { HashRouter, Routes, Route } from 'react-router-dom'
+import { QueryClientProvider } from '@tanstack/react-query'
 import App from './App.jsx'
 import { initAnalytics } from './utils/analytics.js'
+import { queryClient } from './lib/queryClient.js'
 
 // W0.3 — Sentry release tag via VITE_SENTRY_RELEASE (injected by CI from the
 // git SHA). Do NOT enable sendDefaultPii; we tag user.id only, never username
@@ -156,6 +158,7 @@ function AppShell() {
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <RootErrorBoundary>
+    <QueryClientProvider client={queryClient}>
     <HashRouter>
       <AuthProvider>
         <ToastProvider>
@@ -165,6 +168,7 @@ createRoot(document.getElementById('root')).render(
         </ToastProvider>
       </AuthProvider>
     </HashRouter>
+    </QueryClientProvider>
     </RootErrorBoundary>
   </StrictMode>
 )

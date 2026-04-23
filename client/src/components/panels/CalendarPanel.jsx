@@ -4,8 +4,9 @@
  *                EARNINGS (upcoming earnings from Eulerpool)
  * AI-powered event previews via /api/search/event-preview.
  */
-import { useState, useCallback, useEffect, memo } from 'react';
+import { useState, useCallback, useMemo, memo } from 'react';
 import { apiFetch } from '../../utils/api';
+import { useJsonQuery, STALE_TIMES } from '../../lib/queryHooks';
 import './CalendarPanel.css';
 
 // Timezone detection
@@ -146,51 +147,39 @@ function CalendarPanel() {
   const [loadingId, setLoadingId] = useState(null);
   const [errors, setErrors] = useState({});
 
-  // Dynamic data from Eulerpool
-  const [macroEvents, setMacroEvents] = useState(null);
-  const [earnings, setEarnings] = useState(null);
-  const [macroLoading, setMacroLoading] = useState(false);
-  const [earningsLoading, setEarningsLoading] = useState(false);
+  // #245 P2.3 — TanStack Query replaces manual useEffect+fetch.
+  // Calendar data changes on the hour (macro) or daily (earnings); 15m
+  // staleTime matches the FUNDAMENTALS tier.
+  const {
+    data: macroResp,
+    isPending: macroLoading,
+  } = useJsonQuery(['/api/market/macro-calendar'], {
+    staleTime: STALE_TIMES.FUNDAMENTALS,
+  });
+  const {
+    data: earningsResp,
+    isPending: earningsLoading,
+  } = useJsonQuery(['/api/market/earnings-calendar'], {
+    staleTime: STALE_TIMES.FUNDAMENTALS,
+  });
 
-  // Fetch dynamic macro calendar
-  useEffect(() => {
-    let cancelled = false;
-    setMacroLoading(true);
-    apiFetch('/api/market/macro-calendar')
-      .then(r => r.ok ? r.json() : null)
-      .then(d => {
-        if (!cancelled && d?.data?.length > 0) {
-          setMacroEvents(d.data.map((evt, i) => ({
-            id: evt.id || `macro-${i}`,
-            name: evt.name || evt.event || evt.title || '—',
-            date: evt.date || evt.datetime || '',
-            time: evt.time || '',
-            importance: evt.importance || evt.impact || 'medium',
-            previous: evt.previous ?? evt.actual ?? null,
-            forecast: evt.forecast ?? evt.consensus ?? null,
-          })));
-        }
-      })
-      .catch(() => {})
-      .finally(() => { if (!cancelled) setMacroLoading(false); });
-    return () => { cancelled = true; };
-  }, []);
+  const macroEvents = useMemo(() => {
+    if (!macroResp?.data?.length) return null;
+    return macroResp.data.map((evt, i) => ({
+      id: evt.id || `macro-${i}`,
+      name: evt.name || evt.event || evt.title || '—',
+      date: evt.date || evt.datetime || '',
+      time: evt.time || '',
+      importance: evt.importance || evt.impact || 'medium',
+      previous: evt.previous ?? evt.actual ?? null,
+      forecast: evt.forecast ?? evt.consensus ?? null,
+    }));
+  }, [macroResp]);
 
-  // Fetch earnings calendar
-  useEffect(() => {
-    let cancelled = false;
-    setEarningsLoading(true);
-    apiFetch('/api/market/earnings-calendar')
-      .then(r => r.ok ? r.json() : null)
-      .then(d => {
-        if (!cancelled && d?.data) {
-          setEarnings(Array.isArray(d.data) ? d.data : []);
-        }
-      })
-      .catch(() => {})
-      .finally(() => { if (!cancelled) setEarningsLoading(false); });
-    return () => { cancelled = true; };
-  }, []);
+  const earnings = useMemo(() => {
+    if (!earningsResp?.data) return null;
+    return Array.isArray(earningsResp.data) ? earningsResp.data : [];
+  }, [earningsResp]);
 
   const handleToggle = useCallback((id) => {
     setExpandedId(prev => prev === id ? null : id);
