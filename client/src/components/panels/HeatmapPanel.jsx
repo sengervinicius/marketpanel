@@ -7,6 +7,7 @@
 import { memo, useState } from 'react';
 import { useTickerPrice } from '../../context/PriceContext';
 import { useOpenDetail } from '../../context/OpenDetailContext';
+import { tapStart, tapMove, tapEnd } from '../../utils/tapHandlers';
 import './HeatmapPanel.css';
 
 const SECTORS = [
@@ -43,7 +44,9 @@ function Tile({ ticker }) {
       className="hm-tile"
       style={{ background: bg }}
       onClick={() => openDetail(ticker)}
-      onTouchEnd={(e) => { e.preventDefault(); openDetail(ticker); }}
+      onTouchStart={tapStart}
+      onTouchMove={tapMove}
+      onTouchEnd={(e) => tapEnd(e, () => openDetail(ticker))}
       title={`${ticker}: ${txt}`}
     >
       <span className="hm-tile-sym">{ticker}</span>

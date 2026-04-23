@@ -16,6 +16,7 @@ import { useSectionData } from '../../hooks/useSectionData';
 import { apiFetch } from '../../utils/api';
 import { useMultiScreenTickers } from '../../hooks/useMultiScreenTickers';
 import DeepScreenBase, { TickerCell, DeepSkeleton, DeepError, StatsLoadGate } from './DeepScreenBase';
+import { tapStart, tapMove, tapEnd } from '../../utils/tapHandlers';
 
 /* ── Formatting Utilities ──────────────────────────────────────────────────── */
 const fmt = (n, d = 2) =>
@@ -235,7 +236,9 @@ const FxCell = memo(function FxCell({ pair }) {
     <div
       className="ds-ticker-cell"
       onClick={() => openDetail(pair, 'Asian Markets')}
-      onTouchEnd={(e) => { e.preventDefault(); openDetail(pair, 'Asian Markets'); }}
+      onTouchStart={tapStart}
+      onTouchMove={tapMove}
+      onTouchEnd={(e) => tapEnd(e, () => openDetail(pair, 'Asian Markets'))}
       style={{ cursor: 'pointer' }}
       title={LABELS[pair] || pair}
     >
@@ -276,7 +279,9 @@ const TableRow = memo(function TableRow({ ticker, statsMap }) {
     <tr
       className="ds-row-clickable"
       onClick={() => openDetail(sym, 'Asian Markets')}
-      onTouchEnd={(e) => { e.preventDefault(); openDetail(sym, 'Asian Markets'); }}
+      onTouchStart={tapStart}
+      onTouchMove={tapMove}
+      onTouchEnd={(e) => tapEnd(e, () => openDetail(sym, 'Asian Markets'))}
     >
       <td className="ds-ticker-col">{sym}</td>
       <td style={{ color: 'var(--text-secondary)' }}>{name || LABELS[sym] || <span className="ds-dash">—</span>}</td>

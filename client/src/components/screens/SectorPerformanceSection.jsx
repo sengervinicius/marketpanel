@@ -8,6 +8,7 @@ import useSectionData from '../../hooks/useSectionData';
 import { useOpenDetail } from '../../context/OpenDetailContext';
 import { DeepSkeleton, DeepError } from './DeepScreenBase';
 import { apiFetch } from '../../utils/api';
+import { tapStart, tapMove, tapEnd } from '../../utils/tapHandlers';
 
 const fmt = (n, d = 2) =>
   n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -69,7 +70,9 @@ function SectorPerformanceSection({ tickers = [], title }) {
             key={r.symbol}
             className="ds-row-clickable"
             onClick={() => openDetail(r.symbol)}
-            onTouchEnd={(e) => { e.preventDefault(); openDetail(r.symbol); }}
+            onTouchStart={tapStart}
+            onTouchMove={tapMove}
+            onTouchEnd={(e) => tapEnd(e, () => openDetail(r.symbol))}
           >
             <td className="ds-ticker-col">{r.symbol}</td>
             <td>{fmt(r.price)}</td>

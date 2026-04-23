@@ -19,6 +19,7 @@ import {
   fmtPct, fmtCompact, computeSummary, computeAllocation,
   inferAssetType, assetTypeLabel,
 } from '../../utils/portfolioAnalytics';
+import { tapStart, tapMove, tapEnd } from '../../utils/tapHandlers';
 import './PortfolioMobile.css';
 
 function fmtPrice(v, dec = 2) {
@@ -364,7 +365,9 @@ function PortfolioMobile({ onManage }) {
                   key={pos.id}
                   className="m-row pm-position-row"
                   onClick={() => openDetail(pos.symbol)}
-                  onTouchEnd={(e) => { e.preventDefault(); openDetail(pos.symbol); }}
+                  onTouchStart={tapStart}
+                  onTouchMove={tapMove}
+                  onTouchEnd={(e) => tapEnd(e, () => openDetail(pos.symbol))}
                 >
                   {/* Symbol + subportfolio name */}
                   <div className="pm-position-left">

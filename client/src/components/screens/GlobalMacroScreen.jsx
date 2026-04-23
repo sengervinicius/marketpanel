@@ -17,6 +17,7 @@ import { apiFetch } from '../../utils/api';
 import { DeepSkeleton, DeepError, TickerCell } from './DeepScreenBase';
 import { KPIRibbon, heatColor } from './shared/SectorUI';
 import MarketMovers from './shared/MarketMovers';
+import { tapStart, tapMove, tapEnd } from '../../utils/tapHandlers';
 
 const fmt = (n, d = 2) =>
   n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -103,7 +104,9 @@ function GlobalSnapshot() {
             key={row.country || row.code}
             className="ds-row-clickable"
             onClick={() => openDetail(row.country, 'Global Macro')}
-            onTouchEnd={(e) => { e.preventDefault(); openDetail(row.country, 'Global Macro'); }}
+            onTouchStart={tapStart}
+            onTouchMove={tapMove}
+            onTouchEnd={(e) => tapEnd(e, () => openDetail(row.country, 'Global Macro'))}
           >
             <td className="ds-ticker-col">{row.country || row.code}</td>
             <td>{fmt(row.policyRate, 2)}</td>
@@ -461,7 +464,9 @@ function EuropeanMarkets() {
             key={sym}
             className="ds-row-clickable"
             onClick={() => openDetail(sym, 'Global Macro')}
-            onTouchEnd={(e) => { e.preventDefault(); openDetail(sym, 'Global Macro'); }}
+            onTouchStart={tapStart}
+            onTouchMove={tapMove}
+            onTouchEnd={(e) => tapEnd(e, () => openDetail(sym, 'Global Macro'))}
           >
             <td className="ds-ticker-col">{sym.replace('.L','').replace('.DE','').replace('.PA','')}</td>
             <td>{(d.name || sym).slice(0, 18)}</td>
@@ -561,7 +566,9 @@ function MacroCalendar() {
             key={idx}
             className="ds-row-clickable"
             onClick={() => ev.country && openDetail(ev.country, 'Global Macro')}
-            onTouchEnd={(e) => { e.preventDefault(); ev.country && openDetail(ev.country, 'Global Macro'); }}
+            onTouchStart={tapStart}
+            onTouchMove={tapMove}
+            onTouchEnd={(e) => tapEnd(e, () => ev.country && openDetail(ev.country, 'Global Macro'))}
           >
             <td style={{ fontSize: 10, color: 'var(--text-secondary)' }}>
               {ev.date ? new Date(ev.date).toLocaleDateString('en-US', { month: 'short', day: '2-digit' }) : '—'}

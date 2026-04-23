@@ -23,6 +23,7 @@ import { useTickerPrice } from '../../context/PriceContext';
 import { apiFetch } from '../../utils/api';
 import { FullPageScreenLayout, SectorChartPanel, KPIRibbon } from './shared';
 import DataUnavailable from '../common/DataUnavailable';
+import { tapStart, tapMove, tapEnd } from '../../utils/tapHandlers';
 import './FixedIncomeScreen.css';
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -810,7 +811,9 @@ function EurBondETFCell({ ticker }) {
   return (
     <div
       onClick={() => openDetail(ticker, 'Fixed Income')}
-      onTouchEnd={(e) => { e.preventDefault(); openDetail(ticker, 'Fixed Income'); }}
+      onTouchStart={tapStart}
+      onTouchMove={tapMove}
+      onTouchEnd={(e) => tapEnd(e, () => openDetail(ticker, 'Fixed Income'))}
       style={{
         background: 'var(--bg-surface)',
         border: '1px solid var(--border-default)',

@@ -1,14 +1,22 @@
 /**
  * WatchlistPanelMobile.jsx
- * Mobile-first watchlist with search, sort chips, undo toast
- * Uses shared mobile CSS primitives (.m-search, .m-chip, .m-row, .m-toast, etc.)
+ * Mobile-first watchlist with search + undo toast.
+ *
+ * #224 — sort chips removed (users wanted a cleaner list; sort defaults
+ * to insertion order, and the search box is plenty). Row taps go through
+ * `createTapHandlers` so a vertical scroll gesture is no longer
+ * misinterpreted as a tap — the old onClick + onTouchEnd(preventDefault
+ * + openDetail) combo fired openDetail for any scroll flick.
+ *
+ * Uses shared mobile CSS primitives (.m-search, .m-row, .m-toast, etc.)
  */
 
-import { memo, useState, useMemo, useRef, useEffect } from 'react';
+import { memo, useState, useMemo, useRef } from 'react';
 import { useWatchlist } from '../../context/WatchlistContext';
 import { useStocksData, useForexData, useCryptoData } from '../../context/MarketContext';
 import { useOpenDetail } from '../../context/OpenDetailContext';
 import { apiFetch } from '../../utils/api';
+import { createTapHandlers } from '../../utils/tapHandlers';
 import './WatchlistPanelMobile.css';
 
 function fmtPrice(v, dec = 2) {
@@ -28,14 +36,17 @@ function WatchlistPanelMobile({ onManage }) {
   const crypto = useCryptoData();
   const openDetail = useOpenDetail();
   const [searchQuery, setSearchQuery] = useState('');
-  const [sortBy, setSortBy] = useState('added');
   const [undoItem, setUndoItem] = useState(null);
   const undoTimerRef = useRef(null);
-  const pressTimerRef = useRef(null);
   const [whySymbol, setWhySymbol] = useState(null);
   const [whySummary, setWhySummary] = useState(null);
   const [whyLoading, setWhyLoading] = useState(false);
   const [whyError, setWhyError] = useState(null);
+
+  // #224 — cache tap handlers per symbol so their internal state (touch
+  // start position, moved flag, long-press timer) survives re-renders.
+  // Rebuilding handlers every render would reset state mid-gesture.
+  const rowHandlersRef = useRef(new Map());
 
   const getData = (sym) => stocks[sym] || forex[sym] || crypto[sym] || null;
 
@@ -65,16 +76,16 @@ function WatchlistPanelMobile({ onManage }) {
     }
   };
 
-  const handleRowTouchStart = (symbol, e) => {
-    pressTimerRef.current = setTimeout(() => {
-      handleWhyPress(symbol);
-    }, 600);
-  };
-
-  const handleRowTouchEnd = () => {
-    if (pressTimerRef.current) {
-      clearTimeout(pressTimerRef.current);
+  const getRowHandlers = (sym) => {
+    let h = rowHandlersRef.current.get(sym);
+    if (!h) {
+      h = createTapHandlers({
+        onTap: () => openDetail(sym),
+        onLongPress: () => handleWhyPress(sym),
+      });
+      rowHandlersRef.current.set(sym, h);
     }
+    return h;
   };
 
   // Filter by search query
@@ -84,26 +95,9 @@ function WatchlistPanelMobile({ onManage }) {
     return watchlist.filter(sym => sym.toUpperCase().includes(q));
   }, [watchlist, searchQuery]);
 
-  // Sort based on selected criterion
-  const sorted = useMemo(() => {
-    const arr = [...filtered];
-    if (sortBy === 'name') {
-      arr.sort((a, b) => a.localeCompare(b));
-    } else if (sortBy === 'change') {
-      arr.sort((a, b) => {
-        const pctA = getData(a)?.changePct ?? 0;
-        const pctB = getData(b)?.changePct ?? 0;
-        return pctB - pctA;
-      });
-    } else if (sortBy === 'price') {
-      arr.sort((a, b) => {
-        const priceA = getData(a)?.price ?? 0;
-        const priceB = getData(b)?.price ?? 0;
-        return priceB - priceA;
-      });
-    }
-    return arr;
-  }, [filtered, sortBy, getData]);
+  // #224 — sort chips removed. List renders in insertion order
+  // (watchlist context preserves add-order), which is what users
+  // expect by default. Search box covers the "find by name" case.
 
   return (
     <div className="flex-col wpm-container">
@@ -120,36 +114,17 @@ function WatchlistPanelMobile({ onManage }) {
         </div>
       </div>
 
-      {/* Search and Sort (only when not empty) */}
+      {/* Search (only when not empty) */}
       {watchlist.length > 0 && (
-        <>
-          <div className="wpm-search-container">
-            <input
-              type="text"
-              className="m-search"
-              placeholder="Search..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
-
-          {/* Sort chips */}
-          <div className="flex-row wpm-sort-chips">
-            {['Added', 'Name', 'Change', 'Price'].map((label) => {
-              const sortKey = label.toLowerCase();
-              const isActive = sortBy === sortKey;
-              return (
-                <button className="btn m-chip"
-                  key={label}
-                  data-active={isActive}
-                  onClick={() => setSortBy(sortKey)}
-                >
-                  {label}
-                </button>
-              );
-            })}
-          </div>
-        </>
+        <div className="wpm-search-container">
+          <input
+            type="text"
+            className="m-search"
+            placeholder="Search..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
       )}
 
       {/* List or Empty State */}
@@ -167,22 +142,20 @@ function WatchlistPanelMobile({ onManage }) {
         </div>
       ) : (
         <div className="wpm-list-container">
-          {sorted.length === 0 ? (
+          {filtered.length === 0 ? (
             <div className="wpm-list-empty-msg">
               No results for "{searchQuery}"
             </div>
           ) : (
-            sorted.map((sym) => {
+            filtered.map((sym) => {
               const d = getData(sym);
               const pct = d?.changePct;
+              const handlers = getRowHandlers(sym);
               return (
                 <div
                   key={sym}
                   className="m-row wpm-row"
-                  onClick={() => openDetail(sym)}
-                  onTouchStart={(e) => handleRowTouchStart(sym, e)}
-                  onTouchEnd={(e) => { handleRowTouchEnd(e); e.preventDefault(); openDetail(sym); }}
-                  onTouchMove={handleRowTouchEnd}
+                  {...handlers}
                 >
                   {/* Symbol + name */}
                   <div className="flex-col wpm-row-info">
@@ -213,6 +186,7 @@ function WatchlistPanelMobile({ onManage }) {
                       if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
                       setUndoItem(sym);
                       removeTicker(sym);
+                      rowHandlersRef.current.delete(sym);
                       undoTimerRef.current = setTimeout(() => setUndoItem(null), 4000);
                     }}
                     title="Remove"

@@ -17,6 +17,7 @@ import { useOpenDetail } from '../../context/OpenDetailContext';
 import { useTickerPrice } from '../../context/PriceContext';
 import { useDeepScreenData } from '../../hooks/useDeepScreenData';
 import DeepScreenBase, { TickerCell, StatsLoadGate } from './DeepScreenBase';
+import { tapStart, tapMove, tapEnd } from '../../utils/tapHandlers';
 
 const fmt = (n, d = 2) =>
   n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -55,7 +56,9 @@ const TableRow = memo(function TableRow({ sym, name, openDetail, stats }) {
       key={sym}
       className="ds-row-clickable"
       onClick={() => openDetail(sym, 'Global Retail & Consumer')}
-      onTouchEnd={(e) => { e.preventDefault(); openDetail(sym, 'Global Retail & Consumer'); }}
+      onTouchStart={tapStart}
+      onTouchMove={tapMove}
+      onTouchEnd={(e) => tapEnd(e, () => openDetail(sym, 'Global Retail & Consumer'))}
     >
       <td className="ds-ticker-col">{sym}</td>
       <td style={{ color: 'var(--text-secondary)' }}>{name || LABELS[sym] || <span className="ds-dash">—</span>}</td>

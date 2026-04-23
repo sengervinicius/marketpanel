@@ -9,6 +9,7 @@ import { useStocksData } from '../../context/MarketContext';
 import { useWatchlist } from '../../context/PortfolioContext';
 import { useOpenDetail } from '../../context/OpenDetailContext';
 import { ETF_CATEGORIES } from '../../utils/constants';
+import { tapStart, tapMove, tapEnd } from '../../utils/tapHandlers';
 import './ETFPanel.css';
 
 function fmtPrice(v, dec = 2) {
@@ -76,7 +77,9 @@ function ETFPanel() {
                   key={etf.symbol}
                   className="ep-row"
                   onClick={() => openDetail(etf.symbol)}
-                  onTouchEnd={(e) => { e.preventDefault(); openDetail(etf.symbol); }}
+                  onTouchStart={tapStart}
+                  onTouchMove={tapMove}
+                  onTouchEnd={(e) => tapEnd(e, () => openDetail(etf.symbol))}
                 >
                   {/* Symbol and name */}
                   <div className="ep-row-left">

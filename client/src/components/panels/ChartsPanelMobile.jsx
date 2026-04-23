@@ -22,6 +22,7 @@ import {
   computeIndicators, buildChartInsightPayload,
   IND_COLORS, INDICATOR_LIST,
 } from '../../utils/chartIndicators';
+import { tapStart, tapMove, tapEnd } from '../../utils/tapHandlers';
 
 const GREEN_MC = '#4caf50';
 const RED_MC   = '#f44336';
@@ -562,7 +563,9 @@ function ChartsPanelMobile() {
         {currentSymbol && (
           <button
             onClick={() => openDetail(currentSymbol)}
-            onTouchEnd={(e) => { e.preventDefault(); openDetail(currentSymbol); }}
+            onTouchStart={tapStart}
+            onTouchMove={tapMove}
+            onTouchEnd={(e) => tapEnd(e, () => openDetail(currentSymbol))}
             style={{
               padding: '6px 10px', fontSize: 10, fontFamily: 'inherit',
               background: 'transparent', color: 'var(--accent, #ff6600)',

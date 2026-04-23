@@ -9,6 +9,7 @@ import Sparkline from '../shared/Sparkline';
 import './SearchPanel.css';
 import { resolveAlias } from '../../config/instrumentAliases';
 import { detectExchangeGroup, getProviderRouting, COVERAGE } from '../../config/providerMatrix';
+import { tapStart, tapMove, tapEnd } from '../../utils/tapHandlers';
 
 // Module-level recent searches store (survives re-renders but not page refresh)
 let _recentSearches = [];
@@ -523,7 +524,9 @@ function SearchPanel({ onTickerSelect }) {
               draggable
               onDragStart={(e) => handleDragStart(e, item)}
               onClick={() => openDetail(item.symbol)}
-              onTouchEnd={(e) => { e.preventDefault(); openDetail(item.symbol); }}
+              onTouchStart={tapStart}
+              onTouchMove={tapMove}
+              onTouchEnd={(e) => tapEnd(e, () => openDetail(item.symbol))}
               className="sp-result-row sp-result-row--ai"
             >
               <span className="sp-drag-icon">⠿</span>

@@ -19,6 +19,7 @@ import { KPIRibbon } from './shared/SectorUI';
 import { useOpenDetail } from '../../context/OpenDetailContext';
 import { useTickerPrice } from '../../context/PriceContext';
 import { useDeepScreenData } from '../../hooks/useDeepScreenData';
+import { tapStart, tapMove, tapEnd } from '../../utils/tapHandlers';
 
 const fmt = (n, d = 2) =>
   n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -158,7 +159,9 @@ function FuturesRow({ symbol, label, openDetail }) {
     <tr
       className="ds-row-clickable"
       onClick={() => openDetail(symbol, 'Energy & Oil')}
-      onTouchEnd={(e) => { e.preventDefault(); openDetail(symbol, 'Energy & Oil'); }}
+      onTouchStart={tapStart}
+      onTouchMove={tapMove}
+      onTouchEnd={(e) => tapEnd(e, () => openDetail(symbol, 'Energy & Oil'))}
     >
       <td className="ds-ticker-col">{symbol.replace('=F', '')}</td>
       <td>{label}</td>

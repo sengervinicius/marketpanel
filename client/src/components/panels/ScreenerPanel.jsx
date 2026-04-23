@@ -11,6 +11,7 @@ import { useAuth } from '../../context/AuthContext';
 import { usePortfolio } from '../../context/PortfolioContext';
 import { useOpenDetail } from '../../context/OpenDetailContext';
 import AIDisclaimer from '../common/AIDisclaimer';
+import { tapStart, tapMove, tapEnd } from '../../utils/tapHandlers';
 import './ScreenerPanel.css';
 
 const COUNTRIES     = ['US','BR','GB','EU','JP','AU','CA'];
@@ -567,7 +568,9 @@ export default function ScreenerPanel() {
                     <td
                       className="scr-td scr-td--symbol"
                       onClick={() => openDetail(r.symbol)}
-                      onTouchEnd={(e) => { e.preventDefault(); openDetail(r.symbol); }}
+                      onTouchStart={tapStart}
+                      onTouchMove={tapMove}
+                      onTouchEnd={(e) => tapEnd(e, () => openDetail(r.symbol))}
                       style={{ cursor: 'pointer' }}
                     >{r.symbol.replace('.SA', '')}</td>
                     <td className="scr-td scr-td--name">{r.name}</td>

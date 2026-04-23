@@ -18,6 +18,7 @@ import { useMultiScreenTickers } from '../../hooks/useMultiScreenTickers';
 import { apiFetch } from '../../utils/api';
 import { DeepSkeleton, DeepError, TickerCell, StatsLoadGate } from './DeepScreenBase';
 import { KPIRibbon, heatColor, TickerRibbon } from './shared/SectorUI';
+import { tapStart, tapMove, tapEnd } from '../../utils/tapHandlers';
 
 /* ── Formatting utilities ──────────────────────────────────────────────── */
 const fmt = (n, d = 2) =>
@@ -137,7 +138,9 @@ const TableRow = memo(function TableRow({ ticker, name, statsMap, openDetail }) 
     <tr
       className="ds-row-clickable"
       onClick={() => openDetail(sym, 'European Markets')}
-      onTouchEnd={(e) => { e.preventDefault(); openDetail(sym, 'European Markets'); }}
+      onTouchStart={tapStart}
+      onTouchMove={tapMove}
+      onTouchEnd={(e) => tapEnd(e, () => openDetail(sym, 'European Markets'))}
     >
       <td className="ds-ticker-col">{sym}</td>
       <td>{displayName || LABELS[sym] || <span className="ds-dash">—</span>}</td>
@@ -193,7 +196,9 @@ const FxPairRow = memo(function FxPairRow({ pair, openDetail }) {
     <tr
       className="ds-row-clickable"
       onClick={() => openDetail(pair, 'European Markets')}
-      onTouchEnd={(e) => { e.preventDefault(); openDetail(pair, 'European Markets'); }}
+      onTouchStart={tapStart}
+      onTouchMove={tapMove}
+      onTouchEnd={(e) => tapEnd(e, () => openDetail(pair, 'European Markets'))}
     >
       <td className="ds-ticker-col">{display}</td>
       <td style={{ color: 'var(--text-primary)', fontWeight: 600 }}>

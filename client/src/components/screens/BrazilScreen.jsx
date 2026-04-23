@@ -16,6 +16,7 @@ import { useOpenDetail } from '../../context/OpenDetailContext';
 import { useTickerPrice } from '../../context/PriceContext';
 import { useScreenTickers } from '../../hooks/useScreenTickers';
 import { apiFetch } from '../../utils/api';
+import { tapStart, tapMove, tapEnd } from '../../utils/tapHandlers';
 
 const fmt = (n, d = 2) => n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
 const fmtPct = (n) => n == null ? '—' : (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
@@ -361,7 +362,7 @@ function AdrPairRow({ b3, adr, name, openDetail }) {
   const qB3 = useTickerPrice(b3);
   const qAdr = useTickerPrice(adr);
   return (
-    <tr className="ds-row-clickable" onClick={() => openDetail(b3, 'Brazil & EM')} onTouchEnd={(e) => { e.preventDefault(); openDetail(b3, 'Brazil & EM'); }}>
+    <tr className="ds-row-clickable" onClick={() => openDetail(b3, 'Brazil & EM')} onTouchStart={tapStart} onTouchMove={tapMove} onTouchEnd={(e) => tapEnd(e, () => openDetail(b3, 'Brazil & EM'))}>
       <td>{name}</td>
       <td onClick={() => openDetail(b3, 'Brazil & EM')} style={{ cursor: 'pointer', fontWeight: 600 }}>
         {b3.replace('.SA', '')}
@@ -462,7 +463,9 @@ function FxRateRow({ sym, openDetail }) {
       key={sym}
       className="ds-row-clickable"
       onClick={() => openDetail(sym, 'Brazil & EM')}
-      onTouchEnd={(e) => { e.preventDefault(); openDetail(sym, 'Brazil & EM'); }}
+      onTouchStart={tapStart}
+      onTouchMove={tapMove}
+      onTouchEnd={(e) => tapEnd(e, () => openDetail(sym, 'Brazil & EM'))}
     >
       <td>{label}</td>
       <td style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
@@ -574,7 +577,9 @@ function EmFxRow({ sym, openDetail }) {
       key={sym}
       className="ds-row-clickable"
       onClick={() => openDetail(sym, 'Brazil & EM')}
-      onTouchEnd={(e) => { e.preventDefault(); openDetail(sym, 'Brazil & EM'); }}
+      onTouchStart={tapStart}
+      onTouchMove={tapMove}
+      onTouchEnd={(e) => tapEnd(e, () => openDetail(sym, 'Brazil & EM'))}
     >
       <td>{label}</td>
       <td>{q?.price != null ? fmt(q.price) : '—'}</td>
@@ -618,7 +623,9 @@ function EmEtfCell({ sym, openDetail }) {
       key={sym}
       className="ds-row-clickable"
       onClick={() => openDetail(sym, 'Brazil & EM')}
-      onTouchEnd={(e) => { e.preventDefault(); openDetail(sym, 'Brazil & EM'); }}
+      onTouchStart={tapStart}
+      onTouchMove={tapMove}
+      onTouchEnd={(e) => tapEnd(e, () => openDetail(sym, 'Brazil & EM'))}
     >
       <td className="ds-ticker-col">{sym}</td>
       <td>{q?.price != null ? fmt(q.price) : '—'}</td>

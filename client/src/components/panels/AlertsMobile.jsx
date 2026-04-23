@@ -9,6 +9,7 @@ import { memo, useState, useMemo, useCallback } from 'react';
 import AlertEditor from '../common/AlertEditor';
 import { useAlerts } from '../../context/AlertsContext';
 import { useOpenDetail } from '../../context/OpenDetailContext';
+import { tapStart, tapMove, tapEnd } from '../../utils/tapHandlers';
 import './AlertsMobile.css';
 
 const ALERT_TYPE_LABELS = {
@@ -145,7 +146,9 @@ function AlertsMobile() {
                   key={alert.id}
                   className={`m-row am-alert-row ${!alert.active && !isTriggered ? 'am-alert-row--inactive' : ''}`}
                   onClick={() => openDetail(alert.symbol)}
-                  onTouchEnd={(e) => { e.preventDefault(); openDetail(alert.symbol); }}
+                  onTouchStart={tapStart}
+                  onTouchMove={tapMove}
+                  onTouchEnd={(e) => tapEnd(e, () => openDetail(alert.symbol))}
                 >
                   {/* Symbol + type + condition */}
                   <div className="am-alert-content">

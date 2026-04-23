@@ -25,6 +25,7 @@ import { FuturesCurveChart } from './shared/FuturesCurveChart';
 import { KPIRibbon, TickerRibbon } from './shared/SectorUI';
 import { CorrelationMatrix } from './shared/CorrelationMatrix';
 import { EarningsCalendarStrip } from './shared/EarningsCalendarStrip';
+import { tapStart, tapMove, tapEnd } from '../../utils/tapHandlers';
 
 const fmt = (n, d = 2) =>
   n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -128,7 +129,9 @@ function CommodityRow({ symbol, label }) {
     <tr
       className="ds-row-clickable"
       onClick={() => openDetail(symbol, 'Commodities')}
-      onTouchEnd={(e) => { e.preventDefault(); openDetail(symbol, 'Commodities'); }}
+      onTouchStart={tapStart}
+      onTouchMove={tapMove}
+      onTouchEnd={(e) => tapEnd(e, () => openDetail(symbol, 'Commodities'))}
     >
       <td className="ds-ticker-col">{label || symbol}</td>
       <td style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
@@ -151,7 +154,9 @@ function ProducerRow({ symbol, stats }) {
     <tr
       className="ds-row-clickable"
       onClick={() => openDetail(symbol, 'Commodities')}
-      onTouchEnd={(e) => { e.preventDefault(); openDetail(symbol, 'Commodities'); }}
+      onTouchStart={tapStart}
+      onTouchMove={tapMove}
+      onTouchEnd={(e) => tapEnd(e, () => openDetail(symbol, 'Commodities'))}
     >
       <td className="ds-ticker-col">{symbol}</td>
       <td>{PRODUCER_LABELS[symbol] || <span className="ds-dash">—</span>}</td>

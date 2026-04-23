@@ -10,6 +10,7 @@ import { useOpenDetail } from '../../context/OpenDetailContext';
 import { AreaChart, Area, ResponsiveContainer, YAxis, ReferenceLine } from 'recharts';
 import { apiFetch } from '../../utils/api';
 import { sanitizeTicker } from '../../utils/ticker';
+import { tapStart, tapMove, tapEnd } from '../../utils/tapHandlers';
 import './SectorChartStrip.css';
 
 const RANGES = [
@@ -122,7 +123,9 @@ const SparkChart = memo(function SparkChart({ ticker, label, rangeIdx, sectorNam
     <div
       className="scs-chart"
       onClick={() => openDetail(ticker, sectorName || null)}
-      onTouchEnd={(e) => { e.preventDefault(); openDetail(ticker, sectorName || null); }}
+      onTouchStart={tapStart}
+      onTouchMove={tapMove}
+      onTouchEnd={(e) => tapEnd(e, () => openDetail(ticker, sectorName || null))}
     >
       {/* Header */}
       <div className="scs-chart-head">

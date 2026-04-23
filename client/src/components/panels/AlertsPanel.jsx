@@ -14,6 +14,7 @@ import EmptyState from '../common/EmptyState';
 import { useAlerts } from '../../context/AlertsContext';
 import { useOpenDetail } from '../../context/OpenDetailContext';
 import Badge from '../ui/Badge';
+import { tapStart, tapMove, tapEnd } from '../../utils/tapHandlers';
 import './AlertsPanel.css';
 
 const ALERT_TYPE_LABELS = {
@@ -60,7 +61,9 @@ const AlertRow = memo(function AlertRow({ alert, onEdit, onToggle, onDismiss }) 
     <div
       className={`ap-row ${!alert.active && !isTriggered ? 'ap-row--inactive' : ''}`}
       onClick={() => openDetail(alert.symbol)}
-      onTouchEnd={(e) => { e.preventDefault(); openDetail(alert.symbol); }}
+      onTouchStart={tapStart}
+      onTouchMove={tapMove}
+      onTouchEnd={(e) => tapEnd(e, () => openDetail(alert.symbol))}
       onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--bg-hover)'}
       onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
     >

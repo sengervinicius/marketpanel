@@ -15,6 +15,7 @@ import { useOpenDetail } from '../../context/OpenDetailContext';
 import { apiFetch } from '../../utils/api';
 import Badge from '../ui/Badge';
 import SignalsFeed from '../common/SignalsFeed';
+import { tapStart, tapMove, tapEnd } from '../../utils/tapHandlers';
 import './AlertCenterPanel.css';
 
 const TABS = [
@@ -109,7 +110,9 @@ const AlertCenterRow = memo(function AlertCenterRow({ alert, onEdit, onAction })
       <div
         className="ac-row-main"
         onClick={() => openDetail(alert.symbol)}
-        onTouchEnd={(e) => { e.preventDefault(); openDetail(alert.symbol); }}
+        onTouchStart={tapStart}
+        onTouchMove={tapMove}
+        onTouchEnd={(e) => tapEnd(e, () => openDetail(alert.symbol))}
       >
         <div className="ac-row-top">
           <span className="ac-row-symbol">{alert.symbol === '__SCREENER__' ? 'SCREENER' : alert.symbol}</span>
