@@ -928,11 +928,40 @@
 .id-action-bar { display: none; }
 @media (max-width: 768px) {
   .id-action-bar { display: flex; position: sticky; bottom: 0; background: var(--bg-surface); border-top: 1px solid var(--border-subtle); padding: var(--sp-2) var(--sp-3); padding-bottom: calc(var(--sp-2) + env(safe-area-inset-bottom, 0px)); gap: var(--sp-2); z-index: 50; }
+  /* #223 (2026-04-23) — Minimal variant drops the 5-button row in favor
+     of a single discreet Share link. Keeps the sticky safe-area padding
+     (so the chart + content are never obscured by the iOS home indicator)
+     but swaps the row layout for a right-aligned text link. */
+  .id-action-bar--minimal {
+    justify-content: flex-end;
+    background: transparent;
+    border-top: none;
+    padding: 4px 12px;
+    padding-bottom: calc(4px + env(safe-area-inset-bottom, 0px));
+  }
 }
 .id-action-btn-bar { flex: 1; display: flex; align-items: center; justify-content: center; height: var(--row-height-touch); border-radius: var(--radius-md); font-size: var(--text-sm); font-weight: 600; font-family: var(--font-ui); cursor: pointer; border: 1px solid var(--border-default); background: var(--bg-elevated); color: var(--text-secondary); transition: all var(--duration-instant); -webkit-tap-highlight-color: transparent; }
 .id-action-btn-bar:active { background: var(--bg-overlay); transform: scale(0.97); }
 .id-action-btn-bar--primary { background: rgba(255,102,0,0.1); border-color: rgba(255,102,0,0.3); color: var(--accent); }
 .id-action-btn-bar--primary:active { background: var(--accent); color: var(--text-primary); }
+/* #223 — Discreet Share link inside the minimal mobile action bar. */
+.id-action-share-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 10px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 500;
+  font-family: var(--font-ui);
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  min-height: 32px;
+}
+.id-action-share-link:active { color: var(--accent); }
 
 /* ── Fundamentals section ─────────────────────────── */
 .id-fundamentals {

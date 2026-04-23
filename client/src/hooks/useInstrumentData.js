@@ -116,6 +116,21 @@ export function useInstrumentData(ticker) {
     const from = getFromDate(range);
     const to = new Date().toISOString().split('T')[0];
     let stale = false;
+
+    // #223 (2026-04-23) — Watchdog against "stuck on LOADING" on mobile.
+    // The CIO reported BTC/USD detail pages sitting on the chart skeleton
+    // indefinitely. apiFetch has a 35s internal timeout, but if any step
+    // in the chain silently swallows its resolution (dedup cache edge
+    // case, WebKit fetch suspended while page in background, etc.) the
+    // loading state never flips. Forcefully flipping it to false after
+    // 40s makes the failure mode "chart unavailable" instead of "chart
+    // frozen forever" — the downstream branch in InstrumentDetail
+    // already handles empty bars with a degraded-coverage message.
+    const watchdog = setTimeout(() => {
+      if (stale) return;
+      setLoading(false);
+    }, 40000);
+
     apiFetch(
       `/api/chart/${encodeURIComponent(norm)}` +
       `?multiplier=${range.multiplier}&timespan=${range.timespan}&from=${from}&to=${to}`
@@ -156,7 +171,10 @@ export function useInstrumentData(ticker) {
         }
       })
       .catch(() => { if (!stale) setLoading(false); });
-    return () => { stale = true; };
+    return () => {
+      stale = true;
+      clearTimeout(watchdog);
+    };
   }, [norm, rangeIdx, rawNorm, resolvedNorm]);
 
   // ── Fetch snapshot ────────────────────────────────────────────────────

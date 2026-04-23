@@ -2974,13 +2974,22 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
 
       </div>
 
-      {/* ── STICKY BOTTOM ACTION BAR (mobile only) ── */}
-      <div className="id-action-bar">
-        <button className="id-action-btn-bar" onClick={() => toggleWatchlist(disp)} aria-label={watched ? 'Remove from watchlist' : 'Add to watchlist'}>{watched ? '\u2605' : '\u2606'} Watch</button>
-        <button className="id-action-btn-bar id-action-btn-bar--primary" onClick={openPositionEditor} aria-label="Add to portfolio">+ Portfolio</button>
-        <button className="id-action-btn-bar" onClick={openAlertCreator} aria-label="Create price alert">{String.fromCharCode(128276)} Alert</button>
-        {handleOpenChat && <button className="id-action-btn-bar" onClick={sendToChat} aria-label="Send to chat">{String.fromCharCode(128172)} Chat</button>}
-        <button className="id-action-btn-bar" onClick={handleShare} aria-label="Share ticker information">{String.fromCharCode(8599)} Share</button>
+      {/*
+        #223 (2026-04-23) — Mobile action bar simplification. The previous
+        sticky 5-button row (Watch / +Portfolio / Alert / Chat / Share) ate
+        ~52px of viewport on every detail page and none of those actions
+        were load-bearing on mobile — Watch/Alert are one tap away from
+        the hero, +Portfolio moved into the AI chat flow, and Chat
+        duplicates the bottom particle nav. All that's left is Share,
+        rendered as a discreet text link so the chart + content get the
+        full vertical budget.
+      */}
+      <div className="id-action-bar id-action-bar--minimal">
+        <button
+          className="id-action-share-link"
+          onClick={handleShare}
+          aria-label="Share ticker information"
+        >{String.fromCharCode(8599)} Share</button>
       </div>
 
       {/* Alert editor modal — portaled to body to escape scroll container on mobile */}
