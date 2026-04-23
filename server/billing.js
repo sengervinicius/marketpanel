@@ -386,16 +386,39 @@ async function claimStripeEvent(event) {
     return { alreadyProcessed: false, bestEffort: true };
   }
   try {
+    // #221 — originally this used `ON CONFLICT DO NOTHING`, which meant
+    // that if the handler 500'd on first attempt (transient DB/email
+    // blip), the retry hit the existing row, saw "no insert" and got
+    // deduped as `alreadyProcessed=true`. The event was effectively
+    // dropped — Stripe kept marking the delivery as failed in the
+    // dashboard even though our server returned 200 on the retry.
+    //
+    // Fix: on conflict, only update when the prior attempt actually
+    // failed. This lets Stripe's retry reclaim failed rows and reprocess
+    // them. Rows with status='processed' are left untouched (true
+    // duplicates). Rows with status='received' are left untouched too,
+    // which keeps a second concurrent delivery from running the handler
+    // in parallel with an in-flight one. `RETURNING status` lets us
+    // distinguish the three outcomes.
     const r = await pg.query(
       `INSERT INTO stripe_events_processed (event_id, event_type, received_at, status)
        VALUES ($1, $2, NOW(), 'received')
-       ON CONFLICT (event_id) DO NOTHING
-       RETURNING event_id`,
+       ON CONFLICT (event_id) DO UPDATE
+         SET received_at = NOW(),
+             status = 'received',
+             error_message = NULL
+         WHERE stripe_events_processed.status = 'failed'
+       RETURNING event_id, (xmax = 0) AS inserted, status`,
       [event.id, event.type]
     );
-    // If no row was returned, another request already claimed this event.
-    const claimed = r && r.rowCount > 0;
-    return { alreadyProcessed: !claimed };
+    if (r && r.rowCount > 0) {
+      // Either a brand-new row (xmax=0) or a reclaim of a previously
+      // failed row. In both cases we own the event and should process.
+      return { alreadyProcessed: false, reclaimed: !r.rows[0].inserted };
+    }
+    // rowCount === 0: existing row with status 'processed' (true dupe)
+    // or 'received' (concurrent in-flight). Safe to skip in both cases.
+    return { alreadyProcessed: true };
   } catch (e) {
     logger.error('billing', 'Failed to record Stripe event — proceeding best-effort', {
       eventId: event.id, error: e.message,
@@ -654,8 +677,19 @@ async function handleWebhookEvent(stripe, event) {
 
         const text = `Payment Failed\n\nPayment attempt #${attemptCount} could not be processed.\n\nPlease update your payment method to continue your subscription:\n${appUrl}/?billing=manage\n\nIf you do not update your payment, your subscription will be canceled after multiple failed attempts.`;
 
-        await sendEmail(user, { subject, html, text });
-        console.log(`[billing] payment_failed dunning email sent to user ${userId} (attempt #${attemptCount})`);
+        // #221 — never let a transient email failure (Resend rate limit,
+        // DNS blip, invalid address on file) 500 the webhook. If we throw
+        // here Stripe marks the delivery as failed, flags the endpoint in
+        // the dashboard and retries with exponential backoff even though
+        // the subscription state update above already persisted.
+        try {
+          await sendEmail(user, { subject, html, text });
+          console.log(`[billing] payment_failed dunning email sent to user ${userId} (attempt #${attemptCount})`);
+        } catch (e) {
+          logger.warn('billing', 'payment_failed dunning email failed', {
+            userId, attemptCount, error: e.message,
+          });
+        }
       }
       // Stripe handles retry scheduling via Smart Retries
       break;
@@ -712,8 +746,17 @@ async function handleWebhookEvent(stripe, event) {
 
       const text = `Your Particle Trial Ends Soon\n\nYour trial expires on ${trialEndDate.toDateString()}.\n\nSubscribe now to continue using Particle Market Terminal with uninterrupted access.\n\nSubscribe: ${appUrl}/?billing=checkout`;
 
-      await sendEmail(user, { subject, html, text });
-      console.log(`[billing] trial_will_end reminder sent to user ${userId}`);
+      // #221 — same rationale as payment_failed above. Email delivery is
+      // best-effort; the webhook must still return 200 so Stripe doesn't
+      // flag the endpoint as unhealthy.
+      try {
+        await sendEmail(user, { subject, html, text });
+        console.log(`[billing] trial_will_end reminder sent to user ${userId}`);
+      } catch (e) {
+        logger.warn('billing', 'trial_will_end reminder email failed', {
+          userId, error: e.message,
+        });
+      }
       break;
     }
 
@@ -950,4 +993,7 @@ module.exports = {
   getSubscriptionStatus,
   validateStripePriceIds,
   verifyCheckoutSession,
+  // #221 — exposed for unit tests; not part of the public surface.
+  _claimStripeEvent: claimStripeEvent,
+  _markStripeEventProcessed: markStripeEventProcessed,
 };
