@@ -23,7 +23,21 @@ const REGIONS = {
   EMEA:     { label: 'EMEA',      tickers: ['VGK','EWU','EZU','EWG','EWQ','EWP','EWI','EWL','EWD'] },
   ASIA:     { label: 'ASIA-PAC',  tickers: ['EWJ','EWH','EWY','EWA','FXI','MCHI','EWT','EWS','INDA'] },
   BROAD:    { label: 'BROAD',     tickers: ['EEM','EFA','IWM'] },
+  // #230 P1.6b: CUSTOM bucket for user-dropped tickers that don't belong to a
+  // hardcoded region. Without this, the REGIONS_filtered logic below silently
+  // drops any ticker the user drags in (e.g. AAPL, PETR4.SA) because every
+  // region's tickers array is intersected with panelSymbols. Tickers in this
+  // bucket are computed dynamically inside REGIONS_filtered.
+  CUSTOM:   { label: 'CUSTOM',    tickers: [] },
 };
+
+// All tickers that belong to a non-CUSTOM hardcoded region — used to compute
+// the CUSTOM bucket dynamically as (panelSymbols − canonical region tickers).
+const CANONICAL_REGION_TICKERS = new Set(
+  Object.entries(REGIONS)
+    .filter(([k]) => k !== 'CUSTOM')
+    .flatMap(([, r]) => r.tickers)
+);
 
 const NAMES = {
   SPY:'S&P 500', QQQ:'NASDAQ 100', DIA:'DOW JONES', IWM:'RUSSELL 2000',
@@ -70,6 +84,7 @@ function GlobalIndicesPanel({ data = {}, loading, onTickerClick }) {
     { key: 'AMERICAS', label: 'AMERICAS' },
     { key: 'EMEA', label: 'EMEA' },
     { key: 'ASIA', label: 'ASIA-PAC' },
+    { key: 'CUSTOM', label: 'CUSTOM' },
   ];
 
   const [configOpen, setConfigOpen] = useState(false);
@@ -102,14 +117,25 @@ function GlobalIndicesPanel({ data = {}, loading, onTickerClick }) {
 
   // Filter and sort per region
   const REGIONS_filtered = useMemo(() => {
+    // Derive the CUSTOM bucket: any panelSymbol not owned by a canonical region.
+    // #230 P1.6b — the Global Indices panel silently dropped user-dragged
+    // tickers before this because each region's static ticker list was
+    // intersected with panelSymbols; an unknown symbol had nowhere to land.
+    const customTickers = panelSymbols.filter(t => !CANONICAL_REGION_TICKERS.has(t));
+
     let result = panelSymbols.length > 0
       ? Object.fromEntries(
           Object.entries(REGIONS).map(([key, region]) => [
             key,
-            { ...region, tickers: region.tickers.filter(t => panelSymbols.includes(t)) }
+            {
+              ...region,
+              tickers: key === 'CUSTOM'
+                ? customTickers
+                : region.tickers.filter(t => panelSymbols.includes(t)),
+            },
           ])
         )
-      : { ...REGIONS };
+      : { ...REGIONS, CUSTOM: { ...REGIONS.CUSTOM, tickers: [] } };
 
     if (searchFilter) {
       const sq = searchFilter.toLowerCase();
@@ -143,9 +169,14 @@ function GlobalIndicesPanel({ data = {}, loading, onTickerClick }) {
     return result;
   }, [panelSymbols, searchFilter, sortKey, sortDir, data]);
 
-  const allIndexTickers = useMemo(() =>
-    Object.values(REGIONS).flatMap(r => r.tickers),
-  []);
+  // #230 P1.6b: fetch sparklines for the canonical regions *and* whatever the
+  // user has dropped into the panel (CUSTOM bucket), otherwise dragged-in
+  // tickers render without the mini-chart.
+  const allIndexTickers = useMemo(() => {
+    const canonical = Object.values(REGIONS).flatMap(r => r.tickers);
+    const extras    = panelSymbols.filter(t => !CANONICAL_REGION_TICKERS.has(t));
+    return Array.from(new Set([...canonical, ...extras]));
+  }, [panelSymbols]);
   const sparklines = useSparklineData(allIndexTickers);
 
   return (

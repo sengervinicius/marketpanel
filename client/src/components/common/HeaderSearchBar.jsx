@@ -22,7 +22,7 @@ function fmtPrice(p) {
 }
 
 // ── Enriched result row with live price data ──
-function HsbEnrichedRow({ item, idx, selectedIdx, onSelect, onMouseEnter, typeBadge }) {
+function HsbEnrichedRow({ item, idx, selectedIdx, onSelect, onMouseEnter, typeBadge, onDragStartClose }) {
   const priceData = useTickerPrice(item.symbolKey || item.symbol);
   const price = priceData?.price;
   const changePct = priceData?.changePct;
@@ -50,6 +50,12 @@ function HsbEnrichedRow({ item, idx, selectedIdx, onSelect, onMouseEnter, typeBa
       type: assetType,
     }));
     e.dataTransfer.setData('text/plain', chartSym);
+    // #230 P1.6a — hide the dropdown the instant the drag begins. Without
+    // this, a long result list overlays the top row of panels (Charts,
+    // Watchlist, Global Indices, Futures) and the user cannot actually drop
+    // onto them. Closing happens via a callback so parent state stays the
+    // source of truth.
+    if (typeof onDragStartClose === 'function') onDragStartClose();
   };
 
   return (
@@ -146,6 +152,14 @@ export default function HeaderSearchBar({ onSelectTicker }) {
     }
   }, [openDetail, clearSearch]);
 
+  // #230 P1.6a — close the dropdown the moment the user starts dragging a
+  // result. If we don't, a tall result list covers the top panel row and the
+  // user can't drop onto Charts/Watchlist/Global Indices/Futures.
+  const handleDragStartClose = useCallback(() => {
+    setOpen(false);
+    clearSearch();
+  }, [clearSearch]);
+
   // Detect if query looks like a natural-language question (not a ticker lookup)
   const queryLooksLikeQuestion = query.length > 15 ||
     /^(what|how|why|when|tell|show|compare|analyze|explain)\s/i.test(query.trim()) ||
@@ -238,6 +252,7 @@ export default function HeaderSearchBar({ onSelectTicker }) {
                       onSelect={selectItem}
                       onMouseEnter={setSelectedIdx}
                       typeBadge={typeBadge}
+                      onDragStartClose={handleDragStartClose}
                     />
                     {/* Alternates row */}
                     {item._alternates && item._alternates.length > 0 && (
