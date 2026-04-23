@@ -9,6 +9,7 @@ import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip, ReferenceL
 import { useAIInsight } from '../../hooks/useAIInsight';
 import { apiFetch } from '../../utils/api';
 import { computeIndicators, buildChartInsightPayload, getLatestIndicatorSnapshot, IND_COLORS, INDICATOR_LIST } from '../../utils/chartIndicators';
+import { fmtCompactAxis } from '../../utils/format';
 import './ChartPanel.css';
 
 const LS_KEY = 'chartGrid_v3';
@@ -73,13 +74,11 @@ function displayTicker(norm) {
 }
 
 const fmtPrice = (n) => n == null ? "—" : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const fmtK = (n) => {
-  if (n == null) return "—";
-  const abs = Math.abs(n);
-  if (abs >= 10000) return (n / 1000).toFixed(1) + 'k';
-  if (abs >= 1000)  return (n / 1000).toFixed(2) + 'k';
-  return n.toFixed(2);
-};
+// #240 / P1.2 / D2.1: axis labels now use the shared Intl.NumberFormat-based
+// compact helper (fmtCompactAxis) from utils/format so every chart renders
+// "1.2K / 3.4M / 1.2B" consistently instead of each panel inventing its own
+// rounding/suffix rules.
+const fmtK = (n) => fmtCompactAxis(n, 1);
 
 function assetType(t) {
   if (!t) return 'EQUITY';

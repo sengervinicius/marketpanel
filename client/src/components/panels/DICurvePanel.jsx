@@ -18,6 +18,7 @@
 import { useState, useEffect, memo } from 'react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { apiFetch } from '../../utils/api';
+import { fmtCompactPct } from '../../utils/format';
 import IntegrityBadge from '../shared/IntegrityBadge';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import DesktopOnlyPlaceholder from '../common/DesktopOnlyPlaceholder';
@@ -217,7 +218,7 @@ function DICurvePanelInner() {
                         tickLine={false}
                         axisLine={false}
                         width={28}
-                        tickFormatter={v => v.toFixed(1)}
+                        tickFormatter={v => fmtCompactPct(v, 1)}
                       />
                       <Tooltip
                         contentStyle={{

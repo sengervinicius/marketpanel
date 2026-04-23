@@ -16,6 +16,7 @@ import { useOpenDetail } from '../../context/OpenDetailContext';
 import { useTickerPrice } from '../../context/PriceContext';
 import { useScreenTickers } from '../../hooks/useScreenTickers';
 import { apiFetch } from '../../utils/api';
+import { fmtCompactPct } from '../../utils/format';
 import { tapStart, tapMove, tapEnd } from '../../utils/tapHandlers';
 
 const fmt = (n, d = 2) => n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -428,7 +429,7 @@ const DiCurveComponent = memo(function DiCurveComponent() {
           />
           <YAxis
             tick={{ fontSize: 10, fill: 'var(--text-muted)' }}
-            tickFormatter={(v) => `${v.toFixed(1)}%`}
+            tickFormatter={(v) => fmtCompactPct(v, 1)}
             width={50}
             tickLine={{ stroke: 'var(--border-subtle)' }}
             axisLine={{ stroke: 'var(--border-subtle)' }}

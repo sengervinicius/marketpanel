@@ -86,6 +86,65 @@ export function fmtMarketCap(n) {
   return String(n);
 }
 
+/**
+ * Compact-notation axis formatter for chart tick labels.
+ *
+ * #240 / P1.2 / D2.1: consolidates the ad-hoc k/M/B suffix formatters that
+ * used to live in ChartPanel.jsx (`fmtK`), DICurvePanel.jsx (`v.toFixed(1)`),
+ * and various screen-level tick formatters. Uses Intl.NumberFormat's compact
+ * notation so the output is locale-aware and consistent (e.g. "1.2K", "3.4M",
+ * "1.2B") rather than each chart inventing its own rounding rules.
+ *
+ * Small values (|n| < 1000) fall through to a fixed-decimal string so the
+ * axis doesn't show "0.0K" or similar. `fractionDigits` controls the decimal
+ * count both for compact output (via maximumFractionDigits) and for the
+ * small-value path (toFixed).
+ *
+ * @param {number|null|undefined} n
+ * @param {number} fractionDigits — default 1, matches the legacy fmtK behaviour
+ * @returns {string}
+ */
+const _compactCache = new Map();
+function _compactFormatter(fractionDigits) {
+  const key = String(fractionDigits);
+  let nf = _compactCache.get(key);
+  if (!nf) {
+    nf = new Intl.NumberFormat('en-US', {
+      notation: 'compact',
+      maximumFractionDigits: fractionDigits,
+    });
+    _compactCache.set(key, nf);
+  }
+  return nf;
+}
+
+export function fmtCompactAxis(n, fractionDigits = 1) {
+  if (n == null || isNaN(n)) return '—';
+  const abs = Math.abs(n);
+  // Below 1000, compact notation just returns the number; use toFixed for a
+  // predictable decimal count so axes don't jitter between "0" and "0.12".
+  if (abs < 1000) return n.toFixed(fractionDigits);
+  try {
+    return _compactFormatter(fractionDigits).format(n);
+  } catch {
+    // Extremely defensive fallback for environments where Intl.NumberFormat
+    // doesn't support compact notation.
+    if (abs >= 1e12) return (n / 1e12).toFixed(fractionDigits) + 'T';
+    if (abs >= 1e9)  return (n / 1e9).toFixed(fractionDigits) + 'B';
+    if (abs >= 1e6)  return (n / 1e6).toFixed(fractionDigits) + 'M';
+    return (n / 1e3).toFixed(fractionDigits) + 'K';
+  }
+}
+
+/**
+ * Compact-notation axis formatter for percent values (yields, returns).
+ * Keeps one decimal and appends '%'.
+ */
+export function fmtCompactPct(n, fractionDigits = 1) {
+  if (n == null || isNaN(n)) return '—';
+  return `${n.toFixed(fractionDigits)}%`;
+}
+
 export function fmtDate(isoStr) {
   if (!isoStr) return '—';
   try {

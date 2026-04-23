@@ -20,6 +20,7 @@ import {
   Tooltip, ResponsiveContainer,
 } from 'recharts';
 import { apiFetch } from '../../utils/api';
+import { fmtCompactPct } from '../../utils/format';
 import IntegrityBadge from '../shared/IntegrityBadge';
 import { PanelHeader } from './_shared';
 import './DebtPanel.css';
@@ -602,7 +603,7 @@ function DebtPanel() {
                   <YAxis
                     tick={{ fill: 'var(--text-faint)', fontSize: 8, fontFamily: 'var(--font-mono)' }}
                     domain={['auto', 'auto']}
-                    tickFormatter={v => v.toFixed(1) + '%'}
+                    tickFormatter={v => fmtCompactPct(v, 1)}
                     width={36}
                     axisLine={{ stroke: 'var(--border-default)' }}
                   />
