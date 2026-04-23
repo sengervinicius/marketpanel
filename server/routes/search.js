@@ -13,6 +13,7 @@ const express = require('express');
 const fetch   = require('node-fetch');
 const router  = express.Router();
 
+const LruCache = require('../utils/lruCache'); // #243 / P2.1 — bounded caches
 const { perMinuteLimit } = require('../middleware/rateLimitByIP');
 const { dailyAILimit } = require('../middleware/dailyAILimit');
 const { aiQuotaGate } = require('../middleware/aiQuotaGate');
@@ -1504,8 +1505,11 @@ Rules:
  * Returns: { strategies: [{ name, legs: [], rationale, maxProfit, maxLoss, breakeven }] }
  */
 
-const _optionsStrategyCache = new Map();
-const OPTIONS_STRATEGY_TTL = 10 * 60 * 1000;
+// #243 / P2.1 — replaces the prior ad-hoc Map + bounded-sweep logic
+// (which only evicted EXPIRED entries, allowing live-key traffic above
+// ~50 concurrent strategies to grow the Map without bound). The LRU cap
+// now enforces a hard upper bound on memory regardless of traffic shape.
+const _optionsStrategyCache = new LruCache({ max: 500, ttl: 10 * 60 * 1000 });
 
 router.post('/options-strategy', async (req, res) => {
   const apiKey = process.env.PERPLEXITY_API_KEY;
@@ -1520,7 +1524,7 @@ router.post('/options-strategy', async (req, res) => {
   const sym = symbol.toUpperCase().trim();
   const cacheKey = `${sym}:${outlook}:${Math.round(currentPrice || 0)}`;
   const cached = _optionsStrategyCache.get(cacheKey);
-  if (cached && Date.now() < cached.exp) return res.json({ ...cached.v, cached: true });
+  if (cached) return res.json({ ...cached, cached: true });
 
   let context = `Symbol: ${sym}\nOutlook: ${outlook}`;
   if (currentPrice) context += `\nCurrent Price: $${currentPrice}`;
@@ -1581,11 +1585,7 @@ Rules:
       generatedAt: new Date().toISOString(),
     };
 
-    _optionsStrategyCache.set(cacheKey, { v: result, exp: Date.now() + OPTIONS_STRATEGY_TTL });
-    if (_optionsStrategyCache.size > 50) {
-      const now = Date.now();
-      for (const [k, e] of _optionsStrategyCache) { if (now > e.exp) _optionsStrategyCache.delete(k); }
-    }
+    _optionsStrategyCache.set(cacheKey, result);
 
     res.json(result);
   } catch (err) {
