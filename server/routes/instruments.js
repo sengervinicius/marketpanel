@@ -1259,6 +1259,8 @@ router.post('/semantic-search', async (req, res) => {
 
     return res.json(result);
   } catch (err) {
+    // #220 — guard against late-abort write-after-send crashes.
+    if (res.headersSent) return;
     if (err.name === 'AbortError') {
       return res.status(504).json({ error: 'AI search timed out' });
     }

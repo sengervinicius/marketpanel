@@ -259,6 +259,8 @@ router.post('/ai', dailyAILimit, aiQuotaGate, async (req, res) => {
 
     res.json(result);
   } catch (err) {
+    // #220 — guard against late-abort write-after-send crashes.
+    if (res.headersSent) return;
     if (err.name === 'AbortError') {
       return res.status(504).json({ error: 'AI search timed out (15s)' });
     }
@@ -486,6 +488,8 @@ Rules:
 
     res.json(result);
   } catch (err) {
+    // #220 — guard against late-abort write-after-send crashes.
+    if (res.headersSent) return;
     if (err.name === 'AbortError') {
       return res.status(504).json({ error: 'AI fundamentals timed out (10s)' });
     }
@@ -630,6 +634,8 @@ Provide a 2-3 sentence technical analysis.`;
 
     res.json(result);
   } catch (err) {
+    // #220 — guard against late-abort write-after-send crashes.
+    if (res.headersSent) return;
     if (err.name === 'AbortError') {
       return res.status(504).json({ error: 'AI chart insight timed out (15s)' });
     }
@@ -752,6 +758,8 @@ User: "high volume ETFs" → {"assetClass":"etf","minVolume":1000000}`;
 
     res.json(result);
   } catch (err) {
+    // #220 — guard against late-abort write-after-send crashes.
+    if (res.headersSent) return;
     if (err.name === 'AbortError') {
       return res.status(504).json({ ok: false, error: 'timeout' });
     }
@@ -854,6 +862,8 @@ router.post('/macro-insight', async (req, res) => {
 
     res.json(result);
   } catch (err) {
+    // #220 — guard against late-abort write-after-send crashes.
+    if (res.headersSent) return;
     if (err.name === 'AbortError') {
       return res.status(504).json({ ok: false, error: 'timeout' });
     }
@@ -950,6 +960,8 @@ Rules:
 
     res.json(result);
   } catch (err) {
+    // #220 — guard against late-abort write-after-send crashes.
+    if (res.headersSent) return;
     if (err.name === 'AbortError') return res.status(504).json({ error: 'News summary timed out' });
     console.error('[Search/AI News Summary] Error:', err.message);
     res.status(500).json({ error: 'News summary failed' });
@@ -1091,6 +1103,11 @@ Rules:
 
     res.json(result);
   } catch (err) {
+    // #220 — guard against late-abort write-after-send crashes.
+    // The original crash on /news-briefing surfaced here: res.json(result) flushed,
+    // then the aborted response stream emitted into this catch, triggering a 504
+    // write-after-send. This guard silences that race cleanly.
+    if (res.headersSent) return;
     if (err.name === 'AbortError') return res.status(504).json({ error: 'News briefing timed out' });
     console.error('[Search/AI News Briefing] Error:', err.message);
     res.status(500).json({ error: 'News briefing failed' });
@@ -1189,6 +1206,8 @@ Rules:
 
     res.json(result);
   } catch (err) {
+    // #220 — guard against late-abort write-after-send crashes.
+    if (res.headersSent) return;
     if (err.name === 'AbortError') return res.status(504).json({ error: 'Portfolio insight timed out' });
     console.error('[Search/AI Portfolio Insight] Error:', err.message);
     res.status(500).json({ error: 'Portfolio insight failed' });
@@ -1279,6 +1298,8 @@ Rules:
 
     res.json(result);
   } catch (err) {
+    // #220 — guard against late-abort write-after-send crashes.
+    if (res.headersSent) return;
     if (err.name === 'AbortError') return res.status(504).json({ error: 'Alert suggest timed out' });
     console.error('[Search/AI Alert Suggest] Error:', err.message);
     res.status(500).json({ error: 'Alert suggest failed' });
@@ -1371,6 +1392,8 @@ Rules:
 
     res.json(result);
   } catch (err) {
+    // #220 — guard against late-abort write-after-send crashes.
+    if (res.headersSent) return;
     if (err.name === 'AbortError') return res.status(504).json({ error: 'Event preview timed out' });
     console.error('[Search/AI Event Preview] Error:', err.message);
     res.status(500).json({ error: 'Event preview failed' });
@@ -1466,6 +1489,8 @@ Rules:
 
     res.json(result);
   } catch (err) {
+    // #220 — guard against late-abort write-after-send crashes.
+    if (res.headersSent) return;
     if (err.name === 'AbortError') return res.status(504).json({ error: 'Sector rotation timed out' });
     console.error('[Search/AI Sector Rotation] Error:', err.message);
     res.status(500).json({ error: 'Sector rotation failed' });
@@ -1564,6 +1589,8 @@ Rules:
 
     res.json(result);
   } catch (err) {
+    // #220 — guard against late-abort write-after-send crashes.
+    if (res.headersSent) return;
     if (err.name === 'AbortError') return res.status(504).json({ error: 'Options strategy timed out' });
     console.error('[Search/AI Options Strategy] Error:', err.message);
     res.status(500).json({ error: 'Options strategy failed' });
@@ -2721,6 +2748,8 @@ router.post('/instrument-lookup', async (req, res) => {
 
     res.json(result);
   } catch (err) {
+    // #220 — guard against late-abort write-after-send crashes.
+    if (res.headersSent) return;
     if (err.name === 'AbortError') {
       return res.status(504).json({ error: 'AI search timed out (12s)' });
     }
@@ -2992,6 +3021,8 @@ router.get('/action-stats', (req, res) => {
 
       res.json({ mostClickedActions, topTickers });
     } catch (err) {
+      // #220 — guard against late-abort write-after-send crashes.
+      if (res.headersSent) return;
       logger.warn('search-route', 'Action stats error', { error: err.message });
       res.json({ mostClickedActions: [], topTickers: [] });
     }
