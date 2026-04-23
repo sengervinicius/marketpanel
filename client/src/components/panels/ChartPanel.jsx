@@ -7,6 +7,7 @@ import { useTickerPrice } from '../../context/PriceContext';
 import { useOpenDetail } from '../../context/OpenDetailContext';
 import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip, ReferenceLine, Line } from 'recharts';
 import { useAIInsight } from '../../hooks/useAIInsight';
+import { useIsMobile } from '../../hooks/useIsMobile';
 import { apiFetch } from '../../utils/api';
 import { computeIndicators, buildChartInsightPayload, getLatestIndicatorSnapshot, IND_COLORS, INDICATOR_LIST } from '../../utils/chartIndicators';
 import { fmtCompactAxis } from '../../utils/format';
@@ -107,6 +108,10 @@ function AiInsightPopover({ insight, loading, error, onClose }) {
 const MiniChart = memo(function MiniChart({ ticker, index, onRemove, onReplace, onSwap }) {
   const openDetail = useOpenDetail();
   const shared = useTickerPrice(ticker);
+  // #247 P2.5 — HTML5 drag-and-drop is a no-op on touch devices and
+  // hijacks scroll. Disable drag on mobile; users still get double-tap
+  // to open the detail page.
+  const isMobileDevice = useIsMobile();
   const [rawBars, setRawBars] = useState([]);
   const [data,    setData]    = useState([]);
   const [price,   setPrice]   = useState(null);
@@ -311,18 +316,18 @@ const MiniChart = memo(function MiniChart({ ticker, index, onRemove, onReplace, 
     : IND_COLORS.MACD;
 
   return (
-    <div draggable
+    <div draggable={!isMobileDevice}
       data-ticker={ticker}
       data-ticker-label={displayTicker(ticker)}
       onDoubleClick={() => openDetail(ticker)}
       data-ticker-type={assetType(ticker)}
       className={cellClass}
-      onDragStart={e => { setIsDragging(true); e.dataTransfer.setData('application/x-chart-index', String(index)); e.dataTransfer.effectAllowed = 'move'; }}
-      onDragEnd={() => setIsDragging(false)}
-      onDragOver={e  => { e.preventDefault(); e.stopPropagation(); if (!isDragOver) setIsDragOver(true); }}
-      onDragEnter={e => { e.preventDefault(); e.stopPropagation(); setIsDragOver(true); }}
-      onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget)) setIsDragOver(false); }}
-      onDrop={e => {
+      onDragStart={isMobileDevice ? undefined : e => { setIsDragging(true); e.dataTransfer.setData('application/x-chart-index', String(index)); e.dataTransfer.effectAllowed = 'move'; }}
+      onDragEnd={isMobileDevice ? undefined : () => setIsDragging(false)}
+      onDragOver={isMobileDevice ? undefined : e  => { e.preventDefault(); e.stopPropagation(); if (!isDragOver) setIsDragOver(true); }}
+      onDragEnter={isMobileDevice ? undefined : e => { e.preventDefault(); e.stopPropagation(); setIsDragOver(true); }}
+      onDragLeave={isMobileDevice ? undefined : e => { if (!e.currentTarget.contains(e.relatedTarget)) setIsDragOver(false); }}
+      onDrop={isMobileDevice ? undefined : e => {
         e.preventDefault(); e.stopPropagation(); setIsDragOver(false);
         try {
           const fromStr = e.dataTransfer.getData('application/x-chart-index');

@@ -16,6 +16,7 @@
 import { memo, useState, useEffect } from 'react';
 import useMergedTickerQuote from './useMergedTickerQuote';
 import Sparkline from '../shared/Sparkline';
+import { useIsMobile } from '../../hooks/useIsMobile';
 import './Shimmer.css';
 
 const fmt2 = (n) => n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -56,6 +57,13 @@ function PriceRow({
   // Data attributes for context menus
   dataAttrs,
 }) {
+  // #247 P2.5 — HTML5 drag-and-drop doesn't fire on iOS/Android touch
+  // devices; worse, a `draggable` element interferes with scroll. Disable
+  // drag on mobile and let callers (e.g. long-press context menus) take
+  // over via `onTouchHold`.
+  const isMobile = useIsMobile();
+  const dragEnabled = draggable && !isMobile;
+
   // Fix 4: Track whether data has timed out (after 10s, show dash instead of shimmer)
   const [showShimmer, setShowShimmer] = useState(true);
 
@@ -100,7 +108,7 @@ function PriceRow({
   const handleTouchMove = () => { if (touchRef) clearTimeout(touchRef.current); };
 
   const handleDragStart = (e) => {
-    if (!draggable || !dragData) return;
+    if (!dragEnabled || !dragData) return;
     e.dataTransfer.effectAllowed = 'copy';
     e.dataTransfer.setData('application/x-ticker', JSON.stringify(dragData));
   };
@@ -109,8 +117,8 @@ function PriceRow({
     <div
       {...(dataAttrs || {})}
       className={flash ? 'price-row-flash' : undefined}
-      draggable={draggable || undefined}
-      onDragStart={draggable ? handleDragStart : undefined}
+      draggable={dragEnabled || undefined}
+      onDragStart={dragEnabled ? handleDragStart : undefined}
       onClick={onClick}
       onDoubleClick={onDoubleClick}
       onTouchStart={handleTouchStart}
