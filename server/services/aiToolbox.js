@@ -37,6 +37,7 @@
 const fetch = require('node-fetch');
 const logger = require('../utils/logger');
 const aiCostLedger = require('./aiCostLedger');
+const { swallow } = require('../utils/swallow');
 
 // ── Loop limits — defensive caps for runaway agent behaviour ──────────
 const MAX_TOOL_ROUNDS = 5;        // how many model→tools round trips
@@ -1569,7 +1570,7 @@ async function runToolLoopStream(provider, initialMessages, systemPrompt, res, {
     // Emit the text as chunks. 120-char chunks feel incremental to humans
     // without hammering SSE framing.
     if (typeof onRoundsMeta === 'function') {
-      try { onRoundsMeta({ rounds }); } catch {}
+      try { onRoundsMeta({ rounds }); } catch (e) { swallow(e, 'aiToolbox.onRoundsMeta'); }
     }
     // Safety floor — runToolLoop now always produces non-empty finalText,
     // but if that contract is ever broken we still want the user to see

@@ -14,6 +14,7 @@
 const crypto = require('crypto');
 const pg = require('../db/postgres');
 const logger = require('../utils/logger');
+const { swallow } = require('../utils/swallow');
 const mammoth = require('mammoth');
 const Papa = require('papaparse');
 const https = require('https');
@@ -185,7 +186,7 @@ function init({ openaiKey, voyageKey, cohereKey, anthropicKey } = {}) {
 async function ensureTable() {
   if (!pg.isConnected()) {
     // Attempt lazy reconnect before giving up
-    try { await pg.query('SELECT 1'); } catch {}
+    try { await pg.query('SELECT 1'); } catch (e) { swallow(e, 'vault.lazy_reconnect.ensureSchema'); }
     if (!pg.isConnected()) {
       logger.warn('vault', 'Postgres not connected — skipping table creation (will retry on reconnect)');
       return;
@@ -1376,7 +1377,7 @@ async function extractPDFText(buffer, metadata, onProgress) {
 
 async function ingestFile(userId, buffer, filename, metadata = {}, isGlobal = false, onProgress = null) {
   if (!pg.isConnected()) {
-    try { await pg.query('SELECT 1'); } catch {}
+    try { await pg.query('SELECT 1'); } catch (e) { swallow(e, 'vault.lazy_reconnect.ingestFile'); }
     if (!pg.isConnected()) {
       throw new Error('Postgres not connected — database may be starting up. Please try again in a minute.');
     }
@@ -2616,7 +2617,7 @@ function extractMainContentFromHTML(html) {
  */
 async function ingestFromUrl(url, userId, title = null) {
   if (!pg.isConnected()) {
-    try { await pg.query('SELECT 1'); } catch {}
+    try { await pg.query('SELECT 1'); } catch (e) { swallow(e, 'vault.lazy_reconnect.ingestFromUrl'); }
     if (!pg.isConnected()) {
       throw new Error('Postgres not connected — database may be starting up. Please try again in a minute.');
     }

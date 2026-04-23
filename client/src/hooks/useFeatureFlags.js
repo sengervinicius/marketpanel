@@ -16,6 +16,7 @@
 
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { apiFetch } from '../utils/api';
+import { swallow } from '../utils/swallow';
 
 const REFRESH_MS = 60_000;
 
@@ -34,7 +35,7 @@ async function _load() {
       const data = res && typeof res.json === 'function' ? await res.json() : res;
       _shared.flags = data?.flags || {};
       _shared.loadedAt = Date.now();
-      for (const fn of _shared.listeners) try { fn(_shared.flags); } catch {}
+      for (const fn of _shared.listeners) try { fn(_shared.flags); } catch (e) { swallow(e, 'hook.featureFlags.listener'); }
     } catch {
       // fail closed — keep previous map (if any); empty by default
     } finally {

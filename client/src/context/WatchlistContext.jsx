@@ -7,6 +7,7 @@
 
 import { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import { apiFetch } from '../utils/api';
+import { swallow } from '../utils/swallow';
 
 const WatchlistContext = createContext(null);
 const LS_KEY = 'particle_watchlist_v1';
@@ -14,7 +15,7 @@ const MAX_WATCHLIST_SIZE = 50;
 const SYNC_DEBOUNCE_MS = 1500;
 
 // Migrate legacy key
-try { const v = localStorage.getItem('senger_watchlist_v1'); if (v !== null) { localStorage.setItem('particle_watchlist_v1', v); localStorage.removeItem('senger_watchlist_v1'); } } catch {}
+try { const v = localStorage.getItem('senger_watchlist_v1'); if (v !== null) { localStorage.setItem('particle_watchlist_v1', v); localStorage.removeItem('senger_watchlist_v1'); } } catch (e) { swallow(e, 'context.watchlist.ls_migrate'); }
 
 const SEED_WATCHLIST = ['SPY', 'QQQ', 'AAPL', 'NVDA', 'GLD', 'BTCUSD', 'EWZ'];
 
@@ -35,7 +36,7 @@ export function WatchlistProvider({ children }) {
 
   // ── Persist to localStorage immediately ──────────────────────────────
   const persistLocal = useCallback((next) => {
-    try { localStorage.setItem(LS_KEY, JSON.stringify(next)); } catch {}
+    try { localStorage.setItem(LS_KEY, JSON.stringify(next)); } catch (e) { swallow(e, 'context.watchlist.ls_set'); }
   }, []);
 
   // ── Debounced persist to server ──────────────────────────────────────

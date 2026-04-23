@@ -9,6 +9,7 @@
  */
 
 import { SMA, EMA, RSI, MACD, BollingerBands } from 'technicalindicators';
+import { swallow } from './swallow';
 
 /* ── Public constants (shared across consumers) ─────────────────────────────── */
 
@@ -52,17 +53,17 @@ export function computeIndicators(bars, active) {
 
   let sma20Vals = [];
   if (activeSet.has('SMA20') && closes.length >= 20) {
-    try { sma20Vals = SMA.calculate({ period: 20, values: closes }); } catch {}
+    try { sma20Vals = SMA.calculate({ period: 20, values: closes }); } catch (e) { swallow(e, 'util.chartIndicators.sma20'); }
   }
 
   let ema50Vals = [];
   if (activeSet.has('EMA50') && closes.length >= 50) {
-    try { ema50Vals = EMA.calculate({ period: 50, values: closes }); } catch {}
+    try { ema50Vals = EMA.calculate({ period: 50, values: closes }); } catch (e) { swallow(e, 'util.chartIndicators.ema50'); }
   }
 
   let rsi14Vals = [];
   if (activeSet.has('RSI14') && closes.length >= 15) {
-    try { rsi14Vals = RSI.calculate({ period: 14, values: closes }); } catch {}
+    try { rsi14Vals = RSI.calculate({ period: 14, values: closes }); } catch (e) { swallow(e, 'util.chartIndicators.rsi14'); }
   }
 
   let macdVals = [];
@@ -72,12 +73,12 @@ export function computeIndicators(bars, active) {
         values: closes, fastPeriod: 12, slowPeriod: 26, signalPeriod: 9,
         SimpleMAOscillator: false, SimpleMASignal: false,
       });
-    } catch {}
+    } catch (e) { swallow(e, 'util.chartIndicators.macd'); }
   }
 
   let bbVals = [];
   if (activeSet.has('BB') && closes.length >= 20) {
-    try { bbVals = BollingerBands.calculate({ period: 20, values: closes, stdDev: 2 }); } catch {}
+    try { bbVals = BollingerBands.calculate({ period: 20, values: closes, stdDev: 2 }); } catch (e) { swallow(e, 'util.chartIndicators.bb'); }
   }
 
   // Merge into bars (align to end)

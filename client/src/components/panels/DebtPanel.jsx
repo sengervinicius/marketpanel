@@ -21,6 +21,7 @@ import {
 } from 'recharts';
 import { apiFetch } from '../../utils/api';
 import { fmtCompactPct } from '../../utils/format';
+import { swallow } from '../../utils/swallow';
 import IntegrityBadge from '../shared/IntegrityBadge';
 import { PanelHeader } from './_shared';
 import './DebtPanel.css';
@@ -371,7 +372,7 @@ function DebtPanel() {
         (d.snapshot || []).forEach(item => {
           stubRegion[item.country] = item;
         });
-      } catch (_) {}
+      } catch (e) { swallow(e, 'panel.debt.region_snapshot'); }
 
       for (const code of codes) {
         const live = getLiveCurve(code);
@@ -403,7 +404,7 @@ function DebtPanel() {
         const d = await apiFetch('/api/debt/credit/indexes').then(r => r.json());
         setIndexes(d.indexes || []);
         setIndexSource(d.source || null);
-      } catch (_) {}
+      } catch (e) { swallow(e, 'panel.debt.credit_indexes'); }
     } catch (e) {
       setError(e.message || 'Failed to load regional data');
     } finally {

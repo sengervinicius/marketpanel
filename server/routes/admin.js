@@ -12,6 +12,7 @@ const authStore = require('../authStore');
 // W1.5: route all admin log output through the structured logger so reqId+
 // userId correlate with the ongoing request.
 const logger = require('../utils/logger');
+const { swallow } = require('../utils/swallow');
 
 const router = express.Router();
 
@@ -534,7 +535,7 @@ router.delete('/delete-user/:email', async (req, res) => {
     // Delete non-cascading tables
     const tables = ['refresh_tokens', 'password_resets', 'email_verifications', 'user_behavior'];
     for (const table of tables) {
-      try { await pg.query(`DELETE FROM ${table} WHERE user_id = $1`, [userId]); } catch {}
+      try { await pg.query(`DELETE FROM ${table} WHERE user_id = $1`, [userId]); } catch (e) { swallow(e, 'admin.reset_user.delete_table'); }
     }
 
     // Delete user — try in-memory first (also does Postgres + Mongo), fall back to direct SQL

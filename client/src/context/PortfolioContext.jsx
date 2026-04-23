@@ -22,6 +22,7 @@
 import { createContext, useContext, useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { useAuth } from './AuthContext';
 import { apiFetch } from '../utils/api';
+import { swallow } from '../utils/swallow';
 
 const PortfolioContext = createContext(null);
 const LS_KEY = 'particle_portfolio_v1';
@@ -30,8 +31,8 @@ const MAX_POSITIONS = 200;
 const SYNC_DEBOUNCE_MS = 1000;
 
 // Migrate legacy keys (at top level)
-try { const v = localStorage.getItem('senger_portfolio_v1'); if (v !== null) { localStorage.setItem('particle_portfolio_v1', v); localStorage.removeItem('senger_portfolio_v1'); } } catch {}
-try { const v = localStorage.getItem('senger_watchlist_v1'); if (v !== null) { localStorage.setItem('particle_watchlist_v1', v); localStorage.removeItem('senger_watchlist_v1'); } } catch {}
+try { const v = localStorage.getItem('senger_portfolio_v1'); if (v !== null) { localStorage.setItem('particle_portfolio_v1', v); localStorage.removeItem('senger_portfolio_v1'); } } catch (e) { swallow(e, 'context.portfolio.ls_migrate_portfolio'); }
+try { const v = localStorage.getItem('senger_watchlist_v1'); if (v !== null) { localStorage.setItem('particle_watchlist_v1', v); localStorage.removeItem('senger_watchlist_v1'); } } catch (e) { swallow(e, 'context.portfolio.ls_migrate_watchlist'); }
 
 // ── ID generation ──
 let _idCounter = Date.now();

@@ -30,6 +30,8 @@
  *   - feature_gated           { flag, enabled }
  */
 
+import { swallow } from './swallow';
+
 const CONSENT_STORAGE_KEY = 'lgpd_consent_v1';
 
 let _posthog = null;
@@ -93,12 +95,12 @@ export async function initAnalytics() {
     // Drain queue
     if (_pendingIdentity) {
       try { posthog.identify(_pendingIdentity.id, _pendingIdentity.props); }
-      catch (_) {}
+      catch (e) { swallow(e, 'util.analytics.identify_drain'); }
       _pendingIdentity = null;
     }
     while (_pendingEvents.length) {
       const [name, props] = _pendingEvents.shift();
-      try { posthog.capture(name, props); } catch (_) {}
+      try { posthog.capture(name, props); } catch (e) { swallow(e, 'util.analytics.capture_drain'); }
     }
   } catch (err) {
     // Silently swallow — analytics failure must never break the app.
@@ -119,7 +121,7 @@ export function identify(userId, props = {}) {
     initAnalytics();
     return;
   }
-  try { _posthog.identify(String(userId), safe); } catch (_) {}
+  try { _posthog.identify(String(userId), safe); } catch (e) { swallow(e, 'util.analytics.identify'); }
 }
 
 /**
@@ -134,7 +136,7 @@ export function track(eventName, props = {}) {
     initAnalytics();
     return;
   }
-  try { _posthog.capture(eventName, safe); } catch (_) {}
+  try { _posthog.capture(eventName, safe); } catch (e) { swallow(e, 'util.analytics.capture'); }
 }
 
 /**
@@ -142,7 +144,7 @@ export function track(eventName, props = {}) {
  */
 export function resetIdentity() {
   if (!_initialised) { _pendingIdentity = null; return; }
-  try { _posthog.reset(); } catch (_) {}
+  try { _posthog.reset(); } catch (e) { swallow(e, 'util.analytics.reset'); }
 }
 
 /**
@@ -155,7 +157,7 @@ export function revokeAnalytics() {
     if (_posthog && typeof _posthog.opt_out_capturing === 'function') {
       _posthog.opt_out_capturing();
     }
-  } catch (_) {}
+  } catch (e) { swallow(e, 'util.analytics.revoke'); }
   _pendingIdentity = null;
   _pendingEvents.length = 0;
 }

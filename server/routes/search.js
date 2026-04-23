@@ -23,6 +23,7 @@ const aiCostLedger = require('../services/aiCostLedger');
 // AI answer that mentions a ticker + direction.
 const { guardAndLog } = require('../services/aiOutputGuard');
 const logger = require('../utils/logger');
+const { swallow } = require('../utils/swallow');
 const memoryManager = require('../services/memoryManager');
 const conversationMemory = require('../services/conversationMemory');
 const aiChatStore = require('../services/aiChatStore'); // P5: DB-backed chat history
@@ -1801,7 +1802,7 @@ router.post('/chat', aiChatKillSwitch, perMinuteLimit, dailyAILimit, aiQuotaGate
   // The classifier only needs to know hasVault/hasMarketCtx for fast-paths,
   // which we can estimate from cheap signals (marketContext is already built).
   let deepAnalysisEarly = null;
-  try { deepAnalysisEarly = deepAnalysis.getAnalysisPrompt(userQuery, userId); } catch {}
+  try { deepAnalysisEarly = deepAnalysis.getAnalysisPrompt(userQuery, userId); } catch (e) { swallow(e, 'search.deepAnalysis.early_prompt'); }
   const hasMarketCtxEarly = (marketContext?.length || 0) > 0;
   const intentPromise = modelRouter.classifyIntentWithHaiku(
     userQuery,
@@ -2027,7 +2028,7 @@ ${ctx_.portfolioMetricsContext ? `\n${ctx_.portfolioMetricsContext}\n` : ''}${ct
   // W1.2: honor the org-wide kill-switch (force_haiku / block_all_ai). Read
   // is cached for 15s so this is not a hot-path hit.
   let killSwitch = null;
-  try { killSwitch = await aiCostLedger.readKillSwitch(); } catch (_) {}
+  try { killSwitch = await aiCostLedger.readKillSwitch(); } catch (e) { swallow(e, 'search.killSwitch.read'); }
   let provider = modelRouter.route(intent, { killSwitch });
 
   // Fallback chain: if the chosen provider needs an API key we don't have, try alternatives
@@ -2241,7 +2242,7 @@ ${ctx_.portfolioMetricsContext ? `\n${ctx_.portfolioMetricsContext}\n` : ''}${ct
       const persistAssistantTurn = (fullText) => {
         if (!userId || !convoId || !fullText) return;
         let safe = fullText;
-        try { safe = guardAndLog(fullText, { userId, model: provider.model }); } catch (_) {}
+        try { safe = guardAndLog(fullText, { userId, model: provider.model }); } catch (e) { swallow(e, 'search.guardAndLog.persist'); }
         aiChatStore.appendMessage(userId, convoId, 'assistant', safe).catch((e) => {
           logger.warn('search', 'aiChatStore assistant turn failed (stream)', { error: e.message });
         });

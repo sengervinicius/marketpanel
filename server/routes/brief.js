@@ -13,6 +13,7 @@
 const express = require('express');
 const router = express.Router();
 const logger = require('../utils/logger');
+const { swallow } = require('../utils/swallow');
 const { sendApiError } = require('../utils/apiError');
 const morningBrief = require('../services/morningBrief');
 
@@ -232,7 +233,7 @@ router.patch('/settings', async (req, res) => {
       if (typeof authStore.mergeSettings === 'function') {
         authStore.mergeSettings(userId, updates);
       }
-    } catch (_) {}
+    } catch (e) { swallow(e, 'brief.settings.merge_in_memory'); }
 
     res.json({ ok: true, message: 'Brief settings updated', settings: updates });
   } catch (e) {

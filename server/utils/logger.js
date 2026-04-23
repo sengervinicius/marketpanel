@@ -205,7 +205,7 @@ function requestLogger(req, res, next) {
     // We wrap next() so when subsequent middleware mutates req, the store
     // stays in sync for logs emitted from those middleware frames.
     res.on('close', () => {
-      try { const s = als.getStore(); if (s && req.userId) s.userId = req.userId; } catch (_) {}
+      try { const s = als.getStore(); if (s && req.userId) s.userId = req.userId; } catch (_) { /* intentional: logger.als.late_userId — ALS store unavailable; nothing to correlate */ void _; }
     });
     next();
   });

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { swallow } from '../../utils/swallow';
 import './CommandPalette.css';
 
 /**
@@ -185,7 +186,7 @@ export default function CommandPalette({ isOpen, onClose, onCommand, excludeComm
       recent = recent.filter(id => id !== cmd.id);
       recent.unshift(cmd.id);
       localStorage.setItem('particle_recent_commands', JSON.stringify(recent.slice(0, 10)));
-    } catch {}
+    } catch (e) { swallow(e, 'common.cmdPalette.ls_recent'); }
 
     // Execute command
     onCommand(cmd);

@@ -8,6 +8,7 @@ import { createContext, useContext, useState, useCallback, useEffect, useRef } f
 import { apiFetch } from '../utils/api';
 import { WORKSPACE_TEMPLATES, SCREEN_PRESETS, getTemplate } from '../config/templates';
 import { DEFAULT_LAYOUT, DEFAULT_HOME_SECTIONS, DEFAULT_CHARTS_CONFIG } from '../config/panels';
+import { swallow } from '../utils/swallow';
 
 const SettingsContext = createContext(null);
 
@@ -231,7 +232,7 @@ export function SettingsProvider({ children, isAuthenticated }) {
             if (Array.isArray(s.chartGrid) && s.chartGrid.length) {
               localStorage.setItem('chartGrid_v3', JSON.stringify(s.chartGrid));
             }
-          } catch {}
+          } catch (e) { swallow(e, 'context.settings.ls_hydrate'); }
         }
         if (data.subscription) setSubscription(data.subscription);
         setLoaded(true);
@@ -248,7 +249,7 @@ export function SettingsProvider({ children, isAuthenticated }) {
         body: JSON.stringify(partial),
       });
       setSettingsDirty(false);
-    } catch {}
+    } catch (e) { swallow(e, 'context.settings.persist'); }
   }, [isAuthenticated]);
 
   // Debounced server save (500ms delay) to batch rapid setting changes

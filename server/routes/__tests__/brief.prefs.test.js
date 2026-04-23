@@ -54,9 +54,9 @@ stubModule('services/morningBrief', {
 
 // Also stub any services brief.js touches that would otherwise pull in
 // config/db — best-effort, ignore misses.
-try { stubModule('services/morningBriefInbox', { listForUser: async () => [] }); } catch {}
-try { stubModule('services/emailService', { sendMorningBriefEmail: async () => ({}) }); } catch {}
-try { stubModule('utils/apiError', { sendApiError: (res, status, msg) => res.status(status).json({ ok: false, message: msg }) }); } catch {}
+try { stubModule('services/morningBriefInbox', { listForUser: async () => [] }); } catch (_) { /* best-effort stub: module not resolvable in this test run */ void _; }
+try { stubModule('services/emailService', { sendMorningBriefEmail: async () => ({}) }); } catch (_) { /* best-effort stub: module not resolvable in this test run */ void _; }
+try { stubModule('utils/apiError', { sendApiError: (res, status, msg) => res.status(status).json({ ok: false, message: msg }) }); } catch (_) { /* best-effort stub: module not resolvable in this test run */ void _; }
 
 const briefRoute = require('../brief');
 const validate = briefRoute._validateBriefPrefs;

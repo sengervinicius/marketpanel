@@ -28,6 +28,7 @@
 
 import { useEffect, useState } from 'react';
 import { useFeatureFlags } from '../../hooks/useFeatureFlags';
+import { swallow } from '../../utils/swallow';
 
 const CONSENT_KEY = 'lgpd_consent_v1';
 const SCRIPT_ID   = 'crisp-sdk';
@@ -61,7 +62,7 @@ function removeCrisp() {
   // is up and remove our script tag so a future re-load re-evaluates gates.
   try {
     if (Array.isArray(window.$crisp)) window.$crisp.push(['do', 'chat:hide']);
-  } catch {}
+  } catch (e) { swallow(e, 'common.supportWidget.crisp_hide'); }
   const tag = document.getElementById(SCRIPT_ID);
   if (tag && tag.parentNode) tag.parentNode.removeChild(tag);
   // We intentionally don't delete window.$crisp — the Crisp runtime still

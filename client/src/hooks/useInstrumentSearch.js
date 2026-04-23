@@ -2,13 +2,14 @@ import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import { apiFetch } from '../utils/api';
 import { FOREX_PAIRS, CRYPTO_PAIRS } from '../utils/constants';
 import { resolveAlias, resolveIndexProxy, resolveScreenAlias, SCREEN_LABELS } from '../config/instrumentAliases';
+import { swallow } from '../utils/swallow';
 
 // ── Persistent recent searches (S4.4.D) ──
 const RECENTS_KEY = 'particle_recent_searches';
 const MAX_RECENTS = 20;
 
 // Migrate legacy key (at top level)
-try { const v = localStorage.getItem('senger_recent_searches'); if (v !== null) { localStorage.setItem('particle_recent_searches', v); localStorage.removeItem('senger_recent_searches'); } } catch {}
+try { const v = localStorage.getItem('senger_recent_searches'); if (v !== null) { localStorage.setItem('particle_recent_searches', v); localStorage.removeItem('senger_recent_searches'); } } catch (e) { swallow(e, 'hook.instrumentSearch.ls_migrate'); }
 
 function _loadRecents() {
   try {
@@ -23,7 +24,7 @@ let _recentWriteTimer = null;
 function _persistRecents(items) {
   clearTimeout(_recentWriteTimer);
   _recentWriteTimer = setTimeout(() => {
-    try { localStorage.setItem(RECENTS_KEY, JSON.stringify(items.slice(0, MAX_RECENTS))); } catch {}
+    try { localStorage.setItem(RECENTS_KEY, JSON.stringify(items.slice(0, MAX_RECENTS))); } catch (e) { swallow(e, 'hook.instrumentSearch.ls_set_recents'); }
   }, 300); // debounce writes
 }
 

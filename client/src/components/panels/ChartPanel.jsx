@@ -11,6 +11,7 @@ import { apiFetch } from '../../utils/api';
 import { computeIndicators, buildChartInsightPayload, getLatestIndicatorSnapshot, IND_COLORS, INDICATOR_LIST } from '../../utils/chartIndicators';
 import { fmtCompactAxis } from '../../utils/format';
 import { toPolygonWithDefault, toDisplay } from '../../utils/tickerNormalize';
+import { swallow } from '../../utils/swallow';
 import './ChartPanel.css';
 
 const LS_KEY = 'chartGrid_v3';
@@ -328,7 +329,7 @@ const MiniChart = memo(function MiniChart({ ticker, index, onRemove, onReplace, 
           if (fromStr !== '') { const fi = parseInt(fromStr, 10); if (!isNaN(fi) && fi !== index) { onSwap(fi, index); return; } }
           const raw = e.dataTransfer.getData('application/x-ticker');
           if (raw) { const { symbol } = JSON.parse(raw); onReplace(ticker, normalizeTicker(symbol)); }
-        } catch (_) {}
+        } catch (e) { swallow(e, 'panel.chart.drop_parse'); }
       }}
     >
       {/* Header */}
@@ -464,7 +465,7 @@ function EmptySlot({ index, onAdd, onSwap }) {
           if (fromStr !== '') { const fi = parseInt(fromStr, 10); if (!isNaN(fi)) { onSwap(fi, index); return; } }
           const raw = e.dataTransfer.getData('application/x-ticker');
           if (raw) { const { symbol } = JSON.parse(raw); onAdd(symbol); }
-        } catch (_) {}
+        } catch (e) { swallow(e, 'panel.chart.empty_slot_drop'); }
       }}
     >
       <span className="cp-empty-icon">{isDragOver ? '▼' : '+'}</span>
@@ -501,7 +502,7 @@ function ChartPanel({ ticker: externalTicker, onGridChange, mobile = false }) {
       if (Array.isArray(v3) && v3.length) { initialSourceRef.current = 'localStorage'; return v3.slice(0, MAX); }
       const v2 = JSON.parse(localStorage.getItem('chartGrid_v2'));
       if (Array.isArray(v2) && v2.length) { initialSourceRef.current = 'localStorage'; return v2.slice(0, MAX); }
-    } catch (_) {}
+    } catch (e) { swallow(e, 'panel.chart.initial_load'); }
     initialSourceRef.current = 'fallback';
     return HARDCODED_FALLBACK_GRID;
   });
@@ -567,7 +568,7 @@ function ChartPanel({ ticker: externalTicker, onGridChange, mobile = false }) {
       const url = new URL(window.location.href);
       url.searchParams.set('c', tickers.join(','));
       window.history.replaceState(null, '', url.toString());
-    } catch (_) {}
+    } catch (e) { swallow(e, 'panel.chart.url_sync'); }
     onGridChange?.(tickers.length);
     // Gate the auto-POST on two conditions:
     //   1. Server GET has resolved (serverLoaded).
@@ -631,7 +632,7 @@ function ChartPanel({ ticker: externalTicker, onGridChange, mobile = false }) {
       navigator.clipboard.writeText(link).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); });
       setQrUrl(qrCodeUrl);
       setShowQR(true);
-    } catch (_) {}
+    } catch (e) { swallow(e, 'panel.chart.copy_link'); }
   }, [tickers, qrCodeUrl]);
 
   const outerDrop = {
@@ -642,7 +643,7 @@ function ChartPanel({ ticker: externalTicker, onGridChange, mobile = false }) {
         if (e.dataTransfer.getData('application/x-chart-index')) return;
         const raw = e.dataTransfer.getData('application/x-ticker');
         if (raw) { const { symbol } = JSON.parse(raw); addTicker(symbol); }
-      } catch (_) {}
+      } catch (e) { swallow(e, 'panel.chart.outer_drop'); }
     },
   };
 

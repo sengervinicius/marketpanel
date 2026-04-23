@@ -43,6 +43,7 @@ const jwt    = require('jsonwebtoken');
 const pg     = require('./db/postgres');
 // W1.5: route all authStore log output through the structured logger.
 const logger = require('./utils/logger');
+const { swallow } = require('./utils/swallow');
 
 // ── W0.7: Dual-key JWT rotation ─────────────────────────────────────────────
 // We support two HS256 signing keys concurrently: CURRENT (used to sign new
@@ -650,7 +651,7 @@ const _loginAttemptsCleanup = setInterval(() => {
     }
   }
   if (evicted > 0) {
-    try { require('./utils/logger').info('authStore', 'loginAttempts cleanup', { evicted, remaining: loginAttempts.size }); } catch {}
+    try { require('./utils/logger').info('authStore', 'loginAttempts cleanup', { evicted, remaining: loginAttempts.size }); } catch (e) { swallow(e, 'authStore.cleanup_log'); }
   }
 }, 15 * 60 * 1000);
 if (_loginAttemptsCleanup.unref) _loginAttemptsCleanup.unref();

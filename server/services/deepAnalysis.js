@@ -14,6 +14,7 @@
 
 const logger = require('../utils/logger');
 const predictionAggregator = require('./predictionAggregator');
+const { swallow } = require('../utils/swallow');
 
 // ── Late-bound deps ─────────────────────────────────────────────────────────
 let _marketState  = null;
@@ -171,7 +172,7 @@ function buildPortfolioAutopsyPrompt(metrics) {
     if (preds.length) {
       predContext = preds.map(p => `${p.title}: ${(p.probability * 100).toFixed(0)}%`).join(' | ');
     }
-  } catch (e) {}
+  } catch (e) { swallow(e, 'deepAnalysis.portfolio.predTop5'); }
 
   return `You are performing a Portfolio Autopsy — a thorough, structured analysis of the user's investment portfolio.
 
@@ -283,7 +284,7 @@ function buildCounterThesisPrompt(thesis, query) {
       predContext = '\nRelevant prediction markets: ' +
         preds.slice(0, 3).map(p => `${p.title}: ${(p.probability * 100).toFixed(0)}%`).join(' | ');
     }
-  } catch (e) {}
+  } catch (e) { swallow(e, 'deepAnalysis.counterThesis.preds'); }
 
   return `You are the Counter-Thesis Generator. The user has a ${thesis.direction || 'bullish'} conviction${thesis.ticker ? ` on $${thesis.ticker}` : ''}. Your job is to construct the STRONGEST possible ${counterDir} case — the best argument the opposing side would make.
 
@@ -355,7 +356,7 @@ function buildScenarioPrompt(query, userId) {
       predContext = '\nCurrent prediction market probabilities:\n' +
         preds.map(p => `- ${p.title}: ${(p.probability * 100).toFixed(0)}%`).join('\n');
     }
-  } catch (e) {}
+  } catch (e) { swallow(e, 'deepAnalysis.scenario.predTop6'); }
 
   return `You are a Scenario Analyst. The user wants to explore a hypothetical market scenario and understand its implications.
 

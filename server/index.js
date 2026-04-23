@@ -1,10 +1,12 @@
 require('dotenv').config();
 
+const { swallow } = require('./utils/swallow');
+
 // ── Phase 4: Global crash handlers (must be first) ────────────────────────────
 process.on('uncaughtException', (err) => {
   console.error('[FATAL] Uncaught exception:', err.stack || err.message || err);
   // Attempt graceful shutdown
-  try { require('./db/postgres').getPool()?.end(); } catch {}
+  try { require('./db/postgres').getPool()?.end(); } catch (e) { swallow(e, 'index.shutdown.pool_end'); }
   process.exit(1);
 });
 process.on('unhandledRejection', (reason) => {
@@ -43,16 +45,16 @@ if (process.env.SENTRY_DSN) {
             }
           }
         }
-      } catch { /* never throw from beforeSend */ }
+      } catch (e) { swallow(e, 'index.sentry.beforeSend_scrub'); /* never throw from beforeSend */ }
       return event;
     },
   });
   console.log(`[INFO] Sentry error monitoring initialized (release=${release || 'unset'})`);
 
   // Forward previously-registered process handlers into Sentry too.
-  process.on('uncaughtException', (err) => { try { Sentry.captureException(err); } catch {} });
+  process.on('uncaughtException', (err) => { try { Sentry.captureException(err); } catch (e) { swallow(e, 'index.sentry.forward_uncaught'); } });
   process.on('unhandledRejection', (reason) => {
-    try { Sentry.captureException(reason instanceof Error ? reason : new Error(String(reason))); } catch {}
+    try { Sentry.captureException(reason instanceof Error ? reason : new Error(String(reason))); } catch (e) { swallow(e, 'index.sentry.forward_rejection'); }
   });
 } else {
   console.warn('[WARN] SENTRY_DSN not set — error monitoring disabled. Set it in Render environment.');
@@ -340,11 +342,11 @@ app.get('/health', async (req, res) => {
       }
     }
     if (marketDataAge) marketDataAge = Date.now() - marketDataAge; // ms since last tick
-  } catch {}
+  } catch (e) { swallow(e, 'index.health.marketDataAge'); }
 
   // WS client count
   let wsClients = 0;
-  try { wsClients = wss?.clients?.size || 0; } catch {}
+  try { wsClients = wss?.clients?.size || 0; } catch (e) { swallow(e, 'index.health.wsClients'); }
 
   // Phase 5: Per-feed health summary
   let feeds = {};
@@ -360,7 +362,7 @@ app.get('/health', async (req, res) => {
         };
       }
     }
-  } catch {}
+  } catch (e) { swallow(e, 'index.health.feeds_summary'); }
 
   const overall = dbConnected ? 'ok' : 'degraded';
   res.json({

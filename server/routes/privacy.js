@@ -31,6 +31,7 @@ const { requireAuth } = require('../authMiddleware');
 const authStore = require('../authStore');
 const pg        = require('../db/postgres');
 const logger    = require('../utils/logger');
+const { swallow } = require('../utils/swallow');
 const { adminAuditLog } = require('../middleware/adminAuditLog');
 
 // Per-user DSAR rate limit — generous enough for legitimate exports, tight
@@ -198,7 +199,7 @@ router.get('/me', async (req, res) => {
           [uid]
         );
         payload.aiUsage30Days = usage.rows;
-      } catch (_) {}
+      } catch (e) { swallow(e, 'privacy.me.ai_usage_30d'); }
       try {
         const audit = await pg.query(
           `SELECT created_at, kind, route, details FROM audit_log
@@ -207,7 +208,7 @@ router.get('/me', async (req, res) => {
           [uid]
         );
         payload.auditLast90Days = audit.rows;
-      } catch (_) {}
+      } catch (e) { swallow(e, 'privacy.me.audit_90d'); }
     }
 
     res.json(payload);
@@ -253,7 +254,7 @@ router.delete('/me', async (req, res) => {
       );
     }
     // Mark account as pending deletion — blocks login path.
-    try { await authStore.updateUser(uid, { pendingDeletionAt: Date.now() }); } catch (_) {}
+    try { await authStore.updateUser(uid, { pendingDeletionAt: Date.now() }); } catch (e) { swallow(e, 'privacy.erase.set_pending'); }
     req.auditDetails = { kind: 'dsar_erase', softDelete: true, graceDays: 30 };
     logger.warn('privacy/erase', 'Soft-delete scheduled', { affectedUserId: uid });
     res.json({ ok: true, hardDeleteAfterDays: 30, cancelable: true });
@@ -270,7 +271,7 @@ router.post('/cancel-erase', async (req, res) => {
     if (pg.isConnected && pg.isConnected()) {
       await pg.query(`DELETE FROM dsar_erasure_queue WHERE user_id = $1`, [uid]);
     }
-    try { await authStore.updateUser(uid, { pendingDeletionAt: null }); } catch (_) {}
+    try { await authStore.updateUser(uid, { pendingDeletionAt: null }); } catch (e) { swallow(e, 'privacy.erase_cancel.clear_pending'); }
     req.auditDetails = { kind: 'dsar_erase_cancel' };
     res.json({ ok: true });
   } catch (e) {

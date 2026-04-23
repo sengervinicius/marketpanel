@@ -12,6 +12,7 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { apiFetch } from '../utils/api';
+import { swallow } from '../utils/swallow';
 
 const SYNC_DEBOUNCE_MS = 2000;
 
@@ -100,7 +101,7 @@ export function useSettingsSync(serverKey, defaultValue, localStorageKey) {
       const serverVal = settings[serverKey];
       if (serverVal !== undefined && serverVal !== null) {
         setValue(serverVal);
-        try { localStorage.setItem(lsKey, JSON.stringify(serverVal)); } catch {}
+        try { localStorage.setItem(lsKey, JSON.stringify(serverVal)); } catch (e) { swallow(e, 'hook.settingsSync.ls_set.server_merge'); }
       } else {
         // Server has nothing — push local value up
         const local = loadLocal();
@@ -115,7 +116,7 @@ export function useSettingsSync(serverKey, defaultValue, localStorageKey) {
   const set = useCallback((newVal) => {
     const resolved = typeof newVal === 'function' ? newVal(value) : newVal;
     setValue(resolved);
-    try { localStorage.setItem(lsKey, JSON.stringify(resolved)); } catch {}
+    try { localStorage.setItem(lsKey, JSON.stringify(resolved)); } catch (e) { swallow(e, 'hook.settingsSync.ls_set.local_write'); }
     syncSettingToServer(serverKey, resolved);
     return resolved;
   }, [value, lsKey, serverKey]);

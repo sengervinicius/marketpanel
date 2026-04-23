@@ -16,6 +16,7 @@
 const fs   = require('fs');
 const path = require('path');
 const logger = require('../utils/logger');
+const { swallow } = require('../utils/swallow');
 // W1.4: prom-client metrics — NOOP shim if prom-client isn't installed.
 const { metrics: promMetrics } = require('../utils/metrics');
 
@@ -231,7 +232,7 @@ async function _connect() {
 
     // Success — swap in the new pool
     if (pool && pool !== newPool) {
-      try { pool.end().catch(() => {}); } catch {}
+      try { pool.end().catch((e) => swallow(e, 'db.postgres.pool.end.async')); } catch (e) { swallow(e, 'db.postgres.pool.end'); }
     }
     pool = newPool;
     _clearReconnect();
@@ -249,7 +250,7 @@ async function _connect() {
 
 function _teardown(p) {
   if (p === pool) pool = null;
-  try { p.end().catch(() => {}); } catch {}
+  try { p.end().catch((e) => swallow(e, 'db.postgres.teardown.async')); } catch (e) { swallow(e, 'db.postgres.teardown'); }
 }
 
 function _scheduleReconnect() {
@@ -306,20 +307,20 @@ async function query(text, params = []) {
   // W1.4: histogram timing + error counter. Pool-gauge update is cheap here.
   const kind = _queryKind(text);
   const endTimer = (() => {
-    try { return promMetrics.db_query_duration.labels(kind).startTimer(); } catch (_) { return () => 0; }
+    try { return promMetrics.db_query_duration.labels(kind).startTimer(); } catch (e) { swallow(e, 'db.postgres.metric.startTimer'); return () => 0; }
   })();
   try {
     // Pool-gauge snapshot on enter; useful for spotting pool starvation.
-    try { promMetrics.db_pool_in_use.set(pool.totalCount - pool.idleCount); } catch (_) {}
+    try { promMetrics.db_pool_in_use.set(pool.totalCount - pool.idleCount); } catch (e) { swallow(e, 'db.postgres.metric.pool_in_use'); }
     const result = await pool.query(text, params);
-    try { endTimer(); } catch (_) {}
+    try { endTimer(); } catch (e) { swallow(e, 'db.postgres.metric.endTimer_ok'); }
     return result;
   } catch (e) {
-    try { endTimer(); } catch (_) {}
+    try { endTimer(); } catch (e2) { swallow(e2, 'db.postgres.metric.endTimer_err'); }
     // If this looks like a connection error, schedule reconnect
     const msg = e.message || '';
     const code = e.code || 'UNKNOWN';
-    try { promMetrics.db_query_errors.labels(kind, code).inc(); } catch (_) {}
+    try { promMetrics.db_query_errors.labels(kind, code).inc(); } catch (e2) { swallow(e2, 'db.postgres.metric.query_errors'); }
     if (msg.includes('ECONNREFUSED') || msg.includes('terminating') || msg.includes('Connection terminated')
         || msg.includes('timeout') || msg.includes('ENOTFOUND') || msg.includes('connection') ) {
       logger.error('postgres', 'Query failed with connection error — scheduling reconnect', { error: msg });

@@ -28,6 +28,7 @@
 'use strict';
 
 const logger = require('./logger');
+const { swallow } = require('./swallow');
 // W1.4: prom-client wiring. utils/metrics exposes a NOOP shim if prom-client
 // isn't installed, so these calls are always safe.
 const { metrics: promMetrics } = require('./metrics');
@@ -77,7 +78,7 @@ function registerConnection(ws, userId) {
   ws._bp_droppedBackpressure = 0;
   ws._bp_peakBuffered = 0;
   ws._bp_userId = userId;
-  try { promMetrics.ws_connections_open.inc(); } catch (_) {}
+  try { promMetrics.ws_connections_open.inc(); } catch (e) { swallow(e, 'ws.bp.metric.connections_open_inc'); }
   return true;
 }
 
@@ -87,7 +88,7 @@ function unregisterConnection(ws, userId) {
   if (!set) return;
   set.delete(ws);
   if (set.size === 0) _connectionsByUser.delete(userId);
-  try { promMetrics.ws_connections_open.dec(); } catch (_) {}
+  try { promMetrics.ws_connections_open.dec(); } catch (e) { swallow(e, 'ws.bp.metric.connections_open_dec'); }
 }
 
 /**
@@ -102,7 +103,7 @@ function safeSend(ws, payload) {
   if (buffered > ws._bp_peakBuffered) ws._bp_peakBuffered = buffered;
   if (buffered > _metrics.peak_buffered_observed) {
     _metrics.peak_buffered_observed = buffered;
-    try { promMetrics.ws_buffered_amount_peak.set(buffered); } catch (_) {}
+    try { promMetrics.ws_buffered_amount_peak.set(buffered); } catch (e) { swallow(e, 'ws.bp.metric.buffered_peak'); }
   }
 
   // Warn-level breach: we still send, but log for later analysis.
@@ -122,15 +123,15 @@ function safeSend(ws, payload) {
     ws._bp_droppedBackpressure++;
     _metrics.messages_dropped_backpressure++;
     _metrics.connections_closed_backpressure++;
-    try { promMetrics.ws_messages_dropped.inc(); } catch (_) {}
+    try { promMetrics.ws_messages_dropped.inc(); } catch (e) { swallow(e, 'ws.bp.metric.messages_dropped'); }
     logger.warn('ws', 'Terminating slow client (backpressure)', {
       userId: ws._bp_userId,
       buffered,
       cap: BP_MAX_BUFFERED_BYTES,
       droppedOnThisSocket: ws._bp_droppedBackpressure,
     });
-    try { ws.close(1008, 'backpressure'); } catch (_) {}
-    try { ws.terminate(); } catch (_) {}
+    try { ws.close(1008, 'backpressure'); } catch (e) { swallow(e, 'ws.bp.close'); }
+    try { ws.terminate(); } catch (e) { swallow(e, 'ws.bp.terminate'); }
     return false;
   }
 
@@ -138,7 +139,7 @@ function safeSend(ws, payload) {
     ws.send(payload);
   } catch (e) {
     logger.warn('ws', 'ws.send threw', { error: e.message, userId: ws._bp_userId });
-    try { promMetrics.ws_messages_dropped.inc(); } catch (_) {}
+    try { promMetrics.ws_messages_dropped.inc(); } catch (e2) { swallow(e2, 'ws.bp.metric.messages_dropped_send'); }
     return false;
   }
 
@@ -147,7 +148,7 @@ function safeSend(ws, payload) {
   const len = Buffer.isBuffer(payload) ? payload.length : (typeof payload === 'string' ? Buffer.byteLength(payload) : 0);
   _metrics.bytes_sent += len;
   ws._bp_bytesSent += len;
-  try { promMetrics.ws_messages_sent.inc(); } catch (_) {}
+  try { promMetrics.ws_messages_sent.inc(); } catch (e) { swallow(e, 'ws.bp.metric.messages_sent'); }
   return true;
 }
 

@@ -6,6 +6,7 @@
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { API_BASE } from '../utils/api';
+import { swallow } from '../utils/swallow';
 
 const REFRESH_INTERVAL = 2 * 60 * 1000; // 2 minutes
 
@@ -193,7 +194,7 @@ export function useBriefInbox({ pollMs = 5 * 60 * 1000 } = {}) {
         method: 'PATCH',
         headers: getAuthHeaders(),
       });
-    } catch (_) {}
+    } catch (e) { swallow(e, 'hook.wire.dismiss_item'); }
   }, []);
 
   return { inbox, unread, loading, refresh: fetchInbox, markRead, dismissItem };

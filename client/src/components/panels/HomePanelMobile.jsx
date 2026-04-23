@@ -12,6 +12,7 @@ import { useSettings } from '../../context/SettingsContext';
 import { useTickerPrice } from '../../context/PriceContext';
 import { useOpenDetail } from '../../context/OpenDetailContext';
 import { apiFetch } from '../../utils/api';
+import { swallow } from '../../utils/swallow';
 import {
   US_STOCKS, BRAZIL_ADRS, FOREX_PAIRS, CRYPTO_PAIRS, COMMODITIES,
 } from '../../utils/constants';
@@ -207,7 +208,7 @@ const MarketScreensGallery = memo(function MarketScreensGallery({ onApplyScreen 
   const handleTap = useCallback(async (screen) => {
     if (applying) return;
     setApplying(screen.id);
-    try { await onApplyScreen?.(screen.id, 'full'); } catch {}
+    try { await onApplyScreen?.(screen.id, 'full'); } catch (e) { swallow(e, 'panel.homeMobile.apply_screen'); }
     setTimeout(() => setApplying(null), 600);
   }, [applying, onApplyScreen]);
 

@@ -23,6 +23,7 @@ const fs = require('fs');
 const path = require('path');
 const vault = require('../services/vault');
 const logger = require('../utils/logger');
+const { swallow } = require('../utils/swallow');
 const { requireAuth, requireAdmin } = require('../authMiddleware');
 const { getTier, isUnlimited } = require('../config/tiers');
 const { rateLimitByUser } = require('../middleware/rateLimitByUser');
@@ -68,7 +69,7 @@ router.get('/health', requireAuth, async (req, res) => {
     try {
       const extResult = await pg.query(`SELECT extname FROM pg_extension WHERE extname = 'vector'`);
       pgvectorAvailable = extResult.rows.length > 0;
-    } catch {}
+    } catch (e) { swallow(e, 'vault.health.pgvector_probe'); }
     try {
       const colResult = await pg.query(`
         SELECT data_type, udt_name FROM information_schema.columns
@@ -79,12 +80,12 @@ router.get('/health', requireAuth, async (req, res) => {
       } else {
         embeddingColumnType = 'missing';
       }
-    } catch {}
+    } catch (e) { swallow(e, 'vault.health.column_probe'); }
     try {
       const countResult = await pg.query(`SELECT COUNT(*) as total, COUNT(embedding) as with_embedding FROM vault_chunks`);
       chunkCount = parseInt(countResult.rows[0]?.total || 0);
       embeddingCount = parseInt(countResult.rows[0]?.with_embedding || 0);
-    } catch {}
+    } catch (e) { swallow(e, 'vault.health.count_probe'); }
   }
 
   const status = {
@@ -106,7 +107,7 @@ router.get('/health', requireAuth, async (req, res) => {
 // Phase 1 Security: Replaced memoryStorage with diskStorage to prevent
 // DoS via large file uploads consuming server RAM.
 const UPLOAD_DIR = path.join(require('os').tmpdir(), 'particle-uploads');
-try { fs.mkdirSync(UPLOAD_DIR, { recursive: true }); } catch {}
+try { fs.mkdirSync(UPLOAD_DIR, { recursive: true }); } catch (e) { swallow(e, 'vault.upload_dir.mkdir'); }
 
 const ACCEPTED_MIMETYPES = [
   'application/pdf',

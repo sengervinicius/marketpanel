@@ -13,6 +13,7 @@ const fetch = require('node-fetch');
 const eulerpool = require('../../../providers/eulerpool');
 const twelvedata = require('../../../providers/twelvedata');
 const { ProviderError, sendApiError } = require('../../../utils/apiError');
+const { swallow } = require('../../../utils/swallow');
 const logger = require('../../../utils/logger');
 const { yahooCache } = require('./cache');
 const RequestQueue = require('../../../lib/requestQueue');
@@ -806,7 +807,7 @@ function parseRss(xml, sourceName, sourceUrl) {
                      block.match(/<description>([^<]*)<\/description>/))?.[1]?.trim() || '';
     if (!title || !link) continue;
     let published_utc = '';
-    try { published_utc = new Date(pubDate).toISOString(); } catch {}
+    try { published_utc = new Date(pubDate).toISOString(); } catch (e) { swallow(e, 'providers.news.parse_pubdate'); }
     const clean = s => s
       .replace(/<[^>]+>/g, '')
       .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')

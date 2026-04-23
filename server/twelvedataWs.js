@@ -12,6 +12,7 @@
 
 const WebSocket = require('ws');
 const logger = require('./utils/logger');
+const { swallow } = require('./utils/swallow');
 
 const TD_WS_URL = 'wss://ws.twelvedata.com/v1/quotes/price';
 const RECONNECT_DELAY_MS = 5000;
@@ -154,7 +155,7 @@ function connectTwelveData(marketState, broadcast) {
           return;
         }
         pongReceived = false;
-        try { ws.send(JSON.stringify({ action: 'heartbeat' })); } catch {}
+        try { ws.send(JSON.stringify({ action: 'heartbeat' })); } catch (e) { swallow(e, 'twelvedataWs.heartbeat_send'); }
       }, HEARTBEAT_INTERVAL_MS);
     });
 
@@ -227,7 +228,7 @@ function connectTwelveData(marketState, broadcast) {
       if (err.message && err.message.includes('Unexpected server response: 200')) {
         logger.warn('[TwelveData WS] WebSocket endpoint returned HTTP 200 — plan may not include streaming. Disabling reconnect.');
         cleanup();
-        if (ws) { try { ws.removeAllListeners(); ws.terminate(); } catch {} }
+        if (ws) { try { ws.removeAllListeners(); ws.terminate(); } catch (e) { swallow(e, 'twelvedataWs.terminate'); } }
         ws = null;
         return;
       }

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef, Suspense } from 'react';
 import { lazyWithRetry } from '../../utils/lazyWithRetry';
 import { syncSettingToServer } from '../../hooks/useSettingsSync';
+import { swallow } from '../../utils/swallow';
 import { useMarketDispatch } from '../../context/MarketContext';
 import { PANEL_DEFINITIONS } from '../../config/panels';
 import { ChartPanel } from '../panels/ChartPanel';
@@ -351,11 +352,11 @@ export function useResizableColumns(storageKey, defaults) {
         for (let i = 0; i < localStorage.length; i++) {
           const k = localStorage.key(i);
           if (k && k.startsWith('colSizes_')) {
-            try { all[k] = JSON.parse(localStorage.getItem(k)); } catch {}
+            try { all[k] = JSON.parse(localStorage.getItem(k)); } catch (e) { swallow(e, 'app.layoutHelpers.colSize_parse'); }
           }
         }
         syncSettingToServer('colSizes', all);
-      } catch {}
+      } catch (e) { swallow(e, 'app.layoutHelpers.colSize_sync'); }
     }, 500);
     return () => clearTimeout(timer);
   }, [sizes, storageKey]);

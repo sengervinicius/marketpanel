@@ -18,6 +18,7 @@
 import { createContext, useContext, useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import * as Sentry from '@sentry/react';
 import { API_BASE, setAuthToken, clearAuthToken } from '../utils/api';
+import { swallow } from '../utils/swallow';
 import { isIOS } from '../services/platform';
 import { purchase, restorePurchases, IAP_PRODUCTS } from '../services/iap';
 
@@ -98,7 +99,7 @@ export function AuthProvider({ children }) {
     try {
       if (token) localStorage.setItem(LS_TOKEN, token);
       else localStorage.removeItem(LS_TOKEN);
-    } catch {}
+    } catch (e) { swallow(e, 'auth.ls.token_persist'); }
   }, [token]);
 
   // ── Automatic token refresh ──────────────────────────────────────────────────
@@ -108,7 +109,7 @@ export function AuthProvider({ children }) {
     try {
       // Send stored refresh token in body (mobile Safari fallback where cookies are blocked)
       let storedRefresh = null;
-      try { storedRefresh = localStorage.getItem(LS_REFRESH); } catch {}
+      try { storedRefresh = localStorage.getItem(LS_REFRESH); } catch (e) { swallow(e, 'auth.ls.refresh_get'); }
 
       const res = await fetch(`${API_BASE}/api/auth/refresh`, {
         method: 'POST',
@@ -134,7 +135,7 @@ export function AuthProvider({ children }) {
       const data = await res.json();
       if (data.token) setToken(data.token);
       if (data.refreshToken) {
-        try { localStorage.setItem(LS_REFRESH, data.refreshToken); } catch {}
+        try { localStorage.setItem(LS_REFRESH, data.refreshToken); } catch (e) { swallow(e, 'auth.ls.refresh_set.refresh'); }
       }
       if (data.user) {
         setUser({ id: data.user.id, username: data.user.username, displayName: data.user.displayName || null });
@@ -165,7 +166,7 @@ export function AuthProvider({ children }) {
     (async () => {
       const storedToken = tokenRef.current;
       let storedRefresh = null;
-      try { storedRefresh = localStorage.getItem(LS_REFRESH); } catch {}
+      try { storedRefresh = localStorage.getItem(LS_REFRESH); } catch (e) { swallow(e, 'auth.ls.refresh_get'); }
 
       try {
         // 1. Try the access token (cookie + header)
@@ -194,7 +195,7 @@ export function AuthProvider({ children }) {
           setAuthToken(refreshData.token);
         }
         if (refreshData.refreshToken) {
-          try { localStorage.setItem(LS_REFRESH, refreshData.refreshToken); } catch {}
+          try { localStorage.setItem(LS_REFRESH, refreshData.refreshToken); } catch (e) { swallow(e, 'auth.ls.refresh_set.me_bootstrap'); }
         }
 
         // 3. Refresh succeeded → retry /me with new token
@@ -266,12 +267,12 @@ export function AuthProvider({ children }) {
                 setAuthToken(data.token);
               }
               if (data.refreshToken) {
-                try { localStorage.setItem(LS_REFRESH, data.refreshToken); } catch {}
+                try { localStorage.setItem(LS_REFRESH, data.refreshToken); } catch (e) { swallow(e, 'auth.ls.refresh_set.verify_session'); }
               }
               if (data.user) {
                 const restored = { id: data.user.id, username: data.user.username, displayName: data.user.displayName || null };
                 setUser(restored);
-                try { localStorage.setItem(LS_USER, JSON.stringify(restored)); } catch {}
+                try { localStorage.setItem(LS_USER, JSON.stringify(restored)); } catch (e) { swallow(e, 'auth.ls.user_set.verify_session'); }
               }
               if (data.subscription) {
                 setSubscription(normalizeSubscription(data.subscription));
@@ -322,7 +323,7 @@ export function AuthProvider({ children }) {
     localStorage.setItem(LS_USER, JSON.stringify(userObj));
     // Refresh token stored in localStorage for mobile Safari where cookies are blocked
     if (refresh) {
-      try { localStorage.setItem(LS_REFRESH, refresh); } catch {}
+      try { localStorage.setItem(LS_REFRESH, refresh); } catch (e) { swallow(e, 'auth.ls.refresh_set.persist'); }
     }
   }, []);
 

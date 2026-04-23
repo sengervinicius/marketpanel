@@ -18,6 +18,7 @@ import { useAIChatWithContext } from '../../hooks/useAIChatWithContext';
 import { apiFetch } from '../../utils/api';
 import { WS_URL } from '../../utils/constants';
 import UserAvatar from '../common/UserAvatar';
+import { swallow } from '../../utils/swallow';
 import ParticleLogo from '../ui/ParticleLogo';
 import ParticleMarkdown from '../common/ParticleMarkdown';
 import InsightFeed from '../insights/InsightFeed';
@@ -181,7 +182,7 @@ function ChatPanel({ mobile, initialUserId }) {
     if (user?.id) {
       try {
         localStorage.setItem(`particle_ai_chat_ttl_notice_${user.id}`, String(Date.now()));
-      } catch (_) {}
+      } catch (e) { swallow(e, 'panel.chat.ls_ttl_notice'); }
     }
   }, [user?.id]);
 
@@ -455,7 +456,7 @@ function ChatPanel({ mobile, initialUserId }) {
             return updated;
           });
         }
-      } catch {}
+      } catch (e) { swallow(e, 'panel.chat.ws_message'); }
     };
 
     return () => ws.close();
@@ -489,7 +490,7 @@ function ChatPanel({ mobile, initialUserId }) {
         const res = await apiFetch(`/api/chat/messages?userId=${otherUser.id}`);
         const data = await res.json();
         setMessages(prev => ({ ...prev, [otherUser.id]: data.messages || [] }));
-      } catch {} finally {
+      } catch (e) { swallow(e, 'panel.chat.load_messages'); } finally {
         setLoading(false);
       }
     }
@@ -607,7 +608,7 @@ function ChatPanel({ mobile, initialUserId }) {
                   return updated;
                 });
               }
-            } catch {}
+            } catch (e) { swallow(e, 'panel.chat.sse_parse'); }
           }
         }
       }

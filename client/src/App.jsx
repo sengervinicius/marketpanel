@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef, useMemo, Component, Suspense 
 
 import { lazyWithRetry } from './utils/lazyWithRetry';
 import { apiFetch } from './utils/api';
+import { swallow } from './utils/swallow';
 import { useFeatureFlags } from './hooks/useFeatureFlags';
 import { useMarketData } from './hooks/useMarketData';
 import { useWebSocket } from './hooks/useWebSocket';
@@ -332,7 +333,7 @@ export default function App() {
   const [mobileMode, setMobileMode] = useState(() => {
     try { return localStorage.getItem('mobileMode') || 'terminal'; } catch { return 'terminal'; }
   });
-  const setMobileModePersist = (m) => { setMobileMode(m); try { localStorage.setItem('mobileMode', m); } catch {} syncSettingToServer('mobileMode', m); };
+  const setMobileModePersist = (m) => { setMobileMode(m); try { localStorage.setItem('mobileMode', m); } catch (e) { swallow(e, 'App.ls.mobileMode'); } syncSettingToServer('mobileMode', m); };
 
   // Secondary view inside "more" tab (charts, news, etf, chat)
   const [moreView, setMoreView] = useState(null);
@@ -344,7 +345,7 @@ export default function App() {
   const toggleSidebar = useCallback(() => {
     setSidebarCollapsed(c => {
       const next = !c;
-      try { localStorage.setItem('particleSidebarCollapsed', String(next)); } catch {}
+      try { localStorage.setItem('particleSidebarCollapsed', String(next)); } catch (e) { swallow(e, 'App.ls.sidebarCollapsed'); }
       syncSettingToServer('sidebarCollapsed', next);
       return next;
     });
@@ -366,7 +367,7 @@ export default function App() {
     try { currentTicker = localStorage.getItem(LS_CHART_TICKER); } catch { currentTicker = null; }
     if (serverTicker !== currentTicker) {
       setChartTickerState(serverTicker);
-      try { localStorage.setItem(LS_CHART_TICKER, serverTicker); } catch {}
+      try { localStorage.setItem(LS_CHART_TICKER, serverTicker); } catch (e) { swallow(e, 'App.ls.chartTicker'); }
     }
   }, [settings?.chartTicker]);
 
@@ -435,12 +436,12 @@ export default function App() {
   // ── First-visit onboarding hint ─────────────────────────────────────────
   const [showLayoutHint, setShowLayoutHint] = useState(() => {
     // Migrate legacy key
-    try { const v = localStorage.getItem('senger_layout_seen'); if (v !== null) { localStorage.setItem('particle_layout_seen', v); localStorage.removeItem('senger_layout_seen'); } } catch {}
+    try { const v = localStorage.getItem('senger_layout_seen'); if (v !== null) { localStorage.setItem('particle_layout_seen', v); localStorage.removeItem('senger_layout_seen'); } } catch (e) { swallow(e, 'App.ls.layout_migrate'); }
     try { return !localStorage.getItem('particle_layout_seen'); } catch { return true; }
   });
   const dismissLayoutHint = useCallback(() => {
     setShowLayoutHint(false);
-    try { localStorage.setItem('particle_layout_seen', '1'); } catch {}
+    try { localStorage.setItem('particle_layout_seen', '1'); } catch (e) { swallow(e, 'App.ls.layout_seen_set'); }
   }, []);
 
   // Map selector IDs → screen components
@@ -538,7 +539,7 @@ export default function App() {
       // Store query so ParticleScreen can pick it up on mount (race condition fix:
       // if ParticleScreen isn't mounted yet, the event listener wouldn't exist)
       if (e.detail) {
-        try { sessionStorage.setItem('particle-prefill', e.detail); } catch {}
+        try { sessionStorage.setItem('particle-prefill', e.detail); } catch (err) { swallow(err, 'App.ss.prefill'); }
       }
     };
     window.addEventListener('particle-prefill', handler);
@@ -1243,7 +1244,7 @@ export default function App() {
                     // Reset column sizes
                     try {
                       Object.keys(localStorage).filter(k => k.startsWith('colSizes_') || k.startsWith('rowFlexSizes_')).forEach(k => localStorage.removeItem(k));
-                    } catch {}
+                    } catch (e) { swallow(e, 'App.ls.clear_layout_sizes'); }
                     window.location.reload();
                   }} style={{
                     padding: '3px 12px', background: 'none', color: 'var(--text-secondary)',

@@ -18,6 +18,7 @@ import { useBehaviorTracker, useSmartChips } from '../../hooks/useBehavior';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { usePortfolio } from '../../context/PortfolioContext';
 import { API_BASE, apiFetch } from '../../utils/api';
+import { swallow } from '../../utils/swallow';
 import { useAuth } from '../../context/AuthContext';
 import AIDisclaimer from '../common/AIDisclaimer';
 
@@ -270,7 +271,7 @@ export default function ParticleScreen() {
       const prefillQuery = e.detail;
       if (prefillQuery && typeof prefillQuery === 'string') {
         // Clear sessionStorage since we're handling it live
-        try { sessionStorage.removeItem('particle-prefill'); } catch {}
+        try { sessionStorage.removeItem('particle-prefill'); } catch (e) { swallow(e, 'app.particleScreen.ss_clear'); }
         trackSearch(prefillQuery);
         sendWithContext(prefillQuery);
         setQuery('');
@@ -291,7 +292,7 @@ export default function ParticleScreen() {
         sendWithContext(pending);
         setQuery('');
       }
-    } catch {}
+    } catch (e) { swallow(e, 'app.particleScreen.ss_prefill_read'); }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSubmit = useCallback((e) => {
@@ -366,7 +367,7 @@ export default function ParticleScreen() {
   const toggleThreads = useCallback(() => {
     setThreadsCollapsed(prev => {
       const next = !prev;
-      try { localStorage.setItem('particle-threads-collapsed', next ? '1' : '0'); } catch {}
+      try { localStorage.setItem('particle-threads-collapsed', next ? '1' : '0'); } catch (e) { swallow(e, 'app.particleScreen.ls_threads_collapsed'); }
       return next;
     });
   }, []);

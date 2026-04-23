@@ -10,6 +10,7 @@ const router  = express.Router();
 const { cacheGet, cacheSet, TTL } = require('./lib/cache');
 const { yahooQuote, sendError, fetch, YF_UA } = require('./lib/providers');
 const { validateYieldCurves, validateRates, getIntegrityStatus, getAllIntegrityStatus } = require('../../services/dataIntegrityValidator');
+const { swallow } = require('../../utils/swallow');
 
 // ── Timeout helper for external API calls ────────────────────────────
 function fetchWithTimeout(url, options = {}, timeoutMs = 8000) {
@@ -112,7 +113,7 @@ router.get('/bond-detail/:symbol', async (req, res) => {
             }
           }
         }
-      } catch {}
+      } catch (e) { swallow(e, 'market.debt.cached_curve_lookup'); }
     }
 
     // —— #242 / P1.4 — FRED sovereign 10Y fallback for DE/GB/JP ——
@@ -208,7 +209,7 @@ router.get('/bond-detail/:symbol', async (req, res) => {
         if (us10y != null) {
           spreadBps = Math.round((yieldValue - us10y) * 100);
         }
-      } catch {}
+      } catch (e) { swallow(e, 'market.debt.us10y_spread'); }
     }
 
     res.json({

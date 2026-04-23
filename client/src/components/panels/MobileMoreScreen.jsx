@@ -2,6 +2,7 @@ import React, { memo, useState, useCallback, useMemo, useEffect } from 'react';
 import { useSettings } from '../../context/SettingsContext';
 import { getTemplatesGrouped, getTemplate } from '../../config/templates';
 import UserAvatar from '../common/UserAvatar';
+import { swallow } from '../../utils/swallow';
 
 function MenuItem({ icon, label, onClick, subtle, danger }) {
   return (
@@ -238,7 +239,7 @@ function MobileWorkspaceSection() {
   const handleApply = async (templateId) => {
     if (applying) return;
     setApplying(templateId);
-    try { await applyTemplate(templateId, 'full'); } catch {}
+    try { await applyTemplate(templateId, 'full'); } catch (e) { swallow(e, 'panel.mobileMore.apply_template'); }
     setApplying(null);
   };
 

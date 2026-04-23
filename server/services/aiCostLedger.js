@@ -17,6 +17,7 @@
 
 const pg = require('../db/postgres');
 const logger = require('../utils/logger');
+const { swallow } = require('../utils/swallow');
 // W1.4: prom-client wiring. NOOP shim exported if prom-client isn't installed.
 const { metrics: promMetrics } = require('../utils/metrics');
 
@@ -336,7 +337,7 @@ async function runBudgetWatchdogOnce() {
       promMetrics.ai_monthly_spend_cents.set(Number(cents) || 0);
       promMetrics.ai_kill_switch_state.labels('force_haiku').set(ks.forceHaiku ? 1 : 0);
       promMetrics.ai_kill_switch_state.labels('block_all_ai').set(ks.blockAllAI ? 1 : 0);
-    } catch (_) {}
+    } catch (e) { swallow(e, 'aiCostLedger.metric.monthly_spend'); }
 
     if (pct >= 1.0 && !ks.blockAllAI) {
       await tripKillSwitch({

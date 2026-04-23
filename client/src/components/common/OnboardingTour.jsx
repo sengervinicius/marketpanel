@@ -19,6 +19,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useSettings } from '../../context/SettingsContext';
+import { swallow } from '../../utils/swallow';
 
 // ── Tour Steps — Particle narrates ────────────────────────────────────────
 const STEPS = [
@@ -161,7 +162,7 @@ export default function OnboardingTour() {
   // Start tour if not completed — check server settings FIRST, then localStorage as fast cache
   useEffect(() => {
     // Migrate legacy key
-    try { const v = localStorage.getItem('senger_tour_completed'); if (v !== null) { localStorage.setItem('particle_tour_completed', v); localStorage.removeItem('senger_tour_completed'); } } catch {}
+    try { const v = localStorage.getItem('senger_tour_completed'); if (v !== null) { localStorage.setItem('particle_tour_completed', v); localStorage.removeItem('senger_tour_completed'); } } catch (e) { swallow(e, 'common.onboardingTour.ls_migrate'); }
     if (!settings) return;
     // Either server OR localStorage says done → skip the tour
     const serverDone = settings.onboardingCompleted === true;

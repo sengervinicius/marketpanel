@@ -33,6 +33,7 @@
 const crypto = require('crypto');
 const pg = require('../db/postgres');
 const logger = require('../utils/logger');
+const { swallow } = require('../utils/swallow');
 
 // 18 bytes → 24 base64url chars. Constant-time generation; collisions
 // across the user population are astronomically unlikely but we still
@@ -102,7 +103,7 @@ async function mintForUser(userId) {
       }
       throw new Error('Failed to mint a unique token after retries');
     } catch (e) {
-      try { await client.query('ROLLBACK'); } catch (_) {}
+      try { await client.query('ROLLBACK'); } catch (rbErr) { swallow(rbErr, 'inboundTokens.rollback_best_effort'); }
       throw e;
     } finally {
       client.release();

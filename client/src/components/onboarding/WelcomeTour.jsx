@@ -22,6 +22,7 @@ import { createPortal } from 'react-dom';
 import { useSettings } from '../../context/SettingsContext';
 import { useWatchlist } from '../../context/WatchlistContext';
 import { useAuth } from '../../context/AuthContext';
+import { swallow } from '../../utils/swallow';
 import './WelcomeTour.css';
 
 // ── Suggested tickers (final interactive step) ────────────────────────────
@@ -610,7 +611,7 @@ export default function WelcomeTour() {
     localStorage.setItem('particle_tour_completed', '1');
     localStorage.setItem('particle_onboarding_done', '1');
     localStorage.setItem('particle_tour_completed_at', String(Date.now()));
-    try { await markTourCompleted(); } catch {}
+    try { await markTourCompleted(); } catch (e) { swallow(e, 'onboarding.welcomeTour.mark_completed'); }
   }, [markTourCompleted]);
 
   const handleSkip = useCallback(async () => {
@@ -623,7 +624,7 @@ export default function WelcomeTour() {
       setAddingTickers(true);
       for (const sym of selectedTickers) {
         const full = SUGGESTED_TICKERS.find(s => s.symbol === sym)?.full || sym;
-        try { await addToWatchlist(full); } catch {}
+        try { await addToWatchlist(full); } catch (e) { swallow(e, 'onboarding.welcomeTour.add_watchlist'); }
       }
       setAddingTickers(false);
     }

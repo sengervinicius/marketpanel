@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { swallow } from '../../utils/swallow';
 
 // ── Feed Status Bar ──────────────────────────────────────────────────────────
 export function FeedStatusBar({ feedStatus }) {
@@ -276,7 +277,7 @@ export function WelcomeSubscriptionModal({ subscription, onUpgrade, onDismiss })
 
   useEffect(() => {
     // Migrate legacy key
-    try { const v = localStorage.getItem('senger_welcome_sub_shown'); if (v !== null) { localStorage.setItem('particle_welcome_sub_shown', v); localStorage.removeItem('senger_welcome_sub_shown'); } } catch {}
+    try { const v = localStorage.getItem('senger_welcome_sub_shown'); if (v !== null) { localStorage.setItem('particle_welcome_sub_shown', v); localStorage.removeItem('senger_welcome_sub_shown'); } } catch (e) { swallow(e, 'app.statusBanners.ls_migrate'); }
     // Only show once, only for trial users who haven't seen it
     if (!subscription) return;
     if (subscription.status === 'active') return; // already subscribed

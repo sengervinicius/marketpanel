@@ -17,6 +17,7 @@ const fetch   = require('node-fetch');
 const router  = express.Router();
 const fred    = require('../providers/fred');
 const logger  = require('../utils/logger');
+const { swallow } = require('../utils/swallow');
 const { sendApiError, ProviderError } = require('../utils/apiError');
 const { isCountryCode, isTicker } = require('../utils/validate');
 const debtProvider = require('../providers/debtProvider');
@@ -156,7 +157,7 @@ router.get('/sovereign/US', async (req, res) => {
           return m ? { tenor: m.tenor, yield: q.regularMarketPrice } : null;
         }).filter(Boolean);
         source = 'yahoo_fallback';
-      } catch (_) {}
+      } catch (e) { swallow(e, 'debt.us_curve.yahoo_fallback'); }
     }
 
     const resp = { country: 'US', ...COUNTRY_META.US, points, asOf: Date.now(), source };
@@ -248,7 +249,7 @@ router.get('/sovereign/region', async (req, res) => {
           snapshot.push({ country: 'US', ...COUNTRY_META.US, tenor, yield: us10y.yield, change: null, changeBps: null });
           snapshot.sort((a, b) => b.yield - a.yield);
         }
-      } catch (_) {}
+      } catch (e) { swallow(e, 'debt.snapshot.us_10y_fred'); }
     }
 
     const resp = { region, tenor, snapshot, available: Object.keys(COUNTRY_META), asOf: Date.now(), source: 'yahoo+fred' };
@@ -480,14 +481,14 @@ router.get('/bond/:id', async (req, res) => {
     let liveYield = null;
     let liveSource = null;
     if (bond.fredSeries) {
-      try { liveYield = await fred.getValue(bond.fredSeries); liveSource = 'fred'; } catch (_) {}
+      try { liveYield = await fred.getValue(bond.fredSeries); liveSource = 'fred'; } catch (e) { swallow(e, 'debt.bond.live_fred'); }
     }
     if (!liveYield && bond.yahooTicker) {
       try {
         const yq = await yahooQuoteDebt(bond.yahooTicker);
         liveYield = yq?.[0]?.regularMarketPrice ?? null;
         liveSource = 'yahoo';
-      } catch (_) {}
+      } catch (e) { swallow(e, 'debt.bond.live_yahoo'); }
     }
     if (!liveYield) liveYield = bond.couponPct / 100;
 
