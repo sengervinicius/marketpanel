@@ -126,11 +126,11 @@
   background: var(--bg-surface);
 }
 
-/* ── 2×2 compact curve grid ───────────────────────────────────────── */
+/* ── Compact curve grid (3×2 since #225 added Swiss) ──────────────── */
 .dic-grid {
   flex: 1;
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr 1fr 1fr;
   grid-template-rows: 1fr 1fr;
   min-height: 120px;
   overflow: hidden;
@@ -145,8 +145,15 @@
   min-width: 0;
   overflow: hidden;
 }
-.dic-grid-cell:nth-child(even) { border-right: none; }
-.dic-grid-cell:nth-child(n+3)  { border-bottom: none; }
+/* Drop trailing borders on the rightmost column and the bottom row */
+.dic-grid-cell:nth-child(3n) { border-right: none; }
+.dic-grid-cell:nth-child(n+4) { border-bottom: none; }
+
+/* #225 — the CH cell is the 5th; label the forward overlay explicitly */
+.dic-grid-cell-forward-tag {
+  color: var(--text-faint);
+  letter-spacing: 0.06em;
+}
 
 .dic-grid-cell-hdr {
   display: flex;

@@ -576,6 +576,146 @@ function euSynthetic(ecbRate) {
   ].filter(p => p.rate > 0);
 }
 
+// —— CH Swiss Confederation yield curve (SNB rendoblim CSV) ——————
+//
+// Source: SNB data portal, cube `rendoblim`
+//   https://data.snb.ch/api/cube/rendoblim/data/csv/en?fromDate=YYYY-MM-DD&toDate=YYYY-MM-DD
+//
+// CSV shape (after a metadata block):
+//   "Date";"D0";"Value"
+//   "2026-04-22";"1J";"0.12"
+//   "2026-04-22";"2J";"0.22"
+//   ...
+//
+// D0 is the maturity dimension ("J" = Jahre). The en-language export
+// uses semicolons; the de-language uses commas — the parser tolerates
+// both. Many dates appear (whole requested window); we take the latest.
+const SNB_MAT_MAP = {
+  '1J':  { tenor: '1Y',  months: 12  },
+  '2J':  { tenor: '2Y',  months: 24  },
+  '3J':  { tenor: '3Y',  months: 36  },
+  '4J':  { tenor: '4Y',  months: 48  },
+  '5J':  { tenor: '5Y',  months: 60  },
+  '6J':  { tenor: '6Y',  months: 72  },
+  '7J':  { tenor: '7Y',  months: 84  },
+  '8J':  { tenor: '8Y',  months: 96  },
+  '9J':  { tenor: '9Y',  months: 108 },
+  '10J': { tenor: '10Y', months: 120 },
+  '15J': { tenor: '15Y', months: 180 },
+  '20J': { tenor: '20Y', months: 240 },
+  '30J': { tenor: '30Y', months: 360 },
+};
+
+function parseSnbCsv(csv) {
+  if (!csv || typeof csv !== 'string') return [];
+  const lines = csv.split(/\r?\n/);
+
+  // Find the data header row — it starts with "Date" and has D0 / Value.
+  // Be tolerant of quoting and of either `;` or `,` as the delimiter.
+  const hdrRe = /^"?Date"?\s*[;,]\s*"?D0"?\s*[;,]\s*"?Value"?/i;
+  const hdrIdx = lines.findIndex(l => hdrRe.test(l));
+  if (hdrIdx < 0) return [];
+  const delim = lines[hdrIdx].includes(';') ? ';' : ',';
+
+  const byDate = new Map();
+  for (let i = hdrIdx + 1; i < lines.length; i++) {
+    const raw = lines[i];
+    if (!raw || !raw.trim()) continue;
+    const parts = raw
+      .split(delim)
+      .map(s => s.trim().replace(/^"|"$/g, ''));
+    if (parts.length < 3) continue;
+    const [date, matCode, valueStr] = parts;
+    if (!date || !matCode) continue;
+    if (!SNB_MAT_MAP[matCode]) continue;
+    // SNB uses "." as decimal in the en export but can use "," in de.
+    const val = parseFloat(String(valueStr).replace(',', '.'));
+    if (!Number.isFinite(val)) continue;
+    if (!byDate.has(date)) byDate.set(date, new Map());
+    byDate.get(date).set(matCode, val);
+  }
+
+  if (!byDate.size) return [];
+  // Latest-date wins (ISO dates sort lexicographically).
+  const dates = [...byDate.keys()].sort();
+  const latest = byDate.get(dates[dates.length - 1]);
+
+  const result = [];
+  for (const [matCode, meta] of Object.entries(SNB_MAT_MAP)) {
+    if (!latest.has(matCode)) continue;
+    result.push({
+      tenor: meta.tenor,
+      months: meta.months,
+      rate: parseFloat(latest.get(matCode).toFixed(2)),
+    });
+  }
+  return result.sort((a, b) => a.months - b.months);
+}
+
+function chSynthetic(snbPolicyRate = 0.50) {
+  // Historically CH carries the lowest risk-free curve in G10; in some
+  // regimes even the belly is below 1%. This synthetic is a last-resort
+  // fallback when both the SNB feed and any secondary have failed. It's
+  // anchored to the SNB policy target (default 0.50%, a mid-2026 mark)
+  // with a gentle positive term premium.
+  const r = snbPolicyRate;
+  return [
+    { tenor: '3M',  months: 3,   rate: parseFloat((r - 0.10).toFixed(2)) },
+    { tenor: '6M',  months: 6,   rate: parseFloat((r - 0.05).toFixed(2)) },
+    { tenor: '1Y',  months: 12,  rate: parseFloat((r + 0.00).toFixed(2)) },
+    { tenor: '2Y',  months: 24,  rate: parseFloat((r + 0.10).toFixed(2)) },
+    { tenor: '3Y',  months: 36,  rate: parseFloat((r + 0.18).toFixed(2)) },
+    { tenor: '5Y',  months: 60,  rate: parseFloat((r + 0.30).toFixed(2)) },
+    { tenor: '7Y',  months: 84,  rate: parseFloat((r + 0.40).toFixed(2)) },
+    { tenor: '10Y', months: 120, rate: parseFloat((r + 0.55).toFixed(2)) },
+    { tenor: '20Y', months: 240, rate: parseFloat((r + 0.75).toFixed(2)) },
+    { tenor: '30Y', months: 360, rate: parseFloat((r + 0.80).toFixed(2)) },
+  ].filter(p => p.rate > -5);  // allow slightly negative — CH has been there
+}
+
+/**
+ * forwardsFromSpot(spotCurve)
+ *
+ * Derive the 1-year-ahead implied forward curve from a sorted spot
+ * zero-coupon yield curve. At each tenor T ≥ 1Y, compute the 1Y forward
+ * rate starting at T using the standard no-arbitrage identity on
+ * compounded rates:
+ *
+ *     (1 + y(T))^T = (1 + y(T-1))^(T-1) · (1 + f(T-1, T))
+ *  =>  f(T-1, T) = (1 + y(T))^T / (1 + y(T-1))^(T-1) - 1
+ *
+ * The result is returned with the same tenor labels as the spot curve
+ * (each forward is the 1Y forward starting at T-1, labeled at T).
+ *
+ * Swiss yields can be near zero or even slightly negative, so we work
+ * on `(1 + r/100)` throughout and never assume positivity. Returns an
+ * empty array if the spot curve is too sparse to compute forwards.
+ */
+function forwardsFromSpot(spotCurve) {
+  if (!Array.isArray(spotCurve) || spotCurve.length < 2) return [];
+  const sorted = [...spotCurve].sort((a, b) => a.months - b.months);
+  const out = [];
+  for (let i = 1; i < sorted.length; i++) {
+    const prev = sorted[i - 1];
+    const curr = sorted[i];
+    const tPrev = prev.months / 12;
+    const tCurr = curr.months / 12;
+    if (tPrev <= 0 || tCurr <= tPrev) continue;
+    const base = Math.pow(1 + curr.rate / 100, tCurr)
+               / Math.pow(1 + prev.rate / 100, tPrev);
+    const dt = tCurr - tPrev;
+    const f = (Math.pow(base, 1 / dt) - 1) * 100;
+    if (!Number.isFinite(f)) continue;
+    out.push({
+      tenor: curr.tenor,
+      months: curr.months,
+      rate: parseFloat(f.toFixed(2)),
+      startMonths: prev.months,
+    });
+  }
+  return out;
+}
+
 // ── FRED CSV fallback for US yield curve (Task 3) ───────────────────
 // 10 FRED series: DGS1MO, DGS3MO, DGS6MO, DGS1, DGS2, DGS3, DGS5, DGS7, DGS10, DGS30
 // Free endpoint, no API key required — returns CSV directly.
@@ -747,7 +887,13 @@ router.get('/yield-curves', async (req, res) => {
     const mm = String(now.getMonth() + 1).padStart(2, '0');
     const yyyy = now.getFullYear();
 
-    const [tdRes, selicRes, usTreasuryRes, ukBoeRes, ecbYcRes] = await Promise.allSettled([
+    // SNB rendoblim window: ask for the last ~14 days so we always catch
+    // the latest observation even if today hasn't published yet (CH is
+    // on a one-business-day lag for the official CSV export).
+    const snbTo   = now.toISOString().slice(0, 10);
+    const snbFrom = new Date(now.getTime() - 14 * 86400000).toISOString().slice(0, 10);
+
+    const [tdRes, selicRes, usTreasuryRes, ukBoeRes, ecbYcRes, chSnbRes] = await Promise.allSettled([
       fetchWithTimeout('https://www.tesourodireto.com.br/json/br/com/b3/tesourodireto/service/api/treasurybondsfile.json', {
         headers: { 'User-Agent': YF_UA, 'Accept': 'application/json', 'Accept-Language': 'pt-BR,pt;q=0.9', 'Referer': 'https://www.tesourodireto.com.br/' },
       }).then(r => { if (!r.ok) throw new Error(`TD ${r.status}`); return r.json(); }),
@@ -769,6 +915,11 @@ router.get('/yield-curves', async (req, res) => {
       fetchWithTimeout('https://data-api.ecb.europa.eu/service/data/YC/B.U2.EUR.4F.G_N_A.SV_C_YM.SR_3M+SR_6M+SR_1Y+SR_2Y+SR_3Y+SR_5Y+SR_7Y+SR_10Y+SR_20Y+SR_30Y?lastNObservations=1&format=jsondata', {
         headers: { 'Accept': 'application/json', 'User-Agent': YF_UA },
       }).then(r => { if (!r.ok) throw new Error(`ECB ${r.status}`); return r.json(); }),
+
+      // #225 — Swiss Confederation zero-coupon spot yields from SNB.
+      fetchWithTimeout(`https://data.snb.ch/api/cube/rendoblim/data/csv/en?fromDate=${snbFrom}&toDate=${snbTo}`, {
+        headers: { 'User-Agent': YF_UA, 'Accept': 'text/csv,text/plain,*/*', 'Referer': 'https://data.snb.ch/' },
+      }).then(r => { if (!r.ok) throw new Error(`SNB ${r.status}`); return r.text(); }),
     ]);
 
     // —— BR curve ——
@@ -868,15 +1019,43 @@ router.get('/yield-curves', async (req, res) => {
       euSource = 'ECB+synthetic';
     }
 
+    // —— CH curve (SNB rendoblim CSV → synthetic) ——————————————
+    let chCurve = [];
+    let chSource = 'synthetic';
+    if (chSnbRes.status === 'fulfilled') {
+      chCurve = parseSnbCsv(chSnbRes.value);
+      chSource = chCurve.length > 0 ? 'SNB' : 'synthetic';
+    } else {
+      console.warn('[Yield] SNB rendoblim fetch failed:', chSnbRes.reason?.message);
+    }
+    if (chCurve.length < 3) {
+      console.warn('[Yield] SNB parse returned <3 points, using synthetic fallback:', chCurve.length);
+      chCurve = chSynthetic(0.50);
+      chSource = chSnbRes.status === 'fulfilled' ? 'SNB+synthetic' : 'synthetic';
+    }
+
+    // #225 — derive Swiss implied 1Y forward curve from the spot curve.
+    // This is what the CIO meant by "Swiss forward yield curve": given
+    // the spot zeros, back out the 1-year forward rate implied at each
+    // tenor. Useful for reading the market's path of short rates.
+    const chForwards = forwardsFromSpot(chCurve);
+
     // Log BR curve for debugging data integrity
     const brSource = tdRes.status === 'fulfilled' ? 'Tesouro Direto' : 'BCB+synthetic';
     console.log(`[Yield] BR curve: ${brCurve.length} points, source=${brSource}, DI=${diRate}, range=${brCurve.length > 0 ? brCurve[0].rate + '-' + brCurve[brCurve.length - 1].rate : 'empty'}`);
+    console.log(`[Yield] CH curve: ${chCurve.length} points, source=${chSource}, forwards=${chForwards.length}`);
 
     const payload = {
       BR: { curve: brCurve, source: brSource, updatedAt: now.toISOString() },
       US: { curve: usCurve, source: usSource, updatedAt: now.toISOString() },
       UK: { curve: ukCurve, source: ukSource, updatedAt: now.toISOString() },
       EU: { curve: euCurve, source: euSource, updatedAt: now.toISOString() },
+      CH: {
+        curve: chCurve,
+        forwards: chForwards,
+        source: chSource,
+        updatedAt: now.toISOString(),
+      },
     };
 
     // Attach integrity status from previous validation (if available)

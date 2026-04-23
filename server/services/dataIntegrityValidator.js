@@ -93,6 +93,7 @@ function yieldCurveHeuristics(payload) {
   const SOURCE_MAP = {
     BR: ['tesouro', 'bcb', 'b3'], US: ['treasury', 'fred', 'yahoo'],
     UK: ['bank of england', 'boe'], EU: ['ecb'],
+    CH: ['snb', 'swiss confederation'],
   };
   for (const [country, entry] of Object.entries(payload)) {
     if (country.startsWith('_') || !entry?.source || !SOURCE_MAP[country]) continue;
