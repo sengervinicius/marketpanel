@@ -17,6 +17,7 @@ import WatchlistPanel from '../panels/WatchlistPanel';
 import { SentimentPanel } from '../panels/SentimentPanel';
 import { ChatPanel } from '../panels/ChatPanel';
 import { DICurvePanel } from '../panels/DICurvePanel';
+import FuturesPanel from '../panels/FuturesPanel';
 import { IndexPanel } from '../panels/IndexPanel';
 import AlertCenterPanel from '../panels/AlertCenterPanel';
 import MacroPanel from '../panels/MacroPanel';
@@ -169,6 +170,7 @@ const PANEL_REGISTRY = {
   watchlist:      { component: WatchlistPanel,       getProps: (c) => ({ onTickerClick: c.setChartTicker }), hasMobileVariant: true },
   portfolio:      { component: PortfolioPanel,      getProps: (c) => ({ onTickerClick: c.setChartTicker }), hasMobileVariant: true },
   curves:         { component: DICurvePanel,        getProps: () => ({ compact: true }) },
+  futures:        { component: FuturesPanel },       // #226 — regional futures/index box
 
   // ── No-prop panels ───────────────────────────────────────────────────────
   debt:           { component: DebtPanel },

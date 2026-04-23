@@ -16,6 +16,7 @@ const commoditiesRouter = require('./commodities');
 const searchRouter      = require('./search');
 const newsRouter        = require('./news');
 const debtRouter        = require('./debt');
+const futuresRouter     = require('./futures');   // #226 regional futures/index box
 const utilitiesRouter   = require('./utilities');
 const dataRouter         = require('./data');
 const intelligenceRouter = require('./intelligence');
@@ -30,6 +31,7 @@ router.use(commoditiesRouter);
 router.use(searchRouter);
 router.use(newsRouter);
 router.use(debtRouter);
+router.use(futuresRouter);
 router.use(utilitiesRouter);
 
 module.exports = router;

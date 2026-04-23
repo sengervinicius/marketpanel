@@ -1,0 +1,211 @@
+/* FuturesPanel.css
+ *
+ * Bloomberg-style regional futures box. Composition matches DICurvePanel /
+ * NewsPanel / WatchlistPanel for cross-terminal consistency:
+ *   .fut-header   → canonical panel title strip
+ *   .fut-matrix   → dense one-row-per-contract table, grouped by region
+ *   .fut-source   → provenance footnote (Yahoo + "as of HH:MM")
+ */
+
+.fut-container {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-panel);
+  height: 100%;
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* Canonical panel-header convention. Do NOT diverge. */
+.fut-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border-strong);
+  background: var(--bg-elevated);
+  flex-shrink: 0;
+  height: 20px;
+}
+
+.fut-header-title {
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-primary);
+  line-height: 1;
+}
+
+.fut-header-status {
+  color: var(--text-faint);
+  font-size: var(--font-xs);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ── Matrix (dense tabular) ─────────────────────────────────────────── */
+.fut-matrix {
+  flex: 1;
+  overflow-y: auto;
+  font-family: var(--font-mono);
+  min-height: 0;
+}
+
+.fut-matrix-head,
+.fut-matrix-row {
+  display: grid;
+  /* region | contract name | kind-tag | state-dot | last | Δ | Δ% */
+  grid-template-columns: 74px 1fr 56px 14px 76px 64px 60px;
+  align-items: center;
+  padding: 3px 8px;
+  gap: 4px;
+}
+
+.fut-matrix-head {
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.fut-matrix-row {
+  border-bottom: 1px solid var(--border-subtle);
+  transition: background-color 100ms ease;
+  font-size: 11px;
+  cursor: pointer;
+}
+.fut-matrix-row:hover { background: var(--bg-hover); }
+.fut-matrix-row:last-of-type { border-bottom: none; }
+
+/* First row of a region gets the region banner; subsequent rows in that
+ * region keep it visually blank so the region label doesn't repeat — a
+ * Bloomberg FX/FUT-style affordance. */
+.fut-col-region {
+  font-weight: 800;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.fut-col-region.fut-col-region-blank { color: transparent; }
+
+.fut-col-name {
+  color: var(--text-primary);
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fut-col-kind {
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  border: 1px solid var(--border-subtle);
+  padding: 1px 4px;
+  border-radius: 2px;
+  text-align: center;
+  justify-self: start;
+}
+.fut-col-kind.fut-col-kind-futures {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.fut-col-state {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  justify-self: center;
+  background: var(--text-faint);
+}
+/* REGULAR = live local session, greenish-neutral pulse */
+.fut-col-state.fut-state-regular { background: var(--price-up, #16c784); }
+/* PRE/POST = out-of-session, amber */
+.fut-col-state.fut-state-pre,
+.fut-col-state.fut-state-post,
+.fut-col-state.fut-state-postpost,
+.fut-col-state.fut-state-prepre { background: #e8a020; }
+.fut-col-state.fut-state-closed { background: var(--text-faint); }
+
+.fut-col-price,
+.fut-col-change,
+.fut-col-chgpct {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  padding-right: 2px;
+}
+
+.fut-col-price     { color: var(--text-primary); }
+.fut-col-change    { font-size: 11px; }
+.fut-col-chgpct    { font-size: 11px; font-weight: 700; }
+
+.fut-change-pos,
+.fut-chgpct-pos   { color: var(--price-up, #16c784); }
+.fut-change-neg,
+.fut-chgpct-neg   { color: var(--price-down, #ea3943); }
+
+.fut-matrix-head .fut-col-region,
+.fut-matrix-head .fut-col-name,
+.fut-matrix-head .fut-col-price,
+.fut-matrix-head .fut-col-change,
+.fut-matrix-head .fut-col-chgpct {
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+/* ── Source footer ──────────────────────────────────────────────────── */
+.fut-source {
+  padding: 2px 8px 3px;
+  flex-shrink: 0;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.fut-source-text {
+  color: var(--text-faint);
+  font-size: 9px;
+  letter-spacing: 0.04em;
+}
+
+/* ── Loading / error placeholders ───────────────────────────────────── */
+.fut-state {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-faint);
+  font-size: 10px;
+  flex-direction: column;
+  gap: 4px;
+}
+.fut-retry-btn {
+  background: none;
+  border: 1px solid var(--border-default);
+  color: var(--text-secondary);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  padding: 2px 6px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-family: var(--font-ui);
+  transition: border-color 120ms ease, color 120ms ease;
+}
+.fut-retry-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}

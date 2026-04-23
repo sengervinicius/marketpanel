@@ -196,6 +196,20 @@ export const PANEL_DEFINITIONS = {
     minSymbols:     0,
     maxSymbols:     0,
   },
+  // #226 — Regional futures/index box (US, London, Frankfurt, Hong Kong,
+  // Tokyo, São Paulo). Server-side symbol list is fixed; not user-editable
+  // because the whole point is a consistent cross-session read.
+  futures: {
+    id:             'futures',
+    label:          'Futures',
+    defaultTitle:   'Futures',
+    defaultSymbols: [],
+    allowedGroups:  null,
+    editable:       false,
+    icon:           'FU',
+    minSymbols:     0,
+    maxSymbols:     0,
+  },
   etf: {
     id:             'etf',
     label:          'ETFs',
@@ -404,17 +418,20 @@ export function getEditablePanels() {
  * @property {Array<Array<string>>} desktopRows - 3 rows of panel IDs
  * @property {Array<string>} mobileTabs - Mobile tab order
  */
-// Layout spec (2026-04-20, CIO request):
-//   Row 1: charts, watchlist, globalIndices
+// Layout spec (2026-04-20, CIO request; updated 2026-04-23 for #226):
+//   Row 1: charts, watchlist, globalIndices, futures
 //   Row 2: forex (FX/Crypto, GBPBRL already in defaultSymbols), commodities, usEquities, brazilB3
 //   Row 3: debt (yields), news, optionsFlow, predictions
+// #226: 'futures' joins row 1 so the CIO sees regional futures/cash-index
+// prints alongside the charts/watchlist/global-index block — the overnight
+// read goes in the same visual band as the rest of the market-state context.
 // This is the new-user default; existing users keep whatever they've saved in
 // settings.rowFlexSizes / settings.panelVisible.
 export const DEFAULT_LAYOUT = {
   desktopRows: [
-    ['charts',       'watchlist',     'globalIndices'],
-    ['forex',        'commodities',   'usEquities',   'brazilB3'],
-    ['debt',         'news',          'optionsFlow',  'predictions'],
+    ['charts',       'watchlist',     'globalIndices', 'futures'],
+    ['forex',        'commodities',   'usEquities',    'brazilB3'],
+    ['debt',         'news',          'optionsFlow',   'predictions'],
   ],
   mobileTabs: ['home', 'charts', 'watchlist', 'search', 'detail', 'news'],
 };
