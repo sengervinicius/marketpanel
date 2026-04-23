@@ -396,33 +396,9 @@ function HomePanelMobile({ onSearchClick, onSectorScreen }) {
       {/* Phase 4: Featured Sector Screen Cards */}
       <FeaturedSectors onSectorScreen={onSectorScreen} />
 
-      {/* Phase 4: Prediction Markets tile */}
-      <div className="hpm-feature-card" onClick={() => onSectorScreen?.('predictions')}>
-        <div className="hpm-feature-icon" style={{ color: '#9c27b0' }}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>
-          </svg>
-        </div>
-        <div className="hpm-feature-text">
-          <div className="hpm-feature-title">Prediction Markets</div>
-          <div className="hpm-feature-sub">Kalshi + Polymarket — bet on real-world events</div>
-        </div>
-        <svg className="hpm-feature-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 18 15 12 9 6"/></svg>
-      </div>
-
-      {/* Phase 4: Brazil Markets featured card */}
-      <div className="hpm-feature-card" onClick={() => onSectorScreen?.('brazil-em')}>
-        <div className="hpm-feature-icon" style={{ color: '#4caf50' }}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
-          </svg>
-        </div>
-        <div className="hpm-feature-text">
-          <div className="hpm-feature-title">Brazil B3 & DI Curve</div>
-          <div className="hpm-feature-sub">USD/BRL, DI futures, B3 stocks — unique coverage</div>
-        </div>
-        <svg className="hpm-feature-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 18 15 12 9 6"/></svg>
-      </div>
+      {/* #222 — Prediction Markets and Brazil B3 & DI Curve cards removed per CIO
+          feedback; those surfaces still exist on desktop and via direct screen
+          navigation, but they don't belong on the mobile home grid. */}
 
       {/* Upload Research CTA removed — not suitable for mobile */}
 

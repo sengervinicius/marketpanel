@@ -148,7 +148,20 @@
   justify-content: center;
   position: relative;
   overflow: hidden;
-  background: var(--color-bg, #080808);
+  /*
+    #222 (2026-04-23) — CIO keeps reporting "opaque black square below the
+    chips" on mobile. v2/v3/v4 all targeted specific offenders
+    (search-input backdrop, chip backdrop, conv-input backdrop) and each
+    time a different element kept hitting the same iOS Safari
+    backdrop-filter pathology. This time we go nuclear: base bg matches
+    the Three.js `BG_COLOR` (0x050508) instead of the app token #080808,
+    so even if the canvas loses a frame or fails to initialize there is
+    no visible seam between canvas and parent. And the @media (max-width)
+    rule below forcibly strips backdrop-filter from every descendant,
+    killing the whole class of bugs regardless of which element it
+    originates from.
+  */
+  background: #050508;
 }
 
 /* Three.js canvas — fills the entire screen behind content */
@@ -1000,6 +1013,30 @@
 /* Wave 12 — Mobile Experience Polish                                        */
 /* ═══════════════════════════════════════════════════════════════════════════ */
 
+/*
+  #222 (2026-04-23) — Blanket mobile guard against the iOS Safari
+  backdrop-filter pathology inside the Particle screen.
+
+  v2, v3, v4 each fixed one specific offender (search input, chip cluster,
+  conv-input) and each time a different descendant kept hitting the same
+  bug — backdrop-filter draws an opaque frosted pane over the canvas
+  regardless of the declared bg alpha. The CIO has reported the same
+  "opaque black square below the chips" symptom four times in a row.
+
+  Rather than playing whack-a-mole with specific selectors, we strip
+  backdrop-filter from every descendant of .particle-screen under the
+  mobile breakpoint. Desktop is untouched (its @media (min-width: 768px)
+  rules reassert backdrop-filter where it actually looks good), so the
+  glass effect is preserved where the browser can render it correctly.
+*/
+@media (max-width: 767px) {
+  .particle-screen,
+  .particle-screen * {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+}
+
 /* ── 12A: Live Sentiment Strip ─────────────────────────────────────────── */
 .particle-sentiment-strip {
   display: flex;
@@ -1091,61 +1128,16 @@
 }
 
 /* ── 13B: Desktop Wire overlay on Particle canvas ──────────────────────── */
-.particle-wire-overlay {
-  position: absolute;
-  bottom: 20px;
-  left: 20px;
-  z-index: 10;
-  max-width: 360px;
-  background: rgba(8, 8, 8, 0.65);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255,255,255,0.06);
-  border-radius: 12px;
-  padding: 10px 14px;
-  pointer-events: auto;
-}
-.particle-wire-overlay-header {
-  margin-bottom: 6px;
-}
-.particle-wire-overlay-badge {
-  font-size: var(--font-micro);
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  color: var(--accent, #F97316);
-  text-transform: uppercase;
-}
-.particle-wire-overlay-entry {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  padding: 5px 0;
-  border-bottom: 1px solid rgba(255,255,255,0.04);
-  cursor: pointer;
-  transition: opacity 0.15s;
-}
-.particle-wire-overlay-entry:last-child {
-  border-bottom: none;
-}
-.particle-wire-overlay-entry:hover {
-  opacity: 0.8;
-}
-.particle-wire-overlay-text {
-  font-size: var(--text-sm);
-  line-height: 1.4;
-  color: rgba(255,255,255,0.8);
-  flex: 1;
-  overflow: hidden;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-}
-.particle-wire-overlay-time {
-  font-size: var(--text-2xs);
-  color: rgba(255,255,255,0.35);
-  flex-shrink: 0;
-  margin-top: 2px;
-}
+/*
+  #222 (2026-04-23) — Wire overlay was removed from ParticleScreen.jsx but
+  the CSS lingered. Deleted the whole `.particle-wire-overlay*` block
+  because: (a) dead CSS with `backdrop-filter: blur(12px)` is exactly the
+  kind of opaque-rectangle-on-mobile offender that keeps regressing, and
+  (b) leaving it around invites someone to re-mount the component without
+  noticing its backdrop-filter is a known iOS Safari pathology. If the
+  overlay ever comes back, re-add the rules inside a
+  @media (min-width: 768px) block like the rest of the glass surfaces.
+*/
 
 /* ═══════════════════════════════════════════════════════════════════════════ */
 /* Deep Analysis visual treatments (Wave 11)                                 */
