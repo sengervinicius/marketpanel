@@ -115,6 +115,19 @@ router.get('/bond-detail/:symbol', async (req, res) => {
       } catch {}
     }
 
+    // —— #242 / P1.4 — FRED sovereign 10Y fallback for DE/GB/JP ——
+    // The yield-curves cache is only warm once the client has hit
+    // /yield-curves this session; a direct deep-link into
+    // /bond-detail/DE10Y (or GB/JP) on a cold server would otherwise
+    // leave yieldValue null forever. FRED's OECD monthly long-term
+    // rates are a reliable, key-free backstop. BR uses Tesouro Direto
+    // directly in the branch below (richer data than FRED offers for
+    // Brazilian sovereigns).
+    if (yieldValue == null && meta.tenor === '10Y' && FRED_SOVEREIGN_10Y[meta.country]) {
+      const fredRate = await fetchFredSovereign10Y(meta.country);
+      if (fredRate != null) yieldValue = fredRate;
+    }
+
     // —— For Brazil, try Tesouro Direto for richer bond data ——
     let brBondData = null;
     if (meta.country === 'BR') {
@@ -761,6 +774,71 @@ async function fetchFredRate(seriesId) {
       const val = parts[1]?.trim();
       if (val && val !== '.' && !isNaN(val)) {
         return parseFloat(val);
+      }
+    }
+    return null;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+/**
+ * #242 / P1.4 — FRED monthly long-term (10Y) sovereign rate fallback.
+ *
+ * Series (all CSV, no API key):
+ *   IRLTLT01DEM156N  — Germany 10Y long-term rate (monthly, OECD MEI)
+ *   IRLTLT01GBM156N  — UK 10Y long-term rate (monthly, OECD MEI)
+ *   IRLTLT01JPM156N  — Japan 10Y long-term rate (monthly, OECD MEI)
+ *
+ * Used as the cold-start fallback inside /bond-detail/:symbol for DE10Y /
+ * GB10Y / JP10Y when the aggregate /yield-curves cache has not yet been
+ * warmed. Monthly observations are cached for 1h — they only change once
+ * a month so a short TTL is wasteful. BR10Y uses Tesouro Direto directly
+ * (richer bond data) and does not need FRED.
+ */
+const FRED_SOVEREIGN_10Y = {
+  DE: 'IRLTLT01DEM156N',
+  GB: 'IRLTLT01GBM156N',
+  JP: 'IRLTLT01JPM156N',
+};
+
+async function fetchFredSovereign10Y(country) {
+  const seriesId = FRED_SOVEREIGN_10Y[country];
+  if (!seriesId) return null;
+
+  const cacheKey = `fred:sov-10y:${country}`;
+  const cached = cacheGet(cacheKey);
+  if (cached != null) return cached;
+
+  // Monthly series — request last 120 days so we always have ≥2 observations
+  // even if this month's print is late.
+  const d = new Date();
+  d.setDate(d.getDate() - 120);
+  const cosd = d.toISOString().split('T')[0];
+  const url = `https://fred.stlouisfed.org/graph/fredgraph.csv?id=${seriesId}&cosd=${cosd}`;
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
+  try {
+    const res = await fetch(url, {
+      signal: controller.signal,
+      headers: { 'User-Agent': YF_UA, 'Accept': 'text/csv,*/*' },
+    });
+    if (!res.ok) return null;
+    const csv = await res.text();
+    const lines = csv.trim().split('\n');
+    for (let i = lines.length - 1; i >= 1; i--) {
+      const parts = lines[i].split(',');
+      const val = parts[1]?.trim();
+      if (val && val !== '.' && !isNaN(val)) {
+        const rate = parseFloat(val);
+        if (Number.isFinite(rate)) {
+          // Monthly data → 1 hour cache; OECD MEI updates ~monthly.
+          cacheSet(cacheKey, rate, 3_600_000);
+          return rate;
+        }
       }
     }
     return null;
