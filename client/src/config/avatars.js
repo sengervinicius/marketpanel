@@ -1,7 +1,11 @@
 /**
  * avatars.js
  * Investor persona manifest — types, labels, badge icons, colors, avatar paths.
- * Avatar images are pre-made 3D chibi PNGs in /public/avatars/.
+ *
+ * Avatar images live in /public/avatars/ and are served in three formats
+ * (AVIF primary, WebP fallback, slim 192×192 PNG deep fallback). The
+ * originals were 1 MB+ 1024×1024 PNGs — this trio is ~5–10 KB / avatar.
+ * See scripts/convertAvatars.cjs for the encoder and #248 / P2.6.
  */
 
 export const PERSONAS = [
@@ -38,4 +42,17 @@ export function getPersona(type) {
 
 export function getAvatarSrc(type) {
   return AVATAR_PATHS[type] || null;
+}
+
+/**
+ * Returns { avif, webp, png } paths for a persona so callers can wire
+ * a <picture> element with progressive fallbacks. Each path is derived
+ * by swapping the extension on the canonical PNG path — the three
+ * sibling files are written side-by-side by scripts/convertAvatars.cjs.
+ */
+export function getAvatarSources(type) {
+  const png = AVATAR_PATHS[type];
+  if (!png) return null;
+  const stem = png.replace(/\.png$/i, '');
+  return { avif: `${stem}.avif`, webp: `${stem}.webp`, png };
 }
