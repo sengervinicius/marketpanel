@@ -1,10 +1,14 @@
 // src/utils/ticker.js
 /**
  * Sanitize ticker symbols for display.
- * Strips Polygon.io prefix formats (X:, I:, C:, O:) and exchange suffixes.
+ *
+ * #241 / P1.1: delegates to the shared toDisplay() in utils/tickerNormalize
+ * (which mirrors server/utils/tickerNormalize.toDisplay). Keeps the legacy
+ * "return empty string for null" contract that existing callers expect.
  */
+import { toDisplay } from './tickerNormalize';
+
 export function sanitizeTicker(raw) {
   if (!raw) return '';
-  // Strip Polygon.io prefix formats: X:, I:, C:, O:
-  return raw.replace(/^[A-Z]:/, '');
+  return toDisplay(raw);
 }

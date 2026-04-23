@@ -1,19 +1,15 @@
 import { createContext, useContext, useState, useCallback, useRef } from 'react';
+import { extractSymbol } from '../utils/tickerNormalize';
 
 const OpenDetailContext = createContext(null);
 
 /**
- * Normalize a symbol from various input shapes.
- * Handles: string, object with symbol/ticker/symbolKey/underlyingSymbol, null/undefined.
+ * #241 / P1.1: this used to reimplement its own string|object extractor.
+ * It now delegates to the shared extractSymbol() in utils/tickerNormalize,
+ * which is mirrored on the server in server/utils/tickerNormalize.js so
+ * the contract is identical across the wire.
  */
-function normalizeSymbol(input) {
-  if (!input) return null;
-  if (typeof input === 'string') return input;
-  if (typeof input === 'object') {
-    return input.symbolKey || input.symbol || input.ticker || input.underlyingSymbol || null;
-  }
-  return null;
-}
+const normalizeSymbol = extractSymbol;
 
 export function OpenDetailProvider({ children, externalTicker, externalSetTicker }) {
   const [internalTicker, internalSetTicker] = useState(null);

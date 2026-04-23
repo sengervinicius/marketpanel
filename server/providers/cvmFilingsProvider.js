@@ -160,12 +160,11 @@ function normCnpj(x) {
   return String(x || '').replace(/\D/g, '');
 }
 
+// #241 / P1.1: delegate to the shared canonicalKey() so all call sites
+// — server and client — agree on the canonical key form for a ticker.
+const { canonicalKey } = require('../utils/tickerNormalize');
 function normalizeTicker(input) {
-  if (!input) return null;
-  const s = String(input).toUpperCase().trim();
-  // Strip common suffixes (".SA", ".SAO", "/BMFBOVESPA")
-  const plain = s.replace(/\.SA$/,'').replace(/\.SAO$/,'').replace(/\/BMFBOVESPA$/,'');
-  return plain;
+  return canonicalKey(input);
 }
 
 // Split a CSV line that uses ';' as separator and may have quoted fields.

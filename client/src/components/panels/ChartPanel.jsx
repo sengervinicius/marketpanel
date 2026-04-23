@@ -10,6 +10,7 @@ import { useAIInsight } from '../../hooks/useAIInsight';
 import { apiFetch } from '../../utils/api';
 import { computeIndicators, buildChartInsightPayload, getLatestIndicatorSnapshot, IND_COLORS, INDICATOR_LIST } from '../../utils/chartIndicators';
 import { fmtCompactAxis } from '../../utils/format';
+import { toPolygonWithDefault, toDisplay } from '../../utils/tickerNormalize';
 import './ChartPanel.css';
 
 const LS_KEY = 'chartGrid_v3';
@@ -55,23 +56,12 @@ function getFromDate(range) {
   return from.toISOString().split('T')[0];
 }
 
-function normalizeTicker(raw) {
-  if (!raw) return 'SPY';
-  if (typeof raw === 'object') raw = raw.symbol || 'SPY';
-  const t = raw.trim().toUpperCase();
-  if (/^[A-Z]:/.test(t)) return t;
-  if (t.endsWith('=X')) return 'C:' + t.slice(0, -2);
-  if (/^[A-Z]{6}$/.test(t)) return 'C:' + t;
-  if (t.endsWith('-USD') && !t.startsWith('C:')) return 'X:' + t.replace('-USD', 'USD');
-  return t;
-}
-
-function displayTicker(norm) {
-  if (norm.startsWith('C:')) return norm.slice(2, 5) + '/' + norm.slice(5);
-  if (norm.startsWith('X:')) return norm.slice(2, 5) + '/' + norm.slice(5);
-  if (norm.endsWith('.SA')) return norm.slice(0, -3);
-  return norm;
-}
+// #241 / P1.1: normaliseTicker / displayTicker used to live here as
+// private helpers. They now delegate to the shared tickerNormalize helpers
+// (mirrored server-side) so the same input always maps to the same
+// Polygon symbol + display label regardless of which panel is calling.
+const normalizeTicker = toPolygonWithDefault;
+const displayTicker = toDisplay;
 
 const fmtPrice = (n) => n == null ? "—" : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 // #240 / P1.2 / D2.1: axis labels now use the shared Intl.NumberFormat-based

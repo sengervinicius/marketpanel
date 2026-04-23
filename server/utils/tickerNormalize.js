@@ -135,11 +135,121 @@ function toTwelveData(ticker) {
   return t;
 }
 
+/**
+ * Extract a ticker string from a variety of input shapes the UI and
+ * API callers pass around:
+ *   - string                      → string
+ *   - { symbol | symbolKey | ticker | underlyingSymbol } → that property
+ *   - null / undefined / other    → null
+ *
+ * #241 / P1.1: previously each caller (OpenDetailContext, ChartPanel,
+ * aiToolbox, etc.) reimplemented its own variant of this unwrap. They
+ * now all share one definition.
+ */
+function extractSymbol(input) {
+  if (input == null) return null;
+  if (typeof input === 'string') return input.trim() || null;
+  if (typeof input === 'object') {
+    const candidate =
+      input.symbolKey ||
+      input.symbol ||
+      input.ticker ||
+      input.underlyingSymbol ||
+      null;
+    return typeof candidate === 'string' ? candidate.trim() || null : null;
+  }
+  return null;
+}
+
+/**
+ * Canonical "key" form used by client state maps, watchlists, and any
+ * place we want a stable primary key for an instrument regardless of
+ * which provider produced it. Idempotent.
+ *
+ *   'x:btcusd' → 'BTCUSD'
+ *   'C:EURUSD' → 'EURUSD'
+ *   'PETR4.SA' → 'PETR4'
+ *   'BRK-B'    → 'BRK-B'
+ *   'aapl'     → 'AAPL'
+ *
+ * Preserves '-' / '.' inside equity symbols (BRK-B, BRK.B stay intact)
+ * because different providers use different separators and turning
+ * them into one variant breaks lookups.
+ */
+function canonicalKey(input) {
+  const raw = extractSymbol(input);
+  if (!raw) return null;
+  const t = raw.toUpperCase().trim();
+  // Strip Polygon-style provider prefixes (X:, C:, O:, I:, etc.)
+  const stripped = t.replace(/^[A-Z]:/, '');
+  // Strip Brazilian .SA suffix (our internal state maps key by PETR4, not PETR4.SA)
+  if (stripped.endsWith('.SA')) return stripped.slice(0, -3);
+  // Strip ".SAO" and "/BMFBOVESPA" variants occasionally seen in filings feeds
+  if (stripped.endsWith('.SAO')) return stripped.slice(0, -4);
+  if (stripped.endsWith('/BMFBOVESPA')) return stripped.slice(0, -11);
+  return stripped;
+}
+
+/**
+ * Human-facing display label. Used by chart titles, detail headers,
+ * CSV export filenames.
+ *
+ *   'C:EURUSD' → 'EUR/USD'
+ *   'X:BTCUSD' → 'BTC/USD'
+ *   'PETR4.SA' → 'PETR4'
+ *   'CL=F'     → 'CL'
+ *   'AAPL'     → 'AAPL'
+ */
+function toDisplay(input) {
+  const raw = extractSymbol(input);
+  if (!raw) return '';
+  const t = raw.toUpperCase().trim();
+  if (t.startsWith('C:') && t.length >= 8) return `${t.slice(2, 5)}/${t.slice(5)}`;
+  if (t.startsWith('X:') && t.length >= 8) return `${t.slice(2, 5)}/${t.slice(5)}`;
+  if (t.endsWith('.SA')) return t.slice(0, -3);
+  if (t.endsWith('=F')) return t.slice(0, -2);
+  if (t.endsWith('=X')) return t.slice(0, -2);
+  return t;
+}
+
+/**
+ * Polygon conversion that accepts object inputs, applies a default, and
+ * preserves the already-normalised form. Replaces the ad-hoc
+ * `normalizeTicker` helpers that lived in ChartPanel and
+ * InstrumentDetailHelpers (both defaulted to 'SPY' and both forgot to
+ * handle =X / -USD in slightly different ways).
+ *
+ * Examples:
+ *   null              → 'SPY'
+ *   'aapl'            → 'AAPL'
+ *   'EURUSD'          → 'C:EURUSD'
+ *   'EURUSD=X'        → 'C:EURUSD'
+ *   'BTC-USD'         → 'X:BTCUSD'
+ *   { symbol: 'SPY' } → 'SPY'
+ */
+function toPolygonWithDefault(input, defaultTicker = 'SPY') {
+  const raw = extractSymbol(input);
+  if (!raw) return defaultTicker;
+  let t = raw.toUpperCase().trim();
+  // Already prefixed — honour it as-is (idempotent)
+  if (/^[A-Z]:/.test(t)) return t;
+  // Yahoo-style forex (EURUSD=X) → strip the =X so classify can detect forex
+  if (t.endsWith('=X')) t = t.slice(0, -2);
+  // Yahoo-style crypto (BTC-USD) → collapse dash so classify/toPolygon handles it
+  if (/-USD[T]?$/.test(t)) t = t.replace('-', '');
+  return toPolygon(t);
+}
+
 module.exports = {
   classify,
   stripPrefix,
   toYahoo,
   toPolygon,
   toTwelveData,
+  // P1.1 additions — shared with the client via client/src/utils/tickerNormalize.js
+  extractSymbol,
+  canonicalKey,
+  toDisplay,
+  toPolygonWithDefault,
   CRYPTO_BASES,
 };

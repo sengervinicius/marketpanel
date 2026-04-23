@@ -1,5 +1,10 @@
 // InstrumentDetailHelpers.js – Pure utility functions and constants for InstrumentDetail
 
+// #241 / P1.1: normalizeTicker / displayTicker now delegate to the shared
+// tickerNormalize module (mirrored server-side in server/utils/tickerNormalize.js)
+// so ChartPanel, InstrumentDetail, and the server agree on ticker shapes.
+import { toPolygonWithDefault, toDisplay } from '../../utils/tickerNormalize';
+
 export const ORANGE = '#F97316';
 export const GREEN  = '#4caf50';
 export const RED    = '#f44336';
@@ -14,20 +19,8 @@ export const RANGES = [
   { label: '5Y', multiplier: 1,  timespan: 'week',   days: 1825 },
 ];
 
-export function normalizeTicker(raw) {
-  if (!raw) return 'SPY';
-  if (/^[A-Z]:/.test(raw)) return raw;
-  if (/^[A-Z]{6}$/.test(raw)) return 'C:' + raw;
-  return raw;
-}
-
-export function displayTicker(norm) {
-  if (norm.startsWith('C:')) return norm.slice(2, 5) + '/' + norm.slice(5);
-  if (norm.startsWith('X:')) return norm.slice(2, 5) + '/' + norm.slice(5);
-  if (norm.endsWith('.SA')) return norm.slice(0, -3);
-  if (norm.includes('=F')) return norm.replace('=F', '');  // CL=F → CL, BZ=F → BZ
-  return norm;
-}
+export const normalizeTicker = toPolygonWithDefault;
+export const displayTicker = toDisplay;
 
 export function getFromDate(range) {
   const now = new Date();

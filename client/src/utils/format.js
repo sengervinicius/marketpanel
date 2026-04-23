@@ -14,17 +14,18 @@
  * Normalize a symbol to a canonical key format consistent with market state keys.
  * Used by Watchlist to ensure tickers are keyed the same way as ForexPanel lookups.
  *
+ * #241 / P1.1: this is a thin wrapper around the shared canonicalKey() in
+ * utils/tickerNormalize (which mirrors server/utils/tickerNormalize exactly)
+ * so client and server agree on what "the same ticker" means.
+ *
  * @param {string} sym - Raw symbol (e.g., 'GBPBRL', 'VALE3.SA', 'BTCUSD')
  * @returns {string} Canonical key (e.g., 'GBPBRL', 'VALE3', 'BTCUSD')
  */
+import { canonicalKey } from './tickerNormalize';
 export function normalizeSymbol(sym) {
   if (!sym) return sym;
-  // Forex & crypto are 6-char uppercase with no prefix in the map
-  if (/^[A-Z]{6}$/.test(sym)) return sym;
-  // Brazilian stocks: remove .SA suffix for the key (data comes keyed without suffix)
-  if (sym.endsWith('.SA')) return sym.slice(0, -3);
-  // US stocks and other symbols: uppercase, no change
-  return sym.toUpperCase();
+  // Preserve the legacy return-raw-input-on-null behaviour some callers rely on.
+  return canonicalKey(sym) || sym;
 }
 
 export function fmtPrice(n, decimals = 2) {
