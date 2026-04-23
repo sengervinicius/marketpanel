@@ -309,6 +309,14 @@ function metricsGate(req, res, next) {
 }
 app.get('/metrics', metricsGate, metricsHandler);
 
+// Ultra-lightweight liveness probe — no DB, no provider checks. Used by
+// Render's load balancer, k6 pre-flight, and the Playwright e2e "wait for
+// server" loop. Must stay cheap and 200 even if the DB is unreachable
+// (otherwise we'd 5xx every cold start while Postgres wakes up).
+app.get('/healthz', (_req, res) => {
+  res.type('text/plain').send('ok');
+});
+
 // Minimal public health check (no detailed API key or provider info)
 app.get('/health', async (req, res) => {
   // DB connectivity check

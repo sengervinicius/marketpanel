@@ -21,10 +21,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Use Node.js 20
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '20'
 
@@ -36,7 +36,7 @@ jobs:
         run: node scripts/eval/harness.js all --dry-run --json > harness-report.json
 
       - name: Upload report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: harness-report-dry-run
           path: harness-report.json
@@ -67,10 +67,10 @@ jobs:
       PERPLEXITY_API_KEY:  ${{ secrets.PERPLEXITY_API_KEY }}
       DATABASE_URL:        ${{ secrets.DATABASE_URL }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Use Node.js 20
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '20'
 
@@ -83,7 +83,7 @@ jobs:
         continue-on-error: true
 
       - name: Upload report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: harness-report-live
           path: harness-report.json

@@ -12,8 +12,12 @@ test.describe('public surface', () => {
   test('landing page renders', async ({ page }) => {
     await page.goto('/');
     await expect(page).toHaveTitle(/particle|senger/i);
-    // Must have at least one visible call-to-action — sign up or log in.
-    const cta = page.getByRole('link', { name: /sign up|log in|entrar|criar conta/i });
+    // The landing page CTA is a button ("Enter") that opens an auth overlay.
+    // We accept any of the known CTA surfaces: "Enter", "Log in", "Sign in",
+    // or the Portuguese equivalents ("Entrar" / "Criar conta"). Matching as
+    // a button OR a link keeps the test robust to layout changes.
+    const cta = page.getByRole('button', { name: /enter|sign ?in|log ?in|entrar|criar conta/i })
+      .or(page.getByRole('link', { name: /enter|sign ?in|log ?in|entrar|criar conta/i }));
     await expect(cta.first()).toBeVisible();
   });
 
