@@ -106,13 +106,20 @@ function fuzzySearch(query, commands) {
     .map(({ cmd }) => cmd);
 }
 
-export default function CommandPalette({ isOpen, onClose, onCommand }) {
+export default function CommandPalette({ isOpen, onClose, onCommand, excludeCommandIds }) {
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef(null);
   const paletteRef = useRef(null);
 
-  const allCommands = useMemo(() => flattenCommands(COMMAND_GROUPS), []);
+  // Filter out any command ids the parent wants to hide (e.g. toggle-theme
+  // when the light_theme_enabled flag is off — #239 / P1.5).
+  const allCommands = useMemo(() => {
+    const flat = flattenCommands(COMMAND_GROUPS);
+    if (!Array.isArray(excludeCommandIds) || excludeCommandIds.length === 0) return flat;
+    const excluded = new Set(excludeCommandIds);
+    return flat.filter(c => !excluded.has(c.id));
+  }, [excludeCommandIds]);
 
   // Get recently used from localStorage
   const recentlyUsed = useMemo(() => {

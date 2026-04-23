@@ -46,6 +46,7 @@ import CookieConsentBanner from './components/common/CookieConsentBanner.jsx'
 import SupportWidget from './components/common/SupportWidget.jsx'
 import { ThemeProvider } from './context/ThemeContext.jsx'
 import { SettingsProvider, useSettings } from './context/SettingsContext.jsx'
+import { useFeatureFlags } from './hooks/useFeatureFlags.js'
 
 // Unregister legacy service worker — it uses stale-while-revalidate caching
 // which serves old JS bundles, preventing bug fixes from reaching users.
@@ -76,10 +77,22 @@ function AuthLoadingScreen() {
 
 // Bridges settings.theme → ThemeProvider so the user's saved theme is applied
 // after /api/settings loads, without requiring a page refresh.
+//
+// #239 / P1.5: the light_theme_enabled feature flag gates the whole light
+// path until per-component [data-theme="light"] CSS ships. If the flag is
+// OFF we force initialTheme='dark' regardless of what the user has in
+// settings.theme — otherwise a user whose DB row is already 'light' would
+// land on the broken half-themed state the flag exists to prevent.
+// Fail-closed: if /api/flags errors, isOn returns the defaultValue (false),
+// so we force dark.
 function ThemeSync({ children }) {
   const { settings } = useSettings();
+  const { isOn } = useFeatureFlags();
+  const lightThemeEnabled = isOn('light_theme_enabled', false);
+  const savedTheme = settings?.theme || 'dark';
+  const effectiveTheme = lightThemeEnabled ? savedTheme : 'dark';
   return (
-    <ThemeProvider initialTheme={settings?.theme || 'dark'}>
+    <ThemeProvider initialTheme={effectiveTheme}>
       {children}
     </ThemeProvider>
   );

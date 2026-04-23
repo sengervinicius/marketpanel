@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef, useMemo, Component, Suspense 
 
 import { lazyWithRetry } from './utils/lazyWithRetry';
 import { apiFetch } from './utils/api';
+import { useFeatureFlags } from './hooks/useFeatureFlags';
 import { useMarketData } from './hooks/useMarketData';
 import { useWebSocket } from './hooks/useWebSocket';
 import { useIsMobile } from './hooks/useIsMobile';
@@ -385,6 +386,10 @@ export default function App() {
 
   // ── Mobile detection ─────────────────────────────────────────────────────
   const isMobile = useIsMobile();
+
+  // ── Feature flags (#239 P1.5 — gate light-theme toggle) ──────────────────
+  const { isOn: isFlagOn } = useFeatureFlags();
+  const lightThemeEnabled = isFlagOn('light_theme_enabled', false);
 
   // ── Layout manager ───────────────────────────────────────────────────────
   const {
@@ -899,6 +904,7 @@ export default function App() {
         <CommandPalette
           isOpen={commandPaletteOpen}
           onClose={() => setCommandPaletteOpen(false)}
+          excludeCommandIds={lightThemeEnabled ? [] : ['toggle-theme']}
           onCommand={(cmd) => {
             setCommandPaletteOpen(false);
             if (cmd.action === 'navigate') {
@@ -912,8 +918,12 @@ export default function App() {
               if (cmd.target === 'morning-brief') setMobileModePersist('particle');
               else if (cmd.target === 'deep-analysis') setMobileModePersist('particle');
             } else if (cmd.action === 'action') {
-              if (cmd.target === 'toggle-theme') document.body.classList.toggle('light-theme');
-              else if (cmd.target === 'clear-chat') window.dispatchEvent(new CustomEvent('particle-clear-chat'));
+              if (cmd.target === 'toggle-theme') {
+                // #239 / P1.5: no-op when light_theme_enabled flag is off,
+                // because per-component [data-theme="light"] CSS has not
+                // shipped and the toggle produces a broken half-state.
+                if (lightThemeEnabled) document.body.classList.toggle('light-theme');
+              } else if (cmd.target === 'clear-chat') window.dispatchEvent(new CustomEvent('particle-clear-chat'));
             }
           }}
         />

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useSettings } from '../../context/SettingsContext';
 import { useAlerts } from '../../context/AlertsContext';
+import { useFeatureFlags } from '../../hooks/useFeatureFlags';
 import { PANEL_DEFINITIONS, DEFAULT_LAYOUT } from '../../config/panels';
 import UserAvatar from '../common/UserAvatar';
 import VaultPanel from './VaultPanel';
@@ -90,6 +91,11 @@ export function SettingsDrawer({ panelVisible, togglePanel, onClose, mobile }) {
 
   const defaultStartTab = settings?.defaultStartTab || 'home';
   const theme = settings?.theme || 'dark';
+
+  // #239 / P1.5: hide the APPEARANCE theme toggle until light-mode CSS
+  // per component ships. Fail-closed: missing flag → hidden.
+  const { isOn: isFlagOn } = useFeatureFlags();
+  const lightThemeEnabled = isFlagOn('light_theme_enabled', false);
 
   const handleStartTab = (val) => { updateSettings({ defaultStartTab: val }); };
   const handleTheme = () => { updateSettings({ theme: theme === 'dark' ? 'light' : 'dark' }); };
@@ -232,21 +238,25 @@ export function SettingsDrawer({ panelVisible, togglePanel, onClose, mobile }) {
         );
       })()}
 
-      {/* ── Theme ── */}
-      <SettingsSection label="APPEARANCE" />
-      <div
-        role="button"
-        tabIndex={0}
-        style={rowStyle}
-        {...makeRowClickable(handleTheme)}
-        onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
-        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-        aria-label={`Toggle theme. Current: ${theme === 'dark' ? 'Dark mode' : 'Light mode'}`}
-        aria-pressed={theme === 'dark'}
-      >
-        <span className="app-text-muted-small">{theme === 'dark' ? '◑ DARK MODE' : 'LIGHT MODE'}</span>
-        <span className="app-text-accent-bold-small">TOGGLE</span>
-      </div>
+      {/* ── Theme (gated — #239 / P1.5) ── */}
+      {lightThemeEnabled && (
+        <>
+          <SettingsSection label="APPEARANCE" />
+          <div
+            role="button"
+            tabIndex={0}
+            style={rowStyle}
+            {...makeRowClickable(handleTheme)}
+            onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+            aria-label={`Toggle theme. Current: ${theme === 'dark' ? 'Dark mode' : 'Light mode'}`}
+            aria-pressed={theme === 'dark'}
+          >
+            <span className="app-text-muted-small">{theme === 'dark' ? '◑ DARK MODE' : 'LIGHT MODE'}</span>
+            <span className="app-text-accent-bold-small">TOGGLE</span>
+          </div>
+        </>
+      )}
 
       {/* ── Reset Layout ── */}
       <SettingsSection label="LAYOUT" />

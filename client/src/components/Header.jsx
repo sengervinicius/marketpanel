@@ -12,6 +12,7 @@ import { CLOCKS } from '../utils/constants';
 import { fmtPrice, fmtPct } from '../utils/format';
 import { useTheme } from '../context/ThemeContext';
 import { useFeedStatus } from '../context/FeedStatusContext';
+import { useFeatureFlags } from '../hooks/useFeatureFlags';
 import './Header.css';
 
 const Clock = memo(function Clock({ label, tz }) {
@@ -73,10 +74,18 @@ export function Header({ connected, stocks, forex, marketStatus, onChatOpen, cha
   const statusLabel = connected ? 'LIVE' : 'OFFLINE';
   const mktOpen = marketStatus?.market === 'open';
 
-  // Theme toggle from ThemeContext
+  // Theme toggle from ThemeContext — gated behind light_theme_enabled flag
+  // until per-component [data-theme="light"] CSS ships (#239 / P1.5 / D2.4).
+  // Without the flag, the toggle produces an unreadable half-themed state
+  // because ~40% of panel CSS hardcodes dark colours that don't respect the
+  // design tokens. Fail-closed: if /api/flags errors or the flag row is
+  // absent, isOn('light_theme_enabled') returns false and the button is
+  // hidden.
   const themeCtx = useTheme();
   const theme = themeCtx?.theme ?? 'dark';
-  const toggleTheme = themeCtx?.toggleTheme ?? null;
+  const { isOn } = useFeatureFlags();
+  const lightThemeEnabled = isOn('light_theme_enabled', false);
+  const toggleTheme = (lightThemeEnabled && themeCtx?.toggleTheme) || null;
 
   // Feed status indicator
   const { getOverallStatus } = useFeedStatus();
