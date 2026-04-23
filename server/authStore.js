@@ -106,6 +106,46 @@ const loginAttempts   = new Map();   // username -> { count, lockedUntil }
 let usersCollection = null;          // null when MongoDB is not configured
 
 // ── Default settings ─────────────────────────────────────────────────────────
+//
+// This is the server-side seed applied to every new user at createUser() time.
+// It's persisted verbatim into users.settings (JSONB) and then wins over the
+// client-side DEFAULT_LAYOUT / defaultSettings() fallbacks because client load
+// merges saved settings ON TOP of defaults:
+//
+//   merged = { ...clientDefaults, ...server.settings,
+//              layout: { ...clientDefaults.layout, ...server.settings.layout } }
+//
+// Net effect: whatever lives here IS what every new user experiences on their
+// first login. Drift between this file and client/src/config/panels.js
+// (DEFAULT_LAYOUT / DEFAULT_HOME_SECTIONS / PANEL_DEFINITIONS) means new users
+// DO NOT see what the CIO sees — so keep them in lockstep.
+//
+// #227 (2026-04-23): realigned to the CIO-canonical layout captured in
+// client DEFAULT_LAYOUT. Previous server seed was two CIO-spec updates behind
+// (pre-#105 reorder, pre-#226 futures box) — new users were getting charts /
+// usEquities / globalIndices in row 1 while the CIO himself runs charts /
+// watchlist / globalIndices / futures. Also synced CIO_* symbol canons
+// (BRK-B hyphen fix; FX list merged with crypto in the FX panel; home tab
+// sections collapsed to the 5-section mobile layout that matches the client).
+//
+// CIO_FOREX_DEFAULTS / CIO_COMMODITIES_DEFAULTS / CIO_BRAZIL_DEFAULTS mirror
+// the lists in client/src/context/SettingsContext.jsx — keep both copies in
+// sync (greppable names on both sides).
+const CIO_FOREX_DEFAULTS = [
+  'EURUSD','GBPUSD','USDJPY','USDCHF','AUDUSD','USDCAD',
+  'USDBRL','EURBRL','GBPBRL',
+  'USDCNY','USDMXN',
+  'BTCUSD','ETHUSD','SOLUSD','XRPUSD','BNBUSD','DOGEUSD',
+];
+const CIO_COMMODITIES_DEFAULTS = [
+  'BZ=F','GLD','SLV','USO','UNG',
+  'CORN','WEAT','SOYB','CPER','BHP',
+];
+const CIO_BRAZIL_DEFAULTS = [
+  'VALE3.SA','PETR4.SA','ITUB4.SA','BBDC4.SA','ABEV3.SA','WEGE3.SA','RENT3.SA',
+  'B3SA3.SA','MGLU3.SA','BBAS3.SA','GGBR4.SA','SUZB3.SA',
+];
+
 function defaultSettings() {
   return {
     theme:               'dark',
@@ -118,36 +158,39 @@ function defaultSettings() {
     // migrateLegacySettings() once to back-fill older users.
     settingsVersion:     2,
     panels: {
-      usEquities:   { title: 'US Equities',    symbols: ['AAPL','MSFT','NVDA','GOOGL','AMZN','META','TSLA','JPM','XOM','BRKB','GS','WMT','LLY'] },
-      globalIndices:{ title: 'Global Indexes',  symbols: ['SPY','QQQ','DIA','EWZ','EEM','VGK','EWJ','FXI'] },
-      // CIO-canonical FX list. Keep in sync with
-      // client/src/context/SettingsContext.jsx CIO_FOREX_DEFAULTS.
-      forex:        { title: 'FX Rates / Crypto', symbols: ['EURUSD','GBPUSD','USDJPY','USDCHF','AUDUSD','USDCAD','USDBRL','EURBRL','GBPBRL','USDCNY','USDMXN','BTCUSD','ETHUSD','SOLUSD','XRPUSD','BNBUSD','DOGEUSD'] },
-      crypto:       { title: 'Crypto',          symbols: ['BTCUSD','ETHUSD','SOLUSD','XRPUSD','BNBUSD','DOGEUSD'] },
-      commodities:  { title: 'Commodities',     symbols: ['BZ=F','GLD','SLV','USO','UNG','CORN','WEAT','SOYB','CPER','BHP'] },
-      brazilB3:     { title: 'Brazil B3',       symbols: ['VALE3.SA','PETR4.SA','ITUB4.SA','BBDC4.SA','ABEV3.SA','WEGE3.SA','RENT3.SA','B3SA3.SA','MGLU3.SA','BBAS3.SA','GGBR4.SA','SUZB3.SA'] },
-      debt:         { title: 'Yields & Rates',  symbols: [] },
+      usEquities:   { title: 'US Equities',       symbols: ['AAPL','MSFT','NVDA','GOOGL','AMZN','META','TSLA','JPM','XOM','BRK-B','GS','WMT','LLY'] },
+      globalIndices:{ title: 'Global Indexes',    symbols: ['SPY','QQQ','DIA','EWZ','EEM','VGK','EWJ','FXI'] },
+      forex:        { title: 'FX Rates / Crypto', symbols: [...CIO_FOREX_DEFAULTS] },
+      crypto:       { title: 'Crypto',            symbols: ['BTCUSD','ETHUSD','SOLUSD','XRPUSD','BNBUSD','DOGEUSD'] },
+      commodities:  { title: 'Commodities',       symbols: [...CIO_COMMODITIES_DEFAULTS] },
+      brazilB3:     { title: 'Brazil B3',         symbols: [...CIO_BRAZIL_DEFAULTS] },
+      debt:         { title: 'Yields & Rates',    symbols: [] },
     },
+    // CIO home layout (matches client DEFAULT_LAYOUT in config/panels.js):
+    //   Row 1: charts, watchlist, globalIndices, futures
+    //   Row 2: forex (FX + crypto merged), commodities, usEquities, brazilB3
+    //   Row 3: debt, news, optionsFlow, predictions
     layout: {
       desktopRows: [
-        ['charts',       'usEquities',    'globalIndices'],
-        ['forex',        'commodities',   'crypto',  'brazilB3'],
-        ['debt',         'news',          'optionsFlow',  'watchlist'],
+        ['charts',       'watchlist',     'globalIndices', 'futures'],
+        ['forex',        'commodities',   'usEquities',    'brazilB3'],
+        ['debt',         'news',          'optionsFlow',   'predictions'],
       ],
-      mobileTabs: ['home', 'charts', 'watchlist', 'search', 'news'],
+      mobileTabs: ['home', 'charts', 'watchlist', 'search', 'detail', 'news'],
     },
     home: {
+      // Mirrors DEFAULT_HOME_SECTIONS in client/src/config/panels.js.
       sections: [
-        { id: 'indexes',     title: 'US Equities',     symbols: ['SPY','QQQ','DIA','AAPL','MSFT','NVDA','TSLA','AMZN'] },
-        { id: 'global',      title: 'Global Indexes',   symbols: ['EWZ','EEM','VGK','EWJ','FXI','EFA','IWM'] },
-        { id: 'forex',       title: 'FX Markets',       symbols: ['EURUSD','USDJPY','GBPUSD','USDBRL','USDCNY','USDCHF'] },
-        { id: 'crypto',      title: 'Crypto',           symbols: ['BTCUSD','ETHUSD','SOLUSD','XRPUSD','BNBUSD','DOGEUSD'] },
-        { id: 'commodities', title: 'Commodities',      symbols: ['BZ=F','GLD','SLV','USO','UNG','CORN'] },
-        { id: 'brazilB3',    title: 'Brazil B3',        symbols: ['VALE3.SA','PETR4.SA','ITUB4.SA','BBDC4.SA','WEGE3.SA','B3SA3.SA','ABEV3.SA','BBAS3.SA'] },
+        { id: 'indexes',    title: 'US Equities',       symbols: ['SPY','QQQ','DIA','AAPL','MSFT','NVDA','TSLA','AMZN'] },
+        { id: 'global',     title: 'Global Indexes',    symbols: ['EWZ','EEM','VGK','EWJ','FXI','EFA','IWM'] },
+        { id: 'forex',      title: 'FX Rates / Crypto', symbols: ['EURUSD','USDJPY','GBPUSD','USDBRL','EURBRL','GBPBRL','USDCNY','BTCUSD','ETHUSD','SOLUSD','XRPUSD','BNBUSD','DOGEUSD'] },
+        { id: 'commodities',title: 'Commodities',       symbols: ['BZ=F','GLD','SLV','USO','UNG','CORN'] },
+        { id: 'brazilB3',   title: 'Brazil B3',         symbols: ['VALE3.SA','PETR4.SA','ITUB4.SA','BBDC4.SA','WEGE3.SA','B3SA3.SA','ABEV3.SA','BBAS3.SA'] },
       ],
     },
     charts: {
-      symbols: ['SPY', 'QQQ', 'C:EURUSD', 'C:USDJPY', 'GLD', 'USO', 'EEM', 'EWZ', 'X:BTCUSD', 'VGK'],
+      // Matches DEFAULT_CHARTS_CONFIG in client/src/config/panels.js.
+      symbols: ['SPY', 'QQQ', 'C:EURUSD', 'C:USDJPY', 'GLD', 'USO', 'EEM', 'EWZ', 'X:BTCUSD', 'VGK', 'MSFT', 'BZ=F'],
       primary: 'SPY',
     },
   };
