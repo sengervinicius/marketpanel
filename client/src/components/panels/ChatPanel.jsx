@@ -23,6 +23,7 @@ import ParticleLogo from '../ui/ParticleLogo';
 import ParticleMarkdown from '../common/ParticleMarkdown';
 import InsightFeed from '../insights/InsightFeed';
 import AIDisclaimer from '../common/AIDisclaimer';
+import PersonaPickerChip from '../common/PersonaPickerChip'; // R0.3 persona picker
 import './Chat.css';
 
 function timeAgo(ts) {
@@ -96,6 +97,11 @@ function ChatPanel({ mobile, initialUserId }) {
   // - aiHistoryLoading: gates spinner/empty-state in the rail.
   const [aiConversations,  setAiConversations]  = useState([]);
   const [activeAiConvoId,  setActiveAiConvoId]  = useState(null);
+  // R0.3 — Persona currently selected for AI chat (null = default Particle AI).
+  // When set, the next sendAiMessage posts to /api/personas/:id/ask instead of
+  // the standard streaming /api/search/chat path. Persona flavour is a per-turn
+  // choice the user can flip on and off freely.
+  const [selectedPersona,  setSelectedPersona]  = useState(null);
   const [aiHistoryLoading, setAiHistoryLoading] = useState(false);
   // Inline rename state for the AI conversation rail. `renamingConvoId` is
   // the id of the row currently being renamed (null = nothing open).
@@ -547,6 +553,65 @@ function ChatPanel({ mobile, initialUserId }) {
     setAiMessages(prev => [...prev, userMsg, assistantMsg]);
     setAiLoading(true);
 
+    // R0.3 — Persona branch. When the picker has a persona selected, we route
+    // the turn to /api/personas/:id/ask (non-streaming). The response is a
+    // structured envelope; we render it as markdown in the same assistant
+    // bubble the streaming path would produce, so no bubble-rendering change.
+    if (selectedPersona) {
+      try {
+        const { API_BASE } = await import('../../utils/api');
+        const res = await fetch(`${API_BASE}/api/personas/${encodeURIComponent(selectedPersona)}/ask`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ question: text }),
+        });
+        if (!res.ok) throw new Error(`persona ask failed: ${res.status}`);
+        const data = await res.json();
+        const r = data && data.response;
+        // Compose a markdown bubble: persona header, summary, rubric, method doc.
+        const personaName = r?.persona?.name || selectedPersona;
+        const score = (r && typeof r.rubric_score === 'number') ? r.rubric_score.toFixed(1) : null;
+        const dims = (r?.dimension_scores || [])
+          .filter(d => d.score != null)
+          .map(d => `- **${d.name}** \u00b7 ${d.score}/10`)
+          .join('\n');
+        const citeList = (r?.citations || [])
+          .map(c => c && typeof c.source === 'string' ? `\`${c.source}\`` : null)
+          .filter(Boolean).join(', ');
+        const content = [
+          `**${personaName}** \u2014 *lens: ${r?.persona?.one_liner || ''}*`,
+          '',
+          r?.summary || '(no response)',
+          '',
+          score != null ? `**Composite score: ${score} / 10**` : null,
+          dims || null,
+          citeList ? `\nTools cited: ${citeList}` : null,
+          r?.persona?.method_doc_url ? `\nMethodology: ${r.persona.method_doc_url}` : null,
+          r?.error ? `\n\n_Persona error: ${r.error}_` : null,
+        ].filter(Boolean).join('\n');
+        setAiMessages(prev => {
+          const next = [...prev];
+          const idx = next.findIndex(m => m.id === assistantMsg.id);
+          if (idx >= 0) next[idx] = { ...next[idx], content, personaId: selectedPersona };
+          return next;
+        });
+      } catch (err) {
+        setAiMessages(prev => {
+          const next = [...prev];
+          const idx = next.findIndex(m => m.id === assistantMsg.id);
+          if (idx >= 0) next[idx] = {
+            ...next[idx],
+            content: `_Persona request failed: ${err.message || 'unknown error'}_`,
+          };
+          return next;
+        });
+      } finally {
+        setAiLoading(false);
+      }
+      return;
+    }
+
     try {
       const { API_BASE } = await import('../../utils/api');
       const response = await fetch(`${API_BASE}/api/search/chat`, {
@@ -632,7 +697,7 @@ function ChatPanel({ mobile, initialUserId }) {
       setAiLoading(false);
       setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
     }
-  }, [input, activeChatUser, aiMessages, buildContextualMessage, activeAiConvoId, loadAiConversations]);
+  }, [input, activeChatUser, aiMessages, buildContextualMessage, activeAiConvoId, loadAiConversations, selectedPersona]);
 
   // ── Send message ──
   const sendMessage = useCallback(async () => {
@@ -931,6 +996,11 @@ function ChatPanel({ mobile, initialUserId }) {
               </div>
             </div>
           </div>
+          {/* R0.3 persona chip. Self-404s when PERSONA_AGENTS_V1 is off. */}
+          <PersonaPickerChip
+            selected={selectedPersona}
+            onSelect={setSelectedPersona}
+          />
           {aiMessages.length > 0 && (
             <>
               <button
