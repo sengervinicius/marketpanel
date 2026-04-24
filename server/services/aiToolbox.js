@@ -39,6 +39,48 @@ const logger = require('../utils/logger');
 const aiCostLedger = require('./aiCostLedger');
 const { swallow } = require('../utils/swallow');
 
+// #257 R0.1-b — MCP registry cutover. When feature flag MCP_REGISTRY_V1
+// evaluates ON for the caller, dispatchTool delegates to registry.call
+// instead of invoking HANDLERS directly. The registry is a thin wrapper
+// over the same handlers (server/mcp/tools/_bridge.js imports HANDLERS
+// from this module) so the result envelope is identical — parity is
+// proven by server/mcp/__tests__/registry.test.js.
+//
+// Loaded lazily on first dispatch so test harnesses that stub this module
+// aren't forced to stub server/mcp too.
+let _mcp = null;
+let _featureFlags = null;
+function _getMcp() {
+  if (_mcp === null) {
+    try { _mcp = require('../mcp'); }
+    catch (e) {
+      logger.warn('aiToolbox', 'mcp registry unavailable; staying on legacy path', { error: e.message });
+      _mcp = false;
+    }
+  }
+  return _mcp || null;
+}
+function _getFlags() {
+  if (_featureFlags === null) {
+    try { _featureFlags = require('./featureFlags'); }
+    catch (_) { _featureFlags = false; }
+  }
+  return _featureFlags || null;
+}
+async function _registryCutoverEnabled(ctx) {
+  const flags = _getFlags();
+  if (!flags || typeof flags.isOn !== 'function') return false;
+  try {
+    return await flags.isOn('MCP_REGISTRY_V1', {
+      userId: ctx && ctx.userId != null ? ctx.userId : undefined,
+      tier:   ctx && ctx.tier ? ctx.tier : undefined,
+      email:  ctx && ctx.email ? ctx.email : undefined,
+    });
+  } catch (_) {
+    return false; // fail closed
+  }
+}
+
 // ── Loop limits — defensive caps for runaway agent behaviour ──────────
 const MAX_TOOL_ROUNDS = 5;        // how many model→tools round trips
 const MAX_TOOLS_PER_ROUND = 6;    // parallel tool calls per round
@@ -1264,6 +1306,25 @@ const HANDLERS = {
  * context budget.
  */
 async function dispatchTool(name, args, ctx = {}) {
+  // #257 R0.1-b — When MCP_REGISTRY_V1 is on for this caller, delegate
+  // to the registry. The registry's envelope contract is proven
+  // equivalent to the legacy block below by server/mcp/__tests__.
+  // Flag default is OFF → legacy path runs for every caller until ops
+  // flips the flag. If the registry module itself fails to load we fall
+  // back to the legacy path (fail-open for availability).
+  const mcp = _getMcp();
+  if (mcp && await _registryCutoverEnabled(ctx)) {
+    try {
+      return await mcp.registry.call(name, args, ctx);
+    } catch (e) {
+      // Registry threw unexpectedly — log and continue through legacy.
+      logger.warn('aiToolbox', 'registry path failed; falling back to legacy', {
+        name, error: e.message, userId: ctx.userId || null,
+      });
+      // fall through
+    }
+  }
+
   const fn = HANDLERS[name];
   if (!fn) return { error: `unknown tool: ${name}` };
   const start = Date.now();
