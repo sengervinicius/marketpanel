@@ -511,9 +511,18 @@ app.use('/api/chat', requireAuth, requireActiveSubscription,
 // past chats even after a trial expiry; new turns go through /api/search/chat
 // which already enforces aiQuotaGate).
 const aiChatRoutes = require('./routes/aiChat');
+const personasRoutes = require('./routes/personas'); // R0.3 investor-persona agents
 app.use('/api/ai-chat', requireAuth,
   rateLimitByUser({ key: 'ai-chat-history', windowSec: 60, max: 60 }),
   aiChatRoutes);
+
+// R0.3 — Investor-persona agents. Route is 404-gated behind
+// PERSONA_AGENTS_V1; users who aren't flipped on never see the endpoint.
+// Per-user rate limit protects the LLM cost budget — personas hit
+// Anthropic directly, so a tight cap matters more than on /api/ai-chat.
+app.use('/api/personas', requireAuth, requireActiveSubscription,
+  rateLimitByUser({ key: 'personas', windowSec: 60, max: 10 }),
+  personasRoutes);
 
 // Debt data: auth + subscription required + rate limit
 app.use('/api/debt', requireAuth, requireActiveSubscription,
