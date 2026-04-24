@@ -5,12 +5,27 @@
 # list of "site is live" probes against prod. Alerting is handled by
 # GitHub's default failure email; a future iteration can wire Sentry or a
 # Slack webhook here.
+#
+# Hardening history:
+#  - Initial: sleep 90 + single-shot probes. Flaky during Render cold
+#    starts and deploy swaps; every overlapping push produced a failure
+#    email.
+#  - Current: skip smoke when only docs/tests/CI/comments-only changes
+#    shipped; bump rollout wait to 180s; probe script retries with
+#    jittered backoff on 502/503/504 per scripts/postDeploySmoke.js.
 
 name: post-deploy-smoke
 
 on:
   push:
     branches: [main]
+    # Skip when the push only changes things that can't affect a prod
+    # deploy. Any code change falls through and still triggers smoke.
+    paths-ignore:
+      - '**/*.md'
+      - '.github/workflows/*.yml'   # workflow-only changes don't deploy
+      - 'docs/**'
+      - 'LICENSE'
   workflow_dispatch:
     inputs:
       server_url:
@@ -29,7 +44,12 @@ jobs:
   smoke:
     name: Post-deploy smoke probe
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 12
+    # Cancel an in-flight smoke run when a newer push arrives — stops
+    # overlapping deploys from pinging prod five times in a row.
+    concurrency:
+      group: post-deploy-smoke-${{ github.ref }}
+      cancel-in-progress: true
     steps:
       - uses: actions/checkout@v6
 
@@ -37,12 +57,13 @@ jobs:
         with:
           node-version-file: .nvmrc
 
-      # Render auto-deploys on push to main. Give the new revision ~90s to
-      # swap into the LB before we probe; otherwise we'd probe the OLD
-      # revision and miss regressions introduced by this commit.
+      # Render auto-deploys on push to main. Free/starter tiers P99 at
+      # roughly 150–170s for a cold deploy swap. Wait 180s to cover that
+      # window before we probe; otherwise we'd probe the OLD revision or
+      # catch the LB mid-swap and fail on 502.
       - name: Wait for Render rollout window
         if: github.event_name == 'push'
-        run: sleep 90
+        run: sleep 180
 
       - name: Run smoke probes
         env:

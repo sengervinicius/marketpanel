@@ -110,40 +110,90 @@ function fetchUrl(url, timeoutMs) {
     .finally(() => clearTimeout(t));
 }
 
+// Render free/starter tiers periodically 502/503 during a deploy swap or
+// cold start. A single transient blip should NOT fail the whole job —
+// we retry up to RETRY_ATTEMPTS with jittered backoff and only surface
+// a failure when every retry is bad. Cumulative timeout per probe is
+// bounded so the job can't exceed the workflow timeout.
+const RETRY_ATTEMPTS = 4;
+const RETRY_BACKOFF_MS = [0, 5000, 15000, 30000]; // 0, 5s, 15s, 30s
+
+function _isTransient(res) {
+  if (!res) return true;
+  if (res.status === 502 || res.status === 503 || res.status === 504) return true;
+  return false;
+}
+
 async function runProbe(probe, base) {
   const url = probe.url(base);
-  const started = Date.now();
-  try {
-    const res = await fetchUrl(url, probe.maxMs);
+  const attempts = [];
+  const overallStarted = Date.now();
+  for (let i = 0; i < RETRY_ATTEMPTS; i++) {
+    if (i > 0 && RETRY_BACKOFF_MS[i]) {
+      const jitter = Math.floor(Math.random() * 1000);
+      // eslint-disable-next-line no-await-in-loop
+      await new Promise(r => setTimeout(r, RETRY_BACKOFF_MS[i] + jitter));
+    }
+    const started = Date.now();
+    let res = null;
+    let requestError = null;
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      res = await fetchUrl(url, probe.maxMs);
+    } catch (e) {
+      requestError = e;
+    }
     const reasons = [];
-    if (res.status !== probe.expectStatus) {
-      reasons.push(`status ${res.status} (expected ${probe.expectStatus})`);
+    if (requestError) {
+      reasons.push(`request failed: ${requestError.name}: ${requestError.message}`);
+    } else {
+      if (res.status !== probe.expectStatus) {
+        reasons.push(`status ${res.status} (expected ${probe.expectStatus})`);
+      }
+      // Latency only counted on the FINAL attempt — transient cold-start
+      // slowness during retries should not fail an otherwise-good deploy.
+      if (i === RETRY_ATTEMPTS - 1 && res.elapsedMs > probe.maxMs) {
+        reasons.push(`latency ${res.elapsedMs}ms > ${probe.maxMs}ms`);
+      }
+      if (probe.validateBody) {
+        const bodyErr = probe.validateBody(res.body);
+        if (bodyErr) reasons.push(`body check: ${bodyErr}`);
+      }
     }
-    if (res.elapsedMs > probe.maxMs) {
-      reasons.push(`latency ${res.elapsedMs}ms > ${probe.maxMs}ms`);
-    }
-    if (probe.validateBody) {
-      const bodyErr = probe.validateBody(res.body);
-      if (bodyErr) reasons.push(`body check: ${bodyErr}`);
-    }
-    return {
-      name: probe.name,
-      url,
+    attempts.push({
+      attempt: i + 1,
       ok: reasons.length === 0,
-      status: res.status,
-      elapsedMs: res.elapsedMs,
+      status: res?.status ?? null,
+      elapsedMs: res ? res.elapsedMs : Date.now() - started,
       reasons,
-    };
-  } catch (e) {
-    return {
-      name: probe.name,
-      url,
-      ok: false,
-      status: null,
-      elapsedMs: Date.now() - started,
-      reasons: [`request failed: ${e.name}: ${e.message}`],
-    };
+    });
+    if (reasons.length === 0) {
+      return {
+        name: probe.name,
+        url,
+        ok: true,
+        status: res.status,
+        elapsedMs: res.elapsedMs,
+        reasons: [],
+        attempts,
+      };
+    }
+    // Give up immediately on NON-transient failures (404, body mismatch).
+    // Only retry 5xx / network errors.
+    if (res && !_isTransient(res) && !requestError) {
+      break;
+    }
   }
+  const last = attempts[attempts.length - 1];
+  return {
+    name: probe.name,
+    url,
+    ok: false,
+    status: last.status,
+    elapsedMs: Date.now() - overallStarted,
+    reasons: last.reasons,
+    attempts,
+  };
 }
 
 async function main() {
@@ -160,6 +210,13 @@ async function main() {
     const r = await runProbe(probe, base);
     results.push(r);
     const tag = r.ok ? 'OK' : 'FAIL';
+    if (r.attempts && r.attempts.length > 1) {
+      const transients = r.attempts.slice(0, -1).filter(a => !a.ok).length;
+      if (transients > 0) {
+        // eslint-disable-next-line no-console
+        console.log(`       (${transients} transient failure${transients === 1 ? '' : 's'} before final attempt)`);
+      }
+    }
     // eslint-disable-next-line no-console
     console.log(
       `[${tag}] ${r.name} ${r.status ?? 'ERR'} ${r.elapsedMs}ms — ${r.url}` +
