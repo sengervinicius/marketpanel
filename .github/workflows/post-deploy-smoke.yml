@@ -1,0 +1,51 @@
+# #250 P3.4 — Post-deploy smoke + canary probe on Render (D9.2).
+#
+# Runs after a push to main (Render auto-deploys on push) and on manual
+# dispatch. Sleeps briefly to let Render swap traffic, then hits a short
+# list of "site is live" probes against prod. Alerting is handled by
+# GitHub's default failure email; a future iteration can wire Sentry or a
+# Slack webhook here.
+
+name: post-deploy-smoke
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      server_url:
+        description: 'Override server URL'
+        required: false
+        default: 'https://senger-market-server.onrender.com'
+      client_url:
+        description: 'Override client URL'
+        required: false
+        default: 'https://the-particle.com'
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    name: Post-deploy smoke probe
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+
+      # Render auto-deploys on push to main. Give the new revision ~90s to
+      # swap into the LB before we probe; otherwise we'd probe the OLD
+      # revision and miss regressions introduced by this commit.
+      - name: Wait for Render rollout window
+        if: github.event_name == 'push'
+        run: sleep 90
+
+      - name: Run smoke probes
+        env:
+          SMOKE_BASE_URL: ${{ github.event.inputs.server_url || 'https://senger-market-server.onrender.com' }}
+          SMOKE_CLIENT_URL: ${{ github.event.inputs.client_url || 'https://the-particle.com' }}
+        run: node scripts/postDeploySmoke.js
