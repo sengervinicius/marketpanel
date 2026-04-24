@@ -28,8 +28,8 @@ const { MAX_TOOL_PAYLOAD_BYTES } = require('../contracts');
 describe('mcp default registry', () => {
   const registry = createDefaultRegistry();
 
-  it('registers all 22 existing tools', () => {
-    assert.equal(registry.size(), 22);
+  it('registers all 23 existing tools (22 original + R1.1 dbnomics)', () => {
+    assert.equal(registry.size(), 23);
   });
 
   it('every registered tool has a known group', () => {
@@ -44,7 +44,7 @@ describe('mcp default registry', () => {
       'lookup_quote','get_yield_curve','list_sovereign_bonds','list_corporate_bonds',
       'get_options_flow','list_market_movers','lookup_fx','lookup_commodity','forward_estimates',
       // macro
-      'get_macro_snapshot','get_brazil_macro','get_market_regime','run_scenario',
+      'get_macro_snapshot','get_brazil_macro','get_market_regime','run_scenario','lookup_series_global',
       // news
       'get_recent_wire','web_research','fetch_url','search_prediction_markets',
       // vault
@@ -61,7 +61,7 @@ describe('mcp default registry', () => {
 
   it('list({ group }) filters', () => {
     assert.equal(registry.list({ group: 'market' }).length, 9);
-    assert.equal(registry.list({ group: 'macro' }).length, 4);
+    assert.equal(registry.list({ group: 'macro' }).length, 5); // +lookup_series_global (R1.1)
     assert.equal(registry.list({ group: 'news' }).length, 4);
     assert.equal(registry.list({ group: 'vault' }).length, 1);
     assert.equal(registry.list({ group: 'earnings' }).length, 2);

@@ -729,6 +729,45 @@ const TOOLS = [
       required: ['expression'],
     },
   },
+  {
+    name: 'lookup_series_global',
+    description:
+      'Fetch a single macro / financial time series from DBnomics — the ' +
+      '250+ central banks and statistical agencies aggregator (ECB, Fed, ' +
+      'BoE, BoJ, OECD, IMF, World Bank, BIS, Eurostat, INSEE, AfDB, ADB, ' +
+      'and many national NSOs). Use when the user asks for a macro series ' +
+      'that isn\u2019t covered by get_macro_snapshot or get_brazil_macro — ' +
+      'French CPI from INSEE, OECD leading indicators, IMF GDP nowcasts, ' +
+      'BIS credit-to-GDP, Eurostat harmonised indices, etc. Series ' +
+      'identifier is the DBnomics tuple: provider_code / dataset_code / ' +
+      'series_code. The user will usually not know these directly; ' +
+      'reason from the question to pick a plausible provider + dataset ' +
+      'before calling (e.g. OECD / MEI for leading indicators, ECB / EXR ' +
+      'for eurozone FX, IMF / WEO for nowcasts). Returns the series tail ' +
+      '(last 240 observations) plus metadata and a citeable source_url.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        provider_code: {
+          type: 'string',
+          description:
+            'DBnomics provider code. Common: OECD, IMF, ECB, BIS, WB (World Bank), ' +
+            'FED, BOE, BOJ, EUROSTAT, INSEE, OECD_MEI. Case-sensitive.',
+        },
+        dataset_code: {
+          type: 'string',
+          description: 'Dataset code within that provider (e.g. "MEI", "WEO", "EXR", "IFS").',
+        },
+        series_code: {
+          type: 'string',
+          description:
+            'Series code within the dataset. Structure is provider-specific; ' +
+            'pass the full DBnomics series id when known.',
+        },
+      },
+      required: ['provider_code', 'dataset_code', 'series_code'],
+    },
+  },
 ];
 
 // ── Tool handlers ─────────────────────────────────────────────────────
@@ -753,6 +792,7 @@ const providers = {
   multiAsset:         lazy('../providers/multiAssetProvider'),
   bonds:              lazy('../providers/bondsProvider'),
   macro:              lazy('../providers/macroProvider'),
+  dbnomics:           lazy('../providers/dbnomics'),
   fx:                 lazy('../providers/fxProvider'),
   commodities:        lazy('../providers/commoditiesProvider'),
   movers:             lazy('../providers/marketMoversProvider'),
@@ -1250,6 +1290,19 @@ async function handleCompute({ expression, variables }) {
   };
 }
 
+// R1.1 — DBnomics lookup. Wraps providers/dbnomics.lookupSeries.
+async function handleLookupSeriesGlobal(args = {}) {
+  const mod = providers.dbnomics();
+  if (!mod || typeof mod.lookupSeries !== 'function') {
+    return { error: 'dbnomics adapter unavailable' };
+  }
+  return mod.lookupSeries({
+    providerCode: String(args.provider_code || '').trim(),
+    datasetCode:  String(args.dataset_code  || '').trim(),
+    seriesCode:   String(args.series_code   || '').trim(),
+  });
+}
+
 async function handleFetchUrl({ url, maxChars }, ctx = {}) {
   const svc = services.webFetch();
   if (!svc || typeof svc.fetchUrl !== 'function') {
@@ -1298,6 +1351,7 @@ const HANDLERS = {
   web_research:              handleWebResearch,
   fetch_url:                 handleFetchUrl,
   compute:                   handleCompute,
+  lookup_series_global:      handleLookupSeriesGlobal,
 };
 
 /**

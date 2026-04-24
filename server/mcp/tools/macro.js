@@ -17,6 +17,7 @@ const NAMES = [
   'get_brazil_macro',
   'get_market_regime',
   'run_scenario',
+  'lookup_series_global', // R1.1 DBnomics adapter
 ];
 
 function register(registry) {
