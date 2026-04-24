@@ -89,6 +89,17 @@ place is also acceptable; they will be ignored once no tokens carry that kid.
 Do **not** immediately delete the old key value from the password manager —
 keep it for 90 days in case you need to decrypt a forensic log.
 
+#### Automated in-process retirement (#249 P3.5)
+
+`server/jobs/jwtKeyRetirement.js` runs every 15 min. Once the PREVIOUS kid
+has been mounted for at least `JWT_PREVIOUS_GRACE_MS` (default 2 h) and has
+not verified a token in `JWT_PREVIOUS_IDLE_MS` (default 30 min), the cron
+unmounts it from `JWT_KEYS` in-memory. This does **not** touch the Render
+env var — step 6 above is still the right hygiene action — but it does
+bound the blast radius of a leaked retired key to at most the grace window.
+Watch for the `jwt-key-retirement` entry in the scheduler log and the
+`authStore — JWT PREVIOUS key retired` info line confirming the unmount.
+
 ## Emergency rotation (compromise suspected)
 
 If you suspect a key is leaked (e.g. GitHub-secret-scan hit, infra breach):

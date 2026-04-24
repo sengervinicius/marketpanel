@@ -61,6 +61,12 @@ const JWT_KEYS = {};  // kid → secret
 let JWT_CURRENT_KID = null;
 let JWT_PREVIOUS_KID = null;
 
+// #249 P3.5 — track age + last-use of PREVIOUS kid so the retirement cron
+// (jobs/jwtKeyRetirement.js) can unmount it safely once the grace window
+// closes. Both timestamps are unix-ms; null means "not observed yet".
+let JWT_PREVIOUS_LOADED_AT = null;
+let JWT_PREVIOUS_LAST_USED_AT = null;
+
 (function loadKeys() {
   const currentKid = process.env.JWT_SIGNING_KID_CURRENT;
   const currentSecret = process.env.JWT_SIGNING_KEY_CURRENT;
@@ -75,6 +81,7 @@ let JWT_PREVIOUS_KID = null;
   if (previousKid && previousSecret) {
     JWT_KEYS[previousKid] = previousSecret;
     JWT_PREVIOUS_KID = previousKid;
+    JWT_PREVIOUS_LOADED_AT = Date.now();
   }
   // Legacy single-secret fallback
   if (legacy) {
@@ -696,7 +703,12 @@ function verifyToken(token) {
 
   // Preferred path: kid → exact key
   if (kid && JWT_KEYS[kid]) {
-    return jwt.verify(token, JWT_KEYS[kid], { algorithms: ['HS256'] });
+    const payload = jwt.verify(token, JWT_KEYS[kid], { algorithms: ['HS256'] });
+    // #249 P3.5 — record PREVIOUS key usage for retirement cron
+    if (JWT_PREVIOUS_KID && kid === JWT_PREVIOUS_KID) {
+      JWT_PREVIOUS_LAST_USED_AT = Date.now();
+    }
+    return payload;
   }
 
   // Fallback: try CURRENT, then PREVIOUS, then 'legacy' if present.
@@ -708,12 +720,57 @@ function verifyToken(token) {
   let lastErr = null;
   for (const tryKid of tryKids) {
     try {
-      return jwt.verify(token, JWT_KEYS[tryKid], { algorithms: ['HS256'] });
+      const payload = jwt.verify(token, JWT_KEYS[tryKid], { algorithms: ['HS256'] });
+      if (JWT_PREVIOUS_KID && tryKid === JWT_PREVIOUS_KID) {
+        JWT_PREVIOUS_LAST_USED_AT = Date.now();
+      }
+      return payload;
     } catch (e) {
       lastErr = e;
     }
   }
   throw lastErr || new Error('Invalid token');
+}
+
+// ── #249 P3.5 — JWT secondary-key introspection + retirement ─────────────
+//
+// The runbook (docs/RUNBOOK_JWT_ROTATION.md) calls for unsetting
+// JWT_SIGNING_KID_PREVIOUS / JWT_SIGNING_KEY_PREVIOUS by hand ~30 minutes
+// after a rotation. In practice that "by hand" step slips: operators forget
+// and the old key lingers for weeks, widening the blast radius if it's ever
+// leaked. The retirement cron (jobs/jwtKeyRetirement.js) uses these
+// functions to unmount PREVIOUS from the in-memory JWT_KEYS map once the
+// grace window has elapsed. The Render env var itself is not touched — that
+// still needs the runbook's manual step — but the process will no longer
+// accept tokens signed with the old kid.
+
+function getJwtKeyState() {
+  return {
+    currentKid: JWT_CURRENT_KID,
+    previousKid: JWT_PREVIOUS_KID,
+    previousLoadedAt: JWT_PREVIOUS_LOADED_AT,
+    previousLastUsedAt: JWT_PREVIOUS_LAST_USED_AT,
+    // legacy mounted under the reserved 'legacy' kid is informational only;
+    // the cron does not retire it (that's the manual cut-over path).
+    legacyMounted: Boolean(JWT_KEYS['legacy'] && JWT_CURRENT_KID !== 'legacy'),
+  };
+}
+
+/**
+ * Unmount the PREVIOUS signing key from the in-memory key map.
+ * After this returns `true`, verifyToken will reject any token carrying
+ * the old kid.
+ * @returns {boolean} true if a key was actually retired
+ */
+function retirePreviousKey() {
+  if (!JWT_PREVIOUS_KID) return false;
+  const retiredKid = JWT_PREVIOUS_KID;
+  delete JWT_KEYS[retiredKid];
+  JWT_PREVIOUS_KID = null;
+  JWT_PREVIOUS_LOADED_AT = null;
+  JWT_PREVIOUS_LAST_USED_AT = null;
+  logger.info('authStore', 'JWT PREVIOUS key retired', { retiredKid });
+  return true;
 }
 
 /**
@@ -1188,6 +1245,9 @@ module.exports = {
   verifyUser,
   signToken,
   verifyToken,
+  // #249 P3.5 — exposed for jwtKeyRetirement cron + tests
+  getJwtKeyState,
+  retirePreviousKey,
   createRefreshToken,
   rotateRefreshToken,
   revokeUserRefreshTokens,

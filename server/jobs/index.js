@@ -149,6 +149,16 @@ function initJobs(ctx = {}) {
   const { sweep: stalenessSweep } = require('../services/stalenessMonitor');
   registerJob('staleness-sweep', '* * * * *', stalenessSweep);
 
+  // ── JWT PREVIOUS-key retirement: every 15 minutes (#249 P3.5) ────────
+  // Automates step 6 of docs/RUNBOOK_JWT_ROTATION.md. Once the grace
+  // window (default 2h) elapses and no token has verified against the
+  // PREVIOUS kid in the idle window (default 30m), unmount the old key
+  // from the in-memory JWT_KEYS map. The env var on Render still needs
+  // manual cleanup per the runbook — this job bounds the damage from a
+  // leaked retired key to "whatever the cron's grace window allows".
+  const { runOnce: retireJwtPrevious } = require('./jwtKeyRetirement');
+  registerJob('jwt-key-retirement', '*/15 * * * *', retireJwtPrevious);
+
   // ── Alert evaluation: every 45 seconds ──────────────────────────────
   // Alert scheduler uses internal heartbeat loop because it needs sub-minute
   // cadence. We just start it here for central management.
