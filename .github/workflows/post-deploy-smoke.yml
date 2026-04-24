@@ -31,7 +31,7 @@ on:
       server_url:
         description: 'Override server URL'
         required: false
-        default: 'https://senger-market-server.onrender.com'
+        default: 'https://senger-server.onrender.com'
       client_url:
         description: 'Override client URL'
         required: false
@@ -67,6 +67,6 @@ jobs:
 
       - name: Run smoke probes
         env:
-          SMOKE_BASE_URL: ${{ github.event.inputs.server_url || 'https://senger-market-server.onrender.com' }}
+          SMOKE_BASE_URL: ${{ github.event.inputs.server_url || 'https://senger-server.onrender.com' }}
           SMOKE_CLIENT_URL: ${{ github.event.inputs.client_url || 'https://the-particle.com' }}
         run: node scripts/postDeploySmoke.js

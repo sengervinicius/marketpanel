@@ -10,7 +10,7 @@
  * on manual workflow_dispatch, but it's a plain Node script with no extra
  * deps so it can also be run from a laptop to spot-check prod:
  *
- *   SMOKE_BASE_URL=https://senger-market-server.onrender.com \
+ *   SMOKE_BASE_URL=https://senger-server.onrender.com \
  *     node scripts/postDeploySmoke.js
  *
  * Exit codes:
@@ -25,7 +25,13 @@
 
 'use strict';
 
-const DEFAULT_BASE = 'https://senger-market-server.onrender.com';
+// Real Render service hostname. Render's docs call it `<name>.onrender.com`
+// where `<name>` is the SERVICE name, not the repo name. The service is
+// `senger-server` (see client/src/utils/api.js comment). An earlier
+// default of `senger-market-server.onrender.com` was wrong — that
+// hostname doesn't resolve, so every probe since workflow run #1 (#250)
+// silently failed. See #282.
+const DEFAULT_BASE = 'https://senger-server.onrender.com';
 const DEFAULT_CLIENT_BASE = 'https://the-particle.com';
 
 const PROBES = [
