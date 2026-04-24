@@ -1,6 +1,5 @@
-import { useState, useEffect, useCallback, useRef, useMemo, Component, Suspense } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo, Suspense } from 'react';
 
-import { lazyWithRetry } from './utils/lazyWithRetry';
 import { apiFetch } from './utils/api';
 import { swallow } from './utils/swallow';
 import { useFeatureFlags } from './hooks/useFeatureFlags';
@@ -30,41 +29,41 @@ import KeyboardShortcutsModal from './components/common/KeyboardShortcutsModal';
 import CommandPalette from './components/common/CommandPalette';
 import FeedbackButton from './components/common/FeedbackButton';
 import { SearchPanel } from './components/panels/SearchPanel';
-const ETFPanel = lazyWithRetry(() => import('./components/panels/ETFPanel'));
-const AlertCenterPanel = lazyWithRetry(() => import('./components/panels/AlertCenterPanel'));
-const NewsPanel = lazyWithRetry(() => import('./components/panels/NewsPanel'));
-const ScreenerPanel = lazyWithRetry(() => import('./components/panels/ScreenerPanel'));
-const MacroPanel = lazyWithRetry(() => import('./components/panels/MacroPanel'));
-const ChatPanel = lazyWithRetry(() => import('./components/panels/ChatPanel'));
+// #253 P3.1 — lazy chunks moved to lazyPanels.js so App.jsx stays focused on shell composition.
+import {
+  ETFPanel,
+  AlertCenterPanel,
+  NewsPanel,
+  ScreenerPanel,
+  MacroPanel,
+  ChatPanel,
+  PredictionPanel,
+  PortfolioMobile,
+  HomePanelMobile,
+  ChartsPanelMobile,
+  MobileMoreScreen,
+  WelcomeTour,
+  VaultPanel,
+  AdminDashboard,
+  DefenceScreen,
+  CommoditiesScreen,
+  GlobalMacroScreen,
+  FixedIncomeScreen,
+  BrazilScreen,
+  TechAIScreen,
+  GlobalRetailScreen,
+  AsianMarketsScreen,
+  EuropeanMarketsScreen,
+  CryptoScreen,
+  InstrumentDetail,
+  AlertEditor,
+} from './lazyPanels';
 // openChatWindow is a standalone utility, import directly
 import { openChatWindow } from './components/panels/ChatPanel';
-const PortfolioMobile = lazyWithRetry(() => import('./components/panels/PortfolioMobile'));
-const HomePanelMobile = lazyWithRetry(() => import('./components/panels/HomePanelMobile'));
-const ChartsPanelMobile = lazyWithRetry(() => import('./components/panels/ChartsPanelMobile'));
-const MobileMoreScreen = lazyWithRetry(() => import('./components/panels/MobileMoreScreen'));
 import ToastContainer from './components/common/ToastContainer';
-const WelcomeTour = lazyWithRetry(() => import('./components/onboarding/WelcomeTour'));
-const VaultPanel = lazyWithRetry(() => import('./components/app/VaultPanel'));
 import SectorScreenSelector from './components/common/SectorScreenSelector';
 import MarketStatus from './components/common/MarketStatus';
 import { TickerTooltip } from './components/common/TickerTooltip';
-const AdminDashboard = lazyWithRetry(() => import('./components/admin/AdminDashboard'));
-const PredictionPanel = lazyWithRetry(() => import('./components/panels/PredictionPanel'));
-
-// Lazy-loaded sector screens — split into separate chunks (lazyWithRetry auto-reloads on stale deploy)
-const DefenceScreen = lazyWithRetry(() => import('./components/screens/DefenceScreen'));
-const CommoditiesScreen = lazyWithRetry(() => import('./components/screens/CommoditiesScreen'));
-const GlobalMacroScreen = lazyWithRetry(() => import('./components/screens/GlobalMacroScreen'));
-const FixedIncomeScreen = lazyWithRetry(() => import('./components/screens/FixedIncomeScreen'));
-const BrazilScreen = lazyWithRetry(() => import('./components/screens/BrazilScreen'));
-const TechAIScreen = lazyWithRetry(() => import('./components/screens/TechAIScreen'));
-const GlobalRetailScreen = lazyWithRetry(() => import('./components/screens/GlobalRetailScreen'));
-const AsianMarketsScreen = lazyWithRetry(() => import('./components/screens/AsianMarketsScreen'));
-const EuropeanMarketsScreen = lazyWithRetry(() => import('./components/screens/EuropeanMarketsScreen'));
-const CryptoScreen = lazyWithRetry(() => import('./components/screens/CryptoScreen'));
-
-const InstrumentDetail = lazyWithRetry(() => import('./components/common/InstrumentDetail'));
-const AlertEditor = lazyWithRetry(() => import('./components/common/AlertEditor'));
 import PanelErrorBoundary from './components/common/PanelErrorBoundary';
 import ParticleLogo from './components/ui/ParticleLogo';
 import ParticleSidebar from './components/app/ParticleSidebar';
@@ -102,182 +101,18 @@ import {
 } from './components/app/AppMobile';
 import ParticleScreen from './components/app/ParticleScreen';
 import PricingModal from './components/app/PricingModal';
+// #253 P3.1 — shell-level boundaries (TOS modal, error boundary, loading fallbacks)
+import {
+  TermsAcceptanceModal,
+  AppErrorBoundary,
+  ScreenFallback,
+  InstrumentDetailSkeleton,
+} from './components/app/AppBoundaries';
 import SentimentStrip from './components/SentimentStrip';
 import CrossAssetStrip from './components/CrossAssetStrip';
 import './App.css';
 import './components/panels/Chat.css';
 // react-joyride v2+ uses inline styles — no separate CSS import needed
-
-// ── Terms of Service acceptance modal ──────────────────────────────────────
-function TermsAcceptanceModal({ onAccept }) {
-  const [scrolledToBottom, setScrolledToBottom] = useState(false);
-  const contentRef = useRef(null);
-
-  const handleScroll = useCallback(() => {
-    const el = contentRef.current;
-    if (!el) return;
-    if (el.scrollTop + el.clientHeight >= el.scrollHeight - 30) {
-      setScrolledToBottom(true);
-    }
-  }, []);
-
-  return (
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 99999,
-      background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      padding: 16,
-    }}>
-      <div style={{
-        background: 'var(--bg-secondary, #141414)', borderRadius: 12,
-        maxWidth: 520, width: '100%', maxHeight: '80vh',
-        display: 'flex', flexDirection: 'column',
-        border: '1px solid var(--border-subtle, #222)',
-        boxShadow: '0 24px 48px rgba(0,0,0,0.5)',
-      }}>
-        <div style={{
-          padding: '20px 24px 12px', borderBottom: '1px solid var(--border-subtle, #222)',
-        }}>
-          <div style={{ color: 'var(--accent, #e55a00)', fontSize: 10, fontWeight: 700, letterSpacing: '1.5px', marginBottom: 4 }}>PARTICLE</div>
-          <div style={{ color: 'var(--text-primary, #e0e0e0)', fontSize: 18, fontWeight: 600 }}>Terms of Service</div>
-          <div style={{ color: 'var(--text-faint, #666)', fontSize: 12, marginTop: 4 }}>Please review and accept to continue</div>
-        </div>
-        <div
-          ref={contentRef}
-          onScroll={handleScroll}
-          style={{
-            flex: 1, overflow: 'auto', padding: '16px 24px',
-            fontSize: 12, lineHeight: 1.7, color: 'var(--text-secondary, #aaa)',
-            maxHeight: '50vh',
-          }}
-        >
-          <p style={{ marginBottom: 12 }}>By using Particle Market Terminal, you agree to the following terms:</p>
-          <p style={{ marginBottom: 12 }}><strong style={{ color: 'var(--text-primary, #e0e0e0)' }}>Financial Disclaimer:</strong> All data and information provided through Particle Market Terminal is for informational and educational purposes only. It should not be construed as financial advice, investment recommendations, or an offer to buy or sell securities.</p>
-          <p style={{ marginBottom: 12 }}><strong style={{ color: 'var(--text-primary, #e0e0e0)' }}>No Guarantee of Accuracy:</strong> While we strive for accuracy, market data may be delayed or contain errors. Particle makes no warranty regarding the completeness or reliability of any information displayed.</p>
-          <p style={{ marginBottom: 12 }}><strong style={{ color: 'var(--text-primary, #e0e0e0)' }}>AI-Generated Content:</strong> Some content is generated by artificial intelligence models and may contain inaccuracies. AI-generated insights do not constitute professional financial advice.</p>
-          <p style={{ marginBottom: 12 }}><strong style={{ color: 'var(--text-primary, #e0e0e0)' }}>User Responsibility:</strong> You are solely responsible for your investment decisions. Past performance does not guarantee future results. Always consult a qualified financial advisor before making investment decisions.</p>
-          <p style={{ marginBottom: 12 }}><strong style={{ color: 'var(--text-primary, #e0e0e0)' }}>Subscription & Billing:</strong> Your subscription is governed by the billing terms presented at checkout. Cancellations take effect at the end of the current billing period.</p>
-          <p style={{ marginBottom: 12, color: 'var(--text-faint, #666)', fontSize: 11 }}>For the full Terms of Service, visit <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent, #e55a00)' }}>particle.market/terms</a></p>
-        </div>
-        <div style={{
-          padding: '16px 24px 20px', borderTop: '1px solid var(--border-subtle, #222)',
-          display: 'flex', flexDirection: 'column', gap: 8,
-        }}>
-          <button
-            onClick={onAccept}
-            style={{
-              width: '100%', padding: '12px 0', borderRadius: 8,
-              background: 'var(--accent, #e55a00)', color: '#fff',
-              fontWeight: 600, fontSize: 14, border: 'none', cursor: 'pointer',
-              opacity: 1, transition: 'opacity 150ms',
-            }}
-          >
-            I Accept the Terms of Service
-          </button>
-          <div style={{ textAlign: 'center', fontSize: 10, color: 'var(--text-faint, #555)' }}>
-            Data provided for informational purposes only. Not financial advice.
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── Error Boundary — catches runtime crashes and shows diagnostic info ─────
-class AppErrorBoundary extends Component {
-  constructor(props) {
-    super(props);
-    this.state = { hasError: false, error: null, errorInfo: null };
-  }
-  static getDerivedStateFromError(error) {
-    return { hasError: true, error };
-  }
-  componentDidCatch(error, errorInfo) {
-    this.setState({ errorInfo });
-    console.error('[AppErrorBoundary] Caught render crash:', error, errorInfo);
-  }
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div style={{
-          position: 'fixed', inset: 0, background: '#0a0a0a',
-          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-          color: '#e0e0e0', fontFamily: 'monospace', padding: 24, gap: 16,
-        }}>
-          <div style={{ color: '#F97316', fontWeight: 700, fontSize: 13, letterSpacing: '3px' }}>PARTICLE</div>
-          <div style={{ color: '#f44336', fontSize: 14, fontWeight: 600 }}>App crashed — render error</div>
-          <div style={{ color: '#ff9900', fontSize: 11, maxWidth: 600, wordBreak: 'break-word', textAlign: 'center' }}>
-            {this.state.error?.message || 'Unknown error'}
-          </div>
-          <pre style={{ color: '#888', fontSize: 9, maxWidth: '90vw', maxHeight: '40vh', overflow: 'auto', whiteSpace: 'pre-wrap' }}>
-            {this.state.error?.stack || ''}{'\n'}{this.state.errorInfo?.componentStack || ''}
-          </pre>
-          <button
-            onClick={() => { this.setState({ hasError: false, error: null, errorInfo: null }); window.location.reload(); }}
-            style={{ background: 'var(--color-particle, #F97316)', color: '#fff', border: 'none', padding: '8px 24px', borderRadius: 4, cursor: 'pointer', fontSize: 12, letterSpacing: '1px' }}
-          >RELOAD</button>
-        </div>
-      );
-    }
-    return this.props.children;
-  }
-}
-
-// ── Lazy-load fallback — matches dark terminal aesthetic ──────────────────────────
-function ScreenFallback() {
-  return (
-    <div style={{
-      flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
-      background: 'var(--bg-panel)', color: 'var(--text-faint)', fontSize: 12,
-      fontFamily: 'var(--font-mono)', letterSpacing: '1px',
-    }}>
-      <div style={{ textAlign: 'center' }}>
-        <div style={{ color: 'var(--accent)', fontSize: 11, marginBottom: 8 }}>LOADING</div>
-        <div className="boot-bar" style={{ width: 120, height: 2, margin: '0 auto' }}>
-          <div className="boot-bar-fill" />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── InstrumentDetail skeleton (shimmer placeholder) ──────────────────────────
-function InstrumentDetailSkeleton() {
-  return (
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 9999,
-      background: 'rgba(0, 0, 0, 0.97)',
-      display: 'flex', flexDirection: 'column',
-      fontFamily: 'var(--font-ui)', color: 'var(--text-primary)',
-    }}>
-      {/* Header skeleton */}
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: 10,
-        padding: '8px 16px', borderBottom: '1px solid var(--border-default)',
-        background: 'var(--bg-panel)',
-      }}>
-        <div className="skeleton-shimmer" style={{ width: 32, height: 32, borderRadius: '50%' }} />
-        <div className="skeleton-shimmer" style={{ width: 80, height: 18, borderRadius: 4 }} />
-        <div className="skeleton-shimmer" style={{ width: 120, height: 14, borderRadius: 4 }} />
-        <div style={{ flex: 1 }} />
-        <div className="skeleton-shimmer" style={{ width: 100, height: 24, borderRadius: 4 }} />
-        <div className="skeleton-shimmer" style={{ width: 80, height: 18, borderRadius: 4 }} />
-      </div>
-      {/* Chart skeleton */}
-      <div style={{ flex: 1, padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <div className="skeleton-shimmer" style={{ width: '100%', height: 300, borderRadius: 8 }} />
-        {/* Metrics strip skeleton */}
-        <div style={{ display: 'flex', gap: 8 }}>
-          {[1,2,3,4,5].map(i => (
-            <div key={i} className="skeleton-shimmer" style={{ flex: 1, height: 48, borderRadius: 6 }} />
-          ))}
-        </div>
-        {/* Fundamentals skeleton */}
-        <div className="skeleton-shimmer" style={{ width: '100%', height: 200, borderRadius: 8 }} />
-      </div>
-    </div>
-  );
-}
 
 const LS_TAB          = 'activeTab_m3';
 const LS_CHART_TICKER = 'chartTicker';

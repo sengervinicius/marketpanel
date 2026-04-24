@@ -1,5 +1,5 @@
 // InstrumentDetail.jsx – Bloomberg GP-style full-screen instrument overlay
-import { useState, useEffect, useCallback, useRef, useMemo, memo } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { useOpenDetail, useSectorContext } from '../../context/OpenDetailContext';
@@ -9,9 +9,10 @@ import AlertEditor from './AlertEditor';
 import ShareModal from './ShareModal';
 import PositionEditor from './PositionEditor';
 import InstrumentOptionsPanel from './InstrumentOptionsPanel';
-import { useTickerPrice } from '../../context/PriceContext';
-import { sanitizeTicker } from '../../utils/ticker';
 import './InstrumentDetail.css';
+import {
+  NO_DATA_EXCHANGES, RELATED_NAMES, SECTOR_TICKER_MAP, RelatedTickerChip,
+} from './InstrumentDetailMeta';
 import {
   AreaChart, Area, BarChart, Bar, ComposedChart, Line,
   XAxis, YAxis, ResponsiveContainer, Tooltip,
@@ -40,54 +41,6 @@ import { getExchangeName } from '../../config/exchangeNames';
 import {
   detectExchangeGroup, getProviderRouting, getDataTypeCoverage, getCoverageDisplay, COVERAGE,
 } from '../../config/providerMatrix';
-
-// ── NO_DATA exchanges — now driven by providerMatrix ──
-const NO_DATA_EXCHANGES = new Set([]);
-
-// ── Name overrides for display ──
-const RELATED_NAMES = {
-  LMT:'Lockheed', RTX:'Raytheon', BA:'Boeing', NOC:'Northrop', GD:'Gen Dynamics', BAESY:'BAE', PLTR:'Palantir', RKLB:'Rocket Lab', KTOS:'Kratos',
-  NVDA:'NVIDIA', MSFT:'Microsoft', AAPL:'Apple', GOOGL:'Alphabet', META:'Meta', AMZN:'Amazon', TSM:'TSMC', AMD:'AMD', AVGO:'Broadcom',
-  XOM:'Exxon', CVX:'Chevron', SHEL:'Shell', COP:'Conoco', SLB:'Schlumberger', NEE:'NextEra', ENPH:'Enphase', FSLR:'First Solar',
-  EWZ:'Brazil ETF', MELI:'MercadoLibre', NU:'Nu Holdings', VALE:'Vale ADR',
-  TLT:'20Y Treasury', IEF:'7-10Y Treasury', SHY:'1-3Y Treasury', AGG:'US Agg Bond', HYG:'High Yield', LQD:'IG Corporate', EMB:'EM Bonds', TIP:'TIPS',
-  SPY:'S&P 500', QQQ:'Nasdaq 100', DIA:'Dow Jones', IWM:'Russell 2000', GLD:'Gold', USO:'Oil',
-  MSTR:'MicroStrategy', COIN:'Coinbase', IBIT:'iShares BTC',
-  BABA:'Alibaba', TM:'Toyota', SONY:'Sony', HDB:'HDFC Bank', INFY:'Infosys', TCEHY:'Tencent',
-  SAP:'SAP', AZN:'AstraZeneca', NVO:'Novo Nordisk', LVMUY:'LVMH', HSBC:'HSBC', TTE:'TotalEnergies',
-  WMT:'Walmart', COST:'Costco', TGT:'Target', HD:'Home Depot', NKE:'Nike', SBUX:'Starbucks',
-};
-
-// ── Related Ticker Chip (mini component for "Also In" section) ──
-const RelatedTickerChip = memo(function RelatedTickerChip({ ticker, onOpen, sectorContext }) {
-  const priceData = useTickerPrice(ticker);
-  const displayTk = sanitizeTicker(ticker || '').replace('.SA', '').replace('=F', '');
-  const name = RELATED_NAMES[ticker] || RELATED_NAMES[displayTk] || displayTk;
-  const price = priceData?.price;
-  const changePct = priceData?.changePct;
-  const isUp = changePct != null ? changePct >= 0 : true;
-
-  return (
-    <div
-      className="id-related-chip"
-      onClick={() => onOpen(ticker, sectorContext)}
-      onTouchEnd={(e) => { e.preventDefault(); onOpen(ticker, sectorContext); }}
-    >
-      <span className="id-related-chip-ticker">{displayTk}</span>
-      <span className="id-related-chip-name">{name}</span>
-      {price != null && (
-        <span className="id-related-chip-price">
-          {price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-        </span>
-      )}
-      {changePct != null && (
-        <span className={`id-related-chip-chg ${isUp ? 'up' : 'down'}`}>
-          {changePct >= 0 ? '+' : ''}{changePct.toFixed(2)}%
-        </span>
-      )}
-    </div>
-  );
-});
 
 // ── Main Component ──────────────────────────────────────────────────────────
 // asPage=true: renders as a scrollable page (DETAIL tab on mobile), no fixed overlay
@@ -1792,20 +1745,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
   }
 
   // ── Related Tickers sub-render (from same sector) ──────────────────────────
-  const SECTOR_TICKER_MAP = useMemo(() => ({
-    'Defence & Aerospace': ['LMT', 'RTX', 'BA', 'NOC', 'GD', 'BAESY', 'PLTR', 'RKLB', 'KTOS'],
-    'Technology & AI': ['NVDA', 'MSFT', 'AAPL', 'GOOGL', 'META', 'AMZN', 'TSM', 'AMD', 'AVGO'],
-    'Energy & Commodities': ['XOM', 'CVX', 'SHEL', 'COP', 'SLB', 'NEE', 'ENPH', 'FSLR'],
-    'Brazil & EM': ['EWZ', 'MELI', 'NU', 'VALE', 'PETR4.SA', 'VALE3.SA', 'ITUB4.SA'],
-    'Fixed Income': ['TLT', 'IEF', 'SHY', 'AGG', 'HYG', 'LQD', 'EMB', 'TIP'],
-    'Global Macro': ['SPY', 'QQQ', 'DIA', 'IWM', 'GLD', 'USO', 'VIX'],
-    'FX & Crypto': ['X:BTCUSD', 'X:ETHUSD', 'X:SOLUSD', 'MSTR', 'COIN'],
-    'Crypto': ['X:BTCUSD', 'X:ETHUSD', 'X:SOLUSD', 'MSTR', 'COIN', 'IBIT'],
-    'Asian Markets': ['BABA', 'TM', 'SONY', 'HDB', 'TSM', 'INFY', 'TCEHY'],
-    'European Markets': ['SAP', 'AZN', 'NVO', 'SHEL', 'LVMUY', 'HSBC', 'TTE'],
-    'Global Retail': ['AMZN', 'WMT', 'COST', 'TGT', 'HD', 'NKE', 'SBUX'],
-  }), []);
-
+  // SECTOR_TICKER_MAP is a static map — imported from InstrumentDetailMeta.
   function renderRelatedTickers() {
     if (!sectorContext) return null;
 
