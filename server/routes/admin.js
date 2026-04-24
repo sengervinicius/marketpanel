@@ -653,4 +653,21 @@ router.get('/ws/metrics', (req, res) => {
   }
 });
 
+// ── #251 P3.2 Upstream provider budget visibility ─────────────────────────
+// GET /api/admin/provider-budget
+//   JSON snapshot of every declared provider's current usage vs. quota. Same
+//   numbers are exported via Prometheus (particle_provider_budget_*), but
+//   having a human-readable JSON lets the on-call eyeball quota burn in an
+//   incident without needing Grafana access.
+const providerBudget = require('../utils/providerBudget');
+
+router.get('/provider-budget', (req, res) => {
+  try {
+    const summary = providerBudget.getSummary();
+    res.json({ ok: true, providers: summary, checkedAt: new Date().toISOString() });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

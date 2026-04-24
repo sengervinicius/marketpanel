@@ -43,6 +43,11 @@ const metrics = {
   ai_cost_cents_total:     NOOP,
   ai_monthly_spend_cents:  NOOP,
   ai_kill_switch_state:    NOOP,
+  // #251 P3.2 — central provider budget metrics
+  provider_requests_total:      NOOP,
+  provider_rate_limited_total:  NOOP,
+  provider_budget_remaining:    NOOP,
+  provider_budget_used_pct:     NOOP,
 };
 
 if (client) {
@@ -135,6 +140,32 @@ if (client) {
     name: 'particle_ai_kill_switch_state',
     help: '1 when a kill-switch is active (force_haiku or block_all_ai), else 0.',
     labelNames: ['kind'],
+    registers: [registry],
+  });
+
+  // #251 P3.2 — central provider budget observability
+  metrics.provider_requests_total = new client.Counter({
+    name: 'particle_provider_requests_total',
+    help: 'Upstream market-data provider requests by outcome.',
+    labelNames: ['provider', 'outcome'],
+    registers: [registry],
+  });
+  metrics.provider_rate_limited_total = new client.Counter({
+    name: 'particle_provider_rate_limited_total',
+    help: 'Upstream market-data provider 429s.',
+    labelNames: ['provider'],
+    registers: [registry],
+  });
+  metrics.provider_budget_remaining = new client.Gauge({
+    name: 'particle_provider_budget_remaining',
+    help: 'Remaining requests in the declared provider budget window.',
+    labelNames: ['provider'],
+    registers: [registry],
+  });
+  metrics.provider_budget_used_pct = new client.Gauge({
+    name: 'particle_provider_budget_used_pct',
+    help: 'Fraction of the declared provider budget window consumed [0,1].',
+    labelNames: ['provider'],
     registers: [registry],
   });
 

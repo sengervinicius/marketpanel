@@ -17,6 +17,11 @@ const { swallow } = require('../../../utils/swallow');
 const logger = require('../../../utils/logger');
 const { yahooCache } = require('./cache');
 const RequestQueue = require('../../../lib/requestQueue');
+// #251 P3.2 — Central provider budget observability. Every call site
+// below reports (attempt, ok, rate_limited, error) so Grafana can track
+// how close we are to each vendor's declared quota before we start 429-ing
+// downstream users.
+const providerBudget = require('../../../utils/providerBudget');
 
 // ── API base URLs & keys ────────────────────────────────────────────
 const POLYGON_BASE = 'https://api.polygon.io';
@@ -104,28 +109,37 @@ async function _polyFetchRaw(path, retries = 2) {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 10000);
     let res;
+    providerBudget.observe('polygon', 'attempt');
     try {
       res = await fetch(url, { signal: controller.signal });
     } catch (e) {
       clearTimeout(timeout);
       if (e.name === 'AbortError') {
         if (attempt < retries) { await new Promise(r => setTimeout(r, 1000 * (attempt + 1))); continue; }
+        providerBudget.observe('polygon', 'error');
         throw new ApiError('Request timed out (10s)', 'network_error');
       }
       if (attempt < retries) { await new Promise(r => setTimeout(r, 1000 * (attempt + 1))); continue; }
+      providerBudget.observe('polygon', 'error');
       throw new ApiError(`Network error: ${e.message}`, 'network_error');
     } finally {
       clearTimeout(timeout);
     }
     if (res.status === 429 && attempt < retries) {
+      providerBudget.observe('polygon', 'rate_limited');
       const retryAfter = parseInt(res.headers?.get?.('retry-after') || '5', 10);
       console.warn(`[Polygon] 429 rate limited, retrying in ${retryAfter}s (attempt ${attempt + 1}/${retries})`);
       await new Promise(r => setTimeout(r, retryAfter * 1000));
       continue;
     }
-    if (!res.ok) classifyHttpError(res.status, res.headers);
+    if (!res.ok) {
+      providerBudget.observe('polygon', res.status === 429 ? 'rate_limited' : 'error');
+      classifyHttpError(res.status, res.headers);
+    }
+    providerBudget.observe('polygon', 'ok');
     return res.json();
   }
+  providerBudget.observe('polygon', 'error');
   throw new ApiError('Polygon: exhausted retries', 'network_error');
 }
 
@@ -232,6 +246,7 @@ async function _yahooChartRaw(ticker, period1, period2, interval, crumb, cookie)
   const chartCtrl = new AbortController();
   const chartTmout = setTimeout(() => chartCtrl.abort(), 10000);
   let r;
+  providerBudget.observe('yahoo', 'attempt');
   try {
     r = await fetch(yfUrl, {
       headers: {
@@ -240,18 +255,25 @@ async function _yahooChartRaw(ticker, period1, period2, interval, crumb, cookie)
       },
       signal: chartCtrl.signal,
     });
+  } catch (e) {
+    clearTimeout(chartTmout);
+    providerBudget.observe('yahoo', 'error');
+    throw e;
   } finally {
     clearTimeout(chartTmout);
   }
   if (r.status === 429) {
+    providerBudget.observe('yahoo', 'rate_limited');
     const error = new Error('Yahoo chart HTTP 429');
     error.code = 'rate_limit';
     throw error;
   }
   if (!r.ok) {
+    providerBudget.observe('yahoo', 'error');
     if (r.status === 401 || r.status === 403) { _yfCrumb = null; _yfCrumbExpiry = 0; }
     throw new Error(`Yahoo chart HTTP ${r.status} for ${ticker}`);
   }
+  providerBudget.observe('yahoo', 'ok');
   return r.json();
 }
 
@@ -268,6 +290,7 @@ async function _yahooSymbolSearch(query, opts = {}) {
   const ctrl = new AbortController();
   const tmout = setTimeout(() => ctrl.abort(), 8000);
   let r;
+  providerBudget.observe('yahoo', 'attempt');
   try {
     r = await fetch(url, {
       headers: {
@@ -278,10 +301,22 @@ async function _yahooSymbolSearch(query, opts = {}) {
       },
       signal: ctrl.signal,
     });
+  } catch (e) {
+    clearTimeout(tmout);
+    providerBudget.observe('yahoo', 'error');
+    throw e;
   } finally {
     clearTimeout(tmout);
   }
-  if (!r.ok) throw new Error(`Yahoo search HTTP ${r.status} for ${query}`);
+  if (r.status === 429) {
+    providerBudget.observe('yahoo', 'rate_limited');
+    throw new Error(`Yahoo search HTTP 429 for ${query}`);
+  }
+  if (!r.ok) {
+    providerBudget.observe('yahoo', 'error');
+    throw new Error(`Yahoo search HTTP ${r.status} for ${query}`);
+  }
+  providerBudget.observe('yahoo', 'ok');
   const json = await r.json();
   return Array.isArray(json?.quotes) ? json.quotes : [];
 }
@@ -297,6 +332,7 @@ async function _yahooQuoteRaw(symbols) {
     const quoteController = new AbortController();
     const quoteTimeout = setTimeout(() => quoteController.abort(), 10000);
     let r;
+    providerBudget.observe('yahoo', 'attempt');
     try {
       r = await fetch(url, {
         headers: {
@@ -308,20 +344,30 @@ async function _yahooQuoteRaw(symbols) {
         },
         signal: quoteController.signal,
       });
+    } catch (e) {
+      clearTimeout(quoteTimeout);
+      providerBudget.observe('yahoo', 'error');
+      throw e;
     } finally {
       clearTimeout(quoteTimeout);
     }
     if (r.status === 401 || r.status === 403) {
+      providerBudget.observe('yahoo', 'error');
       _yfCrumb = null; _yfCookie = null; _yfCrumbExpiry = 0;
       if (attempt === 0) { console.warn(`[Yahoo] ${r.status} on ${host}, retrying with fresh crumb`); continue; }
       throw new Error(`Yahoo Finance HTTP ${r.status}`);
     }
     if (r.status === 429) {
+      providerBudget.observe('yahoo', 'rate_limited');
       const error = new Error(`Yahoo Finance HTTP 429 — rate limited`);
       error.code = 'rate_limit';
       throw error;
     }
-    if (!r.ok) throw new Error(`Yahoo Finance HTTP ${r.status}`);
+    if (!r.ok) {
+      providerBudget.observe('yahoo', 'error');
+      throw new Error(`Yahoo Finance HTTP ${r.status}`);
+    }
+    providerBudget.observe('yahoo', 'ok');
     const json = await r.json();
     return json?.quoteResponse?.result || [];
   }
@@ -345,6 +391,7 @@ async function _yahooQuoteSummaryRaw(symbol) {
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), 10000);
     let r;
+    providerBudget.observe('yahoo', 'attempt');
     try {
       r = await fetch(url, {
         headers: {
@@ -355,14 +402,26 @@ async function _yahooQuoteSummaryRaw(symbol) {
         },
         signal: ctrl.signal,
       });
+    } catch (e) {
+      clearTimeout(t);
+      providerBudget.observe('yahoo', 'error');
+      throw e;
     } finally { clearTimeout(t); }
     if (r.status === 401 || r.status === 403) {
+      providerBudget.observe('yahoo', 'error');
       _yfCrumb = null; _yfCookie = null; _yfCrumbExpiry = 0;
       if (attempt === 0) { console.warn(`[Yahoo QS] ${r.status} on ${host}, retrying`); continue; }
       throw new Error(`Yahoo quoteSummary HTTP ${r.status}`);
     }
-    if (r.status === 429) { const e = new Error('Yahoo quoteSummary 429'); e.code = 'rate_limit'; throw e; }
-    if (!r.ok) throw new Error(`Yahoo quoteSummary HTTP ${r.status}`);
+    if (r.status === 429) {
+      providerBudget.observe('yahoo', 'rate_limited');
+      const e = new Error('Yahoo quoteSummary 429'); e.code = 'rate_limit'; throw e;
+    }
+    if (!r.ok) {
+      providerBudget.observe('yahoo', 'error');
+      throw new Error(`Yahoo quoteSummary HTTP ${r.status}`);
+    }
+    providerBudget.observe('yahoo', 'ok');
     const json = await r.json();
     const result = json?.quoteSummary?.result?.[0];
     if (!result) return null;
@@ -544,9 +603,14 @@ async function finnhubQuote(symbol) {
   const key = finnhubKey();
   if (!key) throw new Error('Finnhub API key not configured');
 
+  providerBudget.observe('finnhub', 'attempt');
   const finnhub = require('../../../adapters/finnhubAdapter');
   const res = await finnhub.quote(symbol);
   if (!res.ok) {
+    providerBudget.observe(
+      'finnhub',
+      res.error?.code === 'rate_limit' ? 'rate_limited' : 'error'
+    );
     // Preserve legacy throw-based contract for callers, but attach the
     // typed error code so logs carry the real cause instead of the
     // historic "Finnhub error: ..." prefix blob.
@@ -555,6 +619,7 @@ async function finnhubQuote(symbol) {
     e.code = res.error.code;
     throw e;
   }
+  providerBudget.observe('finnhub', 'ok');
   const q = res.data;
   // Reconstruct the raw-Finnhub shape the legacy callers expect.
   const nowSec = Math.floor(new Date(q.timestamp).getTime() / 1000) || Math.floor(Date.now() / 1000);
@@ -577,15 +642,32 @@ async function alphaVantageQuote(symbol) {
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 8000);
+  providerBudget.observe('alphavantage', 'attempt');
   try {
     const url = `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${encodeURIComponent(symbol)}&apikey=${key}`;
     const res = await fetch(url, {
       headers: { 'Accept': 'application/json' },
       signal: controller.signal,
     });
-    if (!res.ok) throw new Error(`Alpha Vantage HTTP ${res.status}`);
+    if (res.status === 429) {
+      providerBudget.observe('alphavantage', 'rate_limited');
+      throw new Error(`Alpha Vantage HTTP 429`);
+    }
+    if (!res.ok) {
+      providerBudget.observe('alphavantage', 'error');
+      throw new Error(`Alpha Vantage HTTP ${res.status}`);
+    }
     const data = await res.json();
-    if (data.Note || data['Error Message']) throw new Error(`Alpha Vantage: ${data.Note || data['Error Message']}`);
+    if (data.Note || data['Error Message']) {
+      // Alpha Vantage returns 200 with { Note: 'Thank you for using ...' }
+      // when the caller has blown the daily budget — count as a rate_limit.
+      providerBudget.observe(
+        'alphavantage',
+        data.Note ? 'rate_limited' : 'error'
+      );
+      throw new Error(`Alpha Vantage: ${data.Note || data['Error Message']}`);
+    }
+    providerBudget.observe('alphavantage', 'ok');
     return data['Global Quote'] || {};
   } catch (e) {
     e.provider = 'alphavantage';
