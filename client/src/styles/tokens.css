@@ -150,6 +150,24 @@
 
 
   /* ================================================================
+     ADMIN DASHBOARD — #252 P3.3
+     A deliberately separate palette. The admin UI uses a bright
+     terminal-green accent that should never appear in the end-user
+     product, so we name it distinctly rather than overloading
+     --color-up. Admin views should use these tokens or the global
+     surface/text tokens — no raw hex.
+     ================================================================ */
+  --color-admin-bg:            #0a0a0f;          /* Admin page background (slightly cooler than --color-bg) */
+  --color-admin-accent:        #00ff88;          /* Terminal green — live/active indicators */
+  --color-admin-accent-dim:    #4db854;          /* Muted terminal green — hover, secondary */
+  --color-admin-danger:        #ff6b6b;          /* Admin-specific red (brighter than --color-down) */
+  --color-admin-text:          #d0d0d0;          /* Admin body text */
+  --color-admin-text-muted:    #888888;          /* Admin captions/metadata */
+  --color-admin-text-subtle:   #aaaaaa;          /* Between -text and -text-muted */
+  --color-admin-text-faint:    #666666;          /* Very quiet labels */
+
+
+  /* ================================================================
      TYPOGRAPHY
      ================================================================ */
 

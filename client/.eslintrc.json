@@ -11,6 +11,19 @@
     "ecmaFeatures": { "jsx": true }
   },
   "rules": {
-    "no-empty": ["error", { "allowEmptyCatch": false }]
-  }
+    "no-empty": ["error", { "allowEmptyCatch": false }],
+    "no-restricted-syntax": [
+      "warn",
+      {
+        "selector": "Literal[value=/^#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?([0-9a-fA-F]{2})?$/]",
+        "message": "#252 P3.3 — raw hex colors are banned outside tokens.css / tokenHex.js. Use a CSS variable (var(--color-*)) in stylesheets, or import TOKEN_HEX from '@/utils/tokenHex' for SVG contexts. If this hex is genuinely not a color (e.g. a hash/id/asset key), hoist it to a named constant and disable this rule with a comment explaining why."
+      }
+    ]
+  },
+  "overrides": [
+    {
+      "files": ["src/utils/tokenHex.js"],
+      "rules": { "no-restricted-syntax": "off" }
+    }
+  ]
 }
