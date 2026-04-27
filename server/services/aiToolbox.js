@@ -768,6 +768,66 @@ const TOOLS = [
       required: ['provider_code', 'dataset_code', 'series_code'],
     },
   },
+  {
+    name: 'china_quote',
+    description:
+      'Fetch a Chinese-market quote (A-shares SHSE/SZSE or HK) via the ' +
+      'AkShare worker. Use for "what is 600519 trading at", "Tencent 0700 ' +
+      'quote", "BYD 002594 fundamentals". Symbol format: 6-digit numeric ' +
+      'for A-shares, 5-digit numeric for HK. Returns a "not_configured" ' +
+      'error if AKSHARE_URL env is unset on the server.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        symbol: {
+          type: 'string',
+          description:
+            'A-share symbol (e.g. "600519" for Kweichow Moutai) or HK ' +
+            'symbol (e.g. "00700" for Tencent).',
+        },
+      },
+      required: ['symbol'],
+    },
+  },
+  {
+    name: 'china_breadth',
+    description:
+      'Fetch breadth metrics for a Chinese index (advancers / decliners ' +
+      '/ unchanged plus volume). Use for "how is the SHSE composite doing", ' +
+      '"is breadth narrow on SZSE", "Hang Seng breadth today".',
+    input_schema: {
+      type: 'object',
+      properties: {
+        index: {
+          type: 'string',
+          description:
+            'Index code: "000001" (SHSE Composite), "399001" (SZSE ' +
+            'Component), "HSI" (Hang Seng).',
+        },
+      },
+      required: ['index'],
+    },
+  },
+  {
+    name: 'china_flow',
+    description:
+      'Fetch Northbound (foreign \u2192 SHSE/SZSE) or Southbound (mainland ' +
+      '\u2192 HK) capital flows via the Stock Connect program. Use for "are ' +
+      'foreigners buying or selling mainland today", "what does southbound ' +
+      'flow look like this week".',
+    input_schema: {
+      type: 'object',
+      properties: {
+        direction: {
+          type: 'string',
+          enum: ['northbound', 'southbound'],
+          description:
+            'northbound = HK\u2192SHSE/SZSE; southbound = SHSE/SZSE\u2192HK.',
+        },
+      },
+      required: ['direction'],
+    },
+  },
 ];
 
 // ── Tool handlers ─────────────────────────────────────────────────────
@@ -793,6 +853,7 @@ const providers = {
   bonds:              lazy('../providers/bondsProvider'),
   macro:              lazy('../providers/macroProvider'),
   dbnomics:           lazy('../providers/dbnomics'),
+  akshare:            lazy('../providers/akshare'),
   fx:                 lazy('../providers/fxProvider'),
   commodities:        lazy('../providers/commoditiesProvider'),
   movers:             lazy('../providers/marketMoversProvider'),
@@ -1303,6 +1364,27 @@ async function handleLookupSeriesGlobal(args = {}) {
   });
 }
 
+// R1.2 — AkShare China-markets handlers. Worker is external; adapter
+// returns { error: 'akshare_not_configured' } cleanly when AKSHARE_URL
+// isn't set, so the model can phrase a graceful coverage gap reply.
+async function handleChinaQuote(args = {}) {
+  const mod = providers.akshare();
+  if (!mod) return { error: 'akshare adapter unavailable' };
+  return mod.quote({ symbol: String(args.symbol || '').trim() });
+}
+
+async function handleChinaBreadth(args = {}) {
+  const mod = providers.akshare();
+  if (!mod) return { error: 'akshare adapter unavailable' };
+  return mod.breadth({ index: String(args.index || '').trim() });
+}
+
+async function handleChinaFlow(args = {}) {
+  const mod = providers.akshare();
+  if (!mod) return { error: 'akshare adapter unavailable' };
+  return mod.flow({ direction: String(args.direction || '').trim() });
+}
+
 async function handleFetchUrl({ url, maxChars }, ctx = {}) {
   const svc = services.webFetch();
   if (!svc || typeof svc.fetchUrl !== 'function') {
@@ -1352,6 +1434,9 @@ const HANDLERS = {
   fetch_url:                 handleFetchUrl,
   compute:                   handleCompute,
   lookup_series_global:      handleLookupSeriesGlobal,
+  china_quote:               handleChinaQuote,
+  china_breadth:             handleChinaBreadth,
+  china_flow:                handleChinaFlow,
 };
 
 /**

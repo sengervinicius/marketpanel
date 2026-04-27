@@ -30,6 +30,10 @@ const NAMES = [
   'lookup_fx',
   'lookup_commodity',
   'forward_estimates',
+  // R1.2 — AkShare China-markets adapter (worker external).
+  'china_quote',
+  'china_breadth',
+  'china_flow',
 ];
 
 function register(registry) {
