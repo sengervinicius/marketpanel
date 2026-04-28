@@ -31,6 +31,51 @@ function requireAuth(req, res, next) {
 }
 
 /**
+ * populatePlanTier — must be used after requireAuth. Loads the user's
+ * plan_tier from Postgres (or memory) and attaches it to req.user as
+ * req.user.planTier. NEVER returns a non-2xx — even users whose trial
+ * has expired pass through. Routes that want hard subscription gating
+ * use requireActiveSubscription instead; routes that want tier-aware
+ * but trial-friendly behaviour (e.g. /api/vault — 5-file trial cap is
+ * enforced inside the route handler against req.user.planTier) use
+ * this.
+ *
+ * #283 — added so a trial user whose 14-day window has elapsed isn't
+ * locked out of vault. The vault upload route still enforces the
+ * trial tier's 5-document cap; the user keeps read access to existing
+ * docs and can upgrade in-place. Previously requireActiveSubscription
+ * 402'd them and the entire vault appeared "completely out of service".
+ */
+async function populatePlanTier(req, res, next) {
+  const userId = req.user?.id;
+  if (!userId) return next(); // requireAuth would have 401'd already
+  let user = getUserById(userId);
+  if (!user) {
+    try {
+      const result = await pg.query(
+        'SELECT plan_tier FROM users WHERE id = $1',
+        [userId]
+      );
+      if (result.rows.length > 0) {
+        req.user.planTier = result.rows[0].plan_tier || 'trial';
+      } else {
+        req.user.planTier = 'trial';
+      }
+    } catch (dbError) {
+      // Failure mode: log + fall through with the safe default. The
+      // route handler will use the trial cap, which is the most
+      // restrictive — better to under-grant than to over-grant on a
+      // db blip.
+      console.error(`[authMiddleware] populatePlanTier: Postgres query failed for user ${userId}:`, dbError.message);
+      req.user.planTier = 'trial';
+    }
+  } else {
+    req.user.planTier = user.planTier || 'trial';
+  }
+  next();
+}
+
+/**
  * requireActiveSubscription — must be used after requireAuth.
  * Checks trial or paid status. Returns 402 if subscription inactive.
  *
@@ -191,4 +236,4 @@ function requireAdmin(req, res, next) {
   next();
 }
 
-module.exports = { requireAuth, requireActiveSubscription, requireAdmin, isAdminUser };
+module.exports = { requireAuth, requireActiveSubscription, populatePlanTier, requireAdmin, isAdminUser };

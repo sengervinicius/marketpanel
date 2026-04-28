@@ -108,7 +108,7 @@ const adminDebugRoutes = require('./routes/adminDebug'); // W4.1 on-call debug
 const adminFlagsRoutes = require('./routes/adminFlags'); // W6.1 feature flags admin
 const adminCoverageRoutes = require('./routes/adminCoverage'); // W5.6 coverage matrix admin
 const featureFlags     = require('./services/featureFlags'); // W6.1
-const { requireAuth, requireActiveSubscription, requireAdmin } = require('./authMiddleware');
+const { requireAuth, requireActiveSubscription, populatePlanTier, requireAdmin } = require('./authMiddleware');
 const logger = require('./utils/logger');
 const { requestLogger, correlationSync } = require('./utils/logger');
 const wsBackpressure = require('./utils/wsBackpressure');
@@ -630,8 +630,14 @@ app.use('/api/behavior', requireAuth,
   requestTimeout(10000),
   behaviorRoutes);
 
-// Private Knowledge Vault: auth + subscription required
-app.use('/api/vault', requireAuth, requireActiveSubscription,
+// Private Knowledge Vault: auth + plan-tier population (NOT a subscription
+// gate). #283 — every logged-in user gets vault access; tier caps are
+// enforced inside the route handler against req.user.planTier (trial =
+// 5 docs, new_particle = 50, dark_particle = 250, nuclear = unlimited).
+// Previously requireActiveSubscription 402'd users whose 14-day trial
+// expired, blanking the entire vault — that contradicted the policy
+// that "trial users get 5 files, upgraded users get their tier".
+app.use('/api/vault', requireAuth, populatePlanTier,
   rateLimitByUser({ key: 'vault', windowSec: 60, max: 10 }),
   requestTimeout(30000),
   vaultRoutes);
