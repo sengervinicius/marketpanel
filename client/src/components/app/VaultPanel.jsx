@@ -144,14 +144,37 @@ function VaultPanelInner({ fullScreen = false }) {
       .catch(() => {});
   }, [token, documents.length]);
 
-  // Fetch private documents
+  // Fetch private documents.
+  //
+  // #283 — make 401/403 SUBSCRIPTION-required failures explicit. The route
+  // /api/vault is gated behind requireActiveSubscription; a non-paying
+  // user used to see a blank vault with no explanation. Detect those
+  // status codes via apiFetch and surface a precise message so the user
+  // (or their admin) knows whether the issue is auth, billing, or a
+  // genuine server error. This is UI-only — no server-side gate change.
   const fetchDocuments = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await apiJSON('/api/vault/documents');
+      const res = await apiFetch('/api/vault/documents');
+      if (!res.ok) {
+        if (res.status === 401) {
+          setError('Vault: not signed in. Refresh the page or sign in again.');
+        } else if (res.status === 403) {
+          setError('Vault requires an active subscription. Contact your admin to unlock it for your account, or upgrade your plan.');
+        } else if (res.status === 404) {
+          setError('Vault endpoint not found (404). The server may be redeploying — retry in a minute.');
+        } else if (res.status >= 500) {
+          setError(`Vault server error (HTTP ${res.status}). The team has been notified — try again shortly.`);
+        } else {
+          setError(`Vault unavailable (HTTP ${res.status}).`);
+        }
+        setDocuments([]);
+        return;
+      }
+      const data = await res.json();
       setDocuments(data.documents || []);
     } catch (e) {
-      setError(e.message);
+      setError(`Vault unreachable: ${e.message || 'network error'}. Check your connection and retry.`);
     } finally {
       setLoading(false);
     }

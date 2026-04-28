@@ -20,6 +20,7 @@ import { apiFetch } from '../../utils/api';
 import { useOpenDetail } from '../../context/OpenDetailContext';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import DesktopOnlyPlaceholder from '../common/DesktopOnlyPlaceholder';
+import { handlePanelDragOver, makePanelDropHandler } from '../../utils/dropHelper';
 import './FuturesPanel.css';
 
 // The server-side spec is the source of truth; we just render what it sends.
@@ -96,8 +97,23 @@ function FuturesPanelInner() {
   // column reads like a grouped table (Bloomberg convention).
   const seenRegions = new Set();
 
+  // #283 — accept ticker drops from the global header search dropdown.
+  // The Futures box only renders a server-controlled regional matrix
+  // today; the user-meaningful behaviour for "I dropped a ticker on
+  // Futures" is "open this ticker's detail view". Mirrors the
+  // row-click behaviour already wired below. PanelShell-style wiring
+  // would require a custom-tickers list which is out of scope here.
+  const handleDropTicker = useCallback((ticker) => {
+    if (ticker) openDetail(ticker, 'Futures');
+  }, [openDetail]);
+  const handleDrop = useCallback(makePanelDropHandler(handleDropTicker), [handleDropTicker]);
+
   return (
-    <div className="fut-container">
+    <div
+      className="fut-container"
+      onDragOver={handlePanelDragOver}
+      onDrop={handleDrop}
+    >
 
       {/* Canonical panel header */}
       <div className="fut-header">

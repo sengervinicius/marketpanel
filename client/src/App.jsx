@@ -129,6 +129,26 @@ export default function App() {
   const [billingState, setBillingState] = useState({ isLoading: false, error: null, showSuccess: false });
   const [showPricingModal, setShowPricingModal] = useState(false);
 
+  // ── Admin gate (#283) ────────────────────────────────────────────────────────
+  // The desktop-mode toggle has an ADMIN button that was being rendered to
+  // every logged-in user. Non-admins click it and either land on a 403'd
+  // dashboard or a black screen. Gate the button on the same /me/admin-status
+  // endpoint VaultPanel uses so the source of truth is server-side.
+  const [isAdmin, setIsAdmin] = useState(false);
+  useEffect(() => {
+    if (!token) { setIsAdmin(false); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await apiFetch('/api/auth/me/admin-status');
+        if (!res.ok) return; // fail closed
+        const json = await res.json();
+        if (!cancelled) setIsAdmin(!!json?.isAdmin);
+      } catch { /* fail closed — admin button just stays hidden */ }
+    })();
+    return () => { cancelled = true; };
+  }, [token]);
+
   // ── Live WebSocket overlay (throttled at 250 ms) ─────────────────────────
   const { feedStatus, batchTicks, mergedData, handleWsMessage } = useWebSocketTicks(data);
   useWebSocket(handleWsMessage, token);
@@ -745,7 +765,7 @@ export default function App() {
             setCommandPaletteOpen(false);
             if (cmd.action === 'navigate') {
               if (cmd.target === 'home') handleGoHome();
-              else if (cmd.target === 'admin') setMobileModePersist('admin');
+              else if (cmd.target === 'admin') { if (isAdmin) setMobileModePersist('admin'); }
               else setActiveSectorScreen(cmd.target);
             } else if (cmd.action === 'chat') {
               if (isMobile) setChatOpen(true);
@@ -814,18 +834,24 @@ export default function App() {
                 transition: 'all 150ms ease',
               }}
             >VAULT</button>
-            <button
-              className="btn desktop-mode-btn"
-              onClick={() => { setMobileModePersist('admin'); }}
-              style={{
-                padding: '3px 12px', fontSize: 10, fontWeight: 700, letterSpacing: '0.08em',
-                borderRadius: 4, border: 'none', cursor: 'pointer',
-                color: mobileMode === 'admin' ? '#000' : 'var(--text-faint)',
-                background: mobileMode === 'admin' ? '#00ff88' : 'transparent',
-                transition: 'all 150ms ease',
-              }}
-              title="Admin Dashboard (Cmd+Shift+A)"
-            >ADMIN</button>
+            {/* #283 — gate the ADMIN button on server-side admin status.
+                Non-admins should never see this entry point; it routes to
+                /api/admin/** which would 403 anyway and the dashboard
+                renders empty for them. */}
+            {isAdmin && (
+              <button
+                className="btn desktop-mode-btn"
+                onClick={() => { setMobileModePersist('admin'); }}
+                style={{
+                  padding: '3px 12px', fontSize: 10, fontWeight: 700, letterSpacing: '0.08em',
+                  borderRadius: 4, border: 'none', cursor: 'pointer',
+                  color: mobileMode === 'admin' ? '#000' : 'var(--text-faint)',
+                  background: mobileMode === 'admin' ? '#00ff88' : 'transparent',
+                  transition: 'all 150ms ease',
+                }}
+                title="Admin Dashboard (Cmd+Shift+A)"
+              >ADMIN</button>
+            )}
           </div>
 
           {/* Navigation buttons (terminal mode only) */}
