@@ -5,6 +5,8 @@
  */
 import { useState, useEffect, useMemo, memo, useRef, useCallback } from 'react';
 import { apiFetch } from '../../../utils/api';
+// #286 — same provider-status pattern as InsiderActivity / CryptoScreen.
+import { getProviderStatus, formatProviderMessage } from '../../../utils/providerStatus';
 
 const IMPACT_COLORS = {
   high:   'var(--semantic-down)',
@@ -116,6 +118,9 @@ export const MacroCalendarStrip = memo(function MacroCalendarStrip({
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  // #286 — distinguish Eulerpool unconfigured from "no events".
+  const [providerOffline, setProviderOffline] = useState(false);
+  const [providerMessage, setProviderMessage] = useState(null);
   const mountedRef = useRef(true);
 
   const countriesKey = JSON.stringify(countries);
@@ -123,11 +128,29 @@ export const MacroCalendarStrip = memo(function MacroCalendarStrip({
   const fetchCalendar = useCallback(async () => {
     setLoading(true);
     setError(null);
+    setProviderOffline(false);
+    setProviderMessage(null);
     try {
-      const res = await apiFetch('/api/market/macro-calendar');
+      // #286 — apiFetch returns a Response, not parsed JSON. Prior code
+      // shape-matched on `res?.events || res?.data` which never existed
+      // on a Response object, so the strip silently rendered empty even
+      // when the provider was happy. Parse explicitly.
+      const httpRes = await apiFetch('/api/market/macro-calendar');
+      if (!mountedRef.current) return;
+      if (!httpRes.ok) throw new Error(`HTTP ${httpRes.status}`);
+      const json = await httpRes.json().catch(() => null);
       if (!mountedRef.current) return;
 
-      let items = Array.isArray(res) ? res : (res?.events || res?.data || []);
+      // Detect provider unavailability before we throw away the envelope.
+      if (getProviderStatus(json) === 'unavailable') {
+        setProviderOffline(true);
+        setProviderMessage(formatProviderMessage(json));
+        setEvents([]);
+        setLoading(false);
+        return;
+      }
+
+      let items = Array.isArray(json) ? json : (json?.events || json?.data || []);
       // Filter by countries if specified
       if (countries.length > 0) {
         const countrySet = new Set(countries.map(c => c.toUpperCase()));
@@ -191,6 +214,16 @@ export const MacroCalendarStrip = memo(function MacroCalendarStrip({
       {loading ? (
         <div style={{ padding: '20px 10px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 10 }}>
           Loading macro events…
+        </div>
+      ) : providerOffline ? (
+        // #286 — explicit unavailable state for the macro calendar so
+        // CIOs don't read an empty strip as "the world is calm".
+        <div style={{ padding: '20px 10px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 10, lineHeight: 1.5 }}>
+          Macro calendar provider not configured.
+          <br />
+          <span style={{ fontSize: 9, color: 'var(--text-faint)' }}>
+            {providerMessage || 'Contact your admin to enable the Eulerpool macro feed.'}
+          </span>
         </div>
       ) : error || events.length === 0 ? (
         <div style={{ padding: '20px 10px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 10 }}>
