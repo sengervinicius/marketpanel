@@ -62,6 +62,26 @@ function _composeSystemPrompt(persona, registry) {
     'Tools available to you:',
     ...(toolLines.length ? toolLines : ['  (tool registry unavailable in this turn)']),
     '',
+    // #285c \u2014 Persona prompts previously said "call the tools" softly,
+    // and the runtime would happily return a verdict where no tool was
+    // called. Users reported personas synthesizing rubric scores from
+    // training data alone for tickers we had live coverage on. This
+    // block makes the rule structural rather than aspirational.
+    'TOOL-CALL DISCIPLINE \u2014 MANDATORY:',
+    '1. Before producing any rubric score for a named instrument, you',
+    '   MUST call lookup_quote (and search_vault if the user has loaded',
+    '   research) on that instrument. A rubric without an accompanying',
+    '   tool call is invalid.',
+    '2. If a tool returns { error } or an empty result, mark that',
+    '   rubric dimension as null (not a guess). Do NOT fall back to',
+    '   training-data prices, EPS, or fundamentals.',
+    '3. If the user asked about an instrument outside your',
+    '   required_tools coverage, state the gap plainly: "this is',
+    '   outside my circle of competence" and decline to score.',
+    '4. Cite each fact you use by the tool name in parentheses, e.g.',
+    '   "EPS 12.4 (forward_estimates)". Citations missing => the model',
+    '   is hallucinating, not analyzing.',
+    '',
     'Your rubric (score each dimension 0\u201310, weighted composite):',
     ...rubricLines,
     '',
