@@ -7,6 +7,9 @@
 import { useState, useCallback, useMemo, memo } from 'react';
 import { apiFetch } from '../../utils/api';
 import { useJsonQuery, STALE_TIMES } from '../../lib/queryHooks';
+// #286 — surface "live | curated | provider offline" so the footer
+// gives the CIO a one-glance read on why we're showing static data.
+import { getProviderStatus } from '../../utils/providerStatus';
 import './CalendarPanel.css';
 
 // Timezone detection
@@ -272,7 +275,13 @@ function CalendarPanel() {
 
       <div className="cp-footer">
         {tab === 'ECONOMIC'
-          ? `${displayEvents.length} events${macroEvents ? ' (live)' : ' (curated)'}. Click for AI preview.`
+          ? `${displayEvents.length} events${
+              macroEvents
+                ? ' (live)'
+                : getProviderStatus(macroResp) === 'unavailable'
+                  ? ' (curated · provider offline)'
+                  : ' (curated)'
+            }. Click for AI preview.`
           : `${earningsList.length} upcoming earnings reports.`
         }
       </div>
