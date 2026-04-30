@@ -10,6 +10,8 @@ import FullPageScreenLayout from './shared/FullPageScreenLayout';
 import SectorPulse from './shared/SectorPulse';
 import { SectorChartPanel } from './shared/SectorChartPanel';
 import DataUnavailable from '../common/DataUnavailable';
+// #286 — provider-status helpers; see utils/providerStatus.js for shape.
+import { getProviderStatus, formatProviderMessage } from '../../utils/providerStatus';
 import useSectionData from '../../hooks/useSectionData';
 import { useOpenDetail } from '../../context/OpenDetailContext';
 import { useTickerPrice } from '../../context/PriceContext';
@@ -537,10 +539,18 @@ function MacroCalendar() {
   });
 
   if (loading) return <DeepSkeleton rows={5} />;
-  if (error) return <DataUnavailable reason={error} />;
-  if (!data || !Array.isArray(data)) return <DataUnavailable reason="No calendar data" />;
-
-  const events = data.slice(0, 7);
+  if (error) return <DataUnavailable reason={error} kind="error" />;
+  // #286 — surface "provider not configured" with the dedicated kind
+  // so the empty box reads as a config issue, not as a quiet calendar.
+  if (getProviderStatus(data) === 'unavailable') {
+    return <DataUnavailable kind="unavailable" reason={formatProviderMessage(data)} />;
+  }
+  // The endpoint envelope is `{ ok, data: [...], source: '...' }`; older
+  // calls received raw arrays. Accept both for back-compat.
+  const events = Array.isArray(data)
+    ? data.slice(0, 7)
+    : Array.isArray(data?.data) ? data.data.slice(0, 7) : null;
+  if (!events) return <DataUnavailable reason="No calendar data" kind="empty" />;
 
   const getImpactColor = (impact) => {
     if (!impact) return 'var(--text-muted)';
