@@ -981,6 +981,18 @@ const TD_MIC_TO_SUFFIX = {
   'XCNQ': '.CN',    // Canadian CSE
   'XNZE': '.NZ',    // New Zealand
   'XJSE': '.JO',    // Johannesburg
+
+  // #284 — European exchanges that were missing in #215. Twelve Data
+  // returns these MICs; without the suffix, _buildSymbolKey falls
+  // through and produces a bare ticker that downstream chart/quote
+  // fetches can't resolve. User-reported failures: JUMBO.AT (Athens),
+  // BELA.AT, plus any Vienna / Dublin / Prague / Iceland equity.
+  'XATH': '.AT',    // Athens (Greece)
+  'XWBO': '.VI',    // Vienna (Austria)
+  'XEIR': '.IR',    // Dublin (Ireland)
+  'XPRA': '.PR',    // Prague (Czechia)
+  'XICE': '.IC',    // Reykjavik (Iceland)
+  'XBRU': '.BR',    // Brussels (Belgium) — Euronext Brussels
 };
 
 function _buildSymbolKey(symbol, mic, exchange) {

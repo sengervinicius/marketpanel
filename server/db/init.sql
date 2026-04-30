@@ -542,3 +542,25 @@ CREATE TABLE IF NOT EXISTS ai_messages (
 );
 CREATE INDEX IF NOT EXISTS idx_ai_msg_conv_ordered
   ON ai_messages (conversation_id, created_at ASC);
+
+-- #284 — feedback_submissions: durable record of user feedback so submissions
+-- never depend solely on email delivery. Inserted from server/routes/support.js,
+-- read via GET /api/admin/feedback. The email channel is a notification
+-- on top of this; if Resend / SMTP is unconfigured, the row still lands here.
+CREATE TABLE IF NOT EXISTS feedback_submissions (
+  id           BIGSERIAL   PRIMARY KEY,
+  user_id      INTEGER     REFERENCES users(id) ON DELETE SET NULL,
+  reply_to     TEXT,
+  category     TEXT        NOT NULL DEFAULT 'general',
+  message      TEXT        NOT NULL,
+  context      TEXT,
+  ip_addr      TEXT,
+  emailed      BOOLEAN     NOT NULL DEFAULT FALSE,
+  acknowledged BOOLEAN     NOT NULL DEFAULT FALSE,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_feedback_recent
+  ON feedback_submissions (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_feedback_unack
+  ON feedback_submissions (acknowledged, created_at DESC)
+  WHERE acknowledged = FALSE;

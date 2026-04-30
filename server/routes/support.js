@@ -22,6 +22,7 @@
 const express = require('express');
 const emailService = require('../services/emailService');
 const logger = require('../utils/logger');
+const pg = require('../db/postgres');
 
 const router = express.Router();
 
@@ -107,12 +108,35 @@ router.post('/feedback', async (req, res) => {
       logger.warn('support', 'feedback email send failed', { error: e.message });
     }
 
-    // Always log — this is our durable record if email bounces.
+    // #284 — Persist to feedback_submissions. The previous flow lost
+    // every submission when no email channel was configured. Now the
+    // row is always durable; email is best-effort notification on top.
+    let feedbackId = null;
+    if (pg.isConnected && pg.isConnected()) {
+      try {
+        const ins = await pg.query(
+          `INSERT INTO feedback_submissions
+             (user_id, reply_to, category, message, context, ip_addr, emailed)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)
+           RETURNING id`,
+          [userId, replyTo, cat, trimmed, ctx || null, req.ip || null, !!emailed],
+        );
+        feedbackId = ins.rows?.[0]?.id || null;
+      } catch (dbErr) {
+        // Don't break the user experience if DB insert fails; the
+        // structured logger line below is still durable in Render logs.
+        logger.error('support', 'feedback DB insert failed', { error: dbErr.message });
+      }
+    }
+
+    // Always log — this is our durable record if email bounces AND db is down.
     logger.info('support', 'feedback submitted', {
+      feedbackId,
       userId,
       category: cat,
       hasReplyTo: !!replyTo,
       emailed: !!emailed,
+      persisted: !!feedbackId,
       messageLen: trimmed.length,
       // Preview is length-capped; logger.js already applies PII redaction
       // on the serialised payload so we don't duplicate the scrub here.
@@ -122,7 +146,7 @@ router.post('/feedback', async (req, res) => {
     // Respond 202 — accepted — even when email delivery status is unknown.
     // The user gets a confirmation either way; we'll chase down delivery
     // on our side.
-    return res.status(202).json({ ok: true, received: true });
+    return res.status(202).json({ ok: true, received: true, id: feedbackId });
   } catch (e) {
     logger.error('support', 'feedback handler threw', { error: e.message });
     return res.status(500).json({ ok: false, error: 'internal' });

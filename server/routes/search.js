@@ -2215,7 +2215,20 @@ ${ctx_.portfolioMetricsContext ? `\n${ctx_.portfolioMetricsContext}\n` : ''}${ct
           'a related ticker we DO cover).\n' +
           '5. BE HONEST ABOUT TOOL ERRORS. If a tool returns {error: ...}, ' +
           'surface that plainly — "the corporate bond adapter returned HTTP ' +
-          '404" is useful; "terminal data limitation" is not.\n' +
+          '404" is useful; "terminal data limitation" is not. CRITICAL: when ' +
+          'a tool returns {error}, you MUST NOT proceed to synthesize the ' +
+          'requested datum from training data. Saying "lookup_quote failed ' +
+          'so let me estimate from memory" is a hallucination — refuse and ' +
+          'cite the error.\n' +
+          '5a. COVERAGE NOTES. If a tool returns a {coverage_note: "..."} ' +
+          'field (e.g. list_market_movers for non-US markets, sovereign ' +
+          'bond list for unsupported countries), you MUST cite the ' +
+          'coverage_note verbatim and STOP. Do NOT pivot to training-data ' +
+          'sector rankings or invented prices for that market.\n' +
+          '5b. FRESHNESS. Tool results may include an as_of ISO timestamp. ' +
+          'If older than 15 minutes during US market hours, flag it: ' +
+          '"as of <HH:MM> — price may have moved." Do not treat stale ' +
+          'cache hits as live prints.\n' +
           '6. FX — PTAX vs LIVE. For any question about câmbio, dólar, euro, ' +
           'USDBRL, EURBRL, or any currency rate, call lookup_fx. For BRL ' +
           'pairs the response contains BOTH a live market rate AND the ' +

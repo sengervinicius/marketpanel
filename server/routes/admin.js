@@ -670,4 +670,62 @@ router.get('/provider-budget', (req, res) => {
   }
 });
 
+/**
+ * #284 — GET /api/admin/feedback
+ *
+ * List feedback_submissions (newest first). Supports ?limit= (default 50,
+ * max 200) and ?unread=1 to filter to acknowledged=false. The owner
+ * Vinicius reported never receiving feedback emails — this endpoint is
+ * the durable read path so the team can see submissions even when the
+ * email channel is down (no Resend key, SMTP misconfigured, etc.).
+ */
+router.get('/feedback', async (req, res) => {
+  try {
+    const pg = require('../db/postgres');
+    if (!pg.isConnected || !pg.isConnected()) {
+      return res.status(503).json({ ok: false, error: 'database_unavailable' });
+    }
+    const limit = Math.max(1, Math.min(200, parseInt(req.query.limit, 10) || 50));
+    const unreadOnly = req.query.unread === '1' || req.query.unread === 'true';
+    const where = unreadOnly ? 'WHERE acknowledged = FALSE' : '';
+    const { rows } = await pg.query(
+      `SELECT id, user_id, reply_to, category, message, context,
+              emailed, acknowledged, created_at
+       FROM feedback_submissions
+       ${where}
+       ORDER BY created_at DESC
+       LIMIT $1`,
+      [limit],
+    );
+    res.json({ ok: true, count: rows.length, feedback: rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * POST /api/admin/feedback/:id/ack — mark a submission acknowledged.
+ * Lets the team triage the unread queue without keeping a separate
+ * inbox-state spreadsheet.
+ */
+router.post('/feedback/:id/ack', async (req, res) => {
+  try {
+    const pg = require('../db/postgres');
+    if (!pg.isConnected || !pg.isConnected()) {
+      return res.status(503).json({ ok: false, error: 'database_unavailable' });
+    }
+    const id = parseInt(req.params.id, 10);
+    if (!Number.isFinite(id) || id <= 0) {
+      return res.status(400).json({ error: 'bad id' });
+    }
+    await pg.query(
+      'UPDATE feedback_submissions SET acknowledged = TRUE WHERE id = $1',
+      [id],
+    );
+    res.json({ ok: true, id });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

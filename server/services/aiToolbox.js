@@ -1135,12 +1135,32 @@ async function handleListMarketMovers({ direction, limit, market }) {
     return { error: 'market movers adapter unavailable' };
   }
   try {
-    const res = await mod.getMarketMovers({
-      direction: String(direction || 'gainers').toLowerCase(),
-      limit,
-      market,
-    });
-    return res || { direction, movers: [], count: 0 };
+    const dir = String(direction || 'gainers').toLowerCase();
+    const mkt = String(market || 'US').toUpperCase();
+    const res = await mod.getMarketMovers({ direction: dir, limit, market });
+    // #284 — coverage_note. Without this the model sees count=0 for
+    // non-US markets and silently invents sector rankings from
+    // training data. Make the coverage gap explicit so the model
+    // cannot help but cite it. Same shape we already use elsewhere
+    // (see handleListSovereignBonds).
+    if (mkt !== 'US') {
+      return {
+        direction: dir,
+        market: mkt,
+        movers: [],
+        count: 0,
+        coverage_note: `Market movers are only wired for US equities. ${mkt} market movers are not in the terminal — relay this gap to the user; do NOT invent rankings from training data.`,
+        as_of: new Date().toISOString(),
+      };
+    }
+    if (!res) {
+      return {
+        direction: dir, market: mkt, movers: [], count: 0,
+        coverage_note: 'Provider returned no data; treat as no signal, do not infer rankings.',
+        as_of: new Date().toISOString(),
+      };
+    }
+    return { ...res, as_of: new Date().toISOString() };
   } catch (e) {
     return { error: e.message };
   }
