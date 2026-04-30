@@ -64,11 +64,24 @@ export const ImpliedVolatilityCard = memo(function ImpliedVolatilityCard({
         <div style={{ height: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-faint)', fontSize: 9 }}>
           Loading…
         </div>
-      ) : !data || data.source === 'unavailable' || (data.iv == null && data.ivRank == null && data.putCallRatio == null) ? (
+      ) : !data || data.source === 'unavailable' ? (
+        // #285d — distinguish "options provider not configured" from "no
+        // option chain on this name". Both render compactly here, but
+        // copy is unambiguous about which condition we're in.
         <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: 10, padding: '10px 0', lineHeight: 1.5 }}>
-          Options data not available
+          Options provider not configured
           <br />
-          <span style={{ fontSize: 9, color: 'var(--text-faint)' }}>Requires options data feed</span>
+          <span style={{ fontSize: 9, color: 'var(--text-faint)' }}>
+            Contact your admin to enable the options data feed
+          </span>
+        </div>
+      ) : (data.iv == null && data.ivRank == null && data.putCallRatio == null) ? (
+        <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: 10, padding: '10px 0', lineHeight: 1.5 }}>
+          No options data for this ticker
+          <br />
+          <span style={{ fontSize: 9, color: 'var(--text-faint)' }}>
+            Provider responded but no chain available
+          </span>
         </div>
       ) : (
         <table className="ds-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
