@@ -20,6 +20,10 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } f
 import { apiFetch } from '../../utils/api';
 import { fmtCompactPct } from '../../utils/format';
 import IntegrityBadge from '../shared/IntegrityBadge';
+// #286 — surface per-country `source: 'unavailable'` as a visible inline
+// badge instead of an invisible HTML title attribute. The matrix shows
+// all countries at once, so we keep the row but mark it clearly.
+import { formatProviderMessage } from '../../utils/providerStatus';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import DesktopOnlyPlaceholder from '../common/DesktopOnlyPlaceholder';
 import './DICurvePanel.css';
@@ -129,10 +133,33 @@ function DICurvePanelInner() {
           const s10s30  = slopeBps(curve, '10Y', '30Y');
           const spread  = c.id === 'US' ? null : spreadVsUsBps(curve, usCurve, '10Y');
           const isEmpty = !loading && curve.length === 0;
+          // #286 — per-country provider status. The /yield-curves response
+          // assigns `source: 'unavailable'` only when the upstream provider
+          // failed AND no synthetic fallback applied (today: US-only). A
+          // visible badge is far less misleading than an empty row.
+          const isUnavailable = !loading && entry.source === 'unavailable';
 
           return (
-            <div key={c.id} className="dic-matrix-row" title={isEmpty ? 'Data unavailable' : undefined}>
-              <span className="dic-col-country" style={{ color: c.color }}>{c.label}</span>
+            <div
+              key={c.id}
+              className={`dic-matrix-row${isUnavailable || isEmpty ? ' dic-matrix-row--unavailable' : ''}`}
+            >
+              <span className="dic-col-country" style={{ color: c.color }}>
+                {c.label}
+                {isUnavailable && (
+                  <span
+                    className="dic-row-badge"
+                    title={formatProviderMessage({ source: 'unavailable' })}
+                  >
+                    PROVIDER OFFLINE
+                  </span>
+                )}
+                {!isUnavailable && isEmpty && (
+                  <span className="dic-row-badge" title="No curve points returned">
+                    NO DATA
+                  </span>
+                )}
+              </span>
               {KEY_TENORS.map(t => (
                 <span key={t} className="dic-col-rate dic-col-rate-val">
                   {loading ? '…' : fmtRate(rateAt(curve, t))}

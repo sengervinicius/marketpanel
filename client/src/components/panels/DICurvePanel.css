@@ -118,6 +118,29 @@
 .dic-col-metric.pos { color: var(--price-up, #16c784); }
 .dic-col-metric.neg { color: var(--price-down, #ea3943); }
 
+/* #286 — provider-unavailable row marker.
+ * Dim the whole row so the curve fields read as "n/a", and surface a
+ * compact inline badge next to the country label so users notice it
+ * without hovering. We deliberately do NOT hide the row — the matrix
+ * would lose its alignment, and CIOs want to see which sovereign is
+ * currently unbacked. */
+.dic-matrix-row--unavailable {
+  opacity: 0.55;
+}
+.dic-row-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 4px;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 2px;
+  vertical-align: middle;
+}
+
 .dic-matrix-note {
   padding: 2px 8px 3px;
   color: var(--text-faint);

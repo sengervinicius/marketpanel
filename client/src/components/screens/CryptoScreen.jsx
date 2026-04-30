@@ -19,6 +19,10 @@ import { sanitizeTicker } from '../../utils/ticker';
 import { KPIRibbon, TickerRibbon } from './shared/SectorUI';
 import { CorrelationMatrix } from './shared/CorrelationMatrix';
 import { EarningsCalendarStrip } from './shared/EarningsCalendarStrip';
+// #286 — distinguish "Eulerpool not configured" from "real on-chain
+// metrics are flat". Without this the BTC/ETH cards used to show all
+// "—" and the user would think the chain was idle.
+import { getProviderStatus, formatProviderMessage } from '../../utils/providerStatus';
 
 /* ── Formatting utilities ──────────────────────────────────────────────────── */
 const fmt = (n, d = 2) =>
@@ -327,14 +331,24 @@ function BitcoinOnChainSection() {
       const res = await apiFetch('/api/market/crypto-extended/bitcoin');
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
-      return json.data || null;
+      // #286 — preserve the envelope so we can read `source` below.
+      // Return shape: { payload, status }. `payload` is the inner data
+      // (or null), `status` is the providerStatus discriminator.
+      return { payload: json.data || null, status: getProviderStatus(json), envelope: json };
     },
   });
 
-  const onChain = data?.onChain || {};
-  const volume = data?.volume || {};
-  const mktData = data?.mktData || {};
+  const onChain = data?.payload?.onChain || {};
+  const volume = data?.payload?.volume || {};
+  const mktData = data?.payload?.mktData || {};
 
+  if (data?.status === 'unavailable') {
+    return (
+      <div style={{ padding: 10, color: 'var(--text-muted)', fontSize: 10, textAlign: 'center' }}>
+        {formatProviderMessage(data.envelope)}
+      </div>
+    );
+  }
   if (error && !data) {
     return <div style={{ padding: 10, color: 'var(--text-muted)', fontSize: 10, textAlign: 'center' }}>On-chain data temporarily unavailable</div>;
   }
@@ -386,13 +400,22 @@ function EthereumOnChainSection() {
       const res = await apiFetch('/api/market/crypto-extended/ethereum');
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
-      return json.data || null;
+      // #286 — preserve the envelope. See BitcoinOnChainSection for the
+      // rationale; same provider, same silent-empty failure mode.
+      return { payload: json.data || null, status: getProviderStatus(json), envelope: json };
     },
   });
 
-  const onChain = data?.onChain || {};
-  const defi = data?.defi || {};
+  const onChain = data?.payload?.onChain || {};
+  const defi = data?.payload?.defi || {};
 
+  if (data?.status === 'unavailable') {
+    return (
+      <div style={{ padding: 10, color: 'var(--text-muted)', fontSize: 10, textAlign: 'center' }}>
+        {formatProviderMessage(data.envelope)}
+      </div>
+    );
+  }
   if (error && !data) {
     return <div style={{ padding: 10, color: 'var(--text-muted)', fontSize: 10, textAlign: 'center' }}>On-chain data temporarily unavailable</div>;
   }

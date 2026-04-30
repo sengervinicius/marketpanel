@@ -5,6 +5,11 @@
 import { useState, useEffect, useMemo } from 'react';
 import { apiFetch } from '../../../utils/api';
 import { DeepSkeleton, DeepError } from '../DeepScreenBase';
+// #286 — distinguish "Eulerpool insider feed not configured" from
+// "no recent insider activity reported". Both used to render as
+// "no data" — leaving CIOs thinking the executives were quiet when
+// in fact we never had a provider wired up.
+import { getProviderStatus, formatProviderMessage } from '../../../utils/providerStatus';
 
 function formatValue(value) {
   if (value == null) return '—';
@@ -26,6 +31,10 @@ export function InsiderActivity({ tickers, limit = 5, onTickerClick }) {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  // #286 — true when EVERY ticker came back with source: 'unavailable'
+  // (i.e. Eulerpool credentials missing). If even one ticker returned ok
+  // we treat the empty result as a real "no recent activity" signal.
+  const [providerOffline, setProviderOffline] = useState(false);
 
   // Stabilize tickers reference to prevent re-fetch loops
   const tickerKey = JSON.stringify(tickers);
@@ -43,19 +52,26 @@ export function InsiderActivity({ tickers, limit = 5, onTickerClick }) {
       try {
         setLoading(true);
         setError(null);
+        setProviderOffline(false);
 
         // Fetch for up to 8 tickers in parallel
         const tickersToFetch = stableTickers.slice(0, 8);
         const promises = tickersToFetch.map(ticker =>
           apiFetch(`/api/market/insider/${ticker}`)
-            .then(res => res.ok ? res.json() : [])
-            .catch(() => [])
+            .then(res => res.ok ? res.json() : null)
+            .catch(() => null)
         );
 
         const results = await Promise.all(promises);
         const allTransactions = [];
+        let unavailableCount = 0;
+        let validResponses = 0;
 
         results.forEach((txList, idx) => {
+          if (txList && typeof txList === 'object' && !Array.isArray(txList)) {
+            validResponses++;
+            if (getProviderStatus(txList) === 'unavailable') unavailableCount++;
+          }
           // Server returns { ok, data: [...] } — unwrap if needed
           const items = Array.isArray(txList)
             ? txList
@@ -76,6 +92,9 @@ export function InsiderActivity({ tickers, limit = 5, onTickerClick }) {
         });
 
         setData(allTransactions.slice(0, 30));
+        // All envelopes that came back said "unavailable" — show the
+        // provider banner, not the empty-state copy.
+        setProviderOffline(validResponses > 0 && unavailableCount === validResponses);
       } catch (err) {
         setError(err.message);
         setData([]);
@@ -94,6 +113,17 @@ export function InsiderActivity({ tickers, limit = 5, onTickerClick }) {
   if (loading) return <DeepSkeleton rows={8} />;
   if (error) return <DeepError message={`Error: ${error}`} />;
   if (!data || data.length === 0) {
+    // #286 — split the empty state. Provider unavailable is a config
+    // issue (talk to admin); no recent activity is a real market
+    // signal (executives have been quiet). Conflating them was the
+    // original bug.
+    const heading = providerOffline ? 'Insider Feed Unavailable' : 'Insider Transactions';
+    const primaryCopy = providerOffline
+      ? formatProviderMessage({ source: 'unavailable' })
+      : 'No recent insider activity reported for these tickers.';
+    const secondaryCopy = providerOffline
+      ? 'Eulerpool insider feed not currently configured.'
+      : 'Data sourced from SEC filings (Form 4). Updates daily.';
     return (
       <div style={{
         padding: '16px',
@@ -114,7 +144,7 @@ export function InsiderActivity({ tickers, limit = 5, onTickerClick }) {
           textTransform: 'uppercase',
           letterSpacing: '0.5px',
         }}>
-          Insider Transactions
+          {heading}
         </div>
         <div style={{
           fontSize: 11,
@@ -122,10 +152,10 @@ export function InsiderActivity({ tickers, limit = 5, onTickerClick }) {
           textAlign: 'center',
           lineHeight: 1.5,
         }}>
-          No recent insider activity reported for these tickers.
+          {primaryCopy}
           <br />
           <span style={{ fontSize: 10, color: 'var(--text-faint)' }}>
-            Data sourced from SEC filings (Form 4). Updates daily.
+            {secondaryCopy}
           </span>
         </div>
       </div>
