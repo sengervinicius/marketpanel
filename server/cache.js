@@ -145,4 +145,9 @@ const cacheInstance = new YahooFinanceCache({
 });
 
 module.exports = cacheInstance;
-module.exports.destroy = () => cacheInstance.destroy();
+// #285e — DO NOT add `module.exports.destroy = () => cacheInstance.destroy()`.
+// `module.exports` IS `cacheInstance`, so reassigning `.destroy` to a function
+// that calls `cacheInstance.destroy()` creates a wrapper that calls itself —
+// infinite recursion → "RangeError: Maximum call stack size exceeded" on
+// every shutdown / SIGTERM. The class's own destroy() method is already
+// exposed because cacheInstance is the export.

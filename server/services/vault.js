@@ -185,8 +185,16 @@ function init({ openaiKey, voyageKey, cohereKey, anthropicKey } = {}) {
  */
 async function ensureTable() {
   if (!pg.isConnected()) {
-    // Attempt lazy reconnect before giving up
-    try { await pg.query('SELECT 1'); } catch (e) { swallow(e, 'vault.lazy_reconnect.ensureSchema'); }
+    // Attempt lazy reconnect before giving up. #285e — was swallow()'d,
+    // making DB outages invisible to ops. Now warn-logged with the
+    // underlying error so a DNS/auth/SSL failure leaves a trail in
+    // Render logs and Sentry. This still no-ops gracefully — the
+    // outer pg.isConnected() guard below decides whether to skip.
+    try {
+      await pg.query('SELECT 1');
+    } catch (e) {
+      logger.warn('vault', 'lazy DB reconnect failed (ensureSchema)', { error: e?.message || String(e) });
+    }
     if (!pg.isConnected()) {
       logger.warn('vault', 'Postgres not connected — skipping table creation (will retry on reconnect)');
       return;
@@ -1377,7 +1385,9 @@ async function extractPDFText(buffer, metadata, onProgress) {
 
 async function ingestFile(userId, buffer, filename, metadata = {}, isGlobal = false, onProgress = null) {
   if (!pg.isConnected()) {
-    try { await pg.query('SELECT 1'); } catch (e) { swallow(e, 'vault.lazy_reconnect.ingestFile'); }
+    // #285e — surface DB reconnect errors instead of swallowing.
+    try { await pg.query('SELECT 1'); }
+    catch (e) { logger.warn('vault', 'lazy DB reconnect failed (ingestFile)', { error: e?.message || String(e) }); }
     if (!pg.isConnected()) {
       throw new Error('Postgres not connected — database may be starting up. Please try again in a minute.');
     }
@@ -2617,7 +2627,9 @@ function extractMainContentFromHTML(html) {
  */
 async function ingestFromUrl(url, userId, title = null) {
   if (!pg.isConnected()) {
-    try { await pg.query('SELECT 1'); } catch (e) { swallow(e, 'vault.lazy_reconnect.ingestFromUrl'); }
+    // #285e — surface DB reconnect errors instead of swallowing.
+    try { await pg.query('SELECT 1'); }
+    catch (e) { logger.warn('vault', 'lazy DB reconnect failed (ingestFromUrl)', { error: e?.message || String(e) }); }
     if (!pg.isConnected()) {
       throw new Error('Postgres not connected — database may be starting up. Please try again in a minute.');
     }
