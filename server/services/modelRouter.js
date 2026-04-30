@@ -183,8 +183,12 @@ function classifyIntent(query, hasVaultContext = false, hasDeepAnalysis = false,
   }
 
   // ── Priority 9: Pure web lookups → Perplexity (no terminal data needed) ─
-  // Explicit web search requests
-  if (/\b(search\s+(the\s+)?web|google|find\s+me|look\s+up|latest\s+news\s+about|recent\s+article)\b/i.test(q)) {
+  // Explicit web search requests. #285b — guarded with !hasTicker. Without
+  // this, "look up NVDA price" / "latest news about TSLA" routed to
+  // Perplexity, which has no injected market context — model could and
+  // did hallucinate prices from training data. Any query naming a
+  // ticker stays on Claude where live context lives.
+  if (!hasTicker && /\b(search\s+(the\s+)?web|google|find\s+me|look\s+up|latest\s+news\s+about|recent\s+article)\b/i.test(q)) {
     return 'web_search';
   }
   // Pure definitional: "What is [concept]?" with no ticker, no "my", no screen ref
@@ -291,6 +295,21 @@ Respond: {"intent":"<intent>","contextRequired":<bool>}`;
 
       // Validate intent is in our ROUTE_MAP
       if (ROUTE_MAP[intent]) {
+        // #285b — Anti-hallucination guard. Haiku occasionally classifies
+        // ticker-bearing queries (e.g. "look up the latest news on NVDA")
+        // into web_lookup / web_narrative / web_search, which all route
+        // to Perplexity. Perplexity gets NO injected market context, so
+        // the model fills the gap with training-data prices — a real
+        // hallucination users have reported. Force ticker-bearing
+        // queries onto a Claude path so live data and tool-use are
+        // available.
+        const tickerCount = (query.match(/\b[A-Z]{1,5}\b/g) || []).length;
+        const hasTicker = tickerCount > 0 || /\$[A-Z]{1,5}/i.test(query);
+        if (hasTicker && /^web_/.test(intent)) {
+          const fallback = 'general';
+          logger.info(`[ModelRouter] Haiku → ${intent} but query has ticker; overriding to ${fallback} to keep live context`);
+          return { intent: fallback, contextRequired: true };
+        }
         logger.info(`[ModelRouter] Haiku classified: "${query.slice(0, 50)}" → ${intent} (ctx=${contextRequired})`);
         return { intent, contextRequired };
       }
