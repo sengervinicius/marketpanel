@@ -1056,13 +1056,83 @@ function ChatPanel({ mobile, initialUserId }) {
 
         {/* Messages */}
         <div className="chat-messages">
-          {aiMessages.length === 0 && (
-            <div className="chat-empty">
-              <div className="chat-empty-icon"><ParticleLogo size={32} /></div>
-              <div className="chat-empty-title">Start a conversation</div>
-              <div>Ask AI Assistant anything below.</div>
-            </div>
-          )}
+          {aiMessages.length === 0 && (() => {
+            // #287 — context-aware empty state. When the user opens chat
+            // from inside InstrumentDetail (currentTicker set) or a
+            // sector screen (sectorName set), greet them with a question
+            // scoped to what they're looking at, plus 3 quick-prompt
+            // chips so the first turn is one tap away.
+            const ticker = screenContext?.currentTicker;
+            const sector = screenContext?.sectorName;
+            let title = 'Start a conversation';
+            let subtitle = 'Ask AI Assistant anything below.';
+            let suggestions = [];
+            if (ticker) {
+              title = `What do you want to know about ${ticker}?`;
+              subtitle = 'Particle has live quotes, fundamentals, and news for this name.';
+              suggestions = [
+                `Why is ${ticker} moving today?`,
+                `What's the bull and bear case for ${ticker}?`,
+                `Compare ${ticker} to its peers.`,
+              ];
+            } else if (sector) {
+              title = `What do you want to know about ${sector}?`;
+              subtitle = 'Particle can read every ticker, mover, and chart on this screen.';
+              suggestions = [
+                `What's driving ${sector} today?`,
+                `Top movers in ${sector}?`,
+                `Risks I should watch in ${sector}?`,
+              ];
+            }
+            return (
+              <div className="chat-empty">
+                <div className="chat-empty-icon"><ParticleLogo size={32} /></div>
+                <div className="chat-empty-title">{title}</div>
+                <div>{subtitle}</div>
+                {suggestions.length > 0 && (
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      gap: 6,
+                      marginTop: 12,
+                      justifyContent: 'center',
+                      maxWidth: 420,
+                    }}
+                  >
+                    {suggestions.map(s => (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => setInput(s)}
+                        style={{
+                          background: 'var(--bg-elevated, #1a1a1a)',
+                          border: '1px solid var(--border-default, #2a2a2a)',
+                          color: 'var(--text-secondary, #aaa)',
+                          padding: '5px 10px',
+                          fontSize: 11,
+                          borderRadius: 14,
+                          cursor: 'pointer',
+                          fontFamily: 'inherit',
+                          transition: 'border-color 120ms ease, color 120ms ease',
+                        }}
+                        onMouseEnter={e => {
+                          e.currentTarget.style.borderColor = 'var(--accent, #f97316)';
+                          e.currentTarget.style.color = 'var(--text-primary, #fff)';
+                        }}
+                        onMouseLeave={e => {
+                          e.currentTarget.style.borderColor = 'var(--border-default, #2a2a2a)';
+                          e.currentTarget.style.color = 'var(--text-secondary, #aaa)';
+                        }}
+                      >
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
           {aiMessages.map(m => {
             const isAssistant = m.role === 'assistant';
             // Hide share actions on the streaming placeholder (empty content)
@@ -1123,7 +1193,14 @@ function ChatPanel({ mobile, initialUserId }) {
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={handleKey}
-            placeholder="Ask AI Assistant..."
+            placeholder={
+              // #287 — placeholder reflects the screen the user came from
+              screenContext?.currentTicker
+                ? `Ask Particle about ${screenContext.currentTicker}…`
+                : screenContext?.sectorName
+                  ? `Ask Particle about ${screenContext.sectorName}…`
+                  : 'Ask Particle…'
+            }
             maxLength={2000}
           />
           <button className="btn chat-send-btn"

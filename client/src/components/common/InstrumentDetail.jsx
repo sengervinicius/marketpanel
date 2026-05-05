@@ -2165,6 +2165,15 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
   // ── Determine exchange / asset class for badge ────────────────────────
   const heroExchange   = info?.primary_exchange || etfMeta?.exchange || (isFX ? 'FX' : isCrypto ? 'CRYPTO' : isBondTicker ? 'BOND' : '');
   const heroAssetClass = etfMeta?.assetClass || (isFX ? 'forex' : isCrypto ? 'crypto' : isBondTicker ? 'fixed_income' : isStock ? 'equity' : '');
+  // #287 — dedupe the badge when exchange and asset class are the same
+  // word (CRYPTO · crypto, FX · forex). Common case for non-equities
+  // because we don't have a real exchange name to fall back on. Bug
+  // showed up as "CRYPTO · crypto" in the user's screenshot.
+  const heroAssetClassDisplay =
+    heroExchange && heroAssetClass &&
+    heroExchange.toLowerCase() === heroAssetClass.toLowerCase()
+      ? ''
+      : heroAssetClass;
 
   // ── navigator.share() + clipboard fallback ────────────────────────────
   const handleShare = async () => {
@@ -2237,13 +2246,17 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
             <div className="id-hero-name">{name}</div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)' }}>
-            <div className="id-hero-badge">{heroExchange}{heroExchange && heroAssetClass ? ' \u00b7 ' : ''}{heroAssetClass}</div>
-            {/* Desktop action buttons */}
+            <div className="id-hero-badge">{heroExchange}{heroExchange && heroAssetClassDisplay ? ' \u00b7 ' : ''}{heroAssetClassDisplay}</div>
+            {/* Desktop action buttons.
+                #287 \u2014 Removed "+ Portfolio". Phase 9.2 unified Portfolio
+                into Watchlist; the action surfaced an editor for a
+                feature users no longer have. The remaining four
+                (Watch / Alert / Chat / Share) all work and are the
+                ones the CIO actually reaches for. */}
             <div className="id-hero-actions">
               <button className="id-hero-action-btn" onClick={() => toggleWatchlist(disp)} aria-label={watched ? 'Remove from watchlist' : 'Add to watchlist'}>{watched ? '\u2605' : '\u2606'} Watch</button>
-              <button className="id-hero-action-btn" onClick={openPositionEditor} aria-label="Add to portfolio">+ Portfolio</button>
               <button className="id-hero-action-btn" onClick={openAlertCreator} aria-label="Create price alert">{String.fromCharCode(128276)} Alert</button>
-              {handleOpenChat && <button className="id-hero-action-btn" onClick={sendToChat} aria-label="Send to chat">{String.fromCharCode(128172)} Chat</button>}
+              {handleOpenChat && <button className="id-hero-action-btn" onClick={sendToChat} aria-label="Ask Particle about this instrument">{String.fromCharCode(128172)} Ask Particle</button>}
               <button className="id-hero-action-btn" onClick={handleShare} aria-label="Share ticker information">{String.fromCharCode(8599)} Share</button>
             </div>
           </div>
