@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useMemo } from 'react';
+import { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 
 /**
  * Utility: Check if US markets (NYSE/NASDAQ) are currently open.
@@ -52,6 +52,44 @@ function determineFeedStatus(feed, currentLevel) {
  */
 export function useWebSocketTicks(restData) {
   const [feedStatus, setFeedStatus] = useState({ stocks: 'connecting', forex: 'connecting', crypto: 'connecting' });
+  // #288 / FIX-001 — readyState mirror. App.jsx pushes WebSocket
+  // readyState into this state via setWsState; the effect below derives
+  // feedStatus from it. Previously the footer FEED bar stayed on
+  // "CONNECTING" forever because feedStatus only flipped to 'live' when
+  // the server pushed `snapshot` / `tick` / `tick_batch` — and those
+  // messages are sparse in normal operation. Treating WS readyState ===
+  // OPEN as evidence of liveness produces a footer that truthfully
+  // reflects the connection state without trampling explicit
+  // backend-reported error/degraded levels.
+  const [wsReadyState, setWsState] = useState(null);
+  useEffect(() => {
+    if (wsReadyState == null) return;
+    setFeedStatus(prev => {
+      let dirty = false;
+      const next = { ...prev };
+      ['stocks', 'forex', 'crypto'].forEach(cat => {
+        const current = next[cat];
+        const currentLevel = typeof current === 'string' ? current : current?.level || 'connecting';
+        if (wsReadyState === 1 /* WebSocket.OPEN */) {
+          if (currentLevel === 'connecting') {
+            // determineFeedStatus downgrades stocks to 'closed' outside
+            // US market hours; forex/crypto stay 'live'.
+            const promoted = determineFeedStatus(cat, 'live');
+            if (promoted !== currentLevel) { next[cat] = promoted; dirty = true; }
+          }
+        } else if (wsReadyState === 3 /* WebSocket.CLOSED */) {
+          // Only revert auto-promoted statuses. Never override an
+          // explicit backend-reported 'error' / 'degraded'.
+          if (currentLevel === 'live' || currentLevel === 'closed') {
+            next[cat] = 'connecting';
+            dirty = true;
+          }
+        }
+      });
+      return dirty ? next : prev;
+    });
+  }, [wsReadyState]);
+
   const liveOverlayRef = useRef({});
   const tickBufferRef = useRef([]);
   const throttleTimerRef = useRef(null);
@@ -230,5 +268,7 @@ export function useWebSocketTicks(restData) {
     batchTicks,
     mergedData,
     handleWsMessage,
+    // #288 / FIX-001 — caller pushes WS readyState here on every change.
+    setWsState,
   };
 }

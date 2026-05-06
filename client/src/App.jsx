@@ -150,8 +150,17 @@ export default function App() {
   }, [token]);
 
   // ── Live WebSocket overlay (throttled at 250 ms) ─────────────────────────
-  const { feedStatus, batchTicks, mergedData, handleWsMessage } = useWebSocketTicks(data);
-  useWebSocket(handleWsMessage, token);
+  // #288 / FIX-001 — Footer FEED bar was stuck on "CONNECTING" because
+  // feedStatus only flipped to 'live' when the server pushed snapshot/
+  // tick messages, which are sparse. We now also drive feedStatus from
+  // the WebSocket readyState so the footer truthfully reflects connection
+  // state. Order matters: useWebSocketTicks runs first so handleWsMessage
+  // exists for useWebSocket, then we feed readyState back via setWsState.
+  const { feedStatus, batchTicks, mergedData, handleWsMessage, setWsState } = useWebSocketTicks(data);
+  const { readyState: wsReadyState } = useWebSocket(handleWsMessage, token);
+  useEffect(() => {
+    if (typeof setWsState === 'function') setWsState(wsReadyState);
+  }, [wsReadyState, setWsState]);
 
   // ── Billing success handling ──────────────────────────────────────────────────
   useEffect(() => {
