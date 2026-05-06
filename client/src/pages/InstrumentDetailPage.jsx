@@ -5,6 +5,16 @@
  *
  * Opens in a separate browser window via:
  *   window.open(window.location.origin + '/#/detail/AAPL', '_blank', 'width=1100,height=700')
+ *
+ * #288 / FIX-popout — InstrumentDetail consumes a stack of context
+ * providers (Watchlist, Alerts, OpenDetail, Screen, Portfolio) that
+ * App.jsx mounts at the root of the SPA. The popout route bypasses
+ * App.jsx entirely, so any hook InstrumentDetail uses against those
+ * contexts threw "useWatchlist must be used inside WatchlistProvider"
+ * the moment the popout window mounted. Every time a feature added a
+ * new context to InstrumentDetail without also wrapping the popout,
+ * this regression came back. The fix is to mirror the provider stack
+ * here so the popout is a drop-in window for the same component.
  */
 
 import { Suspense } from 'react';
@@ -13,6 +23,11 @@ import { lazyWithRetry } from '../utils/lazyWithRetry';
 
 const InstrumentDetail = lazyWithRetry(() => import('../components/common/InstrumentDetail'));
 import { useAuth } from '../context/AuthContext';
+import { OpenDetailProvider } from '../context/OpenDetailContext';
+import { ScreenProvider } from '../context/ScreenContext';
+import { WatchlistProvider } from '../context/WatchlistContext';
+import { AlertsProvider } from '../context/AlertsContext';
+import { PortfolioProvider } from '../context/PortfolioContext';
 
 export default function InstrumentDetailPage() {
   const { symbolKey } = useParams();
@@ -57,15 +72,34 @@ export default function InstrumentDetailPage() {
         >CLOSE</button>
       </div>
 
-      {/* Full InstrumentDetail in page mode (no overlay backdrop) */}
+      {/* Full InstrumentDetail in page mode (no overlay backdrop).
+          #288 / FIX-popout — wrap in the same provider stack App.jsx
+          uses, so the hooks inside InstrumentDetail (useWatchlist,
+          useAlerts, useOpenDetail, useScreenContext) and any modal it
+          opens (PositionEditor → usePortfolio) all resolve. Order
+          matches App.jsx: ScreenProvider outermost, then
+          OpenDetailProvider, PortfolioProvider, WatchlistProvider,
+          AlertsProvider. We don't include MarketProvider / PriceProvider
+          / FeedStatusProvider — the popout doesn't run the WebSocket;
+          it gets data through TanStack Query REST hits, which is fine. */}
       <div style={{ flex: 1, overflow: 'hidden' }}>
-        <Suspense fallback={<div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#555', fontSize: 11 }}>Loading...</div>}>
-          <InstrumentDetail
-            ticker={decodedSymbol}
-            onClose={() => window.close()}
-            asPage
-          />
-        </Suspense>
+        <ScreenProvider>
+          <OpenDetailProvider>
+            <PortfolioProvider>
+              <WatchlistProvider>
+                <AlertsProvider>
+                  <Suspense fallback={<div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#555', fontSize: 11 }}>Loading...</div>}>
+                    <InstrumentDetail
+                      ticker={decodedSymbol}
+                      onClose={() => window.close()}
+                      asPage
+                    />
+                  </Suspense>
+                </AlertsProvider>
+              </WatchlistProvider>
+            </PortfolioProvider>
+          </OpenDetailProvider>
+        </ScreenProvider>
       </div>
     </div>
   );
