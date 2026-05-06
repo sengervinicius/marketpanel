@@ -219,8 +219,46 @@ const MiniChart = memo(function MiniChart({ ticker, index, onRemove, onReplace, 
       return;
     }
     if (_nameCache.has(norm)) { setName(_nameCache.get(norm)); return; }
+    // #288 / FIX-006 — Production audit found MSFT and BZ=F charts in the
+    // grid showed ticker without name (rendered as "MSFT 411.13" or
+    // "BZ 110.99" with the layout collapsing because the name slot was
+    // empty). Polygon's /api/ticker doesn't return a name for futures
+    // contracts (BZ=F, CL=F, etc.) and occasionally returns null for
+    // equities the user types in odd casings. A small static fallback
+    // map covers the common cases so the title row stays well-formed.
+    // The dynamic API lookup still runs and overrides with the live
+    // name when it arrives.
+    const STATIC_NAME_FALLBACK = {
+      'BZ=F':   'Brent Crude',
+      'CL=F':   'WTI Crude',
+      'NG=F':   'Natural Gas',
+      'GC=F':   'Gold Futures',
+      'SI=F':   'Silver Futures',
+      'HG=F':   'Copper Futures',
+      'ZC=F':   'Corn Futures',
+      'ZS=F':   'Soybean Futures',
+      'ZW=F':   'Wheat Futures',
+      'KC=F':   'Coffee Futures',
+      'CT=F':   'Cotton Futures',
+      'MSFT':   'Microsoft',
+      'AAPL':   'Apple',
+      'NVDA':   'NVIDIA',
+      'GOOGL':  'Alphabet',
+      'META':   'Meta',
+      'AMZN':   'Amazon',
+      'TSLA':   'Tesla',
+    };
+    const fallback = STATIC_NAME_FALLBACK[norm];
+    if (fallback) {
+      // Seed the cache + state with the fallback immediately so the
+      // initial render is well-formed; live API can refine it after.
+      setName(fallback);
+    }
     if (norm.startsWith('C:') || norm.startsWith('X:')) {
-      _nameCache.set(norm, ''); return;
+      // FX / crypto already have synthetic names from displayTicker
+      // (EUR/USD etc.); no API lookup. Cache empty so we don't refetch.
+      _nameCache.set(norm, fallback || '');
+      return;
     }
     apiFetch(`/api/ticker/${encodeURIComponent(norm)}`)
       .then(r => r.ok ? r.json() : null)
@@ -231,8 +269,12 @@ const MiniChart = memo(function MiniChart({ ticker, index, onRemove, onReplace, 
           .replace(/,?\s*(Inc\.?|Corp\.?|Ltd\.?|LLC|S\.A\.|plc|NV|AG|SE)\s*$/i, '')
           .replace(/[,.\s]+$/, '')
           .trim().slice(0, 22);
-        _nameCache.set(norm, n);
-        if (mountedRef.current) setName(n);
+        // #288 / FIX-006 — if the API returned nothing usable, fall back
+        // to our static map so the title row never collapses to just the
+        // ticker.
+        const finalName = n || STATIC_NAME_FALLBACK[norm] || '';
+        _nameCache.set(norm, finalName);
+        if (mountedRef.current) setName(finalName);
       }).catch(() => {});
   }, [ticker]);
 
