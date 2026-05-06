@@ -340,7 +340,11 @@ export function TickerTooltip() {
             {/* Description */}
             <div className="tt-tooltip-description">{desc}</div>
             {/* Hint */}
-            <div className="tt-tooltip-hint">Right-click for actions</div>
+            {/* #288 / FIX-003 — production audit found this hint was the
+             * only affordance for the double-click drill-in gesture, but it
+             * only mentioned right-click. Most users never discovered that
+             * double-click opens the detail view. Surface both gestures. */}
+            <div className="tt-tooltip-hint">Double-click to open detail · Right-click for actions</div>
           </div>,
           document.body
         );
