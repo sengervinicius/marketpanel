@@ -111,6 +111,18 @@
 }
 
 .wp-add-form {
+  /* #288 / FIX-002 — production audit found that opening + ADD clipped
+   * the left edge of the WATCHLIST column ("WATCHLIST" → "ATCHLIST",
+   * "AAPL" → "APL", etc.). Root cause: the form opens between the
+   * header and the rows container, and on narrow panels the input +
+   * three buttons + SVG cancel icon overflow the row width. Without
+   * `min-width: 0` and `flex-wrap: wrap` the form pushes its parent
+   * wider than the panel, the panel scrolls horizontally, and every
+   * sibling row appears to lose its leftmost character. The add form
+   * MUST stay within the panel bounds. */
+  display: flex;
+  flex-wrap: wrap;
+  min-width: 0;
   gap: 4px;
   padding: 4px 8px;
   border-bottom: 1px solid var(--border-default);
@@ -119,7 +131,8 @@
 }
 
 .wp-add-input {
-  flex: 1;
+  flex: 1 1 120px;       /* allow shrink to 120px before wrapping */
+  min-width: 0;          /* belt-and-braces against overflow */
   background: var(--bg-panel);
   border: 1px solid var(--border-strong);
   color: var(--text-primary);
@@ -167,7 +180,9 @@
 
 .wp-rows-container {
   flex: 1;
+  min-width: 0;        /* #288 / FIX-002 — never let grid children push container wider */
   overflow-y: auto;
+  overflow-x: hidden;  /* prevent left-edge clip when sibling form opens */
 }
 
 .wp-row {
