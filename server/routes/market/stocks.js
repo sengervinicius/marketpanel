@@ -490,7 +490,18 @@ router.get('/snapshot/brazil', async (req, res) => {
     res.json(payload);
   } catch (err) {
     console.error('[API] /snapshot/brazil error:', err.message);
-    if (_brazilCache) return res.json({ ..._brazilCache, stale: true, staleSinceMs: Date.now() - _brazilCacheExpiry + 60_000 });
+    // #290 part 3 — cap stale-while-revalidate at 2 minutes past expiry.
+    // The previous code served _brazilCache forever on provider failure,
+    // which is how the app could end up showing 4-hour-old prices when
+    // Yahoo+Finnhub were both degraded. Now: 60s fresh + 120s grace =
+    // 3 minutes absolute max staleness. Past that, return the error so
+    // the UI can render a degraded-coverage state instead of a lying
+    // snapshot.
+    const STALE_GRACE_MS = 120_000;
+    if (_brazilCache && Date.now() < _brazilCacheExpiry + STALE_GRACE_MS) {
+      const ageMs = Date.now() - _brazilCacheExpiry + 60_000;
+      return res.json({ ..._brazilCache, stale: true, staleSinceMs: ageMs });
+    }
     sendError(res, err);
   }
 });
@@ -559,7 +570,13 @@ router.get('/snapshot/brazil-fiis', async (req, res) => {
     res.json(payload);
   } catch (err) {
     console.error('[API] /snapshot/brazil-fiis error:', err.message);
-    if (_fiiCache) return res.json({ ..._fiiCache, stale: true, staleSinceMs: Date.now() - _fiiCacheExpiry + 60_000 });
+    // #290 part 3 — see /snapshot/brazil for rationale. Cap at 2 minutes
+    // past expiry; past that, return error rather than indefinite stale.
+    const STALE_GRACE_MS = 120_000;
+    if (_fiiCache && Date.now() < _fiiCacheExpiry + STALE_GRACE_MS) {
+      const ageMs = Date.now() - _fiiCacheExpiry + 60_000;
+      return res.json({ ..._fiiCache, stale: true, staleSinceMs: ageMs });
+    }
     sendError(res, err);
   }
 });

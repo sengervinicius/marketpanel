@@ -139,11 +139,19 @@ export function useWebSocketTicks(restData) {
         const now = Date.now();
         Object.entries(snap[cat]).forEach(([sym, info]) => {
           const key = prefix && sym.startsWith(prefix) ? sym.slice(prefix.length) : sym;
-          // #289 INCIDENT — stamp every overlay write with the wall-clock
-          // time so the merge below can drop stale entries. Without this,
-          // a Polygon WS disconnect leaves stale prices glued forever
-          // (BTC stuck 2h behind reported by user).
-          liveOverlayRef.current[key] = { ...info, symbol: key, _cat: cat, _overlayAt: now };
+          // #290 part 3 — honor server's `updatedAt` rather than stamping
+          // with our local clock. Previously every snapshot entry got
+          // `_overlayAt: now`, which made hours-stale server entries
+          // look "fresh" to the staleness merge below — exactly the
+          // failure mode the CIO saw (BTC stuck at 12:50pm). The server
+          // sets `updatedAt` to its own Date.now() when each tick lands;
+          // if the WS feed died, that timestamp doesn't advance, so we
+          // correctly identify the entry as stale and the merge drops
+          // it in favour of REST batch data.
+          const upstreamAt = (typeof info?.updatedAt === 'number' && info.updatedAt > 0)
+            ? info.updatedAt
+            : now;
+          liveOverlayRef.current[key] = { ...info, symbol: key, _cat: cat, _overlayAt: upstreamAt };
         });
       });
       // Auto-transition feeds to 'live' if they've received data and aren't explicitly error/degraded
