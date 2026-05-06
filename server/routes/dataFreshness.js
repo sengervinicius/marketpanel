@@ -16,8 +16,33 @@
 
 const { Router } = require('express');
 const ledger = require('../services/freshnessLedger');
+const priceDriftAudit = require('../jobs/priceDriftAudit'); // #289 part 3
 
 const router = Router();
+
+// GET /api/data-freshness/drift — #289 part 3 cross-provider audit results.
+// Define BEFORE the /:symbol route so the literal path matches first.
+router.get('/drift', (_req, res) => {
+  const last = priceDriftAudit.getLastRun();
+  res.json({
+    ok: true,
+    runAt: last.runAt,
+    ageMs: last.runAt ? Date.now() - last.runAt : null,
+    threshold: priceDriftAudit._DRIFT_THRESHOLD_PCT + '%',
+    drifts: last.drifts,
+    anchorsConfigured: priceDriftAudit._ANCHORS.map(a => a.symbol),
+  });
+});
+
+// POST /api/data-freshness/drift/run — admin trigger for an on-demand audit.
+router.post('/drift/run', async (_req, res) => {
+  try {
+    const result = await priceDriftAudit.runAndStore();
+    res.json({ ok: true, ...result });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
 
 // GET /api/data-freshness/:symbol
 //   { symbol, source, asOf, ageMs, latencyMs }

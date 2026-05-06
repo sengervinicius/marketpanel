@@ -149,6 +149,15 @@ function initJobs(ctx = {}) {
   const { sweep: stalenessSweep } = require('../services/stalenessMonitor');
   registerJob('staleness-sweep', '* * * * *', stalenessSweep);
 
+  // ── #289 part 3 — Cross-provider price drift audit ─────────────────
+  // Every 15 minutes, call multiple providers for 5 anchor names
+  // (SPY, EUR/USD, BTC, BZ=F, PETR4.SA) and log any pair whose prices
+  // disagree by more than 0.1%. This is the trustworthiness check —
+  // if Polygon and Yahoo SPY ever drift apart, it's a data-source
+  // bug we want to know about before the user does.
+  const { runAndStore: runPriceDriftAudit } = require('./priceDriftAudit');
+  registerJob('price-drift-audit', '*/15 * * * *', runPriceDriftAudit);
+
   // ── JWT PREVIOUS-key retirement: every 15 minutes (#249 P3.5) ────────
   // Automates step 6 of docs/RUNBOOK_JWT_ROTATION.md. Once the grace
   // window (default 2h) elapses and no token has verified against the
