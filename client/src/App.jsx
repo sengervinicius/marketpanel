@@ -194,8 +194,19 @@ export default function App() {
     return 'home';
   });
   // ── 2-state mobile mode: 'particle' (AI screen) or 'terminal' (classic tabs) ──
+  // #288 / FIX-008 — when the URL has ?c=... it specifies the CHARTS-grid
+  // ticker list, which only applies in terminal mode. Honour the URL by
+  // forcing terminal mode on initial mount, even if the user last left
+  // the app on VAULT or PARTICLE. Without this, sharing the audit URL
+  // (or any deep link with ?c=) lands the recipient on whichever screen
+  // they last saw — not on the terminal the URL was scoped for.
   const [mobileMode, setMobileMode] = useState(() => {
-    try { return localStorage.getItem('mobileMode') || 'terminal'; } catch { return 'terminal'; }
+    try {
+      const urlHasC = typeof window !== 'undefined'
+        && new URLSearchParams(window.location.search).get('c');
+      if (urlHasC) return 'terminal';
+      return localStorage.getItem('mobileMode') || 'terminal';
+    } catch { return 'terminal'; }
   });
   const setMobileModePersist = (m) => { setMobileMode(m); try { localStorage.setItem('mobileMode', m); } catch (e) { swallow(e, 'App.ls.mobileMode'); } syncSettingToServer('mobileMode', m); };
 
