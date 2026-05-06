@@ -435,19 +435,38 @@ router.get('/snapshot/brazil', async (req, res) => {
       }
     }
 
+    // #289 part 4 — anomaly detector. ABEV3 was showing +15% in the
+    // production audit; Yahoo's regularMarketChangePercent is occasionally
+    // computed against a stale prevClose (corporate-event edge case).
+    // Tag the row + log so the client can render a warning and ops can
+    // see the trail. We do NOT silently rewrite the price — it might be
+    // real; we just flag implausible.
+    const priceAnomaly = require('../../services/priceAnomaly');
     const results = quotes
       .filter(q => q.regularMarketPrice != null)
       .map(q => {
         const cleanSymbol = (q.symbol || '').replace(/\.SA$/i, '').trim();
         if (!cleanSymbol) return null;
+        const changePct = q.regularMarketChangePercent ?? 0;
+        const anomaly = priceAnomaly.check(cleanSymbol, changePct);
+        if (anomaly.anomalous) {
+          console.warn(`[Brazil/anomaly] ${anomaly.reason}`);
+        }
         const base = {
           symbol:    cleanSymbol,
           name:      (q.shortName || q.longName || q.symbol).substring(0, 18),
           price:     q.regularMarketPrice,
           change:    q.regularMarketChange        ?? 0,
-          changePct: q.regularMarketChangePercent ?? 0,
+          changePct,
           volume:    q.regularMarketVolume        ?? 0,
           currency:  'BRL',
+          // #289 part 4 — surface the anomaly flag to the client.
+          ...(anomaly.anomalous && {
+            _meta: {
+              anomalous: true,
+              anomalyReason: 'verify-against-independent-source',
+            },
+          }),
         };
         return decorateWithB3Meta(base);
       })
