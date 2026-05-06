@@ -814,15 +814,30 @@ router.get('/chart/:ticker', async (req, res) => {
     const isFutures = ticker.toUpperCase().includes('=F') || ticker.toUpperCase().includes('=');
 
     // ── 1. Try Yahoo Finance FIRST (fast, no rate-limit queue) ────────
-    // Yahoo handles US equities, FX, crypto, futures, ETFs, .SA (B3)
+    // Yahoo handles US equities, FX, crypto, futures, ETFs, .SA (B3).
+    //
+    // INCIDENT (2026-05-06): the chart endpoint was passing the raw
+    // Polygon-style ticker (X:BTCUSD, C:EURUSD) to Yahoo, which doesn't
+    // recognise that prefix. Yahoo returned 404/422, the call failed
+    // silently, and we fell through to Polygon. Polygon's free-tier
+    // crypto aggregates lag the live tape by hours, so users saw
+    // BTC charts stuck at the morning. Convert Polygon prefixes to
+    // Yahoo's hyphen format BEFORE calling Yahoo:
+    //   X:BTCUSD  → BTC-USD
+    //   C:EURUSD  → EURUSD=X
+    //   plain ticker (SPY, AAPL, BZ=F) → unchanged
+    const { toYahoo } = require('../../utils/tickerNormalize');
+    const yahooTicker = (ticker.includes('=') /* futures already Yahoo-shaped */)
+      ? ticker
+      : toYahoo(ticker);
     try {
       const { crumb, cookie } = await getYahooCrumb();
       const period1 = Math.floor(new Date(fromDate + 'T00:00:00Z').getTime() / 1000);
       const period2 = Math.floor(new Date(toDate + 'T23:59:59Z').getTime() / 1000);
       const yfInterval = timespan === 'minute' ? `${multiplier}m` : timespan === 'hour' ? '60m' : '1d';
-      const yfChartCacheKey = `yf_chart:${ticker}:${period1}:${period2}:${yfInterval}`;
+      const yfChartCacheKey = `yf_chart:${yahooTicker}:${period1}:${period2}:${yfInterval}`;
       const { _yahooChartRaw } = require('./lib/providers');
-      const json = await yahooCache.wrap(yfChartCacheKey, () => _yahooChartRaw(ticker, period1, period2, yfInterval, crumb, cookie), 60 * 1000);
+      const json = await yahooCache.wrap(yfChartCacheKey, () => _yahooChartRaw(yahooTicker, period1, period2, yfInterval, crumb, cookie), 60 * 1000);
       const result = json?.chart?.result?.[0];
       if (result) {
         const timestamps = result.timestamp || [];
