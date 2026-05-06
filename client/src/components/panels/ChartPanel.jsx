@@ -13,6 +13,11 @@ import { computeIndicators, buildChartInsightPayload, getLatestIndicatorSnapshot
 import { fmtCompactAxis } from '../../utils/format';
 import { toPolygonWithDefault, toDisplay } from '../../utils/tickerNormalize';
 import { swallow } from '../../utils/swallow';
+// #289 part 2 — per-tile freshness dot. Tiny coloured indicator that
+// reads from /api/data-freshness/:symbol so a CIO can tell at a glance
+// whether the price is actually live, stale, or frozen — without
+// having to trust the price alone.
+import FreshnessDot from '../common/FreshnessDot';
 import './ChartPanel.css';
 
 const LS_KEY = 'chartGrid_v3';
@@ -382,6 +387,9 @@ const MiniChart = memo(function MiniChart({ ticker, index, onRemove, onReplace, 
       {/* Header */}
       <div className="mc-header">
         <span className="mc-ticker">
+          {/* #289 part 2 — freshness dot. Hidden during drag swap visual
+              so the SWAP/REPLACE prompt isn't competing with it. */}
+          {!isDragOver && <FreshnessDot symbol={ticker} style={{ marginRight: 6 }} />}
           {isDragOver ? 'SWAP / REPLACE' : displayTicker(ticker) + (name ? ' · ' + name : '')}
         </span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
