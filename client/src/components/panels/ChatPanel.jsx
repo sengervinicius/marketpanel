@@ -45,12 +45,25 @@ function statusIcon(status) {
   }
 }
 
-// Open chat in a separate browser window
+// Open chat in a separate browser window.
+// #288 / FIX-009 — production audit clicked the header DM icon and got
+// no visible response; pop-up blockers silently nulled the window.open
+// call. Detect that and fall back to navigating the current tab so the
+// chat is reachable either way. Also prefer noopener over a feature
+// list, which avoids some browsers rejecting the open() outright.
 export function openChatWindow(userId) {
   const path = userId
     ? `${window.location.origin}/#/chat/${userId}`
     : `${window.location.origin}/#/chat`;
-  window.open(path, '_blank', 'width=820,height=620,noopener,noreferrer');
+  let popup = null;
+  try {
+    popup = window.open(path, '_blank', 'width=820,height=620,noopener,noreferrer');
+  } catch (_) { /* swallow — handled by null-check below */ }
+  if (!popup || popup.closed || typeof popup.closed === 'undefined') {
+    // Pop-up blocked or refused by the browser — fall back to in-tab nav.
+    // The user gets the chat either way; better than a silent dead button.
+    try { window.location.assign(path); } catch (_) { /* noop */ }
+  }
 }
 
 
