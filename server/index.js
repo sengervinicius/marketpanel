@@ -107,6 +107,7 @@ const privacyRoutes = require('./routes/privacy');       // W1.1 LGPD DSAR
 const adminDebugRoutes = require('./routes/adminDebug'); // W4.1 on-call debug
 const adminFlagsRoutes = require('./routes/adminFlags'); // W6.1 feature flags admin
 const adminCoverageRoutes = require('./routes/adminCoverage'); // W5.6 coverage matrix admin
+const dataFreshnessRoutes = require('./routes/dataFreshness');  // #289 freshness ledger
 const featureFlags     = require('./services/featureFlags'); // W6.1
 const { requireAuth, requireActiveSubscription, populatePlanTier, requireAdmin } = require('./authMiddleware');
 const logger = require('./utils/logger');
@@ -384,6 +385,11 @@ app.use('/api/admin', requireAuth, adminRoutes);
 app.use('/api/admin/debug', requireAuth, adminDebugRoutes);  // W4.1 on-call surface
 app.use('/api/admin/flags', requireAuth, adminFlagsRoutes);  // W6.1 feature flags admin
 app.use('/api/admin/coverage', requireAuth, adminCoverageRoutes); // W5.6 coverage matrix admin
+// #289 — freshness ledger. Same router serves user + admin views; the admin
+// summary view is the same `/api/data-freshness` GET (health()), per-symbol
+// is `/api/data-freshness/:symbol`. Auth-required so anonymous callers
+// can't probe which symbols we cover.
+app.use('/api/data-freshness', requireAuth, dataFreshnessRoutes);
 
 // W6.1 — per-user flag evaluation for the client. Returns a {name: bool} map.
 // Anonymous callers get only flags that don't require a userId (effectively

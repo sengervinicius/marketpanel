@@ -607,6 +607,19 @@ router.get('/snapshot/ticker/:symbol', async (req, res) => {
     }
 
     if (!q) throw new Error(`No data for ${sym} from any provider`);
+    // #289 — record + surface freshness so admin endpoints and the
+    // client-side freshness dot (#289 part 2) can answer "when did
+    // SPY last get fresh REST data, and from which source?". Yahoo
+    // exposes regularMarketTime in epoch seconds when present;
+    // Finnhub doesn't, so we fall back to now() with source label
+    // pinned accordingly.
+    const _asOfMs = q.regularMarketTime ? q.regularMarketTime * 1000 : Date.now();
+    const _source = q.regularMarketTime ? 'yahoo' : 'finnhub';
+    try {
+      require('../../services/freshnessLedger').record({
+        symbol: sym, source: _source, asOf: _asOfMs,
+      });
+    } catch (_) { /* never throw from response path */ }
     res.json({
       ticker: {
         min:    { c: q.regularMarketPrice },
@@ -621,6 +634,8 @@ router.get('/snapshot/ticker/:symbol', async (req, res) => {
         prevDay:          { c: q.regularMarketPreviousClose ?? (q.regularMarketPrice - q.regularMarketChange) ?? null },
         todaysChangePerc: q.regularMarketChangePercent ?? null,
         todaysChange:     q.regularMarketChange        ?? null,
+        // #289 part 2 — client reads _meta to colour the freshness dot.
+        _meta: { asOf: _asOfMs, source: _source },
       },
     });
   } catch (e) {

@@ -158,6 +158,12 @@ function connectFeed(feedName, wsUrl, marketState, broadcast) {
             };
             dirtySymbols.add(sym); dirtyCategory[sym] = 'stocks';
             marketState.feedMeta.stocks.lastTickAt = Date.now();
+            // #289 — record into freshness ledger.
+            try {
+              require('./services/freshnessLedger').record({
+                symbol: sym, source: 'polygon-ws', asOf: ev.t || Date.now(),
+              });
+            } catch (_) { /* never throw from WS handler */ }
             break;
           }
 
@@ -198,6 +204,12 @@ function connectFeed(feedName, wsUrl, marketState, broadcast) {
             };
             dirtySymbols.add(pair); dirtyCategory[pair] = 'forex';
             marketState.feedMeta.forex.lastTickAt = Date.now();
+            // #289 — record into freshness ledger.
+            try {
+              require('./services/freshnessLedger').record({
+                symbol: pair, source: 'polygon-ws', asOf: ev.t || Date.now(),
+              });
+            } catch (_) { /* never throw from WS handler */ }
             break;
           }
 
@@ -216,6 +228,16 @@ function connectFeed(feedName, wsUrl, marketState, broadcast) {
             };
             dirtySymbols.add(pair); dirtyCategory[pair] = 'crypto';
             marketState.feedMeta.crypto.lastTickAt = Date.now();
+            // #289 — record into the freshness ledger so admin endpoints
+            // can answer "when was the last time BTC actually ticked
+            // from upstream?". WS pushes have no upstream latency to
+            // record so latencyMs is null. Wrapped in try/catch — a
+            // bug in the ledger MUST NOT break the price pipeline.
+            try {
+              require('./services/freshnessLedger').record({
+                symbol: pair, source: 'polygon-ws', asOf: ev.t || Date.now(),
+              });
+            } catch (_) { /* never throw from WS handler */ }
             break;
           }
         }
