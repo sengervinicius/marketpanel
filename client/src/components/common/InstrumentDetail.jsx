@@ -1899,7 +1899,15 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
         <div className="id-section-title id-section-title--purple">INSIDER TRANSACTIONS</div>
         {insiderLoading && <div className="id-skeleton"><div className="id-skeleton-bar" style={{ width: '85%' }} /><div className="id-skeleton-bar" style={{ width: '70%' }} /><div className="id-skeleton-bar" style={{ width: '55%' }} /></div>}
         {!insiderLoading && insiders.length === 0 && (
-          <div className="id-section-title--no-data">No insider data available</div>
+          // #288 / FIX-007 — branch the empty-state on instrument class.
+          // ETFs (and other fund vehicles) by definition don't report
+          // insider transactions; saying "no data available" implies a
+          // missing data source when in fact the section doesn't apply.
+          <div className="id-section-title--no-data">
+            {isETF
+              ? 'Insider transactions don’t apply to ETFs.'
+              : 'No insider data available'}
+          </div>
         )}
         {insiders.length > 0 && (
           <table className="id-stat-table">

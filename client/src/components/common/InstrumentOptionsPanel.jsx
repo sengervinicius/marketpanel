@@ -354,9 +354,23 @@ export default function InstrumentOptionsPanel({ symbol, spot, isMobile }) {
 
   // ── Empty / error / loading states ─────────────────────────────────────────
   if (error === 'OPTIONS_UNAVAILABLE') {
+    // #288 / FIX-007 — clearer copy. The server returns OPTIONS_UNAVAILABLE
+    // either because (a) the options provider isn't configured at all, or
+    // (b) the specific instrument has no listed options. The previous
+    // copy "Options unavailable for this instrument" implied (b) on every
+    // case, including names that DO have options. Soften the message
+    // and route the user toward the provider-configuration ask when
+    // appropriate.
     return (
       <div className="opt-panel">
-        <div className="opt-empty">Options unavailable for this instrument.</div>
+        <div className="opt-empty">
+          Options chain not available right now.
+          <br />
+          <span style={{ fontSize: 10, color: 'var(--text-faint)', display: 'inline-block', marginTop: 4 }}>
+            Either no listed options for this instrument, or the options
+            data feed is not configured.
+          </span>
+        </div>
       </div>
     );
   }
