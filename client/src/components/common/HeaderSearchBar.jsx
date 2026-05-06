@@ -201,8 +201,40 @@ export default function HeaderSearchBar({ onSelectTicker }) {
   const shortcutLabel = isMac ? '\u2318K' : 'Ctrl K';
 
   if (!open) {
+    // #288 / FIX-005 — production audit found the trigger didn't reliably
+    // open the search panel on single click. The element was already
+    // wired with onClick but used setTimeout(50) for focus, which races
+    // with React's render cycle. Switch to requestAnimationFrame and
+    // fall back to a microtask + zero-timeout chain in case rAF is
+    // delayed; also add `role="button"` and Enter/Space key handlers
+    // so keyboard users can open the bar without Cmd+K too.
+    const openAndFocus = () => {
+      setOpen(true);
+      const focusInput = () => {
+        try { inputRef.current?.focus(); inputRef.current?.select(); }
+        catch { /* noop */ }
+      };
+      requestAnimationFrame(() => {
+        focusInput();
+        // Belt-and-braces for browsers/builds where rAF runs before the
+        // DOM swap completes.
+        setTimeout(focusInput, 0);
+      });
+    };
     return (
-      <div className="hsb-trigger" onClick={() => { setOpen(true); setTimeout(() => inputRef.current?.focus(), 50); }}>
+      <div
+        className="hsb-trigger"
+        role="button"
+        tabIndex={0}
+        onClick={openAndFocus}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            openAndFocus();
+          }
+        }}
+        style={{ cursor: 'pointer' }}
+      >
         <svg className="hsb-trigger-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
           <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
         </svg>
