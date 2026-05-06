@@ -136,9 +136,14 @@ export function useWebSocketTicks(restData) {
         // Strip C: (forex) and X: (crypto) prefixes from keys so they match
         // the REST batch data keys (which are already stripped by normalizePolygon)
         const prefix = cat === 'forex' ? 'C:' : cat === 'crypto' ? 'X:' : '';
+        const now = Date.now();
         Object.entries(snap[cat]).forEach(([sym, info]) => {
           const key = prefix && sym.startsWith(prefix) ? sym.slice(prefix.length) : sym;
-          liveOverlayRef.current[key] = { ...info, symbol: key, _cat: cat };
+          // #289 INCIDENT — stamp every overlay write with the wall-clock
+          // time so the merge below can drop stale entries. Without this,
+          // a Polygon WS disconnect leaves stale prices glued forever
+          // (BTC stuck 2h behind reported by user).
+          liveOverlayRef.current[key] = { ...info, symbol: key, _cat: cat, _overlayAt: now };
         });
       });
       // Auto-transition feeds to 'live' if they've received data and aren't explicitly error/degraded
@@ -176,7 +181,8 @@ export function useWebSocketTicks(restData) {
               let sym = t.symbol;
               if (t.category === 'forex' && sym.startsWith('C:')) sym = sym.slice(2);
               if (t.category === 'crypto' && sym.startsWith('X:')) sym = sym.slice(2);
-              liveOverlayRef.current[sym] = { ...liveOverlayRef.current[sym], ...t.data, symbol: sym, _cat: t.category };
+              // #289 INCIDENT — _overlayAt stamp; see snapshot handler comment.
+              liveOverlayRef.current[sym] = { ...liveOverlayRef.current[sym], ...t.data, symbol: sym, _cat: t.category, _overlayAt: Date.now() };
               normalizedTicks.push({ category: t.category, symbol: sym, data: t.data });
             }
           });
@@ -216,7 +222,8 @@ export function useWebSocketTicks(restData) {
               let sym = t.symbol;
               if (t.category === 'forex' && sym.startsWith('C:')) sym = sym.slice(2);
               if (t.category === 'crypto' && sym.startsWith('X:')) sym = sym.slice(2);
-              liveOverlayRef.current[sym] = { ...liveOverlayRef.current[sym], ...t.data, symbol: sym, _cat: t.category };
+              // #289 INCIDENT — stamp _overlayAt; see snapshot handler.
+              liveOverlayRef.current[sym] = { ...liveOverlayRef.current[sym], ...t.data, symbol: sym, _cat: t.category, _overlayAt: Date.now() };
               normalizedTicks.push({ category: t.category, symbol: sym, data: t.data });
             }
           });
@@ -240,19 +247,39 @@ export function useWebSocketTicks(restData) {
     }
   }, []);
 
-  // Merge REST snapshot with WS live overlay
+  // Merge REST snapshot with WS live overlay.
+  //
+  // #289 INCIDENT — stale-overlay protection. Before this change, an
+  // overlay entry written when the WS was healthy would stay glued on
+  // top of REST data forever — even if the Polygon feed for that
+  // category dropped. User reported: "BTC prices are now stuck at
+  // 9.15am, like 2 hours behind". With per-category staleness windows
+  // we now drop overlay entries whose _overlayAt is older than the
+  // window and let REST take over. The windows are deliberately tight
+  // for ticks-heavy feeds (crypto / forex run 24x7 and should refresh
+  // every few seconds; stocks idle longer between trades).
+  const OVERLAY_STALE_MS = {
+    crypto: 60 * 1000,    // 1 min — crypto trades 24/7, anything older is suspect
+    forex:  60 * 1000,    // 1 min — same
+    stocks: 5 * 60 * 1000, // 5 min — stocks have natural gaps between trades
+  };
   const mergedData = useMemo(() => {
     if (!restData) return restData;
     const overlay = liveOverlayRef.current;
     if (Object.keys(overlay).length === 0) return restData;
     const merged = { ...restData };
+    const now = Date.now();
     ['stocks', 'forex', 'crypto'].forEach(cat => {
       if (!restData[cat]) return;
+      const window = OVERLAY_STALE_MS[cat] || 60 * 1000;
       const updates = {};
       Object.entries(overlay).forEach(([sym, info]) => {
-        if (info._cat === cat && restData[cat][sym]) {
-          updates[sym] = { ...restData[cat][sym], ...info };
-        }
+        if (info._cat !== cat || !restData[cat][sym]) return;
+        // #289 — drop stale entries so REST data takes precedence.
+        // Entries without _overlayAt are pre-#289 writes; treat as fresh
+        // for one render then they'll get re-stamped on next tick.
+        if (info._overlayAt && (now - info._overlayAt > window)) return;
+        updates[sym] = { ...restData[cat][sym], ...info };
       });
       if (Object.keys(updates).length > 0) {
         merged[cat] = { ...restData[cat], ...updates };
