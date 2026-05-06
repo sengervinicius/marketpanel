@@ -150,11 +150,18 @@ export default function CommandPalette({ isOpen, onClose, onCommand, excludeComm
     setSelectedIndex(0);
   }, [filteredCommands]);
 
-  // Focus input when palette opens
+  // Focus input when palette opens.
+  // #288 / FIX-004 — production audit hit Ctrl+K and typed immediately;
+  // the keystrokes ahead of the next paint were lost because the input
+  // wasn't yet mounted/focused. requestAnimationFrame defers focus until
+  // after the palette is actually in the DOM, so the next character the
+  // user types lands in the search field.
   useEffect(() => {
-    if (isOpen && inputRef.current) {
-      inputRef.current.focus();
-    }
+    if (!isOpen) return;
+    let raf = requestAnimationFrame(() => {
+      try { inputRef.current?.focus(); inputRef.current?.select(); } catch { /* noop */ }
+    });
+    return () => cancelAnimationFrame(raf);
   }, [isOpen]);
 
   // Keyboard navigation
