@@ -58,38 +58,27 @@ function assetTypeFromSymbol(sym) {
   return 'EQUITY';
 }
 
-function normalizePolygonQuote(t) {
-  const price = (t.min?.c > 0 ? t.min.c : null)
-             ?? (t.day?.c > 0 ? t.day.c : null)
-             ?? t.lastTrade?.p
-             ?? t.prevDay?.c
-             ?? null;
-  return {
-    symbol: t.ticker,
-    price,
-    changePct: t.todaysChangePerc ?? null,
-    change: t.todaysChange ?? null,
-  };
-}
-
 // ── Individual row ──────────────────────────────────────────────────
+// #290 part 2 — was reading from a parallel `/api/snapshot/stocks` fetch
+// (10s cadence) AND PriceContext (6s cadence) and falling through. Two
+// independent pipelines on the same screen guaranteed visible drift
+// vs. ChartPanel which only reads PriceContext. Now: PriceContext only.
 const WatchlistRow = memo(function WatchlistRow({
-  position, quote, onTickerClick, onEdit, onRemove, onWhy, onReportPrice,
+  position, onTickerClick, onEdit, onRemove, onWhy, onReportPrice,
 }) {
   const openDetail = useOpenDetail();
   const priceCtx   = useTickerPrice(position.symbol);
   const ptRef      = useRef(null);
 
-  // Prefer batch Polygon quote, fall back to PriceContext
-  const price     = quote?.price     ?? priceCtx?.price     ?? null;
-  const changePct = quote?.changePct ?? priceCtx?.changePct ?? null;
+  const price     = priceCtx?.price     ?? null;
+  const changePct = priceCtx?.changePct ?? null;
 
   // Report price up so the summary strip can recompute
   useEffect(() => {
     if (price != null) {
-      onReportPrice(position.symbol, { price, changePct, change: quote?.change ?? priceCtx?.change ?? null });
+      onReportPrice(position.symbol, { price, changePct, change: priceCtx?.change ?? null });
     }
-  }, [price, changePct, position.symbol, quote, priceCtx, onReportPrice]);
+  }, [price, changePct, position.symbol, priceCtx, onReportPrice]);
 
   const isTracked = position.entryPrice != null && position.quantity != null;
   const pnlPct = (isTracked && price && position.entryPrice > 0)
@@ -156,12 +145,11 @@ function WatchlistPanel({ onTickerClick }) {
     syncStatus, retrySync,
   } = usePortfolio();
 
-  // Ad-hoc batch quotes for equities (fast path); crypto/FX fall through
-  // to PriceContext via WatchlistRow.
-  const [quotes, setQuotes] = useState({});
-  const [loading, setLoading] = useState(false);
-  const [error, setError]     = useState(null);
-  const [lastUpdated, setLastUpdated] = useState(null);
+  // #290 part 2 — removed the parallel /api/snapshot/stocks fetch. All
+  // prices now come from PriceContext (single source of truth) via the
+  // row's useTickerPrice hook. `loading` is derived from "have we seen
+  // any price yet" instead of a fetch flag.
+
 
   // UI state
   const [sortMode, setSortMode] = useState('default'); // 'default' | 'heat' | 'pnl'
@@ -199,36 +187,15 @@ function WatchlistPanel({ onTickerClick }) {
   }, []);
   const getPriceData = useCallback(sym => priceSnapshot[sym] || null, [priceSnapshot]);
 
-  // ── Batch equity quotes ─────────────────────────────────────────
-  const symbols = useMemo(() => positions.map(p => p.symbol), [positions]);
-  const symbolsKey = symbols.join(',');
+  // #290 part 2 — fetchQuotes() and its 10s interval removed. PriceContext
+  // already polls the canonical batch every 6s and merges WS overlays;
+  // running a second poll here just produced visible drift between the
+  // chart grid and watchlist for the same symbol. WatchlistRow reads
+  // priceCtx directly now.
 
-  const fetchQuotes = useCallback(async () => {
-    if (symbols.length === 0) { setQuotes({}); return; }
-    setLoading(true);
-    setError(null);
-    try {
-      // Batch endpoint only handles US equities — that's fine, other
-      // assets still get prices via PriceContext in the row.
-      const res  = await apiFetch(`/api/snapshot/stocks?tickers=${encodeURIComponent(symbols.join(','))}`);
-      const json = await res.json();
-      if (!res.ok) { setError(json.error || 'Error fetching quotes'); return; }
-      const map = {};
-      (json.tickers || []).forEach(t => { map[t.ticker] = normalizePolygonQuote(t); });
-      setQuotes(map);
-      setLastUpdated(new Date());
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setLoading(false);
-    }
-  }, [symbols, symbolsKey]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    fetchQuotes();
-    const id = setInterval(fetchQuotes, 10_000);
-    return () => clearInterval(id);
-  }, [fetchQuotes]);
+  // Loading flag is derived from priceSnapshot — true if positions exist
+  // but no rows have reported a price yet (initial paint window).
+  const loading = positions.length > 0 && Object.keys(priceSnapshot).length === 0;
 
   // ── Drop handler ────────────────────────────────────────────────
   const handleDropTicker = useCallback((ticker) => {
@@ -335,13 +302,13 @@ function WatchlistPanel({ onTickerClick }) {
   }, []);
 
   // ── Sorting ─────────────────────────────────────────────────────
+  // #290 part 2 — sort uses priceSnapshot only (PriceContext-derived).
   const sortedPositions = useMemo(() => {
     if (sortMode === 'default') return positions;
     const scored = positions.map(p => {
-      const q   = quotes[p.symbol];
       const pd  = getPriceData(p.symbol);
-      const chg = q?.changePct ?? pd?.changePct ?? 0;
-      const px  = q?.price ?? pd?.price ?? null;
+      const chg = pd?.changePct ?? 0;
+      const px  = pd?.price ?? null;
       const pnl = (px != null && p.entryPrice != null && p.entryPrice > 0)
         ? ((px - p.entryPrice) / p.entryPrice) * 100 : null;
       return { ...p, _chg: chg, _pnl: pnl };
@@ -356,7 +323,7 @@ function WatchlistPanel({ onTickerClick }) {
       if (b._pnl != null) return 1;
       return Math.abs(b._chg) - Math.abs(a._chg);
     });
-  }, [positions, sortMode, quotes, getPriceData]);
+  }, [positions, sortMode, getPriceData]);
 
   // ── Render ──────────────────────────────────────────────────────
   const sortBtn = (key, label) => (
@@ -462,14 +429,13 @@ function WatchlistPanel({ onTickerClick }) {
             title="No tickers yet"
             message="Add a symbol to start tracking. Alt+click any row later to add qty + entry for P&L."
           />
-        ) : loading && Object.keys(quotes).length === 0 ? (
+        ) : loading ? (
           <div className="wp-loading">LOADING…</div>
         ) : (
           sortedPositions.map(pos => (
             <WatchlistRow
               key={pos.id}
               position={pos}
-              quote={quotes[pos.symbol]}
               onTickerClick={onTickerClick}
               onEdit={handleEdit}
               onRemove={handleRemove}
@@ -477,12 +443,6 @@ function WatchlistPanel({ onTickerClick }) {
               onReportPrice={reportPrice}
             />
           ))
-        )}
-        {error && (
-          <div className="wp-error-msg">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ verticalAlign: 'middle', marginRight: 2 }}><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-            {error}
-          </div>
         )}
       </div>
 
