@@ -110,12 +110,69 @@ export function useInstrumentData(ticker) {
   const isETF  = etfMeta?.assetClass === 'etf';
 
   // ── Fetch bars ────────────────────────────────────────────────────────
+  // #290 INCIDENT — InstrumentDetail had ZERO refresh logic. The bars
+  // and snapshot fetches both fired exactly once on mount and then never
+  // again. A user who opened BTC's detail page at 12:50pm would still be
+  // staring at the 12:50pm price/chart at 3:30pm — no polling, no WS.
+  // Server-side cache (60s for snapshot, 5min for intraday chart) bounds
+  // the upstream cost; the poll is just to keep the UI honest.
+  //
+  // Cadence:
+  //   snapshot: 20s (server TTL 60s, so most polls hit cache)
+  //   bars:     60s, intraday only (minute/hour); daily+ never need it
+  //   visibility: pause polls when tab hidden, eager refetch on focus
   useEffect(() => {
     setLoading(true);
     setBars([]);
-    const from = getFromDate(range);
-    const to = new Date().toISOString().split('T')[0];
     let stale = false;
+    let pollTimer = null;
+    const isIntraday = range.timespan === 'minute' || range.timespan === 'hour';
+
+    const runFetch = (isInitial) => {
+      const from = getFromDate(range);
+      const to = new Date().toISOString().split('T')[0];
+
+      apiFetch(
+        `/api/chart/${encodeURIComponent(norm)}` +
+        `?multiplier=${range.multiplier}&timespan=${range.timespan}&from=${from}&to=${to}`
+      )
+        .then(r => r.json())
+        .then(d => {
+          if (stale) return;
+          const results = Array.isArray(d.results) ? d.results : (Array.isArray(d) ? d : []);
+          setBars(results.map(b => ({
+            t: b.t, label: fmtLabel(b.t, range.timespan),
+            open: b.o, high: b.h, low: b.l, close: b.c, volume: b.v ?? 0,
+          })));
+          if (isInitial) setLoading(false);
+
+          // #219 — empty bars on a foreign-suffix ticker strongly suggests
+          // we're trying to fetch a brand name (e.g. JUMBO.AT) instead of
+          // the actual exchange code (BELA.AT). Ask the server resolver
+          // once; if it returns a better match, swap `norm` over and let
+          // the effect chain re-fire against the tradeable ticker.
+          if (isInitial && results.length === 0 && !resolvedNorm) {
+            const hasForeignSuffix = /\.[A-Z]{1,5}$/.test(rawNorm)
+              && !rawNorm.startsWith('C:') && !rawNorm.startsWith('X:');
+            if (hasForeignSuffix) {
+              apiFetch(`/api/symbol/resolve?q=${encodeURIComponent(rawNorm)}`)
+                .then(rr => rr.ok ? rr.json() : null)
+                .then(rd => {
+                  if (stale || !rd || !rd.resolved || rd.resolved === rawNorm) return;
+                  setResolvedNorm(rd.resolved);
+                  setResolution({
+                    from: rawNorm,
+                    to:   rd.resolved,
+                    name: rd.name || null,
+                    exchange: rd.exchange || null,
+                  });
+                })
+                .catch(() => {});
+            }
+          }
+        })
+        .catch(() => { if (!stale && isInitial) setLoading(false); });
+    };
 
     // #223 (2026-04-23) — Watchdog against "stuck on LOADING" on mobile.
     // The CIO reported BTC/USD detail pages sitting on the chart skeleton
@@ -131,60 +188,83 @@ export function useInstrumentData(ticker) {
       setLoading(false);
     }, 40000);
 
-    apiFetch(
-      `/api/chart/${encodeURIComponent(norm)}` +
-      `?multiplier=${range.multiplier}&timespan=${range.timespan}&from=${from}&to=${to}`
-    )
-      .then(r => r.json())
-      .then(d => {
-        if (stale) return;
-        const results = Array.isArray(d.results) ? d.results : (Array.isArray(d) ? d : []);
-        setBars(results.map(b => ({
-          t: b.t, label: fmtLabel(b.t, range.timespan),
-          open: b.o, high: b.h, low: b.l, close: b.c, volume: b.v ?? 0,
-        })));
-        setLoading(false);
+    runFetch(true);
 
-        // #219 — empty bars on a foreign-suffix ticker strongly suggests
-        // we're trying to fetch a brand name (e.g. JUMBO.AT) instead of
-        // the actual exchange code (BELA.AT). Ask the server resolver
-        // once; if it returns a better match, swap `norm` over and let
-        // the effect chain re-fire against the tradeable ticker.
-        if (results.length === 0 && !resolvedNorm) {
-          const hasForeignSuffix = /\.[A-Z]{1,5}$/.test(rawNorm)
-            && !rawNorm.startsWith('C:') && !rawNorm.startsWith('X:');
-          if (hasForeignSuffix) {
-            apiFetch(`/api/symbol/resolve?q=${encodeURIComponent(rawNorm)}`)
-              .then(rr => rr.ok ? rr.json() : null)
-              .then(rd => {
-                if (stale || !rd || !rd.resolved || rd.resolved === rawNorm) return;
-                setResolvedNorm(rd.resolved);
-                setResolution({
-                  from: rawNorm,
-                  to:   rd.resolved,
-                  name: rd.name || null,
-                  exchange: rd.exchange || null,
-                });
-              })
-              .catch(() => {});
-          }
+    // Intraday charts poll every 60s while tab visible; daily/weekly/
+    // monthly bars don't move minute-to-minute so we don't bother.
+    if (isIntraday) {
+      const tick = () => {
+        if (stale) return;
+        if (typeof document === 'undefined' || document.visibilityState !== 'hidden') {
+          runFetch(false);
         }
-      })
-      .catch(() => { if (!stale) setLoading(false); });
+        pollTimer = setTimeout(tick, 60000);
+      };
+      pollTimer = setTimeout(tick, 60000);
+    }
+
+    // Eager refetch when the user comes back to the tab — better than
+    // waiting up to a full poll interval to catch up.
+    const onVisible = () => {
+      if (stale) return;
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        runFetch(false);
+      }
+    };
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', onVisible);
+    }
+
     return () => {
       stale = true;
       clearTimeout(watchdog);
+      if (pollTimer) clearTimeout(pollTimer);
+      if (typeof document !== 'undefined') {
+        document.removeEventListener('visibilitychange', onVisible);
+      }
     };
-  }, [norm, rangeIdx, rawNorm, resolvedNorm]);
+  }, [norm, rangeIdx, rawNorm, resolvedNorm, range.timespan, range.multiplier]);
 
-  // ── Fetch snapshot ────────────────────────────────────────────────────
+  // ── Fetch snapshot (with poll — see #290 note above) ──────────────────
   useEffect(() => {
     let stale = false;
-    apiFetch(`/api/snapshot/ticker/${encodeURIComponent(norm)}`)
-      .then(r => r.json())
-      .then(d => { if (!stale) setSnap(d?.ticker ?? d); })
-      .catch(() => {});
-    return () => { stale = true; };
+    let pollTimer = null;
+
+    const runFetch = () => {
+      apiFetch(`/api/snapshot/ticker/${encodeURIComponent(norm)}`)
+        .then(r => r.json())
+        .then(d => { if (!stale) setSnap(d?.ticker ?? d); })
+        .catch(() => {});
+    };
+
+    runFetch();
+
+    const tick = () => {
+      if (stale) return;
+      if (typeof document === 'undefined' || document.visibilityState !== 'hidden') {
+        runFetch();
+      }
+      pollTimer = setTimeout(tick, 20000);
+    };
+    pollTimer = setTimeout(tick, 20000);
+
+    const onVisible = () => {
+      if (stale) return;
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        runFetch();
+      }
+    };
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', onVisible);
+    }
+
+    return () => {
+      stale = true;
+      if (pollTimer) clearTimeout(pollTimer);
+      if (typeof document !== 'undefined') {
+        document.removeEventListener('visibilitychange', onVisible);
+      }
+    };
   }, [norm]);
 
   // ── Fetch reference info (stocks only) ────────────────────────────────
