@@ -330,21 +330,9 @@ router.post('/fundamentals', async (req, res) => {
   const contextBlock = lines.join('\n');
 
   // ── LLM prompt ────────────────────────────────────────────────────────
-  // INCIDENT (2026-05-06): the AI Fundamentals card was baking the live
-  // price into the narrative ("Trading at $82,682, BTC remains..."), and
-  // the cached card stayed visible for hours/days while the price moved.
-  // Users saw the header price update live but the AI text quote a
-  // very different number — eroding trust in the whole panel.
-  //
-  // Fix: explicitly tell the model NOT to embed specific numeric prices
-  // / market caps / ratios in narrative prose. Numbers belong to the
-  // financial data block (which has its own card on the screen and is
-  // refetched live). The AI text describes the BUSINESS — that doesn't
-  // change minute-to-minute. Cache TTL stays the same; staleness is no
-  // longer user-visible because the narrative is evergreen.
   const systemPrompt = `You are a senior equity research analyst. Given a ticker and its financial data, produce a structured analysis. Respond ONLY with valid JSON matching this schema:
 {
-  "summary": "2-3 sentence overview of what the company does and its market position. Describe the business model and competitive position — DO NOT mention specific current prices.",
+  "summary": "2-3 sentence overview of what the company does and its current market position",
   "businessModel": "1-2 sentence description of how the company makes money",
   "segments": ["segment1 description", "segment2 description", ...],
   "financialHighlights": ["highlight1", "highlight2", ...],
@@ -352,14 +340,13 @@ router.post('/fundamentals', async (req, res) => {
   "riskFactors": ["risk1", "risk2", ...]
 }
 Rules:
-- CRITICAL: DO NOT embed specific numeric prices, market caps, P/E ratios, or other metrics inside narrative prose. Those numbers are surfaced live in dedicated UI cards next to your text and become stale the moment the price moves. Your text should describe the BUSINESS — what it does, how it makes money, segments, risks — which doesn't change minute-to-minute.
-- If you must reference a metric qualitatively, say "premium valuation", "high margin", "capital-intensive", "dividend-paying", etc. — never "$X" or "Y x earnings".
-- Use the provided financial data ONLY to ground your qualitative descriptions (e.g. "high gross margin business" if grossMargins > 50%). Do NOT use prices or numbers from your training data.
+- CRITICAL: Use the provided financial data as the ONLY source of truth for ALL numbers including price, market cap, ratios, and metrics. Do NOT use prices or numbers from your training data — they are outdated. The "Last Price" in the data below is the LIVE current price.
 - Keep each array item to 1-2 sentences max.
 - 3-5 items per array.
 - Be concise, professional, and factual.
 - If data is missing for a field, provide qualitative analysis based on your knowledge but NEVER invent specific price levels or numbers.
-- Do NOT include markdown formatting inside the JSON strings.`;
+- Do NOT include markdown formatting inside the JSON strings.
+- In the summary, reference the actual current price from the data provided, not from your training knowledge.`;
 
   const userPrompt = `Analyze this instrument:\n\n${contextBlock}`;
 
