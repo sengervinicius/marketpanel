@@ -26,6 +26,7 @@ import {
   formatPrice, currencyLabel, fxDirectionLabel, commodityContextLabel, assetClassBadge,
 } from '../../utils/formatPrice';
 import { useWatchlist } from '../../context/WatchlistContext';
+import { useTickerPrice } from '../../context/PriceContext';
 import { useInstrumentSearch } from '../../hooks/useInstrumentSearch';
 import { useAlerts } from '../../context/AlertsContext';
 import { useToast } from '../../context/ToastContext';
@@ -181,8 +182,23 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
   }, [activeTab, isStock, refetchFundamentals]);
 
   // ── Derived values (must be before effects that reference them) ──────────
-  const livePrice = snap?.min?.c || snap?.day?.c || snap?.lastTrade?.p || snap?.prevDay?.c
-                 || (bars.length ? bars[bars.length - 1].close : null);
+  // #290 part 2b — InstrumentDetail used to read price ONLY from its own
+  // /api/snapshot/ticker fetch (now polled at 20s). The home grid reads
+  // from PriceContext on a 6s cycle with WS overlay. So a user with the
+  // detail page open and the home grid behind it could see two prices
+  // for the same symbol up to 20s apart.
+  //
+  // Now: subscribe to PriceContext too. Prefer its value for the live
+  // price field — it's identical to what every other panel shows. Fall
+  // through to snap only if PriceContext hasn't returned data yet (e.g.
+  // rare custom ticker not in any batch).
+  //
+  // snap is still queried because it's the only source for day high/low/
+  // volume on this page; PriceContext only carries price + change %.
+  const ctxPrice = useTickerPrice(norm);
+  const livePrice = ctxPrice?.price
+                 ?? (snap?.min?.c || snap?.day?.c || snap?.lastTrade?.p || snap?.prevDay?.c
+                     || (bars.length ? bars[bars.length - 1].close : null));
 
   // ── Initialize inline alert price when livePrice is available ────────────
   useEffect(() => {
@@ -227,8 +243,12 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
     };
   }, [asPage]);
   const prevClose  = snap?.prevDay?.c;
-  const dayChange  = (livePrice && prevClose) ? livePrice - prevClose : null;
-  const dayChgPct  = (dayChange && prevClose) ? (dayChange / prevClose) * 100 : null;
+  // #290 part 2b — prefer PriceContext's changePct when available (it's
+  // the same value the home grid renders, computed at the provider).
+  // Falls back to recomputing from livePrice − prevClose only if
+  // PriceContext hasn't returned yet.
+  const dayChange  = ctxPrice?.change    ?? ((livePrice && prevClose) ? livePrice - prevClose : null);
+  const dayChgPct  = ctxPrice?.changePct ?? ((dayChange && prevClose) ? (dayChange / prevClose) * 100 : null);
   const isPos      = (dayChgPct ?? 0) >= 0;
   const name       = bondData?.name || info?.name || fundsData?.longName || disp;
 
