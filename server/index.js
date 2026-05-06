@@ -740,8 +740,23 @@ const marketState = {
 const clients = new Map();
 
 // WebSocket connection rate limiting: IP → { count, resetTime }
+//
+// INCIDENT (2026-05-06): The previous 5/min cap was tripping legitimate
+// users. The client's exponential backoff after a 1008 close is 12-120s,
+// and a Render redeploy kicks every WS at once → users reconnect within
+// the minute. With 5/min, anyone with multiple tabs OR a fresh reload
+// after a deploy hit the cap and got *permanently* locked into the 12-
+// 120s reconnect loop because every retry added to the counter. User
+// symptom: "all prices are stuck" — exactly what we'd expect when the
+// WS overlay never reconnects.
+//
+// 30/min still rejects abuse trivially (a real attacker would need to
+// open 30+ sockets in a minute, far above any legitimate browser
+// pattern even with multi-tab + popout). Per-user connection cap
+// (BP_MAX_CONNECTIONS_PER_USER = 5, in wsBackpressure.js) is the
+// authenticated-side limit and is unchanged.
 const wsRateLimitMap = new Map();
-const WS_RATE_LIMIT_MAX = 5; // max connections per IP per minute
+const WS_RATE_LIMIT_MAX = Number(process.env.WS_RATE_LIMIT_MAX) || 30; // max connection ATTEMPTS per IP per minute
 const WS_RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
 const WS_RATE_LIMIT_MAP_CAP = 10000; // hard cap to prevent memory exhaustion
 
