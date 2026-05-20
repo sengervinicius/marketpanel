@@ -1129,7 +1129,13 @@ Rules:
     if (err.name === 'AbortError') return res.status(504).json({ error: 'News briefing timed out' });
     console.error('[Search/AI News Briefing] Error:', err.message);
     res.status(500).json({ error: 'News briefing failed' });
-  } finally { clearTimeout(timer); }
+  }
+  // #291 W1.15 — finally{clearTimeout(timer)} removed. The outer `timer`
+  // no longer exists after the refactor; each provider helper
+  // (tryPerplexity / tryAnthropic) owns its own AbortController + timer
+  // pair and clears them in their own try/finally. Leaving the orphan
+  // clearTimeout here triggered ReferenceError on every news-briefing
+  // failure path. Caught by Sentry (NODE-7).
 });
 
 /**
