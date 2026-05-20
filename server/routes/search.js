@@ -1004,29 +1004,33 @@ Rules:
       if (!r.ok) {
         const errText = await r.text().catch(() => '');
         if (r.status === 401 || r.status === 403) {
+          // #291 W2.1 hotfix — console-only log here. Sentry alert moved
+          // to the outer block so it only fires when BOTH providers
+          // fail. Otherwise this exact line was paging on every
+          // request because Anthropic was successfully serving the
+          // briefing (i.e. the FEATURE worked, but Sentry treated it
+          // as a fatal error).
           console.error(`[News-Briefing] Perplexity auth ${r.status} — PERPLEXITY_API_KEY likely expired. Body:`, errText.substring(0, 200));
-          try {
-            require('@sentry/node').captureMessage('Perplexity API key auth failure on /news-briefing', {
-              level: 'error',
-              tags: { route: 'news-briefing', upstream: 'perplexity', kind: 'auth' },
-            });
-          } catch (_) { /* sentry optional */ }
+          _outcomes.perplexity = 'auth';
         } else {
           console.warn(`[News-Briefing] Perplexity ${r.status}:`, errText.substring(0, 200));
+          _outcomes.perplexity = `http_${r.status}`;
         }
         return null; // fall through to Anthropic
       }
       const data = await r.json();
+      _outcomes.perplexity = 'ok';
       return data.choices?.[0]?.message?.content || null;
     } catch (e) {
       clearTimeout(timer);
       console.warn('[News-Briefing] Perplexity threw:', e.message);
+      _outcomes.perplexity = 'network';
       return null;
     }
   }
 
   async function tryAnthropic() {
-    if (!anthropicKey) return null;
+    if (!anthropicKey) { _outcomes.anthropic = 'not_configured'; return null; }
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 25000);
     try {
@@ -1050,26 +1054,30 @@ Rules:
         const errText = await r.text().catch(() => '');
         if (r.status === 401 || r.status === 403) {
           console.error(`[News-Briefing] Anthropic auth ${r.status} — ANTHROPIC_API_KEY likely expired. Body:`, errText.substring(0, 200));
-          try {
-            require('@sentry/node').captureMessage('Anthropic API key auth failure on /news-briefing', {
-              level: 'error',
-              tags: { route: 'news-briefing', upstream: 'anthropic', kind: 'auth' },
-            });
-          } catch (_) { /* sentry optional */ }
+          _outcomes.anthropic = 'auth';
         } else {
           console.warn(`[News-Briefing] Anthropic ${r.status}:`, errText.substring(0, 200));
+          _outcomes.anthropic = `http_${r.status}`;
         }
         return null;
       }
       const data = await r.json();
+      _outcomes.anthropic = 'ok';
       // Anthropic returns content as an array of { type: 'text', text: '...' }
       return data.content?.[0]?.text || null;
     } catch (e) {
       clearTimeout(timer);
       console.warn('[News-Briefing] Anthropic threw:', e.message);
+      _outcomes.anthropic = 'network';
       return null;
     }
   }
+
+  // #291 W2.1 hotfix — outcomes tracker so we can Sentry-alert ONLY
+  // when both providers fail. Previously the Perplexity 401 alert
+  // fired on every request even though Anthropic was successfully
+  // serving the briefing, drowning the ops channel in false alarms.
+  const _outcomes = { perplexity: null, anthropic: null };
 
   try {
     let raw = await tryPerplexity();
@@ -1079,6 +1087,23 @@ Rules:
       providerUsed = 'anthropic';
     }
     if (!raw) {
+      // #291 W2.1 hotfix — Sentry alerts ONLY when both providers
+      // failed (i.e. the user is actually impacted). Tags include
+      // both outcomes so ops can see at a glance which credentials
+      // need rotation.
+      try {
+        require('@sentry/node').captureMessage(
+          'News-briefing degraded: both providers failed',
+          {
+            level: 'error',
+            tags: {
+              route: 'news-briefing',
+              perplexity_outcome: _outcomes.perplexity || 'skipped',
+              anthropic_outcome: _outcomes.anthropic || 'skipped',
+            },
+          }
+        );
+      } catch (_) { /* sentry optional */ }
       return res.status(503).json({
         error: 'briefing_temporarily_unavailable',
         message: 'The AI news briefing is temporarily unavailable across all providers. Live news headlines below remain current.',
