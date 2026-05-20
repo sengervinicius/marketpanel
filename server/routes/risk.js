@@ -42,10 +42,63 @@ const POLYGON_BASE_URL = 'https://api.polygon.io/v2/aggs/ticker';
  */
 const PER_FETCH_TIMEOUT_MS = 5000; // 5s per-ticker timeout to prevent hung requests
 
+// ── #291 W1.4 — Historical-price cache ───────────────────────────────────
+// The risk endpoint fetches 90-day daily bars for every position + SPY
+// on every call. Historical bars are immutable for past dates; only the
+// last (today) bar can change intraday. Caching the response per
+// (ticker, from, to) eliminates repeated Polygon hits, which was the
+// real p95 5–8s offender — even with Promise.all(), 11 concurrent
+// requests to Polygon's free tier got 429-throttled and the resulting
+// retries serialized.
+//
+// Cache semantics:
+//   - Key: `${ticker}|${from}|${to}` — exact match on all three.
+//   - TTL: 1 hour. Past bars are immutable, today's bar updates EOD.
+//     1h is conservative for a portfolio risk panel (users don't expect
+//     intraday VaR moves; they want post-close numbers anyway).
+//   - Cap: 500 entries (LRU). At ~10 positions × 5 portfolios × 2 date
+//     ranges per user, this is generous.
+//   - Failed fetches (empty array) cache for 60s only, so a transient
+//     Polygon outage doesn't pin "no data" for an hour.
+const _histCache = new Map(); // key → { value, expiry }
+const HIST_TTL_MS_OK    = 60 * 60 * 1000;    // 1h on success
+const HIST_TTL_MS_FAIL  = 60 * 1000;          // 1min on empty/error
+const HIST_CACHE_CAP    = 500;
+
+function _histCacheGet(key) {
+  const e = _histCache.get(key);
+  if (!e) return null;
+  if (Date.now() > e.expiry) { _histCache.delete(key); return null; }
+  // LRU touch: re-insert to move to MRU end
+  _histCache.delete(key);
+  _histCache.set(key, e);
+  return e.value;
+}
+function _histCacheSet(key, value, isOk) {
+  if (_histCache.size >= HIST_CACHE_CAP) {
+    // Evict oldest
+    const oldest = _histCache.keys().next().value;
+    if (oldest) _histCache.delete(oldest);
+  }
+  _histCache.set(key, {
+    value,
+    expiry: Date.now() + (isOk ? HIST_TTL_MS_OK : HIST_TTL_MS_FAIL),
+  });
+}
+// Exposed for tests + admin observability.
+function _histCacheStats() {
+  return { size: _histCache.size, cap: HIST_CACHE_CAP };
+}
+
 async function fetchHistoricalPrices(ticker, from, to) {
   if (!POLYGON_API_KEY) {
     throw new Error('POLYGON_API_KEY not configured');
   }
+
+  // #291 W1.4 — cache lookup first.
+  const cacheKey = `${ticker}|${from}|${to}`;
+  const cached = _histCacheGet(cacheKey);
+  if (cached) return cached;
 
   const url = `${POLYGON_BASE_URL}/${ticker}/range/1/day/${from}/${to}?apiKey=${POLYGON_API_KEY}`;
 
@@ -57,21 +110,27 @@ async function fetchHistoricalPrices(ticker, from, to) {
     clearTimeout(timeout);
     if (!res.ok) {
       logger.warn(`Polygon API error for ${ticker}: ${res.status}`);
-      return [];
+      const empty = [];
+      _histCacheSet(cacheKey, empty, false); // short-TTL cache on failure
+      return empty;
     }
 
     const data = await res.json();
     if (!data.results || !Array.isArray(data.results)) {
-      return [];
+      const empty = [];
+      _histCacheSet(cacheKey, empty, false);
+      return empty;
     }
 
     // Sort by date ascending, extract close prices
-    return data.results
+    const prices = data.results
       .sort((a, b) => a.t - b.t)
       .map(r => ({
         date: new Date(r.t).toISOString().split('T')[0],
         close: r.c,
       }));
+    _histCacheSet(cacheKey, prices, true);
+    return prices;
   } catch (err) {
     clearTimeout(timeout);
     if (err.name === 'AbortError') {
@@ -79,7 +138,9 @@ async function fetchHistoricalPrices(ticker, from, to) {
     } else {
       logger.error(`Failed to fetch prices for ${ticker}:`, err.message);
     }
-    return [];
+    const empty = [];
+    _histCacheSet(cacheKey, empty, false);
+    return empty;
   }
 }
 
