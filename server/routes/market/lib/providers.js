@@ -160,9 +160,88 @@ let _yfCookie = null;
 let _yfCrumbExpiry = 0;
 const _yfCrumbHistory = [];
 
+// #291 W2.2 — Yahoo crumb circuit breaker.
+// Before this guard, when Yahoo's auth flow broke (rotated scheme,
+// outage, IP-block, etc.) every concurrent quote/chart request hit
+// getYahooCrumb() in parallel, fetching the seed URL + crumb URL
+// fan-out on each attempt. Under load this hammered Yahoo's auth
+// endpoints with hundreds of requests/second, which would (a) get us
+// IP-banned faster, and (b) waste 10-15 seconds per request before
+// each one finally threw.
+//
+// Circuit policy:
+//   - Open the circuit after 3 consecutive failures within 60s.
+//   - While open, getYahooCrumb() throws immediately (no auth attempt).
+//     Callers catch this and fall through to their own fallback chain
+//     (Finnhub, TwelveData, etc.) — exactly the same behavior as
+//     when Yahoo legitimately returns 401/403, just without the
+//     10-second timeout cascade.
+//   - Re-arm after 5 minutes (the typical Yahoo block window) — one
+//     allowed probe request; on success the circuit closes, on
+//     failure it stays open another 5 min.
+const _crumbCircuit = {
+  failures: 0,
+  firstFailureAt: 0,
+  openedAt: 0,
+};
+const _CB_FAIL_THRESHOLD = 3;
+const _CB_FAIL_WINDOW_MS = 60 * 1000;
+const _CB_OPEN_DURATION_MS = 5 * 60 * 1000;
+
+function _crumbCircuitIsOpen() {
+  if (_crumbCircuit.openedAt === 0) return false;
+  if (Date.now() - _crumbCircuit.openedAt > _CB_OPEN_DURATION_MS) {
+    // Half-open: clear state, allow the next attempt through.
+    logger.info('yahoo', 'Crumb circuit re-arming after 5min cooldown');
+    _crumbCircuit.failures = 0;
+    _crumbCircuit.firstFailureAt = 0;
+    _crumbCircuit.openedAt = 0;
+    return false;
+  }
+  return true;
+}
+
+function _crumbCircuitRecordFailure() {
+  const now = Date.now();
+  if (now - _crumbCircuit.firstFailureAt > _CB_FAIL_WINDOW_MS) {
+    // Reset the counter — these aren't consecutive within window.
+    _crumbCircuit.failures = 1;
+    _crumbCircuit.firstFailureAt = now;
+    return;
+  }
+  _crumbCircuit.failures += 1;
+  if (_crumbCircuit.failures >= _CB_FAIL_THRESHOLD && _crumbCircuit.openedAt === 0) {
+    _crumbCircuit.openedAt = now;
+    logger.error('yahoo', `Crumb circuit OPENED after ${_crumbCircuit.failures} failures in <60s — will skip Yahoo auth for 5min`);
+    // One Sentry event when the circuit OPENS — not on every failure.
+    try {
+      require('@sentry/node').captureMessage(
+        'Yahoo crumb circuit opened — Yahoo auth failing repeatedly',
+        { level: 'error', tags: { upstream: 'yahoo', kind: 'auth_circuit' } }
+      );
+    } catch (_) { /* sentry optional */ }
+  }
+}
+
+function _crumbCircuitRecordSuccess() {
+  if (_crumbCircuit.failures > 0 || _crumbCircuit.openedAt > 0) {
+    logger.info('yahoo', 'Crumb circuit closed — auth healthy again');
+  }
+  _crumbCircuit.failures = 0;
+  _crumbCircuit.firstFailureAt = 0;
+  _crumbCircuit.openedAt = 0;
+}
+
 async function getYahooCrumb() {
   const now = Date.now();
   if (_yfCrumb && now < _yfCrumbExpiry) return { crumb: _yfCrumb, cookie: _yfCookie };
+
+  // #291 W2.2 — short-circuit when the breaker is open. Throwing here
+  // matches the existing error contract; callers already handle
+  // "Yahoo Finance auth failed" by falling through to other providers.
+  if (_crumbCircuitIsOpen()) {
+    throw new Error('Yahoo Finance auth failed: circuit open (cooldown active)');
+  }
 
   const SEED_URLS = [
     'https://finance.yahoo.com/',
@@ -226,6 +305,7 @@ async function getYahooCrumb() {
           _yfCrumbHistory.push({ crumb, cookie, expiry: _yfCrumbExpiry });
           if (_yfCrumbHistory.length > 3) _yfCrumbHistory.shift();
           logger.info('yahoo', `Crumb OK via ${seedUrl} + ${crumbUrl}`);
+          _crumbCircuitRecordSuccess();
           return { crumb, cookie };
         } catch (e) { lastError = e; }
       }
@@ -235,6 +315,7 @@ async function getYahooCrumb() {
   _yfCrumb = null;
   _yfCookie = null;
   _yfCrumbExpiry = 0;
+  _crumbCircuitRecordFailure();
   const msg = lastError?.message || 'unknown';
   logger.error('yahoo', `All crumb attempts failed: ${msg}`);
   throw new Error('Yahoo Finance auth failed: ' + msg);
