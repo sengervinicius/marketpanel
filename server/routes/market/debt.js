@@ -180,6 +180,22 @@ router.get('/bond-detail/:symbol', async (req, res) => {
       }
     }
 
+    // #291 W2.1.c — record bond yield freshness when we got real data.
+    // The bond surface (US10Y, DE10Y, GB10Y, JP10Y, BR10Y, etc.) was
+    // bypassing the ledger entirely; the FreshnessDot showed "unknown"
+    // for every bond row even when data was current. Now we record on
+    // every successful resolve, regardless of whether it came from
+    // Yahoo, the FRED fallback, or Tesouro Direto.
+    if (yieldValue != null) {
+      try {
+        require('../../services/freshnessLedger').record({
+          symbol: sym,
+          source: 'multi', // Yahoo, FRED, Tesouro — collapsed here; ops can check logs for which one served the last hit
+          asOf: Date.now(),
+        });
+      } catch (_) { /* never throw from response path */ }
+    }
+
     // —— Calculate derived metrics ——
     const estimatedCoupon = yieldValue ? Math.round(yieldValue * 4) / 4 : null;
     const bondPrice = yieldValue != null
