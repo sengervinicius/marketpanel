@@ -288,13 +288,28 @@ function WatchlistPanel({ onTickerClick }) {
       });
       if (totalValue > 0) positionsData.forEach(p => { p.weight = p.weight / totalValue; });
 
-      const response = await apiJSON('/api/search/portfolio-insight', {
-        method: 'POST',
-        body: JSON.stringify({ positions: positionsData, totalValue }),
-      });
-      setAiInsight(response);
+      // #291 W1.12 — 30s timeout. Previously this call had no client-side
+      // timeout, so if the upstream LLM hung the user saw an infinite
+      // spinner with no recovery. apiFetch has its own 35s default, but
+      // explicit AbortController here surfaces a friendlier error first.
+      const abortCtrl = new AbortController();
+      const timeoutId = setTimeout(() => abortCtrl.abort(), 30_000);
+      try {
+        const response = await apiJSON('/api/search/portfolio-insight', {
+          method: 'POST',
+          body: JSON.stringify({ positions: positionsData, totalValue }),
+          signal: abortCtrl.signal,
+        });
+        setAiInsight(response);
+      } finally {
+        clearTimeout(timeoutId);
+      }
     } catch (err) {
-      setAiError(err.message || 'Failed to analyze portfolio');
+      if (err.name === 'AbortError') {
+        setAiError('Health check timed out after 30s. The AI service may be busy — try again in a moment.');
+      } else {
+        setAiError(err.message || 'Failed to analyze portfolio');
+      }
     } finally {
       setAiLoading(false);
     }

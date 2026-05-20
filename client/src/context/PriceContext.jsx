@@ -289,6 +289,30 @@ export function PriceProvider({ marketData, children }) {
     }
   }, []);
 
+  // #291 W1.6 — Zombie ticker reaper. Long sessions accumulate extras-store
+  // entries when components register tickers transiently (e.g. opening many
+  // InstrumentDetail pages, popping out windows, etc.). The unregister
+  // path handles refCount=0 cleanup synchronously, but defensive sweeps
+  // every 10 minutes catch any tickers whose unmount never landed (popout
+  // window crashed, etc.) — without this, the extras store grows unbounded
+  // and each entry has its own setInterval draining battery on mobile.
+  useEffect(() => {
+    const reaper = setInterval(() => {
+      let reaped = 0;
+      for (const [ticker, count] of refCounts.current.entries()) {
+        if (count <= 0) {
+          refCounts.current.delete(ticker);
+          const id = intervalIds.current.get(ticker);
+          if (id) { clearInterval(id); intervalIds.current.delete(ticker); }
+          extrasStore.delete(ticker);
+          reaped++;
+        }
+      }
+      if (reaped > 0) console.log(`[PriceContext] Reaper: cleared ${reaped} zombie tickers`);
+    }, 10 * 60 * 1000); // 10 min
+    return () => clearInterval(reaper);
+  }, [extrasStore]);
+
   // Cleanup all intervals on unmount
   useEffect(() => () => {
     for (const id of intervalIds.current.values()) clearInterval(id);
