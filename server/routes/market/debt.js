@@ -228,6 +228,25 @@ router.get('/bond-detail/:symbol', async (req, res) => {
       } catch (e) { swallow(e, 'market.debt.us10y_spread'); }
     }
 
+    // #291 W2.4 — surface "all sources unavailable" as 503 instead of a
+    // 200 with yield: null. Previously a cold-start deep-link to
+    // /bond-detail/DE10Y could return:
+    //   { yield: null, yieldChange: null, dayHigh: null, ... }
+    // which looked to the client like a populated response with
+    // legitimately-missing data — indistinguishable from "this bond
+    // doesn't have a yield". Now it's an explicit 503 with a recovery
+    // hint so the UI can render a degraded state ("warming up,
+    // refresh in a moment") instead of showing 11 null fields.
+    if (yieldValue == null) {
+      return res.status(503).json({
+        ok: false,
+        error: 'bond_yield_unavailable',
+        message: `Yield data for ${sym} is temporarily unavailable — try again in a moment, or load /api/debt/yield-curves to warm the cache.`,
+        symbol: sym,
+        name: meta.name,
+      });
+    }
+
     res.json({
       symbol: sym,
       name: meta.name,
