@@ -921,8 +921,16 @@ const _newsBriefingCache = new Map();
 const NEWS_BRIEFING_TTL = 10 * 60 * 1000;
 
 router.post('/news-briefing', async (req, res) => {
-  const apiKey = process.env.PERPLEXITY_API_KEY;
-  if (!apiKey) return res.status(503).json({ error: 'AI not configured' });
+  // #291 W1.15 — multi-provider for news-briefing. Previously this route
+  // was hardwired to Perplexity. When PERPLEXITY_API_KEY expires (as it
+  // just did in production), the feature died completely. News-briefing
+  // is a structured-output task on data we already have — no web search
+  // needed — so Claude Haiku is functionally equivalent and uses a
+  // separate credential. Try Perplexity first to preserve existing
+  // behavior; fall back to Haiku on any provider failure.
+  const perplexityKey = process.env.PERPLEXITY_API_KEY;
+  const anthropicKey = process.env.ANTHROPIC_API_KEY;
+  if (!perplexityKey && !anthropicKey) return res.status(503).json({ error: 'AI not configured' });
 
   const { stories } = req.body || {};
   if (!Array.isArray(stories) || stories.length === 0) {
@@ -972,55 +980,110 @@ Rules:
       return `${i + 1}. id=${s.id} ${s.publisher ? '(' + s.publisher + ')' : ''} ${s.title}${t}`;
     }).join('\n');
 
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 25000);
+  // #291 W1.15 — try Perplexity then Anthropic. Either provider can
+  // produce the structured briefing JSON; both are tried before we tell
+  // the user it's unavailable. Returns the raw response content string,
+  // or null if all providers failed.
+  async function tryPerplexity() {
+    if (!perplexityKey) return null;
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 25000);
+    try {
+      const r = await fetch(PERPLEXITY_URL, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${perplexityKey}`, 'Content-Type': 'application/json' },
+        signal: ctrl.signal,
+        body: JSON.stringify({
+          model: MODEL,
+          messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt }],
+          max_tokens: 900,
+          temperature: 0.15,
+        }),
+      });
+      clearTimeout(timer);
+      if (!r.ok) {
+        const errText = await r.text().catch(() => '');
+        if (r.status === 401 || r.status === 403) {
+          console.error(`[News-Briefing] Perplexity auth ${r.status} — PERPLEXITY_API_KEY likely expired. Body:`, errText.substring(0, 200));
+          try {
+            require('@sentry/node').captureMessage('Perplexity API key auth failure on /news-briefing', {
+              level: 'error',
+              tags: { route: 'news-briefing', upstream: 'perplexity', kind: 'auth' },
+            });
+          } catch (_) { /* sentry optional */ }
+        } else {
+          console.warn(`[News-Briefing] Perplexity ${r.status}:`, errText.substring(0, 200));
+        }
+        return null; // fall through to Anthropic
+      }
+      const data = await r.json();
+      return data.choices?.[0]?.message?.content || null;
+    } catch (e) {
+      clearTimeout(timer);
+      console.warn('[News-Briefing] Perplexity threw:', e.message);
+      return null;
+    }
+  }
+
+  async function tryAnthropic() {
+    if (!anthropicKey) return null;
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 25000);
+    try {
+      const r = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'x-api-key': anthropicKey,
+          'anthropic-version': '2023-06-01',
+          'Content-Type': 'application/json',
+        },
+        signal: ctrl.signal,
+        body: JSON.stringify({
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: 900,
+          system: systemPrompt,
+          messages: [{ role: 'user', content: userPrompt }],
+        }),
+      });
+      clearTimeout(timer);
+      if (!r.ok) {
+        const errText = await r.text().catch(() => '');
+        if (r.status === 401 || r.status === 403) {
+          console.error(`[News-Briefing] Anthropic auth ${r.status} — ANTHROPIC_API_KEY likely expired. Body:`, errText.substring(0, 200));
+          try {
+            require('@sentry/node').captureMessage('Anthropic API key auth failure on /news-briefing', {
+              level: 'error',
+              tags: { route: 'news-briefing', upstream: 'anthropic', kind: 'auth' },
+            });
+          } catch (_) { /* sentry optional */ }
+        } else {
+          console.warn(`[News-Briefing] Anthropic ${r.status}:`, errText.substring(0, 200));
+        }
+        return null;
+      }
+      const data = await r.json();
+      // Anthropic returns content as an array of { type: 'text', text: '...' }
+      return data.content?.[0]?.text || null;
+    } catch (e) {
+      clearTimeout(timer);
+      console.warn('[News-Briefing] Anthropic threw:', e.message);
+      return null;
+    }
+  }
 
   try {
-    const response = await fetch(PERPLEXITY_URL, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-      signal: ctrl.signal,
-      body: JSON.stringify({
-        model: MODEL,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user',   content: userPrompt },
-        ],
-        max_tokens: 900,
-        temperature: 0.15,
-      }),
-    });
-    if (!response.ok) {
-      // #291 W1.14 — distinguish upstream auth failures (operator must
-      // rotate PERPLEXITY_API_KEY) from transient/upstream errors. The
-      // CIO reported seeing "AI provider error (401)" in the News Feed
-      // panel — that exact format leaks the upstream HTTP code into
-      // the UI and looks like a user-auth problem when it's actually
-      // an operator credential issue.
-      const errText = await response.text().catch(() => '');
-      if (response.status === 401 || response.status === 403) {
-        console.error(`[News-Briefing] Perplexity auth ${response.status} — PERPLEXITY_API_KEY likely expired. Body:`, errText.substring(0, 200));
-        try {
-          require('@sentry/node').captureMessage('Perplexity API key auth failure on /news-briefing', {
-            level: 'error',
-            tags: { route: 'news-briefing', upstream: 'perplexity', kind: 'auth' },
-          });
-        } catch (_) { /* sentry optional */ }
-        return res.status(503).json({
-          error: 'briefing_temporarily_unavailable',
-          message: 'The AI news briefing is temporarily unavailable. Live news headlines below remain current.',
-        });
-      }
-      console.error(`[News-Briefing] Perplexity ${response.status}:`, errText.substring(0, 200));
-      return res.status(502).json({
-        error: 'briefing_provider_error',
-        message: `AI briefing service returned ${response.status}. Headlines below remain current.`,
+    let raw = await tryPerplexity();
+    let providerUsed = 'perplexity';
+    if (!raw) {
+      raw = await tryAnthropic();
+      providerUsed = 'anthropic';
+    }
+    if (!raw) {
+      return res.status(503).json({
+        error: 'briefing_temporarily_unavailable',
+        message: 'The AI news briefing is temporarily unavailable across all providers. Live news headlines below remain current.',
       });
     }
-
-    const data = await response.json();
-    const raw  = data.choices?.[0]?.message?.content;
-    if (!raw) return res.status(502).json({ error: 'Empty response from AI' });
 
     let parsed;
     try {
