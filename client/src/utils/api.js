@@ -94,26 +94,57 @@ export async function apiFetch(path, options = {}) {
         credentials: 'include',
       });
 
-      // If 401 and not already refreshing, attempt a single refresh
+      // #291 Wave 1.1 — exponential backoff for 401 retry, plus
+      // transient-error retry. Previously: ONE refresh attempt; if it
+      // failed for any reason (transient 5xx, refresh-token race with
+      // another tab) the user was logged out. Now: up to 3 attempts at
+      // 500ms / 2s / 8s with refresh-aware logic.
       if (res.status === 401 && !_refreshing && path !== '/api/auth/refresh') {
         _refreshing = true;
+        const RETRY_DELAYS = [500, 2000, 8000];
+        let refreshed = false;
+        let giveUp = false;
         try {
-          const refreshHeaders = { 'Content-Type': 'application/json' };
-          if (_accessToken) refreshHeaders['Authorization'] = `Bearer ${_accessToken}`;
+          for (let attempt = 0; attempt < RETRY_DELAYS.length && !refreshed && !giveUp; attempt++) {
+            if (attempt > 0) {
+              await new Promise(r => setTimeout(r, RETRY_DELAYS[attempt - 1]));
+            }
+            const refreshHeaders = { 'Content-Type': 'application/json' };
+            if (_accessToken) refreshHeaders['Authorization'] = `Bearer ${_accessToken}`;
 
-          const refreshRes = await fetch(`${API_BASE}/api/auth/refresh`, {
-            method: 'POST',
-            headers: refreshHeaders,
-            credentials: 'include',
-          });
-
-          if (refreshRes.ok) {
-            const refreshData = await refreshRes.json();
-            // Update in-memory token from refresh response
-            if (refreshData.token) {
-              _accessToken = refreshData.token;
+            let refreshRes;
+            try {
+              refreshRes = await fetch(`${API_BASE}/api/auth/refresh`, {
+                method: 'POST',
+                headers: refreshHeaders,
+                credentials: 'include',
+              });
+            } catch (netErr) {
+              // Network error — likely transient. Retry.
+              console.warn(`[apiFetch] Refresh attempt ${attempt + 1} network error:`, netErr.message);
+              continue;
             }
 
+            if (refreshRes.ok) {
+              const refreshData = await refreshRes.json().catch(() => ({}));
+              if (refreshData.token) _accessToken = refreshData.token;
+              refreshed = true;
+              break;
+            }
+            // 401 from the refresh endpoint itself means the refresh
+            // token is genuinely invalid — no amount of retries will
+            // help. Stop immediately so AuthContext logs the user out
+            // cleanly rather than spinning for 10+ seconds.
+            if (refreshRes.status === 401 || refreshRes.status === 403) {
+              giveUp = true;
+              console.warn('[apiFetch] Refresh token invalid — giving up');
+              break;
+            }
+            // 5xx or 429 — transient. Retry.
+            console.warn(`[apiFetch] Refresh attempt ${attempt + 1} returned ${refreshRes.status}, will retry`);
+          }
+
+          if (refreshed) {
             // Retry original request with the new token
             const retryHeaders = buildHeaders(options.headers);
             res = await fetch(`${API_BASE}${path}`, {
@@ -124,8 +155,10 @@ export async function apiFetch(path, options = {}) {
             });
           }
         } catch (e) {
-          // Refresh attempt failed, return original 401
-          console.error('[apiFetch] Token refresh failed:', e);
+          // Defensive — should be unreachable because each fetch is
+          // wrapped above, but if it fires we want the user to fall
+          // through cleanly rather than be stuck.
+          console.error('[apiFetch] Token refresh chain failed:', e);
         } finally {
           _refreshing = false;
         }
