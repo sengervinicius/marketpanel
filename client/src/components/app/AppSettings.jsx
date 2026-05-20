@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useSettings } from '../../context/SettingsContext';
 import { useAlerts } from '../../context/AlertsContext';
 import { useFeatureFlags } from '../../hooks/useFeatureFlags';
+import { useToast } from '../../context/ToastContext';
 import { PANEL_DEFINITIONS, DEFAULT_LAYOUT } from '../../config/panels';
 import UserAvatar from '../common/UserAvatar';
 import VaultPanel from './VaultPanel';
@@ -97,12 +98,42 @@ export function SettingsDrawer({ panelVisible, togglePanel, onClose, mobile }) {
   const { isOn: isFlagOn } = useFeatureFlags();
   const lightThemeEnabled = isFlagOn('light_theme_enabled', false);
 
-  const handleStartTab = (val) => { updateSettings({ defaultStartTab: val }); };
-  const handleTheme = () => { updateSettings({ theme: theme === 'dark' ? 'light' : 'dark' }); };
+  const { showToast } = useToast();
+
+  // #291 W2.14 — wrap updateSettings calls so a server failure raises
+  // a visible toast. Previously updateSettings could silently fail and
+  // the user would think their preference saved when it didn't.
+  const safeUpdate = async (patch, { successMessage } = {}) => {
+    try {
+      await updateSettings(patch);
+      if (successMessage) showToast?.(successMessage, 'success');
+    } catch (e) {
+      showToast?.(`Couldn't save: ${e?.message || 'network error'} — try again`, 'error');
+      throw e;
+    }
+  };
+
+  const handleStartTab = (val) => { safeUpdate({ defaultStartTab: val }); };
+  const handleTheme = () => { safeUpdate({ theme: theme === 'dark' ? 'light' : 'dark' }); };
+
+  // #291 W2.13 — Reset Layout used to wipe everything with one click,
+  // no confirmation. Now: native confirm dialog. Two-step but
+  // tiny / unobtrusive, and one click of "OK" reaches the same
+  // destination — only people who clicked by accident notice.
   const handleResetLayout = async () => {
+    const ok = typeof window !== 'undefined' && window.confirm(
+      'Reset the layout to defaults?\n\nThis will undo any panel rearrangements, hide/show overrides, and sort preferences. This cannot be undone.'
+    );
+    if (!ok) return;
     setResettingLayout(true);
     try {
-      await updateSettings({ layout: DEFAULT_LAYOUT });
+      await safeUpdate(
+        { layout: DEFAULT_LAYOUT },
+        { successMessage: 'Layout reset to defaults' }
+      );
+    } catch (_) {
+      // safeUpdate already showed an error toast; swallow re-throw
+      // to keep button state recoverable.
     } finally {
       setResettingLayout(false);
     }
@@ -188,7 +219,7 @@ export function SettingsDrawer({ panelVisible, togglePanel, onClose, mobile }) {
               role="button"
               tabIndex={0}
               style={rowStyle}
-              {...makeRowClickable(() => updateSettings({ morningBriefEmail: !emailOn }))}
+              {...makeRowClickable(() => safeUpdate({ morningBriefEmail: !emailOn }))}
               onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
               onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
               aria-pressed={emailOn}
@@ -203,7 +234,7 @@ export function SettingsDrawer({ panelVisible, togglePanel, onClose, mobile }) {
               role="button"
               tabIndex={0}
               style={rowStyle}
-              {...makeRowClickable(() => updateSettings({ morningBriefInbox: !inboxOn }))}
+              {...makeRowClickable(() => safeUpdate({ morningBriefInbox: !inboxOn }))}
               onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
               onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
               aria-pressed={inboxOn}
@@ -221,7 +252,7 @@ export function SettingsDrawer({ panelVisible, togglePanel, onClose, mobile }) {
                 value={briefTime}
                 onChange={(e) => {
                   const v = e.target.value;
-                  if (/^\d{2}:\d{2}$/.test(v)) updateSettings({ morningBriefTime: v });
+                  if (/^\d{2}:\d{2}$/.test(v)) safeUpdate({ morningBriefTime: v });
                 }}
                 style={{
                   background: 'var(--bg-surface, #181818)',
