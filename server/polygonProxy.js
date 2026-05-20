@@ -59,8 +59,14 @@ const POLYGON_WS = {
 };
 
 // How often to flush the tick buffer to clients (ms)
-// Increased from 250ms → 500ms to reduce broadcast frequency and bandwidth
-const THROTTLE_MS = 500;
+// #291 W1.7 — Increased 500ms → 1000ms. The audit measured 600 frames/sec
+// at 100 connected clients from the 3 feeds combined (stocks/forex/crypto
+// each firing 500ms). At 1000ms cadence that halves to ~300 frames/sec
+// with no user-visible latency penalty — humans can't perceive sub-1s
+// price changes on a quote table, and active traders watching the chart
+// will still see ticks via the existing per-bar update path. Halves
+// server-side CPU on broadcast under load.
+const THROTTLE_MS = 1000;
 
 // Symbols not updated within this window and not in subscription list are pruned (ms)
 const STALE_MS = 10 * 60 * 1000; // 10 minutes
