@@ -229,6 +229,47 @@ export function AuthProvider({ children }) {
     }
   }, [user, refreshTokenFn]);
 
+  // ── #291 W1.2 — Listen for ws:auth_invalid (server closed our WS with 4001
+  //              "Invalid token"). Force an immediate refresh; the new token
+  //              will trigger useWebSocket to reconnect via its existing
+  //              [token] effect dependency. Without this, the WS gets stuck
+  //              in an infinite reconnect loop using the same stale token.
+  useEffect(() => {
+    if (!user) return;
+    const handler = (e) => {
+      console.log('[AuthContext] ws:auth_invalid received — refreshing token', e.detail);
+      refreshTokenFn();
+    };
+    window.addEventListener('ws:auth_invalid', handler);
+    return () => window.removeEventListener('ws:auth_invalid', handler);
+  }, [user, refreshTokenFn]);
+
+  // ── #291 W1.3 — Cross-tab session sync. If another tab logs out (clears
+  //              LS_TOKEN), propagate the change here so all tabs land on
+  //              the login screen together. Also pick up token refreshes
+  //              from sibling tabs so we don't race each other.
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.key === LS_TOKEN) {
+        // Token cleared in another tab → logout here
+        if (!e.newValue && tokenRef.current) {
+          console.log('[AuthContext] LS_TOKEN cleared in another tab — logging out');
+          setUser(null);
+          setToken(null);
+          setSubscription(null);
+          clearAuthToken();
+        }
+        // Token rotated in another tab → adopt it
+        else if (e.newValue && e.newValue !== tokenRef.current) {
+          console.log('[AuthContext] LS_TOKEN updated in another tab — adopting');
+          setToken(e.newValue);
+        }
+      }
+    };
+    window.addEventListener('storage', handler);
+    return () => window.removeEventListener('storage', handler);
+  }, []);
+
   // W0.3 — Keep Sentry scope in sync with auth state (id + tier only, no PII)
   useEffect(() => {
     syncSentryUser(user, subscription);

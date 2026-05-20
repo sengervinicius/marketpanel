@@ -147,6 +147,28 @@ export function useWebSocket(onMessage, token) {
           delay.current = Math.max(delay.current, RECONNECT_BACKPRESSURE_INITIAL);
         }
 
+        // #291 W1.2 — Auth-invalid close (server sends 4001 "Invalid
+        // token" or "Authentication required" — see server/index.js
+        // lines 847, 853). Previously we just reconnected with the
+        // SAME stale token, which would fail again, producing an
+        // infinite reconnect loop on every JWT-key rotation. Now: emit
+        // ws:auth_invalid so AuthContext can refresh the token first,
+        // then let the reconnect happen with the fresh token.
+        if (evt.code === 4001) {
+          console.warn('[WS] 4001 auth-invalid close — requesting token refresh');
+          window.dispatchEvent(new CustomEvent('ws:auth_invalid', { detail: { reason: evt.reason } }));
+          // Hold off reconnect for 3s to let AuthContext finish the
+          // refresh. If the refresh succeeds, the token prop will
+          // change and the useEffect will re-run, closing this stale
+          // reconnect attempt and opening a fresh one with the new
+          // token. If the refresh fails, AuthContext logs the user
+          // out and we never reconnect — correct behavior.
+          reconnectTimer.current = setTimeout(() => {
+            if (mounted.current) connect();
+          }, 3000);
+          return;
+        }
+
         // Apply jitter ±25% so N simultaneously-dropped clients don't
         // synchronize their reconnect storm.
         const jitter = 1 + (Math.random() * 2 - 1) * JITTER_FRAC;
