@@ -192,7 +192,11 @@ function NewsPanel() {
       });
       const json = await res.json();
       if (!res.ok) {
-        setBriefingError(json.error || `Briefing unavailable (${res.status})`);
+        // #291 W1.14 — prefer the server's human-readable `message` over
+        // the machine-readable `error` code. The server now distinguishes
+        // upstream auth failures from transient outages and provides a
+        // clear user-facing string in `message`.
+        setBriefingError(json.message || json.error || `Briefing unavailable (${res.status})`);
         return;
       }
       setBriefing(json.briefing || []);

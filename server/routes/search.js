@@ -990,7 +990,33 @@ Rules:
         temperature: 0.15,
       }),
     });
-    if (!response.ok) return res.status(502).json({ error: `AI provider error (${response.status})` });
+    if (!response.ok) {
+      // #291 W1.14 — distinguish upstream auth failures (operator must
+      // rotate PERPLEXITY_API_KEY) from transient/upstream errors. The
+      // CIO reported seeing "AI provider error (401)" in the News Feed
+      // panel — that exact format leaks the upstream HTTP code into
+      // the UI and looks like a user-auth problem when it's actually
+      // an operator credential issue.
+      const errText = await response.text().catch(() => '');
+      if (response.status === 401 || response.status === 403) {
+        console.error(`[News-Briefing] Perplexity auth ${response.status} — PERPLEXITY_API_KEY likely expired. Body:`, errText.substring(0, 200));
+        try {
+          require('@sentry/node').captureMessage('Perplexity API key auth failure on /news-briefing', {
+            level: 'error',
+            tags: { route: 'news-briefing', upstream: 'perplexity', kind: 'auth' },
+          });
+        } catch (_) { /* sentry optional */ }
+        return res.status(503).json({
+          error: 'briefing_temporarily_unavailable',
+          message: 'The AI news briefing is temporarily unavailable. Live news headlines below remain current.',
+        });
+      }
+      console.error(`[News-Briefing] Perplexity ${response.status}:`, errText.substring(0, 200));
+      return res.status(502).json({
+        error: 'briefing_provider_error',
+        message: `AI briefing service returned ${response.status}. Headlines below remain current.`,
+      });
+    }
 
     const data = await response.json();
     const raw  = data.choices?.[0]?.message?.content;

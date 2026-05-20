@@ -197,9 +197,16 @@ function WatchlistPanel({ onTickerClick }) {
   // chart grid and watchlist for the same symbol. WatchlistRow reads
   // priceCtx directly now.
 
-  // Loading flag is derived from priceSnapshot — true if positions exist
-  // but no rows have reported a price yet (initial paint window).
-  const loading = positions.length > 0 && Object.keys(priceSnapshot).length === 0;
+  // #291 HOTFIX — the previous derived `loading = !priceSnapshot.size`
+  // created a deadlock: rows are gated behind `!loading`, but
+  // priceSnapshot only gets populated when rows call reportPrice.
+  // No rows = no reportPrice = priceSnapshot empty = loading forever
+  // = no rows. The watchlist was perma-stuck on "LOADING…".
+  //
+  // Fix: render rows immediately. Each row's price column will show
+  // the fmt(null) placeholder ("—") for at most one PriceContext
+  // batch interval (~6s), then fill in. That's much better UX than
+  // an infinite spinner that never resolves.
 
   // ── Drop handler ────────────────────────────────────────────────
   const handleDropTicker = useCallback((ticker) => {
@@ -448,8 +455,6 @@ function WatchlistPanel({ onTickerClick }) {
             title="No tickers yet"
             message="Add a symbol to start tracking. Alt+click any row later to add qty + entry for P&L."
           />
-        ) : loading ? (
-          <div className="wp-loading">LOADING…</div>
         ) : (
           sortedPositions.map(pos => (
             <WatchlistRow
