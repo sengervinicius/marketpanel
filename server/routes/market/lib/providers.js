@@ -183,10 +183,17 @@ const _crumbCircuit = {
   failures: 0,
   firstFailureAt: 0,
   openedAt: 0,
+  // #291 W2.2 HOTFIX — Sentry-alert dedupe window. If Yahoo has a
+  // sustained issue, the breaker opens → cools down → opens again
+  // every ~5 minutes. Without this guard, each open transition fires
+  // a Sentry event, spamming ops every 5min for hours. Track the
+  // last alert time and skip duplicate alerts within 1h.
+  lastSentryAlertAt: 0,
 };
 const _CB_FAIL_THRESHOLD = 3;
 const _CB_FAIL_WINDOW_MS = 60 * 1000;
 const _CB_OPEN_DURATION_MS = 5 * 60 * 1000;
+const _CB_SENTRY_DEDUPE_MS = 60 * 60 * 1000; // 1h between Sentry alerts max
 
 function _crumbCircuitIsOpen() {
   if (_crumbCircuit.openedAt === 0) return false;
@@ -213,13 +220,18 @@ function _crumbCircuitRecordFailure() {
   if (_crumbCircuit.failures >= _CB_FAIL_THRESHOLD && _crumbCircuit.openedAt === 0) {
     _crumbCircuit.openedAt = now;
     logger.error('yahoo', `Crumb circuit OPENED after ${_crumbCircuit.failures} failures in <60s — will skip Yahoo auth for 5min`);
-    // One Sentry event when the circuit OPENS — not on every failure.
-    try {
-      require('@sentry/node').captureMessage(
-        'Yahoo crumb circuit opened — Yahoo auth failing repeatedly',
-        { level: 'error', tags: { upstream: 'yahoo', kind: 'auth_circuit' } }
-      );
-    } catch (_) { /* sentry optional */ }
+    // #291 W2.2 HOTFIX — Sentry alert only once per hour even if the
+    // circuit keeps opening/closing. A sustained Yahoo issue otherwise
+    // floods the ops inbox with one new event every 5 minutes.
+    if (now - _crumbCircuit.lastSentryAlertAt > _CB_SENTRY_DEDUPE_MS) {
+      _crumbCircuit.lastSentryAlertAt = now;
+      try {
+        require('@sentry/node').captureMessage(
+          'Yahoo crumb circuit opened — Yahoo auth failing repeatedly',
+          { level: 'warning', tags: { upstream: 'yahoo', kind: 'auth_circuit' } }
+        );
+      } catch (_) { /* sentry optional */ }
+    }
   }
 }
 
