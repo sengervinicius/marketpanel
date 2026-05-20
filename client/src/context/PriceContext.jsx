@@ -210,6 +210,11 @@ export function PriceProvider({ marketData, children }) {
   const fetchExtra = useCallback(async (ticker) => {
     // Skip if this ticker has failed too many times
     if (deadTickers.current.has(ticker)) return;
+    // #291 W1.5 — skip when tab hidden. The setInterval keeps running
+    // (cheap), but the actual HTTP call is suppressed. Resumes on next
+    // tick when the user comes back to the tab. Cuts background-tab
+    // request volume to zero for the extras-store tickers.
+    if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
 
     try {
       const apiTicker = normalizeForApi(ticker);
