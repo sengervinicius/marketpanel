@@ -138,7 +138,13 @@ export default function InstrumentOptionsPanel({ symbol, spot, isMobile }) {
     setSelectedPut(null);
     setShowPayoff(false);
 
-    apiFetch(`/api/options/expiries?symbol=${encodeURIComponent(symbol)}`)
+    // #291 W2.11 — 30s watchdog for the expiries fetch.
+    const abortCtrl = new AbortController();
+    const watchdog = setTimeout(() => abortCtrl.abort(), 30_000);
+
+    apiFetch(`/api/options/expiries?symbol=${encodeURIComponent(symbol)}`, {
+      signal: abortCtrl.signal,
+    })
       .then(r => r.ok ? r.json() : r.json().then(d => Promise.reject(d)))
       .then(data => {
         if (data.ok && data.expiries?.length) {
@@ -149,9 +155,21 @@ export default function InstrumentOptionsPanel({ symbol, spot, isMobile }) {
         }
       })
       .catch(e => {
-        setError(e?.error || 'OPTIONS_UNAVAILABLE');
+        if (e?.name === 'AbortError') {
+          setError('Options expiries timed out — try again in a moment.');
+        } else {
+          setError(e?.error || 'OPTIONS_UNAVAILABLE');
+        }
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        clearTimeout(watchdog);
+        setLoading(false);
+      });
+
+    return () => {
+      clearTimeout(watchdog);
+      abortCtrl.abort();
+    };
   }, [symbol]);
 
   // ── Fetch chain when expiry changes ────────────────────────────────────────
@@ -160,7 +178,18 @@ export default function InstrumentOptionsPanel({ symbol, spot, isMobile }) {
     setLoading(true);
     setError(null);
 
-    apiFetch(`/api/options/chain?symbol=${encodeURIComponent(symbol)}&expiry=${selectedExpiry}`)
+    // #291 W2.11 — 30s watchdog. apiFetch has its own 35s timeout but
+    // an AbortController here surfaces a friendly error first instead
+    // of waiting for the network layer's generic "timed out" message.
+    // Without this, an unresponsive upstream left "Loading options
+    // chain..." on screen indefinitely.
+    const abortCtrl = new AbortController();
+    const watchdog = setTimeout(() => abortCtrl.abort(), 30_000);
+
+    apiFetch(
+      `/api/options/chain?symbol=${encodeURIComponent(symbol)}&expiry=${selectedExpiry}`,
+      { signal: abortCtrl.signal }
+    )
       .then(r => r.ok ? r.json() : r.json().then(d => Promise.reject(d)))
       .then(data => {
         if (data.ok && data.data) {
@@ -170,9 +199,21 @@ export default function InstrumentOptionsPanel({ symbol, spot, isMobile }) {
         }
       })
       .catch(e => {
-        setError(e?.message || 'Failed to load chain');
+        if (e?.name === 'AbortError') {
+          setError('Options chain timed out — try again in a moment.');
+        } else {
+          setError(e?.message || 'Failed to load chain');
+        }
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        clearTimeout(watchdog);
+        setLoading(false);
+      });
+
+    return () => {
+      clearTimeout(watchdog);
+      abortCtrl.abort();
+    };
   }, [symbol, selectedExpiry]);
 
   // ── Derived data ───────────────────────────────────────────────────────────
