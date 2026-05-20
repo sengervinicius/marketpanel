@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { apiFetch } from '../utils/api';
+import { swallow } from '../utils/swallow';
 import {
   normalizeTicker, displayTicker, getFromDate, fmtLabel,
   RANGES,
@@ -167,7 +168,7 @@ export function useInstrumentData(ticker) {
                     exchange: rd.exchange || null,
                   });
                 })
-                .catch(() => {});
+                .catch(e => swallow(e, 'useInstrumentData.fetch'));
             }
           }
         })
@@ -234,7 +235,7 @@ export function useInstrumentData(ticker) {
       apiFetch(`/api/snapshot/ticker/${encodeURIComponent(norm)}`)
         .then(r => r.json())
         .then(d => { if (!stale) setSnap(d?.ticker ?? d); })
-        .catch(() => {});
+        .catch(e => swallow(e, 'useInstrumentData.fetch'));
     };
 
     runFetch();
@@ -274,7 +275,7 @@ export function useInstrumentData(ticker) {
     apiFetch(`/api/ticker/${encodeURIComponent(norm)}`)
       .then(r => r.json())
       .then(d => { if (!stale) setInfo(d?.results ?? d); })
-      .catch(() => {});
+      .catch(e => swallow(e, 'useInstrumentData.fetch'));
     return () => { stale = true; };
   }, [norm, isFX, isCrypto]);
 
@@ -321,7 +322,7 @@ export function useInstrumentData(ticker) {
             .catch(() => { if (!stale) setOtherListings([]); });
         }
       })
-      .catch(() => {});
+      .catch(e => swallow(e, 'useInstrumentData.fetch'));
     return () => { stale = true; };
   }, [disp]);
 
@@ -353,7 +354,7 @@ export function useInstrumentData(ticker) {
     apiFetch(`/api/macro/compare?countries=${countries.join(',')}&indicators=policyRate,cpiYoY,gdpGrowthYoY,unemploymentRate,debtGDP`)
       .then(r => r.ok ? r.json() : null)
       .then(d => { if (!stale && d?.countries) setMacroData(d); })
-      .catch(() => {});
+      .catch(e => swallow(e, 'useInstrumentData.fetch'));
     return () => { stale = true; };
   }, [norm, isFX]);
 
@@ -456,49 +457,49 @@ export function useInstrumentData(ticker) {
     apiFetch(`/api/market/dividends/${encodeURIComponent(norm)}?limit=12`)
       .then(r => r.ok ? r.json() : null)
       .then(d => { if (!stale && d?.data) setDividendData(d.data); })
-      .catch(() => {});
+      .catch(e => swallow(e, 'useInstrumentData.fetch'));
 
     // Splits (Polygon)
     apiFetch(`/api/market/splits/${encodeURIComponent(norm)}?limit=10`)
       .then(r => r.ok ? r.json() : null)
       .then(d => { if (!stale && d?.data) setSplitsData(d.data); })
-      .catch(() => {});
+      .catch(e => swallow(e, 'useInstrumentData.fetch'));
 
     // Polygon financials
     apiFetch(`/api/market/financials/${encodeURIComponent(norm)}?limit=4&timeframe=annual`)
       .then(r => r.ok ? r.json() : null)
       .then(d => { if (!stale && d?.data) setPolyFinancials(d.data); })
-      .catch(() => {});
+      .catch(e => swallow(e, 'useInstrumentData.fetch'));
 
     // Company logo (Twelve Data)
     apiFetch(`/api/market/td/logo/${encodeURIComponent(norm)}`)
       .then(r => r.ok ? r.json() : null)
       .then(d => { if (!stale && d?.url) setLogoUrl(d.url); })
-      .catch(() => {});
+      .catch(e => swallow(e, 'useInstrumentData.fetch'));
 
     // S5: Twelve Data profile (sector, industry, description, CEO, website)
     apiFetch(`/api/market/td/profile/${encodeURIComponent(norm)}`)
       .then(r => r.ok ? r.json() : null)
       .then(d => { if (!stale && d?.data) setTdProfile(d.data); })
-      .catch(() => {});
+      .catch(e => swallow(e, 'useInstrumentData.fetch'));
 
     // S5: Twelve Data statistics (PE, EPS, beta, market cap, 52w range)
     apiFetch(`/api/market/td/statistics/${encodeURIComponent(norm)}`)
       .then(r => r.ok ? r.json() : null)
       .then(d => { if (!stale && d?.data) setTdStatistics(d.data); })
-      .catch(() => {});
+      .catch(e => swallow(e, 'useInstrumentData.fetch'));
 
     // S5: Twelve Data earnings history
     apiFetch(`/api/market/td/earnings/${encodeURIComponent(norm)}`)
       .then(r => r.ok ? r.json() : null)
       .then(d => { if (!stale && d?.data) setTdEarnings(d.data); })
-      .catch(() => {});
+      .catch(e => swallow(e, 'useInstrumentData.fetch'));
 
     // S5: Twelve Data executives
     apiFetch(`/api/market/td/executives/${encodeURIComponent(norm)}`)
       .then(r => r.ok ? r.json() : null)
       .then(d => { if (!stale && d?.data) setTdExecutives(d.data); })
-      .catch(() => {});
+      .catch(e => swallow(e, 'useInstrumentData.fetch'));
 
     // S5: Twelve Data holders (institutional + fund)
     setTdHoldersLoading(true);
