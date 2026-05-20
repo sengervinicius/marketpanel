@@ -371,6 +371,11 @@ export function useInstrumentData(ticker) {
   }, [norm]);
 
   // ── Fetch AI Fundamentals ─────────────────────────────────────────────
+  // #291 W2.12 — 45s watchdog. Without a client-side timeout, an
+  // unresponsive Perplexity / Anthropic upstream left the AI
+  // Fundamentals tab on "Analyzing..." indefinitely. 45s is generous
+  // for the LLM round-trip (server cap is 25s but the request can
+  // queue behind quota gates) while still bounding user wait.
   useEffect(() => {
     if (aiFundsCacheRef.current[norm]) {
       setAiFunds(aiFundsCacheRef.current[norm]);
@@ -382,10 +387,15 @@ export function useInstrumentData(ticker) {
     setAiFundsError(null);
     setAiFundsLoading(true);
     let stale = false;
+
+    const abortCtrl = new AbortController();
+    const watchdog = setTimeout(() => abortCtrl.abort(), 45_000);
+
     apiFetch('/api/search/fundamentals', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ symbol: norm }),
+      signal: abortCtrl.signal,
     })
       .then(r => { if (!r.ok) throw new Error(`AI error (${r.status})`); return r.json(); })
       .then(data => {
@@ -396,11 +406,20 @@ export function useInstrumentData(ticker) {
       })
       .catch(err => {
         if (!stale) {
-          setAiFundsError(err.message || 'AI fundamentals unavailable');
+          if (err?.name === 'AbortError') {
+            setAiFundsError('AI Fundamentals timed out — try again in a moment.');
+          } else {
+            setAiFundsError(err.message || 'AI fundamentals unavailable');
+          }
           setAiFundsLoading(false);
         }
-      });
-    return () => { stale = true; };
+      })
+      .finally(() => clearTimeout(watchdog));
+    return () => {
+      stale = true;
+      clearTimeout(watchdog);
+      abortCtrl.abort();
+    };
   }, [norm]);
 
   // ── Tab-triggered fundamentals refetch ────────────────────────────────
