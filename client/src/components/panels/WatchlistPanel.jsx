@@ -30,6 +30,7 @@ import { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
 import { usePortfolio } from '../../context/PortfolioContext';
 import { useOpenDetail } from '../../context/OpenDetailContext';
 import { useTickerPrice } from '../../context/PriceContext';
+import FreshnessDot from '../common/FreshnessDot';
 import { apiFetch, apiJSON } from '../../utils/api';
 import EmptyState from '../common/EmptyState';
 import PanelShell from '../common/PanelShell';
@@ -108,7 +109,10 @@ const WatchlistRow = memo(function WatchlistRow({
         ? `${position.quantity} @ ${fmt(position.entryPrice)} · cost ${fmtCompact((position.quantity || 0) * (position.entryPrice || 0))}`
         : 'Click to chart · Alt+click to add position details'}
     >
-      <span className="wp-row-symbol">{position.symbol}</span>
+      <span className="wp-row-symbol">
+        <FreshnessDot symbol={position.symbol} size={6} style={{ marginRight: 6, verticalAlign: 'middle' }} />
+        {position.symbol}
+      </span>
       <span className="wp-row-price">{fmt(price)}</span>
       <span className={`wp-row-change ${pos ? 'wp-row-change-positive' : 'wp-row-change-negative'}`}>
         {fmtPct(changePct)}

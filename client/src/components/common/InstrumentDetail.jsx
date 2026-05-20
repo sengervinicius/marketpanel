@@ -6,6 +6,7 @@ import { useOpenDetail, useSectorContext } from '../../context/OpenDetailContext
 import { useScreenContext } from '../../context/ScreenContext';
 import { useInstrumentData } from '../../hooks/useInstrumentData';
 import AlertEditor from './AlertEditor';
+import FreshnessDot from './FreshnessDot';
 import ShareModal from './ShareModal';
 import PositionEditor from './PositionEditor';
 import InstrumentOptionsPanel from './InstrumentOptionsPanel';
@@ -2449,7 +2450,12 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
             </div>
 
             <div className="id-header-col">
-              {livePrice != null && <span className="id-price">{displayPrice}</span>}
+              {livePrice != null && (
+                <span className="id-price">
+                  <FreshnessDot symbol={norm} size={8} style={{ marginRight: 8, verticalAlign: 'middle' }} />
+                  {displayPrice}
+                </span>
+              )}
               {displayChange != null && (
                 <span className={`id-change ${isPos ? 'id-change--up' : 'id-change--down'}`}>
                   {isBond
