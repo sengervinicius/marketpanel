@@ -196,7 +196,23 @@ function decorateWithFiiMeta(result) {
 }
 
 // ── Helper: transform Yahoo quote to snapshot shape ─────────────────
+// #291 W2.1.b — record into freshness ledger on every successful
+// snapshot transform. toSnapshot is called from /snapshot/stocks
+// (bulk + ad-hoc), /snapshot/etfs, /snapshot/yields, /snapshot/european,
+// and /snapshot/global-indices — covering every equity/ETF/bond/index
+// REST path with a single edit. Failed quotes (no regularMarketPrice)
+// are not recorded; the FreshnessDot will show "unknown" until we get
+// a real tick.
+let _ledger_stocks = null;
+try { _ledger_stocks = require('../../services/freshnessLedger'); } catch (_) { /* optional */ }
+
 function toSnapshot(q) {
+  if (_ledger_stocks && q.symbol && q.regularMarketPrice != null) {
+    const asOfMs = q.regularMarketTime ? q.regularMarketTime * 1000 : Date.now();
+    try {
+      _ledger_stocks.record({ symbol: q.symbol, source: 'yahoo', asOf: asOfMs });
+    } catch (_) { /* never throw from response path */ }
+  }
   return {
     ticker: q.symbol,
     todaysChange: q.regularMarketChange ?? 0,
@@ -452,6 +468,13 @@ router.get('/snapshot/brazil', async (req, res) => {
         if (anomaly.anomalous) {
           console.warn(`[Brazil/anomaly] ${anomaly.reason}`);
         }
+        // #291 W2.1.b — record into freshness ledger.
+        if (_ledger_stocks) {
+          const asOfMs = q.regularMarketTime ? q.regularMarketTime * 1000 : Date.now();
+          try {
+            _ledger_stocks.record({ symbol: cleanSymbol + '.SA', source: 'yahoo', asOf: asOfMs });
+          } catch (_) { /* never throw from response path */ }
+        }
         const base = {
           symbol:    cleanSymbol,
           name:      (q.shortName || q.longName || q.symbol).substring(0, 18),
@@ -542,6 +565,13 @@ router.get('/snapshot/brazil-fiis', async (req, res) => {
       .map(q => {
         const cleanSymbol = (q.symbol || '').replace(/\.SA$/i, '').trim();
         if (!cleanSymbol) return null;
+        // #291 W2.1.b — record into freshness ledger.
+        if (_ledger_stocks) {
+          const asOfMs = q.regularMarketTime ? q.regularMarketTime * 1000 : Date.now();
+          try {
+            _ledger_stocks.record({ symbol: cleanSymbol + '.SA', source: 'yahoo', asOf: asOfMs });
+          } catch (_) { /* never throw from response path */ }
+        }
         const base = {
           symbol:    cleanSymbol,
           name:      (q.shortName || q.longName || q.symbol).substring(0, 18),
