@@ -58,6 +58,14 @@ if (process.env.SENTRY_DSN) {
   });
 } else {
   console.warn('[WARN] SENTRY_DSN not set — error monitoring disabled. Set it in Render environment.');
+  // #291 W2.8 — in production, refuse to boot without Sentry. The audit
+  // flagged "errors land in stdout only with no aggregation" as a
+  // P1 ops risk. A red-line at boot prevents the "we forgot to set it
+  // and didn't notice for a week" scenario.
+  if (process.env.NODE_ENV === 'production') {
+    console.error('[FATAL] SENTRY_DSN is required when NODE_ENV=production. Refusing to boot — set the env var in Render and redeploy.');
+    process.exit(1);
+  }
 }
 
 const express = require('express');

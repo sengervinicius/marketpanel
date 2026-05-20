@@ -278,7 +278,19 @@ function _clearReconnect() {
 async function initPostgres() {
   const url = process.env.POSTGRES_URL;
   if (!url) {
-    logger.info('postgres', 'POSTGRES_URL not set — Postgres persistence disabled');
+    // #291 W2.7 — refuse to boot in production without Postgres.
+    // The audit found this as a P1: with POSTGRES_URL unset, auth /
+    // chat / vault / behavior / vault-inbound stores silently fall
+    // back to in-memory Maps that lose all user data on every dyno
+    // restart. App boots normally and emits only a debug log, so a
+    // misconfigured env var goes unnoticed until users start asking
+    // why their watchlists vanish overnight. Fail-fast at boot
+    // forces operator awareness.
+    if (process.env.NODE_ENV === 'production') {
+      console.error('[FATAL] POSTGRES_URL is required when NODE_ENV=production. Refusing to boot — set the env var in Render and redeploy. Without it, every dyno restart silently wipes user data.');
+      process.exit(1);
+    }
+    logger.info('postgres', 'POSTGRES_URL not set — Postgres persistence disabled (dev mode)');
     return false;
   }
   return _connect();
