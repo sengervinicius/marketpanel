@@ -29,20 +29,33 @@ router.get('/snapshot/forex', async (req, res) => {
 
     const quotes = await yahooQuote(yahooTickers);
 
-    const transformedTickers = quotes.map(q => ({
-      ticker: 'C:' + q.symbol.replace(/=X$/, ''),
-      todaysChange: q.regularMarketChange ?? 0,
-      todaysChangePerc: q.regularMarketChangePercent ?? 0,
-      day: {
-        o: q.regularMarketOpen ?? null,
-        h: q.regularMarketDayHigh ?? null,
-        l: q.regularMarketDayLow ?? null,
-        c: q.regularMarketPrice ?? null,
-        v: q.regularMarketVolume ?? 0,
-      },
-      prevDay: { c: q.regularMarketPreviousClose ?? (q.regularMarketPrice - q.regularMarketChange) ?? null },
-      min: { c: q.regularMarketPrice ?? null },
-    }));
+    // #291 W2.1 — record into freshness ledger for FreshnessDot coverage.
+    let _ledger = null;
+    try { _ledger = require('../../services/freshnessLedger'); } catch (_) { /* optional */ }
+
+    const transformedTickers = quotes.map(q => {
+      const polygonTicker = 'C:' + q.symbol.replace(/=X$/, '');
+      const asOfMs = q.regularMarketTime ? q.regularMarketTime * 1000 : Date.now();
+      if (_ledger && q.regularMarketPrice != null) {
+        try {
+          _ledger.record({ symbol: polygonTicker, source: 'yahoo', asOf: asOfMs });
+        } catch (_) { /* never throw from response path */ }
+      }
+      return {
+        ticker: polygonTicker,
+        todaysChange: q.regularMarketChange ?? 0,
+        todaysChangePerc: q.regularMarketChangePercent ?? 0,
+        day: {
+          o: q.regularMarketOpen ?? null,
+          h: q.regularMarketDayHigh ?? null,
+          l: q.regularMarketDayLow ?? null,
+          c: q.regularMarketPrice ?? null,
+          v: q.regularMarketVolume ?? 0,
+        },
+        prevDay: { c: q.regularMarketPreviousClose ?? (q.regularMarketPrice - q.regularMarketChange) ?? null },
+        min: { c: q.regularMarketPrice ?? null },
+      };
+    });
 
     const data = { tickers: transformedTickers, status: 'OK' };
     cacheSet('snapshot:forex', data, TTL.forexSnapshot);

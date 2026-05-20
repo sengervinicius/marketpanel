@@ -23,10 +23,26 @@ router.get('/snapshot/crypto', async (req, res) => {
 
     const quotes = await yahooQuote(yahooTickers);
 
+    // #291 W2.1 — record into freshness ledger so the client-side
+    // FreshnessDot can report staleness on REST-fed crypto symbols.
+    // Without this, the only ledger entries for crypto came from the
+    // Polygon WS path (which doesn't cover Yahoo-only pairs and goes
+    // silent if Polygon WS dies).
+    let _ledger = null;
+    try { _ledger = require('../../services/freshnessLedger'); } catch (_) { /* optional */ }
+
     const transformedTickers = quotes.map(q => {
       const symbol = q.symbol.replace(/-USD$/, 'USD').replace('-', '');
+      const polygonTicker = 'X:' + symbol;
+      // Yahoo's regularMarketTime is epoch seconds; if absent fall back to now.
+      const asOfMs = q.regularMarketTime ? q.regularMarketTime * 1000 : Date.now();
+      if (_ledger && q.regularMarketPrice != null) {
+        try {
+          _ledger.record({ symbol: polygonTicker, source: 'yahoo', asOf: asOfMs });
+        } catch (_) { /* never throw from response path */ }
+      }
       return {
-        ticker: 'X:' + symbol,
+        ticker: polygonTicker,
         todaysChange: q.regularMarketChange ?? 0,
         todaysChangePerc: q.regularMarketChangePercent ?? 0,
         day: {
