@@ -24,6 +24,7 @@ import ParticleMarkdown from '../common/ParticleMarkdown';
 import InsightFeed from '../insights/InsightFeed';
 import AIDisclaimer from '../common/AIDisclaimer';
 import PersonaPickerChip from '../common/PersonaPickerChip'; // R0.3 persona picker
+import AIQuotaChip from '../common/AIQuotaChip'; // #291 W3.3 AI usage meter
 import './Chat.css';
 
 function timeAgo(ts) {
@@ -123,6 +124,9 @@ function ChatPanel({ mobile, initialUserId }) {
   const [input,            setInput]            = useState('');
   const [loading,          setLoading]          = useState(false);
   const [aiLoading,        setAiLoading]        = useState(false);
+  // #291 W3.3 — bump after every AI round-trip so AIQuotaChip re-polls
+  // /api/auth/me/ai-usage and shows the updated count.
+  const [aiUsageRefresh,   setAiUsageRefresh]   = useState(0);
   const [mobileView,       setMobileView]       = useState('list');
   const [onlineMap,        setOnlineMap]        = useState({});
   const [typingMap,        setTypingMap]        = useState({});
@@ -621,6 +625,8 @@ function ChatPanel({ mobile, initialUserId }) {
         });
       } finally {
         setAiLoading(false);
+        // #291 W3.3 — re-poll AI quota chip after the persona call.
+        setAiUsageRefresh(n => n + 1);
       }
       return;
     }
@@ -708,6 +714,8 @@ function ChatPanel({ mobile, initialUserId }) {
       });
     } finally {
       setAiLoading(false);
+      // #291 W3.3 — re-poll AI quota chip after the streaming call.
+      setAiUsageRefresh(n => n + 1);
       setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
     }
   }, [input, activeChatUser, aiMessages, buildContextualMessage, activeAiConvoId, loadAiConversations, selectedPersona]);
@@ -1009,6 +1017,8 @@ function ChatPanel({ mobile, initialUserId }) {
               </div>
             </div>
           </div>
+          {/* #291 W3.3 — AI quota meter. Self-hides on 404. */}
+          <AIQuotaChip refreshKey={aiUsageRefresh} />
           {/* R0.3 persona chip. Self-404s when PERSONA_AGENTS_V1 is off. */}
           <PersonaPickerChip
             selected={selectedPersona}

@@ -181,6 +181,34 @@ router.get('/me/admin-status', requireAuth, (req, res) => {
   });
 });
 
+// GET /api/auth/me/ai-usage — current user's AI query consumption for today.
+//
+// #291 W3.3 — surface what dailyAILimit already tracks so the chat UI can
+// show "47 / 200" instead of users guessing how many queries they have
+// left. Returns the same shape getAIUsageStats produces:
+//   { used, limit, remaining, resetAt, tier }
+// Admins get { admin: true } (they bypass the limit entirely).
+router.get('/me/ai-usage', requireAuth, (req, res) => {
+  const user = getUserById(req.user.id);
+  if (!user) return res.status(401).json({ error: 'User not found' });
+  const check = isAdminUser({ id: user.id, email: user.email, username: user.username });
+  if (check.ok) {
+    return res.json({ admin: true, used: 0, limit: 'admin-bypass', remaining: 'admin-bypass' });
+  }
+  // dailyAILimit increments on every AI request and exposes a getter we
+  // can call without touching the counter.
+  const { getAIUsageStats } = require('../middleware/dailyAILimit');
+  const stats = getAIUsageStats(user.id, user.planTier || 'trial');
+  res.json({
+    admin: false,
+    tier: user.planTier || 'trial',
+    used: stats.used,
+    limit: stats.limit,
+    remaining: stats.remaining,
+    resetAt: stats.resetAt,
+  });
+});
+
 // POST /api/auth/reset — request password reset
 router.post('/reset', authLimiter, async (req, res) => {
   try {
