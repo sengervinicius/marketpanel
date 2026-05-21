@@ -122,13 +122,60 @@ const APP_URL = () => process.env.CLIENT_URL || 'https://the-particle.com';
  *   - from: overrides reason-based lookup
  *   - fromName: human-readable sender name (default 'Particle Market')
  */
+// #291 W2.6 — visibility for silent email failures.
+// Audit found that sendEmail() returns false on a wide range of conditions
+// (no provider configured, transient send failure, invalid recipient) and
+// the caller — welcome emails, morning briefs, alerts — usually ignores
+// the return. So a misconfigured Resend key or domain DNS issue could
+// silently drop every welcome email for days before anyone noticed.
+//
+// This block adds:
+//   - _emailFailureCount: in-memory counter exposed via /api/admin/email/stats
+//   - Sentry capture on every failure mode (deduped to 1 per failure-kind
+//     per 30min to avoid spam when Resend is sustained-down)
+//   - A pluggable _dlq (dead-letter queue) — currently in-memory ring
+//     buffer of the last 100 failed sends so ops can inspect / replay
+//     without spinning up a real queue
+const _emailFailureCount = { noProvider: 0, noRecipient: 0, providerMissing: 0, sendError: 0 };
+const _emailDLQ = []; // ring buffer
+const _DLQ_MAX = 100;
+const _sentryDedupe = new Map(); // kind → lastAt
+const _SENTRY_DEDUPE_MS = 30 * 60 * 1000;
+
+function _captureEmailFailure(kind, detail) {
+  _emailFailureCount[kind] = (_emailFailureCount[kind] || 0) + 1;
+  if (_emailDLQ.length >= _DLQ_MAX) _emailDLQ.shift();
+  _emailDLQ.push({ ts: Date.now(), kind, ...detail });
+
+  const last = _sentryDedupe.get(kind) || 0;
+  if (Date.now() - last < _SENTRY_DEDUPE_MS) return;
+  _sentryDedupe.set(kind, Date.now());
+  try {
+    require('@sentry/node').captureMessage(
+      `email send failure (${kind})`,
+      { level: 'warning', tags: { route: 'email', kind } }
+    );
+  } catch (_) { /* sentry optional */ }
+}
+
+function getEmailFailureStats() {
+  return {
+    counts: { ..._emailFailureCount },
+    dlq: _emailDLQ.slice(-20), // last 20 for the admin panel
+    dlqSize: _emailDLQ.length,
+    providerStatus: provider || 'disabled',
+  };
+}
+
 async function _sendRaw({ to, subject, html, text, from, fromName, reason }) {
   if (!provider) {
     logger.warn('email', 'send requested but no provider configured');
+    _captureEmailFailure('noProvider', { to, subject, reason });
     return false;
   }
   if (!to) {
     logger.warn('email', 'No recipient email address');
+    _captureEmailFailure('noRecipient', { subject, reason });
     return false;
   }
 
@@ -156,9 +203,11 @@ async function _sendRaw({ to, subject, html, text, from, fromName, reason }) {
       return true;
     }
     logger.warn('email', 'provider set but client missing', { provider });
+    _captureEmailFailure('providerMissing', { provider, to, subject, reason });
     return false;
   } catch (e) {
     logger.error('email', 'send failed', { to, subject, provider, error: e.message });
+    _captureEmailFailure('sendError', { provider, to, subject, reason, error: e.message });
     return false;
   }
 }
@@ -610,4 +659,6 @@ module.exports = {
   sendPaymentReceiptEmail,
   sendAppleReceiptEmail,
   sendMorningBriefEmail,
+  // #291 W2.6 — admin observability for silent email failures.
+  getEmailFailureStats,
 };
