@@ -135,7 +135,9 @@ const { getUserById, seedUsersFromEnv, initDB } = require('./authStore');
 const { verifyToken } = require('./authStore');
 const { initPortfolioDB } = require('./portfolioStore');
 const { initAlertDB } = require('./alertStore');
-require('./jobs/markToMarket'); // batch mark-to-market (self-scheduling)
+// #291 P3 — removed require('./jobs/markToMarket'). The file was a
+// no-op stub (game functionality removed long ago). The require was
+// harmless but kept dead code in the audit surface. Job file deleted.
 const { init: initMarketContext } = require('./services/marketContextBuilder');
 const { init: initPredictions } = require('./services/predictionAggregator');
 const predictionsRoutes = require('./routes/predictions');
