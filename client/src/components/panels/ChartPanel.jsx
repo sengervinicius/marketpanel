@@ -153,18 +153,26 @@ const MiniChart = memo(function MiniChart({ ticker, index, onRemove, onReplace, 
       if (!res.ok) throw new Error(res.status);
       const json = await res.json();
       if (!mountedRef.current) return;
-      let bars = (json.results || []).map(b => ({
-        t: b.t,
-        v: b.c ?? b.vw ?? 0,
-        open: b.o ?? b.c ?? 0,
-        high: b.h ?? b.c ?? 0,
-        low: b.l ?? b.c ?? 0,
-        close: b.c ?? b.vw ?? 0,
-        volume: b.v ?? 0,
-        label: range.timespan === 'minute'
-          ? new Date(b.t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-          : new Date(b.t).toLocaleDateString([], { month: 'short', day: 'numeric' }),
-      }));
+      // #291 W2.16b — drop bars without a finite timestamp or close.
+      // Same fix as InstrumentDetail W2.16 — recharts XAxis cannot
+      // tolerate NaN/undefined on its dataKey and crashes the entire
+      // chart subtree. OHLC fields already fall back to b.c, but
+      // `t` had no fallback so a malformed Yahoo response with a
+      // missing timestamp could nuke this panel.
+      let bars = (json.results || [])
+        .filter(b => b && Number.isFinite(b.t) && Number.isFinite(b.c ?? b.vw))
+        .map(b => ({
+          t: b.t,
+          v: b.c ?? b.vw ?? 0,
+          open: b.o ?? b.c ?? 0,
+          high: b.h ?? b.c ?? 0,
+          low: b.l ?? b.c ?? 0,
+          close: b.c ?? b.vw ?? 0,
+          volume: b.v ?? 0,
+          label: range.timespan === 'minute'
+            ? new Date(b.t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            : new Date(b.t).toLocaleDateString([], { month: 'short', day: 'numeric' }),
+        }));
       if (range.label === '1D') {
         const d0 = new Date(); d0.setHours(0,0,0,0);
         const tod = bars.filter(b => b.t >= d0.getTime());

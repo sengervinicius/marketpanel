@@ -139,17 +139,21 @@ const MobileChart = memo(function MobileChart({ ticker }) {
       if (!res.ok) throw new Error(res.status);
       const json = await res.json();
       if (!mountedRef.current) return;
-      let results = (json.results || []).map(b => ({
-        t: b.t,
-        open: b.o ?? b.c ?? 0,
-        high: b.h ?? b.c ?? 0,
-        low: b.l ?? b.c ?? 0,
-        close: b.c ?? b.vw ?? 0,
-        volume: b.v ?? 0,
-        label: range.timespan === 'minute'
-          ? new Date(b.t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-          : new Date(b.t).toLocaleDateString([], { month: 'short', day: 'numeric' }),
-      }));
+      // #291 W2.16b — drop bars without a finite timestamp or close
+      // (recharts XAxis chokes on NaN; see InstrumentDetail W2.16).
+      let results = (json.results || [])
+        .filter(b => b && Number.isFinite(b.t) && Number.isFinite(b.c ?? b.vw))
+        .map(b => ({
+          t: b.t,
+          open: b.o ?? b.c ?? 0,
+          high: b.h ?? b.c ?? 0,
+          low: b.l ?? b.c ?? 0,
+          close: b.c ?? b.vw ?? 0,
+          volume: b.v ?? 0,
+          label: range.timespan === 'minute'
+            ? new Date(b.t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            : new Date(b.t).toLocaleDateString([], { month: 'short', day: 'numeric' }),
+        }));
       if (range.label === '1D') {
         const d0 = new Date(); d0.setHours(0, 0, 0, 0);
         const tod = results.filter(b => b.t >= d0.getTime());
