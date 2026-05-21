@@ -28,6 +28,7 @@ import { ScreenProvider } from '../context/ScreenContext';
 import { WatchlistProvider } from '../context/WatchlistContext';
 import { AlertsProvider } from '../context/AlertsContext';
 import { PortfolioProvider } from '../context/PortfolioContext';
+import PanelErrorBoundary from '../components/common/PanelErrorBoundary';
 
 export default function InstrumentDetailPage() {
   const { symbolKey } = useParams();
@@ -99,11 +100,20 @@ export default function InstrumentDetailPage() {
               <WatchlistProvider>
                 <AlertsProvider>
                   <Suspense fallback={<div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#555', fontSize: 11 }}>Loading...</div>}>
-                    <InstrumentDetail
-                      ticker={decodedSymbol}
-                      onClose={() => window.close()}
-                      asPage
-                    />
+                    {/* #291 W2.16 HOTFIX — wrap in PanelErrorBoundary so a
+                        render crash inside InstrumentDetail (recharts
+                        bad-data, etc.) gets contained to a panel-level
+                        fallback instead of escaping all the way to the
+                        global AppErrorBoundary's "App crashed — render
+                        error" screen. App.jsx already wraps InstrumentDetail
+                        this way; this mirrors it for the popout route. */}
+                    <PanelErrorBoundary name="InstrumentDetail (popout)">
+                      <InstrumentDetail
+                        ticker={decodedSymbol}
+                        onClose={() => window.close()}
+                        asPage
+                      />
+                    </PanelErrorBoundary>
                   </Suspense>
                 </AlertsProvider>
               </WatchlistProvider>

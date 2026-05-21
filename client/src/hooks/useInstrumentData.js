@@ -141,10 +141,23 @@ export function useInstrumentData(ticker) {
         .then(d => {
           if (stale) return;
           const results = Array.isArray(d.results) ? d.results : (Array.isArray(d) ? d : []);
-          setBars(results.map(b => ({
-            t: b.t, label: fmtLabel(b.t, range.timespan),
-            open: b.o, high: b.h, low: b.l, close: b.c, volume: b.v ?? 0,
-          })));
+          // #291 W2.16 — defensive filter. A single malformed bar (missing
+          // timestamp or close) passed to recharts can crash the whole
+          // chart with "App crashed — render error" (#426). Filter to
+          // only bars with both a finite `t` and a finite `close` —
+          // recharts can tolerate missing OHLC mid-series but cannot
+          // handle NaN/undefined on its X-axis dataKey.
+          const cleanBars = results
+            .filter(b => b && Number.isFinite(b.t) && Number.isFinite(b.c))
+            .map(b => ({
+              t: b.t, label: fmtLabel(b.t, range.timespan),
+              open: Number.isFinite(b.o) ? b.o : b.c,
+              high: Number.isFinite(b.h) ? b.h : b.c,
+              low:  Number.isFinite(b.l) ? b.l : b.c,
+              close: b.c,
+              volume: Number.isFinite(b.v) ? b.v : 0,
+            }));
+          setBars(cleanBars);
           if (isInitial) setLoading(false);
 
           // #219 — empty bars on a foreign-suffix ticker strongly suggests
