@@ -79,7 +79,10 @@ function cacheSet(q, v) {
  * GET /health — check whether AI features are available
  */
 router.get('/health', (req, res) => {
-  res.json({ ai: !!process.env.PERPLEXITY_API_KEY });
+  // #291 W3.2 — multi-provider: AI is "up" if either provider has a key.
+  const perplexity = !!process.env.PERPLEXITY_API_KEY;
+  const anthropic = !!process.env.ANTHROPIC_API_KEY;
+  res.json({ ai: perplexity || anthropic, providers: { perplexity, anthropic } });
 });
 
 /**
@@ -114,11 +117,20 @@ router.get('/cache-stats', (req, res) => {
 
 /**
  * POST /ai — AI-powered financial research summary
+ *
+ * #291 W3.2 — multi-provider with Anthropic fallback (mirrors W1.15 for
+ * /news-briefing). When PERPLEXITY_API_KEY expires or Perplexity returns
+ * a non-2xx, we fall through to Claude Haiku rather than 503'ing the
+ * feature entirely. Citations are only returned by Perplexity (it has
+ * web search); the Anthropic fallback returns provider:'anthropic' and
+ * an empty citations array so the client can surface "no live web
+ * sources" if it wants to. Sentry only fires when BOTH providers fail.
  */
 router.post('/ai', dailyAILimit, aiQuotaGate, async (req, res) => {
-  const apiKey = process.env.PERPLEXITY_API_KEY;
-  if (!apiKey) {
-    return res.status(503).json({ error: 'AI search not configured — PERPLEXITY_API_KEY missing' });
+  const perplexityKey = process.env.PERPLEXITY_API_KEY;
+  const anthropicKey  = process.env.ANTHROPIC_API_KEY;
+  if (!perplexityKey && !anthropicKey) {
+    return res.status(503).json({ error: 'AI search not configured' });
   }
 
   const { query } = req.body;
@@ -135,77 +147,176 @@ router.post('/ai', dailyAILimit, aiQuotaGate, async (req, res) => {
     return res.json({ ...cached, cached: true });
   }
 
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
+  const systemPrompt = 'You are Particle — the AI engine inside a professional financial terminal. You speak like a sell-side desk analyst: terse, numeric, opinionated. Use **$TICKER** format (**$AAPL**, **$BTC**). Use basis points for rate moves. Bold all prices and percentages. NEVER use these phrases: "It\'s important to note", "Based on the data", "As an AI", "I\'d recommend considering", "It\'s worth noting", "Many analysts believe", "Time will tell". Coverage: all of finance — equities, fixed income, forex, crypto, commodities, derivatives, prediction markets (Kalshi, Polymarket), macro, central bank policy, geopolitics-as-markets, fintech, market structure. If clearly non-financial: "Outside my coverage." Keep responses under 200 words. Lead with the insight, not background. End with BOTTOM LINE: one sentence giving your actual view. Cite sources with [1], [2]. Be opinionated — state bull/bear views directly.';
+
+  // Anthropic fallback gets a slightly different prompt — Haiku has no web
+  // search, so it must NOT fabricate breaking news. Use training-data
+  // framing where the user is asking about "today" and explicit knowledge
+  // is missing.
+  const anthropicSystemPrompt = systemPrompt + '\n\nIMPORTANT FALLBACK MODE: You do NOT have live web search. If the question asks about news, events, or prices from the last few days that you cannot verify from training data, say so explicitly ("no live sources available in fallback mode") and pivot to structural analysis (drivers, what to watch, ranges). Do NOT invent quotes, dates, or breaking headlines. Do NOT cite sources with [1], [2] — there are none.';
+
+  // Outcome tracker — Sentry only when BOTH fail.
+  const _outcomes = { perplexity: null, anthropic: null };
+
+  async function tryPerplexity() {
+    if (!perplexityKey) { _outcomes.perplexity = 'not_configured'; return null; }
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
+    try {
+      const r = await fetch(PERPLEXITY_URL, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${perplexityKey}`,
+          'Content-Type': 'application/json',
+        },
+        signal: ctrl.signal,
+        body: JSON.stringify({
+          model: MODEL,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: query.trim() }
+          ],
+          max_tokens: 400,
+          temperature: 0.2,
+          return_citations: true,
+          search_domain_filter: [],
+          search_recency_filter: 'week',
+        }),
+      });
+      clearTimeout(timer);
+      if (!r.ok) {
+        const errText = await r.text().catch(() => '');
+        if (r.status === 401 || r.status === 403) {
+          console.error(`[Search/AI] Perplexity auth ${r.status} — PERPLEXITY_API_KEY likely expired. Body:`, errText.substring(0, 200));
+          _outcomes.perplexity = 'auth';
+        } else {
+          console.warn(`[Search/AI] Perplexity ${r.status}:`, errText.substring(0, 200));
+          _outcomes.perplexity = `http_${r.status}`;
+        }
+        return null;
+      }
+      const data = await r.json();
+      const choice = data.choices?.[0];
+      if (!choice?.message?.content) {
+        _outcomes.perplexity = 'empty';
+        return null;
+      }
+      _outcomes.perplexity = 'ok';
+      const citations = (data.citations || []).map((url, i) => ({
+        title: `Source ${i + 1}`,
+        url,
+      }));
+      return {
+        summary: choice.message.content,
+        citations,
+        model: data.model || MODEL,
+        provider: 'perplexity',
+        usage: data.usage ? { tokens: data.usage.total_tokens } : null,
+      };
+    } catch (e) {
+      clearTimeout(timer);
+      if (e.name === 'AbortError') {
+        _outcomes.perplexity = 'timeout';
+      } else {
+        console.warn('[Search/AI] Perplexity threw:', e.message);
+        _outcomes.perplexity = 'network';
+      }
+      return null;
+    }
+  }
+
+  async function tryAnthropic() {
+    if (!anthropicKey) { _outcomes.anthropic = 'not_configured'; return null; }
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
+    try {
+      const r = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'x-api-key': anthropicKey,
+          'anthropic-version': '2023-06-01',
+          'Content-Type': 'application/json',
+        },
+        signal: ctrl.signal,
+        body: JSON.stringify({
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: 400,
+          system: anthropicSystemPrompt,
+          messages: [{ role: 'user', content: query.trim() }],
+        }),
+      });
+      clearTimeout(timer);
+      if (!r.ok) {
+        const errText = await r.text().catch(() => '');
+        if (r.status === 401 || r.status === 403) {
+          console.error(`[Search/AI] Anthropic auth ${r.status} — ANTHROPIC_API_KEY likely expired. Body:`, errText.substring(0, 200));
+          _outcomes.anthropic = 'auth';
+        } else {
+          console.warn(`[Search/AI] Anthropic ${r.status}:`, errText.substring(0, 200));
+          _outcomes.anthropic = `http_${r.status}`;
+        }
+        return null;
+      }
+      const data = await r.json();
+      const text = data.content?.[0]?.text;
+      if (!text) {
+        _outcomes.anthropic = 'empty';
+        return null;
+      }
+      _outcomes.anthropic = 'ok';
+      return {
+        summary: text,
+        citations: [], // no web search in fallback
+        model: data.model || 'claude-haiku-4-5-20251001',
+        provider: 'anthropic',
+        degraded: true, // signal to client: no live web sources
+        usage: data.usage ? { tokens: (data.usage.input_tokens || 0) + (data.usage.output_tokens || 0) } : null,
+      };
+    } catch (e) {
+      clearTimeout(timer);
+      if (e.name === 'AbortError') {
+        _outcomes.anthropic = 'timeout';
+      } else {
+        console.warn('[Search/AI] Anthropic threw:', e.message);
+        _outcomes.anthropic = 'network';
+      }
+      return null;
+    }
+  }
 
   try {
-    const response = await fetch(PERPLEXITY_URL, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      signal: ctrl.signal,
-      body: JSON.stringify({
-        model: MODEL,
-        messages: [
-          {
-            role: 'system',
-            content: 'You are Particle — the AI engine inside a professional financial terminal. You speak like a sell-side desk analyst: terse, numeric, opinionated. Use **$TICKER** format (**$AAPL**, **$BTC**). Use basis points for rate moves. Bold all prices and percentages. NEVER use these phrases: "It\'s important to note", "Based on the data", "As an AI", "I\'d recommend considering", "It\'s worth noting", "Many analysts believe", "Time will tell". Coverage: all of finance — equities, fixed income, forex, crypto, commodities, derivatives, prediction markets (Kalshi, Polymarket), macro, central bank policy, geopolitics-as-markets, fintech, market structure. If clearly non-financial: "Outside my coverage." Keep responses under 200 words. Lead with the insight, not background. End with BOTTOM LINE: one sentence giving your actual view. Cite sources with [1], [2]. Be opinionated — state bull/bear views directly.'
-          },
-          {
-            role: 'user',
-            content: query.trim()
-          }
-        ],
-        max_tokens: 400,
-        temperature: 0.2,
-        return_citations: true,
-        search_domain_filter: [],
-        search_recency_filter: 'week',
-      }),
-    });
+    let result = await tryPerplexity();
+    if (!result) result = await tryAnthropic();
 
-    if (!response.ok) {
-      const errText = await response.text().catch(() => '');
-      console.error(`[Search/AI] Perplexity API error ${response.status}:`, errText.substring(0, 200));
-      return res.status(502).json({ error: `AI provider error (${response.status})` });
+    if (!result) {
+      // Both providers failed — Sentry-alert with both outcomes tagged.
+      try {
+        const Sentry = require('@sentry/node');
+        Sentry.withScope(scope => {
+          scope.setTag('route', 'search/ai');
+          scope.setTag('perplexity_outcome', _outcomes.perplexity || 'unknown');
+          scope.setTag('anthropic_outcome', _outcomes.anthropic || 'unknown');
+          Sentry.captureMessage('AI search: both providers failed', 'error');
+        });
+      } catch (_) { /* Sentry optional */ }
+      return res.status(502).json({
+        error: 'AI search unavailable',
+        outcomes: _outcomes,
+      });
     }
 
-    const data = await response.json();
-    const choice = data.choices?.[0];
-    if (!choice?.message?.content) {
-      return res.status(502).json({ error: 'Empty response from AI provider' });
-    }
-
-    // Extract citations from Perplexity response
-    const citations = (data.citations || []).map((url, i) => ({
-      title: `Source ${i + 1}`,
-      url,
-    }));
-
-    const result = {
-      summary: choice.message.content,
-      citations,
-      model: data.model || MODEL,
-      usage: data.usage ? { tokens: data.usage.total_tokens } : null,
-    };
-
-    // Cache the result
+    // Cache the successful result (whichever provider).
     cacheSet(query, result);
-
     res.json(result);
   } catch (err) {
     // #220 — guard against late-abort write-after-send crashes.
     if (res.headersSent) return;
-    if (err.name === 'AbortError') {
-      return res.status(504).json({ error: 'AI search timed out (15s)' });
-    }
     console.error('[Search/AI] Error:', err.message);
     res.status(500).json({ error: 'AI search failed' });
-  } finally {
-    clearTimeout(timer);
   }
+  // Note: no outer finally/clearTimeout — each tryX() owns its own timer
+  // and clears it locally. See W1.15 hotfix in /news-briefing for the
+  // same pattern.
 });
 
 /**
