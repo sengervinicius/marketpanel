@@ -985,11 +985,25 @@ function ChatPanel({ mobile, initialUserId }) {
   const renderAiHistoryRail = () => (
     <div className="chat-ai-rail">
       <div className="chat-ai-rail-header">
+        {/* W1.11 — on mobile the rail lives in its own full-screen view;
+            show a back arrow so the user can return to the active chat. */}
+        {mobile && (
+          <button
+            type="button"
+            className="chat-back-btn"
+            onClick={() => setMobileView('chat')}
+            title="Back to chat"
+            style={{ marginRight: 8 }}
+          >{'←'}</button>
+        )}
         <span className="chat-ai-rail-title">AI &middot; LAST 24H</span>
         <button
           type="button"
           className="chat-ai-rail-new-btn"
-          onClick={startNewAiConversation}
+          onClick={() => {
+            startNewAiConversation();
+            if (mobile) setMobileView('chat');
+          }}
           title="Start a new conversation"
         >+ NEW</button>
       </div>
@@ -1019,7 +1033,12 @@ function ChatPanel({ mobile, initialUserId }) {
               key={c.id}
               className={itemClass}
               data-active={isActive}
-              onClick={() => { if (!isRenaming) openAiConversation(c.id); }}
+              onClick={() => {
+                if (isRenaming) return;
+                openAiConversation(c.id);
+                // W1.11 — on mobile, picking a chat returns to the chat view.
+                if (mobile) setMobileView('chat');
+              }}
             >
               <div className="chat-ai-rail-item-row">
                 {isRenaming ? (
@@ -1107,6 +1126,26 @@ function ChatPanel({ mobile, initialUserId }) {
             selected={selectedPersona}
             onSelect={setSelectedPersona}
           />
+          {/* #291 W1.11 — mobile parity: history rail is hidden on phones
+              for screen-real-estate reasons, so expose it via a button
+              that opens a full-screen 'ai-history' view. */}
+          {mobile && (
+            <button
+              type="button"
+              onClick={() => setMobileView('ai-history')}
+              title="Conversation history"
+              style={{
+                background: 'none',
+                border: '1px solid var(--border, #2a2a2a)',
+                cursor: 'pointer',
+                padding: '4px 10px',
+                marginRight: 6,
+                borderRadius: 4,
+                color: 'var(--text-secondary, #999)',
+                fontSize: 12,
+              }}
+            >History</button>
+          )}
           {aiMessages.length > 0 && (
             <>
               <button
@@ -1461,6 +1500,12 @@ function ChatPanel({ mobile, initialUserId }) {
 
   // Mobile routing
   if (mobile) {
+    // W1.11 — three states on mobile: 'list' (conversations), 'chat'
+    // (active conversation), 'ai-history' (full-screen AI conversation
+    // rail, opened from the History button in the AI chat header).
+    if (mobileView === 'ai-history') {
+      return <div className="chat-root">{renderAiHistoryRail()}</div>;
+    }
     return <div className="chat-root">{mobileView === 'list' ? renderList() : renderChat()}</div>;
   }
 
