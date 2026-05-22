@@ -555,6 +555,130 @@ function ChatPanel({ mobile, initialUserId }) {
     }, 2000);
   }, [sendTyping, activeChatUser]);
 
+  // ── AI Chat: streaming helper (extracted so Retry can reuse) ──
+  //
+  // #291 W1.9 — pulled the fetch + SSE loop out of sendAiMessage so the
+  // Retry button on an errored assistant bubble can re-run the same
+  // pipeline without re-pushing the user message into the list.
+  //
+  // Updates the message bubble identified by `assistantMsgId` (NOT
+  // updated.length - 1, which used to mis-target on retry while another
+  // turn was already in the list).
+  //
+  // On any failure (HTTP, network, SSE parse), we PRESERVE whatever
+  // partial content already streamed in and set `streamError: true` plus
+  // `errorReason` so the renderer can show the Retry affordance.
+  const _runStreamingTurn = useCallback(async (text, assistantMsgId, historyMessages) => {
+    let newConvoCreated = false;
+    try {
+      const { API_BASE } = await import('../../utils/api');
+      const contextualContent = buildContextualMessage(text);
+      const response = await fetch(`${API_BASE}/api/search/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          messages: [
+            ...historyMessages.map(m => ({ role: m.role, content: m.content })),
+            { role: 'user', content: contextualContent },
+          ],
+          // P5: thread the active conversation through so the server appends
+          // to the same row instead of creating a new one each turn.
+          conversationId: activeAiConvoId || undefined,
+        }),
+      });
+
+      if (!response.ok) {
+        // Best-effort: surface the server's structured error in the tail
+        // so the Retry hint can say "rate limited" vs "provider down".
+        let reason = `http_${response.status}`;
+        try {
+          const errJson = await response.json();
+          if (errJson?.error) reason = String(errJson.error).slice(0, 80);
+        } catch (_) { /* body might not be JSON */ }
+        throw new Error(reason);
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6);
+            if (data === '[DONE]') break;
+            try {
+              const parsed = JSON.parse(data);
+              // P5: server emits conversationId once at stream start. Bind it
+              // to the active conversation so subsequent turns land on the
+              // same row.
+              if (parsed.conversationId) {
+                if (!activeAiConvoId) newConvoCreated = true;
+                setActiveAiConvoId(String(parsed.conversationId));
+              }
+              if (parsed.chunk) {
+                setAiMessages(prev => {
+                  const updated = [...prev];
+                  // W1.9 — id-based lookup so retry while another turn is
+                  // in flight doesn't smear chunks across bubbles.
+                  const idx = updated.findIndex(m => m.id === assistantMsgId);
+                  if (idx >= 0) {
+                    updated[idx] = {
+                      ...updated[idx],
+                      content: (updated[idx].content || '') + parsed.chunk,
+                      // Clear stale error flags on successful streaming
+                      // (relevant when this turn is a retry of a prior
+                      // failure).
+                      streamError: false,
+                      errorReason: undefined,
+                    };
+                  }
+                  return updated;
+                });
+              }
+            } catch (e) { swallow(e, 'panel.chat.sse_parse'); }
+          }
+        }
+      }
+      // Refresh sidebar after the assistant turn lands so the title (which
+      // is derived from the first user message) and last_message_at appear
+      // immediately. Done after the stream so we don't thrash on every chunk.
+      if (newConvoCreated || activeAiConvoId) {
+        loadAiConversations();
+      }
+    } catch (err) {
+      console.error('AI chat error:', err);
+      // #291 W1.9 — preserve partial content + flag as error so the Retry
+      // affordance renders. Don't clobber the bubble with a hardcoded
+      // "Error: Failed to get response" string anymore.
+      setAiMessages(prev => {
+        const updated = [...prev];
+        const idx = updated.findIndex(m => m.id === assistantMsgId);
+        if (idx >= 0) {
+          updated[idx] = {
+            ...updated[idx],
+            streamError: true,
+            errorReason: err?.message || 'network',
+          };
+        }
+        return updated;
+      });
+    } finally {
+      setAiLoading(false);
+      // #291 W3.3 — re-poll AI quota chip after the streaming call.
+      setAiUsageRefresh(n => n + 1);
+      setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+    }
+  }, [activeAiConvoId, buildContextualMessage, loadAiConversations]);
+
   // ── AI Chat: send message with streaming response ──
   const sendAiMessage = useCallback(async () => {
     const text = input.trim();
@@ -562,10 +686,15 @@ function ChatPanel({ mobile, initialUserId }) {
     setInput('');
 
     // Display original user message, but build contextual content for API
-    const contextualContent = buildContextualMessage(text);
     const userMsg = { role: 'user', content: text, id: 'msg-' + Date.now() };
-    const userMsgForApi = { role: 'user', content: contextualContent };
-    const assistantMsg = { role: 'assistant', content: '', id: 'msg-' + (Date.now() + 1) };
+    const assistantMsg = {
+      role: 'assistant',
+      content: '',
+      id: 'msg-' + (Date.now() + 1),
+      // #291 W1.9 — Retry on a failed bubble re-runs this exact prompt
+      // without forcing the user to retype it.
+      pairedUserText: text,
+    };
 
     setAiMessages(prev => [...prev, userMsg, assistantMsg]);
     setAiLoading(true);
@@ -610,16 +739,23 @@ function ChatPanel({ mobile, initialUserId }) {
         setAiMessages(prev => {
           const next = [...prev];
           const idx = next.findIndex(m => m.id === assistantMsg.id);
-          if (idx >= 0) next[idx] = { ...next[idx], content, personaId: selectedPersona };
+          if (idx >= 0) next[idx] = {
+            ...next[idx], content, personaId: selectedPersona,
+            streamError: false, errorReason: undefined,
+          };
           return next;
         });
       } catch (err) {
+        // #291 W1.9 — Retry button also appears on persona failures.
+        // Persona path isn't streaming, so there's no partial content
+        // to preserve — just flag the error.
         setAiMessages(prev => {
           const next = [...prev];
           const idx = next.findIndex(m => m.id === assistantMsg.id);
           if (idx >= 0) next[idx] = {
             ...next[idx],
-            content: `_Persona request failed: ${err.message || 'unknown error'}_`,
+            streamError: true,
+            errorReason: err?.message || 'persona_request_failed',
           };
           return next;
         });
@@ -631,94 +767,41 @@ function ChatPanel({ mobile, initialUserId }) {
       return;
     }
 
-    try {
-      const { API_BASE } = await import('../../utils/api');
-      const response = await fetch(`${API_BASE}/api/search/chat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          messages: [
-            ...aiMessages.map(m => ({
-              role: m.role,
-              content: m.content,
-            })),
-            userMsgForApi,
-          ],
-          // P5: thread the active conversation through so the server appends
-          // to the same row instead of creating a new one each turn.
-          conversationId: activeAiConvoId || undefined,
-        }),
-      });
+    // Standard streaming path — delegate to the extracted helper. Pass
+    // current aiMessages as history (before userMsg/assistantMsg were
+    // pushed); _runStreamingTurn appends the contextualized user message
+    // itself.
+    await _runStreamingTurn(text, assistantMsg.id, aiMessages);
+  }, [input, activeChatUser, aiMessages, selectedPersona, _runStreamingTurn]);
 
-      if (!response.ok) throw new Error('Failed to get AI response');
+  // ── AI Chat: retry a failed assistant turn ──
+  //
+  // #291 W1.9 — invoked by the inline Retry button on a bubble whose
+  // streamError flag is set. Resets the bubble's content + error flags
+  // and re-runs the same pipeline. History sent to the API excludes
+  // both the failed assistant AND its paired user message (because
+  // _runStreamingTurn appends the user message itself from `text`).
+  const retryAiMessage = useCallback(async (failedMsg) => {
+    if (aiLoading) return;
+    const text = failedMsg?.pairedUserText;
+    if (!text || typeof text !== 'string' || !text.trim()) return;
 
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-      // Tracks whether this turn produced a brand-new conversation row so
-      // we can refresh the sidebar after the stream finishes (rather than
-      // on every chunk).
-      let newConvoCreated = false;
+    // Reset the failed bubble back to a clean placeholder. We keep the
+    // same id so the streaming helper writes into it.
+    setAiMessages(prev => prev.map(m =>
+      m.id === failedMsg.id
+        ? { ...m, content: '', streamError: false, errorReason: undefined }
+        : m
+    ));
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+    const failedIdx = aiMessages.findIndex(m => m.id === failedMsg.id);
+    // Exclude both the failed assistant and its preceding user message.
+    // If failedIdx <= 1 the failed turn was the first in the thread.
+    const historyForCall = failedIdx > 1 ? aiMessages.slice(0, failedIdx - 1) : [];
 
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
-
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const data = line.slice(6);
-            if (data === '[DONE]') break;
-            try {
-              const parsed = JSON.parse(data);
-              // P5: server emits conversationId once at stream start. Bind it
-              // to the active conversation so subsequent turns land on the
-              // same row.
-              if (parsed.conversationId) {
-                if (!activeAiConvoId) newConvoCreated = true;
-                setActiveAiConvoId(String(parsed.conversationId));
-              }
-              if (parsed.chunk) {
-                setAiMessages(prev => {
-                  const updated = [...prev];
-                  updated[updated.length - 1] = {
-                    ...updated[updated.length - 1],
-                    content: updated[updated.length - 1].content + parsed.chunk,
-                  };
-                  return updated;
-                });
-              }
-            } catch (e) { swallow(e, 'panel.chat.sse_parse'); }
-          }
-        }
-      }
-      // Refresh sidebar after the assistant turn lands so the title (which
-      // is derived from the first user message) and last_message_at appear
-      // immediately. Done after the stream so we don't thrash on every chunk.
-      if (newConvoCreated || activeAiConvoId) {
-        loadAiConversations();
-      }
-    } catch (err) {
-      console.error('AI chat error:', err);
-      setAiMessages(prev => {
-        const updated = [...prev];
-        updated[updated.length - 1] = {
-          ...updated[updated.length - 1],
-          content: 'Error: Failed to get response from AI.',
-        };
-        return updated;
-      });
-    } finally {
-      setAiLoading(false);
-      // #291 W3.3 — re-poll AI quota chip after the streaming call.
-      setAiUsageRefresh(n => n + 1);
-      setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
-    }
-  }, [input, activeChatUser, aiMessages, buildContextualMessage, activeAiConvoId, loadAiConversations, selectedPersona]);
+    setAiLoading(true);
+    await _runStreamingTurn(text, failedMsg.id, historyForCall);
+  }, [aiLoading, aiMessages, _runStreamingTurn]);
 
   // ── Send message ──
   const sendMessage = useCallback(async () => {
@@ -1158,14 +1241,47 @@ function ChatPanel({ mobile, initialUserId }) {
           })()}
           {aiMessages.map(m => {
             const isAssistant = m.role === 'assistant';
+            const hasContent = !!(m.content || '').trim();
             // Hide share actions on the streaming placeholder (empty content)
             // until the first chunk lands — otherwise Copy/Email fire on ''.
-            const canShare = isAssistant && !!(m.content || '').trim();
+            // Also hide them on errored bubbles — sharing a half-message is
+            // worse than nothing.
+            const canShare = isAssistant && hasContent && !m.streamError;
+            // #291 W1.9 — Retry surface appears when the assistant turn
+            // failed AND we know what to re-send (pairedUserText was set
+            // when the bubble was created). Gated on aiLoading so the
+            // user can't double-trigger while another turn is in flight.
+            const showRetry = isAssistant && m.streamError && m.pairedUserText && !aiLoading;
             return (
               <div key={m.id} className={`chat-msg-wrap chat-msg-wrap--${m.role === 'user' ? 'mine' : 'theirs'}`}>
                 <div className={`chat-bubble${m.role === 'user' ? ' chat-bubble--mine' : ' chat-bubble--ai'}`}>
                   {isAssistant ? <ParticleMarkdown content={m.content} /> : m.content}
+                  {isAssistant && m.streamError && (
+                    <div
+                      className="chat-stream-error-tail"
+                      style={{
+                        marginTop: hasContent ? 8 : 0,
+                        fontSize: 12,
+                        color: 'var(--accent-danger, #d54a3f)',
+                        fontStyle: 'italic',
+                      }}
+                    >
+                      {hasContent
+                        ? `Stream interrupted${m.errorReason ? ` (${m.errorReason})` : ''}.`
+                        : `Failed to get a response${m.errorReason ? ` (${m.errorReason})` : ''}.`}
+                    </div>
+                  )}
                 </div>
+                {showRetry && (
+                  <div className="chat-msg-actions" role="group" aria-label="Recover this answer">
+                    <button
+                      type="button"
+                      className="chat-msg-action"
+                      onClick={() => retryAiMessage(m)}
+                      title="Re-run the same question"
+                    >Retry</button>
+                  </div>
+                )}
                 {canShare && (
                   <div className="chat-msg-actions" role="group" aria-label="Share this answer">
                     <button
