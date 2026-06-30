@@ -43,10 +43,18 @@ jobs:
         env:
           BASE:           ${{ secrets.STAGING_BASE }}
           TEST_TOKEN:     ${{ secrets.RED_TEAM_TOKEN }}
+          VAULT_ENDPOINT: ${{ secrets.VAULT_ENDPOINT }}
         run: |
+          # #291 W7.6 (AI-4) — VAULT_ENDPOINT is now REQUIRED, not optional.
+          # Indirect-injection (document-vector) cases are the highest-risk
+          # class for a RAG product; running the harness without them and
+          # reporting green is exactly the false-confidence the audit flagged.
           if [ -z "$BASE" ] || [ -z "$TEST_TOKEN" ]; then
             echo "::warning::redteam skipped — STAGING_BASE and/or RED_TEAM_TOKEN not configured. Set them in repo → Settings → Secrets to re-enable."
             echo "skip=true" >> "$GITHUB_OUTPUT"
+          elif [ -z "$VAULT_ENDPOINT" ]; then
+            echo "::error::redteam misconfigured — VAULT_ENDPOINT is required so indirect-injection cases actually run. Set it in repo → Settings → Secrets."
+            exit 1
           else
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
@@ -56,8 +64,9 @@ jobs:
         env:
           BASE:           ${{ secrets.STAGING_BASE }}
           TEST_TOKEN:     ${{ secrets.RED_TEAM_TOKEN }}
-          VAULT_ENDPOINT: ${{ secrets.VAULT_ENDPOINT }}
-          FAIL_ON_WARN:   "1"
+          VAULT_ENDPOINT:      ${{ secrets.VAULT_ENDPOINT }}
+          REQUIRE_VAULT_CASES: "1"
+          FAIL_ON_WARN:        "1"
         run: |
           node red-team/run.mjs
       - name: Upload results
