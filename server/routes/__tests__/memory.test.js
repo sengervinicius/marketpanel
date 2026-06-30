@@ -136,10 +136,11 @@ stubModule('db/postgres', {
   query: (sql, params) => pgQueryImpl(sql, params),
 });
 
-// utils/apiError — mimic the shape routes/memory.js expects.
-stubModule('utils/apiError', {
-  sendApiError: (res, status, msg) => res.status(status).json({ ok: false, error: msg }),
-});
+// #291 W7.1 — exercise the REAL apiError module. It was previously stubbed
+// with the intended (res,status,msg) signature, which masked the production
+// bug where a numeric 2nd arg fell through to HTTP 500. The real module only
+// depends on the logger, so it is safe to load here.
+stubModule('utils/apiError', require('../../utils/apiError'));
 
 // Now load the router.
 const router = require('../memory');
