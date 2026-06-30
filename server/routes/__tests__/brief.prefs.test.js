@@ -56,7 +56,7 @@ stubModule('services/morningBrief', {
 // config/db — best-effort, ignore misses.
 try { stubModule('services/morningBriefInbox', { listForUser: async () => [] }); } catch (_) { /* best-effort stub: module not resolvable in this test run */ void _; }
 try { stubModule('services/emailService', { sendMorningBriefEmail: async () => ({}) }); } catch (_) { /* best-effort stub: module not resolvable in this test run */ void _; }
-try { stubModule('utils/apiError', { sendApiError: (res, status, msg) => res.status(status).json({ ok: false, message: msg }) }); } catch (_) { /* best-effort stub: module not resolvable in this test run */ void _; }
+try { stubModule('utils/apiError', require('../../utils/apiError')); } catch (_) { /* #291 W7.1 — use real apiError; best-effort if unresolvable */ void _; }
 
 const briefRoute = require('../brief');
 const validate = briefRoute._validateBriefPrefs;

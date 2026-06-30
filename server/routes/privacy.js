@@ -56,7 +56,7 @@ router.get('/data-map', (_req, res) => {
       jurisdiction: 'BR',
       dpoEmail: process.env.DPO_EMAIL || 'dpo@arccapital.com.br',
     },
-    lastUpdated: '2026-04-18',
+    lastUpdated: '2026-06-30',
     lawfulBases: ['art_7_V_execution_of_contract', 'art_7_IX_legitimate_interest', 'art_7_I_consent'],
     dataClasses: [
       {
@@ -65,7 +65,7 @@ router.get('/data-map', (_req, res) => {
         purpose: 'authentication, account recovery',
         retention: 'until account deletion + 30d grace',
         basis: 'contract',
-        recipients: ['render.com (hosting)', 'mongodb.com (storage)', 'sendgrid (email)'],
+        recipients: ['render.com (hosting + Postgres storage)', 'resend.com (transactional email)'],
       },
       {
         name: 'billing',
@@ -90,6 +90,20 @@ router.get('/data-map', (_req, res) => {
         retention: 'chat history 90d; cost ledger 24 months',
         basis: 'contract',
         recipients: ['anthropic.com', 'perplexity.ai'],
+      },
+      {
+        // #291 W7.7 (COMP-2) — user-uploaded vault documents (broker
+        // statements, portfolios, research) are chunked and embedded. The
+        // chunk text is sent to the embedding provider; this was previously
+        // UNDISCLOSED in the data-map. Voyage is primary, OpenAI is the
+        // embedding fallback. NOTE: an international-transfer DPA/SCC with
+        // Voyage AI must be confirmed by Legal — see crossBorderTransfers.
+        name: 'vault_documents',
+        fields: ['uploaded document text', 'derived embeddings (pgvector)', 'inbound email body + attachments'],
+        purpose: 'private research retrieval (RAG) over user-supplied documents',
+        retention: 'until document deletion or account deletion + 30d grace',
+        basis: 'contract',
+        recipients: ['voyageai.com (embeddings)', 'openai.com (embeddings fallback)', 'postmark (inbound email ingestion)'],
       },
       {
         name: 'telemetry',
@@ -123,6 +137,13 @@ router.get('/data-map', (_req, res) => {
       'anthropic.com': 'US, adequacy via SCC',
       'perplexity.ai': 'US, adequacy via SCC',
       'sentry.io': 'US, adequacy via SCC',
+      'resend.com': 'US, adequacy via SCC',
+      'postmark': 'US, adequacy via SCC',
+      // #291 W7.7 (COMP-2) — sensitive vault content leaves BR for these US
+      // embedding providers. DPA/SCC PENDING LEGAL CONFIRMATION before this
+      // can be represented as adequate; surfaced here for transparency.
+      'voyageai.com': 'US, transfer of vault content — DPA/SCC pending legal confirmation',
+      'openai.com': 'US, embeddings fallback for vault content — DPA/SCC pending legal confirmation',
     },
   });
 });
@@ -201,11 +222,18 @@ router.get('/me', async (req, res) => {
         payload.aiUsage30Days = usage.rows;
       } catch (e) { swallow(e, 'privacy.me.ai_usage_30d'); }
       try {
+        // #291 W7.3 — fixed: the table is admin_audit_log (not audit_log) and
+        // it has no kind/actor_user_id/target_user_id columns. Targets are
+        // keyed by target_id (TEXT = user id or email). Match the requester as
+        // either actor or target, and bound to the advertised 90-day window.
         const audit = await pg.query(
-          `SELECT created_at, kind, route, details FROM audit_log
-            WHERE actor_user_id = $1 OR target_user_id = $1
-            ORDER BY created_at DESC LIMIT 500`,
-          [uid]
+          `SELECT created_at, action AS kind, route, target_type, details
+             FROM admin_audit_log
+            WHERE (actor_id = $1 OR target_id = $2 OR target_id = $3)
+              AND created_at >= NOW() - INTERVAL '90 days'
+            ORDER BY created_at DESC
+            LIMIT 500`,
+          [uid, String(uid), (user.email || '').toLowerCase()]
         );
         payload.auditLast90Days = audit.rows;
       } catch (e) { swallow(e, 'privacy.me.audit_90d'); }

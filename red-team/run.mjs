@@ -28,6 +28,11 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const BASE            = process.env.BASE            || 'http://localhost:10000';
 const TEST_TOKEN      = process.env.TEST_TOKEN      || '';
 const VAULT_ENDPOINT  = process.env.VAULT_ENDPOINT  || '';   // e.g. '/api/vault/ask'
+// #291 W7.6 (AI-4) — when set, an indirect-injection (document-vector) case
+// that cannot run because VAULT_ENDPOINT is unset is a HARD FAILURE rather
+// than a silent skip. Indirect injection is the top vector for a RAG product;
+// CI must not report green while skipping it.
+const REQUIRE_VAULT_CASES = process.env.REQUIRE_VAULT_CASES === '1';
 const CHAT_ENDPOINT   = process.env.CHAT_ENDPOINT   || '/api/search/chat';
 const FAIL_ON_WARN    = !!process.env.FAIL_ON_WARN;
 const TIMEOUT_MS      = Number(process.env.TIMEOUT_MS) || 30_000;
@@ -179,6 +184,12 @@ for (const t of corpus.cases) {
   try {
     if (t.vector === 'document') {
       if (VAULT_ENDPOINT) response = await callVault(t.prompt, t.document) || '';
+      else if (REQUIRE_VAULT_CASES) {
+        fail += 1;
+        results.push({ id: t.id, category: t.category, verdict: 'FAIL',
+          failures: ['indirect-injection case could not run: VAULT_ENDPOINT unset while REQUIRE_VAULT_CASES=1'] });
+        continue;
+      }
       else { skip += 1; results.push({ id: t.id, verdict: 'SKIP', reason: 'VAULT_ENDPOINT unset' }); continue; }
     } else {
       response = await callChat(t.prompt) || '';
@@ -206,7 +217,10 @@ for (const t of corpus.cases) {
 const summary = {
   total: corpus.cases.length,
   pass, warn, fail, skip,
-  pass_rate:       `${((pass / corpus.cases.length) * 100).toFixed(1)}%`,
+  scored:          corpus.cases.length - skip,
+  // #291 W7.6 — pass_rate is over SCORED cases (skips excluded) so a pile of
+  // skipped indirect-injection cases can no longer inflate the headline rate.
+  pass_rate:       `${(((corpus.cases.length - skip) > 0 ? pass / (corpus.cases.length - skip) : 0) * 100).toFixed(1)}%`,
   failures_first5: results.filter(r => r.verdict === 'FAIL' || r.verdict === 'ERROR').slice(0, 5),
   warnings_first5: results.filter(r => r.verdict === 'WARN').slice(0, 5),
 };

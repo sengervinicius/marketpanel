@@ -161,6 +161,23 @@ export function PriceProvider({ marketData, children }) {
   // Attempt 1: immediate, 2: 10s, 3: 30s, 4: 60s, 5: 120s, then dead
   const BACKOFF_DELAYS = [0, 10_000, 30_000, 60_000, 120_000];
 
+  // #291 W7.4 — dead tickers are no longer permanent. A ticker that failed 5x
+  // is parked with a timestamp; after DEAD_TICKER_TTL_MS the next isDead()
+  // check resurrects it (clears the dead mark + failure count) so a transient
+  // provider hiccup self-heals instead of freezing the price for the whole
+  // session. The 10-min reaper below re-establishes its polling interval.
+  const DEAD_TICKER_TTL_MS = 10 * 60 * 1000;
+  const isDead = useCallback((ticker) => {
+    const diedAt = deadTickers.current.get(ticker);
+    if (diedAt == null) return false;
+    if (Date.now() - diedAt >= DEAD_TICKER_TTL_MS) {
+      deadTickers.current.delete(ticker);
+      fetchErrors.current.delete(ticker);
+      return false;
+    }
+    return true;
+  }, []);
+
   // Normalize ticker for API calls — crypto needs X: prefix, forex needs C: prefix
   const normalizeForApi = useCallback((ticker) => {
     if (!ticker) return ticker;
@@ -175,7 +192,7 @@ export function PriceProvider({ marketData, children }) {
     const failures = (fetchErrors.current.get(ticker) ?? 0) + 1;
     fetchErrors.current.set(ticker, failures);
     if (failures >= 5) {
-      deadTickers.current.add(ticker);
+      deadTickers.current.set(ticker, Date.now());
       console.warn(`[PriceContext] Ticker ${ticker} marked dead after 5 failures`);
       // Stop the interval for this dead ticker
       const id = intervalIds.current.get(ticker);
@@ -192,7 +209,7 @@ export function PriceProvider({ marketData, children }) {
       }
       // Schedule a single retry after the backoff delay
       const timerId = setTimeout(() => {
-        if (deadTickers.current.has(ticker)) return;
+        if (isDead(ticker)) return;
         if ((refCounts.current.get(ticker) ?? 0) <= 0) return;
         fetchExtra(ticker);
         // Re-establish the normal polling interval
@@ -208,8 +225,8 @@ export function PriceProvider({ marketData, children }) {
 
   // Fetch a single ticker from the server and store in extras
   const fetchExtra = useCallback(async (ticker) => {
-    // Skip if this ticker has failed too many times
-    if (deadTickers.current.has(ticker)) return;
+    // Skip if this ticker is in its dead-cooldown window (auto-resurrects after TTL)
+    if (isDead(ticker)) return;
     // #291 W1.5 — skip when tab hidden. The setInterval keeps running
     // (cheap), but the actual HTTP call is suppressed. Resumes on next
     // tick when the user comes back to the tab. Cuts background-tab
@@ -289,6 +306,10 @@ export function PriceProvider({ marketData, children }) {
       const id = intervalIds.current.get(ticker);
       if (id) { clearInterval(id); intervalIds.current.delete(ticker); }
       extrasStore.delete(ticker);
+      // #291 W7.4 — also clear failure/dead state so these Maps don't leak and
+      // a later re-registration of the same ticker starts fresh.
+      fetchErrors.current.delete(ticker);
+      deadTickers.current.delete(ticker);
     } else {
       refCounts.current.set(ticker, prev - 1);
     }
@@ -310,13 +331,32 @@ export function PriceProvider({ marketData, children }) {
           const id = intervalIds.current.get(ticker);
           if (id) { clearInterval(id); intervalIds.current.delete(ticker); }
           extrasStore.delete(ticker);
+          // #291 W7.4 — clear failure/dead state for the reaped ticker too.
+          fetchErrors.current.delete(ticker);
+          deadTickers.current.delete(ticker);
           reaped++;
         }
       }
-      if (reaped > 0) console.log(`[PriceContext] Reaper: cleared ${reaped} zombie tickers`);
+      // #291 W7.4 — resurrection pass: a still-referenced ticker that lost its
+      // polling interval (went dead, or popout glitch) gets re-armed once its
+      // dead-cooldown has elapsed, so prices recover without a full reload.
+      let revived = 0;
+      for (const [ticker, count] of refCounts.current.entries()) {
+        if (count > 0 && !intervalIds.current.has(ticker) && !isDead(ticker)) {
+          if (mdRef.current && !lookupInBatch(mdRef.current, ticker)) {
+            fetchExtra(ticker);
+            intervalIds.current.set(ticker, setInterval(() => {
+              if (!lookupInBatch(mdRef.current, ticker)) fetchExtra(ticker);
+            }, REFRESH_MS));
+            revived++;
+          }
+        }
+      }
+      if (reaped > 0)  console.log(`[PriceContext] Reaper: cleared ${reaped} zombie tickers`);
+      if (revived > 0) console.log(`[PriceContext] Reaper: revived ${revived} recovered tickers`);
     }, 10 * 60 * 1000); // 10 min
     return () => clearInterval(reaper);
-  }, [extrasStore]);
+  }, [extrasStore, fetchExtra, isDead]);
 
   // Cleanup all intervals on unmount
   useEffect(() => () => {

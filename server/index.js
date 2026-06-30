@@ -162,6 +162,13 @@ const { init: initSignalMonitor } = require('./services/signalMonitor');
 
 const app = express();
 
+// #291 W7.5 (SEC-3) — trust exactly one proxy hop (Render's load balancer) so
+// req.ip resolves to the real client IP. Without this, express-rate-limit
+// keys every request off the proxy address, collapsing the auth brute-force
+// and support limiters into a single global bucket. '1' (one hop) is
+// deliberate — `true` would trust a client-supplied X-Forwarded-For chain.
+app.set('trust proxy', 1);
+
 // ── Gzip/Brotli compression — reduces JSON payload sizes by ~70% ─────────────
 app.use(compression({
   level: 6,           // good balance of speed vs compression ratio

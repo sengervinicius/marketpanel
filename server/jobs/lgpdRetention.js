@@ -13,12 +13,19 @@
  *    than 90 days. The message content is preserved for statistical
  *    analysis but email/name/ip_hash are nulled.
  *
- * The FK cascades on users(id) already take care of:
- *   - conversations, conversation_messages
- *   - vault_documents, vault_chunks
- *   - screener_presets, screen_tickers
- *   - ai_usage_ledger, admin_audit_log, dsar_erasure_queue
- * Any table lacking ON DELETE CASCADE must be cleaned here explicitly.
+ * The FK cascades on users(id) take care of the tables that declare
+ * ON DELETE CASCADE (conversations, conversation_messages, vault_documents,
+ * vault_chunks, screener_presets, screen_tickers, dsar_erasure_queue).
+ *
+ * #291 W7.2 — the following user-scoped tables do NOT cascade and MUST be
+ * purged explicitly (verified against init.sql; previous claim that
+ * ai_usage_ledger / admin_audit_log cascade was incorrect):
+ *   - ai_usage_ledger (user_id)   — no FK
+ *   - user_behavior   (user_id)   — no FK
+ *   - used_trials     (email PK)  — keyed by email, not user_id
+ * admin_audit_log is intentionally RETAINED for the regulatory audit trail
+ * (do not delete on erasure; it records the erasure itself).
+ * Any new user-scoped table lacking ON DELETE CASCADE must be added below.
  *
  * Failures flip the queue row to status='failed' and record last_error so
  * an admin can retry.
@@ -32,16 +39,31 @@ const logger = require('../utils/logger');
 // Tables that do NOT FK-cascade on users.id. Keep this in sync with init.sql.
 // Scan init.sql when adding new user-scoped tables.
 const NON_CASCADE_TABLES = [
-  // { table: 'some_table', column: 'user_id' },
+  { table: 'ai_usage_ledger', column: 'user_id' },
+  { table: 'user_behavior',   column: 'user_id' },
 ];
+
+// used_trials is keyed by email (no user_id), so it is purged separately
+// inside hardDeleteUser once the user's email is resolved.
+// NOTE (follow-up, not in this fix): used_trials stores the email in
+// plaintext as its PRIMARY KEY for trial-abuse detection. Hashing it at the
+// write path would remove standing PII for *active* trials too; that needs a
+// migration + a change to the trial-claim lookup and is tracked separately.
 
 async function hardDeleteUser(userId) {
   if (!pg.isConnected) throw new Error('db-unavailable');
   const client = await pg.pool.connect();
   try {
     await client.query('BEGIN');
+    // Resolve the email BEFORE deleting the user row so we can also purge
+    // email-keyed tables (used_trials) that have no user_id FK.
+    const ures = await client.query(`SELECT email FROM users WHERE id = $1`, [userId]);
+    const email = ures.rows[0] && ures.rows[0].email;
     for (const t of NON_CASCADE_TABLES) {
       await client.query(`DELETE FROM ${t.table} WHERE ${t.column} = $1`, [userId]);
+    }
+    if (email) {
+      await client.query(`DELETE FROM used_trials WHERE email = $1`, [email]);
     }
     await client.query(`DELETE FROM users WHERE id = $1`, [userId]);
     await client.query(
