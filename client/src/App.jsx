@@ -327,6 +327,7 @@ export default function App() {
   // showWelcome removed — WelcomeTour component manages its own visibility
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+  const [paletteQuery, setPaletteQuery] = useState(''); // #291 W7.13 — pre-filter for the palette (e.g. 'panel')
 
   // ── First-visit onboarding hint ─────────────────────────────────────────
   const [showLayoutHint, setShowLayoutHint] = useState(() => {
@@ -381,6 +382,7 @@ export default function App() {
       // Ctrl/Cmd + K = Open command palette
       if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
         e.preventDefault();
+        setPaletteQuery('');
         setCommandPaletteOpen(prev => !prev);
         return;
       }
@@ -802,6 +804,7 @@ export default function App() {
           onClose={() => setCommandPaletteOpen(false)}
           excludeCommandIds={lightThemeEnabled ? [] : ['toggle-theme']}
           extraCommands={panelCommands}
+          initialQuery={paletteQuery}
           onCommand={(cmd) => {
             setCommandPaletteOpen(false);
             if (cmd.action === 'panel-toggle') {
@@ -990,6 +993,14 @@ export default function App() {
               </svg>
               <span style={{ fontSize: 9, letterSpacing: '0.5px', opacity: 0.6 }}>DM</span>
             </button>
+            {/* #291 W7.13 — discoverable '+ Add panel' entry: opens the Cmd+K
+                palette pre-filtered to the Show/Hide panel commands. */}
+            <button className="btn"
+              onClick={() => { setPaletteQuery('panel'); setCommandPaletteOpen(true); }}
+              title="Add or remove a panel (opens the command palette — Ctrl/Cmd+K)"
+              aria-label="Add or remove a panel"
+              style={{ background: 'none', border: '1px solid var(--border-strong)', color: 'var(--text-faint)' }}
+            >+ PANEL</button>
             <button data-tour="layout" className={`btn${showLayoutHint && !layoutEdit ? ' layout-btn-pulse' : ''}`}
               onClick={() => { setLayoutEdit(s => !s); if (showLayoutHint) dismissLayoutHint(); }}
               title="Customize your workspace — drag, resize, and rearrange panels"
@@ -1329,6 +1340,7 @@ export default function App() {
         isOpen={commandPaletteOpen}
         onClose={() => setCommandPaletteOpen(false)}
         extraCommands={panelCommands}
+        initialQuery={paletteQuery}
         onCommand={(cmd) => {
           setCommandPaletteOpen(false);
           if (cmd.action === 'panel-toggle') {

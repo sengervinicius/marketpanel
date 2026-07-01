@@ -107,7 +107,7 @@ function fuzzySearch(query, commands) {
     .map(({ cmd }) => cmd);
 }
 
-export default function CommandPalette({ isOpen, onClose, onCommand, excludeCommandIds, extraCommands = [] }) {
+export default function CommandPalette({ isOpen, onClose, onCommand, excludeCommandIds, extraCommands = [], initialQuery = '' }) {
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef(null);
@@ -159,6 +159,13 @@ export default function CommandPalette({ isOpen, onClose, onCommand, excludeComm
   // wasn't yet mounted/focused. requestAnimationFrame defers focus until
   // after the palette is actually in the DOM, so the next character the
   // user types lands in the search field.
+  // #291 W7.13 — reset the query to the caller-provided initialQuery each time
+  // the palette opens (e.g. '' for Cmd+K, 'panel' for the + Add panel button).
+  // Also fixes a stale-query carry-over between opens.
+  useEffect(() => {
+    if (isOpen) setQuery(initialQuery || '');
+  }, [isOpen, initialQuery]);
+
   useEffect(() => {
     if (!isOpen) return;
     let raf = requestAnimationFrame(() => {
