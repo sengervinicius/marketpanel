@@ -107,7 +107,7 @@ function fuzzySearch(query, commands) {
     .map(({ cmd }) => cmd);
 }
 
-export default function CommandPalette({ isOpen, onClose, onCommand, excludeCommandIds }) {
+export default function CommandPalette({ isOpen, onClose, onCommand, excludeCommandIds, extraCommands = [] }) {
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef(null);
@@ -116,11 +116,14 @@ export default function CommandPalette({ isOpen, onClose, onCommand, excludeComm
   // Filter out any command ids the parent wants to hide (e.g. toggle-theme
   // when the light_theme_enabled flag is off — #239 / P1.5).
   const allCommands = useMemo(() => {
-    const flat = flattenCommands(COMMAND_GROUPS);
+    // #291 W7.12 — extraCommands lets the parent inject dynamic entries
+    // (e.g. per-panel Show/Hide for the terminal grid) without editing the
+    // static COMMAND_GROUPS. Additive; existing behaviour unchanged.
+    const flat = [...flattenCommands(COMMAND_GROUPS), ...(Array.isArray(extraCommands) ? extraCommands : [])];
     if (!Array.isArray(excludeCommandIds) || excludeCommandIds.length === 0) return flat;
     const excluded = new Set(excludeCommandIds);
     return flat.filter(c => !excluded.has(c.id));
-  }, [excludeCommandIds]);
+  }, [excludeCommandIds, extraCommands]);
 
   // Get recently used from localStorage
   const recentlyUsed = useMemo(() => {

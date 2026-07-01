@@ -27,6 +27,7 @@ import NotificationPrefs from './components/common/NotificationPrefs';
 import HeaderSearchBar from './components/common/HeaderSearchBar';
 import KeyboardShortcutsModal from './components/common/KeyboardShortcutsModal';
 import CommandPalette from './components/common/CommandPalette';
+import { PANEL_DEFINITIONS } from './config/panels';
 import FeedbackButton from './components/common/FeedbackButton';
 import { SearchPanel } from './components/panels/SearchPanel';
 // #253 P3.1 — lazy chunks moved to lazyPanels.js so App.jsx stays focused on shell composition.
@@ -279,6 +280,25 @@ export default function App() {
   } = useLayoutManager();
 
   const border = '1px solid var(--border-subtle)';
+
+  // #291 W7.12 — universal panel add/remove via the Cmd+K palette. Turns the
+  // ~8-click Settings-drawer flow into one keystroke: type a panel name, Enter
+  // toggles it on the terminal grid (switching to Terminal first if needed).
+  const panelCommands = useMemo(() => {
+    const labelById = {};
+    try {
+      Object.values(PANEL_DEFINITIONS || {}).forEach(pd => { if (pd && pd.id) labelById[pd.id] = pd.label || pd.id; });
+    } catch { /* noop */ }
+    const ids = Array.from(new Set((desktopRows || []).flat()));
+    return ids.map(id => ({
+      id: 'panel-' + id,
+      label: (isPanelVisible(id) ? 'Hide ' : 'Show ') + (labelById[id] || id) + ' panel',
+      action: 'panel-toggle',
+      target: id,
+      category: 'Panels',
+      categoryIcon: '▦',
+    }));
+  }, [desktopRows, isPanelVisible, panelVisible]);
 
   // Panel drag & drop swap state
   const [draggedPanelId, setDraggedPanelId] = useState(null);
@@ -781,8 +801,14 @@ export default function App() {
           isOpen={commandPaletteOpen}
           onClose={() => setCommandPaletteOpen(false)}
           excludeCommandIds={lightThemeEnabled ? [] : ['toggle-theme']}
+          extraCommands={panelCommands}
           onCommand={(cmd) => {
             setCommandPaletteOpen(false);
+            if (cmd.action === 'panel-toggle') {
+              if (mobileMode !== 'terminal') setMobileModePersist('terminal');
+              togglePanel(cmd.target);
+              return;
+            }
             if (cmd.action === 'navigate') {
               if (cmd.target === 'home') handleGoHome();
               else if (cmd.target === 'admin') { if (isAdmin) setMobileModePersist('admin'); }
@@ -1302,8 +1328,14 @@ export default function App() {
       <CommandPalette
         isOpen={commandPaletteOpen}
         onClose={() => setCommandPaletteOpen(false)}
+        extraCommands={panelCommands}
         onCommand={(cmd) => {
           setCommandPaletteOpen(false);
+          if (cmd.action === 'panel-toggle') {
+            if (mobileMode !== 'terminal') setMobileModePersist('terminal');
+            togglePanel(cmd.target);
+            return;
+          }
           if (cmd.action === 'navigate') {
             if (cmd.target === 'home') handleGoHome();
             else setActiveSectorScreen(cmd.target);
