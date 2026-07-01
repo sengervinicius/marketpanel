@@ -155,7 +155,7 @@ export function PriceProvider({ marketData, children }) {
   // fetchErrors: ticker → consecutive failure count
   // deadTickers: set of tickers that have failed too many times (not persisted to localStorage)
   const fetchErrors = useRef(new Map());
-  const deadTickers = useRef(new Set());
+  const deadTickers = useRef(new Map()); // #291 W7.9 HOTFIX — Map (was Set); isDead()/trackFailure use .get()/.set()
 
   // Exponential backoff delays (ms) for consecutive failures:
   // Attempt 1: immediate, 2: 10s, 3: 30s, 4: 60s, 5: 120s, then dead
