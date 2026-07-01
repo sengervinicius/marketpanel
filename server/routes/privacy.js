@@ -87,7 +87,7 @@ router.get('/data-map', (_req, res) => {
         name: 'ai_interactions',
         fields: ['chat_messages', 'ai_usage_ledger (tokens, cents)'],
         purpose: 'service delivery + cost accounting',
-        retention: 'chat history 90d; cost ledger 24 months',
+        retention: 'chat history 90d; cost ledger 13 months',
         basis: 'contract',
         recipients: ['anthropic.com', 'perplexity.ai'],
       },

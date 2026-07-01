@@ -79,6 +79,14 @@ function initJobs(ctx = {}) {
   const { runRetentionOnce } = require('./lgpdRetention');
   registerJob('lgpd-retention', '15 6 * * *', runRetentionOnce);  // 03:15 BRT = 06:15 UTC
 
+  // ── Data retention purge: daily at 03:30 BRT = 06:30 UTC (#291 W7.11) ──
+  // Enforces the published retention windows that were previously advertised
+  // but never actually applied (audit COMP-4/COMP-5): AI usage ledger 13mo,
+  // chat history 90d, vault_query_log free 30d / paid 365d. Staggered 15min
+  // after lgpd-retention to spread DB load.
+  const { runDataRetentionOnce } = require('./dataRetention');
+  registerJob('data-retention', '30 6 * * *', runDataRetentionOnce);
+
   // ── Subscription reconciler: hourly (W2.2) ───────────────────────────
   // Compares local users row to Stripe; records drift + auto-corrects.
   const { runOnce: reconcileSubs } = require('./subscriptionReconciler');
