@@ -50,12 +50,16 @@ function HsbEnrichedRow({ item, idx, selectedIdx, onSelect, onMouseEnter, typeBa
       type: assetType,
     }));
     e.dataTransfer.setData('text/plain', chartSym);
-    // #230 P1.6a — hide the dropdown the instant the drag begins. Without
-    // this, a long result list overlays the top row of panels (Charts,
-    // Watchlist, Global Indices, Futures) and the user cannot actually drop
-    // onto them. Closing happens via a callback so parent state stays the
-    // source of truth.
-    if (typeof onDragStartClose === 'function') onDragStartClose();
+    // #230 P1.6a — hide the dropdown so a long result list doesn't overlay the
+    // top panel row (Charts/Watchlist/Global Indices/Futures) and block drops.
+    // #291 W7.10 FIX — but DEFER the close by one macrotask. Calling it
+    // synchronously here unmounts the drag-source row mid-`dragstart`, which
+    // ABORTS the HTML5 drag in Chromium (no dragover/drop ever reaches a
+    // panel — the reported "drag from search doesn't work"). By the time the
+    // 0ms timer fires the browser has already snapshotted the drag image and
+    // initiated the drag, so it survives; the dropdown still closes before the
+    // cursor reaches a panel, so it never blocks the drop.
+    if (typeof onDragStartClose === 'function') setTimeout(onDragStartClose, 0);
   };
 
   return (
