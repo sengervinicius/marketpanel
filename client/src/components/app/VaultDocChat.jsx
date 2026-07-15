@@ -2,11 +2,13 @@
  * VaultDocChat.jsx — Document-scoped Q&A interface
  *
  * Mini chat panel for asking questions about a specific vault document.
- * Uses Server-Sent Events (SSE) to stream responses from the backend.
+ * Uses Server-Sent Events (SSE) to stream responses from the backend via
+ * the shared readSSEStream util (UTF-8-safe, line-buffered, abortable).
  */
 
 import { useState, useRef, useEffect } from 'react';
 import { API_BASE } from '../../utils/api';
+import { readSSEStream, createChatAbort } from '../../utils/sseStream';
 import { useAuth } from '../../context/AuthContext';
 import ParticleMarkdown from '../common/ParticleMarkdown';
 import AIDisclaimer from '../common/AIDisclaimer';
@@ -19,6 +21,7 @@ export default function VaultDocChat({ documentId, filename, onClose }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const messagesEndRef = useRef(null);
+  const abortRef = useRef(null);
   const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
   const scrollToBottom = () => {
@@ -28,6 +31,10 @@ export default function VaultDocChat({ documentId, filename, onClose }) {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Abort any in-flight stream when the panel unmounts so we stop fetching
+  // and never setState on an unmounted component.
+  useEffect(() => () => { abortRef.current?.abort(); }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -41,6 +48,10 @@ export default function VaultDocChat({ documentId, filename, onClose }) {
     setMessages(prev => [...prev, { role: 'user', content: question }]);
     setLoading(true);
 
+    // One controller per request; unmount cleanup aborts it.
+    const { controller, signal } = createChatAbort();
+    abortRef.current = controller;
+
     try {
       // Stream response from backend
       const response = await fetch(
@@ -52,6 +63,7 @@ export default function VaultDocChat({ documentId, filename, onClose }) {
             'Content-Type': 'application/json',
           },
           credentials: 'include',
+          signal,
           body: JSON.stringify({ question }),
         }
       );
@@ -61,59 +73,46 @@ export default function VaultDocChat({ documentId, filename, onClose }) {
         throw new Error(errData.error || 'Failed to get response');
       }
 
-      // Process SSE stream
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
+      // Process SSE stream through the shared parser.
       let assistantContent = '';
-
-      try {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          const chunk = decoder.decode(value);
-          const lines = chunk.split('\n');
-
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              const data = line.slice(6);
-              if (data === '[DONE]') {
-                // Stream complete
-                break;
-              } else if (data === '[ERROR]') {
-                throw new Error('Stream error');
-              } else {
-                try {
-                  const parsed = JSON.parse(data);
-                  if (parsed.content) {
-                    assistantContent += parsed.content;
-                    // Update last message with streaming content
-                    setMessages(prev => {
-                      const updated = [...prev];
-                      const lastMsg = updated[updated.length - 1];
-                      if (lastMsg && lastMsg.role === 'assistant') {
-                        lastMsg.content = assistantContent;
-                      } else {
-                        updated.push({ role: 'assistant', content: assistantContent });
-                      }
-                      return updated;
-                    });
-                  }
-                } catch {
-                  // Skip parse errors
-                }
-              }
-            }
+      await readSSEStream(response, {
+        signal,
+        onData: (parsed) => {
+          // Server-side stream failure markers (modelRouter emits
+          // `{ partial: true, error }`; legacy path emitted `{ error }`).
+          if (parsed.partial || (parsed.error && !parsed.content && !parsed.chunk)) {
+            throw new Error(
+              typeof parsed.error === 'string' ? parsed.error : 'Stream error'
+            );
           }
-        }
-      } finally {
-        reader.releaseLock();
-      }
+          // NOTE: the server also emits a `{ vaultSources: [...] }` citation
+          // event (same format as the main chat path). This panel doesn't
+          // render citations yet, so it is intentionally ignored here.
+          const delta = parsed.content ?? parsed.chunk;
+          if (delta) {
+            assistantContent += delta;
+            // Update last message with streaming content (immutably —
+            // mutating lastMsg.content in place breaks React memoization).
+            setMessages(prev => {
+              const updated = [...prev];
+              const lastMsg = updated[updated.length - 1];
+              if (lastMsg && lastMsg.role === 'assistant') {
+                updated[updated.length - 1] = { ...lastMsg, content: assistantContent };
+              } else {
+                updated.push({ role: 'assistant', content: assistantContent });
+              }
+              return updated;
+            });
+          }
+        },
+      });
 
       if (assistantContent.length === 0) {
         throw new Error('Empty response from server');
       }
     } catch (err) {
+      // Unmount/abort: stop quietly — no error bubble, no setState churn.
+      if (err?.name === 'AbortError') return;
       setError(err.message);
       setMessages(prev => [
         ...prev,
@@ -124,7 +123,8 @@ export default function VaultDocChat({ documentId, filename, onClose }) {
         },
       ]);
     } finally {
-      setLoading(false);
+      if (abortRef.current === controller) abortRef.current = null;
+      if (!signal.aborted) setLoading(false);
     }
   };
 

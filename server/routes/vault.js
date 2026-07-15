@@ -37,6 +37,12 @@ const {
 
 const pg = require('../db/postgres');
 
+// Audit §6.7-6.8 / M4 — doc-scoped Q&A now rides the same model-routing +
+// injection-hardening rails as the main chat path instead of a hard-coded
+// OpenAI call.
+const modelRouter = require('../services/modelRouter');
+const { sanitizeQuery } = require('./search.helpers');
+
 const router = express.Router();
 
 // W6.1 — vault kill switch. Admin endpoints + /health are exempt so on-call
@@ -647,7 +653,59 @@ router.delete('/admin/documents/:id', requireAdmin, async (req, res) => {
  * POST /documents/:id/ask — Ask a question scoped to a specific document.
  * Body: { question: string }
  * Streams response back as server-sent events.
+ *
+ * Wire format (backward compatible with pre-unification clients):
+ *   data: {"vaultSources": [...]}   — NEW citation metadata event, same shape
+ *                                     the main chat path emits. Old clients
+ *                                     JSON.parse it, find no `content`, skip.
+ *   data: {"content": "..."}        — completion text chunks (unchanged)
+ *   data: {"partial": true, ...}    — stream-interrupted marker (from
+ *                                     modelRouter; old clients ignore it)
+ *   data: [DONE]                    — terminator (unchanged)
  */
+
+// Doc-scoped Q&A output cap. Was 500 pre-unification; ~1000 leaves room for
+// multi-passage answers with [Vn] citations without inviting essays.
+const DOC_ASK_MAX_TOKENS = 1000;
+
+/**
+ * Wrap the real Express response so modelRouter.streamResponse's normalized
+ * `data: {"chunk": "..."}` events go out on the wire as the historical
+ * `data: {"content": "..."}` events this endpoint has always emitted (old
+ * client bundles depend on `content` during rolling deploy). Everything
+ * else — vaultSources, partial markers, [DONE], comments — passes through
+ * untouched, as do headersSent/writableEnded/end/status/json used by
+ * streamResponse's error paths.
+ */
+function makeDocAskSSEAdapter(res) {
+  return {
+    get headersSent() { return res.headersSent; },
+    get writableEnded() { return res.writableEnded; },
+    writeHead: (...args) => res.writeHead(...args),
+    setHeader: (...args) => res.setHeader(...args),
+    flush: (...args) => (typeof res.flush === 'function' ? res.flush(...args) : undefined),
+    status: (...args) => res.status(...args),
+    json: (...args) => res.json(...args),
+    end: (...args) => res.end(...args),
+    on: (...args) => res.on(...args),
+    write: (data) => {
+      const str = String(data);
+      if (str.startsWith('data: ')) {
+        const payload = str.slice(6).trim();
+        if (payload && payload !== '[DONE]') {
+          try {
+            const parsed = JSON.parse(payload);
+            if (parsed && typeof parsed.chunk === 'string') {
+              return res.write(`data: ${JSON.stringify({ content: parsed.chunk })}\n\n`);
+            }
+          } catch (_) { /* non-JSON control line — pass through as-is */ }
+        }
+      }
+      return res.write(data);
+    },
+  };
+}
+
 router.post('/documents/:id/ask', requireAuth, async (req, res) => {
   try {
     const documentId = parseInt(req.params.id, 10);
@@ -657,6 +715,13 @@ router.post('/documents/:id/ask', requireAuth, async (req, res) => {
 
     const { question } = req.body;
     if (!question || typeof question !== 'string' || !question.trim()) {
+      return res.status(400).json({ error: 'question is required' });
+    }
+
+    // W1.3 — same prompt-injection delimiter scrub the main chat path
+    // applies to every user query (routes/search.helpers.sanitizeQuery).
+    const cleanQuestion = sanitizeQuery(question.trim());
+    if (!cleanQuestion) {
       return res.status(400).json({ error: 'question is required' });
     }
 
@@ -674,123 +739,84 @@ router.post('/documents/:id/ask', requireAuth, async (req, res) => {
     }
 
     // Retrieve passages from this document only
-    const passages = await vault.retrieveFromDocument(documentId, req.user.id, question, 5);
+    const passages = await vault.retrieveFromDocument(documentId, req.user.id, cleanQuestion, 5);
 
     if (passages.length === 0) {
       return res.status(400).json({ error: 'No relevant passages found in this document' });
     }
 
-    // Format passages for prompt
-    const passageText = passages
-      .map((p, i) => `[Passage ${i + 1}]: ${p.content}`)
-      .join('\n\n');
+    // Unified prompt assembly: the SAME [Vn]/page-cited formatter +
+    // untrusted-data envelope the main vault RAG path uses
+    // (vault.formatForPrompt → vaultSecurity.wrapAsUntrustedData). Replaces
+    // the old raw "[Passage N]" dump that shipped document text to the model
+    // with no injection hardening and no page citations.
+    const vaultContext = vault.formatForPrompt(passages);
 
-    // Stream response using OpenAI API
-    const fetch = require('node-fetch');
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) {
+    // Citation metadata — same shape agentOrchestrator.vaultAgent builds for
+    // the main chat path's `data: {"vaultSources": [...]}` event.
+    const vaultSources = passages.map(p => ({
+      filename: p.filename || 'Unknown',
+      source: p.doc_metadata?.bank || p.source || '',
+      tickers: p.doc_metadata?.tickers || [],
+      date: p.doc_metadata?.date || '',
+      pageNumber: p.page_number || null,
+      similarity: p.similarity != null ? parseFloat(p.similarity).toFixed(2) : null,
+      isGlobal: p.is_global || false,
+    }));
+
+    // Model per router policy: doc-scoped Q&A is a quick factual lookup →
+    // Haiku-class (ROUTE_MAP.quick_factual). No more hard-coded gpt-4o-mini.
+    const provider = modelRouter.route('quick_factual');
+    if (!process.env[provider.keyEnv]) {
       return res.status(503).json({ error: 'AI service not configured' });
     }
 
-    // Set up AbortController and attach cleanup BEFORE fetch
-    const controller = new AbortController();
-    req.on('close', () => {
-      if (!controller.signal.aborted) {
-        controller.abort();
-      }
-      res.end();
+    const systemPrompt =
+      `You are answering questions about a specific document: "${doc.filename}". ` +
+      'Use ONLY the evidence passages provided to answer. If the answer is not ' +
+      'in the passages, say so clearly. Be concise and cite the passages you ' +
+      'reference using [V1], [V2], ... markers matching the evidence order, ' +
+      'including page numbers where shown.';
+
+    const messages = [{
+      role: 'user',
+      content: `${cleanQuestion}\n${vaultContext}`,
+    }];
+
+    // SSE headers + citation event BEFORE the model stream, mirroring the
+    // main chat path (routes/search.js emits vaultSources ahead of chunks).
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      Connection: 'keep-alive',
+      'X-Accel-Buffering': 'no',
     });
-
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [{
-          role: 'system',
-          content: `You are answering questions about a specific document: "${doc.filename}". Use ONLY the provided passages to answer. If the answer is not in the passages, say so clearly. Be concise and cite which passages you're referencing.`,
-        }, {
-          role: 'user',
-          content: `${question}\n\nRelevant passages from the document:\n\n${passageText}`,
-        }],
-        max_tokens: 500,
-        temperature: 0.3,
-        stream: true,
-      }),
-      signal: controller.signal,
-    });
-
-    if (!response.ok) {
-      logger.error('vault-route', 'OpenAI API error', { status: response.status });
-      return res.status(502).json({ error: 'AI service error' });
-    }
-
-    // Set up SSE headers
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
-
-    // Stream chunks from OpenAI
-    const { Readable } = require('stream');
-    let buffer = '';
-
-    response.body.on('data', (chunk) => {
-      buffer += chunk.toString();
-      const lines = buffer.split('\n');
-      buffer = lines.pop(); // Keep incomplete line in buffer
-
-      for (const line of lines) {
-        if (line.startsWith('data: ')) {
-          const data = line.slice(6);
-          if (data === '[DONE]') {
-            res.write('data: [DONE]\n\n');
-          } else {
-            try {
-              const parsed = JSON.parse(data);
-              const content = parsed.choices?.[0]?.delta?.content;
-              if (content) {
-                res.write(`data: ${JSON.stringify({ content })}\n\n`);
-              }
-            } catch (e) {
-              // Ignore parse errors
-            }
-          }
-        }
-      }
-    });
-
-    response.body.on('end', () => {
-      if (buffer.startsWith('data: ')) {
-        res.write(buffer + '\n\n');
-      }
-      res.end();
-    });
-
-    response.body.on('error', (err) => {
-      logger.error('vault-route', 'Stream error', { error: err.message });
-      if (!res.headersSent) {
-        res.status(502).json({ error: 'Stream error from AI service' });
-      } else {
-        res.write(`data: ${JSON.stringify({ error: 'Stream error: ' + err.message })}\n\n`);
-        res.end();
-      }
-    });
+    res.write(`data: ${JSON.stringify({ vaultSources })}\n\n`);
 
     logger.info('vault-route', 'Document Q&A initiated', {
       userId: req.user.id,
       documentId,
-      questionLength: question.length,
+      model: provider.model,
+      questionLength: cleanQuestion.length,
       passagesCount: passages.length,
+    });
+
+    // Stream through the shared router path: retry/backoff, cost-ledger
+    // accounting, client-disconnect abort and partial-event error handling —
+    // all identical to the main chat stream. The adapter rewrites
+    // `{chunk}` → `{content}` on the wire for old clients.
+    await modelRouter.streamResponse(provider, messages, systemPrompt, makeDocAskSSEAdapter(res), {
+      onAbort: (abortFn) => { req.on('close', abortFn); },
+      userId: req.user.id,
+      maxTokens: DOC_ASK_MAX_TOKENS,
     });
   } catch (err) {
     logger.error('vault-route', 'Document Q&A error', { error: err.message });
     if (!res.headersSent) {
       res.status(500).json({ error: 'Failed to process question' });
-    } else {
+    } else if (!res.writableEnded) {
       res.write(`data: ${JSON.stringify({ error: 'Failed to process question: ' + err.message })}\n\n`);
+      res.write('data: [DONE]\n\n');
       res.end();
     }
   }

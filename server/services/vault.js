@@ -2294,7 +2294,7 @@ async function retrieveFromDocument(documentId, userId, query, limit = MAX_RETRI
     const embeddings = await embed([query]);
     if (embeddings[0]) {
       const vecResult = await pg.query(
-        `SELECT vc.id, vc.document_id, vc.chunk_index, vc.content, vc.metadata,
+        `SELECT vc.id, vc.document_id, vc.chunk_index, vc.content, vc.metadata, vc.page_number,
                 vd.filename, vd.source, vd.is_global, vd.metadata as doc_metadata,
                 1 - (vc.embedding <=> $1::vector) AS similarity
          FROM vault_chunks vc
@@ -2326,7 +2326,7 @@ async function retrieveFromDocument(documentId, userId, query, limit = MAX_RETRI
 
     if (cleanQuery) {
       const bm25Result = await pg.query(
-        `SELECT vc.id, vc.document_id, vc.chunk_index, vc.content, vc.metadata,
+        `SELECT vc.id, vc.document_id, vc.chunk_index, vc.content, vc.metadata, vc.page_number,
                 vd.filename, vd.source, vd.is_global, vd.metadata as doc_metadata,
                 ts_rank_cd(vc.search_vector, to_tsquery('english', $1)) AS bm25_rank
          FROM vault_chunks vc

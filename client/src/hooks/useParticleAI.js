@@ -8,8 +8,9 @@
  *   const { messages, isStreaming, send, clear } = useParticleAI();
  *   send('What is moving in tech today?');
  */
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { API_BASE } from '../utils/api';
+import { readSSEStream, createChatAbort } from '../utils/sseStream';
 import { useAuth } from '../context/AuthContext';
 
 const SYSTEM_CONTEXT = [
@@ -34,6 +35,10 @@ export default function useParticleAI() {
   const [error, setError] = useState(null);
   const abortRef = useRef(null);
 
+  // Tie the in-flight stream to the owning component's lifecycle: if it
+  // unmounts mid-stream, abort so we stop fetching and stop setState-ing.
+  useEffect(() => () => { abortRef.current?.abort(); }, []);
+
   const send = useCallback(async (userMessage) => {
     if (!userMessage?.trim() || isStreaming) return;
 
@@ -57,8 +62,8 @@ export default function useParticleAI() {
       .slice(-10)
       .map(m => ({ role: m.role, content: m.content }));
 
-    // Abort controller for this request
-    const controller = new AbortController();
+    // Abort controller for this request (fetch + SSE read share the signal)
+    const { controller, signal } = createChatAbort();
     abortRef.current = controller;
 
     try {
@@ -69,7 +74,7 @@ export default function useParticleAI() {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         credentials: 'include',
-        signal: controller.signal,
+        signal,
         body: JSON.stringify({
           messages: historyForApi,
           context: SYSTEM_CONTEXT,
@@ -101,10 +106,8 @@ export default function useParticleAI() {
         throw new Error(friendly);
       }
 
-      // Stream the response
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
+      // Stream the response via the shared SSE parser (UTF-8-safe decode,
+      // cross-read line buffering, hard [DONE] stop, abort support).
       let fullText = '';
       let vaultSources = null;
       let webCitations = null; // Perplexity web citations (URLs)
@@ -116,125 +119,108 @@ export default function useParticleAI() {
       // answer with no hint why.
       let toolEvents = [];
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || ''; // keep incomplete line
-
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (!trimmed || !trimmed.startsWith('data: ')) continue;
-
-          const payload = trimmed.slice(6);
-          if (payload === '[DONE]') break;
-
-          try {
-            const parsed = JSON.parse(payload);
-            // Capture vault citation metadata (sent before the AI stream)
-            if (parsed.vaultSources) {
-              vaultSources = parsed.vaultSources;
-              setMessages(prev => {
-                const updated = [...prev];
-                const last = updated[updated.length - 1];
-                if (last?.role === 'assistant') {
-                  updated[updated.length - 1] = { ...last, vaultSources };
-                }
-                return updated;
-              });
-              continue;
-            }
-            // Capture structured analysis JSON (sent at end of deep analysis stream)
-            if (parsed.structuredAnalysis) {
-              structuredAnalysis = parsed.structuredAnalysis;
-              setMessages(prev => {
-                const updated = [...prev];
-                const last = updated[updated.length - 1];
-                if (last?.role === 'assistant') {
-                  updated[updated.length - 1] = { ...last, structuredAnalysis };
-                }
-                return updated;
-              });
-              continue;
-            }
-            // Phase 2: Capture context completeness metadata (sources, intent, model)
-            if (parsed.contextMeta) {
-              setMessages(prev => {
-                const updated = [...prev];
-                const last = updated[updated.length - 1];
-                if (last?.role === 'assistant') {
-                  updated[updated.length - 1] = { ...last, contextMeta: parsed.contextMeta };
-                }
-                return updated;
-              });
-              continue;
-            }
-            // Phase 2: Handle partial/interrupted stream — show retry prompt
-            if (parsed.partial) {
-              setMessages(prev => {
-                const updated = [...prev];
-                const last = updated[updated.length - 1];
-                if (last?.role === 'assistant') {
-                  updated[updated.length - 1] = {
-                    ...last,
-                    content: last.content || '',
-                    streaming: false,
-                    partial: true,
-                    partialError: parsed.error || 'Response interrupted — tap to retry',
-                  };
-                }
-                return updated;
-              });
-              continue;
-            }
-            // P2.6 — per-tool status pill update. Append to the running
-            // list and re-attach to the current assistant message so the
-            // pill paints the instant the dispatch resolves on the server.
-            if (parsed.toolEvent && typeof parsed.toolEvent === 'object' && parsed.toolEvent.name) {
-              toolEvents = [...toolEvents, parsed.toolEvent];
-              setMessages(prev => {
-                const updated = [...prev];
-                const last = updated[updated.length - 1];
-                if (last?.role === 'assistant') {
-                  updated[updated.length - 1] = { ...last, toolEvents };
-                }
-                return updated;
-              });
-              continue;
-            }
-            // Capture web citations from Perplexity (sent as they arrive)
-            if (parsed.citations && Array.isArray(parsed.citations)) {
-              webCitations = parsed.citations;
-              // Update message immediately so citations appear before stream ends
-              setMessages(prev => {
-                const updated = [...prev];
-                const last = updated[updated.length - 1];
-                if (last?.role === 'assistant') {
-                  updated[updated.length - 1] = { ...last, webCitations };
-                }
-                return updated;
-              });
-              continue;
-            }
-            if (parsed.chunk) {
-              fullText += parsed.chunk;
-              // Update the last (assistant) message in-place
-              setMessages(prev => {
-                const updated = [...prev];
-                const last = updated[updated.length - 1];
-                if (last?.role === 'assistant') {
-                  updated[updated.length - 1] = { ...last, content: fullText };
-                }
-                return updated;
-              });
-            }
-          } catch {
-            // Skip malformed JSON lines
+      await readSSEStream(res, {
+        signal,
+        onData: (parsed) => {
+          // Capture vault citation metadata (sent before the AI stream)
+          if (parsed.vaultSources) {
+            vaultSources = parsed.vaultSources;
+            setMessages(prev => {
+              const updated = [...prev];
+              const last = updated[updated.length - 1];
+              if (last?.role === 'assistant') {
+                updated[updated.length - 1] = { ...last, vaultSources };
+              }
+              return updated;
+            });
+            return;
           }
-        }
-      }
+          // Capture structured analysis JSON (sent at end of deep analysis stream)
+          if (parsed.structuredAnalysis) {
+            structuredAnalysis = parsed.structuredAnalysis;
+            setMessages(prev => {
+              const updated = [...prev];
+              const last = updated[updated.length - 1];
+              if (last?.role === 'assistant') {
+                updated[updated.length - 1] = { ...last, structuredAnalysis };
+              }
+              return updated;
+            });
+            return;
+          }
+          // Phase 2: Capture context completeness metadata (sources, intent, model)
+          if (parsed.contextMeta) {
+            setMessages(prev => {
+              const updated = [...prev];
+              const last = updated[updated.length - 1];
+              if (last?.role === 'assistant') {
+                updated[updated.length - 1] = { ...last, contextMeta: parsed.contextMeta };
+              }
+              return updated;
+            });
+            return;
+          }
+          // Phase 2: Handle partial/interrupted stream — show retry prompt
+          if (parsed.partial) {
+            setMessages(prev => {
+              const updated = [...prev];
+              const last = updated[updated.length - 1];
+              if (last?.role === 'assistant') {
+                updated[updated.length - 1] = {
+                  ...last,
+                  content: last.content || '',
+                  streaming: false,
+                  partial: true,
+                  partialError: parsed.error || 'Response interrupted — tap to retry',
+                };
+              }
+              return updated;
+            });
+            return;
+          }
+          // P2.6 — per-tool status pill update. Append to the running
+          // list and re-attach to the current assistant message so the
+          // pill paints the instant the dispatch resolves on the server.
+          if (parsed.toolEvent && typeof parsed.toolEvent === 'object' && parsed.toolEvent.name) {
+            toolEvents = [...toolEvents, parsed.toolEvent];
+            setMessages(prev => {
+              const updated = [...prev];
+              const last = updated[updated.length - 1];
+              if (last?.role === 'assistant') {
+                updated[updated.length - 1] = { ...last, toolEvents };
+              }
+              return updated;
+            });
+            return;
+          }
+          // Capture web citations from Perplexity (sent as they arrive)
+          if (parsed.citations && Array.isArray(parsed.citations)) {
+            webCitations = parsed.citations;
+            // Update message immediately so citations appear before stream ends
+            setMessages(prev => {
+              const updated = [...prev];
+              const last = updated[updated.length - 1];
+              if (last?.role === 'assistant') {
+                updated[updated.length - 1] = { ...last, webCitations };
+              }
+              return updated;
+            });
+            return;
+          }
+          if (parsed.chunk) {
+            fullText += parsed.chunk;
+            // Update the last (assistant) message in-place
+            setMessages(prev => {
+              const updated = [...prev];
+              const last = updated[updated.length - 1];
+              if (last?.role === 'assistant') {
+                updated[updated.length - 1] = { ...last, content: fullText };
+              }
+              return updated;
+            });
+          }
+        },
+      });
 
       // Mark streaming complete with all metadata
       setMessages(prev => {

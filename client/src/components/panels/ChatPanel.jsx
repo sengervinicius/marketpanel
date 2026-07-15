@@ -16,6 +16,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useScreenContext } from '../../context/ScreenContext';
 import { useAIChatWithContext } from '../../hooks/useAIChatWithContext';
 import { apiFetch, API_BASE } from '../../utils/api';
+import { readSSEStream, createChatAbort } from '../../utils/sseStream';
 import { WS_URL } from '../../utils/constants';
 import UserAvatar from '../common/UserAvatar';
 import { swallow } from '../../utils/swallow';
@@ -138,8 +139,13 @@ function ChatPanel({ mobile, initialUserId }) {
   const typingTimer    = useRef(null);
   const isTyping       = useRef(false);
   const activeChatRef  = useRef(activeChatUser);
+  // Abort handle for the in-flight AI SSE stream. Torn down on unmount so a
+  // panel close mid-stream stops the fetch instead of leaking it and firing
+  // setState on an unmounted component.
+  const aiStreamAbortRef = useRef(null);
 
   useEffect(() => { activeChatRef.current = activeChatUser; }, [activeChatUser]);
+  useEffect(() => () => { aiStreamAbortRef.current?.abort(); }, []);
 
   // Load AI messages from localStorage on mount, honouring the 24h TTL.
   // Stored shape is { messages, savedAt }. Legacy plain-array entries from
@@ -566,12 +572,17 @@ function ChatPanel({ mobile, initialUserId }) {
   // `errorReason` so the renderer can show the Retry affordance.
   const _runStreamingTurn = useCallback(async (text, assistantMsgId, historyMessages) => {
     let newConvoCreated = false;
+    // One abort controller per streaming turn, kept in a ref so the unmount
+    // cleanup can cancel it (fetch + SSE read share the same signal).
+    const { controller, signal } = createChatAbort();
+    aiStreamAbortRef.current = controller;
     try {
       const contextualContent = buildContextualMessage(text);
       const response = await fetch(`${API_BASE}/api/search/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
+        signal,
         body: JSON.stringify({
           messages: [
             ...historyMessages.map(m => ({ role: m.role, content: m.content })),
@@ -594,55 +605,41 @@ function ChatPanel({ mobile, initialUserId }) {
         throw new Error(reason);
       }
 
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
-
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const data = line.slice(6);
-            if (data === '[DONE]') break;
-            try {
-              const parsed = JSON.parse(data);
-              // P5: server emits conversationId once at stream start. Bind it
-              // to the active conversation so subsequent turns land on the
-              // same row.
-              if (parsed.conversationId) {
-                if (!activeAiConvoId) newConvoCreated = true;
-                setActiveAiConvoId(String(parsed.conversationId));
-              }
-              if (parsed.chunk) {
-                setAiMessages(prev => {
-                  const updated = [...prev];
-                  // W1.9 — id-based lookup so retry while another turn is
-                  // in flight doesn't smear chunks across bubbles.
-                  const idx = updated.findIndex(m => m.id === assistantMsgId);
-                  if (idx >= 0) {
-                    updated[idx] = {
-                      ...updated[idx],
-                      content: (updated[idx].content || '') + parsed.chunk,
-                      // Clear stale error flags on successful streaming
-                      // (relevant when this turn is a retry of a prior
-                      // failure).
-                      streamError: false,
-                      errorReason: undefined,
-                    };
-                  }
-                  return updated;
-                });
-              }
-            } catch (e) { swallow(e, 'panel.chat.sse_parse'); }
+      // Shared SSE parser: UTF-8-safe decoding, cross-read line buffering,
+      // hard stop on [DONE], abort support. Malformed payload lines are
+      // logged + skipped inside readSSEStream.
+      await readSSEStream(response, {
+        signal,
+        onData: (parsed) => {
+          // P5: server emits conversationId once at stream start. Bind it
+          // to the active conversation so subsequent turns land on the
+          // same row.
+          if (parsed.conversationId) {
+            if (!activeAiConvoId) newConvoCreated = true;
+            setActiveAiConvoId(String(parsed.conversationId));
           }
-        }
-      }
+          if (parsed.chunk) {
+            setAiMessages(prev => {
+              const updated = [...prev];
+              // W1.9 — id-based lookup so retry while another turn is
+              // in flight doesn't smear chunks across bubbles.
+              const idx = updated.findIndex(m => m.id === assistantMsgId);
+              if (idx >= 0) {
+                updated[idx] = {
+                  ...updated[idx],
+                  content: (updated[idx].content || '') + parsed.chunk,
+                  // Clear stale error flags on successful streaming
+                  // (relevant when this turn is a retry of a prior
+                  // failure).
+                  streamError: false,
+                  errorReason: undefined,
+                };
+              }
+              return updated;
+            });
+          }
+        },
+      });
       // Refresh sidebar after the assistant turn lands so the title (which
       // is derived from the first user message) and last_message_at appear
       // immediately. Done after the stream so we don't thrash on every chunk.
@@ -650,6 +647,9 @@ function ChatPanel({ mobile, initialUserId }) {
         loadAiConversations();
       }
     } catch (err) {
+      // Unmount-triggered abort: bail out quietly. The component is gone, so
+      // there is nothing to mark as errored (and nothing to setState on).
+      if (err?.name === 'AbortError') return;
       console.error('AI chat error:', err);
       // #291 W1.9 — preserve partial content + flag as error so the Retry
       // affordance renders. Don't clobber the bubble with a hardcoded
@@ -667,6 +667,7 @@ function ChatPanel({ mobile, initialUserId }) {
         return updated;
       });
     } finally {
+      if (aiStreamAbortRef.current === controller) aiStreamAbortRef.current = null;
       setAiLoading(false);
       // #291 W3.3 — re-poll AI quota chip after the streaming call.
       setAiUsageRefresh(n => n + 1);
