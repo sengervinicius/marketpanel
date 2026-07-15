@@ -44,6 +44,7 @@ const MIN_PASSAGES_THRESHOLD = 2; // Phase 6: if fewer than this meet threshold,
 const MAX_QUERY_VARIANTS = 3;     // cleaned query + up to 2 paraphrases → max 3 embeddings
 const MAX_PER_DOC_CANDIDATES = 6; // per-document cap among fused candidates (pre-rerank)
 const MAX_PER_DOC_FINAL = 4;      // per-document cap among final results (post-rerank)
+const BOILERPLATE_EXCLUDE_THRESHOLD = 0.7; // v2b: candidates at/above this are dropped pre-rerank when affordable
 const RECENCY_HALF_LIFE_DAYS = 180; // mild recency tiebreak half-life
 const RECENCY_FLOOR = 0.7;        // recency factor never drops below this — tiebreak, not dominant
 const BOILERPLATE_PENALTY = 0.6;  // fused score *= (1 - PENALTY * boilerplateScore)
@@ -2296,6 +2297,23 @@ async function retrieve(userId, query, limit = MAX_RETRIEVAL) {
   // candidate cap (max 6). Fail-open inside — worst case returns fused as-is.
   fused = _applyCandidateShaping(fused);
 
+  // ── Stage 2c: Boilerplate hard-exclusion before rerank (retrieval v2b) ──
+  // The fusion-stage penalty alone is not enough: every candidate still
+  // entered the reranker, and Cohere happily ranks a greeting/contact
+  // header #1 because it is stuffed with topical keywords ("LatAm Oil,
+  // Gas & Petrochemicals today..."). When we can afford it — i.e. enough
+  // informative candidates remain to fill the request — drop
+  // high-boilerplate chunks from the rerank pool entirely.
+  try {
+    const informative = fused.filter(p => (p._boilerplate_score ?? 0) < BOILERPLATE_EXCLUDE_THRESHOLD);
+    if (informative.length >= Math.min(limit, MIN_PASSAGES_THRESHOLD) && informative.length < fused.length) {
+      logger.info('vault', `Boilerplate exclusion: ${fused.length - informative.length} high-boilerplate candidates dropped pre-rerank`);
+      fused = informative;
+    }
+  } catch (exclErr) {
+    logger.warn('vault', 'Boilerplate exclusion failed — keeping all candidates', { error: exclErr.message });
+  }
+
   // ── Stage 3: Optional Reranking (Cohere → Haiku fallback) ──
   // If we have more candidates than needed, rerank for better relevance
   let finalPassages;
@@ -2307,6 +2325,20 @@ async function retrieve(userId, query, limit = MAX_RETRIEVAL) {
     // of rerankWithCohere; "cohere" here means "the Cohere→Haiku chain
     // was invoked" — W4.5 can refine to per-provider if needed.
     _rerankerUsed = _cohereKey ? 'cohere' : 'haiku';
+    // Retrieval v2b: the reranker scores pure topical relevance and knows
+    // nothing about boilerplate — re-apply the penalty to its scores so a
+    // surviving header can never outrank real content.
+    try {
+      finalPassages = finalPassages
+        .map(p => ({
+          ...p,
+          _final_score: (p._cohere_rank != null ? p._cohere_rank : (p._adjusted_score ?? 0))
+            * (1 - BOILERPLATE_PENALTY * (p._boilerplate_score ?? 0)),
+        }))
+        .sort((a, b) => b._final_score - a._final_score);
+    } catch (postErr) {
+      logger.warn('vault', 'Post-rerank boilerplate re-penalty failed — using reranker order', { error: postErr.message });
+    }
     logger.info('vault', `Reranking: ${finalPassages.length} passages returned`);
   } else {
     finalPassages = fused.slice(0, limit);
