@@ -23,6 +23,8 @@ const { URL } = require('url');
 const vaultSecurity = require('./vaultSecurity');
 const vaultQueryLog = require('./vaultQueryLog');
 const vaultQueryCache = require('./vaultQueryCache');
+const vaultQueryRewrite = require('./vaultQueryRewrite');
+const vaultBoilerplate = require('./vaultBoilerplate');
 
 // OCR support — lazy load tesseract.js to gracefully degrade if unavailable
 let Tesseract = null;
@@ -38,6 +40,13 @@ const CHUNK_OVERLAP = 150; // overlap between chunks — preserves cross-boundar
 const MAX_RETRIEVAL = 8; // top candidates before similarity filtering
 const MIN_SIMILARITY = 0.55; // Phase 2 AI: raised from 0.3 — only genuinely relevant passages should surface
 const MIN_PASSAGES_THRESHOLD = 2; // Phase 6: if fewer than this meet threshold, return 0 (avoid confusing context)
+// ── Retrieval v2 constants (audit §6.2-6.5) ──
+const MAX_QUERY_VARIANTS = 3;     // cleaned query + up to 2 paraphrases → max 3 embeddings
+const MAX_PER_DOC_CANDIDATES = 6; // per-document cap among fused candidates (pre-rerank)
+const MAX_PER_DOC_FINAL = 4;      // per-document cap among final results (post-rerank)
+const RECENCY_HALF_LIFE_DAYS = 180; // mild recency tiebreak half-life
+const RECENCY_FLOOR = 0.7;        // recency factor never drops below this — tiebreak, not dominant
+const BOILERPLATE_PENALTY = 0.6;  // fused score *= (1 - PENALTY * boilerplateScore)
 const EMBEDDING_MODEL = 'text-embedding-3-small';
 const VOYAGE_EMBEDDING_DIM = 1024;
 const OPENAI_EMBEDDING_DIM = 1536;
@@ -1703,6 +1712,152 @@ function reciprocalRankFusion(rankedLists, k = 60) {
     .map(x => ({ ...x.row, _rrf_score: x.score }));
 }
 
+
+/**
+ * Retrieval v2 — cap how many chunks a single document may contribute to a
+ * ranked list. Keeps order; drops overflow. Pure + exported for tests.
+ */
+function _capPerDocument(rows, maxPerDoc) {
+  if (!Array.isArray(rows) || !Number.isInteger(maxPerDoc) || maxPerDoc <= 0) return rows;
+  const counts = new Map();
+  const out = [];
+  for (const row of rows) {
+    const key = row && row.document_id != null ? String(row.document_id) : `chunk-${row && row.id}`;
+    const c = counts.get(key) || 0;
+    if (c < maxPerDoc) {
+      out.push(row);
+      counts.set(key, c + 1);
+    }
+  }
+  return out;
+}
+
+/**
+ * Retrieval v2 — mild recency decay used as a TIEBREAK on fused scores.
+ * Prefers the report date extracted at ingest (doc_metadata.date), falls
+ * back to the document upload timestamp. Half-life ~180 days, floored at
+ * 0.7 so age can only nudge ranking, never dominate relevance.
+ */
+function _recencyFactor(row, now = Date.now()) {
+  try {
+    let ts = NaN;
+    let meta = row && row.doc_metadata;
+    if (typeof meta === 'string') {
+      try { meta = JSON.parse(meta); } catch (_) { meta = null; }
+    }
+    if (meta && typeof meta.date === 'string') ts = Date.parse(meta.date);
+    if (!Number.isFinite(ts) && row && row.doc_created_at) {
+      ts = row.doc_created_at instanceof Date
+        ? row.doc_created_at.getTime()
+        : Date.parse(row.doc_created_at);
+    }
+    if (!Number.isFinite(ts) || ts > now) return 1;
+    const ageDays = (now - ts) / 86_400_000;
+    return Math.max(RECENCY_FLOOR, Math.pow(0.5, ageDays / RECENCY_HALF_LIFE_DAYS));
+  } catch (_) {
+    return 1;
+  }
+}
+
+/**
+ * Retrieval v2 — post-fusion candidate shaping (audit §6.4):
+ *   1. Down-weight boilerplate chunks (greetings, analyst contact blocks,
+ *      disclaimers, TOCs): score *= (1 - 0.6 * boilerplateScore).
+ *   2. Mild recency tiebreak: score *= recencyFactor (>= 0.7).
+ *   3. Re-sort, then cap candidates per document (max 6) so one PDF can't
+ *      fill every rerank slot.
+ * Fail-open: any error returns the input list untouched.
+ */
+function _applyCandidateShaping(candidates, now = Date.now()) {
+  try {
+    if (!Array.isArray(candidates) || candidates.length === 0) return candidates;
+    const shaped = candidates.map((row, i) => {
+      const base = row._rrf_score != null ? row._rrf_score : 1 / (60 + i + 1);
+      let bp = 0;
+      try { bp = vaultBoilerplate.scoreBoilerplate(row.content); } catch (_) { bp = 0; }
+      const recency = _recencyFactor(row, now);
+      return {
+        ...row,
+        _boilerplate_score: bp,
+        _recency_factor: recency,
+        _adjusted_score: base * (1 - BOILERPLATE_PENALTY * bp) * recency,
+      };
+    });
+    shaped.sort((a, b) => b._adjusted_score - a._adjusted_score);
+    return _capPerDocument(shaped, MAX_PER_DOC_CANDIDATES);
+  } catch (err) {
+    logger.warn('vault', 'Candidate shaping failed — using raw fusion order', { error: err.message });
+    return candidates;
+  }
+}
+
+/**
+ * Retrieval v2 — cheap language sniff. The chunk corpus is PT-BR heavy;
+ * when the query itself looks Portuguese we run one EXTRA indexed ts query
+ * with the portuguese regconfig and RRF the two keyword lists.
+ */
+function _looksPortuguese(text) {
+  if (!text || typeof text !== 'string') return false;
+  if (/[ãõáéíóúâêôçà]/i.test(text)) return true;
+  return /\b(qual|quais|como|onde|quando|porque|preço|preco|cotação|cotacao|relatório|relatorio|perspectiva|desempenho|resultado|lucro|dívida|divida|petróleo|petroleo|ações|acoes|carteira|banco|mercado|hoje)\b/i.test(text);
+}
+
+/**
+ * Retrieval v2 keyword arm (audit §6.3).
+ *
+ * websearch_to_tsquery replaces the old manual AND-join, which zeroed out
+ * the whole keyword arm whenever ONE query word was missing from a chunk.
+ * websearch_to_tsquery also never throws on user punctuation. If it is
+ * unavailable (PG < 11) or fails, we fall back to plainto_tsquery; errors
+ * beyond that propagate to the caller's try/catch (arm skipped, fail-open).
+ *
+ * Detected tickers are OR-ed in via to_tsquery('simple', ...) — unstemmed
+ * lexemes — so PETR4/VALE3-style symbols match even when the english
+ * stemmer mangles surrounding words. Ticker-only matches carry
+ * ts_rank_cd = 0 and sort last within the arm, which is fine: RRF only
+ * consumes ranks.
+ *
+ * @returns {Promise<Array>} ranked rows (may be empty)
+ */
+async function _runKeywordArm({ queryText, userId, tickers = [], regconfig = 'english', candidateLimit = 30 }) {
+  const cleaned = String(queryText || '').replace(/\$/g, ' ').trim();
+  if (!cleaned) return [];
+
+  const tickerTsquery = (tickers || [])
+    .map(t => String(t).toLowerCase().replace(/[^a-z0-9]/g, ''))
+    .filter(Boolean)
+    .join(' | ');
+
+  const params = [regconfig, cleaned, userId];
+  let tickerClause = '';
+  if (tickerTsquery) {
+    params.push(tickerTsquery);
+    tickerClause = ` OR vc.search_vector @@ to_tsquery('simple', $${params.length})`;
+  }
+  params.push(candidateLimit);
+  const limitIdx = params.length;
+
+  const buildSql = (tsqueryFn) => `
+    SELECT vc.id, vc.document_id, vc.chunk_index, vc.content, vc.metadata, vc.page_number,
+           vd.filename, vd.source, vd.is_global, vd.metadata as doc_metadata, vd.created_at AS doc_created_at,
+           ts_rank_cd(vc.search_vector, ${tsqueryFn}($1::regconfig, $2)) AS bm25_rank
+    FROM vault_chunks vc
+    JOIN vault_documents vd ON vc.document_id = vd.id
+    WHERE (vc.user_id = $3 OR vd.is_global = TRUE)
+      AND (vc.search_vector @@ ${tsqueryFn}($1::regconfig, $2)${tickerClause})
+    ORDER BY bm25_rank DESC
+    LIMIT $${limitIdx}`;
+
+  try {
+    const r = await pg.query(buildSql('websearch_to_tsquery'), params);
+    return r.rows || [];
+  } catch (wsErr) {
+    logger.warn('vault', `websearch_to_tsquery failed (${regconfig}) — falling back to plainto_tsquery`, { error: wsErr.message });
+    const r = await pg.query(buildSql('plainto_tsquery'), params);
+    return r.rows || [];
+  }
+}
+
 /**
  * Rerank passages using Cohere Rerank API.
  * Takes top candidates after RRF and reranks them for better relevance.
@@ -1894,10 +2049,44 @@ async function retrieve(userId, query, limit = MAX_RETRIEVAL) {
     logger.warn('vault', 'Diagnostic count query failed', { error: diagErr.message });
   }
 
+  // ── Stage 0: Query rewriting (retrieval v2, audit §6.2) ──
+  // One cached Haiku call turns conversational text into a cleaned query,
+  // up to two paraphrases, plus tickers/entities that feed the keyword
+  // arm's exact-match OR and the metadata arm. Strictly fail-open: any
+  // error/timeout leaves rewrite=null and retrieval proceeds exactly as
+  // before with the raw query. VAULT_QUERY_REWRITE=0 disables it.
+  let rewrite = null;
+  try {
+    rewrite = await vaultQueryRewrite.rewriteQuery(query);
+    if (rewrite) {
+      logger.info('vault', `Query rewrite: "${rewrite.cleaned.substring(0, 80)}" (+${rewrite.paraphrases.length} paraphrases, tickers=[${rewrite.tickers.join(',')}], entities=[${rewrite.entities.join(',')}])`);
+    }
+  } catch (rwErr) {
+    logger.warn('vault', 'Query rewrite step failed — proceeding with raw query', { error: rwErr && rwErr.message });
+    rewrite = null;
+  }
+
+  // Vector-arm query variants: cleaned + paraphrases, max 3 embeddings.
+  // Without a rewrite the raw query is the only variant (pre-v2 behavior).
+  const queryVariants = (rewrite && rewrite.cleaned)
+    ? [rewrite.cleaned, ...(rewrite.paraphrases || [])].slice(0, MAX_QUERY_VARIANTS)
+    : [query];
+  const rerankQuery = (rewrite && rewrite.cleaned) || query;
+  // Tickers for the keyword arm's exact unstemmed OR. The regex fallback
+  // keeps ticker queries working even when the rewrite LLM is down.
+  let queryTickers = [];
+  try {
+    const detected = vaultQueryRewrite.detectTickers(query);
+    queryTickers = [...new Set([...((rewrite && rewrite.tickers) || []), ...detected])];
+  } catch (_) {
+    queryTickers = [];
+  }
+
   const rankedLists = [];
   const CANDIDATE_LIMIT = 30; // pull more candidates for RRF merging
+  let primaryEmbedding = null; // first variant's embedding — reused by the metadata arm
 
-  // ── Stage 1A: Vector (semantic) search ──
+  // ── Stage 1A: Vector (semantic) search — one arm per query variant ──
   //
   // W4.3 — Embedding provider safety rules.
   //
@@ -1921,114 +2110,158 @@ async function retrieve(userId, query, limit = MAX_RETRIEVAL) {
   // embedded before the provider column existed carry embedding_provider =
   // 'unknown'; those are all OpenAI-era, so we accept them when active
   // provider is openai and reject them otherwise.
-  try {
-    // W4.6: cache the query embedding so repeat questions don't re-pay
-    // 50-200ms of latency + per-token cost. Ingestion still calls embed()
-    // directly; only the retrieval hot path is cached.
-    const activeProviderForCache = getEmbeddingProvider();
-    const cachedOrFresh = await vaultQueryCache.embedQuery({
-      query,
-      provider: activeProviderForCache,
-      // We don't currently thread model name into embed() separately;
-      // the provider label uniquely identifies the model today.
-      model: activeProviderForCache,
-      embedFn: async () => {
-        const r = await embed([query]);
-        return r?.[0] || null;
-      },
-    });
-    const embeddings = [cachedOrFresh];
-    if (embeddings[0]) {
-      const activeProvider = getEmbeddingProvider();
-      logger.info('vault', `Vector search using provider=${activeProvider}, embedding dim=${embeddings[0].length}`);
+  for (const variant of queryVariants) {
+    try {
+      // W4.6: cache the query embedding so repeat questions don't re-pay
+      // 50-200ms of latency + per-token cost. Ingestion still calls embed()
+      // directly; only the retrieval hot path is cached.
+      const activeProviderForCache = getEmbeddingProvider();
+      const cachedOrFresh = await vaultQueryCache.embedQuery({
+        query: variant,
+        provider: activeProviderForCache,
+        // We don't currently thread model name into embed() separately;
+        // the provider label uniquely identifies the model today.
+        model: activeProviderForCache,
+        embedFn: async () => {
+          const r = await embed([variant]);
+          return r?.[0] || null;
+        },
+      });
+      const embeddings = [cachedOrFresh];
+      if (embeddings[0]) {
+        if (!primaryEmbedding) primaryEmbedding = embeddings[0];
+        const activeProvider = getEmbeddingProvider();
+        logger.info('vault', `Vector search using provider=${activeProvider}, embedding dim=${embeddings[0].length}`);
 
-      // Acceptable embedding_provider values, keyed by active provider.
-      const acceptedProviders = activeProvider === 'openai'
-        ? ['openai', 'unknown']  // 'unknown' = legacy pre-provider-column data, all OpenAI
-        : ['voyage'];            // Voyage is strict — no legacy aliasing
+        // Acceptable embedding_provider values, keyed by active provider.
+        const acceptedProviders = activeProvider === 'openai'
+          ? ['openai', 'unknown']  // 'unknown' = legacy pre-provider-column data, all OpenAI
+          : ['voyage'];            // Voyage is strict — no legacy aliasing
 
-      let vecResult;
-      try {
-        vecResult = await pg.query(
-          `SELECT vc.id, vc.document_id, vc.chunk_index, vc.content, vc.metadata, vc.page_number,
-                  vd.filename, vd.source, vd.is_global, vd.metadata as doc_metadata,
-                  1 - (vc.embedding <=> $1::vector) AS similarity
-           FROM vault_chunks vc
-           JOIN vault_documents vd ON vc.document_id = vd.id
-           WHERE (vc.user_id = $2 OR vd.is_global = TRUE) AND vc.embedding IS NOT NULL
-             AND vc.embedding_provider = ANY($4::text[])
-           ORDER BY vc.embedding <=> $1::vector
-           LIMIT $3`,
-          [`[${embeddings[0].join(',')}]`, userId, CANDIDATE_LIMIT, acceptedProviders]
-        );
+        let vecResult;
+        try {
+          vecResult = await pg.query(
+            `SELECT vc.id, vc.document_id, vc.chunk_index, vc.content, vc.metadata, vc.page_number,
+                    vd.filename, vd.source, vd.is_global, vd.metadata as doc_metadata, vd.created_at AS doc_created_at,
+                    1 - (vc.embedding <=> $1::vector) AS similarity
+             FROM vault_chunks vc
+             JOIN vault_documents vd ON vc.document_id = vd.id
+             WHERE (vc.user_id = $2 OR vd.is_global = TRUE) AND vc.embedding IS NOT NULL
+               AND vc.embedding_provider = ANY($4::text[])
+             ORDER BY vc.embedding <=> $1::vector
+             LIMIT $3`,
+            [`[${embeddings[0].join(',')}]`, userId, CANDIDATE_LIMIT, acceptedProviders]
+          );
 
-        if (!vecResult.rows || vecResult.rows.length === 0) {
-          // W4.3: this is now a legitimate "no coverage under active
-          // provider" signal. We do NOT fall back across providers.
-          logger.info('vault',
-            `Vector search returned 0 rows for provider=${activeProvider} ` +
-            `(accepted=${JSON.stringify(acceptedProviders)}) — no cross-provider fallback`);
+          if (!vecResult.rows || vecResult.rows.length === 0) {
+            // W4.3: this is now a legitimate "no coverage under active
+            // provider" signal. We do NOT fall back across providers.
+            logger.info('vault',
+              `Vector search returned 0 rows for provider=${activeProvider} ` +
+              `(accepted=${JSON.stringify(acceptedProviders)}) — no cross-provider fallback`);
+          }
+        } catch (filterErr) {
+          // If the ANY($4::text[]) form is rejected (e.g. very old Postgres
+          // or the column is literally missing), fall back to a single-provider
+          // match. Still NO cross-provider bleed: worst case we return zero.
+          logger.warn('vault', 'Provider-filtered vector search failed, retrying narrow', { error: filterErr.message });
+          vecResult = await pg.query(
+            `SELECT vc.id, vc.document_id, vc.chunk_index, vc.content, vc.metadata, vc.page_number,
+                    vd.filename, vd.source, vd.is_global, vd.metadata as doc_metadata, vd.created_at AS doc_created_at,
+                    1 - (vc.embedding <=> $1::vector) AS similarity
+             FROM vault_chunks vc
+             JOIN vault_documents vd ON vc.document_id = vd.id
+             WHERE (vc.user_id = $2 OR vd.is_global = TRUE) AND vc.embedding IS NOT NULL
+               AND vc.embedding_provider = $4
+             ORDER BY vc.embedding <=> $1::vector
+             LIMIT $3`,
+            [`[${embeddings[0].join(',')}]`, userId, CANDIDATE_LIMIT, activeProvider]
+          );
         }
-      } catch (filterErr) {
-        // If the ANY($4::text[]) form is rejected (e.g. very old Postgres
-        // or the column is literally missing), fall back to a single-provider
-        // match. Still NO cross-provider bleed: worst case we return zero.
-        logger.warn('vault', 'Provider-filtered vector search failed, retrying narrow', { error: filterErr.message });
-        vecResult = await pg.query(
-          `SELECT vc.id, vc.document_id, vc.chunk_index, vc.content, vc.metadata, vc.page_number,
-                  vd.filename, vd.source, vd.is_global, vd.metadata as doc_metadata,
-                  1 - (vc.embedding <=> $1::vector) AS similarity
-           FROM vault_chunks vc
-           JOIN vault_documents vd ON vc.document_id = vd.id
-           WHERE (vc.user_id = $2 OR vd.is_global = TRUE) AND vc.embedding IS NOT NULL
-             AND vc.embedding_provider = $4
-           ORDER BY vc.embedding <=> $1::vector
-           LIMIT $3`,
-          [`[${embeddings[0].join(',')}]`, userId, CANDIDATE_LIMIT, activeProvider]
+        // Pre-filter by similarity threshold
+        const vecRows = (vecResult.rows || []).filter(r =>
+          r.similarity != null && parseFloat(r.similarity) >= MIN_SIMILARITY
         );
+        if (vecRows.length > 0) rankedLists.push(vecRows);
+        logger.info('vault', `Vector search: ${vecResult.rows?.length || 0} candidates, ${vecRows.length} above threshold`);
       }
-      // Pre-filter by similarity threshold
-      const vecRows = (vecResult.rows || []).filter(r =>
-        r.similarity != null && parseFloat(r.similarity) >= MIN_SIMILARITY
-      );
-      if (vecRows.length > 0) rankedLists.push(vecRows);
-      logger.info('vault', `Vector search: ${vecResult.rows?.length || 0} candidates, ${vecRows.length} above threshold`);
+    } catch (err) {
+      logger.warn('vault', 'Vector search failed', { error: err.message });
     }
-  } catch (err) {
-    logger.warn('vault', 'Vector search failed', { error: err.message });
   }
 
-  // ── Stage 1B: BM25 (keyword) search via tsvector ──
+  // ── Stage 1B: Keyword (full-text) search via websearch_to_tsquery ──
+  // Retrieval v2 (audit §6.3): websearch semantics instead of a brittle
+  // manual AND-join, exact unstemmed ticker OR-matching, and an extra
+  // portuguese-regconfig arm when the query looks PT-BR (one additional
+  // indexed ts query; VAULT_KEYWORD_PT=0 disables).
   try {
-    // Build tsquery from user query — handle tickers ($AAPL → AAPL) and multi-word
-    const cleanQuery = query
-      .replace(/\$/g, '')       // strip $ prefix from tickers
-      .replace(/[^\w\s]/g, ' ') // strip special chars
-      .trim()
-      .split(/\s+/)
-      .filter(w => w.length >= 2)
-      .join(' & ');             // AND all terms
+    const englishRows = await _runKeywordArm({
+      queryText: rerankQuery, userId, tickers: queryTickers,
+      regconfig: 'english', candidateLimit: CANDIDATE_LIMIT,
+    });
+    if (englishRows.length > 0) rankedLists.push(englishRows);
+    logger.info('vault', `Keyword search (english): ${englishRows.length} matches`);
 
-    if (cleanQuery) {
-      const bm25Result = await pg.query(
-        `SELECT vc.id, vc.document_id, vc.chunk_index, vc.content, vc.metadata,
-                vd.filename, vd.source, vd.is_global, vd.metadata as doc_metadata,
-                ts_rank_cd(vc.search_vector, to_tsquery('english', $1)) AS bm25_rank
-         FROM vault_chunks vc
-         JOIN vault_documents vd ON vc.document_id = vd.id
-         WHERE (vc.user_id = $2 OR vd.is_global = TRUE)
-           AND vc.search_vector @@ to_tsquery('english', $1)
-         ORDER BY bm25_rank DESC
-         LIMIT $3`,
-        [cleanQuery, userId, CANDIDATE_LIMIT]
-      );
-      const bm25Rows = bm25Result.rows || [];
-      if (bm25Rows.length > 0) rankedLists.push(bm25Rows);
-      logger.info('vault', `BM25 search: ${bm25Rows.length} matches for "${cleanQuery}"`);
+    if (process.env.VAULT_KEYWORD_PT !== '0' && _looksPortuguese(query)) {
+      const ptRows = await _runKeywordArm({
+        queryText: rerankQuery, userId, tickers: queryTickers,
+        regconfig: 'portuguese', candidateLimit: CANDIDATE_LIMIT,
+      });
+      if (ptRows.length > 0) rankedLists.push(ptRows);
+      logger.info('vault', `Keyword search (portuguese): ${ptRows.length} matches`);
     }
   } catch (err) {
-    // BM25 may fail if search_vector column doesn't exist yet — graceful degradation
+    // Keyword search may fail if search_vector column doesn't exist yet — graceful degradation
     logger.warn('vault', 'BM25 search failed (column may not exist yet)', { error: err.message });
+  }
+
+  // ── Stage 1B2: Metadata arm (retrieval v2, audit §6.5) ──
+  // When the rewrite identified tickers/entities, add a candidate list of
+  // chunks from documents whose ingest-time doc_metadata (tickers/bank)
+  // overlaps — ranked by vector similarity WITHIN that filtered set. This
+  // surfaces the right document even when its best chunk loses the global
+  // similarity race. Skips silently if metadata is absent or the query
+  // shape is unsupported.
+  if (primaryEmbedding && rewrite
+      && (((rewrite.tickers || []).length > 0) || ((rewrite.entities || []).length > 0))) {
+    try {
+      const activeProvider = getEmbeddingProvider();
+      const acceptedProviders = activeProvider === 'openai' ? ['openai', 'unknown'] : ['voyage'];
+      const metaParams = [`[${primaryEmbedding.join(',')}]`, userId, CANDIDATE_LIMIT, acceptedProviders];
+      const metaConds = [];
+      if ((rewrite.tickers || []).length > 0) {
+        metaParams.push(rewrite.tickers);
+        metaConds.push(`(vd.metadata ? 'tickers' AND vd.metadata->'tickers' ?| $${metaParams.length}::text[])`);
+      }
+      if ((rewrite.entities || []).length > 0) {
+        metaParams.push(rewrite.entities.map(e => `%${e}%`));
+        metaConds.push(`(vd.metadata->>'bank' ILIKE ANY($${metaParams.length}::text[]))`);
+      }
+      const metaResult = await pg.query(
+        `SELECT vc.id, vc.document_id, vc.chunk_index, vc.content, vc.metadata, vc.page_number,
+                vd.filename, vd.source, vd.is_global, vd.metadata as doc_metadata, vd.created_at AS doc_created_at,
+                1 - (vc.embedding <=> $1::vector) AS similarity
+         FROM vault_chunks vc
+         JOIN vault_documents vd ON vc.document_id = vd.id
+         WHERE (vc.user_id = $2 OR vd.is_global = TRUE) AND vc.embedding IS NOT NULL
+           AND vc.embedding_provider = ANY($4::text[])
+           AND (${metaConds.join(' OR ')})
+         ORDER BY vc.embedding <=> $1::vector
+         LIMIT $3`,
+        metaParams
+      );
+      const metaRows = (metaResult.rows || []).filter(r =>
+        r.similarity != null && parseFloat(r.similarity) >= MIN_SIMILARITY
+      );
+      if (metaRows.length > 0) rankedLists.push(metaRows);
+      logger.info('vault', `Metadata arm: ${metaRows.length} candidates (tickers=[${(rewrite.tickers || []).join(',')}])`);
+    } catch (metaErr) {
+      // Silent skip — doc_metadata may be absent or malformed on older rows.
+      // (logger.warn, not logger.debug: logger has no debug method and a
+      // TypeError inside this catch would break retrieval.)
+      logger.warn('vault', 'Metadata arm skipped (fail-open)', { error: metaErr && metaErr.message });
+    }
   }
 
   // ── Stage 1C: No results from vector or BM25 — return empty ──
@@ -2050,21 +2283,26 @@ async function retrieve(userId, query, limit = MAX_RETRIEVAL) {
 
   // ── Stage 2: Reciprocal Rank Fusion ──
 
-  let fused;
-  if (rankedLists.length === 1) {
-    // Single method — use its results directly
-    fused = rankedLists[0];
-  } else {
-    // Merge with RRF
-    fused = reciprocalRankFusion(rankedLists);
+  // Retrieval v2: fuse unconditionally — for a single list RRF preserves
+  // the original order and simply attaches _rrf_score, which the shaping
+  // step below needs as its base score.
+  let fused = reciprocalRankFusion(rankedLists);
+  if (rankedLists.length > 1) {
     logger.info('vault', `Hybrid RRF: ${fused.length} unique passages from ${rankedLists.length} methods`);
   }
+
+  // ── Stage 2b: Candidate shaping (retrieval v2, audit §6.4) ──
+  // Boilerplate down-weighting + mild recency tiebreak + per-document
+  // candidate cap (max 6). Fail-open inside — worst case returns fused as-is.
+  fused = _applyCandidateShaping(fused);
 
   // ── Stage 3: Optional Reranking (Cohere → Haiku fallback) ──
   // If we have more candidates than needed, rerank for better relevance
   let finalPassages;
   if ((_cohereKey || _anthropicKey) && fused.length > limit) {
-    finalPassages = await rerankWithCohere(query, fused, limit);
+    // Retrieval v2: rerank against the cleaned query when available — the
+    // reranker scores passages against what the user MEANT, not the filler.
+    finalPassages = await rerankWithCohere(rerankQuery, fused, limit);
     // W4.2: we don't currently thread the "which reranker won" flag out
     // of rerankWithCohere; "cohere" here means "the Cohere→Haiku chain
     // was invoked" — W4.5 can refine to per-provider if needed.
@@ -2072,6 +2310,37 @@ async function retrieve(userId, query, limit = MAX_RETRIEVAL) {
     logger.info('vault', `Reranking: ${finalPassages.length} passages returned`);
   } else {
     finalPassages = fused.slice(0, limit);
+  }
+
+  // ── Stage 3b: Final per-document diversity cap (retrieval v2, audit §6.4) ──
+  // Even after the candidate cap, the reranker can still hand one document
+  // most of the final slots. Cap at MAX_PER_DOC_FINAL per document and
+  // backfill freed slots from the remaining shaped candidates. Fail-open.
+  try {
+    const capped = _capPerDocument(finalPassages, MAX_PER_DOC_FINAL);
+    if (capped.length < finalPassages.length) {
+      const passageKey = (p) => (p.id != null ? String(p.id) : `${p.document_id}-${p.chunk_index}`);
+      const chosen = new Set(capped.map(passageKey));
+      const docCounts = new Map();
+      for (const p of capped) {
+        const k = String(p.document_id);
+        docCounts.set(k, (docCounts.get(k) || 0) + 1);
+      }
+      for (const cand of fused) {
+        if (capped.length >= limit) break;
+        const ck = passageKey(cand);
+        if (chosen.has(ck)) continue;
+        const dk = String(cand.document_id);
+        if ((docCounts.get(dk) || 0) >= MAX_PER_DOC_FINAL) continue;
+        capped.push(cand);
+        chosen.add(ck);
+        docCounts.set(dk, (docCounts.get(dk) || 0) + 1);
+      }
+      logger.info('vault', `Diversity cap: trimmed to <=${MAX_PER_DOC_FINAL} passages/doc (${finalPassages.length} -> ${capped.length})`);
+      finalPassages = capped;
+    }
+  } catch (capErr) {
+    logger.warn('vault', 'Final diversity cap failed — using uncapped results', { error: capErr.message });
   }
 
   // ── Stage 4: Min-passages threshold (Phase 6, Task 9) ──
@@ -2316,26 +2585,27 @@ async function retrieveFromDocument(documentId, userId, query, limit = MAX_RETRI
 
   // ── Stage 1B: BM25 (keyword) search on document ──
   try {
-    const cleanQuery = query
-      .replace(/\$/g, '')
-      .replace(/[^\w\s]/g, ' ')
-      .trim()
-      .split(/\s+/)
-      .filter(w => w.length >= 2)
-      .join(' & ');
+    // Retrieval v2: websearch semantics (OR-tolerant, punctuation-safe)
+    // with a plainto_tsquery fallback for older Postgres.
+    const cleanQuery = query.replace(/\$/g, ' ').trim();
 
     if (cleanQuery) {
-      const bm25Result = await pg.query(
-        `SELECT vc.id, vc.document_id, vc.chunk_index, vc.content, vc.metadata,
-                vd.filename, vd.source, vd.is_global, vd.metadata as doc_metadata,
-                ts_rank_cd(vc.search_vector, to_tsquery('english', $1)) AS bm25_rank
-         FROM vault_chunks vc
-         JOIN vault_documents vd ON vc.document_id = vd.id
-         WHERE vc.document_id = $2 AND vc.search_vector @@ to_tsquery('english', $1)
-         ORDER BY bm25_rank DESC
-         LIMIT $3`,
-        [cleanQuery, documentId, CANDIDATE_LIMIT]
-      );
+      const docKeywordSql = (tsqueryFn) => `
+        SELECT vc.id, vc.document_id, vc.chunk_index, vc.content, vc.metadata,
+               vd.filename, vd.source, vd.is_global, vd.metadata as doc_metadata,
+               ts_rank_cd(vc.search_vector, ${tsqueryFn}('english', $1)) AS bm25_rank
+        FROM vault_chunks vc
+        JOIN vault_documents vd ON vc.document_id = vd.id
+        WHERE vc.document_id = $2 AND vc.search_vector @@ ${tsqueryFn}('english', $1)
+        ORDER BY bm25_rank DESC
+        LIMIT $3`;
+      let bm25Result;
+      try {
+        bm25Result = await pg.query(docKeywordSql('websearch_to_tsquery'), [cleanQuery, documentId, CANDIDATE_LIMIT]);
+      } catch (wsErr) {
+        logger.warn('vault', 'websearch_to_tsquery failed (document search) — falling back to plainto_tsquery', { error: wsErr.message });
+        bm25Result = await pg.query(docKeywordSql('plainto_tsquery'), [cleanQuery, documentId, CANDIDATE_LIMIT]);
+      }
       const bm25Rows = bm25Result.rows || [];
       if (bm25Rows.length > 0) rankedLists.push(bm25Rows);
       logger.info('vault', `Document BM25 search: ${bm25Rows.length} matches`);
@@ -2766,6 +3036,15 @@ module.exports = {
   getGlobalDocuments,
   deleteDocument,
   getMixedProviderDocuments,
+  // Retrieval v2: pure helpers + constants exported for tests
+  reciprocalRankFusion,
+  _capPerDocument,
+  _recencyFactor,
+  _applyCandidateShaping,
+  _runKeywordArm,
+  _looksPortuguese,
+  MAX_PER_DOC_CANDIDATES,
+  MAX_PER_DOC_FINAL,
   // Phase 6: Job queue exports
   createIngestionJob,
   getIngestionJob,
