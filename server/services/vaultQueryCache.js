@@ -35,11 +35,20 @@ const crypto = require('crypto');
 const DEFAULT_MAX_ENTRIES = 1000;
 const DEFAULT_TTL_MS = 5 * 60_000; // 5 minutes
 
+// Rewrite cache (vault retrieval v2): stores the Haiku query-rewrite object
+// ({ cleaned, paraphrases, tickers, entities }) keyed by normalised query.
+// Rewrites are provider-independent (they're plain text transformations),
+// so the key is just the normalised query hash. Longer TTL than embeddings:
+// a rewrite of the same question stays valid until the model changes.
+const REWRITE_MAX_ENTRIES = 500;
+const REWRITE_TTL_MS = 15 * 60_000; // 15 minutes
+
 // ── Cache state (module-scoped singleton) ───────────────────────────────
 
 let _maxEntries = DEFAULT_MAX_ENTRIES;
 let _ttlMs = DEFAULT_TTL_MS;
 const _cache = new Map(); // key -> { embedding, expiresAt }
+const _rewrites = new Map(); // key -> { rewrite, expiresAt }
 let _hits = 0;
 let _misses = 0;
 let _evictions = 0;
@@ -149,6 +158,49 @@ async function embedQuery({ query, provider, model, embedFn } = {}) {
   return fresh;
 }
 
+/**
+ * Look up a cached query rewrite. Returns the rewrite object or null.
+ * Same LRU + TTL discipline as the embedding cache.
+ *
+ * @param {Object} args
+ * @param {string} args.query - Raw user query string.
+ * @returns {Object|null}
+ */
+function getRewrite({ query } = {}) {
+  if (!query || typeof query !== 'string') return null;
+  const key = _makeKey('rewrite', 'v1', query);
+  const entry = _rewrites.get(key);
+  if (!entry) return null;
+  if (entry.expiresAt < Date.now()) {
+    _rewrites.delete(key);
+    return null;
+  }
+  // Touch for LRU.
+  _rewrites.delete(key);
+  _rewrites.set(key, entry);
+  return entry.rewrite;
+}
+
+/**
+ * Store a query rewrite. Silently ignores invalid input.
+ *
+ * @param {Object} args
+ * @param {string} args.query
+ * @param {Object} args.rewrite - { cleaned, paraphrases, tickers, entities }
+ */
+function setRewrite({ query, rewrite } = {}) {
+  if (!query || typeof query !== 'string') return;
+  if (!rewrite || typeof rewrite !== 'object') return;
+  const key = _makeKey('rewrite', 'v1', query);
+  if (_rewrites.has(key)) _rewrites.delete(key);
+  _rewrites.set(key, { rewrite, expiresAt: Date.now() + REWRITE_TTL_MS });
+  while (_rewrites.size > REWRITE_MAX_ENTRIES) {
+    const oldestKey = _rewrites.keys().next().value;
+    if (oldestKey === undefined) break;
+    _rewrites.delete(oldestKey);
+  }
+}
+
 /** Current cache size. */
 function size() {
   return _cache.size;
@@ -156,7 +208,7 @@ function size() {
 
 /** Return a plain-object stats snapshot. */
 function stats() {
-  return { size: _cache.size, hits: _hits, misses: _misses, evictions: _evictions, ttlMs: _ttlMs, maxEntries: _maxEntries };
+  return { size: _cache.size, hits: _hits, misses: _misses, evictions: _evictions, ttlMs: _ttlMs, maxEntries: _maxEntries, rewriteSize: _rewrites.size };
 }
 
 /** Reconfigure cache limits. Safe at runtime — rewrites capacity. */
@@ -175,6 +227,7 @@ function configure({ maxEntries, ttlMs } = {}) {
 /** Test-only reset. */
 function _clear() {
   _cache.clear();
+  _rewrites.clear();
   _hits = 0;
   _misses = 0;
   _evictions = 0;
@@ -186,6 +239,8 @@ module.exports = {
   get,
   set,
   embedQuery,
+  getRewrite,
+  setRewrite,
   size,
   stats,
   configure,
