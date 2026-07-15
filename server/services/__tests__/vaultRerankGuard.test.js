@@ -41,3 +41,16 @@ test('post-rerank re-penalty math sinks a header that won the rerank', () => {
     .sort((a, b) => b._final_score - a._final_score);
   assert.strictEqual(resorted[0].id, 2, 'real content must outrank the greeting header after re-penalty');
 });
+
+
+test('_toOrQuery drops stopwords and joins significant terms with or', () => {
+  const q = vault._toOrQuery("what is BofA's outlook for oil prices");
+  assert.ok(q.includes('or'), 'must be an OR expression');
+  assert.ok(q.includes('bofa') && q.includes('outlook') && q.includes('oil') && q.includes('prices'), q);
+  assert.ok(!/\bwhat\b|\bis\b|\bfor\b/.test(q), 'stopwords must be dropped: ' + q);
+});
+
+test('_toOrQuery strips tsquery operators from user text', () => {
+  const q = vault._toOrQuery('petrobras & drop table | ! <-> injection:*');
+  assert.ok(!/[&|!<>:*]/.test(q), 'operators must be stripped: ' + q);
+});
