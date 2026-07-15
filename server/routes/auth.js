@@ -290,6 +290,14 @@ router.post('/reset-password', authLimiter, async (req, res) => {
     // Mark token as used
     await pg.query('UPDATE password_resets SET used = TRUE WHERE token = $1', [token]);
 
+    // Security: revoke all existing refresh tokens so any stolen session
+    // dies with the old password (see audit finding C2).
+    try {
+      await revokeUserRefreshTokens(reset.user_id);
+    } catch (revokeErr) {
+      logger.warn('auth/reset-password', 'Failed to revoke refresh tokens', { error: revokeErr.message });
+    }
+
     res.json({ ok: true, message: 'Password has been reset successfully. You can now log in with your new password.' });
   } catch (e) {
     logger.error('auth/reset-password', 'handler failed', { error: e.message });
