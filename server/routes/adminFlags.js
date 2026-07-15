@@ -19,14 +19,7 @@ const router = express.Router();
 const flags = require('../services/featureFlags');
 const pg = require('../db/postgres');
 const { adminAuditLog } = require('../middleware/adminAuditLog');
-
-function requireAdmin(req, res, next) {
-  const u = req.user;
-  if (!u || !(u.isAdmin || u.role === 'admin')) {
-    return res.status(403).json({ error: 'admin_required' });
-  }
-  next();
-}
+const { requireAdmin } = require('../authMiddleware');
 
 router.use(requireAdmin);
 router.use(adminAuditLog);
