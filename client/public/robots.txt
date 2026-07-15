@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 Disallow: /api/
-Sitemap: https://senger-client.onrender.com/sitemap.xml
+Sitemap: https://the-particle.com/sitemap.xml
