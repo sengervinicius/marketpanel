@@ -13,19 +13,30 @@
  *   3. If the ticker is already in the batch — return it directly.
  *   4. If NOT (e.g. user added a custom ticker not in any batch list):
  *        - Register it on first call
- *        - Fetch from /api/snapshot/ticker/:symbol on the same 6s cycle
- *        - The server route now correctly routes .SA via Yahoo, crypto/forex
- *          via Polygon global, and equities via Polygon US
- *   5. useTickerPrice auto-unregisters on unmount, cleaning up the interval.
+ *        - A SINGLE collector interval (audit M7) gathers every registered
+ *          extra ticker each 6s cycle and fetches them all with ONE request
+ *          to /api/snapshot/tickers?symbols=A,B,C (chunked at 50). Before
+ *          M7 each extra ticker had its own setInterval + its own HTTP
+ *          request — a 30-ticker watchlist cost 30 requests per cycle.
+ *        - If the batch endpoint is unavailable (rolling deploy: old server,
+ *          new client) we fall back to the per-ticker
+ *          /api/snapshot/ticker/:symbol endpoint.
+ *   5. useTickerPrice auto-unregisters on unmount; unreferenced tickers drop
+ *      out of the collector set immediately.
  *
  * RESULT: every component that calls useTickerPrice reads from the same data,
  *         refreshed on the same cycle, via the correct endpoint. Mismatches
  *         are structurally impossible.
  */
-import { createContext, useContext, useState, useEffect, useRef, useCallback, useSyncExternalStore } from 'react';
+import { createContext, useContext, useEffect, useRef, useCallback, useSyncExternalStore } from 'react';
 import { apiFetch } from '../utils/api';
 
 const REFRESH_MS = 6_000;
+// Server-side cap on /api/snapshot/tickers — chunk above this (audit M7).
+const BATCH_MAX = 50;
+// How long to stop retrying the batch endpoint after a 404/405 (old server
+// during a rolling deploy). Singles keep flowing in the meantime.
+const BATCH_UNSUPPORTED_COOLDOWN_MS = 5 * 60 * 1000;
 
 const PriceCtx = createContext(null);
 
@@ -130,13 +141,29 @@ function lookupInBatch(marketData, ticker) {
   return entry;
 }
 
+// Extract { price, changePct, change } from a /snapshot payload body.
+// Works for both the single endpoint body ({ ticker: {...} }) and each
+// entry of the batch endpoint's `results` map (same shape by contract).
+function parseSnapshotPayload(d) {
+  const t = d?.ticker ?? d;
+  const price = (t?.min?.c  > 0 ? t.min.c  : null)
+             ?? (t?.day?.c  > 0 ? t.day.c  : null)
+             ?? (t?.lastTrade?.p > 0 ? t.lastTrade.p : null)
+             ??  t?.prevDay?.c ?? null;
+  if (price == null) return null;
+  return {
+    price,
+    changePct: t?.todaysChangePerc ?? null,
+    change:    t?.todaysChange     ?? null,
+  };
+}
+
 // ── Provider ────────────────────────────────────────────────────────────────
 export function PriceProvider({ marketData, children }) {
   // Keep a ref so interval callbacks always read the freshest batch data
   const mdRef = useRef(marketData);
   useEffect(() => {
     mdRef.current = marketData;
-    mdRef_global = marketData;
     _notifyBatchUpdate();
   }, [marketData]);
 
@@ -146,16 +173,21 @@ export function PriceProvider({ marketData, children }) {
   if (!extrasStoreRef.current) extrasStoreRef.current = createExtrasStore();
   const extrasStore = extrasStoreRef.current;
 
-  // ticker → subscriber count (so 10 MiniCharts on the same ticker = 1 interval)
+  // ticker → subscriber count (so 10 MiniCharts on the same ticker still cost
+  // ONE slot in the collector's batch request)
   const refCounts = useRef(new Map());
-  // ticker → setInterval id
-  const intervalIds = useRef(new Map());
 
   // Retry/dead ticker tracking: stop retrying if a custom ticker fails 5+ times in a row
   // fetchErrors: ticker → consecutive failure count
-  // deadTickers: set of tickers that have failed too many times (not persisted to localStorage)
+  // deadTickers: ticker → diedAt timestamp (not persisted to localStorage)
+  // backoffUntil: ticker → epoch ms before which the collector skips it
   const fetchErrors = useRef(new Map());
   const deadTickers = useRef(new Map()); // #291 W7.9 HOTFIX — Map (was Set); isDead()/trackFailure use .get()/.set()
+  const backoffUntil = useRef(new Map());
+
+  // M7 — when the batch endpoint 404s (old server during rolling deploy),
+  // stop attempting it for a cooldown window and use per-ticker fetches.
+  const batchUnsupportedUntil = useRef(0);
 
   // Exponential backoff delays (ms) for consecutive failures:
   // Attempt 1: immediate, 2: 10s, 3: 30s, 4: 60s, 5: 120s, then dead
@@ -165,7 +197,7 @@ export function PriceProvider({ marketData, children }) {
   // is parked with a timestamp; after DEAD_TICKER_TTL_MS the next isDead()
   // check resurrects it (clears the dead mark + failure count) so a transient
   // provider hiccup self-heals instead of freezing the price for the whole
-  // session. The 10-min reaper below re-establishes its polling interval.
+  // session. The collector interval picks it up again automatically.
   const DEAD_TICKER_TTL_MS = 10 * 60 * 1000;
   const isDead = useCallback((ticker) => {
     const diedAt = deadTickers.current.get(ticker);
@@ -188,49 +220,44 @@ export function PriceProvider({ marketData, children }) {
   }, []);
 
   // Track failure and apply backoff. Returns true if ticker is now dead.
+  // M7 — no per-ticker interval to pause anymore: backoff is a timestamp the
+  // collector checks each cycle, so a backed-off ticker is simply skipped
+  // until its window elapses.
   const trackFailure = useCallback((ticker) => {
     const failures = (fetchErrors.current.get(ticker) ?? 0) + 1;
     fetchErrors.current.set(ticker, failures);
     if (failures >= 5) {
       deadTickers.current.set(ticker, Date.now());
+      backoffUntil.current.delete(ticker);
       console.warn(`[PriceContext] Ticker ${ticker} marked dead after 5 failures`);
-      // Stop the interval for this dead ticker
-      const id = intervalIds.current.get(ticker);
-      if (id) { clearInterval(id); intervalIds.current.delete(ticker); }
       return true;
     }
-    // Apply exponential backoff: pause the interval, resume after delay
     const backoffMs = BACKOFF_DELAYS[failures] || 120_000;
-    if (backoffMs > 0) {
-      const id = intervalIds.current.get(ticker);
-      if (id) {
-        clearInterval(id);
-        intervalIds.current.delete(ticker);
-      }
-      // Schedule a single retry after the backoff delay
-      const timerId = setTimeout(() => {
-        if (isDead(ticker)) return;
-        if ((refCounts.current.get(ticker) ?? 0) <= 0) return;
-        fetchExtra(ticker);
-        // Re-establish the normal polling interval
-        intervalIds.current.set(ticker, setInterval(() => {
-          if (!lookupInBatch(mdRef.current, ticker)) fetchExtra(ticker);
-        }, REFRESH_MS));
-      }, backoffMs);
-      // Store the timeout id (negative to distinguish from interval)
-      intervalIds.current.set(ticker, timerId);
-    }
+    if (backoffMs > 0) backoffUntil.current.set(ticker, Date.now() + backoffMs);
     return false;
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Fetch a single ticker from the server and store in extras
+  // Store a successful snapshot payload for `ticker` (resets failure count).
+  // Shared by the single-ticker and batched fetch paths so the store update
+  // path is identical regardless of transport.
+  const applySnapshot = useCallback((ticker, payload) => {
+    const parsed = parseSnapshotPayload(payload);
+    if (!parsed) return false;
+    fetchErrors.current.set(ticker, 0);
+    backoffUntil.current.delete(ticker);
+    extrasStore.set(ticker, parsed);
+    return true;
+  }, [extrasStore]);
+
+  // Fetch a single ticker from the server and store in extras.
+  // M7 — retained as the fallback transport for old servers that don't have
+  // /api/snapshot/tickers yet (rolling deploy), and for anything else that
+  // makes the batch endpoint fail as a whole.
   const fetchExtra = useCallback(async (ticker) => {
     // Skip if this ticker is in its dead-cooldown window (auto-resurrects after TTL)
     if (isDead(ticker)) return;
-    // #291 W1.5 — skip when tab hidden. The setInterval keeps running
-    // (cheap), but the actual HTTP call is suppressed. Resumes on next
-    // tick when the user comes back to the tab. Cuts background-tab
-    // request volume to zero for the extras-store tickers.
+    // #291 W1.5 — skip when tab hidden. Resumes on the next collector tick
+    // when the user comes back to the tab.
     if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
 
     try {
@@ -240,26 +267,121 @@ export function PriceProvider({ marketData, children }) {
         trackFailure(ticker);
         return;
       }
-      const d  = await r.json();
-      const t  = d?.ticker ?? d;
-      const price = (t?.min?.c  > 0 ? t.min.c  : null)
-                 ?? (t?.day?.c  > 0 ? t.day.c  : null)
-                 ?? (t?.lastTrade?.p > 0 ? t.lastTrade.p : null)
-                 ??  t?.prevDay?.c ?? null;
-      if (price == null) return;
-      // Reset error count on successful fetch
-      fetchErrors.current.set(ticker, 0);
-      extrasStore.set(ticker, {
-        price,
-        changePct: t?.todaysChangePerc ?? null,
-        change:    t?.todaysChange     ?? null,
-      });
+      const d = await r.json();
+      applySnapshot(ticker, d);
     } catch (e) {
       if (e.name === 'AbortError') return; // unmount — don't track as failure
       console.warn('[PriceContext] fetch error:', e.message);
       trackFailure(ticker);
     }
-  }, [normalizeForApi, trackFailure]);
+  }, [isDead, normalizeForApi, trackFailure, applySnapshot]);
+
+  // M7 — fetch a chunk (≤ BATCH_MAX) of extra tickers with ONE request.
+  // Per-symbol failures come back in `errors` and feed the same
+  // backoff/dead-ticker machinery as before. If the request fails as a
+  // WHOLE (404 on old server, network error, 5xx, malformed body) we fall
+  // back to per-ticker fetches so prices keep flowing.
+  const fetchExtrasBatch = useCallback(async (tickers) => {
+    if (!tickers.length) return;
+    const fallbackToSingles = () => Promise.all(tickers.map(t => fetchExtra(t)));
+
+    if (Date.now() < batchUnsupportedUntil.current) {
+      await fallbackToSingles();
+      return;
+    }
+
+    // apiTicker → original registered ticker (extras store is keyed by the
+    // ORIGINAL string, e.g. 'BTCUSD', while the API needs 'X:BTCUSD').
+    const apiToOriginal = new Map();
+    for (const t of tickers) apiToOriginal.set(normalizeForApi(t), t);
+    const symbols = [...apiToOriginal.keys()].join(',');
+
+    let r;
+    try {
+      r = await apiFetch(`/api/snapshot/tickers?symbols=${encodeURIComponent(symbols)}`);
+    } catch (e) {
+      if (e.name === 'AbortError') return;
+      console.warn('[PriceContext] batch fetch error:', e.message);
+      await fallbackToSingles();
+      return;
+    }
+    if (!r.ok) {
+      if (r.status === 404 || r.status === 405) {
+        // Old server without the batch route — back off for a while.
+        batchUnsupportedUntil.current = Date.now() + BATCH_UNSUPPORTED_COOLDOWN_MS;
+        console.warn('[PriceContext] batch snapshot endpoint unavailable — using per-ticker fallback');
+      }
+      await fallbackToSingles();
+      return;
+    }
+
+    let d;
+    try { d = await r.json(); } catch { await fallbackToSingles(); return; }
+    const results = d?.results;
+    if (!results || typeof results !== 'object') { await fallbackToSingles(); return; }
+    const errors = (d?.errors && typeof d.errors === 'object') ? d.errors : {};
+
+    for (const [apiTicker, original] of apiToOriginal.entries()) {
+      const payload = results[apiTicker] ?? results[apiTicker.toUpperCase()];
+      if (payload) {
+        applySnapshot(original, payload);
+      } else if (errors[apiTicker] ?? errors[apiTicker.toUpperCase()]) {
+        trackFailure(original);
+      }
+      // Neither result nor error (shouldn't happen): leave state untouched —
+      // the next cycle retries without burning a backoff attempt.
+    }
+  }, [fetchExtra, normalizeForApi, applySnapshot, trackFailure]);
+
+  // M7 — the collector. Gathers every registered ticker that (a) still has
+  // subscribers, (b) isn't covered by the core batch feed, (c) isn't dead or
+  // inside a backoff window — and fetches them all in one request per ≤50 chunk.
+  const collectExtras = useCallback(async () => {
+    // #291 W1.5 — no HTTP at all while the tab is hidden.
+    if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+    // Wait for the first core batch — same rule as the old per-ticker path:
+    // don't burn requests on tickers the batch may already cover.
+    if (!mdRef.current) return;
+
+    const now = Date.now();
+    const due = [];
+    for (const [ticker, count] of refCounts.current.entries()) {
+      if (count <= 0) continue;
+      if (lookupInBatch(mdRef.current, ticker)) continue;
+      if (isDead(ticker)) continue;
+      if ((backoffUntil.current.get(ticker) ?? 0) > now) continue;
+      due.push(ticker);
+    }
+    if (!due.length) return;
+
+    for (let i = 0; i < due.length; i += BATCH_MAX) {
+      await fetchExtrasBatch(due.slice(i, i + BATCH_MAX));
+    }
+  }, [isDead, fetchExtrasBatch]);
+
+  // Debounced "collect soon" — lets a mounting watchlist register 30 tickers
+  // and still produce a single initial request instead of 30.
+  const collectSoonTimer = useRef(null);
+  const scheduleCollect = useCallback((delayMs = 200) => {
+    if (collectSoonTimer.current != null) return;
+    collectSoonTimer.current = setTimeout(() => {
+      collectSoonTimer.current = null;
+      collectExtras();
+    }, delayMs);
+  }, [collectExtras]);
+
+  // ONE interval for ALL extra tickers (audit M7) — keeps the pre-existing
+  // 6s cadence but replaces N per-ticker intervals/requests with one.
+  useEffect(() => {
+    const id = setInterval(collectExtras, REFRESH_MS);
+    return () => {
+      clearInterval(id);
+      if (collectSoonTimer.current != null) {
+        clearTimeout(collectSoonTimer.current);
+        collectSoonTimer.current = null;
+      }
+    };
+  }, [collectExtras]);
 
   // Register interest in a ticker (called by useTickerPrice on mount)
   const register = useCallback((ticker) => {
@@ -268,34 +390,22 @@ export function PriceProvider({ marketData, children }) {
     refCounts.current.set(ticker, prev + 1);
 
     if (prev === 0) {
-      // Only start an extra-fetch interval if the batch has loaded AND the ticker
-      // isn't in it. If marketData hasn't arrived yet (null), wait — the effect
-      // below will kick off the interval once the first batch lands.
+      // New ticker: if the core batch has loaded AND doesn't cover it, kick a
+      // near-immediate collect so the price shows up fast (debounced so a
+      // burst of registrations still costs one request). If marketData hasn't
+      // arrived yet (null), wait — the effect below fires once it lands.
       if (mdRef.current && !lookupInBatch(mdRef.current, ticker)) {
-        fetchExtra(ticker);
-        intervalIds.current.set(ticker, setInterval(() => {
-          // Re-check batch on every tick; if it got added, skip extra fetch
-          if (!lookupInBatch(mdRef.current, ticker)) fetchExtra(ticker);
-        }, REFRESH_MS));
+        scheduleCollect();
       }
     }
-  }, [fetchExtra]);
+  }, [scheduleCollect]);
 
-  // When marketData first arrives, start intervals for any tickers that
-  // registered before the batch loaded and aren't covered by it.
+  // When marketData first arrives, collect any tickers that registered before
+  // the batch loaded and aren't covered by it.
   useEffect(() => {
     if (!marketData) return;
-    for (const [ticker, count] of refCounts.current.entries()) {
-      if (count > 0 && !intervalIds.current.has(ticker)) {
-        if (!lookupInBatch(marketData, ticker)) {
-          fetchExtra(ticker);
-          intervalIds.current.set(ticker, setInterval(() => {
-            if (!lookupInBatch(mdRef.current, ticker)) fetchExtra(ticker);
-          }, REFRESH_MS));
-        }
-      }
-    }
-  }, [marketData, fetchExtra]);
+    scheduleCollect(0);
+  }, [marketData, scheduleCollect]);
 
   // Unregister when component unmounts
   const unregister = useCallback((ticker) => {
@@ -303,65 +413,42 @@ export function PriceProvider({ marketData, children }) {
     const prev = refCounts.current.get(ticker) ?? 0;
     if (prev <= 1) {
       refCounts.current.delete(ticker);
-      const id = intervalIds.current.get(ticker);
-      if (id) { clearInterval(id); intervalIds.current.delete(ticker); }
       extrasStore.delete(ticker);
       // #291 W7.4 — also clear failure/dead state so these Maps don't leak and
       // a later re-registration of the same ticker starts fresh.
       fetchErrors.current.delete(ticker);
       deadTickers.current.delete(ticker);
+      backoffUntil.current.delete(ticker);
     } else {
       refCounts.current.set(ticker, prev - 1);
     }
-  }, []);
+  }, [extrasStore]);
 
-  // #291 W1.6 — Zombie ticker reaper. Long sessions accumulate extras-store
-  // entries when components register tickers transiently (e.g. opening many
-  // InstrumentDetail pages, popping out windows, etc.). The unregister
-  // path handles refCount=0 cleanup synchronously, but defensive sweeps
-  // every 10 minutes catch any tickers whose unmount never landed (popout
-  // window crashed, etc.) — without this, the extras store grows unbounded
-  // and each entry has its own setInterval draining battery on mobile.
+  // #291 W1.6 — Zombie ticker reaper. The unregister path handles refCount=0
+  // cleanup synchronously, but defensive sweeps every 10 minutes catch any
+  // tickers whose unmount never landed (popout window crashed, etc.) — without
+  // this, the extras store grows unbounded on long sessions. Since M7 there
+  // are no per-ticker intervals to clear, and no "revive" pass is needed:
+  // dead tickers whose cooldown elapsed are picked up by the very next
+  // collector tick automatically.
   useEffect(() => {
     const reaper = setInterval(() => {
       let reaped = 0;
       for (const [ticker, count] of refCounts.current.entries()) {
         if (count <= 0) {
           refCounts.current.delete(ticker);
-          const id = intervalIds.current.get(ticker);
-          if (id) { clearInterval(id); intervalIds.current.delete(ticker); }
           extrasStore.delete(ticker);
           // #291 W7.4 — clear failure/dead state for the reaped ticker too.
           fetchErrors.current.delete(ticker);
           deadTickers.current.delete(ticker);
+          backoffUntil.current.delete(ticker);
           reaped++;
         }
       }
-      // #291 W7.4 — resurrection pass: a still-referenced ticker that lost its
-      // polling interval (went dead, or popout glitch) gets re-armed once its
-      // dead-cooldown has elapsed, so prices recover without a full reload.
-      let revived = 0;
-      for (const [ticker, count] of refCounts.current.entries()) {
-        if (count > 0 && !intervalIds.current.has(ticker) && !isDead(ticker)) {
-          if (mdRef.current && !lookupInBatch(mdRef.current, ticker)) {
-            fetchExtra(ticker);
-            intervalIds.current.set(ticker, setInterval(() => {
-              if (!lookupInBatch(mdRef.current, ticker)) fetchExtra(ticker);
-            }, REFRESH_MS));
-            revived++;
-          }
-        }
-      }
-      if (reaped > 0)  console.log(`[PriceContext] Reaper: cleared ${reaped} zombie tickers`);
-      if (revived > 0) console.log(`[PriceContext] Reaper: revived ${revived} recovered tickers`);
+      if (reaped > 0) console.log(`[PriceContext] Reaper: cleared ${reaped} zombie tickers`);
     }, 10 * 60 * 1000); // 10 min
     return () => clearInterval(reaper);
-  }, [extrasStore, fetchExtra, isDead]);
-
-  // Cleanup all intervals on unmount
-  useEffect(() => () => {
-    for (const id of intervalIds.current.values()) clearInterval(id);
-  }, []);
+  }, [extrasStore]);
 
   // getPrice: always prefer batch (authoritative, already on 6s cycle)
   // Fall back to extras store for custom tickers.
@@ -428,10 +515,14 @@ export function useTickerPrice(ticker) {
     },
     [ticker, extrasStore]
   );
+  // M7 — reads via ctx.getPrice (batch-first, then extras). This replaced a
+  // module-level mutable `mdRef_global`; getPrice closes over the provider's
+  // mdRef and returns reference-stable entries, which is what
+  // useSyncExternalStore needs to avoid render loops.
   const getSnapshot = useCallback(() => {
     if (!ticker || !ctx) return null;
-    return lookupInBatch(mdRef_global, ticker) ?? extrasStore?.get(ticker) ?? null;
-  }, [ticker, ctx, extrasStore]);
+    return ctx.getPrice(ticker);
+  }, [ticker, ctx]);
 
   // Also re-render when the batch marketData updates (every 6s)
   // We detect this via a simple version counter
@@ -443,9 +534,6 @@ export function useTickerPrice(ticker) {
   // Re-derive from getPrice which checks batch first, then extras
   return ctx.getPrice(ticker);
 }
-
-// Global ref for batch data so getSnapshot can access it without closure issues
-let mdRef_global = null;
 
 // Tiny hook to force re-render when batch data updates (every 6s)
 const batchListeners = new Set();
