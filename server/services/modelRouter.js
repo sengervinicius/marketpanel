@@ -482,8 +482,11 @@ async function callProvider(provider, messages, systemPrompt, options = {}) {
  * @param {array} messages - message array
  * @param {string} systemPrompt - system prompt
  * @param {object} res - Express response object
+ * @param {object} opts - { onAbort, userId, onChunk, onComplete, maxTokens }
+ *                        `maxTokens` caps completion length for Anthropic
+ *                        providers (default 4096, same as callProviderImpl).
  */
-async function streamResponse(provider, messages, systemPrompt, res, { onAbort, userId, onChunk, onComplete } = {}) {
+async function streamResponse(provider, messages, systemPrompt, res, { onAbort, userId, onChunk, onComplete, maxTokens } = {}) {
   // Input token estimate for ledger accounting (exact counts come from
   // Anthropic's message_start/message_delta events when available; we
   // over-write with the provider number if we receive it).
@@ -505,7 +508,7 @@ async function streamResponse(provider, messages, systemPrompt, res, { onAbort, 
 
   try {
     const response = await callWithRetry(
-      () => callProviderImpl(provider, messages, systemPrompt, { stream: true }),
+      () => callProviderImpl(provider, messages, systemPrompt, { stream: true, maxTokens }),
       2
     );
 

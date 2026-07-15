@@ -13,6 +13,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { API_BASE, apiFetch } from '../utils/api';
+import { readSSEStream, createChatAbort } from '../utils/sseStream';
 import { useAuth } from './AuthContext';
 
 const ParticleChatContext = createContext(null);
@@ -39,6 +40,10 @@ export function ParticleChatProvider({ children }) {
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState(null);
   const abortRef = useRef(null);
+
+  // Provider teardown: abort any in-flight stream so we stop fetching and
+  // never setState after the provider tree is gone.
+  useEffect(() => () => { abortRef.current?.abort(); }, []);
 
   // ── Conversation sidebar state (DB-backed list) ─────────────────────────
   const [activeConversationId, setActiveConversationId] = useState(null);
@@ -146,7 +151,7 @@ export function ParticleChatProvider({ children }) {
       .slice(-10)
       .map(m => ({ role: m.role, content: m.content }));
 
-    const controller = new AbortController();
+    const { controller, signal } = createChatAbort();
     abortRef.current = controller;
 
     try {
@@ -157,7 +162,7 @@ export function ParticleChatProvider({ children }) {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         credentials: 'include',
-        signal: controller.signal,
+        signal,
         body: JSON.stringify({
           messages: historyForApi,
           context: SYSTEM_CONTEXT,
@@ -185,105 +190,89 @@ export function ParticleChatProvider({ children }) {
         throw new Error(friendly);
       }
 
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
+      // Shared SSE parser: UTF-8-safe decode, cross-read line buffering,
+      // hard [DONE] stop, abort support.
       let fullText = '';
       let vaultSources = null;
       let webCitations = null;
       let structuredAnalysis = null;
       let newConvoCreated = false;
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
-
-        for (const line of lines) {
-          const trimmedLine = line.trim();
-          if (!trimmedLine || !trimmedLine.startsWith('data: ')) continue;
-          const payload = trimmedLine.slice(6);
-          if (payload === '[DONE]') break;
-          try {
-            const parsed = JSON.parse(payload);
-            if (parsed.conversationId) {
-              if (!activeConversationId) newConvoCreated = true;
-              setActiveConversationId(String(parsed.conversationId));
-              continue;
-            }
-            if (parsed.vaultSources) {
-              vaultSources = parsed.vaultSources;
-              setMessages(prev => {
-                const updated = [...prev];
-                const last = updated[updated.length - 1];
-                if (last?.role === 'assistant') updated[updated.length - 1] = { ...last, vaultSources };
-                return updated;
-              });
-              continue;
-            }
-            if (parsed.structuredAnalysis) {
-              structuredAnalysis = parsed.structuredAnalysis;
-              setMessages(prev => {
-                const updated = [...prev];
-                const last = updated[updated.length - 1];
-                if (last?.role === 'assistant') updated[updated.length - 1] = { ...last, structuredAnalysis };
-                return updated;
-              });
-              continue;
-            }
-            if (parsed.contextMeta) {
-              setMessages(prev => {
-                const updated = [...prev];
-                const last = updated[updated.length - 1];
-                if (last?.role === 'assistant') updated[updated.length - 1] = { ...last, contextMeta: parsed.contextMeta };
-                return updated;
-              });
-              continue;
-            }
-            if (parsed.partial) {
-              setMessages(prev => {
-                const updated = [...prev];
-                const last = updated[updated.length - 1];
-                if (last?.role === 'assistant') {
-                  updated[updated.length - 1] = {
-                    ...last,
-                    content: last.content || '',
-                    streaming: false,
-                    partial: true,
-                    partialError: parsed.error || 'Response interrupted — tap to retry',
-                  };
-                }
-                return updated;
-              });
-              continue;
-            }
-            if (parsed.citations && Array.isArray(parsed.citations)) {
-              webCitations = parsed.citations;
-              setMessages(prev => {
-                const updated = [...prev];
-                const last = updated[updated.length - 1];
-                if (last?.role === 'assistant') updated[updated.length - 1] = { ...last, webCitations };
-                return updated;
-              });
-              continue;
-            }
-            if (parsed.chunk) {
-              fullText += parsed.chunk;
-              setMessages(prev => {
-                const updated = [...prev];
-                const last = updated[updated.length - 1];
-                if (last?.role === 'assistant') updated[updated.length - 1] = { ...last, content: fullText };
-                return updated;
-              });
-            }
-          } catch {
-            // Skip malformed JSON lines
+      await readSSEStream(res, {
+        signal,
+        onData: (parsed) => {
+          if (parsed.conversationId) {
+            if (!activeConversationId) newConvoCreated = true;
+            setActiveConversationId(String(parsed.conversationId));
+            return;
           }
-        }
-      }
+          if (parsed.vaultSources) {
+            vaultSources = parsed.vaultSources;
+            setMessages(prev => {
+              const updated = [...prev];
+              const last = updated[updated.length - 1];
+              if (last?.role === 'assistant') updated[updated.length - 1] = { ...last, vaultSources };
+              return updated;
+            });
+            return;
+          }
+          if (parsed.structuredAnalysis) {
+            structuredAnalysis = parsed.structuredAnalysis;
+            setMessages(prev => {
+              const updated = [...prev];
+              const last = updated[updated.length - 1];
+              if (last?.role === 'assistant') updated[updated.length - 1] = { ...last, structuredAnalysis };
+              return updated;
+            });
+            return;
+          }
+          if (parsed.contextMeta) {
+            setMessages(prev => {
+              const updated = [...prev];
+              const last = updated[updated.length - 1];
+              if (last?.role === 'assistant') updated[updated.length - 1] = { ...last, contextMeta: parsed.contextMeta };
+              return updated;
+            });
+            return;
+          }
+          if (parsed.partial) {
+            setMessages(prev => {
+              const updated = [...prev];
+              const last = updated[updated.length - 1];
+              if (last?.role === 'assistant') {
+                updated[updated.length - 1] = {
+                  ...last,
+                  content: last.content || '',
+                  streaming: false,
+                  partial: true,
+                  partialError: parsed.error || 'Response interrupted — tap to retry',
+                };
+              }
+              return updated;
+            });
+            return;
+          }
+          if (parsed.citations && Array.isArray(parsed.citations)) {
+            webCitations = parsed.citations;
+            setMessages(prev => {
+              const updated = [...prev];
+              const last = updated[updated.length - 1];
+              if (last?.role === 'assistant') updated[updated.length - 1] = { ...last, webCitations };
+              return updated;
+            });
+            return;
+          }
+          if (parsed.chunk) {
+            fullText += parsed.chunk;
+            setMessages(prev => {
+              const updated = [...prev];
+              const last = updated[updated.length - 1];
+              if (last?.role === 'assistant') updated[updated.length - 1] = { ...last, content: fullText };
+              return updated;
+            });
+          }
+        },
+      });
 
       setMessages(prev => {
         const updated = [...prev];
