@@ -139,8 +139,10 @@ test('Portuguese-looking query runs english AND portuguese keyword arms', async 
 test('English query runs only the english keyword arm', async () => {
   reset();
   await vault.retrieve(7, 'US inflation outlook next year');
+  // v2c: an empty AND result triggers ONE OR-retry with the same regconfig,
+  // so assert on the set of regconfigs used, not the raw call count.
   const configs = queries.filter(q => isKeywordSql(q.sql)).map(q => q.params[0]);
-  assert.deepEqual(configs, ['english']);
+  assert.deepEqual([...new Set(configs)], ['english']);
 });
 
 test('VAULT_KEYWORD_PT=0 disables the portuguese arm', async () => {
@@ -149,7 +151,7 @@ test('VAULT_KEYWORD_PT=0 disables the portuguese arm', async () => {
     reset();
     await vault.retrieve(7, 'qual a perspectiva para o petroleo?');
     const configs = queries.filter(q => isKeywordSql(q.sql)).map(q => q.params[0]);
-    assert.deepEqual(configs, ['english']);
+    assert.deepEqual([...new Set(configs)], ['english']);
   } finally {
     delete process.env.VAULT_KEYWORD_PT;
   }

@@ -45,6 +45,8 @@ const MAX_QUERY_VARIANTS = 3;     // cleaned query + up to 2 paraphrases → max
 const MAX_PER_DOC_CANDIDATES = 6; // per-document cap among fused candidates (pre-rerank)
 const MAX_PER_DOC_FINAL = 4;      // per-document cap among final results (post-rerank)
 const BOILERPLATE_EXCLUDE_THRESHOLD = 0.7; // v2b: candidates at/above this are dropped pre-rerank when affordable
+const RELAXED_MIN_SIMILARITY = 0.40;  // v2c: sub-strict pool used ONLY to backfill a starved candidate set
+
 const RECENCY_HALF_LIFE_DAYS = 180; // mild recency tiebreak half-life
 const RECENCY_FLOOR = 0.7;        // recency factor never drops below this — tiebreak, not dominant
 const BOILERPLATE_PENALTY = 0.6;  // fused score *= (1 - PENALTY * boilerplateScore)
@@ -1851,12 +1853,45 @@ async function _runKeywordArm({ queryText, userId, tickers = [], regconfig = 'en
 
   try {
     const r = await pg.query(buildSql('websearch_to_tsquery'), params);
-    return r.rows || [];
+    if ((r.rows || []).length > 0) return r.rows;
+    // v2c: websearch space-separated terms are implicit AND, so one absent
+    // word ("outlook") still zeroes the whole arm — the exact brittleness
+    // the v2 upgrade targeted. Retry once with explicit OR between the
+    // significant terms; ts_rank_cd still ranks multi-term matches first.
+    const orQuery = _toOrQuery(cleaned);
+    if (orQuery && orQuery !== cleaned) {
+      const orParams = params.slice();
+      orParams[1] = orQuery;
+      const r2 = await pg.query(buildSql('websearch_to_tsquery'), orParams);
+      if ((r2.rows || []).length > 0) {
+        logger.info('vault', `Keyword OR-retry (${regconfig}): ${r2.rows.length} matches after AND yielded 0`);
+        return r2.rows;
+      }
+    }
+    return [];
   } catch (wsErr) {
     logger.warn('vault', `websearch_to_tsquery failed (${regconfig}) — falling back to plainto_tsquery`, { error: wsErr.message });
     const r = await pg.query(buildSql('plainto_tsquery'), params);
     return r.rows || [];
   }
+}
+
+/**
+ * v2c — turn a free-text query into an explicit websearch OR expression of
+ * its significant terms. Stopwords and short tokens are dropped; quotes and
+ * existing operators stripped so user text cannot inject tsquery syntax.
+ */
+const _KEYWORD_STOPWORDS = new Set(['what','is','the','a','an','are','was','were','for','of','to','in','on','at','by','with','about','and','or','not','how','why','when','which','who','does','do','did','it','its','this','that','from','as','be','has','have','had','will','would','could','should','can','may','might','qual','quais','como','onde','quando','porque','que','para','com','uma','um','os','as','de','do','da','dos','das','em','no','na','nos','nas','por','sobre','e','ou']);
+function _toOrQuery(text) {
+  const terms = String(text || '')
+    .toLowerCase()
+    .replace(/["'()|&!<>:*]/g, ' ')
+    .split(/\s+/)
+    .map(t => t.trim())
+    .filter(t => t.length >= 3 && !_KEYWORD_STOPWORDS.has(t));
+  const unique = [...new Set(terms)];
+  if (unique.length === 0) return null;
+  return unique.slice(0, 8).join(' or ');
 }
 
 /**
@@ -2084,6 +2119,7 @@ async function retrieve(userId, query, limit = MAX_RETRIEVAL) {
   }
 
   const rankedLists = [];
+  const _relaxedPool = []; // v2c: 0.40-0.55 similarity band, backfill-only
   const CANDIDATE_LIMIT = 30; // pull more candidates for RRF merging
   let primaryEmbedding = null; // first variant's embedding — reused by the metadata arm
 
@@ -2184,7 +2220,18 @@ async function retrieve(userId, query, limit = MAX_RETRIEVAL) {
           r.similarity != null && parseFloat(r.similarity) >= MIN_SIMILARITY
         );
         if (vecRows.length > 0) rankedLists.push(vecRows);
-        logger.info('vault', `Vector search: ${vecResult.rows?.length || 0} candidates, ${vecRows.length} above threshold`);
+        // v2c: keep the 0.40-0.55 band aside. It NEVER enters ranking on its
+        // own — it only backfills when the strict pool is starved (see
+        // Stage 2d), and boilerplate chunks are excluded there. This is what
+        // stops "1 result and it's the greeting header" without reopening
+        // the low-threshold noise the 0.3->0.55 raise was fixing.
+        for (const r of (vecResult.rows || [])) {
+          const sim = r.similarity != null ? parseFloat(r.similarity) : null;
+          if (sim != null && sim >= RELAXED_MIN_SIMILARITY && sim < MIN_SIMILARITY) {
+            _relaxedPool.push(r);
+          }
+        }
+        logger.info('vault', `Vector search: ${vecResult.rows?.length || 0} candidates, ${vecRows.length} above threshold, ${_relaxedPool.length} in relaxed band`);
       }
     } catch (err) {
       logger.warn('vault', 'Vector search failed', { error: err.message });
@@ -2312,6 +2359,33 @@ async function retrieve(userId, query, limit = MAX_RETRIEVAL) {
     }
   } catch (exclErr) {
     logger.warn('vault', 'Boilerplate exclusion failed — keeping all candidates', { error: exclErr.message });
+  }
+
+  // ── Stage 2d: Relaxed backfill when the strict pool is starved (v2c) ──
+  // Live failure this fixes: strict gates left ONE candidate — the BofA
+  // greeting header. Backfill from the relaxed band, excluding boilerplate,
+  // so the reranker has real content to choose from. Never activates when
+  // the strict pool already fills the request.
+  try {
+    if (fused.length < limit && _relaxedPool.length > 0) {
+      const have = new Set(fused.map(p => String(p.id)));
+      const backfill = _relaxedPool
+        .filter(r => !have.has(String(r.id)))
+        .map(r => {
+          let bp = 0;
+          try { bp = vaultBoilerplate.scoreBoilerplate(r.content); } catch (_) { bp = 0; }
+          return { ...r, _boilerplate_score: bp, _adjusted_score: parseFloat(r.similarity) * (1 - BOILERPLATE_PENALTY * bp) };
+        })
+        .filter(r => r._boilerplate_score < BOILERPLATE_EXCLUDE_THRESHOLD)
+        .sort((a, b) => b._adjusted_score - a._adjusted_score)
+        .slice(0, Math.max(limit * 2 - fused.length, 0));
+      if (backfill.length > 0) {
+        logger.info('vault', `Relaxed backfill: +${backfill.length} informative sub-threshold candidates (pool was ${fused.length})`);
+        fused = fused.concat(backfill);
+      }
+    }
+  } catch (bfErr) {
+    logger.warn('vault', 'Relaxed backfill failed — continuing with strict pool', { error: bfErr.message });
   }
 
   // ── Stage 3: Optional Reranking (Cohere → Haiku fallback) ──
@@ -3075,6 +3149,7 @@ module.exports = {
   _applyCandidateShaping,
   _runKeywordArm,
   _looksPortuguese,
+  _toOrQuery,
   MAX_PER_DOC_CANDIDATES,
   MAX_PER_DOC_FINAL,
   // Phase 6: Job queue exports
