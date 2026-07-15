@@ -4,47 +4,58 @@ import { syncSettingToServer } from '../../hooks/useSettingsSync';
 import { swallow } from '../../utils/swallow';
 import { useMarketDispatch } from '../../context/MarketContext';
 import { PANEL_DEFINITIONS } from '../../config/panels';
-import { ChartPanel } from '../panels/ChartPanel';
-import { StockPanel } from '../panels/StockPanel';
-import { ForexPanel } from '../panels/ForexPanel';
-import GlobalIndicesPanel from '../panels/GlobalIndicesPanel';
-import BrazilPanel from '../panels/BrazilPanel';
-import { CommoditiesPanel } from '../panels/CommoditiesPanel';
-import { CryptoPanel } from '../panels/CryptoPanel';
-import DebtPanel from '../panels/DebtPanel';
+// Perf (#bundle): every panel in PANEL_REGISTRY is lazy-loaded — makePanelRenderer
+// wraps each panel in Suspense, so none of them need to sit in the eager index
+// chunk. Panels/screens that App.jsx also renders come from the shared
+// lazyPanels registry so there is a single lazy() instance per module and
+// Rollup never sees the same module both statically and dynamically imported
+// (which would force it into the eager bundle).
+import {
+  ETFPanel,
+  AlertCenterPanel,
+  NewsPanel,
+  ScreenerPanel,
+  MacroPanel,
+  ChatPanel,
+  PredictionPanel,
+  DefenceScreen,
+  CommoditiesScreen,
+  GlobalMacroScreen,
+  FixedIncomeScreen,
+  BrazilScreen,
+  TechAIScreen,
+} from '../../lazyPanels';
 // SearchPanel removed from desktop layout — header searchbar is the single search entry-point
-import { NewsPanel } from '../panels/NewsPanel';
-import WatchlistPanel from '../panels/WatchlistPanel';
-import { SentimentPanel } from '../panels/SentimentPanel';
-import { ChatPanel } from '../panels/ChatPanel';
-import { DICurvePanel } from '../panels/DICurvePanel';
-import FuturesPanel from '../panels/FuturesPanel';
-import { IndexPanel } from '../panels/IndexPanel';
-import AlertCenterPanel from '../panels/AlertCenterPanel';
-import MacroPanel from '../panels/MacroPanel';
-import { CalendarPanel } from '../panels/CalendarPanel';
-import ETFPanel from '../panels/ETFPanel';
-import RatesPanel from '../panels/RatesPanel';
-import HeatmapPanel from '../panels/HeatmapPanel';
-import PredictionPanel from '../panels/PredictionPanel';
 // WirePanel removed
 
-// Phase 6: Lazy-load heavy panels to reduce initial bundle.
-// lazyWithRetry handles stale-chunk failures after deploys — bare lazy()
-// would surface a render crash if the chunk hash rotated mid-session.
-const PortfolioPanel = lazyWithRetry(() => import('../panels/PortfolioPanel'));
-const ScreenerPanel = lazyWithRetry(() => import('../panels/ScreenerPanel'));
-const OptionsFlowPanel = lazyWithRetry(() => import('../panels/OptionsFlowPanel'));
+// Registry-only panels — lazy-loaded here. lazyWithRetry handles stale-chunk
+// failures after deploys; bare lazy() would surface a render crash if the
+// chunk hash rotated mid-session.
+const ChartPanel         = lazyWithRetry(() => import('../panels/ChartPanel'));
+const StockPanel         = lazyWithRetry(() => import('../panels/StockPanel'));
+const ForexPanel         = lazyWithRetry(() => import('../panels/ForexPanel'));
+const GlobalIndicesPanel = lazyWithRetry(() => import('../panels/GlobalIndicesPanel'));
+const BrazilPanel        = lazyWithRetry(() => import('../panels/BrazilPanel'));
+const CommoditiesPanel   = lazyWithRetry(() => import('../panels/CommoditiesPanel'));
+const CryptoPanel        = lazyWithRetry(() => import('../panels/CryptoPanel'));
+const DebtPanel          = lazyWithRetry(() => import('../panels/DebtPanel'));
+const WatchlistPanel     = lazyWithRetry(() => import('../panels/WatchlistPanel'));
+// PortfolioPanel.jsx is a compatibility shim that re-exports WatchlistPanel.
+// Reuse the same lazy instance so Rollup doesn't see WatchlistPanel both
+// statically (via the shim) and dynamically imported.
+const PortfolioPanel     = WatchlistPanel;
+const SentimentPanel     = lazyWithRetry(() => import('../panels/SentimentPanel'));
+const DICurvePanel       = lazyWithRetry(() => import('../panels/DICurvePanel'));
+const FuturesPanel       = lazyWithRetry(() => import('../panels/FuturesPanel'));
+const IndexPanel         = lazyWithRetry(() => import('../panels/IndexPanel'));
+const CalendarPanel      = lazyWithRetry(() => import('../panels/CalendarPanel'));
+const RatesPanel         = lazyWithRetry(() => import('../panels/RatesPanel'));
+const HeatmapPanel       = lazyWithRetry(() => import('../panels/HeatmapPanel'));
+const OptionsFlowPanel   = lazyWithRetry(() => import('../panels/OptionsFlowPanel'));
 
-// ── Code-split sector screens using lazyWithRetry ───────────────────────────
-const DefenceScreen = lazyWithRetry(() => import('../screens/DefenceScreen'));
-const CommoditiesScreen = lazyWithRetry(() => import('../screens/CommoditiesScreen'));
-const GlobalMacroScreen = lazyWithRetry(() => import('../screens/GlobalMacroScreen'));
-const FixedIncomeScreen = lazyWithRetry(() => import('../screens/FixedIncomeScreen'));
-const BrazilScreen = lazyWithRetry(() => import('../screens/BrazilScreen'));
+// ── Code-split sector screens not shared with App.jsx ───────────────────────
 const FxCryptoScreen = lazyWithRetry(() => import('../screens/FxCryptoScreen'));
-const EnergyScreen = lazyWithRetry(() => import('../screens/EnergyScreen'));
-const TechAIScreen = lazyWithRetry(() => import('../screens/TechAIScreen'));
+const EnergyScreen   = lazyWithRetry(() => import('../screens/EnergyScreen'));
 
 // ── MarketTickBridge — dispatches live WS ticks into MarketContext reducer ────
 export function MarketTickBridge({ batchTicks }) {

@@ -6,9 +6,11 @@
  * Works on both desktop (panel) and mobile (full screen).
  */
 
-import { useState, useCallback, useMemo, memo } from 'react';
+import { useState, useCallback, useMemo, memo, Suspense } from 'react';
 import PanelShell from '../common/PanelShell';
-import AlertEditor from '../common/AlertEditor';
+// Perf (#bundle): shared lazy AlertEditor — a static import here would pin
+// AlertEditor into whichever chunk loads first and trip Rollup's dual-import warning.
+import { AlertEditor } from '../../lazyPanels';
 import EmptyState from '../common/EmptyState';
 import { useAlerts } from '../../context/AlertsContext';
 import { useOpenDetail } from '../../context/OpenDetailContext';
@@ -266,8 +268,8 @@ function AlertCenterPanel() {
         )}
       </div>
 
-      {editorAlert && <AlertEditor alert={editorAlert} onClose={() => setEditorAlert(null)} />}
-      {showNew && <AlertEditor alert={null} onClose={() => setShowNew(false)} />}
+      {editorAlert && <Suspense fallback={null}><AlertEditor alert={editorAlert} onClose={() => setEditorAlert(null)} /></Suspense>}
+      {showNew && <Suspense fallback={null}><AlertEditor alert={null} onClose={() => setShowNew(false)} /></Suspense>}
     </PanelShell>
   );
 }

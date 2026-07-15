@@ -1,11 +1,11 @@
 // InstrumentDetail.jsx – Bloomberg GP-style full-screen instrument overlay
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo, Suspense } from 'react';
 import { createPortal } from 'react-dom';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { useOpenDetail, useSectorContext } from '../../context/OpenDetailContext';
 import { useScreenContext } from '../../context/ScreenContext';
 import { useInstrumentData } from '../../hooks/useInstrumentData';
-import AlertEditor from './AlertEditor';
+import { AlertEditor } from '../../lazyPanels';
 import FreshnessDot from './FreshnessDot';
 import ShareModal from './ShareModal';
 import PositionEditor from './PositionEditor';
@@ -2981,13 +2981,15 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
 
       {/* Alert editor modal — portaled to body to escape scroll container on mobile */}
       {showAlertEditor && createPortal(
-        <AlertEditor
-          alert={null}
-          defaultSymbol={norm}
-          defaultPrice={livePrice}
-          onClose={() => setShowAlertEditor(false)}
-          mobile={isMobile}
-        />,
+        <Suspense fallback={null}>
+          <AlertEditor
+            alert={null}
+            defaultSymbol={norm}
+            defaultPrice={livePrice}
+            onClose={() => setShowAlertEditor(false)}
+            mobile={isMobile}
+          />
+        </Suspense>,
         document.body
       )}
 

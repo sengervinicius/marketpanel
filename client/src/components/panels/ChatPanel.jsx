@@ -15,7 +15,7 @@ import { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useScreenContext } from '../../context/ScreenContext';
 import { useAIChatWithContext } from '../../hooks/useAIChatWithContext';
-import { apiFetch } from '../../utils/api';
+import { apiFetch, API_BASE } from '../../utils/api';
 import { WS_URL } from '../../utils/constants';
 import UserAvatar from '../common/UserAvatar';
 import { swallow } from '../../utils/swallow';
@@ -216,7 +216,6 @@ function ChatPanel({ mobile, initialUserId }) {
   const loadAiConversations = useCallback(async () => {
     if (!user?.id) return;
     try {
-      const { API_BASE } = await import('../../utils/api');
       const res = await fetch(`${API_BASE}/api/ai-chat`, { credentials: 'include' });
       if (!res.ok) return;
       const data = await res.json().catch(() => null);
@@ -234,7 +233,6 @@ function ChatPanel({ mobile, initialUserId }) {
     if (!user?.id || !convoId) return;
     setAiHistoryLoading(true);
     try {
-      const { API_BASE } = await import('../../utils/api');
       const res = await fetch(`${API_BASE}/api/ai-chat/${convoId}`, { credentials: 'include' });
       if (!res.ok) {
         setAiHistoryLoading(false);
@@ -299,7 +297,6 @@ function ChatPanel({ mobile, initialUserId }) {
       String(c.id) === String(convoId) ? { ...c, title: next } : c
     ));
     try {
-      const { API_BASE } = await import('../../utils/api');
       const res = await fetch(`${API_BASE}/api/ai-chat/${convoId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -323,7 +320,6 @@ function ChatPanel({ mobile, initialUserId }) {
     if (!user?.id || !convoId) return;
     if (!window.confirm('Delete this conversation? This cannot be undone.')) return;
     try {
-      const { API_BASE } = await import('../../utils/api');
       const res = await fetch(`${API_BASE}/api/ai-chat/${convoId}`, {
         method: 'DELETE',
         credentials: 'include',
@@ -571,7 +567,6 @@ function ChatPanel({ mobile, initialUserId }) {
   const _runStreamingTurn = useCallback(async (text, assistantMsgId, historyMessages) => {
     let newConvoCreated = false;
     try {
-      const { API_BASE } = await import('../../utils/api');
       const contextualContent = buildContextualMessage(text);
       const response = await fetch(`${API_BASE}/api/search/chat`, {
         method: 'POST',
@@ -705,7 +700,6 @@ function ChatPanel({ mobile, initialUserId }) {
     // bubble the streaming path would produce, so no bubble-rendering change.
     if (selectedPersona) {
       try {
-        const { API_BASE } = await import('../../utils/api');
         const res = await fetch(`${API_BASE}/api/personas/${encodeURIComponent(selectedPersona)}/ask`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

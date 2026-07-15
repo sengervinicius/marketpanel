@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo, Suspense } from 'react';
 
 import { apiFetch } from './utils/api';
+import { lazyWithRetry } from './utils/lazyWithRetry';
 import { swallow } from './utils/swallow';
 import { useFeatureFlags } from './hooks/useFeatureFlags';
 import { useMarketData } from './hooks/useMarketData';
@@ -59,8 +60,6 @@ import {
   InstrumentDetail,
   AlertEditor,
 } from './lazyPanels';
-// openChatWindow is a standalone utility, import directly
-import { openChatWindow } from './components/panels/ChatPanel';
 import ToastContainer from './components/common/ToastContainer';
 import SectorScreenSelector from './components/common/SectorScreenSelector';
 import MarketStatus from './components/common/MarketStatus';
@@ -100,7 +99,9 @@ import {
   ParticleModeBar,
   TerminalSubNav,
 } from './components/app/AppMobile';
-import ParticleScreen from './components/app/ParticleScreen';
+// Perf (#bundle): ParticleScreen pulls three.js (~490 kB min) via useParticleCanvas —
+// lazy-load it so the three chunk is only fetched when Particle mode mounts.
+const ParticleScreen = lazyWithRetry(() => import('./components/app/ParticleScreen'));
 import PricingModal from './components/app/PricingModal';
 // #253 P3.1 — shell-level boundaries (TOS modal, error boundary, loading fallbacks)
 import {
@@ -992,7 +993,7 @@ export default function App() {
             {/* Chat icon — opens in a new window */}
             <button
               className="btn"
-              onClick={() => openChatWindow()}
+              onClick={() => import('./components/panels/ChatPanel').then(m => m.openChatWindow())}
               title="Direct Messages (Cmd+Shift+M)"
               aria-label="Open conversations"
               style={{
@@ -1064,7 +1065,9 @@ export default function App() {
         {/* ── Desktop Particle Mode ── */}
         {mobileMode === 'particle' && !subscriptionExpired && (
           <div className="desktop-particle-container" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
-            <ParticleScreen />
+            <Suspense fallback={null}>
+              <ParticleScreen />
+            </Suspense>
           </div>
         )}
 
@@ -1483,7 +1486,9 @@ export default function App() {
 
             {/* ── Particle AI screen (shown when mobileMode === 'particle') ── */}
             <div style={{ flex: 1, display: mobileMode !== 'particle' ? 'none' : 'flex' }}>
-              <ParticleScreen />
+              <Suspense fallback={null}>
+                <ParticleScreen />
+              </Suspense>
             </div>
 
             {/* ── Vault screen (shown when mobileMode === 'vault') ── */}

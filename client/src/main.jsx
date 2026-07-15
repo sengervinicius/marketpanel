@@ -1,5 +1,5 @@
 import * as Sentry from '@sentry/react';
-import { StrictMode, useEffect, Component } from 'react'
+import { StrictMode, Suspense, useEffect, Component } from 'react'
 import { createRoot } from 'react-dom/client'
 import { HashRouter, Routes, Route } from 'react-router-dom'
 import { QueryClientProvider } from '@tanstack/react-query'
@@ -39,7 +39,10 @@ initAnalytics();
 
 // LandingPage removed — LoginScreen IS the landing page
 import InstrumentDetailPage from './pages/InstrumentDetailPage.jsx'
-import ChatPage from './pages/ChatPage.jsx'
+import { lazyWithRetry } from './utils/lazyWithRetry.js'
+// Perf (#bundle): ChatPage statically imports ChatPanel — keeping it static
+// here would pull the whole chat stack into the eager index chunk.
+const ChatPage = lazyWithRetry(() => import('./pages/ChatPage.jsx'))
 import NotFoundPage from './components/common/NotFoundPage.jsx'
 import LoginScreen from './components/auth/LoginScreen.jsx'
 import { AuthProvider, useAuth } from './context/AuthContext.jsx'
@@ -140,8 +143,8 @@ function AppShell() {
             <Routes>
               <Route path="/" element={<App />} />
               <Route path="/detail/:symbolKey" element={<InstrumentDetailPage />} />
-              <Route path="/chat" element={<ChatPage />} />
-              <Route path="/chat/:userId" element={<ChatPage />} />
+              <Route path="/chat" element={<Suspense fallback={null}><ChatPage /></Suspense>} />
+              <Route path="/chat/:userId" element={<Suspense fallback={null}><ChatPage /></Suspense>} />
               {/* Catch-all → 404 page */}
               <Route path="*" element={<NotFoundPage />} />
             </Routes>
