@@ -336,7 +336,9 @@ function VaultPanelInner({ fullScreen = false }) {
   };
 
   const activeDocs = tab === 'central' ? centralDocs : documents;
-  const totalChunks = activeDocs.reduce((s, d) => s + (d.chunk_count || 0), 0);
+  // Audit C5: chunk_count arrives as a string (pg bigint), so `+` concatenated
+  // ("0" + "26" + "12" + "25" rendered as 0261225). Coerce to Number.
+  const totalChunks = activeDocs.reduce((s, d) => s + (Number(d.chunk_count) || 0), 0);
 
   return (
     <div
@@ -372,7 +374,7 @@ function VaultPanelInner({ fullScreen = false }) {
           </div>
           <div className="vault-hero-divider" />
           <div className="vault-hero-stat">
-            <span className="vault-hero-stat-value">{totalChunks}</span>
+            <span className="vault-hero-stat-value">{totalChunks.toLocaleString()}</span>
             <span className="vault-hero-stat-label">Passages</span>
           </div>
           {quota && !quota.documents?.unlimited && (

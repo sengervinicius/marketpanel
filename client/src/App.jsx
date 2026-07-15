@@ -261,6 +261,19 @@ export default function App() {
     }, 800);
   }, []);
 
+  // Audit C6: NewsPanel's briefing ticker chips dispatch 'chart:set-ticker';
+  // nothing listened, so the click was a silent no-op. Wire it to the same
+  // setter the panels use.
+  useEffect(() => {
+    const onSetTicker = (e) => {
+      const sym = e?.detail?.ticker;
+      if (sym) setChartTicker(sym);
+    };
+    window.addEventListener('chart:set-ticker', onSetTicker);
+    return () => window.removeEventListener('chart:set-ticker', onSetTicker);
+  }, [setChartTicker]);
+
+
   // ── Mobile detection ─────────────────────────────────────────────────────
   const isMobile = useIsMobile();
 
@@ -768,7 +781,7 @@ export default function App() {
       <AlertsProvider>
       <FeedStatusProvider status={feedStatus}>
       <MarketProvider restData={mergedData}>
-      <PriceProvider marketData={data}>
+      <PriceProvider marketData={mergedData}>
       <PanelProvider value={panelCtx}>
       <ParticleChatProvider>
       <div className="flex-col" style={{
@@ -1313,7 +1326,7 @@ export default function App() {
     <FeedStatusProvider status={feedStatus}>
     <MarketProvider restData={mergedData}>
     <MarketTickBridge batchTicks={batchTicks} />
-    <PriceProvider marketData={data}>
+    <PriceProvider marketData={mergedData}>
     <PanelProvider value={panelCtx}>
     <ParticleChatProvider>
     <div className="m-app-shell">
