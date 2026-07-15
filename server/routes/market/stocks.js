@@ -627,83 +627,155 @@ router.get('/snapshot/global-indices', async (req, res) => {
   }
 });
 
+/**
+ * fetchTickerSnapshot(sym) — shared per-symbol snapshot fetch (audit M7).
+ *
+ * Extracted from GET /snapshot/ticker/:symbol so the batched
+ * GET /snapshot/tickers endpoint reuses the EXACT same provider routing
+ * (Yahoo primary → Finnhub fallback for plain equities), the same 60s
+ * yahooCache (inside yahooQuote), and the same freshnessLedger (#289)
+ * recording. The two endpoints can therefore never drift apart in data
+ * source or response shape.
+ *
+ * @param {string} sym — already-uppercased, isTicker()-validated symbol
+ * @returns {Promise<object>} the single-endpoint payload: { ticker: {...} }
+ * @throws  when no provider returns data for the symbol
+ */
+async function fetchTickerSnapshot(sym) {
+  const { toYahoo } = require('../../utils/tickerNormalize');
+  let yahooTicker = toYahoo(sym);
+  // Futures - Yahoo Finance handles these natively (CL=F, BZ=F, GC=F, etc.)
+  if (sym.includes('=F') || sym.includes('=')) {
+    yahooTicker = sym;
+  }
+
+  // Primary: Yahoo Finance
+  let q = null;
+  try {
+    const quotes = await yahooQuote(yahooTicker);
+    q = quotes?.[0];
+  } catch (yErr) {
+    console.warn(`[snapshot/ticker] Yahoo failed for ${sym}: ${yErr.message}`);
+  }
+
+  // Fallback: Finnhub (only for plain equity tickers — no prefix, no suffix)
+  if (!q && !sym.startsWith('X:') && !sym.startsWith('C:') && !sym.includes('=') && require('./lib/providers').finnhubKey()) {
+    try {
+      const fData = await finnhubQuote(sym);
+      if (fData && fData.c > 0) {
+        q = {
+          regularMarketPrice:           fData.c,
+          regularMarketOpen:            fData.o ?? null,
+          regularMarketDayHigh:         fData.h ?? null,
+          regularMarketDayLow:          fData.l ?? null,
+          regularMarketPreviousClose:   fData.pc ?? null,
+          regularMarketChange:          fData.d ?? null,
+          regularMarketChangePercent:   fData.dp ?? null,
+          regularMarketVolume:          0,
+        };
+        console.log(`[snapshot/ticker] Finnhub fallback succeeded for ${sym}: $${fData.c}`);
+      }
+    } catch (fErr) {
+      console.warn(`[snapshot/ticker] Finnhub fallback also failed for ${sym}: ${fErr.message}`);
+    }
+  }
+
+  if (!q) throw new Error(`No data for ${sym} from any provider`);
+  // #289 — record + surface freshness so admin endpoints and the
+  // client-side freshness dot (#289 part 2) can answer "when did
+  // SPY last get fresh REST data, and from which source?". Yahoo
+  // exposes regularMarketTime in epoch seconds when present;
+  // Finnhub doesn't, so we fall back to now() with source label
+  // pinned accordingly.
+  const _asOfMs = q.regularMarketTime ? q.regularMarketTime * 1000 : Date.now();
+  const _source = q.regularMarketTime ? 'yahoo' : 'finnhub';
+  try {
+    require('../../services/freshnessLedger').record({
+      symbol: sym, source: _source, asOf: _asOfMs,
+    });
+  } catch (_) { /* never throw from response path */ }
+  return {
+    ticker: {
+      min:    { c: q.regularMarketPrice },
+      day:    {
+        o: q.regularMarketOpen        ?? null,
+        h: q.regularMarketDayHigh     ?? null,
+        l: q.regularMarketDayLow      ?? null,
+        c: q.regularMarketPrice       ?? null,
+        v: q.regularMarketVolume      ?? 0,
+        vw: null,
+      },
+      prevDay:          { c: q.regularMarketPreviousClose ?? (q.regularMarketPrice - q.regularMarketChange) ?? null },
+      todaysChangePerc: q.regularMarketChangePercent ?? null,
+      todaysChange:     q.regularMarketChange        ?? null,
+      // #289 part 2 — client reads _meta to colour the freshness dot.
+      _meta: { asOf: _asOfMs, source: _source },
+    },
+  };
+}
+
+// ── Batched ticker snapshots (audit M7) ──────────────────────────────
+// GET /snapshot/tickers?symbols=AAPL,MSFT,X:BTCUSD
+//
+// One request replaces N client polls of /snapshot/ticker/:symbol —
+// PriceContext's extras store used to fire one HTTP request per custom
+// watchlist ticker every 6s cycle. Symbols are validated, uppercased and
+// deduped; hard cap of 50 per request (the client chunks above that).
+// Per-symbol failures land in `errors` and never fail the whole request.
+//
+// Response: { results: { SYM: { ticker: {...} } }, errors: { SYM: 'msg' } }
+// where each results[SYM] is byte-identical in shape to the single
+// /snapshot/ticker/:symbol response body.
+const SNAPSHOT_BATCH_MAX = 50;
+router.get('/snapshot/tickers', async (req, res) => {
+  try {
+    const raw = req.query.symbols;
+    if (typeof raw !== 'string' || !raw.trim()) {
+      return res.status(400).json({ ok: false, error: 'bad_request', message: 'symbols query param required (comma-separated)' });
+    }
+
+    // Validate + uppercase + dedupe (order-preserving)
+    const seen    = new Set();
+    const symbols = [];
+    const errors  = {};
+    for (const part of raw.split(',')) {
+      const s = part.trim().toUpperCase();
+      if (!s) continue;
+      if (!isTicker(s)) {
+        errors[sanitizeText(s, 20)] = 'Invalid symbol format';
+        continue;
+      }
+      if (!seen.has(s)) { seen.add(s); symbols.push(s); }
+    }
+    if (!symbols.length) {
+      return res.status(400).json({ ok: false, error: 'bad_request', message: 'No valid symbols supplied' });
+    }
+    if (symbols.length > SNAPSHOT_BATCH_MAX) {
+      return res.status(400).json({ ok: false, error: 'bad_request', message: `Too many symbols: ${symbols.length} (max ${SNAPSHOT_BATCH_MAX})` });
+    }
+
+    // Fetch concurrently through the SAME per-ticker path as the single
+    // endpoint (shared yahooQuote 60s cache dedupes hot symbols).
+    const settled = await Promise.allSettled(symbols.map(s => fetchTickerSnapshot(s)));
+    const results = {};
+    settled.forEach((r, i) => {
+      if (r.status === 'fulfilled') results[symbols[i]] = r.value;
+      else errors[symbols[i]] = r.reason?.message || 'fetch failed';
+    });
+    res.json({ results, errors });
+  } catch (e) {
+    console.error('[API] /snapshot/tickers error:', e.message);
+    sendError(res, e);
+  }
+});
+
 router.get('/snapshot/ticker/:symbol', async (req, res) => {
   try {
     const sym = req.params.symbol.toUpperCase();
     if (!isTicker(sym)) {
       return res.status(400).json({ ok: false, error: 'bad_request', message: 'Invalid symbol format' });
     }
-
-    const { toYahoo } = require('../../utils/tickerNormalize');
-    let yahooTicker = toYahoo(sym);
-    // Futures - Yahoo Finance handles these natively (CL=F, BZ=F, GC=F, etc.)
-    if (sym.includes('=F') || sym.includes('=')) {
-      yahooTicker = sym;
-    }
-
-    // Primary: Yahoo Finance
-    let q = null;
-    try {
-      const quotes = await yahooQuote(yahooTicker);
-      q = quotes?.[0];
-    } catch (yErr) {
-      console.warn(`[snapshot/ticker] Yahoo failed for ${sym}: ${yErr.message}`);
-    }
-
-    // Fallback: Finnhub (only for plain equity tickers — no prefix, no suffix)
-    if (!q && !sym.startsWith('X:') && !sym.startsWith('C:') && !sym.includes('=') && require('./lib/providers').finnhubKey()) {
-      try {
-        const fData = await finnhubQuote(sym);
-        if (fData && fData.c > 0) {
-          q = {
-            regularMarketPrice:           fData.c,
-            regularMarketOpen:            fData.o ?? null,
-            regularMarketDayHigh:         fData.h ?? null,
-            regularMarketDayLow:          fData.l ?? null,
-            regularMarketPreviousClose:   fData.pc ?? null,
-            regularMarketChange:          fData.d ?? null,
-            regularMarketChangePercent:   fData.dp ?? null,
-            regularMarketVolume:          0,
-          };
-          console.log(`[snapshot/ticker] Finnhub fallback succeeded for ${sym}: $${fData.c}`);
-        }
-      } catch (fErr) {
-        console.warn(`[snapshot/ticker] Finnhub fallback also failed for ${sym}: ${fErr.message}`);
-      }
-    }
-
-    if (!q) throw new Error(`No data for ${sym} from any provider`);
-    // #289 — record + surface freshness so admin endpoints and the
-    // client-side freshness dot (#289 part 2) can answer "when did
-    // SPY last get fresh REST data, and from which source?". Yahoo
-    // exposes regularMarketTime in epoch seconds when present;
-    // Finnhub doesn't, so we fall back to now() with source label
-    // pinned accordingly.
-    const _asOfMs = q.regularMarketTime ? q.regularMarketTime * 1000 : Date.now();
-    const _source = q.regularMarketTime ? 'yahoo' : 'finnhub';
-    try {
-      require('../../services/freshnessLedger').record({
-        symbol: sym, source: _source, asOf: _asOfMs,
-      });
-    } catch (_) { /* never throw from response path */ }
-    res.json({
-      ticker: {
-        min:    { c: q.regularMarketPrice },
-        day:    {
-          o: q.regularMarketOpen        ?? null,
-          h: q.regularMarketDayHigh     ?? null,
-          l: q.regularMarketDayLow      ?? null,
-          c: q.regularMarketPrice       ?? null,
-          v: q.regularMarketVolume      ?? 0,
-          vw: null,
-        },
-        prevDay:          { c: q.regularMarketPreviousClose ?? (q.regularMarketPrice - q.regularMarketChange) ?? null },
-        todaysChangePerc: q.regularMarketChangePercent ?? null,
-        todaysChange:     q.regularMarketChange        ?? null,
-        // #289 part 2 — client reads _meta to colour the freshness dot.
-        _meta: { asOf: _asOfMs, source: _source },
-      },
-    });
+    res.json(await fetchTickerSnapshot(sym));
   } catch (e) {
     console.error('[API] /snapshot/ticker error:', e.message);
     sendError(res, e);
