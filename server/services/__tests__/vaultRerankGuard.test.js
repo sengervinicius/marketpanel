@@ -54,3 +54,10 @@ test('_toOrQuery strips tsquery operators from user text', () => {
   const q = vault._toOrQuery('petrobras & drop table | ! <-> injection:*');
   assert.ok(!/[&|!<>:*]/.test(q), 'operators must be stripped: ' + q);
 });
+
+test('v2d: similarity thresholds follow the embedding provider', () => {
+  assert.strictEqual(vault._minSimilarityFor('openai'), 0.55);
+  assert.ok(vault._minSimilarityFor('voyage') <= 0.40, 'voyage strict floor must be far below the openai one');
+  assert.ok(vault._relaxedSimilarityFor('voyage') < vault._minSimilarityFor('voyage'));
+  assert.strictEqual(vault._minSimilarityFor('unknown-provider'), 0.55, 'unknown providers fall back to the legacy floor');
+});

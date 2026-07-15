@@ -39,6 +39,26 @@ const CHUNK_SIZE = 1000; // chars per chunk — larger for financial context ret
 const CHUNK_OVERLAP = 150; // overlap between chunks — preserves cross-boundary context
 const MAX_RETRIEVAL = 8; // top candidates before similarity filtering
 const MIN_SIMILARITY = 0.55; // Phase 2 AI: raised from 0.3 — only genuinely relevant passages should surface
+// v2d — CRITICAL calibration fix (live-verified): 0.55 was tuned on OpenAI
+// text-embedding cosines (relevant pairs ~0.7-0.85). The corpus is now
+// voyage-finance-2, whose relevant-pair cosines run FAR lower (~0.35-0.6).
+// Production logs showed "30 candidates, 0 above threshold" on EVERY query
+// — the vector arm has been returning nothing and the vault was running on
+// the keyword arm alone. Thresholds must follow the embedding provider.
+const MIN_SIMILARITY_BY_PROVIDER = {
+  openai: 0.55,
+  voyage: parseFloat(process.env.VAULT_MIN_SIM_VOYAGE || '0.35'),
+};
+const RELAXED_BY_PROVIDER = {
+  openai: 0.40,
+  voyage: parseFloat(process.env.VAULT_RELAXED_SIM_VOYAGE || '0.22'),
+};
+function _minSimilarityFor(provider) {
+  return MIN_SIMILARITY_BY_PROVIDER[provider] ?? MIN_SIMILARITY;
+}
+function _relaxedSimilarityFor(provider) {
+  return RELAXED_BY_PROVIDER[provider] ?? RELAXED_MIN_SIMILARITY;
+}
 const MIN_PASSAGES_THRESHOLD = 2; // Phase 6: if fewer than this meet threshold, return 0 (avoid confusing context)
 // ── Retrieval v2 constants (audit §6.2-6.5) ──
 const MAX_QUERY_VARIANTS = 3;     // cleaned query + up to 2 paraphrases → max 3 embeddings
@@ -2215,9 +2235,11 @@ async function retrieve(userId, query, limit = MAX_RETRIEVAL) {
             [`[${embeddings[0].join(',')}]`, userId, CANDIDATE_LIMIT, activeProvider]
           );
         }
-        // Pre-filter by similarity threshold
+        // Pre-filter by similarity threshold (provider-calibrated, v2d)
+        const _strictFloor = _minSimilarityFor(activeProvider);
+        const _relaxedFloor = _relaxedSimilarityFor(activeProvider);
         const vecRows = (vecResult.rows || []).filter(r =>
-          r.similarity != null && parseFloat(r.similarity) >= MIN_SIMILARITY
+          r.similarity != null && parseFloat(r.similarity) >= _strictFloor
         );
         if (vecRows.length > 0) rankedLists.push(vecRows);
         // v2c: keep the 0.40-0.55 band aside. It NEVER enters ranking on its
@@ -2227,7 +2249,7 @@ async function retrieve(userId, query, limit = MAX_RETRIEVAL) {
         // the low-threshold noise the 0.3->0.55 raise was fixing.
         for (const r of (vecResult.rows || [])) {
           const sim = r.similarity != null ? parseFloat(r.similarity) : null;
-          if (sim != null && sim >= RELAXED_MIN_SIMILARITY && sim < MIN_SIMILARITY) {
+          if (sim != null && sim >= _relaxedFloor && sim < _strictFloor) {
             _relaxedPool.push(r);
           }
         }
@@ -2300,7 +2322,7 @@ async function retrieve(userId, query, limit = MAX_RETRIEVAL) {
         metaParams
       );
       const metaRows = (metaResult.rows || []).filter(r =>
-        r.similarity != null && parseFloat(r.similarity) >= MIN_SIMILARITY
+        r.similarity != null && parseFloat(r.similarity) >= _minSimilarityFor(getEmbeddingProvider())
       );
       if (metaRows.length > 0) rankedLists.push(metaRows);
       logger.info('vault', `Metadata arm: ${metaRows.length} candidates (tickers=[${(rewrite.tickers || []).join(',')}])`);
@@ -2453,7 +2475,7 @@ async function retrieve(userId, query, limit = MAX_RETRIEVAL) {
   // If we have very few quality passages, it's better to return nothing than inject
   // confusing/irrelevant context. Only applies when vector similarity is the primary signal.
   const passagesAboveThreshold = finalPassages.filter(p =>
-    p.similarity != null && parseFloat(p.similarity) >= MIN_SIMILARITY
+    p.similarity != null && parseFloat(p.similarity) >= _minSimilarityFor(getEmbeddingProvider())
   );
   if (passagesAboveThreshold.length > 0 && passagesAboveThreshold.length < MIN_PASSAGES_THRESHOLD) {
     // Check if these are strong enough to be useful
@@ -2680,7 +2702,7 @@ async function retrieveFromDocument(documentId, userId, query, limit = MAX_RETRI
         [`[${embeddings[0].join(',')}]`, documentId, CANDIDATE_LIMIT]
       );
       const vecRows = (vecResult.rows || []).filter(r =>
-        r.similarity != null && parseFloat(r.similarity) >= MIN_SIMILARITY
+        r.similarity != null && parseFloat(r.similarity) >= _minSimilarityFor(getEmbeddingProvider())
       );
       if (vecRows.length > 0) rankedLists.push(vecRows);
       logger.info('vault', `Document vector search: ${vecResult.rows?.length || 0} candidates, ${vecRows.length} above threshold`);
@@ -3150,6 +3172,8 @@ module.exports = {
   _runKeywordArm,
   _looksPortuguese,
   _toOrQuery,
+  _minSimilarityFor,
+  _relaxedSimilarityFor,
   MAX_PER_DOC_CANDIDATES,
   MAX_PER_DOC_FINAL,
   // Phase 6: Job queue exports
