@@ -17,6 +17,7 @@
 'use strict';
 
 import { useEffect, useState, useRef, useCallback } from 'react';
+import { API_BASE } from '../../utils/api';
 
 const CACHE_KEY = 'particle_personas_v1';
 const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
@@ -48,7 +49,6 @@ export default function PersonaPickerChip({ selected, onSelect }) {
 
   const fetchPersonas = useCallback(async () => {
     try {
-      const { API_BASE } = await import('../../utils/api');
       const res = await fetch(`${API_BASE}/api/personas`, {
         method: 'GET',
         credentials: 'include',

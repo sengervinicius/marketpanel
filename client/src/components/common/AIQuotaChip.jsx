@@ -18,6 +18,7 @@
 'use strict';
 
 import { useEffect, useState, useRef, useCallback } from 'react';
+import { API_BASE } from '../../utils/api';
 
 export default function AIQuotaChip({ refreshKey = 0 }) {
   const [stats, setStats] = useState(null);
@@ -27,7 +28,6 @@ export default function AIQuotaChip({ refreshKey = 0 }) {
 
   const fetchUsage = useCallback(async () => {
     try {
-      const { API_BASE } = await import('../../utils/api');
       const res = await fetch(`${API_BASE}/api/auth/me/ai-usage`, {
         method: 'GET',
         credentials: 'include',

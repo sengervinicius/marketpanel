@@ -9,11 +9,11 @@
  * Uses shared mobile CSS primitives (.m-search, .m-chip, .m-row, .m-toast, etc.)
  */
 
-import { memo, useState, useMemo, useRef, useCallback, useEffect } from 'react';
+import { memo, useState, useMemo, useRef, useCallback, useEffect, Suspense } from 'react';
 import { usePortfolio } from '../../context/PortfolioContext';
 import { useStocksData, useForexData, useCryptoData } from '../../context/MarketContext';
 import { useOpenDetail } from '../../context/OpenDetailContext';
-import AlertEditor from '../common/AlertEditor';
+import { AlertEditor } from '../../lazyPanels';
 import Badge from '../ui/Badge';
 import {
   fmtPct, fmtCompact, computeSummary, computeAllocation,
@@ -428,15 +428,17 @@ function PortfolioMobile({ onManage }) {
 
       {/* Alert editor modal */}
       {alertEditorData && (
-        <AlertEditor
-          alert={null}
-          defaultSymbol={alertEditorData.symbol}
-          defaultPrice={alertEditorData.price}
-          defaultEntryPrice={alertEditorData.entryPrice}
-          defaultPositionId={alertEditorData.positionId}
-          onClose={() => setAlertEditorData(null)}
-          mobile
-        />
+        <Suspense fallback={null}>
+          <AlertEditor
+            alert={null}
+            defaultSymbol={alertEditorData.symbol}
+            defaultPrice={alertEditorData.price}
+            defaultEntryPrice={alertEditorData.entryPrice}
+            defaultPositionId={alertEditorData.positionId}
+            onClose={() => setAlertEditorData(null)}
+            mobile
+          />
+        </Suspense>
       )}
 
       {/* Undo Toast */}

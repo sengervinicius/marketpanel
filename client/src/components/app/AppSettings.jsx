@@ -1,11 +1,13 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import { useSettings } from '../../context/SettingsContext';
 import { useAlerts } from '../../context/AlertsContext';
 import { useFeatureFlags } from '../../hooks/useFeatureFlags';
 import { useToast } from '../../context/ToastContext';
 import { PANEL_DEFINITIONS, DEFAULT_LAYOUT } from '../../config/panels';
 import UserAvatar from '../common/UserAvatar';
-import VaultPanel from './VaultPanel';
+// Perf (#bundle): VaultPanel is heavy and already lazy in lazyPanels —
+// importing it statically here dragged it into the eager index chunk.
+import { VaultPanel } from '../../lazyPanels';
 import { FeedbackLink } from '../common/FeedbackButton';
 
 // ── Settings Drawer Constants ────────────────────────────────────────────────
@@ -342,7 +344,9 @@ export function SettingsDrawer({ panelVisible, togglePanel, onClose, mobile }) {
 
       {/* ── Knowledge Vault ── */}
       <SettingsSection label="KNOWLEDGE VAULT" />
-      <VaultPanel />
+      <Suspense fallback={null}>
+        <VaultPanel />
+      </Suspense>
 
       {/* ── Inbound Email → Personal Vault (P4) ── */}
       <SettingsSection label="EMAIL → PERSONAL VAULT" />
