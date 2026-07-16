@@ -145,9 +145,10 @@ const CIO_FOREX_DEFAULTS = [
   'USDCNY','USDMXN',
   'BTCUSD','ETHUSD','SOLUSD','XRPUSD','BNBUSD','DOGEUSD',
 ];
+// H0: real front-month futures for NEW users. Existing users' saved lists
+// are never rewritten (legacy ETF proxies still resolve client-side).
 const CIO_COMMODITIES_DEFAULTS = [
-  'BZ=F','GLD','SLV','USO','UNG',
-  'CORN','WEAT','SOYB','CPER','BHP',
+  'GC=F','SI=F','HG=F','CL=F','BZ=F','NG=F','ZC=F','ZS=F','ZW=F',
 ];
 const CIO_BRAZIL_DEFAULTS = [
   'VALE3.SA','PETR4.SA','ITUB4.SA','BBDC4.SA','ABEV3.SA','WEGE3.SA','RENT3.SA',

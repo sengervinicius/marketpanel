@@ -34,6 +34,11 @@ const showInfo = (e, symbol, label, type) => {
   }));
 };
 
+// Vanish-trap fix (#230 CUSTOM-bucket pattern, generalized): saved/dropped
+// symbols that aren't in US_STOCKS or BRAZIL_ADRS used to be silently
+// filtered out. They now render in a CUSTOM section with the symbol as name.
+const KNOWN_STOCK_SYMBOLS = new Set([...US_STOCKS, ...BRAZIL_ADRS].map(s => s.symbol));
+
 const SORT_COLS = [
   { key: 'symbol', label: 'TICKER', align: 'left' },
   { key: 'name',   label: 'NAME',   align: 'left' },
@@ -128,7 +133,10 @@ function StockPanel({ data = {}, loading, onTickerClick }) {
   const hiddenSubsections    = panelCfg.hiddenSubsections    || [];
   const customSubsections    = panelCfg.customSubsections    || [];
   const subsectionLabels     = panelCfg.subsectionLabels     || {};
-  const availableSubsections = [{ key: 'brazilAdrs', label: 'BRAZIL ADRs' }];
+  const availableSubsections = [
+    { key: 'brazilAdrs', label: 'BRAZIL ADRs' },
+    { key: 'custom', label: 'CUSTOM' },
+  ];
 
   // Check if panel has been customized with a non-default title (indicating template override)
   const isCustomized = panelTitle !== 'US Equities';
@@ -150,8 +158,11 @@ function StockPanel({ data = {}, loading, onTickerClick }) {
     setLastUpdated(new Date());
   }, [data]);
 
-  // Phase 2: Sparkline data for stock tickers
-  const stockSparkTickers = useMemo(() => [...US_STOCKS, ...BRAZIL_ADRS].map(s => s.symbol), []);
+  // Phase 2: Sparkline data for stock tickers (incl. user-added CUSTOM symbols)
+  const stockSparkTickers = useMemo(
+    () => Array.from(new Set([...US_STOCKS.map(s => s.symbol), ...BRAZIL_ADRS.map(s => s.symbol), ...panelSymbols])),
+    [panelSymbols]
+  );
   const sparklines = useSparklineData(stockSparkTickers);
 
   const saveCfg = useCallback((updates) => {
@@ -186,20 +197,30 @@ function StockPanel({ data = {}, loading, onTickerClick }) {
     ? BRAZIL_ADRS.filter(s => panelSymbols.includes(s.symbol))
     : BRAZIL_ADRS;
 
+  // CUSTOM bucket — saved symbols not found in the hardcoded constants render
+  // anyway with fallback metadata (symbol as name). Vanish-trap fix.
+  const baseCustom = useMemo(
+    () => panelSymbols.filter(sym => !KNOWN_STOCK_SYMBOLS.has(sym)).map(sym => ({ symbol: sym, label: sym })),
+    [panelSymbols]
+  );
+
   const sortedUS     = useMemo(() => sortItems(baseUS,     data, sortKey, sortDir), [data, sortKey, sortDir, baseUS]);
   const sortedBrazil = useMemo(() => sortItems(baseBrazil, data, sortKey, sortDir), [data, sortKey, sortDir, baseBrazil]);
+  const sortedCustom = useMemo(() => sortItems(baseCustom, data, sortKey, sortDir), [data, sortKey, sortDir, baseCustom]);
 
   // Movers filter: abs(changePct) >= 2%
   const movedUS     = useMemo(() => moversOnly ? sortedUS.filter(s    => Math.abs(data?.[s.symbol]?.changePct ?? 0) >= 2)     : sortedUS,     [sortedUS,     data, moversOnly]);
   const movedBrazil = useMemo(() => moversOnly ? sortedBrazil.filter(s => Math.abs(data?.[s.symbol]?.changePct ?? 0) >= 2)     : sortedBrazil, [sortedBrazil, data, moversOnly]);
+  const movedCustom = useMemo(() => moversOnly ? sortedCustom.filter(s => Math.abs(data?.[s.symbol]?.changePct ?? 0) >= 2)     : sortedCustom, [sortedCustom, data, moversOnly]);
 
   // Search filter
   const sq = searchFilter.toLowerCase();
   const filteredUS     = useMemo(() => !sq ? movedUS     : movedUS.filter(s     => s.symbol.toLowerCase().includes(sq) || (s.name || '').toLowerCase().includes(sq)), [movedUS, sq]);
   const filteredBrazil = useMemo(() => !sq ? movedBrazil : movedBrazil.filter(s => s.symbol.toLowerCase().includes(sq) || (s.name || '').toLowerCase().includes(sq)), [movedBrazil, sq]);
+  const filteredCustom = useMemo(() => !sq ? movedCustom : movedCustom.filter(s => s.symbol.toLowerCase().includes(sq) || (s.name || '').toLowerCase().includes(sq)), [movedCustom, sq]);
 
   // All items for heatmap
-  const allItems = useMemo(() => [...filteredUS, ...filteredBrazil], [filteredUS, filteredBrazil]);
+  const allItems = useMemo(() => [...filteredUS, ...filteredBrazil, ...filteredCustom], [filteredUS, filteredBrazil, filteredCustom]);
 
   // --- Subsection handlers ---
   const handleToggleSubsection = (key) => {
@@ -381,6 +402,38 @@ function StockPanel({ data = {}, loading, onTickerClick }) {
                     {moversOnly && filteredBrazil.length === 0 && (
                       <div className="stp-section-empty">No ADR movers ≥ 2%</div>
                     )}
+                  </>
+                )}
+
+                {/* CUSTOM bucket — user-added symbols outside the hardcoded lists */}
+                {filteredCustom.length > 0 && !hiddenSubsections.includes('custom') && (
+                  <>
+                    <SectionHeader label={subsectionLabels['custom'] || 'CUSTOM'} sectionKey="custom" color="var(--color-accent)" onRename={handleRenameSubsection} onToggleVisibility={handleToggleSubsection} isHideable={true} />
+                    {filteredCustom.map(s => (
+                      <PriceRow
+                        key={s.symbol}
+                        symbol={s.symbol}
+                        ticker={s.symbol}
+                        name={s.label}
+                        price={(data[s.symbol] || {}).price}
+                        changePct={(data[s.symbol] || {}).changePct}
+                        symbolColor="var(--color-accent)"
+                        columns={COLS}
+                        draggable
+                        dragData={{ symbol: s.symbol, name: s.label, type: 'EQUITY' }}
+                        onClick={() => onTickerClick?.(s.symbol)}
+                        onDoubleClick={() => openDetail(s.symbol)}
+                        onTouchHold={() => openDetail(s.symbol)}
+                        touchRef={ptRef}
+                        sparklineData={sparklines[s.symbol]}
+                        onContextMenu={e => showInfo(e, s.symbol, s.label, 'EQUITY')}
+                        dataAttrs={{
+                          'data-ticker': s.symbol,
+                          'data-ticker-label': s.label,
+                          'data-ticker-type': 'EQUITY',
+                        }}
+                      />
+                    ))}
                   </>
                 )}
 

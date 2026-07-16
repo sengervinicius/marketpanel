@@ -10,7 +10,7 @@ import PanelShell from '../common/PanelShell';
 import { PriceRow } from '../common/PriceRow';
 import { SectionHeader } from '../common/SectionHeader';
 import ColumnHeaders from '../common/ColumnHeaders';
-import { COMMODITIES } from '../../utils/constants';
+import { COMMODITIES, COMMODITY_DEFAULT_SYMBOLS } from '../../utils/constants';
 import { useFeedStatus } from '../../context/FeedStatusContext';
 import { useSparklineData } from '../../hooks/useSparklineData';
 import SkeletonLoader from '../shared/SkeletonLoader';
@@ -33,6 +33,13 @@ const GROUPS = [
   { key: 'Mining', label: 'MINING',      color: '#90a4ae' },
 ];
 
+// Vanish-trap fix (generalized from GlobalIndicesPanel #230 CUSTOM bucket):
+// any saved/dropped symbol NOT in the hardcoded COMMODITIES array used to be
+// silently filtered out. Unknown symbols now land in a CUSTOM section with
+// the symbol itself as fallback name.
+const KNOWN_COMMODITY_SYMBOLS = new Set(COMMODITIES.map(c => c.symbol));
+const CUSTOM_GROUP = { key: 'custom', label: 'CUSTOM', color: 'var(--color-accent)' };
+
 const showInfo = (e, symbol, label, type) => {
   e.preventDefault();
   window.dispatchEvent(new CustomEvent('ticker:rightclick', {
@@ -47,7 +54,9 @@ function CommoditiesPanel({ data = {}, loading, onTickerClick }) {
 
   const panelCfg = settings?.panels?.commodities || {
     title: 'Commodities',
-    symbols: COMMODITIES.map(c => c.symbol),
+    // New/reset users get real futures defaults; saved lists are untouched
+    // (legacy ETF proxies still resolve via the COMMODITIES array).
+    symbols: COMMODITY_DEFAULT_SYMBOLS,
     hiddenSubsections: [],
     customSubsections: [],
     subsectionLabels: {},
@@ -62,6 +71,7 @@ function CommoditiesPanel({ data = {}, loading, onTickerClick }) {
     { key: 'Energy', label: 'ENERGY' },
     { key: 'Agri', label: 'AGRICULTURE' },
     { key: 'Mining', label: 'MINING' },
+    { key: 'custom', label: 'CUSTOM' },
   ];
 
   const [sortKey,   setSortKey]   = useState(null);
@@ -153,11 +163,8 @@ function CommoditiesPanel({ data = {}, loading, onTickerClick }) {
   };
 
   const sortedGroups = useMemo(() => {
-    return GROUPS.map(g => {
-      let items = COMMODITIES.filter(c => c.group === g.key);
-      if (panelSymbols.length > 0) {
-        items = items.filter(c => panelSymbols.includes(c.symbol));
-      }
+    const applyFilters = (input) => {
+      let items = input;
       if (searchFilter) {
         const sq = searchFilter.toLowerCase();
         items = items.filter(c =>
@@ -178,11 +185,31 @@ function CommoditiesPanel({ data = {}, loading, onTickerClick }) {
           return sortDir === 'asc' ? va - vb : vb - va;
         });
       }
-      return { ...g, items };
+      return items;
+    };
+
+    const groups = GROUPS.map(g => {
+      let items = COMMODITIES.filter(c => c.group === g.key);
+      if (panelSymbols.length > 0) {
+        items = items.filter(c => panelSymbols.includes(c.symbol));
+      }
+      return { ...g, items: applyFilters(items) };
     });
+
+    // CUSTOM bucket — saved symbols that don't exist in COMMODITIES render
+    // anyway with the symbol as their display name (vanish-trap fix).
+    const customItems = panelSymbols
+      .filter(sym => !KNOWN_COMMODITY_SYMBOLS.has(sym))
+      .map(sym => ({ symbol: sym, label: sym, group: CUSTOM_GROUP.key }));
+    groups.push({ ...CUSTOM_GROUP, items: applyFilters(customItems) });
+
+    return groups;
   }, [data, sortKey, sortDir, panelSymbols, searchFilter, moversOnly]);
 
-  const commodityTickers = useMemo(() => COMMODITIES.map(c => c.symbol), []);
+  const commodityTickers = useMemo(
+    () => Array.from(new Set([...COMMODITIES.map(c => c.symbol), ...panelSymbols])),
+    [panelSymbols]
+  );
   const sparklines = useSparklineData(commodityTickers);
 
   return (

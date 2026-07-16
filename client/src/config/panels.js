@@ -100,7 +100,7 @@ export const PANEL_DEFINITIONS = {
     id:             'commodities',
     label:          'Commodities',
     defaultTitle:   'Commodities',
-    defaultSymbols: ['BZ=F','GLD','SLV','USO','UNG','CORN','WEAT','SOYB','CPER','BHP'],
+    defaultSymbols: ['GC=F','SI=F','HG=F','CL=F','BZ=F','NG=F','ZC=F','ZS=F','ZW=F'], // H0: real front-month futures (legacy ETF proxies still resolve for saved lists)
     allowedGroups:  ['Metals','Energy','Agriculture','Mining'],
     editable:       true,
     icon:           'CM',

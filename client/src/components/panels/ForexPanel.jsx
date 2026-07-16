@@ -27,6 +27,11 @@ const showInfo = (e, symbol, label, type) => {
   }));
 };
 
+// Vanish-trap fix (#230 CUSTOM-bucket pattern, generalized): saved/dropped
+// symbols that aren't in FOREX_PAIRS or CRYPTO_PAIRS used to be silently
+// filtered out. They now render in a CUSTOM section, symbol as name.
+const KNOWN_FX_SYMBOLS = new Set([...FOREX_PAIRS, ...CRYPTO_PAIRS].map(p => p.symbol));
+
 const SORT_COLS = [
   { key: 'symbol', label: 'PAIR',  align: 'left' },
   { key: 'name',   label: 'NAME',  align: 'left' },
@@ -70,7 +75,10 @@ function ForexPanel({ data = {}, cryptoData = {}, loading, onTickerClick }) {
   const hiddenSubsections    = panelCfg.hiddenSubsections    || [];
   const customSubsections    = panelCfg.customSubsections    || [];
   const subsectionLabels     = panelCfg.subsectionLabels     || {};
-  const availableSubsections = [{ key: 'crypto', label: 'CRYPTO' }];
+  const availableSubsections = [
+    { key: 'crypto', label: 'CRYPTO' },
+    { key: 'custom', label: 'CUSTOM' },
+  ];
 
   const [sortKey,      setSortKey]      = useState(null);
   const [sortDir,      setSortDir]      = useState('desc');
@@ -136,15 +144,34 @@ function ForexPanel({ data = {}, cryptoData = {}, loading, onTickerClick }) {
       sortKey, sortDir),
   [cryptoData, sortKey, sortDir, filteredCryptoPairs]);
 
+  // CUSTOM bucket — saved symbols unknown to both constants render anyway
+  // with fallback metadata (symbol as name). Vanish-trap fix.
+  const customPairs = useMemo(() => {
+    const sq = searchFilter.toUpperCase();
+    return panelSymbols
+      .filter(sym => !KNOWN_FX_SYMBOLS.has(sym))
+      .filter(sym => !sq || sym.includes(sq))
+      .map(sym => ({ symbol: sym, label: sym }));
+  }, [panelSymbols, searchFilter]);
+
+  const sortedCustom = useMemo(() =>
+    sortPairs(customPairs,
+      p => { const d = data?.[p.symbol] || cryptoData?.[p.symbol] || {}; return (d.mid ?? d.ask ?? d.price) ?? null; },
+      p => (data?.[p.symbol] || cryptoData?.[p.symbol] || {}).changePct ?? null,
+      sortKey, sortDir),
+  [data, cryptoData, sortKey, sortDir, customPairs]);
+
   // Movers filter: abs(changePct) >= 1% for FX
   const filteredForex  = useMemo(() => moversOnly ? sortedForex.filter(p  => Math.abs(data?.[p.symbol]?.changePct ?? 0) >= 1)        : sortedForex,  [sortedForex,  data, moversOnly]);
   const filteredCrypto = useMemo(() => moversOnly ? sortedCrypto.filter(c => Math.abs(cryptoData?.[c.symbol]?.changePct ?? 0) >= 1)    : sortedCrypto, [sortedCrypto, cryptoData, moversOnly]);
+  const filteredCustomFx = useMemo(() => moversOnly ? sortedCustom.filter(p => Math.abs((data?.[p.symbol] || cryptoData?.[p.symbol] || {}).changePct ?? 0) >= 1) : sortedCustom, [sortedCustom, data, cryptoData, moversOnly]);
 
   // Phase 2: Sparkline data
   const allFxTickers = useMemo(() => [
     ...filteredForex.map(p => p.symbol),
     ...filteredCrypto.map(c => 'X:' + c.symbol),
-  ], [filteredForex, filteredCrypto]);
+    ...filteredCustomFx.map(p => p.symbol),
+  ], [filteredForex, filteredCrypto, filteredCustomFx]);
   const sparklines = useSparklineData(allFxTickers);
 
   // --- Subsection handlers ---
@@ -329,6 +356,42 @@ function ForexPanel({ data = {}, cryptoData = {}, loading, onTickerClick }) {
                 {moversOnly && filteredCrypto.length === 0 && (
                   <div style={{ padding: 'var(--sp-2) var(--sp-3)', color: 'var(--text-faint)', fontSize: 9 }}>No crypto movers ≥ 1%</div>
                 )}
+              </>
+            )}
+
+            {/* CUSTOM bucket — user-added symbols outside the hardcoded lists */}
+            {filteredCustomFx.length > 0 && !hiddenSubsections.includes('custom') && (
+              <>
+                <SectionHeader label={subsectionLabels['custom'] || 'CUSTOM'} sectionKey="custom" color="var(--color-accent)" onRename={handleRenameSubsection} onToggleVisibility={handleToggleSubsection} isHideable={true} />
+                {filteredCustomFx.map(p => {
+                  const d = data?.[p.symbol] || cryptoData?.[p.symbol] || {};
+                  const price = d.mid ?? d.ask ?? d.price;
+                  return (
+                    <PriceRow
+                      key={p.symbol}
+                      symbol={p.symbol}
+                      ticker={p.symbol}
+                      name={p.label}
+                      price={price}
+                      changePct={d.changePct}
+                      symbolColor="var(--color-accent)"
+                      columns={COLS}
+                      draggable
+                      dragData={{ symbol: p.symbol, name: p.label, type: 'FX' }}
+                      onClick={() => onTickerClick?.(p.symbol)}
+                      onDoubleClick={() => openDetail(p.symbol)}
+                      onTouchHold={() => openDetail(p.symbol)}
+                      touchRef={ptRef}
+                      onContextMenu={e => showInfo(e, p.symbol, p.label, 'FX')}
+                      dataAttrs={{
+                        'data-ticker': p.symbol,
+                        'data-ticker-label': p.label,
+                        'data-ticker-type': 'FX',
+                      }}
+                      sparklineData={sparklines[p.symbol]}
+                    />
+                  );
+                })}
               </>
             )}
 

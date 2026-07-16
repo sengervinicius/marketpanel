@@ -74,24 +74,44 @@ export const BRAZIL_ADRS = [
 // Backward compat alias
 export const LATAM_STOCKS = BRAZIL_ADRS;
 
-// Commodities — ETF/ADR proxies, grouped by category
+// Commodities — grouped by category.
+// H0: defaults are now REAL front-month futures (Yahoo '=F' symbols — the
+// server already resolves these; BZ=F has been live for months). The old
+// ETF/ADR proxies are kept in the array below with `legacy: true` so users
+// whose saved panel lists still contain GLD/SLV/USO/… keep rendering them —
+// they are simply excluded from the default list for new/reset users.
 export const COMMODITIES = [
-  // Precious & Base Metals
-  { symbol: 'GLD',  label: 'Gold',         unit: 'oz',    group: 'Metals' },
-  { symbol: 'SLV',  label: 'Silver',       unit: 'oz',    group: 'Metals' },
-  { symbol: 'CPER', label: 'Copper',       unit: 'lb',    group: 'Metals' },
-  { symbol: 'REMX', label: 'Rare Earth',   unit: 'ETF',   group: 'Metals' },
-  // Energy
+  // Precious & Base Metals — front-month futures
+  { symbol: 'GC=F', label: 'Gold',         unit: 'oz',    group: 'Metals' },
+  { symbol: 'SI=F', label: 'Silver',       unit: 'oz',    group: 'Metals' },
+  { symbol: 'HG=F', label: 'Copper',       unit: 'lb',    group: 'Metals' },
+  // Energy — front-month futures
+  { symbol: 'CL=F', label: 'WTI Crude',    unit: 'bbl',   group: 'Energy' },
   { symbol: 'BZ=F', label: 'Brent Crude',  unit: 'bbl',   group: 'Energy' },
-  { symbol: 'USO',  label: 'WTI Oil',      unit: 'bbl',   group: 'Energy' },
-  { symbol: 'UNG',  label: 'Nat. Gas',     unit: 'MMBtu', group: 'Energy' },
-  // Agriculture
-  { symbol: 'SOYB', label: 'Soybeans',     unit: 'bu',    group: 'Agri'   },
-  { symbol: 'WEAT', label: 'Wheat',        unit: 'bu',    group: 'Agri'   },
-  { symbol: 'CORN', label: 'Corn',         unit: 'bu',    group: 'Agri'   },
+  { symbol: 'NG=F', label: 'Nat. Gas',     unit: 'MMBtu', group: 'Energy' },
+  // Agriculture — front-month futures
+  { symbol: 'ZC=F', label: 'Corn',         unit: 'bu',    group: 'Agri'   },
+  { symbol: 'ZS=F', label: 'Soybeans',     unit: 'bu',    group: 'Agri'   },
+  { symbol: 'ZW=F', label: 'Wheat',        unit: 'bu',    group: 'Agri'   },
+  // ── Legacy ETF/ADR proxies — NOT defaults; kept for saved user lists ──
+  { symbol: 'GLD',  label: 'Gold ETF',     unit: 'oz',    group: 'Metals', legacy: true },
+  { symbol: 'SLV',  label: 'Silver ETF',   unit: 'oz',    group: 'Metals', legacy: true },
+  { symbol: 'CPER', label: 'Copper ETF',   unit: 'lb',    group: 'Metals', legacy: true },
+  { symbol: 'REMX', label: 'Rare Earth',   unit: 'ETF',   group: 'Metals', legacy: true },
+  { symbol: 'USO',  label: 'WTI Oil ETF',  unit: 'bbl',   group: 'Energy', legacy: true },
+  { symbol: 'UNG',  label: 'Nat. Gas ETF', unit: 'MMBtu', group: 'Energy', legacy: true },
+  { symbol: 'SOYB', label: 'Soybeans ETF', unit: 'bu',    group: 'Agri',   legacy: true },
+  { symbol: 'WEAT', label: 'Wheat ETF',    unit: 'bu',    group: 'Agri',   legacy: true },
+  { symbol: 'CORN', label: 'Corn ETF',     unit: 'bu',    group: 'Agri',   legacy: true },
   // Mining
-  { symbol: 'BHP',  label: 'BHP (Fe Prx)', unit: 'ADR',   group: 'Mining' },
+  { symbol: 'BHP',  label: 'BHP (Fe Prx)', unit: 'ADR',   group: 'Mining', legacy: true },
 ];
+
+// Default commodity symbols for NEW/reset panels only. Saved user lists are
+// never rewritten — legacy ETF entries above still resolve for them.
+export const COMMODITY_DEFAULT_SYMBOLS = COMMODITIES
+  .filter(c => !c.legacy)
+  .map(c => c.symbol);
 
 // FX pairs — includes BRL crosses and major pairs
 export const FOREX_PAIRS = [
