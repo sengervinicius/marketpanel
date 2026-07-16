@@ -51,7 +51,7 @@ export default function HomeGrid({ grid, onGridChange, panelCtx }) {
         <GridLayout
           width={width}
           layout={layout}
-          gridConfig={{ cols: GRID_COLS, rowHeight: GRID_ROW_HEIGHT, margin: [6, 6], padding: [6, 6] }}
+          gridConfig={{ cols: GRID_COLS, rowHeight: GRID_ROW_HEIGHT, margin: [6, 6], containerPadding: [6, 6] }}
           dragConfig={{ enabled: true, handle: DRAG_HANDLE, cancel: DRAG_CANCEL }}
           resizeConfig={{ enabled: true, handles: ['se'] }}
           compactor={verticalCompactor}
