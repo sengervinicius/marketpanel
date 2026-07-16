@@ -52,15 +52,19 @@ export function migrateDesktopRowsToGrid(desktopRows) {
   const seen = new Set();
   let y = 0;
   for (const row of Array.isArray(desktopRows) ? desktopRows : []) {
-    const ids = (Array.isArray(row) ? row : [])
-      .filter(id => typeof id === 'string' && id.length > 0 && !seen.has(id));
+    const ids = [];
+    for (const id of Array.isArray(row) ? row : []) {
+      if (typeof id === 'string' && id.length > 0 && !seen.has(id)) {
+        seen.add(id); // dedupes across AND within rows
+        ids.push(id);
+      }
+    }
     if (ids.length === 0) continue;
     const base = Math.floor(GRID_COLS / ids.length);
     const remainder = GRID_COLS % ids.length;
     let x = 0;
     let rowMaxH = 0;
     ids.forEach((id, idx) => {
-      seen.add(id);
       const w = Math.max(1, base + (idx < remainder ? 1 : 0));
       const h = id === 'charts' ? CHARTS_PANEL_H : DEFAULT_PANEL_H;
       grid.push({ i: id, x, y, w, h });
