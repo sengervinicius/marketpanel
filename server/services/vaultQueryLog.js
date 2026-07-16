@@ -163,6 +163,61 @@ async function logVaultQuery(args) {
 }
 
 /**
+ * Attach a citation-groundedness post-check result to the vault_query_log
+ * row that retrieve() already wrote for this (user, query). Fire-and-forget,
+ * same contract as logVaultQuery: never throws into the hot path, silently
+ * no-ops when the DB is offline or no matching row exists yet.
+ *
+ * Used by the Vault page's POST /api/vault/ask-all: after the model finishes
+ * streaming, the route extracts [Vn] markers from the full answer, validates
+ * each n against the passage list it sent, and records the tally here so the
+ * eval harness can track hallucinated citations over time.
+ *
+ * @param {Object} args
+ * @param {number} args.userId
+ * @param {string} args.query            - Same query string passed to retrieve().
+ * @param {number} args.citationsValid   - [Vn] markers whose n maps to a passed passage.
+ * @param {number} args.citationsTotal   - Total [Vn] markers found in the answer.
+ * @returns {Promise<void>}
+ */
+async function recordGroundedness(args) {
+  if (!args || typeof args !== 'object') return;
+  const { userId, query, citationsValid, citationsTotal } = args;
+
+  if (!Number.isInteger(userId) || userId <= 0) return;
+  if (typeof query !== 'string' || !query.trim()) return;
+  if (!Number.isInteger(citationsValid) || citationsValid < 0) return;
+  if (!Number.isInteger(citationsTotal) || citationsTotal < 0) return;
+  if (!pg.isConnected()) return;
+
+  const queryHash = sha256Hex(normaliseQueryForHash(query));
+
+  try {
+    // Update ONLY the newest row for this (user, query-hash) — the one the
+    // just-finished retrieve() call inserted. The 15-minute window guards
+    // against stamping a stale row from an unrelated earlier session.
+    await pg.query(
+      `UPDATE vault_query_log
+          SET groundedness = $1::jsonb
+        WHERE id = (
+          SELECT id FROM vault_query_log
+           WHERE user_id = $2
+             AND query_hash = $3
+             AND created_at >= NOW() - INTERVAL '15 minutes'
+           ORDER BY created_at DESC
+           LIMIT 1
+        )`,
+      [JSON.stringify({ citationsValid, citationsTotal }), userId, queryHash]
+    );
+  } catch (err) {
+    // Log, never re-throw — a failed audit write MUST NOT break the stream.
+    logger.warn('vaultQueryLog', 'groundedness update failed', {
+      userId, error: err.message,
+    });
+  }
+}
+
+/**
  * Fetch recent queries for a user. Used by:
  *   - /api/account/export (LGPD DSAR: "what Particle knows about me")
  *   - the account-deletion worker (sanity audit pre-wipe)
@@ -274,6 +329,7 @@ async function purgeOldQueries(retentionDaysByTier = { free: 30, paid: 365 }) {
 
 module.exports = {
   logVaultQuery,
+  recordGroundedness,
   getUserQueries,
   purgeOldQueries,
   // Exported for tests:

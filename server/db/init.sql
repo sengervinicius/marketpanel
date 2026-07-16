@@ -238,6 +238,7 @@ CREATE TABLE IF NOT EXISTS vault_query_log (
   embedding_provider  TEXT,                   -- 'openai' | 'voyage' | null
   reranker_used       TEXT,                   -- 'cohere' | 'haiku' | 'none'
   latency_ms          INTEGER NOT NULL DEFAULT 0,
+  groundedness        JSONB,                  -- { citationsValid, citationsTotal } post-check (ask-all)
   created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_vault_query_log_user      ON vault_query_log(user_id, created_at DESC);
