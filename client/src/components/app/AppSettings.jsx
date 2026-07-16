@@ -39,6 +39,7 @@ const SETTINGS_PANEL_IDS = [
   'macro',
   'calendar',
   'movers',
+  'sectors',
   'heatmap',
   'predictions',
   'optionsFlow',

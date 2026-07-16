@@ -290,6 +290,18 @@ export const PANEL_DEFINITIONS = {
     maxSymbols:     0,
   },
 
+  sectors: {
+    id:             'sectors',
+    label:          'Sector Grid',
+    defaultTitle:   'Sector Performance',
+    defaultSymbols: [],
+    allowedGroups:  null,
+    editable:       false,
+    icon:           'SG',
+    minSymbols:     0,
+    maxSymbols:     0,
+  },
+
   predictions: {
     id:             'predictions',
     label:          'Predictions',
