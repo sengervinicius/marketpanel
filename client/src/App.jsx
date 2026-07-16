@@ -10,6 +10,7 @@ import { useIsMobile } from './hooks/useIsMobile';
 import { useBootSequence } from './hooks/useBootSequence';
 import { useWebSocketTicks } from './hooks/useWebSocketTicks';
 import { useLayoutManager } from './hooks/useLayoutManager';
+import { useGridLayouts } from './hooks/useGridLayouts';
 import { syncSettingToServer } from './hooks/useSettingsSync';
 import { useAuth } from './context/AuthContext';
 import { useSettings } from './context/SettingsContext';
@@ -103,6 +104,11 @@ import {
 // Perf (#bundle): ParticleScreen pulls three.js (~490 kB min) via useParticleCanvas —
 // lazy-load it so the three chunk is only fetched when Particle mode mounts.
 const ParticleScreen = lazyWithRetry(() => import('./components/app/ParticleScreen'));
+// H3 (#home_grid_v2): editable home grid + layout dropdown. Lazy so the
+// legacy desktopRows path ships zero react-grid-layout bytes when the
+// flag is off — the chunks are only fetched when these actually render.
+const HomeGrid = lazyWithRetry(() => import('./components/home/HomeGrid'));
+const LayoutMenu = lazyWithRetry(() => import('./components/home/LayoutMenu'));
 import PricingModal from './components/app/PricingModal';
 // #253 P3.1 — shell-level boundaries (TOS modal, error boundary, loading fallbacks)
 import {
@@ -282,6 +288,8 @@ export default function App() {
   // ── Feature flags (#239 P1.5 — gate light-theme toggle) ──────────────────
   const { isOn: isFlagOn } = useFeatureFlags();
   const lightThemeEnabled = isFlagOn('light_theme_enabled', false);
+  // H3 — editable-grid home rebuild; default OFF, legacy renderer untouched.
+  const homeGridV2 = isFlagOn('home_grid_v2', false);
 
   // ── Layout manager ───────────────────────────────────────────────────────
   const {
@@ -294,6 +302,12 @@ export default function App() {
     panelVisible, togglePanel, isPanelVisible, addPanel,
   } = useLayoutManager();
 
+  // H3 (#home_grid_v2): multi-layout grid state (settings.layouts). Inert
+  // while the flag is off — no react-grid-layout import, no writes until the
+  // grid is actually edited.
+  const gridLayouts = useGridLayouts(desktopRows);
+  const [layoutMenuOpen, setLayoutMenuOpen] = useState(false);
+
   const border = '1px solid var(--border-subtle)';
 
   // #291 W7.12 — universal panel add/remove via the Cmd+K palette. Turns the
@@ -304,11 +318,15 @@ export default function App() {
     try {
       Object.values(PANEL_DEFINITIONS || {}).forEach(pd => { if (pd && pd.id) labelById[pd.id] = pd.label || pd.id; });
     } catch { /* noop */ }
-    const layoutIds = Array.from(new Set((desktopRows || []).flat()));
+    // H3: in grid mode (home_grid_v2) the layout is the active grid's items
+    // and "toggle" means remove — grid membership is explicit, nothing hidden.
+    const layoutIds = homeGridV2
+      ? gridLayouts.activeGrid.map(g => g.i)
+      : Array.from(new Set((desktopRows || []).flat()));
     const inLayout = new Set(layoutIds);
     const cmds = layoutIds.map(id => ({
       id: 'panel-' + id,
-      label: (isPanelVisible(id) ? 'Hide ' : 'Show ') + (labelById[id] || id) + ' panel',
+      label: (homeGridV2 ? 'Remove ' : (isPanelVisible(id) ? 'Hide ' : 'Show ')) + (labelById[id] || id) + ' panel',
       action: 'panel-toggle',
       target: id,
       category: 'Panels',
@@ -329,7 +347,7 @@ export default function App() {
       });
     });
     return cmds;
-  }, [desktopRows, isPanelVisible, panelVisible]);
+  }, [desktopRows, isPanelVisible, panelVisible, homeGridV2, gridLayouts.activeGrid]);
 
   // Panel drag & drop swap state
   const [draggedPanelId, setDraggedPanelId] = useState(null);
@@ -840,12 +858,16 @@ export default function App() {
             setCommandPaletteOpen(false);
             if (cmd.action === 'panel-toggle') {
               if (mobileMode !== 'terminal') setMobileModePersist('terminal');
-              togglePanel(cmd.target);
+              // H3: grid mode — remove the item from the active grid layout.
+              if (homeGridV2) gridLayouts.removePanel(cmd.target);
+              else togglePanel(cmd.target);
               return;
             }
             if (cmd.action === 'panel-add') {
               if (mobileMode !== 'terminal') setMobileModePersist('terminal');
-              addPanel(cmd.target);
+              // H3: grid mode — append at the bottom of the grid (w=4, h=4).
+              if (homeGridV2) gridLayouts.addPanel(cmd.target);
+              else addPanel(cmd.target);
               return;
             }
             if (cmd.action === 'navigate') {
@@ -1037,13 +1059,27 @@ export default function App() {
               aria-label="Add or remove a panel"
               style={{ background: 'none', border: '1px solid var(--border-strong)', color: 'var(--text-faint)' }}
             >+ PANEL</button>
-            <button data-tour="layout" className={`btn${showLayoutHint && !layoutEdit ? ' layout-btn-pulse' : ''}`}
-              onClick={() => { setLayoutEdit(s => !s); if (showLayoutHint) dismissLayoutHint(); }}
-              title="Customize your workspace — drag, resize, and rearrange panels"
+            <button data-tour="layout" className={`btn${showLayoutHint && !(homeGridV2 ? layoutMenuOpen : layoutEdit) ? ' layout-btn-pulse' : ''}`}
+              onClick={() => { if (homeGridV2) setLayoutMenuOpen(o => !o); else setLayoutEdit(s => !s); if (showLayoutHint) dismissLayoutHint(); }}
+              title={homeGridV2 ? 'Workspace layouts — switch, rename, duplicate, create, delete' : 'Customize your workspace — drag, resize, and rearrange panels'}
               aria-label="Customize workspace layout"
-              aria-pressed={layoutEdit}
-              style={{ background: layoutEdit ? 'rgba(255, 102, 0, 0.08)' : 'none', border:`1px solid ${layoutEdit ? 'var(--accent)' : showLayoutHint ? 'var(--accent)' : 'var(--border-strong)'}`, color: layoutEdit ? 'var(--accent)' : showLayoutHint ? 'var(--accent)' : 'var(--text-faint)' }}
+              aria-pressed={homeGridV2 ? layoutMenuOpen : layoutEdit}
+              style={{ background: (homeGridV2 ? layoutMenuOpen : layoutEdit) ? 'rgba(255, 102, 0, 0.08)' : 'none', border:`1px solid ${(homeGridV2 ? layoutMenuOpen : layoutEdit) ? 'var(--accent)' : showLayoutHint ? 'var(--accent)' : 'var(--border-strong)'}`, color: (homeGridV2 ? layoutMenuOpen : layoutEdit) ? 'var(--accent)' : showLayoutHint ? 'var(--accent)' : 'var(--text-faint)' }}
             >LAYOUT</button>
+            {/* H3: layout dropdown (grid mode only) — lazy chunk, Suspense-null */}
+            {homeGridV2 && layoutMenuOpen && (
+              <Suspense fallback={null}>
+                <LayoutMenu
+                  layouts={gridLayouts.layouts}
+                  onSwitch={gridLayouts.switchLayout}
+                  onRename={gridLayouts.renameLayout}
+                  onDuplicate={gridLayouts.duplicateLayout}
+                  onCreate={gridLayouts.createLayout}
+                  onDelete={gridLayouts.deleteLayout}
+                  onClose={() => setLayoutMenuOpen(false)}
+                />
+              </Suspense>
+            )}
             {user
               ? <UserDropdown
                   user={user}
@@ -1215,8 +1251,17 @@ export default function App() {
                   }}>DONE</button>
                 </div>
               )}
-              {/* Dynamic rows from settings.layout.desktopRows */}
-              {(() => {
+              {/* H3 (#home_grid_v2): flag ON → lazy editable grid; flag OFF →
+                  the exact legacy desktopRows renderer below, untouched. */}
+              {homeGridV2 ? (
+                <Suspense fallback={<div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-faint, #333)', fontSize: 10, letterSpacing: '0.5px' }}>LOADING LAYOUT...</div>}>
+                  <HomeGrid
+                    grid={gridLayouts.activeGrid}
+                    onGridChange={gridLayouts.setActiveGrid}
+                    panelCtx={{ mergedData, loading, setChartTicker, chartTicker, setChartGridCount }}
+                  />
+                </Suspense>
+              ) : (() => {
                 const panelProps = { mergedData, loading, setChartTicker, chartTicker, setChartGridCount };
                 const minHeights = [260, 220, 200];
                 return [row0, row1, row2].map((row, rowIdx) => {
