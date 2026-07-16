@@ -10,6 +10,11 @@ import { useJsonQuery, STALE_TIMES } from '../../lib/queryHooks';
 // #286 — surface "live | curated | provider offline" so the footer
 // gives the CIO a one-glance read on why we're showing static data.
 import { getProviderStatus } from '../../utils/providerStatus';
+// H2 W1.2 — home-grade chrome: shared PanelChrome header + PanelTabRow
+// tabs, watchlist filter for earnings, surprise coloring on macro rows.
+import PanelChrome from '../common/PanelChrome';
+import { PanelTabRow } from './_shared';
+import { useWatchlist } from '../../context/WatchlistContext';
 import './CalendarPanel.css';
 
 // Timezone detection
@@ -35,6 +40,26 @@ const STATIC_EVENTS = [
   { id: 'jolts', name: 'JOLTS Job Openings (Mar)', date: 'May 6, 2026', time: '10:00 ET', importance: 'medium', previous: '7.57M', forecast: '7.5M' },
 ];
 
+// H2 W1.2 — surprise read: parse the leading numeric out of strings like
+// "2.4% YoY", "+228K", "4.25-4.50%" (first number wins) so actual can be
+// compared against consensus. Returns null when nothing parses.
+function parseEventNum(v) {
+  if (v == null) return null;
+  if (typeof v === 'number') return Number.isFinite(v) ? v : null;
+  const m = String(v).replace(/,/g, '').match(/-?\d+(?:\.\d+)?/);
+  if (!m) return null;
+  const n = parseFloat(m[0]);
+  return Number.isFinite(n) ? n : null;
+}
+
+// 'beat' | 'miss' | null — only when BOTH actual and consensus parse.
+function surpriseTone(actual, consensus) {
+  const a = parseEventNum(actual);
+  const c = parseEventNum(consensus);
+  if (a == null || c == null || a === c) return null;
+  return a > c ? 'beat' : 'miss';
+}
+
 function importanceBadge(imp) {
   if (imp === 'high') return { label: 'HIGH', cls: 'cp-imp--high' };
   if (imp === 'medium') return { label: 'MED', cls: 'cp-imp--medium' };
@@ -54,6 +79,16 @@ function EventRow({ event, expanded, onToggle, preview, previewLoading, previewE
         <div className="cp-event-data">
           {event.previous && <span className="cp-event-prev">Prev: {event.previous}</span>}
           {event.forecast && <span className="cp-event-fcst">Exp: {event.forecast}</span>}
+          {event.actual != null && (() => {
+            // H2 W1.2 — surprise coloring: actual vs consensus where both
+            // exist, tinted with the shared up/down tokens.
+            const tone = surpriseTone(event.actual, event.forecast);
+            return (
+              <span className={`cp-event-actual${tone ? ` cp-event-actual--${tone}` : ''}`}>
+                Act: {event.actual}
+              </span>
+            );
+          })()}
         </div>
         <span className="cp-event-chevron">{expanded ? '\u25BE' : '\u25B8'}</span>
       </div>
@@ -144,7 +179,11 @@ function EarningsRow({ item }) {
 
 /* ── Main CalendarPanel ───────────────────────────────────────────── */
 function CalendarPanel() {
-  const [tab, setTab] = useState('ECONOMIC');
+  // H2 W1.2 — EARNINGS first (home-grade spec); MACRO replaces the old
+  // ECONOMIC label. State ids keep the tab names.
+  const [tab, setTab] = useState('EARNINGS');
+  const [watchOnly, setWatchOnly] = useState(false);
+  const { watchlist } = useWatchlist();
   const [expandedId, setExpandedId] = useState(null);
   const [previews, setPreviews] = useState({});
   const [loadingId, setLoadingId] = useState(null);
@@ -174,8 +213,11 @@ function CalendarPanel() {
       date: evt.date || evt.datetime || '',
       time: evt.time || '',
       importance: evt.importance || evt.impact || 'medium',
-      previous: evt.previous ?? evt.actual ?? null,
+      // H2 W1.2 — keep actual separate from previous so the row can show
+      // the beat/miss read (actual vs consensus) when both exist.
+      previous: evt.previous ?? null,
       forecast: evt.forecast ?? evt.consensus ?? null,
+      actual: evt.actual ?? null,
     }));
   }, [macroResp]);
 
@@ -183,6 +225,19 @@ function CalendarPanel() {
     if (!earningsResp?.data) return null;
     return Array.isArray(earningsResp.data) ? earningsResp.data : [];
   }, [earningsResp]);
+
+  // H2 W1.2 — client-side watchlist filter for the earnings tab. Watchlist
+  // symbols may carry venue suffixes (PETR4.SA) or prefixes (X:BTCUSD);
+  // match on the bare uppercased root so AAPL rows match 'AAPL'.
+  const watchSet = useMemo(() => {
+    const set = new Set();
+    for (const w of watchlist || []) {
+      const up = String(w).toUpperCase();
+      set.add(up);
+      set.add(up.replace(/^(C:|X:)/, '').replace(/\.SA$/, ''));
+    }
+    return set;
+  }, [watchlist]);
 
   const handleToggle = useCallback((id) => {
     setExpandedId(prev => prev === id ? null : id);
@@ -211,32 +266,42 @@ function CalendarPanel() {
 
   // Use dynamic or fall back to static
   const displayEvents = macroEvents || STATIC_EVENTS;
-  const earningsList = earnings || [];
+  const earningsAll = earnings || [];
+  const earningsList = useMemo(() => {
+    if (!watchOnly) return earningsAll;
+    return earningsAll.filter(item => {
+      const t = String(item.ticker || item.symbol || '').toUpperCase();
+      return t && (watchSet.has(t) || watchSet.has(t.replace(/\.SA$/, '')));
+    });
+  }, [earningsAll, watchOnly, watchSet]);
 
   return (
     <div className="cp-panel">
-      <div className="cp-header">
-        <span className="cp-title">CALENDAR</span>
-        <div style={{ display: 'flex', gap: 4, marginLeft: 'auto' }}>
-          {['ECONOMIC', 'EARNINGS'].map(t => (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
-              style={{
-                fontSize: 8, fontWeight: 700, letterSpacing: 0.5,
-                padding: '2px 8px', border: '1px solid',
-                borderRadius: 3, cursor: 'pointer',
-                background: tab === t ? 'rgba(249,115,22,0.15)' : 'transparent',
-                color: tab === t ? 'var(--color-particle, #F97316)' : '#888',
-                borderColor: tab === t ? 'rgba(249,115,22,0.3)' : '#333',
-              }}
-            >{t}</button>
-          ))}
-        </div>
-      </div>
+      {/* H2 W1.2 — shared home-panel chrome + canonical tab row */}
+      <PanelChrome
+        title="CALENDAR"
+        subtitle={tab === 'EARNINGS' ? 'EULERPOOL · UPCOMING PRINTS' : 'FOMC · CPI · NFP · COPOM'}
+        actions={tab === 'EARNINGS' ? (
+          <button
+            type="button"
+            className={`cal-wl-btn${watchOnly ? ' cal-wl-btn--active' : ''}`}
+            title="Only show earnings for tickers on your watchlist"
+            onClick={() => setWatchOnly(v => !v)}
+          >WATCHLIST</button>
+        ) : null}
+      />
+      <PanelTabRow
+        value={tab}
+        onChange={setTab}
+        equal
+        items={[
+          { id: 'EARNINGS', label: 'EARNINGS', count: earningsList.length || null },
+          { id: 'MACRO',    label: 'MACRO',    count: displayEvents.length || null },
+        ]}
+      />
 
       <div className="cp-body">
-        {tab === 'ECONOMIC' && (
+        {tab === 'MACRO' && (
           <>
             {macroLoading && !macroEvents && (
               <div style={{ padding: 12, fontSize: 10, color: '#888' }}>Loading events...</div>
@@ -263,7 +328,9 @@ function CalendarPanel() {
             )}
             {!earningsLoading && earningsList.length === 0 && (
               <div style={{ padding: 12, fontSize: 10, color: '#888' }}>
-                No upcoming earnings data available. Earnings calendar requires Eulerpool API.
+                {watchOnly && earningsAll.length > 0
+                  ? 'No upcoming earnings for your watchlist tickers.'
+                  : 'No upcoming earnings data available. Earnings calendar requires Eulerpool API.'}
               </div>
             )}
             {earningsList.map((item, i) => (
@@ -274,7 +341,7 @@ function CalendarPanel() {
       </div>
 
       <div className="cp-footer">
-        {tab === 'ECONOMIC'
+        {tab === 'MACRO'
           ? `${displayEvents.length} events${
               macroEvents
                 ? ' (live)'
@@ -282,7 +349,7 @@ function CalendarPanel() {
                   ? ' (curated · provider offline)'
                   : ' (curated)'
             }. Click for AI preview.`
-          : `${earningsList.length} upcoming earnings reports.`
+          : `${earningsList.length}${watchOnly ? ` of ${earningsAll.length}` : ''} upcoming earnings reports${watchOnly ? ' (watchlist)' : ''}.`
         }
       </div>
     </div>

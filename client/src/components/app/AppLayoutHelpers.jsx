@@ -18,6 +18,8 @@ import {
   MacroPanel,
   ChatPanel,
   PredictionPanel,
+  MoversPanel,
+  SectorsPanel,
   DefenceScreen,
   CommoditiesScreen,
   GlobalMacroScreen,
@@ -198,6 +200,9 @@ const PANEL_REGISTRY = {
   heatmap:        { component: HeatmapPanel },
   predictions:    { component: PredictionPanel },
   optionsFlow:    { component: OptionsFlowPanel },
+  movers:         { component: MoversPanel,        getProps: (c) => ({ onTickerClick: c.setChartTicker }) }, // H2 W1
+  sectors:        { component: SectorsPanel,       getProps: (c) => ({ onTickerClick: c.setChartTicker }) }, // H2 W1 (registry-only, not in default layout)
+
 
   // ── Phase D1 sector screens ──────────────────────────────────────────────
   defenceScreen:      { component: DefenceScreen,      getProps: (c) => ({ onTickerClick: c.setChartTicker }) },

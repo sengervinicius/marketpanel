@@ -33,6 +33,34 @@
   color: var(--text-faint);
 }
 
+/* H2 W1.2 — watchlist filter toggle (PanelChrome actions slot) */
+.cal-wl-btn {
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  color: var(--text-muted);
+  font-size: var(--font-xs, 8px);
+  font-family: inherit;
+  letter-spacing: 0.06em;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm, 2px);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.cal-wl-btn--active {
+  border-color: var(--accent);
+  color: var(--accent-text);
+  background: var(--color-surface);
+}
+
+/* H2 W1.2 — macro surprise coloring (actual vs consensus) */
+.cp-event-actual {
+  font-size: 8px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.cp-event-actual--beat { color: var(--price-up); }
+.cp-event-actual--miss { color: var(--price-down); }
+
 .cp-body {
   flex: 1;
   overflow-y: auto;
