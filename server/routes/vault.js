@@ -43,6 +43,14 @@ const pg = require('../db/postgres');
 const modelRouter = require('../services/modelRouter');
 const { sanitizeQuery } = require('./search.helpers');
 
+// Audit §6 remainder — vault-wide answer synthesis rides the SAME AI quota
+// gates as the flagship chat path (routes/search.js /ai and /chat):
+// dailyAILimit (query-count) + aiQuotaGate (token budget). Whichever is
+// stricter wins. Groundedness post-check results land in vault_query_log.
+const { dailyAILimit } = require('../middleware/dailyAILimit');
+const { aiQuotaGate } = require('../middleware/aiQuotaGate');
+const vaultQueryLog = require('../services/vaultQueryLog');
+
 const router = express.Router();
 
 // W6.1 — vault kill switch. Admin endpoints + /health are exempt so on-call
@@ -821,6 +829,192 @@ router.post('/documents/:id/ask', requireAuth, async (req, res) => {
     }
   }
 });
+
+// ── Audit §6 remainder: Vault-wide answer synthesis ───────────────────────
+
+// Same output cap as doc-scoped Q&A: room for a multi-passage synthesized
+// answer with [Vn] citations without inviting essays.
+const ASK_ALL_MAX_TOKENS = 1000;
+// Wider net than /search's 5 — the synthesizer benefits from more evidence.
+const ASK_ALL_RETRIEVAL_LIMIT = 8;
+
+/**
+ * Extract [Vn] citation markers from a finished answer and verify each n
+ * maps to a passage that was actually sent to the model. Matches both bare
+ * markers ("[V2]") and page-suffixed ones ("[V1, p.12]").
+ *
+ * @param {string} answerText   - Full streamed answer.
+ * @param {number} passageCount - Number of passages passed in the prompt.
+ * @returns {{ citationsValid: number, citationsTotal: number }}
+ */
+function checkCitationGroundedness(answerText, passageCount) {
+  const markers = [...String(answerText || '').matchAll(/\[V(\d+)[^\]]*\]/g)];
+  let citationsValid = 0;
+  for (const m of markers) {
+    const n = parseInt(m[1], 10);
+    if (Number.isInteger(n) && n >= 1 && n <= passageCount) citationsValid++;
+  }
+  return { citationsValid, citationsTotal: markers.length };
+}
+
+/**
+ * POST /ask-all — AI-synthesized answer over the user's ENTIRE vault.
+ * Body: { query: string }
+ *
+ * The Vault page's semantic search calls this alongside POST /search: the
+ * passages render immediately, and this stream fills a synthesized answer
+ * above them. Same modelRouter rails, untrusted-data envelope and [Vn]/page
+ * citation formatting as /documents/:id/ask — the only differences are the
+ * retrieval scope (vault-wide vault.retrieve, 8 passages) and a groundedness
+ * post-check logged to vault_query_log after streaming completes.
+ *
+ * Wire format (superset of the doc-ask contract; unknown events are ignored
+ * by old clients):
+ *   data: {"type":"no_context"}      — nothing relevant in the vault; ends
+ *                                      the stream immediately.
+ *   data: {"vaultSources": [...]}    — citation metadata, main-chat shape,
+ *                                      emitted BEFORE the completion.
+ *   data: {"content": "..."}         — completion text chunks (legacy key,
+ *                                      rewritten from the router's {chunk}).
+ *   data: {"type":"answer_complete","citationsValid":n,"citationsTotal":m}
+ *                                    — groundedness post-check, emitted after
+ *                                      the last chunk.
+ *   data: [DONE]                     — terminator.
+ *
+ * Rate limit: same family as /search (vault-search is 15/min) but stricter —
+ * 10/min — because every call is an LLM completion. dailyAILimit +
+ * aiQuotaGate are the same gates the flagship /api/search/chat path mounts.
+ */
+router.post('/ask-all',
+  requireAuth,
+  rateLimitByUser({ key: 'vault-ask-all', windowSec: 60, max: 10 }),
+  dailyAILimit,
+  aiQuotaGate,
+  async (req, res) => {
+    try {
+      const { query } = req.body;
+      if (!query || typeof query !== 'string' || !query.trim()) {
+        return res.status(400).json({ error: 'query is required' });
+      }
+
+      // W1.3 — same prompt-injection delimiter scrub as doc-ask / main chat.
+      const cleanQuery = sanitizeQuery(query.trim());
+      if (!cleanQuery) {
+        return res.status(400).json({ error: 'query is required' });
+      }
+
+      const passages = await vault.retrieve(req.user.id, cleanQuery, ASK_ALL_RETRIEVAL_LIMIT);
+
+      const sseHeaders = {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        Connection: 'keep-alive',
+        'X-Accel-Buffering': 'no',
+      };
+
+      if (!passages || passages.length === 0) {
+        // Nothing relevant — tell the client so it can show a quiet
+        // "nothing relevant in your vault" line instead of an empty answer.
+        res.writeHead(200, sseHeaders);
+        res.write(`data: ${JSON.stringify({ type: 'no_context' })}\n\n`);
+        res.write('data: [DONE]\n\n');
+        return res.end();
+      }
+
+      // Model per router policy — same Haiku-class lane as doc-ask.
+      const provider = modelRouter.route('quick_factual');
+      if (!process.env[provider.keyEnv]) {
+        return res.status(503).json({ error: 'AI service not configured' });
+      }
+
+      // Unified prompt assembly: the SAME [Vn]/page-cited formatter +
+      // untrusted-data envelope as doc-ask and the main vault RAG path
+      // (vault.formatForPrompt → vaultSecurity.wrapAsUntrustedData).
+      const vaultContext = vault.formatForPrompt(passages);
+
+      // Citation metadata — same backward-compatible shape as doc-ask /
+      // agentOrchestrator.vaultAgent (`data: {"vaultSources": [...]}`).
+      const vaultSources = passages.map(p => ({
+        filename: p.filename || 'Unknown',
+        source: p.doc_metadata?.bank || p.source || '',
+        tickers: p.doc_metadata?.tickers || [],
+        date: p.doc_metadata?.date || '',
+        pageNumber: p.page_number || null,
+        similarity: p.similarity != null ? parseFloat(p.similarity).toFixed(2) : null,
+        isGlobal: p.is_global || false,
+      }));
+
+      const systemPrompt =
+        'You are synthesizing an answer from the user\'s private research vault. ' +
+        'The evidence passages come from multiple documents they uploaded. ' +
+        'Use ONLY the evidence passages provided to answer. If the answer is not ' +
+        'in the passages, say so clearly. Be concise and cite the passages you ' +
+        'reference using [V1], [V2], ... markers matching the evidence order, ' +
+        'including page numbers where shown (e.g. [V2, p.14]). When naming a ' +
+        'source in prose, use its document filename.';
+
+      const messages = [{
+        role: 'user',
+        content: `${cleanQuery}\n${vaultContext}`,
+      }];
+
+      // SSE headers + citation event BEFORE the model stream (doc-ask order).
+      res.writeHead(200, sseHeaders);
+      res.write(`data: ${JSON.stringify({ vaultSources })}\n\n`);
+
+      logger.info('vault-route', 'Vault-wide Q&A initiated', {
+        userId: req.user.id,
+        model: provider.model,
+        queryLength: cleanQuery.length,
+        passagesCount: passages.length,
+      });
+
+      // Stream through the shared router path (retry/backoff, cost ledger,
+      // disconnect abort, partial-event errors). The doc-ask adapter rewrites
+      // `{chunk}` → `{content}` on the wire for old clients. onComplete runs
+      // synchronously inside the router's finish() BEFORE it writes [DONE],
+      // so the groundedness event lands between the last chunk and [DONE].
+      await modelRouter.streamResponse(provider, messages, systemPrompt, makeDocAskSSEAdapter(res), {
+        onAbort: (abortFn) => { req.on('close', abortFn); },
+        userId: req.user.id,
+        maxTokens: ASK_ALL_MAX_TOKENS,
+        onComplete: (fullAnswer) => {
+          // Cheap groundedness post-check: every [Vn] in the answer must map
+          // to a passage we actually sent. Emitted to the client and logged
+          // to the vault_query_log row retrieve() wrote for this query.
+          const grounded = checkCitationGroundedness(fullAnswer, passages.length);
+          if (!res.writableEnded) {
+            res.write(`data: ${JSON.stringify({ type: 'answer_complete', ...grounded })}\n\n`);
+          }
+          logger.info('vault-route', 'Vault-wide answer groundedness', {
+            userId: req.user.id,
+            citationsValid: grounded.citationsValid,
+            citationsTotal: grounded.citationsTotal,
+            passagesCount: passages.length,
+            answerLength: (fullAnswer || '').length,
+          });
+          // Fire-and-forget by contract (recordGroundedness never throws).
+          Promise.resolve(
+            vaultQueryLog.recordGroundedness({
+              userId: req.user.id,
+              query: cleanQuery,
+              citationsValid: grounded.citationsValid,
+              citationsTotal: grounded.citationsTotal,
+            })
+          ).catch(() => {});
+        },
+      });
+    } catch (err) {
+      logger.error('vault-route', 'Vault-wide Q&A error', { error: err.message });
+      if (!res.headersSent) {
+        res.status(500).json({ error: 'Failed to process query' });
+      } else if (!res.writableEnded) {
+        res.write(`data: ${JSON.stringify({ error: 'Failed to process query: ' + err.message })}\n\n`);
+        res.write('data: [DONE]\n\n');
+        res.end();
+      }
+    }
+  });
 
 /**
  * GET /documents/:id/summary — Get or generate a document summary.

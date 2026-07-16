@@ -9,6 +9,7 @@
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { apiFetch, apiJSON, API_BASE } from '../../utils/api';
+import { readSSEStream, createChatAbort } from '../../utils/sseStream';
 import { useAuth } from '../../context/AuthContext';
 import VaultDocChat from './VaultDocChat';
 import AIDisclaimer from '../common/AIDisclaimer';
@@ -44,6 +45,28 @@ function sanitizeVaultError(msg) {
   return 'An error occurred processing the file. Please try a different file or try again.';
 }
 
+/**
+ * Render a synthesized answer with [Vn] markers as small citation chips.
+ * Handles both bare markers ("[V2]") and page-suffixed ones ("[V1, p.12]").
+ * Chip tooltips resolve n against the vaultSources event when available.
+ */
+function AnswerWithCitations({ text, sources }) {
+  const parts = String(text || '').split(/(\[V\d+[^\]]*\])/g);
+  return parts.map((part, i) => {
+    const m = /^\[V(\d+)([^\]]*)\]$/.exec(part);
+    if (!m) return <span key={i}>{part}</span>;
+    const src = sources?.[parseInt(m[1], 10) - 1];
+    const title = src
+      ? `${src.filename}${src.pageNumber ? ` \u00B7 p.${src.pageNumber}` : ''}`
+      : undefined;
+    return (
+      <span key={i} className="vault-answer-cite" title={title}>
+        V{m[1]}{m[2] ? m[2].replace(/^,\s*/, ' \u00B7 ') : ''}
+      </span>
+    );
+  });
+}
+
 function VaultPanelInner({ fullScreen = false }) {
   const { token, user } = useAuth();
   const [tab, setTab] = useState('private');
@@ -57,6 +80,14 @@ function VaultPanelInner({ fullScreen = false }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState(null);
   const [searching, setSearching] = useState(false);
+  // AI-synthesized answer over the whole vault (POST /api/vault/ask-all).
+  // States: 'idle' (no block shown) | 'streaming' | 'done' | 'no_context'.
+  // The answer NEVER blocks or breaks the raw passage search — any failure
+  // silently degrades back to passages-only ('idle').
+  const [answer, setAnswer] = useState('');
+  const [answerState, setAnswerState] = useState('idle');
+  const [answerSources, setAnswerSources] = useState([]);
+  const answerAbortRef = useRef(null);
   const [isAdmin, setIsAdmin] = useState(false);
   // W3.5: admin-status diagnostic — populated from /api/auth/me/admin-status
   // so a founder who is locked out (wrong user ID in ADMIN_USER_IDS) sees a
@@ -310,12 +341,93 @@ function VaultPanelInner({ fullScreen = false }) {
     }
   }, [token, tab]);
 
+  // Abort any in-flight answer stream and hide the answer block.
+  const resetAnswer = useCallback(() => {
+    answerAbortRef.current?.abort();
+    answerAbortRef.current = null;
+    setAnswer('');
+    setAnswerSources([]);
+    setAnswerState('idle');
+  }, []);
+
+  // Abort the answer stream on unmount so we never setState after unmount.
+  useEffect(() => () => { answerAbortRef.current?.abort(); }, []);
+
+  // Stream the vault-wide synthesized answer alongside a semantic search.
+  // Canonical SSE usage per VaultDocChat: one AbortController per request,
+  // shared readSSEStream parser. Every failure path degrades silently to
+  // passages-only — no error toast, the block simply doesn't render.
+  const streamAnswer = useCallback(async (query) => {
+    answerAbortRef.current?.abort();
+    const { controller, signal } = createChatAbort();
+    answerAbortRef.current = controller;
+    setAnswer('');
+    setAnswerSources([]);
+    setAnswerState('streaming');
+
+    let text = '';
+    let noContext = false;
+    try {
+      const res = await fetch(`${API_BASE}/api/vault/ask-all`, {
+        method: 'POST',
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        signal,
+        body: JSON.stringify({ query }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      await readSSEStream(res, {
+        signal,
+        onData: (parsed) => {
+          if (parsed.type === 'no_context') { noContext = true; return; }
+          if (parsed.vaultSources) { setAnswerSources(parsed.vaultSources); return; }
+          // {type:'answer_complete', citationsValid, citationsTotal} — server
+          // groundedness telemetry; nothing to render here.
+          if (parsed.type === 'answer_complete') return;
+          // Stream failure markers (modelRouter {partial:true,error} / legacy {error}).
+          if (parsed.partial || (parsed.error && !parsed.content && !parsed.chunk)) {
+            throw new Error(typeof parsed.error === 'string' ? parsed.error : 'Stream error');
+          }
+          const delta = parsed.content ?? parsed.chunk;
+          if (delta) {
+            text += delta;
+            setAnswer(text);
+          }
+        },
+      });
+
+      if (signal.aborted) return;
+      if (noContext) setAnswerState('no_context');
+      else if (text) setAnswerState('done');
+      else setAnswerState('idle'); // empty stream — hide quietly
+    } catch (err) {
+      if (err?.name === 'AbortError') return;
+      // Silent degradation: the passage list must never break because the
+      // synthesized answer failed (quota, model outage, network...).
+      if (import.meta.env?.DEV) console.warn('[Vault] ask-all failed:', err?.message || err);
+      if (!signal.aborted) {
+        setAnswer('');
+        setAnswerSources([]);
+        setAnswerState('idle');
+      }
+    } finally {
+      if (answerAbortRef.current === controller) answerAbortRef.current = null;
+    }
+  }, [token]);
+
   // Search handler
   const handleSearch = useCallback(async (e) => {
     e.preventDefault();
     if (!searchQuery.trim()) return;
     setSearching(true);
     setSearchResults(null);
+    // Kick off the AI answer in parallel — it streams into the block above
+    // the passage list and fails independently of the raw search.
+    streamAnswer(searchQuery.trim());
     try {
       const data = await apiJSON('/api/vault/search', {
         method: 'POST',
@@ -327,7 +439,7 @@ function VaultPanelInner({ fullScreen = false }) {
     } finally {
       setSearching(false);
     }
-  }, [searchQuery, token]);
+  }, [searchQuery, token, streamAnswer]);
 
   const fmtDate = (iso) => {
     if (!iso) return '';
@@ -657,6 +769,30 @@ function VaultPanelInner({ fullScreen = false }) {
           </button>
         </form>
 
+        {/* ── AI-synthesized answer (streams above the raw passages) ── */}
+        {answerState !== 'idle' && (
+          <div className="vault-answer-block">
+            <div className="vault-answer-head">
+              <svg className="vault-answer-glyph" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="3" />
+                <path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
+              </svg>
+              <span className="vault-answer-label">Vault Synthesis</span>
+              {answerState === 'streaming' && (
+                <span className="vault-answer-status">synthesizing&hellip;</span>
+              )}
+            </div>
+            {answerState === 'no_context' ? (
+              <div className="vault-answer-empty">Nothing relevant in your vault for this query.</div>
+            ) : (
+              <div className="vault-answer-text">
+                <AnswerWithCitations text={answer} sources={answerSources} />
+                {answerState === 'streaming' && <span className="vault-answer-cursor" />}
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="vault-results-list">
           {!searchResults && !searching && (
             <div className="vault-empty-state">
@@ -689,7 +825,7 @@ function VaultPanelInner({ fullScreen = false }) {
           ))}
 
           {searchResults && searchResults.length > 0 && (
-            <button className="vault-search-clear" onClick={() => setSearchResults(null)}>Clear Results</button>
+            <button className="vault-search-clear" onClick={() => { setSearchResults(null); resetAnswer(); }}>Clear Results</button>
           )}
         </div>
 
