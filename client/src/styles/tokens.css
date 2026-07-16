@@ -214,6 +214,11 @@
   --space-12:  48px;
   --space-16:  64px;
 
+  /* H1.3 density: shared vertical padding for ticker-list rows
+     (Global Indices / US Equities / Brazil / FX / Commodities /
+     Watchlist). Was a hardcoded 3px per panel — trimmed ~25%. */
+  --row-pad: 2.25px;
+
 
   /* ================================================================
      BORDER RADIUS

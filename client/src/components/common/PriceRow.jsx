@@ -129,7 +129,7 @@ function PriceRow({
       style={{
         display: 'grid',
         gridTemplateColumns: columns,
-        padding: '3px 8px',
+        padding: 'var(--row-pad, 3px) 8px',  // H1.3 shared density token
         borderBottom: '1px solid var(--border-subtle)',
         alignItems: 'center',
         transition: 'background-color 0.1s',
