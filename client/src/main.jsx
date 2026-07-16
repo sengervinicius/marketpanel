@@ -53,6 +53,21 @@ import { ThemeProvider } from './context/ThemeContext.jsx'
 import { SettingsProvider, useSettings } from './context/SettingsContext.jsx'
 import { useFeatureFlags } from './hooks/useFeatureFlags.js'
 
+// Deploy-safety net: when a new deploy replaces content-hashed chunks while a
+// session is open, lazy imports of the OLD hashes 404 and hard-crash the app
+// ("Failed to fetch dynamically imported module"). Vite emits vite:preloadError
+// for exactly this case — recover with ONE full reload (sessionStorage-guarded
+// against loops), which picks up the fresh index and chunk graph.
+window.addEventListener('vite:preloadError', (event) => {
+  const KEY = 'chunkReload_v1';
+  const last = Number(sessionStorage.getItem(KEY) || 0);
+  if (Date.now() - last > 30_000) {
+    sessionStorage.setItem(KEY, String(Date.now()));
+    event.preventDefault(); // suppress the crash — we're handling it
+    window.location.reload();
+  }
+});
+
 // Unregister legacy service worker — it uses stale-while-revalidate caching
 // which serves old JS bundles, preventing bug fixes from reaching users.
 // Vite's content-hashed filenames + standard HTTP caching are sufficient.
