@@ -52,6 +52,25 @@ const CATEGORY_MAP = {
   'CHINA':      'geopolitics',
   'TARIFF':     'geopolitics',
   'TRADE':      'geopolitics',
+  // Sports — checked LAST (insertion order) so finance keywords always win.
+  // Own category = only visible behind the explicit SPORTS tab, never FOR YOU.
+  'WORLD CUP':  'sports',
+  'WORLDCUP':   'sports',
+  'FIFA':       'sports',
+  'UEFA':       'sports',
+  'SOCCER':     'sports',
+  'FOOTBALL':   'sports',
+  'SUPER BOWL': 'sports',
+  'SUPERBOWL':  'sports',
+  'NFL':        'sports',
+  'NBA':        'sports',
+  'MLB':        'sports',
+  'NHL':        'sports',
+  'TENNIS':     'sports',
+  'OLYMPIC':    'sports',
+  'UFC':        'sports',
+  'NASCAR':     'sports',
+  'PGA':        'sports',
 };
 
 /**

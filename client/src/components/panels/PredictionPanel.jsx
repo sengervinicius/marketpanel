@@ -34,6 +34,7 @@ const CATEGORY_LABELS = {
   'politics':    'Politics',
   'geopolitics': 'World',
   'tech':        'Tech',
+  'sports':      'Sports',
 };
 
 function probabilityColor(p) {
