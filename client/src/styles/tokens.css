@@ -70,7 +70,9 @@
      SEMANTIC COLORS — market data only
      ================================================================ */
   --color-up:                #22c55e;           /* Green for positive change */
+  --color-up-bg:             rgba(34, 197, 94, 0.10);  /* Subtle green background */
   --color-down:              #ef4444;           /* Red for negative change */
+  --color-down-bg:           rgba(239, 68, 68, 0.12);  /* Subtle red background */
   --color-neutral:           #a0a0a0;           /* Flat / unchanged */
   --color-warn:              #f59e0b;           /* Warning states */
   --color-flat:              var(--color-warn);  /* Alias: flat market */

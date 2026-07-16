@@ -64,18 +64,19 @@ export default function OptionsHomeWidget({ onNavigate }) {
     return 'NEUTRAL';
   };
 
+  // Token sweep (H0.5): up/down/warn semantics come from tokens.css.
   const getSentimentColor = (callRatio) => {
-    if (callRatio > 0.65) return '#00ff88';
-    if (callRatio < 0.35) return '#ff4444';
-    return '#ffaa00';
+    if (callRatio > 0.65) return 'var(--color-up)';
+    if (callRatio < 0.35) return 'var(--color-down)';
+    return 'var(--color-warn)';
   };
 
   const getAlertTypeColor = (type) => {
     const typeUpper = (type || '').toUpperCase();
-    if (typeUpper.includes('SWEEP')) return '#00ff88';
-    if (typeUpper.includes('BLOCK')) return '#ff9900';
-    if (typeUpper.includes('UNUSUAL')) return '#ff4444';
-    return '#ffaa00';
+    if (typeUpper.includes('SWEEP')) return 'var(--color-up)';
+    if (typeUpper.includes('BLOCK')) return 'var(--color-accent)';
+    if (typeUpper.includes('UNUSUAL')) return 'var(--color-down)';
+    return 'var(--color-warn)';
   };
 
   const formatCurrency = (value) => {
