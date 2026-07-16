@@ -52,6 +52,7 @@ const TTL_MS = {
   gainers: 60 * 1000,
   losers:  60 * 1000,
   actives: 2 * 60 * 1000,
+  breadth: 2 * 60 * 1000, // H2b — aligned with actives (same snapshot pull)
 };
 function cget(k) {
   const e = _cache.get(k);
@@ -110,10 +111,76 @@ async function fetchNativeDirection(direction) {
 async function fetchActives() {
   const raw = await polyFetch(`/v2/snapshot/locale/us/markets/stocks/tickers`);
   const tickers = Array.isArray(raw?.tickers) ? raw.tickers : [];
-  return tickers
-    .map(normalizeRow)
-    .filter(r => r.symbol && r.volume != null)
+  const rows = tickers.map(normalizeRow).filter(r => r.symbol);
+
+  // H2b — the full snapshot (~8k tickers) used to be discarded after the
+  // volume sort. Compute market breadth here, while we have it, and cache
+  // it on the same cadence so /market/breadth never triggers a second
+  // full-snapshot pull inside the actives window.
+  cset('breadth', {
+    ...computeBreadth(rows),
+    source: 'polygon',
+    asOf: new Date().toISOString(),
+  }, TTL_MS.breadth);
+
+  return rows
+    .filter(r => r.volume != null)
     .sort((a, b) => (b.volume || 0) - (a.volume || 0));
+}
+
+// ── Market breadth (H2b) ─────────────────────────────────────────────
+// Advancers / decliners / unchanged from todaysChangePerc, plus the
+// share of tickers trading above previous close. Rows lacking the
+// relevant fields are excluded from that specific ratio (not zeroed).
+function computeBreadth(rows) {
+  let advancers = 0, decliners = 0, unchanged = 0;
+  let above = 0, withPrev = 0;
+  for (const r of rows) {
+    if (r.changePct != null) {
+      if (r.changePct > 0) advancers++;
+      else if (r.changePct < 0) decliners++;
+      else unchanged++;
+    }
+    if (r.price != null && r.prevClose != null) {
+      withPrev++;
+      if (r.price > r.prevClose) above++;
+    }
+  }
+  const total = advancers + decliners + unchanged;
+  return {
+    advancers,
+    decliners,
+    unchanged,
+    total,
+    pctAdvancers:      total > 0    ? parseFloat((advancers / total * 100).toFixed(1)) : null,
+    pctAbovePrevClose: withPrev > 0 ? parseFloat((above / withPrev * 100).toFixed(1))  : null,
+    sample: rows.length,
+  };
+}
+
+/**
+ * Get market breadth for US equities (H2b).
+ * Piggybacks on the actives full-snapshot pull; cache aligned (2 min).
+ * Returns { advancers, decliners, unchanged, total, pctAdvancers,
+ * pctAbovePrevClose, sample, source, asOf } or { error } when Polygon is
+ * unconfigured / down.
+ */
+async function getMarketBreadth() {
+  const cached = cget('breadth');
+  if (cached) return cached;
+
+  if (!isConfigured()) {
+    return { error: 'POLYGON_API_KEY not configured' };
+  }
+
+  try {
+    const rows = await fetchActives(); // side effect: csets 'breadth'
+    cset('movers:actives', rows, TTL_MS.actives); // don't waste the pull
+    return cget('breadth') || { error: 'breadth computation failed' };
+  } catch (e) {
+    logger.warn('marketMoversProvider', 'breadth fetch failed', { error: e.message });
+    return { error: e.message };
+  }
 }
 
 // ── Public API ───────────────────────────────────────────────────────
@@ -194,6 +261,7 @@ async function getMarketMovers({ direction = 'gainers', limit = 10, market = 'US
 
 module.exports = {
   getMarketMovers,
+  getMarketBreadth,
   isConfigured,
   // test hook
   _normalizeRow: normalizeRow,

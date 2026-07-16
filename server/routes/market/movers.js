@@ -35,7 +35,7 @@ const express = require('express');
 const router  = express.Router();
 const { cacheGet, cacheSet } = require('./lib/cache');
 const { yahooQuote, sendError } = require('./lib/providers');
-const { getMarketMovers } = require('../../providers/marketMoversProvider');
+const { getMarketMovers, getMarketBreadth } = require('../../providers/marketMoversProvider');
 const logger = require('../../utils/logger');
 
 const TABS = ['gainers', 'losers', 'actives'];
@@ -147,6 +147,24 @@ router.get('/market/movers', async (req, res) => {
   } catch (e) {
     logger.error('movers', `GET /market/movers error: ${e.message}`);
     sendError(res, e, '/market/movers');
+  }
+});
+
+// ── GET /market/breadth — H2b item 2 ─────────────────────────────────
+// Advancers / decliners / unchanged / pctAbovePrevClose from the same
+// Polygon full-market snapshot the actives tab pulls (provider computes
+// and caches breadth on that cadence — 2 min). Degrades to
+// { ok:false, error } when Polygon is unconfigured or down.
+router.get('/market/breadth', async (req, res) => {
+  try {
+    const breadth = await getMarketBreadth();
+    if (!breadth || breadth.error) {
+      return res.json({ ok: false, error: breadth?.error || 'breadth unavailable' });
+    }
+    return res.json({ ok: true, ...breadth });
+  } catch (e) {
+    logger.error('movers', `GET /market/breadth error: ${e.message}`);
+    sendError(res, e, '/market/breadth');
   }
 });
 
