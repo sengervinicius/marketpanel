@@ -470,3 +470,142 @@
   font-style: italic;
 }
 
+
+/* ── Phase 3: feed scope toggle (ALL | WATCHLIST) ─────────────────── */
+
+.np-scope-toggle {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--border-default);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.np-scope-btn {
+  font-family: var(--font-family-mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 2px 6px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.12s, background 0.12s;
+}
+
+.np-scope-btn + .np-scope-btn {
+  border-left: 1px solid var(--border-default);
+}
+
+.np-scope-btn:hover:not(:disabled) {
+  color: var(--text-primary);
+}
+
+.np-scope-btn--active {
+  color: var(--section-watchlist);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.np-scope-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ── Phase 3: inline per-ticker 7-day AI summary ──────────────────── */
+
+.np-news-ticker {
+  cursor: pointer;
+}
+
+.np-news-ticker--open {
+  color: var(--text-primary);
+  border-color: var(--section-watchlist);
+}
+
+.np-tksum {
+  margin-top: 5px;
+  padding: 6px 8px;
+  border: 1px solid var(--border-default);
+  border-left: 2px solid var(--section-watchlist);
+  background: rgba(255, 255, 255, 0.03);
+  cursor: default;
+}
+
+.np-tksum-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.np-tksum-title {
+  font-family: var(--font-family-mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--section-watchlist);
+  flex: 1;
+  min-width: 0;
+}
+
+.np-tksum-sent {
+  font-family: var(--font-family-mono);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 1px 4px;
+  border-radius: 2px;
+}
+
+.np-tksum-sent--bullish { background: rgba(70, 180, 100, 0.18);  color: var(--price-up); }
+.np-tksum-sent--bearish { background: rgba(220, 80, 80, 0.18);   color: var(--price-down); }
+.np-tksum-sent--neutral { background: rgba(140, 140, 140, 0.18); color: var(--text-faint); }
+.np-tksum-sent--mixed   { background: rgba(255, 165, 0, 0.18);   color: #ffb85f; }
+
+.np-tksum-close {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 2px;
+}
+
+.np-tksum-close:hover {
+  color: var(--text-primary);
+}
+
+.np-tksum-summary {
+  margin-top: 4px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-primary);
+}
+
+.np-tksum-bullets {
+  margin-top: 3px;
+}
+
+.np-tksum-bullet {
+  font-size: 10.5px;
+  line-height: 1.4;
+  color: var(--text-secondary);
+}
+
+.np-tksum-meta {
+  margin-top: 4px;
+  font-family: var(--font-family-mono);
+  font-size: 9px;
+  color: var(--text-faint);
+}
+
+.np-tksum-loading,
+.np-tksum-error {
+  margin-top: 4px;
+  font-family: var(--font-family-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.np-tksum-error { color: var(--semantic-down); }

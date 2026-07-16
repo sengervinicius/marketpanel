@@ -926,8 +926,16 @@ const _newsSummaryCache = new Map();
 const NEWS_SUMMARY_TTL = 5 * 60 * 1000;
 
 router.post('/news-summary', async (req, res) => {
-  const apiKey = process.env.PERPLEXITY_API_KEY;
-  if (!apiKey) return res.status(503).json({ error: 'AI not configured' });
+  // #291 / audit N6 — multi-provider for news-summary. Previously this
+  // route was hardwired to Perplexity and returned 503 whenever the
+  // Perplexity key failed, even though ANTHROPIC_API_KEY was healthy.
+  // Same structured-output task on data we already have as
+  // /news-briefing, so mirror its Perplexity → Anthropic Haiku
+  // fallback exactly (own AbortController per try; Sentry only when
+  // BOTH providers fail).
+  const perplexityKey = process.env.PERPLEXITY_API_KEY;
+  const anthropicKey = process.env.ANTHROPIC_API_KEY;
+  if (!perplexityKey && !anthropicKey) return res.status(503).json({ error: 'AI not configured' });
 
   const { headlines } = req.body;
   if (!headlines || !Array.isArray(headlines) || headlines.length === 0) {
@@ -958,26 +966,126 @@ Rules:
 
   const userPrompt = `Analyze these ${trimmed.length} headlines:\n\n${trimmed.map((h, i) => `${i + 1}. ${h}`).join('\n')}`;
 
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 20000);
+  // #291 / N6 — try Perplexity then Anthropic. Either provider can
+  // produce the structured summary JSON; both are tried before we tell
+  // the user it's unavailable. Each helper returns the raw response
+  // content string, or null on failure.
+  async function tryPerplexity() {
+    if (!perplexityKey) return null;
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 20000);
+    try {
+      const r = await fetch(PERPLEXITY_URL, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${perplexityKey}`, 'Content-Type': 'application/json' },
+        signal: ctrl.signal,
+        body: JSON.stringify({
+          model: MODEL,
+          messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt }],
+          max_tokens: 600,
+          temperature: 0.15,
+        }),
+      });
+      clearTimeout(timer);
+      if (!r.ok) {
+        const errText = await r.text().catch(() => '');
+        if (r.status === 401 || r.status === 403) {
+          // Console-only here — Sentry alert lives in the outer block so
+          // it fires only when BOTH providers fail (see news-briefing,
+          // #291 W2.1 hotfix).
+          console.error(`[News-Summary] Perplexity auth ${r.status} — PERPLEXITY_API_KEY likely expired. Body:`, errText.substring(0, 200));
+          _outcomes.perplexity = 'auth';
+        } else {
+          console.warn(`[News-Summary] Perplexity ${r.status}:`, errText.substring(0, 200));
+          _outcomes.perplexity = `http_${r.status}`;
+        }
+        return null; // fall through to Anthropic
+      }
+      const data = await r.json();
+      _outcomes.perplexity = 'ok';
+      return data.choices?.[0]?.message?.content || null;
+    } catch (e) {
+      clearTimeout(timer);
+      console.warn('[News-Summary] Perplexity threw:', e.message);
+      _outcomes.perplexity = 'network';
+      return null;
+    }
+  }
+
+  async function tryAnthropic() {
+    if (!anthropicKey) { _outcomes.anthropic = 'not_configured'; return null; }
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 20000);
+    try {
+      const r = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'x-api-key': anthropicKey,
+          'anthropic-version': '2023-06-01',
+          'Content-Type': 'application/json',
+        },
+        signal: ctrl.signal,
+        body: JSON.stringify({
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: 600,
+          system: systemPrompt,
+          messages: [{ role: 'user', content: userPrompt }],
+        }),
+      });
+      clearTimeout(timer);
+      if (!r.ok) {
+        const errText = await r.text().catch(() => '');
+        if (r.status === 401 || r.status === 403) {
+          console.error(`[News-Summary] Anthropic auth ${r.status} — ANTHROPIC_API_KEY likely expired. Body:`, errText.substring(0, 200));
+          _outcomes.anthropic = 'auth';
+        } else {
+          console.warn(`[News-Summary] Anthropic ${r.status}:`, errText.substring(0, 200));
+          _outcomes.anthropic = `http_${r.status}`;
+        }
+        return null;
+      }
+      const data = await r.json();
+      _outcomes.anthropic = 'ok';
+      // Anthropic returns content as an array of { type: 'text', text: '...' }
+      return data.content?.[0]?.text || null;
+    } catch (e) {
+      clearTimeout(timer);
+      console.warn('[News-Summary] Anthropic threw:', e.message);
+      _outcomes.anthropic = 'network';
+      return null;
+    }
+  }
+
+  // Outcomes tracker so we Sentry-alert ONLY when both providers fail
+  // (mirrors news-briefing's #291 W2.1 hotfix).
+  const _outcomes = { perplexity: null, anthropic: null };
 
   try {
-    const response = await fetch(PERPLEXITY_URL, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-      signal: ctrl.signal,
-      body: JSON.stringify({
-        model: MODEL, messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt },
-        ], max_tokens: 600, temperature: 0.15,
-      }),
-    });
-    if (!response.ok) return res.status(502).json({ error: `AI provider error (${response.status})` });
-
-    const data = await response.json();
-    const raw = data.choices?.[0]?.message?.content;
-    if (!raw) return res.status(502).json({ error: 'Empty response from AI' });
+    let raw = await tryPerplexity();
+    let providerUsed = 'perplexity';
+    if (!raw) {
+      raw = await tryAnthropic();
+      providerUsed = 'anthropic';
+    }
+    if (!raw) {
+      try {
+        require('@sentry/node').captureMessage(
+          'News-summary degraded: both providers failed',
+          {
+            level: 'error',
+            tags: {
+              route: 'news-summary',
+              perplexity_outcome: _outcomes.perplexity || 'skipped',
+              anthropic_outcome: _outcomes.anthropic || 'skipped',
+            },
+          }
+        );
+      } catch (_) { /* sentry optional */ }
+      return res.status(503).json({
+        error: 'summary_temporarily_unavailable',
+        message: 'The AI news summary is temporarily unavailable across all providers. Live headlines remain current.',
+      });
+    }
 
     let parsed;
     try {
@@ -989,6 +1097,8 @@ Rules:
     const result = {
       items: Array.isArray(parsed.items) ? parsed.items : [],
       summary: Array.isArray(parsed.summary) ? parsed.summary : [],
+      provider: providerUsed,
+      degraded: providerUsed !== 'perplexity',
       generatedAt: new Date().toISOString(),
     };
 
@@ -1005,7 +1115,10 @@ Rules:
     if (err.name === 'AbortError') return res.status(504).json({ error: 'News summary timed out' });
     console.error('[Search/AI News Summary] Error:', err.message);
     res.status(500).json({ error: 'News summary failed' });
-  } finally { clearTimeout(timer); }
+  }
+  // N6 — no outer finally{clearTimeout(timer)}: each provider helper owns
+  // its own AbortController + timer pair (same lesson as news-briefing,
+  // NODE-7).
 });
 
 /**

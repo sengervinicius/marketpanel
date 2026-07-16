@@ -5,6 +5,7 @@
 // (cached server-side for 10 minutes).
 import { useState, useEffect, useRef, memo, useCallback } from 'react';
 import { useFeedStatus } from '../../context/FeedStatusContext';
+import { useWatchlist } from '../../context/WatchlistContext';
 import { apiFetch } from '../../utils/api';
 import EmptyState from '../common/EmptyState';
 import { PanelHeader } from './_shared';
@@ -97,6 +98,13 @@ const BriefingCard = memo(function BriefingCard({ briefing, loading, error, onRe
   );
 });
 
+// Phase 3 — feed scope (ALL | WATCHLIST), persisted across sessions.
+const NEWS_SCOPE_KEY = 'newsScope_v1';
+function loadNewsScope() {
+  try { return localStorage.getItem(NEWS_SCOPE_KEY) === 'watchlist' ? 'watchlist' : 'all'; }
+  catch { return 'all'; }
+}
+
 function timeAgo(dateStr) {
   const diff = (Date.now() - new Date(dateStr).getTime()) / 1000;
   if (diff < 60)    return `${Math.floor(diff)}s ago`;
@@ -105,12 +113,41 @@ function timeAgo(dateStr) {
   return `${Math.floor(diff / 86400)}d ago`;
 }
 
-const NewsItem = memo(function NewsItem({ item, isNew, sentimentMap }) {
+const NewsItem = memo(function NewsItem({ item, isNew, sentimentMap, getTickerSummary }) {
   const isBreaking = item.importance === 'high' ||
     (item.title || '').toUpperCase().includes('BREAKING') ||
     (item.title || '').toUpperCase().includes('ALERT');
   const url = item.article_url || item.link || item.url;
   const sentiment = sentimentMap?.[item.id];
+
+  // Phase 3 — per-ticker 7-day AI summary, inline expandable.
+  // Data is memoized panel-side (getTickerSummary), so re-opening the
+  // same ticker anywhere in the feed is instant.
+  const [sumTicker, setSumTicker]   = useState(null);
+  const [sumData, setSumData]       = useState(null);
+  const [sumLoading, setSumLoading] = useState(false);
+  const [sumError, setSumError]     = useState(null);
+  const sumReq = useRef(null); // stale-response guard
+
+  const handleTickerClick = async (e, t) => {
+    e.stopPropagation();
+    if (sumTicker === t) { setSumTicker(null); return; }
+    sumReq.current = t;
+    setSumTicker(t);
+    setSumData(null);
+    setSumError(null);
+    setSumLoading(true);
+    try {
+      const d = await getTickerSummary(t);
+      if (sumReq.current !== t) return; // user moved on
+      setSumData(d);
+    } catch (err) {
+      if (sumReq.current !== t) return;
+      setSumError(err.message || 'Summary failed');
+    } finally {
+      if (sumReq.current === t) setSumLoading(false);
+    }
+  };
 
   return (
     <div
@@ -137,8 +174,49 @@ const NewsItem = memo(function NewsItem({ item, isNew, sentimentMap }) {
       {item.tickers?.length > 0 && (
         <div className="flex-row np-news-tickers">
           {item.tickers.slice(0, 5).map((t) => (
-            <span key={t} className="np-news-ticker">{t}</span>
+            <span
+              key={t}
+              className={`np-news-ticker ${sumTicker === t ? 'np-news-ticker--open' : ''}`}
+              onClick={(e) => handleTickerClick(e, t)}
+              title={`7-day AI summary for ${t}`}
+            >{t}</span>
           ))}
+        </div>
+      )}
+      {sumTicker && (
+        <div className="np-tksum" onClick={(e) => e.stopPropagation()}>
+          <div className="np-tksum-header">
+            <span className="np-tksum-title">{sumTicker} · 7-DAY AI SUMMARY</span>
+            {sumData && (
+              <span className={`np-tksum-sent np-tksum-sent--${sumData.sentiment || 'neutral'}`}>
+                {(sumData.sentiment || 'neutral').toUpperCase()}
+              </span>
+            )}
+            <button
+              className="np-tksum-close"
+              onClick={(e) => { e.stopPropagation(); setSumTicker(null); }}
+              title="Close summary"
+            >×</button>
+          </div>
+          {sumLoading ? (
+            <div className="np-tksum-loading">Summarizing last 7 days…</div>
+          ) : sumError ? (
+            <div className="np-tksum-error">⚠ {sumError}</div>
+          ) : sumData ? (
+            <>
+              {sumData.summary && <div className="np-tksum-summary">{sumData.summary}</div>}
+              {sumData.bullets?.length > 0 && (
+                <div className="np-tksum-bullets">
+                  {sumData.bullets.map((b, i) => (
+                    <div key={i} className="np-tksum-bullet">• {b}</div>
+                  ))}
+                </div>
+              )}
+              <div className="np-tksum-meta">
+                {sumData.articleCount ?? 0} articles{sumData.cached ? ' · cached' : ''}
+              </div>
+            </>
+          ) : null}
         </div>
       )}
     </div>
@@ -160,6 +238,35 @@ function NewsPanel() {
   const prevNews = useRef([]);
   const { getBadge } = useFeedStatus();
   const badge = getBadge('stocks');
+
+  // Phase 3 — feed scope. WATCHLIST narrows the server feed to the
+  // user's tickers; an empty watchlist falls back to ALL (toggle disabled).
+  const { watchlist } = useWatchlist();
+  const [scope, setScopeState] = useState(loadNewsScope);
+  const hasWatchlist = watchlist.length > 0;
+  const effectiveScope = scope === 'watchlist' && hasWatchlist ? 'watchlist' : 'all';
+  const scopeTickers = effectiveScope === 'watchlist' ? watchlist.slice(0, 30).join(',') : '';
+  const setScope = useCallback((s) => {
+    setScopeState(s);
+    try { localStorage.setItem(NEWS_SCOPE_KEY, s); } catch { /* private mode */ }
+  }, []);
+
+  // Phase 3 — per-ticker summary memo: one fetch per symbol per session
+  // (server also caches 30 min). Stores the in-flight promise so
+  // concurrent clicks share a single request.
+  const tickerSummaryCache = useRef(new Map());
+  const getTickerSummary = useCallback(async (symbol) => {
+    const cache = tickerSummaryCache.current;
+    if (cache.has(symbol)) return cache.get(symbol);
+    const p = (async () => {
+      const res = await apiFetch(`/api/news/ticker-summary/${encodeURIComponent(symbol)}`);
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.message || json.error || `HTTP ${res.status}`);
+      return json;
+    })();
+    cache.set(symbol, p);
+    try { return await p; } catch (e) { cache.delete(symbol); throw e; }
+  }, []);
 
   // Phase 9.3 — Today's Briefing state
   const [briefing, setBriefing]               = useState(null);  // array of { rank, headline, ... }
@@ -219,9 +326,12 @@ function NewsPanel() {
     window.dispatchEvent(new CustomEvent('chart:set-ticker', { detail: { ticker } }));
   }, []);
 
-  async function load() {
+  const load = useCallback(async () => {
     try {
-      const res = await apiFetch('/api/news');
+      const url = scopeTickers
+        ? `/api/news?tickers=${encodeURIComponent(scopeTickers)}`
+        : '/api/news';
+      const res = await apiFetch(url);
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const json = await res.json();
       const items = Array.isArray(json) ? json : (json.results || json.news || []);
@@ -242,7 +352,7 @@ function NewsPanel() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [scopeTickers, loadBriefing]);
 
   const handleAiSummary = useCallback(async () => {
     if (news.length === 0) return;
@@ -282,10 +392,11 @@ function NewsPanel() {
   }, [news]);
 
   useEffect(() => {
+    setLoading(true);
     load();
     const iv = setInterval(load, 60000);
     return () => clearInterval(iv);
-  }, []);
+  }, [load]);
 
   return (
     <div className="flex-col np-container">
@@ -296,6 +407,19 @@ function NewsPanel() {
         source="Multi-source"
         actions={(
           <>
+            <div className="np-scope-toggle" role="group" aria-label="News scope">
+              <button
+                className={`np-scope-btn ${effectiveScope === 'all' ? 'np-scope-btn--active' : ''}`}
+                onClick={() => setScope('all')}
+                title="All market news"
+              >ALL</button>
+              <button
+                className={`np-scope-btn ${effectiveScope === 'watchlist' ? 'np-scope-btn--active' : ''}`}
+                onClick={() => setScope('watchlist')}
+                disabled={!hasWatchlist}
+                title={hasWatchlist ? 'Only stories matching your watchlist' : 'Watchlist is empty'}
+              >WATCHLIST</button>
+            </div>
             {news.length > 0 && (
               <button
                 className="pp-header-btn pp-header-btn--accent"
@@ -376,7 +500,7 @@ function NewsPanel() {
           </div>
         ) : (
           news.map(item => (
-            <NewsItem key={item.id} item={item} isNew={newItems.has(item.id)} sentimentMap={sentimentMap} />
+            <NewsItem key={item.id} item={item} isNew={newItems.has(item.id)} sentimentMap={sentimentMap} getTickerSummary={getTickerSummary} />
           ))
         )}
       </div>
