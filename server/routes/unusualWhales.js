@@ -99,8 +99,10 @@ router.get('/dark-pool/:symbol', async (req, res) => {
 /**
  * GET /api/unusual-whales/alerts
  * Returns global flow alerts
+ * Alias: GET /api/unusual-whales/flow-alerts (used by OptionsHomeWidget —
+ * do NOT remove the short form, other callers depend on it)
  */
-router.get('/alerts', async (req, res) => {
+const alertsHandler = async (req, res) => {
   try {
     const alerts = await uw.getFlowAlerts();
     res.json({
@@ -111,13 +113,17 @@ router.get('/alerts', async (req, res) => {
     logger.error('[UnusualWhales/alerts] Error:', err);
     res.status(500).json({ error: 'Failed to fetch flow alerts' });
   }
-});
+};
+router.get('/alerts', alertsHandler);
+router.get('/flow-alerts', alertsHandler);
 
 /**
  * GET /api/unusual-whales/tide?sector=technology
  * Returns market-wide options sentiment for a sector
+ * Alias: GET /api/unusual-whales/market-tide (used by OptionsHomeWidget —
+ * do NOT remove the short form, other callers depend on it)
  */
-router.get('/tide', async (req, res) => {
+const tideHandler = async (req, res) => {
   try {
     const { sector = 'technology' } = req.query;
     const tide = await uw.getMarketTide(sector);
@@ -132,7 +138,9 @@ router.get('/tide', async (req, res) => {
     logger.error('[UnusualWhales/tide] Error:', err);
     res.status(500).json({ error: 'Failed to fetch market tide' });
   }
-});
+};
+router.get('/tide', tideHandler);
+router.get('/market-tide', tideHandler);
 
 // ── NEW ENDPOINTS: CONGRESS ───────────────────────────────────────────────────
 

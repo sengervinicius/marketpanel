@@ -421,17 +421,20 @@ export function getEditablePanels() {
 // Layout spec (2026-04-20, CIO request; updated 2026-04-23 for #226):
 //   Row 1: charts, watchlist, globalIndices, futures
 //   Row 2: forex (FX/Crypto, GBPBRL already in defaultSymbols), commodities, usEquities, brazilB3
-//   Row 3: debt (yields), news, optionsFlow, predictions
+//   Row 3: debt (yields), news
 // #226: 'futures' joins row 1 so the CIO sees regional futures/cash-index
 // prints alongside the charts/watchlist/global-index block — the overnight
 // read goes in the same visual band as the rest of the market-state context.
 // This is the new-user default; existing users keep whatever they've saved in
 // settings.rowFlexSizes / settings.panelVisible.
+// H0.4d: optionsFlow + predictions removed from the DEFAULT layout only —
+// both stay in PANEL_REGISTRY and are addable via Cmd+K / +PANEL; existing
+// users' saved layouts that contain them are untouched.
 export const DEFAULT_LAYOUT = {
   desktopRows: [
     ['charts',       'watchlist',     'globalIndices', 'futures'],
     ['forex',        'commodities',   'usEquities',    'brazilB3'],
-    ['debt',         'news',          'optionsFlow',   'predictions'],
+    ['debt',         'news'],
   ],
   mobileTabs: ['home', 'charts', 'watchlist', 'search', 'detail', 'news'],
 };

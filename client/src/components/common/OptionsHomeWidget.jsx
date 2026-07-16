@@ -32,12 +32,17 @@ export default function OptionsHomeWidget({ onNavigate }) {
       const tideData = tideRes.ok ? await tideRes.json() : null;
       const alertsData = alertsRes.ok ? await alertsRes.json() : null;
 
-      if (tideData) {
-        setMarketTide(tideData);
-      }
-      if (alertsData && Array.isArray(alertsData)) {
-        setFlowAlerts(alertsData.slice(0, 5));
-      }
+      // /market-tide returns { sector, callVolume, putVolume, ratio, sentiment }.
+      // Treat a tide with zero volume both ways as "no data" (provider not
+      // configured / upstream empty) rather than rendering a fake 50/50 bar.
+      const hasTide = tideData
+        && ((tideData.callVolume || 0) > 0 || (tideData.putVolume || 0) > 0);
+      setMarketTide(hasTide ? tideData : null);
+
+      // /flow-alerts returns { alerts: [...], count } (accept a bare array too).
+      const alertsList = Array.isArray(alertsData) ? alertsData
+        : (Array.isArray(alertsData?.alerts) ? alertsData.alerts : []);
+      setFlowAlerts(alertsList.slice(0, 5));
     } catch (err) {
       console.error('[OptionsHomeWidget] Fetch error:', err.message);
       setError(err.message);
@@ -74,7 +79,7 @@ export default function OptionsHomeWidget({ onNavigate }) {
   };
 
   const formatCurrency = (value) => {
-    if (!value) return '$0';
+    if (!value) return '—'; // no honest number to show — never render $0
     if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
     if (value >= 1000) return `$${(value / 1000).toFixed(0)}k`;
     return `$${value}`;
@@ -86,15 +91,26 @@ export default function OptionsHomeWidget({ onNavigate }) {
     }
   };
 
-  if (loading || error) {
-    return null; // Don't show widget on error or loading state
+  if (loading) {
+    return null; // Don't show widget while loading
   }
 
-  if (!marketTide && flowAlerts.length === 0) {
-    return null; // Hide if no data
+  // Honest empty state: when upstream returned nothing (provider not
+  // configured, error, or empty data) show one muted line instead of
+  // $0 tiles / a fake 50/50 tide bar.
+  if (error || (!marketTide && flowAlerts.length === 0)) {
+    return (
+      <div className="ohw-widget">
+        <div className="ohw-header">
+          <h3 className="ohw-title">Options Flow</h3>
+        </div>
+        <div className="ohw-empty">No flow data — provider not configured</div>
+        <div className="ohw-footer">Powered by Unusual Whales</div>
+      </div>
+    );
   }
 
-  const callRatio = marketTide?.callRatio ?? 0.5;
+  const callRatio = marketTide?.callRatio ?? marketTide?.ratio ?? 0.5;
   const sentiment = getSentimentLabel(callRatio);
   const sentimentColor = getSentimentColor(callRatio);
 

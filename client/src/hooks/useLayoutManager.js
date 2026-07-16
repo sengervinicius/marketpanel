@@ -102,6 +102,32 @@ export function useLayoutManager() {
   }, []);
   const isPanelVisible = useCallback((id) => panelVisible[id] ?? true, [panelVisible]);
 
+  // H0.4d: add a panel that is NOT currently in the layout (e.g. optionsFlow /
+  // predictions after their removal from the default rows). Appends it to the
+  // shortest row and makes sure it is visible. If it is already in the layout,
+  // this just re-shows it.
+  const addPanel = useCallback((id) => {
+    if (!id) return;
+    const inLayout = desktopRows.some(r => r.includes(id));
+    if (!inLayout) {
+      const newRows = desktopRows.map(r => [...r]);
+      while (newRows.length < 3) newRows.push([]);
+      let target = 0;
+      for (let i = 1; i < newRows.length; i++) {
+        if (newRows[i].length < newRows[target].length) target = i;
+      }
+      newRows[target].push(id);
+      updateLayout({ desktopRows: newRows });
+    }
+    setPanelVisible(prev => {
+      if (prev[id] ?? true) return prev;
+      const next = { ...prev, [id]: true };
+      localStorage.setItem('panelVisible_v1', JSON.stringify(next));
+      syncSettingToServer('panelVisible', next);
+      return next;
+    });
+  }, [desktopRows, updateLayout]);
+
   return {
     desktopRows,
     row0, row1, row2,
@@ -110,6 +136,6 @@ export function useLayoutManager() {
     rowSizes, startRowResize,
     colSizesPerRow, startResizePerRow,
     chartGridCount, setChartGridCount,
-    panelVisible, togglePanel, isPanelVisible,
+    panelVisible, togglePanel, isPanelVisible, addPanel,
   };
 }

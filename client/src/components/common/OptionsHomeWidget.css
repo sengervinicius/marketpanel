@@ -184,6 +184,19 @@
   background: #3a3a45;
 }
 
+/* Honest empty state — one muted line when the provider returned nothing */
+.ohw-empty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-muted);
+  font-size: 11px;
+  letter-spacing: 0.3px;
+  text-align: center;
+  padding: 12px 0;
+}
+
 /* Footer */
 .ohw-footer {
   padding: 6px 0;

@@ -84,6 +84,7 @@ import {
   SettingsDrawer,
   UserDropdown,
   AlertBadge,
+  PANEL_DEFS,
 } from './components/app/AppSettings';
 import {
   FeedStatusBar,
@@ -290,7 +291,7 @@ export default function App() {
     rowSizes, startRowResize,
     colSizesPerRow, startResizePerRow,
     chartGridCount, setChartGridCount,
-    panelVisible, togglePanel, isPanelVisible,
+    panelVisible, togglePanel, isPanelVisible, addPanel,
   } = useLayoutManager();
 
   const border = '1px solid var(--border-subtle)';
@@ -303,8 +304,9 @@ export default function App() {
     try {
       Object.values(PANEL_DEFINITIONS || {}).forEach(pd => { if (pd && pd.id) labelById[pd.id] = pd.label || pd.id; });
     } catch { /* noop */ }
-    const ids = Array.from(new Set((desktopRows || []).flat()));
-    return ids.map(id => ({
+    const layoutIds = Array.from(new Set((desktopRows || []).flat()));
+    const inLayout = new Set(layoutIds);
+    const cmds = layoutIds.map(id => ({
       id: 'panel-' + id,
       label: (isPanelVisible(id) ? 'Hide ' : 'Show ') + (labelById[id] || id) + ' panel',
       action: 'panel-toggle',
@@ -312,6 +314,21 @@ export default function App() {
       category: 'Panels',
       categoryIcon: '▦',
     }));
+    // H0.4d: panels not in the current layout (e.g. optionsFlow/predictions,
+    // no longer in the DEFAULT rows) stay addable via Cmd+K — "Add X panel"
+    // inserts them into the grid.
+    PANEL_DEFS.forEach(({ id, label }) => {
+      if (inLayout.has(id)) return;
+      cmds.push({
+        id: 'panel-add-' + id,
+        label: 'Add ' + (label || id) + ' panel',
+        action: 'panel-add',
+        target: id,
+        category: 'Panels',
+        categoryIcon: '▦',
+      });
+    });
+    return cmds;
   }, [desktopRows, isPanelVisible, panelVisible]);
 
   // Panel drag & drop swap state
@@ -826,6 +843,11 @@ export default function App() {
               togglePanel(cmd.target);
               return;
             }
+            if (cmd.action === 'panel-add') {
+              if (mobileMode !== 'terminal') setMobileModePersist('terminal');
+              addPanel(cmd.target);
+              return;
+            }
             if (cmd.action === 'navigate') {
               if (cmd.target === 'home') handleGoHome();
               else if (cmd.target === 'admin') { if (isAdmin) setMobileModePersist('admin'); }
@@ -1172,7 +1194,7 @@ export default function App() {
                       desktopRows: [
                         ['charts',       'usEquities',    'globalIndices'],
                         ['forex',        'commodities',   'crypto',  'brazilB3'],
-                        ['debt',         'news',          'optionsFlow',  'watchlist'],
+                        ['debt',         'news',          'watchlist'],
                       ],
                     });
                     // Reset column sizes
