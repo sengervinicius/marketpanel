@@ -8,7 +8,7 @@ import { useFeedStatus } from '../../context/FeedStatusContext';
 import { useWatchlist } from '../../context/WatchlistContext';
 import { apiFetch } from '../../utils/api';
 import EmptyState from '../common/EmptyState';
-import { PanelHeader } from './_shared';
+import PanelChrome from '../common/PanelChrome';
 import './NewsPanel.css';
 
 // ── Morning Briefing card ─────────────────────────────────────────
@@ -400,7 +400,7 @@ function NewsPanel() {
 
   return (
     <div className="flex-col np-container">
-      <PanelHeader
+      <PanelChrome
         title="NEWS FEED"
         subtitle={news.length > 0 ? `${news.length} STORIES · ${badge.text}` : badge.text}
         updatedAt={lastUpdated}

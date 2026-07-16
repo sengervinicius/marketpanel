@@ -14,10 +14,10 @@ import { COMMODITIES, COMMODITY_DEFAULT_SYMBOLS } from '../../utils/constants';
 import { useFeedStatus } from '../../context/FeedStatusContext';
 import { useSparklineData } from '../../hooks/useSparklineData';
 import SkeletonLoader from '../shared/SkeletonLoader';
-import { COLS_TIGHT } from '../../utils/panelColumns';
+import { COLS_TIGHT_SPARK } from '../../utils/panelColumns';
 
 // Was '44px 1fr 68px 60px' — chg% too narrow for 2-digit moves.
-const COLS = COLS_TIGHT;
+const COLS = COLS_TIGHT_SPARK;
 
 const SORT_COLS = [
   { key: 'symbol', label: 'SYM',  align: 'left' },

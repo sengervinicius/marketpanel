@@ -2,41 +2,7 @@
    Phase 9.2: unified Watchlist+Portfolio. Grid is now 6 columns:
    TICKER | LAST | CHG% | P&L% | spark | actions */
 
-.wp-header {
-  padding: 4px 8px;
-  border-bottom: 1px solid var(--border-strong);
-  background: var(--bg-elevated);
-  flex-shrink: 0;
-  gap: 6px;
-  align-items: center;
-}
-
-.wp-header-title {
-  font-family: var(--font-family-mono);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-bold);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--color-text-primary);
-  line-height: 1;
-}
-
-.wp-header-count {
-  color: var(--text-muted);
-  font-size: var(--font-sm);
-}
-
-.wp-header-tracked {
-  color: var(--text-faint);
-  font-size: 9px;
-  font-family: var(--font-family-mono);
-  letter-spacing: 0.04em;
-  margin-left: 2px;
-}
-
-.wp-spacer {
-  flex: 1;
-}
+/* H1.1: header chrome moved to common/PanelChrome.css */
 
 /* ── Sort toggle group ────────────────────────────────────────────── */
 .wp-sort-group {
@@ -189,7 +155,7 @@
   display: grid;
   grid-template-columns: 72px 1fr 68px 68px 64px 72px;
   gap: 4px;
-  padding: 3px 8px;
+  padding: var(--row-pad, 3px) 8px; /* H1.3 shared density token */
   border-bottom: 1px solid var(--border-subtle);
   align-items: center;
   transition: background-color 0.1s;

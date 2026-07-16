@@ -16,35 +16,7 @@
   min-height: 0;
 }
 
-/* Canonical panel-header convention. Do NOT diverge. */
-.fut-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 4px 8px;
-  border-bottom: 1px solid var(--border-strong);
-  background: var(--bg-elevated);
-  flex-shrink: 0;
-  height: 20px;
-}
-
-.fut-header-title {
-  font-family: var(--font-family-mono);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-bold);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--color-text-primary);
-  line-height: 1;
-}
-
-.fut-header-status {
-  color: var(--text-faint);
-  font-size: var(--font-xs);
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
+/* H1.1: header chrome moved to common/PanelChrome.css */
 
 /* ── Matrix (dense tabular) ─────────────────────────────────────────── */
 .fut-matrix {

@@ -9,7 +9,7 @@ import { SectionHeader } from '../common/SectionHeader';
 import ColumnHeaders from '../common/ColumnHeaders';
 import { useSparklineData } from '../../hooks/useSparklineData';
 import SkeletonLoader from '../shared/SkeletonLoader';
-import { COLS_TIGHT } from '../../utils/panelColumns';
+import { COLS_TIGHT_SPARK } from '../../utils/panelColumns';
 
 const showInfo = (e, symbol, label, type) => {
   e.preventDefault();
@@ -51,7 +51,7 @@ const NAMES = {
 
 // Was '44px 1fr 56px 52px' — both price and chg% too narrow.
 // Shared template: 44px symbol | 1fr name | 80px price | 76px chg%.
-const COLS = COLS_TIGHT;
+const COLS = COLS_TIGHT_SPARK;
 
 const SORT_COLS = [
   { key: 'symbol', label: 'TICK', align: 'left' },

@@ -33,10 +33,14 @@ import { useTickerPrice } from '../../context/PriceContext';
 import { apiFetch, apiJSON } from '../../utils/api';
 import EmptyState from '../common/EmptyState';
 import PanelShell from '../common/PanelShell';
+import PanelChrome from '../common/PanelChrome';
 import PositionEditor from '../common/PositionEditor';
 import ShareModal from '../common/ShareModal';
 import { fmt, fmtPct, fmtCompact, computeSummary, inferAssetType } from '../../utils/portfolioAnalytics';
-import { MiniSparkline, SyncBadge, AIHealthCard, SummaryStrip } from './PortfolioPanelWidgets';
+import { SyncBadge, AIHealthCard, SummaryStrip } from './PortfolioPanelWidgets';
+// H1.2: real last-20-close sparkline (v2) instead of the fake static polyline.
+import Sparkline from '../common/Sparkline';
+import { useSparklineData } from '../../hooks/useSparklineData';
 import '../common/Shimmer.css';
 import './WatchlistPanel.css';
 
@@ -64,7 +68,7 @@ function assetTypeFromSymbol(sym) {
 // independent pipelines on the same screen guaranteed visible drift
 // vs. ChartPanel which only reads PriceContext. Now: PriceContext only.
 const WatchlistRow = memo(function WatchlistRow({
-  position, onTickerClick, onEdit, onRemove, onWhy, onReportPrice,
+  position, sparkData, onTickerClick, onEdit, onRemove, onWhy, onReportPrice,
 }) {
   const openDetail = useOpenDetail();
   const priceCtx   = useTickerPrice(position.symbol);
@@ -121,7 +125,9 @@ const WatchlistRow = memo(function WatchlistRow({
         {pnlPct == null ? '—' : fmtPct(pnlPct)}
       </span>
       <span className="wp-row-spark">
-        {changePct != null && <MiniSparkline positive={pos} />}
+        {sparkData && sparkData.length >= 2 && (
+          <Sparkline data={sparkData} width={56} height={14} />
+        )}
       </span>
       <div className="wp-row-actions">
         <button className="btn wp-icon-btn" title="Why is this moving?"
@@ -264,6 +270,10 @@ function WatchlistPanel({ onTickerClick }) {
     () => positions.filter(p => p.entryPrice != null && p.quantity != null),
     [positions]
   );
+
+  // H1.2: last-20-close history for the per-row sparkline column.
+  const watchSymbols = useMemo(() => positions.map(p => p.symbol), [positions]);
+  const rowSparklines = useSparklineData(watchSymbols);
   const anyTracked = trackedPositions.length > 0;
 
   const handleAIHealthCheck = useCallback(async () => {
@@ -359,38 +369,37 @@ function WatchlistPanel({ onTickerClick }) {
 
   return (
     <PanelShell onDropTicker={handleDropTicker}>
-      {/* Header */}
-      <div className="flex-row wp-header">
-        <span className="wp-header-title">WATCHLIST</span>
-        <span className="wp-header-count">{positions.length}</span>
-        {anyTracked && (
-          <span className="wp-header-tracked" title="Positions with qty + entry">
-            · {trackedPositions.length} tracked
-          </span>
+      {/* Header — H1.1 shared chrome; every control lives in the actions slot */}
+      <PanelChrome
+        title="WATCHLIST"
+        count={positions.length}
+        subtitle={anyTracked ? `${trackedPositions.length} tracked` : null}
+        status={<SyncBadge syncStatus={syncStatus} onRetry={retrySync} />}
+        actions={(
+          <>
+            {/* Sort toggle */}
+            <div className="wp-sort-group" role="tablist">
+              {sortBtn('default', 'ORDER')}
+              {sortBtn('heat',    'HEAT')}
+              {anyTracked && sortBtn('pnl', 'P&L')}
+            </div>
+            {/* AI Health Check — only when tracked positions exist */}
+            {anyTracked && (
+              <button
+                className="wp-ai-btn"
+                onClick={handleAIHealthCheck}
+                disabled={aiLoading}
+                title="AI health check on tracked positions"
+              >{aiLoading ? 'ANALYZING…' : '◆ AI HEALTH'}</button>
+            )}
+            <button className="btn wp-add-btn" onClick={() => setShareOpen(true)} title="Share">SHARE</button>
+            <button
+              className={`btn wp-add-btn ${showAdd ? 'wp-add-btn-active' : ''}`}
+              onClick={() => setShowAdd(s => !s)}
+            >+ ADD</button>
+          </>
         )}
-        <SyncBadge syncStatus={syncStatus} onRetry={retrySync} />
-        <div className="wp-spacer" />
-        {/* Sort toggle */}
-        <div className="wp-sort-group" role="tablist">
-          {sortBtn('default', 'ORDER')}
-          {sortBtn('heat',    'HEAT')}
-          {anyTracked && sortBtn('pnl', 'P&L')}
-        </div>
-        {/* AI Health Check — only when tracked positions exist */}
-        {anyTracked && (
-          <button
-            className="wp-ai-btn"
-            onClick={handleAIHealthCheck}
-            disabled={aiLoading}
-            title="AI health check on tracked positions"
-          >{aiLoading ? 'ANALYZING…' : '◆ AI HEALTH'}</button>
-        )}
-        <button className="btn wp-add-btn" onClick={() => setShareOpen(true)} title="Share">SHARE</button>
-        <button
-          className={`btn wp-add-btn ${showAdd ? 'wp-add-btn-active' : ''}`}
-          onClick={() => setShowAdd(s => !s)}
-        >+ ADD</button>
-      </div>
+      />
 
       {/* Quick-add input */}
       {showAdd && (
@@ -456,6 +465,7 @@ function WatchlistPanel({ onTickerClick }) {
             <WatchlistRow
               key={pos.id}
               position={pos}
+              sparkData={rowSparklines[pos.symbol]}
               onTickerClick={onTickerClick}
               onEdit={handleEdit}
               onRemove={handleRemove}

@@ -33,6 +33,9 @@ export const COL_NAME_FLEX    = '1fr';
 export const COL_PRICE        = '80px';
 export const COL_CHG_PCT      = '76px';   // minimum safe width — do NOT shrink
 export const COL_REMOVE_BTN   = '24px';
+// H1.2 — row sparklines moved out of the CHG% cell into their own
+// narrow trailing column (Sparkline v2, common/Sparkline.jsx).
+export const COL_SPARK        = '48px';
 
 // ── Canonical 4-column layouts ───────────────────────────────────────
 // symbol | name | price | chg%
@@ -46,3 +49,11 @@ export const COLS_TIGHT    = `${COL_SYMBOL_TIGHT} ${COL_NAME_FLEX} ${COL_PRICE} 
 
 // Watchlist: symbol | name | price | chg% | remove-btn
 export const COLS_WATCHLIST = `${COL_SYMBOL_FX} ${COL_NAME_FLEX} ${COL_PRICE} ${COL_CHG_PCT} ${COL_REMOVE_BTN}`;
+
+// ── H1.2 sparkline variants ──────────────────────────────────────────
+// symbol | name | price | chg% | spark — used by the home ticker-list
+// panels that fetch useSparklineData. Keep the non-spark templates
+// above for panels without sparklines (Index, Alerts, …).
+export const COLS_STANDARD_SPARK = `${COLS_STANDARD} ${COL_SPARK}`;
+export const COLS_FOREX_SPARK    = `${COLS_FOREX} ${COL_SPARK}`;
+export const COLS_TIGHT_SPARK    = `${COLS_TIGHT} ${COL_SPARK}`;

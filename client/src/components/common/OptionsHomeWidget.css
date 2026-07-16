@@ -14,24 +14,7 @@
   min-height: 200px;
 }
 
-/* Header */
-.ohw-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  border-bottom: 1px solid #2a2a35;
-  padding-bottom: 8px;
-  margin-bottom: 4px;
-}
-
-.ohw-title {
-  margin: 0;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--color-up);
-  text-transform: uppercase;
-  letter-spacing: 1px;
-}
+/* H1.1: header chrome moved to common/PanelChrome.css */
 
 .ohw-sentiment {
   font-size: 11px;
@@ -216,10 +199,6 @@
     padding: 10px 12px;
     gap: 10px;
     min-height: 180px;
-  }
-
-  .ohw-title {
-    font-size: 12px;
   }
 
   .ohw-alert-row {

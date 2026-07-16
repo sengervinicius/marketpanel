@@ -1738,6 +1738,55 @@ textarea:focus-visible { outline: 1px solid var(--accent); outline-offset: 0; bo
   max-width: none;
 }
 
+/* ── H1.3 density: SentimentStrip + CrossAssetStrip composed into one
+   ~30px band above the home grid. Scoped overrides only — the strips
+   keep their own internals. ─────────────────────────────────────── */
+.home-strip-row {
+  display: flex;
+  align-items: stretch;
+  height: 30px;
+  min-height: 30px;
+  flex-shrink: 0;
+  background: var(--color-surface-2);
+  border-top: 1px solid var(--color-border-strong);
+  border-bottom: 1px solid var(--color-border);
+  overflow: hidden;
+}
+.home-strip-row .ss-strip {
+  flex: 0 1 auto;
+  height: 100%;
+  min-height: 0;
+  border-top: none;
+  border-bottom: none;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+/* In the merged row the mood cluster hugs left; drop the internal
+   spacer stretch so the feed-health pill sits next to the metrics. */
+.home-strip-row .ss-strip .ss-flex { flex: 0 0 8px; }
+.home-strip-row .ca-strip {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 100%;
+  min-height: 0;
+  border-top: none;
+  border-bottom: none;
+  border-left: 1px solid var(--color-border-strong);
+  background: transparent;
+  padding-top: 0;
+  padding-bottom: 0;
+  /* Narrow widths: spread pairs collapse behind a horizontal scroll. */
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+}
+.home-strip-row .ca-strip::-webkit-scrollbar { height: 4px; }
+.home-strip-row .ca-cell { padding: 1px 6px; row-gap: 0; }
+/* Keep pairs scrollable rather than hidden at mid widths. */
+@media (max-width: 900px) {
+  .home-strip-row .ca-cell:nth-last-of-type(-n+2) { display: grid; }
+}
+
 .app-header-title {
   color: var(--accent);
   font-weight: 700;

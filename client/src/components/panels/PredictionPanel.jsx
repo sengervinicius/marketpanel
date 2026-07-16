@@ -15,7 +15,8 @@
  */
 import { useState, useEffect, useCallback, useRef, memo } from 'react';
 import { apiFetch } from '../../utils/api';
-import { PanelHeader, PanelTabRow } from './_shared';
+import { PanelTabRow } from './_shared';
+import PanelChrome from '../common/PanelChrome';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import DesktopOnlyPlaceholder from '../common/DesktopOnlyPlaceholder';
 import './PredictionPanel.css';
@@ -124,7 +125,7 @@ function PredictionPanelInner() {
 
   return (
     <div className="pred-panel">
-      <PanelHeader
+      <PanelChrome
         title="PREDICTIONS"
         subtitle={isPersonalized && interests.length > 0 ? interests.join(' · ') : 'KALSHI · POLYMARKET'}
         updatedAt={lastUpdated}

@@ -20,6 +20,7 @@ import { apiFetch } from '../../utils/api';
 import { useOpenDetail } from '../../context/OpenDetailContext';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import DesktopOnlyPlaceholder from '../common/DesktopOnlyPlaceholder';
+import PanelChrome from '../common/PanelChrome';
 import { handlePanelDragOver, makePanelDropHandler } from '../../utils/dropHelper';
 import './FuturesPanel.css';
 
@@ -115,13 +116,11 @@ function FuturesPanelInner() {
       onDrop={handleDrop}
     >
 
-      {/* Canonical panel header */}
-      <div className="fut-header">
-        <span className="fut-header-title">FUTURES</span>
-        <span className="fut-header-status">
-          {loading ? 'LOADING…' : error ? 'ERR' : updatedAt}
-        </span>
-      </div>
+      {/* Canonical panel header — H1.1 shared chrome */}
+      <PanelChrome
+        title="FUTURES"
+        timestamp={loading ? 'LOADING…' : error ? 'ERR' : updatedAt}
+      />
 
       {/* Matrix header */}
       <div className="fut-matrix-head">

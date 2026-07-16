@@ -33,7 +33,8 @@
 
 import { useState, useEffect, useCallback, useMemo, memo } from 'react';
 import { apiFetch } from '../../utils/api';
-import { PanelHeader, PanelTabRow } from './_shared';
+import { PanelTabRow } from './_shared';
+import PanelChrome from '../common/PanelChrome';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import DesktopOnlyPlaceholder from '../common/DesktopOnlyPlaceholder';
 import './OptionsFlowPanel.css';
@@ -623,7 +624,7 @@ function OptionsFlowPanelInner() {
 
   return (
     <div className="sm-panel">
-      <PanelHeader
+      <PanelChrome
         title="OPTIONS / FLOW"
         updatedAt={lastUpdate}
         source="Unusual Whales"

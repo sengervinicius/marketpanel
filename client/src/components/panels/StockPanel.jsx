@@ -18,14 +18,14 @@ import SkeletonLoader from '../shared/SkeletonLoader';
 import { US_STOCKS, BRAZIL_ADRS } from '../../utils/constants';
 import { useFeedStatus } from '../../context/FeedStatusContext';
 import IntegrityBadge from '../shared/IntegrityBadge';
-import { COLS_STANDARD } from '../../utils/panelColumns';
+import { COLS_STANDARD_SPARK } from '../../utils/panelColumns';
 import '../common/Shimmer.css';
 import './StockPanel.css';
 
 const fmt    = (n) => n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmtPct = (n) => n == null ? '—' : (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
 // Shared template — CHG% is 76px so 2-digit moves don't collide with price.
-const COLS   = COLS_STANDARD;
+const COLS   = COLS_STANDARD_SPARK;
 
 const showInfo = (e, symbol, label, type) => {
   e.preventDefault();

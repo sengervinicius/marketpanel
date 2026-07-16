@@ -1,0 +1,150 @@
+/* ==================================================================
+ * PanelChrome.css — H1.1 shared panel-header chrome.
+ * Single source of truth for home-panel headers. Do NOT redefine
+ * header padding/height/border/title typography inside panel CSS.
+ * (Replaces panels/_shared/PanelHeader.css; the legacy `.pp-header-btn`
+ * action-button class is kept below so existing controls keep working.)
+ * ================================================================== */
+
+.panel-chrome {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 3px 8px;
+  min-height: 22px;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface-2);
+  flex-shrink: 0;
+  font-family: var(--font-family-sans);
+}
+
+/* Title typography — also adopted (as a class) by EditablePanelHeader
+   so hand-kept headers read identically. */
+.panel-chrome-title {
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-primary);
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.panel-chrome-sub {
+  font-family: var(--font-family-mono);
+  font-size: 9px;
+  color: var(--color-text-faint);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.panel-chrome-count {
+  font-family: var(--font-family-mono);
+  font-size: 9px;
+  color: var(--color-text-faint);
+  letter-spacing: 0.04em;
+}
+
+.panel-chrome-status {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.panel-chrome-spacer {
+  flex: 1;
+  min-width: 0;
+}
+
+.panel-chrome-ts {
+  font-family: var(--font-family-mono);
+  font-size: 9px;
+  color: var(--color-text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.panel-chrome-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.panel-chrome-edit {
+  background: none;
+  border: none;
+  color: var(--text-faint);
+  padding: 0 2px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+.panel-chrome-edit:hover {
+  color: var(--color-text-primary);
+}
+
+/* Live / closed / warn badge */
+.panel-chrome-badge {
+  font-family: var(--font-family-mono);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 1px 5px;
+  border-radius: 2px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+.panel-chrome-badge--live {
+  color: var(--color-up);
+  border-color: var(--color-up);
+}
+.panel-chrome-badge--closed {
+  color: var(--color-text-muted);
+  border-color: var(--color-border-strong);
+}
+.panel-chrome-badge--warn {
+  color: var(--color-warn);
+  border-color: var(--color-warn);
+}
+
+/* Shared action-button chrome. `.pp-header-btn` is the legacy class the
+   existing panel controls (News AI, Options refresh, …) already use. */
+.panel-chrome-btn,
+.pp-header-btn {
+  background: none;
+  border: 1px solid var(--color-border-strong);
+  color: var(--color-text-muted);
+  padding: 1px 5px;
+  font-size: 9px;
+  font-family: var(--font-family-mono);
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  border-radius: 2px;
+  transition: color var(--transition-fast), border-color var(--transition-fast);
+}
+.panel-chrome-btn:hover:not(:disabled),
+.pp-header-btn:hover:not(:disabled) {
+  color: var(--color-text-primary);
+  border-color: var(--color-text-muted);
+}
+.panel-chrome-btn:disabled,
+.pp-header-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.panel-chrome-btn--accent,
+.pp-header-btn--accent {
+  color: var(--color-accent);
+  border-color: var(--color-accent);
+}
+.panel-chrome-btn--accent:hover:not(:disabled),
+.pp-header-btn--accent:hover:not(:disabled) {
+  background: var(--color-accent-dim);
+}

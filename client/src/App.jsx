@@ -1174,10 +1174,13 @@ export default function App() {
 
             {/* Home grid — ALWAYS mounted, hidden via display:none when sector screen is active */}
             <div data-tour="workspace" style={{ flex: 1, display: activeSectorScreen ? 'none' : 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
-              {/* Market sentiment strip — Phase 8.2 liveness layer */}
-              <SentimentStrip />
-              {/* Cross-asset correlation strip — Phase 8.5 regime layer */}
-              <CrossAssetStrip />
+              {/* H1.3: sentiment (mood gauge) + cross-asset spread pairs share
+                  ONE ~30px strip row — mood left, pairs right (h-scroll when
+                  narrow). Both components unchanged, just composed side by side. */}
+              <div className="home-strip-row">
+                <SentimentStrip />
+                <CrossAssetStrip />
+              </div>
               {/* Layout edit toolbar */}
               {layoutEdit && (
                 <div style={{

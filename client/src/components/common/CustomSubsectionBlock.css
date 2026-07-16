@@ -2,7 +2,7 @@
 
 .csb-row {
   display: grid;
-  padding: 3px 8px;
+  padding: var(--row-pad, 3px) 8px; /* H1.3 shared density token */
   border-bottom: 1px solid var(--border-subtle);
   align-items: center;
 }

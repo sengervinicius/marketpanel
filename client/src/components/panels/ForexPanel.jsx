@@ -15,10 +15,10 @@ import { useFeedStatus } from '../../context/FeedStatusContext';
 import { useSparklineData } from '../../hooks/useSparklineData';
 import SkeletonLoader from '../shared/SkeletonLoader';
 import IntegrityBadge from '../shared/IntegrityBadge';
-import { COLS_FOREX } from '../../utils/panelColumns';
+import { COLS_FOREX_SPARK } from '../../utils/panelColumns';
 
 // Was '72px 1fr 76px 64px' — chg% too narrow for 2-digit moves (USDARS can spike).
-const COLS = COLS_FOREX;
+const COLS = COLS_FOREX_SPARK;
 
 const showInfo = (e, symbol, label, type) => {
   e.preventDefault();

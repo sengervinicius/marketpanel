@@ -15,7 +15,8 @@
  */
 import { memo, useState, useEffect } from 'react';
 import useMergedTickerQuote from './useMergedTickerQuote';
-import Sparkline from '../shared/Sparkline';
+// H1.2: row sparklines use the v2 component (own column, damped scaling).
+import Sparkline from './Sparkline';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import './Shimmer.css';
 
@@ -128,7 +129,7 @@ function PriceRow({
       style={{
         display: 'grid',
         gridTemplateColumns: columns,
-        padding: '3px 8px',
+        padding: 'var(--row-pad, 3px) 8px',  // H1.3 shared density token
         borderBottom: '1px solid var(--border-subtle)',
         alignItems: 'center',
         transition: 'background-color 0.1s',
@@ -170,10 +171,14 @@ function PriceRow({
         justifyContent: 'flex-end',
       }}>
         {renderChangePct(changePct)}
-        {sparklineData && sparklineData.length >= 2 && (
-          <Sparkline data={sparklineData} width={50} height={16} />
-        )}
       </span>
+      {/* H1.2: sparkline lives in its own narrow column (COL_SPARK),
+          not inside the CHG% cell. Panels opt in via *_SPARK templates. */}
+      {sparklineData && sparklineData.length >= 2 && (
+        <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
+          <Sparkline data={sparklineData} width={44} height={14} />
+        </span>
+      )}
       {trailing}
     </div>
   );

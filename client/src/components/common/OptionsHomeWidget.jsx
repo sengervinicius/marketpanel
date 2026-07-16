@@ -14,6 +14,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { apiFetch } from '../../utils/api';
+import PanelChrome from './PanelChrome';
 import './OptionsHomeWidget.css';
 
 export default function OptionsHomeWidget({ onNavigate }) {
@@ -102,9 +103,7 @@ export default function OptionsHomeWidget({ onNavigate }) {
   if (error || (!marketTide && flowAlerts.length === 0)) {
     return (
       <div className="ohw-widget">
-        <div className="ohw-header">
-          <h3 className="ohw-title">Options Flow</h3>
-        </div>
+        <PanelChrome title="OPTIONS FLOW" />
         <div className="ohw-empty">No flow data — provider not configured</div>
         <div className="ohw-footer">Powered by Unusual Whales</div>
       </div>
@@ -117,13 +116,15 @@ export default function OptionsHomeWidget({ onNavigate }) {
 
   return (
     <div className="ohw-widget">
-      {/* Header */}
-      <div className="ohw-header">
-        <h3 className="ohw-title">Options Flow</h3>
-        <span className="ohw-sentiment" style={{ color: sentimentColor }}>
-          {sentiment}
-        </span>
-      </div>
+      {/* Header — H1.1 shared chrome; sentiment readout lives in the actions slot */}
+      <PanelChrome
+        title="OPTIONS FLOW"
+        actions={(
+          <span className="ohw-sentiment" style={{ color: sentimentColor }}>
+            {sentiment}
+          </span>
+        )}
+      />
 
       {/* Market Tide Bar */}
       {marketTide && (
