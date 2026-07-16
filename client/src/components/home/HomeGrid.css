@@ -1,0 +1,57 @@
+/* HomeGrid.css — H3 editable home grid (home_grid_v2). Loaded only with the
+   lazy HomeGrid chunk — no effect on the legacy desktopRows path. */
+
+.home-grid-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: var(--bg-app, #000);
+}
+
+.home-grid-item {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--bg-panel, transparent);
+  border: 1px solid var(--border-subtle, #1a1a1a);
+  border-radius: 2px;
+}
+
+/* Header = drag handle: signal it. */
+.home-grid-item .panel-chrome,
+.home-grid-item .eph-header {
+  cursor: grab;
+}
+.home-grid-item.react-draggable-dragging .panel-chrome,
+.home-grid-item.react-draggable-dragging .eph-header {
+  cursor: grabbing;
+}
+
+.home-grid-item.react-draggable-dragging,
+.home-grid-item.resizing {
+  border-color: var(--accent, #f60);
+  z-index: 30;
+  opacity: 0.92;
+}
+
+/* Drop placeholder */
+.react-grid-placeholder {
+  background: var(--accent, #f60) !important;
+  opacity: 0.14 !important;
+  border-radius: 2px;
+}
+
+/* SE resize handle — subtle accent corner */
+.home-grid-item > .react-resizable-handle-se {
+  opacity: 0.35;
+}
+.home-grid-item:hover > .react-resizable-handle-se {
+  opacity: 0.9;
+}
+.home-grid-item > .react-resizable-handle-se::after {
+  border-right-color: var(--accent, #f60);
+  border-bottom-color: var(--accent, #f60);
+}
