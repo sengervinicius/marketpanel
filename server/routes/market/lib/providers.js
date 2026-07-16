@@ -419,7 +419,8 @@ async function _yahooQuoteRaw(symbols) {
   const HOSTS = ['query1', 'query2'];
   for (let attempt = 0; attempt < 2; attempt++) {
     const { crumb, cookie } = await getYahooCrumb();
-    const fields = 'regularMarketPrice,regularMarketChange,regularMarketChangePercent,regularMarketVolume,regularMarketOpen,regularMarketDayHigh,regularMarketDayLow,shortName,longName,currency,marketCap,trailingPE,forwardPE,epsTrailingTwelveMonths,sharesOutstanding,trailingAnnualDividendYield,fiftyTwoWeekLow,fiftyTwoWeekHigh';
+    // H2b item 3 — pre/post-market fields appended for the watchlist EXT column.
+    const fields = 'regularMarketPrice,regularMarketChange,regularMarketChangePercent,regularMarketVolume,regularMarketOpen,regularMarketDayHigh,regularMarketDayLow,shortName,longName,currency,marketCap,trailingPE,forwardPE,epsTrailingTwelveMonths,sharesOutstanding,trailingAnnualDividendYield,fiftyTwoWeekLow,fiftyTwoWeekHigh,preMarketPrice,preMarketChangePercent,postMarketPrice,postMarketChangePercent';
     const host = HOSTS[attempt % HOSTS.length];
     const url = `https://${host}.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbols)}&crumb=${encodeURIComponent(crumb)}&fields=${fields}&lang=en-US`;
     const quoteController = new AbortController();

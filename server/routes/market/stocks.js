@@ -708,6 +708,20 @@ async function fetchTickerSnapshot(sym) {
       prevDay:          { c: q.regularMarketPreviousClose ?? (q.regularMarketPrice - q.regularMarketChange) ?? null },
       todaysChangePerc: q.regularMarketChangePercent ?? null,
       todaysChange:     q.regularMarketChange        ?? null,
+      // H2b item 3 — optional extended-hours fields (only present when
+      // Yahoo returned them; Finnhub fallback never sets these).
+      ...(q.preMarketPrice != null || q.postMarketPrice != null ? {
+        ext: {
+          pre: q.preMarketPrice != null ? {
+            price:     q.preMarketPrice,
+            changePct: q.preMarketChangePercent ?? null,
+          } : null,
+          post: q.postMarketPrice != null ? {
+            price:     q.postMarketPrice,
+            changePct: q.postMarketChangePercent ?? null,
+          } : null,
+        },
+      } : {}),
       // #289 part 2 — client reads _meta to colour the freshness dot.
       _meta: { asOf: _asOfMs, source: _source },
     },
