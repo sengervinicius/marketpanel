@@ -178,7 +178,7 @@
   color: var(--text-faint);
 }
 .dp-badge--warn {
-  color: #ff4444;
+  color: var(--color-down);
   font-weight: 700;
   animation: dp-warn-pulse 2s ease-in-out infinite;
 }
@@ -448,8 +448,8 @@
   background: var(--sent-bull-bg, rgba(61,214,140,0.12));
 }
 .dp-regime--bear .dp-regime-verdict {
-  color: var(--sent-bear, #e05c8a);
-  background: var(--sent-bear-bg, rgba(224,92,138,0.12));
+  color: var(--color-down);
+  background: var(--color-down-bg, rgba(239, 68, 68, 0.12));
 }
 .dp-regime--neutral .dp-regime-verdict {
   color: var(--sent-neutral, #8b93a7);
@@ -488,7 +488,7 @@
   font-variant-numeric: tabular-nums;
 }
 .dp-regime-spread-val--neg {
-  color: var(--sent-bear, #e05c8a);
+  color: var(--color-down);
 }
 .dp-regime-spread-val--tight {
   color: var(--sent-warn, #e8a020);

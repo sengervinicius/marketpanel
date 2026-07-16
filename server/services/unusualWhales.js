@@ -348,6 +348,33 @@ async function getMarketTide(sector = null) {
  *
  * @returns {Promise<Array>}
  */
+/**
+ * Parse a congress trade amount into a number.
+ * Congress disclosures report RANGES as strings ("$1,001-$15,000",
+ * "$1,001 - $15,000", "1001-15000") — parseFloat on those yields NaN and the
+ * old code collapsed every range to 0. Ranges now resolve to their midpoint;
+ * plain numbers / numeric strings pass through.
+ *
+ * @param {number|string|null|undefined} value
+ * @returns {number} parsed amount (midpoint for ranges), or 0
+ */
+function parseCongressAmount(value) {
+  if (value == null) return 0;
+  if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
+  const str = String(value).replace(/[$,\s]/g, '');
+  if (!str) return 0;
+  // Range like "1001-15000" (allow en-dash too). Don't confuse a leading
+  // minus sign with a range separator.
+  const m = str.match(/^(\d+(?:\.\d+)?)[\-\u2013](\d+(?:\.\d+)?)$/);
+  if (m) {
+    const lo = parseFloat(m[1]);
+    const hi = parseFloat(m[2]);
+    if (Number.isFinite(lo) && Number.isFinite(hi)) return (lo + hi) / 2;
+  }
+  const n = parseFloat(str);
+  return Number.isFinite(n) ? n : 0;
+}
+
 async function getCongressTrades() {
   if (!_ensureApiKey()) return [];
 
@@ -383,7 +410,8 @@ async function getCongressTrades() {
       ticker: (item.ticker || item.symbol || item.asset_description || '').toUpperCase() || 'N/A',
       representative: item.representative || item.politician || item.name || item.filed_by || 'Unknown',
       transactionType: item.transaction_type || item.type || item.trade_type || 'unknown',
-      amount: parseFloat(item.amount) || parseFloat(item.trade_value) || 0,
+      amount: parseCongressAmount(item.amount) || parseCongressAmount(item.trade_value)
+        || parseCongressAmount(item.amount_range || item.range) || 0,
       amountRange: item.amount_range || item.range || '',
       party: item.party || '',
       chamber: item.chamber || '',

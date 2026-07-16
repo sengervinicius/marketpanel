@@ -29,7 +29,14 @@ const CIO_FOREX_DEFAULTS = [
   'USDCNY','USDMXN',
   'BTCUSD','ETHUSD','SOLUSD','XRPUSD','BNBUSD','DOGEUSD',
 ];
+// H0: commodities defaults are now real front-month futures. This list is
+// what NEW/reset users get. LEGACY_COMMODITIES_BACKFILL below is FROZEN to
+// the pre-H0 ETF-proxy canon and is only used by the one-shot v1->v2
+// migration so we never rewrite existing users' saved lists with futures.
 const CIO_COMMODITIES_DEFAULTS = [
+  'GC=F','SI=F','HG=F','CL=F','BZ=F','NG=F','ZC=F','ZS=F','ZW=F',
+];
+const LEGACY_COMMODITIES_BACKFILL = [
   'BZ=F','GLD','SLV','USO','UNG',
   'CORN','WEAT','SOYB','CPER','BHP',
 ];
@@ -123,7 +130,7 @@ function migrateLegacySettings(saved) {
   if (cmd && typeof cmd === 'object') {
     const cur = Array.isArray(cmd.symbols) ? [...cmd.symbols] : [];
     let cmdSymbols = cur;
-    const missing = CIO_COMMODITIES_DEFAULTS.filter(s => !cur.includes(s));
+    const missing = LEGACY_COMMODITIES_BACKFILL.filter(s => !cur.includes(s));
     if (missing.length) {
       cmdSymbols = [...cur, ...missing];
       changed = true;

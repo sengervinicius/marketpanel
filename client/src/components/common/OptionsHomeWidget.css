@@ -28,7 +28,7 @@
   margin: 0;
   font-size: 13px;
   font-weight: 700;
-  color: #00ff88;
+  color: var(--color-up);
   text-transform: uppercase;
   letter-spacing: 1px;
 }
@@ -57,12 +57,14 @@
 }
 
 .ohw-ratio-calls {
-  background: linear-gradient(90deg, #00aa00, #00ff88);
+  background: var(--color-up);
+  opacity: 0.85;
   transition: width 0.3s ease;
 }
 
 .ohw-ratio-puts {
-  background: linear-gradient(90deg, #ff5555, #ff0000);
+  background: var(--color-down);
+  opacity: 0.85;
   transition: width 0.3s ease;
 }
 
@@ -81,11 +83,11 @@
 }
 
 .ohw-ratio-label span:first-child {
-  color: #00ff88;
+  color: var(--color-up);
 }
 
 .ohw-ratio-label span:last-child {
-  color: #ff4444;
+  color: var(--color-down);
 }
 
 /* Alerts Section */
@@ -128,7 +130,7 @@
 
 .ohw-alert-row:hover {
   background: #25252c;
-  border-color: #00ff88;
+  border-color: var(--color-up);
 }
 
 .ohw-alert-left {
@@ -141,7 +143,7 @@
 
 .ohw-alert-ticker {
   font-weight: 700;
-  color: #00ff88;
+  color: var(--color-up);
   font-size: 12px;
   min-width: fit-content;
 }
@@ -153,13 +155,13 @@
   border-radius: 2px;
   text-transform: uppercase;
   letter-spacing: 0.2px;
-  background: rgba(0, 255, 136, 0.1);
+  background: var(--color-up-bg, rgba(34, 197, 94, 0.10));
   white-space: nowrap;
 }
 
 .ohw-alert-value {
   font-weight: 600;
-  color: #ffaa00;
+  color: var(--color-warn);
   text-align: right;
   font-size: 11px;
   min-width: fit-content;
@@ -182,6 +184,19 @@
 
 .ohw-alerts-list::-webkit-scrollbar-thumb:hover {
   background: #3a3a45;
+}
+
+/* Honest empty state — one muted line when the provider returned nothing */
+.ohw-empty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-muted);
+  font-size: 11px;
+  letter-spacing: 0.3px;
+  text-align: center;
+  padding: 12px 0;
 }
 
 /* Footer */

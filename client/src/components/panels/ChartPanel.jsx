@@ -1,5 +1,7 @@
-// ChartPanel.jsx — Bloomberg-style multi-chart grid (fixed 4×3 = 12 slots)
-// Desktop: always-full 4×3 symmetric grid — no empty rows ever
+// ChartPanel.jsx — Bloomberg-style multi-chart grid (adaptive, max 4×3 = 12 slots)
+// Desktop (H0): grid adapts to chart count — 1-2 charts → 2 cols, 3-4 → 2×2,
+// 5-6 → 3×2, 7-9 → 3×3, 10-12 → 4×3 — with exactly ONE trailing "+" add-tile
+// when below max (no wall of dashed holes).
 // Mobile: 2-col scrollable layout sharing same localStorage as desktop
 // Phase 15: indicator overlays + AI chart insight per MiniChart
 import { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
@@ -10,6 +12,10 @@ import { useAIInsight } from '../../hooks/useAIInsight';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { apiFetch } from '../../utils/api';
 import { computeIndicators, buildChartInsightPayload, getLatestIndicatorSnapshot, IND_COLORS, INDICATOR_LIST } from '../../utils/chartIndicators';
+// H0: mini-chart up/down colors come from the design tokens. Recharts SVG
+// attributes (stroke / stopColor) can't resolve CSS custom properties, so we
+// use the sanctioned TOKEN_HEX mirror of tokens.css instead of inline hex.
+import { TOKEN_HEX } from '../../utils/tokenHex';
 import { fmtCompactAxis } from '../../utils/format';
 import { toPolygonWithDefault, toDisplay } from '../../utils/tickerNormalize';
 import { swallow } from '../../utils/swallow';
@@ -22,9 +28,17 @@ import './ChartPanel.css';
 
 const LS_KEY = 'chartGrid_v3';
 const MAX = 12;
-const GRID_COLS = 4;
-const GRID_ROWS = 3;
 const CHART_REFRESH_INTERVAL = 60_000;
+
+// H0 adaptive grid: pick cols×rows from the number of rendered tiles
+// (charts + the single trailing add-tile when below MAX).
+function gridDims(tileCount) {
+  if (tileCount <= 2) return { cols: 2, rows: 1 };
+  if (tileCount <= 4) return { cols: 2, rows: 2 };
+  if (tileCount <= 6) return { cols: 3, rows: 2 };
+  if (tileCount <= 9) return { cols: 3, rows: 3 };
+  return { cols: 4, rows: 3 };
+}
 
 const RANGES = [
   { label: '1D', multiplier: 5,  timespan: 'minute', days: 1   },
@@ -349,7 +363,8 @@ const MiniChart = memo(function MiniChart({ ticker, index, onRemove, onReplace, 
   const dispChgPct = rangeIdx === 0 ? (shared?.changePct ?? chgPct) : chgPct;
 
   const isUp     = (dispChg ?? 0) >= 0;
-  const lineColor = isUp ? '#e8e8e8' : '#ff5555';
+  // H0: up = token green, down = token red — line AND gradient fill.
+  const lineColor = isUp ? TOKEN_HEX.up : TOKEN_HEX.down;
   const gradId    = 'g' + ticker.replace(/[^a-zA-Z0-9]/g, '');
   const openPrice = chartBars[0]?.v ?? chartBars[0]?.close;
   const xFmt = (ms) => {
@@ -452,8 +467,8 @@ const MiniChart = memo(function MiniChart({ ticker, index, onRemove, onReplace, 
             <AreaChart data={chartBars} margin={{ top: 4, right: 2, bottom: 2, left: 0 }}>
               <defs>
                 <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%"  stopColor={isUp ? '#1e50c8' : '#c81e1e'} stopOpacity={0.55} />
-                  <stop offset="95%" stopColor={isUp ? '#1e50c8' : '#c81e1e'} stopOpacity={0.0}  />
+                  <stop offset="5%"  stopColor={lineColor} stopOpacity={0.18} />
+                  <stop offset="95%" stopColor={lineColor} stopOpacity={0.0}  />
                 </linearGradient>
               </defs>
               <XAxis dataKey="t" tickFormatter={xFmt} tick={{ fill: 'var(--text-muted)', fontSize: 8 }} tickLine={false} axisLine={false} interval={Math.max(0, Math.ceil(chartBars.length / 4) - 1)} height={14} />
@@ -747,14 +762,21 @@ function ChartPanel({ ticker: externalTicker, onGridChange, mobile = false }) {
         <span className="cp-title">CHARTS</span>
         <span className="cp-subtitle">{tickers.length}/{MAX} // drag to reorder · drop to add</span>
       </div>
-      <div className="cp-grid cp-grid--desktop">
-        {Array.from({ length: MAX }, (_, i) => {
-          const t = tickers[i];
-          return t
-            ? <MiniChart key={t} ticker={t} index={i} onRemove={removeTicker} onReplace={replaceTicker} onSwap={swapTickers} />
-            : <EmptySlot key={`empty-${i}`} index={i} onAdd={addTicker} onSwap={swapTickers} />;
-        })}
-      </div>
+      {(() => {
+        const showAddTile = tickers.length < MAX;
+        const { cols, rows } = gridDims(tickers.length + (showAddTile ? 1 : 0));
+        return (
+          <div
+            className="cp-grid cp-grid--desktop"
+            style={{ gridTemplateColumns: `repeat(${cols}, 1fr)`, gridTemplateRows: `repeat(${rows}, 1fr)` }}
+          >
+            {tickers.map((t, i) => (
+              <MiniChart key={t} ticker={t} index={i} onRemove={removeTicker} onReplace={replaceTicker} onSwap={swapTickers} />
+            ))}
+            {showAddTile && <EmptySlot index={tickers.length} onAdd={addTicker} onSwap={swapTickers} />}
+          </div>
+        );
+      })()}
     </div>
   );
 }
