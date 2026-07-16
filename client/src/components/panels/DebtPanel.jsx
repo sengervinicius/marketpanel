@@ -627,6 +627,12 @@ function DebtPanel() {
     <div className="dp-panel">
       <PanelChrome
         title="YIELDS"
+        subtitle={view === 'curve'
+          ? `${countryMeta?.name?.toUpperCase() || selectedCountry} CURVE${!loading && sourceBadge ? ` · ${effectiveCurveLive ? 'LIVE' : 'EST'} ${sourceBadge}` : ''}`
+          : view === 'curves'
+            ? 'US · EU · UK · BR SMALL MULTIPLES'
+            : `${countryGroup.toUpperCase()} · ${regionalTenor} YIELDS`}
+        badge={view === 'curve' ? <IntegrityBadge domain="yield-curves" /> : null}
         updatedAt={lastUpdated}
         source={curveSource || 'Multi-source'}
         actions={(
@@ -680,18 +686,9 @@ function DebtPanel() {
       {/* ---- Curve view ---- */}
       {view === 'curve' && (
         <div className="dp-curve">
-          {/* Source row - always visible */}
-          <div className="dp-source-row">
-            <span className="dp-source-label">
-              {countryMeta?.name?.toUpperCase() || selectedCountry} YIELD CURVE
-            </span>
-            {!loading && sourceBadge && (
-              <span className={`dp-source-badge ${effectiveCurveLive ? 'dp-badge--live' : 'dp-badge--est'}`}>
-                {effectiveCurveLive ? 'LIVE' : 'EST.'} {sourceBadge}
-              </span>
-            )}
-            <IntegrityBadge domain="yield-curves" />
-          </div>
+          {/* #UX-5 — the old "<COUNTRY> YIELD CURVE" + LIVE badge row was a
+              second title under PanelChrome; folded into the chrome
+              subtitle so the panel keeps title + one subtitle only. */}
 
           {/* Regime ribbon — Phase 8.4 */}
           {!loading && !error && chartData.length >= 2 && (
@@ -733,7 +730,7 @@ function DebtPanel() {
                     (TOKEN_HEX: SVG can't resolve CSS vars), no dots,
                     subtle gradient wash under the curve, faint mono ticks,
                     horizontal-only dashed grid. Data/interactions unchanged. */}
-                <ComposedChart data={chartData} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
+                <ComposedChart data={chartData} margin={{ top: 4, right: 8, bottom: 2, left: 0 }}>
                   <defs>
                     <linearGradient id="dpCurveFill" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="0%" stopColor={TOKEN_HEX.accent} stopOpacity={0.12} />
@@ -743,10 +740,11 @@ function DebtPanel() {
                   <CartesianGrid strokeDasharray="2 4" stroke={TOKEN_HEX.borderSubtle} vertical={false} />
                   <XAxis
                     dataKey="tenor"
-                    tick={{ fill: TOKEN_HEX.textFaint, fontSize: 9, fontFamily: 'var(--font-mono)', angle: -45, textAnchor: 'end' }}
+                    tick={{ fill: TOKEN_HEX.textFaint, fontSize: 9, fontFamily: 'var(--font-mono)' }}
                     axisLine={false}
                     tickLine={false}
-                    height={30}
+                    height={16}
+                    interval="preserveStartEnd"
                   />
                   <YAxis
                     tick={{ fill: TOKEN_HEX.textFaint, fontSize: 9, fontFamily: 'var(--font-mono)' }}
