@@ -182,12 +182,18 @@
   background: var(--bg-app);
 }
 
+/* #UX-4 — three-line scannable rows: source/time · headline · chips.
+   1px separators on --border-subtle, subtle hover bg. */
 .np-news-item {
-  padding: 4px 6px;
-  border-bottom: 1px solid var(--bg-surface);
+  padding: 5px 8px;
+  border-bottom: 1px solid var(--border-subtle);
   background: transparent;
-  transition: background 1s;
+  transition: background 0.12s;
   cursor: pointer;
+}
+
+.np-news-item:hover {
+  background: var(--bg-hover);
 }
 
 .np-news-item--new {
@@ -205,37 +211,46 @@
   align-items: center;
 }
 
+/* Line 1: source — muted 9px mono uppercase */
 .np-news-publisher {
+  font-family: var(--font-family-mono);
   font-size: 9px;
-  font-weight: 700;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
 }
 
 .np-news-publisher--breaking {
   color: var(--color-down);
 }
 
-.np-news-publisher--normal {
-  color: var(--color-section-header);
-}
-
 .np-news-time {
-  color: var(--text-faint);
+  color: var(--text-muted);
+  font-family: var(--font-family-mono);
   font-size: 9px;
+  flex-shrink: 0;
+  text-align: right;
 }
 
+/* Line 2: headline — the dominant element. 12px/600, max 2 lines. */
 .np-news-title {
-  font-size: 11px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
   line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .np-news-title--breaking {
   color: var(--color-down);
-  font-weight: 600;
-}
-
-.np-news-title--normal {
-  color: var(--color-text-secondary);
-  font-weight: 400;
 }
 
 .np-news-tickers {
@@ -254,33 +269,43 @@
   border: 1px solid rgba(249, 115, 22, 0.2);
 }
 
-.np-news-publisher-wrapper {
-  gap: 4px;
-  align-items: center;
-  display: flex;
-}
-
-.np-sentiment-badge {
-  font-size: 8px;
-  padding: 1px 3px;
-  border-radius: 2px;
+/* Line 3: impact arrow (AI sentiment) — colored up/down glyph */
+.np-impact {
+  font-size: 10px;
   font-weight: 700;
   flex-shrink: 0;
+  line-height: 1;
 }
 
-.np-sentiment-badge--bullish {
-  background: var(--color-up);
-  color: var(--color-bg);
+.np-impact--bullish { color: var(--price-up); }
+.np-impact--bearish { color: var(--price-down); }
+.np-impact--neutral { color: var(--text-faint); }
+
+/* Body summary stays out of the collapsed row — opt-in toggle */
+.np-news-desc-toggle {
+  background: none;
+  border: none;
+  color: var(--text-faint);
+  font-family: var(--font-family-mono);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 0 2px;
+  cursor: pointer;
+  transition: color 0.12s;
 }
 
-.np-sentiment-badge--bearish {
-  background: var(--color-down);
-  color: var(--text-primary);
+.np-news-desc-toggle:hover,
+.np-news-desc-toggle--open {
+  color: var(--text-secondary);
 }
 
-.np-sentiment-badge--neutral {
-  background: var(--text-faint);
-  color: var(--text-primary);
+.np-news-desc {
+  margin-top: 3px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-secondary);
+  cursor: default;
 }
 
 /* ── Morning Briefing card (Phase 9.3) ───────────────────────────── */
@@ -352,18 +377,19 @@
   cursor: default;
 }
 
+/* #UX-4 — tightened: numbered headline + one-line takeaway per pick */
 .np-briefing-list {
-  padding: 4px 8px 6px;
+  padding: 3px 8px 5px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
 
 .np-briefing-item {
   display: grid;
   grid-template-columns: 16px 1fr auto;
   gap: 6px;
-  padding: 4px 0;
+  padding: 3px 0;
   border-top: 1px solid var(--border-subtle);
   align-items: start;
 }
@@ -389,13 +415,21 @@
   font-size: 12px;
   font-weight: 600;
   line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
+/* One-line takeaway — no verbose paragraphs in the briefing */
 .np-briefing-why {
   color: var(--text-secondary);
-  font-size: 11px;
+  font-size: 10.5px;
   line-height: 1.4;
-  margin-top: 2px;
+  margin-top: 1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .np-briefing-tags {

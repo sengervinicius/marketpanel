@@ -34,27 +34,77 @@ const logger = require('../../utils/logger');
  * GET /market/earnings-calendar?ticker=AAPL&from=2026-04-01&to=2026-04-30
  * Returns upcoming earnings dates. All params optional.
  */
+// #UX-3 — shared date helpers for the calendar routes below.
+const fmtDay = (d) => d.toISOString().slice(0, 10);
+const defaultCalRange = () => {
+  const now = new Date();
+  return { from: fmtDay(now), to: fmtDay(new Date(now.getTime() + 7 * 86400000)) };
+};
+const FINNHUB_TIMING = { bmo: 'BMO', amc: 'AMC', dmh: 'DMH' };
+
 router.get('/market/earnings-calendar', async (req, res) => {
   try {
-    if (!eulerpool.isConfigured()) {
-      return res.json({ ok: true, data: [], source: 'unavailable', message: 'Eulerpool not configured' });
+    const { ticker, from, to } = req.query;
+
+    // Preferred: Eulerpool when configured (original data source).
+    if (eulerpool.isConfigured()) {
+      const opts = {};
+      if (ticker) opts.ticker = ticker.toUpperCase();
+      if (from)   opts.from = from;
+      if (to)     opts.to = to;
+
+      const ck = `earnings-cal:${JSON.stringify(opts)}`;
+      const cached = cacheGet(ck);
+      if (cached) return res.json({ ok: true, data: cached, source: 'eulerpool' });
+
+      const data = await eulerpool.getEarningsCalendar(opts);
+      const result = Array.isArray(data) ? data : (data?.earnings ?? []);
+
+      cacheSet(ck, result, 600_000); // 10 min
+      return res.json({ ok: true, data: result, source: 'eulerpool' });
     }
 
-    const { ticker, from, to } = req.query;
-    const opts = {};
-    if (ticker) opts.ticker = ticker.toUpperCase();
-    if (from)   opts.from = from;
-    if (to)     opts.to = to;
+    // #UX-3 — Finnhub fallback via services/earnings. This feed already
+    // existed but was never wired here, so deployments without Eulerpool
+    // showed "requires Eulerpool" in the Calendar panel despite having a
+    // perfectly good FINNHUB_API_KEY. Rows are normalized to the shape
+    // CalendarPanel's EarningsRow reads (ticker/date/timing/estimates).
+    const earningsSvc = require('../../services/earnings');
+    if (earningsSvc.isConfigured()) {
+      const def = defaultCalRange();
+      const range = { from: from || def.from, to: to || def.to };
+      const ck = `earnings-cal:finnhub:${range.from}:${range.to}:${ticker || ''}`;
+      const cached = cacheGet(ck);
+      if (cached) return res.json({ ok: true, data: cached, source: 'finnhub' });
 
-    const ck = `earnings-cal:${JSON.stringify(opts)}`;
-    const cached = cacheGet(ck);
-    if (cached) return res.json({ ok: true, data: cached, source: 'eulerpool' });
+      let rows = await earningsSvc.getEarningsCalendar(range.from, range.to);
+      if (!Array.isArray(rows)) rows = [];
+      if (ticker) {
+        const want = String(ticker).toUpperCase();
+        rows = rows.filter(r => String(r.symbol || '').toUpperCase() === want);
+      }
+      const data = rows.map(r => ({
+        ticker: r.symbol,
+        symbol: r.symbol,
+        date: r.date,
+        timing: FINNHUB_TIMING[String(r.hour || '').toLowerCase()] || null,
+        epsEstimate: r.epsEstimate ?? null,
+        epsActual: r.epsActual ?? null,
+        revenueEstimate: r.revenueEstimate ?? null,
+        revenueActual: r.revenueActual ?? null,
+      }));
 
-    const data = await eulerpool.getEarningsCalendar(opts);
-    const result = Array.isArray(data) ? data : (data?.earnings ?? []);
+      cacheSet(ck, data, 600_000); // 10 min
+      return res.json({ ok: true, data, source: 'finnhub' });
+    }
 
-    cacheSet(ck, result, 600_000); // 10 min
-    res.json({ ok: true, data: result, source: 'eulerpool' });
+    return res.json({
+      ok: true,
+      data: [],
+      source: 'unavailable',
+      missingEnv: 'FINNHUB_API_KEY',
+      message: 'Earnings calendar offline — set FINNHUB_API_KEY (or EULERPOOL_API_KEY).',
+    });
   } catch (e) {
     logger.error('GET /market/earnings-calendar error:', e);
     res.status(500).json({ ok: false, error: e.message });
@@ -67,19 +117,55 @@ router.get('/market/earnings-calendar', async (req, res) => {
  */
 router.get('/market/macro-calendar', async (req, res) => {
   try {
-    if (!eulerpool.isConfigured()) {
-      return res.json({ ok: true, data: [], source: 'unavailable' });
+    if (eulerpool.isConfigured()) {
+      const ck = 'macro-calendar';
+      const cached = cacheGet(ck);
+      if (cached) return res.json({ ok: true, data: cached, source: 'eulerpool' });
+
+      const data = await eulerpool.getMacroCalendar();
+      const result = Array.isArray(data) ? data : (data?.events ?? []);
+
+      cacheSet(ck, result, 300_000); // 5 min
+      return res.json({ ok: true, data: result, source: 'eulerpool' });
     }
 
-    const ck = 'macro-calendar';
-    const cached = cacheGet(ck);
-    if (cached) return res.json({ ok: true, data: cached, source: 'eulerpool' });
+    // #UX-3 — Finnhub /calendar/economic fallback (finnhubAdapter).
+    // NOTE: this endpoint is premium-gated on free Finnhub keys; when
+    // the adapter errors or returns an empty set we fall through to the
+    // honest 'unavailable' envelope (naming the missing env var) so the
+    // panel can say so instead of silently rendering nothing.
+    if (process.env.FINNHUB_API_KEY) {
+      const ck = 'macro-calendar:finnhub';
+      const cached = cacheGet(ck);
+      if (cached) return res.json({ ok: true, data: cached, source: 'finnhub' });
 
-    const data = await eulerpool.getMacroCalendar();
-    const result = Array.isArray(data) ? data : (data?.events ?? []);
+      const finnhub = require('../../adapters/finnhubAdapter');
+      const result = await finnhub.calendar({}, { kind: 'economic' });
+      if (result.ok && Array.isArray(result.data) && result.data.length > 0) {
+        const events = result.data.map((row, i) => ({
+          id: `fh-eco-${i}`,
+          name: row.country ? `${row.country} · ${row.event}` : (row.event || '—'),
+          date: row.time ? String(row.time).slice(0, 10) : '',
+          time: row.time ? String(row.time).slice(11, 16) : '',
+          importance: row.impact || 'medium',
+          previous: row.prev ?? null,
+          forecast: row.estimate ?? null,
+          actual: row.actual ?? null,
+        }));
+        cacheSet(ck, events, 300_000); // 5 min
+        return res.json({ ok: true, data: events, source: 'finnhub' });
+      }
+    }
 
-    cacheSet(ck, result, 300_000); // 5 min
-    res.json({ ok: true, data: result, source: 'eulerpool' });
+    return res.json({
+      ok: true,
+      data: [],
+      source: 'unavailable',
+      missingEnv: process.env.FINNHUB_API_KEY ? 'EULERPOOL_API_KEY' : 'FINNHUB_API_KEY',
+      message: process.env.FINNHUB_API_KEY
+        ? 'Live macro calendar offline — Finnhub economic calendar is premium-gated; set EULERPOOL_API_KEY.'
+        : 'Live macro calendar offline — set FINNHUB_API_KEY or EULERPOOL_API_KEY.',
+    });
   } catch (e) {
     logger.error('GET /market/macro-calendar error:', e);
     res.status(500).json({ ok: false, error: e.message });

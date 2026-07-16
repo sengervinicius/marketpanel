@@ -119,6 +119,10 @@ const NewsItem = memo(function NewsItem({ item, isNew, sentimentMap, getTickerSu
     (item.title || '').toUpperCase().includes('ALERT');
   const url = item.article_url || item.link || item.url;
   const sentiment = sentimentMap?.[item.id];
+  // #UX-4 — body summary never shows in the collapsed row; it expands on
+  // demand so 10 headlines stay scannable.
+  const description = item.description || item.summary || '';
+  const [descOpen, setDescOpen] = useState(false);
 
   // Phase 3 — per-ticker 7-day AI summary, inline expandable.
   // Data is memoized panel-side (getTickerSummary), so re-opening the
@@ -155,25 +159,26 @@ const NewsItem = memo(function NewsItem({ item, isNew, sentimentMap, getTickerSu
       onClick={() => url && window.open(url, '_blank', 'noopener,noreferrer')}
       style={{ cursor: url ? 'pointer' : 'default' }}
     >
+      {/* #UX-4 line 1 — SOURCE (muted mono caps) + relative time, right */}
       <div className="flex-row np-news-header">
-        <div className="flex-row np-news-publisher-wrapper">
-          <span className={`np-news-publisher ${isBreaking ? 'np-news-publisher--breaking' : 'np-news-publisher--normal'}`}>
-            {isBreaking ? '◆ BREAKING ' : ''}{(item.publisher?.name || 'NEWSWIRE').toUpperCase()}
-          </span>
+        <span className={`np-news-publisher ${isBreaking ? 'np-news-publisher--breaking' : ''}`}>
+          {isBreaking ? '◆ BREAKING · ' : ''}{(item.publisher?.name || 'NEWSWIRE').toUpperCase()}
+        </span>
+        <span className="np-news-time">{timeAgo(item.published_utc)}</span>
+      </div>
+      {/* #UX-4 line 2 — headline is the dominant element: 12px/600, 2-line clamp */}
+      <div className={`np-news-title ${isBreaking ? 'np-news-title--breaking' : ''}`}>
+        {item.title}
+      </div>
+      {/* #UX-4 line 3 — ticker chips + impact arrow + optional summary toggle */}
+      {(item.tickers?.length > 0 || sentiment || description) && (
+        <div className="flex-row np-news-tickers">
           {sentiment && (
-            <span className={`np-sentiment-badge np-sentiment-badge--${sentiment}`}>
+            <span className={`np-impact np-impact--${sentiment}`} title={`AI sentiment: ${sentiment}`}>
               {sentiment === 'bullish' ? '▲' : sentiment === 'bearish' ? '▼' : '◆'}
             </span>
           )}
-        </div>
-        <span className="np-news-time">{timeAgo(item.published_utc)}</span>
-      </div>
-      <div className={`np-news-title ${isBreaking ? 'np-news-title--breaking' : 'np-news-title--normal'}`}>
-        {item.title}
-      </div>
-      {item.tickers?.length > 0 && (
-        <div className="flex-row np-news-tickers">
-          {item.tickers.slice(0, 5).map((t) => (
+          {(item.tickers || []).slice(0, 5).map((t) => (
             <span
               key={t}
               className={`np-news-ticker ${sumTicker === t ? 'np-news-ticker--open' : ''}`}
@@ -181,6 +186,18 @@ const NewsItem = memo(function NewsItem({ item, isNew, sentimentMap, getTickerSu
               title={`7-day AI summary for ${t}`}
             >{t}</span>
           ))}
+          {description && (
+            <button
+              className={`np-news-desc-toggle ${descOpen ? 'np-news-desc-toggle--open' : ''}`}
+              onClick={(e) => { e.stopPropagation(); setDescOpen(o => !o); }}
+              title={descOpen ? 'Hide summary' : 'Show summary'}
+            >{descOpen ? '− SUMMARY' : '+ SUMMARY'}</button>
+          )}
+        </div>
+      )}
+      {descOpen && description && (
+        <div className="np-news-desc" onClick={(e) => e.stopPropagation()}>
+          {description}
         </div>
       )}
       {sumTicker && (

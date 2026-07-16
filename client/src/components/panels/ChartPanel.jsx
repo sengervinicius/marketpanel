@@ -98,6 +98,30 @@ const fmtPrice = (n) => n == null ? "—" : n.toLocaleString('en-US', { minimumF
 // rounding/suffix rules.
 const fmtK = (n) => fmtCompactAxis(n, 1);
 
+// #UX-2: the mini-chart hover tooltip rendered at 7px via Recharts
+// contentStyle — illegible. Custom content: bold mono price at 13px,
+// change% vs the visible window's open colored up/down, solid dark bg.
+// Styling lives in ChartPanel.css (.mc-tooltip*).
+function MiniChartTooltip({ active, payload, label, xFmt, openPrice }) {
+  if (!active || !payload || payload.length === 0) return null;
+  const pt = payload.find(p => p.dataKey === 'v') || payload[0];
+  const v = pt && pt.value;
+  if (v == null) return null;
+  const pct = openPrice ? ((v - openPrice) / openPrice) * 100 : null;
+  const up = (pct ?? 0) >= 0;
+  return (
+    <div className="mc-tooltip">
+      <div className="mc-tooltip-time">{xFmt(label)}</div>
+      <div className="mc-tooltip-price">{fmtPrice(v)}</div>
+      {pct != null && (
+        <div className={`mc-tooltip-chg ${up ? 'mc-tooltip-chg--up' : 'mc-tooltip-chg--down'}`}>
+          {(up ? '+' : '') + pct.toFixed(2) + '%'}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function assetType(t) {
   if (!t) return 'EQUITY';
   if (t.startsWith('C:')) return 'FX';
@@ -384,6 +408,15 @@ const MiniChart = memo(function MiniChart({ ticker, index, onRemove, onReplace, 
   // Brief highlight when this tile is the target of a ticker click elsewhere
   // in the terminal (highlight-existing or replace-primary). pulseId bumps on
   // every selection so repeated selections restart the animation.
+  // #UX-2: hovered bar price mirrored into the header slot (a much
+  // bigger read target than the tooltip). Cleared on mouse leave.
+  const [hoverPrice, setHoverPrice] = useState(null);
+  const handleChartMove = useCallback((st) => {
+    const pl = st && st.activePayload && st.activePayload.find(x => x.dataKey === 'v');
+    setHoverPrice(pl && pl.value != null ? pl.value : null);
+  }, []);
+  const handleChartLeave = useCallback(() => setHoverPrice(null), []);
+
   const [pulsing, setPulsing] = useState(false);
   useEffect(() => {
     if (!pulseId) return;
@@ -434,7 +467,11 @@ const MiniChart = memo(function MiniChart({ ticker, index, onRemove, onReplace, 
           {isDragOver ? 'SWAP / REPLACE' : displayTicker(ticker) + (name ? ' · ' + name : '')}
         </span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-          {dispPrice != null && <span className="mc-price">{fmtPrice(dispPrice)}</span>}
+          {(hoverPrice ?? dispPrice) != null && (
+            <span className={`mc-price${hoverPrice != null ? ' mc-price--hover' : ''}`}>
+              {fmtPrice(hoverPrice ?? dispPrice)}
+            </span>
+          )}
           {dispChgPct != null && (
             <span className={`mc-chg ${isUp ? 'mc-chg--up' : 'mc-chg--down'}`}>
               {(isUp ? '+' : '') + dispChgPct.toFixed(2) + '%'}
@@ -482,7 +519,8 @@ const MiniChart = memo(function MiniChart({ ticker, index, onRemove, onReplace, 
           <div className="mc-msg mc-skeleton-shimmer" style={{ opacity: 0.4 }}>&nbsp;</div>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={chartBars} margin={{ top: 4, right: 2, bottom: 2, left: 0 }}>
+            <AreaChart data={chartBars} margin={{ top: 4, right: 2, bottom: 2, left: 0 }}
+              onMouseMove={handleChartMove} onMouseLeave={handleChartLeave}>
               <defs>
                 <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%"  stopColor={lineColor} stopOpacity={0.18} />
@@ -509,10 +547,9 @@ const MiniChart = memo(function MiniChart({ ticker, index, onRemove, onReplace, 
               )}
 
               <Tooltip
-                contentStyle={{ background: 'var(--bg-surface)', border: '1px solid var(--border-strong)', fontSize: 7, padding: '3px 6px' }}
-                itemStyle={{ color: lineColor }}
-                formatter={v => [fmtPrice(v), displayTicker(ticker)]}
-                labelFormatter={ms => xFmt(ms)}
+                cursor={{ stroke: 'var(--text-muted)', strokeWidth: 1, strokeDasharray: '2 2' }}
+                isAnimationActive={false}
+                content={<MiniChartTooltip xFmt={xFmt} openPrice={openPrice} />}
               />
             </AreaChart>
           </ResponsiveContainer>

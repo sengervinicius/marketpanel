@@ -115,6 +115,41 @@
 }
 .mc-chg--up   { color: var(--price-up); }
 .mc-chg--down { color: var(--price-down); }
+
+/* #UX-2: header price highlights while mirroring the hovered bar */
+.mc-price--hover {
+  color: var(--accent-text);
+  font-weight: 700;
+}
+
+/* #UX-2: legible crosshair tooltip (was 7px Recharts default) */
+.mc-tooltip {
+  background: rgba(10, 10, 15, 0.95);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 6px 8px;
+  pointer-events: none;
+  font-family: var(--font-mono);
+}
+.mc-tooltip-time {
+  color: var(--text-muted);
+  font-size: 9px;
+  margin-bottom: 2px;
+}
+.mc-tooltip-price {
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+.mc-tooltip-chg {
+  font-size: var(--font-xs);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.mc-tooltip-chg--up   { color: var(--price-up); }
+.mc-tooltip-chg--down { color: var(--price-down); }
 .mc-remove {
   background: none;
   border: none;
