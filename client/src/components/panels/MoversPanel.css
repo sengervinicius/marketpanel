@@ -1,0 +1,67 @@
+/* MoversPanel.css — tokenized styles for the top-movers home panel */
+
+.mv-panel {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-panel);
+  overflow: hidden;
+}
+
+.mv-body {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+/* Exchange toggle (header actions slot) */
+.mv-exch-toggle {
+  display: flex;
+  gap: 2px;
+}
+.mv-exch-btn {
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  color: var(--text-muted);
+  font-size: var(--font-xs);
+  font-family: inherit;
+  letter-spacing: 0.06em;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.mv-exch-btn--active {
+  background: var(--color-surface);
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+
+/* Empty / loading state */
+.mv-state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--text-faint);
+  font-size: var(--font-xs);
+  letter-spacing: 0.08em;
+  padding: 16px;
+  text-align: center;
+}
+.mv-retry-btn {
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  color: var(--text-muted);
+  font-size: var(--font-xs);
+  padding: 2px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-family: inherit;
+}
+.mv-retry-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent-text);
+}

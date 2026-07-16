@@ -38,6 +38,7 @@ const SETTINGS_PANEL_IDS = [
   'screener',
   'macro',
   'calendar',
+  'movers',
   'heatmap',
   'predictions',
   'optionsFlow',

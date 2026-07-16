@@ -20,8 +20,13 @@ const futuresRouter     = require('./futures');   // #226 regional futures/index
 const utilitiesRouter   = require('./utilities');
 const dataRouter         = require('./data');
 const intelligenceRouter = require('./intelligence');
+const moversRouter       = require('./movers');   // H2 W1 — home Movers panel
 
-// Mount all sub-routers — order doesn't matter since routes are distinct
+// Mount all sub-routers. moversRouter goes BEFORE dataRouter so the exact
+// GET /market/movers (query-param form) is matched ahead of the legacy
+// parameterized GET /market/movers/:direction in data.js — distinct paths,
+// but explicit ordering keeps intent obvious.
+router.use(moversRouter);
 router.use(dataRouter);
 router.use(intelligenceRouter);
 router.use(stocksRouter);

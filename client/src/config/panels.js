@@ -278,6 +278,18 @@ export const PANEL_DEFINITIONS = {
     maxSymbols:     0,
   },
 
+  movers: {
+    id:             'movers',
+    label:          'Movers',
+    defaultTitle:   'Top Movers',
+    defaultSymbols: [],
+    allowedGroups:  null,
+    editable:       false,
+    icon:           'MV',
+    minSymbols:     0,
+    maxSymbols:     0,
+  },
+
   predictions: {
     id:             'predictions',
     label:          'Predictions',
@@ -430,11 +442,12 @@ export function getEditablePanels() {
 // H0.4d: optionsFlow + predictions removed from the DEFAULT layout only —
 // both stay in PANEL_REGISTRY and are addable via Cmd+K / +PANEL; existing
 // users' saved layouts that contain them are untouched.
+// H2 W1: the row-3 slot optionsFlow freed is taken by the new Movers panel.
 export const DEFAULT_LAYOUT = {
   desktopRows: [
     ['charts',       'watchlist',     'globalIndices', 'futures'],
     ['forex',        'commodities',   'usEquities',    'brazilB3'],
-    ['debt',         'news'],
+    ['debt',         'news',          'movers'],
   ],
   mobileTabs: ['home', 'charts', 'watchlist', 'search', 'detail', 'news'],
 };
