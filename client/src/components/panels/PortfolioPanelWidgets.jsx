@@ -1,6 +1,6 @@
 /**
  * PortfolioPanelWidgets.jsx — Extracted sub-components for PortfolioPanel.
- * Pure presentational components: MiniSparkline, AllocationDonut, SyncBadge,
+ * Pure presentational components: AllocationDonut, SyncBadge,
  * AllocationBar, AIHealthCard, SummaryStrip, showInfo helper.
  */
 
@@ -11,18 +11,7 @@ import {
   computeBenchmarkComparison,
 } from '../../utils/portfolioAnalytics';
 
-// ── MiniSparkline component ──
-export function MiniSparkline({ positive }) {
-  const points = positive
-    ? '0,16 8,14 16,12 24,13 32,10 40,8 48,6 56,5 60,3'
-    : '0,3 8,5 16,6 24,5 32,8 40,10 48,13 56,14 60,16';
-  const color = positive ? '#4caf50' : '#f44336';
-  return (
-    <svg width="60" height="18" viewBox="0 0 60 18" style={{ flexShrink: 0, opacity: 0.7 }}>
-      <polyline points={points} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
+// H1.2: MiniSparkline (static fake polyline) removed — rows use common/Sparkline v2.
 
 // ── AllocationDonut component ──
 export function AllocationDonut({ positions }) {

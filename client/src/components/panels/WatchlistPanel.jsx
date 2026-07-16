@@ -37,7 +37,10 @@ import PanelChrome from '../common/PanelChrome';
 import PositionEditor from '../common/PositionEditor';
 import ShareModal from '../common/ShareModal';
 import { fmt, fmtPct, fmtCompact, computeSummary, inferAssetType } from '../../utils/portfolioAnalytics';
-import { MiniSparkline, SyncBadge, AIHealthCard, SummaryStrip } from './PortfolioPanelWidgets';
+import { SyncBadge, AIHealthCard, SummaryStrip } from './PortfolioPanelWidgets';
+// H1.2: real last-20-close sparkline (v2) instead of the fake static polyline.
+import Sparkline from '../common/Sparkline';
+import { useSparklineData } from '../../hooks/useSparklineData';
 import '../common/Shimmer.css';
 import './WatchlistPanel.css';
 
@@ -65,7 +68,7 @@ function assetTypeFromSymbol(sym) {
 // independent pipelines on the same screen guaranteed visible drift
 // vs. ChartPanel which only reads PriceContext. Now: PriceContext only.
 const WatchlistRow = memo(function WatchlistRow({
-  position, onTickerClick, onEdit, onRemove, onWhy, onReportPrice,
+  position, sparkData, onTickerClick, onEdit, onRemove, onWhy, onReportPrice,
 }) {
   const openDetail = useOpenDetail();
   const priceCtx   = useTickerPrice(position.symbol);
@@ -122,7 +125,9 @@ const WatchlistRow = memo(function WatchlistRow({
         {pnlPct == null ? '—' : fmtPct(pnlPct)}
       </span>
       <span className="wp-row-spark">
-        {changePct != null && <MiniSparkline positive={pos} />}
+        {sparkData && sparkData.length >= 2 && (
+          <Sparkline data={sparkData} width={56} height={14} />
+        )}
       </span>
       <div className="wp-row-actions">
         <button className="btn wp-icon-btn" title="Why is this moving?"
@@ -265,6 +270,10 @@ function WatchlistPanel({ onTickerClick }) {
     () => positions.filter(p => p.entryPrice != null && p.quantity != null),
     [positions]
   );
+
+  // H1.2: last-20-close history for the per-row sparkline column.
+  const watchSymbols = useMemo(() => positions.map(p => p.symbol), [positions]);
+  const rowSparklines = useSparklineData(watchSymbols);
   const anyTracked = trackedPositions.length > 0;
 
   const handleAIHealthCheck = useCallback(async () => {
@@ -456,6 +465,7 @@ function WatchlistPanel({ onTickerClick }) {
             <WatchlistRow
               key={pos.id}
               position={pos}
+              sparkData={rowSparklines[pos.symbol]}
               onTickerClick={onTickerClick}
               onEdit={handleEdit}
               onRemove={handleRemove}
