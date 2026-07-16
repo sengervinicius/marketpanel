@@ -129,7 +129,7 @@ const LS_CHART_TICKER = 'chartTicker';
 export default function App() {
   const { data, loading, isRefreshing, lastUpdated, error: feedError, endpointErrors } = useMarketData();
   const { user, token, subscription, startCheckout, logout, authReady, openBillingPortal, refreshSubscription, restorePurchases, billingPlatform } = useAuth();
-  const { settings, loaded: settingsLoaded, updateLayout, acceptTerms } = useSettings();
+  const { settings, loaded: settingsLoaded, updateLayout, resetToDefaults, acceptTerms } = useSettings();
 
   // ── Boot sequence ────────────────────────────────────────────────────────
   const { isReady: bootReady } = useBootSequence({ authReady, user, settingsLoaded });
@@ -1228,17 +1228,22 @@ export default function App() {
                   <span>EDITING LAYOUT</span>
                   <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>Use arrows to move panels. Drag borders to resize.</span>
                   <div style={{ flex: 1 }} />
-                  <button className="btn" onClick={() => {
-                    updateLayout({
-                      desktopRows: [
-                        ['charts',       'usEquities',    'globalIndices'],
-                        ['forex',        'commodities',   'crypto',  'brazilB3'],
-                        ['debt',         'news',          'watchlist'],
-                      ],
-                    });
-                    // Reset column sizes
+                  <button className="btn" onClick={async () => {
+                    // RESET DEFAULT — apply the CURRENT client defaults (layout
+                    // rows, home_grid_v2 grid, per-panel default symbol lists
+                    // incl. commodities futures) and AWAIT the server write.
+                    // The old handler pushed a stale hardcoded layout through
+                    // the 500ms-debounced updateLayout and reloaded immediately,
+                    // so the POST never fired and the reload restored the
+                    // user's old server-saved layout/panel symbols.
                     try {
-                      Object.keys(localStorage).filter(k => k.startsWith('colSizes_') || k.startsWith('rowFlexSizes_')).forEach(k => localStorage.removeItem(k));
+                      await resetToDefaults();
+                    } catch (e) { swallow(e, 'App.resetDefaults.persist'); }
+                    // Reset column/row sizes + visibility overrides
+                    try {
+                      Object.keys(localStorage)
+                        .filter(k => k.startsWith('colSizes_') || k.startsWith('rowFlexSizes_') || k === 'panelVisible_v1')
+                        .forEach(k => localStorage.removeItem(k));
                     } catch (e) { swallow(e, 'App.ls.clear_layout_sizes'); }
                     window.location.reload();
                   }} style={{

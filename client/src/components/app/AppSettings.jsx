@@ -3,7 +3,7 @@ import { useSettings } from '../../context/SettingsContext';
 import { useAlerts } from '../../context/AlertsContext';
 import { useFeatureFlags } from '../../hooks/useFeatureFlags';
 import { useToast } from '../../context/ToastContext';
-import { PANEL_DEFINITIONS, DEFAULT_LAYOUT } from '../../config/panels';
+import { PANEL_DEFINITIONS } from '../../config/panels';
 import UserAvatar from '../common/UserAvatar';
 // Perf (#bundle): VaultPanel is heavy and already lazy in lazyPanels —
 // importing it statically here dragged it into the eager index chunk.
@@ -68,7 +68,7 @@ export function SettingsSection({ label }) {
 
 // ── Settings Drawer ─────────────────────────────────────────────────────────
 export function SettingsDrawer({ panelVisible, togglePanel, onClose, mobile }) {
-  const { settings, updateSettings, resetTour } = useSettings();
+  const { settings, updateSettings, resetTour, resetToDefaults } = useSettings();
   const [resettingLayout, setResettingLayout] = useState(false);
 
   // Default Start Tab only makes sense when tab navigation is actually used.
@@ -131,13 +131,14 @@ export function SettingsDrawer({ panelVisible, togglePanel, onClose, mobile }) {
     if (!ok) return;
     setResettingLayout(true);
     try {
-      await safeUpdate(
-        { layout: DEFAULT_LAYOUT },
-        { successMessage: 'Layout reset to defaults' }
-      );
-    } catch (_) {
-      // safeUpdate already showed an error toast; swallow re-throw
-      // to keep button state recoverable.
+      // resetToDefaults applies the CURRENT client defaults (layout rows,
+      // home_grid_v2 grid, per-panel default symbol lists) and persists
+      // immediately — see SettingsContext / config/resetDefaults.js.
+      await resetToDefaults();
+      try { localStorage.removeItem('panelVisible_v1'); } catch (_) { /* non-critical */ }
+      showToast?.('Layout reset to defaults', 'success');
+    } catch (e) {
+      showToast?.(`Couldn't save: ${e?.message || 'network error'} — try again`, 'error');
     } finally {
       setResettingLayout(false);
     }

@@ -10,6 +10,8 @@
  *   getByCategory(cat)    — Get markets by category
  *   getForQuery(query)    — Get markets relevant to a user query (for AI injection)
  *   getCategories()       — Get available categories with counts
+ *   getForYouMarkets(opts) — Finance/macro-relevance ranked feed (sports excluded)
+ *   isSportsMarket(m)      — True when a market is sports (category or title)
  *   refresh()             — Force immediate refresh
  */
 
@@ -38,7 +40,88 @@ const CATEGORIES = {
   'geopolitics': { label: 'Geopolitics',     icon: '🌍', priority: 7 },
   'tech':        { label: 'Tech',            icon: '🤖', priority: 8 },
   'other':       { label: 'Other',           icon: '📌', priority: 9 },
+  // Sports live ONLY behind their own explicit tab — they are excluded from
+  // FOR YOU / default feeds (see isSportsMarket / getForYouMarkets below).
+  'sports':      { label: 'Sports',          icon: '🏟️', priority: 10 },
 };
+
+// ── Finance/macro relevance model (FOR YOU ranking) ─────────────────────────
+//
+// The default "FOR YOU" feed is a *market terminal* feed: it must surface
+// fed/rates/inflation/macro/commodities/geopolitics markets, never the
+// World Cup. Two pieces:
+//   isSportsMarket()       — hard exclusion (category OR title keywords, so
+//                            sports misclassified as 'other' are still caught)
+//   scoreFinanceRelevance() — category base weight + finance keyword hits
+const SPORTS_TITLE_RE = new RegExp(
+  [
+    'world\\s*cup', 'fifa', 'uefa', 'premier\\s*league', 'champions\\s*league',
+    'la\\s*liga', 'serie\\s*a', 'bundesliga', 'ligue\\s*1', 'soccer', 'football',
+    'nfl', 'nba', 'mlb', 'nhl', 'wnba', 'ncaa', 'march\\s*madness',
+    'super\\s*bowl', 'superbowl', 'stanley\\s*cup', 'world\\s*series',
+    'tennis', 'wimbledon', 'grand\\s*slam', 'olympic', 'olympics',
+    'ufc', 'mma', 'boxing', 'formula\\s*1', 'grand\\s*prix', 'nascar',
+    'pga', 'golf', 'cricket', 'rugby', 'heisman', "ballon\\s*d'or",
+    'basketball', 'baseball', 'touchdown', 'playoffs?', 'esports',
+  ].map(k => `\\b(?:${k})\\b`).join('|'),
+  'i',
+);
+
+/**
+ * True when a market is a sports market — by category (providers classify
+ * known sports tags/tickers) or by title keywords (catches sports markets
+ * that fell through to 'other').
+ * @param {Object} m normalized market
+ * @returns {boolean}
+ */
+function isSportsMarket(m) {
+  if (!m) return false;
+  if (m.category === 'sports') return true;
+  return SPORTS_TITLE_RE.test(String(m.title || ''));
+}
+
+// Category → base finance/macro relevance weight.
+const CATEGORY_FINANCE_WEIGHT = {
+  'fed-rates':   10,
+  'inflation':    9,
+  'economy':      8,
+  'markets':      8,
+  'crypto':       6,
+  'geopolitics':  5,
+  'politics':     4,
+  'tech':         4,
+  'other':        0,
+};
+
+// Finance keyword boosts applied to the market title.
+const FINANCE_KEYWORDS = [
+  { re: /(fed|fomc|powell|rate\s*(?:cut|hike)s?|interest\s*rates?|central\s*bank|ecb|boj|boe|copom|selic|monetary\s*policy)/i, weight: 5 },
+  { re: /(inflation|cpi|pce|deflation)/i, weight: 5 },
+  { re: /(gdp|recession|unemployment|payrolls?|nonfarm|jobs\s*report)/i, weight: 4 },
+  { re: /(oil|crude|brent|wti|opec|natural\s*gas|gold)/i, weight: 4 },
+  { re: /(tariffs?|trade\s*war|sanctions?)/i, weight: 4 },
+  { re: /(treasur(?:y|ies)|yields?|s&p|sp500|nasdaq|dow|stock\s*market|ipo)/i, weight: 4 },
+  { re: /(elections?|president(?:ial)?|congress|senate|shutdown|debt\s*ceiling)/i, weight: 3 },
+  { re: /(currenc(?:y|ies)|dollar|euro|yen|yuan|exchange\s*rate|devaluation)/i, weight: 3 },
+  { re: /(crypto\s*etf|etf\s*approval|bitcoin|btc|ethereum|eth|stablecoin)/i, weight: 3 },
+];
+
+/**
+ * Finance/macro relevance score for a market. Sports score -Infinity so
+ * they can never outrank anything even if a caller forgets to filter.
+ * @param {Object} m normalized market
+ * @returns {number}
+ */
+function scoreFinanceRelevance(m) {
+  if (!m) return 0;
+  if (isSportsMarket(m)) return -Infinity;
+  let score = CATEGORY_FINANCE_WEIGHT[m.category] || 0;
+  const title = String(m.title || '');
+  for (const { re, weight } of FINANCE_KEYWORDS) {
+    if (re.test(title)) score += weight;
+  }
+  return score;
+}
 
 // ── Query → category relevance mapping (for AI context injection) ───────────
 const QUERY_CATEGORY_MAP = [
@@ -158,11 +241,34 @@ async function ensureFresh() {
  * @param {string} opts.source - Filter by source ('kalshi' or 'polymarket')
  * @returns {Array}
  */
-function getTopMarkets({ limit = 20, category, source } = {}) {
+function getTopMarkets({ limit = 20, category, source, includeSports = false } = {}) {
   let results = _markets;
-  if (category) results = results.filter(m => m.category === category);
+  if (category) {
+    results = results.filter(m => m.category === category);
+  } else if (!includeSports) {
+    // No explicit category → default/ALL feed: sports are only visible
+    // behind the explicit SPORTS tab (category === 'sports'), never here.
+    results = results.filter(m => !isSportsMarket(m));
+  }
   if (source) results = results.filter(m => m.source === source);
   return results.slice(0, limit);
+}
+
+/**
+ * FOR YOU default feed — markets ranked by finance/macro relevance
+ * (category weight + finance keyword hits), volume as tie-breaker.
+ * Sports markets are hard-excluded.
+ * @param {Object} opts
+ * @param {number} opts.limit - Max results (default 8)
+ * @returns {Array}
+ */
+function getForYouMarkets({ limit = 8 } = {}) {
+  return _markets
+    .filter(m => !isSportsMarket(m))
+    .map(m => ({ m, score: scoreFinanceRelevance(m) }))
+    .sort((a, b) => (b.score - a.score) || ((b.m.volume24h || 0) - (a.m.volume24h || 0)))
+    .slice(0, Math.max(1, limit))
+    .map(x => x.m);
 }
 
 /**
@@ -187,9 +293,9 @@ function getForQuery(query) {
     }
   }
 
-  // If no specific category matched, return top markets across all categories
+  // If no specific category matched, return top non-sports markets
   if (relevantCats.size === 0) {
-    return _markets.slice(0, 5);
+    return _markets.filter(m => !isSportsMarket(m)).slice(0, 5);
   }
 
   // Get markets from relevant categories, sorted by volume
@@ -267,15 +373,36 @@ function getSummary() {
   };
 }
 
+/**
+ * TEST-ONLY seam: replace the in-memory market cache with a fixture list
+ * and mark it fresh so ensureFresh() doesn't hit the network. Never call
+ * from production code.
+ * @param {Array} markets
+ */
+function __setMarketsForTest(markets) {
+  _markets = Array.isArray(markets) ? [...markets] : [];
+  _byCategory = {};
+  for (const m of _markets) {
+    const cat = m.category || 'other';
+    if (!_byCategory[cat]) _byCategory[cat] = [];
+    _byCategory[cat].push(m);
+  }
+  _lastRefresh = Date.now();
+}
+
 module.exports = {
   init,
   stop,
   refresh,
   getTopMarkets,
+  getForYouMarkets,
   getByCategory,
   getForQuery,
   getCategories,
   formatForAI,
   getSummary,
   ensureFresh,
+  isSportsMarket,
+  scoreFinanceRelevance,
+  __setMarketsForTest,
 };

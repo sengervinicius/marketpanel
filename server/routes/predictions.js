@@ -126,7 +126,12 @@ router.get('/for-you', async (req, res) => {
       } catch { /* non-critical */ }
     }
 
-    // 3. Build personalized feed
+    // 3. Build personalized feed.
+    // FOR YOU is a finance/macro feed — sports markets are NEVER included
+    // here (they live only behind the explicit SPORTS category tab). The
+    // category loop below only pulls finance categories, and every list is
+    // additionally passed through aggregator.isSportsMarket as a hard filter
+    // so a sports market misclassified as 'other'/'politics' can't leak in.
     let personalizedMarkets = [];
     const seenIds = new Set();
 
@@ -145,6 +150,7 @@ router.get('/for-you', async (req, res) => {
         const catMarkets = aggregator.getTopMarkets({ limit: catLimit + 3, category: cat });
 
         for (const m of catMarkets) {
+          if (aggregator.isSportsMarket(m)) continue; // never in FOR YOU
           const key = `${m.source}-${m.id}`;
           if (!seenIds.has(key)) {
             seenIds.add(key);
@@ -154,15 +160,20 @@ router.get('/for-you', async (req, res) => {
       }
     }
 
-    // 4. If we have fewer than limit, pad with top overall markets
+    // 4. If we have fewer than limit, pad with finance/macro-relevant
+    // markets (fed, rates, inflation, CPI, GDP, recession, oil, tariffs,
+    // elections, central banks, currencies, crypto ETFs...) ranked by
+    // aggregator.getForYouMarkets — NOT raw top-volume, which used to
+    // surface World Cup/sports markets for users with no profile.
     if (personalizedMarkets.length < limit) {
-      const allMarkets = aggregator.getTopMarkets({ limit: limit * 2 });
-      for (const m of allMarkets) {
+      const financeMarkets = aggregator.getForYouMarkets({ limit: limit * 2 });
+      for (const m of financeMarkets) {
         if (personalizedMarkets.length >= limit) break;
+        if (aggregator.isSportsMarket(m)) continue; // belt & braces
         const key = `${m.source}-${m.id}`;
         if (!seenIds.has(key)) {
           seenIds.add(key);
-          personalizedMarkets.push({ ...m, _reason: 'trending' });
+          personalizedMarkets.push({ ...m, _reason: 'macro' });
         }
       }
     }

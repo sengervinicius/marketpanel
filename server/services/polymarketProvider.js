@@ -43,6 +43,20 @@ const TAG_CATEGORY_MAP = {
   'recession': 'economy',
   'gdp':     'economy',
   'jobs':    'economy',
+  // Sports — classified into their own category so the terminal can keep
+  // them behind an explicit SPORTS tab (never in FOR YOU / default feeds).
+  'sports':     'sports',
+  'soccer':     'sports',
+  'football':   'sports',
+  'nfl':        'sports',
+  'nba':        'sports',
+  'mlb':        'sports',
+  'nhl':        'sports',
+  'tennis':     'sports',
+  'olympics':   'sports',
+  'world-cup':  'sports',
+  'esports':    'sports',
+  'ufc':        'sports',
 };
 
 /**
@@ -68,6 +82,12 @@ function classifyMarket(tags, title) {
     'war': 'geopolitics', 'ukraine': 'geopolitics', 'china': 'geopolitics', 'tariff': 'geopolitics', 'nato': 'geopolitics',
     's&p': 'markets', 'nasdaq': 'markets', 'dow': 'markets', 'stock': 'markets', 'ipo': 'markets',
     'ai': 'tech', 'openai': 'tech', 'apple': 'tech', 'google': 'tech', 'tesla': 'tech',
+    // Sports — checked LAST so finance keywords always win on mixed titles.
+    'world cup': 'sports', 'fifa': 'sports', 'uefa': 'sports', 'premier league': 'sports',
+    'champions league': 'sports', 'soccer': 'sports', 'football': 'sports',
+    'super bowl': 'sports', 'nfl': 'sports', 'nba': 'sports', 'mlb': 'sports', 'nhl': 'sports',
+    'tennis': 'sports', 'wimbledon': 'sports', 'olympic': 'sports', 'ufc': 'sports',
+    'grand prix': 'sports', 'nascar': 'sports', 'pga': 'sports',
   };
 
   for (const [keyword, category] of Object.entries(keywordMap)) {
