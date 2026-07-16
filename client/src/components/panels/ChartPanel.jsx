@@ -31,14 +31,19 @@ const LS_KEY = 'chartGrid_v3';
 const MAX = 12;
 const CHART_REFRESH_INTERVAL = 60_000;
 
-// H0 adaptive grid: pick cols×rows from the number of rendered tiles
-// (charts + the single trailing add-tile when below MAX).
-function gridDims(tileCount) {
-  if (tileCount <= 2) return { cols: 2, rows: 1 };
-  if (tileCount <= 4) return { cols: 2, rows: 2 };
-  if (tileCount <= 6) return { cols: 3, rows: 2 };
-  if (tileCount <= 9) return { cols: 3, rows: 3 };
-  return { cols: 4, rows: 3 };
+// H0 adaptive grid, reworked (user report: “2 charts → blank band below”):
+// the trailing add-tile used to count as a full tile, so 2 charts produced a
+// 2×2 grid whose entire second row was the near-invisible add slot plus a
+// blank cell — a black band under the charts. Now the CHART count alone
+// drives the grid: cols from count, rows = ceil(charts / cols), and every
+// row is 1fr so tiles always split the full panel height. The add-tile only
+// fills leftover cells in the last row (spanning all of them) and never
+// creates a row of its own; when the last row is exactly full the add
+// affordance lives in the header (+ ADD button, drag-drop still works).
+function gridDims(chartCount) {
+  const n = Math.max(1, Math.min(MAX, chartCount));
+  const cols = n <= 1 ? 1 : n <= 4 ? 2 : n <= 9 ? 3 : 4;
+  return { cols, rows: Math.ceil(n / cols) };
 }
 
 const RANGES = [
@@ -529,11 +534,12 @@ const MiniChart = memo(function MiniChart({ ticker, index, onRemove, onReplace, 
   );
 });
 
-function EmptySlot({ index, onAdd, onSwap }) {
+function EmptySlot({ index, span = 1, onAdd, onSwap }) {
   const [isDragOver, setIsDragOver] = useState(false);
   return (
     <div
       className={`cp-empty-slot${isDragOver ? ' cp-empty-slot--dragover' : ''}`}
+      style={span > 1 ? { gridColumn: `span ${span}` } : undefined}
       onDragOver={e  => { e.preventDefault(); e.stopPropagation(); if (!isDragOver) setIsDragOver(true); }}
       onDragEnter={e => { e.preventDefault(); e.stopPropagation(); setIsDragOver(true); }}
       onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget)) setIsDragOver(false); }}
@@ -760,10 +766,40 @@ function ChartPanel({ ticker: externalTicker, onGridChange, mobile = false }) {
   return (
     <div className="cp-panel" {...outerDrop}>
       {/* H1.1 shared chrome (desktop; mobile header below keeps its own markup) */}
-      <PanelChrome title="CHARTS" subtitle={`${tickers.length}/${MAX} // drag to reorder · drop to add`} />
+      <PanelChrome
+        title="CHARTS"
+        subtitle={`${tickers.length}/${MAX} // drag to reorder · drop to add`}
+        actions={tickers.length < MAX ? (
+          <>
+            {showAddInput && (
+              <input
+                value={addInput}
+                onChange={e => setAddInput(e.target.value.toUpperCase())}
+                onKeyDown={e => { if (e.key === 'Enter' && addInput.trim()) { addTicker(addInput.trim()); setAddInput(''); setShowAddInput(false); } }}
+                placeholder="TICKER"
+                className="cp-header-add-input"
+                autoFocus
+              />
+            )}
+            <button
+              onClick={() => {
+                if (showAddInput && addInput.trim()) { addTicker(addInput.trim()); setAddInput(''); }
+                setShowAddInput(v => !v);
+              }}
+              className={`cp-add-btn${showAddInput ? ' cp-add-btn--open' : ''}`}
+            >+ ADD</button>
+          </>
+        ) : null}
+      />
       {(() => {
-        const showAddTile = tickers.length < MAX;
-        const { cols, rows } = gridDims(tickers.length + (showAddTile ? 1 : 0));
+        const { cols, rows } = gridDims(tickers.length);
+        // Cells left over in the last row after all charts are placed. The
+        // add-tile stretches across ALL of them so the grid never shows a
+        // blank cell; if there are none (count divides evenly, or MAX) the
+        // add-tile is omitted entirely — the header + ADD button and
+        // drag-drop remain as add entry points, and no extra row is created.
+        const leftover = tickers.length % cols === 0 ? 0 : cols - (tickers.length % cols);
+        const showAddTile = tickers.length < MAX && leftover > 0;
         return (
           <div
             className="cp-grid cp-grid--desktop"
@@ -772,7 +808,7 @@ function ChartPanel({ ticker: externalTicker, onGridChange, mobile = false }) {
             {tickers.map((t, i) => (
               <MiniChart key={t} ticker={t} index={i} onRemove={removeTicker} onReplace={replaceTicker} onSwap={swapTickers} />
             ))}
-            {showAddTile && <EmptySlot index={tickers.length} onAdd={addTicker} onSwap={swapTickers} />}
+            {showAddTile && <EmptySlot index={tickers.length} span={leftover} onAdd={addTicker} onSwap={swapTickers} />}
           </div>
         );
       })()}
