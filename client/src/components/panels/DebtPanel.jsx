@@ -16,9 +16,10 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo, memo } from 'react';
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid,
+  ComposedChart, Line, Area, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer,
 } from 'recharts';
+import { TOKEN_HEX } from '../../utils/tokenHex';
 import { apiFetch } from '../../utils/api';
 import { fmtCompactPct } from '../../utils/format';
 import { swallow } from '../../utils/swallow';
@@ -246,6 +247,9 @@ function RatesTape({ tape }) {
 function MiniCurve({ label, curve, color }) {
   const points = curve?.points || [];
   const anchorPt = points.find(p => p.tenor === '10Y') || points[points.length - 1] || null;
+  // Unique per-instance gradient id — 4 minis render at once and SVG ids
+  // are document-global.
+  const gradientId = `dpMiniFill-${String(label).replace(/[^a-zA-Z0-9_-]/g, '')}`;
   return (
     <div className="dp-mini">
       <div className="dp-mini-head">
@@ -257,26 +261,46 @@ function MiniCurve({ label, curve, color }) {
       <div className="dp-mini-chart">
         {points.length >= 2 ? (
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={points} margin={{ top: 3, right: 3, bottom: 2, left: 3 }}>
+            {/* Same terminal-grade treatment as the main curve: 1.5px
+                hairline, no dots, subtle gradient wash (per-country hex —
+                SVG-safe), dark mono tooltip. */}
+            <ComposedChart data={points} margin={{ top: 3, right: 3, bottom: 2, left: 3 }}>
+              <defs>
+                <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={color} stopOpacity={0.12} />
+                  <stop offset="100%" stopColor={color} stopOpacity={0} />
+                </linearGradient>
+              </defs>
               <XAxis dataKey="tenor" hide />
               <YAxis hide domain={['auto', 'auto']} />
               <Tooltip
                 contentStyle={{
-                  background: 'var(--bg-surface)',
+                  background: TOKEN_HEX.bgTooltip,
                   border: '1px solid var(--border-strong)',
                   borderRadius: 3,
                   fontSize: 9,
                   fontFamily: 'var(--font-mono)',
                   padding: '2px 6px',
                 }}
+                labelStyle={{ color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}
+                itemStyle={{ color }}
                 formatter={v => [v != null ? v.toFixed(2) + '%' : '--', 'Yield']}
+              />
+              <Area
+                type="monotone" dataKey="yield"
+                stroke="none" fill={`url(#${gradientId})`}
+                isAnimationActive={false}
+                activeDot={false}
+                tooltipType="none"
               />
               <Line
                 type="monotone" dataKey="yield"
                 stroke={color} strokeWidth={1.5}
-                dot={false} isAnimationActive={false}
+                dot={false}
+                activeDot={{ r: 2, fill: color, strokeWidth: 0 }}
+                isAnimationActive={false}
               />
-            </LineChart>
+            </ComposedChart>
           </ResponsiveContainer>
         ) : (
           <div className="dp-mini-empty">NO DATA</div>
@@ -518,7 +542,9 @@ function DebtPanel() {
   // ---- Derived values ----
   const countryMeta = availableCountries.find(c => c.code === selectedCountry);
   const chartData   = curve?.points || [];
-  const lineColor   = countryMeta?.color || COUNTRY_COLORS[selectedCountry] || '#4488ff';
+  // H2b restyle: the main curve now renders in the terminal accent
+  // (TOKEN_HEX.accent) rather than the per-country palette — COUNTRY_COLORS
+  // still drives the CURVES mini-multiples and regional views.
   const TENORS      = ['2Y', '5Y', '10Y', '30Y'];
 
   // ---- Regime & key spreads (Phase 8.4) ----
@@ -703,40 +729,62 @@ function DebtPanel() {
               </div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartData} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
-                  <CartesianGrid strokeDasharray="2 4" stroke="var(--border-subtle)" />
+                {/* H2b restyle: terminal-grade curve — accent hairline
+                    (TOKEN_HEX: SVG can't resolve CSS vars), no dots,
+                    subtle gradient wash under the curve, faint mono ticks,
+                    horizontal-only dashed grid. Data/interactions unchanged. */}
+                <ComposedChart data={chartData} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
+                  <defs>
+                    <linearGradient id="dpCurveFill" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={TOKEN_HEX.accent} stopOpacity={0.12} />
+                      <stop offset="100%" stopColor={TOKEN_HEX.accent} stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="2 4" stroke={TOKEN_HEX.borderSubtle} vertical={false} />
                   <XAxis
                     dataKey="tenor"
-                    tick={{ fill: 'var(--text-faint)', fontSize: 8, fontFamily: 'var(--font-ui)', angle: -45, textAnchor: 'end' }}
-                    axisLine={{ stroke: 'var(--border-default)' }}
+                    tick={{ fill: TOKEN_HEX.textFaint, fontSize: 9, fontFamily: 'var(--font-mono)', angle: -45, textAnchor: 'end' }}
+                    axisLine={false}
                     tickLine={false}
                     height={30}
                   />
                   <YAxis
-                    tick={{ fill: 'var(--text-faint)', fontSize: 8, fontFamily: 'var(--font-mono)' }}
+                    tick={{ fill: TOKEN_HEX.textFaint, fontSize: 9, fontFamily: 'var(--font-mono)' }}
                     domain={['auto', 'auto']}
                     tickFormatter={v => fmtCompactPct(v, 1)}
                     width={36}
-                    axisLine={{ stroke: 'var(--border-default)' }}
+                    axisLine={false}
+                    tickLine={false}
                   />
                   <Tooltip
                     contentStyle={{
-                      background: 'var(--bg-surface)',
+                      background: TOKEN_HEX.bgTooltip,
                       border: '1px solid var(--border-strong)',
                       borderRadius: 3,
                       fontSize: 10,
                       fontFamily: 'var(--font-mono)',
+                      padding: '4px 8px',
                     }}
+                    labelStyle={{ color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}
+                    itemStyle={{ color: TOKEN_HEX.accent }}
+                    cursor={{ stroke: 'var(--border-strong)', strokeDasharray: '2 4' }}
                     formatter={v => [v != null ? v.toFixed(2) + '%' : '--', 'Yield']}
+                  />
+                  <Area
+                    type="monotone" dataKey="yield"
+                    stroke="none" fill="url(#dpCurveFill)"
+                    isAnimationActive={false}
+                    activeDot={false}
+                    tooltipType="none"
                   />
                   <Line
                     type="monotone" dataKey="yield" name="Yield"
-                    stroke={lineColor} strokeWidth={2}
-                    dot={{ fill: lineColor, r: 3 }}
-                    activeDot={{ r: 4 }}
+                    stroke={TOKEN_HEX.accent} strokeWidth={1.5}
+                    dot={false}
+                    activeDot={{ r: 2.5, fill: TOKEN_HEX.accent, strokeWidth: 0 }}
                     isAnimationActive={false}
                   />
-                </LineChart>
+                </ComposedChart>
               </ResponsiveContainer>
             )}
           </div>
