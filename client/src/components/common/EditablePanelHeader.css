@@ -20,15 +20,10 @@
   font-family: var(--font-ui);
 }
 
+/* H1.1: typography lives in .panel-chrome-title (PanelChrome.css);
+   only the editing affordances stay here. */
 .eph-title {
-  font-family: var(--font-family-mono);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-bold);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--color-text-primary);
   user-select: none;
-  line-height: 1;
   cursor: pointer;
 }
 

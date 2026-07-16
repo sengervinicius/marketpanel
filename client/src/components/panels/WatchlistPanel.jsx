@@ -33,6 +33,7 @@ import { useTickerPrice } from '../../context/PriceContext';
 import { apiFetch, apiJSON } from '../../utils/api';
 import EmptyState from '../common/EmptyState';
 import PanelShell from '../common/PanelShell';
+import PanelChrome from '../common/PanelChrome';
 import PositionEditor from '../common/PositionEditor';
 import ShareModal from '../common/ShareModal';
 import { fmt, fmtPct, fmtCompact, computeSummary, inferAssetType } from '../../utils/portfolioAnalytics';
@@ -359,38 +360,37 @@ function WatchlistPanel({ onTickerClick }) {
 
   return (
     <PanelShell onDropTicker={handleDropTicker}>
-      {/* Header */}
-      <div className="flex-row wp-header">
-        <span className="wp-header-title">WATCHLIST</span>
-        <span className="wp-header-count">{positions.length}</span>
-        {anyTracked && (
-          <span className="wp-header-tracked" title="Positions with qty + entry">
-            · {trackedPositions.length} tracked
-          </span>
+      {/* Header — H1.1 shared chrome; every control lives in the actions slot */}
+      <PanelChrome
+        title="WATCHLIST"
+        count={positions.length}
+        subtitle={anyTracked ? `${trackedPositions.length} tracked` : null}
+        status={<SyncBadge syncStatus={syncStatus} onRetry={retrySync} />}
+        actions={(
+          <>
+            {/* Sort toggle */}
+            <div className="wp-sort-group" role="tablist">
+              {sortBtn('default', 'ORDER')}
+              {sortBtn('heat',    'HEAT')}
+              {anyTracked && sortBtn('pnl', 'P&L')}
+            </div>
+            {/* AI Health Check — only when tracked positions exist */}
+            {anyTracked && (
+              <button
+                className="wp-ai-btn"
+                onClick={handleAIHealthCheck}
+                disabled={aiLoading}
+                title="AI health check on tracked positions"
+              >{aiLoading ? 'ANALYZING…' : '◆ AI HEALTH'}</button>
+            )}
+            <button className="btn wp-add-btn" onClick={() => setShareOpen(true)} title="Share">SHARE</button>
+            <button
+              className={`btn wp-add-btn ${showAdd ? 'wp-add-btn-active' : ''}`}
+              onClick={() => setShowAdd(s => !s)}
+            >+ ADD</button>
+          </>
         )}
-        <SyncBadge syncStatus={syncStatus} onRetry={retrySync} />
-        <div className="wp-spacer" />
-        {/* Sort toggle */}
-        <div className="wp-sort-group" role="tablist">
-          {sortBtn('default', 'ORDER')}
-          {sortBtn('heat',    'HEAT')}
-          {anyTracked && sortBtn('pnl', 'P&L')}
-        </div>
-        {/* AI Health Check — only when tracked positions exist */}
-        {anyTracked && (
-          <button
-            className="wp-ai-btn"
-            onClick={handleAIHealthCheck}
-            disabled={aiLoading}
-            title="AI health check on tracked positions"
-          >{aiLoading ? 'ANALYZING…' : '◆ AI HEALTH'}</button>
-        )}
-        <button className="btn wp-add-btn" onClick={() => setShareOpen(true)} title="Share">SHARE</button>
-        <button
-          className={`btn wp-add-btn ${showAdd ? 'wp-add-btn-active' : ''}`}
-          onClick={() => setShowAdd(s => !s)}
-        >+ ADD</button>
-      </div>
+      />
 
       {/* Quick-add input */}
       {showAdd && (

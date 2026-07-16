@@ -24,6 +24,7 @@ import { swallow } from '../../utils/swallow';
 // whether the price is actually live, stale, or frozen — without
 // having to trust the price alone.
 import FreshnessDot from '../common/FreshnessDot';
+import PanelChrome from '../common/PanelChrome';
 import './ChartPanel.css';
 
 const LS_KEY = 'chartGrid_v3';
@@ -758,10 +759,8 @@ function ChartPanel({ ticker: externalTicker, onGridChange, mobile = false }) {
 
   return (
     <div className="cp-panel" {...outerDrop}>
-      <div className="cp-header">
-        <span className="cp-title">CHARTS</span>
-        <span className="cp-subtitle">{tickers.length}/{MAX} // drag to reorder · drop to add</span>
-      </div>
+      {/* H1.1 shared chrome (desktop; mobile header below keeps its own markup) */}
+      <PanelChrome title="CHARTS" subtitle={`${tickers.length}/${MAX} // drag to reorder · drop to add`} />
       {(() => {
         const showAddTile = tickers.length < MAX;
         const { cols, rows } = gridDims(tickers.length + (showAddTile ? 1 : 0));

@@ -23,7 +23,7 @@ import { apiFetch } from '../../utils/api';
 import { fmtCompactPct } from '../../utils/format';
 import { swallow } from '../../utils/swallow';
 import IntegrityBadge from '../shared/IntegrityBadge';
-import { PanelHeader } from './_shared';
+import PanelChrome from '../common/PanelChrome';
 import './DebtPanel.css';
 
 // Which countryCode -> live curve key in /api/yield-curves response
@@ -491,7 +491,7 @@ function DebtPanel() {
 
   return (
     <div className="dp-panel">
-      <PanelHeader
+      <PanelChrome
         title="YIELDS"
         updatedAt={lastUpdated}
         source={curveSource || 'Multi-source'}

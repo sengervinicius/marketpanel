@@ -8,6 +8,8 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { useDrag } from '../../context/DragContext';
 import SubsectionContextMenu from './SubsectionContextMenu';
 import FreshnessDot from '../panels/_shared/FreshnessDot';
+// H1.1: title typography comes from the shared PanelChrome class.
+import './PanelChrome.css';
 import './EditablePanelHeader.css';
 
 export default function EditablePanelHeader({
@@ -99,7 +101,7 @@ export default function EditablePanelHeader({
         {editingTitle ? (
           <input ref={titleRef} className="eph-title-input" value={titleVal} onChange={e => setTitleVal(e.target.value)} onBlur={saveTitle} onKeyDown={e => { if (e.key === 'Enter') saveTitle(); if (e.key === 'Escape') setEditingTitle(false); }} maxLength={50} />
         ) : (
-          <span className="eph-title" onClick={() => { setEditingTitle(true); setTitleVal(title); }} title="Click to rename · Right-click for sections">{title}</span>
+          <span className="eph-title panel-chrome-title" onClick={() => { setEditingTitle(true); setTitleVal(title); }} title="Click to rename · Right-click for sections">{title}</span>
         )}
         {subsections.map((sub, i) => (
           <span key={i}>
