@@ -19,10 +19,12 @@
 /* H1.1: header chrome moved to common/PanelChrome.css */
 
 /* ── Matrix (dense tabular) ─────────────────────────────────────────── */
+/* #UX-1: text columns use the shared UI face like PriceRow-based panels;
+   mono is reserved for numeric cells below (price / Δ / Δ%). */
 .fut-matrix {
   flex: 1;
   overflow-y: auto;
-  font-family: var(--font-mono);
+  font-family: var(--font-ui);
   min-height: 0;
 }
 
@@ -32,13 +34,15 @@
   /* region | contract name | kind-tag | state-dot | last | Δ | Δ% */
   grid-template-columns: 74px 1fr 56px 14px 76px 64px 60px;
   align-items: center;
-  padding: 3px 8px;
+  /* H1.3 shared density token — same vertical rhythm as PriceRow */
+  padding: var(--row-pad, 3px) 8px;
   gap: 4px;
 }
 
 .fut-matrix-head {
   color: var(--text-muted);
-  font-size: 10px;
+  font-family: var(--font-ui);
+  font-size: var(--font-xs);
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -52,7 +56,7 @@
 .fut-matrix-row {
   border-bottom: 1px solid var(--border-subtle);
   transition: background-color 100ms ease;
-  font-size: 11px;
+  font-size: var(--font-sm);
   cursor: pointer;
 }
 .fut-matrix-row:hover { background: var(--bg-hover); }
@@ -62,9 +66,10 @@
  * region keep it visually blank so the region label doesn't repeat — a
  * Bloomberg FX/FUT-style affordance. */
 .fut-col-region {
-  font-weight: 800;
-  font-size: 10px;
-  letter-spacing: 0.08em;
+  /* Matches PriceRow symbol column: UI face, bold-700 */
+  font-weight: 700;
+  font-size: var(--font-xs);
+  letter-spacing: 0.04em;
   color: var(--text-primary);
   white-space: nowrap;
   overflow: hidden;
@@ -74,8 +79,8 @@
 
 .fut-col-name {
   color: var(--text-primary);
-  font-size: 11px;
-  letter-spacing: 0.02em;
+  font-size: var(--font-sm);
+  letter-spacing: normal;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -113,18 +118,20 @@
 .fut-col-state.fut-state-prepre { background: #e8a020; }
 .fut-col-state.fut-state-closed { background: var(--text-faint); }
 
+/* Numeric cells: mono + tabular-nums, per the shared .price-cell
+   convention (App.css) used by every other data panel. */
 .fut-col-price,
 .fut-col-change,
 .fut-col-chgpct {
   text-align: right;
+  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
-  font-weight: 600;
   padding-right: 2px;
 }
 
-.fut-col-price     { color: var(--text-primary); }
-.fut-col-change    { font-size: 11px; }
-.fut-col-chgpct    { font-size: 11px; font-weight: 700; }
+.fut-col-price     { color: var(--text-primary); font-weight: var(--font-weight-normal); }
+.fut-col-change    { font-size: var(--font-sm); font-weight: 600; }
+.fut-col-chgpct    { font-size: var(--font-sm); font-weight: 600; }
 
 .fut-change-pos,
 .fut-chgpct-pos   { color: var(--price-up, #16c784); }
