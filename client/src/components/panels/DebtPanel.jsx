@@ -199,6 +199,93 @@ function RegionalSnapshot({ data, loading }) {
   );
 }
 
+/* ---- US RATES TAPE (H2b item 1) ----
+ * Compact strip under the panel header: 10Y breakeven, 5y5y forward,
+ * 10Y real yield, HY OAS — from GET /api/debt/rates-tape (FRED, 30 min
+ * server cache). Degrades per-series to "—"; hides entirely when no
+ * series resolved.
+ */
+function fmtTapeVal(t) {
+  if (t.value == null) return '—';
+  return t.unit === 'bp' ? `${Math.round(t.value)}bp` : `${t.value.toFixed(2)}%`;
+}
+function fmtTapeChg(t) {
+  if (t.change1d == null) return null;
+  const sign = t.change1d > 0 ? '+' : '';
+  return t.unit === 'bp' ? `${sign}${Math.round(t.change1d)}` : `${sign}${t.change1d.toFixed(2)}`;
+}
+function RatesTape({ tape }) {
+  if (!tape || !tape.some(t => t.value != null)) return null;
+  return (
+    <div className="dp-tape" title="US rates tape — FRED, 30 min cache">
+      <span className="dp-tape-title">US RATES</span>
+      {tape.map(t => {
+        const chg = fmtTapeChg(t);
+        // HY OAS widening = risk-off (red); tightening = green.
+        // Other series get neutral change coloring (no good/bad read).
+        const chgColor = t.id === 'hyOas' && t.change1d != null
+          ? (t.change1d > 0 ? 'var(--price-down)' : t.change1d < 0 ? 'var(--price-up)' : 'var(--text-faint)')
+          : 'var(--text-secondary)';
+        return (
+          <span key={t.id} className="dp-tape-item" title={`${t.seriesId}${t.asOfDate ? ` · ${t.asOfDate}` : ''}`}>
+            <span className="dp-tape-label">{t.label}</span>
+            <span className="dp-tape-value">{fmtTapeVal(t)}</span>
+            {chg != null && <span className="dp-tape-chg" style={{ color: chgColor }}>{chg}</span>}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ---- CURVES small-multiples (H2b item 1) ----
+ * 2x2 mini-curves (US / EU / UK / BR-DI) from the same /api/yield-curves
+ * payload the CURVE view already loads — no extra fetch. EU is the ECB
+ * euro-area AAA curve (the panel's existing DE→EU mapping).
+ */
+function MiniCurve({ label, curve, color }) {
+  const points = curve?.points || [];
+  const anchorPt = points.find(p => p.tenor === '10Y') || points[points.length - 1] || null;
+  return (
+    <div className="dp-mini">
+      <div className="dp-mini-head">
+        <span className="dp-mini-label" style={{ color }}>{label}</span>
+        <span className="dp-mini-val">
+          {anchorPt ? `${anchorPt.tenor} ${anchorPt.yield.toFixed(2)}%` : '—'}
+        </span>
+      </div>
+      <div className="dp-mini-chart">
+        {points.length >= 2 ? (
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={points} margin={{ top: 3, right: 3, bottom: 2, left: 3 }}>
+              <XAxis dataKey="tenor" hide />
+              <YAxis hide domain={['auto', 'auto']} />
+              <Tooltip
+                contentStyle={{
+                  background: 'var(--bg-surface)',
+                  border: '1px solid var(--border-strong)',
+                  borderRadius: 3,
+                  fontSize: 9,
+                  fontFamily: 'var(--font-mono)',
+                  padding: '2px 6px',
+                }}
+                formatter={v => [v != null ? v.toFixed(2) + '%' : '--', 'Yield']}
+              />
+              <Line
+                type="monotone" dataKey="yield"
+                stroke={color} strokeWidth={1.5}
+                dot={false} isAnimationActive={false}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        ) : (
+          <div className="dp-mini-empty">NO DATA</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /* ---- Main panel ---- */
 function DebtPanel() {
   const [availableCountries, setAvailableCountries] = useState([]);
@@ -220,6 +307,17 @@ function DebtPanel() {
 
   // Persistent ref for live data (no re-render race)
   const liveDataRef   = useRef(null);
+
+  // H2b item 1 — US rates tape (fetch once; server caches 30 min)
+  const [tape, setTape] = useState(null);
+  useEffect(() => {
+    let alive = true;
+    apiFetch('/api/debt/rates-tape')
+      .then(r => (r.ok ? r.json() : null))
+      .then(j => { if (alive && j?.ok && Array.isArray(j.tape)) setTape(j.tape); })
+      .catch(e => swallow(e, 'panel.debt.rates_tape'));
+    return () => { alive = false; };
+  }, []);
 
   // ---- Load live yield-curve data + country list (once) ----
   useEffect(() => {
@@ -464,6 +562,16 @@ function DebtPanel() {
     return out;
   }, [chartData]);
 
+  // H2b item 1 — CURVES view small multiples (US / EU / UK / BR·DI)
+  const miniCurves = useMemo(() => ([
+    { code: 'US', label: 'US' },
+    { code: 'EU', label: 'EU' },
+    { code: 'UK', label: 'UK' },
+    { code: 'BR', label: 'BR · DI' },
+  ].map(m => ({ ...m, curve: liveReady ? getLiveCurve(m.code) : null }))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  ), [liveReady, getLiveCurve]);
+
   // ---- Retry handler ----
   const handleRetry = useCallback(() => {
     if (view === 'curve') loadCurve();
@@ -499,7 +607,7 @@ function DebtPanel() {
           <>
             {/* View toggle */}
             <div className="dp-view-group">
-              {[['curve','CURVE'],['regional','REGION']].map(([v, lbl]) => (
+              {[['curve','CURVE'],['curves','CURVES'],['regional','REGION']].map(([v, lbl]) => (
                 <button
                   className={`dp-view-btn${view === v ? ' dp-view-btn--active' : ''}`}
                   key={v}
@@ -539,6 +647,9 @@ function DebtPanel() {
           </>
         )}
       />
+
+      {/* ---- US rates tape (H2b) — always visible, hides itself when empty ---- */}
+      <RatesTape tape={tape} />
 
       {/* ---- Curve view ---- */}
       {view === 'curve' && (
@@ -662,6 +773,26 @@ function DebtPanel() {
                 <span className="dp-spreads-title">CREDIT SPREADS</span>
               </div>
               <div className="dp-state dp-state--empty dp-state--inline">NO CREDIT INDEX DATA</div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ---- Curves small-multiples view (H2b) ---- */}
+      {view === 'curves' && (
+        <div className="dp-curves">
+          {!liveReady ? (
+            <div className="dp-state dp-state--loading">LOADING CURVES...</div>
+          ) : (
+            <div className="dp-curves-grid">
+              {miniCurves.map(m => (
+                <MiniCurve
+                  key={m.code}
+                  label={m.label}
+                  curve={m.curve}
+                  color={COUNTRY_COLORS[m.code] || 'var(--accent)'}
+                />
+              ))}
             </div>
           )}
         </div>

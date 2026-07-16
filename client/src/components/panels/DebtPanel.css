@@ -499,3 +499,122 @@
   .dp-regime-spread:nth-child(n+4) { display: none; }
   .dp-regime-detail { display: none; }
 }
+
+/* ================================================================
+ * H2b item 1 — US RATES TAPE strip + CURVES small multiples
+ * ================================================================ */
+
+.dp-tape {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 3px 8px;
+  border-bottom: 1px solid var(--border-subtle);
+  font-family: var(--font-mono);
+  overflow-x: auto;
+  flex-shrink: 0;
+  scrollbar-width: none;
+}
+.dp-tape::-webkit-scrollbar { display: none; }
+
+.dp-tape-title {
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--text-muted, #8b93a7);
+  flex-shrink: 0;
+}
+
+.dp-tape-item {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.dp-tape-label {
+  font-size: 8.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--text-faint);
+  text-transform: uppercase;
+}
+
+.dp-tape-value {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.dp-tape-chg {
+  font-size: 9px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.dp-curves {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  padding: 6px;
+}
+
+.dp-curves-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 6px;
+  flex: 1;
+  min-height: 0;
+}
+
+.dp-mini {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border: 1px solid var(--border-subtle);
+  border-radius: 3px;
+  background: var(--bg-inset, rgba(255,255,255,0.02));
+  padding: 4px 6px;
+}
+
+.dp-mini-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
+  margin-bottom: 2px;
+}
+
+.dp-mini-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  font-family: var(--font-mono);
+}
+
+.dp-mini-val {
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.dp-mini-chart {
+  flex: 1;
+  min-height: 40px;
+}
+
+.dp-mini-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  font-size: 9px;
+  color: var(--text-faint);
+  font-family: var(--font-mono);
+  letter-spacing: 0.08em;
+}

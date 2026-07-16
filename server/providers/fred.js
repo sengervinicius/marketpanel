@@ -135,6 +135,83 @@ async function fetchMultiple(seriesIds) {
   return out;
 }
 
+/**
+ * Fetch the two most recent valid observations for a series.
+ * Returns { value, date, prev, prevDate, change } or null on failure.
+ * `change` is value - prev (same units as the series). Cached 30 min.
+ *
+ * Added for the H2b US RATES TAPE (/api/debt/rates-tape): the tape needs
+ * latest + 1-day change, which fetchSeries() (latest-only) cannot supply.
+ */
+async function fetchLatestPair(seriesId) {
+  const ck = `fred:pair:${seriesId}`;
+  const cached = cacheGet(ck);
+  if (cached) return cached;
+
+  try {
+    const obs = fredKey()
+      ? await fetchJsonObservations(seriesId)
+      : await fetchCsvObservations(seriesId);
+    if (!obs.length) return null;
+    const [latest, prev] = obs;
+    const out = {
+      value:    latest.value,
+      date:     latest.date,
+      prev:     prev ? prev.value : null,
+      prevDate: prev ? prev.date : null,
+      change:   prev ? parseFloat((latest.value - prev.value).toFixed(4)) : null,
+    };
+    cacheSet(ck, out, TTL_MS);
+    return out;
+  } catch (e) {
+    console.warn('[FRED]', `${seriesId} pair: ${e.message}`);
+    return null;
+  }
+}
+
+/** JSON API: observations sorted desc; return up to 2 most recent valid. */
+async function fetchJsonObservations(seriesId) {
+  const apiKey = fredKey();
+  const url = `${JSON_BASE}?series_id=${seriesId}&file_type=json&sort_order=desc&limit=10&api_key=${apiKey}`;
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
+  try {
+    const res = await fetch(url, { signal: ctrl.signal });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+    return (json?.observations ?? [])
+      .filter(o => o.value !== '.' && !isNaN(parseFloat(o.value)))
+      .slice(0, 2)
+      .map(o => ({ date: o.date, value: parseFloat(o.value) }));
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** CSV endpoint: parse from the tail; return up to 2 most recent valid. */
+async function fetchCsvObservations(seriesId) {
+  const url = `${CSV_BASE}?id=${seriesId}`;
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
+  try {
+    const res = await fetch(url, { signal: ctrl.signal });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const text = await res.text();
+    const lines = text.trim().split('\n').slice(1);
+    const out = [];
+    for (let i = lines.length - 1; i >= 0 && out.length < 2; i--) {
+      const parts = lines[i].split(',');
+      if (parts.length >= 2 && parts[1] !== '.' && parts[1].trim() !== '') {
+        const val = parseFloat(parts[1]);
+        if (!isNaN(val)) out.push({ date: parts[0], value: val });
+      }
+    }
+    return out;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 // ── High-level helpers ────────────────────────────────────────────────────────
 
 const US_CURVE_SERIES = {
@@ -240,6 +317,7 @@ async function getValue(seriesId) {
 
 module.exports = {
   fetchSeries,
+  fetchLatestPair,
   fetchMultiple,
   getUSTreasuryCurve,
   getCreditSpreads,
