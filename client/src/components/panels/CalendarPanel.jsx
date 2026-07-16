@@ -1,7 +1,7 @@
 /**
  * CalendarPanel.jsx — S4.11 Enhanced Economic & Earnings Calendar
- * Two-tab panel: ECONOMIC (macro events from Eulerpool + static fallback)
- *                EARNINGS (upcoming earnings from Eulerpool)
+ * Two-tab panel: MACRO    (Eulerpool → Finnhub economic → static fallback)
+ *                EARNINGS (Eulerpool → Finnhub /calendar/earnings)
  * AI-powered event previews via /api/search/event-preview.
  */
 import { useState, useCallback, useMemo, memo } from 'react';
@@ -280,7 +280,9 @@ function CalendarPanel() {
       {/* H2 W1.2 — shared home-panel chrome + canonical tab row */}
       <PanelChrome
         title="CALENDAR"
-        subtitle={tab === 'EARNINGS' ? 'EULERPOOL · UPCOMING PRINTS' : 'FOMC · CPI · NFP · COPOM'}
+        subtitle={tab === 'EARNINGS'
+          ? `${earningsResp?.source && earningsResp.source !== 'unavailable' ? earningsResp.source.toUpperCase() + ' · ' : ''}UPCOMING PRINTS`
+          : 'FOMC · CPI · NFP · COPOM'}
         actions={tab === 'EARNINGS' ? (
           <button
             type="button"
@@ -306,6 +308,13 @@ function CalendarPanel() {
             {macroLoading && !macroEvents && (
               <div style={{ padding: 12, fontSize: 10, color: '#888' }}>Loading events...</div>
             )}
+            {/* #UX-3 — honest provider state: the curated schedule below is
+                static, so say why the live feed is off (missing env var). */}
+            {!macroLoading && !macroEvents && getProviderStatus(macroResp) === 'unavailable' && (
+              <div className="cp-provider-note">
+                {macroResp?.message || `Live macro feed offline — set ${macroResp?.missingEnv || 'FINNHUB_API_KEY'}.`} Showing curated schedule.
+              </div>
+            )}
             {displayEvents.map(evt => (
               <EventRow
                 key={evt.id}
@@ -326,11 +335,15 @@ function CalendarPanel() {
             {earningsLoading && (
               <div style={{ padding: 12, fontSize: 10, color: '#888' }}>Loading earnings...</div>
             )}
+            {/* #UX-3 — graceful empty state: distinguish "provider offline
+                (env var missing)" from "provider live, week is just quiet". */}
             {!earningsLoading && earningsList.length === 0 && (
               <div style={{ padding: 12, fontSize: 10, color: '#888' }}>
                 {watchOnly && earningsAll.length > 0
                   ? 'No upcoming earnings for your watchlist tickers.'
-                  : 'No upcoming earnings data available. Earnings calendar requires Eulerpool API.'}
+                  : getProviderStatus(earningsResp) === 'unavailable'
+                    ? (earningsResp?.message || `Earnings feed offline — set ${earningsResp?.missingEnv || 'FINNHUB_API_KEY'} on the server.`)
+                    : 'No earnings this week for your filters.'}
               </div>
             )}
             {earningsList.map((item, i) => (
