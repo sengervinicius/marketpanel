@@ -22,6 +22,9 @@ const dataRouter         = require('./data');
 const intelligenceRouter = require('./intelligence');
 const moversRouter       = require('./movers');   // H2 W1 — home Movers panel
 const sectorsRouter      = require('./sectors');  // H2 W1 — sector performance grid
+const moodRouter         = require('./mood');     // H2b — composite market mood + breadth consumer
+const watchlistExtrasRouter = require('./watchlistExtras'); // H2b — watchlist EARN/REC batch columns
+const brazilFocusRouter  = require('./brazilFocus');     // H2b — BCB Focus strip (BrazilPanel)
 
 // Mount all sub-routers. moversRouter goes BEFORE dataRouter so the exact
 // GET /market/movers (query-param form) is matched ahead of the legacy
@@ -29,6 +32,9 @@ const sectorsRouter      = require('./sectors');  // H2 W1 — sector performanc
 // but explicit ordering keeps intent obvious.
 router.use(moversRouter);
 router.use(sectorsRouter);
+router.use(moodRouter);
+router.use(watchlistExtrasRouter);
+router.use(brazilFocusRouter);
 router.use(dataRouter);
 router.use(intelligenceRouter);
 router.use(stocksRouter);

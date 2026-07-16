@@ -44,8 +44,39 @@ import { useSparklineData } from '../../hooks/useSparklineData';
 import '../common/Shimmer.css';
 import './WatchlistPanel.css';
 
-// Grid: TICKER | LAST | CHG% | P&L% | spark | actions
+// Grid: TICKER | LAST | CHG% | P&L% | [EXT] | [EARN] | [REC] | spark | actions
+// Base template kept identical to pre-H2b so default layout never shifts.
 const COLS = '72px 1fr 68px 68px 64px 72px';
+
+// H2b item 3 — optional depth columns behind a column picker.
+// Persisted in localStorage 'wlCols_v1'; default all OFF (no layout shift).
+const WL_COLS_KEY = 'wlCols_v1';
+const DEFAULT_COL_PREFS = { ext: false, earn: false, rec: false };
+const EXTRA_SYMBOL_CAP = 30; // server batch cap for the extras endpoints
+
+function loadColPrefs() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(WL_COLS_KEY));
+    return { ...DEFAULT_COL_PREFS, ...(raw && typeof raw === 'object' ? raw : {}) };
+  } catch {
+    return { ...DEFAULT_COL_PREFS };
+  }
+}
+
+function buildGridCols(prefs) {
+  let cols = '72px 1fr 68px 68px';
+  if (prefs.ext)  cols += ' 100px';
+  if (prefs.earn) cols += ' 58px';
+  if (prefs.rec)  cols += ' 74px';
+  return cols + ' 64px 72px';
+}
+
+function fmtEarnDate(iso) {
+  if (!iso) return null;
+  const d = new Date(iso + 'T00:00:00');
+  if (isNaN(d)) return null;
+  return `${d.toLocaleString('en-US', { month: 'short' }).toUpperCase()} ${d.getDate()}`;
+}
 
 const showInfo = (e, symbol, label, type) => {
   e.preventDefault();
@@ -69,6 +100,7 @@ function assetTypeFromSymbol(sym) {
 // vs. ChartPanel which only reads PriceContext. Now: PriceContext only.
 const WatchlistRow = memo(function WatchlistRow({
   position, sparkData, onTickerClick, onEdit, onRemove, onWhy, onReportPrice,
+  gridCols = COLS, colPrefs = DEFAULT_COL_PREFS, ext = null, earn = null, rec = null,
 }) {
   const openDetail = useOpenDetail();
   const priceCtx   = useTickerPrice(position.symbol);
@@ -107,7 +139,7 @@ const WatchlistRow = memo(function WatchlistRow({
       onTouchEnd={() => clearTimeout(ptRef.current)}
       onTouchMove={() => clearTimeout(ptRef.current)}
       className="wp-row"
-      style={{ gridTemplateColumns: COLS }}
+      style={{ gridTemplateColumns: gridCols }}
       title={isTracked
         ? `${position.quantity} @ ${fmt(position.entryPrice)} · cost ${fmtCompact((position.quantity || 0) * (position.entryPrice || 0))}`
         : 'Click to chart · Alt+click to add position details'}
@@ -124,6 +156,40 @@ const WatchlistRow = memo(function WatchlistRow({
       }`}>
         {pnlPct == null ? '—' : fmtPct(pnlPct)}
       </span>
+      {/* H2b optional depth columns — each degrades to an em-dash */}
+      {colPrefs.ext && (() => {
+        const cell = ext?.post?.price != null
+          ? { tag: 'POST', ...ext.post }
+          : ext?.pre?.price != null ? { tag: 'PRE', ...ext.pre } : null;
+        if (!cell) return <span className="wp-row-extra wp-row-extra--empty">—</span>;
+        const up = (cell.changePct ?? 0) >= 0;
+        return (
+          <span className="wp-row-extra" title={`${cell.tag}-market`}>
+            {fmt(cell.price)}{' '}
+            <span className={up ? 'wp-row-change-positive' : 'wp-row-change-negative'}>
+              {cell.changePct != null ? fmtPct(cell.changePct) : ''}
+            </span>
+          </span>
+        );
+      })()}
+      {colPrefs.earn && (
+        <span
+          className={`wp-row-extra${earn?.date ? '' : ' wp-row-extra--empty'}`}
+          title={earn?.date ? `Next earnings ${earn.date}${earn.daysUntil != null ? ` · in ${earn.daysUntil}d` : ''}` : 'No upcoming earnings found'}
+        >
+          {fmtEarnDate(earn?.date) || '—'}
+        </span>
+      )}
+      {colPrefs.rec && (
+        rec ? (
+          <span
+            className={`wp-rec-chip ${rec.buy > rec.sell ? 'wp-rec-chip--bull' : rec.sell > rec.buy ? 'wp-rec-chip--bear' : ''}`}
+            title={`Analyst recs${rec.period ? ` (${rec.period})` : ''}: ${rec.buy} buy · ${rec.hold} hold · ${rec.sell} sell`}
+          >
+            {rec.buy}B/{rec.hold}H/{rec.sell}S
+          </span>
+        ) : <span className="wp-row-extra wp-row-extra--empty">—</span>
+      )}
       <span className="wp-row-spark">
         {sparkData && sparkData.length >= 2 && (
           <Sparkline data={sparkData} width={56} height={14} />
@@ -159,6 +225,17 @@ function WatchlistPanel({ onTickerClick }) {
 
   // UI state
   const [sortMode, setSortMode] = useState('default'); // 'default' | 'heat' | 'pnl'
+  // H2b item 3 — optional depth columns (persisted, default OFF)
+  const [colPrefs, setColPrefs] = useState(loadColPrefs);
+  const [showColPicker, setShowColPicker] = useState(false);
+  const toggleCol = useCallback((key) => {
+    setColPrefs(prev => {
+      const next = { ...prev, [key]: !prev[key] };
+      try { localStorage.setItem(WL_COLS_KEY, JSON.stringify(next)); } catch { /* private mode */ }
+      return next;
+    });
+  }, []);
+  const gridCols = useMemo(() => buildGridCols(colPrefs), [colPrefs]);
   const [showAdd, setShowAdd]   = useState(false);
   const [addInput, setAddInput] = useState('');
   const inputRef                = useRef(null);
@@ -276,6 +353,60 @@ function WatchlistPanel({ onTickerClick }) {
   const rowSparklines = useSparklineData(watchSymbols);
   const anyTracked = trackedPositions.length > 0;
 
+  // H2b item 3 — batch data for the optional columns. Only fetched while
+  // the column is enabled; every source degrades to {} (rows show "—").
+  const symbolsKey = useMemo(
+    () => watchSymbols.slice(0, EXTRA_SYMBOL_CAP).join(','),
+    [watchSymbols]
+  );
+  const [extData,  setExtData]  = useState({}); // SYM → { pre, post }
+  const [earnData, setEarnData] = useState({}); // SYM → { date, daysUntil }
+  const [recData,  setRecData]  = useState({}); // SYM → { buy, hold, sell, period }
+
+  // PRE/POST — extended-hours fields ride the ticker snapshot batch (60s).
+  useEffect(() => {
+    if (!colPrefs.ext || !symbolsKey) return undefined;
+    let alive = true;
+    const load = async () => {
+      try {
+        const res = await apiFetch(`/api/snapshot/tickers?symbols=${encodeURIComponent(symbolsKey)}`);
+        if (!res.ok) return;
+        const json = await res.json();
+        if (!alive || !json?.results) return;
+        const map = {};
+        for (const [sym, entry] of Object.entries(json.results)) {
+          if (entry?.ticker?.ext) map[sym] = entry.ticker.ext;
+        }
+        setExtData(map);
+      } catch { /* degrade to em-dash */ }
+    };
+    load();
+    const id = setInterval(load, 60_000);
+    return () => { alive = false; clearInterval(id); };
+  }, [colPrefs.ext, symbolsKey]);
+
+  // NEXT EARNINGS — server caches 12h; one fetch per symbol-set change.
+  useEffect(() => {
+    if (!colPrefs.earn || !symbolsKey) return undefined;
+    let alive = true;
+    apiFetch(`/api/market/next-earnings?symbols=${encodeURIComponent(symbolsKey)}`)
+      .then(r => (r.ok ? r.json() : null))
+      .then(j => { if (alive && j?.ok) setEarnData(j.data || {}); })
+      .catch(() => { /* degrade to em-dash */ });
+    return () => { alive = false; };
+  }, [colPrefs.earn, symbolsKey]);
+
+  // REC TREND — server caches 12h; one fetch per symbol-set change.
+  useEffect(() => {
+    if (!colPrefs.rec || !symbolsKey) return undefined;
+    let alive = true;
+    apiFetch(`/api/market/rec-trends?symbols=${encodeURIComponent(symbolsKey)}`)
+      .then(r => (r.ok ? r.json() : null))
+      .then(j => { if (alive && j?.ok) setRecData(j.data || {}); })
+      .catch(() => { /* degrade to em-dash */ });
+    return () => { alive = false; };
+  }, [colPrefs.rec, symbolsKey]);
+
   const handleAIHealthCheck = useCallback(async () => {
     if (trackedPositions.length === 0) {
       setAiError('Add at least one position with qty + entry to run the AI health check.');
@@ -392,6 +523,28 @@ function WatchlistPanel({ onTickerClick }) {
                 title="AI health check on tracked positions"
               >{aiLoading ? 'ANALYZING…' : '◆ AI HEALTH'}</button>
             )}
+            {/* H2b — column picker for optional depth columns */}
+            <div className="wp-cols-wrap">
+              <button
+                className={`btn wp-add-btn ${showColPicker || colPrefs.ext || colPrefs.earn || colPrefs.rec ? 'wp-add-btn-active' : ''}`}
+                onClick={() => setShowColPicker(v => !v)}
+                title="Show/hide optional columns"
+              >COLS</button>
+              {showColPicker && (
+                <div className="wp-cols-popover">
+                  {[['ext', 'PRE/POST'], ['earn', 'NEXT EARN'], ['rec', 'REC TREND']].map(([key, lbl]) => (
+                    <label key={key} className="wp-cols-option">
+                      <input
+                        type="checkbox"
+                        checked={!!colPrefs[key]}
+                        onChange={() => toggleCol(key)}
+                      />
+                      <span>{lbl}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
             <button className="btn wp-add-btn" onClick={() => setShareOpen(true)} title="Share">SHARE</button>
             <button
               className={`btn wp-add-btn ${showAdd ? 'wp-add-btn-active' : ''}`}
@@ -443,11 +596,14 @@ function WatchlistPanel({ onTickerClick }) {
       )}
 
       {/* Column headers */}
-      <div className="wp-col-header" style={{ gridTemplateColumns: COLS }}>
+      <div className="wp-col-header" style={{ gridTemplateColumns: gridCols }}>
         <span className="wp-col-header-cell">TICKER</span>
         <span className="wp-col-header-cell wp-col-header-right">LAST</span>
         <span className="wp-col-header-cell wp-col-header-right">CHG%</span>
         <span className="wp-col-header-cell wp-col-header-right" title="P&L% (requires qty + entry)">P&amp;L%</span>
+        {colPrefs.ext && <span className="wp-col-header-cell wp-col-header-right" title="Pre/post-market price + %">PRE/POST</span>}
+        {colPrefs.earn && <span className="wp-col-header-cell wp-col-header-right" title="Next earnings date (Finnhub)">EARN</span>}
+        {colPrefs.rec && <span className="wp-col-header-cell wp-col-header-right" title="Analyst recommendation trend (Finnhub)">REC</span>}
         <span className="wp-col-header-cell wp-col-header-right"></span>
         <span className="wp-col-header-cell"></span>
       </div>
@@ -466,6 +622,11 @@ function WatchlistPanel({ onTickerClick }) {
               key={pos.id}
               position={pos}
               sparkData={rowSparklines[pos.symbol]}
+              gridCols={gridCols}
+              colPrefs={colPrefs}
+              ext={extData[pos.symbol] || null}
+              earn={earnData[pos.symbol] || null}
+              rec={recData[pos.symbol] || null}
               onTickerClick={onTickerClick}
               onEdit={handleEdit}
               onRemove={handleRemove}

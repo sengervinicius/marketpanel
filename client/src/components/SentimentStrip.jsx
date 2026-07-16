@@ -57,11 +57,11 @@ function vixColor(v) {
   return 'var(--sent-bear, #e05c8a)';
 }
 
-function MoodGauge({ value, label }) {
+function MoodGauge({ value, label, title }) {
   const v = Number.isFinite(value) ? Math.max(0, Math.min(100, value)) : null;
   const c = moodColor(v);
   return (
-    <div className="ss-gauge" title={label ? `${label} (${v})` : ''}>
+    <div className="ss-gauge" title={title || (label ? `${label} (${v})` : '')}>
       <div className="ss-gauge-bar">
         <div className="ss-gauge-bar-bg" />
         {v != null && (
@@ -93,8 +93,23 @@ function Metric({ label, value, color, flashKey }) {
   );
 }
 
+// H2b item 2 — human-readable component list for the MOOD tooltip.
+function moodTooltip(mood) {
+  if (!mood || mood.composite == null) return null;
+  const c = mood.components || {};
+  const parts = [`COMPOSITE ${mood.composite} — ${mood.label}`];
+  const w = (comp) => comp?.weight != null ? ` (${Math.round(comp.weight * 100)}%)` : '';
+  if (c.vix)     parts.push(`VIX ${c.vix.value} → ${c.vix.score}${w(c.vix)}`);
+  if (c.breadth) parts.push(`Breadth ${c.breadth.value}% above prev close${w(c.breadth)}`);
+  if (c.hyOas)   parts.push(`HY OAS Δ1d ${c.hyOas.changeBps > 0 ? '+' : ''}${c.hyOas.changeBps}bp → ${c.hyOas.score}${w(c.hyOas)}`);
+  if (c.crypto)  parts.push(`Crypto F&G ${c.crypto.value}${w(c.crypto)}`);
+  if (mood.missing?.length) parts.push(`unavailable: ${mood.missing.join(', ')}`);
+  return parts.join('\n');
+}
+
 export default function SentimentStrip() {
   const [fg, setFg] = useState(null);
+  const [mood, setMood] = useState(null); // H2b composite (server /api/market/mood)
   const [snap, setSnap] = useState({});
   const [error, setError] = useState(false);
   const timer = useRef(null);
@@ -105,12 +120,15 @@ export default function SentimentStrip() {
   async function load() {
     try {
       const tickersQuery = encodeURIComponent(REQ_SYMBOLS.join(','));
-      const [fgRes, snapRes] = await Promise.all([
+      const [fgRes, snapRes, moodRes] = await Promise.all([
         apiFetch('/api/fear-greed').then(r => r.ok ? r.json() : null).catch(() => null),
         apiFetch(`/api/snapshot/stocks?tickers=${tickersQuery}`).then(r => r.ok ? r.json() : null).catch(() => null),
+        apiFetch('/api/market/mood').then(r => r.ok ? r.json() : null).catch(() => null),
       ]);
 
       if (fgRes) setFg(fgRes);
+      // H2b — composite mood; keep last good value if a refresh fails.
+      if (moodRes?.ok && moodRes.composite != null) setMood(moodRes);
 
       // Normalize snap into FRIENDLY-keyed map (SPY, VIX, DXY, TNX)
       if (snapRes) {
@@ -147,6 +165,11 @@ export default function SentimentStrip() {
 
   const equity = fg?.equity;
   const crypto = fg?.crypto?.current;
+  // H2b — composite mood (VIX 30 / breadth 30 / HY OAS Δ 20 / crypto 20),
+  // falling back to the legacy equity F&G when the endpoint is degraded.
+  const moodValue   = mood?.composite ?? equity?.value;
+  const moodLabel   = mood?.label ?? equity?.label;
+  const moodTitle   = moodTooltip(mood);
   const spy = snap.SPY;
   const vix = snap.VIX;
   const dxy = snap.DXY;
@@ -156,8 +179,12 @@ export default function SentimentStrip() {
     <div className="ss-strip" role="region" aria-label="Market sentiment">
       <div className="ss-group">
         <span className="ss-group-label">MOOD</span>
-        <MoodGauge value={equity?.value} label={equity?.label || 'Equity F&G'} />
-        <span className="ss-mood-label">{equity?.label || '—'}</span>
+        <MoodGauge
+          value={moodValue}
+          label={moodLabel || 'Market mood'}
+          title={moodTitle}
+        />
+        <span className="ss-mood-label" title={moodTitle || undefined}>{moodLabel || '—'}</span>
       </div>
 
       <span className="ss-divider" />

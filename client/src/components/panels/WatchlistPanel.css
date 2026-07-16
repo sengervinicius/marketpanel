@@ -409,3 +409,83 @@
   font-size: 9px;
   border-top: 1px solid var(--border-default);
 }
+
+/* ================================================================
+ * H2b item 3 — optional depth columns (PRE/POST · EARN · REC)
+ * ================================================================ */
+
+.wp-cols-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.wp-cols-popover {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 8px;
+  background: var(--bg-surface, #101318);
+  border: 1px solid var(--border-strong);
+  border-radius: 3px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+  min-width: 110px;
+}
+
+.wp-cols-option {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 9.5px;
+  font-family: var(--font-mono);
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.wp-cols-option input {
+  margin: 0;
+  accent-color: var(--accent, #4488ff);
+}
+
+.wp-row-extra {
+  text-align: right;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wp-row-extra--empty {
+  color: var(--text-faint);
+}
+
+.wp-rec-chip {
+  justify-self: end;
+  align-self: center;
+  font-size: 9px;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  padding: 1px 4px;
+  border-radius: 2px;
+  color: var(--text-secondary);
+  background: var(--sent-neutral-bg, rgba(139, 147, 167, 0.10));
+  white-space: nowrap;
+}
+
+.wp-rec-chip--bull {
+  color: var(--sent-bull, #3dd68c);
+  background: var(--sent-bull-bg, rgba(61, 214, 140, 0.12));
+}
+
+.wp-rec-chip--bear {
+  color: var(--price-down, #ef4444);
+  background: var(--color-down-bg, rgba(239, 68, 68, 0.12));
+}

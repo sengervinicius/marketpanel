@@ -404,6 +404,55 @@ router.get('/yields/global', async (req, res) => {
   }
 });
 
+// ── GET /api/debt/rates-tape — US rates tape (H2b item 1) ────────────────────
+// Four FRED series the home DebtPanel shows as a compact strip:
+//   T10YIE       10Y breakeven inflation (%)
+//   T5YIFR       5y5y forward inflation (%)
+//   DFII10       10Y TIPS real yield (%)
+//   BAMLH0A0HYM2 US HY OAS (FRED serves %, we expose bps)
+// Each entry degrades independently to value:null; the whole payload is
+// cached 30 min once at least one series resolved.
+const RATES_TAPE_SERIES = [
+  { id: 'breakeven10y', label: '10Y BE',   seriesId: 'T10YIE',       unit: '%'  },
+  { id: 'fwd5y5y',      label: '5Y5Y',     seriesId: 'T5YIFR',       unit: '%'  },
+  { id: 'real10y',      label: '10Y REAL', seriesId: 'DFII10',       unit: '%'  },
+  { id: 'hyOas',        label: 'HY OAS',   seriesId: 'BAMLH0A0HYM2', unit: 'bp' },
+];
+
+router.get('/rates-tape', async (req, res) => {
+  try {
+    const ck = 'debt:rates-tape';
+    const c  = cacheGet(ck);
+    if (c) return res.json(c);
+
+    const settled = await Promise.allSettled(
+      RATES_TAPE_SERIES.map(sr => fred.fetchLatestPair(sr.seriesId))
+    );
+
+    const tape = RATES_TAPE_SERIES.map((sr, i) => {
+      const r = settled[i].status === 'fulfilled' ? settled[i].value : null;
+      const mult = sr.unit === 'bp' ? 100 : 1;
+      const dp   = sr.unit === 'bp' ? 0 : 2;
+      return {
+        id:       sr.id,
+        label:    sr.label,
+        seriesId: sr.seriesId,
+        unit:     sr.unit,
+        value:    r && r.value != null ? parseFloat((r.value * mult).toFixed(dp)) : null,
+        change1d: r && r.change != null ? parseFloat((r.change * mult).toFixed(dp)) : null,
+        asOfDate: r ? r.date : null,
+      };
+    });
+
+    const ok = tape.some(t => t.value != null);
+    const resp = { ok, tape, source: 'fred', asOf: Date.now() };
+    if (ok) cacheSet(ck, resp, 30 * 60 * 1000);
+    return res.json(resp);
+  } catch (err) {
+    return sendApiError(res, err, '/rates-tape');
+  }
+});
+
 // GET /api/debt/credit/indexes  — FRED ICE BofA credit spreads
 router.get('/credit/indexes', async (req, res) => {
   try {

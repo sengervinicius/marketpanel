@@ -32,6 +32,78 @@ const SORT_COLS = [
   { key: 'chg',    label: 'CHG%',   align: 'right' },
 ];
 
+// H2b item 4 — BCB Focus survey strip (Selic / IPCA / PIB / FX medians
+// for current + next year). Hidden entirely when /api/market/brazil-focus
+// is degraded; per-field em-dash when a single indicator is missing.
+const focusStyles = {
+  strip: {
+    display: 'flex', alignItems: 'center', gap: 8, padding: '2px 8px',
+    borderBottom: '1px solid var(--border-subtle)', fontFamily: 'var(--font-mono)',
+    fontSize: 10, color: 'var(--text-secondary)', whiteSpace: 'nowrap',
+    overflowX: 'auto', flexShrink: 0,
+  },
+  tag: { fontWeight: 700, letterSpacing: '0.08em', color: 'var(--section-brazil, #00cc44)' },
+  item: { display: 'inline-flex', gap: 3, alignItems: 'baseline' },
+  label: { color: 'var(--text-faint)', fontSize: 9, letterSpacing: '0.05em' },
+  value: { color: 'var(--text-primary)', fontWeight: 600, fontVariantNumeric: 'tabular-nums' },
+  sep: { color: 'var(--text-faint)' },
+  yearBtn: {
+    marginLeft: 'auto', background: 'none', border: '1px solid var(--border-strong)',
+    color: 'var(--text-muted)', fontSize: 9, padding: '0 5px', cursor: 'pointer',
+    borderRadius: 2, fontFamily: 'var(--font-mono)', letterSpacing: '0.05em', flexShrink: 0,
+  },
+};
+
+function fmtFocus(v, digits = 2, suffix = '') {
+  return v == null ? '—' : v.toFixed(digits) + suffix;
+}
+
+function FocusStrip({ focus }) {
+  const yearKeys = useMemo(
+    () => (focus ? Object.keys(focus.years || {}).sort() : []),
+    [focus]
+  );
+  const [yearIdx, setYearIdx] = useState(0);
+  if (!focus || yearKeys.length === 0) return null;
+
+  const year = yearKeys[Math.min(yearIdx, yearKeys.length - 1)];
+  const d = focus.years[year] || {};
+  const hasAny = ['selic', 'ipca', 'pib', 'fx'].some(k => d[k] != null);
+  if (!hasAny && yearKeys.length === 1) return null;
+
+  const items = [
+    ['SELIC', fmtFocus(d.selic, 2, '%')],
+    ['IPCA',  fmtFocus(d.ipca, 2, '%')],
+    ['PIB',   fmtFocus(d.pib, 1, '%')],
+    ['FX',    fmtFocus(d.fx, 2)],
+  ];
+
+  return (
+    <div
+      style={focusStyles.strip}
+      title={`BCB Focus survey medians${focus.referenceDate ? ` · ${focus.referenceDate}` : ''}`}
+    >
+      <span style={focusStyles.tag}>FOCUS {year.slice(2)}</span>
+      {items.map(([label, value], i) => (
+        <span key={label} style={focusStyles.item}>
+          {i > 0 && <span style={focusStyles.sep}>·</span>}
+          <span style={focusStyles.label}>{label}</span>
+          <span style={focusStyles.value}>{value}</span>
+        </span>
+      ))}
+      {yearKeys.length > 1 && (
+        <button
+          style={focusStyles.yearBtn}
+          onClick={() => setYearIdx(i => (i + 1) % yearKeys.length)}
+          title="Toggle reference year"
+        >
+          {yearKeys[(yearIdx + 1) % yearKeys.length].slice(2)} ›
+        </button>
+      )}
+    </div>
+  );
+}
+
 function BrazilPanel({ onTickerClick }) {
   const openDetail = useOpenDetail();
   const ptRef = useRef(null);
@@ -61,6 +133,17 @@ function BrazilPanel({ onTickerClick }) {
   // Phase 2: Sparkline data for Brazil tickers
   const brazilTickers = useMemo(() => panelSymbols.map(sym => sym.endsWith('.SA') ? sym : sym + '.SA'), [panelSymbols]);
   const sparklines = useSparklineData(brazilTickers);
+
+  // H2b item 4 — BCB Focus strip (server caches 6h; hidden on failure)
+  const [focus, setFocus] = useState(null);
+  useEffect(() => {
+    let alive = true;
+    apiFetch('/api/market/brazil-focus')
+      .then(r => (r.ok ? r.json() : null))
+      .then(j => { if (alive && j?.ok && j.years) setFocus(j); })
+      .catch(() => { /* strip stays hidden */ });
+    return () => { alive = false; };
+  }, []);
 
   // Update lastUpdated when snapshot changes
   useEffect(() => {
@@ -190,6 +273,9 @@ function BrazilPanel({ onTickerClick }) {
       </EditablePanelHeader>
 
       {!collapsed && (<>
+        {/* BCB Focus strip (H2b) — hides itself when the endpoint degrades */}
+        <FocusStrip focus={focus} />
+
         {/* Column headers */}
         <ColumnHeaders
           columns={SORT_COLS}
