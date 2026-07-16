@@ -8,6 +8,7 @@ import { createContext, useContext, useState, useCallback, useEffect, useRef } f
 import { apiFetch } from '../utils/api';
 import { WORKSPACE_TEMPLATES, SCREEN_PRESETS, getTemplate } from '../config/templates';
 import { DEFAULT_LAYOUT, DEFAULT_HOME_SECTIONS, DEFAULT_CHARTS_CONFIG } from '../config/panels';
+import { buildResetDefaultsPayload } from '../config/resetDefaults';
 import { swallow } from '../utils/swallow';
 
 const SettingsContext = createContext(null);
@@ -405,6 +406,31 @@ export function SettingsProvider({ children, isAuthenticated }) {
     await updateSettings({ onboardingCompleted: false });
   }, [updateSettings]);
 
+  /**
+   * RESET DEFAULT — restore the CURRENT client defaults (layout rows, the
+   * home_grid_v2 grid, and per-panel default symbol lists incl. the
+   * commodities futures list), overwriting whatever is saved server-side
+   * for those keys. Persists IMMEDIATELY (no debounce) and resolves only
+   * after the server write, so callers can safely reload afterwards.
+   * @returns {Promise<Object>} the applied settings partial
+   */
+  const resetToDefaults = useCallback(async () => {
+    const partial = buildResetDefaultsPayload();
+    setSettingsState(prev => ({
+      ...prev,
+      ...partial,
+      panels: { ...prev.panels, ...partial.panels },
+    }));
+    if (isAuthenticated) {
+      await apiFetch('/api/settings', {
+        method: 'POST',
+        body: JSON.stringify(partial),
+      });
+      setSettingsDirty(false);
+    }
+    return partial;
+  }, [isAuthenticated]);
+
   // Flush pending saves on unmount
   useEffect(() => {
     return () => {
@@ -423,7 +449,7 @@ export function SettingsProvider({ children, isAuthenticated }) {
       settings, subscription, loaded, settingsDirty,
       updateSettings, updatePanelConfig, applyPreset, applyTemplate, completeOnboarding,
       updateLayout, updateHomeSection, addToHomeSection, updateChartsConfig,
-      markTourCompleted, resetTour, acceptTerms, completeParticleOnboarding,
+      markTourCompleted, resetTour, resetToDefaults, acceptTerms, completeParticleOnboarding,
     }}>
       {children}
     </SettingsContext.Provider>
