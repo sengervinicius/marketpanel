@@ -442,12 +442,13 @@ export function getEditablePanels() {
 // H0.4d: optionsFlow + predictions removed from the DEFAULT layout only —
 // both stay in PANEL_REGISTRY and are addable via Cmd+K / +PANEL; existing
 // users' saved layouts that contain them are untouched.
-// H2 W1: the row-3 slot optionsFlow freed is taken by the new Movers panel.
+// H2 W1: the row-3 slots optionsFlow/predictions freed are taken by the
+// home-grade Movers and Calendar panels.
 export const DEFAULT_LAYOUT = {
   desktopRows: [
     ['charts',       'watchlist',     'globalIndices', 'futures'],
     ['forex',        'commodities',   'usEquities',    'brazilB3'],
-    ['debt',         'news',          'movers'],
+    ['debt',         'news',          'movers',        'calendar'],
   ],
   mobileTabs: ['home', 'charts', 'watchlist', 'search', 'detail', 'news'],
 };
