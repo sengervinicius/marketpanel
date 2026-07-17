@@ -643,3 +643,15 @@
 }
 
 .np-tksum-error { color: var(--semantic-down); }
+
+/* Stale-briefing tag — server served the last cached briefing because a
+   fresh synthesis failed (news-briefing parse/provider fallback). Muted on
+   purpose: the content is still useful, it is just not freshly generated. */
+.np-briefing-stale {
+  color: var(--text-faint);
+  border: 1px solid var(--border-strong);
+  border-radius: 2px;
+  padding: 0 3px;
+  font-size: 8px;
+  letter-spacing: 0.08em;
+}
