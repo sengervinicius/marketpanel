@@ -24,6 +24,7 @@ const aiCostLedger = require('../services/aiCostLedger');
 const { guardAndLog } = require('../services/aiOutputGuard');
 const logger = require('../utils/logger');
 const { swallow } = require('../utils/swallow');
+const { extractJson } = require('../utils/extractJson'); // tolerant LLM-JSON parsing (news-briefing fix)
 const memoryManager = require('../services/memoryManager');
 const conversationMemory = require('../services/conversationMemory');
 const aiChatStore = require('../services/aiChatStore'); // P5: DB-backed chat history
@@ -1208,7 +1209,7 @@ Rules:
   // produce the structured briefing JSON; both are tried before we tell
   // the user it's unavailable. Returns the raw response content string,
   // or null if all providers failed.
-  async function tryPerplexity() {
+  async function tryPerplexity(promptSuffix = '') {
     if (!perplexityKey) return null;
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 25000);
@@ -1219,7 +1220,7 @@ Rules:
         signal: ctrl.signal,
         body: JSON.stringify({
           model: MODEL,
-          messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt }],
+          messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt + promptSuffix }],
           max_tokens: 900,
           temperature: 0.15,
         }),
@@ -1253,7 +1254,7 @@ Rules:
     }
   }
 
-  async function tryAnthropic() {
+  async function tryAnthropic(promptSuffix = '') {
     if (!anthropicKey) { _outcomes.anthropic = 'not_configured'; return null; }
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 25000);
@@ -1270,7 +1271,7 @@ Rules:
           model: 'claude-haiku-4-5-20251001',
           max_tokens: 900,
           system: systemPrompt,
-          messages: [{ role: 'user', content: userPrompt }],
+          messages: [{ role: 'user', content: userPrompt + promptSuffix }],
         }),
       });
       clearTimeout(timer);
@@ -1303,13 +1304,27 @@ Rules:
   // serving the briefing, drowning the ops channel in false alarms.
   const _outcomes = { perplexity: null, anthropic: null };
 
+  // Stale-briefing fallback: when generation fails outright (providers down
+  // or unparseable output even after a retry), serve the last cached
+  // briefing for this feed slice — expired or not — tagged stale:true, so
+  // the client shows the previous synthesis with a muted STALE tag instead
+  // of a red error line. Returns true when a stale response was sent.
+  const sendStaleIfAvailable = () => {
+    const prev = _newsBriefingCache.get(cacheKey);
+    if (!prev) return false;
+    res.json({ ...prev.v, cached: true, stale: true });
+    return true;
+  };
+
+  // One generation pass through the provider chain (Perplexity → Anthropic).
+  const generate = async (promptSuffix = '') => {
+    let raw = await tryPerplexity(promptSuffix);
+    if (!raw) raw = await tryAnthropic(promptSuffix);
+    return raw;
+  };
+
   try {
-    let raw = await tryPerplexity();
-    let providerUsed = 'perplexity';
-    if (!raw) {
-      raw = await tryAnthropic();
-      providerUsed = 'anthropic';
-    }
+    let raw = await generate();
     if (!raw) {
       // #291 W2.1 hotfix — Sentry alerts ONLY when both providers
       // failed (i.e. the user is actually impacted). Tags include
@@ -1328,16 +1343,26 @@ Rules:
           }
         );
       } catch (_) { /* sentry optional */ }
+      if (sendStaleIfAvailable()) return;
       return res.status(503).json({
         error: 'briefing_temporarily_unavailable',
         message: 'The AI news briefing is temporarily unavailable across all providers. Live news headlines below remain current.',
       });
     }
 
-    let parsed;
-    try {
-      parsed = JSON.parse(raw.replace(/^```json?\s*/i, '').replace(/```\s*$/i, '').trim());
-    } catch {
+    // Tolerant parse (utils/extractJson): strips fences, balanced-scans the
+    // first {...}/[...], cleans trailing commas. A bare JSON.parse used to
+    // 502 'Failed to parse AI response' whenever a provider wrapped the JSON
+    // in prose/fences or truncated mid-object.
+    let parsed = extractJson(raw);
+    if (!parsed) {
+      // ONE retry with an explicit JSON-only instruction appended.
+      console.warn('[News-Briefing] Unparseable AI output — retrying once with JSON-only instruction');
+      const retryRaw = await generate('\n\nReturn ONLY valid JSON, no prose.');
+      parsed = retryRaw ? extractJson(retryRaw) : null;
+    }
+    if (!parsed) {
+      if (sendStaleIfAvailable()) return;
       return res.status(502).json({ error: 'Failed to parse AI response' });
     }
 

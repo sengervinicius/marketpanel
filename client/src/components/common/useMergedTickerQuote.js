@@ -14,6 +14,7 @@
  * - Symbol normalization (C:, X:, .SA) is handled by PriceContext's batchKey().
  */
 import { useTickerPrice } from '../../context/PriceContext';
+import { mergeQuote } from '../../utils/quoteFallback';
 
 export default function useMergedTickerQuote(symbol, snapshotQuote) {
   // Always register the symbol with PriceContext. PriceContext already checks
@@ -26,10 +27,8 @@ export default function useMergedTickerQuote(symbol, snapshotQuote) {
   // render cycle, and subsequent re-renders never corrected it.
   const priceCtx = useTickerPrice(symbol);
 
-  return {
-    price:     snapshotQuote?.price     ?? priceCtx?.price     ?? null,
-    change:    snapshotQuote?.change    ?? priceCtx?.change    ?? null,
-    changePct: snapshotQuote?.changePct ?? priceCtx?.changePct ?? null,
-    volume:    snapshotQuote?.volume    ?? priceCtx?.volume    ?? null,
-  };
+  // Fallback decision + field-level merge live in utils/quoteFallback.js
+  // (pure, unit-tested): snapshot wins per field, PriceContext extras fill
+  // the gaps, all fields default to null.
+  return mergeQuote(snapshotQuote, priceCtx);
 }

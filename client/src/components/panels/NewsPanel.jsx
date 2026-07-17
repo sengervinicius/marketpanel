@@ -15,7 +15,7 @@ import './NewsPanel.css';
 const REGIME_LABELS = { macro: 'MACRO', earnings: 'EARNINGS', policy: 'POLICY', geo: 'GEO', idio: 'IDIO' };
 const SENT_GLYPH    = { bullish: '▲', bearish: '▼', neutral: '◆' };
 
-const BriefingCard = memo(function BriefingCard({ briefing, loading, error, onRefresh, generatedAt, onTickerClick }) {
+const BriefingCard = memo(function BriefingCard({ briefing, loading, error, stale, onRefresh, generatedAt, onTickerClick }) {
   const [open, setOpen] = useState(true);
 
   if (!briefing && !loading && !error) return null;
@@ -32,6 +32,9 @@ const BriefingCard = memo(function BriefingCard({ briefing, loading, error, onRe
           Today&apos;s Briefing
         </span>
         <div className="np-briefing-meta">
+          {/* stale:true — server served the last cached briefing because a
+              fresh synthesis failed; muted tag, NOT the red error line. */}
+          {stale && !loading && <span className="np-briefing-stale" title="Fresh briefing unavailable — showing the last cached synthesis">STALE</span>}
           {minsAgo != null && !loading && <span>{minsAgo}m ago</span>}
           <button
             className="np-briefing-refresh"
@@ -290,6 +293,7 @@ function NewsPanel() {
   const [briefingLoading, setBriefingLoading] = useState(false);
   const [briefingError, setBriefingError]     = useState(null);
   const [briefingAt, setBriefingAt]           = useState(null);
+  const [briefingStale, setBriefingStale]     = useState(false); // server returned last cached briefing (stale:true)
   const briefingFetchedFor                    = useRef(null); // hash of story ids we last sent
 
   const loadBriefing = useCallback(async (stories, { force = false } = {}) => {
@@ -325,6 +329,7 @@ function NewsPanel() {
       }
       setBriefing(json.briefing || []);
       setBriefingAt(json.generatedAt || new Date().toISOString());
+      setBriefingStale(json.stale === true);
     } catch (e) {
       setBriefingError(e.message || 'Briefing failed');
     } finally {
@@ -486,6 +491,7 @@ function NewsPanel() {
         briefing={briefing}
         loading={briefingLoading}
         error={briefingError}
+        stale={briefingStale}
         generatedAt={briefingAt}
         onRefresh={handleBriefingRefresh}
         onTickerClick={handleBriefingTickerClick}

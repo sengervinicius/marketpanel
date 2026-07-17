@@ -75,6 +75,13 @@ const DEFAULT_STOCK_TICKERS = [
   'WMT','LLY','UNH',
   'VALE','PBR','ITUB','BBD','ABEV','ERJ','BRFS','SUZ',
   'GLD','SLV','CPER','REMX','USO','UNG','SOYB','WEAT','CORN','BHP',
+  // H0 follow-up (futures "—" bug): the client Commodities panel defaults
+  // are real front-month futures (CIO_COMMODITIES_DEFAULTS on both sides),
+  // but this list — the /snapshot/stocks universe that feeds the client's
+  // mergedData.stocks — never carried them, so every futures row except
+  // ad-hoc-fetched ones rendered "—". Yahoo quotes =F symbols natively
+  // (same path that already serves them on /snapshot/ticker/:symbol).
+  'GC=F','SI=F','HG=F','CL=F','BZ=F','NG=F','ZC=F','ZS=F','ZW=F',
 ];
 
 // ── ETF categories ──────────────────────────────────────────────────
