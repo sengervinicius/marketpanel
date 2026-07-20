@@ -35,7 +35,17 @@ const state = {
   eulerpoolConfigured: false,
   finnhubConfigured: false,
   earningsRows: [],
+  // When set, getEarningsCalendarDetailed returns this envelope verbatim
+  // (lets tests simulate provider errors vs genuine quiet weeks).
+  finnhubDetailed: null,
   economicResult: { ok: false },
+  // Yahoo fallback stubs — yahooQuote answers with these quote objects
+  // (or throws when yahooThrows is set); yahooQuoteSummary supplies the
+  // best-effort EPS estimate enrichment.
+  yahooQuotes: [],
+  yahooThrows: false,
+  yahooRequested: [],
+  yahooSummary: {},
 };
 
 // Cache: no-op so tests never bleed into each other.
@@ -54,8 +64,12 @@ require.cache[providersPath] = {
     },
     polyFetch: async () => ({}),
     twelvedata: {},
-    yahooQuote: async () => ({}),
-    yahooQuoteSummary: async () => ({}),
+    yahooQuote: async (symbols) => {
+      state.yahooRequested.push(String(symbols));
+      if (state.yahooThrows) throw new Error('yahoo down');
+      return state.yahooQuotes;
+    },
+    yahooQuoteSummary: async (symbol) => state.yahooSummary[symbol] || {},
     sendError: (res, e) => res.status(502).json({ ok: false, error: String(e?.message || e) }),
   },
 };
@@ -65,6 +79,8 @@ require.cache[earningsSvcPath] = {
   exports: {
     isConfigured: () => state.finnhubConfigured,
     getEarningsCalendar: async () => state.earningsRows,
+    getEarningsCalendarDetailed: async () =>
+      state.finnhubDetailed || { ok: true, rows: state.earningsRows, configured: true },
   },
 };
 
@@ -118,6 +134,7 @@ describe('calendar endpoints (#UX-3)', () => {
     assert.equal(r.status, 200);
     assert.equal(r.body.ok, true);
     assert.equal(r.body.source, 'unavailable');
+    assert.equal(r.body.empty, 'no-provider');
     assert.equal(r.body.missingEnv, 'FINNHUB_API_KEY');
     assert.deepEqual(r.body.data, []);
     assert.match(r.body.message, /FINNHUB_API_KEY/);
@@ -152,14 +169,103 @@ describe('calendar endpoints (#UX-3)', () => {
     assert.equal(r.body.data[0].ticker, 'JPM');
   });
 
-  it('earnings: quiet week → ok with empty data (NOT unavailable)', async () => {
+  it('earnings: quiet week → ok with empty data, tagged empty:no-data (NOT unavailable)', async () => {
     state.finnhubConfigured = true;
     state.earningsRows = [];
+    state.finnhubDetailed = null;
+    state.yahooQuotes = [];
     const r = await getJson(port, '/market/earnings-calendar');
     assert.equal(r.status, 200);
     assert.equal(r.body.ok, true);
     assert.equal(r.body.source, 'finnhub');
+    assert.equal(r.body.empty, 'no-data');
     assert.deepEqual(r.body.data, []);
+    assert.match(r.body.message, /no earnings scheduled/i);
+  });
+
+  // ── Calendar-defect fix: Yahoo fallback + honest empty states ──────
+  // Live defect: Finnhub failures were swallowed into rows:[] and the
+  // route answered ok:true/source:finnhub, so the panel rendered the
+  // "no earnings this week" empty state forever.
+
+  const IN_WINDOW_AMC = Math.floor(Date.UTC(2026, 6, 22, 21, 0, 0) / 1000);  // 2026-07-22 21:00 UTC
+  const IN_WINDOW_BMO = Math.floor(Date.UTC(2026, 6, 23, 11, 30, 0) / 1000); // 2026-07-23 11:30 UTC
+  const OUT_WINDOW    = Math.floor(Date.UTC(2026, 9, 20, 21, 0, 0) / 1000);  // October — outside range
+
+  it('earnings: Finnhub errors → Yahoo fallback rows (source yahoo, degraded note)', async () => {
+    state.finnhubConfigured = true;
+    state.finnhubDetailed = { ok: false, rows: [], error: 'Finnhub HTTP 429', configured: true };
+    state.yahooThrows = false;
+    state.yahooQuotes = [
+      { symbol: 'MSFT', shortName: 'Microsoft', earningsTimestamp: IN_WINDOW_AMC },
+      { symbol: 'KO',   shortName: 'Coca-Cola', earningsTimestamp: IN_WINDOW_BMO },
+      { symbol: 'ORCL', shortName: 'Oracle',    earningsTimestamp: OUT_WINDOW },
+    ];
+    state.yahooSummary = {
+      MSFT: { earningsTrend: { currentQtr: { earningsEstimate: { avg: 3.21 } } } },
+    };
+    const r = await getJson(port, '/market/earnings-calendar?from=2026-07-20&to=2026-07-27');
+    assert.equal(r.status, 200);
+    assert.equal(r.body.ok, true);
+    assert.equal(r.body.source, 'yahoo');
+    assert.match(r.body.note, /Finnhub degraded/);
+    assert.deepEqual(r.body.data.map(d => d.ticker), ['MSFT', 'KO']); // date-sorted, out-of-window dropped
+    const msft = r.body.data[0];
+    assert.equal(msft.date, '2026-07-22');
+    assert.equal(msft.timing, 'AMC');           // 21:00 UTC → post-close
+    assert.equal(msft.epsEstimate, 3.21);       // quoteSummary enrichment
+    assert.equal(r.body.data[1].timing, 'BMO'); // 11:30 UTC → pre-open
+  });
+
+  it('earnings: no Finnhub at all → Yahoo fallback still serves rows (works keyless)', async () => {
+    state.finnhubConfigured = false;
+    state.finnhubDetailed = null;
+    state.yahooQuotes = [
+      { symbol: 'JPM', shortName: 'JPMorgan', earningsTimestamp: IN_WINDOW_BMO },
+    ];
+    state.yahooSummary = {};
+    const r = await getJson(port, '/market/earnings-calendar?from=2026-07-20&to=2026-07-27');
+    assert.equal(r.body.ok, true);
+    assert.equal(r.body.source, 'yahoo');
+    assert.equal(r.body.data.length, 1);
+    assert.equal(r.body.data[0].symbol, 'JPM');
+    assert.match(r.body.note, /S&P 100/);
+  });
+
+  it('earnings: ?symbols= watchlist is merged into the Yahoo universe', async () => {
+    state.finnhubConfigured = false;
+    state.yahooQuotes = [];
+    state.yahooRequested = [];
+    await getJson(port, '/market/earnings-calendar?from=2026-07-20&to=2026-07-27&symbols=PETR4.SA,ARCC');
+    const requested = state.yahooRequested.join(',');
+    assert.match(requested, /PETR4\.SA/);
+    assert.match(requested, /ARCC/);
+    assert.match(requested, /AAPL/); // S&P 100 market view always included
+  });
+
+  it('earnings: Yahoo answered but nothing in window → empty:no-data (quiet, not offline)', async () => {
+    state.finnhubConfigured = false;
+    state.yahooQuotes = [
+      { symbol: 'ORCL', shortName: 'Oracle', earningsTimestamp: OUT_WINDOW },
+    ];
+    const r = await getJson(port, '/market/earnings-calendar?from=2026-07-20&to=2026-07-27');
+    assert.equal(r.body.ok, true);
+    assert.equal(r.body.source, 'yahoo');
+    assert.equal(r.body.empty, 'no-data');
+    assert.deepEqual(r.body.data, []);
+  });
+
+  it('earnings: every provider down → empty:no-provider unavailable envelope', async () => {
+    state.finnhubConfigured = true;
+    state.finnhubDetailed = { ok: false, rows: [], error: 'Finnhub HTTP 500', configured: true };
+    state.yahooThrows = true;
+    const r = await getJson(port, '/market/earnings-calendar?from=2026-07-20&to=2026-07-27');
+    assert.equal(r.body.ok, true);
+    assert.equal(r.body.source, 'unavailable');
+    assert.equal(r.body.empty, 'no-provider');
+    assert.match(r.body.message, /Finnhub error \(Finnhub HTTP 500\)/);
+    state.yahooThrows = false;
+    state.finnhubDetailed = null;
   });
 
   it('macro: no keys → unavailable naming FINNHUB_API_KEY', async () => {

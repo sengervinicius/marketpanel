@@ -42,9 +42,130 @@ const defaultCalRange = () => {
 };
 const FINNHUB_TIMING = { bmo: 'BMO', amc: 'AMC', dmh: 'DMH' };
 
+// ── Yahoo earnings fallback (calendar-defect fix) ────────────────────
+// Free, keyless second source so the EARNINGS tab is never silently
+// empty when Finnhub/Eulerpool are unconfigured or down. Universe =
+// caller-supplied watchlist symbols (?symbols=) + the S&P 100 for the
+// market-wide default view. Yahoo's batched v7 quote carries the next
+// scheduled earnings timestamp per symbol; EPS estimates are enriched
+// best-effort from quoteSummary (calendarEvents/earningsTrend modules)
+// for the rows that land inside the window. Assembled rows cache 12h.
+const SP100 = [
+  'AAPL','ABBV','ABT','ACN','ADBE','AIG','AMD','AMGN','AMT','AMZN',
+  'AVGO','AXP','BA','BAC','BK','BKNG','BLK','BMY','BRK-B','C',
+  'CAT','CHTR','CL','CMCSA','COF','COP','COST','CRM','CSCO','CVS',
+  'CVX','DE','DHR','DIS','DOW','DUK','EMR','FDX','GD','GE',
+  'GILD','GM','GOOG','GOOGL','GS','HD','HON','IBM','INTC','INTU',
+  'ISRG','JNJ','JPM','KHC','KO','LIN','LLY','LMT','LOW','MA',
+  'MCD','MDLZ','MDT','MET','META','MMM','MO','MRK','MS','MSFT',
+  'NEE','NFLX','NKE','NOW','NVDA','ORCL','PEP','PFE','PG','PLTR',
+  'PM','PYPL','QCOM','RTX','SBUX','SCHW','SO','SPG','T','TGT',
+  'TMO','TMUS','TSLA','TXN','UNH','UNP','UPS','USB','V','VZ',
+  'WFC','WMT','XOM',
+];
+const YAHOO_EARNINGS_TTL = 12 * 60 * 60 * 1000; // 12h
+
+function epochToDay(ts) {
+  if (ts == null || !Number.isFinite(Number(ts))) return null;
+  const d = new Date(Number(ts) * 1000);
+  return Number.isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10);
+}
+
+// Best-effort BMO/AMC read off the UTC clock time of the earnings
+// timestamp (ET is UTC-4/-5: <= 13:30 UTC is pre-open, >= 20:00 UTC is
+// post-close year-round). Mid-session or midnight-anchored timestamps
+// stay null → panel renders TBD.
+function timingFromEpoch(ts) {
+  if (ts == null || !Number.isFinite(Number(ts))) return null;
+  const d = new Date(Number(ts) * 1000);
+  const mins = d.getUTCHours() * 60 + d.getUTCMinutes();
+  if (mins === 0) return null;
+  if (mins <= 13 * 60 + 30) return 'BMO';
+  if (mins >= 20 * 60) return 'AMC';
+  return null;
+}
+
+/**
+ * @returns {Promise<{rows: Array, sampled: number}>}
+ *   sampled — how many quotes Yahoo actually answered for; lets the
+ *   route distinguish "fallback worked, week is quiet" (sampled > 0,
+ *   rows empty) from "fallback is down too" (sampled 0).
+ */
+async function yahooEarningsFallback({ symbols = [], from, to }) {
+  const universe = Array.from(new Set(
+    [...symbols, ...SP100]
+      .map(sym => String(sym || '').trim().toUpperCase())
+      .filter(Boolean),
+  )).slice(0, 250);
+
+  const ck = `earnings-cal:yahoo:${from}:${to}:` +
+    require('crypto').createHash('md5').update(universe.join(',')).digest('hex').slice(0, 12);
+  const cached = cacheGet(ck);
+  if (cached) return cached;
+
+  const rows = [];
+  const seen = new Set();
+  let sampled = 0;
+  const BATCH = 50;
+  for (let i = 0; i < universe.length; i += BATCH) {
+    const batch = universe.slice(i, i + BATCH);
+    let quotes;
+    try {
+      quotes = await yahooQuote(batch.join(','));
+    } catch (e) {
+      logger.warn(`[earnings-calendar] yahoo fallback batch failed: ${e.message}`);
+      continue;
+    }
+    if (!Array.isArray(quotes)) continue;
+    for (const q of quotes) {
+      if (!q || !q.symbol) continue;
+      const sym = String(q.symbol).toUpperCase();
+      if (seen.has(sym)) continue; // Yahoo can echo overlapping batches
+      seen.add(sym);
+      sampled += 1;
+      const ts = q.earningsTimestamp ?? q.earningsTimestampStart ?? null;
+      const day = epochToDay(ts);
+      if (!day || day < from || day > to) continue;
+      rows.push({
+        ticker: sym,
+        symbol: sym,
+        name: q.shortName || q.longName || null,
+        date: day,
+        timing: timingFromEpoch(ts),
+        epsEstimate: null,
+        epsActual: null,
+        revenueEstimate: null,
+        revenueActual: null,
+      });
+    }
+  }
+
+  // Best-effort EPS estimates for the (few) rows inside the window —
+  // quoteSummary earningsTrend current-quarter consensus. Failures are
+  // silently tolerated; the row still renders with date + timing.
+  await Promise.all(rows.slice(0, 25).map(async (row) => {
+    try {
+      const qs = await yahooQuoteSummary(row.symbol);
+      const est = qs?.earningsTrend?.currentQtr?.earningsEstimate?.avg;
+      if (est != null && Number.isFinite(est)) row.epsEstimate = est;
+    } catch { /* best-effort */ }
+  }));
+
+  rows.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : a.symbol.localeCompare(b.symbol)));
+  const result = { rows, sampled };
+  if (sampled > 0) cacheSet(ck, result, YAHOO_EARNINGS_TTL);
+  return result;
+}
+
 router.get('/market/earnings-calendar', async (req, res) => {
   try {
     const { ticker, from, to } = req.query;
+    // Calendar-defect fix: the client passes its watchlist so the Yahoo
+    // fallback can cover user names beyond the S&P 100 market view.
+    const watchSymbols = String(req.query.symbols || '')
+      .split(',').map(sym => sym.trim()).filter(Boolean).slice(0, 100);
+    const def = defaultCalRange();
+    const range = { from: from || def.from, to: to || def.to };
 
     // Preferred: Eulerpool when configured (original data source).
     if (eulerpool.isConfigured()) {
@@ -64,46 +185,99 @@ router.get('/market/earnings-calendar', async (req, res) => {
       return res.json({ ok: true, data: result, source: 'eulerpool' });
     }
 
-    // #UX-3 — Finnhub fallback via services/earnings. This feed already
-    // existed but was never wired here, so deployments without Eulerpool
-    // showed "requires Eulerpool" in the Calendar panel despite having a
-    // perfectly good FINNHUB_API_KEY. Rows are normalized to the shape
+    // #UX-3 — Finnhub via services/earnings, normalized to the shape
     // CalendarPanel's EarningsRow reads (ticker/date/timing/estimates).
+    //
+    // Calendar-defect fix: the service used to swallow provider failures
+    // into `[]`, so the route answered ok:true/source:finnhub with empty
+    // data and the panel showed "No earnings this week" forever. We now
+    // track WHY there are no rows and fall through to the keyless Yahoo
+    // fallback instead of returning a silently-empty envelope.
     const earningsSvc = require('../../services/earnings');
+    let finnhubState = 'unconfigured'; // 'unconfigured' | 'empty' | 'error'
+    let finnhubError = null;
     if (earningsSvc.isConfigured()) {
-      const def = defaultCalRange();
-      const range = { from: from || def.from, to: to || def.to };
       const ck = `earnings-cal:finnhub:${range.from}:${range.to}:${ticker || ''}`;
       const cached = cacheGet(ck);
       if (cached) return res.json({ ok: true, data: cached, source: 'finnhub' });
 
-      let rows = await earningsSvc.getEarningsCalendar(range.from, range.to);
-      if (!Array.isArray(rows)) rows = [];
-      if (ticker) {
-        const want = String(ticker).toUpperCase();
-        rows = rows.filter(r => String(r.symbol || '').toUpperCase() === want);
-      }
-      const data = rows.map(r => ({
-        ticker: r.symbol,
-        symbol: r.symbol,
-        date: r.date,
-        timing: FINNHUB_TIMING[String(r.hour || '').toLowerCase()] || null,
-        epsEstimate: r.epsEstimate ?? null,
-        epsActual: r.epsActual ?? null,
-        revenueEstimate: r.revenueEstimate ?? null,
-        revenueActual: r.revenueActual ?? null,
-      }));
+      const detailed = typeof earningsSvc.getEarningsCalendarDetailed === 'function'
+        ? await earningsSvc.getEarningsCalendarDetailed(range.from, range.to)
+        : { ok: true, rows: await earningsSvc.getEarningsCalendar(range.from, range.to) };
 
-      cacheSet(ck, data, 600_000); // 10 min
-      return res.json({ ok: true, data, source: 'finnhub' });
+      if (detailed.ok) {
+        let rows = Array.isArray(detailed.rows) ? detailed.rows : [];
+        if (ticker) {
+          const want = String(ticker).toUpperCase();
+          rows = rows.filter(r => String(r.symbol || '').toUpperCase() === want);
+        }
+        const data = rows.map(r => ({
+          ticker: r.symbol,
+          symbol: r.symbol,
+          date: r.date,
+          timing: FINNHUB_TIMING[String(r.hour || '').toLowerCase()] || null,
+          epsEstimate: r.epsEstimate ?? null,
+          epsActual: r.epsActual ?? null,
+          revenueEstimate: r.revenueEstimate ?? null,
+          revenueActual: r.revenueActual ?? null,
+        }));
+
+        if (data.length > 0) {
+          cacheSet(ck, data, 600_000); // 10 min
+          return res.json({ ok: true, data, source: 'finnhub' });
+        }
+        finnhubState = 'empty';
+      } else {
+        finnhubState = 'error';
+        finnhubError = detailed.error || 'unknown error';
+        logger.warn(`[earnings-calendar] finnhub degraded: ${finnhubError}`);
+      }
     }
 
+    // Keyless Yahoo fallback — watchlist + S&P 100 universe (12h cache).
+    let fallback = { rows: [], sampled: 0 };
+    try {
+      fallback = await yahooEarningsFallback({ symbols: watchSymbols, from: range.from, to: range.to });
+    } catch (e) {
+      logger.warn(`[earnings-calendar] yahoo fallback failed: ${e.message}`);
+    }
+    let yahooRows = fallback.rows;
+    if (ticker) {
+      const want = String(ticker).toUpperCase();
+      yahooRows = yahooRows.filter(r => String(r.symbol || '').toUpperCase() === want);
+    }
+    if (yahooRows.length > 0) {
+      return res.json({
+        ok: true,
+        data: yahooRows,
+        source: 'yahoo',
+        note: finnhubState === 'error'
+          ? `Finnhub degraded (${finnhubError}) — showing Yahoo fallback (watchlist + S&P 100).`
+          : 'Yahoo fallback universe: watchlist + S&P 100.',
+      });
+    }
+
+    // No rows anywhere — say WHY, so the panel never goes silently empty.
+    // empty:'no-data'     → a provider answered; the window is genuinely quiet.
+    // empty:'no-provider' → every provider is unconfigured or down.
+    if (finnhubState === 'empty' || fallback.sampled > 0) {
+      return res.json({
+        ok: true,
+        data: [],
+        source: finnhubState === 'empty' ? 'finnhub' : 'yahoo',
+        empty: 'no-data',
+        message: `Provider is live — no earnings scheduled between ${range.from} and ${range.to}.`,
+      });
+    }
     return res.json({
       ok: true,
       data: [],
       source: 'unavailable',
+      empty: 'no-provider',
       missingEnv: 'FINNHUB_API_KEY',
-      message: 'Earnings calendar offline — set FINNHUB_API_KEY (or EULERPOOL_API_KEY).',
+      message: finnhubState === 'error'
+        ? `Earnings feed degraded — Finnhub error (${finnhubError}) and the Yahoo fallback returned nothing.`
+        : 'Earnings calendar offline — set FINNHUB_API_KEY (or EULERPOOL_API_KEY); the Yahoo fallback returned nothing.',
     });
   } catch (e) {
     logger.error('GET /market/earnings-calendar error:', e);

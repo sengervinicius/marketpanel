@@ -1,7 +1,12 @@
 /**
  * routes/market/movers.js — H2 Wave 1: Movers home panel endpoint.
  *
- *   GET /market/movers?tab=gainers|losers|actives&exchange=US|BR&limit=20
+ *   GET /market/movers?tab=gainers|losers|actives&exchange=US|BR&limit=20&quality=strict|all
+ *
+ *   quality=strict (default) applies institutional-grade universe
+ *   filters before ranking (US: price >= $5, day dollar-volume >= $50M
+ *   for gainers/losers / >= $100M for actives, prevClose > 0; BR:
+ *   price >= 1 BRL). quality=all serves the raw universe.
  *
  * US  — thin HTTP wrapper over providers/marketMoversProvider (Polygon
  *       snapshot gainers/losers/actives). The provider carries its own
@@ -97,6 +102,11 @@ async function fetchBrazilRows() {
   return rows;
 }
 
+// Data-quality: the B3 universe is already curated (blue-chips +
+// b3Metadata), so the only strict-mode gate is price >= 1 BRL — drops
+// penny leftovers without needing US-style dollar-volume thresholds.
+const BR_MIN_PRICE = 1;
+
 function sortBrazil(rows, tab) {
   const arr = [...rows];
   if (tab === 'actives') {
@@ -118,18 +128,25 @@ router.get('/market/movers', async (req, res) => {
       : 'gainers';
     const exchange = String(req.query.exchange || 'US').toUpperCase() === 'BR' ? 'BR' : 'US';
     const limit = Math.max(1, Math.min(50, Number(req.query.limit) || 20));
+    // ?quality=all bypasses the institutional-grade universe filters
+    // (US: price >= $5, dollar-volume >= $50M/$100M; BR: price >= 1 BRL).
+    // Default is strict.
+    const quality = String(req.query.quality || 'strict').toLowerCase() === 'all' ? 'all' : 'strict';
 
     if (exchange === 'BR') {
       const rows = await fetchBrazilRows();
-      const data = sortBrazil(rows, tab).slice(0, limit);
+      const eligible = quality === 'strict'
+        ? rows.filter(r => r.price != null && Number.isFinite(r.price) && r.price >= BR_MIN_PRICE)
+        : rows;
+      const data = sortBrazil(eligible, tab).slice(0, limit);
       return res.json({
-        ok: true, tab, exchange, count: data.length, data,
+        ok: true, tab, exchange, count: data.length, data, quality,
         source: 'yahoo', asOf: new Date().toISOString(),
       });
     }
 
-    // US — provider owns caching + Polygon plumbing.
-    const result = await getMarketMovers({ direction: tab, limit, market: 'US' });
+    // US — provider owns caching + Polygon plumbing (incl. quality gate).
+    const result = await getMarketMovers({ direction: tab, limit, market: 'US', quality });
     const data = (result.movers || []).map(m => ({
       symbol:    m.symbol,
       price:     m.price ?? null,
@@ -138,7 +155,8 @@ router.get('/market/movers', async (req, res) => {
       volume:    m.volume ?? null,
     }));
     return res.json({
-      ok: true, tab, exchange, count: data.length, data,
+      ok: true, tab, exchange, count: data.length, data, quality,
+      ...(result.filters ? { filters: result.filters } : {}),
       source: result.source || 'polygon',
       asOf: result.asOf || new Date().toISOString(),
       ...(result.error ? { error: result.error } : {}),

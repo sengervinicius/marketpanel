@@ -33,6 +33,9 @@ const B3_QUOTES = [
   { symbol: 'VALE3.SA', shortName: 'VALE ON',       regularMarketPrice: 61.50, regularMarketChange: -2.05, regularMarketChangePercent: -3.22, regularMarketVolume: 45000000 },
   { symbol: 'ITUB4.SA', shortName: 'ITAU UNIBANCO', regularMarketPrice: 34.02, regularMarketChange:  0.12, regularMarketChangePercent:  0.35, regularMarketVolume: 120000000 },
   { symbol: 'ZERO3.SA', shortName: 'NO PCT',        regularMarketPrice: 10.00, regularMarketChange: null,  regularMarketChangePercent: null,  regularMarketVolume: null },
+  // Data-quality: penny leftover — strict mode (default) must drop it
+  // (price < 1 BRL), ?quality=all must serve it.
+  { symbol: 'PENN3.SA', shortName: 'PENNY JUNK',     regularMarketPrice: 0.47,  regularMarketChange: 0.16,  regularMarketChangePercent: 50.9,  regularMarketVolume: 5000 },
 ];
 
 require.cache[providersPath] = {
@@ -117,6 +120,21 @@ describe('GET /market/movers (H2 W1 home panel)', () => {
     assert.deepEqual(r.body.data[0], { symbol: 'AAA', price: 12.5, change: 2.5, changePct: 25.0, volume: 1000000 });
     assert.equal(moversCalls.at(-1).direction, 'gainers');
     assert.equal(moversCalls.at(-1).market, 'US');
+    // Data-quality: strict universe filtering is the default.
+    assert.equal(moversCalls.at(-1).quality, 'strict');
+  });
+
+  it('US ?quality=all is forwarded to the provider (filter bypass)', async () => {
+    const r = await getJson(port, '/market/movers?quality=all');
+    assert.equal(r.body.ok, true);
+    assert.equal(r.body.quality, 'all');
+    assert.equal(moversCalls.at(-1).quality, 'all');
+  });
+
+  it('US bogus quality values fall back to strict', async () => {
+    const r = await getJson(port, '/market/movers?quality=nonsense');
+    assert.equal(r.body.quality, 'strict');
+    assert.equal(moversCalls.at(-1).quality, 'strict');
   });
 
   it('US losers: direction is forwarded to the provider', async () => {
@@ -140,14 +158,23 @@ describe('GET /market/movers (H2 W1 home panel)', () => {
     assert.match(r.body.error, /POLYGON_API_KEY/);
   });
 
-  it('BR gainers: ranked desc by changePct, .SA stripped, null-pct rows dropped', async () => {
+  it('BR gainers: ranked desc by changePct, .SA stripped, null-pct rows dropped, sub-R$1 junk filtered', async () => {
     const r = await getJson(port, '/market/movers?exchange=BR&tab=gainers');
     assert.equal(r.status, 200);
     assert.equal(r.body.exchange, 'BR');
     assert.equal(r.body.source, 'yahoo');
+    assert.equal(r.body.quality, 'strict');
+    // PENN3 (0.47 BRL, +50.9%) is in the fixture but below the 1 BRL gate.
     assert.deepEqual(r.body.data.map(d => d.symbol), ['PETR4', 'ITUB4', 'VALE3']);
     assert.equal(r.body.data[0].changePct, 2.97);
     assert.equal(r.body.data[0].name, 'PETROBRAS PN');
+  });
+
+  it('BR ?quality=all serves the raw universe (penny row included, real price)', async () => {
+    const r = await getJson(port, '/market/movers?exchange=BR&tab=gainers&quality=all');
+    assert.equal(r.body.quality, 'all');
+    assert.deepEqual(r.body.data.map(d => d.symbol), ['PENN3', 'PETR4', 'ITUB4', 'VALE3']);
+    assert.equal(r.body.data[0].price, 0.47);
   });
 
   it('BR losers: ranked asc by changePct', async () => {

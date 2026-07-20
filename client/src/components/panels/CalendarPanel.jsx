@@ -26,18 +26,22 @@ const USER_TZ_SHORT = (() => {
   } catch { return ''; }
 })();
 
-// Static fallback economic events (used when Eulerpool API returns empty)
+// Static fallback economic events (used when the live providers return
+// empty). Calendar-defect fix: the schedule had gone stale (Apr/May
+// dates rendering in July) — refreshed to the upcoming Jul-Sep window.
+// Curated dates follow the published Fed/BLS/BEA/ECB/BCB calendars; the
+// footer already labels this view "(curated · provider offline)".
 const STATIC_EVENTS = [
-  { id: 'fomc', name: 'FOMC Rate Decision', date: 'May 7, 2026', time: '14:00 ET', importance: 'high', previous: '4.25-4.50%', forecast: '4.25-4.50%' },
-  { id: 'cpi', name: 'US CPI (Apr)', date: 'May 13, 2026', time: '08:30 ET', importance: 'high', previous: '2.4% YoY', forecast: '2.3% YoY' },
-  { id: 'nfp', name: 'US Non-Farm Payrolls (Apr)', date: 'May 2, 2026', time: '08:30 ET', importance: 'high', previous: '+228K', forecast: '+200K' },
-  { id: 'pce', name: 'US PCE Price Index (Mar)', date: 'Apr 30, 2026', time: '08:30 ET', importance: 'high', previous: '2.5% YoY', forecast: '2.4% YoY' },
-  { id: 'gdp', name: 'US GDP Q1 (Advance)', date: 'Apr 30, 2026', time: '08:30 ET', importance: 'high', previous: '2.4%', forecast: '2.0%' },
-  { id: 'retail', name: 'US Retail Sales (Apr)', date: 'May 15, 2026', time: '08:30 ET', importance: 'medium', previous: '+1.4%', forecast: '+0.8%' },
-  { id: 'ecb', name: 'ECB Rate Decision', date: 'Apr 17, 2026', time: '08:15 ET', importance: 'high', previous: '2.65%', forecast: '2.40%' },
-  { id: 'copom', name: 'COPOM (Selic) Decision', date: 'May 7, 2026', time: '18:30 BRT', importance: 'high', previous: '14.25%', forecast: '14.75%' },
-  { id: 'ism', name: 'ISM Manufacturing PMI (Apr)', date: 'May 1, 2026', time: '10:00 ET', importance: 'medium', previous: '49.0', forecast: '49.5' },
-  { id: 'jolts', name: 'JOLTS Job Openings (Mar)', date: 'May 6, 2026', time: '10:00 ET', importance: 'medium', previous: '7.57M', forecast: '7.5M' },
+  { id: 'fomc', name: 'FOMC Rate Decision', date: 'Jul 29, 2026', time: '14:00 ET', importance: 'high', previous: '4.25-4.50%', forecast: '4.25-4.50%' },
+  { id: 'gdp', name: 'US GDP Q2 (Advance)', date: 'Jul 30, 2026', time: '08:30 ET', importance: 'high', previous: '2.0%', forecast: null },
+  { id: 'copom', name: 'COPOM (Selic) Decision', date: 'Jul 30, 2026', time: '18:30 BRT', importance: 'high', previous: '14.75%', forecast: null },
+  { id: 'pce', name: 'US PCE Price Index (Jun)', date: 'Jul 31, 2026', time: '08:30 ET', importance: 'high', previous: '2.4% YoY', forecast: null },
+  { id: 'ism', name: 'ISM Manufacturing PMI (Jul)', date: 'Aug 3, 2026', time: '10:00 ET', importance: 'medium', previous: '49.5', forecast: null },
+  { id: 'nfp', name: 'US Non-Farm Payrolls (Jul)', date: 'Aug 7, 2026', time: '08:30 ET', importance: 'high', previous: '+200K', forecast: null },
+  { id: 'cpi', name: 'US CPI (Jul)', date: 'Aug 12, 2026', time: '08:30 ET', importance: 'high', previous: '2.3% YoY', forecast: null },
+  { id: 'retail', name: 'US Retail Sales (Jul)', date: 'Aug 14, 2026', time: '08:30 ET', importance: 'medium', previous: '+0.8%', forecast: null },
+  { id: 'ecb', name: 'ECB Rate Decision', date: 'Sep 10, 2026', time: '08:15 ET', importance: 'high', previous: '2.40%', forecast: null },
+  { id: 'fomc2', name: 'FOMC Rate Decision', date: 'Sep 16, 2026', time: '14:00 ET', importance: 'high', previous: '4.25-4.50%', forecast: null },
 ];
 
 // H2 W1.2 — surprise read: parse the leading numeric out of strings like
@@ -198,10 +202,18 @@ function CalendarPanel() {
   } = useJsonQuery(['/api/market/macro-calendar'], {
     staleTime: STALE_TIMES.FUNDAMENTALS,
   });
+  // Calendar-defect fix: pass the watchlist so the server's keyless
+  // Yahoo fallback (watchlist + S&P 100) can cover user names too.
+  const earningsUrl = useMemo(() => {
+    const syms = (watchlist || []).slice(0, 50).map(w => String(w)).filter(Boolean);
+    return syms.length
+      ? `/api/market/earnings-calendar?symbols=${encodeURIComponent(syms.join(','))}`
+      : '/api/market/earnings-calendar';
+  }, [watchlist]);
   const {
     data: earningsResp,
     isPending: earningsLoading,
-  } = useJsonQuery(['/api/market/earnings-calendar'], {
+  } = useJsonQuery([earningsUrl], {
     staleTime: STALE_TIMES.FUNDAMENTALS,
   });
 
@@ -335,16 +347,24 @@ function CalendarPanel() {
             {earningsLoading && (
               <div style={{ padding: 12, fontSize: 10, color: 'var(--text-muted)' }}>Loading earnings...</div>
             )}
-            {/* #UX-3 — graceful empty state: distinguish "provider offline
-                (env var missing)" from "provider live, week is just quiet". */}
+            {/* Calendar-defect fix: the server now tags empty envelopes
+                with empty:'no-data' (a provider answered; week is quiet)
+                vs empty:'no-provider'/source:'unavailable' (every feed is
+                unconfigured or down) — render the honest reason. */}
             {!earningsLoading && earningsList.length === 0 && (
-              <div style={{ padding: 12, fontSize: 10, color: 'var(--text-muted)' }}>
+              <div className="cp-provider-note" style={{ padding: 12, fontSize: 10, color: 'var(--text-muted)' }}>
                 {watchOnly && earningsAll.length > 0
                   ? 'No upcoming earnings for your watchlist tickers.'
-                  : getProviderStatus(earningsResp) === 'unavailable'
+                  : getProviderStatus(earningsResp) === 'unavailable' || earningsResp?.empty === 'no-provider'
                     ? (earningsResp?.message || `Earnings feed offline — set ${earningsResp?.missingEnv || 'FINNHUB_API_KEY'} on the server.`)
-                    : 'No earnings this week for your filters.'}
+                    : earningsResp?.empty === 'no-data'
+                      ? (earningsResp?.message || 'Provider is live — no earnings scheduled in this window.')
+                      : 'No earnings this week for your filters.'}
               </div>
+            )}
+            {/* Fallback provenance (e.g. "Finnhub degraded — Yahoo fallback") */}
+            {!earningsLoading && earningsList.length > 0 && earningsResp?.note && (
+              <div className="cp-provider-note">{earningsResp.note}</div>
             )}
             {earningsList.map((item, i) => (
               <EarningsRow key={item.ticker || item.symbol || i} item={item} />

@@ -50,21 +50,31 @@ function setCached(key, value, ttl = CACHE_TTL) {
 }
 
 /**
- * Fetch earnings calendar for a date range
+ * Fetch earnings calendar for a date range — detailed envelope.
+ *
+ * Calendar-defect fix: getEarningsCalendar() historically swallowed
+ * every failure into `[]`, so callers could not tell "Finnhub is live
+ * and the week is quiet" from "Finnhub is down / unconfigured /
+ * rate-limited". The route needs that distinction to avoid rendering a
+ * silently-empty panel, so this variant returns:
+ *
+ *   { ok: true,  rows: [...] }                      — provider answered
+ *   { ok: false, rows: [], error, configured }      — provider failed
+ *
  * @param {string} from - YYYY-MM-DD
  * @param {string} to - YYYY-MM-DD
- * @returns {Promise<Array>} array of { symbol, date, epsEstimate, epsActual, revenueEstimate, revenueActual, hour }
+ * @returns {Promise<{ok: boolean, rows: Array, error?: string, configured: boolean}>}
  */
-async function getEarningsCalendar(from, to) {
+async function getEarningsCalendarDetailed(from, to) {
   if (!isConfigured()) {
     console.warn('[Earnings] FINNHUB_API_KEY not configured');
-    return [];
+    return { ok: false, rows: [], error: 'FINNHUB_API_KEY not configured', configured: false };
   }
 
   const cacheKey = `earnings_calendar_${from}_${to}`;
   const cached = getCached(cacheKey);
   if (cached) {
-    return cached;
+    return { ok: true, rows: cached, configured: true };
   }
 
   try {
@@ -73,7 +83,7 @@ async function getEarningsCalendar(from, to) {
 
     if (!response.ok) {
       console.error(`[Earnings] Finnhub error: ${response.status}`);
-      return [];
+      return { ok: false, rows: [], error: `Finnhub HTTP ${response.status}`, configured: true };
     }
 
     const data = await response.json();
@@ -88,11 +98,22 @@ async function getEarningsCalendar(from, to) {
     }));
 
     setCached(cacheKey, results);
-    return results;
+    return { ok: true, rows: results, configured: true };
   } catch (err) {
     console.error('[Earnings/Calendar] Fetch error:', err.message);
-    return [];
+    return { ok: false, rows: [], error: err.message, configured: true };
   }
+}
+
+/**
+ * Fetch earnings calendar for a date range (legacy array shape).
+ * @param {string} from - YYYY-MM-DD
+ * @param {string} to - YYYY-MM-DD
+ * @returns {Promise<Array>} array of { symbol, date, epsEstimate, epsActual, revenueEstimate, revenueActual, hour }
+ */
+async function getEarningsCalendar(from, to) {
+  const detailed = await getEarningsCalendarDetailed(from, to);
+  return detailed.rows;
 }
 
 /**
@@ -303,6 +324,7 @@ function getCacheStats() {
 module.exports = {
   isConfigured,
   getEarningsCalendar,
+  getEarningsCalendarDetailed,
   getEarningsForTicker,
   getUpcomingForWatchlist,
   formatForContext,
