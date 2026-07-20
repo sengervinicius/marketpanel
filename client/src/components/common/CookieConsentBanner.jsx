@@ -200,7 +200,7 @@ const gridStyle    = { display: 'grid', gap: 10, marginBottom: 12 };
 const toggleRowStyle = { display: 'grid', gridTemplateColumns: '20px 1fr', gap: 8, alignItems: 'start' };
 const btnRowStyle  = { display: 'flex', gap: 8, justifyContent: 'flex-end', flexWrap: 'wrap' };
 const btnPrimaryStyle = {
-  background: '#2563eb', color: '#fff', border: 0, borderRadius: 6,
+  background: 'var(--color-info)', color: 'var(--color-text-primary)', border: 0, borderRadius: 6,
   padding: '8px 14px', cursor: 'pointer', fontSize: 13, fontWeight: 600,
 };
 const btnSecondaryStyle = {

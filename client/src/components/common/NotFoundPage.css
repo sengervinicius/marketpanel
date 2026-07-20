@@ -6,7 +6,7 @@
   align-items: center;
   justify-content: center;
   padding: 24px;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-family-mono);
   z-index: var(--z-modal);
 }
 
@@ -54,7 +54,7 @@
   font-weight: 600;
   letter-spacing: 2px;
   cursor: pointer;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-family-mono);
   transition: all 0.2s ease;
 }
 

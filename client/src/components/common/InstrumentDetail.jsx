@@ -883,7 +883,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
 
               {/* Phase 4.8: Comparison Tickers */}
               {isComparisonMode && (
-                <ReferenceLine y={100} yAxisId="right" stroke="#555" strokeDasharray="6 3" strokeWidth={1} />
+                <ReferenceLine y={100} yAxisId="right" stroke={TOKEN_HEX.textMuted} strokeDasharray="6 3" strokeWidth={1} />
               )}
               {isComparisonMode && comparisonTickers.map((compTicker, idx) => (
                 <Line key={compTicker}
@@ -2749,7 +2749,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
           {showCustomRange && (
             <div className="id-custom-range-panel">
               <div style={{ marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid #444', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h4 style={{ margin: 0, fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#fff' }}>CUSTOM DATE RANGE</h4>
+                <h4 style={{ margin: 0, fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--color-text-primary)' }}>CUSTOM DATE RANGE</h4>
                 <button onClick={() => setShowCustomRange(false)} style={{ background: 'none', border: 'none', color: '#888', fontSize: 16, cursor: 'pointer', padding: '0 4px', lineHeight: 1 }} title="Close">&times;</button>
               </div>
 
@@ -2763,9 +2763,9 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
                       padding: '6px 8px',
                       fontSize: 11,
                       fontWeight: 500,
-                      backgroundColor: '#333',
+                      backgroundColor: 'var(--color-surface-raised)',
                       color: '#aaa',
-                      border: '1px solid #555',
+                      border: '1px solid var(--color-border-strong)',
                       borderRadius: 4,
                       cursor: 'pointer',
                       transition: 'all 0.2s',
@@ -2776,9 +2776,9 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
                       e.target.style.borderColor = ORANGE;
                     }}
                     onMouseLeave={(e) => {
-                      e.target.style.backgroundColor = '#333';
+                      e.target.style.backgroundColor = 'var(--color-surface-raised)';
                       e.target.style.color = '#aaa';
-                      e.target.style.borderColor = '#555';
+                      e.target.style.borderColor = 'var(--color-border-strong)';
                     }}
                   >
                     {preset}
@@ -3015,7 +3015,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
 
       {/* Link copied toast */}
       {copyToast && (
-        <div style={{ position: 'fixed', bottom: 80, left: '50%', transform: 'translateX(-50%)', background: '#1a1a1a', border: '1px solid var(--accent)', color: '#fff', padding: '8px 16px', borderRadius: 6, fontSize: 12, fontWeight: 600, zIndex: 99999, animation: 'fadeInUp 200ms ease-out' }}>
+        <div style={{ position: 'fixed', bottom: 80, left: '50%', transform: 'translateX(-50%)', background: 'var(--color-surface-3)', border: '1px solid var(--accent)', color: 'var(--color-text-primary)', padding: '8px 16px', borderRadius: 6, fontSize: 12, fontWeight: 600, zIndex: 99999, animation: 'fadeInUp 200ms ease-out' }}>
           Link copied!
         </div>
       )}

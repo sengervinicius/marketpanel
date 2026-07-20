@@ -43,6 +43,13 @@ tbody tr:hover {
   background-color: var(--bg-hover);
 }
 
+/* Design-lint A: form controls do not inherit fonts by default, so any
+   unstyled <button>/<input>/<select> painted the UA fallback (Arial on
+   Windows). Force inheritance from the token stack set on body. */
+button, input, select, textarea {
+  font-family: inherit;
+}
+
 /* Button hover: subtle scale effect */
 button, .btn, [role="button"],
 .chart-button, .icon-button {
@@ -1608,7 +1615,7 @@ textarea:focus-visible { outline: 1px solid var(--accent); outline-offset: 0; bo
   align-items: center;
   justify-content: center;
   font-size: 12px;
-  font-family: monospace;
+  font-family: var(--font-family-mono);
   padding: 0;
 }
 

@@ -67,7 +67,7 @@
   font-weight: 600;
   color: var(--color-text-primary);
   letter-spacing: 1px;
-  font-family: 'IBM Plex Mono', 'Courier New', monospace;
+  font-family: var(--font-family-mono);
   display: flex;
   align-items: center;
   gap: 10px;
@@ -138,7 +138,7 @@
   color: var(--color-up);
   letter-spacing: 0.8px;
   text-transform: uppercase;
-  font-family: 'IBM Plex Mono', 'Courier New', monospace;
+  font-family: var(--font-family-mono);
 }
 
 .shortcuts-help-list {
@@ -183,7 +183,7 @@
   border: 1px solid #2a2a33;
   border-radius: 4px;
   color: var(--color-up);
-  font-family: 'IBM Plex Mono', 'Courier New', monospace;
+  font-family: var(--font-family-mono);
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.3px;
@@ -206,7 +206,7 @@
 
 .shortcuts-help-desc {
   color: #aaaaaa;
-  font-family: 'IBM Plex Mono', 'Courier New', monospace;
+  font-family: var(--font-family-mono);
   font-size: 12px;
   flex: 1;
   text-align: right;
@@ -227,7 +227,7 @@
 
 .shortcuts-help-footer-text {
   margin: 0;
-  font-family: 'IBM Plex Mono', 'Courier New', monospace;
+  font-family: var(--font-family-mono);
   font-size: 11px;
   color: #6a6a74;
   letter-spacing: 0.3px;
@@ -242,7 +242,7 @@
   border: 1px solid rgba(0, 255, 136, 0.2);
   border-radius: 3px;
   color: var(--color-up);
-  font-family: 'IBM Plex Mono', 'Courier New', monospace;
+  font-family: var(--font-family-mono);
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.2px;

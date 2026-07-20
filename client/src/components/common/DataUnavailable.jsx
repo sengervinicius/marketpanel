@@ -34,7 +34,7 @@ function DataUnavailable({ reason, kind = 'loading', onRetry }) {
         textAlign: 'center',
         color: 'var(--text-secondary)',
         fontSize: 11,
-        fontFamily: 'monospace',
+        fontFamily: 'var(--font-family-mono)',
       }}
     >
       <div style={{ color: 'var(--text-secondary)', marginBottom: 4 }}>
@@ -85,7 +85,7 @@ function DataUnavailable({ reason, kind = 'loading', onRetry }) {
             borderRadius: 4,
             cursor: 'pointer',
             fontSize: 10,
-            fontFamily: 'monospace',
+            fontFamily: 'var(--font-family-mono)',
           }}
         >
           Retry

@@ -31,7 +31,7 @@
   margin: 0 0 0.5rem 0;
   font-size: 1.75rem;
   font-weight: 600;
-  font-family: 'Playfair Display', serif;
+  font-family: var(--font-family-display);
   color: var(--text-primary);
 }
 
@@ -134,7 +134,7 @@
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
-  font-family: 'Playfair Display', serif;
+  font-family: var(--font-family-display);
 }
 
 .research-feed-item-date {
@@ -185,7 +185,7 @@
   background: rgba(201, 168, 76, 0.15);
   color: var(--color-vault-accent);
   border-radius: 0.25rem;
-  font-family: 'Courier New', monospace;
+  font-family: var(--font-family-mono);
 }
 
 .research-feed-item-summary {

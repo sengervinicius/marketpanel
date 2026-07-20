@@ -241,7 +241,7 @@ const errorStyle = {
   background: '#5a1a1a', color: '#fdd', padding: '8px 16px', fontSize: 13, borderBottom: '1px solid #742',
 };
 const btnPrimaryStyle = {
-  background: '#2563eb', color: '#fff', border: 'none', padding: '6px 14px',
+  background: 'var(--color-info)', color: 'var(--color-text-primary)', border: 'none', padding: '6px 14px',
   borderRadius: 4, cursor: 'pointer', fontSize: 13,
 };
 const btnSecondaryStyle = {
@@ -249,5 +249,5 @@ const btnSecondaryStyle = {
   padding: '6px 14px', borderRadius: 4, cursor: 'pointer', fontSize: 13,
 };
 const mappingTableStyle = { width: '100%', borderCollapse: 'collapse', fontSize: 13 };
-const thStyle = { textAlign: 'left', padding: '6px 4px', borderBottom: '1px solid #333', color: '#aaa' };
+const thStyle = { textAlign: 'left', padding: '6px 4px', borderBottom: '1px solid var(--color-border-strong)', color: 'var(--color-text-secondary)' };
 const tdStyle = { padding: '6px 4px', borderBottom: '1px solid #222' };

@@ -152,7 +152,7 @@
 .morning-brief-card__content .particle-md-ticker {
   color: var(--text-primary);
   font-weight: 600;
-  font-family: 'Monaco', 'Menlo', monospace;
+  font-family: var(--font-family-mono);
 }
 
 .morning-brief-card__content .particle-md-bold {
@@ -164,7 +164,7 @@
   background: var(--bg-tertiary, #111827);
   padding: 2px 6px;
   border-radius: 3px;
-  font-family: 'Monaco', 'Menlo', monospace;
+  font-family: var(--font-family-mono);
   font-size: 12px;
   color: var(--text-secondary);
 }

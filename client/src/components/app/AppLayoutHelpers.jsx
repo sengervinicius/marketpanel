@@ -134,7 +134,7 @@ export function LayoutMoveOverlay({ panelId, rowIdx, colIdx, rowLen, totalRows, 
         color:  disabled ? 'var(--border-strong)' : 'var(--accent)',
         width: 22, height: 22, cursor: disabled ? 'default' : 'pointer',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontSize: 12, fontFamily: 'monospace', padding: 0,
+        fontSize: 12, fontFamily: 'var(--font-family-mono)', padding: 0,
       }}
     >{label}</button>
   );

@@ -266,7 +266,7 @@ const styles = {
     fontSize: '13px',
     fontWeight: 700,
     letterSpacing: '0.8px',
-    color: '#e0e0e0',
+    color: 'var(--color-text-primary)',
     fontFamily: 'var(--font-mono)',
   },
 
@@ -349,7 +349,7 @@ const styles = {
   labelText: {
     fontSize: '12px',
     fontWeight: 600,
-    color: '#e0e0e0',
+    color: 'var(--color-text-primary)',
     marginBottom: '6px',
     lineHeight: '1.2',
     minHeight: '24px',

@@ -44,7 +44,7 @@ export default class PanelErrorBoundary extends Component {
           fontSize: 11,
           textAlign: 'center',
         }}>
-          <span style={{ color: '#999', fontWeight: 600, fontSize: 12 }}>
+          <span style={{ color: 'var(--color-text-secondary)', fontWeight: 600, fontSize: 12 }}>
             {this.props.name || 'Panel'} — loading issue
           </span>
           <span style={{ color: '#666', fontSize: 10, maxWidth: 300, wordBreak: 'break-word' }}>
@@ -63,7 +63,7 @@ export default class PanelErrorBoundary extends Component {
             style={{
               marginTop: 4,
               background: 'transparent',
-              border: '1px solid #555',
+              border: '1px solid var(--color-border-strong)',
               color: '#aaa',
               padding: '4px 12px',
               borderRadius: 3,

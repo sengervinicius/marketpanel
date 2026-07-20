@@ -59,7 +59,7 @@ const ScreenItem = memo(function ScreenItem({ screen, isApplying, wasApplied, is
         style={{
           background: wasApplied ? '#1a3a1a' : 'none',
           border:  wasApplied ? '1px solid #00cc66' : '1px solid #2a2a2a',
-          color:   wasApplied ? '#00cc66' : isApplying ? 'var(--color-particle)' : isCurrent ? 'var(--color-particle)' : '#555',
+          color:   wasApplied ? 'var(--color-up)' : isApplying ? 'var(--color-particle)' : isCurrent ? 'var(--color-particle)' : 'var(--color-text-muted)',
           fontSize: 8.5, padding: '2px 6px', cursor: isApplying ? 'wait' : 'pointer', letterSpacing: '0.3px',
           minWidth: 48, flexShrink: 0,
           transition: 'all 150ms ease-out',

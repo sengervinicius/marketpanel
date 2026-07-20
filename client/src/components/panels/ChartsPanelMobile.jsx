@@ -427,9 +427,9 @@ const MobileChart = memo(function MobileChart({ ticker }) {
                   <ResponsiveContainer width={width} height={volH}>
                     <BarChart data={chartBars} margin={{ top: 2, right: 4, bottom: 0, left: 4 }}>
                       <XAxis dataKey="label" hide axisLine={false} />
-                      <YAxis tick={{ fill: '#333', fontSize: 8.5 }} width={52} tickFormatter={fmtVol} axisLine={false} />
+                      <YAxis tick={{ fill: TOKEN_HEX.textFaint, fontSize: 8.5 }} width={52} tickFormatter={fmtVol} axisLine={false} />
                       <Bar dataKey="volume" fill="#1a3352" opacity={0.85} radius={[1, 1, 0, 0]} />
-                      <Tooltip contentStyle={ttStyle} formatter={v => [fmtVol(v), 'Volume']} labelStyle={{ color: '#555' }} />
+                      <Tooltip contentStyle={ttStyle} formatter={v => [fmtVol(v), 'Volume']} labelStyle={{ color: TOKEN_HEX.textMuted }} />
                     </BarChart>
                   </ResponsiveContainer>
 
@@ -443,7 +443,7 @@ const MobileChart = memo(function MobileChart({ ticker }) {
                           <YAxis domain={[0, 100]} ticks={[30, 70]} tick={{ fill: 'var(--text-faint)', fontSize: 8.5 }} width={52} axisLine={false} />
                           <ReferenceLine y={70} stroke="var(--price-down)" strokeDasharray="3 3" strokeOpacity={0.5} />
                           <ReferenceLine y={30} stroke="var(--price-up)" strokeDasharray="3 3" strokeOpacity={0.5} />
-                          <Tooltip contentStyle={ttStyle} formatter={v => [v != null ? v.toFixed(1) : '--', 'RSI']} labelStyle={{ color: '#555' }} />
+                          <Tooltip contentStyle={ttStyle} formatter={v => [v != null ? v.toFixed(1) : '--', 'RSI']} labelStyle={{ color: TOKEN_HEX.textMuted }} />
                           <Line type="monotone" dataKey="rsi14" stroke={IND_COLORS.RSI14} strokeWidth={1.2} dot={false} connectNulls isAnimationActive={false} />
                         </ComposedChart>
                       </ResponsiveContainer>
@@ -459,7 +459,7 @@ const MobileChart = memo(function MobileChart({ ticker }) {
                           <XAxis dataKey="label" hide axisLine={false} />
                           <YAxis tick={{ fill: 'var(--text-faint)', fontSize: 8.5 }} width={52} axisLine={false} />
                           <ReferenceLine y={0} stroke="var(--border-default)" />
-                          <Tooltip contentStyle={ttStyle} formatter={(v, n) => [v != null ? v.toFixed(3) : '--', n]} labelStyle={{ color: '#555' }} />
+                          <Tooltip contentStyle={ttStyle} formatter={(v, n) => [v != null ? v.toFixed(3) : '--', n]} labelStyle={{ color: TOKEN_HEX.textMuted }} />
                           <Bar dataKey="macdHist" name="Histogram" fill={IND_COLORS.MACD} opacity={0.35} radius={[1, 1, 0, 0]} isAnimationActive={false} />
                           <Line type="monotone" dataKey="macdLine" stroke={IND_COLORS.MACD} strokeWidth={1.2} dot={false} connectNulls isAnimationActive={false} />
                           <Line type="monotone" dataKey="macdSignal" stroke="#e91e63" strokeWidth={1} dot={false} connectNulls strokeDasharray="3 2" isAnimationActive={false} />

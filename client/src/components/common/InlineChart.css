@@ -84,16 +84,16 @@
 
 /* Text labels in charts */
 .inline-chart-label {
-  font-family: 'Monaco', 'Courier New', monospace;
+  font-family: var(--font-family-mono);
   font-weight: bold;
 }
 
 .inline-chart-bar-label {
-  font-family: 'Monaco', 'Courier New', monospace;
+  font-family: var(--font-family-mono);
 }
 
 .inline-chart-bar-value {
-  font-family: 'Monaco', 'Courier New', monospace;
+  font-family: var(--font-family-mono);
 }
 
 /* Legend for comparison charts */
@@ -162,7 +162,7 @@
   background-color: rgba(255, 136, 68, 0.05);
   border-radius: 4px;
   border: 1px solid rgba(255, 136, 68, 0.2);
-  font-family: 'Monaco', 'Courier New', monospace;
+  font-family: var(--font-family-mono);
 }
 
 /* Responsive adjustments */

@@ -13,7 +13,7 @@
   border-radius: 6px;
   padding: 20px;
   margin: 12px 0;
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-family: var(--font-family-mono);
   font-size: 13px;
   line-height: 1.5;
   color: var(--color-text-primary);
@@ -156,7 +156,7 @@
   font-size: 14px;
   color: #78c878;
   font-weight: 500;
-  font-family: 'Monaco', monospace;
+  font-family: var(--font-family-mono);
 }
 
 /* ─────────────────────────────────────────────────────────────────────────── */
@@ -259,7 +259,7 @@
 }
 
 .analysis-card-rec-ticker {
-  font-family: 'Monaco', monospace;
+  font-family: var(--font-family-mono);
   font-weight: 600;
   color: var(--color-text-primary);
   font-size: 13px;
@@ -368,7 +368,7 @@
 }
 
 .analysis-card-assessment-value {
-  font-family: 'Monaco', monospace;
+  font-family: var(--font-family-mono);
   font-size: 14px;
   color: #78c878;
   font-weight: 600;
@@ -436,7 +436,7 @@
   display: inline-block;
   font-size: 11px;
   font-weight: 600;
-  font-family: 'Monaco', monospace;
+  font-family: var(--font-family-mono);
   padding: 2px 6px;
   border-radius: 3px;
   background: rgba(120, 200, 120, 0.2);
@@ -522,7 +522,7 @@
 }
 
 .analysis-card-scenario-target-value {
-  font-family: 'Monaco', monospace;
+  font-family: var(--font-family-mono);
   font-size: 12px;
   font-weight: 600;
   color: #78c878;

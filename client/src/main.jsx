@@ -133,7 +133,7 @@ class RootErrorBoundary extends Component {
           <div style={{ color:'var(--color-down)', fontSize:14, fontWeight:600 }}>Something went wrong</div>
           <div style={{ color:'#ff9900', fontSize:11, maxWidth:600, wordBreak:'break-word', textAlign:'center' }}>{this.state.error?.message || 'Unknown error'}</div>
           <pre style={{ color:'#888', fontSize:9, maxWidth:'90vw', maxHeight:'40vh', overflow:'auto', whiteSpace:'pre-wrap' }}>{this.state.error?.stack || ''}</pre>
-          <button onClick={() => window.location.reload()} style={{ background:'var(--color-particle)', color:'#fff', border:'none', padding:'8px 24px', borderRadius:4, cursor:'pointer', fontSize:12, letterSpacing:'1px' }}>RELOAD</button>
+          <button onClick={() => window.location.reload()} style={{ background:'var(--color-particle)', color:'var(--color-text-inverse)', border:'none', padding:'8px 24px', borderRadius:4, cursor:'pointer', fontSize:12, letterSpacing:'1px' }}>RELOAD</button>
         </div>
       );
     }

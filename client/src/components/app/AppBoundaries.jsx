@@ -72,7 +72,7 @@ export function TermsAcceptanceModal({ onAccept }) {
             onClick={onAccept}
             style={{
               width: '100%', padding: '12px 0', borderRadius: 8,
-              background: 'var(--accent)', color: '#fff',
+              background: 'var(--accent)', color: 'var(--color-text-inverse)',
               fontWeight: 600, fontSize: 14, border: 'none', cursor: 'pointer',
               opacity: 1, transition: 'opacity 150ms',
             }}
@@ -107,7 +107,7 @@ export class AppErrorBoundary extends Component {
         <div style={{
           position: 'fixed', inset: 0, background: '#0a0a0a',
           display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-          color: '#e0e0e0', fontFamily: 'monospace', padding: 24, gap: 16,
+          color: 'var(--color-text-primary)', fontFamily: 'var(--font-family-mono)', padding: 24, gap: 16,
         }}>
           <div style={{ color: 'var(--color-accent)', fontWeight: 700, fontSize: 13, letterSpacing: '3px' }}>PARTICLE</div>
           <div style={{ color: 'var(--color-down)', fontSize: 14, fontWeight: 600 }}>App crashed — render error</div>
@@ -119,7 +119,7 @@ export class AppErrorBoundary extends Component {
           </pre>
           <button
             onClick={() => { this.setState({ hasError: false, error: null, errorInfo: null }); window.location.reload(); }}
-            style={{ background: 'var(--color-particle)', color: '#fff', border: 'none', padding: '8px 24px', borderRadius: 4, cursor: 'pointer', fontSize: 12, letterSpacing: '1px' }}
+            style={{ background: 'var(--color-particle)', color: 'var(--color-text-inverse)', border: 'none', padding: '8px 24px', borderRadius: 4, cursor: 'pointer', fontSize: 12, letterSpacing: '1px' }}
           >RELOAD</button>
         </div>
       );

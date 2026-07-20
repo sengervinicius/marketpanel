@@ -135,7 +135,7 @@ export default function OptionsPayoffChart({ strategy }) {
               width={55}
             />
             <Tooltip
-              contentStyle={{ background: '#1a1a1a', border: '1px solid #333', fontSize: 11, borderRadius: 4 }}
+              contentStyle={{ background: 'var(--color-surface-3)', border: '1px solid var(--color-border-strong)', fontSize: 11, borderRadius: 4 }}
               labelFormatter={v => `Price: $${v}`}
               formatter={v => [fmt(v), 'P&L']}
             />

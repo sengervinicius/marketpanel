@@ -1068,8 +1068,8 @@
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
-.particle-sentiment-item.up .particle-sentiment-pct { color: #34d399; }
-.particle-sentiment-item.down .particle-sentiment-pct { color: #f87171; }
+.particle-sentiment-item.up .particle-sentiment-pct { color: var(--sent-bull); }
+.particle-sentiment-item.down .particle-sentiment-pct { color: var(--sent-bear); }
 
 /* ── 12A: Market Closed Empty State ────────────────────────────────────── */
 .particle-closed-state {
@@ -1559,8 +1559,8 @@
   background: rgba(255,255,255,0.08);
 }
 .particle-thread-action--danger:hover {
-  color: #f87171;
-  background: rgba(248,113,113,0.12);
+  color: var(--color-down);
+  background: var(--color-down-bg);
 }
 .particle-thread-item-meta {
   display: flex;

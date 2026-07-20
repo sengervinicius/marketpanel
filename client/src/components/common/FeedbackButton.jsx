@@ -231,7 +231,7 @@ function FeedbackModal({ open, onClose }) {
           border-radius: 12px;
           padding: 20px;
           color: #e6e6e6;
-          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+          font-family: var(--font-family-sans);
           box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55);
         }
         .particle-feedback-modal__header {
@@ -249,7 +249,7 @@ function FeedbackModal({ open, onClose }) {
         .particle-feedback-modal__close {
           background: none;
           border: none;
-          color: #999;
+          color: var(--text-secondary);
           font-size: 22px;
           line-height: 1;
           cursor: pointer;
@@ -323,10 +323,10 @@ function FeedbackModal({ open, onClose }) {
         }
         .particle-feedback-modal__btn--ghost {
           background: transparent;
-          border: 1px solid #333;
+          border: 1px solid var(--color-border-strong);
           color: #aaa;
         }
-        .particle-feedback-modal__btn--ghost:hover { color: #fff; border-color: #555; }
+        .particle-feedback-modal__btn--ghost:hover { color: var(--text-primary); border-color: var(--color-border-strong); }
         .particle-feedback-modal__btn--primary {
           background: rgba(255, 255, 255, 0.06);
           border: 1px solid rgba(255, 255, 255, 0.15);
@@ -396,7 +396,7 @@ export default function FeedbackButton() {
           border: 1px solid rgba(255, 255, 255, 0.08);
           background: rgba(20, 22, 28, 0.82);
           color: #8a8f99;
-          font: 500 11px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+          font: 500 11px/1 var(--font-family-sans);
           letter-spacing: 0.02em;
           display: inline-flex;
           align-items: center;

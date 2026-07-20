@@ -43,7 +43,7 @@ const ASSET_TYPE_BADGE = {
   Warrant: { bg: '#2a1a00', color: '#ffcc80', label: 'WARRANT' },
   Option:  { bg: '#2a0a1a', color: '#ef9a9a', label: 'OPTION' },
   Future:  { bg: '#1a0a00', color: '#ff8a65', label: 'FUTURE' },
-  OTC:     { bg: '#1a1a1a', color: '#999',    label: 'OTC' },
+  OTC:     { bg: '#1a1a1a', color: TOKEN_HEX.textSecondary,    label: 'OTC' },
   Screen:  { bg: '#001a3a', color: '#4fc3f7', label: 'SCREEN' },
 };
 
@@ -304,7 +304,7 @@ function EnhancedResultRow({ item, idx, isSelected, onSelect, onDragStart, cover
           </Badge>
         )}
         {item.currency && item.currency !== 'USD' && (
-          <span style={{ fontSize: 9, color: 'var(--text-muted)', fontFamily: 'monospace' }}>{item.currency}</span>
+          <span style={{ fontSize: 9, color: 'var(--text-muted)', fontFamily: 'var(--font-family-mono)' }}>{item.currency}</span>
         )}
       </div>
     </div>

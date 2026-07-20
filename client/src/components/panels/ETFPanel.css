@@ -3,7 +3,7 @@
 .ep-container {
   background-color: var(--bg-panel);
   color: var(--text-primary);
-  font-family: monospace;
+  font-family: var(--font-family-mono);
   display: flex;
   flex-direction: column;
   height: 100%;

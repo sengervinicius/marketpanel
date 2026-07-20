@@ -318,7 +318,7 @@ export function WelcomeSubscriptionModal({ subscription, onUpgrade, onDismiss })
       <div onClick={e => e.stopPropagation()} style={{
         background: '#0c0c0f', border: '1px solid #1a1a1a',
         borderRadius: 12, padding: '36px 32px', maxWidth: 380, width: '90%',
-        textAlign: 'center', color: '#e0e0e0',
+        textAlign: 'center', color: 'var(--color-text-primary)',
         fontFamily: 'var(--font-ui)',
         boxShadow: '0 24px 80px rgba(0, 0, 0, 0.6)',
       }}>
@@ -367,7 +367,7 @@ export function WelcomeSubscriptionModal({ subscription, onUpgrade, onDismiss })
           START FREE TRIAL ({days} DAYS)
         </button>
 
-        <div style={{ marginTop: 16, fontSize: 9, color: '#333', letterSpacing: '0.05em' }}>
+        <div style={{ marginTop: 16, fontSize: 9, color: 'var(--color-text-muted)', letterSpacing: '0.05em' }}>
           Cancel anytime. No commitment.
         </div>
       </div>
