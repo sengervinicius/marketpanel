@@ -732,7 +732,9 @@ function BrazilPanel({ onTickerClick }) {
           currentSymbols={panelSymbols}
           assetClasses={['equity']}
           onSave={({ title, symbols }) => {
-            updatePanelConfig('brazilB3', { title, symbols });
+            // Preserve the FII list (Phase S W1 item 3) — the config modal
+            // only edits the B3 names section.
+            updatePanelConfig('brazilB3', { ...panelCfg, title, symbols });
             setConfigOpen(false);
           }}
           onClose={() => setConfigOpen(false)}
