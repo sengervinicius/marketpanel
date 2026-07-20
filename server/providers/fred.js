@@ -212,6 +212,82 @@ async function fetchCsvObservations(seriesId) {
   }
 }
 
+// ── Historic observations (Design v1 — 1M-ago ghost curve) ───────────────────
+
+const GHOST_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours — history does not move intraday
+
+/**
+ * Fetch a series' value ~N trading days back (default 21 ≈ one month).
+ * Generalizes the fetchLatestPair pattern: pull the recent observation
+ * window sorted desc, index into it. Returns { value, date } or null.
+ * Cached 6h.
+ */
+async function fetchValueTradingDaysBack(seriesId, tradingDaysBack = 21) {
+  const ck = `fred:back:${seriesId}:${tradingDaysBack}`;
+  const cached = cacheGet(ck);
+  if (cached !== null && cached !== undefined) return cached;
+
+  try {
+    const obs = fredKey()
+      ? await fetchJsonObservationsWindow(seriesId, tradingDaysBack + 15)
+      : await fetchCsvObservationsWindow(seriesId, tradingDaysBack + 15);
+    if (!obs.length) return null;
+    // obs sorted desc (most recent first). Index N ≈ N trading days back;
+    // degrade to the oldest available observation in the window.
+    const pick = obs[Math.min(tradingDaysBack, obs.length - 1)];
+    const out = pick ? { value: pick.value, date: pick.date } : null;
+    if (out) cacheSet(ck, out, GHOST_TTL_MS);
+    return out;
+  } catch (e) {
+    console.warn('[FRED]', `${seriesId} back(${tradingDaysBack}): ${e.message}`);
+    return null;
+  }
+}
+
+/** JSON API: up to `limit` most recent valid observations, sorted desc. */
+async function fetchJsonObservationsWindow(seriesId, limit) {
+  const apiKey = fredKey();
+  const url = `${JSON_BASE}?series_id=${seriesId}&file_type=json&sort_order=desc&limit=${limit + 10}&api_key=${apiKey}`;
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
+  try {
+    const res = await fetch(url, { signal: ctrl.signal });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+    return (json?.observations ?? [])
+      .filter(o => o.value !== '.' && !isNaN(parseFloat(o.value)))
+      .slice(0, limit)
+      .map(o => ({ date: o.date, value: parseFloat(o.value) }));
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** CSV endpoint: last ~90 calendar days via cosd, parsed desc from the tail. */
+async function fetchCsvObservationsWindow(seriesId, limit) {
+  const cosd = new Date(Date.now() - 90 * 86400000).toISOString().slice(0, 10);
+  const url = `${CSV_BASE}?id=${seriesId}&cosd=${cosd}`;
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
+  try {
+    const res = await fetch(url, { signal: ctrl.signal });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const text = await res.text();
+    const lines = text.trim().split('\n').slice(1);
+    const out = [];
+    for (let i = lines.length - 1; i >= 0 && out.length < limit; i--) {
+      const parts = lines[i].split(',');
+      if (parts.length >= 2 && parts[1] !== '.' && parts[1].trim() !== '') {
+        const val = parseFloat(parts[1]);
+        if (!isNaN(val)) out.push({ date: parts[0], value: val });
+      }
+    }
+    return out;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 // ── High-level helpers ────────────────────────────────────────────────────────
 
 const US_CURVE_SERIES = {
@@ -261,6 +337,39 @@ async function getUSTreasuryCurve() {
 
   if (points.length > 0) cacheSet(ck, points, TTL_MS);
   return points;
+}
+
+/**
+ * Get the US Treasury curve as of ~N trading days back (default 21 ≈ 1M).
+ * Powers the "– – 1M AGO" ghost line on the RATES & CREDIT board.
+ * Per-tenor degrade: a tenor whose history fetch fails is simply omitted.
+ * Returns { points: [{ tenor, rate }], asOf } or null when < 3 tenors resolve.
+ * Cached 6h.
+ */
+async function getUSTreasuryCurveGhost(tradingDaysBack = 21) {
+  const ck = `fred:us_curve_ghost:${tradingDaysBack}`;
+  const cached = cacheGet(ck);
+  if (cached) return cached;
+
+  const entries = Object.entries(US_CURVE_SERIES);
+  const settled = await Promise.allSettled(
+    entries.map(([, sid]) => fetchValueTradingDaysBack(sid, tradingDaysBack))
+  );
+
+  const points = [];
+  let asOf = null;
+  entries.forEach(([tenor], i) => {
+    const r = settled[i].status === 'fulfilled' ? settled[i].value : null;
+    if (r && r.value != null) {
+      points.push({ tenor, rate: r.value });
+      if (!asOf || r.date < asOf) asOf = r.date;
+    }
+  });
+
+  if (points.length < 3) return null; // degrade to no ghost
+  const out = { points, asOf, tradingDaysBack };
+  cacheSet(ck, out, GHOST_TTL_MS);
+  return out;
 }
 
 /**
@@ -316,6 +425,8 @@ async function getValue(seriesId) {
 }
 
 module.exports = {
+  fetchValueTradingDaysBack,
+  getUSTreasuryCurveGhost,
   fetchSeries,
   fetchLatestPair,
   fetchMultiple,

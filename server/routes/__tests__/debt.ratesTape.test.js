@@ -27,10 +27,13 @@ const routePath = require.resolve('../debt');
 // ── FRED stub ────────────────────────────────────────────────────────
 const pairCalls = [];
 const PAIRS = {
+  DGS10:        { value: 4.57, date: '2026-07-15', prev: 4.54, prevDate: '2026-07-14', change: 0.03 },
+  T10Y2Y:       { value: 0.42, date: '2026-07-15', prev: 0.40, prevDate: '2026-07-14', change: 0.02 },
   T10YIE:       { value: 2.28, date: '2026-07-15', prev: 2.25, prevDate: '2026-07-14', change: 0.03 },
   T5YIFR:       { value: 2.41, date: '2026-07-15', prev: 2.41, prevDate: '2026-07-14', change: 0 },
   DFII10:       null, // degraded series — e.g. FRED CSV outage
   BAMLH0A0HYM2: { value: 3.05, date: '2026-07-15', prev: 2.98, prevDate: '2026-07-14', change: 0.07 },
+  BAMLC0A0CM:   { value: 0.96, date: '2026-07-15', prev: 0.97, prevDate: '2026-07-14', change: -0.01 },
 };
 
 require.cache[fredPath] = {
@@ -86,12 +89,12 @@ describe('GET /rates-tape (H2b US rates tape)', () => {
     server.close();
   });
 
-  it('maps all four series; %-series verbatim, HY OAS in bps', async () => {
+  it('maps all seven series; %-series verbatim, OAS/slope in bps', async () => {
     const r = await getJson(port, '/rates-tape');
     assert.equal(r.status, 200);
     assert.equal(r.body.ok, true);
     assert.equal(r.body.source, 'fred');
-    assert.equal(r.body.tape.length, 4);
+    assert.equal(r.body.tape.length, 7);
 
     const byId = Object.fromEntries(r.body.tape.map(t => [t.id, t]));
 
@@ -104,6 +107,13 @@ describe('GET /rates-tape (H2b US rates tape)', () => {
       id: 'hyOas', label: 'HY OAS', seriesId: 'BAMLH0A0HYM2', unit: 'bp',
       value: 305, change1d: 7, asOfDate: '2026-07-15',
     });
+    // Design v1 additions: 2s10s slope %-points → bps; US 10Y verbatim %.
+    assert.deepEqual(byId.spread2s10s, {
+      id: 'spread2s10s', label: '2S10S', seriesId: 'T10Y2Y', unit: 'bp',
+      value: 42, change1d: 2, asOfDate: '2026-07-15',
+    });
+    assert.equal(byId.us10y.value, 4.57);
+    assert.equal(byId.igOas.value, 96);
   });
 
   it('degrades unavailable series to null without failing the payload', async () => {

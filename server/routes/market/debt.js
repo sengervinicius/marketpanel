@@ -1083,6 +1083,14 @@ router.get('/yield-curves', async (req, res) => {
       );
     }
 
+    // —— US 1M-ago ghost curve (Design v1 RATES & CREDIT board) ——
+    // FRED, ~21 trading days back, 6h provider cache. Additive: failure
+    // or <3 resolved tenors degrades to no ghost field.
+    let usGhost = null;
+    try {
+      usGhost = await require('../../providers/fred').getUSTreasuryCurveGhost(21);
+    } catch (e) { swallow(e, 'market.debt.us_ghost_curve'); }
+
     // —— US curve (Treasury XML → FRED CSV fallback) ——
     let usCurve = [];
     let usSource = 'unavailable';
@@ -1161,7 +1169,13 @@ router.get('/yield-curves', async (req, res) => {
 
     const payload = {
       BR: { curve: brCurve, source: brSource, updatedAt: now.toISOString() },
-      US: { curve: usCurve, source: usSource, updatedAt: now.toISOString() },
+      US: {
+        curve: usCurve,
+        source: usSource,
+        updatedAt: now.toISOString(),
+        // Additive (Design v1): 1-month-ago ghost curve for the main chart.
+        ...(usGhost ? { ghost: usGhost.points, ghostAsOf: usGhost.asOf } : {}),
+      },
       UK: { curve: ukCurve, source: ukSource, updatedAt: now.toISOString() },
       EU: { curve: euCurve, source: euSource, updatedAt: now.toISOString() },
       CH: {

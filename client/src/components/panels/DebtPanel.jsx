@@ -1,17 +1,23 @@
 /**
- * DebtPanel.jsx
- * Global sovereign yield curves + credit spread indexes.
+ * DebtPanel.jsx — RATES & CREDIT board (Design v1, approved mockup
+ * particle-home-design-review.html, section 2).
  *
- * Data sources (live -- no API key required):
- *   US  -> US Treasury Fiscal Data XML (home.treasury.gov)
- *   EU  -> ECB Statistical Data Warehouse (data-api.ecb.europa.eu)
- *   UK  -> Bank of England (bankofengland.co.uk)
- *   BR  -> Tesouro Direto JSON + BCB SELIC (api.bcb.gov.br)
+ * Layout:
+ *   · Header: RATES & CREDIT + region chips US | DI·BR | EU | UK | ALL
+ *     (chips switch the MAIN CURVE only; the right board stays global).
+ *   · Tape: 4 cells — US 10Y (level+Δbp), 2s10s (+regime word),
+ *     10Y REAL, HY OAS. GET /api/debt/rates-tape (FRED, 30 min cache).
+ *   · Main curve: accent line w1.6 + gradient fill, plus 1-month-ago
+ *     ghost curve (grey dashed, "– – 1M AGO") — additive `ghost` field
+ *     on /api/yield-curves (US only today; others degrade to no ghost).
+ *   · Right column: GLOBAL 10Y rows (UST / DI·BR / BUND·EU / GILT) with
+ *     54×16 mini-curves from the already-loaded /api/yield-curves shapes;
+ *     click row swaps the main curve. Then CREDIT & INFLATION rows.
  *
- * All four fetched server-side by /api/yield-curves (routes/market.js).
- * Other countries fall back to /api/debt/sovereign/:code (estimated).
- *
- * Credit spread indexes remain estimated (Bloomberg/ICE BofA data is paid).
+ * Data sources (all pre-existing endpoints):
+ *   /api/yield-curves        — US/EU/UK/BR curves (+ additive US ghost)
+ *   /api/debt/rates-tape     — FRED tape series (now incl. DGS10/T10Y2Y/IG)
+ *   /api/debt/yields/global  — Yahoo 10Y Δbp for the global rows
  */
 
 import { useState, useEffect, useCallback, useRef, useMemo, memo } from 'react';
@@ -27,313 +33,152 @@ import IntegrityBadge from '../shared/IntegrityBadge';
 import PanelChrome from '../common/PanelChrome';
 import './DebtPanel.css';
 
-// Which countryCode -> live curve key in /api/yield-curves response
-const LIVE_KEY = { US: 'US', UK: 'UK', GB: 'UK', DE: 'EU', EU: 'EU', BR: 'BR' };
-
-// Country groups for tab navigation
-const COUNTRY_GROUPS = [
-  { label: 'G10',    codes: ['US', 'EU', 'UK', 'JP', 'CA', 'AU'] },
-  { label: 'EM',     codes: ['BR', 'MX', 'ZA', 'KR'] },
-  { label: 'Europe', codes: ['EU', 'UK', 'IT', 'FR'] },
-  { label: 'LatAm',  codes: ['BR', 'MX', 'ZA'] },
+// Region chips — switch the main curve only.
+const REGIONS = [
+  { code: 'US',  label: 'US' },
+  { code: 'BR',  label: 'DI·BR' },
+  { code: 'EU',  label: 'EU' },
+  { code: 'UK',  label: 'UK' },
+  { code: 'ALL', label: 'ALL' },
 ];
 
-// Country color palette (distinct, readable on dark bg)
-const COUNTRY_COLORS = {
-  US: '#4488ff', EU: '#ffcc00', UK: '#cc88ff', BR: '#00cc44',
-  JP: '#ff8844', CA: '#ff6644', AU: '#ffee44', IT: '#66ccff',
-  FR: '#88ddff', MX: '#44ff88', KR: '#88ffcc', ZA: '#ffaa44',
-};
+// Global 10Y board rows (right column) — mockup order, DI second.
+const GLOBAL_ROWS = [
+  { code: 'US', flag: '🇺🇸', label: 'UST' },
+  { code: 'BR', flag: '🇧🇷', label: 'DI·BR' },
+  { code: 'EU', flag: '🇩🇪', label: 'BUND·EU' },
+  { code: 'UK', flag: '🇬🇧', label: 'GILT' },
+];
 
-function fmtYield(v, bps = false) {
-  if (v == null) return '--';
-  if (bps) return (v >= 0 ? '+' : '') + v + ' bps';
-  return v.toFixed(2) + '%';
+// /api/debt/yields/global country codes for Δbp lookup.
+const GLOBAL_CHG_KEY = { US: 'US', EU: 'DE', UK: 'GB' }; // BR: no Yahoo ticker → no Δ
+
+// SVG stroke hexes (SVG can't resolve CSS vars): accent/up from TOKEN_HEX,
+// EU/UK from the panel's long-standing country palette.
+const REGION_HEX = { US: TOKEN_HEX.accent, BR: TOKEN_HEX.up, EU: '#ffcc00', UK: '#cc88ff' };
+
+// Tenor → months, for sorting/anchoring (DI = overnight).
+function tenorMonths(t) {
+  if (t == null) return null;
+  const s = String(t).toUpperCase();
+  if (s === 'DI') return 0.5;
+  const m = s.match(/^(\d+(?:\.\d+)?)(M|Y)$/);
+  if (!m) return null;
+  return m[2] === 'M' ? parseFloat(m[1]) : parseFloat(m[1]) * 12;
 }
 
-/* ---- Curve regime analytics (Phase 8.4) ----
- *
- * Classifies a yield curve into one of:
- *   INVERTED           — long end < short end (2s10s < 0)
- *   BEAR STEEPENING    — long end rising faster than short (spread widening, levels up)
- *   BULL STEEPENING    — short end falling faster (spread widening, levels down)
- *   BEAR FLATTENING    — short end rising faster than long (spread narrowing, levels up)
- *   BULL FLATTENING    — long end falling faster than short (spread narrowing, levels down)
- *   NORMAL             — insufficient info to classify; positive slope, stable
- */
-function findTenor(points, tenor) {
-  if (!points) return null;
-  return points.find(p => p.tenor === tenor);
-}
-
-function spreadBps(a, b) {
-  if (a?.yield == null || b?.yield == null) return null;
-  return Math.round((a.yield - b.yield) * 100);
-}
-
-function classifyRegime(current, previous) {
-  if (!current || current.length < 2) return { label: 'NO DATA', posture: 'neutral' };
-
-  const t2 = findTenor(current, '2Y');
-  const t10 = findTenor(current, '10Y');
-  const t30 = findTenor(current, '30Y');
-
-  const s210 = spreadBps(t10, t2);
-
-  // Inversion overrides everything
-  if (s210 != null && s210 < 0) {
-    return {
-      label: 'INVERTED',
-      posture: 'bear',
-      detail: `2s10s ${s210}bp`,
-    };
+// Nearest point to a target tenor (months) — BR has no literal "10Y".
+function nearestPoint(points, targetMonths = 120) {
+  if (!points || points.length === 0) return null;
+  let best = null, bestDist = Infinity;
+  for (const p of points) {
+    const m = tenorMonths(p.tenor);
+    if (m == null) continue;
+    const d = Math.abs(m - targetMonths);
+    if (d < bestDist) { best = p; bestDist = d; }
   }
-
-  // Need previous for change classification
-  if (previous && previous.length >= 2) {
-    const p2 = findTenor(previous, '2Y');
-    const p10 = findTenor(previous, '10Y');
-    const prevS210 = spreadBps(p10, p2);
-
-    if (s210 != null && prevS210 != null && t2 && p2) {
-      const spreadChg = s210 - prevS210;                   // bp
-      const shortChg = (t2.yield - p2.yield) * 100;         // bp
-      const steepening = spreadChg > 3;
-      const flattening = spreadChg < -3;
-      const levelsUp = shortChg > 1;
-      const levelsDown = shortChg < -1;
-
-      if (steepening && levelsUp)   return { label: 'BEAR STEEPENING', posture: 'bear',    detail: `2s10s +${Math.round(spreadChg)}bp` };
-      if (steepening && levelsDown) return { label: 'BULL STEEPENING', posture: 'bull',    detail: `2s10s +${Math.round(spreadChg)}bp` };
-      if (flattening && levelsUp)   return { label: 'BEAR FLATTENING', posture: 'bear',    detail: `2s10s ${Math.round(spreadChg)}bp` };
-      if (flattening && levelsDown) return { label: 'BULL FLATTENING', posture: 'bull',    detail: `2s10s ${Math.round(spreadChg)}bp` };
-    }
-  }
-
-  // No classification possible — return level read
-  if (s210 != null) {
-    return {
-      label: s210 > 50 ? 'STEEP' : s210 > 10 ? 'NORMAL' : 'FLAT',
-      posture: 'neutral',
-      detail: `2s10s ${s210 > 0 ? '+' : ''}${s210}bp`,
-    };
-  }
-
-  return { label: 'NORMAL', posture: 'neutral' };
+  return best;
 }
 
-/* ---- RegimeRibbon component (Phase 8.4) ---- */
-function RegimeRibbon({ regime, spreads }) {
-  const postureCls = `dp-regime--${regime.posture || 'neutral'}`;
+function fmtBp(v, dp = 1) {
+  if (v == null) return null;
+  const sign = v > 0 ? '+' : v < 0 ? '−' : '';
+  return `${sign}${Math.abs(v).toFixed(dp)}bp`;
+}
+
+/* ── Tape (4 cells, mockup borders) ─────────────────────────────────
+ * US 10Y (level+Δbp) · 2s10s (+regime word) · 10Y REAL · HY OAS.
+ * Each cell degrades independently to "—". */
+function TapeCell({ k, v, d, dColor }) {
   return (
-    <div className={`dp-regime ${postureCls}`}>
-      <span className="dp-regime-label">REGIME</span>
-      <span className="dp-regime-verdict">{regime.label}</span>
-      {regime.detail && <span className="dp-regime-detail">{regime.detail}</span>}
-      <span className="dp-regime-flex" />
-      {spreads?.map(s => (
-        <span key={s.name} className="dp-regime-spread" title={`${s.name}: ${s.bps}bp`}>
-          <span className="dp-regime-spread-name">{s.name}</span>
-          <span className={`dp-regime-spread-val ${s.bps < 0 ? 'dp-regime-spread-val--neg' : s.bps < 25 ? 'dp-regime-spread-val--tight' : ''}`}>
-            {s.bps > 0 ? '+' : ''}{s.bps}
-          </span>
-        </span>
-      ))}
+    <div className="dp-tp">
+      <div className="dp-tp-k">{k}</div>
+      <div className="dp-tp-v">{v ?? '—'}</div>
+      <div className="dp-tp-d" style={dColor ? { color: dColor } : undefined}>{d ?? ' '}</div>
     </div>
   );
 }
 
-/* ---- SpreadRow ---- */
-function SpreadRow({ item }) {
-  const chg = item.change ?? 0;
-  const color = chg > 0 ? 'var(--price-down)' : 'var(--price-up)';
-  return (
-    <div className="dp-spread-row">
-      <div className="dp-spread-left">
-        <span className="dp-spread-name">{item.name}</span>
-        <span className="dp-spread-currency">{item.currency}</span>
-      </div>
-      <div className="dp-spread-right">
-        <span className="dp-spread-value">
-          {fmtYield(item.spread, item.spreadBps)}
-        </span>
-        {item.change != null && (
-          <span className="dp-spread-chg" style={{ color }}>
-            {chg >= 0 ? '+' : ''}{chg}
-          </span>
-        )}
-        <span className="dp-spread-bps-label">bps</span>
-      </div>
-    </div>
-  );
-}
-
-/* ---- RegionalSnapshot ---- */
-function RegionalSnapshot({ data, loading }) {
-  if (loading) {
-    return <div className="dp-state dp-state--loading">LOADING REGIONAL DATA...</div>;
-  }
-  if (!data || data.length === 0) {
-    return <div className="dp-state dp-state--empty">NO REGIONAL DATA AVAILABLE</div>;
-  }
-  const max = Math.max(...data.map(d => Math.abs(d.yield)));
-  return (
-    <div className="dp-snapshot-list">
-      {data.map(item => (
-        <div key={item.country} className="dp-snapshot-row">
-          <span className="dp-snapshot-code">{item.country}</span>
-          <div className="dp-snapshot-bar">
-            <div className="dp-snapshot-fill" style={{
-              width: `${max > 0 ? Math.abs(item.yield) / max * 100 : 0}%`,
-              background: item.color || 'var(--accent)',
-            }} />
-          </div>
-          <div className="dp-snapshot-value">
-            <span className="dp-snapshot-yield">{item.yield.toFixed(2)}%</span>
-            <span className={`dp-snapshot-badge ${item.live ? 'dp-badge--live' : 'dp-badge--est'}`}>
-              {item.live ? 'LIVE' : 'EST.'}
-            </span>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-/* ---- US RATES TAPE (H2b item 1) ----
- * Compact strip under the panel header: 10Y breakeven, 5y5y forward,
- * 10Y real yield, HY OAS — from GET /api/debt/rates-tape (FRED, 30 min
- * server cache). Degrades per-series to "—"; hides entirely when no
- * series resolved.
- */
-function fmtTapeVal(t) {
-  if (t.value == null) return '—';
-  return t.unit === 'bp' ? `${Math.round(t.value)}bp` : `${t.value.toFixed(2)}%`;
-}
-function fmtTapeChg(t) {
-  if (t.change1d == null) return null;
-  const sign = t.change1d > 0 ? '+' : '';
-  return t.unit === 'bp' ? `${sign}${Math.round(t.change1d)}` : `${sign}${t.change1d.toFixed(2)}`;
-}
 function RatesTape({ tape }) {
-  if (!tape || !tape.some(t => t.value != null)) return null;
+  const byId = useMemo(
+    () => Object.fromEntries((tape || []).map(t => [t.id, t])),
+    [tape]
+  );
+  const us10 = byId.us10y, s210 = byId.spread2s10s, real = byId.real10y, hy = byId.hyOas;
+
+  // 2s10s regime word: INVERTED (level < 0) beats direction; otherwise the
+  // 1-day slope change reads STEEPENING / FLATTENING.
+  let regimeWord = null, regimeColor = null;
+  if (s210?.value != null) {
+    if (s210.value < 0)             { regimeWord = 'INVERTED';   regimeColor = 'var(--color-down)'; }
+    else if (s210.change1d > 0)     { regimeWord = 'STEEPENING'; regimeColor = 'var(--color-up)'; }
+    else if (s210.change1d < 0)     { regimeWord = 'FLATTENING'; regimeColor = 'var(--color-down)'; }
+    else                            { regimeWord = s210.value > 50 ? 'STEEP' : 'FLAT'; regimeColor = 'var(--text-muted)'; }
+  }
+
+  const pct = t => (t?.value != null ? `${t.value.toFixed(2)}%` : null);
+  const bp  = t => (t?.value != null ? `${Math.round(t.value)}bp` : null);
+  // Δ for %-series is expressed in bp (×100). Yields up = red; OAS wider = red.
+  const dPct = t => (t?.change1d != null ? fmtBp(t.change1d * 100) : null);
+  const dBp  = t => (t?.change1d != null ? fmtBp(t.change1d, 0) : null);
+  const riskColor = chg => (chg > 0 ? 'var(--color-down)' : chg < 0 ? 'var(--color-up)' : 'var(--text-faint)');
+
   return (
-    <div className="dp-tape" title="US rates tape — FRED, 30 min cache">
-      <span className="dp-tape-title">US RATES</span>
-      {tape.map(t => {
-        const chg = fmtTapeChg(t);
-        // HY OAS widening = risk-off (red); tightening = green.
-        // Other series get neutral change coloring (no good/bad read).
-        const chgColor = t.id === 'hyOas' && t.change1d != null
-          ? (t.change1d > 0 ? 'var(--price-down)' : t.change1d < 0 ? 'var(--price-up)' : 'var(--text-faint)')
-          : 'var(--text-secondary)';
-        return (
-          <span key={t.id} className="dp-tape-item" title={`${t.seriesId}${t.asOfDate ? ` · ${t.asOfDate}` : ''}`}>
-            <span className="dp-tape-label">{t.label}</span>
-            <span className="dp-tape-value">{fmtTapeVal(t)}</span>
-            {chg != null && <span className="dp-tape-chg" style={{ color: chgColor }}>{chg}</span>}
-          </span>
-        );
-      })}
+    <div className="dp-tape" title="FRED — 30 min server cache">
+      <TapeCell k="US 10Y"   v={pct(us10)} d={dPct(us10)} dColor={us10?.change1d != null ? riskColor(us10.change1d) : null} />
+      <TapeCell
+        k="2s10s"
+        v={s210?.value != null ? `${s210.value > 0 ? '+' : ''}${Math.round(s210.value)}bp` : null}
+        d={regimeWord}
+        dColor={regimeColor}
+      />
+      <TapeCell k="10Y REAL" v={pct(real)} d={dPct(real)} dColor={real?.change1d != null ? riskColor(real.change1d) : null} />
+      <TapeCell k="HY OAS"   v={bp(hy)}   d={dBp(hy)}    dColor={hy?.change1d != null ? riskColor(hy.change1d) : null} />
     </div>
   );
 }
 
-/* ---- CURVES small-multiples (H2b item 1) ----
- * 2x2 mini-curves (US / EU / UK / BR-DI) from the same /api/yield-curves
- * payload the CURVE view already loads — no extra fetch. EU is the ECB
- * euro-area AAA curve (the panel's existing DE→EU mapping).
- */
-function MiniCurve({ label, curve, color }) {
-  const points = curve?.points || [];
-  const anchorPt = points.find(p => p.tenor === '10Y') || points[points.length - 1] || null;
-  // Unique per-instance gradient id — 4 minis render at once and SVG ids
-  // are document-global.
-  const gradientId = `dpMiniFill-${String(label).replace(/[^a-zA-Z0-9_-]/g, '')}`;
+/* ── 54×16 mini-curve (right board rows) ────────────────────────────
+ * Plain SVG path from the already-loaded curve shape — no recharts,
+ * mockup-exact footprint. Stroke: accent when the row drives the main
+ * curve; else green when the day's 10Y Δ is negative, grey otherwise. */
+function MiniCurveSvg({ points, stroke }) {
+  const d = useMemo(() => {
+    const pts = (points || [])
+      .map(p => ({ m: tenorMonths(p.tenor), y: p.yield }))
+      .filter(p => p.m != null && p.y != null)
+      .sort((a, b) => a.m - b.m);
+    if (pts.length < 2) return null;
+    const ys = pts.map(p => p.y);
+    const min = Math.min(...ys), max = Math.max(...ys);
+    const span = max - min || 1;
+    return pts.map((p, i) => {
+      const x = 1 + (i / (pts.length - 1)) * 52;
+      const y = 13.5 - ((p.y - min) / span) * 11;
+      return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`;
+    }).join(' ');
+  }, [points]);
+
+  if (!d) return <svg className="dp-rrow-mini" viewBox="0 0 54 16" aria-hidden="true" />;
   return (
-    <div className="dp-mini">
-      <div className="dp-mini-head">
-        <span className="dp-mini-label" style={{ color }}>{label}</span>
-        <span className="dp-mini-val">
-          {anchorPt ? `${anchorPt.tenor} ${anchorPt.yield.toFixed(2)}%` : '—'}
-        </span>
-      </div>
-      <div className="dp-mini-chart">
-        {points.length >= 2 ? (
-          <ResponsiveContainer width="100%" height="100%">
-            {/* Same terminal-grade treatment as the main curve: 1.5px
-                hairline, no dots, subtle gradient wash (per-country hex —
-                SVG-safe), dark mono tooltip. */}
-            <ComposedChart data={points} margin={{ top: 3, right: 3, bottom: 2, left: 3 }}>
-              <defs>
-                <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={color} stopOpacity={0.12} />
-                  <stop offset="100%" stopColor={color} stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <XAxis dataKey="tenor" hide />
-              <YAxis hide domain={['auto', 'auto']} />
-              <Tooltip
-                contentStyle={{
-                  background: TOKEN_HEX.bgTooltip,
-                  border: '1px solid var(--border-strong)',
-                  borderRadius: 3,
-                  fontSize: 9,
-                  fontFamily: 'var(--font-mono)',
-                  padding: '2px 6px',
-                }}
-                labelStyle={{ color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}
-                itemStyle={{ color }}
-                formatter={v => [v != null ? v.toFixed(2) + '%' : '--', 'Yield']}
-              />
-              <Area
-                type="monotone" dataKey="yield"
-                stroke="none" fill={`url(#${gradientId})`}
-                isAnimationActive={false}
-                activeDot={false}
-                tooltipType="none"
-              />
-              <Line
-                type="monotone" dataKey="yield"
-                stroke={color} strokeWidth={1.5}
-                dot={false}
-                activeDot={{ r: 2, fill: color, strokeWidth: 0 }}
-                isAnimationActive={false}
-              />
-            </ComposedChart>
-          </ResponsiveContainer>
-        ) : (
-          <div className="dp-mini-empty">NO DATA</div>
-        )}
-      </div>
-    </div>
+    <svg className="dp-rrow-mini" viewBox="0 0 54 16" aria-hidden="true">
+      <path d={d} fill="none" stroke={stroke} strokeWidth="1.2" />
+    </svg>
   );
 }
 
-/* ---- Main panel ---- */
+/* ── Main panel ─────────────────────────────────────────────────── */
 function DebtPanel() {
-  const [availableCountries, setAvailableCountries] = useState([]);
-  const [selectedCountry, setSelectedCountry]       = useState('US');
-  const [view, setView]                             = useState('curve');
-  const [regionalTenor, setRegionalTenor]           = useState('10Y');
-  const [curve, setCurve]                           = useState(null);
-  const [curveSource, setCurveSource]               = useState(null);
-  const [curveLive, setCurveLive]                   = useState(false);
-  const [curveStub, setCurveStub]                   = useState(false);
-  const [regional, setRegional]                     = useState(null);
-  const [indexes, setIndexes]                       = useState([]);
-  const [indexSource, setIndexSource]               = useState(null);
-  const [loading, setLoading]                       = useState(true);
-  const [error, setError]                           = useState(null);
-  const [countryGroup, setCountryGroup]             = useState('G10');
-  const [liveReady, setLiveReady]                   = useState(false);
-  const [lastUpdated, setLastUpdated]               = useState(null);
+  const [region, setRegion]           = useState('US');
+  const [liveReady, setLiveReady]     = useState(false);
+  const [error, setError]             = useState(null);
+  const [tape, setTape]               = useState(null);
+  const [globalChg, setGlobalChg]     = useState({});   // { US: bp, DE: bp, GB: bp }
+  const [lastUpdated, setLastUpdated] = useState(null);
+  const [reloadKey, setReloadKey]     = useState(0);
+  const liveDataRef = useRef(null);
 
-  // Persistent ref for live data (no re-render race)
-  const liveDataRef   = useRef(null);
-
-  // H2b item 1 — US rates tape (fetch once; server caches 30 min)
-  const [tape, setTape] = useState(null);
+  // ── Rates tape (FRED; server caches 30 min) ──
   useEffect(() => {
     let alive = true;
     apiFetch('/api/debt/rates-tape')
@@ -341,416 +186,199 @@ function DebtPanel() {
       .then(j => { if (alive && j?.ok && Array.isArray(j.tape)) setTape(j.tape); })
       .catch(e => swallow(e, 'panel.debt.rates_tape'));
     return () => { alive = false; };
-  }, []);
+  }, [reloadKey]);
 
-  // ---- Load live yield-curve data + country list (once) ----
+  // ── Global 10Y Δbp (Yahoo; server caches 5 min) — additive, non-fatal ──
+  useEffect(() => {
+    let alive = true;
+    apiFetch('/api/debt/yields/global')
+      .then(r => (r.ok ? r.json() : null))
+      .then(j => {
+        if (!alive || !j?.ok || !Array.isArray(j.yields)) return;
+        const map = {};
+        j.yields.forEach(y => { if (y.changeBps != null) map[y.country] = y.changeBps; });
+        setGlobalChg(map);
+      })
+      .catch(e => swallow(e, 'panel.debt.global_10y_chg'));
+    return () => { alive = false; };
+  }, [reloadKey]);
+
+  // ── Curves (US/EU/UK/BR + additive US ghost) — one fetch ──
   useEffect(() => {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 20000); // 20s client-side timeout
+    const timeout = setTimeout(() => controller.abort(), 20000);
+    setLiveReady(false);
+    setError(null);
 
-    Promise.allSettled([
-      apiFetch('/api/yield-curves', { signal: controller.signal }).then(r => r.ok ? r.json() : null),
-      apiFetch('/api/debt/countries', { signal: controller.signal }).then(r => r.json()),
-    ]).then(([liveRes, countriesRes]) => {
-      clearTimeout(timeout);
-
-      if (liveRes.status === 'fulfilled' && liveRes.value) {
-        liveDataRef.current = liveRes.value;
-      }
-
-      if (countriesRes.status === 'fulfilled') {
-        const stubList = countriesRes.value?.countries || [];
-        const merged = [
-          { code: 'US', name: 'United States (Treasury)', color: COUNTRY_COLORS.US, live: true },
-          { code: 'EU', name: 'Euro Area (ECB)',          color: COUNTRY_COLORS.EU, live: true },
-          { code: 'UK', name: 'United Kingdom (Gilts)',   color: COUNTRY_COLORS.UK, live: true },
-          { code: 'BR', name: 'Brazil (DI/Tesouro)',      color: COUNTRY_COLORS.BR, live: true },
-          ...stubList
-            .filter(c => !['US','DE','GB','UK','EU','BR'].includes(c.code))
-            .map(c => ({ ...c, color: COUNTRY_COLORS[c.code] || '#888', live: false })),
-        ];
-        setAvailableCountries(merged);
-      }
-
-      // Check if BOTH fetches failed (no data available)
-      if (liveRes.status === 'rejected' && countriesRes.status === 'rejected') {
-        setLoading(false);
-        setError('Yield data unavailable — click RETRY');
-      }
-
-      // Signal that live data is ready for loadCurve effect
-      setLiveReady(true);
-    }).catch(() => {
-      // This catches network errors or abort signals
-      clearTimeout(timeout);
-      setLiveReady(true);
-      setLoading(false);
-      setError('Yield data request failed — click RETRY');
-    });
+    apiFetch('/api/yield-curves', { signal: controller.signal })
+      .then(r => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
+      .then(json => {
+        liveDataRef.current = json;
+        setLastUpdated(new Date());
+      })
+      .catch(e => {
+        if (e.name !== 'AbortError') setError('Yield data unavailable — click RETRY');
+      })
+      .finally(() => {
+        clearTimeout(timeout);
+        setLiveReady(true);
+      });
 
     return () => { clearTimeout(timeout); controller.abort(); };
-  }, []);
+  }, [reloadKey]);
 
-  // ---- Extract live curve for a given country code ----
-  const getLiveCurve = useCallback((code) => {
-    const ld = liveDataRef.current;
-    if (!ld) return null;
-    const key = LIVE_KEY[code];
-    if (!key || !ld[key]?.curve?.length) return null;
-    const entry = ld[key];
+  const getCurve = useCallback((code) => {
+    const entry = liveDataRef.current?.[code];
+    if (!entry?.curve?.length) return null;
     return {
       points: entry.curve.map(p => ({ tenor: p.tenor, yield: p.rate })),
-      source: entry.source || key,
-      live: true,
-      stub: entry.stub === true,
+      ghost: Array.isArray(entry.ghost)
+        ? entry.ghost.map(p => ({ tenor: p.tenor, yield: p.rate }))
+        : null,
+      ghostAsOf: entry.ghostAsOf || null,
+      source: entry.source || code,
     };
+    // liveReady gates callers; ref itself is stable.
   }, []);
 
-  // ---- Load curve for selected country (curve view) ----
-  const loadCurve = useCallback(async () => {
-    if (!liveReady) return; // wait for init to complete
-    setLoading(true);
-    setError(null);
-    // Clear previous country's data immediately to prevent stale display
-    setCurve(null);
-    setCurveSource(null);
-    setCurveLive(false);
-    setCurveStub(false);
+  // ── Main chart data ──
+  const single = region !== 'ALL' ? (liveReady ? getCurve(region) : null) : null;
 
-    try {
-      // Step 1: Try live data from /api/yield-curves
-      const live = getLiveCurve(selectedCountry);
-      if (live && live.points.length > 0 && !live.stub) {
-        setCurve({ points: live.points });
-        setCurveSource(live.source);
-        setCurveLive(true);
-        setCurveStub(false);
-      } else if (live && live.stub) {
-        // Live source returned but marked as stub (incomplete data)
-        setCurve({ points: live.points });
-        setCurveSource(live.source);
-        setCurveLive(false);
-        setCurveStub(true);
-      } else {
-        // Step 2: Fall back to /api/debt/sovereign/:code
-        const resp = await apiFetch(`/api/debt/sovereign/${selectedCountry}`);
-        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-        const data = await resp.json();
-        if (data.error) throw new Error(data.error);
-        setCurve(data);
-        setCurveSource(data.source || 'Estimated');
-        setCurveLive(data.source && !['stub', 'stub_fallback', 'bcb_stub', 'bcb_partial', 'unavailable'].includes(data.source));
-        setCurveStub(data.stub === true);
-      }
-
-      // Load credit indexes in parallel
-      try {
-        const idxResp = await apiFetch('/api/debt/credit/indexes');
-        const idxData = await idxResp.json();
-        setIndexes(idxData.indexes || []);
-        setIndexSource(idxData.source || null);
-      } catch (_) {
-        // Non-fatal: credit indexes are secondary
-      }
-      setLastUpdated(new Date());
-    } catch (e) {
-      setError(e.message || 'Failed to load yield curve');
-      setCurve(null);
-      setCurveSource(null);
-      setCurveLive(false);
-      setCurveStub(false);
-    } finally {
-      setLoading(false);
+  const chartData = useMemo(() => {
+    if (!liveReady) return [];
+    if (region !== 'ALL') {
+      if (!single) return [];
+      const ghostByTenor = Object.fromEntries((single.ghost || []).map(p => [p.tenor, p.yield]));
+      return single.points
+        .map(p => ({ tenor: p.tenor, m: tenorMonths(p.tenor), yield: p.yield, ghost: ghostByTenor[p.tenor] ?? null }))
+        .filter(p => p.m != null || p.tenor === 'DI')
+        .sort((a, b) => (a.m ?? 0) - (b.m ?? 0));
     }
-  }, [selectedCountry, getLiveCurve, liveReady]);
-
-  // Trigger curve load when view is 'curve'
-  useEffect(() => {
-    if (view !== 'curve') return;
-    loadCurve();
-  }, [view, selectedCountry, loadCurve]);
-
-  // Also re-trigger when liveLoadedRef flips (via the forced re-render in init effect)
-  // The loadCurve dependency on getLiveCurve handles this.
-
-  // ---- Load regional snapshot ----
-  const loadRegional = useCallback(async () => {
-    if (!liveReady) return;
-    setLoading(true);
-    setError(null);
-
-    try {
-      const group = COUNTRY_GROUPS.find(g => g.label === countryGroup);
-      const codes = group?.codes || COUNTRY_GROUPS[0].codes;
-
-      const snapshot = [];
-      let stubRegion = {};
-
-      // Fetch from regional endpoint
-      try {
-        const region = countryGroup.toLowerCase();
-        const d = await apiFetch(`/api/debt/sovereign/region?region=${region}&tenor=${regionalTenor}`)
-          .then(r => r.json());
-        (d.snapshot || []).forEach(item => {
-          stubRegion[item.country] = item;
-        });
-      } catch (e) { swallow(e, 'panel.debt.region_snapshot'); }
-
-      for (const code of codes) {
-        const live = getLiveCurve(code);
-        if (live) {
-          const pt = live.points.find(p => p.tenor === regionalTenor);
-          if (pt) {
-            snapshot.push({
-              country: code,
-              name: availableCountries.find(c => c.code === code)?.name || code,
-              color: COUNTRY_COLORS[code] || '#888',
-              tenor: regionalTenor,
-              yield: pt.yield,
-              live: true,
-            });
-            continue;
-          }
-        }
-        if (stubRegion[code]) {
-          snapshot.push({ ...stubRegion[code], color: COUNTRY_COLORS[code] || '#888', live: false });
-        }
+    // ALL — overlay the four curves on a shared (union) tenor axis.
+    const rows = new Map();
+    for (const { code } of GLOBAL_ROWS) {
+      const c = getCurve(code);
+      if (!c) continue;
+      for (const p of c.points) {
+        const m = tenorMonths(p.tenor);
+        if (m == null) continue;
+        if (!rows.has(p.tenor)) rows.set(p.tenor, { tenor: p.tenor, m });
+        rows.get(p.tenor)[code] = p.yield;
       }
-
-      snapshot.sort((a, b) => b.yield - a.yield);
-      setRegional(snapshot);
-      setLastUpdated(new Date());
-
-      // Credit indexes
-      try {
-        const d = await apiFetch('/api/debt/credit/indexes').then(r => r.json());
-        setIndexes(d.indexes || []);
-        setIndexSource(d.source || null);
-      } catch (e) { swallow(e, 'panel.debt.credit_indexes'); }
-    } catch (e) {
-      setError(e.message || 'Failed to load regional data');
-    } finally {
-      setLoading(false);
     }
-  }, [countryGroup, regionalTenor, getLiveCurve, availableCountries, liveReady]);
+    return [...rows.values()].sort((a, b) => a.m - b.m);
+  }, [liveReady, region, single, getCurve]);
 
-  useEffect(() => {
-    if (view !== 'regional') return;
-    loadRegional();
-  }, [view, countryGroup, regionalTenor, loadRegional]);
+  const hasGhost = region !== 'ALL' && chartData.some(p => p.ghost != null);
 
-  // ---- Derived values ----
-  const countryMeta = availableCountries.find(c => c.code === selectedCountry);
-  const chartData   = curve?.points || [];
-  // H2b restyle: the main curve now renders in the terminal accent
-  // (TOKEN_HEX.accent) rather than the per-country palette — COUNTRY_COLORS
-  // still drives the CURVES mini-multiples and regional views.
-  const TENORS      = ['2Y', '5Y', '10Y', '30Y'];
+  // ── Right board rows ──
+  const boardRows = useMemo(() => {
+    if (!liveReady) return [];
+    return GLOBAL_ROWS.map(row => {
+      const c = getCurve(row.code);
+      const pt = c ? nearestPoint(c.points, 120) : null;
+      const chg = GLOBAL_CHG_KEY[row.code] != null ? (globalChg[GLOBAL_CHG_KEY[row.code]] ?? null) : null;
+      return { ...row, points: c?.points || null, val: pt?.yield ?? null, chg };
+    });
+  }, [liveReady, getCurve, globalChg]);
 
-  // ---- Regime & key spreads (Phase 8.4) ----
-  // Compare to previous session snapshot to classify regime movement.
-  // sessionStorage key: dp_prev_curve:<country>
-  const [prevCurve, setPrevCurve] = useState(null);
-  useEffect(() => {
-    if (!chartData || chartData.length === 0) return;
-    try {
-      const key = `dp_prev_curve:${selectedCountry}`;
-      const stored = sessionStorage.getItem(key);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (parsed?.points && Array.isArray(parsed.points)) {
-          setPrevCurve(parsed.points);
-        }
-      }
-      // Cache current for next load
-      sessionStorage.setItem(key, JSON.stringify({ points: chartData, ts: Date.now() }));
-    } catch (_) {
-      // sessionStorage unavailable — skip
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedCountry, loading]); // recompute when curve changes
-
-  const regime = useMemo(
-    () => classifyRegime(chartData, prevCurve),
-    [chartData, prevCurve]
+  const tapeById = useMemo(
+    () => Object.fromEntries((tape || []).map(t => [t.id, t])),
+    [tape]
   );
 
-  const keySpreads = useMemo(() => {
-    if (!chartData || chartData.length < 2) return [];
-    const t2 = findTenor(chartData, '2Y');
-    const t5 = findTenor(chartData, '5Y');
-    const t10 = findTenor(chartData, '10Y');
-    const t30 = findTenor(chartData, '30Y');
-    const out = [];
-    const s210 = spreadBps(t10, t2); if (s210 != null) out.push({ name: '2s10s', bps: s210 });
-    const s510 = spreadBps(t10, t5); if (s510 != null) out.push({ name: '5s10s', bps: s510 });
-    const s230 = spreadBps(t30, t2); if (s230 != null) out.push({ name: '2s30s', bps: s230 });
-    return out;
-  }, [chartData]);
+  // CREDIT & INFLATION rows. IPCA IMPL. (NTN-B): the server does not yet
+  // derive BR real-vs-nominal (no NTN-B real yields in routes/debt.js) —
+  // render "—" honestly rather than estimate.
+  const creditRows = [
+    { key: 'ig', label: 'US IG OAS',
+      val: tapeById.igOas?.value != null ? `${Math.round(tapeById.igOas.value)}bp` : '—',
+      chg: tapeById.igOas?.change1d != null ? fmtBp(tapeById.igOas.change1d, 0) : null,
+      chgColor: tapeById.igOas?.change1d > 0 ? 'var(--color-down)' : tapeById.igOas?.change1d < 0 ? 'var(--color-up)' : null },
+    { key: 'be', label: '10Y BREAKEVEN',
+      val: tapeById.breakeven10y?.value != null ? `${tapeById.breakeven10y.value.toFixed(2)}%` : '—',
+      chg: tapeById.breakeven10y?.change1d != null ? fmtBp(tapeById.breakeven10y.change1d * 100) : null,
+      chgColor: tapeById.breakeven10y?.change1d > 0 ? 'var(--color-down)' : tapeById.breakeven10y?.change1d < 0 ? 'var(--color-up)' : null },
+    { key: 'ipca', label: 'IPCA IMPL. (NTN-B)', val: '—', chg: null, chgColor: null },
+  ];
 
-  // H2b item 1 — CURVES view small multiples (US / EU / UK / BR·DI)
-  const miniCurves = useMemo(() => ([
-    { code: 'US', label: 'US' },
-    { code: 'EU', label: 'EU' },
-    { code: 'UK', label: 'UK' },
-    { code: 'BR', label: 'BR · DI' },
-  ].map(m => ({ ...m, curve: liveReady ? getLiveCurve(m.code) : null }))
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  ), [liveReady, getLiveCurve]);
+  const handleRetry = useCallback(() => setReloadKey(k => k + 1), []);
 
-  // ---- Retry handler ----
-  const handleRetry = useCallback(() => {
-    if (view === 'curve') loadCurve();
-    else loadRegional();
-  }, [view, loadCurve, loadRegional]);
-
-  // ---- Source label for badge ----
-  // Sanity: if source doesn't match selected country, suppress it
-  const rawSource = curveSource
-    ? curveSource.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
-    : null;
-  const COUNTRY_SOURCES = {
-    BR: ['Tesouro Direto', 'Tesouro', 'Bcb Partial', 'Bcb Synthetic', 'Bcb+Synthetic'],
-    US: ['Us Treasury', 'Fred', 'FRED', 'Yahoo Fallback'],
-    UK: ['Bank Of England', 'Boe+Synthetic'],
-    EU: ['Ecb', 'Ecb+Synthetic'],
-  };
-  const validSources = COUNTRY_SOURCES[selectedCountry];
-  const sourceBadge = rawSource && (!validSources || validSources.some(s => rawSource.toLowerCase().includes(s.toLowerCase())))
-    ? rawSource
-    : rawSource; // still show it but fix curveLive for mismatches
-  // If source is clearly wrong for this country (e.g., FRED for BR), mark as not live
-  const isMismatch = rawSource && validSources && !validSources.some(s => rawSource.toLowerCase().includes(s.toLowerCase()));
-  const effectiveCurveLive = isMismatch ? false : curveLive;
+  const regionMeta = REGIONS.find(r => r.code === region);
+  const sourceLabel = region === 'ALL' ? 'Multi-source' : (single?.source || 'Multi-source');
 
   return (
     <div className="dp-panel">
       <PanelChrome
-        title="YIELDS"
-        subtitle={view === 'curve'
-          ? `${countryMeta?.name?.toUpperCase() || selectedCountry} CURVE${!loading && sourceBadge ? ` · ${effectiveCurveLive ? 'LIVE' : 'EST'} ${sourceBadge}` : ''}`
-          : view === 'curves'
-            ? 'US · EU · UK · BR SMALL MULTIPLES'
-            : `${countryGroup.toUpperCase()} · ${regionalTenor} YIELDS`}
-        badge={view === 'curve' ? <IntegrityBadge domain="yield-curves" /> : null}
+        title="RATES & CREDIT"
+        subtitle={region === 'ALL' ? 'US · BR · EU · UK CURVES' : `${regionMeta?.label || region} CURVE${single?.source ? ` · ${single.source.toUpperCase()}` : ''}`}
+        badge={<IntegrityBadge domain="yield-curves" />}
         updatedAt={lastUpdated}
-        source={curveSource || 'Multi-source'}
+        source={sourceLabel}
         actions={(
-          <>
-            {/* View toggle */}
-            <div className="dp-view-group">
-              {[['curve','CURVE'],['curves','CURVES'],['regional','REGION']].map(([v, lbl]) => (
-                <button
-                  className={`dp-view-btn${view === v ? ' dp-view-btn--active' : ''}`}
-                  key={v}
-                  onClick={() => setView(v)}
-                >
-                  {lbl}
-                </button>
-              ))}
-            </div>
-
-            {/* Country selector (curve view) */}
-            {view === 'curve' && (
-              <select
-                value={selectedCountry}
-                onChange={e => setSelectedCountry(e.target.value)}
-                className="dp-select"
-              >
-                {availableCountries.map(c => (
-                  <option key={c.code} value={c.code}>
-                    {c.code} -- {c.name}
-                  </option>
-                ))}
-              </select>
-            )}
-
-            {/* Group + tenor selectors (regional view) */}
-            {view === 'regional' && (
-              <div className="dp-header-selectors">
-                <select value={countryGroup} onChange={e => setCountryGroup(e.target.value)} className="dp-select">
-                  {COUNTRY_GROUPS.map(g => <option key={g.label} value={g.label}>{g.label}</option>)}
-                </select>
-                <select value={regionalTenor} onChange={e => setRegionalTenor(e.target.value)} className="dp-select">
-                  {TENORS.map(t => <option key={t} value={t}>{t}</option>)}
-                </select>
-              </div>
-            )}
-          </>
+          <div className="dp-chips" role="group" aria-label="Curve region">
+            {REGIONS.map(r => (
+              <button
+                key={r.code}
+                className={`dp-chip ${region === r.code ? 'dp-chip--on' : ''}`}
+                onClick={() => setRegion(r.code)}
+                title={r.code === 'ALL' ? 'Overlay all curves' : `${r.label} curve`}
+              >{r.label}</button>
+            ))}
+          </div>
         )}
       />
 
-      {/* ---- US rates tape (H2b) — always visible, hides itself when empty ---- */}
       <RatesTape tape={tape} />
 
-      {/* ---- Curve view ---- */}
-      {view === 'curve' && (
-        <div className="dp-curve">
-          {/* #UX-5 — the old "<COUNTRY> YIELD CURVE" + LIVE badge row was a
-              second title under PanelChrome; folded into the chrome
-              subtitle so the panel keeps title + one subtitle only. */}
-
-          {/* Regime ribbon — Phase 8.4 */}
-          {!loading && !error && chartData.length >= 2 && (
-            <RegimeRibbon regime={regime} spreads={keySpreads} />
-          )}
-
-          {/* Chart area with explicit states */}
-          <div className="dp-chart-container">
-            {loading ? (
-              <div className="dp-state dp-state--loading">
-                <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', gap: 6, padding: '12px 8px' }}>
-                  {[80, 60, 90, 70, 85, 50].map((w, i) => (
-                    <div key={i} className="shimmer-bar" style={{ width: `${w}%`, height: 8, borderRadius: 3, background: '#1a1a1a' }} />
-                  ))}
-                </div>
+      <div className="dp-board">
+        {/* ── Left: main curve + 1M-ago ghost ── */}
+        <div className="dp-board-left">
+          {!liveReady ? (
+            <div className="dp-state dp-state--loading">
+              <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', gap: 6, padding: '12px 8px' }}>
+                {[80, 60, 90, 70, 85].map((w, i) => (
+                  <div key={i} className="shimmer-bar" style={{ width: `${w}%`, height: 8, borderRadius: 3, background: 'var(--color-surface-3)' }} />
+                ))}
               </div>
-            ) : error ? (
-              <div className="dp-state dp-state--error">
-                <span>FAILED TO LOAD YIELD CURVE</span>
-                <span className="dp-state-detail">{error}</span>
-                <button className="dp-retry-btn" onClick={handleRetry}>RETRY</button>
-              </div>
-            ) : curveStub ? (
-              <div className="dp-state dp-state--empty">
-                <span>INCOMPLETE DATA FOR {countryMeta?.name?.toUpperCase() || selectedCountry}</span>
-                <span className="dp-state-detail">
-                  Live sources returned {chartData.length} point{chartData.length !== 1 ? 's' : ''}. Synthetic points disabled.
-                </span>
-                <button className="dp-retry-btn" onClick={handleRetry}>RETRY</button>
-              </div>
-            ) : chartData.length === 0 ? (
-              <div className="dp-state dp-state--empty">
-                <span>Loading data for {countryMeta?.name || selectedCountry}...</span>
-                <button className="dp-retry-btn" onClick={handleRetry}>RETRY</button>
-              </div>
-            ) : (
+            </div>
+          ) : error ? (
+            <div className="dp-state dp-state--error">
+              <span>FAILED TO LOAD YIELD CURVES</span>
+              <span className="dp-state-detail">{error}</span>
+              <button className="dp-retry-btn" onClick={handleRetry}>RETRY</button>
+            </div>
+          ) : chartData.length === 0 ? (
+            <div className="dp-state dp-state--empty">
+              <span>NO CURVE DATA FOR {regionMeta?.label || region}</span>
+              <button className="dp-retry-btn" onClick={handleRetry}>RETRY</button>
+            </div>
+          ) : (
+            <div className="dp-chart-wrap">
+              {hasGhost && <span className="dp-ghost-legend">– – 1M AGO</span>}
               <ResponsiveContainer width="100%" height="100%">
-                {/* H2b restyle: terminal-grade curve — accent hairline
-                    (TOKEN_HEX: SVG can't resolve CSS vars), no dots,
-                    subtle gradient wash under the curve, faint mono ticks,
-                    horizontal-only dashed grid. Data/interactions unchanged. */}
-                <ComposedChart data={chartData} margin={{ top: 4, right: 8, bottom: 2, left: 0 }}>
+                <ComposedChart data={chartData} margin={{ top: 6, right: 8, bottom: 2, left: 0 }}>
                   <defs>
                     <linearGradient id="dpCurveFill" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor={TOKEN_HEX.accent} stopOpacity={0.12} />
+                      <stop offset="0%" stopColor={TOKEN_HEX.accent} stopOpacity={0.16} />
                       <stop offset="100%" stopColor={TOKEN_HEX.accent} stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="2 4" stroke={TOKEN_HEX.borderSubtle} vertical={false} />
+                  <CartesianGrid strokeDasharray="3 3" stroke={TOKEN_HEX.borderSubtle} vertical={false} />
                   <XAxis
                     dataKey="tenor"
-                    tick={{ fill: TOKEN_HEX.textFaint, fontSize: 9, fontFamily: 'var(--font-mono)' }}
+                    tick={{ fill: TOKEN_HEX.textFaint, fontSize: 8, fontFamily: 'var(--font-mono)' }}
                     axisLine={false}
                     tickLine={false}
-                    height={16}
+                    height={14}
+                    minTickGap={10}
                     interval="preserveStartEnd"
                   />
                   <YAxis
-                    tick={{ fill: TOKEN_HEX.textFaint, fontSize: 9, fontFamily: 'var(--font-mono)' }}
+                    tick={{ fill: TOKEN_HEX.textFaint, fontSize: 8, fontFamily: 'var(--font-mono)' }}
                     domain={['auto', 'auto']}
                     tickFormatter={v => fmtCompactPct(v, 1)}
-                    width={36}
+                    width={32}
                     axisLine={false}
                     tickLine={false}
                   />
@@ -764,118 +392,94 @@ function DebtPanel() {
                       padding: '4px 8px',
                     }}
                     labelStyle={{ color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}
-                    itemStyle={{ color: TOKEN_HEX.accent }}
                     cursor={{ stroke: 'var(--border-strong)', strokeDasharray: '2 4' }}
-                    formatter={v => [v != null ? v.toFixed(2) + '%' : '--', 'Yield']}
+                    formatter={(v, name) => [v != null ? Number(v).toFixed(2) + '%' : '--', name]}
                   />
-                  <Area
-                    type="monotone" dataKey="yield"
-                    stroke="none" fill="url(#dpCurveFill)"
-                    isAnimationActive={false}
-                    activeDot={false}
-                    tooltipType="none"
-                  />
-                  <Line
-                    type="monotone" dataKey="yield" name="Yield"
-                    stroke={TOKEN_HEX.accent} strokeWidth={1.5}
-                    dot={false}
-                    activeDot={{ r: 2.5, fill: TOKEN_HEX.accent, strokeWidth: 0 }}
-                    isAnimationActive={false}
-                  />
+                  {region !== 'ALL' ? (
+                    <>
+                      <Area
+                        type="monotone" dataKey="yield"
+                        stroke="none" fill="url(#dpCurveFill)"
+                        isAnimationActive={false}
+                        activeDot={false}
+                        tooltipType="none"
+                      />
+                      {hasGhost && (
+                        <Line
+                          type="monotone" dataKey="ghost" name="1M ago"
+                          stroke={TOKEN_HEX.textMuted || '#5a5a5a'} strokeWidth={1}
+                          strokeDasharray="4 3"
+                          dot={false} connectNulls
+                          isAnimationActive={false}
+                        />
+                      )}
+                      <Line
+                        type="monotone" dataKey="yield" name="Yield"
+                        stroke={TOKEN_HEX.accent} strokeWidth={1.6}
+                        dot={false}
+                        activeDot={{ r: 2.5, fill: TOKEN_HEX.accent, strokeWidth: 0 }}
+                        isAnimationActive={false}
+                      />
+                    </>
+                  ) : (
+                    GLOBAL_ROWS.map(r => (
+                      <Line
+                        key={r.code}
+                        type="monotone" dataKey={r.code} name={r.label}
+                        stroke={REGION_HEX[r.code]} strokeWidth={1.2}
+                        dot={false} connectNulls
+                        isAnimationActive={false}
+                      />
+                    ))
+                  )}
                 </ComposedChart>
               </ResponsiveContainer>
-            )}
-          </div>
-
-          {/* Tenor table - only when data present */}
-          {!loading && !error && chartData.length > 0 && (
-            <div className="dp-tenor-table">
-              <div className="dp-tenor-grid">
-                {chartData.map(pt => (
-                  <div key={pt.tenor} className="dp-tenor-row">
-                    <span className="dp-tenor-label">{pt.tenor}</span>
-                    <span className="dp-tenor-value">{pt.yield.toFixed(2)}%</span>
-                  </div>
-                ))}
-              </div>
             </div>
           )}
+        </div>
 
-          {/* Credit spreads */}
-          {!loading && indexes.length > 0 && (
-            <div className="dp-spreads">
-              <div className="dp-spreads-header">
-                <span className="dp-spreads-title">CREDIT SPREADS (bps)</span>
-                <span className={`dp-spreads-tag ${indexSource === 'fred' ? 'dp-badge--live' : 'dp-badge--est'}`}>
-                  {indexSource === 'fred' ? 'LIVE' : 'ESTIMATED'}
+        {/* ── Right: global 10Y + credit & inflation board ── */}
+        <div className="dp-board-right">
+          <div className="dp-rsec">GLOBAL 10Y</div>
+          {boardRows.map(row => {
+            const active = region === row.code;
+            const stroke = active
+              ? TOKEN_HEX.accent
+              : row.chg != null && row.chg < 0 ? TOKEN_HEX.up : TOKEN_HEX.textSecondary;
+            return (
+              <div
+                key={row.code}
+                className={`dp-rrow dp-rrow--click ${active ? 'dp-rrow--active' : ''}`}
+                onClick={() => setRegion(row.code)}
+                title={`Load ${row.label} curve`}
+              >
+                <span className="dp-rrow-k">{row.flag} {row.label}</span>
+                <MiniCurveSvg points={row.points} stroke={stroke} />
+                <span className="dp-rrow-v">
+                  {row.val != null ? row.val.toFixed(2) : '—'}
+                  <i
+                    className="dp-rrow-chg"
+                    style={{ color: row.chg == null ? 'var(--text-faint)' : row.chg > 0 ? 'var(--color-down)' : row.chg < 0 ? 'var(--color-up)' : 'var(--text-faint)' }}
+                  >{row.chg != null ? `${row.chg > 0 ? '+' : ''}${row.chg.toFixed(1)}` : '—'}</i>
                 </span>
               </div>
-              {indexes.map(idx => <SpreadRow key={idx.id} item={idx} />)}
+            );
+          })}
+
+          <div className="dp-rsec">CREDIT &amp; INFLATION</div>
+          {creditRows.map(row => (
+            <div key={row.key} className="dp-rrow">
+              <span className="dp-rrow-k dp-rrow-k--ui">{row.label}</span>
+              <span className="dp-rrow-v">
+                {row.val}
+                <i className="dp-rrow-chg" style={{ color: row.chgColor || 'var(--text-faint)' }}>
+                  {row.chg ?? '—'}
+                </i>
+              </span>
             </div>
-          )}
-          {!loading && !error && indexes.length === 0 && (
-            <div className="dp-spreads">
-              <div className="dp-spreads-header">
-                <span className="dp-spreads-title">CREDIT SPREADS</span>
-              </div>
-              <div className="dp-state dp-state--empty dp-state--inline">NO CREDIT INDEX DATA</div>
-            </div>
-          )}
+          ))}
         </div>
-      )}
-
-      {/* ---- Curves small-multiples view (H2b) ---- */}
-      {view === 'curves' && (
-        <div className="dp-curves">
-          {!liveReady ? (
-            <div className="dp-state dp-state--loading">LOADING CURVES...</div>
-          ) : (
-            <div className="dp-curves-grid">
-              {miniCurves.map(m => (
-                <MiniCurve
-                  key={m.code}
-                  label={m.label}
-                  curve={m.curve}
-                  color={COUNTRY_COLORS[m.code] || 'var(--accent)'}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ---- Regional view ---- */}
-      {view === 'regional' && (
-        <div className="dp-regional">
-          <div className="dp-regional-header">
-            <span>{countryGroup} -- {regionalTenor} YIELDS</span>
-            <span className="dp-regional-legend">LIVE / EST.</span>
-          </div>
-
-          {error && !loading ? (
-            <div className="dp-state dp-state--error">
-              <span>{error}</span>
-              <button className="dp-retry-btn" onClick={handleRetry}>RETRY</button>
-            </div>
-          ) : (
-            <div className="dp-regional-body">
-              <RegionalSnapshot data={regional} loading={loading} />
-            </div>
-          )}
-
-          {!loading && indexes.length > 0 && (
-            <div className="dp-spreads dp-spreads--bottom">
-              <div className="dp-spreads-header">
-                <span className="dp-spreads-title">CREDIT SPREADS (bps)</span>
-                <span className={`dp-spreads-tag ${indexSource === 'fred' ? 'dp-badge--live' : 'dp-badge--est'}`}>
-                  {indexSource === 'fred' ? 'LIVE' : 'ESTIMATED'}
-                </span>
-              </div>
-              {indexes.map(idx => <SpreadRow key={idx.id} item={idx} />)}
-            </div>
-          )}
-        </div>
-      )}
+      </div>
     </div>
   );
 }

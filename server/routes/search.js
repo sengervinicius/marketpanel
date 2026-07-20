@@ -1192,6 +1192,7 @@ For each pick, output:
   - sourceIds: array of source story ids this pick is based on (may merge near-duplicates)
   - sentiment: bullish | bearish | neutral (for the broader market, not just the named tickers)
   - regime: one of macro | earnings | policy | geo | idio
+  - impactTag: a compact ALL-CAPS market-impact tag of 1-2 words, max 14 chars (examples: RISK-OFF, RISK-ON, ENERGY, RATES, POSITIONING, EARNINGS, FX, CREDIT, GEO)
 
 Rules:
   - NO emojis. NO hedging language ("may", "could"). Be direct.
@@ -1378,6 +1379,11 @@ Rules:
         sourceIds:    Array.isArray(b.sourceIds || b.source_ids) ? (b.sourceIds || b.source_ids).slice(0, 4) : [],
         sentiment:    validSents.has(b.sentiment) ? b.sentiment : 'neutral',
         regime:       validRegimes.has(b.regime) ? b.regime : 'macro',
+        // Design v1 (wire briefing) — compact impact tag chip. Tolerant:
+        // older cached briefings / providers that omit it yield null and
+        // the client falls back to the regime label.
+        impactTag:    String(b.impactTag || b.impact_tag || '')
+                        .toUpperCase().replace(/[^A-Z0-9 &/\-]/g, '').trim().slice(0, 14) || null,
       }))
       .filter(b => b.headline && b.whyItMatters);
 

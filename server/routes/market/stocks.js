@@ -715,6 +715,19 @@ async function fetchTickerSnapshot(sym) {
       prevDay:          { c: q.regularMarketPreviousClose ?? (q.regularMarketPrice - q.regularMarketChange) ?? null },
       todaysChangePerc: q.regularMarketChangePercent ?? null,
       todaysChange:     q.regularMarketChange        ?? null,
+      // Design v1 (watchlist VIEWS) — additive: display name, 3-month
+      // average daily volume (VOL×AVG column) and the v7 fundamentals
+      // the FUNDAMENTAL view / hover mini-profile need. Finnhub fallback
+      // quotes never set these — cells degrade to an em-dash.
+      name:        q.shortName || q.longName || null,
+      avgVolume3M: q.averageDailyVolume3Month ?? null,
+      fund: {
+        marketCap:        q.marketCap                   ?? null,
+        trailingPE:       q.trailingPE                  ?? null,
+        divYield:         q.trailingAnnualDividendYield ?? null,
+        fiftyTwoWeekLow:  q.fiftyTwoWeekLow             ?? null,
+        fiftyTwoWeekHigh: q.fiftyTwoWeekHigh            ?? null,
+      },
       // H2b item 3 — optional extended-hours fields (only present when
       // Yahoo returned them; Finnhub fallback never sets these).
       ...(q.preMarketPrice != null || q.postMarketPrice != null ? {

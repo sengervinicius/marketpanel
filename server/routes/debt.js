@@ -412,11 +412,18 @@ router.get('/yields/global', async (req, res) => {
 //   BAMLH0A0HYM2 US HY OAS (FRED serves %, we expose bps)
 // Each entry degrades independently to value:null; the whole payload is
 // cached 30 min once at least one series resolved.
+// Design v1 (RATES & CREDIT board) adds three additive series:
+//   DGS10      US 10Y nominal (%), tape headline cell
+//   T10Y2Y     2s10s slope (FRED serves %-points, we expose bps)
+//   BAMLC0A0CM US IG OAS (FRED serves %, we expose bps)
 const RATES_TAPE_SERIES = [
+  { id: 'us10y',        label: 'US 10Y',   seriesId: 'DGS10',        unit: '%'  },
+  { id: 'spread2s10s',  label: '2S10S',    seriesId: 'T10Y2Y',       unit: 'bp' },
   { id: 'breakeven10y', label: '10Y BE',   seriesId: 'T10YIE',       unit: '%'  },
   { id: 'fwd5y5y',      label: '5Y5Y',     seriesId: 'T5YIFR',       unit: '%'  },
   { id: 'real10y',      label: '10Y REAL', seriesId: 'DFII10',       unit: '%'  },
   { id: 'hyOas',        label: 'HY OAS',   seriesId: 'BAMLH0A0HYM2', unit: 'bp' },
+  { id: 'igOas',        label: 'IG OAS',   seriesId: 'BAMLC0A0CM',   unit: 'bp' },
 ];
 
 router.get('/rates-tape', async (req, res) => {
