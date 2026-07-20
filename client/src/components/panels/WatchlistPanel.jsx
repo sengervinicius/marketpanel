@@ -39,6 +39,7 @@ import PanelChrome from '../common/PanelChrome';
 import PositionEditor from '../common/PositionEditor';
 import ShareModal from '../common/ShareModal';
 import { fmt, fmtPct, fmtCompact } from '../../utils/portfolioAnalytics';
+import { fmtMarketCap, fmtMultiple, fmtYieldPct } from '../../utils/format';
 import { SyncBadge, AIHealthCard, SummaryStrip } from './PortfolioPanelWidgets';
 import Sparkline from '../common/Sparkline';
 import ViewChips, { loadPersistedChip } from '../common/ViewChips';
@@ -91,13 +92,6 @@ function fmtRatio(v, dp = 1) {
   return v != null && isFinite(v) ? `${v.toFixed(dp)}×` : '—';
 }
 
-function fmtYieldPct(frac) {
-  if (frac == null || !isFinite(frac)) return '—';
-  // Yahoo serves dividend yield as a fraction (0.084 → 8.4%).
-  const pct = frac < 1 ? frac * 100 : frac;
-  return `${pct.toFixed(1)}%`;
-}
-
 const showInfo = (e, symbol, label, type) => {
   e.preventDefault();
   window.dispatchEvent(new CustomEvent('ticker:rightclick', {
@@ -148,8 +142,8 @@ function HoverCard({ sym, top, snap, fund, newsCount, price }) {
   const pe = f?.peRatio ?? snap?.fund?.trailingPE ?? null;
   const multiLabel = evEbitda != null ? 'P/E · EV/EBITDA' : ps != null ? 'P/E · P/S' : 'P/E';
   const multiVal = [
-    pe != null ? `${pe.toFixed(1)}×` : '—',
-    evEbitda != null ? `${evEbitda.toFixed(1)}×` : ps != null ? `${ps.toFixed(1)}×` : null,
+    pe != null ? fmtMultiple(pe) : '—',
+    evEbitda != null ? fmtMultiple(evEbitda) : ps != null ? fmtMultiple(ps) : null,
   ].filter(Boolean).join(' · ');
 
   const mktCap = f?.marketCap ?? snap?.fund?.marketCap ?? null;
@@ -162,7 +156,7 @@ function HoverCard({ sym, top, snap, fund, newsCount, price }) {
 
   return (
     <HoverProfileCard top={top} title={`${sym}${name ? ` · ${name.toUpperCase()}` : ''}`}>
-      <HoverProfileRow label="Mkt cap" value={mktCap != null ? fmtCompact(mktCap) : fLoading ? '…' : '—'} />
+      <HoverProfileRow label="Mkt cap" value={mktCap != null ? fmtMarketCap(mktCap, sym && sym.toUpperCase().endsWith('.SA') ? 'R$' : '$') : fLoading ? '…' : '—'} />
       <HoverProfileRow label={multiLabel} value={multiVal || (fLoading ? '…' : '—')} />
       <HoverProfileRow label="Div yield" value={divYield != null ? fmtYieldPct(divYield) : fLoading ? '…' : '—'} />
       <HoverProfileRow
@@ -290,7 +284,7 @@ const WatchlistRow = memo(function WatchlistRow({
 
       {view === 'fundamental' && (
         (equity || assetType === 'CRYPTO') && mktCap != null
-          ? <span className="wp-row-extra">{fmtCompact(mktCap)}</span>
+          ? <span className="wp-row-extra">{fmtMarketCap(mktCap, (position.symbol || '').toUpperCase().endsWith('.SA') ? 'R$' : '$')}</span>
           : EMPTY_CELL
       )}
       {view === 'fundamental' && (

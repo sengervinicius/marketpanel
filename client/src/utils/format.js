@@ -21,7 +21,7 @@
  * @param {string} sym - Raw symbol (e.g., 'GBPBRL', 'VALE3.SA', 'BTCUSD')
  * @returns {string} Canonical key (e.g., 'GBPBRL', 'VALE3', 'BTCUSD')
  */
-import { canonicalKey } from './tickerNormalize';
+import { canonicalKey } from './tickerNormalize.js';
 export function normalizeSymbol(sym) {
   if (!sym) return sym;
   // Preserve the legacy return-raw-input-on-null behaviour some callers rely on.
@@ -79,12 +79,44 @@ export function fmtBps(n) {
   return `${sign}${Math.round(n)} bps`;
 }
 
-export function fmtMarketCap(n) {
+/**
+ * Market-cap formatter with currency prefix: $394.1B, $28.5M, R$102.3B.
+ * Fix #round4-1: the watchlist hover card was showing raw integers
+ * ("394050505"); all mini-profile consumers now share this helper.
+ *
+ * @param {number|null|undefined} n — market cap in currency units
+ * @param {string} currency — prefix, '$' (default) or 'R$' for B3 (.SA) names
+ */
+export function fmtMarketCap(n, currency = '$') {
   if (n == null || isNaN(n)) return '—';
-  if (n >= 1_000_000_000_000) return `${(n / 1_000_000_000_000).toFixed(1)}T`;
-  if (n >= 1_000_000_000) return `${(n / 1_000_000_000).toFixed(1)}B`;
-  if (n >= 1_000_000)     return `${(n / 1_000_000).toFixed(1)}M`;
-  return String(n);
+  const abs = Math.abs(n);
+  const sign = n < 0 ? '-' : '';
+  let body;
+  if (abs >= 1_000_000_000_000) body = `${(abs / 1_000_000_000_000).toFixed(1)}T`;
+  else if (abs >= 1_000_000_000) body = `${(abs / 1_000_000_000).toFixed(1)}B`;
+  else if (abs >= 1_000_000)     body = `${(abs / 1_000_000).toFixed(1)}M`;
+  else if (abs >= 1_000)         body = `${(abs / 1_000).toFixed(1)}K`;
+  else body = abs.toLocaleString('en-US');
+  return `${sign}${currency}${body}`;
+}
+
+/**
+ * Valuation multiple (P/E, EV/EBITDA, P/S): one decimal + '×'.
+ * Shared so panels stop hand-rolling `v.toFixed(1) + '×'`.
+ */
+export function fmtMultiple(v, dp = 1) {
+  if (v == null || isNaN(v) || !isFinite(v)) return '—';
+  return `${v.toFixed(dp)}\u00d7`;
+}
+
+/**
+ * Dividend yield to one decimal + '%'. Accepts either a fraction
+ * (Yahoo: 0.084 → 8.4%) or an already-scaled percent (8.4 → 8.4%).
+ */
+export function fmtYieldPct(v, dp = 1) {
+  if (v == null || isNaN(v) || !isFinite(v)) return '—';
+  const pct = Math.abs(v) < 1 ? v * 100 : v;
+  return `${pct.toFixed(dp)}%`;
 }
 
 /**
