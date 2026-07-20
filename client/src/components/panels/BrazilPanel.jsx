@@ -20,6 +20,7 @@ import { apiFetch } from '../../utils/api';
 import { COLS_STANDARD_SPARK } from '../../utils/panelColumns';
 import { useTickerPrice } from '../../context/PriceContext';
 import { ADR_PAIRS, computeAdrPremium } from '../../utils/adrPremium';
+import Tape from '../common/Tape';
 
 // CIO-note (2026-04-20): was '52px 1fr 64px 52px' — CHG% of 52px crushed
 // 2-digit % values into the price column (ONCO3 +15.33% case). The
@@ -33,6 +34,243 @@ const SORT_COLS = [
   { key: 'price',  label: 'PRICE',  align: 'right' },
   { key: 'chg',    label: 'CHG%',   align: 'right' },
 ];
+
+/* ── Header tape (Phase S W1 item 3, mockup section 3) ───────────────
+ * The four numbers of the Brazil day: IBOV · IFIX · SELIC/CDI ·
+ * IPCA 12M vs Focus. Reuses the shared Tape primitive. IBOV/IFIX ride
+ * PriceContext extras (^BVSP / ^IFIX with IFIX.SA fallback); SELIC, CDI
+ * and IPCA 12M come from /api/market/brazil-macro (BCB SGS, 6h cache);
+ * the FOCUS subtext reuses the already-fetched brazil-focus payload.
+ * Every cell degrades independently to an em-dash.
+ */
+const BR_SECTIONS_KEY = 'brSections_v1'; // { b3, fii, adr } visibility
+
+function loadBrSections() {
+  try {
+    const v = JSON.parse(localStorage.getItem(BR_SECTIONS_KEY));
+    if (v && typeof v === 'object') {
+      return { b3: v.b3 !== false, fii: v.fii !== false, adr: v.adr !== false };
+    }
+  } catch { /* corrupted / private mode */ }
+  return { b3: true, fii: true, adr: true };
+}
+
+const brChipStyle = (on) => ({
+  background: 'none',
+  border: `1px solid ${on ? 'var(--accent)' : 'var(--border-strong)'}`,
+  color: on ? 'var(--accent)' : 'var(--text-muted)',
+  fontFamily: 'var(--font-mono)',
+  fontSize: 9,
+  letterSpacing: '0.06em',
+  padding: '1px 6px',
+  borderRadius: 2,
+  cursor: 'pointer',
+});
+
+const fmtIdx = (n) => (n == null || !Number.isFinite(n))
+  ? '—'
+  : n.toLocaleString('en-US', { maximumFractionDigits: n >= 10_000 ? 0 : 2 });
+const fmtPctSigned = (n) => (n == null || !Number.isFinite(n))
+  ? null
+  : (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
+const upDownColor = (n) => (n == null ? 'var(--text-faint)'
+  : n >= 0 ? 'var(--semantic-up)' : 'var(--semantic-down)');
+
+function BrazilTape({ macro, focus }) {
+  const ibov = useTickerPrice('^BVSP');
+  // IFIX: real index first; the IFIX.SA alias fills in when Yahoo doesn't
+  // carry ^IFIX. Both ride the same extras batch — no extra endpoints.
+  const ifix = useTickerPrice('^IFIX');
+  const ifixAlt = useTickerPrice('IFIX.SA');
+  const ifixQ = ifix?.price != null ? ifix : (ifixAlt?.price != null ? ifixAlt : null);
+
+  const selic   = macro?.selic   ?? null;
+  const cdi     = macro?.cdi     ?? null;
+  const ipca12m = macro?.ipca12m ?? null;
+
+  // FOCUS median for the current year's IPCA (already fetched for the strip).
+  const focusYears = focus?.years || {};
+  const curYear = String(new Date().getFullYear());
+  const focusIpca = focusYears[curYear]?.ipca
+    ?? focusYears[Object.keys(focusYears).sort()[0]]?.ipca
+    ?? null;
+
+  const cells = [
+    {
+      key: 'ibov', label: 'IBOV',
+      value: ibov?.price != null ? fmtIdx(ibov.price) : null,
+      delta: fmtPctSigned(ibov?.changePct),
+      deltaColor: upDownColor(ibov?.changePct),
+    },
+    {
+      key: 'ifix', label: 'IFIX',
+      value: ifixQ ? fmtIdx(ifixQ.price) : null,
+      delta: ifixQ ? fmtPctSigned(ifixQ.changePct) : null,
+      deltaColor: upDownColor(ifixQ?.changePct),
+    },
+    {
+      key: 'selic', label: 'SELIC',
+      value: selic != null ? selic.toFixed(2) + '%' : null,
+      delta: cdi != null ? `CDI ${cdi.toFixed(2)}` : null,
+      deltaColor: 'var(--text-muted)',
+    },
+    {
+      key: 'ipca', label: 'IPCA 12M',
+      value: ipca12m != null ? ipca12m.toFixed(2) + '%' : null,
+      delta: focusIpca != null ? `FOCUS ${focusIpca.toFixed(2)}` : null,
+      // Focus below the trailing print = expected disinflation (green).
+      deltaColor: focusIpca == null || ipca12m == null ? 'var(--text-muted)'
+        : focusIpca < ipca12m ? 'var(--semantic-up)'
+        : focusIpca > ipca12m ? 'var(--semantic-down)' : 'var(--text-muted)',
+    },
+  ];
+
+  return (
+    <Tape
+      cells={cells}
+      title="IBOV/IFIX via Yahoo · SELIC/CDI/IPCA 12M via BCB SGS · FOCUS = survey median"
+    />
+  );
+}
+
+/* ── FIIs section (Phase S W1 item 3) ────────────────────────────────
+ * Fundos imobiliários with the FII investor's number — trailing DY% —
+ * inline in gold (--vault-gold). Quotes ride the existing PriceContext
+ * extras (.SA symbols); DY + display names come from /api/market/
+ * fii-yields (brapi fundamentals, 12h server cache). List is editable
+ * like every other section, persisted in settings.panels.brazilB3
+ * (fiiSymbols).
+ */
+const DEFAULT_FII_SYMBOLS = ['HGLG11', 'KNRI11', 'MXRF11', 'XPML11', 'VISC11', 'BTLG11'];
+const FII_COLS = '56px 1fr 72px 60px 62px';
+
+const fiiStyles = {
+  sechead: {
+    display: 'flex', alignItems: 'center', gap: 8,
+    padding: '3px 8px', fontFamily: 'var(--font-mono)', fontSize: 9.5,
+    fontWeight: 700, letterSpacing: '0.08em', color: 'var(--section-brazil)',
+    borderTop: '1px solid var(--border-subtle)', borderBottom: '1px solid var(--border-subtle)',
+    background: 'var(--bg-surface)',
+  },
+  editBtn: (on) => ({
+    marginLeft: 'auto', background: 'none',
+    border: `1px solid ${on ? 'var(--accent)' : 'var(--border-strong)'}`,
+    color: on ? 'var(--accent)' : 'var(--text-muted)', fontSize: 9,
+    padding: '0 5px', cursor: 'pointer', borderRadius: 2,
+    fontFamily: 'var(--font-mono)', letterSpacing: '0.05em',
+  }),
+  row: {
+    display: 'grid', gridTemplateColumns: FII_COLS, gap: 4,
+    padding: '2px 8px', fontFamily: 'var(--font-mono)', fontSize: 11,
+    alignItems: 'baseline', cursor: 'pointer',
+  },
+  right: { textAlign: 'right', fontVariantNumeric: 'tabular-nums' },
+  addForm: { display: 'flex', gap: 4, padding: '3px 8px', borderBottom: '1px solid var(--border-subtle)' },
+  addInput: {
+    flex: 1, background: 'var(--bg-elevated)', border: '1px solid var(--border-strong)',
+    color: 'var(--text-primary)', fontFamily: 'var(--font-mono)', fontSize: 10,
+    padding: '1px 6px', borderRadius: 2, minWidth: 0,
+  },
+};
+
+const fmt2fii = (n) => (n == null || !Number.isFinite(n))
+  ? '—'
+  : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+function FiiRow({ sym, meta, editMode, onRemove, onTickerClick, openDetail }) {
+  const quote = useTickerPrice(sym + '.SA');
+  const chg = quote?.changePct ?? null;
+  return (
+    <div
+      style={fiiStyles.row}
+      title={`${meta?.name || sym} — DY = trailing dividend yield (brapi fundamentals)`}
+      onClick={() => onTickerClick?.(sym + '.SA')}
+      onDoubleClick={() => openDetail(sym + '.SA')}
+      data-ticker={sym + '.SA'}
+      data-ticker-label={meta?.name || sym}
+      data-ticker-type="FII"
+    >
+      <span style={{ color: 'var(--section-brazil)', fontWeight: 600 }}>{sym}</span>
+      <span style={{ color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        {meta?.name || ''}
+      </span>
+      <span style={{ ...fiiStyles.right, color: 'var(--text-primary)' }}>{fmt2fii(quote?.price)}</span>
+      <span style={{ ...fiiStyles.right, color: 'var(--vault-gold)', fontWeight: 600 }}>
+        {meta?.dy != null ? `DY ${meta.dy.toFixed(1)}%` : '—'}
+      </span>
+      <span style={{ ...fiiStyles.right, color: upDownColor(chg) }}>
+        {editMode ? (
+          <button
+            style={{ background: 'none', border: 'none', color: 'var(--semantic-down)', cursor: 'pointer', fontSize: 11, padding: 0 }}
+            title={`Remove ${sym}`}
+            onClick={(e) => { e.stopPropagation(); onRemove(sym); }}
+          >✕</button>
+        ) : (fmtPctSigned(chg) ?? '—')}
+      </span>
+    </div>
+  );
+}
+
+function FiiSection({ symbols, onChangeSymbols, onTickerClick, openDetail }) {
+  const [editMode, setEditMode] = useState(false);
+  const [addInput, setAddInput] = useState('');
+  const [yields, setYields] = useState({}); // SYM -> { dy, name }
+
+  const symbolsKey = symbols.join(',');
+  useEffect(() => {
+    if (!symbolsKey) return undefined;
+    let alive = true;
+    apiFetch(`/api/market/fii-yields?symbols=${encodeURIComponent(symbolsKey)}`)
+      .then(r => (r.ok ? r.json() : null))
+      .then(j => { if (alive && j?.ok && j.data) setYields(j.data); })
+      .catch(() => { /* DY cells degrade to em-dash */ });
+    return () => { alive = false; };
+  }, [symbolsKey]);
+
+  const handleAdd = (e) => {
+    e.preventDefault();
+    const sym = addInput.trim().toUpperCase().replace(/\.SA$/, '');
+    if (sym && /^[A-Z]{4}\d{1,2}[A-Z]?$/.test(sym) && !symbols.includes(sym)) {
+      onChangeSymbols([...symbols, sym]);
+    }
+    setAddInput('');
+  };
+
+  return (
+    <>
+      <div style={fiiStyles.sechead}>
+        FIIs · DY%
+        <button
+          style={fiiStyles.editBtn(editMode)}
+          onClick={() => setEditMode(v => !v)}
+          title="Edit the FII list"
+        >{editMode ? 'DONE' : 'EDIT'}</button>
+      </div>
+      {editMode && (
+        <form style={fiiStyles.addForm} onSubmit={handleAdd}>
+          <input
+            style={fiiStyles.addInput}
+            value={addInput}
+            onChange={e => setAddInput(e.target.value.toUpperCase())}
+            placeholder="Add FII, e.g. HGRU11"
+          />
+          <button className="btn" type="submit" style={fiiStyles.editBtn(false)}>ADD</button>
+        </form>
+      )}
+      {symbols.map(sym => (
+        <FiiRow
+          key={sym}
+          sym={sym}
+          meta={yields[sym] || null}
+          editMode={editMode}
+          onRemove={(rm) => onChangeSymbols(symbols.filter(x => x !== rm))}
+          onTickerClick={onTickerClick}
+          openDetail={openDetail}
+        />
+      ))}
+    </>
+  );
+}
 
 // H2b item 4 — BCB Focus survey strip (Selic / IPCA / PIB / FX medians
 // for current + next year). Hidden entirely when /api/market/brazil-focus
@@ -116,6 +354,7 @@ function FocusStrip({ focus }) {
  * wrong number.
  */
 const ADR_COLS = '52px 1fr 72px 72px 76px';
+const ADR_PREMIUM_HIGHLIGHT_PCT = 1.5; // mockup note 3 — accent threshold
 
 const adrStyles = {
   headerRow: {
@@ -148,7 +387,10 @@ function AdrRow({ pair, localQuote, onTickerClick, openDetail }) {
   const fx = usdbrl?.price ?? null;
   const premium = computeAdrPremium(adrUsd, localBrl, pair.ratio, fx);
 
+  // Phase S W1 item 3 (mockup note 3): |premium| >= 1.5% is an actionable
+  // dislocation — highlight in accent instead of the routine up/down tint.
   const premColor = premium == null ? 'var(--text-faint)'
+    : Math.abs(premium) >= ADR_PREMIUM_HIGHLIGHT_PCT ? 'var(--accent)'
     : premium >= 0 ? 'var(--semantic-up)' : 'var(--semantic-down)';
 
   return (
@@ -243,6 +485,34 @@ function BrazilPanel({ onTickerClick }) {
       .catch(() => { /* strip stays hidden */ });
     return () => { alive = false; };
   }, []);
+
+  // Phase S W1 item 3 — SELIC/CDI/IPCA 12M for the header tape (BCB SGS,
+  // server caches 6h; cells degrade to em-dash on failure).
+  const [macro, setMacro] = useState(null);
+  useEffect(() => {
+    let alive = true;
+    apiFetch('/api/market/brazil-macro')
+      .then(r => (r.ok ? r.json() : null))
+      .then(j => { if (alive && j?.ok) setMacro(j); })
+      .catch(() => { /* tape cells degrade */ });
+    return () => { alive = false; };
+  }, []);
+
+  // Phase S W1 item 3 — B3 / FIIs / ADRs section visibility chips (persisted).
+  const [brSections, setBrSections] = useState(loadBrSections);
+  const toggleBrSection = useCallback((key) => {
+    setBrSections(prev => {
+      const next = { ...prev, [key]: !prev[key] };
+      try { localStorage.setItem(BR_SECTIONS_KEY, JSON.stringify(next)); } catch { /* private mode */ }
+      return next;
+    });
+  }, []);
+
+  // FII list — editable like every other section, persisted in the panel cfg.
+  const fiiSymbols = panelCfg.fiiSymbols || DEFAULT_FII_SYMBOLS;
+  const handleFiiChange = useCallback((next) => {
+    updatePanelConfig('brazilB3', { ...panelCfg, title: panelTitle, symbols: panelSymbols, fiiSymbols: next });
+  }, [panelCfg, panelTitle, panelSymbols, updatePanelConfig]);
 
   // Update lastUpdated when snapshot changes
   useEffect(() => {
@@ -364,6 +634,10 @@ function BrazilPanel({ onTickerClick }) {
         lastUpdated={lastUpdated}
         source="Yahoo/BCB"
       >
+        {/* Phase S W1 item 3 — section visibility chips (persisted) */}
+        <button className="btn" style={brChipStyle(brSections.b3)} onClick={() => toggleBrSection('b3')} title="Show/hide the B3 names section">B3</button>
+        <button className="btn" style={brChipStyle(brSections.fii)} onClick={() => toggleBrSection('fii')} title="Show/hide the FIIs section">FIIs</button>
+        <button className="btn" style={brChipStyle(brSections.adr)} onClick={() => toggleBrSection('adr')} title="Show/hide the ADR premium section">ADRs</button>
         <button className="btn"
           onClick={() => setCollapsed(v => !v)}
           title={collapsed ? 'Expand' : 'Collapse'}
@@ -372,27 +646,32 @@ function BrazilPanel({ onTickerClick }) {
       </EditablePanelHeader>
 
       {!collapsed && (<>
+        {/* Phase S W1 item 3 — header tape: IBOV · IFIX · SELIC/CDI · IPCA vs Focus */}
+        <BrazilTape macro={macro} focus={focus} />
+
         {/* BCB Focus strip (H2b) — hides itself when the endpoint degrades */}
         <FocusStrip focus={focus} />
 
         {/* Column headers */}
-        <ColumnHeaders
-          columns={SORT_COLS}
-          gridColumns={COLS}
-          sortKey={sortKey}
-          sortDir={sortDir}
-          onSortClick={handleSortClick}
-        />
+        {brSections.b3 && (
+          <ColumnHeaders
+            columns={SORT_COLS}
+            gridColumns={COLS}
+            sortKey={sortKey}
+            sortDir={sortDir}
+            onSortClick={handleSortClick}
+          />
+        )}
 
         {/* Rows */}
         <div style={{ flex: 1, overflowY: 'auto' }}>
-          {loading && !snapshot.length && (
+          {brSections.b3 && loading && !snapshot.length && (
             <div style={{ padding: 'var(--sp-5)', color: 'var(--text-muted)', textAlign: 'center' }}>LOADING...</div>
           )}
-          {!loading && !error && !displayedStocks.length && (
+          {brSections.b3 && !loading && !error && !displayedStocks.length && (
             <div style={{ padding: 'var(--sp-5)', color: 'var(--text-faint)', textAlign: 'center', fontSize: 11 }}>Loading B3 data...</div>
           )}
-          {displayedStocks.map(s => {
+          {brSections.b3 && displayedStocks.map(s => {
             const sym = s.symbol.endsWith('.SA') ? s.symbol : s.symbol + '.SA';
             const displaySym = s.symbol.replace('.SA', '');
             const d = batchMap[s.symbol] || {};
@@ -428,8 +707,20 @@ function BrazilPanel({ onTickerClick }) {
             );
           })}
 
+          {/* Phase S W1 item 3 — FIIs with the DY% in gold */}
+          {brSections.fii && (
+            <FiiSection
+              symbols={fiiSymbols}
+              onChangeSymbols={handleFiiChange}
+              onTickerClick={onTickerClick}
+              openDetail={openDetail}
+            />
+          )}
+
           {/* P2 item 3 — ADR premium view (moved here from StockPanel) */}
-          <AdrPremiumSection batchMap={batchMap} onTickerClick={onTickerClick} openDetail={openDetail} />
+          {brSections.adr && (
+            <AdrPremiumSection batchMap={batchMap} onTickerClick={onTickerClick} openDetail={openDetail} />
+          )}
         </div>
       </>)}
 
