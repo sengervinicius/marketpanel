@@ -115,7 +115,7 @@
 .fut-col-state.fut-state-pre,
 .fut-col-state.fut-state-post,
 .fut-col-state.fut-state-postpost,
-.fut-col-state.fut-state-prepre { background: #e8a020; }
+.fut-col-state.fut-state-prepre { background: var(--sent-warn); }
 .fut-col-state.fut-state-closed { background: var(--text-faint); }
 
 /* Numeric cells: mono + tabular-nums, per the shared .price-cell

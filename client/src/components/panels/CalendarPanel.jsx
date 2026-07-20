@@ -306,7 +306,7 @@ function CalendarPanel() {
         {tab === 'MACRO' && (
           <>
             {macroLoading && !macroEvents && (
-              <div style={{ padding: 12, fontSize: 10, color: '#888' }}>Loading events...</div>
+              <div style={{ padding: 12, fontSize: 10, color: 'var(--text-muted)' }}>Loading events...</div>
             )}
             {/* #UX-3 — honest provider state: the curated schedule below is
                 static, so say why the live feed is off (missing env var). */}
@@ -333,12 +333,12 @@ function CalendarPanel() {
         {tab === 'EARNINGS' && (
           <>
             {earningsLoading && (
-              <div style={{ padding: 12, fontSize: 10, color: '#888' }}>Loading earnings...</div>
+              <div style={{ padding: 12, fontSize: 10, color: 'var(--text-muted)' }}>Loading earnings...</div>
             )}
             {/* #UX-3 — graceful empty state: distinguish "provider offline
                 (env var missing)" from "provider live, week is just quiet". */}
             {!earningsLoading && earningsList.length === 0 && (
-              <div style={{ padding: 12, fontSize: 10, color: '#888' }}>
+              <div style={{ padding: 12, fontSize: 10, color: 'var(--text-muted)' }}>
                 {watchOnly && earningsAll.length > 0
                   ? 'No upcoming earnings for your watchlist tickers.'
                   : getProviderStatus(earningsResp) === 'unavailable'
