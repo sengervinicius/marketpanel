@@ -39,6 +39,9 @@ export const TOKEN_RGBA = [
 ];
 
 export const CHART_EXCEPTIONS = [
+  // Pure white: permissible inside charts / logo gradients and as the base
+  // of the rgba(255,255,255,a) border/tint family. Not for body text.
+  '#ffffff',
   '#002a0a', '#03a9f4', '#050508', '#1a0000', '#1a0030', '#1a1400',
   '#1a1a1a', '#1b5e20', '#26a69a', '#2e7d32', '#4fc3f7', '#66bb6a',
   '#7f0000', '#81c784', '#8bc34a', '#90caf9', '#b71c1c', '#cddc39',
