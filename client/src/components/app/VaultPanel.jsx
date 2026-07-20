@@ -13,6 +13,7 @@ import { readSSEStream, createChatAbort } from '../../utils/sseStream';
 import { useAuth } from '../../context/AuthContext';
 import VaultDocChat from './VaultDocChat';
 import AIDisclaimer from '../common/AIDisclaimer';
+import Tape from '../common/Tape';
 import './VaultPanel.css';
 
 /**
@@ -479,26 +480,22 @@ function VaultPanelInner({ fullScreen = false }) {
       <div className="vault-hero">
         <h1 className="vault-hero-title">The <span>Vault</span></h1>
         <div className="vault-hero-sub">Knowledge Intelligence</div>
-        <div className="vault-hero-stats">
-          <div className="vault-hero-stat">
-            <span className="vault-hero-stat-value">{activeDocs.length}</span>
-            <span className="vault-hero-stat-label">Documents</span>
-          </div>
-          <div className="vault-hero-divider" />
-          <div className="vault-hero-stat">
-            <span className="vault-hero-stat-value">{totalChunks.toLocaleString()}</span>
-            <span className="vault-hero-stat-label">Passages</span>
-          </div>
-          {quota && !quota.documents?.unlimited && (
-            <>
-              <div className="vault-hero-divider" />
-              <div className="vault-hero-stat">
-                <span className="vault-hero-stat-value">{quota.documents.used}/{quota.documents.limit}</span>
-                <span className="vault-hero-stat-label">{quota.tierLabel?.toUpperCase() || 'Quota'}</span>
-              </div>
-            </>
-          )}
-        </div>
+        {/* Design v1 — stats as a gold-tinted Tape (shared primitive) */}
+        <Tape
+          tone="gold"
+          className="vault-hero-tape"
+          cells={[
+            { key: 'docs', label: 'Documents', value: String(activeDocs.length) },
+            { key: 'passages', label: 'Passages', value: totalChunks.toLocaleString() },
+            ...(quota && !quota.documents?.unlimited
+              ? [{
+                  key: 'quota',
+                  label: quota.tierLabel || 'Quota',
+                  value: `${quota.documents.used}/${quota.documents.limit}`,
+                }]
+              : []),
+          ]}
+        />
       </div>
 
       {/* Scrollable content */}
@@ -598,21 +595,16 @@ function VaultPanelInner({ fullScreen = false }) {
               <span className="vault-upload-hint">
                 {tab === 'central' ? 'Powers all users\' Particle AI answers' : 'PDF, DOCX, CSV, TXT, images \u00B7 up to 10MB'}
               </span>
-              <span className="vault-upload-hint" style={{ fontSize: '8px', opacity: 0.3 }}>v2</span>
+              <span className="vault-upload-hint vault-upload-hint--version">v2</span>
             </div>
             {/* Phase 6: Document type selector */}
-            <div className="vault-doctype-row" style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '2px 8px' }}>
-              <span style={{ color: 'var(--text-faint)', fontSize: '8px', letterSpacing: '0.05em' }}>Type:</span>
+            <div className="vault-doctype-row">
+              <span className="vault-doctype-label">Type:</span>
               <select
                 className="vault-doctype-select"
                 value={selectedDocType}
                 onChange={(e) => { e.stopPropagation(); setSelectedDocType(e.target.value); }}
                 onClick={(e) => e.stopPropagation()}
-                style={{
-                  background: 'var(--bg-app)', border: '1px solid var(--border-subtle)',
-                  color: 'var(--text-muted)', fontSize: '8px', padding: '1px 4px',
-                  fontFamily: 'var(--font-ui)', outline: 'none', cursor: 'pointer',
-                }}
               >
                 <option value="auto">Auto-detect</option>
                 <option value="earnings_transcript">Earnings Transcript</option>
@@ -667,7 +659,7 @@ function VaultPanelInner({ fullScreen = false }) {
             expected central access but didn't get it — so they can see
             their own user ID and fix Render env vars. */}
         {adminDiag && !adminDiag.isAdmin && adminDiag.reason === 'not_in_allowlist' && (
-          <div className="vault-toast vault-toast--error" style={{ fontSize: '11px', lineHeight: 1.4 }}>
+          <div className="vault-toast vault-toast--error">
             <span>
               <strong>Central Vault locked.</strong> You are user #{adminDiag.userId}
               {adminDiag.email ? ` (${adminDiag.email})` : ''}. To enable
