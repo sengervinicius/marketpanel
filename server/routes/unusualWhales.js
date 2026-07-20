@@ -125,10 +125,14 @@ router.get('/flow-alerts', alertsHandler);
  */
 const tideHandler = async (req, res) => {
   try {
-    const { sector = 'technology' } = req.query;
+    // P2 item 7: default to the OVERALL market tide. The old default
+    // ('technology') forced every sector-less call onto the sector-tide
+    // URL, which is a different endpoint/shape — part of why the home
+    // widget saw an empty tide.
+    const sector = req.query.sector || null;
     const tide = await uw.getMarketTide(sector);
     res.json(tide || {
-      sector,
+      sector: sector || 'market',
       callVolume: 0,
       putVolume: 0,
       ratio: 0,
