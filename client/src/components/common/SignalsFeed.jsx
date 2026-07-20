@@ -34,7 +34,7 @@ const COMPOSITE_SIGNAL_LABELS = {
 
 const SEVERITY_COLORS = {
   high: '#ef4444',
-  medium: '#f97316',
+  medium: 'var(--color-accent)',
   low: '#6b7280',
 };
 

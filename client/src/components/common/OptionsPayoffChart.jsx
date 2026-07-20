@@ -10,14 +10,15 @@
  *     { type: 'long_call'|'short_call'|'long_put'|'short_put'|'long_stock',
  *       strike, premium, contracts, shares }
  */
+import { TOKEN_HEX } from '../../utils/tokenHex';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
   ReferenceLine, ResponsiveContainer, Tooltip,
 } from 'recharts';
 
-const ORANGE = '#F97316';
-const GREEN  = '#4caf50';
-const RED    = '#f44336';
+const ORANGE = TOKEN_HEX.accent;
+const GREEN  = TOKEN_HEX.up;
+const RED    = TOKEN_HEX.down;
 const GRID   = 'rgba(255,255,255,0.06)';
 const ZERO   = 'rgba(255,255,255,0.2)';
 const SPOT   = 'rgba(255,102,0,0.4)';

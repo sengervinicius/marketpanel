@@ -16,7 +16,7 @@
   font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
   font-size: 13px;
   line-height: 1.5;
-  color: #e0e0e0;
+  color: var(--color-text-primary);
   backdrop-filter: blur(10px);
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
   overflow: hidden;
@@ -24,11 +24,11 @@
 
 /* Sentiment-based border colors */
 .analysis-card--bull {
-  border-color: rgba(76, 175, 80, 0.3);
+  border-color: rgba(34, 197, 94, 0.3);
 }
 
 .analysis-card--bear {
-  border-color: rgba(244, 67, 54, 0.3);
+  border-color: rgba(239, 68, 68, 0.3);
 }
 
 .analysis-card--neutral {
@@ -63,15 +63,15 @@
 }
 
 .analysis-card-sentiment--bull {
-  background: rgba(76, 175, 80, 0.2);
+  background: rgba(34, 197, 94, 0.2);
   color: #4db854;
-  border: 1px solid rgba(76, 175, 80, 0.4);
+  border: 1px solid rgba(34, 197, 94, 0.4);
 }
 
 .analysis-card-sentiment--bear {
-  background: rgba(244, 67, 54, 0.2);
-  color: #f44336;
-  border: 1px solid rgba(244, 67, 54, 0.4);
+  background: rgba(239, 68, 68, 0.2);
+  color: var(--color-down);
+  border: 1px solid rgba(239, 68, 68, 0.4);
 }
 
 .analysis-card-sentiment--neutral {
@@ -84,7 +84,7 @@
   margin: 0;
   font-size: 15px;
   font-weight: 600;
-  color: #fff;
+  color: var(--color-text-primary);
   letter-spacing: 0.5px;
 }
 
@@ -117,12 +117,12 @@
 
 .analysis-card-section-title--positive {
   color: #4db854;
-  border-bottom-color: rgba(76, 175, 80, 0.2);
+  border-bottom-color: rgba(34, 197, 94, 0.2);
 }
 
 .analysis-card-section-title--negative {
-  color: #f44336;
-  border-bottom-color: rgba(244, 67, 54, 0.2);
+  color: var(--color-down);
+  border-bottom-color: rgba(239, 68, 68, 0.2);
 }
 
 /* ─────────────────────────────────────────────────────────────────────────── */
@@ -207,7 +207,7 @@
 }
 
 .analysis-card-list-item:has(.analysis-card-section-title--negative) ~ .analysis-card-list-item .analysis-card-list-bullet {
-  color: #f44336;
+  color: var(--color-down);
 }
 
 /* ─────────────────────────────────────────────────────────────────────────── */
@@ -233,15 +233,15 @@
 }
 
 .analysis-card-rec-item--reduce {
-  background: rgba(244, 67, 54, 0.05);
-  border-color: rgba(244, 67, 54, 0.1);
-  border-left-color: rgba(244, 67, 54, 0.3);
+  background: rgba(239, 68, 68, 0.05);
+  border-color: rgba(239, 68, 68, 0.1);
+  border-left-color: rgba(239, 68, 68, 0.3);
 }
 
 .analysis-card-rec-item--add {
-  background: rgba(76, 175, 80, 0.05);
-  border-color: rgba(76, 175, 80, 0.1);
-  border-left-color: rgba(76, 175, 80, 0.3);
+  background: rgba(34, 197, 94, 0.05);
+  border-color: rgba(34, 197, 94, 0.1);
+  border-left-color: rgba(34, 197, 94, 0.3);
 }
 
 .analysis-card-rec-item--monitor {
@@ -261,7 +261,7 @@
 .analysis-card-rec-ticker {
   font-family: 'Monaco', monospace;
   font-weight: 600;
-  color: #fff;
+  color: var(--color-text-primary);
   font-size: 13px;
 }
 
@@ -291,9 +291,9 @@
 }
 
 .analysis-card-argument--high {
-  background: rgba(244, 67, 54, 0.08);
-  border-color: rgba(244, 67, 54, 0.15);
-  border-left-color: rgba(244, 67, 54, 0.4);
+  background: rgba(239, 68, 68, 0.08);
+  border-color: rgba(239, 68, 68, 0.15);
+  border-left-color: rgba(239, 68, 68, 0.4);
 }
 
 .analysis-card-argument--medium {
@@ -309,7 +309,7 @@
 }
 
 .analysis-card-argument-point {
-  color: #fff;
+  color: var(--color-text-primary);
   margin-bottom: 6px;
   font-weight: 500;
   line-height: 1.4;
@@ -335,8 +335,8 @@
 }
 
 .analysis-card-argument--high .analysis-card-argument-severity {
-  background: rgba(244, 67, 54, 0.15);
-  color: #f44336;
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--color-down);
 }
 
 .analysis-card-argument--medium .analysis-card-argument-severity {
@@ -408,13 +408,13 @@
 }
 
 .analysis-card-scenario--bull {
-  background: rgba(76, 175, 80, 0.08);
-  border-color: rgba(76, 175, 80, 0.15);
+  background: rgba(34, 197, 94, 0.08);
+  border-color: rgba(34, 197, 94, 0.15);
 }
 
 .analysis-card-scenario--bear {
-  background: rgba(244, 67, 54, 0.08);
-  border-color: rgba(244, 67, 54, 0.15);
+  background: rgba(239, 68, 68, 0.08);
+  border-color: rgba(239, 68, 68, 0.15);
 }
 
 .analysis-card-scenario-header {
@@ -428,7 +428,7 @@
   margin: 0;
   font-size: 13px;
   font-weight: 600;
-  color: #fff;
+  color: var(--color-text-primary);
   flex: 1;
 }
 
@@ -445,13 +445,13 @@
 }
 
 .analysis-card-scenario-prob--bull {
-  background: rgba(76, 175, 80, 0.2);
+  background: rgba(34, 197, 94, 0.2);
   color: #4db854;
 }
 
 .analysis-card-scenario-prob--bear {
-  background: rgba(244, 67, 54, 0.2);
-  color: #f44336;
+  background: rgba(239, 68, 68, 0.2);
+  color: var(--color-down);
 }
 
 .analysis-card-scenario-prob--neutral {
@@ -497,11 +497,11 @@
 }
 
 .analysis-card-scenario--bull .analysis-card-scenario-drivers-list li {
-  border-left-color: rgba(76, 175, 80, 0.3);
+  border-left-color: rgba(34, 197, 94, 0.3);
 }
 
 .analysis-card-scenario--bear .analysis-card-scenario-drivers-list li {
-  border-left-color: rgba(244, 67, 54, 0.3);
+  border-left-color: rgba(239, 68, 68, 0.3);
 }
 
 .analysis-card-scenario-target {
@@ -533,7 +533,7 @@
 }
 
 .analysis-card-scenario--bear .analysis-card-scenario-target-value {
-  color: #f44336;
+  color: var(--color-down);
 }
 
 /* ─────────────────────────────────────────────────────────────────────────── */
@@ -562,7 +562,7 @@
 
 .analysis-card-bottom-line-text {
   font-size: 13px;
-  color: #fff;
+  color: var(--color-text-primary);
   line-height: 1.5;
   font-weight: 500;
 }

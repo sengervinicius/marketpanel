@@ -36,7 +36,7 @@ function EarningsChip({ event, accentColor }) {
       <span style={{
         fontWeight: 700,
         color: accentColor || 'var(--text-primary)',
-        fontFamily: 'var(--font-mono, monospace)',
+        fontFamily: 'var(--font-mono)',
         letterSpacing: '0.3px',
       }}>
         {ticker}
@@ -44,7 +44,7 @@ function EarningsChip({ event, accentColor }) {
       <span style={{ color: 'var(--text-faint)', margin: '0 5px' }}>&middot;</span>
       <span style={{ color: 'var(--text-muted)' }}>{eventType}</span>
       <span style={{ color: 'var(--text-faint)', margin: '0 5px' }}>&middot;</span>
-      <span style={{ color: 'var(--text-secondary)', fontFamily: 'var(--font-mono, monospace)' }}>
+      <span style={{ color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}>
         {formatDate(date)}
       </span>
     </span>

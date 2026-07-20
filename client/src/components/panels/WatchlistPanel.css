@@ -428,7 +428,7 @@
   flex-direction: column;
   gap: 4px;
   padding: 6px 8px;
-  background: var(--bg-surface, #101318);
+  background: var(--bg-surface);
   border: 1px solid var(--border-strong);
   border-radius: 3px;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
@@ -449,7 +449,7 @@
 
 .wp-cols-option input {
   margin: 0;
-  accent-color: var(--accent, #4488ff);
+  accent-color: var(--accent);
 }
 
 .wp-row-extra {
@@ -476,18 +476,18 @@
   padding: 1px 4px;
   border-radius: 2px;
   color: var(--text-secondary);
-  background: var(--sent-neutral-bg, rgba(139, 147, 167, 0.10));
+  background: var(--sent-neutral-bg);
   white-space: nowrap;
 }
 
 .wp-rec-chip--bull {
-  color: var(--sent-bull, #3dd68c);
-  background: var(--sent-bull-bg, rgba(61, 214, 140, 0.12));
+  color: var(--sent-bull);
+  background: var(--sent-bull-bg);
 }
 
 .wp-rec-chip--bear {
-  color: var(--price-down, #ef4444);
-  background: var(--color-down-bg, rgba(239, 68, 68, 0.12));
+  color: var(--price-down);
+  background: var(--color-down-bg);
 }
 
 /* ══════════════════════════════════════════════════════════════════

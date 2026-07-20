@@ -260,13 +260,13 @@ export function SettingsDrawer({ panelVisible, togglePanel, onClose, mobile }) {
                   if (/^\d{2}:\d{2}$/.test(v)) safeUpdate({ morningBriefTime: v });
                 }}
                 style={{
-                  background: 'var(--bg-surface, #181818)',
-                  color: 'var(--text-primary, #fff)',
+                  background: 'var(--bg-surface)',
+                  color: 'var(--text-primary)',
                   border: '1px solid var(--border-strong)',
                   borderRadius: 3,
                   padding: '2px 6px',
                   fontSize: 10,
-                  fontFamily: 'var(--font-mono, monospace)',
+                  fontFamily: 'var(--font-mono)',
                 }}
               />
             </div>
@@ -841,13 +841,13 @@ export function ParticleMemoryPanel() {
                   maxLength={500}
                   style={{
                     width: '100%',
-                    background: 'var(--bg-surface, #181818)',
-                    color: 'var(--text-primary, #fff)',
+                    background: 'var(--bg-surface)',
+                    color: 'var(--text-primary)',
                     border: '1px solid var(--border-strong)',
                     borderRadius: 3,
                     padding: '4px 6px',
                     fontSize: 10,
-                    fontFamily: 'var(--font-mono, monospace)',
+                    fontFamily: 'var(--font-mono)',
                     resize: 'vertical',
                   }}
                 />
@@ -867,7 +867,7 @@ export function ParticleMemoryPanel() {
             ) : (
               <span style={{
                 color: lowConf ? 'var(--text-faint)' : 'var(--text-primary)',
-                fontSize: 10, lineHeight: 1.4, fontFamily: 'var(--font-mono, monospace)',
+                fontSize: 10, lineHeight: 1.4, fontFamily: 'var(--font-mono)',
               }}>{m.content}</span>
             )}
           </div>

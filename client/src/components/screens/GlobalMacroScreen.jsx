@@ -271,7 +271,7 @@ function YieldCurveAnalysis() {
     <>
       {spread2s10s != null && (
         <div style={{
-          background: isInverted ? 'rgba(244, 67, 54, 0.08)' : 'rgba(102, 187, 106, 0.08)',
+          background: isInverted ? 'rgba(239, 68, 68, 0.08)' : 'rgba(102, 187, 106, 0.08)',
           border: `1px solid color-mix(in srgb, ${isInverted ? 'var(--semantic-down)' : 'var(--semantic-up)'} 27%, transparent)`,
           borderRadius: 6,
           padding: '8px 12px',

@@ -1,10 +1,17 @@
+/* EarningsCalendarWidget — tokenized (design-lint sweep 2026-07).
+   Previously a light-theme bootstrap-style sheet full of undefined vars
+   (--surface-secondary, --primary-color, ...) whose literal fallbacks
+   painted #f8f9fa/#007bff on the dark terminal. All values now route
+   through styles/tokens.css; the redundant prefers-color-scheme block
+   is gone because the app has a single dark theme. */
+
 .earnings-widget {
-  background: var(--surface-secondary, #f8f9fa);
-  border: 1px solid var(--border-color, #e0e0e0);
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
   border-radius: 8px;
   padding: 16px;
   margin: 16px 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  font-family: var(--font-family-sans);
 }
 
 .earnings-header {
@@ -18,18 +25,18 @@
   margin: 0;
   font-size: 16px;
   font-weight: 600;
-  color: var(--text-primary, #1a1a1a);
+  color: var(--text-primary);
 }
 
 .earnings-refresh {
   background: none;
-  border: 1px solid var(--border-color, #e0e0e0);
+  border: 1px solid var(--color-border);
   border-radius: 4px;
   width: 32px;
   height: 32px;
   cursor: pointer;
   font-size: 14px;
-  color: var(--text-secondary, #666);
+  color: var(--text-secondary);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -37,8 +44,8 @@
 }
 
 .earnings-refresh:hover {
-  background: var(--surface-active, #f0f0f0);
-  color: var(--text-primary, #1a1a1a);
+  background: var(--color-surface-3);
+  color: var(--text-primary);
 }
 
 .earnings-refresh:active {
@@ -49,7 +56,7 @@
 .earnings-empty {
   padding: 16px;
   text-align: center;
-  color: var(--text-secondary, #666);
+  color: var(--text-secondary);
   font-size: 14px;
 }
 
@@ -66,26 +73,26 @@
   justify-content: space-between;
   align-items: center;
   padding: 10px 12px;
-  background: white;
-  border: 1px solid var(--border-color, #e0e0e0);
+  background: var(--color-surface-1);
+  border: 1px solid var(--color-border);
   border-radius: 6px;
   transition: all 0.2s ease;
 }
 
 .earnings-item:hover {
-  background: var(--surface-active, #f9f9f9);
-  border-color: var(--primary-color, #007bff);
+  background: var(--color-surface-3);
+  border-color: var(--color-accent);
 }
 
 .earnings-item.is-today {
-  background: var(--highlight-bg, #fff8e1);
-  border-color: var(--highlight-border, #ffd700);
+  background: var(--color-accent-dim);
+  border-color: var(--color-accent);
   font-weight: 500;
 }
 
 .earnings-item.is-past {
   opacity: 0.6;
-  background: var(--disabled-bg, #f5f5f5);
+  background: var(--color-surface-2);
 }
 
 .earnings-ticker {
@@ -97,13 +104,13 @@
 
 .ticker-symbol {
   font-weight: 600;
-  color: var(--text-primary, #1a1a1a);
+  color: var(--text-primary);
   font-size: 14px;
 }
 
 .earnings-date {
   font-size: 12px;
-  color: var(--text-secondary, #999);
+  color: var(--text-secondary);
 }
 
 .earnings-meta {
@@ -116,98 +123,29 @@
 
 .earnings-time {
   font-size: 12px;
-  color: var(--text-secondary, #666);
+  color: var(--text-secondary);
 }
 
 .earnings-days {
   font-size: 12px;
   font-weight: 500;
-  color: var(--primary-color, #007bff);
-  background: var(--badge-bg, #e7f3ff);
+  color: var(--color-accent);
+  background: var(--color-accent-dim);
   padding: 2px 8px;
   border-radius: 12px;
   white-space: nowrap;
 }
 
 .earnings-item.is-today .earnings-days {
-  color: var(--highlight-text, #ff9800);
-  background: var(--highlight-badge, #fff3cd);
+  color: var(--color-warn);
+  background: var(--color-accent-dim);
 }
 
 .earnings-footer {
   margin-top: 12px;
   padding-top: 8px;
-  border-top: 1px solid var(--border-color, #e0e0e0);
+  border-top: 1px solid var(--color-border);
   font-size: 12px;
-  color: var(--text-secondary, #999);
+  color: var(--text-secondary);
   text-align: center;
-}
-
-/* Dark mode support */
-@media (prefers-color-scheme: dark) {
-  .earnings-widget {
-    background: var(--surface-secondary, #2a2a2a);
-    border-color: var(--border-color, #444);
-  }
-
-  .earnings-header h3 {
-    color: var(--text-primary, #ffffff);
-  }
-
-  .earnings-refresh {
-    border-color: var(--border-color, #444);
-    color: var(--text-secondary, #aaa);
-  }
-
-  .earnings-refresh:hover {
-    background: var(--surface-active, #3a3a3a);
-    color: var(--text-primary, #ffffff);
-  }
-
-  .earnings-item {
-    background: var(--surface-primary, #1a1a1a);
-    border-color: var(--border-color, #444);
-  }
-
-  .earnings-item:hover {
-    background: var(--surface-active, #333);
-  }
-
-  .earnings-item.is-today {
-    background: var(--highlight-bg, #3a2800);
-    border-color: var(--highlight-border, #665500);
-  }
-
-  .earnings-item.is-past {
-    background: var(--disabled-bg, #2a2a2a);
-  }
-
-  .earnings-ticker,
-  .earnings-meta {
-    color: var(--text-primary, #ffffff);
-  }
-
-  .earnings-date,
-  .earnings-time {
-    color: var(--text-secondary, #aaa);
-  }
-
-  .ticker-symbol {
-    color: var(--text-primary, #ffffff);
-  }
-
-  .earnings-days {
-    color: var(--primary-color, #66b3ff);
-    background: var(--badge-bg, #1a3a5c);
-  }
-
-  .earnings-item.is-today .earnings-days {
-    color: var(--highlight-text, #ffb347);
-    background: var(--highlight-badge, #3a2800);
-  }
-
-  .earnings-footer {
-    border-color: var(--border-color, #444);
-    color: var(--text-secondary, #aaa);
-  }
 }

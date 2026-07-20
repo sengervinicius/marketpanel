@@ -1,4 +1,5 @@
 // InstrumentDetail.jsx – Bloomberg GP-style full-screen instrument overlay
+import { TOKEN_HEX } from '../../utils/tokenHex';
 import { useState, useEffect, useCallback, useRef, useMemo, Suspense } from 'react';
 import { createPortal } from 'react-dom';
 import { useIsMobile } from '../../hooks/useIsMobile';
@@ -411,10 +412,10 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
 
   // ── Phase 4.8: Multi-Ticker Comparison Mode ────────────────────────────────
   const COMPARISON_COLORS = {
-    compare1: '#00bcd4',
-    compare2: '#4caf50',
-    compare3: '#ff9800',
-    compare4: '#a855f7',
+    compare1: TOKEN_HEX.sectorTech,
+    compare2: TOKEN_HEX.sectorBrazil,
+    compare3: TOKEN_HEX.sectorCommodities,
+    compare4: TOKEN_HEX.ai,
   };
 
   const addComparisonTicker = useCallback(async (result) => {
@@ -995,7 +996,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
                 formatter={v => [fmt(v, 0), 'Volume']}
                 labelStyle={{ color: 'var(--text-muted)' }}
               />
-              <Bar dataKey="volume" fill="var(--bg-active, #1a3352)" opacity={0.85} radius={[1, 1, 0, 0]} />
+              <Bar dataKey="volume" fill="var(--bg-active)" opacity={0.85} radius={[1, 1, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -2090,7 +2091,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
       return '$' + v.toFixed(0);
     };
 
-    const colorClassMap = { '#4fc3f7': 'val-info', '#ce93d8': 'val-purple', '#66bb6a': 'val-up' };
+    const colorClassMap = { '#4fc3f7': 'val-info', [TOKEN_HEX.ai]: 'val-purple', '#66bb6a': 'val-up' };
     const renderFinTable = (title, color, data, rows) => {
       if (!data || !Array.isArray(data) || data.length === 0) return null;
       const periods = data.slice(0, 4);
@@ -2157,7 +2158,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
     return (
       <div className="id-section-group">
         {renderFinTable('INCOME STATEMENT', '#4fc3f7', tdFinancials.income_statement, incRows)}
-        {renderFinTable('BALANCE SHEET', '#ce93d8', tdFinancials.balance_sheet, bsRows)}
+        {renderFinTable('BALANCE SHEET', TOKEN_HEX.ai, tdFinancials.balance_sheet, bsRows)}
         {renderFinTable('CASH FLOW', '#66bb6a', tdFinancials.cash_flow, cfRows)}
         {!tdFinancials.income_statement && !tdFinancials.balance_sheet && !tdFinancials.cash_flow && (
           <div className="id-error-msg">No financial statement data available for this ticker</div>
@@ -2670,7 +2671,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
                   {/* 2. News / Catalysts (if relevant) */}
                   {aiChartInsight.news && !aiChartInsight.news.toLowerCase().includes('no significant catalysts') && (
                     <div className="id-analysis-section">
-                      <span className="id-chart-insight-badge" style={{ background: 'rgba(76,175,80,0.08)', color: '#4caf50', borderColor: 'rgba(76,175,80,0.15)' }}>WHY IT MAY BE MOVING</span>
+                      <span className="id-chart-insight-badge" style={{ background: 'rgba(34, 197, 94,0.08)', color: 'var(--color-up)', borderColor: 'rgba(34, 197, 94,0.15)' }}>WHY IT MAY BE MOVING</span>
                       <span className="id-chart-insight-text">{aiChartInsight.news}</span>
                     </div>
                   )}

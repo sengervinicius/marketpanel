@@ -173,7 +173,7 @@ export function TrialBanner({ subscription, onUpgrade, onManageBilling, billingS
                 <button className="btn"
                   onClick={onUpgrade}
                   style={{
-                    background: 'var(--color-particle, #F97316)', border: 'none', color: '#000',
+                    background: 'var(--color-particle)', border: 'none', color: '#000',
                     fontWeight: 700 }}
                 >UPGRADE →</button>
               )}
@@ -232,7 +232,7 @@ export function SubscriptionExpiredScreen({ onUpgrade, onLogout, onManageBilling
           onClick={handleUpgrade}
           disabled={isLoadingCheckout}
           style={{
-            background: isLoadingCheckout ? '#aa4400' : 'var(--color-particle, #F97316)',
+            background: isLoadingCheckout ? '#aa4400' : 'var(--color-particle)',
             border: 'none', color: '#000',
             fontWeight: 700, padding: '8px 20px', cursor: isLoadingCheckout ? 'not-allowed' : 'pointer', opacity: isLoadingCheckout ? 0.7 : 1,
           }}
@@ -319,10 +319,10 @@ export function WelcomeSubscriptionModal({ subscription, onUpgrade, onDismiss })
         background: '#0c0c0f', border: '1px solid #1a1a1a',
         borderRadius: 12, padding: '36px 32px', maxWidth: 380, width: '90%',
         textAlign: 'center', color: '#e0e0e0',
-        fontFamily: 'var(--font-ui, -apple-system, sans-serif)',
+        fontFamily: 'var(--font-ui)',
         boxShadow: '0 24px 80px rgba(0, 0, 0, 0.6)',
       }}>
-        <div style={{ fontSize: 32, color: '#F97316', fontWeight: 800, letterSpacing: '0.06em', marginBottom: 8 }}>
+        <div style={{ fontSize: 32, color: 'var(--color-accent)', fontWeight: 800, letterSpacing: '0.06em', marginBottom: 8 }}>
           PARTICLE
         </div>
         <div style={{ fontSize: 13, color: '#888', marginBottom: 28, lineHeight: 1.6 }}>
@@ -342,7 +342,7 @@ export function WelcomeSubscriptionModal({ subscription, onUpgrade, onDismiss })
           disabled={loading}
           style={{
             width: '100%', padding: '13px 20px', marginBottom: 10,
-            background: loading ? '#aa4400' : 'linear-gradient(180deg, #F97316 0%, #e55a00 100%)',
+            background: loading ? 'var(--color-accent-hover)' : 'linear-gradient(180deg, var(--color-accent) 0%, var(--color-accent-hover) 100%)',
             color: '#000', border: 'none', borderRadius: 8,
             fontWeight: 700, fontSize: 12, letterSpacing: '0.1em',
             cursor: loading ? 'not-allowed' : 'pointer',

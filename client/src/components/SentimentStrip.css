@@ -79,10 +79,10 @@
   border-radius: 3px;
   background: linear-gradient(
     90deg,
-    var(--sent-bear, #e05c8a) 0%,
-    var(--sent-warn, #e8a020) 33%,
-    var(--sent-neutral, #8b93a7) 50%,
-    var(--sent-bull, #3dd68c) 100%
+    var(--sent-bear) 0%,
+    var(--sent-warn) 33%,
+    var(--sent-neutral) 50%,
+    var(--sent-bull) 100%
   );
   opacity: 0.55;
 }

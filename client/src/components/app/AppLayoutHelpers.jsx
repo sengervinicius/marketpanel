@@ -237,7 +237,7 @@ export function makePanelRenderer(panelId, ctx) {
   // All panels wrapped in Suspense — many are lazy-loaded (ETFPanel, NewsPanel, ChatPanel, etc.)
   // Without Suspense, lazy components trigger React error #426 on first render
   return (
-    <Suspense fallback={<div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-faint, #333)', fontSize: 10, letterSpacing: '0.5px' }}>LOADING...</div>}>
+    <Suspense fallback={<div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-faint)', fontSize: 10, letterSpacing: '0.5px' }}>LOADING...</div>}>
       <Comp {...panelProps} />
     </Suspense>
   );

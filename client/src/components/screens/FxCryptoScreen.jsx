@@ -174,7 +174,7 @@ const CryptoInfraSection = memo(function CryptoInfraSection({ statsMap }) {
 
 /* ── Deep-Data Component Wrappers ──────────────────────────────────────── */
 const EarningsSection = memo(function EarningsSection() {
-  return <EarningsCalendarStrip tickers={EARNINGS_TICKERS} accentColor="#ce93d8" />;
+  return <EarningsCalendarStrip tickers={EARNINGS_TICKERS} accentColor="var(--sector-fxcrypto)" />;
 });
 
 function FxCryptoScreen() {
@@ -191,7 +191,7 @@ function FxCryptoScreen() {
   return (
     <DeepScreenBase
       title="FX & Crypto"
-      accentColor="#ce93d8"
+      accentColor="var(--sector-fxcrypto)"
       vaultSector="fx"
       sections={sections}
       aiType="cross-asset"
@@ -201,7 +201,7 @@ function FxCryptoScreen() {
       <SectorPulse
         etfTicker="UUP"
         etfLabel="UUP"
-        accentColor="#ce93d8"
+        accentColor="var(--sector-fxcrypto)"
       />
       <SectorChartStrip tickers={CHART_TICKERS} title="FX & CRYPTO CHARTS" sectorName="FX & Crypto" />
     </DeepScreenBase>

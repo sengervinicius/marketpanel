@@ -62,7 +62,7 @@ function EventRow({ event, accentColor }) {
         fontSize: 10,
         fontWeight: 700,
         color: 'var(--text-secondary)',
-        fontFamily: 'var(--font-mono, monospace)',
+        fontFamily: 'var(--font-mono)',
         whiteSpace: 'nowrap',
       }}>
         {formatEventDate(event.date || event.datetime)}
@@ -89,7 +89,7 @@ function EventRow({ event, accentColor }) {
       <td style={{
         padding: '3px 8px',
         fontSize: 10,
-        fontFamily: 'var(--font-mono, monospace)',
+        fontFamily: 'var(--font-mono)',
         color: 'var(--text-secondary)',
         textAlign: 'right',
         whiteSpace: 'nowrap',
@@ -99,7 +99,7 @@ function EventRow({ event, accentColor }) {
       <td style={{
         padding: '3px 8px',
         fontSize: 10,
-        fontFamily: 'var(--font-mono, monospace)',
+        fontFamily: 'var(--font-mono)',
         color: 'var(--text-muted)',
         textAlign: 'right',
         whiteSpace: 'nowrap',

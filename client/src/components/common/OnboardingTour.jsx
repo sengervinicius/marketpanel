@@ -136,7 +136,7 @@ function ProgressOrbs({ current, total }) {
             height: 6,
             borderRadius: 3,
             background: i <= current
-              ? 'linear-gradient(90deg, #F97316, #ff8833)'
+              ? 'linear-gradient(90deg, var(--color-accent), var(--color-accent-hover))'
               : 'rgba(255,255,255,0.1)',
             transition: 'all 300ms ease',
           }}
@@ -271,21 +271,21 @@ export default function OnboardingTour() {
           {/* Particle orb */}
           <div style={{
             width: 32, height: 32, borderRadius: '50%',
-            background: 'radial-gradient(circle at 40% 40%, #F97316, #c2410c)',
+            background: 'radial-gradient(circle at 40% 40%, var(--color-accent), var(--color-accent-hover))',
             boxShadow: '0 0 16px rgba(249, 115, 22, 0.4)',
             animation: 'tour-orb-pulse 2s ease-in-out infinite',
           }} />
           <div style={{
             fontSize: 10, fontWeight: 700, letterSpacing: '2px',
             color: 'rgba(249, 115, 22, 0.8)',
-            fontFamily: 'var(--font-mono, monospace)',
+            fontFamily: 'var(--font-mono)',
           }}>
             {step.title}
           </div>
           <div style={{ flex: 1 }} />
           <div style={{
             fontSize: 10, color: 'rgba(255,255,255,0.25)',
-            fontFamily: 'var(--font-mono, monospace)',
+            fontFamily: 'var(--font-mono)',
           }}>
             {stepIdx + 1}/{STEPS.length}
           </div>
@@ -304,14 +304,14 @@ export default function OnboardingTour() {
             fontSize: 15, lineHeight: 1.7,
             color: 'rgba(255, 255, 255, 0.85)',
             minHeight: 60,
-            fontFamily: 'var(--font-ui, -apple-system, BlinkMacSystemFont, sans-serif)',
+            fontFamily: 'var(--font-ui)',
           }}>
             {displayed}
             {!done && (
               <span style={{
                 display: 'inline-block',
                 width: 2, height: 16,
-                background: '#F97316',
+                background: 'var(--color-accent)',
                 marginLeft: 2,
                 verticalAlign: 'text-bottom',
                 animation: 'tour-cursor-blink 0.8s ease-in-out infinite',
@@ -332,7 +332,7 @@ export default function OnboardingTour() {
                 background: 'none', border: 'none',
                 color: 'rgba(255, 255, 255, 0.25)',
                 fontSize: 11, cursor: 'pointer',
-                fontFamily: 'var(--font-mono, monospace)',
+                fontFamily: 'var(--font-mono)',
                 letterSpacing: '0.5px',
                 padding: '6px 0',
                 transition: 'color 150ms',
@@ -372,10 +372,10 @@ export default function OnboardingTour() {
                 onClick={() => { if (!done) skipTypewriter(); else handleNext(); }}
                 style={{
                   background: done
-                    ? 'linear-gradient(135deg, #F97316 0%, #ea580c 100%)'
+                    ? 'linear-gradient(135deg, var(--color-accent) 0%, var(--color-accent-hover) 100%)'
                     : 'rgba(249, 115, 22, 0.15)',
                   border: done ? 'none' : '1px solid rgba(249, 115, 22, 0.3)',
-                  color: done ? '#000' : '#F97316',
+                  color: done ? 'var(--color-text-inverse)' : 'var(--color-accent)',
                   fontSize: 12, fontWeight: 700,
                   padding: '8px 20px',
                   borderRadius: 8,

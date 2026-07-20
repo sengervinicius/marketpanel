@@ -76,7 +76,7 @@ button:hover, .btn:hover, [role="button"]:hover,
 
 /* Price flash animations ──────────────────────── */
 @keyframes flashUp {
-  0%   { background: rgba(76, 175, 80, 0.35); }    /* var(--semantic-up) with transparency */
+  0%   { background: rgba(34, 197, 94, 0.35); }    /* var(--semantic-up) with transparency */
   100% { background: transparent; }
 }
 @keyframes flashDown {
@@ -94,7 +94,7 @@ button:hover, .btn:hover, [role="button"]:hover,
 
 /* Phase 8: row flash for newly dropped tickers */
 @keyframes priceRowFlash {
-  0%   { background: rgba(255, 102, 0, 0.25); }    /* var(--accent) with transparency */
+  0%   { background: rgba(229, 90, 0, 0.25); }    /* var(--accent) with transparency */
   100% { background: transparent; }
 }
 .price-row-flash { animation: priceRowFlash var(--duration-slow) var(--ease-out) forwards; }
@@ -266,7 +266,7 @@ button:hover, .btn:hover, [role="button"]:hover,
 }
 .m-tab-btn[data-active="true"] {
   color: var(--accent);
-  background: rgba(255, 102, 0, 0.04);
+  background: rgba(229, 90, 0, 0.04);
   border-top-color: var(--accent);
 }
 .m-tab-icon-wrap {
@@ -305,7 +305,7 @@ button:hover, .btn:hover, [role="button"]:hover,
   justify-content: space-between;
   align-items: center;
   cursor: pointer;
-  -webkit-tap-highlight-color: rgba(255, 102, 0, 0.06);
+  -webkit-tap-highlight-color: rgba(229, 90, 0, 0.06);
   min-height: 48px;
 }
 .m-row {
@@ -318,7 +318,7 @@ button:hover, .btn:hover, [role="button"]:hover,
   cursor: pointer;
   background: transparent;
   transition: background-color 0.15s ease;
-  -webkit-tap-highlight-color: rgba(255, 102, 0, 0.06);
+  -webkit-tap-highlight-color: rgba(229, 90, 0, 0.06);
 }
 .m-row:active {
   background: rgba(255, 255, 255, 0.04);
@@ -484,11 +484,11 @@ button:hover, .btn:hover, [role="button"]:hover,
   border-radius: 20px;
   flex-shrink: 0;
   transition: all 0.2s ease;
-  -webkit-tap-highlight-color: rgba(255, 102, 0, 0.06);
+  -webkit-tap-highlight-color: rgba(229, 90, 0, 0.06);
 }
 .m-chip[data-active="true"] {
   font-weight: 600;
-  background: rgba(255, 102, 0, 0.12);
+  background: rgba(229, 90, 0, 0.12);
   border-color: var(--accent);
   color: var(--accent);
 }
@@ -609,7 +609,7 @@ button:hover, .btn:hover, [role="button"]:hover,
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background: rgba(255, 102, 0, 0.15);
+  background: rgba(229, 90, 0, 0.15);
   color: var(--accent);
   display: flex;
   align-items: center;
@@ -644,7 +644,7 @@ button:hover, .btn:hover, [role="button"]:hover,
 .mm-badge {
   display: inline-block;
   padding: 3px 8px;
-  background: rgba(255, 102, 0, 0.12);
+  background: rgba(229, 90, 0, 0.12);
   border-radius: 10px;
   font-size: 10px;
   font-weight: 700;
@@ -669,7 +669,7 @@ button:hover, .btn:hover, [role="button"]:hover,
   border: none;
   cursor: pointer;
   font-family: inherit;
-  -webkit-tap-highlight-color: rgba(255, 102, 0, 0.06);
+  -webkit-tap-highlight-color: rgba(229, 90, 0, 0.06);
   transition: background-color 0.15s ease;
 }
 .mm-item:active { background: var(--bg-hover); }
@@ -805,7 +805,7 @@ button:hover, .btn:hover, [role="button"]:hover,
 }
 
 /* ── Drag-over highlight ─────────────────────────── */
-.drag-over { outline: 1px solid var(--accent) !important; background: rgba(255,102,0,0.05) !important; }
+.drag-over { outline: 1px solid var(--accent) !important; background: rgba(229, 90, 0,0.05) !important; }
 
 /* ── Keyboard focus styles ───────────────────────── */
 *:focus { outline: none; }
@@ -1065,7 +1065,7 @@ textarea:focus-visible { outline: 1px solid var(--accent); outline-offset: 0; bo
 }
 .chat-list-item:hover { background: var(--bg-hover); }
 .chat-list-item[data-active="true"] {
-  background: rgba(255, 102, 0, 0.08); border-left-color: var(--accent);
+  background: rgba(229, 90, 0, 0.08); border-left-color: var(--accent);
 }
 
 .chat-list-row {
@@ -1155,7 +1155,7 @@ textarea:focus-visible { outline: 1px solid var(--accent); outline-offset: 0; bo
   max-width: 100%;
 }
 .chat-bubble--mine {
-  background: rgba(255, 102, 0, 0.08);
+  background: rgba(229, 90, 0, 0.08);
   border: 1px solid var(--accent);
   border-radius: var(--radius-lg) var(--radius-lg) var(--radius-sm) var(--radius-lg);
 }
@@ -1495,7 +1495,7 @@ textarea:focus-visible { outline: 1px solid var(--accent); outline-offset: 0; bo
   gap: 10px;
   padding: 16px 20px;
   border-bottom: 1px solid var(--border-subtle);
-  background: rgba(255, 102, 0, 0.04);
+  background: rgba(229, 90, 0, 0.04);
 }
 .mis-streak-hero-text {
   display: flex;
@@ -1554,7 +1554,7 @@ textarea:focus-visible { outline: 1px solid var(--accent); outline-offset: 0; bo
 }
 
 .app-resize-handle-vertical:hover {
-  background: rgba(255, 102, 0, 0.12);
+  background: rgba(229, 90, 0, 0.12);
 }
 
 .app-resize-indicator-h {
@@ -1598,7 +1598,7 @@ textarea:focus-visible { outline: 1px solid var(--accent); outline-offset: 0; bo
 }
 
 .app-layout-btn {
-  background: rgba(255, 102, 0, 0.08);
+  background: rgba(229, 90, 0, 0.08);
   border: 1px solid var(--accent);
   color: var(--accent);
   width: 22px;
@@ -1728,7 +1728,7 @@ textarea:focus-visible { outline: 1px solid var(--accent); outline-offset: 0; bo
   flex-shrink: 0;
   padding: 4px 14px 6px;
   background: var(--bg-app);
-  border-bottom: 1px solid rgba(255, 102, 0, 0.2);
+  border-bottom: 1px solid rgba(229, 90, 0, 0.2);
   position: relative;
   z-index: 11;
 }
@@ -2037,8 +2037,8 @@ textarea:focus-visible { outline: 1px solid var(--accent); outline-offset: 0; bo
 
 /* ── Onboarding pulse on LAYOUT button ──────────────────────────────── */
 @keyframes layout-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 102, 0, 0.4); }
-  50%      { box-shadow: 0 0 0 6px rgba(255, 102, 0, 0); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(229, 90, 0, 0.4); }
+  50%      { box-shadow: 0 0 0 6px rgba(229, 90, 0, 0); }
 }
 .layout-btn-pulse {
   animation: layout-pulse 2s ease-in-out infinite;

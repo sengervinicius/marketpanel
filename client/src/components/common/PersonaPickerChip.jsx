@@ -102,8 +102,8 @@ export default function PersonaPickerChip({ selected, onSelect }) {
     marginRight: 6,
     borderRadius: 4,
     color: selectedPersona
-      ? 'var(--accent, #2e5a9e)'
-      : 'var(--text-secondary, #999)',
+      ? 'var(--accent)'
+      : 'var(--text-secondary)',
     fontSize: 12,
     display: 'inline-flex',
     alignItems: 'center',
@@ -116,7 +116,7 @@ export default function PersonaPickerChip({ selected, onSelect }) {
     right: 0,
     minWidth: 220,
     maxWidth: 320,
-    background: 'var(--bg-panel, #1a1a1a)',
+    background: 'var(--bg-panel)',
     border: '1px solid var(--border, #2a2a2a)',
     borderRadius: 4,
     padding: 4,
@@ -127,7 +127,7 @@ export default function PersonaPickerChip({ selected, onSelect }) {
   const menuItemStyle = (active) => ({
     display: 'block',
     width: '100%',
-    background: active ? 'var(--bg-hover, rgba(255,255,255,0.04))' : 'none',
+    background: active ? 'var(--bg-hover)' : 'none',
     border: 'none',
     color: 'var(--text, #e6e6e6)',
     cursor: 'pointer',
@@ -163,7 +163,7 @@ export default function PersonaPickerChip({ selected, onSelect }) {
             role="menuitem"
           >
             <div style={{ fontWeight: 600 }}>Default (Particle AI)</div>
-            <div style={{ fontSize: 11, color: 'var(--text-secondary, #999)' }}>
+            <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
               Tools + context, no persona lens
             </div>
           </button>
@@ -176,7 +176,7 @@ export default function PersonaPickerChip({ selected, onSelect }) {
               role="menuitem"
             >
               <div style={{ fontWeight: 600 }}>{p.name}</div>
-              <div style={{ fontSize: 11, color: 'var(--text-secondary, #999)', lineHeight: 1.3 }}>
+              <div style={{ fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.3 }}>
                 {p.one_liner}
               </div>
             </button>

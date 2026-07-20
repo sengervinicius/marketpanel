@@ -3,7 +3,7 @@
 .morning-brief-card {
   display: flex;
   flex-direction: column;
-  background: var(--bg-secondary, #1f2937);
+  background: var(--bg-secondary);
   border: 1px solid var(--border-color, #374151);
   border-radius: 8px;
   overflow: hidden;
@@ -38,7 +38,7 @@
   align-items: center;
   gap: 8px;
   font-weight: 600;
-  color: var(--text-primary, #f3f4f6);
+  color: var(--text-primary);
   font-size: 14px;
   flex-wrap: wrap;
 }
@@ -47,14 +47,14 @@
   font-size: 11px;
   font-weight: 400;
   color: var(--text-tertiary, #6b7280);
-  font-family: var(--font-mono, monospace);
+  font-family: var(--font-mono);
 }
 
 .morning-brief-card__relevance {
   font-size: 11px;
   font-weight: 500;
-  color: var(--accent, #f97316);
-  background: rgba(249, 115, 22, 0.1);
+  color: var(--accent);
+  background: rgba(229, 90, 0, 0.1);
   padding: 2px 8px;
   border-radius: 10px;
 }
@@ -80,7 +80,7 @@
 
 .morning-brief-card__btn-refresh {
   padding: 6px 12px;
-  background: var(--accent, #f97316);
+  background: var(--accent);
   color: white;
   border: none;
   border-radius: 4px;
@@ -123,7 +123,7 @@
   margin-top: 12px;
   margin-bottom: 8px;
   font-weight: 700;
-  color: var(--text-primary, #f3f4f6);
+  color: var(--text-primary);
 }
 
 .morning-brief-card__content .particle-md-h2 {
@@ -136,7 +136,7 @@
 
 .morning-brief-card__content .particle-md-p {
   margin-bottom: 10px;
-  color: var(--text-secondary, #9ca3af);
+  color: var(--text-secondary);
 }
 
 .morning-brief-card__content .particle-md-list {
@@ -145,19 +145,19 @@
 }
 
 .morning-brief-card__content .particle-md-li {
-  color: var(--text-secondary, #9ca3af);
+  color: var(--text-secondary);
   margin-bottom: 6px;
 }
 
 .morning-brief-card__content .particle-md-ticker {
-  color: var(--text-primary, #f3f4f6);
+  color: var(--text-primary);
   font-weight: 600;
   font-family: 'Monaco', 'Menlo', monospace;
 }
 
 .morning-brief-card__content .particle-md-bold {
   font-weight: 700;
-  color: var(--text-primary, #f3f4f6);
+  color: var(--text-primary);
 }
 
 .morning-brief-card__content .particle-md-code {
@@ -166,16 +166,16 @@
   border-radius: 3px;
   font-family: 'Monaco', 'Menlo', monospace;
   font-size: 12px;
-  color: var(--text-secondary, #9ca3af);
+  color: var(--text-secondary);
 }
 
 .morning-brief-card__content .particle-md-bottomline {
   background: rgba(255, 255, 255, 0.03);
-  border-left: 3px solid var(--border-strong, #4b5563);
+  border-left: 3px solid var(--border-strong);
   padding: 10px 12px;
   margin: 12px 0;
   border-radius: 2px;
-  color: var(--text-primary, #f3f4f6);
+  color: var(--text-primary);
   font-weight: 500;
 }
 
@@ -193,7 +193,7 @@
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid var(--border-color, #374151);
   border-radius: 14px;
-  color: var(--text-secondary, #9ca3af);
+  color: var(--text-secondary);
   font-size: 11px;
   cursor: pointer;
   transition: all 0.15s;
@@ -201,9 +201,9 @@
 }
 
 .morning-brief-card__chip:hover {
-  background: rgba(249, 115, 22, 0.1);
-  border-color: var(--accent, #f97316);
-  color: var(--accent, #f97316);
+  background: rgba(229, 90, 0, 0.1);
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 /* Footer */
@@ -219,7 +219,7 @@
 .morning-brief-card__personalized-badge {
   padding: 2px 8px;
   background: rgba(201, 168, 76, 0.15);
-  color: var(--color-vault-accent, #c9a84c);
+  color: var(--color-vault-accent);
   font-size: 11px;
   border-radius: 10px;
   font-weight: 500;
@@ -241,7 +241,7 @@
   gap: 12px;
   padding: 40px 24px;
   text-align: center;
-  color: var(--text-secondary, #9ca3af);
+  color: var(--text-secondary);
   font-size: 13px;
 }
 
@@ -249,7 +249,7 @@
   width: 24px;
   height: 24px;
   border: 2px solid var(--border-color, #374151);
-  border-top-color: var(--accent, #f97316);
+  border-top-color: var(--accent);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }

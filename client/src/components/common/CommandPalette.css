@@ -63,7 +63,7 @@
 }
 
 .command-palette-icon {
-  color: #00ff88;
+  color: var(--color-up);
   font-size: 18px;
   font-weight: 600;
   display: flex;
@@ -76,13 +76,13 @@
   flex: 1;
   background: transparent;
   border: none;
-  color: #ffffff;
+  color: var(--color-text-primary);
   font-family: 'IBM Plex Mono', 'Courier New', monospace;
   font-size: 14px;
   font-weight: 500;
   letter-spacing: 0.3px;
   outline: none;
-  caret-color: #00ff88;
+  caret-color: var(--color-up);
   padding: 4px 0;
 }
 
@@ -105,7 +105,7 @@
 }
 
 .command-palette-clear:hover {
-  color: #00ff88;
+  color: var(--color-up);
 }
 
 /* ── Commands list ────────────────────────────────────────────────────── */
@@ -131,7 +131,7 @@
 .command-palette-item:hover,
 .command-palette-item.selected {
   background: rgba(0, 255, 136, 0.08);
-  border-left-color: #00ff88;
+  border-left-color: var(--color-up);
 }
 
 .command-palette-item.selected {
@@ -161,7 +161,7 @@
 }
 
 .command-palette-item-label {
-  color: #ffffff;
+  color: var(--color-text-primary);
   font-family: 'IBM Plex Mono', 'Courier New', monospace;
   font-size: 13px;
   font-weight: 500;
@@ -181,7 +181,7 @@
 }
 
 .command-palette-item-shortcut {
-  color: #00ff88;
+  color: var(--color-up);
   font-family: 'IBM Plex Mono', 'Courier New', monospace;
   font-size: 11px;
   font-weight: 600;
@@ -252,7 +252,7 @@
   background: rgba(0, 255, 136, 0.1);
   border: 1px solid rgba(0, 255, 136, 0.2);
   border-radius: 3px;
-  color: #00ff88;
+  color: var(--color-up);
   font-family: 'IBM Plex Mono', 'Courier New', monospace;
   font-size: 10px;
   font-weight: 600;

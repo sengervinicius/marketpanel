@@ -364,7 +364,7 @@ function AlertEditor({
               )}
 
               {!aiLoading && aiSuggestions.length === 0 && !aiError && (
-                <div style={{ color: 'var(--text-faint, #555)', fontSize: 'var(--font-sm, 9px)', padding: '4px 0' }}>
+                <div style={{ color: 'var(--text-faint)', fontSize: 'var(--font-sm, 9px)', padding: '4px 0' }}>
                   No suggestions available for this symbol
                 </div>
               )}
@@ -384,7 +384,7 @@ function AlertEditor({
           {/* Error */}
           {error && (
             <div style={{
-              color: 'var(--price-down, #ff1744)',
+              color: 'var(--price-down)',
               fontSize: 'var(--font-sm, 9px)',
               padding: '4px 0',
             }}>

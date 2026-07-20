@@ -88,30 +88,30 @@ export const ImpliedVolatilityCard = memo(function ImpliedVolatilityCard({
           <tbody>
             <tr>
               <td style={{ fontSize: 9, color: 'var(--text-secondary)', textTransform: 'uppercase', padding: '2px 0' }}>TICKER</td>
-              <td style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-primary)', textAlign: 'right', padding: '2px 4px', fontFamily: 'var(--font-mono, monospace)' }} className="ds-ticker-col">{displayTicker}</td>
+              <td style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-primary)', textAlign: 'right', padding: '2px 4px', fontFamily: 'var(--font-mono)' }} className="ds-ticker-col">{displayTicker}</td>
             </tr>
             {data.iv != null && (
               <tr>
                 <td style={{ fontSize: 9, color: 'var(--text-secondary)', textTransform: 'uppercase', padding: '2px 0' }}>IV</td>
-                <td style={{ fontSize: 10, color: 'var(--text-primary)', textAlign: 'right', padding: '2px 4px', fontFamily: 'var(--font-mono, monospace)' }}>{(data.iv * 100).toFixed(1)}%</td>
+                <td style={{ fontSize: 10, color: 'var(--text-primary)', textAlign: 'right', padding: '2px 4px', fontFamily: 'var(--font-mono)' }}>{(data.iv * 100).toFixed(1)}%</td>
               </tr>
             )}
             {data.ivRank != null && (
               <tr>
                 <td style={{ fontSize: 9, color: 'var(--text-secondary)', textTransform: 'uppercase', padding: '2px 0' }}>IV RANK</td>
-                <td style={{ fontSize: 10, color: 'var(--text-primary)', textAlign: 'right', padding: '2px 4px', fontFamily: 'var(--font-mono, monospace)' }}>{data.ivRank.toFixed(0)}</td>
+                <td style={{ fontSize: 10, color: 'var(--text-primary)', textAlign: 'right', padding: '2px 4px', fontFamily: 'var(--font-mono)' }}>{data.ivRank.toFixed(0)}</td>
               </tr>
             )}
             {data.ivPercentile != null && (
               <tr>
                 <td style={{ fontSize: 9, color: 'var(--text-secondary)', textTransform: 'uppercase', padding: '2px 0' }}>IV PERCENTILE</td>
-                <td style={{ fontSize: 10, color: 'var(--text-primary)', textAlign: 'right', padding: '2px 4px', fontFamily: 'var(--font-mono, monospace)' }}>{data.ivPercentile.toFixed(0)}th</td>
+                <td style={{ fontSize: 10, color: 'var(--text-primary)', textAlign: 'right', padding: '2px 4px', fontFamily: 'var(--font-mono)' }}>{data.ivPercentile.toFixed(0)}th</td>
               </tr>
             )}
             {data.putCallRatio != null && (
               <tr>
                 <td style={{ fontSize: 9, color: 'var(--text-secondary)', textTransform: 'uppercase', padding: '2px 0' }}>PUT/CALL RATIO</td>
-                <td style={{ fontSize: 10, color: 'var(--text-primary)', textAlign: 'right', padding: '2px 4px', fontFamily: 'var(--font-mono, monospace)' }}>{data.putCallRatio.toFixed(2)}</td>
+                <td style={{ fontSize: 10, color: 'var(--text-primary)', textAlign: 'right', padding: '2px 4px', fontFamily: 'var(--font-mono)' }}>{data.putCallRatio.toFixed(2)}</td>
               </tr>
             )}
           </tbody>

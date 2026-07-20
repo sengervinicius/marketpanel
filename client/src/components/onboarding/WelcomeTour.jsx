@@ -53,7 +53,7 @@ const PILLARS = [
         <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
       </svg>
     ),
-    color: '#00bcd4',
+    color: 'var(--sector-tech)',
     label: 'TERMINAL',
     desc: 'Live cross-asset data — equities, FX, crypto, commodities, rates, options — in one workspace.',
     tag: 'REAL-TIME',
@@ -65,7 +65,7 @@ const PILLARS = [
         <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
       </svg>
     ),
-    color: 'var(--color-accent, #F97316)',
+    color: 'var(--color-accent)',
     label: 'PARTICLE AI',
     desc: 'Your personal market analyst. Morning briefs, deep analyses, portfolio-aware intelligence.',
     tag: 'AI-POWERED',
@@ -77,7 +77,7 @@ const PILLARS = [
         <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
       </svg>
     ),
-    color: 'var(--color-vault-accent, #c9a84c)',
+    color: 'var(--color-vault-accent)',
     label: 'VAULT',
     desc: 'Your research PDFs. AI cites your own library in every answer — your views, at scale.',
     tag: 'KNOWLEDGE',
@@ -149,9 +149,9 @@ function ModesDemo() {
   }, []);
 
   const modes = [
-    { key: 'ai',       label: 'PARTICLE AI', color: 'var(--color-accent, #e55a00)' },
-    { key: 'terminal', label: 'TERMINAL',    color: '#00bcd4' },
-    { key: 'vault',    label: 'VAULT',       color: 'var(--color-vault-accent, #c9a84c)' },
+    { key: 'ai',       label: 'PARTICLE AI', color: 'var(--color-accent)' },
+    { key: 'terminal', label: 'TERMINAL',    color: 'var(--sector-tech)' },
+    { key: 'vault',    label: 'VAULT',       color: 'var(--color-vault-accent)' },
   ];
 
   return (
@@ -333,7 +333,7 @@ function PanelsDemo() {
             <div className="wt-ws-h">CHART — IBOV</div>
             <svg className="wt-ws-chart" viewBox="0 0 200 60" preserveAspectRatio="none">
               <polyline points="0,40 20,35 40,42 60,28 80,30 100,22 120,25 140,18 160,20 180,12 200,14"
-                fill="none" stroke="var(--color-accent, #e55a00)" strokeWidth="1.5" />
+                fill="none" stroke="var(--color-accent)" strokeWidth="1.5" />
             </svg>
           </div>
         </div>

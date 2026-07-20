@@ -93,9 +93,9 @@
 }
 
 .pred-cat-pill--active {
-  color: var(--accent, #F97316);
-  border-color: var(--accent, #F97316);
-  background: rgba(249, 115, 22, 0.08);
+  color: var(--accent);
+  border-color: var(--accent);
+  background: rgba(229, 90, 0, 0.08);
 }
 
 .pred-cat-pill--foryou {
@@ -130,10 +130,10 @@
    single-click stays free for future inline-detail expansion. */
 .pred-row--clickable { cursor: pointer; }
 .pred-row--clickable:hover .pred-col-q {
-  color: var(--accent, #F97316);
+  color: var(--accent);
 }
 .pred-row--clickable:focus-visible {
-  outline: 1px solid var(--accent, #F97316);
+  outline: 1px solid var(--accent);
   outline-offset: -1px;
   background: var(--bg-hover);
 }

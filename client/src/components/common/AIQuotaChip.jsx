@@ -75,7 +75,7 @@ export default function AIQuotaChip({ refreshKey = 0 }) {
   }
 
   const colorByTone = {
-    normal:   'var(--text-secondary, #999)',
+    normal:   'var(--text-secondary)',
     warn:     'var(--accent-warn, #d4a017)',
     critical: 'var(--accent-danger, #d54a3f)',
   };
@@ -87,7 +87,7 @@ export default function AIQuotaChip({ refreshKey = 0 }) {
     padding: '4px 10px',
     marginRight: 6,
     borderRadius: 4,
-    color: isAdmin ? 'var(--accent, #2e5a9e)' : colorByTone[tone],
+    color: isAdmin ? 'var(--accent)' : colorByTone[tone],
     fontSize: 12,
     fontVariantNumeric: 'tabular-nums',
     display: 'inline-flex',
@@ -101,7 +101,7 @@ export default function AIQuotaChip({ refreshKey = 0 }) {
     top: 'calc(100% + 4px)',
     right: 0,
     minWidth: 220,
-    background: 'var(--bg-panel, #1a1a1a)',
+    background: 'var(--bg-panel)',
     border: '1px solid var(--border, #2a2a2a)',
     borderRadius: 4,
     padding: 10,
@@ -153,7 +153,7 @@ export default function AIQuotaChip({ refreshKey = 0 }) {
             AI usage today
           </div>
           {isAdmin && (
-            <div style={{ color: 'var(--accent, #2e5a9e)' }}>
+            <div style={{ color: 'var(--accent)' }}>
               Admin bypass — no daily limit.
             </div>
           )}
@@ -171,12 +171,12 @@ export default function AIQuotaChip({ refreshKey = 0 }) {
                 </div>
               )}
               {resetLine && (
-                <div style={{ color: 'var(--text-secondary, #999)', marginTop: 6, fontSize: 11 }}>
+                <div style={{ color: 'var(--text-secondary)', marginTop: 6, fontSize: 11 }}>
                   {resetLine}
                 </div>
               )}
               {stats.tier && (
-                <div style={{ color: 'var(--text-secondary, #999)', marginTop: 2, fontSize: 11 }}>
+                <div style={{ color: 'var(--text-secondary)', marginTop: 2, fontSize: 11 }}>
                   Tier: {stats.tier}
                 </div>
               )}

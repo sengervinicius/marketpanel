@@ -33,7 +33,7 @@
   background: transparent;
   border: none;
   color: var(--text-muted);
-  font-family: var(--font-mono, monospace);
+  font-family: var(--font-mono);
   font-size: 8px;
   font-weight: 600;
   letter-spacing: 0.5px;

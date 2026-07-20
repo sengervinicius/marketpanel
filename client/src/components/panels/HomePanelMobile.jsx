@@ -7,6 +7,7 @@
  * and adds "View all" expansion.
  */
 
+import { TOKEN_HEX } from '../../utils/tokenHex';
 import { useState, useEffect, useMemo, useCallback, useRef, memo } from 'react';
 import { useSettings } from '../../context/SettingsContext';
 import { useTickerPrice } from '../../context/PriceContext';
@@ -26,14 +27,14 @@ import './HomePanelMobile.css';
  * Shows live ETF price + change as tappable cards.
  */
 const FEATURED_SECTORS = [
-  { id: 'technology',       label: 'Tech & AI',   etf: 'XLK',  color: '#00bcd4' },
-  { id: 'defence',          label: 'Defence',      etf: 'ITA',  color: '#ef5350' },
-  { id: 'commodities',      label: 'Commodities',  etf: 'DJP',  color: '#ff9800' },
-  { id: 'crypto',           label: 'Crypto',       etf: 'BITO', color: '#f7931a' },
-  { id: 'global-macro',     label: 'Macro',        etf: 'SPY',  color: '#9c27b0' },
-  { id: 'brazil-em',        label: 'Brazil',       etf: 'EWZ',  color: '#4caf50' },
-  { id: 'asian-markets',    label: 'Asia',         etf: 'EWJ',  color: '#ff5722' },
-  { id: 'european-markets', label: 'Europe',       etf: 'VGK',  color: '#3f51b5' },
+  { id: 'technology',       label: 'Tech & AI',   etf: 'XLK',  color: TOKEN_HEX.sectorTech },
+  { id: 'defence',          label: 'Defence',      etf: 'ITA',  color: TOKEN_HEX.sectorDefence },
+  { id: 'commodities',      label: 'Commodities',  etf: 'DJP',  color: TOKEN_HEX.sectorCommodities },
+  { id: 'crypto',           label: 'Crypto',       etf: 'BITO', color: TOKEN_HEX.sectorCrypto },
+  { id: 'global-macro',     label: 'Macro',        etf: 'SPY',  color: TOKEN_HEX.sectorMacro },
+  { id: 'brazil-em',        label: 'Brazil',       etf: 'EWZ',  color: TOKEN_HEX.sectorBrazil },
+  { id: 'asian-markets',    label: 'Asia',         etf: 'EWJ',  color: TOKEN_HEX.sectorEnergy },
+  { id: 'european-markets', label: 'Europe',       etf: 'VGK',  color: TOKEN_HEX.sectorEurope },
 ];
 
 const SectorChip = memo(function SectorChip({ sector, onTap }) {
@@ -161,7 +162,7 @@ function SectionSkeleton({ count = 4 }) {
           <span style={{ background: '#1a1a1a', borderRadius: 3, width: 40, height: 12, display: 'inline-block' }} />
         </div>
       ))}
-      <div style={{ textAlign: 'center', fontSize: 9, color: '#555', padding: '4px 0' }}>Loading prices...</div>
+      <div style={{ textAlign: 'center', fontSize: 9, color: 'var(--color-text-muted)', padding: '4px 0' }}>Loading prices...</div>
     </div>
   );
 }
@@ -225,7 +226,7 @@ const MarketScreensGallery = memo(function MarketScreensGallery({ onApplyScreen 
           <div
             key={s.id}
             className={`hpm-screen-card ${applying === s.id ? 'hpm-screen-card--applying' : ''}`}
-            style={{ borderLeftColor: s.mobileCardStyle || 'var(--color-particle, #F97316)' }}
+            style={{ borderLeftColor: s.mobileCardStyle || 'var(--color-particle)' }}
             onClick={() => handleTap(s)}
           >
             <div className="hpm-screen-card-label">{s.visualLabel}</div>
@@ -386,7 +387,7 @@ function HomePanelMobile({ onSearchClick, onSectorScreen }) {
         )}
         {aiPulseLoading && <div className="hpm-ai-loading">Analyzing markets...</div>}
         {aiPulseError && !aiPulseLoading && (
-          <div className="hpm-ai-error" style={{ color: '#888' }}>
+          <div className="hpm-ai-error" style={{ color: 'var(--color-text-secondary)' }}>
             <span>Market data is loading</span>
             <span className="hpm-ai-retry">Tap to retry</span>
           </div>

@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, memo, useMemo } from 'react';
+import { TOKEN_HEX } from '../../utils/tokenHex';
 import { FOREX_PAIRS, CRYPTO_PAIRS } from '../../utils/constants';
 import { useSettings } from '../../context/SettingsContext';
 import { useInstrumentSearch } from '../../hooks/useInstrumentSearch';
@@ -14,16 +15,16 @@ import { tapStart, tapMove, tapEnd } from '../../utils/tapHandlers';
 // Module-level recent searches store (survives re-renders but not page refresh)
 let _recentSearches = [];
 
-const ORANGE = '#ff6b00';
-const GREEN  = '#4caf50';
-const RED    = '#f44336';
+const ORANGE = TOKEN_HEX.accent;
+const GREEN  = TOKEN_HEX.up;
+const RED    = TOKEN_HEX.down;
 const YELLOW = '#ffd54f';
 
 const TYPE_COLOR = {
   EQUITY:     '#4fc3f7',
   ETF:        '#81c784',
   INDEX:      '#ffb74d',
-  CURRENCY:   '#ce93d8',
+  CURRENCY:   TOKEN_HEX.sectorFxCrypto,
   CRYPTO:     '#f48fb1',
   MUTUALFUND: '#80cbc4',
 };
@@ -34,7 +35,7 @@ const ASSET_TYPE_BADGE = {
   ETF:     { bg: '#0a2000', color: '#81c784', label: 'ETF' },
   Fund:    { bg: '#0a2a2a', color: '#80cbc4', label: 'FUND' },
   Crypto:  { bg: '#2a0020', color: '#f48fb1', label: 'CRYPTO' },
-  FX:      { bg: '#1a0030', color: '#ce93d8', label: 'FX' },
+  FX:      { bg: '#1a0030', color: TOKEN_HEX.sectorFxCrypto, label: 'FX' },
   Index:   { bg: '#1a1400', color: '#ffb74d', label: 'INDEX' },
   Bond:    { bg: '#1a1a00', color: '#ffd54f', label: 'BOND' },
   ADR:     { bg: '#001a20', color: '#4dd0e1', label: 'ADR' },
@@ -123,7 +124,7 @@ const COVERAGE_TAG = {
 };
 
 const ASSET_CLASS_COLOR = {
-  equity: '#4fc3f7', etf: '#81c784', forex: '#ce93d8',
+  equity: '#4fc3f7', etf: '#81c784', forex: TOKEN_HEX.sectorFxCrypto,
   crypto: '#f48fb1', fixed_income: '#ffb74d', commodity: '#80cbc4', index: '#ffb74d',
 };
 
@@ -142,7 +143,7 @@ function formatMarketCap(cap) {
 function formatChangePercent(changePct, style = {}) {
   if (changePct == null) return { text: '—', color: 'var(--text-muted)' };
   const sign = changePct >= 0 ? '+' : '';
-  const color = changePct >= 0 ? 'var(--semantic-up, #4caf50)' : 'var(--semantic-down, #f44336)';
+  const color = changePct >= 0 ? 'var(--semantic-up)' : 'var(--semantic-down)';
   return { text: sign + changePct.toFixed(2) + '%', color };
 }
 
@@ -452,7 +453,7 @@ function SearchPanel({ onTickerSelect }) {
         )}
       </div>
       {searchError && (
-        <div style={{ fontSize: '13px', color: '#f44336', padding: '8px 12px', marginTop: '-4px' }}>
+        <div style={{ fontSize: '13px', color: 'var(--color-down)', padding: '8px 12px', marginTop: '-4px' }}>
           {searchError}
         </div>
       )}

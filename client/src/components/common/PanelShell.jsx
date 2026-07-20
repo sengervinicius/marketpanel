@@ -29,8 +29,8 @@ function PanelShell({ children, onDropTicker, style }) {
         display: 'flex',
         flexDirection: 'column',
         background: 'var(--bg-panel)',
-        border: isDragOver ? '2px solid var(--accent, #ff6600)' : '2px solid transparent',
-        boxShadow: isDragOver ? '0 0 12px var(--accent, #ff6600)66' : 'none',
+        border: isDragOver ? '2px solid var(--accent)' : '2px solid transparent',
+        boxShadow: isDragOver ? '0 0 12px var(--accent)66' : 'none',
         transition: 'border 0.15s, box-shadow 0.15s',
         ...style,
       }}

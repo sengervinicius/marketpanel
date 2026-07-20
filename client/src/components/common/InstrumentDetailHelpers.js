@@ -3,11 +3,12 @@
 // #241 / P1.1: normalizeTicker / displayTicker now delegate to the shared
 // tickerNormalize module (mirrored server-side in server/utils/tickerNormalize.js)
 // so ChartPanel, InstrumentDetail, and the server agree on ticker shapes.
+import { TOKEN_HEX } from '../../utils/tokenHex';
 import { toPolygonWithDefault, toDisplay } from '../../utils/tickerNormalize';
 
-export const ORANGE = '#F97316';
-export const GREEN  = '#4caf50';
-export const RED    = '#f44336';
+export const ORANGE = TOKEN_HEX.accent;
+export const GREEN  = TOKEN_HEX.up;
+export const RED    = TOKEN_HEX.down;
 
 export const RANGES = [
   { label: '1D', multiplier: 5,  timespan: 'minute', days: 1    },

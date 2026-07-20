@@ -54,7 +54,7 @@ function TickerTape({ stocks, indexes }) {
     <span key={i} className="hdr-ticker-item">
       <span className="hdr-ticker-symbol">{item.sym}</span>
       <span className="hdr-ticker-price">{fmtPrice(item.price)}</span>
-      <span className="hdr-ticker-change" style={{ color: (item.pct ?? 0) >= 0 ? '#00c853' : '#f44336' }}>
+      <span className="hdr-ticker-change" style={{ color: (item.pct ?? 0) >= 0 ? 'var(--color-up)' : 'var(--color-down)' }}>
         {fmtPct(item.pct)}
       </span>
     </span>
@@ -70,7 +70,7 @@ function TickerTape({ stocks, indexes }) {
 }
 
 export function Header({ connected, stocks, forex, marketStatus, onChatOpen, chatUnread }) {
-  const statusColor = connected ? '#00c853' : '#f44336';
+  const statusColor = connected ? 'var(--color-up)' : 'var(--color-down)';
   const statusLabel = connected ? 'LIVE' : 'OFFLINE';
   const mktOpen = marketStatus?.market === 'open';
 
@@ -128,7 +128,7 @@ export function Header({ connected, stocks, forex, marketStatus, onChatOpen, cha
                 <div className="hdr-fx-price">
                   {(d.mid || d.price || 0).toFixed(4)}
                 </div>
-                <div className="hdr-fx-change" style={{ color: (d.changePct ?? 0) >= 0 ? '#00c853' : '#f44336' }}>
+                <div className="hdr-fx-change" style={{ color: (d.changePct ?? 0) >= 0 ? 'var(--color-up)' : 'var(--color-down)' }}>
                   {fmtPct(d.changePct)}
                 </div>
               </div>

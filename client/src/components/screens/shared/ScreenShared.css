@@ -6,7 +6,7 @@
   overflow-y: auto;
   overflow-x: hidden;
   background: var(--bg-app, var(--bg-panel));
-  font-family: var(--font-ui, 'Inter', system-ui, sans-serif);
+  font-family: var(--font-ui);
   display: flex;
   flex-direction: column;
   max-width: 100vw;
@@ -46,7 +46,7 @@
   letter-spacing: 0.5px;
   text-transform: uppercase;
   transition: all 0.15s;
-  font-family: var(--font-ui, 'Inter', system-ui, sans-serif);
+  font-family: var(--font-ui);
 }
 
 .fsl-back-button:hover {
@@ -82,7 +82,7 @@
   color: var(--text-muted);
   text-align: right;
   letter-spacing: 0.5px;
-  font-family: var(--font-mono, monospace);
+  font-family: var(--font-mono);
 }
 
 /* Grid */
@@ -168,7 +168,7 @@
 .ds-table {
   width: 100%;
   border-collapse: collapse;
-  font-family: var(--font-ui, 'Inter', system-ui, sans-serif);
+  font-family: var(--font-ui);
 }
 
 .ds-table th {
@@ -195,7 +195,7 @@
   padding: calc(var(--row-pad) + 0.75px) 8px;
   color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
-  font-family: var(--font-ui, 'Inter', system-ui, sans-serif);
+  font-family: var(--font-ui);
   font-size: 11.5px;
   white-space: nowrap;
 }

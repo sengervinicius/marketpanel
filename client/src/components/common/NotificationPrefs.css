@@ -89,7 +89,7 @@
 
 .np-channel--active {
   border-color: var(--accent);
-  background: rgba(255, 102, 0, 0.08);
+  background: rgba(229, 90, 0, 0.08);
 }
 
 .np-channel--disabled {
@@ -159,7 +159,7 @@
 }
 
 .np-toggle--on {
-  background: rgba(255, 102, 0, 0.15);
+  background: rgba(229, 90, 0, 0.15);
   border-color: var(--accent);
   color: var(--accent);
 }

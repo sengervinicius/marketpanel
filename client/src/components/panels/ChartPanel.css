@@ -38,7 +38,7 @@
   transition: all 0.2s;
 }
 .cp-sync-btn--copied {
-  background: rgba(76, 175, 80, 0.08);
+  background: rgba(34, 197, 94, 0.08);
   border-color: var(--price-up);
   color: var(--price-up);
 }
@@ -230,7 +230,7 @@
 .mc-drag-overlay {
   position: absolute;
   inset: 0;
-  background: rgba(255, 102, 0, 0.08);
+  background: rgba(229, 90, 0, 0.08);
   border: 2px solid var(--accent);
   display: flex;
   align-items: center;
@@ -439,7 +439,7 @@
   flex-shrink: 0;
 }
 .mc-ai-btn:hover {
-  background: rgba(255, 102, 0, 0.1);
+  background: rgba(229, 90, 0, 0.1);
 }
 .mc-ai-btn:disabled {
   opacity: 0.3;
@@ -469,9 +469,9 @@
   letter-spacing: 0.06em;
   padding: 1px 5px;
   border-radius: 999px;
-  background: rgba(255, 102, 0, 0.08);
+  background: rgba(229, 90, 0, 0.08);
   color: var(--accent);
-  border: 1px solid rgba(255, 102, 0, 0.15);
+  border: 1px solid rgba(229, 90, 0, 0.15);
   align-self: flex-start;
 }
 .mc-ai-popover-text {
@@ -552,7 +552,7 @@
   cursor: default;
 }
 .mcm-ai-btn:active:not(:disabled) {
-  background: rgba(255, 102, 0, 0.12);
+  background: rgba(229, 90, 0, 0.12);
 }
 
 /* ── Mobile AI insight result box ────────────────── */
@@ -574,9 +574,9 @@
   letter-spacing: 0.06em;
   padding: 1px 5px;
   border-radius: 999px;
-  background: rgba(255, 102, 0, 0.08);
+  background: rgba(229, 90, 0, 0.08);
   color: var(--accent);
-  border: 1px solid rgba(255, 102, 0, 0.15);
+  border: 1px solid rgba(229, 90, 0, 0.15);
   align-self: flex-start;
 }
 .mcm-ai-text {

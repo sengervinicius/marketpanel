@@ -12,17 +12,17 @@ const S = {
   root: {
     position: 'fixed', top: 46, right: 12, zIndex: 1000,
     minWidth: 240, maxWidth: 320,
-    background: 'var(--bg-elevated, #0d0d0d)',
-    border: '1px solid var(--border-strong, #333)',
+    background: 'var(--bg-elevated)',
+    border: '1px solid var(--border-strong)',
     borderRadius: 4,
     boxShadow: '0 8px 24px rgba(0,0,0,0.6)',
-    fontFamily: 'var(--font-mono, monospace)', fontSize: 11,
-    color: 'var(--text-secondary, #aaa)',
+    fontFamily: 'var(--font-mono)', fontSize: 11,
+    color: 'var(--text-secondary)',
     padding: 4,
   },
   head: {
     padding: '6px 8px', fontSize: 9, letterSpacing: '1px',
-    color: 'var(--text-faint, #666)',
+    color: 'var(--text-faint)',
   },
   row: {
     display: 'flex', alignItems: 'center', gap: 6,
@@ -30,20 +30,20 @@ const S = {
   },
   name: { flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'left', background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', padding: 0, fontFamily: 'inherit', fontSize: 'inherit' },
   iconBtn: {
-    background: 'none', border: '1px solid transparent', color: 'var(--text-faint, #666)',
+    background: 'none', border: '1px solid transparent', color: 'var(--text-faint)',
     cursor: 'pointer', padding: '1px 4px', borderRadius: 2, fontSize: 10, fontFamily: 'inherit',
   },
   input: {
-    flex: 1, background: 'var(--bg-app, #000)', color: 'var(--text-primary, #eee)',
-    border: '1px solid var(--accent, #f60)', borderRadius: 2, padding: '2px 4px',
+    flex: 1, background: 'var(--bg-app)', color: 'var(--text-primary)',
+    border: '1px solid var(--accent)', borderRadius: 2, padding: '2px 4px',
     fontFamily: 'inherit', fontSize: 'inherit', minWidth: 0,
   },
   footer: {
-    borderTop: '1px solid var(--border-subtle, #1a1a1a)', marginTop: 4, paddingTop: 4,
+    borderTop: '1px solid var(--border-subtle)', marginTop: 4, paddingTop: 4,
   },
   newBtn: {
-    width: '100%', background: 'none', border: '1px dashed var(--border-strong, #333)',
-    color: 'var(--text-faint, #888)', cursor: 'pointer', padding: '5px 8px',
+    width: '100%', background: 'none', border: '1px dashed var(--border-strong)',
+    color: 'var(--text-faint)', cursor: 'pointer', padding: '5px 8px',
     borderRadius: 3, fontFamily: 'inherit', fontSize: 11, letterSpacing: '0.5px',
   },
 };
@@ -81,7 +81,7 @@ export default function LayoutMenu({ layouts, onSwitch, onRename, onDuplicate, o
         const isActive = id === activeId;
         return (
           <div key={id} style={{ ...S.row, background: isActive ? 'rgba(255,102,0,0.08)' : 'none' }}>
-            <span style={{ width: 10, color: 'var(--accent, #f60)' }}>{isActive ? '>' : ''}</span>
+            <span style={{ width: 10, color: 'var(--accent)' }}>{isActive ? '>' : ''}</span>
             {renamingId === id ? (
               <input
                 autoFocus
@@ -97,7 +97,7 @@ export default function LayoutMenu({ layouts, onSwitch, onRename, onDuplicate, o
               />
             ) : (
               <button
-                style={{ ...S.name, color: isActive ? 'var(--accent, #f60)' : 'var(--text-secondary, #aaa)' }}
+                style={{ ...S.name, color: isActive ? 'var(--accent)' : 'var(--text-secondary)' }}
                 onClick={() => { onSwitch(id); onClose(); }}
                 title={`Switch to ${item.name || id}`}
               >{item.name || id}</button>

@@ -15,14 +15,14 @@
   transition: color 150ms ease, border-color 150ms ease, background 150ms ease;
 }
 .brief-inbox-btn:hover {
-  color: var(--text-primary, #fff);
+  color: var(--text-primary);
   border-color: var(--border-strong);
   background: rgba(255, 255, 255, 0.03);
 }
 .brief-inbox-btn[data-open="true"] {
   color: var(--accent);
   border-color: var(--accent);
-  background: rgba(255, 102, 0, 0.08);
+  background: rgba(229, 90, 0, 0.08);
 }
 
 .brief-inbox-btn-label {
@@ -39,14 +39,14 @@
   min-width: 14px;
   height: 14px;
   padding: 0 3px;
-  background: var(--accent, #F97316);
+  background: var(--accent);
   color: #000;
   font-size: 9px;
   font-weight: 700;
   line-height: 14px;
   text-align: center;
   border-radius: 7px;
-  box-shadow: 0 0 0 1px var(--bg-app, #000);
+  box-shadow: 0 0 0 1px var(--bg-app);
 }
 
 /* ── Backdrop + drawer ───────────────────────────────────────────────── */
@@ -67,8 +67,8 @@
   max-height: calc(100vh - 72px);
   display: flex;
   flex-direction: column;
-  background: var(--bg-panel, #111);
-  border: 1px solid var(--border-default, rgba(255, 255, 255, 0.08));
+  background: var(--bg-panel);
+  border: 1px solid var(--border-default);
   border-radius: 8px;
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
   overflow: hidden;
@@ -84,15 +84,15 @@
   align-items: center;
   justify-content: space-between;
   padding: 10px 14px;
-  border-bottom: 1px solid var(--border-default, rgba(255, 255, 255, 0.07));
-  background: var(--bg-surface, #181818);
+  border-bottom: 1px solid var(--border-default);
+  background: var(--bg-surface);
 }
 .brief-inbox-title {
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--text-primary, #fff);
+  color: var(--text-primary);
   display: inline-flex;
   gap: 8px;
   align-items: center;
@@ -102,7 +102,7 @@
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: none;
-  color: var(--accent, #F97316);
+  color: var(--accent);
 }
 .brief-inbox-close {
   background: none;
@@ -112,7 +112,7 @@
   padding: 4px;
   border-radius: 3px;
 }
-.brief-inbox-close:hover { color: var(--text-primary, #fff); background: rgba(255,255,255,0.04); }
+.brief-inbox-close:hover { color: var(--text-primary); background: rgba(255,255,255,0.04); }
 
 .brief-inbox-body {
   flex: 1;
@@ -130,7 +130,7 @@
 
 /* ── Rows ────────────────────────────────────────────────────────────── */
 .brief-inbox-row {
-  border-bottom: 1px solid var(--border-default, rgba(255, 255, 255, 0.05));
+  border-bottom: 1px solid var(--border-default);
 }
 .brief-inbox-row:last-child { border-bottom: none; }
 
@@ -142,7 +142,7 @@
   padding: 10px 14px;
   background: none;
   border: none;
-  color: var(--text-primary, #fff);
+  color: var(--text-primary);
   text-align: left;
   cursor: pointer;
   transition: background 120ms ease;
@@ -164,14 +164,14 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--accent, #F97316);
-  box-shadow: 0 0 6px rgba(249, 115, 22, 0.6);
+  background: var(--accent);
+  box-shadow: 0 0 6px rgba(229, 90, 0, 0.6);
 }
 .brief-inbox-date {
-  font-family: var(--font-mono, monospace);
+  font-family: var(--font-mono);
   font-size: 10px;
   letter-spacing: 0.04em;
-  color: var(--text-secondary, #bbb);
+  color: var(--text-secondary);
   text-transform: uppercase;
 }
 
@@ -179,10 +179,10 @@
   flex: 1;
   font-size: 12px;
   line-height: 1.45;
-  color: var(--text-secondary, #cfcfcf);
+  color: var(--text-secondary);
 }
 .brief-inbox-row--unread .brief-inbox-row-headline {
-  color: var(--text-primary, #fff);
+  color: var(--text-primary);
   font-weight: 600;
 }
 
@@ -194,7 +194,7 @@
   padding: 2px 14px 12px 98px;
   font-size: 12px;
   line-height: 1.5;
-  color: var(--text-secondary, #cfcfcf);
+  color: var(--text-secondary);
 }
 .brief-inbox-row-body p {
   margin: 0 0 8px 0;
@@ -221,27 +221,27 @@
   transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
 }
 .brief-inbox-ask {
-  background: rgba(255, 102, 0, 0.10);
-  color: var(--accent, #F97316);
-  border: 1px solid rgba(255, 102, 0, 0.35);
+  background: rgba(229, 90, 0, 0.10);
+  color: var(--accent);
+  border: 1px solid rgba(229, 90, 0, 0.35);
 }
 .brief-inbox-ask:hover {
-  background: rgba(255, 102, 0, 0.16);
+  background: rgba(229, 90, 0, 0.16);
   border-color: var(--accent);
 }
 .brief-inbox-dismiss {
   background: none;
   color: var(--text-faint);
-  border: 1px solid var(--border-strong, rgba(255,255,255,0.12));
+  border: 1px solid var(--border-strong);
 }
 .brief-inbox-dismiss:hover {
-  color: var(--text-primary, #fff);
+  color: var(--text-primary);
   border-color: rgba(255,255,255,0.3);
 }
 
 .brief-inbox-footer {
   padding: 8px 14px;
-  border-top: 1px solid var(--border-default, rgba(255, 255, 255, 0.07));
+  border-top: 1px solid var(--border-default);
   font-size: 10px;
   color: var(--text-faint);
   text-align: center;

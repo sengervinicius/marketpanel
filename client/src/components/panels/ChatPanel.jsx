@@ -1136,7 +1136,7 @@ function ChatPanel({ mobile, initialUserId }) {
                 padding: '4px 10px',
                 marginRight: 6,
                 borderRadius: 4,
-                color: 'var(--text-secondary, #999)',
+                color: 'var(--text-secondary)',
                 fontSize: 12,
               }}
             >History</button>
@@ -1154,7 +1154,7 @@ function ChatPanel({ mobile, initialUserId }) {
                   padding: '4px 10px',
                   marginRight: 6,
                   borderRadius: 4,
-                  color: 'var(--text-secondary, #999)',
+                  color: 'var(--text-secondary)',
                   fontSize: 12,
                 }}
               >
@@ -1169,7 +1169,7 @@ function ChatPanel({ mobile, initialUserId }) {
                   border: 'none',
                   cursor: 'pointer',
                   padding: '8px',
-                  color: 'var(--text-secondary, #999)',
+                  color: 'var(--text-secondary)',
                   fontSize: '14px',
                 }}
               >
@@ -1246,9 +1246,9 @@ function ChatPanel({ mobile, initialUserId }) {
                         type="button"
                         onClick={() => setInput(s)}
                         style={{
-                          background: 'var(--bg-elevated, #1a1a1a)',
-                          border: '1px solid var(--border-default, #2a2a2a)',
-                          color: 'var(--text-secondary, #aaa)',
+                          background: 'var(--bg-elevated)',
+                          border: '1px solid var(--border-default)',
+                          color: 'var(--text-secondary)',
                           padding: '5px 10px',
                           fontSize: 11,
                           borderRadius: 14,
@@ -1257,12 +1257,12 @@ function ChatPanel({ mobile, initialUserId }) {
                           transition: 'border-color 120ms ease, color 120ms ease',
                         }}
                         onMouseEnter={e => {
-                          e.currentTarget.style.borderColor = 'var(--accent, #f97316)';
-                          e.currentTarget.style.color = 'var(--text-primary, #fff)';
+                          e.currentTarget.style.borderColor = 'var(--accent)';
+                          e.currentTarget.style.color = 'var(--text-primary)';
                         }}
                         onMouseLeave={e => {
-                          e.currentTarget.style.borderColor = 'var(--border-default, #2a2a2a)';
-                          e.currentTarget.style.color = 'var(--text-secondary, #aaa)';
+                          e.currentTarget.style.borderColor = 'var(--border-default)';
+                          e.currentTarget.style.color = 'var(--text-secondary)';
                         }}
                       >
                         {s}

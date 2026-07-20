@@ -40,7 +40,7 @@ export default class PanelErrorBoundary extends Component {
           gap: 8,
           padding: 16,
           color: '#888',
-          fontFamily: 'var(--font-ui, monospace)',
+          fontFamily: 'var(--font-ui)',
           fontSize: 11,
           textAlign: 'center',
         }}>

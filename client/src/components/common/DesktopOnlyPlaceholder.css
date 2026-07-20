@@ -38,7 +38,7 @@
   left: 0;
   right: 0;
   height: 2px;
-  background: linear-gradient(90deg, transparent, var(--color-accent, #e55a00), transparent);
+  background: linear-gradient(90deg, transparent, var(--color-accent), transparent);
   opacity: 0.5;
 }
 
@@ -60,7 +60,7 @@
   width: 38px;
   height: 38px;
   border-radius: 50%;
-  background: radial-gradient(circle at 38% 38%, #ff8833, var(--color-accent, #e55a00), #b34500);
+  background: radial-gradient(circle at 38% 38%, #ff8833, var(--color-accent), #b34500);
   box-shadow:
     0 0 20px rgba(229, 90, 0, 0.55),
     0 0 44px rgba(229, 90, 0, 0.2),
@@ -84,20 +84,20 @@
 
 /* ── Text ── */
 .dop-eyebrow {
-  font-family: var(--font-family-mono, monospace);
+  font-family: var(--font-family-mono);
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.22em;
-  color: var(--color-accent, #e55a00);
+  color: var(--color-accent);
   opacity: 0.8;
   margin-bottom: 10px;
 }
 
 .dop-title {
-  font-family: var(--font-display, 'Playfair Display', Georgia, serif);
+  font-family: var(--font-display);
   font-size: 22px;
   font-weight: 500;
-  color: var(--color-text-primary, #f0f0f0);
+  color: var(--color-text-primary);
   letter-spacing: -0.01em;
   line-height: 1.2;
   margin-bottom: 6px;
@@ -124,8 +124,8 @@
 }
 
 .dop-note strong {
-  color: var(--color-accent, #e55a00);
-  font-family: var(--font-family-mono, monospace);
+  color: var(--color-accent);
+  font-family: var(--font-family-mono);
   font-weight: 700;
   letter-spacing: 0.02em;
 }
@@ -138,7 +138,7 @@
 }
 
 .dop-features-head {
-  font-family: var(--font-family-mono, monospace);
+  font-family: var(--font-family-mono);
   font-size: 9.5px;
   font-weight: 700;
   letter-spacing: 0.2em;
@@ -169,7 +169,7 @@
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: var(--color-accent, #e55a00);
+  background: var(--color-accent);
   box-shadow: 0 0 5px rgba(229, 90, 0, 0.5);
   margin-top: 7px;
   flex-shrink: 0;

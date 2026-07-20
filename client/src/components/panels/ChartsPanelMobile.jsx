@@ -7,6 +7,7 @@
  * Phase 15: indicator toggle bar, overlay lines (SMA/EMA/BB), RSI/MACD
  * sub-charts, and AI Chart Insight box.
  */
+import { TOKEN_HEX } from '../../utils/tokenHex';
 import { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
 import {
   AreaChart, Area, BarChart, Bar, ComposedChart, Line,
@@ -24,8 +25,8 @@ import {
 } from '../../utils/chartIndicators';
 import { tapStart, tapMove, tapEnd } from '../../utils/tapHandlers';
 
-const GREEN_MC = '#4caf50';
-const RED_MC   = '#f44336';
+const GREEN_MC = TOKEN_HEX.up;
+const RED_MC   = TOKEN_HEX.down;
 
 /** Candlestick bar shape for mobile charts */
 function MobileCandleShape(props) {
@@ -250,8 +251,8 @@ const MobileChart = memo(function MobileChart({ ticker }) {
   }, [ticker, bars, chartBars, activeIndicators, rangeIdx]);
 
   const isUp = (chgPct ?? 0) >= 0;
-  const lineColor = isUp ? 'var(--price-up, #00c851)' : 'var(--price-down, #f44336)';
-  const rawLineColor = isUp ? '#00c851' : '#f44336';
+  const lineColor = isUp ? 'var(--price-up)' : 'var(--price-down)';
+  const rawLineColor = isUp ? TOKEN_HEX.up : TOKEN_HEX.down;
   const openPrice = bars.length > 0 ? bars[0].close : null;
   const gradId = `mcg-${ticker}-${rangeIdx}`;
   const tickerName = TICKER_NAMES[ticker] || '';
@@ -268,14 +269,14 @@ const MobileChart = memo(function MobileChart({ ticker }) {
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
       {/* Chart heading */}
       <div style={{ padding: '8px 10px 2px', flexShrink: 0, display: 'flex', alignItems: 'baseline', gap: 6 }}>
-        <span style={{ color: 'var(--accent, #ff6600)', fontSize: 14, fontWeight: 700, fontFamily: 'inherit', letterSpacing: '0.03em' }}>
+        <span style={{ color: 'var(--accent)', fontSize: 14, fontWeight: 700, fontFamily: 'inherit', letterSpacing: '0.03em' }}>
           {displaySymbol(ticker)}
         </span>
-        {tickerName && <span style={{ color: 'var(--text-muted, #666)', fontSize: 11 }}>{tickerName}</span>}
+        {tickerName && <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>{tickerName}</span>}
       </div>
 
       {/* Stats row */}
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, padding: '2px 10px 6px', flexShrink: 0, borderBottom: '1px solid var(--border-default, #1e1e1e)' }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, padding: '2px 10px 6px', flexShrink: 0, borderBottom: '1px solid var(--border-default)' }}>
         {!noData && !loading ? (
           <>
             <span style={{ color: 'var(--text-primary)', fontSize: 15, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{fmtPrice(price)}</span>
@@ -286,9 +287,9 @@ const MobileChart = memo(function MobileChart({ ticker }) {
             )}
           </>
         ) : loading ? (
-          <span style={{ color: 'var(--text-muted, #555)', fontSize: 11 }}>Loading...</span>
+          <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>Loading...</span>
         ) : (
-          <span style={{ color: 'var(--text-muted, #555)', fontSize: 11 }}>No price data available</span>
+          <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>No price data available</span>
         )}
       </div>
 
@@ -310,21 +311,21 @@ const MobileChart = memo(function MobileChart({ ticker }) {
             flex: 1, padding: '6px 0', fontSize: 10, cursor: 'pointer', fontFamily: 'inherit',
             fontWeight: i === rangeIdx ? 700 : 400, letterSpacing: '0.05em',
             background: i === rangeIdx ? 'rgba(255,102,0,0.1)' : 'transparent',
-            border: `1px solid ${i === rangeIdx ? 'var(--accent, #ff6600)' : 'var(--border-default, #1e1e1e)'}`,
-            color: i === rangeIdx ? 'var(--accent, #ff6600)' : 'var(--text-muted, #555)',
+            border: `1px solid ${i === rangeIdx ? 'var(--accent)' : 'var(--border-default)'}`,
+            color: i === rangeIdx ? 'var(--accent)' : 'var(--text-muted)',
             borderRadius: 4, minHeight: 28, WebkitTapHighlightColor: 'transparent',
           }}>{r.label}</button>
         ))}
       </div>
       {/* Chart type + AI insight row */}
       <div style={{ display: 'flex', gap: 6, padding: '2px 10px 4px', flexShrink: 0, alignItems: 'center' }}>
-        <div style={{ display: 'inline-flex', border: '1px solid var(--border-default, #1e1e1e)', borderRadius: 4, overflow: 'hidden', flexShrink: 0 }}>
+        <div style={{ display: 'inline-flex', border: '1px solid var(--border-default)', borderRadius: 4, overflow: 'hidden', flexShrink: 0 }}>
           {['area', 'candle'].map(t => (
             <button key={t} onClick={() => setChartType(t)} style={{
               padding: '5px 10px', fontSize: 10, fontWeight: 600, letterSpacing: '0.04em',
               border: 'none', cursor: 'pointer', fontFamily: 'inherit',
-              background: chartType === t ? 'var(--accent, #ff6600)' : 'transparent',
-              color: chartType === t ? '#fff' : 'var(--text-faint, #555)',
+              background: chartType === t ? 'var(--accent)' : 'transparent',
+              color: chartType === t ? '#fff' : 'var(--text-faint)',
               minHeight: 28, WebkitTapHighlightColor: 'transparent',
             }}>{t.toUpperCase()}</button>
           ))}
@@ -361,9 +362,9 @@ const MobileChart = memo(function MobileChart({ ticker }) {
                   <div style={{ marginBottom: 4 }}>Loading chart data...</div>
                 </div>
               ) : noData || bars.length === 0 ? (
-                <div style={{ height: totalH, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted, #555)', gap: 6 }}>
+                <div style={{ height: totalH, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', gap: 6 }}>
                   <div style={{ fontSize: 13, fontWeight: 600 }}>No chart data available</div>
-                  <div style={{ fontSize: 11, color: 'var(--text-faint, #444)' }}>Try a different time range or check if this symbol is supported.</div>
+                  <div style={{ fontSize: 11, color: 'var(--text-faint)' }}>Try a different time range or check if this symbol is supported.</div>
                 </div>
               ) : (
                 <>
@@ -434,14 +435,14 @@ const MobileChart = memo(function MobileChart({ ticker }) {
 
                   {/* RSI sub-chart */}
                   {hasRSI && (
-                    <div style={{ borderTop: '1px solid var(--border-subtle, #1a1a1a)' }}>
+                    <div style={{ borderTop: '1px solid var(--border-subtle)' }}>
                       <ResponsiveContainer width={width} height={subH}>
                         <ComposedChart data={chartBars} margin={{ top: 2, right: 4, bottom: 0, left: 4 }}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle, #1a1a1a)" />
+                          <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" />
                           <XAxis dataKey="label" hide axisLine={false} />
-                          <YAxis domain={[0, 100]} ticks={[30, 70]} tick={{ fill: 'var(--text-faint, #555)', fontSize: 8 }} width={52} axisLine={false} />
-                          <ReferenceLine y={70} stroke="var(--price-down, #f44336)" strokeDasharray="3 3" strokeOpacity={0.5} />
-                          <ReferenceLine y={30} stroke="var(--price-up, #4caf50)" strokeDasharray="3 3" strokeOpacity={0.5} />
+                          <YAxis domain={[0, 100]} ticks={[30, 70]} tick={{ fill: 'var(--text-faint)', fontSize: 8 }} width={52} axisLine={false} />
+                          <ReferenceLine y={70} stroke="var(--price-down)" strokeDasharray="3 3" strokeOpacity={0.5} />
+                          <ReferenceLine y={30} stroke="var(--price-up)" strokeDasharray="3 3" strokeOpacity={0.5} />
                           <Tooltip contentStyle={ttStyle} formatter={v => [v != null ? v.toFixed(1) : '--', 'RSI']} labelStyle={{ color: '#555' }} />
                           <Line type="monotone" dataKey="rsi14" stroke={IND_COLORS.RSI14} strokeWidth={1.2} dot={false} connectNulls isAnimationActive={false} />
                         </ComposedChart>
@@ -451,13 +452,13 @@ const MobileChart = memo(function MobileChart({ ticker }) {
 
                   {/* MACD sub-chart */}
                   {hasMACD && (
-                    <div style={{ borderTop: '1px solid var(--border-subtle, #1a1a1a)' }}>
+                    <div style={{ borderTop: '1px solid var(--border-subtle)' }}>
                       <ResponsiveContainer width={width} height={subH}>
                         <ComposedChart data={chartBars} margin={{ top: 2, right: 4, bottom: 0, left: 4 }}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle, #1a1a1a)" />
+                          <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" />
                           <XAxis dataKey="label" hide axisLine={false} />
-                          <YAxis tick={{ fill: 'var(--text-faint, #555)', fontSize: 8 }} width={52} axisLine={false} />
-                          <ReferenceLine y={0} stroke="var(--border-default, #1e1e1e)" />
+                          <YAxis tick={{ fill: 'var(--text-faint)', fontSize: 8 }} width={52} axisLine={false} />
+                          <ReferenceLine y={0} stroke="var(--border-default)" />
                           <Tooltip contentStyle={ttStyle} formatter={(v, n) => [v != null ? v.toFixed(3) : '--', n]} labelStyle={{ color: '#555' }} />
                           <Bar dataKey="macdHist" name="Histogram" fill={IND_COLORS.MACD} opacity={0.35} radius={[1, 1, 0, 0]} isAnimationActive={false} />
                           <Line type="monotone" dataKey="macdLine" stroke={IND_COLORS.MACD} strokeWidth={1.2} dot={false} connectNulls isAnimationActive={false} />
@@ -488,22 +489,22 @@ const TickerPill = memo(function TickerPill({ symbol, isActive, onClick, pillRef
       style={{
         display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
         padding: '6px 12px', minWidth: 70, cursor: 'pointer', fontFamily: 'inherit',
-        background: isActive ? 'rgba(255,102,0,0.12)' : 'var(--bg-surface, #111)',
-        border: `1.5px solid ${isActive ? 'var(--accent, #ff6600)' : 'var(--border-default, #2a2a2a)'}`,
+        background: isActive ? 'rgba(255,102,0,0.12)' : 'var(--bg-surface)',
+        border: `1.5px solid ${isActive ? 'var(--accent)' : 'var(--border-default)'}`,
         borderRadius: 5, whiteSpace: 'nowrap', flexShrink: 0,
         transition: 'border-color 100ms, background 100ms',
       }}
     >
       <span style={{
         fontSize: 11, fontWeight: isActive ? 700 : 500,
-        color: isActive ? 'var(--accent, #ff6600)' : 'var(--text-primary, #ccc)',
+        color: isActive ? 'var(--accent)' : 'var(--text-primary)',
         letterSpacing: '0.04em', lineHeight: 1.2,
       }}>
         {dSym}
       </span>
       {name && (
         <span style={{
-          fontSize: 9, color: isActive ? 'var(--text-secondary, #aaa)' : 'var(--text-muted, #666)',
+          fontSize: 9, color: isActive ? 'var(--text-secondary)' : 'var(--text-muted)',
           lineHeight: 1.2, marginTop: 1,
         }}>
           {name}
@@ -550,7 +551,7 @@ function ChartsPanelMobile() {
         ref={stripRef}
         style={{
           display: 'flex', overflowX: 'auto', padding: '6px 8px', gap: 6,
-          borderBottom: '1px solid var(--border-default, #1e1e1e)',
+          borderBottom: '1px solid var(--border-default)',
           flexShrink: 0, alignItems: 'stretch', scrollbarWidth: 'none',
           WebkitOverflowScrolling: 'touch',
         }}
@@ -572,8 +573,8 @@ function ChartsPanelMobile() {
             onTouchEnd={(e) => tapEnd(e, () => openDetail(currentSymbol))}
             style={{
               padding: '6px 10px', fontSize: 10, fontFamily: 'inherit',
-              background: 'transparent', color: 'var(--accent, #ff6600)',
-              border: '1.5px solid var(--accent, #ff6600)', borderRadius: 5,
+              background: 'transparent', color: 'var(--accent)',
+              border: '1.5px solid var(--accent)', borderRadius: 5,
               cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
               fontWeight: 600, letterSpacing: '0.06em',
             }}

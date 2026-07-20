@@ -907,15 +907,15 @@ export default function App() {
           <ParticleLogo size={22} style={{ marginRight: 6 }} /><span className="app-header-title">PARTICLE</span>
 
           {/* ── Desktop mode toggle: Particle / Terminal / Vault / Admin ── */}
-          <div className="desktop-mode-toggle" style={{ display: 'inline-flex', marginLeft: 12, gap: 2, background: 'var(--bg-panel, #111)', borderRadius: 6, padding: 2, border: '1px solid var(--border-default, rgba(255,255,255,0.07))' }}>
+          <div className="desktop-mode-toggle" style={{ display: 'inline-flex', marginLeft: 12, gap: 2, background: 'var(--bg-panel)', borderRadius: 6, padding: 2, border: '1px solid var(--border-default)' }}>
             <button
               className="btn desktop-mode-btn"
               onClick={() => { setMobileModePersist('particle'); }}
               style={{
                 padding: '3px 12px', fontSize: 10, fontWeight: 700, letterSpacing: '0.08em',
                 borderRadius: 4, border: 'none', cursor: 'pointer',
-                color: mobileMode === 'particle' ? 'var(--bg-app, #000)' : 'var(--text-faint)',
-                background: mobileMode === 'particle' ? 'var(--accent, #F97316)' : 'transparent',
+                color: mobileMode === 'particle' ? 'var(--bg-app)' : 'var(--text-faint)',
+                background: mobileMode === 'particle' ? 'var(--accent)' : 'transparent',
                 transition: 'all 150ms ease',
               }}
             >PARTICLE</button>
@@ -925,8 +925,8 @@ export default function App() {
               style={{
                 padding: '3px 12px', fontSize: 10, fontWeight: 700, letterSpacing: '0.08em',
                 borderRadius: 4, border: 'none', cursor: 'pointer',
-                color: mobileMode === 'terminal' ? 'var(--text-primary, #fff)' : 'var(--text-faint)',
-                background: mobileMode === 'terminal' ? 'var(--bg-surface, #1a1a1a)' : 'transparent',
+                color: mobileMode === 'terminal' ? 'var(--text-primary)' : 'var(--text-faint)',
+                background: mobileMode === 'terminal' ? 'var(--bg-surface)' : 'transparent',
                 transition: 'all 150ms ease',
               }}
             >TERMINAL</button>
@@ -1259,7 +1259,7 @@ export default function App() {
               {/* H3 (#home_grid_v2): flag ON → lazy editable grid; flag OFF →
                   the exact legacy desktopRows renderer below, untouched. */}
               {homeGridV2 ? (
-                <Suspense fallback={<div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-faint, #333)', fontSize: 10, letterSpacing: '0.5px' }}>LOADING LAYOUT...</div>}>
+                <Suspense fallback={<div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-faint)', fontSize: 10, letterSpacing: '0.5px' }}>LOADING LAYOUT...</div>}>
                   <HomeGrid
                     grid={gridLayouts.activeGrid}
                     onGridChange={gridLayouts.setActiveGrid}

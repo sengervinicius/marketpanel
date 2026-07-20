@@ -3,7 +3,7 @@
 .signals-feed {
   display: flex;
   flex-direction: column;
-  background: var(--bg-secondary, #1f2937);
+  background: var(--bg-secondary);
   border: 1px solid var(--border-color, #374151);
   border-radius: 8px;
   overflow: hidden;
@@ -26,7 +26,7 @@
   align-items: center;
   gap: 8px;
   font-weight: 600;
-  color: var(--text-primary, #f3f4f6);
+  color: var(--text-primary);
   font-size: 13px;
   flex: 1;
 }
@@ -37,7 +37,7 @@
   justify-content: center;
   width: 20px;
   height: 20px;
-  background: var(--accent, #f97316);
+  background: var(--accent);
   color: white;
   border-radius: 50%;
   font-size: 11px;
@@ -51,10 +51,10 @@
 
 .signals-feed__btn {
   padding: 6px 10px;
-  background: var(--bg-secondary, #1f2937);
+  background: var(--bg-secondary);
   border: 1px solid var(--border-color, #374151);
   border-radius: 4px;
-  color: var(--text-secondary, #9ca3af);
+  color: var(--text-secondary);
   font-size: 12px;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -64,8 +64,8 @@
 
 .signals-feed__btn:hover:not(:disabled) {
   background: var(--bg-tertiary, #111827);
-  color: var(--text-primary, #f3f4f6);
-  border-color: var(--accent, #f97316);
+  color: var(--text-primary);
+  border-color: var(--accent);
 }
 
 .signals-feed__btn:disabled {
@@ -125,7 +125,7 @@
 
 .signals-feed__title-text {
   font-weight: 600;
-  color: var(--text-primary, #f3f4f6);
+  color: var(--text-primary);
   flex: 1;
   word-break: break-word;
 }
@@ -135,13 +135,13 @@
   display: inline-block;
   padding: 1px 6px;
   margin-right: 6px;
-  font-family: var(--font-family-mono, ui-monospace, 'SF Mono', Menlo, monospace);
+  font-family: var(--font-family-mono);
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.05em;
-  color: var(--accent, #ff6600);
-  background: rgba(255, 102, 0, 0.10);
-  border: 1px solid rgba(255, 102, 0, 0.30);
+  color: var(--accent);
+  background: rgba(229, 90, 0, 0.10);
+  border: 1px solid rgba(229, 90, 0, 0.30);
   border-radius: 2px;
   flex-shrink: 0;
   text-transform: uppercase;
@@ -156,7 +156,7 @@
 }
 
 .signals-feed__insight {
-  color: var(--text-secondary, #9ca3af);
+  color: var(--text-secondary);
   font-size: 12px;
   line-height: 1.4;
   word-break: break-word;
@@ -182,7 +182,7 @@
   text-align: center;
   color: var(--text-tertiary, #6b7280);
   font-size: 12px;
-  background: var(--bg-secondary, #1f2937);
+  background: var(--bg-secondary);
 }
 
 /* Compact mode: smaller, sidebar-friendly */
@@ -220,7 +220,7 @@
   text-align: center;
   color: var(--text-tertiary, #6b7280);
   font-size: 12px;
-  background: var(--bg-secondary, #1f2937);
+  background: var(--bg-secondary);
   border-radius: 6px;
   border: 1px dashed var(--border-color, #374151);
 }

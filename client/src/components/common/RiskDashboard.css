@@ -3,7 +3,7 @@
  *
  * Terminal-style dark theme matching Particle's aesthetic:
  * - Background: #0a0a0f (deep black)
- * - Accent: #00ff88 (neon green)
+ * - Accent: var(--color-up) (neon green)
  * - Font: Monospace
  * - Glow effects for interactive elements
  */
@@ -18,7 +18,7 @@
   border-radius: 8px;
   font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
   font-size: 13px;
-  color: #e0e0e0;
+  color: var(--color-text-primary);
   line-height: 1.6;
 }
 
@@ -41,7 +41,7 @@
   width: 32px;
   height: 32px;
   border: 2px solid rgba(0, 255, 136, 0.2);
-  border-top-color: #00ff88;
+  border-top-color: var(--color-up);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -117,7 +117,7 @@
 .metric-card-value {
   font-size: 24px;
   font-weight: bold;
-  color: #00ff88;
+  color: var(--color-up);
   display: flex;
   align-items: baseline;
   gap: 4px;
@@ -151,7 +151,7 @@
 .risk-section-title {
   font-size: 14px;
   font-weight: 600;
-  color: #00ff88;
+  color: var(--color-up);
   text-transform: uppercase;
   letter-spacing: 1px;
   margin: 0;
@@ -185,7 +185,7 @@
 .var-gauge-label {
   font-size: 13px;
   font-weight: 600;
-  color: #00ff88;
+  color: var(--color-up);
 }
 
 .var-gauge-bars {
@@ -223,7 +223,7 @@
 .var-gauge-bar-value {
   font-size: 12px;
   font-weight: 600;
-  color: #00ff88;
+  color: var(--color-up);
 }
 
 /* ─────────────────────────────────────────────────────────────────────────── */
@@ -264,7 +264,7 @@
   background: rgba(20, 20, 30, 0.8);
   font-size: 11px;
   font-weight: bold;
-  color: #00ff88;
+  color: var(--color-up);
   writing-mode: vertical-rl;
   transform: rotate(180deg);
   padding: 0 4px;
@@ -280,7 +280,7 @@
   background: rgba(20, 20, 30, 0.8);
   font-size: 11px;
   font-weight: bold;
-  color: #00ff88;
+  color: var(--color-up);
   writing-mode: vertical-rl;
   transform: rotate(180deg);
 }
@@ -388,12 +388,12 @@
 .risk-contribution-legend-label {
   font-weight: 600;
   min-width: 60px;
-  color: #e0e0e0;
+  color: var(--color-text-primary);
 }
 
 .risk-contribution-legend-value {
   margin-left: auto;
-  color: #00ff88;
+  color: var(--color-up);
   font-weight: bold;
 }
 
@@ -427,7 +427,7 @@
 .sector-concentration-hhi-value {
   font-size: 32px;
   font-weight: bold;
-  color: #00ff88;
+  color: var(--color-up);
 }
 
 .sector-concentration-hhi-status {
@@ -462,7 +462,7 @@
   font-size: 12px;
   font-weight: 600;
   text-transform: uppercase;
-  color: #00ff88;
+  color: var(--color-up);
   margin: 0;
 }
 
@@ -479,17 +479,17 @@
   padding: 8px 12px;
   background: rgba(0, 0, 0, 0.2);
   border-radius: 3px;
-  border-left: 3px solid #00ff88;
+  border-left: 3px solid var(--color-up);
   font-size: 12px;
 }
 
 .sector-name {
   font-weight: 600;
-  color: #e0e0e0;
+  color: var(--color-text-primary);
 }
 
 .sector-weight {
-  color: #00ff88;
+  color: var(--color-up);
   font-weight: bold;
 }
 

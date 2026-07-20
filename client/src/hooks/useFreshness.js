@@ -104,10 +104,10 @@ export function useFreshness(symbol) {
  */
 export function freshnessColor(lvl) {
   switch (lvl) {
-    case 'fresh':   return 'var(--price-up, #16c784)';
-    case 'stale':   return 'var(--semantic-warn, #ff9900)';
-    case 'frozen':  return 'var(--price-down, #ea3943)';
-    default:        return 'var(--text-faint, #555)';
+    case 'fresh':   return 'var(--price-up)';
+    case 'stale':   return 'var(--semantic-warn)';
+    case 'frozen':  return 'var(--price-down)';
+    default:        return 'var(--text-faint)';
   }
 }
 

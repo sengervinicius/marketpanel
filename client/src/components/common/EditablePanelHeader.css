@@ -94,7 +94,7 @@
   position: absolute;
   inset: 0;
   z-index: 5;
-  background: rgba(255, 102, 0, 0.08);
+  background: rgba(229, 90, 0, 0.08);
   border: 1px dashed var(--accent);
   display: flex;
   align-items: center;

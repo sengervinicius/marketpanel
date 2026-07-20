@@ -14,29 +14,23 @@ const ThemeContext = createContext(null);
 // Migrate legacy key (at top level so it runs before component mounts)
 try { const v = localStorage.getItem('senger_theme'); if (v !== null) { localStorage.setItem('particle_theme', v); localStorage.removeItem('senger_theme'); } } catch (e) { swallow(e, 'context.theme.ls_migrate'); }
 
-// Variable names must match the :root tokens in App.css
+// Variable names must match the :root tokens in styles/tokens.css.
+// DESIGN-LINT (2026-07): the dark theme used to re-inject a stale palette
+// (old Material orange accent, old muted gray, Material green/red up/down) as inline vars on
+// <html>, silently overriding tokens.css for the whole app. Dark is now
+// "no overrides" — styles/tokens.css is the single source of truth — and
+// only the light theme applies inline overrides.
+const THEME_VARS = [
+  '--bg-app', '--bg-panel', '--bg-surface', '--bg-elevated', '--bg-hover',
+  '--bg-active', '--border-subtle', '--border-default', '--border-strong',
+  '--text-primary', '--text-secondary', '--text-muted', '--text-faint',
+  '--accent', '--accent-muted', '--accent-text',
+  '--price-up', '--price-down', '--price-neutral',
+];
+
 const THEMES = {
-  dark: {
-    '--bg-app':        '#0a0a0a',
-    '--bg-panel':      '#0a0a0a',
-    '--bg-surface':    '#0d0d0d',
-    '--bg-elevated':   '#111111',
-    '--bg-hover':      '#141414',
-    '--bg-active':     '#1a1a1a',
-    '--border-subtle': '#141414',
-    '--border-default':'#1a1a1a',
-    '--border-strong': '#2a2a2a',
-    '--text-primary':  '#e0e0e0',
-    '--text-secondary':'#999999',
-    '--text-muted':    '#555555',
-    '--text-faint':    '#333333',
-    '--accent':        '#F97316',
-    '--accent-muted':  '#ff990033',
-    '--accent-text':   '#ff9900',
-    '--price-up':      '#4caf50',
-    '--price-down':    '#f44336',
-    '--price-neutral': '#888888',
-  },
+  // Dark theme = tokens.css defaults; nothing to inject.
+  dark: {},
   light: {
     '--bg-app':        '#f4f4f0',
     '--bg-panel':      '#f9f9f6',
@@ -63,6 +57,9 @@ const THEMES = {
 function applyTheme(theme) {
   const vars = THEMES[theme] || THEMES.dark;
   const root = document.documentElement;
+  // Clear all managed overrides first so switching back to dark restores
+  // the tokens.css values instead of stale inline properties.
+  THEME_VARS.forEach((k) => root.style.removeProperty(k));
   Object.entries(vars).forEach(([k, v]) => root.style.setProperty(k, v));
   document.body.setAttribute('data-theme', theme);
 }

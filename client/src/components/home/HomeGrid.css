@@ -6,7 +6,7 @@
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
-  background: var(--bg-app, #000);
+  background: var(--bg-app);
 }
 
 .home-grid-item {
@@ -16,7 +16,7 @@
   min-height: 0;
   overflow: hidden;
   background: var(--bg-panel, transparent);
-  border: 1px solid var(--border-subtle, #1a1a1a);
+  border: 1px solid var(--border-subtle);
   border-radius: 2px;
 }
 
@@ -32,14 +32,14 @@
 
 .home-grid-item.react-draggable-dragging,
 .home-grid-item.resizing {
-  border-color: var(--accent, #f60);
+  border-color: var(--accent);
   z-index: 30;
   opacity: 0.92;
 }
 
 /* Drop placeholder */
 .react-grid-placeholder {
-  background: var(--accent, #f60) !important;
+  background: var(--accent) !important;
   opacity: 0.14 !important;
   border-radius: 2px;
 }
@@ -52,6 +52,6 @@
   opacity: 0.9;
 }
 .home-grid-item > .react-resizable-handle-se::after {
-  border-right-color: var(--accent, #f60);
-  border-bottom-color: var(--accent, #f60);
+  border-right-color: var(--accent);
+  border-bottom-color: var(--accent);
 }

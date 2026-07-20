@@ -32,12 +32,12 @@ function DataUnavailable({ reason, kind = 'loading', onRetry }) {
       style={{
         padding: '16px 12px',
         textAlign: 'center',
-        color: 'var(--text-secondary, #888)',
+        color: 'var(--text-secondary)',
         fontSize: 11,
         fontFamily: 'monospace',
       }}
     >
-      <div style={{ color: 'var(--text-secondary, #888)', marginBottom: 4 }}>
+      <div style={{ color: 'var(--text-secondary)', marginBottom: 4 }}>
         <svg
           width="12" height="12" viewBox="0 0 24 24" fill="none"
           stroke="currentColor" strokeWidth="1.5"
@@ -65,7 +65,7 @@ function DataUnavailable({ reason, kind = 'loading', onRetry }) {
         <div
           style={{
             marginTop: 6, fontSize: 10,
-            color: 'var(--text-faint, #666)',
+            color: 'var(--text-faint)',
             maxWidth: 260, marginInline: 'auto', lineHeight: 1.4,
           }}
         >
@@ -79,9 +79,9 @@ function DataUnavailable({ reason, kind = 'loading', onRetry }) {
           style={{
             marginTop: 8,
             padding: '4px 12px',
-            background: 'var(--bg-panel, #1a1a1a)',
-            border: '1px solid var(--border-strong, #333)',
-            color: 'var(--text-secondary, #aaa)',
+            background: 'var(--bg-panel)',
+            border: '1px solid var(--border-strong)',
+            color: 'var(--text-secondary)',
             borderRadius: 4,
             cursor: 'pointer',
             fontSize: 10,

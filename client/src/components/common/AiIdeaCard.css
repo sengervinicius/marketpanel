@@ -25,7 +25,7 @@
 }
 
 .aic-badge {
-  font: 700 10px var(--font-mono, monospace);
+  font: 700 10px var(--font-mono);
   letter-spacing: 1.2px;
   color: var(--text-primary);
   background: rgba(255, 255, 255, 0.06);
@@ -35,7 +35,7 @@
 }
 
 .aic-screen-label {
-  font: 600 10px var(--font-mono, monospace);
+  font: 600 10px var(--font-mono);
   letter-spacing: 0.8px;
   color: var(--text-faint);
   flex: 1;

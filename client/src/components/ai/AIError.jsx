@@ -8,7 +8,7 @@ export default function AIError({ message, onRetry, compact = false }) {
          style={{ minHeight: 'auto', padding: compact ? '8px 10px' : '10px 12px' }}>
       <span style={{
         fontSize: '0.75rem',
-        color: 'var(--color-insight-unavailable, rgba(255,255,255,0.30))',
+        color: 'var(--color-insight-unavailable)',
         fontFamily: 'var(--font-ui)',
         letterSpacing: '0.02em',
       }}>

@@ -80,8 +80,8 @@
 
 .admin-error {
   padding: 24px;
-  background: rgba(244, 67, 54, 0.1);
-  border: 1px solid rgba(244, 67, 54, 0.3);
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
   border-radius: 6px;
   color: var(--color-admin-danger);
   margin-bottom: 16px;
@@ -91,8 +91,8 @@
 .admin-error-retry {
   margin-top: 12px;
   padding: 8px 16px;
-  background: rgba(244, 67, 54, 0.2);
-  border: 1px solid rgba(244, 67, 54, 0.4);
+  background: rgba(239, 68, 68, 0.2);
+  border: 1px solid rgba(239, 68, 68, 0.4);
   border-radius: 4px;
   color: var(--color-admin-danger);
   font-family: monospace;
@@ -101,7 +101,7 @@
 }
 
 .admin-error-retry:hover {
-  background: rgba(244, 67, 54, 0.3);
+  background: rgba(239, 68, 68, 0.3);
 }
 
 /* ─────────────────────────────────────────────────────────────────────────── */
@@ -477,9 +477,9 @@
 }
 
 .admin-users-plan-badge.paid {
-  background: rgba(76, 175, 80, 0.2);
+  background: rgba(34, 197, 94, 0.2);
   color: var(--color-admin-accent-dim);
-  border: 1px solid rgba(76, 175, 80, 0.4);
+  border: 1px solid rgba(34, 197, 94, 0.4);
 }
 
 .admin-users-plan-badge.trial {

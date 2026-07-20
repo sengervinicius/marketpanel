@@ -96,7 +96,7 @@ function EnhancedEquityRow({ symbol, stats, onClick, isSelected }) {
       onTouchEnd={(e) => { e.preventDefault(); onClick(symbol); }}
       style={{
         background: isSelected ? 'rgba(102, 187, 106, 0.08)' : 'transparent',
-        borderLeft: isSelected ? '3px solid var(--price-up, #66bb6a)' : '3px solid transparent',
+        borderLeft: isSelected ? '3px solid var(--price-up)' : '3px solid transparent',
         transition: 'background 0.15s ease',
       }}
     >

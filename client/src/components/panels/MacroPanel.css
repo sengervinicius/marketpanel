@@ -39,13 +39,13 @@
   letter-spacing: 0.5px;
   border: 1px solid var(--accent);
   border-radius: var(--radius-md);
-  background: rgba(255, 102, 0, 0.1);
+  background: rgba(229, 90, 0, 0.1);
   color: var(--accent);
   cursor: pointer;
   white-space: nowrap;
   transition: all 0.12s;
 }
-.macro-ai-btn:hover:not(:disabled) { background: rgba(255, 102, 0, 0.2); }
+.macro-ai-btn:hover:not(:disabled) { background: rgba(229, 90, 0, 0.2); }
 .macro-ai-btn:disabled { opacity: 0.4; cursor: default; }
 
 /* ── AI Insight box ────────────────────────────── */
@@ -63,9 +63,9 @@
   letter-spacing: 0.06em;
   padding: 1px 6px;
   border-radius: var(--radius-full, 9999px);
-  background: rgba(255, 102, 0, 0.08);
+  background: rgba(229, 90, 0, 0.08);
   color: var(--accent);
-  border: 1px solid rgba(255, 102, 0, 0.15);
+  border: 1px solid rgba(229, 90, 0, 0.15);
   display: inline-block;
   margin-bottom: 4px;
 }
@@ -124,7 +124,7 @@
 .macro-chip:hover { border-color: var(--text-muted); color: var(--text-secondary); }
 .macro-chip--active {
   border-color: var(--accent);
-  background: rgba(255, 102, 0, 0.12);
+  background: rgba(229, 90, 0, 0.12);
   color: var(--accent);
 }
 .macro-chip-name {

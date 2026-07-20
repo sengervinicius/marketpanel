@@ -33,7 +33,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background-color: rgba(255, 102, 0, 0.12);
+  background-color: rgba(229, 90, 0, 0.12);
   color: var(--accent);
   font-size: 12px;
   font-weight: 600;
@@ -54,7 +54,7 @@
   align-items: center;
   justify-content: center;
   padding: 0;
-  -webkit-tap-highlight-color: rgba(255, 102, 0, 0.1);
+  -webkit-tap-highlight-color: rgba(229, 90, 0, 0.1);
 }
 
 .am-filters {
@@ -149,7 +149,7 @@
 }
 
 .am-dismiss-btn {
-  background: rgba(76, 175, 80, 0.12);
+  background: rgba(34, 197, 94, 0.12);
   border: none;
   color: var(--price-up);
   border-radius: 4px;

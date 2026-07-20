@@ -115,8 +115,8 @@
   color: var(--text-primary);
 }
 
-.dic-col-metric.pos { color: var(--price-up, #16c784); }
-.dic-col-metric.neg { color: var(--price-down, #ea3943); }
+.dic-col-metric.pos { color: var(--price-up); }
+.dic-col-metric.neg { color: var(--price-down); }
 
 /* #286 — provider-unavailable row marker.
  * Dim the whole row so the curve fields read as "n/a", and surface a

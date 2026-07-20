@@ -15,7 +15,7 @@
 
 .vi-card:hover {
   border-color: var(--border-strong);
-  box-shadow: 0 2px 12px var(--color-vault-dim, rgba(201, 168, 76, 0.08));
+  box-shadow: 0 2px 12px var(--color-vault-dim);
 }
 
 /* ─── Header ─────────────────────────────────────────── */
