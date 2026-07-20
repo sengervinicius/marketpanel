@@ -52,12 +52,29 @@ function fmtCorr(r) {
   return `${s}${r.toFixed(2)}`;
 }
 
-function PairCell({ pair }) {
-  const { labelA, labelB, corr, d5A, d5B } = pair;
+// P2 item 5 — descriptive per-pair tooltips for the 20D SPREADS strip.
+// Keyed `${a}-${b}` to match the server's pair ids.
+const PAIR_DESCRIPTIONS = {
+  'SPY-TLT': '20-day return spread: SPY vs 20Y treasuries (TLT)',
+  'SPY-GLD': '20-day return spread: SPY vs gold (GLD)',
+  'SPY-DXY': '20-day return spread: SPY vs US dollar index (DXY)',
+  'SPY-BTC': '20-day return spread: SPY vs Bitcoin (BTC)',
+  'SPY-VIX': '20-day return spread: SPY vs volatility (VIX)',
+  'DXY-GLD': '20-day return spread: US dollar index (DXY) vs gold (GLD)',
+};
+
+function PairCell({ pair, assets }) {
+  const { a, b, labelA, labelB, corr, d5A, d5B } = pair;
   const c = corrColor(corr);
   const magPct = corr != null ? Math.abs(corr) * 100 : 0;
+  // 20d return spread from the assets block (additive in the payload).
+  const d20A = assets?.[a]?.d20;
+  const d20B = assets?.[b]?.d20;
+  const spread20 = (Number.isFinite(d20A) && Number.isFinite(d20B)) ? d20A - d20B : null;
+  const desc = PAIR_DESCRIPTIONS[`${a}-${b}`] || `20-day return spread: ${labelA} vs ${labelB}`;
+  const title = `${desc}${spread20 != null ? ` — spread ${fmtPct(spread20, 1)}` : ''} · 20d correlation ${fmtCorr(corr)}`;
   return (
-    <div className="ca-cell" title={`${labelA} vs ${labelB} — 20d correlation: ${fmtCorr(corr)}`}>
+    <div className="ca-cell" title={title}>
       <div className="ca-cell-label">
         <span>{labelA}</span>
         <span className="ca-cell-sep">↔</span>
@@ -136,9 +153,9 @@ export default function CrossAssetStrip() {
 
   return (
     <div className="ca-strip" role="region" aria-label="Cross-asset correlations (20-day)">
-      <span className="ca-group-label">20D ρ</span>
+      <span className="ca-group-label">20D SPREADS</span>
       {data.pairs.map(p => (
-        <PairCell key={`${p.a}-${p.b}`} pair={p} />
+        <PairCell key={`${p.a}-${p.b}`} pair={p} assets={data.assets} />
       ))}
       <span className="ca-flex" />
       <EconSurpriseCard data={surprise} />
