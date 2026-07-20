@@ -20,21 +20,22 @@
   gap: 2px;
 }
 .mv-exch-btn {
+  /* Design v1 — shared chip language (ds-chip scale) */
   background: transparent;
   border: 1px solid var(--border-strong);
   color: var(--text-muted);
-  font-size: var(--font-xs);
-  font-family: inherit;
+  font-size: 9px;
+  font-family: var(--font-family-mono);
   letter-spacing: 0.06em;
+  text-transform: uppercase;
   padding: 1px 6px;
-  border-radius: var(--radius-sm);
+  border-radius: 2px;
   cursor: pointer;
   transition: all 0.15s;
 }
 .mv-exch-btn--active {
-  background: var(--color-surface);
   border-color: var(--accent);
-  color: var(--accent-text);
+  color: var(--accent);
 }
 
 /* Empty / loading state */

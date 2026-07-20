@@ -8,7 +8,7 @@ import FullPageScreenLayout from './shared/FullPageScreenLayout';
 import SectorPulse from './shared/SectorPulse';
 import { FundamentalsTable, EarningsCalendarStrip, MacroCalendarStrip } from './shared';
 import { SectorChartPanel } from './shared/SectorChartPanel';
-import { KPIRibbon, heatColor, TickerRibbon } from './shared/SectorUI';
+import { KPIRibbon, heatColor, TickerRibbon, fmtNum as fmt, fmtPct, fmtB } from './shared/SectorUI';
 import { useOpenDetail } from '../../context/OpenDetailContext';
 import { useTickerPrice } from '../../context/PriceContext';
 import { useDeepScreenData } from '../../hooks/useDeepScreenData';
@@ -19,17 +19,7 @@ import DeepScreenBase, { TickerCell, DeepSkeleton, DeepError, StatsLoadGate } fr
 import { tapStart, tapMove, tapEnd } from '../../utils/tapHandlers';
 
 /* ── Formatting Utilities ──────────────────────────────────────────────────── */
-const fmt = (n, d = 2) =>
-  n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
-const fmtPct = (n) => n == null ? '—' : (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
-const fmtB = (n) => {
-  if (n == null || isNaN(n)) return '—';
-  const v = parseFloat(n);
-  if (v >= 1e12) return '$' + (v/1e12).toFixed(1) + 'T';
-  if (v >= 1e9)  return '$' + (v/1e9).toFixed(0) + 'B';
-  if (v >= 1e6)  return '$' + (v/1e6).toFixed(0) + 'M';
-  return '$' + v.toFixed(0);
-};
+// fmt / fmtPct / fmtB — shared helpers from SectorUI (design-v1 dedup).
 
 /* ── Asian Market Tickers ──────────────────────────────────────────────────── */
 const JAPAN = ['TM', 'SONY', 'SFTBY', 'MUFG', 'NTDOY', 'TOELY', 'NMR', 'SMFG'];
@@ -131,11 +121,11 @@ const OWNERSHIP_TICKERS = ['BABA', 'TM', 'SONY', 'HDB', 'TSM', 'TCEHY'];
 const SIGNALS_TICKERS = ['BABA', 'TM', 'SONY', 'HDB', 'INFY', 'TSM', 'TCEHY', 'NIO'];
 
 const EarningsSection = memo(function EarningsSection() {
-  return <EarningsCalendarStrip tickers={EARNINGS_TICKERS} accentColor="#ff5722" />;
+  return <EarningsCalendarStrip tickers={EARNINGS_TICKERS} accentColor="var(--sector-asia)" />;
 });
 
 const MacroCalendarSection = memo(function MacroCalendarSection() {
-  return <MacroCalendarStrip countries={['JP', 'CN', 'IN', 'KR', 'AU']} limit={12} accentColor="#ff5722" />;
+  return <MacroCalendarStrip countries={['JP', 'CN', 'IN', 'KR', 'AU']} limit={12} accentColor="var(--sector-asia)" />;
 });
 
 /* ── Macro Dashboard Component ─────────────────────────────────────────────── */
@@ -179,17 +169,17 @@ function MacroDashboard() {
     if (value == null) return {};
     const num = parseFloat(value);
     if (metric === 'cpiYoY') {
-      if (num < 2) return { color: '#4caf50' };
-      if (num > 5) return { color: '#f44336' };
-      return { color: '#ff9800' };
+      if (num < 2) return { color: 'var(--color-up)' };
+      if (num > 5) return { color: 'var(--color-down)' };
+      return { color: 'var(--color-warn)' };
     } else if (metric === 'gdpGrowth') {
-      if (num > 4) return { color: '#4caf50' };
-      if (num < 1) return { color: '#f44336' };
-      return { color: '#ff9800' };
+      if (num > 4) return { color: 'var(--color-up)' };
+      if (num < 1) return { color: 'var(--color-down)' };
+      return { color: 'var(--color-warn)' };
     } else if (metric === 'policyRate') {
-      if (num >= 4 && num <= 5) return { color: '#4caf50' };
-      if (num > 7) return { color: '#f44336' };
-      return { color: '#ff9800' };
+      if (num >= 4 && num <= 5) return { color: 'var(--color-up)' };
+      if (num > 7) return { color: 'var(--color-down)' };
+      return { color: 'var(--color-warn)' };
     }
     return {};
   };
@@ -393,7 +383,7 @@ function AsianMarketsScreenImpl() {
       { label: 'INDIA',   value: inda?.price != null ? '$' + fmt(inda.price) : '—', change: inda?.changePct },
       { label: 'KOREA',   value: ewy?.price != null ? '$' + fmt(ewy.price) : '—', change: ewy?.changePct },
     ];
-    return <KPIRibbon items={items} accentColor="#ff5722" />;
+    return <KPIRibbon items={items} accentColor="var(--sector-asia)" />;
   }
 
   /* ── Build section definitions ─────────────────────────────────────────── */
@@ -504,7 +494,7 @@ function AsianMarketsScreenImpl() {
     <FullPageScreenLayout
       title="ASIAN MARKETS"
       subtitle="Japan, China, India, Korea & ASEAN — ADRs, FX, and regional macro"
-      accentColor="#ff5722"
+      accentColor="var(--sector-asia)"
       vaultSector="asia"
       sections={sections}
       tickerBanner={BANNER_TICKERS}
@@ -516,7 +506,7 @@ function AsianMarketsScreenImpl() {
       <SectorPulse
         etfTicker="EWJ"
         etfLabel="EWJ"
-        accentColor="#ff5722"
+        accentColor="var(--sector-asia)"
       />
     </FullPageScreenLayout>
   );

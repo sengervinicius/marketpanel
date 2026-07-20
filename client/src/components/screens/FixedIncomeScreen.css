@@ -24,14 +24,16 @@
   width: 4px;
   height: 20px;
   border-radius: 2px;
-  background: #20b2aa;
+  background: var(--sector-fixed);
   flex-shrink: 0;
 }
 
 .fi-header-title {
-  font: 700 13px var(--font-ui, system-ui);
+  /* Design v1 — PanelChrome-equivalent: mono uppercase title */
+  font: var(--font-weight-semibold) var(--font-size-md) var(--font-family-mono);
   color: var(--text-primary);
-  letter-spacing: 0.01em;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .fi-header-updated {
@@ -82,9 +84,9 @@
   font: 600 8px var(--font-mono, monospace);
   padding: 1px 5px;
   border-radius: 3px;
-  background: rgba(32, 178, 170, 0.08);
-  color: #20b2aa;
-  border: 1px solid rgba(32, 178, 170, 0.15);
+  background: color-mix(in srgb, var(--sector-fixed) 8%, transparent);
+  color: var(--sector-fixed);
+  border: 1px solid color-mix(in srgb, var(--sector-fixed) 15%, transparent);
 }
 
 .fi-section-body {
@@ -209,13 +211,13 @@
 
 /* ── Yield coloring ─────────────────────────── */
 .fi-yield { color: var(--text-primary); }
-.fi-yield--high { color: #f39c12; }
-.fi-yield--vhigh { color: #e74c3c; }
+.fi-yield--high { color: var(--color-warn); }
+.fi-yield--vhigh { color: var(--color-down); }
 
 /* ── Spread coloring ────────────────────────── */
 .fi-spread { font-weight: 500; }
-.fi-spread--pos { color: #e74c3c; }
-.fi-spread--neg { color: #2ecc71; }
+.fi-spread--pos { color: var(--color-down); }
+.fi-spread--neg { color: var(--color-up); }
 .fi-spread--flat { color: var(--text-muted); }
 
 /* ── Rating badge ───────────────────────────── */
@@ -227,15 +229,15 @@
 }
 
 .fi-rating--ig {
-  background: rgba(46, 204, 113, 0.1);
-  color: #2ecc71;
-  border: 1px solid rgba(46, 204, 113, 0.2);
+  background: var(--color-up-bg);
+  color: var(--color-up);
+  border: 1px solid color-mix(in srgb, var(--color-up) 20%, transparent);
 }
 
 .fi-rating--hy {
-  background: rgba(231, 76, 60, 0.1);
-  color: #e74c3c;
-  border: 1px solid rgba(231, 76, 60, 0.2);
+  background: var(--color-down-bg);
+  color: var(--color-down);
+  border: 1px solid color-mix(in srgb, var(--color-down) 20%, transparent);
 }
 
 /* ── Loading skeleton ───────────────────────── */

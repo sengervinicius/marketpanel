@@ -33,6 +33,17 @@
   --color-vault-glow:        rgba(201, 168, 76, 0.20);
   --color-vault-dim:         rgba(201, 168, 76, 0.10);
 
+  /* Vault gold family — Design v1 propagation. The ONLY hardcoded color
+     family allowed outside tokens is gold glow/gradient alphas in
+     VaultPanel.css; everything else routes through these. */
+  --vault-gold:              var(--color-vault-accent);
+  --vault-gold-bright:       #ffd700;                     /* quota gradient end */
+  --vault-gold-muted:        rgba(201, 168, 76, 0.60);    /* gold tape labels */
+  --vault-gold-bg:           rgba(201, 168, 76, 0.04);    /* tinted surfaces */
+  --vault-gold-bg-strong:    rgba(201, 168, 76, 0.08);    /* hover / active tint */
+  --vault-gold-border:       rgba(201, 168, 76, 0.18);    /* tinted borders */
+  --vault-gold-border-strong: rgba(201, 168, 76, 0.35);   /* emphasized borders */
+
 
   /* ================================================================
      SURFACES — from deepest to lightest
@@ -228,6 +239,7 @@
   --radius-lg:               8px;
   --radius-xl:               12px;
   --radius-full:             9999px;
+  --radius-pill:             var(--radius-full);   /* alias — Vault chips/badges */
 
 
   /* ================================================================

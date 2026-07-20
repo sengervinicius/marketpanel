@@ -42,7 +42,7 @@ const focusStyles = {
     fontSize: 10, color: 'var(--text-secondary)', whiteSpace: 'nowrap',
     overflowX: 'auto', flexShrink: 0,
   },
-  tag: { fontWeight: 700, letterSpacing: '0.08em', color: 'var(--section-brazil, #00cc44)' },
+  tag: { fontWeight: 700, letterSpacing: '0.08em', color: 'var(--sector-brazil)' },
   item: { display: 'inline-flex', gap: 3, alignItems: 'baseline' },
   label: { color: 'var(--text-faint)', fontSize: 9, letterSpacing: '0.05em' },
   value: { color: 'var(--text-primary)', fontWeight: 600, fontVariantNumeric: 'tabular-nums' },

@@ -5,6 +5,8 @@
  * insider activity, mini financials, and ETF coverage.
  */
 import { memo, useMemo, useState, useEffect } from 'react';
+import { TOKEN_HEX } from '../../utils/tokenHex';
+import { fmtNum as fmt, fmtPct, fmtB } from './shared/SectorUI';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import FullPageScreenLayout from './shared/FullPageScreenLayout';
 import SectorPulse from './shared/SectorPulse';
@@ -15,16 +17,7 @@ import { useDeepScreenData } from '../../hooks/useDeepScreenData';
 import { StatsLoadGate } from './DeepScreenBase';
 import { apiFetch } from '../../utils/api';
 
-const fmt = (n, d = 2) => n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
-const fmtPct = (n) => n == null ? '—' : (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
-const fmtB = (n) => {
-  if (n == null || isNaN(n)) return '—';
-  const v = parseFloat(n);
-  if (v >= 1e12) return '$' + (v/1e12).toFixed(1) + 'T';
-  if (v >= 1e9)  return '$' + (v/1e9).toFixed(0) + 'B';
-  if (v >= 1e6)  return '$' + (v/1e6).toFixed(0) + 'M';
-  return '$' + v.toFixed(0);
-};
+// fmt / fmtPct / fmtB — shared helpers from SectorUI (design-v1 dedup).
 
 // Ticker groups
 const MEGA_CAP  = ['AAPL', 'MSFT', 'GOOGL', 'META', 'AMZN', 'TSLA', 'NFLX'];
@@ -54,7 +47,7 @@ const ALL_TICKERS = [...MEGA_CAP, ...SEMIS, ...AI_CLOUD];
 const TECH_EARNINGS_TICKERS = ['AAPL', 'MSFT', 'GOOGL', 'NVDA', 'META', 'AMZN', 'TSM', 'AMD'];
 
 function TechEarningsSection() {
-  return <EarningsCalendarStrip tickers={TECH_EARNINGS_TICKERS} accentColor="#00bcd4" />;
+  return <EarningsCalendarStrip tickers={TECH_EARNINGS_TICKERS} accentColor="var(--sector-tech)" />;
 }
 
 /* ── KPI Ribbon ────────────────────────────────────────────────────────── */
@@ -69,7 +62,7 @@ function TechKPIRibbon() {
     { label: 'SEMIS (SOXX)', value: soxx?.price != null ? '$' + fmt(soxx.price) : '—', change: soxx?.changePct },
     { label: 'SEMIS (SMH)',  value: smh?.price != null ? '$' + fmt(smh.price) : '—', change: smh?.changePct },
   ];
-  return <KPIRibbon items={items} accentColor="#00bcd4" />;
+  return <KPIRibbon items={items} accentColor="var(--sector-tech)" />;
 }
 
 const LABELS = {
@@ -82,7 +75,7 @@ const LABELS = {
 
 // P/E color intelligence
 function getPEColor(pe) {
-  if (pe == null) return '#ccc';
+  if (pe == null) return 'var(--text-secondary)';
   const val = parseFloat(pe);
   if (val < 25) return 'var(--semantic-up)';      // green
   if (val < 35) return 'var(--semantic-warn)';      // yellow
@@ -231,7 +224,7 @@ function RevenueGrowthChart() {
           }}
           formatter={(value) => `${value.toFixed(2)}%`}
         />
-        <Bar dataKey="growth" fill="#00bcd4" radius={[2, 2, 0, 0]}>
+        <Bar dataKey="growth" fill={TOKEN_HEX.sectorTech} radius={[2, 2, 0, 0]}>
           {data.map((entry, idx) => (
             <Cell
               key={`bar-${idx}`}
@@ -313,7 +306,7 @@ function MiniFinancialsStrip({ statsMap }) {
           </div>
           <MiniFinancials
             ticker={ticker}
-            accentColor="#00bcd4"
+            accentColor="var(--sector-tech)"
             statsData={statsMap.get(ticker)}
           />
         </div>
@@ -415,7 +408,7 @@ function TechAIScreenImpl() {
         <CorrelationMatrix
           tickers={['NVDA', 'AAPL', 'MSFT', 'GOOGL', 'META', 'AMZN', 'TSM', 'AMD', 'AVGO']}
           title="Tech & AI 90-Day Return Correlations"
-          accentColor="#00bcd4"
+          accentColor="var(--sector-tech)"
           days={90}
         />
       ),
@@ -444,7 +437,7 @@ function TechAIScreenImpl() {
   return (
     <FullPageScreenLayout
       title="TECHNOLOGY"
-      accentColor="#00bcd4"
+      accentColor="var(--sector-tech)"
       subtitle="Mega-cap tech, semiconductors, AI & cloud — valuation and growth analysis"
       vaultSector="tech"
       sections={sections}
@@ -458,7 +451,7 @@ function TechAIScreenImpl() {
       <SectorPulse
         etfTicker="XLK"
         etfLabel="XLK"
-        accentColor="#00bcd4"
+        accentColor="var(--sector-tech)"
       />
     </FullPageScreenLayout>
   );

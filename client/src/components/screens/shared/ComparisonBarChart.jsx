@@ -4,20 +4,10 @@
  * Supports: performance comparison, valuation comparison, volume comparison.
  */
 import { memo, useMemo } from 'react';
+import { TOKEN_HEX } from '../../../utils/tokenHex';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, ReferenceLine } from 'recharts';
 
-const TOKEN_HEX = {
-  bgPanel:       '#0a0a0f',
-  bgSurface:     '#0d0d14',
-  borderDefault: '#1a1a2a',
-  textPrimary:   '#e8e8ed',
-  textSecondary: '#999999',
-  textMuted:     '#555570',
-  textFaint:     '#3a3a4a',
-  accent:        '#F97316',
-  up:            '#22c55e',
-  down:          '#ef4444',
-};
+// Design v1 — palette now sourced from tokenHex.js (SVG can't resolve CSS vars).
 
 function barColor(val, accentColor) {
   if (val == null) return TOKEN_HEX.textFaint;
@@ -30,8 +20,8 @@ function CustomTooltip({ active, payload, label, valueLabel }) {
     const v = payload[0].value;
     return (
       <div style={{
-        background: 'var(--bg-tooltip, #111118)',
-        border: '1px solid var(--border-strong, #2a2a3a)',
+        background: 'var(--bg-tooltip)',
+        border: '1px solid var(--border-strong)',
         padding: '6px 10px',
         borderRadius: 4,
         fontSize: 10,

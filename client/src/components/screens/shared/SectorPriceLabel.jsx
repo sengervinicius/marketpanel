@@ -39,7 +39,7 @@ function SectorPriceLabel({ ticker, accentColor }) {
       <span
         style={{
           fontVariantNumeric: 'tabular-nums',
-          color: isUp ? 'var(--price-up, #4caf50)' : 'var(--price-down, #f44336)',
+          color: isUp ? 'var(--price-up)' : 'var(--price-down)',
           fontWeight: 600,
         }}
       >

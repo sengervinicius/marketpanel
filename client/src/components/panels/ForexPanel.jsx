@@ -255,7 +255,7 @@ function ForexPanel({ data = {}, cryptoData = {}, loading, onTickerClick }) {
         <button className="btn"
           onClick={() => setMoversOnly(v => !v)}
           title="Show only movers ≥ 1%"
-          style={{ background: moversOnly ? '#1a1000' : 'none', border: `1px solid ${moversOnly ? 'var(--accent-text)' : 'var(--border-strong)'}`, color: moversOnly ? 'var(--accent-text)' : 'var(--text-muted)', fontSize: 'var(--font-xs)', padding: '1px 4px' }}
+          style={{ background: moversOnly ? 'var(--color-particle-dim)' : 'none', border: `1px solid ${moversOnly ? 'var(--accent-text)' : 'var(--border-strong)'}`, color: moversOnly ? 'var(--accent-text)' : 'var(--text-muted)', fontSize: 'var(--font-xs)', padding: '1px 4px' }}
         >≥1%</button>
         {/* Collapse toggle */}
         <button className="btn"

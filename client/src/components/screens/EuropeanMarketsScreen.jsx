@@ -17,21 +17,11 @@ import { useSectionData } from '../../hooks/useSectionData';
 import { useMultiScreenTickers } from '../../hooks/useMultiScreenTickers';
 import { apiFetch } from '../../utils/api';
 import { DeepSkeleton, DeepError, TickerCell, StatsLoadGate } from './DeepScreenBase';
-import { KPIRibbon, heatColor, TickerRibbon } from './shared/SectorUI';
+import { KPIRibbon, heatColor, TickerRibbon, fmtNum as fmt, fmtPct, fmtB } from './shared/SectorUI';
 import { tapStart, tapMove, tapEnd } from '../../utils/tapHandlers';
 
 /* ── Formatting utilities ──────────────────────────────────────────────── */
-const fmt = (n, d = 2) =>
-  n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
-const fmtPct = (n) => n == null ? '—' : (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
-const fmtB = (n) => {
-  if (n == null || isNaN(n)) return '—';
-  const v = parseFloat(n);
-  if (v >= 1e12) return '$' + (v/1e12).toFixed(1) + 'T';
-  if (v >= 1e9)  return '$' + (v/1e9).toFixed(0) + 'B';
-  if (v >= 1e6)  return '$' + (v/1e6).toFixed(0) + 'M';
-  return '$' + v.toFixed(0);
-};
+// fmt / fmtPct / fmtB — shared helpers from SectorUI (design-v1 dedup).
 
 /* ── Ticker Universe ───────────────────────────────────────────────────── */
 const GERMANY = [

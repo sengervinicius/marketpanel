@@ -33,6 +33,7 @@ import {
   ReferenceLine,
 } from 'recharts';
 import { apiFetch } from '../../../utils/api';
+import { TOKEN_HEX } from '../../../utils/tokenHex';
 
 /* ── Timeframe ranges ── */
 const RANGES = [
@@ -140,7 +141,7 @@ const TimeframeSelector = memo(function TimeframeSelector({ rangeIdx, onChange, 
               ? (accentColor || 'var(--accent)')
               : 'transparent',
             color: i === rangeIdx
-              ? '#000'
+              ? 'var(--color-text-inverse)'
               : 'var(--text-muted)',
             border: i === rangeIdx
               ? 'none'
@@ -259,7 +260,7 @@ const ChartSection = memo(function ChartSection({
         overflow: 'hidden',
         transition: 'all 200ms ease',
         boxShadow: isHighlighted
-          ? `0 0 16px ${accentColor || 'var(--accent)'}22`
+          ? `0 0 16px color-mix(in srgb, ${accentColor || 'var(--accent)'} 13%, transparent)`
           : '0 1px 4px rgba(0,0,0,0.3)',
       }}
     >
@@ -281,12 +282,12 @@ const ChartSection = memo(function ChartSection({
               <linearGradient id={`grad-${ticker}-${chartId}`} x1="0" y1="0" x2="0" y2="1">
                 <stop
                   offset="5%"
-                  stopColor={lastClose >= firstClose ? '#4caf50' : '#ef5350'}
+                  stopColor={lastClose >= firstClose ? TOKEN_HEX.up : TOKEN_HEX.down}
                   stopOpacity={0.35}
                 />
                 <stop
                   offset="95%"
-                  stopColor={lastClose >= firstClose ? '#4caf50' : '#ef5350'}
+                  stopColor={lastClose >= firstClose ? TOKEN_HEX.up : TOKEN_HEX.down}
                   stopOpacity={0.02}
                 />
               </linearGradient>
@@ -347,7 +348,7 @@ const ChartSection = memo(function ChartSection({
               activeDot={{
                 r: 4,
                 fill: priceColor,
-                stroke: '#fff',
+                stroke: TOKEN_HEX.textPrimary,
                 strokeWidth: 1.5,
               }}
             />

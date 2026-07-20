@@ -27,10 +27,10 @@ const SORT_COLS = [
 ];
 
 const GROUPS = [
-  { key: 'Metals', label: 'METALS',      color: '#ffd54f' },
-  { key: 'Energy', label: 'ENERGY',      color: '#ff9800' },
-  { key: 'Agri',   label: 'AGRICULTURE', color: '#8bc34a' },
-  { key: 'Mining', label: 'MINING',      color: '#90a4ae' },
+  { key: 'Metals', label: 'METALS',      color: 'var(--vault-gold-bright)' },
+  { key: 'Energy', label: 'ENERGY',      color: 'var(--sector-commodities)' },
+  { key: 'Agri',   label: 'AGRICULTURE', color: 'var(--sector-brazil)' },
+  { key: 'Mining', label: 'MINING',      color: 'var(--sent-neutral)' },
 ];
 
 // Vanish-trap fix (generalized from GlobalIndicesPanel #230 CUSTOM bucket):
@@ -241,7 +241,7 @@ function CommoditiesPanel({ data = {}, loading, onTickerClick }) {
         <button className="btn"
           onClick={() => setMoversOnly(v => !v)}
           title="Show only movers ≥ 2%"
-          style={{ background: moversOnly ? '#1a1000' : 'none', border: `1px solid ${moversOnly ? 'var(--accent-text)' : 'var(--border-strong)'}`, color: moversOnly ? 'var(--accent-text)' : 'var(--text-muted)', fontSize: 'var(--font-xs)', padding: '1px 4px' }}
+          style={{ background: moversOnly ? 'var(--color-particle-dim)' : 'none', border: `1px solid ${moversOnly ? 'var(--accent-text)' : 'var(--border-strong)'}`, color: moversOnly ? 'var(--accent-text)' : 'var(--text-muted)', fontSize: 'var(--font-xs)', padding: '1px 4px' }}
         >≥2%</button>
       </EditablePanelHeader>
 

@@ -164,7 +164,7 @@ function DeepScreenBase({ title, accentColor, sections, aiType, aiContext, aiCac
     <div className="ds-screen">
       {/* Header */}
       <div className="ds-header">
-        <div className="ds-header-accent" style={{ background: accentColor || '#ff6b00' }} />
+        <div className="ds-header-accent" style={{ background: accentColor || 'var(--accent)' }} />
         <div className="ds-header-title">{title}</div>
       </div>
 

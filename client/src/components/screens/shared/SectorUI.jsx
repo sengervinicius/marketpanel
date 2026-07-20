@@ -32,6 +32,17 @@ const fmtCompact = (n) => {
   return `${sign}${abs.toFixed(2)}`;
 };
 
+/* Compact $ B/T formatter — single shared copy of the fmtB helper that
+   was duplicated across every sector screen (design-v1 audit). */
+const fmtB = (n) => {
+  if (n == null || isNaN(n)) return '—';
+  const v = parseFloat(n);
+  if (v >= 1e12) return '$' + (v / 1e12).toFixed(1) + 'T';
+  if (v >= 1e9)  return '$' + (v / 1e9).toFixed(0) + 'B';
+  if (v >= 1e6)  return '$' + (v / 1e6).toFixed(0) + 'M';
+  return '$' + v.toFixed(0);
+};
+
 /* ── Color scale for heatmap (-5% to +5% range) ─────────────────────── */
 function heatColor(pct, intensity = 1) {
   if (pct == null || isNaN(pct)) return 'transparent';
@@ -65,16 +76,17 @@ export const KPICard = memo(function KPICard({
       gap: 4,
       padding: small ? '8px 10px' : '10px 14px',
       background: 'var(--bg-elevated)',
-      border: '1px solid rgba(255,255,255,0.06)',
+      border: '1px solid var(--color-border)',
       borderRadius: 6,
       minWidth: small ? 90 : 110,
       flex: '1 1 0',
     }}>
       <span style={{
-        fontSize: 10,
-        fontWeight: 600,
+        fontFamily: 'var(--font-family-mono)',
+        fontSize: 8.5,
+        fontWeight: 500,
         color: 'var(--text-muted)',
-        letterSpacing: '0.8px',
+        letterSpacing: '0.1em',
         textTransform: 'uppercase',
         lineHeight: 1.2,
       }}>
@@ -227,7 +239,7 @@ export const SectorTable = memo(function SectorTable({
     <div style={{
       overflowX: 'auto',
       borderRadius: 4,
-      border: '1px solid rgba(255,255,255,0.05)',
+      border: '1px solid var(--color-border-subtle)',
     }}>
       <table style={{
         width: '100%',
@@ -236,20 +248,21 @@ export const SectorTable = memo(function SectorTable({
       }}>
         <thead>
           <tr style={{
-            borderBottom: '1px solid rgba(255,255,255,0.08)',
+            borderBottom: '1px solid var(--color-border)',
           }}>
             {headers.map((h, i) => (
               <th key={i} style={{
                 padding: compact ? '4px 6px' : '6px 8px',
-                fontSize: 8,
-                fontWeight: 700,
-                color: 'var(--text-faint)',
-                letterSpacing: '0.8px',
+                fontFamily: 'var(--font-family-mono)',
+                fontSize: 8.5,
+                fontWeight: 500,
+                color: 'var(--color-table-header)',
+                letterSpacing: '0.1em',
                 textTransform: 'uppercase',
                 textAlign: i < 2 ? 'left' : 'right',
                 whiteSpace: 'nowrap',
-                borderBottom: '1px solid rgba(255,255,255,0.06)',
-                background: 'rgba(255,255,255,0.02)',
+                borderBottom: '1px solid var(--color-border)',
+                background: 'var(--color-surface-2)',
               }}>
                 {h}
               </th>
@@ -283,7 +296,7 @@ function TickerChip({ ticker, onClick }) {
         gap: 6,
         padding: '6px 10px',
         background: 'var(--bg-elevated)',
-        border: '1px solid rgba(255,255,255,0.06)',
+        border: '1px solid var(--color-border)',
         borderRadius: 4,
         cursor: 'pointer',
         flexShrink: 0,
@@ -342,14 +355,15 @@ export function SectionDivider({ label }) {
       <div style={{
         flex: 1,
         height: 1,
-        background: 'rgba(255,255,255,0.06)',
+        background: 'var(--color-border)',
       }} />
       {label && (
         <span style={{
-          fontSize: 8,
-          fontWeight: 700,
-          color: 'var(--text-faint)',
-          letterSpacing: '1.2px',
+          fontFamily: 'var(--font-family-mono)',
+          fontSize: 8.5,
+          fontWeight: 500,
+          color: 'var(--color-section-header)',
+          letterSpacing: '0.12em',
           textTransform: 'uppercase',
           flexShrink: 0,
         }}>
@@ -359,7 +373,7 @@ export function SectionDivider({ label }) {
       <div style={{
         flex: 1,
         height: 1,
-        background: 'rgba(255,255,255,0.06)',
+        background: 'var(--color-border)',
       }} />
     </div>
   );
@@ -368,4 +382,4 @@ export function SectionDivider({ label }) {
 /* ═══════════════════════════════════════════════════════════════════════
    Exports
    ═══════════════════════════════════════════════════════════════════════ */
-export { fmtNum, fmtPct, fmtCompact, heatColor };
+export { fmtNum, fmtPct, fmtCompact, fmtB, heatColor };

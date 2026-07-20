@@ -16,7 +16,7 @@ import { useSectionData } from '../../hooks/useSectionData';
 import DeepScreenBase, { DeepSkeleton, DeepError, StatsLoadGate } from './DeepScreenBase';
 import { apiFetch } from '../../utils/api';
 import { sanitizeTicker } from '../../utils/ticker';
-import { KPIRibbon, TickerRibbon } from './shared/SectorUI';
+import { KPIRibbon, TickerRibbon, fmtNum as fmt, fmtPct, fmtB } from './shared/SectorUI';
 import { CorrelationMatrix } from './shared/CorrelationMatrix';
 import { EarningsCalendarStrip } from './shared/EarningsCalendarStrip';
 // #286 — distinguish "Eulerpool not configured" from "real on-chain
@@ -25,17 +25,7 @@ import { EarningsCalendarStrip } from './shared/EarningsCalendarStrip';
 import { getProviderStatus, formatProviderMessage } from '../../utils/providerStatus';
 
 /* ── Formatting utilities ──────────────────────────────────────────────────── */
-const fmt = (n, d = 2) =>
-  n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
-const fmtPct = (n) => n == null ? '—' : (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
-const fmtB = (n) => {
-  if (n == null || isNaN(n)) return '—';
-  const v = parseFloat(n);
-  if (v >= 1e12) return '$' + (v/1e12).toFixed(1) + 'T';
-  if (v >= 1e9)  return '$' + (v/1e9).toFixed(0) + 'B';
-  if (v >= 1e6)  return '$' + (v/1e6).toFixed(0) + 'M';
-  return '$' + v.toFixed(0);
-};
+// fmt / fmtPct / fmtB — shared helpers from SectorUI (design-v1 dedup).
 
 /* ── Ticker universes ──────────────────────────────────────────────────────── */
 const CRYPTO_MAJORS = ['X:BTCUSD', 'X:ETHUSD', 'X:SOLUSD', 'X:XRPUSD', 'X:BNBUSD', 'X:ADAUSD', 'X:AVAXUSD', 'X:DOTUSD', 'X:LINKUSD', 'X:MATICUSD'];
@@ -93,7 +83,7 @@ const SIGNALS_TICKERS = ['MSTR', 'COIN', 'MARA', 'RIOT', 'HUT', 'BITF', 'CLSK'];
 
 /* ── Wrapper Components for Data-Depth Sections ──────────────────────── */
 const EarningsSection = memo(function EarningsSection() {
-  return <EarningsCalendarStrip tickers={EARNINGS_TICKERS} accentColor="#f7931a" />;
+  return <EarningsCalendarStrip tickers={EARNINGS_TICKERS} accentColor="var(--sector-crypto)" />;
 });
 
 /* ── Crypto Major Row Component ────────────────────────────────────────────── */
@@ -541,7 +531,7 @@ function CryptoKPIRibbon() {
     { label: 'SOLANA',    value: sol?.price != null ? '$' + fmt(sol.price) : '—', change: sol?.changePct },
     { label: 'IBIT ETF',  value: ibit?.price != null ? '$' + fmt(ibit.price) : '—', change: ibit?.changePct },
   ];
-  return <KPIRibbon items={items} accentColor="#f7931a" />;
+  return <KPIRibbon items={items} accentColor="var(--sector-crypto)" />;
 }
 
 /* ── Main CryptoScreen Implementation ───────────────────────────────────────── */
@@ -605,7 +595,7 @@ function CryptoScreenImpl() {
           tickers={['X:BTCUSD', 'X:ETHUSD', 'X:SOLUSD', 'MSTR', 'COIN', 'IBIT']}
           labels={{ 'X:BTCUSD': 'BTC', 'X:ETHUSD': 'ETH', 'X:SOLUSD': 'SOL' }}
           title="Crypto 60-Day Return Correlations"
-          accentColor="#f7931a"
+          accentColor="var(--sector-crypto)"
           days={60}
         />
       ),
@@ -636,7 +626,7 @@ function CryptoScreenImpl() {
     <FullPageScreenLayout
       title="CRYPTO"
       subtitle="Digital assets, on-chain analytics, crypto equities, and ETF flows"
-      accentColor="#f7931a"
+      accentColor="var(--sector-crypto)"
       vaultSector="crypto"
       sections={sections}
       tickerBanner={BANNER_TICKERS}
@@ -648,7 +638,7 @@ function CryptoScreenImpl() {
       <SectorPulse
         etfTicker="BITO"
         etfLabel="BITO"
-        accentColor="#f7931a"
+        accentColor="var(--sector-crypto)"
       />
     </FullPageScreenLayout>
   );

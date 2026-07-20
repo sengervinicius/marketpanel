@@ -1,5 +1,7 @@
 /* DebtPanel.css — RATES & CREDIT board (Design v1, approved mockup).
- * prefix: dp- */
+ * prefix: dp-
+ * Chips/tape/board-row styles live in the shared primitives
+ * (common/ViewChips.css, Tape.css, BoardRow.css). */
 
 /* ── Panel layout ───────────────────────────────────── */
 .dp-panel {
@@ -10,82 +12,6 @@
   background: var(--bg-panel);
   font-family: var(--font-ui);
   font-size: var(--font-sm);
-}
-
-/* ── Region chips (US | DI·BR | EU | UK | ALL) ──────── */
-.dp-chips {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.dp-chip {
-  font-family: var(--font-family-mono);
-  font-size: 9px;
-  letter-spacing: 0.06em;
-  color: var(--text-muted);
-  background: none;
-  border: 1px solid var(--border-strong);
-  padding: 1px 6px;
-  border-radius: 2px;
-  cursor: pointer;
-  text-transform: uppercase;
-  transition: color 0.12s, border-color 0.12s;
-}
-
-.dp-chip:hover {
-  color: var(--text-secondary);
-  border-color: var(--text-muted);
-}
-
-.dp-chip--on,
-.dp-chip--on:hover {
-  color: var(--accent);
-  border-color: var(--accent);
-}
-
-/* ── Tape: 4 cells, biggest numerics on the home screen ─ */
-.dp-tape {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  border-bottom: 1px solid var(--border-subtle);
-  flex-shrink: 0;
-}
-
-.dp-tp {
-  padding: 6px 8px;
-  border-right: 1px solid var(--border-subtle);
-  min-width: 0;
-}
-
-.dp-tp:last-child { border-right: none; }
-
-.dp-tp-k {
-  font-family: var(--font-family-mono);
-  font-size: 8.5px;
-  letter-spacing: 0.08em;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
-.dp-tp-v {
-  font-family: var(--font-family-mono);
-  font-variant-numeric: tabular-nums;
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--text-primary);
-  margin-top: 2px;
-  white-space: nowrap;
-}
-
-.dp-tp-d {
-  font-family: var(--font-family-mono);
-  font-variant-numeric: tabular-nums;
-  font-size: 9.5px;
-  color: var(--text-faint);
-  min-height: 12px;
-  white-space: nowrap;
 }
 
 /* ── Board: [main curve 1.5fr | global rows 1fr] ────── */
@@ -130,63 +56,6 @@
   flex-direction: column;
   overflow-y: auto;
   min-width: 0;
-}
-
-.dp-rsec {
-  font-family: var(--font-family-mono);
-  font-size: 8.5px;
-  letter-spacing: 0.12em;
-  color: var(--color-section-header);
-  text-transform: uppercase;
-  padding: 6px 10px 2px;
-  flex-shrink: 0;
-}
-
-.dp-rrow {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 6px;
-  padding: 4.5px 10px;
-  border-bottom: 1px solid var(--border-subtle);
-  font-size: 11.5px;
-  flex-shrink: 0;
-  min-width: 0;
-}
-
-.dp-rrow--click { cursor: pointer; }
-.dp-rrow--click:hover { background: var(--color-surface-2); }
-.dp-rrow--active .dp-rrow-k { color: var(--accent); }
-
-.dp-rrow-k {
-  font-family: var(--font-family-mono);
-  color: var(--text-secondary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.dp-rrow-k--ui { font-family: var(--font-ui); }
-
-.dp-rrow-mini {
-  width: 54px;
-  height: 16px;
-  flex: none;
-}
-
-.dp-rrow-v {
-  font-family: var(--font-family-mono);
-  font-variant-numeric: tabular-nums;
-  color: var(--text-primary);
-  white-space: nowrap;
-  display: inline-flex;
-  align-items: baseline;
-  gap: 4px;
-}
-
-.dp-rrow-chg {
-  font-style: normal;
-  font-size: 9.5px;
 }
 
 /* ── States ─────────────────────────────────────────── */

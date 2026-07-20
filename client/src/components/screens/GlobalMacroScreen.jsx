@@ -5,6 +5,7 @@
  *           Central Bank Rates, Risk Appetite, European Markets, Equity Indexes, Macro Calendar
  */
 import { memo, useMemo } from 'react';
+import { TOKEN_HEX } from '../../utils/tokenHex';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import FullPageScreenLayout from './shared/FullPageScreenLayout';
 import SectorPulse from './shared/SectorPulse';
@@ -17,13 +18,11 @@ import { useOpenDetail } from '../../context/OpenDetailContext';
 import { useTickerPrice } from '../../context/PriceContext';
 import { apiFetch } from '../../utils/api';
 import { DeepSkeleton, DeepError, TickerCell } from './DeepScreenBase';
-import { KPIRibbon, heatColor } from './shared/SectorUI';
+import { KPIRibbon, heatColor, fmtNum as fmt, fmtPct } from './shared/SectorUI';
 import MarketMovers from './shared/MarketMovers';
 import { tapStart, tapMove, tapEnd } from '../../utils/tapHandlers';
 
-const fmt = (n, d = 2) =>
-  n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
-const fmtPct = (n) => n == null ? '—' : (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
+// fmt / fmtPct / fmtB — shared helpers from SectorUI (design-v1 dedup).
 
 const BANNER_TICKERS = [
   { ticker: 'SPY', label: 'S&P 500' },
@@ -50,7 +49,7 @@ function MacroKPIRibbon() {
     { label: 'VIX',         value: vix?.price != null ? fmt(vix.price) : '—', change: vix?.changePct },
     { label: 'EM EQUITY',   value: eem?.price != null ? '$' + fmt(eem.price) : '—', change: eem?.changePct },
   ];
-  return <KPIRibbon items={items} accentColor="var(--color-accent)" />;
+  return <KPIRibbon items={items} accentColor="var(--sector-macro)" />;
 }
 
 /* ─────────────────────────────────────────────────────────────────────── */
@@ -207,7 +206,7 @@ function FxCell({ pair, openDetail }) {
       onClick={() => openDetail(pair, 'Global Macro')}
       style={{
         background: 'var(--bg-elevated)',
-        border: `1px solid ${color}44`,
+        border: `1px solid color-mix(in srgb, ${color} 27%, transparent)`,
         borderRadius: 6,
         padding: '10px 12px',
         cursor: 'pointer',
@@ -273,7 +272,7 @@ function YieldCurveAnalysis() {
       {spread2s10s != null && (
         <div style={{
           background: isInverted ? 'rgba(244, 67, 54, 0.08)' : 'rgba(102, 187, 106, 0.08)',
-          border: `1px solid ${isInverted ? 'var(--semantic-down)' : 'var(--semantic-up)'}44`,
+          border: `1px solid color-mix(in srgb, ${isInverted ? 'var(--semantic-down)' : 'var(--semantic-up)'} 27%, transparent)`,
           borderRadius: 6,
           padding: '8px 12px',
           marginBottom: 12,
@@ -297,7 +296,7 @@ function YieldCurveAnalysis() {
               type="monotone"
               dataKey="yield"
               stroke={isInverted ? 'var(--semantic-down)' : 'var(--semantic-up)'}
-              dot={{ fill: '#e55a00', r: 4 }}  /* SVG fill: matches --color-accent */
+              dot={{ fill: TOKEN_HEX.accent, r: 4 }}
               activeDot={{ r: 6 }}
               strokeWidth={2}
               isAnimationActive={false}
@@ -379,7 +378,7 @@ function RiskAppetiteIndicators() {
         onClick={() => openDetail('HYG', 'Global Macro')}
         style={{
           background: 'var(--bg-elevated)',
-          border: `1px solid ${hyg?.price && hyg.price > 95 ? 'var(--semantic-up)' : hyg?.price && hyg.price > 90 ? 'var(--semantic-warn)' : 'var(--semantic-down)'}44`,
+          border: `1px solid color-mix(in srgb, ${hyg?.price && hyg.price > 95 ? 'var(--semantic-up)' : hyg?.price && hyg.price > 90 ? 'var(--semantic-warn)' : 'var(--semantic-down)'} 27%, transparent)`,
           borderRadius: 6,
           padding: '12px 14px',
           cursor: 'pointer',
@@ -397,7 +396,7 @@ function RiskAppetiteIndicators() {
         onClick={() => openDetail('EEM', 'Global Macro')}
         style={{
           background: 'var(--bg-elevated)',
-          border: `1px solid ${emRiskChange && emRiskChange >= 0 ? 'var(--semantic-up)' : 'var(--semantic-down)'}44`,
+          border: `1px solid color-mix(in srgb, ${emRiskChange && emRiskChange >= 0 ? 'var(--semantic-up)' : 'var(--semantic-down)'} 27%, transparent)`,
           borderRadius: 6,
           padding: '12px 14px',
           cursor: 'pointer',
@@ -415,7 +414,7 @@ function RiskAppetiteIndicators() {
         onClick={() => openDetail('GLD', 'Global Macro')}
         style={{
           background: 'var(--bg-elevated)',
-          border: `1px solid ${gld?.changePct && gld.changePct >= 0 ? 'var(--semantic-warn)' : 'var(--semantic-up)'}44`,
+          border: `1px solid color-mix(in srgb, ${gld?.changePct && gld.changePct >= 0 ? 'var(--semantic-warn)' : 'var(--semantic-up)'} 27%, transparent)`,
           borderRadius: 6,
           padding: '12px 14px',
           cursor: 'pointer',
@@ -495,7 +494,7 @@ function IndexCell({ symbol, onClick }) {
       onClick={() => onClick(symbol, 'Global Macro')}
       style={{
         background: 'var(--bg-elevated)',
-        border: `1px solid ${q?.changePct >= 0 ? 'var(--semantic-up)' : 'var(--semantic-down)'}44`,
+        border: `1px solid color-mix(in srgb, ${q?.changePct >= 0 ? 'var(--semantic-up)' : 'var(--semantic-down)'} 27%, transparent)`,
         borderRadius: 6,
         padding: '10px 12px',
         cursor: 'pointer',
@@ -643,7 +642,7 @@ function GlobalMacroScreenImpl() {
   return (
     <FullPageScreenLayout
       title="GLOBAL MACRO"
-      accentColor="var(--color-accent)"
+      accentColor="var(--sector-macro)"
       subtitle="Central banks, rates, FX, volatility, and cross-asset risk monitor"
       vaultSector="macro"
       sections={sections}
@@ -655,7 +654,7 @@ function GlobalMacroScreenImpl() {
       <SectorPulse
         etfTicker="SPY"
         etfLabel="SPY"
-        accentColor="var(--color-accent)"
+        accentColor="var(--sector-macro)"
       />
     </FullPageScreenLayout>
   );
