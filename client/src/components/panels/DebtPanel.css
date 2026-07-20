@@ -1,4 +1,5 @@
-/* DebtPanel.css — Design-token-driven, matching DICurvePanel */
+/* DebtPanel.css — RATES & CREDIT board (Design v1, approved mockup).
+ * prefix: dp- */
 
 /* ── Panel layout ───────────────────────────────────── */
 .dp-panel {
@@ -11,600 +12,218 @@
   font-size: var(--font-sm);
 }
 
-/* ── Header ─────────────────────────────────────────── */
-.dp-header {
+/* ── Region chips (US | DI·BR | EU | UK | ALL) ──────── */
+.dp-chips {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 2px 8px;
-  border-bottom: 1px solid var(--border-subtle);
-  background: var(--bg-surface);
-  flex-shrink: 0;
-  height: 24px;
-  flex-wrap: wrap;
+  gap: 4px;
 }
 
-.dp-title {
+.dp-chip {
   font-family: var(--font-family-mono);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-bold);
-  letter-spacing: 0.08em;
-  color: var(--color-text-primary);
-}
-
-/* ── View toggle buttons ────────────────────────────── */
-.dp-view-group {
-  display: flex;
-  gap: 2px;
-}
-
-.dp-view-btn {
-  font-size: var(--font-xs);
-  padding: 1px 6px;
-  border: 1px solid var(--border-default);
-  background: transparent;
-  color: var(--text-faint);
-  cursor: pointer;
-  transition: all 0.12s;
-  font-family: var(--font-ui);
-  letter-spacing: 0.04em;
-}
-.dp-view-btn:hover {
-  border-color: var(--text-muted);
+  font-size: 9px;
+  letter-spacing: 0.06em;
   color: var(--text-muted);
-}
-.dp-view-btn--active {
-  border-color: var(--accent);
-  background: rgba(255, 107, 0, 0.12);
-  color: var(--accent);
+  background: none;
+  border: 1px solid var(--border-strong);
+  padding: 1px 6px;
+  border-radius: 2px;
+  cursor: pointer;
+  text-transform: uppercase;
+  transition: color 0.12s, border-color 0.12s;
 }
 
-/* ── Dropdown selects ───────────────────────────────── */
-.dp-select {
-  background: var(--bg-elevated);
-  color: var(--text-primary);
-  border: 1px solid var(--border-default);
-  border-radius: 3px;
-  padding: 1px 6px;
-  font-size: var(--font-xs);
-  font-family: var(--font-ui);
-  cursor: pointer;
-  outline: none;
-  -webkit-appearance: none;
-  appearance: none;
+.dp-chip:hover {
+  color: var(--text-secondary);
+  border-color: var(--text-muted);
 }
-.dp-select:focus {
+
+.dp-chip--on,
+.dp-chip--on:hover {
+  color: var(--accent);
   border-color: var(--accent);
 }
-.dp-select--flex {
-  flex: 1;
+
+/* ── Tape: 4 cells, biggest numerics on the home screen ─ */
+.dp-tape {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  border-bottom: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+}
+
+.dp-tp {
+  padding: 6px 8px;
+  border-right: 1px solid var(--border-subtle);
   min-width: 0;
 }
 
-.dp-header-selectors {
-  display: flex;
-  gap: 4px;
-  align-items: center;
+.dp-tp:last-child { border-right: none; }
+
+.dp-tp-k {
+  font-family: var(--font-family-mono);
+  font-size: 8.5px;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  white-space: nowrap;
 }
 
-/* ── State messages (loading / error / empty) ─────── */
+.dp-tp-v {
+  font-family: var(--font-family-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-top: 2px;
+  white-space: nowrap;
+}
+
+.dp-tp-d {
+  font-family: var(--font-family-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 9.5px;
+  color: var(--text-faint);
+  min-height: 12px;
+  white-space: nowrap;
+}
+
+/* ── Board: [main curve 1.5fr | global rows 1fr] ────── */
+.dp-board {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.dp-board-left {
+  border-right: 1px solid var(--border-subtle);
+  padding: 4px 4px 2px 0;
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.dp-chart-wrap {
+  position: relative;
+  flex: 1;
+  min-height: 120px;
+}
+
+.dp-ghost-legend {
+  position: absolute;
+  top: 6px;
+  right: 10px;
+  font-family: var(--font-family-mono);
+  font-size: 8px;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  z-index: 2;
+  pointer-events: none;
+}
+
+.dp-board-right {
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  min-width: 0;
+}
+
+.dp-rsec {
+  font-family: var(--font-family-mono);
+  font-size: 8.5px;
+  letter-spacing: 0.12em;
+  color: var(--color-section-header);
+  text-transform: uppercase;
+  padding: 6px 10px 2px;
+  flex-shrink: 0;
+}
+
+.dp-rrow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 6px;
+  padding: 4.5px 10px;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 11.5px;
+  flex-shrink: 0;
+  min-width: 0;
+}
+
+.dp-rrow--click { cursor: pointer; }
+.dp-rrow--click:hover { background: var(--color-surface-2); }
+.dp-rrow--active .dp-rrow-k { color: var(--accent); }
+
+.dp-rrow-k {
+  font-family: var(--font-family-mono);
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dp-rrow-k--ui { font-family: var(--font-ui); }
+
+.dp-rrow-mini {
+  width: 54px;
+  height: 16px;
+  flex: none;
+}
+
+.dp-rrow-v {
+  font-family: var(--font-family-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.dp-rrow-chg {
+  font-style: normal;
+  font-size: 9.5px;
+}
+
+/* ── States ─────────────────────────────────────────── */
 .dp-state {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  height: 100%;
-  color: var(--text-faint);
-  font-size: var(--font-xs);
-  font-family: var(--font-ui);
-  letter-spacing: 0.06em;
-  text-align: center;
-  padding: 12px;
-}
-.dp-state--loading {
-  color: var(--text-faint);
-}
-.dp-state--error {
-  color: var(--price-down);
-}
-.dp-state--empty {
-  color: var(--text-faint);
-}
-.dp-state--inline {
-  height: auto;
-  padding: 8px 0;
-}
-.dp-state-detail {
-  font-size: var(--font-xs);
-  color: var(--text-faint);
-  max-width: 220px;
-  word-break: break-word;
-}
-
-/* ── Retry button ──────────────────────────────────── */
-.dp-retry-btn {
-  background: none;
-  border: 1px solid var(--border-default);
-  color: var(--text-faint);
-  font-size: var(--font-xs);
-  padding: 2px 8px;
-  cursor: pointer;
-  font-family: var(--font-ui);
-  letter-spacing: 0.05em;
-  transition: all 0.15s;
-}
-.dp-retry-btn:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-}
-
-/* ── Curve view ─────────────────────────────────────── */
-.dp-curve {
   flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow-y: auto;
-  padding: 0;
-  min-height: 0;
-}
-
-/* #UX-5 — .dp-source-row removed: country + LIVE/EST source now live in
-   the PanelChrome subtitle (one title + one subtitle per panel). */
-
-/* ── Badges (LIVE / EST.) ──────────────────────────── */
-.dp-badge--live {
-  color: var(--price-up);
-}
-.dp-badge--est {
-  color: var(--text-faint);
-}
-.dp-badge--warn {
-  color: var(--color-down);
-  font-weight: 700;
-  animation: dp-warn-pulse 2s ease-in-out infinite;
-}
-@keyframes dp-warn-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
-}
-
-/* ── Chart container ────────────────────────────────── */
-/* #UX-5 — was a fixed 200px block that left dead space (or forced a
-   scrollbar) as the panel resized; now flex-fills whatever height the
-   tape/regime/tenor/spread rows leave over. */
-.dp-chart-container {
-  width: 100%;
-  flex: 1 1 auto;
-  height: auto;
-  min-height: 150px;
-  padding: 0 4px 2px;
-}
-
-/* ── Tenor table ────────────────────────────────────── */
-.dp-tenor-table {
-  padding: 2px 8px 4px;
-  flex-shrink: 0;
-}
-
-.dp-tenor-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(68px, 1fr));
-  gap: 1px 8px;
-}
-
-.dp-tenor-row {
-  display: flex;
-  justify-content: space-between;
-  padding: 1px 0;
-}
-
-.dp-tenor-label {
-  color: var(--text-faint);
-  font-size: var(--font-xs);
-  font-weight: 600;
-  letter-spacing: 0.03em;
-}
-
-.dp-tenor-value {
-  color: var(--text-primary);
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  font-family: var(--font-mono);
-  font-size: var(--font-xs);
-}
-
-/* ── Credit spreads section ─────────────────────────── */
-.dp-spreads {
-  border-top: 1px solid var(--border-subtle);
-  padding: 4px 8px 6px;
-  overflow-y: auto;
-}
-.dp-spreads--bottom {
-  max-height: 140px;
-}
-
-.dp-spreads-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 3px;
-}
-
-.dp-spreads-title {
-  color: var(--text-muted);
-  font-size: var(--font-xs);
-  font-weight: 700;
-  letter-spacing: 0.06em;
-}
-
-.dp-spreads-tag {
-  font-size: var(--font-xs);
-  font-weight: 600;
-  letter-spacing: 0.04em;
-}
-
-/* ── Spread rows ────────────────────────────────────── */
-.dp-spread-row {
-  padding: 3px 0;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: var(--font-xs);
-  border-bottom: 1px solid var(--border-subtle);
-}
-.dp-spread-row:last-child {
-  border-bottom: none;
-}
-
-.dp-spread-left {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-  min-width: 0;
-}
-
-.dp-spread-name {
-  color: var(--text-primary);
-  font-weight: 600;
-  font-size: var(--font-xs);
-  white-space: nowrap;
-}
-
-.dp-spread-currency {
-  color: var(--text-faint);
-  font-size: var(--font-xs);
-}
-
-.dp-spread-right {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-  flex-shrink: 0;
-}
-
-.dp-spread-value {
-  color: var(--text-primary);
-  font-weight: 700;
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-  font-size: var(--font-xs);
-}
-
-.dp-spread-chg {
-  font-size: var(--font-xs);
-  font-weight: 600;
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-}
-
-.dp-spread-bps-label {
-  color: var(--text-faint);
-  font-size: var(--font-xs);
-}
-
-/* ── Regional view ──────────────────────────────────── */
-.dp-regional {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  min-height: 0;
-}
-
-.dp-regional-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 3px 8px 2px;
-  color: var(--text-muted);
-  font-size: var(--font-xs);
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  flex-shrink: 0;
-}
-
-.dp-regional-legend {
-  color: var(--text-faint);
-  font-size: var(--font-xs);
-  font-weight: 500;
-}
-
-.dp-regional-body {
-  flex: 1;
-  overflow-y: auto;
-  min-height: 0;
-}
-
-/* ── Snapshot rows ──────────────────────────────────── */
-.dp-snapshot-list {
-  padding: 0 8px 4px;
-}
-
-.dp-snapshot-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 0;
-}
-
-.dp-snapshot-code {
-  width: 26px;
-  color: var(--text-muted);
-  font-weight: 700;
-  font-size: var(--font-xs);
-  flex-shrink: 0;
-  letter-spacing: 0.04em;
-}
-
-.dp-snapshot-bar {
-  flex: 1;
-  height: 14px;
-  background: var(--bg-surface);
-  border-radius: 2px;
-  overflow: hidden;
-}
-
-.dp-snapshot-fill {
-  height: 100%;
-  transition: width 0.3s ease;
-  border-radius: 2px;
-}
-
-.dp-snapshot-value {
-  width: 72px;
-  text-align: right;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 4px;
-  flex-shrink: 0;
-}
-
-.dp-snapshot-yield {
-  color: var(--text-primary);
-  font-weight: 700;
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-  font-size: var(--font-xs);
-}
-
-.dp-snapshot-badge {
-  font-size: 6px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-}
-
-/* ── Regime Ribbon (Phase 8.4) ───────────────────────────── */
-/* #UX-5 — aligned with the tape strip: shared --row-pad rhythm, no extra
-   vertical margins between the stacked header strips. */
-.dp-regime {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: var(--row-pad, 3px) 8px;
-  margin: 0;
-  background: var(--bg-surface-2, #0e1117);
-  border-top: none;
-  border-bottom: 1px solid var(--border-subtle);
-  font-family: var(--font-family-mono, var(--font-mono));
-  font-size: 10.5px;
-  letter-spacing: 0.04em;
-  flex-shrink: 0;
-}
-
-.dp-regime-label {
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  color: var(--text-muted, #8b93a7);
-  text-transform: uppercase;
-}
-
-.dp-regime-verdict {
-  font-weight: 700;
-  font-size: 11.5px;
-  letter-spacing: 0.08em;
-  padding: 2px 6px;
-  border-radius: 2px;
-  text-transform: uppercase;
-}
-
-.dp-regime--bull .dp-regime-verdict {
-  color: var(--sent-bull, #3dd68c);
-  background: var(--sent-bull-bg, rgba(61,214,140,0.12));
-}
-.dp-regime--bear .dp-regime-verdict {
-  color: var(--color-down);
-  background: var(--color-down-bg, rgba(239, 68, 68, 0.12));
-}
-.dp-regime--neutral .dp-regime-verdict {
-  color: var(--sent-neutral, #8b93a7);
-  background: var(--sent-neutral-bg, rgba(139,147,167,0.10));
-}
-
-.dp-regime-detail {
-  color: var(--text-secondary);
+  min-height: 100px;
+  font-family: var(--font-family-mono);
   font-size: 10px;
-  letter-spacing: 0.03em;
-}
-
-.dp-regime-flex { flex: 1; }
-
-.dp-regime-spread {
-  display: inline-flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 0;
-  line-height: 1.1;
-  min-width: 42px;
-}
-
-.dp-regime-spread-name {
-  font-size: 8.5px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  color: var(--text-muted, #8b93a7);
-  text-transform: uppercase;
-}
-
-.dp-regime-spread-val {
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--text-primary);
-  font-variant-numeric: tabular-nums;
-}
-.dp-regime-spread-val--neg {
-  color: var(--color-down);
-}
-.dp-regime-spread-val--tight {
-  color: var(--sent-warn, #e8a020);
-}
-
-@media (max-width: 640px) {
-  .dp-regime { gap: 6px; padding: 3px 6px; }
-  .dp-regime-spread:nth-child(n+4) { display: none; }
-  .dp-regime-detail { display: none; }
-}
-
-/* ================================================================
- * H2b item 1 — US RATES TAPE strip + CURVES small multiples
- * ================================================================ */
-
-/* #UX-5 — single compact tape row under the header: one line, mono,
-   items spread evenly across the width, shared --row-pad rhythm. */
-.dp-tape {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: var(--row-pad, 3px) 8px;
-  border-bottom: 1px solid var(--border-subtle);
-  font-family: var(--font-mono);
-  overflow-x: auto;
-  flex-shrink: 0;
-  scrollbar-width: none;
-}
-.dp-tape::-webkit-scrollbar { display: none; }
-
-.dp-tape-title {
-  font-size: 8.5px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  color: var(--text-muted, #8b93a7);
-  flex-shrink: 0;
-}
-
-.dp-tape-item {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 4px;
-  flex-shrink: 0;
-}
-
-.dp-tape-label {
-  font-size: 8.5px;
-  font-weight: 600;
   letter-spacing: 0.06em;
-  color: var(--text-faint);
-  text-transform: uppercase;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 8px;
 }
 
-.dp-tape-value {
-  font-size: 10.5px;
-  font-weight: 700;
-  color: var(--text-primary);
-  font-variant-numeric: tabular-nums;
-}
+.dp-state--error { color: var(--color-down); }
 
-.dp-tape-chg {
-  font-size: 9px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
-
-.dp-curves {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-height: 0;
-  padding: 6px;
-}
-
-.dp-curves-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  grid-template-rows: 1fr 1fr;
-  gap: 6px;
-  flex: 1;
-  min-height: 0;
-}
-
-.dp-mini {
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  border: 1px solid var(--border-subtle);
-  border-radius: 3px;
-  background: var(--bg-inset, rgba(255,255,255,0.02));
-  padding: 4px 6px;
-}
-
-.dp-mini-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 6px;
-  margin-bottom: 2px;
-}
-
-.dp-mini-label {
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  font-family: var(--font-mono);
-}
-
-.dp-mini-val {
-  font-size: 9px;
-  font-weight: 600;
-  color: var(--text-secondary);
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-}
-
-.dp-mini-chart {
-  flex: 1;
-  min-height: 40px;
-}
-
-.dp-mini-empty {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
+.dp-state-detail {
   font-size: 9px;
   color: var(--text-faint);
-  font-family: var(--font-mono);
-  letter-spacing: 0.08em;
+  letter-spacing: 0.02em;
 }
+
+.dp-retry-btn {
+  font-family: var(--font-family-mono);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  padding: 2px 10px;
+  background: transparent;
+  border: 1px solid var(--accent);
+  border-radius: 2px;
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.dp-retry-btn:hover { background: var(--color-accent-dim); }
