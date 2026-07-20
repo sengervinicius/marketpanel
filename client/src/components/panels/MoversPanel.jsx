@@ -89,7 +89,11 @@ function MoversPanel({ onTickerClick }) {
     <div className="mv-panel">
       <PanelChrome
         title="MOVERS"
-        subtitle={exchange === 'US' ? 'POLYGON · US EQUITIES' : 'YAHOO · B3'}
+        subtitle={exchange === 'US'
+          // Data-quality: server pre-filters the ranking universe; the
+          // tooltip documents it without cluttering the chrome.
+          ? <span title={"Filtered universe: \u2265$5 \u00b7 \u2265$50M traded ($100M actives)"}>POLYGON &middot; US EQUITIES</span>
+          : <span title={"Curated B3 universe \u00b7 price \u2265 R$1"}>YAHOO &middot; B3</span>}
         badge={<span className="panel-chrome-badge" style={{ color: badge.color, background: badge.bg }}>{badge.text}</span>}
         timestamp={loading ? 'LOADING…' : error ? 'ERR' : updatedAt}
         actions={
@@ -126,6 +130,7 @@ function MoversPanel({ onTickerClick }) {
                 name={r.name || (tab === 'actives' && r.volume != null ? `VOL ${fmtVolume(r.volume)}` : `#${i + 1}`)}
                 price={r.price}
                 changePct={r.changePct}
+                decimals={2}
                 columns={COLS_STANDARD_SPARK}
                 sparklineData={spark}
                 onClick={() => onTickerClick?.(r.symbol)}

@@ -82,9 +82,23 @@ async function polyFetch(path) {
 // Polygon's gainers/losers payload nests current session data under
 // `day`, and lastTrade holds the most recent trade. Be tolerant of
 // either being absent.
+//
+// Data-quality fix: Polygon zeroes `day.c` outside regular hours (and
+// truncated sub-$1 prices then rendered as "0.00" in the client). Treat
+// 0 / negative as missing and walk a fallback chain: last trade → last
+// minute bar → prevClose + todaysChange.
+function firstPositive(...vals) {
+  for (const v of vals) {
+    if (v != null && Number.isFinite(v) && v > 0) return v;
+  }
+  return null;
+}
+
 function normalizeRow(t) {
-  const price = (t?.day?.c != null ? t.day.c : null)
-             ?? (t?.lastTrade?.p != null ? t.lastTrade.p : null);
+  const reconstructed = (t?.prevDay?.c != null && t?.todaysChange != null)
+    ? t.prevDay.c + t.todaysChange
+    : null;
+  const price = firstPositive(t?.day?.c, t?.lastTrade?.p, t?.min?.c, reconstructed);
   return {
     symbol:    t?.ticker || null,
     price,
@@ -93,6 +107,34 @@ function normalizeRow(t) {
     volume:    t?.day?.v ?? null,
     prevClose: t?.prevDay?.c ?? null,
   };
+}
+
+// ── Quality filters (institutional-grade universe) ───────────────────
+// The raw Polygon snapshot universe is dominated by illiquid penny-stock
+// pump junk (sub-$1 names printing +400% on a few thousand dollars of
+// volume). Filter BEFORE ranking so the panel shows names an institution
+// can actually trade:
+//   - price >= $5
+//   - day dollar-volume (price * volume) >= $50M (gainers/losers)
+//     or >= $100M (actives)
+//   - prevClose must exist and be > 0 (no ghosts / fresh listings with
+//     broken reference data)
+// Bypass with quality: 'all' (exposed as ?quality=all on the route).
+const QUALITY = {
+  minPrice: 5,
+  minDollarVolume: {
+    gainers: 50e6,
+    losers:  50e6,
+    actives: 100e6,
+  },
+};
+
+function passesQuality(row, direction) {
+  if (row.price == null || !Number.isFinite(row.price) || row.price < QUALITY.minPrice) return false;
+  if (row.prevClose == null || !Number.isFinite(row.prevClose) || row.prevClose <= 0) return false;
+  if (row.volume == null || !Number.isFinite(row.volume)) return false;
+  const minDv = QUALITY.minDollarVolume[direction] ?? QUALITY.minDollarVolume.gainers;
+  return (row.price * row.volume) >= minDv;
 }
 
 // ── Native gainers / losers ──────────────────────────────────────────
@@ -194,7 +236,7 @@ async function getMarketBreadth() {
  *   return a coverage_note instead of throwing so the AI can narrate the
  *   gap without refusing the whole query.
  */
-async function getMarketMovers({ direction = 'gainers', limit = 10, market = 'US' } = {}) {
+async function getMarketMovers({ direction = 'gainers', limit = 10, market = 'US', quality = 'strict' } = {}) {
   const dir = String(direction).toLowerCase();
   if (!['gainers', 'losers', 'actives'].includes(dir)) {
     return {
@@ -248,12 +290,26 @@ async function getMarketMovers({ direction = 'gainers', limit = 10, market = 'US
     }
   }
 
-  const sliced = (rows || []).slice(0, cap);
+  // Quality gate — raw rows are cached unfiltered so ?quality=all shares
+  // the same snapshot pull; filtering is applied per request.
+  const strict = String(quality).toLowerCase() !== 'all';
+  const eligible = strict
+    ? (rows || []).filter(r => passesQuality(r, dir))
+    : (rows || []);
+
+  const sliced = eligible.slice(0, cap);
   return {
     direction: dir,
     market: 'US',
     count: sliced.length,
     movers: sliced,
+    quality: strict ? 'strict' : 'all',
+    ...(strict ? {
+      filters: {
+        minPrice: QUALITY.minPrice,
+        minDollarVolume: QUALITY.minDollarVolume[dir] ?? QUALITY.minDollarVolume.gainers,
+      },
+    } : {}),
     source: 'polygon',
     asOf: new Date().toISOString(),
   };
@@ -263,6 +319,8 @@ module.exports = {
   getMarketMovers,
   getMarketBreadth,
   isConfigured,
-  // test hook
+  // test hooks
   _normalizeRow: normalizeRow,
+  _passesQuality: passesQuality,
+  _QUALITY: QUALITY,
 };
