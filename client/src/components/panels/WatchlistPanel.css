@@ -496,38 +496,7 @@
    VOL×AVG / NEXT EARN / REC bar cells, hover mini-profile card.
    ══════════════════════════════════════════════════════════════════ */
 
-/* VIEW chips (TRADER | FUNDAMENTAL | P&L) — replaces the COLS picker */
-.wp-view-group {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.wp-view-chip {
-  font-family: var(--font-family-mono);
-  font-size: 9px;
-  letter-spacing: 0.06em;
-  color: var(--text-muted);
-  background: none;
-  border: 1px solid var(--border-strong);
-  padding: 1px 6px;
-  border-radius: 2px;
-  cursor: pointer;
-  text-transform: uppercase;
-  transition: color 0.12s, border-color 0.12s;
-  white-space: nowrap;
-}
-
-.wp-view-chip:hover {
-  color: var(--text-secondary);
-  border-color: var(--text-muted);
-}
-
-.wp-view-chip--on,
-.wp-view-chip--on:hover {
-  color: var(--accent);
-  border-color: var(--accent);
-}
+/* VIEW chips → shared common/ViewChips.css (ds-chip) */
 
 /* Column headers — mono 8.5px uppercase (mockup) */
 .wp-col-header-cell {
@@ -590,78 +559,4 @@
 /* Rows scroller hosts the absolutely-positioned hover card */
 .wp-rows-container { position: relative; }
 
-/* Hover mini-profile card — panel2 bg, accent left border, shadow.
-   pointer-events:none so it never blocks row clicks; hides on
-   mouseleave (state-driven). */
-.wp-hcard {
-  position: absolute;
-  right: 14px;
-  width: 270px;
-  background: var(--color-surface-2);
-  border: 1px solid var(--border-strong);
-  border-left: 3px solid var(--accent);
-  border-radius: 3px;
-  padding: 10px 12px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
-  z-index: 5;
-  pointer-events: none;
-}
-
-.wp-hcard-title {
-  font-family: var(--font-family-mono);
-  font-size: 10px;
-  letter-spacing: 0.1em;
-  color: var(--accent);
-  margin-bottom: 6px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.wp-hcard-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 8px;
-  font-size: 11px;
-  padding: 2.5px 0;
-  color: var(--text-secondary);
-}
-
-.wp-hcard-row b {
-  color: var(--text-primary);
-  font-family: var(--font-family-mono);
-  font-weight: 600;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  white-space: nowrap;
-}
-
-/* 52w range position indicator */
-.wp-hcard-range {
-  position: relative;
-  display: inline-block;
-  width: 34px;
-  height: 4px;
-  background: var(--border-strong);
-  border-radius: 2px;
-}
-
-.wp-hcard-range i {
-  position: absolute;
-  top: -2px;
-  width: 2px;
-  height: 8px;
-  background: var(--accent);
-  border-radius: 1px;
-  transform: translateX(-1px);
-}
-
-.wp-hcard-footer {
-  border-top: 1px dashed var(--border-strong);
-  margin-top: 5px;
-  padding-top: 6px;
-}
-
-.wp-hcard-footer span { color: var(--accent); font-size: 10.5px; }
+/* Hover mini-profile card → shared common/HoverProfileCard.css (ds-hcard) */

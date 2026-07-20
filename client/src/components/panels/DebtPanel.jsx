@@ -31,6 +31,9 @@ import { fmtCompactPct } from '../../utils/format';
 import { swallow } from '../../utils/swallow';
 import IntegrityBadge from '../shared/IntegrityBadge';
 import PanelChrome from '../common/PanelChrome';
+import Tape from '../common/Tape';
+import BoardRow, { BoardSectionLabel } from '../common/BoardRow';
+import ViewChips from '../common/ViewChips';
 import './DebtPanel.css';
 
 // Region chips — switch the main curve only.
@@ -86,19 +89,9 @@ function fmtBp(v, dp = 1) {
   return `${sign}${Math.abs(v).toFixed(dp)}bp`;
 }
 
-/* ── Tape (4 cells, mockup borders) ─────────────────────────────────
+/* ── Tape (4 cells, shared Tape primitive) ─────────────────────────────────
  * US 10Y (level+Δbp) · 2s10s (+regime word) · 10Y REAL · HY OAS.
  * Each cell degrades independently to "—". */
-function TapeCell({ k, v, d, dColor }) {
-  return (
-    <div className="dp-tp">
-      <div className="dp-tp-k">{k}</div>
-      <div className="dp-tp-v">{v ?? '—'}</div>
-      <div className="dp-tp-d" style={dColor ? { color: dColor } : undefined}>{d ?? ' '}</div>
-    </div>
-  );
-}
-
 function RatesTape({ tape }) {
   const byId = useMemo(
     () => Object.fromEntries((tape || []).map(t => [t.id, t])),
@@ -124,17 +117,20 @@ function RatesTape({ tape }) {
   const riskColor = chg => (chg > 0 ? 'var(--color-down)' : chg < 0 ? 'var(--color-up)' : 'var(--text-faint)');
 
   return (
-    <div className="dp-tape" title="FRED — 30 min server cache">
-      <TapeCell k="US 10Y"   v={pct(us10)} d={dPct(us10)} dColor={us10?.change1d != null ? riskColor(us10.change1d) : null} />
-      <TapeCell
-        k="2s10s"
-        v={s210?.value != null ? `${s210.value > 0 ? '+' : ''}${Math.round(s210.value)}bp` : null}
-        d={regimeWord}
-        dColor={regimeColor}
-      />
-      <TapeCell k="10Y REAL" v={pct(real)} d={dPct(real)} dColor={real?.change1d != null ? riskColor(real.change1d) : null} />
-      <TapeCell k="HY OAS"   v={bp(hy)}   d={dBp(hy)}    dColor={hy?.change1d != null ? riskColor(hy.change1d) : null} />
-    </div>
+    <Tape
+      title="FRED — 30 min server cache"
+      cells={[
+        { key: 'us10y', label: 'US 10Y', value: pct(us10), delta: dPct(us10),
+          deltaColor: us10?.change1d != null ? riskColor(us10.change1d) : null },
+        { key: 's2s10s', label: '2s10s',
+          value: s210?.value != null ? `${s210.value > 0 ? '+' : ''}${Math.round(s210.value)}bp` : null,
+          delta: regimeWord, deltaColor: regimeColor },
+        { key: 'real10y', label: '10Y REAL', value: pct(real), delta: dPct(real),
+          deltaColor: real?.change1d != null ? riskColor(real.change1d) : null },
+        { key: 'hyOas', label: 'HY OAS', value: bp(hy), delta: dBp(hy),
+          deltaColor: hy?.change1d != null ? riskColor(hy.change1d) : null },
+      ]}
+    />
   );
 }
 
@@ -159,9 +155,9 @@ function MiniCurveSvg({ points, stroke }) {
     }).join(' ');
   }, [points]);
 
-  if (!d) return <svg className="dp-rrow-mini" viewBox="0 0 54 16" aria-hidden="true" />;
+  if (!d) return <svg viewBox="0 0 54 16" aria-hidden="true" />;
   return (
-    <svg className="dp-rrow-mini" viewBox="0 0 54 16" aria-hidden="true">
+    <svg viewBox="0 0 54 16" aria-hidden="true">
       <path d={d} fill="none" stroke={stroke} strokeWidth="1.2" />
     </svg>
   );
@@ -316,16 +312,16 @@ function DebtPanel() {
         updatedAt={lastUpdated}
         source={sourceLabel}
         actions={(
-          <div className="dp-chips" role="group" aria-label="Curve region">
-            {REGIONS.map(r => (
-              <button
-                key={r.code}
-                className={`dp-chip ${region === r.code ? 'dp-chip--on' : ''}`}
-                onClick={() => setRegion(r.code)}
-                title={r.code === 'ALL' ? 'Overlay all curves' : `${r.label} curve`}
-              >{r.label}</button>
-            ))}
-          </div>
+          <ViewChips
+            options={REGIONS.map(r => ({
+              key: r.code,
+              label: r.label,
+              title: r.code === 'ALL' ? 'Overlay all curves' : `${r.label} curve`,
+            }))}
+            value={region}
+            onChange={setRegion}
+            ariaLabel="Curve region"
+          />
         )}
       />
 
@@ -440,43 +436,37 @@ function DebtPanel() {
 
         {/* ── Right: global 10Y + credit & inflation board ── */}
         <div className="dp-board-right">
-          <div className="dp-rsec">GLOBAL 10Y</div>
+          <BoardSectionLabel>GLOBAL 10Y</BoardSectionLabel>
           {boardRows.map(row => {
             const active = region === row.code;
             const stroke = active
               ? TOKEN_HEX.accent
               : row.chg != null && row.chg < 0 ? TOKEN_HEX.up : TOKEN_HEX.textSecondary;
             return (
-              <div
+              <BoardRow
                 key={row.code}
-                className={`dp-rrow dp-rrow--click ${active ? 'dp-rrow--active' : ''}`}
+                active={active}
                 onClick={() => setRegion(row.code)}
                 title={`Load ${row.label} curve`}
-              >
-                <span className="dp-rrow-k">{row.flag} {row.label}</span>
-                <MiniCurveSvg points={row.points} stroke={stroke} />
-                <span className="dp-rrow-v">
-                  {row.val != null ? row.val.toFixed(2) : '—'}
-                  <i
-                    className="dp-rrow-chg"
-                    style={{ color: row.chg == null ? 'var(--text-faint)' : row.chg > 0 ? 'var(--color-down)' : row.chg < 0 ? 'var(--color-up)' : 'var(--text-faint)' }}
-                  >{row.chg != null ? `${row.chg > 0 ? '+' : ''}${row.chg.toFixed(1)}` : '—'}</i>
-                </span>
-              </div>
+                label={<>{row.flag} {row.label}</>}
+                mini={<MiniCurveSvg points={row.points} stroke={stroke} />}
+                value={row.val != null ? row.val.toFixed(2) : '—'}
+                delta={row.chg != null ? `${row.chg > 0 ? '+' : ''}${row.chg.toFixed(1)}` : '—'}
+                deltaColor={row.chg == null ? 'var(--text-faint)' : row.chg > 0 ? 'var(--color-down)' : row.chg < 0 ? 'var(--color-up)' : 'var(--text-faint)'}
+              />
             );
           })}
 
-          <div className="dp-rsec">CREDIT &amp; INFLATION</div>
+          <BoardSectionLabel>CREDIT &amp; INFLATION</BoardSectionLabel>
           {creditRows.map(row => (
-            <div key={row.key} className="dp-rrow">
-              <span className="dp-rrow-k dp-rrow-k--ui">{row.label}</span>
-              <span className="dp-rrow-v">
-                {row.val}
-                <i className="dp-rrow-chg" style={{ color: row.chgColor || 'var(--text-faint)' }}>
-                  {row.chg ?? '—'}
-                </i>
-              </span>
-            </div>
+            <BoardRow
+              key={row.key}
+              labelSans
+              label={row.label}
+              value={row.val}
+              delta={row.chg ?? '—'}
+              deltaColor={row.chgColor || 'var(--text-faint)'}
+            />
           ))}
         </div>
       </div>

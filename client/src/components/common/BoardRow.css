@@ -1,0 +1,66 @@
+/* BoardRow.css — Design v1 shared board-row primitive (prefix: ds-brow).
+ * Extracted verbatim from DebtPanel's approved .dp-rrow / .dp-rsec scale:
+ * 11.5px rows, mono label/value, 9.5px delta, 8.5px section labels. */
+
+.ds-brow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 6px;
+  padding: 4.5px 10px;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 11.5px;
+  flex-shrink: 0;
+  min-width: 0;
+}
+
+.ds-brow--click { cursor: pointer; }
+.ds-brow--click:hover { background: var(--color-surface-2); }
+.ds-brow--active .ds-brow-k { color: var(--accent); }
+
+.ds-brow-k {
+  font-family: var(--font-family-mono);
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ds-brow-k--sans { font-family: var(--font-ui); }
+
+.ds-brow-mini {
+  display: inline-flex;
+  flex: none;
+}
+
+.ds-brow-mini > svg {
+  width: 54px;
+  height: 16px;
+  display: block;
+}
+
+.ds-brow-v {
+  font-family: var(--font-family-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.ds-brow-chg {
+  font-style: normal;
+  font-size: 9.5px;
+}
+
+/* Section label above a run of rows — "GLOBAL 10Y" */
+.ds-brow-sec {
+  font-family: var(--font-family-mono);
+  font-size: 8.5px;
+  letter-spacing: 0.12em;
+  color: var(--color-section-header);
+  text-transform: uppercase;
+  padding: 6px 10px 2px;
+  flex-shrink: 0;
+}

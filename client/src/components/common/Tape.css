@@ -1,0 +1,55 @@
+/* Tape.css — Design v1 shared tape primitive (prefix: ds-tape).
+ * Extracted verbatim from DebtPanel's approved .dp-tape / .dp-tp scale:
+ * label 8.5px mono uppercase muted · value 14px mono 700 · delta 9.5px. */
+
+.ds-tape {
+  display: grid;
+  border-bottom: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+}
+
+.ds-tape-cell {
+  padding: 6px 8px;
+  border-right: 1px solid var(--border-subtle);
+  min-width: 0;
+}
+
+.ds-tape-cell:last-child { border-right: none; }
+
+.ds-tape-k {
+  font-family: var(--font-family-mono);
+  font-size: 8.5px;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.ds-tape-v {
+  font-family: var(--font-family-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-top: 2px;
+  white-space: nowrap;
+}
+
+.ds-tape-d {
+  font-family: var(--font-family-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 9.5px;
+  color: var(--text-faint);
+  min-height: 12px;
+  white-space: nowrap;
+}
+
+/* ── Gold tone — Vault identity (stats header tape) ─────────────── */
+.ds-tape--gold {
+  background: var(--vault-gold-bg);
+  border-bottom-color: var(--vault-gold-border);
+}
+
+.ds-tape--gold .ds-tape-cell { border-right-color: var(--vault-gold-border); }
+.ds-tape--gold .ds-tape-k   { color: var(--vault-gold-muted); }
+.ds-tape--gold .ds-tape-v   { color: var(--vault-gold); }

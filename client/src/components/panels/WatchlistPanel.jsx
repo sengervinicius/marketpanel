@@ -40,6 +40,8 @@ import ShareModal from '../common/ShareModal';
 import { fmt, fmtPct, fmtCompact } from '../../utils/portfolioAnalytics';
 import { SyncBadge, AIHealthCard, SummaryStrip } from './PortfolioPanelWidgets';
 import Sparkline from '../common/Sparkline';
+import ViewChips, { loadPersistedChip } from '../common/ViewChips';
+import HoverProfileCard, { HoverProfileRow, HoverProfileRange } from '../common/HoverProfileCard';
 import { useSparklineData } from '../../hooks/useSparklineData';
 import '../common/Shimmer.css';
 import './WatchlistPanel.css';
@@ -52,12 +54,7 @@ const VIEWS = [
   { key: 'pnl',         label: 'P&L' },
 ];
 
-function loadView() {
-  try {
-    const v = localStorage.getItem(WL_VIEW_KEY);
-    return VIEWS.some(x => x.key === v) ? v : 'trader';
-  } catch { return 'trader'; }
-}
+const loadView = () => loadPersistedChip(WL_VIEW_KEY, VIEWS, 'trader');
 
 // Grid templates per view (ticker | LAST | … | actions).
 const GRID = {
@@ -149,23 +146,22 @@ function HoverCard({ sym, top, snap, fund, newsCount, price }) {
     : null;
 
   return (
-    <div className="wp-hcard" style={{ top }}>
-      <div className="wp-hcard-title">{sym}{name ? ` · ${name.toUpperCase()}` : ''}</div>
-      <div className="wp-hcard-row"><span>Mkt cap</span><b>{mktCap != null ? fmtCompact(mktCap) : fLoading ? '…' : '—'}</b></div>
-      <div className="wp-hcard-row"><span>{multiLabel}</span><b>{multiVal || (fLoading ? '…' : '—')}</b></div>
-      <div className="wp-hcard-row"><span>Div yield</span><b>{divYield != null ? fmtYieldPct(divYield) : fLoading ? '…' : '—'}</b></div>
-      <div className="wp-hcard-row">
-        <span>52w range</span>
-        <b>
-          {lo != null && hi != null ? `${fmt(lo)} — ${fmt(hi)}` : fLoading ? '…' : '—'}
-          {rangePos != null && (
-            <span className="wp-hcard-range"><i style={{ left: `${rangePos * 100}%` }} /></span>
-          )}
-        </b>
-      </div>
-      <div className="wp-hcard-row"><span>News (7d)</span><b>{newsCount == null ? '…' : `${newsCount} stor${newsCount === 1 ? 'y' : 'ies'}`}</b></div>
-      <div className="wp-hcard-row wp-hcard-footer"><span>click row → full instrument view ↗</span></div>
-    </div>
+    <HoverProfileCard top={top} title={`${sym}${name ? ` · ${name.toUpperCase()}` : ''}`}>
+      <HoverProfileRow label="Mkt cap" value={mktCap != null ? fmtCompact(mktCap) : fLoading ? '…' : '—'} />
+      <HoverProfileRow label={multiLabel} value={multiVal || (fLoading ? '…' : '—')} />
+      <HoverProfileRow label="Div yield" value={divYield != null ? fmtYieldPct(divYield) : fLoading ? '…' : '—'} />
+      <HoverProfileRow
+        label="52w range"
+        value={(
+          <>
+            {lo != null && hi != null ? `${fmt(lo)} — ${fmt(hi)}` : fLoading ? '…' : '—'}
+            <HoverProfileRange pos={rangePos} />
+          </>
+        )}
+      />
+      <HoverProfileRow label="News (7d)" value={newsCount == null ? '…' : `${newsCount} stor${newsCount === 1 ? 'y' : 'ies'}`} />
+      <HoverProfileRow footer value={<span>click row → full instrument view ↗</span>} />
+    </HoverProfileCard>
   );
 }
 
@@ -340,11 +336,7 @@ function WatchlistPanel() {
   // UI state
   const [sortMode, setSortMode] = useState('default'); // 'default' | 'heat' | 'pnl'
   // Design v1 — named column views, persisted.
-  const [view, setViewState] = useState(loadView);
-  const setView = useCallback((v) => {
-    setViewState(v);
-    try { localStorage.setItem(WL_VIEW_KEY, v); } catch { /* private mode */ }
-  }, []);
+  const [view, setView] = useState(loadView); // persisted by ViewChips (storageKey)
   const [showAdd, setShowAdd]   = useState(false);
   const [addInput, setAddInput] = useState('');
   const inputRef                = useRef(null);
@@ -704,16 +696,14 @@ function WatchlistPanel() {
               {sortBtn('heat',    'HEAT')}
             </div>
             {/* Design v1 — named column VIEWS (replaces the COLS picker) */}
-            <div className="wp-view-group" role="group" aria-label="Column view">
-              {VIEWS.map(v => (
-                <button
-                  key={v.key}
-                  className={`wp-view-chip ${view === v.key ? 'wp-view-chip--on' : ''}`}
-                  onClick={() => setView(v.key)}
-                  title={`${v.label} column view`}
-                >{view === v.key ? `VIEW: ${v.label}` : v.label}</button>
-              ))}
-            </div>
+            <ViewChips
+              options={VIEWS.map(v => ({ key: v.key, label: v.label, title: `${v.label} column view` }))}
+              value={view}
+              onChange={setView}
+              storageKey={WL_VIEW_KEY}
+              ariaLabel="Column view"
+              renderLabel={(opt, on) => (on ? `VIEW: ${opt.label}` : opt.label)}
+            />
             {/* AI Health Check — only when tracked positions exist */}
             {anyTracked && (
               <button

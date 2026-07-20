@@ -1,0 +1,42 @@
+/* ViewChips.css — Design v1 shared chip-group primitive (prefix: ds-chip).
+ * Extracted verbatim from the approved .dp-chip / .wp-view-chip styles:
+ * mono 9px uppercase, bordered, accent when on. */
+
+.ds-chips {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ds-chip {
+  font-family: var(--font-family-mono);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  background: none;
+  border: 1px solid var(--border-strong);
+  padding: 1px 6px;
+  border-radius: 2px;
+  cursor: pointer;
+  text-transform: uppercase;
+  transition: color 0.12s, border-color 0.12s;
+  white-space: nowrap;
+}
+
+.ds-chip:hover {
+  color: var(--text-secondary);
+  border-color: var(--text-muted);
+}
+
+.ds-chip--on,
+.ds-chip--on:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+/* Gold tone — Vault identity */
+.ds-chips--gold .ds-chip--on,
+.ds-chips--gold .ds-chip--on:hover {
+  color: var(--vault-gold);
+  border-color: var(--vault-gold);
+}

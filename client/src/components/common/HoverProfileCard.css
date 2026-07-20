@@ -1,0 +1,76 @@
+/* HoverProfileCard.css — Design v1 hover mini-profile shell (prefix: ds-hcard).
+ * Extracted verbatim from the approved .wp-hcard styles. Host container
+ * must be position: relative; the card is pointer-events: none. */
+
+.ds-hcard {
+  position: absolute;
+  right: 14px;
+  width: 270px;
+  background: var(--color-surface-2);
+  border: 1px solid var(--border-strong);
+  border-left: 3px solid var(--accent);
+  border-radius: 3px;
+  padding: 10px 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
+  z-index: 5;
+  pointer-events: none;
+}
+
+.ds-hcard-title {
+  font-family: var(--font-family-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: var(--accent);
+  margin-bottom: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ds-hcard-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  padding: 2.5px 0;
+  color: var(--text-secondary);
+}
+
+.ds-hcard-row b {
+  color: var(--text-primary);
+  font-family: var(--font-family-mono);
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+/* 52w range position indicator */
+.ds-hcard-range {
+  position: relative;
+  display: inline-block;
+  width: 34px;
+  height: 4px;
+  background: var(--border-strong);
+  border-radius: 2px;
+}
+
+.ds-hcard-range i {
+  position: absolute;
+  top: -2px;
+  width: 2px;
+  height: 8px;
+  background: var(--accent);
+  border-radius: 1px;
+  transform: translateX(-1px);
+}
+
+.ds-hcard-footer {
+  border-top: 1px dashed var(--border-strong);
+  margin-top: 5px;
+  padding-top: 6px;
+}
+
+.ds-hcard-footer span { color: var(--accent); font-size: 10.5px; }
