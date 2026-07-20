@@ -1621,8 +1621,16 @@ const _eventPreviewCache = new Map();
 const EVENT_PREVIEW_TTL = 15 * 60 * 1000;
 
 router.post('/event-preview', async (req, res) => {
-  const apiKey = process.env.PERPLEXITY_API_KEY;
-  if (!apiKey) return res.status(503).json({ error: 'AI not configured' });
+  // fix/ux-round4 FIX 2 — the MACRO tab AI preview surfaced raw provider
+  // status codes ("AI provider error (401)") because this route was
+  // hardwired to Perplexity: an expired PERPLEXITY_API_KEY 401 was passed
+  // straight through as a 502 even when ANTHROPIC_API_KEY was healthy.
+  // Mirror the /news-briefing + /news-summary (#291 / N6) provider chain:
+  // tryPerplexity → tryAnthropic (Haiku), degraded flag when the fallback
+  // served it, and an honest client-facing message ONLY when both fail.
+  const perplexityKey = process.env.PERPLEXITY_API_KEY;
+  const anthropicKey = process.env.ANTHROPIC_API_KEY;
+  if (!perplexityKey && !anthropicKey) return res.status(503).json({ error: 'AI not configured' });
 
   const { event, date, previousValue, forecast } = req.body;
   if (!event || typeof event !== 'string') return res.status(400).json({ error: 'event name is required' });
@@ -1651,26 +1659,124 @@ Rules:
 - affectedAssets should be actual ticker symbols
 - Do NOT give investment advice`;
 
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 15000);
+  // Outcomes tracker so we Sentry-alert ONLY when both providers fail
+  // (mirrors news-briefing's #291 W2.1 hotfix).
+  const _outcomes = { perplexity: null, anthropic: null };
+
+  async function tryPerplexity() {
+    if (!perplexityKey) return null;
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 15000);
+    try {
+      const r = await fetch(PERPLEXITY_URL, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${perplexityKey}`, 'Content-Type': 'application/json' },
+        signal: ctrl.signal,
+        body: JSON.stringify({
+          model: MODEL, messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: context },
+          ], max_tokens: 400, temperature: 0.2,
+        }),
+      });
+      clearTimeout(timer);
+      if (!r.ok) {
+        const errText = await r.text().catch(() => '');
+        if (r.status === 401 || r.status === 403) {
+          // Console-only here — Sentry alert lives in the outer block so
+          // it fires only when BOTH providers fail.
+          console.error(`[Search/AI Event Preview] Perplexity auth ${r.status} — PERPLEXITY_API_KEY likely expired. Body:`, errText.substring(0, 200));
+          _outcomes.perplexity = 'auth';
+        } else {
+          console.warn(`[Search/AI Event Preview] Perplexity ${r.status}:`, errText.substring(0, 200));
+          _outcomes.perplexity = `http_${r.status}`;
+        }
+        return null; // fall through to Anthropic
+      }
+      const data = await r.json();
+      _outcomes.perplexity = 'ok';
+      return data.choices?.[0]?.message?.content || null;
+    } catch (e) {
+      clearTimeout(timer);
+      if (e.name === 'AbortError') { _outcomes.perplexity = 'timeout'; return null; }
+      console.warn('[Search/AI Event Preview] Perplexity threw:', e.message);
+      _outcomes.perplexity = 'network';
+      return null;
+    }
+  }
+
+  async function tryAnthropic() {
+    if (!anthropicKey) { _outcomes.anthropic = 'not_configured'; return null; }
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 15000);
+    try {
+      const r = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'x-api-key': anthropicKey,
+          'anthropic-version': '2023-06-01',
+          'Content-Type': 'application/json',
+        },
+        signal: ctrl.signal,
+        body: JSON.stringify({
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: 400,
+          system: systemPrompt,
+          messages: [{ role: 'user', content: context }],
+        }),
+      });
+      clearTimeout(timer);
+      if (!r.ok) {
+        const errText = await r.text().catch(() => '');
+        if (r.status === 401 || r.status === 403) {
+          console.error(`[Search/AI Event Preview] Anthropic auth ${r.status} — ANTHROPIC_API_KEY likely expired. Body:`, errText.substring(0, 200));
+          _outcomes.anthropic = 'auth';
+        } else {
+          console.warn(`[Search/AI Event Preview] Anthropic ${r.status}:`, errText.substring(0, 200));
+          _outcomes.anthropic = `http_${r.status}`;
+        }
+        return null;
+      }
+      const data = await r.json();
+      _outcomes.anthropic = 'ok';
+      // Anthropic returns content as an array of { type: 'text', text: '...' }
+      return data.content?.[0]?.text || null;
+    } catch (e) {
+      clearTimeout(timer);
+      if (e.name === 'AbortError') { _outcomes.anthropic = 'timeout'; return null; }
+      console.warn('[Search/AI Event Preview] Anthropic threw:', e.message);
+      _outcomes.anthropic = 'network';
+      return null;
+    }
+  }
 
   try {
-    const response = await fetch(PERPLEXITY_URL, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-      signal: ctrl.signal,
-      body: JSON.stringify({
-        model: MODEL, messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: context },
-        ], max_tokens: 400, temperature: 0.2,
-      }),
-    });
-    if (!response.ok) return res.status(502).json({ error: `AI provider error (${response.status})` });
-
-    const data = await response.json();
-    const raw = data.choices?.[0]?.message?.content;
-    if (!raw) return res.status(502).json({ error: 'Empty response from AI' });
+    let raw = await tryPerplexity();
+    let providerUsed = 'perplexity';
+    if (!raw) {
+      raw = await tryAnthropic();
+      providerUsed = 'anthropic';
+    }
+    if (!raw) {
+      try {
+        require('@sentry/node').captureMessage(
+          'Event-preview degraded: both providers failed',
+          {
+            level: 'error',
+            tags: {
+              route: 'event-preview',
+              perplexity_outcome: _outcomes.perplexity || 'skipped',
+              anthropic_outcome: _outcomes.anthropic || 'skipped',
+            },
+          }
+        );
+      } catch (_) { /* sentry optional */ }
+      // Honest message, no raw provider status codes leaked to the UI.
+      return res.status(503).json({
+        error: 'preview_temporarily_unavailable',
+        message: 'The AI event preview is temporarily unavailable. Calendar data remains current.',
+      });
+    }
 
     let parsed;
     try {
@@ -1685,6 +1791,8 @@ Rules:
       affectedAssets: Array.isArray(parsed.affectedAssets) ? parsed.affectedAssets : [],
       marketExpectation: parsed.marketExpectation || '',
       tradingConsiderations: Array.isArray(parsed.tradingConsiderations) ? parsed.tradingConsiderations : [],
+      provider: providerUsed,
+      degraded: providerUsed !== 'perplexity',
       generatedAt: new Date().toISOString(),
     };
 
@@ -1698,10 +1806,9 @@ Rules:
   } catch (err) {
     // #220 — guard against late-abort write-after-send crashes.
     if (res.headersSent) return;
-    if (err.name === 'AbortError') return res.status(504).json({ error: 'Event preview timed out' });
     console.error('[Search/AI Event Preview] Error:', err.message);
     res.status(500).json({ error: 'Event preview failed' });
-  } finally { clearTimeout(timer); }
+  }
 });
 
 /**

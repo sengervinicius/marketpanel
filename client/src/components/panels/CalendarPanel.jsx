@@ -266,7 +266,12 @@ function CalendarPanel() {
           previousValue: event.previous, forecast: event.forecast,
         }),
       });
-      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Failed');
+      if (!res.ok) {
+        // FIX 2 (fix/ux-round4): show the server's honest human message;
+        // never surface raw provider status codes or error slugs.
+        const j = await res.json().catch(() => ({}));
+        throw new Error(j.message || 'AI preview is temporarily unavailable. Try again shortly.');
+      }
       const data = await res.json();
       setPreviews(prev => ({ ...prev, [event.id]: data }));
     } catch (e) {
