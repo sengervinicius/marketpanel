@@ -18,6 +18,8 @@ import { PriceRow } from '../common/PriceRow';
 import ColumnHeaders from '../common/ColumnHeaders';
 import { apiFetch } from '../../utils/api';
 import { COLS_STANDARD_SPARK } from '../../utils/panelColumns';
+import { useTickerPrice } from '../../context/PriceContext';
+import { ADR_PAIRS, computeAdrPremium } from '../../utils/adrPremium';
 
 // CIO-note (2026-04-20): was '52px 1fr 64px 52px' — CHG% of 52px crushed
 // 2-digit % values into the price column (ONCO3 +15.33% case). The
@@ -101,6 +103,103 @@ function FocusStrip({ focus }) {
         </button>
       )}
     </div>
+  );
+}
+
+/* ── ADR premium section (P2 item 3) ─────────────────────────────────
+ * Columns: ADR · LAST USD · LOCAL (BRL) · PREMIUM%.
+ * premium% = (adrUSD / (localBRL × ratio / USDBRL) − 1) × 100, with the
+ * ratio = local shares per ADR (see utils/adrPremium.js). Everything is
+ * computed client-side from data already on the page: the B3 snapshot
+ * (local legs), PriceContext extras (ADR quotes) and the FX snapshot
+ * (USDBRL). Any missing leg or unknown ratio renders "—" — NEVER a
+ * wrong number.
+ */
+const ADR_COLS = '52px 1fr 72px 72px 76px';
+
+const adrStyles = {
+  headerRow: {
+    display: 'grid', gridTemplateColumns: ADR_COLS, gap: 4,
+    padding: '2px 8px', fontFamily: 'var(--font-mono)', fontSize: 9,
+    color: 'var(--text-faint)', letterSpacing: '0.06em',
+    borderBottom: '1px solid var(--border-subtle)',
+  },
+  row: {
+    display: 'grid', gridTemplateColumns: ADR_COLS, gap: 4,
+    padding: '2px 8px', fontFamily: 'var(--font-mono)', fontSize: 11,
+    alignItems: 'baseline', cursor: 'pointer',
+  },
+  right: { textAlign: 'right', fontVariantNumeric: 'tabular-nums' },
+};
+
+const fmt2adr = (n) => (n == null || !Number.isFinite(n))
+  ? '—'
+  : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+function AdrRow({ pair, localQuote, onTickerClick, openDetail }) {
+  // ADR leg via PriceContext (batch-first, extras fallback). Local leg
+  // prefers the already-loaded B3 snapshot; falls back to extras too.
+  const adrQuote = useTickerPrice(pair.adr);
+  const localCtx = useTickerPrice(localQuote?.price != null ? null : pair.local + '.SA');
+  const usdbrl = useTickerPrice('C:USDBRL');
+
+  const adrUsd = adrQuote?.price ?? null;
+  const localBrl = localQuote?.price ?? localCtx?.price ?? null;
+  const fx = usdbrl?.price ?? null;
+  const premium = computeAdrPremium(adrUsd, localBrl, pair.ratio, fx);
+
+  const premColor = premium == null ? 'var(--text-faint)'
+    : premium >= 0 ? 'var(--semantic-up)' : 'var(--semantic-down)';
+
+  return (
+    <div
+      style={adrStyles.row}
+      title={`${pair.name} — 1 ${pair.adr} = ${pair.ratio} × ${pair.local}. Premium vs B3 line via USD/BRL.`}
+      onClick={() => onTickerClick?.(pair.adr)}
+      onDoubleClick={() => openDetail(pair.adr)}
+      data-ticker={pair.adr}
+      data-ticker-label={pair.name}
+      data-ticker-type="ADR"
+    >
+      <span style={{ color: 'var(--section-brazil)', fontWeight: 600 }}>{pair.adr}</span>
+      <span style={{ color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pair.name}</span>
+      <span style={{ ...adrStyles.right, color: 'var(--text-primary)' }}>{fmt2adr(adrUsd)}</span>
+      <span style={{ ...adrStyles.right, color: 'var(--text-secondary)' }}>{fmt2adr(localBrl)}</span>
+      <span style={{ ...adrStyles.right, color: premColor, fontWeight: 600 }}>
+        {premium == null ? '—' : (premium >= 0 ? '+' : '') + premium.toFixed(2) + '%'}
+      </span>
+    </div>
+  );
+}
+
+function AdrPremiumSection({ batchMap, onTickerClick, openDetail }) {
+  return (
+    <>
+      <div style={{
+        padding: '3px 8px', fontFamily: 'var(--font-mono)', fontSize: 9.5,
+        fontWeight: 700, letterSpacing: '0.08em', color: 'var(--section-brazil)',
+        borderTop: '1px solid var(--border-subtle)', borderBottom: '1px solid var(--border-subtle)',
+        background: 'var(--bg-surface)',
+      }}>
+        BRAZIL ADRs · PREMIUM vs B3
+      </div>
+      <div style={adrStyles.headerRow}>
+        <span>ADR</span>
+        <span>NAME</span>
+        <span style={adrStyles.right}>LAST USD</span>
+        <span style={adrStyles.right}>LOCAL</span>
+        <span style={adrStyles.right}>PREMIUM%</span>
+      </div>
+      {ADR_PAIRS.map(pair => (
+        <AdrRow
+          key={pair.adr}
+          pair={pair}
+          localQuote={batchMap[pair.local] || null}
+          onTickerClick={onTickerClick}
+          openDetail={openDetail}
+        />
+      ))}
+    </>
   );
 }
 
@@ -328,6 +427,9 @@ function BrazilPanel({ onTickerClick }) {
               />
             );
           })}
+
+          {/* P2 item 3 — ADR premium view (moved here from StockPanel) */}
+          <AdrPremiumSection batchMap={batchMap} onTickerClick={onTickerClick} openDetail={openDetail} />
         </div>
       </>)}
 

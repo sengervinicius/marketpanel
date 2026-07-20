@@ -38,7 +38,7 @@ export const PANEL_DEFINITIONS = {
     id:             'usEquities',
     label:          'US Equities',
     defaultTitle:   'US Equities',
-    defaultSymbols: ['AAPL','MSFT','NVDA','GOOGL','AMZN','META','TSLA','JPM','XOM','BRK-B','GS','WMT','LLY'],
+    defaultSymbols: ['AAPL','MSFT','NVDA','GOOGL','AMZN','META','TSLA','JPM','XOM','BRK-B','GS','WMT','LLY','V','ORCL'],
     allowedGroups:  ['US Tech','US Financials','US Energy','US Industrials','US Consumer','US Healthcare','US Auto','Brazil ADRs'],
     editable:       true,
     icon:           'EQ',
@@ -60,7 +60,8 @@ export const PANEL_DEFINITIONS = {
     id:             'globalIndices',
     label:          'Global Indexes',
     defaultTitle:   'Global Indexes',
-    defaultSymbols: ['SPY','QQQ','DIA','EWZ','EEM','VGK','EWJ','FXI'],
+    // P2 item 2 — real index symbols (Yahoo ^), not ETF proxies.
+    defaultSymbols: ['^GSPC','^IXIC','^DJI','^BVSP','^STOXX50E','^FTSE','^N225','^HSI','^RUT'],
     allowedGroups:  ['US Indexes','Global Indexes'],
     editable:       true,
     icon:           'GX',
@@ -73,11 +74,13 @@ export const PANEL_DEFINITIONS = {
     defaultTitle:   'FX Rates / Crypto',
     // FX Pairs subsection: major pairs + BRL inverse pairs (source pairs USDBRL/EURBRL/GBPBRL included for data)
     // Crypto subsection: main cryptos
+    // P2 item 6 — crypto defaults capped at BTC/ETH/SOL (saved lists
+    // unaffected; DXY renders as a pinned row, not a symbols entry).
     defaultSymbols: [
       'EURUSD','GBPUSD','USDJPY','USDCHF','AUDUSD','USDCAD',
       'USDBRL','EURBRL','GBPBRL',
       'USDCNY','USDMXN',
-      'BTCUSD','ETHUSD','SOLUSD','XRPUSD','BNBUSD','DOGEUSD',
+      'BTCUSD','ETHUSD','SOLUSD',
     ],
     allowedGroups:  ['Majors','BRL Crosses','LatAm','EM','Crypto'],
     editable:       true,
@@ -460,7 +463,9 @@ export const DEFAULT_LAYOUT = {
   desktopRows: [
     ['charts',       'watchlist',     'globalIndices', 'futures'],
     ['forex',        'commodities',   'usEquities',    'brazilB3'],
-    ['debt',         'news',          'movers',        'calendar'],
+    // P2 item 4 — 'sectors' joins row 3; 12-col grid splits 5 panels as
+    // 3/3/2/2/2 via migrateDesktopRowsToGrid (leftmost get the remainder).
+    ['debt',         'news',          'movers',        'calendar',      'sectors'],
   ],
   mobileTabs: ['home', 'charts', 'watchlist', 'search', 'detail', 'news'],
 };
@@ -472,7 +477,7 @@ export const DEFAULT_LAYOUT = {
 export const DEFAULT_HOME_SECTIONS = [
   { id: 'indexes',    title: 'US Equities',     symbols: ['SPY','QQQ','DIA','AAPL','MSFT','NVDA','TSLA','AMZN'] },
   { id: 'global',     title: 'Global Indexes',   symbols: ['EWZ','EEM','VGK','EWJ','FXI','EFA','IWM'] },
-  { id: 'forex',      title: 'FX Rates / Crypto', symbols: ['EURUSD','USDJPY','GBPUSD','USDBRL','EURBRL','GBPBRL','USDCNY','BTCUSD','ETHUSD','SOLUSD','XRPUSD','BNBUSD','DOGEUSD'] },
+  { id: 'forex',      title: 'FX Rates / Crypto', symbols: ['EURUSD','USDJPY','GBPUSD','USDBRL','EURBRL','GBPBRL','USDCNY','BTCUSD','ETHUSD','SOLUSD'] },
   { id: 'commodities',title: 'Commodities',      symbols: ['BZ=F','GLD','SLV','USO','UNG','CORN'] },
   { id: 'brazilB3',   title: 'Brazil B3',        symbols: ['VALE3.SA','PETR4.SA','ITUB4.SA','BBDC4.SA','WEGE3.SA','B3SA3.SA','ABEV3.SA','BBAS3.SA'] },
 ];

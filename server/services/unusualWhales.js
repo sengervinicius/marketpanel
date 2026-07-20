@@ -70,6 +70,133 @@ function _ensureApiKey() {
   return true;
 }
 
+// ── Helper: tolerant numeric parsing (P2 item 7) ──────────────────────────────
+// UW returns most dollar/size fields as STRINGS (e.g. total_premium:
+// "186705", net_call_premium: "-29138464.00") and some tenants have seen
+// "$1,234,567" formatting. parseFloat on a wrong/missing field name is what
+// produced the live "NET $0 · 139 SIGNALS" defect — the alert rows existed
+// but `item.premium` does not exist in the flow-alerts schema (the field is
+// `total_premium`). These helpers strip $ , and whitespace, and walk a list
+// of documented field names in order.
+
+/** @returns {number|null} finite number or null (never NaN, never 0-default) */
+function parseUwNumber(value) {
+  if (value == null) return null;
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+  const str = String(value).replace(/[$,\s]/g, '');
+  if (!str) return null;
+  const n = parseFloat(str);
+  return Number.isFinite(n) ? n : null;
+}
+
+/** First parseable field from `fields` on `item`, else null. */
+function firstUwNumber(item, fields) {
+  if (!item || typeof item !== 'object') return null;
+  for (const f of fields) {
+    const v = parseUwNumber(item[f]);
+    if (v != null) return v;
+  }
+  return null;
+}
+
+// Optional raw-payload logging for schema drift diagnosis. Set
+// UW_DEBUG_RAW=1 to log the first raw item of each response server-side.
+const UW_DEBUG_RAW = process.env.UW_DEBUG_RAW === '1' || process.env.UW_DEBUG_RAW === 'true';
+
+/**
+ * Normalize ONE flow-alert item from GET /api/option-trades/flow-alerts.
+ *
+ * Documented schema (api.unusualwhales.com/docs — FlowAlert): ticker,
+ * type ('call'|'put'), strike ("375"), expiry, price, total_premium,
+ * total_ask_side_prem, total_bid_side_prem, total_size, trade_count,
+ * volume, open_interest, has_sweep, has_floor, has_multileg,
+ * has_singleleg, created_at, alert_rule, option_chain, underlying_price.
+ *
+ * Root causes of the "$0" defect fixed here:
+ *   1. premium read `item.premium` — the field is `total_premium` (string);
+ *   2. sentiment read `item.option_type || item.put_call` — the field is
+ *      `type`, so every alert was 'neutral' and the client's net-$ math
+ *      (bullish adds, bearish subtracts, neutral IGNORED) always summed 0;
+ *   3. sweep/floor/multileg flags read `is_*` — the fields are `has_*`,
+ *      so every alert rendered as BLOCK.
+ * Legacy field names are still accepted after the documented ones so the
+ * parser tolerates schema drift in either direction.
+ *
+ * @param {object} item — raw UW flow-alert row
+ * @returns {object} normalized alert (shape consumed by OptionsFlowPanel)
+ */
+function normalizeFlowAlert(item = {}) {
+  const isSweep    = !!(item.has_sweep ?? item.is_sweep);
+  const isFloor    = !!(item.has_floor ?? item.is_floor);
+  const isMultiLeg = !!(item.has_multileg ?? item.is_multi_leg ?? item.is_multileg);
+
+  // Option type drives the client's bullish/bearish signal — 'call'/'put'.
+  const rawOptType = String(item.type ?? item.option_type ?? item.put_call ?? '').toLowerCase();
+  const sentiment = rawOptType === 'call' || rawOptType === 'put' ? rawOptType : 'neutral';
+
+  return {
+    symbol: String(item.ticker || item.symbol || '').toUpperCase() || 'N/A',
+    type: isSweep ? 'sweep' : isFloor ? 'floor' : isMultiLeg ? 'multi_leg' : 'block',
+    description: item.alert_rule || '',
+    premium: firstUwNumber(item, ['total_premium', 'premium', 'total_ask_side_prem']) ?? 0,
+    askSidePremium: firstUwNumber(item, ['total_ask_side_prem', 'ask_side_premium']),
+    bidSidePremium: firstUwNumber(item, ['total_bid_side_prem', 'bid_side_premium']),
+    volume: firstUwNumber(item, ['volume', 'total_size', 'size']) ?? 0,
+    sentiment,
+    strike: firstUwNumber(item, ['strike']) ?? 0,
+    expiry: item.expiry || '',
+    timestamp: item.created_at || item.timestamp || item.executed_at || new Date().toISOString(),
+    isSweep,
+    isFloor,
+    isMultiLeg,
+    side: item.side || '',
+    openInterest: firstUwNumber(item, ['open_interest']) ?? 0,
+    tradeCount: firstUwNumber(item, ['trade_count']) ?? null,
+    optionChain: item.option_chain || null,
+  };
+}
+
+/**
+ * Aggregate GET /api/market/market-tide ticks into the tide summary.
+ *
+ * Documented schema: data = intraday SERIES of ticks
+ * { date, net_call_premium: "660338.0000", net_put_premium: "-547564.0000",
+ *   net_volume, timestamp } — values are STRINGS, can be NEGATIVE, and are
+ * cumulative through the session. The old code summed `tick.call_premium`
+ * (nonexistent) across every tick — double-counting a cumulative series of
+ * a wrong field. We now read the LATEST tick and derive bull/bear dollar
+ * magnitudes so ratio stays in [0,1] for existing consumers.
+ *
+ * @param {Array<object>} ticks — raw tide ticks (chronological)
+ * @returns {{netCallPremium:number, netPutPremium:number, netPremium:number,
+ *            bullDollars:number, bearDollars:number, ratio:number,
+ *            sentiment:string, asOf:string|null}|null}
+ */
+function summarizeMarketTide(ticks) {
+  if (!Array.isArray(ticks) || ticks.length === 0) return null;
+  const last = ticks[ticks.length - 1];
+  const netCall = firstUwNumber(last, ['net_call_premium', 'call_premium', 'call_volume']);
+  const netPut  = firstUwNumber(last, ['net_put_premium', 'put_premium', 'put_volume']);
+  if (netCall == null && netPut == null) return null;
+  const nc = netCall ?? 0;
+  const np = netPut ?? 0;
+  // Bullish $: net call buying + net put SELLING. Bearish $: the mirrors.
+  const bullDollars = Math.max(nc, 0) + Math.max(-np, 0);
+  const bearDollars = Math.max(-nc, 0) + Math.max(np, 0);
+  const total = bullDollars + bearDollars;
+  const ratio = total > 0 ? bullDollars / total : 0.5;
+  return {
+    netCallPremium: nc,
+    netPutPremium: np,
+    netPremium: nc - np,
+    bullDollars,
+    bearDollars,
+    ratio,
+    sentiment: ratio > 0.55 ? 'bullish' : ratio < 0.45 ? 'bearish' : 'neutral',
+    asOf: last.timestamp || last.date || null,
+  };
+}
+
 // ── Helper: Generic API fetch with error handling ─────────────────────────────
 
 async function _fetchFromAPI(endpoint, label, defaultReturn = []) {
@@ -238,27 +365,16 @@ async function getFlowAlerts() {
     const rawItems = data.data || (Array.isArray(data) ? data : []);
     if (rawItems.length > 0) {
       logger.info(`[UnusualWhales] Flow alerts raw fields: ${JSON.stringify(Object.keys(rawItems[0]))}`);
+      if (UW_DEBUG_RAW) {
+        logger.info(`[UnusualWhales] Flow alerts raw sample: ${JSON.stringify(rawItems[0])}`);
+      }
     } else {
       logger.warn('[UnusualWhales] Flow alerts: empty response');
     }
-    // Official API fields: ticker, option_type, premium, size, strike, expiry,
-    // is_sweep, is_floor, is_multi_leg, volume, open_interest, side, timestamp
-    const results = rawItems.map(item => ({
-      symbol: (item.ticker || item.symbol || '').toUpperCase() || 'N/A',
-      type: (item.is_sweep ? 'sweep' : item.is_floor ? 'floor' : item.is_multi_leg ? 'multi_leg' : 'block'),
-      description: '',
-      premium: parseFloat(item.premium) || 0,
-      volume: parseInt(item.volume) || parseInt(item.size) || 0,
-      sentiment: item.option_type || item.put_call || 'neutral', // "call" or "put"
-      strike: parseFloat(item.strike) || 0,
-      expiry: item.expiry || '',
-      timestamp: item.timestamp || item.created_at || new Date().toISOString(),
-      isSweep: !!item.is_sweep,
-      isFloor: !!item.is_floor,
-      isMultiLeg: !!item.is_multi_leg,
-      side: item.side || '',
-      openInterest: parseInt(item.open_interest) || 0,
-    }));
+    // P2 item 7 — normalize against the DOCUMENTED flow-alerts schema
+    // (total_premium/type/has_sweep…), tolerant of $/comma strings and
+    // legacy field names. See normalizeFlowAlert above.
+    const results = rawItems.map(normalizeFlowAlert);
 
     cacheSet(cacheKey, results, 2 * 60 * 1000); // 2 min
     return results;
@@ -306,29 +422,57 @@ async function getMarketTide(sector = null) {
 
     const data = await response.json();
     logger.info(`[UnusualWhales] Tide raw keys: ${JSON.stringify(Object.keys(data)).slice(0, 300)}`);
-    // Market tide may return an array of ticks or an object with aggregated data
+    // Market tide returns an intraday SERIES of ticks (strings, can be
+    // negative, cumulative through the session) — or, on the sector path,
+    // sometimes an aggregated object. P2 item 7: read the LATEST tick via
+    // summarizeMarketTide (real dollar premiums) instead of summing a
+    // cumulative series of nonexistent fields.
     const rawData = data.data || data;
-    // If array of ticks, aggregate call vs put premium
-    let callVol = 0, putVol = 0;
-    if (Array.isArray(rawData) && rawData.length > 0) {
-      logger.info(`[UnusualWhales] Tide sample item: ${JSON.stringify(rawData[0])}`);
-      for (const tick of rawData) {
-        callVol += parseFloat(tick.call_premium || tick.net_call_premium || tick.call_volume || 0);
-        putVol += parseFloat(tick.put_premium || tick.net_put_premium || tick.put_volume || 0);
+    let result;
+    if (Array.isArray(rawData)) {
+      if (UW_DEBUG_RAW && rawData.length > 0) {
+        logger.info(`[UnusualWhales] Tide raw sample: ${JSON.stringify(rawData[rawData.length - 1])}`);
       }
-    } else if (typeof rawData === 'object') {
-      callVol = parseFloat(rawData.call_volume || rawData.callVolume || rawData.call_premium || 0);
-      putVol = parseFloat(rawData.put_volume || rawData.putVolume || rawData.put_premium || 0);
+      const tide = summarizeMarketTide(rawData);
+      if (!tide) {
+        logger.warn('[UnusualWhales] Market tide: no parseable premium fields in ticks');
+        return null;
+      }
+      result = {
+        sector: sector || 'market',
+        // Non-negative bull/bear dollar magnitudes — keeps existing
+        // consumers ((callVolume||0) > 0 checks, ratio in [0,1]) working
+        // while carrying the real net premiums additively below.
+        callVolume: tide.bullDollars,
+        putVolume: tide.bearDollars,
+        ratio: tide.ratio,
+        sentiment: tide.sentiment,
+        netCallPremium: tide.netCallPremium,
+        netPutPremium: tide.netPutPremium,
+        netPremium: tide.netPremium,
+        asOf: tide.asOf,
+      };
+    } else if (rawData && typeof rawData === 'object') {
+      const callVol = firstUwNumber(rawData, ['call_volume', 'callVolume', 'call_premium', 'net_call_premium']) ?? 0;
+      const putVol  = firstUwNumber(rawData, ['put_volume', 'putVolume', 'put_premium', 'net_put_premium']) ?? 0;
+      const bull = Math.max(callVol, 0) + Math.max(-putVol, 0);
+      const bear = Math.max(-callVol, 0) + Math.max(putVol, 0);
+      const total = bull + bear;
+      const ratio = total > 0 ? bull / total : 0.5;
+      result = {
+        sector: sector || 'market',
+        callVolume: bull,
+        putVolume: bear,
+        ratio,
+        sentiment: ratio > 0.55 ? 'bullish' : ratio < 0.45 ? 'bearish' : 'neutral',
+        netCallPremium: callVol,
+        netPutPremium: putVol,
+        netPremium: callVol - putVol,
+        asOf: rawData.timestamp || rawData.date || null,
+      };
+    } else {
+      return null;
     }
-    const total = callVol + putVol;
-    const ratio = total > 0 ? callVol / total : 0.5;
-    const result = {
-      sector: sector || 'market',
-      callVolume: callVol,
-      putVolume: putVol,
-      ratio: ratio,
-      sentiment: ratio > 0.55 ? 'bullish' : ratio < 0.45 ? 'bearish' : 'neutral',
-    };
 
     cacheSet(cacheKey, result, 5 * 60 * 1000); // 5 min
     return result;
@@ -1368,4 +1512,9 @@ module.exports = {
   // Cache management
   getCacheStats,
   clearCache,
+
+  // P2 item 7 — pure parsing helpers (exported for unit tests)
+  parseUwNumber,
+  normalizeFlowAlert,
+  summarizeMarketTide,
 };

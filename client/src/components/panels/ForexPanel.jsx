@@ -20,6 +20,13 @@ import { COLS_FOREX_SPARK } from '../../utils/panelColumns';
 // Was '72px 1fr 76px 64px' — chg% too narrow for 2-digit moves (USDARS can spike).
 const COLS = COLS_FOREX_SPARK;
 
+// P2 item 6 — DXY (US Dollar Index) pinned as the FIRST row of the FX
+// section. Yahoo symbol DX-Y.NYB; quotes come from the stocks snapshot
+// batch (server universe) with PriceContext extras as fallback via
+// PriceRow's ticker prop. 2dp, no $ (PriceRow fmt2).
+const DXY_TICKER = 'DX-Y.NYB';
+const DXY_LABEL = 'US Dollar Index';
+
 const showInfo = (e, symbol, label, type) => {
   e.preventDefault();
   window.dispatchEvent(new CustomEvent('ticker:rightclick', {
@@ -60,11 +67,13 @@ function ForexPanel({ data = {}, cryptoData = {}, loading, onTickerClick }) {
   // Panel config from settings (with fallback defaults)
   const panelCfg = settings?.panels?.forex || {
     title: 'FX RATES / CRYPTO',
+    // P2 item 6 — crypto DEFAULTS capped at BTC/ETH/SOL (saved user
+    // lists are unaffected; this fallback only applies pre-settings).
     symbols: [
       'EURUSD','GBPUSD','USDJPY','USDCHF','AUDUSD','USDCAD',
       'USDBRL','EURBRL','GBPBRL',
       'USDCNY','USDMXN',
-      'BTCUSD','ETHUSD','SOLUSD','XRPUSD','BNBUSD','DOGEUSD',
+      'BTCUSD','ETHUSD','SOLUSD',
     ],
     hiddenSubsections: [],
     customSubsections: [],
@@ -168,6 +177,7 @@ function ForexPanel({ data = {}, cryptoData = {}, loading, onTickerClick }) {
 
   // Phase 2: Sparkline data
   const allFxTickers = useMemo(() => [
+    DXY_TICKER,
     ...filteredForex.map(p => p.symbol),
     ...filteredCrypto.map(c => 'X:' + c.symbol),
     ...filteredCustomFx.map(p => p.symbol),
@@ -283,6 +293,33 @@ function ForexPanel({ data = {}, cryptoData = {}, loading, onTickerClick }) {
           <>
             {/* ── FX PAIRS ── */}
             <SectionHeader label={subsectionLabels['fxPairs'] || 'FX PAIRS'} sectionKey="fxPairs" color="var(--section-fx)" onRename={handleRenameSubsection} onToggleVisibility={handleToggleSubsection} isHideable={true} />
+            {/* P2 item 6 — DXY pinned first (hidden only when a search filter doesn't match it) */}
+            {(!searchFilter || 'DXY'.includes(searchFilter.toUpperCase()) || DXY_LABEL.toUpperCase().includes(searchFilter.toUpperCase())) && (
+              <PriceRow
+                key={DXY_TICKER}
+                symbol="DXY"
+                ticker={DXY_TICKER}
+                name={DXY_LABEL}
+                price={null}
+                changePct={null}
+                symbolColor="var(--section-fx)"
+                columns={COLS}
+                decimals={2}
+                draggable
+                dragData={{ symbol: DXY_TICKER, name: DXY_LABEL, type: 'INDEX' }}
+                onClick={() => onTickerClick?.(DXY_TICKER)}
+                onDoubleClick={() => openDetail(DXY_TICKER)}
+                onTouchHold={() => openDetail(DXY_TICKER)}
+                touchRef={ptRef}
+                onContextMenu={e => showInfo(e, DXY_TICKER, DXY_LABEL, 'INDEX')}
+                dataAttrs={{
+                  'data-ticker': DXY_TICKER,
+                  'data-ticker-label': DXY_LABEL,
+                  'data-ticker-type': 'INDEX',
+                }}
+                sparklineData={sparklines[DXY_TICKER]}
+              />
+            )}
             {filteredForex.map(pair => {
               const d = data?.[pair.symbol] || {};
               const price = d.mid || d.ask || d.price;

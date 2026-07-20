@@ -66,6 +66,13 @@ const { validateEquities } = require('../../services/dataIntegrityValidator');
 
 // ── Default stock tickers ───────────────────────────────────────────
 const DEFAULT_STOCK_TICKERS = [
+  // P2 item 2 — real global index symbols (Yahoo quotes ^ natively via the
+  // same batched v7 endpoint; isTicker() already accepts '^'). These feed
+  // the GlobalIndicesPanel defaults; the ETF proxies below remain as
+  // per-row fallbacks and for saved user lists.
+  '^GSPC','^IXIC','^DJI','^BVSP','^STOXX50E','^FTSE','^N225','^HSI','^RUT',
+  // P2 item 6 — DXY (US Dollar Index) for the FX panel's first row.
+  'DX-Y.NYB',
   'SPY','QQQ','IWM','DIA','EWZ','EWW','EEM','EFA','FXI','EWJ',
   'EZU','EWU','EWG','EWQ','EWP','EWI','EWL','EWD',
   'EWH','EWY','EWA','MCHI','EWT','EWS','INDA','EWC',
@@ -621,6 +628,8 @@ router.get('/snapshot/brazil-fiis', async (req, res) => {
 router.get('/snapshot/global-indices', async (req, res) => {
   try {
     const tickers = [
+      // P2 item 2 — real indices first, ETF proxies retained for fallback.
+      '^GSPC','^IXIC','^DJI','^BVSP','^STOXX50E','^FTSE','^N225','^HSI','^RUT',
       'SPY','QQQ','DIA','EWZ','EWW','EWC',
       'EZU','EWU','EWG','EWQ','EWP','EWI','EWL','EWD',
       'EWJ','EWH','EWY','EWA','MCHI','EWT','EWS','INDA'

@@ -48,8 +48,8 @@ const defaultHome = {
   theme:       'dark',
   watchlist:   ['SPY', 'QQQ', 'AAPL', 'NVDA', 'GLD', 'BTCUSD', 'EWZ'],
   panels: {
-    usEquities:   { title: 'US Equities',    symbols: ['AAPL','MSFT','NVDA','GOOGL','AMZN','META','TSLA','JPM','XOM','BRK-B','GS','WMT','LLY'] },
-    globalIndices:{ title: 'Global Indexes',  symbols: ['SPY','QQQ','DIA','EWZ','EEM','VGK','EWJ','FXI'] },
+    usEquities:   { title: 'US Equities',    symbols: ['AAPL','MSFT','NVDA','GOOGL','AMZN','META','TSLA','JPM','XOM','BRK-B','GS','WMT','LLY','V','ORCL'] },
+    globalIndices:{ title: 'Global Indexes',  symbols: ['^GSPC','^IXIC','^DJI','^BVSP','^STOXX50E','^FTSE','^N225','^HSI','^RUT'] },
     forex:        { title: 'FX Markets',      symbols: ['EURUSD','USDJPY','GBPUSD','USDBRL','USDCHF','USDCNY','USDMXN','AUDUSD','USDCAD'] },
     crypto:       { title: 'Crypto',          symbols: ['BTCUSD','ETHUSD','SOLUSD','XRPUSD','BNBUSD','DOGEUSD'] },
     commodities:  { title: 'Commodities',     symbols: ['GC=F','SI=F','HG=F','CL=F','BZ=F','NG=F','ZC=F','ZS=F','ZW=F'] }, // H0: futures defaults

@@ -33,6 +33,11 @@ const routePath        = require.resolve('../data');
 // ── Mutable stub state ───────────────────────────────────────────────
 const state = {
   eulerpoolConfigured: false,
+  // Empty-cascade fix (P2 item 1): rows the eulerpool stub answers with,
+  // and a throw switch to simulate provider failure.
+  eulerpoolEarnings: [],
+  eulerpoolMacro: [],
+  eulerpoolThrows: false,
   finnhubConfigured: false,
   earningsRows: [],
   // When set, getEarningsCalendarDetailed returns this envelope verbatim
@@ -59,8 +64,14 @@ require.cache[providersPath] = {
   exports: {
     eulerpool: {
       isConfigured: () => state.eulerpoolConfigured,
-      getEarningsCalendar: async () => [],
-      getMacroCalendar: async () => [],
+      getEarningsCalendar: async () => {
+        if (state.eulerpoolThrows) throw new Error('eulerpool down');
+        return state.eulerpoolEarnings;
+      },
+      getMacroCalendar: async () => {
+        if (state.eulerpoolThrows) throw new Error('eulerpool down');
+        return state.eulerpoolMacro;
+      },
     },
     polyFetch: async () => ({}),
     twelvedata: {},
@@ -266,6 +277,99 @@ describe('calendar endpoints (#UX-3)', () => {
     assert.match(r.body.message, /Finnhub error \(Finnhub HTTP 500\)/);
     state.yahooThrows = false;
     state.finnhubDetailed = null;
+  });
+
+  // ── Empty-cascade fix (P2 item 1) ───────────────────────────────
+  // Live defect: {source:'eulerpool', data:[]} — Eulerpool configured but
+  // 0 rows, and the fallback only fired on FAILURE. Empty must cascade.
+
+  it('earnings: eulerpool WITH rows → served from eulerpool (no cascade)', async () => {
+    state.eulerpoolConfigured = true;
+    state.eulerpoolThrows = false;
+    state.eulerpoolEarnings = [{ ticker: 'AAPL', date: '2026-07-21' }];
+    state.finnhubConfigured = true;
+    state.earningsRows = [];
+    const r = await getJson(port, '/market/earnings-calendar');
+    assert.equal(r.body.ok, true);
+    assert.equal(r.body.source, 'eulerpool');
+    assert.equal(r.body.data.length, 1);
+  });
+
+  it('earnings: eulerpool EMPTY → cascades to finnhub rows', async () => {
+    state.eulerpoolConfigured = true;
+    state.eulerpoolThrows = false;
+    state.eulerpoolEarnings = [];
+    state.finnhubConfigured = true;
+    state.finnhubDetailed = null;
+    state.earningsRows = [
+      { symbol: 'MSFT', date: '2026-07-22', hour: 'amc', epsEstimate: 3.1 },
+    ];
+    const r = await getJson(port, '/market/earnings-calendar');
+    assert.equal(r.body.ok, true);
+    assert.equal(r.body.source, 'finnhub');
+    assert.equal(r.body.data[0].ticker, 'MSFT');
+  });
+
+  it('earnings: eulerpool THROWS → cascades to finnhub (no 500)', async () => {
+    state.eulerpoolConfigured = true;
+    state.eulerpoolThrows = true;
+    state.finnhubConfigured = true;
+    state.finnhubDetailed = null;
+    state.earningsRows = [
+      { symbol: 'KO', date: '2026-07-23', hour: 'bmo' },
+    ];
+    const r = await getJson(port, '/market/earnings-calendar');
+    assert.equal(r.status, 200);
+    assert.equal(r.body.source, 'finnhub');
+    assert.equal(r.body.data[0].ticker, 'KO');
+    state.eulerpoolThrows = false;
+  });
+
+  it('earnings: eulerpool empty + finnhub empty + yahoo empty → no-data only when ALL empty', async () => {
+    state.eulerpoolConfigured = true;
+    state.eulerpoolEarnings = [];
+    state.finnhubConfigured = true;
+    state.finnhubDetailed = null;
+    state.earningsRows = [];
+    state.yahooQuotes = [];
+    state.yahooThrows = false;
+    const r = await getJson(port, '/market/earnings-calendar');
+    assert.equal(r.body.ok, true);
+    assert.equal(r.body.empty, 'no-data');
+    assert.deepEqual(r.body.data, []);
+    assert.match(r.body.message, /no earnings scheduled/i);
+    state.eulerpoolConfigured = false;
+  });
+
+  it('macro: eulerpool EMPTY → cascades to finnhub events', async () => {
+    state.eulerpoolConfigured = true;
+    state.eulerpoolThrows = false;
+    state.eulerpoolMacro = [];
+    process.env.FINNHUB_API_KEY = 'test-key';
+    state.economicResult = {
+      ok: true,
+      data: [
+        { kind: 'economic', country: 'US', event: 'NFP', time: '2026-07-24 12:30:00', impact: 'high' },
+      ],
+    };
+    const r = await getJson(port, '/market/macro-calendar');
+    assert.equal(r.body.source, 'finnhub');
+    assert.equal(r.body.data.length, 1);
+    assert.equal(r.body.data[0].name, 'US · NFP');
+  });
+
+  it('macro: eulerpool empty + finnhub empty → no-data (eulerpool answered, window quiet)', async () => {
+    state.eulerpoolConfigured = true;
+    state.eulerpoolMacro = [];
+    process.env.FINNHUB_API_KEY = 'test-key';
+    state.economicResult = { ok: true, data: [] };
+    const r = await getJson(port, '/market/macro-calendar');
+    assert.equal(r.body.ok, true);
+    assert.equal(r.body.empty, 'no-data');
+    assert.equal(r.body.source, 'eulerpool');
+    assert.deepEqual(r.body.data, []);
+    state.eulerpoolConfigured = false;
+    delete process.env.FINNHUB_API_KEY;
   });
 
   it('macro: no keys → unavailable naming FINNHUB_API_KEY', async () => {

@@ -168,6 +168,15 @@ router.get('/market/earnings-calendar', async (req, res) => {
     const range = { from: from || def.from, to: to || def.to };
 
     // Preferred: Eulerpool when configured (original data source).
+    //
+    // Empty-cascade fix (P2 item 1): Eulerpool being CONFIGURED is not the
+    // same as Eulerpool HAVING DATA. The live defect was
+    // {source:'eulerpool', data:[]} — the key is set, the API answers, but
+    // returns 0 rows, and the P0 fallback only fired on FAILURE. A provider
+    // that answers with 0 rows now cascades to the next source
+    // (eulerpool → finnhub → yahoo); 'no-data' is only reported when ALL
+    // sources returned empty.
+    let eulerpoolState = 'unconfigured'; // 'unconfigured' | 'empty' | 'error'
     if (eulerpool.isConfigured()) {
       const opts = {};
       if (ticker) opts.ticker = ticker.toUpperCase();
@@ -178,11 +187,19 @@ router.get('/market/earnings-calendar', async (req, res) => {
       const cached = cacheGet(ck);
       if (cached) return res.json({ ok: true, data: cached, source: 'eulerpool' });
 
-      const data = await eulerpool.getEarningsCalendar(opts);
-      const result = Array.isArray(data) ? data : (data?.earnings ?? []);
-
-      cacheSet(ck, result, 600_000); // 10 min
-      return res.json({ ok: true, data: result, source: 'eulerpool' });
+      try {
+        const data = await eulerpool.getEarningsCalendar(opts);
+        const result = Array.isArray(data) ? data : (data?.earnings ?? []);
+        if (result.length > 0) {
+          cacheSet(ck, result, 600_000); // 10 min
+          return res.json({ ok: true, data: result, source: 'eulerpool' });
+        }
+        eulerpoolState = 'empty';
+        logger.warn('[earnings-calendar] eulerpool returned 0 rows — cascading to finnhub/yahoo');
+      } catch (e) {
+        eulerpoolState = 'error';
+        logger.warn(`[earnings-calendar] eulerpool degraded (${e.message}) — cascading to finnhub/yahoo`);
+      }
     }
 
     // #UX-3 — Finnhub via services/earnings, normalized to the shape
@@ -260,13 +277,15 @@ router.get('/market/earnings-calendar', async (req, res) => {
     // No rows anywhere — say WHY, so the panel never goes silently empty.
     // empty:'no-data'     → a provider answered; the window is genuinely quiet.
     // empty:'no-provider' → every provider is unconfigured or down.
-    if (finnhubState === 'empty' || fallback.sampled > 0) {
+    if (eulerpoolState === 'empty' || finnhubState === 'empty' || fallback.sampled > 0) {
       return res.json({
         ok: true,
         data: [],
-        source: finnhubState === 'empty' ? 'finnhub' : 'yahoo',
+        source: finnhubState === 'empty' ? 'finnhub'
+          : fallback.sampled > 0 ? 'yahoo'
+          : 'eulerpool',
         empty: 'no-data',
-        message: `Provider is live — no earnings scheduled between ${range.from} and ${range.to}.`,
+        message: `All providers are live — no earnings scheduled between ${range.from} and ${range.to}.`,
       });
     }
     return res.json({
@@ -291,16 +310,28 @@ router.get('/market/earnings-calendar', async (req, res) => {
  */
 router.get('/market/macro-calendar', async (req, res) => {
   try {
+    // Empty-cascade fix (P2 item 1) — same principle as earnings-calendar:
+    // an empty (or throwing) Eulerpool response cascades to Finnhub instead
+    // of short-circuiting into {source:'eulerpool', data:[]}.
+    let eulerpoolState = 'unconfigured'; // 'unconfigured' | 'empty' | 'error'
     if (eulerpool.isConfigured()) {
       const ck = 'macro-calendar';
       const cached = cacheGet(ck);
       if (cached) return res.json({ ok: true, data: cached, source: 'eulerpool' });
 
-      const data = await eulerpool.getMacroCalendar();
-      const result = Array.isArray(data) ? data : (data?.events ?? []);
-
-      cacheSet(ck, result, 300_000); // 5 min
-      return res.json({ ok: true, data: result, source: 'eulerpool' });
+      try {
+        const data = await eulerpool.getMacroCalendar();
+        const result = Array.isArray(data) ? data : (data?.events ?? []);
+        if (result.length > 0) {
+          cacheSet(ck, result, 300_000); // 5 min
+          return res.json({ ok: true, data: result, source: 'eulerpool' });
+        }
+        eulerpoolState = 'empty';
+        logger.warn('[macro-calendar] eulerpool returned 0 events — cascading to finnhub');
+      } catch (e) {
+        eulerpoolState = 'error';
+        logger.warn(`[macro-calendar] eulerpool degraded (${e.message}) — cascading to finnhub`);
+      }
     }
 
     // #UX-3 — Finnhub /calendar/economic fallback (finnhubAdapter).
@@ -331,6 +362,17 @@ router.get('/market/macro-calendar', async (req, res) => {
       }
     }
 
+    // Eulerpool answered (just quietly) and Finnhub had nothing to add —
+    // that is a genuine no-data window, NOT a configuration problem.
+    if (eulerpoolState === 'empty') {
+      return res.json({
+        ok: true,
+        data: [],
+        source: 'eulerpool',
+        empty: 'no-data',
+        message: 'All providers are live — no macro events in the current window.',
+      });
+    }
     return res.json({
       ok: true,
       data: [],
