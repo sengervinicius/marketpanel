@@ -16,6 +16,7 @@
  */
 
 import { useState, useCallback, memo, useEffect } from 'react';
+import { TOKEN_HEX } from '../../utils/tokenHex';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { useSectionData } from '../../hooks/useSectionData';
 import { useOpenDetail } from '../../context/OpenDetailContext';
@@ -49,11 +50,13 @@ const COUNTRY_LABELS = {
   IN: 'India',
 };
 
+// SVG stroke hexes (recharts) — aligned with DebtPanel's REGION_HEX country
+// palette (US accent / EU yellow / UK violet); JP keeps its long-standing red.
 const CURVE_COLORS = {
-  US: '#4488ff',
-  DE: '#ff9800',
+  US: TOKEN_HEX.accent,
+  DE: '#ffcc00',
   JP: '#ef5350',
-  GB: '#4caf50',
+  GB: '#cc88ff',
 };
 
 const TENORS_SORT = ['2Y', '5Y', '10Y', '30Y'];
@@ -870,7 +873,7 @@ function FixedIncomeKPIRibbon() {
     { label: 'HIGH YIELD',    value: hyg?.price != null ? f(hyg.price) : '—', change: hyg?.changePct },
     { label: 'IG CORPORATE',  value: lqd?.price != null ? f(lqd.price) : '—', change: lqd?.changePct },
   ];
-  return <KPIRibbon items={items} accentColor="#2196f3" />;
+  return <KPIRibbon items={items} accentColor="var(--sector-fixed)" />;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -962,7 +965,7 @@ function FixedIncomeScreenImpl({ onBack }) {
     <FullPageScreenLayout
       title="FIXED INCOME"
       subtitle="Treasury curves, credit spreads, corporate bonds, and duration analysis"
-      accentColor="#2196f3"
+      accentColor="var(--sector-fixed)"
       vaultSector="fixed-income"
       onBack={onBack}
       sections={sections}

@@ -5,28 +5,19 @@
  * Shows contango/backwardation visual cues.
  */
 import { useState, useEffect, useRef, useCallback, memo } from 'react';
+import { TOKEN_HEX } from '../../../utils/tokenHex';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine, Area, AreaChart } from 'recharts';
 import { apiFetch } from '../../../utils/api';
 
-const TOKEN_HEX = {
-  bgSurface:     '#0d0d14',
-  borderDefault: '#1a1a2a',
-  textPrimary:   '#e8e8ed',
-  textSecondary: '#999999',
-  textMuted:     '#555570',
-  textFaint:     '#3a3a4a',
-  accent:        '#F97316',
-  up:            '#22c55e',
-  down:          '#ef4444',
-};
+// Design v1 — palette now sourced from tokenHex.js (SVG can't resolve CSS vars).
 
 function CurveTooltip({ active, payload }) {
   if (active && payload && payload[0]) {
     const d = payload[0].payload;
     return (
       <div style={{
-        background: 'var(--bg-tooltip, #111118)',
-        border: '1px solid var(--border-strong, #2a2a3a)',
+        background: 'var(--bg-tooltip)',
+        border: '1px solid var(--border-strong)',
         padding: '6px 10px',
         borderRadius: 4,
         fontSize: 10,

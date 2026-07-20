@@ -272,7 +272,7 @@ function ScreenSection({ id, title, badge, span, component: Component, isMobile,
  */
 function FullPageScreenLayout({
   title,
-  accentColor = '#ff6b00',
+  accentColor = 'var(--accent)',
   subtitle,
   lastUpdated,
   onBack,
@@ -326,7 +326,7 @@ function FullPageScreenLayout({
             <div className="fsl-header-time">
               Last updated
               <br />
-              <span style={{ fontFamily: 'monospace', fontSize: 9 }}>{formattedTime}</span>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9 }}>{formattedTime}</span>
             </div>
           )}
         </div>

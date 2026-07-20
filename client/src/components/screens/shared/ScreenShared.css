@@ -60,16 +60,18 @@
 }
 
 .fsl-header-title {
-  font-size: 20px;
-  font-weight: 500;
-  letter-spacing: 2px;
+  /* Design v1 — PanelChrome-equivalent: mono uppercase title */
+  font-family: var(--font-family-mono);
+  font-size: var(--text-xl);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.08em;
   color: var(--text-primary);
   text-transform: uppercase;
   margin-bottom: 2px;
 }
 
 .fsl-header-subtitle {
-  font-size: 12px;
+  font-size: var(--font-size-base);
   color: var(--text-muted);
   letter-spacing: 0.5px;
   line-height: 1.3;
@@ -136,8 +138,10 @@
 }
 
 .fsl-section-badge {
-  font-size: 8px;
-  letter-spacing: 0.5px;
+  font-family: var(--font-family-mono);
+  font-size: 8.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   color: var(--text-muted);
   background: var(--bg-active);
   padding: 1px 6px;
@@ -168,13 +172,15 @@
 }
 
 .ds-table th {
+  /* Design v1 — shared column-header scale (mono 8.5px, wp-col pattern) */
   padding: 2px 8px;
   text-align: right;
-  font-weight: 700;
-  font-size: var(--font-sm, 12px);
-  letter-spacing: 1px;
+  font-family: var(--font-family-mono);
+  font-weight: var(--font-weight-medium);
+  font-size: 8.5px;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--text-muted);
+  color: var(--color-table-header);
   border-bottom: 1px solid var(--border-default);
   white-space: nowrap;
 }
@@ -185,11 +191,12 @@
 }
 
 .ds-table td {
-  padding: 3px 8px;
+  /* Design v1 — shared board-row scale (11.5px) at --row-pad density */
+  padding: calc(var(--row-pad) + 0.75px) 8px;
   color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
   font-family: var(--font-ui, 'Inter', system-ui, sans-serif);
-  font-size: var(--text-base, 13px);
+  font-size: 11.5px;
   white-space: nowrap;
 }
 

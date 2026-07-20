@@ -7,7 +7,7 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'rec
 import FullPageScreenLayout from './shared/FullPageScreenLayout';
 import SectorPulse from './shared/SectorPulse';
 import { FundamentalsTable, SectorChartPanel } from './shared';
-import { KPIRibbon, heatColor, TickerRibbon } from './shared/SectorUI';
+import { KPIRibbon, heatColor, TickerRibbon, fmtNum as fmt, fmtPct } from './shared/SectorUI';
 import { DeepSkeleton, DeepError } from './DeepScreenBase';
 import EarningsCalendarStrip from './shared/EarningsCalendarStrip';
 import MacroCalendarStrip from './shared/MacroCalendarStrip';
@@ -19,8 +19,7 @@ import { apiFetch } from '../../utils/api';
 import { fmtCompactPct } from '../../utils/format';
 import { tapStart, tapMove, tapEnd } from '../../utils/tapHandlers';
 
-const fmt = (n, d = 2) => n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
-const fmtPct = (n) => n == null ? '—' : (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
+// fmt / fmtPct / fmtB — shared helpers from SectorUI (design-v1 dedup).
 
 // Primary tickers for sector charts
 const SECTOR_CHART_TICKERS = ['PETR4.SA', 'VALE3.SA', 'ITUB4.SA', 'WEGE3.SA', 'EWZ', 'C:USDBRL'];
@@ -93,7 +92,7 @@ const BrazilKPIRibbon = memo(function BrazilKPIRibbon() {
     { label: 'VALE3', value: vale3?.price != null ? `R$${fmt(vale3.price)}` : '—', change: vale3?.changePct },
   ];
 
-  return <KPIRibbon items={items} accentColor="#2196f3" />;
+  return <KPIRibbon items={items} accentColor="var(--sector-brazil)" />;
 });
 
 /* ── Sector Chart Panel ────────────────────────────────────────────────── */
@@ -190,10 +189,10 @@ const FIIS_TYPE_COLORS = {
   fof:       '#e0b45a',
   urban:     '#c47fb8',
   agro:      '#9fc06a',
-  index:     '#888',
+  index:     'var(--text-secondary)',
 };
 function FiiRow({ r, onClick }) {
-  const color = FIIS_TYPE_COLORS[r.fiiType] || '#888';
+  const color = FIIS_TYPE_COLORS[r.fiiType] || 'var(--text-secondary)';
   const pos = (r.changePct ?? 0) >= 0;
   return (
     <div
@@ -211,7 +210,7 @@ function FiiRow({ r, onClick }) {
       onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.03)')}
       onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
     >
-      <span style={{ fontFamily: 'var(--font-family-mono)', fontWeight: 700, color: 'var(--section-brazil, #4caf50)' }}>
+      <span style={{ fontFamily: 'var(--font-family-mono)', fontWeight: 700, color: 'var(--sector-brazil)' }}>
         {r.symbol}
       </span>
       <span style={{
@@ -670,11 +669,11 @@ const FundamentalsComponent = memo(function FundamentalsComponent() {
 
 /* ── Deep-Data Component Wrappers ──────────────────────────────────────── */
 const EarningsSection = memo(function EarningsSection() {
-  return <EarningsCalendarStrip tickers={EARNINGS_TICKERS} accentColor="#4caf50" />;
+  return <EarningsCalendarStrip tickers={EARNINGS_TICKERS} accentColor="var(--sector-brazil)" />;
 });
 
 const MacroCalendarSection = memo(function MacroCalendarSection() {
-  return <MacroCalendarStrip countries={['BR', 'US']} limit={12} accentColor="#4caf50" />;
+  return <MacroCalendarStrip countries={['BR', 'US']} limit={12} accentColor="var(--sector-brazil)" />;
 });
 
 /* ── Brazil ETF Cell ───────────────────────────────────────────────── */
@@ -779,7 +778,7 @@ function BrazilScreenImpl() {
   return (
     <FullPageScreenLayout
       title="BRAZIL & EMERGING MARKETS"
-      accentColor="#4caf50"
+      accentColor="var(--sector-brazil)"
       subtitle="B3 equities, ADR arbitrage, DI curve, LatAm macro, and EM risk"
       lastUpdated={lastUpdated}
       onBack={() => window.history.back()}
@@ -793,7 +792,7 @@ function BrazilScreenImpl() {
       <SectorPulse
         etfTicker="EWZ"
         etfLabel="EWZ"
-        accentColor="#4caf50"
+        accentColor="var(--sector-brazil)"
       />
     </FullPageScreenLayout>
   );

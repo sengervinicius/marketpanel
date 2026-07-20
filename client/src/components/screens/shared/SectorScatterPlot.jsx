@@ -4,19 +4,10 @@
  * Features: bubble sizing, better tooltips, quadrant labels, click-to-detail.
  */
 import { useMemo } from 'react';
+import { TOKEN_HEX } from '../../../utils/tokenHex';
 import { ScatterChart, Scatter, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, ReferenceLine } from 'recharts';
 
-const TOKEN_HEX = {
-  bgPanel:      '#0a0a0f',
-  bgSurface:    '#0d0d14',
-  borderDefault:'#1a1a2a',
-  borderSubtle: '#141420',
-  textPrimary:  '#e8e8ed',
-  textSecondary:'#999999',
-  textMuted:    '#555570',
-  textFaint:    '#3a3a4a',
-  accent:       '#F97316',
-};
+// Design v1 — palette now sourced from tokenHex.js (SVG can't resolve CSS vars).
 
 /* ── Dot colors by relative position ────────────────────────────────────── */
 const DOT_COLORS = ['#00bcd4', '#F97316', '#4caf50', '#e91e63', '#ffc107', '#9c27b0', '#03a9f4', '#ff5722', '#8bc34a', '#cddc39'];
@@ -26,8 +17,8 @@ function EnhancedTooltip({ active, payload, xLabel, yLabel }) {
     const d = payload[0].payload;
     return (
       <div style={{
-        background: '#111118',
-        border: '1px solid #2a2a3a',
+        background: 'var(--bg-tooltip)',
+        border: '1px solid var(--border-strong)',
         padding: '10px 14px',
         borderRadius: 6,
         fontSize: 12,

@@ -11,6 +11,7 @@
  *  - Loading skeleton & error states
  */
 import { useState, useEffect, useRef, memo } from 'react';
+import { TOKEN_HEX } from '../../../utils/tokenHex';
 import { apiFetch } from '../../../utils/api';
 
 /* ── Value formatter: $1.2T / $45B / $120M ────────────────────────────── */
@@ -37,7 +38,7 @@ const FETCH_TIMEOUT = 25000;
 const MAX_RETRIES = 2;
 const RETRY_DELAY = 2000;
 
-export const MiniFinancials = memo(function MiniFinancials({ ticker, accentColor = '#4a90d9', onError, statsData }) {
+export const MiniFinancials = memo(function MiniFinancials({ ticker, accentColor = 'var(--color-info)', onError, statsData }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const onErrorRef = useRef(onError);
@@ -225,7 +226,7 @@ export const MiniFinancials = memo(function MiniFinancials({ ticker, accentColor
         const prevRev = idx > 0 ? data[idx - 1].revenue : null;
         const yoyGrowth = (prevRev && d.revenue) ? ((d.revenue - prevRev) / prevRev * 100) : null;
 
-        const barColor = hasNegativeNI ? '#d32f2f' : '#4caf50';
+        const barColor = hasNegativeNI ? TOKEN_HEX.down : TOKEN_HEX.up;
 
         return (
           <div key={idx} style={{
@@ -300,7 +301,7 @@ export const MiniFinancials = memo(function MiniFinancials({ ticker, accentColor
                   width: 6,
                   height: 6,
                   borderRadius: '50%',
-                  background: margin >= 0 ? '#4caf50' : '#d32f2f',
+                  background: margin >= 0 ? 'var(--color-up)' : 'var(--color-down)',
                   flexShrink: 0,
                   opacity: 0.8,
                 }}

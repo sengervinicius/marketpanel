@@ -41,8 +41,8 @@ export const ImpliedVolatilityCard = memo(function ImpliedVolatilityCard({
 
   return (
     <div style={{
-      background: 'var(--bg-elevated, #111118)',
-      border: '1px solid var(--border-default, #1a1a2a)',
+      background: 'var(--bg-elevated)',
+      border: '1px solid var(--border-default)',
       borderRadius: 4,
       padding: '2px 4px',
       minWidth: 160,
