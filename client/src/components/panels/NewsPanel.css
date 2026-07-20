@@ -1,4 +1,6 @@
-/* NewsPanel.css — prefix: np- */
+/* NewsPanel.css — prefix: np-
+ * Design v1 "wire" view (approved mockup particle-home-design-review.html):
+ * single-line time-first rows, purple ✦ BRIEFING layer, scope chips. */
 
 .np-container {
   display: flex;
@@ -7,72 +9,154 @@
   overflow: hidden;
 }
 
-.np-header {
-  padding: 4px 8px;
-  border-bottom: 1px solid var(--border-strong);
-  background: var(--bg-elevated);
-  flex-shrink: 0;
-  gap: 6px;
+/* ── Scope chips: ALL | WATCHLIST | MACRO | ✦ AI ─────────────────── */
+.np-chips {
   display: flex;
   align-items: center;
+  gap: 4px;
 }
 
-.np-header-title {
+.np-chip {
   font-family: var(--font-family-mono);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-bold);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--color-text-primary);
-  line-height: 1;
-}
-
-.np-header-count {
-  color: var(--text-faint);
-  font-size: 8px;
-}
-
-.np-header-badge {
-  font-size: 7px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  padding: 1px 4px;
-  border: 1px solid;
-  border-radius: 2px;
-}
-
-.np-header-spacer {
-  flex: 1;
-}
-
-.np-ai-btn {
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
   background: none;
   border: 1px solid var(--border-strong);
-  color: var(--text-muted);
-  padding: 1px 5px;
-  font-size: 9px;
+  padding: 1px 6px;
+  border-radius: 2px;
   cursor: pointer;
-  transition: color 0.2s, border-color 0.2s;
+  text-transform: uppercase;
+  transition: color 0.12s, border-color 0.12s;
 }
 
-.np-ai-btn:hover:not(:disabled) {
+.np-chip:hover:not(:disabled) {
+  color: var(--text-secondary);
+  border-color: var(--text-muted);
+}
+
+.np-chip--on,
+.np-chip--on:hover:not(:disabled) {
   color: var(--accent);
   border-color: var(--accent);
 }
 
-.np-ai-btn:disabled {
-  opacity: 0.5;
+.np-chip:disabled {
+  opacity: 0.45;
   cursor: not-allowed;
 }
 
-.np-collapse-btn {
-  background: none;
-  border: 1px solid var(--border-strong);
-  color: var(--text-muted);
-  padding: 1px 5px;
-  font-size: 9px;
+/* ── ✦ BRIEFING layer — purple tint, ≤3 one-line themes ──────────── */
+.np-brief {
+  background: linear-gradient(90deg, rgba(88, 60, 160, 0.16), transparent 70%);
+  border-bottom: 1px solid var(--border-subtle);
+  padding: 6px 8px;
+  flex-shrink: 0;
 }
 
+.np-brief-head {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  font-family: var(--font-family-mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  color: #a78bfa;
+  margin-bottom: 5px;
+}
+
+.np-brief-glyph { color: #a78bfa; }
+.np-brief-sep   { color: var(--text-faint); }
+.np-brief-meta  { color: var(--text-muted); }
+.np-brief-spacer { flex: 1; }
+
+.np-brief-stale {
+  color: var(--text-faint);
+  border: 1px solid var(--border-strong);
+  border-radius: 2px;
+  padding: 0 3px;
+  font-size: 8px;
+  letter-spacing: 0.08em;
+}
+
+.np-brief-refresh {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 10px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 2px;
+}
+
+.np-brief-refresh:hover:not(:disabled) { color: #a78bfa; }
+.np-brief-refresh:disabled { opacity: 0.5; cursor: default; }
+
+.np-brief-error {
+  font-family: var(--font-family-mono);
+  font-size: 9.5px;
+  color: var(--color-down);
+  padding: 1px 0;
+}
+
+.np-brief-error--muted { color: var(--text-muted); }
+
+/* Theme row: number · one-line headline (ellipsis) · impact tag */
+.np-brow {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  padding: 2.5px 0;
+  cursor: pointer;
+  min-width: 0;
+}
+
+.np-brow-n {
+  color: #a78bfa;
+  font-family: var(--font-family-mono);
+  font-size: 10px;
+  flex: none;
+  width: 12px;
+}
+
+.np-brow-hl {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.3;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.np-brow-imp {
+  font-family: var(--font-family-mono);
+  font-size: 9px;
+  flex: none;
+  padding: 0 5px;
+  border-radius: 2px;
+  white-space: nowrap;
+}
+
+.np-brow-imp--hi  { background: rgba(239, 68, 68, 0.12); color: var(--color-down); }
+.np-brow-imp--med { background: var(--color-accent-dim);  color: var(--accent); }
+.np-brow-imp--up  { background: rgba(34, 197, 94, 0.10);  color: var(--color-up); }
+
+/* Expanded theme (click) — the one-sentence "why it matters" + tickers */
+.np-brow-why {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+  align-items: center;
+  padding: 1px 0 4px 20px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-secondary);
+}
+
+/* ── Error banner ────────────────────────────────────────────────── */
 .np-error-banner {
   padding: 4px 8px;
   background: rgba(239, 68, 68, 0.04);
@@ -83,480 +167,128 @@
   align-items: center;
 }
 
-.np-error-icon {
-  color: var(--color-down);
-  font-size: 9px;
-}
+.np-error-icon { color: var(--color-down); font-size: 9px; }
+.np-error-text { color: var(--color-down); font-size: 9px; }
 
-.np-error-text {
-  color: var(--color-down);
-  font-size: 9px;
-}
-
-.np-ai-summary {
-  padding: 6px 8px;
-  background: var(--color-surface);
-  border-bottom: 1px solid var(--color-surface-2);
-  border-left: 2px solid var(--accent);
-  flex-shrink: 0;
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.np-ai-summary-bullets {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.np-ai-summary-bullet {
-  color: var(--color-text-secondary);
-  font-size: 10px;
-  line-height: 1.4;
-  padding-right: 20px;
-}
-
-.np-ai-loading {
-  color: var(--text-muted);
-  font-size: 9px;
-  font-style: italic;
-}
-
-.np-ai-error {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px;
-  background: rgba(239, 68, 68, 0.04);
-  border: 1px solid rgba(239, 68, 68, 0.08);
-  border-radius: 2px;
-}
-
-.np-ai-error span {
-  color: var(--color-down);
-  font-size: 9px;
-  flex: 1;
-}
-
-.np-ai-retry {
-  background: none;
-  border: 1px solid rgba(239, 68, 68, 0.08);
-  color: var(--color-down);
-  padding: 1px 4px;
-  font-size: 8px;
-  cursor: pointer;
-  flex-shrink: 0;
-}
-
-.np-ai-retry:hover {
-  border-color: var(--color-down);
-}
-
-.np-ai-close-btn {
-  position: absolute;
-  top: 4px;
-  right: 4px;
-  background: none;
-  border: none;
-  color: var(--text-muted);
-  font-size: 14px;
-  cursor: pointer;
-  padding: 0;
-  width: 16px;
-  height: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: color 0.2s;
-}
-
-.np-ai-close-btn:hover {
-  color: var(--accent-text);
-}
-
+/* ── Feed ────────────────────────────────────────────────────────── */
 .np-content {
   flex: 1;
   overflow-y: auto;
   background: var(--bg-app);
 }
 
-/* #UX-4 — three-line scannable rows: source/time · headline · chips.
-   1px separators on --border-subtle, subtle hover bg. */
-.np-news-item {
-  padding: 5px 8px;
+/* ── Wire row: [time 44px | source 66px | headline 1fr | chips auto] */
+.np-wr-wrap {
   border-bottom: 1px solid var(--border-subtle);
-  background: transparent;
-  transition: background 0.12s;
-  cursor: pointer;
 }
 
-.np-news-item:hover {
-  background: var(--bg-hover);
-}
-
-.np-news-item--new {
+.np-wr-wrap--new .np-wr {
   background: rgba(249, 115, 22, 0.05);
 }
 
-.np-news-item--breaking {
-  background: rgba(239, 68, 68, 0.05);
-}
-
-.np-news-header {
-  justify-content: space-between;
-  margin-bottom: 2px;
-  display: flex;
-  align-items: center;
-}
-
-/* Line 1: source — muted 9px mono uppercase */
-.np-news-publisher {
-  font-family: var(--font-family-mono);
-  font-size: 9px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  min-width: 0;
-}
-
-.np-news-publisher--breaking {
-  color: var(--color-down);
-}
-
-.np-news-time {
-  color: var(--text-muted);
-  font-family: var(--font-family-mono);
-  font-size: 9px;
-  flex-shrink: 0;
-  text-align: right;
-}
-
-/* Line 2: headline — the dominant element. 12px/600, max 2 lines. */
-.np-news-title {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-primary);
-  line-height: 1.35;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.np-news-title--breaking {
-  color: var(--color-down);
-}
-
-.np-news-tickers {
-  margin-top: 2px;
-  gap: 4px;
-  flex-wrap: wrap;
-  display: flex;
-  align-items: center;
-}
-
-.np-news-ticker {
-  color: var(--color-text-secondary);
-  font-size: 9px;
-  background: rgba(239, 68, 68, 0.04);
-  padding: 1px 4px;
-  border: 1px solid rgba(249, 115, 22, 0.2);
-}
-
-/* Line 3: impact arrow (AI sentiment) — colored up/down glyph */
-.np-impact {
-  font-size: 10px;
-  font-weight: 700;
-  flex-shrink: 0;
-  line-height: 1;
-}
-
-.np-impact--bullish { color: var(--price-up); }
-.np-impact--bearish { color: var(--price-down); }
-.np-impact--neutral { color: var(--text-faint); }
-
-/* Body summary stays out of the collapsed row — opt-in toggle */
-.np-news-desc-toggle {
-  background: none;
-  border: none;
-  color: var(--text-faint);
-  font-family: var(--font-family-mono);
-  font-size: 8px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  padding: 0 2px;
-  cursor: pointer;
-  transition: color 0.12s;
-}
-
-.np-news-desc-toggle:hover,
-.np-news-desc-toggle--open {
-  color: var(--text-secondary);
-}
-
-.np-news-desc {
-  margin-top: 3px;
-  font-size: 11px;
-  line-height: 1.4;
-  color: var(--text-secondary);
-  cursor: default;
-}
-
-/* ── Morning Briefing card (Phase 9.3) ───────────────────────────── */
-.np-briefing {
-  border-bottom: 1px solid var(--border-strong);
-  background: linear-gradient(
-    180deg,
-    rgba(120, 80, 220, 0.08) 0%,
-    rgba(60, 40, 110, 0.04) 100%
-  );
-  flex-shrink: 0;
-}
-
-.np-briefing-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 4px 8px;
-  border-bottom: 1px solid rgba(120, 80, 220, 0.25);
-}
-
-.np-briefing-title {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font-family: var(--font-family-mono);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  color: var(--text-primary);
-  text-transform: uppercase;
-}
-
-.np-briefing-title-glyph {
-  color: rgba(170, 130, 255, 0.95);
-  font-size: 11px;
-  line-height: 1;
-}
-
-.np-briefing-meta {
-  display: inline-flex;
-  gap: 6px;
-  align-items: center;
-  font-family: var(--font-family-mono);
-  font-size: 9px;
-  color: var(--text-faint);
-}
-
-.np-briefing-refresh {
-  background: none;
-  border: 1px solid rgba(120, 80, 220, 0.5);
-  color: var(--text-muted);
-  font-family: var(--font-family-mono);
-  font-size: 9px;
-  letter-spacing: 0.08em;
-  padding: 1px 6px;
-  cursor: pointer;
-  transition: background-color 0.12s, border-color 0.12s, color 0.12s;
-}
-
-.np-briefing-refresh:hover:not(:disabled) {
-  background: rgba(120, 80, 220, 0.12);
-  border-color: rgba(170, 130, 255, 0.8);
-  color: var(--text-primary);
-}
-
-.np-briefing-refresh:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
-
-/* #UX-4 — tightened: numbered headline + one-line takeaway per pick */
-.np-briefing-list {
-  padding: 3px 8px 5px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.np-briefing-item {
+.np-wr {
   display: grid;
-  grid-template-columns: 16px 1fr auto;
-  gap: 6px;
-  padding: 3px 0;
-  border-top: 1px solid var(--border-subtle);
-  align-items: start;
-}
-
-.np-briefing-item:first-child {
-  border-top: none;
-}
-
-.np-briefing-rank {
-  font-family: var(--font-family-mono);
-  font-size: 11px;
-  font-weight: 700;
-  color: rgba(170, 130, 255, 0.95);
-  line-height: 1.3;
-}
-
-.np-briefing-body {
+  grid-template-columns: 44px 66px 1fr auto;
+  gap: 0 10px;
+  align-items: baseline;
+  padding: 4px 8px;
+  cursor: pointer;
+  transition: background 0.12s;
   min-width: 0;
 }
 
-.np-briefing-headline {
-  color: var(--text-primary);
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 1.3;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+.np-wr:hover {
+  background: var(--color-surface-2);
 }
 
-/* One-line takeaway — no verbose paragraphs in the briefing */
-.np-briefing-why {
-  color: var(--text-secondary);
-  font-size: 10.5px;
-  line-height: 1.4;
-  margin-top: 1px;
-  white-space: nowrap;
+.np-wr-tm {
+  font-family: var(--font-family-mono);
+  font-size: 9.5px;
+  color: var(--text-muted);
+}
+
+.np-wr-src {
+  font-family: var(--font-family-mono);
+  font-size: 9px;
+  letter-spacing: 0.05em;
+  color: var(--color-section-header);
+  text-transform: uppercase;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.np-briefing-tags {
-  display: inline-flex;
-  gap: 4px;
-  flex-wrap: wrap;
-  margin-top: 3px;
-  align-items: center;
-}
-
-.np-briefing-ticker {
-  font-family: var(--font-family-mono);
-  font-size: 9px;
-  font-weight: 700;
-  color: var(--section-watchlist);
-  padding: 0 3px;
-  border: 1px solid var(--border-default);
-  letter-spacing: 0.04em;
-  cursor: pointer;
-  transition: color 0.12s, border-color 0.12s;
-}
-
-.np-briefing-ticker:hover {
+/* Headline — the ONLY bright element; breaking = red, no badges */
+.np-wr-hl {
+  font-size: 12.5px;
+  font-weight: 550;
   color: var(--text-primary);
-  border-color: var(--section-watchlist);
-}
-
-.np-briefing-regime {
-  font-family: var(--font-family-mono);
-  font-size: 8px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  padding: 1px 4px;
-  border-radius: 2px;
-  opacity: 0.75;
-}
-
-.np-briefing-regime--macro    { background: rgba(100, 130, 200, 0.18); color: #8ec6ff; }
-.np-briefing-regime--earnings { background: rgba(255, 165, 0, 0.18);   color: #ffb85f; }
-.np-briefing-regime--policy   { background: rgba(220, 120, 220, 0.18); color: #d98fe0; }
-.np-briefing-regime--geo      { background: rgba(220, 80, 80, 0.18);   color: #ff8c8c; }
-.np-briefing-regime--idio     { background: rgba(140, 140, 140, 0.18); color: #bdbdbd; }
-
-.np-briefing-sent {
-  display: inline-block;
-  width: 10px;
-  text-align: center;
-  font-weight: 700;
-}
-
-.np-briefing-sent--bullish { color: var(--price-up); }
-.np-briefing-sent--bearish { color: var(--price-down); }
-.np-briefing-sent--neutral { color: var(--text-faint); }
-
-.np-briefing-empty,
-.np-briefing-loading,
-.np-briefing-error {
-  padding: 8px 10px;
-  font-size: 11px;
-  color: var(--text-muted);
-  font-family: var(--font-family-mono);
-}
-
-.np-briefing-error { color: var(--semantic-down); }
-
-.np-briefing-collapsed {
-  padding: 3px 8px;
-  color: var(--text-faint);
-  font-size: 10px;
-  font-family: var(--font-family-mono);
-  font-style: italic;
-}
-
-
-/* ── Phase 3: feed scope toggle (ALL | WATCHLIST) ─────────────────── */
-
-.np-scope-toggle {
-  display: inline-flex;
-  align-items: center;
-  border: 1px solid var(--border-default);
-  border-radius: 2px;
+  line-height: 1.32;
+  min-width: 0;
   overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.np-scope-btn {
+.np-wr-hl--brk { color: var(--color-down); }
+
+.np-wr-tk {
+  display: flex;
+  gap: 4px;
+}
+
+/* Ticker chip — colored border only when the story carries per-ticker
+   sentiment; neutral grey otherwise. */
+.np-tkc {
   font-family: var(--font-family-mono);
   font-size: 9px;
-  font-weight: 700;
+  color: var(--text-secondary);
+  background: var(--color-surface-2);
+  border: 1px solid var(--border-strong);
+  padding: 0 5px;
+  border-radius: 2px;
+  white-space: nowrap;
+}
+
+.np-tkc--up   { color: var(--color-up);   border-color: rgba(34, 197, 94, 0.35); }
+.np-tkc--down { color: var(--color-down); border-color: rgba(239, 68, 68, 0.35); }
+.np-tkc--click { cursor: pointer; }
+.np-tkc--click:hover { border-color: var(--accent); color: var(--accent); }
+.np-tkc--open { border-color: var(--accent); color: var(--accent); }
+
+/* ── Expanded story: summary + full chips + article link ─────────── */
+.np-wr-detail {
+  padding: 2px 8px 7px 62px;
+  cursor: default;
+}
+
+.np-wr-desc {
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--text-secondary);
+  margin-bottom: 5px;
+}
+
+.np-wr-detail-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+
+.np-wr-open {
+  font-family: var(--font-family-mono);
+  font-size: 9px;
   letter-spacing: 0.06em;
-  padding: 2px 6px;
-  background: transparent;
-  border: none;
-  color: var(--text-muted);
-  cursor: pointer;
-  transition: color 0.12s, background 0.12s;
+  color: var(--accent);
+  text-decoration: none;
+  margin-left: auto;
+  white-space: nowrap;
 }
 
-.np-scope-btn + .np-scope-btn {
-  border-left: 1px solid var(--border-default);
-}
+.np-wr-open:hover { text-decoration: underline; }
 
-.np-scope-btn:hover:not(:disabled) {
-  color: var(--text-primary);
-}
-
-.np-scope-btn--active {
-  color: var(--section-watchlist);
-  background: rgba(255, 255, 255, 0.06);
-}
-
-.np-scope-btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-/* ── Phase 3: inline per-ticker 7-day AI summary ──────────────────── */
-
-.np-news-ticker {
-  cursor: pointer;
-}
-
-.np-news-ticker--open {
-  color: var(--text-primary);
-  border-color: var(--section-watchlist);
-}
-
+/* ── Per-ticker 7-day AI summary (inside expanded story) ─────────── */
 .np-tksum {
   margin-top: 5px;
   padding: 6px 8px;
@@ -643,15 +375,3 @@
 }
 
 .np-tksum-error { color: var(--semantic-down); }
-
-/* Stale-briefing tag — server served the last cached briefing because a
-   fresh synthesis failed (news-briefing parse/provider fallback). Muted on
-   purpose: the content is still useful, it is just not freshly generated. */
-.np-briefing-stale {
-  color: var(--text-faint);
-  border: 1px solid var(--border-strong);
-  border-radius: 2px;
-  padding: 0 3px;
-  font-size: 8px;
-  letter-spacing: 0.08em;
-}
