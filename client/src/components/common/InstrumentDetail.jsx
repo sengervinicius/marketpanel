@@ -826,7 +826,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
                     label={{
                       value: 'E',
                       fill: '#ff9800',
-                      fontSize: 8,
+                      fontSize: 8.5,
                       position: 'bottom',
                       offset: 5,
                     }}
@@ -983,7 +983,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
                    was on the left by default, producing two phantom
                    gutters on mobile and compressing the bars. */
                 orientation="right"
-                tick={{ fill: 'var(--text-faint)', fontSize: 8 }} width={isMobile ? 44 : 64}
+                tick={{ fill: 'var(--text-faint)', fontSize: 8.5 }} width={isMobile ? 44 : 64}
                 tickFormatter={v =>
                   v >= 1e9 ? (v/1e9).toFixed(1)+'B' :
                   v >= 1e6 ? (v/1e6).toFixed(0)+'M' :
@@ -1008,7 +1008,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
               <ComposedChart data={chartBars} margin={{ top: 2, right: 6, bottom: 0, left: 6 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" />
                 <XAxis dataKey="label" hide axisLine={false} />
-                <YAxis orientation="right" domain={[0, 100]} ticks={[30, 50, 70]} tick={{ fill: 'var(--text-faint)', fontSize: 8 }} width={isMobile ? 44 : 64} axisLine={false} />
+                <YAxis orientation="right" domain={[0, 100]} ticks={[30, 50, 70]} tick={{ fill: 'var(--text-faint)', fontSize: 8.5 }} width={isMobile ? 44 : 64} axisLine={false} />
                 <ReferenceLine y={70} stroke="var(--price-down)" strokeDasharray="3 3" strokeOpacity={0.5} />
                 <ReferenceLine y={30} stroke="var(--price-up)" strokeDasharray="3 3" strokeOpacity={0.5} />
                 <Tooltip contentStyle={commonTooltipStyle} formatter={v => [v != null ? v.toFixed(1) : '--', 'RSI']} labelStyle={{ color: 'var(--text-muted)' }} />
@@ -1025,7 +1025,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
               <ComposedChart data={chartBars} margin={{ top: 2, right: 6, bottom: 0, left: 6 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" />
                 <XAxis dataKey="label" hide axisLine={false} />
-                <YAxis orientation="right" tick={{ fill: 'var(--text-faint)', fontSize: 8 }} width={isMobile ? 44 : 64} axisLine={false} />
+                <YAxis orientation="right" tick={{ fill: 'var(--text-faint)', fontSize: 8.5 }} width={isMobile ? 44 : 64} axisLine={false} />
                 <ReferenceLine y={0} stroke="var(--border-default)" />
                 <Tooltip contentStyle={commonTooltipStyle} formatter={(v, n) => [v != null ? v.toFixed(3) : '--', n]} labelStyle={{ color: 'var(--text-muted)' }} />
                 <Bar dataKey="macdHist" name="Histogram" fill={IND_COLORS.MACD} opacity={0.35} radius={[1, 1, 0, 0]} />

@@ -29,7 +29,7 @@
 
 .rp-header-time {
   color: var(--border-subtle);
-  font-size: 7.5px;
+  font-size: 8.5px;
   font-family: var(--font-mono);
 }
 
@@ -43,7 +43,7 @@
 
 .rp-col-header-cell {
   color: var(--border-strong);
-  font-size: 7px;
+  font-size: 8.5px;
   font-family: var(--font-mono);
   text-align: left;
 }
@@ -65,7 +65,7 @@
 
 .rp-section-label-text {
   color: var(--border-strong);
-  font-size: 7px;
+  font-size: 8.5px;
   font-family: var(--font-mono);
   letter-spacing: 0.08em;
 }
@@ -121,12 +121,12 @@
 
 .rp-row-change--static {
   color: var(--border-strong);
-  font-size: 8px;
+  font-size: 8.5px;
 }
 
 .rp-row-note {
   color: var(--border-strong);
-  font-size: 7.5px;
+  font-size: 8.5px;
   text-align: right;
   font-family: var(--font-mono);
   padding-right: 2px;
@@ -139,6 +139,6 @@
 
 .rp-footer-text {
   color: var(--bg-hover);
-  font-size: 7px;
+  font-size: 8.5px;
   font-family: var(--font-mono);
 }

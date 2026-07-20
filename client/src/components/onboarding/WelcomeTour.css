@@ -189,7 +189,7 @@
 }
 .wt-pillar-tag {
   font-family: var(--font-family-mono);
-  font-size: 8px;
+  font-size: 8.5px;
   font-weight: 700;
   letter-spacing: 0.12em;
   color: var(--pillar-color, rgba(255,255,255,0.5));
@@ -1320,7 +1320,7 @@
   /* Demo scenes shrink */
   .wt-mode-bar { padding: 8px 10px; gap: 10px; }
   .wt-mode-logo span { display: none; }
-  .wt-mode-tab { padding: 5px 8px; font-size: 8px; }
+  .wt-mode-tab { padding: 5px 8px; font-size: 8.5px; }
   .wt-mode-time { display: none; }
   .wt-mode-body { padding: 12px; }
   .wt-mode-pane--terminal { flex-direction: column; gap: 8px; }

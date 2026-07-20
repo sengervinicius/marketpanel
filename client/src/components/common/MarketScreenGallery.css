@@ -41,7 +41,7 @@
 }
 
 .msg-toggle-arrow {
-  font-size: 8px;
+  font-size: 8.5px;
   color: var(--text-faint, var(--text-faint));
   margin-left: auto;
 }
@@ -93,12 +93,12 @@
 }
 
 .msg-card-status {
-  font-size: 8px;
+  font-size: 8.5px;
   color: var(--accent);
 }
 
 .msg-card-subtitle {
-  font-size: 8px;
+  font-size: 8.5px;
   color: var(--text-faint);
   letter-spacing: 0.2px;
   margin-bottom: 6px;
@@ -121,7 +121,7 @@
 }
 
 .msg-card-thesis {
-  font-size: 8px;
+  font-size: 8.5px;
   color: var(--text-faint, var(--text-faint));
   line-height: 1.35;
   font-style: italic;

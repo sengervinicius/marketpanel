@@ -53,7 +53,7 @@ export default class PanelErrorBoundary extends Component {
           {this.state.error?.stack && (
             <details style={{ marginTop: 4, maxWidth: 400, textAlign: 'left' }}>
               <summary style={{ cursor: 'pointer', color: '#555', fontSize: 9 }}>Stack trace</summary>
-              <pre style={{ color: '#555', fontSize: 8, whiteSpace: 'pre-wrap', wordBreak: 'break-all', maxHeight: 120, overflow: 'auto', marginTop: 4 }}>
+              <pre style={{ color: '#555', fontSize: 8.5, whiteSpace: 'pre-wrap', wordBreak: 'break-all', maxHeight: 120, overflow: 'auto', marginTop: 4 }}>
                 {this.state.error.stack.split('\n').slice(0, 8).join('\n')}
               </pre>
             </details>

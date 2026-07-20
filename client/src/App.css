@@ -713,7 +713,7 @@ button:hover, .btn:hover, [role="button"]:hover,
   color: var(--text-muted);
 }
 .mm-footer-sub {
-  font-size: 8px;
+  font-size: 8.5px;
   letter-spacing: 2px;
   color: var(--text-faint);
   text-transform: uppercase;
@@ -1335,18 +1335,18 @@ textarea:focus-visible { outline: 1px solid var(--accent); outline-offset: 0; bo
 
 .app-text-accent-small {
   color: var(--accent);
-  font-size: 8px;
+  font-size: 8.5px;
 }
 
 .app-text-faint-small {
   color: var(--text-faint);
-  font-size: 8px;
+  font-size: 8.5px;
   letter-spacing: 0.5px;
 }
 
 .app-text-accent-bold-small {
   color: var(--accent);
-  font-size: 8px;
+  font-size: 8.5px;
   font-weight: 700;
   letter-spacing: 0.5px;
 }
@@ -1796,14 +1796,14 @@ textarea:focus-visible { outline: 1px solid var(--accent); outline-offset: 0; bo
 
 .app-header-subtitle {
   color: var(--text-faint);
-  font-size: 8px;
+  font-size: 8.5px;
   letter-spacing: 1.2px;
   opacity: 0.7;
 }
 
 .app-header-status {
   color: var(--accent);
-  font-size: 8px;
+  font-size: 8.5px;
   letter-spacing: 1px;
 }
 
@@ -1811,7 +1811,7 @@ textarea:focus-visible { outline: 1px solid var(--accent); outline-offset: 0; bo
   display: flex;
   align-items: center;
   gap: 4px;
-  font-size: 8px;
+  font-size: 8.5px;
   font-weight: 600;
   letter-spacing: 0.8px;
   color: var(--text-faint);
@@ -1846,7 +1846,7 @@ textarea:focus-visible { outline: 1px solid var(--accent); outline-offset: 0; bo
 /* Feed/Alert indicators */
 .app-feed-label {
   color: var(--text-faint);
-  font-size: 8px;
+  font-size: 8.5px;
   letter-spacing: 1px;
 }
 
@@ -1859,13 +1859,13 @@ textarea:focus-visible { outline: 1px solid var(--accent); outline-offset: 0; bo
 
 .app-alert-detail {
   color: rgba(239, 83, 80, 0.7);
-  font-size: 8px;
+  font-size: 8.5px;
   letter-spacing: 0.3px;
 }
 
 .app-alert-count {
   color: rgba(239, 83, 80, 0.6);
-  font-size: 8px;
+  font-size: 8.5px;
   margin-left: 4px;
 }
 
@@ -1959,7 +1959,7 @@ textarea:focus-visible { outline: 1px solid var(--accent); outline-offset: 0; bo
 
 @media (max-width: 768px) {
   [data-tour="sector-screens"] {
-    font-size: 8px !important;
+    font-size: 8.5px !important;
     padding: 2px 4px !important;
   }
 }

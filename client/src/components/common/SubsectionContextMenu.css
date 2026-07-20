@@ -21,7 +21,7 @@
   padding: 6px 8px;
   border-bottom: 1px solid var(--bg-active);
   color: var(--text-faint);
-  font-size: 7px;
+  font-size: 8.5px;
   font-weight: 700;
   letter-spacing: 0.12em;
   text-align: center;
@@ -150,7 +150,7 @@
 }
 
 .scm-custom-tag {
-  font-size: 7px;
+  font-size: 8.5px;
   color: var(--text-faint);
   letter-spacing: 0.06em;
   margin-left: 2px;

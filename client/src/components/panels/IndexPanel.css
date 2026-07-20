@@ -29,11 +29,11 @@
 
 .ip-header-subtitle {
   color: var(--text-faint);
-  font-size: 8px;
+  font-size: 8.5px;
 }
 
 .ip-header-badge {
-  font-size: 7px;
+  font-size: 8.5px;
   font-weight: 700;
   letter-spacing: 0.08em;
   padding: 1px 4px;

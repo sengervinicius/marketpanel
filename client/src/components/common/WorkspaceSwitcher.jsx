@@ -66,12 +66,12 @@ function WorkspaceSwitcher() {
           border: `1px solid ${open ? 'var(--accent)' : 'var(--border-strong)'}`,
           background: open ? '#1a0800' : 'none',
           color: open ? 'var(--accent)' : 'var(--text-faint)',
-          fontSize: 8, letterSpacing: '0.6px', fontWeight: 600,
+          fontSize: 8.5, letterSpacing: '0.6px', fontWeight: 600,
           cursor: 'pointer',
           transition: 'all 100ms ease-out',
         }}
       >
-        <span style={{ fontSize: 7, opacity: 0.6 }}>▾</span>
+        <span style={{ fontSize: 8.5, opacity: 0.6 }}>▾</span>
         {activeLabel
           ? activeLabel.toUpperCase()
           : 'WORKSPACE'}
@@ -96,7 +96,7 @@ function WorkspaceSwitcher() {
               <div style={{
                 padding: '6px 10px 3px',
                 color: 'var(--text-faint)',
-                fontSize: 7,
+                fontSize: 8.5,
                 fontWeight: 700,
                 letterSpacing: '1px',
                 borderBottom: '1px solid var(--border-subtle)',
@@ -137,11 +137,11 @@ function WorkspaceSwitcher() {
                         alignItems: 'center',
                         gap: 5,
                       }}>
-                        {isActive && <span style={{ fontSize: 7 }}>●</span>}
+                        {isActive && <span style={{ fontSize: 8.5 }}>●</span>}
                         {t.label}
                       </div>
                       <div style={{
-                        fontSize: 7,
+                        fontSize: 8.5,
                         color: '#444',
                         marginTop: 1,
                         letterSpacing: '0.2px',
@@ -153,7 +153,7 @@ function WorkspaceSwitcher() {
                       </div>
                     </div>
                     <span style={{
-                      fontSize: 7,
+                      fontSize: 8.5,
                       fontWeight: 700,
                       letterSpacing: '0.3px',
                       flexShrink: 0,

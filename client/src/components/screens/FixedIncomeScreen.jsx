@@ -670,7 +670,7 @@ function DurationRiskCalculator() {
           borderRadius: '3px',
           padding: '6px',
         }}>
-          <div style={{ fontSize: '8px', color: 'var(--text-secondary)' }}>+25bp</div>
+          <div style={{ fontSize: '8.5px', color: 'var(--text-secondary)' }}>+25bp</div>
           <div style={{
             fontSize: '11px',
             fontWeight: 600,
@@ -685,7 +685,7 @@ function DurationRiskCalculator() {
           borderRadius: '3px',
           padding: '6px',
         }}>
-          <div style={{ fontSize: '8px', color: 'var(--text-secondary)' }}>+50bp</div>
+          <div style={{ fontSize: '8.5px', color: 'var(--text-secondary)' }}>+50bp</div>
           <div style={{
             fontSize: '11px',
             fontWeight: 600,
@@ -700,7 +700,7 @@ function DurationRiskCalculator() {
           borderRadius: '3px',
           padding: '6px',
         }}>
-          <div style={{ fontSize: '8px', color: 'var(--text-secondary)' }}>+100bp</div>
+          <div style={{ fontSize: '8.5px', color: 'var(--text-secondary)' }}>+100bp</div>
           <div style={{
             fontSize: '11px',
             fontWeight: 600,
@@ -787,7 +787,7 @@ function CentralBankRatesSection() {
           })}
         </tbody>
       </table>
-      <div style={{ fontSize: 8, color: 'var(--text-muted)', marginTop: 6, textAlign: 'right' }}>
+      <div style={{ fontSize: 8.5, color: 'var(--text-muted)', marginTop: 6, textAlign: 'right' }}>
         {error
           ? <span style={{ color: 'var(--semantic-down)' }}>Live policy rates unavailable — retrying shortly.</span>
           : 'Policy rates fetched from central bank feeds.'}
@@ -827,7 +827,7 @@ function EurBondETFCell({ ticker }) {
       }}
     >
       <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 2 }}>{ticker}</div>
-      <div style={{ fontSize: 8, color: 'var(--text-secondary)', marginBottom: 4 }}>{label}</div>
+      <div style={{ fontSize: 8.5, color: 'var(--text-secondary)', marginBottom: 4 }}>{label}</div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
         <span style={{ fontSize: 11, color: 'var(--text-primary)', fontWeight: 500 }}>
           {p?.price ? p.price.toFixed(2) : '—'}

@@ -78,7 +78,7 @@
 }
 
 .fsl-header-time {
-  font-size: 8px;
+  font-size: 8.5px;
   color: var(--text-muted);
   text-align: right;
   letter-spacing: 0.5px;
@@ -288,7 +288,7 @@
     font-size: 10px;
   }
   .ds-table th {
-    font-size: 8px;
+    font-size: 8.5px;
   }
   .ds-table td {
     font-size: 11px;
@@ -305,13 +305,13 @@
     letter-spacing: 0.5px;
   }
   .fsl-header-subtitle {
-    font-size: 8px;
+    font-size: 8.5px;
   }
   .fsl-section-head {
     padding: var(--sp-1, 4px) var(--sp-2, 8px);
   }
   .fsl-section-title {
-    font-size: 8px;
+    font-size: 8.5px;
     letter-spacing: 1px;
   }
   .ds-table td, .ds-table th {

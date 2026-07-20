@@ -308,7 +308,7 @@ function OnChainCard({ label, value, unit, loading, error }) {
       <div style={{ color: 'var(--text-primary)', fontSize: 14, fontWeight: 600, fontFamily: 'monospace' }}>
         {value || '—'}
       </div>
-      {unit && <div style={{ color: 'var(--text-muted)', fontSize: 8, marginTop: 4 }}>{unit}</div>}
+      {unit && <div style={{ color: 'var(--text-muted)', fontSize: 8.5, marginTop: 4 }}>{unit}</div>}
     </div>
   );
 }

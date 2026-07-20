@@ -796,20 +796,20 @@ export function ParticleMemoryPanel() {
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
               <span style={{
-                fontSize: 8, letterSpacing: '0.4px', fontWeight: 700,
+                fontSize: 8.5, letterSpacing: '0.4px', fontWeight: 700,
                 color: lowConf ? 'var(--text-faint)' : 'var(--accent)',
                 border: '1px solid var(--border-subtle)', borderRadius: 2,
                 padding: '1px 4px', textTransform: 'uppercase',
               }}>{m.type || 'fact'}</span>
               {m.referenceCount > 0 && (
-                <span style={{ fontSize: 8, color: 'var(--text-faint)', letterSpacing: '0.3px' }}>
+                <span style={{ fontSize: 8.5, color: 'var(--text-faint)', letterSpacing: '0.3px' }}>
                   ×{m.referenceCount}
                 </span>
               )}
               {lowConf && (
                 <span
                   title="Low-confidence; the model suppresses this at inference time but keeps the row so you can still see and delete it"
-                  style={{ fontSize: 8, color: 'var(--text-faint)', letterSpacing: '0.3px' }}
+                  style={{ fontSize: 8.5, color: 'var(--text-faint)', letterSpacing: '0.3px' }}
                 >LOW CONF</span>
               )}
               <span style={{ flex: 1 }} />
@@ -888,7 +888,7 @@ export function ParticleMemoryPanel() {
         <span style={{ color: 'var(--price-down)', fontSize: 9, letterSpacing: '0.3px', fontWeight: 700 }}>
           ✕ FORGET EVERYTHING
         </span>
-        <span style={{ color: 'var(--text-faint)', fontSize: 8 }}>
+        <span style={{ color: 'var(--text-faint)', fontSize: 8.5 }}>
           {busy === 'forget-all' ? 'FORGETTING…' : 'irreversible'}
         </span>
       </div>
@@ -917,7 +917,7 @@ export function UserDropdown({ user, onSettings, onLogout, onBilling, isPaid }) 
         aria-expanded={open}
       >
         <UserAvatar user={user} size="small" interactive />
-        <span style={{ color: open ? 'var(--accent)' : 'var(--text-faint)', fontSize: 8 }}>v</span>
+        <span style={{ color: open ? 'var(--accent)' : 'var(--text-faint)', fontSize: 8.5 }}>v</span>
         <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', lineHeight: 1.2 }}>
           <span>{user.username?.toUpperCase()}</span>
         </span>
@@ -985,7 +985,7 @@ export function AlertBadge() {
       <span style={{
         position: 'absolute', top: -4, right: -6,
         background: 'var(--price-down)', color: '#fff',
-        fontSize: 7, fontWeight: 700, borderRadius: '50%',
+        fontSize: 8.5, fontWeight: 700, borderRadius: '50%',
         width: 12, height: 12, display: 'flex',
         alignItems: 'center', justifyContent: 'center',
         lineHeight: 1,

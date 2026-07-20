@@ -63,7 +63,7 @@ const BannerTick = memo(function BannerTick({ ticker, label, accentColor }) {
       )}
       <span style={{
         color: 'rgba(255,255,255,0.08)',
-        fontSize: 8,
+        fontSize: 8.5,
         padding: '0 4px',
       }}>│</span>
     </span>

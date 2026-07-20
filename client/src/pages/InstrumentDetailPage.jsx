@@ -71,7 +71,7 @@ export default function InstrumentDetailPage() {
         <span style={{ color: 'var(--color-particle)', fontWeight: 700, fontSize: 11, letterSpacing: '2px' }}>PARTICLE</span>
         <span style={{ color: '#2a2a2a', fontSize: 9, letterSpacing: '1px' }}>INSTRUMENT DETAIL</span>
         <div style={{ flex: 1 }} />
-        {user && <span style={{ color: '#2a2a2a', fontSize: 8 }}>{user.username?.toUpperCase()}</span>}
+        {user && <span style={{ color: '#2a2a2a', fontSize: 8.5 }}>{user.username?.toUpperCase()}</span>}
         <button className="btn"
           onClick={() => window.close()}
           style={{

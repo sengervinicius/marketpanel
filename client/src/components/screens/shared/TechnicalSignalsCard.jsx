@@ -225,7 +225,7 @@ export const TechnicalSignalsCard = memo(function TechnicalSignalsCard({
                 <th style={{
                   padding: '4px 8px',
                   color: 'var(--text-faint)',
-                  fontSize: 8,
+                  fontSize: 8.5,
                   fontWeight: 500,
                   textAlign: 'left',
                   textTransform: 'uppercase',
@@ -237,7 +237,7 @@ export const TechnicalSignalsCard = memo(function TechnicalSignalsCard({
                 <th style={{
                   padding: '4px 8px',
                   color: 'var(--text-faint)',
-                  fontSize: 8,
+                  fontSize: 8.5,
                   fontWeight: 500,
                   textAlign: 'center',
                   textTransform: 'uppercase',
@@ -249,7 +249,7 @@ export const TechnicalSignalsCard = memo(function TechnicalSignalsCard({
                 <th style={{
                   padding: '4px 8px',
                   color: 'var(--text-faint)',
-                  fontSize: 8,
+                  fontSize: 8.5,
                   fontWeight: 500,
                   textAlign: 'center',
                   textTransform: 'uppercase',

@@ -173,11 +173,11 @@
 }
 .mc-stat-label {
   color: var(--text-faint);
-  font-size: 6.5px;
+  font-size: 8.5px;
 }
 .mc-stat-val {
   color: var(--text-secondary);
-  font-size: 6.5px;
+  font-size: 8.5px;
 }
 
 /* Range bar */
@@ -390,7 +390,7 @@
 
 .mc-ind-pill {
   padding: 1px 4px;
-  font-size: 7px;
+  font-size: 8.5px;
   font-family: inherit;
   font-weight: 600;
   letter-spacing: 0.3px;
@@ -413,7 +413,7 @@
 
 /* ── Inline indicator badges (RSI / MACD in stats bar) ── */
 .mc-ind-badge {
-  font-size: 6.5px;
+  font-size: 8.5px;
   font-weight: 700;
   letter-spacing: 0.3px;
   padding: 0 3px;
@@ -428,7 +428,7 @@
   background: transparent;
   border: 1px solid var(--accent);
   color: var(--accent);
-  font-size: 7px;
+  font-size: 8.5px;
   font-weight: 700;
   letter-spacing: 0.06em;
   padding: 1px 4px;
@@ -464,7 +464,7 @@
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
 }
 .mc-ai-popover-badge {
-  font-size: 7px;
+  font-size: 8.5px;
   font-weight: 700;
   letter-spacing: 0.06em;
   padding: 1px 5px;
@@ -569,7 +569,7 @@
   flex-shrink: 0;
 }
 .mcm-ai-badge {
-  font-size: 8px;
+  font-size: 8.5px;
   font-weight: 700;
   letter-spacing: 0.06em;
   padding: 1px 5px;
