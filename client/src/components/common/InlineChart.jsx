@@ -16,6 +16,7 @@
  * Theme: Dark terminal (#111116 bg), colored lines (#00ff88 green, #ff4444 red, #4488ff blue)
  */
 
+import { TOKEN_HEX } from '../../utils/tokenHex';
 import { useEffect, useState, useRef, memo } from 'react';
 import { API_BASE } from '../../utils/api';
 import './InlineChart.css';
@@ -309,7 +310,7 @@ function BarChart({ data, height = 120 }) {
               />
 
               {/* Value label */}
-              <text x={padding.left + barWidth + 4} y={y + 4} fontSize="11" fill="#999999" className="inline-chart-bar-value">
+              <text x={padding.left + barWidth + 4} y={y + 4} fontSize="11" fill={TOKEN_HEX.textSecondary} className="inline-chart-bar-value">
                 {item.value.toFixed(1)}%
               </text>
             </g>

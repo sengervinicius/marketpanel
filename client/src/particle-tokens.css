@@ -1,16 +1,16 @@
-/* particle-tokens.css — THE SINGLE SOURCE OF TRUTH
- * Every colour, size, spacing, and motion value in the entire application
- * must reference a variable from this file. No exceptions.
- *
- * To find violations: grep -rn --include="*.css" --include="*.jsx" --include="*.tsx"
- *   --exclude="particle-tokens.css" '#[0-9a-fA-F]\{3,8\}' src/
+/* particle-tokens.css — LEGACY COMPAT SHIM (not imported anywhere).
+ * The single source of truth is styles/tokens.css. This file used to carry
+ * an older palette (old Material orange, pure-white text, darker muted gray) that
+ * conflicted with the shipped design tokens; its values are now aligned
+ * with styles/tokens.css so it can never reintroduce the wrong palette.
+ * Prefer deleting any import of this file over extending it.
  */
 
 :root {
   /* ── Brand — Particle (orange) ── */
-  --color-particle:        #F97316;
-  --color-particle-glow:   rgba(249, 115, 22, 0.20);
-  --color-particle-dim:    rgba(249, 115, 22, 0.10);
+  --color-particle:        #e55a00;
+  --color-particle-glow:   rgba(229, 90, 0, 0.20);
+  --color-particle-dim:    rgba(229, 90, 0, 0.10);
 
   /* ── Brand — Terminal (silver/white) ── */
   --color-terminal:        #E0E0E0;
@@ -18,25 +18,25 @@
   --color-terminal-dim:    rgba(224, 224, 224, 0.06);
 
   /* ── Brand — Vault (gold) ── */
-  --color-vault:           #DAA520;
-  --color-vault-glow:      rgba(218, 165, 32, 0.20);
-  --color-vault-dim:       rgba(218, 165, 32, 0.10);
+  --color-vault:           #c9a84c;
+  --color-vault-glow:      rgba(201, 168, 76, 0.20);
+  --color-vault-dim:       rgba(201, 168, 76, 0.10);
 
   /* ── Backgrounds — from deepest to lightest ── */
-  --color-bg:              #080808;
-  --color-surface:         #0f0f0f;
-  --color-surface-2:       #141414;
-  --color-surface-3:       #1a1a1a;
-  --color-surface-raised:  #1f1f1f;
+  --color-bg:              #0a0a0a;
+  --color-surface:         #111111;
+  --color-surface-2:       #161616;
+  --color-surface-3:       #1e1e1e;
+  --color-surface-raised:  #222222;
 
   /* ── Borders ── */
-  --color-border:          rgba(255, 255, 255, 0.07);
+  --color-border:          rgba(255, 255, 255, 0.08);
   --color-border-strong:   rgba(255, 255, 255, 0.12);
 
   /* ── Text ── */
-  --color-text-primary:    #ffffff;
+  --color-text-primary:    #f0f0f0;
   --color-text-secondary:  #a0a0a0;
-  --color-text-muted:      #555555;
+  --color-text-muted:      #5a5a5a;
   --color-text-faint:      #333333;
 
   /* ── Market data — immutable, never use for brand ── */
@@ -46,7 +46,7 @@
   --color-closed:          #475569;
 
   /* ── Functional ── */
-  --color-focus:           rgba(249, 115, 22, 0.40);
+  --color-focus:           rgba(229, 90, 0, 0.40);
 
   /* ── Type ── */
   --font-body:             'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;

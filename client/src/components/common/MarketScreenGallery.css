@@ -21,9 +21,9 @@
 }
 
 .msg-toggle-label {
-  font: 700 8px var(--font-mono, monospace);
+  font: 700 8px var(--font-mono);
   letter-spacing: 1.2px;
-  color: var(--text-faint);
+  color: var(--text-muted);
   transition: color 0.15s;
 }
 
@@ -32,7 +32,7 @@
 }
 
 .msg-toggle-count {
-  font: 600 8px var(--font-mono, monospace);
+  font: 600 8px var(--font-mono);
   color: var(--text-faint, var(--text-faint));
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.06);
@@ -41,7 +41,7 @@
 }
 
 .msg-toggle-arrow {
-  font-size: 8px;
+  font-size: 8.5px;
   color: var(--text-faint, var(--text-faint));
   margin-left: auto;
 }
@@ -72,7 +72,7 @@
 
 .msg-card--active {
   border-left-color: var(--accent);
-  background: rgba(255, 102, 0, 0.03);
+  background: rgba(229, 90, 0, 0.03);
 }
 
 .msg-card--applying {
@@ -88,18 +88,18 @@
 }
 
 .msg-card-label {
-  font: 700 10px var(--font-ui, system-ui);
+  font: 700 10px var(--font-ui);
   color: var(--text-primary);
 }
 
 .msg-card-status {
-  font-size: 8px;
+  font-size: 8.5px;
   color: var(--accent);
 }
 
 .msg-card-subtitle {
-  font-size: 8px;
-  color: var(--text-faint);
+  font-size: 8.5px;
+  color: var(--text-muted);
   letter-spacing: 0.2px;
   margin-bottom: 6px;
 }
@@ -112,7 +112,7 @@
 }
 
 .msg-card-hero {
-  font: 600 7px var(--font-mono, monospace);
+  font: 600 7px var(--font-mono);
   color: var(--text-muted);
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.06);
@@ -121,7 +121,7 @@
 }
 
 .msg-card-thesis {
-  font-size: 8px;
+  font-size: 8.5px;
   color: var(--text-faint, var(--text-faint));
   line-height: 1.35;
   font-style: italic;

@@ -30,7 +30,7 @@
 .pa-text-primary {
   font-size: 28px;
   font-weight: 300;
-  color: #ffffff;
+  color: var(--color-text-primary);
   margin-bottom: 16px;
   letter-spacing: -0.01em;
   line-height: 1.3;
@@ -93,14 +93,14 @@
 .pa-search-bar:focus-within {
   background: rgba(35, 35, 35, 0.8);
   border-color: rgba(150, 150, 150, 0.5);
-  box-shadow: 0 0 0 1px rgba(249, 115, 22, 0.3);
+  box-shadow: 0 0 0 1px rgba(229, 90, 0, 0.3);
 }
 
 .pa-search-input {
   flex: 1;
   background: none;
   border: none;
-  color: #ffffff;
+  color: var(--color-text-primary);
   font-size: 15px;
   font-weight: 400;
   outline: none;
@@ -113,11 +113,11 @@
   color: #666666;
 }
 
-/* Suggestion text below search bar — 13px, #555 */
+/* Suggestion text below search bar — 13px, var(--color-text-muted) */
 .pa-suggestion {
   font-size: 13px;
   font-weight: 400;
-  color: #555555;
+  color: var(--color-text-muted);
   text-align: center;
   max-width: 400px;
   padding: 0 16px;

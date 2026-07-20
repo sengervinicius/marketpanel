@@ -4,6 +4,7 @@
  * AllocationBar, AIHealthCard, SummaryStrip, showInfo helper.
  */
 
+import { TOKEN_HEX } from '../../utils/tokenHex';
 import { memo, useMemo } from 'react';
 import Badge from '../ui/Badge';
 import {
@@ -27,7 +28,7 @@ export function AllocationDonut({ positions }) {
   const top5 = sorted.slice(0, 5);
   const otherValue = sorted.slice(5).reduce((s, p) => s + Math.abs(p.value || p.quantity * (p.currentPrice || 0)), 0);
 
-  const colors = ['#F97316', '#4fc3f7', '#4caf50', '#e91e63', '#ffd54f', '#888'];
+  const colors = [TOKEN_HEX.accent, '#4fc3f7', TOKEN_HEX.sectorBrazil, TOKEN_HEX.sectorRetail, '#ffd54f', TOKEN_HEX.textMuted];
   const segments = top5.map((p, i) => ({
     label: p.symbol,
     value: Math.abs(p.value || p.quantity * (p.currentPrice || 0)),

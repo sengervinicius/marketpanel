@@ -82,7 +82,7 @@ function HsbEnrichedRow({ item, idx, selectedIdx, onSelect, onMouseEnter, typeBa
         <span className="hsb-price">{fmtPrice(price)}</span>
       )}
       {changePct != null && (
-        <span className="hsb-change" style={{ color: isPos ? 'var(--semantic-up, #4caf50)' : 'var(--semantic-down, #ef5350)' }}>
+        <span className="hsb-change" style={{ color: isPos ? 'var(--semantic-up)' : 'var(--semantic-down)' }}>
           {isPos ? '+' : ''}{changePct.toFixed(2)}%
         </span>
       )}

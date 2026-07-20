@@ -61,7 +61,7 @@ const SECTOR_SCREENS = [
     id: 'brazil-em',
     label: 'Brazil & EM',
     thesis: 'B3, LatAm, ADR arbitrage, EM FX & rates',
-    color: '#4caf50',
+    color: 'var(--sector-brazil)',
   },
   {
     id: 'technology',
@@ -73,7 +73,7 @@ const SECTOR_SCREENS = [
     id: 'global-macro',
     label: 'Global Macro',
     thesis: 'Cross-asset flows, central bank divergence, risk regimes',
-    color: '#ce93d8',
+    color: 'var(--sector-fxcrypto)',
   },
   {
     id: 'fixed-income',
@@ -266,8 +266,8 @@ const styles = {
     fontSize: '13px',
     fontWeight: 700,
     letterSpacing: '0.8px',
-    color: '#e0e0e0',
-    fontFamily: 'var(--font-mono, \'IBM Plex Mono\', monospace)',
+    color: 'var(--color-text-primary)',
+    fontFamily: 'var(--font-mono)',
   },
 
   closeButton: {
@@ -326,7 +326,7 @@ const styles = {
 
   cardActive: {
     background: '#1a1a1a',
-    borderColor: 'var(--accent, #ff6600)',
+    borderColor: 'var(--accent)',
     boxShadow: '0 0 8px rgba(255, 102, 0, 0.2)',
   },
 
@@ -349,7 +349,7 @@ const styles = {
   labelText: {
     fontSize: '12px',
     fontWeight: 600,
-    color: '#e0e0e0',
+    color: 'var(--color-text-primary)',
     marginBottom: '6px',
     lineHeight: '1.2',
     minHeight: '24px',
@@ -362,7 +362,7 @@ const styles = {
   thesis: {
     fontSize: '10px',
     color: '#888',
-    fontFamily: 'var(--font-mono, \'IBM Plex Mono\', monospace)',
+    fontFamily: 'var(--font-mono)',
     lineHeight: '1.3',
     minHeight: '24px',
     display: 'flex',

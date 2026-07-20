@@ -17,13 +17,13 @@
    ══════════════════════════════════════════════════════════════════ */
 
 .options-flow-widget {
-  background: var(--bg-panel, #0a0a0f);
-  border: 1px solid var(--border-default, #2a2a35);
+  background: var(--bg-panel);
+  border: 1px solid var(--border-default);
   border-radius: 8px;
   padding: 16px;
   margin: 16px 0;
-  font-family: var(--font-mono, 'Monaco', 'Menlo', 'Ubuntu Mono', monospace);
-  color: var(--text-primary, #d0d0d0);
+  font-family: var(--font-mono);
+  color: var(--text-primary);
 }
 
 .widget-header {
@@ -31,7 +31,7 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 16px;
-  border-bottom: 1px solid var(--border-default, #2a2a35);
+  border-bottom: 1px solid var(--border-default);
   padding-bottom: 12px;
 }
 
@@ -39,20 +39,20 @@
   margin: 0;
   font-size: 16px;
   font-weight: 600;
-  color: var(--accent, #00ff88);
+  color: var(--accent);
   text-transform: uppercase;
   letter-spacing: 1px;
 }
 
 .widget-refresh {
   background: none;
-  border: 1px solid var(--border-default, #2a2a35);
+  border: 1px solid var(--border-default);
   border-radius: 4px;
   width: 32px;
   height: 32px;
   cursor: pointer;
   font-size: 14px;
-  color: var(--text-muted, #888);
+  color: var(--text-muted);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -60,9 +60,9 @@
 }
 
 .widget-refresh:hover {
-  background: var(--bg-surface, #1a1a20);
-  color: var(--accent, #00ff88);
-  border-color: var(--accent, #00ff88);
+  background: var(--bg-surface);
+  color: var(--accent);
+  border-color: var(--accent);
 }
 
 .widget-refresh:active {
@@ -73,7 +73,7 @@
 .widget-empty {
   padding: 20px;
   text-align: center;
-  color: var(--text-faint, #666);
+  color: var(--text-muted);
   font-size: 14px;
   opacity: 0.7;
 }
@@ -82,15 +82,15 @@
 .ratio-container {
   margin-bottom: 20px;
   padding: 12px;
-  background: var(--bg-surface, #1a1a20);
-  border: 1px solid var(--border-default, #2a2a35);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
   border-radius: 6px;
 }
 
 .ratio-label {
   font-size: 12px;
   text-transform: uppercase;
-  color: var(--text-muted, #888);
+  color: var(--text-muted);
   letter-spacing: 0.5px;
   margin-bottom: 8px;
 }
@@ -98,15 +98,15 @@
 .ratio-bar {
   display: flex;
   height: 24px;
-  background: var(--bg-panel, #0a0a0f);
-  border: 1px solid var(--border-default, #2a2a35);
+  background: var(--bg-panel);
+  border: 1px solid var(--border-default);
   border-radius: 4px;
   overflow: hidden;
   margin-bottom: 8px;
 }
 
 .ratio-calls {
-  background: var(--price-up, #16c784);
+  background: var(--price-up);
   transition: width 0.3s ease;
   position: relative;
 }
@@ -122,7 +122,7 @@
 }
 
 .ratio-puts {
-  background: var(--price-down, #ea3943);
+  background: var(--price-down);
   transition: width 0.3s ease;
   position: relative;
 }
@@ -139,7 +139,7 @@
 
 .ratio-text {
   font-size: 12px;
-  color: var(--text-secondary, #aaa);
+  color: var(--text-secondary);
   text-align: center;
 }
 
@@ -147,19 +147,19 @@
 .flow-section,
 .darkpool-section {
   margin-bottom: 20px;
-  border: 1px solid var(--border-default, #2a2a35);
+  border: 1px solid var(--border-default);
   border-radius: 6px;
   overflow: hidden;
 }
 
 .section-header {
-  background: var(--bg-surface, #1a1a20);
-  border-bottom: 1px solid var(--border-default, #2a2a35);
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-default);
   padding: 12px 16px;
   font-size: 13px;
   font-weight: 600;
   text-transform: uppercase;
-  color: var(--accent, #00ff88);
+  color: var(--accent);
   letter-spacing: 0.5px;
   display: flex;
   align-items: baseline;
@@ -170,7 +170,7 @@
 .section-header-sub {
   font-size: 10px;
   font-weight: 500;
-  color: var(--text-muted, #888);
+  color: var(--text-muted);
   letter-spacing: 0.1em;
   text-transform: uppercase;
   opacity: 0.75;
@@ -183,7 +183,7 @@
 }
 
 .flow-group + .flow-group {
-  border-top: 1px solid var(--border-default, #2a2a35);
+  border-top: 1px solid var(--border-default);
 }
 
 .flow-group-header {
@@ -193,13 +193,13 @@
   gap: 12px;
   padding: 8px 16px;
   background: rgba(255, 255, 255, 0.025);
-  border-bottom: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.05));
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 .flow-group-expiry {
   font-size: 12px;
   font-weight: 700;
-  color: var(--text-primary, #e5e5e5);
+  color: var(--text-primary);
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
@@ -207,7 +207,7 @@
 .flow-group-count {
   font-size: 10px;
   font-weight: 500;
-  color: var(--text-muted, #888);
+  color: var(--text-muted);
   letter-spacing: 0.04em;
   font-variant-numeric: tabular-nums;
 }
@@ -215,7 +215,7 @@
 /* ── Tables ──────────────────────────────────────────────── */
 .table-container {
   overflow-x: auto;
-  background: var(--bg-panel, #0a0a0f);
+  background: var(--bg-panel);
 }
 
 .flow-table,
@@ -227,8 +227,8 @@
 
 .flow-table thead,
 .darkpool-table thead {
-  background: var(--bg-surface, #1a1a20);
-  border-bottom: 1px solid var(--border-default, #2a2a35);
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-default);
 }
 
 .flow-table th,
@@ -236,7 +236,7 @@
   padding: 10px 12px;
   text-align: left;
   font-weight: 600;
-  color: var(--accent, #00ff88);
+  color: var(--accent);
   text-transform: uppercase;
   letter-spacing: 0.5px;
   font-size: 11px;
@@ -244,7 +244,7 @@
 
 .flow-table tbody tr,
 .darkpool-table tbody tr {
-  border-bottom: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.04));
+  border-bottom: 1px solid var(--border-subtle);
   transition: background 0.15s ease, box-shadow 0.15s ease;
 }
 
@@ -257,7 +257,7 @@
 .flow-table td,
 .darkpool-table td {
   padding: 10px 12px;
-  color: var(--text-primary, #d0d0d0);
+  color: var(--text-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -265,11 +265,11 @@
 
 /* ── Sentiment-based row coloring (tokenized) ──────────── */
 .flow-table tbody tr.sentiment-bullish {
-  border-left: 3px solid var(--price-up, #16c784);
+  border-left: 3px solid var(--price-up);
 }
 
 .flow-table tbody tr.sentiment-bearish {
-  border-left: 3px solid var(--price-down, #ea3943);
+  border-left: 3px solid var(--price-down);
 }
 
 .flow-table tbody tr.sentiment-neutral {
@@ -277,20 +277,20 @@
 }
 
 /* Stronger hover reinforcement — the left border glows slightly. */
-.flow-table tbody tr.sentiment-bullish:hover { box-shadow: inset 3px 0 0 var(--price-up, #16c784); }
-.flow-table tbody tr.sentiment-bearish:hover { box-shadow: inset 3px 0 0 var(--price-down, #ea3943); }
+.flow-table tbody tr.sentiment-bullish:hover { box-shadow: inset 3px 0 0 var(--price-up); }
+.flow-table tbody tr.sentiment-bearish:hover { box-shadow: inset 3px 0 0 var(--price-down); }
 .flow-table tbody tr.sentiment-neutral:hover { box-shadow: inset 3px 0 0 var(--color-warning, #ffaa00); }
 
 /* ── Column-specific styling ──────────────────────────── */
 .flow-table .strike,
 .darkpool-table .price {
   font-weight: 600;
-  color: var(--accent, #00ff88);
+  color: var(--accent);
 }
 
 .flow-table .expiry,
 .darkpool-table .timestamp {
-  color: var(--text-muted, #888);
+  color: var(--text-muted);
 }
 
 .flow-table .type {
@@ -302,12 +302,12 @@
 }
 
 .flow-table .type.call {
-  color: var(--price-up, #16c784);
+  color: var(--price-up);
   background: rgba(22, 199, 132, 0.12);
 }
 
 .flow-table .type.put {
-  color: var(--price-down, #ea3943);
+  color: var(--price-down);
   background: rgba(234, 57, 67, 0.12);
 }
 
@@ -332,12 +332,12 @@
 }
 
 .flow-table .sentiment-badge.sentiment-bullish {
-  color: var(--price-up, #16c784);
+  color: var(--price-up);
   background: rgba(22, 199, 132, 0.10);
 }
 
 .flow-table .sentiment-badge.sentiment-bearish {
-  color: var(--price-down, #ea3943);
+  color: var(--price-down);
   background: rgba(234, 57, 67, 0.10);
 }
 
@@ -347,7 +347,7 @@
 }
 
 .darkpool-table .exchange {
-  color: var(--text-muted, #888);
+  color: var(--text-muted);
   font-weight: 500;
 }
 
@@ -359,11 +359,11 @@
 
 /* ── Table Footer ────────────────────────────────────── */
 .table-footer {
-  background: var(--bg-surface, #1a1a20);
-  border-top: 1px solid var(--border-default, #2a2a35);
+  background: var(--bg-surface);
+  border-top: 1px solid var(--border-default);
   padding: 8px 16px;
   font-size: 11px;
-  color: var(--text-faint, #666);
+  color: var(--text-muted);
   text-align: center;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -426,14 +426,14 @@
 }
 
 .table-container::-webkit-scrollbar-track {
-  background: var(--bg-surface, #1a1a20);
+  background: var(--bg-surface);
 }
 
 .table-container::-webkit-scrollbar-thumb {
-  background: var(--border-default, #2a2a35);
+  background: var(--border-default);
   border-radius: 4px;
 }
 
 .table-container::-webkit-scrollbar-thumb:hover {
-  background: var(--border-strong, #3a3a45);
+  background: var(--border-strong);
 }

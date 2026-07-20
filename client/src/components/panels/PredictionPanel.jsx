@@ -38,9 +38,9 @@ const CATEGORY_LABELS = {
 };
 
 function probabilityColor(p) {
-  if (p >= 0.7) return 'var(--color-up, #22c55e)';
+  if (p >= 0.7) return 'var(--color-up)';
   if (p >= 0.4) return 'var(--color-warning, #f59e0b)';
-  return 'var(--color-down, #ef4444)';
+  return 'var(--color-down)';
 }
 
 function formatVolume(v) {

@@ -2,6 +2,7 @@
 // Desktop: hover 2 s over any [data-ticker] element to show info tooltip
 //          right-click any [data-ticker] element → context menu (Add to Watchlist, Open Chart)
 // Mobile:  long-press 800 ms → context menu
+import { TOKEN_HEX } from '../../utils/tokenHex';
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useWatchlist } from '../../context/PortfolioContext';
@@ -124,15 +125,15 @@ function descKey(symbol) {
 // They intentionally stay as literal values rather than referencing --section-* tokens
 // because the tooltip needs to work across all panel contexts.
 function accentFor(type) {
-  if (!type) return 'var(--accent)';
+  if (!type) return TOKEN_HEX.accent;
   const t = type.toUpperCase();
-  if (t === 'FX' || t === 'FOREX')     return '#ce93d8';
-  if (t === 'CRYPTO')                  return '#f7931a';
-  if (t === 'ETF' || t === 'INDEX')    return 'var(--accent)';
+  if (t === 'FX' || t === 'FOREX')     return TOKEN_HEX.sectorFxCrypto;
+  if (t === 'CRYPTO')                  return TOKEN_HEX.sectorCrypto;
+  if (t === 'ETF' || t === 'INDEX')    return TOKEN_HEX.accent;
   if (t === 'COMMODITY')               return '#ffd54f';
-  if (t === 'EQUITY')                  return 'var(--section-equity)';
-  if (t === 'BR' || t === 'ADR')       return 'var(--section-brazil)';
-  return 'var(--accent)';
+  if (t === 'EQUITY')                  return TOKEN_HEX.sectorTech;
+  if (t === 'BR' || t === 'ADR')       return TOKEN_HEX.sectorBrazil;
+  return TOKEN_HEX.accent;
 }
 
 

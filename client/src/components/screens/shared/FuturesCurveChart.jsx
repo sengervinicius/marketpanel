@@ -117,7 +117,7 @@ export const FuturesCurveChart = memo(function FuturesCurveChart({
         </span>
         {data && data.length >= 2 && (
           <span style={{
-            fontSize: 8,
+            fontSize: 8.5,
             padding: '1px 6px',
             borderRadius: 2,
             background: isContango

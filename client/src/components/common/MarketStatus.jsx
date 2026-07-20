@@ -180,18 +180,18 @@ function MarketStatus() {
       {state.countdown && <span style={{ opacity: 0.7 }}>{state.countdown}</span>}
 
       {/* Global exchange dots */}
-      <span style={{ color: '#333', margin: '0 2px' }}>|</span>
+      <span style={{ color: 'var(--color-text-faint)', margin: '0 2px' }}>|</span>
       <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
         {exchanges.map(ex => (
           <span key={ex.code} title={`${ex.label}: ${ex.isOpen ? 'Open' : 'Closed'}`} style={{
             display: 'flex', alignItems: 'center', gap: 2,
-            fontSize: 8, letterSpacing: '0.3px', fontFamily: 'var(--font-mono, monospace)',
-            color: ex.isOpen ? '#4caf50' : '#444',
+            fontSize: 8.5, letterSpacing: '0.3px', fontFamily: 'var(--font-mono)',
+            color: ex.isOpen ? 'var(--color-up)' : 'var(--color-text-muted)',
           }}>
             <span style={{
               width: 4, height: 4, borderRadius: '50%',
-              background: ex.isOpen ? '#4caf50' : '#2a2a2a',
-              boxShadow: ex.isOpen ? '0 0 3px #4caf50' : 'none',
+              background: ex.isOpen ? 'var(--color-up)' : 'var(--color-surface-raised)',
+              boxShadow: ex.isOpen ? '0 0 3px var(--color-up)' : 'none',
               display: 'inline-block',
             }} />
             {ex.label}

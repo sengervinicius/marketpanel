@@ -46,9 +46,9 @@
   margin: 0;
   font-size: 18px;
   font-weight: 600;
-  color: #ffffff;
+  color: var(--color-text-primary);
   letter-spacing: 1px;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-family-mono);
 }
 
 .kb-shortcuts-close {
@@ -67,7 +67,7 @@
 }
 
 .kb-shortcuts-close:hover {
-  color: var(--color-particle, #F97316);
+  color: var(--color-particle);
 }
 
 .kb-shortcuts-list {
@@ -87,7 +87,7 @@
 
 .kb-shortcut-item:hover {
   background-color: #1a1a20;
-  border-left-color: var(--color-particle, #F97316);
+  border-left-color: var(--color-particle);
 }
 
 .kb-shortcut-key {
@@ -97,8 +97,8 @@
   background: #1a1a20;
   border: 1px solid #2a2a30;
   border-radius: 4px;
-  color: var(--color-particle, #F97316);
-  font-family: 'IBM Plex Mono', monospace;
+  color: var(--color-particle);
+  font-family: var(--font-family-mono);
   font-size: 11px;
   font-weight: 600;
   text-align: center;
@@ -109,7 +109,7 @@
 .kb-shortcut-desc {
   color: #aaa;
   font-size: 13px;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-family-mono);
   flex: 1;
 }
 
@@ -124,7 +124,7 @@
   margin: 0;
   font-size: 11px;
   color: #666;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-family-mono);
   text-align: center;
 }
 
@@ -134,8 +134,8 @@
   background: #1a1a20;
   border: 1px solid #2a2a30;
   border-radius: 3px;
-  color: var(--color-particle, #F97316);
-  font-family: 'IBM Plex Mono', monospace;
+  color: var(--color-particle);
+  font-family: var(--font-family-mono);
   font-size: 10px;
   font-weight: 600;
   margin: 0 4px;

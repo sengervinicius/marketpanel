@@ -25,7 +25,7 @@ function RSIBadge({ rsi }) {
     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
       <span style={{
         color: textColor,
-        fontFamily: 'var(--font-mono, monospace)',
+        fontFamily: 'var(--font-mono)',
         fontSize: 10,
         fontWeight: 600,
       }}>
@@ -33,7 +33,7 @@ function RSIBadge({ rsi }) {
       </span>
       <span style={{
         color: 'var(--text-primary)',
-        fontFamily: 'var(--font-mono, monospace)',
+        fontFamily: 'var(--font-mono)',
         fontSize: 10,
       }}>
         {rsi.toFixed(1)}
@@ -55,7 +55,7 @@ function MACDSignal({ macd, signal }) {
     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
       <span style={{
         color: color,
-        fontFamily: 'var(--font-mono, monospace)',
+        fontFamily: 'var(--font-mono)',
         fontSize: 10,
         fontWeight: 600,
       }}>
@@ -63,7 +63,7 @@ function MACDSignal({ macd, signal }) {
       </span>
       <span style={{
         color: 'var(--text-secondary)',
-        fontFamily: 'var(--font-mono, monospace)',
+        fontFamily: 'var(--font-mono)',
         fontSize: 9,
       }}>
         {(macd - signal).toFixed(3)}
@@ -80,7 +80,7 @@ function TechnicalRow({ ticker, technicals, accentColor }) {
         fontSize: 11,
         fontWeight: 700,
         color: accentColor || 'var(--accent)',
-        fontFamily: 'var(--font-mono, monospace)',
+        fontFamily: 'var(--font-mono)',
         whiteSpace: 'nowrap',
       }}
       className="ds-ticker-col">
@@ -225,7 +225,7 @@ export const TechnicalSignalsCard = memo(function TechnicalSignalsCard({
                 <th style={{
                   padding: '4px 8px',
                   color: 'var(--text-faint)',
-                  fontSize: 8,
+                  fontSize: 8.5,
                   fontWeight: 500,
                   textAlign: 'left',
                   textTransform: 'uppercase',
@@ -237,7 +237,7 @@ export const TechnicalSignalsCard = memo(function TechnicalSignalsCard({
                 <th style={{
                   padding: '4px 8px',
                   color: 'var(--text-faint)',
-                  fontSize: 8,
+                  fontSize: 8.5,
                   fontWeight: 500,
                   textAlign: 'center',
                   textTransform: 'uppercase',
@@ -249,7 +249,7 @@ export const TechnicalSignalsCard = memo(function TechnicalSignalsCard({
                 <th style={{
                   padding: '4px 8px',
                   color: 'var(--text-faint)',
-                  fontSize: 8,
+                  fontSize: 8.5,
                   fontWeight: 500,
                   textAlign: 'center',
                   textTransform: 'uppercase',

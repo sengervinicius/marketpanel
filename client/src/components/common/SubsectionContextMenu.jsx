@@ -6,10 +6,11 @@
  * Appears on right-click of panel headers.
  */
 
+import { TOKEN_HEX } from '../../utils/tokenHex';
 import { useState, useEffect, useRef } from 'react';
 import './SubsectionContextMenu.css';
 
-const SECTION_COLORS = ['#F97316', '#00bcd4', '#ce93d8', '#ffd54f', '#81c784', '#f48fb1', '#90caf9', '#ffb74d', '#ef5350', '#26a69a'];
+const SECTION_COLORS = [TOKEN_HEX.accent, TOKEN_HEX.sectorTech, TOKEN_HEX.sectorFxCrypto, '#ffd54f', '#81c784', '#f48fb1', '#90caf9', '#ffb74d', '#ef5350', '#26a69a'];
 
 export default function SubsectionContextMenu({
   x,
@@ -108,7 +109,7 @@ export default function SubsectionContextMenu({
               {/* Visibility toggle */}
               <div
                 className="scm-checkbox"
-                style={{ background: isVisible ? '#00bcd4' : 'transparent' }}
+                style={{ background: isVisible ? 'var(--sector-tech)' : 'transparent' }}
                 onClick={() => onToggleSubsection?.(sub.key)}
                 title={isVisible ? 'Hide section' : 'Show section'}
               >
@@ -144,7 +145,7 @@ export default function SubsectionContextMenu({
                 <button className="scm-icon-btn"
                   onClick={() => startRename(sub.key, displayLabel)}
                   title="Rename section"
-                  onMouseEnter={(e) => { e.currentTarget.style.color = '#e0e0e0'; e.currentTarget.style.backgroundColor = '#222'; }}
+                  onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--color-text-primary)'; e.currentTarget.style.backgroundColor = 'var(--color-surface-raised)'; }}
                   onMouseLeave={(e) => { e.currentTarget.style.color = '#444'; e.currentTarget.style.backgroundColor = 'transparent'; }}
                 ><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg></button>
               )}
@@ -156,7 +157,7 @@ export default function SubsectionContextMenu({
         {customSubsections.length > 0 && (
           <>
             <div className="scm-divider" />
-            <div className="scm-title" style={{ color: '#333', borderBottom: 'none', padding: '4px 8px 2px' }}>CUSTOM SECTIONS</div>
+            <div className="scm-title" style={{ color: 'var(--color-text-muted)', borderBottom: 'none', padding: '4px 8px 2px' }}>CUSTOM SECTIONS</div>
           </>
         )}
         {customSubsections.map((sub) => {
@@ -171,7 +172,7 @@ export default function SubsectionContextMenu({
               {/* Visibility toggle */}
               <div
                 className="scm-checkbox"
-                style={{ background: isVisible ? (sub.color || 'var(--color-particle, #F97316)') : 'transparent', borderColor: sub.color || '#444' }}
+                style={{ background: isVisible ? (sub.color || 'var(--color-particle)') : 'transparent', borderColor: sub.color || '#444' }}
                 onClick={() => onToggleSubsection?.(sub.key)}
                 title={isVisible ? 'Hide section' : 'Show section'}
               >
@@ -195,7 +196,7 @@ export default function SubsectionContextMenu({
               ) : (
                 <span
                   className="scm-label"
-                  style={{ color: sub.color || 'var(--color-particle, #F97316)' }}
+                  style={{ color: sub.color || 'var(--color-particle)' }}
                   onDoubleClick={() => startRename(sub.key, sub.label)}
                   title="Double-click to rename"
                 >
@@ -209,14 +210,14 @@ export default function SubsectionContextMenu({
                 <button className="scm-icon-btn"
                   onClick={() => startRename(sub.key, sub.label)}
                   title="Rename section"
-                  onMouseEnter={(e) => { e.currentTarget.style.color = '#e0e0e0'; e.currentTarget.style.backgroundColor = '#222'; }}
+                  onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--color-text-primary)'; e.currentTarget.style.backgroundColor = 'var(--color-surface-raised)'; }}
                   onMouseLeave={(e) => { e.currentTarget.style.color = '#444'; e.currentTarget.style.backgroundColor = 'transparent'; }}
                 ><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg></button>
               )}
 
               {/* Delete button */}
               <button className="scm-icon-btn scm-delete-btn"
-                style={{ color: '#555' }}
+                style={{ color: 'var(--color-text-muted)' }}
                 onClick={() => {
                   if (sub.symbols?.length > 0) {
                     if (window.confirm(`Delete "${sub.label}" section and its ${sub.symbols.length} ticker(s)?`)) {
@@ -227,8 +228,8 @@ export default function SubsectionContextMenu({
                   }
                 }}
                 title="Delete section"
-                onMouseEnter={(e) => { e.currentTarget.style.color = '#f44336'; e.currentTarget.style.backgroundColor = '#1a0000'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.color = '#555'; e.currentTarget.style.backgroundColor = 'transparent'; }}
+                onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--color-down)'; e.currentTarget.style.backgroundColor = 'var(--color-down-bg)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--color-text-muted)'; e.currentTarget.style.backgroundColor = 'transparent'; }}
               ><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
             </div>
           );
@@ -252,14 +253,14 @@ export default function SubsectionContextMenu({
               maxLength={30}
             />
             <button className="scm-icon-btn"
-              style={{ color: '#4caf50', fontSize: 12 }}
+              style={{ color: 'var(--color-up)', fontSize: 12 }}
               onClick={handleAdd}
               title="Confirm"
               onMouseEnter={(e) => { e.currentTarget.style.color = '#81c784'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.color = '#4caf50'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--color-up)'; }}
             ><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg></button>
             <button className="scm-icon-btn"
-              style={{ color: '#555', fontSize: 12 }}
+              style={{ color: 'var(--color-text-muted)', fontSize: 12 }}
               onClick={() => { setAddMode(false); setNewName(''); }}
               title="Cancel"
             ><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>

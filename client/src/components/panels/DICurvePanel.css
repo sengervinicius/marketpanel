@@ -40,7 +40,7 @@
 }
 
 .dic-header-status {
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-size: var(--font-xs);
   display: flex;
   align-items: center;
@@ -115,8 +115,8 @@
   color: var(--text-primary);
 }
 
-.dic-col-metric.pos { color: var(--price-up, #16c784); }
-.dic-col-metric.neg { color: var(--price-down, #ea3943); }
+.dic-col-metric.pos { color: var(--price-up); }
+.dic-col-metric.neg { color: var(--price-down); }
 
 /* #286 — provider-unavailable row marker.
  * Dim the whole row so the curve fields read as "n/a", and surface a
@@ -131,7 +131,7 @@
   display: inline-block;
   margin-left: 6px;
   padding: 0 4px;
-  font-size: 8px;
+  font-size: 8.5px;
   font-weight: 700;
   letter-spacing: 0.08em;
   color: var(--text-muted);
@@ -143,7 +143,7 @@
 
 .dic-matrix-note {
   padding: 2px 8px 3px;
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-size: 9px;
   letter-spacing: 0.04em;
   background: var(--bg-surface);
@@ -174,7 +174,7 @@
 
 /* #225 — the CH cell is the 5th; label the forward overlay explicitly */
 .dic-grid-cell-forward-tag {
-  color: var(--text-faint);
+  color: var(--text-muted);
   letter-spacing: 0.06em;
 }
 
@@ -194,8 +194,8 @@
 }
 
 .dic-grid-cell-note {
-  font-size: 8px;
-  color: var(--text-faint);
+  font-size: 8.5px;
+  color: var(--text-muted);
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
@@ -212,7 +212,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-size: 10px;
   flex-direction: column;
   gap: 4px;
@@ -243,7 +243,7 @@
 }
 
 .dic-source-text {
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-size: 9px;
   letter-spacing: 0.04em;
 }

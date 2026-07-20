@@ -27,7 +27,7 @@
   font-size: var(--font-xs);
   font-weight: 700;
   letter-spacing: 1.2px;
-  color: var(--text-faint);
+  color: var(--text-muted);
   flex-shrink: 0;
 }
 .scr-preset-pills {
@@ -53,7 +53,7 @@
 .scr-preset-pill:hover { border-color: var(--text-muted); color: var(--text-secondary); }
 .scr-preset-pill--active {
   border-color: var(--accent);
-  background: rgba(255, 102, 0, 0.12);
+  background: rgba(229, 90, 0, 0.12);
   color: var(--accent);
 }
 .scr-preset-star {
@@ -74,7 +74,7 @@
   border: 1px solid var(--border-default);
   border-radius: 3px;
   background: transparent;
-  color: var(--text-faint);
+  color: var(--text-muted);
   cursor: pointer;
   transition: all 0.12s;
 }
@@ -109,14 +109,14 @@
   letter-spacing: 0.5px;
   border: 1px solid var(--accent);
   border-radius: var(--radius-md);
-  background: rgba(255, 102, 0, 0.1);
+  background: rgba(229, 90, 0, 0.1);
   color: var(--accent);
   cursor: pointer;
   white-space: nowrap;
   transition: all 0.12s;
   flex-shrink: 0;
 }
-.scr-ai-btn:hover:not(:disabled) { background: rgba(255, 102, 0, 0.2); }
+.scr-ai-btn:hover:not(:disabled) { background: rgba(229, 90, 0, 0.2); }
 .scr-ai-btn:disabled { opacity: 0.4; cursor: default; }
 .scr-ai-explanation {
   font-size: var(--font-sm);
@@ -146,7 +146,7 @@
   font-size: var(--font-xs);
   font-weight: 700;
   letter-spacing: 1.2px;
-  color: var(--text-faint);
+  color: var(--text-muted);
 }
 .scr-chips {
   display: flex;
@@ -162,7 +162,7 @@
   border: 1px solid var(--border-default);
   border-radius: var(--radius-md);
   background: transparent;
-  color: var(--text-faint);
+  color: var(--text-muted);
   cursor: pointer;
   transition: all 0.12s;
   white-space: nowrap;
@@ -170,7 +170,7 @@
 .scr-chip:hover { border-color: var(--text-muted); color: var(--text-secondary); }
 .scr-chip--active {
   border-color: var(--accent);
-  background: rgba(255, 102, 0, 0.12);
+  background: rgba(229, 90, 0, 0.12);
   color: var(--accent);
 }
 
@@ -182,7 +182,7 @@
 }
 .scr-range { flex: 1; min-width: 140px; display: flex; flex-direction: column; gap: 4px; }
 .scr-range-inputs { display: flex; align-items: center; gap: 4px; }
-.scr-range-sep { color: var(--text-faint); font-size: var(--font-sm); }
+.scr-range-sep { color: var(--text-muted); font-size: var(--font-sm); }
 .scr-input {
   width: 100%;
   padding: 5px 8px;
@@ -254,14 +254,14 @@
   animation: scr-fade-in 0.2s;
 }
 .scr-bulk-status--success {
-  background: rgba(76, 175, 80, 0.15);
+  background: rgba(34, 197, 94, 0.15);
   color: var(--price-up);
-  border: 1px solid rgba(76, 175, 80, 0.3);
+  border: 1px solid rgba(34, 197, 94, 0.3);
 }
 .scr-bulk-status--error {
-  background: rgba(244, 67, 54, 0.15);
+  background: rgba(239, 68, 68, 0.15);
   color: var(--price-down);
-  border: 1px solid rgba(244, 67, 54, 0.3);
+  border: 1px solid rgba(239, 68, 68, 0.3);
 }
 @keyframes scr-fade-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
 
@@ -282,7 +282,7 @@
   font-size: var(--font-xs);
   font-weight: 700;
   letter-spacing: 1px;
-  color: var(--text-faint);
+  color: var(--text-muted);
 }
 .scr-bulk-actions {
   display: flex;
@@ -302,17 +302,17 @@
   letter-spacing: 0.5px;
   border: 1px solid var(--accent);
   border-radius: var(--radius-md);
-  background: rgba(255, 102, 0, 0.08);
+  background: rgba(229, 90, 0, 0.08);
   color: var(--accent);
   cursor: pointer;
   transition: all 0.12s;
   white-space: nowrap;
 }
-.scr-bulk-btn:hover { background: rgba(255, 102, 0, 0.18); }
+.scr-bulk-btn:hover { background: rgba(229, 90, 0, 0.18); }
 
 .scr-empty {
   font-size: var(--font-sm);
-  color: var(--text-faint);
+  color: var(--text-muted);
   padding: var(--sp-4) 0;
   text-align: center;
 }
@@ -347,8 +347,8 @@
   transition: background 0.1s;
 }
 .scr-row:hover { background: rgba(255, 255, 255, 0.02); }
-.scr-row--selected { background: rgba(255, 102, 0, 0.06); }
-.scr-row--selected:hover { background: rgba(255, 102, 0, 0.1); }
+.scr-row--selected { background: rgba(229, 90, 0, 0.06); }
+.scr-row--selected:hover { background: rgba(229, 90, 0, 0.1); }
 .scr-td {
   padding: 5px 8px 5px 0;
   border-bottom: 1px solid var(--border-subtle);
@@ -417,7 +417,7 @@
 .scr-modal-close {
   background: none;
   border: none;
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-size: 18px;
   cursor: pointer;
   padding: 0 4px;
@@ -477,7 +477,7 @@
 }
 .scr-modal-radio small {
   font-size: var(--font-xs);
-  color: var(--text-faint);
+  color: var(--text-muted);
   margin-left: 20px;
 }
 
@@ -502,7 +502,7 @@
 }
 .scr-modal-list-item:hover {
   border-color: var(--accent);
-  background: rgba(255, 102, 0, 0.06);
+  background: rgba(229, 90, 0, 0.06);
 }
 .scr-modal-list-name {
   font-size: var(--font-sm);

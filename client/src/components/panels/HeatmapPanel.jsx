@@ -21,11 +21,11 @@ const SECTORS = [
 ];
 
 function getChangeColor(pct) {
-  if (pct == null) return '#222';
+  if (pct == null) return 'var(--color-surface-3)';
   if (pct > 3)   return '#1b5e20';
   if (pct > 1.5) return '#2e7d32';
   if (pct > 0)   return 'rgba(56,142,60,0.4)';
-  if (pct === 0)  return '#333';
+  if (pct === 0)  return 'var(--color-surface-raised)';
   if (pct > -1.5) return 'rgba(198,40,40,0.4)';
   if (pct > -3)  return '#b71c1c';
   return '#7f0000';

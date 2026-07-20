@@ -174,7 +174,7 @@ function EarningsRow({ item }) {
         <div className="cp-event-data">
           <span className="cp-event-prev">EPS Est: {fmtNum(epsEst)}</span>
           <span className="cp-event-fcst">Rev Est: {fmtRev(revEst)}</span>
-          {epsPrev != null && <span className="cp-event-prev" style={{ fontSize: 7 }}>Prev EPS: {fmtNum(epsPrev)}</span>}
+          {epsPrev != null && <span className="cp-event-prev" style={{ fontSize: 8.5 }}>Prev EPS: {fmtNum(epsPrev)}</span>}
         </div>
       </div>
     </div>

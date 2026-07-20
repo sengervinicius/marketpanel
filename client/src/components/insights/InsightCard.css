@@ -3,7 +3,7 @@
 .insight-card {
   display: flex;
   flex-direction: column;
-  background: var(--bg-surface, rgba(255, 255, 255, 0.03));
+  background: var(--bg-surface);
   border-radius: 4px;
   padding: 6px 8px;
   margin-bottom: 4px;
@@ -55,7 +55,7 @@
 
 .insight-card-icon {
   font-size: 10px;
-  color: var(--text-faint, rgba(255, 255, 255, 0.35));
+  color: var(--text-faint);
   line-height: 1;
 }
 
@@ -88,7 +88,7 @@
 
 .insight-card-time {
   font-size: 0.7rem;
-  color: var(--text-faint, rgba(255, 255, 255, 0.3));
+  color: var(--text-muted);
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
@@ -96,7 +96,7 @@
 .insight-card-dismiss {
   background: none;
   border: none;
-  color: var(--text-faint, rgba(255, 255, 255, 0.25));
+  color: var(--text-muted);
   font-size: 11px;
   cursor: pointer;
   padding: 0 2px;
@@ -110,7 +110,7 @@
 }
 
 .insight-card-dismiss:hover {
-  color: var(--text-muted, rgba(255, 255, 255, 0.5));
+  color: var(--text-muted);
 }
 
 /* Latent question chips */
@@ -130,7 +130,7 @@
   padding: 2px 8px;
   border-radius: 10px;
   cursor: pointer;
-  font-family: var(--font-ui, -apple-system, sans-serif);
+  font-family: var(--font-ui);
   transition: background 0.15s, color 0.15s, border-color 0.15s;
   white-space: nowrap;
 }
@@ -167,17 +167,17 @@
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--text-faint, rgba(255, 255, 255, 0.3));
+  color: var(--text-muted);
 }
 
 .insight-feed-seeall {
   background: none;
   border: none;
-  color: var(--accent, #e55a00);
+  color: var(--accent);
   font-size: 0.65rem;
   cursor: pointer;
   padding: 0;
-  font-family: var(--font-ui, -apple-system, sans-serif);
+  font-family: var(--font-ui);
 }
 
 .insight-feed-seeall:hover {

@@ -42,19 +42,19 @@ const REQ_SYMBOLS = Object.keys(YAHOO_TO_FRIENDLY);
 
 function moodColor(v) {
   if (v == null) return 'var(--text-faint)';
-  if (v <= 20) return 'var(--sent-bear, #e05c8a)';
-  if (v <= 40) return 'var(--sent-warn, #e8a020)';
-  if (v <= 60) return 'var(--sent-neutral, #8b93a7)';
-  if (v <= 80) return 'var(--sent-bull, #3dd68c)';
-  return 'var(--sent-bull, #3dd68c)';
+  if (v <= 20) return 'var(--sent-bear)';
+  if (v <= 40) return 'var(--sent-warn)';
+  if (v <= 60) return 'var(--sent-neutral)';
+  if (v <= 80) return 'var(--sent-bull)';
+  return 'var(--sent-bull)';
 }
 
 function vixColor(v) {
   if (v == null) return 'var(--text-faint)';
-  if (v < 15) return 'var(--sent-bull, #3dd68c)';
-  if (v < 20) return 'var(--sent-neutral, #8b93a7)';
-  if (v < 25) return 'var(--sent-warn, #e8a020)';
-  return 'var(--sent-bear, #e05c8a)';
+  if (v < 15) return 'var(--sent-bull)';
+  if (v < 20) return 'var(--sent-neutral)';
+  if (v < 25) return 'var(--sent-warn)';
+  return 'var(--sent-bear)';
 }
 
 function MoodGauge({ value, label, title }) {
@@ -205,19 +205,19 @@ export default function SentimentStrip() {
       <Metric
         label="SPY"
         value={spy?.pct != null ? fmtPct(spy.pct, { digits: 2, sign: true, fromPct: true }) : null}
-        color={spy?.pct > 0 ? 'var(--color-up, #22c55e)' : spy?.pct < 0 ? 'var(--color-down, #ef4444)' : undefined}
+        color={spy?.pct > 0 ? 'var(--color-up)' : spy?.pct < 0 ? 'var(--color-down)' : undefined}
         flashKey={spy?.pct}
       />
       <Metric
         label="DXY"
         value={dxy?.pct != null ? fmtPct(dxy.pct, { digits: 2, sign: true, fromPct: true }) : null}
-        color={dxy?.pct > 0 ? 'var(--color-up, #22c55e)' : dxy?.pct < 0 ? 'var(--color-down, #ef4444)' : undefined}
+        color={dxy?.pct > 0 ? 'var(--color-up)' : dxy?.pct < 0 ? 'var(--color-down)' : undefined}
         flashKey={dxy?.pct}
       />
       <Metric
         label="10Y"
         value={tnx?.price != null ? `${tnx.price.toFixed(2)}%` : null}
-        color={tnx?.pct > 0 ? 'var(--sent-warn, #e8a020)' : undefined}
+        color={tnx?.pct > 0 ? 'var(--sent-warn)' : undefined}
         flashKey={tnx?.price}
       />
 

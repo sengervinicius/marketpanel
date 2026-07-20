@@ -67,7 +67,7 @@
 
 .pf-editor-close-btn:hover {
   color: var(--accent);
-  background: rgba(255, 102, 0, 0.1);
+  background: rgba(229, 90, 0, 0.1);
 }
 
 /* ── Body ── */
@@ -115,7 +115,7 @@
 .pf-editor-input:focus,
 .pf-editor-select:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 8px rgba(255, 102, 0, 0.3);
+  box-shadow: 0 0 8px rgba(229, 90, 0, 0.3);
 }
 
 .pf-editor-input::placeholder {
@@ -204,7 +204,7 @@
 .pf-editor-btn-primary:hover:not(:disabled) {
   background: var(--accent-text);
   border-color: var(--accent-text);
-  box-shadow: 0 0 12px rgba(255, 102, 0, 0.4);
+  box-shadow: 0 0 12px rgba(229, 90, 0, 0.4);
 }
 
 .pf-editor-btn-cancel {
@@ -343,7 +343,7 @@
 
 .pf-ai-suggestion-item:hover {
   border-color: var(--accent);
-  background: rgba(255, 102, 0, 0.05);
+  background: rgba(229, 90, 0, 0.05);
 }
 
 .pf-ai-suggestion-type {
@@ -389,7 +389,7 @@
 .pf-ai-suggestion-use-btn:hover {
   background: var(--accent);
   color: var(--bg-app);
-  box-shadow: 0 0 8px rgba(255, 102, 0, 0.3);
+  box-shadow: 0 0 8px rgba(229, 90, 0, 0.3);
 }
 
 .pf-ai-loading {
@@ -447,12 +447,12 @@
 
 .pf-search-item:hover,
 .pf-search-item-selected {
-  background: var(--bg-hover, rgba(255, 102, 0, 0.1));
+  background: var(--bg-hover);
 }
 
 .pf-search-badge {
   font-size: 9px;
-  font-family: var(--font-mono, 'Courier New', monospace);
+  font-family: var(--font-mono);
   padding: 1px 4px;
   border-radius: 2px;
   background: var(--bg-surface, var(--bg-panel));

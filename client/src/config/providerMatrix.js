@@ -1,3 +1,4 @@
+import { TOKEN_HEX } from '../utils/tokenHex';
 /**
  * providerMatrix.js — Client-side mirror of server/config/providerMatrix.js
  * ─────────────────────────────────────────────────────────────────────
@@ -139,7 +140,7 @@ export function getProviderRouting(symbol, exchange) {
 export function getCoverageDisplay(coverageLevel) {
   switch (coverageLevel) {
     case COVERAGE.FULL:
-      return { label: 'LIVE',            color: '#4caf50', bg: '#002a0a' };
+      return { label: 'LIVE',            color: TOKEN_HEX.up, bg: '#002a0a' };
     case COVERAGE.DELAYED:
       return { label: 'DELAYED 15min',   color: '#ffd54f', bg: '#1a1400' };
     case COVERAGE.HISTORICAL_ONLY:
@@ -149,7 +150,7 @@ export function getCoverageDisplay(coverageLevel) {
     case COVERAGE.AI_ONLY:
       return { label: 'AI OVERVIEW',     color: '#90caf9', bg: '#001a33' };
     case COVERAGE.UNSUPPORTED:
-      return { label: 'UNSUPPORTED',     color: '#f44336', bg: '#1a0000' };
+      return { label: 'UNSUPPORTED',     color: TOKEN_HEX.down, bg: '#1a0000' };
     default:
       return { label: 'UNKNOWN',         color: '#888',    bg: '#1a1a1a' };
   }
@@ -162,14 +163,14 @@ export function getDataTypeCoverage(symbol, exchange, liveState = {}) {
   const { group, groupInfo, providers, coverage } = getProviderRouting(symbol, exchange);
 
   const quoteLabel = (() => {
-    if (liveState.hasLiveQuote) return { label: 'LIVE', color: '#4caf50', bg: '#002a0a' };
-    if (liveState.hasSnapshot)  return { label: groupInfo.delay > 0 ? `DELAYED ${groupInfo.delay}min` : 'LIVE', color: groupInfo.delay > 0 ? '#ffd54f' : '#4caf50', bg: groupInfo.delay > 0 ? '#1a1400' : '#002a0a' };
+    if (liveState.hasLiveQuote) return { label: 'LIVE', color: TOKEN_HEX.up, bg: '#002a0a' };
+    if (liveState.hasSnapshot)  return { label: groupInfo.delay > 0 ? `DELAYED ${groupInfo.delay}min` : 'LIVE', color: groupInfo.delay > 0 ? '#ffd54f' : TOKEN_HEX.up, bg: groupInfo.delay > 0 ? '#1a1400' : '#002a0a' };
     if (providers.quote.length === 0) return { label: 'N/A', color: '#666', bg: '#111' };
     return { label: 'LOADING', color: '#888', bg: '#1a1a1a' };
   })();
 
   const chartLabel = (() => {
-    if (liveState.hasBars) return { label: 'AVAILABLE', color: '#4caf50', bg: '#002a0a' };
+    if (liveState.hasBars) return { label: 'AVAILABLE', color: TOKEN_HEX.up, bg: '#002a0a' };
     if (liveState.chartLoading) return { label: 'LOADING', color: '#888', bg: '#1a1a1a' };
     if (providers.chart.length === 0) return { label: 'N/A', color: '#666', bg: '#111' };
     // Mobile incident — a transient fetch miss used to render a scary
@@ -183,14 +184,14 @@ export function getDataTypeCoverage(symbol, exchange, liveState = {}) {
     if (providers.fundamentals.length === 0) return { label: 'N/A', color: '#666', bg: '#111' };
     if (liveState.hasFundamentals) {
       const src = providers.fundamentals[0] === 'twelvedata' ? 'TWELVE DATA' : 'YAHOO';
-      return { label: src, color: '#4caf50', bg: '#002a0a' };
+      return { label: src, color: TOKEN_HEX.up, bg: '#002a0a' };
     }
     if (liveState.fundsLoading) return { label: 'LOADING', color: '#888', bg: '#1a1a1a' };
     return { label: 'LIMITED', color: '#ffd54f', bg: '#1a1400' };
   })();
 
   const aiLabel = (() => {
-    if (liveState.hasAI)      return { label: 'AVAILABLE', color: '#4caf50', bg: '#002a0a' };
+    if (liveState.hasAI)      return { label: 'AVAILABLE', color: TOKEN_HEX.up, bg: '#002a0a' };
     if (liveState.aiLoading)  return { label: 'LOADING',   color: '#888',    bg: '#1a1a1a' };
     // Mobile incident — a failed fundamentals-AI call (HTZ case) used
     // to render a red "ERROR" pill in the coverage row, which read as

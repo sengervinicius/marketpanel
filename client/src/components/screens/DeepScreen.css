@@ -158,7 +158,7 @@
   width: 100%;
   border-collapse: collapse;
   font-size: var(--font-sm);
-  font-family: var(--font-ui, 'Inter', system-ui, sans-serif);
+  font-family: var(--font-ui);
 }
 .ds-table th {
   text-align: left;

@@ -20,7 +20,7 @@ function PulseMetric({ label, value, color, mono = true }) {
       minWidth: 80,
     }}>
       <span style={{
-        fontSize: 8,
+        fontSize: 8.5,
         fontWeight: 600,
         letterSpacing: '1.2px',
         color: 'var(--text-faint)',

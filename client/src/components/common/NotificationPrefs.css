@@ -36,7 +36,7 @@
 .np-loading {
   padding: 24px;
   text-align: center;
-  color: var(--text-faint);
+  color: var(--text-muted);
 }
 
 .np-error {
@@ -61,7 +61,7 @@
 }
 
 .np-section-desc {
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-size: var(--font-sm);
   margin-bottom: 8px;
 }
@@ -89,7 +89,7 @@
 
 .np-channel--active {
   border-color: var(--accent);
-  background: rgba(255, 102, 0, 0.08);
+  background: rgba(229, 90, 0, 0.08);
 }
 
 .np-channel--disabled {
@@ -99,7 +99,7 @@
 
 .np-channel-icon { font-size: 16px; flex-shrink: 0; }
 .np-channel-label { font-weight: 600; color: var(--text-primary); font-size: var(--font-sm); min-width: 60px; }
-.np-channel-desc { color: var(--text-faint); font-size: var(--font-sm); }
+.np-channel-desc { color: var(--text-muted); font-size: var(--font-sm); }
 
 .np-field {
   display: flex;
@@ -150,7 +150,7 @@
   padding: 3px 12px;
   border: 1px solid var(--border-strong);
   background: var(--bg-surface);
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-size: var(--font-sm);
   font-weight: 700;
   border-radius: 3px;
@@ -159,7 +159,7 @@
 }
 
 .np-toggle--on {
-  background: rgba(255, 102, 0, 0.15);
+  background: rgba(229, 90, 0, 0.15);
   border-color: var(--accent);
   color: var(--accent);
 }
@@ -181,7 +181,7 @@
 }
 
 .np-footer-text {
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-size: 11px;
 }
 

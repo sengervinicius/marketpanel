@@ -21,12 +21,12 @@ import InlineChart from './InlineChart';
 function ActionButton({ type, params }) {
   const ACTIONS = {
     watchlist_add:      { label: '+ Watchlist',  icon: '\u2605', color: 'var(--color-vault-accent)' },
-    alert_set:          { label: 'Set Alert',    icon: '\u26A0', color: 'var(--semantic-warn, #ff9800)' },
-    chart_open:         { label: 'Open Chart',   icon: '\u25CF', color: 'var(--accent, #F97316)' },
-    detail_open:        { label: 'Details',      icon: '\u2192', color: 'var(--accent, #F97316)' },
-    update_brief_prefs: { label: 'Update Brief', icon: '\u2692', color: 'var(--accent, #F97316)' },
-    export_pdf:         { label: 'Export PDF',   icon: '\u2913', color: 'var(--accent, #F97316)' },
-    email_response:     { label: 'Email Me',     icon: '\u2709', color: 'var(--accent, #F97316)' },
+    alert_set:          { label: 'Set Alert',    icon: '\u26A0', color: 'var(--semantic-warn)' },
+    chart_open:         { label: 'Open Chart',   icon: '\u25CF', color: 'var(--accent)' },
+    detail_open:        { label: 'Details',      icon: '\u2192', color: 'var(--accent)' },
+    update_brief_prefs: { label: 'Update Brief', icon: '\u2692', color: 'var(--accent)' },
+    export_pdf:         { label: 'Export PDF',   icon: '\u2913', color: 'var(--accent)' },
+    email_response:     { label: 'Email Me',     icon: '\u2709', color: 'var(--accent)' },
   };
   const action = ACTIONS[type] || { label: type, icon: '\u2022', color: 'var(--text-secondary)' };
   // For most actions the first ":" segment is a ticker. For the

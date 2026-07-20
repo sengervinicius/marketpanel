@@ -134,7 +134,7 @@ export function LayoutMoveOverlay({ panelId, rowIdx, colIdx, rowLen, totalRows, 
         color:  disabled ? 'var(--border-strong)' : 'var(--accent)',
         width: 22, height: 22, cursor: disabled ? 'default' : 'pointer',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontSize: 12, fontFamily: 'monospace', padding: 0,
+        fontSize: 12, fontFamily: 'var(--font-family-mono)', padding: 0,
       }}
     >{label}</button>
   );
@@ -237,7 +237,7 @@ export function makePanelRenderer(panelId, ctx) {
   // All panels wrapped in Suspense — many are lazy-loaded (ETFPanel, NewsPanel, ChatPanel, etc.)
   // Without Suspense, lazy components trigger React error #426 on first render
   return (
-    <Suspense fallback={<div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-faint, #333)', fontSize: 10, letterSpacing: '0.5px' }}>LOADING...</div>}>
+    <Suspense fallback={<div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-faint)', fontSize: 10, letterSpacing: '0.5px' }}>LOADING...</div>}>
       <Comp {...panelProps} />
     </Suspense>
   );

@@ -46,7 +46,7 @@
 }
 
 .eph-sub {
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-size: var(--font-xs);
   user-select: none;
   padding: 0 3px;
@@ -82,7 +82,7 @@
 }
 
 .eph-badge {
-  font-size: 7px;
+  font-size: 8.5px;
   font-weight: 700;
   letter-spacing: 0.08em;
   padding: 1px 4px;
@@ -94,7 +94,7 @@
   position: absolute;
   inset: 0;
   z-index: 5;
-  background: rgba(255, 102, 0, 0.08);
+  background: rgba(229, 90, 0, 0.08);
   border: 1px dashed var(--accent);
   display: flex;
   align-items: center;
@@ -134,7 +134,7 @@
 .eph-search-close {
   background: none;
   border: none;
-  color: var(--text-faint);
+  color: var(--text-muted);
   padding: 0;
   line-height: 1;
   cursor: pointer;

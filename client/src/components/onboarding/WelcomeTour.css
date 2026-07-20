@@ -9,7 +9,7 @@
   position: fixed;
   inset: 0;
   z-index: 10000;
-  font-family: var(--font-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
+  font-family: var(--font-ui);
 }
 
 .wt-backdrop {
@@ -36,7 +36,7 @@
   border-radius: 8px;
   font-size: 11px;
   letter-spacing: 0.06em;
-  font-family: var(--font-family-mono, monospace);
+  font-family: var(--font-family-mono);
   cursor: pointer;
   transition: all 0.15s;
 }
@@ -63,7 +63,7 @@
   width: 48px;
   height: 48px;
   border-radius: 50%;
-  background: radial-gradient(circle at 38% 38%, #ff8833, var(--color-accent, #e55a00), #b34500);
+  background: radial-gradient(circle at 38% 38%, #ff8833, var(--color-accent), #b34500);
   box-shadow:
     0 0 28px rgba(229, 90, 0, 0.6),
     0 0 60px rgba(229, 90, 0, 0.2),
@@ -86,7 +86,7 @@
 .wt-orb-sm {
   width: 22px; height: 22px;
   border-radius: 50%;
-  background: radial-gradient(circle at 38% 38%, #ff8833, var(--color-accent, #e55a00), #b34500);
+  background: radial-gradient(circle at 38% 38%, #ff8833, var(--color-accent), #b34500);
   box-shadow: 0 0 12px rgba(229, 90, 0, 0.45);
   animation: wt-orb-pulse 2.5s ease-in-out infinite;
   flex-shrink: 0;
@@ -94,7 +94,7 @@
 .wt-orb-xs {
   width: 12px; height: 12px;
   border-radius: 50%;
-  background: radial-gradient(circle at 38% 38%, #ff8833, var(--color-accent, #e55a00), #b34500);
+  background: radial-gradient(circle at 38% 38%, #ff8833, var(--color-accent), #b34500);
   box-shadow: 0 0 8px rgba(229, 90, 0, 0.5);
   flex-shrink: 0;
 }
@@ -115,33 +115,33 @@
 }
 
 .wt-splash-eyebrow {
-  font-family: var(--font-family-mono, monospace);
+  font-family: var(--font-family-mono);
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.25em;
-  color: var(--color-accent, #e55a00);
+  color: var(--color-accent);
   opacity: 0.7;
   margin-bottom: 10px;
   text-transform: uppercase;
 }
 
 .wt-splash-heading {
-  font-family: var(--font-display, 'Playfair Display', Georgia, serif);
+  font-family: var(--font-display);
   font-size: 38px;
   font-weight: 500;
-  color: var(--color-text-primary, #f0f0f0);
+  color: var(--color-text-primary);
   margin: 0 0 8px;
   letter-spacing: -0.02em;
   line-height: 1.2;
 }
 .wt-splash-name {
-  color: var(--color-accent, #e55a00);
+  color: var(--color-accent);
   font-weight: 400;
 }
 
 .wt-splash-sub {
   font-size: 14px;
-  color: var(--color-text-muted, #7a7a7a);
+  color: var(--color-text-muted);
   margin: 0 0 20px;
   letter-spacing: 0.01em;
   font-weight: 500;
@@ -149,7 +149,7 @@
 
 .wt-version-badge {
   display: inline-block;
-  font-family: var(--font-family-mono, monospace);
+  font-family: var(--font-family-mono);
   font-size: 10px;
   letter-spacing: 0.06em;
   color: rgba(255, 255, 255, 0.4);
@@ -188,8 +188,8 @@
   opacity: 0.5;
 }
 .wt-pillar-tag {
-  font-family: var(--font-family-mono, monospace);
-  font-size: 8px;
+  font-family: var(--font-family-mono);
+  font-size: 8.5px;
   font-weight: 700;
   letter-spacing: 0.12em;
   color: var(--pillar-color, rgba(255,255,255,0.5));
@@ -209,13 +209,13 @@
 .wt-pillar-label {
   font-size: 12px;
   font-weight: 700;
-  color: var(--color-text-primary, #f0f0f0);
+  color: var(--color-text-primary);
   margin-bottom: 6px;
   letter-spacing: 0.06em;
 }
 .wt-pillar-desc {
   font-size: 10px;
-  color: var(--color-text-secondary, #a0a0a0);
+  color: var(--color-text-secondary);
   line-height: 1.6;
 }
 
@@ -227,7 +227,7 @@
   gap: 10px;
   min-width: 280px;
   padding: 14px 32px;
-  background: linear-gradient(135deg, var(--color-accent, #e55a00) 0%, #c24800 100%);
+  background: linear-gradient(135deg, var(--color-accent) 0%, #c24800 100%);
   color: #000;
   border: none;
   border-radius: 10px;
@@ -295,16 +295,16 @@
 }
 
 .wt-stage-eyebrow {
-  font-family: var(--font-family-mono, monospace);
+  font-family: var(--font-family-mono);
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.18em;
-  color: var(--color-accent, #e55a00);
+  color: var(--color-accent);
   text-transform: uppercase;
 }
 
 .wt-stage-counter {
-  font-family: var(--font-family-mono, monospace);
+  font-family: var(--font-family-mono);
   font-size: 11px;
   color: rgba(255, 255, 255, 0.55);
   letter-spacing: 0.06em;
@@ -341,10 +341,10 @@
   padding: 0 12px;
 }
 .wt-stage-title {
-  font-family: var(--font-display, 'Playfair Display', Georgia, serif);
+  font-family: var(--font-display);
   font-size: 26px;
   font-weight: 500;
-  color: var(--color-text-primary, #f0f0f0);
+  color: var(--color-text-primary);
   margin-bottom: 10px;
   letter-spacing: -0.01em;
   line-height: 1.2;
@@ -397,7 +397,7 @@
   width: 36px;
   padding: 0;
   justify-content: center;
-  color: var(--color-accent, #e55a00);
+  color: var(--color-accent);
   border-color: rgba(229, 90, 0, 0.25);
   background: rgba(229, 90, 0, 0.06);
 }
@@ -408,7 +408,7 @@
 .wt-ctrl--next {
   background: linear-gradient(135deg, rgba(229, 90, 0, 0.18), rgba(229, 90, 0, 0.08));
   border-color: rgba(229, 90, 0, 0.3);
-  color: var(--color-accent, #ff8a3d);
+  color: var(--color-accent);
 }
 .wt-ctrl--next:hover {
   background: linear-gradient(135deg, rgba(229, 90, 0, 0.28), rgba(229, 90, 0, 0.14));
@@ -430,7 +430,7 @@
 }
 .wt-stage-seg-fill {
   height: 100%;
-  background: linear-gradient(90deg, var(--color-accent, #e55a00), #ff8833);
+  background: linear-gradient(90deg, var(--color-accent), #ff8833);
   box-shadow: 0 0 6px rgba(229, 90, 0, 0.3);
   transition: width 80ms linear;
 }
@@ -476,7 +476,7 @@
 .wt-chrome-dots span:nth-child(2) { background: #ffbd2e; }
 .wt-chrome-dots span:nth-child(3) { background: #28c940; }
 .wt-chrome-title {
-  font-family: var(--font-family-mono, monospace);
+  font-family: var(--font-family-mono);
   font-size: 10px;
   letter-spacing: 0.06em;
   color: rgba(255, 255, 255, 0.35);
@@ -501,11 +501,11 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-family: var(--font-family-mono, monospace);
+  font-family: var(--font-family-mono);
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.18em;
-  color: var(--color-accent, #e55a00);
+  color: var(--color-accent);
 }
 .wt-mode-tabs {
   display: flex;
@@ -515,7 +515,7 @@
   padding: 3px;
 }
 .wt-mode-tab {
-  font-family: var(--font-family-mono, monospace);
+  font-family: var(--font-family-mono);
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -526,12 +526,12 @@
 }
 .wt-mode-tab--active {
   color: #000;
-  background: var(--tab-color, var(--color-accent, #e55a00));
+  background: var(--tab-color, var(--color-accent));
   box-shadow: 0 0 20px -4px var(--tab-color, rgba(229, 90, 0, 0.5));
 }
 .wt-mode-time {
   margin-left: auto;
-  font-family: var(--font-family-mono, monospace);
+  font-family: var(--font-family-mono);
   font-size: 10px;
   color: rgba(255, 255, 255, 0.4);
   letter-spacing: 0.06em;
@@ -602,7 +602,7 @@
   min-width: 0;
 }
 .wt-mini-panel-h {
-  font-family: var(--font-family-mono, monospace);
+  font-family: var(--font-family-mono);
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.14em;
@@ -615,7 +615,7 @@
   justify-content: space-between;
   font-size: 12px;
   color: rgba(255, 255, 255, 0.7);
-  font-family: var(--font-family-mono, monospace);
+  font-family: var(--font-family-mono);
 }
 
 .wt-vault-doc {
@@ -638,7 +638,7 @@
   align-items: center;
   justify-content: center;
   color: #c9a84c;
-  font-family: var(--font-family-mono, monospace);
+  font-family: var(--font-family-mono);
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.06em;
@@ -661,9 +661,9 @@
   color: rgba(255, 255, 255, 0.5);
 }
 .wt-search-input {
-  font-family: var(--font-family-mono, monospace);
+  font-family: var(--font-family-mono);
   font-size: 16px;
-  color: var(--color-text-primary, #f0f0f0);
+  color: var(--color-text-primary);
   letter-spacing: 0.02em;
   display: inline-flex;
   align-items: center;
@@ -674,7 +674,7 @@
   display: inline-block;
   width: 2px;
   height: 16px;
-  background: var(--color-accent, #e55a00);
+  background: var(--color-accent);
   margin-left: 3px;
   animation: wt-cursor-blink 0.8s ease-in-out infinite;
   box-shadow: 0 0 6px rgba(229, 90, 0, 0.4);
@@ -703,25 +703,25 @@
 .wt-search-ticker-sym {
   font-size: 18px;
   font-weight: 700;
-  color: var(--color-text-primary, #f0f0f0);
+  color: var(--color-text-primary);
   letter-spacing: 0.02em;
 }
 .wt-search-ticker-name {
   font-size: 11px;
   color: rgba(255, 255, 255, 0.4);
   margin-top: 2px;
-  font-family: var(--font-family-mono, monospace);
+  font-family: var(--font-family-mono);
 }
 .wt-search-ticker-px { text-align: right; }
 .wt-search-px-main {
   font-size: 18px;
   font-weight: 700;
-  color: var(--color-text-primary, #f0f0f0);
+  color: var(--color-text-primary);
   font-variant-numeric: tabular-nums;
 }
 .wt-search-px-chg {
   font-size: 11px;
-  font-family: var(--font-family-mono, monospace);
+  font-family: var(--font-family-mono);
   margin-top: 2px;
 }
 .wt-search-spark { width: 100%; height: 28px; opacity: 0.9; }
@@ -737,11 +737,11 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-family: var(--font-family-mono, monospace);
+  font-family: var(--font-family-mono);
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.14em;
-  color: var(--color-accent, #e55a00);
+  color: var(--color-accent);
   margin-bottom: 10px;
 }
 .wt-ai-reply-body {
@@ -750,7 +750,7 @@
   color: rgba(255, 255, 255, 0.85);
 }
 .wt-ai-reply-body strong {
-  color: var(--color-text-primary, #f0f0f0);
+  color: var(--color-text-primary);
   font-weight: 700;
 }
 
@@ -785,7 +785,7 @@
   min-height: 200px;
 }
 .wt-ws-h {
-  font-family: var(--font-family-mono, monospace);
+  font-family: var(--font-family-mono);
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.18em;
@@ -816,8 +816,8 @@
 .wt-ws-chip-sym {
   font-weight: 700;
   font-size: 12px;
-  color: var(--color-text-primary, #f0f0f0);
-  font-family: var(--font-family-mono, monospace);
+  color: var(--color-text-primary);
+  font-family: var(--font-family-mono);
 }
 .wt-ws-chip-label {
   font-size: 10px;
@@ -839,7 +839,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-family: var(--font-family-mono, monospace);
+  font-family: var(--font-family-mono);
   font-size: 12px;
   color: rgba(255, 255, 255, 0.7);
   padding: 6px 0;
@@ -862,7 +862,7 @@
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 .wt-sector-tab {
-  font-family: var(--font-family-mono, monospace);
+  font-family: var(--font-family-mono);
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.1em;
@@ -886,7 +886,7 @@
 }
 .wt-sector-badge {
   align-self: flex-start;
-  font-family: var(--font-family-mono, monospace);
+  font-family: var(--font-family-mono);
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.16em;
@@ -896,9 +896,9 @@
   background: rgba(255, 255, 255, 0.02);
 }
 .wt-sector-headline {
-  font-family: var(--font-display, Georgia, serif);
+  font-family: var(--font-display);
   font-size: 19px;
-  color: var(--color-text-primary, #f0f0f0);
+  color: var(--color-text-primary);
   line-height: 1.35;
   letter-spacing: -0.01em;
 }
@@ -919,7 +919,7 @@
   gap: 6px;
 }
 .wt-sector-cell-h {
-  font-family: var(--font-family-mono, monospace);
+  font-family: var(--font-family-mono);
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.14em;
@@ -930,7 +930,7 @@
   display: flex;
   justify-content: space-between;
   font-size: 11px;
-  font-family: var(--font-family-mono, monospace);
+  font-family: var(--font-family-mono);
   color: rgba(255, 255, 255, 0.72);
 }
 .wt-sector-spark {
@@ -957,7 +957,7 @@
   min-height: 0;
 }
 .wt-vault-ph {
-  font-family: var(--font-family-mono, monospace);
+  font-family: var(--font-family-mono);
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.16em;
@@ -992,7 +992,7 @@
   animation: wt-drop-bounce 1.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
 .wt-vault-fname {
-  font-family: var(--font-family-mono, monospace);
+  font-family: var(--font-family-mono);
   font-size: 11px;
   color: rgba(255, 255, 255, 0.75);
   letter-spacing: 0.02em;
@@ -1012,7 +1012,7 @@
 }
 .wt-vault-bar--done .wt-vault-bar-fill { width: 100%; }
 .wt-vault-status {
-  font-family: var(--font-family-mono, monospace);
+  font-family: var(--font-family-mono);
   font-size: 9px;
   letter-spacing: 0.06em;
   color: rgba(255, 255, 255, 0.4);
@@ -1027,7 +1027,7 @@
   background: rgba(201, 168, 76, 0.08);
   border: 1px solid rgba(201, 168, 76, 0.25);
   border-radius: 6px;
-  font-family: var(--font-family-mono, monospace);
+  font-family: var(--font-family-mono);
   font-size: 10px;
   color: rgba(201, 168, 76, 0.9);
   letter-spacing: 0.02em;
@@ -1062,22 +1062,22 @@
   margin-bottom: 14px;
 }
 .wt-brief-eyebrow {
-  font-family: var(--font-family-mono, monospace);
+  font-family: var(--font-family-mono);
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.22em;
-  color: var(--color-accent, #e55a00);
+  color: var(--color-accent);
 }
 .wt-brief-date {
-  font-family: var(--font-family-mono, monospace);
+  font-family: var(--font-family-mono);
   font-size: 10px;
   color: rgba(255, 255, 255, 0.4);
   letter-spacing: 0.06em;
 }
 .wt-brief-hello {
-  font-family: var(--font-display, Georgia, serif);
+  font-family: var(--font-display);
   font-size: 22px;
-  color: var(--color-text-primary, #f0f0f0);
+  color: var(--color-text-primary);
   margin-bottom: 6px;
   letter-spacing: -0.01em;
 }
@@ -1105,7 +1105,7 @@
   line-height: 1.55;
 }
 .wt-brief-list strong {
-  color: var(--color-accent, #e55a00);
+  color: var(--color-accent);
   font-weight: 700;
   margin-right: 4px;
 }
@@ -1113,7 +1113,7 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--color-accent, #e55a00);
+  background: var(--color-accent);
   box-shadow: 0 0 6px rgba(229, 90, 0, 0.4);
   margin-top: 6px;
   flex-shrink: 0;
@@ -1136,9 +1136,9 @@
   min-height: 0;
 }
 .wt-tickers-title {
-  font-family: var(--font-display, Georgia, serif);
+  font-family: var(--font-display);
   font-size: 28px;
-  color: var(--color-text-primary, #f0f0f0);
+  color: var(--color-text-primary);
   letter-spacing: -0.01em;
   margin-bottom: 6px;
   text-align: center;
@@ -1185,7 +1185,7 @@
   color: rgba(255, 255, 255, 0.7);
   transition: color 0.15s;
 }
-.wt-ticker-chip--selected .wt-ticker-sym { color: var(--color-accent, #e55a00); }
+.wt-ticker-chip--selected .wt-ticker-sym { color: var(--color-accent); }
 .wt-ticker-label {
   font-size: 9.5px;
   color: rgba(255, 255, 255, 0.3);
@@ -1196,12 +1196,12 @@
   top: 5px;
   right: 6px;
   font-size: 10px;
-  color: var(--color-accent, #e55a00);
+  color: var(--color-accent);
   animation: wt-check-pop 0.18s ease-out;
 }
 .wt-ticker-count {
   text-align: center;
-  font-family: var(--font-family-mono, monospace);
+  font-family: var(--font-family-mono);
   font-size: 11px;
   color: rgba(229, 90, 0, 0.75);
   letter-spacing: 0.04em;
@@ -1320,7 +1320,7 @@
   /* Demo scenes shrink */
   .wt-mode-bar { padding: 8px 10px; gap: 10px; }
   .wt-mode-logo span { display: none; }
-  .wt-mode-tab { padding: 5px 8px; font-size: 8px; }
+  .wt-mode-tab { padding: 5px 8px; font-size: 8.5px; }
   .wt-mode-time { display: none; }
   .wt-mode-body { padding: 12px; }
   .wt-mode-pane--terminal { flex-direction: column; gap: 8px; }

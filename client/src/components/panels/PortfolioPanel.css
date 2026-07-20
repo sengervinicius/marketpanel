@@ -117,7 +117,7 @@
 .pp-row-button {
   background: none;
   border: none;
-  color: var(--text-faint);
+  color: var(--text-muted);
   padding: 0;
   text-align: center;
   transition: color 0.15s;
@@ -312,7 +312,7 @@
 /* AI Health Check Button */
 /* ─────────────────────────────────────────────────────────────── */
 .pp-ai-btn {
-  background: linear-gradient(135deg, var(--color-particle) 0%, rgba(249, 115, 22, 0.8) 100%);
+  background: linear-gradient(135deg, var(--color-particle) 0%, rgba(229, 90, 0, 0.8) 100%);
   color: var(--text-primary);
   border: none;
   border-radius: 3px;

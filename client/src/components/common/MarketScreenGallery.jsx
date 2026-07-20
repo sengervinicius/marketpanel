@@ -66,7 +66,7 @@ function MarketScreenGallery() {
               <div
                 key={s.id}
                 className={`msg-card ${isActive ? 'msg-card--active' : ''} ${isApplying ? 'msg-card--applying' : ''}`}
-                style={{ borderLeftColor: s.mobileCardStyle || 'var(--color-particle, #F97316)' }}
+                style={{ borderLeftColor: s.mobileCardStyle || 'var(--color-particle)' }}
                 onClick={() => handleApply(s.id)}
                 role="button"
                 tabIndex={0}

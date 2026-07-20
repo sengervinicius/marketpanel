@@ -14,7 +14,7 @@
 import React from 'react';
 
 const BASE_STYLE = {
-  fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, sans-serif',
+  fontFamily: 'var(--font-family-sans)',
   fontSize: 10,
   letterSpacing: '0.3px',
   lineHeight: 1.4,

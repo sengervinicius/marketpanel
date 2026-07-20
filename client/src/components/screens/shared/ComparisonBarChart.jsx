@@ -106,7 +106,7 @@ export const ComparisonBarChart = memo(function ComparisonBarChart({
               <XAxis
                 dataKey="label"
                 stroke={TOKEN_HEX.borderDefault}
-                tick={{ fontSize: 8, fill: TOKEN_HEX.textSecondary, angle: -45, textAnchor: 'end' }}
+                tick={{ fontSize: 8.5, fill: TOKEN_HEX.textSecondary, angle: -45, textAnchor: 'end' }}
                 height={40}
               />
               <YAxis

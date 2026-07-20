@@ -10,7 +10,7 @@
 .admin-dashboard {
   background: var(--color-admin-bg);
   color: var(--color-terminal);
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-family: var(--font-family-mono);
   padding: 24px;
   min-height: 100vh;
   overflow-y: auto;
@@ -42,7 +42,7 @@
 .admin-dashboard-updated {
   font-size: 12px;
   color: var(--color-admin-text-muted);
-  font-family: monospace;
+  font-family: var(--font-family-mono);
 }
 
 .admin-dashboard-refresh {
@@ -51,7 +51,7 @@
   border: 1px solid rgba(0, 255, 136, 0.3);
   border-radius: 4px;
   color: var(--color-admin-accent);
-  font-family: monospace;
+  font-family: var(--font-family-mono);
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
@@ -80,8 +80,8 @@
 
 .admin-error {
   padding: 24px;
-  background: rgba(244, 67, 54, 0.1);
-  border: 1px solid rgba(244, 67, 54, 0.3);
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
   border-radius: 6px;
   color: var(--color-admin-danger);
   margin-bottom: 16px;
@@ -91,17 +91,17 @@
 .admin-error-retry {
   margin-top: 12px;
   padding: 8px 16px;
-  background: rgba(244, 67, 54, 0.2);
-  border: 1px solid rgba(244, 67, 54, 0.4);
+  background: rgba(239, 68, 68, 0.2);
+  border: 1px solid rgba(239, 68, 68, 0.4);
   border-radius: 4px;
   color: var(--color-admin-danger);
-  font-family: monospace;
+  font-family: var(--font-family-mono);
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .admin-error-retry:hover {
-  background: rgba(244, 67, 54, 0.3);
+  background: rgba(239, 68, 68, 0.3);
 }
 
 /* ─────────────────────────────────────────────────────────────────────────── */
@@ -172,7 +172,7 @@
   font-size: 24px;
   font-weight: 700;
   color: var(--color-admin-accent);
-  font-family: monospace;
+  font-family: var(--font-family-mono);
 }
 
 .admin-overview-card-trend {
@@ -363,7 +363,7 @@
 .admin-tickers-ticker {
   font-weight: 600;
   color: var(--color-admin-accent);
-  font-family: monospace;
+  font-family: var(--font-family-mono);
 }
 
 .admin-tickers-count {
@@ -399,7 +399,7 @@
   border: 1px solid rgba(0, 255, 136, 0.2);
   border-radius: 4px;
   color: var(--color-terminal);
-  font-family: monospace;
+  font-family: var(--font-family-mono);
   font-size: 12px;
   transition: all 0.2s ease;
 }
@@ -448,14 +448,14 @@
 
 .admin-users-id {
   color: var(--color-admin-text-muted);
-  font-family: monospace;
+  font-family: var(--font-family-mono);
   font-size: 11px;
 }
 
 .admin-users-username {
   font-weight: 600;
   color: var(--color-admin-accent);
-  font-family: monospace;
+  font-family: var(--font-family-mono);
 }
 
 .admin-users-email {
@@ -477,9 +477,9 @@
 }
 
 .admin-users-plan-badge.paid {
-  background: rgba(76, 175, 80, 0.2);
+  background: rgba(34, 197, 94, 0.2);
   color: var(--color-admin-accent-dim);
-  border: 1px solid rgba(76, 175, 80, 0.4);
+  border: 1px solid rgba(34, 197, 94, 0.4);
 }
 
 .admin-users-plan-badge.trial {
@@ -491,7 +491,7 @@
 .admin-users-count {
   text-align: center;
   color: var(--color-admin-text-muted);
-  font-family: monospace;
+  font-family: var(--font-family-mono);
 }
 
 .admin-users-last-active {
@@ -518,7 +518,7 @@
   border: 1px solid rgba(0, 255, 136, 0.3);
   border-radius: 4px;
   color: var(--color-admin-accent);
-  font-family: monospace;
+  font-family: var(--font-family-mono);
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
@@ -538,7 +538,7 @@
 .admin-pagination-info {
   font-size: 12px;
   color: var(--color-admin-text-muted);
-  font-family: monospace;
+  font-family: var(--font-family-mono);
 }
 
 /* ─────────────────────────────────────────────────────────────────────────── */
@@ -582,7 +582,7 @@
   font-size: 16px;
   font-weight: 700;
   color: var(--color-admin-accent);
-  font-family: monospace;
+  font-family: var(--font-family-mono);
 }
 
 .admin-health-value.ok {
@@ -596,7 +596,7 @@
 .admin-health-detail {
   font-size: 11px;
   color: var(--color-admin-text-faint);
-  font-family: monospace;
+  font-family: var(--font-family-mono);
 }
 
 .admin-health-tables {
@@ -634,14 +634,14 @@
   font-size: 11px;
   color: var(--color-admin-text-muted);
   font-weight: 600;
-  font-family: monospace;
+  font-family: var(--font-family-mono);
 }
 
 .admin-health-table-count {
   font-size: 13px;
   color: var(--color-admin-accent);
   font-weight: 700;
-  font-family: monospace;
+  font-family: var(--font-family-mono);
 }
 
 /* ─────────────────────────────────────────────────────────────────────────── */

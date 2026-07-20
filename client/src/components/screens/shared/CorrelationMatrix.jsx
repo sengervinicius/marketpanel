@@ -170,7 +170,7 @@ export const CorrelationMatrix = memo(function CorrelationMatrix({
           <table style={{
             borderCollapse: 'collapse',
             fontSize: 11,
-            fontFamily: 'var(--font-mono, monospace)',
+            fontFamily: 'var(--font-mono)',
           }}>
             <thead>
               <tr>

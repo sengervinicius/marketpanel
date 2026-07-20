@@ -3,7 +3,7 @@
   height: 100%;
   overflow-y: auto;
   background: var(--bg-panel);
-  font-family: var(--font-ui, monospace);
+  font-family: var(--font-ui);
 }
 
 .hm-head {
@@ -41,7 +41,7 @@
   background: transparent;
   border: none;
   color: var(--text-muted);
-  font-family: var(--font-mono, monospace);
+  font-family: var(--font-mono);
   font-size: 9px;
   font-weight: 600;
   padding: 2px 8px;
@@ -105,7 +105,7 @@
 }
 
 .hm-tile-chg {
-  font-size: 8px;
+  font-size: 8.5px;
   font-weight: 600;
   color: rgba(255,255,255,0.8);
   font-variant-numeric: tabular-nums;

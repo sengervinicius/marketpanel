@@ -89,7 +89,8 @@
   --color-flat:              var(--color-warn);  /* Alias: flat market */
   --color-closed:            #475569;           /* Market closed */
   --color-info:              #2196f3;           /* Information */
-  --color-ai:                #a855f7;           /* AI-generated content */
+  --color-ai:                #ce93d8;           /* AI / briefing identity (shipped hue) */
+  --color-ai-bg:             rgba(206, 147, 216, 0.12);  /* AI badge / briefing tint */
 
 
   /* ================================================================

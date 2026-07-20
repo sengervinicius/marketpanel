@@ -19,7 +19,7 @@
 .sp-grid-head {
   padding: 2px 0;
   border-bottom: 1px solid var(--border-strong);
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-size: var(--font-xs);
   letter-spacing: 0.08em;
   flex-shrink: 0;
@@ -84,7 +84,7 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-size: var(--font-xs);
   letter-spacing: 0.08em;
 }
@@ -102,8 +102,8 @@
 
 .sp-source {
   padding: 3px 8px;
-  font-size: 8px;
-  color: var(--text-faint);
+  font-size: 8.5px;
+  color: var(--text-muted);
   border-top: 1px solid var(--border-subtle);
   flex-shrink: 0;
 }

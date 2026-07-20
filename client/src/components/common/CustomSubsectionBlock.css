@@ -78,7 +78,7 @@
 .csb-add-header-btn {
   background: none;
   border: 1px solid var(--border-default);
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-size: var(--font-xs);
   padding: 0 4px;
   font-family: var(--font-ui);
@@ -133,7 +133,7 @@
 
 /* Sprint 3: Drag-drop visual feedback */
 .csb-header--drag-over {
-  background: rgba(255, 102, 0, 0.08) !important;
+  background: rgba(229, 90, 0, 0.08) !important;
   border-color: var(--accent) !important;
   outline: 1px dashed var(--accent);
   outline-offset: -1px;
@@ -154,6 +154,6 @@
 }
 
 @keyframes csb-pulse-invalid {
-  0%, 50% { background: rgba(244, 67, 54, 0.1); }
+  0%, 50% { background: rgba(239, 68, 68, 0.1); }
   100% { background: transparent; }
 }

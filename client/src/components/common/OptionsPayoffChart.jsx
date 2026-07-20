@@ -10,14 +10,15 @@
  *     { type: 'long_call'|'short_call'|'long_put'|'short_put'|'long_stock',
  *       strike, premium, contracts, shares }
  */
+import { TOKEN_HEX } from '../../utils/tokenHex';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
   ReferenceLine, ResponsiveContainer, Tooltip,
 } from 'recharts';
 
-const ORANGE = '#F97316';
-const GREEN  = '#4caf50';
-const RED    = '#f44336';
+const ORANGE = TOKEN_HEX.accent;
+const GREEN  = TOKEN_HEX.up;
+const RED    = TOKEN_HEX.down;
 const GRID   = 'rgba(255,255,255,0.06)';
 const ZERO   = 'rgba(255,255,255,0.2)';
 const SPOT   = 'rgba(255,102,0,0.4)';
@@ -134,7 +135,7 @@ export default function OptionsPayoffChart({ strategy }) {
               width={55}
             />
             <Tooltip
-              contentStyle={{ background: '#1a1a1a', border: '1px solid #333', fontSize: 11, borderRadius: 4 }}
+              contentStyle={{ background: 'var(--color-surface-3)', border: '1px solid var(--color-border-strong)', fontSize: 11, borderRadius: 4 }}
               labelFormatter={v => `Price: $${v}`}
               formatter={v => [fmt(v), 'P&L']}
             />

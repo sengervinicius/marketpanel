@@ -31,9 +31,9 @@
 }
 
 .badge--success {
-  background: rgba(76, 175, 80, 0.12);
+  background: rgba(34, 197, 94, 0.12);
   color: var(--price-up);
-  border: 1px solid rgba(76, 175, 80, 0.25);
+  border: 1px solid rgba(34, 197, 94, 0.25);
 }
 
 .badge--warning {
@@ -43,13 +43,13 @@
 }
 
 .badge--error {
-  background: rgba(244, 67, 54, 0.12);
+  background: rgba(239, 68, 68, 0.12);
   color: var(--price-down);
-  border: 1px solid rgba(244, 67, 54, 0.25);
+  border: 1px solid rgba(239, 68, 68, 0.25);
 }
 
 .badge--accent {
-  background: rgba(255, 102, 0, 0.12);
+  background: rgba(229, 90, 0, 0.12);
   color: var(--accent);
-  border: 1px solid rgba(255, 102, 0, 0.25);
+  border: 1px solid rgba(229, 90, 0, 0.25);
 }

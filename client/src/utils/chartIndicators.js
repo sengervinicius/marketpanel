@@ -1,3 +1,4 @@
+import { TOKEN_HEX } from './tokenHex';
 /**
  * chartIndicators.js — Shared indicator computation + AI chart insight payload builder.
  *
@@ -17,7 +18,7 @@ export const IND_COLORS = {
   SMA20: '#2196f3',  // blue
   EMA50: '#9c27b0',  // purple
   RSI14: '#ff9800',  // amber
-  MACD:  '#00bcd4',  // teal
+  MACD:  TOKEN_HEX.sectorTech,  // teal
   BB:    '#ff9800',  // amber
 };
 

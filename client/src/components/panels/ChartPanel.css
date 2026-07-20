@@ -22,7 +22,7 @@
   line-height: 1;
 }
 .cp-subtitle {
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-size: var(--font-xs);
 }
 .cp-sync-btn {
@@ -38,7 +38,7 @@
   transition: all 0.2s;
 }
 .cp-sync-btn--copied {
-  background: rgba(76, 175, 80, 0.08);
+  background: rgba(34, 197, 94, 0.08);
   border-color: var(--price-up);
   color: var(--price-up);
 }
@@ -153,7 +153,7 @@
 .mc-remove {
   background: none;
   border: none;
-  color: var(--text-faint);
+  color: var(--text-muted);
   cursor: pointer;
   font-size: var(--font-base);
   padding: 0 2px;
@@ -172,12 +172,12 @@
   pointer-events: none;
 }
 .mc-stat-label {
-  color: var(--text-faint);
-  font-size: 6.5px;
+  color: var(--text-muted);
+  font-size: 8.5px;
 }
 .mc-stat-val {
   color: var(--text-secondary);
-  font-size: 6.5px;
+  font-size: 8.5px;
 }
 
 /* Range bar */
@@ -192,7 +192,7 @@
   background: transparent;
   border: none;
   border-bottom: 2px solid transparent;
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-size: var(--font-xs);
   cursor: pointer;
   font-family: inherit;
@@ -212,7 +212,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-size: var(--font-sm);
 }
 .mc-skeleton-shimmer {
@@ -230,7 +230,7 @@
 .mc-drag-overlay {
   position: absolute;
   inset: 0;
-  background: rgba(255, 102, 0, 0.08);
+  background: rgba(229, 90, 0, 0.08);
   border: 2px solid var(--accent);
   display: flex;
   align-items: center;
@@ -368,7 +368,7 @@
   font-size: var(--font-sm);
 }
 .cp-qr-note {
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-size: var(--font-sm);
 }
 
@@ -390,14 +390,14 @@
 
 .mc-ind-pill {
   padding: 1px 4px;
-  font-size: 7px;
+  font-size: 8.5px;
   font-family: inherit;
   font-weight: 600;
   letter-spacing: 0.3px;
   border: 1px solid var(--border-default);
   border-radius: 3px;
   background: transparent;
-  color: var(--text-faint);
+  color: var(--text-muted);
   cursor: pointer;
   white-space: nowrap;
   transition: all 0.1s;
@@ -413,7 +413,7 @@
 
 /* ── Inline indicator badges (RSI / MACD in stats bar) ── */
 .mc-ind-badge {
-  font-size: 6.5px;
+  font-size: 8.5px;
   font-weight: 700;
   letter-spacing: 0.3px;
   padding: 0 3px;
@@ -428,7 +428,7 @@
   background: transparent;
   border: 1px solid var(--accent);
   color: var(--accent);
-  font-size: 7px;
+  font-size: 8.5px;
   font-weight: 700;
   letter-spacing: 0.06em;
   padding: 1px 4px;
@@ -439,7 +439,7 @@
   flex-shrink: 0;
 }
 .mc-ai-btn:hover {
-  background: rgba(255, 102, 0, 0.1);
+  background: rgba(229, 90, 0, 0.1);
 }
 .mc-ai-btn:disabled {
   opacity: 0.3;
@@ -464,14 +464,14 @@
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
 }
 .mc-ai-popover-badge {
-  font-size: 7px;
+  font-size: 8.5px;
   font-weight: 700;
   letter-spacing: 0.06em;
   padding: 1px 5px;
   border-radius: 999px;
-  background: rgba(255, 102, 0, 0.08);
+  background: rgba(229, 90, 0, 0.08);
   color: var(--accent);
-  border: 1px solid rgba(255, 102, 0, 0.15);
+  border: 1px solid rgba(229, 90, 0, 0.15);
   align-self: flex-start;
 }
 .mc-ai-popover-text {
@@ -514,7 +514,7 @@
   border: 1px solid var(--border-default, var(--border-subtle));
   border-radius: 4px;
   background: transparent;
-  color: var(--text-faint);
+  color: var(--text-muted);
   cursor: pointer;
   white-space: nowrap;
   transition: all 0.12s;
@@ -552,7 +552,7 @@
   cursor: default;
 }
 .mcm-ai-btn:active:not(:disabled) {
-  background: rgba(255, 102, 0, 0.12);
+  background: rgba(229, 90, 0, 0.12);
 }
 
 /* ── Mobile AI insight result box ────────────────── */
@@ -569,14 +569,14 @@
   flex-shrink: 0;
 }
 .mcm-ai-badge {
-  font-size: 8px;
+  font-size: 8.5px;
   font-weight: 700;
   letter-spacing: 0.06em;
   padding: 1px 5px;
   border-radius: 999px;
-  background: rgba(255, 102, 0, 0.08);
+  background: rgba(229, 90, 0, 0.08);
   color: var(--accent);
-  border: 1px solid rgba(255, 102, 0, 0.15);
+  border: 1px solid rgba(229, 90, 0, 0.15);
   align-self: flex-start;
 }
 .mcm-ai-text {

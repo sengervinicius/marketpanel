@@ -64,9 +64,9 @@ function sortItems(items, data, sortKey, sortDir) {
 function heatColor(pct) {
   if (pct == null) return 'var(--border-default)';
   // Green intensity scale (positive)
-  if (pct >= 3)  return 'rgba(76, 175, 80, 0.6)';  // semantic-up, high intensity
-  if (pct >= 1)  return 'rgba(76, 175, 80, 0.4)';  // semantic-up, med intensity
-  if (pct >= 0)  return 'rgba(76, 175, 80, 0.15)'; // semantic-up, subtle
+  if (pct >= 3)  return 'rgba(34, 197, 94, 0.6)';  // semantic-up, high intensity
+  if (pct >= 1)  return 'rgba(34, 197, 94, 0.4)';  // semantic-up, med intensity
+  if (pct >= 0)  return 'rgba(34, 197, 94, 0.15)'; // semantic-up, subtle
   // Red intensity scale (negative)
   if (pct >= -1) return 'rgba(239, 83, 80, 0.15)'; // semantic-down, subtle
   if (pct >= -3) return 'rgba(239, 83, 80, 0.4)';  // semantic-down, med intensity

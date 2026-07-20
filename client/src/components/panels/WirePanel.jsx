@@ -13,7 +13,7 @@ const MOOD_COLORS = {
   bearish:  '#ef4444',
   volatile: '#f59e0b',
   cautious: '#f59e0b',
-  neutral:  'var(--text-faint, #888)',
+  neutral:  'var(--text-faint)',
 };
 
 const MOOD_ICONS = {

@@ -10,7 +10,7 @@ import { ScatterChart, Scatter, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell
 // Design v1 — palette now sourced from tokenHex.js (SVG can't resolve CSS vars).
 
 /* ── Dot colors by relative position ────────────────────────────────────── */
-const DOT_COLORS = ['#00bcd4', '#F97316', '#4caf50', '#e91e63', '#ffc107', '#9c27b0', '#03a9f4', '#ff5722', '#8bc34a', '#cddc39'];
+const DOT_COLORS = [TOKEN_HEX.sectorTech, TOKEN_HEX.accent, TOKEN_HEX.sectorBrazil, '#e91e63', '#ffc107', '#9c27b0', '#03a9f4', '#ff5722', '#8bc34a', '#cddc39'];
 
 function EnhancedTooltip({ active, payload, xLabel, yLabel }) {
   if (active && payload && payload[0]) {

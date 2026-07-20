@@ -907,36 +907,39 @@ export default function App() {
           <ParticleLogo size={22} style={{ marginRight: 6 }} /><span className="app-header-title">PARTICLE</span>
 
           {/* ── Desktop mode toggle: Particle / Terminal / Vault / Admin ── */}
-          <div className="desktop-mode-toggle" style={{ display: 'inline-flex', marginLeft: 12, gap: 2, background: 'var(--bg-panel, #111)', borderRadius: 6, padding: 2, border: '1px solid var(--border-default, rgba(255,255,255,0.07))' }}>
+          <div className="desktop-mode-toggle" style={{ display: 'inline-flex', marginLeft: 12, gap: 2, background: 'var(--bg-panel)', borderRadius: 6, padding: 2, border: '1px solid var(--border-default)' }}>
             <button
               className="btn desktop-mode-btn"
+              data-active={mobileMode === 'particle'}
               onClick={() => { setMobileModePersist('particle'); }}
               style={{
                 padding: '3px 12px', fontSize: 10, fontWeight: 700, letterSpacing: '0.08em',
                 borderRadius: 4, border: 'none', cursor: 'pointer',
-                color: mobileMode === 'particle' ? 'var(--bg-app, #000)' : 'var(--text-faint)',
-                background: mobileMode === 'particle' ? 'var(--accent, #F97316)' : 'transparent',
+                color: mobileMode === 'particle' ? 'var(--color-text-inverse)' : 'var(--text-muted)',
+                background: mobileMode === 'particle' ? 'var(--accent)' : 'transparent',
                 transition: 'all 150ms ease',
               }}
             >PARTICLE</button>
             <button
               className="btn desktop-mode-btn"
+              data-active={mobileMode === 'terminal'}
               onClick={() => { setMobileModePersist('terminal'); }}
               style={{
                 padding: '3px 12px', fontSize: 10, fontWeight: 700, letterSpacing: '0.08em',
                 borderRadius: 4, border: 'none', cursor: 'pointer',
-                color: mobileMode === 'terminal' ? 'var(--text-primary, #fff)' : 'var(--text-faint)',
-                background: mobileMode === 'terminal' ? 'var(--bg-surface, #1a1a1a)' : 'transparent',
+                color: mobileMode === 'terminal' ? 'var(--text-primary)' : 'var(--text-muted)',
+                background: mobileMode === 'terminal' ? 'var(--bg-surface)' : 'transparent',
                 transition: 'all 150ms ease',
               }}
             >TERMINAL</button>
             <button
               className="btn desktop-mode-btn"
+              data-active={mobileMode === 'vault'}
               onClick={() => { setMobileModePersist('vault'); }}
               style={{
                 padding: '3px 12px', fontSize: 10, fontWeight: 700, letterSpacing: '0.08em',
                 borderRadius: 4, border: 'none', cursor: 'pointer',
-                color: mobileMode === 'vault' ? '#000' : 'var(--text-faint)',
+                color: mobileMode === 'vault' ? 'var(--color-text-inverse)' : 'var(--text-muted)',
                 background: mobileMode === 'vault' ? 'var(--color-vault-accent)' : 'transparent',
                 transition: 'all 150ms ease',
               }}
@@ -948,12 +951,13 @@ export default function App() {
             {isAdmin && (
               <button
                 className="btn desktop-mode-btn"
+                data-active={mobileMode === 'admin'}
                 onClick={() => { setMobileModePersist('admin'); }}
                 style={{
                   padding: '3px 12px', fontSize: 10, fontWeight: 700, letterSpacing: '0.08em',
                   borderRadius: 4, border: 'none', cursor: 'pointer',
-                  color: mobileMode === 'admin' ? '#000' : 'var(--text-faint)',
-                  background: mobileMode === 'admin' ? '#00ff88' : 'transparent',
+                  color: mobileMode === 'admin' ? 'var(--color-text-inverse)' : 'var(--text-muted)',
+                  background: mobileMode === 'admin' ? 'var(--color-admin-accent)' : 'transparent',
                   transition: 'all 150ms ease',
                 }}
                 title="Admin Dashboard (Cmd+Shift+A)"
@@ -964,7 +968,8 @@ export default function App() {
           {/* Navigation buttons (terminal mode only) */}
           {mobileMode === 'terminal' && (<>
           <button
-            className="btn"
+            className="btn hdr-nav-btn"
+            data-active={!activeSectorScreen}
             onClick={handleGoHome}
             title="Home Screen"
             aria-label="Go to home screen"
@@ -974,16 +979,17 @@ export default function App() {
               fontSize: 11,
               fontWeight: 600,
               letterSpacing: '0.5px',
-              color: !activeSectorScreen ? 'var(--accent)' : 'var(--text-faint)',
+              color: !activeSectorScreen ? 'var(--color-text-inverse)' : 'var(--text-muted)',
               border: `1px solid ${!activeSectorScreen ? 'var(--accent)' : 'var(--border-strong)'}`,
-              background: !activeSectorScreen ? 'rgba(255, 102, 0, 0.08)' : 'none',
+              background: !activeSectorScreen ? 'var(--accent)' : 'none',
               borderRadius: 4,
             }}
           >HOME</button>
           <button
-            className="btn"
-            data-tour="sector-screens"
+            className="btn hdr-nav-btn"
+            data-active={Boolean(sectorSelectorOpen || activeSectorScreen)}
             onClick={() => setSectorSelectorOpen(s => !s)}
+            data-tour="sector-screens"
             title="Open Sector Screens"
             aria-label="Open sector screens"
             aria-expanded={sectorSelectorOpen}
@@ -993,9 +999,9 @@ export default function App() {
               fontSize: 11,
               fontWeight: 600,
               letterSpacing: '0.5px',
-              color: sectorSelectorOpen || activeSectorScreen ? 'var(--accent)' : 'var(--text-faint)',
+              color: sectorSelectorOpen || activeSectorScreen ? 'var(--color-text-inverse)' : 'var(--text-muted)',
               border: `1px solid ${sectorSelectorOpen || activeSectorScreen ? 'var(--accent)' : 'var(--border-strong)'}`,
-              background: sectorSelectorOpen || activeSectorScreen ? 'rgba(255, 102, 0, 0.08)' : 'none',
+              background: sectorSelectorOpen || activeSectorScreen ? 'var(--accent)' : 'none',
               borderRadius: 4,
             }}
           >SECTOR SCREENS</button>
@@ -1057,14 +1063,14 @@ export default function App() {
               onClick={() => { setPaletteQuery('panel'); setCommandPaletteOpen(true); }}
               title="Add or remove a panel (opens the command palette — Ctrl/Cmd+K)"
               aria-label="Add or remove a panel"
-              style={{ background: 'none', border: '1px solid var(--border-strong)', color: 'var(--text-faint)' }}
+              style={{ background: 'none', border: '1px solid var(--border-strong)', color: 'var(--text-muted)' }}
             >+ PANEL</button>
             <button data-tour="layout" className={`btn${showLayoutHint && !(homeGridV2 ? layoutMenuOpen : layoutEdit) ? ' layout-btn-pulse' : ''}`}
               onClick={() => { if (homeGridV2) setLayoutMenuOpen(o => !o); else setLayoutEdit(s => !s); if (showLayoutHint) dismissLayoutHint(); }}
               title={homeGridV2 ? 'Workspace layouts — switch, rename, duplicate, create, delete' : 'Customize your workspace — drag, resize, and rearrange panels'}
               aria-label="Customize workspace layout"
               aria-pressed={homeGridV2 ? layoutMenuOpen : layoutEdit}
-              style={{ background: (homeGridV2 ? layoutMenuOpen : layoutEdit) ? 'rgba(255, 102, 0, 0.08)' : 'none', border:`1px solid ${(homeGridV2 ? layoutMenuOpen : layoutEdit) ? 'var(--accent)' : showLayoutHint ? 'var(--accent)' : 'var(--border-strong)'}`, color: (homeGridV2 ? layoutMenuOpen : layoutEdit) ? 'var(--accent)' : showLayoutHint ? 'var(--accent)' : 'var(--text-faint)' }}
+              style={{ background: (homeGridV2 ? layoutMenuOpen : layoutEdit) ? 'var(--color-accent-dim)' : 'none', border:`1px solid ${(homeGridV2 ? layoutMenuOpen : layoutEdit) ? 'var(--accent)' : showLayoutHint ? 'var(--accent)' : 'var(--border-strong)'}`, color: (homeGridV2 ? layoutMenuOpen : layoutEdit) ? 'var(--accent)' : showLayoutHint ? 'var(--accent)' : 'var(--text-muted)' }}
             >LAYOUT</button>
             {/* H3: layout dropdown (grid mode only) — lazy chunk, Suspense-null */}
             {homeGridV2 && layoutMenuOpen && (
@@ -1088,7 +1094,7 @@ export default function App() {
                   onBilling={openBillingPortal}
                   isPaid={subscription?.status === 'active'}
                 />
-              : <button className="btn" onClick={() => setSettingsOpen(s => !s)} style={{ color: settingsOpen ? 'var(--accent)' : 'var(--text-faint)', display: 'inline-flex', alignItems: 'center', gap: 4 }}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> SETTINGS</button>
+              : <button className="btn" onClick={() => setSettingsOpen(s => !s)} style={{ color: settingsOpen ? 'var(--accent)' : 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: 4 }}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> SETTINGS</button>
             }
           </div>
         </div>
@@ -1132,7 +1138,7 @@ export default function App() {
         {/* ── Desktop Vault Mode ── */}
         {mobileMode === 'vault' && !subscriptionExpired && (
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
-            <Suspense fallback={<div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-faint)' }}>Loading Vault...</div>}>
+            <Suspense fallback={<div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>Loading Vault...</div>}>
               <VaultPanel fullScreen />
             </Suspense>
           </div>
@@ -1221,7 +1227,7 @@ export default function App() {
               {layoutEdit && (
                 <div style={{
                   display: 'flex', alignItems: 'center', gap: 12, padding: '6px 16px',
-                  background: 'rgba(255, 102, 0, 0.08)', borderBottom: '1px solid var(--accent)',
+                  background: 'var(--color-accent-dim)', borderBottom: '1px solid var(--accent)',
                   fontSize: 11, color: 'var(--accent)', fontWeight: 600, letterSpacing: '0.5px',
                   flexShrink: 0,
                 }}>
@@ -1259,7 +1265,7 @@ export default function App() {
               {/* H3 (#home_grid_v2): flag ON → lazy editable grid; flag OFF →
                   the exact legacy desktopRows renderer below, untouched. */}
               {homeGridV2 ? (
-                <Suspense fallback={<div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-faint, #333)', fontSize: 10, letterSpacing: '0.5px' }}>LOADING LAYOUT...</div>}>
+                <Suspense fallback={<div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: 10, letterSpacing: '0.5px' }}>LOADING LAYOUT...</div>}>
                   <HomeGrid
                     grid={gridLayouts.activeGrid}
                     onGridChange={gridLayouts.setActiveGrid}
@@ -1568,14 +1574,14 @@ export default function App() {
 
             {/* ── Vault screen (shown when mobileMode === 'vault') ── */}
             <div style={{ flex: 1, display: mobileMode !== 'vault' ? 'none' : 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-              <Suspense fallback={<div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-faint)' }}>Loading Vault...</div>}>
+              <Suspense fallback={<div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>Loading Vault...</div>}>
                 <VaultPanel fullScreen />
               </Suspense>
             </div>
 
             {/* ── Admin Dashboard (shown when mobileMode === 'admin') ── */}
             <div style={{ flex: 1, display: mobileMode !== 'admin' ? 'none' : 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-              <Suspense fallback={<div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-faint)' }}>Loading admin dashboard...</div>}>
+              <Suspense fallback={<div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>Loading admin dashboard...</div>}>
                 <PanelErrorBoundary name="AdminDashboard">
                   <AdminDashboard />
                 </PanelErrorBoundary>

@@ -130,7 +130,7 @@ function MacroPanel() {
       <div className="macro-countries">
         <label className="macro-label">
           COUNTRIES (max 6)
-          {maxWarning && <span style={{ color: '#f44336', marginLeft: 8, fontSize: '0.85em' }}>Maximum 6 countries selected</span>}
+          {maxWarning && <span style={{ color: 'var(--color-down)', marginLeft: 8, fontSize: '0.85em' }}>Maximum 6 countries selected</span>}
         </label>
         <div className="macro-chips">
           {availableCountries.map(c => {

@@ -9,8 +9,8 @@
   align-items: center;
   padding-top: 12px;
   gap: 6px;
-  background: var(--bg-panel, #0f0f0f);
-  border-left: 1px solid var(--border-default, rgba(255,255,255,0.07));
+  background: var(--bg-panel);
+  border-left: 1px solid var(--border-default);
   cursor: pointer;
   transition: background 0.2s;
   flex-shrink: 0;
@@ -18,19 +18,19 @@
 
 /* Orb glow in collapsed sidebar */
 .psb-collapsed svg {
-  filter: drop-shadow(0 0 4px rgba(249, 115, 22, 0.5)) drop-shadow(0 0 10px rgba(249, 115, 22, 0.25));
+  filter: drop-shadow(0 0 4px rgba(229, 90, 0, 0.5)) drop-shadow(0 0 10px rgba(229, 90, 0, 0.25));
 }
 .psb-collapsed:hover svg {
-  filter: drop-shadow(0 0 6px rgba(249, 115, 22, 0.7)) drop-shadow(0 0 14px rgba(249, 115, 22, 0.35));
+  filter: drop-shadow(0 0 6px rgba(229, 90, 0, 0.7)) drop-shadow(0 0 14px rgba(229, 90, 0, 0.35));
 }
 .psb-collapsed:hover {
-  background: var(--bg-surface, #1a1a1a);
+  background: var(--bg-surface);
 }
 .psb-collapsed-label {
-  font-size: 8px;
+  font-size: 8.5px;
   font-weight: 700;
   letter-spacing: 0.1em;
-  color: var(--text-faint, #555);
+  color: var(--text-muted);
   writing-mode: vertical-rl;
   text-orientation: mixed;
 }
@@ -41,8 +41,8 @@
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: var(--bg-panel, #0f0f0f);
-  border-left: 1px solid var(--border-default, rgba(255,255,255,0.07));
+  background: var(--bg-panel);
+  border-left: 1px solid var(--border-default);
   flex-shrink: 0;
   overflow: hidden;
 }
@@ -53,19 +53,19 @@
   align-items: center;
   gap: 8px;
   padding: 10px 12px;
-  border-bottom: 1px solid var(--border-default, rgba(255,255,255,0.07));
+  border-bottom: 1px solid var(--border-default);
   flex-shrink: 0;
 }
 .psb-header-title {
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.06em;
-  color: var(--text-primary, #e8e8e8);
+  color: var(--text-primary);
 }
 
 /* Orb glow in expanded header */
 .psb-header svg {
-  filter: drop-shadow(0 0 3px rgba(249, 115, 22, 0.45)) drop-shadow(0 0 8px rgba(249, 115, 22, 0.2));
+  filter: drop-shadow(0 0 3px rgba(229, 90, 0, 0.45)) drop-shadow(0 0 8px rgba(229, 90, 0, 0.2));
 }
 .psb-btn {
   display: flex;
@@ -76,12 +76,12 @@
   border-radius: 6px;
   border: none;
   background: transparent;
-  color: var(--text-faint, #555);
+  color: var(--text-muted);
   cursor: pointer;
   transition: color 0.15s, background 0.15s;
 }
 .psb-btn:hover {
-  color: var(--text-primary, #e8e8e8);
+  color: var(--text-primary);
   background: rgba(255,255,255,0.06);
 }
 
@@ -91,25 +91,25 @@
   align-items: center;
   gap: 6px;
   padding: 8px 12px;
-  border-bottom: 1px solid var(--border-default, rgba(255,255,255,0.05));
+  border-bottom: 1px solid var(--border-default);
   flex-shrink: 0;
 }
 .psb-search-input {
   flex: 1;
-  background: var(--bg-surface, #1a1a1a);
-  border: 1px solid var(--border-default, rgba(255,255,255,0.08));
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
   border-radius: 8px;
   padding: 7px 10px;
   font-size: 12px;
-  color: var(--text-primary, #e8e8e8);
+  color: var(--text-primary);
   outline: none;
-  font-family: var(--font-body, inherit);
+  font-family: var(--font-body);
 }
 .psb-search-input:focus {
-  border-color: var(--accent, #F97316);
+  border-color: var(--accent);
 }
 .psb-search-input::placeholder {
-  color: var(--text-faint, #555);
+  color: var(--text-faint);
 }
 .psb-search-btn {
   display: flex;
@@ -120,7 +120,7 @@
   border-radius: 6px;
   border: none;
   background: transparent;
-  color: var(--accent, #F97316);
+  color: var(--accent);
   cursor: pointer;
 }
 .psb-search-btn:disabled {
@@ -146,7 +146,7 @@
   justify-content: flex-end;
 }
 .psb-msg--user .psb-msg-text {
-  background: var(--accent, #F97316);
+  background: var(--accent);
   color: #000;
   border-radius: 12px 12px 4px 12px;
   padding: 6px 10px;
@@ -162,8 +162,8 @@
   margin-top: 2px;
 }
 .psb-msg--assistant .psb-msg-text {
-  background: var(--bg-surface, #1a1a1a);
-  color: var(--text-primary, #e8e8e8);
+  background: var(--bg-surface);
+  color: var(--text-primary);
   border-radius: 12px 12px 12px 4px;
   padding: 6px 10px;
   font-size: 12px;
@@ -174,7 +174,7 @@
 }
 .psb-error {
   font-size: 11px;
-  color: #f87171;
+  color: var(--color-down);
   padding: 4px 8px;
 }
 
@@ -191,12 +191,12 @@
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.1em;
-  color: var(--accent, #F97316);
+  color: var(--accent);
   text-transform: uppercase;
 }
 .psb-wire-empty {
   font-size: 11px;
-  color: var(--text-faint, #555);
+  color: var(--text-muted);
   padding: 8px 0;
 }
 .psb-wire-entry {
@@ -212,7 +212,7 @@
 .psb-wire-content {
   font-size: 12px;
   line-height: 1.45;
-  color: var(--text-primary, #e8e8e8);
+  color: var(--text-primary);
   margin-bottom: 4px;
 }
 .psb-wire-meta {
@@ -224,13 +224,13 @@
 .psb-wire-ticker {
   font-size: 10px;
   font-weight: 600;
-  color: var(--accent, #F97316);
-  background: rgba(249,115,22,0.10);
+  color: var(--accent);
+  background: rgba(229, 90, 0,0.10);
   padding: 1px 5px;
   border-radius: 3px;
 }
 .psb-wire-time {
   font-size: 10px;
-  color: var(--text-faint, #555);
+  color: var(--text-muted);
   margin-left: auto;
 }

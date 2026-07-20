@@ -34,6 +34,12 @@ export const TOKEN_HEX = {
   down:           '#ef4444',
   neutral:        '#a0a0a0',
   warn:           '#f59e0b',
+  info:           '#2196f3',
+  ai:             '#ce93d8',          /* AI / briefing identity */
+  aiBg:           'rgba(206,147,216,0.12)',
+
+  // Pillars
+  terminal:       '#E0E0E0',         /* Terminal pillar silver */
 
   // Vault
   vaultAccent:    '#c9a84c',
@@ -55,6 +61,11 @@ export const TOKEN_HEX = {
   sectorCrypto:   '#f7931a',
   sectorMacro:    '#9c27b0',
   sectorEnergy:   '#ff5722',
+  sectorRetail:   '#e91e63',
+  sectorAsia:     '#26c6da',
+  sectorCommodities: '#ff9800',
+  sectorFixed:    '#607d8b',
+  sectorFxCrypto: '#ce93d8',
 
   // Legacy aliases (backward compat)
   bgPanel:        '#111111',

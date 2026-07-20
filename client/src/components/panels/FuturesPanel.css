@@ -90,7 +90,7 @@
   font-size: 9px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--text-faint);
+  color: var(--text-muted);
   border: 1px solid var(--border-subtle);
   padding: 1px 4px;
   border-radius: 2px;
@@ -110,7 +110,7 @@
   background: var(--text-faint);
 }
 /* REGULAR = live local session, greenish-neutral pulse */
-.fut-col-state.fut-state-regular { background: var(--price-up, #16c784); }
+.fut-col-state.fut-state-regular { background: var(--price-up); }
 /* PRE/POST = out-of-session, amber */
 .fut-col-state.fut-state-pre,
 .fut-col-state.fut-state-post,
@@ -134,9 +134,9 @@
 .fut-col-chgpct    { font-size: var(--font-sm); font-weight: 600; }
 
 .fut-change-pos,
-.fut-chgpct-pos   { color: var(--price-up, #16c784); }
+.fut-chgpct-pos   { color: var(--price-up); }
 .fut-change-neg,
-.fut-chgpct-neg   { color: var(--price-down, #ea3943); }
+.fut-chgpct-neg   { color: var(--price-down); }
 
 .fut-matrix-head .fut-col-region,
 .fut-matrix-head .fut-col-name,
@@ -155,7 +155,7 @@
 }
 
 .fut-source-text {
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-size: 9px;
   letter-spacing: 0.04em;
 }

@@ -1,3 +1,4 @@
+import { TOKEN_HEX } from '../../utils/tokenHex';
 /**
  * TerminalLogo.jsx
  * Brand logo for Terminal — a cool white/silver orb with
@@ -123,7 +124,7 @@ const TerminalLogo = ({ size = 32, glow = false, animated = true, style, classNa
           fill="none" stroke="#D8D8D8" strokeWidth="0.5" strokeOpacity="0.22"
           transform="rotate(15 32 32)" />
         {/* Orbiting micro-particle on ring 1 */}
-        <circle cx="51" cy="32" r="1.5" fill="#E0E0E0" fillOpacity="0.6"
+        <circle cx="51" cy="32" r="1.5" fill={TOKEN_HEX.terminal} fillOpacity="0.6"
           className={`t-dot-${uid}`}
           transform="rotate(15 32 32)" />
         <circle cx="13" cy="32" r="0.8" fill="#B0B0B0" fillOpacity="0.3"
@@ -148,7 +149,7 @@ const TerminalLogo = ({ size = 32, glow = false, animated = true, style, classNa
         className={`t-dot-${uid}`} style={{ animationDelay: '0.3s' }} />
       <circle cx="52" cy="48" r="0.5" fill="#D8D8D8" fillOpacity="0.20"
         className={`t-dot-${uid}`} style={{ animationDelay: '0.8s' }} />
-      <circle cx="48" cy="12" r="0.7" fill="#E0E0E0" fillOpacity="0.18"
+      <circle cx="48" cy="12" r="0.7" fill={TOKEN_HEX.terminal} fillOpacity="0.18"
         className={`t-dot-${uid}`} style={{ animationDelay: '1.5s' }} />
       <circle cx="14" cy="50" r="0.5" fill="#B0B0B0" fillOpacity="0.15"
         className={`t-dot-${uid}`} style={{ animationDelay: '1.2s' }} />

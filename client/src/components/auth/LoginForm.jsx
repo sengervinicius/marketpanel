@@ -18,9 +18,9 @@ function getPasswordStrength(pw) {
   if (/[A-Z]/.test(pw)) score++;
   if (/[0-9]/.test(pw)) score++;
   if (/[^A-Za-z0-9]/.test(pw)) score++;
-  if (score <= 1) return { label: 'Weak', color: '#f44336', width: '33%' };
+  if (score <= 1) return { label: 'Weak', color: 'var(--color-down)', width: '33%' };
   if (score <= 3) return { label: 'Fair', color: '#ff9800', width: '66%' };
-  return { label: 'Strong', color: '#4caf50', width: '100%' };
+  return { label: 'Strong', color: 'var(--color-up)', width: '100%' };
 }
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

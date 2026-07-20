@@ -77,7 +77,7 @@
 }
 
 .pcm-col-title-maxIndicator {
-  font-size: 7px;
+  font-size: 8.5px;
   color: var(--text-muted);
   letter-spacing: 0.5px;
 }
@@ -102,7 +102,7 @@
 
 .pcm-group-header {
   color: var(--accent);
-  font-size: 8px;
+  font-size: 8.5px;
   font-weight: 700;
   letter-spacing: 0.5px;
   padding: 6px 8px 4px;
@@ -120,17 +120,17 @@
 }
 
 .pcm-item-selected {
-  background: rgba(255, 102, 0, 0.08);
+  background: rgba(229, 90, 0, 0.08);
   color: var(--accent);
 }
 
 .pcm-item-unselected {
   background: transparent;
-  color: var(--text-faint);
+  color: var(--text-muted);
 }
 
 .pcm-item-name {
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-size: 9px;
 }
 
@@ -155,7 +155,7 @@
 .pcm-button-selectall {
   flex: 1;
   padding: 4px 6px;
-  font-size: 8px;
+  font-size: 8.5px;
   letter-spacing: 0.1em;
   border: 1px solid var(--border-strong);
 }
@@ -175,7 +175,7 @@
 .pcm-button-clearall {
   flex: 1;
   padding: 4px 6px;
-  font-size: 8px;
+  font-size: 8.5px;
   letter-spacing: 0.1em;
   border: 1px solid var(--border-strong);
 }
@@ -247,7 +247,7 @@
   border-radius: 3px;
   border: 1px solid var(--border-strong);
   background: transparent;
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-weight: normal;
 }
 

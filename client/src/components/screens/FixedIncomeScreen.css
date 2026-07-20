@@ -38,8 +38,8 @@
 
 .fi-header-updated {
   margin-left: auto;
-  font: 400 9px var(--font-mono, monospace);
-  color: var(--text-faint);
+  font: 400 9px var(--font-mono);
+  color: var(--text-muted);
   letter-spacing: 0.02em;
 }
 
@@ -81,7 +81,7 @@
 }
 
 .fi-section-badge {
-  font: 600 8px var(--font-mono, monospace);
+  font: 600 8px var(--font-mono);
   padding: 1px 5px;
   border-radius: 3px;
   background: color-mix(in srgb, var(--sector-fixed) 8%, transparent);
@@ -135,23 +135,23 @@
 }
 
 .fi-etf-card:hover {
-  background: var(--bg-hover, rgba(255, 255, 255, 0.04));
+  background: var(--bg-hover);
   border-color: rgba(255, 255, 255, 0.1);
 }
 
 .fi-etf-sym {
-  font: 700 10px var(--font-mono, monospace);
+  font: 700 10px var(--font-mono);
   color: var(--text-secondary);
 }
 
 .fi-etf-price {
-  font: 400 10px var(--font-mono, monospace);
+  font: 400 10px var(--font-mono);
   color: var(--text-primary);
   font-variant-numeric: tabular-nums;
 }
 
 .fi-etf-chg {
-  font: 500 9px var(--font-mono, monospace);
+  font: 500 9px var(--font-mono);
   font-variant-numeric: tabular-nums;
 }
 
@@ -162,7 +162,7 @@
 .fi-table {
   width: 100%;
   border-collapse: collapse;
-  font: 400 10px var(--font-mono, monospace);
+  font: 400 10px var(--font-mono);
   font-variant-numeric: tabular-nums;
 }
 
@@ -171,9 +171,9 @@
   top: 0;
   z-index: 2;
   background: var(--bg-elevated, var(--bg-active));
-  font: 600 8px var(--font-mono, monospace);
+  font: 600 8px var(--font-mono);
   letter-spacing: 0.6px;
-  color: var(--text-faint);
+  color: var(--text-muted);
   text-transform: uppercase;
   padding: 5px 6px;
   text-align: right;
@@ -222,7 +222,7 @@
 
 /* ── Rating badge ───────────────────────────── */
 .fi-rating {
-  font: 700 8px var(--font-mono, monospace);
+  font: 700 8px var(--font-mono);
   padding: 1px 4px;
   border-radius: 3px;
   display: inline-block;
@@ -266,10 +266,10 @@
 /* ── Error banner ───────────────────────────── */
 .fi-error {
   padding: 8px 10px;
-  font: 400 10px var(--font-ui, system-ui);
+  font: 400 10px var(--font-ui);
   color: var(--semantic-down);
-  background: rgba(244, 67, 54, 0.05);
-  border-bottom: 1px solid rgba(244, 67, 54, 0.1);
+  background: rgba(239, 68, 68, 0.05);
+  border-bottom: 1px solid rgba(239, 68, 68, 0.1);
 }
 
 /* ── Spreads section specific ───────────────── */
@@ -288,26 +288,26 @@
 }
 
 .fi-spread-card-country {
-  font: 700 10px var(--font-mono, monospace);
+  font: 700 10px var(--font-mono);
   color: var(--text-secondary);
   margin-bottom: 4px;
 }
 
 .fi-spread-card-yield {
-  font: 400 10px var(--font-mono, monospace);
+  font: 400 10px var(--font-mono);
   color: var(--text-primary);
   font-variant-numeric: tabular-nums;
 }
 
 .fi-spread-card-bps {
-  font: 700 12px var(--font-mono, monospace);
+  font: 700 12px var(--font-mono);
   font-variant-numeric: tabular-nums;
   margin-top: 2px;
 }
 
 .fi-base-label {
-  font: 600 9px var(--font-mono, monospace);
-  color: var(--text-faint);
+  font: 600 9px var(--font-mono);
+  color: var(--text-muted);
   padding: 4px 10px 0;
   letter-spacing: 0.3px;
 }

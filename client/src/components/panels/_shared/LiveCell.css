@@ -19,13 +19,13 @@
 }
 
 .pp-livecell--up {
-  background-color: var(--sent-bull-bg, rgba(34, 197, 94, 0.22));
-  color: var(--sent-bull, #22c55e);
+  background-color: var(--sent-bull-bg);
+  color: var(--sent-bull);
 }
 
 .pp-livecell--down {
-  background-color: var(--sent-bear-bg, rgba(239, 68, 68, 0.22));
-  color: var(--sent-bear, #ef4444);
+  background-color: var(--sent-bear-bg);
+  color: var(--sent-bear);
 }
 
 @keyframes pp-livecell-pulse {

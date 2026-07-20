@@ -1,4 +1,5 @@
 // InstrumentDetail.jsx – Bloomberg GP-style full-screen instrument overlay
+import { TOKEN_HEX } from '../../utils/tokenHex';
 import { useState, useEffect, useCallback, useRef, useMemo, Suspense } from 'react';
 import { createPortal } from 'react-dom';
 import { useIsMobile } from '../../hooks/useIsMobile';
@@ -411,10 +412,10 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
 
   // ── Phase 4.8: Multi-Ticker Comparison Mode ────────────────────────────────
   const COMPARISON_COLORS = {
-    compare1: '#00bcd4',
-    compare2: '#4caf50',
-    compare3: '#ff9800',
-    compare4: '#a855f7',
+    compare1: TOKEN_HEX.sectorTech,
+    compare2: TOKEN_HEX.sectorBrazil,
+    compare3: TOKEN_HEX.sectorCommodities,
+    compare4: TOKEN_HEX.ai,
   };
 
   const addComparisonTicker = useCallback(async (result) => {
@@ -825,7 +826,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
                     label={{
                       value: 'E',
                       fill: '#ff9800',
-                      fontSize: 8,
+                      fontSize: 8.5,
                       position: 'bottom',
                       offset: 5,
                     }}
@@ -882,7 +883,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
 
               {/* Phase 4.8: Comparison Tickers */}
               {isComparisonMode && (
-                <ReferenceLine y={100} yAxisId="right" stroke="#555" strokeDasharray="6 3" strokeWidth={1} />
+                <ReferenceLine y={100} yAxisId="right" stroke={TOKEN_HEX.textMuted} strokeDasharray="6 3" strokeWidth={1} />
               )}
               {isComparisonMode && comparisonTickers.map((compTicker, idx) => (
                 <Line key={compTicker}
@@ -982,7 +983,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
                    was on the left by default, producing two phantom
                    gutters on mobile and compressing the bars. */
                 orientation="right"
-                tick={{ fill: 'var(--text-faint)', fontSize: 8 }} width={isMobile ? 44 : 64}
+                tick={{ fill: 'var(--text-faint)', fontSize: 8.5 }} width={isMobile ? 44 : 64}
                 tickFormatter={v =>
                   v >= 1e9 ? (v/1e9).toFixed(1)+'B' :
                   v >= 1e6 ? (v/1e6).toFixed(0)+'M' :
@@ -995,7 +996,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
                 formatter={v => [fmt(v, 0), 'Volume']}
                 labelStyle={{ color: 'var(--text-muted)' }}
               />
-              <Bar dataKey="volume" fill="var(--bg-active, #1a3352)" opacity={0.85} radius={[1, 1, 0, 0]} />
+              <Bar dataKey="volume" fill="var(--bg-active)" opacity={0.85} radius={[1, 1, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -1007,7 +1008,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
               <ComposedChart data={chartBars} margin={{ top: 2, right: 6, bottom: 0, left: 6 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" />
                 <XAxis dataKey="label" hide axisLine={false} />
-                <YAxis orientation="right" domain={[0, 100]} ticks={[30, 50, 70]} tick={{ fill: 'var(--text-faint)', fontSize: 8 }} width={isMobile ? 44 : 64} axisLine={false} />
+                <YAxis orientation="right" domain={[0, 100]} ticks={[30, 50, 70]} tick={{ fill: 'var(--text-faint)', fontSize: 8.5 }} width={isMobile ? 44 : 64} axisLine={false} />
                 <ReferenceLine y={70} stroke="var(--price-down)" strokeDasharray="3 3" strokeOpacity={0.5} />
                 <ReferenceLine y={30} stroke="var(--price-up)" strokeDasharray="3 3" strokeOpacity={0.5} />
                 <Tooltip contentStyle={commonTooltipStyle} formatter={v => [v != null ? v.toFixed(1) : '--', 'RSI']} labelStyle={{ color: 'var(--text-muted)' }} />
@@ -1024,7 +1025,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
               <ComposedChart data={chartBars} margin={{ top: 2, right: 6, bottom: 0, left: 6 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" />
                 <XAxis dataKey="label" hide axisLine={false} />
-                <YAxis orientation="right" tick={{ fill: 'var(--text-faint)', fontSize: 8 }} width={isMobile ? 44 : 64} axisLine={false} />
+                <YAxis orientation="right" tick={{ fill: 'var(--text-faint)', fontSize: 8.5 }} width={isMobile ? 44 : 64} axisLine={false} />
                 <ReferenceLine y={0} stroke="var(--border-default)" />
                 <Tooltip contentStyle={commonTooltipStyle} formatter={(v, n) => [v != null ? v.toFixed(3) : '--', n]} labelStyle={{ color: 'var(--text-muted)' }} />
                 <Bar dataKey="macdHist" name="Histogram" fill={IND_COLORS.MACD} opacity={0.35} radius={[1, 1, 0, 0]} />
@@ -2090,7 +2091,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
       return '$' + v.toFixed(0);
     };
 
-    const colorClassMap = { '#4fc3f7': 'val-info', '#ce93d8': 'val-purple', '#66bb6a': 'val-up' };
+    const colorClassMap = { '#4fc3f7': 'val-info', [TOKEN_HEX.ai]: 'val-purple', '#66bb6a': 'val-up' };
     const renderFinTable = (title, color, data, rows) => {
       if (!data || !Array.isArray(data) || data.length === 0) return null;
       const periods = data.slice(0, 4);
@@ -2157,7 +2158,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
     return (
       <div className="id-section-group">
         {renderFinTable('INCOME STATEMENT', '#4fc3f7', tdFinancials.income_statement, incRows)}
-        {renderFinTable('BALANCE SHEET', '#ce93d8', tdFinancials.balance_sheet, bsRows)}
+        {renderFinTable('BALANCE SHEET', TOKEN_HEX.ai, tdFinancials.balance_sheet, bsRows)}
         {renderFinTable('CASH FLOW', '#66bb6a', tdFinancials.cash_flow, cfRows)}
         {!tdFinancials.income_statement && !tdFinancials.balance_sheet && !tdFinancials.cash_flow && (
           <div className="id-error-msg">No financial statement data available for this ticker</div>
@@ -2670,7 +2671,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
                   {/* 2. News / Catalysts (if relevant) */}
                   {aiChartInsight.news && !aiChartInsight.news.toLowerCase().includes('no significant catalysts') && (
                     <div className="id-analysis-section">
-                      <span className="id-chart-insight-badge" style={{ background: 'rgba(76,175,80,0.08)', color: '#4caf50', borderColor: 'rgba(76,175,80,0.15)' }}>WHY IT MAY BE MOVING</span>
+                      <span className="id-chart-insight-badge" style={{ background: 'rgba(34, 197, 94,0.08)', color: 'var(--color-up)', borderColor: 'rgba(34, 197, 94,0.15)' }}>WHY IT MAY BE MOVING</span>
                       <span className="id-chart-insight-text">{aiChartInsight.news}</span>
                     </div>
                   )}
@@ -2748,7 +2749,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
           {showCustomRange && (
             <div className="id-custom-range-panel">
               <div style={{ marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid #444', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h4 style={{ margin: 0, fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#fff' }}>CUSTOM DATE RANGE</h4>
+                <h4 style={{ margin: 0, fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--color-text-primary)' }}>CUSTOM DATE RANGE</h4>
                 <button onClick={() => setShowCustomRange(false)} style={{ background: 'none', border: 'none', color: '#888', fontSize: 16, cursor: 'pointer', padding: '0 4px', lineHeight: 1 }} title="Close">&times;</button>
               </div>
 
@@ -2762,9 +2763,9 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
                       padding: '6px 8px',
                       fontSize: 11,
                       fontWeight: 500,
-                      backgroundColor: '#333',
+                      backgroundColor: 'var(--color-surface-raised)',
                       color: '#aaa',
-                      border: '1px solid #555',
+                      border: '1px solid var(--color-border-strong)',
                       borderRadius: 4,
                       cursor: 'pointer',
                       transition: 'all 0.2s',
@@ -2775,9 +2776,9 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
                       e.target.style.borderColor = ORANGE;
                     }}
                     onMouseLeave={(e) => {
-                      e.target.style.backgroundColor = '#333';
+                      e.target.style.backgroundColor = 'var(--color-surface-raised)';
                       e.target.style.color = '#aaa';
-                      e.target.style.borderColor = '#555';
+                      e.target.style.borderColor = 'var(--color-border-strong)';
                     }}
                   >
                     {preset}
@@ -3014,7 +3015,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
 
       {/* Link copied toast */}
       {copyToast && (
-        <div style={{ position: 'fixed', bottom: 80, left: '50%', transform: 'translateX(-50%)', background: '#1a1a1a', border: '1px solid var(--accent)', color: '#fff', padding: '8px 16px', borderRadius: 6, fontSize: 12, fontWeight: 600, zIndex: 99999, animation: 'fadeInUp 200ms ease-out' }}>
+        <div style={{ position: 'fixed', bottom: 80, left: '50%', transform: 'translateX(-50%)', background: 'var(--color-surface-3)', border: '1px solid var(--accent)', color: 'var(--color-text-primary)', padding: '8px 16px', borderRadius: 6, fontSize: 12, fontWeight: 600, zIndex: 99999, animation: 'fadeInUp 200ms ease-out' }}>
           Link copied!
         </div>
       )}

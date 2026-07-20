@@ -45,7 +45,7 @@ function TickerSentimentRow({ ticker, data, accentColor }) {
         fontSize: 11,
         fontWeight: 700,
         color: accentColor || 'var(--accent)',
-        fontFamily: 'var(--font-mono, monospace)',
+        fontFamily: 'var(--font-mono)',
         whiteSpace: 'nowrap',
       }}
       className="ds-ticker-col">
@@ -64,7 +64,7 @@ function TickerSentimentRow({ ticker, data, accentColor }) {
         padding: '4px 8px',
         textAlign: 'right',
         fontSize: 10,
-        fontFamily: 'var(--font-mono, monospace)',
+        fontFamily: 'var(--font-mono)',
         color: 'var(--text-primary)',
         fontWeight: 600,
       }}>
@@ -173,7 +173,7 @@ export const SentimentCard = memo(function SentimentCard({
                 <th style={{
                   padding: '4px 8px',
                   color: 'var(--text-faint)',
-                  fontSize: 8,
+                  fontSize: 8.5,
                   fontWeight: 500,
                   textAlign: 'left',
                   textTransform: 'uppercase',
@@ -185,7 +185,7 @@ export const SentimentCard = memo(function SentimentCard({
                 <th style={{
                   padding: '4px 8px',
                   color: 'var(--text-faint)',
-                  fontSize: 8,
+                  fontSize: 8.5,
                   fontWeight: 500,
                   textAlign: 'center',
                   textTransform: 'uppercase',
@@ -197,7 +197,7 @@ export const SentimentCard = memo(function SentimentCard({
                 <th style={{
                   padding: '4px 8px',
                   color: 'var(--text-faint)',
-                  fontSize: 8,
+                  fontSize: 8.5,
                   fontWeight: 500,
                   textAlign: 'right',
                   textTransform: 'uppercase',

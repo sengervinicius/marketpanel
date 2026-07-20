@@ -23,7 +23,7 @@
 .lf-input {
   background: #0a0a0a;
   border: 1px solid #2a2a2a;
-  color: #e0e0e0;
+  color: var(--color-text-primary);
   padding: 8px 10px;
   outline: none;
   font-family: var(--font-ui);
@@ -37,7 +37,7 @@
 }
 
 .lf-error {
-  color: #f44336;
+  color: var(--color-down);
   font-size: 9px;
   font-weight: 600;
   padding: 6px;
@@ -60,7 +60,7 @@
 
 .lf-submit-btn:disabled {
   background: #0a0a0a;
-  color: #555;
+  color: var(--color-text-muted);
   cursor: default;
   opacity: 0.6;
 }
@@ -72,9 +72,9 @@
 
 .lf-toggle-btn {
   background: transparent;
-  border: 1px solid #555;
+  border: 1px solid var(--color-text-muted);
   color: #888;
-  font-size: 8px;
+  font-size: 8.5px;
   padding: 6px 10px;
   text-decoration: underline;
   text-underline-offset: 2px;
@@ -115,7 +115,7 @@
 }
 
 .lf-info {
-  color: #4caf50;
+  color: var(--color-up);
   font-size: 9px;
   font-weight: 600;
   padding: 6px;

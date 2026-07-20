@@ -25,7 +25,7 @@ function IntegrityBadge({ domain }) {
       style={{
         color: '#ff4444',
         fontFamily: 'var(--font-family-mono)',
-        fontSize: '6px',
+        fontSize: '8.5px',
         fontWeight: 700,
         letterSpacing: '0.05em',
         textTransform: 'uppercase',

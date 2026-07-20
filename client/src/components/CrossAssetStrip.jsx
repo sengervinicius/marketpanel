@@ -25,17 +25,17 @@ const REFRESH_MS = 30 * 60 * 1000; // 30 min — matches server cache
 // Map |ρ| to color (strong positive = bull green, strong negative = bear red)
 function corrColor(r) {
   if (r == null) return 'var(--text-faint)';
-  if (r >=  0.6) return 'var(--sent-bull, #3dd68c)';
-  if (r >=  0.3) return 'var(--sent-neutral, #8b93a7)';
-  if (r >= -0.3) return 'var(--text-muted, #8b93a7)';
-  if (r >= -0.6) return 'var(--sent-warn, #e8a020)';
-  return 'var(--sent-bear, #e05c8a)';
+  if (r >=  0.6) return 'var(--sent-bull)';
+  if (r >=  0.3) return 'var(--sent-neutral)';
+  if (r >= -0.3) return 'var(--text-muted)';
+  if (r >= -0.6) return 'var(--sent-warn)';
+  return 'var(--sent-bear)';
 }
 
 function retColor(r) {
   if (r == null) return 'var(--text-faint)';
-  if (r > 0) return 'var(--color-up, #22c55e)';
-  if (r < 0) return 'var(--color-down, #ef4444)';
+  if (r > 0) return 'var(--color-up)';
+  if (r < 0) return 'var(--color-down)';
   return 'var(--text-muted)';
 }
 
@@ -82,11 +82,11 @@ function EconSurpriseCard({ data }) {
   if (!data || data.index == null || !data.count) return null;
   const v = data.index;
   const color =
-    v >=  25 ? 'var(--sent-bull, #3dd68c)' :
-    v <= -25 ? 'var(--sent-bear, #e05c8a)' :
-    v >=  10 ? 'var(--sent-neutral, #a1a8b8)' :
-    v <= -10 ? 'var(--sent-warn, #e8a020)' :
-               'var(--text-muted, #8b93a7)';
+    v >=  25 ? 'var(--sent-bull)' :
+    v <= -25 ? 'var(--sent-bear)' :
+    v >=  10 ? 'var(--sent-neutral)' :
+    v <= -10 ? 'var(--sent-warn)' :
+               'var(--text-muted)';
   const label = v >= 25 ? 'BEATS' : v <= -25 ? 'MISSES' : 'MIXED';
   const tip = `Econ Surprise (US, 14d): ${v > 0 ? '+' : ''}${v} • ${data.count} releases`;
   return (
@@ -143,11 +143,11 @@ export default function CrossAssetStrip() {
       <span className="ca-flex" />
       <EconSurpriseCard data={surprise} />
       <span className="ca-legend" title="20-day rolling Pearson correlation of daily log-returns">
-        <span className="ca-legend-swatch" style={{ background: 'var(--sent-bull, #3dd68c)' }} />
+        <span className="ca-legend-swatch" style={{ background: 'var(--sent-bull)' }} />
         <span>+0.6</span>
-        <span className="ca-legend-swatch" style={{ background: 'var(--text-muted, #8b93a7)' }} />
+        <span className="ca-legend-swatch" style={{ background: 'var(--text-muted)' }} />
         <span>0</span>
-        <span className="ca-legend-swatch" style={{ background: 'var(--sent-bear, #e05c8a)' }} />
+        <span className="ca-legend-swatch" style={{ background: 'var(--sent-bear)' }} />
         <span>−0.6</span>
       </span>
     </div>

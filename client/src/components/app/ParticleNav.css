@@ -4,8 +4,8 @@
 .p-mode-bar {
   position: relative;
   display: flex;
-  background: var(--color-bg, #080808);
-  border-top: 1px solid var(--color-border, rgba(255,255,255,0.07));
+  background: var(--color-bg);
+  border-top: 1px solid var(--color-border);
   flex-shrink: 0;
   padding: 6px 16px calc(6px + env(safe-area-inset-bottom));
   gap: 8px;
@@ -18,16 +18,16 @@
   height: 40px;
   width: calc(50% - 20px);
   border-radius: var(--radius-md, 10px);
-  background: var(--color-particle-dim, rgba(249,115,22,0.10));
-  border: 1px solid var(--color-particle, #F97316);
+  background: var(--color-particle-dim);
+  border: 1px solid var(--color-particle);
   transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), background 0.3s ease, border-color 0.3s ease;
   pointer-events: none;
   z-index: 0;
   left: 16px;
 }
 .p-mode-slider[data-mode="terminal"] {
-  background: var(--color-surface, #0f0f0f);
-  border-color: var(--color-text-primary, #fff);
+  background: var(--color-surface);
+  border-color: var(--color-text-primary);
 }
 /* 3-button slider overrides */
 .p-mode-slider--3 {
@@ -53,8 +53,8 @@
   background: transparent;
   border: 1px solid transparent;
   border-radius: var(--radius-md, 10px);
-  color: var(--color-text-muted, #555);
-  font-family: var(--font-body, inherit);
+  color: var(--color-text-muted);
+  font-family: var(--font-body);
   font-size: var(--font-sm);
   font-weight: 600;
   letter-spacing: 0.04em;
@@ -65,11 +65,11 @@
 }
 
 .p-mode-btn[data-active="true"][data-mode="particle"] {
-  color: var(--color-particle, #F97316);
+  color: var(--color-particle);
 }
 
 .p-mode-btn[data-active="true"][data-mode="terminal"] {
-  color: var(--color-text-primary, #fff);
+  color: var(--color-text-primary);
 }
 
 .p-mode-btn-icon {
@@ -83,8 +83,8 @@
   align-items: center;
   gap: 4px;
   padding: 6px 12px;
-  background: var(--color-bg, #080808);
-  border-bottom: 1px solid var(--color-border, rgba(255,255,255,0.07));
+  background: var(--color-bg);
+  border-bottom: 1px solid var(--color-border);
   flex-shrink: 0;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
@@ -100,8 +100,8 @@
   background: transparent;
   border: 1px solid transparent;
   border-radius: var(--radius-pill, 9999px);
-  color: var(--color-text-muted, #555);
-  font-family: var(--font-body, inherit);
+  color: var(--color-text-muted);
+  font-family: var(--font-body);
   font-size: var(--text-sm);
   font-weight: 600;
   letter-spacing: 0.03em;
@@ -114,9 +114,9 @@
 }
 
 .t-sub-btn[data-active="true"] {
-  color: var(--color-text-primary, #fff);
-  background: var(--color-surface-2, #141414);
-  border-color: var(--color-border-strong, rgba(255,255,255,0.12));
+  color: var(--color-text-primary);
+  background: var(--color-surface-2);
+  border-color: var(--color-border-strong);
 }
 
 .t-sub-btn-icon {
@@ -133,10 +133,10 @@
 /* "More" button gets a subtle separator before it */
 .t-sub-btn--more {
   margin-left: auto;
-  color: var(--color-text-faint, #333);
+  color: var(--color-text-faint);
 }
 .t-sub-btn--more[data-active="true"] {
-  color: var(--color-text-secondary, #a0a0a0);
+  color: var(--color-text-secondary);
 }
 
 /* ── Particle screen ──────────────────────────────────── */
@@ -194,10 +194,10 @@
 }
 
 .particle-screen-greeting {
-  font-family: var(--font-display, 'Playfair Display', Georgia, serif);
+  font-family: var(--font-display);
   font-size: 28px;
   font-weight: 500;
-  color: var(--color-text-primary, #fff);
+  color: var(--color-text-primary);
   margin: 0 0 8px;
   letter-spacing: -0.02em;
   line-height: 1.15;
@@ -205,10 +205,10 @@
 }
 
 .particle-screen-subtitle {
-  font-family: var(--font-body, inherit);
+  font-family: var(--font-body);
   font-size: var(--font-sm);
   font-weight: 500;
-  color: var(--color-text-muted, #555);
+  color: var(--color-text-muted);
   margin: 0 0 24px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -230,7 +230,7 @@
   left: 14px;
   top: 50%;
   transform: translateY(-50%);
-  color: var(--color-text-muted, #555);
+  color: var(--color-text-muted);
   pointer-events: none;
 }
 
@@ -251,8 +251,8 @@
   background: transparent;
   border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: var(--radius-lg, 16px);
-  color: var(--color-text-primary, #fff);
-  font-family: var(--font-body, inherit);
+  color: var(--color-text-primary);
+  font-family: var(--font-body);
   font-size: var(--text-md);
   font-weight: 400;
   letter-spacing: 0.01em;
@@ -261,12 +261,12 @@
 }
 
 .particle-search-input::placeholder {
-  color: var(--color-text-faint, #333);
+  color: var(--color-text-faint);
 }
 
 .particle-search-input:focus {
-  border-color: var(--color-particle, #F97316);
-  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.15);
+  border-color: var(--color-particle);
+  box-shadow: 0 0 0 3px rgba(229, 90, 0, 0.15);
 }
 
 /* Focus state (transform is fixed to center positioning) */
@@ -282,11 +282,11 @@
   top: 50%;
   transform: translateY(-50%);
   padding: 2px 8px;
-  background: var(--color-surface-2, #141414);
-  border: 1px solid var(--color-border, rgba(255,255,255,0.07));
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
   border-radius: 4px;
-  color: var(--color-text-faint, #333);
-  font-family: var(--font-mono, monospace);
+  color: var(--color-text-faint);
+  font-family: var(--font-mono);
   font-size: var(--text-sm);
   font-weight: 600;
   pointer-events: none;
@@ -300,7 +300,7 @@
   transform: translateY(-50%);
   background: none;
   border: none;
-  color: var(--color-text-muted, #555);
+  color: var(--color-text-muted);
   cursor: pointer;
   padding: 4px;
   display: flex;
@@ -333,8 +333,8 @@
   background: transparent;
   border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: var(--radius-pill, 9999px);
-  color: var(--color-text-secondary, #a0a0a0);
-  font-family: var(--font-body, inherit);
+  color: var(--color-text-secondary);
+  font-family: var(--font-body);
   font-size: var(--text-sm);
   font-weight: 500;
   letter-spacing: 0.04em;
@@ -344,9 +344,9 @@
 }
 
 .particle-chip:active {
-  background: rgba(249, 115, 22, 0.08);
-  border-color: rgba(249, 115, 22, 0.2);
-  color: var(--color-particle, #F97316);
+  background: rgba(229, 90, 0, 0.08);
+  border-color: rgba(229, 90, 0, 0.2);
+  color: var(--color-particle);
 }
 
 /* ── Error banner ──── */
@@ -356,7 +356,7 @@
   border-radius: var(--radius-md, 10px);
   background: rgba(239, 68, 68, 0.1);
   border: 1px solid rgba(239, 68, 68, 0.2);
-  color: var(--color-down, #ef4444);
+  color: var(--color-down);
   font-size: var(--text-sm);
   text-align: center;
 }
@@ -384,18 +384,18 @@
 }
 
 .particle-conv-title {
-  font-family: var(--font-body, inherit);
+  font-family: var(--font-body);
   font-size: var(--text-base);
   font-weight: 600;
-  color: var(--color-text-primary, #fff);
+  color: var(--color-text-primary);
   letter-spacing: 0.02em;
 }
 
 .particle-conv-new {
   background: none;
-  border: 1px solid var(--color-border, rgba(255,255,255,0.07));
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-sm, 6px);
-  color: var(--color-text-muted, #555);
+  color: var(--color-text-muted);
   cursor: pointer;
   padding: 4px 8px;
   display: flex;
@@ -403,8 +403,8 @@
   transition: color var(--duration-fast, 150ms), border-color var(--duration-fast, 150ms);
 }
 .particle-conv-new:active {
-  color: var(--color-text-primary, #fff);
-  border-color: var(--color-border-strong, rgba(255,255,255,0.12));
+  color: var(--color-text-primary);
+  border-color: var(--color-border-strong);
 }
 
 /* Messages scroll area */
@@ -428,9 +428,9 @@
 }
 
 .particle-msg--user .particle-msg-bubble {
-  background: var(--color-particle-dim, rgba(249,115,22,0.10));
-  border: 1px solid rgba(249, 115, 22, 0.15);
-  color: var(--color-text-primary, #fff);
+  background: var(--color-particle-dim);
+  border: 1px solid rgba(229, 90, 0, 0.15);
+  color: var(--color-text-primary);
   border-radius: 16px 16px 4px 16px;
   max-width: 85%;
 }
@@ -440,9 +440,9 @@
 }
 
 .particle-msg--assistant .particle-msg-bubble {
-  background: var(--color-surface, #0f0f0f);
-  border: 1px solid var(--color-border, rgba(255,255,255,0.07));
-  color: var(--color-text-primary, #fff);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-primary);
   border-radius: 4px 16px 16px 16px;
   max-width: 90%;
 }
@@ -454,7 +454,7 @@
 
 .particle-msg-bubble {
   padding: 10px 14px;
-  font-family: var(--font-body, inherit);
+  font-family: var(--font-body);
   font-size: var(--text-base);
   line-height: 1.55;
 }
@@ -469,7 +469,7 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--color-particle, #F97316);
+  background: var(--color-particle);
   opacity: 0.4;
   animation: particle-dot-bounce 1.2s ease-in-out infinite;
 }
@@ -489,13 +489,13 @@
   margin-bottom: 0;
 }
 .particle-md-bold {
-  color: var(--color-particle, #F97316);
+  color: var(--color-particle);
   font-weight: 600;
 }
 .particle-md-heading {
-  font-family: var(--font-body, inherit);
+  font-family: var(--font-body);
   font-weight: 600;
-  color: var(--color-text-primary, #fff);
+  color: var(--color-text-primary);
   margin: 12px 0 6px;
   font-size: var(--text-sm, 13px);
   letter-spacing: 0.01em;
@@ -512,21 +512,21 @@
   line-height: 1.5;
 }
 .particle-md-list li::marker {
-  color: var(--color-text-muted, #555);
+  color: var(--color-text-muted);
 }
 .particle-md-code {
-  font-family: var(--font-mono, monospace);
+  font-family: var(--font-mono);
   font-size: 0.9em;
-  color: var(--color-particle, #F97316);
-  background: var(--color-surface-2, #141414);
+  color: var(--color-particle);
+  background: var(--color-surface-2);
   padding: 1px 5px;
   border-radius: 3px;
 }
 .particle-md-ticker {
-  color: var(--color-particle, #F97316);
+  color: var(--color-particle);
   font-weight: 600;
   cursor: pointer;
-  border-bottom: 1px dotted var(--color-particle-dim, rgba(249,115,22,0.10));
+  border-bottom: 1px dotted var(--color-particle-dim);
 }
 
 /* ── Citation superscripts (web sources [1], [2], etc.) ── */
@@ -540,10 +540,10 @@
   margin: 0 1px;
   font-size: 9px;
   font-weight: 700;
-  font-family: var(--font-mono, monospace);
-  color: var(--color-particle, #F97316);
-  background: rgba(249, 115, 22, 0.08);
-  border: 1px solid rgba(249, 115, 22, 0.15);
+  font-family: var(--font-mono);
+  color: var(--color-particle);
+  background: rgba(229, 90, 0, 0.08);
+  border: 1px solid rgba(229, 90, 0, 0.15);
   border-radius: 4px;
   vertical-align: super;
   line-height: 1;
@@ -562,7 +562,7 @@
   margin: 0 2px;
   font-size: 10px;
   font-weight: 700;
-  font-family: var(--font-mono, monospace);
+  font-family: var(--font-mono);
   color: #1a1a1a;
   background: var(--color-vault-accent);
   border: 1px solid rgba(201, 168, 76, 0.3);
@@ -594,34 +594,34 @@
   white-space: nowrap;
 }
 .particle-md-sentiment--bull {
-  color: var(--price-up, #00c853);
+  color: var(--price-up);
   background: rgba(0, 200, 83, 0.08);
   border: 1px solid rgba(0, 200, 83, 0.18);
 }
 .particle-md-sentiment--bear {
-  color: var(--price-down, #ff5252);
+  color: var(--price-down);
   background: rgba(255, 82, 82, 0.08);
   border: 1px solid rgba(255, 82, 82, 0.18);
 }
 .particle-md-sentiment--neutral {
-  color: var(--text-muted, #888);
+  color: var(--text-muted);
   background: rgba(136, 136, 136, 0.08);
   border: 1px solid rgba(136, 136, 136, 0.15);
 }
 
 /* ── Block-level markdown (shared ParticleMarkdown) ── */
 .particle-md-h2 {
-  font-family: var(--font-body, inherit);
+  font-family: var(--font-body);
   font-weight: 700;
-  color: var(--color-text-primary, #fff);
+  color: var(--color-text-primary);
   margin: 14px 0 6px;
   font-size: var(--text-sm, 13px);
   letter-spacing: 0.02em;
 }
 .particle-md-h3 {
-  font-family: var(--font-body, inherit);
+  font-family: var(--font-body);
   font-weight: 600;
-  color: var(--color-text-primary, #fff);
+  color: var(--color-text-primary);
   margin: 10px 0 4px;
   font-size: var(--text-sm, 13px);
   letter-spacing: 0.01em;
@@ -644,14 +644,14 @@
 .particle-md-bottomline {
   margin-top: 10px;
   padding: 8px 10px;
-  background: rgba(249, 115, 22, 0.06);
-  border-left: 3px solid var(--color-particle, #F97316);
+  background: rgba(229, 90, 0, 0.06);
+  border-left: 3px solid var(--color-particle);
   border-radius: 0 4px 4px 0;
   font-size: var(--text-sm, 13px);
   line-height: 1.5;
 }
 .particle-md-bottomline strong {
-  color: var(--color-particle, #F97316);
+  color: var(--color-particle);
   font-weight: 700;
   letter-spacing: 0.04em;
   margin-right: 4px;
@@ -701,8 +701,8 @@
   align-items: center;
   gap: 10px;
   padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
-  border-top: 1px solid rgba(249, 115, 22, 0.12);
-  background: var(--color-bg, #080808);
+  border-top: 1px solid rgba(229, 90, 0, 0.12);
+  background: var(--color-bg);
   flex-shrink: 0;
 }
 
@@ -731,8 +731,8 @@
 }
 
 .particle-conv-send {
-  background: var(--color-particle, #F97316);
-  color: var(--color-text-primary, #fff);
+  background: var(--color-particle);
+  color: var(--color-text-primary);
 }
 .particle-conv-send:disabled {
   opacity: 0.3;
@@ -740,9 +740,9 @@
 }
 
 .particle-conv-stop {
-  background: var(--color-surface-2, #141414);
-  border: 1px solid var(--color-border, rgba(255,255,255,0.07));
-  color: var(--color-text-secondary, #a0a0a0);
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
 }
 
 /* ══════════════════════════════════════════════════════
@@ -797,9 +797,9 @@
     -webkit-backdrop-filter: blur(8px);
   }
   .particle-chip:hover {
-    background: rgba(249, 115, 22, 0.06);
-    border-color: rgba(249, 115, 22, 0.15);
-    color: var(--color-text-primary, #fff);
+    background: rgba(229, 90, 0, 0.06);
+    border-color: rgba(229, 90, 0, 0.15);
+    color: var(--color-text-primary);
   }
   /* Conversation mode — center messages, wider bubbles */
   .particle-conversation {
@@ -844,8 +844,8 @@
 .particle-brief-card {
   width: 100%;
   max-width: 440px;
-  background: rgba(249, 115, 22, 0.06);
-  border: 1px solid rgba(249, 115, 22, 0.15);
+  background: rgba(229, 90, 0, 0.06);
+  border: 1px solid rgba(229, 90, 0, 0.15);
   border-radius: 12px;
   padding: 12px 14px;
   margin-bottom: 16px;
@@ -863,8 +863,8 @@
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--accent, #F97316);
-  background: rgba(249, 115, 22, 0.15);
+  color: var(--accent);
+  background: rgba(229, 90, 0, 0.15);
   padding: 2px 8px;
   border-radius: 4px;
 }
@@ -872,7 +872,7 @@
 .particle-brief-dismiss {
   background: none;
   border: none;
-  color: var(--text-faint, #666);
+  color: var(--text-muted);
   cursor: pointer;
   padding: 4px;
   border-radius: 4px;
@@ -881,7 +881,7 @@
   transition: color 150ms;
 }
 .particle-brief-dismiss:hover {
-  color: var(--text-primary, #eee);
+  color: var(--text-primary);
 }
 
 .particle-brief-preview {
@@ -891,13 +891,13 @@
 .particle-brief-headline {
   font-size: var(--text-base);
   line-height: 1.45;
-  color: var(--text-primary, #eee);
+  color: var(--text-primary);
   margin: 0 0 4px;
 }
 
 .particle-brief-expand {
   font-size: var(--text-sm);
-  color: var(--accent, #F97316);
+  color: var(--accent);
   opacity: 0.8;
 }
 
@@ -908,11 +908,11 @@
 .particle-brief-full .particle-md {
   font-size: var(--font-sm);
   line-height: 1.5;
-  color: var(--text-secondary, #bbb);
+  color: var(--text-secondary);
 }
 .particle-brief-full .particle-md-heading {
   font-size: var(--font-sm);
-  color: var(--accent, #F97316);
+  color: var(--accent);
   margin-top: 10px;
 }
 
@@ -920,17 +920,17 @@
   margin-top: 10px;
   width: 100%;
   padding: 8px;
-  border: 1px solid rgba(249, 115, 22, 0.25);
+  border: 1px solid rgba(229, 90, 0, 0.25);
   border-radius: 8px;
-  background: rgba(249, 115, 22, 0.08);
-  color: var(--accent, #F97316);
+  background: rgba(229, 90, 0, 0.08);
+  color: var(--accent);
   font-size: var(--font-sm);
   font-weight: 600;
   cursor: pointer;
   transition: background 150ms;
 }
 .particle-brief-ask:hover {
-  background: rgba(249, 115, 22, 0.15);
+  background: rgba(229, 90, 0, 0.15);
 }
 
 /* ── Wire Teaser (welcome screen) ────────────────────────────────────────── */
@@ -951,7 +951,7 @@
 }
 .particle-wire-teaser:hover {
   background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(249, 115, 22, 0.2);
+  border-color: rgba(229, 90, 0, 0.2);
 }
 
 .particle-wire-label {
@@ -971,7 +971,7 @@
   flex: 1;
   font-size: var(--font-sm);
   line-height: 1.4;
-  color: var(--text-secondary, #bbb);
+  color: var(--text-secondary);
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -981,7 +981,7 @@
 .particle-wire-time {
   flex-shrink: 0;
   font-size: var(--text-xs);
-  color: var(--text-faint, #666);
+  color: var(--text-muted);
   margin-top: 1px;
 }
 
@@ -1061,15 +1061,15 @@
   white-space: nowrap;
 }
 .particle-sentiment-label {
-  color: var(--text-secondary, #999);
+  color: var(--text-secondary);
   font-weight: 500;
 }
 .particle-sentiment-pct {
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
-.particle-sentiment-item.up .particle-sentiment-pct { color: #34d399; }
-.particle-sentiment-item.down .particle-sentiment-pct { color: #f87171; }
+.particle-sentiment-item.up .particle-sentiment-pct { color: var(--sent-bull); }
+.particle-sentiment-item.down .particle-sentiment-pct { color: var(--sent-bear); }
 
 /* ── 12A: Market Closed Empty State ────────────────────────────────────── */
 .particle-closed-state {
@@ -1078,7 +1078,7 @@
   gap: 8px;
   padding: 10px 16px;
   margin-top: 8px;
-  color: var(--text-secondary, #999);
+  color: var(--text-secondary);
   font-size: var(--font-sm);
   background: rgba(255,255,255,0.03);
   border-radius: 10px;
@@ -1100,7 +1100,7 @@
   left: 50%;
   transform: translateX(-50%);
   z-index: 20;
-  color: var(--text-secondary, #999);
+  color: var(--text-secondary);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1149,7 +1149,7 @@
 .particle-md h5.particle-md-heading {
   margin-top: 12px;
   margin-bottom: 4px;
-  color: var(--text-primary, #e8e8e8);
+  color: var(--text-primary);
   font-weight: 600;
   letter-spacing: 0.02em;
 }
@@ -1183,7 +1183,7 @@
 
 .particle-vault-citations-label {
   font-size: var(--text-xs);
-  color: var(--text-faint, rgba(255, 255, 255, 0.4));
+  color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.3px;
   margin-right: 2px;
@@ -1204,7 +1204,7 @@
 }
 
 .particle-vault-badge-tickers {
-  color: var(--text-secondary, rgba(255, 255, 255, 0.6));
+  color: var(--text-secondary);
   font-weight: 400;
 }
 
@@ -1253,7 +1253,7 @@
 }
 
 .particle-tool-pill-name {
-  font-family: var(--font-mono, ui-monospace, monospace);
+  font-family: var(--font-mono);
   font-weight: 500;
 }
 
@@ -1308,16 +1308,16 @@
 }
 
 .particle-web-cite-link:hover {
-  color: var(--color-particle, #F97316);
-  background: rgba(249, 115, 22, 0.06);
-  border-color: rgba(249, 115, 22, 0.15);
+  color: var(--color-particle);
+  background: rgba(229, 90, 0, 0.06);
+  border-color: rgba(229, 90, 0, 0.15);
 }
 
 .particle-web-cite-num {
   font-size: 9px;
   font-weight: 700;
-  color: var(--color-particle, #F97316);
-  font-family: var(--font-mono, monospace);
+  color: var(--color-particle);
+  font-family: var(--font-mono);
   flex-shrink: 0;
 }
 
@@ -1349,7 +1349,7 @@
   font-size: 10.5px;
   font-weight: 500;
   line-height: 1.4;
-  font-family: var(--font-body, inherit);
+  font-family: var(--font-body);
   color: rgba(255, 255, 255, 0.45);
   background: transparent;
   border: 1px solid rgba(255, 255, 255, 0.06);
@@ -1366,18 +1366,18 @@
 }
 
 .particle-msg-action:hover {
-  color: var(--color-particle, #F97316);
-  background: rgba(249, 115, 22, 0.06);
-  border-color: rgba(249, 115, 22, 0.18);
+  color: var(--color-particle);
+  background: rgba(229, 90, 0, 0.06);
+  border-color: rgba(229, 90, 0, 0.18);
 }
 
 .particle-msg-action:focus-visible {
-  outline: 1px solid rgba(249, 115, 22, 0.55);
+  outline: 1px solid rgba(229, 90, 0, 0.55);
   outline-offset: 1px;
 }
 
 .particle-msg-action:active {
-  background: rgba(249, 115, 22, 0.12);
+  background: rgba(229, 90, 0, 0.12);
 }
 
 /* ─────────────────────────────────────────────────────────────────
@@ -1405,8 +1405,8 @@
   flex-direction: column;
   width: 240px;
   flex-shrink: 0;
-  background: var(--bg-panel, #0f0f0f);
-  border-right: 1px solid var(--border-default, rgba(255,255,255,0.07));
+  background: var(--bg-panel);
+  border-right: 1px solid var(--border-default);
   overflow: hidden;
   z-index: 5;
 }
@@ -1425,12 +1425,12 @@
   height: 100%;
   background: transparent;
   border: none;
-  color: var(--text-faint, #555);
+  color: var(--text-muted);
   cursor: pointer;
   transition: color 0.15s, background 0.15s;
 }
 .particle-threads-rail:hover {
-  color: var(--text-primary, #e8e8e8);
+  color: var(--text-primary);
   background: rgba(255,255,255,0.03);
 }
 .particle-threads-rail-label {
@@ -1446,7 +1446,7 @@
   align-items: center;
   gap: 4px;
   padding: 10px 10px 10px 12px;
-  border-bottom: 1px solid var(--border-default, rgba(255,255,255,0.07));
+  border-bottom: 1px solid var(--border-default);
   flex-shrink: 0;
 }
 .particle-threads-title {
@@ -1454,7 +1454,7 @@
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--text-faint, #666);
+  color: var(--text-muted);
 }
 .particle-threads-btn {
   display: flex;
@@ -1465,12 +1465,12 @@
   border-radius: 5px;
   border: none;
   background: transparent;
-  color: var(--text-faint, #666);
+  color: var(--text-muted);
   cursor: pointer;
   transition: color 0.15s, background 0.15s;
 }
 .particle-threads-btn:hover {
-  color: var(--text-primary, #e8e8e8);
+  color: var(--text-primary);
   background: rgba(255,255,255,0.06);
 }
 
@@ -1486,7 +1486,7 @@
 .particle-threads-empty {
   padding: 16px 12px;
   font-size: 11px;
-  color: var(--text-faint, #555);
+  color: var(--text-muted);
   line-height: 1.5;
   text-align: center;
 }
@@ -1506,11 +1506,11 @@
   background: rgba(255,255,255,0.035);
 }
 .particle-thread-item.active {
-  background: rgba(249,115,22,0.09);
-  border-color: rgba(249,115,22,0.25);
+  background: rgba(229, 90, 0,0.09);
+  border-color: rgba(229, 90, 0,0.25);
 }
 .particle-thread-item.active .particle-thread-item-title {
-  color: var(--accent, #F97316);
+  color: var(--accent);
 }
 
 .particle-thread-item-row {
@@ -1524,7 +1524,7 @@
   min-width: 0;
   font-size: 12px;
   font-weight: 600;
-  color: var(--text-primary, #e8e8e8);
+  color: var(--text-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1550,17 +1550,17 @@
   border-radius: 4px;
   border: none;
   background: transparent;
-  color: var(--text-faint, #666);
+  color: var(--text-muted);
   cursor: pointer;
   transition: color 0.12s, background 0.12s;
 }
 .particle-thread-action:hover {
-  color: var(--text-primary, #e8e8e8);
+  color: var(--text-primary);
   background: rgba(255,255,255,0.08);
 }
 .particle-thread-action--danger:hover {
-  color: #f87171;
-  background: rgba(248,113,113,0.12);
+  color: var(--color-down);
+  background: var(--color-down-bg);
 }
 .particle-thread-item-meta {
   display: flex;
@@ -1568,15 +1568,15 @@
   justify-content: space-between;
   gap: 6px;
   font-size: 9px;
-  color: var(--text-faint, #555);
+  color: var(--text-muted);
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 .particle-thread-item-count {
-  color: var(--text-faint, #555);
+  color: var(--text-muted);
 }
 .particle-thread-item-time {
-  color: var(--text-faint, #444);
+  color: var(--text-muted);
 }
 
 /* Mobile: hide thread sidebar (would be in a drawer) */

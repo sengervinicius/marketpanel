@@ -40,7 +40,7 @@ const ScreenItem = memo(function ScreenItem({ screen, isApplying, wasApplied, is
     >
       <div>
         <div style={{
-          color: isCurrent ? 'var(--color-particle, #F97316)' : '#ccc',
+          color: isCurrent ? 'var(--color-particle)' : '#ccc',
           fontSize: 9,
           fontWeight: 600,
           letterSpacing: '0.4px',
@@ -51,7 +51,7 @@ const ScreenItem = memo(function ScreenItem({ screen, isApplying, wasApplied, is
           {isCurrent && <span title="Currently active layout">●</span>}
           {screen.label}
         </div>
-        <div style={{ color: '#444', fontSize: 8, marginTop: 1, letterSpacing: '0.2px' }}>{screen.description}</div>
+        <div style={{ color: 'var(--color-text-muted)', fontSize: 8.5, marginTop: 1, letterSpacing: '0.2px' }}>{screen.description}</div>
       </div>
       <button className="btn"
         onClick={(e) => { e.stopPropagation(); onApply(); }}
@@ -59,8 +59,8 @@ const ScreenItem = memo(function ScreenItem({ screen, isApplying, wasApplied, is
         style={{
           background: wasApplied ? '#1a3a1a' : 'none',
           border:  wasApplied ? '1px solid #00cc66' : '1px solid #2a2a2a',
-          color:   wasApplied ? '#00cc66' : isApplying ? 'var(--color-particle, #F97316)' : isCurrent ? 'var(--color-particle, #F97316)' : '#555',
-          fontSize: 8, padding: '2px 6px', cursor: isApplying ? 'wait' : 'pointer', letterSpacing: '0.3px',
+          color:   wasApplied ? 'var(--color-up)' : isApplying ? 'var(--color-particle)' : isCurrent ? 'var(--color-particle)' : 'var(--color-text-muted)',
+          fontSize: 8.5, padding: '2px 6px', cursor: isApplying ? 'wait' : 'pointer', letterSpacing: '0.3px',
           minWidth: 48, flexShrink: 0,
           transition: 'all 150ms ease-out',
         }}
@@ -108,7 +108,7 @@ export default function SuggestedScreens({ onApply }) {
       {error && (
         <div style={{
           padding: '6px 12px', borderBottom: '1px solid #3a1a1a',
-          color: '#ff4444', fontSize: 8, letterSpacing: '0.2px',
+          color: 'var(--color-down)', fontSize: 8.5, letterSpacing: '0.2px',
           background: '#1a0a0a',
         }}>
           {error}

@@ -12,6 +12,7 @@
  * - No visual noise
  */
 
+import { TOKEN_HEX } from '../utils/tokenHex';
 import { useEffect, useRef, useState } from 'react';
 
 const COLORS = {
@@ -19,7 +20,7 @@ const COLORS = {
   textPrimary: '#ffffff',
   textSecondary: '#666666',
   textTertiary: '#333333',
-  accent: '#F97316',
+  accent: TOKEN_HEX.accent,
 };
 
 /**

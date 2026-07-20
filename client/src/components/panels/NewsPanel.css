@@ -66,16 +66,16 @@
 }
 
 .np-brief-glyph { color: #a78bfa; }
-.np-brief-sep   { color: var(--text-faint); }
+.np-brief-sep   { color: var(--text-muted); }
 .np-brief-meta  { color: var(--text-muted); }
 .np-brief-spacer { flex: 1; }
 
 .np-brief-stale {
-  color: var(--text-faint);
+  color: var(--text-muted);
   border: 1px solid var(--border-strong);
   border-radius: 2px;
   padding: 0 3px;
-  font-size: 8px;
+  font-size: 8.5px;
   letter-spacing: 0.08em;
 }
 
@@ -183,7 +183,7 @@
 }
 
 .np-wr-wrap--new .np-wr {
-  background: rgba(249, 115, 22, 0.05);
+  background: rgba(229, 90, 0, 0.05);
 }
 
 .np-wr {
@@ -316,7 +316,7 @@
 
 .np-tksum-sent {
   font-family: var(--font-family-mono);
-  font-size: 8px;
+  font-size: 8.5px;
   font-weight: 700;
   letter-spacing: 0.08em;
   padding: 1px 4px;
@@ -325,7 +325,7 @@
 
 .np-tksum-sent--bullish { background: rgba(70, 180, 100, 0.18);  color: var(--price-up); }
 .np-tksum-sent--bearish { background: rgba(220, 80, 80, 0.18);   color: var(--price-down); }
-.np-tksum-sent--neutral { background: rgba(140, 140, 140, 0.18); color: var(--text-faint); }
+.np-tksum-sent--neutral { background: rgba(140, 140, 140, 0.18); color: var(--text-muted); }
 .np-tksum-sent--mixed   { background: rgba(255, 165, 0, 0.18);   color: #ffb85f; }
 
 .np-tksum-close {
@@ -363,7 +363,7 @@
   margin-top: 4px;
   font-family: var(--font-family-mono);
   font-size: 9px;
-  color: var(--text-faint);
+  color: var(--text-muted);
 }
 
 .np-tksum-loading,
